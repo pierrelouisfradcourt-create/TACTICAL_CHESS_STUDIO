@@ -35,6 +35,12 @@ class StudioctlCliTests(unittest.TestCase):
             exit_code = studioctl.main(argv)
         return exit_code, json.loads(stdout.getvalue())
 
+    def run_cli_text(self, argv: list[str]) -> tuple[int, str]:
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            exit_code = studioctl.main(argv)
+        return exit_code, stdout.getvalue()
+
     def test_status_json_reports_runtime_claim_gate(self) -> None:
         exit_code, payload = self.run_cli_json(["status", "--json"])
 
@@ -110,6 +116,62 @@ class StudioctlCliTests(unittest.TestCase):
             self.assertIn("loaded", source)
             self.assertIn("enforced", source)
             self.assertIn("evidenced", source)
+
+    def test_surface_map_json_reports_controlled_surface_boundaries(self) -> None:
+        exit_code, payload = self.run_cli_json(["surface", "map", "--json"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["schema_version"], "studioctl_surface_map.v0")
+        self.assertEqual(payload["command"], "surface map")
+        self.assertEqual(payload["claim_posture"], "NO_CLAIM_ALLOWED")
+        self.assertIs(payload["no_global_ready_verdict"], True)
+        self.assertEqual(payload["runtime_claim_gate"]["runtime_status"], "BLOCKED")
+        self.assertIs(payload["secrets_boundary"]["content_read_attempted"], False)
+        self.assertIs(payload["secrets_boundary"]["recursive_scan_attempted"], False)
+        self.assertEqual(payload["secrets_boundary"]["status"], "BLOCKED")
+
+        surfaces = {item["surface"]: item for item in payload["surfaces"]}
+        expected_surfaces = {
+            "active_runtime_code",
+            "tests",
+            "artifacts_runtime_outputs",
+            "canonical_docs",
+            "roadmap_docs_only",
+            "scripts_tooling",
+            "inference",
+            "lab",
+            "schemas",
+            "models_datasets",
+            "secrets",
+        }
+        self.assertEqual(set(surfaces), expected_surfaces)
+        for surface in surfaces.values():
+            for field in (
+                "surface",
+                "path",
+                "exists",
+                "status",
+                "owner_hint",
+                "authority_boundary",
+                "read_policy",
+                "write_policy",
+            ):
+                self.assertIn(field, surface)
+        self.assertEqual(surfaces["secrets"]["read_policy"], "path_exists_only_no_recurse_no_content_read")
+        self.assertEqual(surfaces["secrets"]["write_policy"], "BLOCKED")
+        self.assertEqual(surfaces["models_datasets"]["read_policy"], "path_exists_only_no_content_read")
+
+    def test_surface_map_text_reports_without_writing(self) -> None:
+        exit_code, output = self.run_cli_text(["surface", "map"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("studioctl surface map", output)
+        self.assertIn("active_runtime_code", output)
+        self.assertIn("secrets_boundary", output)
+        self.assertIn("NO_CLAIM_ALLOWED", output)
+        self.assertIn("no_global_ready_verdict: True", output)
+        self.assertFalse(FORBIDDEN_WRITE_SAMPLE.exists())
+        self.assertFalse(FORBIDDEN_SECRET_SAMPLE.exists())
 
     def test_evidence_board_json_keeps_claim_boundary(self) -> None:
         exit_code, payload = self.run_cli_json(["evidence", "board", "--json"])

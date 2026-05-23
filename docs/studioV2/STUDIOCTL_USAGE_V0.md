@@ -45,6 +45,18 @@ Render the evidence board:
 .\.venv312\Scripts\python.exe scripts/studioV2/studioctl.py evidence board --json
 ```
 
+Show the repository surface map without reading secrets or model/dataset contents:
+
+```powershell
+.\.venv312\Scripts\python.exe scripts/studioV2/studioctl.py surface map
+```
+
+Emit the same controlled surface map as JSON:
+
+```powershell
+.\.venv312\Scripts\python.exe scripts/studioV2/studioctl.py surface map --json
+```
+
 Inspect a report path. Forbidden paths are blocked before any read attempt:
 
 ```powershell
@@ -60,6 +72,8 @@ Render a task charter candidate to stdout only:
 ## What It Does Not Prove
 
 `studioctl` output is local tooling evidence only. It does not prove readiness, benchmark results, Elo, model quality, dataset validity, runtime activation, source promotion, or scientific claims. It can support bounded review by reporting structured status, but claim validation remains blocked unless separately authorized and evidenced by the required HumanGate process.
+
+The surface map is a path-boundary view only. It reports controlled surface names, path existence, status, owner hints, authority boundaries, read policy, and write policy. It does not recurse into `secrets/`, does not read model or dataset contents, does not validate runtime behavior, and does not promote any surface to canonical or active truth.
 
 ## Targeted Validation
 

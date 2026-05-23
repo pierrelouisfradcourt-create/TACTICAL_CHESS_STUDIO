@@ -159,6 +159,107 @@ TEXT_REPORT_EXTENSIONS = {".md", ".markdown", ".txt", ".yaml", ".yml"}
 DEFAULT_STATUS_BY_SURFACE = {surface: "PASSIVE" for surface in ALL_SURFACES}
 DEFAULT_STATUS_BY_SURFACE["roadmap_docs_only"] = "DOCUMENTED_ONLY"
 DEFAULT_STATUS_BY_SURFACE["secrets"] = "BLOCKED"
+SURFACE_MAP_ENTRIES = (
+    {
+        "surface": "active_runtime_code",
+        "path": "src",
+        "status": "PASSIVE",
+        "owner_hint": "runtime_engine_owners",
+        "authority_boundary": "Rust runtime truth; no mutation or validation by studioctl.",
+        "read_policy": "path_exists_only",
+        "write_policy": "BLOCKED",
+    },
+    {
+        "surface": "tests",
+        "path": "tests",
+        "status": "PASSIVE",
+        "owner_hint": "test_owners",
+        "authority_boundary": "Tests are validation assets; studioctl reports boundaries only.",
+        "read_policy": "path_exists_only",
+        "write_policy": "BLOCKED",
+    },
+    {
+        "surface": "artifacts_runtime_outputs",
+        "path": "lab/gameplay_observation/sandbox_outputs",
+        "status": "PASSIVE",
+        "owner_hint": "sandbox_artifact_owners",
+        "authority_boundary": "Generated outputs are non-canonical unless separately routed.",
+        "read_policy": "path_exists_only",
+        "write_policy": "BLOCKED",
+    },
+    {
+        "surface": "canonical_docs",
+        "path": "00_STUDIO_CONTROL",
+        "status": "DOCUMENTED_ONLY",
+        "owner_hint": "HumanGate",
+        "authority_boundary": "Canonical docs inform tasks but do not activate runtime behavior.",
+        "read_policy": "path_exists_only",
+        "write_policy": "HumanGate_required",
+    },
+    {
+        "surface": "roadmap_docs_only",
+        "path": "00_STUDIO_CONTROL/05_STATUS",
+        "status": "PASSIVE",
+        "owner_hint": "HumanGate",
+        "authority_boundary": "Status and roadmap reports are passive evidence records.",
+        "read_policy": "path_exists_only",
+        "write_policy": "HumanGate_required",
+    },
+    {
+        "surface": "scripts_tooling",
+        "path": "scripts/studioV2",
+        "status": "IMPLEMENTED",
+        "owner_hint": "tooling_owners",
+        "authority_boundary": "Tooling may inspect and render bounded outputs; it does not decide claims.",
+        "read_policy": "path_exists_only",
+        "write_policy": "HumanGate_required",
+    },
+    {
+        "surface": "inference",
+        "path": "inference",
+        "status": "PASSIVE",
+        "owner_hint": "ml_inference_owners",
+        "authority_boundary": "Python inference may propose or rerank; it does not decide alone.",
+        "read_policy": "path_exists_only",
+        "write_policy": "BLOCKED",
+    },
+    {
+        "surface": "lab",
+        "path": "lab",
+        "status": "PASSIVE",
+        "owner_hint": "lab_owners",
+        "authority_boundary": "Lab outputs are non-canonical and cannot prove readiness.",
+        "read_policy": "path_exists_only",
+        "write_policy": "BLOCKED",
+    },
+    {
+        "surface": "schemas",
+        "path": "schemas",
+        "status": "PASSIVE",
+        "owner_hint": "schema_owners",
+        "authority_boundary": "Schemas define structure only and do not create runtime authority.",
+        "read_policy": "path_exists_only",
+        "write_policy": "HumanGate_required",
+    },
+    {
+        "surface": "models_datasets",
+        "path": "models",
+        "status": "PASSIVE",
+        "owner_hint": "ml_data_owners",
+        "authority_boundary": "Models and datasets are not inspected or validated by studioctl.",
+        "read_policy": "path_exists_only_no_content_read",
+        "write_policy": "BLOCKED",
+    },
+    {
+        "surface": "secrets",
+        "path": "secrets",
+        "status": "BLOCKED",
+        "owner_hint": "secret_owners",
+        "authority_boundary": "Secrets are forbidden for studioctl inspection.",
+        "read_policy": "path_exists_only_no_recurse_no_content_read",
+        "write_policy": "BLOCKED",
+    },
+)
 
 
 def run_git(args: list[str]) -> tuple[int, str, str]:
@@ -201,6 +302,40 @@ def git_status_lines() -> list[str]:
 
 def known_report_status(path: Path) -> str:
     return "DOCUMENTED_ONLY" if path.exists() else "NOT_FOUND"
+
+
+def surface_map_entry(entry: dict[str, str]) -> dict[str, Any]:
+    path = PROJECT_ROOT / entry["path"]
+    return {
+        "surface": entry["surface"],
+        "path": entry["path"],
+        "exists": path.exists(),
+        "status": entry["status"] if path.exists() else "NOT_FOUND",
+        "owner_hint": entry["owner_hint"],
+        "authority_boundary": entry["authority_boundary"],
+        "read_policy": entry["read_policy"],
+        "write_policy": entry["write_policy"],
+    }
+
+
+def build_surface_map_payload() -> dict[str, Any]:
+    surfaces = [surface_map_entry(entry) for entry in SURFACE_MAP_ENTRIES]
+    return {
+        "schema_version": "studioctl_surface_map.v0",
+        "command": "surface map",
+        "claim_posture": CLAIM_POSTURE,
+        "no_global_ready_verdict": True,
+        "runtime_claim_gate": runtime_claim_gate(),
+        "secrets_boundary": {
+            "path": "secrets",
+            "read_policy": "path_exists_only_no_recurse_no_content_read",
+            "content_read_attempted": False,
+            "recursive_scan_attempted": False,
+            "status": "BLOCKED",
+        },
+        "surfaces": surfaces,
+        "status_by_surface": {item["surface"]: item["status"] for item in surfaces},
+    }
 
 
 def build_status_payload() -> dict[str, Any]:
@@ -885,6 +1020,30 @@ def render_sources_text(payload: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_surface_map_text(payload: dict[str, Any]) -> str:
+    lines = ["studioctl surface map"]
+    for item in payload["surfaces"]:
+        lines.append(
+            " - "
+            + item["surface"]
+            + f" | path={item['path']}"
+            + f" | exists={item['exists']}"
+            + f" | status={item['status']}"
+            + f" | owner_hint={item['owner_hint']}"
+            + f" | authority_boundary={item['authority_boundary']}"
+            + f" | read_policy={item['read_policy']}"
+            + f" | write_policy={item['write_policy']}"
+        )
+    lines.extend(
+        [
+            f"secrets_boundary: {json.dumps(payload['secrets_boundary'], sort_keys=True)}",
+            f"claim_posture: {payload['claim_posture']}",
+            f"no_global_ready_verdict: {payload['no_global_ready_verdict']}",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
 def render_evidence_board_text(payload: dict[str, Any]) -> str:
     source_summary = payload["source_state_summary"]
     route_summary = payload["route_state_summary"]
@@ -996,6 +1155,10 @@ def build_parser() -> argparse.ArgumentParser:
     scan_parser = source_subparsers.add_parser("scan", help="Read fixed source anchors and report source state.")
     scan_parser.add_argument("--json", action="store_true", help="Emit JSON output.")
 
+    surface_parser = subparsers.add_parser("surface", help="Repository surface views.")
+    surface_subparsers = surface_parser.add_subparsers(dest="surface_command", required=True)
+    map_parser = surface_subparsers.add_parser("map", help="Show read-only repo surface boundaries.")
+    map_parser.add_argument("--json", action="store_true", help="Emit JSON output.")
 
     evidence_parser = subparsers.add_parser("evidence", help="Evidence aggregation views.")
     evidence_subparsers = evidence_parser.add_subparsers(dest="evidence_command", required=True)
@@ -1039,6 +1202,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "sources" and args.source_command == "scan":
         payload = build_sources_payload()
         write_payload(payload, args.json, render_sources_text)
+        return 0
+    if args.command == "surface" and args.surface_command == "map":
+        payload = build_surface_map_payload()
+        write_payload(payload, args.json, render_surface_map_text)
         return 0
     if args.command == "evidence" and args.evidence_command == "board":
         payload = build_evidence_board_payload()
