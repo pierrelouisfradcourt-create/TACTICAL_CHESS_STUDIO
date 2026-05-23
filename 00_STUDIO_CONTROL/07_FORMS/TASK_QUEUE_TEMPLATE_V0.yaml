@@ -1,0 +1,115 @@
+schema_version: "LOCAL_LOGISTIC_AGENT_TASK_QUEUE_V0"
+queue_id: ""
+created_at_utc: ""
+created_by: "Local Logistic Agent Mistral/Devstral"
+authority: "proposal_only"
+analysis_mode: "PASSIVE"
+mutation: "BLOCKED"
+language: "English"
+
+allowed_status_values:
+  - "IMPLEMENTED"
+  - "TESTED"
+  - "DOCUMENTED_ONLY"
+  - "PASSIVE"
+  - "BLOCKED"
+  - "NOT_FOUND"
+  - "UNKNOWN"
+
+allowed_task_classes:
+  - "logistics_only"
+  - "docs_workflow"
+  - "audit_repo"
+  - "patch_runtime"
+  - "report_analysis"
+
+source_state:
+  created: "DOCUMENTED_ONLY"
+  registered: "UNKNOWN"
+  loaded: "UNKNOWN"
+  enforced: "UNKNOWN"
+  evidenced: "UNKNOWN"
+  rule: "created != registered != loaded != enforced != evidenced"
+
+tasks:
+  - task_id: ""
+    title: ""
+    task_class: "docs_workflow"
+    primary_surface: "canonical_docs"
+    secondary_surfaces: []
+    authority: "proposal_only"
+    source_state:
+      created: "UNKNOWN"
+      registered: "UNKNOWN"
+      loaded: "UNKNOWN"
+      enforced: "UNKNOWN"
+      evidenced: "UNKNOWN"
+    scope_in:
+      - ""
+    scope_out:
+      - "runtime code changes"
+      - "test changes"
+      - "training"
+      - "benchmark"
+      - "dataset generation or reset"
+      - "model or checkpoint creation"
+      - "model promotion"
+      - "agent activation"
+      - "Chess960 activation"
+      - "DecisionController activation"
+      - "commit"
+      - "push"
+      - "branch"
+      - "pull request"
+    target_files:
+      - ""
+    reference_only_paths:
+      - ""
+    output_routing_required: true
+    output_route:
+      produced_file_type: ""
+      intended_surface: "canonical_docs"
+      canonical_destination: ""
+      temporary_destination: ""
+      forbidden_destinations: []
+      registration_required: false
+      project_source_upload_required: false
+      retention_policy: "canonical candidate pending HumanGate/source registration"
+      promotion_gate: "HumanGate"
+    validation_required:
+      expected_level: "DOCUMENTED_ONLY"
+      commands:
+        - "git diff --check"
+      readback_required: true
+    blocked_actions:
+      runtime_code_changes: "BLOCKED"
+      test_changes: "BLOCKED"
+      runtime_execution: "BLOCKED"
+      training: "BLOCKED"
+      benchmark: "BLOCKED"
+      dataset_generation: "BLOCKED"
+      dataset_reset: "BLOCKED"
+      latest_json_creation: "BLOCKED"
+      lab_run_creation: "BLOCKED"
+      model_or_checkpoint_creation: "BLOCKED"
+      model_promotion: "BLOCKED"
+      agent_activation: "BLOCKED"
+      chess960_activation: "BLOCKED"
+      decision_controller_activation: "BLOCKED"
+      commit: "BLOCKED"
+      push: "BLOCKED"
+      branch_creation: "BLOCKED"
+      pull_request_creation: "BLOCKED"
+    expected_output:
+      executor_report_required: true
+      files_changed_required: true
+      commands_run_required: true
+      skipped_validation_required: true
+      risks_required: true
+      status_by_surface_required: true
+      software_verdict_required: true
+      evidence_verdict_required: true
+      claim_verdict_required: true
+      no_global_ready_verdict: true
+    expected_status: "DOCUMENTED_ONLY"
+    humangate_required: true

@@ -1,0 +1,250 @@
+schema_version: "LOCAL_LOGISTIC_AGENT_NEXT_STEP_PROPOSAL_V0"
+proposal_id: ""
+generated_by: "Local Logistic Agent Mistral/Devstral"
+source_task_id: ""
+recommended_task_id: ""
+task_class: ""
+allowed_task_classes:
+  - "logistics_only"
+  - "docs_workflow"
+  - "audit_repo"
+  - "patch_runtime"
+  - "report_analysis"
+primary_surface: "canonical_docs"
+expected_status: "DOCUMENTED_ONLY"
+reason: ""
+source_state:
+  created: "UNKNOWN"
+  registered: "UNKNOWN"
+  loaded: "UNKNOWN"
+  enforced: "UNKNOWN"
+  evidenced: "UNKNOWN"
+  rule: "created != registered != loaded != enforced != evidenced"
+
+authority_boundary:
+  local_logistic_agent:
+    authority: "proposal_only"
+    analysis_mode: "PASSIVE"
+    mutation: "BLOCKED"
+    runtime_authority: "NONE"
+    may_execute: false
+    may_mutate_repository: false
+    may_activate_runtime: false
+    may_validate_claims: false
+  humangate:
+    authority: "decision_authority"
+    required: true
+    decides:
+      - "approve_next_task"
+      - "reject_next_task"
+      - "freeze_next_task"
+      - "merge"
+      - "promotion"
+      - "runtime_activation"
+      - "claim_status"
+  search:
+    authority: "final_authority"
+    decision_scope:
+      - "move_legality"
+      - "runtime_search_result"
+      - "engine_decision"
+  codex:
+    authority: "bounded_executor_only_when_explicitly_authorized"
+
+required_sources:
+  - source_id: "AGENTS.md"
+    required_state:
+      created: "UNKNOWN"
+      registered: "UNKNOWN"
+      loaded: "UNKNOWN"
+      enforced: "UNKNOWN"
+      evidenced: "UNKNOWN"
+    rule: "created != registered != loaded != enforced != evidenced"
+  - source_id: "00_STUDIO_CONTROL/07_FORMS/LOCAL_LOGISTIC_AGENT_SPEC_V0.md"
+    required_state:
+      created: "UNKNOWN"
+      registered: "UNKNOWN"
+      loaded: "UNKNOWN"
+      enforced: "UNKNOWN"
+      evidenced: "UNKNOWN"
+    rule: "created != registered != loaded != enforced != evidenced"
+  - source_id: "00_STUDIO_CONTROL/07_FORMS/TASK_MATRIX_TEMPLATE_V0.yaml"
+    required_state:
+      created: "UNKNOWN"
+      registered: "UNKNOWN"
+      loaded: "UNKNOWN"
+      enforced: "UNKNOWN"
+      evidenced: "UNKNOWN"
+    rule: "created != registered != loaded != enforced != evidenced"
+  - source_id: "00_STUDIO_CONTROL/07_FORMS/REPORT_PARSER_RULES_V0.md"
+    required_state:
+      created: "UNKNOWN"
+      registered: "UNKNOWN"
+      loaded: "UNKNOWN"
+      enforced: "UNKNOWN"
+      evidenced: "UNKNOWN"
+    rule: "created != registered != loaded != enforced != evidenced"
+
+blocked_until:
+  status: "BLOCKED"
+  reason: "HumanGate has not approved execution, mutation, activation, promotion, or claim status."
+  required_decision: "HumanGate"
+
+required_humangate_decision:
+  required: true
+  status: "UNKNOWN"
+  decision: ""
+  decided_by: ""
+  decided_at_utc: ""
+
+codex_required:
+  required: "UNKNOWN"
+  reason: ""
+  scope_boundary: "bounded_docs_or_targeted_execution_only_after_explicit_authorization"
+
+mutation_required:
+  repository_mutation: "BLOCKED"
+  runtime_mutation: "BLOCKED"
+  test_mutation: "BLOCKED"
+  dataset_mutation: "BLOCKED"
+  model_checkpoint_mutation: "BLOCKED"
+  allowed_only_after_humangate: true
+
+validation_required:
+  git_diff_check: "UNKNOWN"
+  readback: "UNKNOWN"
+  targeted_tests: "BLOCKED"
+  runtime_execution: "BLOCKED"
+  benchmark: "BLOCKED"
+  training: "BLOCKED"
+  holdout: "BLOCKED"
+  validation_notes: ""
+
+estimated_cost_guard:
+  status: "UNKNOWN"
+  expected_cost_class: ""
+  max_runtime_minutes: ""
+  network_required: "UNKNOWN"
+  gpu_required: "UNKNOWN"
+  block_if_cost_unknown: true
+
+route_check_required:
+  required: true
+  status: "UNKNOWN"
+  intended_surface: ""
+  canonical_destination: ""
+  forbidden_destination_hits:
+    - "UNKNOWN"
+  duplicate_name_risk: "UNKNOWN"
+  registration_required: "UNKNOWN"
+  project_source_upload_required: "UNKNOWN"
+
+route_check:
+  status: "UNKNOWN"
+  output_routing_required: "UNKNOWN"
+  output_routing_present: "UNKNOWN"
+  destination_allowed: "UNKNOWN"
+  evidence: ""
+
+output_routing_result:
+  produced_file_type: ""
+  intended_surface: ""
+  canonical_destination: ""
+  temporary_destination: ""
+  actual_destination: ""
+  registration_required: "UNKNOWN"
+  project_source_upload_required: "UNKNOWN"
+  promotion_gate: "HumanGate"
+
+blocked_actions:
+  - "execute_runtime_code"
+  - "mutate_active_runtime_code"
+  - "mutate_tests"
+  - "train"
+  - "benchmark"
+  - "use_holdout"
+  - "reset_dataset"
+  - "generate_dataset_labels_without_ActionId_LegalAction_ActionMask_provenance_HumanGate"
+  - "create_lab_runs_RUN_star"
+  - "create_latest_json"
+  - "create_model_or_checkpoint"
+  - "promote_model"
+  - "activate_agent"
+  - "activate_Chess960"
+  - "activate_DecisionController"
+  - "commit"
+  - "push"
+  - "create_branch"
+  - "open_pull_request"
+  - "declare_global_ready"
+  - "claim_Elo_strength_promotion_benchmark_proof_scientific_proof_or_model_proof"
+
+risks:
+  - risk: "Executor report may be incomplete or ambiguous."
+    surface: "canonical_docs"
+    status: "UNKNOWN"
+    mitigation: "Preserve uncertainty as UNKNOWN and require HumanGate review."
+  - risk: "Proposal could be mistaken for authorization."
+    surface: "inference"
+    status: "BLOCKED"
+    mitigation: "Keep authority PASSIVE / proposal_only and require HumanGate decision before execution."
+  - risk: "Runtime activation could be implied by a recommendation."
+    surface: "active_runtime_code"
+    status: "BLOCKED"
+    mitigation: "Runtime activation remains explicitly blocked unless HumanGate authorizes it."
+
+rollback_needed:
+  required: "UNKNOWN"
+  reason: ""
+  allowed_actor: "HumanGate_authorized_executor"
+
+claim_risk:
+  status: "BLOCKED"
+  claim_posture: "NO_CLAIM_ALLOWED"
+  claim_overreach_detected: "UNKNOWN"
+  blocked_claims:
+    - "global_ready_status"
+    - "Elo"
+    - "strength"
+    - "promotion"
+    - "benchmark_proof"
+    - "scientific_proof"
+    - "model_proof"
+    - "runtime_activation"
+    - "dataset_quality_proof"
+
+status_by_surface:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "PASSIVE"
+
+software_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "PASSIVE"
+
+evidence_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "PASSIVE"
+
+claim_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "PASSIVE"
+
+claim_posture: "NO_CLAIM_ALLOWED"
+
+no_global_ready_verdict: true

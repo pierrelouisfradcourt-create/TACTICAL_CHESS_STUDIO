@@ -46,6 +46,15 @@ Useful for navigation or boundary understanding, but not active truth by themsel
 | reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_CHARTER_TEMPLATE_V0.yaml | external form template |
 | reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/EXECUTOR_REPORT_TEMPLATE_V0.yaml | external form template |
 | reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/ANALYSIS_AGENT_RECORD_TEMPLATE_V0.yaml | external form template |
+| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/LOCAL_LOGISTIC_AGENT_SPEC_V0.md | external Local Logistic Agent spec; docs/form support only, no runtime or activation authority |
+| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_QUEUE_TEMPLATE_V0.yaml | external Local Logistic Agent task queue form; docs/form support only |
+| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_MATRIX_TEMPLATE_V0.yaml | external Local Logistic Agent task matrix form; docs/form support only |
+| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/PROMPT_GENERATOR_RULES_V0.md | external prompt generation rules; docs/form support only, no execution authority |
+| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/REPORT_PARSER_RULES_V0.md | external report parser rules; passive evidence parsing only |
+| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/LOCAL_RAG_SOURCE_PACK_V0.md | external Local RAG source pack; retrieval guidance only |
+| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/EXECUTOR_REPORT_SUMMARY_TEMPLATE_V0.yaml | external executor report summary form; passive evidence summary only |
+| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/NEXT_STEP_PROPOSAL_TEMPLATE_V0.yaml | external next-step proposal form; HumanGate required |
+| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_PRIORITY_MATRIX_V0.yaml | external task priority matrix form; passive planning only |
 | reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/STUDIO_AGENTIC_PYRAMID_ARCHITECTURE_V0.md | external Studio-wide agentic architecture map; docs-only, no runtime authority |
 | reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/STUDIO_AGENTIC_PYRAMID_ACTIVATION_ROADMAP_V0.md | external activation roadmap; docs-only, no activation authority |
 

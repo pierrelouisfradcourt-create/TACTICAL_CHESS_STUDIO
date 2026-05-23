@@ -8,6 +8,16 @@
 - Upload docs/gpt-navigator/GPT_NAVIGATOR_CODEX_PROMPT_GATE_V0.md before asking GPT Navigator to generate Codex prompts.
 - Upload reference sources only when the current task needs their extra context.
 - Upload Studio control sources only when the current task depends on Studio Control topology, routing, cleanup status, or form contracts.
+- Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/LOCAL_LOGISTIC_AGENT_SPEC_V0.md only when a task needs Local Logistic Agent authority boundaries or pipeline roles.
+- Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_QUEUE_TEMPLATE_V0.yaml only when a task needs Local Logistic Agent queue schema context.
+- Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_MATRIX_TEMPLATE_V0.yaml only when a task needs Local Logistic Agent task-matrix schema context.
+- Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/PROMPT_GENERATOR_RULES_V0.md only when a task needs prompt-generation gate context.
+- Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/REPORT_PARSER_RULES_V0.md only when a task needs executor-report parser context.
+- Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/LOCAL_RAG_SOURCE_PACK_V0.md only when a task needs Local RAG retrieval or source-pack context.
+- Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/EXECUTOR_REPORT_SUMMARY_TEMPLATE_V0.yaml only when a task needs executor-report summary schema context.
+- Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/NEXT_STEP_PROPOSAL_TEMPLATE_V0.yaml only when a task needs next-step proposal schema context.
+- Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_PRIORITY_MATRIX_V0.yaml only when a task needs task-priority matrix schema context.
+- Treat Local Logistic Agent pipeline forms as reference sources only; upload does not authorize mutation, execution, activation, promotion, training, benchmark, dataset generation, model promotion, or claim validation.
 - Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/STUDIO_ROUTING_PLAN_CORRECTION_V0.md only when a task needs Studio routing correction context.
 - Do not treat STUDIO_ROUTING_PLAN_CORRECTION_V0.md as active truth merely because it was uploaded; report its source state as created, registered, loaded, enforced, and evidenced.
 - Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/04_BOUNDARIES/STUDIO_LIVING_SYSTEMS_AND_POWER_GUARDRAILS_V0.md when a task depends on living-systems, legal-safety, player-dignity, World Protector exclusion, or power-governance guardrails.
