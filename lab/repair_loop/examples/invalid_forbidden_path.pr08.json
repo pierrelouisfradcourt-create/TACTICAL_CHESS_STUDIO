@@ -1,0 +1,39 @@
+{
+  "schema_version": "pr08.limited_repair_loop.v1",
+  "repair_loop_kind": "policy_bound_limited_repair",
+  "trigger": {
+    "source": "local_mechanical_failure",
+    "failed_command": "python scripts/check_claim_data_gates.py --path lab/claim_data_gates/examples --example-mode",
+    "failure_summary": "A bounded failure attempted to edit a protected measurement surface."
+  },
+  "scope": {
+    "max_attempts": 1,
+    "allowed_paths": [
+      "scripts"
+    ],
+    "modified_files": [
+      "scripts/check_claim_data_gates.py"
+    ],
+    "validation_commands": [
+      "python scripts/check_claim_data_gates.py --path lab/claim_data_gates/examples --example-mode"
+    ],
+    "forbidden_paths_acknowledged": true
+  },
+  "authority": {
+    "codex_may_edit": true,
+    "codex_may_merge": false,
+    "codex_may_promote": false,
+    "codex_may_modify_policy": false,
+    "codex_may_modify_measurement_surfaces": false,
+    "human_review_required": true
+  },
+  "claim_control": {
+    "claim_verdict": "NO_CLAIM_ALLOWED",
+    "forbidden_claim_phrases_acknowledged": true
+  },
+  "expected_verdict": {
+    "software_verdict": "BLOCKED",
+    "evidence_verdict": "INVALID",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  }
+}

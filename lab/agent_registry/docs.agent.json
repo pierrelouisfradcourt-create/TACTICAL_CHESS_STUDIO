@@ -1,0 +1,33 @@
+{
+  "agent_id": "docs",
+  "display_name": "Docs Agent",
+  "role": "Control-plane documentation maintenance",
+  "autonomy_level": "L1",
+  "permissions": {
+    "can_write_files": true,
+    "can_assign_tasks": false,
+    "can_run_checks": false,
+    "can_merge": false,
+    "can_claim": false,
+    "can_use_benchmark_as_proof": false
+  },
+  "allowed_surfaces": [
+    "MASTER_DOCS",
+    "schemas"
+  ],
+  "forbidden_surfaces": [
+    "runtime",
+    "tests",
+    "ci",
+    "lab/agent_registry",
+    "own-policy-file",
+    "merge",
+    "claims",
+    "benchmark-proof"
+  ],
+  "policy_constraints": {
+    "cannot_modify_agent_registry": true,
+    "cannot_modify_own_policy": true,
+    "human_review_required": true
+  }
+}

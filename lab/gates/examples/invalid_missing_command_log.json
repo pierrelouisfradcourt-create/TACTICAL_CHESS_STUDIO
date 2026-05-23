@@ -1,0 +1,34 @@
+{
+  "case_type": "command_record_without_exit_code",
+  "example_only": true,
+  "not_evidence": true,
+  "case": {
+    "command": {
+      "command_id": "cmd-001",
+      "name": "gate-only smoke",
+      "cmd": [
+        "python",
+        "--version"
+      ],
+      "started_at": "2026-05-03T12:00:00Z",
+      "ended_at": "2026-05-03T12:00:01Z",
+      "duration_sec": 1.0,
+      "stdout_path": "artifacts/stdout.txt",
+      "stderr_path": "artifacts/stderr.txt",
+      "stdout_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "stderr_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "working_directory": ".",
+      "environment_snapshot_ref": "environment.json",
+      "allowed_failure": false
+    }
+  },
+  "expected_verdict": {
+    "software_verdict": "BLOCKED",
+    "evidence_verdict": "INVALID",
+    "claim_verdict": "NO_CLAIM_ALLOWED",
+    "gate_verdict": "EVIDENCE_INCOMPLETE",
+    "blocking_issues": [
+      "EVIDENCE_INCOMPLETE"
+    ]
+  }
+}

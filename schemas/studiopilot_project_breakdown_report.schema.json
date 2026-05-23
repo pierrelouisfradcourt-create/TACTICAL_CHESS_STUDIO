@@ -1,0 +1,412 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/studiopilot_project_breakdown_report.schema.json",
+  "title": "StudioPilot Project Breakdown Report V0",
+  "description": "Planning-only structured decomposition report for control-plane roadmap work. This schema does not authorize execution, API calls, worker activation, auto PR creation, ready state, merge, runtime mutation, training, benchmark automation, or claim escalation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "report_id",
+    "source_objective",
+    "objective_summary",
+    "non_goals",
+    "assumptions",
+    "scope_model",
+    "epics",
+    "patch_groups",
+    "pr_candidates",
+    "dependency_graph",
+    "required_director_reviews",
+    "risk_level",
+    "recommended_first_action",
+    "stop_conditions",
+    "human_gate_required",
+    "auto_pr_creation_allowed",
+    "auto_ready_allowed",
+    "auto_merge_allowed",
+    "claim_verdict",
+    "status"
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "string_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "BLOCKED"
+      ]
+    },
+    "director_review": {
+      "type": "string",
+      "enum": [
+        "RESOURCE_DIRECTOR",
+        "ARCHITECTURE_DIRECTOR",
+        "PRODUCT_GAME_DIRECTOR",
+        "QUALITY_DIRECTOR",
+        "MEMORY_EVIDENCE_DIRECTOR"
+      ]
+    },
+    "claim_verdict": {
+      "type": "string",
+      "enum": [
+        "NO_CLAIM_ALLOWED",
+        "HEALTH_ONLY",
+        "EVIDENCE_ONLY"
+      ]
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": "studiopilot.project_breakdown_report.v0"
+    },
+    "report_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "source_objective": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "objective_summary": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "non_goals": {
+      "$ref": "#/$defs/string_array"
+    },
+    "assumptions": {
+      "$ref": "#/$defs/string_array"
+    },
+    "scope_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parent_scope",
+        "included_scope",
+        "excluded_scope",
+        "coverage_rule"
+      ],
+      "properties": {
+        "parent_scope": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "included_scope": {
+          "$ref": "#/$defs/string_array"
+        },
+        "excluded_scope": {
+          "$ref": "#/$defs/string_array"
+        },
+        "coverage_rule": {
+          "type": "string",
+          "enum": [
+            "WBS_100_PERCENT_RULE"
+          ]
+        }
+      }
+    },
+    "epics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "epic_id",
+          "title",
+          "objective",
+          "included_scope",
+          "excluded_scope",
+          "exit_criteria",
+          "risk_level"
+        ],
+        "properties": {
+          "epic_id": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "title": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "objective": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "included_scope": {
+            "$ref": "#/$defs/string_array"
+          },
+          "excluded_scope": {
+            "$ref": "#/$defs/string_array"
+          },
+          "exit_criteria": {
+            "$ref": "#/$defs/string_array"
+          },
+          "risk_level": {
+            "$ref": "#/$defs/risk_level"
+          }
+        }
+      }
+    },
+    "patch_groups": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "patch_group_id",
+          "parent_epic_id",
+          "title",
+          "objective",
+          "allowed_paths",
+          "forbidden_paths",
+          "dependencies",
+          "expected_outputs",
+          "validation_expectations",
+          "risk_level",
+          "human_approval_required"
+        ],
+        "properties": {
+          "patch_group_id": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "parent_epic_id": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "title": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "objective": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "allowed_paths": {
+            "$ref": "#/$defs/string_array"
+          },
+          "forbidden_paths": {
+            "$ref": "#/$defs/string_array"
+          },
+          "dependencies": {
+            "$ref": "#/$defs/string_array"
+          },
+          "expected_outputs": {
+            "$ref": "#/$defs/string_array"
+          },
+          "validation_expectations": {
+            "$ref": "#/$defs/string_array"
+          },
+          "risk_level": {
+            "$ref": "#/$defs/risk_level"
+          },
+          "human_approval_required": {
+            "const": true
+          }
+        }
+      }
+    },
+    "pr_candidates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pr_candidate_id",
+          "parent_patch_group_id",
+          "title",
+          "pr_type",
+          "objective",
+          "allowed_paths",
+          "forbidden_paths",
+          "expected_outputs",
+          "validation_commands",
+          "required_director_reviews",
+          "risk_level",
+          "claim_scope",
+          "human_gate_required",
+          "auto_ready_allowed",
+          "auto_merge_allowed"
+        ],
+        "properties": {
+          "pr_candidate_id": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "parent_patch_group_id": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "title": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "pr_type": {
+            "type": "string",
+            "enum": [
+              "DOCS_ONLY",
+              "CONTROL_PLANE",
+              "SCHEMA_FIXTURE",
+              "TOOLING",
+              "RUNTIME",
+              "ML",
+              "WORKFLOW",
+              "BENCHMARK_BLOCKED",
+              "MIXED"
+            ]
+          },
+          "objective": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "allowed_paths": {
+            "$ref": "#/$defs/string_array"
+          },
+          "forbidden_paths": {
+            "$ref": "#/$defs/string_array"
+          },
+          "expected_outputs": {
+            "$ref": "#/$defs/string_array"
+          },
+          "validation_commands": {
+            "$ref": "#/$defs/string_array"
+          },
+          "required_director_reviews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/director_review"
+            }
+          },
+          "risk_level": {
+            "$ref": "#/$defs/risk_level"
+          },
+          "claim_scope": {
+            "$ref": "#/$defs/claim_verdict"
+          },
+          "human_gate_required": {
+            "const": true
+          },
+          "auto_ready_allowed": {
+            "const": false
+          },
+          "auto_merge_allowed": {
+            "const": false
+          }
+        }
+      }
+    },
+    "dependency_graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nodes",
+        "edges"
+      ],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "uniqueItems": true
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "from",
+              "to"
+            ],
+            "properties": {
+              "from": {
+                "$ref": "#/$defs/non_empty_string"
+              },
+              "to": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "required_director_reviews": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/director_review"
+      }
+    },
+    "risk_level": {
+      "$ref": "#/$defs/risk_level"
+    },
+    "recommended_first_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pr_candidate_id",
+        "reason",
+        "expected_decision"
+      ],
+      "properties": {
+        "pr_candidate_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "reason": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "expected_decision": {
+          "type": "string",
+          "enum": [
+            "GO",
+            "HOLD",
+            "BLOCKED",
+            "BLOCKED_INFRA"
+          ]
+        }
+      }
+    },
+    "stop_conditions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "scope_gap",
+          "duplicate_scope",
+          "forbidden_path_touched",
+          "missing_director_review",
+          "claim_escalation",
+          "auto_pr_attempted",
+          "runtime_without_architecture_review",
+          "benchmark_automation_attempted"
+        ]
+      }
+    },
+    "human_gate_required": {
+      "const": true
+    },
+    "auto_pr_creation_allowed": {
+      "const": false
+    },
+    "auto_ready_allowed": {
+      "const": false
+    },
+    "auto_merge_allowed": {
+      "const": false
+    },
+    "claim_verdict": {
+      "$ref": "#/$defs/claim_verdict"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "READY_FOR_HUMAN_REVIEW",
+        "APPROVED_FOR_PLANNING",
+        "HOLD",
+        "BLOCKED",
+        "SUPERSEDED"
+      ]
+    }
+  }
+}

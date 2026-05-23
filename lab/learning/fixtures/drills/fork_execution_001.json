@@ -1,0 +1,65 @@
+{
+  "schema_version": "learning_drill_fixture.v1",
+  "fixture_id": "drill.fork_execution.001",
+  "concept_id": "fork",
+  "objective_id": "fork.available.select_fork_action",
+  "status": "static_fixture",
+  "source_issue": "#143",
+  "initial_state_ref": {
+    "state_id": "fork.available.start.001",
+    "fen": "4k3/8/8/6N1/8/8/4q3/4K3 w - - 0 1",
+    "scenario_key": "fork_available"
+  },
+  "legal_action_context": {
+    "actor": "white",
+    "legal_action_ids": [
+      "e1d1",
+      "g5f7",
+      "g5e4",
+      "g5h7"
+    ],
+    "fork_action_ids": [
+      "g5f7"
+    ],
+    "selected_action_id": "g5e4"
+  },
+  "target_context": {
+    "fork_action_id": "g5f7",
+    "target_pair": [
+      "black_king:e8",
+      "black_queen:e2"
+    ]
+  },
+  "expected_observable_events": [
+    {
+      "event_id": "event.fork_execution_001.fork_available",
+      "event_type": "fork_available",
+      "ply_or_step": 0,
+      "actor": "white",
+      "action_id": null,
+      "concept_id": "fork",
+      "skill_id": "fork_candidate_detection",
+      "success_tag": "fork_available_detected",
+      "failure_tag": null,
+      "evidence_weight": 0.5,
+      "notes": "Fixture marks one fork candidate action."
+    },
+    {
+      "event_id": "event.fork_execution_001.selected_action_not_fork",
+      "event_type": "fork_available_selected_other_action",
+      "ply_or_step": 1,
+      "actor": "white",
+      "action_id": "g5e4",
+      "concept_id": "fork",
+      "skill_id": "fork_execution",
+      "success_tag": null,
+      "failure_tag": "missed_fork",
+      "evidence_weight": 1.0,
+      "notes": "Fork was available, but selected_action_id did not match fork_action_ids."
+    }
+  ],
+  "expected_failure_tag": "missed_fork",
+  "expected_feedback_key": "feedback_missed_fork",
+  "non_canonical": true,
+  "claim_verdict": "NO_CLAIM_ALLOWED"
+}

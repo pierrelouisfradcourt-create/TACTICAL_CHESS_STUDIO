@@ -1,0 +1,35 @@
+{
+  "auto_mutation_allowed": false,
+  "auto_rule_promotion_allowed": false,
+  "auto_training_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "corrective_action_taken": "Draft PR remained unmerged while remote checks continued.",
+  "created_by": "CODEX_REPORT_INTAKE",
+  "event_outcome": "HOLD",
+  "evidence_refs": [
+    "gh:pr checks pending",
+    "gh:pr view statusCheckRollup"
+  ],
+  "evidence_verdict": "REMOTE_CHECK_STATE_ONLY",
+  "failure_taxonomy": "CHECKS_PENDING",
+  "human_gate_required": true,
+  "impact": "HumanGate could not consider ready or merge while required checks were incomplete.",
+  "learning_event_id": "LE-227-feedface0002",
+  "observed_symptom": "One or more required checks stayed pending after draft PR creation.",
+  "preventive_rule_candidate": {
+    "applies_to": "draft PR final reporting",
+    "auto_apply_allowed": false,
+    "proposal": "Final reports should classify pending required checks as HOLD_TIMEOUT, not success.",
+    "requires_human_approval": true,
+    "rule_id": "LE-RULE-pr-checks-pending-hold"
+  },
+  "root_cause": "remote checks had not completed within the local observation window",
+  "schema_version": "studiopilot.learning_event.v0",
+  "software_verdict": "CONTROL_PLANE_HOLD",
+  "source_event_type": "PR_BLOCKED",
+  "source_head_sha": "feedface0002cafebabefeed1234567890abcdef",
+  "source_merge_sha": "",
+  "source_pr_number": 227,
+  "status": "DRAFT",
+  "trigger_summary": "Draft PR waited on remote checks before HumanGate decision."
+}

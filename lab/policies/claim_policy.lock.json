@@ -1,0 +1,48 @@
+{
+  "policy_id": "claim_policy.lock",
+  "version": "PR-00A",
+  "status": "locked",
+  "purpose": "Restrict claim scope and claim language for TacticalChessPureLab research workflows.",
+  "claim_scopes": [
+    "NO_CLAIM_ALLOWED",
+    "HEALTH_ONLY",
+    "TARGETED_BEHAVIOR_ONLY",
+    "EXPLORATORY_ONLY",
+    "PROMOTION_REVIEW_CANDIDATE",
+    "STRENGTH_CLAIM_CANDIDATE"
+  ],
+  "required_mappings": {
+    "smoke_benchmark": "HEALTH_ONLY",
+    "conversion_suite": "TARGETED_BEHAVIOR_ONLY",
+    "small_n": "EXPLORATORY_ONLY",
+    "missing_dataset_lineage": "NO_CLAIM_ALLOWED",
+    "missing_baseline": "EXPLORATORY_ONLY",
+    "missing_uncertainty_for_promotion": "NO_CLAIM_ALLOWED"
+  },
+  "restricted_or_forbidden_language_unless_policy_compatible": [
+    "stronger",
+    "more powerful",
+    "Elo improved",
+    "promotion eligible",
+    "ready for promotion",
+    "AAA validated",
+    "scientifically proven",
+    "search improved",
+    "neural improved",
+    "global improvement",
+    "better engine"
+  ],
+  "pr_00a": {
+    "software_verdict": "NOT_RUN",
+    "evidence_verdict": "BOOTSTRAP_ONLY",
+    "claim_verdict": "NO_CLAIM_ALLOWED",
+    "scientific_claim_allowed": false
+  },
+  "rules": {
+    "software_pass_does_not_imply_scientific_evidence": true,
+    "report_does_not_imply_proof": true,
+    "merge_decision_is_not_claim_decision": true,
+    "gpt_cannot_authorize_claims": true,
+    "codex_cannot_authorize_claims": true
+  }
+}

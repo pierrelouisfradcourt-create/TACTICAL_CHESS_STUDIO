@@ -1,0 +1,58 @@
+PATCH 2 - CHESS PURE ENGINE ANALYSIS
+
+What patch 2 does:
+- Keeps TacticalChessPureLab isolated from TacticalChessV1.
+- Replaces the tactical prototype loop with a chess-first loop.
+- Creates a standard 8x8 initial chess setup.
+- Adds real chess piece identity to Unit.
+- Replaces 1-step movement with piece-based legal move generation.
+- Adds:
+  - sliding rook/bishop/queen movement
+  - knight jumps
+  - pawn single/double push
+  - pawn captures
+  - en passant
+  - castling
+  - auto-queen promotion
+  - king safety filtering
+  - check / checkmate / stalemate end detection
+- Replaces the old random-ish selection in SimulationRunner with a stronger search agent.
+
+AI choice installed in patch 2:
+- Alpha-beta / negamax search with material + center + mobility evaluation.
+- This is the strongest practical "install now" choice inside the current Rust base without introducing a neural net training stack.
+- Why not full AlphaZero immediately:
+  1. you do not yet have a stable pure chess state/action interface finalized,
+  2. you do not yet have policy/value training data pipelines,
+  3. your current studio still needs a trustworthy move-legal engine first.
+
+Best architecture after patch 2:
+1. Rust = physical truth (board, move legality, terminal states, self-play)
+2. Python = orchestration, analytics, later evolutionary search
+3. Later patch = MCTS/PUCT wrapper on top of this legal chess engine
+4. Later patch = tactical extensions (HP/ATK/ARM/etc.) while preserving chess movement logic
+
+Important limitation of patch 2:
+- It aims to create a strong base, not a grandmaster engine.
+- The search is much stronger than random / rule-based selection, but still far below Stockfish.
+- The correct next milestone after patch 2 is not "more mechanics". It is:
+  - perft-style legality tests
+  - FEN import/export
+  - move notation
+  - transposition table
+  - iterative deepening
+  - quiescence search
+  - opening book / self-play corpus generation
+
+Recommended patch 3 direction:
+- Add explicit Move struct instead of reusing Action::Move only
+- Add move history
+- Add zobrist hashing
+- Add transposition table
+- Add quiescence search
+- Add CLI commands:
+  simulate N
+  selfplay N
+  bench D
+  fen "..."
+  perft D

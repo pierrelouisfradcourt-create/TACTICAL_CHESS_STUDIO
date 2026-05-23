@@ -1,0 +1,57 @@
+{
+  "schema_version": "pr13b.gameplay_observation_packet.v1",
+  "packet_type": "GAMEPLAY_OBSERVATION",
+  "status": "non_canonical_observation",
+  "theme": "search_behavior_non_converting_positions",
+  "learning_value": "This observation can show whether the project can collect move-selection traces for a tiny non-canonical surface without creating evidence or claims.",
+  "discard_if": "Discard the observation if any command writes outside the declared sandbox, reads protected data, or omits the required observation fields.",
+  "next_decision_enabled": "This can inform whether a future PR should build an actual non-canonical runner for the same surface.",
+  "observation_surface": {
+    "surface_id": "PR13B_NON_CONVERTING_EXAMPLE_SURFACE_ONLY",
+    "surface_path": "lab/gameplay_observation/non_converting_positions/example_surface.pr13b.json",
+    "surface_kind": "non_canonical_position_set",
+    "canonical_evidence": false,
+    "promotion_eligible": false,
+    "contains_holdout": false
+  },
+  "commands": [
+    {
+      "command_id": "compile_gameplay_observation_validator",
+      "command": "python -m py_compile scripts/check_gameplay_observation_packet.py",
+      "purpose": "Check validator syntax only.",
+      "required": true,
+      "writes_allowed": false,
+      "writes_path_kind": "none",
+      "may_access_holdout": false,
+      "may_reset_dataset": false,
+      "may_update_latest_json": false,
+      "may_create_run_bundle": false,
+      "may_make_claim": false
+    }
+  ],
+  "output_policy": {
+    "canonical_evidence": false,
+    "output_location_kind": "non_canonical_sandbox",
+    "sandbox_output_path": "lab/gameplay_observation/sandbox_outputs/example_only",
+    "may_write_lab_runs": false,
+    "may_update_latest_json": false,
+    "report_required": true
+  },
+  "authority_boundaries": {
+    "codex_may_promote": false,
+    "codex_may_authorize_claim": false,
+    "gpt55_may_authorize_claim": false,
+    "ci_may_authorize_claim": false,
+    "human_review_required": true
+  },
+  "claim_control": {
+    "default_claim_verdict": "NO_CLAIM_ALLOWED",
+    "claim_verdict": "NO_CLAIM_ALLOWED",
+    "human_claim_decision_id": null
+  },
+  "expected_verdict": {
+    "software_verdict": "PASS",
+    "evidence_verdict": "INCOMPLETE",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  }
+}

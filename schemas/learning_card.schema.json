@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/learning_card.schema.json",
+  "title": "LearningCard",
+  "description": "Minimal reusable lesson record derived from PR outcomes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_pr",
+    "pattern_type",
+    "summary",
+    "root_cause",
+    "reusable_lesson",
+    "recommended_rule_update",
+    "confidence",
+    "human_review_required"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_pr": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "pattern_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "root_cause": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reusable_lesson": {
+      "type": "string",
+      "minLength": 1
+    },
+    "recommended_rule_update": {
+      "type": "string",
+      "minLength": 1
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH"
+      ]
+    },
+    "human_review_required": {
+      "type": "boolean"
+    }
+  }
+}

@@ -1,0 +1,180 @@
+{
+  "campaign_plan": {
+    "schema_version": "studiopilot.campaign_plan.v0",
+    "campaign_id": "campaign.campaign_local_loop_v0",
+    "title": "Campaign local loop V0",
+    "objective": "Prepare a local dry-run loop from CampaignPlan and PRQueue to a bounded task handoff draft.",
+    "campaign_type": "CONTROL_PLANE",
+    "scope": {
+      "allowed_paths": [
+        "docs/control-plane/",
+        "scripts/control_plane/"
+      ],
+      "forbidden_paths": [
+        ".github/workflows/",
+        "src/",
+        "engine/",
+        "search/",
+        "neural/",
+        "ml/",
+        "lab/datasets/",
+        "lab/runs/",
+        "benchmarks/"
+      ]
+    },
+    "forbidden_changes": [
+      "runtime",
+      "ml_training",
+      "benchmark",
+      "auto_merge",
+      "claim_escalation",
+      "github_actions",
+      "secrets",
+      "datasets",
+      "lab_runs",
+      "active_agents"
+    ],
+    "patch_groups": [
+      {
+        "patch_group_id": "pg.campaign_local_loop",
+        "title": "Campaign local loop tooling",
+        "objective": "Add local-first tooling for selecting the next campaign PR candidate and summarizing the human decision.",
+        "pr_candidates": [
+          {
+            "pr_candidate_id": "prc.campaign_local_loop_tooling",
+            "title": "Add campaign local loop tooling",
+            "intent": "Read CampaignPlan and PRQueue inputs, render the next TaskPacket-like draft, and summarize a GO/HOLD/BLOCKED decision.",
+            "allowed_paths": [
+              "scripts/control_plane/build_next_taskpacket_from_pr_queue.py",
+              "scripts/control_plane/summarize_campaign_decision.py",
+              "scripts/control_plane/smoke_campaign_local_loop.py",
+              "docs/control-plane/fixtures/campaign_loop/",
+              "docs/control-plane/CAMPAIGN_LOCAL_LOOP_V0.md"
+            ],
+            "forbidden_paths": [
+              ".github/workflows/",
+              "src/",
+              "engine/",
+              "search/",
+              "neural/",
+              "ml/",
+              "benchmarks/"
+            ],
+            "expected_outputs": [
+              "TaskPacket-like dry-run handoff JSON",
+              "GO/HOLD/BLOCKED campaign decision summary",
+              "Deterministic local campaign loop smoke"
+            ],
+            "validation_commands": [
+              ".\\.venv312\\Scripts\\python.exe scripts\\control_plane\\smoke_campaign_local_loop.py --pretty",
+              ".\\.venv312\\Scripts\\python.exe scripts\\control_plane\\validate_patchpack_plan.py --pretty",
+              ".\\.venv312\\Scripts\\python.exe scripts\\operator\\validate_json_artifacts.py"
+            ],
+            "claim_scope": "NO_CLAIM_ALLOWED",
+            "human_gate_required": true
+          }
+        ],
+        "dependencies": [],
+        "risk_level": "LOW",
+        "human_approval_required": true
+      }
+    ],
+    "local_validation_required": true,
+    "ci_policy": {
+      "remote_profile": "CONTROL_PLANE",
+      "github_actions_required": true,
+      "benchmark_policy": "NEVER_AUTOMATIC"
+    },
+    "budget_gate": {
+      "codex_task_budget": "SMALL",
+      "max_codex_tasks": 1,
+      "max_changed_files_per_pr": 9,
+      "max_retries_per_task": 0,
+      "no_retry_loop": true,
+      "stop_on_first_blocker": true
+    },
+    "risk_level": "LOW",
+    "status": "APPROVED_FOR_PLANNING",
+    "human_gate_required": true,
+    "stop_conditions": [
+      "failed_checks",
+      "scope_violation",
+      "claim_escalation",
+      "forbidden_path_touched",
+      "benchmark_attempted",
+      "runtime_touched_without_scope",
+      "ml_training_attempted"
+    ],
+    "verdicts": {
+      "software_verdict": "CONTROL_PLANE_CAMPAIGN_LOCAL_LOOP_ONLY",
+      "evidence_verdict": "LOCAL_FIRST_DRY_RUN_ONLY",
+      "claim_verdict": "NO_CLAIM_ALLOWED"
+    }
+  },
+  "pr_queue": {
+    "schema_version": "studiopilot.pr_queue.v0",
+    "queue_id": "queue.campaign_local_loop_v0",
+    "campaign_id": "campaign.campaign_local_loop_v0",
+    "source_campaign_plan_ref": "docs/control-plane/fixtures/campaign_loop/valid_campaign_loop_input_v0.json",
+    "pr_candidates": [
+      {
+        "pr_candidate_id": "prc.campaign_local_loop_tooling",
+        "title": "Add campaign local loop tooling",
+        "pr_type": "CONTROL_PLANE",
+        "status": "READY_FOR_HANDOFF",
+        "dependencies": [],
+        "allowed_paths": [
+          "scripts/control_plane/build_next_taskpacket_from_pr_queue.py",
+          "scripts/control_plane/summarize_campaign_decision.py",
+          "scripts/control_plane/smoke_campaign_local_loop.py",
+          "docs/control-plane/fixtures/campaign_loop/",
+          "docs/control-plane/CAMPAIGN_LOCAL_LOOP_V0.md"
+        ],
+        "forbidden_paths": [
+          ".github/workflows/",
+          "src/",
+          "engine/",
+          "search/",
+          "neural/",
+          "ml/",
+          "benchmarks/"
+        ],
+        "validation_commands": [
+          ".\\.venv312\\Scripts\\python.exe scripts\\control_plane\\smoke_campaign_local_loop.py --pretty",
+          ".\\.venv312\\Scripts\\python.exe scripts\\control_plane\\validate_patchpack_plan.py --pretty",
+          ".\\.venv312\\Scripts\\python.exe scripts\\operator\\validate_json_artifacts.py"
+        ],
+        "expected_outputs": [
+          "TaskPacket-like dry-run handoff JSON",
+          "GO/HOLD/BLOCKED campaign decision summary",
+          "Deterministic local campaign loop smoke"
+        ],
+        "ci_profile": "CONTROL_PLANE",
+        "handoff_codex_ready": true,
+        "blocked_reason": null,
+        "claim_scope": "NO_CLAIM_ALLOWED",
+        "human_gate_required": true,
+        "merge_allowed": false
+      }
+    ],
+    "queue_status": "GO",
+    "current_index": 0,
+    "ci_policy": {
+      "local_first_required": true,
+      "remote_gate_required": true,
+      "benchmark_automatic_allowed": false
+    },
+    "merge_policy": {
+      "auto_merge_allowed": false,
+      "ready_requires_human": true,
+      "merge_requires_human": true,
+      "match_head_commit_required": true
+    },
+    "learning_policy": {
+      "learning_event_required": true,
+      "auto_mutation_allowed": false
+    },
+    "human_gate_required": true,
+    "verdict": "GO"
+  }
+}

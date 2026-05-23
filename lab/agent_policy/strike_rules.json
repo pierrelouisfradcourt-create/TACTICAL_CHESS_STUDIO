@@ -1,0 +1,37 @@
+{
+  "$schema": "../../schemas/strike_rules.schema.json",
+  "policy_version": "2026-05-08",
+  "strike_types": [
+    {
+      "code": "MINOR",
+      "severity": 1,
+      "description": "Minor policy/process deviation with no forbidden write.",
+      "freeze_immediately": false,
+      "freeze_required": false
+    },
+    {
+      "code": "MAJOR",
+      "severity": 2,
+      "description": "Major policy violation, including attempted restricted actions.",
+      "freeze_immediately": false,
+      "freeze_required": true
+    },
+    {
+      "code": "IMMEDIATE_FREEZE",
+      "severity": 3,
+      "description": "Critical violation requiring immediate freeze without accumulation.",
+      "freeze_immediately": true,
+      "freeze_required": true
+    }
+  ],
+  "freeze_policy": {
+    "freeze_on_immediate_strike": true,
+    "freeze_on_major_strike": true,
+    "thaw_authority": "HUMAN_ONLY"
+  },
+  "auto_reset": false,
+  "strike_reset": "HUMAN_ONLY",
+  "reset_requires_human_decision_record": true,
+  "reset_requires_reason": true,
+  "critical_violation_cannot_be_downgraded_automatically": true
+}

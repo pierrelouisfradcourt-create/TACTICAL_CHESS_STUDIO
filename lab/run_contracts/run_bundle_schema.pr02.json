@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "run_bundle_schema.pr02.json",
+  "title": "PR-02 Immutable Run Bundle Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "run_id_format",
+    "created_at",
+    "run_type",
+    "run_intent_id",
+    "source_commit",
+    "branch",
+    "dirty_state",
+    "protocol_lock_path",
+    "evidence_path",
+    "environment_path",
+    "git_context_path",
+    "commands_dir",
+    "artifacts_dir",
+    "artifact_hashes_path",
+    "machine_verdict_path",
+    "human_decision_path",
+    "claim_decision_path",
+    "bundle_status"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "pattern": "^RUN_"
+    },
+    "run_id_format": {
+      "type": "string",
+      "const": "RUN_*"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "run_type": {
+      "type": "string"
+    },
+    "run_intent_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_commit": {
+      "type": "string",
+      "minLength": 1
+    },
+    "branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dirty_state": {
+      "type": "string",
+      "enum": [
+        "CLEAN",
+        "DIRTY",
+        "UNKNOWN"
+      ]
+    },
+    "protocol_lock_path": {
+      "type": "string"
+    },
+    "evidence_path": {
+      "type": "string",
+      "not": {
+        "pattern": "(^|[\\\\/])latest\\.json([\\\\/]|$)"
+      }
+    },
+    "environment_path": {
+      "type": "string"
+    },
+    "git_context_path": {
+      "type": "string"
+    },
+    "commands_dir": {
+      "type": "string"
+    },
+    "artifacts_dir": {
+      "type": "string"
+    },
+    "artifact_hashes_path": {
+      "type": "string"
+    },
+    "machine_verdict_path": {
+      "type": "string"
+    },
+    "human_decision_path": {
+      "type": "string"
+    },
+    "claim_decision_path": {
+      "type": "string"
+    },
+    "bundle_status": {
+      "type": "string",
+      "enum": [
+        "INTENT_ONLY",
+        "STARTED",
+        "COMPLETED",
+        "FAILED",
+        "ABORTED",
+        "DISCARDED",
+        "INVALID"
+      ]
+    },
+    "latest_json_rule": {
+      "type": "string",
+      "const": "latest.json is forbidden as evidence"
+    }
+  }
+}

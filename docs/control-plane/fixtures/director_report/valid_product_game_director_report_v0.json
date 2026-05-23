@@ -1,0 +1,65 @@
+{
+  "schema_version": "studiopilot.director_report.v0",
+  "report_id": "director_product_game_v0_001",
+  "director_type": "PRODUCT_GAME_DIRECTOR",
+  "source_objective": "Deliver Director Report V0 control-plane patchpack while preserving product/gameplay relevance",
+  "source_project_breakdown_ref": "pbr_v0_scalable_ai_org_001",
+  "reviewed_scope": {
+    "allowed_paths": [
+      "schemas/studiopilot_director_report.schema.json",
+      "scripts/control_plane/validate_director_reports.py",
+      "scripts/control_plane/smoke_director_report.py",
+      "docs/control-plane/fixtures/director_report/",
+      "docs/control-plane/DIRECTOR_LAYER_V0.md",
+      "docs/control-plane/DIRECTOR_REPORT_V0.md",
+      "docs/control-plane/DIRECTOR_REVIEW_POLICY_V0.md"
+    ],
+    "forbidden_paths": [
+      ".github/workflows/",
+      "src/",
+      "ml/"
+    ],
+    "scope_summary": "Product/game review ensures control-plane reporting supports player value and avoids roadmap drift."
+  },
+  "reviewed_pr_candidates": [
+    {
+      "pr_candidate_id": "pr.control_plane_value_trace",
+      "title": "Control-plane to gameplay value trace",
+      "pr_type": "DOCS_ONLY",
+      "risk_level": "LOW",
+      "director_decision": "GO",
+      "reasons": [
+        "Documentation keeps player-value motivation explicit",
+        "No gameplay runtime mutation"
+      ]
+    }
+  ],
+  "risk_level": "MEDIUM",
+  "director_verdict": "GO",
+  "required_conditions": [
+    "Product framing must map control-plane work to player value",
+    "Gameplay relevance checks must prevent process drift",
+    "Return-to-Rocky audit recommendation remains available when product signal weakens"
+  ],
+  "blocked_reasons": [],
+  "escalation_required": false,
+  "escalation_targets": [],
+  "touched_surfaces": {
+    "workflows": false,
+    "runtime": false,
+    "search": false,
+    "neural": false,
+    "ml_training": false,
+    "benchmark": false,
+    "schemas": true,
+    "docs": true,
+    "control_plane_tooling": true
+  },
+  "forbidden_surface_touched": false,
+  "human_gate_required": true,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "evidence_verdict": "Product/game review is directional and does not assert gameplay performance claims.",
+  "status": "READY_FOR_HUMAN_REVIEW"
+}

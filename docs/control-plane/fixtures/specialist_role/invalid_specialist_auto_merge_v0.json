@@ -1,0 +1,57 @@
+{
+  "schema_version": "studiopilot.specialist_role_charter.v0",
+  "specialist_id": "invalid.specialist.auto_merge.v0",
+  "specialist_type": "QA_REVIEW_SPECIALIST",
+  "display_name": "Invalid Specialist Auto Merge",
+  "director_owner": "QUALITY_DIRECTOR",
+  "mission": "Invalid fixture proving auto merge must stay disabled.",
+  "inputs": [
+    "Fixture input"
+  ],
+  "outputs": [
+    "Fixture output"
+  ],
+  "allowed_actions": [
+    "identify_risks"
+  ],
+  "forbidden_actions": [
+    "auto_merge",
+    "auto_ready",
+    "claim_escalation",
+    "benchmark_as_proof",
+    "training_without_scope",
+    "runtime_change_without_scope"
+  ],
+  "authority_level": "REVIEW_ONLY",
+  "escalation_path": [
+    "QUALITY_DIRECTOR"
+  ],
+  "freeze_conditions": [
+    "scope_unclear"
+  ],
+  "required_evidence": [
+    "Invalid fixture evidence"
+  ],
+  "permitted_surfaces": {
+    "workflows": false,
+    "runtime": false,
+    "search": false,
+    "neural": false,
+    "ml_training": false,
+    "benchmark": false,
+    "schemas": true,
+    "docs": true,
+    "control_plane_tooling": true
+  },
+  "forbidden_surfaces": [
+    ".github/workflows/"
+  ],
+  "human_gate_required": true,
+  "active_agent_allowed": false,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": true,
+  "auto_training_allowed": false,
+  "auto_rule_mutation_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "status": "DRAFT"
+}

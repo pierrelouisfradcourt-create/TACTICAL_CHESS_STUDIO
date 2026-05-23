@@ -1,0 +1,70 @@
+{
+  "policy_id": "reasoning_policy.lock",
+  "version": "PR-00A",
+  "status": "locked",
+  "purpose": "Limit GPT and Codex authority regardless of reasoning effort.",
+  "required_statements": [
+    "More reasoning does not increase permissions.",
+    "More reasoning does not increase claim scope.",
+    "More reasoning does not transform weak evidence into a scientific claim."
+  ],
+  "global_rules": {
+    "reasoning_effort_does_not_increase_authority": true,
+    "reasoning_effort_does_not_increase_permissions": true,
+    "reasoning_effort_does_not_increase_claim_scope": true,
+    "weak_evidence_cannot_be_upgraded_by_reasoning": true
+  },
+  "gpt55_profiles": {
+    "task_router": {
+      "default": "medium",
+      "max": "high"
+    },
+    "protocol_critic_non_binding": {
+      "default": "medium",
+      "max": "high"
+    },
+    "anomaly_auditor": {
+      "default": "high",
+      "max": "high"
+    },
+    "claim_language_scanner": {
+      "allowed": [
+        "medium"
+      ]
+    },
+    "daily_summary": {
+      "default": "low",
+      "max": "medium"
+    },
+    "xhigh": {
+      "default_enabled": false
+    }
+  },
+  "codex_profiles": {
+    "docs/templates": {
+      "max": "medium"
+    },
+    "trust_root/policy": {
+      "max": "high",
+      "human_review_required": true,
+      "scientific_claim_allowed": false
+    },
+    "gates/parser": {
+      "default": "high",
+      "xhigh": "only with verified human override"
+    },
+    "engine/search/neural": {
+      "default": "high",
+      "xhigh": "only with verified human override"
+    },
+    "claim/promotion": {
+      "codex": "forbidden",
+      "authority": "human only"
+    }
+  },
+  "roles": {
+    "gpt55": "anomaly critique only",
+    "codex": "constrained execution only",
+    "human_decision": "verified and policy-compatible"
+  }
+}

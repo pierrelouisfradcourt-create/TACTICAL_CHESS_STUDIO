@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/studiopilot_pr_queue.schema.json",
+  "title": "StudioPilot PRQueue V0",
+  "description": "Strict local-first PR sequencing schema. A PRQueue orders PR candidates for human handoff; it is not an executor.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "queue_id",
+    "campaign_id",
+    "source_campaign_plan_ref",
+    "pr_candidates",
+    "queue_status",
+    "current_index",
+    "ci_policy",
+    "merge_policy",
+    "learning_policy",
+    "human_gate_required",
+    "verdict"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": [
+        "studiopilot.pr_queue.v0"
+      ]
+    },
+    "queue_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "campaign_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_campaign_plan_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pr_candidates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/pr_candidate"
+      }
+    },
+    "queue_status": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "GO",
+        "HOLD",
+        "BLOCKED",
+        "BLOCKED_INFRA",
+        "COMPLETED",
+        "CANCELLED"
+      ]
+    },
+    "current_index": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ci_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_first_required",
+        "remote_gate_required",
+        "benchmark_automatic_allowed"
+      ],
+      "properties": {
+        "local_first_required": {
+          "type": "boolean"
+        },
+        "remote_gate_required": {
+          "type": "boolean"
+        },
+        "benchmark_automatic_allowed": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "merge_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "auto_merge_allowed",
+        "ready_requires_human",
+        "merge_requires_human",
+        "match_head_commit_required"
+      ],
+      "properties": {
+        "auto_merge_allowed": {
+          "type": "boolean",
+          "const": false
+        },
+        "ready_requires_human": {
+          "type": "boolean",
+          "const": true
+        },
+        "merge_requires_human": {
+          "type": "boolean",
+          "const": true
+        },
+        "match_head_commit_required": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "learning_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "learning_event_required",
+        "auto_mutation_allowed"
+      ],
+      "properties": {
+        "learning_event_required": {
+          "type": "boolean"
+        },
+        "auto_mutation_allowed": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "human_gate_required": {
+      "type": "boolean",
+      "const": true
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "GO",
+        "HOLD",
+        "BLOCKED",
+        "BLOCKED_INFRA"
+      ]
+    }
+  },
+  "$defs": {
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "string_array": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "claim_scope": {
+      "type": "string",
+      "enum": [
+        "NO_CLAIM_ALLOWED",
+        "HEALTH_ONLY",
+        "EVIDENCE_ONLY"
+      ]
+    },
+    "pr_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pr_candidate_id",
+        "title",
+        "pr_type",
+        "status",
+        "dependencies",
+        "allowed_paths",
+        "forbidden_paths",
+        "validation_commands",
+        "expected_outputs",
+        "ci_profile",
+        "handoff_codex_ready",
+        "blocked_reason",
+        "claim_scope",
+        "human_gate_required",
+        "merge_allowed"
+      ],
+      "properties": {
+        "pr_candidate_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pr_type": {
+          "type": "string",
+          "enum": [
+            "DOCS_ONLY",
+            "CONTROL_PLANE",
+            "SCHEMA_FIXTURE",
+            "TOOLING",
+            "RUNTIME",
+            "ML",
+            "WORKFLOW",
+            "BENCHMARK_BLOCKED"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "QUEUED",
+            "READY_FOR_HANDOFF",
+            "IN_PROGRESS",
+            "WAITING_FOR_CHECKS",
+            "BLOCKED",
+            "BLOCKED_INFRA",
+            "SAFE_TO_READY",
+            "MERGED",
+            "CLOSED",
+            "CANCELLED"
+          ]
+        },
+        "dependencies": {
+          "$ref": "#/$defs/string_array"
+        },
+        "allowed_paths": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "forbidden_paths": {
+          "$ref": "#/$defs/string_array"
+        },
+        "validation_commands": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "expected_outputs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "ci_profile": {
+          "type": "string",
+          "enum": [
+            "DOCS_ONLY",
+            "CONTROL_PLANE",
+            "RUNTIME",
+            "ML",
+            "WORKFLOW",
+            "BENCHMARK_BLOCKED",
+            "MIXED"
+          ]
+        },
+        "handoff_codex_ready": {
+          "type": "boolean"
+        },
+        "blocked_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "claim_scope": {
+          "$ref": "#/$defs/claim_scope"
+        },
+        "human_gate_required": {
+          "type": "boolean",
+          "const": true
+        },
+        "merge_allowed": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "schema_version": "studiopilot.project_breakdown_report.v0",
+  "report_id": "pbr_invalid_missing_human_gate_001",
+  "source_objective": "Integrate scalable AI organization into the control-plane roadmap",
+  "objective_summary": "Invalid fixture missing mandatory HumanGate.",
+  "non_goals": [
+    "No runtime changes"
+  ],
+  "assumptions": [
+    "Human review expected"
+  ],
+  "scope_model": {
+    "parent_scope": "Minimal invalid scope",
+    "included_scope": [
+      "Control-plane docs"
+    ],
+    "excluded_scope": [
+      "Runtime"
+    ],
+    "coverage_rule": "WBS_100_PERCENT_RULE"
+  },
+  "epics": [
+    {
+      "epic_id": "epic.invalid_missing_hg",
+      "title": "Invalid epic",
+      "objective": "Missing top-level gate.",
+      "included_scope": [
+        "Docs"
+      ],
+      "excluded_scope": [
+        "Runtime"
+      ],
+      "exit_criteria": [
+        "Should fail schema"
+      ],
+      "risk_level": "LOW"
+    }
+  ],
+  "patch_groups": [
+    {
+      "patch_group_id": "pg.invalid_missing_hg",
+      "parent_epic_id": "epic.invalid_missing_hg",
+      "title": "Invalid patch group",
+      "objective": "Keep structure otherwise valid.",
+      "allowed_paths": [
+        "docs/control-plane/PROJECT_BREAKDOWN_REPORT_V0.md"
+      ],
+      "forbidden_paths": [
+        ".github/workflows/"
+      ],
+      "dependencies": [],
+      "expected_outputs": [
+        "None"
+      ],
+      "validation_expectations": [
+        "Schema should reject"
+      ],
+      "risk_level": "LOW",
+      "human_approval_required": true
+    }
+  ],
+  "pr_candidates": [
+    {
+      "pr_candidate_id": "pr.invalid_missing_hg",
+      "parent_patch_group_id": "pg.invalid_missing_hg",
+      "title": "Invalid candidate",
+      "pr_type": "DOCS_ONLY",
+      "objective": "Provide required structure except missing top-level human gate field.",
+      "allowed_paths": [
+        "docs/control-plane/PROJECT_BREAKDOWN_REPORT_V0.md"
+      ],
+      "forbidden_paths": [
+        ".github/workflows/"
+      ],
+      "expected_outputs": [
+        "None"
+      ],
+      "validation_commands": [
+        ".\\.venv312\\Scripts\\python.exe scripts\\operator\\validate_json_artifacts.py"
+      ],
+      "required_director_reviews": [
+        "QUALITY_DIRECTOR"
+      ],
+      "risk_level": "LOW",
+      "claim_scope": "NO_CLAIM_ALLOWED",
+      "human_gate_required": true,
+      "auto_ready_allowed": false,
+      "auto_merge_allowed": false
+    }
+  ],
+  "dependency_graph": {
+    "nodes": [
+      "pg.invalid_missing_hg",
+      "pr.invalid_missing_hg"
+    ],
+    "edges": [
+      {
+        "from": "pg.invalid_missing_hg",
+        "to": "pr.invalid_missing_hg"
+      }
+    ]
+  },
+  "required_director_reviews": [
+    "QUALITY_DIRECTOR"
+  ],
+  "risk_level": "LOW",
+  "recommended_first_action": {
+    "pr_candidate_id": "pr.invalid_missing_hg",
+    "reason": "Fixture intentionally invalid.",
+    "expected_decision": "HOLD"
+  },
+  "stop_conditions": [
+    "scope_gap",
+    "duplicate_scope",
+    "forbidden_path_touched",
+    "missing_director_review",
+    "claim_escalation",
+    "auto_pr_attempted",
+    "runtime_without_architecture_review",
+    "benchmark_automation_attempted"
+  ],
+  "auto_pr_creation_allowed": false,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "status": "HOLD"
+}

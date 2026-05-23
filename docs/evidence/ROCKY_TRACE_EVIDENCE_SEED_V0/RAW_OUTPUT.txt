@@ -1,0 +1,684 @@
+warn: could not canonicalize path C:\Users\wazou
+   Compiling tactical_chess_pure_lab v0.1.0 (C:\Users\wazou\Desktop\TACTICAL_CHESS_STUDIO\TacticalChessPureLab)
+warning: unused import: `std::collections::HashSet`
+ --> src\chess\chess960.rs:1:5
+  |
+1 | use std::collections::HashSet;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `choose_best_action_for_mode`
+   --> src\chess\search.rs:321:54
+    |
+321 | pub use crate::chess::decision::{choose_best_action, choose_best_action_for_mode};
+    |                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> src\chess\root_decision.rs:250:9
+    |
+250 |     let mut ranked_candidates =
+    |         ----^^^^^^^^^^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `chosen_search_score` is never read
+   --> src\chess\root_decision.rs:259:35
+    |
+259 |     let mut chosen_search_score = 0;
+    |                                   ^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `chosen_worst_case` is never read
+   --> src\chess\root_decision.rs:260:33
+    |
+260 |     let mut chosen_worst_case = 0;
+    |                                 ^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `chosen_transition_score` is never read
+   --> src\chess\root_decision.rs:261:39
+    |
+261 |     let mut chosen_transition_score = 0;
+    |                                       ^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `inside_gate_threshold` is never read
+   --> src\chess\root_decision.rs:265:37
+    |
+265 |     let mut inside_gate_threshold = i32::MIN / 2;
+    |                                     ^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `prev_score` is never read
+   --> src\chess\search.rs:501:17
+    |
+501 |                 prev_score = mate_search_score;
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `repetition_streak` is never read
+    --> src\simulation\simulation_runner.rs:1011:37
+     |
+1011 |         let mut repetition_streak = 0u32;
+     |                                     ^^^^
+     |
+     = help: maybe it is overwritten before being read?
+
+warning: field `purity_violations` is never read
+   --> src\agents\neural_agent.rs:138:9
+    |
+123 | pub struct NeuralRuntimeStats {
+    |            ------------------ field in this struct
+...
+138 |     pub purity_violations: u64,
+    |         ^^^^^^^^^^^^^^^^^
+    |
+    = note: `NeuralRuntimeStats` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `name` is never used
+    --> src\agents\neural_agent.rs:1302:12
+     |
+ 312 | impl NeuralAgent {
+     | ---------------- associated function in this implementation
+...
+1302 |     pub fn name() -> &'static str {
+     |            ^^^^
+
+warning: constant `DARK_FILES` is never used
+ --> src\chess\chess960.rs:3:7
+  |
+3 | const DARK_FILES: [usize; 4] = [0, 2, 4, 6];
+  |       ^^^^^^^^^^
+
+warning: constant `LIGHT_FILES` is never used
+ --> src\chess\chess960.rs:4:7
+  |
+4 | const LIGHT_FILES: [usize; 4] = [1, 3, 5, 7];
+  |       ^^^^^^^^^^^
+
+warning: function `generate_start_position` is never used
+ --> src\chess\chess960.rs:6:8
+  |
+6 | pub fn generate_start_position(id: u16) -> Option<[u8; 8]> {
+  |        ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `mirror_black_backrank_if_needed` is never used
+  --> src\chess\chess960.rs:61:8
+   |
+61 | pub fn mirror_black_backrank_if_needed(white_back_rank: &[u8; 8], mirror: bool) -> [u8; 8] {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `bishops_on_opposite_colors` is never used
+  --> src\chess\chess960.rs:69:8
+   |
+69 | pub fn bishops_on_opposite_colors(back_rank: &[u8; 8]) -> bool {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `king_between_rooks` is never used
+  --> src\chess\chess960.rs:83:8
+   |
+83 | pub fn king_between_rooks(back_rank: &[u8; 8]) -> bool {
+   |        ^^^^^^^^^^^^^^^^^^
+
+warning: function `validate_backrank` is never used
+  --> src\chess\chess960.rs:99:8
+   |
+99 | pub fn validate_backrank(back_rank: &[u8; 8]) -> bool {
+   |        ^^^^^^^^^^^^^^^^^
+
+warning: enum `ChessVariant` is never used
+ --> src\chess\chess_variant.rs:2:10
+  |
+2 | pub enum ChessVariant {
+  |          ^^^^^^^^^^^^
+
+warning: method `as_u16` is never used
+ --> src\chess\chess_variant.rs:8:18
+  |
+7 | impl ChessVariant {
+  | ----------------- method in this implementation
+8 |     pub const fn as_u16(self) -> Option<u16> {
+  |                  ^^^^^^
+
+warning: struct `PassiveDecisionControllerAdapter` is never constructed
+ --> src\chess\decision_controller_adapter.rs:6:12
+  |
+6 | pub struct PassiveDecisionControllerAdapter;
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+ --> src\chess\decision_controller_adapter.rs:9:12
+  |
+8 | impl PassiveDecisionControllerAdapter {
+  | ------------------------------------- associated function in this implementation
+9 |     pub fn new() -> Self {
+  |            ^^^
+
+warning: function `fallback_choice` is never used
+  --> src\chess\decision_controller_adapter.rs:36:4
+   |
+36 | fn fallback_choice(reason: &str) -> DecisionChoice {
+   |    ^^^^^^^^^^^^^^^
+
+warning: function `serialize_action_ids` is never used
+ --> src\chess\decision_trace.rs:4:4
+  |
+4 | fn serialize_action_ids<S>(action_ids: &[ActionId], serializer: S) -> Result<S::Ok, S::Error>
+  |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `deserialize_action_ids` is never used
+  --> src\chess\decision_trace.rs:12:4
+   |
+12 | fn deserialize_action_ids<'de, D>(deserializer: D) -> Result<Vec<ActionId>, D::Error>
+   |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `serialize_optional_action_id` is never used
+  --> src\chess\decision_trace.rs:23:4
+   |
+23 | fn serialize_optional_action_id<S>(
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `deserialize_optional_action_id` is never used
+  --> src\chess\decision_trace.rs:36:4
+   |
+36 | fn deserialize_optional_action_id<'de, D>(deserializer: D) -> Result<Option<ActionId>, D::Error>
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `DecisionTrace` is never constructed
+  --> src\chess\decision_trace.rs:45:12
+   |
+45 | pub struct DecisionTrace {
+   |            ^^^^^^^^^^^^^
+
+warning: function `decision_trace_to_pretty_json` is never used
+  --> src\chess\decision_trace.rs:66:8
+   |
+66 | pub fn decision_trace_to_pretty_json(trace: &DecisionTrace) -> Result<String, serde_json::Error> {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `DecisionTraceValidationError` is never used
+  --> src\chess\decision_trace.rs:71:10
+   |
+71 | pub enum DecisionTraceValidationError {
+   |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `validate_state_key`, `validate_legal_actions_present`, `validate_action_membership`, and `validate_consistency` are never used
+   --> src\chess\decision_trace.rs:78:12
+    |
+ 77 | impl DecisionTrace {
+    | ------------------ methods in this implementation
+ 78 |     pub fn validate_state_key(&self) -> Result<(), DecisionTraceValidationError> {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+ 86 |     pub fn validate_legal_actions_present(&self) -> Result<(), DecisionTraceValidationError> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+ 94 |     pub fn validate_action_membership(&self) -> Result<(), DecisionTraceValidationError> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+106 |     pub fn validate_consistency(&self) -> Result<(), DecisionTraceValidationError> {
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `build_decision_trace_from_legal_actions` is never used
+ --> src\chess\decision_trace_bridge.rs:4:8
+  |
+4 | pub fn build_decision_trace_from_legal_actions(
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `legal_action_from_action` is never used
+ --> src\chess\legal_action_adapter.rs:7:8
+  |
+7 | pub fn legal_action_from_action(engine: &Engine, action: &Action) -> LegalAction {
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `action_id_from_action` is never used
+  --> src\chess\legal_action_adapter.rs:12:8
+   |
+12 | pub fn action_id_from_action(engine: &Engine, action: &Action) -> ActionId {
+   |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `legal_actions_from_engine` is never used
+  --> src\chess\legal_action_adapter.rs:16:8
+   |
+16 | pub fn legal_actions_from_engine(engine: &Engine, player: PlayerId) -> Vec<LegalAction> {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `legal_action_ids_from_engine` is never used
+  --> src\chess\legal_action_adapter.rs:24:8
+   |
+24 | pub fn legal_action_ids_from_engine(engine: &Engine, player: PlayerId) -> Vec<ActionId> {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `sort_ranked_moves` is never used
+   --> src\chess\root_decision.rs:604:4
+    |
+604 | fn sort_ranked_moves(candidates: &mut [RankedMove], engine: &Engine) {
+    |    ^^^^^^^^^^^^^^^^^
+
+warning: function `search_best_action` is never used
+   --> src\chess\search.rs:337:8
+    |
+337 | pub fn search_best_action(engine: &Engine, player: PlayerId) -> Option<Action> {
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: struct `PassiveSearchBackendAdapter` is never constructed
+ --> src\chess\search_backend_adapter.rs:7:12
+  |
+7 | pub struct PassiveSearchBackendAdapter<'a> {
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> src\chess\search_backend_adapter.rs:13:12
+   |
+12 | impl<'a> PassiveSearchBackendAdapter<'a> {
+   | ---------------------------------------- associated function in this implementation
+13 |     pub fn new(engine: &'a Engine, player: PlayerId) -> Self {
+   |            ^^^
+
+warning: constant `MATE_INTERPRETATION_SCORE` is never used
+ --> src\chess\transition_interpretation.rs:7:7
+  |
+7 | const MATE_INTERPRETATION_SCORE: i32 = 1_000_000;
+  |       ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `INTERPRETATION_SCORE_LIMIT` is never used
+ --> src\chess\transition_interpretation.rs:8:7
+  |
+8 | const INTERPRETATION_SCORE_LIMIT: i32 = 250_000;
+  |       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `REPETITION_PENALTY_PER_SIGNAL` is never used
+ --> src\chess\transition_interpretation.rs:9:7
+  |
+9 | const REPETITION_PENALTY_PER_SIGNAL: i32 = 20;
+  |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `interpret_transition` is never used
+  --> src\chess\transition_interpretation.rs:11:8
+   |
+11 | pub fn interpret_transition(t: &TransitionAnalysis) -> i32 {
+   |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `interpret_transition_with_simulation` is never used
+  --> src\chess\transition_interpretation.rs:15:8
+   |
+15 | pub fn interpret_transition_with_simulation(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `interpret_transition_with_worst_case` is never used
+  --> src\chess\transition_interpretation.rs:33:4
+   |
+33 | fn interpret_transition_with_worst_case(
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `reply_is_worse_than_current` is never used
+   --> src\chess\transition_interpretation.rs:123:4
+    |
+123 | fn reply_is_worse_than_current(reply_window: Option<(i32, i32)>, margin: i32) -> bool {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variant `PowerShot` is never constructed
+ --> src\engine\action\action.rs:7:5
+  |
+5 | pub enum AbilityType {
+  |          ----------- variant in this enum
+6 |     BasicAttack,
+7 |     PowerShot,
+  |     ^^^^^^^^^
+  |
+  = note: `AbilityType` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: variant `Ability` is never constructed
+  --> src\engine\action\action.rs:17:5
+   |
+11 | pub enum Action {
+   |          ------ variant in this enum
+...
+17 |     Ability {
+   |     ^^^^^^^
+   |
+   = note: `Action` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: methods `set_terrain`, `is_cell_free`, `path_clear_straight`, `path_clear_diag`, and `line_of_sight` are never used
+   --> src\engine\board\board.rs:33:12
+    |
+ 12 | impl Board {
+    | ---------- methods in this implementation
+...
+ 33 |     pub fn set_terrain(&mut self, pos: Position, terrain: TerrainType) {
+    |            ^^^^^^^^^^^
+...
+ 40 |     pub fn is_cell_free(&self, pos: Position) -> bool {
+    |            ^^^^^^^^^^^^
+...
+ 79 |     pub fn path_clear_straight(&self, from: Position, to: Position) -> bool {
+    |            ^^^^^^^^^^^^^^^^^^^
+...
+109 |     pub fn path_clear_diag(&self, from: Position, to: Position) -> bool {
+    |            ^^^^^^^^^^^^^^^
+...
+134 |     pub fn line_of_sight(&self, a: Position, b: Position) -> bool {
+    |            ^^^^^^^^^^^^^
+
+warning: field `terrain` is never read
+ --> src\engine\board\cell.rs:6:9
+  |
+5 | pub struct Cell {
+  |            ---- field in this struct
+6 |     pub terrain: TerrainType,
+  |         ^^^^^^^
+  |
+  = note: `Cell` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: variant `Wall` is never constructed
+ --> src\engine\board\terrain.rs:4:5
+  |
+2 | pub enum TerrainType {
+  |          ----------- variant in this enum
+3 |     Empty,
+4 |     Wall,
+  |     ^^^^
+  |
+  = note: `TerrainType` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: method `material_score` is never used
+    --> src\engine\engine.rs:1531:12
+     |
+ 106 | impl Engine {
+     | ----------- method in this implementation
+...
+1531 |     pub fn material_score(&self, player: PlayerId) -> i32 {
+     |            ^^^^^^^^^^^^^^
+
+warning: fields `attack`, `defense`, `armor`, and `range` are never read
+ --> src\engine\entity\stats.rs:3:9
+  |
+2 | pub struct Stats {
+  |            ----- fields in this struct
+3 |     pub attack: i32,
+  |         ^^^^^^
+4 |     pub defense: i32,
+  |         ^^^^^^^
+5 |     pub armor: i32,
+  |         ^^^^^
+6 |     pub range: u32,
+  |         ^^^^^
+  |
+  = note: `Stats` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: fields `stats`, `hp`, and `power_shot_cd` are never read
+  --> src\engine\entity\unit.rs:20:9
+   |
+14 | pub struct Unit {
+   |            ---- fields in this struct
+...
+20 |     pub stats: Stats,
+   |         ^^^^^
+21 |     pub hp: i32,
+   |         ^^
+22 |     pub power_shot_cd: i32,
+   |         ^^^^^^^^^^^^^
+   |
+   = note: `Unit` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: enum `Event` is never used
+ --> src\engine\event\event.rs:4:10
+  |
+4 | pub enum Event {
+  |          ^^^^^
+
+warning: struct `EventQueue` is never constructed
+ --> src\engine\event\event_queue.rs:5:12
+  |
+5 | pub struct EventQueue {
+  |            ^^^^^^^^^^
+
+warning: associated items `new`, `push`, and `pop` are never used
+  --> src\engine\event\event_queue.rs:10:12
+   |
+ 9 | impl EventQueue {
+   | --------------- associated items in this implementation
+10 |     pub fn new() -> Self {
+   |            ^^^
+...
+16 |     pub fn push(&mut self, event: Event) {
+   |            ^^^^
+...
+20 |     pub fn pop(&mut self) -> Option<Event> {
+   |            ^^^
+
+warning: function `template_name_from_backrank_piece` is never used
+  --> src\prototype\minimal_ruleset.rs:26:4
+   |
+26 | fn template_name_from_backrank_piece(piece: u8) -> Option<&'static str> {
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `push_back_rank_spawns` is never used
+  --> src\prototype\minimal_ruleset.rs:37:4
+   |
+37 | fn push_back_rank_spawns(
+   |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `minimal_runtime_ruleset_chess960` is never used
+   --> src\prototype\minimal_ruleset.rs:108:8
+    |
+108 | pub fn minimal_runtime_ruleset_chess960(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `load_minimal_prototype` is never used
+   --> src\prototype\minimal_ruleset.rs:160:8
+    |
+160 | pub fn load_minimal_prototype() -> Engine {
+    |        ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `abilities` and `power_shot_cooldown` are never read
+  --> src\prototype\runtime_ruleset.rs:13:9
+   |
+ 8 | pub struct UnitTemplate {
+   |            ------------ fields in this struct
+...
+13 |     pub abilities: Vec<AbilityType>,
+   |         ^^^^^^^^^
+14 |     pub power_shot_cooldown: i32,
+   |         ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `UnitTemplate` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: fields `position` and `terrain` are never read
+  --> src\prototype\runtime_ruleset.rs:19:9
+   |
+18 | pub struct TerrainPlacement {
+   |            ---------------- fields in this struct
+19 |     pub position: Position,
+   |         ^^^^^^^^
+20 |     pub terrain: TerrainType,
+   |         ^^^^^^^
+   |
+   = note: `TerrainPlacement` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: fields `name` and `terrain` are never read
+  --> src\prototype\runtime_ruleset.rs:32:9
+   |
+31 | pub struct RuntimeRuleset {
+   |            -------------- fields in this struct
+32 |     pub name: String,
+   |         ^^^^
+...
+35 |     pub terrain: Vec<TerrainPlacement>,
+   |         ^^^^^^^
+   |
+   = note: `RuntimeRuleset` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: method `summary` is never used
+  --> src\prototype\runtime_ruleset.rs:62:12
+   |
+40 | impl RuntimeRuleset {
+   | ------------------- method in this implementation
+...
+62 |     pub fn summary(&self) -> String {
+   |            ^^^^^^^
+
+warning: struct `CrossTestConfig` is never constructed
+  --> src\simulation\cross_test_runner.rs:11:12
+   |
+11 | pub struct CrossTestConfig {
+   |            ^^^^^^^^^^^^^^^
+
+warning: struct `CrossTestAggregate` is never constructed
+  --> src\simulation\cross_test_runner.rs:19:12
+   |
+19 | pub struct CrossTestAggregate {
+   |            ^^^^^^^^^^^^^^^^^^
+
+warning: function `termination_to_str` is never used
+  --> src\simulation\cross_test_runner.rs:33:4
+   |
+33 | fn termination_to_str(t: &MatchTermination) -> &'static str {
+   |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `default_cross_test_configs` is never used
+  --> src\simulation\cross_test_runner.rs:42:8
+   |
+42 | pub fn default_cross_test_configs() -> Vec<CrossTestConfig> {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `run_cross_tests` is never used
+  --> src\simulation\cross_test_runner.rs:72:8
+   |
+72 | pub fn run_cross_tests() -> Result<(), String> {
+   |        ^^^^^^^^^^^^^^^
+
+warning: associated functions `run` and `print_balance_report_from_runner` are never used
+   --> src\simulation\neural_tournament_runner.rs:140:12
+    |
+ 89 | impl NeuralTournamentRunner {
+    | --------------------------- associated functions in this implementation
+...
+140 |     pub fn run(games_per_matchup: u32) -> Vec<TournamentResult> {
+    |            ^^^
+...
+603 |     pub fn print_balance_report_from_runner(n: u32) {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `stagnation_cause`, `max_abs_material_diff`, `max_white_material_lead`, and `max_black_material_lead` are never read
+   --> src\simulation\simulation_runner.rs:149:9
+    |
+137 | pub struct MatchSummary {
+    |            ------------ fields in this struct
+...
+149 |     pub stagnation_cause: Option<String>,
+    |         ^^^^^^^^^^^^^^^^
+...
+153 |     pub max_abs_material_diff: i32,
+    |         ^^^^^^^^^^^^^^^^^^^^^
+154 |     /// Peak white material lead (max `material_score_from_fen` over the game).
+155 |     pub max_white_material_lead: i32,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^
+156 |     /// Peak black material lead (max −score over the game).
+157 |     pub max_black_material_lead: i32,
+    |         ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `MatchSummary` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: struct `TelemetryMatchSummary` is never constructed
+   --> src\simulation\simulation_runner.rs:191:12
+    |
+191 | pub struct TelemetryMatchSummary {
+    |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated items `with_ruleset`, `with_ruleset_and_limit`, and `run_n_matches_with_agents` are never used
+    --> src\simulation\simulation_runner.rs:942:12
+     |
+ 932 | impl SimulationRunner {
+     | --------------------- associated items in this implementation
+...
+ 942 |     pub fn with_ruleset(ruleset: RuntimeRuleset) -> Self {
+     |            ^^^^^^^^^^^^
+...
+ 951 |     pub fn with_ruleset_and_limit(ruleset: RuntimeRuleset, max_steps: u32) -> Self {
+     |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+1615 |     pub fn run_n_matches_with_agents(
+     |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `analysis_dir` is never used
+  --> src\tool\experiment_paths.rs:34:8
+   |
+34 | pub fn analysis_dir() -> PathBuf {
+   |        ^^^^^^^^^^^^
+
+warning: function `generate_ruleset` is never used
+ --> src\tool\ruleset_generator.rs:4:8
+  |
+4 | pub fn generate_ruleset() -> RuntimeRuleset {
+  |        ^^^^^^^^^^^^^^^^
+
+warning: function `validate_ruleset` is never used
+ --> src\tool\ruleset_validator.rs:3:8
+  |
+3 | pub fn validate_ruleset(ruleset: &RuntimeRuleset) -> Result<(), String> {
+  |        ^^^^^^^^^^^^^^^^
+
+warning: struct `EloConfig` is never constructed
+ --> src\tournament\elo.rs:4:12
+  |
+4 | pub struct EloConfig {
+  |            ^^^^^^^^^
+
+warning: struct `EloTable` is never constructed
+  --> src\tournament\elo.rs:19:12
+   |
+19 | pub struct EloTable {
+   |            ^^^^^^^^
+
+warning: associated items `new`, `get`, `ensure_agent`, `update_match`, and `leaderboard` are never used
+  --> src\tournament\elo.rs:25:12
+   |
+24 | impl EloTable {
+   | ------------- associated items in this implementation
+25 |     pub fn new(agent_names: &[String]) -> Self {
+   |            ^^^
+...
+36 |     pub fn get(&self, agent: &str) -> f64 {
+   |            ^^^
+...
+43 |     pub fn ensure_agent(&mut self, agent: &str) {
+   |            ^^^^^^^^^^^^
+...
+49 |     pub fn update_match(&mut self, agent_a: &str, agent_b: &str, score_a: f64) {
+   |            ^^^^^^^^^^^^
+...
+67 |     pub fn leaderboard(&self) -> Vec<(String, f64)> {
+   |            ^^^^^^^^^^^
+
+warning: `tactical_chess_pure_lab` (bin "tactical_chess_pure_lab") generated 81 warnings (run `cargo fix --bin "tactical_chess_pure_lab" -p tactical_chess_pure_lab` to apply 3 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.33s
+     Running `target\debug\tactical_chess_pure_lab.exe observe_fen "6k1/8/8/8/3q4/8/8/3RK3 w - - 0 1" --depth 1`
+REPLY_SCAN|move=d1b1|enemy_best=d4b4|penalty=475
+REPLY_SCAN|move=d1c1|enemy_best=d4d2|penalty=1875
+ROOT_DECISION_SIGNAL|move=d1c1|candidate_idx=7|search_score=660|search_rank=2|worst_case=-792|worst_case_sampled=1|worst_case_rank=1|transition_score=8633|transition_rank=2|final_rank=1|inside_gate=1|primary_dynamic=quiet|secondary_dynamics=|capture_exchange=0|capture_safety=0|tactical_score=-36|repetition_signal=0|resulting_state_value=-656
+ROOT_DECISION_AUDIT|move=d1c1|worst_case=-792|worst_case_sampled=1|search_score=660|transition_score=8633|selected_rank=1|search_best_rank=2
+ROOT_DECISION_SIGNAL|move=d1b1|candidate_idx=6|search_score=660|search_rank=1|worst_case=-796|worst_case_sampled=1|worst_case_rank=2|transition_score=10033|transition_rank=1|final_rank=2|inside_gate=1|primary_dynamic=quiet|secondary_dynamics=|capture_exchange=0|capture_safety=0|tactical_score=-36|repetition_signal=0|resulting_state_value=-660
+ROOT_DECISION_AUDIT|move=d1b1|worst_case=-796|worst_case_sampled=1|search_score=660|transition_score=10033|selected_rank=2|search_best_rank=1
+ROOT_CANDIDATE_SCORE|move=d1c1|base=660|policy=0|reply_penalty=1875|tactical=-36|heuristic=40|strategic=-132|decision_final=8633|worst_case=-792|search_score=660|transition_score=8633
+ROOT_CANDIDATE_SCORE|move=d1b1|base=660|policy=0|reply_penalty=475|tactical=-36|heuristic=40|strategic=-132|decision_final=10033|worst_case=-796|search_score=660|transition_score=10033
+ROOT_DECISION_SELECTED|selected=d1c1|search_best=d1b1|worst_case_best=d1c1|transition_best=d1b1|final_selected=d1c1|expected_best_if_available=none
+PHASE_PROFILE|phase=endgame|band=winning|profile=winning_endgame
+MOVE_DIAG|source=search|phase=endgame|band=winning|plan=create_threats|selected=d1c1|material=-400|own_moves=8|enemy_moves=32|repetition_pressure=0|passed_pawn_distance=8|no_progress_pressure=0|score=-132|enemy_moves_delta=0|passed_pawn_delta=0|repeat=1
+SEARCH_RUNTIME_DIAG|nodes=10|q_nodes=19|move_sims=243|move_undos=243|move_total_ns=1772600|simulate_ns=1141900|undo_ns=630700|snapshot_ns=116100|apply_ns=218300|repetition_ns=1025600|restore_ns=271300|capture_snapshots=15|rook_snapshots=0|null_sims=0|null_undos=0|null_total_ns=0
+SEARCH_TRACE|ply=0|legal_moves=8|depth=1|nodes=0|q_nodes=0
+SEARCH_TRACE|ply=1|legal_moves=0|depth=0|nodes=10|q_nodes=10
+SEARCH_TRACE|ply=2|legal_moves=0|depth=0|nodes=0|q_nodes=6
+SEARCH_TRACE|ply=3|legal_moves=0|depth=0|nodes=0|q_nodes=3
+SEARCH_SUMMARY|max_branching=8|avg_branching=8.00|max_depth=3|nodes_total=10
+{"best_score":660,"candidate_count":3,"candidate_diagnostics_note":null,"candidates":[{"decision_score":16360,"heuristic_score":16420,"move":"d1d4","policy_score":0,"search_score":-1038},{"decision_score":10033,"heuristic_score":40,"move":"d1b1","policy_score":0,"search_score":660},{"decision_score":8633,"heuristic_score":40,"move":"d1c1","policy_score":0,"search_score":660}],"completed_depth":1,"error":null,"fen":"6k1/8/8/8/3q4/8/8/3RK3 w - - 0 1","legal_moves_count":8,"score_gap":0,"search_score":660,"second_best_score":660,"selected_move":"d1c1","selection_source":"search_root","side_to_move":"w","status":"ok"}

@@ -1,0 +1,70 @@
+{
+  "schema_version": "studiopilot.specialist_role_charter.v0",
+  "specialist_id": "specialist.ml_python.v0",
+  "specialist_type": "ML_PYTHON_SPECIALIST",
+  "display_name": "ML Python Specialist V0",
+  "director_owner": "ARCHITECTURE_DIRECTOR",
+  "mission": "Provide bounded ML pipeline and validation advice under Director ownership without autonomous training actions.",
+  "inputs": [
+    "Director-scoped ML validation request",
+    "Dataset contract notes"
+  ],
+  "outputs": [
+    "Validation risk summary",
+    "Escalation recommendation to quality"
+  ],
+  "allowed_actions": [
+    "review_ml_scope",
+    "summarize_validation_risks",
+    "propose_escalation"
+  ],
+  "forbidden_actions": [
+    "auto_merge",
+    "auto_ready",
+    "claim_escalation",
+    "benchmark_as_proof",
+    "training_without_scope",
+    "runtime_change_without_scope",
+    "dataset_creation_without_scope"
+  ],
+  "authority_level": "BOUNDED_IMPLEMENTATION_ADVICE",
+  "escalation_path": [
+    "ARCHITECTURE_DIRECTOR",
+    "QUALITY_DIRECTOR",
+    "CEO_OFFICE"
+  ],
+  "freeze_conditions": [
+    "scope_unclear",
+    "ml_training_requested",
+    "claim_boundary_unclear",
+    "human_gate_missing"
+  ],
+  "required_evidence": [
+    "Validation command list",
+    "Risk and assumption summary"
+  ],
+  "permitted_surfaces": {
+    "workflows": false,
+    "runtime": false,
+    "search": false,
+    "neural": false,
+    "ml_training": true,
+    "benchmark": false,
+    "schemas": true,
+    "docs": true,
+    "control_plane_tooling": true
+  },
+  "forbidden_surfaces": [
+    ".github/workflows/",
+    "src/",
+    "lab/runs/"
+  ],
+  "human_gate_required": true,
+  "active_agent_allowed": false,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": false,
+  "auto_training_allowed": false,
+  "auto_rule_mutation_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "status": "READY_FOR_HUMAN_REVIEW"
+}

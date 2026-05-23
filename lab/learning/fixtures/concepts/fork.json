@@ -1,0 +1,42 @@
+{
+  "schema_version": "learning_concept_fixture.v1",
+  "fixture_id": "concept.fork.v1",
+  "concept_id": "fork",
+  "title": "Fork tactic recognition",
+  "status": "static_fixture",
+  "source_issue": "#143",
+  "definition": "A fork is available when one legal action creates simultaneous threats against two higher-value targets in the scripted fixture context.",
+  "implementation_order_note": "Fork is the first repo-realistic Learning System V1A concept fixture because existing puzzle vocabulary already includes fork.",
+  "skill_ids": [
+    "fork_candidate_detection",
+    "fork_target_pair_identification",
+    "fork_execution"
+  ],
+  "success_events": [
+    {
+      "event_type": "fork_available_selected",
+      "success_tag": "fork_executed",
+      "feedback_key": "feedback_fork_executed"
+    }
+  ],
+  "failure_events": [
+    {
+      "event_type": "fork_available_selected_other_action",
+      "failure_tag": "missed_fork",
+      "feedback_key": "feedback_missed_fork"
+    }
+  ],
+  "observable_errors": [
+    {
+      "error_id": "selected_action_not_fork",
+      "when": "fork_available",
+      "maps_to_failure_tag": "missed_fork"
+    }
+  ],
+  "determinism": {
+    "target_pair_order": "king_then_queen",
+    "candidate_action_order": "preserve_fixture_order",
+    "runtime_mutation": false
+  },
+  "claim_verdict": "NO_CLAIM_ALLOWED"
+}

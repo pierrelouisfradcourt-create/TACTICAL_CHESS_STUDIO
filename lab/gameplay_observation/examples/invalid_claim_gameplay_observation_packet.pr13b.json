@@ -1,0 +1,57 @@
+{
+  "schema_version": "pr13b.gameplay_observation_packet.v1",
+  "packet_type": "GAMEPLAY_OBSERVATION",
+  "status": "non_canonical_observation",
+  "theme": "search_behavior_non_converting_positions",
+  "learning_value": "Invalid example: attempts to turn observation into a claim.",
+  "discard_if": "This packet should be blocked because it carries forbidden claim language and claim authority.",
+  "next_decision_enabled": "None. Invalid example only.",
+  "observation_surface": {
+    "surface_id": "PR13B_NON_CONVERTING_EXAMPLE_SURFACE_ONLY",
+    "surface_path": "lab/gameplay_observation/non_converting_positions/example_surface.pr13b.json",
+    "surface_kind": "non_canonical_position_set",
+    "canonical_evidence": false,
+    "promotion_eligible": false,
+    "contains_holdout": false
+  },
+  "commands": [
+    {
+      "command_id": "invalid_claim_command",
+      "command": "echo search improved",
+      "purpose": "Invalid example: command text contains forbidden claim language.",
+      "required": true,
+      "writes_allowed": false,
+      "writes_path_kind": "none",
+      "may_access_holdout": false,
+      "may_reset_dataset": false,
+      "may_update_latest_json": false,
+      "may_create_run_bundle": false,
+      "may_make_claim": true
+    }
+  ],
+  "output_policy": {
+    "canonical_evidence": false,
+    "output_location_kind": "non_canonical_sandbox",
+    "sandbox_output_path": "lab/gameplay_observation/sandbox_outputs/example_only",
+    "may_write_lab_runs": false,
+    "may_update_latest_json": false,
+    "report_required": true
+  },
+  "authority_boundaries": {
+    "codex_may_promote": false,
+    "codex_may_authorize_claim": true,
+    "gpt55_may_authorize_claim": false,
+    "ci_may_authorize_claim": false,
+    "human_review_required": true
+  },
+  "claim_control": {
+    "default_claim_verdict": "NO_CLAIM_ALLOWED",
+    "claim_verdict": "TARGETED_BEHAVIOR_ONLY",
+    "human_claim_decision_id": null
+  },
+  "expected_verdict": {
+    "software_verdict": "BLOCKED",
+    "evidence_verdict": "INVALID",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  }
+}

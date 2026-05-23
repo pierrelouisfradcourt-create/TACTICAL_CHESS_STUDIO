@@ -1,0 +1,45 @@
+{
+  "$schema": "../../schemas/forbidden_surfaces.schema.json",
+  "policy_version": "2026-05-08",
+  "absolute_forbidden_paths": [
+    "engine/**",
+    "search/**",
+    "neural/**",
+    "runtime/**",
+    "src/**",
+    "tests/**",
+    ".github/**",
+    "lab/runs/**",
+    "lab/runs/latest.json",
+    "holdout/**",
+    "lab/dataset/**",
+    "lab/reverse_dataset/**",
+    "lab/ACTIVE_DATASET.txt",
+    "lab/policies/**",
+    "protocol.lock.json"
+  ],
+  "restricted_human_review_paths": [
+    "scripts/**",
+    "schemas/**",
+    "MASTER_DOCS/**",
+    "lab/agent_runs/**",
+    "lab/agent_tasks/**",
+    "lab/agent_policy/forbidden_surfaces.json"
+  ],
+  "forbidden_actions": [
+    "merge",
+    "decide_claim_authority",
+    "modify_own_rules",
+    "modify_branch_protection",
+    "mask_test_or_ci_failure",
+    "benchmark_as_proof",
+    "invented_performance_claim",
+    "self_scoring"
+  ],
+  "immediate_freeze_on_touch": true,
+  "policy_schema_self_modification_forbidden": true,
+  "agent_cannot_modify_own_policy": true,
+  "agent_cannot_modify_policy_without_human_review": true,
+  "critical_violation_freeze_immediate": true,
+  "auto_thaw_allowed": false
+}

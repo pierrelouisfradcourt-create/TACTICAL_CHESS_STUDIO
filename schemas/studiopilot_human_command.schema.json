@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/studiopilot_human_command.schema.json",
+  "title": "StudioPilot Human Command V0",
+  "description": "Strict local control-plane schema for human-issued StudioPilot command vocabulary. Commands reduce or bound agent authority; they do not execute work.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "command_id",
+    "issued_by",
+    "command_type",
+    "target_scope",
+    "freeze_targets",
+    "allowed_actions",
+    "forbidden_actions",
+    "human_gate_required",
+    "auto_merge_allowed",
+    "auto_ready_allowed",
+    "claim_scope",
+    "expires_after_task",
+    "reason"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "studiopilot.human_command.v0"
+    },
+    "command_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "issued_by": {
+      "type": "string",
+      "enum": [
+        "HUMAN_FOUNDER"
+      ]
+    },
+    "command_type": {
+      "type": "string",
+      "enum": [
+        "READ_ONLY_ONLY",
+        "PLAN_ONLY",
+        "BUILD_ALLOWED",
+        "REVIEW_ONLY",
+        "STOP_AUTOMATION",
+        "FREEZE_SCOPE"
+      ]
+    },
+    "target_scope": {
+      "type": "string",
+      "enum": [
+        "GLOBAL",
+        "CONTROL_PLANE",
+        "DOCS",
+        "CI",
+        "RUNTIME",
+        "SEARCH",
+        "NEURAL",
+        "ML",
+        "DATASET",
+        "BENCHMARK",
+        "CLAIMS",
+        "AUTOMATION"
+      ]
+    },
+    "freeze_targets": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "FREEZE_RUNTIME",
+          "FREEZE_SEARCH",
+          "FREEZE_NEURAL",
+          "FREEZE_ML",
+          "FREEZE_DATASET",
+          "FREEZE_CI",
+          "FREEZE_GUARD",
+          "FREEZE_CLAIMS",
+          "FREEZE_AUTOMATION"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "allowed_actions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "forbidden_actions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "human_gate_required": {
+      "type": "boolean",
+      "const": true
+    },
+    "auto_merge_allowed": {
+      "type": "boolean",
+      "const": false
+    },
+    "auto_ready_allowed": {
+      "type": "boolean",
+      "const": false
+    },
+    "claim_scope": {
+      "type": "string",
+      "enum": [
+        "NO_CLAIM_ALLOWED",
+        "HEALTH_ONLY",
+        "EVIDENCE_ONLY"
+      ]
+    },
+    "expires_after_task": {
+      "type": "boolean"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

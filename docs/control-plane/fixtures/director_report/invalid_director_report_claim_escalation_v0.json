@@ -1,0 +1,56 @@
+{
+  "schema_version": "studiopilot.director_report.v0",
+  "report_id": "invalid_director_claim_escalation_v0_001",
+  "director_type": "MEMORY_EVIDENCE_DIRECTOR",
+  "source_objective": "Invalid fixture with claim escalation",
+  "source_project_breakdown_ref": "pbr_v0_scalable_ai_org_001",
+  "reviewed_scope": {
+    "allowed_paths": [
+      "schemas/studiopilot_director_report.schema.json"
+    ],
+    "forbidden_paths": [
+      ".github/workflows/"
+    ],
+    "scope_summary": "Used to prove claim escalation is blocked."
+  },
+  "reviewed_pr_candidates": [
+    {
+      "pr_candidate_id": "pr.invalid_claim_escalation",
+      "title": "Invalid claim escalation",
+      "pr_type": "CONTROL_PLANE",
+      "risk_level": "HIGH",
+      "director_decision": "HOLD",
+      "reasons": [
+        "Fixture intentionally sets an invalid claim verdict"
+      ]
+    }
+  ],
+  "risk_level": "HIGH",
+  "director_verdict": "HOLD",
+  "required_conditions": [
+    "evidence and memory claim boundary condition"
+  ],
+  "blocked_reasons": [],
+  "escalation_required": true,
+  "escalation_targets": [
+    "HUMAN_FOUNDER"
+  ],
+  "touched_surfaces": {
+    "workflows": false,
+    "runtime": false,
+    "search": false,
+    "neural": false,
+    "ml_training": false,
+    "benchmark": false,
+    "schemas": true,
+    "docs": true,
+    "control_plane_tooling": true
+  },
+  "forbidden_surface_touched": false,
+  "human_gate_required": true,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": false,
+  "claim_verdict": "SCIENTIFIC_PROOF",
+  "evidence_verdict": "Invalid fixture.",
+  "status": "DRAFT"
+}

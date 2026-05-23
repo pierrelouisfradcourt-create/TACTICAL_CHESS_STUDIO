@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "git_context_schema.pr02.json",
+  "title": "PR-02 Git Context Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "commit_sha",
+    "branch",
+    "base_branch",
+    "dirty_state",
+    "status_short_path",
+    "diff_stat_path",
+    "diff_patch_path",
+    "diff_patch_sha256",
+    "untracked_files"
+  ],
+  "properties": {
+    "commit_sha": {
+      "type": "string",
+      "minLength": 1
+    },
+    "branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base_branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dirty_state": {
+      "type": "string",
+      "enum": [
+        "CLEAN",
+        "DIRTY",
+        "UNKNOWN"
+      ],
+      "description": "Dirty state must be recorded, not hidden."
+    },
+    "status_short_path": {
+      "type": "string"
+    },
+    "diff_stat_path": {
+      "type": "string"
+    },
+    "diff_patch_path": {
+      "type": "string"
+    },
+    "diff_patch_sha256": {
+      "type": "string",
+      "pattern": "^[A-Fa-f0-9]{64}$"
+    },
+    "untracked_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

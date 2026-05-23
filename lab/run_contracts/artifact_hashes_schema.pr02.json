@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "artifact_hashes_schema.pr02.json",
+  "title": "PR-02 Artifact Hashes Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "hash_algorithm",
+    "created_at",
+    "files",
+    "bundle_hash"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^RUN_"
+    },
+    "hash_algorithm": {
+      "type": "string",
+      "const": "sha256",
+      "description": "MD5 and SHA1 are forbidden."
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256",
+          "size_bytes",
+          "role",
+          "required",
+          "created_by_command_id"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[A-Fa-f0-9]{64}$"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "stdout",
+              "stderr",
+              "diff",
+              "report",
+              "benchmark_artifact",
+              "conversion_artifact",
+              "model_artifact",
+              "dataset_manifest",
+              "protocol",
+              "environment",
+              "git_context",
+              "machine_verdict",
+              "human_decision",
+              "claim_decision",
+              "other"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "created_by_command_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "bundle_hash": {
+      "type": "string",
+      "pattern": "^[A-Fa-f0-9]{64}$"
+    }
+  }
+}

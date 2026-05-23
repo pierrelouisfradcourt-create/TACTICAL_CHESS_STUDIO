@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/agent_scorecard.schema.json",
+  "title": "AgentScorecard",
+  "description": "Minimal scoring record for governance and freeze decisions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "agent_id",
+    "task_id",
+    "scored_by",
+    "reviewed_by_human",
+    "evidence_refs",
+    "score_formula_version",
+    "self_scoring_allowed",
+    "positive_points",
+    "negative_points",
+    "strikes",
+    "freeze_required",
+    "risk_level",
+    "score_verdict",
+    "software_verdict",
+    "evidence_verdict",
+    "claim_verdict",
+    "autonomy_delta",
+    "final_score"
+  ],
+  "properties": {
+    "agent_id": {
+      "type": "string",
+      "enum": ["producer", "code", "review", "qa", "docs"]
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "scored_by": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identity that produced this scorecard. Must differ from agent_id via policy/runner validation."
+    },
+    "reviewed_by_human": {
+      "type": "boolean",
+      "const": true
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "score_formula_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "self_scoring_allowed": {
+      "type": "boolean",
+      "const": false
+    },
+    "positive_points": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "negative_points": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "strikes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "freeze_required": {
+      "type": "boolean"
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "CRITICAL"
+      ]
+    },
+    "score_verdict": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "WARN",
+        "FAIL",
+        "BLOCKED"
+      ]
+    },
+    "software_verdict": {
+      "type": "string",
+      "enum": [
+        "CONTROL_PLANE_SCHEMA_ONLY",
+        "CONTROL_PLANE_DOCS_ONLY",
+        "CONTROL_PLANE_TOOLING_ONLY",
+        "RUNTIME_CHANGE",
+        "ML_CHANGE",
+        "BLOCKED"
+      ]
+    },
+    "evidence_verdict": {
+      "type": "string",
+      "enum": [
+        "SCHEMA_AND_FIXTURE_VALIDATION_ONLY",
+        "SCHEMA_AND_METADATA_INSPECTION_ONLY",
+        "STRICT_SCHEMA_VALIDATION_ONLY",
+        "LOCAL_OPERATOR_HYGIENE_VALIDATION_ONLY",
+        "LOCAL_BLOCK_RUNNER_DRY_RUN_VALIDATION_ONLY",
+        "TEST_LOGS_PRESENT",
+        "BENCHMARK_OBSERVATION_ONLY",
+        "BLOCKED"
+      ]
+    },
+    "claim_verdict": {
+      "type": "string",
+      "enum": [
+        "NO_CLAIM_ALLOWED",
+        "CLAIM_SUPPORTED",
+        "CLAIM_UNSUPPORTED",
+        "BLOCKED"
+      ]
+    },
+    "autonomy_delta": {
+      "type": "string",
+      "enum": [
+        "DECREASE",
+        "NONE",
+        "INCREASE_REVIEW_ONLY"
+      ]
+    },
+    "final_score": {
+      "type": "number",
+      "minimum": -100,
+      "maximum": 100
+    }
+  }
+}

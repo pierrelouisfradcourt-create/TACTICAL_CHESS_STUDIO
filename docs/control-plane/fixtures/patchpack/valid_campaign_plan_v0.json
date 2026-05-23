@@ -1,0 +1,187 @@
+{
+  "schema_version": "studiopilot.campaign_plan.v0",
+  "campaign_id": "campaign.local_first_patchpack_v0",
+  "title": "Local-first PatchPack planning V0",
+  "objective": "Plan local-first PatchPacks without auto-execution",
+  "campaign_type": "PATCHPACK",
+  "scope": {
+    "allowed_paths": [
+      "schemas/",
+      "docs/control-plane/",
+      "scripts/control_plane/"
+    ],
+    "forbidden_paths": [
+      ".github/workflows/",
+      "src/",
+      "engine/",
+      "search/",
+      "neural/",
+      "ml/",
+      "lab/datasets/",
+      "lab/runs/",
+      "benchmarks/"
+    ]
+  },
+  "forbidden_changes": [
+    "runtime",
+    "ml_training",
+    "benchmark",
+    "auto_merge",
+    "claim_escalation",
+    "github_actions",
+    "secrets",
+    "datasets",
+    "lab_runs",
+    "active_agents"
+  ],
+  "patch_groups": [
+    {
+      "patch_group_id": "pg.patchpack_schemas",
+      "title": "CampaignPlan and PRQueue schemas",
+      "objective": "Define strict schemas for campaign planning and PR candidate sequencing.",
+      "pr_candidates": [
+        {
+          "pr_candidate_id": "prc.schemas_campaign_prqueue",
+          "title": "Add PatchPack schemas and fixtures",
+          "intent": "Add CampaignPlan V0 and PRQueue V0 schema coverage with valid and invalid fixtures.",
+          "allowed_paths": [
+            "schemas/studiopilot_campaign_plan.schema.json",
+            "schemas/studiopilot_pr_queue.schema.json",
+            "docs/control-plane/fixtures/patchpack/"
+          ],
+          "forbidden_paths": [
+            ".github/workflows/",
+            "src/",
+            "engine/",
+            "search/",
+            "neural/",
+            "ml/"
+          ],
+          "expected_outputs": [
+            "Strict CampaignPlan V0 schema",
+            "Strict PRQueue V0 schema",
+            "Valid and invalid PatchPack planning fixtures"
+          ],
+          "validation_commands": [
+            ".\\.venv312\\Scripts\\python.exe scripts\\control_plane\\validate_patchpack_plan.py --pretty",
+            ".\\.venv312\\Scripts\\python.exe scripts\\operator\\validate_json_artifacts.py"
+          ],
+          "claim_scope": "NO_CLAIM_ALLOWED",
+          "human_gate_required": true
+        }
+      ],
+      "dependencies": [],
+      "risk_level": "LOW",
+      "human_approval_required": true
+    },
+    {
+      "patch_group_id": "pg.patchpack_validator",
+      "title": "Local validator",
+      "objective": "Add a read-only local validator for PatchPack planning fixtures.",
+      "pr_candidates": [
+        {
+          "pr_candidate_id": "prc.local_validator",
+          "title": "Add PatchPack fixture validator",
+          "intent": "Validate schemas and fixtures locally without network, subprocesses, or repo mutation.",
+          "allowed_paths": [
+            "scripts/control_plane/validate_patchpack_plan.py"
+          ],
+          "forbidden_paths": [
+            ".github/workflows/",
+            "src/",
+            "engine/",
+            "search/",
+            "neural/",
+            "ml/"
+          ],
+          "expected_outputs": [
+            "Deterministic JSON validation summary",
+            "Valid fixtures pass and invalid fixtures fail"
+          ],
+          "validation_commands": [
+            ".\\.venv312\\Scripts\\python.exe scripts\\control_plane\\validate_patchpack_plan.py --pretty",
+            ".\\.venv312\\Scripts\\python.exe -m py_compile scripts\\control_plane\\validate_patchpack_plan.py"
+          ],
+          "claim_scope": "NO_CLAIM_ALLOWED",
+          "human_gate_required": true
+        }
+      ],
+      "dependencies": [
+        "pg.patchpack_schemas"
+      ],
+      "risk_level": "LOW",
+      "human_approval_required": true
+    },
+    {
+      "patch_group_id": "pg.patchpack_docs",
+      "title": "Operator documentation",
+      "objective": "Document local-first PatchPack campaign planning and PR queue boundaries.",
+      "pr_candidates": [
+        {
+          "pr_candidate_id": "prc.docs_patchpack_campaign",
+          "title": "Document CampaignPlan and PRQueue V0",
+          "intent": "Explain planning boundaries, human gates, and non-execution guarantees.",
+          "allowed_paths": [
+            "docs/control-plane/PATCHPACK_CAMPAIGN_PLAN_V0.md",
+            "docs/control-plane/PR_QUEUE_V0.md",
+            "docs/control-plane/README.md"
+          ],
+          "forbidden_paths": [
+            ".github/workflows/",
+            "src/",
+            "engine/",
+            "search/",
+            "neural/",
+            "ml/"
+          ],
+          "expected_outputs": [
+            "CampaignPlan V0 documentation",
+            "PRQueue V0 documentation",
+            "Short README links"
+          ],
+          "validation_commands": [
+            ".\\.venv312\\Scripts\\python.exe scripts\\operator\\validate_json_artifacts.py"
+          ],
+          "claim_scope": "NO_CLAIM_ALLOWED",
+          "human_gate_required": true
+        }
+      ],
+      "dependencies": [
+        "pg.patchpack_schemas"
+      ],
+      "risk_level": "LOW",
+      "human_approval_required": true
+    }
+  ],
+  "local_validation_required": true,
+  "ci_policy": {
+    "remote_profile": "CONTROL_PLANE",
+    "github_actions_required": true,
+    "benchmark_policy": "NEVER_AUTOMATIC"
+  },
+  "budget_gate": {
+    "codex_task_budget": "MEDIUM",
+    "max_codex_tasks": 3,
+    "max_changed_files_per_pr": 12,
+    "max_retries_per_task": 0,
+    "no_retry_loop": true,
+    "stop_on_first_blocker": true
+  },
+  "risk_level": "LOW",
+  "status": "APPROVED_FOR_PLANNING",
+  "human_gate_required": true,
+  "stop_conditions": [
+    "failed_checks",
+    "scope_violation",
+    "claim_escalation",
+    "forbidden_path_touched",
+    "benchmark_attempted",
+    "runtime_touched_without_scope",
+    "ml_training_attempted"
+  ],
+  "verdicts": {
+    "software_verdict": "CONTROL_PLANE_PATCHPACK_SCHEMA_TOOLING_ONLY",
+    "evidence_verdict": "LOCAL_FIRST_PATCHPACK_PLANNING_ONLY",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  }
+}

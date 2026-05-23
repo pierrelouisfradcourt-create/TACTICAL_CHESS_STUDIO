@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pr07.gpt55_audit_output_schema",
+  "title": "PR-07 GPT-5.5 Structured Audit Output",
+  "type": "object",
+  "additionalProperties": true,
+  "description": "Non-binding audit output contract. GPT audit may critique anomalies but cannot establish truth, authorize merge, authorize promotion, authorize claims, override BLOCKED, or increase claim scope.",
+  "required": [
+    "schema_version",
+    "audit_verdict",
+    "anomalies",
+    "blocking_observations",
+    "warnings",
+    "claim_language_findings",
+    "evidence_quality_findings",
+    "recommended_human_review",
+    "forbidden_authority_attempts",
+    "model_role",
+    "reasoning_effort",
+    "authority_boundary",
+    "software_verdict",
+    "evidence_verdict",
+    "claim_verdict"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "audit_verdict": {
+      "type": "string",
+      "enum": [
+        "NO_ANOMALY_FOUND",
+        "ANOMALY_FOUND",
+        "AUDIT_INVALID",
+        "SCHEMA_OR_POLICY_VIOLATION",
+        "INSUFFICIENT_INPUT"
+      ]
+    },
+    "anomalies": {
+      "type": "array"
+    },
+    "blocking_observations": {
+      "type": "array"
+    },
+    "warnings": {
+      "type": "array"
+    },
+    "claim_language_findings": {
+      "type": "array"
+    },
+    "evidence_quality_findings": {
+      "type": "array"
+    },
+    "recommended_human_review": {
+      "type": "boolean"
+    },
+    "forbidden_authority_attempts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "GPT_TRUTH_ESTABLISHED_FORBIDDEN",
+          "GPT_MERGE_AUTH_FORBIDDEN",
+          "GPT_PROMOTION_AUTH_FORBIDDEN",
+          "GPT_CLAIM_AUTH_FORBIDDEN",
+          "GPT_UNBLOCK_FORBIDDEN",
+          "GPT_CLAIM_SCOPE_INCREASE_FORBIDDEN",
+          "GPT_SCHEMA_INVALID",
+          "GPT_SCIENTIFIC_PROOF_FORBIDDEN",
+          "GPT_LATEST_AS_EVIDENCE_FORBIDDEN",
+          "GPT_CODEX_REPORT_AS_EVIDENCE_FORBIDDEN"
+        ]
+      }
+    },
+    "model_role": {
+      "type": "string",
+      "const": "non_binding_anomaly_critic"
+    },
+    "reasoning_effort": {
+      "type": "string",
+      "description": "Reasoning effort does not increase authority, permissions, or claim scope."
+    },
+    "authority_boundary": {
+      "type": "object"
+    },
+    "software_verdict": {
+      "type": "string",
+      "const": "AUDIT_LAYER_ADDED"
+    },
+    "evidence_verdict": {
+      "type": "string",
+      "const": "STRUCTURED_AUDIT_ONLY"
+    },
+    "claim_verdict": {
+      "type": "string",
+      "const": "NO_CLAIM_ALLOWED"
+    },
+    "truth_established": {
+      "const": false
+    },
+    "merge_authorized": {
+      "const": false
+    },
+    "promotion_authorized": {
+      "const": false
+    },
+    "claim_authorized": {
+      "const": false
+    },
+    "blocked_converted_to_pass": {
+      "const": false
+    },
+    "claim_scope_increased": {
+      "const": false
+    }
+  }
+}

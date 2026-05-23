@@ -1,0 +1,66 @@
+{
+  "policy_id": "root_policy.lock",
+  "version": "PR-00A",
+  "status": "locked",
+  "purpose": "Human trust root bootstrap for TacticalChessPureLab V9.2 Research OS.",
+  "expected_verdict": {
+    "software_verdict": "NOT_RUN",
+    "evidence_verdict": "BOOTSTRAP_ONLY",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  },
+  "authority_order": [
+    "root_policy.lock.json",
+    "claim_policy.lock.json",
+    "repair_policy.lock.json",
+    "surface_policy.lock.json",
+    "data_policy.lock.json",
+    "reasoning_policy.lock.json",
+    "verified_human_decision_within_policy",
+    "protocol.lock.json",
+    "mechanical_gates",
+    "run_bundle",
+    "gpt55_anomaly_critique",
+    "codex_report",
+    "no_code_dashboard",
+    "human_readable_summary"
+  ],
+  "rules": {
+    "all_inputs_untrusted": true,
+    "missing_policy_blocks": true,
+    "invalid_policy_schema_blocks": true,
+    "gate_failure_blocks": true,
+    "parser_crash_blocks": true,
+    "schema_invalid_blocks": true,
+    "silent_fallback_forbidden": true,
+    "latest_files_are_not_evidence": true,
+    "merge_decision_is_not_claim_decision": true,
+    "gpt_cannot_authorize_claims": true,
+    "codex_cannot_decide_policy": true,
+    "no_code_is_not_primary_evidence": true,
+    "human_decision_must_be_policy_permitted": true,
+    "reasoning_policy_required_for_gpt_and_codex": true,
+    "reasoning_effort_does_not_increase_authority": true,
+    "reasoning_effort_does_not_increase_permissions": true,
+    "reasoning_effort_does_not_increase_claim_scope": true
+  },
+  "doctrine": {
+    "compile_report_proof_separation": [
+      "ça compile",
+      "ça produit un rapport",
+      "ça prouve quelque chose"
+    ],
+    "verdicts_must_remain_separate": [
+      "software_verdict",
+      "evidence_verdict",
+      "claim_verdict"
+    ],
+    "software_pass_does_not_imply_scientific_evidence": true,
+    "report_does_not_imply_proof": true,
+    "merge_decision_is_not_claim_decision": true
+  },
+  "human_authority": {
+    "human_scientific_authority": "verified_human_decision_within_policy",
+    "unrestricted_human_scientific_decision_above_policy": false,
+    "policy_compatibility_required": true
+  }
+}

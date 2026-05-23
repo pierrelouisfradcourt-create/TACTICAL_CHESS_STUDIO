@@ -1,0 +1,26 @@
+{
+  "change_profile": "CONTROL_PLANE",
+  "likely_expensive_workflows": [
+    {
+      "jobs_per_run": 6,
+      "minutes": 1698,
+      "workflow": "canonical-ci.yml",
+      "workflow_runs": 286
+    }
+  ],
+  "no_claim_allowed": true,
+  "overall_risk": "MEDIUM",
+  "reasons": [
+    "classified 2 changed path(s) as CONTROL_PLANE",
+    "report is fixture-driven and local-only",
+    "no_claim_allowed doctrine is active",
+    "CONTROL_PLANE: 2 path(s)",
+    "observed total GitHub Actions minutes: 2016",
+    "observed total job runs: 2014",
+    "observed workflow runs: 602",
+    "top observed workflow: canonical-ci.yml used 1698 minutes across 286 runs at 6 jobs/run"
+  ],
+  "recommended_ci_policy": "local control-plane validation plus final gate only",
+  "recommended_human_action": "Run local control-plane checks before push; keep remote CI narrow until throttle evidence is reviewed.",
+  "schema_version": "studiopilot.ci_costguard_report.v0"
+}

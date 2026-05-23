@@ -1,0 +1,41 @@
+{
+  "record_type": "humangate_decision_candidate",
+  "contract_version": "V0",
+  "generated_at": "2026-05-19T00:00:00Z",
+  "source_inbox_id": "studio_operator_inbox:fixture001",
+  "decision_id": "humangate_decision_candidate:fixture001",
+  "decision": "approve_next_mission_candidate",
+  "scope": {
+    "mode": "DRY_RUN_DECISION_CANDIDATE",
+    "source": "studio_operator_inbox",
+    "execution_authorized": false,
+    "persistent_state_authorized": false,
+    "claim_authorized": false
+  },
+  "approved_actions": [
+    {
+      "action": "approve_next_mission_candidate",
+      "scope": "single_next_mission_candidate",
+      "mission_goal": "Audit unresolved surface status: active_runtime_code",
+      "mission_source": "current_state.status_by_surface",
+      "execution_authorized": false
+    }
+  ],
+  "blocked_actions": [
+    "runtime_activation",
+    "dataset_generation",
+    "training",
+    "benchmark",
+    "model_promotion",
+    "public_claim",
+    "push",
+    "branch",
+    "pr",
+    "codex_auto_execution"
+  ],
+  "expires_after": "single_operator_review_session",
+  "humangate_required": true,
+  "operator_notes": "HumanGate candidate approves only the bounded next mission candidate; execution remains blocked.",
+  "claim_posture": "NO_CLAIM_ALLOWED",
+  "no_global_ready_verdict": true
+}

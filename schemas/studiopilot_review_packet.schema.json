@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/studiopilot_review_packet.schema.json",
+  "title": "StudioPilot ReviewPacket V0",
+  "description": "Non-binding GPT or architect review packet. This schema does not encode merge, promotion, or claim authorization.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "review_id",
+    "source_pr",
+    "reviewer_type",
+    "architecture_risk",
+    "runtime_risk",
+    "evidence_risk",
+    "claim_risk",
+    "scope_risk",
+    "blocking_questions",
+    "recommendation",
+    "human_action_required"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "review_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_pr": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewer_type": {
+      "type": "string",
+      "enum": [
+        "GPT_BROWSER",
+        "CODEX_REVIEW",
+        "HUMAN_ASSISTED",
+        "MANUAL_HUMAN"
+      ]
+    },
+    "architecture_risk": {
+      "type": "string",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "BLOCKING",
+        "UNKNOWN"
+      ]
+    },
+    "runtime_risk": {
+      "type": "string",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "BLOCKING",
+        "UNKNOWN"
+      ]
+    },
+    "evidence_risk": {
+      "type": "string",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "BLOCKING",
+        "UNKNOWN"
+      ]
+    },
+    "claim_risk": {
+      "type": "string",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "BLOCKING",
+        "UNKNOWN"
+      ]
+    },
+    "scope_risk": {
+      "type": "string",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "BLOCKING",
+        "UNKNOWN"
+      ]
+    },
+    "blocking_questions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "recommendation": {
+      "type": "string",
+      "enum": [
+        "BLOCKED",
+        "SAFE_TO_READY",
+        "SAFE_TO_MERGE_AFTER_HUMAN_CONFIRMATION",
+        "REQUEST_CHANGES"
+      ]
+    },
+    "human_action_required": {
+      "type": "boolean"
+    }
+  }
+}

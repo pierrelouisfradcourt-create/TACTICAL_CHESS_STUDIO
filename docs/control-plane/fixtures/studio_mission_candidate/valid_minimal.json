@@ -1,0 +1,144 @@
+{
+  "record_type": "studio_mission_candidate",
+  "contract_version": "V0",
+  "generated_at": "2026-05-19T00:00:00Z",
+  "source_current_state_id": "studio_current_state:2026-05-19T00:00:00Z:studio_state_snapshot:2026-05-19T00:00:00Z:fixture-report-001",
+  "mission_id": "studio_mission_candidate:fixture001",
+  "task_class": "control_plane_audit",
+  "goal": "Audit unresolved surface status: active_runtime_code",
+  "reason": "status_by_surface.active_runtime_code is UNKNOWN; BLOCKED and UNKNOWN are treated as blockers.",
+  "target_files": [],
+  "reference_only_paths": [
+    "AGENTS.md",
+    "schemas/studio_current_state.schema.json",
+    "schemas/studio_mission_candidate.schema.json",
+    "CURRENT_STATE_INPUT"
+  ],
+  "surfaces_in_scope": [
+    "active_runtime_code"
+  ],
+  "surfaces_out_of_scope": [
+    "tests",
+    "tools_scripts",
+    "artifacts_runtime_outputs",
+    "canonical_docs",
+    "roadmap_docs_only",
+    "inference"
+  ],
+  "blocked_actions": [
+    "runtime_activation",
+    "dataset_generation",
+    "training",
+    "benchmark",
+    "model_promotion",
+    "latest.json_creation",
+    "lab/runs/RUN_*_creation",
+    "public_claim",
+    "Codex_execution"
+  ],
+  "validation_plan": [
+    "Read current state and identify the smallest evidence needed to resolve UNKNOWN/BLOCKED status."
+  ],
+  "output_routing": {
+    "mode": "DRY_RUN_STDOUT_ONLY",
+    "stdout_only": true,
+    "files_written": false,
+    "current_state_written": false,
+    "allowed_output_paths": [],
+    "forbidden_output_paths": [
+      ".studio_state/current_state.json",
+      "latest.json",
+      "lab/runs/RUN_*"
+    ]
+  },
+  "humangate_required": true,
+  "codex_prompt_candidate": {
+    "codex_runtime": {
+      "requested_model": "gpt-5.5-codex",
+      "reasoning_effort": "high",
+      "task_class": "control_plane_audit",
+      "fallback": "UNKNOWN => BLOCKED",
+      "dry_run_only": "true"
+    },
+    "preflight": [
+      "git status --short --branch",
+      "git rev-parse HEAD",
+      "git diff --name-status"
+    ],
+    "sources_to_read": [
+      "AGENTS.md",
+      "schemas/studio_current_state.schema.json",
+      "schemas/studio_mission_candidate.schema.json",
+      "CURRENT_STATE_INPUT"
+    ],
+    "scope_in": [],
+    "scope_out": [
+      "persistent .studio_state/current_state.json writes",
+      "runtime Rust changes",
+      "ML changes",
+      "dataset generation or reset",
+      "training",
+      "benchmark",
+      "Codex execution by this compiler"
+    ],
+    "output_routing": {
+      "mode": [
+        "DRY_RUN_STDOUT_ONLY"
+      ],
+      "stdout_only": [
+        "true"
+      ],
+      "files_written": [
+        "false"
+      ],
+      "current_state_written": [
+        "false"
+      ]
+    },
+    "blocked_actions": [
+      "runtime_activation",
+      "dataset_generation",
+      "training",
+      "benchmark",
+      "model_promotion",
+      "latest.json_creation",
+      "lab/runs/RUN_*_creation",
+      "public_claim",
+      "Codex_execution"
+    ],
+    "validation": [
+      "Read current state and identify the smallest evidence needed to resolve UNKNOWN/BLOCKED status."
+    ],
+    "final_report_requirements": [
+      "preflight",
+      "source_state",
+      "route_check",
+      "output_routing_result",
+      "files_changed",
+      "commands_run",
+      "skipped_validation",
+      "risks",
+      "status_by_surface",
+      "software_verdict",
+      "evidence_verdict",
+      "claim_verdict",
+      "no_global_ready_verdict: true",
+      "claim_posture: NO_CLAIM_ALLOWED"
+    ],
+    "no_global_ready_verdict": true,
+    "claim_posture": "NO_CLAIM_ALLOWED"
+  },
+  "forbidden_missions": [
+    "runtime_activation",
+    "dataset_generation",
+    "training",
+    "benchmark",
+    "model_promotion",
+    "latest.json_creation",
+    "lab/runs/RUN_*_creation",
+    "public_claim",
+    "Codex_execution"
+  ],
+  "claim_posture": "NO_CLAIM_ALLOWED",
+  "no_global_ready_verdict": true
+}

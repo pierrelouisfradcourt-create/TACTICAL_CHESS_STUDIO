@@ -1,0 +1,95 @@
+name: Agent Operator Validate Staged
+
+on:
+  # Manual-only for billing control. Staged operator validation installs
+  # control-plane dependencies and should run only when explicitly requested.
+  workflow_dispatch:
+    inputs:
+      task_packet:
+        description: Task packet path to validate
+        required: true
+        default: lab/agent_tasks/example_task_packet.json
+        type: string
+      pretty:
+        description: Pretty JSON output
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  validate-staged:
+    name: validate-staged
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Guard task packet path
+        shell: bash
+        env:
+          TASK_PACKET: ${{ inputs.task_packet }}
+        run: |
+          set -euo pipefail
+
+          case "$TASK_PACKET" in
+            lab/agent_tasks/*.json) ;;
+            *)
+              echo "BLOCKED invalid task_packet path (must match lab/agent_tasks/*.json): $TASK_PACKET"
+              exit 1
+              ;;
+          esac
+
+          if [[ "$TASK_PACKET" == *".."* ]]; then
+            echo "BLOCKED invalid task_packet path (contains ..): $TASK_PACKET"
+            exit 1
+          fi
+          if [[ "$TASK_PACKET" == /* ]]; then
+            echo "BLOCKED invalid task_packet path (absolute): $TASK_PACKET"
+            exit 1
+          fi
+          if [[ "$TASK_PACKET" == *":"* ]]; then
+            echo "BLOCKED invalid task_packet path (contains colon): $TASK_PACKET"
+            exit 1
+          fi
+          if [[ "$TASK_PACKET" != *.json ]]; then
+            echo "BLOCKED invalid task_packet path (non-json extension): $TASK_PACKET"
+            exit 1
+          fi
+          if [[ ! -f "$TASK_PACKET" ]]; then
+            echo "BLOCKED missing task_packet file: $TASK_PACKET"
+            exit 1
+          fi
+
+      - name: Install control-plane requirements
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-control-plane.txt
+
+      - name: Run strict schema validator
+        shell: bash
+        run: python scripts/validate_control_plane_json.py --pretty
+
+      - name: Run operator validate-staged mode
+        shell: bash
+        env:
+          TASK_PACKET: ${{ inputs.task_packet }}
+          PRETTY_INPUT: ${{ inputs.pretty }}
+        run: |
+          set -euo pipefail
+          PRETTY_FLAG=""
+          if [[ "$PRETTY_INPUT" == "true" ]]; then
+            PRETTY_FLAG="--pretty"
+          fi
+          python scripts/agent_pr_operator.py --mode validate-staged --task-packet "$TASK_PACKET" $PRETTY_FLAG

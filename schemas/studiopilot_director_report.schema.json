@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/studiopilot_director_report.schema.json",
+  "title": "StudioPilot Director Report V0",
+  "description": "Planning-only control-plane director review report. Directors review scope, risk, PR candidates, and escalation conditions without executing active agent work.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "report_id",
+    "director_type",
+    "source_objective",
+    "source_project_breakdown_ref",
+    "reviewed_scope",
+    "reviewed_pr_candidates",
+    "risk_level",
+    "director_verdict",
+    "required_conditions",
+    "blocked_reasons",
+    "escalation_required",
+    "escalation_targets",
+    "touched_surfaces",
+    "forbidden_surface_touched",
+    "human_gate_required",
+    "auto_ready_allowed",
+    "auto_merge_allowed",
+    "claim_verdict",
+    "evidence_verdict",
+    "status"
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "string_array": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "BLOCKED"
+      ]
+    },
+    "director_verdict": {
+      "type": "string",
+      "enum": [
+        "GO",
+        "HOLD",
+        "BLOCKED",
+        "BLOCKED_INFRA"
+      ]
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": "studiopilot.director_report.v0"
+    },
+    "report_id": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "director_type": {
+      "type": "string",
+      "enum": [
+        "RESOURCE_DIRECTOR",
+        "ARCHITECTURE_DIRECTOR",
+        "PRODUCT_GAME_DIRECTOR",
+        "QUALITY_DIRECTOR",
+        "MEMORY_EVIDENCE_DIRECTOR"
+      ]
+    },
+    "source_objective": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "source_project_breakdown_ref": {
+      "$ref": "#/$defs/non_empty_string"
+    },
+    "reviewed_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_paths",
+        "forbidden_paths",
+        "scope_summary"
+      ],
+      "properties": {
+        "allowed_paths": {
+          "$ref": "#/$defs/string_array"
+        },
+        "forbidden_paths": {
+          "$ref": "#/$defs/string_array"
+        },
+        "scope_summary": {
+          "$ref": "#/$defs/non_empty_string"
+        }
+      }
+    },
+    "reviewed_pr_candidates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pr_candidate_id",
+          "title",
+          "pr_type",
+          "risk_level",
+          "director_decision",
+          "reasons"
+        ],
+        "properties": {
+          "pr_candidate_id": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "title": {
+            "$ref": "#/$defs/non_empty_string"
+          },
+          "pr_type": {
+            "type": "string",
+            "enum": [
+              "DOCS_ONLY",
+              "CONTROL_PLANE",
+              "SCHEMA_FIXTURE",
+              "TOOLING",
+              "RUNTIME",
+              "ML",
+              "WORKFLOW",
+              "BENCHMARK_BLOCKED",
+              "MIXED"
+            ]
+          },
+          "risk_level": {
+            "$ref": "#/$defs/risk_level"
+          },
+          "director_decision": {
+            "$ref": "#/$defs/director_verdict"
+          },
+          "reasons": {
+            "$ref": "#/$defs/string_array"
+          }
+        }
+      }
+    },
+    "risk_level": {
+      "$ref": "#/$defs/risk_level"
+    },
+    "director_verdict": {
+      "$ref": "#/$defs/director_verdict"
+    },
+    "required_conditions": {
+      "$ref": "#/$defs/string_array"
+    },
+    "blocked_reasons": {
+      "$ref": "#/$defs/string_array"
+    },
+    "escalation_required": {
+      "type": "boolean"
+    },
+    "escalation_targets": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "HUMAN_FOUNDER",
+          "GOVERNANCE_KERNEL",
+          "CEO_PRODUCER",
+          "CEO_OFFICE",
+          "PROJECT_BREAKDOWN",
+          "RESOURCE_DIRECTOR",
+          "ARCHITECTURE_DIRECTOR",
+          "PRODUCT_GAME_DIRECTOR",
+          "QUALITY_DIRECTOR",
+          "MEMORY_EVIDENCE_DIRECTOR"
+        ]
+      }
+    },
+    "touched_surfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workflows",
+        "runtime",
+        "search",
+        "neural",
+        "ml_training",
+        "benchmark",
+        "schemas",
+        "docs",
+        "control_plane_tooling"
+      ],
+      "properties": {
+        "workflows": {
+          "type": "boolean"
+        },
+        "runtime": {
+          "type": "boolean"
+        },
+        "search": {
+          "type": "boolean"
+        },
+        "neural": {
+          "type": "boolean"
+        },
+        "ml_training": {
+          "type": "boolean"
+        },
+        "benchmark": {
+          "type": "boolean"
+        },
+        "schemas": {
+          "type": "boolean"
+        },
+        "docs": {
+          "type": "boolean"
+        },
+        "control_plane_tooling": {
+          "type": "boolean"
+        }
+      }
+    },
+    "forbidden_surface_touched": {
+      "type": "boolean"
+    },
+    "human_gate_required": {
+      "const": true
+    },
+    "auto_ready_allowed": {
+      "const": false
+    },
+    "auto_merge_allowed": {
+      "const": false
+    },
+    "claim_verdict": {
+      "type": "string",
+      "enum": [
+        "NO_CLAIM_ALLOWED",
+        "HEALTH_ONLY",
+        "EVIDENCE_ONLY"
+      ]
+    },
+    "evidence_verdict": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "READY_FOR_HUMAN_REVIEW",
+        "ACCEPTED",
+        "HOLD",
+        "BLOCKED",
+        "SUPERSEDED"
+      ]
+    }
+  }
+}

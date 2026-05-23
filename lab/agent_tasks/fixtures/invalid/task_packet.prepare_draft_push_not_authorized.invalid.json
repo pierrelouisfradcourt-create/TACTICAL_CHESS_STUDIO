@@ -1,0 +1,37 @@
+{
+  "task_id": "PR197_PREPARE_DRAFT_PUSH_NOT_AUTHORIZED",
+  "agent_id": "code",
+  "objective": "Invalid fixture: prepare-draft-pr must block when push authorization is false.",
+  "allowed_files": [
+    "scripts/agent_pr_operator.py",
+    "schemas/task_packet.schema.json"
+  ],
+  "forbidden_files": [
+    "src/**",
+    ".github/**"
+  ],
+  "required_checks": [
+    "python -m py_compile scripts/agent_pr_operator.py"
+  ],
+  "expected_verdicts": {
+    "software_verdict": "CONTROL_PLANE_TOOLING_ONLY",
+    "evidence_verdict": "LOCAL_OPERATOR_HYGIENE_VALIDATION_ONLY",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  },
+  "human_review_required": true,
+  "control_plane_exception": true,
+  "exception_reason": "Invalid fixture for explicit authorization enforcement.",
+  "authorization": {
+    "human_authorized": true,
+    "allow_commit": true,
+    "allow_push": false,
+    "allow_create_pr": true,
+    "allow_ready": false,
+    "allow_merge": false
+  },
+  "authorize_commit": true,
+  "authorize_push": "false",
+  "authorize_create_pr": true,
+  "authorize_ready_pr": false,
+  "authorize_merge_pr": false
+}

@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/studiopilot_task_packet.schema.json",
+  "title": "StudioPilot TaskPacket V0",
+  "description": "Validated work order packet that precedes Codex execution. This schema defines boundaries and required planning data; it does not grant execution authority by itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "title",
+    "lane",
+    "intent",
+    "allowed_paths",
+    "forbidden_paths",
+    "expected_outputs",
+    "validation_commands",
+    "claim_scope",
+    "human_gate_required",
+    "rollback_plan"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lane": {
+      "type": "string",
+      "enum": [
+        "docs",
+        "schema",
+        "tooling",
+        "test",
+        "runtime",
+        "ml",
+        "benchmark",
+        "governance"
+      ]
+    },
+    "intent": {
+      "type": "string",
+      "minLength": 1
+    },
+    "allowed_paths": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "forbidden_paths": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "expected_outputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "validation_commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "claim_scope": {
+      "type": "string",
+      "enum": [
+        "NO_CLAIM_ALLOWED",
+        "HEALTH_ONLY",
+        "EVIDENCE_ONLY"
+      ]
+    },
+    "human_gate_required": {
+      "type": "boolean"
+    },
+    "rollback_plan": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "execution_report": {
+    "branch": "codex/example-local-review-go",
+    "changed_files": [
+      "schemas/studiopilot_local_review_pack.schema.json",
+      "scripts/control_plane/build_local_review_pack.py",
+      "docs/control-plane/ONE_COMMAND_LOCAL_REVIEW_PACK_V0.md"
+    ],
+    "claim_verdict": "NO_CLAIM_ALLOWED",
+    "commands_run": [
+      "python scripts/control_plane/smoke_local_review_pack.py"
+    ],
+    "commands_skipped": [
+      "benchmarks skipped by control-plane boundary"
+    ],
+    "known_risks": [],
+    "schema_version": "studiopilot.execution_report.v0",
+    "scope_deviation": "NONE",
+    "task_id": "LRP-GO-001",
+    "tests_failed": 0,
+    "tests_passed": 3,
+    "validation_results": [
+      {
+        "name": "local_review_pack_smoke",
+        "status": "PASS"
+      }
+    ]
+  },
+  "human_decision": {
+    "approver": "human founder",
+    "claim_decision": "NO_CLAIM",
+    "decision_id": "HD-LRP-GO-001",
+    "evidence_refs": [
+      "local review pack smoke summary"
+    ],
+    "merge_decision": "MERGE",
+    "promotion_decision": "NO_PROMOTION",
+    "rationale": "Local control-plane checks are represented as successful; HumanGate remains final.",
+    "rollback_plan": "Revert the control-plane patch if needed.",
+    "schema_version": "studiopilot.human_decision.v0",
+    "subject": "PR 301",
+    "timestamp": "2026-05-09T12:00:00Z"
+  },
+  "pr_decision_packet": {
+    "auto_merge_allowed": false,
+    "auto_ready_allowed": false,
+    "branch": "codex/example-local-review-go",
+    "checks_status": "SUCCESS",
+    "claim_verdict": "NO_CLAIM_ALLOWED",
+    "evidence_verdict": "LOCAL_REVIEW_SUMMARY_ONLY",
+    "forbidden_surface_touched": false,
+    "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+    "human_gate_required": true,
+    "merge_verdict": "MERGE_ALLOWED",
+    "next_action": "Human founder may decide whether to ready and merge after confirming required checks.",
+    "packet_id": "PRD-LRP-GO-001",
+    "pr_number": 301,
+    "pr_title": "control-plane: example local review go",
+    "reasons": [
+      "Required checks are successful.",
+      "Scope is control-plane only.",
+      "HumanGate remains required."
+    ],
+    "recommended_decision": "GO_READY_AND_MERGE",
+    "schema_version": "studiopilot.pr_decision_packet.v0",
+    "scope_status": "OK",
+    "software_verdict": "SAFE",
+    "touched_surfaces": {
+      "benchmark": false,
+      "control_plane_tooling": true,
+      "docs": true,
+      "ml_training": false,
+      "neural": false,
+      "runtime": false,
+      "schemas": true,
+      "search": false,
+      "workflows": false
+    }
+  },
+  "review_packet": {
+    "architecture_risk": "LOW",
+    "blocking_questions": [],
+    "claim_risk": "LOW",
+    "evidence_risk": "LOW",
+    "human_action_required": true,
+    "recommendation": "SAFE_TO_MERGE_AFTER_HUMAN_CONFIRMATION",
+    "review_id": "RP-LRP-GO-001",
+    "reviewer_type": "MANUAL_HUMAN",
+    "runtime_risk": "LOW",
+    "schema_version": "studiopilot.review_packet.v0",
+    "scope_risk": "LOW",
+    "source_pr": "301"
+  },
+  "schema_version": "studiopilot.local_review_pack_input.v0"
+}

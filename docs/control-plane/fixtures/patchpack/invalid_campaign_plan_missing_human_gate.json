@@ -1,0 +1,87 @@
+{
+  "schema_version": "studiopilot.campaign_plan.v0",
+  "campaign_id": "campaign.local_first_patchpack_v0",
+  "title": "Invalid PatchPack plan missing human gate",
+  "objective": "Plan local-first PatchPacks without auto-execution",
+  "campaign_type": "PATCHPACK",
+  "scope": {
+    "allowed_paths": [
+      "schemas/",
+      "docs/control-plane/",
+      "scripts/control_plane/"
+    ],
+    "forbidden_paths": [
+      ".github/workflows/",
+      "src/",
+      "engine/",
+      "search/",
+      "neural/",
+      "ml/"
+    ]
+  },
+  "forbidden_changes": [
+    "runtime",
+    "ml_training",
+    "benchmark",
+    "auto_merge",
+    "claim_escalation"
+  ],
+  "patch_groups": [
+    {
+      "patch_group_id": "pg.invalid_missing_campaign_gate",
+      "title": "Invalid missing campaign gate",
+      "objective": "Omit the required campaign-level human gate.",
+      "pr_candidates": [
+        {
+          "pr_candidate_id": "prc.invalid_missing_campaign_gate",
+          "title": "Invalid candidate still gated",
+          "intent": "Keep the candidate gated while the campaign gate is missing.",
+          "allowed_paths": [
+            "schemas/"
+          ],
+          "forbidden_paths": [
+            ".github/workflows/",
+            "src/"
+          ],
+          "expected_outputs": [
+            "Schema rejection"
+          ],
+          "validation_commands": [
+            ".\\.venv312\\Scripts\\python.exe scripts\\control_plane\\validate_patchpack_plan.py --pretty"
+          ],
+          "claim_scope": "NO_CLAIM_ALLOWED",
+          "human_gate_required": true
+        }
+      ],
+      "dependencies": [],
+      "risk_level": "LOW",
+      "human_approval_required": true
+    }
+  ],
+  "local_validation_required": true,
+  "ci_policy": {
+    "remote_profile": "CONTROL_PLANE",
+    "github_actions_required": true,
+    "benchmark_policy": "NEVER_AUTOMATIC"
+  },
+  "budget_gate": {
+    "codex_task_budget": "SMALL",
+    "max_codex_tasks": 1,
+    "max_changed_files_per_pr": 4,
+    "max_retries_per_task": 0,
+    "no_retry_loop": true,
+    "stop_on_first_blocker": true
+  },
+  "risk_level": "LOW",
+  "status": "DRAFT",
+  "stop_conditions": [
+    "failed_checks",
+    "scope_violation",
+    "claim_escalation"
+  ],
+  "verdicts": {
+    "software_verdict": "CONTROL_PLANE_PATCHPACK_SCHEMA_TOOLING_ONLY",
+    "evidence_verdict": "LOCAL_FIRST_PATCHPACK_PLANNING_ONLY",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  }
+}

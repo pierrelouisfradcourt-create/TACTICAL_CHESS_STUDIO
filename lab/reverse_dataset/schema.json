@@ -1,0 +1,45 @@
+{
+  "schema_version": "reverse_dataset_engine_v2_matrix_strict",
+  "required_fields": [
+    "sample_id",
+    "schema_version",
+    "fen",
+    "good_move",
+    "bad_moves",
+    "sequence",
+    "phase",
+    "quality",
+    "type",
+    "color",
+    "material_signature",
+    "material_class",
+    "tags",
+    "trainable"
+  ],
+  "axes": {
+    "phase": [
+      "opening",
+      "midgame",
+      "endgame"
+    ],
+    "quality": [
+      "elite",
+      "good",
+      "noisy"
+    ],
+    "type": [
+      "positive",
+      "negative"
+    ],
+    "color": [
+      "white",
+      "black"
+    ]
+  },
+  "notes": {
+    "trainable": "false for noisy samples; noisy samples are stored for audit but should not be used for training",
+    "mirror": "mirror rows live in phase/mirror.jsonl and preserve phase/quality/type while swapping color and board orientation",
+    "negative_contract": "negative rows keep the same good_move but expose one selected bad move in bad_moves[0]",
+    "sequence_contract": "sequence contains 2 to 5 consecutive best moves from the source game starting at the sample ply"
+  }
+}

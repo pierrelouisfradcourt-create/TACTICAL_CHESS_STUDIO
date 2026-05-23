@@ -1,0 +1,341 @@
+{
+  "schema_version": "studiopilot.control_plane_integration_input.v0",
+  "integration_id": "integration.control_plane_smoke_go_v0",
+  "campaign_plan": {
+    "schema_version": "studiopilot.campaign_plan.v0",
+    "campaign_id": "campaign.control_plane_integration_smoke_v0",
+    "title": "Control-Plane Integration Smoke V0",
+    "objective": "Verify the local control-plane chain from campaign plan through local review summary.",
+    "campaign_type": "CONTROL_PLANE",
+    "scope": {
+      "allowed_paths": [
+        "scripts/control_plane/smoke_control_plane_integration.py",
+        "docs/control-plane/fixtures/integration_smoke/",
+        "docs/control-plane/CONTROL_PLANE_INTEGRATION_SMOKE_V0.md"
+      ],
+      "forbidden_paths": [
+        ".github/workflows/",
+        "src/",
+        "engine/",
+        "search/",
+        "neural/",
+        "ml/",
+        "lab/datasets/",
+        "lab/runs/",
+        "benchmarks/"
+      ]
+    },
+    "forbidden_changes": [
+      "runtime",
+      "ml_training",
+      "benchmark",
+      "auto_merge",
+      "claim_escalation",
+      "github_actions",
+      "secrets",
+      "datasets",
+      "lab_runs",
+      "active_agents"
+    ],
+    "patch_groups": [
+      {
+        "patch_group_id": "pg.control_plane_integration_smoke",
+        "title": "Control-plane integration smoke tooling",
+        "objective": "Add a local integration smoke that validates existing control-plane concepts together.",
+        "pr_candidates": [
+          {
+            "pr_candidate_id": "prc.control_plane_integration_smoke_tooling",
+            "title": "Add control-plane integration smoke V0",
+            "intent": "Verify CampaignPlan to PRQueue to task draft to human command to PR decision to local review decision locally.",
+            "allowed_paths": [
+              "scripts/control_plane/smoke_control_plane_integration.py",
+              "docs/control-plane/fixtures/integration_smoke/",
+              "docs/control-plane/CONTROL_PLANE_INTEGRATION_SMOKE_V0.md"
+            ],
+            "forbidden_paths": [
+              ".github/workflows/",
+              "src/",
+              "engine/",
+              "search/",
+              "neural/",
+              "ml/",
+              "benchmarks/"
+            ],
+            "expected_outputs": [
+              "Deterministic local integration smoke summary",
+              "GO and BLOCKED_INFRA integration fixtures",
+              "Control-plane integration smoke documentation"
+            ],
+            "validation_commands": [
+              ".\\.venv312\\Scripts\\python.exe scripts\\control_plane\\smoke_control_plane_integration.py --pretty",
+              ".\\.venv312\\Scripts\\python.exe scripts\\operator\\validate_json_artifacts.py",
+              ".\\.venv312\\Scripts\\python.exe -m py_compile scripts\\control_plane\\smoke_control_plane_integration.py"
+            ],
+            "claim_scope": "NO_CLAIM_ALLOWED",
+            "human_gate_required": true
+          }
+        ],
+        "dependencies": [],
+        "risk_level": "LOW",
+        "human_approval_required": true
+      }
+    ],
+    "local_validation_required": true,
+    "ci_policy": {
+      "remote_profile": "CONTROL_PLANE",
+      "github_actions_required": true,
+      "benchmark_policy": "NEVER_AUTOMATIC"
+    },
+    "budget_gate": {
+      "codex_task_budget": "SMALL",
+      "max_codex_tasks": 1,
+      "max_changed_files_per_pr": 9,
+      "max_retries_per_task": 0,
+      "no_retry_loop": true,
+      "stop_on_first_blocker": true
+    },
+    "risk_level": "LOW",
+    "status": "APPROVED_FOR_PLANNING",
+    "human_gate_required": true,
+    "stop_conditions": [
+      "failed_checks",
+      "scope_violation",
+      "claim_escalation",
+      "forbidden_path_touched",
+      "benchmark_attempted",
+      "runtime_touched_without_scope",
+      "ml_training_attempted"
+    ],
+    "verdicts": {
+      "software_verdict": "CONTROL_PLANE_INTEGRATION_SMOKE_ONLY",
+      "evidence_verdict": "LOCAL_INTEGRATION_SMOKE_ONLY",
+      "claim_verdict": "NO_CLAIM_ALLOWED"
+    }
+  },
+  "pr_queue": {
+    "schema_version": "studiopilot.pr_queue.v0",
+    "queue_id": "queue.control_plane_integration_smoke_v0",
+    "campaign_id": "campaign.control_plane_integration_smoke_v0",
+    "source_campaign_plan_ref": "docs/control-plane/fixtures/integration_smoke/valid_integration_smoke_input_v0.json",
+    "pr_candidates": [
+      {
+        "pr_candidate_id": "prc.control_plane_integration_smoke_tooling",
+        "title": "Add control-plane integration smoke V0",
+        "pr_type": "CONTROL_PLANE",
+        "status": "READY_FOR_HANDOFF",
+        "dependencies": [],
+        "allowed_paths": [
+          "scripts/control_plane/smoke_control_plane_integration.py",
+          "docs/control-plane/fixtures/integration_smoke/",
+          "docs/control-plane/CONTROL_PLANE_INTEGRATION_SMOKE_V0.md"
+        ],
+        "forbidden_paths": [
+          ".github/workflows/",
+          "src/",
+          "engine/",
+          "search/",
+          "neural/",
+          "ml/",
+          "benchmarks/"
+        ],
+        "validation_commands": [
+          ".\\.venv312\\Scripts\\python.exe scripts\\control_plane\\smoke_control_plane_integration.py --pretty",
+          ".\\.venv312\\Scripts\\python.exe scripts\\operator\\validate_json_artifacts.py",
+          ".\\.venv312\\Scripts\\python.exe -m py_compile scripts\\control_plane\\smoke_control_plane_integration.py"
+        ],
+        "expected_outputs": [
+          "Deterministic local integration smoke summary",
+          "GO and BLOCKED_INFRA integration fixtures",
+          "Control-plane integration smoke documentation"
+        ],
+        "ci_profile": "CONTROL_PLANE",
+        "handoff_codex_ready": true,
+        "blocked_reason": null,
+        "claim_scope": "NO_CLAIM_ALLOWED",
+        "human_gate_required": true,
+        "merge_allowed": false
+      }
+    ],
+    "queue_status": "GO",
+    "current_index": 0,
+    "ci_policy": {
+      "local_first_required": true,
+      "remote_gate_required": true,
+      "benchmark_automatic_allowed": false
+    },
+    "merge_policy": {
+      "auto_merge_allowed": false,
+      "ready_requires_human": true,
+      "merge_requires_human": true,
+      "match_head_commit_required": true
+    },
+    "learning_policy": {
+      "learning_event_required": true,
+      "auto_mutation_allowed": false
+    },
+    "human_gate_required": true,
+    "verdict": "GO"
+  },
+  "human_commands": {
+    "schema_version": "studiopilot.human_command.v0",
+    "command_id": "HC-INTEGRATION-GO-001",
+    "issued_by": "HUMAN_FOUNDER",
+    "command_type": "BUILD_ALLOWED",
+    "target_scope": "CONTROL_PLANE",
+    "freeze_targets": [],
+    "allowed_actions": [
+      "read",
+      "patch",
+      "validate"
+    ],
+    "forbidden_actions": [
+      "auto_ready",
+      "auto_merge",
+      "benchmark",
+      "training",
+      "runtime_execution",
+      "github_api",
+      "openai_api",
+      "codex_api"
+    ],
+    "human_gate_required": true,
+    "auto_merge_allowed": false,
+    "auto_ready_allowed": false,
+    "claim_scope": "NO_CLAIM_ALLOWED",
+    "expires_after_task": true,
+    "reason": "Allow bounded control-plane tooling only."
+  },
+  "pr_decision_packet": {
+    "schema_version": "studiopilot.pr_decision_packet.v0",
+    "packet_id": "PRD-INTEGRATION-GO-001",
+    "pr_number": 401,
+    "pr_title": "control-plane: add integration smoke v0",
+    "branch": "codex/patchpack-control-plane-integration-smoke-v0",
+    "head_sha": "1111111111111111111111111111111111111111",
+    "checks_status": "SUCCESS",
+    "scope_status": "OK",
+    "software_verdict": "SAFE",
+    "evidence_verdict": "LOCAL_INTEGRATION_SMOKE_ONLY",
+    "claim_verdict": "NO_CLAIM_ALLOWED",
+    "merge_verdict": "MERGE_ALLOWED",
+    "recommended_decision": "GO_READY_AND_MERGE",
+    "next_action": "Human founder may decide whether to ready and merge after confirming required checks.",
+    "human_gate_required": true,
+    "auto_ready_allowed": false,
+    "auto_merge_allowed": false,
+    "forbidden_surface_touched": false,
+    "touched_surfaces": {
+      "benchmark": false,
+      "control_plane_tooling": true,
+      "docs": true,
+      "ml_training": false,
+      "neural": false,
+      "runtime": false,
+      "schemas": false,
+      "search": false,
+      "workflows": false
+    },
+    "reasons": [
+      "Required checks are successful.",
+      "Scope is control-plane only.",
+      "HumanGate remains required."
+    ]
+  },
+  "local_review_pack_input": {
+    "schema_version": "studiopilot.local_review_pack_input.v0",
+    "execution_report": {
+      "schema_version": "studiopilot.execution_report.v0",
+      "task_id": "INT-GO-001",
+      "branch": "codex/patchpack-control-plane-integration-smoke-v0",
+      "changed_files": [
+        "scripts/control_plane/smoke_control_plane_integration.py",
+        "docs/control-plane/fixtures/integration_smoke/valid_integration_smoke_input_v0.json",
+        "docs/control-plane/CONTROL_PLANE_INTEGRATION_SMOKE_V0.md"
+      ],
+      "commands_run": [
+        "python scripts/control_plane/smoke_control_plane_integration.py --pretty"
+      ],
+      "commands_skipped": [
+        "benchmarks skipped by control-plane boundary",
+        "training skipped by control-plane boundary",
+        "runtime tests skipped by control-plane boundary"
+      ],
+      "tests_passed": 3,
+      "tests_failed": 0,
+      "validation_results": [
+        {
+          "name": "control_plane_integration_smoke",
+          "status": "PASS"
+        }
+      ],
+      "scope_deviation": "NONE",
+      "known_risks": [],
+      "claim_verdict": "NO_CLAIM_ALLOWED"
+    },
+    "review_packet": {
+      "schema_version": "studiopilot.review_packet.v0",
+      "review_id": "RP-INTEGRATION-GO-001",
+      "source_pr": "401",
+      "reviewer_type": "MANUAL_HUMAN",
+      "recommendation": "SAFE_TO_MERGE_AFTER_HUMAN_CONFIRMATION",
+      "blocking_questions": [],
+      "architecture_risk": "LOW",
+      "runtime_risk": "LOW",
+      "evidence_risk": "LOW",
+      "claim_risk": "LOW",
+      "scope_risk": "LOW",
+      "human_action_required": true
+    },
+    "human_decision": {
+      "schema_version": "studiopilot.human_decision.v0",
+      "decision_id": "HD-INTEGRATION-GO-001",
+      "subject": "PR 401",
+      "approver": "human founder",
+      "merge_decision": "MERGE",
+      "promotion_decision": "NO_PROMOTION",
+      "claim_decision": "NO_CLAIM",
+      "evidence_refs": [
+        "control-plane integration smoke summary"
+      ],
+      "rationale": "Local control-plane chain is represented as successful; HumanGate remains final.",
+      "rollback_plan": "Revert the control-plane patch if needed.",
+      "timestamp": "2026-05-09T12:00:00Z"
+    },
+    "pr_decision_packet": {
+      "schema_version": "studiopilot.pr_decision_packet.v0",
+      "packet_id": "PRD-INTEGRATION-GO-001",
+      "pr_number": 401,
+      "pr_title": "control-plane: add integration smoke v0",
+      "branch": "codex/patchpack-control-plane-integration-smoke-v0",
+      "head_sha": "1111111111111111111111111111111111111111",
+      "checks_status": "SUCCESS",
+      "scope_status": "OK",
+      "software_verdict": "SAFE",
+      "evidence_verdict": "LOCAL_INTEGRATION_SMOKE_ONLY",
+      "claim_verdict": "NO_CLAIM_ALLOWED",
+      "merge_verdict": "MERGE_ALLOWED",
+      "recommended_decision": "GO_READY_AND_MERGE",
+      "next_action": "Human founder may decide whether to ready and merge after confirming required checks.",
+      "human_gate_required": true,
+      "auto_ready_allowed": false,
+      "auto_merge_allowed": false,
+      "forbidden_surface_touched": false,
+      "touched_surfaces": {
+        "benchmark": false,
+        "control_plane_tooling": true,
+        "docs": true,
+        "ml_training": false,
+        "neural": false,
+        "runtime": false,
+        "schemas": false,
+        "search": false,
+        "workflows": false
+      },
+      "reasons": [
+        "Required checks are successful.",
+        "Scope is control-plane only.",
+        "HumanGate remains required."
+      ]
+    }
+  }
+}

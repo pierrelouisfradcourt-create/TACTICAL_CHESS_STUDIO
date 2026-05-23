@@ -1,0 +1,132 @@
+{
+  "schema_version": "studiopilot.project_breakdown_report.v0",
+  "report_id": "pbr_v0_minimal_001",
+  "source_objective": "Integrate scalable AI organization into the control-plane roadmap",
+  "objective_summary": "Minimal planning-only decomposition fixture.",
+  "non_goals": [
+    "No runtime changes"
+  ],
+  "assumptions": [
+    "Human review is mandatory"
+  ],
+  "scope_model": {
+    "parent_scope": "Project breakdown minimum scope",
+    "included_scope": [
+      "Schema and docs"
+    ],
+    "excluded_scope": [
+      "Runtime and ML"
+    ],
+    "coverage_rule": "WBS_100_PERCENT_RULE"
+  },
+  "epics": [
+    {
+      "epic_id": "epic.minimal",
+      "title": "Minimal epic",
+      "objective": "Provide minimal valid structure.",
+      "included_scope": [
+        "Control-plane docs"
+      ],
+      "excluded_scope": [
+        "Execution runtime"
+      ],
+      "exit_criteria": [
+        "One valid PR candidate exists"
+      ],
+      "risk_level": "LOW"
+    }
+  ],
+  "patch_groups": [
+    {
+      "patch_group_id": "pg.minimal",
+      "parent_epic_id": "epic.minimal",
+      "title": "Minimal patch group",
+      "objective": "Constrain one docs-only patch candidate.",
+      "allowed_paths": [
+        "docs/control-plane/PROJECT_BREAKDOWN_REPORT_V0.md"
+      ],
+      "forbidden_paths": [
+        ".github/workflows/",
+        "src/",
+        "ml/"
+      ],
+      "dependencies": [],
+      "expected_outputs": [
+        "One planning doc update"
+      ],
+      "validation_expectations": [
+        "Local json validation only"
+      ],
+      "risk_level": "LOW",
+      "human_approval_required": true
+    }
+  ],
+  "pr_candidates": [
+    {
+      "pr_candidate_id": "pr.minimal",
+      "parent_patch_group_id": "pg.minimal",
+      "title": "Minimal docs candidate",
+      "pr_type": "DOCS_ONLY",
+      "objective": "Update planning docs only.",
+      "allowed_paths": [
+        "docs/control-plane/PROJECT_BREAKDOWN_REPORT_V0.md"
+      ],
+      "forbidden_paths": [
+        ".github/workflows/",
+        "src/",
+        "ml/"
+      ],
+      "expected_outputs": [
+        "Planning-only docs update"
+      ],
+      "validation_commands": [
+        ".\\.venv312\\Scripts\\python.exe scripts\\operator\\validate_json_artifacts.py"
+      ],
+      "required_director_reviews": [
+        "QUALITY_DIRECTOR"
+      ],
+      "risk_level": "LOW",
+      "claim_scope": "NO_CLAIM_ALLOWED",
+      "human_gate_required": true,
+      "auto_ready_allowed": false,
+      "auto_merge_allowed": false
+    }
+  ],
+  "dependency_graph": {
+    "nodes": [
+      "pg.minimal",
+      "pr.minimal"
+    ],
+    "edges": [
+      {
+        "from": "pg.minimal",
+        "to": "pr.minimal"
+      }
+    ]
+  },
+  "required_director_reviews": [
+    "QUALITY_DIRECTOR"
+  ],
+  "risk_level": "LOW",
+  "recommended_first_action": {
+    "pr_candidate_id": "pr.minimal",
+    "reason": "Start with minimal docs-only control-plane validation.",
+    "expected_decision": "GO"
+  },
+  "stop_conditions": [
+    "scope_gap",
+    "duplicate_scope",
+    "forbidden_path_touched",
+    "missing_director_review",
+    "claim_escalation",
+    "auto_pr_attempted",
+    "runtime_without_architecture_review",
+    "benchmark_automation_attempted"
+  ],
+  "human_gate_required": true,
+  "auto_pr_creation_allowed": false,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "status": "DRAFT"
+}

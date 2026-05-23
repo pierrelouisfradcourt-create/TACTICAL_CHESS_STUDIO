@@ -1,0 +1,290 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/studio_mission_candidate.schema.json",
+  "title": "StudioMissionCandidate V0",
+  "description": "Stdout-only dry-run mission candidate compiled from a StudioCurrentState preview. This schema does not authorize Codex execution, persistent state writes, activation, training, benchmark, model promotion, release automation, or public claims.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_type",
+    "contract_version",
+    "generated_at",
+    "source_current_state_id",
+    "mission_id",
+    "task_class",
+    "goal",
+    "reason",
+    "target_files",
+    "reference_only_paths",
+    "surfaces_in_scope",
+    "surfaces_out_of_scope",
+    "blocked_actions",
+    "validation_plan",
+    "output_routing",
+    "humangate_required",
+    "codex_prompt_candidate",
+    "forbidden_missions",
+    "claim_posture",
+    "no_global_ready_verdict"
+  ],
+  "properties": {
+    "record_type": {
+      "const": "studio_mission_candidate"
+    },
+    "contract_version": {
+      "const": "V0"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_current_state_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mission_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9._:-]+$"
+    },
+    "task_class": {
+      "type": "string",
+      "minLength": 1
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_files": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "reference_only_paths": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "surfaces_in_scope": {
+      "$ref": "#/$defs/surface_list"
+    },
+    "surfaces_out_of_scope": {
+      "$ref": "#/$defs/surface_list"
+    },
+    "blocked_actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "validation_plan": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "output_routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "stdout_only",
+        "files_written",
+        "current_state_written",
+        "allowed_output_paths",
+        "forbidden_output_paths"
+      ],
+      "properties": {
+        "mode": {
+          "const": "DRY_RUN_STDOUT_ONLY"
+        },
+        "stdout_only": {
+          "const": true
+        },
+        "files_written": {
+          "const": false
+        },
+        "current_state_written": {
+          "const": false
+        },
+        "allowed_output_paths": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "forbidden_output_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "humangate_required": {
+      "const": true
+    },
+    "codex_prompt_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "codex_runtime",
+        "preflight",
+        "sources_to_read",
+        "scope_in",
+        "scope_out",
+        "output_routing",
+        "blocked_actions",
+        "validation",
+        "final_report_requirements",
+        "no_global_ready_verdict",
+        "claim_posture"
+      ],
+      "properties": {
+        "codex_runtime": {
+          "$ref": "#/$defs/string_map"
+        },
+        "preflight": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "sources_to_read": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "scope_in": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "scope_out": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "output_routing": {
+          "$ref": "#/$defs/string_list_map"
+        },
+        "blocked_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "validation": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "final_report_requirements": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "no_global_ready_verdict": {
+          "const": true
+        },
+        "claim_posture": {
+          "const": "NO_CLAIM_ALLOWED"
+        }
+      }
+    },
+    "forbidden_missions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "claim_posture": {
+      "const": "NO_CLAIM_ALLOWED"
+    },
+    "no_global_ready_verdict": {
+      "const": true
+    }
+  },
+  "$defs": {
+    "surface": {
+      "type": "string",
+      "enum": [
+        "active_runtime_code",
+        "tests",
+        "tools_scripts",
+        "artifacts_runtime_outputs",
+        "canonical_docs",
+        "roadmap_docs_only",
+        "inference"
+      ]
+    },
+    "surface_list": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/surface"
+      },
+      "uniqueItems": true
+    },
+    "string_map": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "string_list_map": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

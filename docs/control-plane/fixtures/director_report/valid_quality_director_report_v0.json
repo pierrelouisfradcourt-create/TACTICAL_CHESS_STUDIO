@@ -1,0 +1,81 @@
+{
+  "schema_version": "studiopilot.director_report.v0",
+  "report_id": "director_quality_v0_001",
+  "director_type": "QUALITY_DIRECTOR",
+  "source_objective": "Deliver Director Report V0 control-plane patchpack with deterministic local checks",
+  "source_project_breakdown_ref": "pbr_v0_scalable_ai_org_001",
+  "reviewed_scope": {
+    "allowed_paths": [
+      "schemas/studiopilot_director_report.schema.json",
+      "scripts/control_plane/validate_director_reports.py",
+      "scripts/control_plane/smoke_director_report.py",
+      "docs/control-plane/fixtures/director_report/",
+      "docs/control-plane/DIRECTOR_LAYER_V0.md",
+      "docs/control-plane/DIRECTOR_REPORT_V0.md",
+      "docs/control-plane/DIRECTOR_REVIEW_POLICY_V0.md"
+    ],
+    "forbidden_paths": [
+      ".github/workflows/",
+      "src/",
+      "ml/"
+    ],
+    "scope_summary": "Quality review enforces deterministic schema/semantic validation and bans benchmark-as-proof behavior."
+  },
+  "reviewed_pr_candidates": [
+    {
+      "pr_candidate_id": "pr.ml_pipeline_contract_guard",
+      "title": "ML contract boundary review",
+      "pr_type": "ML",
+      "risk_level": "HIGH",
+      "director_decision": "HOLD",
+      "reasons": [
+        "Quality review is required alongside architecture review for ML class candidates",
+        "Validation remains local and deterministic"
+      ]
+    },
+    {
+      "pr_candidate_id": "pr.benchmark_claim_candidate",
+      "title": "Benchmark claim automation proposal",
+      "pr_type": "BENCHMARK_BLOCKED",
+      "risk_level": "BLOCKED",
+      "director_decision": "BLOCKED",
+      "reasons": [
+        "Benchmark results cannot be used as proof",
+        "Benchmark automation remains blocked"
+      ]
+    }
+  ],
+  "risk_level": "BLOCKED",
+  "director_verdict": "BLOCKED",
+  "required_conditions": [
+    "Validation commands must remain deterministic and local-only",
+    "Test and review coverage must include valid and invalid fixtures",
+    "No benchmark-as-proof statements are allowed"
+  ],
+  "blocked_reasons": [
+    "Benchmark claim pathways are blocked by policy"
+  ],
+  "escalation_required": true,
+  "escalation_targets": [
+    "GOVERNANCE_KERNEL",
+    "MEMORY_EVIDENCE_DIRECTOR"
+  ],
+  "touched_surfaces": {
+    "workflows": false,
+    "runtime": false,
+    "search": false,
+    "neural": false,
+    "ml_training": false,
+    "benchmark": false,
+    "schemas": true,
+    "docs": true,
+    "control_plane_tooling": true
+  },
+  "forbidden_surface_touched": false,
+  "human_gate_required": true,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "evidence_verdict": "Quality signal is limited to local validation behavior and policy compliance.",
+  "status": "READY_FOR_HUMAN_REVIEW"
+}

@@ -1,0 +1,28 @@
+PATCH INTEGRATION GUIDE
+
+1) Copier les dossiers suivants dans TacticalChessV1/src :
+   - analytics
+   - compiler
+   - orchestrator
+   - rules
+   - telemetry
+
+2) Dans src/main.rs ou src/lib.rs, ajouter au minimum :
+   mod analytics;
+   mod compiler;
+   mod orchestrator;
+   mod rules;
+   mod telemetry;
+
+3) Selon ton projet, expose ensuite :
+   use compiler::ruleset_compiler::*;
+   use telemetry::telemetry_logger::*;
+   use orchestrator::experiment_orchestrator::*;
+
+4) Ce patch n'appelle rien automatiquement.
+   Il pose une base propre pour brancher progressivement le runtime.
+
+5) Ordre de branchement recommandé :
+   - brancher ruleset_compiler sur ruleset_blueprints / ruleset_parameters
+   - brancher telemetry_logger après chaque run
+   - brancher experiment_orchestrator pour lancer les campagnes

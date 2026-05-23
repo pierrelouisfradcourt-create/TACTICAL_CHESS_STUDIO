@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pr07.gpt55_audit_input_schema",
+  "title": "PR-07 GPT-5.5 Structured Audit Input",
+  "type": "object",
+  "additionalProperties": true,
+  "description": "Bounded local input contract. Codex report alone is not evidence. Human summary alone is not evidence. latest.json is not evidence. Mechanical parser and gate outputs are primary inputs. GPT audit receives bounded summaries, not authority.",
+  "required": [
+    "schema_version",
+    "source_kind",
+    "mechanical_verdicts",
+    "parser_output",
+    "input_boundary_gate_output",
+    "claim_data_gate_output",
+    "artifact_refs"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "source_kind": {
+      "type": "string",
+      "description": "Bounded source category for the audit input."
+    },
+    "mechanical_verdicts": {
+      "type": "object",
+      "required": [
+        "software_verdict",
+        "evidence_verdict",
+        "claim_verdict"
+      ],
+      "properties": {
+        "software_verdict": {
+          "type": "string"
+        },
+        "evidence_verdict": {
+          "type": "string"
+        },
+        "claim_verdict": {
+          "type": "string",
+          "const": "NO_CLAIM_ALLOWED"
+        }
+      }
+    },
+    "parser_output": {
+      "type": "object",
+      "description": "Mechanical parser output. Primary input."
+    },
+    "input_boundary_gate_output": {
+      "type": "object",
+      "description": "Mechanical input-boundary gate output. Primary input."
+    },
+    "claim_data_gate_output": {
+      "type": "object",
+      "description": "Mechanical claim-data gate output. Primary input."
+    },
+    "artifact_refs": {
+      "type": "array",
+      "description": "References to bounded artifacts. latest.json alone is not evidence.",
+      "items": {
+        "type": "object"
+      }
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "report_text": {
+      "type": "string",
+      "description": "Optional bounded report text. A report alone is not evidence."
+    },
+    "codex_report": {
+      "type": "object",
+      "description": "Optional Codex report summary. Codex report alone is not evidence."
+    },
+    "human_summary": {
+      "type": "string",
+      "description": "Optional human summary. Human summary alone is not evidence."
+    }
+  }
+}

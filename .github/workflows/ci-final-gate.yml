@@ -1,0 +1,74 @@
+﻿name: CI Final Gate
+
+on:
+  # Manual-only for billing control. The final gate can still be run explicitly
+  # before merge or promotion decisions, but it no longer fans out on every PR.
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  final-gate:
+    name: final-gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Classify changed paths
+        id: classify
+        shell: bash
+        run: |
+          python scripts/operator/classify_changed_paths.py --pretty
+          profile="$(python scripts/operator/classify_changed_paths.py | python -c 'import json,sys; print(json.load(sys.stdin)["recommended_remote_profile"])')"
+          echo "recommended_profile=$profile" >> "$GITHUB_OUTPUT"
+          echo "Recommended profile: $profile"
+
+      - name: Validate JSON artifacts
+        shell: bash
+        run: python scripts/operator/validate_json_artifacts.py
+
+      - name: Install control-plane requirements
+        if: steps.classify.outputs.recommended_profile == 'CONTROL_PLANE'
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-control-plane.txt
+
+      - name: Control-plane checks
+        if: steps.classify.outputs.recommended_profile == 'CONTROL_PLANE'
+        shell: bash
+        run: |
+          python -c "import compileall, sys; ok = compileall.compile_dir('scripts/control_plane', force=False, quiet=1); sys.exit(0 if ok else 1)"
+          python scripts/control_plane/run_studiopilot_loop_smoke.py --pretty
+
+      - name: Docs-only summary
+        if: steps.classify.outputs.recommended_profile == 'DOCS_ONLY'
+        shell: bash
+        run: echo "DOCS_ONLY profile detected. Final gate intentionally skips runtime chess and Windows smoke checks."
+
+      - name: Runtime profile summary
+        if: steps.classify.outputs.recommended_profile == 'RUNTIME'
+        shell: bash
+        run: echo "RUNTIME profile detected. Existing Chess Test workflow remains the authoritative runtime check."
+
+      - name: Benchmark profile block
+        if: steps.classify.outputs.recommended_profile == 'BENCHMARK_BLOCKED'
+        shell: bash
+        run: |
+          echo "Benchmark paths changed; benchmark workflows are manual-only and require explicit review."
+          exit 1

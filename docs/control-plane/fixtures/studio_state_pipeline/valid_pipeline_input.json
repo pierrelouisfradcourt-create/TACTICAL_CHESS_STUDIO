@@ -1,0 +1,30 @@
+{
+  "schema_version": "sp-202-v0",
+  "task_id": "SP-PIPELINE-DRY-RUN-VALID-001",
+  "branch": "main",
+  "changed_files": [
+    "docs/control-plane/fixtures/studio_state_pipeline/valid_pipeline_input.json"
+  ],
+  "commands_run": [
+    "python -m json.tool docs/control-plane/fixtures/studio_state_pipeline/valid_pipeline_input.json"
+  ],
+  "commands_skipped": [
+    "benchmarks",
+    "training",
+    "runtime tests"
+  ],
+  "validation_results": [
+    {
+      "name": "pipeline_fixture_parseability",
+      "status": "PASS",
+      "details": "Fixture is valid JSON for Studio State Pipeline dry-run input."
+    }
+  ],
+  "tests_passed": 0,
+  "tests_failed": 0,
+  "known_risks": [
+    "Fixture is control-plane evidence only and does not activate runtime state."
+  ],
+  "scope_deviation": "NONE",
+  "claim_verdict": "NO_CLAIM_ALLOWED"
+}

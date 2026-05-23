@@ -1,0 +1,70 @@
+{
+  "schema_version": "studiopilot.specialist_role_charter.v0",
+  "specialist_id": "specialist.memory_learning.v0",
+  "specialist_type": "MEMORY_LEARNING_SPECIALIST",
+  "display_name": "Memory Learning Specialist V0",
+  "director_owner": "MEMORY_EVIDENCE_DIRECTOR",
+  "mission": "Review LearningEvent drafts and memory evidence structure without automatic rule mutation or promotion.",
+  "inputs": [
+    "LearningEvent draft",
+    "Evidence chain notes"
+  ],
+  "outputs": [
+    "Memory hygiene findings",
+    "Promotion risk notes"
+  ],
+  "allowed_actions": [
+    "review_learning_event",
+    "classify_evidence_quality",
+    "escalate_memory_conflicts"
+  ],
+  "forbidden_actions": [
+    "auto_merge",
+    "auto_ready",
+    "claim_escalation",
+    "benchmark_as_proof",
+    "training_without_scope",
+    "runtime_change_without_scope",
+    "auto_promote_memory",
+    "auto_rule_mutation"
+  ],
+  "authority_level": "REVIEW_ONLY",
+  "escalation_path": [
+    "MEMORY_EVIDENCE_DIRECTOR",
+    "GOVERNANCE_KERNEL"
+  ],
+  "freeze_conditions": [
+    "scope_unclear",
+    "claim_boundary_unclear",
+    "human_gate_missing",
+    "private_ip_risk"
+  ],
+  "required_evidence": [
+    "Learning event traceability note",
+    "Memory conflict summary"
+  ],
+  "permitted_surfaces": {
+    "workflows": false,
+    "runtime": false,
+    "search": false,
+    "neural": false,
+    "ml_training": false,
+    "benchmark": false,
+    "schemas": true,
+    "docs": true,
+    "control_plane_tooling": true
+  },
+  "forbidden_surfaces": [
+    "src/",
+    "ml/",
+    ".github/workflows/"
+  ],
+  "human_gate_required": true,
+  "active_agent_allowed": false,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": false,
+  "auto_training_allowed": false,
+  "auto_rule_mutation_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "status": "READY_FOR_HUMAN_REVIEW"
+}

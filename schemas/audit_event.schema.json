@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/audit_event.schema.json",
+  "title": "AuditEvent",
+  "description": "Non-canonical local audit event emitted by agent_pr_operator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "timestamp",
+    "mode",
+    "branch",
+    "task_id",
+    "agent_id",
+    "checked_files",
+    "forbidden_hits",
+    "required_checks",
+    "checks_passed",
+    "checks_failed",
+    "freeze_required",
+    "software_verdict",
+    "evidence_verdict",
+    "claim_verdict"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "inspect",
+        "validate-staged",
+        "prepare-draft-pr"
+      ]
+    },
+    "branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "agent_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "checked_files": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "forbidden_hits": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required_checks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "checks_passed": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "checks_failed": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "freeze_required": {
+      "type": "boolean"
+    },
+    "software_verdict": {
+      "type": "string",
+      "enum": [
+        "CONTROL_PLANE_SCHEMA_ONLY",
+        "CONTROL_PLANE_DOCS_ONLY",
+        "CONTROL_PLANE_TOOLING_ONLY",
+        "RUNTIME_CHANGE",
+        "ML_CHANGE",
+        "BLOCKED"
+      ]
+    },
+    "evidence_verdict": {
+      "type": "string",
+      "enum": [
+        "SCHEMA_AND_FIXTURE_VALIDATION_ONLY",
+        "SCHEMA_AND_METADATA_INSPECTION_ONLY",
+        "STRICT_SCHEMA_VALIDATION_ONLY",
+        "LOCAL_OPERATOR_HYGIENE_VALIDATION_ONLY",
+        "LOCAL_BLOCK_RUNNER_DRY_RUN_VALIDATION_ONLY",
+        "TEST_LOGS_PRESENT",
+        "BENCHMARK_OBSERVATION_ONLY",
+        "BLOCKED"
+      ]
+    },
+    "claim_verdict": {
+      "type": "string",
+      "enum": [
+        "NO_CLAIM_ALLOWED",
+        "CLAIM_SUPPORTED",
+        "CLAIM_UNSUPPORTED",
+        "BLOCKED"
+      ]
+    }
+  }
+}

@@ -1,0 +1,282 @@
+name: Canonical CI
+
+on:
+  pull_request:
+    # Budget control: keep this as the single lightweight automatic PR workflow.
+    # Runtime, chess, operator-pack, benchmark, and final-gate checks are manual-only.
+    paths:
+      - ".github/workflows/**"
+      - "docs/**"
+      - "MASTER_DOCS/**"
+      - "*.md"
+  push:
+    branches:
+      - main
+    # Budget control: automatic push validation is limited to docs/workflow maintenance.
+    paths:
+      - ".github/workflows/**"
+      - "docs/**"
+      - "MASTER_DOCS/**"
+      - "*.md"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  trust-root-json-check:
+    name: trust-root-json-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate canonical JSON files
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          paths = [
+              "lab/policies/root_policy.lock.json",
+              "lab/policies/claim_policy.lock.json",
+              "lab/policies/repair_policy.lock.json",
+              "lab/policies/surface_policy.lock.json",
+              "lab/policies/data_policy.lock.json",
+              "lab/policies/reasoning_policy.lock.json",
+              "lab/no_code/n8n/run_request_schema.pr00c.json",
+              "lab/ci/canonical_ci_contract.pr01.json",
+          ]
+
+          missing = []
+          invalid = []
+          for raw_path in paths:
+              path = Path(raw_path)
+              if not path.is_file():
+                  missing.append(raw_path)
+                  continue
+              try:
+                  with path.open("r", encoding="utf-8") as handle:
+                      json.load(handle)
+              except json.JSONDecodeError as exc:
+                  invalid.append(f"{raw_path}: line {exc.lineno}, column {exc.colno}: {exc.msg}")
+
+          if missing:
+              print("Missing JSON files:")
+              for item in missing:
+                  print(f"- {item}")
+          if invalid:
+              print("Invalid JSON files:")
+              for item in invalid:
+                  print(f"- {item}")
+          if missing or invalid:
+              raise SystemExit(1)
+
+          for raw_path in paths:
+              print(f"VALID_JSON: {raw_path}")
+
+          print("software_verdict: CI_CONFIG_ADDED")
+          print("evidence_verdict: MECHANICAL_CHECKS_ONLY")
+          print("claim_verdict: NO_CLAIM_ALLOWED")
+          PY
+
+  trust-root-presence-check:
+    name: trust-root-presence-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify trust-root files exist
+        shell: bash
+        run: |
+          required_files=(
+            ".github/CODEOWNERS"
+            "THREAT_MODEL.md"
+            "SECURITY_BOUNDARY.md"
+            "LAB_POLICY_BOOTSTRAP.md"
+            "lab/policies/root_policy.lock.json"
+            "lab/policies/claim_policy.lock.json"
+            "lab/policies/repair_policy.lock.json"
+            "lab/policies/surface_policy.lock.json"
+            "lab/policies/data_policy.lock.json"
+            "lab/policies/reasoning_policy.lock.json"
+          )
+
+          missing=0
+          for path in "${required_files[@]}"; do
+            if [[ -f "$path" ]]; then
+              echo "PRESENT: $path"
+            else
+              echo "MISSING: $path"
+              missing=1
+            fi
+          done
+
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
+          echo "software_verdict: CI_CONFIG_ADDED"
+          echo "evidence_verdict: MECHANICAL_CHECKS_ONLY"
+          echo "claim_verdict: NO_CLAIM_ALLOWED"
+
+  no-code-spec-presence-check:
+    name: no-code-spec-presence-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify no-code spec files exist
+        shell: bash
+        run: |
+          required_files=(
+            "lab/no_code/README.md"
+            "lab/no_code/PR00B_NO_CODE_TRUST_ROOT.md"
+            "lab/no_code/supabase/schema.pr00b.sql"
+            "lab/no_code/supabase/rls.pr00b.sql"
+            "lab/no_code/n8n/PR00C_FAIL_CLOSED_ENTRY_WORKFLOW.md"
+            "lab/no_code/n8n/run_request_schema.pr00c.json"
+          )
+
+          missing=0
+          for path in "${required_files[@]}"; do
+            if [[ -f "$path" ]]; then
+              echo "PRESENT: $path"
+            else
+              echo "MISSING: $path"
+              missing=1
+            fi
+          done
+
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
+          echo "software_verdict: CI_CONFIG_ADDED"
+          echo "evidence_verdict: MECHANICAL_CHECKS_ONLY"
+          echo "claim_verdict: NO_CLAIM_ALLOWED"
+
+  no-benchmark-guard:
+    name: no-benchmark-guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Guard canonical workflow content
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow_path = Path(".github/workflows/canonical-ci.yml")
+          text = workflow_path.read_text(encoding="utf-8")
+          forbidden_terms = [
+              "benchmark" + "_runner.py",
+              "cargo " + "bench",
+              "pytest -m " + "benchmark",
+              "hyper" + "fine",
+              "cute" + "chess",
+              "or" + "do",
+              "bayes" + "elo",
+          ]
+          hits = [term for term in forbidden_terms if term in text]
+          if hits:
+              print("FORBIDDEN_WORKFLOW_COMMANDS:")
+              for hit in hits:
+                  print(f"- {hit}")
+              raise SystemExit(1)
+
+          print("NO_FORBIDDEN_WORKFLOW_COMMANDS_FOUND")
+          print("software_verdict: CI_CONFIG_ADDED")
+          print("evidence_verdict: MECHANICAL_CHECKS_ONLY")
+          print("claim_verdict: NO_CLAIM_ALLOWED")
+          PY
+
+  evidence-plane-gates-check:
+    name: evidence-plane-gates-check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run evidence-plane example gates
+        shell: bash
+        env:
+          PYTHONPYCACHEPREFIX: ${{ runner.temp }}/python-pycache
+        run: |
+          python --version
+          python -m py_compile scripts/parse_run_bundle.py scripts/check_input_boundary.py scripts/check_claim_data_gates.py scripts/limited_repair_loop.py scripts/check_decision_packets.py scripts/check_runtime_dry_run_packet.py scripts/check_daily_iteration_packet.py scripts/check_gameplay_observation_packet.py scripts/run_gameplay_observation.py
+          python scripts/parse_run_bundle.py --path lab/parsers/examples --pretty
+          python scripts/parse_run_bundle.py --path lab/run_contracts/example_run_bundle_contract_only --contract-example-mode --pretty
+          python scripts/check_input_boundary.py --path lab/gates/examples --example-mode --pretty
+          python scripts/check_input_boundary.py --path lab/run_contracts/example_run_bundle_contract_only --example-mode --pretty
+          python scripts/check_claim_data_gates.py --path lab/claim_data_gates/examples --example-mode --pretty
+          python scripts/limited_repair_loop.py --path lab/repair_loop/examples --example-mode --pretty
+          python scripts/check_decision_packets.py --path lab/decision_packets/examples --example-mode --pretty
+          python scripts/check_runtime_dry_run_packet.py --path lab/runtime_dry_run/examples --example-mode --pretty
+          python scripts/check_daily_iteration_packet.py --path lab/daily_iteration/examples --example-mode --pretty
+          python scripts/check_gameplay_observation_packet.py --path lab/gameplay_observation/examples --example-mode --pretty
+          python scripts/run_gameplay_observation.py --execute --pretty
+
+          echo "software_verdict: CI_GATE_WIRING_ADDED"
+          echo "evidence_verdict: MECHANICAL_CI_ONLY"
+          echo "claim_verdict: NO_CLAIM_ALLOWED"
+
+  optional-language-detection:
+    name: optional-language-detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Detect language manifests without installing dependencies
+        shell: bash
+        run: |
+          if [[ -f "Cargo.toml" ]]; then
+            echo "RUST_MANIFEST_DETECTED: Cargo.toml"
+            echo "RUST_COMPILE_OR_TEST_NOT_RUN_IN_PR01"
+          else
+            echo "RUST_CHECKS_NOT_CONFIGURED: Cargo.toml not found"
+          fi
+
+          python_manifest_found=0
+          for path in "pyproject.toml" "requirements.txt" "ml/requirements.txt"; do
+            if [[ -f "$path" ]]; then
+              echo "PYTHON_MANIFEST_DETECTED: $path"
+              python_manifest_found=1
+            fi
+          done
+
+          if [[ "$python_manifest_found" -eq 1 ]]; then
+            echo "PYTHON_DEPENDENCY_INSTALL_NOT_RUN_IN_PR01"
+            echo "PYTHON_RUNTIME_OR_IMPORT_CHECKS_NOT_RUN_IN_PR01"
+          else
+            echo "PYTHON_CHECKS_NOT_CONFIGURED: no Python manifest found"
+          fi
+
+          echo "No dependency installation, no holdout access, no scientific interpretation."
+          echo "software_verdict: CI_CONFIG_ADDED"
+          echo "evidence_verdict: MECHANICAL_CHECKS_ONLY"
+          echo "claim_verdict: NO_CLAIM_ALLOWED"

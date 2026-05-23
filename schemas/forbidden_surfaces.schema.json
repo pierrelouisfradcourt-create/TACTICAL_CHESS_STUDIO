@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/forbidden_surfaces.schema.json",
+  "title": "ForbiddenSurfaces",
+  "description": "Forbidden files and surfaces that trigger immediate freeze when touched.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "policy_version",
+    "absolute_forbidden_paths",
+    "restricted_human_review_paths",
+    "forbidden_actions",
+    "immediate_freeze_on_touch",
+    "policy_schema_self_modification_forbidden",
+    "agent_cannot_modify_own_policy",
+    "agent_cannot_modify_policy_without_human_review",
+    "critical_violation_freeze_immediate",
+    "auto_thaw_allowed"
+  ],
+  "properties": {
+    "policy_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "absolute_forbidden_paths": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "restricted_human_review_paths": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "forbidden_actions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "merge",
+          "decide_claim_authority",
+          "modify_own_rules",
+          "modify_branch_protection",
+          "mask_test_or_ci_failure",
+          "benchmark_as_proof",
+          "invented_performance_claim",
+          "self_scoring"
+        ]
+      }
+    },
+    "immediate_freeze_on_touch": {
+      "type": "boolean",
+      "const": true
+    },
+    "policy_schema_self_modification_forbidden": {
+      "type": "boolean",
+      "const": true
+    },
+    "agent_cannot_modify_own_policy": {
+      "type": "boolean",
+      "const": true
+    },
+    "agent_cannot_modify_policy_without_human_review": {
+      "type": "boolean",
+      "const": true
+    },
+    "critical_violation_freeze_immediate": {
+      "type": "boolean",
+      "const": true
+    },
+    "auto_thaw_allowed": {
+      "type": "boolean",
+      "const": false
+    }
+  }
+}

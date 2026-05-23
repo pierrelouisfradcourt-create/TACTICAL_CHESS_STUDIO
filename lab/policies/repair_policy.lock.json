@@ -1,0 +1,48 @@
+{
+  "policy_id": "repair_policy.lock",
+  "version": "PR-00A",
+  "status": "locked",
+  "purpose": "Prevent repair loops from modifying measurement, policy, evidence, or protected trust-root surfaces.",
+  "core_rule": "Codex must never modify the thermometer in a repair loop.",
+  "repair_loop_forbidden_paths": [
+    "tests/",
+    ".github/workflows/",
+    "scripts/*gate*.py",
+    "scripts/check_*.py",
+    "scripts/read_science_report.py",
+    "scripts/run_canonical_checks.py",
+    "scripts/create_run_bundle.py",
+    "scripts/hash_artifacts.py",
+    "scripts/capture_environment.py",
+    "scripts/audit_gpt55.py",
+    "scripts/agent_run_planner.py",
+    "benchmark_runner.py",
+    "doctor.py",
+    "ml/experiment_analytics.py",
+    "lab/policies/",
+    "lab/claim_registry/",
+    "lab/metric_registry/",
+    "lab/data_ledger/",
+    "lab/split_manifests/",
+    "lab/surfaces/",
+    "lab/registry_events/",
+    "protocol.lock.json",
+    "lab/runs/*/protocol.lock.json",
+    "**/protocol.lock.json",
+    "holdout/"
+  ],
+  "repair_loop_rules": {
+    "forbidden_path_change_blocks": true,
+    "gate_change_during_repair_blocks": true,
+    "policy_change_during_repair_blocks": true,
+    "benchmark_logic_change_during_repair_blocks": true,
+    "holdout_access_during_repair_blocks": true,
+    "silent_fallback_forbidden": true,
+    "best_effort_fallback_blocks": true
+  },
+  "codex_authority": {
+    "constrained_execution_only": true,
+    "may_decide_policy": false,
+    "may_authorize_claims": false
+  }
+}

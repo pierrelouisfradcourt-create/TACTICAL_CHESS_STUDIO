@@ -1,0 +1,394 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/studiopilot_campaign_plan.schema.json",
+  "title": "StudioPilot CampaignPlan V0",
+  "description": "Strict local-first PatchPack campaign planning schema. A CampaignPlan sequences bounded PR candidates; it does not execute work by itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "campaign_id",
+    "title",
+    "objective",
+    "campaign_type",
+    "scope",
+    "forbidden_changes",
+    "patch_groups",
+    "local_validation_required",
+    "ci_policy",
+    "budget_gate",
+    "risk_level",
+    "status",
+    "human_gate_required",
+    "stop_conditions",
+    "verdicts"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": [
+        "studiopilot.campaign_plan.v0"
+      ]
+    },
+    "campaign_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "campaign_type": {
+      "type": "string",
+      "enum": [
+        "CONTROL_PLANE",
+        "RUNTIME",
+        "ML",
+        "DOCS",
+        "CI",
+        "PATCHPACK"
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed_paths",
+        "forbidden_paths"
+      ],
+      "properties": {
+        "allowed_paths": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "forbidden_paths": {
+          "$ref": "#/$defs/string_array"
+        }
+      }
+    },
+    "forbidden_changes": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "string",
+        "enum": [
+          "runtime",
+          "ml_training",
+          "benchmark",
+          "auto_merge",
+          "claim_escalation",
+          "github_actions",
+          "secrets",
+          "datasets",
+          "lab_runs",
+          "active_agents"
+        ]
+      },
+      "uniqueItems": true,
+      "allOf": [
+        {
+          "contains": {
+            "const": "runtime"
+          }
+        },
+        {
+          "contains": {
+            "const": "ml_training"
+          }
+        },
+        {
+          "contains": {
+            "const": "benchmark"
+          }
+        },
+        {
+          "contains": {
+            "const": "auto_merge"
+          }
+        },
+        {
+          "contains": {
+            "const": "claim_escalation"
+          }
+        }
+      ]
+    },
+    "patch_groups": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "patch_group_id",
+          "title",
+          "objective",
+          "pr_candidates",
+          "dependencies",
+          "risk_level",
+          "human_approval_required"
+        ],
+        "properties": {
+          "patch_group_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "objective": {
+            "type": "string",
+            "minLength": 1
+          },
+          "pr_candidates": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/pr_candidate"
+            }
+          },
+          "dependencies": {
+            "$ref": "#/$defs/string_array"
+          },
+          "risk_level": {
+            "$ref": "#/$defs/risk_level"
+          },
+          "human_approval_required": {
+            "type": "boolean",
+            "const": true
+          }
+        }
+      }
+    },
+    "local_validation_required": {
+      "type": "boolean",
+      "const": true
+    },
+    "ci_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "remote_profile",
+        "github_actions_required",
+        "benchmark_policy"
+      ],
+      "properties": {
+        "remote_profile": {
+          "type": "string",
+          "enum": [
+            "DOCS_ONLY",
+            "CONTROL_PLANE",
+            "RUNTIME",
+            "ML",
+            "WORKFLOW",
+            "BENCHMARK_BLOCKED",
+            "MIXED"
+          ]
+        },
+        "github_actions_required": {
+          "type": "boolean"
+        },
+        "benchmark_policy": {
+          "type": "string",
+          "enum": [
+            "NEVER_AUTOMATIC",
+            "WORKFLOW_DISPATCH_ONLY"
+          ]
+        }
+      }
+    },
+    "budget_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "codex_task_budget",
+        "max_codex_tasks",
+        "max_changed_files_per_pr",
+        "max_retries_per_task",
+        "no_retry_loop",
+        "stop_on_first_blocker"
+      ],
+      "properties": {
+        "codex_task_budget": {
+          "type": "string",
+          "enum": [
+            "SMALL",
+            "MEDIUM",
+            "LARGE_REQUIRES_APPROVAL"
+          ]
+        },
+        "max_codex_tasks": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_changed_files_per_pr": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_retries_per_task": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "no_retry_loop": {
+          "type": "boolean",
+          "const": true
+        },
+        "stop_on_first_blocker": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "risk_level": {
+      "$ref": "#/$defs/risk_level"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "APPROVED_FOR_PLANNING",
+        "IN_PROGRESS",
+        "HOLD",
+        "BLOCKED",
+        "COMPLETED",
+        "CANCELLED"
+      ]
+    },
+    "human_gate_required": {
+      "type": "boolean",
+      "const": true
+    },
+    "stop_conditions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "failed_checks",
+          "scope_violation",
+          "claim_escalation",
+          "forbidden_path_touched",
+          "benchmark_attempted",
+          "runtime_touched_without_scope",
+          "ml_training_attempted"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "verdicts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "software_verdict",
+        "evidence_verdict",
+        "claim_verdict"
+      ],
+      "properties": {
+        "software_verdict": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_verdict": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claim_verdict": {
+          "type": "string",
+          "enum": [
+            "NO_CLAIM_ALLOWED",
+            "HEALTH_ONLY",
+            "EVIDENCE_ONLY"
+          ]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "string_array": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "BLOCKED"
+      ]
+    },
+    "claim_scope": {
+      "type": "string",
+      "enum": [
+        "NO_CLAIM_ALLOWED",
+        "HEALTH_ONLY",
+        "EVIDENCE_ONLY"
+      ]
+    },
+    "pr_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pr_candidate_id",
+        "title",
+        "intent",
+        "allowed_paths",
+        "forbidden_paths",
+        "expected_outputs",
+        "validation_commands",
+        "claim_scope",
+        "human_gate_required"
+      ],
+      "properties": {
+        "pr_candidate_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "intent": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allowed_paths": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "forbidden_paths": {
+          "$ref": "#/$defs/string_array"
+        },
+        "expected_outputs": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "validation_commands": {
+          "$ref": "#/$defs/non_empty_string_array"
+        },
+        "claim_scope": {
+          "$ref": "#/$defs/claim_scope"
+        },
+        "human_gate_required": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    }
+  }
+}

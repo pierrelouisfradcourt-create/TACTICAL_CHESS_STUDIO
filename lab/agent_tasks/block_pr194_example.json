@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "block_id": "block_operator_foundation_001",
+  "description": "Operator foundation block (sequential, stop-on-fail, dry-run safe defaults).",
+  "created_by": "human",
+  "default_mode": "dry-run",
+  "stop_on_fail": true,
+  "allow_commit": false,
+  "allow_push": false,
+  "allow_create_pr": false,
+  "allow_ready": false,
+  "allow_merge": false,
+  "tasks": [
+    {
+      "task_id": "pr195_strict_schema_validation",
+      "title": "Strict JSON schema and control-plane inspection",
+      "task_packet": "lab/agent_tasks/example_task_packet.json",
+      "mode": "inspect",
+      "required_gates": [
+        "workspace_clean_before",
+        "task_packet_exists",
+        "mode_allowed",
+        "no_ready",
+        "no_merge",
+        "no_deploy",
+        "no_training",
+        "no_benchmark_claim",
+        "scope_allowed",
+        "validation_passed",
+        "workspace_clean_after"
+      ]
+    }
+  ]
+}
