@@ -45,9 +45,16 @@ These are the current entry points and current truth summaries that future Codex
 - `MASTER_DOCS/05_ARCHITECTURE.md`
 - `MASTER_DOCS/LOCAL_HISTORY_ROADMAP_STATUS.md`
 
-## 4A. Local AM stack status
+## 4A. Local AM stack historical reference
 
-Classification: ACTIVE_LOCAL_STATUS_NOTE
+Classification: HISTORICAL_REFERENCE_LOCAL_STATUS_NOTE
+
+Current-state authority note:
+
+- This section is historical/reference context only. Its hardcoded branch, remote, SHA, path, ahead/behind, local-readiness, and local-history statements must not be treated as current repo truth.
+- Live Git preflight is the current truth source for branch, HEAD, remote, ahead/behind, and path statements. For this cleanup pass, live preflight was branch `master`, HEAD `dd9a7400528c36c79437d493a54cb0f82ea4e7c9`, status `## master...origin/master`.
+- Runtime, test, dataset, training, Chess960, neural, benchmark, product, scientific, strength, and readiness claims are not altered or promoted by this reference demotion.
+- claim_verdict remains `NO_CLAIM_ALLOWED`.
 
 PACK 9D is merged on GitHub. After PACK 9D, local `main` accumulated 37 commits ahead of `origin/main` and 0 behind.
 
@@ -199,6 +206,12 @@ These docs remain useful active references, but they are not the first authority
 - `docs/control-plane/README.md`
 - `AI_MEMORY/README.md`
 - `templates/README.md`
+
+Kenpachi duplicate routing note:
+
+- `00_STUDIO_CONTROL/06_CODEX/KENPACHI_CODEX_LOCAL_PARAMETERS.md` is the canonical route candidate for `KENPACHI_CODEX_LOCAL_PARAMETERS.md`.
+- `docs/control-plane/KENPACHI_CODEX_LOCAL_PARAMETERS.md` is an exact duplicate and should be treated as duplicate/reference/archive candidate only unless a separate HumanGate action authorizes physical cleanup.
+- No delete, move, rename, archive, registry update, or source-index update is authorized by this note.
 
 ## 6. Passive boundary docs
 
