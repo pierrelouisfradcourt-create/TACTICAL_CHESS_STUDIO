@@ -307,6 +307,70 @@ next_tasks:
         self.assertEqual(payload["route_state_summary"]["candidate_output"], "00_STUDIO_CONTROL/05_STATUS/EXAMPLE.md")
         self.assertEqual(payload["source_state_summary"]["evidence_source_type"], "source_readback")
 
+    def test_logistic_propose_next_json_is_passive_stdout_only(self) -> None:
+        matrix_path = PROJECT_ROOT / "00_STUDIO_CONTROL/05_STATUS/STUDIO_MASTER_TASK_MATRIX_V0.yaml"
+        registry_path = PROJECT_ROOT / "00_STUDIO_CONTROL/03_REGISTRIES/FILE_REGISTRY.yaml"
+        matrix_before = matrix_path.read_text(encoding="utf-8") if matrix_path.exists() else None
+        registry_before = registry_path.read_text(encoding="utf-8") if registry_path.exists() else None
+
+        exit_code, payload = self.run_cli_json(["logistic", "propose-next", "--json"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["schema_version"], "studioctl_logistic_proposal.v0")
+        self.assertEqual(payload["command"], "logistic propose-next")
+        self.assertEqual(payload["mode"], "PASSIVE")
+        self.assertEqual(payload["write_access"], "BLOCKED")
+        self.assertEqual(payload["agent_activation"], "BLOCKED")
+        self.assertEqual(payload["task_matrix_write"], "BLOCKED")
+        self.assertEqual(payload["source_registration_write"], "BLOCKED")
+        self.assertEqual(payload["claim_posture"], "NO_CLAIM_ALLOWED")
+        self.assertIs(payload["HumanGate_required"], True)
+        self.assertIs(payload["no_global_ready_verdict"], True)
+        self.assertIsInstance(payload["next_step_candidates"], list)
+        self.assertGreater(len(payload["next_step_candidates"]), 0)
+        for candidate in payload["next_step_candidates"]:
+            for field in (
+                "candidate_id",
+                "title",
+                "surface",
+                "status",
+                "reason",
+                "blocked_actions",
+                "HumanGate_required",
+                "suggested_task_class",
+                "validation_level",
+            ):
+                self.assertIn(field, candidate)
+            self.assertIs(candidate["HumanGate_required"], True)
+            self.assertIn(candidate["status"], studioctl.STATUS_VALUES)
+        self.assertEqual(
+            set(payload["claim_verdict"].values()),
+            {"NO_CLAIM_ALLOWED"},
+        )
+        if matrix_before is not None:
+            self.assertEqual(matrix_path.read_text(encoding="utf-8"), matrix_before)
+        if registry_before is not None:
+            self.assertEqual(registry_path.read_text(encoding="utf-8"), registry_before)
+
+    def test_logistic_propose_next_handles_missing_inputs_without_crash(self) -> None:
+        original_root = studioctl.PROJECT_ROOT
+        temp_dir = tempfile.TemporaryDirectory(dir=PROJECT_ROOT)
+        self.addCleanup(temp_dir.cleanup)
+        studioctl.PROJECT_ROOT = Path(temp_dir.name)
+        self.addCleanup(setattr, studioctl, "PROJECT_ROOT", original_root)
+
+        exit_code, payload = self.run_cli_json(["logistic", "propose-next", "--json"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(payload["inputs"]["task_matrix"]["status"], "NOT_FOUND")
+        self.assertEqual(payload["inputs"]["file_registry"]["status"], "NOT_FOUND")
+        self.assertEqual(payload["matrix_snapshot"]["status"], "NOT_FOUND")
+        self.assertEqual(payload["registry_snapshot"]["status"], "NOT_FOUND")
+        self.assertIsInstance(payload["next_step_candidates"], list)
+        self.assertIn("registry-not-found-review", {item["candidate_id"] for item in payload["next_step_candidates"]})
+        self.assertEqual(payload["write_access"], "BLOCKED")
+        self.assertIs(payload["no_global_ready_verdict"], True)
+
     def test_report_inspect_blocks_secrets_path_without_read_attempt(self) -> None:
         exit_code, payload = self.run_cli_json(
             ["report", "inspect", "secrets/SHOULD_NOT_READ.md", "--json"]

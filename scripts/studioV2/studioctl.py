@@ -227,6 +227,37 @@ TEXT_REPORT_EXTENSIONS = {".md", ".markdown", ".txt", ".yaml", ".yml"}
 DEFAULT_STATUS_BY_SURFACE = {surface: "PASSIVE" for surface in ALL_SURFACES}
 DEFAULT_STATUS_BY_SURFACE["roadmap_docs_only"] = "DOCUMENTED_ONLY"
 DEFAULT_STATUS_BY_SURFACE["secrets"] = "BLOCKED"
+LOGISTIC_BLOCKED_ACTIONS = {
+    "autonomous_agent_activation": "BLOCKED",
+    "background_work": "BLOCKED",
+    "self_execution": "BLOCKED",
+    "git_mutation": "BLOCKED",
+    "task_matrix_write": "BLOCKED",
+    "source_registration_write": "BLOCKED",
+    "registry_write": "BLOCKED",
+    "llm_call": "BLOCKED",
+    "rag_indexing": "BLOCKED",
+    "model_call": "BLOCKED",
+    "runtime_execution": "BLOCKED",
+    "training": "BLOCKED",
+    "benchmark": "BLOCKED",
+    "dataset_generation": "BLOCKED",
+    "dataset_reset": "BLOCKED",
+    "model_or_checkpoint_creation": "BLOCKED",
+    "model_promotion": "BLOCKED",
+    "latest_json_creation": "BLOCKED",
+    "lab_run_creation": "BLOCKED",
+    "chess960_activation": "BLOCKED",
+    "decision_controller_activation": "BLOCKED",
+}
+LOGISTIC_STATUS_BY_SURFACE = {
+    "active_runtime_code": "PASSIVE",
+    "tests": "PASSIVE",
+    "artifacts_runtime_outputs": "PASSIVE",
+    "canonical_docs": "DOCUMENTED_ONLY",
+    "roadmap_docs_only": "PASSIVE",
+    "inference": "PASSIVE",
+}
 UXPILOTE_AUDIT_CHAIN_CATALOG_RELATIVE = "00_STUDIO_CONTROL/01_MAPS/UXPILOTE_AUDIT_CHAIN_CATALOG_V0.md"
 UXPILOTE_AUDIT_CHAIN_CATALOG_PATH = PROJECT_ROOT / UXPILOTE_AUDIT_CHAIN_CATALOG_RELATIVE
 UXPILOTE_AUDIT_CHAIN_BLOCKED_ACTIONS = {
@@ -1142,6 +1173,368 @@ def build_report_matrix_candidate_payload(path_text: str) -> dict[str, Any]:
         "task_matrix_write": "BLOCKED",
         "source_registration_write": "BLOCKED",
     }
+
+
+def logistic_paths() -> dict[str, Path]:
+    return {
+        "task_matrix": PROJECT_ROOT
+        / "00_STUDIO_CONTROL"
+        / "05_STATUS"
+        / "STUDIO_MASTER_TASK_MATRIX_V0.yaml",
+        "file_registry": PROJECT_ROOT / "00_STUDIO_CONTROL" / "03_REGISTRIES" / "FILE_REGISTRY.yaml",
+        "source_registration_plan": PROJECT_ROOT
+        / "00_STUDIO_CONTROL"
+        / "05_STATUS"
+        / "STUDIO_SOURCE_REGISTRATION_PLAN_V0.yaml",
+        "uxpilote_scripts": PROJECT_ROOT / "scripts" / "uxpilote",
+        "venv312": PROJECT_ROOT / ".venv312",
+        "dashboard_preview": PROJECT_ROOT
+        / "00_STUDIO_CONTROL"
+        / "05_STATUS"
+        / "UXPILOTE_DASHBOARD_PREVIEW_V0.html",
+        "bounded_preview": PROJECT_ROOT
+        / "00_STUDIO_CONTROL"
+        / "05_STATUS"
+        / "UXPILOTE_READONLY_BOUNDED_EXECUTION_PREVIEW_V0.html",
+        "roadmap": PROJECT_ROOT / "00_STUDIO_CONTROL" / "10_ROADMAP",
+    }
+
+
+def logistic_input_state(name: str, path: Path) -> dict[str, Any]:
+    return {
+        "name": name,
+        "path": str(path.relative_to(PROJECT_ROOT)) if path.is_relative_to(PROJECT_ROOT) else str(path),
+        "exists": path.exists(),
+        "status": "DOCUMENTED_ONLY" if path.exists() else "NOT_FOUND",
+        "read_mode": "stdlib_text_read" if path.is_file() else "path_exists_only",
+    }
+
+
+def unquote_scalar(value: str) -> str:
+    stripped = value.strip()
+    if len(stripped) >= 2 and stripped[0] == stripped[-1] and stripped[0] in {'"', "'"}:
+        return stripped[1:-1]
+    return stripped
+
+
+def logistic_matrix_entries(text: str) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    current: dict[str, Any] | None = None
+    current_indent = 0
+    for line in text.splitlines():
+        task_match = re.match(r"^(\s*)-\s+task_id:\s*(.+?)\s*$", line)
+        if task_match:
+            if current is not None:
+                entries.append(current)
+            current = {"task_id": unquote_scalar(task_match.group(2))}
+            current_indent = len(task_match.group(1))
+            continue
+        if current is None:
+            continue
+        field_match = re.match(r"^(\s+)([A-Za-z_][A-Za-z0-9_]*):\s*(.*?)\s*$", line)
+        if not field_match or len(field_match.group(1)) <= current_indent:
+            continue
+        key = field_match.group(2)
+        if key in {
+            "source_report_path",
+            "primary_surface",
+            "surface",
+            "status",
+            "current_status",
+            "evidence_strength",
+            "validation_status",
+            "runtime_status_reason",
+            "HumanGate_required",
+        }:
+            value = unquote_scalar(field_match.group(3))
+            if value.lower() == "true":
+                current[key] = True
+            elif value.lower() == "false":
+                current[key] = False
+            else:
+                current[key] = value
+    if current is not None:
+        entries.append(current)
+    return entries
+
+
+def build_logistic_matrix_snapshot(matrix_path: Path) -> dict[str, Any]:
+    text, error = read_text_if_exists(matrix_path)
+    if text is None:
+        return {
+            "path": str(matrix_path.relative_to(PROJECT_ROOT)) if matrix_path.is_relative_to(PROJECT_ROOT) else str(matrix_path),
+            "status": error or "NOT_FOUND",
+            "entries_total": 0,
+            "entries": [],
+            "blocked_due_actual_runtime_unknown": [],
+        }
+    entries = logistic_matrix_entries(text)
+    blocked_due_runtime = [
+        entry
+        for entry in entries
+        if (entry.get("status") == "BLOCKED" or entry.get("current_status") == "BLOCKED")
+        and entry.get("runtime_status_reason") == "ACTUAL_RUNTIME_UNKNOWN"
+    ]
+    status_counts: dict[str, int] = {}
+    for entry in entries:
+        status = str(entry.get("current_status") or entry.get("status") or "UNKNOWN")
+        status_counts[status] = status_counts.get(status, 0) + 1
+    return {
+        "path": str(matrix_path.relative_to(PROJECT_ROOT)),
+        "status": "DOCUMENTED_ONLY",
+        "entries_total": len(entries),
+        "status_counts": status_counts,
+        "entries": entries,
+        "blocked_due_actual_runtime_unknown": [
+            {
+                "task_id": entry.get("task_id", UNKNOWN_VALUE),
+                "source_report_path": entry.get("source_report_path", UNKNOWN_VALUE),
+                "primary_surface": entry.get("primary_surface", entry.get("surface", UNKNOWN_VALUE)),
+                "HumanGate_required": entry.get("HumanGate_required", True),
+            }
+            for entry in blocked_due_runtime
+        ],
+    }
+
+
+def build_logistic_registry_snapshot(registry_path: Path) -> dict[str, Any]:
+    text, error = read_text_if_exists(registry_path)
+    if text is None:
+        return {
+            "path": str(registry_path.relative_to(PROJECT_ROOT)) if registry_path.is_relative_to(PROJECT_ROOT) else str(registry_path),
+            "status": error or "NOT_FOUND",
+            "registered_path_count": 0,
+        }
+    registered_paths = re.findall(r"^\s*-\s+path:\s*(.+?)\s*$", text, flags=re.MULTILINE)
+    return {
+        "path": str(registry_path.relative_to(PROJECT_ROOT)),
+        "status": "DOCUMENTED_ONLY",
+        "registered_path_count": len(registered_paths),
+        "claim_posture_mentions": text.count(CLAIM_POSTURE),
+        "contains_task_matrix": "STUDIO_MASTER_TASK_MATRIX_V0.yaml" in text,
+        "contains_source_registration_plan": "STUDIO_SOURCE_REGISTRATION_PLAN_V0.yaml" in text,
+    }
+
+
+def logistic_candidate(
+    candidate_id: str,
+    title: str,
+    surface: str,
+    status: str,
+    reason: str,
+    candidate_type: str,
+    suggested_task_class: str,
+    validation_level: str,
+    blocked_actions: list[str] | None = None,
+) -> dict[str, Any]:
+    return {
+        "candidate_id": candidate_id,
+        "candidate_type": candidate_type,
+        "title": title,
+        "surface": surface,
+        "status": status,
+        "reason": reason,
+        "blocked_actions": blocked_actions or [
+            "git_mutation",
+            "task_matrix_write",
+            "registry_write",
+            "agent_activation",
+            "runtime_execution",
+        ],
+        "HumanGate_required": True,
+        "suggested_task_class": suggested_task_class,
+        "validation_level": validation_level,
+    }
+
+
+def build_logistic_candidates(
+    matrix_snapshot: dict[str, Any],
+    registry_snapshot: dict[str, Any],
+    paths: dict[str, Path],
+) -> list[dict[str, Any]]:
+    candidates = [
+        logistic_candidate(
+            "residual-worktree-audit",
+            "Audit residual local-only and passive artifacts before any cleanup or registration.",
+            "canonical_docs",
+            "PASSIVE",
+            "Residual local signals can be inspected without mutation.",
+            "residual_worktree_audit",
+            "audit_repo",
+            "PASSIVE",
+        )
+    ]
+    if matrix_snapshot["blocked_due_actual_runtime_unknown"]:
+        candidates.append(
+            logistic_candidate(
+                "blocked-matrix-runtime-review",
+                "Review matrix entries blocked by ACTUAL_RUNTIME_UNKNOWN before any apply or claim.",
+                "canonical_docs",
+                "BLOCKED",
+                "Existing matrix entries preserve blocked runtime posture and need HumanGate for any next step.",
+                "apply_matrix_candidate",
+                "docs_workflow",
+                "DOCUMENTED_ONLY",
+                ["task_matrix_write", "claim_promotion", "runtime_claim", "agent_activation"],
+            )
+        )
+    if registry_snapshot["status"] == "DOCUMENTED_ONLY":
+        candidates.append(
+            logistic_candidate(
+                "register-later-candidates",
+                "Triage candidate control docs for a later selective registration task.",
+                "canonical_docs",
+                "DOCUMENTED_ONLY",
+                "FILE_REGISTRY exists and can support a later HumanGate-routed registration batch.",
+                "register_later_candidates",
+                "docs_workflow",
+                "DOCUMENTED_ONLY",
+                ["registry_write", "source_index_write", "upload_checklist_write"],
+            )
+        )
+    else:
+        candidates.append(
+            logistic_candidate(
+                "registry-not-found-review",
+                "Resolve missing FILE_REGISTRY before source registration planning.",
+                "canonical_docs",
+                "NOT_FOUND",
+                "Registry input was not found, so registration proposals must stay UNKNOWN-safe.",
+                "register_later_candidates",
+                "audit_repo",
+                "PASSIVE",
+                ["registry_write", "source_registration_write"],
+            )
+        )
+    if paths["uxpilote_scripts"].exists():
+        candidates.append(
+            logistic_candidate(
+                "local-only-uxpilote-review",
+                "Review scripts/uxpilote as local-only tooling without activation.",
+                "canonical_docs",
+                "PASSIVE",
+                "scripts/uxpilote exists locally and remains outside autonomous execution.",
+                "local_only_tooling_review",
+                "audit_repo",
+                "PASSIVE",
+                ["scripts_uxpilote_execution", "agent_activation", "git_mutation"],
+            )
+        )
+    if paths["venv312"].exists() or paths["dashboard_preview"].exists() or paths["bounded_preview"].exists():
+        candidates.append(
+            logistic_candidate(
+                "cleanup-passive-artifacts",
+                "Prepare a separate cleanup or archive decision for passive local artifacts.",
+                "artifacts_runtime_outputs",
+                "PASSIVE",
+                ".venv312 or HTML preview artifacts are present but cleanup is blocked here.",
+                "cleanup_passive_artifacts",
+                "audit_repo",
+                "PASSIVE",
+                ["file_delete", "cleanup", "archive_creation"],
+            )
+        )
+    candidates.append(
+        logistic_candidate(
+            "rag-readiness-audit",
+            "Audit Local RAG readiness without indexing, retrieval, or model calls.",
+            "inference",
+            "BLOCKED",
+            "RAG/LLM/model calls are explicitly blocked; only a future read-only readiness audit is safe.",
+            "rag_readiness_audit",
+            "audit_repo",
+            "PASSIVE",
+            ["rag_indexing", "llm_call", "model_call", "network_access"],
+        )
+    )
+    candidates.append(
+        logistic_candidate(
+            "parser-hardening-followup",
+            "Review report parser edge cases from future real reports if needed.",
+            "active_runtime_code",
+            "PASSIVE",
+            "Parser hardening remains bounded tooling work and must not execute report content.",
+            "parser_hardening",
+            "patch_runtime",
+            "TESTED",
+            ["report_execution", "task_matrix_write", "registry_write"],
+        )
+    )
+    return candidates
+
+
+def build_logistic_proposal_payload() -> dict[str, Any]:
+    paths = logistic_paths()
+    matrix_snapshot = build_logistic_matrix_snapshot(paths["task_matrix"])
+    registry_snapshot = build_logistic_registry_snapshot(paths["file_registry"])
+    local_signals = {
+        "uxpilote_scripts_present": paths["uxpilote_scripts"].exists(),
+        "venv312_present": paths["venv312"].exists(),
+        "dashboard_preview_present": paths["dashboard_preview"].exists(),
+        "bounded_preview_present": paths["bounded_preview"].exists(),
+        "roadmap_dir_present": paths["roadmap"].exists(),
+    }
+    return {
+        "schema_version": "studioctl_logistic_proposal.v0",
+        "command": "logistic propose-next",
+        "mode": "PASSIVE",
+        "write_access": "BLOCKED",
+        "agent_activation": "BLOCKED",
+        "task_matrix_write": "BLOCKED",
+        "source_registration_write": "BLOCKED",
+        "claim_posture": CLAIM_POSTURE,
+        "no_global_ready_verdict": True,
+        "summary": {
+            "text": "Passive deterministic next-step proposal only; no autonomous loop, no execution, no writes.",
+            "local_signals": local_signals,
+        },
+        "inputs": {
+            key: logistic_input_state(key, path)
+            for key, path in (
+                ("task_matrix", paths["task_matrix"]),
+                ("file_registry", paths["file_registry"]),
+            )
+        },
+        "source_state": {
+            "rule": "created != registered != loaded != enforced != evidenced",
+            "created": "DOCUMENTED_ONLY",
+            "registered": "UNKNOWN",
+            "loaded": "DOCUMENTED_ONLY",
+            "enforced": "DOCUMENTED_ONLY",
+            "evidenced": "DOCUMENTED_ONLY",
+        },
+        "matrix_snapshot": matrix_snapshot,
+        "registry_snapshot": registry_snapshot,
+        "next_step_candidates": build_logistic_candidates(matrix_snapshot, registry_snapshot, paths),
+        "blocked_actions": dict(LOGISTIC_BLOCKED_ACTIONS),
+        "HumanGate_required": True,
+        "status_by_surface": dict(LOGISTIC_STATUS_BY_SURFACE),
+        "software_verdict": dict(LOGISTIC_STATUS_BY_SURFACE),
+        "evidence_verdict": {
+            **LOGISTIC_STATUS_BY_SURFACE,
+            "active_runtime_code": "TESTED",
+            "tests": "TESTED",
+            "canonical_docs": "TESTED",
+        },
+        "claim_verdict": {surface: CLAIM_POSTURE for surface in CANONICAL_SURFACES},
+    }
+
+
+def render_logistic_proposal_text(payload: dict[str, Any]) -> str:
+    rows = [
+        ("schema_version", payload["schema_version"]),
+        ("command", payload["command"]),
+        ("mode", payload["mode"]),
+        ("write_access", payload["write_access"]),
+        ("agent_activation", payload["agent_activation"]),
+        ("task_matrix_write", payload["task_matrix_write"]),
+        ("source_registration_write", payload["source_registration_write"]),
+        ("claim_posture", payload["claim_posture"]),
+        ("HumanGate_required", payload["HumanGate_required"]),
+        ("next_step_candidates", [candidate["candidate_id"] for candidate in payload["next_step_candidates"]]),
+        ("no_global_ready_verdict", payload["no_global_ready_verdict"]),
+    ]
+    return render_table("studioctl logistic propose-next", rows)
 
 
 def runtime_claim_gate() -> dict[str, Any]:
@@ -2733,6 +3126,14 @@ def build_parser() -> argparse.ArgumentParser:
     board_parser = evidence_subparsers.add_parser("board", help="Show the read-only evidence board.")
     board_parser.add_argument("--json", action="store_true")
 
+    logistic_parser = subparsers.add_parser("logistic", help="Passive Local Logistic Agent proposal views.")
+    logistic_subparsers = logistic_parser.add_subparsers(dest="logistic_command", required=True)
+    propose_next_parser = logistic_subparsers.add_parser(
+        "propose-next",
+        help="Emit deterministic next-step candidates to stdout only.",
+    )
+    propose_next_parser.add_argument("--json", action="store_true", help="Emit JSON output.")
+
     charter_parser = subparsers.add_parser("charter", help="Proposal-only task charter rendering.")
     charter_subparsers = charter_parser.add_subparsers(dest="charter_command", required=True)
     render_parser = charter_subparsers.add_parser("render", help="Render a task-charter candidate to stdout only.")
@@ -2808,6 +3209,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "evidence" and args.evidence_command == "board":
         payload = build_evidence_board_payload()
         write_payload(payload, args.json, render_evidence_board_text)
+        return 0
+    if args.command == "logistic" and args.logistic_command == "propose-next":
+        payload = build_logistic_proposal_payload()
+        write_payload(payload, args.json, render_logistic_proposal_text)
         return 0
     if args.command == "charter" and args.charter_command == "render":
         payload = build_charter_render_payload(args)

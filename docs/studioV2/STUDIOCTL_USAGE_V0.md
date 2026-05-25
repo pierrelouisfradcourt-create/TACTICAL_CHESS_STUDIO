@@ -45,6 +45,14 @@ Render the evidence board:
 .\.venv312\Scripts\python.exe scripts/studioV2/studioctl.py evidence board --json
 ```
 
+Emit a passive Local Logistic Agent next-step proposal as stdout JSON only:
+
+```powershell
+.\.venv312\Scripts\python.exe scripts/studioV2/studioctl.py logistic propose-next --json
+```
+
+`logistic propose-next --json` reads `00_STUDIO_CONTROL/05_STATUS/STUDIO_MASTER_TASK_MATRIX_V0.yaml` and `00_STUDIO_CONTROL/03_REGISTRIES/FILE_REGISTRY.yaml` when present, summarizes matrix/registry state, and emits deterministic next-step candidates for HumanGate review. It is passive proposal tooling only: no autonomous execution, no background loop, no task matrix write, no registry/source-index/upload-checklist write, no report creation, no Git mutation, no LLM/RAG/model call, and no runtime activation. The payload preserves `NO_CLAIM_ALLOWED`, `HumanGate_required: true`, and `no_global_ready_verdict: true`.
+
 Show the repository surface map without reading secrets or model/dataset contents:
 
 ```powershell
@@ -126,6 +134,8 @@ Render a task charter candidate to stdout only:
 `studioctl` output is local tooling evidence only. It does not prove readiness, benchmark results, Elo, model quality, dataset validity, runtime activation, source promotion, or scientific claims. It can support bounded review by reporting structured status, but claim validation remains blocked unless separately authorized and evidenced by the required HumanGate process.
 
 The surface map is a path-boundary view only. It reports controlled surface names, path existence, status, owner hints, authority boundaries, read policy, and write policy. It does not recurse into `secrets/`, does not read model or dataset contents, does not validate runtime behavior, and does not promote any surface to canonical or active truth.
+
+The Local Logistic Agent proposal command is not an agent activation. It is deterministic local tooling that reads existing control-plane files through Python stdlib and emits stdout JSON only. It does not execute proposed tasks, does not write the task matrix or registry, does not call an LLM, does not build a RAG index, does not create artifacts, and does not promote sources or claims. Any cleanup, registration, matrix apply, parser hardening, RAG readiness audit, or local-only tooling review produced by the command requires a separate HumanGate-routed task.
 
 The UxPilote Scripts Control View JSON is a data-source candidate only. It reports script-family nodes, path drift, read-only entrypoints, blocked runners, selected-node inspector fields, `scripts/uxpilote` as `UNKNOWN`, and HumanGate questions. It does not execute unknown scripts, run benchmark or gameplay commands, automate GitHub or auto-merge, create datasets, create models or checkpoints, create `lab/runs`, create `latest.json`, or perform Git actions.
 
