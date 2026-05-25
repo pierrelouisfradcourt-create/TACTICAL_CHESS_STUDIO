@@ -14,6 +14,7 @@ fn trace_with_selected(selected_action_id: Option<ActionId>) -> DecisionTrace {
         legal_action_ids: vec![action_id("e2e4"), action_id("g1f3")],
         selected_action_id,
         decision_mode: "test-mode".to_string(),
+        selection_authority: None,
         used_search: false,
         used_neural: false,
         neural_latency_ms: None,
@@ -27,6 +28,7 @@ fn trace_with_selected(selected_action_id: Option<ActionId>) -> DecisionTrace {
 fn decision_trace_serializes_to_stable_json_fields() {
     let trace = DecisionTrace {
         decision_mode: "json-round-trip".to_string(),
+        selection_authority: Some("search".to_string()),
         used_search: true,
         used_neural: true,
         neural_latency_ms: Some(9),
@@ -45,6 +47,7 @@ fn decision_trace_serializes_to_stable_json_fields() {
             "legal_action_ids": ["e2e4", "g1f3"],
             "selected_action_id": "g1f3",
             "decision_mode": "json-round-trip",
+            "selection_authority": "search",
             "used_search": true,
             "used_neural": true,
             "neural_latency_ms": 9,
@@ -59,6 +62,7 @@ fn decision_trace_serializes_to_stable_json_fields() {
 fn decision_trace_json_round_trip_preserves_trace_and_validation() {
     let trace = DecisionTrace {
         decision_mode: "json-round-trip".to_string(),
+        selection_authority: Some("search".to_string()),
         used_search: true,
         used_neural: false,
         search_nodes: Some(32),
@@ -86,6 +90,7 @@ fn decision_trace_json_fixture_is_stable_and_valid() {
         ],
         selected_action_id: Some(action_id("g1f3")),
         decision_mode: "telemetry-json-dry-run-fixture".to_string(),
+        selection_authority: Some("search".to_string()),
         used_search: true,
         used_neural: true,
         neural_latency_ms: Some(12),
@@ -106,6 +111,7 @@ fn decision_trace_json_fixture_is_stable_and_valid() {
   ],
   "selected_action_id": "g1f3",
   "decision_mode": "telemetry-json-dry-run-fixture",
+  "selection_authority": "search",
   "used_search": true,
   "used_neural": true,
   "neural_latency_ms": 12,
@@ -130,6 +136,7 @@ fn decision_trace_pretty_json_helper_is_deterministic_and_round_trips() {
         legal_action_ids: vec![action_id("e2e4"), action_id("g1f3"), action_id("b1c3")],
         selected_action_id: Some(action_id("b1c3")),
         decision_mode: "telemetry-json-sandbox-writer".to_string(),
+        selection_authority: Some("search".to_string()),
         used_search: true,
         used_neural: false,
         neural_latency_ms: None,
@@ -151,6 +158,7 @@ fn decision_trace_pretty_json_helper_is_deterministic_and_round_trips() {
   ],
   "selected_action_id": "b1c3",
   "decision_mode": "telemetry-json-sandbox-writer",
+  "selection_authority": "search",
   "used_search": true,
   "used_neural": false,
   "neural_latency_ms": null,
@@ -193,6 +201,7 @@ fn decision_trace_json_deserialization_normalizes_action_ids() {
         "legal_action_ids": [" E2E4 ", "G1F3"],
         "selected_action_id": " g1f3 ",
         "decision_mode": "json-normalization",
+        "selection_authority": null,
         "used_search": false,
         "used_neural": false,
         "neural_latency_ms": null,
@@ -212,12 +221,33 @@ fn decision_trace_json_deserialization_normalizes_action_ids() {
 }
 
 #[test]
+fn legacy_search_trace_without_selection_authority_remains_valid() {
+    let decoded: DecisionTrace = serde_json::from_value(serde_json::json!({
+        "state_key": "phase3:legacy-search:001",
+        "legal_action_ids": ["e2e4", "g1f3"],
+        "selected_action_id": "e2e4",
+        "decision_mode": "legacy-search",
+        "used_search": true,
+        "used_neural": false,
+        "neural_latency_ms": null,
+        "search_nodes": 64,
+        "search_depth": 3,
+        "fallback_reason": null
+    }))
+    .expect("legacy DecisionTrace deserializes without selection_authority");
+
+    assert_eq!(decoded.selection_authority, None);
+    assert!(decoded.validate_consistency().is_ok());
+}
+
+#[test]
 fn invalid_deserialized_decision_trace_still_fails_consistency_validation() {
     let decoded: DecisionTrace = serde_json::from_value(serde_json::json!({
         "state_key": "phase3:state:001",
         "legal_action_ids": ["e2e4", "g1f3"],
         "selected_action_id": "a2a4",
         "decision_mode": "json-invalid",
+        "selection_authority": null,
         "used_search": false,
         "used_neural": false,
         "neural_latency_ms": null,
@@ -242,6 +272,7 @@ fn schema_constructs_without_engine_or_chess_runtime_execution() {
         legal_action_ids: vec![action_id(" E2E4 "), action_id("b1c3")],
         selected_action_id: Some(action_id("e2e4")),
         decision_mode: "standalone".to_string(),
+        selection_authority: None,
         used_search: false,
         used_neural: false,
         neural_latency_ms: None,
@@ -350,6 +381,7 @@ fn validate_consistency_rejects_selected_action_outside_legal_actions() {
 fn flags_represent_search_only_neural_guided_and_fallback_states() {
     let search_only = DecisionTrace {
         decision_mode: "search-only".to_string(),
+        selection_authority: Some("search".to_string()),
         used_search: true,
         used_neural: false,
         search_nodes: Some(128),
@@ -359,6 +391,7 @@ fn flags_represent_search_only_neural_guided_and_fallback_states() {
 
     let neural_guided = DecisionTrace {
         decision_mode: "neural-guided".to_string(),
+        selection_authority: Some("search".to_string()),
         used_search: true,
         used_neural: true,
         neural_latency_ms: Some(7),
@@ -369,6 +402,7 @@ fn flags_represent_search_only_neural_guided_and_fallback_states() {
 
     let fallback = DecisionTrace {
         decision_mode: "fallback".to_string(),
+        selection_authority: Some("fallback".to_string()),
         used_search: false,
         used_neural: false,
         fallback_reason: Some("no-decision".to_string()),
@@ -384,9 +418,9 @@ fn flags_represent_search_only_neural_guided_and_fallback_states() {
         (true, true)
     );
     assert_eq!((fallback.used_search, fallback.used_neural), (false, false));
-    assert!(search_only.validate_action_membership().is_ok());
-    assert!(neural_guided.validate_action_membership().is_ok());
-    assert!(fallback.validate_action_membership().is_ok());
+    assert!(search_only.validate_consistency().is_ok());
+    assert!(neural_guided.validate_consistency().is_ok());
+    assert!(fallback.validate_consistency().is_ok());
 }
 
 #[test]

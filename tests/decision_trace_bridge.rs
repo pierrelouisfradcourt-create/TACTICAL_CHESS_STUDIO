@@ -25,6 +25,7 @@ fn bridge_builds_decision_trace_from_legal_action_list() {
         &legal_actions,
         None,
         "passive-bridge",
+        None,
         false,
         false,
         None,
@@ -40,6 +41,7 @@ fn bridge_builds_decision_trace_from_legal_action_list() {
     );
     assert_eq!(trace.selected_action_id, None);
     assert_eq!(trace.decision_mode, "passive-bridge");
+    assert_eq!(trace.selection_authority, None);
     assert_eq!(trace.used_search, false);
     assert_eq!(trace.used_neural, false);
     assert_eq!(trace.fallback_reason.as_deref(), Some("no-selected-action"));
@@ -54,6 +56,7 @@ fn selected_legal_action_becomes_selected_action_id() {
         &legal_actions,
         Some(&legal_actions[1]),
         "selected-action",
+        Some("search".to_string()),
         true,
         true,
         Some(7),
@@ -63,6 +66,7 @@ fn selected_legal_action_becomes_selected_action_id() {
     );
 
     assert_eq!(trace.selected_action_id, Some(action_id("g1f3")));
+    assert_eq!(trace.selection_authority.as_deref(), Some("search"));
     assert_eq!(trace.neural_latency_ms, Some(7));
     assert_eq!(trace.search_nodes, Some(64));
     assert_eq!(trace.search_depth, Some(3));
@@ -77,6 +81,7 @@ fn validate_consistency_passes_for_valid_selected_action() {
         &legal_actions,
         Some(&legal_actions[0]),
         "valid-selected",
+        None,
         false,
         false,
         None,
@@ -97,6 +102,7 @@ fn fallback_without_selected_action_is_valid_when_legal_actions_exist() {
         &legal_actions,
         None,
         "fallback",
+        Some("fallback".to_string()),
         false,
         false,
         None,
@@ -115,6 +121,7 @@ fn selected_action_outside_legal_actions_is_rejected_by_consistency_validation()
         legal_action_ids: vec![action_id("e2e4"), action_id("g1f3")],
         selected_action_id: Some(action_id("a2a4")),
         decision_mode: "invalid-selected".to_string(),
+        selection_authority: None,
         used_search: false,
         used_neural: false,
         neural_latency_ms: None,
@@ -140,6 +147,7 @@ fn bridge_does_not_require_engine_search_or_neural_runtime_dependencies() {
         &legal_actions,
         Some(&legal_actions[0]),
         "standalone",
+        None,
         false,
         false,
         None,
@@ -160,6 +168,7 @@ fn json_serialization_still_works_after_bridge_construction() {
         &legal_actions,
         Some(&legal_actions[0]),
         "json",
+        Some("search".to_string()),
         true,
         false,
         None,
@@ -177,6 +186,7 @@ fn json_serialization_still_works_after_bridge_construction() {
             "legal_action_ids": ["e2e4", "g1f3"],
             "selected_action_id": "e2e4",
             "decision_mode": "json",
+            "selection_authority": "search",
             "used_search": true,
             "used_neural": false,
             "neural_latency_ms": null,
@@ -186,4 +196,81 @@ fn json_serialization_still_works_after_bridge_construction() {
         })
     );
     assert!(trace.validate_consistency().is_ok());
+}
+
+#[test]
+fn used_search_accepts_normalized_or_legacy_missing_search_authority() {
+    let legal_actions = vec![legal_action("e2e4"), legal_action("g1f3")];
+
+    for selection_authority in [Some("SEARCH".to_string()), Some(" search ".to_string()), None] {
+        let trace = build_decision_trace_from_legal_actions(
+            "bridge:state:008",
+            &legal_actions,
+            Some(&legal_actions[0]),
+            "normalized-or-legacy-search-authority",
+            selection_authority,
+            true,
+            false,
+            None,
+            Some(128),
+            Some(4),
+            None,
+        );
+
+        assert!(trace.validate_consistency().is_ok());
+    }
+}
+
+#[test]
+fn used_search_rejects_non_search_selection_authority() {
+    let legal_actions = vec![legal_action("e2e4"), legal_action("g1f3")];
+
+    let trace = build_decision_trace_from_legal_actions(
+        "bridge:state:009",
+        &legal_actions,
+        Some(&legal_actions[0]),
+        "non-search-authority",
+        Some("fallback".to_string()),
+        true,
+        false,
+        None,
+        Some(128),
+        Some(4),
+        None,
+    );
+
+    assert_eq!(
+        trace.validate_consistency(),
+        Err(DecisionTraceValidationError::SearchSelectionAuthorityRequired {
+            selection_authority: Some("fallback".to_string()),
+        })
+    );
+}
+
+#[test]
+fn neural_critic_and_llm_are_not_final_selection_authorities_after_normalization() {
+    for blocked_authority in ["neural", "Neural", " critic ", "LLM"] {
+        let trace = DecisionTrace {
+            state_key: format!("bridge:blocked-authority:{blocked_authority}"),
+            legal_action_ids: vec![action_id("e2e4"), action_id("g1f3")],
+            selected_action_id: Some(action_id("e2e4")),
+            decision_mode: "blocked-authority".to_string(),
+            selection_authority: Some(blocked_authority.to_string()),
+            used_search: false,
+            used_neural: false,
+            neural_latency_ms: None,
+            search_nodes: None,
+            search_depth: None,
+            fallback_reason: None,
+        };
+
+        assert_eq!(
+            trace.validate_consistency(),
+            Err(
+                DecisionTraceValidationError::UnsupportedFinalSelectionAuthority {
+                    selection_authority: blocked_authority.to_string(),
+                },
+            )
+        );
+    }
 }

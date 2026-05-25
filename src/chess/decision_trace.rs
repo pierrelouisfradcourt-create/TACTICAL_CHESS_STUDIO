@@ -55,6 +55,8 @@ pub struct DecisionTrace {
     )]
     pub selected_action_id: Option<ActionId>,
     pub decision_mode: String,
+    #[serde(default)]
+    pub selection_authority: Option<String>,
     pub used_search: bool,
     pub used_neural: bool,
     pub neural_latency_ms: Option<u64>,
@@ -72,6 +74,12 @@ pub enum DecisionTraceValidationError {
     EmptyStateKey,
     EmptyLegalActionIds,
     SelectedActionIdNotLegal { selected_action_id: ActionId },
+    SearchSelectionAuthorityRequired {
+        selection_authority: Option<String>,
+    },
+    UnsupportedFinalSelectionAuthority {
+        selection_authority: String,
+    },
 }
 
 impl DecisionTrace {
@@ -103,9 +111,37 @@ impl DecisionTrace {
         Ok(())
     }
 
+    pub fn validate_selection_authority(&self) -> Result<(), DecisionTraceValidationError> {
+        let normalized_selection_authority = self
+            .selection_authority
+            .as_deref()
+            .map(|selection_authority| selection_authority.trim().to_ascii_lowercase());
+
+        if let Some(selection_authority) = &normalized_selection_authority {
+            if matches!(selection_authority.as_str(), "neural" | "critic" | "llm") {
+                return Err(
+                    DecisionTraceValidationError::UnsupportedFinalSelectionAuthority {
+                        selection_authority: self.selection_authority.clone().unwrap_or_default(),
+                    },
+                );
+            }
+        }
+
+        if self.used_search
+            && !matches!(normalized_selection_authority.as_deref(), None | Some("search"))
+        {
+            return Err(DecisionTraceValidationError::SearchSelectionAuthorityRequired {
+                selection_authority: self.selection_authority.clone(),
+            });
+        }
+
+        Ok(())
+    }
+
     pub fn validate_consistency(&self) -> Result<(), DecisionTraceValidationError> {
         self.validate_state_key()?;
         self.validate_legal_actions_present()?;
-        self.validate_action_membership()
+        self.validate_action_membership()?;
+        self.validate_selection_authority()
     }
 }
