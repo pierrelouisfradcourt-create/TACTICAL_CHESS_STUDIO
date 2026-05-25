@@ -14,6 +14,10 @@
 - Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/PROMPT_GENERATOR_RULES_V0.md only when a task needs prompt-generation gate context.
 - Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/REPORT_PARSER_RULES_V0.md only when a task needs executor-report parser context.
 - Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/LOCAL_RAG_SOURCE_PACK_V0.md only when a task needs Local RAG retrieval or source-pack context.
+- Upload/read C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/RAG_SOURCE_PACK_MANIFEST_V0.yaml only when a task depends on RAG source-pack manifest context.
+- Upload/read C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/09_RAG/RAG_INDEX_ROUTE_AND_BACKEND_POLICY_V0.md only when a task depends on RAG route/backend policy context.
+- Upload/read of RAG manifest or policy sources does not authorize RAG activation, source promotion, indexing, embeddings, vector DB, LLM/model calls, model downloads, runtime execution, benchmark, training, dataset/model actions, Git actions, or claims.
+- For RAG manifest or policy source use, report source_state separately: created, registered, loaded, enforced, evidenced.
 - Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/EXECUTOR_REPORT_SUMMARY_TEMPLATE_V0.yaml only when a task needs executor-report summary schema context.
 - Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/NEXT_STEP_PROPOSAL_TEMPLATE_V0.yaml only when a task needs next-step proposal schema context.
 - Upload C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_PRIORITY_MATRIX_V0.yaml only when a task needs task-priority matrix schema context.
