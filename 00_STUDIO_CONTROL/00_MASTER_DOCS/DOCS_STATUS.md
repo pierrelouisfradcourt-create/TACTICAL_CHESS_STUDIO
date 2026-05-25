@@ -9,17 +9,17 @@ Rule: this file classifies docs only. It does not create runtime evidence, bench
 These files are the current resume/control surface after PP9-PP19 / PR #237-#247:
 
 - `README.md`
-- `MASTER_DOCS/00_EXEC_SUMMARY.md`
-- `MASTER_DOCS/01_CURRENT_STATE.md`
-- `MASTER_DOCS/02_COMMAND_CHEATSHEET.md`
-- `MASTER_DOCS/03_KNOWN_ISSUES.md`
-- `MASTER_DOCS/05_ARCHITECTURE.md`
-- `MASTER_DOCS/08_REPRISE_PROMPT.md`
-- `MASTER_DOCS/10_AUTOMATION_EVIDENCE_PLANE.md`
-- `MASTER_DOCS/11_GPT55_BROWSER_REPRISE_PROMPT.md`
-- `MASTER_DOCS/AAA_TACTICAL_CORE_ARCHITECTURE.md`
-- `MASTER_DOCS/HYBRID_GAME_AI_PLATFORM_PLAN.md`
-- `MASTER_DOCS/TACTICAL_CHESS_CONTROL_PLANE_CANONIZATION_V1_1.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/00_EXEC_SUMMARY.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/01_CURRENT_STATE.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/02_COMMAND_CHEATSHEET.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/03_KNOWN_ISSUES.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/05_ARCHITECTURE.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/ARCHIVE/CONTEXT/08_REPRISE_PROMPT.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/10_AUTOMATION_EVIDENCE_PLANE.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/ARCHIVE/CONTEXT/11_GPT55_BROWSER_REPRISE_PROMPT.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/AAA_TACTICAL_CORE_ARCHITECTURE.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/HYBRID_GAME_AI_PLATFORM_PLAN.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/TACTICAL_CHESS_CONTROL_PLANE_CANONIZATION_V1_1.md`
 
 Current active truth:
 
@@ -64,7 +64,7 @@ Current surface status:
 | tests | TESTED | Narrow control-plane and previously recorded targeted validations only; no benchmark proof. |
 | tools_scripts | IMPLEMENTED | Git-backed `scripts/control_plane/*` tooling exists for dry-run/current-state/inbox/HumanGate/action-plan flow. |
 | artifacts_runtime_outputs | TESTED | Local `.studio_state/current_state.json` write boundary was tested; generated artifacts remain non-canonical. |
-| canonical_docs | DOCUMENTED_ONLY | `MASTER_DOCS/*` records the freeze; docs do not activate runtime or claims. |
+| canonical_docs | DOCUMENTED_ONLY | `00_STUDIO_CONTROL/00_MASTER_DOCS/*` records the freeze; docs do not activate runtime or claims. |
 | roadmap_docs_only | DOCUMENTED_ONLY | Roadmap options remain planning-only. |
 | inference | PASSIVE | Neural may propose/rerank only; Search remains final authority. |
 | schemas | PASSIVE | JSON schemas validate shapes only and do not authorize state transitions. |
@@ -125,11 +125,11 @@ Claim posture: `NO_CLAIM_ALLOWED`.
 
 These are useful for direction and constraints, but they are not proof that target systems are implemented:
 
-- `MASTER_DOCS/AAA_TACTICAL_CORE_ARCHITECTURE.md`
-- `MASTER_DOCS/HYBRID_GAME_AI_PLATFORM_PLAN.md`
-- `MASTER_DOCS/02_ROADMAP_90D.md`
-- `MASTER_DOCS/05_ARCHITECTURE.md`
-- `MASTER_DOCS/09_ROCKY_VARIANT_FREEZE.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/AAA_TACTICAL_CORE_ARCHITECTURE.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/HYBRID_GAME_AI_PLATFORM_PLAN.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/02_ROADMAP_90D.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/05_ARCHITECTURE.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/09_ROCKY_VARIANT_FREEZE.md`
 - `docs/control-plane/ENGINE_SEARCH_NEURAL_DECOMPOSITION_ROADMAP_V0.md`
 - `docs/control-plane/ENGINE_SEARCH_NEURAL_SURFACE_INVENTORY_V0.md`
 - `docs/control-plane/ENGINE_SEARCH_NEURAL_DECISION_ROUTING_CONTRACT_PLAN_V0.md`
@@ -203,7 +203,7 @@ Do not rely on old local-stack notes, previous branch names, previous ahead coun
 `STUDIO_CONTROL_TOPOLOGY_FREEZE_V0` is superseded for current topology by:
 
 ```text
-C:\TACTICAL_CHESS_STUDIO\00_STUDIO_CONTROL\05_STATUS\STUDIO_CONTROL_TOPOLOGY_MIGRATION_V1.md
+C:\TACTICAL_CHESS_STUDIO\00_STUDIO_CONTROL\99_ARCHIVE\records\STUDIO_CONTROL_TOPOLOGY_MIGRATION_V1.md
 ```
 
 The freeze file remains historical governance and anti-drift context. Current topology references should use `STUDIO_CONTROL_TOPOLOGY_MIGRATION_V1` unless a later HumanGate task records a newer topology authority.
@@ -229,7 +229,7 @@ This includes:
 
 - roadmap/prototype candidate folders;
 - Godot editor/cache folders;
-- `00_STUDIO_CONTROL\10_ROADMAP\UXPILOTE_GODOT_GARDEN_CANDIDATE_ONLY`;
+- `00_STUDIO_CONTROL\99_ARCHIVE\plans\UXPILOTE_GODOT_GARDEN_CANDIDATE_ONLY`;
 - `scripts\uxpilote`;
 - lab outputs;
 - `latest.json`;
