@@ -1,0 +1,276 @@
+schema_version: "ROCKY_OBSERVABILITY_EVIDENCE_QUEUE_V0"
+record_type: "roadmap_queue"
+contract_version: "V0"
+language: "English"
+status: "DOCUMENTED_ONLY"
+claim_posture: "NO_CLAIM_ALLOWED"
+human_gate_required: true
+
+source_state:
+  created: "DOCUMENTED_ONLY"
+  registered: "UNKNOWN"
+  loaded: "DOCUMENTED_ONLY"
+  enforced: "DOCUMENTED_ONLY"
+  evidenced: "UNKNOWN"
+  parent_queue_index: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/PLAYER_IMPROVEMENT_QUEUE_INDEX_V0.yaml"
+  source_anchoring_rule: "created != registered != loaded != enforced != evidenced"
+
+route_check:
+  status: "DOCUMENTED_ONLY"
+  output_routing_required: true
+  output_routing_present: true
+  destination_allowed: "DOCUMENTED_ONLY"
+  forbidden_destination_absent: "DOCUMENTED_ONLY"
+  evidence: "Routed to 00_STUDIO_CONTROL/10_ROADMAP as roadmap_docs_only under Studio Output Routing Policy V0."
+
+output_routing:
+  produced_file_type: "roadmap_queue_yaml"
+  intended_surface: "roadmap_docs_only"
+  canonical_destination: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_OBSERVABILITY_EVIDENCE_QUEUE_V0.yaml"
+  temporary_destination: ""
+  actual_destination: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_OBSERVABILITY_EVIDENCE_QUEUE_V0.yaml"
+  registration_required: false
+  project_source_upload_required: false
+  retention_policy: "roadmap_only_pending_humangate"
+  promotion_gate: "HumanGate"
+
+queue:
+  id: "OBSERVABILITY_EVIDENCE_QUEUE_V0"
+  parent_index_id: "PLAYER_IMPROVEMENT_QUEUE_INDEX_V0"
+  intended_surface: "roadmap_docs_only"
+  status: "DOCUMENTED_ONLY"
+  purpose: "Plan evidence, traces, and reports without benchmark, Elo, strength, model-quality, or proof claims."
+  runtime_authority: "NONE"
+  mutation_authority: "HumanGate"
+  activation_authority: "HumanGate"
+  claim_authority: "HumanGate"
+
+evidence_rules:
+  search_final_authority_preserved: true
+  neural_final_authority_blocked: true
+  critic_final_authority_blocked: true
+  llm_final_move_authority_blocked: true
+  observation_is_not_proof: true
+  benchmark_is_not_authorized: true
+  runtime_execution_is_blocked: true
+  evidence_packet_requires_source_paths: true
+  evidence_packet_requires_command_or_readback_evidence: true
+  evidence_packet_requires_claim_boundary: true
+
+trace_candidates:
+  - id: "TRACE_CANDIDATE_DECISION_AUTHORITY_V0"
+    status: "DOCUMENTED_ONLY"
+    intended_surface: "roadmap_docs_only"
+    purpose: "Plan future observation of decision authority fields without changing runtime behavior."
+    candidate_scope: "Decision authority trace shape and source of final action."
+    runtime_implementation: "BLOCKED"
+    runtime_execution: "BLOCKED"
+    required_humangate: true
+  - id: "TRACE_CANDIDATE_SEARCH_NEURAL_BOUNDARY_V0"
+    status: "DOCUMENTED_ONLY"
+    intended_surface: "roadmap_docs_only"
+    purpose: "Plan future observation of Search-final and Neural-helper separation."
+    candidate_scope: "Boundary trace linking Search result, Neural proposal, and selected action authority."
+    runtime_implementation: "BLOCKED"
+    runtime_execution: "BLOCKED"
+    required_humangate: true
+  - id: "TRACE_CANDIDATE_CRITIC_GUARD_V0"
+    status: "DOCUMENTED_ONLY"
+    intended_surface: "roadmap_docs_only"
+    purpose: "Plan future observation of lightweight critic guard decisions without final authority."
+    candidate_scope: "Critic guard signal, rejection reason, and non-authority flag."
+    runtime_implementation: "BLOCKED"
+    runtime_execution: "BLOCKED"
+    required_humangate: true
+
+future_cost_trace_candidates:
+  - id: "COST_TRACE_NODE_BUDGET_V0"
+    status: "DOCUMENTED_ONLY"
+    candidate_signal: "Search node or budget metadata if later instrumented."
+    blocked_claims:
+      - "benchmark_proof"
+      - "runtime_strength_claim"
+  - id: "COST_TRACE_DECISION_LATENCY_V0"
+    status: "DOCUMENTED_ONLY"
+    candidate_signal: "Decision latency metadata if later instrumented."
+    blocked_claims:
+      - "benchmark_proof"
+      - "scientific_proof"
+  - id: "COST_TRACE_FALLBACK_REASON_V0"
+    status: "DOCUMENTED_ONLY"
+    candidate_signal: "Fallback reason and missing-evidence state if later instrumented."
+    blocked_claims:
+      - "model_quality_claim"
+
+future_search_trace_candidates:
+  - id: "SEARCH_TRACE_FINAL_ACTION_AUTHORITY_V0"
+    status: "DOCUMENTED_ONLY"
+    candidate_signal: "Search selected final action and authority marker."
+    authority_rule: "Search remains final tactical authority."
+  - id: "SEARCH_TRACE_CANDIDATE_RANKING_V0"
+    status: "DOCUMENTED_ONLY"
+    candidate_signal: "Candidate ranking metadata for future targeted validation."
+    authority_rule: "Ranking metadata must not become proof of strength."
+  - id: "SEARCH_TRACE_REJECTION_REASON_V0"
+    status: "DOCUMENTED_ONLY"
+    candidate_signal: "Rejected candidate reason metadata for future evidence packets."
+    authority_rule: "Rejection metadata is observation only."
+
+future_neural_trace_candidates:
+  - id: "NEURAL_TRACE_PROPOSAL_SET_V0"
+    status: "DOCUMENTED_ONLY"
+    candidate_signal: "Neural proposal list if later instrumented."
+    authority_rule: "Neural remains proposal/rerank/helper only."
+  - id: "NEURAL_TRACE_RERANK_SIGNAL_V0"
+    status: "DOCUMENTED_ONLY"
+    candidate_signal: "Rerank signal metadata if later instrumented."
+    authority_rule: "Rerank signal cannot decide final action."
+  - id: "NEURAL_TRACE_ABSTAIN_OR_UNAVAILABLE_V0"
+    status: "DOCUMENTED_ONLY"
+    candidate_signal: "Neural unavailable, abstain, or fallback state if later instrumented."
+    authority_rule: "Fallback must preserve Search authority."
+
+future_critic_trace_candidates:
+  - id: "CRITIC_TRACE_GUARD_SIGNAL_V0"
+    status: "DOCUMENTED_ONLY"
+    candidate_signal: "Lightweight critic guard signal if later instrumented."
+    authority_rule: "Critic remains guard/helper only."
+  - id: "CRITIC_TRACE_BLOCK_REASON_V0"
+    status: "DOCUMENTED_ONLY"
+    candidate_signal: "Guard block reason if later instrumented."
+    authority_rule: "Guard reason cannot activate DecisionController."
+  - id: "CRITIC_TRACE_PASS_REASON_V0"
+    status: "DOCUMENTED_ONLY"
+    candidate_signal: "Guard pass reason if later instrumented."
+    authority_rule: "Pass reason is not benchmark or strength evidence."
+
+evidence_packet_candidates:
+  - id: "EVIDENCE_PACKET_DECISION_TRACE_READBACK_V0"
+    status: "DOCUMENTED_ONLY"
+    purpose: "Plan a future readback packet for decision trace shape."
+    required_fields:
+      - "source_path"
+      - "command_or_readback"
+      - "surface"
+      - "authority_boundary"
+      - "claim_boundary"
+    blocked_outputs:
+      - "latest.json"
+      - "lab/runs/RUN_*"
+      - "model_or_checkpoint"
+  - id: "EVIDENCE_PACKET_BOUNDARY_GUARD_SUMMARY_V0"
+    status: "DOCUMENTED_ONLY"
+    purpose: "Plan a future summary packet for Neural/Search/Critic boundary evidence."
+    required_fields:
+      - "Search_final_authority_status"
+      - "Neural_helper_only_status"
+      - "Critic_helper_only_status"
+      - "DecisionController_activation_status"
+    blocked_outputs:
+      - "benchmark_summary_as_proof"
+      - "elo_claim"
+      - "runtime_strength_claim"
+  - id: "EVIDENCE_PACKET_COST_TRACE_PLAN_V0"
+    status: "DOCUMENTED_ONLY"
+    purpose: "Plan future cost trace evidence without running benchmarks."
+    required_fields:
+      - "trace_candidate"
+      - "collection_boundary"
+      - "storage_route"
+      - "HumanGate_required"
+    blocked_outputs:
+      - "benchmark_proof"
+      - "scientific_proof"
+
+blocked_claims:
+  benchmark_proof: "BLOCKED"
+  elo_claim: "BLOCKED"
+  runtime_strength_claim: "BLOCKED"
+  scientific_proof: "BLOCKED"
+  model_quality_claim: "BLOCKED"
+  readiness_claim: "BLOCKED"
+  promotion_claim: "BLOCKED"
+  runtime_activation_claim: "BLOCKED"
+  dataset_quality_claim: "BLOCKED"
+
+future_targeted_validation_candidates:
+  - id: "VALIDATION_CANDIDATE_TRACE_SCHEMA_TEXT_CHECK_V0"
+    status: "DOCUMENTED_ONLY"
+    validation_surface: "roadmap_docs_only"
+    future_command_type: "static_text_check"
+    purpose: "Check that a future trace schema preserves authority and claim boundaries."
+    blocked_until_humangate: true
+  - id: "VALIDATION_CANDIDATE_BOUNDARY_TARGETED_TEST_V0"
+    status: "DOCUMENTED_ONLY"
+    validation_surface: "tests"
+    future_command_type: "targeted_test_only"
+    purpose: "Run only future targeted boundary tests if a later task authorizes them."
+    blocked_until_humangate: true
+  - id: "VALIDATION_CANDIDATE_EVIDENCE_PACKET_READBACK_V0"
+    status: "DOCUMENTED_ONLY"
+    validation_surface: "canonical_docs"
+    future_command_type: "readback_only"
+    purpose: "Read back future evidence packet fields without promoting claims."
+    blocked_until_humangate: true
+  - id: "VALIDATION_CANDIDATE_NO_ARTIFACT_LEAK_CHECK_V0"
+    status: "DOCUMENTED_ONLY"
+    validation_surface: "artifacts_runtime_outputs"
+    future_command_type: "path_existence_check"
+    purpose: "Confirm no unauthorized latest.json, lab/runs, dataset, model, or checkpoint output was created."
+    blocked_until_humangate: true
+
+blocked_actions:
+  runtime_instrumentation_implementation: "BLOCKED"
+  runtime_execution: "BLOCKED"
+  test_changes: "BLOCKED"
+  test_execution: "BLOCKED"
+  benchmark: "BLOCKED"
+  training: "BLOCKED"
+  dataset_generation: "BLOCKED"
+  dataset_reset: "BLOCKED"
+  latest_json_creation: "BLOCKED"
+  run_folder_creation: "BLOCKED"
+  model_or_checkpoint_creation: "BLOCKED"
+  model_promotion: "BLOCKED"
+  chess960_activation: "BLOCKED"
+  decision_controller_activation: "BLOCKED"
+  neural_final_authority: "BLOCKED"
+  llm_final_move_authority: "BLOCKED"
+  commit: "BLOCKED"
+  push: "BLOCKED"
+  branch_creation: "BLOCKED"
+  pull_request_creation: "BLOCKED"
+
+status_by_surface:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "PASSIVE"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+
+software_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "PASSIVE"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+
+evidence_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "PASSIVE"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+
+claim_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "PASSIVE"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+
+no_global_ready_verdict: true
