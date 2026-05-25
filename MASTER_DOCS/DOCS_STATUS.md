@@ -155,3 +155,153 @@ Handling:
 - `evidence_verdict` may describe documentation-only or mechanical validation evidence.
 - `claim_verdict` defaults to `NO_CLAIM_ALLOWED`.
 - No Elo, strength, promotion, AAA-completion, automation-completion, or scientific claim is allowed from documentation status.
+
+## Current Drift Appendix V0
+
+Status: DOCUMENTED_ONLY
+Task ID: DOCS_ROOT_PATH_DRIFT_APPENDIX_V0
+Active audit root: `C:\TACTICAL_CHESS_STUDIO`
+Claim posture: NO_CLAIM_ALLOWED
+
+This appendix documents known documentation drift so future work does not rely on stale paths, stale branch claims, superseded topology references, or authoritative-looking local files without fresh repo readback.
+
+### Current Active Root
+
+The active audit root for current repo work is:
+
+```text
+C:\TACTICAL_CHESS_STUDIO
+```
+
+Future tasks must verify the active root with live command evidence before relying on any path statement copied from older docs.
+
+### Stale Nested Repo Path Warning
+
+Nested paths such as:
+
+```text
+C:\TACTICAL_CHESS_STUDIO\repos\games\TacticalChessPureLab
+```
+
+are stale or historical unless separately verified in the active task. Older docs, source indexes, upload checklists, repo notices, and local-history records may still mention that nested path. Treat those mentions as historical context until current readback confirms the actual file, directory, and task route.
+
+### Stale Branch and SHA Warning
+
+Old branch, `main`, `origin/main`, ahead-count, behind-count, and hardcoded SHA claims are stale unless live Git preflight confirms them.
+
+Current tasks must use:
+
+```text
+git status --short --branch
+git rev-parse HEAD
+```
+
+Do not rely on old local-stack notes, previous branch names, previous ahead counts, or old SHA examples as current truth.
+
+### Superseded Topology Warning
+
+`STUDIO_CONTROL_TOPOLOGY_FREEZE_V0` is superseded for current topology by:
+
+```text
+C:\TACTICAL_CHESS_STUDIO\00_STUDIO_CONTROL\05_STATUS\STUDIO_CONTROL_TOPOLOGY_MIGRATION_V1.md
+```
+
+The freeze file remains historical governance and anti-drift context. Current topology references should use `STUDIO_CONTROL_TOPOLOGY_MIGRATION_V1` unless a later HumanGate task records a newer topology authority.
+
+### Untracked Authoritative-Looking Docs Warning
+
+Untracked files under:
+
+```text
+00_STUDIO_CONTROL\05_STATUS
+00_STUDIO_CONTROL\10_ROADMAP
+```
+
+may look authoritative, but they are not source truth by existence. A local file, roadmap, dashboard, status matrix, decision record, audit report, or queue document must still satisfy source-state requirements before it can govern work.
+
+Do not treat untracked `00_STUDIO_CONTROL` status or roadmap files as registered, loaded, enforced, evidenced, promoted, or final unless a later HumanGate action and source-registration evidence say so.
+
+### Roadmap / Prototype Candidate Warning
+
+Roadmap and prototype candidate material is non-authoritative unless HumanGate promotes it with evidence.
+
+This includes:
+
+- roadmap/prototype candidate folders;
+- Godot editor/cache folders;
+- `00_STUDIO_CONTROL\10_ROADMAP\UXPILOTE_GODOT_GARDEN_CANDIDATE_ONLY`;
+- `scripts\uxpilote`;
+- lab outputs;
+- `latest.json`;
+- benchmarks;
+- reports;
+- logs;
+- datasets;
+- model or checkpoint artifacts.
+
+These surfaces are passive or blocked by default. They must not be treated as runtime truth, implementation proof, model proof, dataset authority, benchmark proof, or promotion evidence without explicit HumanGate authorization and matching source-state evidence.
+
+Generated cache folders, including `__pycache__`, are passive artifacts unless an explicit HumanGate cleanup task authorizes cleanup.
+
+### Claims Require Fresh Evidence
+
+Implementation and test claims in docs require fresh repo readback before use.
+
+Before relying on any `IMPLEMENTED`, `TESTED`, `IMPLEMENTED_AND_TESTED`, `IMPLEMENTED_AND_TARGET_TESTED`, local-stack, branch, SHA, or test-result claim copied from docs, future work must inspect the current repo state and the exact code or test files that support the narrow claim.
+
+Docs may describe prior evidence. They do not replace current code readback, current test readback, or current validation when a task needs live evidence.
+
+### Source-State Rule
+
+Keep source-state separation:
+
+```text
+created != registered
+registered != loaded
+loaded != enforced
+enforced != evidenced
+```
+
+File creation alone is not registration. Registration alone is not loading. Loading alone is not enforcement. Enforcement alone is not evidence.
+
+### Status By Surface
+
+```yaml
+status_by_surface:
+  active_runtime_code: PASSIVE
+  tests: PASSIVE
+  artifacts_runtime_outputs: PASSIVE
+  canonical_docs: DOCUMENTED_ONLY
+  roadmap_docs_only: PASSIVE
+  inference: PASSIVE
+```
+
+### Verdicts
+
+```yaml
+software_verdict:
+  active_runtime_code: PASSIVE
+  tests: PASSIVE
+  artifacts_runtime_outputs: PASSIVE
+  canonical_docs: DOCUMENTED_ONLY
+  roadmap_docs_only: PASSIVE
+  inference: PASSIVE
+
+evidence_verdict:
+  active_runtime_code: PASSIVE
+  tests: PASSIVE
+  artifacts_runtime_outputs: PASSIVE
+  canonical_docs: DOCUMENTED_ONLY
+  roadmap_docs_only: PASSIVE
+  inference: PASSIVE
+
+claim_verdict: NO_CLAIM_ALLOWED
+```
+
+### No Global Ready Verdict
+
+```yaml
+no_global_ready_verdict: true
+```
+
+This appendix gives no global ready or not-ready verdict. It warns about drift and preserves component-level source, surface, evidence, and claim boundaries.

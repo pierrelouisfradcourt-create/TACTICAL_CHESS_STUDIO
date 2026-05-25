@@ -25,6 +25,14 @@ ALL_SURFACES = (
     "models_datasets",
     "secrets",
 )
+CANONICAL_SURFACES = (
+    "active_runtime_code",
+    "tests",
+    "artifacts_runtime_outputs",
+    "canonical_docs",
+    "roadmap_docs_only",
+    "inference",
+)
 NON_ROUTABLE_SURFACES = {"lab", "schemas", "models_datasets", "secrets"}
 ROUTABLE_SURFACES = set(ALL_SURFACES) - NON_ROUTABLE_SURFACES
 PROFILE_DEFAULTS = {
@@ -155,10 +163,111 @@ STRUCTURED_FIELD_GROUPS = {
     "claim_verdict": ("claim_verdict", "claim verdict"),
     "no_global_ready_verdict": ("no_global_ready_verdict", "no global ready verdict"),
 }
+EXECUTOR_REPORT_FIELD_PATHS = {
+    "task_id": ("task_id",),
+    "codex_runtime.requested_model": ("codex_runtime", "requested_model"),
+    "codex_runtime.actual_runtime": ("codex_runtime", "actual_runtime"),
+    "codex_runtime.runtime_status": ("codex_runtime", "runtime_status"),
+    "preflight.cwd": ("preflight", "cwd"),
+    "preflight.repo_root": ("preflight", "repo_root"),
+    "preflight.branch": ("preflight", "branch"),
+    "preflight.HEAD": ("preflight", "HEAD"),
+    "preflight.worktree_status": ("preflight", "worktree_status"),
+    "source_state": ("source_state",),
+    "route_check.status": ("route_check", "status"),
+    "output_routing_result.actual_destination": ("output_routing_result", "actual_destination"),
+    "files_changed": ("files_changed",),
+    "commands_run": ("commands_run",),
+    "validation.status": ("validation", "status"),
+    "skipped_validation": ("skipped_validation",),
+    "risks": ("risks",),
+    "status_by_surface": ("status_by_surface",),
+    "software_verdict": ("software_verdict",),
+    "evidence_verdict": ("evidence_verdict",),
+    "claim_verdict": ("claim_verdict",),
+    "no_global_ready_verdict": ("no_global_ready_verdict",),
+    "recommended_next_tasks": ("recommended_next_tasks",),
+}
+EXECUTOR_REPORT_FIELD_ALIASES = {
+    "preflight.cwd": (
+        ("preflight", "cwd"),
+        ("repo_reference", "cwd"),
+        ("repo_reference", "path"),
+        ("repo_reference", "git_root"),
+    ),
+    "preflight.repo_root": (
+        ("preflight", "repo_root"),
+        ("repo_reference", "repo_root"),
+        ("repo_reference", "git_root"),
+        ("repo_reference", "path"),
+    ),
+    "preflight.branch": (("preflight", "branch"), ("repo_reference", "branch")),
+    "preflight.HEAD": (("preflight", "HEAD"), ("repo_reference", "head")),
+    "preflight.worktree_status": (
+        ("preflight", "worktree_status"),
+        ("repo_reference", "worktree_status"),
+        ("repo_reference", "worktree_status_before_changes"),
+    ),
+    "validation.status": (
+        ("validation", "status"),
+        ("validation", "result"),
+        ("validation", "diff_check"),
+        ("validation", "readback"),
+    ),
+    "files_changed": (
+        ("files_changed",),
+        ("files_changed", "by_this_task"),
+        ("files_changed", "repo_source_test_docs_runtime"),
+        ("files_touched",),
+    ),
+    "recommended_next_tasks": (("recommended_next_tasks",), ("next_tasks",)),
+}
+UNKNOWN_VALUE = "UNKNOWN"
 TEXT_REPORT_EXTENSIONS = {".md", ".markdown", ".txt", ".yaml", ".yml"}
 DEFAULT_STATUS_BY_SURFACE = {surface: "PASSIVE" for surface in ALL_SURFACES}
 DEFAULT_STATUS_BY_SURFACE["roadmap_docs_only"] = "DOCUMENTED_ONLY"
 DEFAULT_STATUS_BY_SURFACE["secrets"] = "BLOCKED"
+UXPILOTE_AUDIT_CHAIN_CATALOG_RELATIVE = "00_STUDIO_CONTROL/01_MAPS/UXPILOTE_AUDIT_CHAIN_CATALOG_V0.md"
+UXPILOTE_AUDIT_CHAIN_CATALOG_PATH = PROJECT_ROOT / UXPILOTE_AUDIT_CHAIN_CATALOG_RELATIVE
+UXPILOTE_AUDIT_CHAIN_BLOCKED_ACTIONS = {
+    "runtime_execution": "BLOCKED",
+    "training": "BLOCKED",
+    "benchmark": "BLOCKED",
+    "dataset_generation": "BLOCKED",
+    "dataset_reset": "BLOCKED",
+    "latest_json_creation": "BLOCKED",
+    "lab_run_creation": "BLOCKED",
+    "model_or_checkpoint_creation": "BLOCKED",
+    "model_promotion": "BLOCKED",
+    "agent_activation": "BLOCKED",
+    "chess960_activation": "BLOCKED",
+    "decision_controller_activation": "BLOCKED",
+    "commit_push_branch_PR": "BLOCKED",
+    "unknown_script_execution": "BLOCKED",
+}
+UXPILOTE_GRAPH_PLANES = ("physical", "authority", "evidence", "routing", "tools")
+UXPILOTE_GRAPH_SOURCE_STATE_DEFAULT = {
+    "created": "UNKNOWN",
+    "registered": "UNKNOWN",
+    "loaded": "UNKNOWN",
+    "enforced": "UNKNOWN",
+    "evidenced": "UNKNOWN",
+}
+UXPILOTE_GRAPH_READONLY_ACTIONS = ["inspect", "readback", "prepare charter"]
+UXPILOTE_GRAPH_BLOCKED_ACTIONS = [
+    "execute audits",
+    "mutate files",
+    "activate runtime",
+    "validate claims",
+    "run benchmark",
+    "run gameplay",
+    "train",
+    "generate datasets",
+    "create lab/runs",
+    "create latest.json",
+    "create models/checkpoints",
+    "commit/push/branch/PR",
+]
 SURFACE_MAP_ENTRIES = (
     {
         "surface": "active_runtime_code",
@@ -646,6 +755,395 @@ def build_report_inspect_payload(path_text: str) -> dict[str, Any]:
     return base_payload
 
 
+def report_clean_lines(text: str) -> list[str]:
+    lines: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            continue
+        if stripped.startswith("#"):
+            continue
+        lines.append(line.rstrip())
+    return lines
+
+
+def yamlish_key(raw_key: str) -> str:
+    return raw_key.strip().replace(" ", "_")
+
+
+def yamlish_scalar(value: str) -> Any:
+    cleaned = value.strip()
+    if not cleaned:
+        return UNKNOWN_VALUE
+    if cleaned in {"[]", "null", "None", "~"}:
+        return [] if cleaned == "[]" else UNKNOWN_VALUE
+    if (cleaned.startswith('"') and cleaned.endswith('"')) or (cleaned.startswith("'") and cleaned.endswith("'")):
+        cleaned = cleaned[1:-1]
+    lowered = cleaned.lower()
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    return cleaned
+
+
+def next_yamlish_child_is_list(lines: list[str], start_index: int, parent_indent: int) -> bool:
+    for line in lines[start_index + 1:]:
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        if indent <= parent_indent:
+            return False
+        return line.lstrip().startswith("- ")
+    return False
+
+
+def parse_yamlish_report(text: str) -> dict[str, Any]:
+    lines = report_clean_lines(text)
+    root: dict[str, Any] = {}
+    stack: list[tuple[int, Any]] = [(-1, root)]
+    key_matcher = re.compile(r"^(\s*)([A-Za-z][A-Za-z0-9_ .-]*)\s*:\s*(.*)$")
+    list_matcher = re.compile(r"^(\s*)-\s+(.*)$")
+
+    for index, line in enumerate(lines):
+        if not line.strip():
+            continue
+        list_match = list_matcher.match(line)
+        if list_match:
+            indent = len(list_match.group(1))
+            item_text = list_match.group(2).strip()
+            while len(stack) > 1 and stack[-1][0] >= indent:
+                stack.pop()
+            parent = stack[-1][1]
+            if isinstance(parent, list):
+                nested_key = key_matcher.match(item_text)
+                if nested_key:
+                    key = yamlish_key(nested_key.group(2))
+                    value_text = nested_key.group(3)
+                    item: dict[str, Any] = {key: yamlish_scalar(value_text)}
+                    parent.append(item)
+                    stack.append((indent, item))
+                else:
+                    parent.append(yamlish_scalar(item_text))
+            continue
+
+        key_match = key_matcher.match(line)
+        if not key_match:
+            continue
+        indent = len(key_match.group(1))
+        key = yamlish_key(key_match.group(2))
+        value_text = key_match.group(3)
+        while len(stack) > 1 and stack[-1][0] >= indent:
+            stack.pop()
+        parent = stack[-1][1]
+        if value_text.strip():
+            value: Any = yamlish_scalar(value_text)
+        else:
+            value = [] if next_yamlish_child_is_list(lines, index, indent) else {}
+        if isinstance(parent, dict):
+            parent[key] = value
+        elif isinstance(parent, list):
+            parent.append({key: value})
+        if isinstance(value, (dict, list)):
+            stack.append((indent, value))
+    return root
+
+
+def normalized_lookup_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", value.lower())
+
+
+def mapping_find_case_insensitive(mapping: dict[str, Any], key: str) -> tuple[Any, bool]:
+    if key in mapping:
+        return mapping[key], True
+    target = normalized_lookup_key(key)
+    for candidate_key, value in mapping.items():
+        if normalized_lookup_key(str(candidate_key)) == target:
+            return value, True
+    return UNKNOWN_VALUE, False
+
+
+def mapping_get_case_insensitive(mapping: dict[str, Any], key: str) -> Any:
+    value, _found = mapping_find_case_insensitive(mapping, key)
+    return value
+
+
+def get_nested_value_with_found(data: dict[str, Any], path: tuple[str, ...]) -> tuple[Any, bool]:
+    current: Any = data
+    for key in path:
+        if not isinstance(current, dict):
+            return UNKNOWN_VALUE, False
+        value, found = mapping_find_case_insensitive(current, key)
+        if not found:
+            return UNKNOWN_VALUE, False
+        current = value
+    return current, True
+
+
+def get_nested_value(data: dict[str, Any], path: tuple[str, ...]) -> Any:
+    value, _found = get_nested_value_with_found(data, path)
+    return value
+
+
+def set_nested_value(data: dict[str, Any], path: tuple[str, ...], value: Any) -> None:
+    current = data
+    for key in path[:-1]:
+        current = current.setdefault(key, {})
+    current[path[-1]] = value
+
+
+def is_unknown_value(value: Any) -> bool:
+    return value in (UNKNOWN_VALUE, "", None, [], {})
+
+
+def list_value(value: Any) -> list[Any]:
+    if isinstance(value, list):
+        return value
+    if is_unknown_value(value):
+        return []
+    return [value]
+
+
+def validation_status_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        for key in ("status", "result", "result_status"):
+            nested = mapping_get_case_insensitive(value, key)
+            if isinstance(nested, str) and nested in STATUS_VALUES:
+                return nested
+        return UNKNOWN_VALUE
+    if isinstance(value, list):
+        for item in value:
+            status = validation_status_value(item)
+            if isinstance(status, str) and status in STATUS_VALUES:
+                return status
+        return UNKNOWN_VALUE
+    if isinstance(value, str):
+        normalized = value.strip()
+        if normalized in STATUS_VALUES:
+            return normalized
+    return UNKNOWN_VALUE
+
+
+def normalize_files_changed_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        for key in ("by_this_task", "repo_source_test_docs_runtime", "paths", "files"):
+            nested = mapping_get_case_insensitive(value, key)
+            if not is_unknown_value(nested):
+                return list_value(nested)
+        return UNKNOWN_VALUE
+    return list_value(value) if isinstance(value, list) else value
+
+
+def normalize_commands_run_value(value: Any) -> Any:
+    commands = list_value(value)
+    normalized: list[Any] = []
+    for item in commands:
+        if isinstance(item, dict):
+            command = mapping_get_case_insensitive(item, "command")
+            normalized.append(command if not is_unknown_value(command) else item)
+        else:
+            normalized.append(item)
+    return normalized
+
+
+def resolve_report_value(parsed: dict[str, Any], field_name: str, path: tuple[str, ...]) -> tuple[Any, bool]:
+    for candidate_path in EXECUTOR_REPORT_FIELD_ALIASES.get(field_name, (path,)):
+        value, found = get_nested_value_with_found(parsed, candidate_path)
+        if found:
+            if field_name == "validation.status":
+                return validation_status_value(value), True
+            if field_name == "files_changed":
+                return normalize_files_changed_value(value), True
+            if field_name == "commands_run":
+                return normalize_commands_run_value(value), True
+            return value, True
+    return UNKNOWN_VALUE, False
+
+
+def report_file_producing(fields: dict[str, Any]) -> bool:
+    files_changed = list_value(fields.get("files_changed", UNKNOWN_VALUE))
+    return any(str(item).strip() and str(item).strip() not in {"[]", "none", "UNKNOWN"} for item in files_changed)
+
+
+def normalize_executor_report_fields(parsed: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    fields: dict[str, Any] = {}
+    missing: list[str] = []
+    for field_name, path in EXECUTOR_REPORT_FIELD_PATHS.items():
+        value, found = resolve_report_value(parsed, field_name, path)
+        if not found:
+            value = UNKNOWN_VALUE
+            missing.append(field_name)
+        set_nested_value(fields, path, value)
+    return fields, missing
+
+
+def executor_report_policy_results(fields: dict[str, Any], missing_fields: list[str]) -> dict[str, Any]:
+    reasons: list[str] = []
+    strict_missing = {
+        "no_global_ready_verdict": "MISSING_NO_GLOBAL_READY_VERDICT",
+        "claim_verdict": "MISSING_CLAIM_VERDICT",
+        "status_by_surface": "MISSING_STATUS_BY_SURFACE",
+    }
+    for field_name, reason in strict_missing.items():
+        if field_name in missing_fields:
+            reasons.append(reason)
+    if fields["codex_runtime"]["actual_runtime"] == UNKNOWN_VALUE:
+        fields["codex_runtime"]["runtime_status"] = "BLOCKED"
+        reasons.append("ACTUAL_RUNTIME_UNKNOWN")
+    if report_file_producing(fields):
+        if fields["route_check"]["status"] == UNKNOWN_VALUE:
+            reasons.append("FILE_PRODUCING_WITHOUT_ROUTE_CHECK")
+        if fields["output_routing_result"]["actual_destination"] == UNKNOWN_VALUE:
+            reasons.append("FILE_PRODUCING_WITHOUT_OUTPUT_ROUTING_RESULT")
+    return {
+        "status": "BLOCKED" if reasons else ("UNKNOWN" if missing_fields else "DOCUMENTED_ONLY"),
+        "reasons": sorted(set(reasons)) if reasons else ["REPORT_PARSED"],
+        "missing_required_fields": missing_fields,
+        "file_producing_report": report_file_producing(fields),
+    }
+
+
+def build_report_parse_payload(path_text: str) -> dict[str, Any]:
+    candidate = normalize_candidate(path_text)
+    forbidden_hits = report_forbidden_path_hits(candidate)
+    base_payload: dict[str, Any] = {
+        "schema_version": "studioctl_report_parse.v0",
+        "command": "report parse",
+        "claim_posture": CLAIM_POSTURE,
+        "no_global_ready_verdict": True,
+        "report_path": path_text,
+        "report_path_resolved": str(candidate),
+        "exists": candidate.exists(),
+        "forbidden_path": bool(forbidden_hits),
+        "forbidden_path_hits": forbidden_hits,
+        "read_attempted": False,
+        "status": "BLOCKED" if forbidden_hits else "UNKNOWN",
+        "reasons": [],
+        "fields": {},
+        "missing_required_fields": list(EXECUTOR_REPORT_FIELD_PATHS),
+        "policy_results": {},
+        "writes_file": False,
+        "task_matrix_write": "BLOCKED",
+        "source_registration_write": "BLOCKED",
+    }
+    if forbidden_hits:
+        base_payload["reasons"].append("FORBIDDEN_PATH_NOT_READ")
+        return base_payload
+    if candidate.suffix.lower() not in TEXT_REPORT_EXTENSIONS:
+        base_payload["status"] = "BLOCKED"
+        base_payload["reasons"].append("UNSUPPORTED_REPORT_EXTENSION")
+        return base_payload
+    if not candidate.exists():
+        base_payload["status"] = "NOT_FOUND"
+        base_payload["reasons"].append("REPORT_NOT_FOUND")
+        return base_payload
+    text, error = read_text_if_exists(candidate)
+    base_payload["read_attempted"] = True
+    if text is None:
+        base_payload["status"] = "BLOCKED"
+        base_payload["reasons"].append(error or "READ_FAILED")
+        return base_payload
+
+    parsed = parse_yamlish_report(text)
+    fields, missing_fields = normalize_executor_report_fields(parsed)
+    policy = executor_report_policy_results(fields, missing_fields)
+    base_payload.update({
+        "fields": fields,
+        "missing_required_fields": missing_fields,
+        "policy_results": policy,
+        "status": policy["status"],
+        "reasons": policy["reasons"],
+    })
+    return base_payload
+
+
+def primary_surface_from_fields(fields: dict[str, Any]) -> str:
+    status_by_surface = fields.get("status_by_surface", {})
+    if isinstance(status_by_surface, dict):
+        for surface in CANONICAL_SURFACES:
+            value = status_by_surface.get(surface)
+            if isinstance(value, str) and value in STATUS_VALUES and value not in {"PASSIVE", "UNKNOWN"}:
+                return surface
+    return "canonical_docs"
+
+
+def candidate_status(parse_payload: dict[str, Any], primary_surface: str) -> str:
+    if parse_payload["status"] == "BLOCKED":
+        return "BLOCKED"
+    fields = parse_payload["fields"]
+    status_by_surface = fields.get("status_by_surface", {})
+    if isinstance(status_by_surface, dict):
+        surface_status = status_by_surface.get(primary_surface)
+        if isinstance(surface_status, str) and surface_status in STATUS_VALUES:
+            return surface_status
+    validation_status = fields.get("validation", {}).get("status", UNKNOWN_VALUE)
+    return validation_status if validation_status in STATUS_VALUES else "UNKNOWN"
+
+
+def candidate_evidence_strength(fields: dict[str, Any], primary_surface: str, status: str) -> str:
+    evidence_verdict = fields.get("evidence_verdict", {})
+    if isinstance(evidence_verdict, dict):
+        value = evidence_verdict.get(primary_surface)
+        if isinstance(value, str) and value in STATUS_VALUES:
+            return value
+    validation_status = fields.get("validation", {}).get("status", UNKNOWN_VALUE)
+    if validation_status in STATUS_VALUES:
+        return validation_status
+    return status if status in STATUS_VALUES else "UNKNOWN"
+
+
+def first_next_step(fields: dict[str, Any]) -> str:
+    steps = list_value(fields.get("recommended_next_tasks", UNKNOWN_VALUE))
+    return str(steps[0]) if steps else UNKNOWN_VALUE
+
+
+def build_report_matrix_candidate_payload(path_text: str) -> dict[str, Any]:
+    parse_payload = build_report_parse_payload(path_text)
+    fields = parse_payload.get("fields", {})
+    if not fields:
+        fields = {
+            "task_id": UNKNOWN_VALUE,
+            "files_changed": [],
+            "commands_run": [],
+            "validation": {"status": UNKNOWN_VALUE},
+            "skipped_validation": [],
+            "risks": [],
+            "software_verdict": UNKNOWN_VALUE,
+            "evidence_verdict": UNKNOWN_VALUE,
+            "claim_verdict": "BLOCKED",
+            "no_global_ready_verdict": "BLOCKED",
+            "recommended_next_tasks": [],
+            "status_by_surface": "BLOCKED",
+        }
+    primary_surface = primary_surface_from_fields(fields)
+    status = candidate_status(parse_payload, primary_surface)
+    return {
+        "schema_version": "studioctl_task_matrix_candidate.v0",
+        "command": "report matrix-candidate",
+        "claim_posture": CLAIM_POSTURE,
+        "task_id": fields.get("task_id", UNKNOWN_VALUE),
+        "source_report_path": path_text,
+        "primary_surface": primary_surface,
+        "status": status,
+        "evidence_strength": candidate_evidence_strength(fields, primary_surface, status),
+        "files_changed": list_value(fields.get("files_changed", UNKNOWN_VALUE)),
+        "commands_run": list_value(fields.get("commands_run", UNKNOWN_VALUE)),
+        "validation_status": fields.get("validation", {}).get("status", UNKNOWN_VALUE),
+        "skipped_validation": list_value(fields.get("skipped_validation", UNKNOWN_VALUE)),
+        "risks": list_value(fields.get("risks", UNKNOWN_VALUE)),
+        "HumanGate_required": True,
+        "next_step_candidate": first_next_step(fields),
+        "software_verdict": fields.get("software_verdict", UNKNOWN_VALUE),
+        "evidence_verdict": fields.get("evidence_verdict", UNKNOWN_VALUE),
+        "claim_verdict": fields.get("claim_verdict", "BLOCKED"),
+        "no_global_ready_verdict": fields.get("no_global_ready_verdict", "BLOCKED"),
+        "parse_status": parse_payload["status"],
+        "parse_reasons": parse_payload["reasons"],
+        "task_matrix_write": "BLOCKED",
+        "source_registration_write": "BLOCKED",
+    }
+
+
 def runtime_claim_gate() -> dict[str, Any]:
     return {
         "actual_runtime": "UNKNOWN",
@@ -950,6 +1448,1011 @@ def build_route_payload(surface: str, output: str) -> dict[str, Any]:
     }
 
 
+def relative_path_status(path_text: str, default_status: str = "PASSIVE") -> dict[str, Any]:
+    path = PROJECT_ROOT / path_text
+    return {
+        "path": path_text,
+        "exists": path.exists(),
+        "status": default_status if path.exists() else "NOT_FOUND",
+    }
+
+
+def canonical_graph_surface(surface: str) -> str:
+    if surface in CANONICAL_SURFACES:
+        return surface
+    if surface in {"scripts_tooling", "schemas"}:
+        return "artifacts_runtime_outputs"
+    if surface in {"models_datasets"}:
+        return "inference"
+    if surface in {"lab", "secrets"}:
+        return "artifacts_runtime_outputs"
+    return "artifacts_runtime_outputs"
+
+
+def source_state(
+    *,
+    created: str = "UNKNOWN",
+    registered: str = "UNKNOWN",
+    loaded: str = "UNKNOWN",
+    enforced: str = "UNKNOWN",
+    evidenced: str = "UNKNOWN",
+) -> dict[str, str]:
+    return {
+        "created": created,
+        "registered": registered,
+        "loaded": loaded,
+        "enforced": enforced,
+        "evidenced": evidenced,
+    }
+
+
+def evidence_item(source: str, command: str, status: str) -> dict[str, str]:
+    return {"source": source, "command": command, "status": status}
+
+
+def graph_node(
+    *,
+    node_id: str,
+    label: str,
+    graph_plane: str,
+    zone: str,
+    surface: str,
+    status: str,
+    path: str = "",
+    node_source_state: dict[str, str] | None = None,
+    evidence: list[dict[str, str]] | None = None,
+    risk: str = "",
+    allowed_actions: list[str] | None = None,
+    blocked_actions: list[str] | None = None,
+    humangate_required: bool = True,
+) -> dict[str, Any]:
+    return {
+        "id": node_id,
+        "label": label,
+        "graph_plane": graph_plane,
+        "zone": zone,
+        "surface": canonical_graph_surface(surface),
+        "status": status if status in STATUS_VALUES else "UNKNOWN",
+        "path": path,
+        "source_state": dict(node_source_state or UXPILOTE_GRAPH_SOURCE_STATE_DEFAULT),
+        "evidence": evidence or [],
+        "risk": risk,
+        "allowed_actions": allowed_actions or list(UXPILOTE_GRAPH_READONLY_ACTIONS),
+        "blocked_actions": blocked_actions or list(UXPILOTE_GRAPH_BLOCKED_ACTIONS),
+        "humangate_required": humangate_required,
+    }
+
+
+def graph_edge(
+    *,
+    edge_id: str,
+    from_node: str,
+    to_node: str,
+    kind: str,
+    truth_level: str,
+    status: str,
+    evidence: list[dict[str, str]] | None = None,
+    display_style: str | None = None,
+    explanation: str = "",
+    unsafe_to_render_as_active: bool = False,
+) -> dict[str, Any]:
+    if display_style is None:
+        display_style = {
+            "observed": "solid",
+            "tested": "solid",
+            "documented": "dashed",
+            "inferred": "dotted",
+            "unknown": "warning",
+            "blocked": "blocked",
+        }.get(truth_level, "warning")
+    return {
+        "id": edge_id,
+        "from": from_node,
+        "to": to_node,
+        "kind": kind,
+        "truth_level": truth_level,
+        "status": status if status in STATUS_VALUES else "UNKNOWN",
+        "evidence": evidence or [],
+        "display_style": display_style,
+        "explanation": explanation,
+        "unsafe_to_render_as_active": unsafe_to_render_as_active,
+    }
+
+
+def audit_chain_read(path_or_command: str) -> dict[str, Any]:
+    return {"path_or_command": path_or_command, "source_state_required": True}
+
+
+def audit_chain_product(artifact_type: str, surface: str) -> dict[str, Any]:
+    return {"artifact_type": artifact_type, "surface": surface, "canonical": False}
+
+
+def audit_chain_entry(
+    *,
+    chain_id: str,
+    label: str,
+    purpose: str,
+    primary_surface: str,
+    reads: list[str],
+    produces: str,
+    ux_targets: list[str],
+    blocked_actions: list[str],
+    humangate_question: str,
+    risk: str,
+) -> dict[str, Any]:
+    return {
+        "id": chain_id,
+        "label": label,
+        "purpose": purpose,
+        "authority": "read_only",
+        "primary_surface": primary_surface,
+        "status": "DOCUMENTED_ONLY",
+        "reads": [audit_chain_read(item) for item in reads],
+        "produces": [audit_chain_product(produces, primary_surface)],
+        "ux_targets": ux_targets,
+        "blocked_actions": blocked_actions,
+        "humangate_question": humangate_question,
+        "risk": risk,
+        "safe_to_run_now": False,
+    }
+
+
+def build_uxpilote_audit_chains_payload() -> dict[str, Any]:
+    catalog_exists = UXPILOTE_AUDIT_CHAIN_CATALOG_PATH.exists()
+    chains = [
+        audit_chain_entry(
+            chain_id="system_truth_chain",
+            label="System Truth Chain",
+            purpose="Separate real, documented, inferred, unknown, and blocked surfaces.",
+            primary_surface="canonical_docs",
+            reads=[
+                "MASTER_DOCS/DOCS_STATUS.md",
+                "00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md",
+                "00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md",
+                "python scripts/studioV2/studioctl.py status --json",
+                "python scripts/studioV2/studioctl.py evidence board --json",
+                "python scripts/studioV2/studioctl.py surface map --json",
+            ],
+            produces="truth_packet",
+            ux_targets=["Preuves & affirmations", "Cartes systemes / Vue Preuves"],
+            blocked_actions=[
+                "claim_validation",
+                "source_promotion",
+                "runtime_activation",
+                "benchmark_as_proof",
+            ],
+            humangate_question=(
+                "Which observations are sufficient to prepare a bounded next decision, and which claims remain blocked?"
+            ),
+            risk="Observations, reports, logs, and local command output can be mistaken for proof.",
+        ),
+        audit_chain_entry(
+            chain_id="scripts_route_chain",
+            label="Scripts Route Chain",
+            purpose="Resolve scripts/studioV2, control_plane, operator, and uxpilote path drift.",
+            primary_surface="artifacts_runtime_outputs",
+            reads=[
+                "00_STUDIO_CONTROL/01_MAPS/SCRIPTS_ROUTE_ALIGNMENT_CHARTER_V0.md",
+                "python scripts/studioV2/studioctl.py uxpilote scripts-control --json",
+            ],
+            produces="route_alignment_packet",
+            ux_targets=["Chemins casses / chemins candidats", "Scripts Control"],
+            blocked_actions=[
+                "script_execution",
+                "silent_path_substitution",
+                "file_move_or_rename",
+                "CI_mutation",
+                "CODEOWNERS_mutation",
+            ],
+            humangate_question="Which scripts path is source truth, and what remains UNKNOWN until HumanGate decides?",
+            risk="Path candidates can be silently promoted or substituted without route authority.",
+        ),
+        audit_chain_entry(
+            chain_id="fusion_matrix_chain",
+            label="Fusion Matrix Chain",
+            purpose="Merge Cartographer, HygieneAgent, TruthAgent, and RedTeam signals before HumanGate.",
+            primary_surface="canonical_docs",
+            reads=[
+                "00_STUDIO_CONTROL/01_MAPS/UXPILOTE_FUSION_MATRIX_VISUAL_SPEC_V0.md",
+                "00_STUDIO_CONTROL/01_MAPS/UXPILOTE_CHAIN_CONTROL_UX_AND_FRAGMENTED_AUDIT_PIPELINE_V0.md",
+            ],
+            produces="fusion_packet",
+            ux_targets=["Fusion Matrix", "A faire maintenant"],
+            blocked_actions=[
+                "approve_execution",
+                "mutate_files",
+                "activate_runtime",
+                "approve_claims",
+                "replace_HumanGate",
+            ],
+            humangate_question="Should HumanGate approve one bounded next step, block, or request revision?",
+            risk="A synthesized packet can be misread as approval instead of pre-HumanGate context.",
+        ),
+        audit_chain_entry(
+            chain_id="humangate_queue_chain",
+            label="HumanGate Queue Chain",
+            purpose="Convert unresolved risks and source-state gaps into explicit HumanGate decisions.",
+            primary_surface="canonical_docs",
+            reads=[
+                "00_STUDIO_CONTROL/01_MAPS/UXPILOTE_HUMANGATE_QUEUE_SPEC_V0.md",
+                "fusion_packet",
+            ],
+            produces="humangate_decision_queue",
+            ux_targets=["A faire maintenant", "HumanGate Queue"],
+            blocked_actions=[
+                "make_decision",
+                "record_actual_decision",
+                "execute_decision",
+                "mutate_files",
+                "trigger_tools",
+            ],
+            humangate_question=(
+                "Which pending decision should be selected by the human, deferred, blocked, or returned for revision?"
+            ),
+            risk="Decision display can be mistaken for a recorded HumanGate decision.",
+        ),
+        audit_chain_entry(
+            chain_id="tool_catalog_chain",
+            label="Tool Catalog Chain",
+            purpose="List control tools, what they read, what they produce, and their risks.",
+            primary_surface="artifacts_runtime_outputs",
+            reads=[
+                "docs/studioV2/STUDIOCTL_USAGE_V0.md",
+                "python scripts/studioV2/studioctl.py status --json",
+                "python scripts/studioV2/studioctl.py evidence board --json",
+                "python scripts/studioV2/studioctl.py surface map --json",
+                "python scripts/studioV2/studioctl.py uxpilote scripts-control --json",
+            ],
+            produces="tool_catalog_packet",
+            ux_targets=["Outils de controle disponibles"],
+            blocked_actions=[
+                "execute_tool_from_dashboard",
+                "run_unknown_script",
+                "create_logs",
+                "mutate_files",
+                "claim_tool_output_as_proof",
+            ],
+            humangate_question="Which tool card is safe to inspect, and which action still requires HumanGate?",
+            risk="A displayed tool can look like an executable dashboard control.",
+        ),
+        audit_chain_entry(
+            chain_id="llm_lora_guard_chain",
+            label="LLM / LoRA Guard Chain",
+            purpose="Show future LLM/LoRA support status without allowing training or dataset generation.",
+            primary_surface="inference",
+            reads=[
+                "AGENTS.md",
+                "MASTER_DOCS/DOCS_STATUS.md",
+                "docs/status/audit files if present",
+            ],
+            produces="inference_readiness_blocked_packet",
+            ux_targets=["LLM / LoRA"],
+            blocked_actions=[
+                "training",
+                "dataset_generation",
+                "dataset_reset",
+                "model_or_checkpoint_creation",
+                "model_promotion",
+                "LLM_final_authority",
+            ],
+            humangate_question=(
+                "Should a future LLM/LoRA charter remain blocked, be revised, or be approved as docs-only planning?"
+            ),
+            risk="Inference planning can drift into dataset, model, checkpoint, training, or authority claims.",
+        ),
+        audit_chain_entry(
+            chain_id="runtime_guard_chain",
+            label="Runtime Guard Chain",
+            purpose=(
+                "Prevent hidden activation of runtime, benchmark, latest.json, lab/runs, model promotion, "
+                "Chess960, or DecisionController."
+            ),
+            primary_surface="active_runtime_code",
+            reads=[
+                "AGENTS.md",
+                "00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md",
+                "00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md",
+                "00_STUDIO_CONTROL/05_STATUS/SEARCH_003_AUTHORITY_TRACE_SCOPE_CHARTER_V0.yaml if present",
+                "00_STUDIO_CONTROL/05_STATUS/HUMANGATE_DECISION_SEARCH_003_AUTHORITY_TRACE_PATCH_V0.yaml if present",
+            ],
+            produces="blocked_action_packet",
+            ux_targets=["Blocages critiques", "Commandes bloquees"],
+            blocked_actions=list(UXPILOTE_AUDIT_CHAIN_BLOCKED_ACTIONS),
+            humangate_question=(
+                "Which blocked action remains locked, and what explicit HumanGate authorization would be required?"
+            ),
+            risk="Runtime, benchmark, Git, model, or artifact actions can be activated outside a bounded task.",
+        ),
+    ]
+    status_by_surface = {surface: "PASSIVE" for surface in CANONICAL_SURFACES}
+    status_by_surface["artifacts_runtime_outputs"] = "IMPLEMENTED"
+    status_by_surface["canonical_docs"] = "DOCUMENTED_ONLY"
+    return {
+        "schema_version": "studioctl_uxpilote_audit_chains.v0",
+        "command": "uxpilote audit-chains",
+        "cwd": str(PROJECT_ROOT),
+        "generated_by": "scripts/studioV2/studioctl.py",
+        "source_catalog": {
+            "path": UXPILOTE_AUDIT_CHAIN_CATALOG_RELATIVE,
+            "exists": catalog_exists,
+            "status": "DOCUMENTED_ONLY" if catalog_exists else "NOT_FOUND",
+            "registered": "UNKNOWN",
+        },
+        "chains": chains,
+        "chain_groups": {
+            "truth": ["system_truth_chain"],
+            "routing": ["scripts_route_chain"],
+            "fusion": ["fusion_matrix_chain"],
+            "humangate": ["humangate_queue_chain"],
+            "tools": ["tool_catalog_chain"],
+            "inference": ["llm_lora_guard_chain"],
+            "runtime_guard": ["runtime_guard_chain"],
+        },
+        "blocked_actions": dict(UXPILOTE_AUDIT_CHAIN_BLOCKED_ACTIONS),
+        "status_by_surface": status_by_surface,
+        "claim_posture": CLAIM_POSTURE,
+        "no_global_ready_verdict": True,
+    }
+
+
+def build_uxpilote_scripts_control_payload() -> dict[str, Any]:
+    blocked_actions = {
+        "benchmark": "BLOCKED",
+        "gameplay_execution": "BLOCKED",
+        "PR_GitHub_automation": "BLOCKED",
+        "auto_merge": "BLOCKED",
+        "dataset_generation_reset": "BLOCKED",
+        "model_checkpoint_creation_promotion": "BLOCKED",
+        "lab_runs_creation": "BLOCKED",
+        "latest_json_creation": "BLOCKED",
+        "commit_push_branch_PR": "BLOCKED",
+        "unknown_script_execution": "BLOCKED",
+    }
+    allowed_actions = ["inspect", "readback", "prepare charter"]
+    node_families = {
+        "studioctl": {
+            "label": "studioctl",
+            "paths": [relative_path_status("scripts/studioV2/studioctl.py", "IMPLEMENTED")],
+            "surface": "scripts_tooling",
+            "status": "IMPLEMENTED" if (PROJECT_ROOT / "scripts/studioV2/studioctl.py").exists() else "NOT_FOUND",
+            "evidence": "path_exists_only",
+            "risk": "Read-only output must not be treated as runtime authority.",
+            "allowed_actions": allowed_actions,
+            "blocked_actions": blocked_actions,
+        },
+        "validators": {
+            "label": "validators",
+            "paths": [
+                relative_path_status("scripts/studioV2/check_workspace_hygiene.py"),
+                relative_path_status("scripts/studioV2/validate_control_plane_json.py"),
+            ],
+            "surface": "scripts_tooling",
+            "status": "PASSIVE",
+            "evidence": "path_exists_only",
+            "risk": "Validator presence is not validation evidence unless separately executed.",
+            "allowed_actions": allowed_actions,
+            "blocked_actions": blocked_actions,
+        },
+        "control_plane": {
+            "label": "control_plane",
+            "paths": [
+                relative_path_status("scripts/control_plane", "UNKNOWN"),
+                relative_path_status("scripts/studioV2/control_plane", "UNKNOWN"),
+            ],
+            "surface": "scripts_tooling",
+            "status": "UNKNOWN",
+            "evidence": "path_exists_only",
+            "risk": "Path drift requires HumanGate resolution before source truth.",
+            "allowed_actions": allowed_actions,
+            "blocked_actions": blocked_actions,
+        },
+        "operator": {
+            "label": "operator",
+            "paths": [
+                relative_path_status("scripts/operator", "UNKNOWN"),
+                relative_path_status("scripts/studioV2/operator", "UNKNOWN"),
+            ],
+            "surface": "scripts_tooling",
+            "status": "UNKNOWN",
+            "evidence": "path_exists_only",
+            "risk": "Path drift requires HumanGate resolution before source truth.",
+            "allowed_actions": allowed_actions,
+            "blocked_actions": blocked_actions,
+        },
+        "uxpilote": {
+            "label": "uxpilote",
+            "paths": [relative_path_status("scripts/uxpilote", "UNKNOWN")],
+            "surface": "inference",
+            "status": "UNKNOWN",
+            "evidence": "Candidate-only until HumanGate registration decision.",
+            "risk": "Local prototype material is not canonical truth by existence.",
+            "allowed_actions": allowed_actions,
+            "blocked_actions": blocked_actions,
+        },
+        "blocked_runners": {
+            "label": "blocked_runners",
+            "paths": [
+                relative_path_status("scripts/studioV2/run_benchmark.ps1", "BLOCKED"),
+                relative_path_status("scripts/studioV2/run_gameplay_observation.py", "BLOCKED"),
+                relative_path_status("scripts/studioV2/agent_pr_operator.py", "BLOCKED"),
+                relative_path_status("scripts/studioV2/auto_merge_guard.py", "BLOCKED"),
+            ],
+            "surface": "artifacts_runtime_outputs",
+            "status": "BLOCKED",
+            "evidence": "Blocked runner classes are displayed only.",
+            "risk": "Runner execution can create runtime evidence, GitHub actions, or claims.",
+            "allowed_actions": allowed_actions,
+            "blocked_actions": blocked_actions,
+        },
+        "legacy_root_compatibility": {
+            "label": "legacy_root_compatibility",
+            "paths": [
+                relative_path_status("scripts", "DOCUMENTED_ONLY"),
+                relative_path_status("scripts/studioV2", "IMPLEMENTED"),
+            ],
+            "surface": "scripts_tooling",
+            "status": "UNKNOWN",
+            "evidence": "Path comparison only.",
+            "risk": "Compatibility paths must not be silently promoted.",
+            "allowed_actions": allowed_actions,
+            "blocked_actions": blocked_actions,
+        },
+    }
+    path_drift = [
+        {
+            "id": "scripts_root_vs_studioV2",
+            "root_path": relative_path_status("scripts", "DOCUMENTED_ONLY"),
+            "studioV2_path": relative_path_status("scripts/studioV2", "IMPLEMENTED"),
+            "status": "PASSIVE",
+            "rule": "Display both paths; do not silently substitute one for the other.",
+        },
+        {
+            "id": "control_plane_root_vs_studioV2",
+            "root_path": relative_path_status("scripts/control_plane", "UNKNOWN"),
+            "studioV2_path": relative_path_status("scripts/studioV2/control_plane", "UNKNOWN"),
+            "status": "UNKNOWN",
+            "rule": "HumanGate decides active, legacy, absent, or drift status.",
+        },
+        {
+            "id": "operator_root_vs_studioV2",
+            "root_path": relative_path_status("scripts/operator", "UNKNOWN"),
+            "studioV2_path": relative_path_status("scripts/studioV2/operator", "UNKNOWN"),
+            "status": "UNKNOWN",
+            "rule": "HumanGate decides active, legacy, absent, or drift status.",
+        },
+        {
+            "id": "scripts_uxpilote_registration",
+            "path": relative_path_status("scripts/uxpilote", "UNKNOWN"),
+            "status": "UNKNOWN",
+            "rule": "scripts/uxpilote stays UNKNOWN until HumanGate registration decision.",
+        },
+    ]
+    status_by_surface = dict(DEFAULT_STATUS_BY_SURFACE)
+    status_by_surface["roadmap_docs_only"] = "PASSIVE"
+    status_by_surface["scripts_tooling"] = "IMPLEMENTED"
+    return {
+        "schema_version": "studioctl_uxpilote_scripts_control.v0",
+        "command": "uxpilote scripts-control",
+        "cwd": str(PROJECT_ROOT),
+        "generated_by": "scripts/studioV2/studioctl.py",
+        "node_families": node_families,
+        "path_drift": path_drift,
+        "known_readonly_entrypoints": [
+            "python scripts\\studioV2\\studioctl.py status",
+            "python scripts\\studioV2\\studioctl.py evidence board",
+            "python scripts\\studioV2\\studioctl.py surface map",
+            "python scripts\\studioV2\\studioctl.py status --json",
+            "python scripts\\studioV2\\studioctl.py evidence board --json",
+            "python scripts\\studioV2\\studioctl.py surface map --json",
+        ],
+        "blocked_runners": blocked_actions,
+        "selected_node_inspector_schema": {
+            "path": "",
+            "family": "studioctl | validators | control_plane | operator | uxpilote | blocked_runners | legacy_root_compatibility",
+            "surface": "active_runtime_code | tests | artifacts_runtime_outputs | canonical_docs | roadmap_docs_only | inference | scripts_tooling",
+            "status": "IMPLEMENTED | TESTED | DOCUMENTED_ONLY | PASSIVE | BLOCKED | NOT_FOUND | UNKNOWN",
+            "evidence": "",
+            "risk": "",
+            "allowed_actions": allowed_actions,
+            "blocked_actions": list(blocked_actions),
+            "next_humangate_question": "",
+        },
+        "scripts_uxpilote_status": "UNKNOWN",
+        "next_humangate_questions": [
+            "Should scripts/uxpilote be registered, loaded, enforced, evidenced, archived, quarantined, or discarded?",
+            "Which scripts/control_plane versus scripts/studioV2/control_plane path is source truth?",
+            "Which scripts/operator versus scripts/studioV2/operator path is source truth?",
+            "Which blocked runner classes should remain hidden versus visible as blocked controls?",
+        ],
+        "status_by_surface": status_by_surface,
+        "claim_posture": CLAIM_POSTURE,
+        "no_global_ready_verdict": True,
+    }
+
+
+def build_uxpilote_graph_payload() -> dict[str, Any]:
+    status_payload = build_status_payload()
+    evidence_payload = build_evidence_board_payload()
+    surface_payload = build_surface_map_payload()
+    scripts_payload = build_uxpilote_scripts_control_payload()
+    audit_payload = build_uxpilote_audit_chains_payload()
+
+    nodes: list[dict[str, Any]] = []
+    edges: list[dict[str, Any]] = []
+    source_state_gaps: list[dict[str, str]] = []
+
+    def add_node(node: dict[str, Any]) -> None:
+        nodes.append(node)
+        for field, value in node["source_state"].items():
+            if value == "UNKNOWN":
+                source_state_gaps.append(
+                    {
+                        "node_id": node["id"],
+                        "field": field,
+                        "status": "UNKNOWN",
+                        "reason": "Source-state field is not established by current studioctl graph data.",
+                    }
+                )
+
+    def path_state(path_text: str, default_status: str = "PASSIVE") -> tuple[bool, str]:
+        item = relative_path_status(path_text, default_status)
+        return bool(item["exists"]), str(item["status"])
+
+    physical_specs = [
+        ("physical_00_studio_control", "00_STUDIO_CONTROL", "00_STUDIO_CONTROL", "studio_control", "canonical_docs", "DOCUMENTED_ONLY"),
+        ("physical_01_maps", "00_STUDIO_CONTROL/01_MAPS", "00_STUDIO_CONTROL/01_MAPS", "studio_control", "canonical_docs", "DOCUMENTED_ONLY"),
+        ("physical_05_status", "00_STUDIO_CONTROL/05_STATUS", "00_STUDIO_CONTROL/05_STATUS", "studio_control", "roadmap_docs_only", "PASSIVE"),
+        ("physical_10_roadmap", "00_STUDIO_CONTROL/10_ROADMAP", "00_STUDIO_CONTROL/10_ROADMAP", "studio_control", "roadmap_docs_only", "PASSIVE"),
+        ("physical_scripts", "scripts", "scripts", "scripts", "artifacts_runtime_outputs", "PASSIVE"),
+        ("physical_scripts_studiov2", "scripts/studioV2", "scripts/studioV2", "scripts", "artifacts_runtime_outputs", "IMPLEMENTED"),
+        ("physical_scripts_uxpilote", "scripts/uxpilote", "scripts/uxpilote", "scripts", "inference", "UNKNOWN"),
+        ("physical_src", "src", "src", "runtime", "active_runtime_code", "PASSIVE"),
+        ("physical_tests", "tests", "tests", "tests", "tests", "PASSIVE"),
+        ("physical_lab_runs", "lab/runs", "lab/runs", "runtime_outputs", "artifacts_runtime_outputs", "PASSIVE"),
+        ("physical_models", "models", "models", "inference", "inference", "PASSIVE"),
+        ("physical_datasets", "datasets", "datasets", "inference", "inference", "PASSIVE"),
+        ("physical_github", ".github", ".github", "repo_automation", "canonical_docs", "PASSIVE"),
+    ]
+    for node_id, label, path_text, zone, surface, default_status in physical_specs:
+        exists, status = path_state(path_text, default_status)
+        add_node(
+            graph_node(
+                node_id=node_id,
+                label=label,
+                graph_plane="physical",
+                zone=zone,
+                surface=surface,
+                status=status,
+                path=path_text,
+                node_source_state=source_state(
+                    created="IMPLEMENTED" if exists else "NOT_FOUND",
+                    registered="UNKNOWN",
+                    loaded="DOCUMENTED_ONLY",
+                    enforced="PASSIVE",
+                    evidenced="DOCUMENTED_ONLY",
+                ),
+                evidence=[evidence_item("filesystem", "path_exists_only", status)],
+                risk="Path existence is not source authority.",
+            )
+        )
+
+    physical_contains = [
+        ("edge_contains_control_maps", "physical_00_studio_control", "physical_01_maps"),
+        ("edge_contains_control_status", "physical_00_studio_control", "physical_05_status"),
+        ("edge_contains_control_roadmap", "physical_00_studio_control", "physical_10_roadmap"),
+        ("edge_contains_scripts_studiov2", "physical_scripts", "physical_scripts_studiov2"),
+        ("edge_contains_scripts_uxpilote", "physical_scripts", "physical_scripts_uxpilote"),
+    ]
+    for edge_id, from_node, to_node in physical_contains:
+        edges.append(
+            graph_edge(
+                edge_id=edge_id,
+                from_node=from_node,
+                to_node=to_node,
+                kind="contains",
+                truth_level="observed",
+                status="PASSIVE",
+                evidence=[evidence_item("filesystem", "Get-ChildItem/Test-Path equivalent", "PASSIVE")],
+                explanation="Observed parent-child relationship on disk.",
+            )
+        )
+
+    authority_nodes = [
+        ("authority_humangate", "HumanGate", "human_gate", "canonical_docs", "DOCUMENTED_ONLY", "Final human authority for mutation, promotion, activation, and claims."),
+        ("authority_uxpilote", "UxPilote", "cockpit", "inference", "UNKNOWN", "Visualizes and prepares only; candidate-only until HumanGate."),
+        ("authority_codex", "Codex", "executor", "inference", "PASSIVE", "Executes only bounded authorized tasks."),
+        ("authority_studioctl", "studioctl", "tooling", "artifacts_runtime_outputs", "IMPLEMENTED", "Read-only structured data provider."),
+        ("authority_search", "Search", "runtime_authority", "active_runtime_code", "DOCUMENTED_ONLY", "Documented final gameplay decision authority."),
+        ("authority_neural", "Neural", "inference", "inference", "PASSIVE", "Proposes and reranks only."),
+        ("authority_llm", "LLM", "inference", "inference", "PASSIVE", "Support/planning only; no final authority."),
+        ("authority_rust_runtime", "Rust runtime", "runtime", "active_runtime_code", "PASSIVE", "Runtime truth, not changed by studioctl."),
+        ("authority_python_tooling", "Python tooling", "tooling", "artifacts_runtime_outputs", "PASSIVE", "Tooling and inference helpers."),
+    ]
+    for node_id, label, zone, surface, status, risk in authority_nodes:
+        add_node(
+            graph_node(
+                node_id=node_id,
+                label=label,
+                graph_plane="authority",
+                zone=zone,
+                surface=surface,
+                status=status,
+                node_source_state=source_state(
+                    created="DOCUMENTED_ONLY",
+                    registered="UNKNOWN",
+                    loaded="DOCUMENTED_ONLY",
+                    enforced="DOCUMENTED_ONLY",
+                    evidenced="DOCUMENTED_ONLY",
+                ),
+                evidence=[evidence_item("doctrine", "AGENTS.md and UxPilote docs", status)],
+                risk=risk,
+            )
+        )
+
+    edges.extend(
+        [
+            graph_edge(
+                edge_id="edge_humangate_authorizes_claims",
+                from_node="authority_humangate",
+                to_node="authority_uxpilote",
+                kind="authorizes",
+                truth_level="documented",
+                status="DOCUMENTED_ONLY",
+                evidence=[evidence_item("AGENTS.md", "readback", "DOCUMENTED_ONLY")],
+                explanation="HumanGate decides mutation, promotion, activation, and claim status.",
+            ),
+            graph_edge(
+                edge_id="edge_search_decides_gameplay",
+                from_node="authority_search",
+                to_node="authority_rust_runtime",
+                kind="authorizes",
+                truth_level="documented",
+                status="DOCUMENTED_ONLY",
+                evidence=[evidence_item("AGENTS.md", "readback", "DOCUMENTED_ONLY")],
+                explanation="Search remains final gameplay decision authority.",
+            ),
+            graph_edge(
+                edge_id="edge_neural_proposes_to_search",
+                from_node="authority_neural",
+                to_node="authority_search",
+                kind="prepares",
+                truth_level="documented",
+                status="DOCUMENTED_ONLY",
+                evidence=[evidence_item("AGENTS.md", "readback", "DOCUMENTED_ONLY")],
+                explanation="Neural proposes/reranks and does not decide alone.",
+            ),
+            graph_edge(
+                edge_id="edge_llm_final_authority_blocked",
+                from_node="authority_llm",
+                to_node="authority_rust_runtime",
+                kind="blocks",
+                truth_level="blocked",
+                status="BLOCKED",
+                evidence=[evidence_item("AGENTS.md", "readback", "BLOCKED")],
+                explanation="LLM final gameplay authority is blocked.",
+                unsafe_to_render_as_active=True,
+            ),
+        ]
+    )
+
+    evidence_nodes = [
+        ("evidence_tests", "tests", "tests", "tests", "PASSIVE", "Validation assets; not run by graph command."),
+        ("evidence_executor_reports", "executor reports", "reports", "artifacts_runtime_outputs", "PASSIVE", "Reports are observation records."),
+        ("evidence_status_reports", "status reports", "reports", "roadmap_docs_only", "PASSIVE", "Status files are observations."),
+        ("evidence_logs_reports", "logs/reports", "reports", "artifacts_runtime_outputs", "PASSIVE", "Logs/reports are not proof of activation."),
+        ("evidence_benchmark_summaries", "benchmark summaries", "reports", "artifacts_runtime_outputs", "BLOCKED", "Benchmark proof claims are blocked."),
+        ("evidence_studioctl_json", "studioctl JSON", "tooling", "artifacts_runtime_outputs", "IMPLEMENTED", "Structured read-only command output."),
+        ("evidence_humangate_records", "HumanGate records", "human_gate", "canonical_docs", "DOCUMENTED_ONLY", "Decision records are separate HumanGate artifacts."),
+        ("evidence_canonical_docs", "canonical docs", "docs", "canonical_docs", "DOCUMENTED_ONLY", "Docs inform, but do not activate runtime."),
+    ]
+    for node_id, label, zone, surface, status, risk in evidence_nodes:
+        add_node(
+            graph_node(
+                node_id=node_id,
+                label=label,
+                graph_plane="evidence",
+                zone=zone,
+                surface=surface,
+                status=status,
+                evidence=[evidence_item("studioctl evidence board", "internal payload", status)],
+                risk=risk,
+            )
+        )
+
+    edges.extend(
+        [
+            graph_edge(
+                edge_id="edge_studioctl_json_observes_status",
+                from_node="evidence_studioctl_json",
+                to_node="evidence_status_reports",
+                kind="observes",
+                truth_level="tested",
+                status="TESTED",
+                evidence=[evidence_item("studioctl", "uxpilote graph aggregates status/evidence/surface payloads", "TESTED")],
+                explanation="Graph command built from existing internal JSON payload builders.",
+            ),
+            graph_edge(
+                edge_id="edge_report_log_claim_blocked",
+                from_node="evidence_logs_reports",
+                to_node="authority_humangate",
+                kind="claims",
+                truth_level="blocked",
+                status="BLOCKED",
+                evidence=[evidence_item("AGENTS.md", "readback", "BLOCKED")],
+                explanation="Reports/logs/benchmarks are observations, not claim proof.",
+                unsafe_to_render_as_active=True,
+            ),
+        ]
+    )
+
+    routing_paths = [
+        ("routing_scripts_root", "scripts/", "scripts", "scripts", "artifacts_runtime_outputs", "DOCUMENTED_ONLY"),
+        ("routing_scripts_studiov2", "scripts/studioV2/", "scripts/studioV2", "scripts", "artifacts_runtime_outputs", "IMPLEMENTED"),
+        ("routing_control_plane_root", "scripts/control_plane/", "scripts/control_plane", "scripts", "artifacts_runtime_outputs", "UNKNOWN"),
+        ("routing_control_plane_studiov2", "scripts/studioV2/control_plane/", "scripts/studioV2/control_plane", "scripts", "artifacts_runtime_outputs", "UNKNOWN"),
+        ("routing_operator_root", "scripts/operator/", "scripts/operator", "scripts", "artifacts_runtime_outputs", "UNKNOWN"),
+        ("routing_operator_studiov2", "scripts/studioV2/operator/", "scripts/studioV2/operator", "scripts", "artifacts_runtime_outputs", "UNKNOWN"),
+        ("routing_scripts_uxpilote", "scripts/uxpilote/", "scripts/uxpilote", "scripts", "inference", "UNKNOWN"),
+        ("routing_maps", "00_STUDIO_CONTROL/01_MAPS", "00_STUDIO_CONTROL/01_MAPS", "studio_control", "canonical_docs", "DOCUMENTED_ONLY"),
+        ("routing_status", "00_STUDIO_CONTROL/05_STATUS", "00_STUDIO_CONTROL/05_STATUS", "studio_control", "roadmap_docs_only", "PASSIVE"),
+        ("routing_roadmap", "00_STUDIO_CONTROL/10_ROADMAP", "00_STUDIO_CONTROL/10_ROADMAP", "studio_control", "roadmap_docs_only", "PASSIVE"),
+    ]
+    for node_id, label, path_text, zone, surface, default_status in routing_paths:
+        exists, status = path_state(path_text, default_status)
+        if default_status == "UNKNOWN" and exists:
+            status = "UNKNOWN"
+        add_node(
+            graph_node(
+                node_id=node_id,
+                label=label,
+                graph_plane="routing",
+                zone=zone,
+                surface=surface,
+                status=status,
+                path=path_text,
+                node_source_state=source_state(
+                    created="IMPLEMENTED" if exists else "NOT_FOUND",
+                    registered="UNKNOWN",
+                    loaded="DOCUMENTED_ONLY",
+                    enforced="UNKNOWN" if status == "UNKNOWN" else "DOCUMENTED_ONLY",
+                    evidenced="DOCUMENTED_ONLY",
+                ),
+                evidence=[evidence_item("scripts-control", "uxpilote scripts-control --json", status)],
+                risk="Route path existence is not source truth.",
+            )
+        )
+
+    for drift in scripts_payload["path_drift"]:
+        drift_id = drift["id"]
+        if drift_id == "scripts_root_vs_studioV2":
+            from_node, to_node = "routing_scripts_root", "routing_scripts_studiov2"
+        elif drift_id == "control_plane_root_vs_studioV2":
+            from_node, to_node = "routing_control_plane_root", "routing_control_plane_studiov2"
+        elif drift_id == "operator_root_vs_studioV2":
+            from_node, to_node = "routing_operator_root", "routing_operator_studiov2"
+        else:
+            from_node, to_node = "routing_scripts_uxpilote", "authority_humangate"
+        truth_level = "unknown" if drift["status"] == "UNKNOWN" else "observed"
+        edges.append(
+            graph_edge(
+                edge_id=f"edge_route_{drift_id}",
+                from_node=from_node,
+                to_node=to_node,
+                kind="routes_to",
+                truth_level=truth_level,
+                status=drift["status"],
+                evidence=[evidence_item("scripts-control", "uxpilote scripts-control --json", drift["status"])],
+                explanation=drift["rule"],
+                unsafe_to_render_as_active=drift["status"] == "UNKNOWN",
+            )
+        )
+
+    tool_commands = [
+        ("tool_status", "studioctl status", "status", "IMPLEMENTED"),
+        ("tool_evidence_board", "studioctl evidence board", "evidence", "IMPLEMENTED"),
+        ("tool_surface_map", "studioctl surface map", "surface", "IMPLEMENTED"),
+        ("tool_scripts_control", "studioctl uxpilote scripts-control", "scripts", "IMPLEMENTED"),
+        ("tool_audit_chains", "studioctl uxpilote audit-chains", "tools", "IMPLEMENTED"),
+        ("tool_graph", "studioctl uxpilote graph", "tools", "IMPLEMENTED"),
+        ("tool_dashboard", "UxPilote dashboard", "dashboard", "artifacts_runtime_outputs", "UNKNOWN"),
+    ]
+    for item in tool_commands:
+        if len(item) == 4:
+            node_id, label, zone, status = item
+            surface = "artifacts_runtime_outputs"
+        else:
+            node_id, label, zone, surface, status = item
+        add_node(
+            graph_node(
+                node_id=node_id,
+                label=label,
+                graph_plane="tools",
+                zone=zone,
+                surface=surface,
+                status=status,
+                evidence=[evidence_item("studioctl", "internal command registry", status)],
+                risk="Tool output is local evidence only, not runtime truth.",
+            )
+        )
+
+    for chain in audit_payload["chains"]:
+        add_node(
+            graph_node(
+                node_id=f"tool_chain_{chain['id']}",
+                label=chain["label"],
+                graph_plane="tools",
+                zone="audit_chain",
+                surface=chain["primary_surface"],
+                status=chain["status"],
+                evidence=[evidence_item("audit-chains", "uxpilote audit-chains --json", chain["status"])],
+                risk=chain["risk"],
+                blocked_actions=list(chain["blocked_actions"]),
+            )
+        )
+        edges.append(
+            graph_edge(
+                edge_id=f"edge_graph_reads_{chain['id']}",
+                from_node="tool_graph",
+                to_node=f"tool_chain_{chain['id']}",
+                kind="reads",
+                truth_level="tested",
+                status="TESTED",
+                evidence=[evidence_item("studioctl", "uxpilote graph --json", "TESTED")],
+                explanation="Graph command aggregates audit-chain JSON payload data without executing the chain.",
+            )
+        )
+        edges.append(
+            graph_edge(
+                edge_id=f"edge_chain_runs_command_blocked_{chain['id']}",
+                from_node=f"tool_chain_{chain['id']}",
+                to_node="authority_python_tooling",
+                kind="blocks",
+                truth_level="blocked",
+                status="BLOCKED",
+                evidence=[evidence_item("audit-chains", "safe_to_run_now false", "BLOCKED")],
+                explanation="Audit-chain cards are references only and must not execute commands.",
+                unsafe_to_render_as_active=True,
+            )
+        )
+
+    edges.extend(
+        [
+            graph_edge(
+                edge_id="edge_graph_reads_status",
+                from_node="tool_graph",
+                to_node="tool_status",
+                kind="reads",
+                truth_level="tested",
+                status="TESTED",
+                evidence=[evidence_item("studioctl", status_payload["schema_version"], "TESTED")],
+                explanation="Graph backend aggregates status payload.",
+            ),
+            graph_edge(
+                edge_id="edge_graph_reads_evidence",
+                from_node="tool_graph",
+                to_node="tool_evidence_board",
+                kind="reads",
+                truth_level="tested",
+                status="TESTED",
+                evidence=[evidence_item("studioctl", evidence_payload["schema_version"], "TESTED")],
+                explanation="Graph backend aggregates evidence board payload.",
+            ),
+            graph_edge(
+                edge_id="edge_graph_reads_surface",
+                from_node="tool_graph",
+                to_node="tool_surface_map",
+                kind="reads",
+                truth_level="tested",
+                status="TESTED",
+                evidence=[evidence_item("studioctl", surface_payload["schema_version"], "TESTED")],
+                explanation="Graph backend aggregates surface map payload.",
+            ),
+            graph_edge(
+                edge_id="edge_graph_reads_scripts_control",
+                from_node="tool_graph",
+                to_node="tool_scripts_control",
+                kind="reads",
+                truth_level="tested",
+                status="TESTED",
+                evidence=[evidence_item("studioctl", scripts_payload["schema_version"], "TESTED")],
+                explanation="Graph backend aggregates scripts-control payload.",
+            ),
+            graph_edge(
+                edge_id="edge_dashboard_renders_studioctl_json",
+                from_node="tool_dashboard",
+                to_node="evidence_studioctl_json",
+                kind="renders",
+                truth_level="documented",
+                status="DOCUMENTED_ONLY",
+                evidence=[evidence_item("docs", "scripts/uxpilote README and prior validation", "DOCUMENTED_ONLY")],
+                explanation="Dashboard renders studioctl JSON in prior bounded preview tasks, but is not source truth.",
+                unsafe_to_render_as_active=True,
+            ),
+            graph_edge(
+                edge_id="edge_uxpilote_executes_audits_blocked",
+                from_node="authority_uxpilote",
+                to_node="tool_audit_chains",
+                kind="blocks",
+                truth_level="blocked",
+                status="BLOCKED",
+                evidence=[evidence_item("audit-chains", "safe_to_run_now false", "BLOCKED")],
+                explanation="UxPilote must not execute audits.",
+                unsafe_to_render_as_active=True,
+            ),
+            graph_edge(
+                edge_id="edge_dashboard_html_canonical_truth_blocked",
+                from_node="tool_dashboard",
+                to_node="evidence_canonical_docs",
+                kind="claims",
+                truth_level="blocked",
+                status="BLOCKED",
+                evidence=[evidence_item("output routing", "dashboard preview is artifact", "BLOCKED")],
+                explanation="Generated dashboard HTML is not canonical truth.",
+                unsafe_to_render_as_active=True,
+            ),
+            graph_edge(
+                edge_id="edge_lab_models_datasets_readiness_blocked",
+                from_node="physical_lab_runs",
+                to_node="evidence_benchmark_summaries",
+                kind="claims",
+                truth_level="blocked",
+                status="BLOCKED",
+                evidence=[evidence_item("AGENTS.md", "guardrails", "BLOCKED")],
+                explanation="lab/runs/latest.json/models/datasets cannot prove readiness.",
+                unsafe_to_render_as_active=True,
+            ),
+            graph_edge(
+                edge_id="edge_scripts_uxpilote_registered_truth_unknown",
+                from_node="routing_scripts_uxpilote",
+                to_node="authority_humangate",
+                kind="depends_on",
+                truth_level="unknown",
+                status="UNKNOWN",
+                evidence=[evidence_item("scripts-control", "scripts_uxpilote_status UNKNOWN", "UNKNOWN")],
+                explanation="scripts/uxpilote registration/source-truth decision is unresolved.",
+                unsafe_to_render_as_active=True,
+            ),
+        ]
+    )
+
+    blocked_edges = [edge for edge in edges if edge["truth_level"] == "blocked" or edge["status"] == "BLOCKED"]
+    unsafe_edges = [edge for edge in edges if edge["unsafe_to_render_as_active"]]
+    humangate_questions = [
+        {"source": "scripts-control", "question": question, "status": "UNKNOWN"}
+        for question in scripts_payload["next_humangate_questions"]
+    ]
+    humangate_questions.extend(
+        {
+            "source": "audit-chains",
+            "chain_id": chain["id"],
+            "question": chain["humangate_question"],
+            "status": "UNKNOWN",
+        }
+        for chain in audit_payload["chains"]
+    )
+
+    status_by_surface = {surface: "PASSIVE" for surface in CANONICAL_SURFACES}
+    status_by_surface["artifacts_runtime_outputs"] = "IMPLEMENTED"
+    status_by_surface["canonical_docs"] = "DOCUMENTED_ONLY"
+
+    return {
+        "schema_version": "studioctl_uxpilote_graph.v0",
+        "command": "uxpilote graph",
+        "cwd": str(PROJECT_ROOT),
+        "generated_by": "scripts/studioV2/studioctl.py",
+        "graph_planes": list(UXPILOTE_GRAPH_PLANES),
+        "nodes": nodes,
+        "edges": edges,
+        "blocked_edges": blocked_edges,
+        "unsafe_edges": unsafe_edges,
+        "source_state_gaps": source_state_gaps,
+        "humangate_questions": humangate_questions,
+        "status_by_surface": status_by_surface,
+        "claim_posture": CLAIM_POSTURE,
+        "no_global_ready_verdict": True,
+    }
+
+
 def render_table(title: str, rows: list[tuple[str, Any]]) -> str:
     key_width = max(len(key) for key, _value in rows) if rows else 0
     lines = [title]
@@ -1136,6 +2639,71 @@ def render_charter_text(payload: dict[str, Any]) -> str:
     return render_table("studioctl charter render", rows)
 
 
+def render_uxpilote_scripts_control_text(payload: dict[str, Any]) -> str:
+    rows = [
+        ("schema_version", payload["schema_version"]),
+        ("command", payload["command"]),
+        ("cwd", payload["cwd"]),
+        ("generated_by", payload["generated_by"]),
+        ("node_families", list(payload["node_families"])),
+        ("blocked_runners", payload["blocked_runners"]),
+        ("scripts_uxpilote_status", payload["scripts_uxpilote_status"]),
+        ("next_humangate_questions", payload["next_humangate_questions"]),
+        ("claim_posture", payload["claim_posture"]),
+        ("no_global_ready_verdict", payload["no_global_ready_verdict"]),
+    ]
+    return render_table("studioctl uxpilote scripts-control", rows)
+
+
+def render_uxpilote_audit_chains_text(payload: dict[str, Any]) -> str:
+    chain_summary = [
+        {
+            "id": chain["id"],
+            "label": chain["label"],
+            "surface": chain["primary_surface"],
+            "status": chain["status"],
+            "safe_to_run_now": chain["safe_to_run_now"],
+        }
+        for chain in payload["chains"]
+    ]
+    rows = [
+        ("schema_version", payload["schema_version"]),
+        ("command", payload["command"]),
+        ("cwd", payload["cwd"]),
+        ("generated_by", payload["generated_by"]),
+        ("source_catalog", payload["source_catalog"]),
+        ("chains", chain_summary),
+        ("chain_groups", payload["chain_groups"]),
+        ("blocked_actions", payload["blocked_actions"]),
+        ("claim_posture", payload["claim_posture"]),
+        ("no_global_ready_verdict", payload["no_global_ready_verdict"]),
+    ]
+    return render_table("studioctl uxpilote audit-chains", rows)
+
+
+def render_uxpilote_graph_text(payload: dict[str, Any]) -> str:
+    truth_counts: dict[str, int] = {}
+    for edge in payload["edges"]:
+        truth_counts[edge["truth_level"]] = truth_counts.get(edge["truth_level"], 0) + 1
+    rows = [
+        ("schema_version", payload["schema_version"]),
+        ("command", payload["command"]),
+        ("cwd", payload["cwd"]),
+        ("generated_by", payload["generated_by"]),
+        ("graph_planes", payload["graph_planes"]),
+        ("nodes", len(payload["nodes"])),
+        ("edges", len(payload["edges"])),
+        ("edge_truth_levels", truth_counts),
+        ("blocked_edges", len(payload["blocked_edges"])),
+        ("unsafe_edges", len(payload["unsafe_edges"])),
+        ("source_state_gaps", len(payload["source_state_gaps"])),
+        ("humangate_questions", len(payload["humangate_questions"])),
+        ("claim_posture", payload["claim_posture"]),
+        ("no_global_ready_verdict", payload["no_global_ready_verdict"]),
+    ]
+    return render_table("studioctl uxpilote graph", rows)
+
+
 def write_payload(payload: dict[str, Any], as_json: bool, text_renderer: Any) -> None:
     if as_json:
         sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
@@ -1183,12 +2751,42 @@ def build_parser() -> argparse.ArgumentParser:
     inspect_parser = report_subparsers.add_parser("inspect", help="Inspect report field presence without editing it.")
     inspect_parser.add_argument("path", help="Report path to inspect.")
     inspect_parser.add_argument("--json", action="store_true", help="Emit JSON output.")
+    parse_parser = report_subparsers.add_parser("parse", help="Parse an executor report to normalized stdout JSON.")
+    parse_parser.add_argument("path", help="Executor report path to parse.")
+    parse_parser.add_argument("--json", action="store_true", help="Accepted for consistency; output is always JSON.")
+    matrix_candidate_parser = report_subparsers.add_parser(
+        "matrix-candidate",
+        help="Emit a task-matrix candidate from an executor report to stdout JSON only.",
+    )
+    matrix_candidate_parser.add_argument("path", help="Executor report path to parse.")
+    matrix_candidate_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Accepted for consistency; output is always JSON.",
+    )
     routes_parser = subparsers.add_parser("routes", help="Route policy checks.")
     route_subparsers = routes_parser.add_subparsers(dest="route_command", required=True)
     check_parser = route_subparsers.add_parser("check", help="Check a candidate output route without creating it.")
     check_parser.add_argument("--surface", required=True, help="Intended output surface.")
     check_parser.add_argument("--output", required=True, help="Candidate output path to evaluate.")
     check_parser.add_argument("--json", action="store_true", help="Emit JSON output.")
+    uxpilote_parser = subparsers.add_parser("uxpilote", help="UxPilote read-only data views.")
+    uxpilote_subparsers = uxpilote_parser.add_subparsers(dest="uxpilote_command", required=True)
+    scripts_control_parser = uxpilote_subparsers.add_parser(
+        "scripts-control",
+        help="Show UxPilote Scripts Control View data.",
+    )
+    scripts_control_parser.add_argument("--json", action="store_true", help="Emit JSON output.")
+    audit_chains_parser = uxpilote_subparsers.add_parser(
+        "audit-chains",
+        help="Show UxPilote audit/control chain catalog data.",
+    )
+    audit_chains_parser.add_argument("--json", action="store_true", help="Emit JSON output.")
+    graph_parser = uxpilote_subparsers.add_parser(
+        "graph",
+        help="Show UxPilote read-only graph backend data.",
+    )
+    graph_parser.add_argument("--json", action="store_true", help="Emit JSON output.")
     return parser
 
 
@@ -1219,10 +2817,30 @@ def main(argv: list[str] | None = None) -> int:
         payload = build_report_inspect_payload(args.path)
         write_payload(payload, args.json, render_report_inspect_text)
         return 0 if payload["status"] != "BLOCKED" else 2
+    if args.command == "report" and args.report_command == "parse":
+        payload = build_report_parse_payload(args.path)
+        sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        return 0 if payload["status"] != "BLOCKED" else 2
+    if args.command == "report" and args.report_command == "matrix-candidate":
+        payload = build_report_matrix_candidate_payload(args.path)
+        sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        return 0 if payload["status"] != "BLOCKED" else 2
     if args.command == "routes" and args.route_command == "check":
         payload = build_route_payload(args.surface, args.output)
         write_payload(payload, args.json, render_route_text)
         return 0 if payload["destination_allowed"] else 2
+    if args.command == "uxpilote" and args.uxpilote_command == "scripts-control":
+        payload = build_uxpilote_scripts_control_payload()
+        write_payload(payload, args.json, render_uxpilote_scripts_control_text)
+        return 0
+    if args.command == "uxpilote" and args.uxpilote_command == "audit-chains":
+        payload = build_uxpilote_audit_chains_payload()
+        write_payload(payload, args.json, render_uxpilote_audit_chains_text)
+        return 0
+    if args.command == "uxpilote" and args.uxpilote_command == "graph":
+        payload = build_uxpilote_graph_payload()
+        write_payload(payload, args.json, render_uxpilote_graph_text)
+        return 0
     parser.error("unsupported command")
     return 64
 
