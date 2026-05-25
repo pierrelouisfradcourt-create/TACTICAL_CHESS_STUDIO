@@ -18,7 +18,7 @@ LATEST_JSON_PATH = "latest.json"
 
 ALLOWED_DOCS_PATTERNS = (
     "README.md",
-    "MASTER_DOCS/**",
+    "00_STUDIO_CONTROL/00_MASTER_DOCS/**",
     "lab/gameplay_observation/PR*_*.md",
 )
 

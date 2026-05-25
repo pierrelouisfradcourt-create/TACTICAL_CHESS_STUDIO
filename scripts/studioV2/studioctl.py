@@ -108,12 +108,12 @@ KNOWN_REPORTS = {
 SOURCE_ANCHORS = [
     ("AGENTS.md", "canonical_docs"),
     ("README.md", "canonical_docs"),
-    ("00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md", "canonical_docs"),
-    ("00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md", "canonical_docs"),
-    ("00_STUDIO_CONTROL/07_FORMS/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md", "canonical_docs"),
-    ("00_STUDIO_CONTROL/07_FORMS/TASK_CHARTER_TEMPLATE_V0.yaml", "canonical_docs"),
-    ("00_STUDIO_CONTROL/07_FORMS/EXECUTOR_REPORT_TEMPLATE_V0.yaml", "canonical_docs"),
-    ("00_STUDIO_CONTROL/07_FORMS/ANALYSIS_AGENT_RECORD_TEMPLATE_V0.yaml", "canonical_docs"),
+    ("00_STUDIO_CONTROL/01_SYSTEM/navigation/STUDIO_SOURCE_ANCHORING_V0.md", "canonical_docs"),
+    ("00_STUDIO_CONTROL/01_SYSTEM/maps/STUDIO_OUTPUT_ROUTING_POLICY_V0.md", "canonical_docs"),
+    ("00_STUDIO_CONTROL/01_SYSTEM/forms/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md", "canonical_docs"),
+    ("00_STUDIO_CONTROL/01_SYSTEM/forms/TASK_CHARTER_TEMPLATE_V0.yaml", "canonical_docs"),
+    ("00_STUDIO_CONTROL/01_SYSTEM/forms/EXECUTOR_REPORT_TEMPLATE_V0.yaml", "canonical_docs"),
+    ("00_STUDIO_CONTROL/01_SYSTEM/forms/ANALYSIS_AGENT_RECORD_TEMPLATE_V0.yaml", "canonical_docs"),
     ("docs/gpt-navigator/GPT_NAVIGATOR_CODEX_PROMPT_GATE_V0.md", "canonical_docs"),
     ("docs/gpt-navigator/GPT_NAVIGATOR_REPO_NOTICE_V0.md", "canonical_docs"),
     ("docs/gpt-navigator/GPT_NAVIGATOR_SOURCE_INDEX_V0.md", "canonical_docs"),
@@ -128,9 +128,9 @@ REGISTRATION_REFERENCE_PATHS = [
 
 ENFORCED_SOURCE_PATHS = {
     "AGENTS.md",
-    "00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md",
-    "00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md",
-    "00_STUDIO_CONTROL/07_FORMS/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md",
+    "00_STUDIO_CONTROL/01_SYSTEM/navigation/STUDIO_SOURCE_ANCHORING_V0.md",
+    "00_STUDIO_CONTROL/01_SYSTEM/maps/STUDIO_OUTPUT_ROUTING_POLICY_V0.md",
+    "00_STUDIO_CONTROL/01_SYSTEM/forms/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md",
     "docs/gpt-navigator/GPT_NAVIGATOR_SOURCE_INDEX_V0.md",
 }
 REPORT_REQUIRED_FIELDS = {
@@ -258,7 +258,7 @@ LOGISTIC_STATUS_BY_SURFACE = {
     "roadmap_docs_only": "PASSIVE",
     "inference": "PASSIVE",
 }
-UXPILOTE_AUDIT_CHAIN_CATALOG_RELATIVE = "00_STUDIO_CONTROL/01_MAPS/UXPILOTE_AUDIT_CHAIN_CATALOG_V0.md"
+UXPILOTE_AUDIT_CHAIN_CATALOG_RELATIVE = "00_STUDIO_CONTROL/01_SYSTEM/maps/UXPILOTE_AUDIT_CHAIN_CATALOG_V0.md"
 UXPILOTE_AUDIT_CHAIN_CATALOG_PATH = PROJECT_ROOT / UXPILOTE_AUDIT_CHAIN_CATALOG_RELATIVE
 UXPILOTE_AUDIT_CHAIN_BLOCKED_ACTIONS = {
     "runtime_execution": "BLOCKED",
@@ -338,7 +338,7 @@ SURFACE_MAP_ENTRIES = (
     },
     {
         "surface": "roadmap_docs_only",
-        "path": "00_STUDIO_CONTROL/05_STATUS",
+        "path": "00_STUDIO_CONTROL/99_ARCHIVE/records",
         "status": "PASSIVE",
         "owner_hint": "HumanGate",
         "authority_boundary": "Status and roadmap reports are passive evidence records.",
@@ -626,7 +626,7 @@ def build_route_state_summary(route_payload: dict[str, Any]) -> dict[str, Any]:
 
 def build_evidence_board_payload() -> dict[str, Any]:
     status_payload = build_status_payload()
-    route_payload = build_route_payload("roadmap_docs_only", "00_STUDIO_CONTROL/05_STATUS/EXAMPLE.md")
+    route_payload = build_route_payload("roadmap_docs_only", "00_STUDIO_CONTROL/99_ARCHIVE/records/EXAMPLE.md")
     sources_payload = build_sources_payload()
     status_by_surface = dict(status_payload["status_by_surface"])
     status_by_surface["roadmap_docs_only"] = "PASSIVE"
@@ -1775,7 +1775,7 @@ def forbidden_destination_hits(candidate: Path) -> list[str]:
     if any(part == "latest.json" for part in parts):
         hits.append("latest.json")
     if len(parts) >= 2 and parts[0] == "00_studio_control" and parts[1] == "12_pipeline_opening_legacy":
-        hits.append("00_STUDIO_CONTROL/12_PIPELINE_OPENING_LEGACY")
+        hits.append("00_STUDIO_CONTROL/99_ARCHIVE/legacy_pipeline")
     if path_is_direct_child_of_control_root(parts):
         hits.append("00_STUDIO_CONTROL_root")
     return sorted(set(hits))
@@ -1999,9 +1999,9 @@ def build_uxpilote_audit_chains_payload() -> dict[str, Any]:
             purpose="Separate real, documented, inferred, unknown, and blocked surfaces.",
             primary_surface="canonical_docs",
             reads=[
-                "MASTER_DOCS/DOCS_STATUS.md",
-                "00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md",
-                "00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md",
+                "00_STUDIO_CONTROL/00_MASTER_DOCS/DOCS_STATUS.md",
+                "00_STUDIO_CONTROL/01_SYSTEM/navigation/STUDIO_SOURCE_ANCHORING_V0.md",
+                "00_STUDIO_CONTROL/01_SYSTEM/maps/STUDIO_OUTPUT_ROUTING_POLICY_V0.md",
                 "python scripts/studioV2/studioctl.py status --json",
                 "python scripts/studioV2/studioctl.py evidence board --json",
                 "python scripts/studioV2/studioctl.py surface map --json",
@@ -2025,7 +2025,7 @@ def build_uxpilote_audit_chains_payload() -> dict[str, Any]:
             purpose="Resolve scripts/studioV2, control_plane, operator, and uxpilote path drift.",
             primary_surface="artifacts_runtime_outputs",
             reads=[
-                "00_STUDIO_CONTROL/01_MAPS/SCRIPTS_ROUTE_ALIGNMENT_CHARTER_V0.md",
+                "00_STUDIO_CONTROL/01_SYSTEM/maps/SCRIPTS_ROUTE_ALIGNMENT_CHARTER_V0.md",
                 "python scripts/studioV2/studioctl.py uxpilote scripts-control --json",
             ],
             produces="route_alignment_packet",
@@ -2046,8 +2046,8 @@ def build_uxpilote_audit_chains_payload() -> dict[str, Any]:
             purpose="Merge Cartographer, HygieneAgent, TruthAgent, and RedTeam signals before HumanGate.",
             primary_surface="canonical_docs",
             reads=[
-                "00_STUDIO_CONTROL/01_MAPS/UXPILOTE_FUSION_MATRIX_VISUAL_SPEC_V0.md",
-                "00_STUDIO_CONTROL/01_MAPS/UXPILOTE_CHAIN_CONTROL_UX_AND_FRAGMENTED_AUDIT_PIPELINE_V0.md",
+                "00_STUDIO_CONTROL/01_SYSTEM/maps/UXPILOTE_FUSION_MATRIX_VISUAL_SPEC_V0.md",
+                "00_STUDIO_CONTROL/01_SYSTEM/maps/UXPILOTE_CHAIN_CONTROL_UX_AND_FRAGMENTED_AUDIT_PIPELINE_V0.md",
             ],
             produces="fusion_packet",
             ux_targets=["Fusion Matrix", "A faire maintenant"],
@@ -2067,7 +2067,7 @@ def build_uxpilote_audit_chains_payload() -> dict[str, Any]:
             purpose="Convert unresolved risks and source-state gaps into explicit HumanGate decisions.",
             primary_surface="canonical_docs",
             reads=[
-                "00_STUDIO_CONTROL/01_MAPS/UXPILOTE_HUMANGATE_QUEUE_SPEC_V0.md",
+                "00_STUDIO_CONTROL/01_SYSTEM/maps/UXPILOTE_HUMANGATE_QUEUE_SPEC_V0.md",
                 "fusion_packet",
             ],
             produces="humangate_decision_queue",
@@ -2115,7 +2115,7 @@ def build_uxpilote_audit_chains_payload() -> dict[str, Any]:
             primary_surface="inference",
             reads=[
                 "AGENTS.md",
-                "MASTER_DOCS/DOCS_STATUS.md",
+                "00_STUDIO_CONTROL/00_MASTER_DOCS/DOCS_STATUS.md",
                 "docs/status/audit files if present",
             ],
             produces="inference_readiness_blocked_packet",
@@ -2143,10 +2143,10 @@ def build_uxpilote_audit_chains_payload() -> dict[str, Any]:
             primary_surface="active_runtime_code",
             reads=[
                 "AGENTS.md",
-                "00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md",
-                "00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md",
-                "00_STUDIO_CONTROL/05_STATUS/SEARCH_003_AUTHORITY_TRACE_SCOPE_CHARTER_V0.yaml if present",
-                "00_STUDIO_CONTROL/05_STATUS/HUMANGATE_DECISION_SEARCH_003_AUTHORITY_TRACE_PATCH_V0.yaml if present",
+                "00_STUDIO_CONTROL/01_SYSTEM/maps/STUDIO_OUTPUT_ROUTING_POLICY_V0.md",
+                "00_STUDIO_CONTROL/01_SYSTEM/navigation/STUDIO_SOURCE_ANCHORING_V0.md",
+                "00_STUDIO_CONTROL/99_ARCHIVE/records/SEARCH_003_AUTHORITY_TRACE_SCOPE_CHARTER_V0.yaml if present",
+                "00_STUDIO_CONTROL/99_ARCHIVE/records/HUMANGATE_DECISION_SEARCH_003_AUTHORITY_TRACE_PATCH_V0.yaml if present",
             ],
             produces="blocked_action_packet",
             ux_targets=["Blocages critiques", "Commandes bloquees"],
@@ -2393,9 +2393,9 @@ def build_uxpilote_graph_payload() -> dict[str, Any]:
 
     physical_specs = [
         ("physical_00_studio_control", "00_STUDIO_CONTROL", "00_STUDIO_CONTROL", "studio_control", "canonical_docs", "DOCUMENTED_ONLY"),
-        ("physical_01_maps", "00_STUDIO_CONTROL/01_MAPS", "00_STUDIO_CONTROL/01_MAPS", "studio_control", "canonical_docs", "DOCUMENTED_ONLY"),
-        ("physical_05_status", "00_STUDIO_CONTROL/05_STATUS", "00_STUDIO_CONTROL/05_STATUS", "studio_control", "roadmap_docs_only", "PASSIVE"),
-        ("physical_10_roadmap", "00_STUDIO_CONTROL/10_ROADMAP", "00_STUDIO_CONTROL/10_ROADMAP", "studio_control", "roadmap_docs_only", "PASSIVE"),
+        ("physical_01_maps", "00_STUDIO_CONTROL/01_SYSTEM/maps", "00_STUDIO_CONTROL/01_SYSTEM/maps", "studio_control", "canonical_docs", "DOCUMENTED_ONLY"),
+        ("physical_05_status", "00_STUDIO_CONTROL/99_ARCHIVE/records", "00_STUDIO_CONTROL/99_ARCHIVE/records", "studio_control", "roadmap_docs_only", "PASSIVE"),
+        ("physical_10_roadmap", "00_STUDIO_CONTROL/99_ARCHIVE/plans", "00_STUDIO_CONTROL/99_ARCHIVE/plans", "studio_control", "roadmap_docs_only", "PASSIVE"),
         ("physical_scripts", "scripts", "scripts", "scripts", "artifacts_runtime_outputs", "PASSIVE"),
         ("physical_scripts_studiov2", "scripts/studioV2", "scripts/studioV2", "scripts", "artifacts_runtime_outputs", "IMPLEMENTED"),
         ("physical_scripts_uxpilote", "scripts/uxpilote", "scripts/uxpilote", "scripts", "inference", "UNKNOWN"),
@@ -2586,9 +2586,9 @@ def build_uxpilote_graph_payload() -> dict[str, Any]:
         ("routing_operator_root", "scripts/operator/", "scripts/operator", "scripts", "artifacts_runtime_outputs", "UNKNOWN"),
         ("routing_operator_studiov2", "scripts/studioV2/operator/", "scripts/studioV2/operator", "scripts", "artifacts_runtime_outputs", "UNKNOWN"),
         ("routing_scripts_uxpilote", "scripts/uxpilote/", "scripts/uxpilote", "scripts", "inference", "UNKNOWN"),
-        ("routing_maps", "00_STUDIO_CONTROL/01_MAPS", "00_STUDIO_CONTROL/01_MAPS", "studio_control", "canonical_docs", "DOCUMENTED_ONLY"),
-        ("routing_status", "00_STUDIO_CONTROL/05_STATUS", "00_STUDIO_CONTROL/05_STATUS", "studio_control", "roadmap_docs_only", "PASSIVE"),
-        ("routing_roadmap", "00_STUDIO_CONTROL/10_ROADMAP", "00_STUDIO_CONTROL/10_ROADMAP", "studio_control", "roadmap_docs_only", "PASSIVE"),
+        ("routing_maps", "00_STUDIO_CONTROL/01_SYSTEM/maps", "00_STUDIO_CONTROL/01_SYSTEM/maps", "studio_control", "canonical_docs", "DOCUMENTED_ONLY"),
+        ("routing_status", "00_STUDIO_CONTROL/99_ARCHIVE/records", "00_STUDIO_CONTROL/99_ARCHIVE/records", "studio_control", "roadmap_docs_only", "PASSIVE"),
+        ("routing_roadmap", "00_STUDIO_CONTROL/99_ARCHIVE/plans", "00_STUDIO_CONTROL/99_ARCHIVE/plans", "studio_control", "roadmap_docs_only", "PASSIVE"),
     ]
     for node_id, label, path_text, zone, surface, default_status in routing_paths:
         exists, status = path_state(path_text, default_status)

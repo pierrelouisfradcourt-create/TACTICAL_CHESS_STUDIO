@@ -10,13 +10,13 @@ from typing import Any
 
 SCHEMA_VERSION = "local_agent_verify.pr28"
 KNOWN_TRACKED_NOISE = {"lab/reports/latest_benchmark_summary.json"}
-KNOWN_TRACKED_NOISE_PREFIXES = ("MASTER_DOCS/",)
+KNOWN_TRACKED_NOISE_PREFIXES = ("00_STUDIO_CONTROL/00_MASTER_DOCS/",)
 SANDBOX_OUTPUT_PREFIX = "lab/gameplay_observation/sandbox_outputs/"
 FORBIDDEN_PREFIXES = (
     ".github/workflows/",
     "src/",
     "ml/",
-    "MASTER_DOCS/",
+    "00_STUDIO_CONTROL/00_MASTER_DOCS/",
     "lab/runs/",
     "holdout/",
     "lab/holdout/",

@@ -32,7 +32,7 @@ LEARNING_FORBIDDEN_PATTERNS = (
 )
 
 DOCS_CONTROL_PLANE_PATTERNS = (
-    "MASTER_DOCS/**",
+    "00_STUDIO_CONTROL/00_MASTER_DOCS/**",
     "lab/gameplay_observation/PR_AUTO_*.md",
 )
 
@@ -44,7 +44,7 @@ ALLOWED_PASSIVE_PATTERNS = (
     "tests/*_boundary.rs",
     "tests/*_contract.rs",
     "lab/gameplay_observation/PR*.md",
-    "MASTER_DOCS/**",
+    "00_STUDIO_CONTROL/00_MASTER_DOCS/**",
     "README.md",
     *LEARNING_FIXTURE_SPEC_PATTERNS,
 )

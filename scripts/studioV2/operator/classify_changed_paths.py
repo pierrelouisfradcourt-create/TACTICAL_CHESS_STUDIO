@@ -63,7 +63,7 @@ def is_docs_only_path(path: str) -> bool:
     return (
         path == "README.md"
         or path.startswith("docs/")
-        or path.startswith("MASTER_DOCS/")
+        or path.startswith("00_STUDIO_CONTROL/00_MASTER_DOCS/")
         or path.endswith(".md")
     )
 

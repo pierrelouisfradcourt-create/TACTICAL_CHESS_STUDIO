@@ -60,8 +60,8 @@ ADDITIONAL_REPAIR_FORBIDDEN_PATTERNS = (
     "lab/runs/*",
     "lab/gpt_audit/**",
     "lab/gpt_audit/*",
-    "MASTER_DOCS/**",
-    "MASTER_DOCS/*",
+    "00_STUDIO_CONTROL/00_MASTER_DOCS/**",
+    "00_STUDIO_CONTROL/00_MASTER_DOCS/*",
 )
 
 ALLOWED_SOFTWARE_VERDICTS = {"PASS", "BLOCKED"}

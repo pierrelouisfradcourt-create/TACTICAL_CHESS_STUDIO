@@ -56,7 +56,7 @@ fn count_occurrences(haystack: &str, needle: &str) -> usize {
 fn observation_view_and_encoder_exist_as_passive_contracts() {
     let observation_view = read_repo_file("src/core/observation_view.rs");
     let observation_encoder = read_repo_file("src/core/observation_encoder.rs");
-    let architecture = read_repo_file("MASTER_DOCS/AAA_TACTICAL_CORE_ARCHITECTURE.md");
+    let architecture = read_repo_file("00_STUDIO_CONTROL/00_MASTER_DOCS/AAA_TACTICAL_CORE_ARCHITECTURE.md");
 
     assert_contains_all(
         &architecture,

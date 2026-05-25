@@ -26,7 +26,7 @@ RUNTIME_FOUNDATION_PATHS = (
 )
 
 KNOWN_TRACKED_NOISE = {"lab/reports/latest_benchmark_summary.json"}
-KNOWN_TRACKED_NOISE_PREFIXES = ("MASTER_DOCS/",)
+KNOWN_TRACKED_NOISE_PREFIXES = ("00_STUDIO_CONTROL/00_MASTER_DOCS/",)
 SPIKE_BRANCH_NAME = "spike-aaa-search-neural-engine-split"
 PR60_AUDIT_PATH = "lab/gameplay_observation/PR60_PUSH_AND_AUTOMATION_CLEANUP_AUDIT.md"
 PR63_AUDIT_PATH = "lab/gameplay_observation/PR63_STALE_BRANCH_CLEANUP_AUDIT.md"

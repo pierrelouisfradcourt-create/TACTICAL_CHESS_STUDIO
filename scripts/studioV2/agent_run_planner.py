@@ -145,7 +145,7 @@ def build_plan(objective: str) -> RunPlan:
     if obj == "docs_close":
         return RunPlan(
             objective="docs_close",
-            dataset=["README.md", "MASTER_DOCS/"],
+            dataset=["README.md", "00_STUDIO_CONTROL/00_MASTER_DOCS/"],
             command="python doctor.py",
             metrics=["missing_items_count"],
             success_rule="missing_items_count == 0",
