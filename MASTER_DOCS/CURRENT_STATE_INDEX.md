@@ -209,9 +209,10 @@ These docs remain useful active references, but they are not the first authority
 
 Kenpachi duplicate routing note:
 
-- `00_STUDIO_CONTROL/06_CODEX/KENPACHI_CODEX_LOCAL_PARAMETERS.md` is the canonical route candidate for `KENPACHI_CODEX_LOCAL_PARAMETERS.md`.
-- `docs/control-plane/KENPACHI_CODEX_LOCAL_PARAMETERS.md` is an exact duplicate and should be treated as duplicate/reference/archive candidate only unless a separate HumanGate action authorizes physical cleanup.
-- No delete, move, rename, archive, registry update, or source-index update is authorized by this note.
+- `00_STUDIO_CONTROL/06_CODEX/KENPACHI_CODEX_LOCAL_PARAMETERS.md` is the canonical route for `KENPACHI_CODEX_LOCAL_PARAMETERS.md`.
+- The former control-plane duplicate was removed after HumanGate cleanup authorization; remaining references to that removed duplicate belong to historical cleanup evidence only.
+- This note does not authorize delete, move, rename, archive, registry update, source-index update, runtime action, or claim escalation.
+- claim_verdict remains `NO_CLAIM_ALLOWED`.
 
 ## 6. Passive boundary docs
 
