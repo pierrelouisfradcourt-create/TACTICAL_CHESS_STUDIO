@@ -9,6 +9,11 @@ from move_vocab import try_move_to_index
 
 ROUTER_VERSION = "dataset_decision_router_v2_curriculum_brain"
 DEFAULT_DATASET = "lab/pedagogy_db/promoted_pedagogy_pack.jsonl"
+UNSUPPORTED_DATASET_ROOT_MESSAGE = (
+    "Router does not inspect dataset root directories directly; use loader/preflight "
+    "for dataset-root admission or provide a JSONL row file."
+)
+UNSUPPORTED_MANIFEST_MESSAGE = "Router input must be JSONL row data, not manifest metadata."
 SUPPORTED_OBJECTIVES = {
     "general",
     "tactics",
@@ -16,6 +21,14 @@ SUPPORTED_OBJECTIVES = {
     "champion_reference",
     "aaa_teacher",
 }
+
+
+class UnsupportedRouterInput(ValueError):
+    def __init__(self, reason_code: str, message: str, path: Path):
+        super().__init__(message)
+        self.reason_code = reason_code
+        self.message = message
+        self.path = path
 
 
 def parse_boolish(value: Any, default: bool = False) -> bool:
@@ -74,6 +87,38 @@ def resolve_dataset_path(path: Optional[str], active_dataset_path: str = "lab/AC
         ) from None
 
     return str(dataset_path)
+
+
+def is_manifest_path(path: Path) -> bool:
+    name = path.name.lower()
+    return path.suffix.lower() == ".json" and (
+        name == "manifest.json" or name.endswith("_manifest.json")
+    )
+
+
+def validate_router_row_file_path(path: Path) -> Path:
+    if path.is_dir():
+        raise UnsupportedRouterInput(
+            "unsupported_dataset_root_for_router",
+            UNSUPPORTED_DATASET_ROOT_MESSAGE,
+            path,
+        )
+
+    if is_manifest_path(path):
+        raise UnsupportedRouterInput(
+            "unsupported_manifest_for_router",
+            UNSUPPORTED_MANIFEST_MESSAGE,
+            path,
+        )
+
+    if path.suffix.lower() != ".jsonl":
+        raise UnsupportedRouterInput(
+            "unsupported_non_jsonl_for_router",
+            "Router input must be a JSONL row file.",
+            path,
+        )
+
+    return path
 
 
 def inspect_active_pointer(active_dataset_path: str = "lab/ACTIVE_DATASET.txt") -> Dict[str, Any]:
@@ -517,12 +562,13 @@ def candidate_summary(candidate: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def inspect_candidate(path: Path) -> Dict[str, Any]:
-    dataset_info = inspect_dataset(str(path))
-    loaded_dataset_info = summarize_loaded_dataset(str(path))
+    row_file_path = validate_router_row_file_path(path)
+    dataset_info = inspect_dataset(str(row_file_path))
+    loaded_dataset_info = summarize_loaded_dataset(str(row_file_path))
     admission = classify_dataset_fitness(dataset_info, loaded_dataset_info)
     candidate = {
-        "path": str(path.resolve()),
-        "first_row": first_dataset_row(path),
+        "path": str(row_file_path.resolve()),
+        "first_row": first_dataset_row(row_file_path),
         "dataset": dataset_info,
         "loaded_dataset": loaded_dataset_info,
         "dataset_admission": admission,
@@ -541,7 +587,10 @@ def discover_candidate_paths(active_dataset_path: str) -> List[Path]:
             continue
         candidate = Path(raw_path)
         if candidate.exists():
-            resolved = candidate.resolve()
+            try:
+                resolved = validate_router_row_file_path(candidate).resolve()
+            except UnsupportedRouterInput:
+                continue
             if resolved not in seen:
                 seen.add(resolved)
                 discovered.append(resolved)
@@ -695,10 +744,12 @@ def build_default_decision(
         "missing_requirements": [],
         "operational": False,
         "error": None,
+        "reason_code": None,
     }
 
     try:
         dataset_path = resolve_dataset_path(explicit_input, active_dataset_path=active_dataset_path)
+        decision["resolved_dataset_path"] = str(Path(dataset_path).resolve())
         candidate = inspect_candidate(Path(dataset_path))
         decision["resolved_dataset_path"] = candidate["path"]
         decision["selected_dataset"] = candidate["path"]
@@ -709,6 +760,14 @@ def build_default_decision(
         decision["status"] = "ok"
         decision["admissible"] = candidate["flags"]["is_admissible"]
         decision["operational"] = candidate["dataset_admission"]["dataset_fitness"] != "reject_for_ab"
+        return decision
+    except UnsupportedRouterInput as exc:
+        decision["status"] = "blocked"
+        decision["reason_code"] = exc.reason_code
+        decision["reason"] = exc.message
+        decision["error"] = exc.message
+        if exc.path.exists():
+            decision["resolved_dataset_path"] = str(exc.path.resolve())
         return decision
     except Exception as exc:
         decision["status"] = "error"
@@ -740,6 +799,7 @@ def build_objective_decision(
         "missing_requirements": [],
         "operational": False,
         "error": None,
+        "reason_code": None,
     }
 
     try:
@@ -818,6 +878,8 @@ def main() -> None:
     print(f"resolved_dataset_path={decision['resolved_dataset_path']}")
     print(f"fallback_used={decision['fallback_used']}")
     print(f"reason={decision['reason']}")
+    if decision.get("reason_code"):
+        print(f"reason_code={decision['reason_code']}")
 
     if decision["missing_requirements"]:
         print("missing_requirements=" + ",".join(decision["missing_requirements"]))

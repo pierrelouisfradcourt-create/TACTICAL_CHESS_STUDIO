@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import hashlib
 import json
@@ -6,13 +8,26 @@ import random
 import time
 from pathlib import Path
 
-import numpy as np
-import torch
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
+try:
+    import numpy as np
+except ImportError:
+    np = None
 
-from dataset_loader import TeacherDataset, load_dataset_rows, resolve_dataset_path
-from model import PolicyValueNet
+try:
+    import torch
+    import torch.nn.functional as F
+    from torch.utils.data import DataLoader
+except ImportError:
+    torch = None
+    F = None
+    DataLoader = None
+
+from dataset_loader import (
+    TeacherDataset,
+    load_dataset_rows,
+    preflight_training_dataset,
+    resolve_dataset_path,
+)
 from move_vocab import try_move_to_index, vocab_fingerprint
 
 
@@ -20,6 +35,7 @@ from move_vocab import try_move_to_index, vocab_fingerprint
 # 🔧 SEED GLOBAL
 # =========================
 def set_global_seed(seed: int) -> None:
+    require_training_dependencies()
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -40,6 +56,7 @@ def soft_cross_entropy(
     target_probs: torch.Tensor,
     reduction: str = "mean",
 ) -> torch.Tensor:
+    require_training_dependencies()
     log_probs = F.log_softmax(logits, dim=1)
     loss = -(target_probs * log_probs).sum(dim=1)
     if reduction == "none":
@@ -62,6 +79,19 @@ def parse_boolish(value, default: bool = False) -> bool:
             return False
         return default
     return default
+
+
+def require_training_dependencies() -> None:
+    missing = []
+    if np is None:
+        missing.append("numpy")
+    if torch is None or F is None or DataLoader is None:
+        missing.append("torch")
+    if missing:
+        raise ImportError(
+            "Training execution requires missing dependencies: "
+            + ", ".join(sorted(set(missing)))
+        )
 
 
 def inspect_dataset(path: str) -> dict:
@@ -421,7 +451,48 @@ def effective_run_tag(tag: str, dataset_fitness: str) -> str:
     return cleaned
 
 
-class IndexedTeacherDataset(torch.utils.data.Dataset):
+def run_preflight_only(args: argparse.Namespace) -> None:
+    dataset_path = None
+    try:
+        dataset_path = resolve_dataset_path(args.input)
+        admission = preflight_training_dataset(dataset_path)
+    except Exception as exc:
+        payload = {
+            "mode": "preflight_only",
+            "no_write": True,
+            "dataset_path": (
+                str(Path(dataset_path).resolve())
+                if dataset_path is not None
+                else None
+            ),
+            "admission_status": "blocked",
+            "admissible": False,
+            "reason_codes": ["preflight_error", type(exc).__name__],
+            "error": str(exc),
+        }
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        raise SystemExit(1) from None
+
+    status = "pass" if admission.admissible else "blocked"
+    payload = {
+        "mode": "preflight_only",
+        "no_write": True,
+        "dataset_path": str(Path(dataset_path).resolve()),
+        "admission_status": status,
+        "admissible": admission.admissible,
+        "reason_codes": list(admission.reasons),
+    }
+
+    print(json.dumps(payload, indent=2, sort_keys=True))
+
+    if not admission.admissible:
+        raise SystemExit(1)
+
+
+_IndexedTeacherDatasetBase = torch.utils.data.Dataset if torch is not None else object
+
+
+class IndexedTeacherDataset(_IndexedTeacherDatasetBase):
     """Preserve original sample indices so shuffled batches can recover aligned metadata."""
 
     def __init__(self, base_dataset: TeacherDataset):
@@ -554,8 +625,22 @@ def main() -> None:
 
     parser.add_argument("--tag", type=str, default="")
     parser.add_argument("--strict-dataset-admission", action="store_true")
+    parser.add_argument("--preflight-only", action="store_true")
+    parser.add_argument(
+        "--no-write-preflight",
+        dest="preflight_only",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
 
     args = parser.parse_args()
+
+    if args.preflight_only:
+        run_preflight_only(args)
+        return
+
+    require_training_dependencies()
+    from model import PolicyValueNet
 
     seed = int(os.environ.get("TCS_TRAIN_SEED", "42"))
     set_global_seed(seed)

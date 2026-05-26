@@ -81,9 +81,23 @@ pub fn engine_to_fen(engine: &Engine) -> String {
     fen.push_str(side_to_move);
     fen.push(' ');
     fen.push_str(&castling);
-    fen.push_str(" - 0 1");
+    fen.push(' ');
+    match engine.en_passant_target {
+        Some(target) => fen.push_str(&format_square(target)),
+        None => fen.push('-'),
+    }
+    fen.push(' ');
+    fen.push_str(&engine.halfmove_clock.to_string());
+    fen.push(' ');
+    fen.push_str(&(engine.turn_manager.turn_index / 2 + 1).to_string());
 
     fen
+}
+
+fn format_square(position: Position) -> String {
+    let file = (b'a' + position.x as u8) as char;
+    let rank = (b'1' + position.y as u8) as char;
+    format!("{file}{rank}")
 }
 
 fn parse_square(square: &str) -> Result<Position, String> {
@@ -392,13 +406,10 @@ mod tests {
     }
 
     #[test]
-    fn fen_round_trip_preserves_board_and_side() {
-        let fen = "3r2k1/5pp1/p2Pq2p/PpN5/6n1/1PQ3PP/3R2K1/8 b - - 15 39";
+    fn fen_round_trip_preserves_full_state_fields() {
+        let fen = "r3k2r/1p3pp1/2n5/3pP3/3P4/2N2N2/PPP2PPP/R3K2R w KQkq d6 8 12";
         let engine = engine_from_fen(fen).expect("parse should succeed");
-        assert_eq!(
-            engine.to_fen(),
-            "3r2k1/5pp1/p2Pq2p/PpN5/6n1/1PQ3PP/3R2K1/8 b - - 0 1"
-        );
+        assert_eq!(engine.to_fen(), fen);
     }
 
     #[test]

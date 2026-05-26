@@ -8,7 +8,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    class _MissingNumpy:
+        def __getattr__(self, name: str) -> Any:
+            raise ImportError("NumPy is required for TeacherDataset training paths")
+
+    np = _MissingNumpy()  # type: ignore[assignment]
 try:
     import torch
     from torch.utils.data import Dataset
@@ -144,7 +151,10 @@ def require_am_dataset_admission(row: Dict[str, Any], row_index: int) -> None:
 
 def preflight_training_dataset(dataset_path: str | Path) -> AdmissionResult:
     """Lightweight dataset admission preflight without sample construction."""
-    dataset_rows, _dataset_meta = load_dataset_rows(str(dataset_path))
+    dataset_rows, _dataset_meta = load_dataset_rows(
+        str(dataset_path),
+        allow_adaptive_refresh=False,
+    )
 
     if not dataset_rows:
         return AdmissionResult(False, ("empty_dataset", "dataset_admission_gate_blocked"))
@@ -561,13 +571,18 @@ def load_reverse_rows(
     return rows
 
 
-def load_dataset_rows(path: str) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+def load_dataset_rows(
+    path: str,
+    *,
+    allow_adaptive_refresh: bool = True,
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     dataset_path = Path(path)
     if dataset_path.is_file():
         return load_jsonl_rows(dataset_path), {"mode": "single_file", "path": str(dataset_path)}
 
     if (
-        ensure_support_files is None
+        not allow_adaptive_refresh
+        or ensure_support_files is None
         or refresh_adaptive_artifacts is None
         or material_signature_from_fen is None
     ):

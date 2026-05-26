@@ -1953,7 +1953,7 @@ mod tests {
         let mut engine =
             engine_from_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").expect("valid FEN");
         play_move(&mut engine, 1, "h1", "h2");
-        assert_eq!(engine.to_fen(), "r3k2r/8/8/8/8/8/7R/R3K3 b Qkq - 0 1");
+        assert_eq!(engine.to_fen(), "r3k2r/8/8/8/8/8/7R/R3K3 b Qkq - 1 1");
     }
 
     #[test]
@@ -1961,6 +1961,6 @@ mod tests {
         let mut engine =
             engine_from_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").expect("valid FEN");
         play_move(&mut engine, 1, "e1", "e2");
-        assert_eq!(engine.to_fen(), "r3k2r/8/8/8/8/8/4K3/R6R b kq - 0 1");
+        assert_eq!(engine.to_fen(), "r3k2r/8/8/8/8/8/4K3/R6R b kq - 1 1");
     }
 }

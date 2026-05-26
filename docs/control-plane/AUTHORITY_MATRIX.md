@@ -33,6 +33,50 @@ This matrix documents who may propose, execute, validate, block, merge, promote,
 - PromotionGate requires human approval for any promotion decision.
 - Runtime modification remains forbidden unless explicitly scoped in future PRs.
 
+## Rocky Runtime Decision Chain
+
+This section is documentation-only. It does not activate runtime behavior, authorize DecisionController behavior, promote Neural authority, or change Search authority.
+
+Rocky's intended decision chain is:
+
+```text
+Neural -> Search -> Critic -> Authority -> Executor
+```
+
+Role boundaries:
+
+- `NeuralProposal`: Neural may propose or rerank candidate actions only.
+- `SearchResult`: Search remains tactical authority and provides the tactical reference.
+- `CriticVerdict`: Critic may `PASS`, `WARN`, `BLOCK`, or `ESCALATE`, but does not choose the final action. This vocabulary remains escalation-related; `ESCALATION_MATRIX_V0.md` is reference-only for this task.
+- `AuthorityDecision`: Authority selects exactly one final validated action when the available signals and current state are coherent.
+- `ValidatedAction`: the only valid input to Executor.
+- `ExecutorResult`: Executor applies only a validated action bound to the current state, or refuses it.
+- `TelemetryEvent`: telemetry is observation only and does not prove readiness, strength, promotion, or activation.
+
+Required future records before implementation planning:
+
+- `NeuralProposal`
+- `SearchResult`
+- `CriticVerdict`
+- `AuthorityInput`
+- `AuthorityDecision`
+- `ValidatedAction`
+- `ExecutorResult`
+- `TelemetryEvent`
+- `LegalActionSetSnapshot`
+- `DecisionBudget`
+- `StateSnapshotRef`
+- `CriticReasonCode`
+
+Safe defaults:
+
+- Unknown authority conditions block future implementation until HumanGate and repo evidence resolve them.
+- `CriticVerdict: BLOCK` means no direct execution.
+- `CriticVerdict: ESCALATE` stops direct action and requires higher-level review.
+- State mismatch before execution requires Executor refusal and telemetry.
+- No invented fallback move is allowed.
+- Claims remain bounded by evidence and HumanGate.
+
 ## Explicit Near-Term Forbiddance
 
 - active StudioPilot runtime
