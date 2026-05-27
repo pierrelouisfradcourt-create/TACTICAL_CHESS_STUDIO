@@ -33,7 +33,13 @@ use std::sync::{Mutex, OnceLock};
 
 const INF: i32 = 1_000_000_000;
 const MAX_PLY: usize = 64;
-const MAX_Q_DEPTH: i32 = 8;
+fn max_q_depth() -> i32 {
+    std::env::var("TCS_Q_DEPTH")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(8)
+        .max(1)
+}
 const TT_MAX_SIZE: usize = 500_000;
 const TT_PRUNE_BATCH: usize = 65_536;
 const NULL_MOVE_MIN_DEPTH: i32 = 3;
@@ -731,7 +737,7 @@ fn quiescence(
         alpha = stand_pat;
     }
 
-    if qdepth >= MAX_Q_DEPTH {
+    if qdepth >= max_q_depth() {
         return alpha;
     }
 
@@ -883,6 +889,7 @@ fn tactical_move_score(engine: &Engine, player: PlayerId, mv: &Action) -> i32 {
 }
 
 fn adaptive_depth(engine: &Engine) -> i32 {
+    eprintln!("DEBUG adaptive_depth: TCS_MINIMAX_DEPTH={:?}", std::env::var("TCS_MINIMAX_DEPTH"));
     if let Ok(v) = std::env::var("TCS_MINIMAX_DEPTH") {
         if let Ok(d) = v.parse::<i32>() {
             return d.max(1);
