@@ -13,18 +13,7 @@ fn resolve_stockfish_path() -> String {
         return path;
     }
 
-    let candidates = [
-        r"C:\Users\wazou\Desktop\TACTICAL_CHESS_STUDIO\TacticalChessPureLab\stockfish.exe",
-        r"C:\Users\wazou\Desktop\TACTICAL_CHESS_STUDIO\TacticalChessPureLab\stockfish.exe.exe",
-    ];
-
-    for candidate in candidates {
-        if std::path::Path::new(candidate).exists() {
-            return candidate.to_string();
-        }
-    }
-
-    candidates[0].to_string()
+    "stockfish".to_string()
 }
 
 fn main() {
