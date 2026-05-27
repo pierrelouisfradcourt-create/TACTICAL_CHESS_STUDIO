@@ -1,7 +1,7 @@
 # Known Issues
 
 Status: canonical active issue list
-Last refreshed: 2026-05-11
+Last refreshed: 2026-05-27
 Merged source: `MASTER_DOCS/CURRENT_CODE_AUDIT_AND_KNOWN_ISSUES.md`
 Rule: this file is an engineering risk register, not proof of strength, Elo, promotion, or scientific progress.
 
@@ -278,20 +278,26 @@ Recommendation:
 
 ## 7. FEN Serialization Is Not Full Runtime Truth
 
-Status: ACTIVE
+Status: RESOLVED (2026-05-27)
 
-Current evidence:
-- `src/chess/fen.rs` serializes board, side to move and castling rights.
-- `engine_to_fen` still normalizes en-passant to `-`, halfmove clock to `0`, and fullmove number to `1`.
-- `engine_from_fen` can parse en-passant, halfmove and fullmove fields, so load and save are not symmetric for full runtime state.
+Resolution:
+- `engine_to_fen` reads `engine.en_passant_target` and `engine.halfmove_clock` directly — no normalization.
+- `apply_move` in `src/engine/engine.rs` maintains both fields correctly on every move:
+  - `en_passant_target` set on double pawn push, cleared on all other moves.
+  - `halfmove_clock` reset on pawn move or capture, incremented on quiet moves.
+- `SearchMoveUndo` / `SearchNullMoveUndo` save and restore both fields correctly.
+- Round-trip test `fen_round_trip_preserves_full_state_fields` passes with non-trivial values
+  (`"... w KQkq d6 8 12"`), confirming parse→serialize symmetry.
+- Engine tests `castling_execution_updates_fen_rights_*` verify halfmove_clock in live FEN output.
 
-Tests run:
-- Source inspection confirms `engine_to_fen` normalization and `engine_from_fen` parsing asymmetry.
+Residual note:
+- Repetition key is the full FEN, which includes `halfmove_clock`. In standard chess, threefold
+  repetition ignores the halfmove clock. This means two identical positions reached at different
+  halfmove counts are treated as distinct for repetition purposes — a minor non-standard bias.
+  Not a correctness bug; repetitions are missed conservatively, never overcounted.
 
-Recommendation:
-- Keep this issue active.
-- Document `to_fen()` as a position/repetition key shape, not complete runtime-state serialization.
-- If full runtime truth becomes required, add explicit tests for en-passant, halfmove and fullmove round-trip before changing behavior.
+Previous stale claim ("engine_to_fen normalizes en-passant to `-` and halfmove to `0`") was
+accurate for an earlier code state before `fen.rs` was fully implemented.
 
 ## 8. Runtime / Python Bridge Stability
 
@@ -434,6 +440,12 @@ These items are no longer active known issues after the 2026-05-06 refresh:
 - Legal action ordering as HashMap-order risk: `legal_actions` now sorts by `action_key`, and targeted legal-action tests passed.
 - "No confidence filtering yet": confidence scoring and uncertainty filtering now exist in `ml/adaptive_dataset.py`.
 - "Python bridge no longer relies on `.venv312` candidates": removed because current code still scans `.venv312`.
+
+Removed 2026-05-27:
+
+- Issue #7 FEN en-passant / halfmove normalization: stale claim. `engine_to_fen` and `apply_move`
+  correctly maintain and serialize `en_passant_target` and `halfmove_clock`. Round-trip test passes.
+  Residual bias: repetition key includes halfmove_clock (non-standard, minor, conservative).
 
 ## Claim Control
 
