@@ -51,6 +51,12 @@ def validate_training_dataset_path(dataset_path: Path) -> Path:
     if not dataset_path.exists():
         raise FileNotFoundError(f"Training dataset does not exist: {dataset_path}")
 
+    if dataset_path.is_dir():
+        raise ValueError(
+            f"Training dataset path is a directory, not a file: {dataset_path}. "
+            "Provide a JSONL row file."
+        )
+
     if dataset_path.suffix.lower() == ".csv" and dataset_path.name == "promoted_pedagogy_pack.csv":
         raise ValueError(
             "Promoted pedagogy curation CSV is not trainable; routing requires per-position JSONL rows."
