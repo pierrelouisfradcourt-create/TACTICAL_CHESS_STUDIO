@@ -1,6 +1,7 @@
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::time::Instant;
 
 use crate::chess::uci::action_to_uci;
 use crate::engine::action::action::Action;
@@ -13,6 +14,7 @@ pub struct UciAgent {
     stdout: BufReader<ChildStdout>,
     depth: u32,
     multipv: u32,
+    pub last_request_ms: u128,
 }
 
 impl UciAgent {
@@ -38,6 +40,7 @@ impl UciAgent {
             stdout: BufReader::new(stdout),
             depth,
             multipv: 3, // 🔥 TOP 3 MOVES
+            last_request_ms: 0,
         };
 
         agent.initialize();
@@ -64,6 +67,7 @@ impl UciAgent {
     // 🔥 NOUVEAU : MultiPV request
     pub fn request_top_moves(&mut self, fen: &str) -> (Vec<String>, Vec<f32>, Option<f32>) {
         self.send_line(&format!("position fen {}", fen));
+        let stockfish_timer = Instant::now();
         self.send_line(&format!("go depth {}", self.depth));
 
         let mut best_move = String::new();
@@ -118,6 +122,7 @@ impl UciAgent {
                 if parts.len() >= 2 {
                     best_move = parts[1].to_string();
                 }
+                self.last_request_ms = stockfish_timer.elapsed().as_millis();
                 break;
             }
         }

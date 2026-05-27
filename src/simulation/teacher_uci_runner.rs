@@ -6,6 +6,7 @@ use serde::Serialize;
 use std::fs::{create_dir_all, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
+use std::time::Instant;
 
 use crate::agents::uci_agent::UciAgent;
 use crate::chess::decision::{choose_best_action_with_trace, DecisionTrace};
@@ -484,7 +485,9 @@ impl TeacherUciRunner {
             let capture_available = has_capture_move(&fen, &legal_moves);
             let material_balance = Some(compute_material_balance_from_fen(&fen));
 
+            let total_start = Instant::now();
             let (raw_top_moves, raw_top_scores, eval) = agent.request_top_moves(&fen);
+            let stockfish_ms = agent.last_request_ms;
 
             let (top_moves, top_scores) =
                 sanitize_top_candidates(raw_top_moves, raw_top_scores, &legal_moves, eval);
@@ -498,6 +501,7 @@ impl TeacherUciRunner {
                 .cloned()
                 .unwrap_or_else(|| legal_moves[0].clone());
 
+            let rocky_start = Instant::now();
             let chosen_selection = if ply < 10 {
                 select_opening_action(&engine, player, &legal_actions)
                     .map(|action| TrainerSelection {
@@ -537,6 +541,9 @@ impl TeacherUciRunner {
                     trace: None,
                 })
             };
+            let rocky_ms = rocky_start.elapsed().as_millis();
+            let total_ms = total_start.elapsed().as_millis();
+            println!("TIMING|stockfish_ms={}|rocky_ms={}|total_ms={}", stockfish_ms, rocky_ms, total_ms);
 
             let top_gap = compute_top_gap(&top_scores);
             let eval_abs = eval.unwrap_or(0.0).abs();
