@@ -3,23 +3,44 @@
 status: DOCUMENTED_ONLY
 
 ## Purpose
-This index maps the active Studio Control surfaces after the unique-prefix migration.
+This index maps the active Studio Control surfaces after the compact topology migration.
 
 ## Active Surfaces
-- `00_INDEX`: entrypoints and status legend.
-- `01_MAPS`: maps, topology, routing, and path contracts.
-- `02_NAVIGATION`: source anchoring and navigator rules.
-- `03_REGISTRIES`: registries.
-- `04_BOUNDARIES`: guardrails and boundaries.
-- `05_STATUS`: status and migration records.
-- `06_CODEX`: Codex operating documents.
-- `07_FORMS`: AutoDev contracts and templates.
-- `08_MIGRATION`: migration runbooks and future cleanup plans.
-- `09_CYBERDEFENSE`: CyberSentinel control documents.
-- `10_ROADMAP`: roadmap-only documents.
-- `11_PIPELINE_CORE`: generic pipeline core package.
-- `12_PIPELINE_OPENING_LEGACY`: PASSIVE legacy traceability.
-- `13_BOOTSTRAP_PROFILES`: machine-specific bootstrap profiles.
+The current top-level Studio Control topology is compact:
+
+- `00_MASTER_DOCS`: master documentation and current-state summaries.
+- `01_SYSTEM`: indexes, maps, navigation, registries, boundaries, forms, Codex docs, RAG docs, and related system sources.
+- `02_PIPELINE`: pipeline packages, core packages, and bootstrap/profile surfaces.
+- `99_ARCHIVE`: archive, records, plans, and status evidence.
+
+Historical direct-prefix folders such as `00_INDEX`, `01_MAPS`, `02_NAVIGATION`, `07_FORMS`, and `10_ROADMAP` are superseded as top-level routing targets. Current nested routes are documented by `99_ARCHIVE/records/STUDIO_CONTROL_TOPOLOGY_MIGRATION_V1.md`.
+
+## Main Read-First Truth Set
+Do not treat all non-archive Markdown as main truth. The practical daily navigation set is this source-backed nucleus:
+
+| Status | Source | Role |
+| --- | --- | --- |
+| DOCUMENTED_ONLY | `00_STUDIO_CONTROL/01_SYSTEM/index/READ_FIRST.md` | Studio Control opening order and source-set compression rule. |
+| DOCUMENTED_ONLY | `00_STUDIO_CONTROL/00_MASTER_DOCS/DOCS_STATUS.md` | Current documentation classification anchor. |
+| DOCUMENTED_ONLY | `00_STUDIO_CONTROL/00_MASTER_DOCS/CURRENT_STATE_INDEX.md` | Current-state navigation and demotion index. |
+| DOCUMENTED_ONLY | `00_STUDIO_CONTROL/00_MASTER_DOCS/01_CURRENT_STATE.md` | Current project state summary. |
+| DOCUMENTED_ONLY | `00_STUDIO_CONTROL/00_MASTER_DOCS/03_KNOWN_ISSUES.md` | Canonical active issue list. |
+| DOCUMENTED_ONLY | `00_STUDIO_CONTROL/00_MASTER_DOCS/05_ARCHITECTURE.md` | Architecture authority order and runtime boundary. |
+| DOCUMENTED_ONLY | `00_STUDIO_CONTROL/01_SYSTEM/navigation/STUDIO_SOURCE_ANCHORING_V0.md` | Source-state separation and source loading rules. |
+| DOCUMENTED_ONLY | `00_STUDIO_CONTROL/01_SYSTEM/maps/STUDIO_OUTPUT_ROUTING_POLICY_V0.md` | Output routing and duplicate-prevention authority. |
+| DOCUMENTED_ONLY | `00_STUDIO_CONTROL/01_SYSTEM/index/CONTROL_INDEX.md` | Compact Studio Control topology index. |
+
+## Reference / On-Demand Sources
+Most contracts, forms, registries, policies, passive specs, and roadmaps are on-demand reference sources.
+
+Secondary reference docs:
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/00_EXEC_SUMMARY.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/02_COMMAND_CHEATSHEET.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/06_DECISION_LOG.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/07_PROJECT_HISTORY.md`
+- `00_STUDIO_CONTROL/00_MASTER_DOCS/DOC_ARCHIVE_DEMOTION_MAP.md`
+
+Temporary task reports and Codex audit reports remain task-specific unless HumanGate promotes them.
 
 ## Agentic Pyramid Sources
 - `01_MAPS/STUDIO_AGENTIC_PYRAMID_ARCHITECTURE_V0.md`: Studio-wide agentic architecture plan; status `DOCUMENTED_ONLY`; runtime authority `NONE`.
@@ -27,6 +48,12 @@ This index maps the active Studio Control surfaces after the unique-prefix migra
 
 ## Routing Authority
 Use `01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md` for output placement and duplicate prevention. Use `02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md` for source registration, loading, enforcement, and evidence.
+
+Current compact paths:
+- `01_SYSTEM/maps/STUDIO_OUTPUT_ROUTING_POLICY_V0.md`
+- `01_SYSTEM/navigation/STUDIO_SOURCE_ANCHORING_V0.md`
+
+Older direct-prefix paths remain historical drift unless a task explicitly reads and verifies them.
 
 ## Local-Only Control Room Policy
 
@@ -64,6 +91,21 @@ Use only `IMPLEMENTED`, `TESTED`, `DOCUMENTED_ONLY`, `PASSIVE`, `BLOCKED`, `NOT_
 For control-room coherence work, documentation, policy, registry, template, roadmap, and plan edits are `DOCUMENTED_ONLY`. `IMPLEMENTED` requires active runtime code evidence. `TESTED` requires validation or test evidence for the relevant surface and must not be inferred from file existence alone.
 
 Surface reporting must stay separated across active runtime code, tests, runtime outputs, canonical docs, roadmap docs only, and inference.
+
+Classic/Rocky runtime claims require code/test evidence, not docs-only evidence.
+
+`no_global_ready_verdict: true`
+
+For source-state work:
+
+```text
+created != registered
+registered != loaded
+loaded != enforced
+enforced != evidenced
+```
+
+Created != registered != loaded != enforced != evidenced.
 
 Canonical internal surfaces must remain stable. Report labels such as `runtime_outputs` may summarize the canonical `artifacts_runtime_outputs` surface, but aliases do not create new surfaces unless an explicit mapping is added to the routing policy and registries.
 

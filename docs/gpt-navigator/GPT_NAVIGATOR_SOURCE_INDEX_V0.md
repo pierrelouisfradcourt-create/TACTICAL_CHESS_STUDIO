@@ -4,29 +4,50 @@
 Index of files to upload to the ChatGPT Project with explicit source classes.
 
 ## Permanent Project Sources
-Read-first durable sources only. Keep this set minimal.
+Navigator guard sources and the compact read-first truth set. Keep this set minimal. Do not treat all non-archive Markdown as main truth.
 
 | Class | Source | Why it stays permanent |
 | --- | --- |
-| permanent | docs/gpt-navigator/GPT_NAVIGATOR_SOURCE_INDEX_V0.md | source classification anchor |
-| permanent | docs/gpt-navigator/GPT_NAVIGATOR_REPO_NOTICE_V0.md | compact repo navigation rules |
-| permanent | docs/gpt-navigator/GPT_NAVIGATOR_UPLOAD_CHECKLIST_V0.md | manual upload workflow guard |
-| permanent | docs/gpt-navigator/GPT_NAVIGATOR_PROJECT_INSTRUCTIONS_V0.md | short project instruction set |
-| permanent | docs/gpt-navigator/GPT_NAVIGATOR_CODEX_PROMPT_GATE_V0.md | Codex prompt gate before repo actions |
-| permanent | AGENTS.md | reporting and claim boundary doctrine |
-| permanent | README.md | repo read-first entrypoint |
-| permanent | 00_STUDIO_CONTROL/00_MASTER_DOCS/DOCS_STATUS.md | current docs classification anchor |
-| permanent | 00_STUDIO_CONTROL/00_MASTER_DOCS/00_EXEC_SUMMARY.md | high-level current state summary |
-| permanent | 00_STUDIO_CONTROL/00_MASTER_DOCS/01_CURRENT_STATE.md | current repo/docs state summary |
-| permanent | 00_STUDIO_CONTROL/00_MASTER_DOCS/03_KNOWN_ISSUES.md | active risk register |
-| permanent | 00_STUDIO_CONTROL/00_MASTER_DOCS/05_ARCHITECTURE.md | authority order and architecture boundary |
+| navigator_guard | docs/gpt-navigator/GPT_NAVIGATOR_SOURCE_INDEX_V0.md | source classification anchor |
+| navigator_guard | docs/gpt-navigator/GPT_NAVIGATOR_REPO_NOTICE_V0.md | compact repo navigation rules |
+| navigator_guard | docs/gpt-navigator/GPT_NAVIGATOR_UPLOAD_CHECKLIST_V0.md | manual upload workflow guard |
+| navigator_guard | docs/gpt-navigator/GPT_NAVIGATOR_PROJECT_INSTRUCTIONS_V0.md | short project instruction set |
+| navigator_guard | docs/gpt-navigator/GPT_NAVIGATOR_CODEX_PROMPT_GATE_V0.md | Codex prompt gate before repo actions |
+| navigator_guard | AGENTS.md | reporting and claim boundary doctrine |
+| navigator_guard | README.md | repo read-first entrypoint |
+| main_truth | 00_STUDIO_CONTROL/01_SYSTEM/index/READ_FIRST.md | Studio Control opening order and source-set compression rule |
+| main_truth | 00_STUDIO_CONTROL/00_MASTER_DOCS/DOCS_STATUS.md | current docs classification anchor |
+| main_truth | 00_STUDIO_CONTROL/00_MASTER_DOCS/CURRENT_STATE_INDEX.md | current-state navigation and demotion index |
+| main_truth | 00_STUDIO_CONTROL/00_MASTER_DOCS/01_CURRENT_STATE.md | current repo/docs state summary |
+| main_truth | 00_STUDIO_CONTROL/00_MASTER_DOCS/03_KNOWN_ISSUES.md | active risk register |
+| main_truth | 00_STUDIO_CONTROL/00_MASTER_DOCS/05_ARCHITECTURE.md | authority order and architecture boundary |
+| main_truth | 00_STUDIO_CONTROL/01_SYSTEM/navigation/STUDIO_SOURCE_ANCHORING_V0.md | source-state separation and source loading rules |
+| main_truth | 00_STUDIO_CONTROL/01_SYSTEM/maps/STUDIO_OUTPUT_ROUTING_POLICY_V0.md | output routing and duplicate-prevention authority |
+| main_truth | 00_STUDIO_CONTROL/01_SYSTEM/index/CONTROL_INDEX.md | compact Studio Control topology index |
+
+Main-truth membership does not prove source loading, enforcement, or evidence. Use:
+
+```text
+created != registered
+registered != loaded
+loaded != enforced
+enforced != evidenced
+```
+
+Created != registered != loaded != enforced != evidenced.
+
+`no_global_ready_verdict: true`
 
 ## Reference Sources
-Useful for navigation or boundary understanding, but not active truth by themselves.
+Useful for navigation or boundary understanding, but not main truth by themselves. Most contracts, forms, registries, policies, passive specs, and roadmaps are on-demand reference sources.
 
 | Class | Source | Why it is reference only |
 | --- | --- |
-| reference | 00_STUDIO_CONTROL/00_MASTER_DOCS/CURRENT_STATE_INDEX.md | navigation index, not primary truth |
+| reference | 00_STUDIO_CONTROL/00_MASTER_DOCS/00_EXEC_SUMMARY.md | high-level summary; read on demand after the main truth set |
+| reference | 00_STUDIO_CONTROL/00_MASTER_DOCS/02_COMMAND_CHEATSHEET.md | command reference; read when commands are in scope |
+| reference | 00_STUDIO_CONTROL/00_MASTER_DOCS/06_DECISION_LOG.md | decision history, not daily source nucleus |
+| reference | 00_STUDIO_CONTROL/00_MASTER_DOCS/07_PROJECT_HISTORY.md | historical narrative, not daily source nucleus |
+| reference | 00_STUDIO_CONTROL/00_MASTER_DOCS/DOC_ARCHIVE_DEMOTION_MAP.md | demotion guidance; no move/delete authority |
 | reference | 00_STUDIO_CONTROL/00_MASTER_DOCS/LOCAL_HISTORY_ROADMAP_STATUS.md | local history and split note, docs-only |
 | reference | 00_STUDIO_CONTROL/00_MASTER_DOCS/10_AUTOMATION_EVIDENCE_PLANE.md | evidence/control-plane context only |
 | reference | 00_STUDIO_CONTROL/00_MASTER_DOCS/TACTICAL_CHESS_CONTROL_PLANE_CANONIZATION_V1_1.md | docs-only control-plane canonization |
@@ -34,9 +55,7 @@ Useful for navigation or boundary understanding, but not active truth by themsel
 | reference | docs/control-plane/README.md | control-plane map only |
 | reference | docs/control-plane/ENGINE_SEARCH_NEURAL_SURFACE_INVENTORY_V0.md | docs-only inventory |
 | reference | docs/control-plane/ENGINE_SEARCH_NEURAL_MASTER_ROADMAP_FUSION_V0.md | docs-only roadmap fusion |
-| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_SYSTEM/navigation/STUDIO_SOURCE_ANCHORING_V0.md | external studio source anchoring |
 | reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_SYSTEM/maps/STUDIO_CONTROL_TOPOLOGY_FREEZE_V0.md | external topology history |
-| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_SYSTEM/maps/STUDIO_OUTPUT_ROUTING_POLICY_V0.md | external routing policy |
 | reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/99_ARCHIVE/records/STUDIO_CONTROL_CLEANUP_APPLY_V0.md | external cleanup status |
 | reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/99_ARCHIVE/records/STUDIO_CONTROL_TOPOLOGY_MIGRATION_V1.md | external topology migration status |
 | reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/99_ARCHIVE/records/STUDIO_ROUTING_PLAN_CORRECTION_V0.md | external Studio Control status correction record; canonical_docs; no runtime or activation authority |
@@ -83,7 +102,7 @@ Reference sources may be uploaded when needed, but they must not override active
 - Chess960-specific reports
 - neural split reports
 
-Temporary sources must not become active truth unless promoted by HumanDecision and aligned with canonical docs.
+Temporary task reports and Codex audit reports remain task-specific unless HumanGate promotes them. Temporary sources must not become active truth unless promoted by HumanDecision and aligned with canonical docs.
 
 ## Do Not Treat As Active Truth
 - roadmap docs without matching code/test evidence
@@ -91,6 +110,7 @@ Temporary sources must not become active truth unless promoted by HumanDecision 
 - lab outputs, logs, benchmark summaries, generated reports, or evidence packets
 - local archives or local-only history snapshots
 - stale GitHub-main or local-stack claims copied from old docs
+- Classic/Rocky runtime claims based on docs-only evidence; those require code/test evidence
 
 ## Current Split Note
 - Current local repo state must be checked live with Git.

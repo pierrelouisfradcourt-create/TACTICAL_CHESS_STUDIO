@@ -5,7 +5,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 function Get-RepoRoot {
-    return (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+    return (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
 }
 
 function Get-PythonCommand {
@@ -60,7 +60,7 @@ $script:results = @()
 
 Push-Location $repoRoot
 try {
-    $prInspectScript = Join-Path $repoRoot "scripts/operator/pr_inspect.ps1"
+    $prInspectScript = Join-Path $repoRoot "scripts/studioV2/operator/pr_inspect.ps1"
     if (Test-Path $prInspectScript) {
         & $prInspectScript
         if ($LASTEXITCODE -eq 0) {
@@ -72,7 +72,7 @@ try {
         Add-CheckResult -Name "pr_inspect" -Status "UNKNOWN" -Detail "script not found"
     }
 
-    $validateStagedScript = Join-Path $repoRoot "scripts/operator/validate_staged.ps1"
+    $validateStagedScript = Join-Path $repoRoot "scripts/studioV2/operator/validate_staged.ps1"
     if (Test-Path $validateStagedScript) {
         & $validateStagedScript
         if ($LASTEXITCODE -eq 0) {
@@ -85,7 +85,7 @@ try {
     }
 
     $pythonCommand = Get-PythonCommand
-    $jsonValidator = "scripts/operator/validate_json_artifacts.py"
+    $jsonValidator = "scripts/studioV2/operator/validate_json_artifacts.py"
     if (-not $pythonCommand) {
         Add-CheckResult -Name "validate_json_artifacts" -Status "UNKNOWN" -Detail "python is not available"
     } elseif (Test-Path $jsonValidator) {

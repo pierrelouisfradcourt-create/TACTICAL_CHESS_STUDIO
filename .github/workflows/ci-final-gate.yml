@@ -33,14 +33,14 @@ jobs:
         id: classify
         shell: bash
         run: |
-          python scripts/operator/classify_changed_paths.py --pretty
-          profile="$(python scripts/operator/classify_changed_paths.py | python -c 'import json,sys; print(json.load(sys.stdin)["recommended_remote_profile"])')"
+          python scripts/studioV2/operator/classify_changed_paths.py --pretty
+          profile="$(python scripts/studioV2/operator/classify_changed_paths.py | python -c 'import json,sys; print(json.load(sys.stdin)["recommended_remote_profile"])')"
           echo "recommended_profile=$profile" >> "$GITHUB_OUTPUT"
           echo "Recommended profile: $profile"
 
       - name: Validate JSON artifacts
         shell: bash
-        run: python scripts/operator/validate_json_artifacts.py
+        run: python scripts/studioV2/operator/validate_json_artifacts.py
 
       - name: Install control-plane requirements
         if: steps.classify.outputs.recommended_profile == 'CONTROL_PLANE'
@@ -53,8 +53,8 @@ jobs:
         if: steps.classify.outputs.recommended_profile == 'CONTROL_PLANE'
         shell: bash
         run: |
-          python -c "import compileall, sys; ok = compileall.compile_dir('scripts/control_plane', force=False, quiet=1); sys.exit(0 if ok else 1)"
-          python scripts/control_plane/run_studiopilot_loop_smoke.py --pretty
+          python -c "import compileall, sys; ok = compileall.compile_dir('scripts/studioV2/control_plane', force=False, quiet=1); sys.exit(0 if ok else 1)"
+          python scripts/studioV2/control_plane/run_studiopilot_loop_smoke.py --pretty
 
       - name: Docs-only summary
         if: steps.classify.outputs.recommended_profile == 'DOCS_ONLY'

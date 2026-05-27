@@ -88,10 +88,10 @@ def is_control_plane_path(path: str) -> bool:
     return (
         path.startswith("docs/control-plane/")
         or path.startswith("scripts/control_plane/")
-        or path.startswith("scripts/operator/")
+        or path.startswith("scripts/studioV2/operator/")
         or path == "requirements-control-plane.txt"
-        or path == "scripts/validate_control_plane_json.py"
-        or path == "scripts/agent_pr_operator.py"
+        or path == "scripts/studioV2/validate_control_plane_json.py"
+        or path == "scripts/studioV2/agent_pr_operator.py"
     )
 
 

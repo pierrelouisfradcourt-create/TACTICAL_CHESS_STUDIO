@@ -79,7 +79,7 @@ jobs:
 
       - name: Run strict schema validator
         shell: bash
-        run: python scripts/validate_control_plane_json.py --pretty
+        run: python scripts/studioV2/validate_control_plane_json.py --pretty
 
       - name: Run operator validate-staged mode
         shell: bash
@@ -92,4 +92,4 @@ jobs:
           if [[ "$PRETTY_INPUT" == "true" ]]; then
             PRETTY_FLAG="--pretty"
           fi
-          python scripts/agent_pr_operator.py --mode validate-staged --task-packet "$TASK_PACKET" $PRETTY_FLAG
+          python scripts/studioV2/agent_pr_operator.py --mode validate-staged --task-packet "$TASK_PACKET" $PRETTY_FLAG

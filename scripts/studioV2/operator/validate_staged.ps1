@@ -5,7 +5,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 function Get-RepoRoot {
-    return (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+    return (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path
 }
 
 function Get-PythonCommand {
@@ -102,7 +102,7 @@ try {
         }
     }
 
-    $schemaValidator = "scripts/validate_control_plane_json.py"
+    $schemaValidator = "scripts/studioV2/validate_control_plane_json.py"
     if (Test-Path $schemaValidator) {
         if (Test-JsonSchemaDependency -PythonCommand $pythonCommand) {
             $schemaExitCode = Invoke-Python -PythonCommand $pythonCommand -Args @($schemaValidator, "--pretty")
@@ -136,7 +136,7 @@ try {
         $summary.hygiene_checks += "check_workspace_hygiene:UNKNOWN_NOT_FOUND"
     }
 
-    $sessionReportScript = "scripts/report_local_agent_session.py"
+    $sessionReportScript = "scripts/studioV2/report_local_agent_session.py"
     if (Test-Path $sessionReportScript) {
         $sessionExitCode = Invoke-Python -PythonCommand $pythonCommand -Args @($sessionReportScript, "--pretty")
         if ($sessionExitCode -eq 0) {

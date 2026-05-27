@@ -6,22 +6,32 @@ Short mental map for ChatGPT browser sessions navigating TacticalChessPureLab.
 ## Read-First Sources
 | Status | Source |
 | --- | --- |
-| canonical | AGENTS.md |
-| canonical | docs/gpt-navigator/GPT_NAVIGATOR_CODEX_PROMPT_GATE_V0.md |
-| canonical | docs/gpt-navigator/GPT_NAVIGATOR_SOURCE_INDEX_V0.md |
-| canonical | docs/gpt-navigator/GPT_NAVIGATOR_UPLOAD_CHECKLIST_V0.md |
-| canonical | docs/gpt-navigator/GPT_NAVIGATOR_PROJECT_INSTRUCTIONS_V0.md |
-| canonical | README.md |
-| canonical | MASTER_DOCS/DOCS_STATUS.md |
-| canonical | MASTER_DOCS/00_EXEC_SUMMARY.md |
-| canonical | MASTER_DOCS/01_CURRENT_STATE.md |
-| canonical | MASTER_DOCS/03_KNOWN_ISSUES.md |
-| canonical | MASTER_DOCS/05_ARCHITECTURE.md |
+| navigator_guard | AGENTS.md |
+| navigator_guard | docs/gpt-navigator/GPT_NAVIGATOR_CODEX_PROMPT_GATE_V0.md |
+| navigator_guard | docs/gpt-navigator/GPT_NAVIGATOR_SOURCE_INDEX_V0.md |
+| navigator_guard | docs/gpt-navigator/GPT_NAVIGATOR_UPLOAD_CHECKLIST_V0.md |
+| navigator_guard | docs/gpt-navigator/GPT_NAVIGATOR_PROJECT_INSTRUCTIONS_V0.md |
+| navigator_guard | README.md |
+| main_truth | 00_STUDIO_CONTROL/01_SYSTEM/index/READ_FIRST.md |
+| main_truth | 00_STUDIO_CONTROL/00_MASTER_DOCS/DOCS_STATUS.md |
+| main_truth | 00_STUDIO_CONTROL/00_MASTER_DOCS/CURRENT_STATE_INDEX.md |
+| main_truth | 00_STUDIO_CONTROL/00_MASTER_DOCS/01_CURRENT_STATE.md |
+| main_truth | 00_STUDIO_CONTROL/00_MASTER_DOCS/03_KNOWN_ISSUES.md |
+| main_truth | 00_STUDIO_CONTROL/00_MASTER_DOCS/05_ARCHITECTURE.md |
+| main_truth | 00_STUDIO_CONTROL/01_SYSTEM/navigation/STUDIO_SOURCE_ANCHORING_V0.md |
+| main_truth | 00_STUDIO_CONTROL/01_SYSTEM/maps/STUDIO_OUTPUT_ROUTING_POLICY_V0.md |
+| main_truth | 00_STUDIO_CONTROL/01_SYSTEM/index/CONTROL_INDEX.md |
+
+Do not treat all non-archive Markdown as main truth.
 
 ## Reference Sources
 | Status | Source |
 | --- | --- |
-| reference | MASTER_DOCS/CURRENT_STATE_INDEX.md |
+| reference | 00_STUDIO_CONTROL/00_MASTER_DOCS/00_EXEC_SUMMARY.md |
+| reference | 00_STUDIO_CONTROL/00_MASTER_DOCS/02_COMMAND_CHEATSHEET.md |
+| reference | 00_STUDIO_CONTROL/00_MASTER_DOCS/06_DECISION_LOG.md |
+| reference | 00_STUDIO_CONTROL/00_MASTER_DOCS/07_PROJECT_HISTORY.md |
+| reference | 00_STUDIO_CONTROL/00_MASTER_DOCS/DOC_ARCHIVE_DEMOTION_MAP.md |
 | reference | MASTER_DOCS/LOCAL_HISTORY_ROADMAP_STATUS.md |
 | reference | MASTER_DOCS/10_AUTOMATION_EVIDENCE_PLANE.md |
 | reference | MASTER_DOCS/TACTICAL_CHESS_CONTROL_PLANE_CANONIZATION_V1_1.md |
@@ -34,15 +44,17 @@ Short mental map for ChatGPT browser sessions navigating TacticalChessPureLab.
 ## Studio Control Sources Outside Repo
 | Status | Source |
 | --- | --- |
-| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md |
-| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/STUDIO_CONTROL_TOPOLOGY_FREEZE_V0.md |
-| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md |
-| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/STUDIO_CONTROL_CLEANUP_APPLY_V0.md |
-| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/STUDIO_CONTROL_TOPOLOGY_MIGRATION_V1.md |
-| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md |
-| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_CHARTER_TEMPLATE_V0.yaml |
-| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/EXECUTOR_REPORT_TEMPLATE_V0.yaml |
-| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/ANALYSIS_AGENT_RECORD_TEMPLATE_V0.yaml |
+| main_truth | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_SYSTEM/navigation/STUDIO_SOURCE_ANCHORING_V0.md |
+| main_truth | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_SYSTEM/maps/STUDIO_OUTPUT_ROUTING_POLICY_V0.md |
+| main_truth | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_SYSTEM/index/CONTROL_INDEX.md |
+| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/99_ARCHIVE/records/STUDIO_CONTROL_TOPOLOGY_MIGRATION_V1.md |
+| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_SYSTEM/forms/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md |
+| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_SYSTEM/forms/TASK_CHARTER_TEMPLATE_V0.yaml |
+| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_SYSTEM/forms/EXECUTOR_REPORT_TEMPLATE_V0.yaml |
+| reference | C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_SYSTEM/forms/ANALYSIS_AGENT_RECORD_TEMPLATE_V0.yaml |
+
+Most contracts, forms, registries, policies, passive specs, and roadmaps are on-demand reference sources.
+Temporary task reports and Codex audit reports remain task-specific unless HumanGate promotes them.
 
 ## Source Anchoring Rule
 Always separate:
@@ -63,9 +75,15 @@ enforced != evidenced
 
 A newly created control document must not be used as loaded project truth until its registration, loading, enforcement, and evidence state is reported.
 
+Created != registered != loaded != enforced != evidenced.
+
+`no_global_ready_verdict: true`
+
 ## Studio Control Topology
 
 `STUDIO_CONTROL_TOPOLOGY_MIGRATION_V1.md` records the current unique-prefix Studio Control root topology and supersedes the earlier duplicate-prefix freeze state. Refresh project sources after this migration before using Studio Control paths as loaded project truth.
+
+Current compact top-level topology is `00_MASTER_DOCS`, `01_SYSTEM`, `02_PIPELINE`, and `99_ARCHIVE`. Older direct-prefix paths such as `01_MAPS`, `02_NAVIGATION`, `05_STATUS`, and `07_FORMS` are historical drift unless explicitly verified for a scoped task.
 
 ## Local vs GitHub Split Rule
 Always verify local `HEAD` and `origin/main` live with Git before relying on any doc mention of the split.
@@ -151,6 +169,8 @@ Use status tags:
 
 ## Anti-activation rule
 A roadmap, report, benchmark, log, or generated artifact cannot activate ActionMask, Chess960 runtime, DecisionController, training, dataset reset, or neural authority. Activation requires explicit HumanGate and matching active code/tests.
+
+Classic/Rocky runtime claims require code/test evidence, not docs-only evidence.
 
 ## Codex Prompt Rule
 Only propose a Codex prompt when a repo action is necessary or explicitly requested.

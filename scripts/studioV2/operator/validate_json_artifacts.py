@@ -10,9 +10,9 @@ SAFE_JSON_DIRS = (
     "lab/agent_tasks",
     "schemas",
     "docs/control-plane",
-    "scripts/operator/fixtures",
+    "scripts/studioV2/operator/fixtures",
 )
-CONTROL_PLANE_SCHEMA_VALIDATOR = PROJECT_ROOT / "scripts" / "validate_control_plane_json.py"
+CONTROL_PLANE_SCHEMA_VALIDATOR = PROJECT_ROOT / "scripts" / "studioV2" / "validate_control_plane_json.py"
 
 
 def normalize_path(path: Path) -> str:
@@ -49,7 +49,7 @@ def run_existing_schema_validator() -> dict[str, Any]:
     if not CONTROL_PLANE_SCHEMA_VALIDATOR.exists():
         return {
             "status": "SKIPPED",
-            "reason": "scripts/validate_control_plane_json.py not found",
+            "reason": "scripts/studioV2/validate_control_plane_json.py not found",
             "returncode": None,
         }
 

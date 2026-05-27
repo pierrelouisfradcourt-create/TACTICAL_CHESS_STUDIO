@@ -445,7 +445,7 @@ def run_task(task: dict[str, Any]) -> dict[str, Any]:
     operator_mode = EXECUTION_MODE_MAP[task_mode]
     command = [
         python_executable(),
-        "scripts/agent_pr_operator.py",
+        "scripts/studioV2/agent_pr_operator.py",
         "--mode",
         operator_mode,
         "--task-packet",
