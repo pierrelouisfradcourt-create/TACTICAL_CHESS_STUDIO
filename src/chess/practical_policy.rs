@@ -1144,12 +1144,17 @@ pub fn reply_scan_breakdown(
 
     let enemy = opponent(player);
     let my_balance_after = material_balance(&sim, player);
-    let mut replies = sim.legal_actions(enemy);
-    replies.sort_by(|a, b| {
-        quick_reply_order_score(&sim, enemy, b).cmp(&quick_reply_order_score(&sim, enemy, a))
-    });
+    let replies = sim.legal_actions(enemy);
+    let mut scored_replies: Vec<(Action, i32)> = replies
+        .into_iter()
+        .map(|reply| {
+            let score = quick_reply_order_score(&mut sim, enemy, &reply);
+            (reply, score)
+        })
+        .collect();
+    scored_replies.sort_by(|a, b| b.1.cmp(&a.1));
 
-    for reply in replies.into_iter().take(reply_limit.max(1)) {
+    for (reply, _) in scored_replies.into_iter().take(reply_limit.max(1)) {
         let uci = action_to_uci_safe(&reply, &sim);
         let penalty = reply_penalty_after_move(&sim, player, enemy, &reply, my_balance_after);
         if penalty > out.penalty {
@@ -1204,12 +1209,17 @@ pub fn tactical_safety_filter_breakdown(
 
     let mut forcing_replies = Vec::new();
     let mut quiet_replies = Vec::new();
-    let mut replies = sim.legal_actions(enemy);
-    replies.sort_by(|a, b| {
-        quick_reply_order_score(&sim, enemy, b).cmp(&quick_reply_order_score(&sim, enemy, a))
-    });
+    let replies = sim.legal_actions(enemy);
+    let mut scored_replies: Vec<(Action, i32)> = replies
+        .into_iter()
+        .map(|reply| {
+            let score = quick_reply_order_score(&mut sim, enemy, &reply);
+            (reply, score)
+        })
+        .collect();
+    scored_replies.sort_by(|a, b| b.1.cmp(&a.1));
 
-    for reply in replies {
+    for (reply, _) in scored_replies {
         if is_forcing_reply(&sim, player, enemy, &reply) {
             forcing_replies.push(reply);
         } else {
@@ -1496,7 +1506,7 @@ fn candidate_creates_tactical_pressure(engine: &Engine, player: PlayerId, mv: &A
     out
 }
 
-fn quick_reply_order_score(engine: &Engine, player: PlayerId, mv: &Action) -> i32 {
+fn quick_reply_order_score(engine: &mut Engine, player: PlayerId, mv: &Action) -> i32 {
     let mut score = 0;
 
     if matches!(
@@ -1509,21 +1519,22 @@ fn quick_reply_order_score(engine: &Engine, player: PlayerId, mv: &Action) -> i3
         score += 30_000;
     }
 
-    let mut sim = engine.clone();
-    if let Some(undo) = sim.simulate_action_for_search(player, mv) {
-        if let Some((captured, _)) = capture_context(engine, &sim, player, mv) {
-            score += 10_000 + piece_value(captured) * 8;
-        }
-        if sim.is_in_check(opponent(player)) {
+    let e = &*engine;
+    if let Some((captured, _)) = capture_context(e, e, player, mv) {
+        score += 10_000 + piece_value(captured) * 8;
+    }
+
+    if let Some(undo) = engine.simulate_action_for_search(player, mv) {
+        if engine.is_in_check(opponent(player)) {
             score += 4_000;
         }
         if let Action::Move { target, .. } = mv {
-            score += fork_targets_on_square(&sim, player, *target) * 600;
-            if imminent_promotion_threat(&sim, player) {
+            score += fork_targets_on_square(engine, player, *target) * 600;
+            if imminent_promotion_threat(engine, player) {
                 score += 2_400;
             }
         }
-        let _ = sim.undo_action_for_search(undo);
+        let _ = engine.undo_action_for_search(undo);
     }
 
     score
