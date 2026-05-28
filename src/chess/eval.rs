@@ -10,7 +10,7 @@ use crate::engine::entity::unit::{PlayerId, Position};
 #[allow(dead_code)]
 pub(crate) fn evaluate(engine: &Engine, player: PlayerId) -> i32 {
     if engine.game_over() {
-        return terminal_score(engine, player);
+        return terminal_score(engine, player, 0);
     }
 
     let mut score = 0;
@@ -97,9 +97,9 @@ pub fn static_evaluate(engine: &Engine, player: PlayerId) -> i32 {
     evaluate(engine, player)
 }
 
-pub(crate) fn terminal_score(engine: &Engine, player: PlayerId) -> i32 {
+pub(crate) fn terminal_score(engine: &Engine, player: PlayerId, ply: usize) -> i32 {
     match engine.winner() {
-        Some(w) if w == player => 900_000 - engine.action_log.len() as i32 * 10,
+        Some(w) if w == player => 900_000 - ply as i32 * 10,
         Some(_) => -900_000,
         None => draw_score(engine, player),
     }
@@ -348,7 +348,7 @@ mod tests {
         let winning = engine_from_fen("7k/6Q1/5K2/8/8/8/8/8 b - - 0 1").expect("valid FEN");
         let draw = engine_from_fen("7k/5Q2/5K2/8/8/8/8/8 b - - 0 1").expect("valid FEN");
 
-        assert!(terminal_score(&winning, 1) > terminal_score(&draw, 1));
-        assert!(terminal_score(&winning, 1) > 100_000);
+        assert!(terminal_score(&winning, 1, 0) > terminal_score(&draw, 1, 0));
+        assert!(terminal_score(&winning, 1, 0) > 100_000);
     }
 }

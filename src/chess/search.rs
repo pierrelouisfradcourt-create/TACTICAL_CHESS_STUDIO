@@ -462,7 +462,7 @@ fn opponent_best_reply_forces_mate(
             return true;
         }
         let reply_score = if engine.game_over() {
-            terminal_score(engine, root_player)
+            terminal_score(engine, root_player, 2)
         } else {
             evaluate(engine, root_player)
         };
@@ -510,7 +510,7 @@ fn negamax(
     let in_check = engine.is_in_check(to_move);
 
     if engine.game_over() {
-        return terminal_score(engine, root_player);
+        return terminal_score(engine, root_player, ply);
     }
 
     if depth <= 0 {
@@ -727,6 +727,9 @@ fn quiescence(
     instrumentation: &mut SearchInstrumentation,
 ) -> i32 {
     instrumentation.record_quiescence_node(ply);
+    if engine.game_over() {
+        return terminal_score(engine, root_player, ply);
+    }
     let stand_pat = evaluate(engine, root_player);
 
     if stand_pat >= beta {
