@@ -99,6 +99,15 @@ static COUNTERMOVES: OnceLock<Mutex<HashMap<u64, Action>>> = OnceLock::new();
 static ROOT_POLICY: OnceLock<Mutex<HashMap<u64, HashMap<u64, i32>>>> = OnceLock::new();
 static TT_AGE: AtomicU32 = AtomicU32::new(0);
 
+struct ZobristTable {
+    pieces: [[[u64; 64]; 2]; 6],
+    side_to_move: u64,
+    castling: [u64; 4],
+    en_passant: [u64; 8],
+}
+
+static ZOBRIST: OnceLock<ZobristTable> = OnceLock::new();
+
 pub use crate::chess::decision::{choose_best_action, choose_best_action_for_mode};
 pub use crate::chess::eval::static_evaluate;
 
@@ -1039,31 +1048,66 @@ fn root_policy_table() -> &'static Mutex<HashMap<u64, HashMap<u64, i32>>> {
     ROOT_POLICY.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-pub(crate) fn position_key(engine: &Engine, player: PlayerId) -> u64 {
-    let mut h = player as u64;
-    let mut units: Vec<_> = engine.units.values().collect();
-    units.sort_by_key(|u| u.id);
+fn zobrist_table() -> &'static ZobristTable {
+    ZOBRIST.get_or_init(|| {
+        let mut s = 0x9e3779b97f4a7c15u64;
+        let mut rng = || {
+            s ^= s << 13;
+            s ^= s >> 7;
+            s ^= s << 17;
+            s
+        };
+        let mut pieces = [[[0u64; 64]; 2]; 6];
+        for p in &mut pieces {
+            for pl in p.iter_mut() {
+                for sq in pl.iter_mut() {
+                    *sq = rng();
+                }
+            }
+        }
+        ZobristTable {
+            pieces,
+            side_to_move: rng(),
+            castling: [rng(), rng(), rng(), rng()],
+            en_passant: [rng(), rng(), rng(), rng(), rng(), rng(), rng(), rng()],
+        }
+    })
+}
 
-    for u in units {
-        h = h.wrapping_mul(6364136223846793005)
-            ^ (u.owner as u64)
-            ^ ((u.position.x as u64) << 8)
-            ^ ((u.position.y as u64) << 16)
-            ^ ((piece_value(u.kind) as u64) << 24)
-            ^ ((u.id as u64) << 32)
-            ^ (u.has_moved as u64);
+fn piece_type_index(kind: ChessPieceKind) -> usize {
+    match kind {
+        ChessPieceKind::Pawn => 0,
+        ChessPieceKind::Knight => 1,
+        ChessPieceKind::Bishop => 2,
+        ChessPieceKind::Rook => 3,
+        ChessPieceKind::Queen => 4,
+        ChessPieceKind::King => 5,
     }
+}
+
+pub(crate) fn position_key(engine: &Engine, player: PlayerId) -> u64 {
+    let zt = zobrist_table();
+    let mut h = 0u64;
+
+    for u in engine.units.values() {
+        let pi = piece_type_index(u.kind);
+        let oi = (u.owner - 1) as usize;
+        let sq = (u.position.y * 8 + u.position.x) as usize;
+        h ^= zt.pieces[pi][oi][sq];
+    }
+
+    if player == 2 {
+        h ^= zt.side_to_move;
+    }
+
+    if engine.white_can_castle_kingside  { h ^= zt.castling[0]; }
+    if engine.white_can_castle_queenside { h ^= zt.castling[1]; }
+    if engine.black_can_castle_kingside  { h ^= zt.castling[2]; }
+    if engine.black_can_castle_queenside { h ^= zt.castling[3]; }
 
     if let Some(ep) = engine.en_passant_target {
-        h ^= (ep.x as u64) << 40;
-        h ^= (ep.y as u64) << 44;
+        h ^= zt.en_passant[ep.x as usize];
     }
-
-    h ^= (engine.white_can_castle_kingside as u64) << 48;
-    h ^= (engine.white_can_castle_queenside as u64) << 49;
-    h ^= (engine.black_can_castle_kingside as u64) << 50;
-    h ^= (engine.black_can_castle_queenside as u64) << 51;
-    h ^= (engine.turn_manager.current_player as u64) << 52;
 
     h
 }
