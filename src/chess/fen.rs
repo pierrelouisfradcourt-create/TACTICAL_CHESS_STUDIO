@@ -153,32 +153,85 @@ fn kind_for_fen_char(c: char) -> Option<(u32, ChessPieceKind)> {
     Some((owner, kind))
 }
 
-fn validate_classical_castling_field(castling: &str) -> Result<(), String> {
+/// Per-color rook x-files designated for castling, derived from the FEN castling field.
+struct CastlingRookFiles {
+    white: Vec<u32>,
+    black: Vec<u32>,
+}
+
+fn push_unique_rook_file(files: &mut Vec<u32>, x: u32, context: &str) -> Result<(), String> {
+    if files.contains(&x) {
+        return Err(format!("duplicate castling rook file in: {context}"));
+    }
+    files.push(x);
+    Ok(())
+}
+
+/// Parse the FEN castling field into per-color rook x-files.
+///
+/// Accepts standard format (K/Q/k/q) and Shredder-FEN format (A-H for white, a-h for black).
+/// Standard tokens and Shredder tokens must not be mixed within the same color.
+fn parse_castling_field(castling: &str) -> Result<CastlingRookFiles, String> {
     if castling == "-" {
-        return Ok(());
+        return Ok(CastlingRookFiles {
+            white: vec![],
+            black: vec![],
+        });
     }
 
     if castling.is_empty() || castling.contains('-') {
         return Err(format!("invalid FEN castling rights: {castling}"));
     }
 
-    let mut seen = [false; 4];
-    for right in castling.chars() {
-        let idx = match right {
-            'K' => 0,
-            'Q' => 1,
-            'k' => 2,
-            'q' => 3,
-            _ => return Err(format!("unsupported FEN castling rights: {castling}")),
-        };
+    let mut white = Vec::<u32>::new();
+    let mut black = Vec::<u32>::new();
+    let mut white_std = false;
+    let mut white_shr = false;
+    let mut black_std = false;
+    let mut black_shr = false;
 
-        if seen[idx] {
-            return Err(format!("duplicate FEN castling right: {right}"));
+    for c in castling.chars() {
+        match c {
+            'K' => {
+                white_std = true;
+                push_unique_rook_file(&mut white, 7, castling)?;
+            }
+            'Q' => {
+                white_std = true;
+                push_unique_rook_file(&mut white, 0, castling)?;
+            }
+            'k' => {
+                black_std = true;
+                push_unique_rook_file(&mut black, 7, castling)?;
+            }
+            'q' => {
+                black_std = true;
+                push_unique_rook_file(&mut black, 0, castling)?;
+            }
+            'A'..='H' => {
+                white_shr = true;
+                push_unique_rook_file(&mut white, c as u32 - 'A' as u32, castling)?;
+            }
+            'a'..='h' => {
+                black_shr = true;
+                push_unique_rook_file(&mut black, c as u32 - 'a' as u32, castling)?;
+            }
+            _ => return Err(format!("unsupported FEN castling rights: {castling}")),
         }
-        seen[idx] = true;
     }
 
-    Ok(())
+    if white_std && white_shr {
+        return Err(format!(
+            "mixed standard/Shredder castling rights for white: {castling}"
+        ));
+    }
+    if black_std && black_shr {
+        return Err(format!(
+            "mixed standard/Shredder castling rights for black: {castling}"
+        ));
+    }
+
+    Ok(CastlingRookFiles { white, black })
 }
 
 fn has_piece_at(engine: &Engine, owner: u32, kind: ChessPieceKind, position: Position) -> bool {
@@ -192,56 +245,57 @@ fn has_piece_at(engine: &Engine, owner: u32, kind: ChessPieceKind, position: Pos
         .is_some_and(|unit| unit.owner == owner && unit.kind == kind)
 }
 
-fn validate_classical_castling_anchors(engine: &Engine) -> Result<(), String> {
-    let white_king = Position { x: 4, y: 0 };
-    let black_king = Position { x: 4, y: 7 };
+/// Resolve castling rights for one color: validate rooks are present and determine ks/qs.
+///
+/// King must be on `rank`. Rooks with x > king_x are kingside; those with x < king_x are queenside.
+fn resolve_side_castling(
+    engine: &Engine,
+    owner: u32,
+    rank: u32,
+    rook_files: &[u32],
+) -> Result<(bool, bool), String> {
+    if rook_files.is_empty() {
+        return Ok((false, false));
+    }
 
-    let rights = [
-        (
-            engine.white_can_castle_kingside,
-            1,
-            white_king,
-            Position { x: 7, y: 0 },
-            "white kingside",
-        ),
-        (
-            engine.white_can_castle_queenside,
-            1,
-            white_king,
-            Position { x: 0, y: 0 },
-            "white queenside",
-        ),
-        (
-            engine.black_can_castle_kingside,
-            2,
-            black_king,
-            Position { x: 7, y: 7 },
-            "black kingside",
-        ),
-        (
-            engine.black_can_castle_queenside,
-            2,
-            black_king,
-            Position { x: 0, y: 7 },
-            "black queenside",
-        ),
-    ];
+    let color = if owner == 1 { "white" } else { "black" };
 
-    for (enabled, owner, king_pos, rook_pos, label) in rights {
-        if !enabled {
-            continue;
-        }
+    let king_x = engine
+        .units
+        .values()
+        .find(|u| u.owner == owner && u.kind == ChessPieceKind::King && u.position.y == rank)
+        .map(|u| u.position.x)
+        .ok_or_else(|| format!("{color} king not on back rank for castling"))?;
 
-        if !has_piece_at(engine, owner, ChessPieceKind::King, king_pos)
-            || !has_piece_at(engine, owner, ChessPieceKind::Rook, rook_pos)
-        {
+    let mut ks = false;
+    let mut qs = false;
+
+    for &rook_x in rook_files {
+        let pos = Position { x: rook_x, y: rank };
+        if !has_piece_at(engine, owner, ChessPieceKind::Rook, pos) {
+            let file_char = (b'a' + rook_x as u8) as char;
+            let rank_char = (b'1' + rank as u8) as char;
             return Err(format!(
-                "unsupported castling rights for non-classical anchors: {label}"
+                "{color} castling rook not found at {file_char}{rank_char}"
             ));
+        }
+        if rook_x > king_x {
+            ks = true;
+        } else {
+            qs = true;
         }
     }
 
-    Ok(())
+    Ok((ks, qs))
+}
+
+fn resolve_castling_rights(
+    engine: &Engine,
+    castling_rooks: &CastlingRookFiles,
+) -> Result<(bool, bool, bool, bool), String> {
+    let (w_ks, w_qs) = resolve_side_castling(engine, 1, 0, &castling_rooks.white)?;
+    let (b_ks, b_qs) = resolve_side_castling(engine, 2, 7, &castling_rooks.black)?;
+    Ok((w_ks, w_qs, b_ks, b_qs))
 }
 
 pub fn engine_from_fen(fen: &str) -> Result<Engine, String> {
@@ -250,12 +304,12 @@ pub fn engine_from_fen(fen: &str) -> Result<Engine, String> {
 
     let board_part = parts.next().ok_or("missing FEN board")?;
     let side_to_move = parts.next().unwrap_or("w");
-    let castling = parts.next().unwrap_or("-");
+    let castling_str = parts.next().unwrap_or("-");
     let en_passant = parts.next().unwrap_or("-");
     let halfmove = parts.next().unwrap_or("0");
     let fullmove = parts.next().unwrap_or("1");
 
-    validate_classical_castling_field(castling)?;
+    let castling_rooks = parse_castling_field(castling_str)?;
 
     let current_player = match side_to_move {
         "w" => 1,
@@ -275,11 +329,6 @@ pub fn engine_from_fen(fen: &str) -> Result<Engine, String> {
     engine.turn_manager.current_player = current_player;
     engine.turn_manager.turn_index = (fullmove_number.saturating_sub(1)).saturating_mul(2)
         + if current_player == 2 { 1 } else { 0 };
-
-    engine.white_can_castle_kingside = castling.contains('K');
-    engine.white_can_castle_queenside = castling.contains('Q');
-    engine.black_can_castle_kingside = castling.contains('k');
-    engine.black_can_castle_queenside = castling.contains('q');
 
     engine.en_passant_target = if en_passant != "-" {
         Some(parse_square(en_passant)?)
@@ -328,32 +377,35 @@ pub fn engine_from_fen(fen: &str) -> Result<Engine, String> {
                     };
                 }
 
-                if kind == ChessPieceKind::King && position.x == 4 {
-                    if owner == 1 && position.y == 0 {
-                        has_moved = !(engine.white_can_castle_kingside
-                            || engine.white_can_castle_queenside);
-                    } else if owner == 2 && position.y == 7 {
-                        has_moved = !(engine.black_can_castle_kingside
-                            || engine.black_can_castle_queenside);
+                // King has not moved if it still has castling rights on its back rank.
+                // Works for both classical (x=4) and Chess960 (any x).
+                if kind == ChessPieceKind::King {
+                    let back_rank = if owner == 1 { 0u32 } else { 7 };
+                    if position.y == back_rank {
+                        let rook_files = if owner == 1 {
+                            &castling_rooks.white
+                        } else {
+                            &castling_rooks.black
+                        };
+                        if !rook_files.is_empty() {
+                            has_moved = false;
+                        }
                     }
                 }
 
+                // Rook has not moved if it is one of the designated castling rooks.
+                // Identified by x-file, not by hardcoded a/h positions.
                 if kind == ChessPieceKind::Rook {
-                    if owner == 1 && position.y == 0 && (position.x == 0 || position.x == 7) {
-                        let relevant_right = if position.x == 0 {
-                            engine.white_can_castle_queenside
+                    let back_rank = if owner == 1 { 0u32 } else { 7 };
+                    if position.y == back_rank {
+                        let rook_files = if owner == 1 {
+                            &castling_rooks.white
                         } else {
-                            engine.white_can_castle_kingside
+                            &castling_rooks.black
                         };
-                        has_moved = !relevant_right;
-                    } else if owner == 2 && position.y == 7 && (position.x == 0 || position.x == 7)
-                    {
-                        let relevant_right = if position.x == 0 {
-                            engine.black_can_castle_queenside
-                        } else {
-                            engine.black_can_castle_kingside
-                        };
-                        has_moved = !relevant_right;
+                        if rook_files.contains(&position.x) {
+                            has_moved = false;
+                        }
                     }
                 }
 
@@ -385,7 +437,12 @@ pub fn engine_from_fen(fen: &str) -> Result<Engine, String> {
         return Err(format!("invalid FEN final cursor: x={x}, y={y}"));
     }
 
-    validate_classical_castling_anchors(&engine)?;
+    // Validate castling rooks are present and determine ks/qs from actual king position.
+    let (w_ks, w_qs, b_ks, b_qs) = resolve_castling_rights(&engine, &castling_rooks)?;
+    engine.white_can_castle_kingside = w_ks;
+    engine.white_can_castle_queenside = w_qs;
+    engine.black_can_castle_kingside = b_ks;
+    engine.black_can_castle_queenside = b_qs;
 
     engine.reset_repetition_state();
     Ok(engine)
@@ -420,27 +477,62 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_rook_file_castling_metadata_fails_closed() {
+    fn shredder_fen_classical_position_accepted() {
+        // Shredder-FEN equivalent of KQkq for a classical layout.
         let fen = "r3k2r/8/8/8/8/8/8/R3K2R w HAha - 0 1";
-        let err = match engine_from_fen(fen) {
-            Ok(_) => panic!("rook-file castling metadata is unsupported"),
-            Err(err) => err,
-        };
-        assert!(
-            err.contains("unsupported FEN castling rights"),
-            "unexpected error: {err}"
-        );
+        let engine = engine_from_fen(fen).expect("Shredder FEN should be accepted");
+        assert!(engine.white_can_castle_kingside);
+        assert!(engine.white_can_castle_queenside);
+        assert!(engine.black_can_castle_kingside);
+        assert!(engine.black_can_castle_queenside);
     }
 
     #[test]
-    fn chess960_backrank_with_classical_castling_rights_fails_closed() {
+    fn chess960_shredder_fen_non_classical_king_sets_castling_rights() {
+        // King on d1/d8 (x=3), rooks on a1/h1 and a8/h8.
+        // Shredder tokens: A(x=0) < king(x=3) → qs, H(x=7) > king(x=3) → ks.
+        let fen = "r2k3r/8/8/8/8/8/8/R2K3R w AHah - 0 1";
+        let engine = engine_from_fen(fen).expect("Chess960 Shredder FEN should parse");
+        assert!(engine.white_can_castle_kingside);
+        assert!(engine.white_can_castle_queenside);
+        assert!(engine.black_can_castle_kingside);
+        assert!(engine.black_can_castle_queenside);
+    }
+
+    #[test]
+    fn chess960_shredder_fen_has_moved_false_for_castling_pieces() {
+        // King on d1 (x=3), rooks on a1 (x=0) and h1 (x=7).
+        let fen = "r2k3r/8/8/8/8/8/8/R2K3R w AHah - 0 1";
+        let engine = engine_from_fen(fen).expect("parse should succeed");
+
+        let white_king = engine
+            .units
+            .values()
+            .find(|u| u.owner == 1 && u.kind == ChessPieceKind::King)
+            .expect("white king");
+        assert!(!white_king.has_moved, "white king should not have moved");
+
+        for &rook_x in &[0u32, 7] {
+            let rook = engine
+                .units
+                .values()
+                .find(|u| u.owner == 1 && u.kind == ChessPieceKind::Rook && u.position.x == rook_x)
+                .expect("white rook");
+            assert!(!rook.has_moved, "white rook at x={rook_x} should not have moved");
+        }
+    }
+
+    #[test]
+    fn chess960_backrank_standard_tokens_wrong_rook_files_rejected() {
+        // Chess960 backrank with K/Q tokens: those expect rooks at h1/a1,
+        // but the actual pieces there are not rooks.
         let fen = "bbrkrqnn/pppppppp/8/8/8/8/PPPPPPPP/BBRKRQNN w KQkq - 0 1";
         let err = match engine_from_fen(fen) {
-            Ok(_) => panic!("Chess960 castling metadata requires an explicit future contract"),
+            Ok(_) => panic!("wrong rook files should be rejected"),
             Err(err) => err,
         };
         assert!(
-            err.contains("unsupported castling rights for non-classical anchors"),
+            err.contains("castling rook not found"),
             "unexpected error: {err}"
         );
     }
