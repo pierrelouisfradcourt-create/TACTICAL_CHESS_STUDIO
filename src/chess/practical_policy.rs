@@ -675,23 +675,25 @@ pub(crate) fn maybe_emit_strategic_diagnostics(
     let state = strategic_root_state(engine, player, search_score);
     let selected = strategic_candidate_breakdown(engine, player, selected_move, search_score);
 
-    println!(
-        "MOVE_DIAG|source=search|phase={}|band={}|plan={}|selected={}|material={}|own_moves={}|enemy_moves={}|repetition_pressure={}|passed_pawn_distance={}|no_progress_pressure={}|score={}|enemy_moves_delta={}|passed_pawn_delta={}|repeat={}",
-        state.phase.as_str(),
-        state.eval_band.as_str(),
-        state.conversion_plan.as_str(),
-        action_to_uci(selected_move, &engine.units).unwrap_or_else(|| "unknown".to_string()),
-        state.material_advantage,
-        state.own_legal_moves,
-        state.enemy_legal_moves,
-        state.repetition_pressure,
-        state.passed_pawn_distance,
-        state.no_progress_pressure,
-        selected.score,
-        selected.enemy_moves_delta,
-        selected.passed_pawn_delta,
-        selected.repeat,
-    );
+    if std::env::var("TCS_DEBUG").is_ok() {
+        println!(
+            "MOVE_DIAG|source=search|phase={}|band={}|plan={}|selected={}|material={}|own_moves={}|enemy_moves={}|repetition_pressure={}|passed_pawn_distance={}|no_progress_pressure={}|score={}|enemy_moves_delta={}|passed_pawn_delta={}|repeat={}",
+            state.phase.as_str(),
+            state.eval_band.as_str(),
+            state.conversion_plan.as_str(),
+            action_to_uci(selected_move, &engine.units).unwrap_or_else(|| "unknown".to_string()),
+            state.material_advantage,
+            state.own_legal_moves,
+            state.enemy_legal_moves,
+            state.repetition_pressure,
+            state.passed_pawn_distance,
+            state.no_progress_pressure,
+            selected.score,
+            selected.enemy_moves_delta,
+            selected.passed_pawn_delta,
+            selected.repeat,
+        );
+    }
 
     if tactical_diagnostics_enabled() {
         let tactical = tactical_score_breakdown(engine, player, selected_move, search_score);
@@ -1053,12 +1055,14 @@ pub(crate) fn maybe_emit_phase_profile(engine: &Engine, search_score: i32) {
     }
 
     let context = phase_reward_context(engine, search_score);
-    println!(
-        "PHASE_PROFILE|phase={}|band={}|profile={}",
-        context.phase.as_str(),
-        context.band.as_str(),
-        context.profile.as_str(),
-    );
+    if std::env::var("TCS_DEBUG").is_ok() {
+        println!(
+            "PHASE_PROFILE|phase={}|band={}|profile={}",
+            context.phase.as_str(),
+            context.band.as_str(),
+            context.profile.as_str(),
+        );
+    }
 }
 
 fn closest_passed_pawn_distance(engine: &Engine, player: PlayerId) -> i32 {

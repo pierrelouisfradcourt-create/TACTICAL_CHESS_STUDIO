@@ -544,15 +544,17 @@ pub(crate) fn select_root_move(
         .first()
         .and_then(|candidate| action_to_uci(&candidate.action, &engine.units))
         .unwrap_or_else(|| "unknown".to_string());
-    println!(
-        "ROOT_DECISION_SELECTED|selected={}|search_best={}|worst_case_best={}|transition_best={}|final_selected={}|expected_best_if_available={}",
-        final_selected,
-        search_best,
-        worst_case_best,
-        transition_best,
-        final_selected,
-        expected_best.unwrap_or_else(|| "none".to_string())
-    );
+    if std::env::var("TCS_DEBUG").is_ok() {
+        println!(
+            "ROOT_DECISION_SELECTED|selected={}|search_best={}|worst_case_best={}|transition_best={}|final_selected={}|expected_best_if_available={}",
+            final_selected,
+            search_best,
+            worst_case_best,
+            transition_best,
+            final_selected,
+            expected_best.unwrap_or_else(|| "none".to_string())
+        );
+    }
 
     let selected_idx = ranked_candidates
         .first()
@@ -918,12 +920,14 @@ pub(crate) fn root_decision_breakdown(
         - reply_scan.penalty;
 
     if reply_scan_enabled() && *reply_scan_log_budget > 0 {
-        println!(
-            "REPLY_SCAN|move={}|enemy_best={}|penalty={}",
-            action_to_uci(mv, &engine.units).unwrap_or_else(|| "unknown".to_string()),
-            reply_scan.enemy_best_move,
-            reply_scan.penalty,
-        );
+        if std::env::var("TCS_DEBUG").is_ok() {
+            println!(
+                "REPLY_SCAN|move={}|enemy_best={}|penalty={}",
+                action_to_uci(mv, &engine.units).unwrap_or_else(|| "unknown".to_string()),
+                reply_scan.enemy_best_move,
+                reply_scan.penalty,
+            );
+        }
         *reply_scan_log_budget -= 1;
     }
 
