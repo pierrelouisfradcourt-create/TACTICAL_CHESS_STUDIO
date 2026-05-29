@@ -154,6 +154,7 @@ pub fn load_engine_from_ruleset(ruleset: &RuntimeRuleset) -> Engine {
             .add_unit(ruleset.instantiate_unit(spawn))
             .expect("invalid unit placement in runtime ruleset");
     }
+    engine.derive_castling_spec_from_positions();
     engine
 }
 

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
-use crate::chess::castling_spec::CastlingSpec;
+use crate::chess::castling_spec::{CastlingSpec, CastlingSideSpec};
 use crate::chess::fen::engine_to_fen;
 use crate::chess::uci::action_key;
 use crate::chess::piece_kind::ChessPieceKind;
@@ -27,6 +27,7 @@ pub struct Engine {
     pub white_can_castle_queenside: bool,
     pub black_can_castle_kingside: bool,
     pub black_can_castle_queenside: bool,
+    pub castling_spec: CastlingSpec,
 }
 
 pub(crate) struct SearchMoveUndo {
@@ -119,6 +120,7 @@ impl Engine {
             white_can_castle_queenside: true,
             black_can_castle_kingside: true,
             black_can_castle_queenside: true,
+            castling_spec: CastlingSpec::classical(),
         };
         let initial_key = engine.to_fen();
         engine.current_repetition_key = initial_key.clone();
@@ -368,8 +370,7 @@ impl Engine {
 
         let from = unit.position;
         let is_castling = unit.kind == ChessPieceKind::King
-            && from.y == target.y
-            && from.x.abs_diff(target.x) == 2;
+            && self.castling_spec.for_king_move(unit.owner, from, target).is_some();
 
         if unit.kind == ChessPieceKind::King {
             if unit.owner == 1 {
@@ -382,13 +383,7 @@ impl Engine {
         }
 
         if unit.kind == ChessPieceKind::Rook {
-            match (unit.owner, from.x, from.y) {
-                (1, 0, 0) => self.white_can_castle_queenside = false,
-                (1, 7, 0) => self.white_can_castle_kingside = false,
-                (2, 0, 7) => self.black_can_castle_queenside = false,
-                (2, 7, 7) => self.black_can_castle_kingside = false,
-                _ => {}
-            }
+            self.revoke_castling_right_for_rook_at(unit.owner, from);
         }
 
         let was_pawn_move = unit.kind == ChessPieceKind::Pawn;
@@ -413,13 +408,7 @@ impl Engine {
         if let Some(target_id) = self.board.occupant(target) {
             if let Some(target_unit) = self.units.get(&target_id) {
                 if target_unit.kind == ChessPieceKind::Rook {
-                    match (target_unit.owner, target.x, target.y) {
-                        (1, 0, 0) => self.white_can_castle_queenside = false,
-                        (1, 7, 0) => self.white_can_castle_kingside = false,
-                        (2, 0, 7) => self.black_can_castle_queenside = false,
-                        (2, 7, 7) => self.black_can_castle_kingside = false,
-                        _ => {}
-                    }
+                    self.revoke_castling_right_for_rook_at(target_unit.owner, target);
                 }
             }
             self.units.remove(&target_id);
@@ -446,7 +435,7 @@ impl Engine {
 
         if is_castling {
             if let Some(side_spec) =
-                CastlingSpec::classical().for_king_move(unit.owner, from, target)
+                self.castling_spec.for_king_move(unit.owner, from, target)
             {
                 if let Some(rook_id) = self.board.occupant(side_spec.rook_start) {
                     self.board
@@ -700,18 +689,17 @@ impl Engine {
         let unit_before = self.units.get(unit_id)?.clone();
         let from = unit_before.position;
         let is_castling = unit_before.kind == ChessPieceKind::King
-            && from.y == target.y
-            && from.x.abs_diff(target.x) == 2;
+            && self.castling_spec.for_king_move(unit_before.owner, from, *target).is_some();
 
         let rook_before = if is_castling {
-            let rook_pos = Position {
-                x: if target.x == 6 { 7 } else { 0 },
-                y: from.y,
-            };
-            self.board
-                .occupant(rook_pos)
-                .and_then(|rook_id| self.units.get(&rook_id))
-                .cloned()
+            self.castling_spec
+                .for_king_move(unit_before.owner, from, *target)
+                .and_then(|spec| {
+                    self.board
+                        .occupant(spec.rook_start)
+                        .and_then(|rook_id| self.units.get(&rook_id))
+                        .cloned()
+                })
         } else {
             None
         };
@@ -1392,6 +1380,67 @@ impl Engine {
         rook.kind == ChessPieceKind::Rook && rook.owner == player
     }
 
+    fn revoke_castling_right_for_rook_at(&mut self, owner: PlayerId, pos: Position) {
+        for side_spec in self.castling_spec.for_player(owner).into_iter().flatten() {
+            if side_spec.rook_start == pos {
+                match (owner, side_spec.is_kingside()) {
+                    (1, true)  => self.white_can_castle_kingside  = false,
+                    (1, false) => self.white_can_castle_queenside = false,
+                    (_, true)  => self.black_can_castle_kingside  = false,
+                    (_, false) => self.black_can_castle_queenside = false,
+                }
+            }
+        }
+    }
+
+    /// Derive the castling spec from actual king/rook positions on the board.
+    ///
+    /// Kingside rook: nearest unmoved rook to the right of the king.
+    /// Queenside rook: nearest unmoved rook to the left of the king.
+    /// Destinations are always FIDE Chess960 squares: g-file (ks) and c-file (qs).
+    pub fn derive_castling_spec_from_positions(&mut self) {
+        let wks = Self::build_side_spec(&self.units, 1, 0, true);
+        let wqs = Self::build_side_spec(&self.units, 1, 0, false);
+        let bks = Self::build_side_spec(&self.units, 2, 7, true);
+        let bqs = Self::build_side_spec(&self.units, 2, 7, false);
+        self.castling_spec = CastlingSpec {
+            white_kingside:  wks,
+            white_queenside: wqs,
+            black_kingside:  bks,
+            black_queenside: bqs,
+        };
+    }
+
+    fn build_side_spec(
+        units: &HashMap<UnitId, Unit>,
+        owner: u32,
+        rank: u32,
+        kingside: bool,
+    ) -> Option<CastlingSideSpec> {
+        let king_x = units
+            .values()
+            .find(|u| u.owner == owner && u.kind == ChessPieceKind::King && u.position.y == rank)
+            .map(|u| u.position.x)?;
+        let rook_x = units
+            .values()
+            .filter(|u| {
+                u.owner == owner
+                    && u.kind == ChessPieceKind::Rook
+                    && u.position.y == rank
+                    && !u.has_moved
+                    && if kingside { u.position.x > king_x } else { u.position.x < king_x }
+            })
+            .map(|u| u.position.x)
+            .reduce(|a, b| if kingside { a.min(b) } else { a.max(b) })?;
+        let (king_final_x, rook_final_x) = if kingside { (6u32, 5u32) } else { (2u32, 3u32) };
+        Some(CastlingSideSpec {
+            king_start: Position { x: king_x, y: rank },
+            rook_start: Position { x: rook_x, y: rank },
+            king_final: Position { x: king_final_x, y: rank },
+            rook_final: Position { x: rook_final_x, y: rank },
+        })
+    }
+
     fn king_moves(&self, unit_id: UnitId) -> Vec<Action> {
         let mut moves = Vec::new();
         let Some(unit) = self.units.get(&unit_id) else {
@@ -1446,7 +1495,7 @@ impl Engine {
 
         if !unit.has_moved && !self.is_in_check(unit.owner) && from.y == back_rank {
             let enemy = self.opponent(unit.owner);
-            for castling_side in CastlingSpec::classical()
+            for castling_side in self.castling_spec
                 .for_player(unit.owner)
                 .into_iter()
                 .flatten()

@@ -444,6 +444,8 @@ pub fn engine_from_fen(fen: &str) -> Result<Engine, String> {
     engine.black_can_castle_kingside = b_ks;
     engine.black_can_castle_queenside = b_qs;
 
+    engine.derive_castling_spec_from_positions();
+
     engine.reset_repetition_state();
     Ok(engine)
 }

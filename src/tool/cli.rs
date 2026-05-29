@@ -1,7 +1,9 @@
 use crate::agents::neural_agent::NeuralAgent;
 use crate::chess::search::search_root;
 use crate::chess::uci::action_to_uci;
-use crate::prototype::minimal_ruleset::{load_engine_from_ruleset, minimal_runtime_ruleset};
+use crate::prototype::minimal_ruleset::{
+    load_engine_from_ruleset, minimal_runtime_ruleset, minimal_runtime_ruleset_chess960,
+};
 use crate::simulation::neural_tournament_runner::NeuralTournamentRunner;
 use crate::simulation::selfplay::SelfPlayManager;
 use crate::simulation::simulation_runner::{MatchSummary, MatchTermination, SimulationRunner};
@@ -21,6 +23,25 @@ pub fn run_cli(args: Vec<String>) {
     }
 
     match args[1].as_str() {
+        "simulate_chess960" => {
+            let id = args.get(2).and_then(|v| v.parse::<u16>().ok()).unwrap_or(0);
+            let n = parse_count(&args, 3, 10);
+            let ruleset = match minimal_runtime_ruleset_chess960(id, false) {
+                Some(r) => r,
+                None => {
+                    println!("Invalid Chess960 position id {id} (must be 0-959)");
+                    return;
+                }
+            };
+            println!("Running {n} Chess960 matches (position {id})...");
+            let mut runner = SimulationRunner::new();
+            runner.ruleset = ruleset;
+            let results = runner.run_n_matches(n);
+            let report = analyze_matches(&results);
+            println!("\n=== CHESS960 MATCH METRICS (position {id}) ===");
+            println!("{}", render_report(&report));
+        }
+
         "simulate" => {
             let n = parse_count(&args, 2, 10);
 
@@ -221,6 +242,7 @@ fn print_help() {
     println!("TACTICAL CHESS STUDIO");
     println!();
     println!("Commands:");
+    println!("  simulate_chess960 ID N -> run N matches on Chess960 position ID (0-959)");
     println!("  simulate N          -> run matches");
     println!("  analyze N           -> run matches + metrics");
     println!("  selfplay N          -> heuristic self-play");
