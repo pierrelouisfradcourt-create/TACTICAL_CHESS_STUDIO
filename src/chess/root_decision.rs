@@ -442,7 +442,7 @@ pub(crate) fn select_root_move(
                     break;
                 }
                 let mv = &candidate.action;
-                if reply_scan_enabled() {
+                if reply_scan_enabled() && std::env::var("TCS_DEBUG").is_ok() {
                     println!(
                         "ROOT_CANDIDATE_SCORE|move={}|base={}|policy={}|reply_penalty={}|tactical={}|heuristic={}|strategic={}|decision_final={}|worst_case={}|search_score={}|transition_score={}",
                         action_to_uci(mv, &engine.units).unwrap_or_else(|| "unknown".to_string()),

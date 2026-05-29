@@ -695,7 +695,7 @@ pub(crate) fn maybe_emit_strategic_diagnostics(
         );
     }
 
-    if tactical_diagnostics_enabled() {
+    if tactical_diagnostics_enabled() && std::env::var("TCS_DEBUG").is_ok() {
         let tactical = tactical_score_breakdown(engine, player, selected_move, search_score);
         println!(
             "TACTICAL_DIAG|move={}|see={}|hang={}|mate={}|trade={}|quiet={}|final={}",
