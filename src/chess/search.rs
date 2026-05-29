@@ -901,7 +901,9 @@ fn tactical_move_score(engine: &Engine, player: PlayerId, mv: &Action) -> i32 {
 }
 
 fn adaptive_depth(engine: &Engine) -> i32 {
-    eprintln!("DEBUG adaptive_depth: TCS_MINIMAX_DEPTH={:?}", std::env::var("TCS_MINIMAX_DEPTH"));
+    if std::env::var("TCS_DEBUG").is_ok() {
+        eprintln!("DEBUG adaptive_depth: TCS_MINIMAX_DEPTH={:?}", std::env::var("TCS_MINIMAX_DEPTH"));
+    }
     if let Ok(v) = std::env::var("TCS_MINIMAX_DEPTH") {
         if let Ok(d) = v.parse::<i32>() {
             return d.max(1);
