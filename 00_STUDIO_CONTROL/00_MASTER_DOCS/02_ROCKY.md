@@ -31,7 +31,7 @@ Search (autorité finale tactique)
 | Practical Policy | IMPLEMENTED | SEE-lite, hanging-piece, mate urgency, trade sanity |
 | Neural bridge (Python↔Rust) | IMPLEMENTED | Instable sur Windows — à surveiller |
 | Decision tree / traces | IMPLEMENTED | AAA signals dans export/loader/training |
-| LLM branché sur decision tree | NOT_STARTED | Phase 1 P2 |
+| LLM branché sur decision tree | IN_PROGRESS — ml/coach.py v0 cree | Phase 1 P2 |
 | Chess 960 | BLOCKED | Architecture prête, activation HumanGate requise |
 | Dataset actif | BROKEN | promoted_pedagogy_pack.jsonl manquant — à régénérer |
 | Selfplay / ligue | DOCUMENTED_ONLY | Pipeline existe, dataset requis |

@@ -635,6 +635,16 @@ Recommendation:
 - Sort opponent replies by tactical priority (captures first by piece value, then checks, then quiet moves) before applying `take(max_replies)`, so the sample covers the most dangerous responses.
 - Alternatively, document explicitly that this is a heuristic bound, not a true worst case, to avoid false confidence in callers.
 
+## 15. Rocky — Explosion combinatoire search
+
+Status: ACTIVE
+
+Symptome : simulate_chess960 ne termine pas dans un temps raisonnable.
+Cause suspectee : profondeur de recherche ou boucle de replay non bornee.
+TCS_MINIMAX_DEPTH=Err(NotPresent) visible dans les logs — variable non definie.
+Blocking : generation de logs MOVE_DIAG pour le coach.
+Prochaine action : isoler le goulot (depth cap, quiescence, boucle partie).
+
 ## Removed From Active Known Issues
 
 These items are no longer active known issues after the 2026-05-06 refresh:
