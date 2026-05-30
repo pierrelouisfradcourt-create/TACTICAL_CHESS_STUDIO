@@ -3,6 +3,7 @@ use crate::engine::board::board::Board;
 use crate::engine::engine::Engine;
 use crate::engine::entity::stats::Stats;
 use crate::engine::entity::unit::{Position, Unit};
+use std::sync::Arc;
 
 pub fn engine_to_fen(engine: &Engine) -> String {
     let mut board = [['1'; 8]; 8];
@@ -413,7 +414,7 @@ pub fn engine_from_fen(fen: &str) -> Result<Engine, String> {
                     .add_unit(Unit {
                         id: 0,
                         owner,
-                        template_name: template_name_for_kind(kind).to_string(),
+                        template_name: Arc::from(template_name_for_kind(kind)),
                         kind,
                         position,
                         stats: Stats {

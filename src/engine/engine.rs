@@ -1,16 +1,64 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
 use crate::chess::castling_spec::{CastlingSpec, CastlingSideSpec};
 use crate::chess::fen::engine_to_fen;
-use crate::chess::uci::action_key;
 use crate::chess::piece_kind::ChessPieceKind;
 use crate::engine::action::action::{AbilityType, Action};
 use crate::engine::action::command::Command;
 use crate::engine::board::board::Board;
 use crate::engine::entity::unit::{PlayerId, Position, Unit, UnitId};
 use crate::engine::turn::turn_manager::TurnManager;
+
+// Zobrist table for engine-side position hashing.
+// Same seed and PRNG as search.rs so position_hash == position_key() for equal positions.
+struct EngineZobrist {
+    pieces: [[[u64; 64]; 2]; 6],
+    side_to_move: u64,
+    castling: [u64; 4],
+    en_passant: [u64; 8],
+}
+
+static ENGINE_ZOBRIST: OnceLock<EngineZobrist> = OnceLock::new();
+
+fn engine_zobrist() -> &'static EngineZobrist {
+    ENGINE_ZOBRIST.get_or_init(|| {
+        let mut s = 0x9e3779b97f4a7c15u64;
+        let mut rng = || {
+            s ^= s << 13;
+            s ^= s >> 7;
+            s ^= s << 17;
+            s
+        };
+        let mut pieces = [[[0u64; 64]; 2]; 6];
+        for p in &mut pieces {
+            for pl in p.iter_mut() {
+                for sq in pl.iter_mut() {
+                    *sq = rng();
+                }
+            }
+        }
+        EngineZobrist {
+            pieces,
+            side_to_move: rng(),
+            castling: [rng(), rng(), rng(), rng()],
+            en_passant: [rng(), rng(), rng(), rng(), rng(), rng(), rng(), rng()],
+        }
+    })
+}
+
+fn piece_type_idx(kind: ChessPieceKind) -> usize {
+    match kind {
+        ChessPieceKind::Pawn => 0,
+        ChessPieceKind::Knight => 1,
+        ChessPieceKind::Bishop => 2,
+        ChessPieceKind::Rook => 3,
+        ChessPieceKind::Queen => 4,
+        ChessPieceKind::King => 5,
+    }
+}
 
 #[derive(Clone)]
 pub struct Engine {
@@ -20,22 +68,24 @@ pub struct Engine {
     pub next_unit_id: UnitId,
     pub action_log: Vec<Command>,
     pub en_passant_target: Option<Position>,
-    current_repetition_key: String,
-    pub repetition_counts: HashMap<String, u32>,
+    pub current_repetition_key: u64,
+    pub repetition_counts: HashMap<u64, u32>,
     pub halfmove_clock: u32,
     pub white_can_castle_kingside: bool,
     pub white_can_castle_queenside: bool,
     pub black_can_castle_kingside: bool,
     pub black_can_castle_queenside: bool,
     pub castling_spec: CastlingSpec,
+    pub position_hash: u64,
 }
 
 pub(crate) struct SearchMoveUndo {
     unit_before: Unit,
     captured_unit: Option<Unit>,
     rook_before: Option<Unit>,
-    fen_after: String,
-    previous_repetition_key: String,
+    hash_after: u64,
+    previous_repetition_key: u64,
+    previous_position_hash: u64,
     previous_turn_manager: TurnManager,
     previous_en_passant_target: Option<Position>,
     previous_halfmove_clock: u32,
@@ -47,7 +97,8 @@ pub(crate) struct SearchMoveUndo {
 }
 
 pub(crate) struct SearchNullMoveUndo {
-    previous_repetition_key: String,
+    previous_repetition_key: u64,
+    previous_position_hash: u64,
     previous_turn_manager: TurnManager,
     previous_en_passant_target: Option<Position>,
     previous_halfmove_clock: u32,
@@ -104,6 +155,31 @@ fn elapsed_nanos(start: Option<Instant>) -> u64 {
         .unwrap_or(0)
 }
 
+fn action_sort_key(action: &Action, units: &HashMap<UnitId, Unit>) -> (u8, u8, u8, u8, u8) {
+    match action {
+        Action::Move {
+            unit_id,
+            target,
+            promotion,
+        } => {
+            let (from_x, from_y) = units
+                .get(unit_id)
+                .map(|u| (u.position.x as u8, u.position.y as u8))
+                .unwrap_or((u8::MAX, u8::MAX));
+            let promo_ord: u8 = match promotion {
+                None => 0,
+                Some(ChessPieceKind::Bishop) => b'b',
+                Some(ChessPieceKind::Knight) => b'n',
+                Some(ChessPieceKind::Queen) => b'q',
+                Some(ChessPieceKind::Rook) => b'r',
+                Some(_) => b'z',
+            };
+            (from_x, from_y, target.x as u8, target.y as u8, promo_ord)
+        }
+        _ => (u8::MAX, u8::MAX, u8::MAX, u8::MAX, u8::MAX),
+    }
+}
+
 impl Engine {
     pub fn new(board: Board) -> Self {
         let mut engine = Self {
@@ -113,7 +189,7 @@ impl Engine {
             next_unit_id: 1,
             action_log: Vec::new(),
             en_passant_target: None,
-            current_repetition_key: String::new(),
+            current_repetition_key: 0,
             repetition_counts: HashMap::new(),
             halfmove_clock: 0,
             white_can_castle_kingside: true,
@@ -121,11 +197,34 @@ impl Engine {
             black_can_castle_kingside: true,
             black_can_castle_queenside: true,
             castling_spec: CastlingSpec::classical(),
+            position_hash: 0,
         };
-        let initial_key = engine.to_fen();
-        engine.current_repetition_key = initial_key.clone();
-        engine.repetition_counts.insert(initial_key, 1);
+        engine.position_hash = engine.compute_position_hash();
+        engine.current_repetition_key = engine.position_hash;
+        engine.repetition_counts.insert(engine.position_hash, 1);
         engine
+    }
+
+    pub fn compute_position_hash(&self) -> u64 {
+        let zt = engine_zobrist();
+        let mut h = 0u64;
+        for u in self.units.values() {
+            let pi = piece_type_idx(u.kind);
+            let oi = (u.owner - 1) as usize;
+            let sq = (u.position.y * 8 + u.position.x) as usize;
+            h ^= zt.pieces[pi][oi][sq];
+        }
+        if self.turn_manager.current_player == 2 {
+            h ^= zt.side_to_move;
+        }
+        if self.white_can_castle_kingside  { h ^= zt.castling[0]; }
+        if self.white_can_castle_queenside { h ^= zt.castling[1]; }
+        if self.black_can_castle_kingside  { h ^= zt.castling[2]; }
+        if self.black_can_castle_queenside { h ^= zt.castling[3]; }
+        if let Some(ep) = self.en_passant_target {
+            h ^= zt.en_passant[ep.x as usize];
+        }
+        h
     }
 
     pub fn to_fen(&self) -> String {
@@ -137,17 +236,24 @@ impl Engine {
         unit.id = id;
         self.board.place_unit(id, unit.position)?;
 
+        // Update position_hash for the newly placed piece.
+        let zt = engine_zobrist();
+        let pi = piece_type_idx(unit.kind);
+        let oi = (unit.owner - 1) as usize;
+        let sq = (unit.position.y * 8 + unit.position.x) as usize;
+        self.position_hash ^= zt.pieces[pi][oi][sq];
+        self.current_repetition_key = self.position_hash;
+
         self.next_unit_id += 1;
         self.units.insert(id, unit);
-        self.current_repetition_key = self.to_fen();
         Ok(())
     }
 
     pub fn reset_repetition_state(&mut self) {
-        let key = self.to_fen();
-        self.current_repetition_key = key.clone();
+        self.position_hash = self.compute_position_hash();
+        self.current_repetition_key = self.position_hash;
         self.repetition_counts.clear();
-        self.repetition_counts.insert(key, 1);
+        self.repetition_counts.insert(self.position_hash, 1);
     }
 
     // -----------------------------
@@ -314,17 +420,15 @@ impl Engine {
                 });
 
                 if self.repetition_counts.is_empty() {
-                    self.current_repetition_key = self.to_fen();
-                    self.repetition_counts
-                        .insert(self.current_repetition_key.clone(), 1);
+                    self.repetition_counts.insert(self.current_repetition_key, 1);
                 }
 
                 self.apply_move(unit_id, target, promotion);
                 self.turn_manager.next_turn();
-                self.current_repetition_key = self.to_fen();
+                self.current_repetition_key = self.position_hash;
                 *self
                     .repetition_counts
-                    .entry(self.current_repetition_key.clone())
+                    .entry(self.current_repetition_key)
                     .or_insert(0) += 1;
             }
 
@@ -346,10 +450,10 @@ impl Engine {
                     },
                 });
                 self.turn_manager.next_turn();
-                self.current_repetition_key = self.to_fen();
+                self.current_repetition_key = self.position_hash;
                 *self
                     .repetition_counts
-                    .entry(self.current_repetition_key.clone())
+                    .entry(self.current_repetition_key)
                     .or_insert(0) += 1;
             }
 
@@ -371,6 +475,18 @@ impl Engine {
         let from = unit.position;
         let is_castling = unit.kind == ChessPieceKind::King
             && self.castling_spec.for_king_move(unit.owner, from, target).is_some();
+
+        // --- Zobrist: XOR out current ep, castling rights, and moving piece ---
+        let zt = engine_zobrist();
+        if let Some(ep) = self.en_passant_target {
+            self.position_hash ^= zt.en_passant[ep.x as usize];
+        }
+        if self.white_can_castle_kingside  { self.position_hash ^= zt.castling[0]; }
+        if self.white_can_castle_queenside { self.position_hash ^= zt.castling[1]; }
+        if self.black_can_castle_kingside  { self.position_hash ^= zt.castling[2]; }
+        if self.black_can_castle_queenside { self.position_hash ^= zt.castling[3]; }
+        let from_sq = (from.y * 8 + from.x) as usize;
+        self.position_hash ^= zt.pieces[piece_type_idx(unit.kind)][(unit.owner - 1) as usize][from_sq];
 
         if unit.kind == ChessPieceKind::King {
             if unit.owner == 1 {
@@ -406,10 +522,14 @@ impl Engine {
         };
 
         if let Some(target_id) = self.board.occupant(target) {
-            if let Some(target_unit) = self.units.get(&target_id) {
-                if target_unit.kind == ChessPieceKind::Rook {
-                    self.revoke_castling_right_for_rook_at(target_unit.owner, target);
+            let captured_info = self.units.get(&target_id).map(|u| (u.kind, u.owner));
+            if let Some((cap_kind, cap_owner)) = captured_info {
+                if cap_kind == ChessPieceKind::Rook {
+                    self.revoke_castling_right_for_rook_at(cap_owner, target);
                 }
+                // Zobrist: XOR out captured piece
+                let target_sq = (target.y * 8 + target.x) as usize;
+                self.position_hash ^= zt.pieces[piece_type_idx(cap_kind)][(cap_owner - 1) as usize][target_sq];
             }
             self.units.remove(&target_id);
             self.board.remove_unit(target);
@@ -426,6 +546,11 @@ impl Engine {
             };
 
             if let Some(captured_pawn_id) = self.board.occupant(captured_pawn_pos) {
+                // Zobrist: XOR out en passant captured pawn
+                if let Some(cap_pawn) = self.units.get(&captured_pawn_id) {
+                    let cap_sq = (captured_pawn_pos.y * 8 + captured_pawn_pos.x) as usize;
+                    self.position_hash ^= zt.pieces[piece_type_idx(ChessPieceKind::Pawn)][(cap_pawn.owner - 1) as usize][cap_sq];
+                }
                 self.units.remove(&captured_pawn_id);
                 self.board.remove_unit(captured_pawn_pos);
             }
@@ -442,6 +567,12 @@ impl Engine {
                         .move_unit(rook_id, side_spec.rook_start, side_spec.rook_final);
 
                     if let Some(rook) = self.units.get_mut(&rook_id) {
+                        // Zobrist: XOR rook from old square to new square
+                        let rook_from_sq = (side_spec.rook_start.y * 8 + side_spec.rook_start.x) as usize;
+                        let rook_to_sq = (side_spec.rook_final.y * 8 + side_spec.rook_final.x) as usize;
+                        let roi = (rook.owner - 1) as usize;
+                        self.position_hash ^= zt.pieces[piece_type_idx(ChessPieceKind::Rook)][roi][rook_from_sq];
+                        self.position_hash ^= zt.pieces[piece_type_idx(ChessPieceKind::Rook)][roi][rook_to_sq];
                         rook.position = side_spec.rook_final;
                         rook.has_moved = true;
                     }
@@ -454,11 +585,11 @@ impl Engine {
 
         if let Some(piece_kind) = promotion {
             unit.kind = piece_kind;
-            unit.template_name = format!("{:?}", piece_kind);
+            unit.template_name = Arc::from(format!("{piece_kind:?}").as_str());
         } else if unit.kind == ChessPieceKind::Pawn {
             if (unit.owner == 1 && target.y == 7) || (unit.owner == 2 && target.y == 0) {
                 unit.kind = ChessPieceKind::Queen;
-                unit.template_name = "Queen".to_string();
+                unit.template_name = Arc::from("Queen");
             }
         }
 
@@ -467,6 +598,18 @@ impl Engine {
         } else {
             self.halfmove_clock += 1;
         }
+
+        // --- Zobrist: XOR in moved piece at destination (after promotion), new ep, new castling, toggle side ---
+        let target_sq = (target.y * 8 + target.x) as usize;
+        self.position_hash ^= zt.pieces[piece_type_idx(unit.kind)][(unit.owner - 1) as usize][target_sq];
+        if let Some(ep) = self.en_passant_target {
+            self.position_hash ^= zt.en_passant[ep.x as usize];
+        }
+        if self.white_can_castle_kingside  { self.position_hash ^= zt.castling[0]; }
+        if self.white_can_castle_queenside { self.position_hash ^= zt.castling[1]; }
+        if self.black_can_castle_kingside  { self.position_hash ^= zt.castling[2]; }
+        if self.black_can_castle_queenside { self.position_hash ^= zt.castling[3]; }
+        self.position_hash ^= zt.side_to_move;
 
         self.units.insert(unit_id, unit);
     }
@@ -599,7 +742,7 @@ impl Engine {
             }
         }
 
-        actions.sort_by_key(|action| action_key(action, &self.units));
+        actions.sort_by_key(|action| action_sort_key(action, &self.units));
         actions
     }
 
@@ -734,8 +877,9 @@ impl Engine {
             unit_before,
             captured_unit,
             rook_before,
-            fen_after: String::new(),
-            previous_repetition_key: self.current_repetition_key.clone(),
+            hash_after: 0,
+            previous_repetition_key: self.current_repetition_key,
+            previous_position_hash: self.position_hash,
             previous_turn_manager: self.turn_manager,
             previous_en_passant_target: self.en_passant_target,
             previous_halfmove_clock: self.halfmove_clock,
@@ -757,9 +901,7 @@ impl Engine {
 
         let repetition_start = profiling.then(Instant::now);
         if self.repetition_counts.is_empty() {
-            self.current_repetition_key = self.to_fen();
-            self.repetition_counts
-                .insert(self.current_repetition_key.clone(), 1);
+            self.repetition_counts.insert(self.current_repetition_key, 1);
         }
         let mut repetition_nanos = elapsed_nanos(repetition_start);
 
@@ -769,13 +911,13 @@ impl Engine {
         let apply_nanos = elapsed_nanos(apply_start);
 
         let repetition_start = profiling.then(Instant::now);
-        self.current_repetition_key = self.to_fen();
-        let fen_after = self.current_repetition_key.clone();
-        *self.repetition_counts.entry(fen_after.clone()).or_insert(0) += 1;
+        self.current_repetition_key = self.position_hash;
+        let hash_after = self.current_repetition_key;
+        *self.repetition_counts.entry(hash_after).or_insert(0) += 1;
         repetition_nanos += elapsed_nanos(repetition_start);
 
         let mut undo = undo;
-        undo.fen_after = fen_after;
+        undo.hash_after = hash_after;
         undo.profile = SearchMoveProfile {
             snapshot_nanos,
             apply_nanos,
@@ -795,8 +937,9 @@ impl Engine {
             unit_before,
             captured_unit,
             rook_before,
-            fen_after,
+            hash_after,
             previous_repetition_key,
+            previous_position_hash,
             previous_turn_manager,
             previous_en_passant_target,
             previous_halfmove_clock,
@@ -808,17 +951,18 @@ impl Engine {
         } = undo;
 
         let repetition_start = profiling.then(Instant::now);
-        if let Some(count) = self.repetition_counts.get_mut(&fen_after) {
+        if let Some(count) = self.repetition_counts.get_mut(&hash_after) {
             if *count > 1 {
                 *count -= 1;
             } else {
-                self.repetition_counts.remove(&fen_after);
+                self.repetition_counts.remove(&hash_after);
             }
         }
         let repetition_nanos = elapsed_nanos(repetition_start);
 
         let restore_start = profiling.then(Instant::now);
         self.current_repetition_key = previous_repetition_key;
+        self.position_hash = previous_position_hash;
         self.turn_manager = previous_turn_manager;
         self.en_passant_target = previous_en_passant_target;
         self.halfmove_clock = previous_halfmove_clock;
@@ -868,17 +1012,25 @@ impl Engine {
         let profiling = search_runtime_profile_enabled();
         let total_start = profiling.then(Instant::now);
         let undo = SearchNullMoveUndo {
-            previous_repetition_key: self.current_repetition_key.clone(),
+            previous_repetition_key: self.current_repetition_key,
+            previous_position_hash: self.position_hash,
             previous_turn_manager: self.turn_manager,
             previous_en_passant_target: self.en_passant_target,
             previous_halfmove_clock: self.halfmove_clock,
             profile: SearchNullMoveProfile::default(),
         };
 
+        // Update position_hash for null move: XOR out old ep, toggle side_to_move
+        let zt = engine_zobrist();
+        if let Some(ep) = self.en_passant_target {
+            self.position_hash ^= zt.en_passant[ep.x as usize];
+        }
+        self.position_hash ^= zt.side_to_move;
+
         self.en_passant_target = None;
         self.halfmove_clock += 1;
         self.turn_manager.next_turn();
-        self.current_repetition_key = self.to_fen();
+        self.current_repetition_key = self.position_hash;
 
         let mut undo = undo;
         undo.profile = SearchNullMoveProfile {
@@ -896,12 +1048,14 @@ impl Engine {
         let total_start = profiling.then(Instant::now);
         let SearchNullMoveUndo {
             previous_repetition_key,
+            previous_position_hash,
             previous_turn_manager,
             previous_en_passant_target,
             previous_halfmove_clock,
             profile: _,
         } = undo;
         self.current_repetition_key = previous_repetition_key;
+        self.position_hash = previous_position_hash;
         self.turn_manager = previous_turn_manager;
         self.en_passant_target = previous_en_passant_target;
         self.halfmove_clock = previous_halfmove_clock;
@@ -1901,7 +2055,7 @@ mod tests {
     #[test]
     fn cached_repetition_key_matches_fen_shape() {
         let engine = load_engine_from_ruleset(&minimal_runtime_ruleset());
-        assert_eq!(engine.current_repetition_key, engine.to_fen());
+        assert_eq!(engine.current_repetition_key, engine.compute_position_hash());
     }
 
     #[test]

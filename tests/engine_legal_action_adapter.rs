@@ -178,7 +178,7 @@ struct EngineAdapterSnapshot {
     en_passant_target: Option<Position>,
     halfmove_clock: u32,
     action_log_len: usize,
-    repetition_counts: Vec<(String, u32)>,
+    repetition_counts: Vec<(u64, u32)>,
 }
 
 impl EngineAdapterSnapshot {
@@ -186,7 +186,7 @@ impl EngineAdapterSnapshot {
         let mut repetition_counts = engine
             .repetition_counts
             .iter()
-            .map(|(key, count)| (key.clone(), *count))
+            .map(|(key, count)| (*key, *count))
             .collect::<Vec<_>>();
         repetition_counts.sort();
 

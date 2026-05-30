@@ -578,7 +578,7 @@ pub(crate) fn strategic_root_state(
     let enemy_legal_moves = engine.legal_actions(opponent(player)).len();
     let repetition_visits = engine
         .repetition_counts
-        .get(&engine.to_fen())
+        .get(&engine.current_repetition_key)
         .copied()
         .unwrap_or(1) as i32;
     let repetition_pressure = repetition_pressure(repetition_visits, engine.halfmove_clock);
@@ -623,7 +623,7 @@ pub(crate) fn strategic_candidate_breakdown(
     };
     let repeat = sim
         .repetition_counts
-        .get(&sim.to_fen())
+        .get(&sim.current_repetition_key)
         .copied()
         .unwrap_or(1) as i32;
     let trade_delta = total_material_value(engine) - total_material_value(&sim);

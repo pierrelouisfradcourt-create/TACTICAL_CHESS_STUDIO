@@ -3,6 +3,7 @@ use crate::engine::action::action::AbilityType;
 use crate::engine::board::terrain::TerrainType;
 use crate::engine::entity::stats::Stats;
 use crate::engine::entity::unit::{PlayerId, Position, Unit};
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct UnitTemplate {
@@ -49,7 +50,7 @@ impl RuntimeRuleset {
         Unit {
             id: 0,
             owner: spawn.owner,
-            template_name: template.name.to_string(),
+            template_name: Arc::from(template.name),
             kind: template.kind,
             position: spawn.position,
             stats: template.stats,

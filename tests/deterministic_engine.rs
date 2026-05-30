@@ -36,6 +36,7 @@ use engine::action::action::Action;
 use engine::engine::Engine;
 use engine::entity::unit::{Position, UnitId};
 use std::collections::HashSet;
+use std::sync::Arc;
 
 fn position(square: &str) -> Position {
     let bytes = square.as_bytes();
@@ -119,7 +120,7 @@ struct EngineSnapshot {
     fen: String,
     current_player: u32,
     turn_index: u32,
-    repetition_counts: Vec<(String, u32)>,
+    repetition_counts: Vec<(u64, u32)>,
     en_passant_target: Option<Position>,
     halfmove_clock: u32,
     white_can_castle_kingside: bool,
@@ -133,7 +134,7 @@ struct EngineSnapshot {
         u32,
         ChessPieceKind,
         Position,
-        String,
+        Arc<str>,
         i32,
         i32,
         bool,
@@ -149,7 +150,7 @@ impl EngineSnapshot {
         let mut repetition_counts = engine
             .repetition_counts
             .iter()
-            .map(|(key, count)| (key.clone(), *count))
+            .map(|(key, count)| (*key, *count))
             .collect::<Vec<_>>();
         repetition_counts.sort();
 
@@ -574,18 +575,18 @@ fn simulate_undo_restores_repetition_counts_when_fen_after_already_seen() {
     let preview_undo = preview
         .simulate_action_for_search(player, &action)
         .expect("preview move should simulate");
-    let fen_after = preview.to_fen();
+    let hash_after = preview.position_hash;
     let _ = preview.undo_action_for_search(preview_undo);
 
     let seeded_count = 2;
-    engine.repetition_counts.insert(fen_after.clone(), seeded_count);
+    engine.repetition_counts.insert(hash_after, seeded_count);
     let before_counts = engine.repetition_counts.clone();
 
     let undo = engine
         .simulate_action_for_search(player, &action)
         .expect("test move should simulate");
     assert_eq!(
-        engine.repetition_counts.get(&fen_after).copied(),
+        engine.repetition_counts.get(&hash_after).copied(),
         Some(seeded_count + 1)
     );
 

@@ -1558,7 +1558,7 @@ fn detect_finish_mode_context(
         .len();
     let current_repeat = engine
         .repetition_counts
-        .get(&engine.to_fen())
+        .get(&engine.current_repetition_key)
         .copied()
         .unwrap_or(1) as i32;
     let repetition_pressure = shared_repetition_pressure(current_repeat, engine.halfmove_clock);
@@ -1616,7 +1616,7 @@ fn detect_pressure_mode_context(
         .len();
     let current_repeat = engine
         .repetition_counts
-        .get(&engine.to_fen())
+        .get(&engine.current_repetition_key)
         .copied()
         .unwrap_or(1) as i32;
     let repetition_pressure = shared_repetition_pressure(current_repeat, engine.halfmove_clock);
@@ -1728,7 +1728,7 @@ fn finish_mode_score(
 
     let repeat_after = sim
         .repetition_counts
-        .get(&sim.to_fen())
+        .get(&sim.current_repetition_key)
         .copied()
         .unwrap_or(1) as i32;
     if repeat_after >= 3 {
@@ -1846,7 +1846,7 @@ fn pressure_mode_score(
 
     let repeat_after = sim
         .repetition_counts
-        .get(&sim.to_fen())
+        .get(&sim.current_repetition_key)
         .copied()
         .unwrap_or(1) as i32;
     if repeat_after >= 3 {
@@ -2481,7 +2481,7 @@ fn contextual_profile_hook(
 
     let repetition_before = sim
         .repetition_counts
-        .get(&sim.to_fen())
+        .get(&sim.current_repetition_key)
         .copied()
         .unwrap_or(1) as i32;
     let board_after = parse_fen(&sim.to_fen());
@@ -2685,7 +2685,7 @@ fn winning_endgame_move_filter(
     let after_fen = parse_fen(&sim.to_fen());
     let repeat_after = sim
         .repetition_counts
-        .get(&sim.to_fen())
+        .get(&sim.current_repetition_key)
         .copied()
         .unwrap_or(1) as i32;
 

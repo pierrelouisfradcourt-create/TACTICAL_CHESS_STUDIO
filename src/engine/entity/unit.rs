@@ -1,5 +1,6 @@
 use crate::chess::piece_kind::ChessPieceKind;
 use crate::engine::entity::stats::Stats;
+use std::sync::Arc;
 
 pub type UnitId = u32;
 pub type PlayerId = u32;
@@ -14,7 +15,7 @@ pub struct Position {
 pub struct Unit {
     pub id: UnitId,
     pub owner: PlayerId,
-    pub template_name: String,
+    pub template_name: Arc<str>,
     pub kind: ChessPieceKind,
     pub position: Position,
     pub stats: Stats,
