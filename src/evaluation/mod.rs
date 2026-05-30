@@ -122,3 +122,199 @@ impl EvalRunResult {
             .map_err(|e| format!("parse error: {e}"))
     }
 }
+
+/// Verdict mécanique du regression guard.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum GuardVerdict {
+    /// Le candidat ne régresse pas sur les métriques clés.
+    Pass,
+    /// Le candidat régresse de façon significative.
+    Fail,
+    /// Pas assez de parties pour trancher (n < min_games).
+    Inconclusive,
+}
+
+impl std::fmt::Display for GuardVerdict {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GuardVerdict::Pass => write!(f, "PASS"),
+            GuardVerdict::Fail => write!(f, "FAIL"),
+            GuardVerdict::Inconclusive => write!(f, "INCONCLUSIVE"),
+        }
+    }
+}
+
+/// Rapport complet du guard — verdict + détail des checks.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GuardReport {
+    pub verdict: GuardVerdict,
+    pub baseline_games: u32,
+    pub candidate_games: u32,
+    pub draw_rate_baseline: f64,
+    pub draw_rate_candidate: f64,
+    pub draw_rate_delta: f64,
+    pub win_rate_delta: f64,
+    pub elo_delta: f64,
+    pub checks: Vec<GuardCheck>,
+    pub reason: String,
+}
+
+/// Détail d'un check individuel.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GuardCheck {
+    pub name: String,
+    pub passed: bool,
+    pub detail: String,
+}
+
+/// Seuils configurables du guard.
+#[derive(Debug, Clone)]
+pub struct GuardThresholds {
+    /// Nombre minimum de parties pour rendre un verdict non-INCONCLUSIVE.
+    pub min_games: u32,
+    /// Delta de draw_rate au-delà duquel c'est un FAIL (ex: +0.20 = +20% de nulles).
+    pub max_draw_rate_increase: f64,
+    /// Delta de win_rate en dessous duquel c'est un FAIL (ex: -0.15 = -15% de victoires).
+    pub min_win_rate_delta: f64,
+    /// Delta d'Elo en dessous duquel c'est un FAIL (ex: -30 points).
+    pub min_elo_delta: f64,
+}
+
+impl Default for GuardThresholds {
+    fn default() -> Self {
+        Self {
+            min_games: 10,
+            max_draw_rate_increase: 0.20,
+            min_win_rate_delta: -0.15,
+            min_elo_delta: -30.0,
+        }
+    }
+}
+
+/// Le regression guard — compare baseline et candidat, rend un verdict.
+pub struct RegressionGuard {
+    pub thresholds: GuardThresholds,
+}
+
+impl RegressionGuard {
+    pub fn new(thresholds: GuardThresholds) -> Self {
+        Self { thresholds }
+    }
+
+    pub fn with_defaults() -> Self {
+        Self::new(GuardThresholds::default())
+    }
+
+    pub fn evaluate(&self, baseline: &EvalRunResult, candidate: &EvalRunResult) -> GuardReport {
+        let t = &self.thresholds;
+
+        if candidate.games < t.min_games {
+            return GuardReport {
+                verdict: GuardVerdict::Inconclusive,
+                baseline_games: baseline.games,
+                candidate_games: candidate.games,
+                draw_rate_baseline: baseline.draw_rate,
+                draw_rate_candidate: candidate.draw_rate,
+                draw_rate_delta: candidate.draw_rate - baseline.draw_rate,
+                win_rate_delta: candidate.win_rate_a - baseline.win_rate_a,
+                elo_delta: candidate.elo_a - baseline.elo_a,
+                checks: vec![GuardCheck {
+                    name: "min_games".to_string(),
+                    passed: false,
+                    detail: format!(
+                        "candidate.games={} < min_games={}",
+                        candidate.games, t.min_games
+                    ),
+                }],
+                reason: format!(
+                    "INCONCLUSIVE: only {} games, need at least {}",
+                    candidate.games, t.min_games
+                ),
+            };
+        }
+
+        let draw_rate_delta = candidate.draw_rate - baseline.draw_rate;
+        let win_rate_delta = candidate.win_rate_a - baseline.win_rate_a;
+        let elo_delta = candidate.elo_a - baseline.elo_a;
+
+        let mut checks = Vec::new();
+        let mut failed = false;
+
+        let draw_ok = draw_rate_delta <= t.max_draw_rate_increase;
+        checks.push(GuardCheck {
+            name: "draw_rate".to_string(),
+            passed: draw_ok,
+            detail: format!(
+                "delta={:.3} (limit=+{:.3}): baseline={:.3} candidate={:.3}",
+                draw_rate_delta, t.max_draw_rate_increase,
+                baseline.draw_rate, candidate.draw_rate
+            ),
+        });
+        if !draw_ok {
+            failed = true;
+        }
+
+        let win_ok = win_rate_delta >= t.min_win_rate_delta;
+        checks.push(GuardCheck {
+            name: "win_rate".to_string(),
+            passed: win_ok,
+            detail: format!(
+                "delta={:.3} (limit={:.3}): baseline={:.3} candidate={:.3}",
+                win_rate_delta, t.min_win_rate_delta,
+                baseline.win_rate_a, candidate.win_rate_a
+            ),
+        });
+        if !win_ok {
+            failed = true;
+        }
+
+        let elo_ok = elo_delta >= t.min_elo_delta;
+        checks.push(GuardCheck {
+            name: "elo_delta".to_string(),
+            passed: elo_ok,
+            detail: format!(
+                "delta={:.1} (limit={:.1}): baseline={:.1} candidate={:.1}",
+                elo_delta, t.min_elo_delta,
+                baseline.elo_a, candidate.elo_a
+            ),
+        });
+        if !elo_ok {
+            failed = true;
+        }
+
+        let verdict = if failed { GuardVerdict::Fail } else { GuardVerdict::Pass };
+        let failed_names: Vec<&str> = checks.iter()
+            .filter(|c| !c.passed)
+            .map(|c| c.name.as_str())
+            .collect();
+        let reason = if failed {
+            format!("FAIL: checks failed: {}", failed_names.join(", "))
+        } else {
+            "PASS: all checks within thresholds".to_string()
+        };
+
+        GuardReport {
+            verdict,
+            baseline_games: baseline.games,
+            candidate_games: candidate.games,
+            draw_rate_baseline: baseline.draw_rate,
+            draw_rate_candidate: candidate.draw_rate,
+            draw_rate_delta,
+            win_rate_delta,
+            elo_delta,
+            checks,
+            reason,
+        }
+    }
+
+    /// Persiste le rapport en JSON.
+    pub fn save_report(report: &GuardReport, path: &str) -> Result<(), String> {
+        let json = serde_json::to_string_pretty(report)
+            .map_err(|e| format!("serialization error: {e}"))?;
+        if let Some(parent) = std::path::Path::new(path).parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("mkdir error: {e}"))?;
+        }
+        std::fs::write(path, json).map_err(|e| format!("write error: {e}"))?;
+        Ok(())
+    }
+}
