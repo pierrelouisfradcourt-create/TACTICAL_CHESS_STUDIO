@@ -623,15 +623,20 @@ fn detect_weakness_candidates(
         });
     }
 
-    if !selected_is_capture {
-        if let Some(best_capture_score) = best_capture_score(engine_before, player) {
-            if best_capture_score - played_score >= 120 && cp_drop <= CP_DROP_LOG_THRESHOLD {
-                out.push(WeaknessCandidate {
-                    error_type: "missed_capture",
-                    cp_drop,
-                    priority: cp_drop.abs() + 80,
-                });
-            }
+    // Version legere : on detecte qu'une capture existe sans lancer search_root sur chaque
+    // capture. L'ancienne version appelait action_score_for_player (= search_root) pour
+    // chaque capture legale, soit O(captures) searches supplementaires par coup (issue #15).
+    if !selected_is_capture && cp_drop <= CP_DROP_LOG_THRESHOLD {
+        let has_capture = engine_before
+            .legal_actions(player)
+            .iter()
+            .any(|a| is_capture_action(engine_before, a));
+        if has_capture {
+            out.push(WeaknessCandidate {
+                error_type: "missed_capture",
+                cp_drop,
+                priority: cp_drop.abs() + 80,
+            });
         }
     }
 
@@ -701,8 +706,23 @@ fn maybe_log_move_weaknesses(
     else {
         return;
     };
-    let Some(played_score) = action_score_for_player(engine_before, player, &played_action) else {
-        return;
+    // Utilise le score statique post-coup au lieu de action_score_for_player (qui lancait
+    // une search_root supplementaire). Moins precis mais evite le doublement du temps de calcul
+    // quand TCS_WEAKNESS_LOG=1. Le cp_drop reste significatif pour le triage des erreurs.
+    let played_score = {
+        use crate::chess::eval::static_evaluate;
+        use crate::engine::action::command::Command;
+        let mut sim = engine_before.clone();
+        sim.execute(Command { player_id: player, action: played_action.clone() });
+        if sim.game_over() {
+            match sim.winner() {
+                Some(w) if w == player => MATE_SCORE_THRESHOLD + 500,
+                Some(_) => -MATE_SCORE_THRESHOLD,
+                None => 0,
+            }
+        } else {
+            static_evaluate(&sim, player)
+        }
     };
 
     let phase = phase_from_engine(engine_before).to_string();
@@ -1289,7 +1309,12 @@ impl SimulationRunner {
             step += 1;
 
             let fen_after = engine.to_fen();
-            maybe_log_move_weaknesses(&engine_before_move, &engine, player, &selected_move);
+            // TCS_WEAKNESS_LOG=1 requis pour activer — desactive par defaut (chaque appel
+            // declenchait ~10 search_root supplementaires par coup joue, cause de l'explosion
+            // combinatoire issue #15).
+            if std::env::var("TCS_WEAKNESS_LOG").ok().as_deref() == Some("1") {
+                maybe_log_move_weaknesses(&engine_before_move, &engine, player, &selected_move);
+            }
 
             let capture_flag = infer_capture_from_position_delta(&fen_before, &fen_after);
             let no_capture_flag = if capture_flag == 0 { 1 } else { 0 };
@@ -1392,6 +1417,45 @@ impl SimulationRunner {
                 repetition_flag,
                 turn_start.elapsed().as_millis()
             ));
+
+            // MOVE_DIAG : emis uniquement pour Rocky (agent heuristic/minimax), pas random ni teacher.
+            // Fournit au coach LLM toutes les donnees contextuelles sur la decision.
+            if mode == "heuristic" || mode == "minimax" {
+                let band = if material_diff > 100 {
+                    "ahead"
+                } else if material_diff < -100 {
+                    "behind"
+                } else {
+                    "equal"
+                };
+                let own_moves = legal_actions.len();
+                let enemy_moves = engine.legal_actions(opponent(player)).len();
+                let enemy_moves_delta = 0i32; // neutre — necessite scan pre/post non disponible ici
+                let passed_pawn_delta = 0i32; // neutre — necessite evaluation pre/post
+                let passed_pawn_distance = 8i32; // valeur neutre par defaut
+                let search_score = decision_trace
+                    .as_ref()
+                    .and_then(|t| t.root_search.as_ref())
+                    .map(|r| r.best_score)
+                    .unwrap_or(0);
+                emit_runtime_line(&format!(
+                    "MOVE_DIAG|source=search|phase={}|band={}|plan=none|selected={}|material={}|own_moves={}|enemy_moves={}|repetition_pressure={}|passed_pawn_distance={}|no_progress_pressure={}|score={}|enemy_moves_delta={}|passed_pawn_delta={}|repeat={}|fen={}",
+                    turn_phase,
+                    band,
+                    selected_move,
+                    material_diff * 100, // convertir pions -> centipawns
+                    own_moves,
+                    enemy_moves,
+                    repetition_flag,
+                    passed_pawn_distance,
+                    no_progress_flag,
+                    search_score,
+                    enemy_moves_delta,
+                    passed_pawn_delta,
+                    repetition_count,
+                    fen_before,
+                ));
+            }
 
             if let Some(interval_turns) = progress_interval_turns {
                 let current_turns = engine.turn_manager.turn_index;

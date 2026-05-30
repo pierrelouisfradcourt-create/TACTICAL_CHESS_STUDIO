@@ -100,6 +100,7 @@ class MoveDiag:
     enemy_moves_delta: int
     passed_pawn_delta: int
     repeat: int
+    fen: str = ""
 
 
 def _parse_kv(parts: list) -> dict:
@@ -133,6 +134,7 @@ def parse_move_diag(line: str) -> Optional[MoveDiag]:
             enemy_moves_delta=int(kv.get("enemy_moves_delta", "0")),
             passed_pawn_delta=int(kv.get("passed_pawn_delta", "0")),
             repeat=int(kv.get("repeat", "0")),
+            fen=kv.get("fen", ""),
         )
     except (ValueError, KeyError) as e:
         print(f"[COACH] Erreur parsing: {e}", file=sys.stderr)
@@ -210,6 +212,10 @@ def build_coaching_prompt(diag: MoveDiag, move_number: int) -> str:
     if diag.plan and diag.plan.lower() not in ("none", "unknown", ""):
         plan_note = "\n- Plan tactique : " + diag.plan
 
+    fen_note = ""
+    if diag.fen:
+        fen_note = "\n- Position FEN : " + diag.fen
+
     prompt = (
         "Coup " + str(move_number) + " de Rocky : " + move_readable + "\n"
         "Phase : " + phase_fr + "\n\n"
@@ -218,7 +224,8 @@ def build_coaching_prompt(diag: MoveDiag, move_number: int) -> str:
         "- " + mat_str + "\n"
         "- " + mob_str + "\n"
         "- " + impact_str
-        + plan_note + "\n\n"
+        + plan_note
+        + fen_note + "\n\n"
         "Explique en 2-3 phrases pourquoi Rocky a joue " + move_readable + ". "
         "Parle directement au joueur."
     )
@@ -289,22 +296,36 @@ def test_connection(model: str) -> bool:
 KNOWN_PREFIXES = ("MOVE_DIAG|", "ROOT_DECISION_SELECTED|")
 
 
+# Prefixes qui indiquent le debut d'une nouvelle ligne independante (pas une continuation).
+_LINE_STARTS = (
+    "MOVE_DIAG|", "ROOT_DECISION_SELECTED|",
+    "MOVE_SELECT|", "TRACE|", "WIN_TRACE|", "WIN_SUMMARY|",
+    "ALERT|", "ENDGAME_DIAG|", "GAME_ANALYSIS_SUMMARY|",
+    "ERROR_DETECTED|", "Match ", "===", "DEBUG ", "warning",
+    "NEURAL_", "COST_SEARCH", "cargo ", "Compiling", "Finished",
+    "Running", "Player", "Draw", "Avg", "First",
+)
+
+
 def read_full_lines(stream) -> list:
+    """Extrait uniquement les lignes MOVE_DIAG completes depuis le flux.
+
+    Chaque ligne du fichier est independante (Out-File ne wrappe pas les longues
+    lignes dans le fichier, seulement dans le terminal). On filtre directement.
+    """
+    seen = set()
     result = []
-    current = ""
+
     for raw in stream:
-        line = raw.rstrip("\r\n")
+        line = raw.strip() if hasattr(raw, "strip") else raw
         if not line:
             continue
-        starts_new = any(line.startswith(p) for p in KNOWN_PREFIXES)
-        if starts_new:
-            if current:
-                result.append(current)
-            current = line
-        elif current:
-            current += line
-    if current:
-        result.append(current)
+        if not line.startswith("MOVE_DIAG|"):
+            continue
+        if line not in seen:
+            seen.add(line)
+            result.append(line)
+
     return result
 
 
@@ -320,6 +341,7 @@ def main() -> None:
     parser.add_argument("--verbose", action="store_true", help="Affiche le prompt envoye.")
     parser.add_argument("--only-final", action="store_true", help="Explique seulement le dernier coup.")
     parser.add_argument("--model", default=None, help="Nom du modele LM Studio (auto-detecte par defaut).")
+    parser.add_argument("--file", default=None, help="Lire depuis un fichier log au lieu de stdin (evite le wrapping PowerShell).")
     args = parser.parse_args()
 
     model = args.model if args.model else detect_loaded_model()
@@ -328,8 +350,27 @@ def main() -> None:
         ok = test_connection(model)
         sys.exit(0 if ok else 1)
 
-    lines = read_full_lines(sys.stdin)
+    # Lire depuis fichier (recommande sous PowerShell) ou stdin
+    import io
+    if args.file:
+        # Lecture directe du fichier : pas de wrapping, pas de probleme d'encodage
+        raw = open(args.file, "rb").read()
+    else:
+        raw = sys.stdin.buffer.read()
+
+    # Detecter et decoder : UTF-16 BOM (Out-File PowerShell), UTF-8-BOM, UTF-8, latin-1
+    for enc in ("utf-8-sig", "utf-8", "utf-16", "latin-1"):
+        try:
+            decoded = raw.decode(enc)
+            break
+        except (UnicodeDecodeError, Exception):
+            continue
+    else:
+        decoded = raw.decode("latin-1")
+
+    lines = read_full_lines(io.StringIO(decoded))
     diags = [d for line in lines if (d := parse_move_diag(line)) is not None]
+    diags = [d for d in diags if d.source == "search"]
 
     if not diags:
         print("[COACH] Aucun MOVE_DIAG trouve dans l'entree.")

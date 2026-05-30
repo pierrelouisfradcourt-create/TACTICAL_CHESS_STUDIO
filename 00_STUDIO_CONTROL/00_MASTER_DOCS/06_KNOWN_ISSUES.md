@@ -620,13 +620,12 @@ Recommendation:
 
 ## 15. Rocky — Explosion combinatoire search
 
-Status: ACTIVE
+Status: RESOLVED (2026-05-30)
 
-Symptome : simulate_chess960 ne termine pas dans un temps raisonnable.
-Cause suspectee : profondeur de recherche ou boucle de replay non bornee.
-TCS_MINIMAX_DEPTH=Err(NotPresent) visible dans les logs — variable non definie.
-Blocking : generation de logs MOVE_DIAG pour le coach.
-Prochaine action : isoler le goulot (depth cap, quiescence, boucle partie).
+Resolution : maybe_log_move_weaknesses desactivee par defaut (TCS_WEAKNESS_LOG=1
+pour opt-in). best_capture_score remplace par detection legere sans search_root.
+MOVE_DIAG emis dans simulation_runner.rs. Coach v0 operationnel end-to-end.
+Commits : f9d9c47 feat: Rocky Coach v0, a74de0c docs: update architecture post-sprint
 
 ## Removed From Active Known Issues
 
