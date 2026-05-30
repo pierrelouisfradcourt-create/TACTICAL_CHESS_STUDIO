@@ -1101,6 +1101,12 @@ impl SimulationRunner {
             agent.new_game();
         }
 
+        let neural_agent = if neural_active {
+            Some(NeuralAgent::new())
+        } else {
+            None
+        };
+
         let mut step = 0u32;
         let mut seen_positions: HashMap<String, u32> = HashMap::new();
         let mut first_moves = MatchFirstMoves::default();
@@ -1210,6 +1216,11 @@ impl SimulationRunner {
                         .and_then(|a| a.select_action_from_engine(&engine, player)),
                     None,
                 )
+            } else if mode == "neural" {
+                let action = neural_agent
+                    .as_ref()
+                    .map(|a| a.select_action(&engine, player, &legal_actions));
+                (action, None)
             } else {
                 let trace = choose_best_action_with_trace_and_context(
                     &engine,
