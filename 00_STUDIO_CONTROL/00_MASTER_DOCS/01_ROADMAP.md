@@ -16,8 +16,8 @@ Livrable commercial : SDK Rocky / licence.
 |---|---|---|
 | Régénérer promoted_pedagogy_pack.jsonl via Stockfish teacher | BLOCKED — dataset manquant | P0 |
 | Activer Chess 960 (HumanGate requis) | BLOCKED — en attente décision | P1 |
-| Brancher LM Studio sur le decision tree de Rocky | IN_PROGRESS — ml/coach.py v0 operationnel, parsing log a affiner | P2 |
-| Rocky explique ses coups en langage naturel | NOT_STARTED | P3 |
+| Brancher LM Studio sur le decision tree de Rocky | DONE — coach v0 opérationnel end-to-end, FEN dans MOVE_DIAG, filtrage random, commit fd88b97 | P2 |
+| Rocky explique ses coups en langage naturel | IN_PROGRESS — coach v0 génère explications LLM par coup, prompt à affiner | P3 |
 | UxPilote v1 — cockpit lecture seule | NOT_STARTED | P4 |
 
 Prérequis bloquants :
