@@ -303,9 +303,9 @@ pub(crate) fn repetition_signal(engine: &Engine, player: PlayerId, mv: &Action) 
             ..
         } if *last_unit_id == *unit_id => {
             if *target == unit.position {
-                2
+                120
             } else if chebyshev(*last_target, *target) <= 1 {
-                1
+                60
             } else {
                 0
             }
@@ -416,11 +416,7 @@ pub(crate) fn forward_progress(player: PlayerId, pos: Position) -> i32 {
 }
 
 pub(crate) fn is_shuffle_move(engine: &Engine, player: PlayerId, mv: &Action) -> bool {
-    if engine.action_log.len() < 24 {
-        return false;
-    }
-
-    if material_balance(engine, player) < 200 {
+    if engine.action_log.len() < 12 {
         return false;
     }
 

@@ -64,11 +64,14 @@ pub(crate) fn evaluate(engine: &Engine, player: PlayerId) -> i32 {
         score -= 40;
     }
 
+    let my_mobility = engine.legal_actions(player).len() as i32;
+    let enemy_mobility = engine.legal_actions(enemy).len() as i32;
     if total_units <= 20 {
-        let my_mobility = engine.legal_actions(player).len() as i32;
-        let enemy_mobility = engine.legal_actions(enemy).len() as i32;
         score += my_mobility * 4;
         score -= enemy_mobility * 4;
+    } else {
+        score += my_mobility * 2;
+        score -= enemy_mobility * 2;
     }
 
     let enemy_in_check = engine.is_in_check(enemy);
@@ -276,7 +279,7 @@ pub(crate) fn has_non_pawn_material(engine: &Engine, player: PlayerId) -> bool {
 }
 
 pub(crate) fn is_winning_endgame(engine: &Engine, player: PlayerId) -> bool {
-    engine.units.len() <= 10 && material_balance(engine, player) >= 180
+    engine.units.len() <= 16 && material_balance(engine, player) >= 100
 }
 
 pub(crate) fn endgame_conversion_pressure(engine: &Engine, player: PlayerId) -> i32 {
