@@ -1,4 +1,5 @@
 use crate::chess::eval::static_evaluate;
+use crate::chess::search::move_score;
 use crate::engine::action::action::Action;
 use crate::engine::engine::Engine;
 use crate::engine::entity::unit::PlayerId;
@@ -47,7 +48,10 @@ pub(crate) fn opponent_worst_case_value(
 
     let opponent = simulated.opponent(player);
     let mut worst_value = static_evaluate(&simulated, player);
-    for reply in simulated.legal_actions(opponent).into_iter().take(opponent_worst_case_max_replies()) {
+    let max_replies = opponent_worst_case_max_replies();
+    let mut replies = simulated.legal_actions(opponent);
+    replies.sort_by_key(|mv| std::cmp::Reverse(move_score(&simulated, opponent, mv)));
+    for reply in replies.into_iter().take(max_replies) {
         let Some(reply_undo) = simulated.simulate_action_for_search(opponent, &reply) else {
             continue;
         };

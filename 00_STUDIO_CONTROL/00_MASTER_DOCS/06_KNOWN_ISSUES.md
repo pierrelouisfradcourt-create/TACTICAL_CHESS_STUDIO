@@ -593,7 +593,10 @@ Recommendation:
 
 ## 26. transition_reply.rs — Worst-Case Replies Not Sorted Before Sampling
 
-Status: ACTIVE (scope reduced by 90fe323)
+Status: RESOLVED (2026-05-30)
+
+Resolution : replies triees par move_score descendant avant take(max_replies).
+Commit : voir git log.
 
 Current evidence:
 - `src/chess/transition_reply.rs` `opponent_worst_case_value` iterates `simulated.legal_actions(opponent).into_iter().take(max_replies)` with `max_replies` defaulting to 12.
