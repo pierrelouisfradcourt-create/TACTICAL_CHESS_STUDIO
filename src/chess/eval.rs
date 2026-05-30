@@ -100,7 +100,7 @@ pub fn static_evaluate(engine: &Engine, player: PlayerId) -> i32 {
 pub(crate) fn terminal_score(engine: &Engine, player: PlayerId, ply: usize) -> i32 {
     match engine.winner() {
         Some(w) if w == player => 900_000 - ply as i32 * 10,
-        Some(_) => -900_000,
+        Some(_) => -(900_000 - ply as i32 * 10),
         None => draw_score(engine, player),
     }
 }
@@ -224,7 +224,7 @@ fn king_safety_bonus(engine: &Engine, owner: PlayerId, pos: Position) -> i32 {
     score
 }
 
-fn draw_score(engine: &Engine, player: PlayerId) -> i32 {
+pub(crate) fn draw_score(engine: &Engine, player: PlayerId) -> i32 {
     let mat = material_balance(engine, player);
 
     if mat >= 500 {

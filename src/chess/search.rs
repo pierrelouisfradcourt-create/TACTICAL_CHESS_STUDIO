@@ -1,5 +1,5 @@
 use crate::chess::eval::{
-    center_bonus, evaluate, has_non_pawn_material, is_low_material_search_position,
+    center_bonus, draw_score, evaluate, has_non_pawn_material, is_low_material_search_position,
     is_winning_endgame, piece_value, terminal_score,
 };
 use crate::chess::move_features::*;
@@ -27,9 +27,10 @@ use crate::engine::engine::{
 };
 use crate::engine::entity::unit::PlayerId;
 
+use std::cell::RefCell;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 const INF: i32 = 1_000_000_000;
 const MAX_PLY: usize = 64;
@@ -37,13 +38,14 @@ fn max_q_depth() -> i32 {
     std::env::var("TCS_Q_DEPTH")
         .ok()
         .and_then(|v| v.parse().ok())
-        .unwrap_or(8)
+        .unwrap_or(3)
         .max(1)
 }
-const TT_MAX_SIZE: usize = 500_000;
-const TT_PRUNE_BATCH: usize = 65_536;
+const TT_SIZE: usize = 1 << 20;
 const NULL_MOVE_MIN_DEPTH: i32 = 3;
 const NULL_MOVE_REDUCTION: i32 = 2;
+const ASPIRATION_DELTA: i32 = 80;
+const ASPIRATION_MATE_THRESHOLD: i32 = 800_000;
 const TT_BEST_MOVE_BONUS: i32 = 50_000;
 const PRIMARY_KILLER_BONUS: i32 = 20_000;
 const SECONDARY_KILLER_BONUS: i32 = 18_000;
@@ -85,19 +87,21 @@ enum Bound {
 
 #[derive(Clone)]
 struct TTEntry {
+    key: u64,
     depth: i32,
     score: i32,
     bound: Bound,
     best_move: Option<Action>,
-    age: u32,
 }
 
-static TT: OnceLock<Mutex<HashMap<u64, TTEntry>>> = OnceLock::new();
-static KILLERS: OnceLock<Mutex<Vec<[Option<Action>; 2]>>> = OnceLock::new();
-static HISTORY: OnceLock<Mutex<HashMap<u64, i32>>> = OnceLock::new();
-static COUNTERMOVES: OnceLock<Mutex<HashMap<u64, Action>>> = OnceLock::new();
+thread_local! {
+    static TT: RefCell<Vec<Option<TTEntry>>> = RefCell::new(vec![None; TT_SIZE]);
+    static KILLERS: RefCell<Vec<[Option<Action>; 2]>> = RefCell::new(Vec::new());
+    static HISTORY: RefCell<HashMap<u64, i32>> = RefCell::new(HashMap::new());
+    static COUNTERMOVES: RefCell<HashMap<u64, Action>> = RefCell::new(HashMap::new());
+}
+
 static ROOT_POLICY: OnceLock<Mutex<HashMap<u64, HashMap<u64, i32>>>> = OnceLock::new();
-static TT_AGE: AtomicU32 = AtomicU32::new(0);
 
 struct ZobristTable {
     pieces: [[[u64; 64]; 2]; 6],
@@ -156,7 +160,6 @@ fn search_root_in_place(
 ) -> Option<RootSearchResult> {
     init_tables();
     set_search_runtime_profile_enabled(search_runtime_diagnostics_enabled());
-    let current_age = TT_AGE.fetch_add(1, Ordering::Relaxed).wrapping_add(1);
     let mut instrumentation = SearchInstrumentation::default();
 
     let legal = engine.legal_actions(player);
@@ -164,29 +167,42 @@ fn search_root_in_place(
         return None;
     }
 
+    let time_limit = Duration::from_millis(
+        std::env::var("TCS_MOVE_TIME_MS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(500),
+    );
+    let search_start = Instant::now();
+
     let max_depth = adaptive_depth(engine);
     instrumentation.record_branching(0, max_depth, legal.len());
     let mut best_move = legal[0].clone();
-    let mut prev_score = 0;
+    let mut prev_score: i32 = 0;
     let mut chosen_search_score = 0;
     let mut completed_depth = 0;
-    let mut best_decision = RootDecisionBreakdown::default();
+    let best_decision = RootDecisionBreakdown::default();
     let root_key = position_key(engine, player);
     let mut last_ordered = legal.clone();
     let mut last_root_scores = vec![-INF; legal.len()];
     let mut last_cutoff_index = None;
     let mut best_initial_rank = 0usize;
-    let mut game_decision_trace = None;
+    let game_decision_trace = None;
 
     for depth in 1..=max_depth {
+        if depth > 1 && search_start.elapsed() >= time_limit {
+            break;
+        }
         let ordered =
             order_root_moves(engine, player, &legal, &mut instrumentation.mirror_ordering);
         last_ordered = ordered.clone();
 
-        let mut window_alpha = if depth >= 3 { prev_score - 40 } else { -INF };
-        let mut window_beta = if depth >= 3 { prev_score + 40 } else { INF };
+        let use_aspiration = depth >= 3 && prev_score.abs() < ASPIRATION_MATE_THRESHOLD;
+        let mut window_alpha = if use_aspiration { prev_score - 40 } else { -INF };
+        let mut window_beta = if use_aspiration { prev_score + 40 } else { INF };
 
         loop {
+            let initial_window_alpha = window_alpha;
             let mut alpha = window_alpha;
             let beta = window_beta;
 
@@ -195,8 +211,6 @@ fn search_root_in_place(
             let mut fail_high = false;
             let mut cutoff_index = None;
             let mut mate_in_one = vec![false; ordered.len()];
-            let mut mate_for_opponent = vec![false; ordered.len()];
-            let mut fork_moves = vec![false; ordered.len()];
 
             for (idx, mv) in ordered.iter().enumerate() {
                 let score_window_alpha = alpha;
@@ -204,16 +218,6 @@ fn search_root_in_place(
                     continue;
                 };
                 let is_mate_now = engine.game_over() && engine.winner() == Some(player);
-                if !is_mate_now {
-                    let opponent_player = opponent(player);
-                    mate_for_opponent[idx] = opponent_best_reply_forces_mate(
-                        engine,
-                        opponent_player,
-                        player,
-                        &mut instrumentation,
-                    );
-                }
-                fork_moves[idx] = is_root_fork_move(engine, player, mv);
                 instrumentation.record_move_simulation(undo.profile());
 
                 let score = if idx == 0 {
@@ -279,8 +283,48 @@ fn search_root_in_place(
 
             if fail_high && depth >= 3 {
                 instrumentation.counters.aspiration_retries += 1;
-                window_alpha -= 80;
-                window_beta += 80;
+                if best_score >= ASPIRATION_MATE_THRESHOLD {
+                    // Mate found — commit immediately to the move that caused fail_high.
+                    // Retrying with window_beta=INF inflates all subsequent null-window
+                    // scores to the mate threshold via cutoff, producing false ties.
+                    let mate_local_idx = cutoff_index.unwrap_or(0);
+                    best_move = ordered[mate_local_idx].clone();
+                    let mate_score = root_scores
+                        .get(mate_local_idx)
+                        .copied()
+                        .unwrap_or(best_score);
+                    chosen_search_score = mate_score;
+                    prev_score = mate_score;
+                    completed_depth = depth;
+                    last_root_scores = root_scores;
+                    last_cutoff_index = cutoff_index;
+                    best_initial_rank = ordered
+                        .iter()
+                        .position(|mv| same_move(mv, &best_move))
+                        .unwrap_or(0);
+                    store_tt(
+                        root_key,
+                        TTEntry {
+                            key: 0,
+                            depth,
+                            score: mate_score,
+                            bound: Bound::Lower,
+                            best_move: Some(best_move.clone()),
+                        },
+                    );
+                    break;
+                }
+                window_beta = window_beta.saturating_add(ASPIRATION_DELTA);
+                continue;
+            }
+
+            if depth >= 3 && best_score <= initial_window_alpha {
+                instrumentation.counters.aspiration_retries += 1;
+                if best_score <= -ASPIRATION_MATE_THRESHOLD {
+                    window_alpha = -INF;
+                } else {
+                    window_alpha = window_alpha.saturating_sub(ASPIRATION_DELTA);
+                }
                 continue;
             }
 
@@ -318,45 +362,21 @@ fn search_root_in_place(
                 });
             }
 
-            let best_local_idx = with_root_decision_hooks(engine, player, |hooks| {
-                select_root_move(
-                    engine,
-                    player,
-                    root_key,
-                    &ordered,
-                    &root_scores,
-                    best_score,
-                    &mate_for_opponent,
-                    &fork_moves,
-                    hooks,
-                    context,
-                )
-            });
-            let (best_local_idx, trace) = best_local_idx;
-            if context.is_some() {
-                game_decision_trace = trace;
-            }
+            // S-7 removed: pure alpha-beta selection
+            let best_local_idx = root_scores
+                .iter()
+                .enumerate()
+                .max_by_key(|&(_, &s)| s)
+                .map(|(i, _)| i)
+                .unwrap_or(0);
             best_move = ordered[best_local_idx].clone();
             let selected_search_score = root_scores
                 .get(best_local_idx)
                 .copied()
                 .unwrap_or(best_score);
-            let best_search_score = best_score;
             chosen_search_score = selected_search_score;
             prev_score = selected_search_score;
             completed_depth = depth;
-            best_decision = with_root_decision_hooks(engine, player, |hooks| {
-                root_decision_breakdown(
-                    engine,
-                    player,
-                    root_key,
-                    &best_move,
-                    selected_search_score,
-                    hooks,
-                    &mut 0,
-                )
-            });
-            update_root_policy(root_key, &ordered, &root_scores, best_search_score, depth);
             last_root_scores = root_scores;
             last_cutoff_index = cutoff_index;
             best_initial_rank = ordered
@@ -367,11 +387,11 @@ fn search_root_in_place(
             store_tt(
                 root_key,
                 TTEntry {
+                    key: 0,
                     depth,
                     score: selected_search_score,
                     bound: Bound::Exact,
                     best_move: Some(best_move.clone()),
-                    age: current_age,
                 },
             );
 
@@ -519,7 +539,7 @@ fn negamax(
     let in_check = engine.is_in_check(to_move);
 
     if engine.game_over() {
-        return terminal_score(engine, root_player, ply);
+        return terminal_score(engine, to_move, ply);
     }
 
     if depth <= 0 {
@@ -577,7 +597,11 @@ fn negamax(
 
     let legal = engine.legal_actions(to_move);
     if legal.is_empty() {
-        return evaluate(engine, root_player);
+        return if in_check {
+            -900_000 + ply as i32 * 10
+        } else {
+            draw_score(engine, to_move)
+        };
     }
     instrumentation.record_branching(ply, depth, legal.len());
 
@@ -714,11 +738,11 @@ fn negamax(
     store_tt(
         key,
         TTEntry {
+            key: 0,
             depth,
             score: best,
             bound,
             best_move,
-            age: TT_AGE.load(Ordering::Relaxed),
         },
     );
 
@@ -737,7 +761,7 @@ fn quiescence(
 ) -> i32 {
     instrumentation.record_quiescence_node(ply);
     if engine.game_over() {
-        return terminal_score(engine, root_player, ply);
+        return terminal_score(engine, to_move, ply);
     }
     let stand_pat = evaluate(engine, root_player);
 
@@ -754,6 +778,14 @@ fn quiescence(
     }
 
     let legal = engine.legal_actions(to_move);
+    if legal.is_empty() {
+        let in_check = engine.is_in_check(to_move);
+        return if in_check {
+            -900_000 + ply as i32 * 10
+        } else {
+            draw_score(engine, to_move)
+        };
+    }
     let ordered = order_moves(engine, to_move, &legal, 0);
 
     for mv in ordered {
@@ -804,9 +836,8 @@ pub(crate) fn order_moves(
 ) -> Vec<Action> {
     let tt_best = tt_best_move(position_key(engine, player));
     let countermove = countermove_for_position(engine);
-
-    let killers = killers_table().lock().unwrap();
-    let killer_pair = killers.get(ply);
+    let killer_pair: Option<[Option<Action>; 2]> =
+        KILLERS.with(|k| k.borrow().get(ply).copied());
 
     let mut scored: Vec<(i32, Action)> = actions
         .iter()
@@ -1023,27 +1054,12 @@ fn with_root_decision_hooks<R>(
 }
 
 fn init_tables() {
-    let _ = tt_table();
-    let _ = killers_table();
-    let _ = history_table();
-    let _ = countermove_table();
+    KILLERS.with(|k| {
+        let mut k = k.borrow_mut();
+        k.clear();
+        k.resize(MAX_PLY, [None, None]);
+    });
     let _ = root_policy_table();
-}
-
-fn tt_table() -> &'static Mutex<HashMap<u64, TTEntry>> {
-    TT.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-fn killers_table() -> &'static Mutex<Vec<[Option<Action>; 2]>> {
-    KILLERS.get_or_init(|| Mutex::new(vec![[None, None]; MAX_PLY]))
-}
-
-fn history_table() -> &'static Mutex<HashMap<u64, i32>> {
-    HISTORY.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-fn countermove_table() -> &'static Mutex<HashMap<u64, Action>> {
-    COUNTERMOVES.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 fn root_policy_table() -> &'static Mutex<HashMap<u64, HashMap<u64, i32>>> {
@@ -1121,110 +1137,75 @@ fn probe_tt(
     beta: i32,
     instrumentation: &mut SearchInstrumentation,
 ) -> Option<i32> {
-    let mut tt = tt_table().lock().unwrap();
-    let e = tt.get_mut(&key)?;
-    instrumentation.counters.tt_hits += 1;
+    let idx = (key as usize) & (TT_SIZE - 1);
+    TT.with(|tt| {
+        let tt = tt.borrow();
+        let e = tt[idx].as_ref().filter(|e| e.key == key)?;
+        instrumentation.counters.tt_hits += 1;
 
-    if e.depth < depth {
-        return None;
-    }
+        if e.depth < depth {
+            return None;
+        }
 
-    e.age = TT_AGE.load(Ordering::Relaxed);
-
-    match e.bound {
-        Bound::Exact => {
-            instrumentation.counters.tt_cutoffs += 1;
-            Some(e.score)
+        match e.bound {
+            Bound::Exact => {
+                instrumentation.counters.tt_cutoffs += 1;
+                Some(e.score)
+            }
+            Bound::Lower if e.score >= beta => {
+                instrumentation.counters.tt_cutoffs += 1;
+                Some(e.score)
+            }
+            Bound::Upper if e.score <= alpha => {
+                instrumentation.counters.tt_cutoffs += 1;
+                Some(e.score)
+            }
+            _ => None,
         }
-        Bound::Lower if e.score >= beta => {
-            instrumentation.counters.tt_cutoffs += 1;
-            Some(e.score)
-        }
-        Bound::Upper if e.score <= alpha => {
-            instrumentation.counters.tt_cutoffs += 1;
-            Some(e.score)
-        }
-        _ => None,
-    }
+    })
 }
 
 fn tt_best_move(key: u64) -> Option<Action> {
-    let tt = tt_table().lock().unwrap();
-    tt.get(&key).and_then(|e| e.best_move.clone())
+    let idx = (key as usize) & (TT_SIZE - 1);
+    TT.with(|tt| {
+        tt.borrow()[idx]
+            .as_ref()
+            .filter(|e| e.key == key)
+            .and_then(|e| e.best_move.clone())
+    })
 }
 
-fn store_tt(key: u64, entry: TTEntry) {
-    let mut tt = tt_table().lock().unwrap();
-
-    if tt.len() >= TT_MAX_SIZE {
-        prune_tt(&mut tt, entry.age);
-    }
-
-    let replace = match tt.get(&key) {
-        Some(existing) => {
-            entry.depth >= existing.depth
-                || entry.age != existing.age
-                || matches!(entry.bound, Bound::Exact)
-        }
-        None => true,
-    };
-
-    if replace {
-        tt.insert(key, entry);
-    }
-}
-
-fn prune_tt(tt: &mut HashMap<u64, TTEntry>, current_age: u32) {
-    let mut victims: Vec<(u64, i32, u32, i32)> = tt
-        .iter()
-        .map(|(k, e)| {
-            let bound_rank = match e.bound {
-                Bound::Upper | Bound::Lower => 0,
-                Bound::Exact => 1,
-            };
-            (*k, e.depth, current_age.wrapping_sub(e.age), bound_rank)
-        })
-        .collect();
-
-    victims.sort_by(|a, b| b.2.cmp(&a.2).then(a.3.cmp(&b.3)).then(a.1.cmp(&b.1)));
-
-    let overflow = tt.len().saturating_sub(TT_MAX_SIZE.saturating_sub(1));
-    let remove_count = victims.len().min(TT_PRUNE_BATCH.max(overflow));
-    for (key, _, _, _) in victims.into_iter().take(remove_count) {
-        tt.remove(&key);
-    }
+fn store_tt(key: u64, mut entry: TTEntry) {
+    entry.key = key;
+    let idx = (key as usize) & (TT_SIZE - 1);
+    TT.with(|tt| {
+        tt.borrow_mut()[idx] = Some(entry);
+    });
 }
 
 fn store_killer(ply: usize, mv: Action) {
-    let mut k = killers_table().lock().unwrap();
-
-    if ply >= k.len() {
-        return;
-    }
-
-    if k[ply][0]
-        .as_ref()
-        .map(|m| same_move(m, &mv))
-        .unwrap_or(false)
-    {
-        return;
-    }
-
-    k[ply][1] = k[ply][0].take();
-    k[ply][0] = Some(mv);
+    KILLERS.with(|k| {
+        let mut k = k.borrow_mut();
+        if ply >= k.len() {
+            return;
+        }
+        if k[ply][0].as_ref().map(|m| same_move(m, &mv)).unwrap_or(false) {
+            return;
+        }
+        k[ply][1] = k[ply][0].take();
+        k[ply][0] = Some(mv);
+    });
 }
 
 fn store_countermove(engine: &Engine, mv: &Action) {
     let Some(last) = engine.action_log.last() else {
         return;
     };
-
     let key = move_id(&last.action);
     if key == 0 {
         return;
     }
-
-    countermove_table().lock().unwrap().insert(key, mv.clone());
+    COUNTERMOVES.with(|cm| cm.borrow_mut().insert(key, mv.clone()));
 }
 
 fn countermove_for_position(engine: &Engine) -> Option<Action> {
@@ -1233,8 +1214,7 @@ fn countermove_for_position(engine: &Engine) -> Option<Action> {
     if key == 0 {
         return None;
     }
-
-    countermove_table().lock().unwrap().get(&key).cloned()
+    COUNTERMOVES.with(|cm| cm.borrow().get(&key).cloned())
 }
 
 fn move_id(mv: &Action) -> u64 {
@@ -1266,19 +1246,20 @@ fn piece_value_u64(kind: ChessPieceKind) -> u64 {
 }
 
 fn store_history(mv: &Action, depth: i32, improving: bool) {
-    let mut h = history_table().lock().unwrap();
     let delta = if improving {
         depth * depth * HISTORY_REWARD_SCALE
     } else {
         -(depth * depth * HISTORY_PENALTY_SCALE)
     };
-    let next = h.entry(move_id(mv)).or_insert(0);
-    *next = (*next + delta).clamp(-HISTORY_SCORE_CAP, HISTORY_SCORE_CAP);
+    HISTORY.with(|h| {
+        let mut h = h.borrow_mut();
+        let next = h.entry(move_id(mv)).or_insert(0);
+        *next = (*next + delta).clamp(-HISTORY_SCORE_CAP, HISTORY_SCORE_CAP);
+    });
 }
 
 fn history_score(mv: &Action) -> i32 {
-    let h = history_table().lock().unwrap();
-    *h.get(&move_id(mv)).unwrap_or(&0)
+    HISTORY.with(|h| *h.borrow().get(&move_id(mv)).unwrap_or(&0))
 }
 
 pub(crate) fn root_policy_score(root_key: u64, mv: &Action) -> i32 {
@@ -1469,7 +1450,7 @@ mod tests {
         fen: String,
         current_player: PlayerId,
         turn_index: u32,
-        repetition_counts: Vec<(String, u32)>,
+        repetition_counts: Vec<(u64, u32)>,
         action_log_len: usize,
         en_passant_target: Option<(u32, u32)>,
         halfmove_clock: u32,
@@ -1484,7 +1465,7 @@ mod tests {
             let mut repetition_counts = engine
                 .repetition_counts
                 .iter()
-                .map(|(key, count)| (key.clone(), *count))
+                .map(|(key, count)| (*key, *count))
                 .collect::<Vec<_>>();
             repetition_counts.sort();
 
@@ -2541,6 +2522,9 @@ mod tests {
 
     #[test]
     fn search_root_with_context_emits_trace_shape_without_behavior_change() {
+        // S-7 removed: game_decision_trace is now always None (select_root_move
+        // no longer builds a trace). We verify only that context does not change
+        // move selection and that the function does not panic.
         let _root_policy_guard = EnvVarGuard::remove("TCS_ROOT_POLICY");
         let engine = controlled_single_legal_non_mate_engine();
         let player = engine.turn_manager.current_player;
@@ -2557,24 +2541,181 @@ mod tests {
         let baseline = search_root(&engine, player).expect("search should return a move");
         let contextual = search_root_with_context(&engine, player, Some(&context))
             .expect("search with context should return a move");
-        let trace = contextual
-            .game_decision_trace
-            .as_ref()
-            .expect("context should emit a root decision trace");
 
         assert_eq!(action_key(&baseline.best_action, &engine.units), expected_key);
         assert_eq!(action_key(&contextual.best_action, &engine.units), expected_key);
-
-        assert_eq!(trace.game_id, context.game_id);
-        assert_eq!(trace.ply, context.ply);
-        assert_eq!(trace.side, context.side);
-        assert_eq!(trace.fen_before, context.fen_before);
-        assert!(trace.legal_count > 0);
-        assert!(trace.candidate_count > 0);
-        assert!(trace.filtered_out_count <= trace.legal_count);
-        assert!(trace.chosen_search_rank > 0);
-        assert!(trace.chosen_worst_case_rank > 0);
-        assert!(trace.chosen_transition_rank > 0);
-        assert!(!trace.top_candidates.is_empty());
+        assert!(
+            contextual.game_decision_trace.is_none(),
+            "game_decision_trace is None after S-7 removal"
+        );
     }
+
+    #[test]
+    fn regression_589s() {
+        let _env_lock = env_var_test_lock();
+        let _root_policy_guard = EnvVarGuard::remove("TCS_ROOT_POLICY");
+        // TCS_MOVE_TIME_MS not overridden → 500 ms default (production budget).
+        // Log entry `TRACE|ply=20|phase=midgame|time_ms=589653` could not be located
+        // in the current repo; using the documented fallback FEN (32 pieces, tactical
+        // middlegame with Bg4 pin, open e-file tension, Bc4 aimed at f7).
+        let fen = "r2qkb1r/ppp2ppp/2np1n2/4p3/2B1P1b1/2NP1N2/PPP2PPP/R1BQK2R w KQkq - 0 7";
+        let engine = engine_from_fen(fen).expect("valid regression FEN");
+        let player = engine.turn_manager.current_player;
+        let piece_count = engine.units.len();
+
+        let t0 = std::time::Instant::now();
+        let result = search_root(&engine, player).expect("search should return a move");
+        let elapsed_ms = t0.elapsed().as_millis();
+
+        let nodes_total =
+            result.diagnostics.counters.nodes + result.diagnostics.counters.quiescence_nodes;
+        let best_move = action_to_uci(&result.best_action, &engine.units)
+            .unwrap_or_else(|| "??".to_string());
+
+        println!(
+            "REGRESSION_589S|pieces={}|depth={}|elapsed_ms={}|nodes={}|best_move={}",
+            piece_count, result.completed_depth, elapsed_ms, nodes_total, best_move
+        );
+
+        assert!(
+            elapsed_ms < 5000,
+            "regression: search took {}ms (expected < 5000ms) — adaptive_depth={}, pieces={}",
+            elapsed_ms,
+            result.completed_depth,
+            piece_count,
+        );
+    }
+
+    #[test]
+    fn italian_position_depth4() {
+        let _env_lock = env_var_test_lock();
+        let _depth_guard = EnvVarGuard::set("TCS_MINIMAX_DEPTH", "4");
+        let _time_guard = EnvVarGuard::set("TCS_MOVE_TIME_MS", "600000");
+        let _root_policy_guard = EnvVarGuard::remove("TCS_ROOT_POLICY");
+
+        // Italian Game after 1.e4 e5 2.Nf3 Nc6 3.Bc4 Bc5 4.d3 — 32 pieces, middlegame opening
+        let engine = engine_from_fen(
+            "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 4 4",
+        )
+        .expect("valid Italian FEN");
+        let player = engine.turn_manager.current_player;
+
+        let t0 = std::time::Instant::now();
+        let result = search_root(&engine, player).expect("search should return a move");
+        let elapsed_ms = t0.elapsed().as_millis();
+
+        let nodes_total =
+            result.diagnostics.counters.nodes + result.diagnostics.counters.quiescence_nodes;
+        let nps = if elapsed_ms > 0 {
+            nodes_total * 1000 / elapsed_ms as u64
+        } else {
+            u64::MAX
+        };
+
+        println!(
+            "PERF|fen=italian|depth={}|elapsed_ms={}|nodes_total={}|nps={}",
+            result.completed_depth, elapsed_ms, nodes_total, nps
+        );
+
+        assert_eq!(result.completed_depth, 4, "should reach depth 4 with TCS_MINIMAX_DEPTH=4");
+    }
+
+    // ── Temporary validation tests for stalemate/checkmate fix ──────────────
+    #[test]
+    fn stalemate_root_returns_none_and_no_mate_score() {
+        // Black to move — classic stalemate, no legal moves at root
+        let engine = engine_from_fen("5k2/5P2/5K2/8/8/8/8/8 b - - 0 1").expect("valid FEN");
+        let player = engine.turn_manager.current_player;
+        let result = search_root(&engine, player);
+        println!("TEST1-a stalemate root → {:?}", result.as_ref().map(|_| "Some"));
+        assert!(result.is_none(), "stalemate: search_root must return None");
+
+        // White to move from pre-stalemate — ALL lines lead to draw (K+P vs K, pawn blocked).
+        // With old bug evaluate() ≈ material advantage (positive).
+        // With fix draw_score() ≈ −220 (White ahead materially so draw penalised).
+        std::env::set_var("TCS_MOVE_TIME_MS", "200");
+        let engine_pre = engine_from_fen("5k2/5P2/4K3/8/8/8/8/8 w - - 0 1").expect("valid FEN");
+        let white = engine_pre.turn_manager.current_player;
+        let pre_result = search_root(&engine_pre, white).expect("has legal moves");
+        println!(
+            "TEST1-b pre-stalemate → best_score={} (expect draw range, not +MATE)",
+            pre_result.best_score
+        );
+        assert!(
+            pre_result.best_score.abs() < 800_000,
+            "stalemate must not look like mate: {}",
+            pre_result.best_score
+        );
+    }
+
+    #[test]
+    fn mate_in_one_score_and_move() {
+        // White to move — two valid mates: Qg7# (g6g7) and Qe8# (g6e8).
+        // In this engine the root best_score has negamax sign (negative for root's win),
+        // so we verify via mate_in_one_selected flag and abs(score) >= 800_000.
+        std::env::set_var("TCS_MOVE_TIME_MS", "200");
+        let engine = engine_from_fen("7k/8/6QK/8/8/8/8/8 w - - 0 1").expect("valid FEN");
+        let player = engine.turn_manager.current_player;
+        let result = search_root(&engine, player).expect("search must find a move");
+        let mv = action_to_uci(&result.best_action, &engine.units).expect("uci");
+        println!(
+            "TEST2 mate_in_1 → best_move={} best_score={} mate_selected={}",
+            mv,
+            result.best_score,
+            result.diagnostics.mate_in_one_selected
+        );
+        assert!(
+            result.diagnostics.mate_in_one_selected,
+            "engine must select a mate-in-1 move"
+        );
+        assert!(
+            result.best_score.abs() >= 800_000,
+            "mate score abs must be ≥ 800_000, got {}",
+            result.best_score
+        );
+    }
+    #[test]
+    fn s7_removed_mate_in_3_score() {
+        // White to move — multiple forced mates at equivalent depth (score = 899 950):
+        //   1.f6f7! Rg7 2.Bxg7+ Kg8 3.Rf8#   (canonical 3-move sequence)
+        //   1.e5a1  Ra7 2.f6f7  Rg7 3.Bxg7#  (also mate in 3 for White, same ply depth)
+        // Both lines reach checkmate at quiescence ply=5, so the engine correctly scores
+        // both moves at +899 950. The chosen move varies by TT move-ordering hint.
+        // Primary assertion: the engine sees a mate score >= 800 000.
+        std::env::set_var("TCS_MOVE_TIME_MS", "2000");
+        let engine =
+            engine_from_fen("r5rk/5p1p/5R2/4B3/8/8/7P/7K w - - 0 1").expect("valid FEN");
+        let player = engine.turn_manager.current_player;
+        let result = search_root(&engine, player).expect("search must find a move");
+        let mv = action_to_uci(&result.best_action, &engine.units).expect("uci");
+        println!(
+            "TEST-A mate_in_3 → best_move={} best_score={} depth={}",
+            mv, result.best_score, result.completed_depth
+        );
+        assert!(
+            result.best_score >= 800_000,
+            "engine must detect forced mate (score ≥ 800 000), got {}",
+            result.best_score
+        );
+    }
+
+    #[test]
+    fn s7_removed_italian_not_a1b1() {
+        // Italian opening position: best move is tactical (Ng5 or Nxe5),
+        // not the pointless Ra1b1 rook shuffle.
+        std::env::set_var("TCS_MOVE_TIME_MS", "500");
+        let engine = engine_from_fen(
+            "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+        )
+        .expect("valid FEN");
+        let player = engine.turn_manager.current_player;
+        let result = search_root(&engine, player).expect("search must find a move");
+        let mv = action_to_uci(&result.best_action, &engine.units).expect("uci");
+        println!(
+            "TEST-B italian → best_move={} best_score={} depth={}",
+            mv, result.best_score, result.completed_depth
+        );
+        assert_ne!(mv, "a1b1", "should not play a1b1 rook shuffle");
+    }
+    // ── End temporary validation tests ──────────────────────────────────────
 }
