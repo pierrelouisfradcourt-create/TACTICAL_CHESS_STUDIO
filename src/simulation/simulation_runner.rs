@@ -148,10 +148,6 @@ fn observe_cost_search_decision(
 
 #[derive(Default)]
 struct GameAnalysisSummary {
-    suspicious_decisions: u32,
-    worst_case_overrides: u32,
-    search_best_selected: u32,
-    transition_best_selected: u32,
     repetition_risk_count: u32,
     conversion_moves_seen: u32,
 }
@@ -1187,12 +1183,11 @@ impl SimulationRunner {
             }
 
             let selection_start = Instant::now();
-            let (action, decision_trace, game_decision_trace) = if mode == "teacher_uci" {
+            let (action, decision_trace) = if mode == "teacher_uci" {
                 (
                     teacher_agent
                         .as_mut()
                         .and_then(|a| a.select_action_from_engine(&engine, player)),
-                    None,
                     None,
                 )
             } else {
@@ -1202,16 +1197,11 @@ impl SimulationRunner {
                     mode,
                     trace_context.as_ref(),
                 );
-                let game_decision_trace = trace
-                    .as_ref()
-                    .and_then(|selected| selected.root_search.as_ref())
-                    .and_then(|search| search.game_decision_trace.clone());
                 (
                     trace
                         .as_ref()
                         .map(|selected| selected.selected_action.clone()),
                     trace,
-                    game_decision_trace,
                 )
             };
             let selection_elapsed = selection_start.elapsed();
@@ -1228,74 +1218,6 @@ impl SimulationRunner {
             let Some(action) = action else {
                 break;
             };
-
-            if let Some(trace) = &game_decision_trace {
-                if trace.chosen_search_rank > 1 || trace.chosen_worst_case_rank > 1 {
-                    analysis.suspicious_decisions += 1;
-                }
-                if trace.chosen_worst_case_rank != trace.chosen_search_rank {
-                    analysis.worst_case_overrides += 1;
-                }
-                if trace.chosen_move == trace.search_best_move {
-                    analysis.search_best_selected += 1;
-                }
-                if trace.chosen_move == trace.transition_best_move {
-                    analysis.transition_best_selected += 1;
-                }
-
-                if game_analysis_full_enabled() || !trace.top_candidates.is_empty() {
-                    let emit_game_decision_trace = if fast_trace {
-                        true
-                    } else {
-                        should_trace_full_ply(trace.ply) && game_analysis_enabled
-                    };
-
-                    if emit_game_decision_trace {
-                        let top_candidates = trace
-                            .top_candidates
-                            .iter()
-                            .map(|candidate| {
-                                json!({
-                                "move": candidate.action,
-                                "search_score": candidate.search_score,
-                                "worst_case": candidate.worst_case,
-                                "worst_case_sampled": candidate.worst_case_sampled,
-                                "transition_score": candidate.transition_score,
-                                "search_rank": candidate.search_rank,
-                                    "worst_case_rank": candidate.worst_case_rank,
-                                    "transition_rank": candidate.transition_rank,
-                                    "final_rank": candidate.final_rank,
-                                    "inside_gate": candidate.inside_gate,
-                                })
-                            })
-                            .collect::<Vec<_>>();
-
-                        emit_game_analysis_row(
-                            "GAME_DECISION_TRACE",
-                            json!({
-                                "game_id": trace.game_id.clone(),
-                                "ply": trace.ply,
-                                "side": player_to_side(trace.side),
-                                "fen_before": trace.fen_before.clone(),
-                                "chosen_move": trace.chosen_move.clone(),
-                                "search_best_move": trace.search_best_move.clone(),
-                                "worst_case_best_move": trace.worst_case_best_move.clone(),
-                                "transition_best_move": trace.transition_best_move.clone(),
-                                "chosen_search_rank": trace.chosen_search_rank,
-                                "chosen_worst_case_rank": trace.chosen_worst_case_rank,
-                                "chosen_transition_rank": trace.chosen_transition_rank,
-                                "chosen_search_score": trace.chosen_search_score,
-                                "chosen_worst_case": trace.chosen_worst_case,
-                                "chosen_transition_score": trace.chosen_transition_score,
-                                "candidate_count": trace.candidate_count,
-                                "legal_count": trace.legal_count,
-                                "filtered_out_count": trace.filtered_out_count,
-                                "top_candidates": top_candidates,
-                            }),
-                        );
-                    }
-                }
-            }
 
             let selected_move =
                 action_to_uci(&action, &engine.units).unwrap_or_else(|| "unknown".to_string());
@@ -1679,10 +1601,6 @@ impl SimulationRunner {
                 "result": result,
                 "termination_reason": termination_reason,
                 "plies": step,
-                "suspicious_decisions": analysis.suspicious_decisions,
-                "worst_case_overrides": analysis.worst_case_overrides,
-                "search_best_selected": analysis.search_best_selected,
-                "transition_best_selected": analysis.transition_best_selected,
                 "repetition_risk_count": analysis.repetition_risk_count,
                 "conversion_moves_seen": analysis.conversion_moves_seen,
             }),

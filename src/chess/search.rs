@@ -9,8 +9,8 @@ use crate::chess::practical_policy::{
     quiet_non_progress_penalty, tactical_score_breakdown,
 };
 use crate::chess::root_decision::{
-    is_root_fork_move, root_decision_breakdown, root_practical_margin, select_root_move,
-    RootDecisionBreakdown, RootDecisionContext, RootDecisionHooks, RootDecisionTrace,
+    root_decision_breakdown, root_practical_margin,
+    RootDecisionBreakdown, RootDecisionContext, RootDecisionHooks,
 };
 use crate::chess::search_diagnostics_accumulators::SearchInstrumentation;
 use crate::chess::search_diagnostics_builders::{
@@ -124,7 +124,6 @@ pub struct RootSearchResult {
     pub heuristic_score: i32,
     pub policy_score: i32,
     pub decision_score: i32,
-    pub game_decision_trace: Option<RootDecisionTrace>,
     pub diagnostics: RootSearchDiagnostics,
 }
 
@@ -187,8 +186,6 @@ fn search_root_in_place(
     let mut last_root_scores = vec![-INF; legal.len()];
     let mut last_cutoff_index = None;
     let mut best_initial_rank = 0usize;
-    let game_decision_trace = None;
-
     for depth in 1..=max_depth {
         if depth > 1 && search_start.elapsed() >= time_limit {
             break;
@@ -357,7 +354,6 @@ fn search_root_in_place(
                     heuristic_score: 0,
                     policy_score: 0,
                     decision_score: 0,
-                    game_decision_trace: None,
                     diagnostics,
                 });
             }
@@ -426,7 +422,6 @@ fn search_root_in_place(
         heuristic_score: best_decision.heuristic_score,
         policy_score: best_decision.policy_score,
         decision_score: best_decision.final_score,
-        game_decision_trace,
         diagnostics,
     })
 }
@@ -2522,9 +2517,7 @@ mod tests {
 
     #[test]
     fn search_root_with_context_emits_trace_shape_without_behavior_change() {
-        // S-7 removed: game_decision_trace is now always None (select_root_move
-        // no longer builds a trace). We verify only that context does not change
-        // move selection and that the function does not panic.
+        // Verifies that passing a context does not change move selection and does not panic.
         let _root_policy_guard = EnvVarGuard::remove("TCS_ROOT_POLICY");
         let engine = controlled_single_legal_non_mate_engine();
         let player = engine.turn_manager.current_player;
@@ -2544,10 +2537,6 @@ mod tests {
 
         assert_eq!(action_key(&baseline.best_action, &engine.units), expected_key);
         assert_eq!(action_key(&contextual.best_action, &engine.units), expected_key);
-        assert!(
-            contextual.game_decision_trace.is_none(),
-            "game_decision_trace is None after S-7 removal"
-        );
     }
 
     #[test]
