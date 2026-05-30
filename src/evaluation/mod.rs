@@ -3,6 +3,8 @@
 //! Wraps tournament output into a typed, identity-tagged result.
 //! Does NOT run games itself — delegates to neural_tournament_runner.
 
+pub mod fixtures;
+
 use serde::{Deserialize, Serialize};
 
 /// Identity of an evaluation run — links result to exact code + model state.
@@ -310,6 +312,74 @@ impl RegressionGuard {
     /// Persiste le rapport en JSON.
     pub fn save_report(report: &GuardReport, path: &str) -> Result<(), String> {
         let json = serde_json::to_string_pretty(report)
+            .map_err(|e| format!("serialization error: {e}"))?;
+        if let Some(parent) = std::path::Path::new(path).parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("mkdir error: {e}"))?;
+        }
+        std::fs::write(path, json).map_err(|e| format!("write error: {e}"))?;
+        Ok(())
+    }
+}
+
+/// Rapport de progression d'apprentissage — remplace le JSON périmé du 2026-04-25.
+/// Généré depuis des eval runs comparables, pas depuis des heuristiques manuelles.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LearningProgressReport {
+    pub schema_version: String,
+    pub generated_at: String,
+    pub current_git_sha: String,
+    pub baseline_git_sha: String,
+    pub guard_verdict: String,
+    pub draw_rate_delta: f64,
+    pub win_rate_delta: f64,
+    pub elo_delta: f64,
+    pub candidate_games: u32,
+    pub improvement_detected: bool,
+    pub improvement_rate: f64,
+    pub guard_checks: Vec<String>,
+}
+
+impl LearningProgressReport {
+    pub fn from_guard_report(
+        guard_report: &GuardReport,
+        baseline: &EvalRunResult,
+        candidate: &EvalRunResult,
+    ) -> Self {
+        let improvement_detected = guard_report.verdict == GuardVerdict::Pass
+            && guard_report.draw_rate_delta < 0.0;
+
+        // improvement_rate: normalise le delta de draw_rate entre [-1, 0].
+        // 0.0 = pas d'amélioration, 1.0 = draw_rate réduit à 0.
+        let improvement_rate = if improvement_detected {
+            (-guard_report.draw_rate_delta).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+
+        let guard_checks = guard_report
+            .checks
+            .iter()
+            .map(|c| format!("{}:{}", c.name, if c.passed { "PASS" } else { "FAIL" }))
+            .collect();
+
+        Self {
+            schema_version: "learning_progress_v2".to_string(),
+            generated_at: chrono::Utc::now().to_rfc3339(),
+            current_git_sha: candidate.identity.git_sha.clone(),
+            baseline_git_sha: baseline.identity.git_sha.clone(),
+            guard_verdict: guard_report.verdict.to_string(),
+            draw_rate_delta: guard_report.draw_rate_delta,
+            win_rate_delta: guard_report.win_rate_delta,
+            elo_delta: guard_report.elo_delta,
+            candidate_games: candidate.games,
+            improvement_detected,
+            improvement_rate,
+            guard_checks,
+        }
+    }
+
+    pub fn save(&self, path: &str) -> Result<(), String> {
+        let json = serde_json::to_string_pretty(self)
             .map_err(|e| format!("serialization error: {e}"))?;
         if let Some(parent) = std::path::Path::new(path).parent() {
             std::fs::create_dir_all(parent).map_err(|e| format!("mkdir error: {e}"))?;
