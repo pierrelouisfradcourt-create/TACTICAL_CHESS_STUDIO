@@ -548,19 +548,14 @@ Recommendation:
 
 ## 23. build_root_diagnostics Runs O(legal_moves) Post-Search in Production
 
-Status: ACTIVE
+Status: RESOLVED (2026-05-30)
 
-Current evidence:
-- `src/chess/search_diagnostics_builders.rs` `build_root_diagnostics` calls `root_decision_breakdown` + `analyze_transition` for every ordered move with a valid score after the search tree has finished.
-- This work is not gated on `TCS_SEARCH_RUNTIME_DIAG` or any debug flag — it runs unconditionally on every move played.
-- On a typical opening position with 30+ legal moves, this adds O(30) policy + transition analysis calls post-search.
-- This overhead is invisible in the search node counters and not reflected in any cost-search diagnostic.
+Resolution : build_root_diagnostics gatee derriere search_runtime_diagnostics_enabled()
+(TCS_SEARCH_RUNTIME_DIAG). En mode normal, retourne un summary sans iterer sur les
+coups alternatifs (build_root_diagnostics_summary_only). Le comportement quand
+TCS_SEARCH_RUNTIME_DIAG=1 est inchange.
 
 Cross-reference: AUDIT_2026-05-28.md F-033 [PERF].
-
-Recommendation:
-- Gate `build_root_diagnostics` behind `TCS_SEARCH_RUNTIME_DIAG` or a similar env var, falling back to a lightweight summary builder when diagnostics are not needed.
-- Alternatively, cap the number of alternatives processed to a small constant (e.g., top 3) regardless of legal move count.
 
 ## 24. castling_spec.rs — empty_squares / attacked_squares Hardcoded, Chess960 Silently Broken
 

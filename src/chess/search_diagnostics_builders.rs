@@ -3,7 +3,7 @@ use crate::chess::search_diagnostics::{
     DecisionMetrics, OrderingQuality, RootAlternative, RootSearchDiagnostics, SearchCounters,
 };
 use crate::chess::search_diagnostics_accumulators::SearchInstrumentation;
-use crate::chess::transition_analysis::analyze_transition;
+use crate::chess::transition_analysis::{analyze_transition, TransitionAnalysis};
 use crate::engine::action::action::Action;
 use crate::engine::engine::Engine;
 use crate::engine::entity::unit::PlayerId;
@@ -113,6 +113,19 @@ pub(super) fn build_root_diagnostics(
     tt_best_move: Option<Action>,
     countermove: Option<Action>,
 ) -> RootSearchDiagnostics {
+    if !search_runtime_diagnostics_enabled() {
+        return build_root_diagnostics_summary_only(
+            best_move,
+            ordered,
+            scores,
+            cutoff_index,
+            best_initial_rank,
+            instrumentation,
+            tt_best_move,
+            countermove,
+        );
+    }
+
     let mut ranked: Vec<RootAlternative> = ordered
         .iter()
         .enumerate()
@@ -205,6 +218,78 @@ pub(super) fn build_root_diagnostics(
         ordering,
         decision,
         principal_alternatives: ranked.into_iter().take(3).collect(),
+        mate_in_one_selected: false,
+    }
+}
+
+fn build_root_diagnostics_summary_only(
+    best_move: &Action,
+    ordered: &[Action],
+    scores: &[i32],
+    cutoff_index: Option<usize>,
+    best_initial_rank: usize,
+    instrumentation: SearchInstrumentation,
+    tt_best_move: Option<Action>,
+    countermove: Option<Action>,
+) -> RootSearchDiagnostics {
+    let chosen_index = ordered
+        .iter()
+        .position(|mv| same_move(mv, best_move))
+        .unwrap_or(0);
+    let best_score = scores.get(chosen_index).copied().unwrap_or(0);
+
+    let decision = DecisionMetrics {
+        chosen_search_score: best_score,
+        chosen_heuristic_score: 0,
+        chosen_policy_score: 0,
+        chosen_decision_score: 0,
+        chosen_transition_analysis: TransitionAnalysis {
+            action: *best_move,
+            moving_piece: None,
+            from: None,
+            to: None,
+            captured_piece: None,
+            promotion: None,
+            resulting_state_value: 0,
+            search_state_value: best_score,
+            primary_dynamic: None,
+            secondary_dynamics: vec![],
+            progress_score: 0,
+            tactical_score: 0,
+            capture_exchange_score: None,
+            repetition_signal: 0,
+            capture_safety_signal: 0,
+            promotion_race_signal: 0,
+            trade_simplification_bonus: 0,
+        },
+        second_best_search_gap: None,
+        second_best_decision_gap: None,
+    };
+
+    let ordering = build_ordering(ordered, scores, cutoff_index, best_initial_rank, chosen_index);
+
+    let tt_move_order_hit = tt_best_move
+        .as_ref()
+        .and_then(|tt_best| ordered.first().map(|mv| same_move(mv, tt_best) as u64))
+        .unwrap_or(0);
+    let countermove_order_hit = countermove
+        .as_ref()
+        .and_then(|counter| ordered.first().map(|mv| same_move(mv, counter) as u64))
+        .unwrap_or(0);
+    let counters =
+        build_search_counters(&instrumentation, tt_move_order_hit, countermove_order_hit);
+    let branching = instrumentation.branching.into_diagnostics();
+    let runtime = instrumentation.runtime;
+    let mirror_ordering = instrumentation.mirror_ordering;
+
+    RootSearchDiagnostics {
+        counters,
+        runtime,
+        mirror_ordering,
+        branching,
+        ordering,
+        decision,
+        principal_alternatives: vec![],
         mate_in_one_selected: false,
     }
 }
