@@ -1,7 +1,7 @@
 # Roadmap — Tactical Chess Studio
 
 status: CANONICAL
-date: 2026-05-27
+date: 2026-05-30
 authority: HumanGate
 no_global_ready_verdict: true
 
@@ -17,7 +17,7 @@ Livrable commercial : SDK Rocky / licence.
 | Régénérer promoted_pedagogy_pack.jsonl via Stockfish teacher | BLOCKED — dataset manquant | P0 |
 | Activer Chess 960 (HumanGate requis) | BLOCKED — en attente décision | P1 |
 | Brancher LM Studio sur le decision tree de Rocky | DONE — coach v0 opérationnel end-to-end, FEN dans MOVE_DIAG, filtrage random, commit fd88b97 | P2 |
-| Rocky explique ses coups en langage naturel | IN_PROGRESS — coach v0 génère explications LLM par coup, prompt à affiner | P3 |
+| Rocky explique ses coups en langage naturel | IN_PROGRESS — coach v0 opérationnel, FEN dans MOVE_DIAG, qualité LLM à affiner (prompt) | P3 |
 | UxPilote v1 — cockpit lecture seule | NOT_STARTED | P4 |
 
 Prérequis bloquants :
@@ -74,4 +74,7 @@ Objectif : Chess Fantasy jouable, studio pilotable.
 ✅ Pipeline ML Python — existe, dataset à régénérer
 ✅ Sources PGN champions du monde — présentes dans le repo
 ✅ Architecture governance — AGENTS.md, HumanGate, evidence-plane
+✅ Coach v0 opérationnel — explications LLM par coup, FEN dans MOVE_DIAG (fd88b97)
+✅ Search nettoyée — issues #23 et #26 résolus, overhead O(legal_moves) éliminé
+✅ Issue #2 documentée — clone root conservé intentionnellement, HumanGate requis
 ```

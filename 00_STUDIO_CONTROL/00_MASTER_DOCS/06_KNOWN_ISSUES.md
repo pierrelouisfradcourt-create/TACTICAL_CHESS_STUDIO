@@ -599,26 +599,16 @@ Recommendation:
 
 Status: RESOLVED (2026-05-30)
 
-Resolution : replies triees par move_score descendant avant take(max_replies).
-Commit : voir git log.
+Resolution : replies triees par move_score descendant avant take(max_replies) dans
+`opponent_worst_case_value`. Import de `crate::chess::search::move_score` ajouté.
+Commit : 6b85cda.
 
-Current evidence:
-- `src/chess/transition_reply.rs` `opponent_worst_case_value` iterates `simulated.legal_actions(opponent).into_iter().take(max_replies)` with `max_replies` defaulting to 12.
-- `legal_actions` returns moves sorted by tuple key (from_square, to_square, promotion), not by tactical strength.
-- The first 12 moves are not necessarily the strongest opponent replies.
-- The function is a heuristic bound, not a true worst case.
-
-Scope update (2026-05-30):
-- `select_root_move` (which sampled this for up to 8 candidates per root call) was deleted in 90fe323.
-- `opponent_worst_case_value` is now only called from `transition_interpretation.rs`, not from the root hot path.
-- The O(branching × top-N) per-root-call performance concern (issue #18) is resolved.
-- The correctness concern (unsorted sampling) remains for the `transition_interpretation.rs` path.
+Historical context : `legal_actions` retournait les coups triés par tuple (from, to),
+pas par force tactique. Les 12 premiers n'étaient pas les réponses adverses les plus fortes.
+Scope réduit par 90fe323 (select_root_move supprimé) — concern restant : chemin
+`transition_interpretation.rs`, maintenant corrigé.
 
 Cross-reference: AUDIT_2026-05-28.md Batch 3 — `transition_reply.rs` [CORRECTNESS].
-
-Recommendation:
-- Sort opponent replies by tactical priority before `take(max_replies)` in transition_reply.rs.
-- The urgency is reduced since this is no longer in the per-move decision hot path.
 
 ## 15. Rocky — Explosion combinatoire search
 
