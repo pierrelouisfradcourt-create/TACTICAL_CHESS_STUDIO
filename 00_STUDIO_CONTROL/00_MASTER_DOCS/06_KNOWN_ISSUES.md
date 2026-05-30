@@ -190,7 +190,15 @@ Recommendation:
 
 ## 2. Search Ceiling / Root Clone
 
-Status: ACTIVE
+Status: ACTIVE — clone conservé intentionnellement.
+
+Note 2026-05-30 : Option B (migrer search_root et call sites vers &mut Engine) inspectée.
+Cascade trop invasive sans HumanGate :
+- decision.rs::search_authority_trace prend engine: &Engine → nécessite &mut Engine
+- PassiveSearchBackendAdapter stocke engine: &'a Engine → nécessite &'a mut Engine
+- search_root est pub : tout consommateur externe (cli, neural_agent) casserait
+- simulation_runner.rs::maybe_log_move_weaknesses(engine_before: &Engine) se propage
+Option A (unsafe ptr cast) refusée. Clone reste en place.
 
 Current evidence:
 - `src/chess/search.rs` still enters root search through `search_root_with_context`.
@@ -199,13 +207,9 @@ Current evidence:
 - Search still has embedded constants and root orchestration coupled to diagnostics/practical policy.
 - PP13 characterized the search root boundary, and PP14 added a passive `SearchBackend` adapter, but neither activates a replacement route.
 
-Tests run:
-- No search test or benchmark was run during the 2026-05-11 docs sync.
-- Prior targeted characterization exists in PP13 history.
-
 Recommendation:
-- Keep this issue active, but describe it precisely as "root clone and root orchestration ceiling", not "clone everywhere".
-- Do not broad-refactor search. Any future active `SearchBackend` route requires separate HumanDecision and validation.
+- Requires HumanGate before any further attempt. Full &mut Engine migration is a breaking API change.
+- Do not broad-refactor search without a separate validation plan.
 
 ## 3. Dataset Router / Loader Semantic Mismatch
 
