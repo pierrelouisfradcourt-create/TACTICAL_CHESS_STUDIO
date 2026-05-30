@@ -1,7 +1,7 @@
 # Known Issues
 
 Status: canonical active issue list
-Last refreshed: 2026-05-27
+Last refreshed: 2026-05-30
 Merged source: `MASTER_DOCS/CURRENT_CODE_AUDIT_AND_KNOWN_ISSUES.md`
 Rule: this file is an engineering risk register, not proof of strength, Elo, promotion, or scientific progress.
 
@@ -290,14 +290,13 @@ Resolution:
   (`"... w KQkq d6 8 12"`), confirming parse→serialize symmetry.
 - Engine tests `castling_execution_updates_fen_rights_*` verify halfmove_clock in live FEN output.
 
-Residual note:
-- Repetition key is the full FEN, which includes `halfmove_clock`. In standard chess, threefold
-  repetition ignores the halfmove clock. This means two identical positions reached at different
-  halfmove counts are treated as distinct for repetition purposes — a minor non-standard bias.
-  Not a correctness bug; repetitions are missed conservatively, never overcounted.
-
 Previous stale claim ("engine_to_fen normalizes en-passant to `-` and halfmove to `0`") was
 accurate for an earlier code state before `fen.rs` was fully implemented.
+
+Residual bias from 2026-05-27 note (repetition key = FEN including halfmove_clock) is
+**now resolved**: sprint f758ff4 replaced the FEN string key with a Zobrist u64 hash
+that does not include `halfmove_clock`. Repetition detection is now standard-compliant on
+this point. See "Removed From Active Known Issues" below.
 
 ## 8. Runtime / Python Bridge Stability
 
@@ -452,53 +451,32 @@ Recommendation:
 
 ## 16. position_key Non-Zobrist Hash — Collision Risk Unquantified
 
-Status: ACTIVE
+Status: RESOLVED (commit 28c9cc5, pre-sprint)
 
-Current evidence:
-- `src/chess/search.rs` `position_key` uses a multiply-XOR construction over sorted units.
-- Piece type is encoded via `piece_value` shifted `<< 24` (delta Knight/Bishop = 10, small relative to shift range).
-- No independent per-piece/per-square Zobrist vectors are used.
-- No collision test exists for positions with different piece types on the same square.
-- A silent TT collision would return an incorrect score without any error signal.
-
-Cross-reference: AUDIT_2026-05-28.md F-024 [CORRECTNESS].
-
-Recommendation:
-- Add a collision stress test comparing position_key outputs for positions that differ only in piece type at a fixed square.
-- Long-term: migrate to standard Zobrist hashing with independent random keys per (piece, square, side) tuple.
+`position_key` in `src/chess/search.rs` was migrated to a standard Zobrist hash
+(independent random u64 per (piece, square, side), plus castling rights and en-passant file)
+in commit 28c9cc5. Three determinism tests exist (position_key_stable_for_same_position,
+position_key_changes_with_castling_rights_en_passant_and_side_to_move,
+position_key_restores_after_simulate_undo_cycle). The engine-side repetition key was
+similarly migrated to Zobrist in sprint f758ff4.
 
 ## 17. is_root_fork_move Implicit Post-Simulation Call-Order Invariant
 
-Status: ACTIVE
+Status: RESOLVED (commit 90fe323)
 
-Current evidence:
-- `src/chess/root_decision.rs` `is_root_fork_move` uses `unit.position` to check attack geometry.
-- Correctness depends on the piece already being at the target square (post `simulate_action_for_search`).
-- If called pre-simulation, it silently evaluates from the piece's current square — no assertion or panic.
-- Current production call-site is correct (called post-simulation in `search_root_in_place`).
-- Function is `pub(crate)` with no documented contract.
-
-Cross-reference: AUDIT_2026-05-28.md F-025 [CORRECTNESS].
-
-Recommendation:
-- Add a doc comment stating the required call context.
-- Consider accepting a `target: Position` parameter explicitly rather than relying on engine state.
+`is_root_fork_move` and its entire S-7 pipeline (select_root_move, root_practical_score,
+apply_root_practical_adjustments, attacks_square, path_clear, fork detection helpers)
+were deleted in the S-7 cleanup. Root selection is now pure argmax on the alpha-beta score.
+The call-order invariant risk no longer exists.
 
 ## 18. opponent_worst_case_value Active by Default — Hidden Eval Cost
 
-Status: ACTIVE
+Status: RESOLVED (commit 90fe323)
 
-Current evidence:
-- `src/chess/root_decision.rs` `select_root_move` samples `opponent_worst_case_value` for up to 8 candidates per root call (default `TCS_ROOT_WORST_CASE_MAX_CANDIDATES`).
-- This sampling has no controlling env var guard — it runs unconditionally in the default configuration.
-- Each sample generates all opponent legal moves and evaluates them: O(branching × top-N) work outside the main search budget.
-- This cost is invisible in the existing node counters and diagnostics.
-
-Cross-reference: AUDIT_2026-05-28.md F-026 [PERF].
-
-Recommendation:
-- Add the worst-case sampling cost to search diagnostics / runtime instrumentation.
-- Consider gating behind a `TCS_WORST_CASE_SAMPLING` env var or making it opt-in.
+`select_root_move` (the caller that ran `opponent_worst_case_value` for up to 8 candidates
+per root call) was deleted in the S-7 cleanup. `opponent_worst_case_value` still exists
+in `transition_reply.rs` and is used by `transition_interpretation.rs`, but it is no longer
+in the hot root-decision path and no longer contributes hidden per-root cost.
 
 ## 19. eval.rs Double legal_actions At Every Leaf (total_units <= 20)
 
@@ -620,20 +598,25 @@ Recommendation:
 
 ## 26. transition_reply.rs — Worst-Case Replies Not Sorted Before Sampling
 
-Status: ACTIVE
+Status: ACTIVE (scope reduced by 90fe323)
 
 Current evidence:
 - `src/chess/transition_reply.rs` `opponent_worst_case_value` iterates `simulated.legal_actions(opponent).into_iter().take(max_replies)` with `max_replies` defaulting to 12.
-- `legal_actions` returns moves in a deterministic but quality-unaware order (sorted by `action_key`, i.e., UCI string alphabetical order).
-- The first 12 moves in alphabetical UCI order are not necessarily the strongest opponent replies. A queen capture at index 25 would be silently excluded.
-- The function is presented as computing the "worst case" value but is in practice an approximate heuristic.
-- Called for up to 8 candidates per root call (see issue #18), making this both a correctness and performance concern.
+- `legal_actions` returns moves sorted by tuple key (from_square, to_square, promotion), not by tactical strength.
+- The first 12 moves are not necessarily the strongest opponent replies.
+- The function is a heuristic bound, not a true worst case.
+
+Scope update (2026-05-30):
+- `select_root_move` (which sampled this for up to 8 candidates per root call) was deleted in 90fe323.
+- `opponent_worst_case_value` is now only called from `transition_interpretation.rs`, not from the root hot path.
+- The O(branching × top-N) per-root-call performance concern (issue #18) is resolved.
+- The correctness concern (unsorted sampling) remains for the `transition_interpretation.rs` path.
 
 Cross-reference: AUDIT_2026-05-28.md Batch 3 — `transition_reply.rs` [CORRECTNESS].
 
 Recommendation:
-- Sort opponent replies by tactical priority (captures first by piece value, then checks, then quiet moves) before applying `take(max_replies)`, so the sample covers the most dangerous responses.
-- Alternatively, document explicitly that this is a heuristic bound, not a true worst case, to avoid false confidence in callers.
+- Sort opponent replies by tactical priority before `take(max_replies)` in transition_reply.rs.
+- The urgency is reduced since this is no longer in the per-move decision hot path.
 
 ## 15. Rocky — Explosion combinatoire search
 
@@ -657,7 +640,32 @@ Removed 2026-05-27:
 
 - Issue #7 FEN en-passant / halfmove normalization: stale claim. `engine_to_fen` and `apply_move`
   correctly maintain and serialize `en_passant_target` and `halfmove_clock`. Round-trip test passes.
-  Residual bias: repetition key includes halfmove_clock (non-standard, minor, conservative).
+
+Removed 2026-05-30 (sprint closures):
+
+- Issue #7 residual bias (repetition key includes halfmove_clock): resolved by f758ff4 —
+  `current_repetition_key` is now a Zobrist u64 that does not include halfmove_clock.
+  Repetition detection is now standard-compliant on this point.
+
+- Issue #16 (position_key non-Zobrist): resolved pre-sprint by commit 28c9cc5 —
+  `position_key` in `search.rs` uses standard per-(piece, square, side) Zobrist vectors.
+  Engine-side repetition key migrated to Zobrist in f758ff4.
+
+- Issue #17 (is_root_fork_move call-order invariant): resolved by 90fe323 —
+  `is_root_fork_move` and the full S-7 pipeline deleted.
+
+- Issue #18 (opponent_worst_case_value hidden cost): resolved by 90fe323 —
+  `select_root_move` deleted; `opponent_worst_case_value` no longer runs in the root hot path.
+
+- Negamax score convention bug: resolved by 6875b43 — scores are now consistently from
+  the to_move player's perspective throughout the alpha-beta tree. Stalemate and threefold
+  repetition now return `draw_score()` (not `evaluate()`). Checkmate detection and aspiration
+  window for mate scores corrected.
+
+- game_decision_trace always-None field: resolved by 90fe323 — `game_decision_trace:
+  Option<RootDecisionTrace>` removed from `RootSearchResult`; `RootDecisionTrace` and
+  `RootDecisionTraceCandidate` structs deleted; dead GAME_DECISION_TRACE emission and
+  analysis counters removed from `simulation_runner.rs`.
 
 ## Claim Control
 

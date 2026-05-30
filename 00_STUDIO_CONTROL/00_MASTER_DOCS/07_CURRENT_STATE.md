@@ -1,6 +1,6 @@
 # Current State
 
-Date baseline: 2026-05-07
+Date baseline: 2026-05-07 — last sprint update: 2026-05-30
 
 ## Evidence-plane status
 
@@ -273,26 +273,31 @@ Warnings:
   - `src/tool/cli.rs`
 - Runtime now behaves as full chess, not a prototype.
 - Search uses root cloning and simulate/undo deeper in the tree.
-- `src/chess/search.rs` now has a more engine-like search core:
-  - iterative deepening
+- `src/chess/search.rs` core features (stable as of 2026-05-30):
+  - iterative deepening with time-budget guard (`TCS_MOVE_TIME_MS`)
+  - aspiration windows (including mate-aware widening)
   - transposition table with stored best move
-  - killer moves
-  - history heuristic
-  - bounded quiescence search
+  - killer moves and history heuristic (`thread_local` tables, no Mutex on hot path)
+  - bounded quiescence search (`TCS_Q_DEPTH`, default 3)
   - light LMR
   - search instrumentation for nodes / TT / undo profile
-- Important nuance from code review: the old "full clone everywhere" story is outdated, but the root still begins from `engine.clone()` and some helpers still simulate moves; the structural performance ceiling is reduced, not gone.
+  - stalemate and threefold repetition return `draw_score()` — not `evaluate()`
+  - negamax score convention unified on to_move perspective throughout the tree
+  - Zobrist-hash position key for TT (standard per-(piece, square, side) vectors)
+- Root selection: pure argmax on alpha-beta score. The S-7 practical-policy pipeline
+  (`select_root_move`, fork detection, worst-case sampling) was deleted in 90fe323.
+  Root decision is now simple and transparent.
+- Important nuance: the root still begins from `engine.clone()` and some helpers still
+  simulate moves; the structural performance ceiling is reduced, not gone.
 - Tactical layer is integrated at root and rerank:
-  - SEE-lite
-  - hanging detection
-  - mate urgency
-  - trade sanity
-  - reply scan
-- FEN round-trip is only partially faithful as runtime state:
-  - castling rights are preserved
-  - en-passant is serialized as `-`
-  - halfmove/fullmove are serialized as `0 1`
-  - therefore serialized FEN is not complete runtime truth for those fields
+  - SEE-lite, hanging detection, mate urgency, trade sanity, reply scan
+- Engine-side performance passes (sprint f758ff4):
+  - `current_repetition_key` is now a Zobrist u64 (replaces FEN string, no halfmove_clock)
+  - `Unit::template_name` is `Arc<str>` (zero allocation for Engine clones)
+  - Legal action sort key uses integer tuples (no String allocation)
+- FEN round-trip is faithful for all fields: castling rights, en-passant, halfmove clock
+  are correctly maintained and serialized. Repetition key is Zobrist (excludes halfmove_clock),
+  which is standard-compliant.
 
 ## AI / neural status
 
