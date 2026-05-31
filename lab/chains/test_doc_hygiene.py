@@ -161,7 +161,47 @@ class TestCommitMessageValidator:
 
 # ── Detection lane ───────────────────────────────────────────────────────────
 
+def _build_std_manifest_data():
+    """Manifest de test standard — miroir des conventions de lane du projet.
+
+    Note Python 3.12: PurePosixPath.match() avec '**' en fin de segment absorbe
+    exactement UN composant de chemin (pas recursivement). Ex:
+      'dir/**' matche 'dir/file.ext' (1 niveau) mais PAS 'dir/sub/file.ext' (2 niveaux).
+    Pour couvrir les fichiers imbriques, utiliser 'dir/sub/**' ou 'dir/**/*.ext'.
+    """
+    return {
+        "routing": {
+            "tracked": [
+                # src: fichiers directs + imbriques
+                {"pattern": "src/**", "lane": "AUDIT_REQUIRED"},        # direct (src/main.rs)
+                {"pattern": "src/**/*.rs", "lane": "AUDIT_REQUIRED"},   # imbriques (src/engine/core.rs)
+                {"pattern": "Cargo.toml", "lane": "HUMAN_REQUIRED"},
+                {"pattern": "Cargo.lock", "lane": "HUMAN_REQUIRED"},
+                {"pattern": "00_STUDIO_CONTROL/**", "lane": "HUMAN_REQUIRED"},
+                {"pattern": "ml/**", "lane": "AUDIT_REQUIRED"},
+                {"pattern": "scripts/**", "lane": "AUDIT_REQUIRED"},
+                {"pattern": "lab/chains/*.py", "lane": "SAFE_AUTO"},
+                {"pattern": "lab/reports/**", "lane": "SAFE_AUTO"},     # lab/reports/eval.md
+                {"pattern": "lab/**", "lane": "SAFE_AUTO"},             # autres direct lab/
+                {"pattern": ".gitignore", "lane": "SAFE_AUTO"},
+            ],
+            "gitignored": [],
+            "unrouted": [],
+        }
+    }
+
+
 class TestLaneDetection:
+    """Tests de detection de lane via manifest controle (autouse fixture).
+    Isoles du manifest reel — testent la logique de resolution, pas le contenu du manifest."""
+
+    @pytest.fixture(autouse=True)
+    def _std_manifest(self, tmp_path, monkeypatch):
+        if not YAML_AVAILABLE:
+            pytest.skip("pyyaml requis")
+        mf = tmp_path / "manifest.yaml"
+        mf.write_text(yaml.dump(_build_std_manifest_data()), encoding="utf-8")
+        monkeypatch.setattr(dhc, "MANIFEST_PATH", mf)
 
     def test_empty_files_is_safe_auto(self):
         assert dhc.detect_lane([]) == "SAFE_AUTO"
@@ -184,8 +224,10 @@ class TestLaneDetection:
     def test_cargo_lock_is_human_required(self):
         assert dhc.detect_lane(["Cargo.lock"]) == "HUMAN_REQUIRED"
 
-    def test_lab_chains_is_audit_required(self):
-        assert dhc.detect_lane(["lab/chains/doc_hygiene_chain.py"]) == "AUDIT_REQUIRED"
+    # MODIFIE: testait l'ancien comportement hardcode (AUDIT_REQUIRED).
+    # Avec le manifest (lab/chains/*.py -> SAFE_AUTO), la lane correcte est SAFE_AUTO.
+    def test_lab_chains_is_safe_auto(self):
+        assert dhc.detect_lane(["lab/chains/doc_hygiene_chain.py"]) == "SAFE_AUTO"
 
     def test_mixed_highest_priority_wins(self):
         result = dhc.detect_lane(["lab/reports/eval.md", "00_STUDIO_CONTROL/doc.md"])
@@ -328,3 +370,75 @@ class TestAssembleVerdicts:
     def test_no_proposals_mechanical_validation(self):
         v = dhc.assemble_verdicts(self._commit_ok(), "SAFE_AUTO", self._routing_clean(), [])
         assert v["evidence_verdict"] == "MECHANICAL_VALIDATION_ONLY"
+
+
+# ── Detection lane via manifest (nouveaux tests IMP-001) ─────────────────────
+
+@pytest.mark.skipif(not YAML_AVAILABLE, reason="pyyaml requis")
+class TestLaneDetectionManifest:
+    """Nouveaux tests verifiant que detect_lane() lit les lanes du manifest (IMP-001)."""
+
+    def _write_manifest(self, tmp_path, monkeypatch, tracked):
+        data = {"routing": {"tracked": tracked, "gitignored": [], "unrouted": []}}
+        mf = tmp_path / "manifest.yaml"
+        mf.write_text(yaml.dump(data), encoding="utf-8")
+        monkeypatch.setattr(dhc, "MANIFEST_PATH", mf)
+        return data
+
+    def test_detect_lane_reads_manifest(self, tmp_path, monkeypatch):
+        """detect_lane() utilise les lanes du manifest, pas les prefixes hardcodes."""
+        self._write_manifest(tmp_path, monkeypatch, [
+            {"pattern": "lab/chains/*.py",          "lane": "SAFE_AUTO"},
+            {"pattern": "src/**/*.rs",               "lane": "AUDIT_REQUIRED"},
+            {"pattern": "scripts/auto_merge_guard.py", "lane": "HUMAN_REQUIRED"},
+            {"pattern": "ml/train.py",               "lane": "FORBIDDEN"},
+        ])
+        assert dhc.detect_lane(["lab/chains/run_chain.py"]) == "SAFE_AUTO"
+        assert dhc.detect_lane(["src/chess/search.rs"]) == "AUDIT_REQUIRED"
+        assert dhc.detect_lane(["scripts/auto_merge_guard.py"]) == "HUMAN_REQUIRED"
+        assert dhc.detect_lane(["ml/train.py"]) == "FORBIDDEN"
+
+    def test_detect_lane_strictest_wins(self, tmp_path, monkeypatch):
+        """Parmi plusieurs fichiers, la lane la plus stricte l'emporte."""
+        self._write_manifest(tmp_path, monkeypatch, [
+            {"pattern": "docs/**",    "lane": "SAFE_AUTO"},
+            {"pattern": "src/**",     "lane": "AUDIT_REQUIRED"},
+            {"pattern": "scripts/**", "lane": "HUMAN_REQUIRED"},
+        ])
+        assert dhc.detect_lane(["docs/readme.md", "src/main.rs"]) == "AUDIT_REQUIRED"
+        assert dhc.detect_lane(["docs/readme.md", "scripts/ci.py"]) == "HUMAN_REQUIRED"
+
+    def test_detect_lane_unrouted_file_failclosed(self, tmp_path, monkeypatch):
+        """Fichier non route dans le manifest -> AUDIT_REQUIRED (fail-closed)."""
+        self._write_manifest(tmp_path, monkeypatch, [
+            {"pattern": "lab/**", "lane": "SAFE_AUTO"},
+        ])
+        result = dhc.detect_lane(["totally/new/unknown_file.xyz"])
+        assert result == "AUDIT_REQUIRED"
+
+    def test_detect_lane_empty(self, tmp_path, monkeypatch):
+        """Liste vide -> SAFE_AUTO sans consulter le manifest."""
+        self._write_manifest(tmp_path, monkeypatch, [])
+        assert dhc.detect_lane([]) == "SAFE_AUTO"
+
+    def test_detect_lane_manifest_missing(self, tmp_path, monkeypatch):
+        """Si manifest absent, utilise le fallback hardcode — ne crashe pas."""
+        monkeypatch.setattr(dhc, "MANIFEST_PATH", tmp_path / "nonexistent.yaml")
+        # lab/chains/*.py dans le fallback hardcode -> AUDIT_REQUIRED
+        result = dhc.detect_lane(["lab/chains/run_chain.py"])
+        assert result in ("SAFE_AUTO", "AUDIT_REQUIRED")  # fallback, ne crashe pas
+        # src/ dans le fallback -> AUDIT_REQUIRED
+        result2 = dhc.detect_lane(["src/engine/core.rs"])
+        assert result2 == "AUDIT_REQUIRED"
+
+    def test_detect_lane_manifest_consistency(self):
+        """Coherence entre detect_lane() et le manifest reel (sans mock).
+        Prouve que le fix est actif sur le repo courant."""
+        from pathlib import Path
+        if not Path("FILE_ROUTING_MANIFEST.yaml").exists():
+            pytest.skip("FILE_ROUTING_MANIFEST.yaml absent")
+        # lab/chains/ -> SAFE_AUTO dans le manifest reel (c'est le fix IMP-001)
+        assert dhc.detect_lane(["lab/chains/run_chain.py"]) == "SAFE_AUTO"
+        assert dhc.detect_lane(["lab/chains/doc_hygiene_chain.py"]) == "SAFE_AUTO"
+        # ml/train.py -> FORBIDDEN dans le manifest reel
+        assert dhc.detect_lane(["ml/train.py"]) == "FORBIDDEN"

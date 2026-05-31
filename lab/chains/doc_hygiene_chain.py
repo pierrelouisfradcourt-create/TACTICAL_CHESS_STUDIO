@@ -58,6 +58,15 @@ LANE_PREFIXES = {
     ],
 }
 
+# Strictness order for manifest-based lane resolution (higher = more restrictive)
+LANE_STRICTNESS = {
+    "FORBIDDEN": 4,
+    "HUMAN_REQUIRED": 3,
+    "AUDIT_REQUIRED": 2,
+    "SAFE_AUTO": 1,
+    "NA": 0,  # gitignored patterns — treated as lowest priority
+}
+
 COMMIT_TYPES = {
     "feat", "fix", "chore", "docs", "style", "refactor", "perf",
     "test", "build", "ci", "revert", "chains", "lab", "ml", "arch",
@@ -178,7 +187,8 @@ def _file_lane(filepath: str) -> str:
     return "SAFE_AUTO"
 
 
-def detect_lane(changed_files: list) -> str:
+def _detect_lane_fallback(changed_files: list) -> str:
+    """Fallback: hardcoded-prefix lane detection used when manifest is absent (R3)."""
     if not changed_files:
         return "SAFE_AUTO"
     lanes = [_file_lane(f) for f in changed_files]
@@ -187,6 +197,37 @@ def detect_lane(changed_files: list) -> str:
         if LANE_PRIORITY.index(lane) > LANE_PRIORITY.index(best):
             best = lane
     return best
+
+
+def detect_lane(changed_files: list, _manifest=None) -> str:
+    """Return strictest lane for changed_files, reading from manifest (SSOT).
+    Falls back to hardcoded prefixes if manifest is absent (R3).
+    Optional _manifest param avoids double disk read when caller pre-loads it (R6)."""
+    if not changed_files:
+        return "SAFE_AUTO"
+
+    manifest = _manifest
+    if manifest is None:
+        loaded, _ = _load_manifest()
+        manifest = loaded
+
+    if manifest is None:
+        return _detect_lane_fallback(changed_files)
+
+    patterns = _collect_patterns(manifest)
+    best_strictness = 0
+    best_lane = "SAFE_AUTO"
+
+    for filepath in changed_files:
+        file_lane = _file_lane_from_manifest(filepath, patterns)
+        if file_lane is None:
+            file_lane = "AUDIT_REQUIRED"  # R5: fail-closed for unrouted files
+        s = LANE_STRICTNESS.get(file_lane, LANE_STRICTNESS["AUDIT_REQUIRED"])
+        if s > best_strictness:
+            best_strictness = s
+            best_lane = file_lane
+
+    return best_lane
 
 
 # ── Step 4: audit_file_routing ───────────────────────────────────────────────
@@ -219,8 +260,32 @@ def _collect_patterns(manifest: dict) -> list:
     return entries
 
 
-def audit_file_routing(untracked_files: list) -> dict:
-    manifest, status = _load_manifest()
+def _file_lane_from_manifest(filepath: str, patterns: list) -> str | None:
+    """Return the strictest matching lane from manifest patterns.
+    Returns None if no pattern matches (caller applies fail-closed default)."""
+    best_lane = None
+    best_strictness = -1
+    for entry in patterns:
+        pattern = entry.get("pattern", "")
+        if not pattern or not _match_pattern(filepath, pattern):
+            continue
+        raw_lane = entry.get("lane", "AUDIT_REQUIRED")
+        if raw_lane not in LANE_STRICTNESS:
+            print(f"  [!] Lane invalide '{raw_lane}' pour pattern '{pattern}' -> AUDIT_REQUIRED")
+            raw_lane = "AUDIT_REQUIRED"
+        s = LANE_STRICTNESS[raw_lane]
+        if s > best_strictness:
+            best_strictness = s
+            best_lane = raw_lane
+    return best_lane
+
+
+def audit_file_routing(untracked_files: list, _manifest=None, _manifest_status=None) -> dict:
+    if _manifest is not None:
+        manifest = _manifest
+        status = _manifest_status if _manifest_status is not None else "OK"
+    else:
+        manifest, status = _load_manifest()
 
     if manifest is None:
         return {
@@ -455,10 +520,15 @@ def main():
     for w in commit_audit["warnings"]:
         print(f"  [!] {w}")
 
-    lane = detect_lane(git_state["changed_files"])
+    # Load manifest once — shared by detect_lane and audit_file_routing (R6)
+    manifest, manifest_status = _load_manifest()
+
+    lane = detect_lane(git_state["changed_files"], _manifest=manifest)
     print(f"[OK] Lane detected: {lane} ({len(git_state['changed_files'])} changed files)")
 
-    routing_audit = audit_file_routing(git_state["untracked_files"])
+    routing_audit = audit_file_routing(
+        git_state["untracked_files"], _manifest=manifest, _manifest_status=manifest_status
+    )
     rs = routing_audit["status"]
     if rs == "MANIFEST_MISSING":
         print("[!] MANIFEST_MISSING — FILE_ROUTING_MANIFEST.yaml absent (HumanGate required)")
