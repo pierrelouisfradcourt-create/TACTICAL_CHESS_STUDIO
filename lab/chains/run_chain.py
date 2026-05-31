@@ -548,6 +548,137 @@ def run_chain(idea: str = None, truth_packet: dict = None) -> dict:
 
     return envelope
 
+# ── Charter mode ─────────────────────────────────────────
+CHARTER_DIR       = Path("lab/chains/charters")
+LEDGER_PATH_RC    = Path("lab/chains/IMPROVEMENT_LEDGER.yaml")
+CHAIN_HISTORY_RC  = Path("lab/chains/CHAIN_HISTORY.jsonl")
+
+SYSTEM_CHARTER_GENERATOR = """
+Tu es Devstral Ingenieur. Genere un charter Claude Code borne pour cet improvement.
+
+Le charter doit respecter :
+- Aucun git write
+- Tests obligatoires (pytest ou py_compile)
+- Rapport final avec software_verdict / evidence_verdict / claim_verdict: NO_CLAIM_ALLOWED
+- Windows PowerShell compatible
+- Markers ASCII [OK] [!] [X], pas d'emoji
+
+Retourne UNIQUEMENT le charter en markdown, sans commentaire avant ou apres.
+""".strip()
+
+
+def load_imp_from_ledger(imp_id: str) -> dict | None:
+    """Charge un IMP depuis IMPROVEMENT_LEDGER.yaml. Retourne None si absent."""
+    for candidate in [LEDGER_PATH_RC, Path(__file__).parent / "IMPROVEMENT_LEDGER.yaml"]:
+        if candidate.exists():
+            try:
+                with open(candidate, encoding="utf-8") as f:
+                    data = yaml.safe_load(f)
+                for imp in data.get("improvements", []):
+                    if imp.get("id") == imp_id:
+                        return imp
+            except Exception:
+                pass
+    return None
+
+
+def load_chain_history_summary(n: int = 3) -> str:
+    """Retourne un résumé des n derniers events CHAIN_HISTORY.jsonl."""
+    if not CHAIN_HISTORY_RC.exists():
+        return "(aucun historique disponible)"
+    try:
+        lines = CHAIN_HISTORY_RC.read_text(encoding="utf-8").splitlines()
+        recent = [l for l in lines if l.strip()][-n:]
+        summaries = []
+        for line in recent:
+            try:
+                ev = json.loads(line)
+                summaries.append(
+                    f"  - {ev.get('timestamp','?')} chain={ev.get('chain','?')} "
+                    f"verdict={ev.get('software_verdict', ev.get('verdict','?'))}"
+                )
+            except Exception:
+                pass
+        return "\n".join(summaries) or "(historique vide)"
+    except Exception:
+        return "(erreur lecture historique)"
+
+
+def _fallback_charter(imp: dict) -> str:
+    """Charter minimal depuis le ledger — fallback si LM Studio down."""
+    files = imp.get("files", [])
+    files_list = "\n".join(f"  - {f}" for f in files) if files else "  (aucun fichier specifie)"
+    val_cmds = "\n".join(
+        rf".\.venv312\Scripts\python.exe -m py_compile {f}" for f in files if f.endswith(".py")
+    ) or r".\.venv312\Scripts\python.exe -m py_compile <fichier>"
+    return "\n".join([
+        f"# CHARTER {imp['id']} — {imp['title']}",
+        "",
+        f"**Lane:** {imp['lane']}",
+        "**Fichiers autorises:**",
+        files_list,
+        "",
+        "## REGLES ABSOLUES",
+        "",
+        "- Aucun git write.",
+        "- Tests obligatoires.",
+        "- claim_verdict: NO_CLAIM_ALLOWED",
+        "",
+        "## OBJECTIF",
+        "",
+        imp.get("acceptance", "Voir ledger."),
+        "",
+        "## VALIDATION",
+        "",
+        "```powershell",
+        val_cmds,
+        r".\.venv312\Scripts\python.exe -m pytest -v",
+        "```",
+        "",
+        "## RAPPORT FINAL ATTENDU",
+        "",
+        "software_verdict: <resultat>",
+        "evidence_verdict: MECHANICAL_VALIDATION_ONLY",
+        "claim_verdict:    NO_CLAIM_ALLOWED",
+    ])
+
+
+def run_charter_mode(imp_id: str) -> str:
+    """Génère un charter pour l'IMP donné. Retourne le chemin du fichier créé."""
+    CHARTER_DIR.mkdir(parents=True, exist_ok=True)
+    charter_path = CHARTER_DIR / f"{imp_id}_charter.md"
+
+    imp = load_imp_from_ledger(imp_id)
+    if imp is None:
+        print(f"[X] IMP {imp_id} introuvable dans le ledger.")
+        sys.exit(1)
+
+    history = load_chain_history_summary(3)
+
+    user_prompt = (
+        f"ID: {imp['id']}\n"
+        f"Titre: {imp['title']}\n"
+        f"Lane: {imp['lane']}\n"
+        f"Fichiers autorises: {imp.get('files', [])}\n"
+        f"Acceptance: {imp.get('acceptance', '')}\n"
+        f"Notes: {imp.get('notes', '')}\n\n"
+        f"Contexte sessions recentes:\n{history}"
+    )
+
+    raw = call_lm_studio(SYSTEM_CHARTER_GENERATOR, user_prompt, temperature=0.1)
+
+    # Détecter si LM Studio a renvoyé une erreur JSON
+    if '"error"' in raw or '"verdict": "HOLD"' in raw:
+        print("[!] LM Studio down ou HOLD — fallback charter minimal")
+        charter_content = _fallback_charter(imp)
+    else:
+        charter_content = raw.strip()
+
+    charter_path.write_text(charter_content, encoding="utf-8")
+    print(f"[OK] Charter ecrit : {charter_path}")
+    return str(charter_path)
+
+
 # ── Entry point ───────────────────────────────────────────
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -557,9 +688,20 @@ if __name__ == "__main__":
                         help="Chemin vers un fichier YAML truth packet")
     parser.add_argument("--objective", type=str, default=None,
                         help="Objectif technique direct (bypass traducteur)")
+    parser.add_argument("--mode", type=str, default=None,
+                        help="Mode special : 'charter'")
+    parser.add_argument("--imp", type=str, default=None,
+                        help="ID de l'IMP a traiter (ex: IMP-006) — utilisé avec --mode charter")
     args = parser.parse_args()
 
-    if args.truth_packet:
+    if args.mode == "charter":
+        if not args.imp:
+            print("[X] --mode charter requiert --imp <IMP-ID>")
+            exit(1)
+        charter_path = run_charter_mode(args.imp)
+        print(charter_path)
+        exit(0)
+    elif args.truth_packet:
         with open(args.truth_packet, "r", encoding="utf-8") as f:
             tp = yaml.safe_load(f)
         result = run_chain(truth_packet=tp)
