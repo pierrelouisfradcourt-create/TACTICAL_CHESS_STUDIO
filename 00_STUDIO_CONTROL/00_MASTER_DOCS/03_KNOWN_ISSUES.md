@@ -1,7 +1,7 @@
 # Known Issues
 
 Status: canonical active issue list
-Last refreshed: 2026-05-27
+Last refreshed: 2026-05-30
 Merged source: `MASTER_DOCS/CURRENT_CODE_AUDIT_AND_KNOWN_ISSUES.md`
 Rule: this file is an engineering risk register, not proof of strength, Elo, promotion, or scientific progress.
 
@@ -356,7 +356,7 @@ Current evidence:
 - `src/engine/engine.rs` is chess-specific despite a generic module name.
 - Passive `LegalAction` / `ActionId`, `SearchBackend`, and `DecisionController` adapter work exists from PP12, PP14, and PP16.
 - Those adapters are not active runtime replacements.
-- Authoritative Rust `ActionMask`, versioned observations, active modular `DecisionController`, active `SearchBackend`, `TelemetryCore`, and first-class `EvaluationSystem` are not complete.
+- Authoritative Rust `ActionMask`, versioned observations, active modular `DecisionController`, active `SearchBackend`, and `TelemetryCore` are not complete. (EvaluationSystem first-class : CLOSED via #12, 2026-05-30.)
 - `NeuralPolicyValue` remains a paper-only candidate from PP18.
 
 Tests run:
