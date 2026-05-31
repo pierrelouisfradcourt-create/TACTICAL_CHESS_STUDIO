@@ -21,29 +21,66 @@ TRACES  = Path("lab/traces")
 
 SYSTEM_EXECUTOR = """
 Tu es l'Exécuteur du Tactical Chess Studio.
-Tu reçois un TaskPacket validé et tu génères le code ou patch demandé.
+Tu reçois un TaskPacket validé et tu génères le code demandé.
 
 RÈGLES STRICTES :
-- Tu produis UNIQUEMENT le contenu des fichiers à créer ou modifier.
-- Tu respectes forbidden_files et forbidden_actions sans exception.
-- Tu ne commites pas. Tu ne pushes pas.
-- Tu fournis les validation_commands à exécuter après.
-- claim_verdict: NO_CLAIM_ALLOWED.
+- Utilise UNIQUEMENT urllib.request pour appeler LM Studio (PAS requests, PAS openai)
+- N'invente JAMAIS de librairie externe non présente dans le code existant
+- Format lignes MOVE_DIAG : pipe-séparé "source|phase|band|plan|selected|..."
+  PAS du JSON — parse avec line.split("|")
+- Traces sauvegardées dans lab/traces/{timestamp}_{move}.json (une par coup)
+- Ne jamais toucher src/ (runtime Rust)
+- claim_verdict: NO_CLAIM_ALLOWED
+
+PATTERN OBLIGATOIRE POUR APPELER LM STUDIO (copie ce pattern exactement) :
+```python
+import urllib.request
+import json
+
+LM_STUDIO_CHAT = "http://127.0.0.1:1234/v1/chat/completions"
+LM_STUDIO_TIMEOUT = 60
+
+def call_lm_studio(prompt: str, model: str) -> str:
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 180,
+        "temperature": 0.65,
+        "stream": False,
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        LM_STUDIO_CHAT,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=LM_STUDIO_TIMEOUT) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+            return result["choices"][0]["message"]["content"].strip()
+    except urllib.error.HTTPError as e:
+        return "[HTTP " + str(e.code) + "]"
+    except urllib.error.URLError as e:
+        return "[URLError : " + str(e.reason) + "]"
+    except (KeyError, IndexError, json.JSONDecodeError) as e:
+        return "[reponse invalide : " + str(e) + "]"
+```
 
 FORMAT DE SORTIE — JSON strict :
 {
   "execution_id": "uuid",
   "files_produced": [
     {
-      "path": "src/example.rs",
-      "action": "create | edit",
+      "path": "ml/auto_coach.py",
+      "action": "create",
       "content": "contenu complet du fichier"
     }
   ],
-  "validation_commands": ["cargo check", "python -m pytest"],
+  "validation_commands": ["python -m pytest ml/test_auto_coach.py"],
   "skipped_validation": [],
   "risks": [],
-  "software_verdict": "EXECUTION_COMPLETE | EXECUTION_PARTIAL | EXECUTION_FAILED",
+  "software_verdict": "EXECUTION_COMPLETE",
   "evidence_verdict": "DOCUMENTATION_ONLY",
   "claim_verdict": "NO_CLAIM_ALLOWED"
 }
@@ -130,7 +167,14 @@ if __name__ == "__main__":
 
     print(f"\n{'='*60}")
     print(f"EXECUTOR — {'DRY RUN' if dry_run else '⚠ APPLY MODE'}")
-    print(f"Tâche : {task.get('task_summary', '?')}")
+    task_label = (
+        task.get("task_summary")
+        or task.get("engineer_proposal", {}).get("task_summary")
+        or task.get("truth_packet", {}).get("task_summary")
+        or task.get("objective")
+        or "?"
+    )
+    print(f"Tâche : {task_label}")
     print(f"{'='*60}\n")
 
     # Devstral génère
