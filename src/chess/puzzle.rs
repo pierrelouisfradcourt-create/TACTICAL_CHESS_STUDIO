@@ -1,4 +1,3 @@
-use crate::chess::eval::piece_value;
 use crate::chess::fen::engine_from_fen;
 use crate::chess::search::opponent;
 use crate::chess::uci::action_to_uci;
@@ -6,29 +5,94 @@ use crate::engine::action::action::Action;
 use crate::engine::action::command::Command;
 use crate::engine::engine::Engine;
 use crate::engine::entity::unit::{PlayerId, Position};
-use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PuzzleTheme {
+    // Niveau 1
     Mate1,
+    HangingPiece,
+    DefensiveMove,
+    // Niveau 2
+    MateIn2,
     Fork,
+    Pin,
+    Skewer,
+    DiscoveredAttack,
+    Promotion,
+    // Niveau 3
+    MateIn3,
+    AnastasiaMate,
+    SmotheredMate,
+    BackRankMate,
+    HookMate,
+    ArabianMate,
+    RookEndgame,
+    QueenEndgame,
+    PawnEndgame,
+    // Générique
+    Unknown,
 }
 
 impl PuzzleTheme {
     pub fn parse(raw: &str) -> Option<Self> {
         match raw {
             "mate1" | "mate_in_1" | "mate" => Some(Self::Mate1),
-            "fork" => Some(Self::Fork),
-            _ => None,
+            "mate_in_2" | "mateIn2"        => Some(Self::MateIn2),
+            "mate_in_3" | "mateIn3"        => Some(Self::MateIn3),
+            "fork"                          => Some(Self::Fork),
+            "pin"                           => Some(Self::Pin),
+            "skewer"                        => Some(Self::Skewer),
+            "discovered_attack"             => Some(Self::DiscoveredAttack),
+            "hanging_piece"                 => Some(Self::HangingPiece),
+            "defensive_move"                => Some(Self::DefensiveMove),
+            "promotion"                     => Some(Self::Promotion),
+            "anastasias_mate"               => Some(Self::AnastasiaMate),
+            "smothered_mate"                => Some(Self::SmotheredMate),
+            "back_rank_mate"                => Some(Self::BackRankMate),
+            "hook_mate"                     => Some(Self::HookMate),
+            "arabian_mate"                  => Some(Self::ArabianMate),
+            "rook_endgame"                  => Some(Self::RookEndgame),
+            "queen_endgame"                 => Some(Self::QueenEndgame),
+            "pawn_endgame"                  => Some(Self::PawnEndgame),
+            _                               => Some(Self::Unknown),
         }
     }
 
     pub fn as_str(self) -> &'static str {
         match self {
-            Self::Mate1 => "mate1",
-            Self::Fork => "fork",
+            Self::Mate1            => "mate_in_1",
+            Self::MateIn2          => "mate_in_2",
+            Self::MateIn3          => "mate_in_3",
+            Self::Fork             => "fork",
+            Self::Pin              => "pin",
+            Self::Skewer           => "skewer",
+            Self::DiscoveredAttack => "discovered_attack",
+            Self::HangingPiece     => "hanging_piece",
+            Self::DefensiveMove    => "defensive_move",
+            Self::Promotion        => "promotion",
+            Self::AnastasiaMate    => "anastasias_mate",
+            Self::SmotheredMate    => "smothered_mate",
+            Self::BackRankMate     => "back_rank_mate",
+            Self::HookMate         => "hook_mate",
+            Self::ArabianMate      => "arabian_mate",
+            Self::RookEndgame      => "rook_endgame",
+            Self::QueenEndgame     => "queen_endgame",
+            Self::PawnEndgame      => "pawn_endgame",
+            Self::Unknown          => "unknown",
+        }
+    }
+
+    pub fn difficulty(self) -> u32 {
+        match self {
+            Self::Mate1 | Self::HangingPiece | Self::DefensiveMove => 1,
+            Self::MateIn2 | Self::Fork | Self::Pin | Self::Skewer
+            | Self::DiscoveredAttack | Self::Promotion => 2,
+            Self::MateIn3 | Self::AnastasiaMate | Self::SmotheredMate
+            | Self::BackRankMate | Self::HookMate | Self::ArabianMate
+            | Self::RookEndgame | Self::QueenEndgame | Self::PawnEndgame => 3,
+            Self::Unknown => 1,
         }
     }
 }
@@ -52,42 +116,12 @@ pub struct PuzzleCase {
     pub validation: PuzzleValidation,
 }
 
-const DEFAULT_DIFFICULTY: u32 = 1;
-const MAX_RANDOM_ATTEMPTS_PER_CASE: usize = 10_000;
-const RANDOM_MOVE_LIMIT: usize = 14;
-
 #[derive(Clone)]
 struct ForkCandidate {
     action_uci: String,
     target_names: Vec<String>,
     targets: Vec<String>,
     is_knight: bool,
-}
-
-fn base_templates(theme: PuzzleTheme) -> Vec<&'static str> {
-    match theme {
-        PuzzleTheme::Mate1 => vec![
-            "7k/8/5QK1/8/8/8/8/8 w - - 0 1",
-            "7k/8/8/8/8/8/5Q2/6K1 w - - 0 1",
-            "6k1/8/8/8/8/8/6Q1/6K1 w - - 0 1",
-            "7k/8/8/8/8/8/8/Q6K w - - 0 1",
-        ],
-        PuzzleTheme::Fork => vec![
-            "2q1k3/8/8/1N6/8/8/8/6K1 w - - 0 1",
-            "4k2q/8/8/6N1/8/8/8/6K1 w - - 0 1",
-            "3q4/8/8/3N4/8/8/8/6K1 w - - 0 1",
-        ],
-    }
-}
-
-fn default_fen() -> &'static str {
-    "4k3/8/8/8/8/8/4K3/8 w - - 0 1"
-}
-
-fn parse_or_default_fen(fen: &str) -> Engine {
-    engine_from_fen(fen)
-        .or_else(|_| engine_from_fen(default_fen()))
-        .unwrap()
 }
 
 fn sorted_legal_moves(engine: &Engine, player: PlayerId) -> Vec<(Action, String)> {
@@ -99,30 +133,6 @@ fn sorted_legal_moves(engine: &Engine, player: PlayerId) -> Vec<(Action, String)
 
     out.sort_by(|a, b| a.1.cmp(&b.1));
     out
-}
-
-fn random_position(theme: PuzzleTheme, rng: &mut StdRng) -> Engine {
-    let templates = base_templates(theme);
-    let base = templates.choose(rng).copied().unwrap_or(default_fen());
-    let mut engine = parse_or_default_fen(base);
-
-    let plies = rng.gen_range(0..=RANDOM_MOVE_LIMIT);
-    for _ in 0..plies {
-        let player = engine.turn_manager.current_player;
-        let legal = sorted_legal_moves(&engine, player);
-        if legal.is_empty() {
-            break;
-        }
-
-        let idx = rng.gen_range(0..legal.len());
-        let (action, _) = legal[idx].clone();
-        engine.execute(Command {
-            player_id: player,
-            action,
-        });
-    }
-
-    engine
 }
 
 fn in_board(x: i32, y: i32) -> bool {
@@ -470,142 +480,9 @@ pub fn validate_case_fen_and_moves(case: &PuzzleCase) -> bool {
     }
 }
 
-fn mate_case(index: usize, seed: u64, engine: &Engine) -> Option<PuzzleCase> {
-    let best_moves = find_mate_moves(engine);
-    if best_moves.is_empty() {
-        return None;
-    }
-
-    let case = PuzzleCase {
-        case_id: format!("puzzle_mate1_{}_seed{}", index, seed),
-        fen: engine.to_fen(),
-        side_to_move: engine.turn_manager.current_player,
-        theme: "mate_in_1".to_string(),
-        best_moves,
-        seed,
-        difficulty: DEFAULT_DIFFICULTY,
-        validation: PuzzleValidation {
-            mate: true,
-            fork_targets: Vec::new(),
-            material_gain_hint: 900,
-        },
-    };
-
-    if validate_case_fen_and_moves(&case) {
-        Some(case)
-    } else {
-        None
-    }
-}
-
-fn fork_case(index: usize, seed: u64, engine: &Engine) -> Option<PuzzleCase> {
-    let mut candidates = find_fork_candidates(engine);
-    if candidates.is_empty() {
-        return None;
-    }
-
-    let best = candidates.remove(0);
-
-    let target_names = best.target_names.clone();
-    let material_gain_hint = target_names
-        .iter()
-        .filter_map(|name| match name.as_str() {
-            "king" => Some(999),
-            "queen" => Some(piece_value(crate::chess::piece_kind::ChessPieceKind::Queen)),
-            "rook" => Some(piece_value(crate::chess::piece_kind::ChessPieceKind::Rook)),
-            "bishop" => Some(piece_value(
-                crate::chess::piece_kind::ChessPieceKind::Bishop,
-            )),
-            "knight" => Some(piece_value(
-                crate::chess::piece_kind::ChessPieceKind::Knight,
-            )),
-            _ => None,
-        })
-        .max()
-        .unwrap_or(0)
-        .min(900);
-
-    let case = PuzzleCase {
-        case_id: format!("puzzle_fork_{}_seed{}", index, seed),
-        fen: engine.to_fen(),
-        side_to_move: engine.turn_manager.current_player,
-        theme: "fork".to_string(),
-        best_moves: vec![best.action_uci],
-        seed,
-        difficulty: DEFAULT_DIFFICULTY,
-        validation: PuzzleValidation {
-            mate: false,
-            fork_targets: target_names,
-            material_gain_hint,
-        },
-    };
-
-    if validate_case_fen_and_moves(&case) {
-        Some(case)
-    } else {
-        None
-    }
-}
-
-pub fn generate_puzzle_cases(theme: PuzzleTheme, count: usize, seed: u64) -> Vec<PuzzleCase> {
-    let mut rng = StdRng::seed_from_u64(seed);
-    let mut out = Vec::new();
-    let mut attempts = 0usize;
-
-    while out.len() < count && attempts < count.saturating_mul(MAX_RANDOM_ATTEMPTS_PER_CASE) {
-        attempts += 1;
-        let engine = random_position(theme, &mut rng);
-
-        let maybe_case = match theme {
-            PuzzleTheme::Mate1 => mate_case(out.len(), seed, &engine),
-            PuzzleTheme::Fork => fork_case(out.len(), seed, &engine),
-        };
-
-        if let Some(case) = maybe_case {
-            out.push(case);
-        }
-    }
-
-    if out.len() < count {
-        let mut template_attempt = 0usize;
-        let templates = base_templates(theme);
-        while out.len() < count {
-            let fen = templates[template_attempt % templates.len()];
-            template_attempt += 1;
-
-            let engine = parse_or_default_fen(fen);
-            let index = out.len();
-
-            let maybe_case = match theme {
-                PuzzleTheme::Mate1 => mate_case(index, seed, &engine),
-                PuzzleTheme::Fork => fork_case(index, seed, &engine),
-            };
-
-            if let Some(case) = maybe_case {
-                out.push(case);
-            }
-
-            if attempts > count.saturating_add(templates.len() * 3) {
-                break;
-            }
-            attempts += 1;
-        }
-    }
-
-    out
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json;
-
-    fn serialize_cases(cases: &[PuzzleCase]) -> Vec<String> {
-        cases
-            .iter()
-            .map(|case| serde_json::to_string(case).expect("serialize case"))
-            .collect()
-    }
 
     #[test]
     fn mate_in_one_detector_finds_known_mate() {
@@ -627,40 +504,5 @@ mod tests {
             .collect();
 
         assert!(names.contains(&"b5d6".to_string()));
-    }
-
-    #[test]
-    fn generated_puzzles_are_reloadable() {
-        let cases = generate_puzzle_cases(PuzzleTheme::Mate1, 5, 42);
-        assert!(!cases.is_empty());
-
-        for case in &cases {
-            assert!(validate_case_fen_and_moves(case));
-            assert_eq!(case.theme, "mate_in_1");
-            assert!(case.validation.fork_targets.is_empty());
-        }
-
-        let fork_cases = generate_puzzle_cases(PuzzleTheme::Fork, 3, 42);
-        assert!(!fork_cases.is_empty());
-
-        for case in &fork_cases {
-            assert!(validate_case_fen_and_moves(case));
-            assert_eq!(case.theme, "fork");
-            assert!(matches!(
-                case.validation
-                    .fork_targets
-                    .iter()
-                    .any(|target| target == "king" || target == "queen"),
-                true
-            ));
-        }
-    }
-
-    #[test]
-    fn same_seed_same_output() {
-        let a = generate_puzzle_cases(PuzzleTheme::Fork, 6, 99);
-        let b = generate_puzzle_cases(PuzzleTheme::Fork, 6, 99);
-
-        assert_eq!(serialize_cases(&a), serialize_cases(&b));
     }
 }
