@@ -1,0 +1,63 @@
+{
+  "chain_id": "be97bef4",
+  "timestamp": "20260531_162059",
+  "truth_packet": {
+    "task_summary": "Transformer coach.py en slow path automatique : Rocky joue, MOVE_DIAG capturé via pipe, LM Studio explique chaque coup, trace sauvegardée en JSON dans lab/traces/. Contraintes : ne pas toucher src/chess/decision.rs ni le runtime Rust. Validation : python -m pytest ml/test_coach.py. Format trace : {chain_id, timestamp, coup, explication, source}.",
+    "objective": "Transformer coach.py en slow path automatique : Rocky joue, MOVE_DIAG capturé via pipe, LM Studio explique chaque coup, trace sauvegardée en JSON dans lab/traces/. Contraintes : ne pas toucher src/chess/decision.rs ni le runtime Rust. Validation : python -m pytest ml/test_coach.py. Format trace : {chain_id, timestamp, coup, explication, source}.",
+    "lane": "AUDIT_REQUIRED",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  },
+  "engineer_proposal": {
+    "proposal_id": "uuid",
+    "task_summary": "Transformer coach.py en slow path automatique : Rocky joue, MOVE_DIAG capturé via pipe, LM Studio explique chaque coup, trace sauvegardée en JSON dans lab/traces/. Contraintes : ne pas toucher src/chess/decision.rs ni le runtime Rust. Validation : python -m pytest ml/test_coach.py. Format trace : {chain_id, timestamp, coup, explication, source}.",
+    "files_to_create": [
+      "ml/test_coach.py"
+    ],
+    "files_to_edit": [
+      "coach.py"
+    ],
+    "forbidden_files": [
+      "scripts/auto_merge_guard.py",
+      ".github/",
+      "benchmarks/",
+      "src/chess/decision.rs"
+    ],
+    "forbidden_actions": [
+      "benchmark",
+      "push main",
+      "dataset reset"
+    ],
+    "validation_commands": [
+      "cargo check",
+      "python -m pytest ml/test_coach.py"
+    ],
+    "scope_note": "Ce scope est borné pour s'assurer que les modifications se limitent à coach.py et aux tests associés, sans affecter le runtime Rust ou d'autres scripts critiques.",
+    "recommendation": "PROCEED",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  },
+  "redteam_output": {
+    "redteam_id": "uuid",
+    "verdict": "HOLD",
+    "critical_flaws": [
+      "Le fichier `ml/test_coach.py` n'est pas spécifié dans les fichiers interdits, mais il est créé et modifié. Cela pourrait entraîner des couplages cachés ou des dépendances non documentées.",
+      "La validation se fait uniquement avec `python -m pytest ml/test_coach.py`, ce qui ne garantit pas que toutes les interactions avec le runtime Rust sont correctes."
+    ],
+    "scope_violations": [
+      "Le fichier `ml/test_coach.py` est créé, ce qui pourrait entraîner des dépendances non documentées ou des couplages cachés."
+    ],
+    "missing_validation": [
+      "Aucune validation explicite pour s'assurer que les modifications n'affectent pas le runtime Rust."
+    ],
+    "survival_condition": "Ajouter une validation explicite pour s'assurer que les modifications n'affectent pas le runtime Rust et documenter toutes les dépendances du fichier `ml/test_coach.py`.",
+    "flags": [
+      "FLAG_SCOPE_CREEP",
+      "FLAG_MISSING_GUARD"
+    ],
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  },
+  "ready_for_arbitrage": false,
+  "human_gate_required": true,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "software_verdict": "CHAIN_COMPLETE",
+  "evidence_verdict": "DOCUMENTATION_ONLY"
+}

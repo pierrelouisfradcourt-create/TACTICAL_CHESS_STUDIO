@@ -1,0 +1,49 @@
+{
+  "chain_id": "35727e69",
+  "timestamp": "20260531_164408",
+  "truth_packet": {
+    "task_summary": "Creer ml/auto_coach.py qui lit les lignes MOVE_DIAG depuis stdin, filtre source==search, et appelle LM Studio pour expliquer chaque coup, en sauvant une trace JSON dans lab/traces/. Ne touche pas src/. Validation : python -m pytest ml/test_auto_coach.py",
+    "objective": "Creer ml/auto_coach.py qui lit les lignes MOVE_DIAG depuis stdin, filtre source==search, et appelle LM Studio pour expliquer chaque coup, en sauvant une trace JSON dans lab/traces/. Ne touche pas src/. Validation : python -m pytest ml/test_auto_coach.py",
+    "lane": "AUDIT_REQUIRED",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  },
+  "engineer_proposal": {
+    "proposal_id": "uuid",
+    "task_summary": "Création d'un script de test ML pour auto_coach.py",
+    "files_to_create": [
+      "ml/test_auto_coach.py"
+    ],
+    "files_to_edit": [],
+    "forbidden_files": [
+      "scripts/auto_merge_guard.py",
+      ".github/",
+      "src/"
+    ],
+    "forbidden_actions": [
+      "benchmark",
+      "push main",
+      "dataset reset"
+    ],
+    "validation_commands": [
+      "python -m pytest ml/test_auto_coach.py"
+    ],
+    "scope_note": "Scope restreint au dossier ml/ en Python.",
+    "recommendation": "PROCEED",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  },
+  "redteam_output": {
+    "verdict": "PROCEED",
+    "critical_flaws": [],
+    "scope_violations": [],
+    "missing_validation": [],
+    "survival_condition": "N/A",
+    "flags": [],
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  },
+  "retried": false,
+  "ready_for_arbitrage": true,
+  "human_gate_required": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "software_verdict": "CHAIN_COMPLETE",
+  "evidence_verdict": "DOCUMENTATION_ONLY"
+}
