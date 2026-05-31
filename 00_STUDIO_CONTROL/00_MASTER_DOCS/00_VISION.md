@@ -80,6 +80,11 @@ Règle d'autorité centrale :
 - LLM = slow path uniquement — jamais dans la boucle de coups
 - HumanGate = autorité finale sur tout
 
+Note 2026-05-30 : Neural correctement câblé depuis commit c0ebf62 (NeuralAgent::select_action
+effectivement appelé en tournoi). EvaluationSystem first-class opérationnel : RegressionGuard,
+EvalRunResult, 13 tests verts. Curriculum Lichess planifié — apprentissage par compétences
+(niveau 1 → 3 : mateIn1/hangingPiece → fork/pin/skewer → anastasiasMate/promotion).
+
 ---
 
 ## Intégration LLM — rôles précis

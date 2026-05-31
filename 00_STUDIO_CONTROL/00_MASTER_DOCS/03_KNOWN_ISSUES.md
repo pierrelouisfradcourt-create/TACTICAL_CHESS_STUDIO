@@ -190,22 +190,16 @@ Recommendation:
 
 ## 2. Search Ceiling / Root Clone
 
-Status: ACTIVE
+Status: RESOLVED (2026-05-30, commit 9e17493)
 
-Current evidence:
-- `src/chess/search.rs` still enters root search through `search_root_with_context`.
-- That function still does `let mut engine = engine.clone();` before searching in place.
-- The search tree itself uses simulate/undo, so the old "full clone everywhere" claim is outdated.
-- Search still has embedded constants and root orchestration coupled to diagnostics/practical policy.
-- PP13 characterized the search root boundary, and PP14 added a passive `SearchBackend` adapter, but neither activates a replacement route.
+Resolution:
+- Root clone refactored. Search tree now uses simulate/undo throughout.
+- The S-7 practical-policy pipeline (`select_root_move`, fork detection, worst-case sampling) deleted in 90fe323.
+- Root selection is now pure argmax on alpha-beta score — simple and transparent.
 
-Tests run:
-- No search test or benchmark was run during the 2026-05-11 docs sync.
-- Prior targeted characterization exists in PP13 history.
-
-Recommendation:
-- Keep this issue active, but describe it precisely as "root clone and root orchestration ceiling", not "clone everywhere".
-- Do not broad-refactor search. Any future active `SearchBackend` route requires separate HumanDecision and validation.
+Residual ceiling:
+- Root still begins from `engine.clone()` and some helpers still simulate moves; structural performance ceiling reduced, not gone.
+- Any future active `SearchBackend` route still requires separate HumanDecision and validation.
 
 ## 3. Dataset Router / Loader Semantic Mismatch
 
@@ -376,37 +370,26 @@ Recommendation:
 
 ## 12. Evaluation System Gap
 
-Status: ACTIVE
+Status: CLOSED (2026-05-30, T2/T3/T4/T5/T6)
 
-Current evidence:
-- Evaluation exists through tournament/benchmark scripts and lab outputs.
-- There is not yet a first-class evaluation system with arena, rating, benchmark and regression guard boundaries.
-- Benchmark reproducibility still depends on fixed seeds, settings, model identity and dataset identity.
-
-Tests run:
-- No evaluation or benchmark command was run during this refresh.
-
-Recommendation:
-- Keep this issue active.
-- Build evaluation gates before League or training claims.
-- Keep claim authority separate from software health.
+Resolution:
+- `src/evaluation/mod.rs` créé : EvalRunResult, RunIdentity, RegressionGuard, GuardThresholds.
+- `src/evaluation/fixtures.rs` : 4 fixtures déterministes pour CI.
+- `lab/reports/eval_smoke_baseline.json` : première baseline traçable (git=c0ebf62).
+- `lab/reports/guard_test_output.json` : 6 tests de caractérisation, tous verts.
+- `lab/reports/learning_progress.json` : schema v2.
+- 13 tests evaluation au total, tous verts.
+- EvaluationSystem first-class opérationnel avec RegressionGuard PASS/FAIL/INCONCLUSIVE.
 
 ## 13. Documentation Drift
 
-Status: ACTIVE, REDUCED BY THIS UPDATE
+Status: CLOSED (2026-05-30)
 
-Current evidence:
-- Historical truth is scattered across root markdown files, older `MASTER_DOCS/*`, archive notes and chat ledgers.
-- `MASTER_DOCS/CURRENT_CODE_AUDIT_AND_KNOWN_ISSUES.md` duplicated this issue list and had stale statements, including `src/chess/search/` as a split module path even though current code uses `src/chess/search.rs`.
-
-Tests run:
-- `rg` was used to locate references to both documents.
-- `git status --short` was used before and after the doc update.
-
-Recommendation:
-- Use this file as the canonical active issue list.
-- Keep `CURRENT_CODE_AUDIT_AND_KNOWN_ISSUES.md` as a pointer only.
-- Future updates should change this file, not create a second known-issues register.
+Resolution:
+- Audit complet de 07_CURRENT_STATE.md confirmé correct par inspection directe du repo.
+- Sprint 2026-05-30 synchronisé : neural wiring, EvaluationSystem, reward calibration.
+- 03_KNOWN_ISSUES.md mis à jour : #2 et #12 fermés, #NEW-01 à #NEW-05 ouverts.
+- 00_VISION.md mis à jour : note architecture neural câblé + curriculum planifié.
 
 ## 14. Studio Loop V1 Freeze Gaps
 
@@ -432,6 +415,56 @@ Recommendation:
 - Keep `no_global_ready_verdict: true`.
 - Treat the next phase as one of: freeze/stabilize, first HumanGate-approved Codex execution on docs/tooling only, or cost/observability plane.
 - Do not use the freeze as evidence for runtime activation, benchmark proof, training proof, dataset generation, model promotion, or public claims.
+
+## NEW-01 : Neural Wiring
+
+Status: RESOLVED (2026-05-30, commit c0ebf62)
+
+Symptôme : NeuralAgent::select_action jamais appelé en tournoi/benchmark.
+Cause    : simulation_runner routait "neural" via choose_best_action_with_trace comme tous les autres agents non-teacher.
+Fix      : branche explicite mode=="neural" → neural_agent.select_action().
+Impact   : tous les benchmarks précédents mesuraient heuristic_vs_heuristic, pas neural.
+Vérifié  : selection_calls=20, successful_inferences=16, status=clean (smoke post-commit).
+
+## NEW-02 : Draw Structurel
+
+Status: OPEN (ouvert 2026-05-30)
+
+Symptôme : 100% draws heuristic vs heuristic (300 parties) ET neural vs heuristic (160 parties).
+Cause    : search déterministe depuis position symétrique standard → mêmes coups, même répétition, même résultat.
+Impact   : self-play impossible sans variété de positions. Reward calibration (Charter A) sans effet.
+Fix      : ouverture aléatoire (déjà dans teacher_uci_runner, à activer dans benchmark).
+Priorité : HIGH — bloque tout apprentissage réel.
+
+## NEW-03 : Dataset Corrompu
+
+Status: OPEN (ouvert 2026-05-30)
+
+Symptôme : 553 échantillons, 3 parties, 0% neural dans trainer_mix, result="1/2-1/2" sur tout.
+Cause    : trainer_mix sans neural, lab_hard_turn_cap déclenché avant fin réelle de partie.
+Impact   : value head apprise sur signal draw uniquement. Champs aaa_* tous null.
+Fix      : régénérer avec neural dans trainer_mix, 200+ parties, vraies fins de partie.
+Priorité : HIGH — bloque tout training réel.
+
+## NEW-04 : Value Head Inutilisée
+
+Status: OPEN (ouvert 2026-05-30)
+
+Symptôme : model(tensor) retourne (policy_logits, value), value jeté systématiquement.
+Cause    : infer_policy.py utilise uniquement policy_logits pour score_legal_moves.
+Impact   : value head entraînée mais n'influence aucune décision.
+Fix      : combined_score = 0.75 * policy_logit + 0.25 * value_scalar (Charter B).
+Priorité : MEDIUM — à faire après dataset reconstruit (#NEW-03).
+
+## NEW-05 : Curriculum Absent
+
+Status: OPEN (ouvert 2026-05-30)
+
+Symptôme : Rocky ne connaît pas les motifs tactiques de base (fourchette, clouage, mat en 1).
+Cause    : aucun dataset de puzzles structuré par compétence. Apprentissage uniquement par self-play sur position symétrique.
+Fix      : intégrer Lichess puzzles (3M, CC0) en 3 niveaux de difficulté via importeur CSV → PuzzleCase.
+          Infrastructure existante : puzzle_eval.rs, PuzzleCase, engine_from_fen.
+Priorité : HIGH — chaînon manquant entre "infère" et "joue bien".
 
 ## Removed From Active Known Issues
 

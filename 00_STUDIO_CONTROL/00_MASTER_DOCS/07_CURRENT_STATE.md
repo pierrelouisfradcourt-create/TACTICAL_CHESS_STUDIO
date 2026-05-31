@@ -2,6 +2,76 @@
 
 Date baseline: 2026-05-07 — last sprint update: 2026-05-30
 
+## Sprint 2026-05-30
+
+### Fixes committés
+
+**c0ebf62 — fix(simulation): route neural agent through NeuralAgent::select_action**
+- Neural infère réellement depuis ce commit. Avant : search jouait à la place de neural.
+- selection_calls=20, successful_inferences=16, status=clean (smoke vérifié)
+- Impact : tous les benchmarks précédents mesuraient heuristic_vs_heuristic
+
+**T2 — feat(evaluation): EvalRunResult + RunIdentity + baseline snapshot**
+- `src/evaluation/mod.rs` créé
+- `lab/reports/eval_smoke_baseline.json` : première baseline traçable
+- git=c0ebf62, draws=2, draw_rate=1.0
+
+**T3/T4 — feat(evaluation): RegressionGuard PASS/FAIL/INCONCLUSIVE**
+- GuardThresholds : min_games=10, draw_rate +20%, win_rate -15%, elo -30pts
+- `lab/reports/guard_test_output.json`
+- 6 tests de caractérisation, tous verts
+
+**T5/T6 — feat(evaluation): fixtures CI + learning_progress v2**
+- `src/evaluation/fixtures.rs` : 4 fixtures déterministes
+- `lab/reports/learning_progress.json` : schema v2, generated_at 2026-05-30
+- 13 tests evaluation au total, tous verts
+
+**Charter A — fix(eval): reward calibration**
+- repetition_signal : 1/2 → 120/60
+- is_shuffle_move : suppression condition matériel (gate < 12 coups)
+- mobilité active toute la partie (x2 ouverture, x4 finale)
+- is_winning_endgame : ≤16 pièces / +100cp (était ≤10 / +180)
+
+### Résultats mesurés (post-session)
+
+- 160 parties neural vs heuristic : 0 victoires, 160 draws (draw_rate = 1.0)
+- 300 parties heuristic vs heuristic : 100% draws → problème dans le search, pas neural
+- ELO leaderboard (880 parties) : teacher_uci=1424 / heuristic=1200 / hybrid=1200 / neural=975
+- Charter A n'a pas réduit le taux de nulles → le problème est structurel (symétrie initiale)
+
+### Audits produits (lab/reports/)
+
+- `audit_rocky.py` — script d'audit read-only repo
+- `audit_reward_system.md` — analyse reward/incentives
+- `audit_rocky_vs_alphazero.md` — comparaison vs AlphaZero/Leela
+- `audit_reward_calibration.md` — calibration chiffrée vs Stockfish/Crafty
+
+### État du dataset (2026-05-30)
+
+- `lab/datasets/teacher_samples.jsonl` : 553 échantillons, 3 parties, 0% neural dans trainer_mix
+- `result` toujours "1/2-1/2" (lab_hard_turn_cap) → value head entraînée sur draws uniquement
+- Champs `aaa_*` tous null (Rocky non branché pendant génération)
+- Dataset à reconstruire avec neural dans trainer_mix + vraies fins de partie
+
+### Découvertes architecturales
+
+- `src/simulation/selfplay.rs` = moteur prototype uniquement, pas chess self-play
+- `src/simulation/neural_tournament_runner.rs` = système d'éval existant (mature)
+- `src/tournament/elo.rs` = EloTable complète mais jamais instanciée (fixé dans T2)
+- Value head calculée à chaque inférence mais jamais utilisée pour sélection
+- 15 input channels sans historique → neural ne voit pas les répétitions
+
+### Prochaine session — curriculum Lichess
+
+- Source : https://database.lichess.org/#puzzles (3M puzzles CC0)
+- Niveau 1 : mateIn1, hangingPiece (ELO < 1200)
+- Niveau 2 : fork, pin, skewer, mateIn2 (ELO 1200–1800)
+- Niveau 3 : anastasiasMate, promotion, rookEndgame (ELO > 1800)
+- Infrastructure existante : `puzzle_eval.rs`, `PuzzleCase`, `engine_from_fen`
+- À construire : importeur CSV Lichess → PuzzleCase + scoring par niveau
+
+---
+
 ## Evidence-plane status
 
 Date update: 2026-05-07
