@@ -1,0 +1,206 @@
+# IMPROVEMENT_LEDGER.yaml
+# SSOT amélioration continue (Kaizen Loop) — Tactical Chess Studio
+# Claim posture: NO_CLAIM_ALLOWED | Read-only sauf --close/--add
+
+meta:
+  ledger_version: v0
+  created_session: '2026-05-31'
+  last_updated_session: '2026-05-31'
+  claim_verdict: NO_CLAIM_ALLOWED
+  no_global_ready_verdict: true
+improvements:
+- id: IMP-001
+  title: Fix detect_lane() mismatch avec FILE_ROUTING_MANIFEST
+  type: gap_fix
+  source: bilan UX 2026-05-31 Gap#2
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/doc_hygiene_chain.py
+  acceptance: detect_lane() lit les lanes depuis FILE_ROUTING_MANIFEST.yaml au lieu
+    de hardcoder. Test refuse si manifest/detect_lane contradiction.
+  blocked_by: []
+  opened_session: '2026-05-31'
+  closed_session: '2026-05-31'
+  notes: Bloque l'automation des chaines elles-memes (lab/chains = SAFE_AUTO dans
+    manifest mais AUDIT_REQUIRED hardcode).
+- id: IMP-002
+  title: Créer HUMANGATE_DECISION_LOG.yaml (SSOT décisions)
+  type: gap_fix
+  source: bilan UX 2026-05-31 Gap#4
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/HUMANGATE_DECISION_LOG.yaml
+  acceptance: Schema decision_id/title/zone/surface/source_state/verdict/evidence/risk/approved_by/approved_at.
+    Seedé avec les 8 commits de session.
+  blocked_by: []
+  opened_session: '2026-05-31'
+  closed_session: '2026-05-31'
+  notes: Rend visible source_state tracking (created != registered != enforced).
+- id: IMP-003
+  title: Conflict matrix checker pour multi-lanes parallèles
+  type: feature
+  source: bilan UX 2026-05-31 Gap#3 + demande Pierre multi-lanes
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/lane_conflict_checker.py
+  - lab/chains/lane_plan.yaml
+  acceptance: 'Parse lane_plan.yaml, détecte intersection de files entre lanes, refuse
+    si overlap non vide. Test : 2 lanes disjointes = CLEAR, 2 lanes partagées = CONFLICT.'
+  blocked_by: []
+  opened_session: '2026-05-31'
+  closed_session: '2026-05-31'
+  notes: Débloque le travail multi-lanes parallèles que Pierre veut.
+- id: IMP-004
+  title: Implémenter scripts_route_chain (audit chain)
+  type: feature
+  source: bilan UX 2026-05-31 Gap#1 + AUDIT_CHAIN_CATALOG
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/scripts_route_chain.py
+  acceptance: Lit scripts/uxpilote, scripts/studioV2, scripts/control_plane. Détecte
+    path drift, candidates, stale refs. Produit scripts_route_packet.
+  blocked_by: []
+  opened_session: '2026-05-31'
+  closed_session: null
+  notes: 1 de 7 audit chains du catalog. Read-only.
+- id: IMP-005
+  title: Implémenter fusion_matrix_chain (merge signaux)
+  type: feature
+  source: bilan UX 2026-05-31 Gap#5 + FUSION_MATRIX_SPEC
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/fusion_matrix_chain.py
+  acceptance: 'Merge outputs de doc_hygiene + run_chain + scripts_route. Produit fusion_matrix
+    (markdown table: verdict/evidence/risk/contradiction).'
+  blocked_by:
+  - IMP-004
+  opened_session: '2026-05-31'
+  closed_session: null
+  notes: Affiche les contradictions cachées entre audits.
+- id: IMP-006
+  title: puzzle_eval --output flag
+  type: feature
+  source: chantier pending session 2026-05-31
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/tool/puzzle_eval.rs
+  acceptance: Ajouter flag --output <path> à puzzle_eval pour écrire le rapport JSON
+    à un chemin custom.
+  blocked_by: []
+  opened_session: '2026-05-31'
+  closed_session: null
+  notes: Rust, lane AUDIT_REQUIRED (touche src/). Smoke level 1.
+- id: IMP-007
+  title: 'Fix draw structurel #NEW-02 (ouverture aléatoire)'
+  type: bug_fix
+  source: 'known issue #NEW-02'
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - src/simulation/simulation_runner.rs
+  acceptance: Brancher ouverture aléatoire 2-8 plies dans le benchmark pour casser
+    le 100% draws search vs search.
+  blocked_by: []
+  opened_session: '2026-05-31'
+  closed_session: null
+  notes: 'Bug structurel : positions symétriques = 100% draws. Lane AUDIT_REQUIRED.'
+- id: IMP-008
+  title: Dataset rebuild (teacher_samples corrompu)
+  type: bug_fix
+  source: 'known issue #NEW-03'
+  status: BLOCKED
+  impact: CRITICAL
+  effort: LARGE
+  lane: FORBIDDEN
+  files:
+  - lab/datasets/teacher_samples.jsonl
+  acceptance: Localiser trainer_mix (cli.rs ou campaign_runner_v1.py), régénérer dataset
+    propre via Stockfish teacher.
+  blocked_by:
+  - IMP-007
+  opened_session: '2026-05-31'
+  closed_session: null
+  notes: BLOQUANT ML. Lane FORBIDDEN (dataset generation = HumanGate strict). Ne pas
+    automatiser.
+- id: IMP-009
+  title: 'Charter B : optimisations run_chain.py (opt1-4)'
+  type: feature
+  source: audit pipeline session 2026-05-31
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/run_chain.py
+  acceptance: 'Opt1: charger 3 derniers CHAIN_HISTORY. Opt2: detect_lane avant Mistral.
+    Opt3: source readback auto. Opt4: tracking FORBIDDEN_OUTPUTS.'
+  blocked_by:
+  - IMP-001
+  opened_session: '2026-05-31'
+  closed_session: null
+  notes: Rend run_chain memory-aware et lane-aware.
+- id: IMP-010
+  title: SearchTraceSchema (3 ajouts search.rs)
+  type: feature
+  source: chantier pending session 2026-05-31
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/search.rs
+  acceptance: '3 ajouts chirurgicaux: pv_changes, DepthSnapshot, nodes_per_root_move.
+    Telemetry only, pas de changement comportement.'
+  blocked_by: []
+  opened_session: '2026-05-31'
+  closed_session: null
+  notes: Lane AUDIT_REQUIRED (touche search.rs core). Telemetry passive.
+- id: IMP-011
+  title: 'Value head inutilisée #NEW-04'
+  type: bug_fix
+  source: 'known issue #NEW-04'
+  status: DEFERRED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - ml/infer_policy.py
+  acceptance: infer_policy.py jette le scalaire value du ResNet. L'utiliser ou documenter
+    pourquoi pas.
+  blocked_by:
+  - IMP-008
+  opened_session: '2026-05-31'
+  closed_session: null
+  notes: Dépend du dataset rebuild. DEFERRED jusqu'à dataset propre.
+metrics_history:
+- session: '2026-05-31'
+  total: 11
+  open: 8
+  in_progress: 0
+  closed: 0
+  deferred: 1
+  blocked: 2
+  spec_coverage_pct: 11
+  tests_green: 54
+  commits: 8
+  note: Seed initial du ledger depuis bilan UX + chantiers pending.
