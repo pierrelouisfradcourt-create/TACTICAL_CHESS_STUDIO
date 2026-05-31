@@ -173,8 +173,8 @@ def execute_via_claude_code(charter_path: str, imp: dict) -> str:
     charter_content = Path(charter_path).read_text(encoding="utf-8")
 
     for cmd in [
-        ["claude", "--print", charter_content],
         ["npx", "@anthropic-ai/claude-code", "--print", charter_content],
+        ["claude", "--print", charter_content],
     ]:
         try:
             result = subprocess.run(
