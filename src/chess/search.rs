@@ -99,6 +99,7 @@ thread_local! {
     static KILLERS: RefCell<Vec<[Option<Action>; 2]>> = RefCell::new(Vec::new());
     static HISTORY: RefCell<HashMap<u64, i32>> = RefCell::new(HashMap::new());
     static COUNTERMOVES: RefCell<HashMap<u64, Action>> = RefCell::new(HashMap::new());
+    static SEARCH_DEADLINE: RefCell<Option<Instant>> = RefCell::new(None);
 }
 
 static ROOT_POLICY: OnceLock<Mutex<HashMap<u64, HashMap<u64, i32>>>> = OnceLock::new();
@@ -173,6 +174,7 @@ fn search_root_in_place(
             .unwrap_or(500),
     );
     let search_start = Instant::now();
+    SEARCH_DEADLINE.with(|d| *d.borrow_mut() = Some(search_start + time_limit));
 
     let max_depth = adaptive_depth(engine);
     instrumentation.record_branching(0, max_depth, legal.len());
@@ -529,6 +531,9 @@ fn negamax(
     instrumentation: &mut SearchInstrumentation,
 ) -> i32 {
     instrumentation.record_node(ply, depth);
+    if SEARCH_DEADLINE.with(|d| d.borrow().map_or(false, |dl| Instant::now() >= dl)) {
+        return evaluate(engine, root_player);
+    }
     let alpha_orig = alpha;
     let is_pv_node = beta - alpha > 1;
     let in_check = engine.is_in_check(to_move);
