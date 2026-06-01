@@ -999,7 +999,7 @@ def parse_aaa_meta(row: Dict[str, Any]) -> Tuple[torch.Tensor, torch.Tensor]:
 
 
 class TeacherDataset(Dataset):
-    def __init__(self, path: str):
+    def __init__(self, path: str, skip_am_gate: bool = False):
         self.samples: List[Tuple[torch.Tensor, torch.Tensor, torch.Tensor]] = []
         self.extra_samples: List[Dict[str, Any]] = []
         aaa_influence_enabled = not parse_boolish(
@@ -1028,7 +1028,8 @@ class TeacherDataset(Dataset):
 
         for row_index, row in enumerate(dataset_rows, start=1):
             total += 1
-            require_am_dataset_admission(row, row_index)
+            if not skip_am_gate:
+                require_am_dataset_admission(row, row_index)
 
             row_has_aaa = has_aaa_payload(row)
             if row_has_aaa:

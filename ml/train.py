@@ -664,7 +664,7 @@ def main() -> None:
         f"engine_eval_rows={dataset_info['engine_eval_rows']}",
     )
 
-    dataset = TeacherDataset(dataset_path)
+    dataset = TeacherDataset(dataset_path, skip_am_gate=not strict_dataset_admission)
     loaded_dataset_info = summarize_loaded_dataset(dataset)
     dataset_admission = classify_dataset_fitness(dataset_info, loaded_dataset_info)
 
