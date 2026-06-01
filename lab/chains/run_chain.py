@@ -114,6 +114,8 @@ CHAINS    = Path("lab/chains/output")
 PROMPTS   = Path("lab/chains/claude_prompts")
 MAX_RETRY = 1
 
+ALLOWED_CREATE_PREFIXES = ["lab/", "ml/", "docs/", "scripts/studioV2/"]
+
 # ── System prompts ────────────────────────────────────────
 
 SYSTEM_TRANSLATOR = """
@@ -326,8 +328,11 @@ def save_trace(chain_id: str, step_label: str, data: dict):
     print(f"  [trace] {path}")
 
 # ── Étape 0 : Traducteur ──────────────────────────────────
-def run_translator(idea: str) -> dict:
-    raw = call_lm_studio(SYSTEM_TRANSLATOR, idea)
+def run_translator(idea: str, history_ctx: str = "") -> dict:
+    user_content = idea
+    if history_ctx:
+        user_content = f"CONTEXTE SESSIONS RECENTES:\n{history_ctx}\n\nIDEE:\n{idea}"
+    raw = call_lm_studio(SYSTEM_TRANSLATOR, user_content)
     out = parse_json_safe(raw)
     out.setdefault("claim_verdict", "NO_CLAIM_ALLOWED")
     return out
@@ -400,6 +405,67 @@ def launch_claude_code(prompt_path: str, auto: bool = False) -> int:
         )
         return result.returncode
 
+# ── Opt2 : détection FORBIDDEN avant Mistral ──────────────
+_FORBIDDEN_IDEA_PATS      = ["auto_merge_guard", "force push", "push main",
+                              "dataset reset", "holdout", ".github"]
+_HUMAN_REQUIRED_IDEA_PATS = ["src/engine", "src/chess", "search.rs", "engine.rs"]
+_AUDIT_IDEA_PATS          = ["src/", "ml/train", "cargo.toml"]
+
+
+def _quick_lane_check(idea: str) -> str:
+    """Scan textuel rapide de l'idée — retourne la lane la plus restrictive."""
+    low = idea.lower()
+    for p in _FORBIDDEN_IDEA_PATS:
+        if p.lower() in low:
+            return "FORBIDDEN"
+    for p in _HUMAN_REQUIRED_IDEA_PATS:
+        if p.lower() in low:
+            return "HUMAN_REQUIRED"
+    for p in _AUDIT_IDEA_PATS:
+        if p.lower() in low:
+            return "AUDIT_REQUIRED"
+    return "SAFE_AUTO"
+
+
+# ── Opt3 : readback automatique ───────────────────────────
+_READBACK_KEYWORDS = {"read", "audit", "check"}
+
+
+def _inject_readback_hint(idea: str) -> str:
+    """Enrichit l'idée avec une directive readback si un mot-clé est détecté."""
+    if _READBACK_KEYWORDS & set(idea.lower().split()):
+        return (
+            idea + "\n\n[READBACK_AUTO] Mot-clé read/audit/check détecté. "
+            "Effectue le source readback AVANT de produire le Truth Packet."
+        )
+    return idea
+
+
+# ── Opt4 : logger créations non bornées ───────────────────
+def _append_chain_history(event: dict):
+    """Appende un event JSON sur CHAIN_HISTORY_RC."""
+    CHAIN_HISTORY_RC.parent.mkdir(parents=True, exist_ok=True)
+    with open(CHAIN_HISTORY_RC, "a", encoding="utf-8") as f:
+        f.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
+def _log_unbounded_creates(chain_id: str, eng_out: dict, timestamp: str) -> list:
+    """Détecte les files_to_create hors zones autorisées et les logue."""
+    unbounded = [
+        f for f in (eng_out.get("files_to_create") or [])
+        if not any(f.replace("\\", "/").startswith(p) for p in ALLOWED_CREATE_PREFIXES)
+    ]
+    if unbounded:
+        _append_chain_history({
+            "chain_id":      chain_id,
+            "timestamp":     timestamp,
+            "event":         "UNBOUNDED_CREATE_DETECTED",
+            "files":         unbounded,
+            "claim_verdict": "NO_CLAIM_ALLOWED",
+        })
+    return unbounded
+
+
 # ── Main chain v3 ─────────────────────────────────────────
 def run_chain(idea: str = None, truth_packet: dict = None) -> dict:
     chain_id  = str(uuid.uuid4())[:8]
@@ -409,10 +475,29 @@ def run_chain(idea: str = None, truth_packet: dict = None) -> dict:
     print(f"CHAIN {chain_id} — {timestamp}")
     print(f"{'='*60}\n")
 
+    # Opt1 — mémoire inter-sessions (3 derniers events)
+    history_ctx = load_chain_history_summary(3)
+
     # ── Étape 0 : Traducteur ──────────────────────────────
     if idea and not truth_packet:
+        # Opt2 — détection FORBIDDEN avant tout appel Mistral
+        if _quick_lane_check(idea) == "FORBIDDEN":
+            print("[X] FORBIDDEN détecté (pre-check) — arrêt immédiat.")
+            return {
+                "chain_id":       chain_id,
+                "timestamp":      timestamp,
+                "status":         "BLOCKED_FORBIDDEN",
+                "reason":         "Idée contient un pattern FORBIDDEN (pre-check).",
+                "claim_verdict":  "NO_CLAIM_ALLOWED",
+                "software_verdict": "CHAIN_BLOCKED",
+                "evidence_verdict": "DOCUMENTATION_ONLY",
+            }
+
+        # Opt3 — readback automatique si read/audit/check dans l'idée
+        idea = _inject_readback_hint(idea)
+
         print("[0/4] Mistral Traducteur...")
-        truth_packet = run_translator(idea)
+        truth_packet = run_translator(idea, history_ctx=history_ctx)  # Opt1
         save_trace(chain_id, "00_translator", truth_packet)
         print(f"  → tâche : {truth_packet.get('task_summary', '?')}")
         print(f"  → lane  : {truth_packet.get('lane', '?')}")
@@ -434,6 +519,7 @@ def run_chain(idea: str = None, truth_packet: dict = None) -> dict:
     eng_out.setdefault("proposal_id", chain_id + "_eng")
     save_trace(chain_id, "01_engineer", eng_out)
     print(f"  → recommendation: {eng_out.get('recommendation', '?')}")
+    _log_unbounded_creates(chain_id, eng_out, timestamp)  # Opt4
 
     # ── Étape 2 : Red Team ────────────────────────────────
     print("[2/4] Devstral Red Team...")
