@@ -1,3 +1,4 @@
+use crate::chess::opening_book;
 use crate::chess::root_decision::RootDecisionContext;
 use crate::chess::search::RootSearchResult;
 use crate::chess::search_backend_adapter::search_root_via_adapter;
@@ -24,6 +25,7 @@ pub enum SelectionAuthority {
     Heuristic,
     Fallback,
     Unknown,
+    Book,
 }
 
 impl SelectionAuthority {
@@ -34,6 +36,7 @@ impl SelectionAuthority {
             Self::Heuristic => "heuristic",
             Self::Fallback => "fallback",
             Self::Unknown => "unknown",
+            Self::Book => "book",
         }
     }
 }
@@ -105,6 +108,18 @@ pub fn choose_best_action_with_trace_and_context(
     }
 
     let resolved_mode = mode.into_mode();
+
+    if resolved_mode != DecisionMode::Random {
+        if let Some(book_action) = opening_book::probe_opening_book(engine, player) {
+            return Some(DecisionTrace {
+                selected_action: book_action,
+                mode: resolved_mode,
+                selection_authority: SelectionAuthority::Book,
+                used_search: false,
+                root_search: None,
+            });
+        }
+    }
 
     match resolved_mode {
         DecisionMode::Random => {

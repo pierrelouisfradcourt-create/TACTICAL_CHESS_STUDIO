@@ -34,13 +34,7 @@ use std::time::{Duration, Instant};
 
 const INF: i32 = 1_000_000_000;
 const MAX_PLY: usize = 64;
-fn max_q_depth() -> i32 {
-    std::env::var("TCS_Q_DEPTH")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(3)
-        .max(1)
-}
+const DELTA_MARGIN: i32 = 200;
 const TT_SIZE: usize = 1 << 20;
 const NULL_MOVE_MIN_DEPTH: i32 = 3;
 const NULL_MOVE_REDUCTION: i32 = 2;
@@ -65,6 +59,8 @@ const RECAPTURE_BONUS: i32 = 900;
 const HISTORY_SCORE_CAP: i32 = 16_000;
 const HISTORY_REWARD_SCALE: i32 = 48;
 const HISTORY_PENALTY_SCALE: i32 = 20;
+const FUTILITY_MARGIN_D1: i32 = 150;
+const FUTILITY_MARGIN_D2: i32 = 350;
 const ROOT_POLICY_SCORE_CAP: i32 = 8_000;
 const ROOT_POLICY_REWARD_BASE: i32 = 280;
 const ROOT_POLICY_MARGIN_BONUS: i32 = 140;
@@ -542,6 +538,15 @@ fn negamax(
         return terminal_score(engine, to_move, ply);
     }
 
+    let rep_count = engine
+        .repetition_counts
+        .get(&engine.current_repetition_key)
+        .copied()
+        .unwrap_or(0);
+    if rep_count >= 2 {
+        return draw_score(engine, to_move);
+    }
+
     if depth <= 0 {
         return quiescence(
             engine,
@@ -611,9 +616,27 @@ fn negamax(
     let mut best_move = None;
     let mut quiets_searched = Vec::new();
 
+    // Futility pruning: at depth 1-2, if static_eval + margin can't reach alpha,
+    // quiet moves (no capture/promo/check) are skipped.
+    let (futility_active, futility_eval) = if depth <= 2 && !in_check && !is_pv_node && ply > 0 {
+        let se = evaluate(engine, root_player);
+        let margin = if depth == 1 { FUTILITY_MARGIN_D1 } else { FUTILITY_MARGIN_D2 };
+        (se + margin <= alpha, se)
+    } else {
+        (false, 0)
+    };
+
     for (idx, mv) in ordered.iter().enumerate() {
         let quiet_move = is_quiet_move(engine, to_move, mv);
         let critical_move = is_critical_move(engine, to_move, mv);
+
+        if futility_active && quiet_move {
+            if futility_eval > best {
+                best = futility_eval;
+            }
+            continue;
+        }
+
         let score_window_alpha = alpha;
         let Some(undo) = engine.simulate_action_for_search(to_move, mv) else {
             continue;
@@ -773,10 +796,6 @@ fn quiescence(
         alpha = stand_pat;
     }
 
-    if qdepth >= max_q_depth() {
-        return alpha;
-    }
-
     let legal = engine.legal_actions(to_move);
     if legal.is_empty() {
         let in_check = engine.is_in_check(to_move);
@@ -794,6 +813,12 @@ fn quiescence(
         }
         if let Some(exchange) = capture_score(engine, &mv) {
             if tactical_score_breakdown(engine, to_move, &mv, 0).see < -80 && exchange <= 0 {
+                continue;
+            }
+            if !is_promotion(engine, to_move, &mv)
+                && has_non_pawn_material(engine, to_move)
+                && stand_pat + exchange.max(0) + DELTA_MARGIN <= alpha
+            {
                 continue;
             }
         }

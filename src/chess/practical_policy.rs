@@ -1103,8 +1103,8 @@ pub fn tactical_score_breakdown(
         return out;
     };
 
-    if see_lite_enabled() {
-        out.see = see_lite_bonus(engine, &sim, player, mv);
+    if see_enabled() {
+        out.see = see_bonus(engine, &sim, player, mv);
     }
 
     if hanging_guard_enabled() {
@@ -1356,7 +1356,7 @@ fn is_forcing_reply(
     forcing
 }
 
-fn see_lite_enabled() -> bool {
+fn see_enabled() -> bool {
     std::env::var("TCS_SEE_LITE").ok().as_deref() != Some("0")
 }
 
@@ -1374,7 +1374,99 @@ fn mate_urgency_bonus(search_score: i32) -> i32 {
     }
 }
 
-fn see_lite_bonus(engine: &Engine, sim: &Engine, player: PlayerId, mv: &Action) -> i32 {
+fn path_clear_excl(engine: &Engine, from: Position, to: Position, excluded: &[Position]) -> bool {
+    let step_x = (to.x as i32 - from.x as i32).signum();
+    let step_y = (to.y as i32 - from.y as i32).signum();
+    let mut x = from.x as i32 + step_x;
+    let mut y = from.y as i32 + step_y;
+
+    while x != to.x as i32 || y != to.y as i32 {
+        if engine.units.values().any(|u| {
+            u.position.x as i32 == x
+                && u.position.y as i32 == y
+                && !excluded
+                    .iter()
+                    .any(|ex| ex.x as i32 == x && ex.y as i32 == y)
+        }) {
+            return false;
+        }
+        x += step_x;
+        y += step_y;
+    }
+    true
+}
+
+fn attacks_square_excl(
+    engine: &Engine,
+    kind: ChessPieceKind,
+    owner: PlayerId,
+    from: Position,
+    to: Position,
+    excluded: &[Position],
+) -> bool {
+    if from == to {
+        return false;
+    }
+    let dx = to.x as i32 - from.x as i32;
+    let dy = to.y as i32 - from.y as i32;
+    let adx = dx.abs();
+    let ady = dy.abs();
+
+    match kind {
+        ChessPieceKind::Pawn => {
+            if owner == 1 {
+                dy == 1 && adx == 1
+            } else {
+                dy == -1 && adx == 1
+            }
+        }
+        ChessPieceKind::Knight => (adx == 1 && ady == 2) || (adx == 2 && ady == 1),
+        ChessPieceKind::Bishop => adx == ady && path_clear_excl(engine, from, to, excluded),
+        ChessPieceKind::Rook => (dx == 0 || dy == 0) && path_clear_excl(engine, from, to, excluded),
+        ChessPieceKind::Queen => {
+            ((adx == ady) || dx == 0 || dy == 0) && path_clear_excl(engine, from, to, excluded)
+        }
+        ChessPieceKind::King => adx <= 1 && ady <= 1,
+    }
+}
+
+/// Recursive SEE: returns the maximum gain for `side_to_move` from exchanges on `target`.
+/// `value_on_target` is the piece currently on `target` (available to be captured).
+/// `excluded` accumulates positions of pieces already removed during the exchange sequence;
+/// sliding pieces can gain X-ray vision through them.
+fn see_full(
+    engine: &Engine,
+    target: Position,
+    value_on_target: i32,
+    side_to_move: PlayerId,
+    excluded: &mut Vec<Position>,
+) -> i32 {
+    let cheapest = engine
+        .units
+        .values()
+        .filter(|u| {
+            u.owner == side_to_move
+                && !excluded.contains(&u.position)
+                && attacks_square_excl(engine, u.kind, u.owner, u.position, target, excluded)
+        })
+        .min_by_key(|u| piece_value(u.kind));
+
+    let Some(attacker) = cheapest else {
+        return 0;
+    };
+
+    let attacker_pos = attacker.position;
+    let attacker_value = piece_value(attacker.kind);
+
+    excluded.push(attacker_pos);
+    let opp_gain = see_full(engine, target, attacker_value, opponent(side_to_move), excluded);
+    excluded.pop();
+
+    // Side to move can always decline the recapture (take the max with 0).
+    (value_on_target - opp_gain).max(0)
+}
+
+fn see_bonus(engine: &Engine, sim: &Engine, player: PlayerId, mv: &Action) -> i32 {
     let Action::Move { target, .. } = mv else {
         return 0;
     };
@@ -1385,9 +1477,12 @@ fn see_lite_bonus(engine: &Engine, sim: &Engine, player: PlayerId, mv: &Action) 
     let capture_value = piece_value(captured_kind);
     let moved_value = piece_value(moved_kind);
     let enemy = opponent(player);
-    let cheapest_enemy = cheapest_attacker_value(sim, enemy, *target).unwrap_or(0);
-    let cheapest_own = cheapest_attacker_value(sim, player, *target).unwrap_or(0);
-    let exchange = capture_value - cheapest_enemy + cheapest_own / 2;
+
+    // sim reflects the board after our capture: captured piece removed, mover on target.
+    // Opponent now has first right to recapture; run full SEE from sim's board.
+    let mut excluded: Vec<Position> = Vec::new();
+    let recapture_gain = see_full(sim, *target, moved_value, enemy, &mut excluded);
+    let exchange = capture_value - recapture_gain;
 
     if exchange > 0 {
         160 + exchange.min(1_200)

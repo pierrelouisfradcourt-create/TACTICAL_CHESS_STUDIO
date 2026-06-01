@@ -204,6 +204,10 @@ pub fn run_cli(args: Vec<String>) {
             run_observe_fen(&args);
         }
 
+        "play_fen" => {
+            run_play_fen(&args);
+        }
+
         "conversion_case" => {
             run_conversion_case_cli(&args);
         }
@@ -258,6 +262,9 @@ fn print_help() {
     println!("  conversion_suite N  -> run conversion suite (optional limit N)");
     println!(
         "  puzzle_rng --theme mate1|fork --count N --seed N -> generate tactical mate/fork puzzles"
+    );
+    println!(
+        "  play_fen \"<FEN>\" \"<moves>\" -> play best move from FEN after applying UCI moves; outputs JSON"
     );
     println!(
         "  puzzle_eval --input <path> --agent search|hybrid|heuristic [--limit N] [--debug-misses] [--show-cases N]"
@@ -705,6 +712,119 @@ fn run_validation_block(
             summary.clear_edge_lost_before_end,
         );
     }
+}
+
+fn run_play_fen(args: &[String]) {
+    let fen = match args.get(2) {
+        Some(v) if !v.trim().is_empty() => v.trim().to_string(),
+        _ => {
+            println!("{}", json!({"error": "missing FEN argument"}));
+            return;
+        }
+    };
+
+    let moves_str = args.get(3).map(|s| s.trim().to_string()).unwrap_or_default();
+
+    let mut engine = match crate::chess::fen::engine_from_fen(&fen) {
+        Ok(e) => e,
+        Err(err) => {
+            println!("{}", json!({"error": err}));
+            return;
+        }
+    };
+
+    if !moves_str.is_empty() {
+        for uci in moves_str.split_whitespace() {
+            let player = engine.turn_manager.current_player;
+            let legal = engine.legal_actions(player);
+            match find_uci_action(uci, &legal, &engine) {
+                Some(action) => {
+                    engine.execute(crate::engine::action::command::Command {
+                        player_id: player,
+                        action,
+                    });
+                }
+                None => {
+                    println!("{}", json!({"error": format!("illegal move: {}", uci)}));
+                    return;
+                }
+            }
+        }
+    }
+
+    let player = engine.turn_manager.current_player;
+
+    let prev_time = std::env::var("TCS_MOVE_TIME_MS").ok();
+    if prev_time.is_none() {
+        std::env::set_var("TCS_MOVE_TIME_MS", "2000");
+    }
+
+    let result = search_root(&engine, player);
+
+    match prev_time {
+        Some(ref v) => std::env::set_var("TCS_MOVE_TIME_MS", v),
+        None => std::env::remove_var("TCS_MOVE_TIME_MS"),
+    }
+
+    match result {
+        Some(r) => {
+            let move_str = action_to_uci(&r.best_action, &engine.units)
+                .unwrap_or_else(|| "?".to_string());
+            println!(
+                "{}",
+                json!({"move": move_str, "score": r.best_score, "depth": r.completed_depth})
+            );
+        }
+        None => {
+            println!("{}", json!({"error": "no legal moves"}));
+        }
+    }
+}
+
+fn find_uci_action(
+    uci: &str,
+    legal: &[crate::engine::action::action::Action],
+    engine: &crate::engine::engine::Engine,
+) -> Option<crate::engine::action::action::Action> {
+    use crate::chess::piece_kind::ChessPieceKind;
+    use crate::engine::action::action::Action;
+
+    let bytes = uci.as_bytes();
+    if bytes.len() < 4 {
+        return None;
+    }
+    let from_x = bytes[0].wrapping_sub(b'a') as u32;
+    let from_y = bytes[1].wrapping_sub(b'1') as u32;
+    let to_x = bytes[2].wrapping_sub(b'a') as u32;
+    let to_y = bytes[3].wrapping_sub(b'1') as u32;
+    let promotion = bytes.get(4).and_then(|&c| match c {
+        b'q' => Some(ChessPieceKind::Queen),
+        b'r' => Some(ChessPieceKind::Rook),
+        b'b' => Some(ChessPieceKind::Bishop),
+        b'n' => Some(ChessPieceKind::Knight),
+        _ => None,
+    });
+
+    legal
+        .iter()
+        .find(|action| {
+            if let Action::Move {
+                unit_id,
+                target,
+                promotion: promo,
+            } = action
+            {
+                if let Some(unit) = engine.units.get(unit_id) {
+                    return unit.position.x == from_x
+                        && unit.position.y == from_y
+                        && target.x == to_x
+                        && target.y == to_y
+                        && *promo == promotion;
+                }
+            }
+            false
+        })
+        .copied()
 }
 
 fn record_validation_result(

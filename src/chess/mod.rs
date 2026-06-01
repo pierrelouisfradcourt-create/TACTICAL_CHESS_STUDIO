@@ -10,6 +10,7 @@ pub mod eval;
 pub mod fen;
 pub mod legal_action_adapter;
 pub mod move_features;
+pub mod opening_book;
 pub mod opponent_response_mask;
 pub mod piece_kind;
 pub mod practical_policy;
