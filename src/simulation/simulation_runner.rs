@@ -35,7 +35,7 @@ static MOVES_FILE_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static MATCH_CONVERSION_CSV_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static WEAKNESS_KEYS: OnceLock<Mutex<std::collections::HashSet<String>>> = OnceLock::new();
 
-const DEFAULT_MAX_STEPS: u32 = 120;
+const DEFAULT_MAX_STEPS: u32 = 200;
 const STAGNATION_MIN_STEP: u32 = 20;
 const SOFT_NO_CAPTURE_LIMIT: u32 = 35;
 const HARD_NO_CAPTURE_LIMIT: u32 = 70;
@@ -308,6 +308,7 @@ pub struct SimulationRunner {
     pub max_steps: u32,
     pub verbose: bool,
     pub emit_csv: bool,
+    pub random_opening: bool,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -876,6 +877,49 @@ fn update_material_peak_stats(score: i32, max_abs: &mut i32, max_w: &mut i32, ma
     *max_b = (*max_b).max(-score);
 }
 
+fn rng_seed() -> u64 {
+    let t = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| {
+            d.as_secs()
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(d.subsec_nanos() as u64)
+        })
+        .unwrap_or(1442695040888963407);
+    if t == 0 { 1 } else { t }
+}
+
+fn xorshift64(state: &mut u64) -> u64 {
+    let mut x = *state;
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    *state = x;
+    x
+}
+
+fn apply_random_opening(engine: &mut Engine, rng: &mut u64) -> u32 {
+    let n = 2 + (xorshift64(rng) % 7) as u32; // [2, 8]
+    let mut applied = 0u32;
+    for _ in 0..n {
+        if engine.game_over() {
+            break;
+        }
+        let player = engine.turn_manager.current_player;
+        let legal = engine.legal_actions(player);
+        if legal.is_empty() {
+            break;
+        }
+        let idx = (xorshift64(rng) as usize) % legal.len();
+        engine.execute(Command {
+            player_id: player,
+            action: legal[idx].clone(),
+        });
+        applied += 1;
+    }
+    applied
+}
+
 impl WinFinishTrace {
     fn maybe_activate(&mut self, ply: u32, white_material_cp: i32) {
         if self.active || white_material_cp.abs() < WIN_TRACE_MATERIAL_ADVANTAGE_CP {
@@ -1045,6 +1089,7 @@ impl SimulationRunner {
             max_steps: DEFAULT_MAX_STEPS,
             verbose: true,
             emit_csv: true,
+            random_opening: true,
         }
     }
 
@@ -1054,6 +1099,7 @@ impl SimulationRunner {
             max_steps: DEFAULT_MAX_STEPS,
             verbose: true,
             emit_csv: true,
+            random_opening: true,
         }
     }
 
@@ -1063,6 +1109,7 @@ impl SimulationRunner {
             max_steps,
             verbose: true,
             emit_csv: true,
+            random_opening: true,
         }
     }
 
@@ -1176,6 +1223,12 @@ impl SimulationRunner {
         } else {
             None
         };
+
+        if self.random_opening {
+            let mut rng = rng_seed();
+            let opening_plies = apply_random_opening(&mut engine, &mut rng);
+            emit_runtime_line(&format!("RANDOM_OPENING|plies={}", opening_plies));
+        }
 
         while !engine.game_over() && step < self.max_steps {
             let turn_start = Instant::now();
@@ -1982,5 +2035,83 @@ mod cost_search_observability_tests {
         );
         assert!(!output_dir.join("game_1_detail.jsonl").exists());
         assert!(!output_dir.exists());
+    }
+}
+
+#[cfg(test)]
+mod random_opening_tests {
+    use super::*;
+    use crate::prototype::minimal_ruleset::{load_engine_from_ruleset, minimal_runtime_ruleset};
+
+    #[test]
+    fn xorshift64_produces_nonzero_from_nonzero_seed() {
+        let mut state = 1u64;
+        let val = xorshift64(&mut state);
+        assert_ne!(val, 0);
+        assert_ne!(state, 1);
+    }
+
+    #[test]
+    fn xorshift64_produces_different_successive_values() {
+        let mut state = 12345u64;
+        let a = xorshift64(&mut state);
+        let b = xorshift64(&mut state);
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn apply_random_opening_changes_position() {
+        let ruleset = minimal_runtime_ruleset();
+        let mut engine = load_engine_from_ruleset(&ruleset);
+        let fen_before = engine.to_fen();
+        let mut rng = 42u64;
+        let plies = apply_random_opening(&mut engine, &mut rng);
+        let fen_after = engine.to_fen();
+        assert!(plies >= 2 && plies <= 8, "plies={plies} outside [2,8]");
+        assert_ne!(fen_before, fen_after);
+    }
+
+    #[test]
+    fn apply_random_opening_plies_in_range_across_seeds() {
+        let ruleset = minimal_runtime_ruleset();
+        for seed in [1u64, 42, 999, 12345, 99999] {
+            let mut engine = load_engine_from_ruleset(&ruleset);
+            let mut rng = seed;
+            let plies = apply_random_opening(&mut engine, &mut rng);
+            assert!(
+                plies >= 2 && plies <= 8,
+                "seed={seed} -> plies={plies} outside [2,8]"
+            );
+        }
+    }
+
+    #[test]
+    fn random_opening_field_defaults_true() {
+        let runner = SimulationRunner::new();
+        assert!(runner.random_opening);
+    }
+
+    #[test]
+    fn random_opening_field_with_ruleset_defaults_true() {
+        let runner = SimulationRunner::with_ruleset(minimal_runtime_ruleset());
+        assert!(runner.random_opening);
+    }
+
+    #[test]
+    fn random_opening_field_with_ruleset_and_limit_defaults_true() {
+        let runner = SimulationRunner::with_ruleset_and_limit(minimal_runtime_ruleset(), 60);
+        assert!(runner.random_opening);
+    }
+
+    #[test]
+    fn random_opening_field_is_settable() {
+        let mut runner = SimulationRunner::new();
+        runner.random_opening = true;
+        assert!(runner.random_opening);
+    }
+
+    #[test]
+    fn rng_seed_is_nonzero() {
+        assert_ne!(rng_seed(), 0);
     }
 }
