@@ -5,7 +5,7 @@
 meta:
   ledger_version: v0
   created_session: '2026-05-31'
-  last_updated_session: '2026-05-31'
+  last_updated_session: '2026-06-02'
   claim_verdict: NO_CLAIM_ALLOWED
   no_global_ready_verdict: true
 improvements:
@@ -63,7 +63,7 @@ improvements:
   title: Implémenter scripts_route_chain (audit chain)
   type: feature
   source: bilan UX 2026-05-31 Gap#1 + AUDIT_CHAIN_CATALOG
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: MEDIUM
   lane: SAFE_AUTO
@@ -73,13 +73,13 @@ improvements:
     path drift, candidates, stale refs. Produit scripts_route_packet.
   blocked_by: []
   opened_session: '2026-05-31'
-  closed_session: null
+  closed_session: '2026-05-31'
   notes: 1 de 7 audit chains du catalog. Read-only.
 - id: IMP-005
   title: Implémenter fusion_matrix_chain (merge signaux)
   type: feature
   source: bilan UX 2026-05-31 Gap#5 + FUSION_MATRIX_SPEC
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: MEDIUM
   lane: SAFE_AUTO
@@ -90,13 +90,13 @@ improvements:
   blocked_by:
   - IMP-004
   opened_session: '2026-05-31'
-  closed_session: null
+  closed_session: '2026-05-31'
   notes: Affiche les contradictions cachées entre audits.
 - id: IMP-006
   title: puzzle_eval --output flag
   type: feature
   source: chantier pending session 2026-05-31
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: SMALL
   lane: AUDIT_REQUIRED
@@ -106,13 +106,13 @@ improvements:
     à un chemin custom.
   blocked_by: []
   opened_session: '2026-05-31'
-  closed_session: null
+  closed_session: '2026-06-01'
   notes: Rust, lane AUDIT_REQUIRED (touche src/). Smoke level 1.
 - id: IMP-007
   title: 'Fix draw structurel #NEW-02 (ouverture aléatoire)'
   type: bug_fix
   source: 'known issue #NEW-02'
-  status: OPEN
+  status: CLOSED
   impact: HIGH
   effort: MEDIUM
   lane: AUDIT_REQUIRED
@@ -122,13 +122,13 @@ improvements:
     le 100% draws search vs search.
   blocked_by: []
   opened_session: '2026-05-31'
-  closed_session: null
+  closed_session: '2026-06-01'
   notes: 'Bug structurel : positions symétriques = 100% draws. Lane AUDIT_REQUIRED.'
 - id: IMP-008
   title: Dataset rebuild (teacher_samples corrompu)
   type: bug_fix
   source: 'known issue #NEW-03'
-  status: BLOCKED
+  status: OPEN
   impact: CRITICAL
   effort: LARGE
   lane: FORBIDDEN
@@ -146,7 +146,7 @@ improvements:
   title: 'Charter B : optimisations run_chain.py (opt1-4)'
   type: feature
   source: audit pipeline session 2026-05-31
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: MEDIUM
   lane: SAFE_AUTO
@@ -157,7 +157,7 @@ improvements:
   blocked_by:
   - IMP-001
   opened_session: '2026-05-31'
-  closed_session: null
+  closed_session: '2026-05-31'
   notes: Rend run_chain memory-aware et lane-aware.
 - id: IMP-010
   title: SearchTraceSchema (3 ajouts search.rs)
@@ -192,6 +192,483 @@ improvements:
   opened_session: '2026-05-31'
   closed_session: null
   notes: Dépend du dataset rebuild. DEFERRED jusqu'à dataset propre.
+- id: IMP-012
+  title: STUDIO_CONTEXT.md auto-genere pour Mistral/Devstral
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/studio_context_builder.py
+  acceptance: Script qui derive STUDIO_CONTEXT.md depuis ledger+manifest. Injecte
+    en tete prompts Mistral. Regenere a chaque kaizen metrics.
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-013
+  title: Collecte automatique golden_examples.jsonl
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/golden_collector.py
+  acceptance: Quand autoloop close un IMP, le charter est archive dans golden_examples.jsonl.
+    Base du futur LoRA.
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-014
+  title: 'Fix teacher_uci : brancher random_opening + augmenter turn_cap'
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/simulation/simulation_runner.rs
+  acceptance: random_opening=true dans teacher_uci et benchmark, lab_hard_turn_cap
+    >= 200, parties avec vrais resultats
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-015
+  title: PST par type de piece dans eval.rs
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: observe_fen position standard retourne Nf3 ou d4, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-016
+  title: Livre d ouvertures minimal 50-200 coups
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/opening_book.rs
+  - lab/data/opening_book.jsonl
+  acceptance: Rocky joue e4 ou d4 au coup 1, moves coherents 10 premiers coups, cargo
+    check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-017
+  title: Quiescence sans cap de profondeur plus delta pruning
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/search.rs
+  acceptance: Rocky voit mat en 2, pas de blunder tactique immediat, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-018
+  title: Securite du roi zone attack count
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Rocky ne laisse pas son roi en centre en milieu de partie, cargo check
+    OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-019
+  title: Pseudo-mobilite au lieu de legal_actions dans eval
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: profondeur effective augmente de 1-2 ply, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-020
+  title: SEE complet recursif
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/practical_policy.rs
+  acceptance: Rocky ne perd pas de piece dans echanges a 3 attaquants, cargo check
+    OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-021
+  title: Developpement dans eval statique
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Rocky ne laisse pas pieces mineures sur cases depart au coup 10, cargo
+    check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-022
+  title: Pion arriere detection
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Rocky penalise pion arriere sous pression, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-023
+  title: Futility pruning dans negamax
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: LOW
+  effort: TRIVIAL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/search.rs
+  acceptance: noeuds reduits depth 1-2, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-024
+  title: Repetition early detection dans search
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/search.rs
+  acceptance: Rocky detecte repetition avant game_over, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-025
+  title: Finales elementaires KR vs K
+  type: feature
+  source: manual add 2026-06-01
+  status: OPEN
+  impact: LOW
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Rocky mate avec K+R vs K en moins de 50 coups, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: null
+  notes: ''
+- id: IMP-026
+  title: Activation roi fin de partie basee sur materiel non-pions
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Roi actif quand materiel non-pions faible, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-027
+  title: Outposts et cases faibles
+  type: feature
+  source: manual add 2026-06-01
+  status: OPEN
+  impact: LOW
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Cavalier en outpost score superieur, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: null
+  notes: ''
+- id: IMP-028
+  title: Penalite meme piece deux fois en ouverture
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: LOW
+  effort: TRIVIAL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Rocky ne joue pas le meme cavalier 3 fois, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-029
+  title: draw_score calibration selon phase de jeu
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Rocky ne provoque pas stalemate accidentel en K+Q vs K, cargo check
+    OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-030
+  title: play_fen dans CLI
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/tool/cli.rs
+  acceptance: play_fen retourne JSON move/score/depth, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-031
+  title: Diagnostic neural_tournament_runner.rs + EloTable (read-only)
+  type: audit
+  source: session-2026-06-02
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  files:
+  - src/simulation/neural_tournament_runner.rs
+  - src/tournament/elo.rs
+  acceptance: 'Rapport : fonctions exposées, CLI dispo, ce qui manque pour instancier
+    EloTable'
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-032
+  title: Inspecter schéma teacher_tactical/solid/positional/finisher
+  type: audit
+  source: session-2026-06-02
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  files:
+  - lab/datasets/teacher_tactical.jsonl
+  - lab/datasets/teacher_solid.jsonl
+  - lab/datasets/teacher_positional.jsonl
+  - lab/datasets/teacher_finisher.jsonl
+  acceptance: 'Rapport JSON : champs présents, % results non-draw, aaa_* non-null,
+    décision RECYCLE/REGENERATE'
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-033
+  title: Câbler EloTable dans NeuralTournamentRunner (remplacer ELO inline)
+  type: feature
+  source: session-2026-06-02
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/simulation/neural_tournament_runner.rs
+  - src/tournament/elo.rs
+  acceptance: EloTable instanciée, K canonique choisi, leaderboard() utilisé, cargo
+    test OK
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-034
+  title: Câbler EloTable dans NeuralTournamentRunner (K=24, unifier 3 implémentations)
+  type: feature
+  source: session-2026-06-02
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/simulation/neural_tournament_runner.rs
+  - src/tournament/elo.rs
+  acceptance: EloTable::new instanciée, update_elo_pair remplacé par update_match,
+    leaderboard() utilisé, cargo test OK, K=24 canonique
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-035
+  title: EloTable::with_config(EloConfig) — constructeur configurable
+  type: feature
+  source: session-2026-06-02
+  status: CLOSED
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/tournament/elo.rs
+  acceptance: with_config(EloConfig) exposé, K injectable, cargo test OK
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-036
+  title: Audit puzzles existants + distributions AAA teacher_*
+  type: audit
+  source: session-2026-06-02
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  files:
+  - lab/datasets/candidate_games_for_triage.csv
+  - lab/pedagogy_db/PEDAGOGICAL_DB_TACTICS.pgn
+  acceptance: Format CSV identifié, nb puzzles, thèmes présents, distributions top_gap/aaa_confidence
+    teacher_*
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-037
+  title: pgn_to_jsonl.py — lichess_elite + human_*.pgn vers Pool-2400
+  type: feature
+  source: session-2026-06-02
+  status: CLOSED
+  impact: CRITICAL
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - ml/pgn_to_jsonl.py
+  - lab/datasets/pool/pool_2400.jsonl
+  acceptance: pool_2400.jsonl, draw_rate < 20%, result non-null, checksum OK
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-038
+  title: sf_dataset_generator.py — Pool-SF Stockfish depth 14
+  type: feature
+  source: session-2026-06-02
+  status: OPEN
+  impact: CRITICAL
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - ml/sf_dataset_generator.py
+  - lab/datasets/pool/pool_sf.jsonl
+  acceptance: 500+ parties SF vs SF, engine_eval CP non-null, draw_rate < 20%
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: null
+  notes: 'HumanGate 2026-06-02 : draw_rate observé 93.1% != critère. Acceptance
+    relevé à <20%. Statut rouvert — pool_sf à régénérer (SF vs SF positions variées).'
+- id: IMP-039
+  title: dataset_builder_v3.py — 3 pools < 20% draw depuis pioche commune
+  type: feature
+  source: session-2026-06-02
+  status: CLOSED
+  impact: CRITICAL
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - ml/dataset_builder_v3.py
+  - lab/datasets/pool/pool_manifest.json
+  acceptance: 3 pools produits, draw_rate < 20%, builder refuse si déviation > 2%
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-040
+  title: train_player.py — entraîner 1 joueur depuis 1 pool
+  type: feature
+  source: session-2026-06-02
+  status: CLOSED
+  impact: CRITICAL
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - ml/train_player.py
+  acceptance: checkpoint .pt produit, loss décroissante, smoke 20 parties draw_rate
+    < 30%
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-041
+  title: play_fen CLI — passer historique des coups pour détection répétition
+  type: bugfix
+  source: session-2026-06-02
+  status: CLOSED
+  impact: CRITICAL
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/tool/cli.rs
+  acceptance: Rocky ne joue plus de répétitions en partie longue, draw_rate benchmark
+    < 40%
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
 metrics_history:
 - session: '2026-05-31'
   total: 11
@@ -204,3 +681,14 @@ metrics_history:
   tests_green: 54
   commits: 8
   note: Seed initial du ledger depuis bilan UX + chantiers pending.
+- session: '2026-06-02'
+  total: 41
+  open: 3
+  in_progress: 0
+  closed: 37
+  deferred: 1
+  blocked: 0
+  spec_coverage_pct: 90
+  tests_green: null
+  commits: 5
+  note: "Sprint Rocky 14 IMP + pool pipeline IMP-037/041 + EloTable K=24. pool_sf draw_rate=94% (critère <30% non atteint). ACTIVE_DATASET.txt toujours sur teacher_samples (HumanGate requis)."
