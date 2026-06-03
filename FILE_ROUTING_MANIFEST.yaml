@@ -1,7 +1,7 @@
 # FILE_ROUTING_MANIFEST.yaml
 # SSOT du contrat de fichiers — Tactical Chess Studio
 # Autorité : HumanGate (Pierre)
-# Mis à jour : 2026-05-31
+# Mis à jour : 2026-06-02
 #
 # Note technique Python 3.12 :
 #   PurePosixPath.match() — "**" requiert un composant intermédiaire.
@@ -68,10 +68,26 @@ routing:
       lane: FORBIDDEN
       description: "Training pipeline — FORBIDDEN sans gate HumanGate explicite"
 
+    - pattern: "ml/lora_config.yaml"
+      status: PASSIVE
+      lane: AUDIT_REQUIRED
+      description: "Config LoRA Devstral PENDING — 19/50 exemples, HumanGate requis avant tout lancement"
+
     - pattern: "ml/lichess_importer.py"
       status: IMPLEMENTED
       lane: AUDIT_REQUIRED
       description: "Importeur CSV Lichess -> JSONL"
+
+    # --- Moteurs de référence (Sunfish / Stockfish) ---
+    - pattern: "lab/sunfish.py"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Moteur Sunfish Python — moteur de référence léger, même famille que SF"
+
+    - pattern: "lab/sunfish_vs_rocky.py"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Tournoi Sunfish vs Rocky — comparaison moteur de référence"
 
     - pattern: "ml/rebuild_levels.py"
       status: IMPLEMENTED
@@ -140,10 +156,46 @@ routing:
       lane: SAFE_AUTO
       description: "Protocole boucle d amelioration continue. Doctrine operationnelle."
 
+    - pattern: "lab/chains/*.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Docs audit et protocoles à la racine lab/chains/ — chess_fantasy_audit, etc."
+
+    - pattern: "lab/chains/*.yaml"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "YAML chaînes (HUMANGATE_DECISION_LOG, KAIZEN_METRICS, etc.)"
+
+    - pattern: "lab/chains/charters/*.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Charters IMP-* — archives décisions kaizen (IMP-007 à IMP-036+)"
+
     - pattern: ".gitignore"
       status: IMPLEMENTED
       lane: SAFE_AUTO
       description: "Gitignore repo — configuration standard."
+
+    # --- Docs racine ---
+    - pattern: "STUDIO_FULL_MAP.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Carte complète du studio — doc racine non-trackée"
+
+    - pattern: "SYSTEM_MAP.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Carte système — doc racine non-trackée"
+
+    - pattern: "BRAIN_REPORT_*.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Rapport cerveau studio généré en session — synthèse état + recommandations"
+
+    - pattern: "STUDIO_CONTEXT_LIVE.md"
+      status: PASSIVE
+      lane: SAFE_AUTO
+      description: "Contexte live généré par autopilot.py — mise à jour à chaque appel Devstral"
 
     # --- Scripts de debug racine (outils réutilisables) ---
     - pattern: "audit_moves_length.py"
@@ -172,6 +224,16 @@ routing:
       lane: SAFE_AUTO
       description: "Index de navigation master docs — à committer"
 
+    - pattern: "00_STUDIO_CONTROL/05_AUDIT"
+      status: DOCUMENTED_ONLY
+      lane: HUMAN_REQUIRED
+      description: "Dossier audits studio — match git untracked directory"
+
+    - pattern: "00_STUDIO_CONTROL/05_AUDIT/**"
+      status: DOCUMENTED_ONLY
+      lane: HUMAN_REQUIRED
+      description: "Dossier audits studio — HUMAN_REQUIRED (sous 00_STUDIO_CONTROL)"
+
     - pattern: "00_STUDIO_CONTROL/99_ARCHIVE/**/*.md"
       status: DOCUMENTED_ONLY
       lane: SAFE_AUTO
@@ -186,6 +248,22 @@ routing:
       status: DOCUMENTED_ONLY
       lane: SAFE_AUTO
       description: "Control-plane docs governance"
+
+    # --- Lab data (opening book, données brutes) ---
+    - pattern: "lab/data"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Dossier données brutes lab — match git untracked directory"
+
+    - pattern: "lab/data/*.jsonl"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Données brutes lab — opening_book.jsonl et autres"
+
+    - pattern: "lab/data/**"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Dossier données brutes lab — sous-dossiers inclus"
 
     # --- Lab puzzles ---
     - pattern: "lab/puzzles/level1.jsonl"
@@ -203,6 +281,26 @@ routing:
       lane: SAFE_AUTO
       description: "2000 puzzles Lichess L3 (anastasiasMate, rookEndgame)"
 
+    - pattern: "lab/puzzles/level_all.jsonl"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Concat L1+L2+L3 — tous puzzles confondus"
+
+    - pattern: "lab/puzzles/holdout_level1.jsonl"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Holdout puzzles L1 — set de validation séparé"
+
+    - pattern: "lab/puzzles/holdout_level2.jsonl"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Holdout puzzles L2 — set de validation séparé"
+
+    - pattern: "lab/puzzles/holdout_level3.jsonl"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Holdout puzzles L3 — set de validation séparé"
+
     # --- Lab reports (baseline traçable) ---
     - pattern: "lab/reports/eval_smoke_baseline.json"
       status: IMPLEMENTED
@@ -218,6 +316,26 @@ routing:
       status: IMPLEMENTED
       lane: DOCUMENTED_ONLY
       description: "Conversion suite — targeted metric only, NOT Elo evidence"
+
+    - pattern: "lab/reports/bench_rocky_p4_puzzles.json"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Benchmark Rocky puzzles P4 — artefact de mesure, NOT strength claim"
+
+    - pattern: "lab/reports/bench_rocky_p4_holdout.json"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Benchmark Rocky puzzles P4 holdout — artefact de mesure, NOT strength claim"
+
+    - pattern: "lab/reports/bench_rocky_p4_holdout_v2.json"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Benchmark Rocky P4 holdout v2 — overall 29.5% (L1:36% L2:30% L3:23%), NOT strength claim"
+
+    - pattern: "lab/reports/bench_rocky_p4_train_v2.json"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Benchmark Rocky P4 train v2 — artefact de mesure, NOT strength claim"
 
     # --- Lab datasets (trackés avec précaution) ---
     - pattern: "lab/datasets/teacher_samples.jsonl"
@@ -422,6 +540,20 @@ routing:
       recommendation: "HUMAN_REQUIRED — voir pattern ci-dessus"
       decision_deadline: "Phase 1 UxPilote"
 
+    - pattern: "lab/tmp_imp036_diag.py"
+      status: ORPHANED
+      lane: AUDIT_REQUIRED
+      created_by: "session 2026-06-02"
+      recommendation: "DELETE — fichier temporaire diagnostic IMP-036, sans valeur durable."
+      decision_deadline: "prochaine session"
+
+    - pattern: "lab/tmp_imp036_diag.py"
+      status: ORPHANED
+      lane: AUDIT_REQUIRED
+      created_by: "session 2026-06-02"
+      recommendation: "DELETE — fichier temporaire diagnostic IMP-036, sans valeur durable."
+      decision_deadline: "prochaine session"
+
 # ============================================================
 # RÈGLES D'AUDIT (lues par doc_hygiene_chain.py)
 # ============================================================
@@ -458,7 +590,7 @@ metadata:
   version: "1.0"
   created: "2026-05-31"
   authority: "HumanGate"
-  last_updated_by: "doc_hygiene_chain v1 (bootstrap manuel)"
+  last_updated_by: "doc_hygiene_chain v1 — routage candidats évidents 2026-06-02"
   python_312_note: >
     PurePosixPath.match() en Python 3.12 requiert un composant intermédiaire
     pour '**'. Fichiers directs : utiliser 'dossier/*.ext'.

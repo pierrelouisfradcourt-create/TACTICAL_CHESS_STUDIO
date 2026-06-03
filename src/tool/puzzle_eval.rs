@@ -14,6 +14,7 @@ use serde_json;
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 struct ScopedEnvVar {
     key: &'static str,
@@ -136,6 +137,7 @@ pub fn run_puzzle_eval(args: &[String]) {
     let mut limit = None::<usize>;
     let mut debug_misses = false;
     let mut show_cases = None::<usize>;
+    let mut output_path = None::<String>;
 
     let mut index = 2;
     while index < args.len() {
@@ -165,6 +167,12 @@ pub fn run_puzzle_eval(args: &[String]) {
             "--show-cases" => {
                 if let Some(value) = args.get(index + 1) {
                     show_cases = value.parse::<usize>().ok();
+                }
+                index += 2;
+            }
+            "--output" => {
+                if let Some(value) = args.get(index + 1) {
+                    output_path = Some(value.clone());
                 }
                 index += 2;
             }
@@ -325,6 +333,44 @@ pub fn run_puzzle_eval(args: &[String]) {
         "PUZZLE_EVAL_STATUS=ok|total={}|solved={}|partial={}|failed={}|solved_pct={:.2}",
         total, solved, partial, failed, solved_pct
     );
+
+    if let Some(path) = output_path {
+        #[derive(Serialize)]
+        struct OutputReport {
+            niveau: String,
+            score: f64,
+            puzzles_ok: usize,
+            puzzles_fail: usize,
+            timestamp: u64,
+        }
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let out = OutputReport {
+            niveau: agent.as_str().to_string(),
+            score: solved_pct,
+            puzzles_ok: solved,
+            puzzles_fail: failed,
+            timestamp,
+        };
+        match serde_json::to_string_pretty(&out) {
+            Ok(json) => {
+                if fs::write(&path, json).is_err() {
+                    println!(
+                        "PUZZLE_EVAL_STATUS=warn|reason=output_write_failed|path={}",
+                        path
+                    );
+                }
+            }
+            Err(err) => {
+                println!(
+                    "PUZZLE_EVAL_STATUS=warn|reason=output_json_failed|{}",
+                    err
+                );
+            }
+        }
+    }
 }
 
 fn evaluate_cases(

@@ -23,7 +23,10 @@ pub struct EloTable {
 
 impl EloTable {
     pub fn new(agent_names: &[String]) -> Self {
-        let config = EloConfig::default();
+        Self::with_config(agent_names, EloConfig::default())
+    }
+
+    pub fn with_config(agent_names: &[String], config: EloConfig) -> Self {
         let mut ratings = HashMap::new();
 
         for name in agent_names {

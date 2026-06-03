@@ -30,7 +30,7 @@ class ResidualBlock(nn.Module):
 
 
 class PolicyValueNet(nn.Module):
-    def __init__(self):
+    def __init__(self, dropout: float = 0.0):
         super().__init__()
 
         channels = 64
@@ -54,6 +54,7 @@ class PolicyValueNet(nn.Module):
             nn.BatchNorm2d(32),
             nn.ReLU(inplace=True),
         )
+        self.policy_drop = nn.Dropout(p=dropout)
         self.policy_fc = nn.Linear(32 * 8 * 8, VOCAB_SIZE)
 
         # Value head
@@ -62,6 +63,7 @@ class PolicyValueNet(nn.Module):
             nn.BatchNorm2d(32),
             nn.ReLU(inplace=True),
         )
+        self.value_drop = nn.Dropout(p=dropout)
         self.value_fc1 = nn.Linear(32 * 8 * 8, 64)
         self.value_fc2 = nn.Linear(64, 1)
 
@@ -71,10 +73,12 @@ class PolicyValueNet(nn.Module):
 
         p = self.policy_head(x)
         p = p.view(p.size(0), -1)
+        p = self.policy_drop(p)
         p = self.policy_fc(p)
 
         v = self.value_head(x)
         v = v.view(v.size(0), -1)
+        v = self.value_drop(v)
         v = torch.relu(self.value_fc1(v))
         v = torch.tanh(self.value_fc2(v))
 

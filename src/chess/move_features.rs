@@ -180,6 +180,48 @@ pub(crate) fn is_doubled_pawn(engine: &Engine, owner: PlayerId, pos: Position) -
     })
 }
 
+pub(crate) fn is_backward_pawn(engine: &Engine, owner: PlayerId, pos: Position) -> bool {
+    let forward_dy: i32 = if owner == 1 { 1 } else { -1 };
+    let stop_y = pos.y as i32 + forward_dy;
+
+    if !(0..=7).contains(&stop_y) {
+        return false;
+    }
+
+    let has_supporter_behind = engine.units.values().any(|u| {
+        u.kind == ChessPieceKind::Pawn
+            && u.owner == owner
+            && (u.position.x as i32 - pos.x as i32).abs() == 1
+            && if owner == 1 {
+                u.position.y < pos.y
+            } else {
+                u.position.y > pos.y
+            }
+    });
+    if has_supporter_behind {
+        return false;
+    }
+
+    let enemy = opponent(owner);
+    let attacker_y = stop_y + forward_dy;
+    if !(0..=7).contains(&attacker_y) {
+        return false;
+    }
+
+    [-1_i32, 1].iter().any(|&dx| {
+        let nx = pos.x as i32 + dx;
+        if !(0..=7).contains(&nx) {
+            return false;
+        }
+        let p = Position { x: nx as u32, y: attacker_y as u32 };
+        engine
+            .board
+            .occupant(p)
+            .and_then(|id| engine.units.get(&id))
+            .map_or(false, |u| u.owner == enemy && u.kind == ChessPieceKind::Pawn)
+    })
+}
+
 pub(crate) fn is_protected_pawn(engine: &Engine, owner: PlayerId, pos: Position) -> bool {
     let support_y = if owner == 1 {
         pos.y as i32 - 1

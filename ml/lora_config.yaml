@@ -1,0 +1,70 @@
+# LoRA Fine-tuning Config — Tactical Chess Studio
+# Généré : 2026-06-03 — BRAIN_REPORT session autodev
+# claim_verdict: NO_CLAIM_ALLOWED
+# STATUS: PENDING — dataset insuffisant (19/50 exemples requis)
+# HumanGate REQUIS avant tout lancement de training
+
+status: PENDING
+reason: "Dataset sous seuil — 19 exemples actuels, minimum 50 recommandé"
+
+dataset:
+  active_path: "lab/datasets/pool/pool_2400.jsonl"
+  finetune_files:
+    - path: "lab/datasets/ux_finetune_20260603.jsonl"
+      examples: 10
+      source: "mode_claude_run"
+    - path: "lab/datasets/ux_finetune_autodev_20260603.jsonl"
+      examples: 9
+      source: "autodev_session_IMP-010-025-027"
+  total_examples: 19
+  threshold_to_train: 50
+  draw_rate_pool: null  # à mesurer — smoke benchmark requis
+
+model:
+  base: "devstral-small-2507"
+  target_model: "devstral-tcs-v1"
+  adapter_type: "lora"
+  rank: 8
+  alpha: 16
+  dropout: 0.05
+  target_modules:
+    - "q_proj"
+    - "v_proj"
+
+training:
+  epochs: 3
+  batch_size: 4
+  learning_rate: 2.0e-4
+  max_seq_length: 2048
+  warmup_ratio: 0.03
+  gradient_checkpointing: true
+  fp16: true
+
+data_format:
+  input_key: "input"
+  output_key: "output_ideal"
+  context_key: "context_resume"
+  negative_key: "output_mauvais"
+  category_key: "categorie"
+
+gates:
+  humangate_required: true
+  forbidden_without_humangate:
+    - training
+    - dataset_reset
+    - benchmark_reset
+    - push_main
+  smoke_before_training: true
+  draw_rate_check: true
+  draw_rate_max: 0.15
+
+expected_improvements:
+  - "Génération de charters YAML plus précis"
+  - "Meilleure analyse ROI par IMP"
+  - "Routage SAFE_AUTO vs FORBIDDEN plus fiable"
+
+notes: |
+  Ce fichier est généré automatiquement par la session autodev.
+  Il ne déclenche PAS le training — HumanGate explicite requis.
+  Accumuler 31 exemples supplémentaires avant soumission.
+  Référence : KAIZEN_PROTOCOL.md — Training = FORBIDDEN sans HumanGate.

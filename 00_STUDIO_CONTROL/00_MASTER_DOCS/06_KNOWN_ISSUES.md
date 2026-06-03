@@ -1,7 +1,7 @@
 # Known Issues
 
 Status: canonical active issue list
-Last refreshed: 2026-05-30
+Last refreshed: 2026-06-02
 Merged source: `MASTER_DOCS/CURRENT_CODE_AUDIT_AND_KNOWN_ISSUES.md`
 Rule: this file is an engineering risk register, not proof of strength, Elo, promotion, or scientific progress.
 
@@ -190,15 +190,17 @@ Recommendation:
 
 ## 2. Search Ceiling / Root Clone
 
-Status: ACTIVE — clone conservé intentionnellement.
+Status: RESOLVED (2026-05-30, commit 9e17493)
 
-Note 2026-05-30 : Option B (migrer search_root et call sites vers &mut Engine) inspectée.
-Cascade trop invasive sans HumanGate :
-- decision.rs::search_authority_trace prend engine: &Engine → nécessite &mut Engine
-- PassiveSearchBackendAdapter stocke engine: &'a Engine → nécessite &'a mut Engine
-- search_root est pub : tout consommateur externe (cli, neural_agent) casserait
-- simulation_runner.rs::maybe_log_move_weaknesses(engine_before: &Engine) se propage
-Option A (unsafe ptr cast) refusée. Clone reste en place.
+Resolution:
+- Root clone refactored. Search tree now uses simulate/undo throughout.
+- S-7 practical-policy pipeline (`select_root_move`, fork detection, worst-case sampling) deleted in 90fe323.
+- Root selection is now pure argmax on alpha-beta score — simple and transparent.
+
+Residual ceiling:
+- Root still begins from `engine.clone()` and some helpers still simulate moves; structural performance ceiling reduced, not gone.
+- Option B (&mut Engine migration) inspectée 2026-05-30, cascade trop invasive sans HumanGate. Clone reste en place.
+- Any future active `SearchBackend` route still requires separate HumanDecision and validation.
 
 Current evidence:
 - `src/chess/search.rs` still enters root search through `search_root_with_context`.
@@ -379,37 +381,25 @@ Recommendation:
 
 ## 12. Evaluation System Gap
 
-Status: ACTIVE
+Status: CLOSED (2026-05-30, T2/T3/T4/T5/T6)
 
-Current evidence:
-- Evaluation exists through tournament/benchmark scripts and lab outputs.
-- There is not yet a first-class evaluation system with arena, rating, benchmark and regression guard boundaries.
-- Benchmark reproducibility still depends on fixed seeds, settings, model identity and dataset identity.
-
-Tests run:
-- No evaluation or benchmark command was run during this refresh.
-
-Recommendation:
-- Keep this issue active.
-- Build evaluation gates before League or training claims.
-- Keep claim authority separate from software health.
+Resolution:
+- `src/evaluation/mod.rs` créé : EvalRunResult, RunIdentity, RegressionGuard, GuardThresholds.
+- `src/evaluation/fixtures.rs` : 4 fixtures déterministes pour CI.
+- `lab/reports/eval_smoke_baseline.json` : première baseline traçable (git=c0ebf62).
+- `lab/reports/guard_test_output.json` : 6 tests de caractérisation, tous verts.
+- 13 tests evaluation au total, tous verts.
+- EvaluationSystem first-class opérationnel avec RegressionGuard PASS/FAIL/INCONCLUSIVE.
 
 ## 13. Documentation Drift
 
-Status: ACTIVE, REDUCED BY THIS UPDATE
+Status: CLOSED (2026-05-30 / 2026-06-02)
 
-Current evidence:
-- Historical truth is scattered across root markdown files, older `MASTER_DOCS/*`, archive notes and chat ledgers.
-- `MASTER_DOCS/CURRENT_CODE_AUDIT_AND_KNOWN_ISSUES.md` duplicated this issue list and had stale statements, including `src/chess/search/` as a split module path even though current code uses `src/chess/search.rs`.
-
-Tests run:
-- `rg` was used to locate references to both documents.
-- `git status --short` was used before and after the doc update.
-
-Recommendation:
-- Use this file as the canonical active issue list.
-- Keep `CURRENT_CODE_AUDIT_AND_KNOWN_ISSUES.md` as a pointer only.
-- Future updates should change this file, not create a second known-issues register.
+Resolution:
+- 2026-05-30 : Audit complet de 07_CURRENT_STATE.md confirmé correct. Sprint synchronisé.
+- 2026-06-02 : 03_KNOWN_ISSUES.md (doublon) fusionné dans 06_KNOWN_ISSUES.md et supprimé.
+  01_CURRENT_STATE.md (doublon) fusionné dans 07_CURRENT_STATE.md et supprimé.
+- Règle : ne jamais recréer les fichiers listés dans la section "Fichiers supprimés" du nav index.
 
 ## 14. Studio Loop V1 Freeze Gaps
 
@@ -438,20 +428,15 @@ Recommendation:
 
 ## 15. terminal_score Degrades Mate Bonus With Game Length
 
-Status: ACTIVE
+Status: RESOLVED (2026-06-03, audit code live)
 
-Current evidence:
-- `src/chess/eval.rs` `terminal_score` encodes win preference as `900_000 - action_log.len() * 10`.
-- This degrades the mate-short bonus proportional to total game length, not ply-to-mate.
-- A mate-in-1 at move 100 scores ~99,000 points less than the same mate at move 5.
-- No test documents this as intentional behavior.
-- Impact: erratic move ordering in late-game mating sequences when `action_log` is long.
+Resolution:
+- `terminal_score(engine, player, ply)` utilise déjà `ply` (profondeur search courante), pas `action_log.len()`.
+- Dans negamax et quiescence : `terminal_score(engine, to_move, ply)` — correct.
+- `evaluate()` appelle `terminal_score(engine, player, 0)` uniquement pour eval statique hors search — attendu.
+- La description initiale de l'issue (action_log.len()) décrivait du code ancienne version, déjà corrigé.
 
 Cross-reference: AUDIT_2026-05-28.md F-023 [CORRECTNESS].
-
-Recommendation:
-- Audit whether the intent was to prefer shorter mates from the *current* ply (correct behavior) or to compress the bonus over the full game (likely unintended).
-- Fix: encode win score as `900_000 - ply_to_mate * 10` where ply_to_mate is derived from depth/ply, not action_log length.
 
 ## 16. position_key Non-Zobrist Hash — Collision Risk Unquantified
 
@@ -618,6 +603,60 @@ Resolution : maybe_log_move_weaknesses desactivee par defaut (TCS_WEAKNESS_LOG=1
 pour opt-in). best_capture_score remplace par detection legere sans search_root.
 MOVE_DIAG emis dans simulation_runner.rs. Coach v0 operationnel end-to-end.
 Commits : f9d9c47 feat: Rocky Coach v0, a74de0c docs: update architecture post-sprint
+
+## NEW-01 : Neural Wiring
+
+Status: RESOLVED (2026-05-30, commit c0ebf62)
+
+Symptôme : NeuralAgent::select_action jamais appelé en tournoi/benchmark.
+Cause    : simulation_runner routait "neural" via choose_best_action_with_trace comme tous les autres agents.
+Fix      : branche explicite mode=="neural" → neural_agent.select_action().
+Impact   : tous les benchmarks précédents mesuraient heuristic_vs_heuristic, pas neural.
+Vérifié  : selection_calls=20, successful_inferences=16, status=clean (smoke post-commit).
+
+## NEW-02 : Draw Structurel
+
+Status: RESOLVED (2026-06-01, IMP-007/IMP-014)
+
+Symptôme : 100% draws heuristic vs heuristic (300 parties) ET neural vs heuristic (160 parties).
+Cause    : search déterministe depuis position symétrique standard.
+Fix      : ouverture aléatoire 2-8 plies dans simulation_runner.rs (IMP-007) + random_opening=true dans teacher_uci (IMP-014, commit d692ac6).
+Vérifié  : parties ont maintenant de vraies fins.
+
+## NEW-03 : Dataset Corrompu
+
+Status: OPEN — HIGH PRIORITY (IMP-008 FORBIDDEN lane)
+
+Symptôme : 553 échantillons, 3 parties, 0% neural dans trainer_mix, result="1/2-1/2" sur tout.
+Cause    : trainer_mix sans neural, lab_hard_turn_cap déclenché avant fin réelle de partie.
+Impact   : value head apprise sur signal draw uniquement. Champs aaa_* tous null.
+Fix      : pool pipeline IMP-037→040 (pgn_to_jsonl.py + sf_dataset_generator.py + dataset_builder_v3.py + train_player.py).
+Note     : IMP-008 direct est FORBIDDEN. Contournement via pool pipeline en cours (scripts créés 2026-06-02, non exécutés).
+
+## NEW-04 : Value Head Inutilisée
+
+Status: DEFERRED (bloqué par NEW-03 / IMP-008)
+
+Symptôme : model(tensor) retourne (policy_logits, value), value jeté systématiquement dans infer_policy.py.
+Fix prévu : combined_score = 0.75 * policy_logit + 0.25 * value_scalar (Charter B, IMP-011).
+
+## NEW-05 : Curriculum Absent
+
+Status: RESOLVED (2026-06-02, IMP-037/038/039/040)
+
+Symptôme : Rocky ne connaît pas les motifs tactiques de base.
+Fix      : pool pipeline exécuté 2026-06-02 — pool_2400.jsonl (43.3M lignes, 1,002,503 parties, draw_rate=8.8%) + 4 datasets construits (dataset_a/b/c/d).
+Résidu   : pool_sf draw_rate=94% dépasse critère <30% — SF depth 14 trop défensif. ACTIVE_DATASET.txt pointe encore sur teacher_samples (HumanGate requis).
+
+## NEW-06 : play_fen — absence d'historique coups pour répétition
+
+Status: RESOLVED (2026-06-02, IMP-041)
+
+Symptôme : Rocky rejoue des positions en partie longue (répétitions non détectées).
+Cause    : play_fen ne passait pas l'historique des coups → détection répétition inactive.
+Fix      : `src/tool/cli.rs` modifié pour passer l'historique à play_fen (IMP-041, CLOSED 2026-06-02).
+
+---
 
 ## Removed From Active Known Issues
 

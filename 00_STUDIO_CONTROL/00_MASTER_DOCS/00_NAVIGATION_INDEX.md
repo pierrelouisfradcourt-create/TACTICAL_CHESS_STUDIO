@@ -13,8 +13,8 @@ Ce fichier est le **point d'entrée unique** pour toute session de travail dans 
 
 Avant toute action :
 1. Lire ce fichier.
-2. Lire `07_CURRENT_STATE.md` (état réel du repo à ce jour).
-3. Lire `06_KNOWN_ISSUES.md` (risques actifs).
+2. Lire `07_CURRENT_STATE.md` (état réel du repo à ce jour — dernier sprint : 2026-06-02).
+3. Lire `06_KNOWN_ISSUES.md` (risques actifs — issues #1–#26 + NEW-01–NEW-05, dernier refresh : 2026-06-02).
 4. Ne jamais agir depuis la mémoire conversationnelle — toujours depuis les sources chargées.
 
 ---
@@ -83,17 +83,17 @@ C:/TACTICAL_CHESS_STUDIO/
 
 ---
 
-## État synthétique du repo (à jour au 2026-05-31)
+## État synthétique du repo (à jour au 2026-06-02)
 
 Source complète : `07_CURRENT_STATE.md`
 
-**Runtime :** opérationnel. Search alpha-beta + aspiration windows + TT + killer moves + LMR + quiescence. Score negamax unifié. Root clone résiduel (performance ceiling réduit, non éliminé).
+**Runtime :** 14 IMP closées (PST, opening book, quiescence, SEE complet, sécurité roi, futility pruning, etc.). Search timeout thread-local. Draw structurel RÉSOLU (IMP-007/014). EloTable K=24 câblée.
 
-**Neural :** bridge actif depuis c0ebf62. 16/20 inférences réussies (smoke). ELO : teacher_uci=1424 / heuristic=1200 / neural=975. Draw rate = 1.0 sur 160 parties (problème structurel symétrie, pas neural).
+**Neural :** bridge actif depuis c0ebf62. Premier checkpoint sauvé (71df945). ELO baseline pré-améliorations : teacher_uci=1424 / heuristic=1200 / neural=975. ELO post-Rocky : non mesuré.
 
-**Dataset :** 553 échantillons, draw-only (valeur head entraînée sur draws uniquement). À reconstruire avec neural dans trainer_mix + vraies fins de partie.
+**Dataset :** teacher_samples.jsonl corrompu (100% draws). Pool pipeline en cours : pgn_to_jsonl.py + sf_dataset_generator.py créés 2026-06-02, non exécutés.
 
-**Prochaine session :** curriculum Lichess puzzles (3M CC0) — importeur CSV → PuzzleCase.
+**Prochaine étape :** exécuter pool pipeline IMP-037→040, relancer benchmark.
 
 ---
 

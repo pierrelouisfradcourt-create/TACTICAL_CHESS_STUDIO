@@ -332,7 +332,13 @@ pub fn engine_from_fen(fen: &str) -> Result<Engine, String> {
         + if current_player == 2 { 1 } else { 0 };
 
     engine.en_passant_target = if en_passant != "-" {
-        Some(parse_square(en_passant)?)
+        let sq = parse_square(en_passant)?;
+        if sq.y != 2 && sq.y != 5 {
+            return Err(format!(
+                "invalid en passant square {en_passant}: must be on rank 3 or rank 6"
+            ));
+        }
+        Some(sq)
     } else {
         None
     };
@@ -549,5 +555,28 @@ mod tests {
                 "castling metadata should be rejected: {castling:?}"
             );
         }
+    }
+
+    #[test]
+    fn en_passant_on_invalid_rank_is_rejected() {
+        // rank 1 (a1) and rank 4 (e4) are not valid EP squares
+        for bad_ep in &["a1", "e4", "h8", "d2"] {
+            let fen = format!(
+                "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq {bad_ep} 0 1"
+            );
+            assert!(
+                engine_from_fen(&fen).is_err(),
+                "should reject EP square {bad_ep}"
+            );
+        }
+    }
+
+    #[test]
+    fn en_passant_on_valid_rank_is_accepted() {
+        // rank 3 (e3) = white just pushed e2→e4; rank 6 (e6) = black just pushed e7→e5
+        let fen3 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
+        let fen6 = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2";
+        assert!(engine_from_fen(fen3).is_ok(), "rank 3 EP should be accepted");
+        assert!(engine_from_fen(fen6).is_ok(), "rank 6 EP should be accepted");
     }
 }

@@ -1,5 +1,6 @@
-use std::collections::BTreeMap;
 use std::panic::{self, AssertUnwindSafe};
+
+use crate::tournament::elo::{EloConfig, EloTable};
 
 use crate::simulation::simulation_runner::{MatchTermination, SimulationRunner};
 use crate::tool::balance_tool::{analyze_matches, render_report};
@@ -177,10 +178,14 @@ impl NeuralTournamentRunner {
         let mut game_records = Vec::new();
         let mut all_match_summaries = Vec::new();
 
-        let mut elo: BTreeMap<String, f64> = BTreeMap::new();
-        for agent in ["neural", "heuristic", "hybrid", "teacher_uci"] {
-            elo.insert(agent.to_string(), 1200.0);
-        }
+        let agent_names: Vec<String> = ["neural", "heuristic", "hybrid", "teacher_uci"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let mut elo = EloTable::with_config(
+            &agent_names,
+            EloConfig { k_factor: 24.0, initial_rating: 1200.0 },
+        );
 
         let mut global_game_id: u32 = 1;
         let mut total_purity_violations: u64 = 0;
@@ -251,7 +256,7 @@ impl NeuralTournamentRunner {
                             None => 0.5,
                             _ => 0.5,
                         };
-                        Self::update_elo_pair(&mut elo, &agent_a, &agent_b, score_a);
+                        elo.update_match(&agent_a, &agent_b, score_a);
                     }
 
                     global_game_id += 1;
@@ -315,7 +320,7 @@ impl NeuralTournamentRunner {
                             None => 0.5,
                             _ => 0.5,
                         };
-                        Self::update_elo_pair(&mut elo, &agent_a, &agent_b, score_a);
+                        elo.update_match(&agent_a, &agent_b, score_a);
                     }
 
                     global_game_id += 1;
@@ -333,8 +338,7 @@ impl NeuralTournamentRunner {
             });
         }
 
-        let mut elo_rows: Vec<(String, f64)> = elo.into_iter().collect();
-        elo_rows.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        let elo_rows = elo.leaderboard();
 
         let benchmark_invalid = contaminated_match_count > 0;
         let contamination_reason = if contaminated_match_count > 0 {
@@ -417,9 +421,14 @@ impl NeuralTournamentRunner {
             draws: 0,
         }];
         let mut game_records = Vec::new();
-        let mut elo: BTreeMap<String, f64> = BTreeMap::new();
-        elo.insert("heuristic".to_string(), 1200.0);
-        elo.insert("neural".to_string(), 1200.0);
+        let smoke_agent_names: Vec<String> = ["heuristic", "neural"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let mut elo = EloTable::with_config(
+            &smoke_agent_names,
+            EloConfig { k_factor: 24.0, initial_rating: 1200.0 },
+        );
 
         let mut global_game_id: u32 = 1;
         let mut total_purity_violations: u64 = 0;
@@ -473,7 +482,7 @@ impl NeuralTournamentRunner {
                 Some(2) if *black == "neural" => 0.0,
                 _ => 0.5,
             };
-            Self::update_elo_pair(&mut elo, "heuristic", "neural", score_a);
+            elo.update_match("heuristic", "neural", score_a);
 
             game_records.push(GameRecord {
                 game_id: global_game_id,
@@ -509,10 +518,7 @@ impl NeuralTournamentRunner {
                 purity_violation_total: total_purity_violations,
                 contamination_reason,
             };
-            let elo_rows: Vec<(String, f64)> = elo
-                .iter()
-                .map(|(agent, rating)| (agent.clone(), *rating))
-                .collect();
+            let elo_rows = elo.leaderboard();
 
             let _ = export_games_csv(&game_records, &benchmark_status);
             let _ = export_games_detailed_csv(&game_records);
@@ -538,8 +544,7 @@ impl NeuralTournamentRunner {
         std::env::remove_var("TCS_PROGRESS_EVERY_TURNS");
         std::env::remove_var("TCS_PROGRESS_GAME");
 
-        let mut elo_rows: Vec<(String, f64)> = elo.into_iter().collect();
-        elo_rows.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        let elo_rows = elo.leaderboard();
 
         let benchmark_invalid = contaminated_match_count > 0;
         let contamination_reason = if contaminated_match_count > 0 {
@@ -611,25 +616,6 @@ impl NeuralTournamentRunner {
         println!();
         println!("=== MATCH METRICS ===");
         println!("{}", render_report(&report));
-    }
-
-    fn update_elo_pair(
-        elo: &mut BTreeMap<String, f64>,
-        agent_a: &str,
-        agent_b: &str,
-        score_a: f64,
-    ) {
-        let rating_a = *elo.get(agent_a).unwrap_or(&1200.0);
-        let rating_b = *elo.get(agent_b).unwrap_or(&1200.0);
-
-        let expected_a = 1.0 / (1.0 + 10f64.powf((rating_b - rating_a) / 400.0));
-        let k = 16.0;
-
-        let new_a = rating_a + k * (score_a - expected_a);
-        let new_b = rating_b + k * ((1.0 - score_a) - (1.0 - expected_a));
-
-        elo.insert(agent_a.to_string(), new_a);
-        elo.insert(agent_b.to_string(), new_b);
     }
 
     fn print_game_shape_diagnostics(game_records: &[GameRecord]) {

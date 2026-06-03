@@ -1715,6 +1715,14 @@ impl Engine {
         moves
     }
 
+    pub(crate) fn pseudo_mobility(&self, player: PlayerId) -> usize {
+        self.units
+            .values()
+            .filter(|u| u.owner == player)
+            .map(|u| self.pseudo_moves_for_unit(u.id).len())
+            .sum()
+    }
+
     // -----------------------------
     // UTILS
     // -----------------------------
@@ -2165,5 +2173,37 @@ mod tests {
             engine_from_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").expect("valid FEN");
         play_move(&mut engine, 1, "e1", "e2");
         assert_eq!(engine.to_fen(), "r3k2r/8/8/8/8/8/4K3/R6R b kq - 1 1");
+    }
+
+    #[test]
+    fn execute_populates_repetition_counts_for_oscillating_moves() {
+        // Minimal position: two kings and two knights.
+        // Four half-moves return both knights home, so the starting position is visited twice.
+        let fen = "4k2n/8/8/8/8/8/8/4K2N w - - 0 1";
+        let mut engine = engine_from_fen(fen).expect("valid FEN for repetition history test");
+        let initial_hash = engine.current_repetition_key;
+
+        assert_eq!(
+            engine.repetition_counts.get(&initial_hash).copied().unwrap_or(0),
+            1,
+            "engine_from_fen must seed the initial position with count=1"
+        );
+
+        for uci in &["h1g3", "h8g6", "g3h1", "g6h8"] {
+            let player = engine.turn_manager.current_player;
+            let action = action_for_uci(&engine, player, uci);
+            engine.execute(Command { player_id: player, action });
+        }
+
+        assert_eq!(
+            engine.current_repetition_key,
+            initial_hash,
+            "engine must return to the initial position after 4-ply knight oscillation"
+        );
+        assert_eq!(
+            engine.repetition_counts.get(&initial_hash).copied().unwrap_or(0),
+            2,
+            "initial position must be counted twice after the knights oscillate back home"
+        );
     }
 }
