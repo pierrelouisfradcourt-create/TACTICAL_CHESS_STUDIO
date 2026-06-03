@@ -566,7 +566,7 @@ Recommendation:
 
 ## 25. fen.rs — En Passant Target Not Validated
 
-Status: ACTIVE
+Status: RESOLVED (2026-06-03, commit 5eb2459)
 
 Current evidence:
 - `src/chess/fen.rs` `engine_from_fen` parses the en passant field and calls `parse_square` if it is not `"-"`.
