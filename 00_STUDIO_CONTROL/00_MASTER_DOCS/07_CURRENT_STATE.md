@@ -1,6 +1,36 @@
 # Current State
 
-Date baseline: 2026-05-07 — last sprint update: 2026-06-02
+Date baseline: 2026-05-07 — last sprint update: 2026-06-03
+
+---
+
+## Sprint 2026-06-03
+
+### IMP-010/025/027 — Search diagnostics + eval enrichie (commits 737ffa0, 5b8ba0c)
+
+- **SearchTraceSchema** : `pv_changes`, `DepthSnapshot`, `nodes_per_root_move` ajoutés dans `src/chess/search_diagnostics.rs` + accumulators + builders + `search.rs` (IMP-010 CLOSED)
+- **Finales élémentaires KR vs K** : détection rook/king vs king dans `src/chess/eval.rs` — bonus conversion fin de partie (IMP-025 CLOSED)
+- **Outposts et cases faibles** : détection outpost knight/bishop dans `src/chess/eval.rs` (IMP-027 CLOSED)
+- `src/chess/move_features.rs` : nouvelles features pour diagnostics search
+- `src/engine/engine.rs` : exposition features IMP-010
+- `src/tool/puzzle_eval.rs` : créé pour benchmark puzzles
+- `src/simulation/neural_tournament_runner.rs`, `src/tournament/elo.rs` : mises à jour
+
+### Autopilot — retrait Claude API (commit 078589d)
+
+- `autopilot.py` (3164 lignes) : refactorisé complet — retrait de toute dépendance Claude API. Autopilote 100% Devstral local.
+
+### fix(fen) + routing + infra (commit 5eb2459)
+
+- **KI-25 CLOSED** : `src/chess/fen.rs` — `engine_from_fen` valide désormais que la case en passant est sur rank 3 (cible noire) ou rank 6 (cible blanche) ; 2 tests ajoutés
+- **KI-15 CLOSED** : `terminal_score` — la description était stale, code déjà correct (`ply` utilisé, pas `action_log.len()`)
+- **FILE_ROUTING_MANIFEST.yaml** : 5 orphelins routés (`BRAIN_REPORT_*.md`, `STUDIO_CONTEXT_LIVE.md`, `bench_rocky_p4_holdout_v2.json`, `bench_rocky_p4_train_v2.json`, `ml/lora_config.yaml`)
+- **Holdout datasets** : `lab/puzzles/holdout_level1/2/3.jsonl` — 1 000 positions chacun (L1/L2/L3)
+- **Benchmarks puzzles** : `lab/reports/bench_rocky_p4_holdout.json`, `bench_rocky_p4_holdout_v2.json`, `bench_rocky_p4_puzzles.json`, `bench_rocky_p4_train_v2.json`
+- **Scripts ML** : `ml/bench_puzzles.py`, `ml/build_holdout.py`, `ml/rebuild_levels_large.py`, `lab/sunfish.py`, `lab/sunfish_vs_rocky.py`
+- **Charters** : `lab/chains/charters/` — IMP-007, IMP-012, IMP-013, IMP-014, IMP-015, IMP-016, IMP-021, IMP-031, IMP-032, IMP-036
+- **HUMANGATE_DECISION_LOG.yaml** : créé dans `lab/chains/`
+- **Infra** : `BRAIN_REPORT_20260603.md`, `STUDIO_FULL_MAP.md`, `SYSTEM_MAP.md` créés
 
 ---
 
@@ -136,14 +166,16 @@ Claim posture: `NO_CLAIM_ALLOWED`. `no_global_ready_verdict: true`.
 
 ---
 
-## Engine status (2026-06-02)
+## Engine status (2026-06-03)
 
 - `src/chess/search.rs` : iterative deepening, thread-local SEARCH_DEADLINE, aspiration windows, TT, killer moves, history heuristic, quiescence sans cap + delta pruning, futility pruning depth 1-2, répétition early detection, light LMR, Zobrist-hash TT.
 - Root selection : pure argmax alpha-beta. S-7 pipeline supprimé (90fe323).
 - Tactical layer : SEE complet récursif (IMP-020), hanging detection, mate urgency, trade sanity, reply scan.
-- Eval : PST par type de pièce (IMP-015), sécurité roi (IMP-018), pseudo-mobilité (IMP-019), développement (IMP-021), pion arrière (IMP-022), draw_score calibration (IMP-029).
+- Eval : PST par type de pièce (IMP-015), sécurité roi (IMP-018), pseudo-mobilité (IMP-019), développement (IMP-021), pion arrière (IMP-022), draw_score calibration (IMP-029), finales KR vs K (IMP-025), outposts knight/bishop (IMP-027).
+- Search diagnostics : SearchTraceSchema complet — pv_changes, DepthSnapshot, nodes_per_root_move (IMP-010).
 - Opening book : `src/chess/opening_book.rs`, 50-200 coups (IMP-016).
 - FEN round-trip faithful. Repetition key = Zobrist u64 (standard-compliant, exclut halfmove_clock).
+- FEN en passant validé : rank 3/6 uniquement (KI-25 CLOSED, commit 5eb2459).
 - Performance : `current_repetition_key` = Zobrist u64, `Unit::template_name` = Arc<str>.
 
 ---
@@ -180,12 +212,12 @@ Claim posture: `NO_CLAIM_ALLOWED`. `no_global_ready_verdict: true`.
 
 1. Rediriger `ACTIVE_DATASET.txt` vers un pool propre (HumanGate requis — IMP-008 FORBIDDEN lane).
 2. Investiguer pool_sf draw_rate=94% — critère <30% non atteint, SF depth 14 trop défensif.
-3. Relancer benchmark smoke pour mesurer ELO Rocky post-14 IMP.
+3. Relancer benchmark puzzle + smoke pour mesurer ELO Rocky post-17 IMP (IMP-010/025/027 ajoutés).
 4. Décider checkpoint à promouvoir depuis `lab/runs/` (HumanGate requis).
 
 ## Evidence Gaps
 
-- Rocky strength gains post-14 IMP not yet measured (benchmark à relancer).
+- Rocky strength gains post-17 IMP not yet measured (benchmark à relancer).
 - pool_sf draw_rate=94% dépasse le critère d'acceptance <30%.
 - ACTIVE_DATASET.txt pointe toujours sur teacher_samples corrompu — transition vers pool propre bloquée HumanGate.
 - Adaptive loop improvement not yet demonstrated cross-runs.

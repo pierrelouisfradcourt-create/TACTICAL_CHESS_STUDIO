@@ -13,8 +13,8 @@ Ce fichier est le **point d'entrée unique** pour toute session de travail dans 
 
 Avant toute action :
 1. Lire ce fichier.
-2. Lire `07_CURRENT_STATE.md` (état réel du repo à ce jour — dernier sprint : 2026-06-02).
-3. Lire `06_KNOWN_ISSUES.md` (risques actifs — issues #1–#26 + NEW-01–NEW-05, dernier refresh : 2026-06-02).
+2. Lire `07_CURRENT_STATE.md` (état réel du repo à ce jour — dernier sprint : 2026-06-03).
+3. Lire `06_KNOWN_ISSUES.md` (risques actifs — issues #1–#26 + NEW-01–NEW-05, dernier refresh : 2026-06-03).
 4. Ne jamais agir depuis la mémoire conversationnelle — toujours depuis les sources chargées.
 
 ---
@@ -83,17 +83,19 @@ C:/TACTICAL_CHESS_STUDIO/
 
 ---
 
-## État synthétique du repo (à jour au 2026-06-02)
+## État synthétique du repo (à jour au 2026-06-03)
 
 Source complète : `07_CURRENT_STATE.md`
 
-**Runtime :** 14 IMP closées (PST, opening book, quiescence, SEE complet, sécurité roi, futility pruning, etc.). Search timeout thread-local. Draw structurel RÉSOLU (IMP-007/014). EloTable K=24 câblée.
+**Runtime :** 17 IMP closées. Dernières (2026-06-03) : SearchTraceSchema (IMP-010), finales KR vs K (IMP-025), outposts (IMP-027), FEN EP validation (KI-25). Search timeout thread-local. Draw structurel RÉSOLU (IMP-007/014). EloTable K=24 câblée.
 
 **Neural :** bridge actif depuis c0ebf62. Premier checkpoint sauvé (71df945). ELO baseline pré-améliorations : teacher_uci=1424 / heuristic=1200 / neural=975. ELO post-Rocky : non mesuré.
 
-**Dataset :** teacher_samples.jsonl corrompu (100% draws). Pool pipeline en cours : pgn_to_jsonl.py + sf_dataset_generator.py créés 2026-06-02, non exécutés.
+**Dataset :** pool pipeline EXÉCUTÉ (2026-06-02) — pool_2400.jsonl (43.3M lignes, draw_rate=8.8% ✓) + 4 datasets construits. Holdout L1/L2/L3 (3 000 positions). teacher_samples.jsonl corrompu — ACTIVE_DATASET.txt : HumanGate requis.
 
-**Prochaine étape :** exécuter pool pipeline IMP-037→040, relancer benchmark.
+**Autopilot :** 100% Devstral local depuis 078589d (retrait Claude API complet).
+
+**Prochaine étape :** rediriger ACTIVE_DATASET.txt (HumanGate), relancer benchmark post-17 IMP.
 
 ---
 
