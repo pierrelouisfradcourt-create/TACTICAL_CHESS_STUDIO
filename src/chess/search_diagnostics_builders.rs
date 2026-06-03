@@ -394,6 +394,7 @@ fn build_search_counters(
         check_extensions: instrumentation.counters.check_extensions,
         pv_researches: instrumentation.counters.pv_researches,
         aspiration_retries: instrumentation.counters.aspiration_retries,
+        pv_changes: instrumentation.counters.pv_changes,
     }
 }
 

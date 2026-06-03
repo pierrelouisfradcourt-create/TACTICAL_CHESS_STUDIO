@@ -38,6 +38,10 @@ pub(crate) fn evaluate(engine: &Engine, player: PlayerId) -> i32 {
             v += minor_piece_development_bonus(engine, u.owner, u.position);
         }
 
+        if u.kind == ChessPieceKind::Knight {
+            v += knight_outpost_bonus(engine, u.owner, u.position); // IMP-027
+        }
+
         if u.kind == ChessPieceKind::King {
             if total_non_pawn_material(engine) <= 1300 {
                 v += center_bonus(u.position) * 2;
@@ -96,6 +100,8 @@ pub(crate) fn evaluate(engine: &Engine, player: PlayerId) -> i32 {
 
     score += endgame_conversion_pressure(engine, player);
     score -= endgame_conversion_pressure(engine, enemy);
+    score += kr_vs_k_bonus(engine, player); // IMP-025
+    score -= kr_vs_k_bonus(engine, enemy);  // IMP-025
 
     score -= opening_tempo_waste_penalty(engine, player);
     score += opening_tempo_waste_penalty(engine, enemy);
@@ -516,6 +522,139 @@ pub(crate) fn endgame_conversion_pressure(engine: &Engine, player: PlayerId) -> 
     }
 
     score
+}
+
+// IMP-025 — Finales élémentaires KR vs K
+
+fn is_kr_vs_k(engine: &Engine, player: PlayerId) -> bool {
+    let mut my_rooks = 0u32;
+    let mut my_other = 0u32;
+    let mut enemy_non_king = 0u32;
+    for u in engine.units.values() {
+        if u.kind == ChessPieceKind::King {
+            continue;
+        }
+        if u.owner == player {
+            if u.kind == ChessPieceKind::Rook {
+                my_rooks += 1;
+            } else {
+                my_other += 1;
+            }
+        } else {
+            enemy_non_king += 1;
+        }
+    }
+    my_rooks == 1 && my_other == 0 && enemy_non_king == 0
+}
+
+fn kr_vs_k_bonus(engine: &Engine, player: PlayerId) -> i32 {
+    if !is_kr_vs_k(engine, player) {
+        return 0;
+    }
+    let enemy = opponent(player);
+    let Some(enemy_king) = king_position(engine, enemy) else {
+        return 0;
+    };
+    let Some(my_king) = king_position(engine, player) else {
+        return 0;
+    };
+    let Some(rook) = engine
+        .units
+        .values()
+        .find(|u| u.owner == player && u.kind == ChessPieceKind::Rook)
+    else {
+        return 0;
+    };
+    let rp = rook.position;
+
+    // Push enemy king to edge and corner
+    let mut score = 200 + king_edge_pressure(enemy_king) * 40;
+
+    // Own king approaches enemy king (Lucena/Philidor pattern)
+    let kd = (my_king.x as i32 - enemy_king.x as i32).abs()
+        + (my_king.y as i32 - enemy_king.y as i32).abs();
+    score += (14 - kd) * 12;
+
+    // Rook cuts off enemy king (same rank or file = dominant position)
+    if rp.x == enemy_king.x || rp.y == enemy_king.y {
+        score += 50;
+    }
+    // Rook Chebyshev distance to enemy king (closer = more pressure)
+    let rd = (rp.x as i32 - enemy_king.x as i32)
+        .abs()
+        .max((rp.y as i32 - enemy_king.y as i32).abs());
+    score += (7 - rd.min(7)) * 6;
+
+    score
+}
+
+// IMP-027 — Outposts et cases faibles
+
+fn is_knight_outpost(engine: &Engine, owner: PlayerId, pos: Position) -> bool {
+    let enemy = opponent(owner);
+    // Must be in opponent's half of the board
+    let in_enemy_half = if owner == 1 { pos.y >= 4 } else { pos.y <= 3 };
+    if !in_enemy_half {
+        return false;
+    }
+    // No enemy pawn can attack this square.
+    // Black pawns (owner==1 → enemy==2) attack diagonally toward decreasing y;
+    // a black pawn at (x±1, pos.y+1) attacks pos.
+    // White pawns (owner==2 → enemy==1) attack toward increasing y;
+    // a white pawn at (x±1, pos.y-1) attacks pos.
+    let attacker_y: Option<u32> = if owner == 1 {
+        if pos.y < 7 { Some(pos.y + 1) } else { None }
+    } else {
+        if pos.y > 0 { Some(pos.y - 1) } else { None }
+    };
+    let Some(ay) = attacker_y else {
+        return true;
+    };
+    for dx in [-1_i32, 1] {
+        let ax = pos.x as i32 + dx;
+        if !(0..=7).contains(&ax) {
+            continue;
+        }
+        let ap = Position { x: ax as u32, y: ay };
+        if let Some(id) = engine.board.occupant(ap) {
+            if let Some(u) = engine.units.get(&id) {
+                if u.owner == enemy && u.kind == ChessPieceKind::Pawn {
+                    return false;
+                }
+            }
+        }
+    }
+    true
+}
+
+fn knight_outpost_bonus(engine: &Engine, owner: PlayerId, pos: Position) -> i32 {
+    if !is_knight_outpost(engine, owner, pos) {
+        return 0;
+    }
+    // Bonus is higher when supported by own pawn
+    let support_y: Option<u32> = if owner == 1 {
+        if pos.y > 0 { Some(pos.y - 1) } else { None }
+    } else {
+        if pos.y < 7 { Some(pos.y + 1) } else { None }
+    };
+    let supported = support_y
+        .map(|sy| {
+            [-1_i32, 1].iter().any(|&dx| {
+                let sx = pos.x as i32 + dx;
+                if !(0..=7).contains(&sx) {
+                    return false;
+                }
+                let sp = Position { x: sx as u32, y: sy };
+                engine
+                    .board
+                    .occupant(sp)
+                    .and_then(|id| engine.units.get(&id))
+                    .map(|u| u.owner == owner && u.kind == ChessPieceKind::Pawn)
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false);
+    if supported { 30 } else { 15 }
 }
 
 #[cfg(test)]

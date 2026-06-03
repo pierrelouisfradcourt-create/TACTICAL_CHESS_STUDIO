@@ -19,6 +19,15 @@ pub struct SearchCounters {
     pub check_extensions: u64,
     pub pv_researches: u64,
     pub aspiration_retries: u64,
+    pub pv_changes: u64,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug)]
+pub struct DepthSnapshot {
+    pub depth: i32,
+    pub score: i32,
+    pub nodes: u64,
 }
 
 #[allow(dead_code)]
@@ -85,6 +94,8 @@ pub struct BranchingDiagnostics {
     pub avg_branching: f64,
     pub max_depth: usize,
     pub traces: Vec<SearchPlyTrace>,
+    pub depth_snapshots: Vec<DepthSnapshot>,
+    pub nodes_per_root_move: Vec<u64>,
 }
 
 #[allow(dead_code)]

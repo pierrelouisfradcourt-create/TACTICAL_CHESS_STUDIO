@@ -1,5 +1,5 @@
 use crate::chess::search_diagnostics::{
-    BranchingDiagnostics, RuntimeCostDiagnostics, SearchPlyTrace,
+    BranchingDiagnostics, DepthSnapshot, RuntimeCostDiagnostics, SearchPlyTrace,
 };
 use crate::chess::search_mirror_ordering::MirrorOrderingDiagnostics;
 use crate::engine::engine::{SearchMoveProfile, SearchNullMoveProfile, SearchUndoProfile};
@@ -28,6 +28,14 @@ pub(crate) struct SearchCountersAcc {
     pub(crate) check_extensions: u64,
     pub(crate) pv_researches: u64,
     pub(crate) aspiration_retries: u64,
+    pub(crate) pv_changes: u64,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct DepthSnapshotAcc {
+    pub(crate) depth: i32,
+    pub(crate) score: i32,
+    pub(crate) nodes: u64,
 }
 
 #[derive(Default)]
@@ -37,6 +45,8 @@ pub(crate) struct BranchingAcc {
     pub(crate) branching_samples: u64,
     pub(crate) max_depth: usize,
     pub(crate) per_ply: Vec<PlyTraceAcc>,
+    pub(crate) depth_snapshots: Vec<DepthSnapshotAcc>,
+    pub(crate) nodes_per_root_move: Vec<u64>,
 }
 
 #[derive(Clone, Default)]
@@ -107,6 +117,17 @@ impl BranchingAcc {
         &mut self.per_ply[ply]
     }
 
+    pub(crate) fn push_depth_snapshot(&mut self, depth: i32, score: i32, nodes: u64) {
+        self.depth_snapshots.push(DepthSnapshotAcc { depth, score, nodes });
+    }
+
+    pub(crate) fn set_root_node_delta(&mut self, idx: usize, delta: u64) {
+        if self.nodes_per_root_move.len() <= idx {
+            self.nodes_per_root_move.resize(idx + 1, 0);
+        }
+        self.nodes_per_root_move[idx] = delta;
+    }
+
     pub(crate) fn into_diagnostics(self) -> BranchingDiagnostics {
         let avg_branching = if self.branching_samples == 0 {
             0.0
@@ -128,12 +149,19 @@ impl BranchingAcc {
                 quiescence_nodes: trace.quiescence_nodes,
             })
             .collect();
+        let depth_snapshots = self
+            .depth_snapshots
+            .into_iter()
+            .map(|s| DepthSnapshot { depth: s.depth, score: s.score, nodes: s.nodes })
+            .collect();
 
         BranchingDiagnostics {
             max_branching: self.max_branching,
             avg_branching,
             max_depth: self.max_depth,
             traces,
+            depth_snapshots,
+            nodes_per_root_move: self.nodes_per_root_move,
         }
     }
 }

@@ -184,6 +184,7 @@ fn search_root_in_place(
     let mut last_root_scores = vec![-INF; legal.len()];
     let mut last_cutoff_index = None;
     let mut best_initial_rank = 0usize;
+    let mut prev_pv = best_move.clone(); // IMP-010: pv_changes tracker
     for depth in 1..=max_depth {
         if depth > 1 && search_start.elapsed() >= time_limit {
             break;
@@ -209,6 +210,7 @@ fn search_root_in_place(
 
             for (idx, mv) in ordered.iter().enumerate() {
                 let score_window_alpha = alpha;
+                let n0 = instrumentation.counters.nodes; // IMP-010: nodes_per_root_move
                 let Some(undo) = engine.simulate_action_for_search(player, mv) else {
                     continue;
                 };
@@ -256,6 +258,7 @@ fn search_root_in_place(
                 };
                 let undo_profile = engine.undo_action_for_search(undo);
                 instrumentation.record_move_undo(undo_profile);
+                instrumentation.branching.set_root_node_delta(idx, instrumentation.counters.nodes.saturating_sub(n0)); // IMP-010
                 root_scores[idx] = score;
                 if is_mate_now {
                     mate_in_one[idx] = true;
@@ -391,6 +394,12 @@ fn search_root_in_place(
 
             break;
         }
+        // IMP-010 telemetry: DepthSnapshot + pv_changes (telemetry only, no behaviour change)
+        if !same_move(&prev_pv, &best_move) {
+            instrumentation.counters.pv_changes += 1;
+            prev_pv = best_move.clone();
+        }
+        instrumentation.branching.push_depth_snapshot(depth, chosen_search_score, instrumentation.counters.nodes);
     }
 
     let diagnostics = with_root_decision_hooks(engine, player, |hooks| {
@@ -2339,6 +2348,50 @@ mod tests {
         assert_eq!(engine.to_fen(), fen_before);
         assert_eq!(engine.repetition_counts, repetition_before);
         assert_eq!(engine.action_log.len(), action_log_len_before);
+    }
+
+    #[test]
+    fn search_avoids_oscillation_into_twice_seen_position_when_winning() {
+        let _time_guard = EnvVarGuard::set("TCS_MOVE_TIME_MS", "200");
+        let _root_policy_guard = EnvVarGuard::remove("TCS_ROOT_POLICY");
+
+        // White has a queen advantage (draw is bad for White).
+        // Position: Ke1 Qd1 Nh1 vs Ke8 Nh8.
+        let fen = "4k2n/8/8/8/8/8/8/3QK2N w - - 0 1";
+        let mut engine = engine_from_fen(fen).expect("valid FEN");
+
+        // Replay 4-ply knight oscillation to populate repetition history.
+        // After move 4 both knights are home — the initial position is reached twice.
+        for uci in &["h1g3", "h8g6", "g3h1", "g6h8"] {
+            let player = engine.turn_manager.current_player;
+            let action = engine
+                .legal_actions(player)
+                .into_iter()
+                .find(|a| action_key(a, &engine.units) == *uci)
+                .unwrap_or_else(|| panic!("legal move {} not found", uci));
+            engine.execute(crate::engine::action::command::Command {
+                player_id: player,
+                action,
+            });
+        }
+
+        let rep_count = engine
+            .repetition_counts
+            .get(&engine.current_repetition_key)
+            .copied()
+            .unwrap_or(0);
+        assert_eq!(rep_count, 2, "initial position must be seen twice in repetition history");
+
+        let white = engine.turn_manager.current_player;
+        let result = search_root(&engine, white).expect("search must return a move");
+        let mv = action_to_uci(&result.best_action, &engine.units).expect("uci");
+
+        assert_ne!(
+            mv, "h1g3",
+            "search must not oscillate into a twice-seen position when winning \
+             (score was {}, but h1g3 leads to draw score ≈ -120 for White)",
+            result.best_score
+        );
     }
 
     #[test]
