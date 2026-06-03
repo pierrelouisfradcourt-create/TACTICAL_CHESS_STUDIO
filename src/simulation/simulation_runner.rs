@@ -1845,6 +1845,7 @@ fn resolve_stockfish_path() -> String {
 mod cost_search_observability_tests {
     use super::*;
     use crate::chess::decision::{DecisionMode, SelectionAuthority};
+    use crate::chess::fen::engine_from_fen;
 
     fn safe_cost_search_dir(run_id: &str) -> std::path::PathBuf {
         std::env::temp_dir()
@@ -1861,8 +1862,10 @@ mod cost_search_observability_tests {
     }
 
     fn search_trace_fixture() -> (Engine, PlayerId, DecisionTrace, String) {
-        let ruleset = minimal_runtime_ruleset();
-        let engine = load_engine_from_ruleset(&ruleset);
+        // Use a non-book position so that choose_best_action runs the search engine
+        // and produces a root_search result (opening book returns root_search: None).
+        let engine = engine_from_fen("6k1/8/8/8/3q4/8/8/3RK3 w - - 0 1")
+            .expect("valid FEN for cost search simulation fixture");
         let player = engine.turn_manager.current_player;
         let trace =
             choose_best_action_with_trace_and_context(&engine, player, "minimax", None).unwrap();

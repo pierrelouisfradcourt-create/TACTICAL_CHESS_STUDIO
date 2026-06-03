@@ -2695,6 +2695,8 @@ mod tests {
     // ── Temporary validation tests for stalemate/checkmate fix ──────────────
     #[test]
     fn stalemate_root_returns_none_and_no_mate_score() {
+        let _env_lock = env_var_test_lock();
+        let _root_policy_guard = EnvVarGuard::remove("TCS_ROOT_POLICY");
         // Black to move — classic stalemate, no legal moves at root
         let engine = engine_from_fen("5k2/5P2/5K2/8/8/8/8/8 b - - 0 1").expect("valid FEN");
         let player = engine.turn_manager.current_player;
@@ -2705,7 +2707,7 @@ mod tests {
         // White to move from pre-stalemate — ALL lines lead to draw (K+P vs K, pawn blocked).
         // With old bug evaluate() ≈ material advantage (positive).
         // With fix draw_score() ≈ −220 (White ahead materially so draw penalised).
-        std::env::set_var("TCS_MOVE_TIME_MS", "200");
+        let _time_guard = EnvVarGuard::set("TCS_MOVE_TIME_MS", "200");
         let engine_pre = engine_from_fen("5k2/5P2/4K3/8/8/8/8/8 w - - 0 1").expect("valid FEN");
         let white = engine_pre.turn_manager.current_player;
         let pre_result = search_root(&engine_pre, white).expect("has legal moves");
@@ -2722,10 +2724,12 @@ mod tests {
 
     #[test]
     fn mate_in_one_score_and_move() {
+        let _env_lock = env_var_test_lock();
+        let _root_policy_guard = EnvVarGuard::remove("TCS_ROOT_POLICY");
+        let _time_guard = EnvVarGuard::set("TCS_MOVE_TIME_MS", "200");
         // White to move — two valid mates: Qg7# (g6g7) and Qe8# (g6e8).
         // In this engine the root best_score has negamax sign (negative for root's win),
         // so we verify via mate_in_one_selected flag and abs(score) >= 800_000.
-        std::env::set_var("TCS_MOVE_TIME_MS", "200");
         let engine = engine_from_fen("7k/8/6QK/8/8/8/8/8 w - - 0 1").expect("valid FEN");
         let player = engine.turn_manager.current_player;
         let result = search_root(&engine, player).expect("search must find a move");
@@ -2748,13 +2752,15 @@ mod tests {
     }
     #[test]
     fn s7_removed_mate_in_3_score() {
+        let _env_lock = env_var_test_lock();
+        let _root_policy_guard = EnvVarGuard::remove("TCS_ROOT_POLICY");
+        let _time_guard = EnvVarGuard::set("TCS_MOVE_TIME_MS", "2000");
         // White to move — multiple forced mates at equivalent depth (score = 899 950):
         //   1.f6f7! Rg7 2.Bxg7+ Kg8 3.Rf8#   (canonical 3-move sequence)
         //   1.e5a1  Ra7 2.f6f7  Rg7 3.Bxg7#  (also mate in 3 for White, same ply depth)
         // Both lines reach checkmate at quiescence ply=5, so the engine correctly scores
         // both moves at +899 950. The chosen move varies by TT move-ordering hint.
         // Primary assertion: the engine sees a mate score >= 800 000.
-        std::env::set_var("TCS_MOVE_TIME_MS", "2000");
         let engine =
             engine_from_fen("r5rk/5p1p/5R2/4B3/8/8/7P/7K w - - 0 1").expect("valid FEN");
         let player = engine.turn_manager.current_player;
@@ -2773,9 +2779,11 @@ mod tests {
 
     #[test]
     fn s7_removed_italian_not_a1b1() {
+        let _env_lock = env_var_test_lock();
+        let _root_policy_guard = EnvVarGuard::remove("TCS_ROOT_POLICY");
+        let _time_guard = EnvVarGuard::set("TCS_MOVE_TIME_MS", "500");
         // Italian opening position: best move is tactical (Ng5 or Nxe5),
         // not the pointless Ra1b1 rook shuffle.
-        std::env::set_var("TCS_MOVE_TIME_MS", "500");
         let engine = engine_from_fen(
             "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
         )

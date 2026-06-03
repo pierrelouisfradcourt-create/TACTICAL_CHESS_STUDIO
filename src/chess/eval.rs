@@ -799,10 +799,15 @@ mod tests {
         assert!(is_backward_pawn(&engine, 1, pos_e4), "e4 should be backward");
         assert!(!is_backward_pawn(&engine, 1, pos_d5), "d5 should not be backward");
         assert!(!is_backward_pawn(&engine, 1, pos_f5), "f5 should not be backward");
-        // Structural score for e4 must be lower than for a pawn with no weakness
+        // Score comparison uses equal-material positions (1 pawn each) so only structural
+        // differences affect the result, not raw material balance.
+        // Backward: White K+e4 vs Black K+d6 — d6 attacks e5, making e4 backward.
+        let engine_bw =
+            engine_from_fen("4k3/8/3p4/8/4P3/8/8/4K3 w - - 0 1").expect("valid FEN");
+        // Clean: White K+e4 vs Black K+a6 — a6 doesn't threaten e5, so e4 is a clean passed pawn.
         let engine_clean =
-            engine_from_fen("4k3/8/8/8/4P3/8/8/4K3 w - - 0 1").expect("valid FEN");
-        let score_backward = static_evaluate(&engine, 1);
+            engine_from_fen("4k3/8/p7/8/4P3/8/8/4K3 w - - 0 1").expect("valid FEN");
+        let score_backward = static_evaluate(&engine_bw, 1);
         let score_clean = static_evaluate(&engine_clean, 1);
         assert!(
             score_backward < score_clean,

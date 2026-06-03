@@ -238,13 +238,52 @@ fn build_root_diagnostics_summary_only(
         .unwrap_or(0);
     let best_score = scores.get(chosen_index).copied().unwrap_or(0);
 
+    // Populate alternatives from search scores without the full heuristic/policy breakdown.
+    let mut ranked: Vec<RootAlternative> = ordered
+        .iter()
+        .enumerate()
+        .filter_map(|(idx, mv)| {
+            let search_score = *scores.get(idx)?;
+            if search_score <= -INF / 2 {
+                return None;
+            }
+            Some(RootAlternative {
+                action: mv.clone(),
+                search_score,
+                heuristic_score: 0,
+                policy_score: 0,
+                decision_score: search_score,
+                transition_analysis: TransitionAnalysis {
+                    action: mv.clone(),
+                    moving_piece: None,
+                    from: None,
+                    to: None,
+                    captured_piece: None,
+                    promotion: None,
+                    resulting_state_value: 0,
+                    search_state_value: search_score,
+                    primary_dynamic: None,
+                    secondary_dynamics: vec![],
+                    progress_score: 0,
+                    tactical_score: 0,
+                    capture_exchange_score: None,
+                    repetition_signal: 0,
+                    capture_safety_signal: 0,
+                    promotion_race_signal: 0,
+                    trade_simplification_bonus: 0,
+                },
+            })
+        })
+        .collect();
+    ranked.sort_by(|a, b| b.search_score.cmp(&a.search_score));
+
     let decision = DecisionMetrics {
         chosen_search_score: best_score,
         chosen_heuristic_score: 0,
         chosen_policy_score: 0,
         chosen_decision_score: 0,
         chosen_transition_analysis: TransitionAnalysis {
-            action: *best_move,
+            action: best_move.clone(),
             moving_piece: None,
             from: None,
             to: None,
@@ -289,7 +328,7 @@ fn build_root_diagnostics_summary_only(
         branching,
         ordering,
         decision,
-        principal_alternatives: vec![],
+        principal_alternatives: ranked.into_iter().take(3).collect(),
         mate_in_one_selected: false,
     }
 }
