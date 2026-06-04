@@ -78,6 +78,11 @@ routing:
       lane: AUDIT_REQUIRED
       description: "Importeur CSV Lichess -> JSONL"
 
+    - pattern: "ml/lora_train_devstral.py"
+      status: PASSIVE
+      lane: AUDIT_REQUIRED
+      description: "Script entraînement LoRA Devstral — PASSIVE, ne pas lancer sans HumanGate explicite"
+
     # --- Moteurs de référence (Sunfish / Stockfish) ---
     - pattern: "lab/sunfish.py"
       status: IMPLEMENTED
@@ -110,6 +115,12 @@ routing:
       lane: HUMAN_REQUIRED
       description: "Seule autorité de merge automatique — ne jamais toucher en automation"
 
+    # --- Tests racine ---
+    - pattern: "tests/*.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Tests Python racine — dataset, workspace hygiene, train fail-closed, etc."
+
     # --- Lab chains (pipeline de développement) ---
     - pattern: "lab/chains/*.py"
       status: IMPLEMENTED
@@ -140,6 +151,16 @@ routing:
       status: IMPLEMENTED
       lane: SAFE_AUTO
       description: "Logger historique chaînes"
+
+    - pattern: "lab/chains/roadmap_to_ledger.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Sync roadmap → improvement ledger — script de synchronisation kaizen"
+
+    - pattern: "lab/chains/golden_examples.jsonl"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Exemples gold pour chaînes LLM — référence qualité outputs"
 
     - pattern: "lab/chains/run_chain.py"
       status: IMPLEMENTED
@@ -192,6 +213,21 @@ routing:
       lane: SAFE_AUTO
       description: "Rapport cerveau studio généré en session — synthèse état + recommandations"
 
+    - pattern: "AUDIT_REPORT.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Rapport d'audit studio — doc racine"
+
+    - pattern: "KAIZEN_LOG.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Log kaizen racine — miroir de 00_STUDIO_CONTROL/05_AUDIT/KAIZEN_LOG.md"
+
+    - pattern: "STUDIO_BRAIN_AUDIT.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Audit cerveau studio — doc racine"
+
     - pattern: "STUDIO_CONTEXT_LIVE.md"
       status: PASSIVE
       lane: SAFE_AUTO
@@ -212,6 +248,11 @@ routing:
       status: IMPLEMENTED
       lane: AUDIT_REQUIRED
       description: "Fix filtrage puzzles hanging_piece 1-coup (Moves.len()==2)"
+
+    - pattern: "state_updater.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Updater état studio racine — mise à jour state machine autopilot"
 
     # --- Docs maîtres ---
     - pattern: "00_STUDIO_CONTROL/00_MASTER_DOCS/*.md"
@@ -248,6 +289,23 @@ routing:
       status: DOCUMENTED_ONLY
       lane: SAFE_AUTO
       description: "Control-plane docs governance"
+
+    # --- Lab chess_fantasy (module moteur léger) ---
+    - pattern: "lab/chess_fantasy/*.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Module chess_fantasy — engine.py, rules.py"
+
+    - pattern: "lab/chess_fantasy/**/*.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Tests chess_fantasy — test_rules.py, test_engine.py"
+
+    # --- Lab tests (tests d'intégration lab) ---
+    - pattern: "lab/tests/*.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Tests lab — test_state_updater.py, test_autopilot_state_wire.py"
 
     # --- Lab data (opening book, données brutes) ---
     - pattern: "lab/data"
@@ -396,6 +454,11 @@ routing:
   # GITIGNORED — Fichiers intentionnellement exclus de git
   # ============================================================
   gitignored:
+
+    - pattern: "**/__pycache__/**"
+      status: LOCAL
+      lane: NA
+      description: "Cache Python compilé — jamais committer, généré automatiquement"
 
     - pattern: ".venv312/**"
       status: LOCAL
@@ -554,6 +617,12 @@ routing:
       recommendation: "DELETE — fichier temporaire diagnostic IMP-036, sans valeur durable."
       decision_deadline: "prochaine session"
 
+    - pattern: "lab/tmp_imp042_summarize.py"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      created_by: "session 2026-06-04"
+      description: "Script temporaire summarize IMP-042 — lecture seule, aucun side-effect."
+
 # ============================================================
 # RÈGLES D'AUDIT (lues par doc_hygiene_chain.py)
 # ============================================================
@@ -587,10 +656,10 @@ audit_rules:
 # MÉTADONNÉES
 # ============================================================
 metadata:
-  version: "1.0"
+  version: "1.1"
   created: "2026-05-31"
   authority: "HumanGate"
-  last_updated_by: "doc_hygiene_chain v1 — routage candidats évidents 2026-06-02"
+  last_updated_by: "IMP-063 SAFE_AUTO — routage 11 orphelins 2026-06-04"
   python_312_note: >
     PurePosixPath.match() en Python 3.12 requiert un composant intermédiaire
     pour '**'. Fichiers directs : utiliser 'dossier/*.ext'.
