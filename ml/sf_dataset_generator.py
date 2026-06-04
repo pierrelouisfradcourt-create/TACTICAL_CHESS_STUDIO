@@ -28,7 +28,6 @@ from typing import Dict, List, Optional, Tuple
 try:
     import chess
     import chess.engine
-    import chess.pgn
 except ImportError:
     print("[ERROR] python-chess manquant : pip install chess")
     sys.exit(1)
@@ -37,6 +36,9 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 DEFAULT_OUT = REPO_ROOT / "lab" / "datasets" / "pool" / "pool_sf.jsonl"
 SOURCE_TAG = "stockfish_sf14"
 MAX_PLIES_PER_GAME = 400
+
+MIN_OPENING_PLIES = 8   # demi-coups aléatoires minimum (4 coups)
+MAX_OPENING_PLIES = 16  # demi-coups aléatoires maximum (8 coups)
 
 
 # ---------------------------------------------------------------------------
@@ -53,37 +55,39 @@ def detect_phase(board: chess.Board) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Opening book from human PGN files
+# Random opening generation
 # ---------------------------------------------------------------------------
 
-OPENING_PLIES = 8  # demi-coups rejoués depuis chaque partie PGN
+def generate_random_opening_boards(
+    n: int,
+    rng: random.Random,
+    min_plies: int = MIN_OPENING_PLIES,
+    max_plies: int = MAX_OPENING_PLIES,
+) -> List[chess.Board]:
+    """Génère n positions d'ouverture par coups aléatoires légaux depuis la position initiale.
 
-
-def load_opening_positions(pgn_dir: pathlib.Path, max_plies: int = OPENING_PLIES) -> List[chess.Board]:
-    """Charge les positions d'ouverture depuis les fichiers human_*.pgn."""
-    openings: List[chess.Board] = []
-    pgn_files = sorted(pgn_dir.glob("human_*.pgn"))
-    if not pgn_files:
-        print(f"[WARN] Aucun fichier human_*.pgn dans {pgn_dir}")
-        return openings
-    for pgn_path in pgn_files:
-        with pgn_path.open(encoding="utf-8", errors="replace") as f:
-            while True:
-                game = chess.pgn.read_game(f)
-                if game is None:
-                    break
-                board = game.board()
-                for i, move in enumerate(game.mainline_moves()):
-                    if i >= max_plies:
-                        break
-                    board.push(move)
-                openings.append(board.copy())
-    print(f"[INFO] {len(openings)} positions d'ouverture chargées depuis {len(pgn_files)} fichiers PGN")
-    return openings
-
-
-def random_opening_board(openings: List[chess.Board]) -> chess.Board:
-    return random.choice(openings).copy()
+    Les positions aléatoires sont typiquement déséquilibrées, ce qui réduit
+    fortement le draw_rate dans les parties SF vs SF (asymétrie tactique).
+    """
+    boards: List[chess.Board] = []
+    attempts = 0
+    max_attempts = n * 20
+    while len(boards) < n and attempts < max_attempts:
+        attempts += 1
+        board = chess.Board()
+        n_plies = rng.randint(min_plies, max_plies)
+        for _ in range(n_plies):
+            if board.is_game_over():
+                break
+            legal = list(board.legal_moves)
+            if not legal:
+                break
+            board.push(rng.choice(legal))
+        if not board.is_game_over():
+            boards.append(board.copy())
+    if len(boards) < n:
+        print(f"[WARN] Seulement {len(boards)}/{n} positions générées après {attempts} tentatives")
+    return boards
 
 
 # ---------------------------------------------------------------------------
@@ -112,7 +116,7 @@ def play_one_game(
     limit_black: chess.engine.Limit,
 ) -> Tuple[List[Dict], str]:
     """
-    Joue une partie SF vs SF depuis une position d'ouverture humaine.
+    Joue une partie SF vs SF depuis une position d'ouverture.
     Retourne (liste de records positionnels, résultat '1-0'/'0-1'/'1/2-1/2').
     """
     board = opening_board.copy()
@@ -228,17 +232,19 @@ def main() -> None:
     limit_strong = chess.engine.Limit(depth=args.depth)
     limit_weak = chess.engine.Limit(time=1.0)
 
-    random.seed(args.seed)
+    rng = random.Random(args.seed)
 
     sf_path = os.environ.get("TCS_STOCKFISH_PATH", "")
     if not sf_path or not pathlib.Path(sf_path).exists():
         print(f"[ERROR] TCS_STOCKFISH_PATH non défini ou introuvable : {sf_path!r}")
         sys.exit(1)
 
-    pgn_dir = REPO_ROOT / "lab" / "datasets"
-    openings = load_opening_positions(pgn_dir)
+    # Génère un pool de positions aléatoires uniques (8–16 demi-coups = 4–8 coups)
+    pool_size = max(args.games, 200)
+    openings = generate_random_opening_boards(pool_size, rng)
+    print(f"[INFO] {len(openings)} positions d'ouverture aléatoires générées (8–16 demi-coups)")
     if not openings:
-        print("[ERROR] Aucune ouverture chargée — vérifier lab/datasets/human_*.pgn")
+        print("[ERROR] Aucune position d'ouverture générée")
         sys.exit(1)
 
     out_path = pathlib.Path(args.out)
@@ -254,7 +260,7 @@ def main() -> None:
     try:
         with out_path.open("w", encoding="utf-8") as fout:
             for game_idx in range(1, args.games + 1):
-                opening_board = random_opening_board(openings)
+                opening_board = openings[(game_idx - 1) % len(openings)]
                 if game_idx % 2 == 0:
                     lw, lb = limit_strong, limit_weak   # pairs : Blanc fort, Noir faible
                 else:

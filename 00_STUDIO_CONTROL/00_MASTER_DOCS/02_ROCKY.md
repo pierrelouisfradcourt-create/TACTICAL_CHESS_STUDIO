@@ -1,7 +1,7 @@
 # Rocky — État et prochaines étapes
 
 status: CANONICAL
-date: 2026-05-27
+date: 2026-06-04
 authority: HumanGate
 no_global_ready_verdict: true
 
@@ -22,139 +22,110 @@ Search (autorité finale tactique)
 
 ---
 
-## État actuel
+## ELO — benchmark post-39-IMPs (2026-06-03)
+
+| Joueur | ELO | Δ vs baseline (2026-05-30) |
+|---|---|---|
+| teacher_uci | 1351 | −73 (baseline : 1424) |
+| hybrid | 1188 | −12 (baseline : 1200) |
+| heuristic | 1183 | −17 (baseline : 1200) |
+| neural | 1079 | **+104** (baseline : 975) |
+
+- **Parties** : 110 parties réelles (2026-06-03)
+- **draw_rate** : **0.68** (était 0.94 en mai — amélioration structurelle IMP-007/014/041)
+
+---
+
+## État actuel du moteur
 
 | Surface | Statut | Notes |
 |---|---|---|
 | Moteur Rust (chess/) | IMPLEMENTED | Compile, tests passent |
-| Search (alpha-beta, ID, killers, LMR, quiescence) | IMPLEMENTED | Clone root = plafond perf, non bloquant |
-| Practical Policy | IMPLEMENTED | SEE-lite, hanging-piece, mate urgency, trade sanity |
-| Neural bridge (Python↔Rust) | IMPLEMENTED | Instable sur Windows — à surveiller |
-| Decision tree / traces | IMPLEMENTED | AAA signals dans export/loader/training |
-| LLM branché sur decision tree | DONE — coach v0 opérationnel, FEN dans MOVE_DIAG, commit fd88b97 | Phase 1 P2 |
-| Chess 960 | BLOCKED | Architecture prête, activation HumanGate requise |
-| Dataset actif | BROKEN | promoted_pedagogy_pack.jsonl manquant — à régénérer |
-| Selfplay / ligue | DOCUMENTED_ONLY | Pipeline existe, dataset requis |
+| Search (alpha-beta, ID, killers, LMR, quiescence) | IMPLEMENTED | Quiescence sans cap + futility pruning |
+| PST par type de pièce | IMPLEMENTED | IMP-015 |
+| Livre d'ouvertures | IMPLEMENTED | 50-200 coups (IMP-016) |
+| SEE complet récursif | IMPLEMENTED | IMP-020 |
+| Sécurité roi | IMPLEMENTED | Zone attack count (IMP-018) |
+| Outposts knight/bishop | IMPLEMENTED | IMP-027 |
+| Finales KR vs K | IMPLEMENTED | Bonus conversion (IMP-025) |
+| SearchTraceSchema | IMPLEMENTED | pv_changes, DepthSnapshot, nodes_per_root_move (IMP-010) |
+| play_fen CLI | IMPLEMENTED | JSON move/score/depth (IMP-030) |
+| FEN en passant validation | IMPLEMENTED | rank 3/6 uniquement (KI-25) |
+| Historique coups play_fen | IMPLEMENTED | Détection répétition longue partie (IMP-041) |
+| Neural bridge | IMPLEMENTED | Instable sur Windows — à surveiller |
+| Chess 960 | BLOCKED | Architecture prête, HumanGate requis |
+| Dataset actif | REPLACED | teacher_samples archivé → pool_2400.jsonl actif |
 
 ---
 
 ## Dataset — état réel
 
-Sources disponibles dans le repo :
-```
-lab/datasets/linked_pedagogy/
-  ├── 2024-fide-chess-world-championship.pgn  (36 KB — Ding vs Gukesh)
-  ├── Ding_vs_Gukesh_*.pgn                    (6 parties)
-  ├── [World Cup 2023 PGN files]              (~700 KB total)
-  └── 4FktECSUMctPekzB8E8C.pgn               (333 KB — corpus principal)
+| Pool | Statut | Taille | draw_rate |
+|---|---|---|---|
+| pool_2400.jsonl | ACTIF | 1,002,503 parties | 8.8% |
+| pool_sf.jsonl | ABANDONNÉ | 50 parties | 94% |
+| teacher_samples.jsonl | ARCHIVÉ | 553 lignes | 100% |
 
-lab/pedagogy_db/
-  ├── PEDAGOGICAL_DB_CONVERSION.pgn
-  ├── PEDAGOGICAL_DB_ENDGAMES.pgn
-  ├── PEDAGOGICAL_DB_TACTICS.pgn
-  └── candidate_games_for_triage.csv          (1.2 MB)
-```
+- **ACTIVE_DATASET.txt** → pool_2400.jsonl (HumanGate 2026-06-02)
+- **sf_dataset_generator.py** : corrigé (positions aléatoires 8-16 demi-coups), pool_sf abandonné (IMP-043 Option B)
+- **IMP-008** : FORBIDDEN — rebuild teacher_samples bloqué, Stockfish requis
 
-Pour régénérer : Stockfish + teacher_uci_runner + dataset_phase_builder.
-ACTIVE_DATASET.txt doit pointer vers un vrai .jsonl une fois régénéré.
+### Puzzles holdout
 
----
-
-## Puzzles — architecture cible
-
-3 systèmes distincts (non implémentés) :
-
-1. Puzzles par difficulté (3 niveaux) — positions tactiques bornées
-2. Puzzles from errors — générés depuis les erreurs de Rocky en partie
-3. Puzzles vocabulaire — explique les concepts (fourchette, clouage, etc.) avec 3 niveaux
-
-Note : puzzle_rng.rs existe mais n'est pas la bonne approche pour les niveaux.
+- `lab/puzzles/holdout_level1.jsonl` : 1 000 positions L1
+- `lab/puzzles/holdout_level2.jsonl` : 1 000 positions L2
+- `lab/puzzles/holdout_level3.jsonl` : 1 000 positions L3
+- Benchmarks : `lab/reports/bench_rocky_p4_holdout*.json`
 
 ---
 
-## LLM intégration — vision
+## LLM intégration — état
 
-Rocky joue → decision tree enregistre le raisonnement →
-LLM local lit le tree → explique le coup en langage naturel →
-Coaching contextuel au niveau du joueur.
+Rocky joue → decision tree enregistre → LLM local lit le tree →
+explique le coup en langage naturel → Coaching contextuel.
 
-Phase draft (Chess 960, Chess Fantasy) :
-LLM analyse le board avant le premier coup et propose une stratégie.
-
----
-
-## Prochaine étape concrète
-
-1. Installer Stockfish (définir TCS_STOCKFISH_PATH)
-2. Lancer teacher_uci_runner sur les PGN champions du monde
-3. Régénérer promoted_pedagogy_pack.jsonl
-4. Mettre à jour ACTIVE_DATASET.txt
-5. Valider pipeline ML end-to-end
+- Coach v0 : opérationnel (FEN dans MOVE_DIAG)
+- Autoloop : kaizen_autoloop.py câblé depuis autopilot.py
+- Director : Qwen2.5-14B-Instruct (décisions opérationnelles)
+- CEO Brain : Qwen3.6-27B (analyses profondes, disponible)
 
 ---
 
 ## Architecture cible — deux vitesses
-
-Source : discussions ChatGPT récupérées (2026-05-26), non encore formalisées localement.
 
 ### Fast path (temps réel)
 
 ```
 GameState
 → LegalActions
-→ NeuralProposal      (intuition, policy/value, priorisation)
+→ NeuralProposal      (intuition, policy/value)
 → SearchResult        (calcul tactique, meilleur coup robuste)
 → CriticVerdict       (filtre avant exécution)
 → AuthorityDecision   (tranche une seule action finale)
 → ValidatedAction
-→ Executor.apply()    (applique — ne réfléchit pas)
+→ Executor.apply()
 → Telemetry
 ```
-
-### Rôles précis
-
-**Critic** — filtre, ne choisit pas :
-- Vérifie légalité, ActionMask, Chess960 castling rights
-- Détecte désaccord Search/Neural, fallback suspect
-- Produit : PASS / WARN / BLOCK / ESCALATE
-- Ne produit jamais final_move
-
-**Authority** — tranche :
-- Search gagne si tactiquement clair
-- Critic peut bloquer
-- Neural ne bypass jamais
-- Fallback sûr si incertitude
-
-**Executor** — applique seulement :
-- Refuse toute action non validée par Authority
-- Logue pour telemetry/feedback/memory
 
 ### Slow path (hors temps réel)
 
 ```
 Telemetry / Replays / Errors
-→ LLM analyst (LM Studio)
-→ hypothèses / explications / tâches Codex
+→ LLM analyst (Qwen2.5-14B Director / Qwen3.6-27B CEO Brain)
+→ hypothèses / tâches kaizen
 → HumanGate
-→ Codex bounded patch → tests
+→ Claude Code bounded patch → tests
 → Feedback / Memory / Curriculum
 ```
 
-Le LLM ne fait jamais :
-- Choisir le coup final
-- Bypass Search ou Critic
-- Activer training / dataset / model
-- Décider une claim
+Le LLM ne fait jamais : choisir le coup final, bypass Search, activer training/dataset.
 
 ---
 
-## Specs à créer (Phase 1)
+## Prochaines étapes
 
-Ces fichiers sont référencés dans les discussions mais n'existent pas encore localement :
-
-```
-REALTIME_HYBRID_PLAYER_ARCHITECTURE_V0.md
-HYBRID_CHESS960_AGENT_ARCHITECTURE_V0.md
-PLAYER_IMPROVEMENT_TASK_QUEUE_V0.yaml
-LORA_READINESS_PLAN_V0.md
-```
+1. Benchmark puzzles holdout L1/L2/L3 (mesure qualité tactique Rocky)
+2. Nouveau pool SF (deux moteurs asymétriques, quand disponible)
+3. IMP-047 — architecture dual-model brain/router dans autopilot.py
+4. IMP-008 — dataset rebuild (Stockfish requis, HumanGate requis)
+5. Training LoRA réel (IMP-045 HumanGate approuvé)

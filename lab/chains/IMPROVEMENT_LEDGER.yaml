@@ -132,6 +132,7 @@ improvements:
   impact: CRITICAL
   effort: LARGE
   lane: FORBIDDEN
+  domain: ia_apprentissage
   files:
   - lab/datasets/teacher_samples.jsonl
   acceptance: Localiser trainer_mix (cli.rs ou campaign_runner_v1.py), régénérer dataset
@@ -140,10 +141,10 @@ improvements:
   - IMP-007
   opened_session: '2026-05-31'
   closed_session: null
-  notes: "BLOQUANT ML. Lane FORBIDDEN (dataset generation = HumanGate strict). Ne pas
-    automatiser. — HumanGate 2026-06-02 : ACTIVE_DATASET.txt redirigé vers pool_2400.jsonl
+  notes: 'BLOQUANT ML. Lane FORBIDDEN (dataset generation = HumanGate strict). Ne
+    pas automatiser. — HumanGate 2026-06-02 : ACTIVE_DATASET.txt redirigé vers pool_2400.jsonl
     (draw_rate 8.8%, 1M parties). Dataset corrompu teacher_samples.jsonl archivé.
-    Rebuild FORBIDDEN jusqu'à Stockfish disponible."
+    Rebuild FORBIDDEN jusqu''à Stockfish disponible.'
 - id: IMP-009
   title: 'Charter B : optimisations run_chain.py (opt1-4)'
   type: feature
@@ -175,7 +176,7 @@ improvements:
     Telemetry only, pas de changement comportement.'
   blocked_by: []
   opened_session: '2026-05-31'
-  closed_session: "2026-06-03"
+  closed_session: '2026-06-03'
   notes: Lane AUDIT_REQUIRED (touche search.rs core). Telemetry passive.
 - id: IMP-011
   title: 'Value head inutilisée #NEW-04'
@@ -185,6 +186,7 @@ improvements:
   impact: MEDIUM
   effort: MEDIUM
   lane: AUDIT_REQUIRED
+  domain: ia_apprentissage
   files:
   - ml/infer_policy.py
   acceptance: infer_policy.py jette le scalaire value du ResNet. L'utiliser ou documenter
@@ -410,7 +412,7 @@ improvements:
   acceptance: Rocky mate avec K+R vs K en moins de 50 coups, cargo check OK
   blocked_by: []
   opened_session: '2026-06-01'
-  closed_session: "2026-06-03"
+  closed_session: '2026-06-03'
   notes: ''
 - id: IMP-026
   title: Activation roi fin de partie basee sur materiel non-pions
@@ -440,7 +442,7 @@ improvements:
   acceptance: Cavalier en outpost score superieur, cargo check OK
   blocked_by: []
   opened_session: '2026-06-01'
-  closed_session: "2026-06-03"
+  closed_session: '2026-06-03'
   notes: ''
 - id: IMP-028
   title: Penalite meme piece deux fois en ouverture
@@ -610,7 +612,7 @@ improvements:
   title: sf_dataset_generator.py — Pool-SF Stockfish depth 14
   type: feature
   source: session-2026-06-02
-  status: OPEN
+  status: CLOSED
   impact: CRITICAL
   effort: SMALL
   lane: AUDIT_REQUIRED
@@ -620,9 +622,9 @@ improvements:
   acceptance: 500+ parties SF vs SF, engine_eval CP non-null, draw_rate < 20%
   blocked_by: []
   opened_session: '2026-06-02'
-  closed_session: null
-  notes: 'HumanGate 2026-06-02 : draw_rate observé 93.1% != critère. Acceptance
-    relevé à <20%. Statut rouvert — pool_sf à régénérer (SF vs SF positions variées).'
+  closed_session: '2026-06-03'
+  notes: 'HumanGate 2026-06-02 : draw_rate observé 93.1% != critère. Acceptance relevé
+    à <20%. Statut rouvert — pool_sf à régénérer (SF vs SF positions variées).'
 - id: IMP-039
   title: dataset_builder_v3.py — 3 pools < 20% draw depuis pioche commune
   type: feature
@@ -671,6 +673,307 @@ improvements:
   opened_session: '2026-06-02'
   closed_session: '2026-06-02'
   notes: ''
+- id: IMP-042
+  title: Benchmark ELO post-39-IMPs
+  type: feature
+  source: manual add 2026-06-03
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-03'
+  closed_session: '2026-06-03'
+  notes: ''
+- id: IMP-043
+  title: Valider pool_sf draw_rate < 20% sur 500 parties reelles
+  type: feature
+  source: manual add 2026-06-03
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-03'
+  closed_session: '2026-06-03'
+  notes: 'HumanGate 2026-06-03 : Option B choisie. pool_sf abandoné (draw_rate=94%,
+    régénération impossible sans deux moteurs SF asymétriques). pool_sf exclu du pipeline
+    ML. IMP-038 verdict final : INVALID.'
+- id: IMP-044
+  title: Page Studio OS — cockpit unifie surfaces + boucle + HumanGate
+  type: feature
+  source: manual add 2026-06-03
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-03'
+  closed_session: '2026-06-03'
+  notes: ''
+- id: IMP-045
+  title: LoRA training Devstral sur 57 exemples golden
+  type: feature
+  source: manual add 2026-06-03
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: HUMAN_REQUIRED
+  files:
+  - ml/lora_train_devstral.py
+  acceptance: Script dry-run valide config + dataset. --train lance SFTTrainer sur
+    38 golden exemples.
+  blocked_by: []
+  opened_session: '2026-06-03'
+  closed_session: '2026-06-03'
+  notes: 'HumanGate 2026-06-03 approuvé. Dry-run OK : 38 exemples, format validé,
+    VRAM 17.1GB (fp16) / 6.6GB (4-bit). Training réel : fournir --model-path <devstral_local>.'
+- id: IMP-046
+  title: Switcher LM_MODEL vers Qwen3.6 27B dans autopilot.py + tester CEO Brief
+  type: feature
+  source: manual add 2026-06-03
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-03'
+  closed_session: '2026-06-04'
+  notes: ''
+- id: IMP-047
+  title: Architecture dual-model brain/router dans autopilot.py
+  type: feature
+  source: manual add 2026-06-03
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-03'
+  closed_session: '2026-06-04'
+  notes: ''
+- id: IMP-048
+  title: state_updater.py — MAJ automatique docs studio depuis sources reelles apres
+    chaque session
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+- id: IMP-049
+  title: Cablage state_updater.py dans autopilot.py — appel auto apres close_imp et
+    run_chain
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+- id: IMP-050
+  title: Cablage state_updater.py dans autopilot.py — appel auto apres close_imp et
+    run_chain
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+- id: IMP-051
+  title: CEO Brief v2 — plan 3 lanes simultanées avec sprint objectif
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+- id: IMP-052
+  title: Roadmap-to-Ledger — extraire IMPs depuis roadmap et les injecter dans kaizen
+    via Qwen
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+- id: IMP-053
+  title: Rocky explique ses coups en langage naturel
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 1 — Rocky jouable et explicable
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: rocky_moteur
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 1 — Rocky jouable et explicable, statut IN_PROGRESS,
+    priorité P3
+- id: IMP-054
+  title: Chess Fantasy runtime minimal (règles core)
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 2 — Chess Fantasy + Studio
+  status: CLOSED
+  impact: CRITICAL
+  effort: SMALL
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut DOCUMENTED_ONLY,
+    priorité P0
+- id: IMP-055
+  title: Rocky muté pour Chess Fantasy
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 2 — Chess Fantasy + Studio
+  status: OPEN
+  impact: HIGH
+  effort: LARGE
+  lane: SAFE_AUTO
+  domain: jeux
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité
+    P1
+- id: IMP-056
+  title: 'Puzzles : 3 niveaux + from errors + vocabulaire officiel'
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 2 — Chess Fantasy + Studio
+  status: OPEN
+  impact: MEDIUM
+  effort: LARGE
+  lane: SAFE_AUTO
+  domain: jeux
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité
+    P3
+- id: IMP-057
+  title: LoRA Devstral TCS v2 (training réel + évaluation)
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 3 — Multi-jeux + Commercial (ongoing)
+  status: OPEN
+  impact: MEDIUM
+  effort: LARGE
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 3 — Multi-jeux + Commercial (ongoing), statut PLANNED
+- id: IMP-058
+  title: Autoloop multi-lane — executer 1 IMP par lane simultanement depuis UI
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: ''
+- id: IMP-059
+  title: Workflow charter UI — afficher charter + champ rapport + close-imp sans API
+    Claude
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+- id: IMP-060
+  title: Champ domain dans le ledger — rocky_moteur/ia_apprentissage/studio/jeux pour
+    routing CEO Brief
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+- id: IMP-061
+  title: Live feed autoloop — streaming stdout kaizen_autoloop vers UI en temps reel
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ''
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
 metrics_history:
 - session: '2026-05-31'
   total: 11
@@ -693,8 +996,10 @@ metrics_history:
   spec_coverage_pct: 90
   tests_green: null
   commits: 5
-  note: "Sprint Rocky 14 IMP + pool pipeline IMP-037/041 + EloTable K=24. pool_sf draw_rate=94% (critère <30% non atteint). ACTIVE_DATASET.txt toujours sur teacher_samples (HumanGate requis)."
-- session: '2026-06-02-humangate'
+  note: Sprint Rocky 14 IMP + pool pipeline IMP-037/041 + EloTable K=24. pool_sf draw_rate=94%
+    (critère <30% non atteint). ACTIVE_DATASET.txt toujours sur teacher_samples (HumanGate
+    requis).
+- session: 2026-06-02-humangate
   total: 42
   open: 4
   in_progress: 0
@@ -704,4 +1009,6 @@ metrics_history:
   spec_coverage_pct: 90
   tests_green: null
   commits: 2
-  note: "HumanGate decisions 2026-06-02 : ACTIVE_DATASET redirigé vers pool_2400 (8.8% draws, 1M parties). teacher_samples archivé. IMP-038 rouvert (draw_rate 93.1% != <20%). Scripts ML commités."
+  note: 'HumanGate decisions 2026-06-02 : ACTIVE_DATASET redirigé vers pool_2400 (8.8%
+    draws, 1M parties). teacher_samples archivé. IMP-038 rouvert (draw_rate 93.1%
+    != <20%). Scripts ML commités.'

@@ -1,7 +1,7 @@
 # Studio — Architecture et pipeline
 
 status: CANONICAL
-date: 2026-05-27
+date: 2026-06-04
 authority: HumanGate
 
 ---
@@ -29,9 +29,11 @@ Le studio s'améliore mais reste ouvert, nourri par du feedback réel.
 | Runtime jeu | Rust | IMPLEMENTED |
 | ML / inference | Python | IMPLEMENTED |
 | Scripts / CI | Python + PowerShell | IMPLEMENTED |
-| LLM local | LM Studio (Devstral/Mistral) | EN PLACE |
-| LoRA fine-tuning | À planifier | NOT_STARTED |
-| UxPilote | scripts/uxpilote/ (untracked) | PROTOTYPE |
+| LLM local (Director) | Qwen2.5-14B-Instruct (LM Studio) | ACTIF |
+| LLM local (CEO Brain) | Qwen3.6-27B (LM Studio) | DISPONIBLE |
+| LoRA fine-tuning | devstral-small-2507 (HF local) | IN_PROGRESS — dry-run validé |
+| UxPilote | autopilot.py (3164 lignes, port 7331) | IMPLEMENTED |
+| Kaizen autoloop | kaizen_autoloop.py | IMPLEMENTED |
 
 ---
 
@@ -39,87 +41,107 @@ Le studio s'améliore mais reste ouvert, nourri par du feedback réel.
 
 ```
 HumanGate décide
-  → Task Charter (YAML)
-    → Claude Code exécute (borné)
-      → Executor Report
-        → Claude (moi) critique/valide
-          → HumanGate merge/rejette
+  → Kaizen Autoloop propose IMP (ROI max)
+    → Charter généré
+      → Claude Code exécute (borné)
+        → Executor Report
+          → Claude critique/valide
+            → close_imp() → golden_collector
+              → HumanGate merge/rejette
 ```
-
-HumanGates à assouplir (décision en attente) :
-- Identifier lesquels peuvent devenir automatiques
-- Garder les gates sur : training, benchmark, dataset reset, push main, model promotion
 
 ---
 
-## UxPilote — vision
-
-Cockpit de pilotage du studio :
+## Architecture agentique — vision pyramide
 
 ```
-UxPilote
-├── World Map — état global (surfaces, statuts)
-├── Chain Builder — composer des chaînes de dev
-│   ├── Cartographer → HygieneAgent → TruthAgent
-│   ├── FusionAuditor → CartographerRedTeam
-│   └── HumanGate (décision finale)
-├── Requêtes avancées
-│   ├── Red Team (challenge les décisions)
-│   └── Fusion (synthèse multi-sources)
-└── Evidence Board (preuve par surface)
+CEO          = Qwen3.6-27B  (raisonnement profond, /api/ceo-brief)
+Director     = Qwen2.5-14B  (décisions opérationnelles, kaizen loop)
+Router       = À implémenter (IMP-047 OPEN, SAFE_AUTO)
+Worker       = Claude Code + kaizen_autoloop.py
 ```
 
-Statut actuel : uxpilote_readonly.py existe (non tracké).
-Phase 1 : cockpit lecture seule.
-Phase 2 : chaînes de dev interactives.
+### Flywheel Kaizen
+
+```
+propose → charter → Claude Code → close_imp →
+golden_collector → LoRA corpus → training → Devstral amélioré
+```
+
+---
+
+## Autopilote — surfaces (port 7331)
+
+| Surface | Endpoint | Statut |
+|---|---|---|
+| Studio State | /api/studio-state | IMPLEMENTED |
+| CEO Brief | /api/ceo-brief | IMPLEMENTED |
+| Autoloop start | /api/autoloop-start | IMPLEMENTED |
+| Autoloop stop | /api/autoloop-stop | IMPLEMENTED |
+| Autoloop status | /api/autoloop-status | IMPLEMENTED |
+| Studio OS (cockpit) | / (index) | IMPLEMENTED |
+
+### Kaizen Autoloop — modes par lane
+
+| Lane | Mode d'exécution |
+|---|---|
+| SAFE_AUTO | Exécution automatique (Claude Code subprocess) |
+| AUDIT_REQUIRED | Charter généré + affichage + attente HumanGate |
+| HUMAN_REQUIRED | Affichage + STOP |
+| FORBIDDEN | STOP immédiat |
+
+---
+
+## LoRA — pipeline golden examples
+
+| Source | Exemples |
+|---|---|
+| golden_collector_v1 (charters closés) | 38 |
+| mode_claude_run | 10 |
+| autodev_session | 9 |
+| **Total** | **57** |
+
+- **Config** : `ml/lora_config.yaml` (base=devstral-small-2507, rank=8, epochs=3, lr=2e-4)
+- **Script** : `ml/lora_train_devstral.py` (--dry-run / --train --model-path)
+- **Sortie** : `lab/runs/lora_devstral_tcs_v1/`
+- **Status** : READY_FOR_HUMANGATE — dry-run OK (IMP-045 HumanGate approuvé)
 
 ---
 
 ## Agents — activation progressive
 
-Agents passifs (documentés, pas activés) :
-- Cartographer — cartographie du repo
-- HygieneAgent — nettoyage
-- TruthAgent — vérification de vérité
-- FusionAuditor — synthèse multi-sources
-- CartographerRedTeam — challenge
+| Agent | Statut |
+|---|---|
+| kaizen_autoloop | ACTIVE |
+| golden_collector | ACTIVE (hook close_imp) |
+| studio_context_builder | ACTIVE (IMP-012) |
+| fusion_matrix_chain | IMPLEMENTED (IMP-005) |
+| scripts_route_chain | IMPLEMENTED (IMP-004) |
+| Cartographer / HygieneAgent / TruthAgent | PASSIVE (documentés) |
 
 Règle d'activation : HumanGate + code + tests avant activation.
 Aucun agent autonome sans gate.
 
 ---
 
-## LLM local — plan d'intégration
+## HumanGates permanents
 
-```
-Phase 1 : LM Studio → decision tree Rocky → coaching/explication
-Phase 2 : LM Studio → pilotage tâches studio (review L1 packs)
-Phase 3 : LoRA fine-tuning sur corpus studio
-```
-
-L1 packs (pack du 2026-05-25) : prêts pour review Devstral/Mistral.
-Workflow : L1 → review LLM → fusion → HumanGate → L2 (exécutable Codex).
+Les gates suivants ne s'assouplissent jamais :
+- Training / benchmark reset
+- Dataset reset / ACTIVE_DATASET.txt
+- Push main
+- Model promotion
+- FORBIDDEN lane
 
 ---
 
 ## Matrices de tâches
 
-Surfaces contrôlées :
-- active_runtime_code
-- tests
-- artifacts_runtime_outputs
-- canonical_docs
-- roadmap_docs_only
-- inference
-
-Statuts autorisés :
-- IMPLEMENTED / TESTED / DOCUMENTED_ONLY / PASSIVE / BLOCKED / NOT_FOUND / UNKNOWN
-
 Lane matrix :
-- SAFE_AUTO : docs, fixtures, specs
-- AUDIT_REQUIRED : learning, puzzle, train code
-- HUMAN_REQUIRED : scripts, CI, runtime wiring
-- FORBIDDEN : training, benchmark, dataset reset, latest.json, push main
+- **SAFE_AUTO** : docs, fixtures, specs, chains Python
+- **AUDIT_REQUIRED** : code Rust, ML scripts, eval
+- **HUMAN_REQUIRED** : CI, runtime wiring
+- **FORBIDDEN** : training, benchmark, dataset reset, latest.json, push main
 
 ---
 
@@ -127,19 +149,13 @@ Lane matrix :
 
 ```
 00_STUDIO_CONTROL/00_MASTER_DOCS/
-├── 00_VISION.md          ← ce fichier (vision + modèle commercial)
+├── 00_VISION.md
 ├── 01_ROADMAP.md         ← phases + décisions ouvertes
 ├── 02_ROCKY.md           ← état Rocky + dataset + puzzles
 ├── 03_JEUX.md            ← tous les jeux + design
 ├── 04_STUDIO.md          ← pipeline + agents + UxPilote (ce fichier)
 ├── 05_KNOWN_ISSUES.md    ← bugs actifs
-└── ARCHIVE/              ← tout l'ancien
+├── 06_KAIZEN.md          ← protocole kaizen
+├── 07_CURRENT_STATE.md   ← état courant sprint
+└── ARCHIVE/
 ```
-
-Docs à archiver :
-- AAA_TACTICAL_CORE_ARCHITECTURE.md → ARCHIVE/
-- HYBRID_GAME_AI_PLATFORM_PLAN.md → ARCHIVE/
-- LOCAL_HISTORY_ROADMAP_STATUS.md → ARCHIVE/
-- 02_ROADMAP_90D.md → ARCHIVE/
-- docs/control-plane/ENGINE_SEARCH_NEURAL_*.md → ARCHIVE/
-- repos/games/studioV2_MIGRATED_HOLD/ → décision suppression

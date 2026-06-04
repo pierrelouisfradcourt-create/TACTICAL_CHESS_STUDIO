@@ -24,7 +24,8 @@ import socketserver
 REPO     = Path(r"C:\TACTICAL_CHESS_STUDIO")
 PORT     = 7331
 LM_HOST  = "http://localhost:1234"
-LM_MODEL = "devstral-small-2507"  # nom exact vu dans LM Studio — changer si besoin dans Config
+LM_MODEL         = "qwen2.5-14b-instruct"  # Director — décisions opérationnelles
+LM_MODEL_CEO     = "qwen3.6-27b"           # CEO Brain — raisonnement profond (IMP-047)
 MEMORY_FILE = Path(__file__).parent / "studio_memory.json"
 
 # Chemins repo utiles
@@ -32,9 +33,20 @@ LEDGER   = REPO / "lab/chains/IMPROVEMENT_LEDGER.yaml"
 KAIZEN   = REPO / "lab/chains/kaizen_loop.py"
 HYGIENE  = REPO / "lab/chains/doc_hygiene_chain.py"
 CHAINS_DIR = REPO  # audit Claude Code 2026-06-02 : pas de sous-dossier repos/games/
+# Autorité Python pour GET /api/chains (B2) — miroir de CHAINS_DEF JS
+CHAINS_PYTHON: dict = {
+    "recall":  {"label": "Recall",          "lane": "SAFE_AUTO",      "cmd": ".venv312/Scripts/python.exe lab/chains/kaizen_loop.py recall"},
+    "audit":   {"label": "Audit hygiène",   "lane": "SAFE_AUTO",      "cmd": ".venv312/Scripts/python.exe lab/chains/doc_hygiene_chain.py --audit"},
+    "propose": {"label": "Propose",         "lane": "SAFE_AUTO",      "cmd": ".venv312/Scripts/python.exe lab/chains/kaizen_loop.py propose"},
+    "metrics": {"label": "Métriques",       "lane": "SAFE_AUTO",      "cmd": ".venv312/Scripts/python.exe lab/chains/kaizen_loop.py metrics"},
+    "smoke":   {"label": "Smoke benchmark", "lane": "AUDIT_REQUIRED", "cmd": "powershell -ExecutionPolicy Bypass -File .\\scripts\\studioV2\\run_benchmark.ps1 -Smoke -RunClass exploration_only"},
+    "coach":   {"label": "Coach Rocky",     "lane": "AUDIT_REQUIRED", "cmd": "powershell -ExecutionPolicy Bypass -Command \"$env:TCS_MINIMAX_DEPTH=\\\"3\\\"; cargo run --release -- simulate_chess960 518 3\""},
+    "tests":   {"label": "Cargo tests",     "lane": "AUDIT_REQUIRED", "cmd": "cargo test 2>&1"},
+}
 CHAIN_HISTORY = REPO / "lab/chains/CHAIN_HISTORY.jsonl"
-STATE_FILE    = REPO / "00_STUDIO_CONTROL/00_MASTER_DOCS/07_CURRENT_STATE.md"
-UX_RUNS_FILE  = REPO / "lab/datasets/ux_claude_runs.jsonl"
+STATE_FILE     = REPO / "00_STUDIO_CONTROL/00_MASTER_DOCS/07_CURRENT_STATE.md"
+UX_RUNS_FILE   = REPO / "lab/datasets/ux_claude_runs.jsonl"
+STATE_UPDATER  = REPO / "state_updater.py"
 
 ledger_cache: dict = {}  # {"open": N, "closed": M, "next": {}, "ts": "..."}
 
@@ -42,6 +54,45 @@ ledger_cache: dict = {}  # {"open": N, "closed": M, "next": {}, "ts": "..."}
 tokens_session: int = 0
 _current_task: dict = {}   # muté sur place — jamais réassigné
 _lm_log_lock = threading.Lock()
+
+# ── AUTOLOOP STATE (multi-lane) ───────────────────────────────────────────────
+AUTOLOOP_LANES = ("rocky_moteur", "ia_apprentissage", "decisions_pendantes")
+
+# Mapping UI lane → valeur lane ledger (SAFE_AUTO / AUDIT_REQUIRED / …)
+AUTOLOOP_LANE_MAP: dict = {
+    "rocky_moteur":        "SAFE_AUTO",
+    "ia_apprentissage":    "SAFE_AUTO",
+    "decisions_pendantes": "AUDIT_REQUIRED",
+}
+
+_autoloop_processes: dict = {lane: None for lane in AUTOLOOP_LANES}
+_autoloop_statuses: dict = {
+    lane: {
+        "state": "idle", "pid": None, "dry_run": True,
+        "last_result": None, "started_at": None,
+        "ledger_lane": AUTOLOOP_LANE_MAP.get(lane, "SAFE_AUTO"),
+    }
+    for lane in AUTOLOOP_LANES
+}
+_autoloop_lock = threading.Lock()
+_autoloop_logs: dict = {lane: [] for lane in AUTOLOOP_LANES}  # max 100 lignes/lane
+
+
+# ── AUTOLOOP STDOUT READER ───────────────────────────────────────────────────
+def _read_stdout(process, lane: str) -> None:
+    """Thread daemon — lit stdout du process autoloop et remplit _autoloop_logs[lane]."""
+    try:
+        for raw in iter(process.stdout.readline, ""):
+            line = raw.strip()
+            if not line:
+                continue
+            entry = {"ts": datetime.now().strftime("%H:%M:%S"), "line": line}
+            with _autoloop_lock:
+                _autoloop_logs[lane].append(entry)
+                if len(_autoloop_logs[lane]) > 100:
+                    _autoloop_logs[lane].pop(0)
+    except Exception:
+        pass
 
 
 # ── MÉMOIRE STUDIO ───────────────────────────────────────────────────────────
@@ -85,10 +136,19 @@ def build_system_prompt(base_prompt: str) -> str:
 # ── DEVSTRAL HELPERS ─────────────────────────────────────────────────────────
 def _infer_task_type(system: str, prompt: str) -> str:
     t = (system + " " + prompt[:200]).lower()
-    if "fusion" in t:               return "fusion"
+    if "ceo" in t:                  return "ceo_brief"
+    if "fusion" in t:
+        return "fusion_deep" if ("complet" in t or "full" in t or "profond" in t) else "fusion"
     if "résumé" in t or "session" in t: return "résumé"
     if "coach" in t:                return "coaching"
     return "call"
+
+
+def _route_model(task_type: str) -> str:
+    """Dual-model router (IMP-047): CEO (Qwen3.6) pour analyses profondes, Director (Qwen2.5) sinon."""
+    if task_type in ("ceo_brief", "fusion_deep"):
+        return LM_MODEL_CEO
+    return LM_MODEL
 
 
 def _log_lm_call(task_type: str, prompt: str, tokens_approx: int, duration_ms: int, result_preview: str = "") -> None:
@@ -131,6 +191,7 @@ def _log_lm_call(task_type: str, prompt: str, tokens_approx: int, duration_ms: i
         (REPO / "STUDIO_CONTEXT_LIVE.md").write_text(live, encoding="utf-8")
     except Exception:
         pass
+    write_studio_state()
 
 
 def _read_lm_history(n: int = 10) -> list:
@@ -156,18 +217,22 @@ def _read_lm_history(n: int = 10) -> list:
 
 
 # ── LM STUDIO BRIDGE ─────────────────────────────────────────────────────────
-def lm_call(prompt: str, system: str = "", max_tokens: int = 800) -> str:
+def lm_call(prompt: str, system: str = "", max_tokens: int = 800, model: str = "") -> str:
     """
-    LM Studio Developer Logs montre /api/v1/chat comme endpoint natif.
-    Fallback sur /v1/chat/completions (OpenAI-compatible).
-    Modele exact vu dans les logs : devstral-small-2507
+    LM Studio bridge — dual-model (IMP-047).
+    model="" → router automatique (CEO pour ceo_brief/fusion_deep, Director sinon).
+    Endpoints : /api/v1/chat (natif) + /v1/chat/completions (OpenAI-compat).
     """
     global tokens_session
     t0 = time.time()
     task_type = _infer_task_type(system, prompt)
+    active_model = model or _route_model(task_type)
     with _lm_log_lock:
         _current_task.clear()
-        _current_task.update({"type": task_type, "started_at": datetime.now().isoformat(), "tokens_so_far": 0})
+        _current_task.update({
+            "type": task_type, "model": active_model,
+            "started_at": datetime.now().isoformat(), "tokens_so_far": 0,
+        })
     result = "[LM Studio indisponible]"
     try:
         sys_prompt = build_system_prompt(system)
@@ -176,7 +241,7 @@ def lm_call(prompt: str, system: str = "", max_tokens: int = 800) -> str:
             messages.append({"role": "system", "content": sys_prompt})
         messages.append({"role": "user", "content": prompt})
         payload = {
-            "model": LM_MODEL,
+            "model": active_model,
             "messages": messages,
             "max_tokens": max_tokens,
             "temperature": 0.4,
@@ -199,7 +264,8 @@ def lm_call(prompt: str, system: str = "", max_tokens: int = 800) -> str:
                 with urllib.request.urlopen(req, timeout=300) as r:  # 300s = 2000 tokens à 8 t/s
                     data = json.loads(r.read())
                     if "choices" in data:
-                        result = data["choices"][0]["message"]["content"].strip()
+                        msg = data["choices"][0]["message"]
+                        result = (msg.get("content") or msg.get("reasoning_content") or "").strip()
                     elif "content" in data:
                         result = str(data["content"]).strip()
                     else:
@@ -251,17 +317,25 @@ def lm_status() -> dict:
         "history":        _read_lm_history(10),
         "tokens_session": tok_sess,
         "context_loaded": ctx_loaded,
+        "brain": {
+            "director": LM_MODEL,
+            "ceo":      LM_MODEL_CEO,
+        },
     }
 
 
 # ── P9 : STREAMING ────────────────────────────────────────────────────────────
-def lm_stream_to(prompt: str, system: str, max_tokens: int, wfile) -> None:
+def lm_stream_to(prompt: str, system: str, max_tokens: int, wfile, model: str = "") -> None:
     global tokens_session
     t0 = time.time()
     task_type = _infer_task_type(system, prompt)
+    active_model = model or _route_model(task_type)
     with _lm_log_lock:
         _current_task.clear()
-        _current_task.update({"type": task_type, "started_at": datetime.now().isoformat(), "tokens_so_far": 0})
+        _current_task.update({
+            "type": task_type, "model": active_model,
+            "started_at": datetime.now().isoformat(), "tokens_so_far": 0,
+        })
     _tok = [0]  # compteur mutable accessible depuis le finally
     try:
         sys_prompt = build_system_prompt(system)
@@ -270,7 +344,7 @@ def lm_stream_to(prompt: str, system: str, max_tokens: int, wfile) -> None:
             messages.append({"role": "system", "content": sys_prompt})
         messages.append({"role": "user", "content": prompt})
         payload = {
-            "model": LM_MODEL, "messages": messages,
+            "model": active_model, "messages": messages,
             "max_tokens": max_tokens, "temperature": 0.4, "stream": True,
         }
         endpoints = [f"{LM_HOST}/api/v1/chat", f"{LM_HOST}/v1/chat/completions"]
@@ -361,6 +435,8 @@ def run_chain(cmd: str, cwd: str = None) -> dict:
     log_buffer.append(entry)
     if len(log_buffer) > 50:
         log_buffer.pop(0)
+    write_studio_state()
+    run_state_updater_async()
     return entry
 
 # ── P2 : JSON CHAIN RUNNER ───────────────────────────────────────────────────
@@ -381,23 +457,205 @@ def run_chain_json(cmd: str) -> dict:
         return {"error": str(e)}
 
 
+# ── STATE_UPDATER HOOK ───────────────────────────────────────────────────────
+def run_state_updater_async() -> None:
+    """Lance state_updater.py en tâche de fond (non-bloquant) après chaque action significative."""
+    if not STATE_UPDATER.exists():
+        return
+    def _worker() -> None:
+        try:
+            py_exe = str(REPO / ".venv312" / "Scripts" / "python.exe")
+            subprocess.run(
+                [py_exe, str(STATE_UPDATER)],
+                cwd=str(REPO),
+                timeout=30,
+                capture_output=True,
+            )
+        except Exception:
+            pass
+    threading.Thread(target=_worker, daemon=True).start()
+
+
+# ── WORKFLOW IMP — charter generation (IMP-059) ───────────────────────────────
+def _parse_imp_from_ledger(imp_id: str) -> dict:
+    if not LEDGER.exists():
+        return {}
+    try:
+        text = LEDGER.read_text(encoding="utf-8")
+        for block in re.split(r'\n- id:\s*', text)[1:]:
+            m = re.match(r'(IMP-\d+)', block)
+            if not m or m.group(1) != imp_id:
+                continue
+            imp: dict = {"id": imp_id}
+            m_title = re.search(r"title:\s*([^\n]+)", block)
+            if m_title:
+                imp["title"] = m_title.group(1).strip().strip("'\"")
+            m_lane = re.search(r'lane:\s*(\S+)', block)
+            if m_lane:
+                imp["lane"] = m_lane.group(1)
+            m_status = re.search(r'status:\s*(\S+)', block)
+            if m_status:
+                imp["status"] = m_status.group(1)
+            m_acc = re.search(r'acceptance:\s*([\s\S]*?)(?=\n\s*\w[\w_]*:|$)', block)
+            if m_acc:
+                imp["acceptance"] = re.sub(r'\s+', ' ', m_acc.group(1)).strip()
+            m_notes = re.search(r'notes:\s*([\s\S]*?)(?=\n\s*\w[\w_]*:|$)', block)
+            if m_notes:
+                imp["notes"] = re.sub(r'\s+', ' ', m_notes.group(1)).strip().strip("'\"")
+            m_files = re.search(r'files:\n((?:\s*- .+\n?)*)', block)
+            if m_files:
+                imp["files"] = [
+                    re.sub(r'^\s*-\s*', '', ln).strip()
+                    for ln in m_files.group(1).strip().split("\n") if ln.strip()
+                ]
+            else:
+                imp["files"] = []
+            return imp
+    except Exception:
+        pass
+    return {}
+
+
+def _build_minimal_charter_local(imp: dict) -> str:
+    files = imp.get("files", [])
+    files_str = "\n".join(f"  - {f}" for f in files) if files else "  (aucun fichier spécifié)"
+    val_lines = [
+        r".venv312\Scripts\python.exe -m py_compile " + f
+        for f in files if f.endswith(".py")
+    ]
+    if not val_lines:
+        val_lines = [r".venv312\Scripts\python.exe -m py_compile autopilot.py"]
+    return "\n".join([
+        f"# CHARTER {imp.get('id','?')} — {imp.get('title','?')}",
+        "",
+        f"**Lane:** {imp.get('lane','?')}",
+        "**Fichiers autorisés:**",
+        files_str,
+        "",
+        "## RÈGLES ABSOLUES",
+        "",
+        "- Aucun git write.",
+        "- Tests obligatoires.",
+        "- claim_verdict: NO_CLAIM_ALLOWED",
+        "",
+        "## OBJECTIF",
+        "",
+        imp.get("acceptance", "Voir ledger."),
+        "",
+        "## NOTES",
+        "",
+        imp.get("notes", ""),
+        "",
+        "## VALIDATION",
+        "",
+        "```powershell",
+        "\n".join(val_lines),
+        "```",
+        "",
+        "## RAPPORT FINAL",
+        "",
+        "software_verdict: OK",
+        "evidence_verdict: MECHANICAL_VALIDATION_ONLY",
+        "claim_verdict: NO_CLAIM_ALLOWED",
+    ])
+
+
+def api_generate_charter(imp_id: str) -> dict:
+    imp = _parse_imp_from_ledger(imp_id)
+    if not imp:
+        return {"error": f"{imp_id} introuvable dans le ledger"}
+    charter_path = REPO / "lab/chains/charters" / f"{imp_id}_charter.md"
+    if charter_path.exists():
+        try:
+            charter_text = charter_path.read_text(encoding="utf-8")
+        except Exception:
+            charter_text = _build_minimal_charter_local(imp)
+    else:
+        charter_text = _build_minimal_charter_local(imp)
+    return {
+        "imp_id": imp_id,
+        "title":  imp.get("title", ""),
+        "lane":   imp.get("lane", ""),
+        "charter": charter_text,
+    }
+
+
+def close_imp(imp_id: str) -> dict:
+    """Marque un IMP OPEN/DEFERRED comme CLOSED dans le ledger et déclenche state_updater."""
+    result: dict = {"ok": False, "imp_id": imp_id, "error": ""}
+    if not LEDGER.exists():
+        result["error"] = "LEDGER not found"
+        run_state_updater_async()
+        return result
+    try:
+        lines = LEDGER.read_text(encoding="utf-8").splitlines(keepends=True)
+        in_block = False
+        found = False
+        new_lines = []
+        today = datetime.now().strftime("%Y-%m-%d")
+        for line in lines:
+            stripped = line.rstrip()
+            if re.match(rf"^- id:\s*{re.escape(imp_id)}\s*$", stripped):
+                in_block = True
+            elif re.match(r"^- id:\s*IMP-\d+", stripped) and in_block:
+                in_block = False
+            if in_block and re.match(r"^\s+status:\s+(OPEN|DEFERRED|IN_PROGRESS)", stripped):
+                line = re.sub(r"(status:\s+)\w+", r"\g<1>CLOSED", line)
+                found = True
+            new_lines.append(line)
+        if found:
+            LEDGER.write_text("".join(new_lines), encoding="utf-8")
+            ledger_cache.clear()
+            result["ok"] = True
+            result["closed_session"] = today
+        else:
+            result["error"] = f"{imp_id} not found or already CLOSED"
+    except Exception as e:
+        result["error"] = str(e)
+    run_state_updater_async()
+    return result
+
+
 # ── LEDGER / HISTORY UTILS ────────────────────────────────────────────────────
 def get_ledger_counts() -> dict:
     if not LEDGER.exists():
-        return {"open": 0, "closed": 0, "next": {}}
+        return {"open": 0, "closed": 0, "next": {}, "open_imps": []}
     try:
         text = LEDGER.read_text(encoding="utf-8")
         open_count = text.count("status: OPEN") + text.count("status: IN_PROGRESS")
         closed_count = text.count("status: CLOSED") + text.count("status: DONE")
-        # Try to extract next open item title
         next_imp = {}
         m = re.search(r'- id:\s*(IMP-\d+).*?title:\s*"([^"]+)".*?status:\s*OPEN',
                       text, re.DOTALL)
         if m:
             next_imp = {"id": m.group(1), "title": m.group(2)}
-        return {"open": open_count, "closed": closed_count, "next": next_imp}
+        open_imps: list = []
+        for block in re.split(r'\n- id:\s*', text)[1:]:
+            m_st = re.search(r'status:\s*(\w+)', block)
+            if not m_st or m_st.group(1) not in ("OPEN", "IN_PROGRESS"):
+                continue
+            entry: dict = {}
+            m_id = re.match(r'(IMP-\d+)', block)
+            if m_id:
+                entry["id"] = m_id.group(1)
+            m_tit = re.search(r"title:\s*([^\n]+)", block)
+            if m_tit:
+                entry["title"] = m_tit.group(1).strip().strip("'\"")
+            m_ln = re.search(r'lane:\s*(\S+)', block)
+            if m_ln:
+                entry["lane"] = m_ln.group(1)
+            m_dom = re.search(r'domain:\s*(\S+)', block)
+            if m_dom:
+                entry["domain"] = m_dom.group(1)
+            if entry.get("id"):
+                open_imps.append(entry)
+        # Enrichir next_imp avec lane depuis open_imps (le regex ci-dessus ne capture pas lane)
+        if open_imps and not next_imp.get("lane"):
+            first = open_imps[0]
+            next_imp = {k: first[k] for k in ("id", "title", "lane") if k in first}
+        return {"open": open_count, "closed": closed_count, "next": next_imp, "open_imps": open_imps}
     except Exception:
-        return {"open": 0, "closed": 0, "next": {}}
+        return {"open": 0, "closed": 0, "next": {}, "open_imps": []}
 
 
 def read_chain_history(n: int = 3) -> list:
@@ -437,11 +695,12 @@ def get_health() -> dict:
     venv_path = REPO / ".venv312" / "Scripts" / "python.exe"
     lm = lm_status()
     return {
-        "venv": venv_path.exists(),
-        "lm_studio": lm["ok"],
-        "venv_path": str(venv_path),
-        "lm_model": LM_MODEL,
-        "lm_models": lm.get("models", []),
+        "venv":           venv_path.exists(),
+        "lm_studio":      lm["ok"],
+        "venv_path":      str(venv_path),
+        "lm_model":       LM_MODEL,
+        "lm_model_ceo":   LM_MODEL_CEO,
+        "lm_models":      lm.get("models", []),
     }
 
 
@@ -460,7 +719,7 @@ def get_staleness() -> dict:
 
 # ── P5 : METRICS ──────────────────────────────────────────────────────────────
 def get_metrics() -> dict:
-    result: dict = {"elo": {}, "draw_rate": None, "benchmark": {}}
+    result: dict = {"elo": {}, "draw_rate": None, "benchmark": {}, "is_fallback": True}
     report_dir = REPO / "lab/reports"
     for fname in ["latest_benchmark_summary.json", "bench_rocky_p4_holdout_v2.json",
                   "bench_rocky_p4_holdout.json", "bench_rocky_p4_train_v2.json"]:
@@ -476,9 +735,20 @@ def get_metrics() -> dict:
                     "date": data.get("date") or data.get("timestamp") or "",
                 }
                 result["benchmark"] = {"file": fname, "status": "ok"}
+                result["is_fallback"] = False
                 break
             except Exception:
                 pass
+    draw = result.get("draw_rate") or 0
+    try:
+        neural_st = "WEAK" if draw and float(draw) > 0.5 else "STABLE"
+    except Exception:
+        neural_st = "STABLE"
+    result["agents"] = [
+        {"id": "teacher_uci", "arch": "Search · Stockfish UCI",    "status": "STABLE"},
+        {"id": "heuristic",   "arch": "Search only · eval.rs",     "status": "STABLE"},
+        {"id": "neural",      "arch": "Search + Neural · PyTorch", "status": neural_st},
+    ]
     counts = get_ledger_counts()
     result["open"] = counts["open"]
     result["closed"] = counts["closed"]
@@ -560,6 +830,9 @@ def build_fusion_context() -> dict:
                 m_lane = re.search(r'lane:\s*(\w+)', block)
                 if m_lane:
                     entry["lane"] = m_lane.group(1)
+                m_domain = re.search(r'domain:\s*(\S+)', block)
+                if m_domain:
+                    entry["domain"] = m_domain.group(1)
                 m_impact = re.search(r'impact:\s*(\w+)', block)
                 if m_impact:
                     entry["roi"] = m_impact.group(1)
@@ -615,6 +888,23 @@ def build_fusion_context() -> dict:
         for f in mem.get("fusions", [])[:10]
     ]
     return ctx
+
+
+def _extract_sprint_objective(roadmap_text: str) -> str:
+    """Return 'Phase N — objectif' for the first phase that has an IN_PROGRESS task."""
+    phase = ""
+    obj = ""
+    for line in roadmap_text.splitlines():
+        m_phase = re.match(r'^## (Phase \d+ [—-].+)', line)
+        if m_phase:
+            phase = m_phase.group(1)
+            obj = ""
+        m_obj = re.match(r'^Objectif\s*:\s*(.+)', line)
+        if m_obj:
+            obj = m_obj.group(1).strip()
+        if "IN_PROGRESS" in line and phase:
+            return f"{phase} — {obj}" if obj else phase
+    return phase or "Phase courante non déterminée"
 
 
 # ── MEMORY DATA — lit les fichiers sources réels ──────────────────────────────
@@ -693,6 +983,30 @@ def get_memory_data() -> dict:
             result["studio_memory_size"] = round(MEMORY_FILE.stat().st_size / 1024, 1)
         except Exception:
             pass
+    # 8. 3 derniers IMPs fermés (pour workflow)
+    closed_imps: list = []
+    if LEDGER.exists():
+        try:
+            text = LEDGER.read_text(encoding="utf-8")
+            for block in re.split(r'\n- id:\s*', text)[1:]:
+                m_st = re.search(r'status:\s*(\w+)', block)
+                if not m_st or m_st.group(1) not in ("CLOSED", "DONE"):
+                    continue
+                entry: dict = {}
+                m_id = re.match(r'(IMP-\d+)', block)
+                if m_id:
+                    entry["id"] = m_id.group(1)
+                m_tit = re.search(r"title:\s*([^\n]+)", block)
+                if m_tit:
+                    entry["title"] = m_tit.group(1).strip().strip("'\"")
+                m_cs = re.search(r"closed_session:\s*['\"]?([^\s'\"]+)['\"]?", block)
+                if m_cs:
+                    entry["closed_session"] = m_cs.group(1)
+                if entry.get("id"):
+                    closed_imps.append(entry)
+        except Exception:
+            pass
+    result["last_closed_imps"] = list(reversed(closed_imps))[:3]
     return result
 
 
@@ -714,16 +1028,103 @@ def get_session_context() -> dict:
     }
 
 
-# Chaînes prédéfinies
-CHAINS = {
-    "recall":   {"label": "Recall",        "lane": "SAFE_AUTO",    "cmd": f'python "{KAIZEN}" recall'},
-    "audit":    {"label": "Audit hygiene", "lane": "SAFE_AUTO",    "cmd": f'python "{HYGIENE}" --audit'},
-    "propose":  {"label": "Propose",       "lane": "SAFE_AUTO",    "cmd": f'python "{KAIZEN}" propose'},
-    "metrics":  {"label": "Métriques",     "lane": "SAFE_AUTO",    "cmd": f'python "{KAIZEN}" metrics'},
-    "smoke":    {"label": "Smoke benchmark","lane": "AUDIT_REQUIRED","cmd": r'powershell -ExecutionPolicy Bypass -File .\scripts\studioV2\run_benchmark.ps1 -Smoke -RunClass exploration_only'},
-    "coach":    {"label": "Coach Rocky",   "lane": "AUDIT_REQUIRED","cmd": r'powershell -ExecutionPolicy Bypass -Command "$env:TCS_MINIMAX_DEPTH=\"3\"; $env:TCS_MOVE_TIME_MS=\"300\"; cargo run --release -- simulate_chess960 518 3 2>&1 | Out-File rocky_debug.log -Encoding utf8"'},
-    "tests":    {"label": "Cargo tests",   "lane": "AUDIT_REQUIRED","cmd": "cargo test 2>&1"},
-}
+def _compute_surfaces() -> dict:
+    """Statuts dynamiques des 5 surfaces pour /api/studio-state."""
+    active_txt = REPO / "lab/ACTIVE_DATASET.txt"
+    active_exists = False
+    corrupt = False
+    if active_txt.exists():
+        try:
+            p = active_txt.read_text(encoding="utf-8").strip()
+            active_exists = Path(p).exists() if p else False
+        except Exception:
+            pass
+    report_dir = REPO / "lab/reports"
+    for fname in ["latest_benchmark_summary.json", "bench_rocky_p4_holdout_v2.json", "bench_rocky_p4_holdout.json"]:
+        fp = report_dir / fname
+        if fp.exists():
+            try:
+                data = json.loads(fp.read_text(encoding="utf-8"))
+                dr = data.get("draw_rate") or data.get("draw_rate_neural") or 0
+                if float(dr) > 0.9:
+                    corrupt = True
+            except Exception:
+                pass
+    lora_cfg = REPO / "ml" / "lora_config.yaml"
+    golden = REPO / "lab" / "chains" / "golden_examples.jsonl"
+    golden_count = 0
+    if golden.exists():
+        try:
+            golden_count = sum(1 for l in golden.read_text(encoding="utf-8").split("\n") if l.strip())
+        except Exception:
+            pass
+    has_benchmark = any(
+        (report_dir / f).exists()
+        for f in ["latest_benchmark_summary.json", "bench_rocky_p4_holdout_v2.json", "bench_rocky_p4_holdout.json"]
+    )
+    if active_exists and not corrupt:
+        ds_status = "IMPLEMENTED"
+    elif active_exists:
+        ds_status = "PARTIAL"
+    else:
+        ds_status = "NOT_STARTED"
+    if lora_cfg.exists() and golden_count >= 10:
+        lora_status = "IMPLEMENTED"
+    elif golden_count > 0:
+        lora_status = "PARTIAL"
+    else:
+        lora_status = "NOT_STARTED"
+    return {
+        "moteur_rust": "IMPLEMENTED",
+        "dataset":     ds_status,
+        "autopilote":  "IMPLEMENTED",
+        "lora":        lora_status,
+        "benchmark":   "IMPLEMENTED" if has_benchmark else "NOT_STARTED",
+    }
+
+
+def _get_sprint_objective() -> str:
+    """Lit l'objectif de sprint courant depuis ROADMAP.md (non-bloquant)."""
+    roadmap_path = REPO / "00_STUDIO_CONTROL/00_MASTER_DOCS/01_ROADMAP.md"
+    if not roadmap_path.exists():
+        return ""
+    try:
+        return _extract_sprint_objective(roadmap_path.read_text(encoding="utf-8")[:3000])
+    except Exception:
+        return ""
+
+
+def write_studio_state():
+    """Écrit studio_state.json après chaque action significative."""
+    lc = dict(ledger_cache) if ledger_cache else get_ledger_counts()
+    lm = lm_status()
+    state = {
+        "ts": datetime.now().isoformat(),
+        "ledger": {
+            "open":   lc.get("open", 0),
+            "closed": lc.get("closed", 0),
+            "next":   lc.get("next", {})
+        },
+        "lm": {
+            "ok":             lm.get("ok", False),
+            "model":          LM_MODEL,
+            "model_ceo":      LM_MODEL_CEO,
+            "tokens_session": tokens_session,
+        },
+        "humangate_pending": any(
+            i.get("lane") in ("HUMAN_REQUIRED", "FORBIDDEN")
+            for i in lc.get("open_imps", [])
+        ),
+        "last_cycle": datetime.now().isoformat(),
+        "surfaces": _compute_surfaces(),
+        "sprint_objective": _get_sprint_objective(),
+    }
+    try:
+        (Path(__file__).parent / "studio_state.json").write_text(
+            json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    except Exception:
+        pass
 
 
 # ── HTML UI ──────────────────────────────────────────────────────────────────
@@ -894,6 +1295,8 @@ tr:hover td{background:var(--bg3)}
 .terminal .cmd-line{color:var(--amber)}
 .terminal .err-line{color:var(--red)}
 .terminal .ok-line{color:var(--green)}
+/* AUTOLOOP TERMINAL (IMP-061) */
+.autoloop-terminal{background:var(--bg);font-family:var(--font-m);font-size:10px;max-height:150px;overflow-y:auto;padding:6px;border:1px solid var(--border);border-radius:4px;margin-top:6px}
 
 /* IDEA CARDS */
 .idea-card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:12px 14px;margin-bottom:8px;border-left:3px solid;transition:all .15s;cursor:pointer}
@@ -1025,6 +1428,10 @@ tr:hover td{background:var(--bg3)}
 .rule-item{display:flex;gap:8px;margin-bottom:6px;font-size:11px;color:var(--text2);line-height:1.5}
 .rule-num{color:var(--amber);font-weight:700;flex-shrink:0}
 
+/* LANE CARDS (autoloop multi-lane) */
+.lane-card{background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:10px 12px}
+.lane-card-title{font-family:var(--font-d);font-size:11px;font-weight:700;color:var(--text2);margin-bottom:5px}
+
 /* ROADMAP GAMES */
 .game-row{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:14px 16px;margin-bottom:10px}
 .game-title{font-family:var(--font-d);font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px}
@@ -1068,6 +1475,8 @@ tr:hover td{background:var(--bg3)}
 
   <div class="sb-section">Config</div>
   <div class="sb-item" onclick="nav('config')"><span class="ico">⚙</span> Config</div>
+  <div class="sb-item" onclick="nav('studio-os')"><span class="ico">⬡</span> Studio OS</div>
+  <div class="sb-item" onclick="nav('workflow')"><span class="ico">⬡</span> Workflow IMP</div>
 
   <div class="sb-footer">
     <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em">HumanGate</div>
@@ -1103,9 +1512,11 @@ tr:hover td{background:var(--bg3)}
     <div class="tb-sep"></div>
     <div class="tb-stat">Repo <span class="val" id="tb-repo">C:\TACTICAL_CHESS_STUDIO</span></div>
     <div class="tb-sep"></div>
-    <div class="tb-stat">Sprint <span class="val">2026-05-30</span></div>
+    <div class="tb-stat">Sprint <span class="val" id="tb-sprint">—</span></div>
     <div class="tb-sep"></div>
     <div class="tb-stat">Ledger <span class="val" id="tb-ledger">--/--</span></div>
+    <div class="tb-sep"></div>
+    <div class="tb-stat">Tokens <span class="val" id="tb-tokens">0</span></div>
     <div class="tb-right">
       <div class="tb-lm offline" id="lm-indicator">
         <span id="lm-dot">○</span>
@@ -1133,8 +1544,8 @@ tr:hover td{background:var(--bg3)}
         </div>
         <div class="stat-blk red">
           <div class="stat-lbl">Issues HIGH</div>
-          <div class="stat-val">3</div>
-          <div class="stat-sub">NEW-02 · NEW-03 · NEW-05</div>
+          <div class="stat-val" id="pilote-issues-count">3</div>
+          <div class="stat-sub" id="pilote-issues-labels">NEW-02 · NEW-03 · NEW-05</div>
         </div>
         <div class="stat-blk green">
           <div class="stat-lbl">ELO teacher_uci</div>
@@ -1155,6 +1566,15 @@ tr:hover td{background:var(--bg3)}
           <span style="font-size:10px;color:var(--text3)">IDEAS×LEDGER · ROI_CASCADE · REDTEAM · Devstral local</span>
         </div>
         <div id="fusion-out" style="display:none;margin-top:10px" class="roadmap-out"></div>
+      </div>
+
+      <div class="divider">CEO Brief</div>
+      <div class="card" style="padding:10px 14px" id="ceo-brief-card">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="btn btn-amber" onclick="loadCeoBrief()">⬡ CEO Brief</button>
+          <span style="font-size:10px;color:var(--text3)">Analyse Devstral · claim_verdict: NO_CLAIM_ALLOWED</span>
+        </div>
+        <div id="ceo-brief-out" style="display:none;margin-top:10px"></div>
       </div>
 
       <div class="divider">Où j'en étais</div>
@@ -1197,11 +1617,11 @@ tr:hover td{background:var(--bg3)}
         </div>
 
         <div>
-          <div class="divider">État repo (2026-05-30)</div>
+          <div class="divider" id="pilote-repo-divider">État repo</div>
           <div class="card">
             <table>
               <thead><tr><th>Surface</th><th>Statut</th></tr></thead>
-              <tbody>
+              <tbody id="pilote-surfaces-body">
                 <tr><td>Moteur Rust</td><td><span class="pill p-impl">IMPLEMENTED</span></td></tr>
                 <tr><td>NeuralAgent câblé</td><td><span class="pill p-done">DONE c0ebf62</span></td></tr>
                 <tr><td>Coach v0 (LLM)</td><td><span class="pill p-done">DONE fd88b97</span></td></tr>
@@ -1232,6 +1652,49 @@ tr:hover td{background:var(--bg3)}
 
     <!-- ── CHAÎNES ── -->
     <div id="page-chains" class="page">
+      <div class="divider">Boucle Kaizen</div>
+      <div class="card" style="padding:12px 14px" id="autoloop-card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:10px;color:var(--text3)">dry_run=true · HumanGate requis pour exécution réelle</span>
+          <button class="btn btn-sm" style="margin-left:auto" onclick="autoloopStopAll()">■ Stop tout</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+          <div class="lane-card">
+            <div class="lane-card-title">&#x1F3F0; Rocky / Moteur</div>
+            <div id="al-state-rocky_moteur" class="chain-status idle">idle</div>
+            <div id="al-last-rocky_moteur" style="font-size:10px;color:var(--text3);margin-top:3px"></div>
+            <label style="font-size:9px;color:var(--text3);margin-top:5px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="drcheck-rocky_moteur" style="accent-color:var(--amber)"> Exécution réelle <span style="color:var(--red)">(désactive dry_run — HumanGate)</span></label>
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <button class="btn btn-green btn-sm" id="btn-start-rocky_moteur" onclick="autoloopStart('rocky_moteur')">&#9654; Start</button>
+              <button class="btn btn-sm" id="btn-stop-rocky_moteur" style="display:none" onclick="autoloopStop('rocky_moteur')">&#9632; Stop</button>
+            </div>
+            <div class="autoloop-terminal" id="terminal-rocky_moteur"></div>
+          </div>
+          <div class="lane-card">
+            <div class="lane-card-title">&#x1F9E0; IA / Apprentissage</div>
+            <div id="al-state-ia_apprentissage" class="chain-status idle">idle</div>
+            <div id="al-last-ia_apprentissage" style="font-size:10px;color:var(--text3);margin-top:3px"></div>
+            <label style="font-size:9px;color:var(--text3);margin-top:5px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="drcheck-ia_apprentissage" style="accent-color:var(--amber)"> Exécution réelle <span style="color:var(--red)">(désactive dry_run — HumanGate)</span></label>
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <button class="btn btn-green btn-sm" id="btn-start-ia_apprentissage" onclick="autoloopStart('ia_apprentissage')">&#9654; Start</button>
+              <button class="btn btn-sm" id="btn-stop-ia_apprentissage" style="display:none" onclick="autoloopStop('ia_apprentissage')">&#9632; Stop</button>
+            </div>
+            <div class="autoloop-terminal" id="terminal-ia_apprentissage"></div>
+          </div>
+          <div class="lane-card">
+            <div class="lane-card-title">&#x2696; D&eacute;cisions pendantes</div>
+            <div id="al-state-decisions_pendantes" class="chain-status idle">idle</div>
+            <div id="al-last-decisions_pendantes" style="font-size:10px;color:var(--text3);margin-top:3px"></div>
+            <label style="font-size:9px;color:var(--text3);margin-top:5px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="drcheck-decisions_pendantes" style="accent-color:var(--amber)"> Exécution réelle <span style="color:var(--red)">(désactive dry_run — HumanGate)</span></label>
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <button class="btn btn-green btn-sm" id="btn-start-decisions_pendantes" onclick="autoloopStart('decisions_pendantes')">&#9654; Start</button>
+              <button class="btn btn-sm" id="btn-stop-decisions_pendantes" style="display:none" onclick="autoloopStop('decisions_pendantes')">&#9632; Stop</button>
+            </div>
+            <div class="autoloop-terminal" id="terminal-decisions_pendantes"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="divider">Chaînes disponibles</div>
       <div id="chains-list"></div>
 
@@ -1397,6 +1860,7 @@ tr:hover td{background:var(--bg3)}
           <div class="elo-agent"><div class="elo-name">neural</div><div class="elo-val" style="color:var(--text2)" id="elo-neural">975</div></div>
         </div>
         <div style="font-size:10px;color:var(--text3)" id="elo-date">Date inconnue</div>
+      <div id="elo-fallback-note" style="display:none;font-size:10px;color:var(--amber);margin-top:3px">⚠ fallback — aucun benchmark mesuré</div>
       </div>
       <div class="divider">Draw Rate</div>
       <div class="card" id="metrics-draw">
@@ -1428,7 +1892,7 @@ tr:hover td{background:var(--bg3)}
       <div class="card">
         <table>
           <thead><tr><th>Composant</th><th>Statut</th><th>Notes</th></tr></thead>
-          <tbody>
+          <tbody id="dataset-arch-body">
             <tr><td>Search (Negamax)</td><td><span class="pill p-done">✅ ACTIF</span></td><td>IMP-014 timeout</td></tr>
             <tr><td>Neural bridge</td><td><span class="pill p-done">✅ ACTIF</span></td><td>câblé c0ebf62</td></tr>
             <tr><td>Value head</td><td><span class="pill p-audit">⚠ PARTIEL</span></td><td>inutilisée en pratique</td></tr>
@@ -1568,20 +2032,8 @@ tr:hover td{background:var(--bg3)}
         </div>
         <div class="ligue-col">
           <div class="ligue-col-title">Bracket Round-robin</div>
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Terminés</div>
-          <div class="bracket-match match-done">
-            <span>teacher_uci vs heuristic</span><span style="font-weight:700">1424 &gt; 1200 ✓</span>
-          </div>
-          <div class="bracket-match match-done">
-            <span>teacher_uci vs neural</span><span style="font-weight:700">1424 &gt; 975 ✓</span>
-          </div>
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 6px">Prochain</div>
-          <div class="bracket-match match-next">
-            <span>heuristic vs neural</span><span>⏳ planifié</span>
-          </div>
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 6px">Planifiés</div>
-          <div class="bracket-match match-planned">
-            <span>Nouvelle saison</span><span>HumanGate requis</span>
+          <div id="ligue-bracket">
+            <div style="font-size:12px;color:var(--text3)">Chargement...</div>
           </div>
         </div>
         <div class="ligue-col">
@@ -1714,6 +2166,137 @@ tr:hover td{background:var(--bg3)}
       </div>
     </div>
 
+    <!-- ── STUDIO OS ── -->
+    <div id="page-studio-os" class="page">
+
+      <!-- Section 1 : Surfaces studio -->
+      <div class="divider">Surfaces studio</div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Surface</th><th>Statut</th></tr></thead>
+          <tbody id="sos-surfaces-body">
+            <tr><td colspan="2" style="color:var(--text3);text-align:center;padding:12px">Chargement...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Section 2 : Boucle Kaizen live -->
+      <div class="divider">Boucle Kaizen live</div>
+      <div class="card">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px">
+          <div>
+            <div class="stat-lbl">Ledger</div>
+            <div id="sos-ledger-line" style="font-size:14px;font-family:var(--font-d);font-weight:700;color:var(--text2)">—</div>
+          </div>
+          <div>
+            <div class="stat-lbl">Next IMP</div>
+            <div id="sos-next-imp" style="font-size:13px;font-family:var(--font-d);font-weight:600;color:var(--amber)">—</div>
+            <div id="sos-next-lane" style="font-size:10px;color:var(--text3);margin-top:2px"></div>
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div class="stat-lbl">Autoloop</div>
+          <div id="sos-autoloop-state" style="font-size:12px;color:var(--text2);margin-top:3px">idle</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="btn btn-green" onclick="sosDryRun()">&#9654; Dry-run</button>
+          <span id="sos-dryrun-status" style="font-size:11px;color:var(--text3)"></span>
+        </div>
+      </div>
+
+      <!-- Section 3 : HumanGate -->
+      <div class="divider">HumanGate</div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap">
+          <div>
+            <div class="stat-lbl">Pending</div>
+            <div id="sos-hg-pending" class="pill p-todo" style="margin-top:4px">—</div>
+          </div>
+          <div style="flex:1"></div>
+          <button class="btn btn-amber btn-sm" onclick="loadCeoBrief();nav('pilote')">&#11041; Lancer CEO Brief</button>
+        </div>
+        <div class="stat-lbl" style="margin-bottom:6px">Dernières décisions HumanGate</div>
+        <div id="sos-hg-decisions">
+          <div style="font-size:12px;color:var(--text3)">Chargement...</div>
+        </div>
+      </div>
+
+      <!-- Section 4 : Corpus LoRA -->
+      <div class="divider">Corpus LoRA</div>
+      <div class="card">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px">
+          <div class="stat-blk green">
+            <div class="stat-lbl">Golden examples</div>
+            <div class="stat-val" id="sos-golden">—</div>
+            <div class="stat-sub">/ 50 cible</div>
+          </div>
+          <div class="stat-blk blue">
+            <div class="stat-lbl">Finetune examples</div>
+            <div class="stat-val" id="sos-finetune">—</div>
+          </div>
+          <div class="stat-blk amber">
+            <div class="stat-lbl">LoRA status</div>
+            <div style="margin-top:8px"><span class="pill p-todo" id="sos-lora-status">PENDING</span></div>
+          </div>
+        </div>
+        <div class="stat-lbl">Progression corpus (/ 50)</div>
+        <div class="prog-wrap" style="height:8px;margin-top:6px">
+          <div class="prog-bar" id="sos-lora-bar" style="width:0%;background:var(--text3)"></div>
+        </div>
+        <div id="sos-lora-bar-label" style="font-size:10px;color:var(--text3);margin-top:4px">0 / 50 exemples</div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn" onclick="loadStudioOs()">&#8635; Rafraîchir</button>
+      </div>
+    </div>
+
+    <!-- ── WORKFLOW IMP ── -->
+    <div id="page-workflow" class="page">
+
+      <!-- Section 1 : Sélection IMP -->
+      <div class="divider">Sélection IMP</div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <select id="wf-imp-select" style="flex:1;min-width:260px;padding:6px 10px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:12px">
+            <option value="">— Choisir un IMP —</option>
+          </select>
+          <button class="btn btn-amber" id="wf-btn-generate" onclick="generateCharter()">Générer charter</button>
+        </div>
+      </div>
+
+      <!-- Section 2 : Charter généré -->
+      <div id="wf-section-charter" style="display:none">
+        <div class="divider">Charter généré</div>
+        <div class="card">
+          <div id="wf-charter-title" style="font-size:12px;font-weight:600;color:var(--amber);margin-bottom:8px"></div>
+          <textarea id="wf-charter-out" readonly style="width:100%;height:300px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;padding:10px;font-size:11px;font-family:var(--font-d);resize:vertical;box-sizing:border-box"></textarea>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+            <button class="btn" onclick="copyCharter()">&#128203; Copier le charter</button>
+            <span id="wf-copy-label" style="font-size:11px;color:var(--text3)">Colle ce charter dans Claude Code</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3 : Rapport Claude Code -->
+      <div class="divider">Rapport Claude Code</div>
+      <div class="card">
+        <textarea id="wf-report-in" placeholder="Colle le rapport final ici..." style="width:100%;height:160px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;padding:10px;font-size:11px;font-family:var(--font-d);resize:vertical;box-sizing:border-box"></textarea>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px">Validation : doit contenir <code>software_verdict</code> et <code>claim_verdict: NO_CLAIM_ALLOWED</code></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+          <button class="btn btn-green" id="wf-btn-close" onclick="validateAndCloseImp()">&#10003; Valider et fermer IMP</button>
+          <span id="wf-close-status" style="font-size:11px"></span>
+        </div>
+      </div>
+
+      <!-- Section 4 : Historique -->
+      <div class="divider">Historique (3 derniers IMPs fermés)</div>
+      <div class="card">
+        <div id="wf-history"><div style="color:var(--text3);font-size:12px">Chargement...</div></div>
+      </div>
+
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 </div><!-- /shell -->
@@ -1833,6 +2416,7 @@ const S = {
   claudeMode: false,
   lmOnline: false,
   pendingChain: null,
+  pendingAutoloopLane: null,
   memory: { fusions: [], decisions: [] },
   ideas: [
     {id:1,chain:'studio',status:'backlog',title:'Chaîne Red Team + Fusion — interroger blocages des 3 pipes',roi:'high',lane:'audit',desc:'Ajouter aux 3 chaînes une couche Red Team + Fusion. Prompts types : blocage, brainstorm, calcul ROI automatisé.',issue:''},
@@ -1875,13 +2459,16 @@ function nav(id) {
   document.getElementById(`page-${id}`)?.classList.add('active');
   if (id === 'roadmap-ia') id = 'metrics';
   if (id === 'ideas') renderIdeas();
-  if (id === 'chains') renderChains();
+  if (id === 'chains') loadChains();
   if (id === 'memory') renderMemory();
   if (id === 'logs') { refreshLogs(); loadDevstralStatus(); }
   if (id === 'metrics' || id === 'ligue') loadMetrics();
-  if (id === 'dataset') loadDataset();
-  if (id === 'pilote') loadSessionContext();
+  if (id === 'ligue') loadLigue();
+  if (id === 'dataset') { loadDataset(); loadDatasetArch(); }
+  if (id === 'pilote') { loadSessionContext(); loadPiloteSurfaces(); loadIssuesHigh(); }
   if (id === 'agents') loadAgents();
+  if (id === 'studio-os') loadStudioOs();
+  if (id === 'workflow') loadWorkflow();
 }
 
 // ── CLOCK ─────────────────────────────────────────────────────────────────
@@ -1910,6 +2497,9 @@ async function checkLM() {
       dot.textContent = '○';
       txt.textContent = 'LM Studio';
     }
+    // Fix 8 — Tokens session dans topbar
+    const tokEl = document.getElementById('tb-tokens');
+    if (tokEl && d.tokens_session != null) tokEl.textContent = d.tokens_session.toLocaleString('fr-FR');
   } catch(e) {}
 }
 setInterval(checkLM, 15000); checkLM(); // poll toutes les 15s — Devstral génère à 8 t/s
@@ -1984,7 +2574,14 @@ function confirmChain(id) {
 
 async function confirmAndRun() {
   closeModal('hg-modal');
-  if (S.pendingChain) { await triggerChain(S.pendingChain); S.pendingChain = null; }
+  if (S.pendingAutoloopLane) {
+    const {lane, dry_run} = S.pendingAutoloopLane;
+    S.pendingAutoloopLane = null;
+    await _doAutoloopStart(lane, dry_run);
+  } else if (S.pendingChain) {
+    await triggerChain(S.pendingChain);
+    S.pendingChain = null;
+  }
 }
 
 async function runKaizenSequence() {
@@ -2445,16 +3042,99 @@ async function saveConfig() {
 // ── UTILS ─────────────────────────────────────────────────────────────────
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function updateNextAction() {
-  const nxt = document.getElementById('next-action');
-  const lane = document.getElementById('next-lane');
-  if (nxt) { nxt.textContent = 'Recall → Audit'; lane.textContent = 'SAFE_AUTO — lancez la séquence Kaizen'; }
+async function updateNextAction() {
+  try {
+    const d = await fetch('/api/ledger-status').then(r => r.json());
+    const nxt = d.next || {};
+    const el = document.getElementById('next-action');
+    const ln = document.getElementById('next-lane');
+    if (el) el.textContent = nxt.id ? nxt.id + ' — ' + (nxt.title || '') : '—';
+    if (ln) ln.textContent = nxt.lane || 'Ledger vide';
+  } catch(e) {
+    const el = document.getElementById('next-action');
+    if (el) el.textContent = 'Erreur ledger';
+  }
+}
+
+// ── CONFIG LOAD (B1/B6/B7/B8) ────────────────────────────────────────────
+async function loadConfig() {
+  try {
+    const d = await fetch('/api/config').then(r => r.json());
+    const setVal = (id, v) => { const e = document.getElementById(id); if (e && v != null) e.value = v; };
+    setVal('cfg-repo',   d.repo);
+    setVal('cfg-lmhost', d.lm_host);
+    setVal('cfg-model',  d.lm_model);
+    // B1 — tb-repo depuis config live
+    const tbRepo = document.getElementById('tb-repo');
+    if (tbRepo && d.repo) tbRepo.textContent = d.repo;
+  } catch(e) {}
+}
+
+// ── CHAINS depuis backend (B2) ────────────────────────────────────────────
+async function loadChains() {
+  try {
+    const d = await fetch('/api/chains').then(r => r.json());
+    for (const [k, v] of Object.entries(d)) {
+      if (CHAINS_DEF[k]) Object.assign(CHAINS_DEF[k], v);
+      else CHAINS_DEF[k] = v;
+    }
+  } catch(e) {}
+  renderChains();
+}
+
+// ── ARCHITECTURE IA (B3) ─────────────────────────────────────────────────
+async function loadDatasetArch() {
+  try {
+    const s = await fetch('/api/studio-state').then(r => r.json());
+    const body = document.getElementById('dataset-arch-body');
+    if (!body || !s.surfaces) return;
+    const SURFACE_MAP = {
+      moteur_rust: {label:'Moteur Rust (Negamax+PST+Quiescence)', note:'IMP-014 timeout · eval.rs'},
+      dataset:     {label:'Dataset pool',         note:'ACTIVE_DATASET.txt'},
+      autopilote:  {label:'Coach v0 (LLM)',        note:'fd88b97 · LM Studio local'},
+      lora:        {label:'LoRA / Neural',          note:'lora_config.yaml + golden_examples'},
+      benchmark:   {label:'Benchmark',             note:'latest_benchmark_summary.json'},
+    };
+    const pillFor = v => {
+      const cls = v==='IMPLEMENTED'?'p-impl':v==='PARTIAL'?'p-audit':'p-todo';
+      const lbl = v==='IMPLEMENTED'?'✅ ACTIF':v==='PARTIAL'?'⚠ PARTIEL':'—';
+      return '<span class="pill '+cls+'">'+lbl+'</span>';
+    };
+    body.innerHTML = Object.entries(SURFACE_MAP).map(([k, {label, note}]) => {
+      const st = s.surfaces[k] || 'NOT_STARTED';
+      return '<tr><td>'+label+'</td><td>'+pillFor(st)+'</td><td style="color:var(--text3)">'+note+'</td></tr>';
+    }).join('');
+  } catch(e) {}
+}
+
+// ── LIGUE BRACKET dynamique (B5) ─────────────────────────────────────────
+async function loadLigue() {
+  try {
+    const d = await fetch('/api/metrics').then(r => r.json());
+    const elo = d.elo || {};
+    const T = elo.teacher_uci ?? 1424, H = elo.heuristic ?? 1200, N = elo.neural ?? 975;
+    const dateTxt = elo.date ? ' <span style="font-size:9px;color:var(--text3)">mesuré '+elo.date.slice(0,10)+'</span>' : '';
+    const bracket = document.getElementById('ligue-bracket');
+    if (!bracket) return;
+    const matchDone = (a, aE, b, bE) =>
+      '<div class="bracket-match match-done"><span>'+a+' vs '+b+'</span>' +
+      '<span style="font-weight:700">'+aE+(aE>=bE?' &gt; ':' &lt; ')+bE+' ✓'+dateTxt+'</span></div>';
+    bracket.innerHTML =
+      '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Terminés</div>' +
+      matchDone('teacher_uci', T, 'heuristic', H) +
+      matchDone('teacher_uci', T, 'neural', N) +
+      '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 6px">Prochain</div>' +
+      '<div class="bracket-match match-next"><span>heuristic vs neural</span><span>⏳ planifié</span></div>' +
+      '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin:8px 0 6px">Planifiés</div>' +
+      '<div class="bracket-match match-planned"><span>Nouvelle saison</span><span>HumanGate requis</span></div>';
+  } catch(e) {}
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
 document.getElementById('mem-count').textContent = S.memory.fusions.length;
 document.getElementById('badge-ideas').textContent = S.ideas.length;
 updateNextAction();
+setInterval(updateNextAction, 60000);
 renderIdeas();
 
 // Commit message default
@@ -2467,6 +3147,14 @@ renderMemory();
 // Charger session context au boot
 loadSessionContext();
 loadMetrics();
+loadPiloteSurfaces();
+loadIssuesHigh();
+// B1/B6/B7/B8 — config live au boot
+loadConfig();
+// B2 — synchroniser CHAINS_DEF depuis backend au boot
+loadChains();
+// B3 — Architecture IA dynamique au boot
+loadDatasetArch();
 
 // ── STREAMING ─────────────────────────────────────────────────────────────
 async function lmStreamCall(prompt, system, maxTokens, outputEl, statusEl) {
@@ -2509,6 +3197,12 @@ async function checkLedger() {
     const d = await r.json();
     const el = document.getElementById('tb-ledger');
     if (el) el.textContent = (d.open ?? '--') + ' open / ' + (d.closed ?? '--') + ' closed';
+  } catch(e) {}
+  // Fix 4 — Sprint date depuis studio-state
+  try {
+    const s = await fetch('/api/studio-state').then(r => r.json());
+    const spEl = document.getElementById('tb-sprint');
+    if (spEl && s.sprint_objective) spEl.textContent = s.sprint_objective.slice(0, 35);
   } catch(e) {}
 }
 setInterval(checkLedger, 30000); checkLedger();
@@ -2571,6 +3265,9 @@ async function loadMetrics() {
       const dateEl = document.getElementById('elo-date');
       if (dateEl) dateEl.innerHTML = elo.date.slice(0,10) + (days > 7 ? ' <span class="pill p-blocked">STALE ' + days + 'j</span>' : '');
     }
+    // P1/P3 — signal fallback si aucun benchmark mesuré
+    const fbNote = document.getElementById('elo-fallback-note');
+    if (fbNote) fbNote.style.display = d.is_fallback ? 'block' : 'none';
     // Draw rate
     const pct = d.draw_rate != null ? Math.round(d.draw_rate * 100) : null;
     const color = pct == null ? 'var(--text3)' : pct > 50 ? 'var(--red)' : pct > 20 ? 'var(--amber)' : 'var(--green)';
@@ -2682,6 +3379,51 @@ async function lmSessionSummary() {
   } catch(e) { el.textContent = 'Erreur : ' + e.message; }
 }
 
+// ── Fix 5 — PILOTE SURFACES dynamiques ───────────────────────────────────
+async function loadPiloteSurfaces() {
+  try {
+    const s = await fetch('/api/studio-state').then(r => r.json());
+    const body = document.getElementById('pilote-surfaces-body');
+    if (!body || !s.surfaces) return;
+    const LABELS = {
+      moteur_rust: 'Moteur Rust', dataset: 'Dataset actif',
+      autopilote: 'Autopilote', lora: 'LoRA', benchmark: 'Benchmark'
+    };
+    const pillFor = v => {
+      const cls = v==='IMPLEMENTED'?'p-impl':v==='PARTIAL'?'p-audit':'p-todo';
+      return '<span class="pill '+cls+'">'+escHtml(v||'—')+'</span>';
+    };
+    // P2 — merger 5 lignes dynamiques + 5 lignes statiques (NeuralAgent, Coach, etc.)
+    const dynamicRows = Object.entries(LABELS).map(([k, label]) =>
+      '<tr><td>'+label+'</td><td>'+pillFor(s.surfaces[k]||'UNKNOWN')+'</td></tr>'
+    ).join('');
+    const staticRows = [
+      '<tr><td>NeuralAgent câblé</td><td><span class="pill p-done">DONE c0ebf62</span></td></tr>',
+      '<tr><td>Coach v0 (LLM)</td><td><span class="pill p-done">DONE fd88b97</span></td></tr>',
+      '<tr><td>EvaluationSystem</td><td><span class="pill p-done">DONE T2–T6</span></td></tr>',
+      '<tr><td>Chess 960</td><td><span class="pill p-blocked">BLOCKED HG</span></td></tr>',
+      '<tr><td>CI/PR/push</td><td><span class="pill p-blocked">BLOCKED budget/CI</span></td></tr>',
+    ].join('');
+    body.innerHTML = dynamicRows + staticRows;
+    const div = document.getElementById('pilote-repo-divider');
+    if (div && s.sprint_objective) div.textContent = 'État repo — ' + s.sprint_objective.slice(0, 30);
+  } catch(e) {}
+}
+
+// ── Fix 7 — ISSUES HIGH dynamiques ───────────────────────────────────────
+async function loadIssuesHigh() {
+  try {
+    const d = await fetch('/api/ledger-status').then(r => r.json());
+    const blocked = (d.open_imps || []).filter(i =>
+      i.lane === 'FORBIDDEN' || i.lane === 'HUMAN_REQUIRED' || i.lane === 'AUDIT_REQUIRED'
+    );
+    const el  = document.getElementById('pilote-issues-count');
+    const sub = document.getElementById('pilote-issues-labels');
+    if (el)  el.textContent  = blocked.length;
+    if (sub) sub.textContent = blocked.slice(0, 5).map(i => i.id).join(' · ') || 'Aucune issue bloquante';
+  } catch(e) {}
+}
+
 // ── FUSION ────────────────────────────────────────────────────────────────
 async function launchFusion() {
   const btn = document.getElementById('btn-fusion');
@@ -2726,6 +3468,50 @@ async function launchFusion() {
     out.textContent = 'Erreur : ' + e.message;
   }
   if (btn) { btn.disabled = false; btn.textContent = '⬡ Fusion'; }
+}
+
+// ── CEO BRIEF v2 ──────────────────────────────────────────────────────────
+function _ceoLanePill(lane) {
+  const cls = (lane||'').toLowerCase().includes('safe') ? 'safe' : 'audit';
+  return `<span class="pill p-${cls}">${escHtml(lane||'')}</span>`;
+}
+function _ceoLaneHtml(label, l, laneKey) {
+  if (!l) return '';
+  const startBtn = laneKey
+    ? `<button class="btn btn-green btn-sm" style="margin-top:5px" onclick="autoloopStart('${laneKey}')">&#9654; autoloop</button>`
+    : '';
+  return `<div style="margin:6px 0 2px 0;font-size:11px;font-weight:600;color:var(--text3)">${escHtml(label)}</div>`
+    + `<div style="margin-bottom:4px"><b style="color:var(--amber)">${escHtml(l.next_action||'—')}</b> ${_ceoLanePill(l.lane)}</div>`
+    + `<div style="font-size:10px;color:var(--text2)">`
+    + (l.blocker  ? `⚠ Blocker: ${escHtml(l.blocker)}<br>` : '')
+    + (l.risk     ? `Risk: ${escHtml(l.risk)}<br>` : '')
+    + (l.recommendation ? `Rec: ${escHtml(l.recommendation)}` : '')
+    + `</div>`
+    + startBtn;
+}
+async function loadCeoBrief() {
+  const out = document.getElementById('ceo-brief-out');
+  out.style.display = 'block';
+  out.innerHTML = '<span style="color:var(--text3)">Devstral analyse 3 lanes...</span>';
+  try {
+    const d = await fetch('/api/ceo-brief', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body:'{}'}).then(r=>r.json());
+    const b = d.brief || {};
+    const lanes = b.lanes;
+    if (lanes) {
+      const obj = escHtml(b.sprint_objective || d.sprint_objective || '');
+      out.innerHTML = (obj ? `<div style="font-size:11px;color:var(--text3);margin-bottom:6px">Sprint : <b>${obj}</b></div>` : '')
+        + `<div style="border-left:2px solid var(--amber);padding-left:8px">`
+        + _ceoLaneHtml('Rocky / Moteur', lanes.rocky_moteur, 'rocky_moteur')
+        + _ceoLaneHtml('IA / Apprentissage', lanes.ia_apprentissage, 'ia_apprentissage')
+        + _ceoLaneHtml('Décisions pendantes', lanes.decisions_pendantes, 'decisions_pendantes')
+        + `</div>`;
+    } else {
+      out.innerHTML = `<pre style="font-size:10px">${escHtml(JSON.stringify(b,null,2))}</pre>`;
+    }
+  } catch(e) {
+    out.innerHTML = '<span style="color:var(--red)">Erreur CEO Brief</span>';
+  }
 }
 
 // ── CLAUDE MODE — 3 PASSES ────────────────────────────────────────────────
@@ -2805,6 +3591,7 @@ async function loadAgents() {
   if (!grid) return;
   let elo = {teacher_uci:1424, heuristic:1200, neural:975};
   let drawRate = null;
+  const backendAgents = {};
   try {
     const r = await fetch('/api/metrics');
     const d = await r.json();
@@ -2812,12 +3599,18 @@ async function loadAgents() {
                  if (d.elo.heuristic)   elo.heuristic   = d.elo.heuristic;
                  if (d.elo.neural)      elo.neural       = d.elo.neural; }
     drawRate = d.draw_rate ?? null;
+    // P4 — arch/status depuis backend (agents field)
+    if (d.agents) d.agents.forEach(a => { backendAgents[a.id] = a; });
   } catch(e) {}
   const maxElo = Math.max(elo.teacher_uci, elo.heuristic, elo.neural, 1);
   grid.innerHTML = AGENTS_DEF.map(a => {
+    // P4 — arch/status depuis backend si disponible
+    const bk       = backendAgents[a.id] || {};
+    const arch     = bk.arch   || a.arch;
+    const status   = bk.status || a.status;
     const agentElo = elo[a.id] || 0;
     const pct      = Math.round((agentElo / maxElo) * 100);
-    const sCls     = a.status === 'STABLE' ? 'p-done' : 'p-blocked';
+    const sCls     = status === 'STABLE' ? 'p-done' : 'p-blocked';
     const drHtml   = (a.id === 'neural' && drawRate != null)
       ? '<div style="font-size:10px;color:' + (drawRate > 0.5 ? 'var(--red)' : 'var(--amber)') +
         ';margin-top:4px">Draw rate : ' + Math.round(drawRate * 100) + '%</div>' : '';
@@ -2826,23 +3619,23 @@ async function loadAgents() {
         '<div style="font-size:22px;width:32px;text-align:center">' + a.icon + '</div>' +
         '<div style="flex:1">' +
           '<div style="font-family:var(--font-d);font-size:14px;font-weight:700;color:var(--text)">' + a.label + '</div>' +
-          '<div style="font-size:10px;color:var(--text3);margin-top:1px">' + a.arch + '</div>' +
+          '<div style="font-size:10px;color:var(--text3);margin-top:1px">' + arch + '</div>' +
           '<div style="display:flex;align-items:center;gap:10px;margin-top:7px">' +
             '<div class="agent-elo-bar-wrap"><div class="agent-elo-bar" style="width:' + pct + '%;background:' + a.color + '"></div></div>' +
             '<span style="font-family:var(--font-d);font-size:15px;font-weight:800;color:' + a.color + ';white-space:nowrap">ELO ' + agentElo + '</span>' +
           '</div>' +
         '</div>' +
         '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">' +
-          '<span class="pill ' + sCls + '">' + a.status + '</span>' +
+          '<span class="pill ' + sCls + '">' + status + '</span>' +
           '<span style="font-size:14px;color:var(--text3)" id="ac-arrow-' + a.id + '">▸</span>' +
         '</div>' +
       '</div>' +
       '<div class="agent-body" id="ab-' + a.id + '">' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">' +
-          '<div><div class="stat-lbl">Architecture</div><div style="font-size:12px;color:var(--text2);margin-top:3px">' + a.arch + '</div></div>' +
+          '<div><div class="stat-lbl">Architecture</div><div style="font-size:12px;color:var(--text2);margin-top:3px">' + arch + '</div></div>' +
           '<div><div class="stat-lbl">Dataset</div><div style="font-size:12px;color:var(--text2);margin-top:3px">' + a.dataset + '</div></div>' +
           '<div><div class="stat-lbl">ELO</div><div style="font-family:var(--font-d);font-size:22px;font-weight:800;color:' + a.color + ';margin-top:3px">' + agentElo + '</div></div>' +
-          '<div><div class="stat-lbl">Statut</div><div style="margin-top:3px"><span class="pill ' + sCls + '">' + a.status + '</span></div></div>' +
+          '<div><div class="stat-lbl">Statut</div><div style="margin-top:3px"><span class="pill ' + sCls + '">' + status + '</span></div></div>' +
         '</div>' +
         drHtml +
         '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">' +
@@ -2868,7 +3661,384 @@ function sendPromptClaude(prompt) {
   setTimeout(() => { const el = document.getElementById('lm-quick-input'); if (el) el.focus(); }, 200);
 }
 
-async function launchClaudeMode() {}
+// ── AUTOLOOP MULTI-LANE ───────────────────────────────────────────────────────
+const AUTOLOOP_LANES = ['rocky_moteur', 'ia_apprentissage', 'decisions_pendantes'];
+
+function _terminalLine(entry) {
+  const div = document.createElement('div');
+  div.style.color = entry.line.startsWith('[OK]') ? 'var(--green)'
+                  : entry.line.startsWith('[!]')  ? 'var(--amber)'
+                  : entry.line.startsWith('[X]')  ? 'var(--red)'
+                  : 'var(--text2)';
+  div.textContent = entry.ts + ' ' + entry.line;
+  return div;
+}
+
+function loadAutoloopLogs(lane) {
+  fetch('/api/autoloop-logs?lane=' + lane)
+    .then(r => r.json())
+    .then(d => {
+      const t = document.getElementById('terminal-' + lane);
+      if (!t || !d.logs) return;
+      t.innerHTML = '';
+      d.logs.forEach(e => t.appendChild(_terminalLine(e)));
+      t.scrollTop = t.scrollHeight;
+    }).catch(() => {});
+}
+
+function startAutoloopStream(lane) {
+  const t = document.getElementById('terminal-' + lane);
+  if (!t) return;
+  const es = new EventSource('/api/autoloop-stream?lane=' + lane);
+  es.onmessage = (ev) => {
+    try {
+      const d = JSON.parse(ev.data);
+      if (d.done) { es.close(); return; }
+      t.appendChild(_terminalLine(d));
+      t.scrollTop = t.scrollHeight;
+    } catch(e) {}
+  };
+  es.onerror = () => es.close();
+}
+
+async function _doAutoloopStart(lane, dry_run) {
+  const r = await fetch('/api/autoloop-start', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({lane, dry_run, once: true})
+  }).then(r => r.json());
+  if (r.ok) {
+    _updateLaneUI(lane, {state: 'running', pid: r.pid, dry_run: r.dry_run, last_result: null});
+    const t = document.getElementById('terminal-' + lane);
+    if (t) t.innerHTML = '';
+    startAutoloopStream(lane);
+    _pollAutoloop();
+  } else {
+    const stEl = document.getElementById('al-state-' + lane);
+    if (stEl) { stEl.textContent = 'Erreur: ' + (r.error || '?'); stEl.className = 'chain-status error'; }
+  }
+}
+
+async function autoloopStart(lane) {
+  // Fix 6 — dry_run depuis la checkbox, HumanGate si exécution réelle
+  const drCheck = document.getElementById('drcheck-' + lane);
+  const dry_run = !drCheck || !drCheck.checked;
+  if (!dry_run) {
+    document.getElementById('hg-cmd-display').textContent = 'autoloop ' + lane + ' — exécution RÉELLE (dry_run=false)\nIMP actionnable sera exécuté via Claude Code.';
+    const laneEl = document.getElementById('hg-lane-label');
+    if (laneEl) { laneEl.className = 'pill p-audit'; laneEl.textContent = 'AUDIT_REQUIRED'; }
+    S.pendingAutoloopLane = {lane, dry_run: false};
+    document.getElementById('hg-modal').classList.add('open');
+    return;
+  }
+  await _doAutoloopStart(lane, dry_run);
+}
+
+async function autoloopStop(lane) {
+  await fetch('/api/autoloop-stop', {method: 'POST',
+    headers: {'Content-Type': 'application/json'}, body: JSON.stringify({lane})});
+  refreshAutoloopStatus();
+}
+
+async function autoloopStopAll() {
+  await fetch('/api/autoloop-stop', {method: 'POST',
+    headers: {'Content-Type': 'application/json'}, body: '{}'});
+  refreshAutoloopStatus();
+}
+
+function _updateLaneUI(lane, st) {
+  const stEl   = document.getElementById('al-state-' + lane);
+  const lastEl = document.getElementById('al-last-' + lane);
+  const btnS   = document.getElementById('btn-start-' + lane);
+  const btnX   = document.getElementById('btn-stop-' + lane);
+  if (!stEl) return;
+  const running = st.state === 'running';
+  stEl.className = 'chain-status ' + (running ? 'running' : 'idle');
+  stEl.textContent = st.state + (st.pid ? ' · PID ' + st.pid : '') +
+    (st.dry_run !== undefined ? ' · dry_run=' + st.dry_run : '') +
+    (st.ledger_lane ? ' · ' + st.ledger_lane : '');
+  if (lastEl) lastEl.textContent = st.last_result ? 'last: ' + st.last_result : '';
+  if (btnS) btnS.style.display = running ? 'none' : '';
+  if (btnX) btnX.style.display = running ? '' : 'none';
+}
+
+async function refreshAutoloopStatus() {
+  try {
+    const d = await fetch('/api/autoloop-status').then(r => r.json());
+    for (const lane of AUTOLOOP_LANES) {
+      if (d[lane]) _updateLaneUI(lane, d[lane]);
+      loadAutoloopLogs(lane);
+    }
+    const alEl = document.getElementById('sos-autoloop-state');
+    if (alEl) {
+      const running = AUTOLOOP_LANES.filter(l => d[l] && d[l].state === 'running');
+      alEl.textContent = running.length ? running.join(', ') + ' running' : 'idle';
+      alEl.style.color = running.length ? 'var(--amber)' : 'var(--text2)';
+    }
+  } catch(e) {}
+}
+
+function _pollAutoloop() {
+  const iv = setInterval(async () => {
+    await refreshAutoloopStatus();
+    try {
+      const d = await fetch('/api/autoloop-status').then(r => r.json());
+      const anyRunning = AUTOLOOP_LANES.some(l => d[l] && d[l].state === 'running');
+      if (!anyRunning) clearInterval(iv);
+    } catch(e) { clearInterval(iv); }
+  }, 3000);
+}
+
+refreshAutoloopStatus();
+setInterval(refreshAutoloopStatus, 15000);
+
+// ── STUDIO OS ─────────────────────────────────────────────────────────────────
+async function loadStudioOs() {
+  // --- Section 1 : Surfaces (depuis /api/studio-state) ---
+  let state = {};
+  try { state = await fetch('/api/studio-state').then(r => r.json()); } catch(e) {}
+  const surfBody = document.getElementById('sos-surfaces-body');
+  if (surfBody) {
+    const s = state.surfaces || {};
+    const LABELS = {moteur_rust:'Moteur Rust', dataset:'Dataset', autopilote:'Autopilote', lora:'LoRA', benchmark:'Benchmark'};
+    const pillFor = v => {
+      const cls = v==='IMPLEMENTED'?'p-impl':v==='PARTIAL'?'p-audit':'p-todo';
+      return '<span class="pill ' + cls + '">' + (v||'—') + '</span>';
+    };
+    const keys = ['moteur_rust','dataset','autopilote','lora','benchmark'];
+    if (Object.keys(s).length) {
+      surfBody.innerHTML = keys.map(k =>
+        '<tr><td>' + LABELS[k] + '</td><td>' + pillFor(s[k]) + '</td></tr>'
+      ).join('');
+    } else {
+      surfBody.innerHTML = '<tr><td colspan="2" style="color:var(--text3);text-align:center">Données non disponibles</td></tr>';
+    }
+  }
+
+  // HumanGate pending (depuis studio-state)
+  const hgPending = document.getElementById('sos-hg-pending');
+  if (hgPending) {
+    const pending = !!state.humangate_pending;
+    hgPending.className = 'pill ' + (pending ? 'p-human' : 'p-done');
+    hgPending.textContent = pending ? 'OUI — en attente' : 'Non';
+  }
+
+  // --- Section 2 : Boucle Kaizen live ---
+  try {
+    const lc = await fetch('/api/ledger-status').then(r => r.json());
+    const ledgerLine = document.getElementById('sos-ledger-line');
+    const nextImp    = document.getElementById('sos-next-imp');
+    const nextLane   = document.getElementById('sos-next-lane');
+    if (ledgerLine) ledgerLine.textContent = (lc.open ?? '?') + ' open / ' + (lc.closed ?? '?') + ' closed';
+    const nxt = lc.next || {};
+    if (nextImp) nextImp.textContent = nxt.id ? nxt.id + ' — ' + (nxt.title || '') : '—';
+    if (nextLane) nextLane.textContent = nxt.lane || '';
+  } catch(e) {}
+
+  try {
+    const al = await fetch('/api/autoloop-status').then(r => r.json());
+    const alEl = document.getElementById('sos-autoloop-state');
+    if (alEl) {
+      const runningLanes = AUTOLOOP_LANES.filter(l => al[l] && al[l].state === 'running');
+      alEl.textContent = runningLanes.length ? runningLanes.join(', ') + ' running' : 'idle';
+      alEl.style.color = runningLanes.length ? 'var(--amber)' : 'var(--text2)';
+    }
+  } catch(e) {}
+
+  // --- Section 3 & 4 : memory ---
+  try {
+    const mem = await fetch('/api/memory').then(r => r.json());
+
+    // Décisions HumanGate
+    const decEl = document.getElementById('sos-hg-decisions');
+    if (decEl) {
+      const decisions = mem.decisions_humangate || [];
+      if (!decisions.length) {
+        decEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">Aucune décision enregistrée.</div>';
+      } else {
+        decEl.innerHTML = '<table><thead><tr><th>ID</th><th>Titre</th><th>Décision</th><th>Date</th></tr></thead><tbody>' +
+          decisions.slice(0, 5).map(hgd => {
+            const pilCls = hgd.decision==='APPROVED'?'p-done':hgd.decision==='REJECTED'?'p-blocked':'p-audit';
+            return '<tr>' +
+              '<td><span class="pill p-human">' + escHtml(hgd.id||'') + '</span></td>' +
+              '<td style="max-width:200px;word-break:break-word">' + escHtml(hgd.question||'') + '</td>' +
+              '<td><span class="pill ' + pilCls + '">' + escHtml(hgd.decision||'') + '</span></td>' +
+              '<td style="color:var(--text3)">' + escHtml(hgd.date||'') + '</td>' +
+            '</tr>';
+          }).join('') + '</tbody></table>';
+      }
+    }
+
+    // Corpus LoRA
+    const TARGET = 50;
+    const golden  = mem.golden_examples  || 0;
+    const finetune = mem.finetune_examples || 0;
+    const pct = Math.min(100, Math.round((golden / TARGET) * 100));
+    const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    setEl('sos-golden', golden);
+    setEl('sos-finetune', finetune);
+    const bar = document.getElementById('sos-lora-bar');
+    if (bar) {
+      bar.style.width = pct + '%';
+      bar.style.background = pct >= 100 ? 'var(--green)' : pct > 0 ? 'var(--amber)' : 'var(--text3)';
+    }
+    const lbl = document.getElementById('sos-lora-bar-label');
+    if (lbl) lbl.textContent = golden + ' / ' + TARGET + ' exemples';
+    const loraStatus = document.getElementById('sos-lora-status');
+    if (loraStatus) {
+      const isReady = golden >= TARGET;
+      loraStatus.className = 'pill ' + (isReady ? 'p-impl' : 'p-audit');
+      loraStatus.textContent = isReady ? 'READY_FOR_HUMANGATE' : 'PENDING';
+    }
+  } catch(e) {}
+}
+
+async function sosDryRun() {
+  const statusEl = document.getElementById('sos-dryrun-status');
+  if (statusEl) statusEl.textContent = '&#8987; Lancement rocky_moteur...';
+  try {
+    const r = await fetch('/api/autoloop-start', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({lane: 'rocky_moteur', dry_run: true, once: true})
+    });
+    const d = await r.json();
+    if (statusEl) statusEl.textContent = d.ok ? '&#10003; Lancé (PID ' + d.pid + ')' : '&#10005; ' + (d.error || 'Erreur');
+    setTimeout(loadStudioOs, 2000);
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '&#10005; Erreur connexion';
+  }
+}
+
+// Polling auto toutes les 30s sur studio-os
+setInterval(() => {
+  if (document.getElementById('page-studio-os')?.classList.contains('active')) loadStudioOs();
+}, 30000);
+
+// ── WORKFLOW IMP (IMP-059 + IMP-060) ─────────────────────────────────────────
+async function loadWorkflow() {
+  try {
+    const d = await fetch('/api/ledger-status').then(r => r.json());
+    const sel = document.getElementById('wf-imp-select');
+    if (sel) {
+      const imps = d.open_imps || [];
+      const groups = [
+        { key: 'rocky_moteur',     label: '🦾 Rocky / Moteur',      filter: i => i.domain === 'rocky_moteur' },
+        { key: 'ia_apprentissage', label: '🧠 IA / Apprentissage',   filter: i => i.domain === 'ia_apprentissage' },
+        { key: 'jeux',             label: '🎮 Jeux',                 filter: i => i.domain === 'jeux' },
+        { key: 'studio',           label: '⚙ Studio',               filter: i => i.domain === 'studio' },
+        { key: 'decisions',        label: '⚠ Décisions',            filter: i => !i.domain && (i.lane === 'FORBIDDEN' || i.lane === 'HUMAN_REQUIRED') },
+        { key: 'autres',           label: '— Autres —',             filter: i => !i.domain && i.lane !== 'FORBIDDEN' && i.lane !== 'HUMAN_REQUIRED' },
+      ];
+      let html = '<option value="">— Choisir un IMP —</option>';
+      for (const g of groups) {
+        const items = imps.filter(g.filter);
+        if (!items.length) continue;
+        html += `<optgroup label="${g.label}">`;
+        html += items.map(i => `<option value="${escHtml(i.id)}">${escHtml(i.id)} — ${escHtml(i.title||'')} [${escHtml(i.lane||'')}]</option>`).join('');
+        html += '</optgroup>';
+      }
+      sel.innerHTML = html;
+    }
+  } catch(e) { console.error('loadWorkflow', e); }
+  renderWorkflowHistory();
+}
+
+async function generateCharter() {
+  const sel = document.getElementById('wf-imp-select');
+  const impId = sel ? sel.value : '';
+  if (!impId) { alert('Sélectionner un IMP d\'abord.'); return; }
+  const btn = document.getElementById('wf-btn-generate');
+  const out = document.getElementById('wf-charter-out');
+  const titleEl = document.getElementById('wf-charter-title');
+  if (btn) btn.disabled = true;
+  if (out) out.value = '⟳ Chargement...';
+  try {
+    const d = await fetch('/api/generate-charter?imp_id=' + encodeURIComponent(impId)).then(r => r.json());
+    if (d.error) {
+      if (out) out.value = '✗ ' + d.error;
+    } else {
+      if (titleEl) titleEl.textContent = d.imp_id + ' — ' + (d.title || '') + ' [' + (d.lane || '') + ']';
+      if (out) out.value = d.charter || '';
+      const sec = document.getElementById('wf-section-charter');
+      if (sec) sec.style.display = 'block';
+    }
+  } catch(e) {
+    if (out) out.value = '✗ Erreur: ' + e.message;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function copyCharter() {
+  const out = document.getElementById('wf-charter-out');
+  if (!out || !out.value) return;
+  navigator.clipboard.writeText(out.value).then(() => {
+    const lbl = document.getElementById('wf-copy-label');
+    if (lbl) {
+      lbl.textContent = '✓ Copié !';
+      setTimeout(() => { lbl.textContent = 'Colle ce charter dans Claude Code'; }, 2000);
+    }
+  });
+}
+
+async function validateAndCloseImp() {
+  const sel = document.getElementById('wf-imp-select');
+  const impId = sel ? sel.value : '';
+  const report = document.getElementById('wf-report-in')?.value || '';
+  const status = document.getElementById('wf-close-status');
+  if (!impId) { alert('Sélectionner un IMP.'); return; }
+  if (!report.includes('software_verdict')) {
+    if (status) status.innerHTML = '<span style="color:var(--red)">✗ Rapport doit contenir "software_verdict"</span>';
+    return;
+  }
+  if (!report.includes('claim_verdict: NO_CLAIM_ALLOWED')) {
+    if (status) status.innerHTML = '<span style="color:var(--red)">✗ Rapport doit contenir "claim_verdict: NO_CLAIM_ALLOWED"</span>';
+    return;
+  }
+  const btn = document.getElementById('wf-btn-close');
+  if (btn) btn.disabled = true;
+  try {
+    const d = await fetch('/api/close-imp', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({imp_id: impId})
+    }).then(r => r.json());
+    if (d.ok) {
+      if (status) status.innerHTML = '<span style="color:var(--green)">✓ ' + escHtml(impId) + ' fermé</span>';
+      document.getElementById('wf-report-in').value = '';
+      document.getElementById('wf-section-charter').style.display = 'none';
+      setTimeout(loadWorkflow, 500);
+    } else {
+      if (status) status.innerHTML = '<span style="color:var(--red)">✗ ' + escHtml(d.error || 'Erreur') + '</span>';
+    }
+  } catch(e) {
+    if (status) status.innerHTML = '<span style="color:var(--red)">✗ Erreur connexion</span>';
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function renderWorkflowHistory() {
+  const container = document.getElementById('wf-history');
+  if (!container) return;
+  try {
+    const d = await fetch('/api/memory').then(r => r.json());
+    const items = d.last_closed_imps || [];
+    if (!items.length) {
+      container.innerHTML = '<div style="color:var(--text3);font-size:12px">Aucun IMP fermé récemment.</div>';
+      return;
+    }
+    container.innerHTML = items.map(i =>
+      `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span class="pill p-safe" style="font-size:10px">${escHtml(i.id)}</span>
+        <span style="font-size:12px;color:var(--text2);flex:1">${escHtml(i.title||'')}</span>
+        <span style="font-size:10px;color:var(--text3)">${escHtml(i.closed_session||'')}</span>
+      </div>`
+    ).join('');
+  } catch(e) {
+    container.innerHTML = '<div style="color:var(--text3);font-size:12px">Erreur chargement historique.</div>';
+  }
+}
+
 </script>
 </body>
 </html>"""
@@ -2949,11 +4119,126 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/session-context":
             self.send_json(get_session_context())
 
+        elif path == "/api/studio-state":
+            p = Path(__file__).parent / "studio_state.json"
+            if p.exists():
+                self.send_json(json.loads(p.read_text(encoding="utf-8")))
+            else:
+                write_studio_state()
+                p2 = Path(__file__).parent / "studio_state.json"
+                self.send_json(json.loads(p2.read_text(encoding="utf-8")))
+
+        elif path == "/api/autoloop-logs":
+            qs = self.path.split("?", 1)[1] if "?" in self.path else ""
+            lane = ""
+            for part in qs.split("&"):
+                if part.startswith("lane="):
+                    lane = part[5:]
+            if lane not in AUTOLOOP_LANES:
+                self.send_json({"error": f"lane inconnue: {lane}"}, 400)
+                return
+            with _autoloop_lock:
+                logs = list(_autoloop_logs[lane][-50:])
+            self.send_json({"lane": lane, "logs": logs})
+
+        elif path == "/api/autoloop-stream":
+            qs = self.path.split("?", 1)[1] if "?" in self.path else ""
+            lane = ""
+            for part in qs.split("&"):
+                if part.startswith("lane="):
+                    lane = part[5:]
+            if lane not in AUTOLOOP_LANES:
+                self.send_json({"error": f"lane inconnue: {lane}"}, 400)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("X-Accel-Buffering", "no")
+            self.end_headers()
+            sent = 0
+            try:
+                while True:
+                    with _autoloop_lock:
+                        logs = list(_autoloop_logs[lane])
+                        proc = _autoloop_processes[lane]
+                    new_entries = logs[sent:]
+                    for entry in new_entries:
+                        msg = json.dumps(entry, ensure_ascii=False)
+                        self.wfile.write(f"data: {msg}\n\n".encode("utf-8"))
+                    self.wfile.flush()
+                    sent += len(new_entries)
+                    idle = proc is None or proc.poll() is not None
+                    if idle and not new_entries:
+                        self.wfile.write(b'data: {"done":true}\n\n')
+                        self.wfile.flush()
+                        break
+                    time.sleep(0.5)
+            except Exception:
+                pass
+
+        elif path == "/api/autoloop-status":
+            with _autoloop_lock:
+                for lane in AUTOLOOP_LANES:
+                    proc = _autoloop_processes[lane]
+                    if proc is not None:
+                        ret = proc.poll()
+                        if ret is not None:
+                            _autoloop_statuses[lane]["state"] = "idle"
+                            _autoloop_statuses[lane]["last_result"] = f"exit {ret}"
+                            _autoloop_statuses[lane]["pid"] = None
+                self.send_json({lane: dict(st) for lane, st in _autoloop_statuses.items()})
+
+        elif path == "/api/brain-status":
+            s = lm_status()
+            self.send_json({
+                "director": {
+                    "model": LM_MODEL,
+                    "role":  "decisions_operationnelles",
+                    "tasks": ["fusion", "session", "coaching", "call"],
+                },
+                "ceo": {
+                    "model": LM_MODEL_CEO,
+                    "role":  "raisonnement_profond",
+                    "tasks": ["ceo_brief", "fusion_deep"],
+                },
+                "lm_studio_ok":   s.get("ok", False),
+                "models_loaded":  s.get("models", []),
+                "claim_verdict":  "NO_CLAIM_ALLOWED",
+            })
+
+        elif path == "/api/config":
+            # B6/B7/B8 — lecture live de la config backend
+            self.send_json({
+                "repo":         str(REPO),
+                "lm_host":      LM_HOST,
+                "lm_model":     LM_MODEL,
+                "lm_model_ceo": LM_MODEL_CEO,
+            })
+
+        elif path == "/api/chains":
+            # B2 — chaînes depuis l'autorité Python (CHAINS_PYTHON)
+            self.send_json(CHAINS_PYTHON)
+
+        elif path.startswith("/api/generate-charter"):
+            qs = self.path.split("?", 1)[1] if "?" in self.path else ""
+            params: dict = {}
+            for part in qs.split("&"):
+                if "=" in part:
+                    k, v = part.split("=", 1)
+                    params[k] = v.replace("%2D", "-").replace("+", " ")
+            imp_id = params.get("imp_id", "").strip()
+            if not imp_id:
+                self.send_json({"error": "imp_id requis (?imp_id=IMP-XXX)"}, 400)
+                return
+            self.send_json(api_generate_charter(imp_id))
+
         else:
             self.send_json({"error": "not found"}, 404)
 
     def do_POST(self):
-        global LM_HOST, LM_MODEL, REPO
+        global LM_HOST, LM_MODEL, LM_MODEL_CEO, REPO
         path = self.path
         body = self.read_body()
 
@@ -2976,6 +4261,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
             entry.setdefault("ts", datetime.now().isoformat())
             mem.setdefault("fusions", []).insert(0, entry)
             save_memory(mem)
+            # Aussi écrire dans FUSION_LOG.jsonl pour que renderMemory() l'affiche
+            try:
+                fusion_log_path = REPO / "lab/chains/FUSION_LOG.jsonl"
+                log_entry = {
+                    "ts":            entry.get("ts", datetime.now().isoformat()),
+                    "backend":       "humangate_capture",
+                    "nb_fusions":    0,
+                    "synthese":      entry.get("content", "")[:200],
+                    "type":          entry.get("type", "fusion"),
+                    "tags":          entry.get("tags", []),
+                    "claim_verdict": "NO_CLAIM_ALLOWED",
+                }
+                with open(fusion_log_path, "a", encoding="utf-8") as fh:
+                    fh.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
             self.send_json({"ok": True})
 
         elif path == "/api/memory/export":
@@ -2998,6 +4299,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             prompt     = body.get("prompt", "")
             system     = body.get("system", "")
             max_tokens = int(body.get("max_tokens", 800))
+            req_model  = body.get("model", "")  # optionnel — "" = routing auto
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream; charset=utf-8")
             self.send_header("Cache-Control", "no-cache")
@@ -3006,7 +4308,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_header("X-Accel-Buffering", "no")
             self.end_headers()
             try:
-                lm_stream_to(prompt, system, max_tokens, self.wfile)
+                lm_stream_to(prompt, system, max_tokens, self.wfile, model=req_model)
             except Exception:
                 pass
 
@@ -3023,6 +4325,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/doc-hygiene":
             result = run_chain(f'python "{HYGIENE}" --audit', cwd=str(CHAINS_DIR))
             self.send_json({"output": result.get("output") or result.get("error") or "OK", "rc": result.get("rc", -1)})
+
+        elif path == "/api/close-imp":
+            imp_id = body.get("imp_id", "").strip()
+            if not imp_id:
+                self.send_json({"ok": False, "error": "imp_id requis"}, 400)
+                return
+            res = close_imp(imp_id)
+            res["state_updater_triggered"] = True
+            self.send_json(res)
 
 
         elif path in ("/api/claude-annotate", "/api/claude-fuse",
@@ -3101,11 +4412,158 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 })
 
         elif path == "/api/config":
-            LM_HOST  = body.get("lm_host", LM_HOST)
-            LM_MODEL = body.get("model", LM_MODEL)
+            LM_HOST      = body.get("lm_host", LM_HOST)
+            LM_MODEL     = body.get("model", LM_MODEL)
+            LM_MODEL_CEO = body.get("model_ceo", LM_MODEL_CEO)
             if body.get("repo"):
                 REPO = Path(body["repo"])
-            self.send_json({"ok": True})
+            self.send_json({"ok": True, "director": LM_MODEL, "ceo": LM_MODEL_CEO})
+
+        elif path == "/api/autoloop-start":
+            with _autoloop_lock:
+                lane = body.get("lane", "rocky_moteur")
+                if lane not in AUTOLOOP_LANES:
+                    self.send_json({"ok": False, "error": f"lane inconnue: {lane}"})
+                    return
+                proc = _autoloop_processes[lane]
+                if proc is not None and proc.poll() is None:
+                    self.send_json({"ok": False, "error": f"autoloop {lane} déjà en cours"})
+                    return
+                dry_run     = body.get("dry_run", True)
+                once        = body.get("once", True)
+                ledger_lane = AUTOLOOP_LANE_MAP.get(lane, "SAFE_AUTO")
+                py_exe  = str(REPO / ".venv312" / "Scripts" / "python.exe")
+                script  = str(REPO / "lab" / "chains" / "kaizen_autoloop.py")
+                cmd = [py_exe, script, "--lane", ledger_lane]
+                if dry_run:
+                    cmd.append("--dry-run")
+                if once:
+                    cmd.append("--once")
+                try:
+                    _autoloop_logs[lane].clear()
+                    _autoloop_processes[lane] = subprocess.Popen(
+                        cmd, cwd=str(REPO),
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                        text=True, encoding="utf-8", errors="replace"
+                    )
+                    threading.Thread(
+                        target=_read_stdout,
+                        args=(_autoloop_processes[lane], lane),
+                        daemon=True,
+                    ).start()
+                    _autoloop_statuses[lane].update({
+                        "state":        "running",
+                        "started_at":   datetime.now().isoformat(),
+                        "dry_run":      dry_run,
+                        "pid":          _autoloop_processes[lane].pid,
+                        "last_result":  None,
+                        "ledger_lane":  ledger_lane,
+                    })
+                    self.send_json({"ok": True, "pid": _autoloop_processes[lane].pid,
+                                    "dry_run": dry_run, "lane": lane})
+                except Exception as e:
+                    self.send_json({"ok": False, "error": str(e)})
+
+        elif path == "/api/autoloop-stop":
+            with _autoloop_lock:
+                lane = body.get("lane", "")
+                lanes_to_stop = [lane] if lane in AUTOLOOP_LANES else list(AUTOLOOP_LANES)
+                stopped = []
+                for ln in lanes_to_stop:
+                    proc = _autoloop_processes[ln]
+                    if proc is not None and proc.poll() is None:
+                        try:
+                            proc.terminate()
+                            stopped.append(ln)
+                        except Exception:
+                            pass
+                    _autoloop_statuses[ln].update({
+                        "state": "idle",
+                        "last_result": "stopped_by_humangate",
+                        "pid": None,
+                    })
+                self.send_json({"ok": True, "stopped": stopped})
+
+        elif path == "/api/ceo-brief":
+            state_path = Path(__file__).parent / "studio_state.json"
+            state_str = ""
+            if state_path.exists():
+                try:
+                    state_str = state_path.read_text(encoding="utf-8")[:1500]
+                except Exception:
+                    pass
+            lc = dict(ledger_cache) if ledger_cache else get_ledger_counts()
+            open_ctx = build_fusion_context()
+            roadmap_text = open_ctx.get("roadmap", "")
+            sprint_objective = _extract_sprint_objective(roadmap_text)
+            imps = open_ctx.get("open_imps", [])
+
+            def _ceo_domain(i: dict) -> str:
+                """Routing CEO Brief — lane FORBIDDEN/AUDIT_REQUIRED prime, puis champ domain, puis keyword."""
+                if i.get("lane") in ("AUDIT_REQUIRED", "FORBIDDEN"):
+                    return "decisions_pendantes"
+                d = i.get("domain", "")
+                if d in ("rocky_moteur", "ia_apprentissage", "studio", "jeux"):
+                    return d
+                title = i.get("title", "").lower()
+                if any(k in title for k in ("lora","dataset","training","devstral","ml","neural","model","teacher","sf_dataset","pool")):
+                    return "ia_apprentissage"
+                return "rocky_moteur"
+
+            engine_imps = [i for i in imps if _ceo_domain(i) in ("rocky_moteur", "studio", "jeux")]
+            ml_imps = [i for i in imps if _ceo_domain(i) == "ia_apprentissage"]
+            pending_imps = [i for i in imps if _ceo_domain(i) == "decisions_pendantes"]
+
+            def _fmt(lst: list) -> str:
+                return "\n".join(f"  - {i['id']} [{i.get('lane','?')}] {i.get('title','')}" for i in lst) or "  (aucun)"
+
+            roadmap_decisions = ""
+            m_dec = re.search(r'## Décisions ouvertes.*?\n([\s\S]*?)(?=\n##|\Z)', roadmap_text)
+            if m_dec:
+                roadmap_decisions = m_dec.group(1).strip()[:600]
+
+            prompt = (
+                f"/no_think\nTactical Chess Studio — CEO Brief v2\n\n"
+                f"Sprint objectif : {sprint_objective}\n\n"
+                f"=== Lane rocky_moteur (moteur / gameplay) ===\n{_fmt(engine_imps)}\n\n"
+                f"=== Lane ia_apprentissage (ML / LoRA / dataset) ===\n{_fmt(ml_imps)}\n\n"
+                f"=== Lane decisions_pendantes (HumanGate / FORBIDDEN) ===\n{_fmt(pending_imps)}\n"
+                f"Décisions roadmap en attente :\n{roadmap_decisions}\n\n"
+                f"Ledger : {lc.get('open',0)} OPEN / {lc.get('closed',0)} CLOSED\n"
+                f"Studio state :\n{state_str}\n\n"
+                "Retourne UNIQUEMENT ce JSON (aucun texte avant ou après) :\n"
+                "{\n"
+                '  "sprint_objective": "texte court",\n'
+                '  "lanes": {\n'
+                '    "rocky_moteur":        { "next_action": "IMP-XXX — titre ou tâche", "lane": "SAFE_AUTO", "risk": "texte", "recommendation": "texte" },\n'
+                '    "ia_apprentissage":    { "next_action": "IMP-XXX — titre ou tâche", "lane": "SAFE_AUTO", "risk": "texte", "recommendation": "texte" },\n'
+                '    "decisions_pendantes": { "next_action": "titre décision", "lane": "AUDIT_REQUIRED", "blocker": "texte ou null", "recommendation": "texte" }\n'
+                '  },\n'
+                '  "claim_verdict": "NO_CLAIM_ALLOWED"\n'
+                "}\n"
+            )
+            system = (
+                "Tu es le CEO IA du Tactical Chess Studio. "
+                "Tu analyses l'état du studio sur 3 lanes simultanées et retournes uniquement un JSON structuré. "
+                "claim_verdict: NO_CLAIM_ALLOWED"
+            )
+            raw = lm_call(prompt, system=system, max_tokens=800, model=LM_MODEL_CEO)
+            parsed_v2: dict = {}
+            try:
+                m2 = re.search(r'\{[\s\S]*\}', raw)
+                if m2:
+                    parsed_v2 = json.loads(m2.group(0))
+            except Exception:
+                pass
+            if not parsed_v2.get("lanes"):
+                parsed_v2 = {"raw": raw}
+            self.send_json({
+                "ok": bool(parsed_v2.get("lanes")),
+                "brief": parsed_v2,
+                "sprint_objective": sprint_objective,
+                "model_used": LM_MODEL_CEO,
+                "claim_verdict": "NO_CLAIM_ALLOWED"
+            })
 
         else:
             self.send_json({"error": "not found"}, 404)

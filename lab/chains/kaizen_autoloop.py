@@ -40,6 +40,11 @@ except ImportError as e:
     print(f"[X] Impossible d importer kaizen_loop : {e}")
     sys.exit(1)
 
+try:
+    from golden_collector import archive_closed_imp as _archive
+except ImportError:
+    _archive = None
+
 # ── Constants ─────────────────────────────────────────────
 REPO_ROOT       = Path(__file__).resolve().parent.parent.parent
 PYTHON_EXE      = sys.executable
@@ -363,6 +368,13 @@ def run_loop(args) -> None:
         # 8. Close ou signaler echec
         if success:
             close_imp(imp)
+            if _archive is not None:
+                try:
+                    charter_file = CHARTER_DIR / f"{imp['id']}_charter.md"
+                    _archive(imp, charter_file, report=report[:500] if report else "")
+                    print(f"[OK] {imp['id']} archive dans golden_examples.jsonl")
+                except Exception as e:
+                    print(f"[!] golden_collector hook : {e}")
             metrics()
             log_autoloop_event(imp, "SUCCESS", report)
         else:

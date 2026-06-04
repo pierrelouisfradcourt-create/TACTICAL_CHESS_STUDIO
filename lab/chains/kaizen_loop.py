@@ -48,6 +48,7 @@ EFFORT_WEIGHT = {"TRIVIAL": 1, "SMALL": 2, "MEDIUM": 5, "LARGE": 10, "XLARGE": 2
 
 VALID_STATUS = {"OPEN", "IN_PROGRESS", "CLOSED", "DEFERRED", "BLOCKED"}
 VALID_LANE = {"SAFE_AUTO", "AUDIT_REQUIRED", "HUMAN_REQUIRED", "FORBIDDEN"}
+VALID_DOMAIN = {"rocky_moteur", "ia_apprentissage", "studio", "jeux", ""}
 
 
 def find_ledger() -> Path:
@@ -250,6 +251,10 @@ def cmd_add(data: dict, args):
     if args.lane not in VALID_LANE:
         print(f"{BLOCK} Lane invalide: {args.lane}. Valides: {VALID_LANE}")
         sys.exit(1)
+    domain = getattr(args, "domain", "") or ""
+    if domain and domain not in VALID_DOMAIN - {""}:
+        print(f"{BLOCK} Domain invalide: {domain}. Valides: rocky_moteur / ia_apprentissage / studio / jeux")
+        sys.exit(1)
 
     session = args.session or date.today().isoformat()
     new_imp = {
@@ -261,6 +266,7 @@ def cmd_add(data: dict, args):
         "impact": args.impact,
         "effort": args.effort,
         "lane": args.lane,
+        "domain": domain,
         "files": args.files.split(",") if args.files else [],
         "acceptance": args.acceptance or "TBD",
         "blocked_by": [],
@@ -339,6 +345,7 @@ def main():
     p_add.add_argument("--source", default="")
     p_add.add_argument("--files", default="", help="Liste séparée par virgules")
     p_add.add_argument("--acceptance", default="")
+    p_add.add_argument("--domain", default="", help="rocky_moteur/ia_apprentissage/studio/jeux")
     p_add.add_argument("--notes", default="")
     p_add.add_argument("--session", default="")
 

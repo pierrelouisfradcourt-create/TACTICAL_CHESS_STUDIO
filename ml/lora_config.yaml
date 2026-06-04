@@ -4,8 +4,8 @@
 # STATUS: PENDING — dataset insuffisant (19/50 exemples requis)
 # HumanGate REQUIS avant tout lancement de training
 
-status: PENDING
-reason: "Dataset sous seuil — 19 exemples actuels, minimum 50 recommandé"
+status: READY_FOR_HUMANGATE
+reason: "57 exemples >= seuil 50. HumanGate requis pour lancer."
 
 dataset:
   active_path: "lab/datasets/pool/pool_2400.jsonl"
@@ -16,12 +16,15 @@ dataset:
     - path: "lab/datasets/ux_finetune_autodev_20260603.jsonl"
       examples: 9
       source: "autodev_session_IMP-010-025-027"
-  total_examples: 19
+    - path: "lab/datasets/ux_finetune_golden_20260603.jsonl"
+      examples: 38
+      source: "golden_collector_v1"
+  total_examples: 57
   threshold_to_train: 50
   draw_rate_pool: null  # à mesurer — smoke benchmark requis
 
 model:
-  base: "devstral-small-2507"
+  base: "Qwen2.5-7B-Instruct"
   target_model: "devstral-tcs-v1"
   adapter_type: "lora"
   rank: 8
