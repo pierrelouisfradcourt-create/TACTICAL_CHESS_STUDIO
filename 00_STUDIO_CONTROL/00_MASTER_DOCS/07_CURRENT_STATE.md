@@ -8,9 +8,9 @@ Date : 2026-06-05 — sprint update : 2026-06-03/04
 
 | Métrique | Valeur |
 |---|---|
-| Total IMPs | 85 |
+| Total IMPs | 88 |
 | CLOSED | 81 |
-| OPEN | 3 |
+| OPEN | 6 |
 | DEFERRED | 1 |
 
 ### IMPs OPEN
@@ -88,7 +88,7 @@ Date : 2026-06-05 — sprint update : 2026-06-03/04
 
 ## Autopilote — autopilot.py
 
-- **Lignes** : ~5336 (refactorisé 2026-06-03, retrait complet Claude API)
+- **Lignes** : ~5562 (refactorisé 2026-06-03, retrait complet Claude API)
 - **LM_MODEL** : `qwen2.5-14b-instruct` (LM Studio, port 1234)
 - **Port** : 7331
 
@@ -114,7 +114,7 @@ Date : 2026-06-05 — sprint update : 2026-06-03/04
 |---|---|
 | Adaptateur | lab/runs/lora_devstral_tcs_v1/ |
 | Base model | devstral-small-2507 |
-| Corpus golden | 52 exemples (golden_collector_v1) |
+| Corpus golden | 53 exemples (golden_collector_v1) |
 | Total exemples | 57 (+ mode_claude_run + autodev) |
 | Config | rank=8, alpha=16, epochs=3, lr=2e-4 |
 | Status | READY_FOR_HUMANGATE — dry-run validé |

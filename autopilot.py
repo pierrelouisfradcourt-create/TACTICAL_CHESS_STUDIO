@@ -637,7 +637,9 @@ def api_generate_charter(imp_id: str) -> dict:
     }
 
 
-def _stage_proposals(idea_id: str, idea_title: str, imps: list) -> None:
+def _stage_proposals(idea_id: str, idea_title: str, imps: list,
+                     idea_desc: str = "", roadmap: str = "",
+                     redteam: str = "", fusion: str = "") -> None:
     """Append proposals to ROADMAP_PROPOSALS.yaml with humangate_verdict: null."""
     proposals_path = REPO / "lab/chains/ROADMAP_PROPOSALS.yaml"
     next_num = 1
@@ -650,6 +652,12 @@ def _stage_proposals(idea_id: str, idea_title: str, imps: list) -> None:
         except Exception:
             pass
     lines: list = []
+    # FIX 3 (IMP-089): reasoning_trace fields — computed once for all IMPs in this batch
+    _anchor_title = idea_title.replace("'", "''")
+    _anchor_desc  = _yaml_oneliner(idea_desc, 200) if idea_desc else ""
+    _tr_roadmap   = _yaml_oneliner(roadmap,   400) if roadmap   else ""
+    _tr_critique  = _yaml_oneliner(redteam,   400) if redteam   else ""
+    _tr_fusion    = _yaml_oneliner(fusion,     400) if fusion    else ""
     for imp in imps:
         title = str(imp.get("title", idea_title)).replace("'", "''")
         lane   = imp.get("lane", "SAFE_AUTO")
@@ -667,13 +675,25 @@ def _stage_proposals(idea_id: str, idea_title: str, imps: list) -> None:
         if not isinstance(blocked_raw, list):
             blocked_raw = []
         blocked_yaml = "[" + ", ".join(f'"{str(b)}"' for b in blocked_raw if isinstance(b, str) and b) + "]"
-        lines.append(
+        block = (
             f"- prop_id: PROP-{next_num:03d}\n"
             f"  source_phase: idea-to-imp\n"
             f"  source_task: '{idea_title.replace(chr(39), chr(39)*2)}'\n"
             f"  source_idea_id: '{idea_id}'\n"
             f"  qwen_used: true\n"
             f"  humangate_verdict: null\n"
+        )
+        if _anchor_title:
+            block += f"  human_anchor_title: '{_anchor_title}'\n"
+        if _anchor_desc:
+            block += f"  human_anchor_desc: '{_anchor_desc}'\n"
+        if _tr_roadmap:
+            block += f"  reasoning_roadmap: '{_tr_roadmap}'\n"
+        if _tr_critique:
+            block += f"  reasoning_critique: '{_tr_critique}'\n"
+        if _tr_fusion:
+            block += f"  reasoning_fusion: '{_tr_fusion}'\n"
+        block += (
             f"  imp:\n"
             f"    title: '{title}'\n"
             f"    type: feature\n"
@@ -686,6 +706,7 @@ def _stage_proposals(idea_id: str, idea_title: str, imps: list) -> None:
             f"    blocked_by: {blocked_yaml}\n"
             f"    notes: 'Pipeline idea-to-imp — idée {idea_id}'\n"
         )
+        lines.append(block)
         next_num += 1
     try:
         if proposals_path.exists():
@@ -713,39 +734,129 @@ def _extract_json_array(raw: str) -> list:
     return []
 
 
-def _run_idea_pipeline(idea_id: str, idea_title: str, idea_content: str) -> None:
-    """Thread worker — 5 étapes séquentielles. Steps 1-3: Qwen2.5-14B. Step 4: Qwen3.6 (CEO-Decomposer, IMP-086)."""
-    global _idea_pipeline_state
+def _check_needs_human(raw: str) -> tuple:
+    """Returns (True, reason) if LM signals needs_human, else (False, '')."""
+    if '"needs_human"' not in raw:
+        return False, ""
     try:
-        # Step 1 — ROADMAP
+        m = re.search(r'\{[^{}]*"needs_human"\s*:\s*true[^{}]*\}', raw, re.DOTALL | re.IGNORECASE)
+        if m:
+            obj = json.loads(m.group(0))
+            if obj.get("needs_human"):
+                return True, str(obj.get("reason", "Idée trop vague"))
+    except Exception:
+        pass
+    return False, ""
+
+
+def _yaml_oneliner(text: str, maxlen: int = 400) -> str:
+    """Collapse multiline text to a single YAML-safe quoted value."""
+    return text.replace("\n", " | ").replace("'", "''")[:maxlen]
+
+
+def _build_extract_prompt_for_claude(idea_title: str, plan_text: str) -> str:
+    """Build the Claude fallback prompt for IMP extraction (FIX 5, IMP-089)."""
+    return (
+        f"Tu es décomposeur IMP solo-dev. MAX 4 IMPs.\n"
+        f"Idée humaine : {idea_title}\n"
+        f"Plan :\n{plan_text}\n\n"
+        f"INTERDIT : formation, support, déploiement, DevOps, gestion équipe\n"
+        f"MAX 4 IMPs. 1 IMP = 1 fichier + 1 fonction.\n"
+        f"Stack : Rust + Python + LM Studio local\n"
+        "Retourne JSON array uniquement :\n"
+        '[{"title":"Ajouter fn X dans fichier Y.py","lane":"SAFE_AUTO","impact":"HIGH",'
+        '"effort":"SMALL","domain":"studio","files":["fichier.py"],'
+        '"acceptance":"critère","blocked_by":[]}]'
+    )
+
+
+def _run_idea_pipeline(idea_id: str, idea_title: str, idea_content: str) -> None:
+    """Thread worker — pipeline idée→IMP.
+    IMP-089: FIX 1 ancre humaine tous steps | FIX 2 interdictions EXTRACT |
+    FIX 3 reasoning_trace | FIX 4 garde-fou needs_human | model=CEO pour EXTRACT.
+    """
+    global _idea_pipeline_state
+    idea_desc = idea_content[:200]
+    # FIX 4 (IMP-089): garde-fou needs_human — ajouté en fin de chaque prompt texte
+    _needs_human_prompt = (
+        "\nSi l'idée est trop vague ou tu n'es pas certain, retourne UNIQUEMENT :\n"
+        '{"needs_human": true, "reason": "explication courte"}\n'
+        "Sinon, réponds normalement."
+    )
+    roadmap = redteam = fusion = ""
+    try:
+        # Step 1 — ROADMAP (FIX 1: ancre humaine + contraintes solo-dev)
         with _idea_pipeline_lock:
             _idea_pipeline_state.update({"step": "roadmap", "progress": 1, "running": True})
         roadmap = lm_call(
-            f"Tu es architecte du Tactical Chess Studio.\n"
-            f"Génère une roadmap en 3-5 étapes pour implémenter : {idea_title}\n"
-            f"Détails : {idea_content}\n"
-            f"Format : liste numérotée d'étapes concrètes.",
-            max_tokens=600
+            f"Tu es architecte solo-dev du Tactical Chess Studio (1 seul développeur, pas d'équipe).\n"
+            f"IDÉE HUMAINE : {idea_title}\n"
+            f"Détails : {idea_desc}\n\n"
+            f"CONTRAINTES : max 3 étapes. Chaque étape = 1 fichier Rust/Python précis.\n"
+            f"INTERDIT : formation, support, déploiement, gestion d'équipe.\n"
+            f"Format : liste numérotée, chaque ligne = 'Modifier fichier X : action Y'."
+            + _needs_human_prompt,
+            max_tokens=500
         )
-        # Step 2 — REDTEAM
+        nh, nh_reason = _check_needs_human(roadmap)
+        if nh:
+            with _idea_pipeline_lock:
+                _idea_pipeline_state.update({"running": False, "error": None, "result": {
+                    "ok": False, "needs_human": True, "reason": nh_reason, "step": "roadmap",
+                    "idea_title": idea_title, "imps_staged": [],
+                    "extract_prompt": _build_extract_prompt_for_claude(idea_title, idea_content),
+                }})
+            return
+
+        # Step 2 — REDTEAM (FIX 1: ancre humaine + contraintes solo-dev)
         with _idea_pipeline_lock:
             _idea_pipeline_state.update({"step": "redteam", "progress": 2})
         redteam = lm_call(
-            f"Tu es Red Team du studio. Identifie les risques,\n"
-            f"angles morts et problèmes dans cette roadmap : {roadmap}\n"
-            f"Format : liste de 3-5 critiques concrètes.",
-            max_tokens=400
+            f"Tu es l'avocat du diable d'un studio solo-dev (1 dev, pas d'équipe).\n"
+            f"IDÉE HUMAINE : {idea_title}\n"
+            f"Roadmap proposée : {roadmap}\n\n"
+            f"Identifie max 3 risques TECHNIQUES concrets (complexité, dépendances, fichiers Rust/Python).\n"
+            f"INTERDIT : critiques organisationnelles, formation, support, déploiement.\n"
+            f"Format : 3 critiques max, chacune = 'Risque: X | Fichier: Y'."
+            + _needs_human_prompt,
+            max_tokens=350
         )
-        # Step 3 — FUSION
+        nh, nh_reason = _check_needs_human(redteam)
+        if nh:
+            with _idea_pipeline_lock:
+                _idea_pipeline_state.update({"running": False, "error": None, "result": {
+                    "ok": False, "needs_human": True, "reason": nh_reason, "step": "redteam",
+                    "idea_title": idea_title, "imps_staged": [],
+                    "extract_prompt": _build_extract_prompt_for_claude(idea_title, roadmap),
+                }})
+            return
+
+        # Step 3 — FUSION (FIX 1: mission réaliser l'idée humaine, pas fusionner deux textes)
         with _idea_pipeline_lock:
             _idea_pipeline_state.update({"step": "fusion", "progress": 3})
         fusion = lm_call(
-            f"Fusionne cette roadmap et ces critiques en un plan\n"
-            f"amélioré : Roadmap: {roadmap} Critiques: {redteam}\n"
-            f"Format : 3-5 étapes révisées.",
-            max_tokens=600
+            f"Tu es arbitre technique solo-dev. Ta mission : réaliser L'IDÉE HUMAINE\n"
+            f"en intégrant les critiques — pas fusionner deux textes machine.\n"
+            f"IDÉE HUMAINE : {idea_title}\n"
+            f"Roadmap : {roadmap}\n"
+            f"Critiques : {redteam}\n\n"
+            f"RÈGLES : max 3 étapes dans le plan final. Chaque étape = fichier précis + action.\n"
+            f"Supprimer toute étape hors-scope solo-dev.\n"
+            f"Format : liste numérotée d'étapes bornées."
+            + _needs_human_prompt,
+            max_tokens=500
         )
-        # Step 4 — EXTRACT (CEO-Decomposer, IMP-086 : Qwen3.6 + contexte ledger)
+        nh, nh_reason = _check_needs_human(fusion)
+        if nh:
+            with _idea_pipeline_lock:
+                _idea_pipeline_state.update({"running": False, "error": None, "result": {
+                    "ok": False, "needs_human": True, "reason": nh_reason, "step": "fusion",
+                    "idea_title": idea_title, "imps_staged": [],
+                    "extract_prompt": _build_extract_prompt_for_claude(idea_title, roadmap),
+                }})
+            return
+
+        # Step 4 — EXTRACT (FIX 1+2: ancre + interdictions | model=CEO | IMP-089)
         with _idea_pipeline_lock:
             _idea_pipeline_state.update({"step": "extract", "progress": 4})
         _open_imps = build_fusion_context().get("open_imps", [])
@@ -754,66 +865,81 @@ def _run_idea_pipeline(idea_id: str, idea_title: str, idea_content: str) -> None
             for i in _open_imps[:15]
         ) or "  (aucun)"
         extract_raw = lm_call(
-            f"IMPs déjà OPEN dans le ledger (éviter les doublons, calculer blocked_by) :\n"
+            f"Tu es décomposeur IMP d'un studio SOLO-DEV (1 seul développeur, pas d'équipe).\n"
+            f"IDÉE HUMAINE À RÉALISER : {idea_title}\n\n"
+            f"IMPs déjà OPEN dans le ledger (éviter doublons, calculer blocked_by) :\n"
             f"{_open_imps_ctx}\n\n"
-            f"RÈGLE DE GRANULARITÉ : chaque IMP = 1 tâche bornée (max 1-2 sessions).\n"
-            f"Si une étape du plan est trop large, la découper en 2-3 IMPs distincts.\n\n"
-            f"Transforme ce plan en IMPs CONCRETS et EXÉCUTABLES.\n"
-            f"Chaque IMP doit avoir :\n"
-            f"- title : action précise (verbe + objet + fichier)\n"
-            f"- files : chemins réels existants ou à créer\n"
-            f"- acceptance : critère mesurable et testable\n"
-            f"- blocked_by : liste d'IMP IDs OPEN existants dont ce IMP dépend ([] si aucun)\n\n"
-            f"CONTRAINTES STUDIO (obligatoire) :\n"
-            f"- Pas d'API Claude externe — uniquement LM Studio local\n"
-            f"- Pas de cron — l'autoloop existe déjà\n"
-            f"- Le ledger kaizen existe déjà — ne pas le réinventer\n"
-            f"- Stack : Rust (moteur) + Python (ML/studio) + LM Studio\n\n"
-            f"Rejette les IMPs trop abstraits ('système de gestion').\n"
-            f"Préfère le concret ('Ajouter fonction X dans fichier Y').\n\n"
-            f"Règles domain (obligatoire pour chaque IMP) :\n"
-            f"- rocky_moteur    : moteur Rust, eval, search, ELO, benchmark, coups\n"
-            f"- ia_apprentissage: LoRA, dataset, training, neural, Qwen, modèles\n"
-            f"- jeux            : Chess Fantasy, Snake, Belote, TCG, variantes, cartes\n"
-            f"- studio          : autopilot, pipeline, kaizen, docs, UI, agents, workflow\n\n"
-            f"Retourne UNIQUEMENT un JSON array valide, rien d'autre :\n"
-            f'[\n'
-            f'  {{\n'
-            f'    "title": "Ajouter fonction X dans fichier Y",\n'
-            f'    "lane": "SAFE_AUTO",\n'
-            f'    "impact": "HIGH",\n'
-            f'    "effort": "MEDIUM",\n'
-            f'    "domain": "studio",\n'
-            f'    "files": ["src/path/to/file.rs"],\n'
-            f'    "acceptance": "critère mesurable et testable",\n'
-            f'    "blocked_by": []\n'
-            f'  }}\n'
-            f']\n\n'
-            f"Plan à analyser :\n"
+            f"INTERDICTIONS ABSOLUES — rejeter tout IMP contenant :\n"
+            f"  formation, tutoriel, support utilisateur, déploiement, DevOps,\n"
+            f"  packaging, release, gestion d'équipe, chef de projet.\n\n"
+            f"RÈGLES DE GRANULARITÉ :\n"
+            f"  - MAX 4 IMPs (pas plus)\n"
+            f"  - 1 IMP = 1 fichier précis + 1 fonction précise\n"
+            f"  - title : verbe + objet + fichier (ex: 'Ajouter fn X dans fichier Y.py')\n\n"
+            f"CONTRAINTES STACK :\n"
+            f"  - Pas d'API Claude externe — LM Studio local uniquement\n"
+            f"  - Pas de cron (autoloop existe déjà)\n"
+            f"  - Stack : Rust (moteur) + Python (ML/studio) + LM Studio\n\n"
+            f"Domaines :\n"
+            f"  rocky_moteur: moteur Rust, eval, search, ELO, benchmark\n"
+            f"  ia_apprentissage: LoRA, dataset, training, neural, Qwen\n"
+            f"  jeux: Chess Fantasy, Snake, Belote, TCG, variantes\n"
+            f"  studio: autopilot, pipeline, kaizen, docs, UI, workflow\n\n"
+            f"Si l'idée est trop vague pour décomposer en IMPs concrets, retourne UNIQUEMENT :\n"
+            '{"needs_human": true, "reason": "explication"}\n\n'
+            f"Sinon, retourne UNIQUEMENT un JSON array valide, max 4 éléments :\n"
+            '[\n'
+            '  {\n'
+            '    "title": "Ajouter fn X dans fichier Y.py",\n'
+            '    "lane": "SAFE_AUTO",\n'
+            '    "impact": "HIGH",\n'
+            '    "effort": "SMALL",\n'
+            '    "domain": "studio",\n'
+            '    "files": ["chemin/exact/fichier.py"],\n'
+            '    "acceptance": "critère mesurable en 1 ligne",\n'
+            '    "blocked_by": []\n'
+            '  }\n'
+            ']\n\n'
+            f"Plan à décomposer :\n"
             f"{fusion}\n\n"
             f"claim_verdict: NO_CLAIM_ALLOWED",
-            max_tokens=1100,
+            max_tokens=900,
         )
+        nh, nh_reason = _check_needs_human(extract_raw)
+        if nh:
+            with _idea_pipeline_lock:
+                _idea_pipeline_state.update({"running": False, "error": None, "result": {
+                    "ok": False, "needs_human": True, "reason": nh_reason, "step": "extract",
+                    "idea_title": idea_title, "imps_staged": [],
+                    "extract_prompt": _build_extract_prompt_for_claude(idea_title, fusion),
+                }})
+            return
+
         imps_staged = _extract_json_array(extract_raw)
-        if not imps_staged:
+        needs_claude_fallback = not imps_staged
+        if needs_claude_fallback:
             print("[extract] aucun tableau JSON d'objets trouvé dans la réponse")
-            imps_staged = [{"title": idea_title, "lane": "SAFE_AUTO", "impact": "HIGH",
-                             "effort": "MEDIUM", "domain": "studio", "files": [], "acceptance": "TBD"}]
-        # Step 5 — STAGE
+
+        # Step 5 — STAGE (FIX 3: reasoning_trace passé à _stage_proposals)
         with _idea_pipeline_lock:
             _idea_pipeline_state.update({"step": "staged", "progress": 5})
-        _stage_proposals(idea_id, idea_title, imps_staged)
-        # Auto-update idea status → pipeline_done
-        if idea_id and idea_id not in ("manual", ""):
-            update_idea_status(idea_id, "pipeline_done")
+        if imps_staged:
+            _stage_proposals(idea_id, idea_title, imps_staged,
+                             idea_desc=idea_desc, roadmap=roadmap,
+                             redteam=redteam, fusion=fusion)
+            if idea_id and idea_id not in ("manual", ""):
+                update_idea_status(idea_id, "pipeline_done")
+
         result = {
             "ok": True,
+            "needs_human": needs_claude_fallback,
             "idea_title": idea_title,
             "roadmap": roadmap,
             "redteam": redteam,
             "fusion": fusion,
             "imps_staged": imps_staged,
             "proposals_file": "lab/chains/ROADMAP_PROPOSALS.yaml",
+            "extract_prompt": _build_extract_prompt_for_claude(idea_title, fusion),
         }
         with _idea_pipeline_lock:
             _idea_pipeline_state.update({"running": False, "result": result, "error": None})
@@ -4609,7 +4735,6 @@ async function _pollPipelineIntoModal(subEl, impListEl, actionsEl) {
     try {
       const s = await fetch('/api/idea-pipeline-status').then(r => r.json());
       const [prog, stepId] = PIPE_STEP_LABELS[s.step] || [0, ''];
-      // Update step pills
       Object.entries(PIPE_STEP_LABELS).forEach(([k, [p, sid]]) => {
         if (!sid) return;
         const el = document.getElementById(sid);
@@ -4618,25 +4743,78 @@ async function _pollPipelineIntoModal(subEl, impListEl, actionsEl) {
         else if (p === prog) el.className = 'pipe-step active';
         else el.className = 'pipe-step';
       });
+      const nhFlag = s.result?.needs_human;
       if (subEl) subEl.textContent = s.running
         ? 'Étape ' + s.progress + '/5 — ' + (PIPE_STEP_NAMES[s.step] || s.step) + '...'
-        : (s.error ? '✗ ' + s.error : '✓ Pipeline terminé — ' + (s.result?.imps_staged?.length || 0) + ' IMP(s) générés');
+        : (s.error ? '✗ ' + s.error : nhFlag ? '⚠ Validation humaine requise' : '✓ Pipeline terminé — ' + (s.result?.imps_staged?.length || 0) + ' IMP(s) générés');
       if (!s.running) {
         loadIdeas();
-        if (s.result && s.result.imps_staged && s.result.imps_staged.length) {
+        // FIX 5 (IMP-089): needs_human ou 0 IMPs → bouton Ouvrir dans Claude
+        if (nhFlag || (s.result && !(s.result.imps_staged?.length))) {
+          const reason = s.result?.reason || '';
+          const extractPrompt = s.result?.extract_prompt || '';
+          const ideaTitle = s.result?.idea_title || '';
+          const stepName = s.result?.step || '';
+          impListEl.innerHTML =
+            (nhFlag
+              ? `<div style="font-size:12px;color:var(--amber);padding:8px 12px;background:var(--bg3);border-radius:4px;margin-bottom:10px;border-left:3px solid var(--amber)">⚠ Validation requise${stepName?' ('+escHtml(stepName)+')':''}<br>Raison : ${escHtml(reason)}</div>`
+              : '<div style="font-size:12px;color:var(--text3);margin-bottom:10px">Aucun IMP extrait par Qwen.</div>'
+            ) +
+            `<div style="font-size:11px;color:var(--text3);margin-bottom:4px">→ Copier le prompt, coller dans claude.ai, récupérer le JSON :</div>
+            <textarea id="claude-export-prompt" readonly style="width:100%;height:72px;font-size:10px;background:var(--bg2);color:var(--text2);border:1px solid var(--border2);border-radius:4px;padding:6px;resize:none;box-sizing:border-box">${escHtml(extractPrompt)}</textarea>
+            <button class="btn btn-sm" style="margin:4px 0 8px" onclick="navigator.clipboard.writeText(document.getElementById('claude-export-prompt').value).then(()=>{this.textContent='✓ Copié';setTimeout(()=>{this.textContent='⎘ Copier le prompt'},1500)})">⎘ Copier le prompt</button>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:4px;margin-top:4px">Colle ici le JSON retourné par Claude :</div>
+            <textarea id="claude-json-paste" placeholder='[{"title":"Ajouter fn X dans Y.py",...}]' style="width:100%;height:72px;font-size:10px;background:var(--bg2);color:var(--text2);border:1px solid var(--border2);border-radius:4px;padding:6px;resize:none;box-sizing:border-box"></textarea>
+            <button class="btn btn-amber btn-sm" style="margin-top:6px" data-idea-id="${escHtml(String(s.idea_id||''))}" data-idea-title="${escHtml(ideaTitle)}" onclick="injectClaudeJson(this)">↓ Injecter ce JSON</button>`;
+        } else if (s.result?.imps_staged?.length) {
           impListEl.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">IMPs à injecter dans le ledger :</div>' +
             s.result.imps_staged.map((imp, i) =>
               `<div class="imp-list-item"><input type="checkbox" id="pimp-${i}" checked><label for="pimp-${i}" class="imp-list-title">${escHtml(imp.title||'')}</label><span class="pill p-safe" style="font-size:9px">${imp.lane||'SAFE_AUTO'}</span><span class="pill p-high" style="font-size:9px">${imp.impact||'HIGH'}</span></div>`
             ).join('');
-          impListEl.style.display = 'block';
         } else {
           impListEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">Aucun IMP extrait.</div>';
-          impListEl.style.display = 'block';
         }
+        impListEl.style.display = 'block';
         actionsEl.style.display = 'flex';
         return;
       }
     } catch(e) {}
+  }
+}
+
+async function injectClaudeJson(btn) {
+  // FIX 5 (IMP-089): bypass Qwen2.5 — injecte le JSON Claude dans le staging
+  const ideaId    = btn.dataset.ideaId    || '';
+  const ideaTitle = btn.dataset.ideaTitle || '';
+  const ta = document.getElementById('claude-json-paste');
+  if (!ta || !ta.value.trim()) { alert("Colle le JSON Claude avant d'injecter."); return; }
+  const sub = document.getElementById('pipeline-modal-sub');
+  btn.disabled = true; btn.textContent = '⟳ Staging...';
+  try {
+    const r = await fetch('/api/idea-inject-json', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({idea_id: ideaId, idea_title: ideaTitle, json_raw: ta.value})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      if (sub) sub.textContent = '✓ ' + d.count + ' IMP(s) stagés — cliquer Approuver pour injecter dans le ledger';
+      const s2 = await fetch('/api/idea-pipeline-status').then(r => r.json());
+      const impListEl = document.getElementById('pipeline-imp-list');
+      if (impListEl && s2.result?.imps_staged?.length) {
+        impListEl.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">IMPs à injecter dans le ledger :</div>' +
+          s2.result.imps_staged.map((imp, i) =>
+            `<div class="imp-list-item"><input type="checkbox" id="pimp-${i}" checked><label for="pimp-${i}" class="imp-list-title">${escHtml(imp.title||'')}</label><span class="pill p-safe" style="font-size:9px">${imp.lane||'SAFE_AUTO'}</span><span class="pill p-high" style="font-size:9px">${imp.impact||'HIGH'}</span></div>`
+          ).join('');
+      }
+      await loadIdeas();
+    } else {
+      alert('Erreur : ' + (d.error || 'Inconnue'));
+      btn.disabled = false; btn.textContent = '↓ Injecter ce JSON';
+    }
+  } catch(e) {
+    alert('Erreur connexion');
+    btn.disabled = false; btn.textContent = '↓ Injecter ce JSON';
   }
 }
 
@@ -5230,6 +5408,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "rc": result.get("rc", -1),
                 "refresh_ceo_brief": inject_ok,
             })
+
+        elif path == "/api/idea-inject-json":
+            # FIX 5 (IMP-089): bypass Qwen2.5 — injecte le JSON collé depuis Claude
+            json_raw   = str(body.get("json_raw",   "")).strip()
+            idea_id    = str(body.get("idea_id",    "manual")).strip()
+            idea_title = str(body.get("idea_title", "")).strip()
+            imps = _extract_json_array(json_raw)
+            if not imps:
+                self.send_json({"ok": False, "error": "JSON invalide ou aucun IMP trouvé"}, 400)
+                return
+            _stage_proposals(idea_id, idea_title, imps)
+            with _idea_pipeline_lock:
+                existing = dict(_idea_pipeline_state.get("result") or {})
+                existing.update({"imps_staged": imps, "ok": True, "needs_human": False})
+                _idea_pipeline_state["result"] = existing
+            if idea_id and idea_id not in ("manual", ""):
+                update_idea_status(idea_id, "pipeline_done")
+            self.send_json({"ok": True, "count": len(imps)})
 
         elif path == "/api/ceo-brief":
             state_path = Path(__file__).parent / "studio_state.json"
