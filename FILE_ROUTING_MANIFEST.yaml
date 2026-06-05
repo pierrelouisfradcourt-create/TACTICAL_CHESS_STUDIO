@@ -130,12 +130,12 @@ routing:
     - pattern: "lab/chains/doc_hygiene_chain.py"
       status: IMPLEMENTED
       lane: SAFE_AUTO
-      description: "Chaîne d'hygiène documentaire — créée 2026-05-31, 54 tests verts"
+      description: "Chaîne d'hygiène documentaire — créée 2026-05-31, 60 tests verts"
 
     - pattern: "lab/chains/test_doc_hygiene.py"
       status: IMPLEMENTED
       lane: SAFE_AUTO
-      description: "Tests pytest doc_hygiene_chain — 54 passed"
+      description: "Tests pytest doc_hygiene_chain — 60 passed"
 
     - pattern: "lab/chains/chain_executor.py"
       status: IMPLEMENTED
@@ -191,6 +191,21 @@ routing:
       status: DOCUMENTED_ONLY
       lane: SAFE_AUTO
       description: "Charters IMP-* — archives décisions kaizen (IMP-007 à IMP-036+)"
+
+    - pattern: "lab/chains/reports/*.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Rapports IMP racine — artefacts kaizen session"
+
+    - pattern: "lab/chains/reports/processed/*.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Rapports IMP traités — déplacés par pipeline après processing"
+
+    - pattern: "lab/chains/reports/processed/**"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Sous-dossiers processed rapports IMP — artefacts kaizen"
 
     - pattern: ".gitignore"
       status: IMPLEMENTED
@@ -610,18 +625,18 @@ routing:
       recommendation: "DELETE — fichier temporaire diagnostic IMP-036, sans valeur durable."
       decision_deadline: "prochaine session"
 
-    - pattern: "lab/tmp_imp036_diag.py"
-      status: ORPHANED
-      lane: AUDIT_REQUIRED
-      created_by: "session 2026-06-02"
-      recommendation: "DELETE — fichier temporaire diagnostic IMP-036, sans valeur durable."
-      decision_deadline: "prochaine session"
-
     - pattern: "lab/tmp_imp042_summarize.py"
       status: DOCUMENTED_ONLY
       lane: SAFE_AUTO
       created_by: "session 2026-06-04"
       description: "Script temporaire summarize IMP-042 — lecture seule, aucun side-effect."
+
+    - pattern: "wr.py"
+      status: ORPHANED
+      lane: AUDIT_REQUIRED
+      created_by: "session 2026-06-06"
+      recommendation: "DELETE — supprimé 2026-06-06 par HumanGate."
+      decision_deadline: "DONE"
 
 # ============================================================
 # RÈGLES D'AUDIT (lues par doc_hygiene_chain.py)
@@ -659,7 +674,7 @@ metadata:
   version: "1.1"
   created: "2026-05-31"
   authority: "HumanGate"
-  last_updated_by: "IMP-063 SAFE_AUTO — routage 11 orphelins 2026-06-04"
+  last_updated_by: "audit merle 2026-06-06 — processed/ reports routés, wr.py unrouted, 54→60 tests, dédupliqué tmp036"
   python_312_note: >
     PurePosixPath.match() en Python 3.12 requiert un composant intermédiaire
     pour '**'. Fichiers directs : utiliser 'dossier/*.ext'.
