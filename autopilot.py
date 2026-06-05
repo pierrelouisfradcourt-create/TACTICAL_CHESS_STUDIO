@@ -658,6 +658,15 @@ def _stage_proposals(idea_id: str, idea_title: str, imps: list) -> None:
         domain = imp.get("domain", "") or "studio"
         if domain not in ("rocky_moteur", "ia_apprentissage", "studio", "jeux"):
             domain = "studio"
+        files_raw = imp.get("files") or []
+        if not isinstance(files_raw, list):
+            files_raw = []
+        files_yaml = "[" + ", ".join(f'"{str(f)}"' for f in files_raw[:8] if isinstance(f, str) and f) + "]"
+        acceptance_raw = str(imp.get("acceptance") or "TBD").replace("'", "''")[:200]
+        blocked_raw = imp.get("blocked_by") or []
+        if not isinstance(blocked_raw, list):
+            blocked_raw = []
+        blocked_yaml = "[" + ", ".join(f'"{str(b)}"' for b in blocked_raw if isinstance(b, str) and b) + "]"
         lines.append(
             f"- prop_id: PROP-{next_num:03d}\n"
             f"  source_phase: idea-to-imp\n"
@@ -672,8 +681,9 @@ def _stage_proposals(idea_id: str, idea_title: str, imps: list) -> None:
             f"    impact: {impact}\n"
             f"    effort: {effort}\n"
             f"    domain: {domain}\n"
-            f"    files: []\n"
-            f"    acceptance: TBD\n"
+            f"    files: {files_yaml}\n"
+            f"    acceptance: '{acceptance_raw}'\n"
+            f"    blocked_by: {blocked_yaml}\n"
             f"    notes: 'Pipeline idea-to-imp — idée {idea_id}'\n"
         )
         next_num += 1
@@ -687,8 +697,24 @@ def _stage_proposals(idea_id: str, idea_title: str, imps: list) -> None:
         pass
 
 
+def _extract_json_array(raw: str) -> list:
+    """Scan raw_decode : retient le premier '[' qui parse en liste de dicts.
+    Saute les crochets de prose ([analyse], [étape]) du raisonnement Qwen."""
+    raw = re.sub(r'^```(?:json)?\s*|\s*```$', '', (raw or "").strip())
+    dec = json.JSONDecoder()
+    for i, ch in enumerate(raw):
+        if ch == '[':
+            try:
+                val, _ = dec.raw_decode(raw[i:])
+                if isinstance(val, list) and val and isinstance(val[0], dict):
+                    return val
+            except Exception:
+                continue
+    return []
+
+
 def _run_idea_pipeline(idea_id: str, idea_title: str, idea_content: str) -> None:
-    """Thread worker — 5 étapes séquentielles, tout Qwen2.5-14B."""
+    """Thread worker — 5 étapes séquentielles. Steps 1-3: Qwen2.5-14B. Step 4: Qwen3.6 (CEO-Decomposer, IMP-086)."""
     global _idea_pipeline_state
     try:
         # Step 1 — ROADMAP
@@ -719,15 +745,25 @@ def _run_idea_pipeline(idea_id: str, idea_title: str, idea_content: str) -> None
             f"Format : 3-5 étapes révisées.",
             max_tokens=600
         )
-        # Step 4 — EXTRACT
+        # Step 4 — EXTRACT (CEO-Decomposer, IMP-086 : Qwen3.6 + contexte ledger)
         with _idea_pipeline_lock:
             _idea_pipeline_state.update({"step": "extract", "progress": 4})
+        _open_imps = build_fusion_context().get("open_imps", [])
+        _open_imps_ctx = "\n".join(
+            f"  - {i['id']} [{i.get('lane','?')}] {i.get('title','')}"
+            for i in _open_imps[:15]
+        ) or "  (aucun)"
         extract_raw = lm_call(
+            f"IMPs déjà OPEN dans le ledger (éviter les doublons, calculer blocked_by) :\n"
+            f"{_open_imps_ctx}\n\n"
+            f"RÈGLE DE GRANULARITÉ : chaque IMP = 1 tâche bornée (max 1-2 sessions).\n"
+            f"Si une étape du plan est trop large, la découper en 2-3 IMPs distincts.\n\n"
             f"Transforme ce plan en IMPs CONCRETS et EXÉCUTABLES.\n"
             f"Chaque IMP doit avoir :\n"
             f"- title : action précise (verbe + objet + fichier)\n"
             f"- files : chemins réels existants ou à créer\n"
-            f"- acceptance : critère mesurable et testable\n\n"
+            f"- acceptance : critère mesurable et testable\n"
+            f"- blocked_by : liste d'IMP IDs OPEN existants dont ce IMP dépend ([] si aucun)\n\n"
             f"CONTRAINTES STUDIO (obligatoire) :\n"
             f"- Pas d'API Claude externe — uniquement LM Studio local\n"
             f"- Pas de cron — l'autoloop existe déjà\n"
@@ -749,24 +785,18 @@ def _run_idea_pipeline(idea_id: str, idea_title: str, idea_content: str) -> None
             f'    "effort": "MEDIUM",\n'
             f'    "domain": "studio",\n'
             f'    "files": ["src/path/to/file.rs"],\n'
-            f'    "acceptance": "critère mesurable et testable"\n'
+            f'    "acceptance": "critère mesurable et testable",\n'
+            f'    "blocked_by": []\n'
             f'  }}\n'
             f']\n\n'
             f"Plan à analyser :\n"
             f"{fusion}\n\n"
             f"claim_verdict: NO_CLAIM_ALLOWED",
-            max_tokens=900
+            max_tokens=1100,
         )
-        imps_staged: list = []
-        try:
-            m = re.search(r'\[[\s\S]*?\]', extract_raw)
-            if m:
-                parsed = json.loads(m.group(0))
-                if isinstance(parsed, list):
-                    imps_staged = parsed
-        except Exception:
-            pass
+        imps_staged = _extract_json_array(extract_raw)
         if not imps_staged:
+            print("[extract] aucun tableau JSON d'objets trouvé dans la réponse")
             imps_staged = [{"title": idea_title, "lane": "SAFE_AUTO", "impact": "HIGH",
                              "effort": "MEDIUM", "domain": "studio", "files": [], "acceptance": "TBD"}]
         # Step 5 — STAGE
