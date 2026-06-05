@@ -2028,7 +2028,7 @@ tr:hover td{background:var(--bg3)}
       <div class="divider">CEO Brief</div>
       <div class="card" style="padding:10px 14px" id="ceo-brief-card">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-amber" onclick="loadCeoBrief()">⬡ CEO Brief (LM)</button>
+          <button class="btn btn-amber" onclick="loadCeoBrief()" title="Qwen2.5-14B - CEO Brief (~3s)">⬡ CEO Brief (LM)</button>
           <button class="btn btn-sm" onclick="loadCeoTriage()">🗂 Triage statique</button>
           <span style="font-size:10px;color:var(--text3)">claim_verdict: NO_CLAIM_ALLOWED</span>
         </div>
@@ -2124,7 +2124,7 @@ tr:hover td{background:var(--bg3)}
             <div id="al-last-rocky_moteur" style="font-size:10px;color:var(--text3);margin-top:3px"></div>
             <label style="font-size:9px;color:var(--text3);margin-top:5px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="drcheck-rocky_moteur" style="accent-color:var(--amber)"> Exécution réelle <span style="color:var(--red)">(désactive dry_run — HumanGate)</span></label>
             <div style="display:flex;gap:6px;margin-top:6px">
-              <button class="btn btn-green btn-sm" id="btn-start-rocky_moteur" onclick="autoloopStart('rocky_moteur')">&#9654; Start</button>
+              <button class="btn btn-green btn-sm" id="btn-start-rocky_moteur" onclick="autoloopStart('rocky_moteur')" title="Qwen2.5-14B - autoloop lane">&#9654; Start</button>
               <button class="btn btn-sm" id="btn-stop-rocky_moteur" style="display:none" onclick="autoloopStop('rocky_moteur')">&#9632; Stop</button>
               <button class="btn btn-sm" style="margin-left:auto" onclick="nav('workflow')">&#8599; Workflow</button>
             </div>
@@ -2136,7 +2136,7 @@ tr:hover td{background:var(--bg3)}
             <div id="al-last-ia_apprentissage" style="font-size:10px;color:var(--text3);margin-top:3px"></div>
             <label style="font-size:9px;color:var(--text3);margin-top:5px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="drcheck-ia_apprentissage" style="accent-color:var(--amber)"> Exécution réelle <span style="color:var(--red)">(désactive dry_run — HumanGate)</span></label>
             <div style="display:flex;gap:6px;margin-top:6px">
-              <button class="btn btn-green btn-sm" id="btn-start-ia_apprentissage" onclick="autoloopStart('ia_apprentissage')">&#9654; Start</button>
+              <button class="btn btn-green btn-sm" id="btn-start-ia_apprentissage" onclick="autoloopStart('ia_apprentissage')" title="Qwen2.5-14B - autoloop lane">&#9654; Start</button>
               <button class="btn btn-sm" id="btn-stop-ia_apprentissage" style="display:none" onclick="autoloopStop('ia_apprentissage')">&#9632; Stop</button>
               <button class="btn btn-sm" style="margin-left:auto" onclick="nav('workflow')">&#8599; Workflow</button>
             </div>
@@ -2148,7 +2148,7 @@ tr:hover td{background:var(--bg3)}
             <div id="al-last-decisions_pendantes" style="font-size:10px;color:var(--text3);margin-top:3px"></div>
             <label style="font-size:9px;color:var(--text3);margin-top:5px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="drcheck-decisions_pendantes" style="accent-color:var(--amber)"> Exécution réelle <span style="color:var(--red)">(désactive dry_run — HumanGate)</span></label>
             <div style="display:flex;gap:6px;margin-top:6px">
-              <button class="btn btn-green btn-sm" id="btn-start-decisions_pendantes" onclick="autoloopStart('decisions_pendantes')">&#9654; Start</button>
+              <button class="btn btn-green btn-sm" id="btn-start-decisions_pendantes" onclick="autoloopStart('decisions_pendantes')" title="Qwen2.5-14B - autoloop lane">&#9654; Start</button>
               <button class="btn btn-sm" id="btn-stop-decisions_pendantes" style="display:none" onclick="autoloopStop('decisions_pendantes')">&#9632; Stop</button>
               <button class="btn btn-sm" style="margin-left:auto" onclick="nav('workflow')">&#8599; Workflow</button>
             </div>
@@ -2211,7 +2211,7 @@ tr:hover td{background:var(--bg3)}
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
         <button class="btn btn-amber" onclick="showMemModal()">+ Capturer une fusion</button>
         <button class="btn" onclick="exportMemory()">↓ Exporter STUDIO_MEMORY.md</button>
-        <button class="btn btn-amber" onclick="lmSynthesizeMemory()">⚡ LM Studio — synthèse corpus</button>
+        <button class="btn btn-amber" onclick="lmSynthesizeMemory()" title="Qwen2.5-14B - ~3s">⚡ LM Studio — synthèse corpus</button>
         <button class="btn" onclick="renderMemory()">↻ Rafraîchir</button>
       </div>
 
@@ -2242,7 +2242,7 @@ tr:hover td{background:var(--bg3)}
     <div id="page-ideas" class="page">
       <div style="display:flex;gap:10px;margin-bottom:14px">
         <button class="btn btn-amber" onclick="showIdeaModal()">+ Nouvelle idée</button>
-        <button class="btn btn-amber" onclick="lmAnalyzeIdeas()">⚡ LM Studio — analyser et prioriser</button>
+        <button class="btn btn-amber" onclick="lmAnalyzeIdeas()" title="Qwen2.5-14B - analyse backlog">⚡ LM Studio — analyser et prioriser</button>
       </div>
       <div class="filter-row" id="idea-filters">
         <button class="filter-btn active" onclick="filterIdeas('all')">Tout</button>
@@ -2302,7 +2302,7 @@ tr:hover td{background:var(--bg3)}
           </div>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn btn-amber" onclick="generateRoadmap()">⚡ Générer via LM Studio</button>
+          <button class="btn btn-amber" onclick="generateRoadmap()" title="Qwen2.5-14B - ~3s">⚡ Générer via LM Studio</button>
           <button class="btn" onclick="saveRoadmapToMemory()">◈ Sauver en mémoire</button>
           <span id="rm-status" style="font-size:11px;color:var(--text3)"></span>
         </div>
@@ -2711,7 +2711,7 @@ tr:hover td{background:var(--bg3)}
             <div id="sos-hg-pending" class="pill p-todo" style="margin-top:4px">—</div>
           </div>
           <div style="flex:1"></div>
-          <button class="btn btn-amber btn-sm" onclick="nav('pilote');loadCeoBrief()">&#11041; Lancer CEO Brief</button>
+          <button class="btn btn-amber btn-sm" onclick="nav('pilote');loadCeoBrief()" title="Qwen2.5-14B - CEO Brief (~3s)">&#11041; Lancer CEO Brief</button>
         </div>
         <div class="stat-lbl" style="margin-bottom:6px">Dernières décisions HumanGate</div>
         <div id="sos-hg-decisions">
@@ -3637,7 +3637,7 @@ function renderIdeas() {
       ${idea.desc?`<div class="idea-desc">${idea.desc}</div>`:''}
       <div class="idea-actions">
         ${idea.status!=='applied'?`<button class="btn btn-sm" onclick="cycleIdeaStatus(${idea.id})">&#8635; Changer statut</button>`:''}
-        ${!['applied','pipeline_done'].includes(idea.status)?`<button class="btn btn-sm btn-amber" onclick="startIdeaPipeline(${idea.id})">&#8599; Transformer en IMPs</button>`:''}
+        ${!['applied','pipeline_done'].includes(idea.status)?`<button class="btn btn-sm btn-amber" onclick="startIdeaPipeline(${idea.id})" title="Qwen2.5-14B - pipeline 5 steps (~30s)">&#8599; Transformer en IMPs</button>`:''}
       </div>
     </div>`;
   }).join('') || '<div style="font-size:12px;color:var(--text3);padding:16px 0">Aucune idée dans ce filtre.</div>';
@@ -4095,7 +4095,7 @@ function _ceoLanePill(lane) {
 function _ceoLaneHtml(label, l, laneKey) {
   if (!l) return '';
   const startBtn = laneKey
-    ? `<button class="btn btn-green btn-sm" style="margin-top:5px" onclick="autoloopStart('${laneKey}')">&#9654; autoloop</button>`
+    ? `<button class="btn btn-green btn-sm" style="margin-top:5px" onclick="autoloopStart('${laneKey}')" title="Qwen2.5-14B - autoloop lane">&#9654; autoloop</button>`
     : '';
   return `<div style="margin:6px 0 2px 0;font-size:11px;font-weight:600;color:var(--text3)">${escHtml(label)}</div>`
     + `<div style="margin-bottom:4px"><b style="color:var(--amber)">${escHtml(l.next_action||'—')}</b> ${_ceoLanePill(l.lane)}</div>`
