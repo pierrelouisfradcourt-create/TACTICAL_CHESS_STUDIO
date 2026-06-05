@@ -7,10 +7,12 @@ les spécifier (title + lane + impact + effort), et génère
 lab/chains/ROADMAP_PROPOSALS.yaml pour review HumanGate.
 
 Usage:
-  python lab/chains/roadmap_to_ledger.py              # génère proposals
-  python lab/chains/roadmap_to_ledger.py --no-qwen   # heuristiques, sans LLM
-  python lab/chains/roadmap_to_ledger.py --inject    # injecte APPROVED dans ledger
-  python lab/chains/roadmap_to_ledger.py --dry-run   # affiche sans écrire
+  python lab/chains/roadmap_to_ledger.py                          # génère proposals
+  python lab/chains/roadmap_to_ledger.py --no-qwen               # heuristiques, sans LLM
+  python lab/chains/roadmap_to_ledger.py --inject                # injecte APPROVED dans ledger
+  python lab/chains/roadmap_to_ledger.py --inject-staged <id>   # injecte session idea-to-imp (sans APPROVED)
+  python lab/chains/roadmap_to_ledger.py --purge-stale           # supprime proposals humangate_verdict: null
+  python lab/chains/roadmap_to_ledger.py --dry-run               # affiche sans écrire
 """
 
 import argparse
@@ -96,20 +98,33 @@ def _word_set(text: str) -> set:
     return set(re.findall(r'\w+', text.lower()))
 
 
-def is_duplicate(task_text: str, existing_imps: list) -> bool:
-    """True si un IMP existant couvre déjà cette tâche (Jaccard > 0.35)."""
+def _normalize_title(text: str) -> str:
+    return re.sub(r'[^\w\s]', '', text.lower()).strip()
+
+
+def is_duplicate(task_text: str, existing_imps: list) -> tuple:
+    """Returns (is_dup, matched_imp_id).
+    Vérifie l'ensemble du ledger (OPEN + CLOSED + DEFERRED) :
+    1. Match exact normalisé (sans ponctuation, lower, strip)
+    2. Jaccard > 0.35
+    """
+    norm = _normalize_title(task_text)
     task_words = _word_set(task_text)
     if not task_words:
-        return False
+        return False, ""
     for imp in existing_imps:
-        imp_words = _word_set(imp.get("title", ""))
+        imp_title = imp.get("title", "")
+        imp_id    = imp.get("id", "?")
+        if norm and _normalize_title(imp_title) == norm:
+            return True, imp_id
+        imp_words = _word_set(imp_title)
         if not imp_words:
             continue
         intersection = len(task_words & imp_words)
         union = len(task_words | imp_words)
         if union > 0 and intersection / union > 0.35:
-            return True
-    return False
+            return True, imp_id
+    return False, ""
 
 
 # ── Heuristics (fallback sans Qwen) ──────────────────────────────────────────
@@ -190,8 +205,9 @@ def qwen_classify(task: dict) -> dict | None:
 def build_proposals(tasks: list, existing_imps: list, use_qwen: bool) -> list:
     proposals = []
     for idx, task in enumerate(tasks, start=1):
-        if is_duplicate(task["task"], existing_imps):
-            print(f"  [!] Dupliqué — ignoré : {task['task'][:60]}")
+        dup, dup_id = is_duplicate(task["task"], existing_imps)
+        if dup:
+            print(f"  [!] Dupliqué ({dup_id}) — ignoré : {task['task'][:60]}")
             continue
 
         if use_qwen:
@@ -258,7 +274,7 @@ def write_proposals(proposals: list, dry_run: bool) -> None:
 
 
 # ── Inject approved ───────────────────────────────────────────────────────────
-def inject_approved(dry_run: bool) -> None:
+def inject_approved(dry_run: bool, force: bool = False) -> None:
     if not PROPOSALS_PATH.exists():
         print(f"[X] {PROPOSALS_PATH} absent — lancer d'abord sans --inject")
         sys.exit(1)
@@ -280,8 +296,15 @@ def inject_approved(dry_run: bool) -> None:
     next_num = max(nums) + 1 if nums else 1
 
     added = []
+    skipped = []
     for prop in approved:
-        spec   = prop["imp"]
+        spec    = prop["imp"]
+        prop_id = prop.get("prop_id", "?")
+        dup, dup_id = is_duplicate(spec["title"], imps)
+        if dup and not force:
+            print(f"  [SKIP] {prop_id} déjà dans ledger comme {dup_id} — '{spec['title'][:60]}'")
+            skipped.append(prop_id)
+            continue
         new_id = f"IMP-{next_num:03d}"
         next_num += 1
         new_imp = {
@@ -293,6 +316,7 @@ def inject_approved(dry_run: bool) -> None:
             "impact":         spec["impact"],
             "effort":         spec["effort"],
             "lane":           spec["lane"],
+            "domain":         spec.get("domain", "studio"),
             "files":          spec.get("files", []),
             "acceptance":     spec.get("acceptance", "TBD"),
             "blocked_by":     [],
@@ -304,15 +328,13 @@ def inject_approved(dry_run: bool) -> None:
             imps.append(new_imp)
         added.append((new_id, spec["title"]))
 
+    if skipped:
+        print(f"[OK] {len(skipped)} proposal(s) ignorée(s) (doublon ledger) — utiliser --force pour forcer")
+    if not added:
+        print("[OK] Aucun nouvel IMP — toutes les proposals sont déjà dans le ledger")
+        return
     if not dry_run:
-        header = (
-            "# IMPROVEMENT_LEDGER.yaml\n"
-            "# SSOT amélioration continue (Kaizen Loop) — Tactical Chess Studio\n"
-            "# Claim posture: NO_CLAIM_ALLOWED | Read-only sauf --close/--add\n\n"
-        )
-        with open(LEDGER_PATH, "w", encoding="utf-8") as f:
-            f.write(header)
-            yaml.dump(ledger_data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        _write_ledger(ledger_data)
         print(f"[OK] {len(added)} IMP(s) injecté(s) dans le ledger :")
     else:
         print(f"[dry-run] {len(added)} IMP(s) seraient injectés :")
@@ -320,16 +342,134 @@ def inject_approved(dry_run: bool) -> None:
         print(f"  {new_id} — {title[:70]}")
 
 
+# ── Shared ledger write ───────────────────────────────────────────────────────
+def _write_ledger(ledger_data: dict) -> None:
+    header = (
+        "# IMPROVEMENT_LEDGER.yaml\n"
+        "# SSOT amélioration continue (Kaizen Loop) — Tactical Chess Studio\n"
+        "# Claim posture: NO_CLAIM_ALLOWED | Read-only sauf --close/--add\n\n"
+    )
+    with open(LEDGER_PATH, "w", encoding="utf-8") as f:
+        f.write(header)
+        yaml.dump(ledger_data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+
+
+# ── Inject staged (idea-to-imp, sans exiger APPROVED) ────────────────────────
+def inject_staged(session_id: str, dry_run: bool, force: bool = False) -> None:
+    """Injecte les proposals d'une session idea-to-imp sans exiger APPROVED.
+    Filtre par source_idea_id == session_id. Dédup Jaccard reste active.
+    """
+    if not PROPOSALS_PATH.exists():
+        print(f"[X] {PROPOSALS_PATH} absent")
+        sys.exit(1)
+    raw = yaml.safe_load(PROPOSALS_PATH.read_text(encoding="utf-8"))
+    proposals = raw.get("proposals") or []
+    staged = [
+        p for p in proposals
+        if str(p.get("source_idea_id", "")) == str(session_id)
+        and p.get("source_phase") == "idea-to-imp"
+    ]
+    if not staged:
+        print(f"[!] Aucune proposal pour la session '{session_id}'")
+        return
+
+    ledger_data = yaml.safe_load(LEDGER_PATH.read_text(encoding="utf-8"))
+    imps = ledger_data["improvements"]
+    nums = [int(i["id"].split("-")[1]) for i in imps
+            if re.match(r"IMP-\d+$", i.get("id", ""))]
+    next_num = max(nums) + 1 if nums else 1
+
+    added: list = []
+    skipped: list = []
+    for prop in staged:
+        spec    = prop["imp"]
+        prop_id = prop.get("prop_id", "?")
+        dup, dup_id = is_duplicate(spec["title"], imps)
+        if dup and not force:
+            print(f"  [SKIP] {prop_id} déjà dans ledger comme {dup_id}")
+            skipped.append(prop_id)
+            continue
+        new_id = f"IMP-{next_num:03d}"
+        next_num += 1
+        new_imp = {
+            "id":             new_id,
+            "title":          spec["title"],
+            "type":           spec.get("type", "feature"),
+            "source":         f"idea-to-imp session {session_id}",
+            "status":         "OPEN",
+            "impact":         spec["impact"],
+            "effort":         spec["effort"],
+            "lane":           spec["lane"],
+            "domain":         spec.get("domain", "studio"),
+            "files":          spec.get("files", []),
+            "acceptance":     spec.get("acceptance", "TBD"),
+            "blocked_by":     [],
+            "opened_session": date.today().isoformat(),
+            "closed_session": None,
+            "notes":          spec.get("notes", ""),
+        }
+        if not dry_run:
+            imps.append(new_imp)
+        added.append((new_id, spec["title"]))
+
+    if skipped:
+        print(f"[OK] {len(skipped)} proposal(s) ignorée(s) (doublon) — utiliser --force pour forcer")
+    if not added:
+        print("[OK] Aucun nouvel IMP — toutes les proposals sont déjà dans le ledger")
+        return
+    if not dry_run:
+        _write_ledger(ledger_data)
+        print(f"[OK] {len(added)} IMP(s) injecté(s) dans le ledger :")
+    else:
+        print(f"[dry-run] {len(added)} IMP(s) seraient injectés :")
+    for new_id, title in added:
+        print(f"  {new_id} — {title[:70]}")
+
+
+# ── Purge stale proposals ─────────────────────────────────────────────────────
+def purge_stale_proposals(dry_run: bool) -> None:
+    """Retire les proposals avec humangate_verdict: null (non traitées)."""
+    if not PROPOSALS_PATH.exists():
+        print(f"[X] {PROPOSALS_PATH} absent")
+        return
+    raw = yaml.safe_load(PROPOSALS_PATH.read_text(encoding="utf-8"))
+    proposals = raw.get("proposals") or []
+    kept    = [p for p in proposals if p.get("humangate_verdict") is not None]
+    removed = len(proposals) - len(kept)
+    if dry_run:
+        print(f"[dry-run] {removed} proposal(s) null seraient supprimées, {len(kept)} conservées")
+        return
+    header = (
+        "# ROADMAP_PROPOSALS.yaml\n"
+        f"# Purgé: {date.today().isoformat()} — {removed} proposals null supprimées\n"
+        "# claim_verdict: NO_CLAIM_ALLOWED\n\n"
+    )
+    body = yaml.dump({"proposals": kept}, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    PROPOSALS_PATH.write_text(header + body, encoding="utf-8")
+    print(f"[OK] {removed} proposal(s) null supprimées — {len(kept)} conservées")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(description="Roadmap-to-Ledger (IMP-052)")
-    parser.add_argument("--no-qwen", action="store_true", help="Heuristiques simples, pas d'appel Qwen")
-    parser.add_argument("--inject",  action="store_true", help="Injecte proposals APPROVED dans le ledger")
-    parser.add_argument("--dry-run", action="store_true", help="Affiche sans écrire")
+    parser.add_argument("--no-qwen",       action="store_true",  help="Heuristiques simples, pas d'appel Qwen")
+    parser.add_argument("--inject",        action="store_true",  help="Injecte proposals APPROVED dans le ledger")
+    parser.add_argument("--inject-staged", metavar="SESSION_ID", help="Injecte proposals idea-to-imp d'une session sans exiger APPROVED")
+    parser.add_argument("--purge-stale",   action="store_true",  help="Supprime les proposals avec humangate_verdict: null")
+    parser.add_argument("--dry-run",       action="store_true",  help="Affiche sans écrire")
+    parser.add_argument("--force",         action="store_true",  help="Bypass déduplication")
     args = parser.parse_args()
 
     if args.inject:
-        inject_approved(dry_run=args.dry_run)
+        inject_approved(dry_run=args.dry_run, force=args.force)
+        return
+
+    if args.inject_staged:
+        inject_staged(args.inject_staged, dry_run=args.dry_run, force=args.force)
+        return
+
+    if args.purge_stale:
+        purge_stale_proposals(dry_run=args.dry_run)
         return
 
     if not ROADMAP_PATH.exists():

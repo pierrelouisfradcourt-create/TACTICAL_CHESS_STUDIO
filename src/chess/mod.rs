@@ -9,6 +9,7 @@ pub mod decision_trace_bridge;
 pub mod eval;
 pub mod fen;
 pub mod legal_action_adapter;
+pub mod move_explanation;
 pub mod move_features;
 pub mod opening_book;
 pub mod opponent_response_mask;

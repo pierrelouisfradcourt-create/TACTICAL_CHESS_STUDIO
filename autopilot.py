@@ -11,6 +11,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import threading
 import time
 import webbrowser
@@ -47,6 +48,7 @@ CHAIN_HISTORY = REPO / "lab/chains/CHAIN_HISTORY.jsonl"
 STATE_FILE     = REPO / "00_STUDIO_CONTROL/00_MASTER_DOCS/07_CURRENT_STATE.md"
 UX_RUNS_FILE   = REPO / "lab/datasets/ux_claude_runs.jsonl"
 STATE_UPDATER  = REPO / "state_updater.py"
+IDEAS_FILE     = REPO / "lab/chains/ideas.json"
 
 ledger_cache: dict = {}  # {"open": N, "closed": M, "next": {}, "ts": "..."}
 
@@ -76,6 +78,61 @@ _autoloop_statuses: dict = {
 }
 _autoloop_lock = threading.Lock()
 _autoloop_logs: dict = {lane: [] for lane in AUTOLOOP_LANES}  # max 100 lignes/lane
+
+# ── IDEA PIPELINE STATE ──────────────────────────────────────────────────────
+_idea_pipeline_state: dict = {
+    "step": "", "progress": 0, "idea_id": "", "running": False,
+    "result": None, "error": None,
+}
+_idea_pipeline_lock = threading.Lock()
+_ideas_lock = threading.Lock()
+
+# ── IDEAS PERSISTENCE ────────────────────────────────────────────────────────
+_DEFAULT_IDEAS: list = [
+    {"id": 2,  "chain": "studio", "status": "backlog", "title": "Mode éphémère — sessions de réflexion sans persistence",             "roi": "med",  "lane": "safe",  "desc": "Garder uniquement les fusions avec utilité mesurable. Évite l'accumulation de docs inutiles.", "issue": ""},
+    {"id": 3,  "chain": "studio", "status": "backlog", "title": "Hygiène automatique : doc → vérité → commit → push",                  "roi": "high", "lane": "human", "desc": "Étendre chain_hygiene.ps1 pour validation cohérence doc/code puis déclencher commit + push quand tout est vert.", "issue": ""},
+    {"id": 6,  "chain": "ia",     "status": "backlog", "title": "Mode éphémère dataset : plus de tests, moins de sauvegarde",          "roi": "high", "lane": "audit", "desc": "Tourner des parties de test sans sauvegarder le dataset. Conserver uniquement rapports métriques/stats.", "issue": "NEW-03"},
+    {"id": 8,  "chain": "ia",     "status": "backlog", "title": "Cartes variantes Rocky — architecture et dataset",                    "roi": "med",  "lane": "safe",  "desc": "Plan-cartes visuels des variantes Search-only, Search+Neural, Search+Neural+LLM et variantes dataset.", "issue": ""},
+    {"id": 9,  "chain": "ia",     "status": "backlog", "title": "Stats, télémétrie et triage dataset — freeze baselines",             "roi": "high", "lane": "audit", "desc": "Draw rate par phase, conversion rate, ELO delta par run. Triage statistique. Freezer baselines d'appel.", "issue": "#3"},
+    {"id": 10, "chain": "jv",     "status": "backlog", "title": "Manifeste de création de jeu + manifeste de règles via Godot",       "roi": "high", "lane": "safe",  "desc": "Deux manifestes = successions de prompts. Commencer par les échecs pour valider la méthode.", "issue": ""},
+    {"id": 11, "chain": "jv",     "status": "backlog", "title": "Adaptateur Rocky → Godot — pipeline complet avec auto-amélioration", "roi": "high", "lane": "human", "desc": "Adaptateur complet Rocky (Rust) ↔ Godot. Auto-amélioration intégrée avant validation.", "issue": ""},
+    {"id": 12, "chain": "jv",     "status": "backlog", "title": "Matrice cartes/nom → prompt génération modèles Godot",               "roi": "med",  "lane": "safe",  "desc": "Matrice structurée : (nom + type + faction + budget) → prompt génère modèle Godot de qualité.", "issue": ""},
+]
+
+def load_ideas() -> list:
+    with _ideas_lock:
+        if IDEAS_FILE.exists():
+            try:
+                data = json.loads(IDEAS_FILE.read_text(encoding="utf-8"))
+                if isinstance(data, list):
+                    return data
+            except Exception:
+                pass
+        ideas = [dict(i) for i in _DEFAULT_IDEAS]
+        try:
+            IDEAS_FILE.write_text(json.dumps(ideas, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+        return ideas
+
+def save_ideas(ideas: list) -> None:
+    with _ideas_lock:
+        try:
+            IDEAS_FILE.write_text(json.dumps(ideas, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception:
+            pass
+
+def update_idea_status(idea_id: str, new_status: str) -> bool:
+    ideas = load_ideas()
+    found = False
+    for idea in ideas:
+        if str(idea.get("id")) == str(idea_id):
+            idea["status"] = new_status
+            found = True
+            break
+    if found:
+        save_ideas(ideas)
+    return found
 
 
 # ── AUTOLOOP STDOUT READER ───────────────────────────────────────────────────
@@ -580,6 +637,161 @@ def api_generate_charter(imp_id: str) -> dict:
     }
 
 
+def _stage_proposals(idea_id: str, idea_title: str, imps: list) -> None:
+    """Append proposals to ROADMAP_PROPOSALS.yaml with humangate_verdict: null."""
+    proposals_path = REPO / "lab/chains/ROADMAP_PROPOSALS.yaml"
+    next_num = 1
+    if proposals_path.exists():
+        try:
+            text = proposals_path.read_text(encoding="utf-8")
+            ids = re.findall(r'prop_id:\s*PROP-(\d+)', text)
+            if ids:
+                next_num = max(int(x) for x in ids) + 1
+        except Exception:
+            pass
+    lines: list = []
+    for imp in imps:
+        title = str(imp.get("title", idea_title)).replace("'", "''")
+        lane   = imp.get("lane", "SAFE_AUTO")
+        impact = imp.get("impact", "HIGH")
+        effort = imp.get("effort", "MEDIUM")
+        domain = imp.get("domain", "") or "studio"
+        if domain not in ("rocky_moteur", "ia_apprentissage", "studio", "jeux"):
+            domain = "studio"
+        lines.append(
+            f"- prop_id: PROP-{next_num:03d}\n"
+            f"  source_phase: idea-to-imp\n"
+            f"  source_task: '{idea_title.replace(chr(39), chr(39)*2)}'\n"
+            f"  source_idea_id: '{idea_id}'\n"
+            f"  qwen_used: true\n"
+            f"  humangate_verdict: null\n"
+            f"  imp:\n"
+            f"    title: '{title}'\n"
+            f"    type: feature\n"
+            f"    lane: {lane}\n"
+            f"    impact: {impact}\n"
+            f"    effort: {effort}\n"
+            f"    domain: {domain}\n"
+            f"    files: []\n"
+            f"    acceptance: TBD\n"
+            f"    notes: 'Pipeline idea-to-imp — idée {idea_id}'\n"
+        )
+        next_num += 1
+    try:
+        if proposals_path.exists():
+            existing = proposals_path.read_text(encoding="utf-8")
+            proposals_path.write_text(existing.rstrip() + "\n" + "".join(lines), encoding="utf-8")
+        else:
+            proposals_path.write_text("proposals:\n" + "".join(lines), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _run_idea_pipeline(idea_id: str, idea_title: str, idea_content: str) -> None:
+    """Thread worker — 5 étapes séquentielles, tout Qwen2.5-14B."""
+    global _idea_pipeline_state
+    try:
+        # Step 1 — ROADMAP
+        with _idea_pipeline_lock:
+            _idea_pipeline_state.update({"step": "roadmap", "progress": 1, "running": True})
+        roadmap = lm_call(
+            f"Tu es architecte du Tactical Chess Studio.\n"
+            f"Génère une roadmap en 3-5 étapes pour implémenter : {idea_title}\n"
+            f"Détails : {idea_content}\n"
+            f"Format : liste numérotée d'étapes concrètes.",
+            max_tokens=600
+        )
+        # Step 2 — REDTEAM
+        with _idea_pipeline_lock:
+            _idea_pipeline_state.update({"step": "redteam", "progress": 2})
+        redteam = lm_call(
+            f"Tu es Red Team du studio. Identifie les risques,\n"
+            f"angles morts et problèmes dans cette roadmap : {roadmap}\n"
+            f"Format : liste de 3-5 critiques concrètes.",
+            max_tokens=400
+        )
+        # Step 3 — FUSION
+        with _idea_pipeline_lock:
+            _idea_pipeline_state.update({"step": "fusion", "progress": 3})
+        fusion = lm_call(
+            f"Fusionne cette roadmap et ces critiques en un plan\n"
+            f"amélioré : Roadmap: {roadmap} Critiques: {redteam}\n"
+            f"Format : 3-5 étapes révisées.",
+            max_tokens=600
+        )
+        # Step 4 — EXTRACT
+        with _idea_pipeline_lock:
+            _idea_pipeline_state.update({"step": "extract", "progress": 4})
+        extract_raw = lm_call(
+            f"Transforme ce plan en IMPs CONCRETS et EXÉCUTABLES.\n"
+            f"Chaque IMP doit avoir :\n"
+            f"- title : action précise (verbe + objet + fichier)\n"
+            f"- files : chemins réels existants ou à créer\n"
+            f"- acceptance : critère mesurable et testable\n\n"
+            f"CONTRAINTES STUDIO (obligatoire) :\n"
+            f"- Pas d'API Claude externe — uniquement LM Studio local\n"
+            f"- Pas de cron — l'autoloop existe déjà\n"
+            f"- Le ledger kaizen existe déjà — ne pas le réinventer\n"
+            f"- Stack : Rust (moteur) + Python (ML/studio) + LM Studio\n\n"
+            f"Rejette les IMPs trop abstraits ('système de gestion').\n"
+            f"Préfère le concret ('Ajouter fonction X dans fichier Y').\n\n"
+            f"Règles domain (obligatoire pour chaque IMP) :\n"
+            f"- rocky_moteur    : moteur Rust, eval, search, ELO, benchmark, coups\n"
+            f"- ia_apprentissage: LoRA, dataset, training, neural, Qwen, modèles\n"
+            f"- jeux            : Chess Fantasy, Snake, Belote, TCG, variantes, cartes\n"
+            f"- studio          : autopilot, pipeline, kaizen, docs, UI, agents, workflow\n\n"
+            f"Retourne UNIQUEMENT un JSON array valide, rien d'autre :\n"
+            f'[\n'
+            f'  {{\n'
+            f'    "title": "Ajouter fonction X dans fichier Y",\n'
+            f'    "lane": "SAFE_AUTO",\n'
+            f'    "impact": "HIGH",\n'
+            f'    "effort": "MEDIUM",\n'
+            f'    "domain": "studio",\n'
+            f'    "files": ["src/path/to/file.rs"],\n'
+            f'    "acceptance": "critère mesurable et testable"\n'
+            f'  }}\n'
+            f']\n\n'
+            f"Plan à analyser :\n"
+            f"{fusion}\n\n"
+            f"claim_verdict: NO_CLAIM_ALLOWED",
+            max_tokens=900
+        )
+        imps_staged: list = []
+        try:
+            m = re.search(r'\[[\s\S]*?\]', extract_raw)
+            if m:
+                parsed = json.loads(m.group(0))
+                if isinstance(parsed, list):
+                    imps_staged = parsed
+        except Exception:
+            pass
+        if not imps_staged:
+            imps_staged = [{"title": idea_title, "lane": "SAFE_AUTO", "impact": "HIGH",
+                             "effort": "MEDIUM", "domain": "studio", "files": [], "acceptance": "TBD"}]
+        # Step 5 — STAGE
+        with _idea_pipeline_lock:
+            _idea_pipeline_state.update({"step": "staged", "progress": 5})
+        _stage_proposals(idea_id, idea_title, imps_staged)
+        # Auto-update idea status → pipeline_done
+        if idea_id and idea_id not in ("manual", ""):
+            update_idea_status(idea_id, "pipeline_done")
+        result = {
+            "ok": True,
+            "idea_title": idea_title,
+            "roadmap": roadmap,
+            "redteam": redteam,
+            "fusion": fusion,
+            "imps_staged": imps_staged,
+            "proposals_file": "lab/chains/ROADMAP_PROPOSALS.yaml",
+        }
+        with _idea_pipeline_lock:
+            _idea_pipeline_state.update({"running": False, "result": result, "error": None})
+    except Exception as e:
+        with _idea_pipeline_lock:
+            _idea_pipeline_state.update({"running": False, "error": str(e), "result": None})
+
+
 def close_imp(imp_id: str) -> dict:
     """Marque un IMP OPEN/DEFERRED comme CLOSED dans le ledger et déclenche state_updater."""
     result: dict = {"ok": False, "imp_id": imp_id, "error": ""}
@@ -608,6 +820,17 @@ def close_imp(imp_id: str) -> dict:
             ledger_cache.clear()
             result["ok"] = True
             result["closed_session"] = today
+            try:
+                gc_result = subprocess.run(
+                    [sys.executable, "lab/chains/golden_collector.py",
+                     "collect", "--imp", imp_id],
+                    cwd=str(REPO), timeout=30, capture_output=True, text=True)
+                if gc_result.returncode == 0:
+                    print(f"[golden] {imp_id} archivé")
+                else:
+                    print(f"[golden] skip (pas de charter) — {gc_result.stderr.strip()[:120]}")
+            except Exception:
+                pass
         else:
             result["error"] = f"{imp_id} not found or already CLOSED"
     except Exception as e:
@@ -646,7 +869,9 @@ def get_ledger_counts() -> dict:
                 entry["lane"] = m_ln.group(1)
             m_dom = re.search(r'domain:\s*(\S+)', block)
             if m_dom:
-                entry["domain"] = m_dom.group(1)
+                dom_raw = m_dom.group(1).strip("'\"")
+                if dom_raw:
+                    entry["domain"] = dom_raw
             if entry.get("id"):
                 open_imps.append(entry)
         # Enrichir next_imp avec lane depuis open_imps (le regex ci-dessus ne capture pas lane)
@@ -905,6 +1130,70 @@ def _extract_sprint_objective(roadmap_text: str) -> str:
         if "IN_PROGRESS" in line and phase:
             return f"{phase} — {obj}" if obj else phase
     return phase or "Phase courante non déterminée"
+
+
+# ── IMP TRIAGE — classification par domaine ──────────────────────────────────
+def _imp_domain(entry: dict) -> str:
+    if entry.get("lane") in ("AUDIT_REQUIRED", "FORBIDDEN", "HUMAN_REQUIRED"):
+        return "decisions_pendantes"
+    d = entry.get("domain", "")
+    if d and d not in ("''", '""') and d in ("rocky_moteur", "ia_apprentissage", "studio", "jeux"):
+        return d
+    title = entry.get("title", "").lower()
+    if any(k in title for k in ("chess fantasy", "puzzle", "carte", "tcg", "snake", "belote")):
+        return "jeux"
+    if any(k in title for k in ("lora", "dataset", "training", "devstral", "neural", "model", "teacher", "sf_dataset", "pool")):
+        return "ia_apprentissage"
+    if any(k in title for k in ("autopilot", "pipeline", "kaizen", "ui", "workflow", "roadmap", "ledger", "charter")):
+        return "studio"
+    if any(k in title for k in ("eval", "search", "elo", "benchmark", "moteur", "rocky")):
+        return "rocky_moteur"
+    return "studio"
+
+
+def imp_triage() -> dict:
+    domains: dict = {
+        "rocky_moteur": [], "ia_apprentissage": [], "studio": [],
+        "jeux": [], "decisions_pendantes": [],
+    }
+    if not LEDGER.exists():
+        return {"domains": domains, "total_open": 0, "error": "ledger absent"}
+    try:
+        text = LEDGER.read_text(encoding="utf-8")
+        blocks = re.split(r'\n- id:\s*', text)
+    except Exception as exc:
+        return {"domains": domains, "total_open": 0, "error": str(exc)}
+    for block in blocks[1:]:
+        try:
+            m_status = re.search(r'status:\s*(\S+)', block)
+            status = m_status.group(1) if m_status else ""
+            if status not in ("OPEN", "IN_PROGRESS", "DEFERRED"):
+                continue
+            entry: dict = {"status": status}
+            m_id = re.match(r'(IMP-\d+)', block)
+            if m_id:
+                entry["id"] = m_id.group(1)
+            m_title = re.search(r"title:\s*['\"]?([^'\"\n]+)['\"]?", block)
+            if m_title:
+                entry["title"] = m_title.group(1).strip()
+            m_lane = re.search(r'lane:\s*(\S+)', block)
+            if m_lane:
+                entry["lane"] = m_lane.group(1)
+            m_domain = re.search(r'domain:\s*(\S+)', block)
+            if m_domain:
+                dom_raw = m_domain.group(1).strip("'\"")
+                if dom_raw:
+                    entry["domain"] = dom_raw
+            m_impact = re.search(r'impact:\s*(\w+)', block)
+            if m_impact:
+                entry["impact"] = m_impact.group(1)
+            if entry.get("id"):
+                dom = _imp_domain(entry)
+                domains[dom].append(entry)
+        except Exception:
+            pass
+    total = sum(len(v) for v in domains.values())
+    return {"domains": domains, "total_open": total, "claim_verdict": "NO_CLAIM_ALLOWED"}
 
 
 # ── MEMORY DATA — lit les fichiers sources réels ──────────────────────────────
@@ -1432,6 +1721,15 @@ tr:hover td{background:var(--bg3)}
 .lane-card{background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:10px 12px}
 .lane-card-title{font-family:var(--font-d);font-size:11px;font-weight:700;color:var(--text2);margin-bottom:5px}
 
+/* IDEA PIPELINE */
+.pipeline-steps{display:flex;gap:6px;margin:12px 0;flex-wrap:wrap}
+.pipe-step{padding:4px 10px;border-radius:3px;border:1px solid var(--border);font-size:10px;color:var(--text3);font-family:var(--font-m);transition:all .3s}
+.pipe-step.active{background:var(--amber-bg);color:var(--amber);border-color:var(--amber2)}
+.pipe-step.done{background:var(--green-bg);color:var(--green);border-color:#0a3018}
+.imp-list-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:4px;margin-bottom:6px;background:var(--bg3)}
+.imp-list-item input[type=checkbox]{accent-color:var(--amber);width:14px;height:14px;flex-shrink:0}
+.imp-list-title{flex:1;font-size:12px;color:var(--text)}
+
 /* ROADMAP GAMES */
 .game-row{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:14px 16px;margin-bottom:10px}
 .game-title{font-family:var(--font-d);font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px}
@@ -1459,6 +1757,7 @@ tr:hover td{background:var(--bg3)}
   <div class="sb-item" onclick="nav('memory')"><span class="ico">◈</span> Mémoire</div>
   <div class="sb-item" onclick="nav('ideas')"><span class="ico">◎</span> Idées <span class="sb-badge badge-amber" id="badge-ideas">12</span></div>
   <div class="sb-item" onclick="nav('roadmap')"><span class="ico">↗</span> Idée → Roadmap</div>
+  <div class="sb-item" onclick="nav('roadmap-domaine')"><span class="ico">🗂</span> Roadmap domaines</div>
 
   <div class="sb-item" onclick="nav('metrics')"><span class="ico">📊</span> Métriques</div>
   <div class="sb-item" onclick="nav('dataset')"><span class="ico">🧠</span> Dataset & IA</div>
@@ -1466,7 +1765,7 @@ tr:hover td{background:var(--bg3)}
   <div class="sb-section">IA Joueur</div>
   <div class="sb-item" onclick="nav('agents')"><span class="ico">🤖</span> Agents</div>
   <div class="sb-item" onclick="nav('ligue')"><span class="ico">🏆</span> Ligue</div>
-  <div class="sb-item" onclick="nav('roadmap-ia')"><span class="ico">🗺</span> Roadmap IA</div>
+  <div class="sb-item" onclick="nav('roadmap-domaine')"><span class="ico">🗺</span> Roadmap IA</div>
 
   <div class="sb-section">Création JV</div>
   <div class="sb-item" onclick="nav('moteur')"><span class="ico">💻</span> Moteur &amp; code</div>
@@ -1541,6 +1840,7 @@ tr:hover td{background:var(--bg3)}
           <div class="stat-lbl">Prochaine action</div>
           <div class="stat-val" style="font-size:18px;padding-top:4px" id="next-action">—</div>
           <div class="stat-sub" id="next-lane">Lancer un audit pour proposer</div>
+          <button class="btn btn-amber btn-sm" style="margin-top:6px;font-size:10px" onclick="openImpInWorkflow(document.getElementById('next-action').textContent)">&#8599; Workflow IMP</button>
         </div>
         <div class="stat-blk red">
           <div class="stat-lbl">Issues HIGH</div>
@@ -1570,10 +1870,12 @@ tr:hover td{background:var(--bg3)}
 
       <div class="divider">CEO Brief</div>
       <div class="card" style="padding:10px 14px" id="ceo-brief-card">
-        <div style="display:flex;align-items:center;gap:10px">
-          <button class="btn btn-amber" onclick="loadCeoBrief()">⬡ CEO Brief</button>
-          <span style="font-size:10px;color:var(--text3)">Analyse Devstral · claim_verdict: NO_CLAIM_ALLOWED</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-amber" onclick="loadCeoBrief()">⬡ CEO Brief (LM)</button>
+          <button class="btn btn-sm" onclick="loadCeoTriage()">🗂 Triage statique</button>
+          <span style="font-size:10px;color:var(--text3)">claim_verdict: NO_CLAIM_ALLOWED</span>
         </div>
+        <div id="ceo-triage-out" style="display:none;margin-top:10px"></div>
         <div id="ceo-brief-out" style="display:none;margin-top:10px"></div>
       </div>
 
@@ -1667,6 +1969,7 @@ tr:hover td{background:var(--bg3)}
             <div style="display:flex;gap:6px;margin-top:6px">
               <button class="btn btn-green btn-sm" id="btn-start-rocky_moteur" onclick="autoloopStart('rocky_moteur')">&#9654; Start</button>
               <button class="btn btn-sm" id="btn-stop-rocky_moteur" style="display:none" onclick="autoloopStop('rocky_moteur')">&#9632; Stop</button>
+              <button class="btn btn-sm" style="margin-left:auto" onclick="nav('workflow')">&#8599; Workflow</button>
             </div>
             <div class="autoloop-terminal" id="terminal-rocky_moteur"></div>
           </div>
@@ -1678,6 +1981,7 @@ tr:hover td{background:var(--bg3)}
             <div style="display:flex;gap:6px;margin-top:6px">
               <button class="btn btn-green btn-sm" id="btn-start-ia_apprentissage" onclick="autoloopStart('ia_apprentissage')">&#9654; Start</button>
               <button class="btn btn-sm" id="btn-stop-ia_apprentissage" style="display:none" onclick="autoloopStop('ia_apprentissage')">&#9632; Stop</button>
+              <button class="btn btn-sm" style="margin-left:auto" onclick="nav('workflow')">&#8599; Workflow</button>
             </div>
             <div class="autoloop-terminal" id="terminal-ia_apprentissage"></div>
           </div>
@@ -1689,6 +1993,7 @@ tr:hover td{background:var(--bg3)}
             <div style="display:flex;gap:6px;margin-top:6px">
               <button class="btn btn-green btn-sm" id="btn-start-decisions_pendantes" onclick="autoloopStart('decisions_pendantes')">&#9654; Start</button>
               <button class="btn btn-sm" id="btn-stop-decisions_pendantes" style="display:none" onclick="autoloopStop('decisions_pendantes')">&#9632; Stop</button>
+              <button class="btn btn-sm" style="margin-left:auto" onclick="nav('workflow')">&#8599; Workflow</button>
             </div>
             <div class="autoloop-terminal" id="terminal-decisions_pendantes"></div>
           </div>
@@ -2082,6 +2387,7 @@ tr:hover td{background:var(--bg3)}
           </tbody>
         </table>
       </div>
+      <div id="moteur-imps"></div>
     </div>
 
     <!-- ── DESIGN & ASSETS ── -->
@@ -2114,6 +2420,7 @@ tr:hover td{background:var(--bg3)}
           </tbody>
         </table>
       </div>
+      <div id="design-imps"></div>
     </div>
 
     <!-- ── ROADMAP JEUX ── -->
@@ -2164,6 +2471,19 @@ tr:hover td{background:var(--bg3)}
           </div>
         </div>
       </div>
+      <div id="jeux-imps"></div>
+    </div>
+
+    <!-- ── ROADMAP DOMAINES ── -->
+    <div id="page-roadmap-domaine" class="page">
+      <div class="divider">Roadmap par domaine — IMPs OPEN/DEFERRED</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+        <button class="btn btn-amber btn-sm" onclick="loadRoadmapDomaine()">&#8635; Rafraîchir</button>
+        <span id="rd-total" style="font-size:10px;color:var(--text3)"></span>
+      </div>
+      <div id="rd-domains" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="card" style="padding:10px"><span style="color:var(--text3)">Chargement...</span></div>
+      </div>
     </div>
 
     <!-- ── STUDIO OS ── -->
@@ -2192,6 +2512,7 @@ tr:hover td{background:var(--bg3)}
             <div class="stat-lbl">Next IMP</div>
             <div id="sos-next-imp" style="font-size:13px;font-family:var(--font-d);font-weight:600;color:var(--amber)">—</div>
             <div id="sos-next-lane" style="font-size:10px;color:var(--text3);margin-top:2px"></div>
+            <button class="btn btn-amber btn-sm" style="margin-top:5px;font-size:10px" onclick="openImpInWorkflow(document.getElementById('sos-next-imp').textContent)">&#8599; Workflow IMP</button>
           </div>
         </div>
         <div style="margin-bottom:12px">
@@ -2213,7 +2534,7 @@ tr:hover td{background:var(--bg3)}
             <div id="sos-hg-pending" class="pill p-todo" style="margin-top:4px">—</div>
           </div>
           <div style="flex:1"></div>
-          <button class="btn btn-amber btn-sm" onclick="loadCeoBrief();nav('pilote')">&#11041; Lancer CEO Brief</button>
+          <button class="btn btn-amber btn-sm" onclick="nav('pilote');loadCeoBrief()">&#11041; Lancer CEO Brief</button>
         </div>
         <div class="stat-lbl" style="margin-bottom:6px">Dernières décisions HumanGate</div>
         <div id="sos-hg-decisions">
@@ -2359,6 +2680,26 @@ tr:hover td{background:var(--bg3)}
   </div>
 </div>
 
+<!-- PIPELINE HUMANGATE MODAL -->
+<div class="modal-overlay" id="pipeline-modal">
+  <div class="modal" style="width:560px;max-height:80vh;display:flex;flex-direction:column">
+    <div class="modal-title" id="pipeline-modal-title">⚡ Pipeline Idée → IMP</div>
+    <div class="modal-sub" id="pipeline-modal-sub">Pipeline en cours...</div>
+    <div class="pipeline-steps" id="pipeline-steps">
+      <span class="pipe-step" id="ps-roadmap">1 Roadmap</span>
+      <span class="pipe-step" id="ps-redteam">2 RedTeam</span>
+      <span class="pipe-step" id="ps-fusion">3 Fusion</span>
+      <span class="pipe-step" id="ps-extract">4 Extract</span>
+      <span class="pipe-step" id="ps-staged">5 Stage</span>
+    </div>
+    <div id="pipeline-imp-list" style="overflow-y:auto;flex:1;display:none;margin-bottom:10px"></div>
+    <div class="modal-actions" id="pipeline-modal-actions" style="display:none">
+      <button class="btn" onclick="closeModal('pipeline-modal')">Fermer</button>
+      <button class="btn btn-amber" onclick="approvePipelineAll()">✓ Approuver tout → inject</button>
+    </div>
+  </div>
+</div>
+
 <!-- IDEA MODAL -->
 <div class="modal-overlay" id="idea-modal">
   <div class="modal" style="width:520px">
@@ -2418,22 +2759,9 @@ const S = {
   pendingChain: null,
   pendingAutoloopLane: null,
   memory: { fusions: [], decisions: [] },
-  ideas: [
-    {id:1,chain:'studio',status:'backlog',title:'Chaîne Red Team + Fusion — interroger blocages des 3 pipes',roi:'high',lane:'audit',desc:'Ajouter aux 3 chaînes une couche Red Team + Fusion. Prompts types : blocage, brainstorm, calcul ROI automatisé.',issue:''},
-    {id:2,chain:'studio',status:'backlog',title:'Mode éphémère — sessions de réflexion sans persistence',roi:'med',lane:'safe',desc:'Garder uniquement les fusions avec utilité mesurable. Évite l\'accumulation de docs inutiles.',issue:''},
-    {id:3,chain:'studio',status:'backlog',title:'Hygiène automatique : doc → vérité → commit → push',roi:'high',lane:'human',desc:'Étendre chain_hygiene.ps1 pour validation cohérence doc/code puis déclencher commit + push quand tout est vert.',issue:''},
-    {id:4,chain:'studio',status:'backlog',title:'LM Studio pilote les 3 lanes en local',roi:'high',lane:'human',desc:'Amener LM Studio à piloter le studio : review L1 packs, routing tâches, gestion chaînes. Phase 2 LLM documentée.',issue:''},
-    {id:5,chain:'studio',status:'backlog',title:'Interface UxPilote consolidée',roi:'med',lane:'human',desc:'Roadmap générale, roadmaps individuelles, état chaînes. Phase 1 = cockpit lecture seule.',issue:''},
-    {id:6,chain:'ia',status:'backlog',title:'Mode éphémère dataset : plus de tests, moins de sauvegarde',roi:'high',lane:'audit',desc:'Tourner des parties de test sans sauvegarder le dataset. Conserver uniquement rapports métriques/stats.',issue:'NEW-03'},
-    {id:7,chain:'ia',status:'backlog',title:'LoRA sur corpus studio — contrôle flambée datasets',roi:'med',lane:'audit',desc:'Phase 3 LLM. Taille max, critère de rétention, purge auto des runs qui n\'ont pas passé RegressionGuard.',issue:''},
-    {id:8,chain:'ia',status:'backlog',title:'Cartes variantes Rocky — architecture et dataset',roi:'med',lane:'safe',desc:'Plan-cartes visuels des variantes Search-only, Search+Neural, Search+Neural+LLM et variantes dataset.',issue:''},
-    {id:9,chain:'ia',status:'backlog',title:'Stats, télémétrie et triage dataset — freeze baselines',roi:'high',lane:'audit',desc:'Draw rate par phase, conversion rate, ELO delta par run. Triage statistique. Freezer baselines d\'appel.',issue:'#3'},
-    {id:10,chain:'jv',status:'backlog',title:'Manifeste de création de jeu + manifeste de règles via Godot',roi:'high',lane:'safe',desc:'Deux manifestes = successions de prompts. Commencer par les échecs pour valider la méthode.',issue:''},
-    {id:11,chain:'jv',status:'backlog',title:'Adaptateur Rocky → Godot — pipeline complet avec auto-amélioration',roi:'high',lane:'human',desc:'Adaptateur complet Rocky (Rust) ↔ Godot. Auto-amélioration intégrée avant validation.',issue:''},
-    {id:12,chain:'jv',status:'backlog',title:'Matrice cartes/nom → prompt génération modèles Godot',roi:'med',lane:'safe',desc:'Matrice structurée : (nom + type + faction + budget) → prompt génère modèle Godot de qualité.',issue:''},
-  ],
+  ideas: [],
   ideaFilter: 'all',
-  ideaCounter: 12,
+  ideaCounter: 0,
   chainStates: {}
 };
 
@@ -2457,8 +2785,7 @@ function nav(id) {
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
   document.querySelector(`.sb-item[onclick="nav('${id}')"]`)?.classList.add('active');
   document.getElementById(`page-${id}`)?.classList.add('active');
-  if (id === 'roadmap-ia') id = 'metrics';
-  if (id === 'ideas') renderIdeas();
+  if (id === 'ideas') loadIdeas();
   if (id === 'chains') loadChains();
   if (id === 'memory') renderMemory();
   if (id === 'logs') { refreshLogs(); loadDevstralStatus(); }
@@ -2469,6 +2796,10 @@ function nav(id) {
   if (id === 'agents') loadAgents();
   if (id === 'studio-os') loadStudioOs();
   if (id === 'workflow') loadWorkflow();
+  if (id === 'roadmap-domaine') loadRoadmapDomaine();
+  if (id === 'moteur') loadDomainImps('rocky_moteur', 'moteur-imps');
+  if (id === 'design') loadDomainImps('jeux', 'design-imps');
+  if (id === 'roadmap-jeux') loadDomainImps('jeux', 'jeux-imps');
 }
 
 // ── CLOCK ─────────────────────────────────────────────────────────────────
@@ -2717,56 +3048,55 @@ async function lmQuickAsk() {
 async function generateRoadmap() {
   const title = document.getElementById('rm-title').value.trim();
   const context = document.getElementById('rm-context').value.trim();
-  const type = document.getElementById('rm-type').value;
-  const depth = document.getElementById('rm-depth').value;
-  const chain = document.getElementById('rm-chain').value;
-  const status = document.getElementById('rm-status');
+  const rmStatus = document.getElementById('rm-status');
   const out = document.getElementById('rm-output');
-  if (!title) { status.textContent = 'Titre requis'; return; }
-  // Devstral context 32k, timeout 120s, 8 t/s = ~960 tokens max safe
-// Mais on peut monter le timeout pour deep
-const maxTokens = {quick:300,normal:800,deep:2000}[depth];
-  const typePrompts = {
-    roadmap: 'Génère une roadmap par phases avec étapes concrètes, statuts, priorités et dépendances.',
-    charter: 'Génère un Task Charter YAML pour Claude Code avec: objective, allowed_files, lane, smoke_level, forbidden_surfaces.',
-    spec: 'Génère une spécification technique détaillée avec architecture, contrats, et critères de succès.',
-    analyse: 'Analyse cette idée : problème résolu, valeur ajoutée, ROI estimé (impact/effort), risques, alternatives.',
-    redteam: 'Fais un Red Team de cette idée : challenges, angles morts, risques cachés, contre-arguments, questions sans réponse.',
-  };
-  const prompt = `Idée : "${title}"
-Chaîne : ${chain}
-Contexte : ${context || 'Tactical Chess Studio — studio AI-gouverné, Rocky = IA joueur Rust, LM Studio local, Kaizen loop.'}
-
-${typePrompts[type]}
-
-Contraintes : HumanGate requis pour training/benchmark/dataset reset/push main. claim_verdict: NO_CLAIM_ALLOWED.`;
-  const fullSystem = 'Tu es architecte senior du Tactical Chess Studio (TCS).\n' +
-    'Studio solo (1 dev : Pierre/HumanGate). Pas d\'équipe.\n' +
-    '3 chaînes Kaizen : IA Joueur (Rocky), Studio, Création JV.\n' +
-    'Rocky = Rust+neural+LLM coach. LM Studio = Devstral-small-2507 (8 t/s).\n' +
-    'Lane matrix : SAFE_AUTO/AUDIT_REQUIRED/HUMAN_REQUIRED/FORBIDDEN.\n' +
-    'IMPROVEMENT_LEDGER.yaml = SSOT (lab/chains/). CI/PR/push BLOQUÉS.\n' +
-    'Issues HIGH : NEW-02 draw, NEW-03 dataset corrompu, NEW-05 curriculum absent.\n' +
-    'Sois concis et actionnable. Utilise les vrais noms. claim_verdict: NO_CLAIM_ALLOWED.';
-  status.textContent = '⚡ Génération... (~' + {quick:'40s',normal:'100s',deep:'250s'}[depth] + ')';
+  if (!title) { rmStatus.textContent = 'Titre requis'; return; }
+  // Même modal d'injection que les cartes Idées
+  const modal = document.getElementById('pipeline-modal');
+  const titleEl = document.getElementById('pipeline-modal-title');
+  const sub   = document.getElementById('pipeline-modal-sub');
+  const impList = document.getElementById('pipeline-imp-list');
+  const actions = document.getElementById('pipeline-modal-actions');
+  titleEl.textContent = '⚡ Pipeline : ' + title;
+  sub.textContent = 'Étape 1/5 — Génération roadmap...';
+  impList.style.display = 'none';
+  impList.innerHTML = '';
+  actions.style.display = 'none';
+  ['ps-roadmap','ps-redteam','ps-fusion','ps-extract','ps-staged'].forEach(sid => {
+    const el = document.getElementById(sid); if (el) el.className = 'pipe-step';
+  });
+  modal.classList.add('open');
+  rmStatus.textContent = '⚡ Démarrage pipeline...';
   out.textContent = '';
-  document.getElementById('lm-text').textContent = '⟳ Génération...';
-  const result = await lmStreamCall(prompt, fullSystem, maxTokens, out, status);
-  if (result !== null) {
-    document.getElementById('rm-output').__lastOutput = result;
-    checkLM();
-  } else {
-    out.textContent = '⟳ Devstral génère à ~8 tokens/s...';
+  try {
+    const r = await fetch('/api/idea-to-imp', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({idea_id: 'manual', idea_title: title, idea_content: context})
+    });
+    const d = await r.json();
+    if (!d.ok || !d.started) {
+      rmStatus.textContent = '✗ ' + (d.error || 'Erreur démarrage');
+      modal.classList.remove('open');
+      return;
+    }
+    rmStatus.textContent = '⟳ Pipeline en cours (5 étapes)...';
+    await _pollPipelineIntoModal(sub, impList, actions);
+    // Populate rm-output from result
     try {
-      const r = await fetch('/api/lm-ask', {method:'POST',headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({prompt, system:fullSystem, max_tokens:maxTokens})});
-      const d = await r.json();
-      out.textContent = d.response || d.error;
-      status.textContent = d.error ? '✗ Erreur' : '✓ Généré';
-      checkLM();
-      document.getElementById('rm-output').__lastOutput = d.response || '';
-    } catch(e) { out.textContent = 'Erreur connexion LM Studio'; status.textContent = '✗ Erreur'; }
-  }
+      const s = await fetch('/api/idea-pipeline-status').then(r => r.json());
+      if (s.result) {
+        out.textContent = [
+          '=== FUSION ===', s.result.fusion || '',
+          '', '=== IMPs STAGÉS ===',
+          (s.result.imps_staged||[]).map((x,i) => (i+1)+'. '+x.title).join('\n'),
+          '', 'Proposals: '+(s.result.proposals_file||''),
+        ].join('\n');
+        out.__lastOutput = out.textContent;
+        rmStatus.textContent = '✓ Terminé — voir le modal pour injecter dans le ledger';
+      }
+    } catch(e) {}
+  } catch(e) { rmStatus.textContent = '✗ Erreur connexion'; out.textContent = String(e); }
 }
 
 function saveRoadmapToMemory() {
@@ -2952,36 +3282,56 @@ async function exportMemory() {
 }
 
 // ── IDEAS ─────────────────────────────────────────────────────────────────
+async function loadIdeas() {
+  try {
+    const ideas = await fetch('/api/ideas').then(r => r.json());
+    if (Array.isArray(ideas)) {
+      S.ideas = ideas;
+      S.ideaCounter = ideas.reduce((m, i) => Math.max(m, i.id || 0), 0);
+      const badge = document.getElementById('badge-ideas');
+      if (badge) badge.textContent = ideas.filter(i => !['applied','pipeline_done'].includes(i.status)).length;
+      renderIdeas();
+    }
+  } catch(e) {}
+}
 function showIdeaModal() { document.getElementById('idea-modal').classList.add('open'); }
 function filterIdeas(f) {
   S.ideaFilter = f;
   document.querySelectorAll('#idea-filters .filter-btn').forEach((b,i) => b.classList.toggle('active',['all','studio','ia','jv','backlog','wip'][i]===f));
   renderIdeas();
 }
-function addIdea() {
+async function addIdea() {
   const title = document.getElementById('im-title').value.trim();
   if (!title) return;
-  S.ideaCounter++;
-  S.ideas.unshift({
-    id:S.ideaCounter,
-    chain:document.getElementById('im-chain').value,
-    status:'backlog',
+  if (S.ideas.some(i => (i.title || '').toLowerCase() === title.toLowerCase())) {
+    alert('Une idée avec ce titre existe déjà.');
+    return;
+  }
+  const idea = {
+    chain: document.getElementById('im-chain').value,
+    status: 'backlog',
     title,
-    roi:document.getElementById('im-roi').value,
-    lane:document.getElementById('im-lane').value,
-    desc:document.getElementById('im-desc').value.trim(),
-    issue:document.getElementById('im-issue').value.trim()
-  });
-  document.getElementById('badge-ideas').textContent = S.ideas.length;
+    roi: document.getElementById('im-roi').value,
+    lane: document.getElementById('im-lane').value,
+    desc: document.getElementById('im-desc').value.trim(),
+    issue: document.getElementById('im-issue').value.trim()
+  };
   closeModal('idea-modal');
   ['im-title','im-desc','im-issue'].forEach(id => document.getElementById(id).value='');
-  renderIdeas();
+  try {
+    await fetch('/api/ideas', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(idea)});
+  } catch(e) {}
+  await loadIdeas();
 }
-function cycleIdeaStatus(id) {
-  const idea = S.ideas.find(i=>i.id===id);
+async function cycleIdeaStatus(id) {
+  const idea = S.ideas.find(i => i.id === id);
   if (!idea) return;
-  idea.status = idea.status==='backlog'?'wip':idea.status==='wip'?'done':'backlog';
-  renderIdeas();
+  if (['applied', 'pipeline_done'].includes(idea.status)) return;
+  const next = idea.status === 'backlog' ? 'wip' : idea.status === 'wip' ? 'done' : 'backlog';
+  try {
+    await fetch('/api/ideas/status', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({idea_id: String(id), status: next})});
+  } catch(e) {}
+  await loadIdeas();
 }
 function openIdeaInRoadmap(id) {
   const idea = S.ideas.find(i=>i.id===id);
@@ -2996,13 +3346,13 @@ function renderIdeas() {
   if (!el) return;
   const filtered = S.ideas.filter(i => {
     const f = S.ideaFilter;
-    if (f==='all') return true;
+    if (f==='all') return !['applied','pipeline_done'].includes(i.status);
     if (f==='backlog') return i.status==='backlog';
     if (f==='wip') return i.status==='wip';
-    return i.chain===f;
+    return i.chain===f && !['applied','pipeline_done'].includes(i.status);
   });
   el.innerHTML = filtered.map(idea => {
-    const dotColor = idea.status==='wip'?'var(--amber)':idea.status==='done'?'var(--green)':'var(--border2)';
+    const dotColor = idea.status==='wip'?'var(--amber)':['done','applied','pipeline_done'].includes(idea.status)?'var(--green)':'var(--border2)';
     return `<div class="idea-card chain-${idea.chain}">
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:5px">
         <div style="width:7px;height:7px;border-radius:50%;background:${dotColor};margin-top:5px;flex-shrink:0"></div>
@@ -3018,8 +3368,8 @@ function renderIdeas() {
       </div>
       ${idea.desc?`<div class="idea-desc">${idea.desc}</div>`:''}
       <div class="idea-actions">
-        <button class="btn btn-sm ${idea.status==='wip'?'btn-amber':''}" onclick="cycleIdeaStatus(${idea.id})">${idea.status==='backlog'?'→ Démarrer':idea.status==='wip'?'✓ En cours':'↩ Backlog'}</button>
-        <button class="btn btn-sm btn-amber" onclick="openIdeaInRoadmap(${idea.id})">↗ Générer roadmap</button>
+        ${idea.status!=='applied'?`<button class="btn btn-sm" onclick="cycleIdeaStatus(${idea.id})">&#8635; Changer statut</button>`:''}
+        ${!['applied','pipeline_done'].includes(idea.status)?`<button class="btn btn-sm btn-amber" onclick="startIdeaPipeline(${idea.id})">&#8599; Transformer en IMPs</button>`:''}
       </div>
     </div>`;
   }).join('') || '<div style="font-size:12px;color:var(--text3);padding:16px 0">Aucune idée dans ce filtre.</div>';
@@ -3132,10 +3482,9 @@ async function loadLigue() {
 
 // ── INIT ──────────────────────────────────────────────────────────────────
 document.getElementById('mem-count').textContent = S.memory.fusions.length;
-document.getElementById('badge-ideas').textContent = S.ideas.length;
 updateNextAction();
 setInterval(updateNextAction, 60000);
-renderIdeas();
+loadIdeas();
 
 // Commit message default
 const commitEl = document.getElementById('commit-msg');
@@ -3517,6 +3866,100 @@ async function loadCeoBrief() {
 // ── CLAUDE MODE — 3 PASSES ────────────────────────────────────────────────
 // supprimé — système local Devstral uniquement
 async function launchFusionComplete() { return; }
+
+// ── IMP TRIAGE PAR DOMAINE ────────────────────────────────────────────────
+const _RD_LABELS = {
+  rocky_moteur: 'Rocky / Moteur', ia_apprentissage: 'IA / ML',
+  studio: 'Studio / Infra', jeux: 'Jeux', decisions_pendantes: 'Décisions pendantes',
+};
+const _RD_COLORS = {
+  rocky_moteur: 'var(--green)', ia_apprentissage: 'var(--blue)',
+  studio: 'var(--amber)', jeux: 'var(--red)', decisions_pendantes: '#888',
+};
+
+function _rdImpPill(status) {
+  if (status === 'DEFERRED') return '<span class="pill" style="background:rgba(120,120,120,.15);color:#888">DEFERRED</span>';
+  return '<span class="pill p-impl">OPEN</span>';
+}
+
+function _rdDomainCard(key, imps) {
+  const label = _RD_LABELS[key] || key;
+  const color = _RD_COLORS[key] || 'var(--text3)';
+  const rows = imps.length
+    ? imps.map(i => `<tr><td style="font-family:var(--font-m);font-size:11px;color:var(--amber)">${escHtml(i.id||'')}</td>`
+        + `<td style="font-size:11px">${escHtml(i.title||'')}</td>`
+        + `<td>${_rdImpPill(i.status)}</td></tr>`).join('')
+    : `<tr><td colspan="3" style="color:var(--text3);padding:6px">(aucun IMP actif)</td></tr>`;
+  return `<div class="card" style="padding:10px;border-left:3px solid ${color}">`
+    + `<div style="font-size:11px;font-weight:700;color:${color};margin-bottom:6px">${escHtml(label)}`
+    + ` <span style="font-size:10px;font-weight:400;color:var(--text3)">${imps.length} IMP(s)</span></div>`
+    + `<table style="width:100%"><thead><tr><th>ID</th><th>Titre</th><th>Statut</th></tr></thead><tbody>${rows}</tbody></table>`
+    + `</div>`;
+}
+
+async function loadRoadmapDomaine() {
+  const el = document.getElementById('rd-domains');
+  const tot = document.getElementById('rd-total');
+  if (!el) return;
+  el.innerHTML = '<div class="card" style="padding:10px"><span style="color:var(--text3)">Chargement...</span></div>';
+  try {
+    const d = await fetch('/api/imp-triage').then(r => r.json());
+    const doms = d.domains || {};
+    const order = ['rocky_moteur','ia_apprentissage','studio','jeux','decisions_pendantes'];
+    el.innerHTML = order.map(k => _rdDomainCard(k, doms[k] || [])).join('');
+    if (tot) tot.textContent = `${d.total_open || 0} IMP(s) actifs · claim_verdict: NO_CLAIM_ALLOWED`;
+  } catch(e) {
+    el.innerHTML = '<div class="card" style="padding:10px"><span style="color:var(--red)">Erreur chargement triage</span></div>';
+  }
+}
+
+async function loadDomainImps(domain, elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  try {
+    const d = await fetch('/api/imp-triage').then(r => r.json());
+    const items = (d.domains || {})[domain] || [];
+    if (!items.length) {
+      el.innerHTML = '<div style="font-size:11px;color:var(--text3);padding:6px">(aucun IMP actif)</div>';
+      return;
+    }
+    const color = _RD_COLORS[domain] || 'var(--text3)';
+    const rows = items.map(i => `<tr><td style="font-family:var(--font-m);font-size:11px;color:var(--amber)">${escHtml(i.id||'')}</td>`
+      + `<td style="font-size:11px">${escHtml(i.title||'')}</td>`
+      + `<td>${_rdImpPill(i.status)}</td></tr>`).join('');
+    el.innerHTML = `<div class="divider">IMPs actifs (${items.length})</div>`
+      + `<div class="card" style="padding:10px;border-left:3px solid ${color}">`
+      + `<table style="width:100%"><thead><tr><th>ID</th><th>Titre</th><th>Statut</th></tr></thead><tbody>${rows}</tbody></table>`
+      + `</div>`;
+  } catch(e) {
+    el.innerHTML = '<div style="font-size:11px;color:var(--red);padding:6px">Erreur chargement IMPs</div>';
+  }
+}
+
+async function loadCeoTriage() {
+  const out = document.getElementById('ceo-triage-out');
+  if (!out) return;
+  out.style.display = 'block';
+  out.innerHTML = '<span style="color:var(--text3)">Chargement triage statique...</span>';
+  try {
+    const d = await fetch('/api/imp-triage').then(r => r.json());
+    const doms = d.domains || {};
+    const order = ['rocky_moteur','ia_apprentissage','studio','jeux','decisions_pendantes'];
+    const lines = order.map(k => {
+      const imps = doms[k] || [];
+      const color = _RD_COLORS[k] || 'var(--text3)';
+      const label = _RD_LABELS[k] || k;
+      const summary = imps.length ? imps.map(i => escHtml(i.id + (i.title ? ' — '+i.title.substring(0,40) : ''))).join('<br>') : '(aucun)';
+      return `<div style="margin:4px 0"><span style="font-size:10px;font-weight:700;color:${color}">${escHtml(label)}</span>`
+        + ` <span style="font-size:10px;color:var(--text3)">(${imps.length})</span><br>`
+        + `<span style="font-size:10px;color:var(--text2);padding-left:8px">${summary}</span></div>`;
+    });
+    out.innerHTML = `<div style="border-left:2px solid var(--border);padding-left:8px">${lines.join('')}</div>`
+      + `<div style="font-size:9px;color:var(--text3);margin-top:6px">claim_verdict: NO_CLAIM_ALLOWED · ${d.total_open||0} actifs</div>`;
+  } catch(e) {
+    out.innerHTML = '<span style="color:var(--red)">Erreur triage</span>';
+  }
+}
 
 // ── SYNC & COMMIT (P10) ───────────────────────────────────────────────────
 async function showGitStatus() {
@@ -3915,25 +4358,38 @@ setInterval(() => {
 }, 30000);
 
 // ── WORKFLOW IMP (IMP-059 + IMP-060) ─────────────────────────────────────────
+async function openImpInWorkflow(rawId) {
+  const impId = (rawId || '').split('—')[0].trim();
+  // Navigation manuelle pour pouvoir await loadWorkflow() sans double-appel
+  document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.sb-item[onclick="nav('workflow')"]`)?.classList.add('active');
+  document.getElementById('page-workflow')?.classList.add('active');
+  await loadWorkflow();
+  if (impId && impId !== '—') {
+    const sel = document.getElementById('wf-imp-select');
+    if (sel) sel.value = impId;
+  }
+}
+
 async function loadWorkflow() {
   try {
-    const d = await fetch('/api/ledger-status').then(r => r.json());
+    const d = await fetch('/api/imp-triage').then(r => r.json());
     const sel = document.getElementById('wf-imp-select');
     if (sel) {
-      const imps = d.open_imps || [];
-      const groups = [
-        { key: 'rocky_moteur',     label: '🦾 Rocky / Moteur',      filter: i => i.domain === 'rocky_moteur' },
-        { key: 'ia_apprentissage', label: '🧠 IA / Apprentissage',   filter: i => i.domain === 'ia_apprentissage' },
-        { key: 'jeux',             label: '🎮 Jeux',                 filter: i => i.domain === 'jeux' },
-        { key: 'studio',           label: '⚙ Studio',               filter: i => i.domain === 'studio' },
-        { key: 'decisions',        label: '⚠ Décisions',            filter: i => !i.domain && (i.lane === 'FORBIDDEN' || i.lane === 'HUMAN_REQUIRED') },
-        { key: 'autres',           label: '— Autres —',             filter: i => !i.domain && i.lane !== 'FORBIDDEN' && i.lane !== 'HUMAN_REQUIRED' },
+      const doms = d.domains || {};
+      const domainMeta = [
+        { key: 'rocky_moteur',        label: '🦾 Rocky / Moteur' },
+        { key: 'ia_apprentissage',    label: '🧠 IA / Apprentissage' },
+        { key: 'jeux',                label: '🎮 Jeux' },
+        { key: 'studio',              label: '⚙ Studio' },
+        { key: 'decisions_pendantes', label: '⚠ Décisions' },
       ];
       let html = '<option value="">— Choisir un IMP —</option>';
-      for (const g of groups) {
-        const items = imps.filter(g.filter);
+      for (const {key, label} of domainMeta) {
+        const items = doms[key] || [];
         if (!items.length) continue;
-        html += `<optgroup label="${g.label}">`;
+        html += `<optgroup label="${label}">`;
         html += items.map(i => `<option value="${escHtml(i.id)}">${escHtml(i.id)} — ${escHtml(i.title||'')} [${escHtml(i.lane||'')}]</option>`).join('');
         html += '</optgroup>';
       }
@@ -3952,8 +4408,11 @@ async function generateCharter() {
   const titleEl = document.getElementById('wf-charter-title');
   if (btn) btn.disabled = true;
   if (out) out.value = '⟳ Chargement...';
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), 15000);
   try {
-    const d = await fetch('/api/generate-charter?imp_id=' + encodeURIComponent(impId)).then(r => r.json());
+    const d = await fetch('/api/generate-charter?imp_id=' + encodeURIComponent(impId), {signal: ctrl.signal}).then(r => r.json());
+    clearTimeout(tid);
     if (d.error) {
       if (out) out.value = '✗ ' + d.error;
     } else {
@@ -3963,7 +4422,8 @@ async function generateCharter() {
       if (sec) sec.style.display = 'block';
     }
   } catch(e) {
-    if (out) out.value = '✗ Erreur: ' + e.message;
+    clearTimeout(tid);
+    if (out) out.value = e.name === 'AbortError' ? '✗ Timeout — réessayer' : '✗ Erreur: ' + e.message;
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -3987,8 +4447,8 @@ async function validateAndCloseImp() {
   const report = document.getElementById('wf-report-in')?.value || '';
   const status = document.getElementById('wf-close-status');
   if (!impId) { alert('Sélectionner un IMP.'); return; }
-  if (!report.includes('software_verdict')) {
-    if (status) status.innerHTML = '<span style="color:var(--red)">✗ Rapport doit contenir "software_verdict"</span>';
+  if (!report.includes('software_verdict: OK')) {
+    if (status) status.innerHTML = '<span style="color:var(--red)">✗ Rapport doit contenir "software_verdict: OK"</span>';
     return;
   }
   if (!report.includes('claim_verdict: NO_CLAIM_ALLOWED')) {
@@ -4003,10 +4463,11 @@ async function validateAndCloseImp() {
       body: JSON.stringify({imp_id: impId})
     }).then(r => r.json());
     if (d.ok) {
-      if (status) status.innerHTML = '<span style="color:var(--green)">✓ ' + escHtml(impId) + ' fermé</span>';
+      if (status) status.innerHTML = '<span style="color:var(--green)">✓ ' + escHtml(impId) + ' fermé</span>'
+        + ' &nbsp;<button class="btn btn-amber btn-sm" onclick="nav(\'pilote\');loadCeoBrief()">→ CEO Brief</button>';
       document.getElementById('wf-report-in').value = '';
       document.getElementById('wf-section-charter').style.display = 'none';
-      setTimeout(loadWorkflow, 500);
+      loadWorkflow();
     } else {
       if (status) status.innerHTML = '<span style="color:var(--red)">✗ ' + escHtml(d.error || 'Erreur') + '</span>';
     }
@@ -4036,6 +4497,178 @@ async function renderWorkflowHistory() {
     ).join('');
   } catch(e) {
     container.innerHTML = '<div style="color:var(--text3);font-size:12px">Erreur chargement historique.</div>';
+  }
+}
+
+
+// ── IDEA PIPELINE ─────────────────────────────────────────────────────────
+function ideaStartBtn(id) {
+  cycleIdeaStatus(id);
+}
+
+function _findIdeaBtn(ideaId) {
+  return document.querySelector(`.idea-actions button[onclick="ideaStartBtn(${ideaId})"]`);
+}
+
+async function startIdeaPipeline(id) {
+  // Guard — vérifie si un pipeline est déjà en cours avant tout
+  try {
+    const statusCheck = await fetch('/api/idea-pipeline-status').then(r => r.json());
+    if (statusCheck.running) {
+      alert('Pipeline déjà en cours — attendre la fin avant de relancer.');
+      return;
+    }
+  } catch(e) {}
+
+  const idea = S.ideas.find(i => i.id === id);
+  if (!idea) return;
+
+  // Désactiver le bouton dès le premier clic
+  const triggerBtn = _findIdeaBtn(id);
+  if (triggerBtn) { triggerBtn.disabled = true; triggerBtn.textContent = '⟳ En cours...'; }
+
+  const modal = document.getElementById('pipeline-modal');
+  const title = document.getElementById('pipeline-modal-title');
+  const sub   = document.getElementById('pipeline-modal-sub');
+  const impList = document.getElementById('pipeline-imp-list');
+  const actions = document.getElementById('pipeline-modal-actions');
+  title.textContent = '⚡ Pipeline : ' + idea.title;
+  sub.textContent = 'Étape 1/5 — Génération roadmap...';
+  impList.style.display = 'none';
+  impList.innerHTML = '';
+  actions.style.display = 'none';
+  ['ps-roadmap','ps-redteam','ps-fusion','ps-extract','ps-staged'].forEach(sid => {
+    const el = document.getElementById(sid);
+    if (el) { el.className = 'pipe-step'; }
+  });
+  modal.classList.add('open');
+  try {
+    const r = await fetch('/api/idea-to-imp', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({idea_id: String(idea.id), idea_title: idea.title, idea_content: idea.desc || ''})
+    });
+    const d = await r.json();
+    if (!d.ok || !d.started) {
+      sub.textContent = '✗ ' + (d.error || 'Erreur démarrage');
+      if (triggerBtn) { triggerBtn.disabled = false; triggerBtn.textContent = '→ Démarrer'; }
+      return;
+    }
+    await _pollPipelineIntoModal(sub, impList, actions);
+  } catch(e) {
+    sub.textContent = '✗ Erreur connexion';
+  } finally {
+    // Réactiver le bouton dans tous les cas (terminé ou erreur)
+    if (triggerBtn) { triggerBtn.disabled = false; triggerBtn.textContent = '→ Démarrer'; }
+  }
+}
+
+const PIPE_STEP_LABELS = {
+  init:    [0, ''],
+  roadmap: [1, 'ps-roadmap'],
+  redteam: [2, 'ps-redteam'],
+  fusion:  [3, 'ps-fusion'],
+  extract: [4, 'ps-extract'],
+  staged:  [5, 'ps-staged'],
+};
+const PIPE_STEP_NAMES = {roadmap:'Roadmap',redteam:'RedTeam',fusion:'Fusion',extract:'Extract',staged:'Staged'};
+
+async function _pollPipelineIntoModal(subEl, impListEl, actionsEl) {
+  for (let i = 0; i < 300; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      const s = await fetch('/api/idea-pipeline-status').then(r => r.json());
+      const [prog, stepId] = PIPE_STEP_LABELS[s.step] || [0, ''];
+      // Update step pills
+      Object.entries(PIPE_STEP_LABELS).forEach(([k, [p, sid]]) => {
+        if (!sid) return;
+        const el = document.getElementById(sid);
+        if (!el) return;
+        if (p < prog) el.className = 'pipe-step done';
+        else if (p === prog) el.className = 'pipe-step active';
+        else el.className = 'pipe-step';
+      });
+      if (subEl) subEl.textContent = s.running
+        ? 'Étape ' + s.progress + '/5 — ' + (PIPE_STEP_NAMES[s.step] || s.step) + '...'
+        : (s.error ? '✗ ' + s.error : '✓ Pipeline terminé — ' + (s.result?.imps_staged?.length || 0) + ' IMP(s) générés');
+      if (!s.running) {
+        loadIdeas();
+        if (s.result && s.result.imps_staged && s.result.imps_staged.length) {
+          impListEl.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">IMPs à injecter dans le ledger :</div>' +
+            s.result.imps_staged.map((imp, i) =>
+              `<div class="imp-list-item"><input type="checkbox" id="pimp-${i}" checked><label for="pimp-${i}" class="imp-list-title">${escHtml(imp.title||'')}</label><span class="pill p-safe" style="font-size:9px">${imp.lane||'SAFE_AUTO'}</span><span class="pill p-high" style="font-size:9px">${imp.impact||'HIGH'}</span></div>`
+            ).join('');
+          impListEl.style.display = 'block';
+        } else {
+          impListEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">Aucun IMP extrait.</div>';
+          impListEl.style.display = 'block';
+        }
+        actionsEl.style.display = 'flex';
+        return;
+      }
+    } catch(e) {}
+  }
+}
+
+async function _pollPipelineIntoElement(outEl, statusEl, showResult) {
+  for (let i = 0; i < 300; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      const s = await fetch('/api/idea-pipeline-status').then(r => r.json());
+      if (statusEl) statusEl.textContent = s.running
+        ? '⟳ Étape ' + s.progress + '/5 — ' + (PIPE_STEP_NAMES[s.step] || s.step) + '...'
+        : (s.error ? '✗ ' + s.error : '✓ Terminé');
+      if (!s.running) {
+        if (showResult && s.result) {
+          outEl.textContent = [
+            '=== ROADMAP ===', s.result.roadmap,
+            '', '=== RED TEAM ===', s.result.redteam,
+            '', '=== FUSION ===', s.result.fusion,
+            '', '=== IMPs STAGÉS ===',
+            (s.result.imps_staged||[]).map((x,i)=>`${i+1}. ${x.title}`).join('\n'),
+            '', 'Fichier : ' + (s.result.proposals_file||''),
+          ].join('\n');
+          outEl.__lastOutput = outEl.textContent;
+        }
+        return;
+      }
+    } catch(e) {}
+  }
+}
+
+async function approvePipelineAll() {
+  const btn = document.querySelector('#pipeline-modal-actions .btn-amber');
+  if (btn) btn.textContent = '⟳ Injection...';
+  let sessionId = '';
+  try {
+    const st = await fetch('/api/idea-pipeline-status').then(r => r.json());
+    sessionId = String(st.idea_id || '');
+  } catch(e) {}
+  try {
+    const r = await fetch('/api/idea-inject', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({session_id: sessionId})});
+    const d = await r.json();
+    const sub = document.getElementById('pipeline-modal-sub');
+    if (d.ok && d.refresh_ceo_brief) {
+      const onPilote = document.getElementById('page-pilote')?.classList.contains('active');
+      if (onPilote) {
+        if (sub) sub.textContent = 'IMPs injectés — CEO Brief mis à jour';
+        loadCeoBrief();
+      } else {
+        if (sub) sub.innerHTML = 'IMPs injectés — CEO Brief mis à jour &nbsp;<button class="btn btn-amber btn-sm" onclick="nav(\'pilote\');loadCeoBrief()">Voir CEO Brief →</button>'
+          + '&nbsp;<button class="btn btn-sm" onclick="nav(\'workflow\')">&#8599; Workflow IMP</button>';
+      }
+    } else {
+      if (d.ok) {
+        if (sub) sub.innerHTML = '✓ IMPs injectés dans le ledger &nbsp;<button class="btn btn-sm" onclick="nav(\'workflow\')">&#8599; Workflow IMP</button>';
+      } else {
+        if (sub) sub.textContent = '✗ Erreur : ' + d.error;
+      }
+    }
+    if (btn) btn.textContent = d.ok ? '✓ Injecté' : '✗ Erreur';
+    if (d.ok) { ledger_cache_bust = true; setTimeout(updateNextAction, 1000); await loadIdeas(); }
+  } catch(e) {
+    const btn2 = document.querySelector('#pipeline-modal-actions .btn-amber');
+    if (btn2) btn2.textContent = '✗ Erreur';
   }
 }
 
@@ -4103,6 +4736,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.send_json(ledger_cache)
             else:
                 self.send_json(get_ledger_counts())
+
+        elif path == "/api/imp-triage":
+            self.send_json(imp_triage())
 
         elif path == "/api/health":
             self.send_json(get_health())
@@ -4233,6 +4869,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.send_json({"error": "imp_id requis (?imp_id=IMP-XXX)"}, 400)
                 return
             self.send_json(api_generate_charter(imp_id))
+
+        elif path == "/api/idea-pipeline-status":
+            with _idea_pipeline_lock:
+                state = dict(_idea_pipeline_state)
+            self.send_json(state)
+
+        elif path == "/api/ideas":
+            self.send_json(load_ideas())
 
         else:
             self.send_json({"error": "not found"}, 404)
@@ -4484,6 +5128,79 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     })
                 self.send_json({"ok": True, "stopped": stopped})
 
+        elif path == "/api/ideas":
+            idea = body
+            if not idea.get("title"):
+                self.send_json({"ok": False, "error": "title requis"}, 400)
+                return
+            ideas = load_ideas()
+            title_lower = idea.get("title", "").strip().lower()
+            if any(i.get("title", "").strip().lower() == title_lower for i in ideas):
+                self.send_json({"ok": False, "error": "Idée avec ce titre déjà existante"}, 409)
+                return
+            max_id = max((i.get("id", 0) for i in ideas), default=0)
+            idea["id"] = max_id + 1
+            idea.setdefault("status", "backlog")
+            idea.setdefault("ts", datetime.now().isoformat())
+            ideas.insert(0, idea)
+            save_ideas(ideas)
+            self.send_json({"ok": True, "idea": idea})
+
+        elif path == "/api/ideas/status":
+            idea_id = str(body.get("idea_id", ""))
+            new_status = body.get("status", "")
+            if not idea_id or not new_status:
+                self.send_json({"ok": False, "error": "idea_id et status requis"}, 400)
+                return
+            found = update_idea_status(idea_id, new_status)
+            self.send_json({"ok": found, "idea_id": idea_id, "status": new_status})
+
+        elif path == "/api/idea-to-imp":
+            idea_id      = body.get("idea_id", "manual")
+            idea_title   = body.get("idea_title", "").strip()
+            idea_content = body.get("idea_content", "").strip()
+            if not idea_title:
+                self.send_json({"ok": False, "error": "idea_title requis"}, 400)
+                return
+            with _idea_pipeline_lock:
+                if _idea_pipeline_state.get("running"):
+                    self.send_json({"ok": False, "error": "Pipeline déjà en cours"}, 409)
+                    return
+                _idea_pipeline_state.update({
+                    "step": "init", "progress": 0, "idea_id": str(idea_id),
+                    "running": True, "result": None, "error": None,
+                })
+            threading.Thread(
+                target=_run_idea_pipeline,
+                args=(str(idea_id), idea_title, idea_content),
+                daemon=True,
+            ).start()
+            self.send_json({"ok": True, "started": True, "idea_id": idea_id})
+
+        elif path == "/api/idea-inject":
+            session_id = str(body.get("session_id", "")).strip()
+            py_exe = str(REPO / ".venv312" / "Scripts" / "python.exe")
+            script = str(REPO / "lab" / "chains" / "roadmap_to_ledger.py")
+            if session_id and session_id not in ("manual", ""):
+                # Sanitize: only word chars and hyphens
+                sid = re.sub(r'[^\w\-]', '', session_id)[:32]
+                cmd = f'"{py_exe}" "{script}" --inject-staged "{sid}"'
+            else:
+                cmd = f'"{py_exe}" "{script}" --inject'
+            result = run_chain(cmd, cwd=str(REPO))
+            inject_ok = result.get("rc", -1) == 0
+            if inject_ok:
+                ledger_cache.update(get_ledger_counts())
+                if session_id and session_id not in ("manual", ""):
+                    update_idea_status(session_id, "applied")
+            self.send_json({
+                "ok": inject_ok,
+                "output": result.get("output", ""),
+                "error": result.get("error", ""),
+                "rc": result.get("rc", -1),
+                "refresh_ceo_brief": inject_ok,
+            })
+
         elif path == "/api/ceo-brief":
             state_path = Path(__file__).parent / "studio_state.json"
             state_str = ""
@@ -4498,21 +5215,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             sprint_objective = _extract_sprint_objective(roadmap_text)
             imps = open_ctx.get("open_imps", [])
 
-            def _ceo_domain(i: dict) -> str:
-                """Routing CEO Brief — lane FORBIDDEN/AUDIT_REQUIRED prime, puis champ domain, puis keyword."""
-                if i.get("lane") in ("AUDIT_REQUIRED", "FORBIDDEN"):
-                    return "decisions_pendantes"
-                d = i.get("domain", "")
-                if d in ("rocky_moteur", "ia_apprentissage", "studio", "jeux"):
-                    return d
-                title = i.get("title", "").lower()
-                if any(k in title for k in ("lora","dataset","training","devstral","ml","neural","model","teacher","sf_dataset","pool")):
-                    return "ia_apprentissage"
-                return "rocky_moteur"
-
-            engine_imps = [i for i in imps if _ceo_domain(i) in ("rocky_moteur", "studio", "jeux")]
-            ml_imps = [i for i in imps if _ceo_domain(i) == "ia_apprentissage"]
-            pending_imps = [i for i in imps if _ceo_domain(i) == "decisions_pendantes"]
+            _dom = {i["id"]: _imp_domain(i) for i in imps if i.get("id")}
+            moteur_imps = [i for i in imps if _dom.get(i.get("id")) == "rocky_moteur"]
+            studio_imps = [i for i in imps if _dom.get(i.get("id")) == "studio"]
+            jeux_imps   = [i for i in imps if _dom.get(i.get("id")) == "jeux"]
+            ml_imps     = [i for i in imps if _dom.get(i.get("id")) == "ia_apprentissage"]
+            pending_imps = [i for i in imps if _dom.get(i.get("id")) == "decisions_pendantes"]
 
             def _fmt(lst: list) -> str:
                 return "\n".join(f"  - {i['id']} [{i.get('lane','?')}] {i.get('title','')}" for i in lst) or "  (aucun)"
@@ -4522,10 +5230,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if m_dec:
                 roadmap_decisions = m_dec.group(1).strip()[:600]
 
+            rocky_section = (
+                f"=== Lane rocky_moteur (moteur + infra + jeux) ===\n"
+                f"[Moteur Rust]\n{_fmt(moteur_imps)}\n"
+                f"[Studio / Infra]\n{_fmt(studio_imps)}\n"
+                f"[Jeux]\n{_fmt(jeux_imps)}\n"
+            )
             prompt = (
                 f"/no_think\nTactical Chess Studio — CEO Brief v2\n\n"
                 f"Sprint objectif : {sprint_objective}\n\n"
-                f"=== Lane rocky_moteur (moteur / gameplay) ===\n{_fmt(engine_imps)}\n\n"
+                f"{rocky_section}\n"
                 f"=== Lane ia_apprentissage (ML / LoRA / dataset) ===\n{_fmt(ml_imps)}\n\n"
                 f"=== Lane decisions_pendantes (HumanGate / FORBIDDEN) ===\n{_fmt(pending_imps)}\n"
                 f"Décisions roadmap en attente :\n{roadmap_decisions}\n\n"
@@ -4547,7 +5261,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "Tu analyses l'état du studio sur 3 lanes simultanées et retournes uniquement un JSON structuré. "
                 "claim_verdict: NO_CLAIM_ALLOWED"
             )
-            raw = lm_call(prompt, system=system, max_tokens=800, model=LM_MODEL_CEO)
+            raw = lm_call(prompt, system=system, max_tokens=800, model=LM_MODEL)
             parsed_v2: dict = {}
             try:
                 m2 = re.search(r'\{[\s\S]*\}', raw)
@@ -4561,7 +5275,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "ok": bool(parsed_v2.get("lanes")),
                 "brief": parsed_v2,
                 "sprint_objective": sprint_objective,
-                "model_used": LM_MODEL_CEO,
+                "model_used": LM_MODEL,
                 "claim_verdict": "NO_CLAIM_ALLOWED"
             })
 

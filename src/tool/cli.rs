@@ -1,4 +1,5 @@
 use crate::agents::neural_agent::NeuralAgent;
+use crate::chess::move_explanation::explain_move;
 use crate::chess::search::search_root;
 use crate::chess::uci::action_to_uci;
 use crate::prototype::minimal_ruleset::{
@@ -770,9 +771,10 @@ fn run_play_fen(args: &[String]) {
         Some(r) => {
             let move_str = action_to_uci(&r.best_action, &engine.units)
                 .unwrap_or_else(|| "?".to_string());
+            let explanation = explain_move(&r.diagnostics.decision.chosen_transition_analysis);
             println!(
                 "{}",
-                json!({"move": move_str, "score": r.best_score, "depth": r.completed_depth})
+                json!({"move": move_str, "score": r.best_score, "depth": r.completed_depth, "explanation": explanation})
             );
         }
         None => {
