@@ -1913,6 +1913,7 @@ tr:hover td{background:var(--bg3)}
   <div class="sb-item" onclick="nav('memory')"><span class="ico">◈</span> Mémoire</div>
   <div class="sb-item" onclick="nav('ideas')"><span class="ico">◎</span> Idées <span class="sb-badge badge-amber" id="badge-ideas">12</span></div>
   <div class="sb-item" onclick="nav('roadmap')"><span class="ico">↗</span> Idée → Roadmap</div>
+  <div class="sb-item" onclick="nav('map')"><span class="ico">◉</span> Chain Map</div>
   <div class="sb-item" onclick="nav('roadmap-domaine')"><span class="ico">🗂</span> Roadmap domaines</div>
 
   <div class="sb-item" onclick="nav('metrics')"><span class="ico">📊</span> Métriques</div>
@@ -2630,6 +2631,26 @@ tr:hover td{background:var(--bg3)}
       <div id="jeux-imps"></div>
     </div>
 
+    <!-- ── CHAIN MAP (IMP-088) ── -->
+    <div id="page-map" class="page">
+      <div class="divider">Chaîne idée → IMP — Carte &amp; Calibration</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div id="map-version" style="font-size:11px;color:var(--text3)">Chargement...</div>
+        <button class="btn btn-sm" onclick="loadChainMap()">⟳ Recharger</button>
+      </div>
+      <div id="map-chain-visual" style="display:flex;gap:8px;align-items:center;padding:10px 0;flex-wrap:wrap;margin-bottom:4px"></div>
+      <div class="divider">Synthèse par step</div>
+      <div class="card" style="padding:0;overflow-x:auto"><div id="map-table"></div></div>
+      <div class="divider">Zones d'ombre</div>
+      <div class="card"><div id="map-zones"></div></div>
+      <div class="divider">Architecture idéale — 3 steps cibles</div>
+      <div class="card"><div id="map-arch" style="display:flex;gap:12px;flex-wrap:wrap"></div></div>
+      <div class="divider">Agents à calibrer</div>
+      <div class="card"><div id="map-agents"></div></div>
+      <div class="divider">Recommandations</div>
+      <div class="card"><div id="map-top3"></div></div>
+    </div>
+
     <!-- ── ROADMAP DOMAINES ── -->
     <div id="page-roadmap-domaine" class="page">
       <div class="divider">Roadmap par domaine — IMPs OPEN/DEFERRED</div>
@@ -2953,9 +2974,100 @@ function nav(id) {
   if (id === 'studio-os') loadStudioOs();
   if (id === 'workflow') loadWorkflow();
   if (id === 'roadmap-domaine') loadRoadmapDomaine();
+  if (id === 'map') loadChainMap();
   if (id === 'moteur') loadDomainImps('rocky_moteur', 'moteur-imps');
   if (id === 'design') loadDomainImps('jeux', 'design-imps');
   if (id === 'roadmap-jeux') loadDomainImps('jeux', 'jeux-imps');
+}
+
+// ── CHAIN MAP (IMP-088) ──────────────────────────────────────────────────
+async function loadChainMap() {
+  const ver = document.getElementById('map-version');
+  try {
+    const data = await fetch('/api/chain-map').then(r => r.json());
+    if (!data || !data.chain) { if(ver) ver.textContent = '✗ Erreur chargement'; return; }
+    if(ver) ver.textContent = 'v' + data.version + ' · ' + data.generated_at + ' · ' + (data.source||'');
+
+    // Carte visuelle de la chaîne
+    const visual = document.getElementById('map-chain-visual');
+    if (visual) visual.innerHTML = data.chain.map((s, i) => {
+      const vc = s.value_rating?.startsWith('haute') ? 'var(--green)'
+               : s.value_rating?.startsWith('quasi') ? '#c0392b' : 'var(--amber)';
+      const modelShort = s.model === 'python_pur' ? 'Python' : (s.model||'').split('-').slice(0,2).join('-');
+      return `${i>0?'<span style="color:var(--text3);font-size:18px;line-height:1;align-self:center">→</span>':''}
+        <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:8px 12px;text-align:center;min-width:88px">
+          <div style="font-size:9px;color:var(--text3)">Step ${s.step}</div>
+          <div style="font-weight:600;color:${vc};font-size:12px">${s.name.toUpperCase()}</div>
+          <div style="font-size:9px;color:var(--text3);margin-top:2px">${modelShort}</div>
+          <div style="font-size:9px;color:var(--text3)">${s.max_tokens_current??'—'} tok</div>
+          ${(s.blind_spots||[]).length?`<div style="font-size:9px;color:var(--amber);margin-top:2px">${(s.blind_spots||[]).length} zones</div>`:''}
+        </div>`;
+    }).join('');
+
+    // Table synthèse
+    const tbl = document.getElementById('map-table');
+    if (tbl) tbl.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr style="color:var(--text3);border-bottom:1px solid var(--border2)">
+        <th style="text-align:left;padding:6px 8px">Step</th>
+        <th style="text-align:left;padding:6px 8px">Modèle</th>
+        <th style="text-align:left;padding:6px 8px">Rôle actuel</th>
+        <th style="text-align:left;padding:6px 8px">Temp / Tok</th>
+        <th style="text-align:left;padding:6px 8px">Valeur</th>
+        <th style="text-align:left;padding:6px 8px">Zones d'ombre</th>
+      </tr></thead><tbody>${data.chain.map(s => {
+        const vc = s.value_rating?.startsWith('haute') ? 'var(--green)' : 'var(--amber)';
+        return `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px 8px;font-weight:600;color:var(--amber)">${s.step}. ${s.name}</td>
+          <td style="padding:6px 8px;color:var(--text2);font-size:10px">${(s.model||'').split('-').slice(0,2).join('-')}</td>
+          <td style="padding:6px 8px;color:var(--text2)">${escHtml((s.role_current||'').slice(0,55))}</td>
+          <td style="padding:6px 8px;color:var(--text3)">${s.temperature_current??'—'} / ${s.max_tokens_current??'—'}</td>
+          <td style="padding:6px 8px;color:${vc}">${escHtml((s.value_rating||'').slice(0,22))}</td>
+          <td style="padding:6px 8px;color:var(--text3)">${(s.blind_spots||[]).slice(0,2).map(b=>`<div style="font-size:10px">░ ${escHtml(b.slice(0,50))}</div>`).join('')}</td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+
+    // Zones d'ombre
+    const zones = document.getElementById('map-zones');
+    if (zones) {
+      const adressed = data.zones_ombre_adressees_imp089||[];
+      zones.innerHTML =
+        (data.zones_ombre||[]).map(z=>`<div style="padding:3px 0;font-size:11px;color:var(--text3)">░ ${escHtml(z)}</div>`).join('') +
+        (adressed.length ? `<div style="margin-top:10px;font-size:10px;color:var(--green);margin-bottom:4px">✓ Adressées par IMP-089</div>`
+          + adressed.map(z=>`<div style="padding:2px 0;font-size:11px;color:var(--green)">✓ ${escHtml(z)}</div>`).join('') : '');
+    }
+
+    // Architecture idéale
+    const arch = document.getElementById('map-arch');
+    if (arch) arch.innerHTML = (data.architecture_ideale||[]).map(s=>
+      `<div style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:10px 14px;min-width:130px">
+        <div style="font-size:9px;color:var(--text3)">Step ${s.step}</div>
+        <div style="font-weight:600;color:var(--amber);margin:3px 0">${s.name?.toUpperCase()}</div>
+        <div style="font-size:10px;color:var(--text2)">${escHtml(s.role||'')}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px">${(s.model||'').split('-').slice(0,2).join('-')} · ${s.max_tokens} tok · t=${s.temperature}</div>
+        ${s.note?`<div style="font-size:9px;color:var(--text3);margin-top:3px;font-style:italic">${escHtml(s.note)}</div>`:''}
+      </div>`).join('');
+
+    // Agents
+    const agts = document.getElementById('map-agents');
+    if (agts) agts.innerHTML = (data.agents_a_creer||[]).map(a=>
+      `<div style="display:flex;align-items:flex-start;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px">
+        <div style="width:120px;font-weight:600;color:var(--amber)">${escHtml(a.name||'')}</div>
+        <div style="flex:1;color:var(--text2)">${escHtml((a.role||'').slice(0,65))}</div>
+        <div style="width:110px;color:var(--text3);font-size:10px">${escHtml(a.model||'')}</div>
+        <div style="width:80px;color:${a.a_calibrer?'var(--amber)':'var(--text3)'}">${a.a_calibrer?'⚡ calibrer':'✓ OK'}</div>
+      </div>`).join('');
+
+    // Top 3 recommandations
+    const top3 = document.getElementById('map-top3');
+    if (top3) top3.innerHTML =
+      '<div style="font-size:11px;color:var(--text3);margin-bottom:4px">Faites :</div>' +
+      (data.top3_recommandations||[]).map(r=>`<div style="padding:2px 0;font-size:11px;color:var(--green)">✓ ${escHtml(r)}</div>`).join('') +
+      '<div style="font-size:11px;color:var(--text3);margin:8px 0 4px">Restantes :</div>' +
+      (data.top3_recommandations_restantes||[]).map(r=>`<div style="padding:2px 0;font-size:11px;color:var(--amber)">→ ${escHtml(r)}</div>`).join('');
+
+  } catch(e) {
+    if(ver) ver.textContent = '✗ ' + e.message;
+  }
 }
 
 // ── CLOCK ─────────────────────────────────────────────────────────────────
@@ -4924,6 +5036,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         elif path == "/api/lm-status":
             self.send_json(lm_status())
+
+        elif path == "/api/chain-map":
+            map_path = REPO / "lab/chains/prompt_chain_map.json"
+            if map_path.exists():
+                try:
+                    self.send_json(json.loads(map_path.read_text(encoding="utf-8")))
+                except Exception as e:
+                    self.send_json({"error": str(e)}, 500)
+            else:
+                self.send_json({"error": "prompt_chain_map.json introuvable"}, 404)
 
         elif path == "/api/lm-probe":
             # Ping léger : juste /api/v1/models sans inférence
