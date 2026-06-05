@@ -8,9 +8,9 @@ Date : 2026-06-05 — sprint update : 2026-06-03/04
 
 | Métrique | Valeur |
 |---|---|
-| Total IMPs | 91 |
-| CLOSED | 82 |
-| OPEN | 8 |
+| Total IMPs | 101 |
+| CLOSED | 86 |
+| OPEN | 14 |
 | DEFERRED | 1 |
 
 ### IMPs OPEN

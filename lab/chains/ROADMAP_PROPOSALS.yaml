@@ -877,3 +877,127 @@ proposals:
     acceptance: 'Les tests vérifient que les données sont affichées sans erreur ni risque de sécurité.'
     blocked_by: ["Intégrer données repo_status dans topbar.html"]
     notes: 'Pipeline idea-to-imp — idée 18'
+- prop_id: PROP-049
+  source_phase: idea-to-imp
+  source_task: 'Pause et copie charter dans terminal autoloop autopilot.py'
+  source_idea_id: '20'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Pause et copie charter dans terminal autoloop autopilot.py'
+  human_anchor_desc: 'Python/HTML uniquement. NE PAS toucher au Rust. |         Dans page-chains, ajouter bouton Pause qui stoppe |         le refresh du terminal (clearInterval). |         Bouton Copier charter qui copie '
+  reasoning_roadmap: 'Modifier fichier autopilot.py : Ajouter bouton Pause qui stoppe le refresh du terminal en appelant clearInterval. | Modifier fichier autopilot.py : Ajouter bouton Copier charter qui copie le contenu actuel du charter dans le presse-papier. | Modifier fichier page-chains.html : Intégrer les nouveaux boutons Pause et Copier charter.'
+  reasoning_critique: '{ |   "risques": [ |     { |       "Risque": "Gestion des états asynchrones | Fichier: autopilot.py", |       "Description": "Implémenter correctement la gestion de l''état ''pause'' sans perdre le suivi des autres processus en cours peut être complexe. Il faut s''assurer que la reprise fonctionne parfaitement après une pause." |     }, |     { |       "Risque": "Intégration avec le terminal | Fic'
+  reasoning_fusion: '1. **Fichier autopilot.py : Ajouter gestion de pause et copier charter** |    - Étendre la fonctionnalité de `autopilot.py` pour inclure un mécanisme permettant d''arrêter le refresh du terminal via clearInterval lorsqu''un bouton Pause est activé. |    - Implémenter une fonction qui copie le contenu actuel du charter dans le presse-papier lorsque le bouton Copier charter est cliqué. |  | 2. **Fic'
+  imp:
+    title: 'Ajouter clearInterval dans autopilot.py pour Pause'
+    type: feature
+    lane: SAFE_AUTO
+    impact: MEDIUM
+    effort: SMALL
+    domain: studio
+    files: ["autopilot.py"]
+    acceptance: 'Le refresh du terminal s''arrête lorsque le bouton Pause est activé.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 20'
+- prop_id: PROP-050
+  source_phase: idea-to-imp
+  source_task: 'Pause et copie charter dans terminal autoloop autopilot.py'
+  source_idea_id: '20'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Pause et copie charter dans terminal autoloop autopilot.py'
+  human_anchor_desc: 'Python/HTML uniquement. NE PAS toucher au Rust. |         Dans page-chains, ajouter bouton Pause qui stoppe |         le refresh du terminal (clearInterval). |         Bouton Copier charter qui copie '
+  reasoning_roadmap: 'Modifier fichier autopilot.py : Ajouter bouton Pause qui stoppe le refresh du terminal en appelant clearInterval. | Modifier fichier autopilot.py : Ajouter bouton Copier charter qui copie le contenu actuel du charter dans le presse-papier. | Modifier fichier page-chains.html : Intégrer les nouveaux boutons Pause et Copier charter.'
+  reasoning_critique: '{ |   "risques": [ |     { |       "Risque": "Gestion des états asynchrones | Fichier: autopilot.py", |       "Description": "Implémenter correctement la gestion de l''état ''pause'' sans perdre le suivi des autres processus en cours peut être complexe. Il faut s''assurer que la reprise fonctionne parfaitement après une pause." |     }, |     { |       "Risque": "Intégration avec le terminal | Fic'
+  reasoning_fusion: '1. **Fichier autopilot.py : Ajouter gestion de pause et copier charter** |    - Étendre la fonctionnalité de `autopilot.py` pour inclure un mécanisme permettant d''arrêter le refresh du terminal via clearInterval lorsqu''un bouton Pause est activé. |    - Implémenter une fonction qui copie le contenu actuel du charter dans le presse-papier lorsque le bouton Copier charter est cliqué. |  | 2. **Fic'
+  imp:
+    title: 'Ajouter copier charter dans autopilot.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: MEDIUM
+    effort: SMALL
+    domain: studio
+    files: ["autopilot.py"]
+    acceptance: 'Le contenu du charter est correctement copié dans le presse-papier.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 20'
+- prop_id: PROP-051
+  source_phase: idea-to-imp
+  source_task: 'Pause et copie charter dans terminal autoloop autopilot.py'
+  source_idea_id: '20'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Pause et copie charter dans terminal autoloop autopilot.py'
+  human_anchor_desc: 'Python/HTML uniquement. NE PAS toucher au Rust. |         Dans page-chains, ajouter bouton Pause qui stoppe |         le refresh du terminal (clearInterval). |         Bouton Copier charter qui copie '
+  reasoning_roadmap: 'Modifier fichier autopilot.py : Ajouter bouton Pause qui stoppe le refresh du terminal en appelant clearInterval. | Modifier fichier autopilot.py : Ajouter bouton Copier charter qui copie le contenu actuel du charter dans le presse-papier. | Modifier fichier page-chains.html : Intégrer les nouveaux boutons Pause et Copier charter.'
+  reasoning_critique: '{ |   "risques": [ |     { |       "Risque": "Gestion des états asynchrones | Fichier: autopilot.py", |       "Description": "Implémenter correctement la gestion de l''état ''pause'' sans perdre le suivi des autres processus en cours peut être complexe. Il faut s''assurer que la reprise fonctionne parfaitement après une pause." |     }, |     { |       "Risque": "Intégration avec le terminal | Fic'
+  reasoning_fusion: '1. **Fichier autopilot.py : Ajouter gestion de pause et copier charter** |    - Étendre la fonctionnalité de `autopilot.py` pour inclure un mécanisme permettant d''arrêter le refresh du terminal via clearInterval lorsqu''un bouton Pause est activé. |    - Implémenter une fonction qui copie le contenu actuel du charter dans le presse-papier lorsque le bouton Copier charter est cliqué. |  | 2. **Fic'
+  imp:
+    title: 'Ajouter bouton Pause à page-chains.html'
+    type: feature
+    lane: SAFE_AUTO
+    impact: LOW
+    effort: SMALL
+    domain: studio
+    files: ["page-chains.html"]
+    acceptance: 'Un bouton Pause est ajouté et fonctionnel dans la page.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 20'
+- prop_id: PROP-052
+  source_phase: idea-to-imp
+  source_task: 'Pause et copie charter dans terminal autoloop autopilot.py'
+  source_idea_id: '20'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Pause et copie charter dans terminal autoloop autopilot.py'
+  human_anchor_desc: 'Python/HTML uniquement. NE PAS toucher au Rust. |         Dans page-chains, ajouter bouton Pause qui stoppe |         le refresh du terminal (clearInterval). |         Bouton Copier charter qui copie '
+  reasoning_roadmap: 'Modifier fichier autopilot.py : Ajouter bouton Pause qui stoppe le refresh du terminal en appelant clearInterval. | Modifier fichier autopilot.py : Ajouter bouton Copier charter qui copie le contenu actuel du charter dans le presse-papier. | Modifier fichier page-chains.html : Intégrer les nouveaux boutons Pause et Copier charter.'
+  reasoning_critique: '{ |   "risques": [ |     { |       "Risque": "Gestion des états asynchrones | Fichier: autopilot.py", |       "Description": "Implémenter correctement la gestion de l''état ''pause'' sans perdre le suivi des autres processus en cours peut être complexe. Il faut s''assurer que la reprise fonctionne parfaitement après une pause." |     }, |     { |       "Risque": "Intégration avec le terminal | Fic'
+  reasoning_fusion: '1. **Fichier autopilot.py : Ajouter gestion de pause et copier charter** |    - Étendre la fonctionnalité de `autopilot.py` pour inclure un mécanisme permettant d''arrêter le refresh du terminal via clearInterval lorsqu''un bouton Pause est activé. |    - Implémenter une fonction qui copie le contenu actuel du charter dans le presse-papier lorsque le bouton Copier charter est cliqué. |  | 2. **Fic'
+  imp:
+    title: 'Ajouter bouton Copier charter à page-chains.html'
+    type: feature
+    lane: SAFE_AUTO
+    impact: LOW
+    effort: SMALL
+    domain: studio
+    files: ["page-chains.html"]
+    acceptance: 'Un bouton Copier charter est ajouté et fonctionnel dans la page.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 20'
+- prop_id: PROP-053
+  source_phase: idea-to-imp
+  source_task: 'lane studio'
+  source_idea_id: '21'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'lane studio'
+  imp:
+    title: 'Ajouter studio_section dans _ceo_brief() autopilot.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: SMALL
+    domain: studio
+    files: ["autopilot.py"]
+    acceptance: 'CEO Brief affiche une 4eme lane Studio avec les IMPs domaine studio'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 21'
+- prop_id: PROP-054
+  source_phase: idea-to-imp
+  source_task: 'lane studio'
+  source_idea_id: '21'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'lane studio'
+  imp:
+    title: 'Ajouter studio dans AUTOLOOP_DOMAIN_MAP autopilot.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: SMALL
+    domain: studio
+    files: ["autopilot.py"]
+    acceptance: 'Lane Studio apparait dans page-chains et picke les IMPs domaine studio'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 21'
