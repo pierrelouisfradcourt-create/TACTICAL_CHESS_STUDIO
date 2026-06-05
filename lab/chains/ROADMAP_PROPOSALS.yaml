@@ -1001,3 +1001,135 @@ proposals:
     acceptance: 'Lane Studio apparait dans page-chains et picke les IMPs domaine studio'
     blocked_by: []
     notes: 'Pipeline idea-to-imp — idée 21'
+- prop_id: PROP-055
+  source_phase: idea-to-imp
+  source_task: 'File watcher reports — surveiller lab/chains/reports/ et auto-closer les IMPs'
+  source_idea_id: '22'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'File watcher reports — surveiller lab/chains/reports/ et auto-closer les IMPs'
+  human_anchor_desc: '+ Nouvelle idée : | Titre : File watcher reports — surveiller lab/chains/reports/ et auto-closer les IMPs | Desc  : Python uniquement. NE PAS toucher au Rust. |         Dans autopilot.py, lancer un th'
+  reasoning_roadmap: 'Modifier fichier autopilot.py : Ajouter un thread qui surveille le répertoire lab/chains/reports/ pour détecter de nouveaux fichiers. | Modifier fichier executor_report.py : Intégrer la logique permettant d''analyser les nouveaux rapports et déterminer si un IMP peut être clos automatiquement. | Modifier fichier autopilot.py : Ajouter la logique pour appeler close_imp() sur base des analyses effec'
+  reasoning_critique: '{ |   "risques": [ |     { |       "Risque": "Surveillance concurrentielle | Fichier: autopilot.py", |       "Description": "La surveillance du répertoire lab/chains/reports/ en parallèle de l''exécution principale peut entraîner des problèmes de synchronisation, surtout si plusieurs threads tentent d''interagir avec le même fichier simultanément." |     }, |     { |       "Risque": "Dépendance ex'
+  reasoning_fusion: '1. **Modifier le fichier `autopilot.py`** : Ajouter un thread dédié pour surveiller le répertoire `lab/chains/reports/`. Ce thread devra détecter la création de nouveaux fichiers et les analyser en appelant des fonctions existantes ou à créer dans `executor_report.py`. |  | 2. **Modifier le fichier `executor_report.py`** : Intégrer une fonction permettant d''analyser un nouveau rapport et de déter'
+  imp:
+    title: 'Ajouter thread watcher dans autopilot.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: MEDIUM
+    domain: studio
+    files: ["autopilot.py"]
+    acceptance: 'Un nouveau thread surveille lab/chains/reports/ et appelle analyse_report() pour chaque nouveau fichier.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 22'
+- prop_id: PROP-056
+  source_phase: idea-to-imp
+  source_task: 'File watcher reports — surveiller lab/chains/reports/ et auto-closer les IMPs'
+  source_idea_id: '22'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'File watcher reports — surveiller lab/chains/reports/ et auto-closer les IMPs'
+  human_anchor_desc: '+ Nouvelle idée : | Titre : File watcher reports — surveiller lab/chains/reports/ et auto-closer les IMPs | Desc  : Python uniquement. NE PAS toucher au Rust. |         Dans autopilot.py, lancer un th'
+  reasoning_roadmap: 'Modifier fichier autopilot.py : Ajouter un thread qui surveille le répertoire lab/chains/reports/ pour détecter de nouveaux fichiers. | Modifier fichier executor_report.py : Intégrer la logique permettant d''analyser les nouveaux rapports et déterminer si un IMP peut être clos automatiquement. | Modifier fichier autopilot.py : Ajouter la logique pour appeler close_imp() sur base des analyses effec'
+  reasoning_critique: '{ |   "risques": [ |     { |       "Risque": "Surveillance concurrentielle | Fichier: autopilot.py", |       "Description": "La surveillance du répertoire lab/chains/reports/ en parallèle de l''exécution principale peut entraîner des problèmes de synchronisation, surtout si plusieurs threads tentent d''interagir avec le même fichier simultanément." |     }, |     { |       "Risque": "Dépendance ex'
+  reasoning_fusion: '1. **Modifier le fichier `autopilot.py`** : Ajouter un thread dédié pour surveiller le répertoire `lab/chains/reports/`. Ce thread devra détecter la création de nouveaux fichiers et les analyser en appelant des fonctions existantes ou à créer dans `executor_report.py`. |  | 2. **Modifier le fichier `executor_report.py`** : Intégrer une fonction permettant d''analyser un nouveau rapport et de déter'
+  imp:
+    title: 'Ajouter analyse_report() dans executor_report.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: SMALL
+    domain: studio
+    files: ["executor_report.py"]
+    acceptance: 'analyse_report() retourne True si l''IMP peut être clos, False sinon.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 22'
+- prop_id: PROP-057
+  source_phase: idea-to-imp
+  source_task: 'File watcher reports — surveiller lab/chains/reports/ et auto-closer les IMPs'
+  source_idea_id: '22'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'File watcher reports — surveiller lab/chains/reports/ et auto-closer les IMPs'
+  human_anchor_desc: '+ Nouvelle idée : | Titre : File watcher reports — surveiller lab/chains/reports/ et auto-closer les IMPs | Desc  : Python uniquement. NE PAS toucher au Rust. |         Dans autopilot.py, lancer un th'
+  reasoning_roadmap: 'Modifier fichier autopilot.py : Ajouter un thread qui surveille le répertoire lab/chains/reports/ pour détecter de nouveaux fichiers. | Modifier fichier executor_report.py : Intégrer la logique permettant d''analyser les nouveaux rapports et déterminer si un IMP peut être clos automatiquement. | Modifier fichier autopilot.py : Ajouter la logique pour appeler close_imp() sur base des analyses effec'
+  reasoning_critique: '{ |   "risques": [ |     { |       "Risque": "Surveillance concurrentielle | Fichier: autopilot.py", |       "Description": "La surveillance du répertoire lab/chains/reports/ en parallèle de l''exécution principale peut entraîner des problèmes de synchronisation, surtout si plusieurs threads tentent d''interagir avec le même fichier simultanément." |     }, |     { |       "Risque": "Dépendance ex'
+  reasoning_fusion: '1. **Modifier le fichier `autopilot.py`** : Ajouter un thread dédié pour surveiller le répertoire `lab/chains/reports/`. Ce thread devra détecter la création de nouveaux fichiers et les analyser en appelant des fonctions existantes ou à créer dans `executor_report.py`. |  | 2. **Modifier le fichier `executor_report.py`** : Intégrer une fonction permettant d''analyser un nouveau rapport et de déter'
+  imp:
+    title: 'Intégrer logique close_imp() dans autopilot.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: MEDIUM
+    domain: studio
+    files: ["autopilot.py"]
+    acceptance: 'close_imp() est appelée si analyse_report() retourne True.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 22'
+- prop_id: PROP-058
+  source_phase: idea-to-imp
+  source_task: 'Hygiène automatique : doc → vérité → commit → push'
+  source_idea_id: '3'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Hygiène automatique : doc → vérité → commit → push'
+  human_anchor_desc: 'Étendre chain_hygiene.ps1 pour validation cohérence doc/code puis déclencher commit + push quand tout est vert.'
+  reasoning_roadmap: 'Modifier fichier chain_hygiene.ps1 : Ajouter vérification cohérence doc/code. | Modifier fichier git_commit.py : Implémenter logique commit quand tout est vert. | Modifier fichier git_push.py : Implémenter logique push après commit réussi.'
+  reasoning_critique: 'Risque: Complexité croissante des scripts PowerShell | Fichier: chain_hygiene.ps1   | Risque: Intégration difficile entre Python et Rust pour la vérification de cohérence | Fichier: git_commit.py   | Risque: Gestion délicate des commits multiples et des conflits lors du push | Fichier: git_push.py'
+  reasoning_fusion: '1. **Modifier le fichier `chain_hygiene.ps1`** : Ajouter une vérification de cohérence entre la documentation et le code. |    - Action : Implémenter des appels à des scripts Python pour analyser la cohérence doc/code via l''API ou des commandes shell. |  | 2. **Modifier le fichier `git_commit.py`** : Implémenter la logique de commit lorsque toutes les vérifications sont vertes. |    - Action : Aj'
+  imp:
+    title: 'Ajouter fn verify_doc_code_consistency dans chain_hygiene.ps1'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: MEDIUM
+    domain: studio
+    files: ["scripts/chain_hygiene.ps1"]
+    acceptance: 'La fonction verify_doc_code_consistency doit exécuter des scripts Python pour vérifier la cohérence entre doc et code.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 3'
+- prop_id: PROP-059
+  source_phase: idea-to-imp
+  source_task: 'Hygiène automatique : doc → vérité → commit → push'
+  source_idea_id: '3'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Hygiène automatique : doc → vérité → commit → push'
+  human_anchor_desc: 'Étendre chain_hygiene.ps1 pour validation cohérence doc/code puis déclencher commit + push quand tout est vert.'
+  reasoning_roadmap: 'Modifier fichier chain_hygiene.ps1 : Ajouter vérification cohérence doc/code. | Modifier fichier git_commit.py : Implémenter logique commit quand tout est vert. | Modifier fichier git_push.py : Implémenter logique push après commit réussi.'
+  reasoning_critique: 'Risque: Complexité croissante des scripts PowerShell | Fichier: chain_hygiene.ps1   | Risque: Intégration difficile entre Python et Rust pour la vérification de cohérence | Fichier: git_commit.py   | Risque: Gestion délicate des commits multiples et des conflits lors du push | Fichier: git_push.py'
+  reasoning_fusion: '1. **Modifier le fichier `chain_hygiene.ps1`** : Ajouter une vérification de cohérence entre la documentation et le code. |    - Action : Implémenter des appels à des scripts Python pour analyser la cohérence doc/code via l''API ou des commandes shell. |  | 2. **Modifier le fichier `git_commit.py`** : Implémenter la logique de commit lorsque toutes les vérifications sont vertes. |    - Action : Aj'
+  imp:
+    title: 'Ajouter condition de succès dans git_commit.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: SMALL
+    domain: studio
+    files: ["scripts/git_commit.py"]
+    acceptance: 'Le fichier git_commit.py doit vérifier que la fonction verify_doc_code_consistency a réussi avant d''exécuter un commit.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 3'
+- prop_id: PROP-060
+  source_phase: idea-to-imp
+  source_task: 'Hygiène automatique : doc → vérité → commit → push'
+  source_idea_id: '3'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Hygiène automatique : doc → vérité → commit → push'
+  human_anchor_desc: 'Étendre chain_hygiene.ps1 pour validation cohérence doc/code puis déclencher commit + push quand tout est vert.'
+  reasoning_roadmap: 'Modifier fichier chain_hygiene.ps1 : Ajouter vérification cohérence doc/code. | Modifier fichier git_commit.py : Implémenter logique commit quand tout est vert. | Modifier fichier git_push.py : Implémenter logique push après commit réussi.'
+  reasoning_critique: 'Risque: Complexité croissante des scripts PowerShell | Fichier: chain_hygiene.ps1   | Risque: Intégration difficile entre Python et Rust pour la vérification de cohérence | Fichier: git_commit.py   | Risque: Gestion délicate des commits multiples et des conflits lors du push | Fichier: git_push.py'
+  reasoning_fusion: '1. **Modifier le fichier `chain_hygiene.ps1`** : Ajouter une vérification de cohérence entre la documentation et le code. |    - Action : Implémenter des appels à des scripts Python pour analyser la cohérence doc/code via l''API ou des commandes shell. |  | 2. **Modifier le fichier `git_commit.py`** : Implémenter la logique de commit lorsque toutes les vérifications sont vertes. |    - Action : Aj'
+  imp:
+    title: 'Ajouter condition de succès dans git_push.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: SMALL
+    domain: studio
+    files: ["scripts/git_push.py"]
+    acceptance: 'Le fichier git_push.py doit vérifier que le dernier commit a été réussi avant de lancer la commande push.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 3'

@@ -20,6 +20,7 @@ import urllib.error
 from pathlib import Path
 from datetime import datetime
 import socketserver
+from executor_report import analyse_report
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────
 REPO     = Path(r"C:\TACTICAL_CHESS_STUDIO")
@@ -49,6 +50,34 @@ STATE_FILE     = REPO / "00_STUDIO_CONTROL/00_MASTER_DOCS/07_CURRENT_STATE.md"
 UX_RUNS_FILE   = REPO / "lab/datasets/ux_claude_runs.jsonl"
 STATE_UPDATER  = REPO / "state_updater.py"
 IDEAS_FILE     = REPO / "lab/chains/ideas.json"
+
+# IMP-094 : claim_verdict lu depuis CLAIM_MATRIX.md au démarrage
+_CLAIM_VERDICT = "NO_CLAIM_ALLOWED"
+try:
+    _cm = Path("CLAIM_MATRIX.md").read_text(encoding="utf-8")
+    _m_cv = re.search(r"claim_verdict:\s*(\S+)", _cm)
+    if _m_cv:
+        _CLAIM_VERDICT = _m_cv.group(1)
+except Exception:
+    pass
+print(f"[claim] verdict lu : {_CLAIM_VERDICT}", flush=True)
+
+# IMP-098 : tool_permission_matrix chargée au démarrage
+_TOOL_PERMISSION_MATRIX: dict = {}
+try:
+    _pm_path = REPO / "lab/agent_policy/tool_permission_matrix.json"
+    _TOOL_PERMISSION_MATRIX = json.loads(_pm_path.read_text(encoding="utf-8"))
+    print(f"[perm] tool_permission_matrix chargée — deny_by_default={_TOOL_PERMISSION_MATRIX.get('deny_by_default')}", flush=True)
+except Exception:
+    print("[perm] tool_permission_matrix introuvable — gate désactivé", flush=True)
+
+# Mapping chain_id → tool name dans la matrice
+_CHAIN_TOOL_MAP: dict = {
+    "audit":   "run_hygiene_check",
+    "metrics": "run_json_parse",
+    "smoke":   "run_benchmark",
+    "coach":   "run_gameplay_loop",
+}
 
 ledger_cache: dict = {}  # {"open": N, "closed": M, "next": {}, "ts": "..."}
 
@@ -573,6 +602,31 @@ def _parse_imp_from_ledger(imp_id: str) -> dict:
     return {}
 
 
+def _check_lane_guard(imp_id: str) -> tuple:
+    if not re.match(r'^IMP-\d+$', imp_id or ""):
+        return (True, None)
+    imp = _parse_imp_from_ledger(imp_id)
+    lane = imp.get("lane", "")
+    if lane in ("FORBIDDEN", "HUMAN_REQUIRED"):
+        print(f"[GUARD] {imp_id} bloqué (lane {lane})", flush=True)
+        return (False, f"Lane {lane} — exécution bloquée côté serveur")
+    return (True, None)
+
+
+def _check_tool_permission(chain_id: str) -> tuple:
+    if not _TOOL_PERMISSION_MATRIX:
+        return (True, None)
+    tool = _CHAIN_TOOL_MAP.get(chain_id or "")
+    if not tool:
+        return (True, None)
+    rules = _TOOL_PERMISSION_MATRIX.get("tool_rules", [])
+    for rule in rules:
+        if rule.get("tool") == tool and rule.get("effect") == "ALLOW":
+            return (True, None)
+    print(f"[PERM] chain={chain_id} tool={tool} DENY (aucun ALLOW dans tool_permission_matrix)", flush=True)
+    return (False, f"tool={tool} DENY dans tool_permission_matrix — exécution bloquée")
+
+
 def _build_minimal_charter_local(imp: dict) -> str:
     files = imp.get("files", [])
     files_str = "\n".join(f"  - {f}" for f in files) if files else "  (aucun fichier spécifié)"
@@ -593,7 +647,7 @@ def _build_minimal_charter_local(imp: dict) -> str:
         "",
         "- Aucun git write.",
         "- Tests obligatoires.",
-        "- claim_verdict: NO_CLAIM_ALLOWED",
+        f"- claim_verdict: {_CLAIM_VERDICT}",
         "",
         "## OBJECTIF",
         "",
@@ -613,7 +667,7 @@ def _build_minimal_charter_local(imp: dict) -> str:
         "",
         "software_verdict: OK",
         "evidence_verdict: MECHANICAL_VALIDATION_ONLY",
-        "claim_verdict: NO_CLAIM_ALLOWED",
+        f"claim_verdict: {_CLAIM_VERDICT}",
     ])
 
 
@@ -902,7 +956,7 @@ def _run_idea_pipeline(idea_id: str, idea_title: str, idea_content: str) -> None
             ']\n\n'
             f"Plan à décomposer :\n"
             f"{fusion}\n\n"
-            f"claim_verdict: NO_CLAIM_ALLOWED",
+            f"claim_verdict: {_CLAIM_VERDICT}",
             max_tokens=900,
         )
         nh, nh_reason = _check_needs_human(extract_raw)
@@ -992,6 +1046,73 @@ def close_imp(imp_id: str) -> dict:
     except Exception as e:
         result["error"] = str(e)
     run_state_updater_async()
+    return result
+
+
+_watcher_active: bool = False
+_watcher_last_check: float = 0.0
+_watcher_last_processed: str | None = None
+
+
+def _report_watcher_thread() -> None:
+    """Thread daemon : surveille lab/chains/reports/ toutes les 5 s."""
+    global _watcher_active, _watcher_last_check, _watcher_last_processed
+    reports_dir = REPO / "lab/chains/reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    _watcher_active = True
+    while True:
+        _watcher_last_check = time.time()
+        try:
+            for p in sorted(reports_dir.glob("IMP-*_report.md")):
+                result = _auto_close_from_report(str(p))
+                if result.get("ok"):
+                    _watcher_last_processed = result.get("imp_id")
+        except Exception as exc:
+            print(f"[WATCHER] erreur iteration : {exc}", flush=True)
+        time.sleep(5)
+
+
+def _auto_close_from_report(report_path: str) -> dict:
+    """Ferme automatiquement un IMP quand un rapport valide est détecté.
+
+    Attend un fichier nommé IMP-XXX_report.md dans lab/chains/reports/.
+    Déplace le rapport vers lab/chains/reports/processed/ après traitement.
+    """
+    result: dict = {"ok": False, "imp_id": "", "error": ""}
+    path = Path(report_path)
+    m = re.match(r"(IMP-\d+)_report\.md$", path.name, re.IGNORECASE)
+    if not m:
+        result["error"] = f"nom de fichier non reconnu : {path.name}"
+        return result
+    imp_id = m.group(1).upper()
+    result["imp_id"] = imp_id
+    if not path.exists():
+        result["error"] = f"rapport introuvable : {report_path}"
+        return result
+    # Parser le fichier en dict avant d appeler analyse_report
+    report_dict = {}
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
+        if ":" in line:
+            k, _, v = line.partition(":")
+            report_dict[k.strip()] = v.strip()
+    if not analyse_report(report_dict):
+        result["error"] = f"{imp_id} : rapport invalide (verdicts manquants ou incorrects)"
+        return result
+    close_result = close_imp(imp_id)
+    if not close_result.get("ok"):
+        result["error"] = close_result.get("error", "close_imp a échoué")
+        return result
+    print(f"[AUTO-CLOSE] {imp_id} fermé depuis rapport")
+    processed_dir = REPO / "lab/chains/reports/processed"
+    processed_dir.mkdir(parents=True, exist_ok=True)
+    dest = processed_dir / path.name
+    try:
+        path.rename(dest)
+    except Exception as e:
+        result["error"] = f"déplacement échoué : {e}"
+        return result
+    result["ok"] = True
+    result["processed_path"] = str(dest)
     return result
 
 
@@ -1349,7 +1470,7 @@ def imp_triage() -> dict:
         except Exception:
             pass
     total = sum(len(v) for v in domains.values())
-    return {"domains": domains, "total_open": total, "claim_verdict": "NO_CLAIM_ALLOWED"}
+    return {"domains": domains, "total_open": total, "claim_verdict": _CLAIM_VERDICT}
 
 
 # ── MEMORY DATA — lit les fichiers sources réels ──────────────────────────────
@@ -1660,6 +1781,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;
 .tb-lm.online{border-color:var(--green);color:var(--green)}
 .tb-lm.offline{border-color:var(--red);color:var(--red)}
 .tb-time{font-size:11px;color:var(--text3)}
+.tb-hg-badge{display:none;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--red);background:var(--red-bg);border:1px solid var(--red);padding:3px 9px;border-radius:4px;animation:pulse 2s infinite}
 
 /* PAGES */
 .page{display:none}.page.active{display:block}
@@ -1974,6 +2096,7 @@ tr:hover td{background:var(--bg3)}
     <div class="tb-sep"></div>
     <div class="tb-stat">Tokens <span class="val" id="tb-tokens">0</span></div>
     <div class="tb-right">
+      <div class="tb-hg-badge" id="tb-hg-badge" onclick="nav('sos')" style="cursor:pointer">⚠ HumanGate</div>
       <div class="tb-lm offline" id="lm-indicator">
         <span id="lm-dot">○</span>
         <span id="lm-text">LM Studio</span>
@@ -3101,7 +3224,19 @@ async function checkLM() {
     if (tokEl && d.tokens_session != null) tokEl.textContent = d.tokens_session.toLocaleString('fr-FR');
   } catch(e) {}
 }
-setInterval(checkLM, 15000); checkLM(); // poll toutes les 15s — Devstral génère à 8 t/s
+setInterval(checkLM, 15000); checkLM();
+
+// ── ESCALATION STATUS (HumanGate badge topbar) ────────────────────────────
+async function checkEscalation() {
+  try {
+    const d = await fetch('/api/escalation-status').then(r => r.json());
+    const badge = document.getElementById('tb-hg-badge');
+    if (!badge) return;
+    badge.style.display = d.pending ? 'flex' : 'none';
+    badge.title = d.reason || '';
+  } catch(e) {}
+}
+setInterval(checkEscalation, 10000); checkEscalation();
 
 // ── AUTO-MODE TOGGLE ──────────────────────────────────────────────────────
 function toggleClaudeMode() {}
@@ -5073,6 +5208,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/health":
             self.send_json(get_health())
 
+        elif path == "/api/watcher-status":
+            self.send_json({
+                "active": _watcher_active,
+                "last_check": _watcher_last_check,
+                "last_processed": _watcher_last_processed,
+            })
+
         elif path == "/api/staleness":
             self.send_json(get_staleness())
 
@@ -5084,6 +5226,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         elif path == "/api/session-context":
             self.send_json(get_session_context())
+
+        elif path == "/api/escalation-status":
+            p = Path(__file__).parent / "studio_state.json"
+            try:
+                st = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+                pending = bool(st.get("humangate_pending", False))
+                reason  = "IMPs HUMAN_REQUIRED ou FORBIDDEN en attente" if pending else ""
+                self.send_json({"pending": pending, "reason": reason})
+            except Exception as e:
+                self.send_json({"pending": False, "reason": str(e)})
 
         elif path == "/api/studio-state":
             p = Path(__file__).parent / "studio_state.json"
@@ -5171,7 +5323,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 },
                 "lm_studio_ok":   s.get("ok", False),
                 "models_loaded":  s.get("models", []),
-                "claim_verdict":  "NO_CLAIM_ALLOWED",
+                "claim_verdict":  _CLAIM_VERDICT,
             })
 
         elif path == "/api/config":
@@ -5219,6 +5371,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path == "/api/run-chain":
             cmd  = body.get("cmd", "")
             cid  = body.get("id", "")
+            ok, reason = _check_lane_guard(cid)
+            if not ok:
+                self.send_json({"ok": False, "error": reason}, 403)
+                return
+            ok, reason = _check_tool_permission(cid)  # IMP-098
+            if not ok:
+                self.send_json({"ok": False, "error": reason}, 403)
+                return
             result = run_chain(cmd, cwd=str(CHAINS_DIR))
             self.send_json(result)
 
@@ -5245,7 +5405,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "synthese":      entry.get("content", "")[:200],
                     "type":          entry.get("type", "fusion"),
                     "tags":          entry.get("tags", []),
-                    "claim_verdict": "NO_CLAIM_ALLOWED",
+                    "claim_verdict": _CLAIM_VERDICT,
                 }
                 with open(fusion_log_path, "a", encoding="utf-8") as fh:
                     fh.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
@@ -5330,9 +5490,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         f"IMPs OPEN : {open_imps_str}\n"
                         f"Draw rate : {metrics.get('draw_rate','?')} — ELO neural : {metrics.get('elo_neural','?')}\n\n"
                         "3 insights clés + prochaine action prioritaire.\n"
-                        "claim_verdict: NO_CLAIM_ALLOWED"
+                        f"claim_verdict: {_CLAIM_VERDICT}"
                     )
-                    sys_ = "Tu es FusionAuditor du Tactical Chess Studio. Sois concis. claim_verdict: NO_CLAIM_ALLOWED"
+                    sys_ = f"Tu es FusionAuditor du Tactical Chess Studio. Sois concis. claim_verdict: {_CLAIM_VERDICT}"
                 else:
                     ctx_json = json.dumps(
                         {"open_imps": ctx["open_imps"], "metrics": ctx["metrics"], "chain_history": ctx["chain_history"]},
@@ -5346,9 +5506,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         "3. ROI_CASCADE : ROI effectif par IMP OPEN\n"
                         "4. REDTEAM : angles morts, biais, risques cachés\n"
                         "Pour chaque : synthèse + findings + contradictions.\n"
-                        "claim_verdict: NO_CLAIM_ALLOWED"
+                        f"claim_verdict: {_CLAIM_VERDICT}"
                     )
-                    sys_ = "Tu es FusionAuditor du Tactical Chess Studio. claim_verdict: NO_CLAIM_ALLOWED"
+                    sys_ = f"Tu es FusionAuditor du Tactical Chess Studio. claim_verdict: {_CLAIM_VERDICT}"
                 raw = lm_call(prompt, system=sys_, max_tokens=max_tokens)
                 # Parse structured JSON if Devstral returns one
                 parsed: dict = {}
@@ -5370,7 +5530,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                             "backend":       "devstral",
                             "nb_fusions":    nb_fusions,
                             "synthese":      synthese[:200],
-                            "claim_verdict": "NO_CLAIM_ALLOWED",
+                            "claim_verdict": _CLAIM_VERDICT,
                         }
                         fusion_log_path = REPO / "lab/chains/FUSION_LOG.jsonl"
                         with open(fusion_log_path, "a", encoding="utf-8") as fh:
@@ -5382,7 +5542,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.send_json({
                     "backend": "devstral", "mode": mode,
                     "result": result_ds, "fusion_log_appended": fusion_log_appended,
-                    "claim_verdict": "NO_CLAIM_ALLOWED",
+                    "claim_verdict": _CLAIM_VERDICT,
                 })
 
         elif path == "/api/config":
@@ -5601,13 +5761,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 '    "ia_apprentissage":    { "next_action": "IMP-XXX — titre ou tâche", "lane": "SAFE_AUTO", "risk": "texte", "recommendation": "texte" },\n'
                 '    "decisions_pendantes": { "next_action": "titre décision", "lane": "AUDIT_REQUIRED", "blocker": "texte ou null", "recommendation": "texte" }\n'
                 '  },\n'
-                '  "claim_verdict": "NO_CLAIM_ALLOWED"\n'
+                f'  "claim_verdict": "{_CLAIM_VERDICT}"\n'
                 "}\n"
             )
             system = (
                 "Tu es le CEO IA du Tactical Chess Studio. "
                 "Tu analyses l'état du studio sur 3 lanes simultanées et retournes uniquement un JSON structuré. "
-                "claim_verdict: NO_CLAIM_ALLOWED"
+                f"claim_verdict: {_CLAIM_VERDICT}"
             )
             raw = lm_call(prompt, system=system, max_tokens=800, model=LM_MODEL)
             parsed_v2: dict = {}
@@ -5624,7 +5784,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "brief": parsed_v2,
                 "sprint_objective": sprint_objective,
                 "model_used": LM_MODEL,
-                "claim_verdict": "NO_CLAIM_ALLOWED"
+                "claim_verdict": _CLAIM_VERDICT
             })
 
         else:
@@ -5666,6 +5826,10 @@ Ctrl+C pour arrêter.
 """)
     # P3 : auto-recall au démarrage (non-bloquant)
     threading.Thread(target=_ledger_refresh_worker, daemon=True).start()
+
+    # IMP-104 : watchdog rapports auto-close
+    (REPO / "lab/chains/reports").mkdir(parents=True, exist_ok=True)
+    threading.Thread(target=_report_watcher_thread, daemon=True).start()
 
     # Ouvre le navigateur après 1 seconde
     def open_browser():

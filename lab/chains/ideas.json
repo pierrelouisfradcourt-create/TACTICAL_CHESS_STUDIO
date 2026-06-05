@@ -2,6 +2,17 @@
   {
     "chain": "studio",
     "status": "applied",
+    "title": "File watcher reports — surveiller lab/chains/reports/ et auto-closer les IMPs",
+    "roi": "high",
+    "lane": "safe",
+    "desc": "+ Nouvelle idée :\nTitre : File watcher reports — surveiller lab/chains/reports/ et auto-closer les IMPs\nDesc  : Python uniquement. NE PAS toucher au Rust.\n        Dans autopilot.py, lancer un thread watchdog sur lab/chains/reports/.\n        Quand un fichier IMP-XXX_report.md apparait :\n        1. Valider : software_verdict: OK + claim_verdict present\n        2. Si OK → close_imp(imp_id) + golden_collector + state_updater\n        3. Logger : [WATCHER] IMP-XXX auto-fermé depuis rapport\n        4. Supprimer le fichier rapport apres traitement\n        Endpoint GET /api/watcher-status → retourne {active, last_processed}.\n        Critere : Claude Code ecrit un rapport → studio le ferme seul.",
+    "issue": "",
+    "id": 22,
+    "ts": "2026-06-05T23:47:36.093300"
+  },
+  {
+    "chain": "studio",
+    "status": "applied",
     "title": "lane studio",
     "roi": "high",
     "lane": "safe",
@@ -111,7 +122,7 @@
   {
     "id": 3,
     "chain": "studio",
-    "status": "backlog",
+    "status": "pipeline_done",
     "title": "Hygiène automatique : doc → vérité → commit → push",
     "roi": "high",
     "lane": "human",
