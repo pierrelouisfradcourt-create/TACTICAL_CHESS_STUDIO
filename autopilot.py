@@ -54,7 +54,7 @@ IDEAS_FILE     = REPO / "lab/chains/ideas.json"
 # IMP-094 : claim_verdict lu depuis CLAIM_MATRIX.md au démarrage
 _CLAIM_VERDICT = "NO_CLAIM_ALLOWED"
 try:
-    _cm = Path("CLAIM_MATRIX.md").read_text(encoding="utf-8")
+    _cm = (REPO / "00_STUDIO_CONTROL/01_SYSTEM/boundaries/CLAIM_MATRIX.md").read_text(encoding="utf-8")
     _m_cv = re.search(r"claim_verdict:\s*(\S+)", _cm)
     if _m_cv:
         _CLAIM_VERDICT = _m_cv.group(1)
@@ -675,7 +675,7 @@ def verify_tool_permission_matrix(chain_id: str) -> bool:
 
 def _check_smoke_level(lane: str) -> tuple:
     """Pre-check smoke level avant autoloop. Lit AUTOMATION_SMOKE_MATRIX.md si présent."""
-    smoke_matrix = REPO / "AUTOMATION_SMOKE_MATRIX.md"
+    smoke_matrix = REPO / "00_STUDIO_CONTROL/00_MASTER_DOCS/AUTOMATION_SMOKE_MATRIX.md"
     if not smoke_matrix.exists():
         print("[SMOKE] matrix absente — gate désactivé", flush=True)
         return (True, "")
@@ -2445,9 +2445,11 @@ tr:hover td{background:var(--bg3)}
     <div id="page-chains" class="page">
       <div class="divider">Boucle Kaizen</div>
       <div class="card" style="padding:12px 14px" id="autoloop-card">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
           <span style="font-size:10px;color:var(--text3)">dry_run=true · HumanGate requis pour exécution réelle</span>
-          <button class="btn btn-sm" style="margin-left:auto" onclick="autoloopStopAll()">■ Stop tout</button>
+          <button class="btn btn-sm" id="btn-pause-autoloop" onclick="toggleAutoloopPause()" style="margin-left:auto" title="Pause le refresh des terminaux">&#9646;&#9646; Pause</button>
+          <button class="btn btn-sm" onclick="copierCharter()" title="Copie le dernier charter généré dans le presse-papier">&#128203; Copier charter</button>
+          <button class="btn btn-sm" onclick="autoloopStopAll()">&#9632; Stop tout</button>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
           <div class="lane-card">
@@ -4834,15 +4836,50 @@ async function refreshAutoloopStatus() {
   } catch(e) {}
 }
 
+let _autoloop_paused = false;
+let _al_poll_iv = null;
+
 function _pollAutoloop() {
-  const iv = setInterval(async () => {
+  _al_poll_iv = setInterval(async () => {
+    if (_autoloop_paused) return;
     await refreshAutoloopStatus();
     try {
       const d = await fetch('/api/autoloop-status').then(r => r.json());
       const anyRunning = AUTOLOOP_LANES.some(l => d[l] && d[l].state === 'running');
-      if (!anyRunning) clearInterval(iv);
-    } catch(e) { clearInterval(iv); }
+      if (!anyRunning) { clearInterval(_al_poll_iv); _al_poll_iv = null; }
+    } catch(e) { clearInterval(_al_poll_iv); _al_poll_iv = null; }
   }, 3000);
+}
+
+function toggleAutoloopPause() {
+  _autoloop_paused = !_autoloop_paused;
+  const btn = document.getElementById('btn-pause-autoloop');
+  if (!btn) return;
+  if (_autoloop_paused) {
+    btn.textContent = '▶ Reprendre';
+    btn.classList.add('btn-amber');
+  } else {
+    btn.innerHTML = '&#9646;&#9646; Pause';
+    btn.classList.remove('btn-amber');
+    refreshAutoloopStatus();
+  }
+}
+
+function copierCharter() {
+  const charter = document.getElementById('wf-charter-out');
+  const text = charter ? charter.value.trim() : '';
+  if (!text || text.startsWith('✟') || text.startsWith('⟳')) {
+    alert('Aucun charter disponible — génère-en un dans l\'onglet Workflow.');
+    return;
+  }
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('#autoloop-card button[onclick="copierCharter()"]');
+    if (btn) {
+      const orig = btn.innerHTML;
+      btn.textContent = '✓ Copié';
+      setTimeout(() => { btn.innerHTML = orig; }, 2000);
+    }
+  }).catch(() => alert('Clipboard non disponible (HTTPS requis).'));
 }
 
 refreshAutoloopStatus();

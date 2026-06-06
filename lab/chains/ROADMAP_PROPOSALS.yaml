@@ -1262,3 +1262,207 @@ proposals:
     acceptance: 'La fonction update_report() inclut une section dédiée à l''analyse et la priorisation du backlog.'
     blocked_by: []
     notes: 'Pipeline idea-to-imp — idée manual'
+- prop_id: PROP-067
+  source_phase: idea-to-imp
+  source_task: 'clarifier onglet chaines'
+  source_idea_id: '16'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'clarifier onglet chaines'
+  imp:
+    title: 'Ajouter endpoint /api/lane-stats dans autopilot.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: SMALL
+    domain: studio
+    files: ["autopilot.py"]
+    acceptance: 'GET /api/lane-stats retourne pour chaque lane : modele LM utilise, nb_runs_today, last_run timestamp'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 16'
+- prop_id: PROP-068
+  source_phase: idea-to-imp
+  source_task: 'clarifier onglet chaines'
+  source_idea_id: '16'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'clarifier onglet chaines'
+  imp:
+    title: 'Afficher stats lane dans page-chains HTML inline autopilot.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: SMALL
+    domain: studio
+    files: ["autopilot.py"]
+    acceptance: 'Chaque lane card affiche badge modele (Qwen2.5-14B), nb runs aujourd hui, dernier run. Poll /api/lane-stats toutes les 10s'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 16'
+- prop_id: PROP-069
+  source_phase: idea-to-imp
+  source_task: 'fusion idée roadmap'
+  source_idea_id: '14'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'fusion idée roadmap'
+  imp:
+    title: 'Supprimer onglet Idee-Roadmap de la sidebar dans autopilot.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: SMALL
+    domain: studio
+    files: ["autopilot.py"]
+    acceptance: 'Le lien Idee-Roadmap disparait de la sidebar. Aucune reference morte dans le HTML.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 14'
+- prop_id: PROP-070
+  source_phase: idea-to-imp
+  source_task: 'fusion idée roadmap'
+  source_idea_id: '14'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'fusion idée roadmap'
+  imp:
+    title: 'Integrer bouton Generer Roadmap dans page-ideas dans autopilot.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: SMALL
+    domain: studio
+    files: ["autopilot.py"]
+    acceptance: 'Un bouton Generer Roadmap apparait dans la page Ideas et appelle generateRoadmap(). La page Idee-Roadmap separee est supprimee.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 14'
+- prop_id: PROP-071
+  source_phase: idea-to-imp
+  source_task: 'corriger bouton action rapide'
+  source_idea_id: '17'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'corriger bouton action rapide'
+  human_anchor_desc: '"Corriger boutons action rapide — diagnostiquer et réparer les boutons sans effet" |    Desc : Auditer tous les boutons de page-pilote et page-studio-os. |    Pour chaque bouton : vérifier que le oncl'
+  reasoning_roadmap: 'Modifier fichier autopilot.py : Auditer tous les boutons de page-pilote et page-studio-os. |  | Modifier fichier executor_report.py : Vérifier que le onclick est correctement implémenté pour chaque bouton identifié comme ayant un problème. |  | Modifier fichier golden_collector.py : Ajouter la réparation des boutons sans effet dans le rapport final et collecter les modifications nécessaires.'
+  reasoning_critique: 'Risque: Complexité de l''audit | Fichier: autopilot.py   | Risque: Dépendances entre boutons et fonctionnalités existantes | Fichier: executor_report.py   | Risque: Intégration des modifications dans le pipeline Rust/Python | Fichier: golden_collector.py'
+  reasoning_fusion: '1. **Fichier: autopilot.py** |    - Action: Auditer tous les boutons de la page-pilote et de la page-studio-os pour identifier ceux qui ont un problème d''action rapide. |     | 2. **Fichier: executor_report.py** |    - Action: Vérifier que l''implémentation du `onclick` est correctement mise en œuvre pour chaque bouton identifié comme ayant un problème, et documenter les corrections nécessaires d'
+  imp:
+    title: 'Identifier boutons avec problème d''action rapide dans autopilot.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: MEDIUM
+    effort: SMALL
+    domain: studio
+    files: ["autopilot.py"]
+    acceptance: 'Liste des boutons avec problèmes d''action rapide documentés'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 17'
+- prop_id: PROP-072
+  source_phase: idea-to-imp
+  source_task: 'corriger bouton action rapide'
+  source_idea_id: '17'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'corriger bouton action rapide'
+  human_anchor_desc: '"Corriger boutons action rapide — diagnostiquer et réparer les boutons sans effet" |    Desc : Auditer tous les boutons de page-pilote et page-studio-os. |    Pour chaque bouton : vérifier que le oncl'
+  reasoning_roadmap: 'Modifier fichier autopilot.py : Auditer tous les boutons de page-pilote et page-studio-os. |  | Modifier fichier executor_report.py : Vérifier que le onclick est correctement implémenté pour chaque bouton identifié comme ayant un problème. |  | Modifier fichier golden_collector.py : Ajouter la réparation des boutons sans effet dans le rapport final et collecter les modifications nécessaires.'
+  reasoning_critique: 'Risque: Complexité de l''audit | Fichier: autopilot.py   | Risque: Dépendances entre boutons et fonctionnalités existantes | Fichier: executor_report.py   | Risque: Intégration des modifications dans le pipeline Rust/Python | Fichier: golden_collector.py'
+  reasoning_fusion: '1. **Fichier: autopilot.py** |    - Action: Auditer tous les boutons de la page-pilote et de la page-studio-os pour identifier ceux qui ont un problème d''action rapide. |     | 2. **Fichier: executor_report.py** |    - Action: Vérifier que l''implémentation du `onclick` est correctement mise en œuvre pour chaque bouton identifié comme ayant un problème, et documenter les corrections nécessaires d'
+  imp:
+    title: 'Corriger onclick implémentation pour boutons problématiques dans executor_report.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: LOW
+    effort: SMALL
+    domain: studio
+    files: ["executor_report.py"]
+    acceptance: 'Rapport final documentant corrections nécessaires pour boutons problématiques'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 17'
+- prop_id: PROP-073
+  source_phase: idea-to-imp
+  source_task: 'corriger bouton action rapide'
+  source_idea_id: '17'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'corriger bouton action rapide'
+  human_anchor_desc: '"Corriger boutons action rapide — diagnostiquer et réparer les boutons sans effet" |    Desc : Auditer tous les boutons de page-pilote et page-studio-os. |    Pour chaque bouton : vérifier que le oncl'
+  reasoning_roadmap: 'Modifier fichier autopilot.py : Auditer tous les boutons de page-pilote et page-studio-os. |  | Modifier fichier executor_report.py : Vérifier que le onclick est correctement implémenté pour chaque bouton identifié comme ayant un problème. |  | Modifier fichier golden_collector.py : Ajouter la réparation des boutons sans effet dans le rapport final et collecter les modifications nécessaires.'
+  reasoning_critique: 'Risque: Complexité de l''audit | Fichier: autopilot.py   | Risque: Dépendances entre boutons et fonctionnalités existantes | Fichier: executor_report.py   | Risque: Intégration des modifications dans le pipeline Rust/Python | Fichier: golden_collector.py'
+  reasoning_fusion: '1. **Fichier: autopilot.py** |    - Action: Auditer tous les boutons de la page-pilote et de la page-studio-os pour identifier ceux qui ont un problème d''action rapide. |     | 2. **Fichier: executor_report.py** |    - Action: Vérifier que l''implémentation du `onclick` est correctement mise en œuvre pour chaque bouton identifié comme ayant un problème, et documenter les corrections nécessaires d'
+  imp:
+    title: 'Ajouter réparation des boutons sans effet dans rapport final de golden_collector.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: LOW
+    effort: SMALL
+    domain: studio
+    files: ["golden_collector.py"]
+    acceptance: 'Rapport final contenant réparations des boutons sans effet documentées'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 17'
+- prop_id: PROP-074
+  source_phase: idea-to-imp
+  source_task: 'bouton changer de statut dans idée ne fonctionne pas'
+  source_idea_id: '24'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'bouton changer de statut dans idée ne fonctionne pas'
+  human_anchor_desc: 'réparer le bouton changer de statut dans l onglet idée'
+  reasoning_roadmap: 'Modifier fichier autopilot.py : ajouter gestion du changement de statut des idées. |  | Modifier fichier executor_report.py : assurer que les rapports d''exécution incluent le nouveau statut. |  | Modifier fichier ui_ideas.py : réparer l''interface utilisateur pour permettre le changement de statut.'
+  reasoning_critique: '{ |   "risques": [ |     { |       "Risque": "Complexité de la synchronisation des statuts | Fichier: autopilot.py", |       "Description": "Assurer que le changement de statut dans l''UI est correctement synchronisé avec l''état interne du système peut être complexe, surtout si plusieurs threads ou processus tentent de modifier cet état simultanément." |     }, |     { |       "Risque": "Dépendan'
+  reasoning_fusion: '1. **Modifier fichier autopilot.py** : Ajouter la gestion du changement de statut des idées en assurant que le système reste cohérent et évite les conflits d''accès concurrentiel. |  | 2. **Modifier fichier executor_report.py** : Mettre à jour ce fichier pour s''assurer que les rapports d''exécution incluent correctement le nouveau statut de l''idée, en tenant compte des dépendances potentielles a'
+  imp:
+    title: 'Ajouter gestion statut dans autopilot.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: MEDIUM
+    domain: studio
+    files: ["autopilot/autopilot.py"]
+    acceptance: 'Le bouton de changement de statut des idées fonctionne correctement et le système reste cohérent.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 24'
+- prop_id: PROP-075
+  source_phase: idea-to-imp
+  source_task: 'bouton changer de statut dans idée ne fonctionne pas'
+  source_idea_id: '24'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'bouton changer de statut dans idée ne fonctionne pas'
+  human_anchor_desc: 'réparer le bouton changer de statut dans l onglet idée'
+  reasoning_roadmap: 'Modifier fichier autopilot.py : ajouter gestion du changement de statut des idées. |  | Modifier fichier executor_report.py : assurer que les rapports d''exécution incluent le nouveau statut. |  | Modifier fichier ui_ideas.py : réparer l''interface utilisateur pour permettre le changement de statut.'
+  reasoning_critique: '{ |   "risques": [ |     { |       "Risque": "Complexité de la synchronisation des statuts | Fichier: autopilot.py", |       "Description": "Assurer que le changement de statut dans l''UI est correctement synchronisé avec l''état interne du système peut être complexe, surtout si plusieurs threads ou processus tentent de modifier cet état simultanément." |     }, |     { |       "Risque": "Dépendan'
+  reasoning_fusion: '1. **Modifier fichier autopilot.py** : Ajouter la gestion du changement de statut des idées en assurant que le système reste cohérent et évite les conflits d''accès concurrentiel. |  | 2. **Modifier fichier executor_report.py** : Mettre à jour ce fichier pour s''assurer que les rapports d''exécution incluent correctement le nouveau statut de l''idée, en tenant compte des dépendances potentielles a'
+  imp:
+    title: 'Mettre à jour rapport exécution dans executor_report.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: SMALL
+    domain: studio
+    files: ["executor/golden_collector/executor_report.py"]
+    acceptance: 'Les rapports d''exécution incluent correctement le nouveau statut de l''idée.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 24'
+- prop_id: PROP-076
+  source_phase: idea-to-imp
+  source_task: 'bouton changer de statut dans idée ne fonctionne pas'
+  source_idea_id: '24'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'bouton changer de statut dans idée ne fonctionne pas'
+  human_anchor_desc: 'réparer le bouton changer de statut dans l onglet idée'
+  reasoning_roadmap: 'Modifier fichier autopilot.py : ajouter gestion du changement de statut des idées. |  | Modifier fichier executor_report.py : assurer que les rapports d''exécution incluent le nouveau statut. |  | Modifier fichier ui_ideas.py : réparer l''interface utilisateur pour permettre le changement de statut.'
+  reasoning_critique: '{ |   "risques": [ |     { |       "Risque": "Complexité de la synchronisation des statuts | Fichier: autopilot.py", |       "Description": "Assurer que le changement de statut dans l''UI est correctement synchronisé avec l''état interne du système peut être complexe, surtout si plusieurs threads ou processus tentent de modifier cet état simultanément." |     }, |     { |       "Risque": "Dépendan'
+  reasoning_fusion: '1. **Modifier fichier autopilot.py** : Ajouter la gestion du changement de statut des idées en assurant que le système reste cohérent et évite les conflits d''accès concurrentiel. |  | 2. **Modifier fichier executor_report.py** : Mettre à jour ce fichier pour s''assurer que les rapports d''exécution incluent correctement le nouveau statut de l''idée, en tenant compte des dépendances potentielles a'
+  imp:
+    title: 'Réparer interface utilisateur dans ui_ideas.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: MEDIUM
+    domain: studio
+    files: ["ui/ui_ideas.py"]
+    acceptance: 'L''interface utilisateur permet efficacement le changement de statut des idées sans bugs.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 24'
