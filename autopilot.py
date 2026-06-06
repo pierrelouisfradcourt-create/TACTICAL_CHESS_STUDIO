@@ -107,6 +107,8 @@ _autoloop_statuses: dict = {
 }
 _autoloop_lock = threading.Lock()
 _autoloop_logs: dict = {lane: [] for lane in AUTOLOOP_LANES}  # max 100 lignes/lane
+_lane_today_date: str = datetime.now().strftime("%Y-%m-%d")
+_lane_today_runs: dict = {lane: 0 for lane in AUTOLOOP_LANES}
 
 # ── IDEA PIPELINE STATE ──────────────────────────────────────────────────────
 _idea_pipeline_state: dict = {
@@ -705,6 +707,28 @@ def _check_smoke_level(lane: str) -> tuple:
             print(f"[SMOKE] AUDIT_REQUIRED — erreur: {e}", flush=True)
             return (False, f"cargo check erreur: {e}")
     return (True, "")
+
+
+def get_lane_stats() -> dict:
+    """Retourne modèle LLM, nb_runs_today et last_run_timestamp pour chaque lane active."""
+    global _lane_today_date, _lane_today_runs
+    today = datetime.now().strftime("%Y-%m-%d")
+    if today != _lane_today_date:
+        _lane_today_date = today
+        _lane_today_runs = {lane: 0 for lane in AUTOLOOP_LANES}
+    result = {}
+    for lane in AUTOLOOP_LANES:
+        st = _autoloop_statuses[lane]
+        ledger_lane = st.get("ledger_lane", AUTOLOOP_LANE_MAP.get(lane, "SAFE_AUTO"))
+        model = LM_MODEL_CEO if ledger_lane == "HUMAN_REQUIRED" else LM_MODEL
+        result[lane] = {
+            "model":               model,
+            "nb_runs_today":       _lane_today_runs.get(lane, 0),
+            "last_run_timestamp":  st.get("started_at"),
+            "state":               st.get("state", "idle"),
+            "ledger_lane":         ledger_lane,
+        }
+    return result
 
 
 def _build_minimal_charter_local(imp: dict) -> str:
@@ -2243,7 +2267,6 @@ tr:hover td{background:var(--bg3)}
   <div class="sb-section">Studio</div>
   <div class="sb-item" onclick="nav('memory')"><span class="ico">◈</span> Mémoire</div>
   <div class="sb-item" onclick="nav('ideas')"><span class="ico">◎</span> Idées <span class="sb-badge badge-amber" id="badge-ideas">12</span></div>
-  <div class="sb-item" onclick="nav('roadmap')"><span class="ico">↗</span> Idée → Roadmap</div>
   <div class="sb-item" onclick="nav('map')"><span class="ico">◉</span> Chain Map</div>
   <div class="sb-item" onclick="nav('roadmap-domaine')"><span class="ico">🗂</span> Roadmap domaines</div>
 
@@ -2586,64 +2609,37 @@ tr:hover td{background:var(--bg3)}
         <button class="filter-btn" onclick="filterIdeas('backlog')">Backlog</button>
         <button class="filter-btn" onclick="filterIdeas('wip')">En cours</button>
       </div>
+      <details style="margin-bottom:14px">
+        <summary style="cursor:pointer;font-size:12px;color:var(--text2);padding:8px 0;user-select:none">⚡ Générer Roadmap — développer une idée via LM Studio</summary>
+        <div class="card" style="margin-top:8px">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Titre de l'idée</label>
+              <input type="text" id="rm-title" placeholder="ex: Chaîne Red Team + Fusion pour les 3 pipes...">
+            </div>
+            <div class="form-group">
+              <label>Chaîne cible</label>
+              <select id="rm-chain">
+                <option value="studio">🏢 Studio</option>
+                <option value="ia">🎮 IA Joueur</option>
+                <option value="jv">🕹 Création JV</option>
+                <option value="meta">Meta / Transversal</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Contexte (problème, objectif, contraintes)</label>
+            <textarea id="rm-context" placeholder="ex: Les sessions de brainstorming ne sont pas capitalisées. On veut un mode Red Team qui challenge nos décisions et une fusion qui garde les insights utiles, sans accumuler du bruit..."></textarea>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-amber" onclick="generateRoadmap()" title="Générer Roadmap">⚡ Générer via LM Studio</button>
+            <button class="btn" onclick="saveRoadmapToMemory()">◈ Sauver en mémoire</button>
+            <span id="rm-status" style="font-size:11px;color:var(--text3)"></span>
+          </div>
+          <div id="rm-output" class="roadmap-out" style="margin-top:10px">La sortie LM Studio apparaît ici...</div>
+        </div>
+      </details>
       <div id="ideas-grid"></div>
-    </div>
-
-    <!-- ── IDÉE → ROADMAP ── -->
-    <div id="page-roadmap" class="page">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Développer une idée en roadmap</div>
-          <span class="pill p-audit">LM Studio</span>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Titre de l'idée</label>
-            <input type="text" id="rm-title" placeholder="ex: Chaîne Red Team + Fusion pour les 3 pipes...">
-          </div>
-          <div class="form-group">
-            <label>Chaîne cible</label>
-            <select id="rm-chain">
-              <option value="studio">🏢 Studio</option>
-              <option value="ia">🎮 IA Joueur</option>
-              <option value="jv">🕹 Création JV</option>
-              <option value="meta">Meta / Transversal</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Contexte (problème, objectif, contraintes)</label>
-          <textarea id="rm-context" placeholder="ex: Les sessions de brainstorming ne sont pas capitalisées. On veut un mode Red Team qui challenge nos décisions et une fusion qui garde les insights utiles, sans accumuler du bruit..."></textarea>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Type de sortie</label>
-            <select id="rm-type">
-              <option value="roadmap">Roadmap par phases</option>
-              <option value="charter">Task Charter YAML</option>
-              <option value="spec">Spec technique</option>
-              <option value="analyse">Analyse + ROI</option>
-              <option value="redteam">Red Team — challenges</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Profondeur</label>
-            <select id="rm-depth">
-              <option value="quick">Rapide (300 tokens)</option>
-              <option value="normal" selected>Normale (~800 tokens, ~100s)</option>
-              <option value="deep">Profonde (~2000 tokens, ~250s)</option>
-            </select>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn btn-amber" onclick="generateRoadmap()" title="Qwen2.5-14B - ~3s">⚡ Générer via LM Studio</button>
-          <button class="btn" onclick="saveRoadmapToMemory()">◈ Sauver en mémoire</button>
-          <span id="rm-status" style="font-size:11px;color:var(--text3)"></span>
-        </div>
-      </div>
-
-      <div class="divider">Sortie</div>
-      <div id="rm-output" class="roadmap-out">La sortie LM Studio apparaît ici...</div>
     </div>
 
     <!-- ── MÉTRIQUES ── -->
@@ -3531,9 +3527,18 @@ async function confirmAndRun() {
 }
 
 async function runKaizenSequence() {
-  for (const id of ['recall','audit','propose']) {
-    await triggerChain(id);
-    await new Promise(r => setTimeout(r, 800));
+  const b = event.currentTarget;
+  const orig = b.textContent;
+  b.textContent = '⟳ Séquence...';
+  b.disabled = true;
+  try {
+    for (const id of ['recall','audit','propose']) {
+      await triggerChain(id);
+      await new Promise(r => setTimeout(r, 800));
+    }
+  } finally {
+    b.textContent = orig;
+    b.disabled = false;
   }
 }
 
@@ -3730,7 +3735,7 @@ async function lmAnalyzeIdeas() {
   const prompt = `Voici les idées backlog du Tactical Chess Studio :\n${ideas}\n\nPriorise-les par ROI réel (impact/effort) et identifie les 3 qui se combinent le mieux pour former quelque chose de plus puissant. Explique les synergies.`;
   const sys = `Tu es architecte du Tactical Chess Studio (solo, Pierre). Repo : Rocky (Rust+Python+LLM), 3 chaînes Kaizen, LM Studio local Devstral. Issues HIGH : NEW-02/03/05. Lanes : SAFE_AUTO/AUDIT_REQUIRED/HUMAN_REQUIRED/FORBIDDEN. claim_verdict: NO_CLAIM_ALLOWED.`;
   const out = document.getElementById('rm-output');
-  nav('roadmap');
+  nav('ideas');
   document.getElementById('rm-title').value = 'Analyse et priorisation des idées backlog';
   if (out) out.textContent = 'Analyse en cours...';
   const sink = {get textContent(){return '';}, set textContent(v){}};
@@ -3750,7 +3755,7 @@ async function lmSynthesizeMemory() {
   const prompt = `Voici les fusions capturées dans la mémoire du studio :\n\n${fusions}\n\nFais une synthèse du corpus : patterns récurrents, insights clés, décisions structurantes, et ce qui pourrait alimenter un LoRA fine-tuning.`;
   const sys = `Tu es architecte du Tactical Chess Studio (solo, Pierre). Repo : Rocky (Rust+Python+LLM), 3 chaînes Kaizen, LM Studio local Devstral. Issues HIGH : NEW-02/03/05. Lanes : SAFE_AUTO/AUDIT_REQUIRED/HUMAN_REQUIRED/FORBIDDEN. claim_verdict: NO_CLAIM_ALLOWED.`;
   const out = document.getElementById('rm-output');
-  nav('roadmap');
+  nav('ideas');
   document.getElementById('rm-title').value = 'Synthèse corpus mémoire studio';
   if (out) out.textContent = '';
   const sink = {get textContent(){return '';}, set textContent(v){}};
@@ -3954,7 +3959,9 @@ function openIdeaInRoadmap(id) {
   document.getElementById('rm-title').value = idea.title;
   document.getElementById('rm-context').value = idea.desc;
   document.getElementById('rm-chain').value = idea.chain;
-  nav('roadmap');
+  const det = document.querySelector('#page-ideas details');
+  if (det) det.open = true;
+  nav('ideas');
 }
 function renderIdeas() {
   const el = document.getElementById('ideas-grid');
@@ -4793,15 +4800,26 @@ async function autoloopStart(lane) {
 }
 
 async function autoloopStop(lane) {
+  const stEl = document.getElementById('al-state-' + lane);
+  if (stEl) stEl.textContent = 'stopping...';
   await fetch('/api/autoloop-stop', {method: 'POST',
     headers: {'Content-Type': 'application/json'}, body: JSON.stringify({lane})});
   refreshAutoloopStatus();
 }
 
 async function autoloopStopAll() {
-  await fetch('/api/autoloop-stop', {method: 'POST',
-    headers: {'Content-Type': 'application/json'}, body: '{}'});
-  refreshAutoloopStatus();
+  const b = event.currentTarget;
+  const orig = b.textContent;
+  b.textContent = '⟳ Stop...';
+  b.disabled = true;
+  try {
+    await fetch('/api/autoloop-stop', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: '{}'});
+  } finally {
+    b.textContent = orig;
+    b.disabled = false;
+    refreshAutoloopStatus();
+  }
 }
 
 function _updateLaneUI(lane, st) {
@@ -5566,6 +5584,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                             _autoloop_statuses[lane]["pid"] = None
                 self.send_json({lane: dict(st) for lane, st in _autoloop_statuses.items()})
 
+        elif path == "/api/lane-stats":
+            self.send_json(get_lane_stats())
+
         elif path == "/api/brain-status":
             s = lm_status()
             self.send_json({
@@ -5876,6 +5897,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         "last_result":  None,
                         "ledger_lane":  ledger_lane,
                     })
+                    get_lane_stats()  # reset date si minuit passé, puis incrémenter
+                    _lane_today_runs[lane] = _lane_today_runs.get(lane, 0) + 1
                     self.send_json({"ok": True, "pid": _autoloop_processes[lane].pid,
                                     "dry_run": dry_run, "lane": lane})
                 except Exception as e:
