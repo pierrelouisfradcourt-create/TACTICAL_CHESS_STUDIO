@@ -1133,3 +1133,69 @@ proposals:
     acceptance: 'Le fichier git_push.py doit vérifier que le dernier commit a été réussi avant de lancer la commande push.'
     blocked_by: []
     notes: 'Pipeline idea-to-imp — idée 3'
+- prop_id: PROP-061
+  source_phase: idea-to-imp
+  source_task: 'Stats, télémétrie et triage dataset — freeze baselines'
+  source_idea_id: '9'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Stats, télémétrie et triage dataset — freeze baselines'
+  human_anchor_desc: 'Draw rate par phase, conversion rate, ELO delta par run. Triage statistique. Freezer baselines d''appel.'
+  reasoning_roadmap: 'Modifier fichier stats_collector.py : Ajouter collecte de draw rate par phase et conversion rate. |  | Modifier fichier elo_tracker.rs : Implémenter calcul d''ELO delta par run. |  | Modifier fichier dataset_trimmer.py : Intégrer triage statistique basé sur les nouvelles métriques et freezer baselines d''appel.'
+  reasoning_critique: 'Risque: Complexité de la collecte des métriques | Fichier: stats_collector.py   | Risque: Intégration avec le système existant | Fichier: elo_tracker.rs   | Risque: Interopérabilité entre Python et Rust | Fichier: dataset_trimmer.py'
+  reasoning_fusion: '1. **stats_collector.py** : Ajouter la collecte de draw rate par phase et conversion rate. |    - Action : Modifier `stats_collector.py` pour inclure les nouvelles métriques (draw rate et conversion rate) dans la télémétrie. |  | 2. **elo_tracker.rs** : Implémenter le calcul d''ELO delta par run. |    - Action : Ajouter une fonctionnalité dans `elo_tracker.rs` pour calculer l''ÉLO Delta après chaq'
+  imp:
+    title: 'Ajouter collecte draw_rate et conversion_rate dans stats_collector.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: SMALL
+    domain: studio
+    files: ["autopilot/stats_collector.py"]
+    acceptance: 'Les nouvelles métriques draw_rate et conversion_rate sont collectées et enregistrées dans la télémétrie.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 9'
+- prop_id: PROP-062
+  source_phase: idea-to-imp
+  source_task: 'Stats, télémétrie et triage dataset — freeze baselines'
+  source_idea_id: '9'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Stats, télémétrie et triage dataset — freeze baselines'
+  human_anchor_desc: 'Draw rate par phase, conversion rate, ELO delta par run. Triage statistique. Freezer baselines d''appel.'
+  reasoning_roadmap: 'Modifier fichier stats_collector.py : Ajouter collecte de draw rate par phase et conversion rate. |  | Modifier fichier elo_tracker.rs : Implémenter calcul d''ELO delta par run. |  | Modifier fichier dataset_trimmer.py : Intégrer triage statistique basé sur les nouvelles métriques et freezer baselines d''appel.'
+  reasoning_critique: 'Risque: Complexité de la collecte des métriques | Fichier: stats_collector.py   | Risque: Intégration avec le système existant | Fichier: elo_tracker.rs   | Risque: Interopérabilité entre Python et Rust | Fichier: dataset_trimmer.py'
+  reasoning_fusion: '1. **stats_collector.py** : Ajouter la collecte de draw rate par phase et conversion rate. |    - Action : Modifier `stats_collector.py` pour inclure les nouvelles métriques (draw rate et conversion rate) dans la télémétrie. |  | 2. **elo_tracker.rs** : Implémenter le calcul d''ELO delta par run. |    - Action : Ajouter une fonctionnalité dans `elo_tracker.rs` pour calculer l''ÉLO Delta après chaq'
+  imp:
+    title: 'Implémenter calcul elo_delta après chaque run dans elo_tracker.rs'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: SMALL
+    domain: rocky_moteur
+    files: ["moteur/elo_tracker.rs"]
+    acceptance: 'Une fonctionnalité est ajoutée pour calculer l''ÉLO Delta après chaque run du jeu.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 9'
+- prop_id: PROP-063
+  source_phase: idea-to-imp
+  source_task: 'Stats, télémétrie et triage dataset — freeze baselines'
+  source_idea_id: '9'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Stats, télémétrie et triage dataset — freeze baselines'
+  human_anchor_desc: 'Draw rate par phase, conversion rate, ELO delta par run. Triage statistique. Freezer baselines d''appel.'
+  reasoning_roadmap: 'Modifier fichier stats_collector.py : Ajouter collecte de draw rate par phase et conversion rate. |  | Modifier fichier elo_tracker.rs : Implémenter calcul d''ELO delta par run. |  | Modifier fichier dataset_trimmer.py : Intégrer triage statistique basé sur les nouvelles métriques et freezer baselines d''appel.'
+  reasoning_critique: 'Risque: Complexité de la collecte des métriques | Fichier: stats_collector.py   | Risque: Intégration avec le système existant | Fichier: elo_tracker.rs   | Risque: Interopérabilité entre Python et Rust | Fichier: dataset_trimmer.py'
+  reasoning_fusion: '1. **stats_collector.py** : Ajouter la collecte de draw rate par phase et conversion rate. |    - Action : Modifier `stats_collector.py` pour inclure les nouvelles métriques (draw rate et conversion rate) dans la télémétrie. |  | 2. **elo_tracker.rs** : Implémenter le calcul d''ELO delta par run. |    - Action : Ajouter une fonctionnalité dans `elo_tracker.rs` pour calculer l''ÉLO Delta après chaq'
+  imp:
+    title: 'Intégrer critères de tri basés sur draw_rate et conversion_rate dans dataset_trimmer.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: MEDIUM
+    domain: ia_apprentissage
+    files: ["autopilot/dataset_trimmer.py"]
+    acceptance: 'Le triage statistique est basé sur les nouvelles métriques et des baselines statiques sont définies pour le dataset.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 9'

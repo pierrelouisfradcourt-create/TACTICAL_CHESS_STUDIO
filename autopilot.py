@@ -1062,9 +1062,12 @@ def _report_watcher_thread() -> None:
     _watcher_active = True
     while True:
         _watcher_last_check = time.time()
+        files = list(reports_dir.glob("IMP-*_report.md"))
+        print(f"[WATCHER] poll — {len(files)} fichier(s) : {[f.name for f in files]}")
         try:
             for p in sorted(reports_dir.glob("IMP-*_report.md")):
                 result = _auto_close_from_report(str(p))
+                print(f"[DEBUG] result: {result}", flush=True)
                 if result.get("ok"):
                     _watcher_last_processed = result.get("imp_id")
         except Exception as exc:
