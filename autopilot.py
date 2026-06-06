@@ -596,7 +596,47 @@ def _parse_imp_from_ledger(imp_id: str) -> dict:
                 ]
             else:
                 imp["files"] = []
+            m_domain = re.search(r"domain:\s*['\"]?([^'\"\n]*)['\"]?", block)
+            if m_domain:
+                imp["domain"] = m_domain.group(1).strip()
+            m_blocked = re.search(r'blocked_by:\n((?:\s*- .+\n?)*)', block)
+            if m_blocked:
+                imp["blocked_by"] = [
+                    re.sub(r'^\s*-\s*', '', ln).strip()
+                    for ln in m_blocked.group(1).strip().split("\n") if ln.strip()
+                ]
+            else:
+                imp["blocked_by"] = []
             return imp
+    except Exception:
+        pass
+    return {}
+
+
+def _find_source_idea(imp_id: str) -> dict:
+    """Trouve l'idée humaine source d'un IMP via ROADMAP_PROPOSALS → ideas.json."""
+    imp = _parse_imp_from_ledger(imp_id)
+    imp_title = imp.get("title", "").lower().strip()
+    if not imp_title:
+        return {}
+    proposals_path = REPO / "lab/chains/ROADMAP_PROPOSALS.yaml"
+    if not proposals_path.exists():
+        return {}
+    try:
+        text = proposals_path.read_text(encoding="utf-8")
+        for block in re.split(r'\n- prop_id:', text)[1:]:
+            m_task = re.search(r"source_task:\s*['\"]?([^'\"\n]+)['\"]?", block)
+            if not m_task:
+                continue
+            if m_task.group(1).lower().strip() != imp_title:
+                continue
+            m_idea = re.search(r"source_idea_id:\s*['\"]?(\d+)['\"]?", block)
+            if not m_idea:
+                continue
+            idea_id = int(m_idea.group(1))
+            for idea in load_ideas():
+                if idea.get("id") == idea_id:
+                    return idea
     except Exception:
         pass
     return {}
@@ -671,22 +711,148 @@ def _build_minimal_charter_local(imp: dict) -> str:
     ])
 
 
-def api_generate_charter(imp_id: str) -> dict:
+_CHARTER_STACK_MAP = {
+    "studio":           "Lane STUDIO : autopilot.py (~5200 lignes), Flask + HTML inline dans strings Python. Qwen3.6 INTERDIT pour JSON. Ne jamais créer de nouveaux fichiers. Ne pas toucher src/.",
+    "rocky_moteur":     "Lane ROCKY_MOTEUR : moteur src/chess/ en Rust. Ne pas toucher autopilot.py. Validation : cargo build --release && cargo test.",
+    "ia_apprentissage": r"Lane IA_APPRENTISSAGE : dossier ml/ et lab/. venv .venv312\Scripts\python.exe. Ne pas toucher autopilot.py ni src/.",
+    "jeux":             r"Lane JEUX : lab/chess_fantasy/. Tests : .venv312\Scripts\python.exe -m pytest lab/chess_fantasy/tests/ -v. Ne pas toucher src/ ni autopilot.py.",
+}
+
+_CHARTER_VALIDATION_BY_LANE = {
+    "SAFE_AUTO":      r".venv312\Scripts\python.exe -m py_compile autopilot.py",
+    "AUDIT_REQUIRED": "cargo build --release && cargo test",
+    "HUMAN_REQUIRED": "# Validation manuelle HumanGate requise avant exécution",
+    "FORBIDDEN":      "# FORBIDDEN — ne pas exécuter sans HumanGate explicite",
+}
+
+_CHARTER_ONE_SHOT = """\
+# CHARTER IMP-089 — Ajouter attribut title aux boutons LLM dans autopilot.py
+# Lane : SAFE_AUTO
+# Fichiers autorisés : autopilot.py
+# claim_verdict: NO_CLAIM_ALLOWED
+
+## CONTEXTE
+Le studio utilise Qwen2.5-14B pour plusieurs actions (CEO Brief, autoloop, roadmap).
+Les boutons HTML n'indiquent pas quel modèle est utilisé ni la durée estimée.
+L'utilisateur ne sait pas ce qu'il déclenche au survol.
+
+## OBJECTIF
+Ajouter un attribut title HTML sur chaque bouton qui appelle lm_call() ou un
+endpoint LLM dans autopilot.py. Visible au survol de la souris (native browser tooltip).
+
+## SPEC
+1. Identifier tous les boutons HTML dans autopilot.py qui déclenchent un appel LLM :
+   CEO Brief, Roadmap, Analyser, Transformer en IMPs, autoloop Start...
+2. Ajouter title="Qwen2.5-14B - ~3s" sur chaque bouton standard
+3. CEO Brief : title="Qwen2.5-14B - CEO Brief (~3s)"
+4. Autoloop : title="Qwen2.5-14B - autoloop lane"
+5. Ne pas toucher aux boutons sans appel LLM
+
+## VALIDATION
+.venv312\\Scripts\\python.exe -m py_compile autopilot.py
+Grep "title=" autopilot.py → au moins 5 occurrences sur boutons LLM
+
+## RAPPORT FINAL
+software_verdict: OK
+evidence_verdict: MECHANICAL_VALIDATION_ONLY
+claim_verdict: NO_CLAIM_ALLOWED"""
+
+
+def _generate_charter_qwen(imp_id: str) -> str:
+    """Génère un charter complet via Qwen2.5-14B avec one-shot IMP-089 + STACK_MAP."""
+    imp = _parse_imp_from_ledger(imp_id)
+    if not imp:
+        return _build_minimal_charter_local({"id": imp_id, "title": "?", "lane": "?", "files": []})
+
+    lane   = imp.get("lane", "SAFE_AUTO")
+    domain = imp.get("domain", "").strip().strip("'\"")
+
+    # Infer domain if empty
+    if not domain or domain not in _CHARTER_STACK_MAP:
+        domain = _imp_domain(imp)
+    if domain == "decisions_pendantes":
+        domain = "studio"
+
+    stack_section = _CHARTER_STACK_MAP.get(domain, _CHARTER_STACK_MAP["studio"])
+
+    # Validation command by lane
+    val_cmd = _CHARTER_VALIDATION_BY_LANE.get(lane, _CHARTER_VALIDATION_BY_LANE["SAFE_AUTO"])
+    if imp.get("files") and lane == "SAFE_AUTO":
+        py_files = [f for f in imp["files"] if f.endswith(".py")]
+        if py_files:
+            val_cmd = r".venv312\Scripts\python.exe -m py_compile " + " ".join(py_files)
+
+    # Human anchor
+    source_idea = _find_source_idea(imp_id)
+    if source_idea:
+        human_anchor = (
+            f"Idée humaine originale : {source_idea.get('title', '')}\n"
+            f"{source_idea.get('desc', '')[:300]}"
+        )
+    else:
+        human_anchor = f"Intention : {imp.get('title', imp_id)}"
+
+    files_str   = ", ".join(imp.get("files", [])) or "(à déterminer selon domain)"
+    blocked_str = ", ".join(imp.get("blocked_by", [])) or "aucun"
+
+    sys_prompt = (
+        f"Tu es générateur de charters pour le Tactical Chess Studio.\n"
+        f"Produis des charters COMPLETS et EXÉCUTABLES — zéro contenu générique.\n"
+        f"claim_verdict: {_CLAIM_VERDICT}\n\n"
+        f"EXEMPLE DE CHARTER BIEN FORMÉ :\n{_CHARTER_ONE_SHOT}"
+    )
+
+    user_prompt = (
+        f"INTENTION HUMAINE (ancre constante) :\n{human_anchor}\n\n"
+        f"IMP : {imp_id}\n"
+        f"Titre : {imp.get('title', '?')}\n"
+        f"Domain : {domain}\n"
+        f"Lane : {lane}\n"
+        f"Fichiers : {files_str}\n"
+        f"Acceptance : {imp.get('acceptance', 'TBD')}\n"
+        f"Notes : {imp.get('notes', '') or 'aucune'}\n"
+        f"Blocked_by : {blocked_str}\n\n"
+        f"Contraintes stack :\n{stack_section}\n\n"
+        f"Format OBLIGATOIRE (même structure que l'exemple) :\n"
+        f"# CHARTER {imp_id} — {imp.get('title', '?')}\n"
+        f"# Lane : {lane}\n"
+        f"# Fichiers autorisés : {files_str}\n"
+        f"# claim_verdict: {_CLAIM_VERDICT}\n\n"
+        "## CONTEXTE\n[2-4 phrases concrètes sur le contexte studio et pourquoi cet IMP]\n\n"
+        "## OBJECTIF\n[Ce que Claude Code doit faire — actionnable et précis]\n\n"
+        "## SPEC\n[Fonctions à créer/modifier avec signatures. Numéroter les étapes.]\n\n"
+        "## VALIDATION\n"
+        f"{val_cmd}\n"
+        "[Critère acceptance testable — commande ou vérification concrète]\n\n"
+        "## RAPPORT FINAL\n"
+        "software_verdict: OK\n"
+        "evidence_verdict: MECHANICAL_VALIDATION_ONLY\n"
+        f"claim_verdict: {_CLAIM_VERDICT}\n\n"
+        "Retourne UNIQUEMENT le charter, rien d'autre."
+    )
+
+    result = lm_call(user_prompt, system=sys_prompt, max_tokens=1500, model=LM_MODEL)
+    if not result or result.startswith("[LM Studio"):
+        return _build_minimal_charter_local(imp)
+    return result
+
+
+def api_generate_charter(imp_id: str, force: bool = False) -> dict:
     imp = _parse_imp_from_ledger(imp_id)
     if not imp:
         return {"error": f"{imp_id} introuvable dans le ledger"}
     charter_path = REPO / "lab/chains/charters" / f"{imp_id}_charter.md"
-    if charter_path.exists():
+    if not force and charter_path.exists():
         try:
             charter_text = charter_path.read_text(encoding="utf-8")
         except Exception:
-            charter_text = _build_minimal_charter_local(imp)
+            charter_text = _generate_charter_qwen(imp_id)
     else:
-        charter_text = _build_minimal_charter_local(imp)
+        charter_text = _generate_charter_qwen(imp_id)
     return {
-        "imp_id": imp_id,
-        "title":  imp.get("title", ""),
-        "lane":   imp.get("lane", ""),
+        "imp_id":  imp_id,
+        "title":   imp.get("title", ""),
+        "lane":    imp.get("lane", ""),
         "charter": charter_text,
     }
 
@@ -2894,10 +3060,11 @@ tr:hover td{background:var(--bg3)}
         <div class="divider">Charter généré</div>
         <div class="card">
           <div id="wf-charter-title" style="font-size:12px;font-weight:600;color:var(--amber);margin-bottom:8px"></div>
-          <textarea id="wf-charter-out" readonly style="width:100%;height:300px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;padding:10px;font-size:11px;font-family:var(--font-d);resize:vertical;box-sizing:border-box"></textarea>
-          <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
-            <button class="btn" onclick="copyCharter()">&#128203; Copier le charter</button>
-            <span id="wf-copy-label" style="font-size:11px;color:var(--text3)">Colle ce charter dans Claude Code</span>
+          <textarea id="wf-charter-out" style="width:100%;height:300px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;padding:10px;font-size:11px;font-family:var(--font-d);resize:vertical;box-sizing:border-box" placeholder="Charter généré par Qwen2.5 — éditable avant approbation HumanGate"></textarea>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
+            <button class="btn" onclick="copyCharter()">&#128203; Copier</button>
+            <button class="btn btn-amber" onclick="generateCharter(true)" title="Rappelle Qwen2.5 — ignore le fichier existant">&#8635; Régénérer</button>
+            <span id="wf-copy-label" style="font-size:11px;color:var(--text3)">Éditable — HumanGate corrige avant d'approuver</span>
           </div>
         </div>
       </div>
@@ -4805,7 +4972,7 @@ async function loadWorkflow() {
   renderWorkflowHistory();
 }
 
-async function generateCharter() {
+async function generateCharter(force=false) {
   const sel = document.getElementById('wf-imp-select');
   const impId = sel ? sel.value : '';
   if (!impId) { alert('Sélectionner un IMP d\'abord.'); return; }
@@ -4813,11 +4980,12 @@ async function generateCharter() {
   const out = document.getElementById('wf-charter-out');
   const titleEl = document.getElementById('wf-charter-title');
   if (btn) btn.disabled = true;
-  if (out) out.value = '⟳ Chargement...';
+  if (out) out.value = force ? '⟳ Régénération via Qwen2.5 (30-60s)...' : '⟳ Chargement charter...';
   const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), 15000);
+  const tid = setTimeout(() => ctrl.abort(), 60000);
   try {
-    const d = await fetch('/api/generate-charter?imp_id=' + encodeURIComponent(impId), {signal: ctrl.signal}).then(r => r.json());
+    const url = '/api/generate-charter?imp_id=' + encodeURIComponent(impId) + (force ? '&force=1' : '');
+    const d = await fetch(url, {signal: ctrl.signal}).then(r => r.json());
     clearTimeout(tid);
     if (d.error) {
       if (out) out.value = '✗ ' + d.error;
@@ -4829,7 +4997,7 @@ async function generateCharter() {
     }
   } catch(e) {
     clearTimeout(tid);
-    if (out) out.value = e.name === 'AbortError' ? '✗ Timeout — réessayer' : '✗ Erreur: ' + e.message;
+    if (out) out.value = e.name === 'AbortError' ? '✗ Timeout (60s) — LM Studio indisponible ou trop lent' : '✗ Erreur: ' + e.message;
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -4863,6 +5031,16 @@ async function validateAndCloseImp() {
   }
   const btn = document.getElementById('wf-btn-close');
   if (btn) btn.disabled = true;
+  // Sauvegarder le charter édité avant de fermer l'IMP
+  const charterText = document.getElementById('wf-charter-out')?.value || '';
+  if (charterText && !charterText.startsWith('✗') && !charterText.startsWith('⟳')) {
+    try {
+      await fetch('/api/save-charter', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({imp_id: impId, charter: charterText})
+      });
+    } catch(e) { /* non-bloquant */ }
+  }
   try {
     const d = await fetch('/api/close-imp', {
       method: 'POST', headers: {'Content-Type':'application/json'},
@@ -5350,10 +5528,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     k, v = part.split("=", 1)
                     params[k] = v.replace("%2D", "-").replace("+", " ")
             imp_id = params.get("imp_id", "").strip()
+            force  = params.get("force", "0") == "1"
             if not imp_id:
                 self.send_json({"error": "imp_id requis (?imp_id=IMP-XXX)"}, 400)
                 return
-            self.send_json(api_generate_charter(imp_id))
+            self.send_json(api_generate_charter(imp_id, force=force))
 
         elif path == "/api/idea-pipeline-status":
             with _idea_pipeline_lock:
@@ -5462,6 +5641,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/doc-hygiene":
             result = run_chain(f'python "{HYGIENE}" --audit', cwd=str(CHAINS_DIR))
             self.send_json({"output": result.get("output") or result.get("error") or "OK", "rc": result.get("rc", -1)})
+
+        elif path == "/api/save-charter":
+            imp_id  = body.get("imp_id", "").strip()
+            charter = body.get("charter", "").strip()
+            if not imp_id or not re.match(r'^IMP-\d+$', imp_id):
+                self.send_json({"ok": False, "error": "imp_id invalide"}, 400)
+                return
+            if not charter:
+                self.send_json({"ok": False, "error": "charter vide"}, 400)
+                return
+            try:
+                charter_path = REPO / "lab/chains/charters" / f"{imp_id}_charter.md"
+                charter_path.parent.mkdir(parents=True, exist_ok=True)
+                charter_path.write_text(charter, encoding="utf-8")
+                self.send_json({"ok": True, "path": str(charter_path)})
+            except Exception as e:
+                self.send_json({"ok": False, "error": str(e)}, 500)
 
         elif path == "/api/close-imp":
             imp_id = body.get("imp_id", "").strip()
