@@ -1199,3 +1199,66 @@ proposals:
     acceptance: 'Le triage statistique est basé sur les nouvelles métriques et des baselines statiques sont définies pour le dataset.'
     blocked_by: []
     notes: 'Pipeline idea-to-imp — idée 9'
+- prop_id: PROP-064
+  source_phase: idea-to-imp
+  source_task: 'Analyse et priorisation des idées backlog'
+  source_idea_id: 'manual'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Analyse et priorisation des idées backlog'
+  reasoning_roadmap: 'Modifier autopilot.py : Ajouter une fonction `prioritize_backlog()` qui analyse et priorise les idées du backlog. |  | Modifier charter_generator.py : Intégrer la fonctionnalité de génération de charters pour les idées prioritaires sélectionnées par `prioritize_backlog()`. |  | Modifier executor_report.py : Mettre à jour le rapport d''exécution pour inclure une section sur l''analyse et la prioris'
+  reasoning_critique: '{ |   "risque_1": "Risque: Complexité de l''analyse des idées | Fichier: autopilot.py", |   "risque_2": "Risque: Dépendances avec executor_report.py et charter_generator.py pour la cohérence des données | Fichier: autopilot.py, charter_generator.py, executor_report.py", |   "risque_3": "Risque: Intégration de nouvelles fonctionnalités dans le pipeline existant sans perturber les processus actuels '
+  reasoning_fusion: '1. **autopilot.py** : Implémenter la fonction `prioritize_backlog()` qui analyse et priorise les idées du backlog en tenant compte des critères de complexité et d''impact. | 2. **charter_generator.py** : Intégrer une nouvelle fonctionnalité pour générer des charters basés sur les idées prioritaires sélectionnées par `prioritize_backlog()` dans `autopilot.py`. | 3. **executor_report.py** : Mettre à'
+  imp:
+    title: 'Implémenter fn prioritize_backlog() dans autopilot.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: MEDIUM
+    domain: studio
+    files: ["autopilot.py"]
+    acceptance: 'La fonction prioritize_backlog() analyse le backlog et retourne une liste priorisée d''idées.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée manual'
+- prop_id: PROP-065
+  source_phase: idea-to-imp
+  source_task: 'Analyse et priorisation des idées backlog'
+  source_idea_id: 'manual'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Analyse et priorisation des idées backlog'
+  reasoning_roadmap: 'Modifier autopilot.py : Ajouter une fonction `prioritize_backlog()` qui analyse et priorise les idées du backlog. |  | Modifier charter_generator.py : Intégrer la fonctionnalité de génération de charters pour les idées prioritaires sélectionnées par `prioritize_backlog()`. |  | Modifier executor_report.py : Mettre à jour le rapport d''exécution pour inclure une section sur l''analyse et la prioris'
+  reasoning_critique: '{ |   "risque_1": "Risque: Complexité de l''analyse des idées | Fichier: autopilot.py", |   "risque_2": "Risque: Dépendances avec executor_report.py et charter_generator.py pour la cohérence des données | Fichier: autopilot.py, charter_generator.py, executor_report.py", |   "risque_3": "Risque: Intégration de nouvelles fonctionnalités dans le pipeline existant sans perturber les processus actuels '
+  reasoning_fusion: '1. **autopilot.py** : Implémenter la fonction `prioritize_backlog()` qui analyse et priorise les idées du backlog en tenant compte des critères de complexité et d''impact. | 2. **charter_generator.py** : Intégrer une nouvelle fonctionnalité pour générer des charters basés sur les idées prioritaires sélectionnées par `prioritize_backlog()` dans `autopilot.py`. | 3. **executor_report.py** : Mettre à'
+  imp:
+    title: 'Ajouter fn generate_charter() dans charter_generator.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: MEDIUM
+    effort: SMALL
+    domain: studio
+    files: ["charter_generator.py"]
+    acceptance: 'La fonction generate_charter() génère un charter basé sur les idées prioritisées par prioritize_backlog().'
+    blocked_by: ["prioritize_backlog"]
+    notes: 'Pipeline idea-to-imp — idée manual'
+- prop_id: PROP-066
+  source_phase: idea-to-imp
+  source_task: 'Analyse et priorisation des idées backlog'
+  source_idea_id: 'manual'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Analyse et priorisation des idées backlog'
+  reasoning_roadmap: 'Modifier autopilot.py : Ajouter une fonction `prioritize_backlog()` qui analyse et priorise les idées du backlog. |  | Modifier charter_generator.py : Intégrer la fonctionnalité de génération de charters pour les idées prioritaires sélectionnées par `prioritize_backlog()`. |  | Modifier executor_report.py : Mettre à jour le rapport d''exécution pour inclure une section sur l''analyse et la prioris'
+  reasoning_critique: '{ |   "risque_1": "Risque: Complexité de l''analyse des idées | Fichier: autopilot.py", |   "risque_2": "Risque: Dépendances avec executor_report.py et charter_generator.py pour la cohérence des données | Fichier: autopilot.py, charter_generator.py, executor_report.py", |   "risque_3": "Risque: Intégration de nouvelles fonctionnalités dans le pipeline existant sans perturber les processus actuels '
+  reasoning_fusion: '1. **autopilot.py** : Implémenter la fonction `prioritize_backlog()` qui analyse et priorise les idées du backlog en tenant compte des critères de complexité et d''impact. | 2. **charter_generator.py** : Intégrer une nouvelle fonctionnalité pour générer des charters basés sur les idées prioritaires sélectionnées par `prioritize_backlog()` dans `autopilot.py`. | 3. **executor_report.py** : Mettre à'
+  imp:
+    title: 'Mettre à jour fn update_report() dans executor_report.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: LOW
+    effort: SMALL
+    domain: studio
+    files: ["executor_report.py"]
+    acceptance: 'La fonction update_report() inclut une section dédiée à l''analyse et la priorisation du backlog.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée manual'

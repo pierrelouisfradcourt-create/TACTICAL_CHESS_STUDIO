@@ -667,6 +667,46 @@ def _check_tool_permission(chain_id: str) -> tuple:
     return (False, f"tool={tool} DENY dans tool_permission_matrix — exécution bloquée")
 
 
+def verify_tool_permission_matrix(chain_id: str) -> bool:
+    """API publique booléenne — vérifie que chain_id est autorisé avant exécution."""
+    ok, _ = _check_tool_permission(chain_id)
+    return ok
+
+
+def _check_smoke_level(lane: str) -> tuple:
+    """Pre-check smoke level avant autoloop. Lit AUTOMATION_SMOKE_MATRIX.md si présent."""
+    smoke_matrix = REPO / "AUTOMATION_SMOKE_MATRIX.md"
+    if not smoke_matrix.exists():
+        print("[SMOKE] matrix absente — gate désactivé", flush=True)
+        return (True, "")
+    if lane == "SAFE_AUTO":
+        return (True, "")
+    if lane == "AUDIT_REQUIRED":
+        try:
+            res = subprocess.run(
+                ["cargo", "check"],
+                cwd=str(REPO),
+                capture_output=True,
+                timeout=60,
+            )
+            if res.returncode == 0:
+                print("[SMOKE] AUDIT_REQUIRED — cargo check OK", flush=True)
+                return (True, "")
+            stderr_preview = (res.stderr or b"").decode("utf-8", errors="replace")[:200]
+            print(f"[SMOKE] AUDIT_REQUIRED — cargo check FAIL rc={res.returncode}", flush=True)
+            return (False, f"cargo check échoué — corrige src/ avant de lancer l'autoloop\n{stderr_preview}")
+        except subprocess.TimeoutExpired:
+            print("[SMOKE] AUDIT_REQUIRED — cargo check timeout 60s", flush=True)
+            return (False, "cargo check timeout 60s")
+        except FileNotFoundError:
+            print("[SMOKE] AUDIT_REQUIRED — cargo non trouvé dans PATH", flush=True)
+            return (False, "cargo non trouvé — installe Rust")
+        except Exception as e:
+            print(f"[SMOKE] AUDIT_REQUIRED — erreur: {e}", flush=True)
+            return (False, f"cargo check erreur: {e}")
+    return (True, "")
+
+
 def _build_minimal_charter_local(imp: dict) -> str:
     files = imp.get("files", [])
     files_str = "\n".join(f"  - {f}" for f in files) if files else "  (aucun fichier spécifié)"
@@ -5758,6 +5798,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 if lane not in AUTOLOOP_LANES:
                     self.send_json({"ok": False, "error": f"lane inconnue: {lane}"})
                     return
+                if not verify_tool_permission_matrix(lane):
+                    self.send_json({"ok": False, "error": f"lane={lane} DENY dans tool_permission_matrix"})
+                    return
                 proc = _autoloop_processes[lane]
                 if proc is not None and proc.poll() is None:
                     self.send_json({"ok": False, "error": f"autoloop {lane} déjà en cours"})
@@ -5765,6 +5808,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 dry_run     = body.get("dry_run", True)
                 once        = body.get("once", True)
                 ledger_lane = AUTOLOOP_LANE_MAP.get(lane, "SAFE_AUTO")
+                ok_smoke, smoke_reason = _check_smoke_level(ledger_lane)
+                if not ok_smoke:
+                    self.send_json({"ok": False, "error": smoke_reason})
+                    return
                 py_exe  = str(REPO / ".venv312" / "Scripts" / "python.exe")
                 script  = str(REPO / "lab" / "chains" / "kaizen_autoloop.py")
                 cmd = [py_exe, script, "--lane", ledger_lane]
