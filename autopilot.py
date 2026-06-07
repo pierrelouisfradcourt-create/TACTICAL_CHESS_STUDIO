@@ -284,7 +284,10 @@ def _run_ws_terminal(n: int, sock, rfile) -> None:
                 pass
     try:
         proc = subprocess.Popen(
-            ["powershell.exe", "-NoLogo", "-NoExit"],
+            ["powershell.exe", "-NoLogo", "-NoExit", "-Command",
+             "Remove-Module PSReadLine -ErrorAction SilentlyContinue;"
+             "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;"
+             "[Console]::InputEncoding=[System.Text.Encoding]::UTF8"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -319,6 +322,19 @@ def _run_ws_terminal(n: int, sock, rfile) -> None:
             if opcode is None or opcode == 0x08:
                 break
             if opcode in (0x01, 0x02) and data:
+                if data[:1] == b'{':
+                    try:
+                        msg = json.loads(data)
+                        if msg.get('type') == 'resize':
+                            cols = int(msg.get('cols', 80))
+                            rows = int(msg.get('rows', 24))
+                            cmd = (f"try{{$Host.UI.RawUI.WindowSize="
+                                   f"New-Object Management.Automation.Host.Size({cols},{rows})}}catch{{}}\r\n")
+                            proc.stdin.write(cmd.encode('utf-8'))
+                            proc.stdin.flush()
+                    except Exception:
+                        pass
+                    continue
                 try:
                     proc.stdin.write(data)
                     proc.stdin.flush()
@@ -2088,8 +2104,8 @@ HTML = r"""<!DOCTYPE html>
 <title>TCS Autopilote</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Geist+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.js"></script>
+<link rel="stylesheet" href="/static/xterm.min.css">
+<script src="/static/xterm.min.js"></script>
 <style>
 :root {
   --bg:       #0b0c0e;
@@ -5289,6 +5305,10 @@ function initCockpitTerminal(n) {
     fontSize: 11,
     fontFamily: '"Geist Mono", monospace',
     scrollback: 200,
+    cursorBlink: true,
+    allowProposedApi: true,
+    macOptionIsMeta: true,
+    rightClickSelectsWord: true,
   });
   term.open(el);
   _cockpitTerms[n] = term;
@@ -5296,6 +5316,10 @@ function initCockpitTerminal(n) {
   const ws = new WebSocket(`${proto}://${location.host}/ws/terminal/${n}`);
   ws.binaryType = 'arraybuffer';
   _cockpitWs[n] = ws;
+  term.onResize(({cols, rows}) => {
+    if (ws.readyState === WebSocket.OPEN)
+      ws.send(JSON.stringify({type:'resize', cols, rows}));
+  });
   ws.onopen  = () => term.write('\x1b[32mConnecté — PowerShell lane ' + n + '\x1b[0m\r\n');
   ws.onmessage = e => {
     const data = e.data instanceof ArrayBuffer
@@ -5304,9 +5328,57 @@ function initCockpitTerminal(n) {
   };
   ws.onerror = () => term.write('\r\n\x1b[31m[WS erreur]\x1b[0m\r\n');
   ws.onclose = () => term.write('\r\n\x1b[33m[Session fermée]\x1b[0m\r\n');
+  // Local line buffer — PSReadLine absent, echo et line-edit côté JS
+  let _lbuf = '';
   term.onData(data => {
-    if (ws.readyState === WebSocket.OPEN)
-      ws.send(new TextEncoder().encode(data));
+    if (ws.readyState !== WebSocket.OPEN) return;
+    if (data === '\x7f' || data === '\x08') {
+      if (_lbuf.length > 0) { _lbuf = _lbuf.slice(0, -1); term.write('\x08 \x08'); }
+      return;
+    }
+    if (data === '\r') {
+      term.write('\r\n');
+      ws.send(new TextEncoder().encode(_lbuf + '\r\n'));
+      _lbuf = '';
+      return;
+    }
+    const cp = data.codePointAt(0);
+    if (cp !== undefined && cp >= 0x20 && cp !== 0x7f) {
+      _lbuf += data;
+      term.write(data);
+    }
+    // séquences escape / chars contrôle → ignorées (PS basic readline ne les gère pas)
+  });
+  // Ctrl+C/V/L passthrough
+  term.attachCustomKeyEventHandler(e => {
+    if (e.type !== 'keydown') return true;
+    if (e.ctrlKey && e.key === 'c') {
+      _lbuf = '';
+      if (ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode('\x03'));
+      term.write('^C\r\n');
+      return false;
+    }
+    if (e.ctrlKey && e.key === 'v') {
+      navigator.clipboard.readText().then(text => {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        _lbuf += text.replace(/\r?\n.*$/s, ''); // ne bufferiser que la première ligne
+        term.write(text.replace(/\r?\n/g, '\r\n'));
+        if (text.includes('\n') || text.includes('\r')) {
+          ws.send(new TextEncoder().encode(_lbuf + '\r\n'));
+          _lbuf = '';
+        }
+      }).catch(() => {});
+      return false;
+    }
+    if (e.ctrlKey && e.key === 'l') {
+      term.clear();
+      return false;
+    }
+    if (e.key === 'Insert') {
+      if (ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode('\x1b[2~'));
+      return false;
+    }
+    return true;
   });
 }
 
@@ -5766,6 +5838,27 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         elif path == "/api/imp-triage":
             self.send_json(imp_triage())
+
+        elif path.startswith("/static/"):
+            filename = path[len("/static/"):]
+            if "/" in filename or ".." in filename:
+                self.send_response(403)
+                self.end_headers()
+                return
+            static_path = REPO / "lab" / "static" / filename
+            if not static_path.exists():
+                self.send_response(404)
+                self.end_headers()
+                return
+            ext = static_path.suffix.lower()
+            ct = {"js": "application/javascript", "css": "text/css"}.get(ext[1:], "application/octet-stream")
+            data = static_path.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", ct)
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "max-age=86400")
+            self.end_headers()
+            self.wfile.write(data)
 
         elif path == "/api/ceo-lane-assignment":
             charters_dir = REPO / "lab/chains/charters"

@@ -1598,3 +1598,69 @@ proposals:
     acceptance: 'La matrice est vérifiée manuellement pour s''assurer que toutes les surfaces critiques sont correctement représentées.'
     blocked_by: ["Mettre à jour AUTOMATION_LANE_MATRIX.md"]
     notes: 'Pipeline idea-to-imp — idée 26'
+- prop_id: PROP-083
+  source_phase: idea-to-imp
+  source_task: 'historique des idées'
+  source_idea_id: '25'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'historique des idées'
+  human_anchor_desc: 'dans l onglet idées. voir les anciennes idées transformé en road map et leur statut ( imp créer, idée non créer, imp implanté'
+  reasoning_roadmap: 'Modifier fichier autopilot.py : ajouter endpoint /api/ideas-history pour récupérer les anciennes idées et leur statut. |  | Modifier fichier ideas_history.py : implémenter fonction de chargement des anciennes idées depuis la base de données ou un autre stockage, et renvoyer ces informations sous forme d''une liste structurée. |  | Modifier fichier ui_ideas.py : ajouter une interface pour afficher '
+  reasoning_critique: '{ |   "risques": [ |     { |       "Risque": "Complexité de la gestion des historiques | Fichier: autopilot.py", |       "Description": "Ajouter un endpoint pour gérer l''historique des idées peut complexifier le code existant et nécessiter une structure de données adéquate pour stocker et récupérer efficacement ces informations." |     }, |     { |       "Risque": "Dépendance à une base de donnée'
+  reasoning_fusion: '1. **autopilot.py** : Ajouter un endpoint `/api/ideas-history` pour récupérer les anciennes idées et leur statut. |    - Action : Implémenter la fonctionnalité dans `autopilot.py` pour gérer l''historique des idées en utilisant une structure de données appropriée (par exemple, une liste ou un dictionnaire) qui peut être facilement récupérée et transmise via l''endpoint. |  | 2. **ideas_history.py*'
+  imp:
+    title: 'Ajouter endpoint /api/ideas-history dans autopilot.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: MEDIUM
+    effort: SMALL
+    domain: studio
+    files: ["autopilot.py"]
+    acceptance: 'L''endpoint retourne une liste des idées précédentes avec leur statut.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 25'
+- prop_id: PROP-084
+  source_phase: idea-to-imp
+  source_task: 'historique des idées'
+  source_idea_id: '25'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'historique des idées'
+  human_anchor_desc: 'dans l onglet idées. voir les anciennes idées transformé en road map et leur statut ( imp créer, idée non créer, imp implanté'
+  reasoning_roadmap: 'Modifier fichier autopilot.py : ajouter endpoint /api/ideas-history pour récupérer les anciennes idées et leur statut. |  | Modifier fichier ideas_history.py : implémenter fonction de chargement des anciennes idées depuis la base de données ou un autre stockage, et renvoyer ces informations sous forme d''une liste structurée. |  | Modifier fichier ui_ideas.py : ajouter une interface pour afficher '
+  reasoning_critique: '{ |   "risques": [ |     { |       "Risque": "Complexité de la gestion des historiques | Fichier: autopilot.py", |       "Description": "Ajouter un endpoint pour gérer l''historique des idées peut complexifier le code existant et nécessiter une structure de données adéquate pour stocker et récupérer efficacement ces informations." |     }, |     { |       "Risque": "Dépendance à une base de donnée'
+  reasoning_fusion: '1. **autopilot.py** : Ajouter un endpoint `/api/ideas-history` pour récupérer les anciennes idées et leur statut. |    - Action : Implémenter la fonctionnalité dans `autopilot.py` pour gérer l''historique des idées en utilisant une structure de données appropriée (par exemple, une liste ou un dictionnaire) qui peut être facilement récupérée et transmise via l''endpoint. |  | 2. **ideas_history.py*'
+  imp:
+    title: 'Implémenter fonction charger_anciennes_idées dans ideas_history.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: MEDIUM
+    effort: SMALL
+    domain: studio
+    files: ["ideas_history.py"]
+    acceptance: 'La fonction retourne correctement les données historiques des idées.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 25'
+- prop_id: PROP-085
+  source_phase: idea-to-imp
+  source_task: 'historique des idées'
+  source_idea_id: '25'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'historique des idées'
+  human_anchor_desc: 'dans l onglet idées. voir les anciennes idées transformé en road map et leur statut ( imp créer, idée non créer, imp implanté'
+  reasoning_roadmap: 'Modifier fichier autopilot.py : ajouter endpoint /api/ideas-history pour récupérer les anciennes idées et leur statut. |  | Modifier fichier ideas_history.py : implémenter fonction de chargement des anciennes idées depuis la base de données ou un autre stockage, et renvoyer ces informations sous forme d''une liste structurée. |  | Modifier fichier ui_ideas.py : ajouter une interface pour afficher '
+  reasoning_critique: '{ |   "risques": [ |     { |       "Risque": "Complexité de la gestion des historiques | Fichier: autopilot.py", |       "Description": "Ajouter un endpoint pour gérer l''historique des idées peut complexifier le code existant et nécessiter une structure de données adéquate pour stocker et récupérer efficacement ces informations." |     }, |     { |       "Risque": "Dépendance à une base de donnée'
+  reasoning_fusion: '1. **autopilot.py** : Ajouter un endpoint `/api/ideas-history` pour récupérer les anciennes idées et leur statut. |    - Action : Implémenter la fonctionnalité dans `autopilot.py` pour gérer l''historique des idées en utilisant une structure de données appropriée (par exemple, une liste ou un dictionnaire) qui peut être facilement récupérée et transmise via l''endpoint. |  | 2. **ideas_history.py*'
+  imp:
+    title: 'Ajouter visualisation anciennes_idées dans ui_ideas.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: MEDIUM
+    effort: SMALL
+    domain: studio
+    files: ["ui_ideas.py"]
+    acceptance: 'L''interface affiche correctement les anciennes idées et leur statut.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 25'
