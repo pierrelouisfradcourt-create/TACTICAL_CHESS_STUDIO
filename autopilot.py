@@ -80,6 +80,7 @@ _CHAIN_TOOL_MAP: dict = {
 }
 
 ledger_cache: dict = {}  # {"open": N, "closed": M, "next": {}, "ts": "..."}
+_ceo_brief_cache: dict = {}  # {"brief": {...}, "ts": float}
 
 # ── DEVSTRAL TELEMETRY ────────────────────────────────────────────────────────
 tokens_session: int = 0
@@ -4451,8 +4452,11 @@ function _ceoLaneHtml(label, l, laneKey) {
   const startBtn = laneKey
     ? `<button class="btn btn-green btn-sm" style="margin-top:5px" onclick="autoloopStart('${laneKey}')" title="Qwen2.5-14B - autoloop lane">&#9654; autoloop</button>`
     : '';
+  const action = l.imp_id
+    ? `<span style="font-family:var(--font-m);color:var(--amber)">${escHtml(l.imp_id)}</span> ${escHtml(l.title||'')}`
+    : escHtml(l.next_action || l.title || '—');
   return `<div style="margin:6px 0 2px 0;font-size:11px;font-weight:600;color:var(--text3)">${escHtml(label)}</div>`
-    + `<div style="margin-bottom:4px"><b style="color:var(--amber)">${escHtml(l.next_action||'—')}</b> ${_ceoLanePill(l.lane)}</div>`
+    + `<div style="margin-bottom:4px">${action} ${_ceoLanePill(l.lane_tag||l.lane)}</div>`
     + `<div style="font-size:10px;color:var(--text2)">`
     + (l.blocker  ? `⚠ Blocker: ${escHtml(l.blocker)}<br>` : '')
     + (l.risk     ? `Risk: ${escHtml(l.risk)}<br>` : '')
@@ -4463,7 +4467,7 @@ function _ceoLaneHtml(label, l, laneKey) {
 async function loadCeoBrief() {
   const out = document.getElementById('ceo-brief-out');
   out.style.display = 'block';
-  out.innerHTML = '<span style="color:var(--text3)">Devstral analyse 3 lanes...</span>';
+  out.innerHTML = '<span style="color:var(--text3)">Devstral analyse 5 lanes...</span>';
   try {
     const d = await fetch('/api/ceo-brief', {method:'POST',
       headers:{'Content-Type':'application/json'}, body:'{}'}).then(r=>r.json());
@@ -4474,6 +4478,8 @@ async function loadCeoBrief() {
       out.innerHTML = (obj ? `<div style="font-size:11px;color:var(--text3);margin-bottom:6px">Sprint : <b>${obj}</b></div>` : '')
         + `<div style="border-left:2px solid var(--amber);padding-left:8px">`
         + _ceoLaneHtml('Rocky / Moteur', lanes.rocky_moteur, 'rocky_moteur')
+        + _ceoLaneHtml('Studio', lanes.studio, 'studio')
+        + _ceoLaneHtml('Jeux', lanes.jeux, 'jeux')
         + _ceoLaneHtml('IA / Apprentissage', lanes.ia_apprentissage, 'ia_apprentissage')
         + _ceoLaneHtml('Décisions pendantes', lanes.decisions_pendantes, 'decisions_pendantes')
         + `</div>`;
@@ -5481,6 +5487,50 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/imp-triage":
             self.send_json(imp_triage())
 
+        elif path == "/api/ceo-lane-assignment":
+            charters_dir = REPO / "lab/chains/charters"
+            cached = _ceo_brief_cache.get("brief")
+            cache_age = time.time() - _ceo_brief_cache.get("ts", 0)
+            assignments: list = []
+            if cached and cached.get("lanes") and cache_age <= 300:
+                for lane_key, lane_data in cached["lanes"].items():
+                    if lane_key in ("decisions_pendantes",):
+                        continue
+                    if not isinstance(lane_data, dict):
+                        continue
+                    imp_id = lane_data.get("imp_id") or ""
+                    if imp_id and str(imp_id).startswith("IMP-"):
+                        charter_ready = (charters_dir / f"{imp_id}_charter.md").exists()
+                    else:
+                        imp_id = ""
+                        charter_ready = False
+                    assignments.append({
+                        "imp_id": imp_id,
+                        "lane": lane_key,
+                        "priority": int(lane_data.get("priority") or 1),
+                        "charter_ready": charter_ready,
+                    })
+            else:
+                triage = imp_triage()
+                for lane_key, lane_imps in triage.get("domains", {}).items():
+                    if lane_key == "decisions_pendantes":
+                        continue
+                    for idx, imp in enumerate(lane_imps[:3]):
+                        imp_id = imp.get("id", "")
+                        charter_ready = (charters_dir / f"{imp_id}_charter.md").exists() if imp_id else False
+                        assignments.append({
+                            "imp_id": imp_id,
+                            "lane": lane_key,
+                            "priority": idx + 1,
+                            "charter_ready": charter_ready,
+                        })
+            self.send_json({
+                "ok": True,
+                "assignments": assignments,
+                "cache_age_s": int(cache_age),
+                "claim_verdict": _CLAIM_VERDICT,
+            })
+
         elif path == "/api/health":
             self.send_json(get_health())
 
@@ -6030,10 +6080,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             imps = open_ctx.get("open_imps", [])
 
             _dom = {i["id"]: _imp_domain(i) for i in imps if i.get("id")}
-            moteur_imps = [i for i in imps if _dom.get(i.get("id")) == "rocky_moteur"]
-            studio_imps = [i for i in imps if _dom.get(i.get("id")) == "studio"]
-            jeux_imps   = [i for i in imps if _dom.get(i.get("id")) == "jeux"]
-            ml_imps     = [i for i in imps if _dom.get(i.get("id")) == "ia_apprentissage"]
+            moteur_imps  = [i for i in imps if _dom.get(i.get("id")) == "rocky_moteur"]
+            studio_imps  = [i for i in imps if _dom.get(i.get("id")) == "studio"]
+            jeux_imps    = [i for i in imps if _dom.get(i.get("id")) == "jeux"]
+            ml_imps      = [i for i in imps if _dom.get(i.get("id")) == "ia_apprentissage"]
             pending_imps = [i for i in imps if _dom.get(i.get("id")) == "decisions_pendantes"]
 
             def _fmt(lst: list) -> str:
@@ -6044,16 +6094,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if m_dec:
                 roadmap_decisions = m_dec.group(1).strip()[:600]
 
-            rocky_section = (
-                f"=== Lane rocky_moteur (moteur + infra + jeux) ===\n"
-                f"[Moteur Rust]\n{_fmt(moteur_imps)}\n"
-                f"[Studio / Infra]\n{_fmt(studio_imps)}\n"
-                f"[Jeux]\n{_fmt(jeux_imps)}\n"
-            )
             prompt = (
-                f"/no_think\nTactical Chess Studio — CEO Brief v2\n\n"
+                f"/no_think\nTactical Chess Studio — CEO Brief v3\n\n"
                 f"Sprint objectif : {sprint_objective}\n\n"
-                f"{rocky_section}\n"
+                f"=== Lane rocky_moteur (moteur Rust uniquement) ===\n{_fmt(moteur_imps)}\n\n"
+                f"=== Lane studio (autopilot.py / pipeline / UI) ===\n{_fmt(studio_imps)}\n\n"
+                f"=== Lane jeux (Chess Fantasy / Puzzles) ===\n{_fmt(jeux_imps)}\n\n"
                 f"=== Lane ia_apprentissage (ML / LoRA / dataset) ===\n{_fmt(ml_imps)}\n\n"
                 f"=== Lane decisions_pendantes (HumanGate / FORBIDDEN) ===\n{_fmt(pending_imps)}\n"
                 f"Décisions roadmap en attente :\n{roadmap_decisions}\n\n"
@@ -6063,31 +6109,35 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "{\n"
                 '  "sprint_objective": "texte court",\n'
                 '  "lanes": {\n'
-                '    "rocky_moteur":        { "next_action": "IMP-XXX — titre ou tâche", "lane": "SAFE_AUTO", "risk": "texte", "recommendation": "texte" },\n'
-                '    "ia_apprentissage":    { "next_action": "IMP-XXX — titre ou tâche", "lane": "SAFE_AUTO", "risk": "texte", "recommendation": "texte" },\n'
-                '    "decisions_pendantes": { "next_action": "titre décision", "lane": "AUDIT_REQUIRED", "blocker": "texte ou null", "recommendation": "texte" }\n'
+                '    "rocky_moteur":        { "imp_id": "IMP-XXX ou null", "title": "...", "lane_tag": "SAFE_AUTO", "priority": 1, "risk": "...", "recommendation": "..." },\n'
+                '    "studio":              { "imp_id": "IMP-XXX ou null", "title": "...", "lane_tag": "SAFE_AUTO", "priority": 1, "risk": "...", "recommendation": "..." },\n'
+                '    "jeux":                { "imp_id": "IMP-XXX ou null", "title": "...", "lane_tag": "SAFE_AUTO", "priority": 1, "risk": "...", "recommendation": "..." },\n'
+                '    "ia_apprentissage":    { "imp_id": "IMP-XXX ou null", "title": "...", "lane_tag": "SAFE_AUTO", "priority": 1, "risk": "...", "recommendation": "..." },\n'
+                '    "decisions_pendantes": { "imp_id": null, "title": "...", "lane_tag": "AUDIT_REQUIRED", "priority": 1, "blocker": "...", "recommendation": "..." }\n'
                 '  },\n'
                 f'  "claim_verdict": "{_CLAIM_VERDICT}"\n'
                 "}\n"
             )
             system = (
                 "Tu es le CEO IA du Tactical Chess Studio. "
-                "Tu analyses l'état du studio sur 3 lanes simultanées et retournes uniquement un JSON structuré. "
+                "Tu analyses l'état du studio sur 5 lanes simultanées et retournes uniquement un JSON structuré. "
                 f"claim_verdict: {_CLAIM_VERDICT}"
             )
-            raw = lm_call(prompt, system=system, max_tokens=800, model=LM_MODEL)
-            parsed_v2: dict = {}
+            raw = lm_call(prompt, system=system, max_tokens=1200, model=LM_MODEL)
+            parsed_v3: dict = {}
             try:
-                m2 = re.search(r'\{[\s\S]*\}', raw)
-                if m2:
-                    parsed_v2 = json.loads(m2.group(0))
+                m3 = re.search(r'\{[\s\S]*\}', raw)
+                if m3:
+                    parsed_v3 = json.loads(m3.group(0))
             except Exception:
                 pass
-            if not parsed_v2.get("lanes"):
-                parsed_v2 = {"raw": raw}
+            if not parsed_v3.get("lanes"):
+                parsed_v3 = {"raw": raw}
+            else:
+                _ceo_brief_cache.update({"brief": parsed_v3, "ts": time.time()})
             self.send_json({
-                "ok": bool(parsed_v2.get("lanes")),
-                "brief": parsed_v2,
+                "ok": bool(parsed_v3.get("lanes")),
+                "brief": parsed_v3,
                 "sprint_objective": sprint_objective,
                 "model_used": LM_MODEL,
                 "claim_verdict": _CLAIM_VERDICT
