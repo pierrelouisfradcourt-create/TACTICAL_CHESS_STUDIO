@@ -6,10 +6,13 @@ Lancer : python autopilot.py
 Ouvre automatiquement http://localhost:7331
 """
 
+import base64
+import hashlib
 import http.server
 import json
 import os
 import re
+import struct
 import subprocess
 import sys
 import threading
@@ -119,6 +122,11 @@ _idea_pipeline_state: dict = {
 _idea_pipeline_lock = threading.Lock()
 _ideas_lock = threading.Lock()
 
+# ── WEBSOCKET TERMINAL STATE ──────────────────────────────────────────────────
+_WS_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+_ws_terminals: dict = {}  # n → {"proc": Popen, "alive": bool}
+_ws_terminal_lock = threading.Lock()
+
 # ── IDEAS PERSISTENCE ────────────────────────────────────────────────────────
 _DEFAULT_IDEAS: list = [
     {"id": 2,  "chain": "studio", "status": "backlog", "title": "Mode éphémère — sessions de réflexion sans persistence",             "roi": "med",  "lane": "safe",  "desc": "Garder uniquement les fusions avec utilité mesurable. Évite l'accumulation de docs inutiles.", "issue": ""},
@@ -182,6 +190,150 @@ def _read_stdout(process, lane: str) -> None:
                     _autoloop_logs[lane].pop(0)
     except Exception:
         pass
+
+
+# ── WEBSOCKET HELPERS (RFC 6455 minimal) ─────────────────────────────────────
+def _ws_recv_exact(fobj, n: int):
+    """Read exactly n bytes from a file-like object."""
+    chunks = []
+    remaining = n
+    while remaining > 0:
+        chunk = fobj.read(remaining)
+        if not chunk:
+            return None
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)
+
+
+def _ws_recv_frame(rfile):
+    """Read one WebSocket frame from rfile. Returns (opcode, payload) or (None, None)."""
+    h = _ws_recv_exact(rfile, 2)
+    if not h:
+        return None, None
+    opcode = h[0] & 0x0F
+    masked = (h[1] & 0x80) != 0
+    length = h[1] & 0x7F
+    if length == 126:
+        ext = _ws_recv_exact(rfile, 2)
+        if not ext:
+            return None, None
+        length = struct.unpack("!H", ext)[0]
+    elif length == 127:
+        ext = _ws_recv_exact(rfile, 8)
+        if not ext:
+            return None, None
+        length = struct.unpack("!Q", ext)[0]
+    mask_key = b""
+    if masked:
+        mask_key = _ws_recv_exact(rfile, 4)
+        if not mask_key:
+            return None, None
+    payload = _ws_recv_exact(rfile, length) if length else b""
+    if payload is None:
+        return None, None
+    if masked:
+        payload = bytes(b ^ mask_key[i % 4] for i, b in enumerate(payload))
+    return opcode, payload
+
+
+def _ws_send_frame(sock, data: bytes, opcode: int = 0x02) -> bool:
+    """Send a WebSocket frame (server→client, unmasked)."""
+    length = len(data)
+    header = bytes([0x80 | opcode])
+    if length < 126:
+        header += bytes([length])
+    elif length < 65536:
+        header += bytes([126]) + struct.pack("!H", length)
+    else:
+        header += bytes([127]) + struct.pack("!Q", length)
+    try:
+        sock.sendall(header + data)
+        return True
+    except OSError:
+        return False
+
+
+def _ws_handshake(handler):
+    """Perform WebSocket upgrade handshake. Returns raw socket or None."""
+    key = handler.headers.get("Sec-WebSocket-Key", "").strip()
+    if not key:
+        handler.send_response(400)
+        handler.end_headers()
+        return None
+    accept = base64.b64encode(
+        hashlib.sha1((key + _WS_MAGIC).encode()).digest()
+    ).decode()
+    handler.send_response(101, "Switching Protocols")
+    handler.send_header("Upgrade", "websocket")
+    handler.send_header("Connection", "Upgrade")
+    handler.send_header("Sec-WebSocket-Accept", accept)
+    handler.end_headers()
+    handler.wfile.flush()
+    return handler.connection
+
+
+def _run_ws_terminal(n: int, sock, rfile) -> None:
+    """Spawn PowerShell and pipe bidirectionally to WebSocket session n."""
+    with _ws_terminal_lock:
+        old = _ws_terminals.get(n)
+        if old:
+            try:
+                old["proc"].kill()
+            except Exception:
+                pass
+    try:
+        proc = subprocess.Popen(
+            ["powershell.exe", "-NoLogo", "-NoExit"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            bufsize=0,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        )
+    except Exception as exc:
+        _ws_send_frame(sock, f"\r\n[Erreur lancement PowerShell : {exc}]\r\n".encode(), opcode=0x01)
+        return
+    with _ws_terminal_lock:
+        _ws_terminals[n] = {"proc": proc, "alive": True}
+
+    def _pump_stdout():
+        try:
+            while True:
+                chunk = proc.stdout.read(4096)
+                if not chunk:
+                    break
+                _ws_send_frame(sock, chunk, opcode=0x02)
+        except Exception:
+            pass
+        _ws_send_frame(sock, "[Processus termine]\r\n".encode(), opcode=0x02)
+        with _ws_terminal_lock:
+            if n in _ws_terminals:
+                _ws_terminals[n]["alive"] = False
+
+    threading.Thread(target=_pump_stdout, daemon=True).start()
+
+    try:
+        while True:
+            opcode, data = _ws_recv_frame(rfile)
+            if opcode is None or opcode == 0x08:
+                break
+            if opcode in (0x01, 0x02) and data:
+                try:
+                    proc.stdin.write(data)
+                    proc.stdin.flush()
+                except Exception:
+                    break
+    except Exception:
+        pass
+    finally:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        with _ws_terminal_lock:
+            if n in _ws_terminals:
+                _ws_terminals[n]["alive"] = False
 
 
 # ── MÉMOIRE STUDIO ───────────────────────────────────────────────────────────
@@ -1936,6 +2088,8 @@ HTML = r"""<!DOCTYPE html>
 <title>TCS Autopilote</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Geist+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.js"></script>
 <style>
 :root {
   --bg:       #0b0c0e;
@@ -3082,6 +3236,14 @@ tr:hover td{background:var(--bg3)}
 
     <!-- ── WORKFLOW IMP ── -->
     <div id="page-workflow" class="page">
+
+      <!-- Section 0 : Cockpit Lanes (CEO Brief arbitre) -->
+      <div class="divider">Cockpit Lanes
+        <button class="btn btn-sm btn-amber" onclick="loadCockpitLanes()" style="font-size:10px;padding:2px 8px;text-transform:none;letter-spacing:0">⟳ Régénérer</button>
+      </div>
+      <div id="cockpit-lanes" style="display:flex;gap:10px;margin-bottom:8px">
+        <div style="color:var(--text3);font-size:11px;padding:10px">Chargement assignments...</div>
+      </div>
 
       <!-- Section 1 : Sélection IMP -->
       <div class="divider">Sélection IMP</div>
@@ -5031,6 +5193,123 @@ setInterval(() => {
   if (document.getElementById('page-studio-os')?.classList.contains('active')) loadStudioOs();
 }, 30000);
 
+// ── COCKPIT LANES ────────────────────────────────────────────────────────────
+const _COCKPIT_COLORS = {
+  rocky_moteur:     'var(--green)',
+  studio:           'var(--amber)',
+  jeux:             '#e06c75',
+  ia_apprentissage: 'var(--blue)',
+};
+const _COCKPIT_LABELS = {
+  rocky_moteur:     'Rocky / Moteur',
+  studio:           'Studio',
+  jeux:             'Jeux',
+  ia_apprentissage: 'IA / Apprentissage',
+};
+const _cockpitTerms = {};
+const _cockpitWs    = {};
+
+async function loadCockpitLanes() {
+  const el = document.getElementById('cockpit-lanes');
+  if (!el) return;
+  el.innerHTML = '<div style="color:var(--text3);font-size:11px;padding:10px">Chargement...</div>';
+  try {
+    const d = await fetch('/api/ceo-lane-assignment').then(r => r.json());
+    const assignments = d.assignments || [];
+    const order = ['rocky_moteur', 'studio', 'jeux', 'ia_apprentissage'];
+    const filtered = order
+      .map(lane => assignments.find(a => a.lane === lane))
+      .filter(Boolean)
+      .slice(0, 3);
+    if (!filtered.length) {
+      el.innerHTML = '<div style="color:var(--text3);font-size:11px;padding:10px">(aucun IMP assigné — lancer CEO Brief d\'abord)</div>';
+      return;
+    }
+    el.innerHTML = filtered.map((a, idx) => {
+      const n = idx + 1;
+      const color = _COCKPIT_COLORS[a.lane] || 'var(--text3)';
+      const label = _COCKPIT_LABELS[a.lane] || a.lane;
+      const charterBadge = a.charter_ready
+        ? '<span style="font-size:9px;color:var(--green);margin-left:6px">✓ charter</span>' : '';
+      return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+        <div class="card" style="padding:8px 10px;border-left:3px solid ${color}">
+          <span style="font-size:11px;font-weight:700;color:${color}">${escHtml(label)}</span>
+          <span class="pill p-impl" style="margin-left:6px;font-size:10px">${escHtml(a.imp_id||'—')}</span>
+          ${charterBadge}
+        </div>
+        <div class="card" style="padding:8px">
+          <textarea id="cockpit-charter-${n}" readonly
+            style="width:100%;height:90px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:3px;padding:6px;font-size:10px;font-family:var(--font-d);resize:vertical;box-sizing:border-box"
+            placeholder="— charter —"></textarea>
+          <button class="btn btn-sm btn-amber" style="margin-top:4px"
+            onclick="loadCockpitCharter(${n},'${escHtml(a.imp_id||'')}')">Charger charter</button>
+        </div>
+        <div class="card" style="padding:6px">
+          <div style="font-size:9px;color:var(--text3);margin-bottom:4px">Terminal · ${escHtml(label)}</div>
+          <div id="cockpit-term-${n}" style="height:180px;background:#000;border-radius:3px;overflow:hidden"></div>
+        </div>
+      </div>`;
+    }).join('');
+    filtered.forEach((_, idx) => initCockpitTerminal(idx + 1));
+  } catch(e) {
+    el.innerHTML = '<div style="color:var(--red);font-size:11px;padding:10px">Erreur: ' + escHtml(e.message) + '</div>';
+  }
+}
+
+async function loadCockpitCharter(n, impId) {
+  const el = document.getElementById(`cockpit-charter-${n}`);
+  if (!el || !impId) return;
+  el.value = '⟳ Chargement...';
+  try {
+    const d = await fetch('/api/generate-charter?imp_id=' + encodeURIComponent(impId)).then(r => r.json());
+    el.value = d.charter || d.error || '(vide)';
+  } catch(e) {
+    el.value = '✗ Erreur: ' + e.message;
+  }
+}
+
+function initCockpitTerminal(n) {
+  const el = document.getElementById(`cockpit-term-${n}`);
+  if (!el) return;
+  if (_cockpitTerms[n]) {
+    try { _cockpitTerms[n].dispose(); } catch(e) {}
+    delete _cockpitTerms[n];
+  }
+  if (_cockpitWs[n]) {
+    try { _cockpitWs[n].close(); } catch(e) {}
+    delete _cockpitWs[n];
+  }
+  if (typeof Terminal === 'undefined') {
+    el.innerHTML = '<div style="color:#666;padding:8px;font-size:10px">xterm.js non chargé</div>';
+    return;
+  }
+  const term = new Terminal({
+    cols: 80, rows: 10,
+    theme: { background: '#0b0c0e', foreground: '#d4d4d4', cursor: '#f0a030' },
+    fontSize: 11,
+    fontFamily: '"Geist Mono", monospace',
+    scrollback: 200,
+  });
+  term.open(el);
+  _cockpitTerms[n] = term;
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws = new WebSocket(`${proto}://${location.host}/ws/terminal/${n}`);
+  ws.binaryType = 'arraybuffer';
+  _cockpitWs[n] = ws;
+  ws.onopen  = () => term.write('\x1b[32mConnecté — PowerShell lane ' + n + '\x1b[0m\r\n');
+  ws.onmessage = e => {
+    const data = e.data instanceof ArrayBuffer
+      ? new TextDecoder().decode(e.data) : e.data;
+    term.write(data);
+  };
+  ws.onerror = () => term.write('\r\n\x1b[31m[WS erreur]\x1b[0m\r\n');
+  ws.onclose = () => term.write('\r\n\x1b[33m[Session fermée]\x1b[0m\r\n');
+  term.onData(data => {
+    if (ws.readyState === WebSocket.OPEN)
+      ws.send(new TextEncoder().encode(data));
+  });
+}
+
 // ── WORKFLOW IMP (IMP-059 + IMP-060) ─────────────────────────────────────────
 async function openImpInWorkflow(rawId) {
   const impId = (rawId || '').split('—')[0].trim();
@@ -5071,6 +5350,7 @@ async function loadWorkflow() {
     }
   } catch(e) { console.error('loadWorkflow', e); }
   renderWorkflowHistory();
+  loadCockpitLanes();
 }
 
 async function generateCharter(force=false) {
@@ -5689,6 +5969,27 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         elif path == "/api/ideas":
             self.send_json(load_ideas())
+
+        elif path.startswith("/ws/terminal/"):
+            n_str = path.split("/")[-1]
+            try:
+                n = int(n_str)
+            except ValueError:
+                self.send_response(400)
+                self.end_headers()
+                return
+            if n not in (1, 2, 3):
+                self.send_response(400)
+                self.end_headers()
+                return
+            if self.headers.get("Upgrade", "").lower() != "websocket":
+                self.send_response(426, "Upgrade Required")
+                self.send_header("Upgrade", "websocket")
+                self.end_headers()
+                return
+            sock = _ws_handshake(self)
+            if sock:
+                _run_ws_terminal(n, sock, self.rfile)
 
         else:
             self.send_json({"error": "not found"}, 404)
