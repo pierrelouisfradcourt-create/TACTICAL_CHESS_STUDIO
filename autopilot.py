@@ -84,6 +84,9 @@ _CHAIN_TOOL_MAP: dict = {
 
 ledger_cache: dict = {}  # {"open": N, "closed": M, "next": {}, "ts": "..."}
 _ceo_brief_cache: dict = {}  # {"brief": {...}, "ts": float}
+_ceo_assign_cache: dict = {}  # {"lanes": [...], "ts": float, "ledger_mtime": float}
+_LANE_COLORS = ["var(--amber)", "var(--green)", "#e06c75",
+                "var(--blue)", "var(--purple)", "var(--text2)"]
 
 # ── DEVSTRAL TELEMETRY ────────────────────────────────────────────────────────
 tokens_session: int = 0
@@ -1875,6 +1878,74 @@ def imp_triage() -> dict:
     return {"domains": domains, "total_open": total, "claim_verdict": _CLAIM_VERDICT}
 
 
+def _ceo_assign_lanes() -> list:
+    """Greedy graph-coloring: OPEN SAFE_AUTO IMPs → conflict-free lanes (no shared files)."""
+    charters_dir = REPO / "lab/chains/charters"
+    if not LEDGER.exists():
+        return []
+    try:
+        text = LEDGER.read_text(encoding="utf-8")
+    except Exception:
+        return []
+    open_imps: list = []
+    for block in re.split(r'\n- id:\s*', text)[1:]:
+        try:
+            m_st = re.search(r'status:\s*(\S+)', block)
+            if not m_st or m_st.group(1) != "OPEN":
+                continue
+            m_ln = re.search(r'lane:\s*(\S+)', block)
+            if not m_ln or m_ln.group(1) != "SAFE_AUTO":
+                continue
+            m_id = re.match(r'(IMP-\d+)', block)
+            if not m_id:
+                continue
+            imp_id = m_id.group(1)
+            m_title = re.search(r"title:\s*['\"]?([^'\"\n]+)['\"]?", block)
+            title = m_title.group(1).strip() if m_title else ""
+            files: list = []
+            m_files = re.search(r'\nfiles:((?:\s*\n[ \t]+-[ \t]+[^\n]+)*)', block)
+            if m_files:
+                for fline in m_files.group(1).split('\n'):
+                    fline = fline.strip()
+                    if fline.startswith('- '):
+                        files.append(fline[2:].strip())
+            charter_ready = (charters_dir / f"{imp_id}_charter.md").exists()
+            open_imps.append({
+                "imp_id": imp_id,
+                "title": title,
+                "files": files,
+                "charter_ready": charter_ready,
+            })
+        except Exception:
+            pass
+    lanes: list = []
+    for imp in open_imps:
+        imp_files = set(imp["files"])
+        placed = False
+        for lane in lanes:
+            if not (imp_files & lane["_files_set"]):
+                lane["imps"].append(imp)
+                lane["_files_set"].update(imp_files)
+                placed = True
+                break
+        if not placed:
+            idx = len(lanes)
+            lanes.append({
+                "id": f"L{idx + 1}",
+                "label": f"Lane {idx + 1}",
+                "color": _LANE_COLORS[idx % len(_LANE_COLORS)],
+                "imps": [imp],
+                "_files_set": imp_files.copy(),
+            })
+    for lane in lanes:
+        lane["files_locked"] = sorted(lane.pop("_files_set"))
+        imps = lane["imps"]
+        imp_ids = ", ".join(i["imp_id"] for i in imps)
+        lane["recommendation"] = (f"{len(imps)} IMP(s) assigné(s) — {imp_ids}"
+                                  if imps else "Lane libre · aucun conflit de fichiers")
+    return lanes
+
+
 # ── MEMORY DATA — lit les fichiers sources réels ──────────────────────────────
 def get_memory_data() -> dict:
     result: dict = {
@@ -3261,44 +3332,15 @@ tr:hover td{background:var(--bg3)}
       <div class="divider">Cockpit Lanes
         <button class="btn btn-sm btn-amber" onclick="loadCockpitLanes()" style="font-size:10px;padding:2px 8px;text-transform:none;letter-spacing:0">⟳ Régénérer</button>
       </div>
+      <div id="cockpit-ts" style="font-size:10px;color:var(--text3);margin-bottom:6px;padding:0 2px"></div>
       <div id="cockpit-lanes" style="display:flex;gap:10px;margin-bottom:8px">
         <div style="color:var(--text3);font-size:11px;padding:10px">Chargement assignments...</div>
       </div>
 
-      <!-- Section 1 : Sélection IMP -->
-      <div class="divider">Sélection IMP</div>
-      <div class="card">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <select id="wf-imp-select" style="flex:1;min-width:260px;padding:6px 10px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:12px">
-            <option value="">— Choisir un IMP —</option>
-          </select>
-          <button class="btn btn-amber" id="wf-btn-generate" onclick="generateCharter()">Générer charter</button>
-        </div>
-      </div>
-
-      <!-- Section 2 : Charter généré -->
-      <div id="wf-section-charter" style="display:none">
-        <div class="divider">Charter généré</div>
-        <div class="card">
-          <div id="wf-charter-title" style="font-size:12px;font-weight:600;color:var(--amber);margin-bottom:8px"></div>
-          <textarea id="wf-charter-out" style="width:100%;height:300px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;padding:10px;font-size:11px;font-family:var(--font-d);resize:vertical;box-sizing:border-box" placeholder="Charter généré par Qwen2.5 — éditable avant approbation HumanGate"></textarea>
-          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
-            <button class="btn" onclick="copyCharter()">&#128203; Copier</button>
-            <button class="btn btn-amber" onclick="generateCharter(true)" title="Rappelle Qwen2.5 — ignore le fichier existant">&#8635; Régénérer</button>
-            <span id="wf-copy-label" style="font-size:11px;color:var(--text3)">Éditable — HumanGate corrige avant d'approuver</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Section 3 : Rapport Claude Code -->
+      <!-- Section 3 : Rapport Claude Code (3 lanes) -->
       <div class="divider">Rapport Claude Code</div>
-      <div class="card">
-        <textarea id="wf-report-in" placeholder="Colle le rapport final ici..." style="width:100%;height:160px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;padding:10px;font-size:11px;font-family:var(--font-d);resize:vertical;box-sizing:border-box"></textarea>
-        <div style="font-size:10px;color:var(--text3);margin-top:4px">Validation : doit contenir <code>software_verdict</code> et <code>claim_verdict: NO_CLAIM_ALLOWED</code></div>
-        <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
-          <button class="btn btn-green" id="wf-btn-close" onclick="validateAndCloseImp()">&#10003; Valider et fermer IMP</button>
-          <span id="wf-close-status" style="font-size:11px"></span>
-        </div>
+      <div id="wf-report-lanes" style="display:flex;gap:10px;margin-bottom:8px">
+        <div style="color:var(--text3);font-size:11px;padding:10px">Chargez les lanes cockpit d'abord (⟳ Régénérer ci-dessus).</div>
       </div>
 
       <!-- Section 4 : Historique -->
@@ -4695,9 +4737,16 @@ async function loadCeoBrief() {
         + _ceoLaneHtml('Jeux', lanes.jeux, 'jeux')
         + _ceoLaneHtml('IA / Apprentissage', lanes.ia_apprentissage, 'ia_apprentissage')
         + _ceoLaneHtml('Décisions pendantes', lanes.decisions_pendantes, 'decisions_pendantes')
+        + `</div>`
+        + `<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">`
+        + `<button class="btn btn-sm btn-green" onclick="nav('workflow');setTimeout(loadCockpitLanes,120)">`
+        + `→ Appliquer au cockpit</button>`
         + `</div>`;
     } else {
-      out.innerHTML = `<pre style="font-size:10px">${escHtml(JSON.stringify(b,null,2))}</pre>`;
+      out.innerHTML = `<pre style="font-size:10px">${escHtml(JSON.stringify(b,null,2))}</pre>`
+        + `<div style="margin-top:8px">`
+        + `<button class="btn btn-sm btn-green" onclick="nav('workflow');setTimeout(loadCockpitLanes,120)">`
+        + `→ Appliquer au cockpit</button></div>`;
     }
   } catch(e) {
     out.innerHTML = '<span style="color:var(--red)">Erreur CEO Brief</span>';
@@ -5245,21 +5294,10 @@ setInterval(() => {
 }, 30000);
 
 // ── COCKPIT LANES ────────────────────────────────────────────────────────────
-const _COCKPIT_COLORS = {
-  rocky_moteur:     'var(--green)',
-  studio:           'var(--amber)',
-  jeux:             '#e06c75',
-  ia_apprentissage: 'var(--blue)',
-};
-const _COCKPIT_LABELS = {
-  rocky_moteur:     'Rocky / Moteur',
-  studio:           'Studio',
-  jeux:             'Jeux',
-  ia_apprentissage: 'IA / Apprentissage',
-};
 const _cockpitTerms = {};
 const _cockpitWs    = {};
 const _cockpitReportPaths = {};
+const _cockpitImpIds = {};
 
 function copyReportPath(n) {
   const p = _cockpitReportPaths[n];
@@ -5290,59 +5328,132 @@ async function loadCockpitLanes() {
   const el = document.getElementById('cockpit-lanes');
   if (!el) return;
   el.innerHTML = '<div style="color:var(--text3);font-size:11px;padding:10px">Chargement...</div>';
+  // Cleanup orphaned terminals from previous render
+  Object.keys(_cockpitTerms).forEach(n => {
+    try { _cockpitTerms[n].dispose(); } catch(e) {}
+    delete _cockpitTerms[n];
+  });
+  Object.keys(_cockpitWs).forEach(n => {
+    try { _cockpitWs[n].close(); } catch(e) {}
+    delete _cockpitWs[n];
+  });
   try {
     const d = await fetch('/api/ceo-lane-assignment').then(r => r.json());
-    const assignments = d.assignments || [];
-    const order = ['rocky_moteur', 'studio', 'jeux', 'ia_apprentissage'];
-    const filtered = order
-      .map(lane => assignments.find(a => a.lane === lane))
-      .filter(Boolean)
-      .slice(0, 3);
-    if (!filtered.length) {
-      el.innerHTML = '<div style="color:var(--text3);font-size:11px;padding:10px">(aucun IMP assigné — lancer CEO Brief d\'abord)</div>';
+    const lanes = d.lanes || [];
+    const reportEl = document.getElementById('wf-report-lanes');
+    // FIX 3 — timestamp CEO Brief
+    const tsEl = document.getElementById('cockpit-ts');
+    if (tsEl) {
+      if (d.generated_at) {
+        const ageS = Math.round(Date.now() / 1000 - d.generated_at);
+        const ageStr = ageS < 60 ? 'à l\'instant'
+          : ageS < 3600 ? `il y a ${Math.round(ageS / 60)}min`
+          : `il y a ${Math.round(ageS / 3600)}h`;
+        tsEl.textContent = `Assigné par CEO Brief · ${ageStr}`;
+      } else {
+        tsEl.textContent = '';
+      }
+    }
+    if (!lanes.length) {
+      el.innerHTML = '<div style="color:var(--text3);font-size:11px;padding:10px">Aucun IMP SAFE_AUTO OPEN — ledger vide ou tous fermés.</div>';
+      if (reportEl) reportEl.innerHTML = '<div style="color:var(--text3);font-size:11px;padding:10px">Aucune lane active.</div>';
       return;
     }
-    el.innerHTML = filtered.map((a, idx) => {
+    el.innerHTML = lanes.map((lane, idx) => {
       const n = idx + 1;
-      const color = _COCKPIT_COLORS[a.lane] || 'var(--text3)';
-      const label = _COCKPIT_LABELS[a.lane] || a.lane;
-      const charterBadge = a.charter_ready
+      const color = lane.color || 'var(--text3)';
+      const label = escHtml(lane.label || lane.id);
+      const imps = lane.imps || [];
+      const impId = imps.length ? imps[0].imp_id : '';
+      const charterReady = imps.length && imps[0].charter_ready;
+      const charterBadge = charterReady
         ? '<span style="font-size:9px;color:var(--green);margin-left:6px">✓ charter</span>' : '';
-      const rpath = a.imp_id ? 'lab/chains/reports/' + a.imp_id + '_report.md' : '';
+      const impPills = imps.map(i =>
+        '<span class="pill p-impl" style="font-size:10px">' + escHtml(i.imp_id) + '</span>'
+      ).join(' ');
+      const filesLocked = lane.files_locked || [];
+      const filesStr = filesLocked.length
+        ? '<div style="font-size:9px;color:var(--text3);margin-top:4px;font-family:var(--font-d)">🔒 '
+          + filesLocked.map(f => escHtml(f)).join(' · ') + '</div>'
+        : '<div style="font-size:9px;color:var(--text3);margin-top:3px;opacity:0.45">🔒 aucun fichier verrouillé</div>';
+      // FIX 2 — narrative CEO par lane
+      const rec = lane.recommendation || '';
+      const recEl = rec
+        ? '<div style="font-size:9px;color:var(--text3);margin-top:3px;opacity:0.8">💬 ' + escHtml(rec) + '</div>'
+        : '';
+      const rpath = impId ? 'lab/chains/reports/' + impId + '_report.md' : '';
       _cockpitReportPaths[n] = rpath;
-      const reportSection = rpath
-        ? '<div style="margin-top:6px;font-size:9px;color:var(--text3);display:flex;align-items:center;gap:5px;flex-wrap:wrap">'
+      const rpathLine = rpath
+        ? '<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:2px">'
           + '<span style="font-family:var(--font-d)">📄 ' + escHtml(rpath) + '</span>'
           + '<button class="btn btn-sm" style="font-size:9px;padding:1px 5px" onclick="copyReportPath(' + n + ')">📋</button>'
           + '</div>'
-          + '<div style="font-size:8px;color:var(--text3);font-family:var(--font-d);margin-top:2px;opacity:0.65;line-height:1.6">'
-          + 'software_verdict: OK|FAIL|BLOCKED<br>'
-          + 'evidence_verdict: MECHANICAL_VALIDATION_ONLY<br>'
-          + 'claim_verdict: NO_CLAIM_ALLOWED</div>'
         : '';
+      const reportSection = '<div style="margin-top:6px;font-size:9px;color:var(--text3)">'
+        + rpathLine
+        + '<div style="font-size:8px;font-family:var(--font-d);opacity:0.65;line-height:1.6">'
+        + 'software_verdict: OK|FAIL|BLOCKED<br>'
+        + 'evidence_verdict: MECHANICAL_VALIDATION_ONLY<br>'
+        + 'claim_verdict: NO_CLAIM_ALLOWED</div>'
+        + '</div>';
       return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
         <div class="card" style="padding:8px 10px;border-left:3px solid ${color}">
-          <span style="font-size:11px;font-weight:700;color:${color}">${escHtml(label)}</span>
-          <span class="pill p-impl" style="margin-left:6px;font-size:10px">${escHtml(a.imp_id||'—')}</span>
+          <span style="font-size:11px;font-weight:700;color:${color}">${label}</span>
+          <span style="margin-left:6px">${impPills}</span>
           ${charterBadge}
+          ${recEl}
+          ${filesStr}
         </div>
         <div class="card" style="padding:8px">
           <textarea id="cockpit-charter-${n}"
             style="width:100%;height:90px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:3px;padding:6px;font-size:10px;font-family:var(--font-d);resize:vertical;box-sizing:border-box"
             placeholder="— charter —"></textarea>
           <div style="display:flex;gap:4px;margin-top:4px">
-            <button class="btn btn-sm btn-amber" onclick="loadCockpitCharter(${n},'${escHtml(a.imp_id||'')}')">Charger charter</button>
+            <button class="btn btn-sm btn-amber" onclick="loadCockpitCharter(${n},'${escHtml(impId)}')">Charger charter</button>
             <button class="btn btn-sm" id="cockpit-copy-btn-${n}" onclick="copyCockpitCharter(${n})">📋 Copier</button>
           </div>
         </div>
         <div class="card" style="padding:6px">
-          <div style="font-size:9px;color:var(--text3);margin-bottom:4px">Terminal · ${escHtml(label)}</div>
+          <div style="font-size:9px;color:var(--text3);margin-bottom:4px">Terminal · ${label}</div>
           <div id="cockpit-term-${n}" style="height:180px;background:#000;border-radius:3px;overflow:hidden"></div>
           ${reportSection}
         </div>
       </div>`;
     }).join('');
-    filtered.forEach((_, idx) => initCockpitTerminal(idx + 1));
+    lanes.forEach((_, idx) => initCockpitTerminal(idx + 1));
+
+    // Section rapport N colonnes — alignée sur les lanes
+    if (reportEl) {
+      reportEl.innerHTML = lanes.map((lane, idx) => {
+        const n = idx + 1;
+        const color = lane.color || 'var(--text3)';
+        const label = escHtml(lane.label || lane.id);
+        const imps = lane.imps || [];
+        const impId = imps.length ? imps[0].imp_id : '';
+        _cockpitImpIds[n] = impId;
+        const impBadge = impId
+          ? '<span class="pill p-impl" style="margin-left:6px;font-size:10px">' + escHtml(impId) + '</span>'
+          : '';
+        const btnLabel = impId ? '&#10003; Valider et fermer ' + escHtml(impId) : '&#10003; Valider';
+        const btnDisabled = impId ? '' : 'disabled';
+        return `<div style="flex:1;min-width:0">
+          <div class="card" style="padding:8px 10px;border-left:3px solid ${color};margin-bottom:6px">
+            <span style="font-size:11px;font-weight:700;color:${color}">Rapport · ${label}</span>
+            ${impBadge}
+          </div>
+          <div class="card" style="padding:8px">
+            <textarea id="wf-report-lane-${n}"
+              style="width:100%;height:120px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:3px;padding:6px;font-size:10px;font-family:var(--font-d);resize:vertical;box-sizing:border-box"
+              placeholder="software_verdict: OK&#10;evidence_verdict: MECHANICAL_VALIDATION_ONLY&#10;claim_verdict: NO_CLAIM_ALLOWED"></textarea>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+              <button class="btn btn-sm btn-green" id="wf-report-lane-btn-${n}" ${btnDisabled}
+                onclick="validateAndCloseImpLane(${n})">${btnLabel}</button>
+              <span id="wf-report-lane-status-${n}" style="font-size:10px"></span>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
   } catch(e) {
     el.innerHTML = '<div style="color:var(--red);font-size:11px;padding:10px">Erreur: ' + escHtml(e.message) + '</div>';
   }
@@ -5542,6 +5653,46 @@ function copyCharter() {
       setTimeout(() => { lbl.textContent = 'Colle ce charter dans Claude Code'; }, 2000);
     }
   });
+}
+
+async function validateAndCloseImpLane(n) {
+  const impId = _cockpitImpIds[n] || '';
+  const report = document.getElementById('wf-report-lane-' + n)?.value || '';
+  const statusEl = document.getElementById('wf-report-lane-status-' + n);
+  const btn = document.getElementById('wf-report-lane-btn-' + n);
+  if (!impId) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">✗ Pas d\'IMP assigné</span>';
+    return;
+  }
+  if (!report.includes('software_verdict:')) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">✗ software_verdict manquant</span>';
+    return;
+  }
+  if (!report.includes('claim_verdict: NO_CLAIM_ALLOWED')) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">✗ claim_verdict: NO_CLAIM_ALLOWED manquant</span>';
+    return;
+  }
+  if (btn) btn.disabled = true;
+  if (statusEl) statusEl.innerHTML = '⟳ Fermeture...';
+  try {
+    const d = await fetch('/api/close-imp', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({imp_id: impId})
+    }).then(r => r.json());
+    if (d.ok) {
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)">✓ ' + escHtml(impId) + ' fermé</span>';
+      const ta = document.getElementById('wf-report-lane-' + n);
+      if (ta) ta.value = '';
+      showToast('✓ ' + impId + ' fermé · cockpit mis à jour');
+      setTimeout(loadCockpitLanes, 800);
+    } else {
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">✗ ' + escHtml(d.error || 'Erreur') + '</span>';
+      if (btn) btn.disabled = false;
+    }
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">✗ Erreur connexion</span>';
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function validateAndCloseImp() {
@@ -5938,46 +6089,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(data)
 
         elif path == "/api/ceo-lane-assignment":
-            charters_dir = REPO / "lab/chains/charters"
-            cached = _ceo_brief_cache.get("brief")
-            cache_age = time.time() - _ceo_brief_cache.get("ts", 0)
-            assignments: list = []
-            if cached and cached.get("lanes") and cache_age <= 300:
-                for lane_key, lane_data in cached["lanes"].items():
-                    if lane_key in ("decisions_pendantes",):
-                        continue
-                    if not isinstance(lane_data, dict):
-                        continue
-                    imp_id = lane_data.get("imp_id") or ""
-                    if imp_id and str(imp_id).startswith("IMP-"):
-                        charter_ready = (charters_dir / f"{imp_id}_charter.md").exists()
-                    else:
-                        imp_id = ""
-                        charter_ready = False
-                    assignments.append({
-                        "imp_id": imp_id,
-                        "lane": lane_key,
-                        "priority": int(lane_data.get("priority") or 1),
-                        "charter_ready": charter_ready,
-                    })
-            else:
-                triage = imp_triage()
-                for lane_key, lane_imps in triage.get("domains", {}).items():
-                    if lane_key == "decisions_pendantes":
-                        continue
-                    for idx, imp in enumerate(lane_imps[:3]):
-                        imp_id = imp.get("id", "")
-                        charter_ready = (charters_dir / f"{imp_id}_charter.md").exists() if imp_id else False
-                        assignments.append({
-                            "imp_id": imp_id,
-                            "lane": lane_key,
-                            "priority": idx + 1,
-                            "charter_ready": charter_ready,
-                        })
+            global _ceo_assign_cache
+            ledger_mtime = LEDGER.stat().st_mtime if LEDGER.exists() else 0.0
+            cache_age = time.time() - _ceo_assign_cache.get("ts", 0.0)
+            if cache_age > 60 or _ceo_assign_cache.get("ledger_mtime") != ledger_mtime:
+                lanes_data = _ceo_assign_lanes()
+                _ceo_assign_cache = {
+                    "lanes": lanes_data,
+                    "ts": time.time(),
+                    "ledger_mtime": ledger_mtime,
+                }
             self.send_json({
                 "ok": True,
-                "assignments": assignments,
+                "lanes": _ceo_assign_cache["lanes"],
                 "cache_age_s": int(cache_age),
+                "generated_at": _ceo_assign_cache.get("ts", 0),
                 "claim_verdict": _CLAIM_VERDICT,
             })
 
