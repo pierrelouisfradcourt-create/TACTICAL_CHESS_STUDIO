@@ -2186,6 +2186,9 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;
 .tb-lm.offline{border-color:var(--red);color:var(--red)}
 .tb-time{font-size:11px;color:var(--text3)}
 .tb-hg-badge{display:none;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--red);background:var(--red-bg);border:1px solid var(--red);padding:3px 9px;border-radius:4px;animation:pulse 2s infinite}
+.tb-prop-badge{display:none;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--amber);background:rgba(240,160,48,.15);border:1px solid var(--amber);padding:3px 9px;border-radius:4px;cursor:pointer}
+#tcs-toast{position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid var(--green);color:var(--green);padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+#tcs-toast.show{opacity:1}
 
 /* PAGES */
 .page{display:none}.page.active{display:block}
@@ -2499,6 +2502,7 @@ tr:hover td{background:var(--bg3)}
     <div class="tb-sep"></div>
     <div class="tb-stat">Tokens <span class="val" id="tb-tokens">0</span></div>
     <div class="tb-right">
+      <div class="tb-prop-badge" id="tb-prop-badge" onclick="nav('ideas')" title="Proposals en attente d\'approbation HumanGate">◈ Proposals</div>
       <div class="tb-hg-badge" id="tb-hg-badge" onclick="nav('sos')" style="cursor:pointer">⚠ HumanGate</div>
       <div class="tb-lm offline" id="lm-indicator">
         <span id="lm-dot">○</span>
@@ -3624,6 +3628,37 @@ async function checkEscalation() {
   } catch(e) {}
 }
 setInterval(checkEscalation, 10000); checkEscalation();
+
+// ── WATCHER POLL — refresh cockpit si IMP fermé ───────────────────────────
+let _cockpitWatcherLast = null;
+async function checkWatcherStatus() {
+  if (!document.getElementById('page-workflow')?.classList.contains('active')) return;
+  try {
+    const d = await fetch('/api/watcher-status').then(r => r.json());
+    if (_cockpitWatcherLast !== null && d.last_processed && d.last_processed !== _cockpitWatcherLast) {
+      await loadCockpitLanes();
+      showToast('✓ ' + d.last_processed + ' fermé · cockpit mis à jour');
+    }
+    _cockpitWatcherLast = d.last_processed;
+  } catch(e) {}
+}
+setInterval(checkWatcherStatus, 15000); checkWatcherStatus();
+
+// ── PROPOSALS EN ATTENTE badge topbar ────────────────────────────────────
+async function checkPendingProposals() {
+  try {
+    const d = await fetch('/api/pending-proposals-count').then(r => r.json());
+    const badge = document.getElementById('tb-prop-badge');
+    if (!badge) return;
+    if (d.count > 0) {
+      badge.style.display = 'flex';
+      badge.textContent = '◈ ' + d.count + ' proposal' + (d.count > 1 ? 's' : '');
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch(e) {}
+}
+setInterval(checkPendingProposals, 30000); checkPendingProposals();
 
 // ── AUTO-MODE TOGGLE ──────────────────────────────────────────────────────
 function toggleClaudeMode() {}
@@ -5224,6 +5259,32 @@ const _COCKPIT_LABELS = {
 };
 const _cockpitTerms = {};
 const _cockpitWs    = {};
+const _cockpitReportPaths = {};
+
+function copyReportPath(n) {
+  const p = _cockpitReportPaths[n];
+  if (!p) return;
+  navigator.clipboard.writeText(p).then(() => showToast('Chemin copié · ' + p));
+}
+
+async function copyCockpitCharter(n) {
+  const ta = document.getElementById('cockpit-charter-' + n);
+  if (!ta || !ta.value.trim() || ta.value === '⟳ Chargement...') return;
+  try {
+    await navigator.clipboard.writeText(ta.value);
+    const btn = document.getElementById('cockpit-copy-btn-' + n);
+    if (btn) { const orig = btn.textContent; btn.textContent = '✓ Copié'; setTimeout(() => { btn.textContent = orig; }, 2000); }
+  } catch(e) {}
+}
+
+function showToast(msg, duration=4000) {
+  const el = document.getElementById('tcs-toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._tid);
+  el._tid = setTimeout(() => el.classList.remove('show'), duration);
+}
 
 async function loadCockpitLanes() {
   const el = document.getElementById('cockpit-lanes');
@@ -5247,6 +5308,18 @@ async function loadCockpitLanes() {
       const label = _COCKPIT_LABELS[a.lane] || a.lane;
       const charterBadge = a.charter_ready
         ? '<span style="font-size:9px;color:var(--green);margin-left:6px">✓ charter</span>' : '';
+      const rpath = a.imp_id ? 'lab/chains/reports/' + a.imp_id + '_report.md' : '';
+      _cockpitReportPaths[n] = rpath;
+      const reportSection = rpath
+        ? '<div style="margin-top:6px;font-size:9px;color:var(--text3);display:flex;align-items:center;gap:5px;flex-wrap:wrap">'
+          + '<span style="font-family:var(--font-d)">📄 ' + escHtml(rpath) + '</span>'
+          + '<button class="btn btn-sm" style="font-size:9px;padding:1px 5px" onclick="copyReportPath(' + n + ')">📋</button>'
+          + '</div>'
+          + '<div style="font-size:8px;color:var(--text3);font-family:var(--font-d);margin-top:2px;opacity:0.65;line-height:1.6">'
+          + 'software_verdict: OK|FAIL|BLOCKED<br>'
+          + 'evidence_verdict: MECHANICAL_VALIDATION_ONLY<br>'
+          + 'claim_verdict: NO_CLAIM_ALLOWED</div>'
+        : '';
       return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
         <div class="card" style="padding:8px 10px;border-left:3px solid ${color}">
           <span style="font-size:11px;font-weight:700;color:${color}">${escHtml(label)}</span>
@@ -5254,15 +5327,18 @@ async function loadCockpitLanes() {
           ${charterBadge}
         </div>
         <div class="card" style="padding:8px">
-          <textarea id="cockpit-charter-${n}" readonly
+          <textarea id="cockpit-charter-${n}"
             style="width:100%;height:90px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:3px;padding:6px;font-size:10px;font-family:var(--font-d);resize:vertical;box-sizing:border-box"
             placeholder="— charter —"></textarea>
-          <button class="btn btn-sm btn-amber" style="margin-top:4px"
-            onclick="loadCockpitCharter(${n},'${escHtml(a.imp_id||'')}')">Charger charter</button>
+          <div style="display:flex;gap:4px;margin-top:4px">
+            <button class="btn btn-sm btn-amber" onclick="loadCockpitCharter(${n},'${escHtml(a.imp_id||'')}')">Charger charter</button>
+            <button class="btn btn-sm" id="cockpit-copy-btn-${n}" onclick="copyCockpitCharter(${n})">📋 Copier</button>
+          </div>
         </div>
         <div class="card" style="padding:6px">
           <div style="font-size:9px;color:var(--text3);margin-bottom:4px">Terminal · ${escHtml(label)}</div>
           <div id="cockpit-term-${n}" style="height:180px;background:#000;border-radius:3px;overflow:hidden"></div>
+          ${reportSection}
         </div>
       </div>`;
     }).join('');
@@ -5762,6 +5838,7 @@ async function approvePipelineAll() {
 }
 
 </script>
+<div id="tcs-toast"></div>
 </body>
 </html>"""
 
@@ -5913,6 +5990,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "last_check": _watcher_last_check,
                 "last_processed": _watcher_last_processed,
             })
+
+        elif path == "/api/pending-proposals-count":
+            count = 0
+            proposals_path = REPO / "lab/chains/ROADMAP_PROPOSALS.yaml"
+            if proposals_path.exists():
+                try:
+                    count = proposals_path.read_text(encoding="utf-8").count("humangate_verdict: null")
+                except Exception:
+                    pass
+            self.send_json({"count": count})
 
         elif path == "/api/staleness":
             self.send_json(get_staleness())
