@@ -1,0 +1,97 @@
+{
+  "_schema": "metrics_v1",
+  "_updated": "2026-06-08",
+  "_source": "IMP-C1 — structure initiale peuplée depuis ledger + latest_benchmark_summary.json",
+
+  "kaizen": {
+    "total": 135,
+    "open": 17,
+    "closed": 117,
+    "deferred": 1,
+    "blocked": 0,
+    "pct_closed": 87,
+    "by_lane": {
+      "SAFE_AUTO": 16,
+      "AUDIT_REQUIRED": 0,
+      "HUMAN_REQUIRED": 0,
+      "FORBIDDEN": 1
+    },
+    "by_domain": {
+      "studio": 12,
+      "rocky_moteur": 0,
+      "ia_apprentissage": 2,
+      "jeux": 0,
+      "unset": 3
+    },
+    "next_actionable": ["IMP-C1", "IMP-C2", "IMP-C3", "IMP-B2", "IMP-D1", "IMP-E1", "IMP-E2", "IMP-E3"],
+    "forbidden": ["IMP-008"],
+    "deferred_list": ["IMP-011"]
+  },
+
+  "elo": {
+    "teacher_uci": 1351,
+    "heuristic": 1183,
+    "neural": 1079,
+    "date": "2026-06-03",
+    "source": "latest_benchmark_summary.json",
+    "games": 110,
+    "is_fallback": false
+  },
+
+  "draw_rate": {
+    "value": 0.68,
+    "pct": 68,
+    "threshold": 0.20,
+    "ok": false,
+    "status": "WARN",
+    "source": "latest_benchmark_summary.json",
+    "games": 110,
+    "note": "pool_sf exclu (draw_rate 94%). Benchmark sur pool_2400."
+  },
+
+  "self_play": {
+    "available": false,
+    "games": null,
+    "win_rate": null,
+    "draw_rate": null,
+    "loss_rate": null,
+    "elo_progression": [],
+    "note": "IMP-C3 pending — à alimenter par sf_dataset_generator ou tournament runner"
+  },
+
+  "agents": [
+    {
+      "id": "teacher_uci",
+      "arch": "Search · Stockfish UCI",
+      "status": "STABLE",
+      "elo": 1351
+    },
+    {
+      "id": "heuristic",
+      "arch": "Search only · eval.rs",
+      "status": "STABLE",
+      "elo": 1183
+    },
+    {
+      "id": "neural",
+      "arch": "Search + Neural · PyTorch",
+      "status": "WEAK",
+      "elo": 1079,
+      "note": "draw_rate 68% — dataset pool_sf corrompu"
+    }
+  ],
+
+  "thresholds": {
+    "draw_rate_max": 0.20,
+    "elo_neural_min": 1100,
+    "elo_heuristic_min": 1150,
+    "kaizen_pct_target": 90,
+    "_note": "IMP-D1 — rendre ces valeurs configurables depuis l'UI"
+  },
+
+  "sprint": {
+    "current": "Phase 1 — Rocky jouable et explicable",
+    "objective": "Démo Rocky vs Humain avec commentaires LLM",
+    "humangate_pending": true
+  }
+}
