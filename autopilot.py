@@ -7,6 +7,8 @@ Ouvre automatiquement http://localhost:7331
 """
 
 import base64
+import collections
+import difflib
 import hashlib
 import http.server
 import json
@@ -297,17 +299,28 @@ def _run_ws_terminal(n: int, sock, rfile) -> None:
     except Exception as exc:
         _ws_send_frame(sock, f"\r\n[Erreur lancement PTY : {exc}]\r\n".encode(), opcode=0x01)
         return
+    _lines: collections.deque = collections.deque(maxlen=200)
     with _ws_terminal_lock:
-        _ws_terminals[n] = {"proc": proc, "alive": True}
+        _ws_terminals[n] = {"proc": proc, "alive": True, "lines": _lines}
+
+    _ANSI_RE = re.compile(r'\x1b\[[0-9;]*[A-Za-z]|\x1b\][^\x07]*\x07|\x1b.')
 
     def _pump_stdout():
+        _partial = ""
         try:
             while proc.isalive():
                 data = proc.read(4096)
                 if data:
                     _ws_send_frame(sock, data.encode() if isinstance(data, str) else data, opcode=0x02)
+                    clean = _ANSI_RE.sub('', data if isinstance(data, str) else data.decode('utf-8', errors='replace'))
+                    _partial += clean
+                    while '\n' in _partial:
+                        line, _partial = _partial.split('\n', 1)
+                        _lines.append(line.rstrip('\r'))
         except Exception:
             pass
+        if _partial.strip():
+            _lines.append(_partial.rstrip('\r'))
         _ws_send_frame(sock, "[Processus termine]\r\n".encode(), opcode=0x02)
         with _ws_terminal_lock:
             if n in _ws_terminals:
@@ -1066,6 +1079,58 @@ def _generate_charter_qwen(imp_id: str) -> str:
     return result
 
 
+def _get_closed_imps_for_files(files: list, limit: int = 10) -> str:
+    """Retourne les titres des derniers IMPs CLOSED touchant ces fichiers."""
+    if not LEDGER.exists() or not files:
+        return ""
+    try:
+        text = LEDGER.read_text(encoding="utf-8")
+        results = []
+        for block in re.split(r'\n- id:\s*', text)[1:]:
+            m_id = re.match(r'(IMP-[\w-]+)', block)
+            if not m_id:
+                continue
+            m_status = re.search(r'status:\s*(\S+)', block)
+            if not m_status or m_status.group(1).upper() != 'CLOSED':
+                continue
+            m_files = re.search(r'[ \t]*files:\n((?:\s*- .+\n?)*)', block)
+            imp_files = []
+            if m_files:
+                imp_files = [re.sub(r'^\s*-\s*', '', ln).strip()
+                             for ln in m_files.group(1).splitlines() if ln.strip()]
+            if any(f in imp_files for f in files):
+                m_title = re.search(r"title:\s*([^\n]+)", block)
+                title = m_title.group(1).strip().strip("'\"") if m_title else "?"
+                results.append(f"- {m_id.group(1)} : {title}")
+                if len(results) >= limit:
+                    break
+        return "\n".join(results)
+    except Exception:
+        return ""
+
+
+def _get_closed_imp_titles() -> list:
+    """Retourne [(imp_id, title)] pour tous les IMPs CLOSED du ledger."""
+    if not LEDGER.exists():
+        return []
+    try:
+        text = LEDGER.read_text(encoding="utf-8")
+        results = []
+        for block in re.split(r'\n- id:\s*', text)[1:]:
+            m_id = re.match(r'(IMP-[\w-]+)', block)
+            if not m_id:
+                continue
+            m_status = re.search(r'status:\s*(\S+)', block)
+            if not m_status or m_status.group(1).upper() != 'CLOSED':
+                continue
+            m_title = re.search(r"title:\s*([^\n]+)", block)
+            if m_title:
+                results.append((m_id.group(1), m_title.group(1).strip().strip("'\"")))
+        return results
+    except Exception:
+        return []
+
+
 def _generate_charter_claude(imp_id: str) -> str:
     """Génère un charter via Claude Code CLI (claude --print). Fallback → Qwen2.5."""
     imp = _parse_imp_from_ledger(imp_id)
@@ -1091,6 +1156,25 @@ def _generate_charter_claude(imp_id: str) -> str:
             roadmap_section = "ROADMAP STUDIO (contexte) :\n" + "\n".join(lines) + "\n\n"
             break
 
+    # Context injection : extrait code + IMPs CLOSED sur ces fichiers
+    file_context_section = ""
+    for f in imp.get("files", []):
+        target = REPO / f
+        if target.exists() and target.is_file():
+            try:
+                src_lines = target.read_text(encoding="utf-8").splitlines()
+                head = src_lines[:100]
+                tail = src_lines[-100:] if len(src_lines) > 200 else []
+                excerpt = "\n".join(head)
+                if tail:
+                    excerpt += f"\n... [{len(src_lines) - 200} lignes omises] ...\n" + "\n".join(tail)
+                file_context_section += f"\nCode existant dans {f} :\n```\n{excerpt[:3000]}\n```\n"
+            except Exception:
+                pass
+    closed_on_files = _get_closed_imps_for_files(imp.get("files", []))
+    if closed_on_files:
+        file_context_section += f"\nIMPs déjà fermés sur ce(s) fichier(s) :\n{closed_on_files}\n"
+
     prompt_text = (
         f"Tu es générateur de charters pour le Tactical Chess Studio.\n"
         f"Produis un charter COMPLET et EXÉCUTABLE — zéro contenu générique.\n"
@@ -1102,6 +1186,7 @@ def _generate_charter_claude(imp_id: str) -> str:
         f"- HumanGate décide merge/reject/freeze — pas Claude Code\n"
         f"- Lane SAFE_AUTO : fichier unique autopilot.py, validation py_compile\n\n"
         + roadmap_section
+        + file_context_section
         + f"IMP : {imp_id}\n"
         f"Titre : {imp.get('title', '?')}\n"
         f"Lane : {lane}\n"
@@ -1454,6 +1539,28 @@ def _run_idea_pipeline(idea_id: str, idea_title: str, idea_content: str) -> None
             return
 
         imps_staged = _extract_json_array(extract_raw)
+
+        # Dedup : exclure IMPs dont le titre ressemble >70% à un IMP CLOSED
+        if imps_staged:
+            _closed_titles = _get_closed_imp_titles()
+            _dedup_result = []
+            for _imp in imps_staged:
+                _title = _imp.get("title", "")
+                _dupe = next(
+                    (
+                        (cid, ct, difflib.SequenceMatcher(None, _title.lower(), ct.lower()).ratio())
+                        for cid, ct in _closed_titles
+                        if difflib.SequenceMatcher(None, _title.lower(), ct.lower()).ratio() > 0.70
+                    ),
+                    None
+                )
+                if _dupe:
+                    print(f"[DEDUP] '{_title}' ~ {_dupe[0]} '{_dupe[1]}' ({_dupe[2]:.0%}) — exclu")
+                else:
+                    _dedup_result.append(_imp)
+            if len(_dedup_result) < len(imps_staged):
+                print(f"[DEDUP] {len(imps_staged) - len(_dedup_result)} IMP(s) dédupliqué(s)")
+            imps_staged = _dedup_result
 
         # Zone 7 — Ghost file verification : fichiers cités par EXTRACT vs repo réel
         if imps_staged:
@@ -5801,27 +5908,24 @@ async function launchClaudeCode(n, impId) {
   }, 5000);
 }
 
-function generateReportFromTerminal(n) {
-  const term = _cockpitTerms[n];
-  if (!term) { showToast('Terminal lane ' + n + ' non initialisé'); return; }
-  const buf = term.buffer.active;
-  let text = '';
-  for (let i = 0; i < buf.length; i++) {
-    const line = buf.getLine(i);
-    if (line) text += line.translateToString(true) + '\n';
-  }
-  const svMatch = text.match(/software_verdict:\s*(OK|FAIL|BLOCKED)/);
-  const evMatch = text.match(/evidence_verdict:\s*(\S+)/);
-  const cvMatch = text.match(/claim_verdict:\s*(\S+)/);
-  if (svMatch && evMatch && cvMatch) {
-    const ta = document.getElementById('wf-report-lane-' + n);
-    if (ta) {
-      ta.value = 'software_verdict: ' + svMatch[1] + '\n'
-               + 'evidence_verdict: ' + evMatch[1] + '\n'
-               + 'claim_verdict: '    + cvMatch[1];
+async function generateReportFromTerminal(n) {
+  const impId = _cockpitImpIds[n] || '';
+  const url = '/api/terminal-buffer/' + n + (impId ? '?imp_id=' + encodeURIComponent(impId) : '');
+  try {
+    const d = await fetch(url).then(r => r.json());
+    if (d.software_verdict && d.evidence_verdict && d.claim_verdict) {
+      const ta = document.getElementById('wf-report-lane-' + n);
+      if (ta) {
+        ta.value = 'software_verdict: ' + d.software_verdict + '\n'
+                 + 'evidence_verdict: ' + d.evidence_verdict + '\n'
+                 + 'claim_verdict: '    + d.claim_verdict;
+      }
+      if (d.report_written) showToast('✓ Rapport écrit : ' + d.report_path);
+    } else {
+      showToast('Patterns non détectés dans le terminal');
     }
-  } else {
-    showToast('Patterns non détectés dans le terminal');
+  } catch(e) {
+    showToast('Erreur lecture buffer terminal : ' + e.message);
   }
 }
 
@@ -6573,6 +6677,53 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/chains":
             # B2 — chaînes depuis l'autorité Python (CHAINS_PYTHON)
             self.send_json(CHAINS_PYTHON)
+
+        elif path.startswith("/api/terminal-buffer/"):
+            try:
+                n = int(path.split("/api/terminal-buffer/", 1)[1].split("?")[0])
+            except Exception:
+                self.send_json({"error": "n invalide"}, 400)
+                return
+            qs = self.path.split("?", 1)[1] if "?" in self.path else ""
+            params: dict = {}
+            for part in qs.split("&"):
+                if "=" in part:
+                    k, v = part.split("=", 1)
+                    params[k] = v.replace("%2D", "-").replace("+", " ")
+            imp_id = params.get("imp_id", "").strip()
+            with _ws_terminal_lock:
+                state = _ws_terminals.get(n)
+            lines = list(state["lines"]) if state else []
+            buffer_text = "\n".join(lines)
+            sv = re.search(r'software_verdict:\s*(OK|FAIL|BLOCKED)', buffer_text)
+            ev = re.search(r'evidence_verdict:\s*(\S+)', buffer_text)
+            cv = re.search(r'claim_verdict:\s*(\S+)', buffer_text)
+            report_written = False
+            report_path_str = ""
+            if sv and ev and cv and imp_id:
+                report_content = (
+                    f"software_verdict: {sv.group(1)}\n"
+                    f"evidence_verdict: {ev.group(1)}\n"
+                    f"claim_verdict: {cv.group(1)}\n"
+                )
+                reports_dir = REPO / "lab/chains/reports"
+                reports_dir.mkdir(parents=True, exist_ok=True)
+                rp = reports_dir / f"{imp_id}_report.md"
+                try:
+                    rp.write_text(report_content, encoding="utf-8")
+                    report_written = True
+                    report_path_str = f"lab/chains/reports/{imp_id}_report.md"
+                    print(f"[REPORT] {imp_id} rapport écrit depuis PTY buffer")
+                except Exception as e:
+                    print(f"[REPORT] erreur écriture rapport: {e}")
+            self.send_json({
+                "buffer": buffer_text[-5000:],
+                "software_verdict": sv.group(1) if sv else None,
+                "evidence_verdict": ev.group(1) if ev else None,
+                "claim_verdict": cv.group(1) if cv else None,
+                "report_written": report_written,
+                "report_path": report_path_str,
+            })
 
         elif path.startswith("/api/generate-charter"):
             qs = self.path.split("?", 1)[1] if "?" in self.path else ""
