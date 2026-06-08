@@ -127,7 +127,7 @@ _ideas_lock = threading.Lock()
 
 # ── WEBSOCKET TERMINAL STATE ──────────────────────────────────────────────────
 _WS_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-_ws_terminals: dict = {}  # n → {"proc": Popen, "alive": bool}
+_ws_terminals: dict = {}  # n → {"proc": PtyProcess, "alive": bool}
 _ws_terminal_lock = threading.Lock()
 
 # ── IDEAS PERSISTENCE ────────────────────────────────────────────────────────
@@ -277,39 +277,35 @@ def _ws_handshake(handler):
 
 
 def _run_ws_terminal(n: int, sock, rfile) -> None:
-    """Spawn PowerShell and pipe bidirectionally to WebSocket session n."""
+    """Spawn PowerShell in a real Windows ConPTY via pywinpty, piped to WebSocket session n."""
     with _ws_terminal_lock:
         old = _ws_terminals.get(n)
         if old:
             try:
-                old["proc"].kill()
+                old["proc"].terminate(force=True)
             except Exception:
                 pass
     try:
-        proc = subprocess.Popen(
+        from winpty import PtyProcess
+        proc = PtyProcess.spawn(
             ["powershell.exe", "-NoLogo", "-NoExit", "-Command",
              "Remove-Module PSReadLine -ErrorAction SilentlyContinue;"
              "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;"
              "[Console]::InputEncoding=[System.Text.Encoding]::UTF8"],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            bufsize=0,
-            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+            dimensions=(24, 220)
         )
     except Exception as exc:
-        _ws_send_frame(sock, f"\r\n[Erreur lancement PowerShell : {exc}]\r\n".encode(), opcode=0x01)
+        _ws_send_frame(sock, f"\r\n[Erreur lancement PTY : {exc}]\r\n".encode(), opcode=0x01)
         return
     with _ws_terminal_lock:
         _ws_terminals[n] = {"proc": proc, "alive": True}
 
     def _pump_stdout():
         try:
-            while True:
-                chunk = proc.stdout.read(4096)
-                if not chunk:
-                    break
-                _ws_send_frame(sock, chunk, opcode=0x02)
+            while proc.isalive():
+                data = proc.read(4096)
+                if data:
+                    _ws_send_frame(sock, data.encode() if isinstance(data, str) else data, opcode=0x02)
         except Exception:
             pass
         _ws_send_frame(sock, "[Processus termine]\r\n".encode(), opcode=0x02)
@@ -331,23 +327,20 @@ def _run_ws_terminal(n: int, sock, rfile) -> None:
                         if msg.get('type') == 'resize':
                             cols = int(msg.get('cols', 80))
                             rows = int(msg.get('rows', 24))
-                            cmd = (f"try{{$Host.UI.RawUI.WindowSize="
-                                   f"New-Object Management.Automation.Host.Size({cols},{rows})}}catch{{}}\r\n")
-                            proc.stdin.write(cmd.encode('utf-8'))
-                            proc.stdin.flush()
+                            proc.setwinsize(rows, cols)
                     except Exception:
                         pass
                     continue
                 try:
-                    proc.stdin.write(data)
-                    proc.stdin.flush()
+                    text = data.decode('utf-8', errors='replace') if isinstance(data, bytes) else data
+                    proc.write(text)
                 except Exception:
                     break
     except Exception:
         pass
     finally:
         try:
-            proc.kill()
+            proc.terminate(force=True)
         except Exception:
             pass
         with _ws_terminal_lock:
@@ -1073,6 +1066,92 @@ def _generate_charter_qwen(imp_id: str) -> str:
     return result
 
 
+def _generate_charter_claude(imp_id: str) -> str:
+    """Génère un charter via Claude Code CLI (claude --print). Fallback → Qwen2.5."""
+    imp = _parse_imp_from_ledger(imp_id)
+    if not imp:
+        return _build_minimal_charter_local({"id": imp_id, "title": "?", "lane": "?", "files": []})
+
+    lane      = imp.get("lane", "SAFE_AUTO")
+    files_str = ", ".join(imp.get("files", [])) or "(à déterminer)"
+    val_cmd   = _CHARTER_VALIDATION_BY_LANE.get(lane, _CHARTER_VALIDATION_BY_LANE["SAFE_AUTO"])
+    if imp.get("files") and lane == "SAFE_AUTO":
+        py_files = [f for f in imp["files"] if f.endswith(".py")]
+        if py_files:
+            val_cmd = r".venv312\Scripts\python.exe -m py_compile " + " ".join(py_files)
+
+    # Extrait roadmap (30 lignes max, optionnel)
+    roadmap_section = ""
+    for roadmap_candidate in [
+        REPO / "STUDIO_ROADMAP_AUTOAMELIORATION.md",
+        REPO / "00_STUDIO_CONTROL" / "00_MASTER_DOCS" / "01_ROADMAP.md",
+    ]:
+        if roadmap_candidate.exists():
+            lines = roadmap_candidate.read_text(encoding="utf-8").splitlines()[:30]
+            roadmap_section = "ROADMAP STUDIO (contexte) :\n" + "\n".join(lines) + "\n\n"
+            break
+
+    prompt_text = (
+        f"Tu es générateur de charters pour le Tactical Chess Studio.\n"
+        f"Produis un charter COMPLET et EXÉCUTABLE — zéro contenu générique.\n"
+        f"claim_verdict: {_CLAIM_VERDICT}\n\n"
+        f"EXEMPLE DE CHARTER BIEN FORMÉ :\n{_CHARTER_ONE_SHOT}\n\n"
+        f"CONVENTIONS STUDIO :\n"
+        f"- claim_verdict: NO_CLAIM_ALLOWED dans tous les rapports\n"
+        f"- Séparer software_verdict / evidence_verdict / claim_verdict\n"
+        f"- HumanGate décide merge/reject/freeze — pas Claude Code\n"
+        f"- Lane SAFE_AUTO : fichier unique autopilot.py, validation py_compile\n\n"
+        + roadmap_section
+        + f"IMP : {imp_id}\n"
+        f"Titre : {imp.get('title', '?')}\n"
+        f"Lane : {lane}\n"
+        f"Fichiers autorisés : {files_str}\n"
+        f"Acceptance : {imp.get('acceptance', 'TBD')}\n"
+        f"Notes : {imp.get('notes', '') or 'aucune'}\n"
+        f"Blocked_by : {', '.join(imp.get('blocked_by', [])) or 'aucun'}\n\n"
+        f"Génère le charter avec ce format EXACTEMENT :\n"
+        f"# CHARTER {imp_id} — {imp.get('title', '?')}\n"
+        f"# Lane : {lane}\n"
+        f"# Fichiers autorisés : {files_str}\n"
+        f"# claim_verdict: {_CLAIM_VERDICT}\n\n"
+        "## CONTEXTE\n[2-4 phrases concrètes sur le contexte studio]\n\n"
+        "## OBJECTIF\n[Ce que Claude Code doit faire — actionnable et précis]\n\n"
+        "## SPEC\n[Étapes numérotées avec signatures de fonctions]\n\n"
+        "## VALIDATION\n"
+        f"{val_cmd}\n\n"
+        "## RAPPORT FINAL\n"
+        "software_verdict: OK\n"
+        "evidence_verdict: MECHANICAL_VALIDATION_ONLY\n"
+        f"claim_verdict: {_CLAIM_VERDICT}\n\n"
+        "Retourne UNIQUEMENT le charter, rien d'autre."
+    )
+
+    charters_dir = REPO / "lab/chains/charters"
+    charters_dir.mkdir(parents=True, exist_ok=True)
+    charter_path = charters_dir / f"{imp_id}_charter.md"
+
+    try:
+        proc = subprocess.run(
+            ["claude", "--print", "--dangerously-skip-permissions", prompt_text],
+            cwd=REPO, capture_output=True, text=True,
+            encoding="utf-8", timeout=120
+        )
+        result = proc.stdout.strip()
+        if result:
+            charter_path.write_text(result, encoding="utf-8")
+            print(f"[CHARTER] {imp_id} généré par claude-code")
+            return result
+        print(f"[CHARTER] {imp_id} claude-code stdout vide — fallback qwen2.5")
+    except FileNotFoundError:
+        print(f"[CHARTER] {imp_id} claude non disponible — fallback qwen2.5")
+    except subprocess.TimeoutExpired:
+        print(f"[CHARTER] {imp_id} claude-code timeout — fallback qwen2.5")
+    except Exception as e:
+        print(f"[CHARTER] {imp_id} claude-code erreur ({e}) — fallback qwen2.5")
+
+    return _generate_charter_qwen(imp_id)
+
+
 def api_generate_charter(imp_id: str, force: bool = False) -> dict:
     imp = _parse_imp_from_ledger(imp_id)
     if not imp:
@@ -1082,9 +1161,9 @@ def api_generate_charter(imp_id: str, force: bool = False) -> dict:
         try:
             charter_text = charter_path.read_text(encoding="utf-8")
         except Exception:
-            charter_text = _generate_charter_qwen(imp_id)
+            charter_text = _generate_charter_claude(imp_id)
     else:
-        charter_text = _generate_charter_qwen(imp_id)
+        charter_text = _generate_charter_claude(imp_id)
     return {
         "imp_id":  imp_id,
         "title":   imp.get("title", ""),
@@ -1954,6 +2033,7 @@ def _ceo_assign_lanes() -> list:
     import sys
     for imp in open_imps:
         print(f"[CEO DEBUG] {imp.get('imp_id')} files={imp.get('files')}", file=sys.stderr)
+    open_imps = sorted(open_imps, key=lambda x: tuple(sorted(x["files"])))
     lanes: list = []
     for imp in open_imps:
         imp_files = set(imp["files"])
@@ -1975,10 +2055,22 @@ def _ceo_assign_lanes() -> list:
             })
     for lane in lanes:
         lane["files_locked"] = sorted(lane.pop("_files_set"))
+    # Cap to max 5 lanes, most-loaded first
+    lanes.sort(key=lambda l: len(l["imps"]), reverse=True)
+    lanes = lanes[:5]
+    for i, lane in enumerate(lanes):
+        lane["id"] = f"L{i + 1}"
+        lane["label"] = f"Lane {i + 1}"
+        lane["color"] = _LANE_COLORS[i % len(_LANE_COLORS)]
         imps = lane["imps"]
-        imp_ids = ", ".join(i["imp_id"] for i in imps)
-        lane["recommendation"] = (f"{len(imps)} IMP(s) assigné(s) — {imp_ids}"
-                                  if imps else "Lane libre · aucun conflit de fichiers")
+        lane["active"] = imps[0] if imps else None
+        lane["queued"] = imps[1:] if len(imps) > 1 else []
+        active_id = imps[0]["imp_id"] if imps else "—"
+        queued_ids = ", ".join(x["imp_id"] for x in imps[1:])
+        lane["recommendation"] = (
+            f"▶ {active_id}" + (f" · queued: {queued_ids}" if queued_ids else "")
+            if imps else "Lane libre"
+        )
     return lanes
 
 
@@ -5334,6 +5426,7 @@ const _cockpitTerms = {};
 const _cockpitWs    = {};
 const _cockpitReportPaths = {};
 const _cockpitImpIds = {};
+const _cockpitLaunchPollers = {};
 
 function copyReportPath(n) {
   const p = _cockpitReportPaths[n];
@@ -5400,13 +5493,18 @@ async function loadCockpitLanes() {
       const color = lane.color || 'var(--text3)';
       const label = escHtml(lane.label || lane.id);
       const imps = lane.imps || [];
-      const impId = imps.length ? imps[0].imp_id : '';
-      const charterReady = imps.length && imps[0].charter_ready;
+      const active = lane.active || (imps.length ? imps[0] : null);
+      const queued = lane.queued || [];
+      const impId = active ? active.imp_id : '';
+      const charterReady = active && active.charter_ready;
       const charterBadge = charterReady
         ? '<span style="font-size:9px;color:var(--green);margin-left:6px">✓ charter</span>' : '';
-      const impPills = imps.map(i =>
-        '<span class="pill p-impl" style="font-size:10px">' + escHtml(i.imp_id) + '</span>'
-      ).join(' ');
+      const impPills = active
+        ? '<span class="pill p-impl" style="font-size:10px">' + escHtml(active.imp_id) + '</span>'
+        : '';
+      const queuedLine = queued.length
+        ? '<div style="font-size:9px;color:var(--text3);margin-top:2px">⏳ ' + queued.map(i => escHtml(i.imp_id)).join(' · ') + '</div>'
+        : '';
       const filesLocked = lane.files_locked || [];
       const filesStr = filesLocked.length
         ? '<div style="font-size:9px;color:var(--text3);margin-top:4px;font-family:var(--font-d)">🔒 '
@@ -5437,6 +5535,7 @@ async function loadCockpitLanes() {
           <span style="font-size:11px;font-weight:700;color:${color}">${label}</span>
           <span style="margin-left:6px">${impPills}</span>
           ${charterBadge}
+          ${queuedLine}
           ${recEl}
           ${filesStr}
         </div>
@@ -5444,9 +5543,10 @@ async function loadCockpitLanes() {
           <textarea id="cockpit-charter-${n}"
             style="width:100%;height:90px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:3px;padding:6px;font-size:10px;font-family:var(--font-d);resize:vertical;box-sizing:border-box"
             placeholder="— charter —"></textarea>
-          <div style="display:flex;gap:4px;margin-top:4px">
+          <div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
             <button class="btn btn-sm btn-amber" onclick="loadCockpitCharter(${n},'${escHtml(impId)}')">Charger charter</button>
             <button class="btn btn-sm" id="cockpit-copy-btn-${n}" onclick="copyCockpitCharter(${n})">📋 Copier</button>
+            <button class="btn btn-sm btn-green" id="cockpit-launch-btn-${n}" onclick="launchClaudeCode(${n},'${escHtml(impId)}')" ${impId ? '' : 'disabled'}>▶ Lancer</button>
           </div>
         </div>
         <div class="card" style="padding:6px">
@@ -5505,6 +5605,61 @@ async function loadCockpitCharter(n, impId) {
   } catch(e) {
     el.value = '✗ Erreur: ' + e.message;
   }
+}
+
+async function launchClaudeCode(n, impId) {
+  if (!impId) return;
+  const btn = document.getElementById(`cockpit-launch-btn-${n}`);
+  const ws = _cockpitWs[n];
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    showToast('⚠ Terminal lane ' + n + ' non connecté — initialiser le terminal d\'abord');
+    return;
+  }
+  // Load charter if textarea is still empty
+  const ta = document.getElementById(`cockpit-charter-${n}`);
+  if (ta && !ta.value.trim()) {
+    await loadCockpitCharter(n, impId);
+  }
+  // Save charter to disk before launching
+  const charterContent = ta ? ta.value : '';
+  try {
+    const saved = await fetch('/api/save-charter', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({imp_id: impId, charter: charterContent}),
+    }).then(r => r.json());
+    if (!saved.ok) { showToast('✗ save-charter échoué · ' + (saved.error || '')); return; }
+  } catch(e) { showToast('✗ save-charter erreur · ' + e.message); return; }
+  // Snapshot current last_processed to detect new completion only
+  let prevProcessed = null;
+  try {
+    const s = await fetch('/api/watcher-status').then(r => r.json());
+    prevProcessed = s.last_processed || null;
+  } catch(e) {}
+  // Send command to terminal
+  ws.send('npx @anthropic-ai/claude-code --dangerously-skip-permissions lab/chains/charters/' + impId + '_charter.md\r\n');
+  if (btn) { btn.textContent = '⟳ En cours...'; btn.disabled = true; }
+  // Clear any stale poller for this lane
+  if (_cockpitLaunchPollers[n]) { clearInterval(_cockpitLaunchPollers[n]); delete _cockpitLaunchPollers[n]; }
+  const startTs = Date.now();
+  _cockpitLaunchPollers[n] = setInterval(async () => {
+    try {
+      const timedOut = Date.now() - startTs > 600000;
+      const d = await fetch('/api/watcher-status').then(r => r.json());
+      const done = d.last_processed && d.last_processed !== prevProcessed && d.last_processed === impId;
+      if (done || timedOut) {
+        clearInterval(_cockpitLaunchPollers[n]);
+        delete _cockpitLaunchPollers[n];
+        if (btn) { btn.textContent = '▶ Lancer'; btn.disabled = false; }
+        if (done) {
+          showToast('✓ ' + impId + ' fermé automatiquement');
+          loadCockpitLanes();
+        } else {
+          showToast('⏱ Timeout · ' + impId);
+        }
+      }
+    } catch(e) {}
+  }, 5000);
 }
 
 function initCockpitTerminal(n) {
