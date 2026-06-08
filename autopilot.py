@@ -743,7 +743,7 @@ def _parse_imp_from_ledger(imp_id: str) -> dict:
     try:
         text = LEDGER.read_text(encoding="utf-8")
         for block in re.split(r'\n- id:\s*', text)[1:]:
-            m = re.match(r'(IMP-\d+)', block)
+            m = re.match(r'(IMP-[\w-]+)', block)
             if not m or m.group(1) != imp_id:
                 continue
             imp: dict = {"id": imp_id}
@@ -762,7 +762,7 @@ def _parse_imp_from_ledger(imp_id: str) -> dict:
             m_notes = re.search(r'notes:\s*([\s\S]*?)(?=\n\s*\w[\w_]*:|$)', block)
             if m_notes:
                 imp["notes"] = re.sub(r'\s+', ' ', m_notes.group(1)).strip().strip("'\"")
-            m_files = re.search(r'files:\n((?:\s*- .+\n?)*)', block)
+            m_files = re.search(r'[ \t]*files:\n((?:\s*- .+\n?)*)', block)
             if m_files:
                 imp["files"] = [
                     re.sub(r'^\s*-\s*', '', ln).strip()
@@ -817,7 +817,7 @@ def _find_source_idea(imp_id: str) -> dict:
 
 
 def _check_lane_guard(imp_id: str) -> tuple:
-    if not re.match(r'^IMP-\d+$', imp_id or ""):
+    if not re.match(r'^IMP-[\w-]+$', imp_id or ""):
         return (True, None)
     imp = _parse_imp_from_ledger(imp_id)
     lane = imp.get("lane", "")
@@ -1421,7 +1421,7 @@ def close_imp(imp_id: str) -> dict:
             stripped = line.rstrip()
             if re.match(rf"^- id:\s*{re.escape(imp_id)}\s*$", stripped):
                 in_block = True
-            elif re.match(r"^- id:\s*IMP-\d+", stripped) and in_block:
+            elif re.match(r"^- id:\s*IMP-[\w-]+", stripped) and in_block:
                 in_block = False
             if in_block and re.match(r"^\s+status:\s+(OPEN|DEFERRED|IN_PROGRESS)", stripped):
                 line = re.sub(r"(status:\s+)\w+", r"\g<1>CLOSED", line)
@@ -1485,7 +1485,7 @@ def _auto_close_from_report(report_path: str) -> dict:
     """
     result: dict = {"ok": False, "imp_id": "", "error": ""}
     path = Path(report_path)
-    m = re.match(r"(IMP-\d+)_report\.md$", path.name, re.IGNORECASE)
+    m = re.match(r"(IMP-[\w-]+)_report\.md$", path.name, re.IGNORECASE)
     if not m:
         result["error"] = f"nom de fichier non reconnu : {path.name}"
         return result
@@ -1530,7 +1530,7 @@ def get_ledger_counts() -> dict:
         open_count = text.count("status: OPEN") + text.count("status: IN_PROGRESS")
         closed_count = text.count("status: CLOSED") + text.count("status: DONE")
         next_imp = {}
-        m = re.search(r'- id:\s*(IMP-\d+).*?title:\s*"([^"]+)".*?status:\s*OPEN',
+        m = re.search(r'- id:\s*(IMP-[\w-]+).*?title:\s*"([^"]+)".*?status:\s*OPEN',
                       text, re.DOTALL)
         if m:
             next_imp = {"id": m.group(1), "title": m.group(2)}
@@ -1540,7 +1540,7 @@ def get_ledger_counts() -> dict:
             if not m_st or m_st.group(1) not in ("OPEN", "IN_PROGRESS"):
                 continue
             entry: dict = {}
-            m_id = re.match(r'(IMP-\d+)', block)
+            m_id = re.match(r'(IMP-[\w-]+)', block)
             if m_id:
                 entry["id"] = m_id.group(1)
             m_tit = re.search(r"title:\s*([^\n]+)", block)
@@ -1728,7 +1728,7 @@ def build_fusion_context() -> dict:
                 if not m_status or m_status.group(1) not in ("OPEN", "IN_PROGRESS"):
                     continue
                 entry: dict = {}
-                m_id = re.match(r'(IMP-\d+)', block)
+                m_id = re.match(r'(IMP-[\w-]+)', block)
                 if m_id:
                     entry["id"] = m_id.group(1)
                 m_title = re.search(r"title:\s*['\"]?([^'\"\n]+)['\"]?", block)
@@ -1852,7 +1852,7 @@ def imp_triage() -> dict:
             if status not in ("OPEN", "IN_PROGRESS", "DEFERRED"):
                 continue
             entry: dict = {"status": status}
-            m_id = re.match(r'(IMP-\d+)', block)
+            m_id = re.match(r'(IMP-[\w-]+)', block)
             if m_id:
                 entry["id"] = m_id.group(1)
             m_title = re.search(r"title:\s*['\"]?([^'\"\n]+)['\"]?", block)
@@ -1896,14 +1896,14 @@ def _ceo_assign_lanes() -> list:
             m_ln = re.search(r'lane:\s*(\S+)', block)
             if not m_ln or m_ln.group(1) != "SAFE_AUTO":
                 continue
-            m_id = re.match(r'(IMP-\d+)', block)
+            m_id = re.match(r'(IMP-[\w-]+)', block)
             if not m_id:
                 continue
             imp_id = m_id.group(1)
             m_title = re.search(r"title:\s*['\"]?([^'\"\n]+)['\"]?", block)
             title = m_title.group(1).strip() if m_title else ""
             files: list = []
-            m_files = re.search(r'\nfiles:((?:\s*\n[ \t]+-[ \t]+[^\n]+)*)', block)
+            m_files = re.search(r'\n[ \t]*files:((?:\s*\n[ \t]+-[ \t]+[^\n]+)*)', block)
             if m_files:
                 for fline in m_files.group(1).split('\n'):
                     fline = fline.strip()
@@ -1918,6 +1918,9 @@ def _ceo_assign_lanes() -> list:
             })
         except Exception:
             pass
+    import sys
+    for imp in open_imps:
+        print(f"[CEO DEBUG] {imp.get('imp_id')} files={imp.get('files')}", file=sys.stderr)
     lanes: list = []
     for imp in open_imps:
         imp_files = set(imp["files"])
@@ -2032,7 +2035,7 @@ def get_memory_data() -> dict:
                 if not m_st or m_st.group(1) not in ("CLOSED", "DONE"):
                     continue
                 entry: dict = {}
-                m_id = re.match(r'(IMP-\d+)', block)
+                m_id = re.match(r'(IMP-[\w-]+)', block)
                 if m_id:
                     entry["id"] = m_id.group(1)
                 m_tit = re.search(r"title:\s*([^\n]+)", block)
@@ -6400,7 +6403,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/save-charter":
             imp_id  = body.get("imp_id", "").strip()
             charter = body.get("charter", "").strip()
-            if not imp_id or not re.match(r'^IMP-\d+$', imp_id):
+            if not imp_id or not re.match(r'^IMP-[\w-]+$', imp_id):
                 self.send_json({"ok": False, "error": "imp_id invalide"}, 400)
                 return
             if not charter:
