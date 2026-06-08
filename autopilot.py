@@ -2137,9 +2137,6 @@ def _ceo_assign_lanes() -> list:
             })
         except Exception:
             pass
-    import sys
-    for imp in open_imps:
-        print(f"[CEO DEBUG] {imp.get('imp_id')} files={imp.get('files')}", file=sys.stderr)
     open_imps = sorted(open_imps, key=lambda x: tuple(sorted(x["files"])))
     lanes: list = []
     for imp in open_imps:

@@ -89,6 +89,9 @@ def vocab_fingerprint() -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
+VOCAB_FINGERPRINT: str = vocab_fingerprint()
+
+
 def move_to_index(move: str) -> int:
     mv = normalize_uci_move(move)
     return MOVE_TO_INDEX[mv]

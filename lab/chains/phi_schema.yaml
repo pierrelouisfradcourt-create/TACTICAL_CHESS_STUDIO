@@ -1,0 +1,78 @@
+# phi_schema.yaml — Schema fige des scalaires de session phi(T)
+# Version : v1.0
+# IMPORTANT : ne pas modifier ce fichier sans invalider tout l historique phi_history.jsonl
+# claim_verdict: NO_CLAIM_ALLOWED
+# created: 2026-06-08
+
+schema_version: "v1.0"
+created: "2026-06-08"
+
+description: >
+  Quatre scalaires deterministes captures en fin de session.
+  Zero ML, zero LLM dans le calcul. Toutes les valeurs derivees
+  de git log + IMPROVEMENT_LEDGER.yaml uniquement.
+
+scalaires:
+  commits_count:
+    type: int
+    description: "Nombre de commits git depuis minuit (session du jour)"
+    source: "git log --oneline --since=<today> 00:00:00"
+    default: 0
+    range: "[0, inf)"
+
+  imp_closed_count:
+    type: int
+    description: "Nombre d IMPs fermes aujourd hui (closed_session == today)"
+    source: "IMPROVEMENT_LEDGER.yaml — filtre closed_session == date.today()"
+    default: 0
+    range: "[0, inf)"
+
+  open_imp_count:
+    type: int
+    description: "Nombre total d IMPs avec status OPEN ou IN_PROGRESS au moment de la capture"
+    source: "IMPROVEMENT_LEDGER.yaml — filtre status in {OPEN, IN_PROGRESS, BLOCKED}"
+    default: 0
+    range: "[0, inf)"
+
+  velocity:
+    type: float
+    description: "Ratio IMPs fermes / max(commits, 1) — proxy de productivite de la session"
+    source: "imp_closed_count / max(commits_count, 1)"
+    default: 0.0
+    range: "[0.0, inf)"
+    interpretation:
+      high: ">= 0.5 — session productive, peu de commits de correction"
+      normal: "0.1 - 0.5 — rythme normal"
+      low: "< 0.1 — session exploratoire ou blocage"
+
+entry_schema:
+  session_date:
+    type: str
+    format: "YYYY-MM-DD"
+    required: true
+  schema_version:
+    type: str
+    required: true
+    note: "Doit correspondre a schema_version de ce fichier"
+  commits_count:
+    type: int
+    required: true
+  imp_closed_count:
+    type: int
+    required: true
+  open_imp_count:
+    type: int
+    required: true
+  velocity:
+    type: float
+    required: true
+  notes:
+    type: str
+    required: false
+    default: ""
+
+stability_contract:
+  - "schema_version doit etre bumpe si un scalaire est ajoute, retire, ou renomme"
+  - "Toute modification invalide les comparaisons inter-sessions anterieures"
+  - "Traiter ce fichier comme une migration de base de donnees : irreversible"
+  - "Extension permise : ajouter des champs optionnels dans entry_schema sans bumper"

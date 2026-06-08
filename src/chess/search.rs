@@ -1,6 +1,6 @@
 use crate::chess::eval::{
     center_bonus, draw_score, evaluate, has_non_pawn_material, is_low_material_search_position,
-    is_winning_endgame, piece_value, terminal_score,
+    is_winning_endgame, terminal_score,
 };
 use crate::chess::move_features::*;
 use crate::chess::piece_kind::ChessPieceKind;
@@ -9,7 +9,7 @@ use crate::chess::practical_policy::{
     quiet_non_progress_penalty, tactical_score_breakdown,
 };
 use crate::chess::root_decision::{
-    root_decision_breakdown, root_practical_margin,
+    root_practical_margin,
     RootDecisionBreakdown, RootDecisionContext, RootDecisionHooks,
 };
 use crate::chess::search_diagnostics_accumulators::SearchInstrumentation;
@@ -109,7 +109,7 @@ struct ZobristTable {
 
 static ZOBRIST: OnceLock<ZobristTable> = OnceLock::new();
 
-pub use crate::chess::decision::{choose_best_action, choose_best_action_for_mode};
+pub use crate::chess::decision::choose_best_action;
 pub use crate::chess::eval::static_evaluate;
 
 #[allow(dead_code)]
@@ -152,7 +152,7 @@ pub(crate) fn search_root_with_context(
 fn search_root_in_place(
     engine: &mut Engine,
     player: PlayerId,
-    context: Option<&RootDecisionContext>,
+    _context: Option<&RootDecisionContext>,
 ) -> Option<RootSearchResult> {
     init_tables();
     set_search_runtime_profile_enabled(search_runtime_diagnostics_enabled());
@@ -331,7 +331,6 @@ fn search_root_in_place(
             {
                 best_move = ordered[mate_idx].clone();
                 chosen_search_score = mate_search_score;
-                prev_score = mate_search_score;
                 completed_depth = depth;
                 best_initial_rank = ordered
                     .iter()

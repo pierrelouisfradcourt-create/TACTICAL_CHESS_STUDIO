@@ -26,7 +26,7 @@ pub fn export_games_csv(
 
     writeln!(
         writer,
-        "game_id,agent_a,agent_b,white,black,winner,turns,termination,termination_type,termination_ply,progress_counter,last_capture_ply,last_pawn_move_ply,winner_reason,match_block,purity_violations"
+        "game_id,agent_a,agent_b,white,black,winner,turns,termination,termination_type,termination_ply,progress_counter,last_capture_ply,last_pawn_move_ply,winner_reason,match_block,purity_violations,game_source"
     )?;
 
     for r in records {
@@ -39,7 +39,7 @@ pub fn export_games_csv(
 
         writeln!(
             writer,
-            "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+            "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
             r.game_id,
             r.agent_a,
             r.agent_b,
@@ -55,7 +55,8 @@ pub fn export_games_csv(
             r.last_pawn_move_ply,
             r.winner_reason,
             r.match_block,
-            r.purity_violations
+            r.purity_violations,
+            r.game_source
         )?;
     }
 
@@ -140,7 +141,7 @@ pub fn export_games_detailed_csv(records: &[GameRecord]) -> std::io::Result<()> 
 
     writeln!(
         writer,
-        "run_id,game_id,model_profile,opponent_type,winner,result,termination,termination_type,termination_ply,progress_counter,last_capture_ply,last_pawn_move_ply,winner_reason,turn_count,match_block"
+        "run_id,game_id,model_profile,opponent_type,winner,result,termination,termination_type,termination_ply,progress_counter,last_capture_ply,last_pawn_move_ply,winner_reason,turn_count,match_block,game_source"
     )?;
 
     for r in records {
@@ -161,7 +162,7 @@ pub fn export_games_detailed_csv(records: &[GameRecord]) -> std::io::Result<()> 
 
         writeln!(
             writer,
-            "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+            "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
             experiment_id(),
             r.game_id,
             r.agent_b,
@@ -176,7 +177,8 @@ pub fn export_games_detailed_csv(records: &[GameRecord]) -> std::io::Result<()> 
             r.last_pawn_move_ply,
             r.winner_reason,
             r.turns,
-            r.match_block
+            r.match_block,
+            r.game_source
         )?;
     }
 

@@ -1718,7 +1718,7 @@ impl SimulationRunner {
                         .clone()
                         .unwrap_or_else(|| "forced_draw_stagnation".to_string()),
                 ),
-                MatchTermination::TurnLimit => ("draw".to_string(), "turn_limit".to_string()),
+                MatchTermination::TurnLimit => ("turn_limit".to_string(), "turn_limit".to_string()),
             },
         };
 

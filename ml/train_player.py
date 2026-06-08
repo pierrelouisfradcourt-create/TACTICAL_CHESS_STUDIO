@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from dataset_loader import eval_to_value, fen_to_tensor
 from model import PolicyValueNet
-from move_vocab import try_move_to_index
+from move_vocab import try_move_to_index, VOCAB_FINGERPRINT
 
 
 class _MaiaDataset(Dataset):
@@ -130,6 +130,7 @@ def train(args: argparse.Namespace) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path = output_path.parent / (output_path.stem + "_manifest.json")
 
+    print(f"vocab_fingerprint={VOCAB_FINGERPRINT}")
     print(f"Loading dataset: {dataset_path}")
     rows = _load_jsonl(dataset_path)
     print(f"  raw rows: {len(rows)}")

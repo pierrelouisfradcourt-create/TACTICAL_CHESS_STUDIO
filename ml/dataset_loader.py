@@ -43,7 +43,7 @@ except (ModuleNotFoundError, ImportError, AttributeError):
     material_focus_key = None
     material_signature_from_fen = None
     refresh_adaptive_artifacts = None
-from move_vocab import try_move_to_index, vocab_size
+from move_vocab import try_move_to_index, vocab_size, VOCAB_FINGERPRINT
 
 
 @dataclass(frozen=True)
@@ -82,6 +82,23 @@ def _has_non_empty_text(row: Dict[str, Any], field: str) -> bool:
 
 def _is_non_empty_mapping(value: Any) -> bool:
     return isinstance(value, dict) and bool(value)
+
+
+def validate_vocab_fingerprint(expected: str) -> None:
+    """Raise ValueError if expected fingerprint does not match current VOCAB_FINGERPRINT."""
+    if expected != VOCAB_FINGERPRINT:
+        raise ValueError(
+            f"move_vocab fingerprint mismatch: "
+            f"dataset has {expected!r}, current vocab is {VOCAB_FINGERPRINT!r}. "
+            f"Rebuild the dataset or regenerate with the current move_vocab."
+        )
+
+
+def check_row_vocab_fingerprint(row: Dict[str, Any]) -> None:
+    """Validate the move_vocab_fingerprint field in a dataset row if present."""
+    fp = row.get("move_vocab_fingerprint", "")
+    if fp and isinstance(fp, str) and fp.strip():
+        validate_vocab_fingerprint(fp.strip())
 
 
 def validate_am_dataset_admission(row: Dict[str, Any]) -> AdmissionResult:

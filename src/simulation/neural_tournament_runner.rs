@@ -28,6 +28,7 @@ pub struct GameRecord {
     pub last_pawn_move_ply: u32,
     pub winner_reason: String,
     pub purity_violations: u64,
+    pub game_source: String,
 }
 
 #[derive(Clone, Debug)]
@@ -198,6 +199,7 @@ impl NeuralTournamentRunner {
             let mut wins_a = 0u32;
             let mut wins_b = 0u32;
             let mut draws = 0u32;
+            let mut panic_count_block = 0u32;
 
             {
                 let mut runner = SimulationRunner::new();
@@ -212,6 +214,11 @@ impl NeuralTournamentRunner {
                     if summary.purity_violations > 0 {
                         total_purity_violations += summary.purity_violations;
                         contaminated_match_count += 1;
+                    }
+
+                    let is_panic_recovered = summary.winner_reason.starts_with("match_failed:");
+                    if is_panic_recovered {
+                        panic_count_block += 1;
                     }
 
                     let opponent_type = get_opponent_type(&agent_a);
@@ -230,6 +237,12 @@ impl NeuralTournamentRunner {
                         _ => draws += 1,
                     }
 
+                    let game_source = if is_panic_recovered {
+                        "panic_recovered".to_string()
+                    } else {
+                        "normal".to_string()
+                    };
+
                     game_records.push(GameRecord {
                         game_id: global_game_id,
                         agent_a: agent_a.clone(),
@@ -247,6 +260,7 @@ impl NeuralTournamentRunner {
                         last_pawn_move_ply: summary.last_pawn_move_ply,
                         winner_reason: summary.winner_reason.clone(),
                         purity_violations: summary.purity_violations,
+                        game_source,
                     });
 
                     if match_block == MAIN_EVAL {
@@ -278,6 +292,11 @@ impl NeuralTournamentRunner {
                         contaminated_match_count += 1;
                     }
 
+                    let is_panic_recovered = summary.winner_reason.starts_with("match_failed:");
+                    if is_panic_recovered {
+                        panic_count_block += 1;
+                    }
+
                     let opponent_type = get_opponent_type(&agent_a);
 
                     println!(
@@ -293,6 +312,12 @@ impl NeuralTournamentRunner {
                         None => draws += 1,
                         _ => draws += 1,
                     }
+
+                    let game_source = if is_panic_recovered {
+                        "panic_recovered".to_string()
+                    } else {
+                        "normal".to_string()
+                    };
 
                     game_records.push(GameRecord {
                         game_id: global_game_id,
@@ -311,6 +336,7 @@ impl NeuralTournamentRunner {
                         last_pawn_move_ply: summary.last_pawn_move_ply,
                         winner_reason: summary.winner_reason.clone(),
                         purity_violations: summary.purity_violations,
+                        game_source,
                     });
 
                     if match_block == MAIN_EVAL {
@@ -325,6 +351,13 @@ impl NeuralTournamentRunner {
 
                     global_game_id += 1;
                 }
+            }
+
+            if panic_count_block > 0 {
+                println!(
+                    "BENCHMARK_HARD_FAIL|block={}|matchup={}vs{}|panic_count={}",
+                    match_block, agent_a, agent_b, panic_count_block
+                );
             }
 
             results.push(TournamentResult {
@@ -484,6 +517,12 @@ impl NeuralTournamentRunner {
             };
             elo.update_match("heuristic", "neural", score_a);
 
+            let smoke_game_source = if summary.winner_reason.starts_with("match_failed:") {
+                "panic_recovered".to_string()
+            } else {
+                "normal".to_string()
+            };
+
             game_records.push(GameRecord {
                 game_id: global_game_id,
                 agent_a: "heuristic".to_string(),
@@ -501,6 +540,7 @@ impl NeuralTournamentRunner {
                 last_pawn_move_ply: summary.last_pawn_move_ply,
                 winner_reason,
                 purity_violations: summary.purity_violations,
+                game_source: smoke_game_source,
             });
 
             let benchmark_invalid = contaminated_match_count > 0;
