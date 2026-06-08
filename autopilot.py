@@ -2294,6 +2294,57 @@ def write_studio_state():
         pass
 
 
+_DEFAULT_VISION_LANES = {
+    "rocky":  {"phase": 0, "phases": ["UCI+HTTP", "Self-play", "Fort"],       "milestone": "Rocky répond via HTTP"},
+    "jeux":   {"phase": 0, "phases": ["UI chess", "Multi-jeux", "Tournois"],   "milestone": "Partie jouable"},
+    "agent":  {"phase":-1, "phases": ["Self-play", "LoRA", "Fort"],            "milestone": "Attend Rocky"},
+    "studio": {"phase": 1, "phases": ["Infra", "Métriques", "Réflexion", "Executor"], "milestone": "Factory autonome"},
+}
+
+
+def _get_vision_state() -> dict:
+    p = Path(__file__).parent / "studio_state.json"
+    st: dict = {}
+    try:
+        if p.exists():
+            st = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    lanes = st.get("lanes", _DEFAULT_VISION_LANES)
+    sprint = st.get("sprint") or st.get("sprint_objective") or ""
+    hg_pending = bool(st.get("humangate_pending", False))
+    open_count = 0
+    last_closed: dict = {}
+    try:
+        text = LEDGER.read_text(encoding="utf-8")
+        open_count = text.count("status: OPEN") + text.count("status: IN_PROGRESS")
+        for block in re.split(r'\n- id:\s*', text)[1:]:
+            m_st = re.search(r'status:\s*(\w+)', block)
+            if not m_st or m_st.group(1) not in ("CLOSED", "DONE"):
+                continue
+            entry: dict = {}
+            m_id = re.match(r'(IMP-[\w-]+)', block)
+            if m_id:
+                entry["id"] = m_id.group(1)
+            m_tit = re.search(r"title:\s*([^\n]+)", block)
+            if m_tit:
+                entry["title"] = m_tit.group(1).strip().strip("'\"")
+            m_cs = re.search(r"closed_session:\s*'?([^'\n]+)'?", block)
+            if m_cs:
+                entry["closed_session"] = m_cs.group(1).strip()
+            if entry.get("id"):
+                last_closed = entry
+    except Exception:
+        pass
+    return {
+        "lanes": lanes,
+        "sprint": sprint,
+        "open_count": open_count,
+        "last_closed_imp": last_closed,
+        "humangate_pending": hg_pending,
+    }
+
+
 # ── HTML UI ──────────────────────────────────────────────────────────────────
 HTML = r"""<!DOCTYPE html>
 <html lang="fr">
@@ -2633,6 +2684,7 @@ tr:hover td{background:var(--bg3)}
   </div>
 
   <div class="sb-section">Vue</div>
+  <div class="sb-item" onclick="nav('vision')"><span class="ico">◈</span> Vision <span class="sb-badge badge-amber" id="badge-hg-vision" style="display:none">!</span></div>
   <div class="sb-item active" onclick="nav('pilote')"><span class="ico">⬡</span> Pilote <span class="sb-badge badge-amber" id="badge-actions">0</span></div>
   <div class="sb-item" onclick="nav('chains')"><span class="ico">⛓</span> Chaînes</div>
   <div class="sb-item" onclick="nav('logs')"><span class="ico">▶</span> Logs</div>
@@ -2718,6 +2770,28 @@ tr:hover td{background:var(--bg3)}
 
   <!-- CONTENT -->
   <div class="content">
+
+    <!-- ── VISION (IMP-B1) ── -->
+    <div id="page-vision" class="page">
+      <div class="divider">Vision du projet</div>
+      <div style="text-align:center;padding:20px 0 6px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--text3)">UN JEU OÙ DES IAS JOUENT ET APPRENNENT</div>
+      <div id="vision-lanes" style="display:flex;flex-direction:column;gap:8px;max-width:640px;margin:16px auto 0;padding:0 16px"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;max-width:640px;margin:16px auto 0;padding:0 16px">
+        <div class="stat-blk" style="flex:1;min-width:180px">
+          <div class="stat-lbl">Sprint actuel</div>
+          <div class="stat-val" style="font-size:12px;font-weight:600;line-height:1.4" id="vision-sprint">—</div>
+        </div>
+        <div class="stat-blk" style="flex:1;min-width:180px">
+          <div class="stat-lbl">Dernier IMP fermé</div>
+          <div class="stat-val" style="font-size:12px" id="vision-last-imp">—</div>
+          <div class="stat-sub" id="vision-imp-age"></div>
+        </div>
+        <div class="stat-blk amber" id="vision-hg-blk" style="flex:0 0 auto;display:none">
+          <div class="stat-lbl">HumanGate</div>
+          <div class="stat-val" style="font-size:12px">EN ATTENTE</div>
+        </div>
+      </div>
+    </div>
 
     <!-- ── PILOTE ── -->
     <div id="page-pilote" class="page active">
@@ -3646,6 +3720,7 @@ function nav(id) {
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
   document.querySelector(`.sb-item[onclick="nav('${id}')"]`)?.classList.add('active');
   document.getElementById(`page-${id}`)?.classList.add('active');
+  if (id === 'vision') loadVision();
   if (id === 'ideas') loadIdeas();
   if (id === 'chains') loadChains();
   if (id === 'memory') renderMemory();
@@ -4979,6 +5054,69 @@ async function loadCeoTriage() {
   }
 }
 
+// ── VISION (IMP-B1) ───────────────────────────────────────────────────────
+function _visionRelTime(dt) {
+  const diff = Date.now() - dt.getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "à l'instant";
+  if (min < 60) return `il y a ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `il y a ${h}h`;
+  return `il y a ${Math.floor(h / 24)}j`;
+}
+
+async function loadVision() {
+  const lanesEl  = document.getElementById('vision-lanes');
+  const sprintEl = document.getElementById('vision-sprint');
+  const lastEl   = document.getElementById('vision-last-imp');
+  const ageEl    = document.getElementById('vision-imp-age');
+  const hgBlk    = document.getElementById('vision-hg-blk');
+  const hgBadge  = document.getElementById('badge-hg-vision');
+  if (!lanesEl) return;
+  let d;
+  try { d = await fetch('/api/vision-state').then(r => r.json()); }
+  catch(e) { lanesEl.innerHTML = '<div style="color:var(--text3);font-size:12px">Erreur chargement vision-state</div>'; return; }
+  const META = {
+    rocky:  {label:'ROCKY',  ico:'💻'},
+    jeux:   {label:'JEUX',   ico:'🎮'},
+    agent:  {label:'AGENT',  ico:'🤖'},
+    studio: {label:'STUDIO', ico:'🏭'},
+  };
+  lanesEl.innerHTML = '';
+  for (const [key, meta] of Object.entries(META)) {
+    const lane  = (d.lanes || {})[key] || {phase:-1, phases:[], milestone:''};
+    const ph    = typeof lane.phase === 'number' ? lane.phase : -1;
+    const total = (lane.phases || []).length || 1;
+    const filled = Math.max(0, ph);
+    const bars  = Array.from({length: total}, (_, i) =>
+      `<span style="color:${i < filled ? 'var(--amber)' : 'var(--border)'};font-size:14px">█</span>`
+    ).join('');
+    const phLabel = ph >= 0 ? `Phase ${ph + 1}` : 'Non démarré';
+    const phName  = ph >= 0 && lane.phases[ph] ? ` · ${lane.phases[ph]}` : '';
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--bg2);border-radius:6px;border:1px solid var(--border)';
+    row.innerHTML =
+      `<span style="font-size:15px">${meta.ico}</span>`
+      + `<span style="width:48px;font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--text1)">${meta.label}</span>`
+      + `<span style="font-family:monospace;letter-spacing:-2px">${bars}</span>`
+      + `<span style="font-size:10px;color:var(--text2);flex:1">${escHtml(phLabel + phName)}</span>`
+      + `<span style="font-size:9px;color:var(--text3);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(lane.milestone || '')}</span>`;
+    lanesEl.appendChild(row);
+  }
+  if (sprintEl) sprintEl.textContent = d.sprint || '—';
+  if (lastEl && d.last_closed_imp && d.last_closed_imp.id) {
+    const imp = d.last_closed_imp;
+    lastEl.textContent = imp.id + (imp.title ? ' — ' + imp.title : '');
+    if (ageEl && imp.closed_session) {
+      const dt = new Date(imp.closed_session);
+      ageEl.textContent = isNaN(dt.getTime()) ? imp.closed_session : _visionRelTime(dt);
+    }
+  }
+  const pending = !!d.humangate_pending;
+  if (hgBlk)   hgBlk.style.display   = pending ? 'flex'   : 'none';
+  if (hgBadge) hgBadge.style.display = pending ? 'inline' : 'none';
+}
+
 // ── SYNC & COMMIT (P10) ───────────────────────────────────────────────────
 async function showGitStatus() {
   const out = document.getElementById('git-status-out');
@@ -5581,7 +5719,8 @@ async function loadCockpitLanes() {
             <textarea id="wf-report-lane-${n}"
               style="width:100%;height:120px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:3px;padding:6px;font-size:10px;font-family:var(--font-d);resize:vertical;box-sizing:border-box"
               placeholder="software_verdict: OK&#10;evidence_verdict: MECHANICAL_VALIDATION_ONLY&#10;claim_verdict: NO_CLAIM_ALLOWED"></textarea>
-            <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
+              <button class="btn btn-sm btn-amber" onclick="generateReportFromTerminal(${n})">📋 Générer rapport</button>
               <button class="btn btn-sm btn-green" id="wf-report-lane-btn-${n}" ${btnDisabled}
                 onclick="validateAndCloseImpLane(${n})">${btnLabel}</button>
               <span id="wf-report-lane-status-${n}" style="font-size:10px"></span>
@@ -5660,6 +5799,30 @@ async function launchClaudeCode(n, impId) {
       }
     } catch(e) {}
   }, 5000);
+}
+
+function generateReportFromTerminal(n) {
+  const term = _cockpitTerms[n];
+  if (!term) { showToast('Terminal lane ' + n + ' non initialisé'); return; }
+  const buf = term.buffer.active;
+  let text = '';
+  for (let i = 0; i < buf.length; i++) {
+    const line = buf.getLine(i);
+    if (line) text += line.translateToString(true) + '\n';
+  }
+  const svMatch = text.match(/software_verdict:\s*(OK|FAIL|BLOCKED)/);
+  const evMatch = text.match(/evidence_verdict:\s*(\S+)/);
+  const cvMatch = text.match(/claim_verdict:\s*(\S+)/);
+  if (svMatch && evMatch && cvMatch) {
+    const ta = document.getElementById('wf-report-lane-' + n);
+    if (ta) {
+      ta.value = 'software_verdict: ' + svMatch[1] + '\n'
+               + 'evidence_verdict: ' + evMatch[1] + '\n'
+               + 'claim_verdict: '    + cvMatch[1];
+    }
+  } else {
+    showToast('Patterns non détectés dans le terminal');
+  }
 }
 
 function initCockpitTerminal(n) {
@@ -6311,6 +6474,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 write_studio_state()
                 p2 = Path(__file__).parent / "studio_state.json"
                 self.send_json(json.loads(p2.read_text(encoding="utf-8")))
+
+        elif path == "/api/vision-state":
+            self.send_json(_get_vision_state())
 
         elif path == "/api/autoloop-logs":
             qs = self.path.split("?", 1)[1] if "?" in self.path else ""
