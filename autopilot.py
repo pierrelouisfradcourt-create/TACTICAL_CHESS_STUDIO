@@ -1270,6 +1270,7 @@ def _run_idea_pipeline(idea_id: str, idea_title: str, idea_content: str) -> None
         redteam = lm_call(
             f"Tu es l'avocat du diable d'un studio solo-dev (1 dev, pas d'équipe).\n"
             f"IDÉE HUMAINE : {idea_title}\n"
+            f"Détails : {idea_desc}\n"
             f"Roadmap proposée : {roadmap}\n\n"
             f"Identifie max 3 risques TECHNIQUES concrets (complexité, dépendances, fichiers Rust/Python).\n"
             f"INTERDIT : critiques organisationnelles, formation, support, déploiement.\n"
@@ -1294,6 +1295,7 @@ def _run_idea_pipeline(idea_id: str, idea_title: str, idea_content: str) -> None
             f"Tu es arbitre technique solo-dev. Ta mission : réaliser L'IDÉE HUMAINE\n"
             f"en intégrant les critiques — pas fusionner deux textes machine.\n"
             f"IDÉE HUMAINE : {idea_title}\n"
+            f"Détails : {idea_desc}\n"
             f"Roadmap : {roadmap}\n"
             f"Critiques : {redteam}\n\n"
             f"RÈGLES : max 3 étapes dans le plan final. Chaque étape = fichier précis + action.\n"
@@ -1322,7 +1324,8 @@ def _run_idea_pipeline(idea_id: str, idea_title: str, idea_content: str) -> None
         ) or "  (aucun)"
         extract_raw = lm_call(
             f"Tu es décomposeur IMP d'un studio SOLO-DEV (1 seul développeur, pas d'équipe).\n"
-            f"IDÉE HUMAINE À RÉALISER : {idea_title}\n\n"
+            f"IDÉE HUMAINE À RÉALISER : {idea_title}\n"
+            f"Détails : {idea_desc}\n\n"
             f"IMPs déjà OPEN dans le ledger (éviter doublons, calculer blocked_by) :\n"
             f"{_open_imps_ctx}\n\n"
             f"INTERDICTIONS ABSOLUES — rejeter tout IMP contenant :\n"
@@ -1372,6 +1375,36 @@ def _run_idea_pipeline(idea_id: str, idea_title: str, idea_content: str) -> None
             return
 
         imps_staged = _extract_json_array(extract_raw)
+
+        # Zone 7 — Ghost file verification : fichiers cités par EXTRACT vs repo réel
+        if imps_staged:
+            _repo_files: set = set()
+            for _ext in ['.py', '.rs', '.yaml', '.json', '.md']:
+                _repo_files.update(
+                    str(p.relative_to(REPO)).replace('\\', '/')
+                    for p in REPO.rglob(f'*{_ext}')
+                    if '.git' not in str(p)
+                )
+            _matrix_text = ""
+            _matrix_path = REPO / "00_STUDIO_CONTROL/00_MASTER_DOCS/AUTOMATION_LANE_MATRIX.md"
+            if _matrix_path.exists():
+                try:
+                    _matrix_text = _matrix_path.read_text(encoding="utf-8")
+                except Exception:
+                    pass
+            _ghost_total = 0
+            for _imp in imps_staged:
+                _clean: list = []
+                for _f in _imp.get("files", []):
+                    _fn = _f.replace('\\', '/')
+                    if _fn in _repo_files or _fn in _matrix_text:
+                        _clean.append(_f)
+                    else:
+                        print(f"[EXTRACT] {_imp.get('title', '?')} fichier fantôme : {_f}")
+                        _ghost_total += 1
+                _imp["files"] = _clean
+            print(f"[EXTRACT] {_ghost_total} fichier(s) fantôme(s) détecté(s) sur {len(imps_staged)} IMP(s)")
+
         needs_claude_fallback = not imps_staged
         if needs_claude_fallback:
             print("[extract] aucun tableau JSON d'objets trouvé dans la réponse")
