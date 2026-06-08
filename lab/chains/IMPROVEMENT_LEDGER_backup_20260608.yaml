@@ -1,6 +1,7 @@
 # IMPROVEMENT_LEDGER.yaml
 # SSOT amélioration continue (Kaizen Loop) — Tactical Chess Studio
 # Claim posture: NO_CLAIM_ALLOWED | Read-only sauf --close/--add
+
 meta:
   ledger_version: v0
   created_session: '2026-05-31'
@@ -18,12 +19,13 @@ improvements:
   lane: SAFE_AUTO
   files:
   - lab/chains/doc_hygiene_chain.py
-  acceptance: detect_lane() lit les lanes depuis FILE_ROUTING_MANIFEST.yaml au lieu de hardcoder. Test refuse si manifest/detect_lane
-    contradiction.
+  acceptance: detect_lane() lit les lanes depuis FILE_ROUTING_MANIFEST.yaml au lieu
+    de hardcoder. Test refuse si manifest/detect_lane contradiction.
   blocked_by: []
   opened_session: '2026-05-31'
   closed_session: '2026-05-31'
-  notes: Bloque l'automation des chaines elles-memes (lab/chains = SAFE_AUTO dans manifest mais AUDIT_REQUIRED hardcode).
+  notes: Bloque l'automation des chaines elles-memes (lab/chains = SAFE_AUTO dans
+    manifest mais AUDIT_REQUIRED hardcode).
 - id: IMP-002
   title: Créer HUMANGATE_DECISION_LOG.yaml (SSOT décisions)
   type: gap_fix
@@ -34,8 +36,8 @@ improvements:
   lane: SAFE_AUTO
   files:
   - lab/chains/HUMANGATE_DECISION_LOG.yaml
-  acceptance: Schema decision_id/title/zone/surface/source_state/verdict/evidence/risk/approved_by/approved_at. Seedé avec
-    les 8 commits de session.
+  acceptance: Schema decision_id/title/zone/surface/source_state/verdict/evidence/risk/approved_by/approved_at.
+    Seedé avec les 8 commits de session.
   blocked_by: []
   opened_session: '2026-05-31'
   closed_session: '2026-05-31'
@@ -51,8 +53,8 @@ improvements:
   files:
   - lab/chains/lane_conflict_checker.py
   - lab/chains/lane_plan.yaml
-  acceptance: 'Parse lane_plan.yaml, détecte intersection de files entre lanes, refuse si overlap non vide. Test : 2 lanes
-    disjointes = CLEAR, 2 lanes partagées = CONFLICT.'
+  acceptance: 'Parse lane_plan.yaml, détecte intersection de files entre lanes, refuse
+    si overlap non vide. Test : 2 lanes disjointes = CLEAR, 2 lanes partagées = CONFLICT.'
   blocked_by: []
   opened_session: '2026-05-31'
   closed_session: '2026-05-31'
@@ -67,8 +69,8 @@ improvements:
   lane: SAFE_AUTO
   files:
   - lab/chains/scripts_route_chain.py
-  acceptance: Lit scripts/uxpilote, scripts/studioV2, scripts/control_plane. Détecte path drift, candidates, stale refs. Produit
-    scripts_route_packet.
+  acceptance: Lit scripts/uxpilote, scripts/studioV2, scripts/control_plane. Détecte
+    path drift, candidates, stale refs. Produit scripts_route_packet.
   blocked_by: []
   opened_session: '2026-05-31'
   closed_session: '2026-05-31'
@@ -83,7 +85,8 @@ improvements:
   lane: SAFE_AUTO
   files:
   - lab/chains/fusion_matrix_chain.py
-  acceptance: 'Merge outputs de doc_hygiene + run_chain + scripts_route. Produit fusion_matrix (markdown table: verdict/evidence/risk/contradiction).'
+  acceptance: 'Merge outputs de doc_hygiene + run_chain + scripts_route. Produit fusion_matrix
+    (markdown table: verdict/evidence/risk/contradiction).'
   blocked_by:
   - IMP-004
   opened_session: '2026-05-31'
@@ -99,7 +102,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/tool/puzzle_eval.rs
-  acceptance: Ajouter flag --output <path> à puzzle_eval pour écrire le rapport JSON à un chemin custom.
+  acceptance: Ajouter flag --output <path> à puzzle_eval pour écrire le rapport JSON
+    à un chemin custom.
   blocked_by: []
   opened_session: '2026-05-31'
   closed_session: '2026-06-01'
@@ -114,7 +118,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/simulation/simulation_runner.rs
-  acceptance: Brancher ouverture aléatoire 2-8 plies dans le benchmark pour casser le 100% draws search vs search.
+  acceptance: Brancher ouverture aléatoire 2-8 plies dans le benchmark pour casser
+    le 100% draws search vs search.
   blocked_by: []
   opened_session: '2026-05-31'
   closed_session: '2026-06-01'
@@ -130,14 +135,16 @@ improvements:
   domain: ia_apprentissage
   files:
   - lab/datasets/teacher_samples.jsonl
-  acceptance: Localiser trainer_mix (cli.rs ou campaign_runner_v1.py), régénérer dataset propre via Stockfish teacher.
+  acceptance: Localiser trainer_mix (cli.rs ou campaign_runner_v1.py), régénérer dataset
+    propre via Stockfish teacher.
   blocked_by:
   - IMP-007
   opened_session: '2026-05-31'
   closed_session: null
-  notes: 'BLOQUANT ML. Lane FORBIDDEN (dataset generation = HumanGate strict). Ne pas automatiser. — HumanGate 2026-06-02
-    : ACTIVE_DATASET.txt redirigé vers pool_2400.jsonl (draw_rate 8.8%, 1M parties). Dataset corrompu teacher_samples.jsonl
-    archivé. Rebuild FORBIDDEN jusqu''à Stockfish disponible.'
+  notes: 'BLOQUANT ML. Lane FORBIDDEN (dataset generation = HumanGate strict). Ne
+    pas automatiser. — HumanGate 2026-06-02 : ACTIVE_DATASET.txt redirigé vers pool_2400.jsonl
+    (draw_rate 8.8%, 1M parties). Dataset corrompu teacher_samples.jsonl archivé.
+    Rebuild FORBIDDEN jusqu''à Stockfish disponible.'
 - id: IMP-009
   title: 'Charter B : optimisations run_chain.py (opt1-4)'
   type: feature
@@ -148,8 +155,8 @@ improvements:
   lane: SAFE_AUTO
   files:
   - lab/chains/run_chain.py
-  acceptance: 'Opt1: charger 3 derniers CHAIN_HISTORY. Opt2: detect_lane avant Mistral. Opt3: source readback auto. Opt4:
-    tracking FORBIDDEN_OUTPUTS.'
+  acceptance: 'Opt1: charger 3 derniers CHAIN_HISTORY. Opt2: detect_lane avant Mistral.
+    Opt3: source readback auto. Opt4: tracking FORBIDDEN_OUTPUTS.'
   blocked_by:
   - IMP-001
   opened_session: '2026-05-31'
@@ -165,7 +172,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/chess/search.rs
-  acceptance: '3 ajouts chirurgicaux: pv_changes, DepthSnapshot, nodes_per_root_move. Telemetry only, pas de changement comportement.'
+  acceptance: '3 ajouts chirurgicaux: pv_changes, DepthSnapshot, nodes_per_root_move.
+    Telemetry only, pas de changement comportement.'
   blocked_by: []
   opened_session: '2026-05-31'
   closed_session: '2026-06-03'
@@ -181,7 +189,8 @@ improvements:
   domain: ia_apprentissage
   files:
   - ml/infer_policy.py
-  acceptance: infer_policy.py jette le scalaire value du ResNet. L'utiliser ou documenter pourquoi pas.
+  acceptance: infer_policy.py jette le scalaire value du ResNet. L'utiliser ou documenter
+    pourquoi pas.
   blocked_by:
   - IMP-008
   opened_session: '2026-05-31'
@@ -197,8 +206,8 @@ improvements:
   lane: SAFE_AUTO
   files:
   - lab/chains/studio_context_builder.py
-  acceptance: Script qui derive STUDIO_CONTEXT.md depuis ledger+manifest. Injecte en tete prompts Mistral. Regenere a chaque
-    kaizen metrics.
+  acceptance: Script qui derive STUDIO_CONTEXT.md depuis ledger+manifest. Injecte
+    en tete prompts Mistral. Regenere a chaque kaizen metrics.
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -213,7 +222,8 @@ improvements:
   lane: SAFE_AUTO
   files:
   - lab/chains/golden_collector.py
-  acceptance: Quand autoloop close un IMP, le charter est archive dans golden_examples.jsonl. Base du futur LoRA.
+  acceptance: Quand autoloop close un IMP, le charter est archive dans golden_examples.jsonl.
+    Base du futur LoRA.
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -228,7 +238,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/simulation/simulation_runner.rs
-  acceptance: random_opening=true dans teacher_uci et benchmark, lab_hard_turn_cap >= 200, parties avec vrais resultats
+  acceptance: random_opening=true dans teacher_uci et benchmark, lab_hard_turn_cap
+    >= 200, parties avec vrais resultats
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -259,7 +270,8 @@ improvements:
   files:
   - src/chess/opening_book.rs
   - lab/data/opening_book.jsonl
-  acceptance: Rocky joue e4 ou d4 au coup 1, moves coherents 10 premiers coups, cargo check OK
+  acceptance: Rocky joue e4 ou d4 au coup 1, moves coherents 10 premiers coups, cargo
+    check OK
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -289,7 +301,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/chess/eval.rs
-  acceptance: Rocky ne laisse pas son roi en centre en milieu de partie, cargo check OK
+  acceptance: Rocky ne laisse pas son roi en centre en milieu de partie, cargo check
+    OK
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -319,7 +332,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/chess/practical_policy.rs
-  acceptance: Rocky ne perd pas de piece dans echanges a 3 attaquants, cargo check OK
+  acceptance: Rocky ne perd pas de piece dans echanges a 3 attaquants, cargo check
+    OK
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -334,7 +348,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/chess/eval.rs
-  acceptance: Rocky ne laisse pas pieces mineures sur cases depart au coup 10, cargo check OK
+  acceptance: Rocky ne laisse pas pieces mineures sur cases depart au coup 10, cargo
+    check OK
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -454,7 +469,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/chess/eval.rs
-  acceptance: Rocky ne provoque pas stalemate accidentel en K+Q vs K, cargo check OK
+  acceptance: Rocky ne provoque pas stalemate accidentel en K+Q vs K, cargo check
+    OK
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -485,7 +501,8 @@ improvements:
   files:
   - src/simulation/neural_tournament_runner.rs
   - src/tournament/elo.rs
-  acceptance: 'Rapport : fonctions exposées, CLI dispo, ce qui manque pour instancier EloTable'
+  acceptance: 'Rapport : fonctions exposées, CLI dispo, ce qui manque pour instancier
+    EloTable'
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-02'
@@ -503,7 +520,8 @@ improvements:
   - lab/datasets/teacher_solid.jsonl
   - lab/datasets/teacher_positional.jsonl
   - lab/datasets/teacher_finisher.jsonl
-  acceptance: 'Rapport JSON : champs présents, % results non-draw, aaa_* non-null, décision RECYCLE/REGENERATE'
+  acceptance: 'Rapport JSON : champs présents, % results non-draw, aaa_* non-null,
+    décision RECYCLE/REGENERATE'
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-02'
@@ -519,7 +537,8 @@ improvements:
   files:
   - src/simulation/neural_tournament_runner.rs
   - src/tournament/elo.rs
-  acceptance: EloTable instanciée, K canonique choisi, leaderboard() utilisé, cargo test OK
+  acceptance: EloTable instanciée, K canonique choisi, leaderboard() utilisé, cargo
+    test OK
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-02'
@@ -535,8 +554,8 @@ improvements:
   files:
   - src/simulation/neural_tournament_runner.rs
   - src/tournament/elo.rs
-  acceptance: EloTable::new instanciée, update_elo_pair remplacé par update_match, leaderboard() utilisé, cargo test OK, K=24
-    canonique
+  acceptance: EloTable::new instanciée, update_elo_pair remplacé par update_match,
+    leaderboard() utilisé, cargo test OK, K=24 canonique
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-02'
@@ -567,7 +586,8 @@ improvements:
   files:
   - lab/datasets/candidate_games_for_triage.csv
   - lab/pedagogy_db/PEDAGOGICAL_DB_TACTICS.pgn
-  acceptance: Format CSV identifié, nb puzzles, thèmes présents, distributions top_gap/aaa_confidence teacher_*
+  acceptance: Format CSV identifié, nb puzzles, thèmes présents, distributions top_gap/aaa_confidence
+    teacher_*
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-02'
@@ -603,8 +623,8 @@ improvements:
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-03'
-  notes: 'HumanGate 2026-06-02 : draw_rate observé 93.1% != critère. Acceptance relevé à <20%. Statut rouvert — pool_sf à
-    régénérer (SF vs SF positions variées).'
+  notes: 'HumanGate 2026-06-02 : draw_rate observé 93.1% != critère. Acceptance relevé
+    à <20%. Statut rouvert — pool_sf à régénérer (SF vs SF positions variées).'
 - id: IMP-039
   title: dataset_builder_v3.py — 3 pools < 20% draw depuis pioche commune
   type: feature
@@ -631,7 +651,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - ml/train_player.py
-  acceptance: checkpoint .pt produit, loss décroissante, smoke 20 parties draw_rate < 30%
+  acceptance: checkpoint .pt produit, loss décroissante, smoke 20 parties draw_rate
+    < 30%
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-02'
@@ -646,7 +667,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/tool/cli.rs
-  acceptance: Rocky ne joue plus de répétitions en partie longue, draw_rate benchmark < 40%
+  acceptance: Rocky ne joue plus de répétitions en partie longue, draw_rate benchmark
+    < 40%
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-02'
@@ -665,7 +687,6 @@ improvements:
   opened_session: '2026-06-03'
   closed_session: '2026-06-03'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-043
   title: Valider pool_sf draw_rate < 20% sur 500 parties reelles
   type: feature
@@ -679,9 +700,9 @@ improvements:
   blocked_by: []
   opened_session: '2026-06-03'
   closed_session: '2026-06-03'
-  notes: 'HumanGate 2026-06-03 : Option B choisie. pool_sf abandoné (draw_rate=94%, régénération impossible sans deux moteurs
-    SF asymétriques). pool_sf exclu du pipeline ML. IMP-038 verdict final : INVALID.'
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
+  notes: 'HumanGate 2026-06-03 : Option B choisie. pool_sf abandoné (draw_rate=94%,
+    régénération impossible sans deux moteurs SF asymétriques). pool_sf exclu du pipeline
+    ML. IMP-038 verdict final : INVALID.'
 - id: IMP-044
   title: Page Studio OS — cockpit unifie surfaces + boucle + HumanGate
   type: feature
@@ -696,7 +717,6 @@ improvements:
   opened_session: '2026-06-03'
   closed_session: '2026-06-03'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-045
   title: LoRA training Devstral sur 57 exemples golden
   type: feature
@@ -707,12 +727,13 @@ improvements:
   lane: HUMAN_REQUIRED
   files:
   - ml/lora_train_devstral.py
-  acceptance: Script dry-run valide config + dataset. --train lance SFTTrainer sur 38 golden exemples.
+  acceptance: Script dry-run valide config + dataset. --train lance SFTTrainer sur
+    38 golden exemples.
   blocked_by: []
   opened_session: '2026-06-03'
   closed_session: '2026-06-03'
-  notes: 'HumanGate 2026-06-03 approuvé. Dry-run OK : 38 exemples, format validé, VRAM 17.1GB (fp16) / 6.6GB (4-bit). Training
-    réel : fournir --model-path <devstral_local>.'
+  notes: 'HumanGate 2026-06-03 approuvé. Dry-run OK : 38 exemples, format validé,
+    VRAM 17.1GB (fp16) / 6.6GB (4-bit). Training réel : fournir --model-path <devstral_local>.'
 - id: IMP-046
   title: Switcher LM_MODEL vers Qwen3.6 27B dans autopilot.py + tester CEO Brief
   type: feature
@@ -727,7 +748,6 @@ improvements:
   opened_session: '2026-06-03'
   closed_session: '2026-06-04'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-047
   title: Architecture dual-model brain/router dans autopilot.py
   type: feature
@@ -742,9 +762,9 @@ improvements:
   opened_session: '2026-06-03'
   closed_session: '2026-06-04'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-048
-  title: state_updater.py — MAJ automatique docs studio depuis sources reelles apres chaque session
+  title: state_updater.py — MAJ automatique docs studio depuis sources reelles apres
+    chaque session
   type: feature
   source: manual add 2026-06-04
   status: CLOSED
@@ -757,9 +777,9 @@ improvements:
   opened_session: '2026-06-04'
   closed_session: '2026-06-04'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-049
-  title: Cablage state_updater.py dans autopilot.py — appel auto apres close_imp et run_chain
+  title: Cablage state_updater.py dans autopilot.py — appel auto apres close_imp et
+    run_chain
   type: feature
   source: manual add 2026-06-04
   status: CLOSED
@@ -772,7 +792,22 @@ improvements:
   opened_session: '2026-06-04'
   closed_session: '2026-06-04'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-050
+  title: Cablage state_updater.py dans autopilot.py — appel auto apres close_imp et
+    run_chain
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+  note: DUPLICATE de IMP-049
 - id: IMP-051
   title: CEO Brief v2 — plan 3 lanes simultanées avec sprint objectif
   type: feature
@@ -787,9 +822,9 @@ improvements:
   opened_session: '2026-06-04'
   closed_session: '2026-06-04'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-052
-  title: Roadmap-to-Ledger — extraire IMPs depuis roadmap et les injecter dans kaizen via Qwen
+  title: Roadmap-to-Ledger — extraire IMPs depuis roadmap et les injecter dans kaizen
+    via Qwen
   type: feature
   source: manual add 2026-06-04
   status: CLOSED
@@ -802,7 +837,6 @@ improvements:
   opened_session: '2026-06-04'
   closed_session: '2026-06-04'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-053
   title: Rocky explique ses coups en langage naturel
   type: feature
@@ -817,8 +851,8 @@ improvements:
   blocked_by: []
   opened_session: '2026-06-04'
   closed_session: null
-  notes: Extrait roadmap Phase 1 — Rocky jouable et explicable, statut IN_PROGRESS, priorité P3
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
+  notes: Extrait roadmap Phase 1 — Rocky jouable et explicable, statut IN_PROGRESS,
+    priorité P3
 - id: IMP-054
   title: Chess Fantasy runtime minimal (règles core)
   type: feature
@@ -832,8 +866,8 @@ improvements:
   blocked_by: []
   opened_session: '2026-06-04'
   closed_session: '2026-06-04'
-  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut DOCUMENTED_ONLY, priorité P0
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut DOCUMENTED_ONLY,
+    priorité P0
 - id: IMP-055
   title: Rocky muté pour Chess Fantasy
   type: feature
@@ -848,8 +882,8 @@ improvements:
   blocked_by: []
   opened_session: '2026-06-04'
   closed_session: '2026-06-04'
-  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité P1
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité
+    P1
 - id: IMP-056
   title: 'Puzzles : 3 niveaux + from errors + vocabulaire officiel'
   type: feature
@@ -864,8 +898,8 @@ improvements:
   blocked_by: []
   opened_session: '2026-06-04'
   closed_session: null
-  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité P3
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité
+    P3
 - id: IMP-057
   title: LoRA Devstral TCS v2 (training réel + évaluation)
   type: feature
@@ -898,9 +932,9 @@ improvements:
   opened_session: '2026-06-04'
   closed_session: null
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-059
-  title: Workflow charter UI — afficher charter + champ rapport + close-imp sans API Claude
+  title: Workflow charter UI — afficher charter + champ rapport + close-imp sans API
+    Claude
   type: feature
   source: manual add 2026-06-04
   status: CLOSED
@@ -913,9 +947,9 @@ improvements:
   opened_session: '2026-06-04'
   closed_session: '2026-06-04'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-060
-  title: Champ domain dans le ledger — rocky_moteur/ia_apprentissage/studio/jeux pour routing CEO Brief
+  title: Champ domain dans le ledger — rocky_moteur/ia_apprentissage/studio/jeux pour
+    routing CEO Brief
   type: feature
   source: manual add 2026-06-04
   status: CLOSED
@@ -929,7 +963,6 @@ improvements:
   opened_session: '2026-06-04'
   closed_session: '2026-06-04'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-061
   title: Live feed autoloop — streaming stdout kaizen_autoloop vers UI en temps reel
   type: feature
@@ -945,7 +978,6 @@ improvements:
   opened_session: '2026-06-04'
   closed_session: '2026-06-04'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-062
   title: Mettre a jour FILE_ROUTING_MANIFEST — router nouveaux fichiers session 2026-06-04
   type: feature
@@ -961,7 +993,243 @@ improvements:
   opened_session: '2026-06-04'
   closed_session: '2026-06-04'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-063
+  title: Rocky explique ses coups en langage naturel
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 1 — Rocky jouable et explicable
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 1 — Rocky jouable et explicable, statut IN_PROGRESS,
+    priorité P3
+  note: DUPLICATE de IMP-053
+- id: IMP-064
+  title: Chess Fantasy runtime minimal (règles core)
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 2 — Chess Fantasy + Studio
+  status: CLOSED
+  impact: CRITICAL
+  effort: SMALL
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut DOCUMENTED_ONLY,
+    priorité P0
+  note: DUPLICATE de IMP-054
+- id: IMP-065
+  title: Rocky muté pour Chess Fantasy
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 2 — Chess Fantasy + Studio
+  status: CLOSED
+  impact: HIGH
+  effort: LARGE
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité
+    P1
+  note: DUPLICATE de IMP-055
+- id: IMP-066
+  title: 'Puzzles : 3 niveaux + from errors + vocabulaire officiel'
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 2 — Chess Fantasy + Studio
+  status: CLOSED
+  impact: MEDIUM
+  effort: LARGE
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité
+    P3
+  note: DUPLICATE de IMP-056
+- id: IMP-067
+  title: LoRA Devstral TCS v2 (training réel + évaluation)
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 3 — Multi-jeux + Commercial (ongoing)
+  status: CLOSED
+  impact: MEDIUM
+  effort: LARGE
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 3 — Multi-jeux + Commercial (ongoing), statut PLANNED
+  note: DUPLICATE de IMP-057
+- id: IMP-068
+  title: Rocky explique ses coups en langage naturel
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 1 — Rocky jouable et explicable
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 1 — Rocky jouable et explicable, statut IN_PROGRESS,
+    priorité P3
+  note: DUPLICATE de IMP-053
+- id: IMP-069
+  title: Chess Fantasy runtime minimal (règles core)
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 2 — Chess Fantasy + Studio
+  status: CLOSED
+  impact: CRITICAL
+  effort: SMALL
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut DOCUMENTED_ONLY,
+    priorité P0
+  note: DUPLICATE de IMP-054
+- id: IMP-070
+  title: Rocky muté pour Chess Fantasy
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 2 — Chess Fantasy + Studio
+  status: CLOSED
+  impact: HIGH
+  effort: LARGE
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité
+    P1
+  note: DUPLICATE de IMP-055
+- id: IMP-071
+  title: 'Puzzles : 3 niveaux + from errors + vocabulaire officiel'
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 2 — Chess Fantasy + Studio
+  status: CLOSED
+  impact: MEDIUM
+  effort: LARGE
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité
+    P3
+  note: DUPLICATE de IMP-056
+- id: IMP-072
+  title: LoRA Devstral TCS v2 (training réel + évaluation)
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 3 — Multi-jeux + Commercial (ongoing)
+  status: CLOSED
+  impact: MEDIUM
+  effort: LARGE
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 3 — Multi-jeux + Commercial (ongoing), statut PLANNED
+  note: DUPLICATE de IMP-057
+- id: IMP-073
+  title: Rocky explique ses coups en langage naturel
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 1 — Rocky jouable et explicable
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 1 — Rocky jouable et explicable, statut IN_PROGRESS,
+    priorité P3
+  note: DUPLICATE de IMP-053
+- id: IMP-074
+  title: Chess Fantasy runtime minimal (règles core)
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 2 — Chess Fantasy + Studio
+  status: CLOSED
+  impact: CRITICAL
+  effort: SMALL
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut DOCUMENTED_ONLY,
+    priorité P0
+  note: DUPLICATE de IMP-054
+- id: IMP-075
+  title: Rocky muté pour Chess Fantasy
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 2 — Chess Fantasy + Studio
+  status: CLOSED
+  impact: HIGH
+  effort: LARGE
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité
+    P1
+  note: DUPLICATE de IMP-055
+- id: IMP-076
+  title: 'Puzzles : 3 niveaux + from errors + vocabulaire officiel'
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 2 — Chess Fantasy + Studio
+  status: CLOSED
+  impact: MEDIUM
+  effort: LARGE
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité
+    P3
+  note: DUPLICATE de IMP-056
+- id: IMP-077
+  title: LoRA Devstral TCS v2 (training réel + évaluation)
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 3 — Multi-jeux + Commercial (ongoing)
+  status: CLOSED
+  impact: MEDIUM
+  effort: LARGE
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 3 — Multi-jeux + Commercial (ongoing), statut PLANNED
+  note: DUPLICATE de IMP-057
 - id: IMP-078
   title: 5 boutons de liaison — circulation CEO Brief workflow multilane studio-os
   type: feature
@@ -977,9 +1245,9 @@ improvements:
   opened_session: '2026-06-04'
   closed_session: '2026-06-05'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-079
-  title: Cycle de vie idees — persistance ideas.json + auto-applied quand pipeline lance + filtre UI
+  title: Cycle de vie idees — persistance ideas.json + auto-applied quand pipeline
+    lance + filtre UI
   type: feature
   source: manual add 2026-06-05
   status: CLOSED
@@ -993,7 +1261,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: null
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-080
   title: Roadmap pages par domaine + triage auto IMPs + CEO transparence
   type: feature
@@ -1009,7 +1276,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: null
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-081
   title: Unifier classement domaine + nettoyer roadmap — source verite unique ledger
   type: feature
@@ -1025,7 +1291,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: null
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-082
   title: Usine Idee-to-IMP Phase 1 — reparer inject + unifier boutons + purger proposals
   type: feature
@@ -1041,7 +1306,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: '2026-06-05'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-083
   title: Cockpit Agents lecture seule
   type: feature
@@ -1057,7 +1321,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: '2026-06-05'
   notes: Pipeline idea-to-imp — idée 13
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-084
   title: Fix transition idee applied + empecher doublons + filtre backlog
   type: feature
@@ -1073,7 +1336,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: null
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-085
   title: Fix transition idee applied + empecher doublons + filtre backlog
   type: feature
@@ -1089,7 +1351,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: '2026-06-05'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-086
   title: CEO-Decomposer V1 — Qwen3.6 sur extract + contexte ledger + fix champs perdus
   type: feature
@@ -1105,7 +1366,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: '2026-06-05'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-087
   title: Audit et dossier chaine prompts idee-to-IMP — carte roles zones-ombre calibration
   type: feature
@@ -1121,7 +1381,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: '2026-06-05'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-088
   title: Anti-Skynet flux humain constant + garde-fou Qwen2.5 + export Claude
   type: feature
@@ -1138,7 +1397,8 @@ improvements:
   blocked_by: []
   opened_session: '2026-06-05'
   closed_session: '2026-06-05'
-  notes: Repurposé en onglet Map (lire prompt_chain_map.json) + IMP-089 couvre le scope Anti-Skynet original
+  notes: Repurposé en onglet Map (lire prompt_chain_map.json) + IMP-089 couvre le
+    scope Anti-Skynet original
 - id: IMP-089
   title: Ajouter attribut title aux boutons dans autopilot.py
   type: feature
@@ -1150,7 +1410,8 @@ improvements:
   domain: studio
   files:
   - autopilot/autopilot.py
-  acceptance: Chaque bouton HTML a un attribut 'title' avec le nom du modèle et la durée d'exécution.
+  acceptance: Chaque bouton HTML a un attribut 'title' avec le nom du modèle et la
+    durée d'exécution.
   blocked_by: []
   opened_session: '2026-06-05'
   closed_session: '2026-06-05'
@@ -1166,7 +1427,8 @@ improvements:
   domain: studio
   files:
   - autopilot/autopilot.py
-  acceptance: Tous les tooltips s'affichent correctement et la cohérence visuelle est maintenue.
+  acceptance: Tous les tooltips s'affichent correctement et la cohérence visuelle
+    est maintenue.
   blocked_by: []
   opened_session: '2026-06-05'
   closed_session: '2026-06-06'
@@ -1182,7 +1444,8 @@ improvements:
   domain: studio
   files:
   - docs/user_guide.md
-  acceptance: Une section décrivant les nouveaux tooltips est ajoutée et documentée clairement.
+  acceptance: Une section décrivant les nouveaux tooltips est ajoutée et documentée
+    clairement.
   blocked_by: []
   opened_session: '2026-06-05'
   notes: Pipeline idea-to-imp — idée 19
@@ -1202,7 +1465,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: '2026-06-05'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-093
   title: Badge escalade live topbar — detecter conditions HumanGate
   type: feature
@@ -1218,7 +1480,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: '2026-06-05'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-094
   title: claim_verdict lu dynamiquement depuis CLAIM_MATRIX.md
   type: feature
@@ -1234,7 +1495,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: '2026-06-05'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-095
   title: Scores TASK_PRIORITY_MATRIX dans _stage_proposals()
   type: feature
@@ -1250,7 +1510,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: '2026-06-06'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-096
   title: Smoke level gate dans autoloop-start avant run_chain()
   type: feature
@@ -1266,7 +1525,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: null
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-097
   title: Export imp-triage format TASK_MATRIX_TEMPLATE YAML
   type: feature
@@ -1282,7 +1540,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: '2026-06-06'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-098
   title: Verification tool_permission_matrix avant chain run
   type: feature
@@ -1298,7 +1555,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: null
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-099
   title: Collision detection idea-inject surfaces BLOCKED
   type: feature
@@ -1314,7 +1570,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: '2026-06-06'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-100
   title: Lien AUTHORITY_MATRIX dans affichage chain tooltip
   type: feature
@@ -1330,7 +1585,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: '2026-06-06'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-101
   title: Ajouter bouton Pause à page-chains.html
   type: feature
@@ -1394,7 +1648,6 @@ improvements:
   opened_session: '2026-06-05'
   closed_session: '2026-06-05'
   notes: ''
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-105
   title: Ajouter endpoint /api/lane-stats dans autopilot.py
   type: feature
@@ -1406,7 +1659,8 @@ improvements:
   domain: studio
   files:
   - autopilot.py
-  acceptance: 'GET /api/lane-stats retourne pour chaque lane : modele LM utilise, nb_runs_today, last_run timestamp'
+  acceptance: 'GET /api/lane-stats retourne pour chaque lane : modele LM utilise,
+    nb_runs_today, last_run timestamp'
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: null
@@ -1422,7 +1676,8 @@ improvements:
   domain: studio
   files:
   - autopilot.py
-  acceptance: Le lien Idee-Roadmap disparait de la sidebar. Aucune reference morte dans le HTML.
+  acceptance: Le lien Idee-Roadmap disparait de la sidebar. Aucune reference morte
+    dans le HTML.
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: '2026-06-06'
@@ -1438,8 +1693,8 @@ improvements:
   domain: studio
   files:
   - autopilot.py
-  acceptance: Un bouton Generer Roadmap apparait dans la page Ideas et appelle generateRoadmap(). La page Idee-Roadmap separee
-    est supprimee.
+  acceptance: Un bouton Generer Roadmap apparait dans la page Ideas et appelle generateRoadmap().
+    La page Idee-Roadmap separee est supprimee.
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: '2026-06-06'
@@ -1503,7 +1758,8 @@ improvements:
   domain: studio
   files:
   - executor/golden_collector/executor_report.py
-  acceptance: Les rapports d'exécution incluent correctement le nouveau statut de l'idée.
+  acceptance: Les rapports d'exécution incluent correctement le nouveau statut de
+    l'idée.
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: '2026-06-06'
@@ -1519,7 +1775,8 @@ improvements:
   domain: studio
   files:
   - ui/ui_ideas.py
-  acceptance: L'interface utilisateur permet efficacement le changement de statut des idées sans bugs.
+  acceptance: L'interface utilisateur permet efficacement le changement de statut
+    des idées sans bugs.
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: '2026-06-06'
@@ -1535,7 +1792,8 @@ improvements:
   domain: studio
   files:
   - scripts/identify_critical_surfaces.py
-  acceptance: Le script génère une liste complète des surfaces critiques avec leur nature, autorité et impact en aval.
+  acceptance: Le script génère une liste complète des surfaces critiques avec leur
+    nature, autorité et impact en aval.
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: '2026-06-06'
@@ -1551,8 +1809,8 @@ improvements:
   domain: studio
   files:
   - AUTOMATION_LANE_MATRIX.md
-  acceptance: Le fichier AUTOMATION_LANE_MATRIX.md est mis à jour avec les nouvelles lignes identifiées et chaque surface
-    critique a la bonne autonomie.
+  acceptance: Le fichier AUTOMATION_LANE_MATRIX.md est mis à jour avec les nouvelles
+    lignes identifiées et chaque surface critique a la bonne autonomie.
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: '2026-06-06'
@@ -1568,7 +1826,8 @@ improvements:
   domain: studio
   files:
   - AUTOMATION_LANE_MATRIX.md
-  acceptance: La matrice est vérifiée manuellement pour s'assurer que toutes les surfaces critiques sont correctement représentées.
+  acceptance: La matrice est vérifiée manuellement pour s'assurer que toutes les surfaces
+    critiques sont correctement représentées.
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: '2026-06-06'
@@ -1597,7 +1856,6 @@ improvements:
   - autopilot.py
   created_at: '2026-06-07'
   session: '2026-06-07'
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-B2
   title: Jalons studio_state.json
   status: OPEN
@@ -1608,13 +1866,13 @@ improvements:
   session: '2026-06-07'
 - id: IMP-B3
   title: Page Lanes autopilot.py
-  status: OPEN
+  status: CLOSED
   lane: SAFE_AUTO
   files:
   - autopilot.py
   created_at: '2026-06-07'
   session: '2026-06-07'
-  note: Rouvert 2026-06-08 — feature page dedicee non livree selon audit
+  closed_session: '2026-06-08'
 - id: IMP-B4
   title: Navigation sidebar
   status: CLOSED
@@ -1627,7 +1885,6 @@ improvements:
   created_at: '2026-06-07'
   session: '2026-06-07'
   closed_session: '2026-06-08'
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-B5
   title: CEO narratives par lane
   status: CLOSED
@@ -1640,7 +1897,6 @@ improvements:
   created_at: '2026-06-07'
   session: '2026-06-07'
   closed_session: '2026-06-08'
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-C1
   title: metrics.json structure
   status: CLOSED
@@ -1652,7 +1908,6 @@ improvements:
   effort: MEDIUM
   created_at: '2026-06-07'
   session: '2026-06-07'
-  note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-C2
   title: Metriques dans Vision
   status: OPEN
@@ -1815,7 +2070,8 @@ improvements:
   opened_session: '2026-06-08'
   closed_session: '2026-06-08'
   session: '2026-06-08'
-  notes: Init SSOT scalaires phi — commits_count, imp_closed_count, open_imp_count, velocity
+  notes: Init SSOT scalaires phi — commits_count, imp_closed_count, open_imp_count,
+    velocity
 - id: IMP-G2
   title: studio_end.py — snapshot phi fin de session
   type: feature
@@ -1937,7 +2193,8 @@ improvements:
   opened_session: '2026-06-08'
   closed_session: '2026-06-08'
   session: '2026-06-08'
-  notes: Drift vocab silencieux possible — fingerprint 690ce94a maintenant tracé au démarrage
+  notes: Drift vocab silencieux possible — fingerprint 690ce94a maintenant tracé au
+    démarrage
 - id: IMP-117
   title: Ajouter vérification longueur texte dans _auto_close_from_report()
   type: feature
@@ -1949,7 +2206,8 @@ improvements:
   domain: studio
   files:
   - autopilot.py
-  acceptance: Le code ajoute une condition qui vérifie la longueur du texte et des mots-clés spécifiques dans _auto_close_from_report().
+  acceptance: Le code ajoute une condition qui vérifie la longueur du texte et des
+    mots-clés spécifiques dans _auto_close_from_report().
   blocked_by: []
   opened_session: '2026-06-08'
   closed_session: null
@@ -1964,7 +2222,8 @@ improvements:
   lane: SAFE_AUTO
   domain: jeux
   files: []
-  acceptance: La fonction retourne un manifeste structuré pour la création du jeu d'échecs.
+  acceptance: La fonction retourne un manifeste structuré pour la création du jeu
+    d'échecs.
   blocked_by: []
   opened_session: '2026-06-08'
   closed_session: null
@@ -1979,7 +2238,8 @@ improvements:
   lane: SAFE_AUTO
   domain: jeux
   files: []
-  acceptance: Le fichier `game_setup.py` intègre les manifestes générés dans le setup initial du jeu avec Godot.
+  acceptance: Le fichier `game_setup.py` intègre les manifestes générés dans le setup
+    initial du jeu avec Godot.
   blocked_by: []
   opened_session: '2026-06-08'
   closed_session: null
@@ -2006,8 +2266,9 @@ metrics_history:
   spec_coverage_pct: 90
   tests_green: null
   commits: 5
-  note: Sprint Rocky 14 IMP + pool pipeline IMP-037/041 + EloTable K=24. pool_sf draw_rate=94% (critère <30% non atteint).
-    ACTIVE_DATASET.txt toujours sur teacher_samples (HumanGate requis).
+  note: Sprint Rocky 14 IMP + pool pipeline IMP-037/041 + EloTable K=24. pool_sf draw_rate=94%
+    (critère <30% non atteint). ACTIVE_DATASET.txt toujours sur teacher_samples (HumanGate
+    requis).
 - session: 2026-06-02-humangate
   total: 42
   open: 4
@@ -2018,5 +2279,6 @@ metrics_history:
   spec_coverage_pct: 90
   tests_green: null
   commits: 2
-  note: 'HumanGate decisions 2026-06-02 : ACTIVE_DATASET redirigé vers pool_2400 (8.8% draws, 1M parties). teacher_samples
-    archivé. IMP-038 rouvert (draw_rate 93.1% != <20%). Scripts ML commités.'
+  note: 'HumanGate decisions 2026-06-02 : ACTIVE_DATASET redirigé vers pool_2400 (8.8%
+    draws, 1M parties). teacher_samples archivé. IMP-038 rouvert (draw_rate 93.1%
+    != <20%). Scripts ML commités.'
