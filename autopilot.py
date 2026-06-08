@@ -5706,56 +5706,19 @@ function initCockpitTerminal(n) {
   };
   ws.onerror = () => term.write('\r\n\x1b[31m[WS erreur]\x1b[0m\r\n');
   ws.onclose = () => term.write('\r\n\x1b[33m[Session fermée]\x1b[0m\r\n');
-  // Local line buffer — PSReadLine absent, echo et line-edit côté JS
-  let _lbuf = '';
+  // PTY mode : relay brut — le PTY gère écho, édition ligne, curseur, séquences escape
   term.onData(data => {
-    if (ws.readyState !== WebSocket.OPEN) return;
-    if (data === '\x7f' || data === '\x08') {
-      if (_lbuf.length > 0) { _lbuf = _lbuf.slice(0, -1); term.write('\x08 \x08'); }
-      return;
-    }
-    if (data === '\r') {
-      term.write('\r\n');
-      ws.send(new TextEncoder().encode(_lbuf + '\r\n'));
-      _lbuf = '';
-      return;
-    }
-    const cp = data.codePointAt(0);
-    if (cp !== undefined && cp >= 0x20 && cp !== 0x7f) {
-      _lbuf += data;
-      term.write(data);
-    }
-    // séquences escape / chars contrôle → ignorées (PS basic readline ne les gère pas)
+    if (ws.readyState === WebSocket.OPEN) ws.send(data);
   });
-  // Ctrl+C/V/L passthrough
   term.attachCustomKeyEventHandler(e => {
     if (e.type !== 'keydown') return true;
-    if (e.ctrlKey && e.key === 'c') {
-      _lbuf = '';
-      if (ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode('\x03'));
-      term.write('^C\r\n');
-      return false;
-    }
     if (e.ctrlKey && e.key === 'v') {
       navigator.clipboard.readText().then(text => {
-        if (ws.readyState !== WebSocket.OPEN) return;
-        _lbuf += text.replace(/\r?\n.*$/s, ''); // ne bufferiser que la première ligne
-        term.write(text.replace(/\r?\n/g, '\r\n'));
-        if (text.includes('\n') || text.includes('\r')) {
-          ws.send(new TextEncoder().encode(_lbuf + '\r\n'));
-          _lbuf = '';
-        }
+        if (ws.readyState === WebSocket.OPEN) ws.send(text);
       }).catch(() => {});
       return false;
     }
-    if (e.ctrlKey && e.key === 'l') {
-      term.clear();
-      return false;
-    }
-    if (e.key === 'Insert') {
-      if (ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode('\x1b[2~'));
-      return false;
-    }
+    if (e.ctrlKey && e.key === 'l') { term.clear(); return false; }
     return true;
   });
 }
