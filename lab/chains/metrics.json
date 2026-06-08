@@ -1,7 +1,7 @@
 {
   "_schema": "metrics_v1",
   "_updated": "2026-06-08",
-  "_source": "IMP-C1 — structure initiale peuplée depuis ledger + latest_benchmark_summary.json",
+  "_source": "IMP-C1 init + NUIT-T4 benchmark post-corrections G1/G2/G4 (2026-06-08)",
 
   "kaizen": {
     "total": 135,
@@ -29,24 +29,27 @@
   },
 
   "elo": {
-    "teacher_uci": 1351,
-    "heuristic": 1183,
-    "neural": 1079,
-    "date": "2026-06-03",
-    "source": "latest_benchmark_summary.json",
+    "teacher_uci": 1341.52,
+    "heuristic": 1198.13,
+    "neural": 1060.52,
+    "hybrid": 1199.83,
+    "date": "2026-06-08",
+    "source": "benchmark post-corrections G4/G5/G6 — 5 games/matchup",
     "games": 110,
     "is_fallback": false
   },
 
   "draw_rate": {
-    "value": 0.68,
-    "pct": 68,
+    "value": 0.73,
+    "pct": 73,
     "threshold": 0.20,
     "ok": false,
     "status": "WARN",
-    "source": "latest_benchmark_summary.json",
+    "source": "benchmark 2026-06-08 — 110 games, 5/matchup",
     "games": 110,
-    "note": "pool_sf exclu (draw_rate 94%). Benchmark sur pool_2400."
+    "baseline_pool_sf": 0.94,
+    "delta_vs_baseline": -0.21,
+    "note": "73% vs baseline pool_sf 94% (-21pp). heuristic vs neural: EXTREME (100%). teacher_uci vs neural dilue vers le bas. G4 corrige LABEL TurnLimit mais pas le comptage draws — racine: dataset IMP-008 FORBIDDEN."
   },
 
   "self_play": {
@@ -76,8 +79,8 @@
       "id": "neural",
       "arch": "Search + Neural · PyTorch",
       "status": "WEAK",
-      "elo": 1079,
-      "note": "draw_rate 68% — dataset pool_sf corrompu"
+      "elo": 1060.52,
+      "note": "draw_rate 73% — dataset IMP-008 FORBIDDEN, racine structurelle non corrigeable sans HumanGate"
     }
   ],
 

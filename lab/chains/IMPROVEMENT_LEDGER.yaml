@@ -5,7 +5,7 @@
 meta:
   ledger_version: v0
   created_session: '2026-05-31'
-  last_updated_session: '2026-06-02'
+  last_updated_session: '2026-06-08'
   claim_verdict: NO_CLAIM_ALLOWED
   no_global_ready_verdict: true
 improvements:
@@ -2051,6 +2051,148 @@ improvements:
   effort: MEDIUM
   created_at: '2026-06-07'
   session: '2026-06-07'
+- id: IMP-G1
+  title: phi_schema.yaml + phi_history.jsonl init
+  type: feature
+  source: session 2026-06-08 lane A
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/phi_schema.yaml
+  - lab/chains/phi_history.jsonl
+  - lab/chains/corpus/
+  - lab/chains/reports/
+  acceptance: phi_schema.yaml validé PyYAML, dossiers corpus/ et reports/ créés
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: Init SSOT scalaires phi — commits_count, imp_closed_count, open_imp_count, velocity
+- id: IMP-G2
+  title: studio_end.py — snapshot phi fin de session
+  type: feature
+  source: session 2026-06-08 lane A
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/studio_end.py
+  acceptance: py_compile OK, phi appende dans phi_history.jsonl, output affiché
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: Script lancement manuel fin de session — capture velocity + open_imp_count
+- id: IMP-G3
+  title: studio_start.py — brief contexte début de session
+  type: feature
+  source: session 2026-06-08 lane A
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/studio_start.py
+  acceptance: py_compile OK, brief généré en < 2s, velocity + top IMPs affichés
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: Script lancement manuel début de session — résume phi précédente + git status
+- id: IMP-G4
+  title: simulation_runner.rs — TurnLimit vs Draw séparés
+  type: bug_fix
+  source: session 2026-06-08 lane B
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: rocky_moteur
+  files:
+  - src/simulation/simulation_runner.rs
+  acceptance: cargo test 6 passed — TurnLimit retourne "turn_limit" au lieu de "draw"
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: GAME_ANALYSIS_SUMMARY classifiait TurnLimit comme draw — gonflait le draw_rate
+- id: IMP-G5
+  title: neural_tournament_runner.rs — hard-fail + CSV provenance 9 colonnes
+  type: feature
+  source: session 2026-06-08 lane B
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: rocky_moteur
+  files:
+  - src/simulation/neural_tournament_runner.rs
+  - src/tournament/export.rs
+  acceptance: cargo test OK, colonne game_source ajoutée CSV, panic_count_block loggué
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: Panics récupérés comptaient comme draws — masquaient la source de contamination
+- id: IMP-G6
+  title: search.rs — 4 patches dead code supprimés
+  type: cleanup
+  source: session 2026-06-08 lane D
+  status: CLOSED
+  impact: LOW
+  effort: TRIVIAL
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/chess/search.rs
+  acceptance: cargo test OK après chaque patch atomique — 4 warnings supprimés
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: Imports inutilisés, re-export mort, variable _context, écriture morte prev_score
+- id: IMP-G7
+  title: neural_agent.rs — audit shortlist lecture seule
+  type: audit
+  source: session 2026-06-08 lane C
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/agents/neural_agent.rs
+  acceptance: Audit complet — aucun patch requis, architecture saine documentée
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: Dead code cosmétique uniquement — name() et purity_violations jamais lus
+- id: IMP-G8
+  title: ml/move_vocab.py + dataset_loader + train_player — vocab hash SHA256
+  type: feature
+  source: session 2026-06-08 lane C
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - ml/move_vocab.py
+  - ml/dataset_loader.py
+  - ml/train_player.py
+  acceptance: VOCAB_FINGERPRINT calculé une fois, validate_vocab_fingerprint OK, loggué
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: Drift vocab silencieux possible — fingerprint 690ce94a maintenant tracé au démarrage
 metrics_history:
 - session: '2026-05-31'
   total: 11

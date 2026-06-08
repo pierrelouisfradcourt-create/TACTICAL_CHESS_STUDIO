@@ -1675,6 +1675,79 @@ _watcher_last_check: float = 0.0
 _watcher_last_processed: str | None = None
 
 
+_diag_stagnation: dict = {}  # {open_imp_count: first_seen_ts}
+
+
+def _diagnosis_inject(title: str, desc: str) -> None:
+    """Ajoute une idée système dans le pool si elle n'existe pas déjà."""
+    try:
+        ideas = load_ideas()
+        for idea in ideas:
+            if idea.get("title") == title:
+                return
+        new_id = max((i.get("id", 0) for i in ideas), default=0) + 1
+        ideas.append({
+            "id": new_id,
+            "chain": "studio",
+            "status": "backlog",
+            "title": title,
+            "roi": "high",
+            "lane": "safe",
+            "desc": desc,
+            "issue": "auto:diagnosis",
+        })
+        save_ideas(ideas)
+        print(f"[DIAGNOSIS] idee injectee : {title}", flush=True)
+    except Exception as exc:
+        print(f"[DIAGNOSIS] erreur injection : {exc}", flush=True)
+
+
+def _diagnosis_thread() -> None:
+    """Thread daemon : lit metrics.json toutes les 60 min et injecte des idees systeme."""
+    import time as _time
+    _time.sleep(60)  # attendre que le serveur soit pret
+    while True:
+        try:
+            mp = REPO / "lab" / "chains" / "metrics.json"
+            if mp.exists():
+                raw = json.loads(mp.read_text(encoding="utf-8"))
+                kaizen = raw.get("kaizen", {})
+                dr = raw.get("draw_rate", {})
+                pct_closed = kaizen.get("pct_closed", 100)
+                draw_pct = dr.get("pct", 0)
+                # read open_imp_count from phi_history
+                open_imp = kaizen.get("open", 0)
+                phi_path = REPO / "lab" / "chains" / "phi_history.jsonl"
+                if phi_path.exists():
+                    lines = [l for l in phi_path.read_text(encoding="utf-8").splitlines() if l.strip()]
+                    if lines:
+                        open_imp = json.loads(lines[-1]).get("open_imp_count", open_imp)
+                if pct_closed < 70:
+                    _diagnosis_inject(
+                        "Auto-diagnosis : taux succes charters < 70%",
+                        f"pct_closed={pct_closed}% — revoir criteres acceptance ou decharger les IMPs OPEN en DEFERRED.",
+                    )
+                if draw_pct > 20:
+                    _diagnosis_inject(
+                        "Auto-diagnosis : draw_rate > 20%",
+                        f"draw_rate={draw_pct}% (seuil 20%) — verifier pool, TurnLimit vs Draw, panics recuperes.",
+                    )
+                # stagnation : open_imp inchange depuis > 7 jours
+                now_ts = _time.time()
+                prev = _diag_stagnation.get("last_open")
+                if prev is None or prev != open_imp:
+                    _diag_stagnation["last_open"] = open_imp
+                    _diag_stagnation["since_ts"] = now_ts
+                elif now_ts - _diag_stagnation.get("since_ts", now_ts) > 7 * 86400:
+                    _diagnosis_inject(
+                        "Auto-diagnosis : open_imp_count stagne > 7 jours",
+                        f"open_imp_count={open_imp} inchange depuis > 7 jours — forcer un sprint ou archiver les IMPs bloques.",
+                    )
+        except Exception as exc:
+            print(f"[DIAGNOSIS] erreur lecture metrics : {exc}", flush=True)
+        _time.sleep(3600)
+
+
 def _report_watcher_thread() -> None:
     """Thread daemon : surveille lab/chains/reports/ toutes les 5 s."""
     global _watcher_active, _watcher_last_check, _watcher_last_processed
@@ -2440,12 +2513,39 @@ def _get_vision_state() -> dict:
                 last_closed = entry
     except Exception:
         pass
+    metrics: dict = {}
+    try:
+        mp = Path(__file__).parent / "lab" / "chains" / "metrics.json"
+        if mp.exists():
+            raw = json.loads(mp.read_text(encoding="utf-8"))
+            elo = raw.get("elo", {})
+            dr = raw.get("draw_rate", {})
+            kaizen = raw.get("kaizen", {})
+            metrics = {
+                "elo_teacher": elo.get("teacher_uci"),
+                "elo_heuristic": elo.get("heuristic"),
+                "elo_neural": elo.get("neural"),
+                "draw_rate_pct": dr.get("pct"),
+                "draw_rate_warn": dr.get("status") == "WARN",
+                "kaizen_pct_closed": kaizen.get("pct_closed"),
+                "kaizen_by_lane": kaizen.get("by_lane", {}),
+                "velocity": None,
+            }
+            phi_path = Path(__file__).parent / "lab" / "chains" / "phi_history.jsonl"
+            if phi_path.exists():
+                lines = [l for l in phi_path.read_text(encoding="utf-8").splitlines() if l.strip()]
+                if lines:
+                    last_phi = json.loads(lines[-1])
+                    metrics["velocity"] = last_phi.get("velocity")
+    except Exception:
+        pass
     return {
         "lanes": lanes,
         "sprint": sprint,
         "open_count": open_count,
         "last_closed_imp": last_closed,
         "humangate_pending": hg_pending,
+        "metrics": metrics,
     }
 
 
@@ -2893,6 +2993,28 @@ tr:hover td{background:var(--bg3)}
         <div class="stat-blk amber" id="vision-hg-blk" style="flex:0 0 auto;display:none">
           <div class="stat-lbl">HumanGate</div>
           <div class="stat-val" style="font-size:12px">EN ATTENTE</div>
+        </div>
+      </div>
+      <!-- IMP-C2 : métriques -->
+      <div style="display:flex;flex-wrap:wrap;gap:12px;max-width:640px;margin:10px auto 0;padding:0 16px">
+        <div class="stat-blk" style="flex:1;min-width:140px">
+          <div class="stat-lbl">ELO Rocky</div>
+          <div class="stat-val" id="vision-elo-teacher">—</div>
+          <div class="stat-sub" id="vision-elo-sub">Heuristique — · Neural —</div>
+        </div>
+        <div class="stat-blk" id="vision-draw-blk" style="flex:1;min-width:140px">
+          <div class="stat-lbl">Draw rate <span id="vision-draw-badge" style="display:none;background:#e57c00;color:#fff;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px">WARN</span></div>
+          <div class="stat-val" id="vision-draw-rate">—</div>
+          <div class="stat-sub">seuil &lt; 20%</div>
+        </div>
+        <div class="stat-blk" style="flex:1;min-width:140px">
+          <div class="stat-lbl">Velocity</div>
+          <div class="stat-val" id="vision-velocity">—</div>
+          <div class="stat-sub">IMP/session · <span id="vision-kaizen-pct">—</span>% fermés</div>
+        </div>
+        <div class="stat-blk" style="flex:1;min-width:180px">
+          <div class="stat-lbl">IMPs par lane</div>
+          <div id="vision-by-lane" style="font-size:10px;color:var(--text2);margin-top:4px;line-height:1.7">—</div>
         </div>
       </div>
     </div>
@@ -5219,6 +5341,26 @@ async function loadVision() {
   const pending = !!d.humangate_pending;
   if (hgBlk)   hgBlk.style.display   = pending ? 'flex'   : 'none';
   if (hgBadge) hgBadge.style.display = pending ? 'inline' : 'none';
+  // IMP-C2 : métriques
+  const m = d.metrics || {};
+  const eloTeacher = document.getElementById('vision-elo-teacher');
+  const eloSub     = document.getElementById('vision-elo-sub');
+  const drawRateEl = document.getElementById('vision-draw-rate');
+  const drawBadge  = document.getElementById('vision-draw-badge');
+  const velEl      = document.getElementById('vision-velocity');
+  const kaizenPct  = document.getElementById('vision-kaizen-pct');
+  const byLaneEl   = document.getElementById('vision-by-lane');
+  if (eloTeacher) eloTeacher.textContent = m.elo_teacher != null ? m.elo_teacher : '—';
+  if (eloSub) eloSub.textContent = 'Heuristique ' + (m.elo_heuristic != null ? m.elo_heuristic : '—') + ' · Neural ' + (m.elo_neural != null ? m.elo_neural : '—');
+  if (drawRateEl) drawRateEl.textContent = m.draw_rate_pct != null ? m.draw_rate_pct + '%' : '—';
+  if (drawBadge)  drawBadge.style.display = m.draw_rate_warn ? 'inline' : 'none';
+  if (velEl) velEl.textContent = m.velocity != null ? m.velocity.toFixed(3) : '—';
+  if (kaizenPct) kaizenPct.textContent = m.kaizen_pct_closed != null ? m.kaizen_pct_closed : '—';
+  if (byLaneEl && m.kaizen_by_lane) {
+    byLaneEl.innerHTML = Object.entries(m.kaizen_by_lane)
+      .map(([k,v]) => `<span style="color:var(--text3)">${k}:</span> <b>${v}</b>`)
+      .join(' &nbsp;·&nbsp; ') || '—';
+  }
 }
 
 // ── SYNC & COMMIT (P10) ───────────────────────────────────────────────────
@@ -7261,6 +7403,9 @@ Ctrl+C pour arrêter.
     # IMP-104 : watchdog rapports auto-close
     (REPO / "lab/chains/reports").mkdir(parents=True, exist_ok=True)
     threading.Thread(target=_report_watcher_thread, daemon=True).start()
+
+    # IMP-D2 : diagnosis toutes les heures
+    threading.Thread(target=_diagnosis_thread, daemon=True).start()
 
     # Ouvre le navigateur après 1 seconde
     def open_browser():

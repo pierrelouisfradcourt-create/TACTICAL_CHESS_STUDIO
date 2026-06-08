@@ -45,6 +45,7 @@ def _git_commits_today():
             text=True,
             encoding="utf-8",
             cwd=str(REPO_ROOT),
+            timeout=10,
         )
         lines = [l for l in result.stdout.splitlines() if l.strip()]
         return len(lines)
