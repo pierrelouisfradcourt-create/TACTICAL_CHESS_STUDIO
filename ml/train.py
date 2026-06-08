@@ -28,7 +28,7 @@ from dataset_loader import (
     preflight_training_dataset,
     resolve_dataset_path,
 )
-from move_vocab import try_move_to_index, vocab_fingerprint
+from move_vocab import try_move_to_index, vocab_fingerprint, VOCAB_FINGERPRINT
 
 
 # =========================
@@ -646,6 +646,7 @@ def main() -> None:
     set_global_seed(seed)
     strict_dataset_admission = args.strict_dataset_admission or env_flag("TCS_STRICT_DATASET_ADMISSION")
 
+    print(f"vocab_fingerprint={VOCAB_FINGERPRINT}")
     print(f"Training seed: {seed}")
     print(f"value_weight: {args.value_weight}")
     print(f"conversion_focus_weight: {args.conversion_focus_weight}")

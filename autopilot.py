@@ -87,6 +87,8 @@ _CHAIN_TOOL_MAP: dict = {
 ledger_cache: dict = {}  # {"open": N, "closed": M, "next": {}, "ts": "..."}
 _ceo_brief_cache: dict = {}  # {"brief": {...}, "ts": float}
 _ceo_assign_cache: dict = {}  # {"lanes": [...], "ts": float, "ledger_mtime": float}
+DEDUP_LOG       = REPO / "lab/chains/reports/dedup_log.jsonl"
+_dedup_exclusion_count: int = 0  # compteur session, remis à zéro au restart
 _LANE_COLORS = ["var(--amber)", "var(--green)", "#e06c75",
                 "var(--blue)", "var(--purple)", "var(--text2)"]
 
@@ -1158,16 +1160,27 @@ def _generate_charter_claude(imp_id: str) -> str:
 
     # Context injection : extrait code + IMPs CLOSED sur ces fichiers
     file_context_section = ""
+    _re_def      = re.compile(r'^(?:async )?def ')
+    _re_route    = re.compile(r'elif path ==')
+    _re_html_id  = re.compile(r'\bid=')
     for f in imp.get("files", []):
         target = REPO / f
         if target.exists() and target.is_file():
             try:
                 src_lines = target.read_text(encoding="utf-8").splitlines()
-                head = src_lines[:100]
-                tail = src_lines[-100:] if len(src_lines) > 200 else []
-                excerpt = "\n".join(head)
-                if tail:
-                    excerpt += f"\n... [{len(src_lines) - 200} lignes omises] ...\n" + "\n".join(tail)
+                if len(src_lines) > 500:
+                    # Fichier large : extraction ciblée (signatures + routes + ids HTML)
+                    targeted = [
+                        l for l in src_lines
+                        if _re_def.match(l) or _re_route.search(l) or _re_html_id.search(l)
+                    ]
+                    excerpt = "\n".join(targeted)
+                else:
+                    head = src_lines[:100]
+                    tail = src_lines[-100:] if len(src_lines) > 200 else []
+                    excerpt = "\n".join(head)
+                    if tail:
+                        excerpt += f"\n... [{len(src_lines) - 200} lignes omises] ...\n" + "\n".join(tail)
                 file_context_section += f"\nCode existant dans {f} :\n```\n{excerpt[:3000]}\n```\n"
             except Exception:
                 pass
@@ -1542,6 +1555,7 @@ def _run_idea_pipeline(idea_id: str, idea_title: str, idea_content: str) -> None
 
         # Dedup : exclure IMPs dont le titre ressemble >70% à un IMP CLOSED
         if imps_staged:
+            global _dedup_exclusion_count
             _closed_titles = _get_closed_imp_titles()
             _dedup_result = []
             for _imp in imps_staged:
@@ -1556,6 +1570,21 @@ def _run_idea_pipeline(idea_id: str, idea_title: str, idea_content: str) -> None
                 )
                 if _dupe:
                     print(f"[DEDUP] '{_title}' ~ {_dupe[0]} '{_dupe[1]}' ({_dupe[2]:.0%}) — exclu")
+                    _dedup_exclusion_count += 1
+                    try:
+                        DEDUP_LOG.parent.mkdir(parents=True, exist_ok=True)
+                        with open(DEDUP_LOG, "a", encoding="utf-8") as _dlf:
+                            _dlf.write(json.dumps({
+                                "timestamp": datetime.now().isoformat(),
+                                "idea_title": idea_title,
+                                "excluded_imp_title": _title,
+                                "matched_imp": _dupe[0],
+                                "matched_imp_title": _dupe[1],
+                                "ratio": round(_dupe[2], 4),
+                                "action": "excluded",
+                            }, ensure_ascii=False) + "\n")
+                    except Exception:
+                        pass
                 else:
                     _dedup_result.append(_imp)
             if len(_dedup_result) < len(imps_staged):
@@ -2959,6 +2988,7 @@ tr:hover td{background:var(--bg3)}
     <div class="tb-right">
       <div class="tb-prop-badge" id="tb-prop-badge" onclick="nav('ideas')" title="Proposals en attente d\'approbation HumanGate">◈ Proposals</div>
       <div class="tb-hg-badge" id="tb-hg-badge" onclick="nav('sos')" style="cursor:pointer">⚠ HumanGate</div>
+      <div id="tb-dedup-badge" style="display:none;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--amber);background:rgba(240,160,48,.12);border:1px solid var(--amber);padding:3px 9px;border-radius:4px;" title="IMPs exclus par déduplication cette session">⊘ <span id="tb-dedup-count">0</span> dédup</div>
       <div class="tb-lm offline" id="lm-indicator">
         <span id="lm-dot">○</span>
         <span id="lm-text">LM Studio</span>
@@ -4130,6 +4160,23 @@ async function checkPendingProposals() {
   } catch(e) {}
 }
 setInterval(checkPendingProposals, 30000); checkPendingProposals();
+
+// ── DEDUP EXCLUSION badge topbar ──────────────────────────────────────────
+async function checkDedupCount() {
+  try {
+    const d = await fetch('/api/dedup-count').then(r => r.json());
+    const badge = document.getElementById('tb-dedup-badge');
+    const count = document.getElementById('tb-dedup-count');
+    if (!badge || !count) return;
+    if (d.count > 0) {
+      badge.style.display = 'flex';
+      count.textContent = d.count;
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch(e) {}
+}
+setInterval(checkDedupCount, 30000); checkDedupCount();
 
 // ── AUTO-MODE TOGGLE ──────────────────────────────────────────────────────
 function toggleClaudeMode() {}
@@ -6686,6 +6733,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 except Exception:
                     pass
             self.send_json({"count": count})
+
+        elif path == "/api/dedup-count":
+            self.send_json({"count": _dedup_exclusion_count})
 
         elif path == "/api/staleness":
             self.send_json(get_staleness())

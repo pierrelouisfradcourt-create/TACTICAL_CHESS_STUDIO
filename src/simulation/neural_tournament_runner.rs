@@ -48,6 +48,7 @@ pub struct TournamentBenchmarkStatus {
     pub contaminated_match_count: u32,
     pub purity_violation_total: u64,
     pub contamination_reason: String,
+    pub panic_recovered_count: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -191,6 +192,7 @@ impl NeuralTournamentRunner {
         let mut global_game_id: u32 = 1;
         let mut total_purity_violations: u64 = 0;
         let mut contaminated_match_count: u32 = 0;
+        let mut total_panic_count: u32 = 0;
 
         for (match_block, opponent) in scheduled_matchups {
             let agent_a = opponent.to_string();
@@ -358,6 +360,7 @@ impl NeuralTournamentRunner {
                     "BENCHMARK_HARD_FAIL|block={}|matchup={}vs{}|panic_count={}",
                     match_block, agent_a, agent_b, panic_count_block
                 );
+                total_panic_count += panic_count_block;
             }
 
             results.push(TournamentResult {
@@ -388,6 +391,7 @@ impl NeuralTournamentRunner {
             contaminated_match_count,
             purity_violation_total: total_purity_violations,
             contamination_reason,
+            panic_recovered_count: total_panic_count,
         };
 
         let _ = export_games_csv(&game_records, &benchmark_status);
@@ -419,6 +423,10 @@ impl NeuralTournamentRunner {
         println!(
             "purity_violation_total: {}",
             benchmark_status.purity_violation_total
+        );
+        println!(
+            "panic_recovered_count: {}",
+            benchmark_status.panic_recovered_count
         );
         println!(
             "contamination_reason: {}",
@@ -466,6 +474,7 @@ impl NeuralTournamentRunner {
         let mut global_game_id: u32 = 1;
         let mut total_purity_violations: u64 = 0;
         let mut contaminated_match_count: u32 = 0;
+        let mut smoke_panic_count: u32 = 0;
         let pairings = [("neural", "heuristic"), ("heuristic", "neural")];
 
         std::env::set_var("TCS_PROGRESS_LABEL", "SMOKE_PROGRESS");
@@ -518,6 +527,7 @@ impl NeuralTournamentRunner {
             elo.update_match("heuristic", "neural", score_a);
 
             let smoke_game_source = if summary.winner_reason.starts_with("match_failed:") {
+                smoke_panic_count += 1;
                 "panic_recovered".to_string()
             } else {
                 "normal".to_string()
@@ -557,6 +567,7 @@ impl NeuralTournamentRunner {
                 contaminated_match_count,
                 purity_violation_total: total_purity_violations,
                 contamination_reason,
+                panic_recovered_count: smoke_panic_count,
             };
             let elo_rows = elo.leaderboard();
 
@@ -601,6 +612,7 @@ impl NeuralTournamentRunner {
             contaminated_match_count,
             purity_violation_total: total_purity_violations,
             contamination_reason,
+            panic_recovered_count: smoke_panic_count,
         };
 
         println!();
