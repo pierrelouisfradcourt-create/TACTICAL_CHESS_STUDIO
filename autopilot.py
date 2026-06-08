@@ -1742,15 +1742,28 @@ def _diagnosis_thread() -> None:
                 raw = json.loads(mp.read_text(encoding="utf-8"))
                 kaizen = raw.get("kaizen", {})
                 dr = raw.get("draw_rate", {})
-                pct_closed = kaizen.get("pct_closed", 100)
-                draw_pct = dr.get("pct", 0)
+                try:
+                    pct_closed = float(kaizen.get("pct_closed", 100))
+                except (TypeError, ValueError):
+                    pct_closed = 100.0
+                try:
+                    draw_pct = float(dr.get("pct", 0))
+                except (TypeError, ValueError):
+                    draw_pct = 0.0
                 # read open_imp_count from phi_history
-                open_imp = kaizen.get("open", 0)
+                try:
+                    open_imp = int(kaizen.get("open", 0))
+                except (TypeError, ValueError):
+                    open_imp = 0
                 phi_path = REPO / "lab" / "chains" / "phi_history.jsonl"
                 if phi_path.exists():
                     lines = [l for l in phi_path.read_text(encoding="utf-8").splitlines() if l.strip()]
                     if lines:
-                        open_imp = json.loads(lines[-1]).get("open_imp_count", open_imp)
+                        raw_open = json.loads(lines[-1]).get("open_imp_count", open_imp)
+                        try:
+                            open_imp = int(raw_open)
+                        except (TypeError, ValueError):
+                            pass
                 if pct_closed < 70:
                     _diagnosis_inject(
                         "Auto-diagnosis : taux succes charters < 70%",
