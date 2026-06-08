@@ -1803,7 +1803,8 @@ def _report_watcher_thread() -> None:
         try:
             for p in sorted(reports_dir.glob("IMP-*_report.md")):
                 result = _auto_close_from_report(str(p))
-                print(f"[DEBUG] result: {result}", flush=True)
+                if os.getenv("TCS_DEBUG"):
+                    print(f"[WATCHER][DEBUG] result: {result}", flush=True)
                 if result.get("ok"):
                     _watcher_last_processed = result.get("imp_id")
         except Exception as exc:
@@ -6845,9 +6846,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
                             _autoloop_statuses[lane]["last_result"] = f"exit {ret}"
                             _autoloop_statuses[lane]["pid"] = None
                 self.send_json({lane: dict(st) for lane, st in _autoloop_statuses.items()})
-
-        elif path == "/api/lane-stats":
-            self.send_json(get_lane_stats())
 
         elif path == "/api/brain-status":
             s = lm_status()

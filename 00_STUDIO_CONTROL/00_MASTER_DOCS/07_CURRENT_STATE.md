@@ -8,9 +8,9 @@ Date : 2026-06-08 — sprint update : 2026-06-03/04
 
 | Métrique | Valeur |
 |---|---|
-| Total IMPs | 116 |
+| Total IMPs | 119 |
 | CLOSED | 126 |
-| OPEN | 16 |
+| OPEN | 19 |
 | DEFERRED | 1 |
 
 ### IMPs OPEN
@@ -88,7 +88,7 @@ Date : 2026-06-08 — sprint update : 2026-06-03/04
 
 ## Autopilote — autopilot.py
 
-- **Lignes** : ~7474 (refactorisé 2026-06-03, retrait complet Claude API)
+- **Lignes** : ~7487 (refactorisé 2026-06-03, retrait complet Claude API)
 - **LM_MODEL** : `qwen2.5-14b-instruct` (LM Studio, port 1234)
 - **Port** : 7331
 

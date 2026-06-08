@@ -45,6 +45,18 @@
 * lab/chains/golden\_examples.jsonl : corpus LoRA (ne pas supprimer)
 * lab/chains/prompt\_chain\_map.json : carte agents
 
+## Architecture CEO — separation volontaire
+
+* /api/ceo-lane-assignment : algorithme greedy deterministe (graph-coloring sur LEDGER)
+  - Aucune inference LM — lecture seule du LEDGER
+  - Cache invalide par age > 60s ou mtime LEDGER change
+  - Consomme uniquement les IMPs OPEN SAFE\_AUTO
+* /api/ceo-brief : appel LM (Qwen2.5-14B) — genere une narrative par lane
+  - Ecrit dans \_ceo\_brief\_cache mais NON lu par ceo-lane-assignment
+  - Les deux endpoints sont intentionnellement decouples
+* NE PAS fusionner ces deux systemes sans decision HumanGate explicite
+  - Raison : ceo-lane-assignment doit rester deterministe et offline-capable
+
 # TACTICAL CHESS STUDIO — Context for Claude Code
 * 
 * \## Regles absolues

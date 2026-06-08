@@ -234,3 +234,91 @@ proposals:
     files: []
     acceptance: TBD
     notes: Extrait roadmap Phase 3 — Multi-jeux + Commercial (ongoing), statut NOT_STARTED
+- prop_id: PROP-015
+  source_phase: idea-to-imp
+  source_task: 'Watcher validation contenu minimum avant close_imp — rejeter rapports trop'
+  source_idea_id: '23'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Watcher validation contenu minimum avant close_imp — rejeter rapports trop'
+  human_anchor_desc: 'Dans autopilot.py _auto_close_from_report(), ajouter : |         si le contenu du rapport fait moins de 100 caractères → skip sans fermer. |         Si le rapport contient "Test watcher" ou "Test auto'
+  reasoning_roadmap: 'Modifier fichier autopilot.py : Ajouter condition de validation du contenu du rapport dans _auto_close_from_report(). |  | 1. Modifier fichier autopilot.py : Ajouter vérification de la longueur du texte et des mots-clés spécifiques. | 2. Modifier fichier autopilot.py : Implémenter logique pour skip si conditions non remplies. |  | Code ajouté à autopilot.py (sous _auto_close_from_report()) : |  | '
+  reasoning_critique: '{ |   "risque_1": "Risque: Complexité de la maintenance | Fichier: autopilot.py | Description: Ajouter une logique supplémentaire pour vérifier la longueur et les mots-clés spécifiques peut rendre le code plus difficile à maintenir, en particulier si cette logique évolue régulièrement.", |   "risque_2": "Risque: Dépendances non anticipées | Fichier: autopilot.py | Description: La condition basée s'
+  reasoning_fusion: '1. Modifier le fichier `autopilot.py` : Ajouter une vérification de la longueur du texte et des mots-clés spécifiques dans `_auto_close_from_report()`. |  |    ```python |    if len(report_content) < 100 or "Test watcher" in report_content or "Test auto-clo" in report_content: |        print("Rapport invalide ou de test, skip close_imp.") |        return |    ``` |  | 2. Tester les modifications d'
+  imp:
+    title: 'Ajouter vérification longueur texte dans _auto_close_from_report()'
+    type: feature
+    lane: SAFE_AUTO
+    impact: LOW
+    effort: SMALL
+    domain: studio
+    files: ["autopilot.py"]
+    acceptance: 'Le code ajoute une condition qui vérifie la longueur du texte et des mots-clés spécifiques dans _auto_close_from_report().'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 23'
+- prop_id: PROP-016
+  source_phase: idea-to-imp
+  source_task: 'Manifeste de création de jeu + manifeste de règles via Godot'
+  source_idea_id: '10'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Manifeste de création de jeu + manifeste de règles via Godot'
+  human_anchor_desc: 'Deux manifestes = successions de prompts. Commencer par les échecs pour valider la méthode.'
+  reasoning_roadmap: 'Modifier fichier manifest.py : Ajouter une fonction pour générer le manifeste de création du jeu d''échecs en utilisant des prompts successifs. |  | Modifier fichier rules.py : Créer une fonction similaire pour générer les règles du jeu d''échecs à partir de prompts structurés. |  | Modifier fichier game_setup.py : Intégrer les manifestes générés dans le processus de setup initial du jeu, en utili'
+  reasoning_critique: 'Risque: Complexité de la génération des prompts structurés | Fichier: manifest.py |  | Risque: Intégration avec Godot pour le setup initial du jeu | Fichier: game_setup.py |  | Risque: Cohérence entre les règles générées et l''implémentation du jeu d''échecs | Fichier: rules.py'
+  reasoning_fusion: '1. **Étape 1 : Générer le manifeste de création du jeu d''échecs (manifest.py)** |    - Action : Implémenter une fonction dans `manifest.py` qui génère un manifeste détaillé pour la création du jeu d''échecs en utilisant des prompts structurés. |     | 2. **Étape 2 : Générer les règles du jeu d''échecs (rules.py)** |    - Action : Implémenter une fonction dans `rules.py` qui génère un manifeste dé'
+  imp:
+    title: 'Implémenter fn generate_chess_manifest dans manifest.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: MEDIUM
+    domain: jeux
+    files: []
+    acceptance: 'La fonction retourne un manifeste structuré pour la création du jeu d''échecs.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 10'
+- prop_id: PROP-017
+  source_phase: idea-to-imp
+  source_task: 'Manifeste de création de jeu + manifeste de règles via Godot'
+  source_idea_id: '10'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Manifeste de création de jeu + manifeste de règles via Godot'
+  human_anchor_desc: 'Deux manifestes = successions de prompts. Commencer par les échecs pour valider la méthode.'
+  reasoning_roadmap: 'Modifier fichier manifest.py : Ajouter une fonction pour générer le manifeste de création du jeu d''échecs en utilisant des prompts successifs. |  | Modifier fichier rules.py : Créer une fonction similaire pour générer les règles du jeu d''échecs à partir de prompts structurés. |  | Modifier fichier game_setup.py : Intégrer les manifestes générés dans le processus de setup initial du jeu, en utili'
+  reasoning_critique: 'Risque: Complexité de la génération des prompts structurés | Fichier: manifest.py |  | Risque: Intégration avec Godot pour le setup initial du jeu | Fichier: game_setup.py |  | Risque: Cohérence entre les règles générées et l''implémentation du jeu d''échecs | Fichier: rules.py'
+  reasoning_fusion: '1. **Étape 1 : Générer le manifeste de création du jeu d''échecs (manifest.py)** |    - Action : Implémenter une fonction dans `manifest.py` qui génère un manifeste détaillé pour la création du jeu d''échecs en utilisant des prompts structurés. |     | 2. **Étape 2 : Générer les règles du jeu d''échecs (rules.py)** |    - Action : Implémenter une fonction dans `rules.py` qui génère un manifeste dé'
+  imp:
+    title: 'Implémenter fn generate_chess_rules dans rules.py'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: MEDIUM
+    domain: jeux
+    files: []
+    acceptance: 'La fonction retourne un manifeste structuré pour les règles du jeu d''échecs.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 10'
+- prop_id: PROP-018
+  source_phase: idea-to-imp
+  source_task: 'Manifeste de création de jeu + manifeste de règles via Godot'
+  source_idea_id: '10'
+  qwen_used: true
+  humangate_verdict: null
+  human_anchor_title: 'Manifeste de création de jeu + manifeste de règles via Godot'
+  human_anchor_desc: 'Deux manifestes = successions de prompts. Commencer par les échecs pour valider la méthode.'
+  reasoning_roadmap: 'Modifier fichier manifest.py : Ajouter une fonction pour générer le manifeste de création du jeu d''échecs en utilisant des prompts successifs. |  | Modifier fichier rules.py : Créer une fonction similaire pour générer les règles du jeu d''échecs à partir de prompts structurés. |  | Modifier fichier game_setup.py : Intégrer les manifestes générés dans le processus de setup initial du jeu, en utili'
+  reasoning_critique: 'Risque: Complexité de la génération des prompts structurés | Fichier: manifest.py |  | Risque: Intégration avec Godot pour le setup initial du jeu | Fichier: game_setup.py |  | Risque: Cohérence entre les règles générées et l''implémentation du jeu d''échecs | Fichier: rules.py'
+  reasoning_fusion: '1. **Étape 1 : Générer le manifeste de création du jeu d''échecs (manifest.py)** |    - Action : Implémenter une fonction dans `manifest.py` qui génère un manifeste détaillé pour la création du jeu d''échecs en utilisant des prompts structurés. |     | 2. **Étape 2 : Générer les règles du jeu d''échecs (rules.py)** |    - Action : Implémenter une fonction dans `rules.py` qui génère un manifeste dé'
+  imp:
+    title: 'Modifier fn setup_game dans game_setup.py pour intégrer manifestes'
+    type: feature
+    lane: SAFE_AUTO
+    impact: HIGH
+    effort: SMALL
+    domain: jeux
+    files: []
+    acceptance: 'Le fichier `game_setup.py` intègre les manifestes générés dans le setup initial du jeu avec Godot.'
+    blocked_by: []
+    notes: 'Pipeline idea-to-imp — idée 10'
