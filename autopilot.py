@@ -1829,9 +1829,25 @@ def _auto_close_from_report(report_path: str) -> dict:
     if not path.exists():
         result["error"] = f"rapport introuvable : {report_path}"
         return result
+    raw_text = path.read_text(encoding="utf-8-sig")
+    # Garde-fou : un rapport valide doit avoir un minimum de contenu et
+    # contenir les mots-cles de verdict attendus (anti rapport tronque/vide).
+    MIN_REPORT_LEN = 40  # caracteres utiles minimum
+    REQUIRED_KEYWORDS = ("software_verdict", "evidence_verdict", "claim_verdict")
+    stripped_len = len(raw_text.strip())
+    if stripped_len < MIN_REPORT_LEN:
+        result["error"] = (
+            f"{imp_id} : rapport trop court ({stripped_len} car., "
+            f"minimum {MIN_REPORT_LEN})"
+        )
+        return result
+    missing = [kw for kw in REQUIRED_KEYWORDS if kw not in raw_text]
+    if missing:
+        result["error"] = f"{imp_id} : mots-cles manquants : {', '.join(missing)}"
+        return result
     # Parser le fichier en dict avant d appeler analyse_report
     report_dict = {}
-    for line in path.read_text(encoding="utf-8-sig").splitlines():
+    for line in raw_text.splitlines():
         if ":" in line:
             k, _, v = line.partition(":")
             report_dict[k.strip()] = v.strip()
