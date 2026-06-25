@@ -194,6 +194,10 @@ impl NeuralTournamentRunner {
         let mut contaminated_match_count: u32 = 0;
         let mut total_panic_count: u32 = 0;
 
+        let mut runner = SimulationRunner::new();
+        runner.max_steps = 140;
+        runner.verbose = false;
+
         for (match_block, opponent) in scheduled_matchups {
             let agent_a = opponent.to_string();
             let agent_b = "neural".to_string();
@@ -204,10 +208,6 @@ impl NeuralTournamentRunner {
             let mut panic_count_block = 0u32;
 
             {
-                let mut runner = SimulationRunner::new();
-                runner.max_steps = 140;
-                runner.verbose = false;
-
                 for _ in 0..games_per_matchup {
                     let summary =
                         Self::run_match_resilient(&mut runner, &agent_a, &agent_b, match_block);
@@ -280,10 +280,6 @@ impl NeuralTournamentRunner {
             }
 
             {
-                let mut runner = SimulationRunner::new();
-                runner.max_steps = 140;
-                runner.verbose = false;
-
                 for _ in 0..games_per_matchup {
                     let summary =
                         Self::run_match_resilient(&mut runner, &agent_b, &agent_a, match_block);
@@ -483,12 +479,12 @@ impl NeuralTournamentRunner {
             SMOKE_PROGRESS_EVERY_TURNS.to_string(),
         );
 
+        let mut runner = SimulationRunner::new();
+        runner.max_steps = SMOKE_MAX_TURNS;
+        runner.verbose = false;
+
         for (index, (white, black)) in pairings.iter().enumerate() {
             std::env::set_var("TCS_PROGRESS_GAME", (index + 1).to_string());
-
-            let mut runner = SimulationRunner::new();
-            runner.max_steps = SMOKE_MAX_TURNS;
-            runner.verbose = false;
 
             let summary = Self::run_match_resilient(&mut runner, white, black, SMOKE_BLOCK);
 

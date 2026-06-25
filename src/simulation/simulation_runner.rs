@@ -309,6 +309,7 @@ pub struct SimulationRunner {
     pub verbose: bool,
     pub emit_csv: bool,
     pub random_opening: bool,
+    neural_agent: Option<NeuralAgent>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -1090,6 +1091,7 @@ impl SimulationRunner {
             verbose: true,
             emit_csv: true,
             random_opening: true,
+            neural_agent: None,
         }
     }
 
@@ -1100,6 +1102,7 @@ impl SimulationRunner {
             verbose: true,
             emit_csv: true,
             random_opening: true,
+            neural_agent: None,
         }
     }
 
@@ -1110,6 +1113,7 @@ impl SimulationRunner {
             verbose: true,
             emit_csv: true,
             random_opening: true,
+            neural_agent: None,
         }
     }
 
@@ -1148,11 +1152,9 @@ impl SimulationRunner {
             agent.new_game();
         }
 
-        let neural_agent = if neural_active {
-            Some(NeuralAgent::new())
-        } else {
-            None
-        };
+        if neural_active && self.neural_agent.is_none() {
+            self.neural_agent = Some(NeuralAgent::new());
+        }
 
         let mut step = 0u32;
         let mut seen_positions: HashMap<String, u32> = HashMap::new();
@@ -1270,7 +1272,7 @@ impl SimulationRunner {
                     None,
                 )
             } else if mode == "neural" {
-                let action = neural_agent
+                let action = self.neural_agent
                     .as_ref()
                     .map(|a| a.select_action(&engine, player, &legal_actions));
                 (action, None)
