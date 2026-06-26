@@ -28,6 +28,7 @@ import argparse
 import json
 import os
 import subprocess
+import tempfile
 import time
 from datetime import date, datetime
 from pathlib import Path
@@ -273,6 +274,33 @@ def validate_report(report: str, imp: dict) -> bool:
 
 # ── Close + metrics + log ─────────────────────────────────
 
+def _ingest_imp_closed(imp: dict) -> None:
+    """Non-bloquant : ingère l event IMP_CLOSED dans le backbone (scripts/ingest_event.py)."""
+    payload = {
+        "id": imp["id"],
+        "closed_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "oracle_verdict": "PASS",
+        "title": imp.get("title", ""),
+        "lane": imp.get("lane", ""),
+    }
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as tmp:
+            json.dump(payload, tmp)
+            tmp_path = tmp.name
+        subprocess.run(
+            [PYTHON_EXE, str(REPO_ROOT / "scripts" / "ingest_event.py"),
+             "--oracle", "imp_closed", "--report", tmp_path],
+            capture_output=True, text=True, timeout=15, cwd=str(REPO_ROOT),
+        )
+    except Exception as exc:
+        print(f"[backbone] ingest_imp_closed non-bloquant: {exc}")
+    finally:
+        try:
+            Path(tmp_path).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 def close_imp(imp: dict) -> None:
     """Ferme l IMP dans le ledger via kaizen_loop.py close."""
     result = subprocess.run(
@@ -377,6 +405,7 @@ def run_loop(args) -> None:
                     print(f"[!] golden_collector hook : {e}")
             metrics()
             log_autoloop_event(imp, "SUCCESS", report)
+            _ingest_imp_closed(imp)
         else:
             print(f"[X] Echec sur {imp['id']}. HumanGate requis.")
             log_autoloop_event(imp, "FAIL", report)
