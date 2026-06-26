@@ -2961,7 +2961,7 @@ improvements:
   title: Event Backbone smoke test — run_oracle.sh elo_match → current_state.json créé
   type: feature
   source: session-2026-06-26 (roadmap Event Backbone)
-  status: OPEN
+  status: CLOSED
   impact: HIGH
   effort: SMALL
   lane: SAFE_AUTO
@@ -2969,15 +2969,21 @@ improvements:
   files:
   - scripts/run_oracle.sh
   - scripts/ingest_event.py
+  - scripts/studioV2/control_plane/*.py
   acceptance: >
     .studio_state/current_state.json existe après run.
     events.jsonl contient entrée HMAC valide.
   blocked_by: []
   opened_session: '2026-06-26'
-  closed_session: null
+  closed_session: '2026-06-26'
   notes: >
-    Valider le pipeline complet scripts/run_oracle.sh elo_match → ingest_event.py
-    → .studio_state/current_state.json en conditions réelles (HMAC + json schema).
+    Pipeline backbone validé (exit 0). 4 bugs corrigés en chemin :
+    (1) jsonschema pip manquant — installé.
+    (2) parents[2]→parents[3] dans 34 scripts control_plane (déplacement scripts/ → scripts/studioV2/ non répercuté).
+    (3) ingest_event.py delta_to_snapshot() : source_delta_ids utilise source_task_id (pas source_report_id)
+        + source_delta_id injecté dans items decision_debt/open_blockers/open_risks/humangate_required_items.
+    (4) run_oracle.sh : declare -A manquant pour tableaux associatifs bash (set -u → unbound var).
+    run_oracle.sh elo_match --games 5 validé aussi (tournoi + backbone end-to-end).
 - id: IMP-165
   title: Smoke test backbone script — scripts/test_backbone.py mock oracle → events + state
   type: chore

@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import contextlib
 import io
 import json
@@ -10,7 +10,7 @@ from build_learning_event import load_and_build_learning_event
 from validate_learning_events import main as validate_main
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_FIXTURES_ROOT = PROJECT_ROOT / "docs" / "control-plane" / "fixtures" / "learning_event"
 SOURCE_FIXTURE = "source_local_review_pack_blocked_infra_v0.json"
 EXPECTED_FIXTURE = "expected_built_learning_event_blocked_infra_v0.json"

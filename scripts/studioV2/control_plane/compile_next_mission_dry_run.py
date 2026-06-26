@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import hashlib
@@ -11,7 +11,7 @@ from typing import Any
 from update_studio_current_state import validate_current_shape
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_SCHEMA_PATH = PROJECT_ROOT / "schemas" / "studio_mission_candidate.schema.json"
 DEFAULT_CURRENT_SCHEMA_PATH = PROJECT_ROOT / "schemas" / "studio_current_state.schema.json"
 

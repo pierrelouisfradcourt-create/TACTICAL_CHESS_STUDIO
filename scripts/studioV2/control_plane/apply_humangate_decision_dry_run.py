@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import json
@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_SCHEMA_PATH = PROJECT_ROOT / "schemas" / "authorized_next_action_plan.schema.json"
 DEFAULT_DECISION_SCHEMA_PATH = PROJECT_ROOT / "schemas" / "humangate_decision_candidate.schema.json"
 

@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import json
 import sys
 from pathlib import Path
@@ -10,7 +10,7 @@ except ModuleNotFoundError:
     Draft202012Validator = None
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_FIXTURES_ROOT = (
     PROJECT_ROOT / "docs" / "control-plane" / "fixtures" / "integration_smoke"
 )

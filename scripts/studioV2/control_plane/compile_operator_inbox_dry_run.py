@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import json
@@ -11,7 +11,7 @@ from compile_next_mission_dry_run import build_mission_candidate, current_state_
 from update_studio_current_state import validate_current_shape
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_SCHEMA_PATH = PROJECT_ROOT / "schemas" / "studio_operator_inbox.schema.json"
 DEFAULT_CURRENT_SCHEMA_PATH = PROJECT_ROOT / "schemas" / "studio_current_state.schema.json"
 

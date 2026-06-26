@@ -18,12 +18,12 @@ if [[ -z "$ORACLE" ]]; then
 fi
 shift
 
-REPORTS=(
+declare -A REPORTS=(
     [elo_match]="lab/reports/elo_match_latest.json"
     [lichess_eval]="lab/reports/lichess_eval_latest.json"
 )
 
-BENCH_SCRIPTS=(
+declare -A BENCH_SCRIPTS=(
     [elo_match]="bench/elo_match.sh"
     [lichess_eval]="bench/lichess_eval.sh"
 )

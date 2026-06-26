@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import json
@@ -14,7 +14,7 @@ import run_semi_auto_studio_loop_dry_run as semi_auto
 import run_studio_state_pipeline_dry_run as state_pipeline
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DELTA_SCHEMA_PATH = PROJECT_ROOT / "schemas" / "studio_state_delta.schema.json"
 DEFAULT_SNAPSHOT_SCHEMA_PATH = PROJECT_ROOT / "schemas" / "studio_state_snapshot.schema.json"
 DEFAULT_CURRENT_SCHEMA_PATH = PROJECT_ROOT / "schemas" / "studio_current_state.schema.json"

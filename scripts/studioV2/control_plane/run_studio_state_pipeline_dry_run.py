@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import json
@@ -11,7 +11,7 @@ from derive_studio_state_delta import derive_delta, validate_delta
 from update_studio_current_state import build_current_state, validate_current_state
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_DELTA_SCHEMA_PATH = PROJECT_ROOT / "schemas" / "studio_state_delta.schema.json"
 DEFAULT_SNAPSHOT_SCHEMA_PATH = PROJECT_ROOT / "schemas" / "studio_state_snapshot.schema.json"
 DEFAULT_CURRENT_SCHEMA_PATH = PROJECT_ROOT / "schemas" / "studio_current_state.schema.json"

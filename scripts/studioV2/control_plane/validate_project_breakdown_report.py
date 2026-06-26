@@ -1,10 +1,10 @@
-import argparse
+﻿import argparse
 import json
 from pathlib import Path
 from typing import Any
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCHEMA_PATH = PROJECT_ROOT / "schemas" / "studiopilot_project_breakdown_report.schema.json"
 DEFAULT_FIXTURES_ROOT = PROJECT_ROOT / "docs" / "control-plane" / "fixtures" / "project_breakdown"
 ALLOWED_CLAIM_SCOPES = {"NO_CLAIM_ALLOWED", "HEALTH_ONLY", "EVIDENCE_ONLY"}

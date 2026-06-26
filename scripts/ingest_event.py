@@ -172,20 +172,31 @@ ADAPTERS: dict[str, Any] = {
 
 def delta_to_snapshot(delta: dict[str, Any]) -> dict[str, Any]:
     """Converts StudioStateDelta → StudioStateSnapshot (format attendu par update_studio_current_state.py)."""
+    source_delta_id = delta.get("source_report_id", "UNKNOWN")
+    source_task_id  = delta.get("source_task_id", "UNKNOWN")
     humangate_items = (
-        [{"summary": "HumanGate required — oracle ingestion signal", "status": "BLOCKED"}]
+        [{
+            "summary": "HumanGate required — oracle ingestion signal",
+            "status": "BLOCKED",
+            "source_delta_id": source_delta_id,
+            "source_task_id": source_task_id,
+        }]
         if delta.get("humangate_required") else []
     )
+
+    def _inject_delta_id(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [{**item, "source_delta_id": source_delta_id} for item in items]
+
     return {
         "record_type":            "studio_state_snapshot",
         "contract_version":       "V0",
         "generated_at":           _now(),
-        "source_delta_ids":       [delta["source_report_id"]],
+        "source_delta_ids":       [source_task_id],
         "proven_surfaces":        delta.get("proven_surfaces", []),
         "blocked_surfaces":       delta.get("blocked_surfaces", []),
-        "open_blockers":          delta.get("blockers_opened", []),
-        "open_risks":             delta.get("risks_created", []),
-        "decision_debt":          delta.get("decision_debt_opened", []),
+        "open_blockers":          _inject_delta_id(delta.get("blockers_opened", [])),
+        "open_risks":             _inject_delta_id(delta.get("risks_created", [])),
+        "decision_debt":          _inject_delta_id(delta.get("decision_debt_opened", [])),
         "humangate_required_items": humangate_items,
         "next_best_mission":      delta.get("next_best_mission"),
         "forbidden_next_missions": FORBIDDEN_MISSIONS,

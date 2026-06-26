@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import json
 from pathlib import Path
 from typing import Any
@@ -7,7 +7,7 @@ import smoke_control_plane_integration
 import smoke_prompt_report_hygiene
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 def parse_args() -> argparse.Namespace:

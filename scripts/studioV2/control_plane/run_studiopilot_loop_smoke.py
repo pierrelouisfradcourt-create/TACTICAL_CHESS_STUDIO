@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import json
 import shutil
 import subprocess
@@ -14,7 +14,7 @@ except ImportError:
     raise SystemExit(2)
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 CONTROL_PLANE_ROOT = PROJECT_ROOT / "scripts" / "control_plane"
 FIXTURES_ROOT = PROJECT_ROOT / "docs" / "control-plane" / "fixtures" / "studiopilot_packets" / "valid"
 SCHEMAS_ROOT = PROJECT_ROOT / "schemas"

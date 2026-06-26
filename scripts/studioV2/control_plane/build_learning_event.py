@@ -1,10 +1,10 @@
-import argparse
+﻿import argparse
 import json
 from pathlib import Path
 from typing import Any
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCHEMA_PATH = PROJECT_ROOT / "schemas" / "studiopilot_learning_event.schema.json"
 INPUT_SCHEMA_VERSION = "studiopilot.learning_event_source.v0"
 OUTPUT_SCHEMA_VERSION = "studiopilot.learning_event.v0"

@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import json
 from pathlib import Path
 from typing import Any
@@ -7,7 +7,7 @@ from validate_prompt_report_hygiene import check_json_execution_report
 from validate_prompt_report_hygiene import check_prompt
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_FIXTURES_ROOT = (
     PROJECT_ROOT / "docs" / "control-plane" / "fixtures" / "prompt_report_hygiene"
 )

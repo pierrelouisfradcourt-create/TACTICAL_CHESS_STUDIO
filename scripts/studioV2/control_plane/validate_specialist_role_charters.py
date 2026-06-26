@@ -1,10 +1,10 @@
-import argparse
+﻿import argparse
 import json
 from pathlib import Path
 from typing import Any
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCHEMA_PATH = PROJECT_ROOT / "schemas" / "studiopilot_specialist_role_charter.schema.json"
 DEFAULT_FIXTURES_ROOT = PROJECT_ROOT / "docs" / "control-plane" / "fixtures" / "specialist_role"
 

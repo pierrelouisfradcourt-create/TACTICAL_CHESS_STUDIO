@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import json
 import sys
 from pathlib import Path
@@ -11,7 +11,7 @@ except ModuleNotFoundError:
     raise SystemExit(2)
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCHEMA_PATH = PROJECT_ROOT / "schemas" / "studiopilot_pr_decision_packet.schema.json"
 PACKET_SCHEMA_VERSION = "studiopilot.pr_decision_packet.v0"
 SUMMARY_SCHEMA_VERSION = "studiopilot.pr_decision_summary.v0"

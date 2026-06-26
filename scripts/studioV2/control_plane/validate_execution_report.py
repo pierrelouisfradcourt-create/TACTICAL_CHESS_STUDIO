@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import fnmatch
 import json
 import posixpath
@@ -13,7 +13,7 @@ except ImportError:
     raise SystemExit(2)
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCHEMAS_ROOT = PROJECT_ROOT / "schemas"
 
 EXECUTION_REPORT_SCHEMA = "studiopilot_execution_report.schema.json"

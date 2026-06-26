@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import json
 import sys
 from datetime import datetime, timezone
@@ -12,7 +12,7 @@ except ImportError:
     raise SystemExit(2)
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCHEMAS_ROOT = PROJECT_ROOT / "schemas"
 REVIEW_PACKET_SCHEMA = SCHEMAS_ROOT / "studiopilot_review_packet.schema.json"
 HUMAN_DECISION_SCHEMA = SCHEMAS_ROOT / "studiopilot_human_decision.schema.json"

@@ -1,11 +1,11 @@
-import argparse
+﻿import argparse
 import json
 import sys
 from pathlib import Path
 from typing import Any
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 SCHEMAS_ROOT = PROJECT_ROOT / "schemas"
 CAMPAIGN_PLAN_SCHEMA = SCHEMAS_ROOT / "studiopilot_campaign_plan.schema.json"
 PR_QUEUE_SCHEMA = SCHEMAS_ROOT / "studiopilot_pr_queue.schema.json"

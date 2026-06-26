@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import json
 from pathlib import Path
 from typing import Any
@@ -7,7 +7,7 @@ from build_pr_decision_packet import InputValidationError
 from build_pr_decision_packet import load_and_build_summary
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_FIXTURES_ROOT = (
     PROJECT_ROOT / "docs" / "control-plane" / "fixtures" / "pr_decision_packet"
 )

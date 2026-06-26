@@ -1,4 +1,4 @@
-import argparse
+﻿import argparse
 import json
 import sys
 from fnmatch import fnmatch
@@ -14,7 +14,7 @@ except ImportError:
 import render_codex_prompt
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 TASK_PACKET_SCHEMA_RELATIVE = Path("schemas") / "studiopilot_task_packet.schema.json"
 EXECUTION_REPORT_SCHEMA_RELATIVE = Path("schemas") / "studiopilot_execution_report.schema.json"
 
