@@ -173,7 +173,7 @@ impl NeuralTournamentRunner {
         let mut scheduled_matchups: Vec<(&str, &str)> = Vec::new();
         scheduled_matchups.extend(std::iter::repeat((MAIN_EVAL, "heuristic")).take(4));
         scheduled_matchups.extend(std::iter::repeat((MAIN_EVAL, "hybrid")).take(4));
-        scheduled_matchups.extend(std::iter::repeat((MAIN_EVAL, "teacher_uci")).take(2));
+        scheduled_matchups.extend(std::iter::repeat((MAIN_EVAL, "teacher_uci")).take(1));
         scheduled_matchups.push((CALIBRATION, "random"));
 
         let mut results = Vec::new();

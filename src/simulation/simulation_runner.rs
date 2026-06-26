@@ -1143,7 +1143,7 @@ impl SimulationRunner {
         let teacher_active = agent_white == "teacher_uci" || agent_black == "teacher_uci";
 
         let mut teacher_agent = if teacher_active {
-            Some(UciAgent::new(&resolve_stockfish_path(), 8))
+            Some(UciAgent::new(&resolve_stockfish_path(), 6))
         } else {
             None
         };
