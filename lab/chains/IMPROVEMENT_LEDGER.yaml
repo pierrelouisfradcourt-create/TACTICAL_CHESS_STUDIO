@@ -2087,6 +2087,26 @@ improvements:
     (CLAUDE.md, SYSTEM_MAP, 00_VISION, 05_ARCHITECTURE, 07_CURRENT_STATE, 10_AUTOMATION_EVIDENCE_PLANE).
     Statut DRAFT_FOR_REVIEW, posture NO_CLAIM_ALLOWED, en attente de ratification HumanGate.
     Aucune preuve de force/dataset/benchmark créée — synthèse de planification uniquement.'
+- id: IMP-123
+  title: Snake AI steering sans demi-tour (wall-avoidance améliorée)
+  type: improvement
+  source: session-2026-06-26
+  status: OPEN
+  impact: SMALL
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio_core
+  files:
+  - studio_core/sim/headless_sim.py
+  acceptance: headless_sim --sim 100 avg_survival >= 40s ET wall_rate < 60% — l'AI évite
+    les murs sans demi-tour (projection Gram-Schmidt remplacée par steering direct).
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: 'OPEN. Suite du fix IMP bug anti-demi-tour (commit fix: guard anti-demi-tour
+    Snake Survivor). L''AI headless utilise désormais une projection Gram-Schmidt pour
+    éviter les 180° — avg survival 31s vs 48s baseline. Wall-avoidance à améliorer
+    avec un steering direct (steer_toward arena center) pour retrouver ~48s avg.'
 metrics_history:
 - session: '2026-05-31'
   total: 11
