@@ -26,13 +26,14 @@ from pathlib import Path
 from datetime import datetime
 import socketserver
 from executor_report import analyse_report
+from control_plane.registry import get_model_for_role, probe_all_providers
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────
 REPO     = Path(r"C:\TACTICAL_CHESS_STUDIO")
 PORT     = 7331
 LM_HOST  = "http://localhost:1234"
-LM_MODEL         = "qwen2.5-14b-instruct"  # Director — décisions opérationnelles
-LM_MODEL_CEO     = "qwen3.6-27b"           # CEO Brain — raisonnement profond (IMP-047)
+LM_MODEL         = get_model_for_role("director")  or "qwen2.5-14b-instruct"
+LM_MODEL_CEO     = get_model_for_role("ceo_brain") or "qwen3.6-27b"
 MEMORY_FILE = Path(__file__).parent / "studio_memory.json"
 
 # Chemins repo utiles
@@ -55,6 +56,9 @@ STATE_FILE     = REPO / "00_STUDIO_CONTROL/00_MASTER_DOCS/07_CURRENT_STATE.md"
 UX_RUNS_FILE   = REPO / "lab/datasets/ux_claude_runs.jsonl"
 STATE_UPDATER  = REPO / "state_updater.py"
 IDEAS_FILE     = REPO / "lab/chains/ideas.json"
+
+# IMP-125 : état live des providers (mis à jour au boot + toutes les 5 min)
+_provider_health: dict = {}
 
 # IMP-094 : claim_verdict lu depuis CLAIM_MATRIX.md au démarrage
 _CLAIM_VERDICT = "NO_CLAIM_ALLOWED"
@@ -2242,7 +2246,52 @@ def get_health() -> dict:
         "lm_model":       LM_MODEL,
         "lm_model_ceo":   LM_MODEL_CEO,
         "lm_models":      lm.get("models", []),
+        "providers":      dict(_provider_health),
     }
+
+
+def _generate_capability_status_md(health: dict) -> None:
+    """Écrit ~/.openclaw/workspace/CAPABILITY_STATUS.md — lisible par les agents."""
+    workspace = Path.home() / ".openclaw" / "workspace"
+    if not workspace.exists():
+        return
+    lines = [
+        "# CAPABILITY_STATUS",
+        f"_Généré : {datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')} UTC_",
+        "",
+        "## Modèles actifs",
+        f"- director : `{health.get('lm_model', 'inconnu')}`",
+        f"- ceo_brain : `{health.get('lm_model_ceo', 'inconnu')}`",
+        "",
+        "## Providers",
+    ]
+    for pid, status in health.get("providers", {}).items():
+        icon = "🟢" if status == "UP" else ("⚪" if status == "SKIP" else "🔴")
+        lines.append(f"- {icon} `{pid}` : {status}")
+    lines.append("")
+    try:
+        (workspace / "CAPABILITY_STATUS.md").write_text("\n".join(lines), encoding="utf-8")
+    except Exception as exc:
+        print(f"[registry] CAPABILITY_STATUS.md non écrit : {exc}", flush=True)
+
+
+def _provider_health_thread() -> None:
+    """Thread daemon : probe les providers au boot puis toutes les 5 min."""
+    global _provider_health
+    import time as _time
+    while True:
+        try:
+            result = probe_all_providers()
+            _provider_health = result
+            _generate_capability_status_md(get_health())
+            print(
+                "[registry] providers : "
+                + ", ".join(f"{k}={v}" for k, v in result.items()),
+                flush=True,
+            )
+        except Exception as exc:
+            print(f"[registry] erreur probe : {exc}", flush=True)
+        _time.sleep(300)
 
 
 def get_staleness() -> dict:
@@ -7757,6 +7806,9 @@ def main():
 
 Ctrl+C pour arrêter.
 """)
+    # IMP-125 : probe providers au boot puis toutes les 5 min
+    threading.Thread(target=_provider_health_thread, daemon=True).start()
+
     # P3 : auto-recall au démarrage (non-bloquant)
     threading.Thread(target=_ledger_refresh_worker, daemon=True).start()
 

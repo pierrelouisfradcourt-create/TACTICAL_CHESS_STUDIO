@@ -1,0 +1,77 @@
+"""control_plane/registry.py — Capability & Provider Registry (IMP-125).
+
+Lit openclaw/capabilities.yaml et openclaw/providers.yaml.
+Fallback silencieux si les fichiers sont absents.
+"""
+import logging
+import urllib.request
+import urllib.error
+from pathlib import Path
+from typing import Optional
+from urllib.parse import urlparse
+
+log = logging.getLogger(__name__)
+
+_CAPS_PATH = Path(__file__).parent.parent / "openclaw" / "capabilities.yaml"
+_PROV_PATH = Path(__file__).parent.parent / "openclaw" / "providers.yaml"
+
+
+def _load_yaml(path: Path) -> dict:
+    try:
+        import yaml  # PyYAML — disponible dans .venv312
+        with open(path, encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except Exception as exc:
+        log.warning("registry: cannot load %s — %s", path, exc)
+        return {}
+
+
+def load_capabilities(path: Optional[Path] = None) -> dict:
+    return _load_yaml(path or _CAPS_PATH)
+
+
+def load_providers(path: Optional[Path] = None) -> dict:
+    return _load_yaml(path or _PROV_PATH)
+
+
+def get_model_for_role(role: str, caps_path: Optional[Path] = None) -> Optional[str]:
+    """Return the short model name (last path component) for a given role, or None."""
+    for model in load_capabilities(caps_path).get("models", []):
+        if role in model.get("roles", []):
+            return model["id"].split("/")[-1]
+    return None
+
+
+def get_provider_status(provider_id: str, prov_path: Optional[Path] = None) -> str:
+    """Return the static status field from providers.yaml, or 'UNKNOWN'."""
+    for p in load_providers(prov_path).get("providers", []):
+        if p["id"] == provider_id:
+            return p.get("status", "UNKNOWN")
+    return "UNKNOWN"
+
+
+def probe_provider(provider: dict) -> str:
+    """Live-probe a single provider dict. Returns 'UP' | 'DOWN' | 'SKIP'."""
+    hc = provider.get("healthcheck")
+    if not hc or not hc.get("endpoint"):
+        return "SKIP"
+    try:
+        parsed = urlparse(provider["base_url"])
+        url = f"{parsed.scheme}://{parsed.netloc}{hc['endpoint']}"
+        req = urllib.request.Request(url, method=hc.get("method", "GET"))
+        with urllib.request.urlopen(req, timeout=int(hc.get("timeout_s", 3))) as r:
+            return "UP" if r.status < 400 else "DOWN"
+    except Exception:
+        return "DOWN"
+
+
+def probe_all_providers(prov_path: Optional[Path] = None) -> dict:
+    """Probe every provider that has a healthcheck. Returns {id: 'UP'|'DOWN'|'SKIP'}."""
+    results: dict = {}
+    for p in load_providers(prov_path).get("providers", []):
+        pid = p["id"]
+        if pid == "autopilot_7331":  # éviter self-probe
+            results[pid] = "SKIP"
+        else:
+            results[pid] = probe_provider(p)
+    return results
