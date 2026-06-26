@@ -1790,6 +1790,152 @@ def _diagnosis_thread() -> None:
         _time.sleep(3600)
 
 
+# IMP-F2 : reflection thread — bilan 24h
+REFLECTION_INTERVAL_S = 24 * 3600
+SECONDS_PER_DAY = 86400
+
+
+def _parse_chain_ts(raw: str):
+    """Parse un timestamp ('YYYYMMDD_HHMMSS' ou ISO) → datetime, ou None si illisible."""
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y%m%d_%H%M%S")
+    except (ValueError, TypeError):
+        pass
+    try:
+        return datetime.fromisoformat(raw)
+    except (ValueError, TypeError):
+        return None
+
+
+def _reflection_closed_imps(since_ts: float) -> list:
+    """IMPs fermés (status SUCCESS) dans la fenêtre 24h, dédupliqués par imp_id."""
+    closed: dict = {}
+    if not CHAIN_HISTORY.exists():
+        return []
+    try:
+        for line in CHAIN_HISTORY.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if str(entry.get("status", "")).upper() != "SUCCESS":
+                continue
+            dt = _parse_chain_ts(entry.get("timestamp") or entry.get("ts", ""))
+            if dt is None or dt.timestamp() < since_ts:
+                continue
+            imp_id = entry.get("imp_id")
+            if imp_id:
+                closed[imp_id] = entry.get("imp_title", "")
+    except Exception as exc:
+        print(f"[REFLECTION] erreur lecture CHAIN_HISTORY : {exc}", flush=True)
+    return [{"imp_id": k, "title": v} for k, v in closed.items()]
+
+
+def _reflection_cost_24h(since_ts: float) -> dict:
+    """Somme des tokens LM (ux_claude_runs.jsonl) sur la fenêtre 24h."""
+    total_tokens = 0
+    calls = 0
+    if not UX_RUNS_FILE.exists():
+        return {"tokens": 0, "calls": 0}
+    try:
+        for line in UX_RUNS_FILE.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            dt = _parse_chain_ts(entry.get("ts", ""))
+            if dt is None or dt.timestamp() < since_ts:
+                continue
+            try:
+                total_tokens += int(entry.get("tokens_approx", 0))
+            except (TypeError, ValueError):
+                pass
+            calls += 1
+    except Exception as exc:
+        print(f"[REFLECTION] erreur lecture ux_runs : {exc}", flush=True)
+    return {"tokens": total_tokens, "calls": calls}
+
+
+def _generate_reflection_report() -> Path:
+    """Génère le bilan 24h (IMPs fermés, ELO delta, draw_rate, coût) → lab/reports/reflection_YYYYMMDD.md."""
+    now = datetime.now()
+    since_ts = now.timestamp() - SECONDS_PER_DAY
+
+    closed = _reflection_closed_imps(since_ts)
+    cost = _reflection_cost_24h(since_ts)
+
+    elo_block: dict = {}
+    draw_block: dict = {}
+    metrics_path = REPO / "lab" / "chains" / "metrics.json"
+    if metrics_path.exists():
+        try:
+            metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+            elo_block = metrics.get("elo", {}) or {}
+            draw_block = metrics.get("draw_rate", {}) or {}
+        except Exception as exc:
+            print(f"[REFLECTION] erreur lecture metrics.json : {exc}", flush=True)
+
+    try:
+        elo_hybrid = float(elo_block["hybrid"])
+        elo_heur = float(elo_block["heuristic"])
+        elo_delta_txt = (
+            f"{elo_hybrid - elo_heur:+.2f} "
+            f"(hybride {elo_hybrid:.2f} − heuristique {elo_heur:.2f})"
+        )
+    except (KeyError, TypeError, ValueError):
+        elo_delta_txt = "indisponible (metrics.json sans champ elo exploitable)"
+
+    draw_pct = draw_block.get("pct", "?")
+    draw_status = draw_block.get("status", "?")
+    draw_threshold = draw_block.get("threshold", "?")
+
+    closed_lines = (
+        "\n".join(f"- {c['imp_id']} — {c['title']}" for c in closed)
+        or "- (aucun IMP fermé sur 24h)"
+    )
+
+    report = (
+        f"# Bilan réflexion 24h — {now.strftime('%Y-%m-%d %H:%M')}\n\n"
+        f"## IMPs fermés (24h)\n"
+        f"{closed_lines}\n"
+        f"Total : {len(closed)}\n\n"
+        f"## ELO delta\n"
+        f"{elo_delta_txt}\n"
+        f"Source : metrics.json (date {elo_block.get('date', '?')})\n\n"
+        f"## draw_rate\n"
+        f"{draw_pct}% — statut {draw_status} (seuil {draw_threshold})\n\n"
+        f"## Coût estimé\n"
+        f"{cost['tokens']} tokens approx. sur {cost['calls']} appels LM (24h)\n"
+    )
+
+    reports_dir = REPO / "lab" / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    out_path = reports_dir / f"reflection_{now.strftime('%Y%m%d')}.md"
+    out_path.write_text(report, encoding="utf-8")
+    return out_path
+
+
+def _reflection_thread() -> None:
+    """Thread daemon : génère un bilan 24h au boot puis toutes les 24h."""
+    import time as _time
+    _time.sleep(90)  # laisser le serveur et le diagnosis demarrer
+    while True:
+        try:
+            out = _generate_reflection_report()
+            print(f"[REFLECTION] bilan ecrit : {out}", flush=True)
+        except Exception as exc:
+            print(f"[REFLECTION] erreur generation bilan : {exc}", flush=True)
+        _time.sleep(REFLECTION_INTERVAL_S)
+
+
 def _report_watcher_thread() -> None:
     """Thread daemon : surveille lab/chains/reports/ toutes les 5 s."""
     global _watcher_active, _watcher_last_check, _watcher_last_processed
@@ -7483,6 +7629,9 @@ Ctrl+C pour arrêter.
 
     # IMP-D2 : diagnosis toutes les heures
     threading.Thread(target=_diagnosis_thread, daemon=True).start()
+
+    # IMP-F2 : reflection — bilan 24h
+    threading.Thread(target=_reflection_thread, daemon=True).start()
 
     # Ouvre le navigateur après 1 seconde
     def open_browser():
