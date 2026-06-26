@@ -3146,6 +3146,28 @@ improvements:
     Traçabilité coût par IMP. Chaque run kaizen ajoute une ligne à lab/cost_log.jsonl.
     Tokens estimés via len(charter) / 4 si API Claude indisponible.
     Alerter si session > 100k tokens sans IMP fermé.
+- id: IMP-173
+  title: Restaurer meilleur checkpoint — pointer latest.pt vers run_20260527_205249/epoch_020.pt
+  type: chore
+  source: session-2026-06-26 (regression détectée model_registry)
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: ia_apprentissage
+  files:
+  - models/latest.pt
+  - lab/model_registry.yaml
+  acceptance: >
+    models/latest.pt est un symlink ou copie de run_20260527_205249/epoch_020.pt.
+    ELO mesuré après changement.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    RÉGRESSION DÉTECTÉE — latest.pt pointe vers run_20260601 (loss 0.7885) au lieu
+    de run_20260527_205249 (loss 0.6727, meilleur connu). Changement nécessite gate
+    Pierre car irréversible sur le modèle actif.
 metrics_history:
 - session: '2026-05-31'
   total: 11
