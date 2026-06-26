@@ -1,0 +1,189 @@
+# openclaw/capabilities.yaml — Capability Registry v1
+# SSOT machine-readable des modèles et skills disponibles dans le Studio.
+# Propriétaire : Studio OS | Source IMP: IMP-124
+# Lecture par : autopilot.py, OpenClaw routing, @monitor
+# claim_posture: NO_CLAIM_ALLOWED
+
+version: "1.0"
+generated: "2026-06-26"
+source_imp: IMP-124
+claim_posture: NO_CLAIM_ALLOWED
+
+models:
+  - id: lmstudio/qwen2.5-14b-instruct
+    name: Qwen2.5 14B Instruct
+    status: ASSUMED_AVAILABLE
+    roles:
+      - director
+      - charter_generation
+      - kaizen_autoloop
+    context_window: 32768
+    max_tokens: 8192
+    reasoning: false
+    cost: local
+    provider: lmstudio
+
+  - id: lmstudio/qwen/qwen2.5-coder-14b
+    name: Qwen2.5 Coder 14B
+    status: ASSUMED_AVAILABLE
+    roles:
+      - coordinator
+      - producer_routine
+    context_window: 32768
+    max_tokens: 8192
+    reasoning: false
+    cost: local
+    provider: lmstudio
+
+  - id: lmstudio/qwen/qwen3.6-27b
+    name: Qwen3.6 27B
+    status: ASSUMED_AVAILABLE
+    roles:
+      - ceo_brain
+      - strategic_analysis
+      - ceo_brief
+    context_window: 262144
+    max_tokens: 8192
+    reasoning: true
+    cost: local
+    provider: lmstudio
+
+  - id: lmstudio/devstral-small-2507
+    name: Devstral Small 2507
+    status: ASSUMED_AVAILABLE
+    roles:
+      - lora_base
+      - code_generation
+    context_window: 131072
+    max_tokens: 8192
+    reasoning: false
+    cost: local
+    provider: lmstudio
+
+  - id: lmstudio/mistral-7b-instruct-v0.3
+    name: Mistral 7B Instruct v0.3
+    status: ASSUMED_AVAILABLE
+    roles:
+      - chain_executor_fast
+    context_window: 32768
+    max_tokens: 8192
+    reasoning: false
+    cost: local
+    provider: lmstudio
+
+  - id: custom/claude-code-cli
+    name: Claude Code CLI (via proxy 8765)
+    status: AVAILABLE             # proxy 8765 opérationnel depuis 2026-06-26 matin
+    roles:
+      - producer_dur
+      - architecture_review
+      - code_review
+      - gate
+      - verdict
+      - plan
+      - hotfix
+      - release
+    context_window: 128000
+    max_tokens: 4096
+    reasoning: true
+    cost: proxy_local
+    provider: claude_proxy_8765
+    fallback: anthropic_api_direct
+    requires_service: claude_proxy_8765
+
+  - id: google/gemini-flash
+    name: Gemini Flash (free tier)
+    status: ASSUMED_AVAILABLE
+    roles:
+      - council_gemini
+    restrictions:
+      - never_phi
+      - never_internal_studio
+      - generic_only
+    context_window: UNKNOWN
+    max_tokens: UNKNOWN
+    reasoning: false
+    cost: free_api
+    provider: gemini_free
+
+skills:
+  # status hérite du provider — mis à jour manuellement ou par @monitor
+
+  - id: architecture_review
+    provider: custom/claude-code-cli
+    status: AVAILABLE
+  - id: code_review
+    provider: custom/claude-code-cli
+    status: AVAILABLE
+  - id: gate
+    provider: custom/claude-code-cli
+    status: AVAILABLE
+  - id: verdict
+    provider: custom/claude-code-cli
+    status: AVAILABLE
+  - id: plan
+    provider: custom/claude-code-cli
+    status: AVAILABLE
+  - id: hotfix
+    provider: custom/claude-code-cli
+    status: AVAILABLE
+  - id: release
+    provider: custom/claude-code-cli
+    status: AVAILABLE
+  - id: estimate
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: start
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: handoff
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: tick
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: sprint_plan
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: brainstorm
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: scope_check
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: balance_check
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: playtest
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: team_feature
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: joust
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: league
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: tech_debt
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: perf_profile
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: imp_run
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: imp_auto
+    provider: lmstudio/qwen2.5-14b-instruct
+    status: AVAILABLE
+  - id: fog
+    provider: UNKNOWN
+    status: UNKNOWN
+  - id: gate_check
+    provider: UNKNOWN
+    status: UNKNOWN
+  - id: reanchor
+    provider: UNKNOWN
+    status: UNKNOWN

@@ -2111,6 +2111,55 @@ improvements:
     avec marge. Stable sur 5 runs RNG non-seedé (avg 50-56s, wall 0.0% constant). Morts
     désormais 100% self_collision. Fichier studio_core/sim/headless_sim.py committé avec
     la Game Factory studio_core. NB: aucun diff pré-existant — fix rédigé depuis la spec IMP-123.'
+- id: IMP-124
+  title: 'Capability Registry v1 — artefacts non consommés'
+  type: feature
+  source: session-2026-06-26 (audit architectural comité)
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - openclaw/capabilities.yaml
+  - openclaw/providers.yaml
+  acceptance: >
+    capabilities.yaml liste tous les modèles configurés avec statut réel (AVAILABLE/DEGRADED/DEAD/UNKNOWN).
+    providers.yaml liste tous les endpoints avec startup_cmd et fallback.
+    Aucun artefact d'orchestration référencé dans TOOLS.md ou openclaw.json absent du registry.
+    Lecture validée par python -c "import yaml; yaml.safe_load(open('openclaw/capabilities.yaml'))" sans erreur.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Issu de l'audit architectural 2026-06-26 (GAP-1 Task Router + GAP-6 Monitoring).
+    Le routage modèle est actuellement dans TOOLS.md (document statique) et LM_MODEL/LM_MODEL_CEO
+    hardcodés dans autopilot.py. capabilities.yaml et providers.yaml constituent la source de vérité
+    machine-readable. IMP-125 (AUDIT_REQUIRED) câble ce registry dans le control plane.
+    Draft YAML produit en output de chat session 2026-06-26 — écriture disque sur go Pierre.
+- id: IMP-125
+  title: 'Capability Registry — intégration Governor/autopilot/OpenClaw'
+  type: feature
+  source: session-2026-06-26 (audit architectural comité)
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: >
+    LM_MODEL et LM_MODEL_CEO supprimés de autopilot.py — remplacés par lecture capabilities.yaml.
+    Healthcheck providers au démarrage autopilot.py (statut RUNNING/DEAD pour chaque provider).
+    OpenClaw routing skill→provider basé sur capabilities.yaml (remplace TOOLS.md statique).
+    cargo test + pytest verts. Aucune régression fonctionnelle autopilot.py.
+  blocked_by:
+  - IMP-124
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    AUDIT_REQUIRED : touche autopilot.py (control plane critique) et openclaw.json (routing agents).
+    Plan d'intégration produit en output de chat session 2026-06-26 — implémentation sur go Pierre.
+    Risque : régression autopilot.py si lecture YAML échoue au démarrage → fallback hardcodé requis.
 metrics_history:
 - session: '2026-05-31'
   total: 11
