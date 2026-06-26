@@ -51,6 +51,12 @@ REPO_ROOT       = Path(__file__).resolve().parent.parent.parent
 PYTHON_EXE      = sys.executable
 CHARTER_DIR     = REPO_ROOT / "lab/chains/charters"
 AUTOLOOP_LOG    = REPO_ROOT / "lab/chains/CHAIN_HISTORY.jsonl"
+COST_LOG        = REPO_ROOT / "lab/cost_log.jsonl"
+SESSION_TOKEN_THRESHOLD = 100_000
+
+# Compteurs de session (réinitialisés à chaque démarrage du processus)
+_session_tokens: int = 0
+_session_imps_closed: int = 0
 
 
 # ── recall / propose ──────────────────────────────────────
@@ -326,6 +332,35 @@ def metrics() -> None:
     )
 
 
+def log_cost(imp: dict, charter_path: str, report: str, success: bool) -> None:
+    """Logue le coût estimé en tokens dans lab/cost_log.jsonl."""
+    global _session_tokens, _session_imps_closed
+
+    charter_len = len(Path(charter_path).read_text(encoding="utf-8")) if Path(charter_path).exists() else 0
+    tokens_used = int((charter_len + len(report or "")) / 4)
+    model = os.environ.get("ANTHROPIC_MODEL", "claude-code-estimated")
+
+    entry = {
+        "ts":          datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "imp_id":      imp["id"],
+        "tokens_used": tokens_used,
+        "model":       model,
+        "success":     success,
+    }
+    COST_LOG.parent.mkdir(parents=True, exist_ok=True)
+    with open(COST_LOG, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    _session_tokens += tokens_used
+    if success:
+        _session_imps_closed += 1
+
+    if _session_tokens > SESSION_TOKEN_THRESHOLD and _session_imps_closed == 0:
+        print(f"[!] ALERTE COUT : {_session_tokens} tokens consommes sans IMP ferme cette session.")
+    else:
+        print(f"[cost] {imp['id']} : ~{tokens_used} tokens (session total : {_session_tokens})")
+
+
 def log_autoloop_event(imp: dict, status: str, report: str) -> None:
     """Logue un event dans CHAIN_HISTORY.jsonl."""
     entry = {
@@ -394,6 +429,7 @@ def run_loop(args) -> None:
         success = validate_report(report, imp)
 
         # 8. Close ou signaler echec
+        log_cost(imp, charter_path, report, success)
         if success:
             close_imp(imp)
             if _archive is not None:
