@@ -2223,7 +2223,7 @@ improvements:
     OK via python3 (export intact, fichier 3→4 lignes). pytest complet non lancé
     (mode permissions) — smoke import jugé suffisant pour IMP XS trivial par Pierre.
 - id: IMP-127
-  title: Canvas panneau OpenClaw — brancher studio_canvas.html
+  title: Canvas panneau OpenClaw — brancher studio_canvas.html comme panneau live
   type: feature
   source: session-2026-06-26 (bilan repo orphelins)
   status: OPEN
@@ -2242,7 +2242,7 @@ improvements:
   closed_session: null
   notes: Brancher l'interface OpenClaw dans le Canvas Pierre existant.
 - id: IMP-128
-  title: Council skill actif — Gemini+Qwen en parallèle sur AUDIT_REQUIRED
+  title: Council skill actif — Gemini+Qwen en parallèle sur décisions AUDIT_REQUIRED
   type: feature
   source: session-2026-06-26 (bilan repo orphelins)
   status: OPEN
@@ -2264,7 +2264,7 @@ improvements:
     Formalise le conseil multi-modèles pour les IMPs AUDIT_REQUIRED.
     Unblocks la gouvernance IMP-057.
 - id: IMP-129
-  title: Corriger chemin ml/golden_examples.jsonl — symlink ou copie depuis lab/chains/
+  title: Corriger chemin ml/golden_examples.jsonl — copie depuis lab/chains/
   type: fix
   source: session-2026-06-26 (bilan IMP-057 prérequis manquants)
   status: OPEN
@@ -2285,6 +2285,122 @@ improvements:
     IMP-057 acceptance pointe sur ml/golden_examples.jsonl (ABSENT).
     Le fichier source est lab/chains/golden_examples.jsonl (57 entrées).
     Résolution : symlink ou copie — au choix du worker selon les contraintes OS.
+- id: IMP-130
+  title: Audit quotidien automatisé dans cron — hygiene/vérité/sécurité
+  type: feature
+  source: session-2026-06-26 (bilan repo orphelins)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - studio/openclaw-workspace/skills/audit_daily.md
+  acceptance: >
+    studio/openclaw-workspace/skills/audit_daily.md décrit un skill /audit-daily
+    invocable depuis OpenClaw : vérifie l'hygiène du repo (fichiers orphelins,
+    acceptance TBD, bloqueurs), la cohérence des ancres (MEMORY.md vs ledger),
+    et lance un scan de sécurité basique. Résultat loggé dans lab/reports/.
+    pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Automatiser le bilan quotidien studio (hygiene + vérité + sécurité).
+- id: IMP-131
+  title: /reanchor automatique hebdomadaire — recalibrer ancres Lichess
+  type: feature
+  source: session-2026-06-26 (MEMORY.md — reanchor jamais lancé)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: tactique
+  files:
+  - studio/openclaw-workspace/skills/reanchor.md
+  acceptance: >
+    studio/openclaw-workspace/skills/reanchor.md décrit le protocole /reanchor :
+    relance bench/lichess_eval.sh, compare aux seuils cibles (L1>=80%, L2>=10%,
+    L3>=20%), met à jour MEMORY.md avec les nouvelles ancres datées.
+    Un fichier .claude/skills/reanchor/skill.md est créé en miroir.
+    pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    MEMORY.md note "reanchor jamais lancé — à planifier dès P1".
+    Formalise le skill et crée l'entrée .claude/ manquante.
+- id: IMP-132
+  title: φ Encoder v1 — encoder les positions chess en vecteurs φ
+  type: feature
+  source: session-2026-06-26 (BOOTSTRAP.md — NOT_STARTED P4)
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - ml/phi_encoder.py
+  acceptance: >
+    ml/phi_encoder.py implémente un encodeur de positions chess produisant un
+    vecteur φ de dimension fixe (≥7 scalaires normalisés [0,1]) compatible avec
+    SearchTraceSchema. encode(position) retourne un np.ndarray sans erreur sur
+    les positions de test. pytest vert (au moins 3 cas : position initiale,
+    position tactique, position finale).
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Premier composant P4 (φ Encoder / Clustering / LoRA). Prérequis pour
+    IMP-057 (LoRA Devstral). Implémentation Python pure, pas de Rust.
+- id: IMP-133
+  title: Archiver scripts/studioV2/ — ancien control-plane Codex
+  type: chore
+  source: session-2026-06-26 (bilan repo orphelins — ~80 scripts sans IMP)
+  status: OPEN
+  impact: LOW
+  effort: LARGE
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - scripts/studioV2/
+  acceptance: >
+    scripts/studioV2/ est déplacé dans lab/archive/studioV2/ avec un README
+    expliquant qu'il s'agit de l'ancien control-plane Codex (pré-OpenClaw).
+    Le répertoire scripts/ ne contient plus studioV2/.
+    Les scripts encore actifs (studio_meta.py, canvas_gateway.py, etc.) restent
+    dans scripts/. cargo test et pytest verts.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    ~80 fichiers orphelins (scripts/studioV2/control_plane/*, operator/*, etc.)
+    issus de l'ère Codex. AUDIT_REQUIRED : vérifier qu'aucun script actif
+    n'est aspiré dans l'archive avant de valider le déplacement.
+- id: IMP-134
+  title: training_runs/ — créer structure de base + dataset manifest
+  type: feature
+  source: session-2026-06-26 (bilan IMP-057 prérequis manquants)
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - training_runs/README.md
+  - training_runs/baseline/dataset_sha.txt
+  acceptance: >
+    Le répertoire training_runs/ existe avec training_runs/README.md (description
+    de la structure attendue : un sous-dossier par run, metrics.jsonl dedans) et
+    training_runs/baseline/dataset_sha.txt (SHA256 de pool_selfplay.jsonl).
+    IMP-057 peut écrire dans training_runs/<id>/metrics.jsonl sans erreur de
+    chemin. pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    IMP-057 acceptance requiert training_runs/<id>/metrics.jsonl (ABSENT).
+    Ce scaffold minimal débloque le prérequis sans pré-supposer la structure
+    finale du pipeline de training.
 metrics_history:
 - session: '2026-05-31'
   total: 11
