@@ -1,0 +1,93 @@
+{
+  "meta": {
+    "name": "Snake Survivor Lite — ARENA_SHRINK",
+    "version": "1.0.0",
+    "session_duration": 120,
+    "arena_width": 1000,
+    "arena_height": 750,
+    "arena_shrink_start": 0,
+    "arena_shrink_rate": 0.8
+  },
+  "entities": [
+    {
+      "id": "player_snake",
+      "type": "player_snake",
+      "attributes": {
+        "initial_segments":           3,
+        "base_velocity":              100.0,
+        "velocity_growth_penalty":    0.92,
+        "velocity_penalty_threshold": 10,
+        "velocity_floor_factor":      0.4,
+        "boost_multiplier":           1.8,
+        "boost_drain_rate":           0.3,
+        "boost_charge_per_energy_orb": 0.25,
+        "segment_size":               8,
+        "collision_radius":           8,
+        "ability_slots":              3,
+        "stun_duration":              0.3
+      }
+    },
+    {
+      "id": "orb",
+      "type": "orb",
+      "attributes": {
+        "xp_value":      10,
+        "energy_value":  0.25,
+        "radius":        6,
+        "xp_weight":     0.75,
+        "energy_weight": 0.25
+      }
+    },
+    {
+      "id": "enemy",
+      "type": "enemy",
+      "attributes": {
+        "base_velocity":           80.0,
+        "velocity_scale_per_wave": 1.1,
+        "collision_radius":        10,
+        "hp":                      1.0,
+        "ability_drops":           ["DASH", "SHIELD", "MAGNET", "GHOST"],
+        "chaser_threshold_time":   40
+      }
+    },
+    {
+      "id": "arena",
+      "type": "arena",
+      "attributes": {
+        "width":        1000,
+        "height":       750,
+        "shrink_start": 0,
+        "shrink_rate":  0.8
+      }
+    }
+  ],
+  "rules": [
+    { "rule": "movement",               "condition": "always",                                                              "effect": "move_snake",              "parameters": { "mode": "continuous" } },
+    { "rule": "snake_growth",           "condition": "distance(snake_head, orb) < collision_radius",                        "effect": "append_tail_segment",     "parameters": { "segments_per_xp_orb": 1 } },
+    { "rule": "orb_absorption",         "condition": "distance(snake_head, orb) < collision_radius",                        "effect": "collect_orb_apply_score", "parameters": {} },
+    { "rule": "enemy_collision_absorb", "condition": "distance(snake_head, enemy) < threshold AND ability_slots_free > 0",  "effect": "absorb_enemy_gain_ability", "parameters": { "absorption_time": 0.8 } },
+    { "rule": "enemy_collision_stun",   "condition": "distance(snake_head, enemy) < threshold AND ability_slots_free == 0", "effect": "stun_player",             "parameters": { "stun_duration": 0.3 } },
+    { "rule": "death_self_collision",   "condition": "distance(snake_head, snake_body_segment[4:]) < collision_radius",     "effect": "kill_player",             "parameters": {} },
+    { "rule": "death_wall",             "condition": "snake_head outside arena bounds",                                     "effect": "kill_player",             "parameters": {} },
+    { "rule": "velocity_penalty",       "condition": "snake_length > velocity_penalty_threshold",                           "effect": "reduce_velocity",         "parameters": { "factor": 0.92, "per_segments": 10 } },
+    { "rule": "arena_shrink",           "condition": "session_time >= arena_shrink_start",                                  "effect": "reduce_arena_bounds",     "parameters": { "rate": 0.8 } },
+    { "rule": "timer_end",              "condition": "session_time >= session_duration",                                    "effect": "end_session_timeout",     "parameters": { "outcome": "timeout" } }
+  ],
+  "spawn": {
+    "orb_spawn_interval":   2.0,
+    "enemy_spawn_interval": 12.0,
+    "enemy_scale_factor":   1.1,
+    "max_orbs":             15,
+    "max_enemies":          8,
+    "initial_orbs":         8,
+    "initial_enemies":      2
+  },
+  "economy": {
+    "score_per_orb":          10,
+    "score_per_absorption":   50,
+    "score_per_second":       4,
+    "xp_per_orb":             5,
+    "ability_slot_max":       3,
+    "combo_bonus_multiplier": 1.5
+  }
+}
