@@ -3,11 +3,11 @@ generated_at: "2026-06-26"
 elo_source: "lab/reports/elo_match_latest.json — 100 parties, 2026-06-25"
 elo_target: "hybrid >= heuristic + 20"
 
-# REGRESSION DÉTECTÉE
-# Le meilleur checkpoint par loss est run_20260527_205249/epoch_020.pt (best_loss=0.6727).
-# models/latest.pt pointe vers run_20260601_173953 (best_loss=0.7885) — régression loss +17%.
-# Action recommandée : évaluer run_20260527_205249/epoch_020.pt en ELO avant le prochain run.
-recommended_next: lab/runs/run_20260527_205249/epoch_020.pt
+# RESTAURATION 2026-06-26 (IMP-173 CLOSED)
+# latest.pt pointe désormais vers run_20260527_205249/epoch_020.pt (best_loss=0.6727).
+# Backup ancien latest.pt (run_20260601, loss=0.7885) → models/latest_run_20260601_backup.pt
+# ELO post-restauration : PENDING — relancer ./bench/elo_match.sh
+recommended_next: null
 
 # ELO mesuré (dernier elo_match)
 # teacher_uci : 1439.78
@@ -21,12 +21,25 @@ recommended_next: lab/runs/run_20260527_205249/epoch_020.pt
 canonical:
   - id: latest
     path: models/latest.pt
+    sha256: 1bce12628eb75ab79ffec48cc413e85f10638bc42c2936818de0fa1aa5aebc02
+    size_bytes: 35918183
+    elo: null
+    elo_measured_at: null
+    elo_pending: true
+    source_run: run_20260527_205249
+    best_loss: 0.6727566793560982
+    restored_at: "2026-06-26"
+    notes: "Restauré IMP-173 — meilleur loss connu. ELO pending (relancer elo_match.sh)."
+
+  - id: latest_run_20260601_backup
+    path: models/latest_run_20260601_backup.pt
     sha256: 688ef18618a60dd7b7bdc3ea6454f1b6a065a4a938c427d822b2e9d244c46de7
     size_bytes: 35914173
     elo: 989.44
     elo_measured_at: "2026-06-25"
     source_run: run_20260601_173953
-    notes: "Modèle neural actif — écrasé à chaque run"
+    best_loss: 0.7885056835200105
+    notes: "Backup de l'ancien latest.pt (régression loss vs run_20260527_205249)"
 
   - id: best
     path: models/best.pt

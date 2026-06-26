@@ -3150,24 +3150,27 @@ improvements:
   title: Restaurer meilleur checkpoint — pointer latest.pt vers run_20260527_205249/epoch_020.pt
   type: chore
   source: session-2026-06-26 (regression détectée model_registry)
-  status: OPEN
+  status: CLOSED
   impact: HIGH
   effort: SMALL
   lane: AUDIT_REQUIRED
   domain: ia_apprentissage
   files:
   - models/latest.pt
+  - models/latest_run_20260601_backup.pt
   - lab/model_registry.yaml
   acceptance: >
     models/latest.pt est un symlink ou copie de run_20260527_205249/epoch_020.pt.
     ELO mesuré après changement.
   blocked_by: []
   opened_session: '2026-06-26'
-  closed_session: null
+  closed_session: '2026-06-26'
   notes: >
-    RÉGRESSION DÉTECTÉE — latest.pt pointe vers run_20260601 (loss 0.7885) au lieu
-    de run_20260527_205249 (loss 0.6727, meilleur connu). Changement nécessite gate
-    Pierre car irréversible sur le modèle actif.
+    RÉGRESSION DÉTECTÉE — latest.pt pointait vers run_20260601 (loss 0.7885).
+    Restauré vers run_20260527_205249/epoch_020.pt (loss 0.6727, meilleur connu).
+    sha256 avant: 688ef186… sha256 après: 1bce1262…
+    Backup conservé dans models/latest_run_20260601_backup.pt.
+    ELO post-restauration pending — relancer ./bench/elo_match.sh.
 metrics_history:
 - session: '2026-05-31'
   total: 11
