@@ -1,0 +1,145 @@
+schema_version: "1"
+generated_at: "2026-06-26"
+elo_source: "lab/reports/elo_match_latest.json — 100 parties, 2026-06-25"
+elo_target: "hybrid >= heuristic + 20"
+
+# REGRESSION DÉTECTÉE
+# Le meilleur checkpoint par loss est run_20260527_205249/epoch_020.pt (best_loss=0.6727).
+# models/latest.pt pointe vers run_20260601_173953 (best_loss=0.7885) — régression loss +17%.
+# Action recommandée : évaluer run_20260527_205249/epoch_020.pt en ELO avant le prochain run.
+recommended_next: lab/runs/run_20260527_205249/epoch_020.pt
+
+# ELO mesuré (dernier elo_match)
+# teacher_uci : 1439.78
+# heuristic   : 1175.73
+# hybrid      : 1195.05  (delta=+19.3 vs heuristic — FAIL)
+# neural      : 989.44
+
+# ---------------------------------------------------------------------------
+# Modèles canoniques (production)
+# ---------------------------------------------------------------------------
+canonical:
+  - id: latest
+    path: models/latest.pt
+    sha256: 688ef18618a60dd7b7bdc3ea6454f1b6a065a4a938c427d822b2e9d244c46de7
+    size_bytes: 35914173
+    elo: 989.44
+    elo_measured_at: "2026-06-25"
+    source_run: run_20260601_173953
+    notes: "Modèle neural actif — écrasé à chaque run"
+
+  - id: best
+    path: models/best.pt
+    sha256: 8d6b5d1d608e79233b89303dc11e9b035525df5b1b3d4881e8886d1521c63731
+    size_bytes: 35914017
+    elo: null
+    source_run: null
+    notes: "Meilleure loss historique toutes runs — non évalué ELO séparément"
+
+# ---------------------------------------------------------------------------
+# Checkpoints par run (epoch final = epoch_020 dans tous les runs complétés)
+# Tous les runs : exploratory_only, dataset_fitness=reject_for_ab
+# ---------------------------------------------------------------------------
+runs:
+  - run_id: run_20260527_203322
+    date: "2026-05-27"
+    epochs: 20
+    best_loss: 0.6879712806807624
+    lr: 0.0003
+    batch_size: 64
+    value_weight: 0.4
+    dataset_rows: 553
+    dataset_sha256: 145431a05af659c6bed748260bfa54404a96ec0be9d79faea3876861a37b707f
+    admission: reject_for_ab
+    reject_reasons: [no_white_wins, hard_cap_draw_ratio_too_high]
+    checkpoints:
+      - epoch: 20
+        path: lab/runs/run_20260527_203322/epoch_020.pt
+        sha256: c2b3b1483aa78653b3f22ea379c020dacc0ea7e5a6b4ee951402e0970eb90929
+        size_bytes: 35918183
+        elo: null
+
+  - run_id: run_20260527_205249
+    date: "2026-05-27"
+    epochs: 20
+    best_loss: 0.6727566793560982
+    lr: 0.0003
+    batch_size: 64
+    value_weight: 0.4
+    dataset_rows: 553
+    dataset_sha256: 145431a05af659c6bed748260bfa54404a96ec0be9d79faea3876861a37b707f
+    admission: reject_for_ab
+    reject_reasons: [too_few_loaded_samples, no_white_wins, hard_cap_draw_ratio_too_high]
+    notes: "Meilleure best_loss de toutes les runs"
+    checkpoints:
+      - epoch: 20
+        path: lab/runs/run_20260527_205249/epoch_020.pt
+        sha256: 1bce12628eb75ab79ffec48cc413e85f10638bc42c2936818de0fa1aa5aebc02
+        size_bytes: 35918183
+        elo: null
+
+  - run_id: run_20260527_215807
+    date: "2026-05-27"
+    epochs: 20
+    best_loss: 0.7301579984751615
+    lr: 0.0003
+    batch_size: 64
+    value_weight: 0.4
+    dataset_rows: 1449
+    dataset_sha256: f0b319a2ef2c4686dbc653754b6b076aef663a81e341594ef5c3ded69e9aafac
+    admission: reject_for_ab
+    reject_reasons: [hard_cap_draw_ratio_too_high]
+    checkpoints:
+      - epoch: 20
+        path: lab/runs/run_20260527_215807/epoch_020.pt
+        sha256: e0b2971fe89259a0ef571d899ee5a6b6b629e29300703c59efa9576c830e1ef9
+        size_bytes: 35918183
+        elo: null
+
+  - run_id: run_20260528_111109
+    date: "2026-05-28"
+    epochs: 20
+    best_loss: 0.7301579984751615
+    lr: 0.0003
+    batch_size: 64
+    value_weight: 0.4
+    dataset_rows: 1449
+    dataset_sha256: f0b319a2ef2c4686dbc653754b6b076aef663a81e341594ef5c3ded69e9aafac
+    admission: reject_for_ab
+    reject_reasons: [hard_cap_draw_ratio_too_high]
+    notes: "Même dataset et loss que run_20260527_215807 — epoch_020 identique (sha256 idem)"
+    checkpoints:
+      - epoch: 20
+        path: lab/runs/run_20260528_111109/epoch_020.pt
+        sha256: e0b2971fe89259a0ef571d899ee5a6b6b629e29300703c59efa9576c830e1ef9
+        size_bytes: 35918183
+        elo: null
+
+  - run_id: run_20260601_173953
+    date: "2026-06-01"
+    epochs: 20
+    best_loss: 0.7885056835200105
+    lr: 0.0003
+    batch_size: 64
+    value_weight: 0.4
+    dataset_rows: 7422
+    dataset_sha256: 82cd0115fc7ccbdfe5fb7bc301c88bbd4b0e171b13a4c3c116cb21c0c55f5aac
+    admission: reject_for_ab
+    reject_reasons: [hard_cap_draw_ratio_too_high]
+    notes: "Run la plus récente — source de models/latest.pt (sha256 diffère car sauvegarde intermédiaire)"
+    checkpoints:
+      - epoch: 20
+        path: lab/runs/run_20260601_173953/epoch_020.pt
+        sha256: f4e1958e703b4f57e7f14bf07f990f2fd5936906e1ead7092011edc2f1c5dd9d
+        size_bytes: 35918183
+        elo: null
+
+# ---------------------------------------------------------------------------
+# Adapters LoRA (format safetensors — non inclus dans les checkpoints .pt)
+# ---------------------------------------------------------------------------
+lora_adapters:
+  - id: lora_devstral_tcs_v1
+    path: lab/runs/lora_devstral_tcs_v1/adapter_model.safetensors
+    format: safetensors
+    size_bytes: 10107280
+    notes: "Adapter LoRA Devstral — évaluation séparée de l'ELO non effectuée"
