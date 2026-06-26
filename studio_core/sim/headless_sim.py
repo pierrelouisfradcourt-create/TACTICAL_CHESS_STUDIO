@@ -27,58 +27,64 @@ for _p in (_studio_core, os.path.join(_studio_core, "runtime")):
 
 from runtime.engine   import GameSession  # noqa: E402
 from runtime.entities import Vec2         # noqa: E402
+from runtime.physics  import steer_toward  # noqa: E402
 
 SIM_DT = 1.0 / 30.0  # 30 ticks/s — fast enough, deterministic
 
 
 # ── AI pilot ─────────────────────────────────────────────────────────────────
 
+def _clamp_to_forward(nd: Vec2, cur: Vec2) -> Vec2:
+    """
+    Clamp a desired direction to the forward hemisphere of ``cur``.
+
+    The engine drops any turn sharper than 90° (`dot < 0`) and the snake then
+    keeps heading straight — straight into the wall. So instead of requesting a
+    reversal we return the sharpest *legal* turn: the perpendicular of ``cur``
+    that lies on ``nd``'s side. Over consecutive ticks this curves the snake
+    toward the target without ever being silently dropped.
+    """
+    cur = cur.normalized()
+    nd  = nd.normalized()
+    if nd.x * cur.x + nd.y * cur.y >= 0.0:
+        return nd
+    perp = Vec2(-cur.y, cur.x)
+    if perp.x * nd.x + perp.y * nd.y < 0.0:
+        perp = Vec2(cur.y, -cur.x)
+    return perp.normalized()
+
+
 def _ai_input(session: GameSession, direction: Vec2) -> Dict[str, Any]:
     """
-    Wall-avoiding random-walk AI.
-    Steers away from arena edges, makes random micro-turns 5% of ticks,
-    boosts when charge > 0.5 with 30% probability.
+    Wall-avoiding random-walk AI (IMP-123).
+
+    Near an edge it steers directly toward the arena center (``steer_toward``)
+    instead of the old per-axis flip + Gram-Schmidt projection, which collapsed
+    to a blind 90° turn on head-on approaches. Away from walls it keeps a random
+    micro-turn 5% of ticks. The final direction is always clamped to the forward
+    hemisphere so the engine's anti-reversal guard never drops it.
+    Boosts when charge > 0.5 with 30% probability.
     """
     snake  = session.snake
     head   = snake.head()
     x0, y0, x1, y1 = session.arena.bounds()
     margin = 60.0
+    cur    = direction.normalized()
 
-    nd = Vec2(direction.x, direction.y)
+    near_wall = (
+        head.x < x0 + margin or head.x > x1 - margin
+        or head.y < y0 + margin or head.y > y1 - margin
+    )
 
-    near_left   = head.x < x0 + margin
-    near_right  = head.x > x1 - margin
-    near_top    = head.y < y0 + margin
-    near_bottom = head.y > y1 - margin
+    if near_wall:
+        # Direct steering toward arena center — a globally safe escape heading.
+        nd = steer_toward(head, session.arena.center())
+    else:
+        nd = Vec2(cur.x, cur.y)
+        if random.random() < 0.05:
+            nd = nd.rotate(random.uniform(-0.4, 0.4))
 
-    if near_left and not near_right:
-        nd.x = abs(nd.x) or 1.0
-    elif near_right and not near_left:
-        nd.x = -abs(nd.x) or -1.0
-
-    if near_top and not near_bottom:
-        nd.y = abs(nd.y) or 1.0
-    elif near_bottom and not near_top:
-        nd.y = -abs(nd.y) or -1.0
-
-    is_near_wall = near_left or near_right or near_top or near_bottom
-    if not is_near_wall and random.random() < 0.05:
-        angle = random.uniform(-0.4, 0.4)
-        c, s  = math.cos(angle), math.sin(angle)
-        nd    = Vec2(nd.x * c - nd.y * s, nd.x * s + nd.y * c)
-
-    mag = math.sqrt(nd.x ** 2 + nd.y ** 2)
-    if mag > 0.0:
-        nd = Vec2(nd.x / mag, nd.y / mag)
-
-    # Prevent requesting a reversal that the engine guard would silently drop.
-    # Project nd onto the forward hemisphere; for a pure 180° case the
-    # projection collapses to zero, so we fall back to a 90° turn.
-    dot = nd.x * direction.x + nd.y * direction.y
-    if dot < 0:
-        nd = Vec2(nd.x - dot * direction.x, nd.y - dot * direction.y)
-        rmag = math.sqrt(nd.x ** 2 + nd.y ** 2)
-        nd = Vec2(nd.x / rmag, nd.y / rmag) if rmag > 0.01 else Vec2(-direction.y, direction.x)
+    nd = _clamp_to_forward(nd, cur)
 
     boost = snake.boost_charge > 0.5 and random.random() < 0.3
     return {"direction": nd, "boost": boost}
