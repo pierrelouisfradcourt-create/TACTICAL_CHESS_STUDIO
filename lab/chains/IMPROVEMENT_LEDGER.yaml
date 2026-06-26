@@ -3178,6 +3178,56 @@ improvements:
     sha256 avant: 688ef186… sha256 après: 1bce1262…
     Backup conservé dans models/latest_run_20260601_backup.pt.
     ELO post-restauration pending — relancer ./bench/elo_match.sh.
+- id: IMP-174
+  title: Training neural sur pool_selfplay.jsonl — run_20260626_182133
+  type: feature
+  source: session-2026-06-26 (premier training learning-loop sur dataset selfplay)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: ia_apprentissage
+  files:
+  - ml/run_selfplay_training.py
+  - training_runs/run_20260626_182133/manifest.json
+  - models/latest.pt
+  acceptance: >
+    Training maia (policy cross-entropy) sur pool_selfplay.jsonl depuis baseline
+    epoch_015 (loss 0.6727). 20 epochs, convergence propre, best_loss mesuré.
+    latest.pt pointe vers le meilleur epoch. metrics.jsonl + manifest persistés.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-26'
+  notes: >
+    Exécuté sous HumanGate explicite (Pierre go 2026-06-26). 31 890 positions
+    valides (5 700 skip best_move unmapped). best_loss=0.2748 @ epoch 19, .venv312
+    CUDA RTX 5080, ~12s. latest.pt sha256 e4f03806…
+    ATTENTION: training policy-only — value head non ré-entraînée, voir IMP-175.
+    ELO post-training mesuré via ./bench/elo_match.sh --games 20 (résultat pending).
+- id: IMP-175
+  title: Re-entraîner value head cohérente avec backbone pool_selfplay
+  type: feature
+  source: session-2026-06-26 (risque value head incohérente détecté post-IMP-174)
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - ml/run_selfplay_training.py
+  - models/latest.pt
+  acceptance: >
+    Value head ré-entraînée avec une cible value (engine_eval ou résultat de
+    partie) sur pool_selfplay, cohérente avec le backbone déplacé par IMP-174.
+    ELO neural/hybrid re-mesuré pour isoler l'effet value head.
+  blocked_by:
+  - IMP-174
+  opened_session: '2026-06-26'
+  notes: >
+    Le training IMP-174 n'a optimisé que la policy head (cross-entropy maia).
+    Le backbone partagé ayant bougé, la value head (value_fc1/value_fc2) n'est
+    plus cohérente avec ses features. Un ELO neural/hybrid en baisse post-IMP-174
+    est probablement dû à cette incohérence, PAS à la qualité de la policy.
 metrics_history:
 - session: '2026-05-31'
   total: 11
