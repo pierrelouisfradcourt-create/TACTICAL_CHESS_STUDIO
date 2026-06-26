@@ -183,19 +183,22 @@ improvements:
   title: 'Value head inutilisée #NEW-04'
   type: bug_fix
   source: 'known issue #NEW-04'
-  status: DEFERRED
+  status: CLOSED
   impact: MEDIUM
   effort: MEDIUM
-  lane: AUDIT_REQUIRED
+  lane: CLOSED
   domain: ia_apprentissage
   files:
   - ml/infer_policy.py
+  - src/agents/neural_protocol.rs
+  - src/agents/neural_agent.rs
   acceptance: infer_policy.py jette le scalaire value du ResNet. L'utiliser ou documenter pourquoi pas.
-  blocked_by:
-  - IMP-008
+  blocked_by: []
   opened_session: '2026-05-31'
-  closed_session: null
-  notes: Dépend du dataset rebuild. DEFERRED jusqu'à dataset propre.
+  closed_session: '2026-06-26'
+  notes: 'value head branchée protocole Python→Rust, 5/5 tests neural_protocol vert. Nouveau protocole
+    stdout : {move}|{policy_index}|{value:.6f}|{shortlist}[|{memory_json}]. PythonPrediction.pred_value:
+    f32 parsé en position 2. Télémétrie BRIDGE_VALUE + NEURAL_VALUE émise par neural_agent.'
 - id: IMP-012
   title: STUDIO_CONTEXT.md auto-genere pour Mistral/Devstral
   type: feature

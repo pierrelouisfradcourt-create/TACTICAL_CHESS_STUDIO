@@ -5,10 +5,11 @@ pub(crate) struct MemoryHints {
     pub(crate) plans: Vec<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct PythonPrediction {
     pub(crate) best_move: String,
     pub(crate) best_index: String,
+    pub(crate) pred_value: f32,
     pub(crate) candidate_moves: Vec<String>,
     pub(crate) memory_hints: MemoryHints,
 }
@@ -27,11 +28,18 @@ pub(crate) fn parse_python_response(
         return Err(response.to_string());
     }
 
-    let parts: Vec<&str> = response.splitn(4, '|').collect();
+    let parts: Vec<&str> = response.splitn(5, '|').collect();
     let best_move = parts.first().copied().unwrap_or("").trim().to_string();
     let best_index = parts.get(1).copied().unwrap_or("-1").trim().to_string();
-    let candidate_moves = parts
+    let pred_value = parts
         .get(2)
+        .copied()
+        .unwrap_or("0")
+        .trim()
+        .parse::<f32>()
+        .unwrap_or(0.0);
+    let candidate_moves = parts
+        .get(3)
         .copied()
         .unwrap_or("")
         .split(',')
@@ -40,8 +48,8 @@ pub(crate) fn parse_python_response(
         .filter(|mv| !mv.is_empty())
         .map(|mv| mv.to_string())
         .collect();
-    let memory_hints = if parts.len() >= 4 && include_memory_hints {
-        parse_memory_hints(parts[3])
+    let memory_hints = if parts.len() >= 5 && include_memory_hints {
+        parse_memory_hints(parts[4])
     } else {
         MemoryHints::default()
     };
@@ -53,6 +61,7 @@ pub(crate) fn parse_python_response(
     Ok(PythonPrediction {
         best_move,
         best_index,
+        pred_value,
         candidate_moves,
         memory_hints,
     })
@@ -107,18 +116,19 @@ mod tests {
 
     #[test]
     fn parses_prediction_without_memory_payload() {
-        let parsed = parse_python_response("e2e4|825|e2e4:825,g1f3:786", false)
+        let parsed = parse_python_response("e2e4|825|0.250000|e2e4:825,g1f3:786", false)
             .expect("valid protocol response");
 
         assert_eq!(parsed.best_move, "e2e4");
         assert_eq!(parsed.best_index, "825");
+        assert!((parsed.pred_value - 0.25).abs() < 1e-5);
         assert_eq!(parsed.candidate_moves, vec!["e2e4", "g1f3"]);
         assert_eq!(parsed.memory_hints, MemoryHints::default());
     }
 
     #[test]
     fn parses_memory_payload_only_when_enabled() {
-        let response = r#"e7e5|910|e7e5:910|{"phase":"endgame","tags":["material_up"],"plans":["trade_when_winning"]}"#;
+        let response = r#"e7e5|910|-0.500000|e7e5:910|{"phase":"endgame","tags":["material_up"],"plans":["trade_when_winning"]}"#;
 
         let disabled = parse_python_response(response, false).expect("valid response");
         assert_eq!(disabled.memory_hints, MemoryHints::default());

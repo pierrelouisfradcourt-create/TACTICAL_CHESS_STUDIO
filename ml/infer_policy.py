@@ -285,10 +285,10 @@ def serve() -> None:
             shortlist = ",".join(f"{mv}:{idx}" for mv, idx in candidates)
             if memory_core_enabled():
                 memory_json = json.dumps(memory_payload, separators=(",", ":"), sort_keys=True)
-                if not safe_stdout_line(f"{move}|{policy_index}|{shortlist}|{memory_json}"):
+                if not safe_stdout_line(f"{move}|{policy_index}|{value:.6f}|{shortlist}|{memory_json}"):
                     break
             else:
-                if not safe_stdout_line(f"{move}|{policy_index}|{shortlist}"):
+                if not safe_stdout_line(f"{move}|{policy_index}|{value:.6f}|{shortlist}"):
                     break
         except Exception as e:
             if not safe_stdout_line(f"ERROR|{e}"):

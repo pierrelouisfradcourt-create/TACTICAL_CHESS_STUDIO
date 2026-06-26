@@ -552,10 +552,14 @@ impl NeuralAgent {
             Ok((prediction, attempts_used)) => {
                 let best = prediction.best_move;
                 let best_index = prediction.best_index;
+                let pred_value = prediction.pred_value;
+
+                emit_runtime_line(&format!("BRIDGE_VALUE={:.4}", pred_value));
 
                 if verbose {
                     println!("NEURAL_PREDICTED_MOVE={}", best);
                     println!("NEURAL_POLICY_INDEX={}", best_index);
+                    println!("NEURAL_VALUE={:.4}", pred_value);
                 }
 
                 let python_pred_is_legal = is_legal_uci(&moves, &best);
