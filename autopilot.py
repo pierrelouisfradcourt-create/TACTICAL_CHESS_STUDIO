@@ -1707,6 +1707,138 @@ _watcher_last_processed: str | None = None
 _diag_stagnation: dict = {}  # {open_imp_count: first_seen_ts}
 
 
+# IMP-D2 : diagnosis report — anomalies studio (ELO régressé, IMPs bloqués, services DEAD)
+STUDIO_META_PATH = REPO / "lab" / "reports" / "studio_meta_latest.json"
+DIAGNOSIS_STALE_DAYS = 7
+ELO_OBJECTIVE_DELTA = 20.0  # objectif hybride : heuristique + 20
+SERVICE_PORTS = {"claude_proxy": 8765, "canvas_gateway": 8766}
+SERVICE_PROBE_HOST = "127.0.0.1"
+SERVICE_PROBE_TIMEOUT_S = 1.0
+
+
+def _probe_port(host: str, port: int, timeout: float = SERVICE_PROBE_TIMEOUT_S) -> bool:
+    """True si une connexion TCP au port aboutit (service vivant)."""
+    import socket
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def _diagnosis_services() -> list:
+    """État des services studio : ports 8765 (claude_proxy) / 8766 (canvas_gateway)."""
+    services = []
+    for name, port in SERVICE_PORTS.items():
+        alive = _probe_port(SERVICE_PROBE_HOST, port)
+        services.append({"name": name, "port": port, "status": "ALIVE" if alive else "DEAD"})
+    return services
+
+
+def _diagnosis_blocked_imps(now: datetime) -> list:
+    """IMPs OPEN/IN_PROGRESS du ledger dont created_at remonte à > 7 jours (bloqués)."""
+    blocked: list = []
+    if not LEDGER.exists():
+        return blocked
+    try:
+        text = LEDGER.read_text(encoding="utf-8")
+    except OSError as exc:
+        print(f"[DIAGNOSIS] erreur lecture ledger : {exc}", flush=True)
+        return blocked
+    for block in re.split(r'\n- id:\s*', text)[1:]:
+        m_status = re.search(r'status:\s*(\w+)', block)
+        if not m_status or m_status.group(1) not in ("OPEN", "IN_PROGRESS"):
+            continue
+        m_id = re.match(r'(IMP-[\w-]+)', block)
+        m_created = re.search(r"created_at:\s*['\"]?(\d{4}-\d{2}-\d{2})", block)
+        if not m_id or not m_created:
+            continue
+        dt = _parse_chain_ts(m_created.group(1))
+        if dt is None:
+            continue
+        age_days = (now - dt).total_seconds() / SECONDS_PER_DAY
+        if age_days > DIAGNOSIS_STALE_DAYS:
+            blocked.append({
+                "imp_id": m_id.group(1),
+                "created_at": m_created.group(1),
+                "age_days": round(age_days, 1),
+            })
+    return blocked
+
+
+def _generate_diagnosis_report() -> Path:
+    """Diagnostic studio : lit studio_meta_latest.json, détecte anomalies (ELO régressé,
+    IMPs bloqués > 7j, services DEAD) → lab/reports/diagnosis_YYYYMMDD.json."""
+    now = datetime.now()
+    meta: dict = {}
+    if STUDIO_META_PATH.exists():
+        try:
+            meta = json.loads(STUDIO_META_PATH.read_text(encoding="utf-8"))
+        except Exception as exc:
+            print(f"[DIAGNOSIS] erreur lecture studio_meta : {exc}", flush=True)
+
+    anomalies: list = []
+
+    # 1. ELO régressé — verdict FAIL ou delta sous l'objectif +20
+    elo = meta.get("elo_live", {}) or {}
+    elo_verdict = str(elo.get("verdict", "")).upper()
+    try:
+        elo_delta = float(elo.get("delta"))
+    except (TypeError, ValueError):
+        elo_delta = None
+    elo_regressed = elo_verdict == "FAIL" or (
+        elo_delta is not None and elo_delta < ELO_OBJECTIVE_DELTA
+    )
+    if elo_regressed:
+        anomalies.append({
+            "type": "elo_regressed",
+            "detail": (
+                f"verdict={elo_verdict or '?'} "
+                f"delta={elo_delta if elo_delta is not None else '?'} "
+                f"(objectif +{ELO_OBJECTIVE_DELTA})"
+            ),
+        })
+
+    # 2. IMPs bloqués > 7 jours
+    blocked = _diagnosis_blocked_imps(now)
+    for b in blocked:
+        anomalies.append({
+            "type": "imp_blocked",
+            "detail": f"{b['imp_id']} ouvert depuis {b['age_days']}j (created_at {b['created_at']})",
+        })
+
+    # 3. Services DEAD (probe ports 8765 / 8766)
+    services = _diagnosis_services()
+    for s in services:
+        if s["status"] == "DEAD":
+            anomalies.append({
+                "type": "service_dead",
+                "detail": f"{s['name']} (port {s['port']}) injoignable",
+            })
+
+    report = {
+        "date": now.strftime("%Y-%m-%d"),
+        "generated_at": now.isoformat(timespec="seconds"),
+        "source": "studio_meta_latest.json",
+        "elo": {
+            "verdict": elo_verdict or None,
+            "delta": elo_delta,
+            "objective_delta": ELO_OBJECTIVE_DELTA,
+            "regressed": elo_regressed,
+        },
+        "imps_blocked": blocked,
+        "services": services,
+        "anomalies": anomalies,
+        "anomaly_count": len(anomalies),
+    }
+
+    reports_dir = REPO / "lab" / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    out_path = reports_dir / f"diagnosis_{now.strftime('%Y%m%d')}.json"
+    out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    return out_path
+
+
 def _diagnosis_inject(title: str, desc: str) -> None:
     """Ajoute une idée système dans le pool si elle n'existe pas déjà."""
     try:
@@ -1787,6 +1919,11 @@ def _diagnosis_thread() -> None:
                     )
         except Exception as exc:
             print(f"[DIAGNOSIS] erreur lecture metrics : {exc}", flush=True)
+        try:
+            out = _generate_diagnosis_report()
+            print(f"[DIAGNOSIS] rapport ecrit : {out}", flush=True)
+        except Exception as exc:
+            print(f"[DIAGNOSIS] erreur generation rapport : {exc}", flush=True)
         _time.sleep(3600)
 
 

@@ -1709,7 +1709,7 @@ improvements:
   note: Remplacé par OpenClaw
 - id: IMP-D2
   title: Thread diagnosis
-  status: OPEN
+  status: CLOSED
   lane: SAFE_AUTO
   domain: studio
   files:
@@ -1719,10 +1719,12 @@ improvements:
   acceptance: |-
     _diagnosis_thread dans autopilot.py implémente un diagnostic réel : lit
     studio_meta_latest.json, détecte les anomalies (ELO régressé, IMPs bloqués
-    > 7 jours, services DEAD), écrit un rapport dans
-    lab/reports/diagnosis_YYYYMMDD.json. Oracle : pytest test_diagnosis.py vert.
+    > 7 jours, services DEAD via probe ports 8765/8766), écrit un rapport dans
+    lab/reports/diagnosis_YYYYMMDD.json. Oracle non-FORBIDDEN :
+    python lab/chains/test_diagnosis_smoke.py → exit 0.
   created_at: '2026-06-07'
   session: '2026-06-07'
+  closed_session: '2026-06-26'
 - id: IMP-D3
   title: UI idees systeme
   status: CLOSED
