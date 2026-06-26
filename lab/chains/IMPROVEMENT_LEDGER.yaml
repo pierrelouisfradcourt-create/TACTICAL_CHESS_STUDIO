@@ -2222,6 +2222,69 @@ improvements:
     studio_core/factory/__init__.py. Oracle smoke : `import generate_chess_manifest`
     OK via python3 (export intact, fichier 3→4 lignes). pytest complet non lancé
     (mode permissions) — smoke import jugé suffisant pour IMP XS trivial par Pierre.
+- id: IMP-127
+  title: Canvas panneau OpenClaw — brancher studio_canvas.html
+  type: feature
+  source: session-2026-06-26 (bilan repo orphelins)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - openclaw.json
+  acceptance: >
+    openclaw.json contient l'entrée de configuration permettant à studio_canvas.html
+    d'afficher le panneau OpenClaw (gates, file SAFE_AUTO, ELO live). Le Canvas
+    Pierre charge le panneau sans erreur console. pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Brancher l'interface OpenClaw dans le Canvas Pierre existant.
+- id: IMP-128
+  title: Council skill actif — Gemini+Qwen en parallèle sur AUDIT_REQUIRED
+  type: feature
+  source: session-2026-06-26 (bilan repo orphelins)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - studio/openclaw-workspace/skills/council.md
+  acceptance: >
+    studio/openclaw-workspace/skills/council.md décrit le protocole council :
+    délégation en parallèle à Gemini et Qwen sur tout IMP lane=AUDIT_REQUIRED,
+    synthèse du verdict, escalade Pierre si désaccord. Le skill est invocable
+    depuis /council dans OpenClaw. pytest vert (si applicable).
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Formalise le conseil multi-modèles pour les IMPs AUDIT_REQUIRED.
+    Unblocks la gouvernance IMP-057.
+- id: IMP-129
+  title: Corriger chemin ml/golden_examples.jsonl — symlink ou copie depuis lab/chains/
+  type: fix
+  source: session-2026-06-26 (bilan IMP-057 prérequis manquants)
+  status: OPEN
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - ml/golden_examples.jsonl
+  acceptance: >
+    ml/golden_examples.jsonl existe et contient les mêmes entrées que
+    lab/chains/golden_examples.jsonl (57 entrées minimum au moment de l'exécution).
+    wc -l ml/golden_examples.jsonl retourne un nombre >= 1. pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    IMP-057 acceptance pointe sur ml/golden_examples.jsonl (ABSENT).
+    Le fichier source est lab/chains/golden_examples.jsonl (57 entrées).
+    Résolution : symlink ou copie — au choix du worker selon les contraintes OS.
 metrics_history:
 - session: '2026-05-31'
   total: 11
