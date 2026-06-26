@@ -2401,6 +2401,135 @@ improvements:
     IMP-057 acceptance requiert training_runs/<id>/metrics.jsonl (ABSENT).
     Ce scaffold minimal débloque le prérequis sans pré-supposer la structure
     finale du pipeline de training.
+- id: IMP-135
+  title: MEMORY.md mise à jour — ELO hybride +19.3 (pas -14), dataset pool_selfplay actif
+  type: fix
+  source: session-2026-06-26
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - studio/openclaw-workspace/MEMORY.md
+  acceptance: >
+    MEMORY.md ne contient plus 'dégrade de 14 pts'.
+    Oracle : grep -v 'dégrade de 14' MEMORY.md → exit 0.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Corriger une erreur factuelle dans MEMORY.md sur l'ELO hybride.
+- id: IMP-136
+  title: lichess_eval.sh hebdomadaire automatique dans /tick
+  type: feature
+  source: session-2026-06-26
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: tactique
+  files:
+  - studio/openclaw-workspace/skills/tick.md
+  acceptance: >
+    tick.md déclenche lichess_eval.sh une fois par semaine.
+    Oracle : fichier modifié + syntaxe valide.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Intégrer le benchmark Lichess dans le tick hebdomadaire.
+- id: IMP-137
+  title: Batch inference neural — protocole BATCH|N dans infer_policy.py + neural_bridge.rs
+  type: feature
+  source: session-2026-06-26
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - ml/infer_policy.py
+  - src/agents/neural_bridge.rs
+  acceptance: >
+    infer_policy.py accepte BATCH|N header. cargo test vert.
+    Selfplay --games 5 tourne sans erreur.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Protocole batch pour accélérer l'inférence neurale en selfplay.
+- id: IMP-138
+  title: studio_state.json rebranché — auto-refresh depuis studio_meta_latest.json
+  type: fix
+  source: session-2026-06-26
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  acceptance: >
+    studio_state.json mis à jour toutes les 5 min.
+    Oracle : mtime < 6 min après lancement.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Rebrancher le refresh automatique du studio_state depuis studio_meta_latest.json.
+- id: IMP-139
+  title: Skill /monitor — état services ports santé système
+  type: feature
+  source: session-2026-06-26
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - studio/openclaw-workspace/skills/monitor.md
+  acceptance: >
+    monitor.md créé avec steps probe 8765/8766/18789/7331.
+    Oracle : fichier existe.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Skill de monitoring des services studio (claude_proxy, canvas_gateway, autopilot, LM Studio).
+- id: IMP-140
+  title: BOOTSTRAP.md sync — retirer refs IMP-008 OPEN et HMAC absente
+  type: chore
+  source: session-2026-06-26
+  status: OPEN
+  impact: LOW
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - studio/openclaw-workspace/BOOTSTRAP.md
+  acceptance: >
+    BOOTSTRAP.md ne contient plus IMP-008 OPEN ni HMAC absente.
+    Oracle : grep exit 0.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Nettoyer les références obsolètes dans BOOTSTRAP.md (IMP-008 CLOSED, HMAC opérationnelle).
+- id: IMP-141
+  title: LLM Gateway v1 — openclaw/llm_gateway.py routing dynamique
+  type: feature
+  source: session-2026-06-26
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - openclaw/llm_gateway.py
+  acceptance: >
+    llm_gateway.py reçoit TaskRequest, route via capabilities.yaml, retourne
+    TaskResponse. pytest unitaire vert.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    LLM Gateway port 9000 (PLANNED_PHASE1 dans infrastructure/ports.yaml).
+    AUDIT_REQUIRED : routing dynamique avec capabilities.yaml — impact cross-agents.
 metrics_history:
 - session: '2026-05-31'
   total: 11
