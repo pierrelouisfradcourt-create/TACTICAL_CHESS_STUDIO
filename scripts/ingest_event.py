@@ -26,6 +26,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -52,6 +53,23 @@ def _now() -> str:
 def _hmac(payload: str) -> str:
     key = (os.environ.get("STUDIO_HMAC_KEY") or "studio-dev").encode()
     return hashlib.sha256(key + payload.encode()).hexdigest()
+
+
+# ── Causal ID extraction ─────────────────────────────────────────────────────
+
+def _extract_causal_id(task_id: str) -> dict[str, str]:
+    """Extract imp_id / oracle_id / system_id from task_id. Raises if none found."""
+    parts = task_id.split(":", 2)
+    prefix = parts[0] if parts else ""
+    if prefix == "oracle" and len(parts) >= 2:
+        return {"oracle_id": parts[1]}
+    if prefix == "imp_closed" and len(parts) >= 2:
+        return {"imp_id": parts[1]}
+    if prefix == "system" and len(parts) >= 2:
+        return {"system_id": parts[1]}
+    raise ValueError(
+        f"event_missing_causal_id: task_id '{task_id}' has no imp_id/oracle_id/system_id — reject"
+    )
 
 
 # ── Adapters oracle → executor_report_output ─────────────────────────────────
@@ -179,9 +197,37 @@ def delta_to_snapshot(delta: dict[str, Any]) -> dict[str, Any]:
 
 # ── Pipeline steps ────────────────────────────────────────────────────────────
 
+def verify_event_log() -> bool:
+    """HMAC-verify every line of events.jsonl. Fail-fast on first mismatch."""
+    if not EVENT_LOG.exists():
+        return True
+    key = (os.environ.get("STUDIO_HMAC_KEY") or "studio-dev").encode()
+    with EVENT_LOG.open("r", encoding="utf-8") as fh:
+        for lineno, raw_line in enumerate(fh, 1):
+            raw_line = raw_line.strip()
+            if not raw_line:
+                continue
+            try:
+                entry = json.loads(raw_line)
+            except json.JSONDecodeError:
+                print(f"[backbone] events.jsonl:{lineno}: invalid JSON", file=sys.stderr)
+                return False
+            stored_hmac = entry.pop("hmac", None)
+            if stored_hmac is None:
+                print(f"[backbone] events.jsonl:{lineno}: missing HMAC", file=sys.stderr)
+                return False
+            payload = json.dumps(entry, separators=(",", ":"), sort_keys=True)
+            expected = hashlib.sha256(key + payload.encode()).hexdigest()
+            if stored_hmac != expected:
+                print(f"[backbone] events.jsonl:{lineno}: HMAC mismatch — log tampered", file=sys.stderr)
+                return False
+    return True
+
+
 def append_event_log(oracle: str, task_id: str) -> None:
+    causal = _extract_causal_id(task_id)  # raises ValueError if no causal id
     EVENT_LOG.parent.mkdir(parents=True, exist_ok=True)
-    entry = {"ts": _now(), "type": oracle, "task_id": task_id}
+    entry = {"ts": _now(), "type": oracle, "task_id": task_id, **causal}
     line  = json.dumps(entry, separators=(",", ":"), sort_keys=True)
     entry["hmac"] = _hmac(line)
     with EVENT_LOG.open("a", encoding="utf-8") as fh:
@@ -203,13 +249,18 @@ def run_derive_delta(adapted: dict[str, Any]) -> dict[str, Any] | None:
         Path(tmp_path).unlink(missing_ok=True)
 
 
-def run_update_state(snapshot: dict[str, Any]) -> bool:
+def run_update_state(snapshot: dict[str, Any], token: str) -> bool:
     snap_schema = str(SNAP_SCHEMA) if SNAP_SCHEMA.exists() else None
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as tmp:
         json.dump(snapshot, tmp)
         tmp_path = tmp.name
     try:
-        cmd = [sys.executable, str(UPDATE_PY), "--snapshot", tmp_path, "--write", "--allow-overwrite"]
+        cmd = [
+            sys.executable, str(UPDATE_PY),
+            "--snapshot", tmp_path,
+            "--write", "--allow-overwrite",
+            "--backbone-token", token,
+        ]
         if STATE_PATH.exists():
             cmd += ["--current", str(STATE_PATH)]
         if snap_schema:
@@ -231,13 +282,51 @@ def assert_causal_projection(delta: dict[str, Any]) -> bool:
     ))
 
 
+def assert_projection_consistency() -> bool:
+    """state(t) = f(events[0..t]): every applied_delta_id in current_state must trace to events.jsonl."""
+    if not STATE_PATH.exists() or not EVENT_LOG.exists():
+        return True
+    state = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+    applied_ids = {str(d) for d in state.get("applied_delta_ids", []) if str(d).strip()}
+    if not applied_ids:
+        return True
+    logged_task_ids: set[str] = set()
+    with EVENT_LOG.open("r", encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                logged_task_ids.add(json.loads(line).get("task_id", ""))
+            except json.JSONDecodeError:
+                continue
+    missing = applied_ids - logged_task_ids
+    if missing:
+        print(
+            f"[backbone] projection_violated: {len(missing)} applied_delta_id(s) absent from events.jsonl: {missing}",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def ingest_event(oracle: str, report_path: Path) -> int:
+    # Guard 3 — HMAC-verify log before any write
+    if not verify_event_log():
+        print("[backbone] ABORT: events.jsonl integrity check failed", file=sys.stderr)
+        return 6
+
     raw     = json.loads(report_path.read_text(encoding="utf-8"))
     adapted = ADAPTERS[oracle](raw)
 
-    append_event_log(oracle, adapted["task_id"])
+    # Guard 4 — require imp_id / oracle_id / system_id (raises on missing)
+    try:
+        append_event_log(oracle, adapted["task_id"])
+    except ValueError as exc:
+        print(f"[backbone] ABORT: {exc}", file=sys.stderr)
+        return 7
 
     delta = run_derive_delta(adapted)
     if delta is None:
@@ -248,7 +337,17 @@ def ingest_event(oracle: str, report_path: Path) -> int:
         return 3
 
     snapshot = delta_to_snapshot(delta)
-    return 0 if run_update_state(snapshot) else 4
+    # Guard 1 — token issued here; update_studio_current_state.py rejects writes without it
+    token = str(uuid.uuid4())
+    if not run_update_state(snapshot, token):
+        return 4
+
+    # Guard 5 — state(t) = f(events[0..t])
+    if not assert_projection_consistency():
+        print("[backbone] ABORT: projection consistency violated — state rolled back is not possible", file=sys.stderr)
+        return 5
+
+    return 0
 
 
 def main() -> int:

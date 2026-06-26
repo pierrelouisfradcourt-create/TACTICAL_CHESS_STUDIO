@@ -115,6 +115,11 @@ def parse_args() -> argparse.Namespace:
         help="Allow --write to replace an existing current state path.",
     )
     parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output.")
+    parser.add_argument(
+        "--backbone-token",
+        default=None,
+        help="Token issued by ingest_event.py — required for --write. Direct writes are forbidden.",
+    )
     return parser.parse_args()
 
 
@@ -190,6 +195,9 @@ def validate_snapshot_shape(snapshot: dict[str, Any], path: Path) -> None:
         raise ValueError(f"snapshot_claim_posture_invalid: {path}")
     if snapshot.get("no_global_ready_verdict") is not True:
         raise ValueError(f"snapshot_global_ready_verdict_invalid: {path}")
+    source_delta_ids = snapshot.get("source_delta_ids")
+    if not isinstance(source_delta_ids, list) or not any(str(s).strip() for s in source_delta_ids):
+        raise ValueError(f"snapshot_missing_causal_link: {path}: source_delta_ids must be non-empty")
 
 
 def validate_current_shape(current: dict[str, Any], path: Path) -> None:
@@ -447,6 +455,13 @@ def main() -> int:
     snapshot_schema_path = (
         Path(args.snapshot_schema).resolve() if args.snapshot_schema else DEFAULT_SNAPSHOT_SCHEMA_PATH
     )
+
+    if args.write and not args.backbone_token:
+        print(
+            "DIRECT_WRITE_FORBIDDEN: --write requires --backbone-token — route through ingest_event.py",
+            file=sys.stderr,
+        )
+        return 1
 
     try:
         raw_snapshot = load_json(snapshot_path)
