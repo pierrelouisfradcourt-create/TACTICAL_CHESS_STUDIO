@@ -2173,6 +2173,31 @@ improvements:
     AUDIT_REQUIRED : touche autopilot.py (control plane critique) et openclaw.json (routing agents).
     Plan d'intégration produit en output de chat session 2026-06-26 — implémentation sur go Pierre.
     Risque : régression autopilot.py si lecture YAML échoue au démarrage → fallback hardcodé requis.
+- id: IMP-126
+  title: Ajouter un commentaire de version dans studio_core/factory/__init__.py
+  type: chore
+  source: session-2026-06-26 (test boucle autoloop complète)
+  status: CLOSED
+  impact: LOW
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - studio_core/factory/__init__.py
+  acceptance: >
+    Un commentaire de version (ex. `# version: 0.1.0`) est présent en tête de
+    studio_core/factory/__init__.py. L'import du module reste inchangé
+    (generate_chess_manifest toujours exporté). pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-26'
+  notes: >
+    Effort XS — IMP de test pour valider la boucle autoloop complète
+    (plan → go → edit → oracle → close). Zone non FORBIDDEN.
+    CLOSED 2026-06-26 : edit additif `# version: 0.1.0` en tête de
+    studio_core/factory/__init__.py. Oracle smoke : `import generate_chess_manifest`
+    OK via python3 (export intact, fichier 3→4 lignes). pytest complet non lancé
+    (mode permissions) — smoke import jugé suffisant pour IMP XS trivial par Pierre.
 metrics_history:
 - session: '2026-05-31'
   total: 11
