@@ -3049,19 +3049,20 @@ improvements:
   title: StateValidator — scripts/state_validator.py alerte si state stale > 2h
   type: feature
   source: session-2026-06-26 (roadmap Event Backbone)
-  status: OPEN
+  status: CLOSED
   impact: HIGH
   effort: SMALL
   lane: SAFE_AUTO
   domain: studio
   files:
   - scripts/state_validator.py
+  - scripts/test_state_validator.py
   acceptance: >
     state_validator.py exit 1 si state absent ou stale > 2h.
     pytest 3 cas vert (absent, stale, fresh).
   blocked_by: []
   opened_session: '2026-06-26'
-  closed_session: null
+  closed_session: '2026-06-26'
   notes: >
     Détection runtime des états périmés. Plus strict que IMP-157 (24h → 2h).
     Appelé en tête de kaizen_autoloop.py pour bloquer l autoloop sur état stale.
