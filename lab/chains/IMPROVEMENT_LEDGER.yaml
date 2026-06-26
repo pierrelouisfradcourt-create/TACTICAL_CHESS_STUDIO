@@ -2530,6 +2530,233 @@ improvements:
   notes: >
     LLM Gateway port 9000 (PLANNED_PHASE1 dans infrastructure/ports.yaml).
     AUDIT_REQUIRED : routing dynamique avec capabilities.yaml — impact cross-agents.
+- id: IMP-143
+  title: Hook stop-failure — récupération API error + recovery.json
+  type: feature
+  source: session-2026-06-26
+  status: OPEN
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/hooks/stop-failure.sh
+  acceptance: >
+    stop-failure.sh créé, écrit lab/reports/recovery.json sur StopFailure avec
+    error_type, timestamp, last_commit. Oracle : bash -n .claude/hooks/stop-failure.sh
+    exit 0.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Inspiré de GameForge stop-failure.sh. Critique pour l'autoloop nuit :
+    sur rate-limit ou auth error, l'état est perdu. Le hook sauvegarde recovery.json
+    dans lab/reports/ et affiche un message de reprise.
+- id: IMP-144
+  title: Hook session-start — afficher IMP ouvert + ELO + état oracles
+  type: feature
+  source: session-2026-06-26
+  status: OPEN
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/hooks/session-start.sh
+  acceptance: >
+    session-start.sh affiche au démarrage : branch git, ELO courant depuis
+    lab/reports/elo_match_latest.json, count IMPs OPEN depuis IMPROVEMENT_LEDGER.yaml,
+    statut oracles (cargo build + pytest --co). Oracle : bash -n .claude/hooks/session-start.sh
+    exit 0.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Inspiré de CCGS + GameForge session-start.sh. Onboarding session à froid
+    actuellement aveugle : l'agent ne connaît pas l'ELO ni les IMPs ouverts
+    sans lire manuellement les fichiers.
+- id: IMP-145
+  title: Hook pre-compact + post-compact — état actif survit à la compaction
+  type: feature
+  source: session-2026-06-26
+  status: OPEN
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/hooks/pre-compact.sh
+  - .claude/hooks/post-compact.sh
+  acceptance: >
+    pre-compact.sh écrit lab/reports/compact-state.json avec fichiers modifiés
+    + IMP en cours. post-compact.sh relit et affiche le contexte.
+    Oracle : bash -n sur les deux exit 0.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Inspiré de CCGS pre/post-compact.sh. L'autoloop perd le contexte de travail
+    lors des compactions de contexte mid-session. Le hook PreCompact/PostCompact
+    permet de persister et restaurer l'état actif.
+- id: IMP-146
+  title: Hook subagent-track — log SubagentStart/Stop + alerte >5 parallèles
+  type: feature
+  source: session-2026-06-26
+  status: OPEN
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/hooks/subagent-start.sh
+  - .claude/hooks/subagent-stop.sh
+  acceptance: >
+    hooks loggent dans lab/reports/subagent.log avec timestamp + agent_type.
+    subagent-start.sh alerte si count actifs > 5.
+    Oracle : bash -n sur les deux exit 0.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Inspiré de GameForge subagent-track.sh. /council et /team-feature délèguent
+    plusieurs agents sans audit trail. Ce hook crée une trace dans lab/reports/
+    et protège contre la parallelisation excessive (>5 agents simultanés).
+- id: IMP-147
+  title: Hook instructions-validate — valide BOOTSTRAP.md + TOOLS.md + AGENTS.md présents
+  type: feature
+  source: session-2026-06-26
+  status: OPEN
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/hooks/instructions-validate.sh
+  acceptance: >
+    hook vérifie existence studio/openclaw-workspace/BOOTSTRAP.md,
+    studio/openclaw-workspace/TOOLS.md, studio/openclaw-workspace/AGENTS.md.
+    Retourne systemMessage si fichier manquant. Exit 1 si manquant.
+    Oracle : bash -n .claude/hooks/instructions-validate.sh exit 0.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Inspiré de GameForge instructions-validate.sh. L'événement InstructionsLoaded
+    permet de vérifier l'intégrité de l'infra studio à chaque chargement CLAUDE.md.
+    Évite que les agents démarrent sans l'infrastructure openclaw complète.
+- id: IMP-148
+  title: settings.json deny list — bloquer rm -rf, git push --force, cat *.env
+  type: chore
+  source: session-2026-06-26
+  status: OPEN
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/settings.json
+  acceptance: >
+    .claude/settings.json contient une section permissions.deny avec au minimum :
+    Bash(rm -rf *), Bash(git push --force*), Bash(git push -f *),
+    Bash(git reset --hard*), Read(**/.env*), Bash(cat *.env*).
+    Oracle : grep "deny" .claude/settings.json exit 0.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Inspiré de CCGS settings.json. TCS n'a actuellement pas de deny list dans
+    .claude/settings.json. Ajout des commandes destructives et lecture des secrets
+    comme commandes bloquées au niveau permissions.
+- id: IMP-149
+  title: Skill /smoke-check — gate oracle 4-en-1 TCS (cargo test + pytest + elo + lichess)
+  type: feature
+  source: session-2026-06-26
+  status: OPEN
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/skills/smoke-check/skill.md
+  acceptance: >
+    skill.md créé avec les 4 étapes oracle TCS : cargo test (Rust),
+    pytest ml/ (Python), ./bench/elo_match.sh (ELO), ./bench/lichess_eval.sh (tactique).
+    Produit verdict PASS/FAIL. Oracle : fichier .claude/skills/smoke-check/skill.md existe.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Inspiré de CCGS smoke-check/SKILL.md adapté aux oracles TCS.
+    L'oracle vert est requis avant tout merge mais il n'existe pas de skill
+    structuré qui orchestre les 4 vérifications et produit un rapport pass/fail.
+- id: IMP-150
+  title: Skill /imp-readiness — valide IMP avant pickup par agent
+  type: feature
+  source: session-2026-06-26
+  status: OPEN
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/skills/imp-readiness/skill.md
+  acceptance: >
+    skill.md créé. Vérifie pour un IMP : lane SAFE_AUTO ou AUDIT_REQUIRED,
+    blocked_by vide, fichiers cibles existants ou créables, acceptance définie.
+    Produit verdict READY / NEEDS_WORK / BLOCKED.
+    Oracle : fichier .claude/skills/imp-readiness/skill.md existe.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Inspiré de CCGS story-readiness/SKILL.md. Le producteur_routine prend
+    parfois des IMPs mal définis (acceptance TBD, fichiers manquants, blocked_by
+    non vide). Ce skill est un garde-fou avant pickup.
+- id: IMP-151
+  title: Skill /sprint-status — snapshot IMPs en cours read-only
+  type: feature
+  source: session-2026-06-26
+  status: OPEN
+  impact: LOW
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/skills/sprint-status/skill.md
+  acceptance: >
+    skill.md créé. Lit IMPROVEMENT_LEDGER.yaml, affiche : count par status
+    (OPEN/CLOSED/IN_PROGRESS), liste des OPEN avec lane + effort, ELO courant.
+    Read-only, modèle Haiku. Oracle : fichier .claude/skills/sprint-status/skill.md existe.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Inspiré de CCGS sprint-status/SKILL.md. Aucun moyen rapide de voir l'état
+    du sprint sans lire manuellement le ledger. Skill léger (Haiku) pour snapshot
+    instantané. Read-only, ne modifie rien.
+- id: IMP-152
+  title: CLAUDE.md routing table — intention utilisateur → skill mapping
+  type: chore
+  source: session-2026-06-26
+  status: OPEN
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - CLAUDE.md
+  acceptance: >
+    CLAUDE.md contient une section "## Routing" avec tableau intention→skill
+    couvrant au moins : oracle/vérification→/smoke-check, IMP status→/sprint-status,
+    IMP pickup→/imp-readiness, architecture→/architecture-review,
+    code→/code-review, plan→/plan. Oracle : grep -i "routing" CLAUDE.md exit 0.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Inspiré de GameForge CLAUDE.md routing table. TCS liste ses skills mais sans
+    logique de routage explicite dans CLAUDE.md. Les agents choisissent le mauvais
+    skill faute de table de correspondance intention→skill.
 metrics_history:
 - session: '2026-05-31'
   total: 11
