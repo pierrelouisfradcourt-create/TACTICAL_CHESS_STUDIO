@@ -2013,17 +2013,22 @@ improvements:
   title: Modifier fn setup_game dans game_setup.py pour intégrer manifestes
   type: feature
   source: idea-to-imp session 10
-  status: OPEN
+  status: CLOSED
   impact: HIGH
   effort: SMALL
   lane: SAFE_AUTO
   domain: jeux
-  files: []
+  files:
+  - studio_core/games/game_setup.py
+  - studio_core/games/__init__.py
   acceptance: Le fichier `game_setup.py` intègre les manifestes générés dans le setup initial du jeu avec Godot.
   blocked_by: []
   opened_session: '2026-06-08'
-  closed_session: null
-  notes: Pipeline idea-to-imp — idée 10
+  closed_session: '2026-06-26'
+  notes: "CLOSED 2026-06-26. setup_game() + ChessGame implémentés dans\
+    \ studio_core/games/game_setup.py. Consomme generate_chess_manifest() (IMP-118),\
+    \ construit initial_positions (32 cases), expose godot_setup hook. Oracle --validate\
+    \ chess OK (12 pièces, 11 règles) + --sim 1 Snake vert (4/4 flags)."
 - id: IMP-120
   title: 'KI-1 Draw Problem — opening randomization + contempt + draw_score recalibration'
   type: bugfix
