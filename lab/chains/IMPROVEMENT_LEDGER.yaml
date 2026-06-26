@@ -2935,6 +2935,217 @@ improvements:
   notes: >
     AUDIT_REQUIRED : gate explicite sur la parité neural vs heuristique.
     Objectif ELO hybride : heuristique + 20 minimum (actuellement +19.3 — FAIL).
+- id: IMP-163
+  title: Lichess Elite DB — télécharger + pgn_to_jsonl + pool_elite.jsonl
+  type: feature
+  source: session-2026-06-26 (roadmap data)
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: ia_apprentissage
+  files:
+  - ml/pgn_to_jsonl.py
+  - lab/pool_elite.jsonl
+  acceptance: >
+    pool_elite.jsonl existe, draw_rate < 5%.
+    Oracle : python ml/pgn_to_jsonl.py exit 0.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    AUDIT_REQUIRED : téléchargement base externe + conversion PGN.
+    Brise la boucle circulaire selfplay (neural 989 ELO s entraîne sur selfplay neural 989 ELO).
+    Lichess Elite = parties 2400+ ELO, draw_rate structurellement < 5%.
+- id: IMP-164
+  title: Event Backbone smoke test — run_oracle.sh elo_match → current_state.json créé
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/run_oracle.sh
+  - scripts/ingest_event.py
+  acceptance: >
+    .studio_state/current_state.json existe après run.
+    events.jsonl contient entrée HMAC valide.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Valider le pipeline complet scripts/run_oracle.sh elo_match → ingest_event.py
+    → .studio_state/current_state.json en conditions réelles (HMAC + json schema).
+- id: IMP-165
+  title: Smoke test backbone script — scripts/test_backbone.py mock oracle → events + state
+  type: chore
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/test_backbone.py
+  acceptance: >
+    test_backbone.py exit 0.
+    events.jsonl + .studio_state/current_state.json mis à jour après run mock.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Script de smoke test autonome : injecte un oracle JSON mock (elo_match PASS fictif),
+    vérifie que events.jsonl s incrémente et que current_state.json est mis à jour.
+    Pas de cargo build requis — test uniquement la couche Python backbone.
+- id: IMP-166
+  title: Dataset Registry — lab/dataset_registry.yaml avec métadonnées pool_selfplay
+  type: chore
+  source: session-2026-06-26 (roadmap data)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - lab/dataset_registry.yaml
+  acceptance: >
+    dataset_registry.yaml existe avec sha256 + draw_rate + date pour pool_selfplay.jsonl.
+    Oracle : yaml.safe_load exit 0.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Source unique de vérité pour les métadonnées datasets (path, sha256, draw_rate,
+    source, date_created). ACTIVE_DATASET.txt pointera vers le registry à terme.
+- id: IMP-167
+  title: Model Registry — lab/model_registry.yaml checkpoints + ELO + sha256
+  type: chore
+  source: session-2026-06-26 (roadmap data)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - lab/model_registry.yaml
+  acceptance: >
+    model_registry.yaml existe avec sha256 + ELO + date pour chaque checkpoint connu.
+    Oracle : yaml.safe_load exit 0.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Traçabilité complète des checkpoints. Permet rollback vers n importe quel modèle
+    vérifié. Pointeur "current" dans le registry = source de vérité pour neural_bridge.
+- id: IMP-168
+  title: StateValidator — scripts/state_validator.py alerte si state stale > 2h
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/state_validator.py
+  acceptance: >
+    state_validator.py exit 1 si state absent ou stale > 2h.
+    pytest 3 cas vert (absent, stale, fresh).
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Détection runtime des états périmés. Plus strict que IMP-157 (24h → 2h).
+    Appelé en tête de kaizen_autoloop.py pour bloquer l autoloop sur état stale.
+- id: IMP-169
+  title: Dead code — supprimer validate_am_dataset_admission() + BAT files legacy
+  type: chore
+  source: session-2026-06-26 (roadmap cleanup)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - ml/dataset_loader.py
+  acceptance: >
+    grep validate_am_dataset_admission ml/ → 0 résultats.
+    BAT files legacy supprimés. cargo test vert.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    validate_am_dataset_admission() retourne toujours admitted=False — gate morte.
+    BAT files (RUN_PURELAB_AUTOMATION.bat etc.) ne sont plus utilisés depuis refactoring Python.
+    Suppression pure, aucun remplacement nécessaire.
+- id: IMP-170
+  title: Puzzle L2/L3 diagnostic — analyser 50 premiers puzzles échoués
+  type: chore
+  source: session-2026-06-26 (roadmap eval)
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - lab/reports/puzzle_analysis_L2.json
+  acceptance: >
+    rapport lab/reports/puzzle_analysis_L2.json avec pattern d échec identifié
+    (type tactique, profondeur moyenne, fréquence par motif).
+    Oracle : fichier existe + json valide.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    L2 = 4.5% (seuil 10%), L3 = 4.5% (seuil 20%) — les deux FAIL.
+    Diagnostic avant d investir dans des données ciblées. Script d analyse
+    lit lab/reports/puzzle_score_level2.json + lab/puzzles/level2.jsonl.
+- id: IMP-171
+  title: Learning loop script — scripts/learning_loop.sh train→eval→compare→deploy
+  type: feature
+  source: session-2026-06-26 (roadmap learning)
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - scripts/learning_loop.sh
+  acceptance: >
+    learning_loop.sh tourne sans erreur sur dry-run (--dry-run flag).
+    Oracle : bash -n scripts/learning_loop.sh exit 0.
+  blocked_by:
+  - IMP-163
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Boucle fermée : train.py → run_oracle.sh elo_match → compare vs baseline ELO
+    → deploy si meilleur checkpoint (mise à jour model_registry.yaml + models/latest.pt).
+    --dry-run = exécute train.py --dry-run + oracle mock, valide le script sans cargo build.
+- id: IMP-172
+  title: Cost tracking — kaizen_autoloop.py log tokens par IMP dans lab/cost_log.jsonl
+  type: chore
+  source: session-2026-06-26 (roadmap governance)
+  status: OPEN
+  impact: LOW
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/kaizen_autoloop.py
+  - lab/cost_log.jsonl
+  acceptance: >
+    cost_log.jsonl créé après run IMP avec champs ts + imp_id + tokens_used + model.
+    Oracle : fichier existe + json valide ligne par ligne.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    Traçabilité coût par IMP. Chaque run kaizen ajoute une ligne à lab/cost_log.jsonl.
+    Tokens estimés via len(charter) / 4 si API Claude indisponible.
+    Alerter si session > 100k tokens sans IMP fermé.
 metrics_history:
 - session: '2026-05-31'
   total: 11
