@@ -2757,6 +2757,184 @@ improvements:
     Inspiré de GameForge CLAUDE.md routing table. TCS liste ses skills mais sans
     logique de routage explicite dans CLAUDE.md. Les agents choisissent le mauvais
     skill faute de table de correspondance intention→skill.
+- id: IMP-153
+  title: Event Backbone — run réel pipeline oracle→delta→state + validation
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/run_oracle.sh
+  acceptance: >
+    scripts/run_oracle.sh elo_match tourne sans erreur. .studio_state/current_state.json
+    créé. Oracle : fichier existe + json valide.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Valider le pipeline complet oracle→delta→state en conditions réelles.
+- id: IMP-154
+  title: events.jsonl schema verrou — versioning + rejection champs inconnus + hash verification
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/ingest_event.py
+  acceptance: >
+    ingest_event.py rejette tout event sans version field. pytest unitaire vert.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Verrouiller le schema events.jsonl pour éviter la dérive silencieuse.
+- id: IMP-155
+  title: ingest_event idempotence — même input → même state final, protection double ingestion
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/ingest_event.py
+  acceptance: >
+    run deux fois le même oracle → state identique. pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Garantir l'idempotence de l'ingestion pour éviter les états dupliqués.
+- id: IMP-156
+  title: studio_state bootstrap — créer current_state.json initial + validation schema
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/bootstrap_state.py
+  acceptance: >
+    current_state.json existe après bootstrap. jsonschema validation exit 0.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Bootstrap du studio_state initial pour amorcer le pipeline Event Backbone.
+- id: IMP-157
+  title: StateValidator runtime — stale detection + schema drift + fail hard si delta incohérent
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/state_validator.py
+  acceptance: >
+    StateValidator.validate() lève exception sur state stale > 24h. pytest 3 cas vert.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Détection runtime des états périmés et des dérives de schema.
+- id: IMP-158
+  title: Suppression chemins parallèles — tout passe par ingest_event.py, interdire écriture directe state
+  type: chore
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/ingest_event.py
+  acceptance: >
+    grep -r 'current_state.json' scripts/ → uniquement ingest_event.py. pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Centraliser toute mutation du state dans ingest_event.py, supprimer les écritures directes.
+- id: IMP-159
+  title: Tracking causal IMP→outcome — lien obligatoire IMP_ID→event_id dans events.jsonl
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/ingest_event.py
+  acceptance: >
+    chaque event imp_closed contient imp_id field. pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Traçabilité causale IMP→event pour audit et rapport matin.
+- id: IMP-160
+  title: Governor déterministe — extraction hors autopilot.py, règles en code
+  type: feature
+  source: session-2026-06-26 (roadmap Gouvernance)
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - governance/governor.py
+  acceptance: >
+    governance/governor.py implémente check(action) → ALLOW|BLOCK. pytest 5 cas vert.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    AUDIT_REQUIRED : extraction de la logique de gouvernance hors autopilot.py.
+    Impact cross-agents — vérification council avant SAFE_AUTO.
+- id: IMP-161
+  title: Benchmark unique d'autorité — un seul ELO source, suppression métriques concurrentes
+  type: chore
+  source: session-2026-06-26 (roadmap ELO)
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - scripts/studio_meta.py
+  acceptance: >
+    studio_meta.py lit uniquement elo_match_latest.json. grep → 1 seule source ELO.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    AUDIT_REQUIRED : suppression des métriques ELO concurrentes.
+    Vérifier que toutes les dépendances aval lisent uniquement elo_match_latest.json.
+- id: IMP-162
+  title: Neural vs heuristic parity gate — gate explicite hybrid > heuristic TRUE/FALSE
+  type: feature
+  source: session-2026-06-26 (roadmap ELO)
+  status: OPEN
+  impact: HIGH
+  effort: LARGE
+  lane: AUDIT_REQUIRED
+  domain: ia_apprentissage
+  files:
+  - scripts/parity_gate.py
+  acceptance: >
+    parity_gate.py retourne PASS/FAIL. PASS = hybrid ELO > heuristic + 20.
+    Oracle : script exit 0 si PASS.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: >
+    AUDIT_REQUIRED : gate explicite sur la parité neural vs heuristique.
+    Objectif ELO hybride : heuristique + 20 minimum (actuellement +19.3 — FAIL).
 metrics_history:
 - session: '2026-05-31'
   total: 11
