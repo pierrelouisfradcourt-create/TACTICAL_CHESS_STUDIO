@@ -36,6 +36,19 @@ fi
 REPORT="${REPORTS[$ORACLE]}"
 BENCH="${BENCH_SCRIPTS[$ORACLE]}"
 
+# On Windows, python3 points to the Windows Store stub (unusable in scripts).
+# Inject a shim so bench scripts that call python3 get the real interpreter.
+_REAL_PYTHON="${TCS_PYTHON_EXE:-}"
+if [[ -z "$_REAL_PYTHON" ]]; then
+    _REAL_PYTHON="$(command -v python 2>/dev/null || true)"
+fi
+if [[ -n "$_REAL_PYTHON" ]] && ! python3 -c "" &>/dev/null 2>&1; then
+    _SHIM_DIR="$(mktemp -d)"
+    printf '#!/usr/bin/env sh\nexec "%s" "$@"\n' "$_REAL_PYTHON" > "$_SHIM_DIR/python3"
+    chmod +x "$_SHIM_DIR/python3"
+    export PATH="$_SHIM_DIR:$PATH"
+fi
+
 echo "[run_oracle] -> $BENCH $*"
 bash "$BENCH" "$@"
 
