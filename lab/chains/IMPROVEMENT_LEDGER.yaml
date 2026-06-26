@@ -1713,6 +1713,11 @@ improvements:
   - autopilot.py
   impact: HIGH
   effort: MEDIUM
+  acceptance: |-
+    _diagnosis_thread dans autopilot.py implémente un diagnostic réel : lit
+    studio_meta_latest.json, détecte les anomalies (ELO régressé, IMPs bloqués
+    > 7 jours, services DEAD), écrit un rapport dans
+    lab/reports/diagnosis_YYYYMMDD.json. Oracle : pytest test_diagnosis.py vert.
   created_at: '2026-06-07'
   session: '2026-06-07'
 - id: IMP-D3
@@ -1789,6 +1794,10 @@ improvements:
   - lab/chains/corpus/
   impact: HIGH
   effort: MEDIUM
+  acceptance: |-
+    lab/chains/corpus/ contient au moins 10 exemples golden de charters IMP au
+    format {input: ledger_entry, output: charter_text}. Script validate_corpus.py
+    vérifie le schéma. Oracle : python validate_corpus.py → exit 0.
   created_at: '2026-06-07'
   session: '2026-06-07'
 - id: IMP-F2
@@ -1800,6 +1809,10 @@ improvements:
   - autopilot.py
   impact: HIGH
   effort: MEDIUM
+  acceptance: |-
+    _reflection_thread dans autopilot.py génère un bilan 24h (IMPs fermés, ELO
+    delta, draw_rate, coût estimé) et l'écrit dans lab/reports/reflection_YYYYMMDD.md.
+    Oracle : le fichier existe et contient les 4 sections requises.
   created_at: '2026-06-07'
   session: '2026-06-07'
 - id: IMP-F3
