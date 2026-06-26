@@ -1990,17 +1990,25 @@ improvements:
   title: Implémenter fn generate_chess_manifest dans manifest.py
   type: feature
   source: idea-to-imp session 10
-  status: OPEN
+  status: CLOSED
   impact: HIGH
   effort: MEDIUM
   lane: SAFE_AUTO
   domain: jeux
-  files: []
+  files:
+  - studio_core/factory/manifest.py
+  - studio_core/factory/__init__.py
+  - studio_core/main.py
   acceptance: La fonction retourne un manifeste structuré pour la création du jeu d'échecs.
   blocked_by: []
   opened_session: '2026-06-08'
-  closed_session: null
-  notes: Pipeline idea-to-imp — idée 10
+  closed_session: '2026-06-26'
+  notes: >
+    CLOSED 2026-06-26. generate_chess_manifest() implémentée dans studio_core/factory/manifest.py.
+    12 pièces (6 types × 2 couleurs), 11 règles (7 move + 4 meta), board 8×8, FEN départ,
+    3 win conditions, 5 draw conditions, godot_setup hook. Validation interne _validate()
+    assertions toutes passées. CLI main.py --validate chess OK. Oracle --sim 1 Snake :
+    4/4 flags OK (survival 73.6s, wall 0.0%, self_collision 100%) — aucune régression.
 - id: IMP-119
   title: Modifier fn setup_game dans game_setup.py pour intégrer manifestes
   type: feature
