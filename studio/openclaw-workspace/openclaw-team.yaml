@@ -1,0 +1,219 @@
+# openclaw-team.yaml — Tactical Chess Studio
+# Version 3.2
+# Source de vérité : AGENTS.md · TOOLS.md · BOOTSTRAP.md · */SOUL.md
+# Régle d'or : Oracles (non-LLM) + Pierre = seuls DÉCIDE. Agents = RECOMMANDE.
+
+version: "3.2"
+name: tactical-chess-studio
+mission: >
+  Usine de jeux vidéos (Godot) + amélioration Rocky (Rust).
+  Template P4 : moteur + φ + gouvernance — instanciable pour tout nouveau jeu.
+
+# ---------------------------------------------------------------------------
+# Invariants globaux (anti-Skynet) — AGENTS.md §Invariants
+# ---------------------------------------------------------------------------
+invariants:
+  intention_racine: true          # sur chaque paquet inter-agent, jamais modifié
+  signoff_pierre_irreversible: true
+  merge_rule: "oracle vert + HMAC valide + ratification Pierre"
+  caps:
+    tokens: 200000
+    iterations: 8
+  canvas_source: gateway           # verdicts signés HMAC, pas les agents
+  forbidden_zones:
+    - tests/
+    - eval/
+    - oracle/
+    - bench/
+    - puzzles/
+    - .github/
+
+# ---------------------------------------------------------------------------
+# Providers — TOOLS.md §Providers
+# ---------------------------------------------------------------------------
+providers:
+  claude-proxy:
+    base_url: http://127.0.0.1:8765/v1
+    model: claude-code-cli
+    transport: "claude --print"
+    cwd: C:\TACTICAL_CHESS_STUDIO
+    notes: Local — accès repo complet
+  lmstudio:
+    base_url: http://127.0.0.1:1234/v1
+    model: qwen/qwen2.5-coder-14b
+    notes: Local — aucune restriction
+  gemini:
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+    model: gemini-flash
+    restrictions: "Jamais φ ni internes Rocky — générique uniquement"
+  anthropic:
+    base_url: https://api.anthropic.com
+    model: claude-*
+    restrictions: "Payant — réservé si claude-proxy indisponible"
+
+# ---------------------------------------------------------------------------
+# Agents (roster) — AGENTS.md §Roster · TOOLS.md §Routage · */SOUL.md
+# ---------------------------------------------------------------------------
+agents:
+  coordinateur:
+    role: "Tête d'opérations — décompose, route, délègue"
+    provider: lmstudio
+    model: qwen/qwen2.5-coder-14b
+    authority: RECOMMANDE
+    soul: coordinateur/SOUL.md
+    duties:
+      - "fog_map + table oracle avant toute tâche, puis router"
+      - "Fog (pas d'oracle) → human_gate → Pierre"
+      - "Refus immédiat de tout verdict non signé HMAC"
+    convoque_council_si:
+      - divergence de confiance basse
+      - décision irréversible ou structurelle
+      - "délibération φ : lignées locales uniquement (jamais Gemini)"
+
+  producteur_routine:
+    role: "Bras mécanique — tâches bornées, oracle clair"
+    provider: lmstudio
+    model: qwen/qwen2.5-coder-14b
+    authority: RECOMMANDE
+    soul: producteur_routine/SOUL.md
+    worktree: worktrees/routine
+    branch: worktree/routine
+    stop_conditions:
+      - oracle rouge → stop total, pas de contournement
+      - dépassement caps → stop + rapport
+
+  producteur_dur:
+    role: "Code difficile, refactors structurels, raisonnement fort"
+    provider: claude-proxy
+    model: claude-code-cli
+    authority: RECOMMANDE
+    soul: producteur_dur/SOUL.md
+    bootstrap: BOOTSTRAP.md
+    worktree: worktrees/dur
+    branch: worktree/dur
+    duties:
+      - "Plan → go explicite Pierre → exécution. Toujours cet ordre."
+      - "Décision irréversible → escalade @council avant de proposer"
+
+  council:
+    role: "Voix contradictoire — red-team, audit hypothèse, angle mort"
+    authority: RECOMMANDE
+    soul: council/SOUL.md
+    read_only: true
+    lignees:
+      - name: claude
+        provider: claude-proxy
+        usage: "Red-team, audit hypothèse"
+      - name: qwen
+        provider: lmstudio
+        usage: "Délibérations locales"
+      - name: gemini
+        provider: gemini
+        usage: "Générique uniquement — jamais φ ni internes propriétaires"
+    regle_phi: >
+      Délibérations impliquant φ(T), traces Rocky, internaux ML :
+      lignées LOCALES uniquement (Claude + Qwen). Gemini interdit sur φ.
+    output: "Avis anonyme en délibération, signé HMAC en sortie. Divergence reportée telle quelle."
+
+# ---------------------------------------------------------------------------
+# Oracles (non-LLM) — seuls juges. AGENTS.md §Domaines · BOOTSTRAP.md §Oracles
+# ---------------------------------------------------------------------------
+oracles:
+  rust_engine:
+    command: cargo test
+    scope: src/
+  python_ml:
+    command: pytest
+    scope: ml/
+  elo_match:
+    command: ./bench/elo_match.sh
+    scope: moteur vs moteur
+    seuil: "hybride − heuristique ≥ +20 ELO"
+  lichess_puzzles:
+    command: ./bench/lichess_eval.sh
+    scope: tactique (~5M puzzles CC0)
+  studio_meta:
+    command: python scripts/studio_meta.py
+    scope: bilan global
+  hmac_signature:
+    command: 'echo "$VERDICT" | openssl dgst -sha256 -hmac "$STUDIO_HMAC_KEY"'
+    key_storage: "~/.openclaw/.env UNIQUEMENT — jamais dans le repo"
+
+# ---------------------------------------------------------------------------
+# Domaines (chapeaux) → oracle — AGENTS.md §Domaines
+# ---------------------------------------------------------------------------
+domaines:
+  - name: Engine Rust
+    oracle: "cargo test + elo_match.sh"
+  - name: Neural / φ
+    oracle: "training metrics + ELO"
+  - name: Tactique
+    oracle: "lichess_eval.sh (~5M puzzles CC0)"
+  - name: Gameplay Godot
+    oracle: "tests + le jeu tourne"
+  - name: Performance
+    oracle: "cargo bench + profiler Godot"
+  - name: Narrative / UI / Audio
+    oracle: "Pierre (fog)"
+  - name: QA
+    oracle: "cargo / pytest"
+
+# ---------------------------------------------------------------------------
+# Skills → provider recommandé — TOOLS.md §Skills · skills/*.md
+# ---------------------------------------------------------------------------
+skills:
+  architecture_review: { provider: claude-proxy }
+  code_review:         { provider: claude-proxy }
+  design_review:       { provider: claude-proxy }
+  gate:                { provider: claude-proxy }
+  verdict:             { provider: claude-proxy }
+  plan:                { provider: claude-proxy }
+  estimate:            { provider: lmstudio }
+  start:               { provider: lmstudio }
+  handoff:             { provider: lmstudio }
+  tick:                { provider: lmstudio }
+  sprint_plan:         { provider: lmstudio }
+  scope_check:         { provider: lmstudio }
+  tech_debt:           { provider: lmstudio }
+  brainstorm:          { provider: lmstudio }
+  balance_check:       { provider: lmstudio }
+  playtest:            { provider: lmstudio }
+  perf_profile:        { provider: lmstudio }
+  hotfix:              { provider: claude-proxy }
+  gate_check:          { provider: lmstudio }
+  fog:                 { provider: lmstudio }
+  reanchor:            { provider: lmstudio }
+  release:             { provider: claude-proxy }
+  league:              { provider: lmstudio }
+  joust:               { provider: claude-proxy }
+  imp_run:             { provider: claude-proxy }
+  imp_auto:            { provider: lmstudio }
+  autoloop:            { provider: lmstudio }
+  team_feature:        { provider: claude-proxy }
+
+# ---------------------------------------------------------------------------
+# Canvas gateway — TOOLS.md §Canvas · BOOTSTRAP.md §Canvas
+# ---------------------------------------------------------------------------
+gateway:
+  services:
+    claude_proxy:   { url: http://127.0.0.1:8765, usage: "LLM local via claude --print" }
+    canvas_gateway: { url: http://127.0.0.1:8766, usage: "Données live + gates Pierre" }
+    canvas_pierre:  { path: studio/studio_canvas.html, usage: "Panneau de contrôle navigateur" }
+  endpoints:
+    - { path: /api/meta,        method: GET,  usage: "JSON état studio (studio_meta_latest.json)" }
+    - { path: /api/meta/stream, method: GET,  usage: "SSE push live sur modification fichier" }
+    - { path: /api/refresh,     method: POST, usage: "Relance studio_meta.py — après tout oracle" }
+    - { path: /api/gate/{id},   method: POST, usage: "Décision Pierre {verdict, justification}" }
+    - { path: /health,          method: GET,  usage: "Liveness check" }
+  refresh_after_oracle: "POST http://127.0.0.1:8766/api/refresh"
+
+# ---------------------------------------------------------------------------
+# Chemins — TOOLS.md §Chemins
+# ---------------------------------------------------------------------------
+paths:
+  repo_windows: C:\TACTICAL_CHESS_STUDIO
+  workspace_wsl: ~/.openclaw/workspace/
+  worktrees:
+    routine: worktrees/routine
+    dur: worktrees/dur
+  hmac_env: "~/.openclaw/.env"
