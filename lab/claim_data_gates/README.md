@@ -24,7 +24,7 @@ MERGE_DECISION is not CLAIM_DECISION.
 The gate entry point is:
 
 ```txt
-scripts/check_claim_data_gates.py
+scripts/studioV2/check_claim_data_gates.py
 ```
 
 Examples stay in `lab/claim_data_gates/examples/`.

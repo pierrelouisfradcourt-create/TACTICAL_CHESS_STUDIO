@@ -25,7 +25,7 @@ Gate PASS does not imply promotion readiness.
 The gate entry point is:
 
 ```txt
-scripts/check_input_boundary.py
+scripts/studioV2/check_input_boundary.py
 ```
 
 Examples must stay in `lab/gates/examples/`.
