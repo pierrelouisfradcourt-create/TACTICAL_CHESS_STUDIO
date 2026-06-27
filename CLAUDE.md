@@ -57,6 +57,26 @@
 * NE PAS fusionner ces deux systemes sans decision HumanGate explicite
   - Raison : ceo-lane-assignment doit rester deterministe et offline-capable
 
+## Routing
+
+Table de correspondance intention → skill à invoquer. Utiliser `/skill-name` dans la session.
+
+| Intention | Skill |
+|---|---|
+| oracle / vérification | /smoke-check |
+| IMP status | /sprint-status |
+| IMP pickup | /imp-readiness |
+| architecture | /architecture-review |
+| code | /code-review |
+| plan | /plan |
+| brainstorm / idéation | /brainstorm |
+| design | /design-review |
+| balance gameplay | /balance-check |
+| release | /release |
+| audit hygiène | /audit-daily |
+| verdict signé | /verdict |
+| gate humain | /gate |
+
 # TACTICAL CHESS STUDIO — Context for Claude Code
 * 
 * \## Regles absolues
