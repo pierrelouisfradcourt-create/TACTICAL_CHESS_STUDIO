@@ -1,6 +1,7 @@
 # IMPROVEMENT_LEDGER.yaml
 # SSOT amélioration continue (Kaizen Loop) — Tactical Chess Studio
 # Claim posture: NO_CLAIM_ALLOWED | Read-only sauf --close/--add
+
 meta:
   ledger_version: v0
   created_session: '2026-05-31'
@@ -18,12 +19,13 @@ improvements:
   lane: SAFE_AUTO
   files:
   - lab/chains/doc_hygiene_chain.py
-  acceptance: detect_lane() lit les lanes depuis FILE_ROUTING_MANIFEST.yaml au lieu de hardcoder. Test refuse si manifest/detect_lane
-    contradiction.
+  acceptance: detect_lane() lit les lanes depuis FILE_ROUTING_MANIFEST.yaml au lieu
+    de hardcoder. Test refuse si manifest/detect_lane contradiction.
   blocked_by: []
   opened_session: '2026-05-31'
   closed_session: '2026-05-31'
-  notes: Bloque l'automation des chaines elles-memes (lab/chains = SAFE_AUTO dans manifest mais AUDIT_REQUIRED hardcode).
+  notes: Bloque l'automation des chaines elles-memes (lab/chains = SAFE_AUTO dans
+    manifest mais AUDIT_REQUIRED hardcode).
 - id: IMP-002
   title: Créer HUMANGATE_DECISION_LOG.yaml (SSOT décisions)
   type: gap_fix
@@ -34,8 +36,8 @@ improvements:
   lane: SAFE_AUTO
   files:
   - lab/chains/HUMANGATE_DECISION_LOG.yaml
-  acceptance: Schema decision_id/title/zone/surface/source_state/verdict/evidence/risk/approved_by/approved_at. Seedé avec
-    les 8 commits de session.
+  acceptance: Schema decision_id/title/zone/surface/source_state/verdict/evidence/risk/approved_by/approved_at.
+    Seedé avec les 8 commits de session.
   blocked_by: []
   opened_session: '2026-05-31'
   closed_session: '2026-05-31'
@@ -51,8 +53,8 @@ improvements:
   files:
   - lab/chains/lane_conflict_checker.py
   - lab/chains/lane_plan.yaml
-  acceptance: 'Parse lane_plan.yaml, détecte intersection de files entre lanes, refuse si overlap non vide. Test : 2 lanes
-    disjointes = CLEAR, 2 lanes partagées = CONFLICT.'
+  acceptance: 'Parse lane_plan.yaml, détecte intersection de files entre lanes, refuse
+    si overlap non vide. Test : 2 lanes disjointes = CLEAR, 2 lanes partagées = CONFLICT.'
   blocked_by: []
   opened_session: '2026-05-31'
   closed_session: '2026-05-31'
@@ -67,8 +69,8 @@ improvements:
   lane: SAFE_AUTO
   files:
   - lab/chains/scripts_route_chain.py
-  acceptance: Lit scripts/uxpilote, scripts/studioV2, scripts/control_plane. Détecte path drift, candidates, stale refs. Produit
-    scripts_route_packet.
+  acceptance: Lit scripts/uxpilote, scripts/studioV2, scripts/control_plane. Détecte
+    path drift, candidates, stale refs. Produit scripts_route_packet.
   blocked_by: []
   opened_session: '2026-05-31'
   closed_session: '2026-05-31'
@@ -83,7 +85,8 @@ improvements:
   lane: SAFE_AUTO
   files:
   - lab/chains/fusion_matrix_chain.py
-  acceptance: 'Merge outputs de doc_hygiene + run_chain + scripts_route. Produit fusion_matrix (markdown table: verdict/evidence/risk/contradiction).'
+  acceptance: 'Merge outputs de doc_hygiene + run_chain + scripts_route. Produit fusion_matrix
+    (markdown table: verdict/evidence/risk/contradiction).'
   blocked_by:
   - IMP-004
   opened_session: '2026-05-31'
@@ -99,7 +102,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/tool/puzzle_eval.rs
-  acceptance: Ajouter flag --output <path> à puzzle_eval pour écrire le rapport JSON à un chemin custom.
+  acceptance: Ajouter flag --output <path> à puzzle_eval pour écrire le rapport JSON
+    à un chemin custom.
   blocked_by: []
   opened_session: '2026-05-31'
   closed_session: '2026-06-01'
@@ -114,7 +118,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/simulation/simulation_runner.rs
-  acceptance: Brancher ouverture aléatoire 2-8 plies dans le benchmark pour casser le 100% draws search vs search.
+  acceptance: Brancher ouverture aléatoire 2-8 plies dans le benchmark pour casser
+    le 100% draws search vs search.
   blocked_by: []
   opened_session: '2026-05-31'
   closed_session: '2026-06-01'
@@ -132,21 +137,26 @@ improvements:
   - lab/datasets/teacher_samples.jsonl
   - src/simulation/teacher_uci_runner.rs
   - ml/dataset_loader.py
-  acceptance: Localiser trainer_mix (cli.rs ou campaign_runner_v1.py), régénérer dataset propre via Stockfish teacher.
+  acceptance: Localiser trainer_mix (cli.rs ou campaign_runner_v1.py), régénérer dataset
+    propre via Stockfish teacher.
   blocked_by:
   - IMP-007
   opened_session: '2026-05-31'
   closed_session: '2026-06-25'
-  notes: 'BLOQUANT ML. Lane FORBIDDEN (dataset generation = HumanGate strict). Ne pas automatiser. — HumanGate 2026-06-02
-    : ACTIVE_DATASET.txt redirigé vers pool_2400.jsonl (draw_rate 8.8%, 1M parties). Dataset corrompu teacher_samples.jsonl
-    archivé. — Clôture 2026-06-25 (Option C, HumanGate Pierre) : SearchTraceSchema complet (pv_changes, depth_score_range,
-    node_concentration) ajouté à TeacherSample Rust + parse_search_trace_meta() Python. pool_2400.jsonl reste ACTIVE_DATASET
-    — les 3 champs SearchTrace y sont à 0 (acceptable : schéma correct, valeurs viendront après résolution KI-1 draw problem).
-    selfplay 10 games draw_rate=0.90 confirme que self-play heuristique pur reste inutilisable comme source dataset.
-    Rebuild Stockfish-teacher toujours FORBIDDEN jusqu''à résolution KI-1 + Stockfish disponible. — Update 2026-06-25 :
-    KI-1 résolu (IMP-120). selfplay draw_rate 100%→22% (50 games). Bloquer rebuild reste conditionnel à Stockfish
-    disponible. selfplay CSV (lab/selfplay/) ne produit pas TeacherSample JSONL — extension requise (IMP-120) ou
-    Stockfish pour teacher_uci.'
+  notes: 'BLOQUANT ML. Lane FORBIDDEN (dataset generation = HumanGate strict). Ne
+    pas automatiser. — HumanGate 2026-06-02 : ACTIVE_DATASET.txt redirigé vers pool_2400.jsonl
+    (draw_rate 8.8%, 1M parties). Dataset corrompu teacher_samples.jsonl archivé.
+    — Clôture 2026-06-25 (Option C, HumanGate Pierre) : SearchTraceSchema complet
+    (pv_changes, depth_score_range, node_concentration) ajouté à TeacherSample Rust
+    + parse_search_trace_meta() Python. pool_2400.jsonl reste ACTIVE_DATASET — les
+    3 champs SearchTrace y sont à 0 (acceptable : schéma correct, valeurs viendront
+    après résolution KI-1 draw problem). selfplay 10 games draw_rate=0.90 confirme
+    que self-play heuristique pur reste inutilisable comme source dataset. Rebuild
+    Stockfish-teacher toujours FORBIDDEN jusqu''à résolution KI-1 + Stockfish disponible.
+    — Update 2026-06-25 : KI-1 résolu (IMP-120). selfplay draw_rate 100%→22% (50 games).
+    Bloquer rebuild reste conditionnel à Stockfish disponible. selfplay CSV (lab/selfplay/)
+    ne produit pas TeacherSample JSONL — extension requise (IMP-120) ou Stockfish
+    pour teacher_uci.'
 - id: IMP-009
   title: 'Charter B : optimisations run_chain.py (opt1-4)'
   type: feature
@@ -157,8 +167,8 @@ improvements:
   lane: SAFE_AUTO
   files:
   - lab/chains/run_chain.py
-  acceptance: 'Opt1: charger 3 derniers CHAIN_HISTORY. Opt2: detect_lane avant Mistral. Opt3: source readback auto. Opt4:
-    tracking FORBIDDEN_OUTPUTS.'
+  acceptance: 'Opt1: charger 3 derniers CHAIN_HISTORY. Opt2: detect_lane avant Mistral.
+    Opt3: source readback auto. Opt4: tracking FORBIDDEN_OUTPUTS.'
   blocked_by:
   - IMP-001
   opened_session: '2026-05-31'
@@ -174,7 +184,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/chess/search.rs
-  acceptance: '3 ajouts chirurgicaux: pv_changes, DepthSnapshot, nodes_per_root_move. Telemetry only, pas de changement comportement.'
+  acceptance: '3 ajouts chirurgicaux: pv_changes, DepthSnapshot, nodes_per_root_move.
+    Telemetry only, pas de changement comportement.'
   blocked_by: []
   opened_session: '2026-05-31'
   closed_session: '2026-06-03'
@@ -192,13 +203,15 @@ improvements:
   - ml/infer_policy.py
   - src/agents/neural_protocol.rs
   - src/agents/neural_agent.rs
-  acceptance: infer_policy.py jette le scalaire value du ResNet. L'utiliser ou documenter pourquoi pas.
+  acceptance: infer_policy.py jette le scalaire value du ResNet. L'utiliser ou documenter
+    pourquoi pas.
   blocked_by: []
   opened_session: '2026-05-31'
   closed_session: '2026-06-26'
-  notes: 'value head branchée protocole Python→Rust, 5/5 tests neural_protocol vert. Nouveau protocole
-    stdout : {move}|{policy_index}|{value:.6f}|{shortlist}[|{memory_json}]. PythonPrediction.pred_value:
-    f32 parsé en position 2. Télémétrie BRIDGE_VALUE + NEURAL_VALUE émise par neural_agent.'
+  notes: 'value head branchée protocole Python→Rust, 5/5 tests neural_protocol vert.
+    Nouveau protocole stdout : {move}|{policy_index}|{value:.6f}|{shortlist}[|{memory_json}].
+    PythonPrediction.pred_value: f32 parsé en position 2. Télémétrie BRIDGE_VALUE
+    + NEURAL_VALUE émise par neural_agent.'
 - id: IMP-012
   title: STUDIO_CONTEXT.md auto-genere pour Mistral/Devstral
   type: feature
@@ -209,8 +222,8 @@ improvements:
   lane: SAFE_AUTO
   files:
   - lab/chains/studio_context_builder.py
-  acceptance: Script qui derive STUDIO_CONTEXT.md depuis ledger+manifest. Injecte en tete prompts Mistral. Regenere a chaque
-    kaizen metrics.
+  acceptance: Script qui derive STUDIO_CONTEXT.md depuis ledger+manifest. Injecte
+    en tete prompts Mistral. Regenere a chaque kaizen metrics.
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -225,7 +238,8 @@ improvements:
   lane: SAFE_AUTO
   files:
   - lab/chains/golden_collector.py
-  acceptance: Quand autoloop close un IMP, le charter est archive dans golden_examples.jsonl. Base du futur LoRA.
+  acceptance: Quand autoloop close un IMP, le charter est archive dans golden_examples.jsonl.
+    Base du futur LoRA.
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -240,7 +254,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/simulation/simulation_runner.rs
-  acceptance: random_opening=true dans teacher_uci et benchmark, lab_hard_turn_cap >= 200, parties avec vrais resultats
+  acceptance: random_opening=true dans teacher_uci et benchmark, lab_hard_turn_cap
+    >= 200, parties avec vrais resultats
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -271,7 +286,8 @@ improvements:
   files:
   - src/chess/opening_book.rs
   - lab/data/opening_book.jsonl
-  acceptance: Rocky joue e4 ou d4 au coup 1, moves coherents 10 premiers coups, cargo check OK
+  acceptance: Rocky joue e4 ou d4 au coup 1, moves coherents 10 premiers coups, cargo
+    check OK
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -301,7 +317,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/chess/eval.rs
-  acceptance: Rocky ne laisse pas son roi en centre en milieu de partie, cargo check OK
+  acceptance: Rocky ne laisse pas son roi en centre en milieu de partie, cargo check
+    OK
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -331,7 +348,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/chess/practical_policy.rs
-  acceptance: Rocky ne perd pas de piece dans echanges a 3 attaquants, cargo check OK
+  acceptance: Rocky ne perd pas de piece dans echanges a 3 attaquants, cargo check
+    OK
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -346,7 +364,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/chess/eval.rs
-  acceptance: Rocky ne laisse pas pieces mineures sur cases depart au coup 10, cargo check OK
+  acceptance: Rocky ne laisse pas pieces mineures sur cases depart au coup 10, cargo
+    check OK
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -466,7 +485,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/chess/eval.rs
-  acceptance: Rocky ne provoque pas stalemate accidentel en K+Q vs K, cargo check OK
+  acceptance: Rocky ne provoque pas stalemate accidentel en K+Q vs K, cargo check
+    OK
   blocked_by: []
   opened_session: '2026-06-01'
   closed_session: '2026-06-01'
@@ -497,7 +517,8 @@ improvements:
   files:
   - src/simulation/neural_tournament_runner.rs
   - src/tournament/elo.rs
-  acceptance: 'Rapport : fonctions exposées, CLI dispo, ce qui manque pour instancier EloTable'
+  acceptance: 'Rapport : fonctions exposées, CLI dispo, ce qui manque pour instancier
+    EloTable'
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-02'
@@ -515,7 +536,8 @@ improvements:
   - lab/datasets/teacher_solid.jsonl
   - lab/datasets/teacher_positional.jsonl
   - lab/datasets/teacher_finisher.jsonl
-  acceptance: 'Rapport JSON : champs présents, % results non-draw, aaa_* non-null, décision RECYCLE/REGENERATE'
+  acceptance: 'Rapport JSON : champs présents, % results non-draw, aaa_* non-null,
+    décision RECYCLE/REGENERATE'
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-02'
@@ -531,7 +553,8 @@ improvements:
   files:
   - src/simulation/neural_tournament_runner.rs
   - src/tournament/elo.rs
-  acceptance: EloTable instanciée, K canonique choisi, leaderboard() utilisé, cargo test OK
+  acceptance: EloTable instanciée, K canonique choisi, leaderboard() utilisé, cargo
+    test OK
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-02'
@@ -547,8 +570,8 @@ improvements:
   files:
   - src/simulation/neural_tournament_runner.rs
   - src/tournament/elo.rs
-  acceptance: EloTable::new instanciée, update_elo_pair remplacé par update_match, leaderboard() utilisé, cargo test OK, K=24
-    canonique
+  acceptance: EloTable::new instanciée, update_elo_pair remplacé par update_match,
+    leaderboard() utilisé, cargo test OK, K=24 canonique
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-02'
@@ -579,7 +602,8 @@ improvements:
   files:
   - lab/datasets/candidate_games_for_triage.csv
   - lab/pedagogy_db/PEDAGOGICAL_DB_TACTICS.pgn
-  acceptance: Format CSV identifié, nb puzzles, thèmes présents, distributions top_gap/aaa_confidence teacher_*
+  acceptance: Format CSV identifié, nb puzzles, thèmes présents, distributions top_gap/aaa_confidence
+    teacher_*
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-02'
@@ -615,8 +639,8 @@ improvements:
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-03'
-  notes: 'HumanGate 2026-06-02 : draw_rate observé 93.1% != critère. Acceptance relevé à <20%. Statut rouvert — pool_sf à
-    régénérer (SF vs SF positions variées).'
+  notes: 'HumanGate 2026-06-02 : draw_rate observé 93.1% != critère. Acceptance relevé
+    à <20%. Statut rouvert — pool_sf à régénérer (SF vs SF positions variées).'
 - id: IMP-039
   title: dataset_builder_v3.py — 3 pools < 20% draw depuis pioche commune
   type: feature
@@ -643,7 +667,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - ml/train_player.py
-  acceptance: checkpoint .pt produit, loss décroissante, smoke 20 parties draw_rate < 30%
+  acceptance: checkpoint .pt produit, loss décroissante, smoke 20 parties draw_rate
+    < 30%
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-02'
@@ -658,7 +683,8 @@ improvements:
   lane: AUDIT_REQUIRED
   files:
   - src/tool/cli.rs
-  acceptance: Rocky ne joue plus de répétitions en partie longue, draw_rate benchmark < 40%
+  acceptance: Rocky ne joue plus de répétitions en partie longue, draw_rate benchmark
+    < 40%
   blocked_by: []
   opened_session: '2026-06-02'
   closed_session: '2026-06-02'
@@ -691,8 +717,9 @@ improvements:
   blocked_by: []
   opened_session: '2026-06-03'
   closed_session: '2026-06-03'
-  notes: 'HumanGate 2026-06-03 : Option B choisie. pool_sf abandoné (draw_rate=94%, régénération impossible sans deux moteurs
-    SF asymétriques). pool_sf exclu du pipeline ML. IMP-038 verdict final : INVALID.'
+  notes: 'HumanGate 2026-06-03 : Option B choisie. pool_sf abandoné (draw_rate=94%,
+    régénération impossible sans deux moteurs SF asymétriques). pool_sf exclu du pipeline
+    ML. IMP-038 verdict final : INVALID.'
   note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-044
   title: Page Studio OS — cockpit unifie surfaces + boucle + HumanGate
@@ -719,12 +746,13 @@ improvements:
   lane: HUMAN_REQUIRED
   files:
   - ml/lora_train_devstral.py
-  acceptance: Script dry-run valide config + dataset. --train lance SFTTrainer sur 38 golden exemples.
+  acceptance: Script dry-run valide config + dataset. --train lance SFTTrainer sur
+    38 golden exemples.
   blocked_by: []
   opened_session: '2026-06-03'
   closed_session: '2026-06-03'
-  notes: 'HumanGate 2026-06-03 approuvé. Dry-run OK : 38 exemples, format validé, VRAM 17.1GB (fp16) / 6.6GB (4-bit). Training
-    réel : fournir --model-path <devstral_local>.'
+  notes: 'HumanGate 2026-06-03 approuvé. Dry-run OK : 38 exemples, format validé,
+    VRAM 17.1GB (fp16) / 6.6GB (4-bit). Training réel : fournir --model-path <devstral_local>.'
 - id: IMP-046
   title: Switcher LM_MODEL vers Qwen3.6 27B dans autopilot.py + tester CEO Brief
   type: feature
@@ -756,7 +784,8 @@ improvements:
   notes: ''
   note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-048
-  title: state_updater.py — MAJ automatique docs studio depuis sources reelles apres chaque session
+  title: state_updater.py — MAJ automatique docs studio depuis sources reelles apres
+    chaque session
   type: feature
   source: manual add 2026-06-04
   status: CLOSED
@@ -771,7 +800,8 @@ improvements:
   notes: ''
   note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-049
-  title: Cablage state_updater.py dans autopilot.py — appel auto apres close_imp et run_chain
+  title: Cablage state_updater.py dans autopilot.py — appel auto apres close_imp et
+    run_chain
   type: feature
   source: manual add 2026-06-04
   status: CLOSED
@@ -801,7 +831,8 @@ improvements:
   notes: ''
   note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-052
-  title: Roadmap-to-Ledger — extraire IMPs depuis roadmap et les injecter dans kaizen via Qwen
+  title: Roadmap-to-Ledger — extraire IMPs depuis roadmap et les injecter dans kaizen
+    via Qwen
   type: feature
   source: manual add 2026-06-04
   status: CLOSED
@@ -829,7 +860,8 @@ improvements:
   blocked_by: []
   opened_session: '2026-06-04'
   closed_session: null
-  notes: Extrait roadmap Phase 1 — Rocky jouable et explicable, statut IN_PROGRESS, priorité P3
+  notes: Extrait roadmap Phase 1 — Rocky jouable et explicable, statut IN_PROGRESS,
+    priorité P3
   note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-054
   title: Chess Fantasy runtime minimal (règles core)
@@ -844,7 +876,8 @@ improvements:
   blocked_by: []
   opened_session: '2026-06-04'
   closed_session: '2026-06-04'
-  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut DOCUMENTED_ONLY, priorité P0
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut DOCUMENTED_ONLY,
+    priorité P0
   note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-055
   title: Rocky muté pour Chess Fantasy
@@ -860,7 +893,8 @@ improvements:
   blocked_by: []
   opened_session: '2026-06-04'
   closed_session: '2026-06-04'
-  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité P1
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité
+    P1
   note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-056
   title: 'Puzzles : 3 niveaux + from errors + vocabulaire officiel'
@@ -876,7 +910,8 @@ improvements:
   blocked_by: []
   opened_session: '2026-06-04'
   closed_session: null
-  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité P3
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité
+    P3
   note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-057
   title: LoRA Devstral TCS v2 (training réel + évaluation)
@@ -891,9 +926,9 @@ improvements:
   - ml/lora_train_devstral.py
   - ml/lora_config.yaml
   - lab/runs/
-  acceptance: "300 golden examples dans ml/golden_examples.jsonl + loss curve cohérente
+  acceptance: '300 golden examples dans ml/golden_examples.jsonl + loss curve cohérente
     dans training_runs/<id>/metrics.jsonl. Oracle : wc -l golden_examples.jsonl >=
-    300 ET fichier metrics.jsonl existe."
+    300 ET fichier metrics.jsonl existe.'
   blocked_by: []
   opened_session: '2026-06-04'
   closed_session: null
@@ -914,7 +949,8 @@ improvements:
   notes: ''
   note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-059
-  title: Workflow charter UI — afficher charter + champ rapport + close-imp sans API Claude
+  title: Workflow charter UI — afficher charter + champ rapport + close-imp sans API
+    Claude
   type: feature
   source: manual add 2026-06-04
   status: CLOSED
@@ -929,7 +965,8 @@ improvements:
   notes: ''
   note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-060
-  title: Champ domain dans le ledger — rocky_moteur/ia_apprentissage/studio/jeux pour routing CEO Brief
+  title: Champ domain dans le ledger — rocky_moteur/ia_apprentissage/studio/jeux pour
+    routing CEO Brief
   type: feature
   source: manual add 2026-06-04
   status: CLOSED
@@ -993,7 +1030,8 @@ improvements:
   notes: ''
   note: UNVERIFIABLE - acceptance non defini a la fermeture
 - id: IMP-079
-  title: Cycle de vie idees — persistance ideas.json + auto-applied quand pipeline lance + filtre UI
+  title: Cycle de vie idees — persistance ideas.json + auto-applied quand pipeline
+    lance + filtre UI
   type: feature
   source: manual add 2026-06-05
   status: CLOSED
@@ -1152,7 +1190,8 @@ improvements:
   blocked_by: []
   opened_session: '2026-06-05'
   closed_session: '2026-06-05'
-  notes: Repurposé en onglet Map (lire prompt_chain_map.json) + IMP-089 couvre le scope Anti-Skynet original
+  notes: Repurposé en onglet Map (lire prompt_chain_map.json) + IMP-089 couvre le
+    scope Anti-Skynet original
 - id: IMP-089
   title: Ajouter attribut title aux boutons dans autopilot.py
   type: feature
@@ -1164,7 +1203,8 @@ improvements:
   domain: studio
   files:
   - autopilot/autopilot.py
-  acceptance: Chaque bouton HTML a un attribut 'title' avec le nom du modèle et la durée d'exécution.
+  acceptance: Chaque bouton HTML a un attribut 'title' avec le nom du modèle et la
+    durée d'exécution.
   blocked_by: []
   opened_session: '2026-06-05'
   closed_session: '2026-06-05'
@@ -1180,7 +1220,8 @@ improvements:
   domain: studio
   files:
   - autopilot/autopilot.py
-  acceptance: Tous les tooltips s'affichent correctement et la cohérence visuelle est maintenue.
+  acceptance: Tous les tooltips s'affichent correctement et la cohérence visuelle
+    est maintenue.
   blocked_by: []
   opened_session: '2026-06-05'
   closed_session: '2026-06-06'
@@ -1196,7 +1237,8 @@ improvements:
   domain: studio
   files:
   - docs/user_guide.md
-  acceptance: Une section décrivant les nouveaux tooltips est ajoutée et documentée clairement.
+  acceptance: Une section décrivant les nouveaux tooltips est ajoutée et documentée
+    clairement.
   blocked_by: []
   opened_session: '2026-06-05'
   notes: Pipeline idea-to-imp — idée 19
@@ -1420,7 +1462,8 @@ improvements:
   domain: studio
   files:
   - autopilot.py
-  acceptance: 'GET /api/lane-stats retourne pour chaque lane : modele LM utilise, nb_runs_today, last_run timestamp'
+  acceptance: 'GET /api/lane-stats retourne pour chaque lane : modele LM utilise,
+    nb_runs_today, last_run timestamp'
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: null
@@ -1436,7 +1479,8 @@ improvements:
   domain: studio
   files:
   - autopilot.py
-  acceptance: Le lien Idee-Roadmap disparait de la sidebar. Aucune reference morte dans le HTML.
+  acceptance: Le lien Idee-Roadmap disparait de la sidebar. Aucune reference morte
+    dans le HTML.
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: '2026-06-06'
@@ -1452,8 +1496,8 @@ improvements:
   domain: studio
   files:
   - autopilot.py
-  acceptance: Un bouton Generer Roadmap apparait dans la page Ideas et appelle generateRoadmap(). La page Idee-Roadmap separee
-    est supprimee.
+  acceptance: Un bouton Generer Roadmap apparait dans la page Ideas et appelle generateRoadmap().
+    La page Idee-Roadmap separee est supprimee.
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: '2026-06-06'
@@ -1517,7 +1561,8 @@ improvements:
   domain: studio
   files:
   - executor/golden_collector/executor_report.py
-  acceptance: Les rapports d'exécution incluent correctement le nouveau statut de l'idée.
+  acceptance: Les rapports d'exécution incluent correctement le nouveau statut de
+    l'idée.
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: '2026-06-06'
@@ -1533,7 +1578,8 @@ improvements:
   domain: studio
   files:
   - ui/ui_ideas.py
-  acceptance: L'interface utilisateur permet efficacement le changement de statut des idées sans bugs.
+  acceptance: L'interface utilisateur permet efficacement le changement de statut
+    des idées sans bugs.
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: '2026-06-06'
@@ -1549,7 +1595,8 @@ improvements:
   domain: studio
   files:
   - scripts/identify_critical_surfaces.py
-  acceptance: Le script génère une liste complète des surfaces critiques avec leur nature, autorité et impact en aval.
+  acceptance: Le script génère une liste complète des surfaces critiques avec leur
+    nature, autorité et impact en aval.
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: '2026-06-06'
@@ -1565,8 +1612,8 @@ improvements:
   domain: studio
   files:
   - AUTOMATION_LANE_MATRIX.md
-  acceptance: Le fichier AUTOMATION_LANE_MATRIX.md est mis à jour avec les nouvelles lignes identifiées et chaque surface
-    critique a la bonne autonomie.
+  acceptance: Le fichier AUTOMATION_LANE_MATRIX.md est mis à jour avec les nouvelles
+    lignes identifiées et chaque surface critique a la bonne autonomie.
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: '2026-06-06'
@@ -1582,7 +1629,8 @@ improvements:
   domain: studio
   files:
   - AUTOMATION_LANE_MATRIX.md
-  acceptance: La matrice est vérifiée manuellement pour s'assurer que toutes les surfaces critiques sont correctement représentées.
+  acceptance: La matrice est vérifiée manuellement pour s'assurer que toutes les surfaces
+    critiques sont correctement représentées.
   blocked_by: []
   opened_session: '2026-06-06'
   closed_session: '2026-06-06'
@@ -1718,12 +1766,16 @@ improvements:
   - autopilot.py
   impact: HIGH
   effort: MEDIUM
-  acceptance: |-
-    _diagnosis_thread dans autopilot.py implémente un diagnostic réel : lit
+  acceptance: '_diagnosis_thread dans autopilot.py implémente un diagnostic réel :
+    lit
+
     studio_meta_latest.json, détecte les anomalies (ELO régressé, IMPs bloqués
+
     > 7 jours, services DEAD via probe ports 8765/8766), écrit un rapport dans
+
     lab/reports/diagnosis_YYYYMMDD.json. Oracle non-FORBIDDEN :
-    python lab/chains/test_diagnosis_smoke.py → exit 0.
+
+    python lab/chains/test_diagnosis_smoke.py → exit 0.'
   created_at: '2026-06-07'
   session: '2026-06-07'
   closed_session: '2026-06-26'
@@ -1801,14 +1853,16 @@ improvements:
   - lab/chains/corpus/
   impact: HIGH
   effort: MEDIUM
-  acceptance: |-
-    lab/chains/corpus/ contient au moins 10 exemples golden de charters IMP au
+  acceptance: 'lab/chains/corpus/ contient au moins 10 exemples golden de charters
+    IMP au
+
     format {input: ledger_entry, output: charter_text}. Script validate_corpus.py
-    vérifie le schéma. Oracle : python validate_corpus.py → exit 0.
+
+    vérifie le schéma. Oracle : python validate_corpus.py → exit 0.'
   created_at: '2026-06-07'
   session: '2026-06-07'
   closed_session: '2026-06-26'
-  note: 'Oracle vert — python validate_corpus.py exit 0 (17 paires golden)'
+  note: Oracle vert — python validate_corpus.py exit 0 (17 paires golden)
 - id: IMP-F2
   title: Reflection thread 24h
   status: CLOSED
@@ -1818,14 +1872,16 @@ improvements:
   - autopilot.py
   impact: HIGH
   effort: MEDIUM
-  acceptance: |-
-    _reflection_thread dans autopilot.py génère un bilan 24h (IMPs fermés, ELO
-    delta, draw_rate, coût estimé) et l'écrit dans lab/reports/reflection_YYYYMMDD.md.
-    Oracle : le fichier existe et contient les 4 sections requises.
+  acceptance: '_reflection_thread dans autopilot.py génère un bilan 24h (IMPs fermés,
+    ELO
+
+    delta, draw_rate, coût estimé) et l''écrit dans lab/reports/reflection_YYYYMMDD.md.
+
+    Oracle : le fichier existe et contient les 4 sections requises.'
   created_at: '2026-06-07'
   session: '2026-06-07'
   closed_session: '2026-06-26'
-  note: 'Oracle vert — reflection_YYYYMMDD.md généré, 4 sections présentes'
+  note: Oracle vert — reflection_YYYYMMDD.md généré, 4 sections présentes
 - id: IMP-F3
   title: CEO Brief learning
   status: CLOSED
@@ -1871,7 +1927,8 @@ improvements:
   opened_session: '2026-06-08'
   closed_session: '2026-06-08'
   session: '2026-06-08'
-  notes: Init SSOT scalaires phi — commits_count, imp_closed_count, open_imp_count, velocity
+  notes: Init SSOT scalaires phi — commits_count, imp_closed_count, open_imp_count,
+    velocity
 - id: IMP-G2
   title: studio_end.py — snapshot phi fin de session
   type: feature
@@ -1993,7 +2050,8 @@ improvements:
   opened_session: '2026-06-08'
   closed_session: '2026-06-08'
   session: '2026-06-08'
-  notes: Drift vocab silencieux possible — fingerprint 690ce94a maintenant tracé au démarrage
+  notes: Drift vocab silencieux possible — fingerprint 690ce94a maintenant tracé au
+    démarrage
 - id: IMP-117
   title: Ajouter vérification longueur texte dans _auto_close_from_report()
   type: feature
@@ -2005,11 +2063,13 @@ improvements:
   domain: studio
   files:
   - autopilot.py
-  acceptance: Le code ajoute une condition qui vérifie la longueur du texte et des mots-clés spécifiques dans _auto_close_from_report().
+  acceptance: Le code ajoute une condition qui vérifie la longueur du texte et des
+    mots-clés spécifiques dans _auto_close_from_report().
   blocked_by: []
   opened_session: '2026-06-08'
   closed_session: '2026-06-25'
-  notes: Pipeline idea-to-imp — idée 23. CLOSED 2026-06-25 — garde-fou anti rapport tronqué/vide (MIN_REPORT_LEN=40 + 3 REQUIRED_KEYWORDS). Voir lab/chains/reports/IMP-117_report.md.
+  notes: Pipeline idea-to-imp — idée 23. CLOSED 2026-06-25 — garde-fou anti rapport
+    tronqué/vide (MIN_REPORT_LEN=40 + 3 REQUIRED_KEYWORDS). Voir lab/chains/reports/IMP-117_report.md.
 - id: IMP-118
   title: Implémenter fn generate_chess_manifest dans manifest.py
   type: feature
@@ -2023,16 +2083,19 @@ improvements:
   - studio_core/factory/manifest.py
   - studio_core/factory/__init__.py
   - studio_core/main.py
-  acceptance: La fonction retourne un manifeste structuré pour la création du jeu d'échecs.
+  acceptance: La fonction retourne un manifeste structuré pour la création du jeu
+    d'échecs.
   blocked_by: []
   opened_session: '2026-06-08'
   closed_session: '2026-06-26'
-  notes: >
-    CLOSED 2026-06-26. generate_chess_manifest() implémentée dans studio_core/factory/manifest.py.
-    12 pièces (6 types × 2 couleurs), 11 règles (7 move + 4 meta), board 8×8, FEN départ,
-    3 win conditions, 5 draw conditions, godot_setup hook. Validation interne _validate()
-    assertions toutes passées. CLI main.py --validate chess OK. Oracle --sim 1 Snake :
-    4/4 flags OK (survival 73.6s, wall 0.0%, self_collision 100%) — aucune régression.
+  notes: 'CLOSED 2026-06-26. generate_chess_manifest() implémentée dans studio_core/factory/manifest.py.
+    12 pièces (6 types × 2 couleurs), 11 règles (7 move + 4 meta), board 8×8, FEN
+    départ, 3 win conditions, 5 draw conditions, godot_setup hook. Validation interne
+    _validate() assertions toutes passées. CLI main.py --validate chess OK. Oracle
+    --sim 1 Snake : 4/4 flags OK (survival 73.6s, wall 0.0%, self_collision 100%)
+    — aucune régression.
+
+    '
 - id: IMP-119
   title: Modifier fn setup_game dans game_setup.py pour intégrer manifestes
   type: feature
@@ -2045,16 +2108,17 @@ improvements:
   files:
   - studio_core/games/game_setup.py
   - studio_core/games/__init__.py
-  acceptance: Le fichier `game_setup.py` intègre les manifestes générés dans le setup initial du jeu avec Godot.
+  acceptance: Le fichier `game_setup.py` intègre les manifestes générés dans le setup
+    initial du jeu avec Godot.
   blocked_by: []
   opened_session: '2026-06-08'
   closed_session: '2026-06-26'
-  notes: "CLOSED 2026-06-26. setup_game() + ChessGame implémentés dans\
-    \ studio_core/games/game_setup.py. Consomme generate_chess_manifest() (IMP-118),\
-    \ construit initial_positions (32 cases), expose godot_setup hook. Oracle --validate\
-    \ chess OK (12 pièces, 11 règles) + --sim 1 Snake vert (4/4 flags)."
+  notes: CLOSED 2026-06-26. setup_game() + ChessGame implémentés dans studio_core/games/game_setup.py.
+    Consomme generate_chess_manifest() (IMP-118), construit initial_positions (32
+    cases), expose godot_setup hook. Oracle --validate chess OK (12 pièces, 11 règles)
+    + --sim 1 Snake vert (4/4 flags).
 - id: IMP-120
-  title: 'KI-1 Draw Problem — opening randomization + contempt + draw_score recalibration'
+  title: KI-1 Draw Problem — opening randomization + contempt + draw_score recalibration
   type: bugfix
   source: session-2026-06-25
   status: CLOSED
@@ -2065,19 +2129,21 @@ improvements:
   - src/simulation/selfplay.rs
   - src/chess/search.rs
   - src/chess/eval.rs
-  acceptance: selfplay draw_rate < 40% sur 50 games, cargo test vert, heuristic ELO stable
+  acceptance: selfplay draw_rate < 40% sur 50 games, cargo test vert, heuristic ELO
+    stable
   blocked_by: []
   opened_session: '2026-06-25'
   closed_session: '2026-06-25'
-  notes: 'draw_rate selfplay : 100% (baseline) → 22% (50 games, oracle VERT). Trois fixes : (1) selfplay.rs —
-    random_opening per game_id + reset_repetition_state() post-ouverture. (2) search.rs — CONTEMPT=300, retour
-    positif asymétrique (ahead=300, balanced=200, behind=100) dans rep_count>=2 branch — convention negamax
-    correcte (parent voit -contempt). (3) eval.rs — draw_score mat=0 : -70→-140. ELO heuristic : +1.8 (bruit
-    statistique, pas de régression). bench FAIL pre-existing (hybrid<heuristic delta=-14.8, cible +20 = IMP-011
-    non résolu). selfplay produit CSV uniquement — JSONL dataset rebuild nécessite extension (voir step 3 IMP-008)
-    ou Stockfish.'
+  notes: 'draw_rate selfplay : 100% (baseline) → 22% (50 games, oracle VERT). Trois
+    fixes : (1) selfplay.rs — random_opening per game_id + reset_repetition_state()
+    post-ouverture. (2) search.rs — CONTEMPT=300, retour positif asymétrique (ahead=300,
+    balanced=200, behind=100) dans rep_count>=2 branch — convention negamax correcte
+    (parent voit -contempt). (3) eval.rs — draw_score mat=0 : -70→-140. ELO heuristic
+    : +1.8 (bruit statistique, pas de régression). bench FAIL pre-existing (hybrid<heuristic
+    delta=-14.8, cible +20 = IMP-011 non résolu). selfplay produit CSV uniquement
+    — JSONL dataset rebuild nécessite extension (voir step 3 IMP-008) ou Stockfish.'
 - id: IMP-121
-  title: 'SelfPlayManager → TeacherSample JSONL avec SearchTrace (IMP-008 step 3)'
+  title: SelfPlayManager → TeacherSample JSONL avec SearchTrace (IMP-008 step 3)
   type: feature
   source: session-2026-06-25
   status: CLOSED
@@ -2087,9 +2153,9 @@ improvements:
   files:
   - src/simulation/selfplay.rs
   - src/tool/cli.rs
-  acceptance: 'cargo run --release -- selfplay_jsonl 500 lab/datasets/pool_selfplay.jsonl
-    produit un JSONL valide ; pytest ml/ vert ; aaa_pv_changes / aaa_depth_score_range /
-    aaa_node_concentration non-null sur >= 80% des lignes ; draw_rate < 40%'
+  acceptance: cargo run --release -- selfplay_jsonl 500 lab/datasets/pool_selfplay.jsonl
+    produit un JSONL valide ; pytest ml/ vert ; aaa_pv_changes / aaa_depth_score_range
+    / aaa_node_concentration non-null sur >= 80% des lignes ; draw_rate < 40%
   blocked_by:
   - IMP-120
   opened_session: '2026-06-25'
@@ -2097,12 +2163,13 @@ improvements:
   notes: 'CLOSED 2026-06-25. Implémentation : (1) SelfPlayConfig.output_jsonl: Option<String>
     ajouté. (2) run_one_game() utilise choose_best_action_with_trace() + capture FEN/legal_moves
     pre-move + build_selfplay_sample() qui réplique search_trace_summary de teacher_uci_runner.
-    (3) CLI selfplay_jsonl N [path] câblée dans cli.rs. (4) Streaming BufWriter par game batch
-    (flush tous les 10 jeux). Oracle smoke 10 games : 997 lignes, aaa_pv_changes 100%,
-    aaa_depth_score_range 100%, aaa_node_concentration 100%, has_aaa_payload 100%,
-    load_jsonl_rows OK, pytest ml/ 11 passed. Production 380 games (process timeout game 381) :
-    37 590 lignes valides, 63.9 MB, dernier JSON intact. HumanGate 2026-06-25 : ACTIVE_DATASET
-    pointé vers lab/datasets/pool_selfplay.jsonl (précédent : lab/datasets/pool/pool_2400.jsonl).'
+    (3) CLI selfplay_jsonl N [path] câblée dans cli.rs. (4) Streaming BufWriter par
+    game batch (flush tous les 10 jeux). Oracle smoke 10 games : 997 lignes, aaa_pv_changes
+    100%, aaa_depth_score_range 100%, aaa_node_concentration 100%, has_aaa_payload
+    100%, load_jsonl_rows OK, pytest ml/ 11 passed. Production 380 games (process
+    timeout game 381) : 37 590 lignes valides, 63.9 MB, dernier JSON intact. HumanGate
+    2026-06-25 : ACTIVE_DATASET pointé vers lab/datasets/pool_selfplay.jsonl (précédent
+    : lab/datasets/pool/pool_2400.jsonl).'
 - id: IMP-122
   title: Studio OS Architecture Document v0.1
   type: architecture
@@ -2114,16 +2181,18 @@ improvements:
   domain: studio
   files:
   - docs/architecture/STUDIO_OS_ARCHITECTURE_v0.1.md
-  acceptance: docs/architecture/STUDIO_OS_ARCHITECTURE_v0.1.md existe et synthétise la doctrine
-    (Paradoxe Skynet), l'ordre d'autorité, le modèle deux-pistes (runtime/evidence), l'autorité
-    HumanGate, les lanes, et l'architecture Rocky deux-vitesses, à partir des docs source canoniques.
+  acceptance: docs/architecture/STUDIO_OS_ARCHITECTURE_v0.1.md existe et synthétise
+    la doctrine (Paradoxe Skynet), l'ordre d'autorité, le modèle deux-pistes (runtime/evidence),
+    l'autorité HumanGate, les lanes, et l'architecture Rocky deux-vitesses, à partir
+    des docs source canoniques.
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: '2026-06-26'
-  notes: 'CLOSED 2026-06-26. Document d''architecture v0.1 rédigé depuis le contexte studio
-    (CLAUDE.md, SYSTEM_MAP, 00_VISION, 05_ARCHITECTURE, 07_CURRENT_STATE, 10_AUTOMATION_EVIDENCE_PLANE).
-    Statut DRAFT_FOR_REVIEW, posture NO_CLAIM_ALLOWED, en attente de ratification HumanGate.
-    Aucune preuve de force/dataset/benchmark créée — synthèse de planification uniquement.'
+  notes: CLOSED 2026-06-26. Document d'architecture v0.1 rédigé depuis le contexte
+    studio (CLAUDE.md, SYSTEM_MAP, 00_VISION, 05_ARCHITECTURE, 07_CURRENT_STATE, 10_AUTOMATION_EVIDENCE_PLANE).
+    Statut DRAFT_FOR_REVIEW, posture NO_CLAIM_ALLOWED, en attente de ratification
+    HumanGate. Aucune preuve de force/dataset/benchmark créée — synthèse de planification
+    uniquement.
 - id: IMP-123
   title: Snake AI steering sans demi-tour (wall-avoidance améliorée)
   type: improvement
@@ -2135,21 +2204,23 @@ improvements:
   domain: studio_core
   files:
   - studio_core/sim/headless_sim.py
-  acceptance: headless_sim --sim 100 avg_survival >= 40s ET wall_rate < 60% — l'AI évite
-    les murs sans demi-tour (projection Gram-Schmidt remplacée par steering direct).
+  acceptance: headless_sim --sim 100 avg_survival >= 40s ET wall_rate < 60% — l'AI
+    évite les murs sans demi-tour (projection Gram-Schmidt remplacée par steering
+    direct).
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: '2026-06-26'
-  notes: 'CLOSED 2026-06-26. Projection Gram-Schmidt remplacée par steering direct vers
-    arena.center() + clamp hémisphère-avant (_clamp_to_forward) qui respecte le guard
-    anti-reversal du moteur (engine.py: dot>=0, sinon le virage est silencieusement
-    droppé et le serpent fonce dans le mur). Oracle python main.py --sim 100 :
-    avg_survival 51.3s (médiane 45.5s), wall_rate 0.0% — acceptance (>=40s ET <60%) PASS
-    avec marge. Stable sur 5 runs RNG non-seedé (avg 50-56s, wall 0.0% constant). Morts
-    désormais 100% self_collision. Fichier studio_core/sim/headless_sim.py committé avec
-    la Game Factory studio_core. NB: aucun diff pré-existant — fix rédigé depuis la spec IMP-123.'
+  notes: 'CLOSED 2026-06-26. Projection Gram-Schmidt remplacée par steering direct
+    vers arena.center() + clamp hémisphère-avant (_clamp_to_forward) qui respecte
+    le guard anti-reversal du moteur (engine.py: dot>=0, sinon le virage est silencieusement
+    droppé et le serpent fonce dans le mur). Oracle python main.py --sim 100 : avg_survival
+    51.3s (médiane 45.5s), wall_rate 0.0% — acceptance (>=40s ET <60%) PASS avec marge.
+    Stable sur 5 runs RNG non-seedé (avg 50-56s, wall 0.0% constant). Morts désormais
+    100% self_collision. Fichier studio_core/sim/headless_sim.py committé avec la
+    Game Factory studio_core. NB: aucun diff pré-existant — fix rédigé depuis la spec
+    IMP-123.'
 - id: IMP-124
-  title: 'Capability Registry v1 — artefacts non consommés'
+  title: Capability Registry v1 — artefacts non consommés
   type: feature
   source: session-2026-06-26 (audit architectural comité)
   status: CLOSED
@@ -2160,22 +2231,26 @@ improvements:
   files:
   - openclaw/capabilities.yaml
   - openclaw/providers.yaml
-  acceptance: >
-    capabilities.yaml liste tous les modèles configurés avec statut réel (AVAILABLE/DEGRADED/DEAD/UNKNOWN).
-    providers.yaml liste tous les endpoints avec startup_cmd et fallback.
-    Aucun artefact d'orchestration référencé dans TOOLS.md ou openclaw.json absent du registry.
-    Lecture validée par python -c "import yaml; yaml.safe_load(open('openclaw/capabilities.yaml'))" sans erreur.
+  acceptance: 'capabilities.yaml liste tous les modèles configurés avec statut réel
+    (AVAILABLE/DEGRADED/DEAD/UNKNOWN). providers.yaml liste tous les endpoints avec
+    startup_cmd et fallback. Aucun artefact d''orchestration référencé dans TOOLS.md
+    ou openclaw.json absent du registry. Lecture validée par python -c "import yaml;
+    yaml.safe_load(open(''openclaw/capabilities.yaml''))" sans erreur.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: '2026-06-26'
-  notes: >
-    Issu de l'audit architectural 2026-06-26 (GAP-1 Task Router + GAP-6 Monitoring).
+  notes: 'Issu de l''audit architectural 2026-06-26 (GAP-1 Task Router + GAP-6 Monitoring).
     Le routage modèle est actuellement dans TOOLS.md (document statique) et LM_MODEL/LM_MODEL_CEO
-    hardcodés dans autopilot.py. capabilities.yaml et providers.yaml constituent la source de vérité
-    machine-readable. IMP-125 (AUDIT_REQUIRED) câble ce registry dans le control plane.
-    Draft YAML produit en output de chat session 2026-06-26 — écriture disque sur go Pierre.
+    hardcodés dans autopilot.py. capabilities.yaml et providers.yaml constituent la
+    source de vérité machine-readable. IMP-125 (AUDIT_REQUIRED) câble ce registry
+    dans le control plane. Draft YAML produit en output de chat session 2026-06-26
+    — écriture disque sur go Pierre.
+
+    '
 - id: IMP-125
-  title: 'Capability Registry — intégration Governor/autopilot/OpenClaw'
+  title: Capability Registry — intégration Governor/autopilot/OpenClaw
   type: feature
   source: session-2026-06-26 (audit architectural comité)
   status: CLOSED
@@ -2184,19 +2259,23 @@ improvements:
   lane: AUDIT_REQUIRED
   domain: studio
   files: []
-  acceptance: >
-    LM_MODEL et LM_MODEL_CEO supprimés de autopilot.py — remplacés par lecture capabilities.yaml.
-    Healthcheck providers au démarrage autopilot.py (statut RUNNING/DEAD pour chaque provider).
-    OpenClaw routing skill→provider basé sur capabilities.yaml (remplace TOOLS.md statique).
-    cargo test + pytest verts. Aucune régression fonctionnelle autopilot.py.
+  acceptance: 'LM_MODEL et LM_MODEL_CEO supprimés de autopilot.py — remplacés par
+    lecture capabilities.yaml. Healthcheck providers au démarrage autopilot.py (statut
+    RUNNING/DEAD pour chaque provider). OpenClaw routing skill→provider basé sur capabilities.yaml
+    (remplace TOOLS.md statique). cargo test + pytest verts. Aucune régression fonctionnelle
+    autopilot.py.
+
+    '
   blocked_by:
   - IMP-124
   opened_session: '2026-06-26'
   closed_session: '2026-06-26'
-  notes: >
-    AUDIT_REQUIRED : touche autopilot.py (control plane critique) et openclaw.json (routing agents).
-    Plan d'intégration produit en output de chat session 2026-06-26 — implémentation sur go Pierre.
-    Risque : régression autopilot.py si lecture YAML échoue au démarrage → fallback hardcodé requis.
+  notes: 'AUDIT_REQUIRED : touche autopilot.py (control plane critique) et openclaw.json
+    (routing agents). Plan d''intégration produit en output de chat session 2026-06-26
+    — implémentation sur go Pierre. Risque : régression autopilot.py si lecture YAML
+    échoue au démarrage → fallback hardcodé requis.
+
+    '
 - id: IMP-126
   title: Ajouter un commentaire de version dans studio_core/factory/__init__.py
   type: chore
@@ -2208,20 +2287,22 @@ improvements:
   domain: studio
   files:
   - studio_core/factory/__init__.py
-  acceptance: >
-    Un commentaire de version (ex. `# version: 0.1.0`) est présent en tête de
-    studio_core/factory/__init__.py. L'import du module reste inchangé
-    (generate_chess_manifest toujours exporté). pytest vert.
+  acceptance: 'Un commentaire de version (ex. `# version: 0.1.0`) est présent en tête
+    de studio_core/factory/__init__.py. L''import du module reste inchangé (generate_chess_manifest
+    toujours exporté). pytest vert.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: '2026-06-26'
-  notes: >
-    Effort XS — IMP de test pour valider la boucle autoloop complète
-    (plan → go → edit → oracle → close). Zone non FORBIDDEN.
-    CLOSED 2026-06-26 : edit additif `# version: 0.1.0` en tête de
-    studio_core/factory/__init__.py. Oracle smoke : `import generate_chess_manifest`
-    OK via python3 (export intact, fichier 3→4 lignes). pytest complet non lancé
-    (mode permissions) — smoke import jugé suffisant pour IMP XS trivial par Pierre.
+  notes: 'Effort XS — IMP de test pour valider la boucle autoloop complète (plan →
+    go → edit → oracle → close). Zone non FORBIDDEN. CLOSED 2026-06-26 : edit additif
+    `# version: 0.1.0` en tête de studio_core/factory/__init__.py. Oracle smoke :
+    `import generate_chess_manifest` OK via python3 (export intact, fichier 3→4 lignes).
+    pytest complet non lancé (mode permissions) — smoke import jugé suffisant pour
+    IMP XS trivial par Pierre.
+
+    '
 - id: IMP-127
   title: Canvas panneau OpenClaw — brancher studio_canvas.html comme panneau live
   type: feature
@@ -2233,10 +2314,11 @@ improvements:
   domain: studio
   files:
   - openclaw.json
-  acceptance: >
-    openclaw.json contient l'entrée de configuration permettant à studio_canvas.html
-    d'afficher le panneau OpenClaw (gates, file SAFE_AUTO, ELO live). Le Canvas
-    Pierre charge le panneau sans erreur console. pytest vert.
+  acceptance: 'openclaw.json contient l''entrée de configuration permettant à studio_canvas.html
+    d''afficher le panneau OpenClaw (gates, file SAFE_AUTO, ELO live). Le Canvas Pierre
+    charge le panneau sans erreur console. pytest vert.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
@@ -2252,17 +2334,19 @@ improvements:
   domain: studio
   files:
   - studio/openclaw-workspace/skills/council.md
-  acceptance: >
-    studio/openclaw-workspace/skills/council.md décrit le protocole council :
-    délégation en parallèle à Gemini et Qwen sur tout IMP lane=AUDIT_REQUIRED,
-    synthèse du verdict, escalade Pierre si désaccord. Le skill est invocable
-    depuis /council dans OpenClaw. pytest vert (si applicable).
+  acceptance: 'studio/openclaw-workspace/skills/council.md décrit le protocole council
+    : délégation en parallèle à Gemini et Qwen sur tout IMP lane=AUDIT_REQUIRED, synthèse
+    du verdict, escalade Pierre si désaccord. Le skill est invocable depuis /council
+    dans OpenClaw. pytest vert (si applicable).
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    Formalise le conseil multi-modèles pour les IMPs AUDIT_REQUIRED.
-    Unblocks la gouvernance IMP-057.
+  notes: 'Formalise le conseil multi-modèles pour les IMPs AUDIT_REQUIRED. Unblocks
+    la gouvernance IMP-057.
+
+    '
 - id: IMP-129
   title: Corriger chemin ml/golden_examples.jsonl — copie depuis lab/chains/
   type: fix
@@ -2274,17 +2358,19 @@ improvements:
   domain: ia_apprentissage
   files:
   - ml/golden_examples.jsonl
-  acceptance: >
-    ml/golden_examples.jsonl existe et contient les mêmes entrées que
-    lab/chains/golden_examples.jsonl (57 entrées minimum au moment de l'exécution).
-    wc -l ml/golden_examples.jsonl retourne un nombre >= 1. pytest vert.
+  acceptance: 'ml/golden_examples.jsonl existe et contient les mêmes entrées que lab/chains/golden_examples.jsonl
+    (57 entrées minimum au moment de l''exécution). wc -l ml/golden_examples.jsonl
+    retourne un nombre >= 1. pytest vert.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    IMP-057 acceptance pointe sur ml/golden_examples.jsonl (ABSENT).
-    Le fichier source est lab/chains/golden_examples.jsonl (57 entrées).
-    Résolution : symlink ou copie — au choix du worker selon les contraintes OS.
+  notes: 'IMP-057 acceptance pointe sur ml/golden_examples.jsonl (ABSENT). Le fichier
+    source est lab/chains/golden_examples.jsonl (57 entrées). Résolution : symlink
+    ou copie — au choix du worker selon les contraintes OS.
+
+    '
 - id: IMP-130
   title: Audit quotidien automatisé dans cron — hygiene/vérité/sécurité
   type: feature
@@ -2296,12 +2382,12 @@ improvements:
   domain: studio
   files:
   - studio/openclaw-workspace/skills/audit_daily.md
-  acceptance: >
-    studio/openclaw-workspace/skills/audit_daily.md décrit un skill /audit-daily
-    invocable depuis OpenClaw : vérifie l'hygiène du repo (fichiers orphelins,
-    acceptance TBD, bloqueurs), la cohérence des ancres (MEMORY.md vs ledger),
-    et lance un scan de sécurité basique. Résultat loggé dans lab/reports/.
-    pytest vert.
+  acceptance: 'studio/openclaw-workspace/skills/audit_daily.md décrit un skill /audit-daily
+    invocable depuis OpenClaw : vérifie l''hygiène du repo (fichiers orphelins, acceptance
+    TBD, bloqueurs), la cohérence des ancres (MEMORY.md vs ledger), et lance un scan
+    de sécurité basique. Résultat loggé dans lab/reports/. pytest vert.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
@@ -2317,18 +2403,19 @@ improvements:
   domain: tactique
   files:
   - studio/openclaw-workspace/skills/reanchor.md
-  acceptance: >
-    studio/openclaw-workspace/skills/reanchor.md décrit le protocole /reanchor :
-    relance bench/lichess_eval.sh, compare aux seuils cibles (L1>=80%, L2>=10%,
-    L3>=20%), met à jour MEMORY.md avec les nouvelles ancres datées.
-    Un fichier .claude/skills/reanchor/skill.md est créé en miroir.
-    pytest vert.
+  acceptance: 'studio/openclaw-workspace/skills/reanchor.md décrit le protocole /reanchor
+    : relance bench/lichess_eval.sh, compare aux seuils cibles (L1>=80%, L2>=10%,
+    L3>=20%), met à jour MEMORY.md avec les nouvelles ancres datées. Un fichier .claude/skills/reanchor/skill.md
+    est créé en miroir. pytest vert.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    MEMORY.md note "reanchor jamais lancé — à planifier dès P1".
-    Formalise le skill et crée l'entrée .claude/ manquante.
+  notes: 'MEMORY.md note "reanchor jamais lancé — à planifier dès P1". Formalise le
+    skill et crée l''entrée .claude/ manquante.
+
+    '
 - id: IMP-132
   title: φ Encoder v1 — encoder les positions chess en vecteurs φ
   type: feature
@@ -2340,18 +2427,20 @@ improvements:
   domain: ia_apprentissage
   files:
   - ml/phi_encoder.py
-  acceptance: >
-    ml/phi_encoder.py implémente un encodeur de positions chess produisant un
-    vecteur φ de dimension fixe (≥7 scalaires normalisés [0,1]) compatible avec
-    SearchTraceSchema. encode(position) retourne un np.ndarray sans erreur sur
-    les positions de test. pytest vert (au moins 3 cas : position initiale,
-    position tactique, position finale).
+  acceptance: 'ml/phi_encoder.py implémente un encodeur de positions chess produisant
+    un vecteur φ de dimension fixe (≥7 scalaires normalisés [0,1]) compatible avec
+    SearchTraceSchema. encode(position) retourne un np.ndarray sans erreur sur les
+    positions de test. pytest vert (au moins 3 cas : position initiale, position tactique,
+    position finale).
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    Premier composant P4 (φ Encoder / Clustering / LoRA). Prérequis pour
-    IMP-057 (LoRA Devstral). Implémentation Python pure, pas de Rust.
+  notes: 'Premier composant P4 (φ Encoder / Clustering / LoRA). Prérequis pour IMP-057
+    (LoRA Devstral). Implémentation Python pure, pas de Rust.
+
+    '
 - id: IMP-133
   title: Archiver scripts/studioV2/ — ancien control-plane Codex
   type: chore
@@ -2363,19 +2452,20 @@ improvements:
   domain: studio
   files:
   - scripts/studioV2/
-  acceptance: >
-    scripts/studioV2/ est déplacé dans lab/archive/studioV2/ avec un README
-    expliquant qu'il s'agit de l'ancien control-plane Codex (pré-OpenClaw).
-    Le répertoire scripts/ ne contient plus studioV2/.
-    Les scripts encore actifs (studio_meta.py, canvas_gateway.py, etc.) restent
-    dans scripts/. cargo test et pytest verts.
+  acceptance: 'scripts/studioV2/ est déplacé dans lab/archive/studioV2/ avec un README
+    expliquant qu''il s''agit de l''ancien control-plane Codex (pré-OpenClaw). Le
+    répertoire scripts/ ne contient plus studioV2/. Les scripts encore actifs (studio_meta.py,
+    canvas_gateway.py, etc.) restent dans scripts/. cargo test et pytest verts.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    ~80 fichiers orphelins (scripts/studioV2/control_plane/*, operator/*, etc.)
-    issus de l'ère Codex. AUDIT_REQUIRED : vérifier qu'aucun script actif
-    n'est aspiré dans l'archive avant de valider le déplacement.
+  notes: '~80 fichiers orphelins (scripts/studioV2/control_plane/*, operator/*, etc.)
+    issus de l''ère Codex. AUDIT_REQUIRED : vérifier qu''aucun script actif n''est
+    aspiré dans l''archive avant de valider le déplacement.
+
+    '
 - id: IMP-134
   title: training_runs/ — créer structure de base + dataset manifest
   type: feature
@@ -2388,21 +2478,23 @@ improvements:
   files:
   - training_runs/README.md
   - training_runs/baseline/dataset_sha.txt
-  acceptance: >
-    Le répertoire training_runs/ existe avec training_runs/README.md (description
-    de la structure attendue : un sous-dossier par run, metrics.jsonl dedans) et
-    training_runs/baseline/dataset_sha.txt (SHA256 de pool_selfplay.jsonl).
-    IMP-057 peut écrire dans training_runs/<id>/metrics.jsonl sans erreur de
-    chemin. pytest vert.
+  acceptance: 'Le répertoire training_runs/ existe avec training_runs/README.md (description
+    de la structure attendue : un sous-dossier par run, metrics.jsonl dedans) et training_runs/baseline/dataset_sha.txt
+    (SHA256 de pool_selfplay.jsonl). IMP-057 peut écrire dans training_runs/<id>/metrics.jsonl
+    sans erreur de chemin. pytest vert.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    IMP-057 acceptance requiert training_runs/<id>/metrics.jsonl (ABSENT).
-    Ce scaffold minimal débloque le prérequis sans pré-supposer la structure
-    finale du pipeline de training.
+  notes: 'IMP-057 acceptance requiert training_runs/<id>/metrics.jsonl (ABSENT). Ce
+    scaffold minimal débloque le prérequis sans pré-supposer la structure finale du
+    pipeline de training.
+
+    '
 - id: IMP-135
-  title: MEMORY.md mise à jour — ELO hybride +19.3 (pas -14), dataset pool_selfplay actif
+  title: MEMORY.md mise à jour — ELO hybride +19.3 (pas -14), dataset pool_selfplay
+    actif
   type: fix
   source: session-2026-06-26
   status: OPEN
@@ -2412,9 +2504,10 @@ improvements:
   domain: studio
   files:
   - studio/openclaw-workspace/MEMORY.md
-  acceptance: >
-    MEMORY.md ne contient plus 'dégrade de 14 pts'.
-    Oracle : grep -v 'dégrade de 14' MEMORY.md → exit 0.
+  acceptance: 'MEMORY.md ne contient plus ''dégrade de 14 pts''. Oracle : grep -v
+    ''dégrade de 14'' MEMORY.md → exit 0.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
@@ -2430,9 +2523,10 @@ improvements:
   domain: tactique
   files:
   - studio/openclaw-workspace/skills/tick.md
-  acceptance: >
-    tick.md déclenche lichess_eval.sh une fois par semaine.
-    Oracle : fichier modifié + syntaxe valide.
+  acceptance: 'tick.md déclenche lichess_eval.sh une fois par semaine. Oracle : fichier
+    modifié + syntaxe valide.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
@@ -2449,9 +2543,10 @@ improvements:
   files:
   - ml/infer_policy.py
   - src/agents/neural_bridge.rs
-  acceptance: >
-    infer_policy.py accepte BATCH|N header. cargo test vert.
-    Selfplay --games 5 tourne sans erreur.
+  acceptance: 'infer_policy.py accepte BATCH|N header. cargo test vert. Selfplay --games
+    5 tourne sans erreur.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
@@ -2467,9 +2562,10 @@ improvements:
   domain: studio
   files:
   - autopilot.py
-  acceptance: >
-    studio_state.json mis à jour toutes les 5 min.
-    Oracle : mtime < 6 min après lancement.
+  acceptance: 'studio_state.json mis à jour toutes les 5 min. Oracle : mtime < 6 min
+    après lancement.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
@@ -2485,13 +2581,15 @@ improvements:
   domain: studio
   files:
   - studio/openclaw-workspace/skills/monitor.md
-  acceptance: >
-    monitor.md créé avec steps probe 8765/8766/18789/7331.
-    Oracle : fichier existe.
+  acceptance: 'monitor.md créé avec steps probe 8765/8766/18789/7331. Oracle : fichier
+    existe.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: Skill de monitoring des services studio (claude_proxy, canvas_gateway, autopilot, LM Studio).
+  notes: Skill de monitoring des services studio (claude_proxy, canvas_gateway, autopilot,
+    LM Studio).
 - id: IMP-140
   title: BOOTSTRAP.md sync — retirer refs IMP-008 OPEN et HMAC absente
   type: chore
@@ -2503,13 +2601,15 @@ improvements:
   domain: studio
   files:
   - studio/openclaw-workspace/BOOTSTRAP.md
-  acceptance: >
-    BOOTSTRAP.md ne contient plus IMP-008 OPEN ni HMAC absente.
-    Oracle : grep exit 0.
+  acceptance: 'BOOTSTRAP.md ne contient plus IMP-008 OPEN ni HMAC absente. Oracle
+    : grep exit 0.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: Nettoyer les références obsolètes dans BOOTSTRAP.md (IMP-008 CLOSED, HMAC opérationnelle).
+  notes: Nettoyer les références obsolètes dans BOOTSTRAP.md (IMP-008 CLOSED, HMAC
+    opérationnelle).
 - id: IMP-141
   title: LLM Gateway v1 — openclaw/llm_gateway.py routing dynamique
   type: feature
@@ -2521,15 +2621,17 @@ improvements:
   domain: studio
   files:
   - openclaw/llm_gateway.py
-  acceptance: >
-    llm_gateway.py reçoit TaskRequest, route via capabilities.yaml, retourne
+  acceptance: 'llm_gateway.py reçoit TaskRequest, route via capabilities.yaml, retourne
     TaskResponse. pytest unitaire vert.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    LLM Gateway port 9000 (PLANNED_PHASE1 dans infrastructure/ports.yaml).
-    AUDIT_REQUIRED : routing dynamique avec capabilities.yaml — impact cross-agents.
+  notes: 'LLM Gateway port 9000 (PLANNED_PHASE1 dans infrastructure/ports.yaml). AUDIT_REQUIRED
+    : routing dynamique avec capabilities.yaml — impact cross-agents.
+
+    '
 - id: IMP-143
   title: Hook stop-failure — récupération API error + recovery.json
   type: feature
@@ -2541,17 +2643,19 @@ improvements:
   domain: studio
   files:
   - .claude/hooks/stop-failure.sh
-  acceptance: >
-    stop-failure.sh créé, écrit lab/reports/recovery.json sur StopFailure avec
-    error_type, timestamp, last_commit. Oracle : bash -n .claude/hooks/stop-failure.sh
+  acceptance: 'stop-failure.sh créé, écrit lab/reports/recovery.json sur StopFailure
+    avec error_type, timestamp, last_commit. Oracle : bash -n .claude/hooks/stop-failure.sh
     exit 0.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    Inspiré de GameForge stop-failure.sh. Critique pour l'autoloop nuit :
-    sur rate-limit ou auth error, l'état est perdu. Le hook sauvegarde recovery.json
+  notes: 'Inspiré de GameForge stop-failure.sh. Critique pour l''autoloop nuit : sur
+    rate-limit ou auth error, l''état est perdu. Le hook sauvegarde recovery.json
     dans lab/reports/ et affiche un message de reprise.
+
+    '
 - id: IMP-144
   title: Hook session-start — afficher IMP ouvert + ELO + état oracles
   type: feature
@@ -2563,18 +2667,20 @@ improvements:
   domain: studio
   files:
   - .claude/hooks/session-start.sh
-  acceptance: >
-    session-start.sh affiche au démarrage : branch git, ELO courant depuis
+  acceptance: 'session-start.sh affiche au démarrage : branch git, ELO courant depuis
     lab/reports/elo_match_latest.json, count IMPs OPEN depuis IMPROVEMENT_LEDGER.yaml,
     statut oracles (cargo build + pytest --co). Oracle : bash -n .claude/hooks/session-start.sh
     exit 0.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    Inspiré de CCGS + GameForge session-start.sh. Onboarding session à froid
-    actuellement aveugle : l'agent ne connaît pas l'ELO ni les IMPs ouverts
-    sans lire manuellement les fichiers.
+  notes: 'Inspiré de CCGS + GameForge session-start.sh. Onboarding session à froid
+    actuellement aveugle : l''agent ne connaît pas l''ELO ni les IMPs ouverts sans
+    lire manuellement les fichiers.
+
+    '
 - id: IMP-145
   title: Hook pre-compact + post-compact — état actif survit à la compaction
   type: feature
@@ -2587,17 +2693,19 @@ improvements:
   files:
   - .claude/hooks/pre-compact.sh
   - .claude/hooks/post-compact.sh
-  acceptance: >
-    pre-compact.sh écrit lab/reports/compact-state.json avec fichiers modifiés
-    + IMP en cours. post-compact.sh relit et affiche le contexte.
-    Oracle : bash -n sur les deux exit 0.
+  acceptance: 'pre-compact.sh écrit lab/reports/compact-state.json avec fichiers modifiés
+    + IMP en cours. post-compact.sh relit et affiche le contexte. Oracle : bash -n
+    sur les deux exit 0.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    Inspiré de CCGS pre/post-compact.sh. L'autoloop perd le contexte de travail
-    lors des compactions de contexte mid-session. Le hook PreCompact/PostCompact
-    permet de persister et restaurer l'état actif.
+  notes: 'Inspiré de CCGS pre/post-compact.sh. L''autoloop perd le contexte de travail
+    lors des compactions de contexte mid-session. Le hook PreCompact/PostCompact permet
+    de persister et restaurer l''état actif.
+
+    '
 - id: IMP-146
   title: Hook subagent-track — log SubagentStart/Stop + alerte >5 parallèles
   type: feature
@@ -2610,17 +2718,19 @@ improvements:
   files:
   - .claude/hooks/subagent-start.sh
   - .claude/hooks/subagent-stop.sh
-  acceptance: >
-    hooks loggent dans lab/reports/subagent.log avec timestamp + agent_type.
-    subagent-start.sh alerte si count actifs > 5.
-    Oracle : bash -n sur les deux exit 0.
+  acceptance: 'hooks loggent dans lab/reports/subagent.log avec timestamp + agent_type.
+    subagent-start.sh alerte si count actifs > 5. Oracle : bash -n sur les deux exit
+    0.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    Inspiré de GameForge subagent-track.sh. /council et /team-feature délèguent
-    plusieurs agents sans audit trail. Ce hook crée une trace dans lab/reports/
-    et protège contre la parallelisation excessive (>5 agents simultanés).
+  notes: 'Inspiré de GameForge subagent-track.sh. /council et /team-feature délèguent
+    plusieurs agents sans audit trail. Ce hook crée une trace dans lab/reports/ et
+    protège contre la parallelisation excessive (>5 agents simultanés).
+
+    '
 - id: IMP-147
   title: Hook instructions-validate — valide BOOTSTRAP.md + TOOLS.md + AGENTS.md présents
   type: feature
@@ -2632,18 +2742,20 @@ improvements:
   domain: studio
   files:
   - .claude/hooks/instructions-validate.sh
-  acceptance: >
-    hook vérifie existence studio/openclaw-workspace/BOOTSTRAP.md,
-    studio/openclaw-workspace/TOOLS.md, studio/openclaw-workspace/AGENTS.md.
-    Retourne systemMessage si fichier manquant. Exit 1 si manquant.
-    Oracle : bash -n .claude/hooks/instructions-validate.sh exit 0.
+  acceptance: 'hook vérifie existence studio/openclaw-workspace/BOOTSTRAP.md, studio/openclaw-workspace/TOOLS.md,
+    studio/openclaw-workspace/AGENTS.md. Retourne systemMessage si fichier manquant.
+    Exit 1 si manquant. Oracle : bash -n .claude/hooks/instructions-validate.sh exit
+    0.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    Inspiré de GameForge instructions-validate.sh. L'événement InstructionsLoaded
-    permet de vérifier l'intégrité de l'infra studio à chaque chargement CLAUDE.md.
-    Évite que les agents démarrent sans l'infrastructure openclaw complète.
+  notes: 'Inspiré de GameForge instructions-validate.sh. L''événement InstructionsLoaded
+    permet de vérifier l''intégrité de l''infra studio à chaque chargement CLAUDE.md.
+    Évite que les agents démarrent sans l''infrastructure openclaw complète.
+
+    '
 - id: IMP-148
   title: settings.json deny list — bloquer rm -rf, git push --force, cat *.env
   type: chore
@@ -2655,20 +2767,23 @@ improvements:
   domain: studio
   files:
   - .claude/settings.json
-  acceptance: >
-    .claude/settings.json contient une section permissions.deny avec au minimum :
-    Bash(rm -rf *), Bash(git push --force*), Bash(git push -f *),
-    Bash(git reset --hard*), Read(**/.env*), Bash(cat *.env*).
-    Oracle : grep "deny" .claude/settings.json exit 0.
+  acceptance: '.claude/settings.json contient une section permissions.deny avec au
+    minimum : Bash(rm -rf *), Bash(git push --force*), Bash(git push -f *), Bash(git
+    reset --hard*), Read(**/.env*), Bash(cat *.env*). Oracle : grep "deny" .claude/settings.json
+    exit 0.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    Inspiré de CCGS settings.json. TCS n'a actuellement pas de deny list dans
+  notes: 'Inspiré de CCGS settings.json. TCS n''a actuellement pas de deny list dans
     .claude/settings.json. Ajout des commandes destructives et lecture des secrets
     comme commandes bloquées au niveau permissions.
+
+    '
 - id: IMP-149
-  title: Skill /smoke-check — gate oracle 4-en-1 TCS (cargo test + pytest + elo + lichess)
+  title: Skill /smoke-check — gate oracle 4-en-1 TCS (cargo test + pytest + elo +
+    lichess)
   type: feature
   source: session-2026-06-26
   status: OPEN
@@ -2678,17 +2793,20 @@ improvements:
   domain: studio
   files:
   - .claude/skills/smoke-check/skill.md
-  acceptance: >
-    skill.md créé avec les 4 étapes oracle TCS : cargo test (Rust),
-    pytest ml/ (Python), ./bench/elo_match.sh (ELO), ./bench/lichess_eval.sh (tactique).
-    Produit verdict PASS/FAIL. Oracle : fichier .claude/skills/smoke-check/skill.md existe.
+  acceptance: 'skill.md créé avec les 4 étapes oracle TCS : cargo test (Rust), pytest
+    ml/ (Python), ./bench/elo_match.sh (ELO), ./bench/lichess_eval.sh (tactique).
+    Produit verdict PASS/FAIL. Oracle : fichier .claude/skills/smoke-check/skill.md
+    existe.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    Inspiré de CCGS smoke-check/SKILL.md adapté aux oracles TCS.
-    L'oracle vert est requis avant tout merge mais il n'existe pas de skill
-    structuré qui orchestre les 4 vérifications et produit un rapport pass/fail.
+  notes: 'Inspiré de CCGS smoke-check/SKILL.md adapté aux oracles TCS. L''oracle vert
+    est requis avant tout merge mais il n''existe pas de skill structuré qui orchestre
+    les 4 vérifications et produit un rapport pass/fail.
+
+    '
 - id: IMP-150
   title: Skill /imp-readiness — valide IMP avant pickup par agent
   type: feature
@@ -2700,18 +2818,20 @@ improvements:
   domain: studio
   files:
   - .claude/skills/imp-readiness/skill.md
-  acceptance: >
-    skill.md créé. Vérifie pour un IMP : lane SAFE_AUTO ou AUDIT_REQUIRED,
-    blocked_by vide, fichiers cibles existants ou créables, acceptance définie.
-    Produit verdict READY / NEEDS_WORK / BLOCKED.
-    Oracle : fichier .claude/skills/imp-readiness/skill.md existe.
+  acceptance: 'skill.md créé. Vérifie pour un IMP : lane SAFE_AUTO ou AUDIT_REQUIRED,
+    blocked_by vide, fichiers cibles existants ou créables, acceptance définie. Produit
+    verdict READY / NEEDS_WORK / BLOCKED. Oracle : fichier .claude/skills/imp-readiness/skill.md
+    existe.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    Inspiré de CCGS story-readiness/SKILL.md. Le producteur_routine prend
-    parfois des IMPs mal définis (acceptance TBD, fichiers manquants, blocked_by
-    non vide). Ce skill est un garde-fou avant pickup.
+  notes: 'Inspiré de CCGS story-readiness/SKILL.md. Le producteur_routine prend parfois
+    des IMPs mal définis (acceptance TBD, fichiers manquants, blocked_by non vide).
+    Ce skill est un garde-fou avant pickup.
+
+    '
 - id: IMP-151
   title: Skill /sprint-status — snapshot IMPs en cours read-only
   type: feature
@@ -2723,17 +2843,19 @@ improvements:
   domain: studio
   files:
   - .claude/skills/sprint-status/skill.md
-  acceptance: >
-    skill.md créé. Lit IMPROVEMENT_LEDGER.yaml, affiche : count par status
-    (OPEN/CLOSED/IN_PROGRESS), liste des OPEN avec lane + effort, ELO courant.
-    Read-only, modèle Haiku. Oracle : fichier .claude/skills/sprint-status/skill.md existe.
+  acceptance: 'skill.md créé. Lit IMPROVEMENT_LEDGER.yaml, affiche : count par status
+    (OPEN/CLOSED/IN_PROGRESS), liste des OPEN avec lane + effort, ELO courant. Read-only,
+    modèle Haiku. Oracle : fichier .claude/skills/sprint-status/skill.md existe.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    Inspiré de CCGS sprint-status/SKILL.md. Aucun moyen rapide de voir l'état
+  notes: 'Inspiré de CCGS sprint-status/SKILL.md. Aucun moyen rapide de voir l''état
     du sprint sans lire manuellement le ledger. Skill léger (Haiku) pour snapshot
     instantané. Read-only, ne modifie rien.
+
+    '
 - id: IMP-152
   title: CLAUDE.md routing table — intention utilisateur → skill mapping
   type: chore
@@ -2745,18 +2867,20 @@ improvements:
   domain: studio
   files:
   - CLAUDE.md
-  acceptance: >
-    CLAUDE.md contient une section "## Routing" avec tableau intention→skill
+  acceptance: 'CLAUDE.md contient une section "## Routing" avec tableau intention→skill
     couvrant au moins : oracle/vérification→/smoke-check, IMP status→/sprint-status,
-    IMP pickup→/imp-readiness, architecture→/architecture-review,
-    code→/code-review, plan→/plan. Oracle : grep -i "routing" CLAUDE.md exit 0.
+    IMP pickup→/imp-readiness, architecture→/architecture-review, code→/code-review,
+    plan→/plan. Oracle : grep -i "routing" CLAUDE.md exit 0.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    Inspiré de GameForge CLAUDE.md routing table. TCS liste ses skills mais sans
-    logique de routage explicite dans CLAUDE.md. Les agents choisissent le mauvais
+  notes: 'Inspiré de GameForge CLAUDE.md routing table. TCS liste ses skills mais
+    sans logique de routage explicite dans CLAUDE.md. Les agents choisissent le mauvais
     skill faute de table de correspondance intention→skill.
+
+    '
 - id: IMP-153
   title: Event Backbone — run réel pipeline oracle→delta→state + validation
   type: feature
@@ -2768,15 +2892,17 @@ improvements:
   domain: studio
   files:
   - scripts/run_oracle.sh
-  acceptance: >
-    scripts/run_oracle.sh elo_match tourne sans erreur. .studio_state/current_state.json
+  acceptance: 'scripts/run_oracle.sh elo_match tourne sans erreur. .studio_state/current_state.json
     créé. Oracle : fichier existe + json valide.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
   notes: Valider le pipeline complet oracle→delta→state en conditions réelles.
 - id: IMP-154
-  title: events.jsonl schema verrou — versioning + rejection champs inconnus + hash verification
+  title: events.jsonl schema verrou — versioning + rejection champs inconnus + hash
+    verification
   type: feature
   source: session-2026-06-26 (roadmap Event Backbone)
   status: OPEN
@@ -2786,14 +2912,17 @@ improvements:
   domain: studio
   files:
   - scripts/ingest_event.py
-  acceptance: >
-    ingest_event.py rejette tout event sans version field. pytest unitaire vert.
+  acceptance: 'ingest_event.py rejette tout event sans version field. pytest unitaire
+    vert.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
   notes: Verrouiller le schema events.jsonl pour éviter la dérive silencieuse.
 - id: IMP-155
-  title: ingest_event idempotence — même input → même state final, protection double ingestion
+  title: ingest_event idempotence — même input → même state final, protection double
+    ingestion
   type: feature
   source: session-2026-06-26 (roadmap Event Backbone)
   status: OPEN
@@ -2803,8 +2932,9 @@ improvements:
   domain: studio
   files:
   - scripts/ingest_event.py
-  acceptance: >
-    run deux fois le même oracle → state identique. pytest vert.
+  acceptance: 'run deux fois le même oracle → state identique. pytest vert.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
@@ -2820,14 +2950,17 @@ improvements:
   domain: studio
   files:
   - scripts/bootstrap_state.py
-  acceptance: >
-    current_state.json existe après bootstrap. jsonschema validation exit 0.
+  acceptance: 'current_state.json existe après bootstrap. jsonschema validation exit
+    0.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
   notes: Bootstrap du studio_state initial pour amorcer le pipeline Event Backbone.
 - id: IMP-157
-  title: StateValidator runtime — stale detection + schema drift + fail hard si delta incohérent
+  title: StateValidator runtime — stale detection + schema drift + fail hard si delta
+    incohérent
   type: feature
   source: session-2026-06-26 (roadmap Event Backbone)
   status: OPEN
@@ -2837,14 +2970,17 @@ improvements:
   domain: studio
   files:
   - scripts/state_validator.py
-  acceptance: >
-    StateValidator.validate() lève exception sur state stale > 24h. pytest 3 cas vert.
+  acceptance: 'StateValidator.validate() lève exception sur state stale > 24h. pytest
+    3 cas vert.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
   notes: Détection runtime des états périmés et des dérives de schema.
 - id: IMP-158
-  title: Suppression chemins parallèles — tout passe par ingest_event.py, interdire écriture directe state
+  title: Suppression chemins parallèles — tout passe par ingest_event.py, interdire
+    écriture directe state
   type: chore
   source: session-2026-06-26 (roadmap Event Backbone)
   status: OPEN
@@ -2854,12 +2990,15 @@ improvements:
   domain: studio
   files:
   - scripts/ingest_event.py
-  acceptance: >
-    grep -r 'current_state.json' scripts/ → uniquement ingest_event.py. pytest vert.
+  acceptance: 'grep -r ''current_state.json'' scripts/ → uniquement ingest_event.py.
+    pytest vert.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: Centraliser toute mutation du state dans ingest_event.py, supprimer les écritures directes.
+  notes: Centraliser toute mutation du state dans ingest_event.py, supprimer les écritures
+    directes.
 - id: IMP-159
   title: Tracking causal IMP→outcome — lien obligatoire IMP_ID→event_id dans events.jsonl
   type: feature
@@ -2871,8 +3010,9 @@ improvements:
   domain: studio
   files:
   - scripts/ingest_event.py
-  acceptance: >
-    chaque event imp_closed contient imp_id field. pytest vert.
+  acceptance: 'chaque event imp_closed contient imp_id field. pytest vert.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
@@ -2888,14 +3028,17 @@ improvements:
   domain: studio
   files:
   - governance/governor.py
-  acceptance: >
-    governance/governor.py implémente check(action) → ALLOW|BLOCK. pytest 5 cas vert.
+  acceptance: 'governance/governor.py implémente check(action) → ALLOW|BLOCK. pytest
+    5 cas vert.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    AUDIT_REQUIRED : extraction de la logique de gouvernance hors autopilot.py.
+  notes: 'AUDIT_REQUIRED : extraction de la logique de gouvernance hors autopilot.py.
     Impact cross-agents — vérification council avant SAFE_AUTO.
+
+    '
 - id: IMP-161
   title: Benchmark unique d'autorité — un seul ELO source, suppression métriques concurrentes
   type: chore
@@ -2907,14 +3050,17 @@ improvements:
   domain: studio
   files:
   - scripts/studio_meta.py
-  acceptance: >
-    studio_meta.py lit uniquement elo_match_latest.json. grep → 1 seule source ELO.
+  acceptance: 'studio_meta.py lit uniquement elo_match_latest.json. grep → 1 seule
+    source ELO.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    AUDIT_REQUIRED : suppression des métriques ELO concurrentes.
-    Vérifier que toutes les dépendances aval lisent uniquement elo_match_latest.json.
+  notes: 'AUDIT_REQUIRED : suppression des métriques ELO concurrentes. Vérifier que
+    toutes les dépendances aval lisent uniquement elo_match_latest.json.
+
+    '
 - id: IMP-162
   title: Neural vs heuristic parity gate — gate explicite hybrid > heuristic TRUE/FALSE
   type: feature
@@ -2926,15 +3072,17 @@ improvements:
   domain: ia_apprentissage
   files:
   - scripts/parity_gate.py
-  acceptance: >
-    parity_gate.py retourne PASS/FAIL. PASS = hybrid ELO > heuristic + 20.
-    Oracle : script exit 0 si PASS.
+  acceptance: 'parity_gate.py retourne PASS/FAIL. PASS = hybrid ELO > heuristic +
+    20. Oracle : script exit 0 si PASS.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    AUDIT_REQUIRED : gate explicite sur la parité neural vs heuristique.
-    Objectif ELO hybride : heuristique + 20 minimum (actuellement +19.3 — FAIL).
+  notes: 'AUDIT_REQUIRED : gate explicite sur la parité neural vs heuristique. Objectif
+    ELO hybride : heuristique + 20 minimum (actuellement +19.3 — FAIL).
+
+    '
 - id: IMP-163
   title: Lichess Elite DB — télécharger + pgn_to_jsonl + pool_elite.jsonl
   type: feature
@@ -2947,18 +3095,21 @@ improvements:
   files:
   - ml/pgn_to_jsonl.py
   - lab/pool_elite.jsonl
-  acceptance: >
-    pool_elite.jsonl existe, draw_rate < 5%.
-    Oracle : python ml/pgn_to_jsonl.py exit 0.
+  acceptance: 'pool_elite.jsonl existe, draw_rate < 5%. Oracle : python ml/pgn_to_jsonl.py
+    exit 0.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    AUDIT_REQUIRED : téléchargement base externe + conversion PGN.
-    Brise la boucle circulaire selfplay (neural 989 ELO s entraîne sur selfplay neural 989 ELO).
-    Lichess Elite = parties 2400+ ELO, draw_rate structurellement < 5%.
+  notes: 'AUDIT_REQUIRED : téléchargement base externe + conversion PGN. Brise la
+    boucle circulaire selfplay (neural 989 ELO s entraîne sur selfplay neural 989
+    ELO). Lichess Elite = parties 2400+ ELO, draw_rate structurellement < 5%.
+
+    '
 - id: IMP-164
-  title: Event Backbone smoke test — run_oracle.sh elo_match → current_state.json créé
+  title: Event Backbone smoke test — run_oracle.sh elo_match → current_state.json
+    créé
   type: feature
   source: session-2026-06-26 (roadmap Event Backbone)
   status: CLOSED
@@ -2970,22 +3121,24 @@ improvements:
   - scripts/run_oracle.sh
   - scripts/ingest_event.py
   - scripts/studioV2/control_plane/*.py
-  acceptance: >
-    .studio_state/current_state.json existe après run.
-    events.jsonl contient entrée HMAC valide.
+  acceptance: '.studio_state/current_state.json existe après run. events.jsonl contient
+    entrée HMAC valide.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: '2026-06-26'
-  notes: >
-    Pipeline backbone validé (exit 0). 4 bugs corrigés en chemin :
-    (1) jsonschema pip manquant — installé.
-    (2) parents[2]→parents[3] dans 34 scripts control_plane (déplacement scripts/ → scripts/studioV2/ non répercuté).
-    (3) ingest_event.py delta_to_snapshot() : source_delta_ids utilise source_task_id (pas source_report_id)
-        + source_delta_id injecté dans items decision_debt/open_blockers/open_risks/humangate_required_items.
-    (4) run_oracle.sh : declare -A manquant pour tableaux associatifs bash (set -u → unbound var).
-    run_oracle.sh elo_match --games 5 validé aussi (tournoi + backbone end-to-end).
+  notes: "Pipeline backbone validé (exit 0). 4 bugs corrigés en chemin : (1) jsonschema\
+    \ pip manquant — installé. (2) parents[2]→parents[3] dans 34 scripts control_plane\
+    \ (déplacement scripts/ → scripts/studioV2/ non répercuté). (3) ingest_event.py\
+    \ delta_to_snapshot() : source_delta_ids utilise source_task_id (pas source_report_id)\n\
+    \    + source_delta_id injecté dans items decision_debt/open_blockers/open_risks/humangate_required_items.\n\
+    (4) run_oracle.sh : declare -A manquant pour tableaux associatifs bash (set -u\
+    \ → unbound var). run_oracle.sh elo_match --games 5 validé aussi (tournoi + backbone\
+    \ end-to-end).\n"
 - id: IMP-165
-  title: Smoke test backbone script — scripts/test_backbone.py mock oracle → events + state
+  title: Smoke test backbone script — scripts/test_backbone.py mock oracle → events
+    + state
   type: chore
   source: session-2026-06-26 (roadmap Event Backbone)
   status: OPEN
@@ -2995,16 +3148,18 @@ improvements:
   domain: studio
   files:
   - scripts/test_backbone.py
-  acceptance: >
-    test_backbone.py exit 0.
-    events.jsonl + .studio_state/current_state.json mis à jour après run mock.
+  acceptance: 'test_backbone.py exit 0. events.jsonl + .studio_state/current_state.json
+    mis à jour après run mock.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    Script de smoke test autonome : injecte un oracle JSON mock (elo_match PASS fictif),
-    vérifie que events.jsonl s incrémente et que current_state.json est mis à jour.
-    Pas de cargo build requis — test uniquement la couche Python backbone.
+  notes: 'Script de smoke test autonome : injecte un oracle JSON mock (elo_match PASS
+    fictif), vérifie que events.jsonl s incrémente et que current_state.json est mis
+    à jour. Pas de cargo build requis — test uniquement la couche Python backbone.
+
+    '
 - id: IMP-166
   title: Dataset Registry — lab/dataset_registry.yaml avec métadonnées pool_selfplay
   type: chore
@@ -3016,15 +3171,17 @@ improvements:
   domain: ia_apprentissage
   files:
   - lab/dataset_registry.yaml
-  acceptance: >
-    dataset_registry.yaml existe avec sha256 + draw_rate + date pour pool_selfplay.jsonl.
+  acceptance: 'dataset_registry.yaml existe avec sha256 + draw_rate + date pour pool_selfplay.jsonl.
     Oracle : yaml.safe_load exit 0.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: '2026-06-26'
-  notes: >
-    Source unique de vérité pour les métadonnées datasets (path, sha256, draw_rate,
+  notes: 'Source unique de vérité pour les métadonnées datasets (path, sha256, draw_rate,
     source, date_created). ACTIVE_DATASET.txt pointera vers le registry à terme.
+
+    '
 - id: IMP-167
   title: Model Registry — lab/model_registry.yaml checkpoints + ELO + sha256
   type: chore
@@ -3036,15 +3193,17 @@ improvements:
   domain: ia_apprentissage
   files:
   - lab/model_registry.yaml
-  acceptance: >
-    model_registry.yaml existe avec sha256 + ELO + date pour chaque checkpoint connu.
-    Oracle : yaml.safe_load exit 0.
+  acceptance: 'model_registry.yaml existe avec sha256 + ELO + date pour chaque checkpoint
+    connu. Oracle : yaml.safe_load exit 0.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: '2026-06-26'
-  notes: >
-    Traçabilité complète des checkpoints. Permet rollback vers n importe quel modèle
-    vérifié. Pointeur "current" dans le registry = source de vérité pour neural_bridge.
+  notes: 'Traçabilité complète des checkpoints. Permet rollback vers n importe quel
+    modèle vérifié. Pointeur "current" dans le registry = source de vérité pour neural_bridge.
+
+    '
 - id: IMP-168
   title: StateValidator — scripts/state_validator.py alerte si state stale > 2h
   type: feature
@@ -3057,15 +3216,17 @@ improvements:
   files:
   - scripts/state_validator.py
   - scripts/test_state_validator.py
-  acceptance: >
-    state_validator.py exit 1 si state absent ou stale > 2h.
-    pytest 3 cas vert (absent, stale, fresh).
+  acceptance: 'state_validator.py exit 1 si state absent ou stale > 2h. pytest 3 cas
+    vert (absent, stale, fresh).
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: '2026-06-26'
-  notes: >
-    Détection runtime des états périmés. Plus strict que IMP-157 (24h → 2h).
+  notes: 'Détection runtime des états périmés. Plus strict que IMP-157 (24h → 2h).
     Appelé en tête de kaizen_autoloop.py pour bloquer l autoloop sur état stale.
+
+    '
 - id: IMP-169
   title: Dead code — supprimer validate_am_dataset_admission() + BAT files legacy
   type: chore
@@ -3077,16 +3238,18 @@ improvements:
   domain: ia_apprentissage
   files:
   - ml/dataset_loader.py
-  acceptance: >
-    grep validate_am_dataset_admission ml/ → 0 résultats.
-    BAT files legacy supprimés. cargo test vert.
+  acceptance: 'grep validate_am_dataset_admission ml/ → 0 résultats. BAT files legacy
+    supprimés. cargo test vert.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    validate_am_dataset_admission() retourne toujours admitted=False — gate morte.
-    BAT files (RUN_PURELAB_AUTOMATION.bat etc.) ne sont plus utilisés depuis refactoring Python.
-    Suppression pure, aucun remplacement nécessaire.
+  notes: 'validate_am_dataset_admission() retourne toujours admitted=False — gate
+    morte. BAT files (RUN_PURELAB_AUTOMATION.bat etc.) ne sont plus utilisés depuis
+    refactoring Python. Suppression pure, aucun remplacement nécessaire.
+
+    '
 - id: IMP-170
   title: Puzzle L2/L3 diagnostic — analyser 50 premiers puzzles échoués
   type: chore
@@ -3098,17 +3261,19 @@ improvements:
   domain: ia_apprentissage
   files:
   - lab/reports/puzzle_analysis_L2.json
-  acceptance: >
-    rapport lab/reports/puzzle_analysis_L2.json avec pattern d échec identifié
-    (type tactique, profondeur moyenne, fréquence par motif).
-    Oracle : fichier existe + json valide.
+  acceptance: 'rapport lab/reports/puzzle_analysis_L2.json avec pattern d échec identifié
+    (type tactique, profondeur moyenne, fréquence par motif). Oracle : fichier existe
+    + json valide.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    L2 = 4.5% (seuil 10%), L3 = 4.5% (seuil 20%) — les deux FAIL.
-    Diagnostic avant d investir dans des données ciblées. Script d analyse
-    lit lab/reports/puzzle_score_level2.json + lab/puzzles/level2.jsonl.
+  notes: 'L2 = 4.5% (seuil 10%), L3 = 4.5% (seuil 20%) — les deux FAIL. Diagnostic
+    avant d investir dans des données ciblées. Script d analyse lit lab/reports/puzzle_score_level2.json
+    + lab/puzzles/level2.jsonl.
+
+    '
 - id: IMP-171
   title: Learning loop script — scripts/learning_loop.sh train→eval→compare→deploy
   type: feature
@@ -3120,17 +3285,20 @@ improvements:
   domain: ia_apprentissage
   files:
   - scripts/learning_loop.sh
-  acceptance: >
-    learning_loop.sh tourne sans erreur sur dry-run (--dry-run flag).
-    Oracle : bash -n scripts/learning_loop.sh exit 0.
+  acceptance: 'learning_loop.sh tourne sans erreur sur dry-run (--dry-run flag). Oracle
+    : bash -n scripts/learning_loop.sh exit 0.
+
+    '
   blocked_by:
   - IMP-163
   opened_session: '2026-06-26'
   closed_session: null
-  notes: >
-    Boucle fermée : train.py → run_oracle.sh elo_match → compare vs baseline ELO
-    → deploy si meilleur checkpoint (mise à jour model_registry.yaml + models/latest.pt).
-    --dry-run = exécute train.py --dry-run + oracle mock, valide le script sans cargo build.
+  notes: 'Boucle fermée : train.py → run_oracle.sh elo_match → compare vs baseline
+    ELO → deploy si meilleur checkpoint (mise à jour model_registry.yaml + models/latest.pt).
+    --dry-run = exécute train.py --dry-run + oracle mock, valide le script sans cargo
+    build.
+
+    '
 - id: IMP-172
   title: Cost tracking — kaizen_autoloop.py log tokens par IMP dans lab/cost_log.jsonl
   type: chore
@@ -3143,16 +3311,18 @@ improvements:
   files:
   - lab/chains/kaizen_autoloop.py
   - lab/cost_log.jsonl
-  acceptance: >
-    cost_log.jsonl créé après run IMP avec champs ts + imp_id + tokens_used + model.
-    Oracle : fichier existe + json valide ligne par ligne.
+  acceptance: 'cost_log.jsonl créé après run IMP avec champs ts + imp_id + tokens_used
+    + model. Oracle : fichier existe + json valide ligne par ligne.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: '2026-06-26'
-  notes: >
-    Traçabilité coût par IMP. Chaque run kaizen ajoute une ligne à lab/cost_log.jsonl.
-    Tokens estimés via len(charter) / 4 si API Claude indisponible.
-    Alerter si session > 100k tokens sans IMP fermé.
+  notes: 'Traçabilité coût par IMP. Chaque run kaizen ajoute une ligne à lab/cost_log.jsonl.
+    Tokens estimés via len(charter) / 4 si API Claude indisponible. Alerter si session
+    > 100k tokens sans IMP fermé.
+
+    '
 - id: IMP-173
   title: Restaurer meilleur checkpoint — pointer latest.pt vers run_20260527_205249/epoch_020.pt
   type: chore
@@ -3166,18 +3336,19 @@ improvements:
   - models/latest.pt
   - models/latest_run_20260601_backup.pt
   - lab/model_registry.yaml
-  acceptance: >
-    models/latest.pt est un symlink ou copie de run_20260527_205249/epoch_020.pt.
+  acceptance: 'models/latest.pt est un symlink ou copie de run_20260527_205249/epoch_020.pt.
     ELO mesuré après changement.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: '2026-06-26'
-  notes: >
-    RÉGRESSION DÉTECTÉE — latest.pt pointait vers run_20260601 (loss 0.7885).
+  notes: 'RÉGRESSION DÉTECTÉE — latest.pt pointait vers run_20260601 (loss 0.7885).
     Restauré vers run_20260527_205249/epoch_020.pt (loss 0.6727, meilleur connu).
-    sha256 avant: 688ef186… sha256 après: 1bce1262…
-    Backup conservé dans models/latest_run_20260601_backup.pt.
+    sha256 avant: 688ef186… sha256 après: 1bce1262… Backup conservé dans models/latest_run_20260601_backup.pt.
     ELO post-restauration pending — relancer ./bench/elo_match.sh.
+
+    '
 - id: IMP-174
   title: Training neural sur pool_selfplay.jsonl — run_20260626_182133
   type: feature
@@ -3191,19 +3362,21 @@ improvements:
   - ml/run_selfplay_training.py
   - training_runs/run_20260626_182133/manifest.json
   - models/latest.pt
-  acceptance: >
-    Training maia (policy cross-entropy) sur pool_selfplay.jsonl depuis baseline
-    epoch_015 (loss 0.6727). 20 epochs, convergence propre, best_loss mesuré.
+  acceptance: 'Training maia (policy cross-entropy) sur pool_selfplay.jsonl depuis
+    baseline epoch_015 (loss 0.6727). 20 epochs, convergence propre, best_loss mesuré.
     latest.pt pointe vers le meilleur epoch. metrics.jsonl + manifest persistés.
+
+    '
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: '2026-06-26'
-  notes: >
-    Exécuté sous HumanGate explicite (Pierre go 2026-06-26). 31 890 positions
+  notes: 'Exécuté sous HumanGate explicite (Pierre go 2026-06-26). 31 890 positions
     valides (5 700 skip best_move unmapped). best_loss=0.2748 @ epoch 19, .venv312
-    CUDA RTX 5080, ~12s. latest.pt sha256 e4f03806…
-    ATTENTION: training policy-only — value head non ré-entraînée, voir IMP-175.
-    ELO post-training mesuré via ./bench/elo_match.sh --games 20 (résultat pending).
+    CUDA RTX 5080, ~12s. latest.pt sha256 e4f03806… ATTENTION: training policy-only
+    — value head non ré-entraînée, voir IMP-175. ELO post-training mesuré via ./bench/elo_match.sh
+    --games 20 (résultat pending).
+
+    '
 - id: IMP-175
   title: Re-entraîner value head cohérente avec backbone pool_selfplay
   type: feature
@@ -3216,18 +3389,20 @@ improvements:
   files:
   - ml/run_selfplay_training.py
   - models/latest.pt
-  acceptance: >
-    Value head ré-entraînée avec une cible value (engine_eval ou résultat de
-    partie) sur pool_selfplay, cohérente avec le backbone déplacé par IMP-174.
-    ELO neural/hybrid re-mesuré pour isoler l'effet value head.
+  acceptance: 'Value head ré-entraînée avec une cible value (engine_eval ou résultat
+    de partie) sur pool_selfplay, cohérente avec le backbone déplacé par IMP-174.
+    ELO neural/hybrid re-mesuré pour isoler l''effet value head.
+
+    '
   blocked_by:
   - IMP-174
   opened_session: '2026-06-26'
-  notes: >
-    Le training IMP-174 n'a optimisé que la policy head (cross-entropy maia).
-    Le backbone partagé ayant bougé, la value head (value_fc1/value_fc2) n'est
-    plus cohérente avec ses features. Un ELO neural/hybrid en baisse post-IMP-174
-    est probablement dû à cette incohérence, PAS à la qualité de la policy.
+  notes: 'Le training IMP-174 n''a optimisé que la policy head (cross-entropy maia).
+    Le backbone partagé ayant bougé, la value head (value_fc1/value_fc2) n''est plus
+    cohérente avec ses features. Un ELO neural/hybrid en baisse post-IMP-174 est probablement
+    dû à cette incohérence, PAS à la qualité de la policy.
+
+    '
 - id: IMP-177
   title: Director v0 — Runtime Observer
   type: feature
@@ -3239,18 +3414,36 @@ improvements:
   domain: control_plane
   files:
   - scripts/director.py
-  acceptance: >
-    scripts/director.py --dry-run exit 0. Produit lab/reports/director_status.json
+  acceptance: 'scripts/director.py --dry-run exit 0. Produit lab/reports/director_status.json
     + director_report.md. Lit ledger + current_state + events.jsonl + studio_meta
     + services. Aucune écriture hors rapports.
+
+    '
   blocked_by: []
   opened_session: '2026-06-27'
   closed_session: '2026-06-27'
-  notes: >
-    Observateur v0 read-only : agrège l'état studio (ledger, current_state,
-    events, studio_meta, santé services) en un status JSON + rapport markdown.
-    Aucune action, aucune écriture hors les 2 rapports. Base pour un Director
-    actif (escalades/décisions) en v1.
+  notes: 'Observateur v0 read-only : agrège l''état studio (ledger, current_state,
+    events, studio_meta, santé services) en un status JSON + rapport markdown. Aucune
+    action, aucune écriture hors les 2 rapports. Base pour un Director actif (escalades/décisions)
+    en v1.
+
+    '
+- id: IMP-178
+  title: Obsidian MCP — vault mémoire persistante pour agents (P3)
+  type: feature
+  source: demande Pierre 2026-06-27
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: ''
+  files: []
+  acceptance: MCP Obsidian branché sur OpenClaw. Agents peuvent lire/créer/modifier
+    notes. Vault versionné Git.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: null
+  notes: P3 — après P1/P2 stables. Remplace/complète MEMORY.md + DREAMS.md.
 metrics_history:
 - session: '2026-05-31'
   total: 11
@@ -3273,8 +3466,9 @@ metrics_history:
   spec_coverage_pct: 90
   tests_green: null
   commits: 5
-  note: Sprint Rocky 14 IMP + pool pipeline IMP-037/041 + EloTable K=24. pool_sf draw_rate=94% (critère <30% non atteint).
-    ACTIVE_DATASET.txt toujours sur teacher_samples (HumanGate requis).
+  note: Sprint Rocky 14 IMP + pool pipeline IMP-037/041 + EloTable K=24. pool_sf draw_rate=94%
+    (critère <30% non atteint). ACTIVE_DATASET.txt toujours sur teacher_samples (HumanGate
+    requis).
 - session: 2026-06-02-humangate
   total: 42
   open: 4
@@ -3285,8 +3479,9 @@ metrics_history:
   spec_coverage_pct: 90
   tests_green: null
   commits: 2
-  note: 'HumanGate decisions 2026-06-02 : ACTIVE_DATASET redirigé vers pool_2400 (8.8% draws, 1M parties). teacher_samples
-    archivé. IMP-038 rouvert (draw_rate 93.1% != <20%). Scripts ML commités.'
+  note: 'HumanGate decisions 2026-06-02 : ACTIVE_DATASET redirigé vers pool_2400 (8.8%
+    draws, 1M parties). teacher_samples archivé. IMP-038 rouvert (draw_rate 93.1%
+    != <20%). Scripts ML commités.'
 - session: '2026-06-25'
   total: 123
   open: 6
@@ -3297,6 +3492,7 @@ metrics_history:
   spec_coverage_pct: 90
   tests_green: true
   commits: 0
-  note: 'IMP-008 CLOSED (Option C). IMP-120 CLOSED (KI-1 draw_rate 100%→22%). IMP-121 CLOSED (selfplay_jsonl
-    CLI + TeacherSample JSONL SearchTrace : 997 lignes/10 games, aaa_pv_changes 100%, pytest ml/ 11 passed).
-    HumanGate pending : pointer ACTIVE_DATASET vers pool_selfplay.jsonl (selfplay_jsonl 500).'
+  note: 'IMP-008 CLOSED (Option C). IMP-120 CLOSED (KI-1 draw_rate 100%→22%). IMP-121
+    CLOSED (selfplay_jsonl CLI + TeacherSample JSONL SearchTrace : 997 lignes/10 games,
+    aaa_pv_changes 100%, pytest ml/ 11 passed). HumanGate pending : pointer ACTIVE_DATASET
+    vers pool_selfplay.jsonl (selfplay_jsonl 500).'
