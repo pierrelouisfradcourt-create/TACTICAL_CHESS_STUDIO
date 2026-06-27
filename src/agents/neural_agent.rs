@@ -32,6 +32,9 @@ use crate::chess::practical_policy::{
 use crate::engine::action::action::Action;
 use crate::engine::engine::Engine;
 
+const NEURAL_CONTEMPT_REPEAT2: f32 = 0.18;
+const NEURAL_CONTEMPT_REPEAT3: f32 = 0.40;
+
 #[derive(Clone)]
 struct ParsedFen {
     board: [[char; 8]; 8],
@@ -387,6 +390,18 @@ impl NeuralAgent {
 
     fn retrieval_bad_penalty() -> f32 {
         neural_config::env_f32("TCS_RETRIEVAL_BAD_PENALTY", 0.10)
+    }
+
+    fn contempt_enabled() -> bool {
+        neural_config::env_flag("TCS_NEURAL_CONTEMPT", true)
+    }
+
+    fn contempt_repeat2_penalty() -> f32 {
+        neural_config::env_f32("TCS_NEURAL_CONTEMPT_REPEAT2", NEURAL_CONTEMPT_REPEAT2)
+    }
+
+    fn contempt_repeat3_penalty() -> f32 {
+        neural_config::env_f32("TCS_NEURAL_CONTEMPT_REPEAT3", NEURAL_CONTEMPT_REPEAT3)
     }
 
     fn drop_process(&self) {
@@ -970,6 +985,10 @@ fn select_move_with_rerank(
         && (material_advantage >= NeuralAgent::anti_stall_advantage_threshold()
             || total_non_king_material(&parsed) <= 24.0);
 
+    let contempt_mode = NeuralAgent::contempt_enabled();
+    let contempt_r2 = NeuralAgent::contempt_repeat2_penalty();
+    let contempt_r3 = NeuralAgent::contempt_repeat3_penalty();
+
     let modular_rules = ModularRuleConfig::from_env();
     let shortlist_cap = neural_config::env_usize("TCS_NEURAL_SHORTLIST_CAP", 5).max(1);
     let retrieval_bias = if NeuralAgent::retrieval_enabled() {
@@ -1234,6 +1253,19 @@ fn select_move_with_rerank(
             if anti_stall.bonus != 0.0 {
                 score += anti_stall.bonus;
                 reasons.extend(anti_stall.reasons);
+            }
+        }
+
+        if contempt_mode {
+            let (penalty, repeat_after) =
+                contempt_draw_penalty(engine, action_moves, mv, contempt_r2, contempt_r3);
+            if penalty < 0.0 {
+                score += penalty;
+                reasons.push("contempt_draw");
+                emit_runtime_line(&format!(
+                    "CONTEMPT|move={}|repeat_after={}|penalty={:.3}",
+                    mv, repeat_after, penalty
+                ));
             }
         }
 
@@ -2732,6 +2764,37 @@ fn winning_endgame_move_filter(
         rejected: reason.is_some(),
         reason: reason.unwrap_or("kept"),
     }
+}
+
+fn contempt_draw_penalty(
+    engine: &Engine,
+    action_moves: &[(Action, String)],
+    uci_move: &str,
+    repeat2_penalty: f32,
+    repeat3_penalty: f32,
+) -> (f32, i32) {
+    let Some((action, _)) = action_moves.iter().find(|(_, mv)| mv == uci_move) else {
+        return (0.0, 1);
+    };
+    let mut sim = engine.clone();
+    let Some(undo) = sim.simulate_action_for_search(engine.turn_manager.current_player, action)
+    else {
+        return (0.0, 1);
+    };
+    let repeat_after = sim
+        .repetition_counts
+        .get(&sim.current_repetition_key)
+        .copied()
+        .unwrap_or(1) as i32;
+    let _ = sim.undo_action_for_search(undo);
+    let penalty = if repeat_after >= 3 {
+        -repeat3_penalty
+    } else if repeat_after >= 2 {
+        -repeat2_penalty
+    } else {
+        0.0
+    };
+    (penalty, repeat_after)
 }
 
 fn has_tactical_profile_candidate(

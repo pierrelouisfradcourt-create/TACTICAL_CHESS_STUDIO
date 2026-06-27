@@ -3444,6 +3444,37 @@ improvements:
   opened_session: '2026-06-27'
   closed_session: null
   notes: P3 — après P1/P2 stables. Remplace/complète MEMORY.md + DREAMS.md.
+- id: IMP-176
+  title: KI-1 fix draw rate neural — CONTEMPT factor dans neural_agent.rs
+  type: feature
+  source: session-2026-06-27 (demande Pierre — neural doit jouer pour la victoire même
+    avec value head dégradée)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: neural
+  files:
+  - src/agents/neural_agent.rs
+  acceptance: 'cargo test vert (244 pass, 1 fail pré-existant AAA_TACTICAL_CORE_ARCHITECTURE.md
+    manquant, hors scope). CONTEMPT pénalise répétitions dans le rerank neural systématiquement,
+    indépendamment de finish_mode/pressure_mode.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: '2026-06-27'
+  notes: 'Constantes NEURAL_CONTEMPT_REPEAT2=0.18, NEURAL_CONTEMPT_REPEAT3=0.40. Fonction
+    contempt_draw_penalty() simule le coup, lit repeat_after, injecte -0.18 (repeat=2)
+    ou -0.40 (repeat=3) dans le score rerank de chaque candidat. Toujours actif (pas
+    gaté sur finish/pressure mode) — comble le trou où le neural ne pénalisait les
+    nulles qu''en finish_mode (>=2.0 adv) ou pressure_mode. Désactivable via TCS_NEURAL_CONTEMPT=0,
+    overridable via TCS_NEURAL_CONTEMPT_REPEAT2/3. Trace CONTEMPT|move=...|repeat_after=...|penalty=...
+    Distinct du CONTEMPT=300 de search.rs (IMP-120) qui ne touche que la recherche
+    heuristique. Le neural ne peut plus cycler par indifférence même avec value head
+    dégradée (cf IMP-175).
+
+    '
 metrics_history:
 - session: '2026-05-31'
   total: 11
