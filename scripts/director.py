@@ -19,9 +19,13 @@ v1 reste READ-ONLY sur le ledger : le scheduler RECOMMANDE seulement, il ne
 modifie jamais IMPROVEMENT_LEDGER.yaml et ne lance aucune action. La sélection
 des IMPs est déterministe (filtre + tri stable), sans inférence LM.
 
+Schedule (director_schedule.json) :
+    {timestamp, recommended_imps: [{id, title, impact, effort, reason}],
+     next_action: "autoloop"}  # "idle" si aucun IMP éligible
+
 Usage :
     python scripts/director.py --dry-run
-    python scripts/director.py --daemon                # boucle toutes les 10 min
+    python scripts/director.py --schedule              # daemon scheduler, 10 min, → director.log
     python scripts/director.py --daemon --interval 600
     python scripts/director.py --out-json lab/reports/director_status.json \
                                --out-md   lab/reports/director_report.md
@@ -244,49 +248,77 @@ def _effort_rank(effort: Optional[str]) -> int:
     return EFFORT_RANK.get((effort or "").upper(), EFFORT_RANK_UNKNOWN)
 
 
+def _impact_rank(impact: Optional[str]) -> int:
+    return IMPACT_RANK.get((impact or "").upper(), IMPACT_RANK_UNKNOWN)
+
+
+def _imp_forbidden_hits(imp: dict[str, Any]) -> list[str]:
+    """Liste les fichiers de l'IMP qui tombent dans une zone FORBIDDEN.
+
+    Tolérant : `files` peut être absent, None, une str unique ou une liste.
+    Les chemins sont normalisés (backslash → slash, `./` retiré) avant test.
+    """
+    files = imp.get("files")
+    if files is None:
+        return []
+    if isinstance(files, str):
+        files = [files]
+    hits: list[str] = []
+    for f in files:
+        if not isinstance(f, str):
+            continue
+        norm = f.replace("\\", "/").lstrip("./")
+        if any(norm.startswith(p) for p in FORBIDDEN_PREFIXES):
+            hits.append(f)
+    return hits
+
+
 def _imp_matches(imp: dict[str, Any]) -> bool:
-    """Critères Director v1 : OPEN · impact HIGH · lane SAFE_AUTO · non bloqué."""
+    """Critères Director v1 : OPEN · lane SAFE_AUTO · non bloqué · hors FORBIDDEN.
+
+    L'impact n'est PAS un filtre — il sert uniquement de tri (HIGH > MEDIUM > LOW).
+    """
     if imp.get("status") != SCHEDULE_STATUS:
-        return False
-    if imp.get("impact") != SCHEDULE_IMPACT:
         return False
     if imp.get("lane") != SCHEDULE_LANE:
         return False
-    blocked_by = imp.get("blocked_by") or []
-    if blocked_by:
+    if imp.get("blocked_by") or []:
+        return False
+    if _imp_forbidden_hits(imp):
         return False
     return True
 
 
 def _schedule_reason(imp: dict[str, Any]) -> str:
+    impact = imp.get("impact") or "?"
     effort = imp.get("effort") or "?"
-    return (f"impact {SCHEDULE_IMPACT} · lane {SCHEDULE_LANE} · aucun blocage · "
-            f"effort {effort} — prêt à planifier")
+    return (f"impact {impact} · effort {effort} · lane {SCHEDULE_LANE} · "
+            f"aucun blocage · hors FORBIDDEN — prêt à planifier")
 
 
 def schedule_next_imps(ledger_path: Path = LEDGER_PATH,
                        top_n: int = SCHEDULE_TOP_N) -> dict[str, Any]:
     """Retourne les `top_n` prochains IMPs prioritaires + raison.
 
-    Filtre : status OPEN, impact HIGH, lane SAFE_AUTO, blocked_by vide.
-    Tri déterministe : effort croissant (quick wins), puis id (ordre stable).
+    Filtre : status OPEN, lane SAFE_AUTO, blocked_by vide, hors zones FORBIDDEN.
+    Tri déterministe : impact décroissant (HIGH > MEDIUM > LOW), puis effort
+    croissant (quick wins — SMALL > MEDIUM > LARGE), puis id (ordre stable).
     Read-only — ne modifie jamais le ledger.
     """
     loaded = _load_improvements_full(ledger_path)
     eligible = [imp for imp in loaded["improvements"] if _imp_matches(imp)]
 
-    eligible.sort(key=lambda i: (_effort_rank(i.get("effort")), str(i.get("id"))))
+    eligible.sort(key=lambda i: (_impact_rank(i.get("impact")),
+                                 _effort_rank(i.get("effort")),
+                                 str(i.get("id"))))
     selected = eligible[:top_n]
 
-    recommended = [
+    recommended_imps = [
         {
             "id": imp.get("id"),
             "title": imp.get("title"),
             "impact": imp.get("impact"),
             "effort": imp.get("effort"),
-            "lane": imp.get("lane"),
-            "files": imp.get("files", []),
-            "acceptance": imp.get("acceptance"),
             "reason": _schedule_reason(imp),
         }
         for imp in selected
@@ -297,13 +329,14 @@ def schedule_next_imps(ledger_path: Path = LEDGER_PATH,
         "reason": loaded["reason"],
         "criteria": {
             "status": SCHEDULE_STATUS,
-            "impact": SCHEDULE_IMPACT,
             "lane": SCHEDULE_LANE,
             "blocked_by": "empty",
-            "sort": "effort asc, then id",
+            "forbidden_zones": list(FORBIDDEN_PREFIXES),
+            "sort": "impact desc, effort asc, then id",
         },
         "eligible_count": len(eligible),
-        "recommended": recommended,
+        "recommended_imps": recommended_imps,
+        "next_action": SCHEDULE_NEXT_ACTION if recommended_imps else SCHEDULE_NEXT_ACTION_IDLE,
     }
 
 
@@ -440,13 +473,13 @@ def derive_observations(status: dict[str, Any]) -> list[str]:
         obs.append(f"events.jsonl indisponible ({events.get('reason')})")
 
     sched = status.get("schedule", {})
-    rec = sched.get("recommended", [])
+    rec = sched.get("recommended_imps", [])
     if rec:
         ids = ", ".join(str(r.get("id")) for r in rec)
         obs.append(f"scheduler: {len(rec)} IMP recommandé(s) ({ids}) "
-                   f"sur {sched.get('eligible_count')} éligible(s)")
+                   f"sur {sched.get('eligible_count')} éligible(s) → {sched.get('next_action')}")
     elif sched.get("available"):
-        obs.append("scheduler: aucun IMP éligible (HIGH/SAFE_AUTO/non bloqué)")
+        obs.append("scheduler: aucun IMP éligible (SAFE_AUTO · non bloqué · hors FORBIDDEN)")
 
     if not obs:
         obs.append("aucun signal — tout nominal")
@@ -564,11 +597,13 @@ def render_markdown(status: dict[str, Any]) -> str:
     sched = status.get("schedule", {})
     lines.append("## scheduler — prochains IMPs")
     if sched.get("available"):
-        rec = sched.get("recommended", [])
-        lines.append(f"- critères : OPEN · {SCHEDULE_IMPACT} · {SCHEDULE_LANE} · non bloqué")
-        lines.append(f"- éligibles : {sched.get('eligible_count')} · recommandés : {len(rec)}")
+        rec = sched.get("recommended_imps", [])
+        lines.append(f"- critères : OPEN · {SCHEDULE_LANE} · non bloqué · hors FORBIDDEN")
+        lines.append("- tri : impact↓ (HIGH>MEDIUM>LOW) puis effort↑ (SMALL>MEDIUM>LARGE)")
+        lines.append(f"- éligibles : {sched.get('eligible_count')} · recommandés : {len(rec)} "
+                     f"· next_action : `{sched.get('next_action')}`")
         for r in rec:
-            lines.append(f"- **{r.get('id')}** ({r.get('effort')}) — {r.get('title')}")
+            lines.append(f"- **{r.get('id')}** [{r.get('impact')}/{r.get('effort')}] — {r.get('title')}")
             lines.append(f"  - {r.get('reason')}")
         if not rec:
             lines.append("- aucun IMP éligible")
@@ -610,7 +645,7 @@ def run_once(args: argparse.Namespace) -> dict[str, Any]:
     _write_atomic(out_schedule, json.dumps(status["schedule"], indent=2, ensure_ascii=False))
 
     up = sum(1 for s in status["services"] if s["up"])
-    rec = status["schedule"].get("recommended", [])
+    rec = status["schedule"].get("recommended_imps", [])
     log.info("mode=%s services=%d/%d up observations=%d recommended=%d",
              status["mode"], up, len(status["services"]),
              len(status["observations"]), len(rec))
@@ -622,11 +657,32 @@ def run_once(args: argparse.Namespace) -> dict[str, Any]:
     return status
 
 
+def _attach_file_logging(log_path: str) -> None:
+    """Ajoute un handler fichier (append, utf-8) sur lab/reports/director.log.
+
+    Idempotent : ne ré-attache pas deux fois le même fichier. Si l'ouverture
+    échoue (disque, permission), on log l'erreur sur la console et on continue
+    sans handler fichier — le daemon ne doit pas mourir pour un log indisponible.
+    """
+    target = (REPO_ROOT / log_path).resolve()
+    for h in log.handlers:
+        if isinstance(h, logging.FileHandler) and Path(getattr(h, "baseFilename", "")) == target:
+            return
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        handler = logging.FileHandler(target, encoding="utf-8")
+        handler.setFormatter(logging.Formatter("%(asctime)s  %(levelname)s  %(message)s"))
+        log.addHandler(handler)
+        log.info("journal daemon → %s", target)
+    except OSError as exc:
+        log.warning("journal fichier indisponible (%s) — daemon sans log fichier", exc)
+
+
 def run_daemon(args: argparse.Namespace) -> int:
     """Boucle toutes les `interval` secondes. Un cycle qui échoue n'arrête pas
     le daemon — l'erreur est loggée et le cycle suivant est tenté."""
     interval = max(1, args.interval)
-    log.info("Director v1 daemon démarré — intervalle %ds (Ctrl+C pour arrêter)", interval)
+    log.info("Director v1 scheduler daemon démarré — intervalle %ds (Ctrl+C pour arrêter)", interval)
     try:
         while True:
             try:
@@ -648,14 +704,20 @@ def main(argv: Optional[list[str]] = None) -> int:
                         help="mode observation strict — aucun effet hors les rapports")
     parser.add_argument("--daemon", action="store_true",
                         help="boucle en continu (intervalle --interval, défaut 600s)")
+    parser.add_argument("--schedule", action="store_true",
+                        help="mode scheduler daemon — boucle toutes les 10 min, "
+                             f"journalise dans {DEFAULT_LOG}")
     parser.add_argument("--interval", type=int, default=DEFAULT_INTERVAL_S,
                         help=f"intervalle daemon en secondes (défaut {DEFAULT_INTERVAL_S})")
+    parser.add_argument("--log", default=DEFAULT_LOG,
+                        help=f"fichier journal du daemon (défaut {DEFAULT_LOG})")
     parser.add_argument("--out-json", default=DEFAULT_OUT_JSON)
     parser.add_argument("--out-md", default=DEFAULT_OUT_MD)
     parser.add_argument("--out-schedule", default=DEFAULT_OUT_SCHEDULE)
     args = parser.parse_args(argv)
 
-    if args.daemon:
+    if args.daemon or args.schedule:
+        _attach_file_logging(args.log)
         return run_daemon(args)
     run_once(args)
     return 0
