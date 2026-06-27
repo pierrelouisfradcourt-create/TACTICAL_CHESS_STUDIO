@@ -57,4 +57,8 @@ PYTHON="${TCS_PYTHON_EXE:-python3}"
 "$PYTHON" scripts/ingest_event.py --oracle "$ORACLE" --report "$REPORT" \
     || echo "[run_oracle] WARN: backbone ingest failed (non-blocking)" >&2
 
+echo "[run_oracle] -> sync MEMORY.md (## Métriques)"
+"$PYTHON" scripts/sync_memory.py \
+    || echo "[run_oracle] WARN: MEMORY.md sync failed (non-blocking)" >&2
+
 echo "[run_oracle] done"

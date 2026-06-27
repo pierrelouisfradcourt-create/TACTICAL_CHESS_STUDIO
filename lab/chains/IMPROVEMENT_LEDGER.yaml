@@ -3503,6 +3503,26 @@ improvements:
   opened_session: '2026-06-27'
   closed_session: null
   notes: ''
+- id: IMP-180
+  title: sync_memory.py — MEMORY.md auto-sync depuis oracles
+  type: feature
+  source: session 2026-06-27 Pierre
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/sync_memory.py
+  - scripts/run_oracle.sh
+  acceptance: 'python scripts/sync_memory.py exit 0 ; section ## Métriques de studio/openclaw-workspace/MEMORY.md
+    reflète elo_match_latest.json + lichess_eval_latest.json + comptage ledger ; reste
+    du fichier préservé ; appelé automatiquement par scripts/run_oracle.sh'
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: null
+  notes: Lecture seule sur les rapports oracle. Sans dépendance (json stdlib + regex,
+    fast-path PyYAML). Idempotent. NO_CLAIM_ALLOWED.
 metrics_history:
 - session: '2026-05-31'
   total: 11
