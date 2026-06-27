@@ -654,7 +654,32 @@ def run_once(args: argparse.Namespace) -> dict[str, Any]:
     log.info("→ %s", out_json)
     log.info("→ %s", out_md)
     log.info("→ %s", out_schedule)
+
+    # Pont observe→agir (IMP-181) — opt-in seulement. Sans --dispatch, le
+    # director reste un observateur strictement read-only. Avec --dispatch mais
+    # sans --dispatch-execute, on planifie (dry-run) sans rien exécuter.
+    if getattr(args, "dispatch", False):
+        _maybe_dispatch(out_schedule, execute=getattr(args, "dispatch_execute", False))
+
     return status
+
+
+def _maybe_dispatch(schedule_path: Path, execute: bool) -> None:
+    """Délègue au dispatch_bridge (import paresseux — read-only si indisponible).
+
+    Ne lève jamais : un bridge absent ou en erreur ne doit pas tuer le director.
+    """
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import dispatch_bridge
+    except ImportError as exc:
+        log.warning("dispatch_bridge indisponible (%s) — observe-only", exc)
+        return
+    try:
+        outcome = dispatch_bridge.maybe_dispatch(schedule_path=schedule_path, execute=execute)
+        log.info("dispatch: action=%s imp=%s", outcome.get("action"), outcome.get("imp_id"))
+    except Exception:  # noqa: BLE001 — le dispatch ne doit jamais faire tomber l'observateur
+        log.exception("dispatch_bridge a échoué — observe-only")
 
 
 def _attach_file_logging(log_path: str) -> None:
@@ -714,6 +739,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--out-json", default=DEFAULT_OUT_JSON)
     parser.add_argument("--out-md", default=DEFAULT_OUT_MD)
     parser.add_argument("--out-schedule", default=DEFAULT_OUT_SCHEDULE)
+    parser.add_argument("--dispatch", action="store_true",
+                        help="après l'observation, déléguer au dispatch_bridge "
+                             "(plan dry-run par défaut — n'exécute rien)")
+    parser.add_argument("--dispatch-execute", dest="dispatch_execute", action="store_true",
+                        help="avec --dispatch : EXÉCUTE réellement le 1er IMP recommandé "
+                             "si les services sont UP (sinon plan seulement)")
     args = parser.parse_args(argv)
 
     if args.daemon or args.schedule:

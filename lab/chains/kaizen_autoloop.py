@@ -54,6 +54,15 @@ AUTOLOOP_LOG    = REPO_ROOT / "lab/chains/CHAIN_HISTORY.jsonl"
 COST_LOG        = REPO_ROOT / "lab/cost_log.jsonl"
 SESSION_TOKEN_THRESHOLD = 100_000
 
+# Governor déterministe (IMP-160) — source unique de vérité du gating lane (IMP-182).
+# governance/ n'est pas un package : on ajoute son dossier au path, comme test_governor.
+sys.path.insert(0, str(REPO_ROOT / "governance"))
+try:
+    import governor
+except ImportError as e:
+    print(f"[X] Impossible d importer governor : {e}")
+    sys.exit(1)
+
 # Compteurs de session (réinitialisés à chaque démarrage du processus)
 _session_tokens: int = 0
 _session_imps_closed: int = 0
@@ -385,6 +394,10 @@ def run_loop(args) -> None:
     dry_run = getattr(args, "dry_run", False)
     once    = getattr(args, "once", False)
     lane_filter = getattr(args, "lane", None)
+    imp_id  = getattr(args, "imp_id", None)
+    # Cibler un IMP précis implique un passage unique : on ne reboucle pas.
+    if imp_id:
+        once = True
 
     while True:
         # 1. Etat
@@ -395,16 +408,36 @@ def run_loop(args) -> None:
             print("[OK] Backlog vide. Boucle terminee.")
             break
 
-        # 2. Prochain IMP
-        imp = propose(lane_filter=lane_filter, data=state["data"])
-        if not imp:
-            print("[!] Aucun IMP actionnable. Arret.")
-            break
+        # 2. Prochain IMP — ciblé (--imp-id) ou ROI max (propose)
+        if imp_id:
+            imps = state["data"]["improvements"]
+            imp = next((i for i in imps if i.get("id") == imp_id), None)
+            if imp is None:
+                print(f"[X] IMP {imp_id} introuvable dans le ledger. Arret.")
+                break
+            if not kl.is_actionable(imp, imps):
+                print(f"[X] IMP {imp_id} non actionnable "
+                      f"(status != OPEN ou blocked_by non resolu). Arret.")
+                break
+            if lane_filter and imp.get("lane") != lane_filter:
+                print(f"[X] IMP {imp_id} lane={imp.get('lane')} != "
+                      f"filtre {lane_filter}. Arret.")
+                break
+        else:
+            imp = propose(lane_filter=lane_filter, data=state["data"])
+            if not imp:
+                print("[!] Aucun IMP actionnable. Arret.")
+                break
         print(f"[OK] PROPOSE : {imp['id']} [{imp['lane']}]")
 
-        # 3. Gate FORBIDDEN
-        if imp["lane"] == "FORBIDDEN":
-            print(f"[X] FORBIDDEN : {imp['id']} — arret autoloop.")
+        # 3. Gate gouvernance déterministe — governor.check() (IMP-182)
+        #    Source unique de vérité : remplace le gating FORBIDDEN inline (double
+        #    source). AUDIT_REQUIRED est BLOCK (audit non validé) mais reste routable
+        #    vers le HumanGate (étape 6) — ce n'est pas un arrêt dur de la boucle.
+        decision = governor.check({"lane": imp["lane"], "mission": imp.get("mission")})
+        if not decision.allowed and imp["lane"] != "AUDIT_REQUIRED":
+            print(f"[X] {imp['lane']} : {imp['id']} — governor BLOCK "
+                  f"({decision.reason}). Arret autoloop.")
             break
 
         # 4. Generer charter
@@ -460,6 +493,9 @@ def main():
     )
     parser.add_argument("--once", action="store_true",
                         help="Un seul IMP puis stop")
+    parser.add_argument("--imp-id", dest="imp_id", default=None,
+                        help="Cible un IMP precis (ex: IMP-132). Implique --once. "
+                             "Refuse si l'IMP n'est pas actionnable (OPEN + blocked_by resolu).")
     parser.add_argument("--lane", default=None,
                         help="Filtrer par lane (SAFE_AUTO, AUDIT_REQUIRED, ...)")
     parser.add_argument("--dry-run", dest="dry_run", action="store_true",
