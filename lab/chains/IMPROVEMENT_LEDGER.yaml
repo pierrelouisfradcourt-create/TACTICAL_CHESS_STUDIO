@@ -3577,6 +3577,26 @@ improvements:
   closed_session: '2026-06-27'
   notes: Aucun ordonnanceur OS aujourd'hui — l'autonomie meurt avec la session Claude
     (audit usine autonome). NO_CLAIM_ALLOWED.
+- id: IMP-184
+  title: train.py gate ELO — ne pas ecraser latest.pt avant bench ELO vert. Produire
+    candidate.pt separe.
+  type: feature
+  source: session-2026-06-27 audit usine autonome (Pierre)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - ml/train.py
+  acceptance: ml/train.py ecrit models/candidate.pt (jamais models/latest.pt directement).
+    latest.pt n'est mis a jour que par learning_loop.sh apres bench ELO candidat >
+    baseline. pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: null
+  notes: 'Protege le modele deploye : pas d''ecrasement avant gate ELO. Aligne sur
+    learning_loop.sh (IMP-171) qui attend deja models/candidate.pt. NO_CLAIM_ALLOWED.'
 metrics_history:
 - session: '2026-05-31'
   total: 11
