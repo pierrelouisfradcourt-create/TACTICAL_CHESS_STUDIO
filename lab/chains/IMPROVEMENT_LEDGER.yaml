@@ -3597,6 +3597,44 @@ improvements:
   closed_session: null
   notes: 'Protege le modele deploye : pas d''ecrasement avant gate ELO. Aligne sur
     learning_loop.sh (IMP-171) qui attend deja models/candidate.pt. NO_CLAIM_ALLOWED.'
+- id: IMP-185
+  title: canonical-ci.yml — corrige branches:[main] -> branches:[master]
+  type: bugfix
+  source: session-2026-06-27 audit usine autonome (Pierre)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .github/workflows/canonical-ci.yml
+  acceptance: canonical-ci.yml push.branches = [master]. La CI se declenche sur push
+    master. yamllint vert.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: null
+  notes: 'CI morte : le repo est sur master mais le workflow ecoute main -> jamais
+    declenche. ATTENTION : .github/ est zone FORBIDDEN (forbidden_zones) -> le scheduler
+    director ne l''auto-selectionnera pas malgre lane SAFE_AUTO ; execution exige
+    une gate Pierre. NO_CLAIM_ALLOWED.'
+- id: IMP-186
+  title: git core.hooksPath — cable .claude/hooks dans start_studio.sh
+  type: feature
+  source: session-2026-06-27 audit usine autonome (Pierre)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/start_studio.sh
+  acceptance: start_studio.sh execute git config core.hooksPath .claude/hooks. git
+    config core.hooksPath retourne .claude/hooks apres lancement. bash -n vert.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: null
+  notes: Les hooks .claude/hooks (pre-commit, validate-commit-msg) ne sont pas cables
+    cote git -> jamais executes. NO_CLAIM_ALLOWED.
 metrics_history:
 - session: '2026-05-31'
   total: 11
