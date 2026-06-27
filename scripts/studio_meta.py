@@ -31,45 +31,59 @@ def load_ledger(path: Path) -> dict:
         return yaml.safe_load(f) or {}
 
 
-# Classification établie en session 2026-06-25
-# Source : conversation d'analyse + red team installation
-IMP_OBSOLETES = {"IMP-B3", "IMP-D1", "IMP-D3", "IMP-F3", "IMP-F4"}
-IMP_MIGRES    = {"IMP-B2", "IMP-C2", "IMP-C3", "IMP-E1", "IMP-E2", "IMP-E3", "IMP-E4"}
-IMP_CRITICAL  = {"IMP-008"}   # seul vrai CRITICAL — dataset BROKEN, lane FORBIDDEN
-
-
-def classify_imp(imp_id: str) -> str:
-    if imp_id in IMP_OBSOLETES:
-        return "OBSOLETE"
-    if imp_id in IMP_MIGRES:
-        return "MIGRE"
-    if imp_id in IMP_CRITICAL:
-        return "CRITICAL"
-    return "VALIDE"
-
-
 def ledger_summary(ledger: dict) -> dict:
+    """Statistiques dérivées dynamiquement des vrais champs du ledger.
+
+    Aucun ID n'est codé en dur : la classification s'appuie sur les champs
+    réels de chaque entrée (`status`, `impact`, `lane`, `blocked_by`).
+    """
     imps = ledger.get("improvements", [])
+    status_by_id: dict[str, str] = {i.get("id", "?"): i.get("status", "UNKNOWN") for i in imps}
+
     by_status: dict[str, list[str]] = {}
     for imp in imps:
-        status = imp.get("status", "UNKNOWN")
-        by_status.setdefault(status, []).append(imp.get("id", "?"))
+        by_status.setdefault(imp.get("status", "UNKNOWN"), []).append(imp.get("id", "?"))
 
-    open_ids = by_status.get("OPEN", [])
+    open_imps = [i for i in imps if i.get("status") == "OPEN"]
+    deferred_ids = by_status.get("DEFERRED", [])
 
-    classified: dict[str, list[str]] = {"CRITICAL": [], "VALIDE": [], "MIGRE": [], "OBSOLETE": []}
-    for imp_id in open_ids:
-        cat = classify_imp(imp_id)
-        classified[cat].append(imp_id)
+    def _impact(i: dict) -> str:
+        return str(i.get("impact", "UNKNOWN")).upper()
 
-    # DEFERRED traité comme VALIDE (attend un autre IMP)
-    for imp_id in by_status.get("DEFERRED", []):
-        classified["VALIDE"].append(imp_id)
+    def _lane(i: dict) -> str:
+        return str(i.get("lane", "UNKNOWN")).upper()
+
+    def _is_blocked(i: dict) -> bool:
+        # Bloqué si une dépendance blocked_by n'est pas encore CLOSED.
+        return any(status_by_id.get(dep) != "CLOSED" for dep in (i.get("blocked_by") or []))
+
+    critical_open = [i.get("id") for i in open_imps if _impact(i) == "CRITICAL"]
+    crit_set = set(critical_open)
+    open_blocked = [i.get("id") for i in open_imps if _is_blocked(i)]
+    blocked_set = set(open_blocked)
+    open_actionable = [
+        i.get("id") for i in open_imps
+        if i.get("id") not in crit_set and i.get("id") not in blocked_set
+    ]
+    # valides = travail OPEN réel (hors CRITICAL) — affiché par studio_canvas.html
+    valides = [i.get("id") for i in open_imps if i.get("id") not in crit_set]
+
+    open_by_impact: dict[str, int] = {}
+    open_by_lane: dict[str, int] = {}
+    for i in open_imps:
+        open_by_impact[_impact(i)] = open_by_impact.get(_impact(i), 0) + 1
+        open_by_lane[_lane(i)] = open_by_lane.get(_lane(i), 0) + 1
 
     return {
         "total": len(imps),
         "by_status": {k: len(v) for k, v in by_status.items()},
-        "open_classified": {k: v for k, v in classified.items() if v},
+        "critical_open": critical_open,
+        "open_actionable": open_actionable,
+        "open_blocked": open_blocked,
+        "open_by_impact": open_by_impact,
+        "open_by_lane": open_by_lane,
+        "open_classified": {"CRITICAL": critical_open, "VALIDE": valides},
+        "deferred": deferred_ids,
         "last_updated": ledger.get("meta", {}).get("last_updated_session"),
     }
 
@@ -195,11 +209,14 @@ def main():
         "global_verdict": "UNKNOWN",
     }
 
-    classified = ledger_summary_data.get("open_classified", {})
+    imp_by_id = {i.get("id"): i for i in ledger.get("improvements", [])}
 
-    # CRITICAL — seuls vrais bloqueurs
-    for oid in classified.get("CRITICAL", []):
-        bilan["blockers"].append(f"IMP-008: dataset BROKEN — lane FORBIDDEN, bloqueur ML/φ")
+    # CRITICAL OPEN — seuls vrais bloqueurs (dérivés de impact==CRITICAL, pas d'ID figé)
+    for oid in ledger_summary_data.get("critical_open", []):
+        imp = imp_by_id.get(oid, {})
+        bilan["blockers"].append(
+            f"{oid}: {imp.get('title', '?')} — lane {imp.get('lane', '?')}"
+        )
 
     # Oracles absents
     if not elo:
@@ -211,11 +228,15 @@ def main():
     if memory.get("phi_not_started"):
         bilan["blockers"].append("φ pipeline NOT_STARTED (encoder/clustering/LoRA) — P4, non bloquant P1")
 
-    # INFO : IMPs migrés et obsolètes (pas des bloqueurs)
+    # INFO IMPs — dérivé des vrais champs ledger (obsoletes/migres : aucun champ
+    # ledger correspondant => listes vides, conservées pour compat consommateurs)
     bilan["imps_info"] = {
-        "obsoletes": classified.get("OBSOLETE", []),
-        "migres":    classified.get("MIGRE",    []),
-        "valides":   classified.get("VALIDE",   []),
+        "valides":   ledger_summary_data.get("open_classified", {}).get("VALIDE", []),
+        "critical":  ledger_summary_data.get("critical_open", []),
+        "blocked":   ledger_summary_data.get("open_blocked", []),
+        "deferred":  ledger_summary_data.get("deferred", []),
+        "obsoletes": [],
+        "migres":    [],
     }
 
     # Verdict global
@@ -245,11 +266,13 @@ def main():
 
     # Résumé console
     print(f"[studio_meta] verdict={bilan['global_verdict']}")
-    info = bilan.get("imps_info", {})
-    print(f"[studio_meta] IMPs — CRITICAL:{len(classified.get('CRITICAL',[]))} "
-          f"VALIDES:{len(info.get('valides',[]))} "
-          f"MIGRES:{len(info.get('migres',[]))} (INFO) "
-          f"OBSOLETES:{len(info.get('obsoletes',[]))} (ignorés)")
+    ls = ledger_summary_data
+    open_count = ls.get("by_status", {}).get("OPEN", 0)
+    print(f"[studio_meta] ledger total={ls.get('total')} OPEN={open_count} "
+          f"(critical {len(ls.get('critical_open', []))}, "
+          f"blocked {len(ls.get('open_blocked', []))}, "
+          f"actionable {len(ls.get('open_actionable', []))})")
+    print(f"[studio_meta] OPEN by impact={ls.get('open_by_impact')} by lane={ls.get('open_by_lane')}")
     for b in bilan["blockers"]:
         print(f"[studio_meta] BLOQUEUR: {b}")
     print(f"[studio_meta] → {out_path}")
