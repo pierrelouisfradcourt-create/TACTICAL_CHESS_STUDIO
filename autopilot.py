@@ -2862,6 +2862,35 @@ def write_studio_state():
         pass
 
 
+# IMP-138 : auto-refresh studio_state.json toutes les 5 min depuis studio_meta_latest.json
+STUDIO_STATE_REFRESH_S = 300
+
+
+def _studio_state_refresh_thread() -> None:
+    """Thread daemon : régénère studio_state.json toutes les 5 min et y replie
+    les métriques de studio_meta_latest.json (oracle : mtime < 6 min)."""
+    import time as _time
+    while True:
+        try:
+            write_studio_state()
+            # Replier le dernier studio_meta dans studio_state pour garder l'UI alignée
+            state_path = Path(__file__).parent / "studio_state.json"
+            if STUDIO_META_PATH.exists() and state_path.exists():
+                try:
+                    state = json.loads(state_path.read_text(encoding="utf-8"))
+                    meta = json.loads(STUDIO_META_PATH.read_text(encoding="utf-8"))
+                    state["meta"] = meta
+                    state["meta_source"] = "studio_meta_latest.json"
+                    state_path.write_text(
+                        json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8"
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        _time.sleep(STUDIO_STATE_REFRESH_S)
+
+
 _DEFAULT_VISION_LANES = {
     "rocky":  {"phase": 0, "phases": ["UCI+HTTP", "Self-play", "Fort"],       "milestone": "Rocky répond via HTTP"},
     "jeux":   {"phase": 0, "phases": ["UI chess", "Multi-jeux", "Tournois"],   "milestone": "Partie jouable"},
@@ -7821,6 +7850,9 @@ Ctrl+C pour arrêter.
 
     # IMP-F2 : reflection — bilan 24h
     threading.Thread(target=_reflection_thread, daemon=True).start()
+
+    # IMP-138 : auto-refresh studio_state.json toutes les 5 min depuis studio_meta_latest.json
+    threading.Thread(target=_studio_state_refresh_thread, daemon=True).start()
 
     # Ouvre le navigateur après 1 seconde
     def open_browser():

@@ -28,6 +28,39 @@ CYCLES   : <nb IMP fermés ce jour> | open : <total OPEN>
 
 ---
 
+## Phase 1.5 — Maintenance hebdomadaire (reanchor + lichess_eval)
+
+Une fois par semaine, le tick déclenche la recalibration des ancres tactiques.
+
+1. Lire la ligne `- Dernier /reanchor : <date>` dans `studio/openclaw-workspace/MEMORY.md`.
+2. Calculer l'ancienneté :
+
+| Condition | Action |
+|---|---|
+| `Dernier /reanchor` absent ou > 7 jours | Lancer la maintenance hebdo (étape 3) |
+| `Dernier /reanchor` ≤ 7 jours | Sauter cette phase — `Reanchor à jour (<date>)` |
+
+3. Maintenance hebdo :
+   - **IMP-136 — lichess_eval hebdomadaire** : lancer `./bench/lichess_eval.sh` depuis la racine du repo.
+     - exit ≠ 0 → afficher l'erreur, **ne pas** mettre à jour MEMORY.md, continuer le tick (la phase autoloop n'est pas bloquée par un bench rouge).
+   - **IMP-131 — /reanchor hebdomadaire** : invoquer `/reanchor` qui consomme la sortie de `lichess_eval.sh`,
+     compare aux seuils cibles (L1≥80% / L2≥10% / L3≥20%) et met à jour la section `## Ancres`
+     + la ligne `- Dernier /reanchor : <date>` de MEMORY.md.
+4. Afficher :
+
+```
+TICK — maintenance hebdo (<date>)
+─────────────────────────────────────────────
+lichess_eval : <PASS|FAIL> (L1 <x>% / L2 <x>% / L3 <x>%)
+reanchor     : ancres MEMORY.md mises à jour
+─────────────────────────────────────────────
+```
+
+Ne jamais écraser une ancre PASS avec un résultat FAIL sans gate Pierre (règle héritée de `/reanchor`).
+Ne jamais modifier `bench/lichess_eval.sh` (zone FORBIDDEN).
+
+---
+
 ## Phase 2 — Comptage file SAFE_AUTO
 
 Lire `lab/chains/IMPROVEMENT_LEDGER.yaml`.
