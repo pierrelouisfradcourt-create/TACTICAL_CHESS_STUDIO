@@ -159,7 +159,7 @@ claim\_verdict: NO\_CLAIM\_ALLOWED
 
 ## Jamais
 
-* Modifier IMPROVEMENT\_LEDGER.yaml manuellement
+* Modifier IMPROVEMENT\_LEDGER.yaml via l'outil kaizen\_loop.py de préférence. Exception : création/clôture d'IMP en session active sur go explicite Pierre.
 * Supprimer golden\_examples.jsonl
 * Pusher sur git
 * Creer des fichiers tmp qui restent
