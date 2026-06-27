@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""director.py — Director v0, Runtime Observer (IMP-177).
+"""director.py — Director v1, Runtime Observer + Scheduler (IMP-177).
 
 Observateur runtime READ-ONLY du studio. Agrège l'état courant à partir de
-plusieurs sources et produit deux rapports :
+plusieurs sources et produit trois rapports :
 
     lab/reports/director_status.json   — état machine
     lab/reports/director_report.md     — état lisible
+    lab/reports/director_schedule.json — 3 prochains IMPs recommandés + raison
 
 Sources lues (aucune n'est modifiée) :
     ledger        lab/chains/IMPROVEMENT_LEDGER.yaml
@@ -14,10 +15,14 @@ Sources lues (aucune n'est modifiée) :
     studio_meta   lab/reports/studio_meta_latest.json
     services      probe TCP des ports studio (claude_proxy, canvas_gateway, ...)
 
-v0 n'exécute AUCUNE action et n'écrit RIEN hors les deux rapports.
+v1 reste READ-ONLY sur le ledger : le scheduler RECOMMANDE seulement, il ne
+modifie jamais IMPROVEMENT_LEDGER.yaml et ne lance aucune action. La sélection
+des IMPs est déterministe (filtre + tri stable), sans inférence LM.
 
 Usage :
     python scripts/director.py --dry-run
+    python scripts/director.py --daemon                # boucle toutes les 10 min
+    python scripts/director.py --daemon --interval 600
     python scripts/director.py --out-json lab/reports/director_status.json \
                                --out-md   lab/reports/director_report.md
 """
@@ -26,9 +31,11 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import re
 import socket
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -40,8 +47,30 @@ CURRENT_STATE_PATH = REPO_ROOT / ".studio_state/current_state.json"
 EVENTS_PATH       = REPO_ROOT / "lab/events.jsonl"
 STUDIO_META_PATH  = REPO_ROOT / "lab/reports/studio_meta_latest.json"
 
-DEFAULT_OUT_JSON = "lab/reports/director_status.json"
-DEFAULT_OUT_MD   = "lab/reports/director_report.md"
+DEFAULT_OUT_JSON     = "lab/reports/director_status.json"
+DEFAULT_OUT_MD       = "lab/reports/director_report.md"
+DEFAULT_OUT_SCHEDULE = "lab/reports/director_schedule.json"
+
+# Scheduler — critères de recommandation (déterministe, read-only)
+SCHEDULE_TOP_N      = 3
+SCHEDULE_LANE       = "SAFE_AUTO"
+SCHEDULE_STATUS     = "OPEN"
+SCHEDULE_NEXT_ACTION = "autoloop"   # action proposée quand au moins 1 IMP recommandé
+SCHEDULE_NEXT_ACTION_IDLE = "idle"  # état vide — rien d'éligible, pas d'autoloop
+# Tri primaire : impact décroissant (HIGH > MEDIUM > LOW).
+IMPACT_RANK = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
+IMPACT_RANK_UNKNOWN = 99
+# Tri secondaire : effort croissant (quick wins d'abord — SMALL > MEDIUM > LARGE), puis id stable.
+EFFORT_RANK = {"TRIVIAL": 0, "SMALL": 1, "MEDIUM": 2, "LARGE": 3, "XL": 4}
+EFFORT_RANK_UNKNOWN = 99
+# Zones FORBIDDEN (AGENTS.md / CLAUDE.md) — un IMP qui touche l'une d'elles
+# n'est jamais recommandé en SAFE_AUTO : il exige une gate Pierre explicite.
+FORBIDDEN_PREFIXES = ("tests/", "eval/", "oracle/", "bench/", "puzzles/", ".github/")
+
+# Daemon — intervalle par défaut 10 min
+DEFAULT_INTERVAL_S = 600
+# Journal daemon — append-only, séparé des rapports d'état
+DEFAULT_LOG = "lab/reports/director.log"
 
 # Ports studio — alignés sur scripts/healthcheck.py (SERVICES)
 SERVICE_PORTS = [
@@ -89,6 +118,25 @@ def _mtime_age_hours(path: Path) -> Optional[float]:
         return None
     mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
     return round((_now() - mtime).total_seconds() / 3600.0, 2)
+
+
+def _write_atomic(path: Path, content: str) -> None:
+    """Écrit via fichier temporaire + rename — pas de lecteur sur un état partiel.
+
+    En cas d'échec, le fichier cible existant reste intact (le tmp est nettoyé).
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    try:
+        tmp.write_text(content, encoding="utf-8")
+        os.replace(tmp, path)
+    except OSError:
+        if tmp.exists():
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+        raise
 
 
 # ---------------------------------------------------------------------------
@@ -158,6 +206,112 @@ def load_ledger(path: Path) -> dict[str, Any]:
         "open_ids": by_status.get("OPEN", []),
         "last_updated": data.get("meta", {}).get("last_updated_session"),
     }
+
+
+# ---------------------------------------------------------------------------
+# Scheduler (Director v1) — recommandation déterministe, read-only
+# ---------------------------------------------------------------------------
+
+def _load_improvements_full(path: Path) -> dict[str, Any]:
+    """Charge les IMPs avec leurs champs structurés (impact/lane/blocked_by).
+
+    Nécessite PyYAML : le fallback regex de load_ledger() n'extrait pas de
+    façon fiable des champs imbriqués comme blocked_by. Si PyYAML est absent
+    ou le fichier illisible, on renvoie available:false (jamais de crash) et
+    le scheduler produit une liste vide plutôt qu'une recommandation hasardeuse.
+    """
+    if not path.exists():
+        return {"available": False, "reason": "fichier absent", "improvements": []}
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return {"available": False, "reason": f"lecture impossible: {exc}", "improvements": []}
+    try:
+        import yaml
+    except ImportError:
+        return {"available": False, "reason": "PyYAML absent — scheduler requiert yaml",
+                "improvements": []}
+    try:
+        data = yaml.safe_load(text) or {}
+    except yaml.YAMLError as exc:
+        return {"available": False, "reason": f"YAML invalide: {exc}", "improvements": []}
+
+    return {"available": True, "reason": None,
+            "improvements": data.get("improvements", []) or []}
+
+
+def _effort_rank(effort: Optional[str]) -> int:
+    return EFFORT_RANK.get((effort or "").upper(), EFFORT_RANK_UNKNOWN)
+
+
+def _imp_matches(imp: dict[str, Any]) -> bool:
+    """Critères Director v1 : OPEN · impact HIGH · lane SAFE_AUTO · non bloqué."""
+    if imp.get("status") != SCHEDULE_STATUS:
+        return False
+    if imp.get("impact") != SCHEDULE_IMPACT:
+        return False
+    if imp.get("lane") != SCHEDULE_LANE:
+        return False
+    blocked_by = imp.get("blocked_by") or []
+    if blocked_by:
+        return False
+    return True
+
+
+def _schedule_reason(imp: dict[str, Any]) -> str:
+    effort = imp.get("effort") or "?"
+    return (f"impact {SCHEDULE_IMPACT} · lane {SCHEDULE_LANE} · aucun blocage · "
+            f"effort {effort} — prêt à planifier")
+
+
+def schedule_next_imps(ledger_path: Path = LEDGER_PATH,
+                       top_n: int = SCHEDULE_TOP_N) -> dict[str, Any]:
+    """Retourne les `top_n` prochains IMPs prioritaires + raison.
+
+    Filtre : status OPEN, impact HIGH, lane SAFE_AUTO, blocked_by vide.
+    Tri déterministe : effort croissant (quick wins), puis id (ordre stable).
+    Read-only — ne modifie jamais le ledger.
+    """
+    loaded = _load_improvements_full(ledger_path)
+    eligible = [imp for imp in loaded["improvements"] if _imp_matches(imp)]
+
+    eligible.sort(key=lambda i: (_effort_rank(i.get("effort")), str(i.get("id"))))
+    selected = eligible[:top_n]
+
+    recommended = [
+        {
+            "id": imp.get("id"),
+            "title": imp.get("title"),
+            "impact": imp.get("impact"),
+            "effort": imp.get("effort"),
+            "lane": imp.get("lane"),
+            "files": imp.get("files", []),
+            "acceptance": imp.get("acceptance"),
+            "reason": _schedule_reason(imp),
+        }
+        for imp in selected
+    ]
+
+    return {
+        "available": loaded["available"],
+        "reason": loaded["reason"],
+        "criteria": {
+            "status": SCHEDULE_STATUS,
+            "impact": SCHEDULE_IMPACT,
+            "lane": SCHEDULE_LANE,
+            "blocked_by": "empty",
+            "sort": "effort asc, then id",
+        },
+        "eligible_count": len(eligible),
+        "recommended": recommended,
+    }
+
+
+def build_schedule() -> dict[str, Any]:
+    sched = schedule_next_imps()
+    sched["timestamp"] = _now().isoformat()
+    sched["director_version"] = "v1"
+    return sched
 
 
 def load_current_state(path: Path) -> dict[str, Any]:
@@ -285,6 +439,15 @@ def derive_observations(status: dict[str, Any]) -> list[str]:
     if not events.get("available"):
         obs.append(f"events.jsonl indisponible ({events.get('reason')})")
 
+    sched = status.get("schedule", {})
+    rec = sched.get("recommended", [])
+    if rec:
+        ids = ", ".join(str(r.get("id")) for r in rec)
+        obs.append(f"scheduler: {len(rec)} IMP recommandé(s) ({ids}) "
+                   f"sur {sched.get('eligible_count')} éligible(s)")
+    elif sched.get("available"):
+        obs.append("scheduler: aucun IMP éligible (HIGH/SAFE_AUTO/non bloqué)")
+
     if not obs:
         obs.append("aucun signal — tout nominal")
     return obs
@@ -297,13 +460,14 @@ def derive_observations(status: dict[str, Any]) -> list[str]:
 def build_status(dry_run: bool) -> dict[str, Any]:
     status: dict[str, Any] = {
         "timestamp": _now().isoformat(),
-        "director_version": "v0",
+        "director_version": "v1",
         "mode": "dry-run" if dry_run else "observe",
         "ledger": load_ledger(LEDGER_PATH),
         "current_state": load_current_state(CURRENT_STATE_PATH),
         "events": load_events(EVENTS_PATH),
         "studio_meta": load_studio_meta(STUDIO_META_PATH),
         "services": probe_services(SERVICE_PORTS),
+        "schedule": build_schedule(),
         "freshness": {
             "ledger_mtime_age_h": _mtime_age_hours(LEDGER_PATH),
             "current_state_mtime_age_h": _mtime_age_hours(CURRENT_STATE_PATH),
@@ -396,6 +560,22 @@ def render_markdown(status: dict[str, Any]) -> str:
         lines.append(f"- indisponible ({ledger.get('reason')})")
     lines.append("")
 
+    # scheduler
+    sched = status.get("schedule", {})
+    lines.append("## scheduler — prochains IMPs")
+    if sched.get("available"):
+        rec = sched.get("recommended", [])
+        lines.append(f"- critères : OPEN · {SCHEDULE_IMPACT} · {SCHEDULE_LANE} · non bloqué")
+        lines.append(f"- éligibles : {sched.get('eligible_count')} · recommandés : {len(rec)}")
+        for r in rec:
+            lines.append(f"- **{r.get('id')}** ({r.get('effort')}) — {r.get('title')}")
+            lines.append(f"  - {r.get('reason')}")
+        if not rec:
+            lines.append("- aucun IMP éligible")
+    else:
+        lines.append(f"- indisponible ({sched.get('reason')})")
+    lines.append("")
+
     # events
     events = status["events"]
     lines.append("## events")
@@ -416,35 +596,68 @@ def render_markdown(status: dict[str, Any]) -> str:
 # Main
 # ---------------------------------------------------------------------------
 
-def main(argv: Optional[list[str]] = None) -> int:
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-
-    parser = argparse.ArgumentParser(description="Director v0 — Runtime Observer (read-only)")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="mode observation strict — aucun effet hors les 2 rapports (v0 par défaut)")
-    parser.add_argument("--out-json", default=DEFAULT_OUT_JSON)
-    parser.add_argument("--out-md", default=DEFAULT_OUT_MD)
-    args = parser.parse_args(argv)
-
+def run_once(args: argparse.Namespace) -> dict[str, Any]:
+    """Un cycle complet : observe + planifie + écrit les 3 rapports (atomique)."""
     status = build_status(dry_run=args.dry_run)
     markdown = render_markdown(status)
 
-    out_json = REPO_ROOT / args.out_json
-    out_md = REPO_ROOT / args.out_md
-    out_json.parent.mkdir(parents=True, exist_ok=True)
-    out_md.parent.mkdir(parents=True, exist_ok=True)
+    out_json     = REPO_ROOT / args.out_json
+    out_md       = REPO_ROOT / args.out_md
+    out_schedule = REPO_ROOT / args.out_schedule
 
-    out_json.write_text(json.dumps(status, indent=2, ensure_ascii=False), encoding="utf-8")
-    out_md.write_text(markdown, encoding="utf-8")
+    _write_atomic(out_json, json.dumps(status, indent=2, ensure_ascii=False))
+    _write_atomic(out_md, markdown)
+    _write_atomic(out_schedule, json.dumps(status["schedule"], indent=2, ensure_ascii=False))
 
     up = sum(1 for s in status["services"] if s["up"])
-    log.info("mode=%s services=%d/%d up observations=%d",
-             status["mode"], up, len(status["services"]), len(status["observations"]))
+    rec = status["schedule"].get("recommended", [])
+    log.info("mode=%s services=%d/%d up observations=%d recommended=%d",
+             status["mode"], up, len(status["services"]),
+             len(status["observations"]), len(rec))
     for obs in status["observations"]:
         log.info("OBS: %s", obs)
     log.info("→ %s", out_json)
     log.info("→ %s", out_md)
+    log.info("→ %s", out_schedule)
+    return status
+
+
+def run_daemon(args: argparse.Namespace) -> int:
+    """Boucle toutes les `interval` secondes. Un cycle qui échoue n'arrête pas
+    le daemon — l'erreur est loggée et le cycle suivant est tenté."""
+    interval = max(1, args.interval)
+    log.info("Director v1 daemon démarré — intervalle %ds (Ctrl+C pour arrêter)", interval)
+    try:
+        while True:
+            try:
+                run_once(args)
+            except Exception:  # noqa: BLE001 — un cycle isolé ne doit pas tuer le daemon
+                log.exception("cycle échoué — on réessaie au prochain intervalle")
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        log.info("arrêt demandé (KeyboardInterrupt) — fin propre du daemon")
+        return 0
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+    parser = argparse.ArgumentParser(description="Director v1 — Runtime Observer + Scheduler (read-only)")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="mode observation strict — aucun effet hors les rapports")
+    parser.add_argument("--daemon", action="store_true",
+                        help="boucle en continu (intervalle --interval, défaut 600s)")
+    parser.add_argument("--interval", type=int, default=DEFAULT_INTERVAL_S,
+                        help=f"intervalle daemon en secondes (défaut {DEFAULT_INTERVAL_S})")
+    parser.add_argument("--out-json", default=DEFAULT_OUT_JSON)
+    parser.add_argument("--out-md", default=DEFAULT_OUT_MD)
+    parser.add_argument("--out-schedule", default=DEFAULT_OUT_SCHEDULE)
+    args = parser.parse_args(argv)
+
+    if args.daemon:
+        return run_daemon(args)
+    run_once(args)
     return 0
 
 
