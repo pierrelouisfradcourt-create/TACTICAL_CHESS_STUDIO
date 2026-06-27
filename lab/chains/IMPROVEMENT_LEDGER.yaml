@@ -3635,6 +3635,27 @@ improvements:
   closed_session: null
   notes: Les hooks .claude/hooks (pre-commit, validate-commit-msg) ne sont pas cables
     cote git -> jamais executes. NO_CLAIM_ALLOWED.
+- id: IMP-187
+  title: canonical-ci.yml — ajoute job cargo test + pytest reel (actuellement filtre
+    docs/** uniquement, ne compile et ne teste rien)
+  type: gap_fix
+  source: demande Pierre 2026-06-27 — CI ne teste rien
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .github/workflows/canonical-ci.yml
+  acceptance: 'canonical-ci.yml execute un job cargo test --release ET un job pytest
+    reel (ml/ + lab/chess_fantasy/tests/). Le filtre paths docs/** ne doit plus etre
+    la seule condition de declenchement : push/PR touchant src/, ml/, lab/ declenche
+    compile+test. Preuve : run CI vert qui montre cargo test et pytest executes.'
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: null
+  notes: 'Decouvert audit QW : canonical-ci filtrait docs/** uniquement -> aucun build
+    ni test reel.'
 metrics_history:
 - session: '2026-05-31'
   total: 11
