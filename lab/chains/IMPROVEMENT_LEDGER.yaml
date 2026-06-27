@@ -3381,7 +3381,7 @@ improvements:
   title: Re-entraîner value head cohérente avec backbone pool_selfplay
   type: feature
   source: session-2026-06-26 (risque value head incohérente détecté post-IMP-174)
-  status: OPEN
+  status: FAIL
   impact: MEDIUM
   effort: MEDIUM
   lane: SAFE_AUTO
@@ -3397,6 +3397,12 @@ improvements:
   blocked_by:
   - IMP-174
   opened_session: '2026-06-26'
+  failed_session: '2026-06-27'
+  fail_verdict: 'FAIL (Pierre, 2026-06-27) — re-training value head (run_20260627_132050,
+    best_loss=0.198) a produit neural ELO 923 = RÉGRESSION vs 1035 baseline CONTEMPT.
+    Draw rate 80-90% inchangé. Modèle NON promu (manifest promote_to_latest=false).
+    latest.pt conservé = run_20260626_182133/best.pt. Suite: IMP-179 (filtrer les
+    nulles du dataset avant re-training value head).'
   notes: 'Le training IMP-174 n''a optimisé que la policy head (cross-entropy maia).
     Le backbone partagé ayant bougé, la value head (value_fc1/value_fc2) n''est plus
     cohérente avec ses features. Un ELO neural/hybrid en baisse post-IMP-174 est probablement
@@ -3475,6 +3481,28 @@ improvements:
     dégradée (cf IMP-175).
 
     '
+- id: IMP-179
+  title: Filtrer les nulles du dataset — garder seulement les parties décisives (result
+    != 1/2-1/2) avant re-training value head
+  type: fix
+  source: session-2026-06-27 (IMP-175 FAIL — value head re-train donne neural 923,
+    draw rate 80-90% inchangé)
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - ml/dataset_loader.py
+  - lab/datasets/pool_selfplay.jsonl
+  acceptance: Le dataset de training value head exclut les parties nulles (result
+    == 1/2-1/2). Seules les parties décisives (1-0 / 0-1) servent de cible value.
+    Nombre de positions décisives loggé. Re-training value head relancé sur ce dataset
+    filtré, ELO neural re-mesuré pour comparer vs 1035 baseline CONTEMPT. pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: null
+  notes: ''
 metrics_history:
 - session: '2026-05-31'
   total: 11

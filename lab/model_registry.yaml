@@ -3,20 +3,21 @@ generated_at: "2026-06-26"
 elo_source: "lab/reports/elo_match_latest.json — 100 parties, 2026-06-25"
 elo_target: "hybrid >= heuristic + 20"
 
-# RESTAURATION 2026-06-26 (IMP-173 CLOSED)
-# latest.pt pointe désormais vers run_20260527_205249/epoch_020.pt (best_loss=0.6727).
+# CORRECTION 2026-06-27 (HumanGate Pierre, option a)
+# latest.pt RÉEL sur disque = run_20260626_182133/best.pt (sha e4f03806, size 35918247, best_loss=0.2748).
+# L'ancien header disait run_20260527_205249/epoch_020 (sha 1bce1262) — PÉRIMÉ, corrigé.
 # Backup ancien latest.pt (run_20260601, loss=0.7885) → models/latest_run_20260601_backup.pt
-# ELO post-restauration : PENDING — relancer ./bench/elo_match.sh
 recommended_next: null
 
-# ELO mesuré (dernier elo_match)
+# ELO (statut 2026-06-27)
 # teacher_uci : 1439.78
 # heuristic   : 1175.73
 # hybrid      : 1195.05  (delta=+19.3 vs heuristic — FAIL)
-# neural      : 1035  (bench 2026-06-27, 10 games, avec CONTEMPT IMP-176 — était 989.44 au 2026-06-25)
+# neural      : 1035  baseline CONTEMPT (IMP-176) — asserté HumanGate, non ré-mesuré sur sha e4f03806
+# neural(923) : candidat IMP-175 (run_20260627_132050) — RÉGRESSION, REJETÉ → IMP-175 FAIL
 #
-# NOTE: value head toujours incohérente avec le backbone (post-IMP-174) → IMP-175 PRIORITAIRE.
-# Le gain ELO neural est attribuable au CONTEMPT (anti-nulle), PAS à une value head saine.
+# NOTE: value head toujours incohérente avec le backbone (post-IMP-174).
+# Suite: IMP-179 (filtrer les nulles du dataset avant re-training value head).
 
 # ---------------------------------------------------------------------------
 # Modèles canoniques (production)
@@ -24,16 +25,17 @@ recommended_next: null
 canonical:
   - id: latest
     path: models/latest.pt
-    sha256: 1bce12628eb75ab79ffec48cc413e85f10638bc42c2936818de0fa1aa5aebc02
-    size_bytes: 35918183
+    sha256: e4f0380670f98acff350095b984e92f3598b6b436b3ed3b5ace6455db3a688d5
+    size_bytes: 35918247
     elo: 1035
     elo_measured_at: "2026-06-27"
     elo_pending: false
-    elo_bench: "10 games, avec CONTEMPT IMP-176 (était 989.44 au 2026-06-25)"
-    source_run: run_20260527_205249
-    best_loss: 0.6727566793560982
+    elo_bench: "baseline CONTEMPT (HumanGate Pierre 2026-06-27). ELO non ré-exécuté sur ce sha exact."
+    source_run: run_20260626_182133
+    best_loss: 0.27477277851104737
     restored_at: "2026-06-26"
-    notes: "Restauré IMP-173 — meilleur loss connu. Neural ELO 1035 post-CONTEMPT (IMP-176). ATTENTION: value head incohérente avec backbone (post-IMP-174) → IMP-175 prioritaire."
+    corrected_at: "2026-06-27"
+    notes: "CORRECTION 2026-06-27 (HumanGate Pierre, option a) : le registry pointait à tort vers sha 1bce1262 (run_20260527_205249) ; le latest.pt RÉEL sur disque est run_20260626_182133/best.pt (sha e4f03806, size 35918247, best_loss=0.2748). ELO 1035 = baseline CONTEMPT asserté par Pierre, PAS ré-mesuré sur ce sha. Le bench 2026-06-27 neural=923 correspond au candidat IMP-175 (run_20260627_132050, REJETÉ, promote_to_latest=false) — voir IMP-175 FAIL. Value head incohérente avec backbone → suite IMP-179 (filtrer les nulles)."
 
   - id: latest_run_20260601_backup
     path: models/latest_run_20260601_backup.pt
