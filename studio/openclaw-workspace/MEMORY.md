@@ -1,9 +1,28 @@
 # MEMORY.md — Mémoire studio (claimed_until_verdict)
 
+## Métriques (sync oracle — 2026-06-27)
+<!-- AUTO-GÉNÉRÉ par scripts/sync_memory.py — ne pas éditer à la main -->
+
+### ELO — elo_match_latest.json (2026-06-26T16:51:33Z)
+- Teacher (UCI) : 1386.0
+- Hybride : 1211.5
+- Heuristique : 1201.6
+- Neural : 1000.9
+- Δ hybride−heuristique : +10.0 (cible ≥ +20) — verdict **FAIL**
+
+### Puzzles Lichess — lichess_eval_latest.json (2026-06-25T06:34:51Z)
+- L1 : 92.3% (seuil ≥80.0%) — PASS
+- L2 : 4.5% (seuil ≥10.0%) — FAIL
+- L3 : 4.5% (seuil ≥20.0%) — FAIL
+- verdict global : **FAIL**
+
+### Ledger IMP — IMPROVEMENT_LEDGER.yaml
+- CLOSED : 154 / OPEN : 34 / FAIL : 1 / total : 189
+
 ## ELO (baselines vérifiées)
-- Heuristique : ~1195 ELO (référence stable)
-- Hybride : ~1214 ELO (hybride +19.3 vs heuristique)
-- Neural seul : ~992 ELO + taux de nulle élevé
+- Heuristique : 1227 ELO (référence stable)
+- Hybride : 1211 ELO
+- Neural seul : 1035 ELO (CONTEMPT)
 - Objectif hybride : heuristique + 20 minimum
 - Dernier bench/elo_match.sh : LANCÉ — HMAC opérationnelle
 
