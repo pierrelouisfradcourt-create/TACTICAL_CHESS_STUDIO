@@ -4,7 +4,7 @@
 meta:
   ledger_version: v0
   created_session: '2026-05-31'
-  last_updated_session: '2026-06-26'
+  last_updated_session: '2026-06-27'
   claim_verdict: NO_CLAIM_ALLOWED
   no_global_ready_verdict: true
 improvements:
@@ -3228,6 +3228,29 @@ improvements:
     Le backbone partagé ayant bougé, la value head (value_fc1/value_fc2) n'est
     plus cohérente avec ses features. Un ELO neural/hybrid en baisse post-IMP-174
     est probablement dû à cette incohérence, PAS à la qualité de la policy.
+- id: IMP-177
+  title: Director v0 — Runtime Observer
+  type: feature
+  source: session-2026-06-27 (demande Pierre — observateur runtime read-only)
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: control_plane
+  files:
+  - scripts/director.py
+  acceptance: >
+    scripts/director.py --dry-run exit 0. Produit lab/reports/director_status.json
+    + director_report.md. Lit ledger + current_state + events.jsonl + studio_meta
+    + services. Aucune écriture hors rapports.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: '2026-06-27'
+  notes: >
+    Observateur v0 read-only : agrège l'état studio (ledger, current_state,
+    events, studio_meta, santé services) en un status JSON + rapport markdown.
+    Aucune action, aucune écriture hors les 2 rapports. Base pour un Director
+    actif (escalades/décisions) en v1.
 metrics_history:
 - session: '2026-05-31'
   total: 11
