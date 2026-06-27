@@ -10,10 +10,10 @@ Get-Process python -ErrorAction SilentlyContinue | Where-Object {
 foreach ($port in @(7331, 8765, 8766)) {
     $conn = netstat -ano | Select-String ":$port " | Select-Object -First 1
     if ($conn) {
-        $pid = ($conn -split "\s+")[-1]
-        if ($pid -match "^\d+$") {
-            Write-Host "  Arrêt port $port (PID $pid)"
-            Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+        $procId = ($conn -split "\s+")[-1]
+        if ($procId -match "^\d+$") {
+            Write-Host "  Arrêt port $port (PID $procId)"
+            Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
         }
     }
 }

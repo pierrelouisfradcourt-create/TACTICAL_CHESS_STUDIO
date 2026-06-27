@@ -17,6 +17,9 @@ mkdir -p studio/docs
 # ════════════════════════════════════════════════════════════
 # CLAUDE.md — master config Claude Code
 # ════════════════════════════════════════════════════════════
+if [ -f CLAUDE.md ]; then
+  echo "ℹ️  CLAUDE.md existe déjà — non écrasé (protection ajoutée audit 2026-06-27, QW-5)."
+else
 cat > CLAUDE.md << 'EOF'
 # Tactical Chess Studio — Claude Code
 
@@ -54,6 +57,7 @@ cargo test · pytest · ./bench/elo_match.sh · ./bench/lichess_eval.sh
 - Merge = oracle vert + sign-off Pierre
 - Fun / feel / roadmap → escalader à Pierre, toujours
 EOF
+fi
 
 # ════════════════════════════════════════════════════════════
 # AGENTS Claude Code
