@@ -13,7 +13,10 @@ recommended_next: null
 # teacher_uci : 1439.78
 # heuristic   : 1175.73
 # hybrid      : 1195.05  (delta=+19.3 vs heuristic — FAIL)
-# neural      : 989.44
+# neural      : 1035  (bench 2026-06-27, 10 games, avec CONTEMPT IMP-176 — était 989.44 au 2026-06-25)
+#
+# NOTE: value head toujours incohérente avec le backbone (post-IMP-174) → IMP-175 PRIORITAIRE.
+# Le gain ELO neural est attribuable au CONTEMPT (anti-nulle), PAS à une value head saine.
 
 # ---------------------------------------------------------------------------
 # Modèles canoniques (production)
@@ -23,13 +26,14 @@ canonical:
     path: models/latest.pt
     sha256: 1bce12628eb75ab79ffec48cc413e85f10638bc42c2936818de0fa1aa5aebc02
     size_bytes: 35918183
-    elo: null
-    elo_measured_at: null
-    elo_pending: true
+    elo: 1035
+    elo_measured_at: "2026-06-27"
+    elo_pending: false
+    elo_bench: "10 games, avec CONTEMPT IMP-176 (était 989.44 au 2026-06-25)"
     source_run: run_20260527_205249
     best_loss: 0.6727566793560982
     restored_at: "2026-06-26"
-    notes: "Restauré IMP-173 — meilleur loss connu. ELO pending (relancer elo_match.sh)."
+    notes: "Restauré IMP-173 — meilleur loss connu. Neural ELO 1035 post-CONTEMPT (IMP-176). ATTENTION: value head incohérente avec backbone (post-IMP-174) → IMP-175 prioritaire."
 
   - id: latest_run_20260601_backup
     path: models/latest_run_20260601_backup.pt
