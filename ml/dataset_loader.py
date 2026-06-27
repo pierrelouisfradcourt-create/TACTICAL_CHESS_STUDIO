@@ -1023,8 +1023,16 @@ class TeacherDataset(Dataset):
             os.environ.get("TCS_DISABLE_AAA_INFLUENCE"),
             default=False,
         )
+        # IMP-179 — value head decisive-only : exclure les nulles (result == "1/2-1/2")
+        # du target value. Le draw_rate ~70% noyait le signal value (neural bloqué ~1035).
+        value_decisive_only = parse_boolish(
+            os.environ.get("TCS_VALUE_DECISIVE_ONLY"),
+            default=False,
+        )
 
         kept = 0
+        skipped_draws = 0
+        decisive_kept = 0
         skipped_invalid_json = 0
         skipped_missing_core = 0
         skipped_unmapped = 0
@@ -1102,6 +1110,14 @@ class TeacherDataset(Dataset):
             policy_only = parse_boolish(row.get("policy_only", False), default=False)
             result = row.get("result", None)
             engine_eval = row.get("engine_eval", None)
+
+            # IMP-179 — filtre nulles : ne garder que les parties décisives (1-0 / 0-1)
+            # comme cible value quand le mode decisive-only est actif.
+            if value_decisive_only and result == "1/2-1/2":
+                skipped_draws += 1
+                continue
+            if result in ("1-0", "0-1"):
+                decisive_kept += 1
 
             if result is not None:
                 y_value = result_to_value(result, player_to_move)
@@ -1211,6 +1227,10 @@ class TeacherDataset(Dataset):
         print(f"  skipped_best_move_unmapped: {skipped_unmapped}")
         print(f"  skipped_invalid_fen   : {skipped_invalid_fen}")
         print(f"  skipped_uninteresting : {skipped_uninteresting}")
+        # IMP-179 — visibilité du filtre nulles.
+        print(f"  value_decisive_only   : {value_decisive_only}")
+        print(f"  skipped_draws         : {skipped_draws}")
+        print(f"  decisive_positions    : {decisive_kept}")
         avg_valid_alt = aaa_valid_alt_total / max(aaa_rows, 1)
         avg_confidence = aaa_confidence_total / max(aaa_confidence_count, 1)
         print(f"  aaa_influence_enabled : {aaa_influence_enabled}")

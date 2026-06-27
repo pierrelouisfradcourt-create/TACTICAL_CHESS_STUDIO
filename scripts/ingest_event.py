@@ -33,6 +33,15 @@ from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 EVENT_LOG    = PROJECT_ROOT / "lab" / "events.jsonl"
+
+# IMP-154 — schema lock for events.jsonl.
+# Every event carries an explicit `version`; any field outside this set is rejected
+# on read so the schema cannot drift silently.
+SCHEMA_VERSION = 1
+ALLOWED_EVENT_FIELDS = frozenset({
+    "ts", "type", "task_id", "version", "hmac",
+    "imp_id", "oracle_id", "system_id",
+})
 STATE_PATH   = PROJECT_ROOT / ".studio_state" / "current_state.json"
 DERIVE_PY    = PROJECT_ROOT / "scripts" / "studioV2" / "control_plane" / "derive_studio_state_delta.py"
 UPDATE_PY    = PROJECT_ROOT / "scripts" / "studioV2" / "control_plane" / "update_studio_current_state.py"
@@ -53,6 +62,21 @@ def _now() -> str:
 def _hmac(payload: str) -> str:
     key = (os.environ.get("STUDIO_HMAC_KEY") or "studio-dev").encode()
     return hashlib.sha256(key + payload.encode()).hexdigest()
+
+
+# ── Schema lock (IMP-154) ─────────────────────────────────────────────────────
+
+def _validate_event_schema(entry: dict[str, Any], lineno: int | None = None) -> None:
+    """Reject any event without a version field or carrying unknown fields.
+
+    Raises ValueError so callers fail-fast both on write (before HMAC) and on read.
+    """
+    loc = f"events.jsonl:{lineno}: " if lineno is not None else ""
+    if "version" not in entry:
+        raise ValueError(f"{loc}event_missing_version: schema lock requires a 'version' field")
+    unknown = set(entry) - ALLOWED_EVENT_FIELDS
+    if unknown:
+        raise ValueError(f"{loc}event_unknown_fields: {sorted(unknown)} not in event schema")
 
 
 # ── Causal ID extraction ─────────────────────────────────────────────────────
@@ -223,6 +247,12 @@ def verify_event_log() -> bool:
             except json.JSONDecodeError:
                 print(f"[backbone] events.jsonl:{lineno}: invalid JSON", file=sys.stderr)
                 return False
+            # IMP-154 — schema lock: reject missing version / unknown fields on read.
+            try:
+                _validate_event_schema(entry, lineno)
+            except ValueError as exc:
+                print(f"[backbone] {exc}", file=sys.stderr)
+                return False
             stored_hmac = entry.pop("hmac", None)
             if stored_hmac is None:
                 print(f"[backbone] events.jsonl:{lineno}: missing HMAC", file=sys.stderr)
@@ -235,14 +265,74 @@ def verify_event_log() -> bool:
     return True
 
 
+def _is_already_ingested(task_id: str) -> bool:
+    """IMP-155 — true if an event with this task_id is already logged.
+
+    Idempotence key = task_id (carries the oracle's own timestamp), so re-ingesting
+    the same report is a no-op and leaves the state untouched.
+    """
+    if not EVENT_LOG.exists():
+        return False
+    with EVENT_LOG.open("r", encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                if json.loads(line).get("task_id") == task_id:
+                    return True
+            except json.JSONDecodeError:
+                continue
+    return False
+
+
 def append_event_log(oracle: str, task_id: str) -> None:
     causal = _extract_causal_id(task_id)  # raises ValueError if no causal id
     EVENT_LOG.parent.mkdir(parents=True, exist_ok=True)
-    entry = {"ts": _now(), "type": oracle, "task_id": task_id, **causal}
+    entry = {"ts": _now(), "type": oracle, "task_id": task_id, "version": SCHEMA_VERSION, **causal}
+    _validate_event_schema(entry)  # IMP-154 — fail before writing an off-schema event
     line  = json.dumps(entry, separators=(",", ":"), sort_keys=True)
     entry["hmac"] = _hmac(line)
     with EVENT_LOG.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(entry, separators=(",", ":"), sort_keys=True) + "\n")
+
+
+def migrate_event_log() -> int:
+    """One-shot migration: stamp legacy events (pre-IMP-154) with version + re-sign.
+
+    Rewrites EVENT_LOG atomically. Lines already carrying `version` are left intact.
+    Returns the number of migrated lines, or -1 on failure (original left untouched).
+    """
+    if not EVENT_LOG.exists():
+        return 0
+    migrated = 0
+    out_lines: list[str] = []
+    with EVENT_LOG.open("r", encoding="utf-8") as fh:
+        for lineno, raw_line in enumerate(fh, 1):
+            raw_line = raw_line.strip()
+            if not raw_line:
+                continue
+            try:
+                entry = json.loads(raw_line)
+            except json.JSONDecodeError:
+                print(f"[migrate] events.jsonl:{lineno}: invalid JSON — abort", file=sys.stderr)
+                return -1
+            if "version" not in entry:
+                entry.pop("hmac", None)
+                entry["version"] = SCHEMA_VERSION
+                payload = json.dumps(entry, separators=(",", ":"), sort_keys=True)
+                entry["hmac"] = _hmac(payload)
+                migrated += 1
+            try:
+                _validate_event_schema(entry, lineno)
+            except ValueError as exc:
+                print(f"[migrate] {exc} — abort", file=sys.stderr)
+                return -1
+            out_lines.append(json.dumps(entry, separators=(",", ":"), sort_keys=True))
+    tmp = EVENT_LOG.with_suffix(".jsonl.tmp")
+    tmp.write_text("\n".join(out_lines) + ("\n" if out_lines else ""), encoding="utf-8")
+    tmp.replace(EVENT_LOG)
+    return migrated
 
 
 def run_derive_delta(adapted: dict[str, Any]) -> dict[str, Any] | None:
@@ -332,6 +422,11 @@ def ingest_event(oracle: str, report_path: Path) -> int:
     raw     = json.loads(report_path.read_text(encoding="utf-8"))
     adapted = ADAPTERS[oracle](raw)
 
+    # Guard — idempotence (IMP-155): same input → no-op, state untouched.
+    if _is_already_ingested(adapted["task_id"]):
+        print(f"[backbone] idempotent skip: {adapted['task_id']} already ingested", file=sys.stderr)
+        return 0
+
     # Guard 4 — require imp_id / oracle_id / system_id (raises on missing)
     try:
         append_event_log(oracle, adapted["task_id"])
@@ -363,9 +458,19 @@ def ingest_event(oracle: str, report_path: Path) -> int:
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Event Backbone — ingest oracle output into studioV2 reducers")
-    p.add_argument("--oracle", required=True, choices=sorted(ADAPTERS))
-    p.add_argument("--report", required=True, help="Path to oracle output JSON")
+    p.add_argument("--oracle", choices=sorted(ADAPTERS))
+    p.add_argument("--report", help="Path to oracle output JSON")
+    p.add_argument("--migrate", action="store_true",
+                   help="Stamp legacy events.jsonl lines with schema version + re-sign (IMP-154)")
     args = p.parse_args()
+    if args.migrate:
+        n = migrate_event_log()
+        if n < 0:
+            return 1
+        print(f"[migrate] {n} legacy event(s) stamped to schema v{SCHEMA_VERSION}")
+        return 0
+    if not args.oracle or not args.report:
+        p.error("--oracle and --report are required unless --migrate is given")
     path = Path(args.report).resolve()
     if not path.exists():
         print(f"[backbone] report not found: {path}", file=sys.stderr)
