@@ -52,6 +52,7 @@ PYTHON_EXE      = sys.executable
 CHARTER_DIR     = REPO_ROOT / "lab/chains/charters"
 AUTOLOOP_LOG    = REPO_ROOT / "lab/chains/CHAIN_HISTORY.jsonl"
 COST_LOG        = REPO_ROOT / "lab/cost_log.jsonl"
+LOCK_PATH       = REPO_ROOT / "lab/.autoloop.lock"
 SESSION_TOKEN_THRESHOLD = 100_000
 
 # Governor déterministe (IMP-160) — source unique de vérité du gating lane (IMP-182).
@@ -62,6 +63,32 @@ try:
 except ImportError as e:
     print(f"[X] Impossible d importer governor : {e}")
     sys.exit(1)
+
+
+# ── Lock inter-process (lab/.autoloop.lock) ───────────────
+# Un seul autoloop à la fois : empêche deux process concurrents de muter le
+# ledger / le working tree (commits) en même temps. Création atomique (O_EXCL).
+
+def acquire_lock(lock_path: Path = LOCK_PATH) -> bool:
+    """Crée le lock atomiquement. False si déjà détenu (autre process)."""
+    try:
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        return False
+    try:
+        os.write(fd, f"pid={os.getpid()} {datetime.now().isoformat()}\n".encode("utf-8"))
+    finally:
+        os.close(fd)
+    return True
+
+
+def release_lock(lock_path: Path = LOCK_PATH) -> None:
+    """Supprime le lock. No-op s'il a déjà disparu."""
+    try:
+        lock_path.unlink()
+    except FileNotFoundError:
+        pass
+
 
 # Compteurs de session (réinitialisés à chaque démarrage du processus)
 _session_tokens: int = 0
@@ -501,7 +528,24 @@ def main():
     parser.add_argument("--dry-run", dest="dry_run", action="store_true",
                         help="Genere les charters sans executer")
     args = parser.parse_args()
-    run_loop(args)
+
+    # Lock déjà détenu par le parent (dispatch_bridge) ? On ne le reprend pas.
+    if os.environ.get("AUTOLOOP_LOCK_INHERITED") == "1":
+        run_loop(args)
+        return
+
+    if not acquire_lock():
+        try:
+            holder = LOCK_PATH.read_text(encoding="utf-8").strip()
+        except OSError:
+            holder = "?"
+        print(f"[X] LOCK : {LOCK_PATH} existe deja ({holder}) — un autre autoloop "
+              f"tourne. Abort. (si stale : supprimer le fichier)")
+        sys.exit(1)
+    try:
+        run_loop(args)
+    finally:
+        release_lock()
 
 
 if __name__ == "__main__":

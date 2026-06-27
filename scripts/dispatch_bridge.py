@@ -32,9 +32,11 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import socket
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -43,6 +45,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEDULE_PATH   = REPO_ROOT / "lab/reports/director_schedule.json"
 KAIZEN_AUTOLOOP = REPO_ROOT / "lab/chains/kaizen_autoloop.py"
 PYTHON_EXE      = sys.executable
+LOCK_PATH       = REPO_ROOT / "lab/.autoloop.lock"
 
 # Services studio (nom -> port) — alignés sur director.py / healthcheck.py.
 SERVICE_PORTS = {
@@ -62,6 +65,31 @@ DISPATCH_TIMEOUT_S = 1800
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 log = logging.getLogger("dispatch_bridge")
+
+
+# ---------------------------------------------------------------------------
+# Lock inter-process (lab/.autoloop.lock) — un seul autoloop/bridge à la fois
+# ---------------------------------------------------------------------------
+
+def acquire_lock(lock_path: Path = LOCK_PATH) -> bool:
+    """Crée le lock atomiquement (O_EXCL). False si déjà détenu (autre process)."""
+    try:
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        return False
+    try:
+        os.write(fd, f"pid={os.getpid()} {datetime.now().isoformat()}\n".encode("utf-8"))
+    finally:
+        os.close(fd)
+    return True
+
+
+def release_lock(lock_path: Path = LOCK_PATH) -> None:
+    """Supprime le lock. No-op s'il a déjà disparu."""
+    try:
+        lock_path.unlink()
+    except FileNotFoundError:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -224,38 +252,59 @@ def main(argv: Optional[list[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     required = tuple(s.strip() for s in args.require.split(",") if s.strip())
-    outcome = maybe_dispatch(
-        schedule_path=Path(args.schedule_path),
-        required=required or DEFAULT_REQUIRED,
-        execute=args.execute,
-        timeout=args.timeout,
-    )
 
-    action = outcome.get("action")
-    if action == "no_schedule":
-        log.info("rien à dispatcher — %s", outcome.get("reason"))
-        return 0
-    if action == "nothing_recommended":
-        log.info("rien à dispatcher — %s", outcome.get("reason"))
-        return 0
-    if action == "services_down":
-        log.info("dispatch suspendu (%s) pour %s — no-op",
-                 outcome.get("reason"), outcome.get("imp_id"))
-        return 0
-    if action == "planned":
-        log.info("PLAN (dry-run) — lancerait : %s", " ".join(outcome["command"]))
-        log.info("relancer avec --execute pour dispatcher %s", outcome["imp_id"])
-        return 0
-    if action == "dispatched":
-        result = outcome["result"]
-        if result.get("ok"):
-            log.info("dispatch %s OK", outcome["imp_id"])
+    # Lock inter-process — seul le chemin --execute lance réellement kaizen_autoloop.
+    # L'enfant hérite du lock via AUTOLOOP_LOCK_INHERITED (pas de double prise).
+    lock_held = False
+    if args.execute:
+        if not acquire_lock():
+            try:
+                holder = LOCK_PATH.read_text(encoding="utf-8").strip()
+            except OSError:
+                holder = "?"
+            log.error("LOCK : %s existe deja (%s) — un autre autoloop/bridge tourne. "
+                      "Abort. (si stale : supprimer le fichier)", LOCK_PATH, holder)
+            return 1
+        lock_held = True
+        os.environ["AUTOLOOP_LOCK_INHERITED"] = "1"
+
+    try:
+        outcome = maybe_dispatch(
+            schedule_path=Path(args.schedule_path),
+            required=required or DEFAULT_REQUIRED,
+            execute=args.execute,
+            timeout=args.timeout,
+        )
+
+        action = outcome.get("action")
+        if action == "no_schedule":
+            log.info("rien à dispatcher — %s", outcome.get("reason"))
             return 0
-        log.error("dispatch %s ÉCHEC — %s",
-                  outcome["imp_id"], result.get("reason") or result.get("returncode"))
+        if action == "nothing_recommended":
+            log.info("rien à dispatcher — %s", outcome.get("reason"))
+            return 0
+        if action == "services_down":
+            log.info("dispatch suspendu (%s) pour %s — no-op",
+                     outcome.get("reason"), outcome.get("imp_id"))
+            return 0
+        if action == "planned":
+            log.info("PLAN (dry-run) — lancerait : %s", " ".join(outcome["command"]))
+            log.info("relancer avec --execute pour dispatcher %s", outcome["imp_id"])
+            return 0
+        if action == "dispatched":
+            result = outcome["result"]
+            if result.get("ok"):
+                log.info("dispatch %s OK", outcome["imp_id"])
+                return 0
+            log.error("dispatch %s ÉCHEC — %s",
+                      outcome["imp_id"], result.get("reason") or result.get("returncode"))
+            return 1
+        log.error("action inattendue: %s", action)
         return 1
-    log.error("action inattendue: %s", action)
-    return 1
+    finally:
+        if lock_held:
+            os.environ.pop("AUTOLOOP_LOCK_INHERITED", None)
+            release_lock()
 
 
 if __name__ == "__main__":
