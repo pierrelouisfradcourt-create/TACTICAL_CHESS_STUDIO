@@ -3522,6 +3522,61 @@ improvements:
   closed_session: '2026-06-27'
   notes: Lecture seule sur les rapports oracle. Sans dépendance (json stdlib + regex,
     fast-path PyYAML). Idempotent. NO_CLAIM_ALLOWED.
+- id: IMP-181
+  title: Dispatch bridge — director_schedule.json -> kaizen_autoloop.py
+  type: feature
+  source: session-2026-06-27 audit usine autonome (Pierre)
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/dispatch_bridge.py
+  - scripts/director.py
+  acceptance: scripts/dispatch_bridge.py lit director_schedule.json, lance kaizen_autoloop.py
+    --imp-id sur le premier IMP recommande si services UP. Appele par director --schedule.
+    pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: null
+  notes: Pont observe->agir manquant (audit usine autonome). Read-only sur le ledger
+    cote bridge. NO_CLAIM_ALLOWED.
+- id: IMP-182
+  title: Brancher governor.py dans kaizen_autoloop.py — remplace gating inline
+  type: refactor
+  source: session-2026-06-27 audit usine autonome (Pierre)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/kaizen_autoloop.py
+  acceptance: kaizen_autoloop.py appelle governor.check(action) avant tout exec lane.
+    pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: null
+  notes: governor.py (IMP-160) extrait mais jamais recable — double source de verite
+    avec le gating inline (lignes 405-426). NO_CLAIM_ALLOWED.
+- id: IMP-183
+  title: Launcher autonome — crontab WSL qui demarre director --schedule au boot
+  type: feature
+  source: session-2026-06-27 audit usine autonome (Pierre)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - infrastructure/crontab.director
+  acceptance: crontab -l montre l'entree. director tourne sans session humaine.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: null
+  notes: Aucun ordonnanceur OS aujourd'hui — l'autonomie meurt avec la session Claude
+    (audit usine autonome). NO_CLAIM_ALLOWED.
 metrics_history:
 - session: '2026-05-31'
   total: 11
