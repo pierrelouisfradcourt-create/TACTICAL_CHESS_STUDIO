@@ -3601,7 +3601,7 @@ improvements:
   title: canonical-ci.yml — corrige branches:[main] -> branches:[master]
   type: bugfix
   source: session-2026-06-27 audit usine autonome (Pierre)
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: SMALL
   lane: SAFE_AUTO
@@ -3612,7 +3612,7 @@ improvements:
     master. yamllint vert.
   blocked_by: []
   opened_session: '2026-06-27'
-  closed_session: null
+  closed_session: '2026-06-28'
   notes: 'CI morte : le repo est sur master mais le workflow ecoute main -> jamais
     declenche. ATTENTION : .github/ est zone FORBIDDEN (forbidden_zones) -> le scheduler
     director ne l''auto-selectionnera pas malgre lane SAFE_AUTO ; execution exige
@@ -3673,6 +3673,66 @@ improvements:
   opened_session: '2026-06-27'
   closed_session: '2026-06-27'
   notes: ''
+- id: IMP-189
+  title: studio_core --ir PATH au CLI + sweep balance sur variants/*.json
+  type: feature
+  source: MEGA_ANALYSIS 2026-06-27 (SA6/SA5)
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: jeux
+  files:
+  - studio_core/main.py
+  - studio_core/sim/headless_sim.py
+  acceptance: main.py accepte --ir PATH et le forwarde a run_simulation(ir_path);
+    les 10 variants/*.json sont simulables et un sweep produit une table de flags
+    balance par variant
+  blocked_by: []
+  opened_session: '2026-06-28'
+  closed_session: null
+  notes: Debloque 10 variants orphelins (0 ref code). headless_sim.run_simulation
+    accepte deja ir_path mais defaute en dur sur example_snake_game.json. Ref docs/analysis/MEGA_ANALYSIS_2026-06-27.md
+- id: IMP-190
+  title: headless_sim retourne verdict + exit code + dump JSONL (oracle balance cablable
+    en gate)
+  type: feature
+  source: MEGA_ANALYSIS 2026-06-27 (SA5/SA6)
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: jeux
+  files:
+  - studio_core/sim/headless_sim.py
+  acceptance: headless_sim retourne un verdict booleen + exit code (0 vert / 1 rouge)
+    au lieu de print-only, et dump les metriques en JSONL; permet de cabler l'oracle
+    de balance comme gate
+  blocked_by: []
+  opened_session: '2026-06-28'
+  closed_session: null
+  notes: Aujourd'hui flags design print-only sans retour ni appelant (P0-E mega-analysis).
+    Prerequis pour gate qualite generique des jeux. Ref docs/analysis/MEGA_ANALYSIS_2026-06-27.md
+- id: IMP-191
+  title: Cockpit unifie v2 + 4 endpoints read-only canvas_gateway 8766
+  type: feature
+  source: session Pierre 2026-06-28
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - studio/studio_cockpit_v2.html
+  - scripts/canvas_gateway.py
+  acceptance: studio_cockpit_v2.html sert via 8766 (SSE meta + REST director/factory/neural/openclaw);
+    4 nouveaux panels + panels existants; offline-propre si service DOWN; node --check
+    vert; governor.check avant actions mutantes
+  blocked_by: []
+  opened_session: '2026-06-28'
+  closed_session: null
+  notes: 189 demande mais deja pris (studio_core --ir); push master en attente gate
+    visuel Pierre
 metrics_history:
 - session: '2026-05-31'
   total: 11

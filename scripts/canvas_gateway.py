@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import subprocess
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -48,6 +49,17 @@ GW_PORT      = int(os.getenv("CANVAS_GW_PORT", "8766"))
 HMAC_KEY     = os.getenv("STUDIO_HMAC_KEY", "")
 META_PATH    = _REPO_ROOT / os.getenv("CANVAS_META_PATH", "lab/reports/studio_meta_latest.json")
 GATE_LOG     = _REPO_ROOT / os.getenv("CANVAS_GATE_LOG_PATH", "lab/chains/HUMANGATE_DECISION_LOG.yaml")
+
+# ── Cockpit v2 — sources read-only servies en 8766 (IMP-191) ───────────────
+# Le cockpit unifie ne tape JAMAIS autopilot:7331 directement : tout passe ici.
+DIRECTOR_PATH = _REPO_ROOT / "lab/reports/director_status.json"
+REGISTRY_PATH = _REPO_ROOT / "studio/factory/registry/registry.json"
+ELO_PATH      = _REPO_ROOT / "lab/reports/elo_match_latest.json"
+TEAM_PATH     = _REPO_ROOT / "studio/openclaw-workspace/openclaw-team.yaml"
+
+# governor.check() vit a la racine du repo — l'exposer a l'import (fail-closed).
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 
 # ---------------------------------------------------------------------------
@@ -90,6 +102,28 @@ def _next_hgd_id(decisions: list[dict]) -> str:
             except ValueError:
                 pass
     return f"HGD-{(max(nums) + 1) if nums else 1:03d}"
+
+
+def _read_json_file(path: Path):
+    """Lecture JSON tolerante : jamais d'exception, toujours un dict/list.
+    Service DOWN cote donnee -> {available: False, error: ...} (offline-propre)."""
+    if not path.exists():
+        return {"available": False, "error": f"{path.name} absent"}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return {"available": False, "error": str(exc)}
+
+
+def _governor_ok(mission: str, lane: str = "SAFE_AUTO") -> tuple[bool, str]:
+    """Gate de gouvernance fail-closed AVANT toute action mutante.
+    Si governance.governor est introuvable -> BLOCK (fail-closed)."""
+    try:
+        from governance import governor
+    except Exception as exc:  # noqa: BLE001
+        return False, f"governor indisponible (fail-closed): {exc}"
+    decision = governor.check({"lane": lane, "mission": mission})
+    return decision.allowed, decision.reason
 
 
 # ---------------------------------------------------------------------------
@@ -139,6 +173,9 @@ class RefreshResponse(BaseModel):
 @app.post("/api/refresh")
 def refresh_meta() -> RefreshResponse:
     """Relance studio_meta.py pour mettre à jour le JSON."""
+    ok, reason = _governor_ok("studio_meta_refresh")
+    if not ok:
+        raise HTTPException(status_code=403, detail=f"governor BLOCK: {reason}")
     meta_script = _REPO_ROOT / "scripts" / "studio_meta.py"
     if not meta_script.exists():
         raise HTTPException(status_code=503, detail="scripts/studio_meta.py introuvable")
@@ -174,6 +211,10 @@ def decide_gate(gate_id: str, body: GateDecision) -> dict:
     """Pierre approuve ou rejette une gate. Écrit dans HUMANGATE_DECISION_LOG.yaml signé HMAC."""
     if body.verdict not in ("APPROVE", "REJECT"):
         raise HTTPException(status_code=400, detail="verdict doit être APPROVE ou REJECT")
+
+    ok, reason = _governor_ok("human_gate_record")
+    if not ok:
+        raise HTTPException(status_code=403, detail=f"governor BLOCK: {reason}")
 
     log = _load_gate_log()
     decisions: list[dict] = log.get("decisions", [])
@@ -229,6 +270,98 @@ def decide_gate(gate_id: str, body: GateDecision) -> dict:
         "decision_id": entry.get("decision_id"),
         "hmac_signed": bool(sig),
         "timestamp": now_iso,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Cockpit v2 — panels read-only (IMP-191). Tous tolerants au fichier absent.
+# ---------------------------------------------------------------------------
+
+@app.get("/api/director")
+def get_director():
+    """director_status.json : ledger, services up/down, elo_live, next autoloop."""
+    return _read_json_file(DIRECTOR_PATH)
+
+
+@app.get("/api/factory")
+def get_factory():
+    """Registry de l'usine : jeux generes + verdict oracle."""
+    data = _read_json_file(REGISTRY_PATH)
+    if isinstance(data, list):
+        return {
+            "available": True,
+            "count": len(data),
+            "last": data[-1] if data else None,
+            "entries": data,
+        }
+    return data  # dict {available: False, error: ...}
+
+
+@app.get("/api/neural")
+def get_neural():
+    """elo_match_latest.json : ELO panel (teacher/hybrid/heuristic/neural)."""
+    return _read_json_file(ELO_PATH)
+
+
+def _scan_yaml_block_keys(text: str, block: str) -> list[str]:
+    """Fallback deterministe : extrait les cles indentees d'1 niveau sous un
+    bloc top-level `block:`. Utilise quand safe_load echoue (team.yaml contient
+    des flow-mappings `{id}` invalides dans gateway.endpoints — bug pre-existant,
+    fichier sous gate Pierre, donc non corrige ici)."""
+    keys: list[str] = []
+    in_block = False
+    for raw in text.splitlines():
+        if raw.startswith("#") or not raw.strip():
+            continue
+        if raw.rstrip() == f"{block}:":
+            in_block = True
+            continue
+        if in_block:
+            # Nouvelle cle top-level (col 0, non-espace) -> fin du bloc.
+            if raw[0] not in (" ", "\t"):
+                break
+            # Cle directe de niveau 1 : exactement 2 espaces puis 'name:'.
+            if len(raw) > 2 and raw[:2] == "  " and raw[2] != " ":
+                name = raw.strip().split(":", 1)[0].strip()
+                if name and not name.startswith("-"):
+                    keys.append(name)
+    return keys
+
+
+@app.get("/api/openclaw")
+def get_openclaw():
+    """Etat OpenClaw : services up/down (depuis director) + roster + skills."""
+    director = _read_json_file(DIRECTOR_PATH)
+    services = director.get("services", []) if isinstance(director, dict) else []
+    agents: list[dict] = []
+    skills: list[str] = []
+    roster_source = "none"
+    if TEAM_PATH.exists():
+        text = TEAM_PATH.read_text(encoding="utf-8")
+        try:
+            team = yaml.safe_load(text) or {}
+            for name, spec in (team.get("agents") or {}).items():
+                spec = spec or {}
+                agents.append({
+                    "name": name,
+                    "role": spec.get("role", ""),
+                    "provider": spec.get("provider", ""),
+                    "authority": spec.get("authority", ""),
+                })
+            skills = list((team.get("skills") or {}).keys())
+            roster_source = "yaml"
+        except Exception:  # noqa: BLE001 — team.yaml non parsable -> fallback scan
+            agents = [{"name": n, "role": "", "provider": "", "authority": ""}
+                      for n in _scan_yaml_block_keys(text, "agents")]
+            skills = _scan_yaml_block_keys(text, "skills")
+            roster_source = "linescan"
+    return {
+        "available": True,
+        "services": services,
+        "agents": agents,
+        "skills": skills,
+        "skills_count": len(skills),
+        "roster_source": roster_source,
     }
 
 
