@@ -93,6 +93,41 @@ def test_gemini_absent_fallback_qwen():
     assert div_op.model is C.ModelId.QWEN14B and div_op.fallback_used is True
 
 
+class _Resp429:
+    """Réponse HTTP factice 429 (quota Gemini épuisé)."""
+    status_code = 429
+    def raise_for_status(self):
+        import requests
+        raise requests.HTTPError("429 Too Many Requests")
+    def json(self):
+        return {}
+
+
+def test_gemini_429_quota_fallback_qwen(monkeypatch, caplog):
+    # Gemini renvoie 429 -> Qwen prend le relais (DIVERGENCE/Explorer), schéma identique + warning.
+    import requests
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    monkeypatch.setattr(requests, "post", lambda *a, **k: _Resp429())
+    a = _adapters(gemini=C.GeminiAdapter(),
+                  qwen=MockAdapter(C.ModelId.QWEN14B, response=_resp(hypotheses=["alt via qwen"])))
+    with caplog.at_level("WARNING", logger="council"):
+        res = _run(_task(), a)
+    div_op = next(o for o in res.opinions if o.role is C.CouncilRole.DIVERGENCE)
+    assert div_op.model is C.ModelId.QWEN14B and div_op.fallback_used is True   # relais transparent
+    assert div_op.stance is C.Stance.DIVERGENCE and div_op.hypotheses == ("alt via qwen",)
+    assert any("quota" in r.message.lower() for r in caplog.records)            # warning émis
+
+
+def test_gemini_adapter_maps_429_to_quota_exhausted(monkeypatch):
+    import requests
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    monkeypatch.setattr(requests, "post", lambda *a, **k: _Resp429())
+    ad = C.GeminiAdapter()
+    with pytest.raises(C.CouncilCallError) as ei:
+        ad.complete("brief generique sans marqueur")
+    assert str(ei.value) == "quota_exhausted"
+
+
 # ── timeout respecté (wait_for libère l'orchestrateur) ────────────────────────
 
 def test_timeout_role_degrades():

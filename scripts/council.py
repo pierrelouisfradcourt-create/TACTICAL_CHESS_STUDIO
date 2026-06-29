@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import re
 import sys
@@ -38,6 +39,8 @@ _HERE = Path(__file__).resolve().parent
 REPO = _HERE.parent
 sys.path.insert(0, str(REPO / "governance"))
 import governor  # noqa: E402
+
+_log = logging.getLogger("council")
 
 # ── Endpoints (env-overridable) ───────────────────────────────────────────────
 CLAUDE_PROXY_URL = os.getenv("CLAUDE_PROXY_URL", "http://127.0.0.1:8765/v1")
@@ -329,6 +332,9 @@ class GeminiAdapter:
         try:
             r = requests.post(GEMINI_URL, json=payload, headers=headers,
                               timeout=(_CONNECT_TIMEOUT_S, read_timeout))
+            # RT-198 : 429 = quota épuisé -> chaîne FIXE distincte (déclenche le warning + fallback Qwen).
+            if r.status_code == 429:
+                raise CouncilCallError("quota_exhausted")
             r.raise_for_status()
             return r.json()["choices"][0]["message"]["content"]
         except CouncilCallError:
@@ -361,6 +367,9 @@ async def _call_role(role: CouncilRole, adapters: dict[ModelId, LLMAdapter],
             continue
         ad = adapters.get(model)
         if ad is None or not ad.is_available():
+            # Gemini DOWN (clé absente / endpoint injoignable) -> warning + fallback Qwen.
+            if model is ModelId.GEMINI_FLASH and fallback is not None:
+                _log.warning("Gemini indisponible -> fallback Qwen %s", role.value)
             continue
         prompt = _role_prompt(role, brief)
         if model is ModelId.GEMINI_FLASH:
@@ -373,7 +382,13 @@ async def _call_role(role: CouncilRole, adapters: dict[ModelId, LLMAdapter],
         except asyncio.TimeoutError:
             timed_out = True
             continue
-        except CouncilCallError:
+        except CouncilCallError as exc:
+            # Transparence du fallback : warning explicite quand Gemini lâche (quota 429 / appel KO).
+            if model is ModelId.GEMINI_FLASH and fallback is not None:
+                if str(exc) == "quota_exhausted":
+                    _log.warning("Gemini quota épuisé -> fallback Qwen %s", role.value)
+                else:
+                    _log.warning("Gemini KO (%s) -> fallback Qwen %s", exc, role.value)
             continue
         return replace(_parse_opinion(model, role, text),
                        fallback_used=(model is not primary), available=True, timed_out=False)
