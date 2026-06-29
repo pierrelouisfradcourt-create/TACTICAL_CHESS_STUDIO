@@ -4457,6 +4457,35 @@ improvements:
   closed_session: null
   notes: oracle_type=structure | blocked_by=none | Cree suite a la session 2026-06-29
     — fixes re-decouverts 2x
+- id: IMP-229
+  title: Tech-debt lab/chains/ orphelins — archiver ou supprimer chain_executor.py,
+    chain_log.py, studio_start.py, studio_end.py, validate_corpus.py, validate_packet.py
+    après vérification qu'ils ne sont pas appelés dynamiquement
+  type: tech-debt
+  source: graphify orphan audit 2026-06-30
+  status: OPEN
+  impact: LOW
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/chain_executor.py
+  - lab/chains/chain_log.py
+  - lab/chains/studio_start.py
+  - lab/chains/studio_end.py
+  - lab/chains/validate_corpus.py
+  - lab/chains/validate_packet.py
+  acceptance: 'Pour chacun des 6 fichiers: grep -rn (import, importlib, subprocess,
+    runpy, refs string du nom) sur tout le repo confirme zero appelant hors lui-meme;
+    puis chaque fichier soit deplace sous lab/chains/_archive/ soit supprime. Oracle:
+    python -m compileall lab/ OK + pytest ml/ vert + aucun import casse.'
+  blocked_by: []
+  opened_session: '2026-06-30'
+  closed_session: null
+  notes: 'oracle_type=code | blocked_by=none | source: graphify orphan audit 2026-06-30
+    (135 orphelins cross-fichier sur graph.json; ces 6 = vrais candidats lab/chains
+    non-entrypoint). NE PAS supprimer avant preuve grep zero-appelant (subprocess/runpy/importlib/refs
+    string).'
 metrics_history:
 - session: '2026-05-31'
   total: 11
