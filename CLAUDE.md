@@ -165,7 +165,7 @@ Table de correspondance intention → skill à invoquer. Utiliser `/skill-name` 
 * \## Jamais
 * \- Modifier IMPROVEMENT\_LEDGER.yaml manuellement
 * \- Supprimer golden\_examples.jsonl
-* \- Pusher sur git
+* \- Push = gate Pierre explicite dans la conversation — attendre le go avant tout push
 * \- Creer des fichiers tmp qui restent
 * \- Utiliser API Anthropic externe
 
@@ -181,7 +181,7 @@ claim\_verdict: NO\_CLAIM\_ALLOWED
 
 * Modifier IMPROVEMENT\_LEDGER.yaml via l'outil kaizen\_loop.py de préférence. Exception : création/clôture d'IMP en session active sur go explicite Pierre.
 * Supprimer golden\_examples.jsonl
-* Pusher sur git
+* Push = gate Pierre explicite dans la conversation — attendre le go avant tout push
 * Creer des fichiers tmp qui restent
 * Utiliser API Anthropic externe
 
