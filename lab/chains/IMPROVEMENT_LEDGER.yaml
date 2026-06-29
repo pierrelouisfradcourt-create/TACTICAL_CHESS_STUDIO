@@ -3945,6 +3945,25 @@ improvements:
     | ex-label=IMP-203. error_journal: pattern matcher + IMP auto-propose sur erreur
     inconnue.'
   oracle_type: code
+- id: IMP-203
+  title: 'ECG enforcing: router closes via ecg.can_transition + ledger_writer + producteur
+    imp_closed (adapt_imp_closed)'
+  type: feature
+  source: manual add 2026-06-29
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: 'pytest: close legale OK / close illegale rejetee / event imp_closed
+    emis + projection reflete / legacy tolere / non-regression'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: 'oracle_type=code | blocked_by=IMP-195,IMP-196 | ECG enforcing: cmd_close
+    -> ecg.can_transition + ledger_writer (refus dur transition illegale, legacy tolere)
+    + emit imp_closed signe -> event log alimente la projection'
 metrics_history:
 - session: '2026-05-31'
   total: 11
