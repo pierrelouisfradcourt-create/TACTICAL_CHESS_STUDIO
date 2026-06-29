@@ -610,6 +610,37 @@ def build_manifest(
 
 
 # =========================
+# 💾 CHECKPOINT — IMP-184
+# =========================
+# train.py n'écrit JAMAIS models/latest.pt directement.
+# Le modèle déployé (models/latest.pt) n'est mis à jour que par
+# scripts/learning_loop.sh APRÈS que le bench ELO du candidat batte la
+# baseline (cf. learning_loop.sh: cp models/candidate.pt models/latest.pt).
+# L'entraînement émet toujours models/candidate.pt.
+def candidate_checkpoint_path(model_dir: str) -> str:
+    """Chemin du checkpoint candidat produit par l'entraînement (IMP-184)."""
+    return os.path.join(model_dir, "candidate.pt")
+
+
+def save_candidate_checkpoint(model, model_dir: str) -> str:
+    """Persiste le modèle courant comme candidat de déploiement.
+
+    Écrit models/candidate.pt et garantit qu'on ne touche jamais
+    models/latest.pt depuis l'entraînement : le gate ELO de
+    scripts/learning_loop.sh est seul propriétaire de ce fichier.
+    Retourne le chemin réellement écrit.
+    """
+    os.makedirs(model_dir, exist_ok=True)
+    path = candidate_checkpoint_path(model_dir)
+    if os.path.basename(path) == "latest.pt":
+        raise RuntimeError(
+            "train.py ne doit jamais écrire models/latest.pt directement (IMP-184)"
+        )
+    torch.save(model.state_dict(), path)
+    return path
+
+
+# =========================
 # 🚀 MAIN
 # =========================
 def main() -> None:
@@ -754,7 +785,8 @@ def main() -> None:
     best_loss = float("inf")
 
     best_path = os.path.join(model_dir, "best.pt")
-    latest_path = os.path.join(model_dir, "latest.pt")
+    # IMP-184: l'entraînement produit le candidat, jamais latest.pt directement.
+    candidate_path = candidate_checkpoint_path(model_dir)
     registry_path = os.path.join(model_dir, "latest_run.json")
 
     if strict_dataset_admission and dataset_admission["dataset_fitness"] == "reject_for_ab":
@@ -776,7 +808,7 @@ def main() -> None:
             split_name=split_name,
             best_loss=None,
             best_path=best_path,
-            latest_path=latest_path,
+            latest_path=candidate_path,
             training_status="blocked_by_dataset_admission",
         )
 
@@ -958,7 +990,7 @@ def main() -> None:
                 f"{epoch_conversion_focus_samples}\n"
             )
 
-        torch.save(model.state_dict(), latest_path)
+        save_candidate_checkpoint(model, model_dir)
 
         if epoch_loss < best_loss:
             best_loss = epoch_loss
@@ -994,7 +1026,7 @@ def main() -> None:
         split_name=split_name,
         best_loss=best_loss,
         best_path=best_path,
-        latest_path=latest_path,
+        latest_path=candidate_path,
         training_status="completed",
     )
 
