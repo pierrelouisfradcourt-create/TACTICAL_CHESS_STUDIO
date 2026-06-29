@@ -26,6 +26,22 @@ log "═════════════════════════
 log "STUDIO BOOT — $(date -u)"
 log "═══════════════════════════════════════════"
 
+# ── STEP 0 : Git hooks — wiring core.hooksPath → .claude/hooks ────────────────
+# Les hooks vivent dans .claude/hooks (pre-commit, validate-commit-msg) mais ne
+# sont pas câblés côté git par défaut → jamais exécutés. On les câble ici, de
+# façon idempotente, et sans casser si on tourne hors d'un dépôt git.
+log "[0/5] Git hooks — core.hooksPath → .claude/hooks"
+if git -C "$STUDIO_ROOT" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+    if [ "$(git -C "$STUDIO_ROOT" config core.hooksPath 2>/dev/null || true)" != ".claude/hooks" ]; then
+        git -C "$STUDIO_ROOT" config core.hooksPath .claude/hooks
+        ok "core.hooksPath réglé sur .claude/hooks"
+    else
+        ok "core.hooksPath déjà sur .claude/hooks"
+    fi
+else
+    warn "Pas dans un dépôt git ($STUDIO_ROOT) — wiring hooks ignoré"
+fi
+
 # ── Helper : check port ───────────────────────────────────────────────────────
 port_up() {
     local port=$1
