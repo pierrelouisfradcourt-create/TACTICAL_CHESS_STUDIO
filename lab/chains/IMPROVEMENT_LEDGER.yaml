@@ -3245,10 +3245,11 @@ improvements:
   blocked_by: []
   opened_session: '2026-06-26'
   closed_session: null
-  notes: 'validate_am_dataset_admission() est fail-closed gate sécurité active — pas
-    dead code. BAT files déjà supprimés. Décision HumanGate requise avant toute modification.
-
-    '
+  notes: "validate_am_dataset_admission() est fail-closed gate sécurité active — pas\
+    \ dead code. BAT files déjà supprimés. Décision HumanGate requise avant toute\
+    \ modification.\n | [2026-06-29 audit UX] gate securite active (validate_am_dataset_admission\
+    \ fail-closed) — PAS du dead code — WONTFIX candidat, gate Pierre obligatoire\
+    \ avant toute modif"
 - id: IMP-170
   title: Puzzle L2/L3 diagnostic — analyser 50 premiers puzzles échoués
   type: chore
@@ -3655,7 +3656,8 @@ improvements:
   opened_session: '2026-06-27'
   closed_session: null
   notes: 'Decouvert audit QW : canonical-ci filtrait docs/** uniquement -> aucun build
-    ni test reel.'
+    ni test reel. | [2026-06-29 audit UX] cible .github/ = zone FORBIDDEN — gate Pierre
+    obligatoire malgre flag SAFE_AUTO'
 - id: IMP-188
   title: 'studio/factory: pipeline IR->template->llm_logic->oracle->registry'
   type: feature
@@ -4082,6 +4084,117 @@ improvements:
     kaizen_autoloop, injecte web_reality_agent brief avant PLAN, trigger auto sur
     chaque nouveau IMP
   oracle_type: structure
+- id: IMP-209
+  title: Cockpit honnetete P0 — kill hardcode + couche fetch timeout + fix lien mort/label/grain
+    SVG
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 0 donnee hardcodee sans badge mock, tous les fetch ont .catch, grain
+    SVG supprime
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=code | blocked_by=none | Phase 0 consensus UX_AUDIT 2026-06-29
+    — supprime hardcode (badge 12, ELO 1424/1200/975, commits figes), couche fetch
+    timeout+catch global, fix lien mort nav('sos'), label mensonger 'maj auto 15s',
+    retire grain SVG fractal
+  oracle_type: code
+- id: IMP-210
+  title: cockpit_server.py:8770 + migration studio_canvas.html
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: canvas_gateway revient a meta+gate strict, studio_canvas.html polle
+    8770
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=structure | blocked_by=none | option A — extraire routes cockpit
+    de canvas_gateway vers cockpit_server.py:8770, migrer studio_canvas.html, canvas_gateway
+    revient meta+gate strict
+  oracle_type: structure
+- id: IMP-211
+  title: Boucle Council UI — POST /api/council/run + SSE + timeout
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: formulaire cockpit -> council tourne -> CONSENSUS.md affiche
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=structure | blocked_by=none | boucle idee->council->decision
+    dans l'UI, POST /api/council/run subprocess gouverne + SSE log + timeout/annulation/anti-double-clic
+  oracle_type: structure
+- id: IMP-212
+  title: Lanceur jeux sandboxe — liste games/ + play + sandbox
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: jeux
+  files: []
+  acceptance: liste games/ rendue, bouton play fonctionnel, iframe a attribut sandbox
+  blocked_by:
+  - IMP-189
+  - IMP-190
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: 'oracle_type=code | blocked_by=IMP-189,IMP-190 | lanceur jeux: liste games/,
+    bouton play, iframe attribut sandbox obligatoire'
+  oracle_type: code
+- id: IMP-213
+  title: Pipeline publish — Godot headless + butler itch.io
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: jeux
+  files: []
+  acceptance: butler push exit 0 depuis factory_loop
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=code | blocked_by=none | Godot 4 headless --import --quit puis
+    --export-release preset, butler push user/game:channel --userversion-file, BUTLER_API_KEY
+    en CI
+  oracle_type: code
+- id: IMP-214
+  title: Decommissionner studio_cockpit_v2.html
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: redirection vers cockpit canonique
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=code | blocked_by=none | studio_cockpit_v2.html marque obsolete
+    (deprecie) mais encore servable -> redirection/banniere vers cockpit canonique
+  oracle_type: code
 metrics_history:
 - session: '2026-05-31'
   total: 11
