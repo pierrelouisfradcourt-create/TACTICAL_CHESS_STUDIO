@@ -444,3 +444,10 @@ software_verdict: BLOCKED
 
 ### Commits locaux NON poussés (2, gate push Pierre)
 - ccade62 (.github FORBIDDEN hook) · ac3a8e2 (IMP-207 error_journal live)
+  > MAJ 2026-06-29 : ces 2 commits + 5dc6682 (audit) sont POUSSÉS (origin/master en sync).
+
+## 2026-06-29 — Ratification IMP-208 + IMP-210
+- décision   : RATIFIÉ
+- IMPs       : 208 (council branché kaizen), 210 (cockpit_server.py:8770)
+- oracle     : PASS — 56/56 tests verts .venv312
+- ratifié par: Pierre — 2026-06-29
