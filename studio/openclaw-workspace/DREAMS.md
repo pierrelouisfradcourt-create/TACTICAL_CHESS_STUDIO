@@ -397,3 +397,12 @@ software_verdict: BLOCKED
 
 ### Commit local IMP-205 (1, branche master, NON poussé)
 - ffdbfff IMP-205 (roadmap+ledger_patch×2+grep_guard+test+ledger_writer docstring+domain, NON fermé)
+
+---
+
+## 2026-06-29 — Follow-through ratification : closes ledger pile AUDIT
+- objet      : la ratif « pile AUDIT Phase 0+1 » avait laisse 195/196/198/201/203 **OPEN** dans le ledger.
+- action     : `kaizen_loop close` des 5 (single-writer garde + event imp_closed signe). ecg_state=None -> close legacy.
+- oracle     : projection HMAC verte (events.jsonl 14 lignes) ; regression 229/229 ; ledger 18 OPEN restants.
+- commit     : 816ef2f (ledger + events.jsonl). NON pousse.
+- par        : orchestrateur, sur go Pierre (« reprends le travail que l'autre a fini »). claim_verdict: NO_CLAIM_ALLOWED
