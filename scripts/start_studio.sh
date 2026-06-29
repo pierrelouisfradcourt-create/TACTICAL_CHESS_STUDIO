@@ -126,31 +126,8 @@ else
     fi
 fi
 
-# ── STEP 5 : cockpit_server (port 8770 — FastAPI/uvicorn, .venv312) ───────────
-# uvicorn/fastapi/starlette ne sont installés que dans .venv312 (Windows) — on lance
-# donc le python Windows via l'interop WSL, pas python3. --app-dir scripts car
-# cockpit_server.py vit dans scripts/.
-log "[5/6] cockpit_server — port $COCKPIT_PORT"
-if port_up "$COCKPIT_PORT"; then
-    ok "cockpit_server déjà actif sur :$COCKPIT_PORT"
-else
-    cd "$STUDIO_ROOT"
-    "$STUDIO_ROOT/.venv312/Scripts/python.exe" -m uvicorn cockpit_server:app \
-        --host 127.0.0.1 --port "$COCKPIT_PORT" --app-dir scripts \
-        >> "$STUDIO_ROOT/lab/logs/cockpit_server.log" 2>&1 &
-    COCKPIT_PID=$!
-    log "cockpit_server lancé (pid $COCKPIT_PID)"
-
-    sleep 5
-    if port_up "$COCKPIT_PORT"; then
-        ok "cockpit_server opérationnel (:$COCKPIT_PORT)"
-    else
-        fail "cockpit_server n'a pas démarré — vérifier lab/logs/cockpit_server.log"
-    fi
-fi
-
-# ── STEP 6 : healthcheck daemon ────────────────────────────────────────────────
-log "[6/6] healthcheck daemon"
+# ── STEP 5 : healthcheck daemon ────────────────────────────────────────────────
+log "[5/6] healthcheck daemon"
 if pgrep -f "scripts/healthcheck.py" > /dev/null 2>&1; then
     ok "healthcheck déjà en cours (pid $(pgrep -f 'scripts/healthcheck.py' | head -1))"
 else
@@ -159,6 +136,29 @@ else
         >> "$STUDIO_ROOT/lab/logs/healthcheck.log" 2>&1 &
     HC_PID=$!
     ok "healthcheck lancé (pid $HC_PID)"
+fi
+
+# ── STEP 6 : cockpit_server (port 8770 — FastAPI/uvicorn, .venv312) ───────────
+# uvicorn/fastapi/starlette ne sont installés que dans .venv312 (Windows) — on lance
+# donc le python Windows via l'interop WSL, pas python3. --app-dir scripts car
+# cockpit_server.py vit dans scripts/. nohup : survit à la fin du shell de boot.
+log "[6/6] cockpit_server — port $COCKPIT_PORT"
+if port_up "$COCKPIT_PORT"; then
+    ok "cockpit_server déjà actif sur :$COCKPIT_PORT"
+else
+    cd "$STUDIO_ROOT"
+    nohup "$STUDIO_ROOT/.venv312/Scripts/python.exe" -m uvicorn cockpit_server:app \
+        --host 127.0.0.1 --port "$COCKPIT_PORT" --app-dir scripts \
+        > "$STUDIO_ROOT/lab/reports/cockpit_server.log" 2>&1 &
+    COCKPIT_PID=$!
+    log "cockpit_server lancé (pid $COCKPIT_PID)"
+
+    sleep 5
+    if port_up "$COCKPIT_PORT"; then
+        ok "cockpit_server opérationnel (:$COCKPIT_PORT)"
+    else
+        fail "cockpit_server n'a pas démarré — vérifier lab/reports/cockpit_server.log"
+    fi
 fi
 
 # ── Résumé ─────────────────────────────────────────────────────────────────────
