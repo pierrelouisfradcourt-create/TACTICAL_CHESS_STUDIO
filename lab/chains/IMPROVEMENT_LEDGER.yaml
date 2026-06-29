@@ -3733,6 +3733,191 @@ improvements:
   closed_session: null
   notes: 189 demande mais deja pris (studio_core --ir); push master en attente gate
     visuel Pierre
+- id: IMP-192
+  title: 'ECG: HMAC compare_digest enforcement dans ingest_event.py'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'pytest: forge HMAC invalide -> exception (rejet dur signature invalide)'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=none
+    | ex-label=IMP-193. HMAC compare_digest enforcement dans ingest_event.py, rejet
+    dur si signature invalide.'
+- id: IMP-193
+  title: 'ECG: Lock TTL .autoloop.lock PID+timestamp auto-release'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'pytest: simule crash (PID mort / age>30min) -> recovery auto-release'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=none
+    | ex-label=IMP-194. .autoloop.lock = PID + timestamp, auto-release si PID mort
+    ou age > 30min.'
+- id: IMP-194
+  title: 'ECG: Single-writer ledger - fermer 3 write paths non gouvernes'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: 'pytest: ecriture concurrente -> exception'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=IMP-192,IMP-193
+    | ex-label=IMP-195. Ferme les 3 write paths non gouvernes (watcher autopilot,
+    CLI kaizen_loop, close_imp) -> tous via governor.check() ou exception.'
+- id: IMP-195
+  title: 'ECG: state machine 7 etats transitions gardees'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: schema JSON + pytest transitions (PROPOSED->PLANNED->TEST_SPECCED->IN_PROGRESS->ORACLE_PENDING->VERDICT_SIGNED->CLOSED)
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=structure | blocked_by=IMP-192,IMP-193,IMP-194
+    | ex-label=IMP-196. 7 etats, transitions gardees.'
+- id: IMP-196
+  title: 'ECG: Event log append-only HMAC + projection model'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: 'pytest: replay depuis zero = meme etat'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=IMP-195
+    | ex-label=IMP-197. Event log append-only HMAC + projection model.'
+- id: IMP-197
+  title: 'ECG: Agent Factory capabilities.lock.json + 5 templates'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: schema valide + instanciation testee (Planner/Executor/RedTeam/Explorer/Reviewer)
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=structure | blocked_by=IMP-199
+    | ex-label=IMP-198. capabilities.lock.json + 5 templates (Planner/Executor/RedTeam/Explorer/Reviewer).'
+- id: IMP-198
+  title: 'ECG: Council Claude+Qwen14B+Gemini Flash async PLAN->CONSENSUS'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: OPEN
+  impact: HIGH
+  effort: LARGE
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: 3 roles tournent + output schema valide; desaccords -> HumanGate; fallback
+    Qwen si proxy down
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=structure | blocked_by=IMP-197,IMP-199
+    | ex-label=IMP-199. Claude(plan+review)+Qwen14B(redteam)+Gemini Flash(diverge)
+    async, PLAN.md -> CONSENSUS.md + desaccords HumanGate, fallback Qwen si proxy
+    down.'
+- id: IMP-199
+  title: 'ECG: SOA execution router MCP-registry aware anti sur-orchestration'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'pytest: sur-orchestration detectee -> refus'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=IMP-195,IMP-196
+    | ex-label=IMP-200. Routing minimal, MCP-registry aware, anti sur-orchestration.'
+- id: IMP-200
+  title: 'ECG: WRA GitHub+HackerNews+arXiv read-only inject avant PLAN'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'pytest: source non verifiee -> rejet'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=IMP-199
+    | ex-label=IMP-201. GitHub+HackerNews+arXiv, filtre/score, READ ONLY, inject avant
+    PLAN.'
+- id: IMP-201
+  title: 'ECG: Oracle semantic HumanGate obligatoire design/balance'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: checklist JSON schema validee + gate Pierre
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=humangate | blocked_by=IMP-195,IMP-196
+    | ex-label=IMP-202. HumanGate obligatoire pour design/balance, checklist JSON
+    schema.'
+- id: IMP-202
+  title: 'ECG: error_journal pattern matcher + IMP auto-propose'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'pytest: erreur inconnue -> IMP cree'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=IMP-195,IMP-196
+    | ex-label=IMP-203. error_journal: pattern matcher + IMP auto-propose sur erreur
+    inconnue.'
 metrics_history:
 - session: '2026-05-31'
   total: 11
