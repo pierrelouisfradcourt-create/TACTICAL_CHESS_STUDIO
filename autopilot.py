@@ -25,6 +25,7 @@ import urllib.error
 from pathlib import Path
 from datetime import datetime
 import socketserver
+import yaml
 from executor_report import analyse_report
 from control_plane.registry import get_model_for_role, probe_all_providers
 
@@ -2146,6 +2147,25 @@ def _auto_close_from_report(report_path: str) -> dict:
         result["error"] = close_result.get("error", "close_imp a échoué")
         return result
     print(f"[AUTO-CLOSE] {imp_id} fermé depuis rapport")
+    # ── auto-mémoire : append dans studio_brain/state/loops-log.md ──────────
+    # Best-effort — ne doit JAMAIS faire échouer la fermeture de l'IMP.
+    # Import direct (pas de subprocess) : pas de spawn, pas de blocage du watcher.
+    try:
+        from types import SimpleNamespace
+        if str(REPO) not in sys.path:
+            sys.path.insert(0, str(REPO))
+        from scripts.loop_memory_hook import append_entry
+        _sw = report_dict.get("software_verdict", "OK").upper()
+        _oracle = _sw if _sw in ("OK", "FAIL", "BLOCKED") else "SKIP"
+        _lane = report_dict.get("lane", "UNKNOWN")
+        append_entry(SimpleNamespace(
+            imp_id=imp_id, packet_id="watcher", oracle_status=_oracle,
+            tier="SAFE_AUTO", skill="auto-close-watcher", lane=_lane,
+            duration_s=0, notes=None,
+        ))
+    except Exception as _e:
+        print(f"[AUTO-CLOSE] loop_memory_hook non bloquant: {_e}", flush=True)
+    # ───────────────────────────────────────────────────────────────────────
     processed_dir = REPO / "lab/chains/reports/processed"
     processed_dir.mkdir(parents=True, exist_ok=True)
     dest = processed_dir / path.name
@@ -2669,24 +2689,17 @@ def get_memory_data() -> dict:
     hg_log = REPO / "lab/chains/HUMANGATE_DECISION_LOG.yaml"
     if hg_log.exists():
         try:
-            text = hg_log.read_text(encoding="utf-8")
-            blocks = re.split(r'\n  - decision_id:\s*', text)
-            for block in blocks[1:]:
-                entry: dict = {}
-                m = re.match(r'(HGD-\d+)', block)
-                if m:
-                    entry["id"] = m.group(1)
-                m2 = re.search(r'title:\s*"([^"]+)"', block)
-                if m2:
-                    entry["question"] = m2.group(1)
-                m3 = re.search(r'verdict:\s*(\w+)', block)
-                if m3:
-                    entry["decision"] = m3.group(1)
-                m4 = re.search(r'approved_at:\s*"([^"]+)"', block)
-                if m4:
-                    entry["date"] = m4.group(1)
-                if entry.get("id"):
-                    result["decisions_humangate"].append(entry)
+            _hg = yaml.safe_load(hg_log.read_text(encoding="utf-8")) or {}
+            for _d in (_hg.get("decisions") or []):
+                _did = _d.get("decision_id") or _d.get("id")
+                if not _did:
+                    continue
+                result["decisions_humangate"].append({
+                    "id": _did,
+                    "question": _d.get("title", ""),
+                    "decision": _d.get("verdict", ""),
+                    "date": _d.get("approved_at", ""),
+                })
         except Exception:
             pass
     # 3. golden_examples.jsonl
@@ -3058,6 +3071,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;
 .tb-lm{display:flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:4px;border:1px solid var(--border);background:var(--bg3)}
 .tb-lm.online{border-color:var(--green);color:var(--green)}
 .tb-lm.offline{border-color:var(--red);color:var(--red)}
+.tb-lm.probing{border-color:var(--amber);color:var(--amber);animation:pulse 1.2s infinite}
 .tb-time{font-size:11px;color:var(--text3)}
 .tb-hg-badge{display:none;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--red);background:var(--red-bg);border:1px solid var(--red);padding:3px 9px;border-radius:4px;animation:pulse 2s infinite}
 .tb-prop-badge{display:none;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--amber);background:rgba(240,160,48,.15);border:1px solid var(--amber);padding:3px 9px;border-radius:4px;cursor:pointer}
@@ -3219,6 +3233,7 @@ tr:hover td{background:var(--bg3)}
 .hc-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);transition:background .3s}
 .hc-dot.ok{background:var(--green)}
 .hc-dot.ko{background:var(--red)}
+.hc-dot:not(.ok):not(.ko){animation:pulse 1.2s infinite}
 
 /* METRICS / DATASET PAGES */
 .elo-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px}
@@ -3308,6 +3323,7 @@ tr:hover td{background:var(--bg3)}
   </div>
 
   <div class="sb-section">Vue</div>
+  <div class="sb-item" onclick="nav('cockpit')"><span class="ico">⬡</span> Cockpit</div>
   <div class="sb-item" onclick="nav('vision')"><span class="ico">◈</span> Vision <span class="sb-badge badge-amber" id="badge-hg-vision" style="display:none">!</span></div>
   <div class="sb-item active" onclick="nav('pilote')"><span class="ico">⬡</span> Pilote <span class="sb-badge badge-amber" id="badge-actions">0</span></div>
   <div class="sb-item" onclick="nav('chains')"><span class="ico">⛓</span> Chaînes</div>
@@ -3325,7 +3341,6 @@ tr:hover td{background:var(--bg3)}
   <div class="sb-section">IA Joueur</div>
   <div class="sb-item" onclick="nav('agents')"><span class="ico">🤖</span> Agents</div>
   <div class="sb-item" onclick="nav('ligue')"><span class="ico">🏆</span> Ligue</div>
-  <div class="sb-item" onclick="nav('roadmap-domaine')"><span class="ico">🗺</span> Roadmap IA</div>
 
   <div class="sb-section">Création JV</div>
   <div class="sb-item" onclick="nav('moteur')"><span class="ico">💻</span> Moteur &amp; code</div>
@@ -3380,7 +3395,7 @@ tr:hover td{background:var(--bg3)}
       <div class="tb-prop-badge" id="tb-prop-badge" onclick="nav('ideas')" title="Proposals en attente d\'approbation HumanGate">◈ Proposals</div>
       <div class="tb-hg-badge" id="tb-hg-badge" onclick="nav('sos')" style="cursor:pointer">⚠ HumanGate</div>
       <div id="tb-dedup-badge" style="display:none;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--amber);background:rgba(240,160,48,.12);border:1px solid var(--amber);padding:3px 9px;border-radius:4px;" title="IMPs exclus par déduplication cette session">⊘ <span id="tb-dedup-count">0</span> dédup</div>
-      <div class="tb-lm offline" id="lm-indicator">
+      <div class="tb-lm probing" id="lm-indicator">
         <span id="lm-dot">○</span>
         <span id="lm-text">LM Studio</span>
       </div>
@@ -4200,6 +4215,49 @@ tr:hover td{background:var(--bg3)}
 
     </div>
 
+    <div id="page-cockpit" class="page">
+
+      <!-- COCKPIT (home single-pane) -->
+      <div class="divider">ELO</div>
+      <div class="card">
+        <div id="ck-elo" style="display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--text3)">Chargement...</div>
+        <div id="ck-elo-spark" style="margin-top:8px"></div>
+      </div>
+
+      <div class="divider">Director</div>
+      <div class="card">
+        <div id="ck-director-lanes" style="font-size:12px;color:var(--text3)">Chargement...</div>
+        <div id="ck-director-loop" style="font-size:11px;color:var(--text3);margin-top:10px"></div>
+      </div>
+
+      <div class="divider">Gates Pierre</div>
+      <div class="card">
+        <div id="ck-gates-pending" style="font-size:11px;color:var(--text3);margin-bottom:8px"></div>
+        <div id="ck-gates" style="font-size:12px;color:var(--text3)">Chargement...</div>
+      </div>
+
+      <div class="divider">Factory (builds)</div>
+      <div class="card">
+        <div id="ck-factory" style="font-size:12px;color:var(--text3)">Chargement...</div>
+      </div>
+
+      <div class="divider">Timeline</div>
+      <div class="card">
+        <div id="ck-timeline" style="font-size:12px;color:var(--text3)">Chargement...</div>
+      </div>
+
+      <div class="divider">GRAPHE MEMOIRE</div>
+      <div class="card">
+        <svg id="ck-brain-graph" width="100%" height="360" style="display:block"></svg>
+      </div>
+
+      <div class="divider">JEU (snake genesis) <span style="font-size:9px;color:var(--text3);text-transform:none;letter-spacing:0;font-weight:400">— maj auto 15s</span></div>
+      <div class="card">
+        <iframe src="/games/snake_genesis/snake_genesis.html" style="width:100%;height:520px;border:0;border-radius:8px;background:#000"></iframe>
+      </div>
+
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 </div><!-- /shell -->
@@ -4363,6 +4421,7 @@ const roiColors = {high:'p-high',med:'p-med',low:'p-low'};
 
 // ── NAVIGATION ────────────────────────────────────────────────────────────
 function nav(id) {
+  if (id !== 'cockpit') stopCockpitAutoRefresh();
   document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
   document.querySelector(`.sb-item[onclick="nav('${id}')"]`)?.classList.add('active');
@@ -4384,7 +4443,333 @@ function nav(id) {
   if (id === 'moteur') loadDomainImps('rocky_moteur', 'moteur-imps');
   if (id === 'design') loadDomainImps('jeux', 'design-imps');
   if (id === 'roadmap-jeux') loadDomainImps('jeux', 'jeux-imps');
+  if (id === 'cockpit') { loadCockpit(); startCockpitAutoRefresh(); }
 }
+
+// ── COCKPIT (home single-pane) ────────────────────────
+function ckSet(id, html) { const e = document.getElementById(id); if (e) e.innerHTML = html; }
+function ckEmpty(msg) { return '<div style="color:var(--text3);font-size:12px;padding:6px 0">' + escHtml(msg) + '</div>'; }
+
+function loadCockpit() {
+  loadCkElo();
+  loadCkEloSpark();
+  loadCkDirector();
+  loadCkGates();
+  loadCkFactory();
+  loadCkTimeline();
+  loadBrainGraph();
+}
+
+// Auto-rafraichissement cockpit : recharge les loaders de DONNEES legers
+// toutes les 15s tant que l'utilisateur reste sur la vue cockpit.
+// L'iframe JEU n'a pas besoin d'etre rechargee (elle vit sa propre vie).
+var _cockpitAutoIv = null;
+function startCockpitAutoRefresh() {
+  if (_cockpitAutoIv) return;  // deja actif : pas de double boucle
+  _cockpitAutoIv = setInterval(function () {
+    if (document.hidden) return;  // onglet en arriere-plan : on saute
+    var pg = document.getElementById('page-cockpit');
+    if (!pg || !pg.classList.contains('active')) { stopCockpitAutoRefresh(); return; }
+    loadCkElo();
+    loadCkEloSpark();
+    loadCkDirector();
+    loadCkGates();
+    loadCkFactory();
+    loadCkTimeline();
+    loadBrainGraph();
+  }, 15000);
+}
+function stopCockpitAutoRefresh() {
+  if (_cockpitAutoIv) { clearInterval(_cockpitAutoIv); _cockpitAutoIv = null; }
+}
+
+async function loadCkElo() {
+  try {
+    const d = await fetch('/api/metrics').then(r => r.json());
+    const elo = (d && d.elo) || {};
+    const cell = (lbl, v) => `<div style="text-align:center"><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em">${escHtml(lbl)}</div><div style="font-size:22px;font-weight:700;color:var(--text)">${escHtml(String(v ?? '—'))}</div></div>`;
+    const dr = (d && d.draw_rate != null) ? (Number(d.draw_rate) * 100).toFixed(0) + '%' : '—';
+    ckSet('ck-elo',
+      cell('teacher_uci', elo.teacher_uci) +
+      cell('heuristic', elo.heuristic) +
+      cell('neural', elo.neural) +
+      cell('draw rate', dr));
+  } catch (e) {
+    ckSet('ck-elo', ckEmpty('ELO indisponible'));
+  }
+}
+
+// --- Sparkline ELO (SVG inline, zero dependance) ---
+async function loadCkEloSpark() {
+  const host = document.getElementById('ck-elo-spark');
+  if (!host) return;
+  try {
+    const d = await fetch('/api/elo-history').then(r => r.json());
+    const pts = (d && Array.isArray(d.points)) ? d.points : [];
+    if (pts.length < 2) {
+      host.innerHTML = '<div style="color:var(--text3);font-size:11px;padding:4px 0">Historique ELO en cours de constitution</div>';
+      return;
+    }
+    const series = [
+      { key: 'teacher_uci', label: 'teacher', color: 'var(--amber)' },
+      { key: 'heuristic',   label: 'heuristic', color: 'var(--green)' },
+      { key: 'neural',      label: 'neural', color: 'var(--blue)' },
+      { key: 'hybrid',      label: 'hybrid', color: 'var(--purple)' }
+    ].filter(s => pts.some(p => typeof p[s.key] === 'number'));
+    if (!series.length) {
+      host.innerHTML = '<div style="color:var(--text3);font-size:11px;padding:4px 0">Aucune serie ELO exploitable</div>';
+      return;
+    }
+    const W = 600, H = 120, padL = 6, padR = 6, padT = 10, padB = 14;
+    const n = pts.length;
+    let lo = Infinity, hi = -Infinity;
+    for (const p of pts) for (const s of series) {
+      const v = p[s.key];
+      if (typeof v === 'number') { if (v < lo) lo = v; if (v > hi) hi = v; }
+    }
+    if (!isFinite(lo) || !isFinite(hi)) {
+      host.innerHTML = '<div style="color:var(--text3);font-size:11px;padding:4px 0">Aucune serie ELO exploitable</div>';
+      return;
+    }
+    if (hi === lo) { hi = lo + 1; lo = lo - 1; }
+    const sx = (i) => padL + (n <= 1 ? 0 : (i / (n - 1)) * (W - padL - padR));
+    const sy = (v) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
+    let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '" preserveAspectRatio="none" style="display:block">';
+    // baseline + max gridlines
+    svg += '<line x1="' + padL + '" y1="' + sy(hi) + '" x2="' + (W - padR) + '" y2="' + sy(hi) + '" stroke="var(--border)" stroke-width="0.5"/>';
+    svg += '<line x1="' + padL + '" y1="' + sy(lo) + '" x2="' + (W - padR) + '" y2="' + sy(lo) + '" stroke="var(--border)" stroke-width="0.5"/>';
+    for (const s of series) {
+      const coords = [];
+      for (let i = 0; i < n; i++) {
+        const v = pts[i][s.key];
+        if (typeof v === 'number') coords.push(sx(i).toFixed(1) + ',' + sy(v).toFixed(1));
+      }
+      if (coords.length >= 2) {
+        svg += '<polyline points="' + coords.join(' ') + '" fill="none" stroke="' + s.color + '" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>';
+      }
+    }
+    svg += '</svg>';
+    // legend + axis labels
+    let legend = '<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:9px;color:var(--text3);margin-top:4px">';
+    for (const s of series) {
+      legend += '<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:2px;background:' + s.color + '"></span>' + escHtml(s.label) + '</span>';
+    }
+    legend += '<span style="margin-left:auto">' + escHtml(String(Math.round(lo))) + '–' + escHtml(String(Math.round(hi))) + ' ELO · ' + n + ' pts</span>';
+    legend += '</div>';
+    host.innerHTML = svg + legend;
+  } catch (e) {
+    host.innerHTML = '<div style="color:var(--text3);font-size:11px;padding:4px 0">Sparkline ELO indisponible</div>';
+  }
+}
+
+// --- Graphe-reseau memoire Obsidian (SVG inline, layout circulaire) ---
+async function loadBrainGraph() {
+  const svgEl = document.getElementById('ck-brain-graph');
+  if (!svgEl) return;
+  const W = 720, H = 360;
+  svgEl.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  const emptyMsg = (msg) =>
+    '<text x="' + (W / 2) + '" y="' + (H / 2) + '" text-anchor="middle" fill="var(--text3)" font-size="12">' + escHtml(msg) + '</text>';
+  try {
+    const d = await fetch('/api/brain-graph').then(r => r.json());
+    const nodes = (d && Array.isArray(d.nodes)) ? d.nodes : [];
+    const edges = (d && Array.isArray(d.edges)) ? d.edges : [];
+    if (!nodes.length) {
+      svgEl.innerHTML = emptyMsg('Graphe memoire vide');
+      return;
+    }
+    // positions: layout circulaire deterministe
+    const cx = W / 2, cy = H / 2;
+    const R = Math.min(W, H) / 2 - 56;
+    const pos = {};
+    const N = nodes.length;
+    nodes.forEach((nd, i) => {
+      const a = (i / N) * Math.PI * 2 - Math.PI / 2;
+      pos[nd.id] = { x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) };
+    });
+    // quelques iterations de repulsion legere (force-directed minimal)
+    const ids = nodes.map(n => n.id);
+    for (let it = 0; it < 30; it++) {
+      const disp = {};
+      ids.forEach(id => disp[id] = { x: 0, y: 0 });
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          const a = pos[ids[i]], b = pos[ids[j]];
+          let dx = a.x - b.x, dy = a.y - b.y;
+          let dist2 = dx * dx + dy * dy;
+          if (dist2 < 1) { dist2 = 1; dx = (Math.random() - 0.5); dy = (Math.random() - 0.5); }
+          const f = 1200 / dist2;
+          disp[ids[i]].x += dx * f; disp[ids[i]].y += dy * f;
+          disp[ids[j]].x -= dx * f; disp[ids[j]].y -= dy * f;
+        }
+      }
+      // attraction le long des edges
+      for (const e of edges) {
+        const a = pos[e.from], b = pos[e.to];
+        if (!a || !b) continue;
+        const dx = a.x - b.x, dy = a.y - b.y;
+        const f = 0.01;
+        a.x -= dx * f; a.y -= dy * f;
+        b.x += dx * f; b.y += dy * f;
+      }
+      ids.forEach(id => {
+        const p = pos[id];
+        p.x += Math.max(-6, Math.min(6, disp[id].x));
+        p.y += Math.max(-6, Math.min(6, disp[id].y));
+        p.x = Math.max(20, Math.min(W - 20, p.x));
+        p.y = Math.max(20, Math.min(H - 20, p.y));
+      });
+    }
+    const deg = {};
+    ids.forEach(id => deg[id] = 0);
+    let svg = '';
+    for (const e of edges) {
+      const a = pos[e.from], b = pos[e.to];
+      if (!a || !b) continue;
+      deg[e.from] = (deg[e.from] || 0) + 1;
+      deg[e.to] = (deg[e.to] || 0) + 1;
+      svg += '<line x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) + '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '" stroke="var(--border)" stroke-width="0.7" stroke-opacity="0.5"/>';
+    }
+    for (const nd of nodes) {
+      const p = pos[nd.id];
+      if (!p) continue;
+      const r = 4 + Math.min(6, (deg[nd.id] || 0) * 0.6);
+      const label = String(nd.label != null ? nd.label : nd.id);
+      const shortLbl = label.length > 16 ? label.slice(0, 15) + '…' : label;
+      svg += '<g>';
+      svg += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + r.toFixed(1) + '" fill="var(--amber)" fill-opacity="0.85" stroke="var(--bg, #000)" stroke-width="0.5"><title>' + escHtml(label) + '</title></circle>';
+      svg += '<text x="' + (p.x + r + 3).toFixed(1) + '" y="' + (p.y + 3).toFixed(1) + '" fill="var(--text3)" font-size="8">' + escHtml(shortLbl) + '</text>';
+      svg += '</g>';
+    }
+    svgEl.innerHTML = svg;
+  } catch (e) {
+    svgEl.innerHTML = emptyMsg('Graphe memoire indisponible');
+  }
+}
+
+async function loadCkDirector() {
+  try {
+    const d = await fetch('/api/ceo-lane-assignment').then(r => r.json());
+    const lanes = (d && d.lanes) || [];
+    if (!lanes.length) {
+      ckSet('ck-director-lanes', ckEmpty('Aucune lane recommandée.'));
+    } else {
+      ckSet('ck-director-lanes', lanes.map(l =>
+        `<div style="padding:6px 0;border-bottom:1px solid var(--border)">
+          <span style="font-weight:600;color:${escHtml(l.color || 'var(--amber)')}">${escHtml(l.label || l.id || 'Lane')}</span>
+          <span style="color:var(--text2);margin-left:8px">${escHtml(l.recommendation || '—')}</span>
+        </div>`).join(''));
+    }
+  } catch (e) {
+    ckSet('ck-director-lanes', ckEmpty('Director indisponible'));
+  }
+  try {
+    const st = await fetch('/api/autoloop-status').then(r => r.json());
+    const lanes = Object.keys(st || {});
+    const parts = lanes.map(k => {
+      const o = st[k] || {};
+      return escHtml(k) + ': ' + escHtml(o.state || '—');
+    });
+    ckSet('ck-director-loop', parts.length ? 'Autoloop — ' + parts.join(' · ') : '');
+  } catch (e) {
+    ckSet('ck-director-loop', '');
+  }
+}
+
+async function loadCkGates() {
+  let pendingTxt = '';
+  try {
+    const esc = await fetch('/api/escalation-status').then(r => r.json());
+    pendingTxt = (esc && esc.pending)
+      ? '⚠ En attente : ' + escHtml(esc.reason || 'décision requise')
+      : 'Aucune décision en attente.';
+  } catch (e) {
+    pendingTxt = '';
+  }
+  ckSet('ck-gates-pending', pendingTxt);
+  try {
+    const d = await fetch('/api/memory').then(r => r.json());
+    const decs = (d && d.decisions_humangate) || [];
+    if (!decs.length) {
+      ckSet('ck-gates', ckEmpty('Aucune décision HumanGate.'));
+      return;
+    }
+    ckSet('ck-gates', decs.slice(0, 8).map(g => {
+      const verdict = String(g.decision || '').toUpperCase();
+      const decided = verdict === 'APPROVED' || verdict === 'REJECTED';
+      const vc = verdict === 'APPROVED' ? 'var(--green)' : verdict === 'REJECTED' ? 'var(--red)' : 'var(--amber)';
+      const id = String(g.id || '');
+      const actions = decided ? '' :
+        `<span style="margin-left:auto;display:inline-flex;gap:6px">
+          <button class="btn btn-sm btn-green" onclick="gateDecide('${escHtml(id).replace(/'/g, '')}','approve')">Approve</button>
+          <button class="btn btn-sm btn-red" onclick="gateDecide('${escHtml(id).replace(/'/g, '')}','reject')">Reject</button>
+        </span>`;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-weight:600;color:var(--text2)">${escHtml(id)}</span>
+        <span style="color:var(--text3);flex:0 1 auto;max-width:300px;word-break:break-word">${escHtml(g.question || '')}</span>
+        <span style="color:${vc};font-size:11px">${escHtml(verdict || 'PENDING')}</span>
+        ${actions}
+      </div>`;
+    }).join(''));
+  } catch (e) {
+    ckSet('ck-gates', ckEmpty('Gates indisponibles'));
+  }
+}
+
+async function gateDecide(id, verdict) {
+  try {
+    await fetch('/api/gate-decide', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, verdict }),
+    });
+  } catch (e) {
+    /* swallow: on rafraîchit quand même l'état */
+  }
+  loadCkGates();
+}
+
+async function loadCkFactory() {
+  try {
+    const d = await fetch('/api/projects').then(r => r.json());
+    const projects = Array.isArray(d) ? d : [];
+    if (!projects.length) {
+      ckSet('ck-factory', ckEmpty('Aucun jeu.'));
+      return;
+    }
+    ckSet('ck-factory', projects.map(p => {
+      const wl = (p.metrics && p.metrics.wishlists != null) ? p.metrics.wishlists : '—';
+      return `<div style="display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-weight:600;color:var(--text2);flex:1">${escHtml(p.title || p.id || '?')}</span>
+        <span style="color:var(--amber);font-size:11px">${escHtml(String(p.stage || '—'))}</span>
+        <span style="color:var(--text3);font-size:11px">♥ ${escHtml(String(wl))}</span>
+      </div>`;
+    }).join(''));
+  } catch (e) {
+    ckSet('ck-factory', ckEmpty('Factory indisponible'));
+  }
+}
+
+async function loadCkTimeline() {
+  try {
+    const d = await fetch('/api/factory-timeline').then(r => r.json());
+    const items = (d && d.items) || [];
+    if (!items.length) {
+      ckSet('ck-timeline', ckEmpty('Timeline vide.'));
+      return;
+    }
+    ckSet('ck-timeline', items.slice(0, 20).map(it =>
+      `<div style="display:flex;gap:10px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px">
+        <span style="color:var(--text3);min-width:120px">${escHtml(String(it.ts || ''))}</span>
+        <span style="color:var(--amber);min-width:90px">${escHtml(String(it.type || ''))}</span>
+        <span style="color:var(--text2)">${escHtml(String(it.label || ''))}</span>
+      </div>`).join(''));
+  } catch (e) {
+    ckSet('ck-timeline', ckEmpty('Timeline indisponible'));
+  }
+}
+
 
 // ── CHAIN MAP (IMP-088) ──────────────────────────────────────────────────
 async function loadChainMap() {
@@ -7053,6 +7438,130 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/logs":
             self.send_json({"logs": log_buffer[-20:]})
 
+        elif path == "/api/factory-timeline":
+            # Historique des actions de l'usine : IMPs fermes + decisions HumanGate + logs.
+            try:
+                items = []
+                mem = get_memory_data()
+                # (a) IMPs recemment fermes (date+id+titre best-effort)
+                for imp in mem.get("last_closed_imps", []):
+                    items.append({
+                        "ts": imp.get("closed_session", "") or "",
+                        "type": "imp_closed",
+                        "label": imp.get("id", "?") + " ferme",
+                        "detail": imp.get("title", ""),
+                    })
+                # (b) decisions HumanGate
+                for dec in mem.get("decisions_humangate", []):
+                    items.append({
+                        "ts": dec.get("date", "") or "",
+                        "type": "humangate",
+                        "label": dec.get("id", "?") + " " + str(dec.get("decision", "")),
+                        "detail": dec.get("question", ""),
+                    })
+                # (c) ~20 dernieres lignes du buffer de logs
+                for entry in log_buffer[-20:]:
+                    if isinstance(entry, dict):
+                        ts = entry.get("ts", "") or entry.get("time", "") or ""
+                        label = entry.get("cmd", "") or entry.get("action", "") or "log"
+                        detail = (entry.get("output", "") or entry.get("error", "") or "")[:200]
+                    else:
+                        ts, label, detail = "", "log", str(entry)[:200]
+                    items.append({"ts": ts, "type": "log", "label": label, "detail": detail})
+                items.sort(key=lambda x: str(x.get("ts", "")), reverse=True)
+                self.send_json({"items": items[:40]})
+            except Exception as e:
+                self.send_json({"items": [], "error": str(e)})
+
+        elif path == "/api/elo-history":
+            # Serie temporelle ELO best-effort agregee depuis lab/reports/.
+            try:
+                points = []
+                report_dir = REPO / "lab/reports"
+                candidates = []
+                if report_dir.exists():
+                    for fixed in ["elo_match_latest.json", "latest_benchmark_summary.json"]:
+                        fp = report_dir / fixed
+                        if fp.exists():
+                            candidates.append(fp)
+                    candidates.extend(sorted(report_dir.glob("diagnosis_*.json")))
+
+                def _pick(d, *keys):
+                    for k in keys:
+                        if "." in k:
+                            cur = d
+                            ok = True
+                            for part in k.split("."):
+                                if isinstance(cur, dict) and part in cur:
+                                    cur = cur[part]
+                                else:
+                                    ok = False
+                                    break
+                            if ok and cur is not None:
+                                return cur
+                        elif isinstance(d, dict) and d.get(k) is not None:
+                            return d[k]
+                    return None
+
+                for fp in candidates:
+                    try:
+                        data = json.loads(fp.read_text(encoding="utf-8"))
+                    except Exception:
+                        continue
+                    if not isinstance(data, dict):
+                        continue
+                    pt = {}
+                    date = _pick(data, "date", "timestamp", "ts")
+                    pt["date"] = str(date) if date is not None else ""
+                    mapping = {
+                        "teacher_uci": ("elo_teacher_uci", "teacher_uci_elo", "ratings.teacher_uci", "elo_teacher", "teacher_uci"),
+                        "heuristic":   ("elo_heuristic", "heuristic_elo", "ratings.heuristic", "heuristic"),
+                        "neural":      ("elo_neural", "neural_elo", "ratings.neural", "neural"),
+                        "hybrid":      ("elo_hybrid", "hybrid_elo", "ratings.hybrid", "hybrid"),
+                    }
+                    for out_key, src_keys in mapping.items():
+                        val = _pick(data, *src_keys)
+                        if val is not None:
+                            try:
+                                pt[out_key] = float(val)
+                            except (TypeError, ValueError):
+                                pass
+                    # ne garder que les points contenant au moins un ELO
+                    if any(k in pt for k in ("teacher_uci", "heuristic", "neural", "hybrid")):
+                        points.append(pt)
+                points.sort(key=lambda x: str(x.get("date", "")))
+                self.send_json({"points": points})
+            except Exception as e:
+                self.send_json({"points": [], "error": str(e)})
+
+        elif path == "/api/brain-graph":
+            # Graphe de la memoire Obsidian (studio_brain/). Lecture seule.
+            # Choix documente : on GARDE les edges vers des cibles inexistantes
+            # (les noeuds manquants n'apparaissent pas dans nodes, le front peut filtrer).
+            try:
+                vault = REPO / "studio_brain"
+                nodes = []
+                edges = []
+                if vault.exists():
+                    link_re = re.compile(r"\[\[([^\]\|#]+)")
+                    title_re = re.compile(r"^\s*#\s+(.+)$", re.MULTILINE)
+                    for md in vault.glob("**/*.md"):
+                        try:
+                            text = md.read_text(encoding="utf-8")
+                        except Exception:
+                            continue
+                        node_id = md.stem
+                        m = title_re.search(text)
+                        label = m.group(1).strip() if m else node_id
+                        nodes.append({"id": node_id, "label": label})
+                        for lm_ in link_re.findall(text):
+                            target = lm_.strip()
+                            if target:
+                                edges.append({"from": node_id, "to": target})
+                self.send_json({"nodes": nodes, "edges": edges})
+            except Exception as e:
+                self.send_json({"nodes": [], "edges": [], "error": str(e)})
+
         elif path == "/api/memory":
             self.send_json(get_memory_data())
 
@@ -7064,6 +7573,38 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         elif path == "/api/imp-triage":
             self.send_json(imp_triage())
+
+        elif path.startswith("/games/"):
+            # Sert les fichiers HTML/JS/CSS du dossier games/ pour iframe cockpit.
+            rel = path[len("/games/"):]
+            if not rel or ".." in rel or "\\" in rel:
+                self.send_response(403)
+                self.end_headers()
+                return
+            games_path = (REPO / "games" / rel).resolve()
+            games_root = (REPO / "games").resolve()
+            # Garde anti path-traversal : le chemin resolu doit rester sous games/.
+            if os.path.commonpath([str(games_path), str(games_root)]) != str(games_root):
+                self.send_response(403)
+                self.end_headers()
+                return
+            if not games_path.exists() or not games_path.is_file():
+                self.send_response(404)
+                self.end_headers()
+                return
+            ext = games_path.suffix.lower()
+            ct = {
+                ".html": "text/html; charset=utf-8",
+                ".js": "application/javascript",
+                ".css": "text/css",
+                ".png": "image/png",
+            }.get(ext, "application/octet-stream")
+            data = games_path.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", ct)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
 
         elif path.startswith("/static/"):
             filename = path[len("/static/"):]
@@ -7323,6 +7864,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         elif path == "/api/ideas":
             self.send_json(load_ideas())
+
+        # ── NEW: game project board ─────────────────────────────
+        elif path == "/api/projects":
+            projects_path = REPO / "studio_state" / "projects.json"
+            if projects_path.exists():
+                try:
+                    self.send_json(json.loads(projects_path.read_text(encoding="utf-8")))
+                except Exception as e:
+                    self.send_json({"error": str(e)}, 500)
+            else:
+                self.send_json({"error": "studio_state/projects.json introuvable"}, 404)
+        # ────────────────────────────────────────────────────────
 
         elif path.startswith("/ws/terminal/"):
             n_str = path.split("/")[-1]
@@ -7639,7 +8192,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if any(i.get("title", "").strip().lower() == title_lower for i in ideas):
                 self.send_json({"ok": False, "error": "Idée avec ce titre déjà existante"}, 409)
                 return
-            max_id = max((i.get("id", 0) for i in ideas), default=0)
+            def _as_int(v):
+                try:
+                    return int(v)
+                except (TypeError, ValueError):
+                    return 0
+            max_id = max((_as_int(i.get("id", 0)) for i in ideas), default=0)
             idea["id"] = max_id + 1
             idea.setdefault("status", "backlog")
             idea.setdefault("ts", datetime.now().isoformat())
@@ -7798,8 +8356,107 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "claim_verdict": _CLAIM_VERDICT
             })
 
+        elif path == "/api/gate-decide":
+            # Ratification HumanGate (approve/reject) - SEUL endpoint mutant.
+            # Porte depuis scripts/canvas_gateway.py (_sign / _load_gate_log /
+            # _save_gate_log / _next_hgd_id / decide_gate).
+            try:
+                gate_id = str(body.get("id", "")).strip()
+                verdict = str(body.get("verdict", "")).strip().lower()
+                note    = str(body.get("note", "")).strip()
+                if not gate_id:
+                    self.send_json({"ok": False, "error": "champ 'id' requis"}, 400)
+                    return
+                if verdict not in ("approve", "reject"):
+                    self.send_json({"ok": False, "error": "verdict doit etre 'approve' ou 'reject'"}, 400)
+                    return
+
+                # Pas de governor.check ici : cet endpoint EST la decision humaine
+                # de Pierre (HumanGate). Le gater derriere le governor HUMAN_REQUIRED
+                # serait circulaire (on bloquerait la decision qui debloque).
+                # L'integrite est assuree par la signature HMAC ci-dessous quand
+                # STUDIO_HMAC_KEY est defini.
+
+                gate_log_path = REPO / "lab/chains/HUMANGATE_DECISION_LOG.yaml"
+
+                # Lecture du log existant (jamais de crash si absent/corrompu)
+                if gate_log_path.exists():
+                    try:
+                        log_data = yaml.safe_load(gate_log_path.read_text(encoding="utf-8")) or {}
+                    except Exception as yexc:
+                        self.send_json({"ok": False,
+                                        "error": "HUMANGATE_DECISION_LOG.yaml illisible: " + str(yexc)}, 500)
+                        return
+                else:
+                    log_data = {}
+                if not isinstance(log_data, dict):
+                    log_data = {}
+                log_data.setdefault("meta", {"version": "v0",
+                                             "claim_verdict": "NO_CLAIM_ALLOWED",
+                                             "authority": "HumanGate"})
+                decisions = log_data.setdefault("decisions", [])
+                if not isinstance(decisions, list):
+                    decisions = []
+                    log_data["decisions"] = decisions
+
+                # id HGD incremental (logique _next_hgd_id)
+                nums = []
+                for d in decisions:
+                    did = str(d.get("decision_id", "")) if isinstance(d, dict) else ""
+                    if did.startswith("HGD-"):
+                        try:
+                            nums.append(int(did[4:]))
+                        except ValueError:
+                            pass
+                hgd_id = "HGD-%03d" % ((max(nums) + 1) if nums else 1)
+
+                now_iso = datetime.now().isoformat()
+                verdict_up = "APPROVED" if verdict == "approve" else "REJECTED"
+
+                entry = {
+                    "decision_id": hgd_id,
+                    "title": gate_id + " ratifie via studio - " + verdict_up,
+                    "category": "human_gate_record",
+                    "ref": gate_id,
+                    "verdict": verdict_up,
+                    "evidence_refs": ([note] if note else []),
+                    "approved_by": "HumanGate",
+                    "approved_at": now_iso,
+                }
+
+                # HMAC : signe si STUDIO_HMAC_KEY, sinon hmac=null + warning
+                hmac_key = os.getenv("STUDIO_HMAC_KEY", "")
+                payload = json.dumps(entry, ensure_ascii=False, sort_keys=True).encode("utf-8")
+                if hmac_key:
+                    import hmac as _hmac
+                    entry["hmac"] = _hmac.new(hmac_key.encode(), payload, hashlib.sha256).hexdigest()
+                else:
+                    entry["hmac"] = None
+                    print("[gate-decide] WARN STUDIO_HMAC_KEY absent - decision NON signee", flush=True)
+
+                decisions.append(entry)
+
+                # Ecriture atomique (tmp + replace) pour ne pas corrompre le YAML
+                try:
+                    dumped = yaml.dump(log_data, allow_unicode=True,
+                                       default_flow_style=False, sort_keys=False)
+                    tmp_path = gate_log_path.with_suffix(".yaml.tmp")
+                    tmp_path.write_text(dumped, encoding="utf-8")
+                    os.replace(str(tmp_path), str(gate_log_path))
+                except Exception as wexc:
+                    self.send_json({"ok": False,
+                                    "error": "ecriture HUMANGATE_DECISION_LOG.yaml echouee: " + str(wexc)}, 500)
+                    return
+
+                print("[gate-decide] " + hgd_id + " " + verdict_up + " ref=" + gate_id + " signed=" + str(bool(hmac_key)), flush=True)
+                self.send_json({"ok": True, "hgd_id": hgd_id,
+                                "verdict": verdict_up, "signed": bool(hmac_key)})
+            except Exception as e:
+                self.send_json({"ok": False, "error": str(e)}, 500)
+
         else:
             self.send_json({"error": "not found"}, 404)
+
 
     def do_DELETE(self):
         if self.path == "/api/logs":
@@ -7865,7 +8522,7 @@ Ctrl+C pour arrêter.
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
-            print("\nArrêt autopilote.")
+            print("\n""Arrêt autopilote.")
 
 if __name__ == "__main__":
     main()

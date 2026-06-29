@@ -39,7 +39,7 @@ providers:
     cwd: C:\TACTICAL_CHESS_STUDIO
     notes: Local — accès repo complet
   lmstudio:
-    base_url: http://127.0.0.1:1234/v1
+    base_url: http://127.0.0.1:1234/v1  # configurable via LMSTUDIO_URL env — default 127.0.0.1:1234
     model: qwen/qwen2.5-coder-14b
     notes: Local — aucune restriction
   gemini:
@@ -110,6 +110,7 @@ agents:
       - name: gemini
         provider: gemini
         usage: "Générique uniquement — jamais φ ni internes propriétaires"
+        cost: free_tier_only  # jamais quota payant — voir regle_phi ci-dessous
     regle_phi: >
       Délibérations impliquant φ(T), traces Rocky, internaux ML :
       lignées LOCALES uniquement (Claude + Qwen). Gemini interdit sur φ.

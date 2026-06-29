@@ -13,7 +13,7 @@ providers:
 
   - id: lmstudio
     name: LM Studio
-    base_url: http://192.168.1.11:1234/v1
+    base_url: http://127.0.0.1:1234/v1  # configurable via LMSTUDIO_BASE_URL env — default 127.0.0.1:1234
     api_format: openai-completions
     status: ASSUMED_AVAILABLE
     healthcheck:
@@ -22,10 +22,10 @@ providers:
       timeout_s: 3
     fallback: null
     notes: >
-      Serveur local réseau (IP 192.168.1.11, pas localhost).
+      Serveur local (localhost:1234). Override via LMSTUDIO_BASE_URL si machine réseau.
       Héberge : qwen2.5-14b-instruct, qwen/qwen2.5-coder-14b, qwen/qwen3.6-27b,
       devstral-small-2507, mistral-7b-instruct-v0.3.
-      Doit tourner sur la machine réseau avant tout démarrage studio.
+      Doit tourner avant tout démarrage studio.
 
   - id: claude_proxy_8765
     name: Claude Proxy (port 8765)
@@ -110,6 +110,7 @@ providers:
     api_format: anthropic_native
     status: AVAILABLE
     cost: paid
+    budget_gate: HUMAN_GATE_REQUIRED  # toute utilisation directe requiert go explicite Pierre
     healthcheck: null             # pas de healthcheck gratuit — présumé disponible
     fallback: null
     notes: Payant — fallback si claude_proxy_8765 KO.
@@ -123,5 +124,6 @@ providers:
       - never_phi
       - never_internal_studio
     cost: free_api
+    budget_enforcement: free_tier_only  # jamais quota payant — free tier uniquement
     healthcheck: null
     fallback: null
