@@ -1664,25 +1664,19 @@ def close_imp(imp_id: str) -> dict:
         result["error"] = "LEDGER not found"
         run_state_updater_async()
         return result
+    today = datetime.now().strftime("%Y-%m-%d")
     try:
-        lines = LEDGER.read_text(encoding="utf-8").splitlines(keepends=True)
-        in_block = False
-        found = False
-        new_lines = []
-        today = datetime.now().strftime("%Y-%m-%d")
-        for line in lines:
-            stripped = line.rstrip()
-            if re.match(rf"^- id:\s*{re.escape(imp_id)}\s*$", stripped):
-                in_block = True
-            elif re.match(r"^- id:\s*IMP-[\w-]+", stripped) and in_block:
-                in_block = False
-            if in_block and re.match(r"^\s+status:\s+(OPEN|DEFERRED|IN_PROGRESS)", stripped):
-                line = re.sub(r"(status:\s+)\w+", r"\g<1>CLOSED", line)
-                found = True
-            new_lines.append(line)
-        if found:
-            LEDGER.write_text("".join(new_lines), encoding="utf-8")
-            ledger_cache.clear()
+        # IMP-203 — délègue au chokepoint unique : kaizen_loop close (ECG can_transition +
+        # single-writer ledger_writer + émission de l'event imp_closed). Plus de write_text
+        # direct sur le ledger : l'ECG est la seule autorité de transition (legacy toléré,
+        # transition illégale refusée). Interpréteur .venv312 (PyYAML requis), timeout borné.
+        py = str(REPO / ".venv312" / "Scripts" / "python.exe")
+        r = subprocess.run(
+            [py, str(REPO / "lab" / "chains" / "kaizen_loop.py"), "close", imp_id,
+             "--session", today],
+            cwd=str(REPO), capture_output=True, text=True, timeout=30)
+        ledger_cache.clear()
+        if r.returncode == 0:
             result["ok"] = True
             result["closed_session"] = today
             try:
@@ -1697,7 +1691,9 @@ def close_imp(imp_id: str) -> dict:
             except Exception:
                 pass
         else:
-            result["error"] = f"{imp_id} not found or already CLOSED"
+            result["error"] = (r.stderr or r.stdout).strip() or f"close rc={r.returncode}"
+    except subprocess.TimeoutExpired:
+        result["error"] = "close timeout"
     except Exception as e:
         result["error"] = str(e)
     run_state_updater_async()

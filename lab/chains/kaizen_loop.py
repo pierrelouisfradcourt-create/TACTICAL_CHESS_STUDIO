@@ -40,7 +40,10 @@ except ImportError:
 # ancré sur __file__ (pas de pollution sys.path générique — RT-194-8).
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT / "governance"))
+sys.path.insert(0, str(_REPO_ROOT / "scripts"))  # IMP-203 : pour ingest_event (producteur)
 from ledger_writer import guarded_write, fingerprint as _fingerprint, LedgerWriteError  # noqa: E402
+import ecg  # noqa: E402  (IMP-195 — state machine ECG)
+import ingest_event as _ingest  # noqa: E402  (IMP-203 — producteur imp_closed)
 
 # Empreinte des octets lus par le dernier load_ledger, par chemin résolu. Permet à
 # save_ledger une concurrence optimiste capturée sur les MÊMES octets que ceux parsés
@@ -233,6 +236,26 @@ def cmd_close(data: dict, args):
         print(f"{WARN} {args.id} déjà CLOSED.")
         return
 
+    # IMP-203 — l'ECG est le chokepoint de transition. Un IMP "ECG-managed" (champ ecg_state
+    # valide ET cohérent avec status) ne peut clore que depuis une transition légale
+    # (seul VERDICT_SIGNED -> CLOSED). Fail-OPEN : ecg_state absent / hors-enum / desync
+    # (CLOSED mais status rouvert) -> legacy toléré (jamais brické). --ratify = override gate.
+    ecg_state = imp.get("ecg_state")
+    status = imp.get("status")
+    managed = (ecg_state in ecg.ECG_STATES) and not (ecg_state == "CLOSED" and status != "CLOSED")
+    ratify = bool(getattr(args, "ratify", False))
+    if managed and not ratify:
+        d = ecg.can_transition(ecg_state, "CLOSED")
+        if not d.allowed:
+            print(f"{BLOCK} ECG: transition illegale {ecg_state}->CLOSED pour {args.id} "
+                  f"({d.reason}). Utiliser --ratify pour un override HumanGate.", file=sys.stderr)
+            sys.exit(2)
+        imp["ecg_state"] = "CLOSED"
+    elif managed and ratify:
+        print(f"{WARN} {args.id} : ECG override --ratify ({ecg_state}->CLOSED) — note d'audit.")
+        imp["ecg_state"] = "CLOSED"
+    # legacy / non-managed : toléré, close ancien schéma, aucun champ ecg_state ajouté.
+
     session = args.session or date.today().isoformat()
     imp["status"] = "CLOSED"
     imp["closed_session"] = session
@@ -249,10 +272,25 @@ def cmd_close(data: dict, args):
                 other["status"] = "OPEN"
                 unblocked.append(other["id"])
 
-    save_ledger(args.ledger_path, data)
+    try:
+        save_ledger(args.ledger_path, data)        # -> single-writer gardé (IMP-194)
+    except LedgerWriteError as exc:
+        print(f"{BLOCK} ecriture ledger refusee ({exc}). Close annule.", file=sys.stderr)
+        sys.exit(3)
     print(f"{OK} {args.id} fermé (session {session}).")
     if unblocked:
         print(f"{OK} Débloqués: {', '.join(unblocked)}")
+
+    # IMP-203 — producteur : émet l'event imp_closed (best-effort LOUD). Le ledger est la
+    # source de vérité ; l'event log est un feed de projection. Échec d'emit -> ERROR stderr
+    # + divergence résiduelle (réconciliation = suivi), close persiste.
+    try:
+        tid = _ingest.emit_imp_closed(args.id)
+        if tid:
+            print(f"{OK} event imp_closed emis: {tid}")
+    except Exception as exc:  # noqa: BLE001 — best-effort, jamais bloquant pour le close
+        print(f"{BLOCK} ERROR: event imp_closed NON emis pour {args.id} ({exc}) — "
+              f"projection en retard, reconciliation requise.", file=sys.stderr)
     print(f"   -> Pense à lancer 'kaizen_loop.py metrics' puis re-audit.")
 
 
@@ -361,6 +399,9 @@ def main():
     p_close = sub.add_parser("close", help="Ferme un improvement (mutation)")
     p_close.add_argument("id", help="ID de l'improvement (ex IMP-001)")
     p_close.add_argument("--session", help="Session de fermeture (défaut: aujourd'hui)")
+    p_close.add_argument("--ratify", action="store_true",
+                         help="Override HumanGate : saute l'enforcement de transition ECG "
+                              "(ratification d'un IMP ECG-managed). Note d'audit émise.")
 
     p_add = sub.add_parser("add", help="Ajoute un improvement")
     p_add.add_argument("--title", required=True)

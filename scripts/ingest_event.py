@@ -320,6 +320,28 @@ def append_event_log(oracle: str, task_id: str) -> None:
         fh.write(json.dumps(entry, separators=(",", ":"), sort_keys=True) + "\n")
 
 
+def emit_imp_closed(imp_id: str, closed_at: str | None = None,
+                    oracle_verdict: str = "PASS") -> str | None:
+    """IMP-203 — producteur : émet un event `imp_closed` signé dans events.jsonl.
+
+    Réutilise adapt_imp_closed (task_id) + append_event_log (ligne signée HMAC). Écrit
+    UNIQUEMENT le log d'events (pas le pipeline studio-state). Idempotent par task_id
+    (IMP-155). Renvoie le task_id émis, ou None si déjà présent.
+
+    Lève EventLogIntegrityError si le log est altéré (refus d'append sur un log corrompu).
+    L'appelant (cmd_close) traite l'émission en best-effort loud : le ledger reste la source
+    de vérité, le log d'events est un feed de projection.
+    """
+    ts = closed_at or _now()
+    adapted = adapt_imp_closed({"id": imp_id, "closed_at": ts, "oracle_verdict": oracle_verdict})
+    task_id = adapted["task_id"]
+    verify_event_log(raise_on_fail=True)   # n'appende jamais sur un log altéré
+    if _is_already_ingested(task_id):
+        return None
+    append_event_log("imp_closed", task_id)
+    return task_id
+
+
 def migrate_event_log() -> int:
     """One-shot migration: stamp legacy events (pre-IMP-154) with version + re-sign.
 
