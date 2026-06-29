@@ -25,6 +25,7 @@ Usage:
 """
 
 import argparse
+import hashlib
 import sys
 from pathlib import Path
 from datetime import date
@@ -34,6 +35,17 @@ try:
 except ImportError:
     print("[X] PyYAML manquant. Installer: pip install pyyaml --break-system-packages")
     sys.exit(1)
+
+# IMP-194 — single-writer gardé. ledger_writer vit dans governance/ (repo_root/governance),
+# ancré sur __file__ (pas de pollution sys.path générique — RT-194-8).
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT / "governance"))
+from ledger_writer import guarded_write, fingerprint as _fingerprint, LedgerWriteError  # noqa: E402
+
+# Empreinte des octets lus par le dernier load_ledger, par chemin résolu. Permet à
+# save_ledger une concurrence optimiste capturée sur les MÊMES octets que ceux parsés
+# (RT-194-3 : pas de re-lecture TOCTOU).
+_LAST_READ_FINGERPRINT: dict[str, str] = {}
 
 # ----- ASCII markers (Windows cp1252 safe) -----
 OK = "[OK]"
@@ -67,32 +79,46 @@ def find_ledger() -> Path:
 
 def load_ledger(path: Path) -> dict:
     try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
+        raw = Path(path).read_bytes()
+        data = yaml.safe_load(raw.decode("utf-8"))
         if not isinstance(data, dict) or "improvements" not in data:
             print(f"{BLOCK} Ledger malformé: clé 'improvements' absente.")
             sys.exit(1)
+        # IMP-194 — empreinte des octets exacts qu'on vient de parser.
+        _LAST_READ_FINGERPRINT[str(Path(path).resolve())] = hashlib.sha256(raw).hexdigest()
         return data
     except yaml.YAMLError as e:
         print(f"{BLOCK} Erreur YAML: {e}")
         sys.exit(1)
 
 
-def save_ledger(path: Path, data: dict):
+def save_ledger(path: Path, data: dict, *, expected_fingerprint: str | None = None):
     """Seule écriture autorisée. Préserve l'ordre et les commentaires impossibles
-    avec yaml.dump donc on réécrit proprement avec un header."""
+    avec yaml.dump donc on réécrit proprement avec un header.
+
+    IMP-194 — route à travers le single-writer gardé (governor.check + verrou exclusif
+    + concurrence optimiste). `expected_fingerprint` défaut = empreinte capturée par le
+    dernier load_ledger sur ce chemin ; une écriture concurrente lève ConcurrentWriteError.
+    """
     header = (
         "# IMPROVEMENT_LEDGER.yaml\n"
         "# SSOT amélioration continue (Kaizen Loop) — Tactical Chess Studio\n"
         "# Claim posture: NO_CLAIM_ALLOWED | Read-only sauf --close/--add\n\n"
     )
+    body = yaml.dump(data, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    content = header + body
+
+    resolved = str(Path(path).resolve())
+    fp = expected_fingerprint if expected_fingerprint is not None else _LAST_READ_FINGERPRINT.get(resolved)
     try:
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(header)
-            yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        # LedgerWriteError (gouvernance / concurrence) se propage volontairement : échec
+        # dur et bruyant côté CLI. OSError (disque) garde le comportement historique.
+        guarded_write(path, content, expected_fingerprint=fp)
     except OSError as e:
         print(f"{BLOCK} Erreur écriture: {e}")
         sys.exit(1)
+    # Rafraîchir l'empreinte après écriture réussie (pour un éventuel save suivant).
+    _LAST_READ_FINGERPRINT[resolved] = _fingerprint(path) or ""
 
 
 def roi_score(imp: dict) -> float:
