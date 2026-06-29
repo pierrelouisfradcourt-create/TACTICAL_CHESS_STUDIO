@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import json
 import os
 import subprocess
@@ -62,6 +63,14 @@ def _now() -> str:
 def _hmac(payload: str) -> str:
     key = (os.environ.get("STUDIO_HMAC_KEY") or "studio-dev").encode()
     return hashlib.sha256(key + payload.encode()).hexdigest()
+
+
+class EventLogIntegrityError(Exception):
+    """events.jsonl tampered / off-schema / HMAC mismatch — hard reject (IMP-192).
+
+    L'intégrité repose sur STUDIO_HMAC_KEY : défense-en-profondeur, pas un secret
+    anti-forge dès lors que la clé par défaut 'studio-dev' est utilisée.
+    """
 
 
 # ── Schema lock (IMP-154) ─────────────────────────────────────────────────────
@@ -232,8 +241,22 @@ def delta_to_snapshot(delta: dict[str, Any]) -> dict[str, Any]:
 
 # ── Pipeline steps ────────────────────────────────────────────────────────────
 
-def verify_event_log() -> bool:
-    """HMAC-verify every line of events.jsonl. Fail-fast on first mismatch."""
+def verify_event_log(raise_on_fail: bool = False) -> bool:
+    """HMAC-verify every line of events.jsonl. Fail-fast on first mismatch.
+
+    IMP-192 — la comparaison HMAC est constante (`hmac.compare_digest`) pour ne pas
+    fuiter de timing, et tout échec est un rejet dur.
+
+    - `raise_on_fail=False` (défaut) : comportement historique — print stderr + `False`
+      (rétro-compatible avec `if not verify_event_log(): ...`).
+    - `raise_on_fail=True` : lève `EventLogIntegrityError` au premier échec (rejet dur).
+    """
+    def _fail(msg: str) -> bool:
+        if raise_on_fail:
+            raise EventLogIntegrityError(msg)
+        print(f"[backbone] {msg}", file=sys.stderr)
+        return False
+
     if not EVENT_LOG.exists():
         return True
     key = (os.environ.get("STUDIO_HMAC_KEY") or "studio-dev").encode()
@@ -245,23 +268,23 @@ def verify_event_log() -> bool:
             try:
                 entry = json.loads(raw_line)
             except json.JSONDecodeError:
-                print(f"[backbone] events.jsonl:{lineno}: invalid JSON", file=sys.stderr)
-                return False
+                return _fail(f"events.jsonl:{lineno}: invalid JSON")
             # IMP-154 — schema lock: reject missing version / unknown fields on read.
             try:
                 _validate_event_schema(entry, lineno)
             except ValueError as exc:
-                print(f"[backbone] {exc}", file=sys.stderr)
-                return False
+                return _fail(str(exc))
             stored_hmac = entry.pop("hmac", None)
             if stored_hmac is None:
-                print(f"[backbone] events.jsonl:{lineno}: missing HMAC", file=sys.stderr)
-                return False
+                return _fail(f"events.jsonl:{lineno}: missing HMAC")
+            # IMP-192 / RT-192-2 — `hmac.compare_digest` lève TypeError sur non-str ou
+            # str non-ASCII : on rejette explicitement AVANT, jamais de TypeError nu.
+            if not (isinstance(stored_hmac, str) and stored_hmac.isascii()):
+                return _fail(f"events.jsonl:{lineno}: HMAC malformed (non-ascii-str) — log tampered")
             payload = json.dumps(entry, separators=(",", ":"), sort_keys=True)
             expected = hashlib.sha256(key + payload.encode()).hexdigest()
-            if stored_hmac != expected:
-                print(f"[backbone] events.jsonl:{lineno}: HMAC mismatch — log tampered", file=sys.stderr)
-                return False
+            if not hmac.compare_digest(stored_hmac, expected):
+                return _fail(f"events.jsonl:{lineno}: HMAC mismatch — log tampered")
     return True
 
 
@@ -414,9 +437,11 @@ def assert_projection_consistency() -> bool:
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def ingest_event(oracle: str, report_path: Path) -> int:
-    # Guard 3 — HMAC-verify log before any write
-    if not verify_event_log():
-        print("[backbone] ABORT: events.jsonl integrity check failed", file=sys.stderr)
+    # Guard 3 — HMAC-verify log before any write (IMP-192: rejet dur = exception)
+    try:
+        verify_event_log(raise_on_fail=True)
+    except EventLogIntegrityError as exc:
+        print(f"[backbone] ABORT: events.jsonl integrity check failed: {exc}", file=sys.stderr)
         return 6
 
     raw     = json.loads(report_path.read_text(encoding="utf-8"))
