@@ -3890,7 +3890,7 @@ improvements:
   title: 'ECG: WRA GitHub+HackerNews+arXiv read-only inject avant PLAN'
   type: feature
   source: manual add - chapitre orchestration multi-LLM gouvernee
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: MEDIUM
   lane: SAFE_AUTO
@@ -3900,7 +3900,7 @@ improvements:
   blocked_by:
   - IMP-199
   opened_session: '2026-06-29'
-  closed_session: null
+  closed_session: '2026-06-29'
   notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=IMP-199
     | ex-label=IMP-201. GitHub+HackerNews+arXiv, filtre/score, READ ONLY, inject avant
     PLAN.'
@@ -3929,7 +3929,7 @@ improvements:
   title: 'ECG: error_journal pattern matcher + IMP auto-propose'
   type: feature
   source: manual add - chapitre orchestration multi-LLM gouvernee
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: MEDIUM
   lane: SAFE_AUTO
@@ -3940,7 +3940,7 @@ improvements:
   - IMP-195
   - IMP-196
   opened_session: '2026-06-29'
-  closed_session: null
+  closed_session: '2026-06-29'
   notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=IMP-195,IMP-196
     | ex-label=IMP-203. error_journal: pattern matcher + IMP auto-propose sur erreur
     inconnue.'
@@ -3964,6 +3964,56 @@ improvements:
   notes: 'oracle_type=code | blocked_by=IMP-195,IMP-196 | ECG enforcing: cmd_close
     -> ecg.can_transition + ledger_writer (refus dur transition illegale, legacy tolere)
     + emit imp_closed signe -> event log alimente la projection'
+- id: IMP-204
+  title: Graphify — installer + premier graphe de connaissances du depot (code-only
+    offline)
+  type: tooling
+  source: RECO_GRAPHIFY.md / session 2026-06-29
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - graphify-out/
+  - docs/studio_v2/RECO_GRAPHIFY.md
+  acceptance: uv tool install graphifyy OK; graphify install --project enregistre
+    le skill; /graphify . execute en code-only OFFLINE (aucune cle API, pas de Docker);
+    graphify-out/ contient graph.json + GRAPH_REPORT.md + graph.html; une query graphe
+    repond; aucun fichier en zone FORBIDDEN (tests/ eval/ oracle/ bench/ puzzles/
+    .github/); aucun git commit/push
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: 'Attaque le theme audit ''surface affichee > surface cablee'' (orphelins,
+    nav morte, docs qui derivent du code). Etape 2 differee (extraction docs/PDF sur
+    Qwen local LM Studio 1234) = IMP separee. NB: autoloop ne demarrera pas tant que
+    studio_meta global_verdict=FAIL (ELO rouge).'
+- id: IMP-205
+  title: 'Single-writer COMPLET : router roadmap_to_ledger + ledger_patch_* via guarded_write
+    + grep-guard'
+  type: refactor
+  source: REPRISE orchestration chantier (a) ; suivi IMP-194
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: ''
+  files:
+  - lab/chains/roadmap_to_ledger.py
+  - lab/chains/ledger_patch_20260608.py
+  - lab/chains/ledger_patch_20260625.py
+  - scripts/grep_guard_ledger.py
+  acceptance: Aucun writer du ledger hors governance/ledger_writer.guarded_write (grep-guard
+    PASS) ; roadmap_to_ledger route via guarded_write ; pytest natif vert ; .github
+    NON touche (gate Pierre)
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: 'oracle_type=pytest_native_venv312 ; complete IMP-194 (single-writer partiel)
+    ; correction scope vs REPRISE : golden_collector n''ecrit PAS le ledger (lit),
+    vrai writer actif = roadmap_to_ledger._write_ledger ; .github/ CI-wiring differe
+    gate Pierre ; AUDIT_REQUIRED jamais auto-close'
 metrics_history:
 - session: '2026-05-31'
   total: 11

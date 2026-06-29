@@ -3319,9 +3319,10 @@ tr:hover td{background:var(--bg3)}
   </div>
 
   <div class="sb-section">Vue</div>
-  <div class="sb-item" onclick="nav('cockpit')"><span class="ico">⬡</span> Cockpit</div>
+  <div class="sb-item active" onclick="nav('cockpit')"><span class="ico">⬡</span> Cockpit</div>
+  <div class="sb-item" onclick="nav('council')"><span class="ico">⚖</span> Council</div>
   <div class="sb-item" onclick="nav('vision')"><span class="ico">◈</span> Vision <span class="sb-badge badge-amber" id="badge-hg-vision" style="display:none">!</span></div>
-  <div class="sb-item active" onclick="nav('pilote')"><span class="ico">⬡</span> Pilote <span class="sb-badge badge-amber" id="badge-actions">0</span></div>
+  <div class="sb-item" onclick="nav('pilote')"><span class="ico">⬡</span> Pilote <span class="sb-badge badge-amber" id="badge-actions">0</span></div>
   <div class="sb-item" onclick="nav('chains')"><span class="ico">⛓</span> Chaînes</div>
   <div class="sb-item" onclick="nav('logs')"><span class="ico">▶</span> Logs</div>
 
@@ -3452,7 +3453,7 @@ tr:hover td{background:var(--bg3)}
     </div>
 
     <!-- ── PILOTE ── -->
-    <div id="page-pilote" class="page active">
+    <div id="page-pilote" class="page">
       <div class="stats-row">
         <div class="stat-blk amber">
           <div class="stat-lbl">Prochaine action</div>
@@ -4211,7 +4212,7 @@ tr:hover td{background:var(--bg3)}
 
     </div>
 
-    <div id="page-cockpit" class="page">
+    <div id="page-cockpit" class="page active">
 
       <!-- COCKPIT (home single-pane) -->
       <div class="divider">ELO</div>
@@ -4252,6 +4253,17 @@ tr:hover td{background:var(--bg3)}
         <iframe src="/games/snake_genesis/snake_genesis.html" style="width:100%;height:520px;border:0;border-radius:8px;background:#000"></iframe>
       </div>
 
+    </div>
+
+    <div id="page-council" class="page">
+      <div class="divider">COUNCIL — CONSENSUS</div>
+      <div id="council-header" class="card">Chargement...</div>
+      <div class="divider">OPINIONS</div>
+      <div id="council-opinions" style="display:flex;gap:12px;flex-wrap:wrap"></div>
+      <div class="divider">DESACCORDS → HUMANGATE</div>
+      <div id="council-disagreements"></div>
+      <div class="divider">DIVERGENCES (advisory)</div>
+      <div id="council-divergences"></div>
     </div>
 
   </div><!-- /content -->
@@ -4440,6 +4452,7 @@ function nav(id) {
   if (id === 'design') loadDomainImps('jeux', 'design-imps');
   if (id === 'roadmap-jeux') loadDomainImps('jeux', 'jeux-imps');
   if (id === 'cockpit') { loadCockpit(); startCockpitAutoRefresh(); }
+  if (id === 'council') loadCouncil();
 }
 
 // ── COCKPIT (home single-pane) ────────────────────────
@@ -4454,6 +4467,150 @@ function loadCockpit() {
   loadCkFactory();
   loadCkTimeline();
   loadBrainGraph();
+}
+
+// ── COUNCIL (consensus multi-modeles) ────────────────────
+function cnPill(label, on, goodOn) {
+  // pastille etat : goodOn=true => vert quand on; sinon rouge/amber quand on
+  var color = on ? (goodOn ? 'var(--green)' : 'var(--red)') : 'var(--text3)';
+  var bg = on ? (goodOn ? 'rgba(80,200,120,.12)' : 'rgba(220,80,80,.12)') : 'transparent';
+  return '<span style="display:inline-block;font-size:9px;padding:1px 6px;border-radius:8px;'
+    + 'border:1px solid ' + color + ';color:' + color + ';background:' + bg + ';margin-right:4px">'
+    + escHtml(label) + '</span>';
+}
+function cnStanceColor(s) {
+  if (s === 'APPROUVE') return 'var(--green)';
+  if (s === 'BLOQUE') return 'var(--red)';
+  if (s === 'ESCALADE') return 'var(--amber)';
+  return 'var(--text2)';  // DIVERGENCE / inconnu
+}
+async function loadCouncil() {
+  var hdr = document.getElementById('council-header');
+  var opi = document.getElementById('council-opinions');
+  var dis = document.getElementById('council-disagreements');
+  var div = document.getElementById('council-divergences');
+  if (hdr) hdr.innerHTML = ckEmpty('Chargement...');
+  if (opi) opi.innerHTML = '';
+  if (dis) dis.innerHTML = '';
+  if (div) div.innerHTML = '';
+  try {
+    var d = await fetch('/api/council').then(function (r) { return r.json(); });
+
+    // ── Etat vide propre ─────────────────────────────────
+    if (!d || d.empty) {
+      var msg = '<div style="color:var(--text3);font-size:12px;padding:6px 0">'
+        + 'Aucun council exécuté pour l\'instant.</div>';
+      if (d && d.reason) {
+        msg += '<div style="color:var(--text3);font-size:10px">' + escHtml(d.reason) + '</div>';
+      }
+      if (d && d.consensus_md) {
+        msg += '<div class="divider">CONSENSUS.md (brut)</div>'
+          + '<pre style="white-space:pre-wrap;font-size:11px;color:var(--text2);'
+          + 'background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:6px;'
+          + 'padding:10px;max-height:340px;overflow:auto">' + escHtml(d.consensus_md) + '</pre>';
+      }
+      if (hdr) hdr.innerHTML = msg;
+      return;
+    }
+
+    // ── En-tete consensus ────────────────────────────────
+    var hg = !!d.requires_humangate;
+    var collapsed = !!d.collapsed;
+    var h = '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">';
+    if (hg) {
+      h += '<span style="font-size:11px;font-weight:700;color:var(--red);'
+        + 'border:1px solid var(--red);border-radius:6px;padding:2px 8px;'
+        + 'background:rgba(220,80,80,.12)">⚠ HUMANGATE REQUIS</span>';
+    } else {
+      h += '<span style="font-size:11px;color:var(--green);border:1px solid var(--green);'
+        + 'border-radius:6px;padding:2px 8px">✓ Pas de HumanGate</span>';
+    }
+    h += '<span style="font-size:11px;color:var(--text2)">Modèles distincts : <strong>'
+      + escHtml(String(d.distinct_models == null ? '?' : d.distinct_models)) + '</strong></span>';
+    h += '</div>';
+    if (collapsed) {
+      h += '<div style="margin-top:8px;font-size:11px;color:var(--red);'
+        + 'border:1px solid var(--red);border-radius:6px;padding:6px 10px;'
+        + 'background:rgba(220,80,80,.10)">⚠ COLLAPSED — chambre d\'écho : '
+        + 'les modèles convergent sans contradiction réelle.</div>';
+    }
+    h += '<div style="margin-top:8px;font-size:10px;color:var(--text3)">';
+    if (d.task_id) h += 'task_id : <strong>' + escHtml(String(d.task_id)) + '</strong> &nbsp;·&nbsp; ';
+    if (d.generated_at) h += 'généré : ' + escHtml(String(d.generated_at));
+    h += '</div>';
+    if (hdr) hdr.innerHTML = h;
+
+    // ── 3 colonnes : opinions ────────────────────────────
+    var ops = Array.isArray(d.opinions) ? d.opinions : [];
+    if (!ops.length) {
+      if (opi) opi.innerHTML = ckEmpty('Aucune opinion.');
+    } else {
+      var cols = '';
+      ops.forEach(function (o) {
+        o = o || {};
+        var sc = cnStanceColor(o.stance);
+        cols += '<div class="card" style="flex:1;min-width:220px">';
+        cols += '<div style="font-size:11px;color:var(--text3)">'
+          + escHtml(String(o.model || '?')) + ' · ' + escHtml(String(o.role || '?')) + '</div>';
+        cols += '<div style="font-size:14px;font-weight:700;color:' + sc + ';margin:4px 0">'
+          + escHtml(String(o.stance || '?')) + '</div>';
+        cols += '<div style="margin:6px 0">'
+          + cnPill('available', !!o.available, true)
+          + cnPill('fallback', !!o.fallback_used, false)
+          + cnPill('timeout', !!o.timed_out, false)
+          + cnPill('parsed', !!o.parsed, true)
+          + '</div>';
+        cols += '<div style="font-size:11px;color:var(--text2);line-height:1.5">'
+          + escHtml(String(o.rationale || '')) + '</div>';
+        cols += '</div>';
+      });
+      if (opi) opi.innerHTML = cols;
+    }
+
+    // ── Desaccords (ROUGE) ───────────────────────────────
+    var dgs = Array.isArray(d.disagreements) ? d.disagreements : [];
+    if (!dgs.length) {
+      if (dis) dis.innerHTML = ckEmpty('Aucun désaccord.');
+    } else {
+      var dh = '';
+      dgs.forEach(function (g) {
+        g = g || {};
+        var a = g.side_a || {}, b = g.side_b || {};
+        dh += '<div class="card" style="border-color:var(--red);'
+          + 'background:rgba(220,80,80,.06);margin-bottom:8px">';
+        dh += '<div style="font-size:12px;font-weight:700;color:var(--red)">'
+          + escHtml(String(g.topic || 'désaccord')) + '</div>';
+        dh += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;font-size:11px">';
+        dh += '<div style="flex:1;min-width:200px"><span style="color:var(--text3)">'
+          + escHtml(String(a.role || '?')) + ' / ' + escHtml(String(a.model || '?'))
+          + '</span><br><span style="color:var(--text2)">' + escHtml(String(a.claim || '')) + '</span></div>';
+        dh += '<div style="flex:1;min-width:200px"><span style="color:var(--text3)">'
+          + escHtml(String(b.role || '?')) + ' / ' + escHtml(String(b.model || '?'))
+          + '</span><br><span style="color:var(--text2)">' + escHtml(String(b.claim || '')) + '</span></div>';
+        dh += '</div>';
+        dh += '<div style="margin-top:6px;font-size:10px;color:var(--text3)">';
+        if (g.arbitrating_file) dh += 'arbitre : ' + escHtml(String(g.arbitrating_file)) + ' &nbsp;·&nbsp; ';
+        dh += 'route : <strong style="color:var(--red)">' + escHtml(String(g.route || 'HUMANGATE')) + '</strong></div>';
+        dh += '</div>';
+      });
+      if (dis) dis.innerHTML = dh;
+    }
+
+    // ── Divergences (advisory, pas rouge) ────────────────
+    var dvs = Array.isArray(d.divergences) ? d.divergences : [];
+    if (!dvs.length) {
+      if (div) div.innerHTML = ckEmpty('Aucune divergence.');
+    } else {
+      var vh = '<div class="card"><ul style="margin:0;padding-left:18px;'
+        + 'font-size:11px;color:var(--text2);line-height:1.6">';
+      dvs.forEach(function (v) { vh += '<li>' + escHtml(String(v)) + '</li>'; });
+      vh += '</ul></div>';
+      if (div) div.innerHTML = vh;
+    }
+  } catch (e) {
+    if (hdr) hdr.innerHTML = '<div style="color:var(--red);font-size:12px;padding:6px 0">'
+      + 'Erreur council : ' + escHtml(String(e && e.message ? e.message : e)) + '</div>';
+  }
 }
 
 // Auto-rafraichissement cockpit : recharge les loaders de DONNEES legers
@@ -4575,27 +4732,35 @@ async function loadBrainGraph() {
       svgEl.innerHTML = emptyMsg('Graphe memoire vide');
       return;
     }
-    // positions: layout circulaire deterministe
+    // ── layout: cercle deterministe centre + force-directed (marge anti-bord) ──
     const cx = W / 2, cy = H / 2;
-    const R = Math.min(W, H) / 2 - 56;
-    const pos = {};
+    const MARGIN = 48;            // marge interne (labels ne collent pas au bord)
     const N = nodes.length;
+    // rayon de depart adapte au nb de noeuds, jamais au-dela de la marge
+    const Rmax = Math.min(W, H) / 2 - MARGIN;
+    const R = Math.max(40, Math.min(Rmax, 28 + N * 6));
+    const pos = {};
     nodes.forEach((nd, i) => {
       const a = (i / N) * Math.PI * 2 - Math.PI / 2;
       pos[nd.id] = { x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) };
     });
-    // quelques iterations de repulsion legere (force-directed minimal)
+    // bornes utiles (centre le nuage, evite les bords)
+    const clampX = (v) => Math.max(MARGIN, Math.min(W - MARGIN, v));
+    const clampY = (v) => Math.max(MARGIN, Math.min(H - MARGIN, v));
     const ids = nodes.map(n => n.id);
-    for (let it = 0; it < 30; it++) {
+    // force-directed : plus d'iterations + leger rappel vers le centre
+    const ITER = N > 1 ? 120 : 0;
+    for (let it = 0; it < ITER; it++) {
       const disp = {};
       ids.forEach(id => disp[id] = { x: 0, y: 0 });
+      // repulsion entre noeuds
       for (let i = 0; i < ids.length; i++) {
         for (let j = i + 1; j < ids.length; j++) {
           const a = pos[ids[i]], b = pos[ids[j]];
           let dx = a.x - b.x, dy = a.y - b.y;
           let dist2 = dx * dx + dy * dy;
           if (dist2 < 1) { dist2 = 1; dx = (Math.random() - 0.5); dy = (Math.random() - 0.5); }
-          const f = 1200 / dist2;
+          const f = 2200 / dist2;
           disp[ids[i]].x += dx * f; disp[ids[i]].y += dy * f;
           disp[ids[j]].x -= dx * f; disp[ids[j]].y -= dy * f;
         }
@@ -4605,38 +4770,61 @@ async function loadBrainGraph() {
         const a = pos[e.from], b = pos[e.to];
         if (!a || !b) continue;
         const dx = a.x - b.x, dy = a.y - b.y;
-        const f = 0.01;
+        const f = 0.012;
         a.x -= dx * f; a.y -= dy * f;
         b.x += dx * f; b.y += dy * f;
       }
+      // rappel doux vers le centre (empeche la fuite vers les bords)
+      ids.forEach(id => { const p = pos[id]; disp[id].x += (cx - p.x) * 0.02; disp[id].y += (cy - p.y) * 0.02; });
+      // refroidissement : pas max decroissant
+      const step = Math.max(2, 6 * (1 - it / ITER));
       ids.forEach(id => {
         const p = pos[id];
-        p.x += Math.max(-6, Math.min(6, disp[id].x));
-        p.y += Math.max(-6, Math.min(6, disp[id].y));
-        p.x = Math.max(20, Math.min(W - 20, p.x));
-        p.y = Math.max(20, Math.min(H - 20, p.y));
+        p.x += Math.max(-step, Math.min(step, disp[id].x));
+        p.y += Math.max(-step, Math.min(step, disp[id].y));
+        p.x = clampX(p.x);
+        p.y = clampY(p.y);
       });
     }
+    // degre (taille + priorite d'affichage des labels)
     const deg = {};
     ids.forEach(id => deg[id] = 0);
+    for (const e of edges) {
+      if (pos[e.from] && pos[e.to]) { deg[e.from] = (deg[e.from] || 0) + 1; deg[e.to] = (deg[e.to] || 0) + 1; }
+    }
     let svg = '';
+    // edges fins, semi-transparents (rendus en premier, sous les noeuds)
     for (const e of edges) {
       const a = pos[e.from], b = pos[e.to];
       if (!a || !b) continue;
-      deg[e.from] = (deg[e.from] || 0) + 1;
-      deg[e.to] = (deg[e.to] || 0) + 1;
-      svg += '<line x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) + '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '" stroke="var(--border)" stroke-width="0.7" stroke-opacity="0.5"/>';
+      svg += '<line x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) + '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '" stroke="var(--border)" stroke-width="0.6" stroke-opacity="0.35"/>';
     }
-    for (const nd of nodes) {
+    // anti-chevauchement labels : si le graphe est dense, on n'affiche
+    // que les labels des noeuds les plus connectes + ceux non superposes.
+    const dense = N > 14;
+    const placed = [];                 // boites de labels deja posees
+    const overlaps = (x, y, w) => {
+      for (const r of placed) {
+        if (x < r.x + r.w && x + w > r.x && y < r.y + 11 && y + 11 > r.y) return true;
+      }
+      return false;
+    };
+    // ordre d'affichage labels : degre decroissant (les hubs gagnent)
+    const ordered = nodes.slice().sort((p, q) => (deg[q.id] || 0) - (deg[p.id] || 0));
+    for (const nd of ordered) {
       const p = pos[nd.id];
       if (!p) continue;
       const r = 4 + Math.min(6, (deg[nd.id] || 0) * 0.6);
       const label = String(nd.label != null ? nd.label : nd.id);
-      const shortLbl = label.length > 16 ? label.slice(0, 15) + '…' : label;
-      svg += '<g>';
+      const shortLbl = label.length > 14 ? label.slice(0, 13) + '…' : label;
       svg += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + r.toFixed(1) + '" fill="var(--amber)" fill-opacity="0.85" stroke="var(--bg, #000)" stroke-width="0.5"><title>' + escHtml(label) + '</title></circle>';
-      svg += '<text x="' + (p.x + r + 3).toFixed(1) + '" y="' + (p.y + 3).toFixed(1) + '" fill="var(--text3)" font-size="8">' + escHtml(shortLbl) + '</text>';
-      svg += '</g>';
+      const lx = p.x + r + 3, ly = p.y + 3;
+      const lw = shortLbl.length * 4.6;
+      // en mode dense : sauter les labels qui se chevaucheraient (titre reste au survol)
+      if (!dense || !overlaps(lx, ly - 8, lw)) {
+        placed.push({ x: lx, y: ly - 8, w: lw });
+        svg += '<text x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" fill="var(--text3)" font-size="8">' + escHtml(shortLbl) + '</text>';
+      }
     }
     svgEl.innerHTML = svg;
   } catch (e) {
@@ -5619,7 +5807,10 @@ if (commitEl) commitEl.value = 'docs: mise à jour ' + new Date().toISOString().
 // Charger mémoire depuis API (renderMemory gère tout)
 renderMemory();
 
-// Charger session context au boot
+// Cockpit = vue par defaut au boot
+loadCockpit();
+startCockpitAutoRefresh();
+// Charger session context au boot (prefetch pilote)
 loadSessionContext();
 loadMetrics();
 loadPiloteSurfaces();
@@ -7422,6 +7613,44 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     self.send_json({"error": str(e)}, 500)
             else:
                 self.send_json({"error": "prompt_chain_map.json introuvable"}, 404)
+
+        elif path == "/api/council":
+            # Lecture seule du DERNIER council dans lab/council/.
+            # Renvoie la sortie structuree (.json conforme schema) si presente,
+            # sinon {empty:true} + texte de CONSENSUS.md s'il existe.
+            # Jamais d'ecriture. Jamais de 500 non gere.
+            try:
+                cdir = REPO / "lab" / "council"
+                if not cdir.exists() or not cdir.is_dir():
+                    self.send_json({"empty": True, "reason": "lab/council/ absent"})
+                    return
+                # plus recent .json par mtime
+                jsons = [p for p in cdir.glob("*.json") if p.is_file()]
+                jsons.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+                consensus_md = ""
+                cpath = cdir / "CONSENSUS.md"
+                if cpath.exists() and cpath.is_file():
+                    try:
+                        consensus_md = cpath.read_text(encoding="utf-8")
+                    except Exception:
+                        consensus_md = ""
+                if jsons:
+                    try:
+                        data = json.loads(jsons[0].read_text(encoding="utf-8"))
+                        if isinstance(data, dict):
+                            data.setdefault("_source_file", jsons[0].name)
+                            if consensus_md:
+                                data.setdefault("consensus_md", consensus_md)
+                            self.send_json(data)
+                            return
+                    except Exception as e:
+                        # .json illisible : on retombe sur etat vide + md brut
+                        self.send_json({"empty": True, "reason": "json illisible: " + str(e), "consensus_md": consensus_md})
+                        return
+                # pas de .json : etat vide, on remonte le md s'il existe
+                self.send_json({"empty": True, "consensus_md": consensus_md})
+            except Exception as e:
+                self.send_json({"empty": True, "error": str(e)})
 
         elif path == "/api/lm-probe":
             # Ping léger : juste /api/v1/models sans inférence
