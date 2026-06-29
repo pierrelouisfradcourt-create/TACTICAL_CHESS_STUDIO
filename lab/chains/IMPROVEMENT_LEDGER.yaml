@@ -3971,7 +3971,7 @@ improvements:
     offline)
   type: tooling
   source: RECO_GRAPHIFY.md / session 2026-06-29
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: SMALL
   lane: SAFE_AUTO
@@ -3986,7 +3986,7 @@ improvements:
     .github/); aucun git commit/push
   blocked_by: []
   opened_session: '2026-06-29'
-  closed_session: null
+  closed_session: '2026-06-30'
   notes: 'Attaque le theme audit ''surface affichee > surface cablee'' (orphelins,
     nav morte, docs qui derivent du code). Etape 2 differee (extraction docs/PDF sur
     Qwen local LM Studio 1234) = IMP separee. NB: autoloop ne demarrera pas tant que
@@ -4243,7 +4243,7 @@ improvements:
   title: Provisionner uv — debloquer IMP-204 Graphify
   type: tooling
   source: IMP-204 BLOCKED_TOOLING session 2026-06-29
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: SMALL
   lane: SAFE_AUTO
@@ -4255,7 +4255,7 @@ improvements:
     l'invocation graphify
   blocked_by: []
   opened_session: '2026-06-29'
-  closed_session: null
+  closed_session: '2026-06-30'
   notes: oracle_type=code | uv absent (ni pipx) -> IMP-204 inexecutable. NO_CLAIM_ALLOWED
 - id: IMP-218
   title: Fix neural_bridge.rs:94-96 — env unwrap() -> fallback (oracle ELO sous WSL)
@@ -4293,8 +4293,8 @@ improvements:
   notes: 'Hypothese adjudicateur FALSIFIEE (exp. 183 parties, SOFT=100/HARD=150):
     forced_stagnation 182->16 mais taux de nulle 81%->76.5% — les nulles basculent
     en repetition triple, pas en victoires. Vrai probleme: Rocky ne convertit pas
-    (repetition triple sur positions gagnantes). Traiter: penalite repetition +
-    incitation au progres dans eval. NE PAS resoudre par changement de seuil seul.'
+    (repetition triple sur positions gagnantes). Traiter: penalite repetition + incitation
+    au progres dans eval. NE PAS resoudre par changement de seuil seul.'
 - id: IMP-220
   title: IID dans negamax Rocky — relance depth-1 si hash-move absent en TT pour generer
     coup pivot avant ordering
@@ -4312,6 +4312,151 @@ improvements:
   opened_session: '2026-06-29'
   closed_session: null
   notes: ''
+- id: IMP-221
+  title: Workflow Store v1 — creer studio/workflows/ avec structure complete
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'studio/workflows/ existe avec sous-dossiers : workflow_store/ playbooks/
+    protocols/ ceremonies/ contracts/ checklists/ policies/ metrics/ process_mining/'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=structure | blocked_by=none | GPT Process Architecture 2026-06-29
+    — structure de base
+- id: IMP-222
+  title: Mission Contract — chaque IMP genere un contrat explicite avant execution
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'Template contracts/imp_contract.md avec : objectif / perimetre / surfaces
+    autorisees / surfaces interdites / criteres de succes / conditions d arret / validations
+    obligatoires / artefacts attendus'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=structure | blocked_by=none | Evite les derives agents — contrat
+    avant tout code
+- id: IMP-223
+  title: Session Kickoff playbook — preflight standardise
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'playbooks/session_kickoff.md avec etapes obligatoires : 1 repo health
+    / 2 worktree state / 3 ledger review / 4 knowledge refresh web / 5 priorisation
+    / 6 parallel safety check / 7 planning session'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=structure | blocked_by=none | Standardise le Director Pre-Flight
+    en playbook reutilisable
+- id: IMP-224
+  title: Failure Harvest playbook — chaque erreur devient une regle permanente
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'playbooks/failure_harvest.md avec pipeline : erreur -> cause -> regle
+    -> workflow -> protection permanente. Branche sur error_journal — toute erreur
+    >= 3 occurrences genere une entree dans checklists/'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=structure | blocked_by=none | Transforme les echecs en discipline
+    operationnelle
+- id: IMP-225
+  title: Pattern Extraction — apres chaque IMP ferme extrait les apprentissages
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'playbooks/pattern_extraction.md avec questions obligatoires : decouverte
+    d un workflow ? d une regle ? d un template ? d un prompt ? d une policy ? Output
+    : entree dans workflow_store/ ou checklists/'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=structure | blocked_by=none | Chaque IMP termine rend le studio
+    plus discipline
+- id: IMP-226
+  title: Parallel Safety Review — Director calcule collisions avant lancement
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/parallel_safety.py
+  acceptance: 'scripts/parallel_safety.py : prend liste IMPs candidats, retourne groupes
+    sans collision (fichiers disjoints), ordre optimal, points de synchronisation.
+    pytest : 3 IMPs sur memes fichiers -> collision detectee'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=code | blocked_by=none | Evite les races entre agents — calcul
+    avant tout lancement parallele
+- id: IMP-227
+  title: Process Architect agent — observe sessions detecte frictions propose workflows
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: 'Agent lecture seule sur events.jsonl + error_journal + session logs.
+    Produit apres chaque session : frictions detectees / repetitions / nouveaux workflows
+    proposes. Output : proposals/process_architect_YYYY-MM-DD.md'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=humangate | blocked_by=none | Jamais de code — que de la discipline
+    operationnelle. HumanGate sur chaque proposition.
+- id: IMP-228
+  title: Rocky audit checklist — pre-checklist obligatoire avant tout audit moteur
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: rocky_moteur
+  files: []
+  acceptance: 'checklists/rocky_audit.md avec verifications obligatoires : grep root_player
+    -> sites restants documentes / git log fixes deja appliques / oracle ELO fiable
+    (date dernier run) / benchmark depuis dernier fix / draw rate mesure. Empeche
+    de re-decouvrir des bugs deja fixes'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=structure | blocked_by=none | Cree suite a la session 2026-06-29
+    — fixes re-decouverts 2x
 metrics_history:
 - session: '2026-05-31'
   total: 11
