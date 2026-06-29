@@ -97,22 +97,37 @@ impl PuzzleTheme {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Default)]
 pub struct PuzzleValidation {
+    #[serde(default)]
     pub mate: bool,
+    #[serde(default)]
     pub fork_targets: Vec<String>,
+    #[serde(default)]
     pub material_gain_hint: i32,
 }
 
+// Schéma lenient : seuls `fen` + `best_moves` sont obligatoires (format Lichess).
+// Les autres champs (case_id, side_to_move, theme, seed, difficulty, validation)
+// sont défaultés à la désérialisation puis normalisés via `normalize_case`
+// (cf. puzzle_eval::load_cases) — side_to_move dérivé du FEN, theme dérivé des
+// lichess_themes. Les champs extra (lichess_rating, lichess_themes) sont ignorés.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct PuzzleCase {
+    #[serde(default)]
     pub case_id: String,
     pub fen: String,
+    #[serde(default)]
     pub side_to_move: u32,
+    #[serde(default)]
     pub theme: String,
+    #[serde(default)]
     pub best_moves: Vec<String>,
+    #[serde(default)]
     pub seed: u64,
+    #[serde(default)]
     pub difficulty: u32,
+    #[serde(default)]
     pub validation: PuzzleValidation,
 }
 

@@ -335,10 +335,17 @@ pub fn run_puzzle_eval(args: &[String]) {
     );
 
     if let Some(path) = output_path {
+        // `total` + `solved` sont les clés lues par l'agrégateur de
+        // bench/lichess_eval.sh (pct = solved/total). Les champs score/puzzles_*
+        // sont conservés pour les consommateurs existants.
         #[derive(Serialize)]
         struct OutputReport {
             niveau: String,
             score: f64,
+            total: usize,
+            solved: usize,
+            partial: usize,
+            failed: usize,
             puzzles_ok: usize,
             puzzles_fail: usize,
             timestamp: u64,
@@ -350,6 +357,10 @@ pub fn run_puzzle_eval(args: &[String]) {
         let out = OutputReport {
             niveau: agent.as_str().to_string(),
             score: solved_pct,
+            total,
+            solved,
+            partial,
+            failed,
             puzzles_ok: solved,
             puzzles_fail: failed,
             timestamp,
@@ -410,11 +421,64 @@ fn load_cases(path: &Path) -> Result<Vec<PuzzleCase>, String> {
         if line.is_empty() {
             continue;
         }
-        let case = serde_json::from_str(line)
+        // Parse en Value d'abord pour récupérer les champs Lichess (lichess_themes)
+        // absents du struct PuzzleCase, puis désérialise avec les défauts serde.
+        let value: serde_json::Value = serde_json::from_str(line)
             .map_err(|err| format!("parse_error_line_{}: {}", line_index + 1, err))?;
+        let mut case: PuzzleCase = serde_json::from_value(value.clone())
+            .map_err(|err| format!("parse_error_line_{}: {}", line_index + 1, err))?;
+        normalize_case(&mut case, &value, line_index);
         out.push(case);
     }
     Ok(out)
+}
+
+/// Remplit les champs manquants d'un cas au format Lichess (fen + best_moves).
+/// - `side_to_move` dérivé de la couleur active du FEN si absent/invalide.
+/// - `case_id` synthétisé depuis l'index de ligne si vide.
+/// - `theme` dérivé des `lichess_themes` (mateIn1 -> mate1, fork -> fork) si vide.
+fn normalize_case(case: &mut PuzzleCase, value: &serde_json::Value, line_index: usize) {
+    if !matches!(case.side_to_move, 1 | 2) {
+        case.side_to_move = side_to_move_from_fen(&case.fen);
+    }
+    if case.case_id.trim().is_empty() {
+        case.case_id = format!("lichess_{}", line_index + 1);
+    }
+    if case.theme.trim().is_empty() {
+        case.theme = theme_from_lichess(value);
+    }
+    // Cohérence interne : un thème mate1 implique validation.mate.
+    if normalize_theme(&case.theme) == "mate1" {
+        case.validation.mate = true;
+    }
+}
+
+/// Couleur active du FEN -> PlayerId (white=1, black=2). Défaut white si absent.
+fn side_to_move_from_fen(fen: &str) -> u32 {
+    match fen.split_whitespace().nth(1) {
+        Some("b") | Some("B") => 2,
+        _ => 1,
+    }
+}
+
+/// Mappe les `lichess_themes` vers un thème interne reconnu par l'évaluateur.
+/// Priorité aux thèmes à scoring spécialisé (mate1, fork), sinon premier thème
+/// brut comme label, sinon "unknown".
+fn theme_from_lichess(value: &serde_json::Value) -> String {
+    let Some(themes) = value.get("lichess_themes").and_then(|v| v.as_array()) else {
+        return "unknown".to_string();
+    };
+    let names: Vec<&str> = themes.iter().filter_map(|t| t.as_str()).collect();
+    if names.iter().any(|t| *t == "mateIn1") {
+        return "mate1".to_string();
+    }
+    if names.iter().any(|t| *t == "fork") {
+        return "fork".to_string();
+    }
+    names
+        .first()
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "unknown".to_string())
 }
 
 fn evaluate_case(case: &PuzzleCase, agent: EvalAgent) -> PuzzleEvalCaseResult {
