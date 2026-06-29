@@ -4014,6 +4014,29 @@ improvements:
     ; correction scope vs REPRISE : golden_collector n''ecrit PAS le ledger (lit),
     vrai writer actif = roadmap_to_ledger._write_ledger ; .github/ CI-wiring differe
     gate Pierre ; AUDIT_REQUIRED jamais auto-close'
+- id: IMP-206
+  title: Durcissement grep_guard_ledger + ledger_writer — corriger failles P1/P2 du
+    red team IMP-205
+  type: refactor
+  source: red team IMP-205 (P1/P2 latentes)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - scripts/grep_guard_ledger.py
+  - governance/ledger_writer.py
+  acceptance: grep_guard exit 0 sur repo propre ET exit 1 sur bypass os.open(LEDGER);
+    expected_fingerprint obligatoire dans guarded_write (fail-closed si None); jeton
+    de propriete writelock (pas d'unlink sans verif); pytest natif venv312 vert
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: blocked_by IMP-205 (dependance — kaizen add sans flag blocked_by, champ a
+    refleter); oracle_type=pytest; corrige red team P1 (os.open non couvert + resolution
+    recursive recepteur .resolve/.absolute/Path(...)), P2 (expected_fingerprint opt-in
+    silencieux, writelock unlink sans ownership token)
 metrics_history:
 - session: '2026-05-31'
   total: 11
