@@ -26,12 +26,15 @@ except Exception:
 
 import argparse
 import json
+import logging
 import os
 import subprocess
 import tempfile
 import time
 from datetime import date, datetime
 from pathlib import Path
+
+_log = logging.getLogger("kaizen_autoloop")
 
 # Importer kaizen_loop depuis le meme dossier
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -55,6 +58,11 @@ COST_LOG        = REPO_ROOT / "lab/cost_log.jsonl"
 LOCK_PATH       = REPO_ROOT / "lab/.autoloop.lock"
 SESSION_TOKEN_THRESHOLD = 100_000
 
+# IMP-193 — TTL du lock autoloop.
+LOCK_TTL_SECONDS      = 1800   # 30 min : au-delà le lock est considéré stale (age)
+GRACE_SECONDS         = 10     # lock illisible/vide toléré ce délai (write partiel)
+_LOCK_ACQUIRE_RETRIES = 3      # bornes anti-boucle sur vol de lock concurrent
+
 # Governor déterministe (IMP-160) — source unique de vérité du gating lane (IMP-182).
 # governance/ n'est pas un package : on ajoute son dossier au path, comme test_governor.
 sys.path.insert(0, str(REPO_ROOT / "governance"))
@@ -68,18 +76,128 @@ except ImportError as e:
 # ── Lock inter-process (lab/.autoloop.lock) ───────────────
 # Un seul autoloop à la fois : empêche deux process concurrents de muter le
 # ledger / le working tree (commits) en même temps. Création atomique (O_EXCL).
+#
+# IMP-193 — TTL : le lock porte pid + ts(epoch) + create_time(psutil) + iso. À
+# l'acquisition, un lock détenu par un PID mort (crash sans release_lock) OU plus
+# vieux que LOCK_TTL_SECONDS est auto-relâché. Sans ça, un crash gelait le studio
+# jusqu'à suppression manuelle du fichier.
 
-def acquire_lock(lock_path: Path = LOCK_PATH) -> bool:
-    """Crée le lock atomiquement. False si déjà détenu (autre process)."""
-    try:
-        fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-    except FileExistsError:
+
+def _pid_alive(pid: int | None, create_time: float | None = None) -> bool:
+    """True si le process `pid` tourne. Jamais d'os.kill (sur Windows il TERMINE
+    le process). Liveness via psutil ; PID-reuse détecté via create_time."""
+    if pid is None or pid <= 0:
         return False
     try:
-        os.write(fd, f"pid={os.getpid()} {datetime.now().isoformat()}\n".encode("utf-8"))
-    finally:
-        os.close(fd)
-    return True
+        import psutil
+    except ImportError:
+        return True  # fail-closed : sans psutil on ne sait pas -> on NE vole PAS
+    try:
+        if not psutil.pid_exists(pid):
+            return False
+        if create_time is not None:
+            try:
+                # RT-193-4 : un PID recyclé a un create_time différent -> stale.
+                return abs(psutil.Process(pid).create_time() - create_time) < 1.0
+            except psutil.Error:
+                return False
+        return True
+    except Exception:
+        return True  # fail-closed sur toute erreur psutil inattendue
+
+
+def _parse_lock(content: str) -> dict:
+    """Parse le contenu du lock. Formats : v2 'pid=N ts=F create=F iso=...' et
+    legacy 'pid=N <iso>'. Renvoie {pid, ts, create, iso} (valeurs None si absentes)."""
+    info: dict = {"pid": None, "ts": None, "create": None, "iso": None}
+    if not content:
+        return info
+    for tok in content.split():
+        if tok.startswith("pid="):
+            try:
+                info["pid"] = int(tok[4:])
+            except ValueError:
+                pass
+        elif tok.startswith("ts="):
+            try:
+                info["ts"] = float(tok[3:])
+            except ValueError:
+                pass
+        elif tok.startswith("create="):
+            try:
+                info["create"] = float(tok[7:])
+            except ValueError:
+                pass
+        elif tok.startswith("iso="):
+            info["iso"] = tok[4:]
+        elif info["iso"] is None and "T" in tok and "-" in tok:
+            info["iso"] = tok  # legacy : iso positionnel
+    if info["ts"] is None and info["iso"]:
+        try:
+            info["ts"] = datetime.fromisoformat(info["iso"]).timestamp()
+        except ValueError:
+            pass
+    return info
+
+
+def _lock_is_stale(lock_path: Path) -> bool:
+    """True si le lock peut être volé : PID mort, OU age > TTL, OU contenu
+    illisible/vide depuis > GRACE_SECONDS. Fail-closed (False) en cas de doute."""
+    try:
+        content = lock_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return False  # disparu/illisible à l'instant T : laisser O_EXCL décider
+    info = _parse_lock(content)
+    pid, ts = info["pid"], info["ts"]
+    now = time.time()
+
+    if pid is not None and not _pid_alive(pid, info["create"]):
+        return True  # créateur mort (ou PID recyclé)
+    if ts is not None and now - ts > LOCK_TTL_SECONDS:
+        return True  # TTL dépassé
+    if pid is not None or ts is not None:
+        return False  # détenu par un process vivant et récent
+
+    # Contenu sans pid ni ts (write partiel / corrompu) : tolérance GRACE via mtime.
+    try:
+        age = now - lock_path.stat().st_mtime
+    except OSError:
+        return False
+    return age > GRACE_SECONDS
+
+
+def _lock_content() -> str:
+    """Contenu du lock v2 : pid + ts(epoch) + create_time(psutil) + iso lisible."""
+    create = ""
+    try:
+        import psutil
+        create = f" create={psutil.Process(os.getpid()).create_time()}"
+    except Exception:
+        pass
+    return f"pid={os.getpid()} ts={time.time()}{create} iso={datetime.now().isoformat()}\n"
+
+
+def acquire_lock(lock_path: Path = LOCK_PATH) -> bool:
+    """Crée le lock atomiquement (O_EXCL). Auto-relâche un lock stale (PID mort /
+    age > TTL). False si détenu par un process vivant et récent."""
+    for _ in range(_LOCK_ACQUIRE_RETRIES):
+        try:
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            if not _lock_is_stale(lock_path):
+                return False
+            _log.warning("autoloop.lock stale -> auto-release (%s)", lock_path)
+            try:
+                lock_path.unlink()
+            except FileNotFoundError:
+                pass  # un autre process l'a déjà volé : on reboucle
+            continue
+        try:
+            os.write(fd, _lock_content().encode("utf-8"))
+        finally:
+            os.close(fd)
+        return True
+    return False  # contention persistante après _LOCK_ACQUIRE_RETRIES essais
 
 
 def release_lock(lock_path: Path = LOCK_PATH) -> None:
