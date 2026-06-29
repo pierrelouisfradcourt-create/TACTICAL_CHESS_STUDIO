@@ -153,12 +153,19 @@ else
     COCKPIT_PID=$!
     log "cockpit_server lancé (pid $COCKPIT_PID)"
 
-    sleep 5
-    if port_up "$COCKPIT_PORT"; then
-        ok "cockpit_server opérationnel (:$COCKPIT_PORT)"
-    else
-        fail "cockpit_server n'a pas démarré — vérifier lab/reports/cockpit_server.log"
-    fi
+    # Le process Windows (interop WSL) peut prendre >5s à binder le port :
+    # un sleep 5 fixe + port check rate les démarrages lents. On sonde /health
+    # par curl jusqu'à 15s (1s × 15) et on s'arrête dès que le port répond.
+    for i in $(seq 1 15); do
+        sleep 1
+        if curl -s --connect-timeout 1 "http://127.0.0.1:$COCKPIT_PORT/health" > /dev/null 2>&1; then
+            ok "cockpit_server opérationnel (:$COCKPIT_PORT)"
+            break
+        fi
+        if [ "$i" -eq 15 ]; then
+            fail "cockpit_server n'a pas démarré — vérifier lab/reports/cockpit_server.log"
+        fi
+    done
 fi
 
 # ── Résumé ─────────────────────────────────────────────────────────────────────
