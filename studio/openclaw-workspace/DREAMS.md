@@ -350,3 +350,50 @@ software_verdict: BLOCKED
 - oracle     : PASS (tests verts .venv312)
 - cockpit    : panel Council + défaut + graphe — commité
 - ratifié par: Pierre — 2026-06-29
+
+---
+
+## 2026-06-29 — RAPPORT IMP-205 (single-writer COMPLET, chantier a) [AUDIT — NON FERMÉ, attente gate Pierre]
+
+> Entrée automatique de l'orchestrateur (pas une décision /gate). Rien n'est poussé.
+> claim_verdict: NO_CLAIM_ALLOWED. IMP-205 = AUDIT_REQUIRED, reste OPEN. Complète IMP-194.
+
+### ⚠️ Contexte de session — deux mains sur le working tree partagé
+- Pendant cette session, **ta session parallèle** a commité `4b7d785` (cockpit final) + `bf1e195`
+  (test cockpit) et **ratifié la pile AUDIT 195/196/198/201/203**. Ton `git add` a **emporté ma
+  registration IMP-205** (working tree partagé). Bénin ici, mais c'est le garde-fou « une seule
+  main » : à confirmer qu'une seule session écrit ledger/autopilot à partir de maintenant.
+
+### Fait (preuves d'exécution, oracle = pytest .venv312)
+- **IMP-205** implémenté + testé + **commit local `ffdbfff` (scope-strict 7 fichiers), NON FERMÉ**.
+  Tout writer du ledger dans l'arbre principal passe désormais par `guarded_write` :
+  - `roadmap_to_ledger.py` (writer ACTIF idée→IMP) : `_write_ledger` routé ; `_load_ledger_guarded`
+    capture l'empreinte ; concurrence optimiste threadée dans `inject_approved` ET `inject_staged`.
+  - `ledger_patch_2026060{8,25}.py` (one-shots) : `write_text` direct → `guarded_write` + empreinte.
+  - `scripts/grep_guard_ledger.py` : garde **AST** (run local + CI-ready, **`.github` NON touché**).
+  - `ledger_writer.py` : docstring corrigé (autopilot n'est plus un bypass depuis IMP-203).
+- **Oracle** : `test_imp205_single_writer_complete.py` **17/17** ; régression kernel **277/277** ;
+  `grep_guard_ledger --root .` = **0 bypass (exit 0)**. Avant routage le garde détectait bien les 3.
+
+### Trouvé par le RED TEAM (sous-agent adversaire) — a changé l'implémentation AVANT impl
+- **CRITICAL C1** : grep mono-ligne aveugle à l'idiome atomique `os.replace(tmp, LEDGER)` (la
+  convention d'écriture du repo) → garde **AST** détectant la destination de replace/rename.
+- **CRITICAL C2** : « primitive + réf ledger » faux-positive `golden_collector` (lit le ledger,
+  écrit un AUTRE fichier) → résolution de la **cible** d'écriture ; lectures jamais comptées.
+- **H1** parents[2] (one-shots sans REPO_ROOT) · **H2/M1** empreinte threadée partout · **M2**
+  width alignée (anti reflow) · **M4** worktrees exclus (documenté) · **M5** docstring corrigé.
+- Correction scope vs REPRISE confirmée : `golden_collector` n'écrit PAS le ledger ; énumération
+  des writers réels **complète** (aucun manqué dans l'arbre principal).
+
+### Attend ta gate
+- **Ratifier IMP-205** (`/gate` + close kaizen_loop) — AUDIT, oracle vert, commit `ffdbfff`.
+- **Résidus / décisions** (non faits — gate) :
+  1. **Câblage CI du grep-guard** dans `.github/workflows/` (différé sur ta décision — `.github/`
+     FORBIDDEN encore en attente). Le script tourne déjà en local ; reste à le rendre bloquant en CI.
+  2. **M4** : un merge d'un `worktrees/*` peut réintroduire un bypass non vu — relancer le garde
+     sur le résultat de merge (note CI à ajouter avec le point 1).
+  3. IMP-194 (single-writer partiel) est désormais **complété** par 205 — confirmer si 194 se ferme
+     en même temps que 205 ou reste tracé séparément.
+
+### Commit local IMP-205 (1, branche master, NON poussé)
+- ffdbfff IMP-205 (roadmap+ledger_patch×2+grep_guard+test+ledger_writer docstring+domain, NON fermé)
