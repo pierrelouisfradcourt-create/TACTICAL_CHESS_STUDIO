@@ -8,10 +8,13 @@ Tout écrivain du ledger DOIT passer par `guarded_write`, qui impose deux verrou
                     optimiste par empreinte (sha256). Lock tenu OU empreinte changée
                     sous le writer -> ConcurrentWriteError.
 
-Limite connue (gate Pierre, IMP-194 AUDIT) : `autopilot.py` écrit le ledger en direct
-(`LEDGER.write_text`) sans emprunter ce writer. La garantie est donc PARTIELLE — elle
-protège kaizen_loop (CLI + close_imp) et *détecte* une écriture autopilot concurrente
-(empreinte), mais n'empêche pas autopilot d'écrire. Voir docs/phase0/IMP-194_PLAN.md.
+Périmètre (à jour IMP-205) : dans l'arbre principal, TOUS les writers du ledger passent
+désormais par `guarded_write` — `kaizen_loop.save_ledger` (IMP-194), `roadmap_to_ledger`
+(inject/inject-staged) et les one-shots `ledger_patch_*` (IMP-205). `autopilot.close_imp`
+n'écrit plus en direct : il délègue à `kaizen_loop close` en subprocess (IMP-203). L'invariant
+« aucun write hors `guarded_write` » est gardé par `scripts/grep_guard_ledger.py` (AST).
+Limite restante : les copies sous `worktrees/` ne sont pas scannées (un merge de worktree
+peut réintroduire un bypass — relancer le garde sur le résultat). Voir docs/phase0/IMP-194_PLAN.md.
 """
 from __future__ import annotations
 

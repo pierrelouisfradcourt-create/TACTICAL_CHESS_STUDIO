@@ -14,6 +14,7 @@ Ce script ne se supprime pas lui-même.
 
 claim_verdict: NO_CLAIM_ALLOWED
 """
+import hashlib
 import sys
 import yaml
 from pathlib import Path
@@ -21,6 +22,11 @@ from datetime import datetime
 
 LEDGER = Path(__file__).parent / "IMPROVEMENT_LEDGER.yaml"
 BACKUP = Path(__file__).parent / "IMPROVEMENT_LEDGER_backup_20260608.yaml"
+
+# IMP-205 — single-writer gardé. ledger_writer vit dans governance/ (repo_root/governance).
+# parents[2] depuis lab/chains/ = repo root (one-shot sans REPO_ROOT défini — cf RED TEAM H1).
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "governance"))
+from ledger_writer import guarded_write  # noqa: E402
 
 UNVERIFIABLE_NOTE = "UNVERIFIABLE - acceptance non defini a la fermeture"
 REOPEN_NOTE       = "Rouvert 2026-06-08 — feature page dedicee non livree selon audit"
@@ -37,7 +43,9 @@ def main() -> None:
         print(f"[ERREUR] Ledger introuvable : {LEDGER}", file=sys.stderr)
         sys.exit(1)
 
-    raw = LEDGER.read_text(encoding="utf-8")
+    _raw_bytes = LEDGER.read_bytes()
+    raw = _raw_bytes.decode("utf-8")
+    _ledger_fp = hashlib.sha256(_raw_bytes).hexdigest()  # IMP-205 concurrence optimiste
 
     # Extraire les lignes de commentaires du header (avant la première clé YAML)
     header_lines: list[str] = []
@@ -110,9 +118,9 @@ def main() -> None:
         allow_unicode=True,
         sort_keys=False,
         default_flow_style=False,
-        width=120,
     )
-    LEDGER.write_text(header_block + body, encoding="utf-8")
+    # IMP-205 — single-writer gardé (governor + writelock + empreinte) au lieu de write_text direct.
+    guarded_write(LEDGER, header_block + body, expected_fingerprint=_ledger_fp)
 
     # ── Validation PyYAML ─────────────────────────────────────────────────────
     try:

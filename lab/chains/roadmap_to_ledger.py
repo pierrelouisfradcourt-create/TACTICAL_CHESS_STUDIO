@@ -16,6 +16,7 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -34,6 +35,12 @@ REPO_ROOT      = Path(__file__).resolve().parents[2]
 ROADMAP_PATH   = REPO_ROOT / "00_STUDIO_CONTROL/00_MASTER_DOCS/01_ROADMAP.md"
 LEDGER_PATH    = REPO_ROOT / "lab/chains/IMPROVEMENT_LEDGER.yaml"
 PROPOSALS_PATH = REPO_ROOT / "lab/chains/ROADMAP_PROPOSALS.yaml"
+
+# IMP-205 — single-writer gardé : tout write du ledger passe par guarded_write
+# (governor.check + writelock O_EXCL + concurrence optimiste par empreinte). ledger_writer
+# vit dans governance/ ; on l'ancre sur REPO_ROOT (même arithmétique que kaizen_loop).
+sys.path.insert(0, str(REPO_ROOT / "governance"))
+from ledger_writer import guarded_write  # noqa: E402
 
 LM_HOST     = "http://127.0.0.1:1234"
 LM_DIRECTOR = "qwen2.5-14b-instruct"
@@ -285,7 +292,7 @@ def inject_approved(dry_run: bool, force: bool = False) -> None:
         print("[!] Aucune proposal avec humangate_verdict: APPROVED")
         return
 
-    ledger_data = yaml.safe_load(LEDGER_PATH.read_text(encoding="utf-8"))
+    ledger_data, _ledger_fp = _load_ledger_guarded()
     imps = ledger_data["improvements"]
     nums = []
     for i in imps:
@@ -334,7 +341,7 @@ def inject_approved(dry_run: bool, force: bool = False) -> None:
         print("[OK] Aucun nouvel IMP — toutes les proposals sont déjà dans le ledger")
         return
     if not dry_run:
-        _write_ledger(ledger_data)
+        _write_ledger(ledger_data, expected_fingerprint=_ledger_fp)
         print(f"[OK] {len(added)} IMP(s) injecté(s) dans le ledger :")
     else:
         print(f"[dry-run] {len(added)} IMP(s) seraient injectés :")
@@ -342,16 +349,29 @@ def inject_approved(dry_run: bool, force: bool = False) -> None:
         print(f"  {new_id} — {title[:70]}")
 
 
-# ── Shared ledger write ───────────────────────────────────────────────────────
-def _write_ledger(ledger_data: dict) -> None:
+# ── Shared ledger read/write (single-writer gardé, IMP-205) ───────────────────
+def _load_ledger_guarded() -> tuple[dict, str]:
+    """Lit le ledger en OCTETS et capture leur empreinte sha256 pour la concurrence
+    optimiste de guarded_write (le write comparera cette empreinte sous le writelock :
+    si le fichier a bougé entre ce read et le write -> ConcurrentWriteError).
+    Retourne (data, fingerprint_hex)."""
+    raw = LEDGER_PATH.read_bytes()
+    fp = hashlib.sha256(raw).hexdigest()
+    return yaml.safe_load(raw.decode("utf-8")), fp
+
+
+def _write_ledger(ledger_data: dict, expected_fingerprint: str | None = None) -> None:
+    """Écrit le ledger via le single-writer gardé (governor.check + writelock O_EXCL +
+    empreinte). `expected_fingerprint` = empreinte capturée au load par
+    `_load_ledger_guarded` ; une écriture concurrente lève ConcurrentWriteError (fail-closed).
+    Mode/encoding/newline identiques à kaizen_loop.save_ledger (UTF-8, CRLF préservé)."""
     header = (
         "# IMPROVEMENT_LEDGER.yaml\n"
         "# SSOT amélioration continue (Kaizen Loop) — Tactical Chess Studio\n"
         "# Claim posture: NO_CLAIM_ALLOWED | Read-only sauf --close/--add\n\n"
     )
-    with open(LEDGER_PATH, "w", encoding="utf-8") as f:
-        f.write(header)
-        yaml.dump(ledger_data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    body = yaml.dump(ledger_data, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    guarded_write(LEDGER_PATH, header + body, expected_fingerprint=expected_fingerprint)
 
 
 # ── Inject staged (idea-to-imp, sans exiger APPROVED) ────────────────────────
@@ -373,7 +393,7 @@ def inject_staged(session_id: str, dry_run: bool, force: bool = False) -> None:
         print(f"[!] Aucune proposal pour la session '{session_id}'")
         return
 
-    ledger_data = yaml.safe_load(LEDGER_PATH.read_text(encoding="utf-8"))
+    ledger_data, _ledger_fp = _load_ledger_guarded()
     imps = ledger_data["improvements"]
     nums = [int(i["id"].split("-")[1]) for i in imps
             if re.match(r"IMP-\d+$", i.get("id", ""))]
@@ -418,7 +438,7 @@ def inject_staged(session_id: str, dry_run: bool, force: bool = False) -> None:
         print("[OK] Aucun nouvel IMP — toutes les proposals sont déjà dans le ledger")
         return
     if not dry_run:
-        _write_ledger(ledger_data)
+        _write_ledger(ledger_data, expected_fingerprint=_ledger_fp)
         print(f"[OK] {len(added)} IMP(s) injecté(s) dans le ledger :")
     else:
         print(f"[dry-run] {len(added)} IMP(s) seraient injectés :")
