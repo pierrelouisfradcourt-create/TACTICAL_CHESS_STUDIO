@@ -4195,6 +4195,26 @@ improvements:
   notes: oracle_type=code | blocked_by=none | studio_cockpit_v2.html marque obsolete
     (deprecie) mais encore servable -> redirection/banniere vers cockpit canonique
   oracle_type: code
+- id: IMP-215
+  title: 'Durcir _route_model : forcer qwen2.5 des que la sortie est parsee JSON —
+    evite qu''un futur appelant tombe sur qwen3.6 par accident de routage'
+  type: refactoring
+  source: manual add - session 2026-06-29 go Pierre
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  acceptance: '_route_model garantit LM_MODEL (qwen2.5) pour tout appel parse en JSON
+    ; test code : aucun chemin ceo_brief/fusion_deep ne route vers qwen3.6 quand JSON
+    attendu'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: 'oracle_type: code | source: STAFF_ENGINEER_AUDIT_2026-06-29 W6 (faux positif
+    live, mine latente) | go Pierre session 2026-06-29'
 metrics_history:
 - session: '2026-05-31'
   total: 11
