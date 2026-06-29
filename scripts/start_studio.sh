@@ -9,6 +9,7 @@ LOG_FILE="$STUDIO_ROOT/lab/reports/studio_boot_$(date +%Y%m%d).log"
 LM_STUDIO_URL="http://192.168.1.11:1234/v1/models"
 CLAUDE_PROXY_PORT=8765
 CANVAS_GW_PORT=8766
+COCKPIT_PORT=8770
 OPENCLAW_GW_PORT=18789
 PROXY_WAIT_RETRIES=12   # 12 × 5s = 60s max
 CONNECT_TIMEOUT=3
@@ -50,7 +51,7 @@ port_up() {
 }
 
 # ── STEP 1 : LM Studio (192.168.1.11:1234) ───────────────────────────────────
-log "[1/5] LM Studio — ping $LM_STUDIO_URL"
+log "[1/6] LM Studio — ping $LM_STUDIO_URL"
 if curl -sf --max-time "$CONNECT_TIMEOUT" "$LM_STUDIO_URL" > /dev/null; then
     ok "LM Studio répond"
 else
@@ -58,7 +59,7 @@ else
 fi
 
 # ── STEP 2 : OpenClaw gateway (port 18789 — log only) ────────────────────────
-log "[2/5] OpenClaw gateway — port $OPENCLAW_GW_PORT"
+log "[2/6] OpenClaw gateway — port $OPENCLAW_GW_PORT"
 if port_up "$OPENCLAW_GW_PORT"; then
     ok "openclaw_gateway déjà actif sur :$OPENCLAW_GW_PORT"
 else
@@ -66,7 +67,7 @@ else
 fi
 
 # ── STEP 3 : claude_proxy (port 8765) ─────────────────────────────────────────
-log "[3/5] claude_proxy — port $CLAUDE_PROXY_PORT"
+log "[3/6] claude_proxy — port $CLAUDE_PROXY_PORT"
 if port_up "$CLAUDE_PROXY_PORT"; then
     ok "claude_proxy déjà actif sur :$CLAUDE_PROXY_PORT"
 else
@@ -93,7 +94,7 @@ else
 fi
 
 # ── STEP 4 : canvas_gateway (port 8766) ───────────────────────────────────────
-log "[4/5] canvas_gateway — port $CANVAS_GW_PORT"
+log "[4/6] canvas_gateway — port $CANVAS_GW_PORT"
 
 if [ -z "${STUDIO_HMAC_KEY:-}" ]; then
     # Tenter de charger depuis ~/.openclaw/.env
@@ -125,8 +126,31 @@ else
     fi
 fi
 
-# ── STEP 5 : healthcheck daemon ────────────────────────────────────────────────
-log "[5/5] healthcheck daemon"
+# ── STEP 5 : cockpit_server (port 8770 — FastAPI/uvicorn, .venv312) ───────────
+# uvicorn/fastapi/starlette ne sont installés que dans .venv312 (Windows) — on lance
+# donc le python Windows via l'interop WSL, pas python3. --app-dir scripts car
+# cockpit_server.py vit dans scripts/.
+log "[5/6] cockpit_server — port $COCKPIT_PORT"
+if port_up "$COCKPIT_PORT"; then
+    ok "cockpit_server déjà actif sur :$COCKPIT_PORT"
+else
+    cd "$STUDIO_ROOT"
+    "$STUDIO_ROOT/.venv312/Scripts/python.exe" -m uvicorn cockpit_server:app \
+        --host 127.0.0.1 --port "$COCKPIT_PORT" --app-dir scripts \
+        >> "$STUDIO_ROOT/lab/logs/cockpit_server.log" 2>&1 &
+    COCKPIT_PID=$!
+    log "cockpit_server lancé (pid $COCKPIT_PID)"
+
+    sleep 5
+    if port_up "$COCKPIT_PORT"; then
+        ok "cockpit_server opérationnel (:$COCKPIT_PORT)"
+    else
+        fail "cockpit_server n'a pas démarré — vérifier lab/logs/cockpit_server.log"
+    fi
+fi
+
+# ── STEP 6 : healthcheck daemon ────────────────────────────────────────────────
+log "[6/6] healthcheck daemon"
 if pgrep -f "scripts/healthcheck.py" > /dev/null 2>&1; then
     ok "healthcheck déjà en cours (pid $(pgrep -f 'scripts/healthcheck.py' | head -1))"
 else
@@ -158,6 +182,7 @@ curl -sf --max-time "$CONNECT_TIMEOUT" "$LM_STUDIO_URL" > /dev/null \
 check_summary "openclaw_gateway" "$OPENCLAW_GW_PORT"
 check_summary "claude_proxy"     "$CLAUDE_PROXY_PORT"
 check_summary "canvas_gateway"   "$CANVAS_GW_PORT"
+check_summary "cockpit_server"   "$COCKPIT_PORT"
 
 pgrep -f "scripts/healthcheck.py" > /dev/null 2>&1 \
     && ok "healthcheck daemon RUNNING" \
