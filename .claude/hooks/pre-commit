@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+FORBIDDEN="tests/ eval/ oracle/ bench/ puzzles/ .github/"
+for path in $FORBIDDEN; do
+  if git diff --cached --name-only | grep -q "^$path"; then
+    echo "❌ FORBIDDEN : $path est un oracle. Non modifiable par un agent."
+    exit 1
+  fi
+done
+if git diff --cached -- 'src/*.rs' | grep -E '^\+.*\.unwrap\(\)' | grep -v '// SAFETY'; then
+  echo "⚠️  unwrap() sans justification. Ajoute // SAFETY: <raison>."
+  exit 1
+fi
+if git diff --cached -- 'src/*.rs' 'ml/*.py' | grep -E '^\+(.*TODO|.*FIXME)' | grep -v 'IMP-[0-9]'; then
+  echo "⚠️  TODO/FIXME sans référence IMP-XXX."
+  exit 1
+fi
+echo "✅ pre-commit OK"
