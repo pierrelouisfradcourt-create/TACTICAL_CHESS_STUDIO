@@ -3340,6 +3340,7 @@ tr:hover td{background:var(--bg3)}
   <div class="sb-item" onclick="nav('moteur')"><span class="ico">💻</span> Moteur &amp; code</div>
   <div class="sb-item" onclick="nav('design')"><span class="ico">🎨</span> Design &amp; assets</div>
   <div class="sb-item" onclick="nav('roadmap-jeux')"><span class="ico">🗾</span> Roadmap jeux</div>
+  <div class="sb-item" onclick="nav('games')"><span class="ico">🎮</span> Jeux</div>
 
   <div class="sb-section">Config</div>
   <div class="sb-item" onclick="nav('config')"><span class="ico">⚙</span> Config</div>
@@ -4256,6 +4257,13 @@ tr:hover td{background:var(--bg3)}
       <div id="council-divergences"></div>
     </div>
 
+    <div id="page-games" class="page">
+      <div class="divider">JEUX — LANCEUR SANDBOXÉ</div>
+      <div id="games-list" class="card">Chargement…</div>
+      <div class="divider">APERÇU</div>
+      <div id="games-frame"></div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 </div><!-- /shell -->
@@ -4465,6 +4473,7 @@ function nav(id) {
   if (id === 'roadmap-jeux') loadDomainImps('jeux', 'jeux-imps');
   if (id === 'cockpit') { loadCockpit(); startCockpitAutoRefresh(); }
   if (id === 'council') loadCouncil();
+  if (id === 'games') loadGames();
 }
 
 // ── COCKPIT (home single-pane) ────────────────────────
@@ -4623,6 +4632,72 @@ async function loadCouncil() {
     if (hdr) hdr.innerHTML = '<div style="color:var(--red);font-size:12px;padding:6px 0">'
       + 'Erreur council : ' + escHtml(String(e && e.message ? e.message : e)) + '</div>';
   }
+}
+
+// ── JEUX (lanceur sandboxé) ──────────────────────────────
+// Liste les jeux du registry factory ; Play injecte une iframe sandboxée.
+// On reference les jeux par INDEX entier (jamais d'interpolation de donnees
+// jeu dans le HTML d'onclick) -> aucune surface d'injection.
+var _gamesCache = [];
+function gmPill(label, color) {
+  return '<span style="display:inline-block;font-size:9px;padding:1px 6px;border-radius:8px;'
+    + 'border:1px solid ' + color + ';color:' + color + ';margin-right:4px">' + escHtml(label) + '</span>';
+}
+async function loadGames() {
+  var list = document.getElementById('games-list');
+  var frame = document.getElementById('games-frame');
+  if (frame) frame.innerHTML = '';
+  if (list) list.innerHTML = ckEmpty('Chargement…');
+  try {
+    var d = await fetch('/api/games').then(function (r) { return r.json(); });
+    var games = (d && Array.isArray(d.games)) ? d.games : [];
+    _gamesCache = games;
+    if (!games.length) {
+      var why = (d && d.reason) ? (' — ' + String(d.reason)) : (d && d.error ? (' — ' + String(d.error)) : '');
+      if (list) list.innerHTML = ckEmpty('Aucun jeu dans le registry' + why);
+      return;
+    }
+    var html = '<div style="display:flex;gap:12px;flex-wrap:wrap">';
+    games.forEach(function (g, i) {
+      g = g || {};
+      var ok = g.oracle_status === 'PASS';
+      html += '<div class="card" style="flex:1;min-width:240px">';
+      html += '<div style="font-size:14px;font-weight:700;color:var(--text)">'
+        + escHtml(String(g.name || '?')) + '</div>';
+      html += '<div style="font-size:10px;color:var(--text3);margin:2px 0">v'
+        + escHtml(String(g.version || '?')) + ' · ' + escHtml(String(g.oracle_adapter || '')) + '</div>';
+      html += '<div style="margin:6px 0">'
+        + gmPill('oracle ' + String(g.oracle_status || '?'), ok ? 'var(--green)' : 'var(--red)')
+        + gmPill(g.logic_complete ? 'logic complete' : 'scaffold', g.logic_complete ? 'var(--green)' : 'var(--amber)')
+        + '</div>';
+      if (g.playable && g.play_url) {
+        html += '<button class="btn btn-green btn-sm" onclick="playGame(' + i + ')">▶ Play</button>';
+      } else {
+        html += '<button class="btn btn-sm" disabled style="opacity:.5;cursor:not-allowed">▶ Play</button>';
+        html += '<div style="font-size:10px;color:var(--text3);margin-top:4px">'
+          + escHtml(String(g.reason || 'non jouable')) + '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+    if (list) list.innerHTML = html;
+  } catch (e) {
+    if (list) list.innerHTML = '<div style="color:var(--red);font-size:12px;padding:6px 0">'
+      + 'Erreur jeux : ' + escHtml(String(e && e.message ? e.message : e)) + '</div>';
+  }
+}
+function playGame(i) {
+  var g = _gamesCache[i];
+  var frame = document.getElementById('games-frame');
+  if (!frame || !g || !g.playable || !g.play_url) return;
+  // iframe sandboxée : scripts autorisés, même origine (jeu servi en local sous /games/).
+  var ifr = document.createElement('iframe');
+  ifr.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+  ifr.setAttribute('src', String(g.play_url));
+  ifr.style.cssText = 'width:100%;height:520px;border:0;border-radius:8px;background:#000';
+  ifr.title = String(g.name || 'jeu');
+  frame.innerHTML = '';
+  frame.appendChild(ifr);
 }
 
 // Auto-rafraichissement cockpit : recharge les loaders de DONNEES legers
@@ -7665,6 +7740,63 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.send_json({"empty": True, "consensus_md": consensus_md})
             except Exception as e:
                 self.send_json({"empty": True, "error": str(e)})
+
+        elif path == "/api/games":
+            # Lanceur jeux (IMP-212) — lecture seule du registry factory.
+            # Liste les jeux declares + indique pour chacun s'il existe un build
+            # HTML jouable sous games/. Jamais d'ecriture, jamais de 500 non gere.
+            try:
+                reg = REPO / "studio" / "factory" / "registry" / "registry.json"
+                if not reg.exists() or not reg.is_file():
+                    self.send_json({"games": [], "reason": "registry.json absent"})
+                    return
+                try:
+                    entries = json.loads(reg.read_text(encoding="utf-8"))
+                except Exception as e:
+                    self.send_json({"games": [], "reason": "registry illisible: " + str(e)})
+                    return
+                if not isinstance(entries, list):
+                    entries = []
+                games_root = (REPO / "games").resolve()
+                out = []
+                for ent in entries:
+                    ent = ent if isinstance(ent, dict) else {}
+                    name = str(ent.get("ir_name") or "?")
+                    # slug deterministe : alnum -> underscore, minuscules.
+                    slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+                    play_url = ""
+                    playable = False
+                    reason = ""
+                    if slug:
+                        # On ne sert que des builds HTML existants sous games/<slug>/.
+                        for cand in (slug + "/" + slug + ".html", slug + "/index.html"):
+                            fp = (REPO / "games" / cand).resolve()
+                            try:
+                                under = os.path.commonpath([str(fp), str(games_root)]) == str(games_root)
+                            except Exception:
+                                under = False
+                            if under and fp.exists() and fp.is_file():
+                                play_url = "/games/" + cand
+                                playable = True
+                                break
+                    if not playable:
+                        reason = "aucun build HTML jouable sous games/" + (slug or "?") + "/"
+                    out.append({
+                        "name": name,
+                        "version": str(ent.get("ir_version") or ""),
+                        "oracle_status": str(ent.get("oracle_status") or "UNKNOWN"),
+                        "oracle_adapter": str(ent.get("oracle_adapter") or ""),
+                        "logic_complete": bool(ent.get("logic_complete")),
+                        "timestamp": str(ent.get("timestamp") or ""),
+                        "metrics": ent.get("oracle_metrics") if isinstance(ent.get("oracle_metrics"), dict) else {},
+                        "slug": slug,
+                        "play_url": play_url,
+                        "playable": playable,
+                        "reason": reason,
+                    })
+                self.send_json({"games": out, "count": len(out)})
+            except Exception as e:
+                self.send_json({"games": [], "error": str(e)})
 
         elif path == "/api/lm-probe":
             # Ping léger : juste /api/v1/models sans inférence
