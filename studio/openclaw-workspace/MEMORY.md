@@ -1,6 +1,6 @@
 # MEMORY.md — Mémoire studio (claimed_until_verdict)
 
-## Métriques (sync oracle — 2026-06-27)
+## Métriques (sync oracle — 2026-06-29)
 <!-- AUTO-GÉNÉRÉ par scripts/sync_memory.py — ne pas éditer à la main -->
 
 ### ELO — elo_match_latest.json (2026-06-26T16:51:33Z)
@@ -17,7 +17,7 @@
 - verdict global : **FAIL**
 
 ### Ledger IMP — IMPROVEMENT_LEDGER.yaml
-- CLOSED : 154 / OPEN : 34 / FAIL : 1 / total : 189
+- CLOSED : 203 / OPEN : 20 / FAIL : 1 / total : 224
 
 ## ELO (baselines vérifiées)
 - Heuristique : 1227 ELO (référence stable)
