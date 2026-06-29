@@ -156,6 +156,23 @@ body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;
 </head>
 <body>
 
+<!-- Bannière de dépréciation (IMP-214) -->
+<div id="deprecation-banner" role="alert" style="
+  position:sticky;top:0;z-index:200;
+  background:rgba(192,57,43,.18);
+  border:1px solid var(--fail,#c0392b);
+  border-left:4px solid var(--blocked,#e67e22);
+  border-radius:8px;
+  color:var(--text,#e8e4d9);
+  padding:12px 16px;
+  font-family:'Space Mono',monospace;font-size:.72rem;line-height:1.5;
+  display:flex;flex-wrap:wrap;align-items:center;gap:.4rem 1rem;">
+  <strong style="color:var(--blocked,#e67e22);">&#9888; Ce cockpit est déprécié.</strong>
+  <span>Utiliser <a href="http://localhost:7331" style="color:var(--accent,#c8a96e);font-weight:700;text-decoration:underline;">http://localhost:7331</a></span>
+  <span style="color:var(--muted,#666);">Redirection automatique dans <span id="dep-countdown" style="color:var(--accent,#c8a96e);font-weight:700;">3</span>s&hellip;</span>
+  <a href="#" id="dep-stay" style="margin-left:auto;color:var(--text,#e8e4d9);border:1px solid var(--border,#2a2a2a);background:var(--surface2,#1e1e1e);padding:.3rem .7rem;border-radius:5px;text-decoration:none;font-size:.66rem;">Rester sur cette page de référence</a>
+</div>
+
 <!-- Topbar -->
 <div class="topbar">
   <h1>TACTICAL CHESS STUDIO &middot; COCKPIT v2</h1>
@@ -403,6 +420,37 @@ refreshMeta();
 startSse();
 refreshExtras();
 setInterval(refreshExtras,POLL_MS);
+</script>
+
+<!-- Redirection de dépréciation (IMP-214) -->
+<script>
+(function(){
+  var el=document.getElementById('dep-countdown');
+  var stay=document.getElementById('dep-stay');
+  if(!el){return;}            // guard : pas de crash si la bannière est absente
+  var n=parseInt(el.textContent,10);
+  if(isNaN(n)){n=3;}
+  var timer=setInterval(function(){
+    n-=1;
+    if(n<=0){
+      clearInterval(timer);
+      el.textContent='0';
+      window.location.href='http://localhost:7331';
+      return;
+    }
+    el.textContent=String(n);
+  },1000);
+  if(stay){
+    stay.addEventListener('click',function(e){
+      e.preventDefault();
+      clearInterval(timer);
+      el.textContent='annulée';
+      stay.textContent='Redirection annulée';
+      stay.style.color='var(--pass,#27ae60)';
+      stay.style.borderColor='var(--pass,#27ae60)';
+    });
+  }
+})();
 </script>
 </body>
 </html>
