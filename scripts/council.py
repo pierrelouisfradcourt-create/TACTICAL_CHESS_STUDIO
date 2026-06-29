@@ -530,6 +530,15 @@ def validate_output(result_dict: dict[str, Any], schema_path: Path | None = None
 
 if __name__ == "__main__":
     import argparse
+    # Windows : stdout/stderr en cp1252 -> UnicodeEncodeError sur accents (json ensure_ascii=False,
+    # logs FR). Forcer UTF-8 si dispo, sinon repli ASCII-safe au print (voir plus bas).
+    for _stream in (sys.stdout, sys.stderr):
+        _reconf = getattr(_stream, "reconfigure", None)
+        if _reconf is not None:
+            try:
+                _reconf(encoding="utf-8")
+            except (ValueError, OSError):
+                pass
     ap = argparse.ArgumentParser(description="Council multi-LLM async (IMP-198)")
     ap.add_argument("--brief", required=True)
     ap.add_argument("--task-id", default="council-adhoc")
@@ -540,5 +549,9 @@ if __name__ == "__main__":
         ModelId.GEMINI_FLASH: GeminiAdapter(),
     }
     _res = asyncio.run(run_council(CouncilTask(brief=args.brief, task_id=args.task_id), _adapters))
-    print(json.dumps(_res.to_dict(), ensure_ascii=False, indent=2))
+    try:
+        print(json.dumps(_res.to_dict(), ensure_ascii=False, indent=2))
+    except UnicodeEncodeError:
+        # repli si la console refuse l'UTF-8 (reconfigure indisponible) : JSON ASCII-safe.
+        print(json.dumps(_res.to_dict(), ensure_ascii=True, indent=2))
     raise SystemExit(0 if not _res.requires_humangate else 10)
