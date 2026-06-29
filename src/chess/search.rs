@@ -536,7 +536,7 @@ fn negamax(
 ) -> i32 {
     instrumentation.record_node(ply, depth);
     if SEARCH_DEADLINE.with(|d| d.borrow().map_or(false, |dl| Instant::now() >= dl)) {
-        return evaluate(engine, root_player);
+        return evaluate(engine, to_move);
     }
     let alpha_orig = alpha;
     let is_pv_node = beta - alpha > 1;
@@ -569,7 +569,7 @@ fn negamax(
     }
 
     if ply >= MAX_PLY {
-        return evaluate(engine, root_player);
+        return evaluate(engine, to_move);
     }
 
     let key = position_key(engine, to_move);
@@ -627,7 +627,7 @@ fn negamax(
     // Futility pruning: at depth 1-2, if static_eval + margin can't reach alpha,
     // quiet moves (no capture/promo/check) are skipped.
     let (futility_active, futility_eval) = if depth <= 2 && !in_check && !is_pv_node && ply > 0 {
-        let se = evaluate(engine, root_player);
+        let se = evaluate(engine, to_move);
         let margin = if depth == 1 { FUTILITY_MARGIN_D1 } else { FUTILITY_MARGIN_D2 };
         (se + margin <= alpha, se)
     } else {
@@ -794,7 +794,7 @@ fn quiescence(
     if engine.game_over() {
         return terminal_score(engine, to_move, ply);
     }
-    let stand_pat = evaluate(engine, root_player);
+    let stand_pat = evaluate(engine, to_move);
 
     if stand_pat >= beta {
         return beta;
