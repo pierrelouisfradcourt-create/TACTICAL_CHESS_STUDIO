@@ -2420,7 +2420,7 @@ improvements:
   title: φ Encoder v1 — encoder les positions chess en vecteurs φ
   type: feature
   source: session-2026-06-26 (BOOTSTRAP.md — NOT_STARTED P4)
-  status: OPEN
+  status: CLOSED
   impact: HIGH
   effort: MEDIUM
   lane: SAFE_AUTO
@@ -2436,7 +2436,7 @@ improvements:
     '
   blocked_by: []
   opened_session: '2026-06-26'
-  closed_session: null
+  closed_session: '2026-06-29'
   notes: 'Premier composant P4 (φ Encoder / Clustering / LoRA). Prérequis pour IMP-057
     (LoRA Devstral). Implémentation Python pure, pas de Rust.
 
@@ -3583,7 +3583,7 @@ improvements:
     candidate.pt separe.
   type: feature
   source: session-2026-06-27 audit usine autonome (Pierre)
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: SMALL
   lane: SAFE_AUTO
@@ -3595,7 +3595,7 @@ improvements:
     baseline. pytest vert.
   blocked_by: []
   opened_session: '2026-06-27'
-  closed_session: null
+  closed_session: '2026-06-29'
   notes: 'Protege le modele deploye : pas d''ecrasement avant gate ELO. Aligne sur
     learning_loop.sh (IMP-171) qui attend deja models/candidate.pt. NO_CLAIM_ALLOWED.'
 - id: IMP-185
@@ -3622,7 +3622,7 @@ improvements:
   title: git core.hooksPath — cable .claude/hooks dans start_studio.sh
   type: feature
   source: session-2026-06-27 audit usine autonome (Pierre)
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: SMALL
   lane: SAFE_AUTO
@@ -3633,7 +3633,7 @@ improvements:
     config core.hooksPath retourne .claude/hooks apres lancement. bash -n vert.
   blocked_by: []
   opened_session: '2026-06-27'
-  closed_session: null
+  closed_session: '2026-06-29'
   notes: Les hooks .claude/hooks (pre-commit, validate-commit-msg) ne sont pas cables
     cote git -> jamais executes. NO_CLAIM_ALLOWED.
 - id: IMP-187
@@ -3719,7 +3719,7 @@ improvements:
   title: Cockpit unifie v2 + 4 endpoints read-only canvas_gateway 8766
   type: feature
   source: session Pierre 2026-06-28
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: MEDIUM
   lane: SAFE_AUTO
@@ -3732,7 +3732,7 @@ improvements:
     vert; governor.check avant actions mutantes
   blocked_by: []
   opened_session: '2026-06-28'
-  closed_session: null
+  closed_session: '2026-06-29'
   notes: 189 demande mais deja pris (studio_core --ir); push master en attente gate
     visuel Pierre
 - id: IMP-192
@@ -4215,6 +4215,48 @@ improvements:
   closed_session: null
   notes: 'oracle_type: code | source: STAFF_ENGINEER_AUDIT_2026-06-29 W6 (faux positif
     live, mine latente) | go Pierre session 2026-06-29'
+- id: IMP-216
+  title: Fix harnais Lichess — serde puzzle.rs + lichess_eval.sh erreur dure sur failed
+  type: bugfix
+  source: diagnostic session 2026-06-29 (HARNESS_BUG)
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/chess/puzzle.rs
+  - src/tool/puzzle_eval.rs
+  - bench/lichess_eval.sh
+  acceptance: PuzzleCase accepte le schema Lichess natif (side_to_move derive du FEN,
+    lichess_themes[0]->theme, serde(default) sur champs manquants); lichess_eval.sh
+    traite PUZZLE_EVAL_STATUS=failed comme erreur dure (plus de || true qui relit
+    un baseline perime); L2 et L3 produisent des rapports DISTINCTS et frais; cargo
+    test vert
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: 'oracle_type=code | L2/L3=91/2000 etaient des artefacts perimes byte-identiques;
+    oracle Lichess ne reflete pas la force. NB: ne debloque PAS l''autoloop (verrou
+    ELO independant). NO_CLAIM_ALLOWED'
+- id: IMP-217
+  title: Provisionner uv — debloquer IMP-204 Graphify
+  type: tooling
+  source: IMP-204 BLOCKED_TOOLING session 2026-06-29
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/start_studio.sh
+  acceptance: uv installe et sur PATH (uv --version OK); IMP-204 re-executable (uv
+    tool install graphifyy). docs/studio_v2/RECO_GRAPHIFY.md a creer/localiser pour
+    l'invocation graphify
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=code | uv absent (ni pipx) -> IMP-204 inexecutable. NO_CLAIM_ALLOWED
 metrics_history:
 - session: '2026-05-31'
   total: 11
