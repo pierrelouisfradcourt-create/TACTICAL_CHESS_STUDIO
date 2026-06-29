@@ -8,6 +8,10 @@ use std::time::{Duration, Instant};
 
 use crate::agents::neural_telemetry::{log_bridge_fail, log_bridge_ok, log_bridge_timeout};
 
+// IMP-218 : emplacement par defaut du repertoire Windows, utilise comme secours quand
+// SystemRoot/WINDIR sont absents de l'environnement (lancement WSL ou env nettoye).
+const DEFAULT_WINDOWS_DIR: &str = "C:\\Windows";
+
 struct NeuralProcess {
     child: Child,
     stdin: ChildStdin,
@@ -86,14 +90,25 @@ impl NeuralBridge {
 
         println!("PYTHON_RUNTIME_CHECK|{}", python_path.display());
 
+        // IMP-218 : ces variables peuvent etre absentes selon le contexte de lancement
+        // (WSL, env nettoye par un superviseur). Auparavant unwrap() paniquait ici
+        // (NotPresent) et tuait le tournoi ELO entier. Fallback robuste a la place.
+        let env_path = std::env::var("PATH").unwrap_or_default();
+        let env_system_root = std::env::var("SystemRoot")
+            .or_else(|_| std::env::var("SYSTEMROOT"))
+            .unwrap_or_else(|_| DEFAULT_WINDOWS_DIR.to_string());
+        let env_windir = std::env::var("WINDIR")
+            .or_else(|_| std::env::var("WinDir"))
+            .unwrap_or_else(|_| DEFAULT_WINDOWS_DIR.to_string());
+
         let mut command = Command::new(python_path);
         command
             .current_dir(project_root)
             .args(["-u", config.script_path, "--serve"])
             .env_clear()
-            .env("PATH", std::env::var("PATH").unwrap())
-            .env("SystemRoot", std::env::var("SystemRoot").unwrap())
-            .env("WINDIR", std::env::var("WINDIR").unwrap())
+            .env("PATH", &env_path)
+            .env("SystemRoot", &env_system_root)
+            .env("WINDIR", &env_windir)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())

@@ -4257,6 +4257,57 @@ improvements:
   opened_session: '2026-06-29'
   closed_session: null
   notes: oracle_type=code | uv absent (ni pipx) -> IMP-204 inexecutable. NO_CLAIM_ALLOWED
+- id: IMP-218
+  title: Fix neural_bridge.rs:94-96 — env unwrap() -> fallback (oracle ELO sous WSL)
+  type: fix
+  source: audit 2026-06-29 (panic NotPresent neural_bridge.rs:95)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/agents/neural_bridge.rs
+  acceptance: neural_tournament tourne sans panic depuis WSL
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: PATH/SystemRoot/WINDIR unwrap paniquaient (NotPresent) sous WSL/env nettoye,
+    tuant le tournoi ELO. Remplace par unwrap_or_default/unwrap_or_else + const DEFAULT_WINDOWS_DIR.
+- id: IMP-219
+  title: Audit forced_stagnation — 81% de nulles (adjudicateur soft_no_capture trop
+    agressif)
+  type: audit
+  source: audit 2026-06-29 (median partie=35 plies=SOFT_NO_CAPTURE_LIMIT)
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/simulation/simulation_runner.rs
+  acceptance: draw rate < 50% sur 100 parties
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: ''
+- id: IMP-220
+  title: IID dans negamax Rocky — relance depth-1 si hash-move absent en TT pour generer
+    coup pivot avant ordering
+  type: feature
+  source: Pierre 2026-06-29
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: rocky_moteur
+  files:
+  - src/chess/search.rs
+  acceptance: cargo test vert + ELO benchmark ameliore ordering
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: ''
 metrics_history:
 - session: '2026-05-31'
   total: 11
