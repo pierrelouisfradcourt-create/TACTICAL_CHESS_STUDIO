@@ -19,6 +19,7 @@ AVANT toute écriture -> un BLOCK laisse 0 effet de bord (pas d'état semi-écri
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import logging
 import os
@@ -39,6 +40,56 @@ logger = logging.getLogger(__name__)
 # chokepoint réel : toute écriture y passe.
 JOURNAL_MISSION = "error_journal_write"
 PROPOSE_MISSION = "error_imp_propose"
+
+# ── HMAC du journal (chantier d — defense-in-depth) ───────────────────────────
+# Vrai HMAC (hmac.new), PAS sha256(key+payload) — RED TEAM M1. Clé via STUDIO_HMAC_KEY
+# (défaut non secret "studio-dev" : intégrité/anti-corruption, pas anti-forge). Vérif
+# PAR LIGNE à la lecture (jamais de hard-reject global : feed diagnostique best-effort).
+_HMAC_KEY_ENV = "STUDIO_HMAC_KEY"
+_HMAC_DEFAULT = "studio-dev"
+
+# Seuil d'escalade : > 2 occurrences (3e) -> bump la proposition AUDIT_REQUIRED existante.
+# RED TEAM C1 : JAMAIS d'auto-add SAFE_AUTO au ledger réel (boucle auto-amplifiante).
+ESCALATE_THRESHOLD = 3
+
+# Valeurs d'env sensibles à ne jamais écrire dans le journal (RED TEAM M1 — fuite via excerpt).
+_SECRET_ENV_HINT = re.compile(r"(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL)", re.IGNORECASE)
+
+
+def _hmac_key() -> bytes:
+    return os.getenv(_HMAC_KEY_ENV, _HMAC_DEFAULT).encode("utf-8")
+
+
+def _canonical(entry: "dict[str, Any]") -> str:
+    """Sérialisation canonique déterministe (champ hmac exclu) — signage == écriture."""
+    payload = {k: v for k, v in entry.items() if k != "hmac"}
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def sign_entry(entry: "dict[str, Any]") -> str:
+    """HMAC-SHA256 hex de la sérialisation canonique (hors champ hmac)."""
+    return hmac.new(_hmac_key(), _canonical(entry).encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def verify_entry(entry: "dict[str, Any]") -> bool:
+    """True si entry['hmac'] correspond à la signature recalculée (compare_digest, fail-closed)."""
+    got = entry.get("hmac")
+    if not isinstance(got, str):
+        return False
+    try:
+        return hmac.compare_digest(got, sign_entry(entry))
+    except Exception:  # noqa: BLE001 — entrée non-ascii / illisible -> invalide
+        return False
+
+
+def _scrub_secrets(text: str) -> str:
+    """Remplace toute valeur d'env sensible (>=8 chars) présente dans `text` par [SECRET].
+    Empêche qu'une traceback/dump d'env grave une clé en clair dans le journal signé."""
+    out = text
+    for name, val in os.environ.items():
+        if val and len(val) >= 8 and _SECRET_ENV_HINT.search(name):
+            out = out.replace(val, "[SECRET]")
+    return out
 
 
 # ── erreurs ───────────────────────────────────────────────────────────────────
@@ -171,6 +222,93 @@ def build_proposal(error_text: str, now_ts: int) -> dict[str, Any]:
     }
 
 
+def build_escalation(error_text: str, occurrences: int, now_ts: int) -> dict[str, Any]:
+    """Bump d'une proposition existante sur erreur récurrente (>= ESCALATE_THRESHOLD).
+    Reste lane=AUDIT_REQUIRED (non auto-pickable) — RED TEAM C1 : aucune mutation du ledger réel.
+    Idempotent par signature : émise une seule fois par classe d'erreur (cf. _is_escalated)."""
+    if not isinstance(error_text, str) or not error_text.strip():
+        raise ErrorJournalError("error_text vide/invalide")
+    sig = signature(error_text)
+    excerpt = _WS_RE.sub(" ", error_text.strip())[:200]
+    return {
+        "proposal_id": f"PROP-{sig}",
+        "status": "PROPOSED",          # invariant dur — jamais CLOSED ici
+        "ecg_state": "PROPOSED",
+        "closed": False,               # invariant dur — jamais auto-close
+        "escalated": True,
+        "occurrences": occurrences,
+        "title": f"[auto-escalated x{occurrences}] erreur recurrente: {excerpt[:80]}",
+        "error_signature": sig,
+        "error_excerpt": excerpt,
+        "oracle_type": "code",
+        "source": "error_journal",
+        "escalated_ts": now_ts,
+        "lane": "AUDIT_REQUIRED",      # jamais SAFE_AUTO -> jamais auto-pické par l'autoloop
+    }
+
+
+def _count_signature(journal_path: Path | str, sig: str) -> int:
+    """Compte les occurrences d'une signature dans le journal (lecture seule, tolérante)."""
+    path = Path(journal_path)
+    if not path.exists():
+        return 0
+    n = 0
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            if json.loads(line).get("signature") == sig:
+                n += 1
+        except json.JSONDecodeError:
+            continue
+    return n
+
+
+def _is_escalated(proposals_path: Path | str, sig: str) -> bool:
+    """True si une escalade a déjà été émise pour cette signature (idempotence)."""
+    path = Path(proposals_path)
+    if not path.exists():
+        return False
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            o = json.loads(line)
+            if o.get("error_signature") == sig and o.get("escalated") is True:
+                return True
+        except json.JSONDecodeError:
+            continue
+    return False
+
+
+def verify_journal(journal_path: Path | str) -> tuple[int, int, list[int]]:
+    """Vérifie le HMAC ligne par ligne. Retourne (valides, invalides, n° lignes invalides).
+    Tolérant (jamais de hard-reject global — feed diagnostique). Pour usage VERDICT/preuve."""
+    path = Path(journal_path)
+    if not path.exists():
+        return (0, 0, [])
+    valid = invalid = 0
+    bad: list[int] = []
+    for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            invalid += 1
+            bad.append(n)
+            continue
+        if verify_entry(entry):
+            valid += 1
+        else:
+            invalid += 1
+            bad.append(n)
+    return (valid, invalid, bad)
+
+
 # ── frontière I/O (gardée) ────────────────────────────────────────────────────
 def _append_jsonl(path: Path, obj: dict[str, Any]) -> None:
     """Append append-only, utf-8, newline='' (RT-202-8 : '\\n' verbatim cross-OS)."""
@@ -247,6 +385,9 @@ def record_error(
     if not isinstance(error_text, str) or not error_text.strip():
         raise ErrorJournalError("error_text vide/invalide")
 
+    # 0) scrub des secrets d'env AVANT toute classification/écriture (RED TEAM M1).
+    error_text = _scrub_secrets(error_text)
+
     # 1) classification pure (aucune I/O).
     m = classify(error_text, patterns)
     sig = signature(error_text)
@@ -256,6 +397,7 @@ def record_error(
         "matched": m.pattern_id if m else None,
         "excerpt": _WS_RE.sub(" ", error_text.strip())[:200],
     }
+    journal_entry["hmac"] = sign_entry(journal_entry)  # signe la classe d'erreur (chantier d)
 
     # 2) gate journal (toujours requise) — AVANT toute écriture.
     if not governor_mod.check({"lane": "SAFE_AUTO", "mission": JOURNAL_MISSION}).allowed:
@@ -275,6 +417,16 @@ def record_error(
         # toutes les gates nécessaires sont passées -> on écrit maintenant.
         _append_jsonl(journal_path, journal_entry)
         if is_dup:
+            # Erreur récurrente : escalade la proposition existante au >= ESCALATE_THRESHOLD-ième
+            # passage. Reste AUDIT_REQUIRED, émise UNE seule fois par signature (idempotent).
+            # RED TEAM C1 : aucune mutation du ledger réel, aucun add SAFE_AUTO.
+            occ = _count_signature(journal_path, sig)
+            if occ >= ESCALATE_THRESHOLD and not _is_escalated(proposals_path, sig):
+                if not governor_mod.check({"lane": "SAFE_AUTO", "mission": PROPOSE_MISSION}).allowed:
+                    raise ProposeBlocked(f"governor BLOCK (escalade): mission {PROPOSE_MISSION}")
+                escalation = build_escalation(error_text, occ, now_ts)
+                _append_jsonl(proposals_path, escalation)
+                return Outcome(kind="escalated", match=None, proposal=escalation)
             return Outcome(kind="duplicate", match=None, proposal=None)
         proposal = build_proposal(error_text, now_ts)
         _append_jsonl(proposals_path, proposal)

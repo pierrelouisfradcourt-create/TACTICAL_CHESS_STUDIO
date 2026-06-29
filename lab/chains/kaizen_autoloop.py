@@ -72,6 +72,46 @@ except ImportError as e:
     print(f"[X] Impossible d importer governor : {e}")
     sys.exit(1)
 
+# ── Chantier (d) — journal d'erreurs live (réutilise IMP-202) ─────────────────
+# Best-effort LOUD : ne lève JAMAIS, ne masque jamais l'erreur d'origine. Garde de
+# réentrance (RED TEAM C2 : un BLOCK de error_journal ne se re-journalise pas).
+import threading
+
+try:
+    import error_journal as _ej
+except ImportError as _e:
+    _ej = None
+    _log.warning("error_journal indisponible (%s) — journalisation live desactivee", _e)
+
+ERROR_JOURNAL_PATH   = REPO_ROOT / "lab/reports/error_journal.jsonl"
+ERROR_PROPOSALS_PATH = REPO_ROOT / "lab/reports/error_proposals.jsonl"
+_EJ_GUARD = threading.local()
+
+
+def journal_error(error_text: str, *, context: str = "") -> None:
+    """Journalise une erreur via error_journal — best-effort LOUD, NE LÈVE JAMAIS.
+    Erreur récurrente -> escalade une proposition AUDIT_REQUIRED (jamais d'add ledger)."""
+    if _ej is None or not error_text:
+        return
+    if getattr(_EJ_GUARD, "active", False):
+        return  # réentrance : on ne journalise pas un échec survenu dans la journalisation
+    _EJ_GUARD.active = True
+    try:
+        text = f"[{context}] {error_text}" if context else error_text
+        out = _ej.record_error(
+            text,
+            journal_path=ERROR_JOURNAL_PATH,
+            proposals_path=ERROR_PROPOSALS_PATH,
+            now_ts=int(time.time()),
+        )
+        if out.kind in ("proposed", "escalated") and out.proposal:
+            _log.warning("error_journal: %s -> %s (AUDIT_REQUIRED, non auto-pickee)",
+                         out.kind, out.proposal.get("proposal_id", "?"))
+    except Exception:  # noqa: BLE001 — best-effort : jamais bloquant pour le flux d'origine
+        _log.exception("error_journal: journalisation non-bloquante echouee")
+    finally:
+        _EJ_GUARD.active = False
+
 
 # ── Lock inter-process (lab/.autoloop.lock) ───────────────
 # Un seul autoloop à la fois : empêche deux process concurrents de muter le
@@ -583,6 +623,9 @@ def run_loop(args) -> None:
         if not decision.allowed and imp["lane"] != "AUDIT_REQUIRED":
             print(f"[X] {imp['lane']} : {imp['id']} — governor BLOCK "
                   f"({decision.reason}). Arret autoloop.")
+            # 2b — BLOCK ANORMAL seul (AUDIT_REQUIRED routinier déjà exclu par la garde ci-dessus).
+            journal_error(f"governor BLOCK lane={imp['lane']}: {decision.reason}",
+                          context=f"governor_block:{imp['id']}")
             break
 
         # 4. Generer charter
@@ -594,36 +637,45 @@ def run_loop(args) -> None:
             print(f"[DRY-RUN] Pas d execution. HumanGate requis pour {imp['lane']}.")
             break
 
-        # 6. Executer selon lane
-        if imp["lane"] == "SAFE_AUTO":
-            report = execute_via_claude_code(charter_path, imp)
-        elif imp["lane"] == "AUDIT_REQUIRED":
-            report = request_humangate(imp, charter_path)
-        else:
-            print(f"[!] Lane {imp['lane']} necessite HumanGate. Arret.")
-            break
+        # 6-8. Execution + validation + close. Toute exception NON GEREE est journalisee
+        #       (2c, best-effort LOUD) puis re-levee — on ne masque jamais l'erreur d'origine.
+        try:
+            # 6. Executer selon lane
+            if imp["lane"] == "SAFE_AUTO":
+                report = execute_via_claude_code(charter_path, imp)
+            elif imp["lane"] == "AUDIT_REQUIRED":
+                report = request_humangate(imp, charter_path)
+            else:
+                print(f"[!] Lane {imp['lane']} necessite HumanGate. Arret.")
+                break
 
-        # 7. Valider rapport
-        success = validate_report(report, imp)
+            # 7. Valider rapport
+            success = validate_report(report, imp)
 
-        # 8. Close ou signaler echec
-        log_cost(imp, charter_path, report, success)
-        if success:
-            close_imp(imp)
-            if _archive is not None:
-                try:
-                    charter_file = CHARTER_DIR / f"{imp['id']}_charter.md"
-                    _archive(imp, charter_file, report=report[:500] if report else "")
-                    print(f"[OK] {imp['id']} archive dans golden_examples.jsonl")
-                except Exception as e:
-                    print(f"[!] golden_collector hook : {e}")
-            metrics()
-            log_autoloop_event(imp, "SUCCESS", report)
-            _ingest_imp_closed(imp)
-        else:
-            print(f"[X] Echec sur {imp['id']}. HumanGate requis.")
-            log_autoloop_event(imp, "FAIL", report)
-            break
+            # 8. Close ou signaler echec
+            log_cost(imp, charter_path, report, success)
+            if success:
+                close_imp(imp)
+                if _archive is not None:
+                    try:
+                        charter_file = CHARTER_DIR / f"{imp['id']}_charter.md"
+                        _archive(imp, charter_file, report=report[:500] if report else "")
+                        print(f"[OK] {imp['id']} archive dans golden_examples.jsonl")
+                    except Exception as e:
+                        print(f"[!] golden_collector hook : {e}")
+                metrics()
+                log_autoloop_event(imp, "SUCCESS", report)
+                _ingest_imp_closed(imp)
+            else:
+                # 2a — oracle rouge : journalise le rapport d'echec (erreur recurrente -> escalade).
+                print(f"[X] Echec sur {imp['id']}. HumanGate requis.")
+                log_autoloop_event(imp, "FAIL", report)
+                journal_error(report or "TIMEOUT/empty report", context=f"oracle_fail:{imp['id']}")
+                break
+        except Exception as exc:
+            # 2c — exception non geree : journalise (best-effort) puis re-leve telle quelle.
+            journal_error(f"{type(exc).__name__}: {exc}", context=f"exception:{imp['id']}")
+            raise
 
         # 9. Stop si --once
         if once:

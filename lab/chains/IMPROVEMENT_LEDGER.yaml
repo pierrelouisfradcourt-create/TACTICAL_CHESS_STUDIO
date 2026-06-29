@@ -4037,6 +4037,29 @@ improvements:
     refleter); oracle_type=pytest; corrige red team P1 (os.open non couvert + resolution
     recursive recepteur .resolve/.absolute/Path(...)), P2 (expected_fingerprint opt-in
     silencieux, writelock unlink sans ownership token)
+- id: IMP-207
+  title: 'error_journal -> boucle : cablage live (oracle rouge / governor BLOCK /
+    exception) + HMAC + escalade'
+  type: feature
+  source: REPRISE chantier (d) ; reutilise IMP-202 ; ACTION 4 Pierre
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - governance/error_journal.py
+  - lab/chains/kaizen_autoloop.py
+  - scripts/phase2_tests/test_imp207_error_journal_live.py
+  acceptance: 'pytest natif : oracle rouge -> entree journal HMAC ; meme erreur 3x
+    -> escalade proposition AUDIT_REQUIRED (jamais add ledger SAFE_AUTO) ; HMAC valide
+    par ligne ; cablage best-effort ne leve jamais'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=pytest_native_venv312 ; reutilise governance/error_journal.py
+    (IMP-202) ; RED TEAM verdict B=NON auto-add SAFE_AUTO (boucle), F=reutiliser ;
+    3 sites best-effort LOUD + garde reentrance ; HMAC reel hmac.new + scrub secrets
 metrics_history:
 - session: '2026-05-31'
   total: 11
