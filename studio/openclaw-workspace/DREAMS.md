@@ -406,3 +406,41 @@ software_verdict: BLOCKED
 - oracle     : projection HMAC verte (events.jsonl 14 lignes) ; regression 229/229 ; ledger 18 OPEN restants.
 - commit     : 816ef2f (ledger + events.jsonl). NON pousse.
 - par        : orchestrateur, sur go Pierre (« reprends le travail que l'autre a fini »). claim_verdict: NO_CLAIM_ALLOWED
+
+---
+
+## 2026-06-29 — RAPPORT 4 ACTIONS (orchestrateur, directive Pierre)
+
+> Entrées automatiques. claim_verdict: NO_CLAIM_ALLOWED.
+
+### ACTION 1 — Close IMP-205 + push pile [FAIT, POUSSÉ — go Pierre]
+- IMP-205 CLOSED (single-writer + event imp_closed signé). Ledger valide (yaml.safe_load OK).
+- `git push origin master` : `33c2a2d..c220c61`. **local == origin == c220c61** (la pile amont
+  ffdbfff/6e34265/816ef2f/ec4be34 + cockpit était déjà poussée par la session parallèle).
+
+### ACTION 2 — .github/ dans FORBIDDEN [FAIT, NON POUSSÉ — gate push Pierre]
+- `.claude/hooks/pre-commit` : `.github/` ajouté aux zones interdites. `bash -n` OK ; stage d'un
+  fichier `.github/` -> hook **bloque** (exit 1) vérifié. Commit scope-strict `ccade62` (hook seul).
+
+### ACTION 3 — Council live smoke-test [RAPPORT, pas de commit : genericize() déjà complet]
+- `genericize()` (council.py:181) PROUVÉ : IMP-205 / `lab/chains/roadmap_to_ledger.py` / `governance/`
+  -> `[REDACTED]`. Aucune fuite interne.
+- Services : **claude_proxy 8765 DOWN** (call_failed, FAIL au boot) · **LM Studio 1234 UP** (7.4s,
+  JSON valide) · **Gemini Flash DOWN** (no_api_key). Fallback VÉRIFIÉ : proxy DOWN -> PLAN_REVIEW
+  bascule sur Qwen (UP). Council dégrade proprement sur Qwen seul (mono-modèle -> requires_humangate).
+
+### ACTION 4 — error_journal -> boucle (chantier d) [FAIT, NON POUSSÉ — gate push Pierre]
+- IMP-207 enregistré (SAFE_AUTO, oracle_type=pytest, domain studio), implémenté + testé, commit
+  scope-strict `ac3a8e2`. **OPEN** (pas de close demandé par ACTION 4).
+- **RÉUTILISE IMP-202** (pas de nouveau module — RED TEAM F). Câblage live 3 sites best-effort LOUD
+  dans `kaizen_autoloop.py` (oracle rouge / governor BLOCK anormal / exception non gérée), garde
+  réentrance, ne masque jamais l'erreur d'origine.
+- `error_journal.py` étendu (additif) : **HMAC réel** par entrée + `verify_journal` par-ligne + scrub
+  secrets ; **escalade** sur erreur récurrente (≥3) = bump proposition **AUDIT_REQUIRED** idempotente.
+- **DÉCISION Pierre (gate)** : RED TEAM réfute l'auto-add SAFE_AUTO au ledger (verdict B=NON, boucle
+  auto-amplifiante prouvée C1) -> Pierre a choisi « réutiliser IMP-202 + escalade proposition ».
+  **AUCUNE mutation automatique du ledger réel** (ECG reste seule autorité).
+- Oracle : test_imp207 **13/13** + test_imp202 **22/22** régression + kernel **290/290** ; grep-guard 0 bypass.
+
+### Commits locaux NON poussés (2, gate push Pierre)
+- ccade62 (.github FORBIDDEN hook) · ac3a8e2 (IMP-207 error_journal live)
