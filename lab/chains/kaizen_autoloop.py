@@ -25,6 +25,7 @@ except Exception:
     pass
 
 import argparse
+import asyncio
 import json
 import logging
 import os
@@ -71,6 +72,28 @@ try:
 except ImportError as e:
     print(f"[X] Impossible d importer governor : {e}")
     sys.exit(1)
+
+# ── Council multi-LLM (IMP-208) ────────────────────────────────────────────────
+# council.py vit dans scripts/ (pas un package) : on ajoute le dossier au path comme
+# pour governance/. Import OPTIONNEL : si indisponible, le gate council est désactivé
+# et l'autoloop garde son comportement historique (backward-compatible).
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+try:
+    import council  # type: ignore
+except ImportError as _e:
+    council = None  # type: ignore
+    _log.warning("council indisponible (%s) — gate council desactive", _e)
+
+try:
+    import web_reality_agent as _wra  # type: ignore  (governance/ déjà sur le path)
+except ImportError as _e:
+    _wra = None  # type: ignore
+    _log.warning("web_reality_agent indisponible (%s) — brief inline charter seul", _e)
+
+# Gate council — bornes & seuils.
+COUNCIL_TIMEOUT_S          = 120    # guardrail : au-delà on skip le council et on exécute quand même
+COUNCIL_CONFIDENCE_THRESHOLD = 0.7  # CouncilResult n'expose AUCUN champ confidence (IMP-198) :
+                                    # on dérive un proxy (cf. _council_confidence_proxy).
 
 # ── Chantier (d) — journal d'erreurs live (réutilise IMP-202) ─────────────────
 # Best-effort LOUD : ne lève JAMAIS, ne masque jamais l'erreur d'origine. Garde de
@@ -372,11 +395,156 @@ def display_charter_summary(imp: dict, charter_path: str) -> None:
     print(f"  Acceptance: {str(imp.get('acceptance', ''))[:80]}")
 
 
+# ── Council multi-LLM — gate avant exécution (IMP-208) ─────
+# Pour un IMP SAFE_AUTO, on délègue PLAN/REVUE à council.py (Claude proxy local +
+# Qwen + Gemini divergence) AVANT d'exécuter. Le CONSENSUS du council est injecté
+# comme contexte READ-ONLY dans le prompt de l'exécuteur (jamais le brief brut).
+#
+# Doctrine guardrails (best-effort, jamais bloquant sur l'infra) :
+#   - governor.check() AVANT toute exécution du council ; BLOCK -> skip + exécute.
+#   - timeout 120s            -> skip council, WARNING, exécute quand même.
+#   - exception council       -> journalise (error_journal), exécute quand même.
+#   - council "collapsed"     -> infra dégradée (mono-modèle) -> skip + exécute.
+#   - requires_humangate réel -> ESCALADE : on stoppe l'IMP, PAS d'exécution auto.
+# AUDIT_REQUIRED ne passe JAMAIS par le council auto (route HumanGate).
+
+
+def build_council_brief(imp: dict, charter_path: str) -> str:
+    """Brief texte pour le council, dérivé du charter de l'IMP.
+
+    web_reality_agent.to_council_brief() attend des ScoredRecord récupérés en live
+    (réseau) — non disponibles dans ce chemin déterministe per-IMP. On consulte donc
+    WRA avec une liste vide (en-tête « aucune source vérifiée ») puis on complète par
+    un brief inline issu du charter. Gap documenté : pas de fetch web ici.
+    """
+    parts: list[str] = []
+    if _wra is not None:
+        try:
+            parts.append(_wra.to_council_brief([]))
+        except Exception:  # noqa: BLE001 — best-effort, jamais bloquant
+            pass
+    parts.extend([
+        f"IMP {imp.get('id', '?')} — {imp.get('title', '')}",
+        f"Lane: {imp.get('lane', '')}",
+        f"Acceptance: {imp.get('acceptance', '')}",
+    ])
+    notes = imp.get("notes")
+    if notes:
+        parts.append(f"Notes: {notes}")
+    files = imp.get("files") or []
+    if files:
+        parts.append("Fichiers: " + ", ".join(str(f) for f in files))
+    return "\n".join(parts)
+
+
+def _build_council_adapters() -> dict:
+    """Construit les adapters réels (aucun I/O réseau à la construction)."""
+    return {
+        council.ModelId.CLAUDE:       council.ClaudeProxyAdapter(),
+        council.ModelId.QWEN14B:      council.QwenAdapter(),
+        council.ModelId.GEMINI_FLASH: council.GeminiAdapter(),
+    }
+
+
+def _council_confidence_proxy(result) -> float:
+    """Proxy de confiance — CouncilResult n'expose AUCUN champ confidence (IMP-198).
+
+    Dérivé déterministe des signaux disponibles : collapse (mono-modèle) -> 0.0 ;
+    sinon 1.0 dégradé de 0.3 par désaccord escaladant et de 0.1 si divergences.
+    On N'INVENTE PAS d'attribut sur la classe — calcul pur côté autoloop.
+    """
+    if getattr(result, "collapsed", False):
+        return 0.0
+    score = 1.0 - 0.3 * len(getattr(result, "disagreements", ()) or ())
+    if getattr(result, "divergences", ()) or ():
+        score -= 0.1
+    return max(0.0, score)
+
+
+async def _invoke_run_council(task, adapters):
+    """Appel direct de l'API réelle council.run_council (async). Monkeypatchable en test."""
+    return await council.run_council(task, adapters, timeout=COUNCIL_TIMEOUT_S, write=True)
+
+
+async def _run_council_with_timeout(task, adapters):
+    """Wrap le council dans un budget global COUNCIL_TIMEOUT_S (guardrail timeout)."""
+    return await asyncio.wait_for(_invoke_run_council(task, adapters), timeout=COUNCIL_TIMEOUT_S)
+
+
+def run_council_gate(imp: dict, charter_path: str) -> tuple[str | None, bool]:
+    """Exécute le council avant un IMP SAFE_AUTO. Renvoie (consensus_md, stop).
+
+    stop=True  -> requires_humangate réel : ESCALADE, ne PAS exécuter l'IMP.
+    stop=False -> exécution autorisée ; consensus_md (ou None si skip guardrail) à injecter.
+    """
+    if council is None:
+        return None, False  # gate désactivé (import indispo) — comportement historique
+
+    # Guardrail : governor.check() AVANT toute exécution du council.
+    decision = governor.check(getattr(council, "COUNCIL_WRITE_ACTION",
+                                      {"lane": "SAFE_AUTO", "mission": "council_artifact_write"}))
+    if not decision.allowed:
+        _log.warning("council: governor BLOCK (%s) -> skip council, execute %s anyway",
+                     decision.reason, imp.get("id"))
+        return None, False
+
+    brief = build_council_brief(imp, charter_path)
+    task = council.CouncilTask(brief=brief, task_id=str(imp.get("id", "council-adhoc")))
+    try:
+        adapters = _build_council_adapters()
+        result = asyncio.run(_run_council_with_timeout(task, adapters))
+    except asyncio.TimeoutError:
+        _log.warning("council: timeout %ss -> skip council, execute %s anyway",
+                     COUNCIL_TIMEOUT_S, imp.get("id"))
+        return None, False
+    except Exception as exc:  # noqa: BLE001 — guardrail : exécute quand même, journalise
+        _log.warning("council: erreur (%s) -> skip council, execute %s anyway",
+                     type(exc).__name__, imp.get("id"))
+        journal_error(f"{type(exc).__name__}: {exc}", context=f"council:{imp.get('id')}")
+        return None, False
+
+    # Infra dégradée (mono-modèle joignable) : skip guardrail, on exécute quand même.
+    if getattr(result, "collapsed", False):
+        _log.warning("council: collapsed (distinct_models=%s) -> skip, execute %s anyway",
+                     getattr(result, "distinct_models", "?"), imp.get("id"))
+        return None, False
+
+    # Désaccord réel entre modèles joignables -> ESCALADE HumanGate, pas d'exécution auto.
+    if getattr(result, "requires_humangate", False):
+        _log.warning("council: requires_humangate pour %s -> escalade HumanGate (pas d'exec auto)",
+                     imp.get("id"))
+        journal_error(
+            f"council requires_humangate: {len(getattr(result, 'disagreements', ()) or ())} desaccord(s)",
+            context=f"council_humangate:{imp.get('id')}")
+        return None, True
+
+    # Gate de confiance (proxy dérivé — pas de champ confidence sur CouncilResult).
+    conf = _council_confidence_proxy(result)
+    if conf < COUNCIL_CONFIDENCE_THRESHOLD:
+        _log.warning("council: confiance proxy %.2f < %.2f pour %s -> continue (advisory)",
+                     conf, COUNCIL_CONFIDENCE_THRESHOLD, imp.get("id"))
+
+    consensus_md = council.render_consensus_md(result)
+    return consensus_md, False
+
+
 # ── Execution ─────────────────────────────────────────────
 
-def execute_via_claude_code(charter_path: str, imp: dict) -> str:
-    """Lance Claude Code CLI en non-interactif avec le charter. Fallback HumanGate."""
+def execute_via_claude_code(charter_path: str, imp: dict, consensus: str | None = None) -> str:
+    """Lance Claude Code CLI en non-interactif avec le charter. Fallback HumanGate.
+
+    Si `consensus` (CONSENSUS.md du council, IMP-208) est fourni, il est injecté EN TÊTE
+    du prompt de l'exécuteur comme contexte READ-ONLY — l'exécuteur reçoit le CONSENSUS,
+    jamais le brief brut.
+    """
     charter_content = Path(charter_path).read_text(encoding="utf-8")
+    if consensus:
+        charter_content = (
+            "## COUNCIL CONSENSUS (READ ONLY — contexte multi-LLM, IMP-208)\n"
+            + consensus
+            + "\n\n---\n\n"
+            + charter_content
+        )
 
     for cmd in [
         ["npx", "@anthropic-ai/claude-code", "--print", charter_content],
@@ -642,7 +810,15 @@ def run_loop(args) -> None:
         try:
             # 6. Executer selon lane
             if imp["lane"] == "SAFE_AUTO":
-                report = execute_via_claude_code(charter_path, imp)
+                # 6a. Council multi-LLM AVANT exécution (IMP-208). SAFE_AUTO uniquement.
+                consensus_md, stop = run_council_gate(imp, charter_path)
+                if stop:
+                    print(f"[X] Council escalade {imp['id']} -> HumanGate. "
+                          f"Pas d'execution auto.")
+                    log_autoloop_event(imp, "COUNCIL_HUMANGATE",
+                                       "council requires_humangate — escalade Pierre")
+                    break
+                report = execute_via_claude_code(charter_path, imp, consensus=consensus_md)
             elif imp["lane"] == "AUDIT_REQUIRED":
                 report = request_humangate(imp, charter_path)
             else:
