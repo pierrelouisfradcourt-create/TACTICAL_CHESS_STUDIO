@@ -3017,10 +3017,7 @@ HTML = r"""<!DOCTYPE html>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-m);font-size:13px;overflow:hidden}
 
-/* GRAIN OVERLAY */
-body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-  opacity:.4}
+/* GRAIN OVERLAY retiré (IMP-209) — feTurbulence z-index 999 : coût GPU continu, zéro valeur UX */
 
 /* LAYOUT */
 .shell{display:flex;height:100vh}
@@ -3328,7 +3325,7 @@ tr:hover td{background:var(--bg3)}
 
   <div class="sb-section">Studio</div>
   <div class="sb-item" onclick="nav('memory')"><span class="ico">◈</span> Mémoire</div>
-  <div class="sb-item" onclick="nav('ideas')"><span class="ico">◎</span> Idées <span class="sb-badge badge-amber" id="badge-ideas">12</span></div>
+  <div class="sb-item" onclick="nav('ideas')"><span class="ico">◎</span> Idées <span class="sb-badge badge-amber" id="badge-ideas">—</span></div>
   <div class="sb-item" onclick="nav('map')"><span class="ico">◉</span> Chain Map</div>
   <div class="sb-item" onclick="nav('roadmap-domaine')"><span class="ico">🗂</span> Roadmap domaines</div>
 
@@ -3390,7 +3387,7 @@ tr:hover td{background:var(--bg3)}
     <div class="tb-stat">Tokens <span class="val" id="tb-tokens">0</span></div>
     <div class="tb-right">
       <div class="tb-prop-badge" id="tb-prop-badge" onclick="nav('ideas')" title="Proposals en attente d\'approbation HumanGate">◈ Proposals</div>
-      <div class="tb-hg-badge" id="tb-hg-badge" onclick="nav('sos')" style="cursor:pointer">⚠ HumanGate</div>
+      <div class="tb-hg-badge" id="tb-hg-badge" onclick="nav('studio-os')" style="cursor:pointer">⚠ HumanGate</div>
       <div id="tb-dedup-badge" style="display:none;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--amber);background:rgba(240,160,48,.12);border:1px solid var(--amber);padding:3px 9px;border-radius:4px;" title="IMPs exclus par déduplication cette session">⊘ <span id="tb-dedup-count">0</span> dédup</div>
       <div class="tb-lm probing" id="lm-indicator">
         <span id="lm-dot">○</span>
@@ -3463,8 +3460,8 @@ tr:hover td{background:var(--bg3)}
         </div>
         <div class="stat-blk red">
           <div class="stat-lbl">Issues HIGH</div>
-          <div class="stat-val" id="pilote-issues-count">3</div>
-          <div class="stat-sub" id="pilote-issues-labels">NEW-02 · NEW-03 · NEW-05</div>
+          <div class="stat-val" id="pilote-issues-count">—</div>
+          <div class="stat-sub" id="pilote-issues-labels">Chargement…</div>
         </div>
         <div class="stat-blk green">
           <div class="stat-lbl">ELO teacher_uci</div>
@@ -3543,14 +3540,7 @@ tr:hover td{background:var(--bg3)}
             <table>
               <thead><tr><th>Surface</th><th>Statut</th></tr></thead>
               <tbody id="pilote-surfaces-body">
-                <tr><td>Moteur Rust</td><td><span class="pill p-impl">IMPLEMENTED</span></td></tr>
-                <tr><td>NeuralAgent câblé</td><td><span class="pill p-done">DONE c0ebf62</span></td></tr>
-                <tr><td>Coach v0 (LLM)</td><td><span class="pill p-done">DONE fd88b97</span></td></tr>
-                <tr><td>EvaluationSystem</td><td><span class="pill p-done">DONE T2-T6</span></td></tr>
-                <tr><td>Dataset actif</td><td><span class="pill p-broken">BROKEN NEW-03</span></td></tr>
-                <tr><td>Chess 960</td><td><span class="pill p-blocked">BLOCKED HG</span></td></tr>
-                <tr><td>CI/PR/push</td><td><span class="pill p-blocked">BLOCKED money/CI</span></td></tr>
-                <tr><td>LoRA</td><td><span class="pill p-todo">NOT_STARTED</span></td></tr>
+                <tr><td colspan="2" style="color:var(--text3)">Chargement…</td></tr>
               </tbody>
             </table>
           </div>
@@ -3754,9 +3744,9 @@ tr:hover td{background:var(--bg3)}
       <div class="divider">ELO Leaderboard</div>
       <div class="card" id="metrics-elo">
         <div class="elo-row">
-          <div class="elo-agent"><div class="elo-name">teacher_uci</div><div class="elo-val" style="color:var(--amber)" id="elo-teacher">1424</div></div>
-          <div class="elo-agent"><div class="elo-name">heuristic</div><div class="elo-val" style="color:var(--blue)" id="elo-heuristic">1200</div></div>
-          <div class="elo-agent"><div class="elo-name">neural</div><div class="elo-val" style="color:var(--text2)" id="elo-neural">975</div></div>
+          <div class="elo-agent"><div class="elo-name">teacher_uci</div><div class="elo-val" style="color:var(--amber)" id="elo-teacher">—</div></div>
+          <div class="elo-agent"><div class="elo-name">heuristic</div><div class="elo-val" style="color:var(--blue)" id="elo-heuristic">—</div></div>
+          <div class="elo-agent"><div class="elo-name">neural</div><div class="elo-val" style="color:var(--text2)" id="elo-neural">—</div></div>
         </div>
         <div style="font-size:10px;color:var(--text3)" id="elo-date">Date inconnue</div>
       <div id="elo-fallback-note" style="display:none;font-size:10px;color:var(--amber);margin-top:3px">⚠ fallback — aucun benchmark mesuré</div>
@@ -4248,7 +4238,7 @@ tr:hover td{background:var(--bg3)}
         <svg id="ck-brain-graph" width="100%" height="360" style="display:block"></svg>
       </div>
 
-      <div class="divider">JEU (snake genesis) <span style="font-size:9px;color:var(--text3);text-transform:none;letter-spacing:0;font-weight:400">— maj auto 15s</span></div>
+      <div class="divider">JEU (snake genesis)</div>
       <div class="card">
         <iframe src="/games/snake_genesis/snake_genesis.html" style="width:100%;height:520px;border:0;border-radius:8px;background:#000"></iframe>
       </div>
@@ -4398,6 +4388,28 @@ tr:hover td{background:var(--bg3)}
 </div>
 
 <script>
+// ── COUCHE FETCH GLOBALE (IMP-209) — timeout + .catch global ────────────────
+// Avant : 92 fetch / 5 .catch -> un backend qui tousse fige « Chargement… » à
+// l'infini. Ici on durcit window.fetch UNE fois (aucune réécriture des 92 sites) :
+//  1) tout fetch sans signal explicite reçoit un AbortController + timeout dur ;
+//  2) un filet unhandledrejection global rattrape toute promesse fetch non gérée
+//     (log standardisé, jamais fatal) — plus aucune requête silencieusement perdue.
+const FETCH_TIMEOUT_MS = 10000;
+const _nativeFetch = window.fetch.bind(window);
+window.fetch = function (input, init) {
+  init = init || {};
+  if (init.signal) return _nativeFetch(input, init);   // le caller gère déjà son annulation
+  const ctrl = new AbortController();
+  const timer = setTimeout(function () { ctrl.abort(); }, init.timeout || FETCH_TIMEOUT_MS);
+  return _nativeFetch(input, Object.assign({}, init, {signal: ctrl.signal}))
+    .finally(function () { clearTimeout(timer); });
+};
+window.addEventListener('unhandledrejection', function (ev) {
+  const r = ev.reason;
+  const msg = (r && (r.message || r.name)) || r;
+  console.warn('[fetch] requête échouée (timeout/réseau, non gérée localement) :', msg);
+});
+
 // ── STATE ─────────────────────────────────────────────────────────────────
 const S = {
   autoMode: false,
@@ -6063,7 +6075,9 @@ async function loadPiloteSurfaces() {
     const dynamicRows = Object.entries(LABELS).map(([k, label]) =>
       '<tr><td>'+label+'</td><td>'+pillFor(s.surfaces[k]||'UNKNOWN')+'</td></tr>'
     ).join('');
+    // IMP-209 : ces lignes sont des annotations FIGÉES (non re-vérifiées par oracle) -> badgées comme telles.
     const staticRows = [
+      '<tr><td colspan="2" style="font-size:9px;color:var(--text3);padding-top:6px">↓ référence figée (non re-vérifiée)</td></tr>',
       '<tr><td>NeuralAgent câblé</td><td><span class="pill p-done">DONE c0ebf62</span></td></tr>',
       '<tr><td>Coach v0 (LLM)</td><td><span class="pill p-done">DONE fd88b97</span></td></tr>',
       '<tr><td>EvaluationSystem</td><td><span class="pill p-done">DONE T2–T6</span></td></tr>',
