@@ -4247,6 +4247,18 @@ tr:hover td{background:var(--bg3)}
     </div>
 
     <div id="page-council" class="page">
+      <div class="divider">NOUVELLE IDÉE → COUNCIL</div>
+      <div class="card">
+        <textarea id="council-idea" rows="3"
+          placeholder="Décris l'idée à soumettre au council (cockpit_server:8770)…"
+          style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-family:inherit;font-size:12px;resize:vertical"></textarea>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+          <button class="btn btn-green btn-sm" id="council-run-btn" onclick="runCouncil()">⚖ Lancer Council</button>
+          <button class="btn btn-sm" id="council-cancel-btn" onclick="cancelCouncil()" style="display:none">■ Annuler (ferme le flux client)</button>
+          <span id="council-run-status" style="font-size:11px;color:var(--text3)"></span>
+        </div>
+        <pre id="council-run-log" style="display:none;white-space:pre-wrap;font-size:11px;color:var(--text2);background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:6px;padding:10px;max-height:300px;overflow:auto;margin-top:8px"></pre>
+      </div>
       <div class="divider">COUNCIL — CONSENSUS</div>
       <div id="council-header" class="card">Chargement...</div>
       <div class="divider">OPINIONS</div>
@@ -4632,6 +4644,124 @@ async function loadCouncil() {
     if (hdr) hdr.innerHTML = '<div style="color:var(--red);font-size:12px;padding:6px 0">'
       + 'Erreur council : ' + escHtml(String(e && e.message ? e.message : e)) + '</div>';
   }
+}
+
+// ── COUNCIL : lancement + stream SSE (IMP-211) ───────────
+// Form idée -> POST cockpit_server:8770/api/council/run -> SSE /api/stream/runs/{id}.
+// cockpit_server expose CORS * ; il DOIT tourner sur 8770 (dependance cross-lane).
+// Annuler ne ferme QUE le flux client : aucun endpoint d'annulation server-side.
+var COCKPIT_BASE = 'http://localhost:8770';
+var COUNCIL_TIMEOUT_MS = 600000;  // aligne sur timeout_s=600 cote serveur
+var _councilES = null;
+var _councilTimer = null;
+function appendCouncilLog(line) {
+  var logEl = document.getElementById('council-run-log');
+  if (!logEl) return;
+  logEl.textContent += (logEl.textContent ? '\n' : '') + String(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function finishCouncil() {
+  if (_councilTimer) { clearTimeout(_councilTimer); _councilTimer = null; }
+  if (_councilES) { try { _councilES.close(); } catch (e) {} _councilES = null; }
+  var btn = document.getElementById('council-run-btn');
+  var cancel = document.getElementById('council-cancel-btn');
+  if (btn) btn.disabled = false;
+  if (cancel) cancel.style.display = 'none';
+}
+function cancelCouncil(silent) {
+  finishCouncil();
+  if (!silent) {
+    var stat = document.getElementById('council-run-status');
+    if (stat) { stat.style.color = 'var(--text3)'; stat.textContent = 'Annulé (flux fermé côté client — le run continue côté serveur).'; }
+  }
+}
+async function runCouncil() {
+  var ta = document.getElementById('council-idea');
+  var btn = document.getElementById('council-run-btn');
+  var cancel = document.getElementById('council-cancel-btn');
+  var stat = document.getElementById('council-run-status');
+  var logEl = document.getElementById('council-run-log');
+  var brief = ((ta && ta.value) || '').trim();
+  // Validation : pas de submit vide.
+  if (!brief) {
+    if (stat) { stat.style.color = 'var(--amber)'; stat.textContent = 'Idée vide — saisis un texte.'; }
+    return;
+  }
+  // Reset etat de toute exec precedente.
+  cancelCouncil(true);
+  if (btn) btn.disabled = true;
+  if (logEl) { logEl.style.display = 'block'; logEl.textContent = ''; }
+  if (stat) { stat.style.color = 'var(--text2)'; stat.textContent = 'Démarrage…'; }
+  var runId = null;
+  try {
+    var resp = await fetch(COCKPIT_BASE + '/api/council/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        brief: brief, task_id: 'council-cockpit',
+        lane: 'SAFE_AUTO', mission: 'council_run', audit_passed: false
+      })
+    });
+    if (!resp.ok) {
+      var detail = '';
+      try { var ej = await resp.json(); if (ej && ej.detail) detail = ' — ' + ej.detail; } catch (e) {}
+      throw new Error('HTTP ' + resp.status + detail);
+    }
+    var data = await resp.json();
+    runId = data && data.run_id;
+    if (!runId) throw new Error('réponse sans run_id');
+  } catch (e) {
+    if (stat) {
+      stat.style.color = 'var(--red)';
+      stat.textContent = 'Échec lancement : ' + String(e && e.message ? e.message : e)
+        + ' (cockpit_server:8770 up ?)';
+    }
+    if (btn) btn.disabled = false;
+    return;
+  }
+  // Stream SSE temps reel.
+  if (stat) { stat.style.color = 'var(--text2)'; stat.textContent = 'Run ' + runId + ' — en cours…'; }
+  if (cancel) cancel.style.display = '';
+  appendCouncilLog('[run_id ' + runId + ']');
+  try {
+    _councilES = new EventSource(COCKPIT_BASE + '/api/stream/runs/' + encodeURIComponent(runId));
+  } catch (e) {
+    if (stat) { stat.style.color = 'var(--red)'; stat.textContent = 'SSE indisponible : ' + String(e); }
+    finishCouncil();
+    return;
+  }
+  // Timeout visible cote client.
+  _councilTimer = setTimeout(function () {
+    if (stat) {
+      stat.style.color = 'var(--amber)';
+      stat.textContent = 'Timeout (' + Math.round(COUNCIL_TIMEOUT_MS / 1000) + 's) — flux fermé côté client.';
+    }
+    appendCouncilLog('[timeout client]');
+    finishCouncil();
+  }, COUNCIL_TIMEOUT_MS);
+  _councilES.onmessage = function (ev) {
+    var msg;
+    try { msg = JSON.parse(ev.data); } catch (e) { return; }
+    if (msg.line != null) appendCouncilLog(msg.line);
+    if (!msg.eof && msg.status && stat) stat.textContent = 'Run ' + runId + ' — ' + msg.status;
+    if (msg.eof) {
+      if (stat) {
+        stat.style.color = (msg.returncode === 0 ? 'var(--green)' : 'var(--red)');
+        stat.textContent = 'Terminé (rc=' + msg.returncode + '). Consensus rechargé ci-dessous.';
+      }
+      appendCouncilLog('[EOF rc=' + msg.returncode + ']');
+      finishCouncil();
+      setTimeout(loadCouncil, 500);  // rafraichit l'affichage du dernier council
+    }
+  };
+  _councilES.onerror = function () {
+    // EventSource onerror declenche aussi en fin de flux normale ; on ferme proprement.
+    if (stat && (!stat.textContent || stat.textContent.indexOf('Terminé') === -1)) {
+      stat.style.color = 'var(--red)';
+      stat.textContent = 'Flux SSE interrompu (cockpit_server:8770 down ou run terminé).';
+    }
+    finishCouncil();
+  };
 }
 
 // ── JEUX (lanceur sandboxé) ──────────────────────────────
