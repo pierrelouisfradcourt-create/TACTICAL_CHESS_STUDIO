@@ -67,6 +67,12 @@ pub struct Engine {
     pub turn_manager: TurnManager,
     pub next_unit_id: UnitId,
     pub action_log: Vec<Command>,
+    /// IMP-230 — origin (from) square of each played move, index-aligned with
+    /// `action_log`. Lets `undoes_own_last_move` detect the FIRST A→B→A reversal
+    /// of a piece (opening shuffle), whose origin square is otherwise
+    /// unrecoverable from move targets alone. Ability entries store the acting
+    /// unit's square purely to keep the index alignment; that value is never read.
+    pub move_origins: Vec<Position>,
     pub en_passant_target: Option<Position>,
     pub current_repetition_key: u64,
     pub repetition_counts: HashMap<u64, u32>,
@@ -188,6 +194,7 @@ impl Engine {
             turn_manager: TurnManager::new(),
             next_unit_id: 1,
             action_log: Vec::new(),
+            move_origins: Vec::new(),
             en_passant_target: None,
             current_repetition_key: 0,
             repetition_counts: HashMap::new(),
@@ -410,6 +417,13 @@ impl Engine {
                     return;
                 }
 
+                // IMP-230 — record the origin square before apply_move mutates it,
+                // keeping move_origins index-aligned with action_log.
+                let move_from = self
+                    .units
+                    .get(&unit_id)
+                    .map(|u| u.position)
+                    .unwrap_or(target);
                 self.action_log.push(Command {
                     player_id,
                     action: Action::Move {
@@ -418,6 +432,7 @@ impl Engine {
                         promotion,
                     },
                 });
+                self.move_origins.push(move_from);
 
                 if self.repetition_counts.is_empty() {
                     self.repetition_counts.insert(self.current_repetition_key, 1);
@@ -449,6 +464,14 @@ impl Engine {
                         target,
                     },
                 });
+                // IMP-230 — abilities are not moves; push the acting unit's square
+                // only to keep move_origins aligned with action_log. Never read.
+                let ability_from = self
+                    .units
+                    .get(&unit_id)
+                    .map(|u| u.position)
+                    .unwrap_or(Position { x: 0, y: 0 });
+                self.move_origins.push(ability_from);
                 self.turn_manager.next_turn();
                 self.current_repetition_key = self.position_hash;
                 *self
@@ -898,6 +921,9 @@ impl Engine {
                 promotion: *promotion,
             },
         });
+        // IMP-230 — `from` is the unit's pre-move square (line above), kept
+        // index-aligned with action_log so the root reversal check sees the origin.
+        self.move_origins.push(from);
 
         let repetition_start = profiling.then(Instant::now);
         if self.repetition_counts.is_empty() {
@@ -994,6 +1020,7 @@ impl Engine {
         self.units.insert(unit_before.id, unit_before);
 
         let _ = self.action_log.pop();
+        let _ = self.move_origins.pop(); // IMP-230 — stay aligned with action_log
         SearchUndoProfile {
             repetition_nanos,
             restore_nanos: elapsed_nanos(restore_start),

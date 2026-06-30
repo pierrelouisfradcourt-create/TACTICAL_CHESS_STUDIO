@@ -43,6 +43,12 @@ const ASPIRATION_MATE_THRESHOLD: i32 = 800_000;
 const TT_BEST_MOVE_BONUS: i32 = 50_000;
 const PRIMARY_KILLER_BONUS: i32 = 20_000;
 const SECONDARY_KILLER_BONUS: i32 = 18_000;
+// IMP-230 — root-level penalty for a strict A→B→A reversal of a piece's own last
+// move (knight/rook shuffle). Applied on the root move score in
+// search_root_in_place — the loop that actually selects the played move (negamax
+// internal nodes are not where selection happens). Calibrated so the search
+// rejects a pointless reversal but still plays it when it is genuinely best.
+const SHUFFLE_REVERSAL_PENALTY: i32 = 50;
 const COUNTERMOVE_BONUS: i32 = 16_000;
 const WINNING_CAPTURE_BASE: i32 = 8_500;
 const LOSING_CAPTURE_BASE: i32 = 2_500;
@@ -217,7 +223,7 @@ fn search_root_in_place(
                 let is_mate_now = engine.game_over() && engine.winner() == Some(player);
                 instrumentation.record_move_simulation(undo.profile());
 
-                let score = if idx == 0 {
+                let mut score = if idx == 0 {
                     -negamax(
                         engine,
                         depth - 1,
@@ -259,6 +265,15 @@ fn search_root_in_place(
                 let undo_profile = engine.undo_action_for_search(undo);
                 instrumentation.record_move_undo(undo_profile);
                 instrumentation.branching.set_root_node_delta(idx, instrumentation.counters.nodes.saturating_sub(n0)); // IMP-010
+
+                // IMP-230: penalize undoing this piece's own last move (A→B→A
+                // shuffle, e.g. Nh6↔Ng8) at the ROOT — this loop is where the
+                // played move is selected (negamax internal nodes are not). The
+                // engine is back at the root state after the undo above, so
+                // action_log holds the real game history. Mates are never demoted.
+                if !is_mate_now && undoes_own_last_move(engine, player, mv) {
+                    score -= SHUFFLE_REVERSAL_PENALTY;
+                }
                 root_scores[idx] = score;
                 if is_mate_now {
                     mate_in_one[idx] = true;

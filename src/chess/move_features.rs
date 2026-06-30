@@ -356,6 +356,63 @@ pub(crate) fn repetition_signal(engine: &Engine, player: PlayerId, mv: &Action) 
     }
 }
 
+/// IMP-230 — how far back to scan for a unit's own previous move when detecting
+/// an A→B→A reversal. Oscillations are immediate, so a short window suffices and
+/// bounds the cost in the root move loop.
+const SHUFFLE_REVERSAL_LOOKBACK_PLIES: usize = 24;
+
+/// IMP-230 — strict A→B→A reversal of a unit's own last move.
+///
+/// Returns true when `mv` sends its unit back to the square it occupied
+/// immediately *before* its most recent move (e.g. Nh6→Ng8→Nh6, or Rg8↔Rh8).
+/// These oscillations waste tempo yet never form a legal 3-fold while the
+/// opponent keeps varying, so the in-search repetition guard never fires.
+/// Restricted to a strict reversal of the unit's *own* previous move, so genuine
+/// re-routing (Nf3-d2-c4) is never flagged. Quiet moves only — a reversal that
+/// captures or gives check is purposeful, not a shuffle.
+pub(crate) fn undoes_own_last_move(engine: &Engine, player: PlayerId, mv: &Action) -> bool {
+    let Action::Move {
+        unit_id, target, ..
+    } = mv
+    else {
+        return false;
+    };
+
+    let Some(unit) = engine.units.get(unit_id) else {
+        return false;
+    };
+    if unit.owner != player {
+        return false;
+    }
+    if is_capture(engine, mv) || gives_check_fast(engine, player, mv) {
+        return false;
+    }
+
+    // Find this unit's most recent logged move (newest-first). Its recorded
+    // ORIGIN square (move_origins, index-aligned with action_log) is where the
+    // unit sat *before* that move; sending it back there undoes that move
+    // (A→B→A). Reading the origin from the move record — instead of an earlier
+    // log entry — is what lets this fire on the very FIRST reversal, e.g. an
+    // opening shuffle Ng8→h6→g8 where the piece has moved only once.
+    let log_len = engine.action_log.len();
+    let lookback = SHUFFLE_REVERSAL_LOOKBACK_PLIES.min(log_len);
+    for offset in 0..lookback {
+        let idx = log_len - 1 - offset;
+        if let Action::Move {
+            unit_id: logged_unit,
+            ..
+        } = &engine.action_log[idx].action
+        {
+            if logged_unit == unit_id {
+                // Most recent move of this unit: compare candidate target to its
+                // origin. `get` stays defensive if the arrays ever desync.
+                return engine.move_origins.get(idx) == Some(target);
+            }
+        }
+    }
+    false
+}
+
 pub(crate) fn king_boxing_score(engine: &Engine, player: PlayerId, mv: &Action) -> i32 {
     let Action::Move {
         unit_id, target, ..
