@@ -4516,7 +4516,12 @@ improvements:
     ROOT_POLICY=1, PHASE_REWARD=1). Le coup est choisi par le score negamax (evaluate()),
     pas par phase_profile_rerank_bonus (diagnostic/poids insuffisant). CORRECTIF doit
     entrer dans evaluate() ou negamax score-path, PAS dans practical-policy. Gate
-    ELO obligatoire avant/apres. Reverte, arbre propre.'
+    ELO obligatoire avant/apres. Reverte, arbre propre. | Premiere tentative -15cp
+    dans negamax interne (ply>=1) BLOCKED — le coup racine est choisi dans
+    search_root_in_place, boucle separee de negamax. Penalite interne insuffisante
+    (>15cp d''ecart). Correctif reel : injecter undoes_own_last_move directement dans
+    search_root_in_place sur root_scores, magnitude a calibrer (-40 a -80cp, -15 trop
+    faible). Gate ELO obligatoire avant/apres.'
 - id: IMP-231
   title: Isolation etat global tests — root_policy_table() + lock env contaminent
     la suite parallele. Tests verts isoles mais rouges en //.
