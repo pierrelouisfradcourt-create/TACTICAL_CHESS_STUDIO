@@ -4486,6 +4486,59 @@ improvements:
     (135 orphelins cross-fichier sur graph.json; ces 6 = vrais candidats lab/chains
     non-entrypoint). NE PAS supprimer avant preuve grep zero-appelant (subprocess/runpy/importlib/refs
     string).'
+- id: IMP-230
+  title: Anti-shuffle cavalier/tour — is_shuffle_move ne couvre que le Roi, oscillations
+    N/R non penalisees (cause shuffle Nh6/Ng8 observe en partie reelle)
+  type: bugfix
+  source: jeu reel 2026-06-30 (1.e4 Nh6 2.Bc4 Ng8...) + red team a2c7cd83
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/chess/move_features.rs
+  acceptance: 'is_shuffle_move (ou helper additif) detecte l''oscillation cavalier/tour
+    (retour sur une case quittee) en plus du Roi, SANS regression sur manoeuvres legitimes
+    (Nf3-d2-c4 non penalise). Oracle: cargo test --release vert (tous tests existants);
+    test comportemental: la sequence 1.e4 Nh6 2.Bc4 Ng8 3.c3 ... ne boucle plus apres
+    le 2e aller-retour. NO_CLAIM.'
+  blocked_by: []
+  opened_session: '2026-06-30'
+  closed_session: null
+  notes: 'oracle_type=code | blocked_by=none | RED TEAM verifie (a2c7cd83): is_shuffle_move
+    move_features.rs:460-479 ne teste que King && chebyshev<=1; N/R oscillation invisible.
+    Ni seuil repetition (deja a 2-fold) ni king-distance (deja presente, gated endgame)
+    n''expliquent le shuffle d''ouverture pleine matiere. ATTENTION: cavalier a des
+    manoeuvres legitimes -> detection doit cibler le retour-arriere direct, pas tout
+    revisite. | BLOCKED 2026-06-30: fix tente (helper undoes_own_last_move + penalite
+    OpeningEqual/MiddlegameEqual rerank) INEFFICACE — Rocky joue toujours g8h6 (defaut,
+    ROOT_POLICY=1, PHASE_REWARD=1). Le coup est choisi par le score negamax (evaluate()),
+    pas par phase_profile_rerank_bonus (diagnostic/poids insuffisant). CORRECTIF doit
+    entrer dans evaluate() ou negamax score-path, PAS dans practical-policy. Gate
+    ELO obligatoire avant/apres. Reverte, arbre propre.'
+- id: IMP-231
+  title: Isolation etat global tests — root_policy_table() + lock env contaminent
+    la suite parallele. Tests verts isoles mais rouges en //.
+  type: tech-debt
+  source: decouvert sprint IMP-230 2026-06-30 (stash baseline)
+  status: OPEN
+  impact: LOW
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: rocky_moteur
+  files:
+  - src/chess/search.rs
+  acceptance: cargo test --release vert sans --test-threads=1
+  blocked_by: []
+  opened_session: '2026-06-30'
+  closed_session: null
+  notes: 'oracle_type=code | blocked_by=none | mirror_ordering_real_penalty_can_demote_dangerous_candidate_without_pruning
+    panique en suite parallele (assert dangerous_baseline_rank<safer_baseline_rank,
+    search.rs:2042) -> empoisonne lock env (search.rs:1554) -> cascade s7_removed_mate_in_3/stalemate/regression_589s/italian.
+    Passe en isole ET en --test-threads=1. Cause: root_policy_table() global + env
+    var locks partages entre tests. PRE-EXISTANT (verifie via stash baseline 2026-06-30,
+    pas cause par IMP-230).'
 metrics_history:
 - session: '2026-05-31'
   total: 11
