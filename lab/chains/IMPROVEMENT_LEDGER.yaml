@@ -4316,7 +4316,7 @@ improvements:
   title: Workflow Store v1 — creer studio/workflows/ avec structure complete
   type: feature
   source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: MEDIUM
   lane: SAFE_AUTO
@@ -4326,14 +4326,14 @@ improvements:
     protocols/ ceremonies/ contracts/ checklists/ policies/ metrics/ process_mining/'
   blocked_by: []
   opened_session: '2026-06-29'
-  closed_session: null
+  closed_session: '2026-06-30'
   notes: oracle_type=structure | blocked_by=none | GPT Process Architecture 2026-06-29
     — structure de base
 - id: IMP-222
   title: Mission Contract — chaque IMP genere un contrat explicite avant execution
   type: feature
   source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: SMALL
   lane: SAFE_AUTO
@@ -4344,7 +4344,7 @@ improvements:
     obligatoires / artefacts attendus'
   blocked_by: []
   opened_session: '2026-06-29'
-  closed_session: null
+  closed_session: '2026-06-30'
   notes: oracle_type=structure | blocked_by=none | Evite les derives agents — contrat
     avant tout code
 - id: IMP-223
@@ -4369,7 +4369,7 @@ improvements:
   title: Failure Harvest playbook — chaque erreur devient une regle permanente
   type: feature
   source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: SMALL
   lane: SAFE_AUTO
@@ -4380,7 +4380,7 @@ improvements:
     >= 3 occurrences genere une entree dans checklists/'
   blocked_by: []
   opened_session: '2026-06-29'
-  closed_session: null
+  closed_session: '2026-06-30'
   notes: oracle_type=structure | blocked_by=none | Transforme les echecs en discipline
     operationnelle
 - id: IMP-225
@@ -4442,7 +4442,7 @@ improvements:
   title: Rocky audit checklist — pre-checklist obligatoire avant tout audit moteur
   type: feature
   source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: SMALL
   lane: SAFE_AUTO
@@ -4454,7 +4454,7 @@ improvements:
     de re-decouvrir des bugs deja fixes'
   blocked_by: []
   opened_session: '2026-06-29'
-  closed_session: null
+  closed_session: '2026-06-30'
   notes: oracle_type=structure | blocked_by=none | Cree suite a la session 2026-06-29
     — fixes re-decouverts 2x
 - id: IMP-229
@@ -4517,11 +4517,17 @@ improvements:
     pas par phase_profile_rerank_bonus (diagnostic/poids insuffisant). CORRECTIF doit
     entrer dans evaluate() ou negamax score-path, PAS dans practical-policy. Gate
     ELO obligatoire avant/apres. Reverte, arbre propre. | Premiere tentative -15cp
-    dans negamax interne (ply>=1) BLOCKED — le coup racine est choisi dans
-    search_root_in_place, boucle separee de negamax. Penalite interne insuffisante
-    (>15cp d''ecart). Correctif reel : injecter undoes_own_last_move directement dans
-    search_root_in_place sur root_scores, magnitude a calibrer (-40 a -80cp, -15 trop
-    faible). Gate ELO obligatoire avant/apres.'
+    dans negamax interne (ply>=1) BLOCKED — le coup racine est choisi dans search_root_in_place,
+    boucle separee de negamax. Penalite interne insuffisante (>15cp d''ecart). Correctif
+    reel : injecter undoes_own_last_move directement dans search_root_in_place sur
+    root_scores, magnitude a calibrer (-40 a -80cp, -15 trop faible). Gate ELO obligatoire
+    avant/apres. | Trou confirme (diagnostic SA1 2026-06-30): undoes_own_last_move
+    (move_features.rs:373) exige seen==2 dans action_log qui ne stocke PAS la case
+    d''origine -> le PREMIER aller-retour de chaque piece echappe totalement a la
+    penalite (au moment du retour la piece n''a qu''un seul coup au log). Cause
+    SECONDAIRE du shuffle ; IMP-234 (profondeur plafonnee a 3 en ouverture) = cause
+    PRIMAIRE. Fix futur : comparer la case candidate a l''origine reelle de la piece,
+    pas au log.'
 - id: IMP-231
   title: Isolation etat global tests — root_policy_table() + lock env contaminent
     la suite parallele. Tests verts isoles mais rouges en //.
@@ -4544,6 +4550,62 @@ improvements:
     Passe en isole ET en --test-threads=1. Cause: root_policy_table() global + env
     var locks partages entre tests. PRE-EXISTANT (verifie via stash baseline 2026-06-30,
     pas cause par IMP-230).'
+- id: IMP-232
+  title: UCI minimal pour Rocky (shim Python wrappant play_fen)
+  type: feature
+  source: session cross-engine 2026-06-30 (Sunfish/Stockfish jouables, Rocky gap UCI
+    confirme)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - tools/rocky_uci.py
+  - src/tool/cli.rs
+  acceptance: fancy.py -cmd 'python tools/rocky_uci.py' lance une partie humain vs
+    Rocky; tools/cross_engine_match.py accepte --white/--black rocky; handshake uci/uciok/isready/readyok/position/go/bestmove
+    conforme; tracking moves + promotions corrects; ne touche pas src/ (wrap du binaire
+    play_fen existant)
+  blocked_by: []
+  opened_session: '2026-06-30'
+  closed_session: null
+  notes: 'oracle_type=manual_play+cross_engine | blocked_by=none | chemin LEGER Python
+    valide en session : Rocky n''a PAS de boucle UCI serveur (src/chess/uci.rs=helper
+    notation, src/agents/uci_agent.rs=client). Shim ~80 lignes : maintenir board,
+    sur position reconstruire FEN+moves, sur go appeler target/release/tactical_chess_pure_lab.exe
+    play_fen, parser JSON .move -> bestmove. play_fen verifie OK (sortie {move,score,depth}).
+    Alternative lourde=boucle UCI native Rust dans src/ (gate lane ROCKY_MOTEUR) NON
+    retenue.'
+- id: IMP-234
+  title: Plafond profondeur d'ouverture trop bas — adaptive_depth retourne 3 pour
+    n>=26 pieces, cause le shuffle observe via tie-break a score egal
+  type: bugfix
+  source: diagnostic SA1 2026-06-30 (shuffle Nh6/Ng8/Na6/Nb8/Nf6 partie reelle Pierre)
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/chess/search.rs
+  acceptance: |
+    Relever le plancher depth en ouverture a >=4 (n>=26 -> depth 4 minimum)
+    Mesurer impact temps de calcul (depth 4 vs 3 en ouverture, NPS)
+    Test comportemental : sequence shuffle observee ne se reproduit plus
+    Gate ELO obligatoire avant/apres (risque ralentissement vs gain qualite)
+  blocked_by: []
+  opened_session: '2026-06-30'
+  closed_session: null
+  notes: |
+    oracle_type=code | blocked_by=none | Diagnostic SA1 2026-06-30 — preuve
+    mecanique : a depth 3, score_gap=null sur tous les meilleurs candidats en
+    ouverture (tous les coups tranquilles a score strictement egal -> selection
+    par tie-break max_by_key dans search_root_in_place). Plus de temps n'aide pas
+    (TCS_MOVE_TIME_MS inoperant : la boucle iterative-deepening termine depth 3
+    bien avant le budget). Seule la profondeur compte. A depth 4, ecarts 30-44cp
+    apparaissent, developpement gagne clairement. adaptive_depth = search.rs:982.
+    NB : ID 233 volontairement saute (cree directement en IMP-234 sur demande).
 metrics_history:
 - session: '2026-05-31'
   total: 11
