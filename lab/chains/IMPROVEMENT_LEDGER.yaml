@@ -4639,6 +4639,38 @@ improvements:
     ARCHIVE/).
 
     '
+- id: IMP-236
+  title: Calibrer le role RED_TEAM du council — il bloque sur de faux risques securite/ethique
+    pour des jeux locaux simples (CLI offline sans reseau ni donnees)
+  type: improvement
+  source: observation Pierre 2026-06-30 (council bloque le brief belote sur des objections hors-sujet)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: control_plane
+  files:
+  - scripts/council.py
+  acceptance: 'Le prompt RED_TEAM (_role_prompt) classe d''abord le projet : jeu/outil
+    LOCAL offline sans reseau/donnees/IA tierce -> AUCUNE objection securite/vie privee/ethique.
+
+    RED_TEAM reste critique sur les vrais risques techniques (bugs, dette, scope creep, dependances).
+
+    stance=BLOQUE reserve aux failles TECHNIQUES critiques reelles, jamais a un risque securite disproportionne.
+
+    Validation : council relance sur le brief belote -> RED_TEAM ne bloque plus (stance != BLOQUE).
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-30'
+  closed_session: '2026-06-30'
+  notes: 'oracle_type=structure | blocked_by=none | _role_prompt(RED_TEAM) reecrit
+    avec un bloc CALIBRAGE OBLIGATOIRE distinguant jeu LOCAL offline (securite hors-sujet)
+    vs feature reseau/donnees/IA tierce (securite pertinente). Validation mecanique :
+    council.py --brief belote -> RED_TEAM (qwen2.5-14b) stance=APPROUVE, rationale "jeu
+    local CLI sans reseau ... aucun risque securite/vie privee/ethique ... seuls risques
+    techniques" ; aucun disagreement RED_TEAM. 30 tests council verts (phase2_tests +
+    tests/). Scope strict scripts/council.py.'
 metrics_history:
 - session: '2026-05-31'
   total: 11

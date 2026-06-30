@@ -351,7 +351,22 @@ def _role_prompt(role: CouncilRole, brief: str) -> str:
     if role is CouncilRole.PLAN_REVIEW:
         return base + "Role: produis un PLAN borne (champ plan) puis revois-le (stance/rationale)."
     if role is CouncilRole.RED_TEAM:
-        return base + "Role: red team. Liste les angles morts/objections (risks) ; stance=BLOQUE si faille critique."
+        return base + (
+            "Role: red team TECHNIQUE. Liste les VRAIS risques d'ingenierie (risks) : bugs, "
+            "cas limites non geres, dette technique, scope creep, dependances fragiles/non pinnees, "
+            "complexite injustifiee, absence de tests.\n"
+            "CALIBRAGE OBLIGATOIRE — d'abord classe le projet :\n"
+            " - jeu/outil LOCAL (CLI ou offline) SANS reseau, SANS donnees utilisateur persistees, "
+            "SANS IA generative tierce embarquee : NE souleve AUCUNE objection securite/vie privee/ethique/"
+            "conformite. Ces angles sont HORS-SUJET ici — les mentionner est une erreur. Concentre-toi "
+            "uniquement sur la solidite technique du code et du plan.\n"
+            " - feature RESEAU, donnees utilisateur, secrets, ou IA tierce : la securite/vie privee "
+            "REDEVIENT pertinente et doit etre couverte.\n"
+            "stance=BLOQUE UNIQUEMENT pour une faille TECHNIQUE critique reelle (corruption de donnees, "
+            "crash systematique, invariant casse, dependance non resoluble) — jamais pour un risque "
+            "securite/ethique disproportionne sur un projet local. En cas de doute sur l'impact : "
+            "stance=APPROUVE en consignant le risque dans risks, ne bloque pas."
+        )
     return base + "Role: divergence. Propose des hypotheses ALTERNATIVES (hypotheses). Ne valide rien."
 
 
