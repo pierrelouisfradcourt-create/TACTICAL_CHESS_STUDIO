@@ -359,9 +359,15 @@ fn search_root_in_place(
             }
 
             // S-7 removed: pure alpha-beta selection
+            // IMP-234 fix tie-break : std max_by_key renvoie le DERNIER ex-aequo.
+            // `ordered` est classe par order_root_moves (meilleur d'abord), donc a
+            // score egal il faut le PREMIER (mieux classe), pas le dernier. .rev()
+            // inverse l'iteration : le dernier ex-aequo en ordre inverse = le premier
+            // en ordre original.
             let best_local_idx = root_scores
                 .iter()
                 .enumerate()
+                .rev()
                 .max_by_key(|&(_, &s)| s)
                 .map(|(i, _)| i)
                 .unwrap_or(0);
