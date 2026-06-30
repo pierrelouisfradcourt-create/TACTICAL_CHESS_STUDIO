@@ -4524,10 +4524,10 @@ improvements:
     avant/apres. | Trou confirme (diagnostic SA1 2026-06-30): undoes_own_last_move
     (move_features.rs:373) exige seen==2 dans action_log qui ne stocke PAS la case
     d''origine -> le PREMIER aller-retour de chaque piece echappe totalement a la
-    penalite (au moment du retour la piece n''a qu''un seul coup au log). Cause
-    SECONDAIRE du shuffle ; IMP-234 (profondeur plafonnee a 3 en ouverture) = cause
-    PRIMAIRE. Fix futur : comparer la case candidate a l''origine reelle de la piece,
-    pas au log.'
+    penalite (au moment du retour la piece n''a qu''un seul coup au log). Cause SECONDAIRE
+    du shuffle ; IMP-234 (profondeur plafonnee a 3 en ouverture) = cause PRIMAIRE.
+    Fix futur : comparer la case candidate a l''origine reelle de la piece, pas au
+    log.'
 - id: IMP-231
   title: Isolation etat global tests — root_policy_table() + lock env contaminent
     la suite parallele. Tests verts isoles mais rouges en //.
@@ -4582,30 +4582,63 @@ improvements:
     n>=26 pieces, cause le shuffle observe via tie-break a score egal
   type: bugfix
   source: diagnostic SA1 2026-06-30 (shuffle Nh6/Ng8/Na6/Nb8/Nf6 partie reelle Pierre)
-  status: OPEN
+  status: CLOSED
   impact: MEDIUM
   effort: MEDIUM
   lane: AUDIT_REQUIRED
   domain: rocky_moteur
   files:
   - src/chess/search.rs
-  acceptance: |
-    Relever le plancher depth en ouverture a >=4 (n>=26 -> depth 4 minimum)
+  acceptance: 'Relever le plancher depth en ouverture a >=4 (n>=26 -> depth 4 minimum)
+
     Mesurer impact temps de calcul (depth 4 vs 3 en ouverture, NPS)
+
     Test comportemental : sequence shuffle observee ne se reproduit plus
+
     Gate ELO obligatoire avant/apres (risque ralentissement vs gain qualite)
+
+    '
   blocked_by: []
   opened_session: '2026-06-30'
-  closed_session: null
-  notes: |
-    oracle_type=code | blocked_by=none | Diagnostic SA1 2026-06-30 — preuve
+  closed_session: '2026-06-30'
+  notes: 'oracle_type=code | blocked_by=none | Diagnostic SA1 2026-06-30 — preuve
+
     mecanique : a depth 3, score_gap=null sur tous les meilleurs candidats en
+
     ouverture (tous les coups tranquilles a score strictement egal -> selection
-    par tie-break max_by_key dans search_root_in_place). Plus de temps n'aide pas
+
+    par tie-break max_by_key dans search_root_in_place). Plus de temps n''aide pas
+
     (TCS_MOVE_TIME_MS inoperant : la boucle iterative-deepening termine depth 3
+
     bien avant le budget). Seule la profondeur compte. A depth 4, ecarts 30-44cp
+
     apparaissent, developpement gagne clairement. adaptive_depth = search.rs:982.
+
     NB : ID 233 volontairement saute (cree directement en IMP-234 sur demande).
+
+    CLARIFICATION close 2026-06-30 : le correctif REEL livre est le TIE-BREAK, pas
+    la
+
+    profondeur (le titre mentionne le plafond depth mais c''etait un symptome). commit
+
+    bd6a3d8, branche worktree-rocky-tiebreak-fix ff-mergee master + pushee. search.rs:362
+
+    max_by_key renvoyait le DERNIER ex-aequo -> ajout .rev() pour garder le PREMIER
+    (mieux
+
+    classe par order_root_moves). Effet : 1.e4->Nc6 (etait Nh6), startpos->Nc3 (etait
+    Nh3).
+
+    A/B meme base : fixed bat master 1.5/2 head-to-head. Test profondeur 3->4 fait
+
+    separement = AUCUN effet (0-20 vs sunfish inchange) -> reverte. cargo test vert
+    (hors
+
+    echec doc observation_boundary_current pre-existant, chemin AAA_*.md deplace vers
+    ARCHIVE/).
+
+    '
 metrics_history:
 - session: '2026-05-31'
   total: 11
