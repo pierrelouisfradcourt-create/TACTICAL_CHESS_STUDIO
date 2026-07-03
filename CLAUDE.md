@@ -185,3 +185,27 @@ claim\_verdict: NO\_CLAIM\_ALLOWED
 * Creer des fichiers tmp qui restent
 * Utiliser API Anthropic externe
 
+## Mémoire persistante — règles de session
+
+### Au démarrage de CHAQUE session
+1. Lis `studio_brain/00_CURRENT_CONTEXT.md` — c'est l'état courant du studio.
+2. Le ledger canonique est `lab/chains/IMPROVEMENT_LEDGER.yaml` (244+ IMPs). PAS à la racine.
+3. La mémoire longue est dans `studio_brain/` (architecture/, decisions/, doctrine/, gamedesign/).
+   Ne charge ces fichiers QUE si le sujet de la session les concerne (tier-2, à la demande).
+
+### En fin de CHAQUE session
+1. Mets à jour `studio_brain/00_CURRENT_CONTEXT.md` :
+   - Dernière session (date)
+   - En cours (ce qui a avancé)
+   - Décisions récentes (ratifiées par Pierre uniquement)
+   - Prochaine étape
+   - Impasses (ce qui a échoué et pourquoi)
+2. Si un IMP a été touché : entrée dans lab/chains/IMPROVEMENT_LEDGER.yaml.
+3. Garde 00_CURRENT_CONTEXT.md sous 100 lignes. Archive le vieux contexte
+   dans studio_brain/journal/ si nécessaire.
+
+### Règles
+- Notes brutes de Pierre : jamais réécrites. Synthèse IA vit à côté.
+- Toute doc générée : date + source.
+- Décisions = uniquement ce que Pierre a explicitement ratifié.
+
