@@ -131,6 +131,27 @@
     .node.artefact .agcomp { color: #7dd3fc; }
     .node.note .nhead { background: #a16207; cursor: grab; }
     .node.note textarea { background: #4a4314; border-color: #a16207; color: #fef9c3; font-size: 10px; height: 70px; }
+    /* ---- Calques (layers) : superposition + delta visuel ---- */
+    .node.layer-added    { box-shadow: 0 0 0 2px #22c55e, 0 0 14px rgba(34,197,94,.55); }
+    .node.layer-removed  { opacity: .5; filter: grayscale(.4); box-shadow: 0 0 0 2px #ef4444; }
+    .node.layer-modified { box-shadow: 0 0 0 2px #f59e0b, 0 0 14px rgba(245,158,11,.5); }
+    .layer-diff-tag { position: absolute; top: -9px; right: 6px; font-size: 9px; font-weight: bold;
+      padding: 1px 6px; border-radius: 8px; color: #0b0f19; z-index: 3; pointer-events: none; }
+    .layer-diff-added    { background: #22c55e; }
+    .layer-diff-removed  { background: #ef4444; color: #fff; }
+    .layer-diff-modified { background: #f59e0b; }
+    .layers-ro-banner { position: absolute; top: 8px; right: 12px; z-index: 20;
+      background: #1e293b; border: 1px solid #f59e0b; color: #fbbf24; font-size: 11px; font-weight: bold;
+      padding: 4px 12px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+    .layers-menu { min-width: 260px; max-height: 70vh; overflow: auto; }
+    .layer-row { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: 12px; }
+    .layer-row:hover { background: rgba(99,102,241,.12); }
+    .layer-row input[type=checkbox] { cursor: pointer; }
+    .layer-row .layer-upd { margin-left: auto; background: none; border: none; color: #38bdf8; cursor: pointer; font-size: 13px; padding: 0 4px; }
+    .layer-row .layer-upd:disabled { opacity: .35; cursor: not-allowed; }
+    .layer-row .layer-del { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 13px; padding: 0 4px; }
+    .layer-save-row { display: flex; gap: 4px; padding: 6px 8px; border-bottom: 1px solid #334155; }
+    .layer-save-row input { flex: 1; min-width: 0; background: #0b0f19; border: 1px solid #334155; color: #e2e8f0; border-radius: 4px; padding: 3px 6px; font-size: 12px; }
     .handle { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #6366f1; border: 2px solid #0b0f19; top: 50%; transform: translateY(-50%); }
     .handle.out { right: -8px; cursor: crosshair; }
     .handle.in { left: -8px; }
@@ -945,6 +966,57 @@
       );
     }
 
+    // ---- Calques (layers) — persistence + delta ------------------------------
+    // A calque = a named, detached snapshot {id,name,nodes,edges} of the ACTIVE
+    // canvas. Persisted to localStorage so it survives reload. Activating ≥1 shows
+    // it on the canvas (read-only from ≥2, with an added/modified/removed delta).
+    const LAYERS_LS_KEY = 'llmlego.layers.v1';
+    function loadLayers() {
+      try { const v = JSON.parse(localStorage.getItem(LAYERS_LS_KEY) || '[]'); return Array.isArray(v) ? v : []; }
+      catch { return []; }
+    }
+    function persistLayers(ls) {
+      try { localStorage.setItem(LAYERS_LS_KEY, JSON.stringify(ls)); } catch { /* quota/private mode — in-memory still works */ }
+    }
+    // Stable signature of a node for equality (ignores UI-only fields).
+    function layerNodeKey(n) {
+      const d = { ...(n.data || {}) };
+      delete d._layerDiff; delete d._dataText; delete d._dataErr;
+      return JSON.stringify({ type: n.type, x: n.x, y: n.y, w: n.width, h: n.height, data: d });
+    }
+    // Merge the chosen calques into a single {nodes,edges} view. 1 calque = shown as-is
+    // (tag 'base'). ≥2 = diff of the FIRST (base) vs the LAST (target) selected:
+    // added (in target only) / removed (in base only) / modified (same id, changed) / base (unchanged).
+    function mergeLayers(chosen) {
+      if (chosen.length === 0) return { nodes: [], edges: [] };
+      if (chosen.length === 1) {
+        return {
+          nodes: chosen[0].nodes.map((n) => ({ ...n, data: { ...n.data, _layerDiff: 'base' } })),
+          edges: chosen[0].edges.map((e) => ({ ...e })),
+        };
+      }
+      const base = chosen[0];
+      const target = chosen[chosen.length - 1];
+      const baseById = new Map(base.nodes.map((n) => [n.id, n]));
+      const targById = new Map(target.nodes.map((n) => [n.id, n]));
+      const out = [];
+      base.nodes.forEach((bn) => {
+        const tn = targById.get(bn.id);
+        if (!tn) { out.push({ ...bn, data: { ...bn.data, _layerDiff: 'removed' } }); }
+        else {
+          const same = layerNodeKey(bn) === layerNodeKey(tn);
+          out.push({ ...tn, data: { ...tn.data, _layerDiff: same ? 'base' : 'modified' } });
+        }
+      });
+      target.nodes.forEach((tn) => {
+        if (!baseById.has(tn.id)) out.push({ ...tn, data: { ...tn.data, _layerDiff: 'added' } });
+      });
+      const edgeMap = new Map();
+      base.edges.forEach((e) => edgeMap.set(e.id, e));
+      target.edges.forEach((e) => edgeMap.set(e.id, e));
+      return { nodes: out, edges: [...edgeMap.values()] };
+    }
+
     // Patch one node's data (shared by CanvasSurface note-editing and App inspector — one impl).
     function patchNodeData(setNodes, id, patch) {
       setNodes((ns) => ns.map((n) => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n));
@@ -1014,7 +1086,10 @@
     // across zones), result/paused (run state — ACTIVE only; Sandbox gets null so it never
     // shows execution), isSandbox/label (presentation), onActivate (focus this zone).
     // ============================================================================
-    function CanvasSurface({ cv, snap, idSeq, result, paused, isSandbox, label, onActivate }) {
+    function CanvasSurface({ cv, snap, idSeq, result, paused, isSandbox, label, onActivate, readOnly, roBanner }) {
+      // Calques : quand ≥2 calques sont superposés sur l'Actif, le canvas passe en
+      // LECTURE SEULE (on regarde un delta, on ne l'édite pas). Ref = pas de closure périmée.
+      const roRef = useRef(false); roRef.current = !!readOnly;
       const {
         nodes, setNodes, edges, setEdges, sel, setSel, selNode, selEdge, drag, setDrag,
         draw, setDraw, resizing, setResizing, dragMid, setDragMid, canvasW, setCanvasW,
@@ -1059,6 +1134,7 @@
 
       const startDrag = useCallback((e, id) => {
         e.stopPropagation();
+        if (roRef.current) return; // lecture seule (calques superposés) — aucun déplacement
         if (e.shiftKey || e.ctrlKey || e.metaKey) {
           setSelectedIds((cur) => cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]);
           setSel({ kind: 'node', id });
@@ -1076,12 +1152,14 @@
 
       const startDraw = useCallback((e, fromId, fromHandle) => {
         e.stopPropagation();
+        if (roRef.current) return; // lecture seule (calques) — pas de nouveau lien
         const p = toCanvas(e.clientX, e.clientY);
         setDraw({ from: fromId, fromHandle, x: p.x, y: p.y });
       }, [toCanvas]);
 
       const startResize = useCallback((e, id) => {
         e.stopPropagation();
+        if (roRef.current) return; // lecture seule (calques) — pas de redimensionnement
         const n = nodes.find((x) => x.id === id);
         const d = dimsOf(n);
         const p = toCanvas(e.clientX, e.clientY);
@@ -1247,6 +1325,7 @@
             <div className={'canvas-wrap col' + (isSandbox ? ' is-sandbox' : '')} data-testid={isSandbox ? 'canvas-sandbox' : 'canvas-active'}
               style={{ borderRight: '1px solid #1e293b' }} onMouseDownCapture={onActivate}>
               {label && <div className="zone-tag" data-testid={isSandbox ? 'zone-tag-sandbox' : 'zone-tag-active'}>{label}</div>}
+              {readOnly && <div className="layers-ro-banner" data-testid="layers-readonly">🔒 {roBanner || 'Calques superposés — lecture seule'}</div>}
               <div className={'canvas' + (panning ? ' panning' : (spacePan ? ' space-pan' : ''))} ref={canvasRef}
                 onMouseMove={onCanvasMove} onMouseUp={onCanvasUp}
                 onMouseDown={(e) => {
@@ -1435,14 +1514,21 @@
                   const audit = nodeAudit(n);
                   return (
                     <div key={n.id} className={'node ' + n.type + (selected ? ' selected' : '') + (orders ? ' flowed' : '')
-                        + (audit === 'fog' ? ' node-fog' : '') + (audit === 'danger' ? ' node-danger' : '')}
+                        + (audit === 'fog' ? ' node-fog' : '') + (audit === 'danger' ? ' node-danger' : '')
+                        + (n.data && n.data._layerDiff && n.data._layerDiff !== 'base' ? ' layer-' + n.data._layerDiff : '')}
                       data-testid={'node-' + n.id} data-node-id={n.id} data-node-type={n.type}
                       data-node-orders={orders ? orders.join(',') : ''}
                       data-wired={n.data && n.data.wiredStatus ? n.data.wiredStatus : ''}
+                      data-layer-diff={n.data && n.data._layerDiff ? n.data._layerDiff : ''}
                       data-fog={audit === 'fog' ? '1' : '0'} data-danger={audit === 'danger' ? '1' : '0'}
                       style={sizeStyle}
                       onMouseDown={(e) => startDrag(e, n.id)}
                       onMouseUp={() => { if (draw) finishDrawOn(n.id); }}>
+                      {n.data && n.data._layerDiff && n.data._layerDiff !== 'base' && (
+                        <div className={'layer-diff-tag layer-diff-' + n.data._layerDiff} data-testid={'layer-diff-' + n.id}>
+                          {n.data._layerDiff === 'added' ? '＋ ajouté' : n.data._layerDiff === 'removed' ? '− supprimé' : '~ modifié'}
+                        </div>
+                      )}
                       {audit === 'danger' && (
                         <div className="node-danger-tag" data-testid={'node-danger-' + n.id}
                           title="Source auditée et CASSÉE (wiredStatus: broken) — ne pas rejouer">⚠ cassé</div>
@@ -1619,6 +1705,78 @@
       // simpler and reliable (no async permission prompt, no cross-tab leakage). Holds a
       // deep clone of {nodes, edges} with ORIGINAL ids; ids are remapped fresh at paste.
       const clipboardRef = useRef(null);
+
+      // ----- Calques (layers) — état + actions -----
+      const [layers, setLayers] = useState(() => loadLayers()); // [{id,name,nodes,edges,createdAt}]
+      const [activeLayerIds, setActiveLayerIds] = useState([]); // ordered selection (1st = base, last = target)
+      const [layersMenuOpen, setLayersMenuOpen] = useState(false);
+      const [layerName, setLayerName] = useState('');
+      const preLayerRef = useRef(null); // {nodes,edges} of the Actif canvas BEFORE any calque took over the view
+      const layersReadOnly = activeLayerIds.length >= 2;
+
+      // Recompute the Actif canvas for a given selection of calque ids.
+      const applyLayers = useCallback((nextIds) => {
+        if (nextIds.length === 0) {
+          if (preLayerRef.current) { setNodes(preLayerRef.current.nodes); setEdges(preLayerRef.current.edges); preLayerRef.current = null; }
+          setSel(null); setSelectedIds([]);
+          setStatus({ msg: 'Calques désactivés — édition rétablie.', kind: '' });
+          return;
+        }
+        if (!preLayerRef.current) preLayerRef.current = { nodes, edges }; // snapshot the real working canvas once
+        const chosen = nextIds.map((id) => layers.find((l) => l.id === id)).filter(Boolean);
+        const merged = mergeLayers(chosen);
+        setNodes(merged.nodes); setEdges(merged.edges); setSel(null); setSelectedIds([]);
+        setStatus({ msg: nextIds.length >= 2
+          ? `📚 ${nextIds.length} calques superposés — delta affiché (lecture seule).`
+          : `📚 Calque affiché (édition possible).`, kind: 'ok' });
+      }, [layers, nodes, edges]);
+
+      const toggleLayer = useCallback((id) => {
+        const next = activeLayerIds.includes(id) ? activeLayerIds.filter((x) => x !== id) : [...activeLayerIds, id];
+        setActiveLayerIds(next);
+        applyLayers(next);
+      }, [activeLayerIds, applyLayers]);
+
+      const saveActiveAsLayer = useCallback(() => {
+        const name = (layerName || '').trim();
+        if (!name) { setStatus({ msg: '⚠️ Nomme le calque avant de l\'enregistrer.', kind: 'error' }); return; }
+        if (layersReadOnly) { setStatus({ msg: '⚠️ Lecture seule (2+ calques superposés) — enregistrement impossible.', kind: 'error' }); return; }
+        const snap = JSON.parse(JSON.stringify({ nodes, edges }));
+        snap.nodes.forEach((n) => { if (n.data) { delete n.data._layerDiff; delete n.data._dataText; delete n.data._dataErr; } });
+        const layer = { id: 'layer-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e5).toString(36),
+          name, nodes: snap.nodes, edges: snap.edges, createdAt: new Date().toISOString() };
+        const nextLayers = [...layers, layer];
+        setLayers(nextLayers); persistLayers(nextLayers); setLayerName('');
+        setStatus({ msg: `📚 Calque « ${name} » enregistré (${snap.nodes.length} nœuds).`, kind: 'ok' });
+      }, [layerName, layers, nodes, edges, activeLayerIds]);
+
+      // Ré-enregistrer (écraser) un calque existant avec le canvas Actif courant.
+      // Le cas d'usage : activer 1 calque → le modifier → 💾 pour persister la modif
+      // DANS ce même calque (au lieu d'en créer un nouveau). Bloqué en lecture seule.
+      const updateLayer = useCallback((id) => {
+        if (layersReadOnly) { setStatus({ msg: '⚠️ Lecture seule (2+ calques) — impossible de ré-enregistrer.', kind: 'error' }); return; }
+        const snap = JSON.parse(JSON.stringify({ nodes, edges }));
+        snap.nodes.forEach((n) => { if (n.data) { delete n.data._layerDiff; delete n.data._dataText; delete n.data._dataErr; } });
+        const nextLayers = layers.map((l) => l.id === id
+          ? { ...l, nodes: snap.nodes, edges: snap.edges, updatedAt: new Date().toISOString() } : l);
+        setLayers(nextLayers); persistLayers(nextLayers);
+        const nm = (layers.find((l) => l.id === id) || {}).name || id;
+        setStatus({ msg: `📚 Calque « ${nm} » ré-enregistré (${snap.nodes.length} nœuds).`, kind: 'ok' });
+      }, [layers, nodes, edges, layersReadOnly]);
+
+      const deleteLayer = useCallback((id) => {
+        const nextLayers = layers.filter((l) => l.id !== id);
+        setLayers(nextLayers); persistLayers(nextLayers);
+        if (activeLayerIds.includes(id)) { const next = activeLayerIds.filter((x) => x !== id); setActiveLayerIds(next); applyLayers(next); }
+      }, [layers, activeLayerIds, applyLayers]);
+
+      // Close the Calques menu on outside click (mirror of the palette dropdown pattern).
+      useEffect(() => {
+        if (!layersMenuOpen) return undefined;
+        const close = () => setLayersMenuOpen(false);
+        window.addEventListener('click', close);
+        return () => window.removeEventListener('click', close);
+      }, [layersMenuOpen]);
 
       const loadInto = useCallback((g, label) => {
         setNodes(g.nodes); setEdges(g.edges); setSel(null); setSelectedIds([]); setMarquee(null); setResult(null); setError(null);
@@ -3355,6 +3513,60 @@
                 onClick={() => setView('wiremap')}>Wire Map</button>
               <button className={view === 'library' ? '' : 'ghost'} data-testid="tab-library"
                 onClick={() => setView('library')}>Bibliothèque</button>
+              {/* Calques : enregistrer le canvas Actif comme calque nommé, puis en superposer
+                  plusieurs (delta added/modified/removed, lecture seule dès 2). */}
+              <div className="pal-item">
+                <button className={activeLayerIds.length ? '' : 'ghost'} data-testid="btn-layers"
+                  onClick={(ev) => { ev.stopPropagation(); setLayersMenuOpen((o) => !o); }}
+                  title="Enregistrer / superposer des calques du canvas Actif">
+                  📚 Calques{activeLayerIds.length ? ` (${activeLayerIds.length})` : ''}
+                </button>
+                {layersMenuOpen && (
+                  <div className="pal-menu layers-menu" data-testid="layers-menu" onClick={(ev) => ev.stopPropagation()}>
+                    <div className="pal-menu-h">Calques — canvas Actif</div>
+                    <div className="layer-save-row">
+                      <input data-testid="layer-name-input" placeholder="Nom du calque…" value={layerName}
+                        onChange={(e) => setLayerName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveActiveAsLayer(); }} />
+                      <button data-testid="layer-save" onClick={saveActiveAsLayer}
+                        title="Enregistrer le canvas Actif courant comme nouveau calque">＋ Enregistrer</button>
+                    </div>
+                    {layers.length === 0 && (
+                      <div className="pal-menu-h" data-testid="layers-empty" style={{ opacity: .7, fontStyle: 'italic' }}>
+                        Aucun calque. Pose des nœuds puis « ＋ Enregistrer ».
+                      </div>
+                    )}
+                    {layers.map((l) => {
+                      const idx = activeLayerIds.indexOf(l.id);
+                      return (
+                        <label key={l.id} className="layer-row" data-testid={'layer-row-' + l.id}>
+                          <input type="checkbox" data-testid={'layer-toggle-' + l.id}
+                            checked={idx >= 0} onChange={() => toggleLayer(l.id)} />
+                          <span>{l.name}</span>
+                          <span style={{ opacity: .6, fontSize: 10 }}>({l.nodes.length}n)</span>
+                          {idx >= 0 && (
+                            <span style={{ fontSize: 9, color: idx === 0 ? '#38bdf8' : '#f59e0b' }}>
+                              {idx === 0 ? 'base' : (idx === activeLayerIds.length - 1 ? 'cible' : '·')}
+                            </span>
+                          )}
+                          <button className="layer-upd" data-testid={'layer-update-' + l.id} disabled={layersReadOnly}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateLayer(l.id); }}
+                            title={layersReadOnly ? 'Lecture seule (2+ calques) — ré-enregistrement impossible'
+                              : 'Ré-enregistrer ce calque avec le canvas Actif courant (écrase)'}>💾</button>
+                          <button className="layer-del" data-testid={'layer-del-' + l.id}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteLayer(l.id); }}
+                            title="Supprimer ce calque">🗑</button>
+                        </label>
+                      );
+                    })}
+                    {activeLayerIds.length >= 2 && (
+                      <div className="pal-menu-h" data-testid="layers-menu-ro" style={{ color: '#fbbf24', borderTop: '1px solid #334155', marginTop: 4, paddingTop: 6 }}>
+                        🔒 {activeLayerIds.length} superposés — lecture seule (delta 🟩 ajouté · 🟧 modifié · 🟥 supprimé)
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               <span style={{ width: 1, height: 20, background: '#334155', margin: '0 4px' }} />
               {/* Central view selector — replaces the fixed routing/gate/looped buttons.
                   Each option carries a démo/réel/cible maturity badge (same vocab as
@@ -3476,6 +3688,7 @@
             <div className="canvas-split" ref={splitRef} data-testid="canvas-split" data-focused={focused}>
               <div className="split-pane" style={{ flexBasis: splitPct + '%' }}>
                 <CanvasSurface cv={active} snap={snap} idSeq={idSeq} result={result} paused={paused}
+                  readOnly={layersReadOnly} roBanner={`${activeLayerIds.length} calques superposés — lecture seule`}
                   label={'● Actif' + (focused === 'active' ? ' (focus)' : '')} onActivate={() => setFocused('active')} />
               </div>
               <div className="split-bar" data-testid="split-bar" title="Glisser pour redimensionner Actif / Sandbox"
