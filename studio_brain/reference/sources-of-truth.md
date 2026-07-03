@@ -61,11 +61,16 @@
 
 ## Mémoire & Contexte Session
 
-| Source | Chemin | Contenu |
+Trois référents canoniques, rôles distincts (cf. `CLAUDE.md` § Mémoire persistante) :
+
+| Rôle | Chemin | Contenu |
 |---|---|---|
-| Mémoire Cowork | `AI_MEMORY/` (dans le repo) | Mémoire persistante entre sessions Cowork |
-| Studio context live | `STUDIO_CONTEXT_LIVE.md` | État courant de la session |
-| COWORK_CONTEXT | `COWORK_CONTEXT.md` | Contexte de handoff |
+| Faits durables (machine) | `memory/MEMORY.md` (+ `memory/`) | Index auto-mémoire auto-chargé au boot |
+| Handoff session | `studio_brain/00_CURRENT_CONTEXT.md` | État courant inter-sessions (< 100 lignes) |
+| Référence humaine (tier-2) | `studio_brain/` (doctrine/, decisions/…) | Doctrine, décisions, vision — à la demande |
+
+> **Retirés (réconciliation mémoire CT-4, 2026-07-03)** : `AI_MEMORY/`,
+> `STUDIO_CONTEXT_LIVE.md`, `COWORK_CONTEXT.md` — morts/périmés, ne plus lire ni écrire.
 
 ---
 
