@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+MSG=$(cat "$1")
+if ! echo "$MSG" | grep -qE '^(IMP-[0-9]+|feat|fix|refactor|perf|test|chore|docs|hotfix):'; then
+  echo "❌ Format : IMP-XXX: description  ou  feat: description"
+  exit 1
+fi
