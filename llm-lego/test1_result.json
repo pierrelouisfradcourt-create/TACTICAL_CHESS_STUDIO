@@ -1,0 +1,40 @@
+{
+  "httpStatus": 200,
+  "body": {
+    "success": true,
+    "state": {
+      "initial": {
+        "query": "Find AI news"
+      },
+      "nodes": {
+        "node-analyzer": {
+          "type": "llm",
+          "intent": "search",
+          "text": "[mock llm] classified intent=\"search\" for prompt: Extract intent from query."
+        },
+        "intent": {
+          "type": "llm",
+          "intent": "search",
+          "text": "[mock llm] classified intent=\"search\" for prompt: Extract intent from query."
+        },
+        "node-search": {
+          "type": "tool",
+          "tool": "search",
+          "result": "mock result from search"
+        }
+      }
+    },
+    "trace": [
+      {
+        "nodeId": "node-analyzer",
+        "nodeType": "llm",
+        "durationMs": 59
+      },
+      {
+        "nodeId": "node-search",
+        "nodeType": "tool",
+        "durationMs": 15
+      }
+    ]
+  }
+}

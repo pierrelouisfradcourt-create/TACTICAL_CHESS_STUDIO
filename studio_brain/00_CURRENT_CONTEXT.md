@@ -2,23 +2,39 @@
 Dernière session : 2026-07-03
 
 ## En cours
+- CT-1 (audit ROI) : versionner llm-lego/ + studio_brain/ — plan gitignore+LFS en cours.
 - Intégration Superpowers + Graphify + Obsidian + frontend-design (plan 5 phases)
-- Phase 0 : ✅ PASS conditionnel — commit `.claude/` infra fait (9263d49).
-  Working tree PAS littéralement clean : ~85 entrées restantes = rapports
-  auto-générés (lab/reports/*, studio_state.json, events.jsonl) + docs non
-  commités + 1 dossier parasite. Aucun WIP code risqué. Cause racine du
-  "tree jamais clean" = rapports auto pas encore dans .gitignore (chantier séparé).
-- Phase 1 (Superpowers install) : pas commencée
+- Phase 0 : ✅ FAIT. Commit `.claude/` infra (9263d49).
+- Cleanup "tree jamais clean" : ✅ FAIT (commit 027de2a). Rapports auto runtime
+  gitignorés + untrackés (director_*, learning_progress, search_profile_latest,
+  studio_state, snapshot, events.jsonl, diagnosis/reflection/audit_daily/*_latest).
+  Dossier parasite C:\...\ (bug chemin relatif) supprimé. Cause racine corrigée.
+- Phase 1 (Superpowers) : ✅ TERMINÉE. Cloné infra/superpowers (v6.1.1, 14 skills,
+  Windows OK), gitignoré (commit 5ba818e). Marketplace locale superpowers-dev
+  enregistrée + plugin installé + reload OK (3 plugins, 6 agents, 1 hook, 1 LSP).
+  Les 14 skills superpowers:* sont dispo (brainstorming, systematic-debugging,
+  test-driven-development, writing-plans, dispatching-parallel-agents…).
 
 ## Décisions récentes (ratifiées HumanGate)
 - Option A : .claude/ (skills, agents, rules) versionné dans Git — FAIT
 - CLAUDE.md racine = point d'entrée mémoire (tier-1)
 - studio_brain/00_CURRENT_CONTEXT.md = état vivant inter-sessions
 
-## Prochaine étape
-- Phase 1 : git clone https://github.com/obra/superpowers.git → infra/superpowers
-- Puis enregistrer comme plugin Claude Code, tester /superpowers:help
-- (Optionnel avant/après) gitignore des rapports auto pour un vrai tree clean
+## Séquençage amendé par audit ROI (docs/audit/ROADMAP_ROI_2026-07.md, 2026-07-03)
+Le plan 5 phases est CONSERVÉ mais réordonné : le cœur (force moteur) prime
+sur le méta. Phases 2/3 GELÉES jusqu'à CT-4.
+
+1. CT-1 [EN COURS] — Versionner llm-lego/ (112 Mo) + studio_brain/ (anti-perte
+   disque, bus-factor-1). Contrainte : .git déjà 1,8 Go → .gitignore sélectif +
+   Git-LFS pour gros binaires AVANT tout `git add`. Aucun commit sans go Pierre.
+2. CT-2 [SUIVANT] — via superpowers:writing-plans : suite de non-régression
+   moteur (perft + anti-shuffle depuis startpos + tie-break + amorce EPD).
+   Premier usage réel de Superpowers. Zone tests/ protégée → gate Pierre.
+3. Phase 2 (Graphify) / Phase 3 (Obsidian) : GELÉES jusqu'à CT-4 (réconciliation
+   mémoire : 1 système canonique = memory/MEMORY.md, corriger CLAUDE.md
+   contradictoire). Sinon Obsidian = 4ᵉ référent mémoire.
+
+Note : CT-3 (tree clean gitignore rapports auto) = DÉJÀ FAIT hier (027de2a).
 
 ## Impasses connues
 - start_studio.sh (bash) : networking WSL↔Windows cassé pour détection cockpit

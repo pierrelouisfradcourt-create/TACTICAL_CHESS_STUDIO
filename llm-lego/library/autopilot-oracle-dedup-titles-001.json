@@ -1,0 +1,29 @@
+{
+  "id": "autopilot-oracle-dedup-titles-001",
+  "kind": "oracle",
+  "name": "Garde-fou: anti-doublon titres",
+  "maturity": "saved",
+  "badge": "real",
+  "roadmapRef": null,
+  "sourceRef": "autopilot.py:1562-1597 (_run_idea_pipeline dedup)",
+  "payload": {
+    "prompt": "N/A — vérification mécanique (pas d'appel LLM)",
+    "verdictField": "verdict",
+    "expectedValues": [
+      "PASS",
+      "FAIL"
+    ],
+    "rule": "Exclut tout IMP proposé dont le titre a une similarité > 0.70 (difflib.SequenceMatcher, lowercased) avec un IMP CLOSED existant ; journalise l'exclusion dans DEDUP_LOG (jsonl).",
+    "category": "mécanique",
+    "attachableTo": [
+      "llm",
+      "agent",
+      "tool",
+      "router"
+    ],
+    "model": "",
+    "temperature": null
+  },
+  "created": "2026-07-02T00:00:00.000Z",
+  "updated": "2026-07-02T00:00:00.000Z"
+}

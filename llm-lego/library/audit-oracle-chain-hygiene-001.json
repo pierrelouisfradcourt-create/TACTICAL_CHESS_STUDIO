@@ -1,0 +1,31 @@
+{
+  "id": "audit-oracle-chain-hygiene-001",
+  "kind": "oracle",
+  "name": "Oracle audit: hygiène studio (chain_hygiene.ps1)",
+  "maturity": "saved",
+  "badge": "real",
+  "roadmapRef": null,
+  "sourceRef": "00_STUDIO_CONTROL/05_AUDIT/chains/chain_hygiene.ps1",
+  "payload": {
+    "prompt": "N/A — vérification mécanique PowerShell (aucun appel LLM). Exécute chain_hygiene.ps1 et lit son VERDICT.",
+    "verdictField": "verdict",
+    "expectedValues": [
+      "PASS",
+      "PARTIAL",
+      "FAIL"
+    ],
+    "rule": "Audit hygiène studio — 9 checks mécaniques (chain_hygiene.ps1). Périmètre : fichiers temporaires, sentinelles, racine parasite, artefacts stale.\n1/9 tmp_share_*.html dans lab/ (BASSE si présents)\n2/9 rocky_debug.log à la racine (BASSE)\n3/9 ENGINE_SEARCH_NEURAL_SCAN.txt à la racine (BASSE)\n4/9 sentinelles datasets/ runs/ tmp/ non vides (MOY — routage incorrect)\n5/9 repos/games/studioV2_MIGRATED_HOLD/target/ non nettoyé (MOY)\n6/9 document_work/ hors-studio (BASSE)\n7/9 lab/runs/ > 5000 MB (MOY) ou > 2000 MB (BASSE)\n8/9 lab/puzzles/ > 2000 MB (BASSE)\n9/9 stubs AI_MEMORY/ (<=1) et .studio_state/ (<=2) (BASSE si dépassés)\nVerdict : PASS si 0 finding ; FAIL si au moins un CRIT/HAUTE/MOY/INCONNU ; sinon PARTIAL. claim_verdict: NO_CLAIM_ALLOWED.",
+    "category": "mécanique",
+    "attachableTo": [
+      "llm",
+      "agent",
+      "tool",
+      "router"
+    ],
+    "model": "",
+    "temperature": null,
+    "scriptRef": "chain_hygiene.ps1"
+  },
+  "created": "2026-07-03T00:00:00.000Z",
+  "updated": "2026-07-03T00:00:00.000Z"
+}

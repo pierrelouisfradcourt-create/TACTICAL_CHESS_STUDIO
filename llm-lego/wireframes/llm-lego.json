@@ -1,0 +1,368 @@
+{
+  "project": {
+    "id": "llm-lego",
+    "name": "LLM-Lego Builder",
+    "repoRoot": "C:/TACTICAL_CHESS_STUDIO/llm-lego",
+    "created": "2026-07-01T00:00:00Z",
+    "roadmapRef": "IMPROVEMENT_LEDGER.yaml"
+  },
+  "entries": [
+    {
+      "id": "entry-001",
+      "nodeId": "types",
+      "label": "types",
+      "function": "Types canoniques (Node/Edge/Graph/TraceStep)",
+      "files": [
+        {
+          "path": "src/core/types.ts",
+          "lines": [
+            1,
+            60
+          ]
+        }
+      ],
+      "command": "npx tsc -p tsconfig.typecheck.json",
+      "test": {
+        "description": "typecheck",
+        "file": "",
+        "line": 0,
+        "status": "PASS",
+        "color": "green",
+        "type": "static"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "",
+      "order": 1
+    },
+    {
+      "id": "entry-002",
+      "nodeId": "state",
+      "label": "state/resolvePath",
+      "function": "Résolution de path (anti prototype-pollution)",
+      "files": [
+        {
+          "path": "src/core/state.ts",
+          "lines": [
+            1,
+            40
+          ]
+        }
+      ],
+      "command": "npx vitest run tests/state.test.ts",
+      "test": {
+        "description": "resolvePath guards + snapshot",
+        "file": "tests/state.test.ts",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "unit"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "",
+      "order": 2
+    },
+    {
+      "id": "entry-003",
+      "nodeId": "scheduler",
+      "label": "scheduler",
+      "function": "Routing conditionnel + validation (loops)",
+      "files": [
+        {
+          "path": "src/runtime/scheduler.ts",
+          "lines": [
+            1,
+            80
+          ]
+        }
+      ],
+      "command": "npx vitest run tests/scheduler.test.ts",
+      "test": {
+        "description": "resolveNextNode + validateGraph",
+        "file": "tests/scheduler.test.ts",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "unit"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "",
+      "order": 3
+    },
+    {
+      "id": "entry-004",
+      "nodeId": "executor",
+      "label": "executor",
+      "function": "Dispatch par type → adapter (+ iteration)",
+      "files": [
+        {
+          "path": "src/runtime/executor.ts",
+          "lines": [
+            1,
+            60
+          ]
+        }
+      ],
+      "command": "npx vitest run tests/executor.test.ts",
+      "test": {
+        "description": "executor dispatches type to adapter",
+        "file": "tests/executor.test.ts",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "unit"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "",
+      "order": 4
+    },
+    {
+      "id": "entry-005",
+      "nodeId": "engine",
+      "label": "engine/runGraph",
+      "function": "Exécution complète + boucles bornées",
+      "files": [
+        {
+          "path": "src/core/engine.ts",
+          "lines": [
+            1,
+            70
+          ]
+        }
+      ],
+      "command": "npx vitest run tests/engine.test.ts tests/loop.test.ts",
+      "test": {
+        "description": "runGraph + start node + loops",
+        "file": "tests/engine.test.ts",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "unit"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "",
+      "order": 5
+    },
+    {
+      "id": "entry-006",
+      "nodeId": "mockAdapters",
+      "label": "mockAdapters",
+      "function": "Simulation LLM/tool/agent (swap point)",
+      "files": [
+        {
+          "path": "src/adapters/mock.ts",
+          "lines": [
+            1,
+            40
+          ]
+        }
+      ],
+      "command": "npx vitest run",
+      "test": {
+        "description": "covered via engine/executor tests",
+        "file": "",
+        "line": 0,
+        "status": "PASS",
+        "color": "green",
+        "type": "unit"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "",
+      "order": 6
+    },
+    {
+      "id": "entry-007",
+      "nodeId": "demo-server",
+      "label": "demo-server",
+      "function": "API HTTP (execute + repo + wireframes)",
+      "files": [
+        {
+          "path": "demo-server.ts",
+          "lines": [
+            1,
+            80
+          ]
+        }
+      ],
+      "command": "node demo-server.ts",
+      "test": {
+        "description": "UX validation via Playwright",
+        "file": "builder-validate.mjs",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "e2e"
+      },
+      "impRef": null,
+      "humanRequired": true,
+      "notes": "validation UX = jugement humain",
+      "order": 7
+    },
+    {
+      "id": "entry-008",
+      "nodeId": "builder",
+      "label": "builder.html",
+      "function": "UI React (canvas + wire map)",
+      "files": [
+        {
+          "path": "builder.html",
+          "lines": [
+            1,
+            1
+          ]
+        }
+      ],
+      "command": "node demo-server.ts  # open /builder",
+      "test": {
+        "description": "double-run search/chat + UX",
+        "file": "builder-validate.mjs",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "e2e"
+      },
+      "impRef": null,
+      "humanRequired": true,
+      "notes": "feel = jugement humain",
+      "order": 8
+    },
+    {
+      "id": "entry-009",
+      "nodeId": "view-selector",
+      "label": "view-selector",
+      "function": "Sélecteur de vue central (dropdown EXAMPLES) — remplace les 3 boutons fixes routing/gate/looped",
+      "files": [
+        {
+          "path": "builder.html",
+          "lines": [
+            323,
+            328
+          ]
+        },
+        {
+          "path": "builder.html",
+          "lines": [
+            1335,
+            1352
+          ]
+        }
+      ],
+      "command": "node selector-validate.mjs",
+      "test": {
+        "description": "dropdown 3 badges démo/réel/cible + régression double-run search/chat",
+        "file": "selector-validate.mjs",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "e2e"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "Passe « Sélecteur de vue central »",
+      "order": 9
+    },
+    {
+      "id": "entry-010",
+      "nodeId": "library",
+      "label": "library",
+      "function": "Bibliothèque de briques (Passe 1) : store /api/library (GET/POST/DELETE), seed depuis lab/agent_registry, CRUD éditeur, attache fiche→nœud",
+      "files": [
+        {
+          "path": "demo-server.ts",
+          "lines": [
+            42,
+            92
+          ]
+        },
+        {
+          "path": "demo-server.ts",
+          "lines": [
+            321,
+            388
+          ]
+        },
+        {
+          "path": "builder.html",
+          "lines": [
+            1054,
+            1140
+          ]
+        }
+      ],
+      "command": "node library-validate.mjs",
+      "test": {
+        "description": "seed 5 fiches + CRUD round-trip serveur + attache node.data + étanchéité",
+        "file": "library-validate.mjs",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "e2e"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "Fonctionnalité logicielle (le code du store), PAS les fiches agent qu'elle contient",
+      "order": 10
+    },
+    {
+      "id": "entry-011",
+      "nodeId": "wiremap-corrections",
+      "label": "wiremap-corrections",
+      "function": "Corrections Wire Map : audit compte les entrées du projet (pas le canvas), retrait du lien canvas↔wiremap bidirectionnel, couleur = dropdown 3 choix, snap-to-grid hors toolbar",
+      "files": [
+        {
+          "path": "builder.html",
+          "lines": [
+            1145,
+            1327
+          ]
+        }
+      ],
+      "command": "node builder-validate.mjs",
+      "test": {
+        "description": "Corr1 audit cohérent / Corr2 no-bidir / Corr3 snap / Corr4 couleur",
+        "file": "builder-validate.mjs",
+        "line": 442,
+        "status": "PASS",
+        "color": "green",
+        "type": "e2e"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "Passe précédente Wire Map (corrections 1-4)",
+      "order": 11
+    },
+    {
+      "id": "entry-012",
+      "nodeId": "wiremap-recenter",
+      "label": "wiremap-recenter",
+      "function": "Recentrage Wire Map sur la roadmap logicielle : suppression de la lecture du canvas (mapped/unmapped) et des lignes NON MAPPÉ ; entrées 100% manuelles ; étanchéité Wire Map / Bibliothèque",
+      "files": [
+        {
+          "path": "builder.html",
+          "lines": [
+            1145,
+            1265
+          ]
+        }
+      ],
+      "command": "node wiremap-validate.mjs",
+      "test": {
+        "description": "zéro ligne NON MAPPÉ même avec un graphe sur le canvas + audit cohérent + aucune lecture de library",
+        "file": "wiremap-validate.mjs",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "e2e"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "Cette passe",
+      "order": 12
+    }
+  ]
+}

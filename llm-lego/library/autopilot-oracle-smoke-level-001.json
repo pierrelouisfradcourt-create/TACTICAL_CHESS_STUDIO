@@ -1,0 +1,29 @@
+{
+  "id": "autopilot-oracle-smoke-level-001",
+  "kind": "oracle",
+  "name": "Garde-fou: smoke level (cargo check)",
+  "maturity": "saved",
+  "badge": "real",
+  "roadmapRef": null,
+  "sourceRef": "autopilot.py:863-894 (_check_smoke_level)",
+  "payload": {
+    "prompt": "N/A — vérification mécanique (pas d'appel LLM)",
+    "verdictField": "verdict",
+    "expectedValues": [
+      "PASS",
+      "FAIL"
+    ],
+    "rule": "Pré-check avant autoloop. Lane SAFE_AUTO → passe direct. Lane AUDIT_REQUIRED → EXÉCUTE `cargo check` (timeout 60s) ; échec/timeout → bloque avec preview stderr. Oracle mécanique à exécution réelle.",
+    "category": "mécanique",
+    "attachableTo": [
+      "llm",
+      "agent",
+      "tool",
+      "router"
+    ],
+    "model": "",
+    "temperature": null
+  },
+  "created": "2026-07-02T00:00:00.000Z",
+  "updated": "2026-07-02T00:00:00.000Z"
+}

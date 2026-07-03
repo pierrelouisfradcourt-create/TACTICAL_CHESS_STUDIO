@@ -1,0 +1,50 @@
+{
+  "steps": [
+    "goto http://localhost:3200/builder -> HTTP 200",
+    "=== PARTIE 1 — Profil LM (à la souris) ===",
+    "Profil LM déjà présent (agent-mr3kk79n) — construit à la souris lors d'un run précédent, réutilisé (pas de doublon).",
+    "✅ Profil LM présent dans la Bibliothèque (kind=agent)",
+    "✅ Profil LM: modèle=qwen2.5-14b-instruct + temperature=0.4",
+    "✅ Profil LM: mémoire renseigne l'injection 04_STUDIO.md",
+    "✅ Profil LM: notes mentionnent routage CEO qwen3.6-27b + Devstral",
+    "Profil LM id: agent-mr3kk79n",
+    "=== PARTIE 2 — Chaîne idée→IMP (à la souris) ===",
+    "⚠ FRICTION [Partie 2 — largeur canvas] canvas utile ≈989px (panneau inspecteur à droite) ; handles au bord = désactivés (.clipped) | attendu: canvas plus large ou auto-scroll ; contourné par un layout sur 2 rangées à l'intérieur de la bande utile",
+    "✅ 4 nœuds d'étape posés depuis la palette (llm) + prompts attachés via import",
+    "✅ Oracle needs_human + HumanGate posés aux points de garde-fou",
+    "✅ prompts attachés via le panneau d'import (data.prompt peuplé, pas retapé)",
+    "✅ 5 edges tracés à la souris dans l'ordre du pipeline",
+    "edges: llm-1→llm-2, llm-2→llm-3, llm-3→llm-4, llm-4→agent-5, agent-5→humangate-6",
+    "✅ exécution atteint le HumanGate et met en pause (paused_humangate)",
+    "✅ exécution de bout en bout dans le bon ordre (roadmap→redteam→fusion→extract→oracle)",
+    "ordre trace: llm-1 → llm-2 → llm-3 → llm-4 → agent-5 → humangate-6",
+    "✅ Chaîne sauvegardée présente dans la Bibliothèque (kind=chain)",
+    "✅ Chaîne persistée: 6 nœuds + 5 edges + catégorie autopilot-import",
+    "Chaîne id: chain-mr3kt9sj (nodes=6 edges=5)",
+    "✅ Chaîne rechargée reproduit fidèlement (6 nœuds, 5 edges, 4 prompts, 1 oracle, 1 gate)",
+    "\n=== CONSTRUCTION À LA SOURIS: ALL CHECKS PASSED ==="
+  ],
+  "checks": {
+    "Profil LM présent dans la Bibliothèque (kind=agent)": true,
+    "Profil LM: modèle=qwen2.5-14b-instruct + temperature=0.4": true,
+    "Profil LM: mémoire renseigne l'injection 04_STUDIO.md": true,
+    "Profil LM: notes mentionnent routage CEO qwen3.6-27b + Devstral": true,
+    "4 nœuds d'étape posés depuis la palette (llm) + prompts attachés via import": true,
+    "Oracle needs_human + HumanGate posés aux points de garde-fou": true,
+    "prompts attachés via le panneau d'import (data.prompt peuplé, pas retapé)": true,
+    "5 edges tracés à la souris dans l'ordre du pipeline": true,
+    "exécution atteint le HumanGate et met en pause (paused_humangate)": true,
+    "exécution de bout en bout dans le bon ordre (roadmap→redteam→fusion→extract→oracle)": true,
+    "Chaîne sauvegardée présente dans la Bibliothèque (kind=chain)": true,
+    "Chaîne persistée: 6 nœuds + 5 edges + catégorie autopilot-import": true,
+    "Chaîne rechargée reproduit fidèlement (6 nœuds, 5 edges, 4 prompts, 1 oracle, 1 gate)": true
+  },
+  "frictions": [
+    {
+      "where": "Partie 2 — largeur canvas",
+      "observed": "canvas utile ≈989px (panneau inspecteur à droite) ; handles au bord = désactivés (.clipped)",
+      "expected": "canvas plus large ou auto-scroll ; contourné par un layout sur 2 rangées à l'intérieur de la bande utile"
+    }
+  ],
+  "pass": true
+}

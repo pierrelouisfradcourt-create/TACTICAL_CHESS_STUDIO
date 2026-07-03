@@ -1,0 +1,167 @@
+{
+  "id": "chain-mr3kt9sj",
+  "kind": "chain",
+  "name": "⚠️ Pipeline idée→IMP (ANCIEN — fictif, voir versions réelles ci-dessous)",
+  "maturity": "draft",
+  "badge": "demo",
+  "roadmapRef": null,
+  "sourceRef": null,
+  "payload": {
+    "nodes": [
+      {
+        "id": "llm-1",
+        "type": "llm",
+        "x": 64,
+        "y": 76,
+        "data": {
+          "prompt": "Tu es architecte solo-dev du Tactical Chess Studio (1 seul développeur, pas d'équipe).\nIDÉE HUMAINE : {idea_title}\nDétails : {idea_desc}\n\nCONTRAINTES : max 3 étapes. Chaque étape = 1 fichier Rust/Python précis.\nINTERDIT : formation, support, déploiement, gestion d'équipe.\nFormat : liste numérotée, chaque ligne = 'Modifier fichier X : action Y'.\nSi l'idée est trop vague ou tu n'es pas certain, retourne UNIQUEMENT :\n{\"needs_human\": true, \"reason\": \"explication courte\"}\nSinon, réponds normalement.",
+          "outputKey": "out",
+          "producerRef": "autopilot-prompt-roadmap-001"
+        },
+        "attachedPrompt": {
+          "id": "autopilot-prompt-roadmap-001",
+          "name": "Rôle: Architecte solo-dev (roadmap)",
+          "badge": "real"
+        }
+      },
+      {
+        "id": "llm-2",
+        "type": "llm",
+        "x": 279,
+        "y": 93,
+        "data": {
+          "prompt": "Tu es l'avocat du diable d'un studio solo-dev (1 dev, pas d'équipe).\nIDÉE HUMAINE : {idea_title}\nDétails : {idea_desc}\nRoadmap proposée : {roadmap}\n\nIdentifie max 3 risques TECHNIQUES concrets (complexité, dépendances, fichiers Rust/Python).\nINTERDIT : critiques organisationnelles, formation, support, déploiement.\nFormat : 3 critiques max, chacune = 'Risque: X | Fichier: Y'.\nSi l'idée est trop vague ou tu n'es pas certain, retourne UNIQUEMENT :\n{\"needs_human\": true, \"reason\": \"explication courte\"}\nSinon, réponds normalement.",
+          "outputKey": "out",
+          "producerRef": "autopilot-prompt-redteam-001"
+        },
+        "attachedPrompt": {
+          "id": "autopilot-prompt-redteam-001",
+          "name": "Rôle: Avocat du diable (redteam)",
+          "badge": "real"
+        }
+      },
+      {
+        "id": "llm-3",
+        "type": "llm",
+        "x": 494,
+        "y": 93,
+        "data": {
+          "prompt": "Tu es arbitre technique solo-dev. Ta mission : réaliser L'IDÉE HUMAINE\nen intégrant les critiques — pas fusionner deux textes machine.\nIDÉE HUMAINE : {idea_title}\nDétails : {idea_desc}\nRoadmap : {roadmap}\nCritiques : {redteam}\n\nRÈGLES : max 3 étapes dans le plan final. Chaque étape = fichier précis + action.\nSupprimer toute étape hors-scope solo-dev.\nFormat : liste numérotée d'étapes bornées.\nSi l'idée est trop vague ou tu n'es pas certain, retourne UNIQUEMENT :\n{\"needs_human\": true, \"reason\": \"explication courte\"}\nSinon, réponds normalement.",
+          "outputKey": "out",
+          "producerRef": "autopilot-prompt-fusion-001"
+        },
+        "attachedPrompt": {
+          "id": "autopilot-prompt-fusion-001",
+          "name": "Rôle: Arbitre technique (fusion)",
+          "badge": "real"
+        }
+      },
+      {
+        "id": "llm-4",
+        "type": "llm",
+        "x": 709,
+        "y": 76,
+        "data": {
+          "prompt": "Tu es décomposeur IMP d'un studio SOLO-DEV (1 seul développeur, pas d'équipe).\nIDÉE HUMAINE À RÉALISER : {idea_title}\nDétails : {idea_desc}\n\nIMPs déjà OPEN dans le ledger (éviter doublons, calculer blocked_by) :\n{_open_imps_ctx}\n\nINTERDICTIONS ABSOLUES — rejeter tout IMP contenant :\n  formation, tutoriel, support utilisateur, déploiement, DevOps,\n  packaging, release, gestion d'équipe, chef de projet.\n\nRÈGLES DE GRANULARITÉ :\n  - MAX 4 IMPs (pas plus)\n  - 1 IMP = 1 fichier précis + 1 fonction précise\n  - title : verbe + objet + fichier (ex: 'Ajouter fn X dans fichier Y.py')\n\nCONTRAINTES STACK :\n  - Pas d'API Claude externe — LM Studio local uniquement\n  - Pas de cron (autoloop existe déjà)\n  - Stack : Rust (moteur) + Python (ML/studio) + LM Studio\n\nDomaines :\n  rocky_moteur: moteur Rust, eval, search, ELO, benchmark\n  ia_apprentissage: LoRA, dataset, training, neural, Qwen\n  jeux: Chess Fantasy, Snake, Belote, TCG, variantes\n  studio: autopilot, pipeline, kaizen, docs, UI, workflow\n\nSi l'idée est trop vague pour décomposer en IMPs concrets, retourne UNIQUEMENT :\n{\"needs_human\": true, \"reason\": \"explication\"}\n\nSinon, retourne UNIQUEMENT un JSON array valide, max 4 éléments :\n[\n  {\n    \"title\": \"Ajouter fn X dans fichier Y.py\",\n    \"lane\": \"SAFE_AUTO\",\n    \"impact\": \"HIGH\",\n    \"effort\": \"SMALL\",\n    \"domain\": \"studio\",\n    \"files\": [\"chemin/exact/fichier.py\"],\n    \"acceptance\": \"critère mesurable en 1 ligne\",\n    \"blocked_by\": []\n  }\n]\n\nPlan à décomposer :\n{fusion}\n\nclaim_verdict: NO_CLAIM_ALLOWED",
+          "outputKey": "out",
+          "producerRef": "autopilot-prompt-extract-001"
+        },
+        "attachedPrompt": {
+          "id": "autopilot-prompt-extract-001",
+          "name": "Rôle: Décomposeur IMP (extract, JSON)",
+          "badge": "real"
+        }
+      },
+      {
+        "id": "agent-5",
+        "type": "agent",
+        "x": 709,
+        "y": 314,
+        "data": {
+          "role": "qwen-coder",
+          "model": "Qwen-Coder",
+          "temperature": 0.3,
+          "top_p": 0.9,
+          "max_tokens": 12000,
+          "memoire": "",
+          "skill": "",
+          "plugin": "",
+          "objectif": "",
+          "gardeFou": "",
+          "modele": "",
+          "oracleRef": "autopilot-oracle-needs-human-001"
+        },
+        "attachedOracle": {
+          "id": "autopilot-oracle-needs-human-001",
+          "name": "Garde-fou: needs_human",
+          "badge": "real"
+        }
+      },
+      {
+        "id": "humangate-6",
+        "type": "humangate",
+        "x": 494,
+        "y": 330,
+        "data": {
+          "message": "Valide-t-on la sortie du nœud précédent ?",
+          "rule": "",
+          "context": [],
+          "actsAsOracle": false
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-7",
+        "from": "llm-1",
+        "to": "llm-2",
+        "fromHandle": "right",
+        "toHandle": "left",
+        "condition": ""
+      },
+      {
+        "id": "edge-8",
+        "from": "llm-2",
+        "to": "llm-3",
+        "fromHandle": "right",
+        "toHandle": "left",
+        "condition": ""
+      },
+      {
+        "id": "edge-9",
+        "from": "llm-3",
+        "to": "llm-4",
+        "fromHandle": "right",
+        "toHandle": "left",
+        "condition": ""
+      },
+      {
+        "id": "edge-10",
+        "from": "llm-4",
+        "to": "agent-5",
+        "fromHandle": "bottom",
+        "toHandle": "top",
+        "condition": ""
+      },
+      {
+        "id": "edge-11",
+        "from": "agent-5",
+        "to": "humangate-6",
+        "fromHandle": "left",
+        "toHandle": "right",
+        "condition": ""
+      }
+    ],
+    "initialInput": {
+      "task": "Implémenter la feature X"
+    },
+    "category": "autopilot-import",
+    "tags": [
+      "pipeline",
+      "roadmap",
+      "production-réel"
+    ]
+  },
+  "created": "2026-07-02T14:04:49.747Z",
+  "updated": "2026-07-03T11:12:35.441Z"
+}

@@ -1,0 +1,31 @@
+{
+  "id": "audit-oracle-chain-python-001",
+  "kind": "oracle",
+  "name": "Oracle audit: code Python (chain_python.ps1)",
+  "maturity": "saved",
+  "badge": "real",
+  "roadmapRef": null,
+  "sourceRef": "00_STUDIO_CONTROL/05_AUDIT/chains/chain_python.ps1",
+  "payload": {
+    "prompt": "N/A — vérification mécanique PowerShell (aucun appel LLM). Exécute chain_python.ps1 et lit son VERDICT.",
+    "verdictField": "verdict",
+    "expectedValues": [
+      "PASS",
+      "PARTIAL",
+      "FAIL"
+    ],
+    "rule": "Audit code Python — 5 checks mécaniques (chain_python.ps1). Python résolu via .venv312\\Scripts\\python.exe puis python/python3. Périmètre : syntaxe, requirements, __pycache__ stale, orphelins racine.\n1/5 py_compile sur ml/*.py (HAUTE si erreur, INCONNU si Python absent)\n2/5 py_compile sur scripts/studioV2/*.py racine (HAUTE si erreur, INCONNU si Python absent)\n3/5 requirements.txt présent + non vide (MOY si absent, BASSE si vide)\n4/5 __pycache__ à la racine (BASSE) ; ml/ toléré (INFO)\n5/5 fichiers .py orphelins à la racine (BASSE si présents)\nVerdict : PASS si 0 finding ; FAIL si au moins un CRIT/HAUTE/MOY/INCONNU ; sinon PARTIAL. claim_verdict: NO_CLAIM_ALLOWED.",
+    "category": "mécanique",
+    "attachableTo": [
+      "llm",
+      "agent",
+      "tool",
+      "router"
+    ],
+    "model": "",
+    "temperature": null,
+    "scriptRef": "chain_python.ps1"
+  },
+  "created": "2026-07-03T00:00:00.000Z",
+  "updated": "2026-07-03T00:00:00.000Z"
+}

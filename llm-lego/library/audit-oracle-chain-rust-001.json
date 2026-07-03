@@ -1,0 +1,31 @@
+{
+  "id": "audit-oracle-chain-rust-001",
+  "kind": "oracle",
+  "name": "Oracle audit: code Rust (chain_rust.ps1)",
+  "maturity": "saved",
+  "badge": "real",
+  "roadmapRef": null,
+  "sourceRef": "00_STUDIO_CONTROL/05_AUDIT/chains/chain_rust.ps1",
+  "payload": {
+    "prompt": "N/A — vérification mécanique PowerShell (aucun appel LLM). Exécute chain_rust.ps1 et lit son VERDICT. AVERTISSEMENT : cargo test prend 2-5 minutes.",
+    "verdictField": "verdict",
+    "expectedValues": [
+      "PASS",
+      "PARTIAL",
+      "FAIL"
+    ],
+    "rule": "Audit code Rust — 6 checks mécaniques (chain_rust.ps1). Périmètre : build, tests, warnings, unwrap(), panic!(), dead code, gros fichiers.\n1/6 cargo check (CRIT si build cassé ; BASSE si >50 warnings)\n2/6 cargo test baseline, timeout 360s (HAUTE si tests échouent, INCONNU si 'test result:' absent)\n3/6 .unwrap() dans src/ (MOY si >30, BASSE sinon)\n4/6 panic!() dans src/ (MOY si >10, BASSE sinon)\n5/6 fichiers src/*.rs > 500 lignes (MOY si >5 fichiers, BASSE sinon)\n6/6 test failing connu chess::search::tests::search_root_diagnostics_shape_is_consistent_for_controlled_position (HAUTE si toujours FAILED)\nVerdict : PASS si 0 finding ; FAIL si au moins un CRIT/HAUTE/MOY/INCONNU ; sinon PARTIAL. claim_verdict: NO_CLAIM_ALLOWED.",
+    "category": "mécanique",
+    "attachableTo": [
+      "llm",
+      "agent",
+      "tool",
+      "router"
+    ],
+    "model": "",
+    "temperature": null,
+    "scriptRef": "chain_rust.ps1"
+  },
+  "created": "2026-07-03T00:00:00.000Z",
+  "updated": "2026-07-03T00:00:00.000Z"
+}

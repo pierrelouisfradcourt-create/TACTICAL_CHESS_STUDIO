@@ -1,0 +1,22 @@
+{
+  "id": "openclaw-oracle-preconditions-imp-001",
+  "kind": "oracle",
+  "name": "Oracle pré-conditions IMP SAFE_AUTO (openclaw imp-auto)",
+  "maturity": "saved",
+  "badge": "real",
+  "roadmapRef": null,
+  "sourceRef": "openclaw-workspace/.claude/skills/imp-auto/SKILL.md:41-50 (Phase 1 — vérification synchrone)",
+  "payload": {
+    "prompt": "N/A — vérification mécanique déterministe (aucun appel LLM). Lit l'entrée IMP-ID dans lab/chains/IMPROVEMENT_LEDGER.yaml et vérifie les 4 pré-conditions.",
+    "verdictField": "verdict",
+    "expectedValues": ["PASS", "FAIL"],
+    "rule": "Gate de pré-conditions partagée par imp_auto / imp_run / autoloop / imp-readiness. Vérifier DANS L'ORDRE, toutes bloquantes (zéro exception) :\n1. status: OPEN — sinon STOP « IMP-ID n'est pas OPEN »\n2. lane: SAFE_AUTO — sinon STOP « lane=X nécessite gate Pierre explicite »\n3. blocked_by: [] (vide) — sinon lister les bloqueurs et STOP\n4. les files: de l'IMP ne chevauchent AUCUNE zone FORBIDDEN {tests/  eval/  oracle/  bench/  puzzles/  .github/} — sinon STOP « IMP-ID FORBIDDEN — escalade Pierre »\nVerdict PASS seulement si les 4 passent ; sinon FAIL. Note : --unattended saute UNIQUEMENT la gate « Go ? », jamais ces pré-conditions. claim_verdict: NO_CLAIM_ALLOWED.",
+    "category": "mécanique",
+    "attachableTo": ["llm", "agent", "tool", "router"],
+    "model": "",
+    "temperature": null,
+    "notes": "CONTENU extrait fidèlement (imp-auto/SKILL.md:41-50). Check MÉCANIQUE déterministe (pas de jugement LLM). Extraction de contenu uniquement — ne réactive aucun mécanisme openclaw."
+  },
+  "created": "2026-07-03T00:00:00.000Z",
+  "updated": "2026-07-03T00:00:00.000Z"
+}

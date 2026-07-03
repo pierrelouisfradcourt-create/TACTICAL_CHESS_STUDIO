@@ -1,0 +1,39 @@
+{
+  "id": "autopilot-prompt-extract-001",
+  "kind": "prompt",
+  "name": "Rôle: Décomposeur IMP (extract, JSON)",
+  "maturity": "saved",
+  "badge": "real",
+  "roadmapRef": null,
+  "sourceRef": "autopilot.py:1508-1546",
+  "payload": {
+    "text": "Tu es décomposeur IMP d'un studio SOLO-DEV (1 seul développeur, pas d'équipe).\nIDÉE HUMAINE À RÉALISER : {idea_title}\nDétails : {idea_desc}\n\nIMPs déjà OPEN dans le ledger (éviter doublons, calculer blocked_by) :\n{_open_imps_ctx}\n\nINTERDICTIONS ABSOLUES — rejeter tout IMP contenant :\n  formation, tutoriel, support utilisateur, déploiement, DevOps,\n  packaging, release, gestion d'équipe, chef de projet.\n\nRÈGLES DE GRANULARITÉ :\n  - MAX 4 IMPs (pas plus)\n  - 1 IMP = 1 fichier précis + 1 fonction précise\n  - title : verbe + objet + fichier (ex: 'Ajouter fn X dans fichier Y.py')\n\nCONTRAINTES STACK :\n  - Pas d'API Claude externe — LM Studio local uniquement\n  - Pas de cron (autoloop existe déjà)\n  - Stack : Rust (moteur) + Python (ML/studio) + LM Studio\n\nDomaines :\n  rocky_moteur: moteur Rust, eval, search, ELO, benchmark\n  ia_apprentissage: LoRA, dataset, training, neural, Qwen\n  jeux: Chess Fantasy, Snake, Belote, TCG, variantes\n  studio: autopilot, pipeline, kaizen, docs, UI, workflow\n\nSi l'idée est trop vague pour décomposer en IMPs concrets, retourne UNIQUEMENT :\n{\"needs_human\": true, \"reason\": \"explication\"}\n\nSinon, retourne UNIQUEMENT un JSON array valide, max 4 éléments :\n[\n  {\n    \"title\": \"Ajouter fn X dans fichier Y.py\",\n    \"lane\": \"SAFE_AUTO\",\n    \"impact\": \"HIGH\",\n    \"effort\": \"SMALL\",\n    \"domain\": \"studio\",\n    \"files\": [\"chemin/exact/fichier.py\"],\n    \"acceptance\": \"critère mesurable en 1 ligne\",\n    \"blocked_by\": []\n  }\n]\n\nPlan à décomposer :\n{fusion}\n\nclaim_verdict: NO_CLAIM_ALLOWED",
+    "variables": [
+      "idea_title",
+      "idea_desc",
+      "_open_imps_ctx",
+      "fusion"
+    ],
+    "outputFormat": "json",
+    "outputSchema": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "title": "string (verbe + objet + fichier)",
+        "lane": "SAFE_AUTO",
+        "impact": "HIGH",
+        "effort": "SMALL",
+        "domain": "studio|rocky_moteur|ia_apprentissage|jeux",
+        "files": [
+          "string"
+        ],
+        "acceptance": "string",
+        "blocked_by": []
+      }
+    },
+    "category": "autopilot-import",
+    "version": 1
+  },
+  "created": "2026-07-02T00:00:00.000Z",
+  "updated": "2026-07-02T00:00:00.000Z"
+}
