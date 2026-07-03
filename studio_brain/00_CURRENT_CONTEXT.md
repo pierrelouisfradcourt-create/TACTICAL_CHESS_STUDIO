@@ -2,7 +2,19 @@
 Dernière session : 2026-07-03
 
 ## En cours
-- CT-1 (audit ROI) : versionner llm-lego/ + studio_brain/ — plan gitignore+LFS en cours.
+- llm-lego builder : wiredStatus + Brouillard d'audit + Ancrage brique sur edge
+  ✅ LIVRÉ (2026-07-03). wiredStatus (unset/documented-only/wired/broken) = 3ᵉ axe
+  d'enveloppe, dérivé sans migration (brickWiredStatus). Brouillard = flou léger .nbody
+  (titre net) sur nœud sourceRef+non-vérifié ; danger = contour orange sur broken —
+  exclusifs par construction (nodeAudit court-circuite). Edge : attachedBrickRef =
+  référence non-exéc (tous kinds), badge 📎, exclu du moteur. Validé 24 checks +
+  régression 572 (26 suites) + A1 réel LM Studio + vitest 46/46. Cadrage préalable :
+  llm-lego/SCOPING_ORGANIC_FOG_EDGE.md. Idée 1 (vue organique) = HORS SCOPE, en attente
+  décision Pierre (rosace vs jardin). Non poussé.
+- CT-1 (audit ROI) : ✅ FAIT + POUSSÉ (05ca0b4, origin/master). llm-lego source
+  (171 fichiers, 1,6 Mo) + studio_brain vault (15) versionnés. Exclus : node_modules
+  (105 Mo), *.png (53 screenshots, décision Pierre = repo lean), lego.zip,
+  state/loops-log.md (2,4 Mo). LFS écarté. Risque bus-factor-1 n°1 levé.
 - Intégration Superpowers + Graphify + Obsidian + frontend-design (plan 5 phases)
 - Phase 0 : ✅ FAIT. Commit `.claude/` infra (9263d49).
 - Cleanup "tree jamais clean" : ✅ FAIT (commit 027de2a). Rapports auto runtime
@@ -24,9 +36,9 @@ Dernière session : 2026-07-03
 Le plan 5 phases est CONSERVÉ mais réordonné : le cœur (force moteur) prime
 sur le méta. Phases 2/3 GELÉES jusqu'à CT-4.
 
-1. CT-1 [EN COURS] — Versionner llm-lego/ (112 Mo) + studio_brain/ (anti-perte
-   disque, bus-factor-1). Contrainte : .git déjà 1,8 Go → .gitignore sélectif +
-   Git-LFS pour gros binaires AVANT tout `git add`. Aucun commit sans go Pierre.
+1. CT-1 [✅ FAIT 2026-07-03, commit 05ca0b4 poussé] — llm-lego/ + studio_brain/
+   versionnés. LFS s'est révélé inutile (112 Mo = node_modules ignoré ; vrai ajout
+   1,6 Mo texte). Screenshots gitignorés (repo lean) sur décision Pierre.
 2. CT-2 [SUIVANT] — via superpowers:writing-plans : suite de non-régression
    moteur (perft + anti-shuffle depuis startpos + tie-break + amorce EPD).
    Premier usage réel de Superpowers. Zone tests/ protégée → gate Pierre.

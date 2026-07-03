@@ -44,6 +44,27 @@
     .lib-maturity[data-maturity="draft"] { background: #334155; color: #cbd5e1; }
     .lib-maturity[data-maturity="saved"] { background: #065f46; color: #6ee7b7; }
     .lib-maturity[data-maturity="live"]  { background: #7c2d12; color: #fdba74; }
+    /* wiredStatus — vérité de câblage runtime (épistémique). Pastille informative,
+       même patron que maturity/badge. unset/documented-only = « on ne sait pas si ça
+       tourne » ; wired = vérifié ; broken = audité ET cassé. */
+    .lib-wired { font-size: 8px; padding: 1px 6px; border-radius: 8px; font-weight: bold; text-transform: uppercase; }
+    .lib-wired[data-wired="unset"]           { background: #334155; color: #cbd5e1; }
+    .lib-wired[data-wired="documented-only"] { background: #3b2f14; color: #fcd34d; }
+    .lib-wired[data-wired="wired"]           { background: #064e3b; color: #6ee7b7; }
+    .lib-wired[data-wired="broken"]          { background: #7f1d1d; color: #fca5a5; }
+    /* Brouillard d'audit (épistémique — « on ne sait pas ») : le CORPS du nœud est flouté
+       quand la source est déclarée (sourceRef) mais NON vérifiée (wiredStatus unset ou
+       documented-only). Le TITRE (.nhead) reste TOUJOURS net et lisible (cf. cadrage). */
+    .node.node-fog .nbody      { filter: blur(1.4px); opacity: 0.8; }
+    .node.node-fog .node-brick { filter: blur(1px); opacity: 0.85; }
+    /* Danger (qualité — « on sait, et c'est cassé ») : wiredStatus broken. Bordure/teinte
+       vive, JAMAIS de flou. Mutuellement exclusif de node-fog PAR CONSTRUCTION : nodeAudit
+       court-circuite sur 'broken' avant toute condition de brume — les deux ne se
+       chevauchent jamais. */
+    .node.node-danger { outline: 2px solid #f97316; outline-offset: 1px; box-shadow: 0 0 9px rgba(249,115,22,0.55); }
+    .node-danger-tag { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); z-index: 6;
+      background: #7f1d1d; color: #fecaca; border: 1.5px solid #f97316; border-radius: 8px;
+      font-size: 9px; font-weight: bold; padding: 1px 6px; white-space: nowrap; }
     /* Attached-brick label under a node title. */
     .node-brick { padding: 2px 9px 4px; font-size: 8px; color: #93c5fd; display: flex; align-items: center; gap: 4px; border-bottom: 1px solid #334155; }
     .resize-handle { position: absolute; right: -3px; bottom: -3px; width: 14px; height: 14px; cursor: nwse-resize; z-index: 6;
@@ -541,6 +562,42 @@
     // fixed buttons, just sourced from the dropdown. loadedMsg strings are kept
     // identical to the old buttons so the "✅ … chargé" indicator is unchanged.
     const EXAMPLE_BADGE = { demo: 'démo', real: 'réel', target: 'cible' };
+
+    // ---- wiredStatus : vérité de câblage runtime (épistémique) -----------------
+    // Troisième axe de l'enveloppe commune, à côté de maturity (cycle de vie) et badge
+    // (intention). Ne dit PAS si c'est bon, dit si on SAIT que la source tourne :
+    //   unset            = brique neuve, jamais rattachée à une source vérifiée
+    //   documented-only  = source déclarée (sourceRef) mais jamais re-vérifiée au runtime
+    //   wired            = vérifié comme réellement câblé/appelé
+    //   broken           = audité ET cassé/contradictoire/interdit (≠ inconnu — c'est un DANGER)
+    const WIRED_STATUS_VALUES = ['unset', 'documented-only', 'wired', 'broken'];
+    const WIRED_STATUS_LABELS = {
+      'unset': 'unset (non renseigné)', 'documented-only': 'documented-only (déclaré, non vérifié)',
+      'wired': 'wired (vérifié câblé)', 'broken': 'broken (audité, cassé)',
+    };
+    // wiredStatus EFFECTIF d'une brique. Le champ explicite gagne ; sinon les briques
+    // IMPORTÉES (sourceRef présent) tombent par prudence sur 'documented-only' (jamais
+    // re-vérifiées après import), les briques créées à la main sur 'unset'. Dérivé à la
+    // lecture — AUCUNE migration/réécriture des fichiers library/ existants.
+    function brickWiredStatus(b) {
+      if (b && WIRED_STATUS_VALUES.includes(b.wiredStatus)) return b.wiredStatus;
+      return (b && b.sourceRef) ? 'documented-only' : 'unset';
+    }
+    // État d'audit VISUEL d'un nœud du canvas : brouillard (épistémique) vs danger (qualité).
+    // MUTUELLEMENT EXCLUSIFS par construction — 'broken' court-circuite AVANT toute condition
+    // de brume, donc un nœud ne peut jamais être à la fois flou ET danger.
+    //   'danger' = wiredStatus broken (on SAIT que la source est cassée) → teinte, jamais de flou
+    //   'fog'    = source déclarée (sourceRef) mais NON vérifiée (unset/documented-only) → flou léger
+    //   null     = wired, ou aucune source → net, aucun traitement
+    function nodeAudit(n) {
+      const d = (n && n.data) || {};
+      const ws = WIRED_STATUS_VALUES.includes(d.wiredStatus)
+        ? d.wiredStatus : (d.sourceRef ? 'documented-only' : 'unset');
+      if (ws === 'broken') return 'danger';
+      if (d.sourceRef && (ws === 'unset' || ws === 'documented-only')) return 'fog';
+      return null;
+    }
+    window.nodeAudit = nodeAudit;
     const EXAMPLES = [
       { key: 'routing', label: 'routing (search|chat)', status: 'demo',   make: exampleRouting,       loadedMsg: 'Exemple routing chargé' },
       { key: 'gate',    label: 'Council gate v1',       status: 'real',   make: exampleCouncilGate,   loadedMsg: 'Council gate v1 chargé' },
@@ -557,7 +614,7 @@
       const now = new Date().toISOString();
       return {
         id, kind: 'agent', name: 'Nouvel agent', maturity: 'draft', badge: 'demo',
-        roadmapRef: null, sourceRef: null,
+        roadmapRef: null, sourceRef: null, wiredStatus: 'unset',
         payload: {
           role: '', memoire: '', skill: '', plugin: '', objectif: '', gardeFou: '', notes: '',
           modele: '', temperature: 0.2, top_p: 0.9, max_tokens: 8000,
@@ -584,7 +641,7 @@
       const now = new Date().toISOString();
       return {
         id, kind: 'prompt', name: 'Nouveau prompt', maturity: 'draft', badge: 'demo',
-        roadmapRef: null, sourceRef: null,
+        roadmapRef: null, sourceRef: null, wiredStatus: 'unset',
         payload: {
           text: '', variables: [], outputFormat: 'text', outputSchema: null,
           category: '', version: 1,
@@ -604,7 +661,7 @@
       const now = new Date().toISOString();
       return {
         id, kind: 'oracle', name: 'Nouvel oracle', maturity: 'draft', badge: 'demo',
-        roadmapRef: null, sourceRef: null,
+        roadmapRef: null, sourceRef: null, wiredStatus: 'unset',
         payload: {
           prompt: 'Compare la sortie du nœud précédent avec la règle attendue. Réponds UNIQUEMENT en JSON: {"verdict": "PASS"|"FAIL", "reasoning": "..."}',
           verdictField: 'verdict',
@@ -624,7 +681,7 @@
       const now = new Date().toISOString();
       return {
         id, kind: 'chain', name: 'Nouvelle chaîne', maturity: 'draft', badge: 'demo',
-        roadmapRef: null, sourceRef: null,
+        roadmapRef: null, sourceRef: null, wiredStatus: 'unset',
         payload: { nodes: [], edges: [], initialInput: {}, category: '', tags: [] },
         created: now, updated: now,
       };
@@ -639,7 +696,7 @@
       const now = new Date().toISOString();
       return {
         id, kind: 'goal', name: 'Nouvel objectif', maturity: 'draft', badge: 'demo',
-        roadmapRef: null, sourceRef: null,
+        roadmapRef: null, sourceRef: null, wiredStatus: 'unset',
         payload: { text: '', category: '' },
         created: now, updated: now,
       };
@@ -655,7 +712,7 @@
       const now = new Date().toISOString();
       return {
         id, kind: 'roadmap', name: 'Nouvelle roadmap', maturity: 'draft', badge: 'demo',
-        roadmapRef: null, sourceRef: null,
+        roadmapRef: null, sourceRef: null, wiredStatus: 'unset',
         payload: { category: '', milestones: [] }, // milestone: {id,title,description,status,goalRef}
         created: now, updated: now,
       };
@@ -684,7 +741,7 @@
       const now = new Date().toISOString();
       return {
         id, kind: 'outputformat', name: 'Nouveau format de sortie', maturity: 'draft', badge: 'demo',
-        roadmapRef: null, sourceRef: null,
+        roadmapRef: null, sourceRef: null, wiredStatus: 'unset',
         payload: {
           formatType: 'free-text',
           description: '',
@@ -706,7 +763,7 @@
       const now = new Date().toISOString();
       return {
         id, kind: 'router', name: 'Nouveau router', maturity: 'draft', badge: 'demo',
-        roadmapRef: null, sourceRef: null,
+        roadmapRef: null, sourceRef: null, wiredStatus: 'unset',
         payload: { path: 'nodes.<nodeId>.<champ>', defaultRoute: '' },
         created: now, updated: now,
       };
@@ -715,7 +772,7 @@
       const now = new Date().toISOString();
       return {
         id, kind: 'tool', name: 'Nouvel outil', maturity: 'draft', badge: 'demo',
-        roadmapRef: null, sourceRef: null,
+        roadmapRef: null, sourceRef: null, wiredStatus: 'unset',
         payload: { name: 'search', description: '' },
         created: now, updated: now,
       };
@@ -724,7 +781,7 @@
       const now = new Date().toISOString();
       return {
         id, kind: 'note', name: 'Nouvelle note', maturity: 'draft', badge: 'demo',
-        roadmapRef: null, sourceRef: null,
+        roadmapRef: null, sourceRef: null, wiredStatus: 'unset',
         payload: { title: 'Note', text: '' },
         created: now, updated: now,
       };
@@ -733,7 +790,7 @@
       const now = new Date().toISOString();
       return {
         id, kind: 'artefact', name: 'Nouvel artefact', maturity: 'draft', badge: 'demo',
-        roadmapRef: null, sourceRef: null,
+        roadmapRef: null, sourceRef: null, wiredStatus: 'unset',
         payload: { title: 'Livrable', description: '', artefactType: 'logiciel' },
         created: now, updated: now,
       };
@@ -1260,6 +1317,19 @@
                               fontWeight="bold" data-testid="edge-order">{orders.join('·')}</text>
                           </g>
                         )}
+                        {e.attachedBrickRef && (() => {
+                          // Badge 📎 sous le point médian = présence d'une brique référencée sur l'edge.
+                          const nm = String(e.attachedBrickRef.name || '').slice(0, 18);
+                          const w = 22 + nm.length * 6;
+                          return (
+                            <g data-testid="edge-brick-badge" data-edge-id={e.id} data-brick-id={e.attachedBrickRef.id}
+                               style={{ pointerEvents: 'none' }}>
+                              <rect x={an.mid.x - w / 2} y={an.mid.y + 9} width={w} height="15" rx="7"
+                                fill="#1e1b4b" stroke="#a78bfa" strokeWidth="1" />
+                              <text x={an.mid.x} y={an.mid.y + 19.5} fill="#c4b5fd" fontSize="9" textAnchor="middle">📎 {nm}</text>
+                            </g>
+                          );
+                        })()}
                       </g>
                     );
                   })}
@@ -1360,13 +1430,23 @@
 
                   const orders = nodeOrders[n.id];
                   const card = n.type === 'agent' ? agentCardStatus(n.id, nodes) : null;
+                  // Brouillard d'audit : 'fog' (source non vérifiée) OU 'danger' (broken).
+                  // Exclusifs par construction (voir nodeAudit) — jamais les deux à la fois.
+                  const audit = nodeAudit(n);
                   return (
-                    <div key={n.id} className={'node ' + n.type + (selected ? ' selected' : '') + (orders ? ' flowed' : '')}
+                    <div key={n.id} className={'node ' + n.type + (selected ? ' selected' : '') + (orders ? ' flowed' : '')
+                        + (audit === 'fog' ? ' node-fog' : '') + (audit === 'danger' ? ' node-danger' : '')}
                       data-testid={'node-' + n.id} data-node-id={n.id} data-node-type={n.type}
                       data-node-orders={orders ? orders.join(',') : ''}
+                      data-wired={n.data && n.data.wiredStatus ? n.data.wiredStatus : ''}
+                      data-fog={audit === 'fog' ? '1' : '0'} data-danger={audit === 'danger' ? '1' : '0'}
                       style={sizeStyle}
                       onMouseDown={(e) => startDrag(e, n.id)}
                       onMouseUp={() => { if (draw) finishDrawOn(n.id); }}>
+                      {audit === 'danger' && (
+                        <div className="node-danger-tag" data-testid={'node-danger-' + n.id}
+                          title="Source auditée et CASSÉE (wiredStatus: broken) — ne pas rejouer">⚠ cassé</div>
+                      )}
                       {card && card.isComposite && (
                         <div className={'card-badge ' + (card.complete ? 'card-ok' : 'card-warn')}
                           data-testid={'agent-card-' + n.id}
@@ -1535,6 +1615,10 @@
       // (local :1234). Never auto-enabled; the user must tick it. Persisted per-session only.
       const [live, setLive] = useState(false);
       const idSeq = useRef(1);
+      // Copy/paste clipboard — INTERNAL React state (a ref), not the system clipboard:
+      // simpler and reliable (no async permission prompt, no cross-tab leakage). Holds a
+      // deep clone of {nodes, edges} with ORIGINAL ids; ids are remapped fresh at paste.
+      const clipboardRef = useRef(null);
 
       const loadInto = useCallback((g, label) => {
         setNodes(g.nodes); setEdges(g.edges); setSel(null); setSelectedIds([]); setMarquee(null); setResult(null); setError(null);
@@ -1731,6 +1815,77 @@
         setFocused('active');
         setStatus({ msg: `✅ ${moving.length} nœud(s) transféré(s) vers l'Actif` + (droppedEdges.length ? ` (${droppedEdges.length} edge(s) orpheline(s) écartée(s))` : ''), kind: 'ok' });
       }, [sandbox, active]);
+
+      // ----- Copier / coller de blocs (Ctrl+C / Ctrl+V) -----
+      // Reuses the EXISTING multi-selection (selectedIds) and the SHARED idSeq. Copy reads
+      // the FOCUSED zone; paste writes to the FOCUSED zone — so a copy in Actif can be
+      // pasted in Sandbox and vice-versa (ids are unique across zones via the shared idSeq).
+      // Only edges whose BOTH endpoints are in the selection travel (internal wiring),
+      // exactly like transferToActive. A selected composite agent drags its satellites
+      // (agent-component children) + card edges along, and parentId is remapped on paste.
+      const copySelection = useCallback(() => {
+        const zone = F;
+        const base = zone.selectedIds.length ? zone.selectedIds
+          : (zone.sel && zone.sel.kind === 'node' ? [zone.sel.id] : []);
+        if (!base.length) { setStatus({ msg: 'Rien à copier — sélectionne un ou plusieurs nœuds', kind: '' }); return 0; }
+        const idSet = new Set(base);
+        // Expand: pull in the satellites of any selected composite agent so the card copies whole.
+        for (const n of zone.nodes) if (n.type === 'agent-component' && n.data && idSet.has(n.data.parentId)) idSet.add(n.id);
+        const nodes = zone.nodes.filter((n) => idSet.has(n.id));
+        const edges = zone.edges.filter((e) => idSet.has(e.from) && idSet.has(e.to));
+        clipboardRef.current = { nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        const nCentral = nodes.filter((n) => n.type !== 'agent-component').length;
+        setStatus({ msg: `📋 ${nCentral} nœud(s) copié(s)` + (edges.length ? ` + ${edges.length} edge(s) interne(s)` : ''), kind: 'ok' });
+        return nodes.length;
+      }, [F]);
+
+      const pasteClipboard = useCallback(() => {
+        const clip = clipboardRef.current;
+        if (!clip || !clip.nodes.length) { setStatus({ msg: 'Presse-papier vide', kind: '' }); return 0; }
+        const zone = F;
+        const OFF = 30; // visual offset so the paste doesn't sit exactly on the original
+        const idMap = {};
+        const newNodes = clip.nodes.map((n) => {
+          const nid = `${n.type}-${idSeq.current++}`;
+          idMap[n.id] = nid;
+          const copy = JSON.parse(JSON.stringify(n));
+          return { ...copy, id: nid, x: n.x + OFF, y: n.y + OFF };
+        });
+        // Remap the only intra-selection node cross-reference: a satellite's parentId.
+        for (const n of newNodes) if (n.data && n.data.parentId && idMap[n.data.parentId]) n.data.parentId = idMap[n.data.parentId];
+        const newEdges = clip.edges.map((e) => ({ ...JSON.parse(JSON.stringify(e)), id: `edge-${idSeq.current++}`, from: idMap[e.from], to: idMap[e.to] }));
+        zone.setNodes((ns) => [...ns, ...newNodes]);
+        zone.setEdges((es) => [...es, ...newEdges]);
+        zone.setSel(null);
+        zone.setSelectedIds(newNodes.map((n) => n.id));
+        const nCentral = newNodes.filter((n) => n.type !== 'agent-component').length;
+        setStatus({ msg: `📌 ${nCentral} nœud(s) collé(s) (nouveaux ids, +${OFF}px)`, kind: 'ok' });
+        return newNodes.length;
+      }, [F]);
+
+      // Ctrl/Cmd + C / V — global (App-level) so it targets the focused zone regardless of
+      // which CanvasSurface has DOM focus. Ignored while typing in a field (no clobbering
+      // native copy/paste inside inputs/textareas).
+      useEffect(() => {
+        const isTyping = () => { const a = document.activeElement; return !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable); };
+        const onKey = (e) => {
+          if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+          if (isTyping()) return;
+          const k = (e.key || '').toLowerCase();
+          if (k === 'c') { if (copySelection()) e.preventDefault(); }
+          else if (k === 'v') { if (pasteClipboard()) e.preventDefault(); }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+      }, [copySelection, pasteClipboard]);
+
+      // Test seams (deterministic, focus-independent) — mirror the keyboard path exactly.
+      useEffect(() => {
+        window.__copySelection = copySelection;
+        window.__pasteClipboard = pasteClipboard;
+        window.__clipboard = () => clipboardRef.current;
+        window.__zones = () => ({ focused, active: { nodes: active.nodes, edges: active.edges }, sandbox: { nodes: sandbox.nodes, edges: sandbox.edges } });
+      });
 
       // ================= Wire Map (traceability) =================
       const loadWmProjects = useCallback(async () => {
@@ -2040,7 +2195,12 @@
               if (n.id === nodeId) {
                 // Reset divergence on import so the composed prompt reflects the fiche
                 // immediately (the derived-prompt effect recomposes on this nodes change).
-                const data = { ...n.data, ...payload, producerRef: brick.id };
+                // Stamp la vérité de câblage de la fiche sur le nœud : sourceRef + wiredStatus
+                // effectif (documented-only par défaut si la fiche est importée sans champ).
+                // C'est ce qui déclenche le brouillard d'audit sur le nœud (nodeAudit lit data).
+                const data = { ...n.data, ...payload, producerRef: brick.id,
+                  sourceRef: brick.sourceRef || n.data.sourceRef || null,
+                  wiredStatus: brickWiredStatus(brick) };
                 if (hasComps) data.promptManual = false;
                 return { ...n, data, attachedBrick: { id: brick.id, name: brick.name, badge: brick.badge } };
               }
@@ -2182,7 +2342,7 @@
         const ci = councilInfoOf(nodes);
         const doc = {
           id, kind: 'chain', name: name || 'Chaîne sans nom', maturity: 'draft', badge: ci.badge,
-          roadmapRef: null, sourceRef: null,
+          roadmapRef: null, sourceRef: null, wiredStatus: 'unset',
           payload: { nodes, edges, initialInput, category: category || (ci.isCouncil ? 'council' : ''), tags },
           created: now, updated: now,
         };
@@ -2444,6 +2604,16 @@
                   <input data-testid="lib-sourceref" value={e.sourceRef ?? ''}
                     placeholder="fichier:lignes ou URL"
                     onChange={(ev) => patchBrick({ sourceRef: ev.target.value === '' ? null : ev.target.value })} /></div>
+                {/* wiredStatus — universel (tous kinds), réglage manuel v1 (pas d'oracle auto).
+                    Valeur affichée = effective (documented-only par défaut pour une brique
+                    importée sans champ). Régler ≠ unset/documented-only lève le brouillard. */}
+                <div className="field"><label>🌫️ wiredStatus (vérité de câblage — épistémique, pas qualité)
+                    <span className="lib-wired" data-wired={brickWiredStatus(e)} style={{ marginLeft: 6 }}>{brickWiredStatus(e)}</span></label>
+                  <select data-testid="lib-wired" value={brickWiredStatus(e)}
+                    onChange={(ev) => patchBrick({ wiredStatus: ev.target.value })}>
+                    {WIRED_STATUS_VALUES.map((v) => (<option key={v} value={v}>{WIRED_STATUS_LABELS[v]}</option>))}
+                  </select>
+                  <div className="hint">Sur le canvas : documented-only/unset (avec sourceRef) = corps flouté (« on ne sait pas ») ; broken = teinte danger (« on sait, c'est cassé ») ; wired = net.</div></div>
 
                 {e.kind === 'agent' && (
                   <div data-testid="lib-editor-agent">
@@ -3665,6 +3835,27 @@
                             onClick={() => setEdgeField(selEdge.id, { visualStyle: v })}>{ic} {lbl}</button>
                         ))}
                       </div>
+                    </div>
+                    {/* Ancrage d'une brique de la Bibliothèque au MILIEU de l'edge — une
+                        RÉFÉRENCE non-exécutable (tous kinds), pas une duplication de contenu.
+                        attachedBrickRef est une métadonnée décorative comme condition/visualStyle :
+                        persistée avec la Chaîne, EXCLUE du graphe moteur par toEngineGraph
+                        (whitelist id/from/to/condition/loop/maxIterations). */}
+                    <div className="field">
+                      <label>🔗 Brique liée (référence ancrée au milieu — non-exécutable, tous kinds)</label>
+                      <select data-testid="edge-brick" value={selEdge.attachedBrickRef ? selEdge.attachedBrickRef.id : ''}
+                        onChange={(ev) => {
+                          const b = libBricks.find((x) => x.id === ev.target.value);
+                          setEdgeField(selEdge.id, { attachedBrickRef: b ? { id: b.id, name: b.name, kind: b.kind, badge: b.badge } : null });
+                        }}>
+                        <option value="">(aucune)</option>
+                        {libBricks.map((b) => (
+                          <option key={b.id} value={b.id}>{EXAMPLE_BADGE[b.badge]} · [{b.kind}] {b.name}</option>
+                        ))}
+                      </select>
+                      {selEdge.attachedBrickRef && (
+                        <div className="hint" data-testid="edge-brick-attached">📎 référence : [{selEdge.attachedBrickRef.kind}] {selEdge.attachedBrickRef.name} — non-exécutable, exclue du moteur</div>
+                      )}
                     </div>
                     <div className="field">
                       <label><input type="checkbox" data-testid="edge-loop" style={{ width: 'auto', marginRight: 6 }}
