@@ -346,6 +346,10 @@
       // graphs (Council, Chaîne idée→IMP) that carry NO satellites are untouched.
       agent:  { label: 'Agent',  color: '#f59e0b', data: () => ({ ...withRole({}, 'qwen-coder') }) },
       router: { label: 'Router', color: '#8b5cf6', data: () => ({ path: 'nodes.<id>.<key>', defaultRoute: 'chat' }) },
+      // Join = barrière de convergence (exécutable, DANS src). data.waitFor = ids des
+      // prédécesseurs déclarés ; le moteur ne l'exécute qu'une fois TOUS présents dans la
+      // trace (exécution séquentielle avec accumulation, pas de concurrence wall-clock).
+      join:   { label: 'Join', color: '#06b6d4', data: () => ({ waitFor: [] }) },
       // Artefact = final deliverable. NON-executable, treated EXACTLY like a Note by
       // the engine (excluded from toEngineGraph, edges touching it dropped). Accepts
       // incoming AND outgoing connections. Client-only type (like note, NOT in src).
@@ -4230,6 +4234,7 @@
                 <button className="palette" data-testid="add-llm" style={{ borderColor: NODE_TYPES.llm.color }} onClick={() => addNode('llm')}>＋ LLM</button>
                 <button className="palette" data-testid="add-tool" style={{ borderColor: NODE_TYPES.tool.color }} onClick={() => addNode('tool')}>＋ Tool</button>
                 <button className="palette" data-testid="add-router" style={{ borderColor: NODE_TYPES.router.color }} onClick={() => addNode('router')}>＋ Router</button>
+                <button className="palette" data-testid="add-join" style={{ borderColor: NODE_TYPES.join.color }} onClick={() => addNode('join')}>＋ Join</button>
                 <button className="palette" data-testid="add-agent" style={{ borderColor: NODE_TYPES.agent.color }} onClick={() => addAgentComposite()}>＋ Agent</button>
                 {/* Prompt/Oracle/Goal now have palette buttons too — each poses a node
                     and offers to import a matching Library brick (reuses attach fns). */}
@@ -4646,7 +4651,39 @@
                   );
                 })()}
 
-                {selNode && selNode.type !== 'agent' && selNode.type !== 'agent-component' && selNode.type !== 'note' && selNode.type !== 'router' && selNode.type !== 'humangate' && selNode.type !== 'artefact' && (
+                {selNode && selNode.type === 'join' && (() => {
+                  // Join = barrière de convergence. waitFor édité comme une liste d'ids séparés
+                  // par des virgules (le moteur n'exécute le join qu'une fois TOUS présents dans
+                  // la trace). Exécution séquentielle avec accumulation — pas de concurrence réelle.
+                  const waitFor = Array.isArray(selNode.data.waitFor) ? selNode.data.waitFor : [];
+                  const preds = nodes.filter((n) => !NON_EXEC_TYPES.has(n.type) && n.id !== selNode.id);
+                  return (
+                    <div data-testid="inspector-join">
+                      <div className="field"><label>id</label><input value={selNode.id} readOnly /></div>
+                      <div className="field"><label>type</label><input value="join (barrière de convergence)" readOnly /></div>
+                      <div className="field">
+                        <label>waitFor — prédécesseurs attendus (ids, séparés par virgule)</label>
+                        <input data-testid="join-waitfor" value={waitFor.join(', ')}
+                          placeholder="ex: devA, devB"
+                          onChange={(e) => patchData(selNode.id, { waitFor: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })} />
+                        <div className="hint">Le join n'émet sa fusion qu'une fois TOUS ces nœuds exécutés (présents dans la trace). Convergence LOGIQUE, exécution séquentielle — pas de parallélisme wall-clock.</div>
+                      </div>
+                      {preds.length > 0 && (
+                        <div className="field">
+                          <label>ajouter un prédécesseur</label>
+                          <select data-testid="join-add-pred" value=""
+                            onChange={(e) => { if (e.target.value && !waitFor.includes(e.target.value)) patchData(selNode.id, { waitFor: [...waitFor, e.target.value] }); }}>
+                            <option value="">(choisir un nœud à attendre…)</option>
+                            {preds.map((n) => <option key={n.id} value={n.id}>{n.id} ({n.type})</option>)}
+                          </select>
+                        </div>
+                      )}
+                      <button className="danger" onClick={deleteSelected}>Supprimer le nœud</button>
+                    </div>
+                  );
+                })()}
+
+                {selNode && selNode.type !== 'agent' && selNode.type !== 'agent-component' && selNode.type !== 'note' && selNode.type !== 'router' && selNode.type !== 'humangate' && selNode.type !== 'artefact' && selNode.type !== 'join' && (
                   <div data-testid="inspector-generic">
                     <div className="field"><label>id</label><input value={selNode.id} readOnly /></div>
                     <div className="field"><label>type</label><input value={selNode.type} readOnly /></div>

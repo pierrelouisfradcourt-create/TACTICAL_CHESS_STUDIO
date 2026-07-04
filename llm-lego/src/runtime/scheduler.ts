@@ -156,6 +156,27 @@ export function validateGraph(graph: Graph): void {
     }
   }
 
+  // A "join" node declares the predecessors it waits for (data.waitFor: string[]).
+  // Each declared id must be a real node in the graph (and not the join itself),
+  // otherwise the barrier could never be satisfied — reject statically, don't crash
+  // silently at runtime. (The runtime barrier in the executor checks PRESENCE in the
+  // trace; this checks EXISTENCE in the graph.)
+  for (const node of graph.nodes) {
+    if (node.type !== "join") continue;
+    const raw = node.data["waitFor"];
+    const waitFor = Array.isArray(raw) ? raw : [];
+    for (const ref of waitFor) {
+      if (typeof ref !== "string" || !ids.has(ref)) {
+        throw new Error(
+          `join "${node.id}" declares waitFor "${String(ref)}" which is not a node in the graph.`,
+        );
+      }
+      if (ref === node.id) {
+        throw new Error(`join "${node.id}" cannot wait for itself.`);
+      }
+    }
+  }
+
   // Reject accidental infinite loops: any cycle made of non-loop edges has no
   // bounded stop condition. Intentional loops must be flagged `loop: true`.
   const cycleNode = findNonLoopCycle(graph);
