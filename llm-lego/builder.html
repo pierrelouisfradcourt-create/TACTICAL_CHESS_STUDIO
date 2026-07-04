@@ -140,9 +140,24 @@
     .layer-diff-added    { background: #22c55e; }
     .layer-diff-removed  { background: #ef4444; color: #fff; }
     .layer-diff-modified { background: #f59e0b; }
+    /* Confirmation avant suppression — modale DOM cohérente au thème (dark + accent danger). */
+    .confirm-overlay { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center;
+      background: rgba(2,6,23,.66); backdrop-filter: blur(1.5px); }
+    .confirm-box { width: 340px; max-width: 90vw; background: #1e293b; border: 1px solid #334155;
+      border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.6); overflow: hidden; }
+    .confirm-title { padding: 10px 14px; font-size: 12px; font-weight: bold; color: #fecaca;
+      background: #7f1d1d; border-bottom: 1px solid #b91c1c; }
+    .confirm-message { padding: 16px 14px; font-size: 12px; color: #e2e8f0; line-height: 1.5; }
+    .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 0 14px 14px; }
+    .confirm-actions button { font-size: 12px; padding: 6px 14px; }
     .layers-ro-banner { position: absolute; top: 8px; right: 12px; z-index: 20;
       background: #1e293b; border: 1px solid #f59e0b; color: #fbbf24; font-size: 11px; font-weight: bold;
       padding: 4px 12px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+    /* Sélecteur rapide de calques actifs (colonne gauche). */
+    .active-layers-quick { display: flex; flex-direction: column; gap: 5px; }
+    .quick-layer-btn { text-align: left; font-size: 11px; padding: 5px 8px; background: #1e293b;
+      border: 1px solid #f59e0b; color: #fde68a; border-radius: 6px; cursor: pointer; }
+    .quick-layer-btn:hover { background: #2a3550; border-color: #fbbf24; }
     .layers-menu { min-width: 260px; max-height: 70vh; overflow: auto; }
     .layer-row { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: 12px; }
     .layer-row:hover { background: rgba(99,102,241,.12); }
@@ -152,6 +167,34 @@
     .layer-row .layer-del { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 13px; padding: 0 4px; }
     .layer-save-row { display: flex; gap: 4px; padding: 6px 8px; border-bottom: 1px solid #334155; }
     .layer-save-row input { flex: 1; min-width: 0; background: #0b0f19; border: 1px solid #334155; color: #e2e8f0; border-radius: 4px; padding: 3px 6px; font-size: 12px; }
+    .layer-save-row select, .layer-note-edit select { background: #0b0f19; border: 1px solid #334155; color: #e2e8f0; border-radius: 4px; padding: 3px 4px; font-size: 11px; }
+    /* Bibliothèque de calques par espace : groupes dépliables compacts. */
+    .layer-group { border-top: 1px solid #1e293b; }
+    .layer-group-h { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; background: none;
+      border: none; color: #cbd5e1; cursor: pointer; font-size: 12px; padding: 6px 8px; font-family: inherit; }
+    .layer-group-h:hover { background: rgba(99,102,241,.12); }
+    .layer-group-h .lg-count { margin-left: auto; opacity: .6; font-size: 10px; }
+    .layer-group-body { padding-bottom: 4px; }
+    .layer-new-btn { display: block; width: calc(100% - 16px); margin: 2px 8px 4px; text-align: left; background: #16203a;
+      border: 1px dashed #334155; color: #93c5fd; border-radius: 4px; padding: 3px 6px; font-size: 11px; cursor: pointer; font-family: inherit; }
+    .layer-new-btn:hover { border-color: #6366f1; }
+    .layer-row .layer-load { background: none; border: none; color: #34d399; cursor: pointer; font-size: 13px; padding: 0 3px; }
+    .layer-row .layer-note-btn { background: none; border: none; color: #fbbf24; cursor: pointer; font-size: 12px; padding: 0 3px; }
+    .layer-row .layer-upd { margin-left: auto; }
+    .layer-note { font-size: 10px; color: #fcd34d; padding: 0 8px 4px 26px; font-style: italic; }
+    .layer-note-ms { font-size: 10px; color: #93c5fd; padding: 0 8px 4px 26px; }
+    .layer-note-edit { display: flex; flex-direction: column; gap: 4px; padding: 2px 8px 6px 26px; }
+    .layer-note-edit input { background: #0b0f19; border: 1px solid #334155; color: #e2e8f0; border-radius: 4px; padding: 3px 6px; font-size: 11px; }
+    /* Vue Roadmap (lecture seule). */
+    .roadmap-modal { position: fixed; inset: 0; background: rgba(2,6,23,.72); z-index: 60; display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow: auto; }
+    .roadmap-box { width: 760px; max-width: 96vw; background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 16px 18px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+    .roadmap-card { border: 1px solid #1e293b; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: #0b1120; }
+    .roadmap-bar { height: 8px; border-radius: 5px; background: #1e293b; overflow: hidden; margin: 4px 0 10px; }
+    .roadmap-bar > i { display: block; height: 100%; background: linear-gradient(90deg,#22c55e,#4ade80); }
+    .ms-item { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-top: 1px dashed #1e293b; }
+    .ms-badge { font-size: 9px; font-weight: bold; padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+    .ms-todo { background: #334155; color: #cbd5e1; } .ms-doing { background: #b45309; color: #fde68a; } .ms-done { background: #065f46; color: #6ee7b7; }
+    .ms-layers { font-size: 10px; color: #93c5fd; margin-top: 3px; }
     .handle { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #6366f1; border: 2px solid #0b0f19; top: 50%; transform: translateY(-50%); }
     .handle.out { right: -8px; cursor: crosshair; }
     .handle.in { left: -8px; }
@@ -192,6 +235,28 @@
     .node.agent-component.comp-filled .comp-dot { color: #34d399; }
     .node.agent-component.comp-empty .comp-dot { color: #9ca3af; }
     .node.agent-component .comp-label { word-break: break-word; }
+    /* ---- Vue organique « mini-planète » (mode alternatif de l'Agent composite) ----
+       La scène remplace le corps technique. Le brouillard/danger réutilise EXACTEMENT
+       nodeAudit (même court-circuit broken>fog) — ici on ne fait qu'HABILLER le résultat :
+       les classes scene-fog / scene-danger sont pilotées par la même variable `audit`.
+       node-fog .nbody (blur 1.4px) s'applique déjà au corps = la brume ; on ajoute un
+       voile atmosphérique par-dessus. broken → ciel orageux, jamais de voile de brume. */
+    .node.agent.organic { width: 260px; }
+    .organic-scene { position: relative; width: 100%; display: block; }
+    .organic-scene svg { display: block; width: 100%; height: auto; border-radius: 0 0 6px 6px; }
+    .organic-el { cursor: pointer; transition: filter .12s ease; }
+    .organic-el:hover { filter: brightness(1.18) drop-shadow(0 0 3px rgba(196,181,253,.7)); }
+    /* Fantôme = satellite vide d'un composite : silhouette grise translucide, cliquable (→ attacher une fiche). */
+    .organic-ghost { opacity: 0.32; filter: grayscale(1) brightness(1.5); }
+    .organic-ghost:hover { opacity: 0.55; filter: grayscale(0.5) brightness(1.3) drop-shadow(0 0 3px rgba(196,181,253,.7)); }
+    .organic-score { position: absolute; bottom: 5px; right: 6px; z-index: 3; font-size: 9px; font-weight: bold;
+      padding: 1px 6px; border-radius: 8px; background: rgba(2,6,23,.78); border: 1px solid #334155;
+      color: #cbd5e1; pointer-events: none; white-space: nowrap; }
+    .organic-score.score-ok { border-color: #10b981; color: #a7f3d0; }
+    /* Animation du courant d'eau saine — coule ; polluée = stagnante ; asséchée = pas d'eau. */
+    @keyframes tcs-water-flow { to { stroke-dashoffset: -28; } }
+    .water-flow { animation: tcs-water-flow 1.5s linear infinite; }
+    @media (prefers-reduced-motion: reduce) { .water-flow { animation: none; } }
     .flux { font-size: 10px; color: #cbd5e1; padding: 0 12px 10px; line-height: 1.7; word-break: break-word; }
     .flux .fluxn { background: #065f46; color: #d1fae5; border-radius: 8px; padding: 0 5px; font-weight: bold; }
     .inspector { padding: 8px 12px; }
@@ -317,6 +382,29 @@
       sortieAttendue: { label: 'sortie attendue', icon: '📤' },
     };
     const AGENT_CARD_LABELS = AGENT_COMPONENT_TYPES.map((t) => AGENT_COMPONENT_META[t].label).join(', ');
+    // Mécanisme #2 — SÉLECTEUR DE CHAMP par satellite. Pour UN composant précis (memoire,
+    // plugin, …) on pioche la valeur homonyme DÉJÀ saisie chez les agents EXISTANTS — fiches
+    // agent de la Bibliothèque (payload[componentType]) ET agents composites présents sur le
+    // canvas (texte du satellite homonyme) — étiquetée par le nom de l'agent source, dédupliquée,
+    // triée. Ne concerne QUE ce champ : à ne pas confondre avec le mécanisme #1 « Attacher une
+    // fiche » du NŒUD CENTRAL (attachBrickToNode) qui, lui, remplit les 8 satellites d'un coup.
+    function harvestFieldValues(componentType, agentFiches, nodes, excludeCompId) {
+      const seen = new Map(); // valeur (trim) -> { value, source }
+      const add = (raw, source) => {
+        const v = String(raw ?? '').trim();
+        if (!v || seen.has(v)) return;
+        seen.set(v, { value: v, source: source || 'agent' });
+      };
+      (agentFiches || []).forEach((f) => add(f.payload && f.payload[componentType], f.name || f.id));
+      (nodes || []).forEach((n) => {
+        if (!n || n.type !== 'agent-component' || n.id === excludeCompId) return;
+        if (!n.data || n.data.componentType !== componentType) return;
+        const parent = (nodes || []).find((p) => p.id === n.data.parentId);
+        const label = (parent && parent.data && (parent.data.role || parent.data.model)) || n.data.parentId || 'agent';
+        add(n.data.text, label);
+      });
+      return [...seen.values()].sort((a, b) => a.value.localeCompare(b.value));
+    }
 
     // A component's text is "filled" iff non-empty after trimming whitespace.
     function componentFilled(node) {
@@ -354,6 +442,41 @@
         .filter((n) => n.type === 'agent')
         .map((n) => ({ id: n.id, ...agentCardStatus(n.id, nodes) }))
         .filter((s) => s.isComposite && !s.complete);
+    }
+
+    // ---- Vue organique : qualité du courant d'eau (intention humaine) ----------
+    // Le 9ᵉ élément de la scène « planète » — INDÉPENDANT des 8 satellites/créatures.
+    // Heuristique BASIQUE et documentée (PAS d'analyse sémantique LLM dans cette passe),
+    // évaluée sur TOUS les champs de PROSE de l'agent = les textes des satellites SAUF
+    // `modele` (un id de modèle, pas de la prose). Trois états :
+    //   'dry'      = aucun champ de prose ne contient de texte → lit asséché
+    //   'polluted' = du texte existe mais paraît vide de sens :
+    //                  · contient un placeholder connu ("Your prompt here", "TODO", "à remplir"…)
+    //                  · OU < 4 mots au total (remplissage trop court)
+    //                  · OU un mot domine > 40 % des tokens (répétition mécanique)
+    //   'healthy'  = ≥ 4 mots, variés, sans placeholder ni sur-répétition → vraie intention
+    const ORGANIC_PROSE_EXCLUDE = new Set(['modele']);
+    const ORGANIC_PLACEHOLDERS = ['your prompt here', 'placeholder', 'lorem ipsum', 'à remplir',
+      'a remplir', 'todo', 'tbd', 'xxxx', 'asdf', 'qwerty', 'blah blah', 'test test', 'aaaa', '...'];
+    // Les textes de prose (non vides) d'un agent composite.
+    function agentProseTexts(agentId, nodes) {
+      return agentComponentsOf(agentId, nodes)
+        .filter((c) => !ORGANIC_PROSE_EXCLUDE.has(c.data.componentType))
+        .map((c) => String((c.data && c.data.text) || '').trim())
+        .filter(Boolean);
+    }
+    function waterQuality(agentId, nodes) {
+      const texts = agentProseTexts(agentId, nodes);
+      if (texts.length === 0) return 'dry';
+      const joined = texts.join(' ').toLowerCase();
+      if (ORGANIC_PLACEHOLDERS.some((p) => joined.includes(p))) return 'polluted';
+      const words = joined.split(/\s+/).filter(Boolean);
+      if (words.length < 4) return 'polluted';
+      const counts = {};
+      let max = 0;
+      for (const w of words) { counts[w] = (counts[w] || 0) + 1; if (counts[w] > max) max = counts[w]; }
+      if (max / words.length > 0.4) return 'polluted';
+      return 'healthy';
     }
 
     // ---- Compose the LLM system prompt from the 7 satellites -------------------
@@ -978,6 +1101,34 @@
     function persistLayers(ls) {
       try { localStorage.setItem(LAYERS_LS_KEY, JSON.stringify(ls)); } catch { /* quota/private mode — in-memory still works */ }
     }
+    // Espace/contributeur d'un calque (Bibliothèque de calques par espace). L'attribution suit
+    // QUI CONSTRUIT le calque (pilotage de l'interface), pas quel LLM a répondu dans un nœud :
+    //   · pierre  = humain direct dans le navigateur (clics manuels de Pierre)
+    //   · claude  = Claude Code pilote l'UI (Playwright) — usage réel et MAJORITAIRE ici
+    //   · qwen    = contenu généré par un nœud LLM réel via A1/LM Studio (Qwen) pendant le run
+    //   · systeme = calques de référence (Vérité/Cible, migrations) sans acteur identifiable
+    // Limite HONNÊTE : pierre vs claude n'est PAS détectable depuis l'état du canvas (mêmes
+    // clics/API) → sélecteur MANUEL à l'enregistrement, dernier choix mémorisé (LAYER_OWNER_LS_KEY).
+    // Priorité de layerOwner = QUI A CONSTRUIT (pilotage), pas quel LLM a répondu (cf. prompt).
+    const LAYER_OWNERS = ['systeme', 'pierre', 'claude', 'qwen'];
+    const LAYER_OWNER_META = {
+      systeme: { label: 'Système', icon: '⚙️' },
+      pierre:  { label: 'Pierre',  icon: '🧑' },
+      claude:  { label: 'Claude',  icon: '🤖' },
+      qwen:    { label: 'Qwen',    icon: '🧠' },
+    };
+    const LAYER_OWNER_LS_KEY = 'llmlego.layerOwner.v1';
+    function normalizeOwner(o) { return LAYER_OWNERS.includes(o) ? o : 'systeme'; }
+    // Progression d'une roadmap depuis les statuts de ses jalons (todo=0, doing=.5, done=1).
+    // Le schéma RÉEL du jalon = {id,title,description,status,goalRef} : pas de progressOverride
+    // ni linkedBrickIds dans le kind existant → progression CALCULÉE ; goalRef = brique liée.
+    const MILESTONE_PROGRESS = { todo: 0, doing: 0.5, done: 1 };
+    function roadmapProgress(ms) {
+      const list = ms || [];
+      if (!list.length) return 0;
+      const sum = list.reduce((a, m) => a + (MILESTONE_PROGRESS[m.status] ?? 0), 0);
+      return Math.round((sum / list.length) * 100);
+    }
     // Stable signature of a node for equality (ignores UI-only fields).
     function layerNodeKey(n) {
       const d = { ...(n.data || {}) };
@@ -1080,13 +1231,270 @@
     }
 
     // ============================================================================
+    // OrganicScene — vue « mini-planète habitée » d'un Agent composite (mode alternatif).
+    // Chaque satellite REMPLI fait apparaître sa créature dédiée (association fixée par
+    // Pierre) ; un satellite vide = secteur vide. Un 9ᵉ élément, le cours d'eau, reflète la
+    // qualité de l'intention humaine (waterQuality, indépendant des 8 satellites).
+    // Brouillard / danger : on RÉUTILISE la variable `audit` = nodeAudit(agentNode) (même
+    // court-circuit broken>fog déjà prouvé) — ici on ne fait qu'habiller la scène entière.
+    // « Humain » est RÉSERVÉ à HumanGate : aucune figure humaine dans la scène d'un Agent.
+    // Cliquer une créature ouvre l'inspecteur du satellite correspondant (onPick(satId)).
+    // ============================================================================
+    // OrganicScene — vue « mini-planète habitée » d'un Agent (mode alternatif).
+    // Le nœud DEVIENT une sphère : une planète centrale, les 8 créatures en ORBITE
+    // autour (angles = ordre canonique AGENT_COMPONENT_TYPES, −90°+i·45°). Un 9ᵉ élément,
+    // le cours d'eau, devient un ANNEAU orbital dont l'aspect reflète waterQuality.
+    // S'applique à TOUT nœud agent :
+    //   · composite (agentComponentsOf > 0) : satellite rempli → créature cliquable
+    //     (onPick(satId)) ; satellite VIDE → FANTÔME gris cliquable (onPick(satId) →
+    //     inspecteur satellite = sélecteur « Attacher une fiche »).
+    //   · withRole (0 satellite : Council, etc.) : SEULS 🦎 rôle (data.role) et 🌳 modèle
+    //     (data.model) peuvent apparaître ; les 6 autres sont STRUCTURELLEMENT ABSENTS
+    //     (pas de fantôme). Clic créature → onPick(agentId).
+    // Brouillard / danger : RÉUTILISE `audit` = nodeAudit(agentNode) (court-circuit
+    // broken>fog déjà prouvé). « Humain » RÉSERVÉ à HumanGate — jamais dans la scène.
+    // ============================================================================
+    // Dessins de créatures centrés à l'origine (réutilisés pour créature ET fantôme).
+    const ORGANIC_CREATURE = {
+      modele: (
+        <g>
+          <rect x="-4" y="4" width="8" height="20" rx="3" fill="#7c4a24" />
+          <circle cx="0" cy="-6" r="15" fill="#2f7d57" /><circle cx="-11" cy="2" r="10" fill="#3f9b6e" />
+          <circle cx="11" cy="1" r="9" fill="#3f9b6e" /><circle cx="1" cy="-12" r="8" fill="#57b97f" />
+        </g>
+      ),
+      role: (
+        <g>
+          <path d="M-16,4 q-5,0 -5,-6 q0,-6 5,-4 q3,1 3,4 q0,4 -3,6" fill="#6aa63f" />
+          <path d="M-15,0 q10,-8 20,-3 q9,5 13,2" fill="none" stroke="#7ab648" strokeWidth="7" strokeLinecap="round" />
+          <path d="M-14,1 q9,-5 18,-1" fill="none" stroke="#9ccf66" strokeWidth="2.6" strokeLinecap="round" opacity="0.8" />
+          <circle cx="16" cy="-2" r="6" fill="#7ab648" />
+          <circle cx="18" cy="-3" r="2.6" fill="#f8fafc" /><circle cx="19" cy="-3" r="1.2" fill="#111827" />
+          <path d="M11,-8 q5,-5 10,-1 l-1,2 q-4,-3 -8,0 z" fill="#c084fc" />
+          <rect x="11" y="-7.6" width="10" height="2.2" rx="1.1" fill="#a855f7" />
+        </g>
+      ),
+      memoire: (
+        <g>
+          <ellipse cx="2" cy="4" rx="20" ry="15" fill="#94a3b8" /><ellipse cx="2" cy="9" rx="13" ry="8" fill="#aeb9c8" />
+          <circle cx="-15" cy="-4" r="11" fill="#9aa7b8" />
+          <path d="M-15,-12 q-11,-2 -10,8" fill="none" stroke="#8593a5" strokeWidth="7" strokeLinecap="round" />
+          <path d="M-23,2 q-5,8 1,14" fill="none" stroke="#aeb9c8" strokeWidth="5" strokeLinecap="round" />
+          <path d="M-20,3 l-3,8" stroke="#f1f5f9" strokeWidth="2.4" strokeLinecap="round" />
+          <circle cx="-18" cy="-7" r="1.6" fill="#1f2937" />
+          <rect x="-6" y="16" width="5" height="7" rx="2" fill="#8593a5" /><rect x="6" y="16" width="5" height="7" rx="2" fill="#8593a5" />
+        </g>
+      ),
+      skill: (
+        <g>
+          <ellipse cx="0" cy="0" rx="10" ry="7" fill="#fbbf24" />
+          <path d="M-4,-6 l0,12 M2,-6.5 l0,13 M6,-5 l0,10" stroke="#78350f" strokeWidth="2.6" />
+          <ellipse cx="-8" cy="-7" rx="6" ry="4" fill="#e0f2fe" opacity="0.85" transform="rotate(-25 -8 -7)" />
+          <ellipse cx="1" cy="-8" rx="6" ry="4" fill="#e0f2fe" opacity="0.85" transform="rotate(20 1 -8)" />
+          <circle cx="10" cy="-1" r="2.6" fill="#78350f" />
+          <path d="M10,-3 l3,-4 M11,-1 l4,-2" stroke="#78350f" strokeWidth="1.2" strokeLinecap="round" />
+        </g>
+      ),
+      objectif: (
+        <g>
+          <ellipse cx="0" cy="0" rx="12" ry="8" fill="#38bdf8" transform="rotate(-12 0 0)" />
+          <circle cx="10" cy="-5" r="6.5" fill="#4dc6fa" />
+          <path d="M15,-6 l9,-2 l-8,5 z" fill="#fb923c" />
+          <path d="M-4,-4 q-11,-9 -20,-3 q10,3 18,6 z" fill="#0ea5e9" />
+          <circle cx="12" cy="-6" r="1.5" fill="#0b1220" />
+          <path d="M-10,6 q-6,4 -12,3" fill="none" stroke="#0ea5e9" strokeWidth="3.4" strokeLinecap="round" />
+        </g>
+      ),
+      gardeFou: (
+        <g>
+          <ellipse cx="-2" cy="6" rx="17" ry="11" fill="#b98a5a" /><circle cx="14" cy="-4" r="10" fill="#c39866" />
+          <path d="M6,-11 q-4,-8 3,-10 q2,6 -1,11 z" fill="#a9764a" />
+          <path d="M20,-9 l6,-3 q3,3 -1,7 z" fill="#a9764a" />
+          <path d="M20,-2 q7,-1 9,3 q-5,2 -9,0 z" fill="#c39866" />
+          <circle cx="17" cy="-5" r="1.6" fill="#1f2937" /><circle cx="28" cy="0" r="1.7" fill="#1f2937" />
+          <path d="M-18,2 q-11,-6 -15,-15" fill="none" stroke="#b98a5a" strokeWidth="5" strokeLinecap="round" />
+          <rect x="-12" y="15" width="5" height="7" rx="2" fill="#a9764a" /><rect x="5" y="15" width="5" height="7" rx="2" fill="#a9764a" />
+        </g>
+      ),
+      sortieAttendue: (
+        <g>
+          <ellipse cx="0" cy="-9" rx="6" ry="10" fill="#f472b6" />
+          <ellipse cx="9" cy="-3" rx="6" ry="10" fill="#f9a8d4" transform="rotate(72 9 -3)" />
+          <ellipse cx="6" cy="8" rx="6" ry="10" fill="#f472b6" transform="rotate(144 6 8)" />
+          <ellipse cx="-6" cy="8" rx="6" ry="10" fill="#f9a8d4" transform="rotate(216 -6 8)" />
+          <ellipse cx="-9" cy="-3" rx="6" ry="10" fill="#f472b6" transform="rotate(288 -9 -3)" />
+          <circle cx="0" cy="0" r="6" fill="#fcd34d" /><circle cx="0" cy="0" r="3" fill="#f59e0b" />
+        </g>
+      ),
+      plugin: (
+        <g>
+          <path d="M0,-17 l3.6,0 1.3,5 3.1,1.3 4.5,-2.2 2.7,2.9 -2.2,4.5 1.3,3.1 5,1.3 0,4 -5,1.3 -1.3,3.1 2.2,4.5 -2.7,2.9 -4.5,-2.2 -3.1,1.3 -1.3,5 -4,0 -1.3,-5 -3.1,-1.3 -4.5,2.2 -2.9,-2.7 2.2,-4.5 -1.3,-3.1 -5,-1.3 0,-4 5,-1.3 1.3,-3.1 -2.2,-4.5 2.9,-2.9 4.5,2.2 3.1,-1.3 z"
+            fill="#94a3b8" stroke="#818cf8" strokeWidth="1.1" />
+          <circle cx="0" cy="0" r="6" fill="#475569" stroke="#cbd5e1" strokeWidth="1.3" /><circle cx="0" cy="0" r="2.4" fill="#1e293b" />
+        </g>
+      ),
+    };
+    // Chaque créature est dessinée dans SON PROPRE repère : sa boîte englobante (getBBox) a une
+    // taille ET un centre différents (mesurés : maxdim 30→63 unités, centre ≈ origine à ±3).
+    // Pour un rendu UNIFORME on normalise chaque dessin : scale = ICON_SIZE / maxdim (même côté
+    // de conteneur pour TOUTES) + recentrage (-cx,-cy) sur le point d'orbite. Réf. de calibrage :
+    // éléphant (memoire) et arbre (modele), déjà bien placés/dimensionnés selon Pierre.
+    const ICON_SIZE = 30; // côté cible (unités viewBox) de CHAQUE icône, quelle que soit sa forme
+    const ORGANIC_NORM = { // bbox mesurée par créature : { s: ICON_SIZE/maxdim, cx, cy }
+      memoire:        { s: ICON_SIZE / 48.0, cx: -2.0, cy:  4.0 },
+      skill:          { s: ICON_SIZE / 30.1, cx: -0.1, cy: -3.4 },
+      plugin:         { s: ICON_SIZE / 35.8, cx:  1.5, cy:  0.9 },
+      role:           { s: ICON_SIZE / 43.0, cx:  0.5, cy: -3.4 },
+      objectif:       { s: ICON_SIZE / 48.0, cx:  0.0, cy: -0.6 },
+      gardeFou:       { s: ICON_SIZE / 62.7, cx: -1.6, cy:  0.5 },
+      modele:         { s: ICON_SIZE / 45.0, cx: -0.5, cy:  1.5 },
+      sortieAttendue: { s: ICON_SIZE / 40.7, cx:  0.0, cy:  0.3 },
+    };
+    // 8 positions FIXES sur le cercle d'orbite VISIBLE (= l'anneau d'eau, r=70) : ordre canonique
+    // AGENT_COMPONENT_TYPES → angle −90°+i·45° (45° d'écart régulier). Chaque secteur garde SA
+    // place sur le cercle, qu'il soit rempli (créature) ou fantôme — prévisible d'un agent à l'autre.
+    const ORBIT_R = 70; // rayon = anneau d'eau (le trait pointillé bleu déjà dessiné), centre 130,130
+    const ORGANIC_ORBIT = AGENT_COMPONENT_TYPES.map((ct, i) => {
+      const a = (-90 + i * 45) * Math.PI / 180;
+      return { ct, x: 130 + ORBIT_R * Math.cos(a), y: 130 + ORBIT_R * Math.sin(a) };
+    });
+
+    function OrganicScene({ agentId, nodes, audit, onPick, filled, total }) {
+      const agentNode = nodes.find((n) => n.id === agentId);
+      const comps = agentComponentsOf(agentId, nodes);
+      const isComposite = comps.length > 0;
+      const water = waterQuality(agentId, nodes);
+      const fog = audit === 'fog';
+      const danger = audit === 'danger';       // exclusifs par construction (nodeAudit)
+      const uid = String(agentId).replace(/[^a-zA-Z0-9_-]/g, '');
+      // Mode d'un secteur : 'creature' (dessin plein, cliquable) / 'ghost' (silhouette grise
+      // cliquable = satellite vide d'un composite) / 'absent' (rien — n'existe pas structurellement).
+      const slotOf = (ct) => {
+        if (isComposite) {
+          const c = comps.find((x) => x.data.componentType === ct);
+          if (!c) return { mode: 'absent' };
+          return componentFilled(c) ? { mode: 'creature', pickId: c.id } : { mode: 'ghost', pickId: c.id };
+        }
+        const d = (agentNode && agentNode.data) || {};
+        if (ct === 'role' && d.role) return { mode: 'creature', pickId: agentId };
+        if (ct === 'modele' && d.model) return { mode: 'creature', pickId: agentId };
+        return { mode: 'absent' };
+      };
+      return (
+        <div className="organic-scene" data-testid={'organic-scene-' + agentId}
+             data-water={water} data-audit={audit || 'clear'} data-composite={isComposite ? '1' : '0'}
+             data-fog={fog ? '1' : '0'} data-danger={danger ? '1' : '0'}>
+          <svg viewBox="0 0 260 260" role="img"
+               aria-label={'Planète de ' + agentId + ' — ' + filled + '/' + total + ' éléments en orbite, eau ' + water}>
+            <defs>
+              <radialGradient id={'space-' + uid} cx="0.5" cy="0.42" r="0.75">
+                <stop offset="0" stopColor="#241f4d" /><stop offset="1" stopColor="#0b0f1e" />
+              </radialGradient>
+              <radialGradient id={'planet-' + uid} cx="0.4" cy="0.34" r="0.8">
+                <stop offset="0" stopColor="#48b183" /><stop offset="0.55" stopColor="#1f6a4f" /><stop offset="1" stopColor="#0e3628" />
+              </radialGradient>
+              <linearGradient id={'storm-' + uid} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#7f1d1d" stopOpacity="0.72" />
+                <stop offset="0.6" stopColor="#b45309" stopOpacity="0.3" /><stop offset="1" stopColor="#7f1d1d" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+
+            {/* Fond spatial + petites étoiles (décor). */}
+            <rect x="0" y="0" width="260" height="260" fill={'url(#space-' + uid + ')'} />
+            <g fill="#e2e8f0" opacity={danger ? 0.15 : 0.5}>
+              <circle cx="34" cy="30" r="1.2" /><circle cx="228" cy="44" r="1.4" /><circle cx="210" cy="210" r="1.1" />
+              <circle cx="44" cy="216" r="1.3" /><circle cx="130" cy="18" r="1" /><circle cx="20" cy="126" r="1" /><circle cx="242" cy="140" r="1.1" />
+            </g>
+
+            {/* --- 9ᵉ élément : COURS D'EAU en ANNEAU orbital (indépendant des 8 satellites) --- */}
+            {water === 'dry' ? (
+              <g data-testid="water-dry">
+                <circle cx="130" cy="130" r="70" fill="none" stroke="#64748b" strokeWidth="2" strokeDasharray="2 9" opacity="0.4" />
+              </g>
+            ) : water === 'polluted' ? (
+              <g data-testid="water-polluted">
+                <circle cx="130" cy="130" r="70" fill="none" stroke="#6b7f52" strokeWidth="4" strokeDasharray="6 5 2 7" opacity="0.7" />
+                <circle cx="200" cy="130" r="3" fill="#7f8a4d" opacity="0.7" /><circle cx="130" cy="200" r="2.4" fill="#7f8a4d" opacity="0.7" />
+                <circle cx="60" cy="130" r="2.8" fill="#556b2f" opacity="0.7" />
+              </g>
+            ) : (
+              <g data-testid="water-healthy">
+                <circle cx="130" cy="130" r="70" fill="none" stroke="#0ea5e9" strokeWidth="4" opacity="0.35" />
+                <circle className="water-flow" cx="130" cy="130" r="70" fill="none" stroke="#67e8f9" strokeWidth="2.6"
+                  strokeDasharray="14 10" strokeLinecap="round" opacity="0.95" />
+              </g>
+            )}
+
+            {/* --- Planète centrale = le nœud (la sphère EST le nœud) --- */}
+            <circle cx="130" cy="130" r="46" fill={'url(#planet-' + uid + ')'} />
+            <ellipse cx="116" cy="114" rx="17" ry="9" fill="#ffffff" opacity="0.12" />
+            <path d="M92,138 q40,16 78,-4" stroke="#0c3325" strokeWidth="3" fill="none" opacity="0.35" />
+            <path d="M104,118 q26,-8 46,2" stroke="#0c3325" strokeWidth="2.4" fill="none" opacity="0.25" />
+
+            {/* --- 8 créatures / fantômes en orbite : positions FIXES (r=70), TAILLE UNIFORME --- */}
+            {ORGANIC_ORBIT.map(({ ct, x, y }) => {
+              const s = slotOf(ct);
+              if (s.mode === 'absent') return null;
+              const m = AGENT_COMPONENT_META[ct];
+              const ghost = s.mode === 'ghost';
+              const nz = ORGANIC_NORM[ct];
+              return (
+                <g key={ct}
+                   className={'organic-el' + (ghost ? ' organic-ghost' : '')}
+                   data-testid={(ghost ? 'organic-ghost-' : 'organic-el-') + ct}
+                   {...(ghost ? { 'data-organic-ghost': ct } : { 'data-organic-el': ct })}
+                   data-sat-id={s.pickId}
+                   transform={'translate(' + x.toFixed(1) + ',' + y.toFixed(1) + ')'}
+                   onMouseDown={(e) => { e.stopPropagation(); onPick(s.pickId); }}>
+                  <title>{m.icon + ' ' + m.label + (ghost ? ' — vide : clic pour attacher une fiche' : ' — clic pour éditer')}</title>
+                  {/* Cadre UNIFORME (rayon fixe, indépendant du dessin) : zone de clic pleine
+                      (pixels peints épars, surtout un fantôme → meilleure cible + testable) + anneau fantôme. */}
+                  <circle cx="0" cy="0" r="20" fill="transparent" />
+                  {ghost && <circle cx="0" cy="0" r="18" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.5" />}
+                  {/* Dessin NORMALISÉ : scale = ICON_SIZE/maxdim + recentrage bbox (-cx,-cy)
+                      → même taille de rendu pour toutes, centre exactement sur le point d'orbite. */}
+                  <g transform={'scale(' + nz.s.toFixed(3) + ') translate(' + (-nz.cx) + ',' + (-nz.cy) + ')'}>
+                    {ORGANIC_CREATURE[ct]}
+                  </g>
+                </g>
+              );
+            })}
+
+            {/* --- Voile de BRUME (épistémique) : scène entière. JAMAIS avec l'orage. --- */}
+            {fog && (
+              <g data-testid="scene-fog-veil" style={{ pointerEvents: 'none' }}>
+                <rect x="0" y="0" width="260" height="260" fill="#cbd5e1" opacity="0.3" />
+                <g fill="#e2e8f0" opacity="0.38">
+                  <ellipse cx="80" cy="120" rx="70" ry="16" /><ellipse cx="185" cy="165" rx="72" ry="17" /><ellipse cx="130" cy="90" rx="82" ry="13" />
+                </g>
+              </g>
+            )}
+            {/* --- ORAGE (qualité — broken) : teinte danger. JAMAIS de brume. --- */}
+            {danger && (
+              <g data-testid="scene-storm" style={{ pointerEvents: 'none' }}>
+                <rect x="0" y="0" width="260" height="260" fill={'url(#storm-' + uid + ')'} />
+                <path d="M132,26 l-9,24 l11,-4 l-8,28 l24,-38 l-12,4 l9,-18 z" fill="#fde68a" opacity="0.9" />
+              </g>
+            )}
+          </svg>
+          {/* Score X/total toujours visible, discret, en coin de la scène. */}
+          <div className={'organic-score' + (total > 0 && filled === total ? ' score-ok' : '')}
+               data-testid={'organic-score-' + agentId} data-filled={filled} data-total={total}>
+            🌍 {filled}/{total}{total > 0 && filled === total ? ' ✅' : ''}
+          </div>
+        </div>
+      );
+    }
+
+
+    // ============================================================================
     // CanvasSurface — the ONE canvas component. All pointer/zoom/pan interaction + the
     // SVG/nodes render live here, driven by the `cv` model prop. Rendered once per zone.
     // Props: cv (model), snap (grid setting), idSeq (SHARED id counter so ids are unique
     // across zones), result/paused (run state — ACTIVE only; Sandbox gets null so it never
     // shows execution), isSandbox/label (presentation), onActivate (focus this zone).
     // ============================================================================
-    function CanvasSurface({ cv, snap, idSeq, result, paused, isSandbox, label, onActivate, readOnly, roBanner }) {
+    function CanvasSurface({ cv, snap, idSeq, result, paused, isSandbox, label, onActivate, readOnly, roBanner, organicView }) {
       // Calques : quand ≥2 calques sont superposés sur l'Actif, le canvas passe en
       // LECTURE SEULE (on regarde un delta, on ne l'édite pas). Ref = pas de closure périmée.
       const roRef = useRef(false); roRef.current = !!readOnly;
@@ -1317,6 +1725,12 @@
 
       const maxRight = Math.max(0, ...nodes.map((n) => n.x + dimsOf(n).w));
       const maxBottom = Math.max(0, ...nodes.map((n) => n.y + dimsOf(n).h));
+      // Vue organique : les satellites (agent-component) sont MASQUÉS du rendu — ils sont
+      // représentés par les créatures de la scène. State intact (clic créature = sélection
+      // du satellite) ; on ne cache que le RENDU du nœud satellite et des edges qui le touchent.
+      const organicHidden = organicView
+        ? new Set(nodes.filter((n) => n.type === 'agent-component').map((n) => n.id))
+        : null;
       const contentW = Math.max(canvasW, maxRight + 200);
       const contentH = Math.max(canvasH, maxBottom + 200);
       const overflowsView = maxRight > canvasW - 6 || maxBottom > canvasH - 6;
@@ -1355,6 +1769,8 @@
                     </marker>
                   </defs>
                   {edges.map((e) => {
+                    // Vue organique : masque les edges décoratifs central↔satellite (satellites cachés).
+                    if (organicHidden && (organicHidden.has(e.from) || organicHidden.has(e.to))) return null;
                     const an = anchorsFor(e);
                     if (!an) return null;
                     const selected = selEdge && selEdge.id === e.id;
@@ -1487,6 +1903,7 @@
                   }
 
                   if (n.type === 'agent-component') {
+                    if (organicHidden) return null;   // vue organique : représenté par une créature
                     const cm = AGENT_COMPONENT_META[n.data.componentType] || { label: n.data.componentType, icon: '🧩' };
                     const filled = componentFilled(n);
                     return (
@@ -1512,16 +1929,29 @@
                   // Brouillard d'audit : 'fog' (source non vérifiée) OU 'danger' (broken).
                   // Exclusifs par construction (voir nodeAudit) — jamais les deux à la fois.
                   const audit = nodeAudit(n);
+                  // Vue organique : TOUT nœud agent (composite OU withRole/Council) se rend en
+                  // planète (le corps technique est remplacé par la scène). node-fog/node-danger
+                  // restent posés par la MÊME logique `audit` — cohérence stricte avec la vue
+                  // technique. Score : composite → carte d'identité (X/8) ; withRole → rôle+modèle
+                  // présents sur les 2 seuls secteurs structurellement applicables.
+                  const isOrganicAgent = organicView && n.type === 'agent';
+                  const orgFilled = !isOrganicAgent ? 0
+                    : (card && card.isComposite) ? card.filled
+                    : ((n.data && n.data.role ? 1 : 0) + (n.data && n.data.model ? 1 : 0));
+                  const orgTotal = !isOrganicAgent ? 0
+                    : (card && card.isComposite) ? card.total : 2;
                   return (
                     <div key={n.id} className={'node ' + n.type + (selected ? ' selected' : '') + (orders ? ' flowed' : '')
+                        + (isOrganicAgent ? ' organic' : '')
                         + (audit === 'fog' ? ' node-fog' : '') + (audit === 'danger' ? ' node-danger' : '')
                         + (n.data && n.data._layerDiff && n.data._layerDiff !== 'base' ? ' layer-' + n.data._layerDiff : '')}
                       data-testid={'node-' + n.id} data-node-id={n.id} data-node-type={n.type}
                       data-node-orders={orders ? orders.join(',') : ''}
+                      data-organic={isOrganicAgent ? '1' : '0'}
                       data-wired={n.data && n.data.wiredStatus ? n.data.wiredStatus : ''}
                       data-layer-diff={n.data && n.data._layerDiff ? n.data._layerDiff : ''}
                       data-fog={audit === 'fog' ? '1' : '0'} data-danger={audit === 'danger' ? '1' : '0'}
-                      style={sizeStyle}
+                      style={isOrganicAgent ? { left: n.x, top: n.y, width: 260 } : sizeStyle}
                       onMouseDown={(e) => startDrag(e, n.id)}
                       onMouseUp={() => { if (draw) finishDrawOn(n.id); }}>
                       {n.data && n.data._layerDiff && n.data._layerDiff !== 'base' && (
@@ -1586,6 +2016,11 @@
                           </div>
                         );
                       })()}
+                      {isOrganicAgent ? (
+                        <OrganicScene agentId={n.id} nodes={nodes} audit={audit}
+                          filled={orgFilled} total={orgTotal}
+                          onPick={(pickId) => setSel({ kind: 'node', id: pickId })} />
+                      ) : (
                       <div className="nbody">
                         {n.type === 'artefact'
                           ? <div data-testid={'artefact-body-' + n.id}>
@@ -1603,6 +2038,7 @@
                               <div key={k}><b>{k}</b>: {String(n.data[k]).slice(0, 26)}</div>
                             ))}
                       </div>
+                      )}
                       {renderHandles(false)}
                       {resizeHandle}
                     </div>
@@ -1668,6 +2104,7 @@
       const splitRef = useRef(null);                    // .canvas-split container (for drag math)
       // ----- Library (brick store, Passe 1) -----
       const [libBricks, setLibBricks] = useState([]);    // [{id,kind,name,maturity,badge}]
+      const [agentFiches, setAgentFiches] = useState([]); // [{id,name,badge,payload}] — fiches agent COMPLÈTES (payload), pour le sélecteur de champ par satellite
       const [libEditing, setLibEditing] = useState(null); // full brick being edited, or null
       const [libFilter, setLibFilter] = useState('all'); // list filter: 'all' | 'agent' | 'prompt' | 'chain'
       // F1 — Library search + sort. libSearch matches the VISIBLE fields (name, kind,
@@ -1696,6 +2133,31 @@
       const [paused, setPaused] = useState(null);     // HumanGate pause: {ctx, graph, pausedAt}
       const [resumeNote, setResumeNote] = useState(''); // optional human note on approve/reject
       const [snap, setSnap] = useState(false);
+      // Vue organique « planète » : réglage GLOBAL du canvas (choix documenté : plus simple
+      // et propre que du per-nœud — un seul état, pas de champ dans data qui fuirait vers le
+      // graphe moteur). ON = tout Agent composite se rend en scène ; les satellites (rendu)
+      // et leurs edges décoratifs sont masqués. OFF = vue technique inchangée.
+      const [organicView, setOrganicView] = useState(false);
+      // Confirmation avant suppression — modale DOM (pas window.confirm : le natif n'est
+      // pas capturable en screenshot headless). requestConfirm(message) renvoie une Promise
+      // résolue par les boutons de la modale.
+      // Test seam window.__autoConfirm :
+      //   === true      → court-circuite (confirme direct)
+      //   === false     → force la modale (même sous automation) — utilisé pour PROUVER la modale
+      //   undefined     → défaut : sous automation (navigator.webdriver) on court-circuite, pour que
+      //                   les ~25 validators existants qui vident le canvas restent verts SANS édition ;
+      //                   un vrai utilisateur (webdriver falsy) voit TOUJOURS la modale.
+      const [confirmState, setConfirmState] = useState(null); // {message, resolve} | null
+      const requestConfirm = useCallback((message) => {
+        if (typeof window !== 'undefined') {
+          if (window.__autoConfirm === true) return Promise.resolve(true);
+          if (window.__autoConfirm !== false && typeof navigator !== 'undefined' && navigator.webdriver) return Promise.resolve(true);
+        }
+        return new Promise((resolve) => setConfirmState({ message, resolve }));
+      }, []);
+      const resolveConfirm = useCallback((ok) => {
+        setConfirmState((cs) => { if (cs && cs.resolve) cs.resolve(ok); return null; });
+      }, []);
       // A1 — opt-in real execution. false = mockAdapters (default, offline, deterministic).
       // true = the run POSTs {live:true}, routing the engine to the REAL LM Studio adapter
       // (local :1234). Never auto-enabled; the user must tick it. Persisted per-session only.
@@ -1713,6 +2175,18 @@
       const [layerName, setLayerName] = useState('');
       const preLayerRef = useRef(null); // {nodes,edges} of the Actif canvas BEFORE any calque took over the view
       const layersReadOnly = activeLayerIds.length >= 2;
+      // Bibliothèque de calques par espace + note humaine + lien roadmap.
+      const [saveOwner, setSaveOwner] = useState(() => {
+        try { const v = localStorage.getItem(LAYER_OWNER_LS_KEY); return LAYER_OWNERS.includes(v) ? v : 'pierre'; } catch { return 'pierre'; }
+      });
+      const [openOwnerGroups, setOpenOwnerGroups] = useState(() => new Set(['pierre'])); // groupes dépliés (compact par défaut)
+      const [layerNoteEdit, setLayerNoteEdit] = useState(null); // id du calque dont on édite la note/lien, ou null
+      const [roadmapViewOpen, setRoadmapViewOpen] = useState(false);
+      const [roadmapFiches, setRoadmapFiches] = useState([]); // [{id,name,badge,payload}] roadmaps COMPLÈTES (jalons)
+      useEffect(() => { try { localStorage.setItem(LAYER_OWNER_LS_KEY, saveOwner); } catch { /* private mode */ } }, [saveOwner]);
+      const toggleOwnerGroup = useCallback((owner) => setOpenOwnerGroups((s) => {
+        const n = new Set(s); if (n.has(owner)) n.delete(owner); else n.add(owner); return n;
+      }), []);
 
       // Recompute the Actif canvas for a given selection of calque ids.
       const applyLayers = useCallback((nextIds) => {
@@ -1744,11 +2218,19 @@
         const snap = JSON.parse(JSON.stringify({ nodes, edges }));
         snap.nodes.forEach((n) => { if (n.data) { delete n.data._layerDiff; delete n.data._dataText; delete n.data._dataErr; } });
         const layer = { id: 'layer-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e5).toString(36),
-          name, nodes: snap.nodes, edges: snap.edges, createdAt: new Date().toISOString() };
+          name, nodes: snap.nodes, edges: snap.edges, createdAt: new Date().toISOString(),
+          layerOwner: normalizeOwner(saveOwner), humanNote: '', roadmapMilestoneRef: null };
         const nextLayers = [...layers, layer];
         setLayers(nextLayers); persistLayers(nextLayers); setLayerName('');
-        setStatus({ msg: `📚 Calque « ${name} » enregistré (${snap.nodes.length} nœuds).`, kind: 'ok' });
-      }, [layerName, layers, nodes, edges, activeLayerIds]);
+        setOpenOwnerGroups((s) => new Set(s).add(layer.layerOwner)); // rends visible l'espace où il vient d'atterrir
+        setStatus({ msg: `📚 Calque « ${name} » enregistré dans l'espace ${LAYER_OWNER_META[layer.layerOwner].label} (${snap.nodes.length} nœuds).`, kind: 'ok' });
+      }, [layerName, layers, nodes, edges, activeLayerIds, saveOwner]);
+
+      // Note humaine + lien roadmap sur un calque (patch localStorage).
+      const patchLayer = useCallback((id, patch) => {
+        const next = layers.map((l) => l.id === id ? { ...l, ...patch } : l);
+        setLayers(next); persistLayers(next);
+      }, [layers]);
 
       // Ré-enregistrer (écraser) un calque existant avec le canvas Actif courant.
       // Le cas d'usage : activer 1 calque → le modifier → 💾 pour persister la modif
@@ -1785,10 +2267,21 @@
         setStatus({ msg: '✅ ' + label, kind: 'ok' });
       }, []);
 
-      const clearAll = useCallback(() => {
+      // Charger un calque (n'importe quel espace) sur le canvas Actif → réutilise loadInto :
+      // dès lors Pierre l'ÉDITE / le TESTE (▶️ Exécuter) / le COPIE (Ctrl+C/V) comme tout graphe
+      // (cohérent avec l'architecture Actif/Sandbox — pas d'édition « à distance » dans l'espace).
+      const loadLayerToActive = useCallback((l) => {
+        setActiveLayerIds([]); preLayerRef.current = null;
+        const clone = JSON.parse(JSON.stringify({ nodes: l.nodes, edges: l.edges }));
+        loadInto({ nodes: clone.nodes, edges: clone.edges }, `📥 Calque « ${l.name} » (${LAYER_OWNER_META[normalizeOwner(l.layerOwner)].label}) chargé sur l'Actif — édition / test / copier-coller.`);
+        setLayersMenuOpen(false);
+      }, [loadInto]);
+
+      const clearAll = useCallback(async () => {
+        if (!(await requestConfirm('Vider le canvas actif ? Cette action est irréversible.'))) return;
         setNodes([]); setEdges([]); setSel(null); setSelectedIds([]); setMarquee(null); setResult(null); setError(null);
         setStatus({ msg: 'Canvas vidé.', kind: '' });
-      }, []);
+      }, [requestConfirm]);
 
       const addNode = useCallback((type) => {
         const { setNodes, setSel } = F; // pose into the FOCUSED zone (Active or Sandbox)
@@ -2043,6 +2536,11 @@
         window.__pasteClipboard = pasteClipboard;
         window.__clipboard = () => clipboardRef.current;
         window.__zones = () => ({ focused, active: { nodes: active.nodes, edges: active.edges }, sandbox: { nodes: sandbox.nodes, edges: sandbox.edges } });
+        // Seams calques/roadmap (déterministes) — même chemin que les contrôles UI.
+        window.__setSaveOwner = (o) => setSaveOwner(normalizeOwner(o));
+        window.__layers = () => layers;
+        window.__patchLayer = (id, patch) => patchLayer(id, patch);
+        window.__openRoadmap = (v) => setRoadmapViewOpen(v !== false);
       });
 
       // ================= Wire Map (traceability) =================
@@ -2121,9 +2619,10 @@
       const updateEntryTest = useCallback((entryId, patch) => {
         commitWm((d) => { d.entries = d.entries.map((e) => e.id === entryId ? { ...e, test: { ...e.test, ...patch } } : e); return d; });
       }, [commitWm]);
-      const deleteEntry = useCallback((entryId) => {
+      const deleteEntry = useCallback(async (entryId) => {
+        if (!(await requestConfirm('Supprimer cette entrée définitivement ? Cette action est irréversible.'))) return;
         commitWm((d) => { d.entries = d.entries.filter((e) => e.id !== entryId); return d; });
-      }, [commitWm]);
+      }, [commitWm, requestConfirm]);
 
       // Set a test status → also aligns the traffic-light colour (PASS→green,
       // FAIL→red, everything else→orange).
@@ -2203,6 +2702,47 @@
           return j.bricks || [];
         } catch { return []; }
       }, []);
+      // /api/library n'expose que les métadonnées ; le sélecteur de champ par satellite
+      // (harvestFieldValues) a besoin des payloads des fiches agent → on les charge
+      // paresseusement, une fois par changement de l'ensemble des fiches agent.
+      const agentBrickSig = libBricks.filter((b) => b.kind === 'agent').map((b) => b.id).join(',');
+      useEffect(() => {
+        let cancelled = false;
+        const ids = agentBrickSig ? agentBrickSig.split(',') : [];
+        if (!ids.length) { setAgentFiches([]); return; }
+        (async () => {
+          const full = await Promise.all(ids.map(async (id) => {
+            try {
+              const r = await fetch('/api/library/' + encodeURIComponent(id));
+              if (!r.ok) return null;
+              const j = await r.json();
+              return { id, name: j.name, badge: j.badge, payload: j.payload || {} };
+            } catch { return null; }
+          }));
+          if (!cancelled) setAgentFiches(full.filter(Boolean));
+        })();
+        return () => { cancelled = true; };
+      }, [agentBrickSig]);
+      // Idem pour les briques roadmap : la vue Roadmap (lecture seule) ET le lien calque↔jalon
+      // (menu des calques) ont besoin des jalons (payload.milestones), absents de la liste.
+      const roadmapBrickSig = libBricks.filter((b) => b.kind === 'roadmap').map((b) => b.id).join(',');
+      useEffect(() => {
+        let cancelled = false;
+        const ids = roadmapBrickSig ? roadmapBrickSig.split(',') : [];
+        if (!ids.length) { setRoadmapFiches([]); return; }
+        (async () => {
+          const full = await Promise.all(ids.map(async (id) => {
+            try {
+              const r = await fetch('/api/library/' + encodeURIComponent(id));
+              if (!r.ok) return null;
+              const j = await r.json();
+              return { id, name: j.name, badge: j.badge, payload: j.payload || {} };
+            } catch { return null; }
+          }));
+          if (!cancelled) setRoadmapFiches(full.filter(Boolean));
+        })();
+        return () => { cancelled = true; };
+      }, [roadmapBrickSig]);
       // Open a brick in the editor (fetches the full payload).
       const loadBrick = useCallback(async (id) => {
         try {
@@ -2316,13 +2856,14 @@
         } catch { setStatus({ msg: '❌ duplication échouée', kind: 'error' }); }
       }, [loadLibrary]);
       const deleteBrick = useCallback(async (id) => {
+        if (!(await requestConfirm('Supprimer cette fiche définitivement ? Cette action est irréversible.'))) return;
         try {
           await fetch('/api/library/' + encodeURIComponent(id), { method: 'DELETE' });
           setLibEditing((e) => (e && e.id === id ? null : e));
           await loadLibrary();
           setStatus({ msg: '🗑️ Brique supprimée', kind: '' });
         } catch { setStatus({ msg: '❌ suppression échouée', kind: 'error' }); }
-      }, [loadLibrary]);
+      }, [loadLibrary, requestConfirm]);
       // Attach a brick's payload onto an agent node's data (payload wins on overlap;
       // node id/position are top-level and untouched). The link label is stored
       // top-level (attachedBrick) so toEngineGraph drops it from the engine graph.
@@ -2550,9 +3091,10 @@
         F.setEdges((es) => es.map((e) => e.id === id ? { ...e, ...patch } : e));
       }, [F]);
 
-      const deleteSelected = useCallback(() => {
+      const deleteSelected = useCallback(async () => {
         const { sel, nodes, setNodes, setEdges, setSel } = F;
         if (!sel) return;
+        if (!(await requestConfirm('Supprimer cet élément ? Cette action est irréversible.'))) return;
         if (sel.kind === 'node') {
           // Cascade: deleting a composite Agent removes its 7 satellite components too
           // (and every edge touching any of them). agentComponentsOf is empty for legacy
@@ -2565,7 +3107,7 @@
           setEdges((es) => es.filter((e) => e.id !== sel.id));
         }
         setSel(null);
-      }, [F]);
+      }, [F, requestConfirm]);
 
       // ----- execute against the REAL engine -----
       const execute = useCallback(async () => {
@@ -3523,40 +4065,93 @@
                 </button>
                 {layersMenuOpen && (
                   <div className="pal-menu layers-menu" data-testid="layers-menu" onClick={(ev) => ev.stopPropagation()}>
-                    <div className="pal-menu-h">Calques — canvas Actif</div>
+                    <div className="pal-menu-h">Bibliothèque de calques — canvas Actif</div>
                     <div className="layer-save-row">
                       <input data-testid="layer-name-input" placeholder="Nom du calque…" value={layerName}
                         onChange={(e) => setLayerName(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') saveActiveAsLayer(); }} />
+                      <select data-testid="layer-owner-select" value={saveOwner} onChange={(e) => setSaveOwner(e.target.value)}
+                        title="Espace/contributeur — QUI construit ce calque (choix manuel, mémorisé). Pierre/Claude indétectables automatiquement.">
+                        {LAYER_OWNERS.map((o) => <option key={o} value={o}>{LAYER_OWNER_META[o].icon} {LAYER_OWNER_META[o].label}</option>)}
+                      </select>
                       <button data-testid="layer-save" onClick={saveActiveAsLayer}
-                        title="Enregistrer le canvas Actif courant comme nouveau calque">＋ Enregistrer</button>
+                        title="Enregistrer le canvas Actif dans l'espace choisi">＋</button>
                     </div>
                     {layers.length === 0 && (
                       <div className="pal-menu-h" data-testid="layers-empty" style={{ opacity: .7, fontStyle: 'italic' }}>
-                        Aucun calque. Pose des nœuds puis « ＋ Enregistrer ».
+                        Aucun calque. Pose des nœuds, choisis un espace, puis « ＋ ».
                       </div>
                     )}
-                    {layers.map((l) => {
-                      const idx = activeLayerIds.indexOf(l.id);
+                    {LAYER_OWNERS.map((owner) => {
+                      const meta = LAYER_OWNER_META[owner];
+                      const group = layers.filter((l) => normalizeOwner(l.layerOwner) === owner);
+                      const open = openOwnerGroups.has(owner);
                       return (
-                        <label key={l.id} className="layer-row" data-testid={'layer-row-' + l.id}>
-                          <input type="checkbox" data-testid={'layer-toggle-' + l.id}
-                            checked={idx >= 0} onChange={() => toggleLayer(l.id)} />
-                          <span>{l.name}</span>
-                          <span style={{ opacity: .6, fontSize: 10 }}>({l.nodes.length}n)</span>
-                          {idx >= 0 && (
-                            <span style={{ fontSize: 9, color: idx === 0 ? '#38bdf8' : '#f59e0b' }}>
-                              {idx === 0 ? 'base' : (idx === activeLayerIds.length - 1 ? 'cible' : '·')}
-                            </span>
+                        <div key={owner} className="layer-group" data-testid={'layer-group-' + owner}>
+                          <button className="layer-group-h" data-testid={'layer-group-h-' + owner}
+                            onClick={(e) => { e.stopPropagation(); toggleOwnerGroup(owner); }}>
+                            <span>{open ? '▾' : '▸'}</span><span>{meta.icon} {meta.label}</span>
+                            <span className="lg-count" data-testid={'layer-group-count-' + owner}>{group.length}</span>
+                          </button>
+                          {open && (
+                            <div className="layer-group-body">
+                              <button className="layer-new-btn" data-testid={'layer-new-' + owner}
+                                onClick={(e) => { e.stopPropagation(); setSaveOwner(owner); const el = document.querySelector('[data-testid="layer-name-input"]'); if (el) el.focus(); }}
+                                title={'Choisir l\'espace ' + meta.label + ' puis nommer un nouveau calque'}>＋ nouveau calque ici</button>
+                              {group.length === 0 && <div className="hint" style={{ padding: '2px 8px 6px 26px' }}>Aucun calque dans cet espace.</div>}
+                              {group.map((l) => {
+                                const idx = activeLayerIds.indexOf(l.id);
+                                const ms = l.roadmapMilestoneRef
+                                  ? roadmapFiches.flatMap((rm) => (rm.payload.milestones || []).map((m) => ({ rm, m }))).find((x) => x.m.id === l.roadmapMilestoneRef)
+                                  : null;
+                                return (
+                                  <React.Fragment key={l.id}>
+                                    <div className="layer-row" data-testid={'layer-row-' + l.id}>
+                                      <input type="checkbox" data-testid={'layer-toggle-' + l.id}
+                                        checked={idx >= 0} onChange={() => toggleLayer(l.id)} />
+                                      <span className="layer-name">{l.name}</span>
+                                      <span style={{ opacity: .6, fontSize: 10 }}>({l.nodes.length}n)</span>
+                                      {idx >= 0 && (
+                                        <span style={{ fontSize: 9, color: idx === 0 ? '#38bdf8' : '#f59e0b' }}>
+                                          {idx === 0 ? 'base' : (idx === activeLayerIds.length - 1 ? 'cible' : '·')}
+                                        </span>
+                                      )}
+                                      <button className="layer-load" data-testid={'layer-load-' + l.id}
+                                        onClick={(e) => { e.stopPropagation(); loadLayerToActive(l); }}
+                                        title="Charger sur l'Actif (édition / test / copier-coller)">⤵️</button>
+                                      <button className="layer-upd" data-testid={'layer-update-' + l.id} disabled={layersReadOnly}
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateLayer(l.id); }}
+                                        title={layersReadOnly ? 'Lecture seule (2+ calques)' : 'Ré-enregistrer avec le canvas Actif'}>💾</button>
+                                      <button className="layer-note-btn" data-testid={'layer-note-btn-' + l.id}
+                                        onClick={(e) => { e.stopPropagation(); setLayerNoteEdit((cur) => cur === l.id ? null : l.id); }}
+                                        title="Note humaine / lier à un jalon">✏️</button>
+                                      <button className="layer-del" data-testid={'layer-del-' + l.id}
+                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteLayer(l.id); }}
+                                        title="Supprimer ce calque">🗑</button>
+                                    </div>
+                                    {l.humanNote && <div className="layer-note" data-testid={'layer-note-' + l.id}>✏️ {l.humanNote}</div>}
+                                    {ms && <div className="layer-note-ms" data-testid={'layer-ms-' + l.id}>🗺️ {ms.rm.name} — {ms.m.title}</div>}
+                                    {layerNoteEdit === l.id && (
+                                      <div className="layer-note-edit">
+                                        <input data-testid={'layer-note-input-' + l.id} defaultValue={l.humanNote || ''}
+                                          placeholder="Note humaine (ex: bonne piste, manque le HumanGate à l'étape 3)…"
+                                          onKeyDown={(e) => { if (e.key === 'Enter') { patchLayer(l.id, { humanNote: e.target.value }); setLayerNoteEdit(null); } }}
+                                          onBlur={(e) => patchLayer(l.id, { humanNote: e.target.value })} />
+                                        <select data-testid={'layer-milestone-' + l.id} value={l.roadmapMilestoneRef || ''}
+                                          onChange={(e) => patchLayer(l.id, { roadmapMilestoneRef: e.target.value || null })}>
+                                          <option value="">(lier à un jalon de roadmap…)</option>
+                                          {roadmapFiches.flatMap((rm) => (rm.payload.milestones || []).map((m) => (
+                                            <option key={rm.id + '/' + m.id} value={m.id}>{rm.name} — {m.title}</option>
+                                          )))}
+                                        </select>
+                                      </div>
+                                    )}
+                                  </React.Fragment>
+                                );
+                              })}
+                            </div>
                           )}
-                          <button className="layer-upd" data-testid={'layer-update-' + l.id} disabled={layersReadOnly}
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateLayer(l.id); }}
-                            title={layersReadOnly ? 'Lecture seule (2+ calques) — ré-enregistrement impossible'
-                              : 'Ré-enregistrer ce calque avec le canvas Actif courant (écrase)'}>💾</button>
-                          <button className="layer-del" data-testid={'layer-del-' + l.id}
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteLayer(l.id); }}
-                            title="Supprimer ce calque">🗑</button>
-                        </label>
+                        </div>
                       );
                     })}
                     {activeLayerIds.length >= 2 && (
@@ -3567,6 +4162,11 @@
                   </div>
                 )}
               </div>
+              {/* Roadmap : vue de consultation (lecture seule) de toutes les briques kind:"roadmap"
+                  avec leurs jalons, progression, et calques associés (roadmapMilestoneRef). */}
+              <button className="ghost" data-testid="btn-roadmap"
+                onClick={(ev) => { ev.stopPropagation(); setRoadmapViewOpen(true); }}
+                title="Vue Roadmap — jalons, progression, calques associés (lecture seule)">🗺️ Roadmap</button>
               <span style={{ width: 1, height: 20, background: '#334155', margin: '0 4px' }} />
               {/* Central view selector — replaces the fixed routing/gate/looped buttons.
                   Each option carries a démo/réel/cible maturity badge (same vocab as
@@ -3659,6 +4259,29 @@
                 <button className="palette" data-testid="add-artefact" style={{ borderColor: NODE_TYPES.artefact.color }} onClick={() => addNode('artefact')}>🎁 ＋ Artefact</button>
                 <button className="palette" data-testid="add-note" style={{ borderColor: NODE_TYPES.note.color }} onClick={() => addNode('note')}>＋ Note</button>
               </div>
+              {/* Sélecteur rapide de calques ACTIFS — n'apparaît qu'en superposition (≥2 actifs).
+                  Clic sur un calque → l'isole (désactive les autres) → 1 seul actif = édition
+                  restaurée (layersReadOnly repasse à false). Complète le menu 📚 Calques sans
+                  le remplacer : ici on ne fait que RÉDUIRE la sélection courante. */}
+              {activeLayerIds.length >= 2 && (
+                <>
+                  <h2>Calques actifs</h2>
+                  <div className="active-layers-quick" data-testid="active-layers-quick" style={{ padding: '0 12px 12px' }}>
+                    <div className="hint" style={{ marginBottom: 6 }}>🔒 {activeLayerIds.length} superposés (lecture seule). Clic = isoler un seul (édition).</div>
+                    {activeLayerIds.map((id) => {
+                      const l = layers.find((x) => x.id === id);
+                      if (!l) return null;
+                      return (
+                        <button key={id} className="quick-layer-btn" data-testid={'quick-layer-' + id}
+                          title={`N'afficher que « ${l.name} » (désactive les autres calques, repasse en édition)`}
+                          onClick={() => { setActiveLayerIds([id]); applyLayers([id]); }}>
+                          🎯 {l.name} <span style={{ opacity: .55, fontSize: 10 }}>({l.nodes.length}n)</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
               <h2>Input initial</h2>
               <div style={{ padding: '0 12px 12px' }}>
                 <textarea data-testid="input-json" rows={5} value={inputText}
@@ -3672,6 +4295,11 @@
                   <input type="checkbox" data-testid="btn-snap" aria-pressed={snap}
                     checked={snap} onChange={() => setSnap((s) => !s)} />
                   <span>▦ snap-to-grid {snap ? '(ON)' : '(off)'}</span>
+                </label>
+                <label className="setting-row" title="Afficher les Agents composites en mini-planète habitée (mode alternatif, vue technique inchangée)">
+                  <input type="checkbox" data-testid="btn-organic" aria-pressed={organicView}
+                    checked={organicView} onChange={() => setOrganicView((o) => !o)} />
+                  <span>{organicView ? '🌍 Vue organique (ON)' : '🔧 Vue technique (organique off)'}</span>
                 </label>
               </div>
               <div className="legend">
@@ -3688,6 +4316,7 @@
             <div className="canvas-split" ref={splitRef} data-testid="canvas-split" data-focused={focused}>
               <div className="split-pane" style={{ flexBasis: splitPct + '%' }}>
                 <CanvasSurface cv={active} snap={snap} idSeq={idSeq} result={result} paused={paused}
+                  organicView={organicView}
                   readOnly={layersReadOnly} roBanner={`${activeLayerIds.length} calques superposés — lecture seule`}
                   label={'● Actif' + (focused === 'active' ? ' (focus)' : '')} onActivate={() => setFocused('active')} />
               </div>
@@ -3695,6 +4324,7 @@
                 onMouseDown={startSplitDrag} />
               <div className="split-pane" style={{ flexBasis: (100 - splitPct) + '%' }}>
                 <CanvasSurface cv={sandbox} snap={snap} idSeq={idSeq} result={null} paused={null}
+                  organicView={organicView}
                   isSandbox label={'▲ Sandbox — non exécuté' + (focused === 'sandbox' ? ' (focus)' : '')}
                   onActivate={() => setFocused('sandbox')} />
                 <div className="sandbox-bar" data-testid="sandbox-bar">
@@ -3975,6 +4605,41 @@
                           </select>
                         </div>
                       )}
+                      {/* Mécanisme #2 — SÉLECTEUR DE CHAMP par satellite (destination du clic sur un
+                          FANTÔME/satellite vide en vue organique, setSel(satId) → cet inspecteur).
+                          Pioche la valeur homonyme déjà saisie chez les agents existants (Bibliothèque
+                          + canvas), étiquetée par agent source, + « Nouveau » (saisie manuelle). NE
+                          modifie QUE ce composant. Remplace l'ancien dropdown « fiche entière » qui,
+                          pour memoire/skill/plugin/role/modele, listait à tort les 18 fiches agent
+                          (mécanisme #1, réservé au NŒUD CENTRAL). Le 8ᵉ (sortieAttendue) garde son
+                          importeur de format de sortie ci-dessus. */}
+                      {selNode.data.componentType !== 'sortieAttendue' && (() => {
+                        const ct = selNode.data.componentType;
+                        const opts = harvestFieldValues(ct, agentFiches, nodes, selNode.id);
+                        return (
+                          <div className="field">
+                            <label>Réutiliser « {cm.label} » d'un agent existant</label>
+                            <select data-testid="comp-field-select" data-field={ct} value=""
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                if (!v) return;
+                                if (v === '__new__') {
+                                  const ta = document.querySelector('[data-testid="comp-text"]');
+                                  if (ta) ta.focus();
+                                  return;
+                                }
+                                patchData(selNode.id, { text: v });
+                              }}>
+                              <option value="">{`(valeur « ${cm.label} » à réutiliser — ${opts.length})`}</option>
+                              {opts.map((o, i) => (
+                                <option key={i} value={o.value}>{'[' + o.source + '] ' + o.value.slice(0, 60)}</option>
+                              ))}
+                              <option value="__new__">＋ Nouveau (saisir à la main)</option>
+                            </select>
+                            <div className="hint" style={{ marginTop: 3 }}>Pioche uniquement le champ « {cm.label} » parmi les agents existants — sans toucher aux 7 autres composants.</div>
+                          </div>
+                        );
+                      })()}
                       <div className="hint">Composant de la carte d'identité de l'agent — non-exécutable (exclu de toEngineGraph, comme une Note). Le remplir fait progresser le badge {parent ? agentCardStatus(parent.id, nodes).filled : 0}/{parent ? agentCardStatus(parent.id, nodes).total : AGENT_COMPONENT_TYPES.length} de l'agent.</div>
                       <button className="danger" onClick={deleteSelected}>Supprimer le composant</button>
                     </div>
@@ -4209,6 +4874,69 @@
                   }}>Sauver</button>
                   <button className="ghost" onClick={() => setChainSaveOpen(false)}>Annuler</button>
                 </div>
+              </div>
+            </div>
+          )}
+          {/* Confirmation avant suppression — modale DOM (capturable en screenshot, ≠ window.confirm). */}
+          {confirmState && (
+            <div className="confirm-overlay" data-testid="confirm-modal"
+              onMouseDown={(e) => { if (e.target === e.currentTarget) resolveConfirm(false); }}>
+              <div className="confirm-box" role="alertdialog" aria-modal="true">
+                <div className="confirm-title">⚠️ Confirmation</div>
+                <div className="confirm-message" data-testid="confirm-message">{confirmState.message}</div>
+                <div className="confirm-actions">
+                  <button className="ghost" data-testid="confirm-cancel" onClick={() => resolveConfirm(false)}>Annuler</button>
+                  <button className="danger" data-testid="confirm-ok" onClick={() => resolveConfirm(true)}>Supprimer</button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* ===== Vue Roadmap projet — LECTURE SEULE (consultation centralisée). ===== */}
+          {roadmapViewOpen && (
+            <div className="roadmap-modal" data-testid="roadmap-modal" onMouseDown={() => setRoadmapViewOpen(false)}>
+              <div className="roadmap-box" onMouseDown={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <b style={{ color: '#93c5fd' }}>🗺️ Roadmap projet — {roadmapFiches.length} plan(s) · lecture seule</b>
+                  <button className="ghost" data-testid="roadmap-close" onClick={() => setRoadmapViewOpen(false)}>fermer</button>
+                </div>
+                <div className="hint" style={{ marginBottom: 10 }}>Consultation uniquement — l'édition des jalons reste dans l'éditeur de fiche Roadmap (Bibliothèque). Progression calculée depuis les statuts (todo 0 % · doing 50 % · done 100 %).</div>
+                {roadmapFiches.length === 0 && (
+                  <div className="hint" data-testid="roadmap-empty" style={{ fontStyle: 'italic' }}>Aucune roadmap dans la Bibliothèque. Crée une fiche kind « Roadmap ».</div>
+                )}
+                {roadmapFiches.map((rm) => {
+                  const milestones = rm.payload.milestones || [];
+                  const pct = roadmapProgress(milestones);
+                  return (
+                    <div key={rm.id} className="roadmap-card" data-testid={'roadmap-card-' + rm.id}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                        <b style={{ color: '#e2e8f0' }}>{rm.name}</b>
+                        <span data-testid={'roadmap-pct-' + rm.id} style={{ fontSize: 12, color: '#4ade80', fontWeight: 'bold' }}>{pct}%</span>
+                      </div>
+                      <div className="roadmap-bar"><i style={{ width: pct + '%' }} /></div>
+                      {milestones.length === 0 && <div className="hint">Aucun jalon.</div>}
+                      {milestones.map((m) => {
+                        const goal = libBricks.find((b) => b.kind === 'goal' && b.id === m.goalRef);
+                        const linkedLayers = layers.filter((l) => l.roadmapMilestoneRef === m.id);
+                        const cls = m.status === 'done' ? 'ms-done' : m.status === 'doing' ? 'ms-doing' : 'ms-todo';
+                        return (
+                          <div key={m.id} className="ms-item" data-testid={'roadmap-ms-' + m.id}>
+                            <span className={'ms-badge ' + cls}>{m.status}</span>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 12, color: '#e2e8f0' }}>{m.title || '(sans titre)'}</div>
+                              {m.description && <div className="hint" style={{ marginTop: 2 }}>{m.description}</div>}
+                              {m.goalRef && <div className="hint" style={{ color: '#5eead4', marginTop: 2 }}>🎯 {goal ? goal.name : m.goalRef}</div>}
+                              {linkedLayers.length > 0 && (
+                                <div className="ms-layers" data-testid={'roadmap-ms-layers-' + m.id}>
+                                  📚 calques associés : {linkedLayers.map((l) => `${LAYER_OWNER_META[normalizeOwner(l.layerOwner)].icon} ${l.name}`).join(' · ')}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

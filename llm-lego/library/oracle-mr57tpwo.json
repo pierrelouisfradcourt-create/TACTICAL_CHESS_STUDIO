@@ -1,0 +1,29 @@
+{
+  "id": "oracle-mr57tpwo",
+  "kind": "oracle",
+  "name": "Merge Validator",
+  "maturity": "saved",
+  "badge": "demo",
+  "roadmapRef": null,
+  "sourceRef": "Spec AI Studio externe (Merge Engine) — représenté avec briques TCS existantes (routing/oracle/artefact)",
+  "payload": {
+    "prompt": "Compare la sortie du nœud précédent avec la règle attendue. Réponds UNIQUEMENT en JSON: {\"verdict\": \"PASS\"|\"FAIL\", \"reasoning\": \"...\"}",
+    "verdictField": "verdict",
+    "expectedValues": [
+      "PASS",
+      "FAIL"
+    ],
+    "rule": "Gardien de cohérence AVANT fusion (Merge Engine). Vérifie sur les sorties des producteurs, DANS L'ORDRE, toutes bloquantes :\n1. Pas de conflit de fichiers : deux sorties ne modifient pas la même ligne de façon contradictoire.\n2. Pas de contradiction sémantique : les décisions des producteurs sont réconciliables (pas d'affirmations mutuellement exclusives).\n3. Chaque changement est exprimable en diff +/-/~ (add / remove / refactor).\nVerdict PASS seulement si une fusion cohérente est possible ; sinon FAIL en listant le conflit. claim_verdict: NO_CLAIM_ALLOWED.",
+    "category": "structural",
+    "attachableTo": [
+      "llm",
+      "agent",
+      "tool",
+      "router"
+    ],
+    "model": "qwen2.5-14b-instruct",
+    "temperature": 0.2
+  },
+  "created": "2026-07-03T17:36:47.976Z",
+  "updated": "2026-07-03T17:36:48.110Z"
+}

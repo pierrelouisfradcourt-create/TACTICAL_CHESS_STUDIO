@@ -1,0 +1,103 @@
+{
+  "id": "chain-mr57tuy5",
+  "kind": "chain",
+  "name": "Merge Engine (Developer A+B → Merger → Artefact)",
+  "maturity": "draft",
+  "badge": "demo",
+  "roadmapRef": null,
+  "sourceRef": null,
+  "payload": {
+    "nodes": [
+      {
+        "id": "llm-2",
+        "type": "llm",
+        "x": 14,
+        "y": 80,
+        "data": {
+          "prompt": "Your prompt here",
+          "outputKey": "out"
+        }
+      },
+      {
+        "id": "llm-3",
+        "type": "llm",
+        "x": 294,
+        "y": 80,
+        "data": {
+          "prompt": "Your prompt here",
+          "outputKey": "out"
+        }
+      },
+      {
+        "id": "llm-4",
+        "type": "llm",
+        "x": 154,
+        "y": 164,
+        "data": {
+          "prompt": "Tu es le Merger d'une chaîne multi-agents. Tu reçois les sorties de plusieurs producteurs (ex: Developer A, Developer B) et tu produis UN artefact cohérent unique.\n\nREPRÉSENTE CHAQUE CHANGEMENT EN DIFF (format +/-/~) :\n  + <ligne>   = AJOUT (contenu nouveau introduit par la fusion)\n  - <ligne>   = SUPPRESSION (contenu retiré / abandonné)\n  ~ <ligne>   = REFACTOR (contenu réécrit — donne l'avant → après)\n\nRÈGLES DE FUSION :\n1. Deux producteurs qui modifient la même zone → réconcilie, ne duplique pas.\n2. Contradiction entre deux sorties → signale-la explicitement avant de trancher.\n3. Chaque décision de fusion doit être justifiable et exprimable en +/-/~.\n4. Sortie finale = artefact fusionné + un résumé des conflits résolus.\n\nNe prétends jamais qu'un résultat est prouvé. claim_verdict: NO_CLAIM_ALLOWED.",
+          "outputKey": "out",
+          "producerRef": "prompt-mr57tpgx",
+          "oracleRef": "oracle-mr57tpwo"
+        },
+        "attachedPrompt": {
+          "id": "prompt-mr57tpgx",
+          "name": "Instructions de fusion diff-based",
+          "badge": "demo"
+        },
+        "attachedOracle": {
+          "id": "oracle-mr57tpwo",
+          "name": "Merge Validator",
+          "badge": "demo"
+        }
+      },
+      {
+        "id": "artefact-5",
+        "type": "artefact",
+        "x": 434,
+        "y": 201,
+        "data": {
+          "title": "Livrable",
+          "description": "",
+          "artefactType": "logiciel"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-6",
+        "from": "llm-2",
+        "to": "llm-3",
+        "fromHandle": "right",
+        "toHandle": "left",
+        "condition": ""
+      },
+      {
+        "id": "edge-7",
+        "from": "llm-3",
+        "to": "llm-4",
+        "fromHandle": "bottom",
+        "toHandle": "top",
+        "condition": ""
+      },
+      {
+        "id": "edge-8",
+        "from": "llm-4",
+        "to": "artefact-5",
+        "fromHandle": "right",
+        "toHandle": "left",
+        "condition": ""
+      }
+    ],
+    "initialInput": {
+      "task": "Implémenter la feature X"
+    },
+    "category": "import-merge",
+    "tags": [
+      "merge",
+      "diff",
+      "fusion"
+    ]
+  },
+  "created": "2026-07-03T17:36:54.509Z",
+  "updated": "2026-07-03T17:36:54.509Z"
+}
