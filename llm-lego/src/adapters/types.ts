@@ -30,4 +30,12 @@ export interface Adapters {
   llm: AdapterFn;
   tool: AdapterFn;
   agent: AdapterFn;
+  /**
+   * OPTIONAL — drives a "chat" node: a multi-turn conversation between two LLM
+   * voices (personas). Optional so existing Adapters literals (tests) stay valid;
+   * mock + LM Studio both implement it. The whole turn loop (alternation, transcript,
+   * hard maxTurns cap, global timeout) lives HERE, in the adapter — the executor just
+   * dispatches to it. The real implementation is the single documented swap point.
+   */
+  chat?: AdapterFn;
 }

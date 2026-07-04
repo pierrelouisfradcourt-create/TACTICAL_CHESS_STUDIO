@@ -74,4 +74,21 @@ export const mockAdapters: Adapters = {
       output: `mock output from ${name}`,
     };
   },
+
+  // Chat node (mock) : transcript MINIMAL factice, labellisé "[mock]", ZÉRO appel réseau.
+  // Juste de quoi ne pas bloquer les tests de structure — la vraie conversation multi-tours
+  // n'existe qu'en mode réel (lmStudioAdapters.chat).
+  async chat(data, _state) {
+    await delay(MOCK_LATENCY_MS);
+    const topic = asString(data["topic"], "(sans sujet)");
+    const va = (typeof data["voiceA"] === "object" && data["voiceA"] !== null ? data["voiceA"] : {}) as Record<string, unknown>;
+    const vb = (typeof data["voiceB"] === "object" && data["voiceB"] !== null ? data["voiceB"] : {}) as Record<string, unknown>;
+    const nameA = asString(va["name"], "Voix A");
+    const nameB = asString(vb["name"], "Voix B");
+    const transcript = [
+      { voice: "A", name: nameA, text: `[mock] ${nameA} ouvre sur « ${topic} » (aucun appel réseau).` },
+      { voice: "B", name: nameB, text: `[mock] ${nameB} répond brièvement — transcript factice de structure.` },
+    ];
+    return { type: "chat", topic, transcript, turns: transcript.length, mock: true, stoppedReason: "mock" };
+  },
 };

@@ -268,6 +268,18 @@
     .err { color: #f87171; font-size: 10px; margin-top: 4px; }
     .banner { padding: 8px 12px; border-radius: 4px; font-size: 11px; margin: 0 12px 10px; }
     .banner.error { background: rgba(248,113,113,.12); border: 1px solid #f87171; color: #fca5a5; white-space: pre-wrap; }
+    /* Chat node — bulles de dialogue distinctes sur le canvas + inspecteur. */
+    .chat-bubbles { display: flex; align-items: center; gap: 5px; margin: 4px 0 2px; }
+    .chat-bubble { font-size: 9px; padding: 2px 7px; border-radius: 9px 9px 9px 2px; color: #fff; max-width: 78px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-bubble-a { background: #db2777; }
+    .chat-bubble-b { background: #7c3aed; border-radius: 9px 9px 2px 9px; }
+    .chat-voice { border: 1px solid #334155; border-radius: 6px; padding: 6px 8px; margin: 6px 0; }
+    .chat-voice-h { font-size: 10px; color: #f472b6; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .chat-transcript { max-height: 260px; overflow: auto; border: 1px solid #1e293b; border-radius: 6px; padding: 6px; background: #0b1120; }
+    .chat-msg { border-radius: 8px; padding: 5px 8px; margin-bottom: 6px; font-size: 11px; max-width: 92%; }
+    .chat-msg b { font-size: 10px; display: block; margin-bottom: 2px; }
+    .chat-msg-a { background: #3b0a2e; border-left: 3px solid #db2777; margin-right: auto; }
+    .chat-msg-b { background: #1e1b4b; border-left: 3px solid #7c3aed; margin-left: auto; }
     .trace-step { background: #0f172a; border-left: 3px solid #6366f1; padding: 7px 8px; margin: 0 12px 7px; border-radius: 2px; font-size: 10px; }
     .trace-step.is-error { border-left-color: #f87171; }
     .trace-step.is-loop { border-left-color: #fbbf24; }
@@ -350,6 +362,14 @@
       // prédécesseurs déclarés ; le moteur ne l'exécute qu'une fois TOUS présents dans la
       // trace (exécution séquentielle avec accumulation, pas de concurrence wall-clock).
       join:   { label: 'Join', color: '#06b6d4', data: () => ({ waitFor: [] }) },
+      // Chat = conversation multi-tours entre 2 voix LLM (personas). Exécutable (DANS src).
+      // La boucle de tours vit dans l'adapter chat (mock = factice [mock] ; réel = LM Studio).
+      chat:   { label: 'Chat', color: '#ec4899', data: () => ({
+        topic: 'Sujet de départ de la conversation',
+        voiceA: { name: 'Voix A', model: 'qwen2.5-14b-instruct', persona: 'Tu es optimiste et orienté solutions.', temperature: 0.7 },
+        voiceB: { name: 'Voix B', model: 'qwen2.5-14b-instruct', persona: 'Tu es critique et cherches les failles.', temperature: 0.5 },
+        maxTurns: 6, transcript: [],
+      }) },
       // Artefact = final deliverable. NON-executable, treated EXACTLY like a Note by
       // the engine (excluded from toEngineGraph, edges touching it dropped). Accepts
       // incoming AND outgoing connections. Client-only type (like note, NOT in src).
@@ -2038,6 +2058,20 @@
                               <div><b>temp</b> {n.data.temperature ?? 'N/A'} · <b>top_p</b> {n.data.top_p ?? 'N/A'} · <b>tok</b> {n.data.max_tokens ?? 'N/A'}</div>
                               {n.data.okAfter !== undefined ? <div><b>okAfter</b> {n.data.okAfter}</div> : null}
                             </div>
+                        : n.type === 'chat'
+                          ? <div data-testid={'chat-body-' + n.id}>
+                              <div style={{ fontSize: 9, opacity: .85 }}>💬 {String(n.data.topic || 'Chat').slice(0, 42)}</div>
+                              <div className="chat-bubbles">
+                                <span className="chat-bubble chat-bubble-a">{(n.data.voiceA && n.data.voiceA.name) || 'A'}</span>
+                                <span style={{ opacity: .55 }}>⇄</span>
+                                <span className="chat-bubble chat-bubble-b">{(n.data.voiceB && n.data.voiceB.name) || 'B'}</span>
+                              </div>
+                              {(() => {
+                                const co = result && result.state && result.state.nodes[n.id];
+                                const tr = co && Array.isArray(co.transcript) ? co.transcript : [];
+                                return <div style={{ fontSize: 8, opacity: .7 }}>{tr.length ? tr.length + ' échanges' + (co.mock ? ' [mock]' : '') : 'maxTurns ' + (n.data.maxTurns ?? 6)}</div>;
+                              })()}
+                            </div>
                           : Object.keys(stripUi(n.data)).slice(0, 3).map((k) => (
                               <div key={k}><b>{k}</b>: {String(n.data[k]).slice(0, 26)}</div>
                             ))}
@@ -2545,6 +2579,7 @@
         window.__layers = () => layers;
         window.__patchLayer = (id, patch) => patchLayer(id, patch);
         window.__openRoadmap = (v) => setRoadmapViewOpen(v !== false);
+        window.__result = () => result; // dernier résultat d'exécution (trace + state) — pour les tests
       });
 
       // ================= Wire Map (traceability) =================
@@ -4235,6 +4270,7 @@
                 <button className="palette" data-testid="add-tool" style={{ borderColor: NODE_TYPES.tool.color }} onClick={() => addNode('tool')}>＋ Tool</button>
                 <button className="palette" data-testid="add-router" style={{ borderColor: NODE_TYPES.router.color }} onClick={() => addNode('router')}>＋ Router</button>
                 <button className="palette" data-testid="add-join" style={{ borderColor: NODE_TYPES.join.color }} onClick={() => addNode('join')}>＋ Join</button>
+                <button className="palette" data-testid="add-chat" style={{ borderColor: NODE_TYPES.chat.color }} onClick={() => addNode('chat')}>💬 ＋ Chat</button>
                 <button className="palette" data-testid="add-agent" style={{ borderColor: NODE_TYPES.agent.color }} onClick={() => addAgentComposite()}>＋ Agent</button>
                 {/* Prompt/Oracle/Goal now have palette buttons too — each poses a node
                     and offers to import a matching Library brick (reuses attach fns). */}
@@ -4683,7 +4719,64 @@
                   );
                 })()}
 
-                {selNode && selNode.type !== 'agent' && selNode.type !== 'agent-component' && selNode.type !== 'note' && selNode.type !== 'router' && selNode.type !== 'humangate' && selNode.type !== 'artefact' && selNode.type !== 'join' && (
+                {selNode && selNode.type === 'chat' && (() => {
+                  // Conversation multi-tours entre 2 voix LLM. topic + persona/modèle/température
+                  // par voix + maxTurns (plafonné à 12). Le transcript exécuté est lu dans
+                  // result.state.nodes[id] (même source que la décision HumanGate/les ordres).
+                  const d = selNode.data || {};
+                  const setVoice = (key, patch) => patchData(selNode.id, { [key]: { ...(d[key] || {}), ...patch } });
+                  const chatOut = (result && result.state && result.state.nodes) ? result.state.nodes[selNode.id] : null;
+                  const transcript = (chatOut && Array.isArray(chatOut.transcript)) ? chatOut.transcript
+                    : (Array.isArray(d.transcript) ? d.transcript : []);
+                  const CAP = 12;
+                  const voiceBlock = (key, label) => {
+                    const v = d[key] || {};
+                    return (
+                      <div className="chat-voice" data-testid={'chat-' + key}>
+                        <div className="chat-voice-h">{label}</div>
+                        <div className="field"><label>nom</label>
+                          <input data-testid={'chat-' + key + '-name'} value={v.name || ''} onChange={(e) => setVoice(key, { name: e.target.value })} /></div>
+                        <div className="field"><label>persona</label>
+                          <textarea rows={2} data-testid={'chat-' + key + '-persona'} value={v.persona || ''} onChange={(e) => setVoice(key, { persona: e.target.value })} /></div>
+                        <div className="field row">
+                          <div><label>modèle</label>
+                            <input data-testid={'chat-' + key + '-model'} value={v.model || ''} onChange={(e) => setVoice(key, { model: e.target.value })} /></div>
+                          <div><label>température</label>
+                            <input type="number" step="0.1" data-testid={'chat-' + key + '-temp'} value={v.temperature ?? ''} onChange={(e) => setVoice(key, { temperature: e.target.value === '' ? undefined : Number(e.target.value) })} /></div>
+                        </div>
+                      </div>
+                    );
+                  };
+                  return (
+                    <div data-testid="inspector-chat">
+                      <div className="field"><label>id</label><input value={selNode.id} readOnly /></div>
+                      <div className="field"><label>sujet de départ (topic)</label>
+                        <textarea rows={2} data-testid="chat-topic" value={d.topic || ''} onChange={(e) => patchData(selNode.id, { topic: e.target.value })} /></div>
+                      {voiceBlock('voiceA', '🅰️ Voix A')}
+                      {voiceBlock('voiceB', '🅱️ Voix B')}
+                      <div className="field"><label>maxTurns — plafond dur {CAP}</label>
+                        <input type="number" min="1" max={CAP} data-testid="chat-maxturns" value={d.maxTurns ?? 6}
+                          onChange={(e) => { const n = Math.max(1, Math.min(CAP, Math.floor(Number(e.target.value) || 1))); patchData(selNode.id, { maxTurns: n }); }} />
+                        <div className="hint">Conversation entre 2 voix Qwen. « réel » (toggle) = LM Studio ; sinon transcript factice <code>[mock]</code>. Timeout global côté moteur ; jamais de boucle sans fin.</div>
+                      </div>
+                      <div className="field">
+                        <label>transcript {transcript.length ? '(' + transcript.length + ' msg' + (chatOut && chatOut.stoppedReason ? ' · ' + chatOut.stoppedReason : '') + ')' : ''}</label>
+                        <div className="chat-transcript" data-testid="chat-transcript">
+                          {transcript.length === 0 && <div className="hint">Aucun échange encore — exécute le graphe (▶️).</div>}
+                          {transcript.map((m, i) => (
+                            <div key={i} className={'chat-msg chat-msg-' + (m.voice === 'A' ? 'a' : 'b')} data-testid={'chat-msg-' + i} data-voice={m.voice}>
+                              <b>{m.voice === 'A' ? '🅰️ ' : '🅱️ '}{m.name || ('Voix ' + m.voice)}</b>
+                              <div>{m.text}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <button className="danger" onClick={deleteSelected}>Supprimer le nœud</button>
+                    </div>
+                  );
+                })()}
+
+                {selNode && selNode.type !== 'agent' && selNode.type !== 'agent-component' && selNode.type !== 'note' && selNode.type !== 'router' && selNode.type !== 'humangate' && selNode.type !== 'artefact' && selNode.type !== 'join' && selNode.type !== 'chat' && (
                   <div data-testid="inspector-generic">
                     <div className="field"><label>id</label><input value={selNode.id} readOnly /></div>
                     <div className="field"><label>type</label><input value={selNode.type} readOnly /></div>

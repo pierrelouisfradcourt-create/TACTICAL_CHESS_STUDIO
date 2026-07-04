@@ -36,6 +36,9 @@ export interface LmStudioConfig {
   timeoutMs: number;
   /** Sampling temperature when a node does not specify one. */
   defaultTemperature: number;
+  /** GLOBAL ceiling on a whole chat-node conversation (all turns). Default: env
+   * LMSTUDIO_CHAT_TIMEOUT_MS or 90000. Bounds the loop even if per-call succeeds. */
+  conversationTimeoutMs: number;
 }
 
 /**
@@ -46,6 +49,9 @@ const DEFAULT_MODEL = "qwen2.5-14b-instruct";
 const DEFAULT_URL = "http://localhost:1234/v1/chat/completions";
 const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_TEMPERATURE = 0.2;
+const DEFAULT_CHAT_TIMEOUT_MS = 90000;
+/** Hard ceiling on a chat conversation's turns — never a runaway loop. */
+const MAX_TURNS_CAP = 12;
 
 function envNumber(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -61,7 +67,26 @@ export function resolveConfig(overrides: Partial<LmStudioConfig> = {}): LmStudio
     defaultModel: overrides.defaultModel ?? process.env["LMSTUDIO_MODEL"] ?? DEFAULT_MODEL,
     timeoutMs: overrides.timeoutMs ?? envNumber("LMSTUDIO_TIMEOUT_MS", DEFAULT_TIMEOUT_MS),
     defaultTemperature: overrides.defaultTemperature ?? DEFAULT_TEMPERATURE,
+    conversationTimeoutMs: overrides.conversationTimeoutMs ?? envNumber("LMSTUDIO_CHAT_TIMEOUT_MS", DEFAULT_CHAT_TIMEOUT_MS),
   };
+}
+
+/** A chat "voice": name, model, persona (system frame), sampling temperature. */
+interface Voice { id: "A" | "B"; name: string; model: string; persona: string; temperature: number; }
+function readVoice(raw: unknown, id: "A" | "B", defName: string, cfg: LmStudioConfig): Voice {
+  const v = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
+  return {
+    id,
+    name: asString(v["name"], defName),
+    model: asString(v["model"], cfg.defaultModel),
+    persona: typeof v["persona"] === "string" ? (v["persona"] as string) : "",
+    temperature: typeof v["temperature"] === "number" && Number.isFinite(v["temperature"] as number)
+      ? (v["temperature"] as number) : cfg.defaultTemperature,
+  };
+}
+function toPositiveInt(v: unknown, fallback: number): number {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
 function asString(value: unknown, fallback: string): string {
@@ -220,10 +245,51 @@ export function createLmStudioAdapters(overrides: Partial<LmStudioConfig> = {}):
     return { type: "agent", agent: name, model, output: text, text };
   };
 
+  // Chat node (RÉEL) : conversation multi-tours entre 2 voix (personas). Alterne A/B,
+  // construit le transcript, s'arrête sur maxTurns (plafond dur MAX_TURNS_CAP), sur un
+  // arrêt naturel (réponse très courte / "rien à ajouter"), sur erreur LM (arrêt propre,
+  // message clair), ou sur le TIMEOUT GLOBAL de conversation (deadline sur toute la boucle,
+  // pas seulement par appel). Chaque tour réutilise `chat()` — même mécanisme que llm/agent.
+  const chatFn: AdapterFn = async (data) => {
+    const topic = asString(data["topic"], "");
+    const voices: [Voice, Voice] = [
+      readVoice(data["voiceA"], "A", "Voix A", cfg),
+      readVoice(data["voiceB"], "B", "Voix B", cfg),
+    ];
+    const maxTurns = Math.min(MAX_TURNS_CAP, toPositiveInt(data["maxTurns"], 6));
+    const deadline = Date.now() + cfg.conversationTimeoutMs;
+    const transcript: Array<{ voice: "A" | "B"; name: string; text: string }> = [];
+    let stoppedReason = "maxTurns";
+
+    for (let turn = 0; turn < maxTurns; turn++) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) { stoppedReason = "timeout"; break; }
+      const speaker = voices[turn % 2] as Voice;
+      const other = voices[(turn + 1) % 2] as Voice;
+      const convo = transcript.map((m) => `${m.name}: ${m.text}`).join("\n");
+      const userPrompt = turn === 0
+        ? `Sujet de la conversation : « ${topic} ».\nTu ouvres l'échange. Donne ton point de vue en 2-3 phrases.`
+        : `Sujet : « ${topic} ».\nÉchange jusqu'ici :\n${convo}\n\nRéponds à ${other.name} en 2-3 phrases, fidèle à ton point de vue. Si tu n'as vraiment rien à ajouter, dis simplement « Rien à ajouter ».`;
+      // Le timeout de l'appel est borné par le reste du budget global (timeout GLOBAL).
+      const turnCfg: LmStudioConfig = { ...cfg, timeoutMs: Math.min(cfg.timeoutMs, Math.max(1000, remaining)) };
+      const { text, error } = await chat(turnCfg, speaker.model, userPrompt, speaker.persona || null, speaker.temperature);
+      if (error !== undefined) {
+        transcript.push({ voice: speaker.id, name: speaker.name, text: `[lm-studio indisponible] ${error}` });
+        stoppedReason = "error";
+        break;
+      }
+      transcript.push({ voice: speaker.id, name: speaker.name, text });
+      const t = text.trim();
+      if (t.length < 15 || /rien à ajouter|c'est tout|d'accord[.,! ]/i.test(t)) { stoppedReason = "natural-stop"; break; }
+    }
+    return { type: "chat", topic, transcript, turns: transcript.length, maxTurns, stoppedReason };
+  };
+
   return {
     llm,
     agent,
     tool: mockAdapters.tool,
+    chat: chatFn,
   };
 }
 

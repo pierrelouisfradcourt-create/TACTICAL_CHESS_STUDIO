@@ -172,7 +172,9 @@ export function createPowershellAdapters(overrides: Partial<PowershellConfig> = 
       ...(r.error !== undefined ? { error: r.error } : {}),
     };
   };
-  return { llm: mockAdapters.llm, agent: mockAdapters.agent, tool };
+  // Only `tool` is real (PowerShell). llm/agent/chat delegate to the mock — spread keeps
+  // `chat` optional-safe under exactOptionalPropertyTypes (never assigns an explicit undefined).
+  return { ...mockAdapters, tool };
 }
 
 /** Default PowerShell tool adapter (repo-relative chains dir, 60s timeout). */

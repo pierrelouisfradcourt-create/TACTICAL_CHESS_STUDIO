@@ -5,7 +5,7 @@
  * dependency-free so the engine core stays portable (no React, no framework).
  */
 
-export type NodeType = "llm" | "tool" | "agent" | "router" | "humangate" | "join";
+export type NodeType = "llm" | "tool" | "agent" | "router" | "humangate" | "join" | "chat";
 
 export interface Node {
   id: string;

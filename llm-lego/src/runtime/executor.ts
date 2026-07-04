@@ -65,6 +65,15 @@ async function dispatch(
       }
       return { type: "join", waitedFor: waitFor, joined };
     }
+    case "chat":
+      // Conversation multi-tours entre 2 voix LLM. TOUTE la boucle (alternance, transcript,
+      // plafond maxTurns, timeout global) vit dans l'adapter `chat` (mock = factice ; réel =
+      // LM Studio). L'executor ne fait que dispatcher. Absent (adapter sans chat) → sortie
+      // structurée honnête plutôt qu'un crash.
+      if (typeof adapters.chat === "function") {
+        return adapters.chat(node.data, ctx.state, meta);
+      }
+      return { type: "chat", transcript: [], turns: 0, error: "adapter 'chat' indisponible", stoppedReason: "no-adapter" };
     case "humangate":
       // A HumanGate never produces an automatic output — the engine pauses BEFORE
       // executing it (see runGraph/runLoop) and waits for resumeGraph. Reaching
