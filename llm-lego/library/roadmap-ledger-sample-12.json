@@ -1,0 +1,100 @@
+{
+  "id": "roadmap-ledger-sample-12",
+  "kind": "roadmap",
+  "name": "IMPROVEMENT_LEDGER — échantillon (12 IMP récents)",
+  "maturity": "saved",
+  "badge": "demo",
+  "roadmapRef": null,
+  "sourceRef": "lab/chains/IMPROVEMENT_LEDGER.yaml (échantillon 12/244 — proof of concept, PAS un import de masse)",
+  "payload": {
+    "category": "studio",
+    "milestones": [
+      {
+        "id": "IMP-223",
+        "title": "IMP-223 — Session Kickoff playbook — preflight standardise",
+        "description": "[MEDIUM/SMALL · lane SAFE_AUTO] playbooks/session_kickoff.md avec etapes obligatoires : 1 repo health / 2 worktree state / 3 ledger review / 4 knowledge refresh web / 5 priorisation / 6 parallel safety check / 7 planning session",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "IMP-224",
+        "title": "IMP-224 — Failure Harvest playbook — chaque erreur devient une regle permanente",
+        "description": "[MEDIUM/SMALL · lane SAFE_AUTO] playbooks/failure_harvest.md avec pipeline : erreur -> cause -> regle -> workflow -> protection permanente. Branche sur error_journal — toute erreur >= 3 occurrences genere une entree dans checklists/",
+        "status": "done",
+        "goalRef": null
+      },
+      {
+        "id": "IMP-225",
+        "title": "IMP-225 — Pattern Extraction — apres chaque IMP ferme extrait les apprentissages",
+        "description": "[MEDIUM/SMALL · lane SAFE_AUTO] playbooks/pattern_extraction.md avec questions obligatoires : decouverte d un workflow ? d une regle ? d un template ? d un prompt ? d une policy ? Output : entree dans workflow_store/ ou checklists/",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "IMP-226",
+        "title": "IMP-226 — Parallel Safety Review — Director calcule collisions avant lancement",
+        "description": "[MEDIUM/MEDIUM · lane SAFE_AUTO] scripts/parallel_safety.py : prend liste IMPs candidats, retourne groupes sans collision (fichiers disjoints), ordre optimal, points de synchronisation. pytest : 3 IMPs sur memes fichiers -> collision detectee",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "IMP-227",
+        "title": "IMP-227 — Process Architect agent — observe sessions detecte frictions propose workflows",
+        "description": "[MEDIUM/MEDIUM · lane AUDIT_REQUIRED] Agent lecture seule sur events.jsonl + error_journal + session logs. Produit apres chaque session : frictions detectees / repetitions / nouveaux workflows proposes. Output : proposals/process_architect_YYYY-MM-DD.md",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "IMP-228",
+        "title": "IMP-228 — Rocky audit checklist — pre-checklist obligatoire avant tout audit moteur",
+        "description": "[MEDIUM/SMALL · lane SAFE_AUTO] checklists/rocky_audit.md avec verifications obligatoires : grep root_player -> sites restants documentes / git log fixes deja appliques / oracle ELO fiable (date dernier run) / benchmark depuis dernier fix / draw rate mesure. Empeche de re-decouvrir des bugs deja fixes",
+        "status": "done",
+        "goalRef": null
+      },
+      {
+        "id": "IMP-229",
+        "title": "IMP-229 — Tech-debt lab/chains/ orphelins — archiver ou supprimer chain_executor.py, chain_log.py, studio_start.py, studio_end.py, validate_corpus.py, validate_packet.py après vérification qu'ils ne sont pas appelés dynamiquement",
+        "description": "[LOW/SMALL · lane SAFE_AUTO] Pour chacun des 6 fichiers: grep -rn (import, importlib, subprocess, runpy, refs string du nom) sur tout le repo confirme zero appelant hors lui-meme; puis chaque fichier soit deplace sous lab/chains/_archive/ soit supprime. Oracle: python -m compileall lab/ OK + pytest ml/ vert + aucun import casse.",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "IMP-230",
+        "title": "IMP-230 — Anti-shuffle cavalier/tour — is_shuffle_move ne couvre que le Roi, oscillations N/R non penalisees (cause shuffle Nh6/Ng8 observe en partie reelle)",
+        "description": "[MEDIUM/SMALL · lane AUDIT_REQUIRED] is_shuffle_move (ou helper additif) detecte l'oscillation cavalier/tour (retour sur une case quittee) en plus du Roi, SANS regression sur manoeuvres legitimes (Nf3-d2-c4 non penalise). Oracle: cargo test --release vert (tous tests existants); test comportemental: la sequence 1.e4 Nh6 2.Bc4 Ng8 3.c3 ... ne boucle plus apres le 2e aller-retour. NO_CLAIM.",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "IMP-231",
+        "title": "IMP-231 — Isolation etat global tests — root_policy_table() + lock env contaminent la suite parallele. Tests verts isoles mais rouges en //.",
+        "description": "[LOW/SMALL · lane SAFE_AUTO] cargo test --release vert sans --test-threads=1",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "IMP-232",
+        "title": "IMP-232 — UCI minimal pour Rocky (shim Python wrappant play_fen)",
+        "description": "[MEDIUM/SMALL · lane AUDIT_REQUIRED] fancy.py -cmd 'python tools/rocky_uci.py' lance une partie humain vs Rocky; tools/cross_engine_match.py accepte --white/--black rocky; handshake uci/uciok/isready/readyok/position/go/bestmove conforme; tracking moves + promotions corrects; ne touche pas src/ (wrap du binaire play_fen existant)",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "IMP-234",
+        "title": "IMP-234 — Plafond profondeur d'ouverture trop bas — adaptive_depth retourne 3 pour n>=26 pieces, cause le shuffle observe via tie-break a score egal",
+        "description": "[MEDIUM/MEDIUM · lane AUDIT_REQUIRED] Relever le plancher depth en ouverture a >=4 (n>=26 -> depth 4 minimum)\nMesurer impact temps de calcul (depth 4 vs 3 en ouverture, NPS)\nTest comportemental : sequence shuffle observee ne se reproduit plus\nGate ELO obligatoire avant/apres (risque ralentissement vs gain qualite)",
+        "status": "done",
+        "goalRef": null
+      },
+      {
+        "id": "IMP-236",
+        "title": "IMP-236 — Calibrer le role RED_TEAM du council — il bloque sur de faux risques securite/ethique pour des jeux locaux simples (CLI offline sans reseau ni donnees)",
+        "description": "[MEDIUM/SMALL · lane SAFE_AUTO] Le prompt RED_TEAM (_role_prompt) classe d'abord le projet : jeu/outil LOCAL offline sans reseau/donnees/IA tierce -> AUCUNE objection securite/vie privee/ethique.\nRED_TEAM reste critique sur les vrais risques techniques (bugs, dette, scope creep, dependances).\nstance=BLOQUE reserve aux failles TECHNIQUES critiques reelles, jamais a un risque securite disproportionn",
+        "status": "done",
+        "goalRef": null
+      }
+    ]
+  },
+  "created": "2026-07-04T08:32:49.454165+00:00",
+  "updated": "2026-07-04T08:32:49.454165+00:00"
+}

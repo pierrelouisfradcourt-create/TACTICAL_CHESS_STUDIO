@@ -1,0 +1,29 @@
+{
+  "id": "oracle-labchains-fusion-matrix",
+  "kind": "oracle",
+  "name": "Fusion Matrix (merge 3 chains → verdict/evidence/risk)",
+  "maturity": "saved",
+  "badge": "demo",
+  "roadmapRef": null,
+  "sourceRef": "lab/chains/fusion_matrix_chain.py",
+  "payload": {
+    "rule": "fusion_matrix_chain.py — Merge signaux des trois chains en une fusion_matrix.\n\nMerge outputs de doc_hygiene + run_chain + scripts_route.\nProduit fusion_matrix : markdown table (verdict/evidence/risk/contradiction).\n\nDoctrine:\n- Read-only. Aucune mutation.\n- claim_verdict = NO_CLAIM_ALLOWED toujours.\n\n[Brique metadata : représente un oracle Python DÉTERMINISTE read-only ; l'exécution réelle reste le script source. NO_CLAIM_ALLOWED.]",
+    "prompt": "Applique le contrôle décrit par l'oracle source et réponds en JSON : {\"verdict\":\"PASS\"|\"FAIL\",\"reasoning\":\"...\"}",
+    "verdictField": "verdict",
+    "expectedValues": [
+      "PASS",
+      "FAIL"
+    ],
+    "category": "audit",
+    "attachableTo": [
+      "llm",
+      "agent",
+      "tool",
+      "router"
+    ],
+    "model": "qwen2.5-14b-instruct",
+    "temperature": 0.2
+  },
+  "created": "2026-07-04T08:32:49.454165+00:00",
+  "updated": "2026-07-04T08:32:49.454165+00:00"
+}

@@ -1,0 +1,29 @@
+{
+  "id": "oracle-labchains-validate-corpus",
+  "kind": "oracle",
+  "name": "Oracle corpus golden charters (≥10 entrées)",
+  "maturity": "saved",
+  "badge": "demo",
+  "roadmapRef": null,
+  "sourceRef": "lab/chains/validate_corpus.py",
+  "payload": {
+    "rule": "Oracle IMP-F1 — valide le corpus golden de charters.\nSchéma exigé par entrée : {\"input\": <ledger_entry dict>, \"output\": <charter_text str>}.\nExit 0 si >= 10 entrées valides, sinon exit 1 + log de l'erreur.\n\n[Brique metadata : représente un oracle Python DÉTERMINISTE read-only ; l'exécution réelle reste le script source. NO_CLAIM_ALLOWED.]",
+    "prompt": "Applique le contrôle décrit par l'oracle source et réponds en JSON : {\"verdict\":\"PASS\"|\"FAIL\",\"reasoning\":\"...\"}",
+    "verdictField": "verdict",
+    "expectedValues": [
+      "PASS",
+      "FAIL"
+    ],
+    "category": "audit",
+    "attachableTo": [
+      "llm",
+      "agent",
+      "tool",
+      "router"
+    ],
+    "model": "qwen2.5-14b-instruct",
+    "temperature": 0.2
+  },
+  "created": "2026-07-04T08:32:49.454165+00:00",
+  "updated": "2026-07-04T08:32:49.454165+00:00"
+}

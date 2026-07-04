@@ -1,0 +1,29 @@
+{
+  "id": "oracle-labchains-validate-packet",
+  "kind": "oracle",
+  "name": "Validateur truth packet (fail-closed)",
+  "maturity": "saved",
+  "badge": "demo",
+  "roadmapRef": null,
+  "sourceRef": "lab/chains/validate_packet.py",
+  "payload": {
+    "rule": "validate_packet.py — Validateur de truth packet (fail-closed)\nUsage: python lab/chains/validate_packet.py path/to/packet.yaml\nExit 0 si valide, exit 1 si invalide.\n\n[Brique metadata : représente un oracle Python DÉTERMINISTE read-only ; l'exécution réelle reste le script source. NO_CLAIM_ALLOWED.]",
+    "prompt": "Applique le contrôle décrit par l'oracle source et réponds en JSON : {\"verdict\":\"PASS\"|\"FAIL\",\"reasoning\":\"...\"}",
+    "verdictField": "verdict",
+    "expectedValues": [
+      "PASS",
+      "FAIL"
+    ],
+    "category": "audit",
+    "attachableTo": [
+      "llm",
+      "agent",
+      "tool",
+      "router"
+    ],
+    "model": "qwen2.5-14b-instruct",
+    "temperature": 0.2
+  },
+  "created": "2026-07-04T08:32:49.454165+00:00",
+  "updated": "2026-07-04T08:32:49.454165+00:00"
+}
