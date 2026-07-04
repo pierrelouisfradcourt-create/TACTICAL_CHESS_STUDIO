@@ -5,7 +5,10 @@
 import { chromium } from 'playwright';
 
 const OUT = 'C:/TACTICAL_CHESS_STUDIO/llm-lego';
-const URL = 'http://localhost:3000/builder';
+// BASE dynamique (même pattern que les autres *-validate.mjs) : permet de tourner sous un
+// harnais à port isolé (run-validators). Codé en dur auparavant → ERR_CONNECTION_REFUSED.
+const BASE = process.env['BASE'] ?? 'http://localhost:3000';
+const URL = `${BASE}/builder`;
 const results = [];
 function step(id, ok, shot, note) { results.push({ id, ok, shot, note }); console.log(`${ok ? '✅' : '❌'} ${id}${shot ? '  ['+shot+']' : ''}${note ? '  — '+note : ''}`); }
 async function shot(page, name, clip) { const p = `proof_${name}.png`; await page.screenshot({ path: `${OUT}/${p}`, ...(clip ? { clip } : {}) }); return p; }
