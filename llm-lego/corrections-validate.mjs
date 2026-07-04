@@ -8,7 +8,10 @@ import { chromium } from "playwright";
 import { writeFileSync } from "node:fs";
 
 const BASE = process.env["BASE"] ?? "http://localhost:3202";
-const CHAIN_NAME = "Pipeline idée→IMP (autopilot)";
+// La chaîne idée→IMP a été renommée plusieurs fois (autopilot → prompt_chain_map / marquée
+// « ANCIEN »). Au lieu d'un nom exact fragile (cause de l'échec pendant plusieurs passes), on
+// la retrouve par un SOUS-CHAÎNE stable + la FORME qui exerce reload+HumanGate (6 nœuds, 1 gate).
+const CHAIN_NAME_MATCH = "idée→IMP";
 const out = { steps: [], checks: {}, pass: false };
 const log = (m) => { console.log(m); out.steps.push(m); };
 const check = (name, cond) => { out.checks[name] = !!cond; log(`${cond ? "✅" : "❌"} ${name}`); if (!cond) out.failed = name; };
@@ -183,8 +186,16 @@ try {
 
   // ══ Non-régression: la Chaîne idée→IMP existante recharge + s'exécute ══════
   log("=== Non-régression — Chaîne idée→IMP existante ===");
-  const chain = ((await getJson("/api/library"))?.bricks || []).find((x) => x.kind === "chain" && x.name === CHAIN_NAME);
-  check("Chaîne idée→IMP toujours présente dans library/", !!chain);
+  // Parmi les chaînes « idée→IMP », prendre celle dont la forme exerce reload + HumanGate
+  // (6 nœuds dont 1 humangate). Robuste aux renommages futurs (métadonnées → payload fetch).
+  const candidates = ((await getJson("/api/library"))?.bricks || []).filter((x) => x.kind === "chain" && (x.name || "").includes(CHAIN_NAME_MATCH));
+  let chain = null;
+  for (const c of candidates) {
+    const full = await getJson("/api/library/" + c.id);
+    const ns = (full && full.payload && full.payload.nodes) || [];
+    if (ns.length === 6 && ns.some((n) => n.type === "humangate")) { chain = c; break; }
+  }
+  check("Chaîne idée→IMP (forme HumanGate) toujours présente dans library/", !!chain);
   if (chain) {
     await page.getByTestId("tab-canvas").click();
     await page.getByTestId("btn-clear").click();
