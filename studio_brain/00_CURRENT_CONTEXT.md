@@ -1,64 +1,60 @@
 # Contexte courant TCS
-Dernière session : 2026-07-03
+Dernière session : 2026-07-05 (marathon — chantier « AI-OS »). Contexte pré-2026-07-05
+archivé : `journal/context-archive-2026-07-05.md`.
 
-## En cours
-- llm-lego builder : wiredStatus + Brouillard d'audit + Ancrage brique sur edge
-  ✅ LIVRÉ (2026-07-03). wiredStatus (unset/documented-only/wired/broken) = 3ᵉ axe
-  d'enveloppe, dérivé sans migration (brickWiredStatus). Brouillard = flou léger .nbody
-  (titre net) sur nœud sourceRef+non-vérifié ; danger = contour orange sur broken —
-  exclusifs par construction (nodeAudit court-circuite). Edge : attachedBrickRef =
-  référence non-exéc (tous kinds), badge 📎, exclu du moteur. Validé 24 checks +
-  régression 572 (26 suites) + A1 réel LM Studio + vitest 46/46. Cadrage préalable :
-  llm-lego/SCOPING_ORGANIC_FOG_EDGE.md. Idée 1 (vue organique) = HORS SCOPE, en attente
-  décision Pierre (rosace vs jardin). Non poussé.
-- CT-1 (audit ROI) : ✅ FAIT + POUSSÉ (05ca0b4, origin/master). llm-lego source
-  (171 fichiers, 1,6 Mo) + studio_brain vault (15) versionnés. Exclus : node_modules
-  (105 Mo), *.png (53 screenshots, décision Pierre = repo lean), lego.zip,
-  state/loops-log.md (2,4 Mo). LFS écarté. Risque bus-factor-1 n°1 levé.
-- Intégration Superpowers + Graphify + Obsidian + frontend-design (plan 5 phases)
-- Phase 0 : ✅ FAIT. Commit `.claude/` infra (9263d49).
-- Cleanup "tree jamais clean" : ✅ FAIT (commit 027de2a). Rapports auto runtime
-  gitignorés + untrackés (director_*, learning_progress, search_profile_latest,
-  studio_state, snapshot, events.jsonl, diagnosis/reflection/audit_daily/*_latest).
-  Dossier parasite C:\...\ (bug chemin relatif) supprimé. Cause racine corrigée.
-- Phase 1 (Superpowers) : ✅ TERMINÉE. Cloné infra/superpowers (v6.1.1, 14 skills,
-  Windows OK), gitignoré (commit 5ba818e). Marketplace locale superpowers-dev
-  enregistrée + plugin installé + reload OK (3 plugins, 6 agents, 1 hook, 1 LSP).
-  Les 14 skills superpowers:* sont dispo (brainstorming, systematic-debugging,
-  test-driven-development, writing-plans, dispatching-parallel-agents…).
+## Chantier AI-OS — 5 livraisons du jour (toutes prouvées, committées, NON poussées)
 
-## Décisions récentes (ratifiées HumanGate)
-- Option A : .claude/ (skills, agents, rules) versionné dans Git — FAIT
-- CLAUDE.md racine = point d'entrée mémoire (tier-1)
-- studio_brain/00_CURRENT_CONTEXT.md = état vivant inter-sessions
+Décomposition : brique 0 (CT-4 mémoire) → 1 (Obsidian/MCP) → 2 (recall) → 3 (graphe) → 4 (interface pro).
 
-## Séquençage amendé par audit ROI (docs/audit/ROADMAP_ROI_2026-07.md, 2026-07-03)
-Le plan 5 phases est CONSERVÉ mais réordonné : le cœur (force moteur) prime
-sur le méta. Phases 2/3 GELÉES jusqu'à CT-4.
+1. **CT-4 (brique 0) — couche d'accès mémoire** — commit `850a575` (+ hygiène MCP `462028f`).
+   « 2 racines, 2 faces » : `studio_brain/` (vault humain) + `memory/` (faits machine) exposés via
+   face HTTP `/api/memory` dans `demo-server.ts` + vue « 🧠 Mémoire » dans le builder. Garde-fous
+   (brain lecture seule 403, anti-traversée). Spec/plan : `docs/superpowers/{specs,plans}/2026-07-05-ct4-*`.
+2. **Brique 1 (MCP) — moitié faite** — `studio-brain` + `studio-facts` branchés dans **Claude Desktop
+   (install Microsoft Store/MSIX)**. Config au chemin packagé `…\Packages\Claude_pzs8sxrjxfjjc\LocalCache\
+   Roaming\Claude\claude_desktop_config.json` (PAS `%APPDATA%\Claude`) + wrapper `cmd /c npx` (piège
+   Windows). **IMP-178 CLOSED**. `mcp-setup.md` corrigé. Reste de la brique 1 (app Obsidian graphe/recherche) non fait.
+3. **Brique 2 — recall sémantique** — commit `238c08f` (spec `399c547`). `memory-recall.mjs` :
+   embeddings **LM Studio nomic-embed** (local), index incrémental atomique `.memory-index.json`
+   (gitignoré), `search?mode=semantic` **fail-soft** → mot-clé si embeddings indispo. Toggle
+   mot-clé/sémantique dans la vue Mémoire. E2E prouvé (nomic chargé).
+4. **Brique 3a — graphe mémoire (vault)** — commits `01938ec` + `55b0e80`. `memory-store` **récursif**
+   (ids `root/relpath`, archive `journal/` exclue partout) → graphe+recherche+recall voient les mêmes
+   notes. `memory-graph.mjs` (wikilinks → nœuds/arêtes, résolution déterministe, hygiène). Vue
+   `MemoryGraph` force-directed SVG maison + toggle liste|graphe.
+5. **Brique 4a — système de design** — commit `a8ee5ff`. Tokens CSS (`:root`), palette sémantique,
+   `--font-sans`/`--font-mono`, composant `Badge({dim,value})` : 4 dimensions statut GARDÉES
+   (provenance/maturité/câblage/suivi), unifiées par palette + glyphe (résout la collision de couleur).
+   body → sans, mono réservé code/IDs.
 
-1. CT-1 [✅ FAIT 2026-07-03, commit 05ca0b4 poussé] — llm-lego/ + studio_brain/
-   versionnés. LFS s'est révélé inutile (112 Mo = node_modules ignoré ; vrai ajout
-   1,6 Mo texte). Screenshots gitignorés (repo lean) sur décision Pierre.
-2. CT-2 [SUIVANT] — via superpowers:writing-plans : suite de non-régression
-   moteur (perft + anti-shuffle depuis startpos + tie-break + amorce EPD).
-   Premier usage réel de Superpowers. Zone tests/ protégée → gate Pierre.
-3. Phase 2 (Graphify) / Phase 3 (Obsidian) : GELÉES jusqu'à CT-4 (réconciliation
-   mémoire : 1 système canonique = memory/MEMORY.md, corriger CLAUDE.md
-   contradictoire). Sinon Obsidian = 4ᵉ référent mémoire.
+**Régression finale** : `run-validators.mjs` ✅758 ❌0 (36 validateurs) · `vitest` 80 ✅.
 
-Note : CT-3 (tree clean gitignore rapports auto) = DÉJÀ FAIT hier (027de2a).
+## Prochaines options (à trancher À FROID)
+- **4b** — cockpit « Accueil » single-pane (lanes + ledger + mémoire + gates d'un coup d'œil).
+- **4c** — cartes de nœud dégagées (rôle en titre, IDs internes → inspecteur) + onboarding (empty-state, tooltips palette).
+- **3b** — graphe **codebase** Graphify (rebrancher le graphe de tout le code, 17 Mo, vis-network). Chantier infra distinct.
+- Brique 5 — capture vocale/rapide → mémoire (YAGNI pour l'instant).
+Specs prêts pour 4a ; 4b/4c/3b = cadrage→spec→plan à faire.
 
-## Impasses connues
-- start_studio.sh (bash) : networking WSL↔Windows cassé pour détection cockpit
-  → utiliser start_studio.ps1 (PowerShell) qui fonctionne
-- train.py : NE PAS relancer avant IMP-163 (dataset) + IMP-184 (deploy gate)
-- Boucle autonome : NE PAS armer avant IMP-184 fermé
-- LEDGER : à lab/chains/, PAS à la racine
-- Graphify : graphe graphify-out/ daté du 30 juin, périmé, non branché (rebuild manuel)
-- Obsidian studio_brain/ : pas de MCP connecté ; mémoire auto réelle = dossier
-  memory/ séparé (deux systèmes distincts)
+## Flags ouverts
+- **Rien poussé** : tous les commits du jour sont **locaux** (gate push Pierre). 8 commits depuis `57fefb4`.
+- **Recall sémantique** : nécessite `nomic-embed` **chargé** dans LM Studio ; sinon fail-soft mot-clé (jamais cassé).
+- **Vue unique mémoire** : `search?mode=keyword` renvoie désormais + de notes (sous-dossiers `brain`) — VOULU (A1), pas une régression.
+- MCP Desktop = **lecture+écriture** (le serveur filesystem n'a pas le garde-fou brain-lecture-seule ; celui-ci ne vaut que sur la face HTTP).
 
-## Rappels doctrine
-- Une variable à la fois
-- Fondations avant features
-- Aucun commit sans approbation explicite Pierre
+## Point d'entretien — hooks (candidat IMP mineur)
+Pierre a signalé « Stop hook échoue : `.claude/hooks/stop-failure.sh` introuvable ». **Réalité disque
+2026-07-05 : le script EST présent et exécutable** (`-rwxr-xr-x`, 2336 o), câblé en Stop hook
+(`bash .claude/hooks/stop-failure.sh`), et **tous** les hooks référencés existent. Donc « introuvable »
+contredit le disque → si le Stop hook échoue, cause probable = **invocation `bash` sous Windows** (le
+harness lance peut-être les hooks via un shell sans `bash` au PATH), pas un fichier manquant. IMP
+mineur = **diagnostiquer la vraie cause** (exécution `bash` Windows) plutôt que « restaurer un script absent ».
+
+## Impasses toujours valides (portées depuis l'archive)
+- `train.py` : NE PAS relancer avant IMP-163 (dataset) + IMP-184 (deploy gate). Boucle autonome idem.
+- LEDGER canonique = `lab/chains/IMPROVEMENT_LEDGER.yaml` (PAS la racine).
+- `start_studio.ps1` (PowerShell) fonctionne ; `start_studio.sh` (bash) = networking WSL↔Windows cassé.
+- Serveur demo llm-lego : `node demo-server.ts` sur :3000 (sert `/builder` + `/api/memory*`).
+
+## Doctrine rappels
+- Une variable à la fois · fondations avant features · aucun commit/push sans go explicite Pierre.
