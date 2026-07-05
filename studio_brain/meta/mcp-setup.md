@@ -7,25 +7,38 @@ But : rendre ce vault `studio_brain\` lisible/écrivable par l'assistant et les 
 
 État audité (2026-06-28) : le vault existe (markdown), mais **aucune infra MCP** n'est en place (pas de `.obsidian/`, pas de serveur MCP, rien dans `openclaw/`). Tout est à brancher.
 
+> **✅ FAIT — 2026-07-05.** MCP filesystem branché sur **Claude Desktop** (véhicule réel, pas OpenClaw) pour DEUX racines : `studio-brain` (ce vault) + `studio-facts` (la mémoire machine `memory/`). **IMP-178 CLOSED.** Deux pièges Windows ont coûté cher — documentés ci-dessous : (1) install **Microsoft Store/MSIX** = chemin de config packagé, pas `%APPDATA%\Claude` ; (2) `"command": "npx"` échoue sans shell → wrapper **`cmd /c`**.
+
 ## Option 1 — MCP filesystem (recommandé, 30 min, sans app Obsidian)
 
 Un serveur MCP filesystem pointé sur le vault. Pas besoin qu'Obsidian tourne.
 
-Fichier à éditer : `C:\Users\Studio-Dev\AppData\Roaming\Claude\claude_desktop_config.json`
-(= `%APPDATA%\Claude\claude_desktop_config.json`). S'il existe déjà, **fusionner** la clé `studio-brain` dans `mcpServers` existant — ne pas écraser le reste.
+> ⚠️ **CHEMIN CORRIGÉ (2026-07-05)** — l'install Claude Desktop ici est **Microsoft Store (MSIX)**.
+> Le fichier lu par l'app n'est **PAS** `%APPDATA%\Claude\...` (ça, rien ne le lit → piège), mais le
+> chemin **packagé** :
+> `C:\Users\Studio-Dev\AppData\Local\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`
+> Le plus sûr : dans l'app → **Paramètres → Développeur → Modifier la config** (ouvre LE bon fichier).
+> **Fusionner** dans `mcpServers` — ne pas écraser `preferences` / `coworkUserFilesPath`.
+
+> ⚠️ **PIÈGE WINDOWS** — `"command": "npx"` échoue (Desktop lance sans shell, ne résout pas `npx.cmd`).
+> Il **faut** le wrapper `cmd /c`, sinon aucun serveur ne se charge (« pas d'outil MCP »).
 
 ```json
 {
   "mcpServers": {
     "studio-brain": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "C:\\TACTICAL_CHESS_STUDIO\\studio_brain"]
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-filesystem", "C:\\TACTICAL_CHESS_STUDIO\\studio_brain"]
+    },
+    "studio-facts": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\Studio-Dev\\.claude\\projects\\C--TACTICAL-CHESS-STUDIO\\memory"]
     }
   }
 }
 ```
 
-Prérequis : **Node.js installé** (fournit `npx`). Après édition : **redémarrer Claude Desktop**. Ensuite l'assistant obtient des outils read/write limités à `studio_brain\` → mémoire MCP réelle.
+Prérequis : **Node.js installé** (fournit `npx`). Après édition : **quitter COMPLÈTEMENT** Claude Desktop (systray → Quitter, pas juste fermer la fenêtre) puis relancer. Ensuite l'assistant obtient des outils fichier bornés à chaque racine → mémoire MCP réelle. Vérifié 2026-07-05 : `studio-brain` (3 outils) + `studio-facts` (2 outils) visibles.
 
 Deux façons d'appliquer :
 1. Coller le bloc toi-même (en fusionnant si le fichier existe).
@@ -37,7 +50,9 @@ Versionner le vault : `git` sur `studio_brain\` (ou plugin Obsidian Git) pour l'
 
 Si tu veux l'accès graphe/recherche d'Obsidian aux agents : ouvrir `studio_brain\` dans l'app Obsidian (crée `.obsidian/`), installer le plugin **Local REST API** (génère un token), puis `obsidian-mcp-server` configuré avec le token. Plus de pièces mobiles, dépend de l'app Obsidian qui tourne. À garder pour plus tard si besoin.
 
-## Fermeture IMP-178
-Une fois Option 1 appliquée + vérifiée (l'assistant lit/écrit une note du vault via MCP), clore IMP-178 via `kaizen_loop.py` (ne jamais éditer le ledger à la main).
+## Fermeture IMP-178 — ✅ FAIT (2026-07-05)
+Clos via `kaizen_loop.py close IMP-178 --session 2026-07-05`. Véhicule réel : **Claude Desktop MCP**
+(filesystem) sur `studio-brain` + `studio-facts` — pas OpenClaw (l'acceptance d'origine parlait
+d'OpenClaw, remplacé par Desktop, même intention). Vérifié : outils fichier visibles + lecture OK.
 
 Voir [[vault-usage-guide]], [[studio-operating-flow]], [[skills-catalog]].
