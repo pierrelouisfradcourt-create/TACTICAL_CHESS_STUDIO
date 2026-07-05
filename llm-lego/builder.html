@@ -2124,6 +2124,63 @@
       );
     }
 
+    // CT-4 — Vue Mémoire (lecture seule) : liste + lit les notes des 2 racines via /api/memory.
+    function MemoryModal({ onClose }) {
+      const [notes, setNotes] = useState(null);
+      const [err, setErr] = useState(null);
+      const [sel, setSel] = useState(null);
+      const [q, setQ] = useState('');
+      useEffect(() => {
+        fetch('/api/memory').then((r) => r.json())
+          .then((d) => setNotes(d.notes || [])).catch((e) => setErr(String(e)));
+      }, []);
+      const open = (n) => fetch(`/api/memory/${n.root}/${encodeURIComponent(n.id)}`)
+        .then((r) => r.json()).then(setSel).catch((e) => setErr(String(e)));
+      const filtered = (notes || []).filter((n) =>
+        !q || (`${n.title} ${n.id} ${(n.tags || []).join(' ')}`).toLowerCase().includes(q.toLowerCase()));
+      const group = (root) => filtered.filter((n) => n.root === root);
+      return (
+        <div className="roadmap-modal" data-testid="memory-modal" onMouseDown={onClose}>
+          <div style={{ width: 900, maxWidth: '95vw', height: '82vh', background: '#0b0f19', border: '1px solid #1e293b', borderRadius: 10, display: 'grid', gridTemplateColumns: '300px 1fr', overflow: 'hidden' }} onMouseDown={(e) => e.stopPropagation()}>
+            <div style={{ borderRight: '1px solid #1e293b', overflow: 'auto', padding: 10 }}>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                <input data-testid="mem-search" placeholder="filtrer…" value={q} onChange={(e) => setQ(e.target.value)} />
+                <button className="ghost" data-testid="mem-close" onClick={onClose}>fermer</button>
+              </div>
+              {err && <div style={{ color: '#fca5a5', fontSize: 11 }}>{err}</div>}
+              {notes === null && !err && <div style={{ color: '#64748b', fontSize: 11 }}>chargement…</div>}
+              {['brain', 'facts'].map((root) => (
+                <div key={root}>
+                  <div style={{ fontSize: 9, textTransform: 'uppercase', color: '#6366f1', letterSpacing: 1, margin: '10px 0 4px' }}>
+                    {root === 'brain' ? 'studio_brain (humain)' : 'memory (machine)'} · {group(root).length}
+                  </div>
+                  {group(root).map((n) => (
+                    <button key={root + n.id} data-testid="mem-note" className="palette" style={{ width: '100%', marginBottom: 3 }}
+                      onClick={() => open(n)} title={(n.tags || []).map((t) => '#' + t).join(' ')}>
+                      {n.title}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div style={{ overflow: 'auto', padding: 16 }}>
+              {!sel && <div style={{ color: '#64748b', fontSize: 12 }}>Sélectionne une note.</div>}
+              {sel && (
+                <div>
+                  <div style={{ fontSize: 15, color: '#e0e7ff', marginBottom: 6 }}>{sel.title}</div>
+                  <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>{sel.root}/{sel.id}</div>
+                  {(sel.tags || []).length > 0 && <div style={{ marginBottom: 8 }}>{sel.tags.map((t) => (
+                    <span key={t} style={{ fontSize: 10, background: '#1e293b', color: '#a5b4fc', padding: '1px 6px', borderRadius: 4, marginRight: 4 }}>#{t}</span>))}</div>}
+                  {(sel.wikilinks || []).length > 0 && <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 8 }}>→ {sel.wikilinks.join(' · ')}</div>}
+                  <pre data-testid="mem-note-body" style={{ whiteSpace: 'pre-wrap', fontSize: 12, color: '#cbd5e1', lineHeight: 1.5 }}>{sel.body}</pre>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     function App() {
       // Canvas zones = two independent instances of the SAME model/component.
       //  • ACTIVE  = the executable graph. The engine (run + toEngineGraph) reads ONLY this,
@@ -2224,6 +2281,7 @@
       const [openOwnerGroups, setOpenOwnerGroups] = useState(() => new Set(['pierre'])); // groupes dépliés (compact par défaut)
       const [layerNoteEdit, setLayerNoteEdit] = useState(null); // id du calque dont on édite la note/lien, ou null
       const [roadmapViewOpen, setRoadmapViewOpen] = useState(false);
+      const [memOpen, setMemOpen] = useState(false); // CT-4 — vue Mémoire
       const [roadmapFiches, setRoadmapFiches] = useState([]); // [{id,name,badge,payload}] roadmaps COMPLÈTES (jalons)
       useEffect(() => { try { localStorage.setItem(LAYER_OWNER_LS_KEY, saveOwner); } catch { /* private mode */ } }, [saveOwner]);
       const toggleOwnerGroup = useCallback((owner) => setOpenOwnerGroups((s) => {
@@ -4210,6 +4268,9 @@
               <button className="ghost" data-testid="btn-roadmap"
                 onClick={(ev) => { ev.stopPropagation(); setRoadmapViewOpen(true); }}
                 title="Vue Roadmap — jalons, progression, calques associés (lecture seule)">🗺️ Roadmap</button>
+              <button className="ghost" data-testid="btn-memory"
+                onClick={(ev) => { ev.stopPropagation(); setMemOpen(true); }}
+                title="Vue Mémoire — notes du vault studio_brain + faits machine (lecture seule)">🧠 Mémoire</button>
               <span style={{ width: 1, height: 20, background: '#334155', margin: '0 4px' }} />
               {/* Central view selector — replaces the fixed routing/gate/looped buttons.
                   Each option carries a démo/réel/cible maturity badge (same vocab as
@@ -5025,6 +5086,8 @@
               </div>
             </div>
           )}
+          {/* ===== CT-4 — Vue Mémoire (lecture seule) ===== */}
+          {memOpen && <MemoryModal onClose={() => setMemOpen(false)} />}
           {/* ===== Vue Roadmap projet — LECTURE SEULE (consultation centralisée). ===== */}
           {roadmapViewOpen && (
             <div className="roadmap-modal" data-testid="roadmap-modal" onMouseDown={() => setRoadmapViewOpen(false)}>

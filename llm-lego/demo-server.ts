@@ -16,6 +16,7 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, existsSync, unlinkSync } from "node:fs";
+import os from "node:os";
 import { execFile } from "node:child_process";
 
 import { runGraph, resumeGraph } from "./dist/core/engine.js";
@@ -24,6 +25,7 @@ import { lmStudioAdapters } from "./dist/adapters/lmstudio.js";
 import { powershellAdapters } from "./dist/adapters/powershell.js";
 import type { Adapters } from "./dist/adapters/types.js";
 import type { EngineState, ExecutionContext, Graph } from "./dist/core/types.js";
+import { listNotes, readNote, searchNotes, writeNote } from "./memory-store.mjs";
 
 /**
  * Governance policy (Oracle, Passe 4): NO self-validation. A node cannot be judged
@@ -91,6 +93,11 @@ function serializeCtx(ctx: ExecutionContext): unknown {
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// CT-4 — racines mémoire (surchargables par env pour tests isolés).
+const MEM_ROOTS = {
+  brain: process.env["TCS_BRAIN_DIR"] ? path.resolve(process.env["TCS_BRAIN_DIR"]) : path.join(__dirname, "..", "studio_brain"),
+  facts: process.env["TCS_MEMORY_DIR"] ? path.resolve(process.env["TCS_MEMORY_DIR"]) : path.join(os.homedir(), ".claude", "projects", "C--TACTICAL-CHESS-STUDIO", "memory"),
+};
 const WIREFRAMES_DIR = path.join(__dirname, "wireframes");
 // Brick library (Library Passe 1). Separate store from wireframes/ on purpose —
 // see LIBRARY_AUDIT.md §3 (overloading wireframes would break runAudit).
@@ -530,6 +537,35 @@ const server = http.createServer((req, res) => {
       },
     );
     return;
+  }
+
+  // ---- CT-4 : face HTTP mémoire (mêmes fichiers que la face MCP) ----
+  if (pathname === "/api/memory" && req.method === "GET") {
+    try { sendJson(res, 200, listNotes(MEM_ROOTS)); }
+    catch (e) { sendJson(res, (e as any).status || 500, { error: String((e as any).message || e) }); }
+    return;
+  }
+  if (pathname === "/api/memory/search" && req.method === "GET") {
+    try { sendJson(res, 200, searchNotes(MEM_ROOTS, url.searchParams.get("q") || "", url.searchParams.get("root") || "all")); }
+    catch (e) { sendJson(res, (e as any).status || 500, { error: String((e as any).message || e) }); }
+    return;
+  }
+  if (pathname === "/api/memory" && req.method === "POST") {
+    let mbody = "";
+    req.on("data", (c) => (mbody += c.toString()));
+    req.on("end", () => {
+      try { sendJson(res, 200, writeNote(MEM_ROOTS, JSON.parse(mbody || "{}"))); }
+      catch (e) { sendJson(res, (e as any).status || 400, { error: String((e as any).message || e) }); }
+    });
+    return;
+  }
+  {
+    const mem = pathname.match(/^\/api\/memory\/([A-Za-z]+)\/(.+)$/);
+    if (mem && req.method === "GET") {
+      try { sendJson(res, 200, readNote(MEM_ROOTS, mem[1], decodeURIComponent(mem[2]))); }
+      catch (e) { sendJson(res, (e as any).status || 500, { error: String((e as any).message || e) }); }
+      return;
+    }
   }
 
   // Execute a graph.
