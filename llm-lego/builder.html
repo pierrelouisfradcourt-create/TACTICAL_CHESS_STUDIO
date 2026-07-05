@@ -56,6 +56,8 @@
     .badge-real { background: var(--sev-good-soft); color: var(--sev-good); }
     .badge-target { background: var(--sev-warn-soft); color: var(--sev-warn); }
     .badge { display: inline-block; }
+    .chip-meta { font-family: var(--font-sans); font-size: var(--fs-2xs); background: var(--panel-2); color: var(--ink-2); padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
+    .nhead .nid { font-size: var(--fs-2xs); color: rgba(255,255,255,.55); font-family: var(--font-mono); margin-left: 6px; font-weight: 400; }
     /* Library maturity pill (draft → saved → live). Purely informative. */
     .lib-maturity { font-family: var(--font-sans); font-size: var(--badge-fs); padding: 1px 6px; border-radius: var(--badge-radius); font-weight: 700; text-transform: none; }
     .lib-maturity[data-maturity="draft"] { background: var(--sev-neutral-soft); color: var(--sev-neutral); }
@@ -2024,8 +2026,10 @@
                         </div>
                       )}
                       <div className="nhead" style={{ background: roleColor(n) }}>
-                        <span>{n.id}</span>
-                        <span className="ntype">{n.type === 'agent' && n.data.role ? n.data.role : meta.label}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {nodeLabel(n, meta)}<span className="nid">{n.id}</span>
+                        </span>
+                        <span className="ntype">{meta.label}</span>
                       </div>
                       {n.attachedBrick && (
                         <div className="node-brick" data-testid={'node-brick-' + n.id} title={'fiche liée : ' + n.attachedBrick.name}>
@@ -2094,9 +2098,16 @@
                                 return <div style={{ fontSize: 8, opacity: .7 }}>{tr.length ? tr.length + ' échanges' + (co.mock ? ' [mock]' : '') : 'maxTurns ' + (n.data.maxTurns ?? 6)}</div>;
                               })()}
                             </div>
-                          : Object.keys(stripUi(n.data)).slice(0, 3).map((k) => (
-                              <div key={k}><b>{k}</b>: {String(n.data[k]).slice(0, 26)}</div>
-                            ))}
+                          : (() => {
+                              const p = n.data && n.data.prompt ? String(n.data.prompt).split('\n')[0].trim() : '';
+                              return <div>
+                                {p && <div title={n.data.prompt} style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink-2)', fontSize: 'var(--fs-2xs)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p}</div>}
+                                <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+                                  {n.data && n.data.model && <span className="chip-meta">{n.data.model}</span>}
+                                  {n.data && (n.data.outputKey != null && n.data.outputKey !== '') && <span className="chip-meta">→ {n.data.outputKey}</span>}
+                                </div>
+                              </div>;
+                            })()}
                       </div>
                       )}
                       {renderHandles(false)}
@@ -2110,7 +2121,18 @@
                 {/* Overlays live OUTSIDE .world so they never scale/pan with the graph. */}
                 {nodes.length === 0 && (
                   <div className="empty" style={{ marginTop: 80 }}>
-                    {isSandbox ? 'Sandbox vide — pose des nœuds pour expérimenter (jamais exécuté).' : <span>Canvas vide.<br />Charge « Council ↻ looped » pour voir une boucle tourner.</span>}
+                    {isSandbox ? 'Sandbox vide — pose des nœuds pour expérimenter (jamais exécuté).' : (
+                      <div data-testid="empty-cta" style={{ textAlign: 'center', maxWidth: 340, margin: '0 auto' }}>
+                        <div style={{ fontSize: 'var(--fs-lg)', color: 'var(--ink)', marginBottom: 4 }}>Commence par un modèle</div>
+                        <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--ink-3)', marginBottom: 10 }}>ou glisse un nœud depuis la palette →</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+                          {EXAMPLES.map((ex) => (
+                            <button key={ex.key} className="palette" data-testid={'empty-ex-' + ex.key}
+                              onClick={() => window.__loadExample && window.__loadExample(ex.key)}>{ex.label}</button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2158,6 +2180,16 @@
       return <span className="badge" data-testid="badge" data-dim={dim} data-sev={sev} title={`${d.label} : ${value}`}
         style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--badge-fs)', padding: '1px 6px', borderRadius: 'var(--badge-radius)', fontWeight: 700, background: `var(${soft})`, color: `var(${fg})`, marginRight: 4, whiteSpace: 'nowrap' }}>
         {d.glyph}{showLabel !== false ? ' ' + value : ''}</span>;
+    }
+
+    // Brique 4c — label humain d'un nœud (titre de carte) : fiche/prompt liés → rôle → prompt → type.
+    function nodeLabel(n, meta) {
+      if (n.attachedPrompt && n.attachedPrompt.name) return n.attachedPrompt.name;
+      if (n.attachedBrick && n.attachedBrick.name) return n.attachedBrick.name;
+      if (n.type === 'agent' && n.data && n.data.role) return n.data.role;
+      const p = n.data && n.data.prompt ? String(n.data.prompt).split('\n')[0].trim() : '';
+      if (p) return p.length > 40 ? p.slice(0, 40) + '…' : p;
+      return (meta && meta.label) || n.type;
     }
 
     // Brique 3a — Graphe mémoire (force-directed SVG maison, converge-puis-fige).
@@ -2768,6 +2800,7 @@
         window.__layers = () => layers;
         window.__patchLayer = (id, patch) => patchLayer(id, patch);
         window.__openRoadmap = (v) => setRoadmapViewOpen(v !== false);
+        window.__loadExample = (key) => { const ex = EXAMPLES.find((x) => x.key === key); if (ex) { loadInto(ex.make(), ex.loadedMsg); setLoadedExample(ex.key); } }; // Brique 4c — empty-state raccourcis
         window.__result = () => result; // dernier résultat d'exécution (trace + state) — pour les tests
       });
 
@@ -4458,21 +4491,21 @@
               <div className="palette-list">
                 {/* + LLM = simple monobloc: one plain llm node (the 7-component composite
                     now lives under + Agent). No sub-menu. */}
-                <button className="palette" data-testid="add-llm" style={{ borderColor: NODE_TYPES.llm.color }} onClick={() => addNode('llm')}>＋ LLM</button>
-                <button className="palette" data-testid="add-tool" style={{ borderColor: NODE_TYPES.tool.color }} onClick={() => addNode('tool')}>＋ Tool</button>
-                <button className="palette" data-testid="add-router" style={{ borderColor: NODE_TYPES.router.color }} onClick={() => addNode('router')}>＋ Router</button>
-                <button className="palette" data-testid="add-join" style={{ borderColor: NODE_TYPES.join.color }} onClick={() => addNode('join')}>＋ Join</button>
-                <button className="palette" data-testid="add-chat" style={{ borderColor: NODE_TYPES.chat.color }} onClick={() => addNode('chat')}>💬 ＋ Chat</button>
-                <button className="palette" data-testid="add-agent" style={{ borderColor: NODE_TYPES.agent.color }} onClick={() => addAgentComposite()}>＋ Agent</button>
+                <button className="palette" data-testid="add-llm" title="appel modèle : prompt → sortie" style={{ borderColor: NODE_TYPES.llm.color }} onClick={() => addNode('llm')}>＋ LLM</button>
+                <button className="palette" data-testid="add-tool" title="exécute une commande / un outil externe" style={{ borderColor: NODE_TYPES.tool.color }} onClick={() => addNode('tool')}>＋ Tool</button>
+                <button className="palette" data-testid="add-router" title="aiguille selon une condition" style={{ borderColor: NODE_TYPES.router.color }} onClick={() => addNode('router')}>＋ Router</button>
+                <button className="palette" data-testid="add-join" title="fusionne plusieurs branches" style={{ borderColor: NODE_TYPES.join.color }} onClick={() => addNode('join')}>＋ Join</button>
+                <button className="palette" data-testid="add-chat" title="conversation multi-tours (2 voix)" style={{ borderColor: NODE_TYPES.chat.color }} onClick={() => addNode('chat')}>💬 ＋ Chat</button>
+                <button className="palette" data-testid="add-agent" title="rôle + mémoire + garde-fous" style={{ borderColor: NODE_TYPES.agent.color }} onClick={() => addAgentComposite()}>＋ Agent</button>
                 {/* Prompt/Oracle/Goal now have palette buttons too — each poses a node
                     and offers to import a matching Library brick (reuses attach fns). */}
-                <button className="palette" data-testid="add-prompt" style={{ borderColor: '#3b82f6' }} onClick={() => addNodeWithImport('llm', 'prompt', { prompt: '', outputKey: 'out' })}>＋ Prompt</button>
-                <button className="palette" data-testid="add-oracle" style={{ borderColor: '#f59e0b' }} onClick={() => addNodeWithImport('agent', 'oracle')}>＋ Oracle</button>
-                <button className="palette" data-testid="add-goal" style={{ borderColor: '#14b8a6' }} onClick={() => addNodeWithImport('agent', 'goal')}>＋ Goal</button>
+                <button className="palette" data-testid="add-prompt" title="gabarit de prompt réutilisable" style={{ borderColor: '#3b82f6' }} onClick={() => addNodeWithImport('llm', 'prompt', { prompt: '', outputKey: 'out' })}>＋ Prompt</button>
+                <button className="palette" data-testid="add-oracle" title="vérifie une sortie contre une règle (PASS/FAIL)" style={{ borderColor: '#f59e0b' }} onClick={() => addNodeWithImport('agent', 'oracle')}>＋ Oracle</button>
+                <button className="palette" data-testid="add-goal" title="objectif de la chaîne" style={{ borderColor: '#14b8a6' }} onClick={() => addNodeWithImport('agent', 'goal')}>＋ Goal</button>
                 {/* Council ▸ with format selector: Gate v1 = RÉEL (council.py, 3 voix);
                     Looped = VISION non implémentée (6 rôles hypothétiques, ≠ kaizen réel). */}
                 <div className="pal-item">
-                  <button className="palette" data-testid="add-council" style={{ borderColor: '#8b5cf6' }}
+                  <button className="palette" data-testid="add-council" title="délégation à un panel de voix" style={{ borderColor: '#8b5cf6' }}
                     onClick={(ev) => { ev.stopPropagation(); setMenu(menu === 'council' ? null : 'council'); }}>＋ Council ▸</button>
                   {menu === 'council' && (
                     <div className="pal-menu" data-testid="council-menu" onClick={(ev) => ev.stopPropagation()}>
@@ -4488,9 +4521,9 @@
                     </div>
                   )}
                 </div>
-                <button className="palette" data-testid="add-humangate" style={{ borderColor: NODE_TYPES.humangate.color }} onClick={() => addNode('humangate')}>＋ HumanGate</button>
-                <button className="palette" data-testid="add-artefact" style={{ borderColor: NODE_TYPES.artefact.color }} onClick={() => addNode('artefact')}>🎁 ＋ Artefact</button>
-                <button className="palette" data-testid="add-note" style={{ borderColor: NODE_TYPES.note.color }} onClick={() => addNode('note')}>＋ Note</button>
+                <button className="palette" data-testid="add-humangate" title="point d'arrêt : approbation humaine" style={{ borderColor: NODE_TYPES.humangate.color }} onClick={() => addNode('humangate')}>＋ HumanGate</button>
+                <button className="palette" data-testid="add-artefact" title="livrable produit (fichier, doc)" style={{ borderColor: NODE_TYPES.artefact.color }} onClick={() => addNode('artefact')}>🎁 ＋ Artefact</button>
+                <button className="palette" data-testid="add-note" title="annotation, ignorée par le moteur" style={{ borderColor: NODE_TYPES.note.color }} onClick={() => addNode('note')}>＋ Note</button>
               </div>
               {/* Sélecteur rapide de calques ACTIFS — n'apparaît qu'en superposition (≥2 actifs).
                   Clic sur un calque → l'isole (désactive les autres) → 1 seul actif = édition
@@ -4603,6 +4636,18 @@
                     </div>
                   );
                 })()}
+
+                {/* Brique 4c — section Technique (id/producerRef/outputKey déplacés depuis la carte). */}
+                {selNode && (
+                  <details data-testid="inspector-technique" style={{ marginBottom: 8, fontSize: 'var(--fs-xs)' }}>
+                    <summary style={{ color: 'var(--ink-3)', cursor: 'pointer' }}>Technique</summary>
+                    <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink-2)', padding: '4px 2px', display: 'grid', gap: 2 }}>
+                      <div>id : {selNode.id}</div>
+                      {selNode.data && selNode.data.outputKey != null && selNode.data.outputKey !== '' && <div>outputKey : {String(selNode.data.outputKey)}</div>}
+                      {selNode.data && selNode.data.producerRef && <div data-testid="tech-producerref">producerRef : {String(selNode.data.producerRef)}</div>}
+                    </div>
+                  </details>
+                )}
 
                 {selNode && selNode.type === 'agent' && (
                   <div data-testid="inspector-agent">
