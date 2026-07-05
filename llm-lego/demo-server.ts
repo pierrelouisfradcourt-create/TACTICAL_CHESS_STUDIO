@@ -28,6 +28,7 @@ import type { EngineState, ExecutionContext, Graph } from "./dist/core/types.js"
 import { listNotes, readNote, searchNotes, writeNote } from "./memory-store.mjs";
 import { recall, lmStudioEmbed } from "./memory-recall.mjs";
 import { buildGraph } from "./memory-graph.mjs";
+import { buildCockpit } from "./cockpit.mjs";
 
 /**
  * Governance policy (Oracle, Passe 4): NO self-validation. A node cannot be judged
@@ -105,6 +106,8 @@ const MEM_INDEX_PATH = path.join(__dirname, ".memory-index.json");
 const EMBED_URL = process.env["TCS_EMBED_URL"] || "http://localhost:1234";
 const EMBED_MODEL = process.env["TCS_EMBED_MODEL"] || "text-embedding-nomic-embed-text-v1.5";
 const embedFn = (texts: string[]) => lmStudioEmbed(texts, { url: EMBED_URL, model: EMBED_MODEL });
+// Brique 4b — cockpit : chemin ledger surchargeable (A3).
+const LEDGER_PATH = process.env["TCS_LEDGER_PATH"] || path.join(__dirname, "..", "lab", "chains", "IMPROVEMENT_LEDGER.yaml");
 const WIREFRAMES_DIR = path.join(__dirname, "wireframes");
 // Brick library (Library Passe 1). Separate store from wireframes/ on purpose —
 // see LIBRARY_AUDIT.md §3 (overloading wireframes would break runAudit).
@@ -574,6 +577,11 @@ const server = http.createServer((req, res) => {
   }
   if (pathname === "/api/memory/graph" && req.method === "GET") {
     try { sendJson(res, 200, buildGraph(MEM_ROOTS)); }
+    catch (e) { sendJson(res, 500, { error: String((e as any).message || e) }); }
+    return;
+  }
+  if (pathname === "/api/cockpit" && req.method === "GET") {
+    try { sendJson(res, 200, buildCockpit({ ledgerPath: LEDGER_PATH, roots: MEM_ROOTS })); }
     catch (e) { sendJson(res, 500, { error: String((e as any).message || e) }); }
     return;
   }

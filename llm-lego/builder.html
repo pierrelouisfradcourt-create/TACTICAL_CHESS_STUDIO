@@ -2242,6 +2242,56 @@
       );
     }
 
+    // Brique 4b — cockpit Accueil : 4 tuiles (ledger / lanes / gates / mémoire). Lecture seule.
+    function HomeView({ onOpenMemory }) {
+      const [c, setC] = useState(null);
+      const [err, setErr] = useState(null);
+      useEffect(() => { fetch('/api/cockpit').then((r) => r.json()).then(setC).catch((e) => setErr(String(e))); }, []);
+      const Tile = ({ title, testid, children }) => (
+        <div data-testid={testid} style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 10, padding: 14, minHeight: 120 }}>
+          <div style={{ fontSize: 'var(--fs-2xs)', textTransform: 'uppercase', letterSpacing: 1, color: 'var(--accent)', marginBottom: 8 }}>{title}</div>
+          {children}
+        </div>
+      );
+      const pct = c ? Math.round(100 * c.ledger.closed / Math.max(1, c.ledger.total)) : 0;
+      return (
+        <div data-testid="home-view" style={{ position: 'fixed', left: 0, right: 0, top: 52, bottom: 0, zIndex: 50, overflow: 'auto', background: 'var(--bg)', padding: 20 }}>
+          <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+            <div style={{ fontSize: 'var(--fs-xl)', color: 'var(--ink)', marginBottom: 2 }}>Accueil</div>
+            <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--ink-3)', marginBottom: 16 }}>L'état du studio d'un coup d'œil — lecture seule.</div>
+            {err && <div style={{ color: 'var(--sev-bad)' }}>{err}</div>}
+            {!c && !err && <div style={{ color: 'var(--ink-3)' }}>chargement…</div>}
+            {c && c.ledger.skipped > 0 && <div data-testid="cockpit-partial" style={{ background: 'var(--sev-warn-soft)', color: 'var(--sev-warn)', padding: '6px 10px', borderRadius: 6, marginBottom: 12, fontSize: 'var(--fs-xs)' }}>⚠ parse partiel : {c.ledger.skipped} bloc(s) ignoré(s)</div>}
+            {c && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 14 }}>
+                <Tile title="Ledger" testid="cockpit-ledger">
+                  <div style={{ fontSize: 'var(--fs-xl)', color: 'var(--ink)' }}>{pct}%</div>
+                  <div style={{ height: 6, background: 'var(--panel-2)', borderRadius: 3, margin: '6px 0', overflow: 'hidden' }}>
+                    <div style={{ width: pct + '%', height: '100%', background: 'var(--sev-good)' }} />
+                  </div>
+                  <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--ink-2)' }}>{c.ledger.total} IMP · {c.ledger.closed} clos · {c.ledger.open} ouverts{c.ledger.fail > 0 && <span> · <span style={{ color: 'var(--sev-bad)' }}>{c.ledger.fail} FAIL</span></span>}</div>
+                </Tile>
+                <Tile title="Lanes (ouverts)" testid="cockpit-lanes">
+                  {Object.keys(c.byLane).length === 0 ? <div style={{ color: 'var(--ink-3)', fontSize: 'var(--fs-xs)' }}>aucun ouvert</div>
+                    : Object.entries(c.byLane).map(([lane, v]) => (
+                      <div key={lane} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-xs)', padding: '2px 0' }}><span>{lane}</span><span style={{ color: 'var(--ink)' }}>{v.open}</span></div>
+                    ))}
+                </Tile>
+                <Tile title="À décider (gates)" testid="cockpit-gates">
+                  {(() => { const g = c.openImps.filter((i) => i.lane === 'AUDIT_REQUIRED' || i.lane === 'HUMAN_REQUIRED' || i.status === 'FAIL'); return g.length === 0 ? <div style={{ color: 'var(--ink-3)', fontSize: 'var(--fs-xs)' }}>rien en attente</div>
+                    : g.slice(0, 8).map((i) => (<div key={i.id} style={{ fontSize: 'var(--fs-xs)', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><b style={{ color: 'var(--ink)' }}>{i.id}</b> {i.title}</div>)); })()}
+                </Tile>
+                <Tile title="Mémoire récente" testid="cockpit-memory">
+                  {c.recentNotes.length === 0 ? <div style={{ color: 'var(--ink-3)', fontSize: 'var(--fs-xs)' }}>aucune note</div>
+                    : c.recentNotes.map((n) => (<button key={n.root + n.id} data-testid="cockpit-note" className="palette" style={{ width: '100%', marginBottom: 3, textAlign: 'left' }} onClick={onOpenMemory}>{n.title}</button>))}
+                </Tile>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     // CT-4 — Vue Mémoire (lecture seule) : liste + lit les notes des 2 racines via /api/memory.
     function MemoryModal({ onClose }) {
       const [notes, setNotes] = useState(null);
@@ -2373,7 +2423,7 @@
       const [chainSaveOpen, setChainSaveOpen] = useState(false); // "save canvas as chain" modal
       const [libPermText, setLibPermText] = useState('{}'); // permissions JSON textarea buffer
       // ----- Wire Map (traceability) -----
-      const [view, setView] = useState('canvas');       // 'canvas' | 'wiremap'
+      const [view, setView] = useState('canvas');        // 'canvas' | 'home' | 'wiremap' (Accueil = onglet, pas défaut — cf. validateurs canvas)
       const [wmProjects, setWmProjects] = useState([]);  // [{id,name}]
       const [wmId, setWmId] = useState(null);            // current project id
       const [wm, setWm] = useState(null);                // {project, entries}
@@ -4310,6 +4360,8 @@
               <div className="sub">Rôles + paramètres + boucles → VRAI moteur — mockAdapters (défaut) ou LM Studio réel (toggle « réel »)</div>
             </div>
             <div className="toolbar">
+              <button className={view === 'home' ? '' : 'ghost'} data-testid="tab-home"
+                onClick={() => setView('home')}>🏠 Accueil</button>
               <button className={view === 'canvas' ? '' : 'ghost'} data-testid="tab-canvas"
                 onClick={() => setView('canvas')}>Canvas</button>
               <button className={view === 'wiremap' ? '' : 'ghost'} data-testid="tab-wiremap"
@@ -5260,6 +5312,7 @@
           )}
           {/* ===== CT-4 — Vue Mémoire (lecture seule) ===== */}
           {memOpen && <MemoryModal onClose={() => setMemOpen(false)} />}
+          {view === 'home' && <HomeView onOpenMemory={() => setMemOpen(true)} />}
           {/* ===== Vue Roadmap projet — LECTURE SEULE (consultation centralisée). ===== */}
           {roadmapViewOpen && (
             <div className="roadmap-modal" data-testid="roadmap-modal" onMouseDown={() => setRoadmapViewOpen(false)}>
