@@ -1,5 +1,5 @@
 import { it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, writeFileSync, rmSync, existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, existsSync, readFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { parseNote, listNotes, readNote, searchNotes, writeNote } from "../memory-store.mjs";
@@ -49,4 +49,26 @@ it("writeNote crée dans facts et refuse brain (403)", () => {
   expect(existsSync(path.join(roots.facts, "new-note.md"))).toBe(true);
   expect(readFileSync(path.join(roots.facts, "new-note.md"), "utf-8")).toContain("hello");
   expect(() => writeNote(roots, { root: "brain", id: "x", body: "y", mode: "create" })).toThrowError(/lecture seule/);
+});
+it("listNotes descend dans les sous-dossiers (id = relpath)", () => {
+  mkdirSync(path.join(roots.brain, "doctrine"), { recursive: true });
+  writeFileSync(path.join(roots.brain, "doctrine", "studio-doctrine.md"), "# Doctrine\n\nregles.", "utf-8");
+  const { notes } = listNotes(roots);
+  expect(notes.some((n: any) => n.root === "brain" && n.id === "doctrine/studio-doctrine")).toBe(true);
+});
+it("readNote lit une note en sous-dossier par son relpath", () => {
+  mkdirSync(path.join(roots.brain, "sub"), { recursive: true });
+  writeFileSync(path.join(roots.brain, "sub", "x.md"), "# X\n\ncorps.", "utf-8");
+  const n = readNote(roots, "brain", "sub/x");
+  expect(n.id).toBe("sub/x");
+  expect(n.body).toContain("corps");
+});
+it("readNote refuse la traversée imbriquée", () => {
+  expect(() => readNote(roots, "brain", "a/../../b")).toThrowError();
+});
+it("le dossier journal/ (archive) est exclu partout", () => {
+  mkdirSync(path.join(roots.brain, "journal", "old"), { recursive: true });
+  writeFileSync(path.join(roots.brain, "journal", "old", "dead.md"), "# Dead\n\nperime.", "utf-8");
+  const { notes } = listNotes(roots);
+  expect(notes.some((n: any) => n.id.includes("journal"))).toBe(false);
 });

@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, writeFileSync, statSync, existsSync, mkdirSy
 import path from "node:path";
 
 const MD = /\.md$/i;
-const VALID_ID = /^[A-Za-z0-9._-]+$/;
+const EXCLUDE_DIRS = new Set(["journal"]); // A1/Q1 : dossier d'archive exclu partout (un seul point)
 
 function coerce(v) {
   const arr = v.match(/^\[(.*)\]$/);
@@ -43,28 +43,41 @@ function rootPath(roots, root) {
   return p;
 }
 function safeFile(dir, id) {
-  const base = typeof id === "string" && id.endsWith(".md") ? id.slice(0, -3) : id;
-  if (typeof base !== "string" || !VALID_ID.test(base) || base.includes("..")) {
-    const e = new Error(`id invalide: ${id}`); e.status = 400; throw e;
-  }
-  const file = path.resolve(dir, `${base}.md`);
+  const rel = typeof id === "string" && id.endsWith(".md") ? id.slice(0, -3) : id;
+  if (typeof rel !== "string" || rel === "") { const e = new Error(`id invalide: ${id}`); e.status = 400; throw e; }
+  const segs = rel.split("/");
+  if (segs.some((s) => s === "" || s === "." || s === "..")) { const e = new Error(`id invalide: ${id}`); e.status = 400; throw e; }
+  const file = path.resolve(dir, ...segs) + ".md";
   if (!file.startsWith(path.resolve(dir) + path.sep)) { const e = new Error("chemin hors racine"); e.status = 400; throw e; }
   return file;
 }
-const idOf = (f) => f.replace(MD, "");
+
+function walkDir(dir, relBase, out) {
+  let entries; try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+  for (const e of entries) {
+    if (e.name.startsWith(".")) continue;
+    if (e.isDirectory()) {
+      if (EXCLUDE_DIRS.has(e.name)) continue;
+      walkDir(path.join(dir, e.name), relBase ? `${relBase}/${e.name}` : e.name, out);
+    } else if (e.isFile() && MD.test(e.name)) {
+      out.push(relBase ? `${relBase}/${e.name}` : e.name);
+    }
+  }
+}
 
 export function listNotes(roots) {
   const notes = [];
   for (const root of Object.keys(roots)) {
     const dir = roots[root];
     if (!existsSync(dir)) continue;
-    for (const f of readdirSync(dir)) {
-      if (!MD.test(f)) continue;
-      const full = path.join(dir, f);
+    const rels = []; walkDir(dir, "", rels);
+    for (const rel of rels) {
+      const full = path.join(dir, ...rel.split("/"));
       let st; try { st = statSync(full); } catch { continue; }
       if (!st.isFile()) continue;
       const p = parseNote(readFileSync(full, "utf-8"));
-      notes.push({ root, id: idOf(f), relpath: f, title: p.title || idOf(f), tags: p.tags, type: p.type, mtimeMs: st.mtimeMs });
+      const id = rel.replace(MD, "");
+      notes.push({ root, id, relpath: rel, title: p.title || id, tags: p.tags, type: p.type, mtimeMs: st.mtimeMs });
     }
   }
   return { roots: { ...roots }, notes };
@@ -75,8 +88,8 @@ export function readNote(roots, root, id) {
   if (!existsSync(file)) { const e = new Error(`introuvable: ${root}/${id}`); e.status = 404; throw e; }
   const st = statSync(file);
   const p = parseNote(readFileSync(file, "utf-8"));
-  const rid = idOf(path.basename(file));
-  return { root, id: rid, relpath: path.basename(file), frontmatter: p.frontmatter, tags: p.tags, type: p.type, title: p.title || rid, wikilinks: p.wikilinks, body: p.body, mtimeMs: st.mtimeMs };
+  const rid = String(id).replace(MD, "");
+  return { root, id: rid, relpath: `${rid}.md`, frontmatter: p.frontmatter, tags: p.tags, type: p.type, title: p.title || rid, wikilinks: p.wikilinks, body: p.body, mtimeMs: st.mtimeMs };
 }
 export function searchNotes(roots, q, rootFilter = "all") {
   const needle = String(q || "").toLowerCase();
@@ -114,7 +127,8 @@ export function writeNote(roots, { root, id, frontmatter, body, mode = "create" 
   const exists = existsSync(file);
   if (mode === "create" && exists) { const e = new Error(`déjà existant: ${id}`); e.status = 409; throw e; }
   if (mode === "update" && !exists) { const e = new Error(`inexistant: ${id}`); e.status = 404; throw e; }
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  mkdirSync(path.dirname(file), { recursive: true });
   writeFileSync(file, `${serializeFrontmatter(frontmatter)}${body ?? ""}`, "utf-8");
-  return { ok: true, root, id: idOf(path.basename(file)), relpath: path.basename(file), created: !exists };
+  const rid = String(id).replace(MD, "");
+  return { ok: true, root, id: rid, relpath: `${rid}.md`, created: !exists };
 }

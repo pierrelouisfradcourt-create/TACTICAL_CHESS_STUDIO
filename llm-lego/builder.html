@@ -2124,6 +2124,56 @@
       );
     }
 
+    // Brique 3a — Graphe mémoire (force-directed SVG maison, converge-puis-fige).
+    function MemoryGraph({ onOpen }) {
+      const [data, setData] = useState(null);
+      const [err, setErr] = useState(null);
+      const posRef = useRef({});
+      const [, setTick] = useState(0);
+      const [view, setView] = useState({ x: 0, y: 0, k: 1 });
+      const dragRef = useRef(null);
+      const CX = 320, CY = 240;
+      useEffect(() => {
+        fetch('/api/memory/graph').then((r) => r.json()).then((g) => {
+          const N = g.nodes.length, pos = {};
+          g.nodes.forEach((n, i) => { const a = 2 * Math.PI * i / Math.max(1, N); pos[n.id] = { x: CX + 200 * Math.cos(a), y: CY + 200 * Math.sin(a), vx: 0, vy: 0 }; });
+          for (let it = 0; it < 150; it++) {
+            for (let i = 0; i < N; i++) { const a = pos[g.nodes[i].id]; for (let j = i + 1; j < N; j++) { const b = pos[g.nodes[j].id]; let dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy || 1, d = Math.sqrt(d2), f = 1600 / d2; a.vx += f * dx / d; a.vy += f * dy / d; b.vx -= f * dx / d; b.vy -= f * dy / d; } }
+            for (const e of g.edges) { const a = pos[e.source], b = pos[e.target]; if (!a || !b) continue; let dx = b.x - a.x, dy = b.y - a.y, d = Math.sqrt(dx * dx + dy * dy) || 1, f = 0.02 * (d - 70); a.vx += f * dx / d; a.vy += f * dy / d; b.vx -= f * dx / d; b.vy -= f * dy / d; }
+            for (const n of g.nodes) { const p = pos[n.id]; p.vx += (CX - p.x) * 0.005; p.vy += (CY - p.y) * 0.005; p.x += p.vx * 0.85; p.y += p.vy * 0.85; p.vx *= 0.6; p.vy *= 0.6; }
+          }
+          posRef.current = pos; setData(g);
+        }).catch((e) => setErr(String(e)));
+      }, []);
+      if (err) return <div style={{ color: '#fca5a5', fontSize: 11, padding: 12 }}>{err}</div>;
+      if (!data) return <div style={{ color: '#64748b', fontSize: 11, padding: 12 }}>calcul du graphe…</div>;
+      if (!data.nodes.length) return <div style={{ color: '#64748b', fontSize: 12, padding: 12 }}>aucune note.</div>;
+      const pos = posRef.current;
+      const colorOf = (n) => n.root === 'brain' ? '#8b5cf6' : '#22d3ee';
+      const onWheel = (e) => { e.preventDefault(); const f = e.deltaY < 0 ? 1.1 : 1 / 1.1; setView((v) => ({ ...v, k: Math.max(0.3, Math.min(3, v.k * f)) })); };
+      const startBg = (e) => { dragRef.current = { bg: true, sx: e.clientX, sy: e.clientY, ox: view.x, oy: view.y }; };
+      const startNode = (e, id) => { e.stopPropagation(); dragRef.current = { id, sx: e.clientX, sy: e.clientY, px: pos[id].x, py: pos[id].y }; };
+      const onMove = (e) => { const d = dragRef.current; if (!d) return; if (d.bg) { setView((v) => ({ ...v, x: d.ox + (e.clientX - d.sx), y: d.oy + (e.clientY - d.sy) })); } else { pos[d.id].x = d.px + (e.clientX - d.sx) / view.k; pos[d.id].y = d.py + (e.clientY - d.sy) / view.k; setTick((t) => t + 1); } };
+      const endDrag = () => { dragRef.current = null; };
+      return (
+        <svg data-testid="mem-graph-svg" width="100%" height="100%" style={{ cursor: 'grab', background: '#0b0f19' }}
+          onWheel={onWheel} onMouseDown={startBg} onMouseMove={onMove} onMouseUp={endDrag} onMouseLeave={endDrag}>
+          <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
+            {data.edges.map((e, i) => { const a = pos[e.source], b = pos[e.target]; if (!a || !b) return null; return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#334155" strokeWidth="1" />; })}
+            {data.nodes.map((n) => { const p = pos[n.id]; if (!p) return null; const r = 4 + Math.min(10, n.degree * 1.5); return (
+              <g key={n.id} data-testid="mem-graph-node" transform={`translate(${p.x},${p.y})`} style={{ cursor: 'pointer' }}
+                onMouseDown={(e) => startNode(e, n.id)} onClick={() => onOpen({ root: n.root, id: n.id.slice(n.root.length + 1) })}>
+                <circle r={r} fill={colorOf(n)} stroke="#0b0f19" strokeWidth="1.5" />
+                {view.k > 1.1 && <text x={r + 2} y="3" fill="#cbd5e1" fontSize={9 / view.k}>{n.title}</text>}
+                <title>{n.title} ({n.degree})</title>
+              </g>
+            ); })}
+          </g>
+          <text x="8" y="16" fill="#64748b" fontSize="10">{data.nodes.length} notes · {data.edges.length} liens · {data.dropped} droppés · {data.ambiguous} ambigus</text>
+        </svg>
+      );
+    }
+
     // CT-4 — Vue Mémoire (lecture seule) : liste + lit les notes des 2 racines via /api/memory.
     function MemoryModal({ onClose }) {
       const [notes, setNotes] = useState(null);
@@ -2139,6 +2189,7 @@
       const [mode, setMode] = useState('keyword');     // 'keyword' | 'semantic'
       const [results, setResults] = useState(null);    // hits sémantiques ou null
       const [degraded, setDegraded] = useState(null);
+      const [memView, setMemView] = useState('list');  // 'list' | 'graph'
       const runSemantic = () => {
         if (!q.trim()) { setResults(null); setDegraded(null); return; }
         fetch(`/api/memory/search?mode=semantic&k=8&q=${encodeURIComponent(q)}`)
@@ -2152,7 +2203,7 @@
       const showResults = mode === 'semantic' && results !== null;
       return (
         <div className="roadmap-modal" data-testid="memory-modal" onMouseDown={onClose}>
-          <div style={{ width: 900, maxWidth: '95vw', height: '82vh', background: '#0b0f19', border: '1px solid #1e293b', borderRadius: 10, display: 'grid', gridTemplateColumns: '300px 1fr', overflow: 'hidden' }} onMouseDown={(e) => e.stopPropagation()}>
+          <div style={{ width: 900, maxWidth: '95vw', height: '82vh', background: '#0b0f19', border: '1px solid #1e293b', borderRadius: 10, display: 'grid', gridTemplateColumns: memView === 'graph' ? '1fr 300px' : '300px 1fr', overflow: 'hidden' }} onMouseDown={(e) => e.stopPropagation()}>
             <div style={{ borderRight: '1px solid #1e293b', overflow: 'auto', padding: 10 }}>
               <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
                 <input data-testid="mem-search" placeholder={mode === 'semantic' ? 'question… (Entrée)' : 'filtrer…'}
@@ -2167,10 +2218,18 @@
                   onClick={() => setMode('semantic')} style={{ fontSize: 10, padding: '3px 8px' }}>sémantique</button>
                 {mode === 'semantic' && <button className="ghost" onClick={runSemantic} style={{ fontSize: 10, padding: '3px 8px' }}>chercher</button>}
               </div>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                <button data-testid="mem-view-list" className={memView === 'list' ? '' : 'ghost'}
+                  onClick={() => setMemView('list')} style={{ fontSize: 10, padding: '3px 8px' }}>≣ liste</button>
+                <button data-testid="mem-view-graph" className={memView === 'graph' ? '' : 'ghost'}
+                  onClick={() => setMemView('graph')} style={{ fontSize: 10, padding: '3px 8px' }}>🕸️ graphe</button>
+              </div>
               {degraded && <div data-testid="mem-degraded" style={{ fontSize: 10, color: '#fbbf24', marginBottom: 6 }}>⚠ mode mot-clé — embeddings indispo ({String(degraded.reason).slice(0, 40)})</div>}
               {err && <div style={{ color: '#fca5a5', fontSize: 11 }}>{err}</div>}
               {notes === null && !err && <div style={{ color: '#64748b', fontSize: 11 }}>chargement…</div>}
-              {showResults ? (
+              {memView === 'graph' ? (
+                <div style={{ height: '66vh' }}><MemoryGraph onOpen={open} /></div>
+              ) : showResults ? (
                 <div>
                   <div style={{ fontSize: 9, textTransform: 'uppercase', color: '#6366f1', letterSpacing: 1, margin: '6px 0 4px' }}>résultats sémantiques · {results.length}</div>
                   {results.map((h) => (

@@ -27,6 +27,7 @@ import type { Adapters } from "./dist/adapters/types.js";
 import type { EngineState, ExecutionContext, Graph } from "./dist/core/types.js";
 import { listNotes, readNote, searchNotes, writeNote } from "./memory-store.mjs";
 import { recall, lmStudioEmbed } from "./memory-recall.mjs";
+import { buildGraph } from "./memory-graph.mjs";
 
 /**
  * Governance policy (Oracle, Passe 4): NO self-validation. A node cannot be judged
@@ -569,6 +570,11 @@ const server = http.createServer((req, res) => {
         sendJson(res, 200, { ...searchNotes(MEM_ROOTS, q, root), mode: "keyword-fallback", degraded: { reason: String((e as any).message || e) } });
       }
     })();
+    return;
+  }
+  if (pathname === "/api/memory/graph" && req.method === "GET") {
+    try { sendJson(res, 200, buildGraph(MEM_ROOTS)); }
+    catch (e) { sendJson(res, 500, { error: String((e as any).message || e) }); }
     return;
   }
   if (pathname === "/api/memory" && req.method === "POST") {

@@ -1,8 +1,9 @@
 import { it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { cosine, buildOrUpdateIndex, recall, PREFIXES_VERSION, lmStudioEmbed } from "../memory-recall.mjs";
+import { searchNotes } from "../memory-store.mjs";
 
 // Embedder mock : bag-of-words sur un vocab fixe → cosinus déterministe. Compte les appels.
 const VOCAB = ["chess", "elo", "belote", "memoire"];
@@ -57,4 +58,22 @@ it("lmStudioEmbed sur port mort → EMBED_UNAVAILABLE (rapide)", async () => {
   await expect(
     lmStudioEmbed(["x"], { url: "http://127.0.0.1:59999", timeoutMs: 1500 })
   ).rejects.toMatchObject({ code: "EMBED_UNAVAILABLE" });
+});
+it("recherche keyword et recall voient une note en sous-dossier", async () => {
+  mkdirSync(path.join(roots.brain, "sub"), { recursive: true });
+  writeFileSync(path.join(roots.brain, "sub", "chess-notes.md"), "# Chess notes\n\nRocky chess elo.", "utf-8");
+  const kw = searchNotes(roots, "chess");
+  expect(kw.hits.some((h: any) => h.id === "sub/chess-notes")).toBe(true);
+  const r = await recall(roots, "chess", { embed: mockEmbed, indexPath: idx, model: "m", k: 5 });
+  expect(r.hits.some((h: any) => h.id === "sub/chess-notes")).toBe(true);
+});
+it("incrémental : ajouter une note sous-dossier ne ré-embeddée PAS les notes racine inchangées", async () => {
+  await buildOrUpdateIndex(roots, { embed: mockEmbed, indexPath: idx, model: "m" });
+  embedCalls = [];
+  mkdirSync(path.join(roots.facts, "deep"), { recursive: true });
+  writeFileSync(path.join(roots.facts, "deep", "new.md"), "# New\n\nmemoire.", "utf-8");
+  await buildOrUpdateIndex(roots, { embed: mockEmbed, indexPath: idx, model: "m" });
+  const embedded = embedCalls.flat();
+  expect(embedded.length).toBe(1);
+  expect(embedded[0]).toContain("New");
 });
