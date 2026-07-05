@@ -2,7 +2,7 @@
 Dernière session : 2026-07-05 (marathon — chantier « AI-OS »). Contexte pré-2026-07-05
 archivé : `journal/context-archive-2026-07-05.md`.
 
-## Chantier AI-OS — 5 livraisons du jour (toutes prouvées, committées, NON poussées)
+## Chantier AI-OS — 6 livraisons du jour (toutes prouvées, committées, NON poussées)
 
 Décomposition : brique 0 (CT-4 mémoire) → 1 (Obsidian/MCP) → 2 (recall) → 3 (graphe) → 4 (interface pro).
 
@@ -26,18 +26,23 @@ Décomposition : brique 0 (CT-4 mémoire) → 1 (Obsidian/MCP) → 2 (recall) �
    `--font-sans`/`--font-mono`, composant `Badge({dim,value})` : 4 dimensions statut GARDÉES
    (provenance/maturité/câblage/suivi), unifiées par palette + glyphe (résout la collision de couleur).
    body → sans, mono réservé code/IDs.
+6. **Brique 4c — cartes de nœud + onboarding** — commit `5493412`. Cartes dégagées (titre = label
+   humain, `n.id` en sous-titre, aperçu prompt + chips ; `producerRef`/clés internes → section
+   « Technique » de l'inspecteur, retirés de la carte). Empty-state pédagogique centré (raccourcis
+   exemples via `window.__loadExample`). Tooltips sur les briques de la palette.
+
+**Brique 4 (interface pro) : 4a + 4c faites ; reste 4b (cockpit accueil).**
 
 **Régression finale** : `run-validators.mjs` ✅758 ❌0 (36 validateurs) · `vitest` 80 ✅.
 
 ## Prochaines options (à trancher À FROID)
-- **4b** — cockpit « Accueil » single-pane (lanes + ledger + mémoire + gates d'un coup d'œil).
-- **4c** — cartes de nœud dégagées (rôle en titre, IDs internes → inspecteur) + onboarding (empty-state, tooltips palette).
+- **4b** — cockpit « Accueil » single-pane (lanes + ledger + mémoire + gates d'un coup d'œil). **Dernière moitié de la brique 4.**
 - **3b** — graphe **codebase** Graphify (rebrancher le graphe de tout le code, 17 Mo, vis-network). Chantier infra distinct.
 - Brique 5 — capture vocale/rapide → mémoire (YAGNI pour l'instant).
-Specs prêts pour 4a ; 4b/4c/3b = cadrage→spec→plan à faire.
+Specs+plans faits pour CT-4/2/3a ; specs faits pour 4a/4c ; 4b/3b = cadrage→spec→plan à faire.
 
 ## Flags ouverts
-- **Rien poussé** : tous les commits du jour sont **locaux** (gate push Pierre). 8 commits depuis `57fefb4`.
+- **Rien poussé** : tous les commits du jour sont **locaux** (gate push Pierre). ~10 commits depuis `57fefb4` (jusqu'à `5493412` + ce handoff).
 - **Recall sémantique** : nécessite `nomic-embed` **chargé** dans LM Studio ; sinon fail-soft mot-clé (jamais cassé).
 - **Vue unique mémoire** : `search?mode=keyword` renvoie désormais + de notes (sous-dossiers `brain`) — VOULU (A1), pas une régression.
 - MCP Desktop = **lecture+écriture** (le serveur filesystem n'a pas le garde-fou brain-lecture-seule ; celui-ci ne vaut que sur la face HTTP).
