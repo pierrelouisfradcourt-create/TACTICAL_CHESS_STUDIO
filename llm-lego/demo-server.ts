@@ -26,6 +26,7 @@ import { powershellAdapters } from "./dist/adapters/powershell.js";
 import type { Adapters } from "./dist/adapters/types.js";
 import type { EngineState, ExecutionContext, Graph } from "./dist/core/types.js";
 import { listNotes, readNote, searchNotes, writeNote } from "./memory-store.mjs";
+import { recall, lmStudioEmbed } from "./memory-recall.mjs";
 
 /**
  * Governance policy (Oracle, Passe 4): NO self-validation. A node cannot be judged
@@ -98,6 +99,11 @@ const MEM_ROOTS = {
   brain: process.env["TCS_BRAIN_DIR"] ? path.resolve(process.env["TCS_BRAIN_DIR"]) : path.join(__dirname, "..", "studio_brain"),
   facts: process.env["TCS_MEMORY_DIR"] ? path.resolve(process.env["TCS_MEMORY_DIR"]) : path.join(os.homedir(), ".claude", "projects", "C--TACTICAL-CHESS-STUDIO", "memory"),
 };
+// Brique 2 — recall sémantique (embeddings LM Studio, config surchargable par env).
+const MEM_INDEX_PATH = path.join(__dirname, ".memory-index.json");
+const EMBED_URL = process.env["TCS_EMBED_URL"] || "http://localhost:1234";
+const EMBED_MODEL = process.env["TCS_EMBED_MODEL"] || "text-embedding-nomic-embed-text-v1.5";
+const embedFn = (texts: string[]) => lmStudioEmbed(texts, { url: EMBED_URL, model: EMBED_MODEL });
 const WIREFRAMES_DIR = path.join(__dirname, "wireframes");
 // Brick library (Library Passe 1). Separate store from wireframes/ on purpose —
 // see LIBRARY_AUDIT.md §3 (overloading wireframes would break runAudit).
@@ -546,8 +552,23 @@ const server = http.createServer((req, res) => {
     return;
   }
   if (pathname === "/api/memory/search" && req.method === "GET") {
-    try { sendJson(res, 200, searchNotes(MEM_ROOTS, url.searchParams.get("q") || "", url.searchParams.get("root") || "all")); }
-    catch (e) { sendJson(res, (e as any).status || 500, { error: String((e as any).message || e) }); }
+    const q = url.searchParams.get("q") || "";
+    const root = url.searchParams.get("root") || "all";
+    const mode = url.searchParams.get("mode") || "keyword";
+    const k = Number(url.searchParams.get("k")) || 8;
+    if (mode !== "semantic") {
+      try { sendJson(res, 200, { ...searchNotes(MEM_ROOTS, q, root), mode: "keyword" }); }
+      catch (e) { sendJson(res, (e as any).status || 500, { error: String((e as any).message || e) }); }
+      return;
+    }
+    void (async () => {
+      try {
+        const r = await recall(MEM_ROOTS, q, { embed: embedFn, indexPath: MEM_INDEX_PATH, model: EMBED_MODEL, k, rootFilter: root });
+        sendJson(res, 200, { q, mode: "semantic", hits: r.hits });
+      } catch (e) { // fail-soft → mot-clé
+        sendJson(res, 200, { ...searchNotes(MEM_ROOTS, q, root), mode: "keyword-fallback", degraded: { reason: String((e as any).message || e) } });
+      }
+    })();
     return;
   }
   if (pathname === "/api/memory" && req.method === "POST") {

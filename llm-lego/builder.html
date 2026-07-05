@@ -2136,20 +2136,52 @@
       }, []);
       const open = (n) => fetch(`/api/memory/${n.root}/${encodeURIComponent(n.id)}`)
         .then((r) => r.json()).then(setSel).catch((e) => setErr(String(e)));
+      const [mode, setMode] = useState('keyword');     // 'keyword' | 'semantic'
+      const [results, setResults] = useState(null);    // hits sémantiques ou null
+      const [degraded, setDegraded] = useState(null);
+      const runSemantic = () => {
+        if (!q.trim()) { setResults(null); setDegraded(null); return; }
+        fetch(`/api/memory/search?mode=semantic&k=8&q=${encodeURIComponent(q)}`)
+          .then((r) => r.json())
+          .then((d) => { setResults(d.hits || []); setDegraded(d.mode === 'keyword-fallback' ? (d.degraded || { reason: '' }) : null); })
+          .catch((e) => setErr(String(e)));
+      };
       const filtered = (notes || []).filter((n) =>
         !q || (`${n.title} ${n.id} ${(n.tags || []).join(' ')}`).toLowerCase().includes(q.toLowerCase()));
       const group = (root) => filtered.filter((n) => n.root === root);
+      const showResults = mode === 'semantic' && results !== null;
       return (
         <div className="roadmap-modal" data-testid="memory-modal" onMouseDown={onClose}>
           <div style={{ width: 900, maxWidth: '95vw', height: '82vh', background: '#0b0f19', border: '1px solid #1e293b', borderRadius: 10, display: 'grid', gridTemplateColumns: '300px 1fr', overflow: 'hidden' }} onMouseDown={(e) => e.stopPropagation()}>
             <div style={{ borderRight: '1px solid #1e293b', overflow: 'auto', padding: 10 }}>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                <input data-testid="mem-search" placeholder="filtrer…" value={q} onChange={(e) => setQ(e.target.value)} />
+              <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+                <input data-testid="mem-search" placeholder={mode === 'semantic' ? 'question… (Entrée)' : 'filtrer…'}
+                  value={q} onChange={(e) => setQ(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && mode === 'semantic') runSemantic(); }} style={{ flex: 1, minWidth: 120 }} />
                 <button className="ghost" data-testid="mem-close" onClick={onClose}>fermer</button>
               </div>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                <button data-testid="mem-mode-keyword" className={mode === 'keyword' ? '' : 'ghost'}
+                  onClick={() => { setMode('keyword'); setResults(null); setDegraded(null); }} style={{ fontSize: 10, padding: '3px 8px' }}>mot-clé</button>
+                <button data-testid="mem-mode-semantic" className={mode === 'semantic' ? '' : 'ghost'}
+                  onClick={() => setMode('semantic')} style={{ fontSize: 10, padding: '3px 8px' }}>sémantique</button>
+                {mode === 'semantic' && <button className="ghost" onClick={runSemantic} style={{ fontSize: 10, padding: '3px 8px' }}>chercher</button>}
+              </div>
+              {degraded && <div data-testid="mem-degraded" style={{ fontSize: 10, color: '#fbbf24', marginBottom: 6 }}>⚠ mode mot-clé — embeddings indispo ({String(degraded.reason).slice(0, 40)})</div>}
               {err && <div style={{ color: '#fca5a5', fontSize: 11 }}>{err}</div>}
               {notes === null && !err && <div style={{ color: '#64748b', fontSize: 11 }}>chargement…</div>}
-              {['brain', 'facts'].map((root) => (
+              {showResults ? (
+                <div>
+                  <div style={{ fontSize: 9, textTransform: 'uppercase', color: '#6366f1', letterSpacing: 1, margin: '6px 0 4px' }}>résultats sémantiques · {results.length}</div>
+                  {results.map((h) => (
+                    <button key={h.root + h.id} data-testid="mem-hit" className="palette" style={{ width: '100%', marginBottom: 3, display: 'flex', justifyContent: 'space-between' }}
+                      onClick={() => open(h)} title={h.snippet}>
+                      <span>{h.title}</span><span style={{ color: '#64748b', fontSize: 10 }}>{h.score}</span>
+                    </button>
+                  ))}
+                  {results.length === 0 && <div style={{ color: '#64748b', fontSize: 11 }}>aucun résultat.</div>}
+                </div>
+              ) : ['brain', 'facts'].map((root) => (
                 <div key={root}>
                   <div style={{ fontSize: 9, textTransform: 'uppercase', color: '#6366f1', letterSpacing: 1, margin: '10px 0 4px' }}>
                     {root === 'brain' ? 'studio_brain (humain)' : 'memory (machine)'} · {group(root).length}
