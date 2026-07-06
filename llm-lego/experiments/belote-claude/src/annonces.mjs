@@ -97,9 +97,10 @@ export function compareAnnonce(a, b) {
  * Seule l'équipe détentrice de la MEILLEURE annonce marque, et elle marque toutes ses
  * annonces. Égalité parfaite entre équipes adverses → annulée (bonus 0/0).
  */
-export function resolveAnnonces(fullHands, atout, dealer) {
+export function resolveAnnonces(fullHands, atout, dealer, declared = [true, true, true, true]) {
   const order = eldestOrder(dealer); // aînesse pour départager les égalités
-  const byPlayer = [0, 1, 2, 3].map((p) => detectAnnonces(fullHands[p], atout));
+  // Seules les annonces DÉCLARÉES entrent dans le pool (IA = toujours ; humain = si « Annoncer »).
+  const byPlayer = [0, 1, 2, 3].map((p) => (declared[p] ? detectAnnonces(fullHands[p], atout) : []));
 
   let best = null, bestPlayer = -1;
   for (const p of order) {

@@ -74,5 +74,27 @@ const tie = [
 const r2 = resolveAnnonces(tie, "coeur", 0);
 check("égalité parfaite adverse → annulée (0/0)", r2.annule === true && r2.bonus[0] === 0 && r2.bonus[1] === 0);
 
+console.log("=== Déclaration (pool) — annonce non déclarée = perdue ===");
+// Donne à 32 cartes distinctes, atout coeur. p0 (éq A) = tierce R-D-V pique (20).
+// p1 (éq B) = carré de 9 (150). p2/p3 = aucune annonce. Vérifié : ce sont les SEULES annonces.
+const hd = [
+  [C("R","pique"), C("D","pique"), C("V","pique"), C("7","coeur"), C("8","trefle"), C("10","carreau"), C("A","trefle"), C("8","coeur")],
+  [C("9","pique"), C("9","coeur"), C("9","carreau"), C("9","trefle"), C("8","pique"), C("10","trefle"), C("D","carreau"), C("A","coeur")],
+  [C("7","pique"), C("10","pique"), C("A","pique"), C("10","coeur"), C("D","coeur"), C("7","trefle"), C("V","trefle"), C("8","carreau")],
+  [C("V","coeur"), C("R","coeur"), C("7","carreau"), C("V","carreau"), C("R","carreau"), C("A","carreau"), C("D","trefle"), C("R","trefle")],
+];
+const rNoDecl = resolveAnnonces(hd, "coeur", 0, [true, false, true, true]); // p1 ne déclare pas
+check("carré de 9 non déclaré (p1) ne marque pas → équipe A gagne l'annonce", rNoDecl.winnerTeam === 0);
+check("bonus A = tierce 20, B = 0", rNoDecl.bonus[0] === 20 && rNoDecl.bonus[1] === 0);
+const rDecl = resolveAnnonces(hd, "coeur", 0, [true, true, true, true]); // tous déclarent
+check("carré de 9 déclaré (p1) l'emporte (150)", rDecl.winnerTeam === 1 && rDecl.bonus[1] === 150);
+
+console.log("=== Détection indépendante de l'ordre de la main (spec §6) ===");
+const mainA = [C("R","pique"), C("D","pique"), C("V","pique"), C("A","trefle"), C("7","coeur"), C("8","coeur"), C("9","trefle"), C("10","carreau")];
+const perm  = [mainA[4], mainA[0], mainA[7], mainA[2], mainA[6], mainA[1], mainA[5], mainA[3]]; // même contenu, autre ordre
+const dA = detectAnnonces(mainA, "coeur").map(annonceLabel).sort();
+const dP = detectAnnonces(perm,  "coeur").map(annonceLabel).sort();
+check("detectAnnonces identique quelle que soit la permutation de la main", JSON.stringify(dA) === JSON.stringify(dP));
+
 console.log(`\n${fail === 0 ? "RESULT: PASS" : "RESULT: FAIL"} — ${pass} ok, ${fail} ko`);
 process.exit(fail === 0 ? 0 : 1);
