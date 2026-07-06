@@ -47,7 +47,7 @@ const domIds = (page) => page.$$eval("#hand .handcard", (els) => els.map((e) => 
 async function main() {
   await mkdir(SHOTS, { recursive: true });
   const srv = await startServer();
-  const browser = await chromium.launch({ headless: !process.env.HEADED });
+  const browser = await chromium.launch({ headless: !process.env.HEADED, args: ["--disable-gpu"] });
   let fail = 0;
   const check = (n, ok) => { console.log(`  ${ok ? "✅" : "❌"} ${n}`); if (!ok) fail++; };
   try {

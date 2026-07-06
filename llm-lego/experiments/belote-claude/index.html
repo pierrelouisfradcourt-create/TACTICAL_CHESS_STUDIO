@@ -170,6 +170,8 @@
     .card .corner.br { bottom: 3px; right: 4px; transform: rotate(180deg); }
 
     /* ---------- main (éventail) ---------- */
+    .hand-actions { display: flex; justify-content: center; gap: 8px; min-height: 0; padding: 0 6px; }
+    .declbtn { font-size: 12px; padding: 6px 14px; border-radius: 10px; }
     .hand-wrap { padding: 4px 6px 14px; display: flex; justify-content: center; align-items: flex-end;
       min-height: 118px; background: linear-gradient(#0000, #0006); }
     #hand { position: relative; display: flex; justify-content: center; align-items: flex-end; padding-top: 22px; }
@@ -271,6 +273,13 @@
 
     <!-- Barre d'enchère (la prise) -->
     <div class="bidbar hidden" id="bidbar"></div>
+
+    <!-- Actions de déclaration (annonces / belote-rebelote) -->
+    <div class="hand-actions">
+      <button id="annonceBtn" class="declbtn" style="display:none">Annoncer</button>
+      <button id="beloteBtn" class="declbtn" style="display:none">Belote</button>
+      <button id="rebeloteBtn" class="declbtn" style="display:none">Rebelote</button>
+    </div>
 
     <!-- Main -->
     <div class="hand-wrap"><div id="hand"></div></div>
@@ -479,28 +488,28 @@
           <div class="pts">${c.points ?? ""} pt${c.points === 1 ? "" : "s"}</div>${cardHTML(c)}</div>`;
       }).join("");
 
-      // révélation des annonces (suites/carrés) au 1er pli
+      // boutons de déclaration (pli 1 : Annoncer ; belote/rebelote en jouant R/D d'atout)
+      $("annonceBtn").style.display = s.canAnnonce ? "inline-block" : "none";
+      $("beloteBtn").style.display = s.canBelote ? "inline-block" : "none";
+      $("rebeloteBtn").style.display = s.canRebelote ? "inline-block" : "none";
+
+      // exposition (pli 2) : SEULE la meilleure annonce, cartes du camp vainqueur, quelques secondes
       const anp = $("annoncePanel");
-      if (s.phase === "annonce_show" && s.annonces) {
-        const A = s.annonces, TEAM = (t) => (t === 0 ? "A" : "B");
-        const rows = A.items.length
-          ? A.items.map((it) => `<tr><td>${SEAT_NAME[it.player]}</td><td>${it.label}</td><td>+${it.points}</td></tr>`).join("")
-          : `<tr><td colspan="3">aucune</td></tr>`;
-        const verdict = A.annule
-          ? "Égalité — annonces annulées"
-          : A.winnerTeam === -1 ? "—" : `Équipe ${TEAM(A.winnerTeam)} marque +${A.bonus[A.winnerTeam]}`;
+      if (s.phase === "annonce_expose" && s.annonceExpose) {
+        const A = s.annonceExpose, TEAM = (t) => (t === 0 ? "A" : "B");
+        const cards = A.best.cards.map(cardHTML).join("");
         anp.classList.remove("hidden");
         anp.innerHTML = `<div class="sheet">
-          <h3>Annonces</h3>
-          <table>${rows}</table>
-          <div class="win" style="font-size:16px;margin-top:8px">${verdict}</div></div>`;
+          <h3>Meilleure annonce — ${A.best.label}</h3>
+          <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:10px 0">${cards}</div>
+          <div class="win" style="font-size:16px">Équipe ${TEAM(A.winnerTeam)} marque +${A.bonus[A.winnerTeam]}</div></div>`;
       } else anp.classList.add("hidden");
 
       // statut
       const st = $("status");
       if (s.phase === "await_human") st.textContent = "À toi de jouer — touche une carte éclairée.";
       else if (s.phase === "bid_await") st.textContent = "";
-      else if (s.phase === "annonce_show") st.textContent = s.message || "";
+      else if (s.phase === "annonce_expose") st.textContent = s.message || "";
       else if (s.phase === "bid_step") st.textContent = s.message || "";
       else if (s.phase === "trick_done") st.textContent = `Pli pour ${SEAT_NAME[s.trickWinner]}.`;
       else if (s.phase === "deal_done") st.textContent = "Fin de la donne…";
@@ -559,7 +568,7 @@
       if (s.phase === "trick_done") setTimeout(cont, 1250);
       else if (s.phase === "deal_done") setTimeout(cont, 2600);
       else if (s.phase === "bid_step") setTimeout(cont, 950); // laisse voir chaque enchère
-      else if (s.phase === "annonce_show") setTimeout(cont, 2400); // laisse lire les annonces
+      else if (s.phase === "annonce_expose") setTimeout(cont, 3000); // exposition ~3 s (spec §8-Q6)
     }
     async function bid(action, suit) {
       if (busy) return; busy = true; hideErr();
@@ -641,6 +650,24 @@
       else if (btn.classList.contains("color")) bid("take", btn.dataset.suit);
     });
     $("newBtn").addEventListener("click", newGame);
+
+    // déclarations : Annoncer (pli 1) et Belote/Rebelote (en jouant R/D d'atout).
+    // Ces routes ne font PAS avancer le jeu (elles posent un drapeau) → on re-render l'état.
+    $("annonceBtn").addEventListener("click", async () => {
+      if (busy) return; busy = true; hideErr();
+      const { status, data } = await api("/api/annonce", {});
+      busy = false;
+      if (status === 200) render(data); else showErr(data.error || "déclaration refusée");
+    });
+    async function declareBelote(call) {
+      if (busy) return; busy = true; hideErr();
+      const { status, data } = await api("/api/belote", { call });
+      busy = false;
+      if (status === 200) render(data); else showErr(data.error || "belote refusée");
+    }
+    $("beloteBtn").addEventListener("click", () => declareBelote("belote"));
+    $("rebeloteBtn").addEventListener("click", () => declareBelote("rebelote"));
+
     $("sortPref").value = sortPref;
     $("sortPref").addEventListener("change", () => {
       sortPref = $("sortPref").value;

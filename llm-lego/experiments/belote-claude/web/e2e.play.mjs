@@ -65,7 +65,7 @@ async function playOneBid(page) {
 async function main() {
   await mkdir(SHOTS, { recursive: true });
   const srv = await startServer();
-  const browser = await chromium.launch({ headless: !process.env.HEADED });
+  const browser = await chromium.launch({ headless: !process.env.HEADED, args: ["--disable-gpu"] });
   const log = [];
   try {
     const page = await browser.newPage({ viewport: { width: 820, height: 780 } });
@@ -107,12 +107,13 @@ async function main() {
           log.push(`jeu: main ${hc} cartes, ${lc} légales`);
         }
         await playOneHuman(page); humanMoves++;
-      } else if (phase === "annonce_show") {
-        if (!annShot && s.annonces && s.annonces.items.length) {
+      } else if (phase === "annonce_expose") {
+        if (!annShot && s.annonceExpose) {
           await page.waitForSelector("#annoncePanel:not(.hidden)", { timeout: 4000 });
           await page.screenshot({ path: join(SHOTS, "05-annonces.png") });
           annShot = true;
-          log.push(`annonces révélées: ${s.annonces.items.map((i) => i.label + " +" + i.points).join(", ")}`);
+          const w = s.annonceExpose.winnerTeam;
+          log.push(`annonce exposée: ${s.annonceExpose.best.label} → équipe ${w === 0 ? "A" : "B"} +${s.annonceExpose.bonus[w]}`);
         }
         await page.waitForTimeout(110);
       } else if (phase === "deal_done") {
