@@ -69,6 +69,9 @@ async function main() {
   const log = [];
   try {
     const page = await browser.newPage({ viewport: { width: 820, height: 780 } });
+    page.on("pageerror", (e) => console.log("PAGEERROR:", e.message));
+    page.on("console", (m) => { if (m.type() === "error") console.log("CONSOLE.ERROR:", m.text()); });
+    page.on("crash", () => console.log("PAGE CRASH EVENT"));
     await page.goto(URL, { waitUntil: "domcontentloaded" });
 
     // 1) démarrer une partie déterministe

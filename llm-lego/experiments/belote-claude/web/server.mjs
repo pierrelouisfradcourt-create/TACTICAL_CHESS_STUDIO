@@ -57,9 +57,12 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && /^\/src\/[a-z0-9_-]+\.mjs$/i.test(path)) {
       return serveFile(res, path.slice(1), "text/javascript; charset=utf-8");
     }
-    // assets (spritesheet cartes, dos, tapis)
+    // assets (spritesheet cartes, dos, tapis, preview)
     if (req.method === "GET" && path.startsWith("/assets/")) {
-      const type = path.endsWith(".svg") ? "image/svg+xml" : "application/octet-stream";
+      const type = path.endsWith(".svg") ? "image/svg+xml"
+        : path.endsWith(".html") ? "text/html; charset=utf-8"
+        : path.endsWith(".css") ? "text/css; charset=utf-8"
+        : "application/octet-stream";
       return serveFile(res, path.slice(1), type);
     }
 
