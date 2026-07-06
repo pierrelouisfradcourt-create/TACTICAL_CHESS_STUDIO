@@ -1,5 +1,28 @@
 # Contexte courant TCS
-Dernière session : 2026-07-05 → 06 (marathon). Archive pré-session : `journal/context-archive-2026-07-05.md`.
+Dernière session : 2026-07-06 — **Belote produit 1, bloc 1 « Règles, table & matériel » LIVRÉ**
+(spec + plan + build). Sessions marathon 07-05→06 archivées : `journal/context-archive-2026-07-05.md`.
+
+## Belote — bloc 1 livré (2026-07-06), NON poussé (gate Pierre)
+Base : `llm-lego/experiments/belote-claude/` (le prototype prouvé, fait évoluer — pas de repart de zéro).
+- **Spec** : `docs/superpowers/specs/2026-07-06-belote-bloc1-regles-table-materiel-design.md`.
+- **Plan** : `docs/superpowers/plans/2026-07-06-belote-bloc1-regles-table-materiel-plan.md`.
+- **Fait & prouvé** : cible 1000 défaut · **paquet fidèle** (mélange initial seedé → coupe réelle
+  bornée → **ramassage déterministe**, `src/shoe.mjs`, rejouable depuis seed, parité driver≡moteur
+  re-prouvée) · **annonces rituel 2 temps** (pool DÉCLARÉ, humain manuel via `/api/annonce`,
+  exposition pli 2 de la seule meilleure ; non déclarée = perdue) · **belote/rebelote manuelles**
+  (`/api/belote`, oubli = +0) · **main réorganisable** (drag Pointer : ranger horizontal ≠ jouer
+  tap/tirer-tapis, le jeu ne re-trie jamais) · tri d'affichage + préférence.
+- **Preuve** : 44 unit · real-play 0 violation · verify-parity/annonces/ritual PASS · e2e DOM
+  sort/reorder/declare/belote/cards PASS. `software OK / evidence INCLUDES_UX_VALIDATION / claim NO_CLAIM_ALLOWED`.
+- **2 points à trancher (Pierre)** : (1) **cartes** — set candidat LGPL SVG-cards rendu à 60px
+  (`assets/preview.html`, capture `web/e2e-shots/cards-preview.png`) LISIBLE mais index de coin
+  **anglais K/Q/J** ; production **inchangée** (coins R/D/V FR) tant que Pierre n'a pas choisi
+  FR-Wikimedia vs fallback anglais (§8-Q8). (2) `web/e2e.play.mjs` (partie DOM complète) **crashe le
+  renderer headless** sur ce poste (env, **aucune erreur JS** — cf. listeners) ; deals DOM + jeu
+  moteur complets sont prouvés par ailleurs.
+- **Défauts §8 appliqués** (ajustables) : COUPE_MIN=3 · pickup camp-preneur-d'abord · tri défaut
+  couleur · déclaration = toutes annonces d'un coup · exposition 3s · seuils geste 12px/1.3.
+- **Reste (blocs suivants)** : parcours joueur, IA niveaux, PWA, défi-par-lien (l'archi seed est prête).
 
 ## ⚠️ DÉCISION MAJEURE — PIVOT PRODUIT (ratifié Pierre, session Claude 2026-07-05/06)
 > **Toute session future qui propose du travail Rocky ou de l'outillage builder DOIT renvoyer ici.**
