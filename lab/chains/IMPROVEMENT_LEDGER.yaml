@@ -4841,7 +4841,14 @@ improvements:
   notes: 'Observation etape 5. Premier run reel = brief riche (spec bloc 2 Belote).
     Resserrage du garde write-path uniquement par ajout de motif + test negatif (jamais
     retour au litteral global — ratifie). Distinct de l''IMP RED_TEAM calibrage securite/ethique
-    (CLOSED) : ici axe = richesse du brief, pas faux blocage securite.'
+    (CLOSED) : ici axe = richesse du brief, pas faux blocage securite. | [CALIBRATION
+    1er transit canonique 2026-07-06, IMP-248->251] (1) brief riche -> risques SPECIFIQUES
+    confirme (vs brief generique -> risques generiques). (2) le council contredit
+    parfois des contraintes ratifiees du brief -> candidat consigne RED_TEAM (ne pas
+    proposer dependances/refactor contre les decisions ratifiees). (3) PLAN_REVIEW
+    degrade si Claude-proxy:8765 down (fallback Qwen paraphrase l''objectif, verdict
+    FAIL peu signifiant). (4) garde write-path : 0 faux rejet ce run, 0 dict-repr
+    (normalisation ast.literal_eval OK).'
 - id: IMP-245
   title: 'qwen-worker v0 : file de contrats de tache + boucle oracle locale + validateur
     de surface d''API — pilote sur shell bloc 2 Belote, mesures incluses'
@@ -4909,6 +4916,83 @@ improvements:
     deja 4 writers bruts invisibles au scan (autopilot.py:1683, roadmap_to_ledger.py:352,
     ledger_patch_*.py) — un merge les reintroduit. Angle mort test_*.py exclu du scan
     (grep_guard_ledger.py:229-233). Ref : contre-audit C6/attaque 2.'
+- id: IMP-248
+  title: 'Cas limite non géré : comportement inattendu si le champ #seed contient
+    un nombre invalide ou non convertible en uint32.'
+  type: council-proposed
+  source: council
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: ''
+  files: []
+  acceptance: 'Cas limite non géré : comportement inattendu si le champ #seed contient
+    un nombre invalide ou non convertible en uint32. (impact: Crash du jeu ou affichage
+    incorrect des paramètres de la partie.)'
+  blocked_by: []
+  opened_session: belote-b2-transit-2026-07-06
+  closed_session: null
+  notes: origin=council | suggested_lane=AUDIT_REQUIRED
+- id: IMP-249
+  title: 'Dette technique : absence d''une fonctionnalité pour vérifier l''unicité
+    et la validité des graine (seed) utilisées, ce qui pourrait entraîner une répétition
+    inattendue de parties.'
+  type: council-proposed
+  source: council
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: ''
+  files: []
+  acceptance: 'Dette technique : absence d''une fonctionnalité pour vérifier l''unicité
+    et la validité des graine (seed) utilisées, ce qui pourrait entraîner une répétition
+    inattendue de parties. (impact: Expérience utilisateur dégradée avec des parties
+    identiques.)'
+  blocked_by: []
+  opened_session: belote-b2-transit-2026-07-06
+  closed_session: null
+  notes: origin=council | suggested_lane=AUDIT_REQUIRED
+- id: IMP-250
+  title: 'Complexité injustifiée : gestion manuelle du chargement initial basée sur
+    l''état du serveur peut être simplifiée en utilisant un middleware pour gérer
+    les états de manière plus transparente.'
+  type: council-proposed
+  source: council
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: ''
+  files: []
+  acceptance: 'Complexité injustifiée : gestion manuelle du chargement initial basée
+    sur l''état du serveur peut être simplifiée en utilisant un middleware pour gérer
+    les états de manière plus transparente. (impact: Code moins maintenable et potentiellement
+    source d''erreurs.)'
+  blocked_by: []
+  opened_session: belote-b2-transit-2026-07-06
+  closed_session: null
+  notes: origin=council | suggested_lane=AUDIT_REQUIRED
+- id: IMP-251
+  title: 'Tests manquants : absence de tests unitaires spécifiques pour la gestion
+    des graine (seed) et leur conversion en uint32, ce qui peut entraîner des bugs
+    non détectés.'
+  type: council-proposed
+  source: council
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: ''
+  files: []
+  acceptance: 'Tests manquants : absence de tests unitaires spécifiques pour la gestion
+    des graine (seed) et leur conversion en uint32, ce qui peut entraîner des bugs
+    non détectés. (impact: Bugs potentiels dans le traitement des paramètres de jeu.)'
+  blocked_by: []
+  opened_session: belote-b2-transit-2026-07-06
+  closed_session: null
+  notes: origin=council | suggested_lane=AUDIT_REQUIRED
 metrics_history:
 - session: '2026-05-31'
   total: 11
