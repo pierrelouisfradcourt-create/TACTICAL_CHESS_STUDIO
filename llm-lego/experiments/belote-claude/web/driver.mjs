@@ -30,7 +30,7 @@ const TAKE_R1 = 8; // tour 1 : prendre la couleur retournée
 const TAKE_R2 = 9; // tour 2 : nommer une autre couleur
 
 export class BeloteDriver {
-  constructor({ seed = 1, target = 501, startDealer = 0, maxDeals = 200, annonces = true } = {}) {
+  constructor({ seed = 1, target = 1000, startDealer = 0, maxDeals = 200, annonces = true } = {}) {
     this.seed = seed;
     this.target = target;
     this.maxDeals = maxDeals;

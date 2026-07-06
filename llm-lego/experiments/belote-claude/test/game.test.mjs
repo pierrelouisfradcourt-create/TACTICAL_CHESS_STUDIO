@@ -44,6 +44,13 @@ test("playGame : une partie complète se termine avec un vainqueur au-dessus du 
   assert.ok(g.dealsPlayed < 200, "la partie termine (pas de boucle infinie)");
 });
 
+test("playGame : cible par défaut = 1000 (plus longue qu'à 501)", () => {
+  const long = playGame({ seed: 3 });            // pas de target → défaut
+  const short = playGame({ seed: 3, target: 501 });
+  assert.ok(Math.max(...long.totals) >= 1000, `défaut atteint 1000 (${Math.max(...long.totals)})`);
+  assert.ok(long.dealsPlayed >= short.dealsPlayed, "1000 joue au moins autant de donnes que 501");
+});
+
 test("playGame : déterministe — même seed → même résultat", () => {
   const a = playGame({ target: 301, seed: 9 });
   const b = playGame({ target: 301, seed: 9 });

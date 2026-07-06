@@ -228,6 +228,7 @@
       </div>
       <div class="hud-actions">
         <label>seed<input id="seed" type="number" value="3" /></label>
+        <label>cible<select id="target"><option value="1000" selected>1000</option><option value="501">501</option></select></label>
         <button id="newBtn">Jouer</button>
       </div>
     </div>
@@ -543,11 +544,12 @@
     }
     async function newGame() {
       const seed = Number($("seed").value) || 1;
+      const target = Number($("target").value) || 1000;
       hideErr();
       $("dealPanel").classList.add("hidden");
       $("gamePanel").classList.add("hidden");
       shown.clear(); trickEl.innerHTML = ""; lastWinner = null;
-      const { data } = await api("/api/new", { seed, target: 501 });
+      const { data } = await api("/api/new", { seed, target });
       await apply(data);
     }
 

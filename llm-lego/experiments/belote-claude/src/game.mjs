@@ -71,7 +71,7 @@ export function playDeal(dealer, rng = Math.random) {
  * Joue une partie jusqu'à `target` points. Retourne l'historique + le vainqueur.
  * Garde-fou : nombre de donnes plafonné (anti-boucle infinie de redistributions).
  */
-export function playGame({ target = 501, seed = 1, startDealer = 0, maxDeals = 200 } = {}) {
+export function playGame({ target = 1000, seed = 1, startDealer = 0, maxDeals = 200 } = {}) {
   const rng = makeRng(seed);
   const totals = [0, 0];
   const deals = [];
