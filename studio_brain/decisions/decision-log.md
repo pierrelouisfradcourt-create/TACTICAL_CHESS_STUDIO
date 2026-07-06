@@ -123,6 +123,22 @@
 
 ---
 
+## 2026-07-06 — CI : runner GitHub Actions auto-hébergé sur la machine studio
+
+**Décision** : CI = runner GitHub Actions **auto-hébergé** sur la machine studio (Windows, RTX 5080). Vraie CI bloquante, pas un script post-push consultatif.
+
+**Contexte** : La facturation GitHub Actions est ce qui a vidé la CI initialement (commentaire `Budget control` dans `canonical-ci.yml` → tous les jobs réels passés en `workflow_dispatch` manuel, contre-audit 2026-07-06 C1). Un runner local remet une CI réelle à coût externe zéro, cohérent avec la doctrine locale-first.
+
+**Alternatives rejetées** :
+- GitHub Actions facturé (runners hébergés) — rejeté : c'est précisément la contrainte de coût qui a tué la CI.
+- Script post-push consultatif — rejeté : non bloquant, ne protège pas master.
+
+**Limite acceptée** : la CI ne tourne que machine allumée.
+
+**Critères de révision** : HumanGate Pierre uniquement.
+
+---
+
 ## Template pour nouvelles entrées
 
 ```
