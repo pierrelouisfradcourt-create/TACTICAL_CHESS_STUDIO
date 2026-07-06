@@ -53,6 +53,15 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && (path === "/" || path === "/index.html")) {
       return serveFile(res, "index.html", "text/html; charset=utf-8");
     }
+    // modules ES du moteur, servis pour l'UI (source unique de vérité, pas de copie).
+    if (req.method === "GET" && /^\/src\/[a-z0-9_-]+\.mjs$/i.test(path)) {
+      return serveFile(res, path.slice(1), "text/javascript; charset=utf-8");
+    }
+    // assets (spritesheet cartes, dos, tapis)
+    if (req.method === "GET" && path.startsWith("/assets/")) {
+      const type = path.endsWith(".svg") ? "image/svg+xml" : "application/octet-stream";
+      return serveFile(res, path.slice(1), type);
+    }
 
     // --- API ---
     if (path === "/api/new" && req.method === "POST") {
