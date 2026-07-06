@@ -4700,7 +4700,7 @@ improvements:
     1 chemin perime observation_boundary_current.rs)
   type: fix
   source: session-20260706
-  status: OPEN
+  status: FROZEN
   impact: HIGH
   effort: MEDIUM
   lane: HUMAN_REQUIRED
@@ -4717,7 +4717,9 @@ improvements:
     (reparation infra de test pour CI, PAS optimisation moteur ; perimetre strict
     aux 6 tests). Sans ca la CI nait rouge. Fix candidats : serialiser les 5 flaky
     (--test-threads=1 ou lock de test), corriger le chemin ARCHIVE/. Ref : contre-audit
-    C10.'
+    C10. | [FROZEN 2026-07-06] Arret de la reparation du moteur echecs ML (decision
+    Pierre 2026-07-06) — coherent avec le gel Rocky du pivot. La zone echecs ML sort
+    du perimetre CI.'
 - id: IMP-239
   title: 'CI reelle : cabler le run oracle consolide (etape 6 council) sur push master'
   type: feature
@@ -4728,8 +4730,11 @@ improvements:
   lane: AUDIT_REQUIRED
   domain: studio
   files: []
-  acceptance: Push sur master declenche council_factory_oracle + suites ; run vert
-    + un echec volontairement introduit detecte rouge puis retire.
+  acceptance: Push sur master declenche council_factory_oracle + les suites du perimetre
+    VIVANT (council/contrat/routeur, single-writer, Belote, gouvernance, TCG) ; run
+    vert + un echec volontairement introduit detecte rouge puis retire. Zone echecs
+    ML (Rocky/Rust) EXCLUE du perimetre (GEL) — plus aucune reference aux 6 tests
+    Rust.
   blocked_by: []
   opened_session: session-20260706
   closed_session: null
@@ -4738,7 +4743,11 @@ improvements:
     : pytest suites, validators mjs, cargo test. Ref : contre-audit C9 (oracles 100%
     manuels). [MAJ 2026-07-06] Prerequis decision (A1/IMP-237) LEVE : runner GitHub
     Actions auto-heberge ratifie (decision-log). Reste bloque par IMP-238 (6 tests
-    Rust verts) avant activation — la CI ne doit pas naitre rouge.'
+    Rust verts) avant activation — la CI ne doit pas naitre rouge. [MAJ 2026-07-06]
+    IMP-238 FROZEN -> plus un bloqueur. Perimetre CI redefini = zone vivante uniquement
+    : suites council/contrat/routeur (council_factory_oracle), single-writer (IMP-194/205),
+    Belote (tests moteur + e2e), gouvernance, et TCG a venir. Zone echecs ML exclue
+    du perimetre (GEL).'
 - id: IMP-240
   title: 'Hooks git : migrer stop-hook en Node.js, ajouter pre-push, renommer validate-commit-msg
     -> commit-msg'
@@ -4848,7 +4857,8 @@ improvements:
     proposer dependances/refactor contre les decisions ratifiees). (3) PLAN_REVIEW
     degrade si Claude-proxy:8765 down (fallback Qwen paraphrase l''objectif, verdict
     FAIL peu signifiant). (4) garde write-path : 0 faux rejet ce run, 0 dict-repr
-    (normalisation ast.literal_eval OK).'
+    (normalisation ast.literal_eval OK). | Taux de bruit run 1 : 25 % (IMP-250 rejete
+    au pickup).'
 - id: IMP-245
   title: 'qwen-worker v0 : file de contrats de tache + boucle oracle locale + validateur
     de surface d''API — pilote sur shell bloc 2 Belote, mesures incluses'
@@ -4929,18 +4939,23 @@ improvements:
   files: []
   acceptance: 'Cas limite non géré : comportement inattendu si le champ #seed contient
     un nombre invalide ou non convertible en uint32. (impact: Crash du jeu ou affichage
-    incorrect des paramètres de la partie.)'
+    incorrect des paramètres de la partie.). Couvre aussi la VALIDITE de la graine
+    (volet absorbe d''IMP-249) : seed hors-domaine uint32 rejetee proprement, pas
+    de crash.'
   blocked_by: []
   opened_session: belote-b2-transit-2026-07-06
   closed_session: null
-  notes: origin=council | suggested_lane=AUDIT_REQUIRED
+  notes: 'origin=council | suggested_lane=AUDIT_REQUIRED | [MAJ 2026-07-06] Absorbe
+    le volet ''validite de seed'' d''IMP-249 (fusionne, verdict Pierre). Volet ''unicite
+    pour eviter repetition'' ECARTE : le rejeu deterministe par seed est intentionnel
+    (defi-par-seed).'
 - id: IMP-249
   title: 'Dette technique : absence d''une fonctionnalité pour vérifier l''unicité
     et la validité des graine (seed) utilisées, ce qui pourrait entraîner une répétition
     inattendue de parties.'
   type: council-proposed
   source: council
-  status: OPEN
+  status: REJECTED
   impact: MEDIUM
   effort: MEDIUM
   lane: AUDIT_REQUIRED
@@ -4952,15 +4967,18 @@ improvements:
     identiques.)'
   blocked_by: []
   opened_session: belote-b2-transit-2026-07-06
-  closed_session: null
-  notes: origin=council | suggested_lane=AUDIT_REQUIRED
+  closed_session: '2026-07-06'
+  notes: 'origin=council | suggested_lane=AUDIT_REQUIRED | [REJECTED 2026-07-06] Fusionne
+    dans IMP-248 (verdict Pierre) : volet ''validite'' = doublon d''IMP-248 ; volet
+    ''unicite'' ecarte car contredit le rejeu deterministe par seed (defi-par-seed
+    intentionnel).'
 - id: IMP-250
   title: 'Complexité injustifiée : gestion manuelle du chargement initial basée sur
     l''état du serveur peut être simplifiée en utilisant un middleware pour gérer
     les états de manière plus transparente.'
   type: council-proposed
   source: council
-  status: OPEN
+  status: REJECTED
   impact: MEDIUM
   effort: MEDIUM
   lane: AUDIT_REQUIRED
@@ -4972,8 +4990,11 @@ improvements:
     source d''erreurs.)'
   blocked_by: []
   opened_session: belote-b2-transit-2026-07-06
-  closed_session: null
-  notes: origin=council | suggested_lane=AUDIT_REQUIRED
+  closed_session: '2026-07-06'
+  notes: 'origin=council | suggested_lane=AUDIT_REQUIRED | [REJECTED 2026-07-06] Contredit
+    une decision ratifiee du spec bloc 2 (§3.1 : vanilla zero-dependance, YAGNI) —
+    proposition de middleware hors doctrine produit. Premier point de mesure du bruit
+    council : 1 rejet / 4 propositions de ce run.'
 - id: IMP-251
   title: 'Tests manquants : absence de tests unitaires spécifiques pour la gestion
     des graine (seed) et leur conversion en uint32, ce qui peut entraîner des bugs
@@ -4993,6 +5014,31 @@ improvements:
   opened_session: belote-b2-transit-2026-07-06
   closed_session: null
   notes: origin=council | suggested_lane=AUDIT_REQUIRED
+- id: IMP-252
+  title: Verrou de session ledger — bail exclusif (PID/session-id) dans guarded_write
+    + refus si bail actif d'une autre session
+  type: feature
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - governance/ledger_writer.py
+  acceptance: Deux processus simules -> le second se voit refuser l'ecriture avec
+    message clair ; bail orphelin (PID mort) recycle automatiquement ; suite single-writer
+    existante (IMP-194/205) toujours verte.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Ne de 3 collisions inter-sessions le 2026-07-06 (deux quasi-accidents git
+    + une course d''ecriture de note). Le writelock actuel protege l''ecriture instantanee
+    (O_EXCL par write, governance/ledger_writer.py) PAS la session de travail. Design
+    attendu : fichier de bail avec PID + identifiant de session + TTL genereux, refus
+    d''ecriture guarded_write si bail etranger vivant, liberation en fin de session.
+    Complement candidat : hook git refusant commit du ledger si bail etranger actif.
+    Source : menage gouvernance session-20260706.'
 metrics_history:
 - session: '2026-05-31'
   total: 11
