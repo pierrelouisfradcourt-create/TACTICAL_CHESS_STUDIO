@@ -4675,6 +4675,238 @@ improvements:
     "jeu local CLI sans reseau ... aucun risque securite/vie privee/ethique ... seuls
     risques techniques" ; aucun disagreement RED_TEAM. 30 tests council verts (phase2_tests
     + tests/). Scope strict scripts/council.py.'
+- id: IMP-237
+  title: 'Decision CI : runner auto-heberge local vs GitHub Actions facture vs script
+    post-push planifie'
+  type: decision
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: HUMAN_REQUIRED
+  domain: studio
+  files: []
+  acceptance: Decision consignee au decision-log (option retenue + motif) ; IMP-239
+    debloque.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'La CI a ete videe deliberement pour budget (canonical-ci.yml Budget control).
+    Reco Claude : runner auto-heberge sur la machine studio (zero cout externe, doctrine
+    locale-first). Decision Pierre requise avant A3. Ref : contre-audit C1/attaque
+    1.'
+- id: IMP-238
+  title: Reparer les 6 tests Rust rouges (5 flaky env-lock Mutex PoisonError search.rs:1575,
+    1 chemin perime observation_boundary_current.rs)
+  type: fix
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: HUMAN_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/chess/search.rs
+  - tests/observation_boundary_current.rs
+  acceptance: Exemption GEL consignee + les 6 tests verts + cargo test --release exit
+    0 SANS --test-threads=1.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'ZONE ROCKY = GEL — exige exemption HumanGate explicite avant toute edition
+    (reparation infra de test pour CI, PAS optimisation moteur ; perimetre strict
+    aux 6 tests). Sans ca la CI nait rouge. Fix candidats : serialiser les 5 flaky
+    (--test-threads=1 ou lock de test), corriger le chemin ARCHIVE/. Ref : contre-audit
+    C10.'
+- id: IMP-239
+  title: 'CI reelle : cabler le run oracle consolide (etape 6 council) sur push master'
+  type: feature
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: Push sur master declenche council_factory_oracle + suites ; run vert
+    + un echec volontairement introduit detecte rouge puis retire.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Depend A1 (decision) + A2 (tests verts). Le point d''entree oracle consolide
+    construit en cloture du chantier council est le premier citoyen. Etendre ensuite
+    : pytest suites, validators mjs, cargo test. Ref : contre-audit C9 (oracles 100%
+    manuels).'
+- id: IMP-240
+  title: 'Hooks git : migrer stop-hook en Node.js, ajouter pre-push, renommer validate-commit-msg
+    -> commit-msg'
+  type: refactor
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - .claude/hooks/stop-failure.sh
+  - .claude/settings.json
+  - .claude/hooks/validate-commit-msg
+  acceptance: stop-hook Node exit 0 (chemins absolus Windows inclus) + push sans go
+    bloque par pre-push + commit a message invalide rejete par commit-msg.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Cause stop-hook PROUVEE (bash nu -> launcher WSL Store, exit 127 sur chemins
+    absolus ; Node natif v24 robuste, A/B fait au contre-audit C4). pre-push absent
+    = push non bloque mecaniquement. validate-commit-msg = hook mort (mauvais nom).
+    Trois quick wins, un IMP. Related : IMP-143 (stop-hook original, CLOSED).'
+- id: IMP-241
+  title: 'Hooks edit-time PreToolUse (Node) : bloquer ecritures ledger hors kaizen_loop,
+    zones gelees Rocky, configs validateurs, --no-verify'
+  type: feature
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: LARGE
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: Ecriture ledger hors kaizen_loop bloquee a l'edition + edition zone
+    Rocky bloquee + cout cold-start Node mesure et documente.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: Greenfield (aucun PreToolUse aujourd'hui, contre-audit C2/attaque 5). Depend
+    B1 (base Node prouvee). Mesurer le cout cold-start Node par appel d'outil avant
+    de generaliser.
+- id: IMP-242
+  title: 'tool_permission_matrix : wiring reel PreToolUse + passage fail-open -> fail-closed'
+  type: feature
+  source: session-20260706
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - autopilot.py
+  - lab/agent_policy/tool_permission_matrix.json
+  acceptance: Appel d'outil hors matrice -> refus fail-closed prouve par test + matrice
+    couvrant les chaines actives.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Aujourd''hui : un seul site (autopilot.py:8618, autoloop web), fail-open,
+    map 4 outils. Depend B3. Prerequis au pilote pyramide (C2). Related : IMP-098
+    (verification matrix avant chain run, CLOSED-UNVERIFIABLE).'
+- id: IMP-243
+  title: Normaliser risks/hypotheses structures a la source (council.py _parse_opinion)
+  type: refactor
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - scripts/council.py
+  acceptance: Risque objet Qwen -> title propre a la source (branche literal_eval
+    du transform prouvee morte) + suite IMP-198 22/22 verte.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: Fix architectural du finding etape 4 (Qwen emet des risques objets ; str()
+    -> dict-repr). La branche literal_eval du transform devient code mort inoffensif
+    (fallback). Touche du code IMP-198 partage avec le gate council live -> re-tester
+    le gate (suite IMP-198, 22 tests).
+- id: IMP-244
+  title: 'Calibration 6a sur corpus reel : qualite des briefs RED_TEAM (brief generique
+    -> risques generiques)'
+  type: improvement
+  source: session-20260706
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - scripts/council.py
+  acceptance: Run council sur brief riche (spec bloc 2) -> >=1 IMP au titre actionnable
+    valide HumanGate ; tout resserrage de garde = motif + test negatif uniquement.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Observation etape 5. Premier run reel = brief riche (spec bloc 2 Belote).
+    Resserrage du garde write-path uniquement par ajout de motif + test negatif (jamais
+    retour au litteral global — ratifie). Distinct de l''IMP RED_TEAM calibrage securite/ethique
+    (CLOSED) : ici axe = richesse du brief, pas faux blocage securite.'
+- id: IMP-245
+  title: 'qwen-worker v0 : file de contrats de tache + boucle oracle locale + validateur
+    de surface d''API — pilote sur shell bloc 2 Belote, mesures incluses'
+  type: feature
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: LARGE
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: Pilote clos avec mesures publiees (iterations oracle, taux BLOCKED,
+    minutes de review/assemblage) + verdict de rentabilite consigne.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Claude ecrit interfaces+stubs+tests, Qwen implemente et itere localement
+    (LM Studio :1234), seul le vert remonte, BLOCKED apres N echecs. Mesures de rentabilite
+    : iterations oracle, taux BLOCKED, minutes de review/assemblage Claude. Deux taches
+    ne touchent jamais le meme fichier. Sortie au gabarit contrat v1, NO_CLAIM, jamais
+    d''ecriture ledger. Independant, apres cloture chantier council.'
+- id: IMP-246
+  title: 'Pilote pyramide : instrumenter les 7 subagents .claude/agents/ existants
+    sur un bloc Belote, budget tokens plafonne, mesures'
+  type: feature
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: LARGE
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: Un bloc Belote livre via les 7 subagents sous budget tokens plafonne
+    consigne + audit trail complet + mesures publiees.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'La pyramide 12 roles est l''ISSUE de ce pilote, pas un prerequis (contre-audit
+    C7/attaque 4 : jamais executee). Depend B4 (permission matrix fail-closed). Gates
+    directeurs = prompts partages references par ID (pattern CCGS anti-drift), enum
+    de verdict unique OK/FAIL/BLOCKED.'
+- id: IMP-247
+  title: Cabler grep_guard_ledger dans pre-commit + lever exclusion worktrees/ + supprimer
+    angle mort test_*.py (CI-wiring hors scope -> A3/IMP-239)
+  type: feature
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - scripts/grep_guard_ledger.py
+  - .claude/hooks/pre-commit
+  acceptance: Violation staged -> commit rejete par pre-commit + worktrees/ scannes
+    (les 4 writers connus detectes) + test_*.py scannes.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Scope REDUIT sur decision Pierre 2026-07-06 : CI-wiring de la garde EXCLU
+    (reste dans A3/IMP-239 + gate Pierre, cf note IMP-205). Distinct de IMP-206 OPEN
+    qui durcit la LOGIQUE de scan (os.open coverage, expected_fingerprint fail-closed,
+    writelock ownership) — B2 = wiring pre-commit + perimetre de scan (worktrees/,
+    test_*.py). PREREQUIS a toute generalisation de guarded_write. worktrees/dur contient
+    deja 4 writers bruts invisibles au scan (autopilot.py:1683, roadmap_to_ledger.py:352,
+    ledger_patch_*.py) — un merge les reintroduit. Angle mort test_*.py exclu du scan
+    (grep_guard_ledger.py:229-233). Ref : contre-audit C6/attaque 2.'
 metrics_history:
 - session: '2026-05-31'
   total: 11

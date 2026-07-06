@@ -1,6 +1,22 @@
 # Contexte courant TCS
-Dernière session : 2026-07-06 — **Belote produit 1, bloc 1 « Règles, table & matériel » LIVRÉ**
-(spec + plan + build). Sessions marathon 07-05→06 archivées : `journal/context-archive-2026-07-05.md`.
+Dernière session : 2026-07-06 — **Chantier Council→Factory (contrat v0) LIVRÉ + commité** (`3c5f9de`,
+non poussé). Plus tôt le même jour : Belote produit 1 bloc 1. Sessions marathon 07-05→06 archivées :
+`journal/context-archive-2026-07-05.md`.
+
+## Chantier Council→Factory — contrat v0 LIVRÉ (2026-07-06, `3c5f9de`, NON poussé)
+Câble la sortie du Council (IMP-208) vers la factory via un contrat JSON versionné (le Council propose,
+ne dispose pas). CHECK-0/1 OK ; 7 étapes livrées.
+- **Modules** : `schemas/council_output_v1.schema.json`, `scripts/council_contract.py` (validateur
+  fail-hard + transform + `run_factory_council`), `scripts/council_router.py` (D1/D2 + dedup, écrit via
+  `kaizen_loop.cmd_add`), `scripts/council_factory_oracle.py` (oracle consolidé), câblage
+  `kaizen_autoloop.run_council_factory` (hors boucle live), vue `cockpit /api/council-factory` (read-only).
+- **Décisions HumanGate** : plancher AUDIT_REQUIRED (jamais SAFE_AUTO v0) · IMP OPEN+source=council (zéro
+  modif schéma ledger) · Gemini retiré par construction (2-voix local) · garde write-path option-a (chemins
+  descriptifs OK, commandes rejetées) · enum verdict unique OK/FAIL/BLOCKED · coexistence avec
+  `council.validate_output` (IMP-198).
+- **Preuve** : oracle **7/7, 127 tests, exit 0** ; run Qwen réel E2E (ledger temp) + corpus réel gelé.
+  Ledger canonique JAMAIS touché → cockpit affiche 0 (correct ; passe à 1 au 1er transit réel).
+- **Reste** : premier transit canonique = action explicite future ; push au go Pierre.
 
 ## Belote — bloc 1 livré (2026-07-06), NON poussé (gate Pierre)
 Base : `llm-lego/experiments/belote-claude/` (le prototype prouvé, fait évoluer — pas de repart de zéro).
@@ -54,16 +70,20 @@ Base : `llm-lego/experiments/belote-claude/` (le prototype prouvé, fait évolue
   un **chantier schéma** (modifier le format du ledger).
 
 ## À pousser
-- **4b (`3c8d1e0`) NON poussé** — le reste du chantier est déjà sur `origin/master` (push jusqu'à `a49be72`).
+- **Council→Factory (`3c5f9de`) NON poussé** — chantier contrat v0.
+- **4b (`3c8d1e0`) NON poussé** — le reste du chantier AI-OS est déjà sur `origin/master` (jusqu'à `a49be72`).
   Ce handoff aussi à pousser. Push au go Pierre.
 
-## Points d'entretien ouverts (candidats IMP mineurs)
-- **Stop hook — POINT OUVERT (pas de diagnostic sans preuve)** : **échec constaté** ; **script
-  `stop-failure.sh` présent sur disque** (+ exécutable ; tous les hooks référencés existent) ; **cause
-  NON confirmée** (hypothèse non prouvée : invocation `bash` sous Windows). **À reproduire et prouver
-  AVANT tout correctif.**
-- **`golden_collector` + writers `ledger_patch_*` NON gardés (unguarded)** — signalés par Pierre, à
-  auditer/verrouiller (non vérifié cette session).
+## Points d'entretien (résolus 2026-07-06)
+- **Stop hook — RÉSOLU (prouvé)** : un bash nu = launcher **WSL** sur ce poste ; migration Node suivie
+  par **IMP-240**. (Remplace l'ancienne hypothèse non prouvée.)
+- **`golden_collector` + `ledger_patch_*` « non gardés » — FAUX POSITIF (fermé)** : `golden_collector`
+  LIT le ledger et écrit `golden_examples.jsonl` ; les `ledger_patch_*` passent par `guarded_write`.
+  Single-writer verrouillé au niveau primitive (IMP-194/205), gardé par AST `grep_guard_ledger.py`.
+  Ne pas ré-auditer.
+- **Limite worktrees/ hors scan AST (transitoire)** : relancer `grep_guard_ledger.py` après tout merge
+  de worktree. **Caduque quand IMP-247 (B2, scope réduit : câblage pre-commit + worktrees/ + test-path,
+  CI-wiring exclu → IMP-239) est CLOSED.**
 
 ## Impasses / doctrine (portées)
 - LEDGER canonique = `lab/chains/IMPROVEMENT_LEDGER.yaml` ; écrire les IMP via `kaizen_loop.py`.
