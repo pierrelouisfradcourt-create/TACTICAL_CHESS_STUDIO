@@ -10,7 +10,8 @@
 // chooseMove choisirait, une partie pilotée ici est IDENTIQUE à playGame(seed).
 // Donc les règles/scoring ne divergent pas de la version CLI.
 
-import { deal, completeDeal, eldestOrder, makeRng } from "../src/deal.mjs";
+import { deal, completeDeal, eldestOrder } from "../src/deal.mjs";
+import { newShoe, cut, pickup } from "../src/shoe.mjs";
 import { handStrength } from "../src/bidding.mjs";
 import { legalMoves, trickWinner, beloteTeam } from "../src/rules.mjs";
 import { scoreDeal } from "../src/scoring.mjs";
@@ -37,7 +38,9 @@ export class BeloteDriver {
     this.useAnnonces = annonces; // couche annonces (suites/carrés) — désactivable pour la parité
     this.annonceResult = null; // résolution des annonces de la donne en cours
     this._annonceShown = false; // les annonces de la donne ont-elles déjà été révélées ?
-    this.rng = makeRng(seed); // un seul RNG pour toute la partie (comme playGame)
+    const shoe = newShoe(seed);
+    this.rng = shoe.rng; // un seul RNG de partie (mélange initial déjà consommé)
+    this.deckCourant = shoe.deck; // paquet vivant, jamais re-mélangé (fidélité belote)
     this.totals = [0, 0];
     this.dealer = startDealer;
     this.redeals = 0;
@@ -79,7 +82,8 @@ export class BeloteDriver {
   // Distribue 5 cartes + la carte retournée, et ouvre l'enchère (tour 1).
   // Même consommation du RNG que playGame (un deal() par tentative).
   _beginBidding() {
-    const { hands, turnUp, talon } = deal(this.dealer, this.rng);
+    this.deckCourant = cut(this.deckCourant, this.rng); // coupe réelle avant la donne
+    const { hands, turnUp, talon } = deal(this.dealer, this.deckCourant);
     this.bidding = { round: 1, order: eldestOrder(this.dealer), index: 0, hands, turnUp, talon };
     this.message = `Carte retournée : ${turnUp.rank}${turnUp.suit}. Tour 1 — prendre ou passer ?`;
   }
@@ -172,7 +176,8 @@ export class BeloteDriver {
     };
     this.deals.push(summary);
     this.lastDeal = summary;
-    // fin de donne : le donneur tourne, on efface la donne active
+    // fin de donne : ramassage déterministe (parité vs playGame), puis le donneur tourne
+    this.deckCourant = pickup(this.tricks, this.taker % 2);
     this.dealer = (this.dealer + 1) % 4;
     this.atout = null;
     this.hands = null;

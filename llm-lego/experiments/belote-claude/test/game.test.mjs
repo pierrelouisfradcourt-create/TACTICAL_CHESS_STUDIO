@@ -1,8 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { playDeal, playTrick, playGame } from "../src/game.mjs";
-import { makeRng } from "../src/deal.mjs";
+import { newShoe, cut } from "../src/shoe.mjs";
+import { deal } from "../src/deal.mjs";
 import { card } from "../src/cards.mjs";
+
+// Paquet distribué comme le fait playGame (mélange initial seedé → 1re coupe).
+function dealtDeck(seed) {
+  const { deck, rng } = newShoe(seed);
+  return cut(deck, rng);
+}
 
 test("playTrick : 4 cartes jouées, une par joueur, mains réduites de 1", () => {
   const hands = [
@@ -22,7 +29,7 @@ test("playTrick : 4 cartes jouées, une par joueur, mains réduites de 1", () =>
 test("playDeal : une donne prise → 8 plis joués, 32 cartes distribuées exactement une fois", () => {
   // cherche une seed qui donne une prise (pas de redeal)
   let d, seed = 1;
-  do { d = playDeal(0, makeRng(seed++)); } while (d.redeal && seed < 50);
+  do { d = playDeal(0, dealtDeck(seed++)); } while (d.redeal && seed < 50);
   assert.equal(d.redeal, false, "une donne prise doit exister");
   assert.equal(d.tricks.length, 8);
   const allCards = d.tricks.flatMap((t) => t.cards);
@@ -32,8 +39,20 @@ test("playDeal : une donne prise → 8 plis joués, 32 cartes distribuées exact
 
 test("playDeal : le total points cartes + der d'une donne = 162 (invariant)", () => {
   let d, seed = 1;
-  do { d = playDeal(0, makeRng(seed++)); } while (d.redeal && seed < 50);
+  do { d = playDeal(0, dealtDeck(seed++)); } while (d.redeal && seed < 50);
   assert.equal(d.score.base[0] + d.score.base[1], 162);
+});
+
+test("rejouabilité : même seed ⇒ donne 1 (mains distribuées) identique", () => {
+  const a = deal(0, dealtDeck(42)), b = deal(0, dealtDeck(42));
+  assert.deepEqual(a.hands.flat().map((c) => c.id), b.hands.flat().map((c) => c.id));
+  assert.equal(a.turnUp.id, b.turnUp.id);
+});
+
+test("playGame : chaque donne respecte l'invariant 162 (points cartes + der)", () => {
+  const g = playGame({ seed: 3, target: 501 });
+  assert.ok(g.dealsPlayed >= 1);
+  for (const d of g.deals) assert.equal(d.score.base[0] + d.score.base[1], 162);
 });
 
 test("playGame : une partie complète se termine avec un vainqueur au-dessus du seuil", () => {

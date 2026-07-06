@@ -2,7 +2,6 @@
 // Temps 1 (deal)         : 5 cartes/joueur (3 puis 2) + 1 carte retournée, talon de 11.
 // Temps 2 (completeDeal) : après la prise, le preneur intègre la carte retournée et
 //                          on complète toutes les mains à 8 (preneur +2, autres +3).
-import { fullDeck } from "./cards.mjs";
 
 /** RNG déterministe (mulberry32) — permet des tests reproductibles. */
 export function makeRng(seed) {
@@ -32,11 +31,12 @@ export function eldestOrder(dealer) {
 }
 
 /**
- * Temps 1 — deal initial : 3 puis 2 cartes à chacun (5 au total), puis 1 carte
- * retournée pour l'enchère. Retourne { hands, turnUp, talon } où talon = 11 cartes.
+ * Temps 1 — deal initial à partir d'un paquet DÉJÀ mélangé/coupé (fourni par le sabot,
+ * cf. src/shoe.mjs). NE mélange PLUS (fidélité belote : le mélange est unique en début de
+ * partie). 3 puis 2 cartes à chacun (5), puis 1 carte retournée. Retourne
+ * { hands, turnUp, talon } où talon = 11 cartes.
  */
-export function deal(dealer, rng = Math.random) {
-  const deck = shuffle(fullDeck(), rng);
+export function deal(dealer, deck) {
   const hands = [[], [], [], []];
   const order = eldestOrder(dealer);
   let k = 0;

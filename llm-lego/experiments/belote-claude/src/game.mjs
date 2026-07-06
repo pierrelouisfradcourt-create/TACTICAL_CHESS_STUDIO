@@ -1,7 +1,8 @@
 // Belote — moteur de jeu complet : un pli, une donne, une partie.
 // IA simple mais LÉGALE (le prompt priorise la logique, pas la force — décision D8).
 import { cardPoints } from "./cards.mjs";
-import { deal, completeDeal, eldestOrder, makeRng } from "./deal.mjs";
+import { deal, completeDeal, eldestOrder } from "./deal.mjs";
+import { newShoe, cut, pickup } from "./shoe.mjs";
 import { runBidding } from "./bidding.mjs";
 import { legalMoves, trickWinner, beloteTeam } from "./rules.mjs";
 import { scoreDeal } from "./scoring.mjs";
@@ -47,8 +48,8 @@ export function playTrick(hands, leader, atout) {
  * Joue une donne complète. Retourne { redeal:true } si personne ne prend, sinon le
  * décompte + métadonnées. `dealer` = donneur ; l'aîné (dealer+1) entame.
  */
-export function playDeal(dealer, rng = Math.random) {
-  const { hands, turnUp, talon } = deal(dealer, rng);
+export function playDeal(dealer, deck) {
+  const { hands, turnUp, talon } = deal(dealer, deck);
   const bid = runBidding(hands, turnUp, dealer);
   if (!bid) return { redeal: true };
 
@@ -72,15 +73,18 @@ export function playDeal(dealer, rng = Math.random) {
  * Garde-fou : nombre de donnes plafonné (anti-boucle infinie de redistributions).
  */
 export function playGame({ target = 1000, seed = 1, startDealer = 0, maxDeals = 200 } = {}) {
-  const rng = makeRng(seed);
+  const { deck: initial, rng } = newShoe(seed); // un seul mélange, en début de partie
+  let deckCourant = initial;
   const totals = [0, 0];
   const deals = [];
   let dealer = startDealer;
   let redeals = 0;
   while (Math.max(...totals) < target && deals.length + redeals < maxDeals) {
-    const d = playDeal(dealer, rng);
+    deckCourant = cut(deckCourant, rng); // coupe réelle avant CHAQUE donne (jamais de re-mélange)
+    const d = playDeal(dealer, deckCourant);
     dealer = (dealer + 1) % 4; // le donneur tourne
-    if (d.redeal) { redeals += 1; continue; }
+    if (d.redeal) { redeals += 1; continue; } // paquet non consommé → re-coupe au tour suivant
+    deckCourant = pickup(d.tricks, d.taker % 2); // ramassage déterministe
     totals[0] += d.score.scores[0];
     totals[1] += d.score.scores[1];
     deals.push({ ...d, totalsAfter: totals.slice() });
