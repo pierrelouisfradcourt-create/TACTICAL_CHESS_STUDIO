@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Belote (Claude) — jouable</title>
+  <style>
+    :root {
+      --felt-lo: #0a3d2c; --felt-mid: #10583e; --felt-hi: #18815e;
+      --rail: #24160e; --rail-hi: #3a2417;
+      --brass: #ca9a4e; --brass-hi: #f0d98a;
+      --card: #f7f4ec; --card-edge: #d9d3c4; --card-shadow: rgba(0,0,0,.45);
+      --red: #c62828; --ink: #1d1d24;
+      --teamA: #e7c24b; --teamB: #79aad4;
+      --cream: #eef3ec; --muted: #a9c4b6;
+      --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+      --font-ui: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      font-family: var(--font-ui); color: var(--cream);
+      background: #06251a;
+      display: flex; justify-content: center;
+      overflow: hidden;
+    }
+    /* colonne format "téléphone" */
+    .app {
+      width: 100%; max-width: 560px; height: 100vh; height: 100dvh;
+      display: flex; flex-direction: column; position: relative;
+      background:
+        radial-gradient(120% 80% at 50% 34%, var(--felt-hi) 0%, var(--felt-mid) 42%, var(--felt-lo) 78%, #062018 100%);
+      box-shadow: 0 0 60px #000a inset;
+    }
+
+    /* ---------- HUD ---------- */
+    .hud {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px 8px;
+      background: linear-gradient(#0006, #0000);
+    }
+    .brand { font-family: var(--font-display); font-size: 17px; color: var(--brass-hi);
+      letter-spacing: .3px; white-space: nowrap; text-shadow: 0 1px 0 #0008; }
+    .brand small { display: block; font-size: 9px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; }
+    .chips { display: flex; gap: 8px; margin-left: 4px; flex: 1; min-width: 0; }
+    .chip {
+      flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;
+      background: rgba(0,0,0,.32); border: 1px solid #ffffff14; border-radius: 12px;
+      padding: 5px 10px; position: relative; overflow: hidden;
+    }
+    .chip::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--teamB); }
+    .chip.us::before { background: var(--teamA); }
+    .chip .row { display: flex; align-items: baseline; gap: 6px; }
+    .chip .lbl { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chip .val { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--cream); margin-left: auto; }
+    .chip.lead .val { color: var(--brass-hi); }
+    .chip .ann { font-size: 10.5px; line-height: 1.15; margin-top: 1px; min-height: 12px; color: #ffe0a3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chip .ann.empty { color: transparent; }
+    .hud-actions { display: flex; align-items: center; gap: 6px; }
+    .hud-actions label { font-size: 10px; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 1px; }
+    .hud-actions input { width: 42px; padding: 3px; border-radius: 6px; border: 1px solid #0006; text-align: center;
+      background: #f7f4ec; color: #222; font-size: 12px; }
+    button {
+      cursor: pointer; border: none; border-radius: 10px; padding: 8px 12px; font-family: var(--font-ui);
+      font-weight: 700; font-size: 12px; color: #2a1e05;
+      background: linear-gradient(#f3dd97, var(--brass)); box-shadow: 0 2px 0 #7c5a1e, 0 3px 6px #0006;
+    }
+    button:active { transform: translateY(2px); box-shadow: 0 0 0 #7c5a1e, 0 2px 4px #0006; }
+
+    /* ---------- STAGE / TABLE ---------- */
+    .stage { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; padding: 4px; min-height: 0; }
+    .table-oval {
+      position: relative; width: 96%; max-width: 520px; aspect-ratio: 5 / 6; max-height: 100%; margin: auto;
+      border-radius: 46% / 40%; pointer-events: none; /* rien n'est cliquable dans le tapis */
+      background:
+        radial-gradient(80% 62% at 50% 42%, #1c8a63 0%, #12664a 46%, #0c4a37 82%);
+      box-shadow:
+        0 0 0 8px var(--rail),
+        0 0 0 10px #0006,
+        0 0 0 13px var(--rail-hi),
+        0 22px 50px #000a,
+        inset 0 0 70px #052015;
+    }
+    /* liseré laiton intérieur */
+    .table-oval::after {
+      content: ""; position: absolute; inset: 20px; border-radius: 44% / 38%;
+      border: 1.5px solid #ffffff1f; box-shadow: inset 0 0 40px #0006; pointer-events: none;
+    }
+
+    /* pods joueurs */
+    .pod { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 3px; width: 84px; z-index: 3; pointer-events: none; }
+    .pod-N { top: -6px; left: 50%; transform: translate(-50%, -50%); }
+    .pod-S { bottom: -6px; left: 50%; transform: translate(-50%, 50%); }
+    .pod-W { left: -6px; top: 50%; transform: translate(-50%, -50%); }
+    .pod-E { right: -6px; top: 50%; transform: translate(50%, -50%); }
+    .avatar {
+      width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-size: 24px;
+      background: radial-gradient(circle at 35% 30%, #3a4a44, #1a2420);
+      border: 2.5px solid var(--teamB); box-shadow: 0 3px 8px #0007; position: relative;
+    }
+    .pod.teamA .avatar { border-color: var(--teamA); }
+    .pod .halo { position: absolute; inset: -6px; border-radius: 50%; pointer-events: none; opacity: 0;
+      box-shadow: 0 0 0 2px var(--brass-hi), 0 0 16px 3px #f0d98a99; transition: opacity .25s; }
+    .pod.active .halo { opacity: 1; animation: pulse 1.4s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+    .pod .plate { display: flex; align-items: center; gap: 5px; background: #0009; border: 1px solid #ffffff1a;
+      border-radius: 20px; padding: 2px 8px; font-size: 11px; }
+    .pod.active .plate { background: #000c; box-shadow: 0 0 0 1px var(--brass) inset; }
+    .pod .pname { color: var(--cream); font-weight: 600; }
+    .pod .pcount { color: var(--brass-hi); font-variant-numeric: tabular-nums; }
+    .pod .pcount::before { content: "🂠"; font-size: 10px; margin-right: 1px; opacity: .7; }
+    .pod .ribbon { display: none; font-size: 9.5px; font-weight: 700; letter-spacing: .3px; color: #241a05;
+      background: linear-gradient(var(--brass-hi), var(--brass)); border-radius: 10px; padding: 1px 7px; box-shadow: 0 1px 3px #0007; }
+
+    /* atout au centre du tapis (derrière les cartes du pli) */
+    .atout-chip { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      display: none; align-items: center; gap: 4px; font-family: var(--font-display); font-size: 12px;
+      color: var(--muted); background: #00000055; border: 1px solid #ffffff14; border-radius: 20px; padding: 3px 11px; z-index: 1; }
+    .atout-chip .big { font-size: 20px; line-height: 1; }
+    .atout-chip.on { display: inline-flex; }
+
+    /* carte retournée pendant l'enchère */
+    .turnup { position: absolute; top: 42%; left: 50%; transform: translate(-50%,-50%); z-index: 4;
+      display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .turnup.hidden { display: none; }
+    .turnup .tag { font-size: 11px; color: var(--brass-hi); letter-spacing: .5px; text-transform: uppercase;
+      background: #0007; border: 1px solid #ffffff1c; border-radius: 12px; padding: 2px 10px; }
+    .turnup .card { width: 66px; height: 94px; box-shadow: 0 0 0 2px var(--brass) , 0 8px 18px var(--card-shadow); }
+    .turnup .card .pip { font-size: 40px; }
+
+    /* barre d'enchère */
+    .bidbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px;
+      padding: 28px 12px 8px; background: linear-gradient(#0000, #0007); }
+    .bidbar.hidden { display: none; }
+    .bidbar .prompt { flex-basis: 100%; text-align: center; font-size: 12.5px; color: var(--cream); margin-bottom: 2px; }
+    .bidbar .prompt b { color: var(--brass-hi); }
+    .bidbar .hint { flex-basis: 100%; text-align: center; font-size: 11px; color: var(--muted); margin-top: -2px; }
+    .bidbtn { font-size: 14px; padding: 9px 16px; border-radius: 11px; }
+    .bidbtn.pass { background: linear-gradient(#5c6b63, #3c4842); color: #eef3ec; box-shadow: 0 2px 0 #26302b, 0 3px 6px #0006; }
+    .bidbtn.color { min-width: 52px; font-family: var(--font-display); font-size: 20px; padding: 6px 14px; }
+    .bidbtn.color[data-suit="coeur"], .bidbtn.color[data-suit="carreau"] { color: var(--red); }
+
+    .status { position: absolute; bottom: 20%; left: 50%; transform: translateX(-50%); z-index: 4;
+      font-size: 12.5px; color: var(--brass-hi); text-shadow: 0 1px 3px #000a; text-align: center; width: 80%;
+      pointer-events: none; }
+
+    /* ---------- pli au centre ---------- */
+    .trick { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      width: 46%; height: 40%; z-index: 2; }
+    .played { position: absolute; }
+    .played.p0 { bottom: -6%; left: 50%; margin-left: -27px; }
+    .played.p2 { top: -6%; left: 50%; margin-left: -27px; }
+    .played.p1 { left: -4%; top: 50%; margin-top: -38px; }
+    .played.p3 { right: -4%; top: 50%; margin-top: -38px; }
+    .cardwrap { transition: transform .36s cubic-bezier(.18,.75,.25,1), opacity .28s ease; will-change: transform; }
+    .played.win .card { box-shadow: 0 0 0 2px var(--brass-hi), 0 0 14px 2px #f0d98a88, 0 6px 14px var(--card-shadow); }
+
+    /* ---------- carte ---------- */
+    .card {
+      position: relative; width: 54px; height: 76px; border-radius: 7px; background: var(--card);
+      border: 1px solid var(--card-edge); box-shadow: 0 4px 10px var(--card-shadow);
+      color: var(--ink); user-select: none; overflow: hidden;
+    }
+    .card.red { color: var(--red); }
+    .card .pip { position: absolute; inset: 0; display: grid; place-items: center; font-size: 30px; opacity: .9; }
+    .card .corner { position: absolute; display: flex; flex-direction: column; align-items: center; line-height: .9;
+      font-family: var(--font-display); font-weight: 700; }
+    .card .corner b { font-size: 13px; }
+    .card .corner i { font-size: 11px; font-style: normal; }
+    .card .corner.tl { top: 3px; left: 4px; }
+    .card .corner.br { bottom: 3px; right: 4px; transform: rotate(180deg); }
+
+    /* ---------- main (éventail) ---------- */
+    .hand-wrap { padding: 4px 6px 14px; display: flex; justify-content: center; align-items: flex-end;
+      min-height: 118px; background: linear-gradient(#0000, #0006); }
+    #hand { position: relative; display: flex; justify-content: center; align-items: flex-end; padding-top: 22px; }
+    .handcard { position: relative; margin: 0 -10px; transition: transform .16s ease, filter .16s ease;
+      transform: rotate(var(--rot)) translateY(var(--ty)); transform-origin: bottom center; cursor: default; }
+    .handcard .card { width: 60px; height: 86px; }
+    .handcard .card .pip { font-size: 34px; }
+    .handcard .pts { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 9.5px;
+      color: var(--muted); white-space: nowrap; opacity: 0; transition: opacity .15s; }
+    .handcard.legal { cursor: pointer; }
+    .handcard.legal .card { box-shadow: 0 0 0 2px var(--brass-hi), 0 6px 14px var(--card-shadow); }
+    .handcard.legal:hover, .handcard.legal:active {
+      transform: rotate(var(--rot)) translateY(calc(var(--ty) - 20px)) scale(1.05); z-index: 40; }
+    .handcard.legal:hover .pts { opacity: 1; }
+    .handcard.illegal { filter: brightness(.62) saturate(.7); }
+    .handcard.illegal .card { box-shadow: 0 3px 7px #0006; }
+
+    /* ---------- overlays fin de donne / partie ---------- */
+    .overlay { position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
+      background: #0009; backdrop-filter: blur(2px); padding: 20px; }
+    .overlay.hidden { display: none; }
+    .sheet { width: 100%; max-width: 340px; background: linear-gradient(#123f2e, #0c2c20);
+      border: 1px solid var(--brass); border-radius: 18px; padding: 18px 20px; box-shadow: 0 20px 50px #000b; }
+    .sheet h3 { margin: 0 0 4px; font-family: var(--font-display); color: var(--brass-hi); font-size: 17px; }
+    .sheet .win { font-family: var(--font-display); font-size: 26px; color: var(--brass-hi); text-align: center; margin-bottom: 6px; }
+    .sheet table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .sheet td { padding: 3px 4px; border-top: 1px solid #ffffff12; }
+    .sheet td:first-child { color: var(--muted); }
+    .sheet .hint { font-size: 11px; color: var(--muted); margin-top: 10px; text-align: center; }
+    .sheet .btnrow { margin-top: 12px; text-align: center; }
+    #err { position: absolute; top: 62px; left: 50%; transform: translateX(-50%); z-index: 35;
+      color: #ffd7ce; background: #7a1f1f; border-radius: 10px; padding: 4px 12px; font-size: 12px;
+      opacity: 0; transition: opacity .2s; pointer-events: none; }
+    #err.show { opacity: 1; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .cardwrap { transition: none; } .pod.active .halo { animation: none; }
+    }
+    @media (max-height: 680px) { .handcard .card { width: 52px; height: 74px; } .avatar { width: 40px; height: 40px; font-size: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- HUD : score permanent de chaque équipe + annonces de la donne -->
+    <div class="hud">
+      <div class="brand">♠ Belote<small>Claude</small></div>
+      <div class="chips">
+        <div class="chip us" id="teamA">
+          <div class="row"><span class="lbl">Vous &amp; Nord</span><span class="val" id="scoreA">0</span></div>
+          <div class="ann empty" id="annA">—</div>
+        </div>
+        <div class="chip" id="teamB">
+          <div class="row"><span class="lbl">Ouest &amp; Est</span><span class="val" id="scoreB">0</span></div>
+          <div class="ann empty" id="annB">—</div>
+        </div>
+      </div>
+      <div class="hud-actions">
+        <label>seed<input id="seed" type="number" value="3" /></label>
+        <button id="newBtn">Jouer</button>
+      </div>
+    </div>
+
+    <div id="err"></div>
+
+    <!-- Table -->
+    <div class="stage">
+      <div class="table-oval" id="tableEl">
+        <div class="pod pod-N teamA" id="pod2">
+          <span class="ribbon" id="ribbon2"></span>
+          <div class="avatar">🙂<span class="halo"></span></div>
+          <div class="plate"><span class="pname">Nord</span><span class="pcount" id="count2">8</span></div>
+        </div>
+        <div class="pod pod-W" id="pod1">
+          <span class="ribbon" id="ribbon1"></span>
+          <div class="avatar">🤔<span class="halo"></span></div>
+          <div class="plate"><span class="pname">Ouest</span><span class="pcount" id="count1">8</span></div>
+        </div>
+        <div class="pod pod-E" id="pod3">
+          <span class="ribbon" id="ribbon3"></span>
+          <div class="avatar">😏<span class="halo"></span></div>
+          <div class="plate"><span class="pname">Est</span><span class="pcount" id="count3">8</span></div>
+        </div>
+        <div class="pod pod-S teamA" id="pod0">
+          <span class="ribbon" id="ribbon0"></span>
+          <div class="avatar">😎<span class="halo"></span></div>
+          <div class="plate"><span class="pname">Vous</span><span class="pcount" id="count0">8</span></div>
+        </div>
+
+        <div class="atout-chip" id="atoutBox"></div>
+        <div class="turnup hidden" id="turnup"></div>
+        <div class="trick" id="trick"></div>
+        <div class="status" id="status">Appuie sur « Jouer » pour distribuer.</div>
+      </div>
+    </div>
+
+    <!-- Barre d'enchère (la prise) -->
+    <div class="bidbar hidden" id="bidbar"></div>
+
+    <!-- Main -->
+    <div class="hand-wrap"><div id="hand"></div></div>
+
+    <!-- Overlays -->
+    <div class="overlay hidden" id="annoncePanel"></div>
+    <div class="overlay hidden" id="dealPanel"></div>
+    <div class="overlay hidden" id="gamePanel"></div>
+  </div>
+
+  <script>
+    const SUIT = { pique: "♠", coeur: "♥", carreau: "♦", trefle: "♣" };
+    const isRed = (s) => s === "coeur" || s === "carreau";
+    const SEAT_NAME = { 0: "Vous", 1: "Ouest", 2: "Nord", 3: "Est" };
+    const DIR = { 0: [0, 1], 1: [-1, 0], 2: [0, -1], 3: [1, 0] }; // vecteur "vers le joueur"
+    const REST_BASE = { 0: -3, 1: 4, 2: 3, 3: -4 };
+    const $ = (id) => document.getElementById(id);
+    const REDUCE = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let busy = false;
+    const hash = (str) => { let h = 0; for (const c of str) h = (h * 31 + c.charCodeAt(0)) | 0; return h; };
+
+    function cardHTML(c) {
+      const sym = SUIT[c.suit];
+      return `<div class="card ${isRed(c.suit) ? "red" : ""}">
+        <span class="corner tl"><b>${c.rank}</b><i>${sym}</i></span>
+        <span class="pip">${sym}</span>
+        <span class="corner br"><b>${c.rank}</b><i>${sym}</i></span></div>`;
+    }
+
+    // Annonces compactes d'une équipe pour la donne en cours (prise + belote).
+    function annonceText(team, s) {
+      const parts = [];
+      if (s.atout && s.takerTeam === team) parts.push(`Prise ${SUIT[s.atout]} · ${SEAT_NAME[s.taker]}`);
+      if (s.beloteTeam === team && s.atout) parts.push(`Belote ${SUIT[s.atout]}${s.belotePlayed >= 2 ? " +20" : ""}`);
+      return parts.join(" · ");
+    }
+
+    /* ---------- pli animé ---------- */
+    const trickEl = $("trick");
+    let shown = new Map();      // id -> { el, player }
+    let lastWinner = null;
+
+    function restTransform(card, player) {
+      const j = (hash(card.id) % 7) - 3; // -3..3
+      return `rotate(${REST_BASE[player] + j}deg)`;
+    }
+    function makePlayed(t) {
+      const el = document.createElement("div");
+      el.className = "played p" + t.player;
+      el.innerHTML = `<div class="cardwrap">${cardHTML(t.card)}</div>`;
+      return el;
+    }
+    function animateEnter(el, player, rest) {
+      const cw = el.querySelector(".cardwrap");
+      if (REDUCE) { cw.style.transform = rest; return; }
+      const [dx, dy] = DIR[player], D = 170;
+      cw.style.transition = "none";
+      cw.style.transform = `translate(${dx * D}px, ${dy * D}px) ${rest} scale(.72)`;
+      cw.style.opacity = "0";
+      void cw.offsetWidth; // reflow
+      cw.style.transition = "";
+      requestAnimationFrame(() => { cw.style.transform = rest; cw.style.opacity = "1"; });
+    }
+    function sweepToWinner(winner, els) {
+      const [dx, dy] = DIR[winner], D = 260;
+      els.forEach((el) => {
+        const cw = el.querySelector(".cardwrap");
+        if (REDUCE) { el.remove(); return; }
+        cw.style.transition = "transform .36s ease-in, opacity .36s";
+        cw.style.transform = `translate(${dx * D}px, ${dy * D}px) scale(.6)`;
+        cw.style.opacity = "0";
+        setTimeout(() => el.remove(), 380);
+      });
+    }
+    function syncTrick(s) {
+      const want = new Map((s.trick || []).map((t) => [t.card.id, t]));
+      const hadAll = shown.size > 0 && [...shown.keys()].every((id) => !want.has(id));
+      if (hadAll) {
+        // le pli vient de se terminer : les 4 cartes filent vers le gagnant
+        sweepToWinner(lastWinner ?? 0, [...trickEl.children]);
+        shown.clear();
+      } else {
+        for (const [id, rec] of shown) if (!want.has(id)) { rec.el.remove(); shown.delete(id); }
+      }
+      for (const [id, t] of want) {
+        if (!shown.has(id)) {
+          const rest = restTransform(t.card, t.player);
+          const el = makePlayed(t);
+          trickEl.appendChild(el);
+          shown.set(id, { el, player: t.player });
+          animateEnter(el, t.player, rest);
+        }
+      }
+      const win = s.phase === "trick_done" ? s.trickWinner : null;
+      if (win !== null) lastWinner = win;
+      for (const [, rec] of shown) rec.el.classList.toggle("win", win !== null && rec.player === win);
+    }
+
+    /* ---------- rendu ---------- */
+    function render(s) {
+      window.__belote = s; // hook de test
+
+      $("scoreA").textContent = s.totals[0];
+      $("scoreB").textContent = s.totals[1];
+      const aA = annonceText(0, s), aB = annonceText(1, s);
+      $("annA").textContent = aA || "—"; $("annA").classList.toggle("empty", !aA);
+      $("annB").textContent = aB || "—"; $("annB").classList.toggle("empty", !aB);
+      $("teamA").classList.toggle("lead", s.totals[0] > s.totals[1]);
+      $("teamB").classList.toggle("lead", s.totals[1] > s.totals[0]);
+
+      // pods : compte de cartes, tour actif, ruban preneur
+      for (const p of [0, 1, 2, 3]) {
+        $("pod" + p).classList.toggle("active", s.whoseTurn === p);
+        $("count" + p).textContent = (s.handCounts && s.handCounts[p] != null) ? s.handCounts[p] : "";
+        const rb = $("ribbon" + p);
+        if (s.taker === p && s.atout) { rb.style.display = "block"; rb.textContent = "Preneur " + SUIT[s.atout]; }
+        else rb.style.display = "none";
+      }
+
+      // atout (masqué pendant l'enchère : pas encore d'atout)
+      const ab = $("atoutBox");
+      if (s.atout) {
+        ab.classList.add("on");
+        ab.innerHTML = `atout <span class="big ${isRed(s.atout) ? "red" : ""}" style="color:${isRed(s.atout) ? "#ff8a7a" : "#fff"}">${SUIT[s.atout]}</span>`;
+      } else ab.classList.remove("on");
+
+      // enchère : carte retournée au centre + barre d'action
+      const tu = $("turnup"), bb = $("bidbar");
+      if (s.bidding && s.turnUp) {
+        tu.classList.remove("hidden");
+        tu.innerHTML = `<span class="tag">carte retournée</span>${cardHTML(s.turnUp)}`;
+        if (s.phase === "bid_await") {
+          bb.classList.remove("hidden");
+          const hint = s.bidHint;
+          const hintTxt = hint ? (hint.action === "take" ? `conseil : prendre ${SUIT[hint.suit]}` : "conseil : passer") : "";
+          if (s.bidRound === 1) {
+            bb.innerHTML =
+              `<div class="prompt">Tour 1 — prendre l'atout <b>${SUIT[s.turnUp.suit]}</b> ?</div>` +
+              `<button class="bidbtn take" id="bidTake">Prendre ${SUIT[s.turnUp.suit]}</button>` +
+              `<button class="bidbtn pass" id="bidPass">Passer</button>` +
+              `<div class="hint">${hintTxt}</div>`;
+          } else {
+            bb.innerHTML =
+              `<div class="prompt">Tour 2 — choisir une couleur d'atout</div>` +
+              (s.bidSuits || []).map((su) => `<button class="bidbtn color" data-suit="${su}">${SUIT[su]}</button>`).join("") +
+              `<button class="bidbtn pass" id="bidPass">Passer</button>` +
+              `<div class="hint">${hintTxt}</div>`;
+          }
+        } else bb.classList.add("hidden");
+      } else {
+        tu.classList.add("hidden"); bb.classList.add("hidden");
+      }
+
+      // pli (animé)
+      syncTrick(s);
+
+      // main en éventail
+      const hand = s.hand || [];
+      const n = hand.length, mid = (n - 1) / 2;
+      $("hand").innerHTML = hand.map((c, i) => {
+        const rot = (i - mid) * 3.6, ty = Math.abs(i - mid) * 2.4;
+        const cls = s.phase === "await_human" ? (c.legal ? "legal" : "illegal") : (s.bidding ? "bid" : "illegal");
+        return `<div class="handcard ${cls}" data-card-id="${c.id}"
+          style="--rot:${rot.toFixed(2)}deg; --ty:${ty.toFixed(1)}px; z-index:${i};">
+          <div class="pts">${c.points ?? ""} pt${c.points === 1 ? "" : "s"}</div>${cardHTML(c)}</div>`;
+      }).join("");
+
+      // révélation des annonces (suites/carrés) au 1er pli
+      const anp = $("annoncePanel");
+      if (s.phase === "annonce_show" && s.annonces) {
+        const A = s.annonces, TEAM = (t) => (t === 0 ? "A" : "B");
+        const rows = A.items.length
+          ? A.items.map((it) => `<tr><td>${SEAT_NAME[it.player]}</td><td>${it.label}</td><td>+${it.points}</td></tr>`).join("")
+          : `<tr><td colspan="3">aucune</td></tr>`;
+        const verdict = A.annule
+          ? "Égalité — annonces annulées"
+          : A.winnerTeam === -1 ? "—" : `Équipe ${TEAM(A.winnerTeam)} marque +${A.bonus[A.winnerTeam]}`;
+        anp.classList.remove("hidden");
+        anp.innerHTML = `<div class="sheet">
+          <h3>Annonces</h3>
+          <table>${rows}</table>
+          <div class="win" style="font-size:16px;margin-top:8px">${verdict}</div></div>`;
+      } else anp.classList.add("hidden");
+
+      // statut
+      const st = $("status");
+      if (s.phase === "await_human") st.textContent = "À toi de jouer — touche une carte éclairée.";
+      else if (s.phase === "bid_await") st.textContent = "";
+      else if (s.phase === "annonce_show") st.textContent = s.message || "";
+      else if (s.phase === "bid_step") st.textContent = s.message || "";
+      else if (s.phase === "trick_done") st.textContent = `Pli pour ${SEAT_NAME[s.trickWinner]}.`;
+      else if (s.phase === "deal_done") st.textContent = "Fin de la donne…";
+      else if (s.phase === "game_over") st.textContent = "";
+      else st.textContent = "";
+
+      // overlay fin de donne
+      const dp = $("dealPanel");
+      if (s.phase === "deal_done" && s.lastDeal) {
+        const d = s.lastDeal, sc = d.score, TEAM = (t) => (t === 0 ? "A" : "B");
+        const verdict = sc.capot ? `Capot équipe ${TEAM(sc.capotTeam)} (250)`
+          : sc.dedans ? "Preneur dedans → la défense encaisse" : "Contrat réussi";
+        dp.classList.remove("hidden");
+        const annB = d.annonceBonus || [0, 0];
+        const annRow = (annB[0] || annB[1]) ? `<tr><td>Annonces</td><td>A +${annB[0]}</td><td>B +${annB[1]}</td></tr>` : "";
+        dp.innerHTML = `<div class="sheet">
+          <h3>Donne ${d.index} · atout ${SUIT[d.atout]} · preneur ${SEAT_NAME[d.taker]}</h3>
+          <table>
+            <tr><td>Points cartes</td><td>A ${sc.base[0]}</td><td>B ${sc.base[1]}</td></tr>
+            ${d.beloteTeam !== -1 ? `<tr><td>Belote-rebelote</td><td colspan="2">équipe ${TEAM(d.beloteTeam)} +20</td></tr>` : ""}
+            ${annRow}
+            <tr><td>Verdict</td><td colspan="2">${verdict}</td></tr>
+            <tr><td>Marque donne</td><td>A +${sc.scores[0] + annB[0]}</td><td>B +${sc.scores[1] + annB[1]}</td></tr>
+            <tr><td>Cumul</td><td>A ${d.totalsAfter[0]}</td><td>B ${d.totalsAfter[1]}</td></tr>
+          </table>
+          <div class="hint">donne suivante…</div></div>`;
+      } else dp.classList.add("hidden");
+
+      // overlay fin de partie
+      const gp = $("gamePanel");
+      if (s.phase === "game_over") {
+        const who = s.winner === -1 ? "Égalité !" : `Victoire équipe ${s.winner === 0 ? "A — Vous & Nord" : "B — Ouest & Est"}`;
+        gp.classList.remove("hidden");
+        gp.innerHTML = `<div class="sheet">
+          <div class="win">${who}</div>
+          <table>
+            <tr><td>Score final</td><td>A ${s.totals[0]}</td><td>B ${s.totals[1]}</td></tr>
+            <tr><td>Donnes</td><td colspan="2">${s.dealsPlayed}${s.redeals ? " (+" + s.redeals + " redist.)" : ""}</td></tr>
+          </table>
+          <div class="btnrow"><button id="againBtn">Rejouer</button></div></div>`;
+        const ag = $("againBtn"); if (ag) ag.addEventListener("click", newGame);
+      } else gp.classList.add("hidden");
+    }
+
+    /* ---------- boucle réseau ---------- */
+    async function api(path, body) {
+      const res = await fetch(path, {
+        method: body === undefined ? "GET" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      return { status: res.status, data: await res.json() };
+    }
+    async function apply(s) {
+      render(s);
+      if (s.phase === "trick_done") setTimeout(cont, 1250);
+      else if (s.phase === "deal_done") setTimeout(cont, 2600);
+      else if (s.phase === "bid_step") setTimeout(cont, 950); // laisse voir chaque enchère
+      else if (s.phase === "annonce_show") setTimeout(cont, 2400); // laisse lire les annonces
+    }
+    async function bid(action, suit) {
+      if (busy) return; busy = true; hideErr();
+      const { status, data } = await api("/api/bid", { action, suit });
+      busy = false;
+      if (status !== 200) { showErr(data.error || "enchère refusée"); if (data.state) render(data.state); return; }
+      await apply(data);
+    }
+    async function cont() {
+      if (busy) return; busy = true;
+      try { const { data } = await api("/api/continue", {}); busy = false; await apply(data); }
+      catch (e) { busy = false; showErr(String(e)); }
+    }
+    async function playCard(cardId) {
+      if (busy) return;
+      const s = window.__belote;
+      if (!s || s.phase !== "await_human") return;
+      const card = (s.hand || []).find((c) => c.id === cardId);
+      if (!card || !card.legal) return;
+      busy = true; hideErr();
+      const { status, data } = await api("/api/play", { cardId });
+      busy = false;
+      if (status !== 200) { showErr(data.error || "coup refusé"); if (data.state) render(data.state); return; }
+      await apply(data);
+    }
+    async function newGame() {
+      const seed = Number($("seed").value) || 1;
+      hideErr();
+      $("dealPanel").classList.add("hidden");
+      $("gamePanel").classList.add("hidden");
+      shown.clear(); trickEl.innerHTML = ""; lastWinner = null;
+      const { data } = await api("/api/new", { seed, target: 501 });
+      await apply(data);
+    }
+
+    let errT = null;
+    function showErr(m) { const e = $("err"); e.textContent = m; e.classList.add("show"); clearTimeout(errT); errT = setTimeout(hideErr, 2600); }
+    function hideErr() { $("err").classList.remove("show"); }
+
+    $("hand").addEventListener("click", (e) => {
+      const el = e.target.closest(".handcard");
+      if (el) playCard(el.dataset.cardId);
+    });
+    $("bidbar").addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      if (btn.id === "bidTake") bid("take");
+      else if (btn.id === "bidPass") bid("pass");
+      else if (btn.classList.contains("color")) bid("take", btn.dataset.suit);
+    });
+    $("newBtn").addEventListener("click", newGame);
+  </script>
+</body>
+</html>
