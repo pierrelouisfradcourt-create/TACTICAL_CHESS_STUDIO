@@ -13,7 +13,7 @@ export const CONTRACT_MIN = 82; // décision D3 : le preneur chute sous 82
  * @param beloteTeamIdx  équipe détentrice R+D d'atout, ou -1
  * @returns décompte détaillé + scores finaux par équipe [team0, team1]
  */
-export function scoreDeal(tricks, atout, taker, beloteTeamIdx) {
+export function scoreDeal(tricks, atout, taker, beloteTeamIdx, beloteDeclared = true) {
   const takerTeam = teamOf(taker);
   const defTeam = 1 - takerTeam;
 
@@ -30,7 +30,7 @@ export function scoreDeal(tricks, atout, taker, beloteTeamIdx) {
   base[lastTeam] += 10; // dix de der (base sur 162)
 
   const belote = [0, 0];
-  if (beloteTeamIdx !== -1) belote[beloteTeamIdx] = 20; // D4 : toujours au détenteur
+  if (beloteTeamIdx !== -1 && beloteDeclared) belote[beloteTeamIdx] = 20; // D4 : au détenteur, si déclaré (oubli = perdu)
 
   const capotTeam = tricksWon[0] === 8 ? 0 : tricksWon[1] === 8 ? 1 : -1;
   const scores = [0, 0];

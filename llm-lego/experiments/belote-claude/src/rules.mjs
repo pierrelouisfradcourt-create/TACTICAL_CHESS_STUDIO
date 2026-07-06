@@ -67,3 +67,12 @@ export function beloteTeam(fullHands, atout) {
   }
   return -1;
 }
+
+/** Le SIÈGE qui détient à la fois Roi ET Dame d'atout (pour la déclaration manuelle). -1 si aucun. */
+export function beloteHolder(fullHands, atout) {
+  for (let p = 0; p < 4; p++) {
+    const has = (rank) => fullHands[p].some((c) => c.rank === rank && c.suit === atout);
+    if (has("R") && has("D")) return p;
+  }
+  return -1;
+}

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { scoreDeal } from "../src/scoring.mjs";
+import { beloteHolder } from "../src/rules.mjs";
 import { card } from "../src/cards.mjs";
 
 const ATOUT = "coeur";
@@ -78,4 +79,21 @@ test("capot : équipe rafle les 8 plis → 250 pts", () => {
   assert.equal(r.capotTeam, 0);
   assert.equal(r.scores[0], 250);
   assert.equal(r.scores[1], 0);
+});
+
+test("belote conditionnelle : déclarée = +20, oubliée = 0", () => {
+  const cards = [];
+  for (const s of ["pique", "coeur", "carreau", "trefle"])
+    for (const r of ["7", "8", "9", "10", "V", "D", "R", "A"]) cards.push(card(r, s));
+  const tricks = [];
+  for (let i = 0; i < 8; i++) tricks.push(trick(i % 2, cards.slice(i * 4, i * 4 + 4)));
+  const withDecl = scoreDeal(tricks, ATOUT, 0, 0, true);
+  const noDecl = scoreDeal(tricks, ATOUT, 0, 0, false);
+  assert.equal(withDecl.belote[0], 20, "belote déclarée → +20");
+  assert.equal(noDecl.belote[0], 0, "belote oubliée → 0");
+});
+
+test("beloteHolder : siège détenteur R+D d'atout, -1 si séparés", () => {
+  assert.equal(beloteHolder([[card("R", "coeur"), card("D", "coeur")], [], [], []], "coeur"), 0);
+  assert.equal(beloteHolder([[card("R", "coeur")], [card("D", "coeur")], [], []], "coeur"), -1);
 });
