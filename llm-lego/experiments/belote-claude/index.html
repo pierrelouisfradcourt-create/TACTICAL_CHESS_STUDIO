@@ -174,7 +174,9 @@
       min-height: 118px; background: linear-gradient(#0000, #0006); }
     #hand { position: relative; display: flex; justify-content: center; align-items: flex-end; padding-top: 22px; }
     .handcard { position: relative; margin: 0 -10px; transition: transform .16s ease, filter .16s ease;
-      transform: rotate(var(--rot)) translateY(var(--ty)); transform-origin: bottom center; cursor: default; }
+      transform: rotate(var(--rot)) translateY(var(--ty)); transform-origin: bottom center; cursor: default;
+      touch-action: none; /* le glissé de rangement ne fait pas défiler la page (tactile) */ }
+    .handcard.dragging { transition: none; z-index: 60; filter: brightness(1.08); cursor: grabbing; }
     .handcard .card { width: 60px; height: 86px; }
     .handcard .card .pip { font-size: 34px; }
     .handcard .pts { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 9.5px;
@@ -315,6 +317,20 @@
       }
       if (window.__sortHand && s.atout) return window.__sortHand(raw, s.atout, sortPref);
       return raw;
+    }
+    // Insère la carte glissée à la position correspondant à x (centres des cartes voisines).
+    // Fige handOrder = ordre choisi par le joueur (le jeu ne re-triera pas).
+    function commitReorder(draggedId, clientX) {
+      const cards = [...document.querySelectorAll("#hand .handcard")].map((el) => {
+        const r = el.getBoundingClientRect();
+        return { id: el.dataset.cardId, cx: r.left + r.width / 2 };
+      });
+      const remaining = cards.filter((c) => c.id !== draggedId);
+      const idx = remaining.filter((c) => c.cx < clientX).length;
+      const order = remaining.map((c) => c.id);
+      order.splice(idx, 0, draggedId);
+      handOrder = order;
+      if (window.__belote) render(window.__belote);
     }
 
     function cardHTML(c) {
@@ -584,9 +600,38 @@
     function showErr(m) { const e = $("err"); e.textContent = m; e.classList.add("show"); clearTimeout(errT); errT = setTimeout(hideErr, 2600); }
     function hideErr() { $("err").classList.remove("show"); }
 
-    $("hand").addEventListener("click", (e) => {
+    // --- gestes de la main : RANGER (glisser horizontal) ≠ JOUER (tap / tirer vers le tapis) ---
+    // Risque UX n°1 : on distingue par la GÉOMÉTRIE du geste, pas par un mode.
+    const PLAY_MIN = 12;  // seuil de mouvement (px) — À CALIBRER sur device réel (spec §8-Q7)
+    const V_RATIO = 1.3;  // ratio |vertical|/|horizontal| au-delà duquel « tirer » = jouer
+    let drag = null;
+    const HANDEL = $("hand");
+    HANDEL.addEventListener("pointerdown", (e) => {
       const el = e.target.closest(".handcard");
-      if (el) playCard(el.dataset.cardId);
+      if (!el) return;
+      drag = { id: el.dataset.cardId, x0: e.clientX, y0: e.clientY, moved: false, el };
+      try { el.setPointerCapture(e.pointerId); } catch {}
+    });
+    HANDEL.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+      if (!drag.moved && Math.hypot(dx, dy) > PLAY_MIN) { drag.moved = true; drag.el.classList.add("dragging"); }
+      if (drag.moved) drag.el.style.transform = `translate(${dx}px, ${dy}px)`; // retour visuel du glissé
+    });
+    HANDEL.addEventListener("pointerup", (e) => {
+      if (!drag) return;
+      const d = drag; drag = null;
+      d.el.classList.remove("dragging");
+      d.el.style.transform = "";
+      const dx = e.clientX - d.x0, dy = e.clientY - d.y0;
+      const crossedTop = e.clientY < HANDEL.getBoundingClientRect().top; // tiré au-dessus de la main → tapis
+      const verticalPlay = dy < -PLAY_MIN && Math.abs(dy) > Math.abs(dx) * V_RATIO;
+      if (!d.moved) return playCard(d.id);                 // tap → jouer (filtré : carte légale)
+      if (crossedTop || verticalPlay) return playCard(d.id); // tiré vers le tapis → jouer
+      commitReorder(d.id, e.clientX);                       // resté horizontal dans la main → ranger
+    });
+    HANDEL.addEventListener("pointercancel", () => {
+      if (drag) { drag.el.classList.remove("dragging"); drag.el.style.transform = ""; drag = null; }
     });
     $("bidbar").addEventListener("click", (e) => {
       const btn = e.target.closest("button");
