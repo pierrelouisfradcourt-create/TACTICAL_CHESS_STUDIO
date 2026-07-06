@@ -13,11 +13,11 @@
 import { deal, completeDeal, eldestOrder } from "../src/deal.mjs";
 import { newShoe, cut, pickup } from "../src/shoe.mjs";
 import { handStrength } from "../src/bidding.mjs";
-import { legalMoves, trickWinner, beloteTeam } from "../src/rules.mjs";
+import { legalMoves, trickWinner, beloteTeam, beloteHolder } from "../src/rules.mjs";
 import { scoreDeal } from "../src/scoring.mjs";
 import { chooseMove } from "../src/game.mjs";
 import { cardPoints, SUITS } from "../src/cards.mjs";
-import { resolveAnnonces, annonceLabel } from "../src/annonces.mjs";
+import { resolveAnnonces, annonceLabel, detectAnnonces } from "../src/annonces.mjs";
 
 export const HUMAN = 0; // siège de l'humain (Sud, équipe A = 0 & 2)
 const SEAT_NAME = { 0: "Vous", 1: "Ouest", 2: "Nord", 3: "Est" };
@@ -36,8 +36,15 @@ export class BeloteDriver {
     this.target = target;
     this.maxDeals = maxDeals;
     this.useAnnonces = annonces; // couche annonces (suites/carrés) — désactivable pour la parité
-    this.annonceResult = null; // résolution des annonces de la donne en cours
-    this._annonceShown = false; // les annonces de la donne ont-elles déjà été révélées ?
+    this.annonceResult = null; // résolution des annonces de la donne en cours (après le 1er coup)
+    this.hands0Full = null; // snapshot des 4 mains de 8 cartes (détection d'annonces indépendante du jeu)
+    this._humanDeclared = false; // l'humain a-t-il cliqué « Annoncer » cette donne ?
+    this._annonceResolved = false; // le pool d'annonces a-t-il été résolu (après le 1er coup) ?
+    this._exposeShown = false; // l'exposition (pli 2) de la meilleure annonce a-t-elle eu lieu ?
+    // belote-rebelote manuelle (humain) : détenteur R+D d'atout + clics
+    this._beloteHolder = -1;
+    this._beloteCalls = { belote: false, rebelote: false };
+    this._lastHumanCard = null; // dernière carte jouée par l'humain (fenêtre de déclaration belote)
     const shoe = newShoe(seed);
     this.rng = shoe.rng; // un seul RNG de partie (mélange initial déjà consommé)
     this.deckCourant = shoe.deck; // paquet vivant, jamais re-mélangé (fidélité belote)
@@ -118,9 +125,17 @@ export class BeloteDriver {
     this.taker = taker;
     this.round = round;
     this.beloteTeamIdx = beloteTeam(this.hands, atout);
-    // annonces (suites/carrés) détectées sur les mains complètes, à déclarer au 1er pli
-    this.annonceResult = this.useAnnonces ? resolveAnnonces(this.hands, atout, this.dealer) : null;
-    this._annonceShown = false;
+    this._beloteHolder = beloteHolder(this.hands, atout);
+    this._beloteCalls = { belote: false, rebelote: false };
+    this._lastHumanCard = null;
+    // Snapshot des mains de 8 cartes : la détection d'annonces se fait sur le contenu LOGIQUE
+    // du début de donne (indépendant du jeu et de l'ordre d'affichage), pas sur les mains entamées.
+    this.hands0Full = this.hands.map((h) => h.slice());
+    // Le pool d'annonces est résolu APRÈS le 1er coup (déclarations connues), pas ici.
+    this.annonceResult = null;
+    this._humanDeclared = false;
+    this._annonceResolved = false;
+    this._exposeShown = false;
     this.trick = [];
     this.tricks = [];
     this.trickIndex = 0;
@@ -156,7 +171,11 @@ export class BeloteDriver {
   }
 
   _finishDeal() {
-    const score = scoreDeal(this.tricks, this.atout, this.taker, this.beloteTeamIdx); // base validée, intacte
+    // Belote-rebelote : le détenteur IA déclare toujours ; l'humain doit avoir cliqué les deux.
+    const beloteDeclared = this._beloteHolder === HUMAN
+      ? (this._beloteCalls.belote && this._beloteCalls.rebelote)
+      : true;
+    const score = scoreDeal(this.tricks, this.atout, this.taker, this.beloteTeamIdx, beloteDeclared); // base validée
     // couche annonces (suites/carrés) ajoutée PAR-DESSUS, sans toucher scoreDeal
     const annBonus = this.useAnnonces && this.annonceResult ? this.annonceResult.bonus : [0, 0];
     this.totals[0] += score.scores[0] + annBonus[0];
@@ -242,14 +261,20 @@ export class BeloteDriver {
         return;
       }
 
-      // annonces déclarées au 1er pli : on les révèle une fois avant de jouer
-      if (this.useAnnonces && !this._annonceShown && this._hasAnnonces()) {
-        this._annonceShown = true;
+      // Rituel annonces — pli 1 : déclaration (bouton « Annoncer » côté humain, cf. canAnnonce).
+      // Le pool est résolu APRÈS le 1er pli, une fois les déclarations connues. IA = déclare toujours.
+      if (this.useAnnonces && !this._annonceResolved && this.trickIndex >= 1) {
+        const declared = [this._humanDeclared, true, true, true]; // siège 0 = humain
+        this.annonceResult = resolveAnnonces(this.hands0Full, this.atout, this.dealer, declared);
+        this._annonceResolved = true;
+      }
+      // Pli 2 : exposition de la SEULE meilleure annonce (cartes du camp vainqueur), une fois.
+      if (this.useAnnonces && this._annonceResolved && !this._exposeShown && this.trickIndex >= 1
+          && this.annonceResult && this.annonceResult.best && !this.annonceResult.annule) {
+        this._exposeShown = true;
         const w = this.annonceResult.winnerTeam;
-        this.message = this.annonceResult.annule
-          ? "Annonces à égalité — annulées."
-          : `Annonces : équipe ${w === 0 ? "A" : "B"} marque ${this.annonceResult.bonus[w]}.`;
-        this.phase = "annonce_show";
+        this.message = `Annonces : équipe ${w === 0 ? "A" : "B"} montre ${annonceLabel(this.annonceResult.best)} (+${this.annonceResult.bonus[w]}).`;
+        this.phase = "annonce_expose";
         return;
       }
 
@@ -297,6 +322,12 @@ export class BeloteDriver {
     return n;
   }
 
+  // Fenêtre de déclaration belote : l'humain vient de jouer un Roi ou une Dame d'atout.
+  _beloteWindow() {
+    const c = this._lastHumanCard;
+    return !!c && c.suit === this.atout && (c.rank === "R" || c.rank === "D");
+  }
+
   // L'humain enchérit : action "take" (prendre) ou "pass" (passer). Au tour 2, "take"
   // exige une couleur `suit` (≠ couleur retournée). Rejette hors tour / choix invalide.
   humanBid(action, suit) {
@@ -339,8 +370,40 @@ export class BeloteDriver {
     }
     this._removeCard(HUMAN, chosen);
     this.trick.push({ player: HUMAN, card: chosen });
+    this._lastHumanCard = chosen; // ouvre la fenêtre de déclaration belote si R/D d'atout
     this.advance();
     return { ok: true };
+  }
+
+  // L'humain a-t-il au moins une annonce (suite/carré) déclarable cette donne ?
+  _humanHasAnnonce() {
+    if (!this.useAnnonces || !this.hands0Full) return false;
+    return detectAnnonces(this.hands0Full[HUMAN], this.atout).length > 0;
+  }
+
+  // L'humain déclare ses annonces (bouton « Annoncer »), en jouant sa 1ère carte de la donne.
+  // Non déclarées = perdues (silencieusement). L'IA, elle, déclare toujours.
+  humanAnnonce() {
+    if (this.phase !== "await_human" || this.trickIndex !== 0) {
+      return { ok: false, error: "On ne déclare qu'en jouant sa 1ère carte." };
+    }
+    if (!this._humanHasAnnonce()) return { ok: false, error: "Vous n'avez aucune annonce." };
+    this._humanDeclared = true;
+    return { ok: true };
+  }
+
+  // L'humain déclare « Belote » (Roi ou Dame d'atout) puis « Rebelote » (la seconde).
+  // Oublié = perdu (cf. _finishDeal : +20 seulement si les deux clics au bon moment).
+  humanBelote(call) {
+    if (this._beloteHolder !== HUMAN) return { ok: false, error: "Vous ne détenez pas la belote." };
+    const c = this._lastHumanCard;
+    const isBel = c && c.suit === this.atout && (c.rank === "R" || c.rank === "D");
+    if (!isBel) return { ok: false, error: "Belote se déclare en jouant le Roi ou la Dame d'atout." };
+    if (call === "belote" && !this._beloteCalls.belote) { this._beloteCalls.belote = true; return { ok: true }; }
+    if (call === "rebelote" && this._beloteCalls.belote && !this._beloteCalls.rebelote) {
+      this._beloteCalls.rebelote = true; return { ok: true };
+    }
+    return { ok: false, error: "Déclaration de belote hors séquence." };
   }
 
   // Reprend après une pause d'affichage (trick_done / deal_done).
@@ -388,8 +451,22 @@ export class BeloteDriver {
       bidHint: this.phase === "bid_await" ? this.bidHint : null,
       // couleurs proposables au tour 2 (≠ couleur retournée)
       bidSuits: b && b.round === 2 ? SUITS.filter((s) => s !== b.turnUp.suit) : [],
-      // révélation des annonces (suites/carrés) au 1er pli
-      annonces: this.phase === "annonce_show" ? this._annonceList() : null,
+      // Rituel annonces : bouton « Annoncer » au pli 1 ; exposition de la meilleure au pli 2.
+      canAnnonce: this.phase === "await_human" && this.trickIndex === 0 && !this._humanDeclared && this._humanHasAnnonce(),
+      annonceExpose:
+        this.phase === "annonce_expose" && this.annonceResult && this.annonceResult.best
+          ? {
+              winnerTeam: this.annonceResult.winnerTeam,
+              bonus: this.annonceResult.bonus.slice(),
+              best: {
+                label: annonceLabel(this.annonceResult.best),
+                cards: this.annonceResult.best.cards.map((c) => ({ rank: c.rank, suit: c.suit })),
+              },
+            }
+          : null,
+      // Belote-rebelote manuelle (humain) : fenêtre juste après avoir joué R/D d'atout.
+      canBelote: this._beloteHolder === HUMAN && !this._beloteCalls.belote && this._beloteWindow(),
+      canRebelote: this._beloteHolder === HUMAN && this._beloteCalls.belote && !this._beloteCalls.rebelote && this._beloteWindow(),
       // main de l'humain, avec drapeau "jouable" quand c'est son tour
       hand:
         humanHand === null

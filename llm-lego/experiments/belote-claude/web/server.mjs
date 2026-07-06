@@ -84,6 +84,21 @@ const server = createServer(async (req, res) => {
       return send(res, 200, game.view());
     }
 
+    if (path === "/api/annonce" && req.method === "POST") {
+      if (!game) return send(res, 409, { error: "aucune partie — appelez /api/new" });
+      const r = game.humanAnnonce();
+      if (!r.ok) return send(res, 400, { error: r.error, state: game.view() });
+      return send(res, 200, game.view());
+    }
+
+    if (path === "/api/belote" && req.method === "POST") {
+      if (!game) return send(res, 409, { error: "aucune partie — appelez /api/new" });
+      const body = await readJson(req);
+      const r = game.humanBelote(String(body.call || ""));
+      if (!r.ok) return send(res, 400, { error: r.error, state: game.view() });
+      return send(res, 200, game.view());
+    }
+
     if (path === "/api/continue" && req.method === "POST") {
       if (!game) return send(res, 409, { error: "aucune partie — appelez /api/new" });
       game.continue();

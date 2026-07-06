@@ -28,6 +28,11 @@ function autoDrive(seed, target) {
       const chosen = chooseMove(legal, d.trick, d.atout, HUMAN);
       const r = d.playHuman(chosen.id);
       if (!r.ok) throw new Error("coup rejeté à tort: " + r.error);
+      // Joueur AUTOMATIQUE : déclare la belote comme le fait le moteur (auto), pour que le
+      // +20 coïncide avec playGame. Sans ça, un siège 0 détenteur de belote divergerait.
+      const v = d.view();
+      if (v.canBelote) d.humanBelote("belote");
+      else if (v.canRebelote) d.humanBelote("rebelote");
     } else {
       // bid_step / trick_done / deal_done → reprendre
       d.continue();
