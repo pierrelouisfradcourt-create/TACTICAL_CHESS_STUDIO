@@ -1,0 +1,61 @@
+{
+  "schema_version": "1",
+  "session_id": "corpus-real-001",
+  "timestamp": "2026-07-06T00:00:00Z",
+  "voices": {
+    "PLAN_REVIEW": {
+      "model": "qwen2.5-14b",
+      "verdict": "FAIL",
+      "findings": [
+        "Ajouter l'endpoint POST /api/import permettrait d'intégrer facilement des données volumineuses en base de données sans nécessiter une validation de schéma ou une gestion d'erreur complexe pour le parsing du JSON. Cela simplifie la mise à jour et l'importation de grandes quantités de données."
+      ]
+    },
+    "RED_TEAM": {
+      "model": "qwen2.5-14b",
+      "verdict": "BLOCKED",
+      "findings": [
+        "Absence de validation du schéma JSON : cela pourrait entraîner une insertion incorrecte ou incomplète des données dans la base, corrompant ainsi les données existantes.",
+        "Absence de gestion d'erreur sur le parsing : cela pourrait entraîner un crash du système si le fichier JSON est mal formé ou contient des erreurs.",
+        "Fichier volumineux sans gestion de la taille : cela pourrait entraîner un dépassement de mémoire et un crash du système si le fichier est trop grand.",
+        "Dépendances non résolues ou fragiles : sans gestion des versions, les dépendances peuvent changer et rendre l'application inopérante."
+      ]
+    },
+    "DIVERGENCE": {
+      "model": "qwen2.5-14b",
+      "verdict": "OK",
+      "findings": [
+        "L'utilisation d'un service dédié à l'importation comme AWS S3 pour stocker temporairement les fichiers avant leur traitement pourrait améliorer la sécurité et la fiabilité du système.",
+        "La possibilité de parser et insérer des données en arrière-plan via un worker ou une tâche planifiée permettrait d'éviter le blocage du serveur pendant l'importation volumineuse.",
+        "L'intégration d'un mécanisme simple de reprise après panne pourrait être bénéfique pour les imports interrompus.",
+        "La possibilité de fournir des retours d'état en temps réel à l'utilisateur lors de l'importation serait utile pour la gestion des gros fichiers."
+      ]
+    }
+  },
+  "proposed_items": [
+    {
+      "title": "Absence de validation du schéma JSON : cela pourrait entraîner une insertion incorrecte ou incomplète des données dans la base, corrompant ainsi les données existantes.",
+      "rationale": "Absence de validation du schéma JSON : cela pourrait entraîner une insertion incorrecte ou incomplète des données dans la base, corrompant ainsi les données existantes. (impact: Corruption de données)",
+      "suggested_lane": "AUDIT_REQUIRED",
+      "evidence_refs": []
+    },
+    {
+      "title": "Absence de gestion d'erreur sur le parsing : cela pourrait entraîner un crash du système si le fichier JSON est mal formé ou contient des erreurs.",
+      "rationale": "Absence de gestion d'erreur sur le parsing : cela pourrait entraîner un crash du système si le fichier JSON est mal formé ou contient des erreurs. (impact: Crash systématique)",
+      "suggested_lane": "AUDIT_REQUIRED",
+      "evidence_refs": []
+    },
+    {
+      "title": "Fichier volumineux sans gestion de la taille : cela pourrait entraîner un dépassement de mémoire et un crash du système si le fichier est trop grand.",
+      "rationale": "Fichier volumineux sans gestion de la taille : cela pourrait entraîner un dépassement de mémoire et un crash du système si le fichier est trop grand. (impact: Crash systématique)",
+      "suggested_lane": "AUDIT_REQUIRED",
+      "evidence_refs": []
+    },
+    {
+      "title": "Dépendances non résolues ou fragiles : sans gestion des versions, les dépendances peuvent changer et rendre l'application inopérante.",
+      "rationale": "Dépendances non résolues ou fragiles : sans gestion des versions, les dépendances peuvent changer et rendre l'application inopérante. (impact: Invariance cassée)",
+      "suggested_lane": "AUDIT_REQUIRED",
+      "evidence_refs": []
+    }
+  ],
+  "claim_verdict": "NO_CLAIM_ALLOWED"
+}

@@ -528,6 +528,32 @@ def run_council_gate(imp: dict, charter_path: str) -> tuple[str | None, bool]:
     return consensus_md, False
 
 
+# ── Path FACTORY (chantier Council->Factory) — DISTINCT du gate IMP-208 ci-dessus ─
+# Le gate (run_council_gate) decide s'il faut EXECUTER un IMP. Le path factory, lui, transforme la
+# sortie council en contrat v1 puis ROUTE les proposed_items vers le ledger (nouveaux IMP
+# AUDIT_REQUIRED d'origine council). Deux flux volontairement decouples. Impl dans les modules
+# council_contract / council_router (deviation ratifiee 2026-07-06 : un seul module possede le
+# contrat) ; ici on ne fait que CABLER l'appel. Ecriture ledger : uniquement via kaizen_loop.
+# NON invoque dans la boucle live : point d'entree explicite (ne change pas le comportement gate).
+
+def run_council_factory(imp: dict, charter_path: str, *, ledger_path=None,
+                        session: str = "", runner=None, dry_run: bool = False):
+    """Council LOCAL 2-voix -> contrat v1 (fail-hard) -> routeur -> ledger (single-writer).
+
+    `ledger_path` defaut = ledger canonique (kaizen_loop.find_ledger). Les tests passent un ledger
+    temporaire. `runner` injectable (tests sans LM Studio). Renvoie (contract, RoutingResult, new_ids).
+    """
+    import council_contract
+    import council_router
+    lp = ledger_path if ledger_path is not None else kl.find_ledger()
+    brief = build_council_brief(imp, charter_path)
+    contract = council_contract.run_factory_council(
+        brief, str(imp.get("id", "council-adhoc")), session_id=None, timestamp=None, runner=runner)
+    result, new_ids = council_router.apply_contract(
+        contract, ledger_path=lp, session=session, dry_run=dry_run)
+    return contract, result, new_ids
+
+
 # ── Execution ─────────────────────────────────────────────
 
 def execute_via_claude_code(charter_path: str, imp: dict, consensus: str | None = None) -> str:

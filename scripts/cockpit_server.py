@@ -273,6 +273,39 @@ def council_latest() -> dict:
     }
 
 
+def council_factory_flow() -> dict:
+    """Flux Council->Factory REEL (lecture seule, anti-mensonge). Chantier Council->Factory.
+
+    N'affiche QUE ce qui a reellement transite :
+      - decompte + liste des IMP d'origine council dans le ledger (source == 'council') ;
+      - etat du dernier run council si un artefact existe (via council_latest, lab/council/).
+    AUCUNE donnee simulee ni d'exemple. Un decompte de 0 aujourd'hui est CORRECT : rien n'a encore
+    transite vers le ledger canonique. Le jour ou le 1er vrai contrat transite (routeur), ce
+    decompte passe de 0 a 1 SANS retoucher cette vue. Lit des fichiers uniquement ; n'appelle
+    jamais autopilot :7331."""
+    ledger = load_ledger()
+    council_items: list[dict] = []
+    if ledger.get("available"):
+        for imp in ledger["improvements"]:
+            if str(imp.get("source", "")).strip().lower() == "council":
+                council_items.append(_imp_summary(imp))
+    last = council_latest()
+    available = bool(last.get("available"))
+    last_run = {
+        "available": available,
+        "source_file": last.get("source_file") if available else None,
+        "has_consensus": bool(last.get("consensus_md")) if available else False,
+    }
+    return {
+        "available": ledger.get("available", False),
+        "ledger_error": ledger.get("error") if not ledger.get("available") else None,
+        "council_item_count": len(council_items),
+        "council_items": council_items,
+        "last_council_run": last_run,
+        "note": "decompte reel source=council (lecture ledger) ; aucune donnee simulee",
+    }
+
+
 # --------------------------------------------------------------------------
 # Gouvernance + lock
 # --------------------------------------------------------------------------
@@ -542,6 +575,13 @@ def get_factory() -> dict:
 @app.get("/api/council")
 def get_council() -> dict:
     return council_latest()
+
+
+@app.get("/api/council-factory")
+def get_council_factory() -> dict:
+    """Vue read-only du flux Council->Factory : decompte reel des IMP source=council + dernier run.
+    Anti-mensonge : 0 tant que rien n'a transite ; passe a 1 sans retouche au 1er vrai contrat."""
+    return council_factory_flow()
 
 
 @app.get("/api/elo")
