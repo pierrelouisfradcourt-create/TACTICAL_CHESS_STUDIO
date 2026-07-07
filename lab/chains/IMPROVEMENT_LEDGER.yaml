@@ -5039,6 +5039,31 @@ improvements:
     d''ecriture guarded_write si bail etranger vivant, liberation en fin de session.
     Complement candidat : hook git refusant commit du ledger si bail etranger actif.
     Source : menage gouvernance session-20260706.'
+- id: IMP-253
+  title: Statuts FROZEN/REJECTED officialises — etendre VALID_STATUS + affichage recall/metrics
+    (buckets dedies, jamais comptes dans CLOSED)
+  type: improvement
+  source: session-20260706
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - lab/chains/kaizen_loop.py
+  acceptance: recall affiche les trois statuts dans des sections distinctes ; metrics
+    expose les comptes frozen/rejected separes de closed ; les 3 IMP actuellement
+    muets (IMP-238/249/250) redeviennent visibles ; suite single-writer verte.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Suite du menage gouvernance 2026-07-06 (commit 6bddf12) : FROZEN et REJECTED
+    ont ete introduits dans le ledger mais ne sont PAS dans VALID_STATUS de kaizen_loop
+    -> recall/metrics ne les affichent pas (buckets muets). Officialiser : ajouter
+    FROZEN/REJECTED a VALID_STATUS, sections dediees dans recall, comptes separes
+    dans metrics. Invariant STRICT : ni FROZEN ni REJECTED ne doivent jamais etre
+    comptes comme CLOSED (pas de fausse inflation ''done''). Cf memoire ledger_frozen_rejected_convention.
+    Concerne IMP-238 (FROZEN), IMP-249/250 (REJECTED).'
 metrics_history:
 - session: '2026-05-31'
   total: 11
