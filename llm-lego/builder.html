@@ -2251,6 +2251,95 @@
       const [depOnly, setDepOnly] = useState(false); // « déployable maintenant uniquement »
       const [sel, setSel] = useState(null);       // carte sélectionnée → panneau détail
       const [depList, setDepList] = useState(null); // { project, cards } → liste déployables d'un projet
+
+      // --- Audit via council (représentation llm-lego, live) --------------------
+      // Ce graphe ne pause pas mécaniquement — HumanGate est conceptuel ; le board
+      // ne branche JAMAIS sa sortie sur une écriture (ledger / HUMANGATE_DECISION_LOG.yaml).
+      // Les 3 "voix" tapent toutes LM Studio :1234 (Qwen) — cf. lmstudio.js (URL fixe :1234).
+      // La synthèse est une RÈGLE DÉTERMINISTE sur les 3 verdicts (aucun 4e appel LLM).
+      const COUNCIL_LABEL = 'council (représentation llm-lego · 3× Qwen :1234 séquentiel · contexte IMP minimal injecté · synthèse par règle déterministe · live)';
+      const [audit, setAudit] = useState(null); // { imp, phase:'confirm'|'running'|'done'|'partial'|'error', voices?, verdict?, error?, unavailable? }
+
+      const impContext = (card) => [
+        `IMP: ${card.id}`, `Titre: ${card.title}`,
+        `Lane: ${card.lane}  Status: ${card.status}`,
+        card.blocked_by.length ? `Bloqué par: ${card.blocked_by.join(', ')}` : 'Bloqueurs: aucun',
+        card.notes ? `Notes: ${card.notes}` : '',
+      ].filter(Boolean).join('\n');
+
+      // Voix = rôle council (temp du preset) + prompt injecté. `model` OMIS → Qwen :1234 par défaut.
+      const voiceNode = (role, ctx) => ({ id: role, type: 'agent', data: {
+        role, temperature: (ROLE_PRESETS[role] || {}).temperature,
+        prompt: `${ctx}\n\nTu es la voix ${role} d'un audit council. Audite cet IMP selon ta fonction. 3-5 lignes. `
+          + `Termine EXACTEMENT par une dernière ligne « VERDICT: X » où X ∈ {APPROUVE, BLOQUE, ESCALADE, DIVERGENCE}. `
+          + `N'écris aucun de ces quatre mots ailleurs que sur cette ligne finale.`,
+      }});
+
+      const execLive = async (graph, initialInput) => {
+        // live:true — jamais de repli mock (selectAdapters ne fallback pas ; cf. contrainte #4).
+        const r = await fetch('/api/execute', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ graph, initialInput, live: true }) });
+        const out = await r.json();
+        if (out && out.success === false && out.error) throw new Error(out.error);
+        return out; // { state, trace, status }
+      };
+
+      const nodeOut = (state, id) => {
+        const n = state && state.nodes && state.nodes[id];
+        if (!n) return { ok: false, text: '(pas de sortie)' };
+        if (n.unavailable === true || n.error) return { ok: false, text: String(n.text || n.error || 'indisponible') };
+        return { ok: true, text: String(n.output != null ? n.output : (n.text || '')) };
+      };
+
+      // Verdict d'une voix : dernier token reconnu dans le texte. Absent/non reconnu → ESCALADE
+      // (parsed:false) — jamais une supposition silencieuse (marqué explicitement à l'affichage).
+      const VERDICT_RE = /BLOQU[EÉ]|ESCALAD\w*|DIVERGENC\w*|APPROUV\w*/gi;
+      const canonVerdict = (m) => { const s = m.toUpperCase();
+        if (s.startsWith('BLOQU')) return 'BLOQUE';
+        if (s.startsWith('ESCALAD')) return 'ESCALADE';
+        if (s.startsWith('DIVERGENC')) return 'DIVERGENCE';
+        return 'APPROUVE'; };
+      const parseVerdict = (text) => {
+        const s = String(text);
+        // 1. Ligne explicite « VERDICT: X » (la dernière) — immunise contre une auto-référence au nom de rôle.
+        const lm = [...s.matchAll(/VERDICT\s*[:：]\s*(BLOQU[EÉ]|ESCALAD\w*|DIVERGENC\w*|APPROUV\w*)/gi)];
+        if (lm.length) return { verdict: canonVerdict(lm[lm.length - 1][1]), parsed: true };
+        // 2. Fallback : dernier token nu dans le texte.
+        const ms = s.match(VERDICT_RE);
+        if (ms && ms.length) return { verdict: canonVerdict(ms[ms.length - 1]), parsed: true };
+        // 3. Absent → ESCALADE (jamais une supposition silencieuse).
+        return { verdict: 'ESCALADE', parsed: false };
+      };
+      // Règle déterministe : 1 seul distinct → lui ; un BLOQUE quelque part → BLOQUE ;
+      // mixte sans BLOQUE (unparsed compte comme ESCALADE) → ESCALADE.
+      const mechVerdict = (vs) => {
+        const distinct = [...new Set(vs)];
+        if (distinct.length === 1) return distinct[0];
+        if (vs.includes('BLOQUE')) return 'BLOQUE';
+        return 'ESCALADE';
+      };
+
+      const runCouncilAudit = async (card) => {
+        setAudit({ imp: card.id, phase: 'running' });
+        try {
+          const ctx = impContext(card);
+          // Les 3 voix (chaîne, moteur séquentiel), prompts injectés. UN seul appel live.
+          const g1 = toEngineGraph(
+            [voiceNode('PLAN_REVIEW', ctx), voiceNode('RED_TEAM', ctx), voiceNode('DIVERGENCE', ctx)],
+            [{ id: 'e1', from: 'PLAN_REVIEW', to: 'RED_TEAM' }, { id: 'e2', from: 'RED_TEAM', to: 'DIVERGENCE' }],
+          );
+          const r1 = await execLive(g1, { imp: card.id, lane: card.lane });
+          let voices = ['PLAN_REVIEW', 'RED_TEAM', 'DIVERGENCE'].map((id) => ({ id, ...nodeOut(r1.state, id) }));
+          const down = voices.filter((v) => !v.ok);
+          // AJOUT #2 — jamais de synthèse sur 2/3 : une voix down → « audit partiel », pas de verdict.
+          if (down.length > 0) { setAudit({ imp: card.id, phase: 'partial', voices, unavailable: down.length }); return; }
+          // Synthèse DÉTERMINISTE sur les verdicts parsés (aucun appel LLM).
+          voices = voices.map((v) => ({ ...v, ...parseVerdict(v.text) }));
+          const verdict = mechVerdict(voices.map((v) => v.verdict));
+          setAudit({ imp: card.id, phase: 'done', voices, verdict });
+        } catch (e) { setAudit({ imp: card.id, phase: 'error', error: String((e && e.message) || e) }); }
+      };
+
       useEffect(() => {
         fetch('/api/cockpit').then((r) => r.json()).then(setC).catch((e) => setErr(String(e)));
         fetch('/api/imp-board').then((r) => r.json()).then(setBoard).catch((e) => setErr(String(e)));
@@ -2345,11 +2434,11 @@
 
           {/* ===== PANNEAU DÉTAIL (clic carte) ===== */}
           {sel && (
-            <div data-testid="impboard-detail" onClick={() => setSel(null)} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.45)', display: 'flex', justifyContent: 'flex-end' }}>
+            <div data-testid="impboard-detail" onClick={() => { setSel(null); setAudit(null); }} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.45)', display: 'flex', justifyContent: 'flex-end' }}>
               <div onClick={(e) => e.stopPropagation()} style={{ width: 420, maxWidth: '90vw', height: '100%', overflow: 'auto', background: 'var(--panel)', borderLeft: '1px solid var(--line)', padding: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <b style={{ color: 'var(--ink)', fontSize: 'var(--fs-lg)' }}>{sel.id}</b>
-                  <button data-testid="impboard-detail-close" className="palette" onClick={() => setSel(null)}>✕</button>
+                  <button data-testid="impboard-detail-close" className="palette" onClick={() => { setSel(null); setAudit(null); }}>✕</button>
                 </div>
                 <div style={{ color: 'var(--ink)', fontSize: 'var(--fs-sm)', marginBottom: 14 }}>{sel.title}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 12px', fontSize: 'var(--fs-xs)', marginBottom: 14 }}>
@@ -2364,6 +2453,59 @@
                 <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--ink-2)', marginBottom: 14 }}>{sel.why}</div>
                 <div style={{ fontSize: 'var(--fs-2xs)', textTransform: 'uppercase', letterSpacing: 1, color: 'var(--accent)', marginBottom: 4 }}>Notes</div>
                 <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--ink-2)', whiteSpace: 'pre-wrap' }}>{sel.notes || '—'}</div>
+
+                {/* Audit council — UNIQUEMENT sur AUDIT_REQUIRED. Lecture seule : n'écrit RIEN. */}
+                {sel.lane === 'AUDIT_REQUIRED' && (
+                  <div style={{ marginTop: 18, borderTop: '1px solid var(--line)', paddingTop: 14 }}>
+                    <div style={{ fontSize: 'var(--fs-2xs)', textTransform: 'uppercase', letterSpacing: 1, color: 'var(--accent)', marginBottom: 6 }}>Audit council</div>
+                    <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginBottom: 8 }}>{COUNCIL_LABEL}</div>
+
+                    {(!audit || audit.imp !== sel.id) && (
+                      <button data-testid="council-audit-btn" className="palette" onClick={() => setAudit({ imp: sel.id, phase: 'confirm' })}>Auditer via council</button>
+                    )}
+
+                    {audit && audit.imp === sel.id && audit.phase === 'confirm' && (
+                      <div data-testid="council-audit-confirm" style={{ background: 'var(--panel-2)', border: '1px solid var(--line)', borderRadius: 6, padding: 10, fontSize: 'var(--fs-xs)', color: 'var(--ink-2)' }}>
+                        ⚠ Lance <b>3 vrais appels LLM</b> (Qwen :1234) — coût + latence. Synthèse déterministe (pas de 4e appel). Confirmer ?
+                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                          <button data-testid="council-audit-go" className="palette" onClick={() => runCouncilAudit(sel)}>Lancer l'audit</button>
+                          <button className="palette" onClick={() => setAudit(null)}>Annuler</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {audit && audit.imp === sel.id && audit.phase === 'running' && (
+                      <div data-testid="council-audit-running" style={{ fontSize: 'var(--fs-xs)', color: 'var(--ink-3)' }}>audit en cours… (3 voix, puis synthèse déterministe)</div>
+                    )}
+
+                    {audit && audit.imp === sel.id && audit.phase === 'partial' && (
+                      <div data-testid="council-audit-error" style={{ background: 'var(--sev-warn-soft)', color: 'var(--sev-warn)', padding: '8px 10px', borderRadius: 6, fontSize: 'var(--fs-xs)' }}>
+                        Audit partiel : {audit.unavailable}/3 voix indisponibles — <b>pas de synthèse</b> (verdict incomplet non affiché).
+                        <div style={{ marginTop: 6 }}>{audit.voices.map((v) => (<div key={v.id}><b>{v.id}</b> : {v.ok ? 'ok' : 'indisponible'}</div>))}</div>
+                      </div>
+                    )}
+
+                    {audit && audit.imp === sel.id && audit.phase === 'error' && (
+                      <div data-testid="council-audit-error" style={{ background: 'var(--panel-2)', color: 'var(--sev-bad)', padding: '8px 10px', borderRadius: 6, fontSize: 'var(--fs-xs)' }}>❌ {audit.error}</div>
+                    )}
+
+                    {audit && audit.imp === sel.id && audit.phase === 'done' && (
+                      <div data-testid="council-audit-verdict">
+                        <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginBottom: 4 }}>synthèse par règle déterministe, pas par LLM</div>
+                        <div data-testid="council-audit-verdict-value" style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, background: 'var(--panel-2)', border: '1px solid var(--line)', borderRadius: 6, padding: 10,
+                          color: audit.verdict === 'BLOQUE' ? 'var(--sev-bad)' : audit.verdict === 'APPROUVE' ? 'var(--sev-good)' : 'var(--sev-warn)' }}>{audit.verdict}</div>
+                        <details style={{ marginTop: 8 }} open>
+                          <summary style={{ cursor: 'pointer', fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)' }}>3 voix (texte complet)</summary>
+                          {audit.voices.map((v) => (
+                            <div key={v.id} style={{ marginTop: 6, fontSize: 'var(--fs-2xs)', color: 'var(--ink-2)', whiteSpace: 'pre-wrap' }}>
+                              <b>{v.id}</b> — verdict lu : {v.parsed ? v.verdict : v.verdict + ' (aucun token trouvé dans le texte → ESCALADE)'}{'\n'}{v.text}
+                            </div>
+                          ))}
+                        </details>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
