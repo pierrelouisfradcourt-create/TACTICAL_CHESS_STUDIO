@@ -29,6 +29,7 @@ import { listNotes, readNote, searchNotes, writeNote } from "./memory-store.mjs"
 import { recall, lmStudioEmbed } from "./memory-recall.mjs";
 import { buildGraph } from "./memory-graph.mjs";
 import { buildCockpit } from "./cockpit.mjs";
+import { buildImpBoard } from "./imp-board.mjs";
 
 /**
  * Governance policy (Oracle, Passe 4): NO self-validation. A node cannot be judged
@@ -582,6 +583,11 @@ const server = http.createServer((req, res) => {
   }
   if (pathname === "/api/cockpit" && req.method === "GET") {
     try { sendJson(res, 200, buildCockpit({ ledgerPath: LEDGER_PATH, roots: MEM_ROOTS })); }
+    catch (e) { sendJson(res, 500, { error: String((e as any).message || e) }); }
+    return;
+  }
+  if (pathname === "/api/imp-board" && req.method === "GET") {
+    try { sendJson(res, 200, buildImpBoard({ ledgerPath: LEDGER_PATH })); }
     catch (e) { sendJson(res, 500, { error: String((e as any).message || e) }); }
     return;
   }
