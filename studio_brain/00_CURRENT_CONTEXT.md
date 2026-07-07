@@ -1,7 +1,19 @@
 # Contexte courant TCS
-Dernière session : 2026-07-07 — **Migration ledger IMP-256** (project/theme sur 264 entrées) + **board
-interactif llm-lego LIVRÉ** (`4d4d1a9`). Avant : Council→Factory v0 (`3c5f9de`) + Belote bloc 1 (07-06).
+Dernière session : 2026-07-08 — **council-audit LIVRÉ** (`ebebb59`, poussé). Avant : board interactif
+llm-lego (`4d4d1a9`), migration ledger IMP-256, Council→Factory v0 (`3c5f9de`), Belote bloc 1 (07-06).
 Sessions marathon 07-05→06 archivées : `journal/context-archive-2026-07-05.md`.
+
+## Session 2026-07-08 — council-audit LIVRÉ (`ebebb59`, poussé sur origin/master)
+Bouton **« Auditer via council »** sur les cartes **AUDIT_REQUIRED** du board (panneau détail), **live-only** :
+réutilise le graphe council in-file (`exampleCouncilGate`, 3 voix PLAN_REVIEW/RED_TEAM/DIVERGENCE) via le **même
+`/api/execute` live** (Qwen :1234), **contexte IMP injecté** dans les prompts (le graphe seul ne le fait pas —
+l'adaptateur ignore l'état amont). Synthèse = **règle déterministe** (BLOQUE l'emporte · mixte→ESCALADE ·
+unparsed→ESCALADE), **aucun 4e appel LLM**. Parsing **ancré sur la ligne finale `VERDICT: X`** (prompt qui la
+force), **durci contre l'auto-référence au nom de rôle DIVERGENCE** (régression **s6** : verdict réel + mention
+tardive du rôle → ne se trompe pas ; fallback token nu puis ESCALADE). **LECTURE SEULE stricte** — n'écrit ni
+ledger ni `HUMANGATE_DECISION_LOG.yaml` ; graphe sans pause mécanique (HumanGate conceptuel), fermer l'IMP reste
+humain. Preuve : **39 suites / 794 verts** (`council-audit-validate.mjs` 14/14 dont s6), 2 audits live réels
+(IMP-206 → ESCALADE puis BLOQUE). Fichiers : `llm-lego/builder.html` + `council-audit-validate.mjs`.
 
 ## Session 2026-07-07 — Migration ledger IMP-256 + board interactif (démarrage)
 - **IMP-256 CLOSED (`1555173`, master, NON poussé)** : migration schéma ledger — `project`
@@ -77,9 +89,9 @@ Base : `llm-lego/experiments/belote-claude/` (le prototype prouvé, fait évolue
 - **3b (graphe codebase)** : à faire à l'extraction du moteur de plis (avant Tarot). **Brique 5** : sine die.
 - **Évolution cockpit → LIVRÉE** (board interactif, `4d4d1a9`, cf. session 2026-07-07 en tête).
 
-## À pousser (go Pierre) — en avance sur `origin/master` (=`3fdff29`), ordre chrono
-- `1555173` IMP-256 (project/theme + CSV) · `4d4d1a9` board Accueil · + ce commit de handoff.
-- ⚠️ `3c5f9de` (Council→Factory) et `3c8d1e0` (4b) : notés « NON poussé » à tort — déjà sur origin/master. `git fetch` avant push.
+## État git 2026-07-08 — tout poussé sur `origin/master`
+- Poussés ce cycle : IMP-256 `1555173` · board `4d4d1a9` · handoff `4114bca` · IMP-240 note `921fa4b` ·
+  settings.json `c7ba7e7` · council-audit `ebebb59` · gitignore `0bb5449`. Rien en attente.
 
 ## Points d'entretien (résolus 2026-07-06)
 - **Stop hook — RÉSOLU (prouvé)** : un bash nu = launcher **WSL** sur ce poste ; migration Node suivie
@@ -95,6 +107,9 @@ Base : `llm-lego/experiments/belote-claude/` (le prototype prouvé, fait évolue
 ## Impasses / doctrine (portées)
 - LEDGER canonique = `lab/chains/IMPROVEMENT_LEDGER.yaml` ; écrire les IMP via `kaizen_loop.py`
   (exception ponctuelle autorisée : migration schéma IMP-256 en écriture directe, cf. session 07-07).
+  **`.claude/settings.json` (`c7ba7e7`, durcissement IMP-247) : `Write/Edit(lab/chains/**)` déplacés de `allow`
+  vers `ask`** → toute écriture directe sur le ledger (hors `kaizen_loop`) déclenche désormais une **confirmation**.
+  C'est attendu, pas un bug — mitigation du write-path direct que `grep_guard_ledger` ne bloque pas (IMP-247).
 - `train.py` gelé (et de toute façon **Rocky = GEL**). `start_studio.ps1` OK (pas le `.sh`).
 - Serveur builder : `node demo-server.ts` :3000 (`/api/memory*`, `/api/cockpit`).
 - Une variable à la fois · fondations avant features · **aucun commit/push sans go explicite Pierre**.
