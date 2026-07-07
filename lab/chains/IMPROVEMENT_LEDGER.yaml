@@ -5064,6 +5064,44 @@ improvements:
     dans metrics. Invariant STRICT : ni FROZEN ni REJECTED ne doivent jamais etre
     comptes comme CLOSED (pas de fausse inflation ''done''). Cf memoire ledger_frozen_rejected_convention.
     Concerne IMP-238 (FROZEN), IMP-249/250 (REJECTED).'
+- id: IMP-254
+  title: TCG proto — fiche de carte lisible (refonte affichage)
+  type: feature
+  source: session-20260707
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: jeux
+  files:
+  - games/chess_tcg/ui/hud.gd
+  acceptance: 'Fiche carte relue et validee par Pierre : effet, cible, regle 1-par-tour
+    lisibles.'
+  blocked_by: []
+  opened_session: session-20260707
+  closed_session: null
+  notes: Retour test Pierre prototype 3D v0. Barre de cartes actuelle = nom+desc brute.
+- id: IMP-255
+  title: 'TCG proto — cascade de deplacement : resolution etape par etape visible
+    + verdict affichage-vs-regle'
+  type: design
+  source: session-20260707
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: jeux
+  files:
+  - games/chess_tcg/ui/game3d.gd
+  - games/chess_tcg/core/rules.gd
+  acceptance: 'Chaque etape (traversee/attaque/riposte/BRAWL) visible sequentiellement
+    ; verdict Pierre consigne : ''je peux predire avant de cliquer'' (affichage vs
+    regle).'
+  blocked_by: []
+  opened_session: session-20260707
+  closed_session: null
+  notes: RISQUE DESIGN n1 lignee T. Refonte affichage etape-par-etape amorcee dans
+    le proto ; verdict affichage-vs-regle de Pierre a consigner.
 metrics_history:
 - session: '2026-05-31'
   total: 11

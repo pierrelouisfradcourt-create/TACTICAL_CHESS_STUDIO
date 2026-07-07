@@ -1,0 +1,1772 @@
+Je vais structurer ça pour qu’une **autre IA puisse reprendre le projet sans contexte**.
+On va faire **3 extraits** :
+
+1️⃣ **Vision globale + architecture du jeu + modes de jeu**
+2️⃣ **Système RNG complet (draft / sets / raretés / factions)**
+3️⃣ **Règles de gameplay détaillées + systèmes spéciaux (brawl, promotion, summons, sorts, IA tests)**
+
+Voici **EXTRACT 1**.
+
+---
+
+# DOCUMENT PROJET
+
+# Tactical Chess TCG
+
+### Extract 1 — Vision globale, architecture du jeu et modes
+
+---
+
+# 1. Concept général
+
+Le projet est un **jeu hybride entre échecs et jeu de cartes tactique**.
+
+Il combine :
+
+* structure stratégique des **échecs**
+* asymétrie et RNG contrôlée d’un **jeu de cartes**
+* combats tactiques avec **capacités, buffs, debuffs et invocations**
+
+Le jeu est conçu pour être :
+
+* **hautement stratégique**
+* **rejouable via RNG contrôlée**
+* **équilibrable via data et simulations IA**
+
+Le projet est actuellement développé sous forme de **prototype HTML / JS autonome** permettant :
+
+* tests IA massifs
+* génération RNG
+* analyse d'équilibrage
+
+---
+
+# 2. Structure du jeu
+
+Le jeu se déroule sur un **plateau 8x8** classique.
+
+Structure identique aux échecs :
+
+```
+8x8 board
+```
+
+Chaque joueur possède :
+
+```
+1 roi
+1 reine
+2 tours
+2 fous
+2 cavaliers
+8 pions
+```
+
+Mais les pièces ont :
+
+* rareté
+* faction
+* capacités
+* interactions avec buffs/debuffs
+
+---
+
+# 3. Principe fondamental
+
+Le jeu reste **basé sur les règles des échecs** :
+
+* mouvements identiques
+* capture en prenant la case
+* objectif : tuer le roi adverse
+
+Mais plusieurs systèmes sont ajoutés :
+
+```
+RNG
+Draft
+Buff / debuff
+Sorts
+Invocations
+Brawl automatique
+Promotion spéciale
+```
+
+---
+
+# 4. Les deux modes principaux
+
+Le jeu possède **deux modes distincts**.
+
+---
+
+# MODE 1 — ÉCHECS CLASSIC
+
+Mode principal du jeu.
+
+Philosophie :
+
+```
+échecs tactiques augmentés
+```
+
+Caractéristiques :
+
+### pas de mana
+
+Les sorts sont limités mais gratuits.
+
+---
+
+### limite de sorts
+
+```
+1 sort par tour
+3 sorts maximum par partie
+```
+
+---
+
+### pas de rareté de sort
+
+Les sorts sont considérés comme :
+
+```
+simples capacités tactiques
+```
+
+---
+
+### armée draftée
+
+Les armées ne sont **pas fixes**.
+
+Chaque joueur construit son armée via :
+
+```
+draft RNG
+```
+
+avant la partie.
+
+---
+
+### importance stratégique
+
+Ce mode met l'accent sur :
+
+```
+positionnement
+contrôle
+structure de pions
+brawl
+promotion
+```
+
+---
+
+# MODE 2 — MAGIC MODE
+
+Mode secondaire expérimental.
+
+Objectif :
+
+```
+tester la dimension card game
+```
+
+---
+
+### mana actif
+
+Dans ce mode :
+
+```
+les sorts utilisent du mana
+```
+
+---
+
+### boosters de sorts
+
+Les joueurs peuvent ouvrir :
+
+```
+booster de sorts
+```
+
+avant la partie.
+
+---
+
+### système identique d’échecs
+
+Le plateau reste identique :
+
+```
+8x8
+mouvements identiques
+```
+
+---
+
+### rôle du mode
+
+Ce mode sert principalement :
+
+```
+test d'équilibrage
+exploration gameplay
+extension future
+```
+
+Le mode principal reste **échecs classic**.
+
+---
+
+# 5. Structure des factions
+
+Le jeu possède plusieurs factions.
+
+Exemples :
+
+```
+Empire
+Pirates
+Marshal
+Sylvan
+Swarm
+Barbarian
+```
+
+Chaque faction possède :
+
+```
+3 rois
+```
+
+qui représentent trois archétypes.
+
+---
+
+# 6. Les archétypes de héros
+
+Chaque faction possède :
+
+```
+3 types de héros
+```
+
+---
+
+### Tank
+
+Rôle :
+
+```
+durabilité
+frontline
+résistance
+```
+
+Caractéristiques :
+
+```
+plus de HP
+moins de capacités
+```
+
+---
+
+### Tactician
+
+Rôle :
+
+```
+contrôle
+buff
+structure
+```
+
+Caractéristiques :
+
+```
+synergies
+contrôle positionnel
+```
+
+---
+
+### Mage
+
+Rôle :
+
+```
+sorts
+zone
+effets spéciaux
+```
+
+Caractéristiques :
+
+```
+accès privilégié aux capacités
+```
+
+---
+
+# 7. Structure d’un set de roi
+
+Chaque roi possède un **set complet de pièces**.
+
+Structure :
+
+```
+King
+Queen
+Rook
+Knight
+Bishop
+Pawn 1
+Pawn 2
+Pawn 3
+```
+
+Les autres pièces sont complétées automatiquement pour remplir :
+
+```
+backline complète
++ 8 pions
+```
+
+---
+
+# 8. Plateau final
+
+Une fois les armées construites :
+
+Chaque joueur possède :
+
+```
+rook knight bishop queen king bishop knight rook
+8 pawns
+```
+
+Comme aux échecs.
+
+Mais les pièces possèdent :
+
+```
+rareté
+buffs
+debuffs
+capacités
+```
+
+---
+
+# 9. Différence majeure avec les échecs
+
+Dans ce jeu :
+
+les pièces ont des **stats**.
+
+---
+
+### HP
+
+Chaque pièce possède :
+
+```
+points de vie
+```
+
+Exemple :
+
+```
+king = 5
+queen = 4
+rook = 4
+bishop = 3
+knight = 3
+pawn = 2
+```
+
+---
+
+### attaque
+
+Les pièces infligent des dégâts.
+
+Exemple :
+
+```
+queen = 2
+rook = 2
+bishop = 2
+knight = 2
+pawn = 1
+king = 1
+```
+
+---
+
+# 10. Capture
+
+Contrairement aux échecs :
+
+une attaque peut :
+
+```
+ne pas tuer immédiatement
+```
+
+car il y a des HP.
+
+Mais si HP ≤ 0 :
+
+```
+la pièce est détruite
+```
+
+---
+
+# 11. Kill et progression
+
+Chaque pièce possède :
+
+```
+kill counter
+```
+
+Quand une pièce tue :
+
+```
+kills +=1
+```
+
+La pièce **grandit visuellement**.
+
+---
+
+# 12. Promotion spéciale
+
+Un pion peut être promu si :
+
+```
+3 kills
+OU
+atteint le fond du plateau
+```
+
+Promotion :
+
+```
+queen sideboard
+```
+
+Mais :
+
+```
+elle ne peut pas attaquer immédiatement
+```
+
+Elle :
+
+```
+contrôle
+brawl
+zone
+```
+
+le premier tour.
+
+---
+
+# 13. Philosophie de design
+
+Le jeu cherche à créer :
+
+```
+échecs + deckbuilding
+```
+
+avec :
+
+```
+skill stratégique
++
+variabilité contrôlée
+```
+
+---
+
+# 14. Prototype actuel
+
+Le prototype permet :
+
+```
+draft RNG
+construction d'armée
+IA battle
+brawl system
+sort system
+summon system
+telemetry
+batch simulations
+```
+
+---
+
+# 15. Objectif du projet
+
+Créer un jeu capable de :
+
+```
+équilibrage algorithmique
+tests massifs IA
+design stratégique profond
+```
+
+---
+
+# Suite
+
+Le **EXTRACT 2** expliquera :
+
+```
+le système RNG complet
+le draft bag
+les raretés
+les sets de faction
+la construction des armées
+les matrices d'équilibrage
+```
+
+C’est **le cœur du système**.
+Voici **EXTRACT 2**.
+Il décrit **tout le système RNG, le draft, les raretés et la construction des armées** pour qu’une autre IA puisse **reproduire le moteur procédural**.
+
+---
+
+# DOCUMENT PROJET
+
+# Tactical Chess TCG
+
+### Extract 2 — RNG, Draft, Sets, Raretés
+
+---
+
+# 1. Objectif du système RNG
+
+Le RNG du jeu n'est **pas du hasard pur**.
+
+Il est conçu pour être :
+
+```text
+contrôlé
+équilibré
+rejouable
+symétrique
+```
+
+Objectifs principaux :
+
+```
+éviter les armées fixes
+créer des parties différentes
+maintenir l'équilibre stratégique
+permettre des tests IA massifs
+```
+
+Le système fonctionne comme un **générateur de sets de factions** puis un **draft contrôlé**.
+
+---
+
+# 2. Structure fondamentale du contenu
+
+Le contenu du jeu est organisé autour de :
+
+```
+Factions
+Rois
+Sets
+Pièces
+Raretés
+```
+
+---
+
+# 3. Les factions
+
+Exemples de factions actuelles :
+
+```
+Empire
+Pirates
+Marshal
+Sylvan
+Swarm
+Barbarian
+```
+
+Chaque faction possède :
+
+```
+3 rois
+```
+
+---
+
+# 4. Les archétypes de rois
+
+Chaque faction possède exactement :
+
+```
+1 Tank
+1 Tactician
+1 Mage
+```
+
+Chaque roi représente :
+
+```
+un style de jeu
+un set de pièces
+une matrice de rareté
+```
+
+---
+
+# 5. Structure d’un set de roi
+
+Chaque roi possède **un set de base de 8 unités** :
+
+```
+King
+Queen
+Rook
+Knight
+Bishop
+Pawn 1
+Pawn 2
+Pawn 3
+```
+
+Ces unités servent de **modèle pour construire l’armée complète**.
+
+---
+
+# 6. Construction finale de l’armée
+
+Le set génère ensuite une armée complète :
+
+Backline :
+
+```
+rook knight bishop queen king bishop knight rook
+```
+
+Frontline :
+
+```
+8 pawns
+```
+
+Les pièces du set déterminent :
+
+```
+rareté
+faction
+buffs
+debuffs
+```
+
+Les doublons utilisent les **mêmes caractéristiques**.
+
+Exemple :
+
+Si le set possède :
+
+```
+rook R
+```
+
+les deux tours deviennent :
+
+```
+rook R
+rook R
+```
+
+---
+
+# 7. Les raretés
+
+Chaque pièce possède une rareté.
+
+Trois niveaux :
+
+```
+C = Common
+U = Uncommon
+R = Rare
+```
+
+---
+
+# 8. Philosophie des raretés
+
+Les raretés servent à :
+
+```
+équilibrer la puissance
+introduire de la variabilité
+structurer les sets
+```
+
+Mais le système évite :
+
+```
+les armées full rares
+```
+
+---
+
+# 9. Matrice de rareté d’un set
+
+Chaque set suit une **matrice contrôlée**.
+
+Exemple :
+
+### Set Tank
+
+```
+King R
+Queen U
+Rook C
+Knight U
+Bishop C
+Pawn C
+Pawn U
+Pawn R
+```
+
+---
+
+### Set Tactician
+
+```
+King U
+Queen R
+Rook C
+Knight U
+Bishop C
+Pawn C
+Pawn R
+Pawn U
+```
+
+---
+
+### Set Mage
+
+```
+King U
+Queen U
+Rook R
+Knight C
+Bishop C
+Pawn R
+Pawn C
+Pawn U
+```
+
+---
+
+# 10. Pourquoi cette matrice
+
+Elle garantit :
+
+```
+distribution équilibrée des rares
+pas de domination structurelle
+variété stratégique
+```
+
+Chaque faction contient donc :
+
+```
+3 rares réparties différemment
+```
+
+---
+
+# 11. Les pions spéciaux
+
+Les pions possèdent des variations.
+
+Chaque set contient :
+
+```
+1 pawn buff
+1 pawn debuff
+1 pawn neutre
+```
+
+---
+
+### Pawn buff
+
+Donne un bonus aux alliés adjacents.
+
+Exemple :
+
+```
++1 attack aux pièces alliées adjacentes
+```
+
+---
+
+### Pawn debuff
+
+Affaiblit les ennemis adjacents.
+
+Exemple :
+
+```
+-1 attack aux ennemis adjacents
+```
+
+---
+
+### Pawn neutre
+
+Statistiques normales.
+
+---
+
+# 12. Le pool RNG
+
+Avant chaque partie, le jeu génère un **pool de draft**.
+
+Étapes :
+
+```
+1 sélectionner 2 factions
+2 charger leurs 3 sets
+3 générer toutes les pièces correspondantes
+```
+
+Le pool contient environ :
+
+```
+48 objets
+```
+
+---
+
+# 13. Contenu du pool
+
+Le pool contient :
+
+```
+king
+queen
+rook
+knight
+bishop
+pawn 1
+pawn 2
+pawn 3
+```
+
+pour chaque set actif.
+
+---
+
+# 14. Tri du pool
+
+Le pool est trié par rareté :
+
+```
+R
+U
+C
+```
+
+Cela permet de faciliter le draft.
+
+---
+
+# 15. Le système de draft
+
+Les joueurs construisent leur armée par **draft alterné**.
+
+Exemple simple :
+
+```
+white pick
+black pick
+white pick
+black pick
+```
+
+Chaque joueur choisit :
+
+```
+1 king
+1 queen
+1 rook
+1 knight
+1 bishop
+3 pawns
+```
+
+---
+
+# 16. Construction finale
+
+Une fois les picks faits :
+
+le moteur construit automatiquement :
+
+```
+backline complète
++ 8 pions
+```
+
+---
+
+# 17. Draft bag (mode classique)
+
+Une variante du système utilise un **sac de draft**.
+
+Principe :
+
+```
+toutes les pièces C/U/R sont mélangées
+```
+
+Les joueurs tirent ensuite :
+
+```
+rare
+uncommon
+common
+```
+
+selon une séquence équilibrée.
+
+---
+
+Exemple de séquence :
+
+```
+P1 rare
+P2 uncommon
+P1 common
+P2 rare
+P1 uncommon
+P2 common
+```
+
+---
+
+# 18. Pourquoi ce système
+
+Il empêche :
+
+```
+les armées optimales prévisibles
+```
+
+et crée :
+
+```
+des compositions hybrides
+```
+
+---
+
+# 19. Mélange des factions
+
+Les armées peuvent mélanger :
+
+```
+plusieurs factions
+```
+
+Exemple :
+
+```
+king Empire
+rook Pirates
+bishop Sylvan
+```
+
+Cela permet :
+
+```
+des synergies imprévisibles
+```
+
+---
+
+# 20. Construction finale côté moteur
+
+Le moteur applique ensuite :
+
+```
+HP de base
+bonus rareté
+buff/debuff pions
+capacités de héros
+```
+
+---
+
+# 21. Bonus de rareté
+
+Exemple simple :
+
+```
+rare +1 hp
+```
+
+Cela permet :
+
+```
+différences subtiles
+```
+
+sans casser l'équilibre.
+
+---
+
+# 22. Rôle du RNG dans l’équilibrage
+
+Le RNG sert aussi aux **tests IA massifs**.
+
+Le moteur peut simuler :
+
+```
+centaines de drafts
+```
+
+et mesurer :
+
+```
+winrate factions
+winrate raretés
+impact buffs
+impact promotions
+```
+
+---
+
+# 23. Telemetry du prototype
+
+Le prototype enregistre :
+
+```
+captures
+spells cast
+brawls
+promotions
+summons
+wins
+turns
+```
+
+Ces données servent à :
+
+```
+équilibrer le jeu
+```
+
+---
+
+# 24. Résumé du système RNG
+
+Pipeline complet :
+
+```
+factions → sets → rareté matrix → pool RNG → draft → armées → partie
+```
+
+---
+
+# Suite
+
+Le **EXTRACT 3** expliquera :
+
+```
+les règles complètes
+le système de combat
+le BRAWL
+les cavaliers
+les sorts
+les invocations
+les promotions
+les règles spéciales
+```
+
+C’est la **partie gameplay détaillée**.
+
+Voici **EXTRACT 3**, la dernière partie.
+Elle décrit **toutes les règles de gameplay**, les systèmes spéciaux et les comportements attendus du moteur.
+
+---
+
+# DOCUMENT PROJET
+
+# Tactical Chess TCG
+
+### Extract 3 — Règles complètes, systèmes spéciaux, combat
+
+---
+
+# 1. Structure d’une partie
+
+Une partie se déroule sur un **plateau 8×8**.
+
+Les joueurs jouent **alternativement**.
+
+Structure d’un tour :
+
+```
+1 déplacement / attaque d’une pièce
++ optionnel : 1 sort
+```
+
+Puis :
+
+```
+fin de tour
+résolution éventuelle de brawl
+```
+
+---
+
+# 2. Objectif
+
+Condition principale de victoire :
+
+```
+tuer le roi adverse
+```
+
+Quand le roi meurt :
+
+```
+la partie s’arrête immédiatement
+```
+
+---
+
+# 3. Déplacements des pièces
+
+Les mouvements sont **identiques aux échecs classiques**.
+
+---
+
+### King
+
+```
+1 case dans toutes les directions
+```
+
+---
+
+### Queen
+
+```
+lignes + diagonales
+distance illimitée
+```
+
+---
+
+### Rook
+
+```
+lignes horizontales et verticales
+```
+
+---
+
+### Bishop
+
+```
+diagonales
+```
+
+---
+
+### Knight
+
+```
+mouvement en L
+```
+
+---
+
+### Pawn
+
+```
+avance d’une case
+attaque en diagonale
+```
+
+Le pion ne possède **pas de double pas initial**.
+
+---
+
+# 4. Système de combat
+
+Contrairement aux échecs :
+
+les pièces ont :
+
+```
+HP
+attaque
+```
+
+---
+
+# 5. HP des pièces
+
+Valeurs de base :
+
+```
+King 5
+Queen 4
+Rook 4
+Bishop 3
+Knight 3
+Pawn 2
+```
+
+---
+
+# 6. Attaque des pièces
+
+Valeurs de base :
+
+```
+Queen 2
+Rook 2
+Bishop 2
+Knight 2
+Pawn 1
+King 1
+```
+
+---
+
+# 7. Capture
+
+Quand une pièce attaque une autre :
+
+```
+HP cible -= attaque
+```
+
+Si :
+
+```
+HP ≤ 0
+```
+
+la pièce est détruite.
+
+---
+
+# 8. Prise de case
+
+Quand une pièce tue :
+
+```
+elle prend la case de la cible
+```
+
+(comme aux échecs).
+
+---
+
+# 9. Compteur de kills
+
+Chaque pièce possède :
+
+```
+kills
+```
+
+Quand elle tue :
+
+```
+kills +=1
+```
+
+Effets :
+
+```
+croissance visuelle
+```
+
+La pièce **grandit légèrement sur le plateau**.
+
+---
+
+# 10. Promotion des pions
+
+Un pion peut être promu si :
+
+```
+3 kills
+```
+
+ou
+
+```
+atteint la dernière rangée
+```
+
+---
+
+# 11. Promotion spéciale
+
+La promotion donne :
+
+```
+queen sideboard
+```
+
+Mais avec restriction :
+
+```
+elle ne peut pas attaquer immédiatement
+```
+
+Elle peut seulement :
+
+```
+contrôler
+défendre
+participer au brawl
+```
+
+pendant un tour.
+
+---
+
+# 12. Buffs et debuffs des pions
+
+Les pions peuvent avoir :
+
+```
+buff
+debuff
+```
+
+---
+
+### Pawn buff
+
+Donne :
+
+```
++1 attaque
+```
+
+aux alliés adjacents.
+
+---
+
+### Pawn debuff
+
+Donne :
+
+```
+-1 attaque
+```
+
+aux ennemis adjacents.
+
+---
+
+# 13. Calcul d’attaque
+
+Attaque finale :
+
+```
+base attack
++ buffs
+- debuffs
++ bonus rareté éventuel
+```
+
+Minimum :
+
+```
+1
+```
+
+---
+
+# 14. Système de BRAWL
+
+Le BRAWL est une **attaque automatique hors tour**.
+
+Il représente :
+
+```
+combat de mêlée
+```
+
+entre pièces.
+
+---
+
+# 15. Déclenchement du BRAWL
+
+Si une pièce est :
+
+```
+plus attaquée que défendue
+```
+
+alors :
+
+```
+elle subit un BRAWL
+```
+
+---
+
+# 16. Défense
+
+Une pièce est défendue si :
+
+```
+une pièce alliée peut capturer l’attaquant
+```
+
+---
+
+# 17. Calcul
+
+```
+attackers > defenders
+```
+
+→ BRAWL.
+
+---
+
+# 18. Effet
+
+Un attaquant inflige :
+
+```
+attaque -1
+```
+
+à la cible.
+
+---
+
+# 19. Rôle stratégique
+
+Le BRAWL empêche :
+
+```
+positions trop passives
+```
+
+et encourage :
+
+```
+pression tactique
+```
+
+---
+
+# 20. Règle spéciale du Cavalier
+
+Le cavalier possède une propriété spéciale.
+
+---
+
+### mouvement inaltérable
+
+Les cavaliers :
+
+```
+ne peuvent pas voir leur mouvement modifié
+```
+
+Donc :
+
+```
+pas de ralentissement
+pas de modification de portée
+```
+
+---
+
+### défense double
+
+Un cavalier compte comme :
+
+```
+2 défenseurs
+```
+
+pour les calculs de BRAWL.
+
+---
+
+### escarmouche
+
+Un cavalier peut :
+
+```
+attaquer un pion non défendu
+```
+
+même si la position serait normalement dangereuse.
+
+---
+
+# 21. Position des cavaliers
+
+Dans la génération RNG :
+
+les cavaliers doivent être placés :
+
+```
+centre ou proche centre
+```
+
+jamais :
+
+```
+bords extrêmes
+```
+
+pour éviter déséquilibre.
+
+---
+
+# 22. Sorts
+
+Les sorts sont des capacités simples.
+
+Types actuels :
+
+```
+damage
+heal
+chain
+root
+summon
+```
+
+---
+
+# 23. Limites (mode classic)
+
+```
+1 sort par tour
+3 sorts par partie
+```
+
+---
+
+# 24. Effets
+
+### Damage
+
+```
+2 dégâts
+```
+
+---
+
+### Heal
+
+```
++2 HP
+```
+
+---
+
+### Chain
+
+```
+2 dégâts cible
++1 dégâts ennemis adjacents
+```
+
+---
+
+### Root
+
+Empêche mouvement :
+
+```
+1 tour
+```
+
+---
+
+# 25. Invocations
+
+Certaines capacités peuvent :
+
+```
+invoquer un pion
+```
+
+---
+
+# 26. Position d’invocation
+
+Les invocations apparaissent :
+
+```
+adjacentes à l’invocateur
+```
+
+sur une case libre.
+
+---
+
+# 27. Limite d’invocation
+
+```
+1 invocation max par pièce
+```
+
+---
+
+# 28. Mort de l’invocateur
+
+Si l’invocateur meurt :
+
+```
+l’invocation disparaît
+```
+
+---
+
+# 29. Restrictions des invocations
+
+Les invocations :
+
+```
+ne gagnent pas d’XP
+ne donnent pas d’XP
+```
+
+---
+
+# 30. IA de test
+
+Le prototype possède une IA simple.
+
+Elle :
+
+```
+évalue captures
+contrôle centre
+priorité roi
+```
+
+---
+
+# 31. Simulations
+
+Le moteur peut simuler :
+
+```
+20
+100
+200
+```
+
+parties automatiquement.
+
+---
+
+# 32. Données collectées
+
+Les simulations enregistrent :
+
+```
+captures
+sorts
+brawls
+promotions
+summons
+wins
+turns
+```
+
+---
+
+# 33. Utilité
+
+Ces données servent à :
+
+```
+équilibrage
+design
+ajustement RNG
+```
+
+---
+
+# 34. Résumé du gameplay
+
+Le jeu combine :
+
+```
+échecs
+tactique
+RNG contrôlée
+deckbuilding léger
+```
+
+---
+
+# 35. Pipeline complet
+
+Flux complet :
+
+```
+RNG factions
+→ draft
+→ construction armée
+→ partie
+→ brawl
+→ promotion
+→ fin de partie
+→ telemetry
+```
+
+---
+
+# Fin du document
+
+Ce document complet permet à une autre IA de :
+
+```
+reconstruire
+simuler
+équilibrer
+ou améliorer
+le système
+```

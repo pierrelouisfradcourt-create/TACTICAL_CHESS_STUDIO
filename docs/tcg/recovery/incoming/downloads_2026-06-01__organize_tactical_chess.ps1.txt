@@ -1,0 +1,71 @@
+# SAFE TACTICAL CHESS ORGANIZER
+
+$desktop = [Environment]::GetFolderPath("Desktop")
+$downloads = [Environment]::GetFolderPath("UserProfile") + "\Downloads"
+
+$targets = @(
+"$desktop\crown",
+"$downloads\crown"
+)
+
+foreach ($target in $targets) {
+
+    if (Test-Path $target) {
+
+        Write-Host "Scanning: $target"
+
+        $studio = "$target\TACTICAL_CHESS_STUDIO"
+
+        $folders = @(
+        "$studio\01_MASTER_BIBLE",
+        "$studio\02_SYSTEM_DATABASE",
+        "$studio\03_ENGINE_SYSTEM",
+        "$studio\04_SIMULATION_SYSTEM",
+        "$studio\05_AI_SYSTEM",
+        "$studio\06_CLIENT_APP",
+        "$studio\07_PROTOTYPES",
+        "$studio\08_UPDATES_HISTORY",
+        "$studio\09_ARCHIVE"
+        )
+
+        foreach ($f in $folders){
+            New-Item -ItemType Directory -Force -Path $f | Out-Null
+        }
+
+        Get-ChildItem $target -Recurse -File | ForEach-Object {
+
+        $name = $_.Name.ToLower()
+
+        if ($name -match "bible"){
+            Move-Item $_.FullName "$studio\01_MASTER_BIBLE\" -Force
+        }
+
+        elseif ($name -match "proto"){
+            Move-Item $_.FullName "$studio\07_PROTOTYPES\" -Force
+        }
+
+        elseif ($name -match "ai"){
+            Move-Item $_.FullName "$studio\05_AI_SYSTEM\" -Force
+        }
+
+        elseif ($name -match "simulation"){
+            Move-Item $_.FullName "$studio\04_SIMULATION_SYSTEM\" -Force
+        }
+
+        elseif ($name -match "ability|unit|status|terrain|matrix|engine"){
+            Move-Item $_.FullName "$studio\02_SYSTEM_DATABASE\" -Force
+        }
+
+        elseif ($name -match "update"){
+            Move-Item $_.FullName "$studio\08_UPDATES_HISTORY\" -Force
+        }
+
+        elseif ($_.Extension -match "html"){
+            Move-Item $_.FullName "$studio\06_CLIENT_APP\" -Force
+        }
+
+        }
+
+        Write-Host "Organized crown project."
+    }
+}

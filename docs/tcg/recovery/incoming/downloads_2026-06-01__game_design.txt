@@ -1,0 +1,535 @@
+
+# GAME DESIGN DOCUMENT
+
+## Jeu tactique sur échiquier avec système RNG et draft
+
+---
+
+# 1. Concept général du jeu
+
+Le projet est un **jeu tactique compétitif sur échiquier**, combinant :
+
+* la **structure stratégique des échecs**
+* un **système RNG de génération d’unités**
+* une **phase de draft**
+* des **attaques géométriques et altérations d’état**
+* un **sideboard dynamique**
+* un système inspiré des **auto-battlers** mais avec contrôle actif.
+
+Le jeu se situe entre :
+
+* **échecs modernes**
+* **auto-battler stratégique**
+* **tactical RPG**
+* **TCG draftable**
+
+Inspirations explicites :
+
+* Échecs classiques
+* Teamfight Tactics
+* Magic the Gathering
+* Tactical RPG
+* Jeux d’escarmouche.
+
+L’objectif est de créer un jeu :
+
+* **extrêmement stratégique**
+* **hautement rejouable**
+* **lisible sur un échiquier**
+* **adaptable en jeu physique et numérique**
+
+---
+
+# 2. Vision du créateur
+
+Les discussions montrent plusieurs objectifs de design très clairs.
+
+## Priorités
+
+1. **Conserver l’esprit des échecs**
+
+   * contrôle du centre
+   * structure de pièces
+   * importance du positionnement
+
+2. **Ajouter une profondeur tactique**
+
+   * attaques géométriques
+   * effets d’état
+   * interactions de terrain
+
+3. **Limiter la RNG destructrice**
+
+   * RNG contrôlée
+   * budget de puissance
+   * matrices de génération
+
+4. **Créer un système extensible**
+
+   * nouvelles factions
+   * nouveaux sets
+   * nouveaux plateaux
+
+5. **Maintenir la lisibilité**
+
+   * maximum ~20-30 effets
+   * rôles clairs par pièce
+   * géométries reconnaissables
+
+---
+
+# 3. Structure globale d’une partie
+
+Une partie comporte plusieurs phases.
+
+## 1. Préparation
+
+Les joueurs :
+
+* tirent des factions
+* draftent des cartes
+* construisent leur plateau.
+
+## 2. Draft
+
+Les joueurs choisissent :
+
+* factions
+* rois
+* pièces backline
+* pions
+* sorts.
+
+Les cartes non utilisées deviennent **sideboard**.
+
+## 3. Deckbuilding du plateau
+
+Chaque joueur place :
+
+* 1 roi
+* 1 reine
+* 2 fous
+* 2 cavaliers
+* 2 tours
+* 8 pions.
+
+Les cartes choisies **remplacent complètement les pièces d’échecs**.
+
+## 4. Placement
+
+Les deux premières rangées sont réservées au placement initial.
+
+Certaines variantes de plateaux existent :
+
+* obstacles
+* buissons
+* lignes ouvertes.
+
+## 5. Phase d’échecs
+
+La phase principale de jeu.
+
+Tour par tour :
+
+1. vérification des effets
+2. déplacement d’une pièce
+3. résolution du combat
+4. application des effets.
+
+## 6. Fin de partie
+
+Condition principale :
+
+* mort du roi adverse
+
+ou
+
+* pression excessive sur le roi.
+
+---
+
+# 4. Structure du plateau
+
+Le plateau de base est un **échiquier 8×8**.
+
+Variantes possibles :
+
+* obstacles
+* trous
+* lignes supplémentaires
+* buissons.
+
+## Contraintes
+
+Les deux premières rangées :
+
+* aucune modification
+* placement des pièces.
+
+## Ligne de vue
+
+Une attaque nécessite :
+
+* visibilité
+* absence d’obstacle.
+
+---
+
+# 5. Système de combat
+
+Le système est basé sur les échecs mais enrichi.
+
+## Attaque
+
+Lorsqu’une unité attaque :
+
+* elle inflige ses dégâts
+* applique ses effets.
+
+## Défense
+
+Si une unité est défendue :
+
+* la capture est possible
+* mais l’attaquant peut être repris.
+
+## Attaques d’opportunité
+
+Une attaque peut se déclencher si une unité traverse une ligne attaquée.
+
+Conditions :
+
+* ligne de vue
+* pas d’unité bloquante.
+
+Le cavalier :
+
+* ignore les attaques pendant son saut
+* sauf sur la case d’arrivée.
+
+---
+
+# 6. Géométrie des attaques
+
+Les attaques peuvent prendre plusieurs formes.
+
+## Ligne
+
+```
+XXX
+```
+
+## Diagonale
+
+comme le fou.
+
+## Croix
+
+```
+ X
+XOX
+ X
+```
+
+## X
+
+```
+X   X
+  O
+X   X
+```
+
+## Cône
+
+```
+  X
+ X X
+```
+
+## Zone
+
+```
+ X
+XOX
+ X
+```
+
+## Attaques spéciales
+
+* perforation
+* chaîne
+* explosion.
+
+---
+
+# 7. Statistiques des unités
+
+Chaque unité possède :
+
+* PV
+* attaque
+* armure
+* portée
+* mouvement.
+
+## Interaction PV / armure
+
+L’armure :
+
+* réduit les dégâts
+* ne multiplie pas les PV.
+
+---
+
+# 8. Altérations d’état
+
+Altérations principales :
+
+* brûlure
+* poison
+* saignement
+* faiblesse
+* armure brisée
+* racines
+* gel
+* désarmé
+* peur
+* charme
+* confusion.
+
+Certaines infligent des dégâts ignorants l’armure.
+
+---
+
+# 9. Système RNG de génération
+
+Le système RNG est contrôlé par un **budget de puissance**.
+
+## Budget par pièce
+
+| pièce    | budget |
+| -------- | ------ |
+| pion     | 4      |
+| cavalier | 6      |
+| fou      | 6      |
+| tour     | 7      |
+| reine    | 8      |
+| roi      | 9      |
+
+Les capacités consomment ce budget.
+
+---
+
+# 10. Classes de pièces
+
+## Pion
+
+Rôle :
+
+* progression
+* promotion.
+
+## Cavalier
+
+Rôle :
+
+* escarmouche
+* protection.
+
+## Fou
+
+Rôle :
+
+* contrôle
+* support.
+
+## Tour
+
+Rôle :
+
+* projection.
+
+## Reine
+
+Rôle :
+
+* offensive principale.
+
+## Roi
+
+Rôle :
+
+* centre stratégique.
+
+---
+
+# 11. Système de rois
+
+Trois archétypes.
+
+## Roi combat
+
+* tank
+* centre
+* monte vite en niveau.
+
+## Roi tacticien
+
+* repositionnement
+* promotion.
+
+## Roi mage
+
+* modification d’attaque
+* effets.
+
+---
+
+# 12. Factions
+
+Six factions fondatrices.
+
+## Empire Solaire
+
+Défense et discipline.
+
+## Pirates
+
+Opportunisme et brûlure.
+
+## Nuée Alien
+
+Poison et multiplication.
+
+## Sylvestres
+
+Contrôle terrain.
+
+## Horde Barbare
+
+Agressivité.
+
+## Maréchalat
+
+Tactique militaire.
+
+---
+
+# 13. Système de fusion
+
+Types de fusion :
+
+* pion + pion
+* pion + backline
+* backline + backline.
+
+La fusion roi-reine :
+
+* uniquement avant la partie
+* PV fixés.
+
+---
+
+# 14. Système de sorts
+
+Les sorts :
+
+* modifient terrain
+* infligent effets
+* peuvent soigner.
+
+Limites :
+
+* 1 sort par tour
+* pas sur les deux premières rangées.
+
+---
+
+# 15. Système de promotion
+
+Un pion peut promouvoir :
+
+* après 3 kills
+* ou en atteignant la dernière rangée.
+
+---
+
+# 16. Système de draft
+
+Le draft détermine :
+
+* les pièces
+* les factions
+* les sorts.
+
+Les cartes non utilisées deviennent **réserve**.
+
+---
+
+# 17. Équilibrage
+
+Les abus identifiés :
+
+* contrôle trop empilé
+* zone + gel
+* reine trop polyvalente.
+
+Solutions :
+
+* limiter les altérations fortes
+* spécialiser les pièces.
+
+---
+
+# 18. Évolution du design
+
+Plusieurs idées ont été testées puis abandonnées :
+
+* pions support
+* trop d’effets
+* trop de RNG.
+
+Le design final privilégie :
+
+* lisibilité
+* structure d’échecs.
+
+---
+
+# 19. Analyse stratégique
+
+## Opening
+
+* contrôle du centre
+* développement.
+
+## Midgame
+
+* utilisation des tours
+* promotions.
+
+## Endgame
+
+* reine
+* roi.
+
+---
+
+# 20. État actuel du projet
+
+Le projet possède :
+
+* un moteur de combat défini
+* un système RNG structuré
+* plusieurs factions
+* une logique d’équilibrage.
+
+Ce qui reste à faire :
+
+* tests massifs
+* génération de sets
+* implémentation du moteur numérique.
+
+---
+
+Si tu veux, je peux aussi produire **la version studio du document** (celle qui sert réellement aux développeurs), qui serait environ **4 à 5 fois plus détaillée et technique** que ce GDD.

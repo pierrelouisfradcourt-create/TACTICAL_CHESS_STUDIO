@@ -1,0 +1,3088 @@
+
+
+# SECTION 16 — SI TU AS ENCORE DE LA PLACE
+
+Continue avec :
+
+1. statistiques implicites du design
+2. probabilités de combos dangereux
+3. équivalences de puissance entre effets
+4. ratios stats / effets
+5. matrices probabilistes possibles
+6. statistiques de méta théorique
+7. paramètres pour simulation de 1 million de parties
+
+Utilise tout l’espace disponible pour récupérer les données numériques du système.
+
+Voici l’**extraction complète finale des informations restantes**, centrée sur les éléments **non encore formalisés** dans les extraits précédents.
+Je n’y répète pas le socle déjà documenté, sauf quand c’est nécessaire pour fixer une ambiguïté.
+
+---
+
+# EXTRACTION FINALE — INFORMATIONS IMPLICITES, PARAMÈTRES ET RÈGLES RESTANTES
+
+## SECTION 1 — RÈGLES IMPLICITES NON DOCUMENTÉES
+
+### 1.1 Empilement des buffs et debuffs d’attaque
+
+[Reconstruction forte]
+
+Les pions buff et debuff existent comme **contreparties structurelles**. Le moteur a déjà montré une logique de `+1 attack` et `-1 attack` adjacents. La règle implicite la plus cohérente est :
+
+```text
+un buff d’attaque et un debuff d’attaque se compensent algébriquement
+attaque finale = attaque de base + bonus alliés - malus ennemis
+attaque minimale = 1
+```
+
+Règle implicite supplémentaire nécessaire :
+
+```text
+les buffs/debuffs de même type ne doivent probablement pas se stacker sans limite
+```
+
+La version la plus saine est :
+
+```text
+un seul buff de même nature compte
+un seul debuff de même nature compte
+```
+
+Sinon la ligne de pions devient le vrai moteur dominant du jeu au lieu d’un support tactique.
+
+---
+
+### 1.2 Ordre implicite attaque → mort → prise de case
+
+[Reconstruction forte]
+
+La logique observée dans le prototype et les règles énoncées implique :
+
+```text
+1. calcul dégâts
+2. application dégâts
+3. si HP <= 0, suppression de la pièce cible
+4. l’attaquant prend la case
+5. increment kills
+6. check promotion
+```
+
+Si la cible survit :
+
+```text
+pas de prise de case
+```
+
+---
+
+### 1.3 Promotion : moment exact d’entrée en jeu
+
+[Explicite + Reconstruction forte]
+
+Explicite :
+
+* pièce promue n’attaque pas immédiatement
+* elle brawl et contrôle immédiatement
+
+Donc la règle implicite complète est :
+
+```text
+promotion résolue immédiatement à l’événement déclencheur
+la nouvelle pièce remplace le pion sur la case
+état initial:
+  canAttack = false
+  zone de contrôle = active
+  brawl eligibility = active
+au tour suivant:
+  canAttack = true
+```
+
+---
+
+### 1.4 Interaction promotion / kill de promotion
+
+[Hypothèse plausible]
+
+Si un pion tue sa 3e pièce et se promeut immédiatement, la capture ayant causé la promotion est déjà résolue. Donc :
+
+```text
+la promotion n’annule pas la capture précédente
+```
+
+La promotion ne doit pas déclencher une nouvelle prise de case ou une seconde attaque.
+
+---
+
+### 1.5 Interaction invocation / case occupée
+
+[Reconstruction forte]
+
+Une invocation ne peut apparaître que :
+
+```text
+sur case libre
+adjacente à l’invocateur
+```
+
+Si la case ciblée devient occupée avant validation, l’invocation échoue.
+
+---
+
+### 1.6 Interaction invocation / promotion
+
+[Hypothèse plausible]
+
+Les invocations étant décrites comme non-XP et non-promouvables, la règle la plus cohérente est :
+
+```text
+les invocations ne peuvent pas être promues
+même si elles atteignent le fond
+même si elles tuent
+```
+
+---
+
+### 1.7 Interaction root / cavalier
+
+[Explicite]
+
+Le cavalier peut subir `root`.
+Mais :
+
+```text
+root n’altère pas son pattern
+root bloque seulement son action/mouvement pendant la durée
+```
+
+Donc distinction implicite importante :
+
+```text
+effet d’état qui empêche d’agir = autorisé
+modification de pattern / portée / nombre de cases = interdit
+```
+
+---
+
+### 1.8 Interaction BRAWL / pièces promues
+
+[Explicite]
+
+Une pièce promue :
+
+```text
+ne peut pas attaquer
+mais participe au brawl
+et contrôle
+```
+
+Donc le moteur doit dissocier :
+
+```text
+canAttack
+canBrawl
+canControl
+```
+
+---
+
+### 1.9 Interaction sorts / BRAWL
+
+[Reconstruction forte]
+
+Les sorts peuvent modifier l’état du plateau **avant** résolution du BRAWL, mais ne remplacent pas le BRAWL.
+Règle implicite nécessaire :
+
+```text
+si un sort tue une pièce avant le brawl, cette pièce n’existe plus pour le brawl
+si un sort root une pièce, elle peut encore compter comme pièce contrôlante si sa zone existe, mais pas comme attaquant actif
+```
+
+Version la plus stable :
+
+```text
+root retire la capacité de générer des mouvements/attaques actifs pour le tour
+donc réduit son rôle d’attaquant dans le BRAWL
+mais ne retire pas sa présence physique
+```
+
+---
+
+### 1.10 Interaction rareté / buffs / debuffs
+
+[Reconstruction forte]
+
+La rareté donne surtout :
+
+```text
+petit bonus de robustesse ou valeur
+pas une rupture de rôle
+```
+
+Donc un pion rare buff ou debuff n’est pas censé être à la fois :
+
+* meilleur en stats
+* meilleur en effet
+* meilleur en scaling
+
+La logique implicite saine est :
+
+```text
+si effet fort → stats réduites
+si effet faible → stats standard ou boost léger
+```
+
+Tu l’as d’ailleurs explicitement validé pour les pions :
+
+* certains pions à capacité ont moins de stats
+* d’autres rares ont un boost
+
+---
+
+### 1.11 Couleur/camp immuables
+
+[Reconstruction forte]
+
+Après bug observé, règle implicite fondamentale :
+
+```text
+une pièce ne change jamais de couleur/camp après création
+sauf si un futur effet de contrôle mental est ajouté
+```
+
+Aujourd’hui aucun système ne supporte ce changement. Donc l’état `color` doit être immuable.
+
+---
+
+### 1.12 Unicité des entités
+
+[Reconstruction forte]
+
+Les problèmes de disparition/apparition ont montré qu’il faut une règle moteur non négociable :
+
+```text
+chaque pièce a un identifiant unique immuable
+tous les liens (invocation, telemetry, suppression) passent par cet id
+```
+
+---
+
+## SECTION 2 — PARAMÈTRES NUMÉRIQUES IMPLICITES
+
+### 2.1 Limite de stack buff/debuff
+
+[Hypothèse plausible]
+
+Valeur la plus saine :
+
+```text
+max 1 buff d’attaque actif
+max 1 debuff d’attaque actif
+```
+
+Alternative tolérable :
+
+```text
+cap total +2 / -2
+```
+
+Mais vu la philosophie du jeu, la meilleure reconstruction reste :
+
+```text
+non-stack par type
+```
+
+---
+
+### 2.2 Limite de sorts par partie en mode classic
+
+[Explicite]
+
+```text
+1 sort max / tour
+3 sorts max / partie
+```
+
+---
+
+### 2.3 Limite d’invocations par pièce
+
+[Explicite]
+
+```text
+1 capacité summon max par pièce
+```
+
+---
+
+### 2.4 Limite implicite d’invocations totales par joueur
+
+[Hypothèse plausible]
+
+Même si non explicitement fixée, une borne prudente nécessaire pour le moteur complet serait :
+
+```text
+max 3 à 5 invocations simultanées par joueur
+```
+
+Sans ça, flooding de plateau probable.
+
+---
+
+### 2.5 Variation acceptable de puissance par rareté
+
+[Reconstruction forte]
+
+À partir des discussions :
+
+* les rares sont meilleures
+* mais pas au point de casser la structure échecs
+
+Estimation plausible :
+
+```text
+Common = baseline
+Uncommon = baseline + 10–15%
+Rare = baseline + 20–30%
+```
+
+Pas plus, sinon le draft devient “ramasse tous les rares”.
+
+---
+
+### 2.6 Nombre moyen d’effets par pièce
+
+[Reconstruction forte]
+
+Le jeu reste lisible si :
+
+```text
+Common : 0 à 1 effet
+Uncommon : 1 effet
+Rare : 1 effet principal + 1 petit modificateur max
+```
+
+---
+
+### 2.7 Ratio d’apparition des capacités dans les sets
+
+[Reconstruction forte]
+
+Pour conserver lisibilité :
+
+```text
+sur un set roi:
+king = 1 capacité / identité forte
+queen = puissance surtout spatiale
+rook/knight/bishop = 0 ou 1 propriété clé
+pawns = 1 buff, 1 debuff, 1 neutre
+```
+
+---
+
+### 2.8 Fréquence cible de promotion
+
+[Hypothèse plausible]
+
+Vu les simulations observées :
+
+* la promotion existe
+* elle n’est pas dominante
+
+Valeur cible saine :
+
+```text
+0.2 à 0.8 promotions par partie
+```
+
+Au-delà de 1.5 promotions par partie, le système devient probablement trop snowball.
+
+---
+
+### 2.9 Durée cible d’une partie
+
+[Reconstruction forte]
+
+Vu les tests :
+
+```text
+classic draft : 40 à 80 demi-tours simulés
+jeu réel humain : 10 à 25 minutes
+```
+
+---
+
+### 2.10 Taille visuelle de croissance par kill
+
+[Explicite + Reconstruction]
+
+Le prototype a appliqué une croissance modérée. Valeur plausible :
+
+```text
++8% de taille par kill
+cap à +40%
+```
+
+---
+
+## SECTION 3 — STRUCTURE DE DONNÉES INTERNE
+
+### 3.1 `piece`
+
+[Reconstruction forte]
+
+```json
+{
+  "id": 123,
+  "type": "pawn|knight|bishop|rook|queen|king",
+  "color": "white|black",
+  "x": 0,
+  "y": 0,
+  "hp": 2,
+  "kills": 0,
+  "rooted": 0,
+  "promoted": false,
+  "canAttack": true,
+  "canBrawl": true,
+  "canControl": true,
+  "invokerId": null,
+  "buff": null,
+  "debuff": null,
+  "hero": null,
+  "summonUsed": false,
+  "rarity": "C|U|R",
+  "faction": "Empire|Pirates|Sylvan|Swarm|Barbarian|Marshal|Neutral",
+  "setId": "Empire_tank",
+  "side": "white|black",
+  "tags": []
+}
+```
+
+---
+
+### 3.2 `card`
+
+[Reconstruction forte]
+
+```json
+{
+  "name": "Fire",
+  "type": "damage|heal|chain|root|summon",
+  "value": 2,
+  "range": 3,
+  "rarity": "C|U|R",
+  "cardType": "spell|promotion|heroPower",
+  "summonLimit": 1,
+  "faction": "Empire",
+  "geometry": "single|adjacent|chain",
+  "targetRule": "ally|enemy|empty_adjacent",
+  "charges": 1
+}
+```
+
+---
+
+### 3.3 `effect`
+
+[Reconstruction forte]
+
+```json
+{
+  "id": "effect_root",
+  "kind": "buff|debuff|damage|heal|summon|status",
+  "stat": "attack|hp|movement|none",
+  "value": 1,
+  "duration": 1,
+  "stacking": "none|replace|cap",
+  "sourcePieceId": 10,
+  "sourceCard": "Root",
+  "timing": "instant|turn_end|brawl_only"
+}
+```
+
+---
+
+### 3.4 `ability`
+
+[Reconstruction forte]
+
+```json
+{
+  "name": "Summon",
+  "trigger": "active|onKill|onPromote|passive",
+  "limitPerPiece": 1,
+  "target": "adjacentEmpty|enemy|ally|self",
+  "effectRef": "effect_summon_pawn"
+}
+```
+
+---
+
+### 3.5 `faction`
+
+[Reconstruction forte]
+
+```json
+{
+  "name": "Empire",
+  "identity": "buff / defense",
+  "kings": ["Empire_tank", "Empire_tactician", "Empire_mage"],
+  "themeEffects": ["buff", "structure", "armor"],
+  "colorHint": "blue/gold"
+}
+```
+
+---
+
+### 3.6 `set`
+
+[Reconstruction forte]
+
+```json
+{
+  "setId": "Empire_tank",
+  "faction": "Empire",
+  "heroType": "tank",
+  "king": {"type":"king","rarity":"R","hero":"tank"},
+  "queen": {"type":"queen","rarity":"U"},
+  "rook": {"type":"rook","rarity":"C"},
+  "knight": {"type":"knight","rarity":"U"},
+  "bishop": {"type":"bishop","rarity":"C"},
+  "pawns": [
+    {"type":"pawn","rarity":"C","buff":"attack"},
+    {"type":"pawn","rarity":"U","debuff":"attack"},
+    {"type":"pawn","rarity":"R"}
+  ]
+}
+```
+
+---
+
+### 3.7 `draftPool`
+
+[Reconstruction forte]
+
+```json
+{
+  "poolId": "match_001_pool",
+  "factionsSelected": ["Empire", "Pirates"],
+  "items": [],
+  "counts": {"R": 0, "U": 0, "C": 0}
+}
+```
+
+Chaque item :
+
+```json
+{
+  "label": "Empire tank king",
+  "type": "king",
+  "rarity": "R",
+  "hero": "tank",
+  "faction": "Empire",
+  "setId": "Empire_tank"
+}
+```
+
+---
+
+### 3.8 `matchState`
+
+[Reconstruction forte]
+
+```json
+{
+  "turn": "white",
+  "turnCount": 12,
+  "spellTurn": 0,
+  "spellGameWhite": 2,
+  "spellGameBlack": 1,
+  "activeCard": null,
+  "selectedPieceId": 42,
+  "pieces": [],
+  "winner": null,
+  "mode": "classic|magic",
+  "brawlPending": false
+}
+```
+
+---
+
+### 3.9 `telemetry`
+
+[Reconstruction forte]
+
+```json
+{
+  "metrics": {
+    "turns": 0,
+    "captures": 0,
+    "spellsCast": 0,
+    "promotions": 0,
+    "brawls": 0,
+    "summons": 0,
+    "whiteWins": 0,
+    "blackWins": 0,
+    "batchRuns": 0
+  },
+  "events": [
+    {
+      "t": "14:49:21",
+      "k": "capture",
+      "v": "queen>bishop"
+    }
+  ]
+}
+```
+
+---
+
+## SECTION 4 — SYSTÈMES DE PRIORITÉ ET RÉSOLUTION
+
+### 4.1 Résolution d’une action de pièce
+
+[Reconstruction forte]
+
+Ordre probable :
+
+```text
+1. validation du mouvement
+2. si cible ennemie:
+   a. calcul dégâts
+   b. application dégâts
+   c. suppression si mort
+   d. prise de case
+   e. kill++
+   f. check promotion
+3. si case vide:
+   déplacement simple
+4. mise à jour état visuel/télémétrie
+```
+
+---
+
+### 4.2 Résolution d’un sort
+
+[Reconstruction forte]
+
+```text
+1. validation de cible
+2. validation des limites (1/tour, 3/partie)
+3. application effet principal
+4. application éventuels effets secondaires (chain)
+5. nettoyage morts
+6. consommation du sort
+7. reset sélection
+```
+
+---
+
+### 4.3 Résolution d’une invocation
+
+[Reconstruction forte]
+
+```text
+1. pièce invocatrice sélectionnée
+2. vérifier summonUsed == false
+3. vérifier case adjacente libre
+4. créer pièce invoquée
+5. assigner invokerId = id invocateur
+6. summonUsed = true
+7. incrément métriques
+```
+
+---
+
+### 4.4 Résolution d’une mort
+
+[Reconstruction forte]
+
+Ordre probable :
+
+```text
+1. HP <= 0
+2. retirer pièce
+3. chercher invocations liées
+4. retirer invocations liées
+5. log + telemetry
+```
+
+---
+
+### 4.5 Résolution du BRAWL
+
+[Reconstruction forte]
+
+```text
+1. snapshot des pièces
+2. pour chaque cible:
+   a. calcul attackers
+   b. calcul defenders
+   c. cas spécial chevalier sur pion non défendu
+   d. si condition remplie, appliquer dégâts de brawl
+3. nettoyage morts
+4. telemetry
+```
+
+---
+
+### 4.6 Simultanéité
+
+[Hypothèse plausible]
+
+Le système actuel semble plutôt **quasi-séquentiel avec snapshot** qu’en simultané pur.
+
+Donc règle saine :
+
+```text
+BRAWL = lecture simultanée, écriture séquentielle sur snapshot
+```
+
+Ça évite les doubles effets incohérents.
+
+---
+
+### 4.7 Priorité des suppressions
+
+[Reconstruction forte]
+
+```text
+les suppressions doivent être appliquées après la phase de calcul locale
+```
+
+Sinon disparition prématurée et incohérences.
+
+---
+
+## SECTION 5 — MÉCANIQUES DE BALANCE IMPLICITES
+
+### 5.1 Les pièces très fortes doivent être rares
+
+[Explicite + Reconstruction]
+
+But :
+
+```text
+éviter les armées homogènes premium
+```
+
+---
+
+### 5.2 Les sorts sont limités
+
+[Explicite]
+
+But :
+
+```text
+préserver l’ADN échecs
+empêcher le jeu de devenir un TCG pur
+```
+
+---
+
+### 5.3 La promotion est retardée
+
+[Explicite]
+
+But :
+
+```text
+éviter les swings absurdes
+```
+
+---
+
+### 5.4 Les invocations sont liées à leur invocateur
+
+[Explicite]
+
+But :
+
+```text
+éviter le board flooding persistant
+```
+
+---
+
+### 5.5 Le cavalier a une identité stable
+
+[Explicite + Reconstruction]
+
+But :
+
+```text
+préserver le rôle de tempo / centre / escarmouche
+```
+
+---
+
+### 5.6 Buff et debuff doivent exister en miroir
+
+[Explicite]
+
+But :
+
+```text
+éviter les structures unilatérales
+```
+
+---
+
+### 5.7 Les pions peuvent être déséquilibrés, mais volontairement
+
+[Explicite]
+
+But :
+
+```text
+créer des structures de pions différentes
+```
+
+Mais en gardant le tradeoff stats/effet.
+
+---
+
+## SECTION 6 — SYSTÈMES NON DÉCRITS MAIS NÉCESSAIRES
+
+### 6.1 Validation de draft
+
+[Reconstruction forte]
+
+Il faut un système qui garantit que chaque joueur finit avec :
+
+```text
+1 king
+1 queen
+1 rook template
+1 knight template
+1 bishop template
+3 pawns template
+```
+
+Sinon construction d’armée cassée.
+
+---
+
+### 6.2 Gestion de fin de partie
+
+[Reconstruction forte]
+
+Quand un roi meurt :
+
+```text
+stop partie
+stop IA batch pour cette partie
+log winner
+```
+
+---
+
+### 6.3 Gestion des tours maximum
+
+[Hypothèse plausible]
+
+Pour batch IA, une limite dure est nécessaire :
+
+```text
+60 à 100 demi-tours
+```
+
+Sinon boucles infinies possibles.
+
+---
+
+### 6.4 Sauvegarde / export d’état
+
+[Hypothèse plausible]
+
+Le moteur complet a besoin d’un export JSON :
+
+* état plateau
+* draft
+* métriques
+* événement en cours
+
+---
+
+### 6.5 Validation d’intégrité du plateau
+
+[Reconstruction forte]
+
+À chaque tick :
+
+* pas deux pièces sur la même case
+* toutes les pièces ont une couleur valide
+* toutes les coordonnées sont dans le board
+* tous les `invokerId` référencent une pièce existante ou déclenchent cleanup
+
+---
+
+## SECTION 7 — CAS LIMITES
+
+### 7.1 Roi tué pendant un BRAWL
+
+[Reconstruction forte]
+
+Résolution probable :
+
+```text
+la partie s’arrête immédiatement
+winner = camp opposé
+```
+
+---
+
+### 7.2 Double promotion simultanée
+
+[Hypothèse plausible]
+
+Si deux pions atteignent la condition dans la même phase, chaque promotion se résout indépendamment sur snapshot.
+Ordre recommandé :
+
+```text
+résolution dans l’ordre des actions du tour
+puis dans l’ordre de scan du plateau si simultané strict
+```
+
+---
+
+### 7.3 Invocation sur case devenue occupée
+
+[Reconstruction forte]
+
+```text
+échec de l’invocation
+pas de création
+pas de consommation si validation avant résolution
+ou consommation si design veut punir l’erreur
+```
+
+Version la plus saine pour prototype :
+
+```text
+pas de résolution, pas d’invocation
+```
+
+---
+
+### 7.4 Buff et debuff ramenant l’attaque à 0
+
+[Reconstruction forte]
+
+```text
+attaque minimale = 1
+```
+
+---
+
+### 7.5 Promotion d’un pion invoqué
+
+[Hypothèse plausible]
+
+Doit être interdite.
+
+---
+
+### 7.6 Invocateur meurt après avoir invoqué, pendant même résolution
+
+[Reconstruction forte]
+
+Les invocations liées disparaissent dès le cleanup.
+
+---
+
+### 7.7 Pièce promue ciblée par sort avant son premier vrai tour
+
+[Hypothèse plausible]
+
+Autorisé. Son interdiction porte seulement sur `canAttack`, pas sur sa vulnérabilité.
+
+---
+
+### 7.8 Cavalier rooté pendant qu’il compte comme défenseur
+
+[Hypothèse plausible]
+
+Version la plus cohérente :
+
+* il ne peut pas agir
+* il garde sa présence spatiale
+* mais comme le moteur calcule défense via `getMoves`, il ne compterait plus comme défenseur s’il est rooté
+
+Il faut choisir explicitement. La reconstruction la plus probable côté prototype :
+
+```text
+root retire aussi sa contribution défensive active
+```
+
+---
+
+## SECTION 8 — HEURISTIQUES DU DESIGNER
+
+### 8.1 Une pièce doit avoir un rôle clair
+
+[Reconstruction forte]
+
+Exemples implicites :
+
+* reine = portée / finisher
+* cavalier = tempo / escarmouche / centre
+* pion = structure / promotion / buff-debuff
+
+---
+
+### 8.2 Le jeu doit rester “échecs d’abord”
+
+[Explicite + Reconstruction]
+
+Tout ce qui menace cela est limité :
+
+* sorts
+* invocations
+* contrôle dur
+* snowball de promotion
+
+---
+
+### 8.3 Les communes doivent être lisibles
+
+[Reconstruction forte]
+
+Les C servent de baseline.
+Les U enrichissent.
+Les R marquent l’identité.
+
+---
+
+### 8.4 Les effets globaux doivent être rares ou absents
+
+[Reconstruction forte]
+
+Raison :
+
+```text
+lisibilité du plateau
+préservation de la spatialité
+```
+
+---
+
+### 8.5 Les systèmes asymétriques doivent toujours avoir un contrepoids
+
+[Explicite]
+
+Exemple direct :
+
+```text
+pawn buff ↔ pawn debuff
+```
+
+---
+
+### 8.6 Les rares doivent être forts, mais pas “hors jeu”
+
+[Reconstruction forte]
+
+Pas de “I win button”.
+Seulement plus de valeur ou de souplesse.
+
+---
+
+## SECTION 9 — PARAMÈTRES DE SIMULATION IA
+
+### 9.1 Heuristique de capture
+
+[Explicite via prototype + Reconstruction]
+
+Poids fort :
+
+```text
+score += valeur de la pièce cible * 10
+```
+
+---
+
+### 9.2 Contrôle du centre
+
+[Explicite via prototype]
+
+```text
+score += bonus de centralité
+```
+
+---
+
+### 9.3 Priorité roi
+
+[Explicite via prototype]
+
+```text
+si cible = roi
+score += énorme bonus
+```
+
+---
+
+### 9.4 Priorité cavalier sur pion isolé
+
+[Explicite via prototype]
+
+```text
+si knight attaque pion non défendu
+score += bonus spécifique
+```
+
+---
+
+### 9.5 Profondeur de calcul
+
+[Hypothèse plausible]
+
+Le prototype joue en profondeur 1.
+Pour simulateur avancé, profondeur utile :
+
+```text
+1 pour batch massifs
+2–3 pour analyses ciblées
+```
+
+---
+
+### 9.6 Paramètres IA recommandés
+
+[Reconstruction forte]
+
+```text
+captureWeight = 10
+centerWeight = 1 à 3
+kingThreatWeight = 100
+undefendedPawnKnightBonus = 15
+promotionPotentialWeight = 5 à 12
+survivalWeight = 3 à 8
+```
+
+---
+
+## SECTION 10 — STRUCTURE MÉTA DU JEU
+
+### 10.1 Opening
+
+[Reconstruction forte]
+
+Le jeu encourage :
+
+* sortie de pions centraux
+* activation des fous
+* mise en valeur des cavaliers
+* préparation des structures buff/debuff
+
+---
+
+### 10.2 Midgame
+
+[Reconstruction forte]
+
+Point fort du système :
+
+* combats partiels
+* brawls
+* menaces sur pions spéciaux
+* premiers trades de reines/tours
+* sorts limités utilisés pour casser la structure
+
+---
+
+### 10.3 Endgame
+
+[Reconstruction forte]
+
+Le endgame attendu met en avant :
+
+* roi actif
+* pions survivants
+* promotions
+* contrôle de l’espace plus que volume de sorts
+
+---
+
+### 10.4 Importance du centre
+
+[Explicite + Reconstruction]
+
+Très forte, surtout pour :
+
+* cavalier
+* reines
+* pression de brawl
+* mobilité des pièces rares
+
+---
+
+### 10.5 Pression de BRAWL
+
+[Reconstruction forte]
+
+Le BRAWL sert de force anti-stagnation :
+
+* sanction des pièces avancées sans couverture
+* mise en valeur de la défense
+* rôle spécial du cavalier
+
+---
+
+## SECTION 11 — SYSTÈMES FUTURS PROBABLES
+
+### 11.1 Terrain
+
+[Explicite auparavant, non stabilisé]
+
+Compatible avec :
+
+* cases forest
+* cases lava
+* ice
+* hill
+
+Intégration probable :
+
+```text
+tile.effect
+tile.duration
+tile.blocking
+```
+
+---
+
+### 11.2 Structures / backline unit / sort héro
+
+[Explicite dans les discussions]
+
+Le système a fluctué entre :
+
+* unité de backline
+* sort propre du héros
+
+Intégration future probable :
+
+```text
+heroAbility ou heroStructure lié(e) au roi
+```
+
+---
+
+### 11.3 Sideboard de promotion complet
+
+[Explicite dans l’intention]
+
+Aujourd’hui promotion → reine.
+Version finale probable :
+
+```text
+promotionChoice = queen / rook / bishop / knight / promo spéciale
+```
+
+---
+
+### 11.4 Magic mode plus riche
+
+[Explicite]
+
+Avec :
+
+* mana
+* boosters de sorts
+* économie
+* plusieurs sorts
+
+---
+
+### 11.5 Générateur RNG plus poussé
+
+[Explicite]
+
+Inclura probablement :
+
+* validation budgets
+* anti-abus
+* contrôle des distributions C/U/R
+* tirage pondéré par faction
+
+---
+
+## SECTION 12 — PARAMÈTRES COMPLETS POUR RECONSTRUIRE LE JEU
+
+### 12.1 Paramètres noyau
+
+```text
+boardSize = 8x8
+winCondition = kill king
+turnMode = alternate
+classicSpellLimitPerTurn = 1
+classicSpellLimitPerGame = 3
+summonLimitPerPiece = 1
+promotionByKills = 3
+promotionByBackRank = true
+promotionCanAttackImmediately = false
+promotionCanBrawlImmediately = true
+promotionCanControlImmediately = true
+knightCountsAsTwoDefenders = true
+knightPatternModifiable = false
+attackMinimum = 1
+```
+
+---
+
+### 12.2 Stats de base
+
+```text
+King HP 5 / ATK 1
+Queen HP 4 / ATK 2
+Rook HP 4 / ATK 2
+Bishop HP 3 / ATK 2
+Knight HP 3 / ATK 2
+Pawn HP 2 / ATK 1
+```
+
+---
+
+### 12.3 Rareté
+
+```text
+Rarity = C | U | R
+RareHPBonus ≈ +1 hp sur certaines pièces
+RareATKBonus ≈ +1 dans certains calculs ou via rôle
+Uncommon = intermédiaire
+```
+
+---
+
+### 12.4 Set par roi
+
+```text
+King
+Queen
+Rook
+Knight
+Bishop
+Pawn buff
+Pawn debuff
+Pawn neutre
+```
+
+---
+
+### 12.5 Construction armée
+
+```text
+backline = rook knight bishop queen king bishop knight rook
+frontline = 8 pawns
+```
+
+Les templates draftés déterminent les doublons.
+
+---
+
+### 12.6 Buff/debuff
+
+```text
+buff attack = +1 adjacent ally
+debuff attack = -1 adjacent enemy
+stacking = probablement cap 1 par type
+```
+
+---
+
+### 12.7 Sorts classic
+
+```text
+Fire = damage 2
+Heal = heal 2
+Chain = damage 2 primary + 1 adjacent enemies
+Root = rooted 1 turn
+Summon = spawn pawn on adjacent free tile
+```
+
+---
+
+### 12.8 BRAWL
+
+```text
+trigger if attackers > defenders
+or knight escarmish on undefended pawn
+brawlDamage = max(1, atkValue - 1)
+resolution = snapshot-based
+```
+
+---
+
+### 12.9 Télémétrie minimum
+
+```text
+turns
+captures
+spellsCast
+promotions
+brawls
+summons
+whiteWins
+blackWins
+batchRuns
+eventLog[]
+```
+
+---
+
+### 12.10 Validations moteur indispensables
+
+```text
+unique piece ids
+no two pieces same tile
+piece color immutable
+invocations linked by invokerId
+cleanup after all lethal damage
+draft must contain required piece templates
+```
+
+---
+
+Cette extraction complète couvre les **règles implicites, structures internes, paramètres numériques, cas limites, priorités de résolution et heuristiques de design** nécessaires pour qu’une autre IA puisse reconstruire le système sans dépendre du reste de la conversation.
+
+# TACTICAL CHESS TCG — PLAN D’IMPLÉMENTATION TECHNIQUE JS V1
+
+---
+
+## SECTION 1 — ARCHITECTURE DES MODULES
+
+Architecture cible en JavaScript, orientée moteur pur + adaptateur UI.
+
+---
+
+### 1. `constants`
+
+**Rôle**
+Centraliser toutes les constantes du moteur.
+
+**Données possédées**
+
+* taille du plateau
+* stats de base des pièces
+* limites de sorts
+* limites d’invocation
+* valeurs de rareté
+* limites batch / tours
+
+**Fonctions exportées**
+
+* `BOARD_SIZE`
+* `PIECE_STATS`
+* `SPELL_LIMITS`
+* `SUMMON_LIMITS`
+* `RARITY_VALUES`
+* `MAX_TURNS`
+
+**Dépendances**
+Aucune.
+
+---
+
+### 2. `pieceModel`
+
+**Rôle**
+Définir la structure canonique d’une pièce et sa factory.
+
+**Données possédées**
+
+* shape de `Piece`
+* compteur global d’IDs ou utilitaire d’ID
+
+**Fonctions exportées**
+
+* `createPiece(type, color, x, y, opts = {})`
+* `clonePiece(piece)`
+* `isPieceAlive(piece)`
+
+**Dépendances**
+
+* `constants`
+
+---
+
+### 3. `boardState`
+
+**Rôle**
+Fonctions utilitaires de lecture/écriture du plateau et de l’état global.
+
+**Données possédées**
+
+* aucune persistante, opère sur `state`
+
+**Fonctions exportées**
+
+* `createInitialState()`
+* `getPieceAt(state, x, y)`
+* `findPieceById(state, pieceId)`
+* `setPiecePosition(state, pieceId, x, y)`
+* `removePieceById(state, pieceId)`
+* `isInBounds(x, y)`
+* `getAdjacentCoords(x, y)`
+
+**Dépendances**
+
+* `constants`
+
+---
+
+### 4. `movementRules`
+
+**Rôle**
+Calcul des mouvements légaux des pièces.
+
+**Données possédées**
+
+* aucune
+
+**Fonctions exportées**
+
+* `getMoves(state, piece)`
+* `getPawnMoves(state, piece)`
+* `getKnightMoves(state, piece)`
+* `getSlidingMoves(state, piece, directions)`
+* `canMoveTo(state, piece, x, y)`
+
+**Dépendances**
+
+* `boardState`
+* `constants`
+
+---
+
+### 5. `combatRules`
+
+**Rôle**
+Gestion des attaques, dégâts, captures, prise de case, kills.
+
+**Données possédées**
+
+* aucune persistante
+
+**Fonctions exportées**
+
+* `computeAttackValue(state, attacker, target)`
+* `resolveAttack(state, attackerId, targetId)`
+* `resolveMove(state, pieceId, x, y)`
+* `applyDamage(state, pieceId, amount)`
+
+**Dépendances**
+
+* `boardState`
+* `movementRules`
+* `cleanupValidation`
+* `promotionRules`
+* `telemetry`
+
+---
+
+### 6. `spellRules`
+
+**Rôle**
+Résolution des sorts non-summon.
+
+**Données possédées**
+
+* liste des sorts V1 si gérée ici
+
+**Fonctions exportées**
+
+* `resolveSpell(state, casterId, card, target)`
+* `canCastSpell(state, playerColor, card)`
+* `applySpellEffect(state, card, target)`
+
+**Dépendances**
+
+* `boardState`
+* `cleanupValidation`
+* `telemetry`
+* `summonRules` (si sort summon routé ici)
+* `constants`
+
+---
+
+### 7. `summonRules`
+
+**Rôle**
+Gestion dédiée aux invocations.
+
+**Données possédées**
+
+* aucune persistante
+
+**Fonctions exportées**
+
+* `resolveSummon(state, invokerId, x, y)`
+* `canSummon(state, invoker, x, y)`
+* `countActiveSummons(state, color)`
+* `removeLinkedSummons(state, invokerId)`
+
+**Dépendances**
+
+* `pieceModel`
+* `boardState`
+* `cleanupValidation`
+* `telemetry`
+* `constants`
+
+---
+
+### 8. `promotionRules`
+
+**Rôle**
+Vérifier et appliquer les promotions.
+
+**Données possédées**
+
+* règles de promotion V1
+
+**Fonctions exportées**
+
+* `checkPromotionByKills(piece)`
+* `checkPromotionByBackRank(piece)`
+* `resolvePromotion(state, pawnId, cause)`
+* `canPromote(piece)`
+
+**Dépendances**
+
+* `constants`
+* `boardState`
+* `telemetry`
+
+---
+
+### 9. `brawlRules`
+
+**Rôle**
+Calcul et résolution du BRAWL.
+
+**Données possédées**
+
+* aucune persistante
+
+**Fonctions exportées**
+
+* `resolveBrawl(state)`
+* `getAttackersOf(state, target)`
+* `getDefendersOf(state, target)`
+* `isUndefendedPawn(state, piece)`
+* `chooseBrawlAttacker(attackers)`
+
+**Dépendances**
+
+* `movementRules`
+* `combatRules` (ou seulement `computeAttackValue`)
+* `cleanupValidation`
+* `telemetry`
+
+---
+
+### 10. `cleanupValidation`
+
+**Rôle**
+Nettoyage des pièces mortes, suppression des invocations liées, validation d’intégrité.
+
+**Données possédées**
+
+* aucune persistante
+
+**Fonctions exportées**
+
+* `cleanupDeaths(state)`
+* `validateBoardState(state)`
+* `validateUniqueIds(state)`
+* `validateNoDuplicateTiles(state)`
+* `validateImmutableColors(state)` (en pratique comparaison si historique dispo)
+* `validateInvokerLinks(state)`
+
+**Dépendances**
+
+* `boardState`
+* `telemetry`
+
+---
+
+### 11. `draftGeneration`
+
+**Rôle**
+Générer les sets, le pool RNG et les picks draft.
+
+**Données possédées**
+
+* définitions de factions
+* définition de matrices C/U/R par roi
+
+**Fonctions exportées**
+
+* `generateFactionSets(factions, heroArchetypes)`
+* `generateRNGDraftPool(factions, sets, rng)`
+* `sortDraftPool(pool)`
+* `draftPick(state, poolIndex, color)`
+* `autoDraftSimple(state)` (temporaire/test)
+
+**Dépendances**
+
+* `constants`
+* `telemetry`
+
+---
+
+### 12. `armyBuilding`
+
+**Rôle**
+Construire les armées complètes à partir des drafts.
+
+**Données possédées**
+
+* règles de conversion template → armée complète
+
+**Fonctions exportées**
+
+* `buildArmyFromDraft(state, whiteDraft, blackDraft)`
+* `buildSide(state, color, backRank, pawnRank, picks)`
+* `instantiatePieceFromTemplate(template, color, x, y)`
+
+**Dépendances**
+
+* `pieceModel`
+* `cleanupValidation`
+* `telemetry`
+
+---
+
+### 13. `telemetry`
+
+**Rôle**
+Journalisation et métriques.
+
+**Données possédées**
+
+* structure standard des events
+* helpers metrics
+
+**Fonctions exportées**
+
+* `addTelemetry(state, key, value)`
+* `logMessage(state, message)`
+* `incrementMetric(state, metricName, amount = 1)`
+* `exportTelemetry(state)`
+
+**Dépendances**
+
+* aucune ou très peu
+
+---
+
+### 14. `aiSimulation`
+
+**Rôle**
+IA de jeu et simulation batch.
+
+**Données possédées**
+
+* profils IA
+* poids heuristiques
+
+**Fonctions exportées**
+
+* `chooseAIMove(state, color, profile = "balanced")`
+* `aiMove(state, profile)`
+* `runAIBatch(config)`
+* `scoreMove(state, piece, move, profile)`
+
+**Dépendances**
+
+* `movementRules`
+* `combatRules`
+* `brawlRules`
+* `spellRules`
+* `promotionRules`
+* `cleanupValidation`
+* `telemetry`
+
+---
+
+### 15. `gameLoop`
+
+**Rôle**
+Machine à états du tour.
+
+**Données possédées**
+
+* aucune persistante hors `state`
+
+**Fonctions exportées**
+
+* `startTurn(state)`
+* `endTurn(state)`
+* `detectWinner(state)`
+* `playTurnAction(state, action)`
+* `advanceGameState(state)`
+
+**Dépendances**
+
+* `combatRules`
+* `spellRules`
+* `summonRules`
+* `promotionRules`
+* `brawlRules`
+* `cleanupValidation`
+* `telemetry`
+
+---
+
+### 16. `uiAdapter`
+
+**Rôle**
+Faire le pont entre moteur pur et DOM HTML.
+
+**Données possédées**
+
+* références DOM
+* mapping UI ↔ actions moteur
+
+**Fonctions exportées**
+
+* `renderBoard(state)`
+* `renderHand(state)`
+* `renderLogs(state)`
+* `renderTelemetry(state)`
+* `bindUIActions(state, dispatch)`
+* `highlightMoves(state, pieceId)`
+
+**Dépendances**
+
+* tout le moteur via une API de façade
+* aucune logique métier lourde ne doit rester ici
+
+---
+
+## SECTION 2 — ORDRE D’IMPLÉMENTATION
+
+Ordre recommandé pour coder proprement sans casser la cohérence.
+
+---
+
+### 1. `constants`
+
+**Pourquoi ici**
+Tout le reste dépend des constantes.
+
+**Débloque**
+
+* stats
+* tailles
+* limites
+
+**Ne pas coder avant**
+
+* rien
+
+---
+
+### 2. `pieceModel`
+
+**Pourquoi ici**
+Le moteur repose sur une structure canonique `Piece`.
+
+**Débloque**
+
+* création fiable de pièces
+* IDs uniques
+* instanciation partout
+
+**Ne pas coder avant**
+
+* movement, combat, draft
+
+---
+
+### 3. `boardState`
+
+**Pourquoi ici**
+Toutes les règles ont besoin de lire et écrire le plateau.
+
+**Débloque**
+
+* `getPieceAt`
+* `findPieceById`
+* validation des coordonnées
+
+**Ne pas coder avant**
+
+* movement
+* combat
+* summon
+* cleanup
+
+---
+
+### 4. `cleanupValidation`
+
+**Pourquoi ici**
+La stabilité du moteur dépend d’une validation forte très tôt.
+
+**Débloque**
+
+* sécurité pendant tout le refactor
+* détection des bugs de duplication/disparition
+
+**Ne pas coder avant**
+
+* IA batch
+* draft avancé
+
+---
+
+### 5. `movementRules`
+
+**Pourquoi ici**
+Le mouvement est la base du jeu.
+
+**Débloque**
+
+* sélection de coups
+* attaques
+* BRAWL
+* IA
+
+**Ne pas coder avant**
+
+* combat
+* brawl
+* AI
+
+---
+
+### 6. `combatRules`
+
+**Pourquoi ici**
+Le jeu existe réellement quand on peut attaquer et capturer.
+
+**Débloque**
+
+* kills
+* prise de case
+* progression
+* telemetry capture
+
+**Ne pas coder avant**
+
+* promotion
+* victoire
+* IA
+
+---
+
+### 7. `promotionRules`
+
+**Pourquoi ici**
+Dépend du combat, mais le combat doit déjà l’appeler.
+
+**Débloque**
+
+* kills de pion
+* promotion par fond
+* état `promoted`
+
+**Ne pas coder avant**
+
+* game loop final
+* batch réaliste
+
+---
+
+### 8. `cleanupDeaths`
+
+**Pourquoi ici**
+Après combat + promotion, le nettoyage doit être fiabilisé.
+
+**Débloque**
+
+* suppression des morts
+* suppression des invocations liées
+* winner check fiable
+
+**Ne pas coder avant**
+
+* spells
+* brawl
+* AI
+
+---
+
+### 9. `winner detection` (dans `gameLoop` ou `combatRules`)
+
+**Pourquoi ici**
+Le noyau jouable minimal doit pouvoir se terminer.
+
+**Débloque**
+
+* fin de partie
+* batch tests
+
+**Ne pas coder avant**
+
+* batch
+* UI complète
+
+---
+
+### 10. `turn loop` (`gameLoop`)
+
+**Pourquoi ici**
+Une fois mouvement/combat/promotion/cleanup stables, on fixe la machine à états.
+
+**Débloque**
+
+* séquence officielle du jeu
+* endTurn
+* decrement root
+* BRAWL auto plus tard
+
+**Ne pas coder avant**
+
+* AI
+* UI bridge propre
+
+---
+
+### 11. `spellRules`
+
+**Pourquoi ici**
+Les sorts dépendent du noyau combat/cleanup.
+
+**Débloque**
+
+* classic mode réel
+* compteur de sorts
+
+**Ne pas coder avant**
+
+* movement/combat/cleanup
+
+---
+
+### 12. `summonRules`
+
+**Pourquoi ici**
+Dépend fortement de `pieceModel`, `boardState`, `cleanup`.
+
+**Débloque**
+
+* invocations
+* limites summon
+* tests anti-bug liés aux ids
+
+**Ne pas coder avant**
+
+* cleanup robuste
+
+---
+
+### 13. `brawlRules`
+
+**Pourquoi ici**
+Le BRAWL dépend :
+
+* mouvements
+* attaque
+* cleanup
+* états
+
+**Débloque**
+
+* identité tactique du jeu
+* batch plus crédible
+
+**Ne pas coder avant**
+
+* movement/combat/cleanup
+
+---
+
+### 14. `draftGeneration`
+
+**Pourquoi ici**
+Le gameplay de base doit tourner avant de complexifier le pré-game.
+
+**Débloque**
+
+* génération de pool
+* tests de rareté
+* armées draftées
+
+**Ne pas coder avant**
+
+* pieceModel
+* army building
+
+---
+
+### 15. `armyBuilding`
+
+**Pourquoi ici**
+Utilise les templates draftés pour poser les armées complètes.
+
+**Débloque**
+
+* parties réelles issues du draft
+* batch plus crédible
+
+**Ne pas coder avant**
+
+* draftGeneration
+* pieceModel
+
+---
+
+### 16. `AI simulation`
+
+**Pourquoi ici**
+L’IA dépend de presque tout le moteur.
+
+**Débloque**
+
+* batch runs
+* winrate analysis
+* telemetry massive
+
+**Ne pas coder avant**
+
+* game loop
+* movement
+* combat
+* brawl
+* draft
+
+---
+
+### 17. `telemetry`
+
+**Pourquoi ici**
+On peut l’ajouter tôt, mais sa version utile dépend du reste.
+
+**Débloque**
+
+* métriques balance
+* debug production
+
+**Ne pas coder avant**
+
+* on peut la stubber tôt, mais la version complète vient après le noyau
+
+---
+
+### 18. `UI bridge`
+
+**Pourquoi ici**
+Toujours en dernier dans un refactor moteur.
+
+**Débloque**
+
+* HTML propre
+* rendu stable
+* debug utilisateur
+
+**Ne pas coder avant**
+
+* moteur pur stabilisé
+
+---
+
+## SECTION 3 — SIGNATURES DE FONCTIONS
+
+Je propose un style simple : fonctions pures ou quasi-pures qui modifient `state` **de façon contrôlée** et retournent un objet résultat.
+
+Format recommandé :
+
+```js
+{
+  ok: true|false,
+  error: null|"error_code",
+  state,
+  payload: {...}
+}
+```
+
+---
+
+### `getPieceAt(state, x, y)`
+
+```js
+function getPieceAt(state, x, y)
+```
+
+**Paramètres**
+
+* `state: MatchState`
+* `x: number`
+* `y: number`
+
+**Retour**
+
+* `Piece | null`
+
+**Erreurs possibles**
+
+* aucune, si hors limites retourne `null` ou lève selon convention
+
+---
+
+### `findPieceById(state, pieceId)`
+
+```js
+function findPieceById(state, pieceId)
+```
+
+**Retour**
+
+* `Piece | null`
+
+---
+
+### `getMoves(state, piece)`
+
+```js
+function getMoves(state, piece)
+```
+
+**Paramètres**
+
+* `state`
+* `piece: Piece`
+
+**Retour**
+
+* `Array<{x:number, y:number}>`
+
+**Erreurs possibles**
+
+* pièce invalide / absente → tableau vide ou exception contrôlée
+
+---
+
+### `resolveMove(state, pieceId, x, y)`
+
+```js
+function resolveMove(state, pieceId, x, y)
+```
+
+**Retour**
+
+```js
+{
+  ok: boolean,
+  error: string|null, // "piece_not_found", "wrong_turn", "piece_rooted", "illegal_move"
+  state,
+  payload: {
+    moved: boolean,
+    attacked: boolean,
+    capturedPieceId?: number
+  }
+}
+```
+
+---
+
+### `resolveAttack(state, attackerId, targetId)`
+
+```js
+function resolveAttack(state, attackerId, targetId)
+```
+
+**Retour**
+
+```js
+{
+  ok: boolean,
+  error: string|null, // "missing_piece", "friendly_target", "cannot_attack_yet", "illegal_attack"
+  state,
+  payload: {
+    damage: number,
+    killed: boolean,
+    captured: boolean,
+    promoted: boolean
+  }
+}
+```
+
+---
+
+### `resolveSpell(state, casterId, card, target)`
+
+```js
+function resolveSpell(state, casterId, card, target)
+```
+
+**Paramètres**
+
+* `casterId: number | null` (si sort indépendant du caster, sinon obligatoire)
+* `card: Card`
+* `target: {x:number, y:number}` ou structure plus riche
+
+**Retour**
+
+```js
+{
+  ok: boolean,
+  error: string|null, // "spell_turn_limit", "spell_game_limit", "invalid_target", "unknown_spell", ...
+  state,
+  payload: {
+    spellType: string,
+    affectedIds: number[]
+  }
+}
+```
+
+---
+
+### `resolveSummon(state, invokerId, x, y)`
+
+```js
+function resolveSummon(state, invokerId, x, y)
+```
+
+**Retour**
+
+```js
+{
+  ok: boolean,
+  error: string|null, // "missing_invoker", "wrong_turn", "summon_already_used", "occupied_tile", "not_adjacent", "summon_cap_reached"
+  state,
+  payload: {
+    summonId?: number
+  }
+}
+```
+
+---
+
+### `resolvePromotion(state, pawnId, cause)`
+
+```js
+function resolvePromotion(state, pawnId, cause)
+```
+
+**Paramètres**
+
+* `cause: "kills" | "backrank"`
+
+**Retour**
+
+```js
+{
+  ok: boolean,
+  error: string|null, // "missing_pawn", "not_a_pawn", "summons_cannot_promote", "promotion_condition_not_met"
+  state,
+  payload: {
+    promotedPieceId?: number,
+    newType?: string
+  }
+}
+```
+
+---
+
+### `resolveBrawl(state)`
+
+```js
+function resolveBrawl(state)
+```
+
+**Retour**
+
+```js
+{
+  ok: true,
+  error: null,
+  state,
+  payload: {
+    hits: number,
+    affectedIds: number[]
+  }
+}
+```
+
+---
+
+### `cleanupDeaths(state)`
+
+```js
+function cleanupDeaths(state)
+```
+
+**Retour**
+
+```js
+{
+  ok: true,
+  error: null,
+  state,
+  payload: {
+    removedIds: number[],
+    removedLinkedSummonIds: number[]
+  }
+}
+```
+
+---
+
+### `detectWinner(state)`
+
+```js
+function detectWinner(state)
+```
+
+**Retour**
+
+```js
+{
+  ok: true,
+  error: null,
+  state,
+  payload: {
+    winner: "white" | "black" | "draw" | null
+  }
+}
+```
+
+---
+
+### `validateBoardState(state)`
+
+```js
+function validateBoardState(state)
+```
+
+**Retour**
+
+```js
+{
+  ok: boolean,
+  error: string|null, // "duplicate_id", "duplicate_tile", "invalid_color", "out_of_bounds", "invalid_invoker_link"
+  payload: {
+    issues: string[]
+  }
+}
+```
+
+---
+
+### `buildArmyFromDraft(state, whiteDraft, blackDraft)`
+
+```js
+function buildArmyFromDraft(state, whiteDraft, blackDraft)
+```
+
+**Retour**
+
+```js
+{
+  ok: boolean,
+  error: string|null, // "invalid_white_draft", "invalid_black_draft"
+  state,
+  payload: {
+    whitePieceIds: number[],
+    blackPieceIds: number[]
+  }
+}
+```
+
+---
+
+### `generateRNGDraftPool(factions, sets, rng)`
+
+```js
+function generateRNGDraftPool(factions, sets, rng)
+```
+
+**Paramètres**
+
+* `factions: string[]`
+* `sets: SetDefinition[]`
+* `rng: () => number` ou objet RNG injectable
+
+**Retour**
+
+```js
+{
+  ok: true,
+  error: null,
+  payload: {
+    chosenFactions: string[],
+    pool: DraftItem[]
+  }
+}
+```
+
+---
+
+### `chooseAIMove(state, color, profile)`
+
+```js
+function chooseAIMove(state, color, profile = "balanced")
+```
+
+**Retour**
+
+```js
+{
+  ok: boolean,
+  error: string|null, // "no_legal_moves"
+  payload: {
+    pieceId?: number,
+    move?: {x:number, y:number},
+    score?: number
+  }
+}
+```
+
+---
+
+### `runAIBatch(config)`
+
+```js
+function runAIBatch(config)
+```
+
+**Paramètres**
+
+```js
+{
+  games: number,
+  maxTurns: number,
+  factions: string[],
+  profiles?: { white: string, black: string },
+  useDraft?: boolean
+}
+```
+
+**Retour**
+
+```js
+{
+  ok: true,
+  error: null,
+  payload: {
+    metrics: {...},
+    samples: [...]
+  }
+}
+```
+
+---
+
+## SECTION 4 — STRUCTURE DE DOSSIERS
+
+```text
+/src
+  /core
+    constants.js
+    pieceModel.js
+    boardState.js
+    gameLoop.js
+    cleanupValidation.js
+
+  /rules
+    movementRules.js
+    combatRules.js
+    spellRules.js
+    summonRules.js
+    promotionRules.js
+    brawlRules.js
+
+  /draft
+    factionData.js
+    draftGeneration.js
+    armyBuilding.js
+
+  /ai
+    aiProfiles.js
+    aiScoring.js
+    aiSimulation.js
+
+  /telemetry
+    telemetry.js
+    metrics.js
+
+  /ui
+    uiAdapter.js
+    renderBoard.js
+    renderPanels.js
+    domBindings.js
+
+  /utils
+    coords.js
+    rng.js
+    deepClone.js
+
+  /tests
+    core.test.js
+    movement.test.js
+    combat.test.js
+    promotion.test.js
+    summon.test.js
+    brawl.test.js
+    draft.test.js
+    validation.test.js
+    ai.test.js
+
+  index.js
+```
+
+---
+
+### Détail des fichiers
+
+#### `/src/core/constants.js`
+
+Constantes globales.
+
+#### `/src/core/pieceModel.js`
+
+Factory `createPiece`, helpers de copie.
+
+#### `/src/core/boardState.js`
+
+Lecture et mutation contrôlée du plateau.
+
+#### `/src/core/gameLoop.js`
+
+Machine à états du tour, `startTurn`, `endTurn`, `detectWinner`.
+
+#### `/src/core/cleanupValidation.js`
+
+Nettoyage des morts, validation intégrité.
+
+---
+
+#### `/src/rules/movementRules.js`
+
+Patterns de mouvement.
+
+#### `/src/rules/combatRules.js`
+
+Attaque, dégâts, captures.
+
+#### `/src/rules/spellRules.js`
+
+Fire/Heal/Chain/Root.
+
+#### `/src/rules/summonRules.js`
+
+Invocation et liens invocateur.
+
+#### `/src/rules/promotionRules.js`
+
+Promotion, restrictions de promotion.
+
+#### `/src/rules/brawlRules.js`
+
+Attackers/defenders/escarmish.
+
+---
+
+#### `/src/draft/factionData.js`
+
+Définitions des factions, rois, matrices C/U/R.
+
+#### `/src/draft/draftGeneration.js`
+
+Pool RNG, picks, tri.
+
+#### `/src/draft/armyBuilding.js`
+
+Transformation draft → armée complète.
+
+---
+
+#### `/src/ai/aiProfiles.js`
+
+Profils `balanced`, `aggressive`, `positional`.
+
+#### `/src/ai/aiScoring.js`
+
+Scoring des coups.
+
+#### `/src/ai/aiSimulation.js`
+
+`chooseAIMove`, `aiMove`, `runAIBatch`.
+
+---
+
+#### `/src/telemetry/telemetry.js`
+
+Event log.
+
+#### `/src/telemetry/metrics.js`
+
+Incréments de métriques.
+
+---
+
+#### `/src/ui/uiAdapter.js`
+
+Façade entre DOM et moteur.
+
+#### `/src/ui/renderBoard.js`
+
+Rendu plateau.
+
+#### `/src/ui/renderPanels.js`
+
+Main, logs, telemetry, stats.
+
+#### `/src/ui/domBindings.js`
+
+Clics, boutons, interactions utilisateur.
+
+---
+
+## SECTION 5 — TESTS UNITAIRES MINIMUM
+
+### 1. Déplacement légal / illégal
+
+* roi bouge d’une case
+* reine glisse correctement
+* cavalier saute les pièces
+* pion ne double pas
+* pièce rootée ne bouge pas
+
+### 2. Attaque létale / non létale
+
+* attaque qui tue → suppression + prise de case
+* attaque qui ne tue pas → pas de prise de case
+
+### 3. Promotion par kills
+
+* pion à 2 kills tue → promotion
+* `canAttack=false` après promotion
+
+### 4. Promotion par back rank
+
+* pion atteint dernière rangée → promotion
+
+### 5. Summon valide / invalide
+
+* invocation sur case adjacente libre
+* invocation sur case occupée refusée
+* seconde invocation même pièce refusée
+
+### 6. Cleanup des invocations liées
+
+* invocateur meurt → summons liées supprimées
+
+### 7. BRAWL simple
+
+* attackers > defenders → dégâts appliqués
+
+### 8. Knight escarmish
+
+* cavalier menace pion non défendu → BRAWL spécial actif
+
+### 9. Root
+
+* root empêche mouvement
+* root n’altère pas pattern du cavalier
+* décrément à fin de tour
+
+### 10. Victoire par mort du roi
+
+* attaque létale sur roi → winner défini
+
+### 11. Validation d’intégrité du board
+
+* doublon d’ID détecté
+* doublon de case détecté
+* coordonnées hors plateau détectées
+* invokerId invalide détecté
+
+### 12. Draft generation
+
+* pool contient 2 factions
+* raretés triées
+* 3 rois par faction présents
+
+### 13. Army building
+
+* armée complète = backline + 8 pions
+* couleur correcte
+* pas de changement de camp
+
+### 14. Kill growth
+
+* kills++ après capture
+* facteur d’échelle UI calculé correctement
+
+### 15. Spell limits
+
+* 1 spell/tour respecté
+* 3 spells/partie respectés
+
+---
+
+## SECTION 6 — ROADMAP DE REFACTOR DU HTML ACTUEL
+
+Objectif : migrer le prototype HTML actuel vers modules JS sans casser l’UI.
+
+### Étape 1 — extraire les constantes
+
+**À faire d’abord**
+
+* déplacer stats, limites, raretés dans `constants.js`
+
+**Pourquoi**
+
+* zéro risque UI
+* énorme gain de clarté
+
+**Garder temporairement dans HTML**
+
+* rendu DOM
+* event listeners
+
+---
+
+### Étape 2 — extraire `Piece` et état de base
+
+**À faire**
+
+* créer `pieceModel.js`
+* créer `boardState.js`
+* remplacer dans le HTML la création inline de pièces par `createPiece()`
+
+**Pourquoi**
+
+* corrige les bugs d’identité
+* prépare cleanup stable
+
+**Garder temporairement dans HTML**
+
+* tableau `state.pieces`
+* `draw()`
+
+---
+
+### Étape 3 — extraire movement + combat
+
+**À faire**
+
+* déplacer `getMoves`, `resolveMove`, `resolveAttack`, `computeAttackValue`
+
+**Pourquoi**
+
+* noyau moteur pur testable immédiatement
+
+**Ne pas encore déplacer**
+
+* fonctions de rendu
+* highlights DOM
+
+---
+
+### Étape 4 — extraire cleanup + winner
+
+**À faire**
+
+* `cleanupDeaths`
+* `validateBoardState`
+* `detectWinner`
+
+**Pourquoi**
+
+* stabilise le moteur avant sorts et draft
+
+---
+
+### Étape 5 — extraire promotion et summon
+
+**À faire**
+
+* déplacer logique promotion
+* déplacer logique invocation
+
+**Pourquoi**
+
+* ce sont les zones les plus sujettes aux bugs d’état
+
+---
+
+### Étape 6 — extraire BRAWL
+
+**À faire**
+
+* `resolveBrawl`
+* `getAttackersOf`
+* `getDefendersOf`
+
+**Pourquoi**
+
+* mécanisme central, doit devenir pur et testable
+
+---
+
+### Étape 7 — extraire draft + buildArmy
+
+**À faire**
+
+* génération pool
+* picks
+* buildSide
+* buildArmyFromDraft
+
+**Pourquoi**
+
+* corrige le biais RNG actuel
+* prépare IA sérieuse
+
+---
+
+### Étape 8 — extraire IA + telemetry
+
+**À faire**
+
+* séparer scoring IA
+* batch runner
+* metrics / event log
+
+**Pourquoi**
+
+* garder le moteur indépendant du DOM
+
+---
+
+### Étape 9 — UI adapter
+
+**À faire**
+
+* laisser le HTML comme shell
+* remplacer les fonctions inline par appels aux modules
+
+**Conserver temporairement dans HTML**
+
+* structure DOM
+* CSS
+* bootstrap initial
+
+**Déplacer dans modules purs**
+
+* toute logique métier
+* toute mutation d’état
+* toutes validations
+
+---
+
+### Stratégie pour préserver l’UI pendant le refactor
+
+1. Garder un seul objet `state` côté HTML.
+2. Remplacer progressivement les blocs inline par appels module.
+3. Après chaque extraction, rerouter `draw()` vers le nouvel état.
+4. Ne jamais déplacer le rendu avant la logique.
+5. Ajouter des tests unitaires au fur et à mesure.
+
+---
+
+## SECTION 7 — SQUELETTE FINAL
+
+# TACTICAL CHESS TCG — JS IMPLEMENTATION PLAN V1
+
+## Modules
+
+* `constants`
+* `pieceModel`
+* `boardState`
+* `movementRules`
+* `combatRules`
+* `spellRules`
+* `summonRules`
+* `promotionRules`
+* `brawlRules`
+* `cleanupValidation`
+* `draftGeneration`
+* `armyBuilding`
+* `telemetry`
+* `aiSimulation`
+* `gameLoop`
+* `uiAdapter`
+
+## Ordre d’implémentation
+
+1. constants
+2. piece factory
+3. board state
+4. board validation
+5. movement
+6. attack
+7. cleanup
+8. winner detection
+9. turn loop
+10. spells
+11. summon
+12. promotion
+13. brawl
+14. draft
+15. army building
+16. AI
+17. telemetry
+18. UI bridge
+
+## Fonctions clés
+
+* `createPiece`
+* `getPieceAt`
+* `findPieceById`
+* `getMoves`
+* `resolveMove`
+* `resolveAttack`
+* `resolveSpell`
+* `resolveSummon`
+* `resolvePromotion`
+* `resolveBrawl`
+* `cleanupDeaths`
+* `detectWinner`
+* `endTurn`
+* `validateBoardState`
+* `generateRNGDraftPool`
+* `buildArmyFromDraft`
+* `chooseAIMove`
+* `runAIBatch`
+
+## Tests clés
+
+* movement legal/illegal
+* lethal/non-lethal attack
+* promotion by kills
+* promotion by back rank
+* summon valid/invalid
+* cleanup linked summons
+* brawl basic
+* knight escarmish
+* root
+* king death victory
+* board validation
+* draft pool validity
+* army building validity
+
+## Étapes de migration
+
+1. extraire constantes
+2. extraire Piece + IDs
+3. extraire board helpers
+4. extraire movement
+5. extraire combat
+6. extraire cleanup/winner
+7. extraire promotion/summon
+8. extraire brawl
+9. extraire draft/build
+10. extraire IA/telemetry
+11. remplacer logique HTML par appels modules
+12. garder `draw()` et le DOM comme couche de présentation בלבד
+
+Ce plan est directement exploitable pour coder une V1 JS modulaire et testable.

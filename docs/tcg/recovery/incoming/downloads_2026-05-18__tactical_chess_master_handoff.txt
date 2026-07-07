@@ -1,0 +1,544 @@
+TACTICAL CHESS STUDIO — MASTER TECHNICAL HANDOFF
+
+Generated: 2026-04-10T10:43:28.069282+00:00
+
+====================================================================
+PROJECT IDENTITY
+====================================================================
+
+Project name: Tactical Chess Studio
+
+Project type: AI Game Discovery Laboratory
+
+Core objective: Automatically discover new tactical board games through
+simulation, evaluation, and evolutionary search.
+
+Final ambition: A research-grade system capable of generating, testing,
+and discovering balanced and interesting tactical board games
+autonomously.
+
+The system explores a design space similar to:
+
+-   Chess-like games
+-   Tactical board combat
+-   Small deterministic rule systems
+
+Long-term vision:
+
+DeepMind-style discovery pipeline where: rules → simulation → evaluation
+→ evolution → discovery
+
+=== HANDOFF — CURRENT STATE ===
+
+SYSTEM STATUS
+
+The Pure Chess AI Lab is stable and fully operational:
+
+- deterministic engine OK
+- teacher UCI integration OK
+- dataset generation OK
+- training pipeline OK
+- neural inference OK
+- tournament system OK
+- Elo system OK
+
+Neural agent now exceeds random baseline.
+
+MAIN LIMITATION
+
+Neural behavior remains too passive:
+
+- high draw rate
+- weak conversion of winning positions
+- insufficient move discrimination
+
+CORE DIAGNOSIS
+
+The bottleneck is no longer engineering.
+
+CRITICAL RISK
+
+Inconsistent move vocabulary across:
+
+- dataset
+- training
+- inference
+
+This must be treated as a system-level contract.
+
+NEXT EVOLUTION
+
+The system must transition from:
+
+“single best move imitation”
+
+to:
+
+“learning a hierarchy of strong legal moves”
+
+NEXT PATCH ORDER
+
+1. enforce shared move vocabulary contract
+2. enrich teacher dataset (top_moves, top_scores)
+3. update dataset_loader.py
+4. implement soft policy targets
+5. introduce legal move masked loss
+6. re-evaluate via tournament
+
+DO NOT
+
+- redesign architecture
+- introduce MCTS
+- introduce RL
+- over-optimize hyperparameters
+
+SUCCESS CRITERION
+
+Neural agent must:
+
+- reduce draw rate
+- outperform random consistently
+- show stronger move discrimination
+
+====================================================================
+PROJECT PHILOSOPHY
+====================================================================
+
+The design philosophy is incremental complexity.
+
+Stage 1 Pure deterministic board game engine.
+
+Stage 2 Add evaluation and agents.
+
+Stage 3 Add evolutionary generation.
+
+Stage 4 Allow rule mutations.
+
+Stage 5 Search the space of tactical game systems.
+
+This approach prevents building unstable complex systems too early.
+
+====================================================================
+CURRENT PROJECT COMPONENTS
+====================================================================
+
+Two main systems exist.
+
+  -------------------------------
+  1. PYTHON DISCOVERY PROTOTYPE
+  -------------------------------
+
+File: discover_games_v40.py
+
+Purpose: Quick exploration of possible rule configurations.
+
+Capabilities:
+
+-   Random ruleset generation
+-   Army configuration generation
+-   Evolutionary mutation
+-   Fitness scoring
+-   Novelty scoring
+-   Archive of interesting systems
+
+Simulation style:
+
+NOT physical simulation.
+
+Instead it uses statistical approximations.
+
+Example:
+
+simulate_one(): - generates fake match length - probabilistic winner -
+opening signature
+
+This makes the system fast but inaccurate.
+
+Conclusion:
+
+The Python prototype is a ruleset explorer, not a real game engine.
+
+  -------------------------
+  2. RUST TACTICAL ENGINE
+  -------------------------
+
+Directory:
+
+TacticalChessV1/
+
+Language:
+
+Rust
+
+Purpose:
+
+High-performance simulation engine.
+
+This engine will eventually simulate millions of matches.
+
+Rust modules discovered:
+
+engine/ board/ entity/ simulation/ prototype/ tool/ telemetry/
+orchestrator/ compiler/
+
+====================================================================
+ENGINE ARCHITECTURE
+====================================================================
+
+Board
+
+Properties: width height cells
+
+Each cell contains:
+
+    terrain
+    occupant
+
+------------------------------------------------------------------------
+
+Units
+
+Units contain:
+
+    id
+    owner
+    template_name
+    position
+    stats
+    hp
+
+Stats contain:
+
+    attack
+    defense
+    armor
+    range
+
+------------------------------------------------------------------------
+
+Engine structure:
+
+Engine board units event_queue turn_manager action_log
+
+------------------------------------------------------------------------
+
+TurnManager
+
+Controls player order.
+
+Fields:
+
+    current_player
+    turn_index
+
+====================================================================
+CURRENT RUNTIME RULESET SYSTEM
+====================================================================
+
+RuntimeRuleset structure defines a match configuration.
+
+Contains:
+
+Board size
+
+Terrain placements
+
+Unit templates
+
+Unit spawns
+
+Example prototype:
+
+Board: 5x5
+
+Units:
+
+Soldier Archer
+
+Abilities:
+
+BasicAttack PowerShot
+
+====================================================================
+SIMULATION LOOP
+====================================================================
+
+simulation_runner.rs
+
+Core loop:
+
+while not game_over and turn < limit: generate legal actions choose
+action execute resolve events
+
+Current AI policy:
+
+Simple deterministic selection.
+
+No strategy.
+
+====================================================================
+CURRENT LIMITATIONS
+====================================================================
+
+1.  Not a chess engine yet.
+
+Movement rules are simplified grid moves.
+
+2.  AI is extremely weak.
+
+No search algorithm.
+
+3.  Some modules unused.
+
+Telemetry Orchestrator Ruleset compiler
+
+4.  Termination detection needs improvement.
+
+Matches can stall.
+
+====================================================================
+PURE CHESS LAB BRANCH
+====================================================================
+
+A dedicated experimental branch exists:
+
+TacticalChessPureLab/
+
+Purpose:
+
+Create a stable chess research environment.
+
+This branch isolates development from the experimental prototype.
+
+====================================================================
+PURE CHESS LAB GOALS
+====================================================================
+
+Implement a full chess rule engine.
+
+Board:
+
+8x8
+
+Pieces:
+
+King Queen Rook Bishop Knight Pawn
+
+Rules required:
+
+Legal moves Captures Check detection Checkmate Stalemate Castling En
+passant Promotion
+
+==================================================================== AI
+DEVELOPMENT ROADMAP
+====================================================================
+
+Stage 1
+
+Random playout agent
+
+Used for validation.
+
+------------------------------------------------------------------------
+
+Stage 2
+
+Heuristic evaluation agent
+
+Evaluation metrics:
+
+material center control king safety mobility
+
+------------------------------------------------------------------------
+
+Stage 3
+
+Monte Carlo Tree Search
+
+Standard algorithm for tactical games.
+
+------------------------------------------------------------------------
+
+Stage 4
+
+Self-play training
+
+Agents improve through repeated matches.
+
+------------------------------------------------------------------------
+
+Stage 5
+
+Neural evaluation
+
+AlphaZero-style architecture.
+
+====================================================================
+EVOLUTIONARY DISCOVERY SYSTEM
+====================================================================
+
+Once the engine is stable, rules will mutate.
+
+Possible parameters:
+
+HP systems
+
+Units survive multiple hits.
+
+Armor systems
+
+Reduces damage.
+
+Abilities
+
+Dash Teleport AOE attack
+
+Terrain
+
+Walls Lava Slow tiles
+
+Victory conditions
+
+Capture king Eliminate army Zone control
+
+====================================================================
+DISCOVERY PIPELINE
+====================================================================
+
+Target pipeline:
+
+RulesetGenerator SimulationEngine TelemetryCollector FitnessEvaluator
+EvolutionEngine ArchiveDatabase ClusterAnalysis
+
+====================================================================
+SCALING STRATEGY
+====================================================================
+
+Target scale:
+
+Millions of matches per experiment cycle.
+
+Strategy:
+
+Worker pool architecture
+
+Distributed simulation
+
+PostgreSQL result storage
+
+Parallel simulation workers
+
+====================================================================
+USER PROFILE (IMPORTANT)
+====================================================================
+
+Primary project owner:
+
+Non-engineer.
+
+Computer science knowledge:
+
+Low to intermediate.
+
+Preferences:
+
+Short answers.
+
+Clear instructions.
+
+Step-by-step patch guidance.
+
+Avoid overly complex explanations.
+
+AI assistants must:
+
+Provide exact commands when patching.
+
+Avoid assumptions about engineering experience.
+
+Prefer copy-paste instructions.
+
+====================================================================
+PATCHING GUIDELINES
+====================================================================
+
+When assisting with installation or fixes:
+
+1.  Identify exact folder.
+2.  Provide exact command.
+3.  Avoid multi-step fragile scripts.
+4.  Confirm expected output.
+
+Example instruction style:
+
+Open terminal here:
+
+C:..._CHESS_STUDIO
+
+Run:
+
+cargo run simulate 1
+
+Then report output.
+
+====================================================================
+CURRENT PROJECT STATUS
+====================================================================
+
+Working:
+
+Rust engine compiles.
+
+Simulation executable runs.
+
+Pure lab environment created.
+
+Broken or incomplete:
+
+Chess rules.
+
+AI agents.
+
+Termination detection.
+
+Telemetry integration.
+
+====================================================================
+SHORT TERM OBJECTIVES (NEXT WEEKS)
+====================================================================
+
+Stabilize simulation loop.
+
+Implement real chess rules.
+
+Add basic heuristic AI.
+
+Log match outcomes.
+
+====================================================================
+MEDIUM TERM OBJECTIVES
+====================================================================
+
+Introduce MCTS player.
+
+Enable self-play training.
+
+Connect telemetry pipeline.
+
+Reconnect evolutionary discovery.
+
+====================================================================
+LONG TERM OBJECTIVES
+====================================================================
+
+Autonomous tactical game discovery.
+
+Cluster generated systems.
+
+Detect balanced rule families.
+
+Discover new board game mechanics.
+
+==================================================================== END
+OF MASTER DOCUMENT
+====================================================================
