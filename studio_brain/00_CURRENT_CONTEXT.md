@@ -1,8 +1,21 @@
 # Contexte courant TCS
-Dernière session : 2026-07-08 — **council-audit LIVRÉ** (`ebebb59`, poussé). Avant : board interactif
-llm-lego (`4d4d1a9`), migration ledger IMP-256, Council→Factory v0 (`3c5f9de`), Belote bloc 1 (07-06).
+Dernière session : 2026-07-08 — **Chess TCG : pivot cible MOBILE ratifié** (`af21a6d`, poussé) + passage borné
+des 7 directeurs (advisory, zéro écriture). Avant : council-audit LIVRÉ (`ebebb59`), board interactif
+llm-lego (`4d4d1a9`), migration ledger IMP-256, Council→Factory v0 (`3c5f9de`).
 Historique archivé : `journal/context-archive-2026-07-05.md` (marathon 07-05→06) +
 `journal/context-archive-2026-07-06.md` (Council→Factory, Belote bloc 1, AI-OS, points d'entretien 07-06).
+
+## Session 2026-07-08 (soir) — Chess TCG : PIVOT CIBLE MOBILE (ratifié Pierre)
+- **Décision produit** : Chess TCG continue **sur Godot natif, cible MOBILE** (≠ navigateur, ce qu'écrivait la
+  roadmap). Point zéro consigné (`af21a6d`) : proto Godot 3D jouable vs IA (~1800 l. GDScript), moteur de règles
+  **pur headless testé (83/83 verts)**, assets CC0 KayKit 33 MB. Roadmap 7 jalons, **seul Jalon 1 audité**.
+- **2 IMP AUDIT_REQUIRED ouverts** : **IMP-254** (fiche carte lisible, `ui/hud.gd`) · **IMP-255** (cascade de
+  résolution étape-par-étape visible + verdict affichage-vs-règle, `ui/game3d.gd`+`core/rules.gd`, impact HIGH,
+  « risque design n°1 lignée T »).
+- **Passage borné 7 directeurs** (advisory, **zéro écriture**, aucun IMP créé) : 7/7 pertinents ; 8 exécutants
+  hors scope (dont les 3 agents Rust/ML). Fil rouge = le **journal d'événements de `rules.gd`** est l'actif à
+  exploiter (graine replay + cascade IMP-255 + check parité affichage↔règle). Risque n°1 = lisibilité/
+  prédictibilité (converge IMP-254/255). Delta mobile non absorbé par la roadmap : entrée hover→tap, budget perf 33 MB.
 
 ## Session 2026-07-08 — council-audit LIVRÉ (`ebebb59`, poussé sur origin/master)
 Bouton **« Auditer via council »** sur les cartes **AUDIT_REQUIRED** du board (panneau détail), **live-only** :
@@ -43,8 +56,10 @@ humain. Preuve : **39 suites / 794 verts** (`council-audit-validate.mjs` 14/14 d
 - **Étage 2** = table entre amis **WebRTC** ; multijoueur public **gated**.
 
 ## État git 2026-07-08 — tout poussé sur `origin/master`
-- Poussés ce cycle : IMP-256 `1555173` · board `4d4d1a9` · handoff `4114bca` · IMP-240 note `921fa4b` ·
-  settings.json `c7ba7e7` · council-audit `ebebb59` · gitignore `0bb5449`. Rien en attente.
+- Poussés ce cycle : IMP-256 `1555173` · board `4d4d1a9` · council-audit `ebebb59` · **pivot mobile chess_tcg
+  `af21a6d`** · ce handoff. Rien en attente.
+- ⚠️ Non commité (hors périmètre, laissé tel quel) : validateurs `llm-lego/*.mjs` + `*_result.json`,
+  `07_CURRENT_STATE.md`, e2e-shots belote — modifs de travail non liées au pivot.
 
 ## Impasses / doctrine (portées)
 - LEDGER canonique = `lab/chains/IMPROVEMENT_LEDGER.yaml` ; écrire les IMP via `kaizen_loop.py`
