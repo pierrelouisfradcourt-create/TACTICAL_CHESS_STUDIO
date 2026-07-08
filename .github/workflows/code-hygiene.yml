@@ -1,0 +1,39 @@
+# code-hygiene.yml — capteur d'hygiène périodique (déterministe, LECTURE SEULE).
+# Lance les MÊMES outils que le scan local (cargo dead_code/unused + git ls-files TODO orphelins)
+# et écrit llm-lego/hygiene_report.json ; le board le lit en lecture seule.
+# AUCUNE écriture de code, AUCUN commit, AUCUNE création d'IMP : le nettoyage reste un geste
+# explicite (session Claude Code lancée sur la base du rapport). `permissions: contents: read`
+# garantit mécaniquement que le job ne pousse rien.
+#
+# GATE : .github/ est en zone FORBIDDEN du pre-commit (agents interdits). Ce fichier est
+# committé PAR PIERRE, à la main, en dernier — jamais par un agent.
+#
+# HYPOTHÈSE runner (décision ratifiée : un seul fichier, deux déclencheurs, pas de pont/artefact) :
+# le runner self-hosted opère sur le checkout studio, donc le rapport écrit ici EST le
+# llm-lego/hygiene_report.json que le board local lit. Ajuste checkout/chemins à ta config runner.
+
+name: code-hygiene
+
+on:
+  schedule:
+    - cron: "0 6 * * *"     # tous les jours 06:00 UTC — ajuste la fréquence au moment du commit
+  workflow_dispatch: {}       # déclenchement manuel depuis l'onglet Actions
+
+permissions:
+  contents: read              # lecture seule : le job ne peut rien pousser
+
+jobs:
+  scan:
+    runs-on: [self-hosted]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan hygiène (déterministe — cargo + git, aucun LLM)
+        run: node llm-lego/hygiene-scan.mjs --trigger=cron
+      - name: Résumé dans le log du job
+        shell: bash
+        run: |
+          node -e 'const r=require("./llm-lego/hygiene_report.json"); \
+            console.log("rust dead/unused :", r.rust.available ? r.rust.total : ("skipped — "+r.rust.reason)); \
+            console.log("byCode          :", JSON.stringify(r.rust.byCode)); \
+            console.log("todo orphelins  :", r.todo.orphans, "/", r.todo.filesScanned, "fichiers suivis");' \
+            >> "$GITHUB_STEP_SUMMARY"
