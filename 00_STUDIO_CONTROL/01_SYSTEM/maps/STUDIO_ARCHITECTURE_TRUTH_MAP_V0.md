@@ -154,7 +154,29 @@ empêche l'optimisation en boîte fermée — c'est l'autre moitié de l'anti-sk
 
 ---
 
-## 8. Backlog des phases vers la cible (NON PLANIFIÉ — pas la prochaine action)
+## 8. Principe de gate — quand HumanGate est requis
+
+Décision ratifiée avec Pierre (2026-07-08) : **plus de gate systématique à chaque transition de phase.**
+HumanGate uniquement quand une sortie devient une **action irréversible** ou un **arbitrage subjectif**.
+**Jamais** sur la construction, les tests, ou l'affichage read-only.
+
+| Phase | Gate ? | Raison |
+| --- | --- | --- |
+| **0** — carte cible | **non** | c'est de la doc |
+| **1** — council vivant / arbitrage multi-objectifs | **conditionnel** | construire/tester l'arbitrage = non ; le moment où le verdict déclencherait une **action réelle** = oui |
+| **2** — lanes = capteurs | **non** | affichage read-only |
+| **3** — Cognitive Resource Manager v0 | **non** | observabilité, pas d'allocation |
+| **4** — Organizational Learning Loop | **oui** | adopter un nouveau standard qui change le comportement futur = un choix, pas un fait vérifiable |
+| **5** — World Intelligence Layer | **non** | lecture seule / citation ; gate seulement si un pattern externe **motive une décision de design** derrière |
+| **6** — Evolution System | **oui, non-négociable** | accepter/rejeter une mutation d'agent reste la signature de Pierre, jamais automatique |
+
+**Règle générale** : `gate = action réelle ∨ arbitrage subjectif` ; `pas de gate = construction ∨ tests ∨
+affichage read-only`. Cohérent avec `council-audit` (livré 07-08) : construire + afficher le verdict = **sans
+gate** ; le gate n'apparaîtrait que si ce verdict déclenchait une écriture ou une action.
+
+---
+
+## 9. Backlog des phases vers la cible (NON PLANIFIÉ — pas la prochaine action)
 
 > Séquençage de référence uniquement. Aucune de ces phases n'est engagée. Chacune = brique gated + oracle,
 > **observabilité avant autonomie**, chantier « usine/studio » **parallèle** à Belote/TCG (ne les bloque pas).
@@ -173,7 +195,7 @@ empêche l'optimisation en boîte fermée — c'est l'autre moitié de l'anti-sk
 
 ---
 
-## 9. Verdicts
+## 10. Verdicts
 
 ```yaml
 software_verdict: DOCUMENTED_ONLY   # carte cible ; aucun runtime touché
@@ -182,7 +204,7 @@ claim_verdict: NO_CLAIM_ALLOWED
 no_global_ready_verdict: true
 ```
 
-## 10. Non-autorisation
+## 11. Non-autorisation
 
 N'autorise pas : activation runtime/agent, training, dataset, benchmark-as-proof, promotion modèle, câblage
 du Genome, création de lanes, Cognitive Resource Manager actif, World Layer actif, commit auto, push, PR.
