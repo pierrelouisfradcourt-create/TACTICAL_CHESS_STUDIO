@@ -2518,6 +2518,27 @@
                 <div style={{ fontSize: 'var(--fs-2xs)', textTransform: 'uppercase', letterSpacing: 1, color: 'var(--accent)', marginBottom: 4 }}>Notes</div>
                 <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--ink-2)', whiteSpace: 'pre-wrap' }}>{sel.notes || '—'}</div>
 
+                {/* Signal stratégique — capteur DÉTERMINISTE lecture seule (Phase 2). N'écrit RIEN, pas de gate. */}
+                {sel.feedback && (
+                  <div data-testid="impboard-feedback" style={{ marginTop: 14, background: 'var(--panel-2)', border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
+                    <div style={{ fontSize: 'var(--fs-2xs)', textTransform: 'uppercase', letterSpacing: 1, color: 'var(--accent)', marginBottom: 6 }}>Signal stratégique — capteur (lecture seule)</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 10px', fontSize: 'var(--fs-2xs)' }}>
+                      <span style={{ color: 'var(--ink-3)' }}>observation</span><span style={{ color: 'var(--ink-2)' }}>{sel.feedback.observation}</span>
+                      <span style={{ color: 'var(--ink-3)' }}>risque</span>
+                      <span style={{ color: sel.feedback.risk.level === 'high' ? 'var(--sev-bad)' : sel.feedback.risk.level === 'medium' ? 'var(--sev-warn)' : 'var(--sev-good)' }}>
+                        {sel.feedback.risk.level} (score {sel.feedback.risk.score}) — {sel.feedback.risk.reasons.join(' · ')}
+                      </span>
+                      <span style={{ color: 'var(--ink-3)' }}>recommandation</span><span style={{ color: 'var(--ink-2)' }}>{sel.feedback.recommendation}</span>
+                      <span style={{ color: 'var(--ink-3)' }}>impact</span>
+                      <span data-testid="impboard-feedback-impact" style={{ color: 'var(--ink-2)' }}>
+                        {sel.feedback.impact.length
+                          ? sel.feedback.impact.join(', ') + ' (dépendants aval)'
+                          : '0 — graphe de dépendances non structuré (dépendances actuellement en prose dans les notes, ex. IMP-206→IMP-205)'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Audit council — UNIQUEMENT sur AUDIT_REQUIRED. Lecture seule : n'écrit RIEN. */}
                 {sel.lane === 'AUDIT_REQUIRED' && (
                   <div style={{ marginTop: 18, borderTop: '1px solid var(--line)', paddingTop: 14 }}>

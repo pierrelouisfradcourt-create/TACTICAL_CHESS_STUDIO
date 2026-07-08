@@ -82,6 +82,15 @@ try {
   check("groupement : factory a SAFE_AUTO(1)+AUDIT_REQUIRED(1)", !!fac && (fac.lanes.SAFE_AUTO || []).length === 1 && (fac.lanes.AUDIT_REQUIRED || []).length === 1);
   check("why dérivé présent + mentionne le bloqueur (IMP-002)", !!c2 && /IMP-001/.test(c2.why));
 
+  // Phase 2 — capteur strategic_feedback (déterministe, lecture seule)
+  check("feedback présent sur chaque carte (observation/risk/recommendation/impact)",
+    allCards.every((c) => c.feedback && c.feedback.observation && c.feedback.risk && Array.isArray(c.feedback.impact)));
+  check("arête inverse : IMP-001.feedback.impact == [IMP-002] (IMP-002 dépend de IMP-001)",
+    !!c1 && JSON.stringify(c1.feedback.impact) === JSON.stringify(["IMP-002"]));
+  check("IMP-002 (bloqué) : impact vide + risk ≥ medium + reasons mentionne le bloqueur",
+    !!c2 && c2.feedback.impact.length === 0 && c2.feedback.risk.score >= 1 && /IMP-001/.test(c2.feedback.risk.reasons.join(" ")));
+  check("reasons jamais vide (toujours explicites)", allCards.every((c) => c.feedback.risk.reasons.length > 0));
+
   console.log(`\n  impboard-validate: ${fail === 0 ? `✅ ${pass}/${pass} PASS` : `❌ ${fail} FAIL`}`);
   exitCode = fail === 0 ? 0 : 1;
 } catch (e) { console.error(`  ❌ ${String((e && e.message) || e)}`); exitCode = 1; }

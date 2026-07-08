@@ -87,6 +87,42 @@ function whyLane(lane, blockedBy) {
   return base + " Aucun bloqueur (blocked_by vide).";
 }
 
+// Signal stratégique DÉTERMINISTE (capteur lecture seule, Phase 2) — dérivé de status+blockers+lane
+// + dépendants aval (arêtes inverses de blocked_by). AUCUN LLM, AUCUNE écriture. `reasons` toujours explicites.
+function deriveFeedback(card, dependents) {
+  const blk = card.blocked_by;
+  const reasons = [];
+  let score = 0;
+  if (card.status === "FAIL")   { score += 3; reasons.push("statut FAIL (échec courant)"); }
+  if (card.status === "FROZEN") { score += 1; reasons.push("gelé (FROZEN)"); }
+  if (blk.length)               { score += blk.length; reasons.push(`bloqué par ${blk.length} IMP (${blk.join(", ")})`); }
+  if (dependents.length)        { score += dependents.length; reasons.push(`${dependents.length} dépendant(s) aval`); }
+  if (!reasons.length) reasons.push("aucun bloqueur, aucun dépendant structuré");
+  const level = score >= 3 ? "high" : score >= 1 ? "medium" : "low";
+
+  let observation, recommendation;
+  if (card.status === "FAIL") {
+    observation = `Échec courant (FAIL)${dependents.length ? ` — bloque ${dependents.length} IMP en aval` : ""}.`;
+    recommendation = "Traiter l'échec avant de débloquer la suite (HumanGate).";
+  } else if (card.status === "FROZEN") {
+    observation = `Gelé (FROZEN)${dependents.length ? ` — ${dependents.length} dépendant(s) en attente` : ""}.`;
+    recommendation = dependents.length ? "Décision de dégel (HumanGate) si les dépendants sont prioritaires." : "Gelé — pas d'action tant que non dégelé.";
+  } else if (blk.length) {
+    observation = `Bloqué par ${blk.join(", ")} — dépendance amont non résolue${dependents.length ? ` ; ${dependents.length} dépendant(s) aval` : ""}.`;
+    recommendation = `Résoudre d'abord ${blk.join(", ")}.`;
+  } else if (card.deployable && dependents.length) {
+    observation = `Déployable ; débloque ${dependents.length} dépendant(s) aval (${dependents.join(", ")}).`;
+    recommendation = `Lancer en priorité — débloque ${dependents.length} dépendant(s).`;
+  } else if (card.deployable) {
+    observation = "Déployable — aucun bloqueur, aucun dépendant structuré.";
+    recommendation = "Prêt, faible enjeu.";
+  } else {
+    observation = `Statut ${card.status}, lane ${card.lane}.`;
+    recommendation = "Revue de statut.";
+  }
+  return { observation, risk: { level, score, reasons }, recommendation, impact: dependents };
+}
+
 // Agrège les IMP non-CLOSED en sections project × colonnes lane. LECTURE SEULE.
 export function buildImpBoard({ ledgerPath }) {
   let blocks = [];
@@ -112,6 +148,11 @@ export function buildImpBoard({ ledgerPath }) {
       notes: normScalar(b.notes),
     };
   });
+
+  // Arêtes inverses de blocked_by parmi les cartes AFFICHÉES → impact = dépendants aval. Lecture seule.
+  const dependents = {};
+  for (const c of cards) for (const dep of c.blocked_by) (dependents[dep] = dependents[dep] || []).push(c.id);
+  for (const c of cards) c.feedback = deriveFeedback(c, dependents[c.id] || []);
 
   // groupement project -> lane -> [cards]
   const byProject = {};
