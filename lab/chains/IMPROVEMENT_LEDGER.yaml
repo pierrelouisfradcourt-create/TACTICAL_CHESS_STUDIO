@@ -5267,10 +5267,10 @@ improvements:
     absolus ; Node natif v24 robuste, A/B fait au contre-audit C4). pre-push absent
     = push non bloque mecaniquement. validate-commit-msg = hook mort (mauvais nom).
     Trois quick wins, un IMP. Related : IMP-143 (stop-hook original, CLOSED). | [INCIDENT
-    2026-07-07] Reproduit : hook Stop declenche pendant le redemarrage du serveur board
-    (imp-board.mjs) -> "bash: .claude/hooks/stop-failure.sh: No such file or directory" alors
-    que le fichier existe et est tracke (4fdb5f4). Confirme une nouvelle fois bash nu -> launcher
-    WSL Store. Priorite inchangee, aucun fix applique.'
+    2026-07-07] Reproduit : hook Stop declenche pendant le redemarrage du serveur
+    board (imp-board.mjs) -> "bash: .claude/hooks/stop-failure.sh: No such file or
+    directory" alors que le fichier existe et est tracke (4fdb5f4). Confirme une nouvelle
+    fois bash nu -> launcher WSL Store. Priorite inchangee, aucun fix applique.'
 - id: IMP-241
   project: factory
   theme: infra
@@ -5635,9 +5635,9 @@ improvements:
 - id: IMP-256
   project: factory
   theme: infra
-  title: 'Migration schema ledger — ajout des champs project/theme sur 263 IMP existants'
+  title: Migration schema ledger — ajout des champs project/theme sur 263 IMP existants
   type: chore
-  source: 'session-20260707 (go explicite Pierre — taxonomie multi-jeux)'
+  source: session-20260707 (go explicite Pierre — taxonomie multi-jeux)
   status: CLOSED
   impact: MEDIUM
   effort: SMALL
@@ -5646,11 +5646,41 @@ improvements:
   files:
   - lab/chains/IMPROVEMENT_LEDGER.yaml
   - lab/chains/_ledger_tagging_proposal.csv
-  acceptance: 'Chaque entree IMP porte project (factory|rocky|chess_tcg) + theme (parmi 10). 263 entrees pre-existantes taguees, insertion pure +526/-0, 0 autre champ modifie (verifie par reparse YAML + comparaison champ-par-champ vs backup).'
+  acceptance: Chaque entree IMP porte project (factory|rocky|chess_tcg) + theme (parmi
+    10). 263 entrees pre-existantes taguees, insertion pure +526/-0, 0 autre champ
+    modifie (verifie par reparse YAML + comparaison champ-par-champ vs backup).
   blocked_by: []
   opened_session: session-20260707
   closed_session: session-20260707
-  notes: 'Migration de schema en masse via apply_tags.py (ecriture directe au fichier, AUTORISEE explicitement par Pierre 2026-07-07, HORS kaizen_loop/guarded_write). Regles project ratifiees : factory=infra/transversal, rocky=moteur echecs+ML (nouveau projet), chess_tcg=jeu de cartes ; belote/auto_battler/frosthaven = valeurs autorisees mais vides pour l''instant. 10 themes derives du reel. Backup pre-migration : C:/Users/Studio-Dev/.claude/jobs/a3c86e32/tmp/LEDGER.backup.yaml (job tmp, ephemere) ; rollback durable = git revert du commit. Artefact de mapping : lab/chains/_ledger_tagging_proposal.csv.'
+  notes: 'Migration de schema en masse via apply_tags.py (ecriture directe au fichier,
+    AUTORISEE explicitement par Pierre 2026-07-07, HORS kaizen_loop/guarded_write).
+    Regles project ratifiees : factory=infra/transversal, rocky=moteur echecs+ML (nouveau
+    projet), chess_tcg=jeu de cartes ; belote/auto_battler/frosthaven = valeurs autorisees
+    mais vides pour l''instant. 10 themes derives du reel. Backup pre-migration :
+    C:/Users/Studio-Dev/.claude/jobs/a3c86e32/tmp/LEDGER.backup.yaml (job tmp, ephemere)
+    ; rollback durable = git revert du commit. Artefact de mapping : lab/chains/_ledger_tagging_proposal.csv.'
+- id: IMP-257
+  title: Structurer le graphe de dépendances du ledger — blocked_by sous-utilisé,
+    dépendances réelles en prose
+  type: feature
+  source: Phase 2 lanes-as-sensors 2026-07-08
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: blocked_by peuplé pour les dépendances prose connues + CLI kaizen_loop
+    add supporte project/theme
+  blocked_by: []
+  opened_session: '2026-07-08'
+  closed_session: null
+  notes: 'blocked_by quasi vide (1 seule arête structurée sur tout le ledger: IMP-175->IMP-174,
+    cible close). Dépendances réelles encodées en prose dans notes (ex. IMP-206->IMP-205,
+    cf. note ''champ à refléter''). Corollaire découvert 2026-07-08: kaizen_loop add
+    ne pose pas project/theme (drift CLI post-IMP-256) -> nouveaux IMP sans project/theme,
+    cet IMP inclus (illustration vivante du trou). Prérequis nommé de la Phase 2 sensor
+    (option B), différé consciemment. Ne pas corriger le CLI dans ce scope.'
 metrics_history:
 - session: '2026-05-31'
   total: 11
