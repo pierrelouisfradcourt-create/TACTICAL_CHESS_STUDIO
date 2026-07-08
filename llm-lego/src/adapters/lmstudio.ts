@@ -110,10 +110,23 @@ function deriveIntent(data: Record<string, unknown>, state: EngineState): string
   return "chat";
 }
 
+/** Token usage renvoyé par LM Studio (OpenAI-compatible). */
+export interface LmUsage { prompt_tokens: number; completion_tokens: number; total_tokens: number; }
+
 interface ChatResult {
   text: string;
   model: string;
+  usage?: LmUsage;
   error?: string;
+}
+
+/** Extrait un usage normalisé d'une réponse LM Studio, ou undefined. */
+function readUsage(u: unknown): LmUsage | undefined {
+  if (typeof u !== "object" || u === null) return undefined;
+  const o = u as Record<string, unknown>;
+  if (typeof o["total_tokens"] !== "number") return undefined;
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  return { prompt_tokens: n(o["prompt_tokens"]), completion_tokens: n(o["completion_tokens"]), total_tokens: o["total_tokens"] as number };
 }
 
 /**
@@ -150,12 +163,14 @@ async function chat(
 
     const data = (await res.json()) as {
       choices?: Array<{ message?: { content?: unknown } }>;
+      usage?: unknown;
     };
     const content = data.choices?.[0]?.message?.content;
     if (typeof content !== "string" || content.length === 0) {
       return { text: "", model, error: "LM Studio returned an empty completion" };
     }
-    return { text: content, model };
+    const usage = readUsage(data.usage);
+    return { text: content, model, ...(usage ? { usage } : {}) };
   } catch (err) {
     const reason =
       err instanceof Error && err.name === "AbortError"
@@ -189,7 +204,7 @@ export function createLmStudioAdapters(overrides: Partial<LmStudioConfig> = {}):
     const prompt = asString(data["prompt"], "(no prompt)");
     const model = asString(data["model"], cfg.defaultModel);
     const system = typeof data["system"] === "string" ? (data["system"] as string) : null;
-    const { text, error } = await chat(cfg, model, prompt, system, readTemperature(data, cfg));
+    const { text, error, usage } = await chat(cfg, model, prompt, system, readTemperature(data, cfg));
     const intent = deriveIntent(data, state);
     if (error !== undefined) {
       return {
@@ -202,7 +217,7 @@ export function createLmStudioAdapters(overrides: Partial<LmStudioConfig> = {}):
         unavailable: true,
       };
     }
-    return { type: "llm", model, prompt, intent, text };
+    return { type: "llm", model, prompt, intent, text, ...(usage ? { usage } : {}) };
   };
 
   const agent: AdapterFn = async (data, _state, meta?: AdapterMeta) => {
@@ -229,7 +244,7 @@ export function createLmStudioAdapters(overrides: Partial<LmStudioConfig> = {}):
     const prompt = asString(data["prompt"] ?? data["objectif"], "(no prompt)");
     const model = asString(data["model"], cfg.defaultModel);
     const role = typeof data["role"] === "string" ? (data["role"] as string) : null;
-    const { text, error } = await chat(cfg, model, prompt, role, readTemperature(data, cfg));
+    const { text, error, usage } = await chat(cfg, model, prompt, role, readTemperature(data, cfg));
     const name = asString(data["agent"] ?? data["name"] ?? data["role"], "agent");
     if (error !== undefined) {
       return {
@@ -242,7 +257,7 @@ export function createLmStudioAdapters(overrides: Partial<LmStudioConfig> = {}):
         unavailable: true,
       };
     }
-    return { type: "agent", agent: name, model, output: text, text };
+    return { type: "agent", agent: name, model, output: text, text, ...(usage ? { usage } : {}) };
   };
 
   // Chat node (RÉEL) : conversation multi-tours entre 2 voix (personas). Alterne A/B,

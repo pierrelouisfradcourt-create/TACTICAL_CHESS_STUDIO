@@ -27,9 +27,11 @@ import type { Adapters } from "./dist/adapters/types.js";
 import type { EngineState, ExecutionContext, Graph } from "./dist/core/types.js";
 import { listNotes, readNote, searchNotes, writeNote } from "./memory-store.mjs";
 import { recall, lmStudioEmbed } from "./memory-recall.mjs";
+import { telemetryRecords, appendTelemetry } from "./telemetry.mjs";
 import { buildGraph } from "./memory-graph.mjs";
 import { buildCockpit } from "./cockpit.mjs";
 import { buildImpBoard } from "./imp-board.mjs";
+import { buildHygieneBoard } from "./hygiene-board.mjs";
 
 /**
  * Governance policy (Oracle, Passe 4): NO self-validation. A node cannot be judged
@@ -109,6 +111,8 @@ const EMBED_MODEL = process.env["TCS_EMBED_MODEL"] || "text-embedding-nomic-embe
 const embedFn = (texts: string[]) => lmStudioEmbed(texts, { url: EMBED_URL, model: EMBED_MODEL });
 // Brique 4b — cockpit : chemin ledger surchargeable (A3).
 const LEDGER_PATH = process.env["TCS_LEDGER_PATH"] || path.join(__dirname, "..", "lab", "chains", "IMPROVEMENT_LEDGER.yaml");
+// Capteur d'hygiène (Phase 3) : rapport produit par hygiene-scan.mjs, surchargeable pour tests.
+const HYGIENE_REPORT_PATH = process.env["TCS_HYGIENE_REPORT"] || path.join(__dirname, "hygiene_report.json");
 const WIREFRAMES_DIR = path.join(__dirname, "wireframes");
 // Brick library (Library Passe 1). Separate store from wireframes/ on purpose —
 // see LIBRARY_AUDIT.md §3 (overloading wireframes would break runAudit).
@@ -591,6 +595,11 @@ const server = http.createServer((req, res) => {
     catch (e) { sendJson(res, 500, { error: String((e as any).message || e) }); }
     return;
   }
+  if (pathname === "/api/hygiene" && req.method === "GET") {
+    try { sendJson(res, 200, buildHygieneBoard({ reportPath: HYGIENE_REPORT_PATH })); }
+    catch (e) { sendJson(res, 500, { error: String((e as any).message || e) }); }
+    return;
+  }
   if (pathname === "/api/memory" && req.method === "POST") {
     let mbody = "";
     req.on("data", (c) => (mbody += c.toString()));
@@ -660,6 +669,13 @@ const server = http.createServer((req, res) => {
             adapters: selectAdapters(live),
             maxSteps: 100,
           });
+
+          // Phase 3 v0 — capture observabilité (LIVE seulement) : tokens/modèle/durée par nœud.
+          // Append-only, fichier NON gouverné (telemetry/), JAMAIS bloquant pour la réponse.
+          if (live === true) {
+            try { appendTelemetry(telemetryRecords(ctx, initialInput, new Date().toISOString())); }
+            catch (e) { console.error("[telemetry] append failed:", e); }
+          }
 
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(serializeCtx(ctx), null, 2));
