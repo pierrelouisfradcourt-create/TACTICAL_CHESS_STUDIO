@@ -2340,6 +2340,70 @@
         } catch (e) { setAudit({ imp: card.id, phase: 'error', error: String((e && e.message) || e) }); }
       };
 
+      // --- Arbitrage multi-objectifs (council) — 4 objectifs en tension ----------
+      // Réutilise EXACTEMENT l'infra council-audit (execLive, nodeOut, impContext, toEngineGraph).
+      // 4 voix objectives évaluent la MÊME décision (l'IMP) ; arbitrage = RÈGLE DÉTERMINISTE
+      // consensus/conflit (aucun juge LLM). Conflit = arbitrage Pierre, JAMAIS résolu auto.
+      // Lecture seule : n'écrit RIEN (ledger / HUMANGATE_DECISION_LOG.yaml). Pas d'action = pas de gate.
+      const ARB_LABEL = 'arbitrage multi-objectifs · 4× Qwen :1234 séquentiel · règle déterministe consensus/conflit · live';
+      const OBJECTIVES = [
+        { id: 'COUT',         lens: 'le coût cognitif/tokens (moins de gros modèles = mieux)' },
+        { id: 'QUALITE',      lens: 'la qualité du résultat (plus de rigueur/relecture = mieux)' },
+        { id: 'VITESSE',      lens: 'la vitesse de livraison (parallélisable/simple = mieux)' },
+        { id: 'ARCHITECTURE', lens: "la solidité architecturale (dette/coupling évités = mieux)" },
+      ];
+      const [arb, setArb] = useState(null); // { imp, phase, stances?, reco?, favs?, defs?, unparsed?, error?, unavailable? }
+
+      // Voix objective = contexte IMP + lentille injectés, fin forcée sur STANCE:. model omis → Qwen :1234.
+      const objectiveNode = (obj, ctx) => ({ id: obj.id, type: 'agent', data: {
+        role: obj.id,
+        prompt: `${ctx}\n\nTu es la voix ${obj.id} d'un arbitrage council. Évalue cette décision UNIQUEMENT du point `
+          + `de vue de ${obj.lens}. 3-5 lignes. Termine EXACTEMENT par une dernière ligne « STANCE: X » où `
+          + `X ∈ {FAVORABLE, DEFAVORABLE, NEUTRE}. N'écris aucun de ces trois mots ailleurs que sur cette ligne finale.`,
+      }});
+
+      const STANCE_RE = /FAVORABLE|D[EÉ]FAVORABLE|NEUTRE/gi;
+      const canonStance = (m) => { const s = m.toUpperCase();
+        if (s.startsWith('DEF') || s.startsWith('DÉF')) return 'DEFAVORABLE';  // DÉFAVORABLE contient "FAVORABLE" → tester DEF d'abord
+        if (s.startsWith('FAV')) return 'FAVORABLE';
+        return 'NEUTRE'; };
+      const parseStance = (text) => {
+        const s = String(text);
+        const lm = [...s.matchAll(/STANCE\s*[:：]\s*(FAVORABLE|D[EÉ]FAVORABLE|NEUTRE)/gi)];
+        if (lm.length) return { stance: canonStance(lm[lm.length - 1][1]), parsed: true };
+        const ms = s.match(STANCE_RE);
+        if (ms && ms.length) return { stance: canonStance(ms[ms.length - 1]), parsed: true };
+        return { stance: 'NEUTRE', parsed: false }; // non lu → marqué (jamais supposition silencieuse) → force conflit
+      };
+      // Arbitrage DÉTERMINISTE : consensus favorable → RECOMMANDE ; consensus défavorable → DECONSEILLE ;
+      // tension (favs ET defs) OU une stance non lue → CONFLIT (arbitrage Pierre, jamais résolu auto) ;
+      // tous NEUTRE → NEUTRE (aucun signal). NE fabrique JAMAIS la résolution d'un trade-off.
+      const arbitrate = (stances) => {
+        const unparsed = stances.filter((s) => !s.parsed).map((s) => s.id);
+        const favs = stances.filter((s) => s.stance === 'FAVORABLE').map((s) => s.id);
+        const defs = stances.filter((s) => s.stance === 'DEFAVORABLE').map((s) => s.id);
+        if ((favs.length && defs.length) || unparsed.length) return { reco: 'CONFLIT', favs, defs, unparsed };
+        if (favs.length) return { reco: 'RECOMMANDE', favs, defs, unparsed };
+        if (defs.length) return { reco: 'DECONSEILLE', favs, defs, unparsed };
+        return { reco: 'NEUTRE', favs, defs, unparsed };
+      };
+
+      const runCouncilArbitration = async (card) => {
+        setArb({ imp: card.id, phase: 'running' });
+        try {
+          const ctx = impContext(card);
+          const nodes = OBJECTIVES.map((o) => objectiveNode(o, ctx));
+          const edges = OBJECTIVES.slice(1).map((o, i) => ({ id: 'ae' + i, from: OBJECTIVES[i].id, to: o.id }));
+          const r = await execLive(toEngineGraph(nodes, edges), { imp: card.id, lane: card.lane });
+          let stances = OBJECTIVES.map((o) => ({ id: o.id, ...nodeOut(r.state, o.id) }));
+          const down = stances.filter((s) => !s.ok);
+          // Comme council-audit : une voix indisponible → « arbitrage partiel », PAS de reco.
+          if (down.length > 0) { setArb({ imp: card.id, phase: 'partial', stances, unavailable: down.length }); return; }
+          stances = stances.map((s) => ({ ...s, ...parseStance(s.text) }));
+          setArb({ imp: card.id, phase: 'done', stances, ...arbitrate(stances) });
+        } catch (e) { setArb({ imp: card.id, phase: 'error', error: String((e && e.message) || e) }); }
+      };
+
       useEffect(() => {
         fetch('/api/cockpit').then((r) => r.json()).then(setC).catch((e) => setErr(String(e)));
         fetch('/api/imp-board').then((r) => r.json()).then(setBoard).catch((e) => setErr(String(e)));
@@ -2434,11 +2498,11 @@
 
           {/* ===== PANNEAU DÉTAIL (clic carte) ===== */}
           {sel && (
-            <div data-testid="impboard-detail" onClick={() => { setSel(null); setAudit(null); }} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.45)', display: 'flex', justifyContent: 'flex-end' }}>
+            <div data-testid="impboard-detail" onClick={() => { setSel(null); setAudit(null); setArb(null); }} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.45)', display: 'flex', justifyContent: 'flex-end' }}>
               <div onClick={(e) => e.stopPropagation()} style={{ width: 420, maxWidth: '90vw', height: '100%', overflow: 'auto', background: 'var(--panel)', borderLeft: '1px solid var(--line)', padding: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <b style={{ color: 'var(--ink)', fontSize: 'var(--fs-lg)' }}>{sel.id}</b>
-                  <button data-testid="impboard-detail-close" className="palette" onClick={() => { setSel(null); setAudit(null); }}>✕</button>
+                  <button data-testid="impboard-detail-close" className="palette" onClick={() => { setSel(null); setAudit(null); setArb(null); }}>✕</button>
                 </div>
                 <div style={{ color: 'var(--ink)', fontSize: 'var(--fs-sm)', marginBottom: 14 }}>{sel.title}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 12px', fontSize: 'var(--fs-xs)', marginBottom: 14 }}>
@@ -2504,6 +2568,64 @@
                         </details>
                       </div>
                     )}
+
+                    {/* Arbitrage multi-objectifs — 2e bouton SÉPARÉ. Lecture seule, n'écrit RIEN, pas de gate. */}
+                    <div style={{ marginTop: 16, borderTop: '1px dashed var(--line)', paddingTop: 12 }}>
+                      <div style={{ fontSize: 'var(--fs-2xs)', textTransform: 'uppercase', letterSpacing: 1, color: 'var(--accent)', marginBottom: 6 }}>Arbitrage multi-objectifs</div>
+                      <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginBottom: 8 }}>{ARB_LABEL}</div>
+
+                      {(!arb || arb.imp !== sel.id) && (
+                        <button data-testid="council-arb-btn" className="palette" onClick={() => setArb({ imp: sel.id, phase: 'confirm' })}>Arbitrage multi-objectifs (council)</button>
+                      )}
+
+                      {arb && arb.imp === sel.id && arb.phase === 'confirm' && (
+                        <div data-testid="council-arb-confirm" style={{ background: 'var(--panel-2)', border: '1px solid var(--line)', borderRadius: 6, padding: 10, fontSize: 'var(--fs-xs)', color: 'var(--ink-2)' }}>
+                          ⚠ Lance <b>4 vrais appels LLM</b> (Qwen :1234 — COÛT/QUALITÉ/VITESSE/ARCHI). Arbitrage déterministe (consensus/conflit, pas de juge LLM). Confirmer ?
+                          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                            <button data-testid="council-arb-go" className="palette" onClick={() => runCouncilArbitration(sel)}>Lancer l'arbitrage</button>
+                            <button className="palette" onClick={() => setArb(null)}>Annuler</button>
+                          </div>
+                        </div>
+                      )}
+
+                      {arb && arb.imp === sel.id && arb.phase === 'running' && (
+                        <div data-testid="council-arb-running" style={{ fontSize: 'var(--fs-xs)', color: 'var(--ink-3)' }}>arbitrage en cours… (4 objectifs, puis règle déterministe)</div>
+                      )}
+
+                      {arb && arb.imp === sel.id && arb.phase === 'partial' && (
+                        <div data-testid="council-arb-error" style={{ background: 'var(--sev-warn-soft)', color: 'var(--sev-warn)', padding: '8px 10px', borderRadius: 6, fontSize: 'var(--fs-xs)' }}>
+                          Arbitrage partiel : {arb.unavailable}/4 objectifs indisponibles — <b>pas de recommandation</b>.
+                          <div style={{ marginTop: 6 }}>{arb.stances.map((s) => (<div key={s.id}><b>{s.id}</b> : {s.ok ? 'ok' : 'indisponible'}</div>))}</div>
+                        </div>
+                      )}
+
+                      {arb && arb.imp === sel.id && arb.phase === 'error' && (
+                        <div data-testid="council-arb-error" style={{ background: 'var(--panel-2)', color: 'var(--sev-bad)', padding: '8px 10px', borderRadius: 6, fontSize: 'var(--fs-xs)' }}>❌ {arb.error}</div>
+                      )}
+
+                      {arb && arb.imp === sel.id && arb.phase === 'done' && (
+                        <div data-testid="council-arb-result">
+                          <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginBottom: 4 }}>recommandation par règle déterministe (consensus/conflit), pas par LLM</div>
+                          <div data-testid="council-arb-reco" style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, background: 'var(--panel-2)', border: '1px solid var(--line)', borderRadius: 6, padding: 10,
+                            color: arb.reco === 'RECOMMANDE' ? 'var(--sev-good)' : arb.reco === 'DECONSEILLE' ? 'var(--sev-bad)' : arb.reco === 'CONFLIT' ? 'var(--sev-warn)' : 'var(--ink-2)' }}>
+                            {arb.reco}{arb.reco === 'CONFLIT' ? ' — arbitrage Pierre requis' : ''}
+                          </div>
+                          {arb.reco === 'CONFLIT' && (
+                            <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--sev-warn)', marginTop: 4 }}>
+                              en tension — favorables : {arb.favs.join(', ') || '—'} · défavorables : {arb.defs.join(', ') || '—'}{arb.unparsed.length ? ' · non lues : ' + arb.unparsed.join(', ') : ''}
+                            </div>
+                          )}
+                          <details style={{ marginTop: 8 }} open>
+                            <summary style={{ cursor: 'pointer', fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)' }}>4 objectifs (texte complet)</summary>
+                            {arb.stances.map((s) => (
+                              <div key={s.id} style={{ marginTop: 6, fontSize: 'var(--fs-2xs)', color: 'var(--ink-2)', whiteSpace: 'pre-wrap' }}>
+                                <b>{s.id}</b> — stance lue : {s.parsed ? s.stance : s.stance + ' (aucune stance trouvée → non lue, force le conflit)'}{'\n'}{s.text}
+                              </div>
+                            ))}
+                          </details>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
