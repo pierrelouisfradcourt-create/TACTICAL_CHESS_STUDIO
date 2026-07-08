@@ -1,0 +1,5774 @@
+# IMPROVEMENT_LEDGER.yaml
+# SSOT amélioration continue (Kaizen Loop) — Tactical Chess Studio
+# Claim posture: NO_CLAIM_ALLOWED | Read-only sauf --close/--add
+
+meta:
+  ledger_version: v0
+  created_session: '2026-05-31'
+  last_updated_session: '2026-06-27'
+  claim_verdict: NO_CLAIM_ALLOWED
+  no_global_ready_verdict: true
+improvements:
+- id: IMP-001
+  project: factory
+  theme: infra
+  title: Fix detect_lane() mismatch avec FILE_ROUTING_MANIFEST
+  type: gap_fix
+  source: bilan UX 2026-05-31 Gap#2
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/doc_hygiene_chain.py
+  acceptance: detect_lane() lit les lanes depuis FILE_ROUTING_MANIFEST.yaml au lieu
+    de hardcoder. Test refuse si manifest/detect_lane contradiction.
+  blocked_by: []
+  opened_session: '2026-05-31'
+  closed_session: '2026-05-31'
+  notes: Bloque l'automation des chaines elles-memes (lab/chains = SAFE_AUTO dans
+    manifest mais AUDIT_REQUIRED hardcode).
+- id: IMP-002
+  project: factory
+  theme: gouvernance
+  title: Créer HUMANGATE_DECISION_LOG.yaml (SSOT décisions)
+  type: gap_fix
+  source: bilan UX 2026-05-31 Gap#4
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/HUMANGATE_DECISION_LOG.yaml
+  acceptance: Schema decision_id/title/zone/surface/source_state/verdict/evidence/risk/approved_by/approved_at.
+    Seedé avec les 8 commits de session.
+  blocked_by: []
+  opened_session: '2026-05-31'
+  closed_session: '2026-05-31'
+  notes: Rend visible source_state tracking (created != registered != enforced).
+- id: IMP-003
+  project: factory
+  theme: infra
+  title: Conflict matrix checker pour multi-lanes parallèles
+  type: feature
+  source: bilan UX 2026-05-31 Gap#3 + demande Pierre multi-lanes
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/lane_conflict_checker.py
+  - lab/chains/lane_plan.yaml
+  acceptance: 'Parse lane_plan.yaml, détecte intersection de files entre lanes, refuse
+    si overlap non vide. Test : 2 lanes disjointes = CLEAR, 2 lanes partagées = CONFLICT.'
+  blocked_by: []
+  opened_session: '2026-05-31'
+  closed_session: '2026-05-31'
+  notes: Débloque le travail multi-lanes parallèles que Pierre veut.
+- id: IMP-004
+  project: factory
+  theme: infra
+  title: Implémenter scripts_route_chain (audit chain)
+  type: feature
+  source: bilan UX 2026-05-31 Gap#1 + AUDIT_CHAIN_CATALOG
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/scripts_route_chain.py
+  acceptance: Lit scripts/uxpilote, scripts/studioV2, scripts/control_plane. Détecte
+    path drift, candidates, stale refs. Produit scripts_route_packet.
+  blocked_by: []
+  opened_session: '2026-05-31'
+  closed_session: '2026-05-31'
+  notes: 1 de 7 audit chains du catalog. Read-only.
+- id: IMP-005
+  project: factory
+  theme: infra
+  title: Implémenter fusion_matrix_chain (merge signaux)
+  type: feature
+  source: bilan UX 2026-05-31 Gap#5 + FUSION_MATRIX_SPEC
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/fusion_matrix_chain.py
+  acceptance: 'Merge outputs de doc_hygiene + run_chain + scripts_route. Produit fusion_matrix
+    (markdown table: verdict/evidence/risk/contradiction).'
+  blocked_by:
+  - IMP-004
+  opened_session: '2026-05-31'
+  closed_session: '2026-05-31'
+  notes: Affiche les contradictions cachées entre audits.
+- id: IMP-006
+  project: rocky
+  theme: moteur
+  title: puzzle_eval --output flag
+  type: feature
+  source: chantier pending session 2026-05-31
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/tool/puzzle_eval.rs
+  acceptance: Ajouter flag --output <path> à puzzle_eval pour écrire le rapport JSON
+    à un chemin custom.
+  blocked_by: []
+  opened_session: '2026-05-31'
+  closed_session: '2026-06-01'
+  notes: Rust, lane AUDIT_REQUIRED (touche src/). Smoke level 1.
+- id: IMP-007
+  project: rocky
+  theme: moteur
+  title: 'Fix draw structurel #NEW-02 (ouverture aléatoire)'
+  type: bug_fix
+  source: 'known issue #NEW-02'
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - src/simulation/simulation_runner.rs
+  acceptance: Brancher ouverture aléatoire 2-8 plies dans le benchmark pour casser
+    le 100% draws search vs search.
+  blocked_by: []
+  opened_session: '2026-05-31'
+  closed_session: '2026-06-01'
+  notes: 'Bug structurel : positions symétriques = 100% draws. Lane AUDIT_REQUIRED.'
+- id: IMP-008
+  project: rocky
+  theme: donnees
+  title: Dataset rebuild (teacher_samples corrompu)
+  type: bug_fix
+  source: 'known issue #NEW-03'
+  status: CLOSED
+  impact: CRITICAL
+  effort: LARGE
+  lane: AUDIT_REQUIRED
+  domain: ia_apprentissage
+  files:
+  - lab/datasets/teacher_samples.jsonl
+  - src/simulation/teacher_uci_runner.rs
+  - ml/dataset_loader.py
+  acceptance: Localiser trainer_mix (cli.rs ou campaign_runner_v1.py), régénérer dataset
+    propre via Stockfish teacher.
+  blocked_by:
+  - IMP-007
+  opened_session: '2026-05-31'
+  closed_session: '2026-06-25'
+  notes: 'BLOQUANT ML. Lane FORBIDDEN (dataset generation = HumanGate strict). Ne
+    pas automatiser. — HumanGate 2026-06-02 : ACTIVE_DATASET.txt redirigé vers pool_2400.jsonl
+    (draw_rate 8.8%, 1M parties). Dataset corrompu teacher_samples.jsonl archivé.
+    — Clôture 2026-06-25 (Option C, HumanGate Pierre) : SearchTraceSchema complet
+    (pv_changes, depth_score_range, node_concentration) ajouté à TeacherSample Rust
+    + parse_search_trace_meta() Python. pool_2400.jsonl reste ACTIVE_DATASET — les
+    3 champs SearchTrace y sont à 0 (acceptable : schéma correct, valeurs viendront
+    après résolution KI-1 draw problem). selfplay 10 games draw_rate=0.90 confirme
+    que self-play heuristique pur reste inutilisable comme source dataset. Rebuild
+    Stockfish-teacher toujours FORBIDDEN jusqu''à résolution KI-1 + Stockfish disponible.
+    — Update 2026-06-25 : KI-1 résolu (IMP-120). selfplay draw_rate 100%→22% (50 games).
+    Bloquer rebuild reste conditionnel à Stockfish disponible. selfplay CSV (lab/selfplay/)
+    ne produit pas TeacherSample JSONL — extension requise (IMP-120) ou Stockfish
+    pour teacher_uci.'
+- id: IMP-009
+  project: factory
+  theme: infra
+  title: 'Charter B : optimisations run_chain.py (opt1-4)'
+  type: feature
+  source: audit pipeline session 2026-05-31
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/run_chain.py
+  acceptance: 'Opt1: charger 3 derniers CHAIN_HISTORY. Opt2: detect_lane avant Mistral.
+    Opt3: source readback auto. Opt4: tracking FORBIDDEN_OUTPUTS.'
+  blocked_by:
+  - IMP-001
+  opened_session: '2026-05-31'
+  closed_session: '2026-05-31'
+  notes: Rend run_chain memory-aware et lane-aware.
+- id: IMP-010
+  project: rocky
+  theme: moteur
+  title: SearchTraceSchema (3 ajouts search.rs)
+  type: feature
+  source: chantier pending session 2026-05-31
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/search.rs
+  acceptance: '3 ajouts chirurgicaux: pv_changes, DepthSnapshot, nodes_per_root_move.
+    Telemetry only, pas de changement comportement.'
+  blocked_by: []
+  opened_session: '2026-05-31'
+  closed_session: '2026-06-03'
+  notes: Lane AUDIT_REQUIRED (touche search.rs core). Telemetry passive.
+- id: IMP-011
+  project: rocky
+  theme: apprentissage
+  title: 'Value head inutilisée #NEW-04'
+  type: bug_fix
+  source: 'known issue #NEW-04'
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: ia_apprentissage
+  files:
+  - ml/infer_policy.py
+  - src/agents/neural_protocol.rs
+  - src/agents/neural_agent.rs
+  acceptance: infer_policy.py jette le scalaire value du ResNet. L'utiliser ou documenter
+    pourquoi pas.
+  blocked_by: []
+  opened_session: '2026-05-31'
+  closed_session: '2026-06-26'
+  notes: 'value head branchée protocole Python→Rust, 5/5 tests neural_protocol vert.
+    Nouveau protocole stdout : {move}|{policy_index}|{value:.6f}|{shortlist}[|{memory_json}].
+    PythonPrediction.pred_value: f32 parsé en position 2. Télémétrie BRIDGE_VALUE
+    + NEURAL_VALUE émise par neural_agent.'
+- id: IMP-012
+  project: factory
+  theme: infra
+  title: STUDIO_CONTEXT.md auto-genere pour Mistral/Devstral
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/studio_context_builder.py
+  acceptance: Script qui derive STUDIO_CONTEXT.md depuis ledger+manifest. Injecte
+    en tete prompts Mistral. Regenere a chaque kaizen metrics.
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-013
+  project: factory
+  theme: donnees
+  title: Collecte automatique golden_examples.jsonl
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  files:
+  - lab/chains/golden_collector.py
+  acceptance: Quand autoloop close un IMP, le charter est archive dans golden_examples.jsonl.
+    Base du futur LoRA.
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-014
+  project: rocky
+  theme: moteur
+  title: 'Fix teacher_uci : brancher random_opening + augmenter turn_cap'
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/simulation/simulation_runner.rs
+  acceptance: random_opening=true dans teacher_uci et benchmark, lab_hard_turn_cap
+    >= 200, parties avec vrais resultats
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-015
+  project: rocky
+  theme: moteur
+  title: PST par type de piece dans eval.rs
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: observe_fen position standard retourne Nf3 ou d4, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-016
+  project: rocky
+  theme: moteur
+  title: Livre d ouvertures minimal 50-200 coups
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/opening_book.rs
+  - lab/data/opening_book.jsonl
+  acceptance: Rocky joue e4 ou d4 au coup 1, moves coherents 10 premiers coups, cargo
+    check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-017
+  project: rocky
+  theme: moteur
+  title: Quiescence sans cap de profondeur plus delta pruning
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/search.rs
+  acceptance: Rocky voit mat en 2, pas de blunder tactique immediat, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-018
+  project: rocky
+  theme: moteur
+  title: Securite du roi zone attack count
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Rocky ne laisse pas son roi en centre en milieu de partie, cargo check
+    OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-019
+  project: rocky
+  theme: moteur
+  title: Pseudo-mobilite au lieu de legal_actions dans eval
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: profondeur effective augmente de 1-2 ply, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-020
+  project: rocky
+  theme: moteur
+  title: SEE complet recursif
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/practical_policy.rs
+  acceptance: Rocky ne perd pas de piece dans echanges a 3 attaquants, cargo check
+    OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-021
+  project: rocky
+  theme: moteur
+  title: Developpement dans eval statique
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Rocky ne laisse pas pieces mineures sur cases depart au coup 10, cargo
+    check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-022
+  project: rocky
+  theme: moteur
+  title: Pion arriere detection
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Rocky penalise pion arriere sous pression, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-023
+  project: rocky
+  theme: moteur
+  title: Futility pruning dans negamax
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: LOW
+  effort: TRIVIAL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/search.rs
+  acceptance: noeuds reduits depth 1-2, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-024
+  project: rocky
+  theme: moteur
+  title: Repetition early detection dans search
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/search.rs
+  acceptance: Rocky detecte repetition avant game_over, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-025
+  project: rocky
+  theme: moteur
+  title: Finales elementaires KR vs K
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: LOW
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Rocky mate avec K+R vs K en moins de 50 coups, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-03'
+  notes: ''
+- id: IMP-026
+  project: rocky
+  theme: moteur
+  title: Activation roi fin de partie basee sur materiel non-pions
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Roi actif quand materiel non-pions faible, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-027
+  project: rocky
+  theme: moteur
+  title: Outposts et cases faibles
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: LOW
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Cavalier en outpost score superieur, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-03'
+  notes: ''
+- id: IMP-028
+  project: rocky
+  theme: moteur
+  title: Penalite meme piece deux fois en ouverture
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: LOW
+  effort: TRIVIAL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Rocky ne joue pas le meme cavalier 3 fois, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-029
+  project: rocky
+  theme: moteur
+  title: draw_score calibration selon phase de jeu
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/chess/eval.rs
+  acceptance: Rocky ne provoque pas stalemate accidentel en K+Q vs K, cargo check
+    OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-030
+  project: rocky
+  theme: moteur
+  title: play_fen dans CLI
+  type: feature
+  source: manual add 2026-06-01
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/tool/cli.rs
+  acceptance: play_fen retourne JSON move/score/depth, cargo check OK
+  blocked_by: []
+  opened_session: '2026-06-01'
+  closed_session: '2026-06-01'
+  notes: ''
+- id: IMP-031
+  project: rocky
+  theme: eval_elo
+  title: Diagnostic neural_tournament_runner.rs + EloTable (read-only)
+  type: audit
+  source: session-2026-06-02
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  files:
+  - src/simulation/neural_tournament_runner.rs
+  - src/tournament/elo.rs
+  acceptance: 'Rapport : fonctions exposées, CLI dispo, ce qui manque pour instancier
+    EloTable'
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-032
+  project: rocky
+  theme: donnees
+  title: Inspecter schéma teacher_tactical/solid/positional/finisher
+  type: audit
+  source: session-2026-06-02
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  files:
+  - lab/datasets/teacher_tactical.jsonl
+  - lab/datasets/teacher_solid.jsonl
+  - lab/datasets/teacher_positional.jsonl
+  - lab/datasets/teacher_finisher.jsonl
+  acceptance: 'Rapport JSON : champs présents, % results non-draw, aaa_* non-null,
+    décision RECYCLE/REGENERATE'
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-033
+  project: rocky
+  theme: eval_elo
+  title: Câbler EloTable dans NeuralTournamentRunner (remplacer ELO inline)
+  type: feature
+  source: session-2026-06-02
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/simulation/neural_tournament_runner.rs
+  - src/tournament/elo.rs
+  acceptance: EloTable instanciée, K canonique choisi, leaderboard() utilisé, cargo
+    test OK
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-034
+  project: rocky
+  theme: eval_elo
+  title: Câbler EloTable dans NeuralTournamentRunner (K=24, unifier 3 implémentations)
+  type: feature
+  source: session-2026-06-02
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/simulation/neural_tournament_runner.rs
+  - src/tournament/elo.rs
+  acceptance: EloTable::new instanciée, update_elo_pair remplacé par update_match,
+    leaderboard() utilisé, cargo test OK, K=24 canonique
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-035
+  project: rocky
+  theme: eval_elo
+  title: EloTable::with_config(EloConfig) — constructeur configurable
+  type: feature
+  source: session-2026-06-02
+  status: CLOSED
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/tournament/elo.rs
+  acceptance: with_config(EloConfig) exposé, K injectable, cargo test OK
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-036
+  project: rocky
+  theme: eval_elo
+  title: Audit puzzles existants + distributions AAA teacher_*
+  type: audit
+  source: session-2026-06-02
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  files:
+  - lab/datasets/candidate_games_for_triage.csv
+  - lab/pedagogy_db/PEDAGOGICAL_DB_TACTICS.pgn
+  acceptance: Format CSV identifié, nb puzzles, thèmes présents, distributions top_gap/aaa_confidence
+    teacher_*
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-037
+  project: rocky
+  theme: eval_elo
+  title: pgn_to_jsonl.py — lichess_elite + human_*.pgn vers Pool-2400
+  type: feature
+  source: session-2026-06-02
+  status: CLOSED
+  impact: CRITICAL
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - ml/pgn_to_jsonl.py
+  - lab/datasets/pool/pool_2400.jsonl
+  acceptance: pool_2400.jsonl, draw_rate < 20%, result non-null, checksum OK
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-038
+  project: rocky
+  theme: donnees
+  title: sf_dataset_generator.py — Pool-SF Stockfish depth 14
+  type: feature
+  source: session-2026-06-02
+  status: CLOSED
+  impact: CRITICAL
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - ml/sf_dataset_generator.py
+  - lab/datasets/pool/pool_sf.jsonl
+  acceptance: 500+ parties SF vs SF, engine_eval CP non-null, draw_rate < 20%
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-03'
+  notes: 'HumanGate 2026-06-02 : draw_rate observé 93.1% != critère. Acceptance relevé
+    à <20%. Statut rouvert — pool_sf à régénérer (SF vs SF positions variées).'
+- id: IMP-039
+  project: rocky
+  theme: donnees
+  title: dataset_builder_v3.py — 3 pools < 20% draw depuis pioche commune
+  type: feature
+  source: session-2026-06-02
+  status: CLOSED
+  impact: CRITICAL
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - ml/dataset_builder_v3.py
+  - lab/datasets/pool/pool_manifest.json
+  acceptance: 3 pools produits, draw_rate < 20%, builder refuse si déviation > 2%
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-040
+  project: rocky
+  theme: apprentissage
+  title: train_player.py — entraîner 1 joueur depuis 1 pool
+  type: feature
+  source: session-2026-06-02
+  status: CLOSED
+  impact: CRITICAL
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - ml/train_player.py
+  acceptance: checkpoint .pt produit, loss décroissante, smoke 20 parties draw_rate
+    < 30%
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-041
+  project: rocky
+  theme: moteur
+  title: play_fen CLI — passer historique des coups pour détection répétition
+  type: bugfix
+  source: session-2026-06-02
+  status: CLOSED
+  impact: CRITICAL
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  files:
+  - src/tool/cli.rs
+  acceptance: Rocky ne joue plus de répétitions en partie longue, draw_rate benchmark
+    < 40%
+  blocked_by: []
+  opened_session: '2026-06-02'
+  closed_session: '2026-06-02'
+  notes: ''
+- id: IMP-042
+  project: rocky
+  theme: eval_elo
+  title: Benchmark ELO post-39-IMPs
+  type: feature
+  source: manual add 2026-06-03
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-03'
+  closed_session: '2026-06-03'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-043
+  project: rocky
+  theme: donnees
+  title: Valider pool_sf draw_rate < 20% sur 500 parties reelles
+  type: feature
+  source: manual add 2026-06-03
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-03'
+  closed_session: '2026-06-03'
+  notes: 'HumanGate 2026-06-03 : Option B choisie. pool_sf abandoné (draw_rate=94%,
+    régénération impossible sans deux moteurs SF asymétriques). pool_sf exclu du pipeline
+    ML. IMP-038 verdict final : INVALID.'
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-044
+  project: factory
+  theme: gouvernance
+  title: Page Studio OS — cockpit unifie surfaces + boucle + HumanGate
+  type: feature
+  source: manual add 2026-06-03
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-03'
+  closed_session: '2026-06-03'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-045
+  project: rocky
+  theme: apprentissage
+  title: LoRA training Devstral sur 57 exemples golden
+  type: feature
+  source: manual add 2026-06-03
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: HUMAN_REQUIRED
+  files:
+  - ml/lora_train_devstral.py
+  acceptance: Script dry-run valide config + dataset. --train lance SFTTrainer sur
+    38 golden exemples.
+  blocked_by: []
+  opened_session: '2026-06-03'
+  closed_session: '2026-06-03'
+  notes: 'HumanGate 2026-06-03 approuvé. Dry-run OK : 38 exemples, format validé,
+    VRAM 17.1GB (fp16) / 6.6GB (4-bit). Training réel : fournir --model-path <devstral_local>.'
+- id: IMP-046
+  project: factory
+  theme: infra
+  title: Switcher LM_MODEL vers Qwen3.6 27B dans autopilot.py + tester CEO Brief
+  type: feature
+  source: manual add 2026-06-03
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-03'
+  closed_session: '2026-06-04'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-047
+  project: factory
+  theme: documentation
+  title: Architecture dual-model brain/router dans autopilot.py
+  type: feature
+  source: manual add 2026-06-03
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-03'
+  closed_session: '2026-06-04'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-048
+  project: factory
+  theme: infra
+  title: state_updater.py — MAJ automatique docs studio depuis sources reelles apres
+    chaque session
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-049
+  project: factory
+  theme: infra
+  title: Cablage state_updater.py dans autopilot.py — appel auto apres close_imp et
+    run_chain
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-051
+  project: factory
+  theme: infra
+  title: CEO Brief v2 — plan 3 lanes simultanées avec sprint objectif
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-052
+  project: factory
+  theme: infra
+  title: Roadmap-to-Ledger — extraire IMPs depuis roadmap et les injecter dans kaizen
+    via Qwen
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-053
+  project: rocky
+  theme: moteur
+  title: Rocky explique ses coups en langage naturel
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 1 — Rocky jouable et explicable
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: rocky_moteur
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 1 — Rocky jouable et explicable, statut IN_PROGRESS,
+    priorité P3
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-054
+  project: factory
+  theme: gameplay
+  title: Chess Fantasy runtime minimal (règles core)
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 2 — Chess Fantasy + Studio
+  status: CLOSED
+  impact: CRITICAL
+  effort: SMALL
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut DOCUMENTED_ONLY,
+    priorité P0
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-055
+  project: factory
+  theme: gameplay
+  title: Rocky muté pour Chess Fantasy
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 2 — Chess Fantasy + Studio
+  status: CLOSED
+  impact: HIGH
+  effort: LARGE
+  lane: SAFE_AUTO
+  domain: jeux
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité
+    P1
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-056
+  project: factory
+  theme: infra
+  title: 'Puzzles : 3 niveaux + from errors + vocabulaire officiel'
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 2 — Chess Fantasy + Studio
+  status: CLOSED
+  impact: MEDIUM
+  effort: LARGE
+  lane: SAFE_AUTO
+  domain: jeux
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 2 — Chess Fantasy + Studio, statut NOT_STARTED, priorité
+    P3
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-057
+  project: rocky
+  theme: apprentissage
+  title: LoRA Devstral TCS v2 (training réel + évaluation)
+  type: feature
+  source: roadmap_to_ledger IMP-052 — Phase 3 — Multi-jeux + Commercial (ongoing)
+  status: OPEN
+  impact: MEDIUM
+  effort: LARGE
+  lane: AUDIT_REQUIRED
+  domain: ia_apprentissage
+  files:
+  - ml/lora_train_devstral.py
+  - ml/lora_config.yaml
+  - lab/runs/
+  acceptance: '300 golden examples dans ml/golden_examples.jsonl + loss curve cohérente
+    dans training_runs/<id>/metrics.jsonl. Oracle : wc -l golden_examples.jsonl >=
+    300 ET fichier metrics.jsonl existe.'
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: Extrait roadmap Phase 3 — Multi-jeux + Commercial (ongoing), statut PLANNED
+- id: IMP-058
+  project: factory
+  theme: ui
+  title: Autoloop multi-lane — executer 1 IMP par lane simultanement depuis UI
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: null
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-059
+  project: factory
+  theme: ui
+  title: Workflow charter UI — afficher charter + champ rapport + close-imp sans API
+    Claude
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-060
+  project: factory
+  theme: infra
+  title: Champ domain dans le ledger — rocky_moteur/ia_apprentissage/studio/jeux pour
+    routing CEO Brief
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-061
+  project: factory
+  theme: ui
+  title: Live feed autoloop — streaming stdout kaizen_autoloop vers UI en temps reel
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-062
+  project: factory
+  theme: infra
+  title: Mettre a jour FILE_ROUTING_MANIFEST — router nouveaux fichiers session 2026-06-04
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-04'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-078
+  project: factory
+  theme: ui
+  title: 5 boutons de liaison — circulation CEO Brief workflow multilane studio-os
+  type: feature
+  source: manual add 2026-06-04
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-04'
+  closed_session: '2026-06-05'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-079
+  project: factory
+  theme: ui
+  title: Cycle de vie idees — persistance ideas.json + auto-applied quand pipeline
+    lance + filtre UI
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: null
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-080
+  project: factory
+  theme: infra
+  title: Roadmap pages par domaine + triage auto IMPs + CEO transparence
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: null
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-081
+  project: factory
+  theme: infra
+  title: Unifier classement domaine + nettoyer roadmap — source verite unique ledger
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: null
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-082
+  project: factory
+  theme: ui
+  title: Usine Idee-to-IMP Phase 1 — reparer inject + unifier boutons + purger proposals
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ''
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-05'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-083
+  project: factory
+  theme: ui
+  title: Cockpit Agents lecture seule
+  type: feature
+  source: idea-to-imp session 13
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-05'
+  notes: Pipeline idea-to-imp — idée 13
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-084
+  project: factory
+  theme: infra
+  title: Fix transition idee applied + empecher doublons + filtre backlog
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ''
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: null
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-085
+  project: factory
+  theme: infra
+  title: Fix transition idee applied + empecher doublons + filtre backlog
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ''
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-05'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-086
+  project: factory
+  theme: infra
+  title: CEO-Decomposer V1 — Qwen3.6 sur extract + contexte ledger + fix champs perdus
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ''
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-05'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-087
+  project: factory
+  theme: infra
+  title: Audit et dossier chaine prompts idee-to-IMP — carte roles zones-ombre calibration
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-05'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-088
+  project: factory
+  theme: gouvernance
+  title: Anti-Skynet flux humain constant + garde-fou Qwen2.5 + export Claude
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  - lab/chains/prompt_chain_map.json
+  acceptance: Onglet Chain Map visible dans l'UI + prompt_chain_map.json lu et rendu
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-05'
+  notes: Repurposé en onglet Map (lire prompt_chain_map.json) + IMP-089 couvre le
+    scope Anti-Skynet original
+- id: IMP-089
+  project: factory
+  theme: ui
+  title: Ajouter attribut title aux boutons dans autopilot.py
+  type: feature
+  source: idea-to-imp session 19
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot/autopilot.py
+  acceptance: Chaque bouton HTML a un attribut 'title' avec le nom du modèle et la
+    durée d'exécution.
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-05'
+  notes: Pipeline idea-to-imp — idée 19
+- id: IMP-090
+  project: factory
+  theme: ui
+  title: Tester les tooltips localement dans autopilot.py
+  type: feature
+  source: idea-to-imp session 19
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot/autopilot.py
+  acceptance: Tous les tooltips s'affichent correctement et la cohérence visuelle
+    est maintenue.
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-06'
+  notes: Pipeline idea-to-imp — idée 19
+- id: IMP-091
+  project: factory
+  theme: ui
+  title: Mettre à jour la documentation pour les nouveaux tooltips
+  type: feature
+  source: idea-to-imp session 19
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - docs/user_guide.md
+  acceptance: Une section décrivant les nouveaux tooltips est ajoutée et documentée
+    clairement.
+  blocked_by: []
+  opened_session: '2026-06-05'
+  notes: Pipeline idea-to-imp — idée 19
+  closed_session: '2026-06-06'
+- id: IMP-092
+  project: factory
+  theme: infra
+  title: Lane guard FORBIDDEN cote serveur dans run_chain()
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ''
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-05'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-093
+  project: factory
+  theme: gouvernance
+  title: Badge escalade live topbar — detecter conditions HumanGate
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ''
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-05'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-094
+  project: factory
+  theme: gouvernance
+  title: claim_verdict lu dynamiquement depuis CLAIM_MATRIX.md
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ''
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-05'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-095
+  project: factory
+  theme: infra
+  title: Scores TASK_PRIORITY_MATRIX dans _stage_proposals()
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ''
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-06'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-096
+  project: factory
+  theme: infra
+  title: Smoke level gate dans autoloop-start avant run_chain()
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ''
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: null
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-097
+  project: factory
+  theme: infra
+  title: Export imp-triage format TASK_MATRIX_TEMPLATE YAML
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ''
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-06'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-098
+  project: factory
+  theme: gouvernance
+  title: Verification tool_permission_matrix avant chain run
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ''
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: null
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-099
+  project: factory
+  theme: infra
+  title: Collision detection idea-inject surfaces BLOCKED
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ''
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-06'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-100
+  project: factory
+  theme: gouvernance
+  title: Lien AUTHORITY_MATRIX dans affichage chain tooltip
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ''
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-06'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-101
+  project: factory
+  theme: ui
+  title: Ajouter bouton Pause à page-chains.html
+  type: feature
+  source: idea-to-imp session 20
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - page-chains.html
+  acceptance: Un bouton Pause est ajouté et fonctionnel dans la page.
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-06'
+  notes: Pipeline idea-to-imp — idée 20
+- id: IMP-102
+  project: factory
+  theme: infra
+  title: Ajouter analyse_report() dans executor_report.py
+  type: feature
+  source: idea-to-imp session 22
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - executor_report.py
+  acceptance: analyse_report() retourne True si l'IMP peut être clos, False sinon.
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: null
+  notes: Pipeline idea-to-imp — idée 22
+- id: IMP-103
+  project: factory
+  theme: infra
+  title: Intégrer logique close_imp() dans autopilot.py
+  type: feature
+  source: idea-to-imp session 22
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  acceptance: close_imp() est appelée si analyse_report() retourne True.
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: null
+  notes: Pipeline idea-to-imp — idée 22
+- id: IMP-104
+  project: factory
+  theme: infra
+  title: Ajouter thread watchdog sur lab/chains/reports/ dans autopilot.py
+  type: feature
+  source: manual add 2026-06-05
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ''
+  files: []
+  acceptance: TBD
+  blocked_by: []
+  opened_session: '2026-06-05'
+  closed_session: '2026-06-05'
+  notes: ''
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-105
+  project: factory
+  theme: infra
+  title: Ajouter endpoint /api/lane-stats dans autopilot.py
+  type: feature
+  source: idea-to-imp session 16
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  acceptance: 'GET /api/lane-stats retourne pour chaque lane : modele LM utilise,
+    nb_runs_today, last_run timestamp'
+  blocked_by: []
+  opened_session: '2026-06-06'
+  closed_session: null
+  notes: Pipeline idea-to-imp — idée 16
+- id: IMP-106
+  project: factory
+  theme: ui
+  title: Supprimer onglet Idee-Roadmap de la sidebar dans autopilot.py
+  type: feature
+  source: idea-to-imp session 14
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  acceptance: Le lien Idee-Roadmap disparait de la sidebar. Aucune reference morte
+    dans le HTML.
+  blocked_by: []
+  opened_session: '2026-06-06'
+  closed_session: '2026-06-06'
+  notes: Pipeline idea-to-imp — idée 14
+- id: IMP-107
+  project: factory
+  theme: ui
+  title: Integrer bouton Generer Roadmap dans page-ideas dans autopilot.py
+  type: feature
+  source: idea-to-imp session 14
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  acceptance: Un bouton Generer Roadmap apparait dans la page Ideas et appelle generateRoadmap().
+    La page Idee-Roadmap separee est supprimee.
+  blocked_by: []
+  opened_session: '2026-06-06'
+  closed_session: '2026-06-06'
+  notes: Pipeline idea-to-imp — idée 14
+- id: IMP-108
+  project: factory
+  theme: ui
+  title: Identifier boutons avec problème d'action rapide dans autopilot.py
+  type: feature
+  source: idea-to-imp session 17
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  acceptance: Liste des boutons avec problèmes d'action rapide documentés
+  blocked_by: []
+  opened_session: '2026-06-06'
+  closed_session: '2026-06-06'
+  notes: Pipeline idea-to-imp — idée 17
+- id: IMP-109
+  project: factory
+  theme: ui
+  title: Corriger onclick implémentation pour boutons problématiques dans executor_report.py
+  type: feature
+  source: idea-to-imp session 17
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - executor_report.py
+  acceptance: Rapport final documentant corrections nécessaires pour boutons problématiques
+  blocked_by: []
+  opened_session: '2026-06-06'
+  closed_session: '2026-06-06'
+  notes: Pipeline idea-to-imp — idée 17
+- id: IMP-110
+  project: factory
+  theme: ui
+  title: Ajouter réparation des boutons sans effet dans rapport final de golden_collector.py
+  type: feature
+  source: idea-to-imp session 17
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - golden_collector.py
+  acceptance: Rapport final contenant réparations des boutons sans effet documentées
+  blocked_by: []
+  opened_session: '2026-06-06'
+  closed_session: '2026-06-06'
+  notes: Pipeline idea-to-imp — idée 17
+- id: IMP-111
+  project: factory
+  theme: infra
+  title: Mettre à jour rapport exécution dans executor_report.py
+  type: feature
+  source: idea-to-imp session 24
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - executor/golden_collector/executor_report.py
+  acceptance: Les rapports d'exécution incluent correctement le nouveau statut de
+    l'idée.
+  blocked_by: []
+  opened_session: '2026-06-06'
+  closed_session: '2026-06-06'
+  notes: Pipeline idea-to-imp — idée 24
+- id: IMP-112
+  project: factory
+  theme: ui
+  title: Réparer interface utilisateur dans ui_ideas.py
+  type: feature
+  source: idea-to-imp session 24
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - ui/ui_ideas.py
+  acceptance: L'interface utilisateur permet efficacement le changement de statut
+    des idées sans bugs.
+  blocked_by: []
+  opened_session: '2026-06-06'
+  closed_session: '2026-06-06'
+  notes: Pipeline idea-to-imp — idée 24
+- id: IMP-113
+  project: factory
+  theme: infra
+  title: Identifier les surfaces critiques avec script Python
+  type: feature
+  source: idea-to-imp session 26
+  status: CLOSED
+  impact: MEDIUM
+  effort: LARGE
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/identify_critical_surfaces.py
+  acceptance: Le script génère une liste complète des surfaces critiques avec leur
+    nature, autorité et impact en aval.
+  blocked_by: []
+  opened_session: '2026-06-06'
+  closed_session: '2026-06-06'
+  notes: Pipeline idea-to-imp — idée 26
+- id: IMP-114
+  project: factory
+  theme: infra
+  title: Mettre à jour AUTOMATION_LANE_MATRIX.md
+  type: feature
+  source: idea-to-imp session 26
+  status: CLOSED
+  impact: HIGH
+  effort: LARGE
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - AUTOMATION_LANE_MATRIX.md
+  acceptance: Le fichier AUTOMATION_LANE_MATRIX.md est mis à jour avec les nouvelles
+    lignes identifiées et chaque surface critique a la bonne autonomie.
+  blocked_by: []
+  opened_session: '2026-06-06'
+  closed_session: '2026-06-06'
+  notes: Pipeline idea-to-imp — idée 26
+- id: IMP-115
+  project: factory
+  theme: infra
+  title: Vérifier manuellement AUTOMATION_LANE_MATRIX.md
+  type: feature
+  source: idea-to-imp session 26
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: HUMAN_REQUIRED
+  domain: studio
+  files:
+  - AUTOMATION_LANE_MATRIX.md
+  acceptance: La matrice est vérifiée manuellement pour s'assurer que toutes les surfaces
+    critiques sont correctement représentées.
+  blocked_by: []
+  opened_session: '2026-06-06'
+  closed_session: '2026-06-06'
+  notes: Pipeline idea-to-imp — idée 26
+- id: IMP-116
+  project: factory
+  theme: infra
+  title: Implémenter fonction charger_anciennes_idées dans ideas_history.py
+  type: feature
+  source: idea-to-imp session 25
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - ideas_history.py
+  acceptance: La fonction retourne correctement les données historiques des idées.
+  blocked_by: []
+  opened_session: '2026-06-07'
+  closed_session: '2026-06-07'
+  notes: Pipeline idea-to-imp — idée 25
+- id: IMP-B1
+  project: factory
+  theme: ui
+  title: Page Vision autopilot.py
+  status: CLOSED
+  lane: SAFE_AUTO
+  files:
+  - autopilot.py
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-B2
+  project: factory
+  theme: infra
+  title: Jalons studio_state.json
+  status: CLOSED
+  lane: SAFE_AUTO
+  files:
+  - studio_state.json
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-25'
+  note: Migré vers workspace OpenClaw skills/AGENTS.md
+- id: IMP-B3
+  project: factory
+  theme: ui
+  title: Page Lanes autopilot.py
+  status: CLOSED
+  lane: SAFE_AUTO
+  files:
+  - autopilot.py
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  note: Remplacé par OpenClaw
+  closed_session: '2026-06-25'
+- id: IMP-B4
+  project: factory
+  theme: ui
+  title: Navigation sidebar
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  impact: HIGH
+  effort: MEDIUM
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-08'
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-B5
+  project: factory
+  theme: ui
+  title: CEO narratives par lane
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  impact: HIGH
+  effort: MEDIUM
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-08'
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-C1
+  project: factory
+  theme: infra
+  title: metrics.json structure
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/metrics.json
+  impact: HIGH
+  effort: MEDIUM
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  note: UNVERIFIABLE - acceptance non defini a la fermeture
+- id: IMP-C2
+  project: factory
+  theme: ui
+  title: Metriques dans Vision
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  impact: HIGH
+  effort: MEDIUM
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-25'
+  note: Migré vers workspace OpenClaw skills/AGENTS.md
+- id: IMP-C3
+  project: factory
+  theme: infra
+  title: Self-play metrics
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/metrics.json
+  impact: HIGH
+  effort: MEDIUM
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-25'
+  note: Migré vers workspace OpenClaw skills/AGENTS.md
+- id: IMP-D1
+  project: factory
+  theme: infra
+  title: Thresholds configurables
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/thresholds.json
+  impact: HIGH
+  effort: MEDIUM
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-25'
+  note: Remplacé par OpenClaw
+- id: IMP-D2
+  project: factory
+  theme: infra
+  title: Thread diagnosis
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  impact: HIGH
+  effort: MEDIUM
+  acceptance: '_diagnosis_thread dans autopilot.py implémente un diagnostic réel :
+    lit
+
+    studio_meta_latest.json, détecte les anomalies (ELO régressé, IMPs bloqués
+
+    > 7 jours, services DEAD via probe ports 8765/8766), écrit un rapport dans
+
+    lab/reports/diagnosis_YYYYMMDD.json. Oracle non-FORBIDDEN :
+
+    python lab/chains/test_diagnosis_smoke.py → exit 0.'
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-26'
+- id: IMP-D3
+  project: factory
+  theme: ui
+  title: UI idees systeme
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  impact: HIGH
+  effort: MEDIUM
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-25'
+  note: Remplacé par OpenClaw
+- id: IMP-E1
+  project: factory
+  theme: ui
+  title: Bouton Lancer Claude Code
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  impact: HIGH
+  effort: MEDIUM
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-25'
+  note: Migré vers workspace OpenClaw skills/AGENTS.md
+- id: IMP-E2
+  project: factory
+  theme: infra
+  title: Auto-report generation
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/executor.py
+  impact: HIGH
+  effort: MEDIUM
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-25'
+  note: Migré vers workspace OpenClaw skills/AGENTS.md
+- id: IMP-E3
+  project: factory
+  theme: infra
+  title: Retry logic FAIL
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/executor.py
+  impact: HIGH
+  effort: MEDIUM
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-25'
+  note: Migré vers workspace OpenClaw skills/AGENTS.md
+- id: IMP-E4
+  project: factory
+  theme: infra
+  title: Mode Manuel vs Auto
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  impact: HIGH
+  effort: MEDIUM
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-25'
+  note: Migré vers workspace OpenClaw skills/AGENTS.md
+- id: IMP-F1
+  project: factory
+  theme: donnees
+  title: Corpus charters
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/corpus/
+  impact: HIGH
+  effort: MEDIUM
+  acceptance: 'lab/chains/corpus/ contient au moins 10 exemples golden de charters
+    IMP au
+
+    format {input: ledger_entry, output: charter_text}. Script validate_corpus.py
+
+    vérifie le schéma. Oracle : python validate_corpus.py → exit 0.'
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-26'
+  note: Oracle vert — python validate_corpus.py exit 0 (17 paires golden)
+- id: IMP-F2
+  project: factory
+  theme: infra
+  title: Reflection thread 24h
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  impact: HIGH
+  effort: MEDIUM
+  acceptance: '_reflection_thread dans autopilot.py génère un bilan 24h (IMPs fermés,
+    ELO
+
+    delta, draw_rate, coût estimé) et l''écrit dans lab/reports/reflection_YYYYMMDD.md.
+
+    Oracle : le fichier existe et contient les 4 sections requises.'
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-26'
+  note: Oracle vert — reflection_YYYYMMDD.md généré, 4 sections présentes
+- id: IMP-F3
+  project: factory
+  theme: infra
+  title: CEO Brief learning
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  impact: HIGH
+  effort: MEDIUM
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-25'
+  note: Remplacé par OpenClaw
+- id: IMP-F4
+  project: factory
+  theme: ui
+  title: Meta-dashboard
+  status: CLOSED
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  impact: HIGH
+  effort: MEDIUM
+  created_at: '2026-06-07'
+  session: '2026-06-07'
+  closed_session: '2026-06-25'
+  note: Remplacé par OpenClaw
+- id: IMP-G1
+  project: factory
+  theme: donnees
+  title: phi_schema.yaml + phi_history.jsonl init
+  type: feature
+  source: session 2026-06-08 lane A
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/phi_schema.yaml
+  - lab/chains/phi_history.jsonl
+  - lab/chains/corpus/
+  - lab/chains/reports/
+  acceptance: phi_schema.yaml validé PyYAML, dossiers corpus/ et reports/ créés
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: Init SSOT scalaires phi — commits_count, imp_closed_count, open_imp_count,
+    velocity
+- id: IMP-G2
+  project: factory
+  theme: infra
+  title: studio_end.py — snapshot phi fin de session
+  type: feature
+  source: session 2026-06-08 lane A
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/studio_end.py
+  acceptance: py_compile OK, phi appende dans phi_history.jsonl, output affiché
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: Script lancement manuel fin de session — capture velocity + open_imp_count
+- id: IMP-G3
+  project: factory
+  theme: infra
+  title: studio_start.py — brief contexte début de session
+  type: feature
+  source: session 2026-06-08 lane A
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/studio_start.py
+  acceptance: py_compile OK, brief généré en < 2s, velocity + top IMPs affichés
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: Script lancement manuel début de session — résume phi précédente + git status
+- id: IMP-G4
+  project: rocky
+  theme: moteur
+  title: simulation_runner.rs — TurnLimit vs Draw séparés
+  type: bug_fix
+  source: session 2026-06-08 lane B
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: rocky_moteur
+  files:
+  - src/simulation/simulation_runner.rs
+  acceptance: cargo test 6 passed — TurnLimit retourne "turn_limit" au lieu de "draw"
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: GAME_ANALYSIS_SUMMARY classifiait TurnLimit comme draw — gonflait le draw_rate
+- id: IMP-G5
+  project: rocky
+  theme: eval_elo
+  title: neural_tournament_runner.rs — hard-fail + CSV provenance 9 colonnes
+  type: feature
+  source: session 2026-06-08 lane B
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: rocky_moteur
+  files:
+  - src/simulation/neural_tournament_runner.rs
+  - src/tournament/export.rs
+  acceptance: cargo test OK, colonne game_source ajoutée CSV, panic_count_block loggué
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: Panics récupérés comptaient comme draws — masquaient la source de contamination
+- id: IMP-G6
+  project: rocky
+  theme: moteur
+  title: search.rs — 4 patches dead code supprimés
+  type: cleanup
+  source: session 2026-06-08 lane D
+  status: CLOSED
+  impact: LOW
+  effort: TRIVIAL
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/chess/search.rs
+  acceptance: cargo test OK après chaque patch atomique — 4 warnings supprimés
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: Imports inutilisés, re-export mort, variable _context, écriture morte prev_score
+- id: IMP-G7
+  project: rocky
+  theme: infra
+  title: neural_agent.rs — audit shortlist lecture seule
+  type: audit
+  source: session 2026-06-08 lane C
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/agents/neural_agent.rs
+  acceptance: Audit complet — aucun patch requis, architecture saine documentée
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: Dead code cosmétique uniquement — name() et purity_violations jamais lus
+- id: IMP-G8
+  project: rocky
+  theme: apprentissage
+  title: ml/move_vocab.py + dataset_loader + train_player — vocab hash SHA256
+  type: feature
+  source: session 2026-06-08 lane C
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - ml/move_vocab.py
+  - ml/dataset_loader.py
+  - ml/train_player.py
+  acceptance: VOCAB_FINGERPRINT calculé une fois, validate_vocab_fingerprint OK, loggué
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-08'
+  session: '2026-06-08'
+  notes: Drift vocab silencieux possible — fingerprint 690ce94a maintenant tracé au
+    démarrage
+- id: IMP-117
+  project: factory
+  theme: infra
+  title: Ajouter vérification longueur texte dans _auto_close_from_report()
+  type: feature
+  source: idea-to-imp session 23
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  acceptance: Le code ajoute une condition qui vérifie la longueur du texte et des
+    mots-clés spécifiques dans _auto_close_from_report().
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-25'
+  notes: Pipeline idea-to-imp — idée 23. CLOSED 2026-06-25 — garde-fou anti rapport
+    tronqué/vide (MIN_REPORT_LEN=40 + 3 REQUIRED_KEYWORDS). Voir lab/chains/reports/IMP-117_report.md.
+- id: IMP-118
+  project: factory
+  theme: gameplay
+  title: Implémenter fn generate_chess_manifest dans manifest.py
+  type: feature
+  source: idea-to-imp session 10
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: jeux
+  files:
+  - studio_core/factory/manifest.py
+  - studio_core/factory/__init__.py
+  - studio_core/main.py
+  acceptance: La fonction retourne un manifeste structuré pour la création du jeu
+    d'échecs.
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-26'
+  notes: 'CLOSED 2026-06-26. generate_chess_manifest() implémentée dans studio_core/factory/manifest.py.
+    12 pièces (6 types × 2 couleurs), 11 règles (7 move + 4 meta), board 8×8, FEN
+    départ, 3 win conditions, 5 draw conditions, godot_setup hook. Validation interne
+    _validate() assertions toutes passées. CLI main.py --validate chess OK. Oracle
+    --sim 1 Snake : 4/4 flags OK (survival 73.6s, wall 0.0%, self_collision 100%)
+    — aucune régression.
+
+    '
+- id: IMP-119
+  project: factory
+  theme: gameplay
+  title: Modifier fn setup_game dans game_setup.py pour intégrer manifestes
+  type: feature
+  source: idea-to-imp session 10
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: jeux
+  files:
+  - studio_core/games/game_setup.py
+  - studio_core/games/__init__.py
+  acceptance: Le fichier `game_setup.py` intègre les manifestes générés dans le setup
+    initial du jeu avec Godot.
+  blocked_by: []
+  opened_session: '2026-06-08'
+  closed_session: '2026-06-26'
+  notes: CLOSED 2026-06-26. setup_game() + ChessGame implémentés dans studio_core/games/game_setup.py.
+    Consomme generate_chess_manifest() (IMP-118), construit initial_positions (32
+    cases), expose godot_setup hook. Oracle --validate chess OK (12 pièces, 11 règles)
+    + --sim 1 Snake vert (4/4 flags).
+- id: IMP-120
+  project: rocky
+  theme: moteur
+  title: KI-1 Draw Problem — opening randomization + contempt + draw_score recalibration
+  type: bugfix
+  source: session-2026-06-25
+  status: CLOSED
+  impact: CRITICAL
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - src/simulation/selfplay.rs
+  - src/chess/search.rs
+  - src/chess/eval.rs
+  acceptance: selfplay draw_rate < 40% sur 50 games, cargo test vert, heuristic ELO
+    stable
+  blocked_by: []
+  opened_session: '2026-06-25'
+  closed_session: '2026-06-25'
+  notes: 'draw_rate selfplay : 100% (baseline) → 22% (50 games, oracle VERT). Trois
+    fixes : (1) selfplay.rs — random_opening per game_id + reset_repetition_state()
+    post-ouverture. (2) search.rs — CONTEMPT=300, retour positif asymétrique (ahead=300,
+    balanced=200, behind=100) dans rep_count>=2 branch — convention negamax correcte
+    (parent voit -contempt). (3) eval.rs — draw_score mat=0 : -70→-140. ELO heuristic
+    : +1.8 (bruit statistique, pas de régression). bench FAIL pre-existing (hybrid<heuristic
+    delta=-14.8, cible +20 = IMP-011 non résolu). selfplay produit CSV uniquement
+    — JSONL dataset rebuild nécessite extension (voir step 3 IMP-008) ou Stockfish.'
+- id: IMP-121
+  project: rocky
+  theme: moteur
+  title: SelfPlayManager → TeacherSample JSONL avec SearchTrace (IMP-008 step 3)
+  type: feature
+  source: session-2026-06-25
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  files:
+  - src/simulation/selfplay.rs
+  - src/tool/cli.rs
+  acceptance: cargo run --release -- selfplay_jsonl 500 lab/datasets/pool_selfplay.jsonl
+    produit un JSONL valide ; pytest ml/ vert ; aaa_pv_changes / aaa_depth_score_range
+    / aaa_node_concentration non-null sur >= 80% des lignes ; draw_rate < 40%
+  blocked_by:
+  - IMP-120
+  opened_session: '2026-06-25'
+  closed_session: '2026-06-25'
+  notes: 'CLOSED 2026-06-25. Implémentation : (1) SelfPlayConfig.output_jsonl: Option<String>
+    ajouté. (2) run_one_game() utilise choose_best_action_with_trace() + capture FEN/legal_moves
+    pre-move + build_selfplay_sample() qui réplique search_trace_summary de teacher_uci_runner.
+    (3) CLI selfplay_jsonl N [path] câblée dans cli.rs. (4) Streaming BufWriter par
+    game batch (flush tous les 10 jeux). Oracle smoke 10 games : 997 lignes, aaa_pv_changes
+    100%, aaa_depth_score_range 100%, aaa_node_concentration 100%, has_aaa_payload
+    100%, load_jsonl_rows OK, pytest ml/ 11 passed. Production 380 games (process
+    timeout game 381) : 37 590 lignes valides, 63.9 MB, dernier JSON intact. HumanGate
+    2026-06-25 : ACTIVE_DATASET pointé vers lab/datasets/pool_selfplay.jsonl (précédent
+    : lab/datasets/pool/pool_2400.jsonl).'
+- id: IMP-122
+  project: factory
+  theme: ui
+  title: Studio OS Architecture Document v0.1
+  type: architecture
+  source: session-2026-06-26
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - docs/architecture/STUDIO_OS_ARCHITECTURE_v0.1.md
+  acceptance: docs/architecture/STUDIO_OS_ARCHITECTURE_v0.1.md existe et synthétise
+    la doctrine (Paradoxe Skynet), l'ordre d'autorité, le modèle deux-pistes (runtime/evidence),
+    l'autorité HumanGate, les lanes, et l'architecture Rocky deux-vitesses, à partir
+    des docs source canoniques.
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-26'
+  notes: CLOSED 2026-06-26. Document d'architecture v0.1 rédigé depuis le contexte
+    studio (CLAUDE.md, SYSTEM_MAP, 00_VISION, 05_ARCHITECTURE, 07_CURRENT_STATE, 10_AUTOMATION_EVIDENCE_PLANE).
+    Statut DRAFT_FOR_REVIEW, posture NO_CLAIM_ALLOWED, en attente de ratification
+    HumanGate. Aucune preuve de force/dataset/benchmark créée — synthèse de planification
+    uniquement.
+- id: IMP-123
+  project: factory
+  theme: gameplay
+  title: Snake AI steering sans demi-tour (wall-avoidance améliorée)
+  type: improvement
+  source: session-2026-06-26
+  status: CLOSED
+  impact: SMALL
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio_core
+  files:
+  - studio_core/sim/headless_sim.py
+  acceptance: headless_sim --sim 100 avg_survival >= 40s ET wall_rate < 60% — l'AI
+    évite les murs sans demi-tour (projection Gram-Schmidt remplacée par steering
+    direct).
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-26'
+  notes: 'CLOSED 2026-06-26. Projection Gram-Schmidt remplacée par steering direct
+    vers arena.center() + clamp hémisphère-avant (_clamp_to_forward) qui respecte
+    le guard anti-reversal du moteur (engine.py: dot>=0, sinon le virage est silencieusement
+    droppé et le serpent fonce dans le mur). Oracle python main.py --sim 100 : avg_survival
+    51.3s (médiane 45.5s), wall_rate 0.0% — acceptance (>=40s ET <60%) PASS avec marge.
+    Stable sur 5 runs RNG non-seedé (avg 50-56s, wall 0.0% constant). Morts désormais
+    100% self_collision. Fichier studio_core/sim/headless_sim.py committé avec la
+    Game Factory studio_core. NB: aucun diff pré-existant — fix rédigé depuis la spec
+    IMP-123.'
+- id: IMP-124
+  project: factory
+  theme: donnees
+  title: Capability Registry v1 — artefacts non consommés
+  type: feature
+  source: session-2026-06-26 (audit architectural comité)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - openclaw/capabilities.yaml
+  - openclaw/providers.yaml
+  acceptance: 'capabilities.yaml liste tous les modèles configurés avec statut réel
+    (AVAILABLE/DEGRADED/DEAD/UNKNOWN). providers.yaml liste tous les endpoints avec
+    startup_cmd et fallback. Aucun artefact d''orchestration référencé dans TOOLS.md
+    ou openclaw.json absent du registry. Lecture validée par python -c "import yaml;
+    yaml.safe_load(open(''openclaw/capabilities.yaml''))" sans erreur.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-26'
+  notes: 'Issu de l''audit architectural 2026-06-26 (GAP-1 Task Router + GAP-6 Monitoring).
+    Le routage modèle est actuellement dans TOOLS.md (document statique) et LM_MODEL/LM_MODEL_CEO
+    hardcodés dans autopilot.py. capabilities.yaml et providers.yaml constituent la
+    source de vérité machine-readable. IMP-125 (AUDIT_REQUIRED) câble ce registry
+    dans le control plane. Draft YAML produit en output de chat session 2026-06-26
+    — écriture disque sur go Pierre.
+
+    '
+- id: IMP-125
+  project: factory
+  theme: donnees
+  title: Capability Registry — intégration Governor/autopilot/OpenClaw
+  type: feature
+  source: session-2026-06-26 (audit architectural comité)
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: 'LM_MODEL et LM_MODEL_CEO supprimés de autopilot.py — remplacés par
+    lecture capabilities.yaml. Healthcheck providers au démarrage autopilot.py (statut
+    RUNNING/DEAD pour chaque provider). OpenClaw routing skill→provider basé sur capabilities.yaml
+    (remplace TOOLS.md statique). cargo test + pytest verts. Aucune régression fonctionnelle
+    autopilot.py.
+
+    '
+  blocked_by:
+  - IMP-124
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-26'
+  notes: 'AUDIT_REQUIRED : touche autopilot.py (control plane critique) et openclaw.json
+    (routing agents). Plan d''intégration produit en output de chat session 2026-06-26
+    — implémentation sur go Pierre. Risque : régression autopilot.py si lecture YAML
+    échoue au démarrage → fallback hardcodé requis.
+
+    '
+- id: IMP-126
+  project: factory
+  theme: infra
+  title: Ajouter un commentaire de version dans studio_core/factory/__init__.py
+  type: chore
+  source: session-2026-06-26 (test boucle autoloop complète)
+  status: CLOSED
+  impact: LOW
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - studio_core/factory/__init__.py
+  acceptance: 'Un commentaire de version (ex. `# version: 0.1.0`) est présent en tête
+    de studio_core/factory/__init__.py. L''import du module reste inchangé (generate_chess_manifest
+    toujours exporté). pytest vert.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-26'
+  notes: 'Effort XS — IMP de test pour valider la boucle autoloop complète (plan →
+    go → edit → oracle → close). Zone non FORBIDDEN. CLOSED 2026-06-26 : edit additif
+    `# version: 0.1.0` en tête de studio_core/factory/__init__.py. Oracle smoke :
+    `import generate_chess_manifest` OK via python3 (export intact, fichier 3→4 lignes).
+    pytest complet non lancé (mode permissions) — smoke import jugé suffisant pour
+    IMP XS trivial par Pierre.
+
+    '
+- id: IMP-127
+  project: factory
+  theme: ui
+  title: Canvas panneau OpenClaw — brancher studio_canvas.html comme panneau live
+  type: feature
+  source: session-2026-06-26 (bilan repo orphelins)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - openclaw.json
+  acceptance: 'openclaw.json contient l''entrée de configuration permettant à studio_canvas.html
+    d''afficher le panneau OpenClaw (gates, file SAFE_AUTO, ELO live). Le Canvas Pierre
+    charge le panneau sans erreur console. pytest vert.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: Brancher l'interface OpenClaw dans le Canvas Pierre existant.
+- id: IMP-128
+  project: factory
+  theme: gouvernance
+  title: Council skill actif — Gemini+Qwen en parallèle sur décisions AUDIT_REQUIRED
+  type: feature
+  source: session-2026-06-26 (bilan repo orphelins)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - studio/openclaw-workspace/skills/council.md
+  acceptance: 'studio/openclaw-workspace/skills/council.md décrit le protocole council
+    : délégation en parallèle à Gemini et Qwen sur tout IMP lane=AUDIT_REQUIRED, synthèse
+    du verdict, escalade Pierre si désaccord. Le skill est invocable depuis /council
+    dans OpenClaw. pytest vert (si applicable).
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'Formalise le conseil multi-modèles pour les IMPs AUDIT_REQUIRED. Unblocks
+    la gouvernance IMP-057.
+
+    '
+- id: IMP-129
+  project: rocky
+  theme: donnees
+  title: Corriger chemin ml/golden_examples.jsonl — copie depuis lab/chains/
+  type: fix
+  source: session-2026-06-26 (bilan IMP-057 prérequis manquants)
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - ml/golden_examples.jsonl
+  acceptance: 'ml/golden_examples.jsonl existe et contient les mêmes entrées que lab/chains/golden_examples.jsonl
+    (57 entrées minimum au moment de l''exécution). wc -l ml/golden_examples.jsonl
+    retourne un nombre >= 1. pytest vert.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'IMP-057 acceptance pointe sur ml/golden_examples.jsonl (ABSENT). Le fichier
+    source est lab/chains/golden_examples.jsonl (57 entrées). Résolution : symlink
+    ou copie — au choix du worker selon les contraintes OS.
+
+    '
+- id: IMP-130
+  project: factory
+  theme: infra
+  title: Audit quotidien automatisé dans cron — hygiene/vérité/sécurité
+  type: feature
+  source: session-2026-06-26 (bilan repo orphelins)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - studio/openclaw-workspace/skills/audit_daily.md
+  acceptance: 'studio/openclaw-workspace/skills/audit_daily.md décrit un skill /audit-daily
+    invocable depuis OpenClaw : vérifie l''hygiène du repo (fichiers orphelins, acceptance
+    TBD, bloqueurs), la cohérence des ancres (MEMORY.md vs ledger), et lance un scan
+    de sécurité basique. Résultat loggé dans lab/reports/. pytest vert.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: Automatiser le bilan quotidien studio (hygiene + vérité + sécurité).
+- id: IMP-131
+  project: factory
+  theme: infra
+  title: /reanchor automatique hebdomadaire — recalibrer ancres Lichess
+  type: feature
+  source: session-2026-06-26 (MEMORY.md — reanchor jamais lancé)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: tactique
+  files:
+  - studio/openclaw-workspace/skills/reanchor.md
+  acceptance: 'studio/openclaw-workspace/skills/reanchor.md décrit le protocole /reanchor
+    : relance bench/lichess_eval.sh, compare aux seuils cibles (L1>=80%, L2>=10%,
+    L3>=20%), met à jour MEMORY.md avec les nouvelles ancres datées. Un fichier .claude/skills/reanchor/skill.md
+    est créé en miroir. pytest vert.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'MEMORY.md note "reanchor jamais lancé — à planifier dès P1". Formalise le
+    skill et crée l''entrée .claude/ manquante.
+
+    '
+- id: IMP-132
+  project: rocky
+  theme: apprentissage
+  title: φ Encoder v1 — encoder les positions chess en vecteurs φ
+  type: feature
+  source: session-2026-06-26 (BOOTSTRAP.md — NOT_STARTED P4)
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - ml/phi_encoder.py
+  acceptance: 'ml/phi_encoder.py implémente un encodeur de positions chess produisant
+    un vecteur φ de dimension fixe (≥7 scalaires normalisés [0,1]) compatible avec
+    SearchTraceSchema. encode(position) retourne un np.ndarray sans erreur sur les
+    positions de test. pytest vert (au moins 3 cas : position initiale, position tactique,
+    position finale).
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-29'
+  notes: 'Premier composant P4 (φ Encoder / Clustering / LoRA). Prérequis pour IMP-057
+    (LoRA Devstral). Implémentation Python pure, pas de Rust.
+
+    '
+- id: IMP-133
+  project: factory
+  theme: nettoyage
+  title: Archiver scripts/studioV2/ — ancien control-plane Codex
+  type: chore
+  source: session-2026-06-26 (bilan repo orphelins — ~80 scripts sans IMP)
+  status: OPEN
+  impact: LOW
+  effort: LARGE
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - scripts/studioV2/
+  acceptance: 'scripts/studioV2/ est déplacé dans lab/archive/studioV2/ avec un README
+    expliquant qu''il s''agit de l''ancien control-plane Codex (pré-OpenClaw). Le
+    répertoire scripts/ ne contient plus studioV2/. Les scripts encore actifs (studio_meta.py,
+    canvas_gateway.py, etc.) restent dans scripts/. cargo test et pytest verts.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: '~80 fichiers orphelins (scripts/studioV2/control_plane/*, operator/*, etc.)
+    issus de l''ère Codex. AUDIT_REQUIRED : vérifier qu''aucun script actif n''est
+    aspiré dans l''archive avant de valider le déplacement.
+
+    '
+- id: IMP-134
+  project: rocky
+  theme: apprentissage
+  title: training_runs/ — créer structure de base + dataset manifest
+  type: feature
+  source: session-2026-06-26 (bilan IMP-057 prérequis manquants)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - training_runs/README.md
+  - training_runs/baseline/dataset_sha.txt
+  acceptance: 'Le répertoire training_runs/ existe avec training_runs/README.md (description
+    de la structure attendue : un sous-dossier par run, metrics.jsonl dedans) et training_runs/baseline/dataset_sha.txt
+    (SHA256 de pool_selfplay.jsonl). IMP-057 peut écrire dans training_runs/<id>/metrics.jsonl
+    sans erreur de chemin. pytest vert.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'IMP-057 acceptance requiert training_runs/<id>/metrics.jsonl (ABSENT). Ce
+    scaffold minimal débloque le prérequis sans pré-supposer la structure finale du
+    pipeline de training.
+
+    '
+- id: IMP-135
+  project: factory
+  theme: infra
+  title: MEMORY.md mise à jour — ELO hybride +19.3 (pas -14), dataset pool_selfplay
+    actif
+  type: fix
+  source: session-2026-06-26
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - studio/openclaw-workspace/MEMORY.md
+  acceptance: 'MEMORY.md ne contient plus ''dégrade de 14 pts''. Oracle : grep -v
+    ''dégrade de 14'' MEMORY.md → exit 0.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: Corriger une erreur factuelle dans MEMORY.md sur l'ELO hybride.
+- id: IMP-136
+  project: factory
+  theme: infra
+  title: lichess_eval.sh hebdomadaire automatique dans /tick
+  type: feature
+  source: session-2026-06-26
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: tactique
+  files:
+  - studio/openclaw-workspace/skills/tick.md
+  acceptance: 'tick.md déclenche lichess_eval.sh une fois par semaine. Oracle : fichier
+    modifié + syntaxe valide.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: Intégrer le benchmark Lichess dans le tick hebdomadaire.
+- id: IMP-137
+  project: rocky
+  theme: apprentissage
+  title: Batch inference neural — protocole BATCH|N dans infer_policy.py + neural_bridge.rs
+  type: feature
+  source: session-2026-06-26
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - ml/infer_policy.py
+  - src/agents/neural_bridge.rs
+  acceptance: 'infer_policy.py accepte BATCH|N header. cargo test vert. Selfplay --games
+    5 tourne sans erreur.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: Protocole batch pour accélérer l'inférence neurale en selfplay.
+- id: IMP-138
+  project: factory
+  theme: infra
+  title: studio_state.json rebranché — auto-refresh depuis studio_meta_latest.json
+  type: fix
+  source: session-2026-06-26
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  acceptance: 'studio_state.json mis à jour toutes les 5 min. Oracle : mtime < 6 min
+    après lancement.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: Rebrancher le refresh automatique du studio_state depuis studio_meta_latest.json.
+- id: IMP-139
+  project: factory
+  theme: infra
+  title: Skill /monitor — état services ports santé système
+  type: feature
+  source: session-2026-06-26
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - studio/openclaw-workspace/skills/monitor.md
+  acceptance: 'monitor.md créé avec steps probe 8765/8766/18789/7331. Oracle : fichier
+    existe.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: Skill de monitoring des services studio (claude_proxy, canvas_gateway, autopilot,
+    LM Studio).
+- id: IMP-140
+  project: factory
+  theme: gouvernance
+  title: BOOTSTRAP.md sync — retirer refs IMP-008 OPEN et HMAC absente
+  type: chore
+  source: session-2026-06-26
+  status: CLOSED
+  impact: LOW
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - studio/openclaw-workspace/BOOTSTRAP.md
+  acceptance: 'BOOTSTRAP.md ne contient plus IMP-008 OPEN ni HMAC absente. Oracle
+    : grep exit 0.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: Nettoyer les références obsolètes dans BOOTSTRAP.md (IMP-008 CLOSED, HMAC
+    opérationnelle).
+- id: IMP-141
+  project: factory
+  theme: infra
+  title: LLM Gateway v1 — openclaw/llm_gateway.py routing dynamique
+  type: feature
+  source: session-2026-06-26
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - openclaw/llm_gateway.py
+  acceptance: 'llm_gateway.py reçoit TaskRequest, route via capabilities.yaml, retourne
+    TaskResponse. pytest unitaire vert.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: 'LLM Gateway port 9000 (PLANNED_PHASE1 dans infrastructure/ports.yaml). AUDIT_REQUIRED
+    : routing dynamique avec capabilities.yaml — impact cross-agents.
+
+    '
+- id: IMP-143
+  project: factory
+  theme: infra
+  title: Hook stop-failure — récupération API error + recovery.json
+  type: feature
+  source: session-2026-06-26
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/hooks/stop-failure.sh
+  acceptance: 'stop-failure.sh créé, écrit lab/reports/recovery.json sur StopFailure
+    avec error_type, timestamp, last_commit. Oracle : bash -n .claude/hooks/stop-failure.sh
+    exit 0.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'Inspiré de GameForge stop-failure.sh. Critique pour l''autoloop nuit : sur
+    rate-limit ou auth error, l''état est perdu. Le hook sauvegarde recovery.json
+    dans lab/reports/ et affiche un message de reprise.
+
+    '
+- id: IMP-144
+  project: factory
+  theme: infra
+  title: Hook session-start — afficher IMP ouvert + ELO + état oracles
+  type: feature
+  source: session-2026-06-26
+  status: CLOSED
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/hooks/session-start.sh
+  acceptance: 'session-start.sh affiche au démarrage : branch git, ELO courant depuis
+    lab/reports/elo_match_latest.json, count IMPs OPEN depuis IMPROVEMENT_LEDGER.yaml,
+    statut oracles (cargo build + pytest --co). Oracle : bash -n .claude/hooks/session-start.sh
+    exit 0.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'Inspiré de CCGS + GameForge session-start.sh. Onboarding session à froid
+    actuellement aveugle : l''agent ne connaît pas l''ELO ni les IMPs ouverts sans
+    lire manuellement les fichiers.
+
+    '
+- id: IMP-145
+  project: factory
+  theme: infra
+  title: Hook pre-compact + post-compact — état actif survit à la compaction
+  type: feature
+  source: session-2026-06-26
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/hooks/pre-compact.sh
+  - .claude/hooks/post-compact.sh
+  acceptance: 'pre-compact.sh écrit lab/reports/compact-state.json avec fichiers modifiés
+    + IMP en cours. post-compact.sh relit et affiche le contexte. Oracle : bash -n
+    sur les deux exit 0.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'Inspiré de CCGS pre/post-compact.sh. L''autoloop perd le contexte de travail
+    lors des compactions de contexte mid-session. Le hook PreCompact/PostCompact permet
+    de persister et restaurer l''état actif.
+
+    '
+- id: IMP-146
+  project: factory
+  theme: infra
+  title: Hook subagent-track — log SubagentStart/Stop + alerte >5 parallèles
+  type: feature
+  source: session-2026-06-26
+  status: CLOSED
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/hooks/subagent-start.sh
+  - .claude/hooks/subagent-stop.sh
+  acceptance: 'hooks loggent dans lab/reports/subagent.log avec timestamp + agent_type.
+    subagent-start.sh alerte si count actifs > 5. Oracle : bash -n sur les deux exit
+    0.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'Inspiré de GameForge subagent-track.sh. /council et /team-feature délèguent
+    plusieurs agents sans audit trail. Ce hook crée une trace dans lab/reports/ et
+    protège contre la parallelisation excessive (>5 agents simultanés).
+
+    '
+- id: IMP-147
+  project: factory
+  theme: documentation
+  title: Hook instructions-validate — valide BOOTSTRAP.md + TOOLS.md + AGENTS.md présents
+  type: feature
+  source: session-2026-06-26
+  status: CLOSED
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/hooks/instructions-validate.sh
+  acceptance: 'hook vérifie existence studio/openclaw-workspace/BOOTSTRAP.md, studio/openclaw-workspace/TOOLS.md,
+    studio/openclaw-workspace/AGENTS.md. Retourne systemMessage si fichier manquant.
+    Exit 1 si manquant. Oracle : bash -n .claude/hooks/instructions-validate.sh exit
+    0.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'Inspiré de GameForge instructions-validate.sh. L''événement InstructionsLoaded
+    permet de vérifier l''intégrité de l''infra studio à chaque chargement CLAUDE.md.
+    Évite que les agents démarrent sans l''infrastructure openclaw complète.
+
+    '
+- id: IMP-148
+  project: factory
+  theme: gouvernance
+  title: settings.json deny list — bloquer rm -rf, git push --force, cat *.env
+  type: chore
+  source: session-2026-06-26
+  status: CLOSED
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/settings.json
+  acceptance: '.claude/settings.json contient une section permissions.deny avec au
+    minimum : Bash(rm -rf *), Bash(git push --force*), Bash(git push -f *), Bash(git
+    reset --hard*), Read(**/.env*), Bash(cat *.env*). Oracle : grep "deny" .claude/settings.json
+    exit 0.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'Inspiré de CCGS settings.json. TCS n''a actuellement pas de deny list dans
+    .claude/settings.json. Ajout des commandes destructives et lecture des secrets
+    comme commandes bloquées au niveau permissions.
+
+    '
+- id: IMP-149
+  project: factory
+  theme: infra
+  title: Skill /smoke-check — gate oracle 4-en-1 TCS (cargo test + pytest + elo +
+    lichess)
+  type: feature
+  source: session-2026-06-26
+  status: CLOSED
+  impact: HIGH
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/skills/smoke-check/skill.md
+  acceptance: 'skill.md créé avec les 4 étapes oracle TCS : cargo test (Rust), pytest
+    ml/ (Python), ./bench/elo_match.sh (ELO), ./bench/lichess_eval.sh (tactique).
+    Produit verdict PASS/FAIL. Oracle : fichier .claude/skills/smoke-check/skill.md
+    existe.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'Inspiré de CCGS smoke-check/SKILL.md adapté aux oracles TCS. L''oracle vert
+    est requis avant tout merge mais il n''existe pas de skill structuré qui orchestre
+    les 4 vérifications et produit un rapport pass/fail.
+
+    '
+- id: IMP-150
+  project: factory
+  theme: infra
+  title: Skill /imp-readiness — valide IMP avant pickup par agent
+  type: feature
+  source: session-2026-06-26
+  status: CLOSED
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/skills/imp-readiness/skill.md
+  acceptance: 'skill.md créé. Vérifie pour un IMP : lane SAFE_AUTO ou AUDIT_REQUIRED,
+    blocked_by vide, fichiers cibles existants ou créables, acceptance définie. Produit
+    verdict READY / NEEDS_WORK / BLOCKED. Oracle : fichier .claude/skills/imp-readiness/skill.md
+    existe.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'Inspiré de CCGS story-readiness/SKILL.md. Le producteur_routine prend parfois
+    des IMPs mal définis (acceptance TBD, fichiers manquants, blocked_by non vide).
+    Ce skill est un garde-fou avant pickup.
+
+    '
+- id: IMP-151
+  project: factory
+  theme: infra
+  title: Skill /sprint-status — snapshot IMPs en cours read-only
+  type: feature
+  source: session-2026-06-26
+  status: CLOSED
+  impact: LOW
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .claude/skills/sprint-status/skill.md
+  acceptance: 'skill.md créé. Lit IMPROVEMENT_LEDGER.yaml, affiche : count par status
+    (OPEN/CLOSED/IN_PROGRESS), liste des OPEN avec lane + effort, ELO courant. Read-only,
+    modèle Haiku. Oracle : fichier .claude/skills/sprint-status/skill.md existe.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'Inspiré de CCGS sprint-status/SKILL.md. Aucun moyen rapide de voir l''état
+    du sprint sans lire manuellement le ledger. Skill léger (Haiku) pour snapshot
+    instantané. Read-only, ne modifie rien.
+
+    '
+- id: IMP-152
+  project: factory
+  theme: documentation
+  title: CLAUDE.md routing table — intention utilisateur → skill mapping
+  type: chore
+  source: session-2026-06-26
+  status: CLOSED
+  impact: MEDIUM
+  effort: TRIVIAL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - CLAUDE.md
+  acceptance: 'CLAUDE.md contient une section "## Routing" avec tableau intention→skill
+    couvrant au moins : oracle/vérification→/smoke-check, IMP status→/sprint-status,
+    IMP pickup→/imp-readiness, architecture→/architecture-review, code→/code-review,
+    plan→/plan. Oracle : grep -i "routing" CLAUDE.md exit 0.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'Inspiré de GameForge CLAUDE.md routing table. TCS liste ses skills mais
+    sans logique de routage explicite dans CLAUDE.md. Les agents choisissent le mauvais
+    skill faute de table de correspondance intention→skill.
+
+    '
+- id: IMP-153
+  project: factory
+  theme: apprentissage
+  title: Event Backbone — run réel pipeline oracle→delta→state + validation
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/run_oracle.sh
+  acceptance: 'scripts/run_oracle.sh elo_match tourne sans erreur. .studio_state/current_state.json
+    créé. Oracle : fichier existe + json valide.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: Valider le pipeline complet oracle→delta→state en conditions réelles.
+- id: IMP-154
+  project: factory
+  theme: gouvernance
+  title: events.jsonl schema verrou — versioning + rejection champs inconnus + hash
+    verification
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/ingest_event.py
+  acceptance: 'ingest_event.py rejette tout event sans version field. pytest unitaire
+    vert.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: Verrouiller le schema events.jsonl pour éviter la dérive silencieuse.
+- id: IMP-155
+  project: factory
+  theme: infra
+  title: ingest_event idempotence — même input → même state final, protection double
+    ingestion
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/ingest_event.py
+  acceptance: 'run deux fois le même oracle → state identique. pytest vert.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: Garantir l'idempotence de l'ingestion pour éviter les états dupliqués.
+- id: IMP-156
+  project: factory
+  theme: infra
+  title: studio_state bootstrap — créer current_state.json initial + validation schema
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/bootstrap_state.py
+  acceptance: 'current_state.json existe après bootstrap. jsonschema validation exit
+    0.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: Bootstrap du studio_state initial pour amorcer le pipeline Event Backbone.
+- id: IMP-157
+  project: factory
+  theme: infra
+  title: StateValidator runtime — stale detection + schema drift + fail hard si delta
+    incohérent
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/state_validator.py
+  acceptance: 'StateValidator.validate() lève exception sur state stale > 24h. pytest
+    3 cas vert.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: Détection runtime des états périmés et des dérives de schema.
+- id: IMP-158
+  project: factory
+  theme: infra
+  title: Suppression chemins parallèles — tout passe par ingest_event.py, interdire
+    écriture directe state
+  type: chore
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/ingest_event.py
+  acceptance: 'grep -r ''current_state.json'' scripts/ → uniquement ingest_event.py.
+    pytest vert.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: Centraliser toute mutation du state dans ingest_event.py, supprimer les écritures
+    directes.
+- id: IMP-159
+  project: factory
+  theme: infra
+  title: Tracking causal IMP→outcome — lien obligatoire IMP_ID→event_id dans events.jsonl
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/ingest_event.py
+  acceptance: 'chaque event imp_closed contient imp_id field. pytest vert.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: Traçabilité causale IMP→event pour audit et rapport matin.
+- id: IMP-160
+  project: factory
+  theme: gouvernance
+  title: Governor déterministe — extraction hors autopilot.py, règles en code
+  type: feature
+  source: session-2026-06-26 (roadmap Gouvernance)
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - governance/governor.py
+  acceptance: 'governance/governor.py implémente check(action) → ALLOW|BLOCK. pytest
+    5 cas vert.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'AUDIT_REQUIRED : extraction de la logique de gouvernance hors autopilot.py.
+    Impact cross-agents — vérification council avant SAFE_AUTO.
+
+    '
+- id: IMP-161
+  project: factory
+  theme: infra
+  title: Benchmark unique d'autorité — un seul ELO source, suppression métriques concurrentes
+  type: chore
+  source: session-2026-06-26 (roadmap ELO)
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - scripts/studio_meta.py
+  acceptance: 'studio_meta.py lit uniquement elo_match_latest.json. grep → 1 seule
+    source ELO.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: 'AUDIT_REQUIRED : suppression des métriques ELO concurrentes. Vérifier que
+    toutes les dépendances aval lisent uniquement elo_match_latest.json.
+
+    '
+- id: IMP-162
+  project: rocky
+  theme: eval_elo
+  title: Neural vs heuristic parity gate — gate explicite hybrid > heuristic TRUE/FALSE
+  type: feature
+  source: session-2026-06-26 (roadmap ELO)
+  status: OPEN
+  impact: HIGH
+  effort: LARGE
+  lane: AUDIT_REQUIRED
+  domain: ia_apprentissage
+  files:
+  - scripts/parity_gate.py
+  acceptance: 'parity_gate.py retourne PASS/FAIL. PASS = hybrid ELO > heuristic +
+    20. Oracle : script exit 0 si PASS.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: 'AUDIT_REQUIRED : gate explicite sur la parité neural vs heuristique. Objectif
+    ELO hybride : heuristique + 20 minimum (actuellement +19.3 — FAIL).
+
+    '
+- id: IMP-163
+  project: rocky
+  theme: eval_elo
+  title: Lichess Elite DB — télécharger + pgn_to_jsonl + pool_elite.jsonl
+  type: feature
+  source: session-2026-06-26 (roadmap data)
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: ia_apprentissage
+  files:
+  - ml/pgn_to_jsonl.py
+  - lab/pool_elite.jsonl
+  acceptance: 'pool_elite.jsonl existe, draw_rate < 5%. Oracle : python ml/pgn_to_jsonl.py
+    exit 0.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: 'AUDIT_REQUIRED : téléchargement base externe + conversion PGN. Brise la
+    boucle circulaire selfplay (neural 989 ELO s entraîne sur selfplay neural 989
+    ELO). Lichess Elite = parties 2400+ ELO, draw_rate structurellement < 5%.
+
+    '
+- id: IMP-164
+  project: factory
+  theme: infra
+  title: Event Backbone smoke test — run_oracle.sh elo_match → current_state.json
+    créé
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/run_oracle.sh
+  - scripts/ingest_event.py
+  - scripts/studioV2/control_plane/*.py
+  acceptance: '.studio_state/current_state.json existe après run. events.jsonl contient
+    entrée HMAC valide.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-26'
+  notes: "Pipeline backbone validé (exit 0). 4 bugs corrigés en chemin : (1) jsonschema\
+    \ pip manquant — installé. (2) parents[2]→parents[3] dans 34 scripts control_plane\
+    \ (déplacement scripts/ → scripts/studioV2/ non répercuté). (3) ingest_event.py\
+    \ delta_to_snapshot() : source_delta_ids utilise source_task_id (pas source_report_id)\n\
+    \    + source_delta_id injecté dans items decision_debt/open_blockers/open_risks/humangate_required_items.\n\
+    (4) run_oracle.sh : declare -A manquant pour tableaux associatifs bash (set -u\
+    \ → unbound var). run_oracle.sh elo_match --games 5 validé aussi (tournoi + backbone\
+    \ end-to-end).\n"
+- id: IMP-165
+  project: factory
+  theme: apprentissage
+  title: Smoke test backbone script — scripts/test_backbone.py mock oracle → events
+    + state
+  type: chore
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/test_backbone.py
+  acceptance: 'test_backbone.py exit 0. events.jsonl + .studio_state/current_state.json
+    mis à jour après run mock.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'Script de smoke test autonome : injecte un oracle JSON mock (elo_match PASS
+    fictif), vérifie que events.jsonl s incrémente et que current_state.json est mis
+    à jour. Pas de cargo build requis — test uniquement la couche Python backbone.
+
+    '
+- id: IMP-166
+  project: rocky
+  theme: donnees
+  title: Dataset Registry — lab/dataset_registry.yaml avec métadonnées pool_selfplay
+  type: chore
+  source: session-2026-06-26 (roadmap data)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - lab/dataset_registry.yaml
+  acceptance: 'dataset_registry.yaml existe avec sha256 + draw_rate + date pour pool_selfplay.jsonl.
+    Oracle : yaml.safe_load exit 0.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-26'
+  notes: 'Source unique de vérité pour les métadonnées datasets (path, sha256, draw_rate,
+    source, date_created). ACTIVE_DATASET.txt pointera vers le registry à terme.
+
+    '
+- id: IMP-167
+  project: rocky
+  theme: eval_elo
+  title: Model Registry — lab/model_registry.yaml checkpoints + ELO + sha256
+  type: chore
+  source: session-2026-06-26 (roadmap data)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - lab/model_registry.yaml
+  acceptance: 'model_registry.yaml existe avec sha256 + ELO + date pour chaque checkpoint
+    connu. Oracle : yaml.safe_load exit 0.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-26'
+  notes: 'Traçabilité complète des checkpoints. Permet rollback vers n importe quel
+    modèle vérifié. Pointeur "current" dans le registry = source de vérité pour neural_bridge.
+
+    '
+- id: IMP-168
+  project: factory
+  theme: infra
+  title: StateValidator — scripts/state_validator.py alerte si state stale > 2h
+  type: feature
+  source: session-2026-06-26 (roadmap Event Backbone)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/state_validator.py
+  - scripts/test_state_validator.py
+  acceptance: 'state_validator.py exit 1 si state absent ou stale > 2h. pytest 3 cas
+    vert (absent, stale, fresh).
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-26'
+  notes: 'Détection runtime des états périmés. Plus strict que IMP-157 (24h → 2h).
+    Appelé en tête de kaizen_autoloop.py pour bloquer l autoloop sur état stale.
+
+    '
+- id: IMP-169
+  project: rocky
+  theme: donnees
+  title: Dead code — supprimer validate_am_dataset_admission() + BAT files legacy
+  type: chore
+  source: session-2026-06-26 (roadmap cleanup)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: ia_apprentissage
+  files:
+  - ml/dataset_loader.py
+  acceptance: 'grep validate_am_dataset_admission ml/ → 0 résultats. BAT files legacy
+    supprimés. cargo test vert.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: null
+  notes: "validate_am_dataset_admission() est fail-closed gate sécurité active — pas\
+    \ dead code. BAT files déjà supprimés. Décision HumanGate requise avant toute\
+    \ modification.\n | [2026-06-29 audit UX] gate securite active (validate_am_dataset_admission\
+    \ fail-closed) — PAS du dead code — WONTFIX candidat, gate Pierre obligatoire\
+    \ avant toute modif"
+- id: IMP-170
+  project: rocky
+  theme: eval_elo
+  title: Puzzle L2/L3 diagnostic — analyser 50 premiers puzzles échoués
+  type: chore
+  source: session-2026-06-26 (roadmap eval)
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - lab/reports/puzzle_analysis_L2.json
+  acceptance: 'rapport lab/reports/puzzle_analysis_L2.json avec pattern d échec identifié
+    (type tactique, profondeur moyenne, fréquence par motif). Oracle : fichier existe
+    + json valide.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'L2 = 4.5% (seuil 10%), L3 = 4.5% (seuil 20%) — les deux FAIL. Diagnostic
+    avant d investir dans des données ciblées. Script d analyse lit lab/reports/puzzle_score_level2.json
+    + lab/puzzles/level2.jsonl.
+
+    '
+- id: IMP-171
+  project: rocky
+  theme: apprentissage
+  title: Learning loop script — scripts/learning_loop.sh train→eval→compare→deploy
+  type: feature
+  source: session-2026-06-26 (roadmap learning)
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - scripts/learning_loop.sh
+  acceptance: 'learning_loop.sh tourne sans erreur sur dry-run (--dry-run flag). Oracle
+    : bash -n scripts/learning_loop.sh exit 0.
+
+    '
+  blocked_by:
+  - IMP-163
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-27'
+  notes: 'Boucle fermée : train.py → run_oracle.sh elo_match → compare vs baseline
+    ELO → deploy si meilleur checkpoint (mise à jour model_registry.yaml + models/latest.pt).
+    --dry-run = exécute train.py --dry-run + oracle mock, valide le script sans cargo
+    build.
+
+    '
+- id: IMP-172
+  project: factory
+  theme: infra
+  title: Cost tracking — kaizen_autoloop.py log tokens par IMP dans lab/cost_log.jsonl
+  type: chore
+  source: session-2026-06-26 (roadmap governance)
+  status: CLOSED
+  impact: LOW
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/kaizen_autoloop.py
+  - lab/cost_log.jsonl
+  acceptance: 'cost_log.jsonl créé après run IMP avec champs ts + imp_id + tokens_used
+    + model. Oracle : fichier existe + json valide ligne par ligne.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-26'
+  notes: 'Traçabilité coût par IMP. Chaque run kaizen ajoute une ligne à lab/cost_log.jsonl.
+    Tokens estimés via len(charter) / 4 si API Claude indisponible. Alerter si session
+    > 100k tokens sans IMP fermé.
+
+    '
+- id: IMP-173
+  project: rocky
+  theme: donnees
+  title: Restaurer meilleur checkpoint — pointer latest.pt vers run_20260527_205249/epoch_020.pt
+  type: chore
+  source: session-2026-06-26 (regression détectée model_registry)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: ia_apprentissage
+  files:
+  - models/latest.pt
+  - models/latest_run_20260601_backup.pt
+  - lab/model_registry.yaml
+  acceptance: 'models/latest.pt est un symlink ou copie de run_20260527_205249/epoch_020.pt.
+    ELO mesuré après changement.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-26'
+  notes: 'RÉGRESSION DÉTECTÉE — latest.pt pointait vers run_20260601 (loss 0.7885).
+    Restauré vers run_20260527_205249/epoch_020.pt (loss 0.6727, meilleur connu).
+    sha256 avant: 688ef186… sha256 après: 1bce1262… Backup conservé dans models/latest_run_20260601_backup.pt.
+    ELO post-restauration pending — relancer ./bench/elo_match.sh.
+
+    '
+- id: IMP-174
+  project: rocky
+  theme: apprentissage
+  title: Training neural sur pool_selfplay.jsonl — run_20260626_182133
+  type: feature
+  source: session-2026-06-26 (premier training learning-loop sur dataset selfplay)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: ia_apprentissage
+  files:
+  - ml/run_selfplay_training.py
+  - training_runs/run_20260626_182133/manifest.json
+  - models/latest.pt
+  acceptance: 'Training maia (policy cross-entropy) sur pool_selfplay.jsonl depuis
+    baseline epoch_015 (loss 0.6727). 20 epochs, convergence propre, best_loss mesuré.
+    latest.pt pointe vers le meilleur epoch. metrics.jsonl + manifest persistés.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-26'
+  closed_session: '2026-06-26'
+  notes: 'Exécuté sous HumanGate explicite (Pierre go 2026-06-26). 31 890 positions
+    valides (5 700 skip best_move unmapped). best_loss=0.2748 @ epoch 19, .venv312
+    CUDA RTX 5080, ~12s. latest.pt sha256 e4f03806… ATTENTION: training policy-only
+    — value head non ré-entraînée, voir IMP-175. ELO post-training mesuré via ./bench/elo_match.sh
+    --games 20 (résultat pending).
+
+    '
+- id: IMP-175
+  project: rocky
+  theme: apprentissage
+  title: Re-entraîner value head cohérente avec backbone pool_selfplay
+  type: feature
+  source: session-2026-06-26 (risque value head incohérente détecté post-IMP-174)
+  status: FAIL
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - ml/run_selfplay_training.py
+  - models/latest.pt
+  acceptance: 'Value head ré-entraînée avec une cible value (engine_eval ou résultat
+    de partie) sur pool_selfplay, cohérente avec le backbone déplacé par IMP-174.
+    ELO neural/hybrid re-mesuré pour isoler l''effet value head.
+
+    '
+  blocked_by:
+  - IMP-174
+  opened_session: '2026-06-26'
+  failed_session: '2026-06-27'
+  fail_verdict: 'FAIL (Pierre, 2026-06-27) — re-training value head (run_20260627_132050,
+    best_loss=0.198) a produit neural ELO 923 = RÉGRESSION vs 1035 baseline CONTEMPT.
+    Draw rate 80-90% inchangé. Modèle NON promu (manifest promote_to_latest=false).
+    latest.pt conservé = run_20260626_182133/best.pt. Suite: IMP-179 (filtrer les
+    nulles du dataset avant re-training value head).'
+  notes: 'Le training IMP-174 n''a optimisé que la policy head (cross-entropy maia).
+    Le backbone partagé ayant bougé, la value head (value_fc1/value_fc2) n''est plus
+    cohérente avec ses features. Un ELO neural/hybrid en baisse post-IMP-174 est probablement
+    dû à cette incohérence, PAS à la qualité de la policy.
+
+    '
+- id: IMP-177
+  project: factory
+  theme: infra
+  title: Director v0 — Runtime Observer
+  type: feature
+  source: session-2026-06-27 (demande Pierre — observateur runtime read-only)
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: control_plane
+  files:
+  - scripts/director.py
+  acceptance: 'scripts/director.py --dry-run exit 0. Produit lab/reports/director_status.json
+    + director_report.md. Lit ledger + current_state + events.jsonl + studio_meta
+    + services. Aucune écriture hors rapports.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: '2026-06-27'
+  notes: 'Observateur v0 read-only : agrège l''état studio (ledger, current_state,
+    events, studio_meta, santé services) en un status JSON + rapport markdown. Aucune
+    action, aucune écriture hors les 2 rapports. Base pour un Director actif (escalades/décisions)
+    en v1.
+
+    '
+- id: IMP-178
+  project: factory
+  theme: infra
+  title: Obsidian MCP — vault mémoire persistante pour agents (P3)
+  type: feature
+  source: demande Pierre 2026-06-27
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: MCP Obsidian branché sur OpenClaw. Agents peuvent lire/créer/modifier
+    notes. Vault versionné Git.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: '2026-07-05'
+  notes: P3 — après P1/P2 stables. Remplace/complète MEMORY.md + DREAMS.md.
+- id: IMP-176
+  project: rocky
+  theme: moteur
+  title: KI-1 fix draw rate neural — CONTEMPT factor dans neural_agent.rs
+  type: feature
+  source: session-2026-06-27 (demande Pierre — neural doit jouer pour la victoire
+    même avec value head dégradée)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: neural
+  files:
+  - src/agents/neural_agent.rs
+  acceptance: 'cargo test vert (244 pass, 1 fail pré-existant AAA_TACTICAL_CORE_ARCHITECTURE.md
+    manquant, hors scope). CONTEMPT pénalise répétitions dans le rerank neural systématiquement,
+    indépendamment de finish_mode/pressure_mode.
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: '2026-06-27'
+  notes: 'Constantes NEURAL_CONTEMPT_REPEAT2=0.18, NEURAL_CONTEMPT_REPEAT3=0.40. Fonction
+    contempt_draw_penalty() simule le coup, lit repeat_after, injecte -0.18 (repeat=2)
+    ou -0.40 (repeat=3) dans le score rerank de chaque candidat. Toujours actif (pas
+    gaté sur finish/pressure mode) — comble le trou où le neural ne pénalisait les
+    nulles qu''en finish_mode (>=2.0 adv) ou pressure_mode. Désactivable via TCS_NEURAL_CONTEMPT=0,
+    overridable via TCS_NEURAL_CONTEMPT_REPEAT2/3. Trace CONTEMPT|move=...|repeat_after=...|penalty=...
+    Distinct du CONTEMPT=300 de search.rs (IMP-120) qui ne touche que la recherche
+    heuristique. Le neural ne peut plus cycler par indifférence même avec value head
+    dégradée (cf IMP-175).
+
+    '
+- id: IMP-179
+  project: rocky
+  theme: apprentissage
+  title: Filtrer les nulles du dataset — garder seulement les parties décisives (result
+    != 1/2-1/2) avant re-training value head
+  type: fix
+  source: session-2026-06-27 (IMP-175 FAIL — value head re-train donne neural 923,
+    draw rate 80-90% inchangé)
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - ml/dataset_loader.py
+  - lab/datasets/pool_selfplay.jsonl
+  acceptance: Le dataset de training value head exclut les parties nulles (result
+    == 1/2-1/2). Seules les parties décisives (1-0 / 0-1) servent de cible value.
+    Nombre de positions décisives loggé. Re-training value head relancé sur ce dataset
+    filtré, ELO neural re-mesuré pour comparer vs 1035 baseline CONTEMPT. pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: '2026-06-27'
+  notes: ''
+- id: IMP-180
+  project: factory
+  theme: documentation
+  title: sync_memory.py — MEMORY.md auto-sync depuis oracles
+  type: feature
+  source: session 2026-06-27 Pierre
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/sync_memory.py
+  - scripts/run_oracle.sh
+  acceptance: 'python scripts/sync_memory.py exit 0 ; section ## Métriques de studio/openclaw-workspace/MEMORY.md
+    reflète elo_match_latest.json + lichess_eval_latest.json + comptage ledger ; reste
+    du fichier préservé ; appelé automatiquement par scripts/run_oracle.sh'
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: '2026-06-27'
+  notes: Lecture seule sur les rapports oracle. Sans dépendance (json stdlib + regex,
+    fast-path PyYAML). Idempotent. NO_CLAIM_ALLOWED.
+- id: IMP-181
+  project: factory
+  theme: infra
+  title: Dispatch bridge — director_schedule.json -> kaizen_autoloop.py
+  type: feature
+  source: session-2026-06-27 audit usine autonome (Pierre)
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/dispatch_bridge.py
+  - scripts/director.py
+  acceptance: scripts/dispatch_bridge.py lit director_schedule.json, lance kaizen_autoloop.py
+    --imp-id sur le premier IMP recommande si services UP. Appele par director --schedule.
+    pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: '2026-06-27'
+  notes: Pont observe->agir manquant (audit usine autonome). Read-only sur le ledger
+    cote bridge. NO_CLAIM_ALLOWED.
+- id: IMP-182
+  project: factory
+  theme: gouvernance
+  title: Brancher governor.py dans kaizen_autoloop.py — remplace gating inline
+  type: refactor
+  source: session-2026-06-27 audit usine autonome (Pierre)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/kaizen_autoloop.py
+  acceptance: kaizen_autoloop.py appelle governor.check(action) avant tout exec lane.
+    pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: '2026-06-27'
+  notes: governor.py (IMP-160) extrait mais jamais recable — double source de verite
+    avec le gating inline (lignes 405-426). NO_CLAIM_ALLOWED.
+- id: IMP-183
+  project: factory
+  theme: ui
+  title: Launcher autonome — crontab WSL qui demarre director --schedule au boot
+  type: feature
+  source: session-2026-06-27 audit usine autonome (Pierre)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - infrastructure/crontab.director
+  acceptance: crontab -l montre l'entree. director tourne sans session humaine.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: '2026-06-27'
+  notes: Aucun ordonnanceur OS aujourd'hui — l'autonomie meurt avec la session Claude
+    (audit usine autonome). NO_CLAIM_ALLOWED.
+- id: IMP-184
+  project: rocky
+  theme: eval_elo
+  title: train.py gate ELO — ne pas ecraser latest.pt avant bench ELO vert. Produire
+    candidate.pt separe.
+  type: feature
+  source: session-2026-06-27 audit usine autonome (Pierre)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: ia_apprentissage
+  files:
+  - ml/train.py
+  acceptance: ml/train.py ecrit models/candidate.pt (jamais models/latest.pt directement).
+    latest.pt n'est mis a jour que par learning_loop.sh apres bench ELO candidat >
+    baseline. pytest vert.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: '2026-06-29'
+  notes: 'Protege le modele deploye : pas d''ecrasement avant gate ELO. Aligne sur
+    learning_loop.sh (IMP-171) qui attend deja models/candidate.pt. NO_CLAIM_ALLOWED.'
+- id: IMP-185
+  project: factory
+  theme: infra
+  title: canonical-ci.yml — corrige branches:[main] -> branches:[master]
+  type: bugfix
+  source: session-2026-06-27 audit usine autonome (Pierre)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .github/workflows/canonical-ci.yml
+  acceptance: canonical-ci.yml push.branches = [master]. La CI se declenche sur push
+    master. yamllint vert.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: '2026-06-28'
+  notes: 'CI morte : le repo est sur master mais le workflow ecoute main -> jamais
+    declenche. ATTENTION : .github/ est zone FORBIDDEN (forbidden_zones) -> le scheduler
+    director ne l''auto-selectionnera pas malgre lane SAFE_AUTO ; execution exige
+    une gate Pierre. NO_CLAIM_ALLOWED.'
+- id: IMP-186
+  project: factory
+  theme: infra
+  title: git core.hooksPath — cable .claude/hooks dans start_studio.sh
+  type: feature
+  source: session-2026-06-27 audit usine autonome (Pierre)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/start_studio.sh
+  acceptance: start_studio.sh execute git config core.hooksPath .claude/hooks. git
+    config core.hooksPath retourne .claude/hooks apres lancement. bash -n vert.
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: '2026-06-29'
+  notes: Les hooks .claude/hooks (pre-commit, validate-commit-msg) ne sont pas cables
+    cote git -> jamais executes. NO_CLAIM_ALLOWED.
+- id: IMP-187
+  project: factory
+  theme: documentation
+  title: canonical-ci.yml — ajoute job cargo test + pytest reel (actuellement filtre
+    docs/** uniquement, ne compile et ne teste rien)
+  type: gap_fix
+  source: demande Pierre 2026-06-27 — CI ne teste rien
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - .github/workflows/canonical-ci.yml
+  acceptance: 'canonical-ci.yml execute un job cargo test --release ET un job pytest
+    reel (ml/ + lab/chess_fantasy/tests/). Le filtre paths docs/** ne doit plus etre
+    la seule condition de declenchement : push/PR touchant src/, ml/, lab/ declenche
+    compile+test. Preuve : run CI vert qui montre cargo test et pytest executes.'
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: null
+  notes: 'Decouvert audit QW : canonical-ci filtrait docs/** uniquement -> aucun build
+    ni test reel. | [2026-06-29 audit UX] cible .github/ = zone FORBIDDEN — gate Pierre
+    obligatoire malgre flag SAFE_AUTO'
+- id: IMP-188
+  project: factory
+  theme: donnees
+  title: 'studio/factory: pipeline IR->template->llm_logic->oracle->registry'
+  type: feature
+  source: manual add 2026-06-27
+  status: CLOSED
+  impact: MEDIUM
+  effort: LARGE
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - studio/factory/
+  acceptance: pytest studio/factory/tests/ vert; factory_loop traite l'IR exemple
+    jusqu'au registry; oracle_sim retourne exit 0 sur headless_sim
+  blocked_by: []
+  opened_session: '2026-06-27'
+  closed_session: '2026-06-27'
+  notes: ''
+- id: IMP-189
+  project: factory
+  theme: gameplay
+  title: studio_core --ir PATH au CLI + sweep balance sur variants/*.json
+  type: feature
+  source: MEGA_ANALYSIS 2026-06-27 (SA6/SA5)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: jeux
+  files:
+  - studio_core/main.py
+  - studio_core/sim/headless_sim.py
+  acceptance: main.py accepte --ir PATH et le forwarde a run_simulation(ir_path);
+    les 10 variants/*.json sont simulables et un sweep produit une table de flags
+    balance par variant
+  blocked_by: []
+  opened_session: '2026-06-28'
+  closed_session: '2026-06-29'
+  notes: Debloque 10 variants orphelins (0 ref code). headless_sim.run_simulation
+    accepte deja ir_path mais defaute en dur sur example_snake_game.json. Ref docs/analysis/MEGA_ANALYSIS_2026-06-27.md
+- id: IMP-190
+  project: factory
+  theme: gameplay
+  title: headless_sim retourne verdict + exit code + dump JSONL (oracle balance cablable
+    en gate)
+  type: feature
+  source: MEGA_ANALYSIS 2026-06-27 (SA5/SA6)
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: jeux
+  files:
+  - studio_core/sim/headless_sim.py
+  acceptance: headless_sim retourne un verdict booleen + exit code (0 vert / 1 rouge)
+    au lieu de print-only, et dump les metriques en JSONL; permet de cabler l'oracle
+    de balance comme gate
+  blocked_by: []
+  opened_session: '2026-06-28'
+  closed_session: '2026-06-29'
+  notes: Aujourd'hui flags design print-only sans retour ni appelant (P0-E mega-analysis).
+    Prerequis pour gate qualite generique des jeux. Ref docs/analysis/MEGA_ANALYSIS_2026-06-27.md
+- id: IMP-191
+  project: factory
+  theme: ui
+  title: Cockpit unifie v2 + 4 endpoints read-only canvas_gateway 8766
+  type: feature
+  source: session Pierre 2026-06-28
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - studio/studio_cockpit_v2.html
+  - scripts/canvas_gateway.py
+  acceptance: studio_cockpit_v2.html sert via 8766 (SSE meta + REST director/factory/neural/openclaw);
+    4 nouveaux panels + panels existants; offline-propre si service DOWN; node --check
+    vert; governor.check avant actions mutantes
+  blocked_by: []
+  opened_session: '2026-06-28'
+  closed_session: '2026-06-29'
+  notes: 189 demande mais deja pris (studio_core --ir); push master en attente gate
+    visuel Pierre
+- id: IMP-192
+  project: factory
+  theme: gouvernance
+  title: 'ECG: HMAC compare_digest enforcement dans ingest_event.py'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'pytest: forge HMAC invalide -> exception (rejet dur signature invalide)'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=none
+    | ex-label=IMP-193. HMAC compare_digest enforcement dans ingest_event.py, rejet
+    dur si signature invalide.'
+  oracle_type: code
+- id: IMP-193
+  project: factory
+  theme: gouvernance
+  title: 'ECG: Lock TTL .autoloop.lock PID+timestamp auto-release'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'pytest: simule crash (PID mort / age>30min) -> recovery auto-release'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=none
+    | ex-label=IMP-194. .autoloop.lock = PID + timestamp, auto-release si PID mort
+    ou age > 30min.'
+  oracle_type: code
+- id: IMP-194
+  project: factory
+  theme: gouvernance
+  title: 'ECG: Single-writer ledger - fermer 3 write paths non gouvernes'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: 'pytest: ecriture concurrente -> exception'
+  blocked_by:
+  - IMP-192
+  - IMP-193
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=IMP-192,IMP-193
+    | ex-label=IMP-195. Ferme les 3 write paths non gouvernes (watcher autopilot,
+    CLI kaizen_loop, close_imp) -> tous via governor.check() ou exception.'
+  oracle_type: code
+- id: IMP-195
+  project: factory
+  theme: gouvernance
+  title: 'ECG: state machine 7 etats transitions gardees'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: schema JSON + pytest transitions (PROPOSED->PLANNED->TEST_SPECCED->IN_PROGRESS->ORACLE_PENDING->VERDICT_SIGNED->CLOSED)
+  blocked_by:
+  - IMP-192
+  - IMP-193
+  - IMP-194
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=structure | blocked_by=IMP-192,IMP-193,IMP-194
+    | ex-label=IMP-196. 7 etats, transitions gardees.'
+  oracle_type: structure
+- id: IMP-196
+  project: factory
+  theme: gouvernance
+  title: 'ECG: Event log append-only HMAC + projection model'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: 'pytest: replay depuis zero = meme etat'
+  blocked_by:
+  - IMP-195
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=IMP-195
+    | ex-label=IMP-197. Event log append-only HMAC + projection model.'
+  oracle_type: code
+- id: IMP-197
+  project: factory
+  theme: gouvernance
+  title: 'ECG: Agent Factory capabilities.lock.json + 5 templates'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: schema valide + instanciation testee (Planner/Executor/RedTeam/Explorer/Reviewer)
+  blocked_by:
+  - IMP-199
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=structure | blocked_by=IMP-199
+    | ex-label=IMP-198. capabilities.lock.json + 5 templates (Planner/Executor/RedTeam/Explorer/Reviewer).'
+  oracle_type: structure
+- id: IMP-198
+  project: factory
+  theme: gouvernance
+  title: 'ECG: Council Claude+Qwen14B+Gemini Flash async PLAN->CONSENSUS'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: CLOSED
+  impact: HIGH
+  effort: LARGE
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: 3 roles tournent + output schema valide; desaccords -> HumanGate; fallback
+    Qwen si proxy down
+  blocked_by:
+  - IMP-197
+  - IMP-199
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=structure | blocked_by=IMP-197,IMP-199
+    | ex-label=IMP-199. Claude(plan+review)+Qwen14B(redteam)+Gemini Flash(diverge)
+    async, PLAN.md -> CONSENSUS.md + desaccords HumanGate, fallback Qwen si proxy
+    down.'
+  oracle_type: structure
+- id: IMP-199
+  project: factory
+  theme: donnees
+  title: 'ECG: SOA execution router MCP-registry aware anti sur-orchestration'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'pytest: sur-orchestration detectee -> refus'
+  blocked_by:
+  - IMP-195
+  - IMP-196
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=IMP-195,IMP-196
+    | ex-label=IMP-200. Routing minimal, MCP-registry aware, anti sur-orchestration.'
+  oracle_type: code
+- id: IMP-200
+  project: factory
+  theme: gouvernance
+  title: 'ECG: WRA GitHub+HackerNews+arXiv read-only inject avant PLAN'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'pytest: source non verifiee -> rejet'
+  blocked_by:
+  - IMP-199
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=IMP-199
+    | ex-label=IMP-201. GitHub+HackerNews+arXiv, filtre/score, READ ONLY, inject avant
+    PLAN.'
+  oracle_type: code
+- id: IMP-201
+  project: factory
+  theme: gouvernance
+  title: 'ECG: Oracle semantic HumanGate obligatoire design/balance'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: checklist JSON schema validee + gate Pierre
+  blocked_by:
+  - IMP-195
+  - IMP-196
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=humangate | blocked_by=IMP-195,IMP-196
+    | ex-label=IMP-202. HumanGate obligatoire pour design/balance, checklist JSON
+    schema.'
+  oracle_type: humangate
+- id: IMP-202
+  project: factory
+  theme: gouvernance
+  title: 'ECG: error_journal pattern matcher + IMP auto-propose'
+  type: feature
+  source: manual add - chapitre orchestration multi-LLM gouvernee
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'pytest: erreur inconnue -> IMP cree'
+  blocked_by:
+  - IMP-195
+  - IMP-196
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: '[chapitre orchestration multi-LLM gouvernee] oracle_type=code | blocked_by=IMP-195,IMP-196
+    | ex-label=IMP-203. error_journal: pattern matcher + IMP auto-propose sur erreur
+    inconnue.'
+  oracle_type: code
+- id: IMP-203
+  project: factory
+  theme: gouvernance
+  title: 'ECG enforcing: router closes via ecg.can_transition + ledger_writer + producteur
+    imp_closed (adapt_imp_closed)'
+  type: feature
+  source: manual add 2026-06-29
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: 'pytest: close legale OK / close illegale rejetee / event imp_closed
+    emis + projection reflete / legacy tolere / non-regression'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: 'oracle_type=code | blocked_by=IMP-195,IMP-196 | ECG enforcing: cmd_close
+    -> ecg.can_transition + ledger_writer (refus dur transition illegale, legacy tolere)
+    + emit imp_closed signe -> event log alimente la projection'
+- id: IMP-204
+  project: factory
+  theme: documentation
+  title: Graphify — installer + premier graphe de connaissances du depot (code-only
+    offline)
+  type: tooling
+  source: RECO_GRAPHIFY.md / session 2026-06-29
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - graphify-out/
+  - docs/studio_v2/RECO_GRAPHIFY.md
+  acceptance: uv tool install graphifyy OK; graphify install --project enregistre
+    le skill; /graphify . execute en code-only OFFLINE (aucune cle API, pas de Docker);
+    graphify-out/ contient graph.json + GRAPH_REPORT.md + graph.html; une query graphe
+    repond; aucun fichier en zone FORBIDDEN (tests/ eval/ oracle/ bench/ puzzles/
+    .github/); aucun git commit/push
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-30'
+  notes: 'Attaque le theme audit ''surface affichee > surface cablee'' (orphelins,
+    nav morte, docs qui derivent du code). Etape 2 differee (extraction docs/PDF sur
+    Qwen local LM Studio 1234) = IMP separee. NB: autoloop ne demarrera pas tant que
+    studio_meta global_verdict=FAIL (ELO rouge).'
+- id: IMP-205
+  project: factory
+  theme: gouvernance
+  title: 'Single-writer COMPLET : router roadmap_to_ledger + ledger_patch_* via guarded_write
+    + grep-guard'
+  type: refactor
+  source: REPRISE orchestration chantier (a) ; suivi IMP-194
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - lab/chains/roadmap_to_ledger.py
+  - lab/chains/ledger_patch_20260608.py
+  - lab/chains/ledger_patch_20260625.py
+  - scripts/grep_guard_ledger.py
+  acceptance: Aucun writer du ledger hors governance/ledger_writer.guarded_write (grep-guard
+    PASS) ; roadmap_to_ledger route via guarded_write ; pytest natif vert ; .github
+    NON touche (gate Pierre)
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: 'oracle_type=pytest_native_venv312 ; complete IMP-194 (single-writer partiel)
+    ; correction scope vs REPRISE : golden_collector n''ecrit PAS le ledger (lit),
+    vrai writer actif = roadmap_to_ledger._write_ledger ; .github/ CI-wiring differe
+    gate Pierre ; AUDIT_REQUIRED jamais auto-close'
+- id: IMP-206
+  project: factory
+  theme: gouvernance
+  title: Durcissement grep_guard_ledger + ledger_writer — corriger failles P1/P2 du
+    red team IMP-205
+  type: refactor
+  source: red team IMP-205 (P1/P2 latentes)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - scripts/grep_guard_ledger.py
+  - governance/ledger_writer.py
+  acceptance: grep_guard exit 0 sur repo propre ET exit 1 sur bypass os.open(LEDGER);
+    expected_fingerprint obligatoire dans guarded_write (fail-closed si None); jeton
+    de propriete writelock (pas d'unlink sans verif); pytest natif venv312 vert
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: blocked_by IMP-205 (dependance — kaizen add sans flag blocked_by, champ a
+    refleter); oracle_type=pytest; corrige red team P1 (os.open non couvert + resolution
+    recursive recepteur .resolve/.absolute/Path(...)), P2 (expected_fingerprint opt-in
+    silencieux, writelock unlink sans ownership token)
+- id: IMP-207
+  project: factory
+  theme: gouvernance
+  title: 'error_journal -> boucle : cablage live (oracle rouge / governor BLOCK /
+    exception) + HMAC + escalade'
+  type: feature
+  source: REPRISE chantier (d) ; reutilise IMP-202 ; ACTION 4 Pierre
+  status: CLOSED
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - governance/error_journal.py
+  - lab/chains/kaizen_autoloop.py
+  - scripts/phase2_tests/test_imp207_error_journal_live.py
+  acceptance: 'pytest natif : oracle rouge -> entree journal HMAC ; meme erreur 3x
+    -> escalade proposition AUDIT_REQUIRED (jamais add ledger SAFE_AUTO) ; HMAC valide
+    par ligne ; cablage best-effort ne leve jamais'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: oracle_type=pytest_native_venv312 ; reutilise governance/error_journal.py
+    (IMP-202) ; RED TEAM verdict B=NON auto-add SAFE_AUTO (boucle), F=reutiliser ;
+    3 sites best-effort LOUD + garde reentrance ; HMAC reel hmac.new + scrub secrets
+- id: IMP-208
+  project: factory
+  theme: gouvernance
+  title: Brancher council.py dans kaizen_autoloop — remplace redteam/fusion. Injecte
+    web_reality_agent brief avant PLAN. Declenchement automatique sur chaque nouveau
+    IMP.
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: council appele sur IMP test -> CONSENSUS.md produit -> kaizen_autoloop
+    recoit CONSENSUS.md pas brief brut
+  blocked_by:
+  - IMP-198
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: oracle_type=structure | blocked_by=IMP-198 | remplace redteam/fusion dans
+    kaizen_autoloop, injecte web_reality_agent brief avant PLAN, trigger auto sur
+    chaque nouveau IMP
+  oracle_type: structure
+- id: IMP-209
+  project: factory
+  theme: ui
+  title: Cockpit honnetete P0 — kill hardcode + couche fetch timeout + fix lien mort/label/grain
+    SVG
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 0 donnee hardcodee sans badge mock, tous les fetch ont .catch, grain
+    SVG supprime
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: oracle_type=code | blocked_by=none | Phase 0 consensus UX_AUDIT 2026-06-29
+    — supprime hardcode (badge 12, ELO 1424/1200/975, commits figes), couche fetch
+    timeout+catch global, fix lien mort nav('sos'), label mensonger 'maj auto 15s',
+    retire grain SVG fractal
+  oracle_type: code
+- id: IMP-210
+  project: factory
+  theme: ui
+  title: cockpit_server.py:8770 + migration studio_canvas.html
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: canvas_gateway revient a meta+gate strict, studio_canvas.html polle
+    8770
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: oracle_type=structure | blocked_by=none | option A — extraire routes cockpit
+    de canvas_gateway vers cockpit_server.py:8770, migrer studio_canvas.html, canvas_gateway
+    revient meta+gate strict
+  oracle_type: structure
+- id: IMP-211
+  project: factory
+  theme: gouvernance
+  title: Boucle Council UI — POST /api/council/run + SSE + timeout
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: formulaire cockpit -> council tourne -> CONSENSUS.md affiche
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=structure | blocked_by=none | boucle idee->council->decision
+    dans l'UI, POST /api/council/run subprocess gouverne + SSE log + timeout/annulation/anti-double-clic
+  oracle_type: structure
+- id: IMP-212
+  project: factory
+  theme: infra
+  title: Lanceur jeux sandboxe — liste games/ + play + sandbox
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: jeux
+  files: []
+  acceptance: liste games/ rendue, bouton play fonctionnel, iframe a attribut sandbox
+  blocked_by:
+  - IMP-189
+  - IMP-190
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: 'oracle_type=code | blocked_by=IMP-189,IMP-190 | lanceur jeux: liste games/,
+    bouton play, iframe attribut sandbox obligatoire'
+  oracle_type: code
+- id: IMP-213
+  project: factory
+  theme: infra
+  title: Pipeline publish — Godot headless + butler itch.io
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: jeux
+  files: []
+  acceptance: butler push exit 0 depuis factory_loop
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=code | blocked_by=none | Godot 4 headless --import --quit puis
+    --export-release preset, butler push user/game:channel --userversion-file, BUTLER_API_KEY
+    en CI
+  oracle_type: code
+- id: IMP-214
+  project: factory
+  theme: ui
+  title: Decommissionner studio_cockpit_v2.html
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: redirection vers cockpit canonique
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: oracle_type=code | blocked_by=none | studio_cockpit_v2.html marque obsolete
+    (deprecie) mais encore servable -> redirection/banniere vers cockpit canonique
+  oracle_type: code
+- id: IMP-215
+  project: factory
+  theme: infra
+  title: 'Durcir _route_model : forcer qwen2.5 des que la sortie est parsee JSON —
+    evite qu''un futur appelant tombe sur qwen3.6 par accident de routage'
+  type: refactoring
+  source: manual add - session 2026-06-29 go Pierre
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - autopilot.py
+  acceptance: '_route_model garantit LM_MODEL (qwen2.5) pour tout appel parse en JSON
+    ; test code : aucun chemin ceo_brief/fusion_deep ne route vers qwen3.6 quand JSON
+    attendu'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: 'oracle_type: code | source: STAFF_ENGINEER_AUDIT_2026-06-29 W6 (faux positif
+    live, mine latente) | go Pierre session 2026-06-29'
+- id: IMP-216
+  project: rocky
+  theme: moteur
+  title: Fix harnais Lichess — serde puzzle.rs + lichess_eval.sh erreur dure sur failed
+  type: bugfix
+  source: diagnostic session 2026-06-29 (HARNESS_BUG)
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/chess/puzzle.rs
+  - src/tool/puzzle_eval.rs
+  - bench/lichess_eval.sh
+  acceptance: PuzzleCase accepte le schema Lichess natif (side_to_move derive du FEN,
+    lichess_themes[0]->theme, serde(default) sur champs manquants); lichess_eval.sh
+    traite PUZZLE_EVAL_STATUS=failed comme erreur dure (plus de || true qui relit
+    un baseline perime); L2 et L3 produisent des rapports DISTINCTS et frais; cargo
+    test vert
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: 'oracle_type=code | L2/L3=91/2000 etaient des artefacts perimes byte-identiques;
+    oracle Lichess ne reflete pas la force. NB: ne debloque PAS l''autoloop (verrou
+    ELO independant). NO_CLAIM_ALLOWED'
+- id: IMP-217
+  project: factory
+  theme: ui
+  title: Provisionner uv — debloquer IMP-204 Graphify
+  type: tooling
+  source: IMP-204 BLOCKED_TOOLING session 2026-06-29
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/start_studio.sh
+  acceptance: uv installe et sur PATH (uv --version OK); IMP-204 re-executable (uv
+    tool install graphifyy). docs/studio_v2/RECO_GRAPHIFY.md a creer/localiser pour
+    l'invocation graphify
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-30'
+  notes: oracle_type=code | uv absent (ni pipx) -> IMP-204 inexecutable. NO_CLAIM_ALLOWED
+- id: IMP-218
+  project: rocky
+  theme: eval_elo
+  title: Fix neural_bridge.rs:94-96 — env unwrap() -> fallback (oracle ELO sous WSL)
+  type: fix
+  source: audit 2026-06-29 (panic NotPresent neural_bridge.rs:95)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/agents/neural_bridge.rs
+  acceptance: neural_tournament tourne sans panic depuis WSL
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-29'
+  notes: PATH/SystemRoot/WINDIR unwrap paniquaient (NotPresent) sous WSL/env nettoye,
+    tuant le tournoi ELO. Remplace par unwrap_or_default/unwrap_or_else + const DEFAULT_WINDOWS_DIR.
+- id: IMP-219
+  project: rocky
+  theme: moteur
+  title: Audit forced_stagnation — 81% de nulles (adjudicateur soft_no_capture trop
+    agressif)
+  type: audit
+  source: audit 2026-06-29 (median partie=35 plies=SOFT_NO_CAPTURE_LIMIT)
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/simulation/simulation_runner.rs
+  acceptance: draw rate < 50% sur 100 parties
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: 'Hypothese adjudicateur FALSIFIEE (exp. 183 parties, SOFT=100/HARD=150):
+    forced_stagnation 182->16 mais taux de nulle 81%->76.5% — les nulles basculent
+    en repetition triple, pas en victoires. Vrai probleme: Rocky ne convertit pas
+    (repetition triple sur positions gagnantes). Traiter: penalite repetition + incitation
+    au progres dans eval. NE PAS resoudre par changement de seuil seul.'
+- id: IMP-220
+  project: rocky
+  theme: moteur
+  title: IID dans negamax Rocky — relance depth-1 si hash-move absent en TT pour generer
+    coup pivot avant ordering
+  type: feature
+  source: Pierre 2026-06-29
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: rocky_moteur
+  files:
+  - src/chess/search.rs
+  acceptance: cargo test vert + ELO benchmark ameliore ordering
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: ''
+- id: IMP-221
+  project: factory
+  theme: infra
+  title: Workflow Store v1 — creer studio/workflows/ avec structure complete
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'studio/workflows/ existe avec sous-dossiers : workflow_store/ playbooks/
+    protocols/ ceremonies/ contracts/ checklists/ policies/ metrics/ process_mining/'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-30'
+  notes: oracle_type=structure | blocked_by=none | GPT Process Architecture 2026-06-29
+    — structure de base
+- id: IMP-222
+  project: factory
+  theme: gouvernance
+  title: Mission Contract — chaque IMP genere un contrat explicite avant execution
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'Template contracts/imp_contract.md avec : objectif / perimetre / surfaces
+    autorisees / surfaces interdites / criteres de succes / conditions d arret / validations
+    obligatoires / artefacts attendus'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-30'
+  notes: oracle_type=structure | blocked_by=none | Evite les derives agents — contrat
+    avant tout code
+- id: IMP-223
+  project: factory
+  theme: gouvernance
+  title: Session Kickoff playbook — preflight standardise
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'playbooks/session_kickoff.md avec etapes obligatoires : 1 repo health
+    / 2 worktree state / 3 ledger review / 4 knowledge refresh web / 5 priorisation
+    / 6 parallel safety check / 7 planning session'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=structure | blocked_by=none | Standardise le Director Pre-Flight
+    en playbook reutilisable
+- id: IMP-224
+  project: factory
+  theme: gouvernance
+  title: Failure Harvest playbook — chaque erreur devient une regle permanente
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'playbooks/failure_harvest.md avec pipeline : erreur -> cause -> regle
+    -> workflow -> protection permanente. Branche sur error_journal — toute erreur
+    >= 3 occurrences genere une entree dans checklists/'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-30'
+  notes: oracle_type=structure | blocked_by=none | Transforme les echecs en discipline
+    operationnelle
+- id: IMP-225
+  project: factory
+  theme: infra
+  title: Pattern Extraction — apres chaque IMP ferme extrait les apprentissages
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files: []
+  acceptance: 'playbooks/pattern_extraction.md avec questions obligatoires : decouverte
+    d un workflow ? d une regle ? d un template ? d un prompt ? d une policy ? Output
+    : entree dans workflow_store/ ou checklists/'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=structure | blocked_by=none | Chaque IMP termine rend le studio
+    plus discipline
+- id: IMP-226
+  project: factory
+  theme: gouvernance
+  title: Parallel Safety Review — Director calcule collisions avant lancement
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - scripts/parallel_safety.py
+  acceptance: 'scripts/parallel_safety.py : prend liste IMPs candidats, retourne groupes
+    sans collision (fichiers disjoints), ordre optimal, points de synchronisation.
+    pytest : 3 IMPs sur memes fichiers -> collision detectee'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=code | blocked_by=none | Evite les races entre agents — calcul
+    avant tout lancement parallele
+- id: IMP-227
+  project: factory
+  theme: infra
+  title: Process Architect agent — observe sessions detecte frictions propose workflows
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: 'Agent lecture seule sur events.jsonl + error_journal + session logs.
+    Produit apres chaque session : frictions detectees / repetitions / nouveaux workflows
+    proposes. Output : proposals/process_architect_YYYY-MM-DD.md'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: null
+  notes: oracle_type=humangate | blocked_by=none | Jamais de code — que de la discipline
+    operationnelle. HumanGate sur chaque proposition.
+- id: IMP-228
+  project: rocky
+  theme: documentation
+  title: Rocky audit checklist — pre-checklist obligatoire avant tout audit moteur
+  type: feature
+  source: manual add - session 2026-06-29 go Pierre (GPT Process Architecture)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: rocky_moteur
+  files: []
+  acceptance: 'checklists/rocky_audit.md avec verifications obligatoires : grep root_player
+    -> sites restants documentes / git log fixes deja appliques / oracle ELO fiable
+    (date dernier run) / benchmark depuis dernier fix / draw rate mesure. Empeche
+    de re-decouvrir des bugs deja fixes'
+  blocked_by: []
+  opened_session: '2026-06-29'
+  closed_session: '2026-06-30'
+  notes: oracle_type=structure | blocked_by=none | Cree suite a la session 2026-06-29
+    — fixes re-decouverts 2x
+- id: IMP-229
+  project: factory
+  theme: donnees
+  title: Tech-debt lab/chains/ orphelins — archiver ou supprimer chain_executor.py,
+    chain_log.py, studio_start.py, studio_end.py, validate_corpus.py, validate_packet.py
+    après vérification qu'ils ne sont pas appelés dynamiquement
+  type: tech-debt
+  source: graphify orphan audit 2026-06-30
+  status: OPEN
+  impact: LOW
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: studio
+  files:
+  - lab/chains/chain_executor.py
+  - lab/chains/chain_log.py
+  - lab/chains/studio_start.py
+  - lab/chains/studio_end.py
+  - lab/chains/validate_corpus.py
+  - lab/chains/validate_packet.py
+  acceptance: 'Pour chacun des 6 fichiers: grep -rn (import, importlib, subprocess,
+    runpy, refs string du nom) sur tout le repo confirme zero appelant hors lui-meme;
+    puis chaque fichier soit deplace sous lab/chains/_archive/ soit supprime. Oracle:
+    python -m compileall lab/ OK + pytest ml/ vert + aucun import casse.'
+  blocked_by: []
+  opened_session: '2026-06-30'
+  closed_session: null
+  notes: 'oracle_type=code | blocked_by=none | source: graphify orphan audit 2026-06-30
+    (135 orphelins cross-fichier sur graph.json; ces 6 = vrais candidats lab/chains
+    non-entrypoint). NE PAS supprimer avant preuve grep zero-appelant (subprocess/runpy/importlib/refs
+    string).'
+- id: IMP-230
+  project: rocky
+  theme: moteur
+  title: Anti-shuffle cavalier/tour — is_shuffle_move ne couvre que le Roi, oscillations
+    N/R non penalisees (cause shuffle Nh6/Ng8 observe en partie reelle)
+  type: bugfix
+  source: jeu reel 2026-06-30 (1.e4 Nh6 2.Bc4 Ng8...) + red team a2c7cd83
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/chess/move_features.rs
+  acceptance: 'is_shuffle_move (ou helper additif) detecte l''oscillation cavalier/tour
+    (retour sur une case quittee) en plus du Roi, SANS regression sur manoeuvres legitimes
+    (Nf3-d2-c4 non penalise). Oracle: cargo test --release vert (tous tests existants);
+    test comportemental: la sequence 1.e4 Nh6 2.Bc4 Ng8 3.c3 ... ne boucle plus apres
+    le 2e aller-retour. NO_CLAIM.'
+  blocked_by: []
+  opened_session: '2026-06-30'
+  closed_session: null
+  notes: 'oracle_type=code | blocked_by=none | RED TEAM verifie (a2c7cd83): is_shuffle_move
+    move_features.rs:460-479 ne teste que King && chebyshev<=1; N/R oscillation invisible.
+    Ni seuil repetition (deja a 2-fold) ni king-distance (deja presente, gated endgame)
+    n''expliquent le shuffle d''ouverture pleine matiere. ATTENTION: cavalier a des
+    manoeuvres legitimes -> detection doit cibler le retour-arriere direct, pas tout
+    revisite. | BLOCKED 2026-06-30: fix tente (helper undoes_own_last_move + penalite
+    OpeningEqual/MiddlegameEqual rerank) INEFFICACE — Rocky joue toujours g8h6 (defaut,
+    ROOT_POLICY=1, PHASE_REWARD=1). Le coup est choisi par le score negamax (evaluate()),
+    pas par phase_profile_rerank_bonus (diagnostic/poids insuffisant). CORRECTIF doit
+    entrer dans evaluate() ou negamax score-path, PAS dans practical-policy. Gate
+    ELO obligatoire avant/apres. Reverte, arbre propre. | Premiere tentative -15cp
+    dans negamax interne (ply>=1) BLOCKED — le coup racine est choisi dans search_root_in_place,
+    boucle separee de negamax. Penalite interne insuffisante (>15cp d''ecart). Correctif
+    reel : injecter undoes_own_last_move directement dans search_root_in_place sur
+    root_scores, magnitude a calibrer (-40 a -80cp, -15 trop faible). Gate ELO obligatoire
+    avant/apres. | Trou confirme (diagnostic SA1 2026-06-30): undoes_own_last_move
+    (move_features.rs:373) exige seen==2 dans action_log qui ne stocke PAS la case
+    d''origine -> le PREMIER aller-retour de chaque piece echappe totalement a la
+    penalite (au moment du retour la piece n''a qu''un seul coup au log). Cause SECONDAIRE
+    du shuffle ; IMP-234 (profondeur plafonnee a 3 en ouverture) = cause PRIMAIRE.
+    Fix futur : comparer la case candidate a l''origine reelle de la piece, pas au
+    log.'
+- id: IMP-231
+  project: rocky
+  theme: moteur
+  title: Isolation etat global tests — root_policy_table() + lock env contaminent
+    la suite parallele. Tests verts isoles mais rouges en //.
+  type: tech-debt
+  source: decouvert sprint IMP-230 2026-06-30 (stash baseline)
+  status: OPEN
+  impact: LOW
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: rocky_moteur
+  files:
+  - src/chess/search.rs
+  acceptance: cargo test --release vert sans --test-threads=1
+  blocked_by: []
+  opened_session: '2026-06-30'
+  closed_session: null
+  notes: 'oracle_type=code | blocked_by=none | mirror_ordering_real_penalty_can_demote_dangerous_candidate_without_pruning
+    panique en suite parallele (assert dangerous_baseline_rank<safer_baseline_rank,
+    search.rs:2042) -> empoisonne lock env (search.rs:1554) -> cascade s7_removed_mate_in_3/stalemate/regression_589s/italian.
+    Passe en isole ET en --test-threads=1. Cause: root_policy_table() global + env
+    var locks partages entre tests. PRE-EXISTANT (verifie via stash baseline 2026-06-30,
+    pas cause par IMP-230).'
+- id: IMP-232
+  project: rocky
+  theme: moteur
+  title: UCI minimal pour Rocky (shim Python wrappant play_fen)
+  type: feature
+  source: session cross-engine 2026-06-30 (Sunfish/Stockfish jouables, Rocky gap UCI
+    confirme)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - tools/rocky_uci.py
+  - src/tool/cli.rs
+  acceptance: fancy.py -cmd 'python tools/rocky_uci.py' lance une partie humain vs
+    Rocky; tools/cross_engine_match.py accepte --white/--black rocky; handshake uci/uciok/isready/readyok/position/go/bestmove
+    conforme; tracking moves + promotions corrects; ne touche pas src/ (wrap du binaire
+    play_fen existant)
+  blocked_by: []
+  opened_session: '2026-06-30'
+  closed_session: null
+  notes: 'oracle_type=manual_play+cross_engine | blocked_by=none | chemin LEGER Python
+    valide en session : Rocky n''a PAS de boucle UCI serveur (src/chess/uci.rs=helper
+    notation, src/agents/uci_agent.rs=client). Shim ~80 lignes : maintenir board,
+    sur position reconstruire FEN+moves, sur go appeler target/release/tactical_chess_pure_lab.exe
+    play_fen, parser JSON .move -> bestmove. play_fen verifie OK (sortie {move,score,depth}).
+    Alternative lourde=boucle UCI native Rust dans src/ (gate lane ROCKY_MOTEUR) NON
+    retenue.'
+- id: IMP-234
+  project: rocky
+  theme: moteur
+  title: Plafond profondeur d'ouverture trop bas — adaptive_depth retourne 3 pour
+    n>=26 pieces, cause le shuffle observe via tie-break a score egal
+  type: bugfix
+  source: diagnostic SA1 2026-06-30 (shuffle Nh6/Ng8/Na6/Nb8/Nf6 partie reelle Pierre)
+  status: CLOSED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/chess/search.rs
+  acceptance: 'Relever le plancher depth en ouverture a >=4 (n>=26 -> depth 4 minimum)
+
+    Mesurer impact temps de calcul (depth 4 vs 3 en ouverture, NPS)
+
+    Test comportemental : sequence shuffle observee ne se reproduit plus
+
+    Gate ELO obligatoire avant/apres (risque ralentissement vs gain qualite)
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-30'
+  closed_session: '2026-06-30'
+  notes: 'oracle_type=code | blocked_by=none | Diagnostic SA1 2026-06-30 — preuve
+
+    mecanique : a depth 3, score_gap=null sur tous les meilleurs candidats en
+
+    ouverture (tous les coups tranquilles a score strictement egal -> selection
+
+    par tie-break max_by_key dans search_root_in_place). Plus de temps n''aide pas
+
+    (TCS_MOVE_TIME_MS inoperant : la boucle iterative-deepening termine depth 3
+
+    bien avant le budget). Seule la profondeur compte. A depth 4, ecarts 30-44cp
+
+    apparaissent, developpement gagne clairement. adaptive_depth = search.rs:982.
+
+    NB : ID 233 volontairement saute (cree directement en IMP-234 sur demande).
+
+    CLARIFICATION close 2026-06-30 : le correctif REEL livre est le TIE-BREAK, pas
+    la
+
+    profondeur (le titre mentionne le plafond depth mais c''etait un symptome). commit
+
+    bd6a3d8, branche worktree-rocky-tiebreak-fix ff-mergee master + pushee. search.rs:362
+
+    max_by_key renvoyait le DERNIER ex-aequo -> ajout .rev() pour garder le PREMIER
+    (mieux
+
+    classe par order_root_moves). Effet : 1.e4->Nc6 (etait Nh6), startpos->Nc3 (etait
+    Nh3).
+
+    A/B meme base : fixed bat master 1.5/2 head-to-head. Test profondeur 3->4 fait
+
+    separement = AUCUN effet (0-20 vs sunfish inchange) -> reverte. cargo test vert
+    (hors
+
+    echec doc observation_boundary_current pre-existant, chemin AAA_*.md deplace vers
+    ARCHIVE/).
+
+    '
+- id: IMP-236
+  project: factory
+  theme: gouvernance
+  title: Calibrer le role RED_TEAM du council — il bloque sur de faux risques securite/ethique
+    pour des jeux locaux simples (CLI offline sans reseau ni donnees)
+  type: improvement
+  source: observation Pierre 2026-06-30 (council bloque le brief belote sur des objections
+    hors-sujet)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: SAFE_AUTO
+  domain: control_plane
+  files:
+  - scripts/council.py
+  acceptance: 'Le prompt RED_TEAM (_role_prompt) classe d''abord le projet : jeu/outil
+    LOCAL offline sans reseau/donnees/IA tierce -> AUCUNE objection securite/vie privee/ethique.
+
+    RED_TEAM reste critique sur les vrais risques techniques (bugs, dette, scope creep,
+    dependances).
+
+    stance=BLOQUE reserve aux failles TECHNIQUES critiques reelles, jamais a un risque
+    securite disproportionne.
+
+    Validation : council relance sur le brief belote -> RED_TEAM ne bloque plus (stance
+    != BLOQUE).
+
+    '
+  blocked_by: []
+  opened_session: '2026-06-30'
+  closed_session: '2026-06-30'
+  notes: 'oracle_type=structure | blocked_by=none | _role_prompt(RED_TEAM) reecrit
+    avec un bloc CALIBRAGE OBLIGATOIRE distinguant jeu LOCAL offline (securite hors-sujet)
+    vs feature reseau/donnees/IA tierce (securite pertinente). Validation mecanique
+    : council.py --brief belote -> RED_TEAM (qwen2.5-14b) stance=APPROUVE, rationale
+    "jeu local CLI sans reseau ... aucun risque securite/vie privee/ethique ... seuls
+    risques techniques" ; aucun disagreement RED_TEAM. 30 tests council verts (phase2_tests
+    + tests/). Scope strict scripts/council.py.'
+- id: IMP-237
+  project: factory
+  theme: infra
+  title: 'Decision CI : runner auto-heberge local vs GitHub Actions facture vs script
+    post-push planifie'
+  type: decision
+  source: session-20260706
+  status: CLOSED
+  impact: HIGH
+  effort: SMALL
+  lane: HUMAN_REQUIRED
+  domain: studio
+  files: []
+  acceptance: Decision consignee au decision-log (option retenue + motif) ; IMP-239
+    debloque.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: '2026-07-06'
+  notes: 'La CI a ete videe deliberement pour budget (canonical-ci.yml Budget control).
+    Reco Claude : runner auto-heberge sur la machine studio (zero cout externe, doctrine
+    locale-first). Decision Pierre requise avant A3. Ref : contre-audit C1/attaque
+    1.'
+- id: IMP-238
+  project: rocky
+  theme: moteur
+  title: Reparer les 6 tests Rust rouges (5 flaky env-lock Mutex PoisonError search.rs:1575,
+    1 chemin perime observation_boundary_current.rs)
+  type: fix
+  source: session-20260706
+  status: FROZEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: HUMAN_REQUIRED
+  domain: rocky_moteur
+  files:
+  - src/chess/search.rs
+  - tests/observation_boundary_current.rs
+  acceptance: Exemption GEL consignee + les 6 tests verts + cargo test --release exit
+    0 SANS --test-threads=1.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'ZONE ROCKY = GEL — exige exemption HumanGate explicite avant toute edition
+    (reparation infra de test pour CI, PAS optimisation moteur ; perimetre strict
+    aux 6 tests). Sans ca la CI nait rouge. Fix candidats : serialiser les 5 flaky
+    (--test-threads=1 ou lock de test), corriger le chemin ARCHIVE/. Ref : contre-audit
+    C10. | [FROZEN 2026-07-06] Arret de la reparation du moteur echecs ML (decision
+    Pierre 2026-07-06) — coherent avec le gel Rocky du pivot. La zone echecs ML sort
+    du perimetre CI.'
+- id: IMP-239
+  project: factory
+  theme: gouvernance
+  title: 'CI reelle : cabler le run oracle consolide (etape 6 council) sur push master'
+  type: feature
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: Push sur master declenche council_factory_oracle + les suites du perimetre
+    VIVANT (council/contrat/routeur, single-writer, Belote, gouvernance, TCG) ; run
+    vert + un echec volontairement introduit detecte rouge puis retire. Zone echecs
+    ML (Rocky/Rust) EXCLUE du perimetre (GEL) — plus aucune reference aux 6 tests
+    Rust.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Depend A1 (decision) + A2 (tests verts). Le point d''entree oracle consolide
+    construit en cloture du chantier council est le premier citoyen. Etendre ensuite
+    : pytest suites, validators mjs, cargo test. Ref : contre-audit C9 (oracles 100%
+    manuels). [MAJ 2026-07-06] Prerequis decision (A1/IMP-237) LEVE : runner GitHub
+    Actions auto-heberge ratifie (decision-log). Reste bloque par IMP-238 (6 tests
+    Rust verts) avant activation — la CI ne doit pas naitre rouge. [MAJ 2026-07-06]
+    IMP-238 FROZEN -> plus un bloqueur. Perimetre CI redefini = zone vivante uniquement
+    : suites council/contrat/routeur (council_factory_oracle), single-writer (IMP-194/205),
+    Belote (tests moteur + e2e), gouvernance, et TCG a venir. Zone echecs ML exclue
+    du perimetre (GEL).'
+- id: IMP-240
+  project: factory
+  theme: gouvernance
+  title: 'Hooks git : migrer stop-hook en Node.js, ajouter pre-push, renommer validate-commit-msg
+    -> commit-msg'
+  type: refactor
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - .claude/hooks/stop-failure.sh
+  - .claude/settings.json
+  - .claude/hooks/validate-commit-msg
+  acceptance: stop-hook Node exit 0 (chemins absolus Windows inclus) + push sans go
+    bloque par pre-push + commit a message invalide rejete par commit-msg.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Cause stop-hook PROUVEE (bash nu -> launcher WSL Store, exit 127 sur chemins
+    absolus ; Node natif v24 robuste, A/B fait au contre-audit C4). pre-push absent
+    = push non bloque mecaniquement. validate-commit-msg = hook mort (mauvais nom).
+    Trois quick wins, un IMP. Related : IMP-143 (stop-hook original, CLOSED). | [INCIDENT
+    2026-07-07] Reproduit : hook Stop declenche pendant le redemarrage du serveur
+    board (imp-board.mjs) -> "bash: .claude/hooks/stop-failure.sh: No such file or
+    directory" alors que le fichier existe et est tracke (4fdb5f4). Confirme une nouvelle
+    fois bash nu -> launcher WSL Store. Priorite inchangee, aucun fix applique.'
+- id: IMP-241
+  project: factory
+  theme: infra
+  title: 'Hooks edit-time PreToolUse (Node) : bloquer ecritures ledger hors kaizen_loop,
+    zones gelees Rocky, configs validateurs, --no-verify'
+  type: feature
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: LARGE
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: Ecriture ledger hors kaizen_loop bloquee a l'edition + edition zone
+    Rocky bloquee + cout cold-start Node mesure et documente.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: Greenfield (aucun PreToolUse aujourd'hui, contre-audit C2/attaque 5). Depend
+    B1 (base Node prouvee). Mesurer le cout cold-start Node par appel d'outil avant
+    de generaliser. | [INCIDENT 2026-07-08] un agent a execute git commit --no-verify
+    sur .github/workflows/code-hygiene.yml (b8ea5eb) suite a une autorisation en langage
+    naturel dans le chat, pas un geste terminal direct de Pierre. Confirme le besoin
+    d'un hook PreToolUse qui bloque l'ecriture sur .github/ au niveau outil, avant
+    meme la tentative de commit ; une autorisation conversationnelle ne doit pas suffire
+    a lever ce garde-fou precis.
+- id: IMP-242
+  project: factory
+  theme: gouvernance
+  title: 'tool_permission_matrix : wiring reel PreToolUse + passage fail-open -> fail-closed'
+  type: feature
+  source: session-20260706
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - autopilot.py
+  - lab/agent_policy/tool_permission_matrix.json
+  acceptance: Appel d'outil hors matrice -> refus fail-closed prouve par test + matrice
+    couvrant les chaines actives.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Aujourd''hui : un seul site (autopilot.py:8618, autoloop web), fail-open,
+    map 4 outils. Depend B3. Prerequis au pilote pyramide (C2). Related : IMP-098
+    (verification matrix avant chain run, CLOSED-UNVERIFIABLE).'
+- id: IMP-243
+  project: factory
+  theme: gouvernance
+  title: Normaliser risks/hypotheses structures a la source (council.py _parse_opinion)
+  type: refactor
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - scripts/council.py
+  acceptance: Risque objet Qwen -> title propre a la source (branche literal_eval
+    du transform prouvee morte) + suite IMP-198 22/22 verte.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: Fix architectural du finding etape 4 (Qwen emet des risques objets ; str()
+    -> dict-repr). La branche literal_eval du transform devient code mort inoffensif
+    (fallback). Touche du code IMP-198 partage avec le gate council live -> re-tester
+    le gate (suite IMP-198, 22 tests).
+- id: IMP-244
+  project: factory
+  theme: donnees
+  title: 'Calibration 6a sur corpus reel : qualite des briefs RED_TEAM (brief generique
+    -> risques generiques)'
+  type: improvement
+  source: session-20260706
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - scripts/council.py
+  acceptance: Run council sur brief riche (spec bloc 2) -> >=1 IMP au titre actionnable
+    valide HumanGate ; tout resserrage de garde = motif + test negatif uniquement.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Observation etape 5. Premier run reel = brief riche (spec bloc 2 Belote).
+    Resserrage du garde write-path uniquement par ajout de motif + test negatif (jamais
+    retour au litteral global — ratifie). Distinct de l''IMP RED_TEAM calibrage securite/ethique
+    (CLOSED) : ici axe = richesse du brief, pas faux blocage securite. | [CALIBRATION
+    1er transit canonique 2026-07-06, IMP-248->251] (1) brief riche -> risques SPECIFIQUES
+    confirme (vs brief generique -> risques generiques). (2) le council contredit
+    parfois des contraintes ratifiees du brief -> candidat consigne RED_TEAM (ne pas
+    proposer dependances/refactor contre les decisions ratifiees). (3) PLAN_REVIEW
+    degrade si Claude-proxy:8765 down (fallback Qwen paraphrase l''objectif, verdict
+    FAIL peu signifiant). (4) garde write-path : 0 faux rejet ce run, 0 dict-repr
+    (normalisation ast.literal_eval OK). | Taux de bruit run 1 : 25 % (IMP-250 rejete
+    au pickup).'
+- id: IMP-245
+  project: factory
+  theme: gouvernance
+  title: 'qwen-worker v0 : file de contrats de tache + boucle oracle locale + validateur
+    de surface d''API — pilote sur shell bloc 2 Belote, mesures incluses'
+  type: feature
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: LARGE
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: Pilote clos avec mesures publiees (iterations oracle, taux BLOCKED,
+    minutes de review/assemblage) + verdict de rentabilite consigne.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Claude ecrit interfaces+stubs+tests, Qwen implemente et itere localement
+    (LM Studio :1234), seul le vert remonte, BLOCKED apres N echecs. Mesures de rentabilite
+    : iterations oracle, taux BLOCKED, minutes de review/assemblage Claude. Deux taches
+    ne touchent jamais le meme fichier. Sortie au gabarit contrat v1, NO_CLAIM, jamais
+    d''ecriture ledger. Independant, apres cloture chantier council.'
+- id: IMP-246
+  project: factory
+  theme: gouvernance
+  title: 'Pilote pyramide : instrumenter les 7 subagents .claude/agents/ existants
+    sur un bloc Belote, budget tokens plafonne, mesures'
+  type: feature
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: LARGE
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: Un bloc Belote livre via les 7 subagents sous budget tokens plafonne
+    consigne + audit trail complet + mesures publiees.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'La pyramide 12 roles est l''ISSUE de ce pilote, pas un prerequis (contre-audit
+    C7/attaque 4 : jamais executee). Depend B4 (permission matrix fail-closed). Gates
+    directeurs = prompts partages references par ID (pattern CCGS anti-drift), enum
+    de verdict unique OK/FAIL/BLOCKED.'
+- id: IMP-247
+  project: factory
+  theme: gouvernance
+  title: Cabler grep_guard_ledger dans pre-commit + lever exclusion worktrees/ + supprimer
+    angle mort test_*.py (CI-wiring hors scope -> A3/IMP-239)
+  type: feature
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - scripts/grep_guard_ledger.py
+  - .claude/hooks/pre-commit
+  acceptance: Violation staged -> commit rejete par pre-commit + worktrees/ scannes
+    (les 4 writers connus detectes) + test_*.py scannes.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Scope REDUIT sur decision Pierre 2026-07-06 : CI-wiring de la garde EXCLU
+    (reste dans A3/IMP-239 + gate Pierre, cf note IMP-205). Distinct de IMP-206 OPEN
+    qui durcit la LOGIQUE de scan (os.open coverage, expected_fingerprint fail-closed,
+    writelock ownership) — B2 = wiring pre-commit + perimetre de scan (worktrees/,
+    test_*.py). PREREQUIS a toute generalisation de guarded_write. worktrees/dur contient
+    deja 4 writers bruts invisibles au scan (autopilot.py:1683, roadmap_to_ledger.py:352,
+    ledger_patch_*.py) — un merge les reintroduit. Angle mort test_*.py exclu du scan
+    (grep_guard_ledger.py:229-233). Ref : contre-audit C6/attaque 2.'
+- id: IMP-248
+  project: factory
+  theme: gameplay
+  title: 'Cas limite non géré : comportement inattendu si le champ #seed contient
+    un nombre invalide ou non convertible en uint32.'
+  type: council-proposed
+  source: council
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: ''
+  files: []
+  acceptance: 'Cas limite non géré : comportement inattendu si le champ #seed contient
+    un nombre invalide ou non convertible en uint32. (impact: Crash du jeu ou affichage
+    incorrect des paramètres de la partie.). Couvre aussi la VALIDITE de la graine
+    (volet absorbe d''IMP-249) : seed hors-domaine uint32 rejetee proprement, pas
+    de crash.'
+  blocked_by: []
+  opened_session: belote-b2-transit-2026-07-06
+  closed_session: null
+  notes: 'origin=council | suggested_lane=AUDIT_REQUIRED | [MAJ 2026-07-06] Absorbe
+    le volet ''validite de seed'' d''IMP-249 (fusionne, verdict Pierre). Volet ''unicite
+    pour eviter repetition'' ECARTE : le rejeu deterministe par seed est intentionnel
+    (defi-par-seed).'
+- id: IMP-249
+  project: factory
+  theme: gameplay
+  title: 'Dette technique : absence d''une fonctionnalité pour vérifier l''unicité
+    et la validité des graine (seed) utilisées, ce qui pourrait entraîner une répétition
+    inattendue de parties.'
+  type: council-proposed
+  source: council
+  status: REJECTED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: ''
+  files: []
+  acceptance: 'Dette technique : absence d''une fonctionnalité pour vérifier l''unicité
+    et la validité des graine (seed) utilisées, ce qui pourrait entraîner une répétition
+    inattendue de parties. (impact: Expérience utilisateur dégradée avec des parties
+    identiques.)'
+  blocked_by: []
+  opened_session: belote-b2-transit-2026-07-06
+  closed_session: '2026-07-06'
+  notes: 'origin=council | suggested_lane=AUDIT_REQUIRED | [REJECTED 2026-07-06] Fusionne
+    dans IMP-248 (verdict Pierre) : volet ''validite'' = doublon d''IMP-248 ; volet
+    ''unicite'' ecarte car contredit le rejeu deterministe par seed (defi-par-seed
+    intentionnel).'
+- id: IMP-250
+  project: factory
+  theme: infra
+  title: 'Complexité injustifiée : gestion manuelle du chargement initial basée sur
+    l''état du serveur peut être simplifiée en utilisant un middleware pour gérer
+    les états de manière plus transparente.'
+  type: council-proposed
+  source: council
+  status: REJECTED
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: ''
+  files: []
+  acceptance: 'Complexité injustifiée : gestion manuelle du chargement initial basée
+    sur l''état du serveur peut être simplifiée en utilisant un middleware pour gérer
+    les états de manière plus transparente. (impact: Code moins maintenable et potentiellement
+    source d''erreurs.)'
+  blocked_by: []
+  opened_session: belote-b2-transit-2026-07-06
+  closed_session: '2026-07-06'
+  notes: 'origin=council | suggested_lane=AUDIT_REQUIRED | [REJECTED 2026-07-06] Contredit
+    une decision ratifiee du spec bloc 2 (§3.1 : vanilla zero-dependance, YAGNI) —
+    proposition de middleware hors doctrine produit. Premier point de mesure du bruit
+    council : 1 rejet / 4 propositions de ce run.'
+- id: IMP-251
+  project: factory
+  theme: gameplay
+  title: 'Tests manquants : absence de tests unitaires spécifiques pour la gestion
+    des graine (seed) et leur conversion en uint32, ce qui peut entraîner des bugs
+    non détectés.'
+  type: council-proposed
+  source: council
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: ''
+  files: []
+  acceptance: 'Tests manquants : absence de tests unitaires spécifiques pour la gestion
+    des graine (seed) et leur conversion en uint32, ce qui peut entraîner des bugs
+    non détectés. (impact: Bugs potentiels dans le traitement des paramètres de jeu.)'
+  blocked_by: []
+  opened_session: belote-b2-transit-2026-07-06
+  closed_session: null
+  notes: origin=council | suggested_lane=AUDIT_REQUIRED
+- id: IMP-252
+  project: factory
+  theme: gouvernance
+  title: Verrou de session ledger — bail exclusif (PID/session-id) dans guarded_write
+    + refus si bail actif d'une autre session
+  type: feature
+  source: session-20260706
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - governance/ledger_writer.py
+  acceptance: Deux processus simules -> le second se voit refuser l'ecriture avec
+    message clair ; bail orphelin (PID mort) recycle automatiquement ; suite single-writer
+    existante (IMP-194/205) toujours verte.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Ne de 3 collisions inter-sessions le 2026-07-06 (deux quasi-accidents git
+    + une course d''ecriture de note). Le writelock actuel protege l''ecriture instantanee
+    (O_EXCL par write, governance/ledger_writer.py) PAS la session de travail. Design
+    attendu : fichier de bail avec PID + identifiant de session + TTL genereux, refus
+    d''ecriture guarded_write si bail etranger vivant, liberation en fin de session.
+    Complement candidat : hook git refusant commit du ledger si bail etranger actif.
+    Source : menage gouvernance session-20260706.'
+- id: IMP-253
+  project: factory
+  theme: gouvernance
+  title: Statuts FROZEN/REJECTED officialises — etendre VALID_STATUS + affichage recall/metrics
+    (buckets dedies, jamais comptes dans CLOSED)
+  type: improvement
+  source: session-20260706
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - lab/chains/kaizen_loop.py
+  acceptance: recall affiche les trois statuts dans des sections distinctes ; metrics
+    expose les comptes frozen/rejected separes de closed ; les 3 IMP actuellement
+    muets (IMP-238/249/250) redeviennent visibles ; suite single-writer verte.
+  blocked_by: []
+  opened_session: session-20260706
+  closed_session: null
+  notes: 'Suite du menage gouvernance 2026-07-06 (commit 6bddf12) : FROZEN et REJECTED
+    ont ete introduits dans le ledger mais ne sont PAS dans VALID_STATUS de kaizen_loop
+    -> recall/metrics ne les affichent pas (buckets muets). Officialiser : ajouter
+    FROZEN/REJECTED a VALID_STATUS, sections dediees dans recall, comptes separes
+    dans metrics. Invariant STRICT : ni FROZEN ni REJECTED ne doivent jamais etre
+    comptes comme CLOSED (pas de fausse inflation ''done''). Cf memoire ledger_frozen_rejected_convention.
+    Concerne IMP-238 (FROZEN), IMP-249/250 (REJECTED).'
+- id: IMP-254
+  project: chess_tcg
+  theme: gameplay
+  title: TCG proto — fiche de carte lisible (refonte affichage)
+  type: feature
+  source: session-20260707
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: jeux
+  files:
+  - games/chess_tcg/ui/hud.gd
+  acceptance: 'Fiche carte relue et validee par Pierre : effet, cible, regle 1-par-tour
+    lisibles.'
+  blocked_by: []
+  opened_session: session-20260707
+  closed_session: null
+  notes: Retour test Pierre prototype 3D v0. Barre de cartes actuelle = nom+desc brute.
+- id: IMP-255
+  project: chess_tcg
+  theme: gameplay
+  title: 'TCG proto — cascade de deplacement : resolution etape par etape visible
+    + verdict affichage-vs-regle'
+  type: design
+  source: session-20260707
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: jeux
+  files:
+  - games/chess_tcg/ui/game3d.gd
+  - games/chess_tcg/core/rules.gd
+  acceptance: 'Chaque etape (traversee/attaque/riposte/BRAWL) visible sequentiellement
+    ; verdict Pierre consigne : ''je peux predire avant de cliquer'' (affichage vs
+    regle).'
+  blocked_by: []
+  opened_session: session-20260707
+  closed_session: null
+  notes: RISQUE DESIGN n1 lignee T. Refonte affichage etape-par-etape amorcee dans
+    le proto ; verdict affichage-vs-regle de Pierre a consigner.
+- id: IMP-256
+  project: factory
+  theme: infra
+  title: Migration schema ledger — ajout des champs project/theme sur 263 IMP existants
+  type: chore
+  source: session-20260707 (go explicite Pierre — taxonomie multi-jeux)
+  status: CLOSED
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - lab/chains/IMPROVEMENT_LEDGER.yaml
+  - lab/chains/_ledger_tagging_proposal.csv
+  acceptance: Chaque entree IMP porte project (factory|rocky|chess_tcg) + theme (parmi
+    10). 263 entrees pre-existantes taguees, insertion pure +526/-0, 0 autre champ
+    modifie (verifie par reparse YAML + comparaison champ-par-champ vs backup).
+  blocked_by: []
+  opened_session: session-20260707
+  closed_session: session-20260707
+  notes: 'Migration de schema en masse via apply_tags.py (ecriture directe au fichier,
+    AUTORISEE explicitement par Pierre 2026-07-07, HORS kaizen_loop/guarded_write).
+    Regles project ratifiees : factory=infra/transversal, rocky=moteur echecs+ML (nouveau
+    projet), chess_tcg=jeu de cartes ; belote/auto_battler/frosthaven = valeurs autorisees
+    mais vides pour l''instant. 10 themes derives du reel. Backup pre-migration :
+    C:/Users/Studio-Dev/.claude/jobs/a3c86e32/tmp/LEDGER.backup.yaml (job tmp, ephemere)
+    ; rollback durable = git revert du commit. Artefact de mapping : lab/chains/_ledger_tagging_proposal.csv.'
+- id: IMP-257
+  title: Structurer le graphe de dépendances du ledger — blocked_by sous-utilisé,
+    dépendances réelles en prose
+  type: feature
+  source: Phase 2 lanes-as-sensors 2026-07-08
+  status: OPEN
+  impact: MEDIUM
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files: []
+  acceptance: blocked_by peuplé pour les dépendances prose connues + CLI kaizen_loop
+    add supporte project/theme
+  blocked_by: []
+  opened_session: '2026-07-08'
+  closed_session: null
+  notes: 'blocked_by quasi vide (1 seule arête structurée sur tout le ledger: IMP-175->IMP-174,
+    cible close). Dépendances réelles encodées en prose dans notes (ex. IMP-206->IMP-205,
+    cf. note ''champ à refléter''). Corollaire découvert 2026-07-08: kaizen_loop add
+    ne pose pas project/theme (drift CLI post-IMP-256) -> nouveaux IMP sans project/theme,
+    cet IMP inclus (illustration vivante du trou). Prérequis nommé de la Phase 2 sensor
+    (option B), différé consciemment. Ne pas corriger le CLI dans ce scope.'
+- id: IMP-258
+  title: council.py collapse silencieux en Qwen x3 sans Claude-proxy ni cle Gemini
+    -> confiance mal placee
+  type: risk
+  source: session 2026-07-08 test comparatif council vs Claude (Leviathan pity math)
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - scripts/council.py
+  acceptance: council.py emet une alerte humaine visible (WARN stderr + exit code
+    dedie ou notification) quand collapsed=True OU quand un role critique tombe en
+    fallback, au lieu du seul flag interne; runbook de reactivation proxy:8765 + provisioning
+    cle Gemini documente; model id GeminiAdapter corrige (gemini-flash -> gemini-2.5-flash)
+    et teste avec une cle reelle.
+  blocked_by: []
+  opened_session: '2026-07-08'
+  closed_session: null
+  notes: 'project: factory | theme: gouvernance. Decouverte 2026-07-08 (session Leviathan).
+    Sans Claude-proxy (:8765 non lance depuis 2026-06-27, pas de crash) ni GEMINI_API_KEY,
+    les 3 roles de council.py (PLAN_REVIEW, RED_TEAM, DIVERGENCE) tombent tous en
+    fallback Qwen -> distinct_models=1, collapsed=True, requires_humangate=True. Le
+    mecanisme DETECTE le collapse mais ne l ALERTE que par un flag interne: aucune
+    sortie humaine forte (pas de WARN stderr dedie au collapse, pas d exit code specifique
+    cote lib). Sur un cas test a reponse connue (math pity gacha, esperance vraie
+    ~33.6 tirages vs 50 annonce), Qwen seul conclut correctement EN SURFACE (50 est
+    faux) mais avec un raisonnement FAUX et dans le sens OPPOSE (pretend que 50 sous-estime;
+    realite: 50 surestime car le pity accelere). Risque = confiance mal placee: lecture
+    rapide croit que le council confirme Claude alors que le raisonnement est inverse.
+    Gaps infra: (1) reactiver proxy:8765 via python scripts/claude_proxy.py; (2) provisionner
+    GEMINI_API_KEY (doctrine ~/.openclaw/.env); (3) BUG latent GeminiAdapter model=gemini-flash
+    vs install doc gemini-2.5-flash -> meme avec cle risque 400. Escalade Pierre.'
+metrics_history:
+- session: '2026-05-31'
+  total: 11
+  open: 8
+  in_progress: 0
+  closed: 0
+  deferred: 1
+  blocked: 2
+  spec_coverage_pct: 11
+  tests_green: 54
+  commits: 8
+  note: Seed initial du ledger depuis bilan UX + chantiers pending.
+- session: '2026-06-02'
+  total: 41
+  open: 3
+  in_progress: 0
+  closed: 37
+  deferred: 1
+  blocked: 0
+  spec_coverage_pct: 90
+  tests_green: null
+  commits: 5
+  note: Sprint Rocky 14 IMP + pool pipeline IMP-037/041 + EloTable K=24. pool_sf draw_rate=94%
+    (critère <30% non atteint). ACTIVE_DATASET.txt toujours sur teacher_samples (HumanGate
+    requis).
+- session: 2026-06-02-humangate
+  total: 42
+  open: 4
+  in_progress: 0
+  closed: 37
+  deferred: 1
+  blocked: 0
+  spec_coverage_pct: 90
+  tests_green: null
+  commits: 2
+  note: 'HumanGate decisions 2026-06-02 : ACTIVE_DATASET redirigé vers pool_2400 (8.8%
+    draws, 1M parties). teacher_samples archivé. IMP-038 rouvert (draw_rate 93.1%
+    != <20%). Scripts ML commités.'
+- session: '2026-06-25'
+  total: 123
+  open: 6
+  in_progress: 0
+  closed: 123
+  deferred: 0
+  blocked: 0
+  spec_coverage_pct: 90
+  tests_green: true
+  commits: 0
+  note: 'IMP-008 CLOSED (Option C). IMP-120 CLOSED (KI-1 draw_rate 100%→22%). IMP-121
+    CLOSED (selfplay_jsonl CLI + TeacherSample JSONL SearchTrace : 997 lignes/10 games,
+    aaa_pv_changes 100%, pytest ml/ 11 passed). HumanGate pending : pointer ACTIVE_DATASET
+    vers pool_selfplay.jsonl (selfplay_jsonl 500).'

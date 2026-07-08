@@ -5,7 +5,7 @@
 meta:
   ledger_version: v0
   created_session: '2026-05-31'
-  last_updated_session: '2026-06-27'
+  last_updated_session: '2026-07-08'
   claim_verdict: NO_CLAIM_ALLOWED
   no_global_ready_verdict: true
 improvements:
@@ -5291,12 +5291,12 @@ improvements:
   closed_session: null
   notes: Greenfield (aucun PreToolUse aujourd'hui, contre-audit C2/attaque 5). Depend
     B1 (base Node prouvee). Mesurer le cout cold-start Node par appel d'outil avant
-    de generaliser. | [INCIDENT 2026-07-08] un agent a execute git commit --no-verify sur
-    .github/workflows/code-hygiene.yml (b8ea5eb) suite a une autorisation en langage naturel
-    dans le chat, pas un geste terminal direct de Pierre. Confirme le besoin d'un hook
-    PreToolUse qui bloque l'ecriture sur .github/ au niveau outil, avant meme la tentative
-    de commit ; une autorisation conversationnelle ne doit pas suffire a lever ce garde-fou
-    precis.
+    de generaliser. | [INCIDENT 2026-07-08] un agent a execute git commit --no-verify
+    sur .github/workflows/code-hygiene.yml (b8ea5eb) suite a une autorisation en langage
+    naturel dans le chat, pas un geste terminal direct de Pierre. Confirme le besoin
+    d'un hook PreToolUse qui bloque l'ecriture sur .github/ au niveau outil, avant
+    meme la tentative de commit ; une autorisation conversationnelle ne doit pas suffire
+    a lever ce garde-fou precis.
 - id: IMP-242
   project: factory
   theme: gouvernance
@@ -5686,6 +5686,82 @@ improvements:
     ne pose pas project/theme (drift CLI post-IMP-256) -> nouveaux IMP sans project/theme,
     cet IMP inclus (illustration vivante du trou). Prérequis nommé de la Phase 2 sensor
     (option B), différé consciemment. Ne pas corriger le CLI dans ce scope.'
+- id: IMP-258
+  title: council.py collapse silencieux en Qwen x3 sans Claude-proxy ni cle Gemini
+    -> confiance mal placee
+  type: risk
+  source: session 2026-07-08 test comparatif council vs Claude (Leviathan pity math)
+  status: OPEN
+  impact: HIGH
+  effort: MEDIUM
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - scripts/council.py
+  acceptance: council.py emet une alerte humaine visible (WARN stderr + exit code
+    dedie ou notification) quand collapsed=True OU quand un role critique tombe en
+    fallback, au lieu du seul flag interne; runbook de reactivation proxy:8765 + provisioning
+    cle Gemini documente; model id GeminiAdapter corrige (gemini-flash -> gemini-2.5-flash)
+    et teste avec une cle reelle.
+  blocked_by: []
+  opened_session: '2026-07-08'
+  closed_session: null
+  notes: 'project: factory | theme: gouvernance. Decouverte 2026-07-08 (session Leviathan).
+    Sans Claude-proxy (:8765 non lance depuis 2026-06-27, pas de crash) ni GEMINI_API_KEY,
+    les 3 roles de council.py (PLAN_REVIEW, RED_TEAM, DIVERGENCE) tombent tous en
+    fallback Qwen -> distinct_models=1, collapsed=True, requires_humangate=True. Le
+    mecanisme DETECTE le collapse mais ne l ALERTE que par un flag interne: aucune
+    sortie humaine forte (pas de WARN stderr dedie au collapse, pas d exit code specifique
+    cote lib). Sur un cas test a reponse connue (math pity gacha, esperance vraie
+    ~33.6 tirages vs 50 annonce), Qwen seul conclut correctement EN SURFACE (50 est
+    faux) mais avec un raisonnement FAUX et dans le sens OPPOSE (pretend que 50 sous-estime;
+    realite: 50 surestime car le pity accelere). Risque = confiance mal placee: lecture
+    rapide croit que le council confirme Claude alors que le raisonnement est inverse.
+    Gaps infra: (1) reactiver proxy:8765 via python scripts/claude_proxy.py; (2) provisionner
+    GEMINI_API_KEY (doctrine ~/.openclaw/.env); (3) BUG latent GeminiAdapter model=gemini-flash
+    vs install doc gemini-2.5-flash -> meme avec cle risque 400. Escalade Pierre.
+    || ADDENDUM 2026-07-08 (diagnostic timeout, test proxy actif) : meme avec le proxy
+    :8765 relance et sain (/health OK, appel claude reussi cote serveur), PLAN_REVIEW
+    retombe en fallback Qwen -> collapsed RESTE True. CAUSE RACINE : _READ_TIMEOUT_S=110s
+    (constante en dur dans council.py) < latence reelle de claude --print (~114s mesure
+    ce jour, 60-160s historique log) -> requests leve ReadTimeout a 110s -> CouncilCallError
+    -> fallback Qwen silencieux. Le flag timed_out NE se leve PAS car c''est une requests.ReadTimeout,
+    PAS une asyncio.TimeoutError (seul le role-timeout de 120s met timed_out=True).
+    Le fallback est donc doublement invisible. PREUVE : en relevant _READ_TIMEOUT_S
+    a 280s + role-timeout 300s, distinct_models=2, collapsed=False, PLAN_REVIEW=claude
+    qui calcule juste (E=33.26 vs 50 annonce, cible ~66.5 tirages, hard pity 70 redondant
+    car soft pity garantit au 69e, pire cas non borne) — meme qualite que Claude direct.
+    Qwen (RED_TEAM) BLOQUE mais ne calcule jamais et conclut a l''envers (50 sous-estime).
+    CORRECTIFS ATTENDUS (ajout a l''acceptance) : (a) relever _READ_TIMEOUT_S et le
+    role-timeout coherent au-dessus de la latence CLI observee, idealement configurable
+    par env ; (b) faire lever timed_out=True explicitement quand une ReadTimeout/CouncilCallError
+    frappe le role primaire, pour que le fallback cesse d''etre invisible ; (c) alerte
+    humaine des qu''un role critique passe en fallback.'
+- id: IMP-259
+  title: kaizen_loop.py sans commande update/note — impossible d editer un IMP existant
+    (seuls add/close)
+  type: gap
+  source: session 2026-07-08 — revele par IMP-258 (patch des notes impossible via
+    kaizen_loop)
+  status: OPEN
+  impact: MEDIUM
+  effort: SMALL
+  lane: AUDIT_REQUIRED
+  domain: studio
+  files:
+  - lab/chains/kaizen_loop.py
+  acceptance: kaizen_loop expose une commande update/note <IMP-ID> (append ou set
+    du champ notes) routee par le single-writer garde (guarded_write + governor +
+    empreinte optimiste), avec test ; supprime le besoin d un script ledger_patch
+    one-shot pour un simple ajout de note.
+  blocked_by: []
+  opened_session: '2026-07-08'
+  closed_session: null
+  notes: 'project: factory | theme: gouvernance-outillage. Revele en session 2026-07-08
+    pendant le traitement IMP-258: kaizen_loop.py n offre que recall/propose/close/add/metrics.
+    Editer le champ notes d un IMP OPEN a necessite un script one-shot ledger_patch_20260708.py
+    routant par guarded_write. Gap outillage: pas de mutation in-place gardee pour
+    un IMP existant hors close. Lie a IMP-258.'
 metrics_history:
 - session: '2026-05-31'
   total: 11
