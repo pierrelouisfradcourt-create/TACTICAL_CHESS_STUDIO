@@ -113,6 +113,8 @@ const embedFn = (texts: string[]) => lmStudioEmbed(texts, { url: EMBED_URL, mode
 const LEDGER_PATH = process.env["TCS_LEDGER_PATH"] || path.join(__dirname, "..", "lab", "chains", "IMPROVEMENT_LEDGER.yaml");
 // Capteur d'hygiène (Phase 3) : rapport produit par hygiene-scan.mjs, surchargeable pour tests.
 const HYGIENE_REPORT_PATH = process.env["TCS_HYGIENE_REPORT"] || path.join(__dirname, "hygiene_report.json");
+// World Intelligence (Phase 5) — dossier des knowledge packets (meme resolution que knowledge-validate.mjs).
+const KNOWLEDGE_DIR = process.env["TCS_KNOWLEDGE_DIR"] || path.join(__dirname, "knowledge");
 const WIREFRAMES_DIR = path.join(__dirname, "wireframes");
 // Brick library (Library Passe 1). Separate store from wireframes/ on purpose —
 // see LIBRARY_AUDIT.md §3 (overloading wireframes would break runAudit).
@@ -598,6 +600,29 @@ const server = http.createServer((req, res) => {
   if (pathname === "/api/hygiene" && req.method === "GET") {
     try { sendJson(res, 200, buildHygieneBoard({ reportPath: HYGIENE_REPORT_PATH })); }
     catch (e) { sendJson(res, 500, { error: String((e as any).message || e) }); }
+    return;
+  }
+  // World Intelligence (Phase 5) — sert le knowledge packet advisory-only d'un IMP.
+  // LECTURE SEULE (readFileSync/existsSync), ZERO write. Empty state propre si absent.
+  // Param imp strictement valide (anti path-traversal : pas de . ni /). Jamais consomme par le council.
+  if (pathname === "/api/knowledge" && req.method === "GET") {
+    const imp = url.searchParams.get("imp") ?? "";
+    if (!/^IMP-[A-Za-z0-9]+$/.test(imp)) {
+      sendJson(res, 400, { error: `param imp invalide: "${imp}" (attendu IMP-<alphanumerique>)` });
+      return;
+    }
+    const file = path.join(KNOWLEDGE_DIR, `${imp}.json`);
+    if (!existsSync(file)) {
+      sendJson(res, 200, { imp, available: false, reason: "aucun packet — lancer /world-scan <IMP-ID>" });
+      return;
+    }
+    try {
+      const packet = JSON.parse(readFileSync(file, "utf-8"));
+      sendJson(res, 200, { imp, available: true, packet });
+    } catch (e) {
+      // Packet illisible : ne JAMAIS casser le board (feature advisory) → empty state avec raison.
+      sendJson(res, 200, { imp, available: false, reason: `packet illisible: ${String((e as any).message || e)}` });
+    }
     return;
   }
   if (pathname === "/api/memory" && req.method === "POST") {

@@ -70,3 +70,24 @@ src/
   index.ts
 tests/         state · scheduler · executor · engine
 ```
+
+## World Intelligence Layer (Phase 5 v0)
+
+Recherche web **citée** de patterns externes comparables pour un IMP, produite **à la
+demande** — jamais par le graphe (le moteur est offline, LM Studio only). Découplage strict
+producteur / consommateur :
+
+- **Producteur** : skill Claude Code `/world-scan <IMP-ID>` (`.claude/skills/world-scan/`).
+  Lit l'IMP (lecture seule), fait `WebSearch`/`WebFetch`, écrit un *knowledge packet* JSON
+  cité dans `llm-lego/knowledge/<IMP-ID>.json`.
+- **Contrat** : `world-scan/v0` — `advisory_only: true`, chaque `pattern` porte un
+  `source_url` (citation obligatoire), `claim` ≤ 600 caractères (jamais de copie longue).
+- **Validateur fail-hard** : `knowledge-validate.mjs` rejette tout packet non-cité,
+  `advisory_only ≠ true`, ou `claim` trop long. Auto-découvert par `run-validators.mjs`.
+- **Consommateur** : `GET /api/knowledge?imp=IMP-xxx` (lecture seule, param anti-traversal,
+  empty state propre) → affiché dans le panneau détail du board avec une bannière
+  **« informatif, n'influence pas le council »**.
+
+Garde-fou : le packet **informe, ne tranche jamais**. Il n'est **jamais** injecté dans les
+prompts du council (council-audit / arbitration) — toute injection serait une extension
+ultérieure explicite. `knowledge/` est **gitignored** (non gouverné, régénérable).

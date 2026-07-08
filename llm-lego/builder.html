@@ -2364,6 +2364,8 @@
         { id: 'ARCHITECTURE', lens: "la solidité architecturale (dette/coupling évités = mieux)" },
       ];
       const [arb, setArb] = useState(null); // { imp, phase, stances?, reco?, favs?, defs?, unparsed?, error?, unavailable? }
+      // World Intelligence (Phase 5) — knowledge packet advisory-only du GET /api/knowledge. Lecture seule.
+      const [knowledge, setKnowledge] = useState(null); // null=idle | {loading} | {available:false,reason} | {available:true,packet}
 
       // Voix objective = contexte IMP + lentille injectés, fin forcée sur STANCE:. model omis → Qwen :1234.
       const objectiveNode = (obj, ctx) => ({ id: obj.id, type: 'agent', data: {
@@ -2422,6 +2424,18 @@
         fetch('/api/imp-board').then((r) => r.json()).then(setBoard).catch((e) => setErr(String(e)));
         fetch('/api/hygiene').then((r) => r.json()).then(setHygiene).catch(() => setHygiene({ available: false, reason: 'endpoint indisponible' }));
       }, []);
+
+      // World Intelligence — fetch le knowledge packet quand une carte est ouverte. Race-safe (cancelled).
+      useEffect(() => {
+        if (!sel) { setKnowledge(null); return; }
+        let cancelled = false;
+        setKnowledge({ loading: true });
+        fetch(`/api/knowledge?imp=${encodeURIComponent(sel.id)}`)
+          .then((r) => r.json())
+          .then((d) => { if (!cancelled) setKnowledge(d); })
+          .catch(() => { if (!cancelled) setKnowledge({ available: false, reason: 'endpoint indisponible' }); });
+        return () => { cancelled = true; };
+      }, [sel]);
 
       const matchCard = (card) => {
         if (depOnly && !card.deployable) return false;
@@ -2703,6 +2717,43 @@
                     </div>
                   </div>
                 )}
+
+                {/* World Intelligence (Phase 5) — knowledge packet advisory-only, LECTURE SEULE, TOUS les IMP. N'influence PAS le council. */}
+                <div data-testid="impboard-knowledge" style={{ marginTop: 18, borderTop: '1px solid var(--line)', paddingTop: 14 }}>
+                  <div style={{ fontSize: 'var(--fs-2xs)', textTransform: 'uppercase', letterSpacing: 1, color: 'var(--accent)', marginBottom: 6 }}>World Intelligence — patterns externes</div>
+                  <div data-testid="impboard-knowledge-banner" style={{ fontSize: 'var(--fs-2xs)', color: 'var(--sev-warn)', background: 'var(--panel-2)', border: '1px solid var(--line)', borderRadius: 6, padding: '6px 8px', marginBottom: 8 }}>
+                    ⓘ Informatif, cité. <b>N'influence pas le council</b> — aucune décision de design déclenchée.
+                  </div>
+                  {(!knowledge || knowledge.loading) && (
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--ink-3)' }}>chargement du packet…</div>
+                  )}
+                  {knowledge && !knowledge.loading && !knowledge.available && (
+                    <div data-testid="impboard-knowledge-empty" style={{ fontSize: 'var(--fs-xs)', color: 'var(--ink-3)' }}>
+                      Aucun knowledge packet pour cet IMP{knowledge.reason ? ' (' + knowledge.reason + ')' : ''}. Lancer <code>/world-scan {sel.id}</code> côté Claude Code.
+                    </div>
+                  )}
+                  {knowledge && knowledge.available && knowledge.packet && (
+                    <div data-testid="impboard-knowledge-packet">
+                      <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginBottom: 8 }}>
+                        généré {knowledge.packet.generated_ts} · via {knowledge.packet.source_tool} · {knowledge.packet.patterns.length} pattern(s)
+                      </div>
+                      {knowledge.packet.patterns.map((p, i) => (
+                        <div key={i} data-testid="impboard-knowledge-pattern" style={{ marginBottom: 10, background: 'var(--panel-2)', border: '1px solid var(--line)', borderRadius: 6, padding: 10 }}>
+                          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--ink-2)', marginBottom: 6 }}>{p.claim}</div>
+                          <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginBottom: 4, fontStyle: 'italic' }}>{p.relevance_note}</div>
+                          <a data-testid="impboard-knowledge-cite" href={p.source_url} target="_blank" rel="noreferrer noopener"
+                            style={{ fontSize: 'var(--fs-2xs)', color: 'var(--accent)', textDecoration: 'underline', wordBreak: 'break-all' }}>
+                            {p.source_title} ↗
+                          </a>
+                          <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)' }}> · consulté {p.accessed_ts}</span>
+                        </div>
+                      ))}
+                      {knowledge.packet.caveats && (
+                        <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginTop: 6 }}><b>Limites :</b> {knowledge.packet.caveats}</div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
