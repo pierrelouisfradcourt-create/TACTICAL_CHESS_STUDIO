@@ -2247,6 +2247,7 @@
       const [c, setC] = useState(null);           // /api/cockpit → gates + mémoire (bande latérale)
       const [board, setBoard] = useState(null);   // /api/imp-board → board projet×lane (zone principale)
       const [hygiene, setHygiene] = useState(null); // /api/hygiene → capteur hygiène code (déterministe, lecture seule)
+      const [telemetry, setTelemetry] = useState(null); // /api/telemetry → dashboard coût/tokens/verdicts (Phase 3.5, lecture seule)
       const [err, setErr] = useState(null);
       const [q, setQ] = useState('');             // filtre texte (id ou titre)
       const [depOnly, setDepOnly] = useState(false); // « déployable maintenant uniquement »
@@ -2267,6 +2268,13 @@
         card.blocked_by.length ? `Bloqué par: ${card.blocked_by.join(', ')}` : 'Bloqueurs: aucun',
         card.notes ? `Notes: ${card.notes}` : '',
       ].filter(Boolean).join('\n');
+
+      // Ré-affichage du dernier verdict council (Phase 3.5) — ISO → "08/07 10:37" (heure locale ; ts stocké en UTC).
+      const fmtVerdictTs = (iso) => {
+        try { const d = new Date(iso), p = (x) => String(x).padStart(2, '0');
+          return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+        catch { return String(iso); }
+      };
 
       // Voix = rôle council (temp du preset) + prompt injecté. `model` OMIS → Qwen :1234 par défaut.
       const voiceNode = (role, ctx) => ({ id: role, type: 'agent', data: {
@@ -2366,6 +2374,24 @@
       const [arb, setArb] = useState(null); // { imp, phase, stances?, reco?, favs?, defs?, unparsed?, error?, unavailable? }
       // World Intelligence (Phase 5) — knowledge packet advisory-only du GET /api/knowledge. Lecture seule.
       const [knowledge, setKnowledge] = useState(null); // null=idle | {loading} | {available:false,reason} | {available:true,packet}
+      const [lastVerdict, setLastVerdict] = useState(null); // null=aucun | {feature,verdict,ts,...} — dernier audit council (read-only)
+      const [prep, setPrep] = useState(null);               // null | 'copied' | 'error' — état copie du prompt "session Claude Code"
+
+      // Compose le prompt (contexte IMP + dernier verdict si dispo) et le COPIE dans le presse-papier.
+      // Un clic humain, zéro écriture disque, zéro action auto. Colle à faire à la main dans Claude Code.
+      const prepareSession = async (card) => {
+        const v = lastVerdict
+          ? `\nDernier audit council : ${lastVerdict.verdict} (${lastVerdict.feature}) le ${fmtVerdictTs(lastVerdict.ts)}`
+          : '';
+        const prompt = [
+          impContext(card) + v,
+          '',
+          'Reprends cet IMP. Le verdict council ci-dessus est advisory (non contraignant). '
+            + 'merge / reject / freeze reste une gate humaine explicite.',
+        ].join('\n');
+        try { await navigator.clipboard.writeText(prompt); setPrep('copied'); }
+        catch { setPrep('error'); } // clipboard refusée par le navigateur → message fallback, jamais de throw
+      };
 
       // Voix objective = contexte IMP + lentille injectés, fin forcée sur STANCE:. model omis → Qwen :1234.
       const objectiveNode = (obj, ctx) => ({ id: obj.id, type: 'agent', data: {
@@ -2422,6 +2448,7 @@
       useEffect(() => {
         fetch('/api/cockpit').then((r) => r.json()).then(setC).catch((e) => setErr(String(e)));
         fetch('/api/imp-board').then((r) => r.json()).then(setBoard).catch((e) => setErr(String(e)));
+        fetch('/api/telemetry').then((r) => (r.ok ? r.json() : null)).then(setTelemetry).catch(() => setTelemetry(null));
         fetch('/api/hygiene').then((r) => r.json()).then(setHygiene).catch(() => setHygiene({ available: false, reason: 'endpoint indisponible' }));
       }, []);
 
@@ -2434,6 +2461,19 @@
           .then((r) => r.json())
           .then((d) => { if (!cancelled) setKnowledge(d); })
           .catch(() => { if (!cancelled) setKnowledge({ available: false, reason: 'endpoint indisponible' }); });
+        return () => { cancelled = true; };
+      }, [sel]);
+
+      // Dernier verdict council de l'IMP ouvert (Phase 3.5) — lecture read-only, aucun appel LLM. Toutes lanes.
+      // Race-safe (cancelled). Reset aussi l'état de copie pour ne pas traîner un "copié" d'un IMP à l'autre.
+      useEffect(() => {
+        setPrep(null);
+        if (!sel) { setLastVerdict(null); return; }
+        let cancelled = false;
+        fetch(`/api/council-verdict-last?imp=${encodeURIComponent(sel.id)}`)
+          .then((r) => r.json())
+          .then((j) => { if (!cancelled) setLastVerdict(j && j.available ? j.verdict : null); })
+          .catch(() => { if (!cancelled) setLastVerdict(null); });
         return () => { cancelled = true; };
       }, [sel]);
 
@@ -2498,6 +2538,53 @@
                   )}
                   <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', borderTop: '1px solid var(--line)', paddingTop: 6, marginTop: 4 }}>
                     Détection = sortie d'outils (cargo build · git ls-files), jamais un jugement LLM. Aucune écriture ledger — créer un IMP reste un geste explicite (kaizen_loop).
+                  </div>
+                </div>
+              )}
+
+              {/* Phase 3.5 — dashboard télémétrie (coût/tokens/verdicts). Lecture seule, honnête sur le volume. */}
+              {telemetry && (
+                <div data-testid="telemetry-panel" style={{ background: 'var(--panel-2)', border: '1px solid var(--line)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 'var(--fs-2xs)', textTransform: 'uppercase', letterSpacing: 1, color: 'var(--accent)' }}>Télémétrie — coût/tokens/verdicts (lecture seule)</span>
+                  </div>
+                  {telemetry.corpus_state === 'accumulating' && (
+                    <div data-testid="telemetry-accumulating" style={{ background: 'var(--sev-warn-soft)', color: 'var(--sev-warn)', padding: '6px 10px', borderRadius: 6, marginBottom: 8, fontSize: 'var(--fs-2xs)' }}>
+                      Corpus en cours d'accumulation ({telemetry.llm_calls.count} appel(s), {telemetry.verdicts.count} verdict(s)) — signal encore faible.
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 8 }}>
+                    <div data-testid="telemetry-calls">
+                      <span style={{ fontSize: 'var(--fs-lg)', color: 'var(--ink)' }}>{telemetry.llm_calls.count}</span>
+                      <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginLeft: 6 }}>appels LLM{telemetry.llm_calls.skipped ? ' (' + telemetry.llm_calls.skipped + ' ignoré(s))' : ''}</span>
+                    </div>
+                    <div data-testid="telemetry-tokens">
+                      <span style={{ fontSize: 'var(--fs-lg)', color: 'var(--ink)' }}>{telemetry.llm_calls.total_tokens}</span>
+                      <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginLeft: 6 }}>tokens ({telemetry.llm_calls.prompt_tokens} in / {telemetry.llm_calls.completion_tokens} out)</span>
+                    </div>
+                    <div data-testid="telemetry-duration">
+                      <span style={{ fontSize: 'var(--fs-lg)', color: 'var(--ink)' }}>{(telemetry.llm_calls.total_duration_ms / 1000).toFixed(1)}s</span>
+                      <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginLeft: 6 }}>durée cumulée</span>
+                    </div>
+                    <div data-testid="telemetry-verdicts">
+                      <span style={{ fontSize: 'var(--fs-lg)', color: 'var(--ink)' }}>{telemetry.verdicts.count}</span>
+                      <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginLeft: 6 }}>verdicts council</span>
+                    </div>
+                  </div>
+                  {Object.keys(telemetry.llm_calls.by_model).length > 0 && (
+                    <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-2)', marginBottom: 4 }}>
+                      par modèle : {Object.entries(telemetry.llm_calls.by_model).map(([m, v]) => m + ' (' + v.calls + ' appels, ' + v.tokens + ' tok)').join(' · ')}
+                    </div>
+                  )}
+                  {telemetry.verdicts.count > 0 ? (
+                    <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-2)', marginBottom: 4 }}>
+                      verdicts : {Object.entries(telemetry.verdicts.distribution).map(([k, v]) => k + ':' + v).join(' · ')}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginBottom: 4 }}>0 verdict capturé — le corpus verdicts s'accumule au fil des audits council.</div>
+                  )}
+                  <div data-testid="telemetry-cost-label" style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', borderTop: '1px solid var(--line)', paddingTop: 6, marginTop: 4 }}>
+                    « Coût » = tokens + durée réels. Modèle local (LM Studio) — coût monétaire nul ; le vrai coût est le temps et les tokens. Aucun tarif cloud projeté.
                   </div>
                 </div>
               )}
@@ -2604,6 +2691,14 @@
                           : '0 — graphe de dépendances non structuré (dépendances actuellement en prose dans les notes, ex. IMP-206→IMP-205)'}
                       </span>
                     </div>
+                  </div>
+                )}
+
+                {/* Dernier audit council (Phase 3.5) — TOUTES lanes, read-only. Au-dessus du bloc audit ;
+                    reste visible même si l'IMP a changé de lane (ne perd jamais son historique de verdict). */}
+                {lastVerdict && (
+                  <div data-testid="council-last-verdict" style={{ marginTop: 14, fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)' }}>
+                    Dernier audit : <b style={{ color: 'var(--ink-2)' }}>{lastVerdict.verdict}</b> le {fmtVerdictTs(lastVerdict.ts)} ({lastVerdict.feature})
                   </div>
                 )}
 
@@ -2751,6 +2846,24 @@
                       {knowledge.packet.caveats && (
                         <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginTop: 6 }}><b>Limites :</b> {knowledge.packet.caveats}</div>
                       )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Préparer une session Claude Code (Phase 3.5) — TOUTES lanes. Compose contexte IMP + dernier
+                    verdict et COPIE dans le presse-papier. Un clic humain, zéro écriture, zéro action auto. */}
+                <div style={{ marginTop: 16, borderTop: '1px solid var(--line)', paddingTop: 12 }}>
+                  <button data-testid="prep-session-btn" className="palette" onClick={() => prepareSession(sel)}>
+                    Préparer une session Claude Code sur cet IMP
+                  </button>
+                  {prep === 'copied' && (
+                    <div data-testid="prep-session-copied" style={{ fontSize: 'var(--fs-2xs)', color: 'var(--sev-good)', marginTop: 6 }}>
+                      ✓ Prompt copié — colle-le dans ta session Claude Code.
+                    </div>
+                  )}
+                  {prep === 'error' && (
+                    <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--sev-bad)', marginTop: 6 }}>
+                      Copie refusée par le navigateur — sélectionne/copie le contexte à la main.
                     </div>
                   )}
                 </div>

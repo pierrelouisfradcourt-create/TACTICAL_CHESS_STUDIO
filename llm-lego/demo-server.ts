@@ -28,6 +28,8 @@ import type { EngineState, ExecutionContext, Graph } from "./dist/core/types.js"
 import { listNotes, readNote, searchNotes, writeNote } from "./memory-store.mjs";
 import { recall, lmStudioEmbed } from "./memory-recall.mjs";
 import { telemetryRecords, appendTelemetry, appendVerdict } from "./telemetry.mjs";
+import { TELEMETRY_DIR } from "./telemetry.mjs";
+import { buildTelemetry, readLastVerdicts } from "./telemetry-read.mjs";
 import { buildGraph } from "./memory-graph.mjs";
 import { buildCockpit } from "./cockpit.mjs";
 import { buildImpBoard } from "./imp-board.mjs";
@@ -600,6 +602,30 @@ const server = http.createServer((req, res) => {
   if (pathname === "/api/hygiene" && req.method === "GET") {
     try { sendJson(res, 200, buildHygieneBoard({ reportPath: HYGIENE_REPORT_PATH })); }
     catch (e) { sendJson(res, 500, { error: String((e as any).message || e) }); }
+    return;
+  }
+  // Phase 3.5 — dashboard télémétrie (coût/tokens/verdicts). LECTURE SEULE, ZERO write.
+  // Fichiers .jsonl absents = état normal (corpus en accumulation), jamais une erreur.
+  if (pathname === "/api/telemetry" && req.method === "GET") {
+    try { sendJson(res, 200, buildTelemetry({ dir: TELEMETRY_DIR })); }
+    catch (e) { sendJson(res, 500, { error: String((e as any).message || e) }); }
+    return;
+  }
+  // Dernier verdict council d'un IMP — ré-affichage read-only du panneau détail (aucun appel LLM).
+  // LECTURE SEULE de council_verdicts.jsonl via telemetry-read. Empty state propre si aucun verdict.
+  // Anti path-traversal : même regex stricte que /api/knowledge.
+  if (pathname === "/api/council-verdict-last" && req.method === "GET") {
+    const imp = url.searchParams.get("imp") ?? "";
+    if (!/^IMP-[A-Za-z0-9]+$/.test(imp)) {
+      sendJson(res, 400, { error: `param imp invalide: "${imp}" (attendu IMP-<alphanumerique>)` });
+      return;
+    }
+    try {
+      const recent = readLastVerdicts(imp, 1, { dir: TELEMETRY_DIR });
+      sendJson(res, 200, recent.length ? { imp, available: true, verdict: recent[0] } : { imp, available: false });
+    } catch (e) {
+      sendJson(res, 200, { imp, available: false, reason: String((e as any).message || e) });
+    }
     return;
   }
   // World Intelligence (Phase 5) — sert le knowledge packet advisory-only d'un IMP.
