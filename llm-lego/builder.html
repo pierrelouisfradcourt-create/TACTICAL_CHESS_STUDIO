@@ -2246,6 +2246,7 @@
     function HomeView({ onOpenMemory }) {
       const [c, setC] = useState(null);           // /api/cockpit → gates + mémoire (bande latérale)
       const [board, setBoard] = useState(null);   // /api/imp-board → board projet×lane (zone principale)
+      const [hygiene, setHygiene] = useState(null); // /api/hygiene → capteur hygiène code (déterministe, lecture seule)
       const [err, setErr] = useState(null);
       const [q, setQ] = useState('');             // filtre texte (id ou titre)
       const [depOnly, setDepOnly] = useState(false); // « déployable maintenant uniquement »
@@ -2407,6 +2408,7 @@
       useEffect(() => {
         fetch('/api/cockpit').then((r) => r.json()).then(setC).catch((e) => setErr(String(e)));
         fetch('/api/imp-board').then((r) => r.json()).then(setBoard).catch((e) => setErr(String(e)));
+        fetch('/api/hygiene').then((r) => r.json()).then(setHygiene).catch(() => setHygiene({ available: false, reason: 'endpoint indisponible' }));
       }, []);
 
       const matchCard = (card) => {
@@ -2434,6 +2436,46 @@
             <div data-testid="impboard" style={{ overflow: 'auto', padding: 20, minWidth: 0 }}>
               <div style={{ fontSize: 'var(--fs-xl)', color: 'var(--ink)', marginBottom: 2 }}>Accueil — board IMP</div>
               <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--ink-3)', marginBottom: 14 }}>Quoi lancer maintenant, par projet et par lane — lecture seule du ledger.</div>
+
+              {/* Hygiène du code — capteur DÉTERMINISTE lecture seule (Phase 3). Sortie d'outils (cargo/git),
+                  jamais un jugement LLM. N'écrit RIEN : créer un IMP reste un geste explicite (kaizen_loop). */}
+              {hygiene && hygiene.available === false && (
+                <div data-testid="hygiene-panel" style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)' }}>
+                  Hygiène du code — {hygiene.reason || 'aucun rapport'}. Lance <code>node hygiene-scan.mjs</code>.
+                </div>
+              )}
+              {hygiene && hygiene.available && (
+                <div data-testid="hygiene-panel" style={{ background: 'var(--panel-2)', border: '1px solid var(--line)', borderRadius: 8, padding: 12, marginBottom: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 'var(--fs-2xs)', textTransform: 'uppercase', letterSpacing: 1, color: 'var(--accent)' }}>Hygiène du code — capteur (lecture seule)</span>
+                    <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)' }}>{hygiene.generated ? new Date(hygiene.generated).toLocaleString() : '—'} · {hygiene.trigger}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 8 }}>
+                    <div data-testid="hygiene-rust">
+                      <span style={{ fontSize: 'var(--fs-lg)', color: hygiene.rust.total ? 'var(--sev-warn)' : 'var(--sev-good)' }}>{hygiene.rust.available ? hygiene.rust.total : '—'}</span>
+                      <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginLeft: 6 }}>Rust dead/unused{hygiene.rust.available ? ' (' + Object.entries(hygiene.rust.byCode).map(([k, v]) => k + ':' + v).join(' ') + ')' : ' — ' + (hygiene.rust.reason || 'non exécuté')}</span>
+                    </div>
+                    <div data-testid="hygiene-todo">
+                      <span style={{ fontSize: 'var(--fs-lg)', color: hygiene.todo.orphans ? 'var(--sev-warn)' : 'var(--sev-good)' }}>{hygiene.todo.orphans}</span>
+                      <span style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginLeft: 6 }}>TODO/FIXME orphelins (sans réf IMP) · {hygiene.todo.filesScanned} fichiers suivis</span>
+                    </div>
+                  </div>
+                  {hygiene.rust.topFiles.length > 0 && (
+                    <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-2)', marginBottom: 4 }}>
+                      top Rust : {hygiene.rust.topFiles.slice(0, 4).map((f) => f.file + ' (' + f.n + ')').join(' · ')}
+                    </div>
+                  )}
+                  {hygiene.todo.samples.length > 0 && (
+                    <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', whiteSpace: 'pre-wrap', marginBottom: 4 }}>
+                      {hygiene.todo.samples.slice(0, 4).map((s) => s.file + ':' + s.line + '  ' + s.text).join('\n')}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', borderTop: '1px solid var(--line)', paddingTop: 6, marginTop: 4 }}>
+                    Détection = sortie d'outils (cargo build · git ls-files), jamais un jugement LLM. Aucune écriture ledger — créer un IMP reste un geste explicite (kaizen_loop).
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
                 <input data-testid="impboard-filter" value={q} onChange={(e) => setQ(e.target.value)} placeholder="filtrer id ou titre…"
                   style={{ flex: '1 1 220px', minWidth: 180, background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 6, padding: '6px 10px', color: 'var(--ink)', fontSize: 'var(--fs-xs)' }} />
