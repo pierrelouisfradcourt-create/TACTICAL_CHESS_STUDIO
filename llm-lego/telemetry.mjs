@@ -37,3 +37,23 @@ export function appendTelemetry(records) {
   appendFileSync(TELEMETRY_FILE, records.map((r) => JSON.stringify(r)).join("\n") + "\n", "utf-8");
   return records.length;
 }
+
+// --- Phase 4 v0 — capture des verdicts council (fichier SÉPARÉ, même dossier gitignored) --------
+export const VERDICTS_FILE = path.join(TELEMETRY_DIR, "council_verdicts.jsonl");
+
+// Append un verdict council (reçu du client via POST). Stamp ts serveur. Skip si pas de verdict.
+// Retourne 1 (écrit) ou 0 (skip). Append-only, lecture seule ensuite. Jamais gouverné.
+export function appendVerdict(record) {
+  if (!record || typeof record !== "object" || !record.verdict) return 0;
+  const rec = {
+    ts: new Date().toISOString(),
+    feature: record.feature || null,
+    imp: record.imp || null,
+    verdict: record.verdict,
+    voices: Array.isArray(record.voices) ? record.voices : [],
+    ...(record.conflict ? { conflict: record.conflict } : {}),
+  };
+  mkdirSync(TELEMETRY_DIR, { recursive: true });
+  appendFileSync(VERDICTS_FILE, JSON.stringify(rec) + "\n", "utf-8");
+  return 1;
+}

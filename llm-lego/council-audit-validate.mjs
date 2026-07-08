@@ -53,6 +53,7 @@ page.on("request", (r) => { if (r.method() === "POST") postUrls.push(r.url()); }
 await page.route("**/api/imp-board", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(BOARD) }));
 await page.route("**/api/cockpit", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(COCKPIT) }));
 await page.route("**/api/execute", (route) => { execCount++; route.fulfill({ status: 200, contentType: "application/json", body: execResponse }); });
+await page.route("**/api/council-verdict-log", (route) => route.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}' })); // Phase 4 — capture verdict (non gouverne)
 
 async function openCard(id) { await page.click(`[data-testid="impboard-card-${id}"]`); await page.waitForSelector('[data-testid="impboard-detail"]'); }
 async function closeDetail() { await page.click('[data-testid="impboard-detail-close"]'); await page.waitForSelector('[data-testid="impboard-detail"]', { state: "detached" }); }
@@ -126,7 +127,7 @@ try {
   check("AJOUT #2 : AUCUN verdict rendu sur 2/3 voix", s5.verdict === null);
 
   // 8. Contrainte #2 : le board ne POSTe QUE /api/execute (aucune écriture)
-  check(`board ne poste QUE /api/execute (${postUrls.length} POST)`, postUrls.length > 0 && postUrls.every((u) => u.includes("/api/execute")));
+  check(`board ne poste QUE /api/execute + verdict-log (${postUrls.length} POST)`, postUrls.length > 0 && postUrls.every((u) => u.includes("/api/execute") || u.includes("/api/council-verdict-log")));
 
   const green = Object.values(out.checks).every(Boolean);
   out.pass = green;

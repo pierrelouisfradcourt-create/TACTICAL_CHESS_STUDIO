@@ -2320,6 +2320,15 @@
         return 'ESCALADE';
       };
 
+      // Phase 4 v0 — capture verdict : POST non bloquant vers /api/council-verdict-log (append serveur).
+      // N'affecte PAS l'UI. Contrainte #2 : jamais perdre un verdict silencieusement → console.error si le POST echoue.
+      const logVerdict = (feature, imp, verdict, voices, extra) => {
+        fetch('/api/council-verdict-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feature, imp, verdict, voices, ...(extra || {}) }) })
+          .then((r) => { if (!r.ok) console.error('[verdict-log] POST echoue:', r.status); })
+          .catch((e) => console.error('[verdict-log] POST echoue:', String((e && e.message) || e)));
+      };
+
       const runCouncilAudit = async (card) => {
         setAudit({ imp: card.id, phase: 'running' });
         try {
@@ -2338,6 +2347,7 @@
           voices = voices.map((v) => ({ ...v, ...parseVerdict(v.text) }));
           const verdict = mechVerdict(voices.map((v) => v.verdict));
           setAudit({ imp: card.id, phase: 'done', voices, verdict });
+          logVerdict('council-audit', card.id, verdict, voices.map((v) => ({ id: v.id, verdict: v.verdict, parsed: v.parsed })));
         } catch (e) { setAudit({ imp: card.id, phase: 'error', error: String((e && e.message) || e) }); }
       };
 
@@ -2401,7 +2411,9 @@
           // Comme council-audit : une voix indisponible → « arbitrage partiel », PAS de reco.
           if (down.length > 0) { setArb({ imp: card.id, phase: 'partial', stances, unavailable: down.length }); return; }
           stances = stances.map((s) => ({ ...s, ...parseStance(s.text) }));
-          setArb({ imp: card.id, phase: 'done', stances, ...arbitrate(stances) });
+          const a = arbitrate(stances);
+          setArb({ imp: card.id, phase: 'done', stances, ...a });
+          logVerdict('arbitration', card.id, a.reco, stances.map((s) => ({ id: s.id, stance: s.stance, parsed: s.parsed })), { conflict: { favs: a.favs, defs: a.defs, unparsed: a.unparsed } });
         } catch (e) { setArb({ imp: card.id, phase: 'error', error: String((e && e.message) || e) }); }
       };
 

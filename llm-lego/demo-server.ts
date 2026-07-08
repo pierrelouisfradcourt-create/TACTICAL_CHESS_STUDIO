@@ -27,7 +27,7 @@ import type { Adapters } from "./dist/adapters/types.js";
 import type { EngineState, ExecutionContext, Graph } from "./dist/core/types.js";
 import { listNotes, readNote, searchNotes, writeNote } from "./memory-store.mjs";
 import { recall, lmStudioEmbed } from "./memory-recall.mjs";
-import { telemetryRecords, appendTelemetry } from "./telemetry.mjs";
+import { telemetryRecords, appendTelemetry, appendVerdict } from "./telemetry.mjs";
 import { buildGraph } from "./memory-graph.mjs";
 import { buildCockpit } from "./cockpit.mjs";
 import { buildImpBoard } from "./imp-board.mjs";
@@ -689,6 +689,23 @@ const server = http.createServer((req, res) => {
           );
         }
       })();
+    });
+    return;
+  }
+
+  // Phase 4 v0 — capture verdict council (POST client). Non gouverné, read-only ensuite, jamais bloquant.
+  if (req.url === "/api/council-verdict-log" && req.method === "POST") {
+    let body = "";
+    req.on("data", (chunk) => { body += chunk.toString(); });
+    req.on("end", () => {
+      try {
+        const n = appendVerdict(JSON.parse(body));
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true, appended: n }));
+      } catch (err) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: err instanceof Error ? err.message : "Unknown error" }));
+      }
     });
     return;
   }
