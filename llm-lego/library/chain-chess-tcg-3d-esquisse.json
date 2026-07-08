@@ -1,0 +1,111 @@
+{
+  "id": "chain-chess-tcg-3d-esquisse",
+  "kind": "chain",
+  "name": "Chess TCG 3D — esquisse du PROCESSUS (non-exécutable)",
+  "maturity": "draft",
+  "badge": "demo",
+  "roadmapRef": "roadmap-chess-tcg-3d",
+  "sourceRef": "ESQUISSE de représentation du processus décrit par Pierre. Chaque nœud DÉCRIT une étape, aucun nœud n'exécute de génération de jeu. Non-exécutable — ne pas lancer.",
+  "wiredStatus": "unset",
+  "payload": {
+    "category": "esquisse-projet",
+    "tags": ["esquisse", "chess-tcg-3d", "non-executable", "process"],
+    "initialInput": {
+      "note": "ESQUISSE — représente visuellement le processus, ne construit pas le jeu."
+    },
+    "nodes": [
+      {
+        "id": "n1-analyser",
+        "type": "agent",
+        "x": 60,
+        "y": 80,
+        "data": {
+          "prompt": "Étape (DÉCRITE, non exécutée) : analyser l'existant — base de code, assets, contraintes d'export mobile Godot.",
+          "role": "analyste"
+        }
+      },
+      {
+        "id": "n2-regles",
+        "type": "agent",
+        "x": 300,
+        "y": 80,
+        "data": {
+          "prompt": "Étape (DÉCRITE) : comprendre et spécifier les règles — échecs + surcouche cartes (TCG).",
+          "role": "analyste"
+        }
+      },
+      {
+        "id": "n3-plan",
+        "type": "agent",
+        "x": 540,
+        "y": 80,
+        "data": {
+          "prompt": "Étape (DÉCRITE) : produire un plan d'architecture modulaire (rendu 3D, boucle de jeu, son).",
+          "role": "architecte"
+        }
+      },
+      {
+        "id": "n4-risques",
+        "type": "agent",
+        "x": 780,
+        "y": 80,
+        "data": {
+          "prompt": "Étape (DÉCRITE) : identifier les risques — 60 FPS mobile, input tactile, complexité TCG, scope creep.",
+          "role": "red-team"
+        }
+      },
+      {
+        "id": "n5-jalons",
+        "type": "agent",
+        "x": 780,
+        "y": 260,
+        "data": {
+          "prompt": "Étape (DÉCRITE) : découper en jalons — du MVP jouable vers des incréments de qualité.",
+          "role": "planificateur"
+        }
+      },
+      {
+        "id": "g1-revue",
+        "type": "humangate",
+        "x": 540,
+        "y": 260,
+        "data": {
+          "question": "Revue du plan par Pierre : lancer réellement la construction ? (hors périmètre de cette passe)",
+          "role": "humangate"
+        }
+      },
+      {
+        "id": "n6-developper",
+        "type": "agent",
+        "x": 300,
+        "y": 260,
+        "data": {
+          "prompt": "Étape (DÉCRITE, n'exécute AUCUNE génération) : développer un incrément jouable.",
+          "role": "producteur"
+        }
+      },
+      {
+        "id": "n7-tester",
+        "type": "agent",
+        "x": 60,
+        "y": 260,
+        "data": {
+          "prompt": "Étape (DÉCRITE) : tester — bugs (oracle) + feel (jugement humain). Boucle vers le développement tant que ce n'est pas un vrai jeu.",
+          "role": "qa"
+        }
+      }
+    ],
+    "edges": [
+      { "id": "e1", "from": "n1-analyser", "to": "n2-regles" },
+      { "id": "e2", "from": "n2-regles", "to": "n3-plan" },
+      { "id": "e3", "from": "n3-plan", "to": "n4-risques" },
+      { "id": "e4", "from": "n4-risques", "to": "n5-jalons" },
+      { "id": "e5", "from": "n5-jalons", "to": "g1-revue" },
+      { "id": "e6", "from": "g1-revue", "to": "n6-developper" },
+      { "id": "e7", "from": "n6-developper", "to": "n7-tester" },
+      { "id": "e8", "from": "n7-tester", "to": "n6-developper", "loop": true, "condition": "pas encore un vrai jeu", "maxIterations": 3 }
+    ]
+  },
+  "created": "2026-07-04T00:00:00Z",
+  "updated": "2026-07-04T00:00:00Z"
+}

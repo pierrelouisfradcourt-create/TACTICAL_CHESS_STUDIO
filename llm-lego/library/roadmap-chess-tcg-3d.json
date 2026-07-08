@@ -1,0 +1,65 @@
+{
+  "id": "roadmap-chess-tcg-3d",
+  "kind": "roadmap",
+  "name": "Chess TCG 3D — Roadmap (représentation, hors-scope Lego Builder)",
+  "maturity": "draft",
+  "badge": "demo",
+  "roadmapRef": null,
+  "sourceRef": "Prompt de spécification de Pierre — CARTOGRAPHIE uniquement, aucune construction. Le jeu reste hors périmètre du Lego Builder. CIBLE CORRIGÉE 2026-07-08 : Godot natif, export MOBILE (Android/iOS) — PAS navigateur/WebGL comme l'écrivait la rédaction d'origine (2026-07-04). Raison (décision produit Pierre) : le point zéro du 2026-07-08 a révélé un prototype Godot natif JOUABLE existant (games/chess_tcg/, ~1800 lignes GDScript, moteur de règles headless testable) ; partir sur le web aurait jeté cet actif réel. Le prototype existant est la base, pas une réécriture.",
+  "payload": {
+    "category": "produit",
+    "milestones": [
+      {
+        "id": "ms-1-analyser-existant",
+        "title": "Jalon 1 — Analyser l'existant",
+        "description": "Auditer l'état de départ : base de code existante (prototype Godot natif games/chess_tcg/), assets, contraintes d'export MOBILE Godot (templates Android/iOS, signing, taille app store, budget mémoire GPU appareils bas de gamme, renderer), outillage. Établir le point zéro avant toute décision d'architecture. Point zéro navigateur fait le 2026-07-08 ; audit mobile ciblé à sa suite.",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "ms-2-comprendre-regles",
+        "title": "Jalon 2 — Comprendre les règles",
+        "description": "Spécifier sans ambiguïté les règles : échecs classiques + surcouche jeu de cartes (TCG). Interactions cartes ↔ plateau, conditions de victoire, cas limites. Sortie : document de règles exécutable comme référence.",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "ms-3-produire-plan",
+        "title": "Jalon 3 — Produire un plan",
+        "description": "Architecture modulaire : moteur de rendu 3D Godot mobile (choix renderer Forward+/Mobile), boucle de jeu, pipeline rendu/animation/son, séparation logique-jeu / présentation. Plan de découpage en modules testables indépendamment.",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "ms-4-identifier-risques",
+        "title": "Jalon 4 — Identifier les risques",
+        "description": "Risques prioritaires : tenir 60 FPS stable sur mobile (GPU bas de gamme), adaptation input souris→tactile, complexité combinatoire des règles TCG, budget assets/chargement (mémoire GPU + taille app store), scope creep. Pour chacun : signal de détection précoce et parade.",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "ms-5-decouper-jalons",
+        "title": "Jalon 5 — Découper en milestones",
+        "description": "Séquencer du MVP jouable (plateau + règles de base + une carte) vers des incréments de qualité successifs. Chaque incrément livrable, testable et jouable de bout en bout.",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "ms-6-iteration-continue",
+        "title": "Jalon 6 — Itération continue (test + feel)",
+        "description": "Boucle sans fin de production : jouer, mesurer les bugs (oracle), sentir le feel (jugement humain), corriger, ré-itérer. Jamais s'arrêter à « good enough » — viser jusqu'à ce que ça sente le vrai jeu.",
+        "status": "todo",
+        "goalRef": "goal-chess-tcg-3d"
+      },
+      {
+        "id": "ms-7-optimisation",
+        "title": "Jalon 7 — Optimisation production-quality",
+        "description": "Stabiliser 60 FPS sur cible mobile (y compris appareils bas de gamme), budgets mémoire GPU et chargement d'assets maîtrisés, animations et son polis. Niveau de finition d'un jeu indépendant commercial.",
+        "status": "todo",
+        "goalRef": "goal-chess-tcg-3d"
+      }
+    ]
+  },
+  "created": "2026-07-04T00:00:00Z",
+  "updated": "2026-07-08T00:00:00Z"
+}
