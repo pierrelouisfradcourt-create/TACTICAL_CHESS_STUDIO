@@ -81,6 +81,29 @@ def test_detect_path_replace_method(tmp_path):
     assert any("replace" in x.primitive for x in v)
 
 
+def test_detect_os_open_w(tmp_path):
+    """IMP-206 — os.open(LEDGER, O_WRONLY) est un bypass bas niveau et doit être vu."""
+    f = _w(tmp_path / "bad.py", '''
+        import os
+        LEDGER = "lab/chains/IMPROVEMENT_LEDGER.yaml"
+        fd = os.open(LEDGER, os.O_WRONLY | os.O_CREAT)
+        os.write(fd, b"x")
+    ''')
+    v = gg.scan_file(f, "bad.py")
+    assert len(v) == 1 and "os.open" in v[0].primitive, [x.primitive for x in v]
+
+
+def test_os_open_readonly_not_flagged(tmp_path):
+    """IMP-206 — os.open(LEDGER, O_RDONLY) est une LECTURE → pas de violation (anti faux positif)."""
+    f = _w(tmp_path / "reader.py", '''
+        import os
+        LEDGER = "lab/chains/IMPROVEMENT_LEDGER.yaml"
+        fd = os.open(LEDGER, os.O_RDONLY)
+        os.read(fd, 10)
+    ''')
+    assert gg.scan_file(f, "reader.py") == []
+
+
 # ── grep-guard : NON-DÉTECTION (faux positifs interdits — C2 RED TEAM) ──────────
 
 def test_ignore_read_only_writer_of_other_file(tmp_path):

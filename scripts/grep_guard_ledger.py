@@ -62,6 +62,7 @@ PRUNE_DIRS = {
 }
 
 WRITE_MODE_CHARS = set("wax+")  # un mode contenant l'un de ceux-ci écrit.
+OS_WRITE_FLAGS = {"O_WRONLY", "O_RDWR", "O_APPEND", "O_CREAT", "O_TRUNC"}  # os.open bas niveau
 
 
 class Violation(NamedTuple):
@@ -126,6 +127,18 @@ def _mode_is_write(node: ast.AST | None) -> bool:
     return any(c in WRITE_MODE_CHARS for c in s)
 
 
+def _os_flags_write(node: ast.AST | None) -> bool:
+    """Les flags d'un os.open impliquent-ils une écriture ? (O_RDONLY seul = lecture → False)"""
+    if node is None:
+        return False
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Attribute) and sub.attr in OS_WRITE_FLAGS:
+            return True
+        if isinstance(sub, ast.Name) and sub.id in OS_WRITE_FLAGS:
+            return True
+    return False
+
+
 def _attr_name(func: ast.AST) -> str | None:
     return func.attr if isinstance(func, ast.Attribute) else None
 
@@ -178,6 +191,14 @@ def scan_file(path: Path, rel: str) -> list[Violation]:
             if _is_ledger(dest):
                 out.append(Violation(rel, line, dotted + "(dst=ledger)",
                                      "remplacement/copie atomique ciblant le ledger"))
+            continue
+        # --- 1bis) os.open(ledger, flags-écriture) : bypass bas niveau (IMP-206).
+        if dotted == "os.open":
+            target = node.args[0] if node.args else None
+            flags = node.args[1] if len(node.args) > 1 else None
+            if _is_ledger(target) and _os_flags_write(flags):
+                out.append(Violation(rel, line, "os.open(ledger,O_WRONLY)",
+                                     "ouverture bas niveau en écriture du ledger"))
             continue
         if dotted in {"yaml.dump", "json.dump"}:
             stream = node.args[1] if len(node.args) > 1 else _kw(node, "stream")
