@@ -62,17 +62,43 @@ class OracleResult:
     evidence_path: Path
 
 
-def run_oracle(spec: OracleSpec, evidence_dir: Path | None = None) -> OracleResult:
-    """Run the oracle command, capture raw stdout/stderr as evidence, return the result."""
+def run_oracle(
+    spec: OracleSpec,
+    evidence_dir: Path | None = None,
+    timeout: float | None = 300,
+) -> OracleResult:
+    """Run the oracle command, capture raw stdout/stderr as evidence, return the result.
+
+    A hung oracle process must never hang the gate forever (CLAUDE.md: "un
+    process lance -> timeout actif"). On timeout, the process's partial output
+    (if any) is still captured as evidence and the result is reported as failed.
+    """
     evidence_dir = evidence_dir or (REPO_ROOT / "lab" / "forge_evidence")
     evidence_dir.mkdir(parents=True, exist_ok=True)
     evidence_path = evidence_dir / f"oracle_{spec.project}.log"
-    completed = subprocess.run(
-        spec.command,
-        cwd=str(spec.cwd),
-        capture_output=True,
-        text=True,
-    )
+    try:
+        completed = subprocess.run(
+            spec.command,
+            cwd=str(spec.cwd),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        with open(evidence_path, "w", encoding="utf-8") as fh:
+            fh.write(f"$ {' '.join(spec.command)}\n(cwd={spec.cwd})\n\n")
+            fh.write(f"--- TIMEOUT after {timeout}s ---\n")
+            fh.write("--- stdout (partial) ---\n")
+            fh.write(exc.stdout or "")
+            fh.write("\n--- stderr (partial) ---\n")
+            fh.write(exc.stderr or "")
+        logger.warning("oracle %s timed out after %ss", spec.project, timeout)
+        return OracleResult(
+            spec=spec,
+            passed=False,
+            returncode=-2,
+            evidence_path=evidence_path,
+        )
     with open(evidence_path, "w", encoding="utf-8") as fh:
         fh.write(f"$ {' '.join(spec.command)}\n(cwd={spec.cwd})\n\n")
         fh.write("--- stdout ---\n")

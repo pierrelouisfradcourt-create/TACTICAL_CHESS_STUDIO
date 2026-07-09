@@ -51,8 +51,8 @@ def forge_gate(
 ) -> GateResult:
     try:
         spec = resolve_oracle(project, config_path=config_path)
-    except OracleNotFound:
-        logger.warning("no oracle for %s -> BLOCKED", project)
+    except (OracleNotFound, OSError, ValueError) as exc:
+        logger.warning("oracle config for %s unusable (%s) -> BLOCKED", project, exc)
         return _blocked(project, key_file)
 
     try:

@@ -59,3 +59,19 @@ def test_gate_missing_binary_is_blocked(tmp_path):
     )
     assert res.ok is False
     assert res.verdict.software_verdict == "BLOCKED"
+
+
+def test_gate_missing_config_is_blocked(tmp_path):
+    res = forge_gate("fake", config_path=tmp_path / "does_not_exist.json",
+                     key_file=tmp_path / "k", evidence_dir=tmp_path / "ev")
+    assert res.ok is False
+    assert res.verdict.software_verdict == "BLOCKED"
+
+
+def test_gate_malformed_config_is_blocked(tmp_path):
+    bad = tmp_path / "oracles.json"
+    with open(bad, "w", encoding="utf-8") as fh:
+        fh.write("{ not valid json ")
+    res = forge_gate("fake", config_path=bad, key_file=tmp_path / "k", evidence_dir=tmp_path / "ev")
+    assert res.ok is False
+    assert res.verdict.software_verdict == "BLOCKED"
