@@ -460,3 +460,12 @@ software_verdict: BLOCKED
 - raison     : contention réelle prouvée (overlap mesuré fenêtre [0.000..0.363]s), anti-corruption octet, mutation-check positif, 42 passed régression single-writer. Aucune zone FORBIDDEN touchée.
 - software_verdict: OK · evidence_verdict: MECHANICAL_VALIDATION_ONLY · claim_verdict: NO_CLAIM_ALLOWED
 - ratifié par: Pierre — 2026-07-09
+
+## 2026-07-09 — Ratification IMP-206 (grep_guard os.open)
+- décision   : RATIFIÉ (MERGE)
+- IMP        : 206 — détection bypass os.open(LEDGER) ajoutée au single-writer guard
+- oracle     : PASS — 19/19 pytest suite guard (dont TDD os.open write + anti-faux-positif O_RDONLY) · HMAC : OK (lab/reports/imp206_verdict_latest.json.hmac)
+- fichiers   : scripts/grep_guard_ledger.py, scripts/phase2_tests/test_imp205_single_writer_complete.py
+- raison     : TDD prouvé RED→GREEN (test échouait AssertionError:[] sans branche) ; acceptance mécaniquement remplie (exit 0 repo propre, exit 1 sur bypass os.open) ; branche distingue O_RDONLY (lecture). Aucune zone FORBIDDEN touchée.
+- software_verdict: OK · evidence_verdict: MECHANICAL_VALIDATION_ONLY · claim_verdict: NO_CLAIM_ALLOWED
+- ratifié par: Pierre — 2026-07-09
