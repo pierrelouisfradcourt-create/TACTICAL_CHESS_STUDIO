@@ -2376,6 +2376,8 @@
       const [knowledge, setKnowledge] = useState(null); // null=idle | {loading} | {available:false,reason} | {available:true,packet}
       const [lastVerdict, setLastVerdict] = useState(null); // null=aucun | {feature,verdict,ts,...} — dernier audit council (read-only)
       const [prep, setPrep] = useState(null);               // null | 'copied' | 'error' — état copie du prompt "session Claude Code"
+      const [gate, setGate] = useState(null);               // null | {decision, phase:'confirm'|'running'|'done'|'error', result?, error?} — IMP-261
+      const [gateReason, setGateReason] = useState('');     // raison saisie pour la décision gate (obligatoire)
 
       // Compose le prompt (contexte IMP + dernier verdict si dispo) et le COPIE dans le presse-papier.
       // Un clic humain, zéro écriture disque, zéro action auto. Colle à faire à la main dans Claude Code.
@@ -2391,6 +2393,24 @@
         ].join('\n');
         try { await navigator.clipboard.writeText(prompt); setPrep('copied'); }
         catch { setPrep('error'); } // clipboard refusée par le navigateur → message fallback, jamais de throw
+      };
+
+      // Décision gate câblée (IMP-261) — POST vers /api/gate-decision. Le board DÉCLENCHE ; kaizen_loop ferme.
+      // MERGE => ferme l'IMP (via serveur → kaizen_loop) ; REJECT/FREEZE => consigné au journal HumanGate seul.
+      const submitGate = async (card, decision, reason) => {
+        setGate({ decision, phase: 'running' });
+        try {
+          const r = await fetch('/api/gate-decision', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imp: card.id, decision, reason,
+              verdictRef: lastVerdict ? `${lastVerdict.feature} ${lastVerdict.verdict} ${lastVerdict.ts}` : null }) });
+          const j = await r.json();
+          if (j.ok) {
+            setGate({ decision, phase: 'done', result: j });
+            // rafraîchit la ligne "Dernier audit" (le verdict reste, la carte peut avoir bougé côté ledger)
+            fetch(`/api/council-verdict-last?imp=${encodeURIComponent(card.id)}`).then((x) => x.json())
+              .then((x) => setLastVerdict(x && x.available ? x.verdict : null)).catch(() => {});
+          } else setGate({ decision, phase: 'error', error: j.error || ('HTTP ' + r.status) });
+        } catch (e) { setGate({ decision, phase: 'error', error: String((e && e.message) || e) }); }
       };
 
       // Voix objective = contexte IMP + lentille injectés, fin forcée sur STANCE:. model omis → Qwen :1234.
@@ -2467,7 +2487,7 @@
       // Dernier verdict council de l'IMP ouvert (Phase 3.5) — lecture read-only, aucun appel LLM. Toutes lanes.
       // Race-safe (cancelled). Reset aussi l'état de copie pour ne pas traîner un "copié" d'un IMP à l'autre.
       useEffect(() => {
-        setPrep(null);
+        setPrep(null); setGate(null); setGateReason('');
         if (!sel) { setLastVerdict(null); return; }
         let cancelled = false;
         fetch(`/api/council-verdict-last?imp=${encodeURIComponent(sel.id)}`)
@@ -2809,6 +2829,35 @@
                           </details>
                         </div>
                       )}
+                    </div>
+
+                    {/* Décision gate (IMP-261) — ratification HumanGate câblée. MERGE ferme via kaizen_loop ; REJECT/FREEZE = journal seul. */}
+                    <div style={{ marginTop: 16, borderTop: '1px dashed var(--line)', paddingTop: 12 }}>
+                      <div style={{ fontSize: 'var(--fs-2xs)', textTransform: 'uppercase', letterSpacing: 1, color: 'var(--accent)', marginBottom: 6 }}>Décision gate — HumanGate</div>
+                      <div style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginBottom: 8 }}>
+                        Ta ratification. <b>MERGE</b> ferme l'IMP via kaizen_loop (--ratify si aucun oracle). <b>REJECT/FREEZE</b> = consigné au journal HumanGate, statut ledger inchangé.
+                      </div>
+                      <textarea data-testid="gate-reason" value={gateReason} onChange={(e) => setGateReason(e.target.value)}
+                        placeholder="Raison (obligatoire)…" style={{ width: '100%', minHeight: 42, background: 'var(--panel-2)', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 6, padding: 6, fontSize: 'var(--fs-2xs)' }} />
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                        <button data-testid="gate-merge-btn" className="palette" disabled={!gateReason.trim()} onClick={() => setGate({ decision: 'MERGE', phase: 'confirm' })}>MERGE (fermer)</button>
+                        <button data-testid="gate-reject-btn" className="palette" disabled={!gateReason.trim()} onClick={() => setGate({ decision: 'REJECT', phase: 'confirm' })}>REJECT</button>
+                        <button data-testid="gate-freeze-btn" className="palette" disabled={!gateReason.trim()} onClick={() => setGate({ decision: 'FREEZE', phase: 'confirm' })}>FREEZE</button>
+                      </div>
+                      {gate && gate.phase === 'confirm' && (
+                        <div data-testid="gate-confirm" style={{ marginTop: 8, background: 'var(--panel-2)', border: '1px solid var(--line)', borderRadius: 6, padding: 10, fontSize: 'var(--fs-xs)', color: 'var(--ink-2)' }}>
+                          {gate.decision === 'MERGE'
+                            ? <>⚠ <b>MERGE</b> va <b>fermer {sel.id}</b> via kaizen_loop (écrit le ledger). Confirmer ?</>
+                            : <>⚠ <b>{gate.decision}</b> sera consigné au journal HumanGate (statut ledger inchangé). Confirmer ?</>}
+                          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                            <button data-testid="gate-confirm-go" className="palette" onClick={() => submitGate(sel, gate.decision, gateReason)}>Confirmer</button>
+                            <button className="palette" onClick={() => setGate(null)}>Annuler</button>
+                          </div>
+                        </div>
+                      )}
+                      {gate && gate.phase === 'running' && <div data-testid="gate-running" style={{ fontSize: 'var(--fs-2xs)', color: 'var(--ink-3)', marginTop: 6 }}>décision en cours…</div>}
+                      {gate && gate.phase === 'done' && <div data-testid="gate-done" style={{ fontSize: 'var(--fs-2xs)', color: 'var(--sev-good)', marginTop: 6 }}>✓ {gate.decision} consigné ({gate.result.decisionId}){gate.result.closed ? ' · IMP fermé via kaizen_loop' : ' · statut ledger inchangé'}</div>}
+                      {gate && gate.phase === 'error' && <div data-testid="gate-error" style={{ fontSize: 'var(--fs-2xs)', color: 'var(--sev-bad)', marginTop: 6 }}>❌ {gate.error}</div>}
                     </div>
                   </div>
                 )}

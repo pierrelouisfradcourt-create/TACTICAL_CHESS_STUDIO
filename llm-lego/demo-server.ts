@@ -17,7 +17,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, existsSync, unlinkSync } from "node:fs";
 import os from "node:os";
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 
 import { runGraph, resumeGraph } from "./dist/core/engine.js";
 import { mockAdapters } from "./dist/adapters/mock.js";
@@ -30,6 +30,7 @@ import { recall, lmStudioEmbed } from "./memory-recall.mjs";
 import { telemetryRecords, appendTelemetry, appendVerdict } from "./telemetry.mjs";
 import { TELEMETRY_DIR } from "./telemetry.mjs";
 import { buildTelemetry, readLastVerdicts } from "./telemetry-read.mjs";
+import { handleGateDecision } from "./gate-decision.mjs";
 import { buildGraph } from "./memory-graph.mjs";
 import { buildCockpit } from "./cockpit.mjs";
 import { buildImpBoard } from "./imp-board.mjs";
@@ -113,6 +114,11 @@ const EMBED_MODEL = process.env["TCS_EMBED_MODEL"] || "text-embedding-nomic-embe
 const embedFn = (texts: string[]) => lmStudioEmbed(texts, { url: EMBED_URL, model: EMBED_MODEL });
 // Brique 4b — cockpit : chemin ledger surchargeable (A3).
 const LEDGER_PATH = process.env["TCS_LEDGER_PATH"] || path.join(__dirname, "..", "lab", "chains", "IMPROVEMENT_LEDGER.yaml");
+// Gate câblé (IMP-261) — chemins pour déclencher kaizen_loop + appender le journal HumanGate (env-override pour tests).
+const REPO_ROOT = path.join(__dirname, "..");
+const PYTHON_BIN = process.env["TCS_PYTHON"] || path.join(REPO_ROOT, ".venv312", "Scripts", "python.exe");
+const HUMANGATE_LOG_PATH = process.env["TCS_HUMANGATE_LOG"] || path.join(REPO_ROOT, "lab", "chains", "HUMANGATE_DECISION_LOG.yaml");
+const GATE_LOCK_PATH = path.join(__dirname, ".gate.lock");
 // Capteur d'hygiène (Phase 3) : rapport produit par hygiene-scan.mjs, surchargeable pour tests.
 const HYGIENE_REPORT_PATH = process.env["TCS_HYGIENE_REPORT"] || path.join(__dirname, "hygiene_report.json");
 // World Intelligence (Phase 5) — dossier des knowledge packets (meme resolution que knowledge-validate.mjs).
@@ -761,6 +767,31 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Gate câblé (IMP-261) — le board DÉCLENCHE une décision HumanGate. Loopback-only (garde socket dans
+  // handleGateDecision, DERRIÈRE le bind 127.0.0.1). MERGE => kaizen_loop close (seul écrivain) ;
+  // REJECT/FREEZE => append HUMANGATE_DECISION_LOG.yaml seul. Le board n'écrit JAMAIS le ledger directement.
+  if (pathname === "/api/gate-decision" && req.method === "POST") {
+    let gbody = "";
+    req.on("data", (c) => (gbody += c.toString()));
+    req.on("end", () => {
+      const closeFn = (imp: string, opts: { ratify: boolean; session: string }) => {
+        try {
+          const args = ["lab/chains/kaizen_loop.py", "close", imp, "--session", opts.session];
+          if (opts.ratify) args.push("--ratify");
+          const stdout = execFileSync(PYTHON_BIN, args, { cwd: REPO_ROOT, encoding: "utf-8" });
+          return { ok: true, stdout };
+        } catch (e: any) { return { ok: false, stderr: String((e && (e.stderr || e.message)) || e) }; }
+      };
+      const result = handleGateDecision(
+        { remoteAddress: req.socket && req.socket.remoteAddress, body: gbody },
+        { logPath: HUMANGATE_LOG_PATH, lockPath: GATE_LOCK_PATH, key: process.env["STUDIO_HMAC_KEY"],
+          closeFn, nowIso: () => new Date().toISOString() },
+      );
+      sendJson(res, result.status || 200, result);
+    });
+    return;
+  }
+
   // Resume a run paused on a HumanGate with a human decision (approve|reject).
   // pausedState is the serialized ExecutionContext returned by /api/execute (or a
   // prior /api/resume): { state, trace, status:"paused_humangate", pausedAt }.
@@ -823,8 +854,8 @@ server.on("error", (err: NodeJS.ErrnoException) => {
   process.exit(1);
 });
 
-server.listen(PORT, () => {
-  console.log(`LLM-Lego demo running on http://localhost:${PORT}`);
+server.listen(PORT, "127.0.0.1", () => {
+  console.log(`LLM-Lego demo running on http://127.0.0.1:${PORT} (loopback-only)`);
   console.log("Open the URL in a browser and test the engine solo.");
   // Build/capability marker: lets you confirm you are on the REAL-adapter build.
   // If you don't see this line after a restart, you are talking to a stale server.
