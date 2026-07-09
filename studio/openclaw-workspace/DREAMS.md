@@ -451,3 +451,12 @@ software_verdict: BLOCKED
 - IMPs       : 208 (council branché kaizen), 210 (cockpit_server.py:8770)
 - oracle     : PASS — 56/56 tests verts .venv312
 - ratifié par: Pierre — 2026-06-29
+
+## 2026-07-09 — Ratification IMP-252 (verrou de session ledger)
+- décision   : RATIFIÉ (MERGE)
+- IMP        : 252 — bail exclusif writelock O_EXCL, prouvé deux processus
+- oracle     : PASS — 3/3 pytest (refus 1v1 + refus sous contention forcée 6 racers + sérialisation sans corruption) · HMAC : OK (lab/reports/imp252_verdict_latest.json.hmac)
+- fichiers   : scripts/phase3_tests/_imp252_worker.py, scripts/phase3_tests/test_imp252_two_process_lock.py
+- raison     : contention réelle prouvée (overlap mesuré fenêtre [0.000..0.363]s), anti-corruption octet, mutation-check positif, 42 passed régression single-writer. Aucune zone FORBIDDEN touchée.
+- software_verdict: OK · evidence_verdict: MECHANICAL_VALIDATION_ONLY · claim_verdict: NO_CLAIM_ALLOWED
+- ratifié par: Pierre — 2026-07-09
