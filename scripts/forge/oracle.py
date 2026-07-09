@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,10 +39,18 @@ def resolve_oracle(project: str, config_path: Path | None = None) -> OracleSpec:
     if project not in config:
         raise OracleNotFound(f"no oracle configured for project {project!r}")
     entry = config[project]
+    # Windows CreateProcess (no shell) fails to resolve a relative executable
+    # path that uses forward slashes (e.g. ".venv312/Scripts/python.exe"),
+    # even though the identical path works from a shell. Normalize only the
+    # executable (argv[0]); os.path.normpath is a no-op for bare names like
+    # "npm" that must still be resolved via PATH.
+    command = list(entry["command"])
+    if command:
+        command[0] = os.path.normpath(command[0])
     return OracleSpec(
         project=project,
         cwd=(REPO_ROOT / entry["cwd"]).resolve(),
-        command=list(entry["command"]),
+        command=command,
     )
 
 
