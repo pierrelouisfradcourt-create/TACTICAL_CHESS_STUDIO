@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -41,4 +42,38 @@ def resolve_oracle(project: str, config_path: Path | None = None) -> OracleSpec:
         project=project,
         cwd=(REPO_ROOT / entry["cwd"]).resolve(),
         command=list(entry["command"]),
+    )
+
+
+@dataclass(frozen=True)
+class OracleResult:
+    spec: OracleSpec
+    passed: bool
+    returncode: int
+    evidence_path: Path
+
+
+def run_oracle(spec: OracleSpec, evidence_dir: Path | None = None) -> OracleResult:
+    """Run the oracle command, capture raw stdout/stderr as evidence, return the result."""
+    evidence_dir = evidence_dir or (REPO_ROOT / "lab" / "forge_evidence")
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    evidence_path = evidence_dir / f"oracle_{spec.project}.log"
+    completed = subprocess.run(
+        spec.command,
+        cwd=str(spec.cwd),
+        capture_output=True,
+        text=True,
+    )
+    with open(evidence_path, "w", encoding="utf-8") as fh:
+        fh.write(f"$ {' '.join(spec.command)}\n(cwd={spec.cwd})\n\n")
+        fh.write("--- stdout ---\n")
+        fh.write(completed.stdout)
+        fh.write("\n--- stderr ---\n")
+        fh.write(completed.stderr)
+    logger.info("oracle %s returncode=%s", spec.project, completed.returncode)
+    return OracleResult(
+        spec=spec,
+        passed=completed.returncode == 0,
+        returncode=completed.returncode,
+        evidence_path=evidence_path,
     )
