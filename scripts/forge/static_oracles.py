@@ -19,9 +19,11 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Extensions source couvertes (les stacks du studio).
-SOURCE_EXTS = {".py", ".rs", ".ts", ".tsx", ".js", ".jsx", ".gd"}
-_TS_EXTS = {".ts", ".tsx", ".js", ".jsx"}
+# Extensions source couvertes (les stacks du studio). .mjs/.cjs inclus : les jeux
+# web forgés sont en modules ES (.mjs) — les omettre = oracle aveugle (faux négatif
+# réel sur collect_runner : fichiers jamais analysés).
+SOURCE_EXTS = {".py", ".rs", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".gd"}
+_TS_EXTS = {".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}
 
 # Mots-clés de chemin de module à ignorer (Rust).
 _RUST_PATH_KW = {"crate", "super", "self", "std", "core", "alloc"}
@@ -38,9 +40,13 @@ _RUST_DEF = re.compile(r"\b(?:fn|struct|enum|trait)\s+(\w+)")
 _TS_FROM = re.compile(r"""from\s+['"]([^'"]+)['"]""")
 _TS_REQUIRE = re.compile(r"""require\(\s*['"]([^'"]+)['"]""")
 _TS_IMPORT_BARE = re.compile(r"""import\s+['"]([^'"]+)['"]""")
+_TS_DYN = re.compile(r"""import\(\s*['"]([^'"]+)['"]""")  # import() dynamique (faux POSITIF corrigé)
 _TS_FUNC = re.compile(r"\bfunction\s+(\w+)")
 _TS_ASSIGN = re.compile(r"\b(?:const|let|var)\s+(\w+)\s*=")
 _TS_CLASS = re.compile(r"\bclass\s+(\w+)")
+# Méthode de classe `name(args) {` (B4 corrigé) — les mots-clés de contrôle sont filtrés.
+_TS_METHOD = re.compile(r"^[ \t]*(?:public |private |protected |static |async |get |set |\*\s*)*([A-Za-z_$][\w$]*)\s*\([^;={]*\)\s*\{", re.M)
+_JS_NONMETHOD = {"if", "for", "while", "switch", "catch", "return", "function", "do", "else", "with"}
 
 _GD_LOAD = re.compile(r"""(?:preload|load)\(\s*['"]([^'"]+)['"]""")
 _GD_EXTENDS = re.compile(r"^\s*extends\s+(.+?)\s*$", re.M)
@@ -114,7 +120,9 @@ def _imports(path: Path) -> set[str]:
 
     if ext in _TS_EXTS:
         out = set()
-        for spec in _TS_FROM.findall(text) + _TS_REQUIRE.findall(text) + _TS_IMPORT_BARE.findall(text):
+        specs = (_TS_FROM.findall(text) + _TS_REQUIRE.findall(text)
+                 + _TS_IMPORT_BARE.findall(text) + _TS_DYN.findall(text))
+        for spec in specs:
             if spec.startswith("."):
                 out |= _path_segments(spec)          # import local -> segments de chemin
             else:
@@ -157,7 +165,9 @@ def _defined_names(path: Path) -> set[str]:
         return set(_RUST_DEF.findall(text))
 
     if ext in _TS_EXTS:
-        return set(_TS_FUNC.findall(text)) | set(_TS_ASSIGN.findall(text)) | set(_TS_CLASS.findall(text))
+        methods = {m for m in _TS_METHOD.findall(text) if m not in _JS_NONMETHOD}
+        return (set(_TS_FUNC.findall(text)) | set(_TS_ASSIGN.findall(text))
+                | set(_TS_CLASS.findall(text)) | methods)
 
     if ext == ".gd":
         return set(_GD_DEF.findall(text)) | set(_GD_CLASSNAME.findall(text)) | set(_GD_SIGNAL.findall(text))

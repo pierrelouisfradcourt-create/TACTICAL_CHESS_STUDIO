@@ -9,7 +9,23 @@ version: "1.0"
 generated: "2026-07-09"
 source_adr: ADR-002
 
+# Orchestrateur de la chaîne : FABLE en mode superpowers DÉMARRE et pilote /forge
+# (charge le skill, spawn les sous-agents via la porte prepare_dispatch, aiguille A2,
+# décide l'escalade). Décision Pierre 2026-07-10. Fable n'est PAS un tier de build.
+#
+# Escalade de modèle (scripts/forge/escalate.py) : échelle des BUILDERS Claude
+# haiku -> sonnet -> opus. Un tier faible peut demander (ESCALATE_REQUEST) ou déclencher
+# par oracle rouge une ré-exécution du même contrat au tier supérieur (borné, tracé,
+# signé dans le verdict). Qwen (reviewer) et non-llm (oracles) ne s'escaladent pas.
+
 models:
+  - id: anthropic/claude-fable-5
+    name: Fable 5 — orchestrateur /forge (mode superpowers)
+    provider: claude-local
+    reasoning: high
+    roles:
+      - orchestrator        # démarre et pilote la chaîne (hors étapes contractualisées)
+
   - id: anthropic/claude-opus-4-8
     name: Claude Opus 4.8
     provider: claude-local

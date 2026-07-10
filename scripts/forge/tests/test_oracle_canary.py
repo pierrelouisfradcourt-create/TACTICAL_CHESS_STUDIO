@@ -61,6 +61,29 @@ def test_canary_wiremap_feature_without_files_fails():
     assert "Neural eval" in r["features_manquantes"]
 
 
+# --- RED-TEAM #2 : import dynamique TS (faux POSITIF d'archi) ------------------
+
+def test_canary_ts_dynamic_import_is_caught():
+    d = _tree({"ui/panel.ts": "export async function render(){ const e = await import('../engine/core'); return e.tick(); }\n",
+               "engine/core.ts": "export function tick(){}\n"})
+    r = check_architecture(_BP_UI_NOT_ENGINE, d)
+    assert r["passed"] is False, "await import('../engine/...') doit être attrapé"
+    assert ["ui", "engine"] in r["deps_interdites_violées"]
+
+
+# --- RED-TEAM #2 : méthodes de classe (faux NÉGATIF wiremap = B4) --------------
+
+def test_canary_ts_class_method_is_found():
+    d = _tree({"game/game.mjs": "export class G {\n  step(dt, input) { return dt; }\n  collectCoin() { return 1; }\n}\n"})
+    wm = {"features": [
+        {"feature": "avance", "fonction": "step", "fichiers": ["game/game.mjs"], "preuve": "x"},
+        {"feature": "collecte", "fonction": "collectCoin", "fichiers": ["game/game.mjs"], "preuve": "y"},
+    ]}
+    r = check_wiremap(wm, d)
+    assert r["passed"] is True, "les méthodes de classe step/collectCoin doivent être trouvées"
+    assert r["fonctions_renommées"] == []
+
+
 # --- honnêteté du stub ownership ----------------------------------------------
 
 def test_ownership_stub_is_marked_not_checked():

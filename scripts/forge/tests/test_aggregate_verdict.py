@@ -29,6 +29,14 @@ def _rcpt(oracle_id, status, run_id="R", detail=None, key=KEY):
     return make_signed_receipt(oracle_id, run_id, status, detail or {}, key_file=key)
 
 
+def _code_receipt(status="OK", run_id="R", key=KEY):
+    """Reçu CODE avec un vrai fichier d'évidence (l'oracle code = commande externe)."""
+    ev = Path(tempfile.mkdtemp()) / "oracle.log"
+    ev.write_text("$ oracle\n--- stdout ---\nok\n", encoding="utf-8")
+    return make_signed_receipt("code", run_id, status, {"returncode": 0 if status == "OK" else 1},
+                               evidence_path=str(ev), key_file=key)
+
+
 def _agg(code="OK", archi="OK", wiremap="OK", run_id="R",
          reviewer="qwen2.5-14b-instruct", redteam_ran=True,
          redteam_findings=(), redteam_blocked=False,
@@ -36,7 +44,7 @@ def _agg(code="OK", archi="OK", wiremap="OK", run_id="R",
          code_rcpt=None, archi_rcpt=None, wiremap_rcpt=None):
     return build_aggregate_verdict(
         "demo", run_id,
-        code_rcpt or _rcpt("code", code, run_id, key=key),
+        code_rcpt or _code_receipt(code, run_id, key),
         archi_rcpt or _rcpt("archi", archi, run_id, archi_detail, key=key),
         wiremap_rcpt or _rcpt("wiremap", wiremap, run_id, wiremap_detail, key=key),
         reviewer, redteam_ran=redteam_ran, redteam_findings=redteam_findings,
@@ -115,6 +123,29 @@ def test_run_id_mismatch_breaks_provenance_and_blocks():
     v = _agg(wiremap_rcpt=stray)
     assert v.provenance_ok is False
     assert v.software_verdict == "BLOCKED"
+
+
+def test_code_receipt_without_evidence_is_blocked():
+    """Ferme l'exploit red-team : un reçu code 'OK' fabriqué SANS évidence => BLOCKED."""
+    fabricated = _rcpt("code", "OK")   # pas d'evidence_path -> non prouvable
+    v = _agg(code_rcpt=fabricated)
+    assert v.provenance_ok is False
+    assert v.software_verdict == "BLOCKED"
+    assert any("sans évidence" in f for f in v.humangate_flags)
+
+
+def test_tampered_evidence_file_breaks_provenance(tmp_path):
+    """Scellé d'évidence non décoratif : altérer le log après signature => BLOCKED."""
+    from forge.verdict import make_signed_receipt
+    ev = tmp_path / "oracle_demo.log"
+    ev.write_text("sortie réelle de l'oracle (returncode 0)", encoding="utf-8")
+    code_rcpt = make_signed_receipt("code", "R", "OK", {"returncode": 0},
+                                    evidence_path=str(ev), key_file=KEY)
+    ev.write_text("évidence trafiquée après coup", encoding="utf-8")   # altération
+    v = _agg(code_rcpt=code_rcpt)
+    assert v.provenance_ok is False
+    assert v.software_verdict == "BLOCKED"
+    assert any("évidence" in f and "code" in f for f in v.humangate_flags)
 
 
 # --- red-team = advisory, jamais juge ----------------------------------------

@@ -54,6 +54,16 @@ def test_status_from_passed():
     assert status_from_passed(False) == "FAIL"
 
 
+def test_receipt_with_evidence_path_roundtrips(tmp_path):
+    ev = tmp_path / "oracle.log"
+    ev.write_text("sortie oracle", encoding="utf-8")
+    sr = make_signed_receipt("code", "r1", "OK", {"returncode": 0},
+                             evidence_path=str(ev), key_file=KEY)
+    assert sr.receipt.evidence_path == str(ev)
+    assert sr.receipt.evidence_sha256 == sha256_file(ev)   # calculé si non fourni
+    assert verify_receipt(sr.receipt, sr.signature, key_file=KEY) is True
+
+
 def test_sha256_file_seals_content(tmp_path):
     p = tmp_path / "ev.log"
     p.write_text("preuve", encoding="utf-8")

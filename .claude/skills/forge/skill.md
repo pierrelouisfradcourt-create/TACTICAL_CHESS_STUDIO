@@ -9,6 +9,8 @@ Enchaîne la chaîne d'ingénierie Forge. **Invariant central : aucun sous-agent
 
 > Règles absolues (CLAUDE.md + ADR-002) : `claim_verdict: NO_CLAIM_ALLOWED` ; séparer `software_verdict`/`evidence_verdict`/`claim_verdict` ; **HumanGate (Pierre) décide** merge/reject ; zones protégées `tests/**` jamais modifiées. Modèles = full Claude (producteurs) + **Qwen = red-team indépendant** ; oracles = déterministes non-LLM.
 
+> **Orchestrateur = Fable (mode superpowers)** (registry rôle `orchestrator`, décision Pierre 2026-07-10). Fable **démarre et pilote** la chaîne : il ne code aucune étape, il spawn les sous-agents via la porte `prepare_dispatch`, aiguille (A2) et décide l'**escalade de modèle**. Fable n'est pas un tier de build.
+
 ---
 
 ## Entrée
@@ -72,8 +74,19 @@ Pour chaque `etape` dans l'ordre `forge.dispatch.ORDER` :
    **Après le retour** (connecteurs 3+6) : trace le **reviewer réel** (`d.reviewer` ou `res["reviewer"]`, ex. `qwen2.5-14b-instruct` ou `claude-blind (fallback)`), pas le modèle contracté :
    `studio_link.record_telemetry(run_id, etape, reviewer_reel, tokens, duree)`. Ce `reviewer` sera **plié dans le verdict signé** (A3). Si l'agent a échoué/signalé une faille : `studio_link.record_error(run_id, etape, msg, project)`.
 
+   **Escalade de modèle** (builders Claude uniquement — pas Qwen ni oracles) : un sous-agent trop juste pour sa tâche finit son rapport par `ESCALATE_REQUEST: <raison>`. Après le build **et son oracle** (s10a), décide :
+   ```python
+   from forge.escalate import parse_agent_escalation, escalation_decision
+   requested, why = parse_agent_escalation(agent_output)
+   d = escalation_decision(payload.model, oracle_ok=code.ok, agent_requested=requested,
+                           agent_reason=why, escalations_so_far=n)
+   ```
+   Si `d.escalate` : **ré-spawne LE MÊME contrat** (marqueur `FORGE_DISPATCH` compris) avec l'outil Agent `model=d.next_model` (haiku→sonnet→opus), incrémente `n`, trace l'escalade (`record_telemetry`). Le verdict signera le **tier réel** qui a produit l'artefact (honnêteté, comme le reviewer). Au sommet (`opus`) avec échec → `d.escalate` est faux et `d.reason` renvoie à HumanGate : **ne boucle pas**, remonte à Pierre. Cap `MAX_ESCALATIONS`.
+
 3. **Étape déterministe** (`etape` ∈ `forge.dispatch.DETERMINISTIC`) : **ne spawne pas d'agent**. Lance l'oracle correspondant :
-   - `s10a-oracle-code` → `forge.gate.forge_gate("<projet>")` (tests via `oracles.json`, verdict signé). Garde `code = forge_gate(...)`.
+   - `s10a-oracle-code` → `forge.gate.forge_gate("<projet>")` (commande via `oracles.json`, verdict signé). Garde `code = forge_gate(...)`.
+     > **Oracle d'un JEU à UI = click-through Playwright**, pas des tests unitaires. La commande `oracles.json` du jeu lance un e2e qui **clique chaque bouton et parcourt chaque chemin** (déterministe, `returncode` = pass/fail, captures sous `e2e-shots/`). Il mappe 1:1 le Prisme (s1) : *le joueur voit/fait* → clique X, vérifie Y. Harnais de référence : `llm-lego/experiments/belote-claude/web/e2e-lib.mjs` (`startServer` + clics DOM `page.click(...)` + assertions d'état). **Claude-in-Chrome = exploratoire, PAS l'oracle** (LLM, non déterministe).
+     > **Oracle d'un JEU = AUSSI la SOLVABILITÉ, pas seulement les mécaniques.** Un jeu aux objectifs inatteignables passe TOUS les tests de mécanique en isolation (« collectCoin marche SI on place le joueur sur la pièce ») tout en étant injouable — prouvé 2× (survival_arena tir/poursuite non testés ; collect_runner pièces hors de portée de saut, 14 tests + e2e verts, injouable au playtest). L'oracle code d'un jeu **inclut obligatoirement** un volet `solvability.mjs` (câblé dans `run-oracle.mjs`) qui : **(1)** mesure l'enveloppe d'action RÉELLE du moteur (ex. hauteur de saut — mesurée, pas hardcodée), **(2)** vérifie que chaque objectif requis y est, **(3)** fait **jouer un bot déterministe qui doit GAGNER**. Modèle à copier : `scripts/forge/templates/solvability.template.mjs` ; réf. vivante : `games/collect_runner/solvability.mjs`. Contractualisé en s9 (`success_criteria`/`tests_oracles`/`output_contract`).
    - `s10b-oracle-archi` → `archi = forge.static_oracles.check_architecture(blueprint, src_root)`.
    - `s10c-oracle-wiremap` → `wire = forge.static_oracles.check_wiremap(wiremap, src_root)`.
    - `s12-verdict` → **agrégation signée** (voir 4).
@@ -87,7 +100,8 @@ Pour chaque `etape` dans l'ordre `forge.dispatch.ORDER` :
    run_id = "<projet>-<horodatage>"   # LE MÊME que celui des dispatch de ce run
    code_r  = make_signed_receipt("code", run_id, code.verdict.software_verdict,
                                  {"returncode": code.verdict.returncode},
-                                 evidence_sha256=sha256_file(code.verdict.evidence_path))
+                                 evidence_path=str(code.verdict.evidence_path))  # RE-LU à la vérif
+   # ⚠ un reçu code SANS evidence_path => provenance rompue => BLOCKED (exécution non prouvable).
    archi_r = make_signed_receipt("archi",   run_id, status_from_passed(archi["passed"]), archi)
    wire_r  = make_signed_receipt("wiremap", run_id, status_from_passed(wire["passed"]),  wire)
    agg = build_aggregate_verdict(
@@ -109,7 +123,11 @@ cout = run_cost(run_id)                                   # {calls, total_tokens
 propose_ledger_entry(run_id, project, verdict)            # lane AUDIT_REQUIRED, PROPOSED
 propose_project_record(project, stage, folder)            # PROPOSED
 ```
-Puis le verdict signé est présenté à **Pierre**. **Tu ne décides jamais** merge/reject/freeze, et tu ne promeus jamais une proposition en mémoire de référence (ledger, projets) sans son go. Si une étape n'a pas d'oracle pour appuyer une affirmation → remonte un besoin HumanGate (fog), pas un claim (RÈGLE DE RESTITUTION).
+**Avant de présenter à Pierre, VÉRIFIE mécaniquement le verdict** — ne dis jamais « HMAC OK » sans avoir lancé la commande :
+```bash
+PYTHONPATH=scripts .venv312/Scripts/python.exe -m forge.verify_run lab/forge_runs/<projet>/verdict.json
+```
+Exit 0 = authentique (HMAC re-signé + évidence re-lue + git_head comparé) ; exit 2 = falsifié/altéré → **STOP**, remonte à Pierre le rejet. Puis le verdict signé est présenté à **Pierre**. **Tu ne décides jamais** merge/reject/freeze, et tu ne promeus jamais une proposition en mémoire de référence (ledger, projets) sans son go. Si une étape n'a pas d'oracle pour appuyer une affirmation → remonte un besoin HumanGate (fog), pas un claim (RÈGLE DE RESTITUTION).
 
 ## Rapport obligatoire
 

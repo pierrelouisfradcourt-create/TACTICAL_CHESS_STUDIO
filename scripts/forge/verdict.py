@@ -113,6 +113,8 @@ class OracleReceipt:
     evidence_sha256: str     # hash du contenu d'évidence (scelle le log/artefact jugé)
     detail: dict             # sortie brute de l'oracle (deps violées, features manquantes…)
     ts: float
+    evidence_path: str = ""  # chemin du fichier d'évidence — RE-LU à la vérif pour
+                             # confronter evidence_sha256 au contenu réel (scellé non décoratif)
 
 
 @dataclass(frozen=True)
@@ -131,15 +133,24 @@ def verify_receipt(receipt: OracleReceipt, signature: str, key_file: Path | None
 
 def make_signed_receipt(
     oracle_id: str, run_id: str, status: str, detail: dict,
-    *, evidence_sha256: str = "", ts: float = 0.0, key_file: Path | None = None,
+    *, evidence_sha256: str = "", evidence_path: str = "", ts: float = 0.0,
+    key_file: Path | None = None,
 ) -> SignedReceipt:
     """Construit + signe un reçu d'oracle. Signé par le processus qui a EXÉCUTÉ
-    l'oracle ; l'agrégat le re-vérifiera avant de prononcer un verdict."""
+    l'oracle ; l'agrégat le re-vérifiera avant de prononcer un verdict.
+
+    `evidence_path` permet à l'agrégat (et à `verify_run`) de RE-LIRE le fichier
+    et de confronter `evidence_sha256` à son contenu réel — le scellé n'est plus
+    décoratif. Si `evidence_path` est fourni sans `evidence_sha256`, on le calcule.
+    """
     if status not in RECEIPT_STATUSES:
         raise ValueError(f"status de reçu invalide: {status!r}")
+    if evidence_path and not evidence_sha256:
+        evidence_sha256 = sha256_file(evidence_path)
     receipt = OracleReceipt(
         oracle_id=oracle_id, run_id=run_id, status=status,
         evidence_sha256=evidence_sha256, detail=dict(detail or {}), ts=ts,
+        evidence_path=str(evidence_path),
     )
     return SignedReceipt(receipt=receipt, signature=sign_receipt(receipt, key_file))
 
@@ -249,6 +260,26 @@ def build_aggregate_verdict(
             provenance_ok = False
             flags.append(f"provenance rompue: statut {name} invalide {sr.receipt.status!r}")
             continue
+        # Le reçu CODE représente une COMMANDE EXTERNE : sans fichier d'évidence, on
+        # ne peut pas prouver qu'elle a tourné (ferme l'exploit « code OK fabriqué
+        # sans oracle »). archi/wiremap sont des oracles-fonctions dont l'évidence
+        # EST le detail signé — pas de fichier requis.
+        if name == "code" and sr.receipt.status != "SKIPPED" and not sr.receipt.evidence_path:
+            provenance_ok = False
+            flags.append("provenance rompue: reçu code sans évidence (exécution non prouvable)")
+            continue
+        # Scellé d'évidence NON décoratif : si le reçu pointe un fichier d'évidence,
+        # on RE-LIT son contenu et on confronte le hash signé au réel. Discordance
+        # (log absent/altéré) => provenance rompue. Sauter (SKIPPED) n'a pas d'évidence.
+        if sr.receipt.status != "SKIPPED" and sr.receipt.evidence_path:
+            actual = sha256_file(sr.receipt.evidence_path)
+            if actual != sr.receipt.evidence_sha256:
+                provenance_ok = False
+                flags.append(
+                    f"provenance rompue: évidence {name} altérée/absente "
+                    f"({sr.receipt.evidence_path})"
+                )
+                continue
         verified[name] = sr.receipt
 
     # 2) software_verdict : statuts des reçus VÉRIFIÉS uniquement. SKIPPED ne compte
