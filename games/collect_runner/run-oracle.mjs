@@ -47,6 +47,11 @@ async function main() {
   const logicResult = await run("logic tests", "logic.test.mjs");
   console.log(`\n[logic tests] exit code = ${logicResult.code}\n`);
 
+  // (a') property-based : invariants sur 40 seeds + inputs aléatoires seedés.
+  console.log("--- (a') property tests: properties.test.mjs ---");
+  const propResult = await run("property tests", "properties.test.mjs");
+  console.log(`\n[property tests] exit code = ${propResult.code}\n`);
+
   console.log("--- (b) e2e Playwright: e2e.mjs ---");
   if (!existsSync(BELOTE_NODE_MODULES)) {
     console.log(
@@ -62,10 +67,11 @@ async function main() {
   const solvResult = await run("solvabilité", "solvability.mjs");
   console.log(`\n[solvabilité] exit code = ${solvResult.code}\n`);
 
-  const allOk = logicResult.ok && e2eResult.ok && solvResult.ok;
+  const allOk = logicResult.ok && propResult.ok && e2eResult.ok && solvResult.ok;
 
   console.log("=== RÉSUMÉ ORACLE ===");
   console.log(`logic tests : ${logicResult.ok ? "PASS" : "FAIL"} (code ${logicResult.code})`);
+  console.log(`property tests : ${propResult.ok ? "PASS" : "FAIL"} (code ${propResult.code})`);
   console.log(
     `e2e Playwright : ${e2eResult.ok ? "PASS" : e2eResult.launchFailure ? "FAIL (lancement navigateur impossible — environnement indisponible)" : "FAIL"} (code ${e2eResult.code})`
   );
