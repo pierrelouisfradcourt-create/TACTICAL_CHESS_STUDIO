@@ -1,0 +1,16 @@
+{
+  "id": "goal-forge",
+  "kind": "goal",
+  "name": "Forge — Objectif : compacter la méthode de Pierre en un seul skill /forge",
+  "maturity": "wired",
+  "badge": "target",
+  "roadmapRef": "roadmap-forge",
+  "sourceRef": "MàJ 2026-07-10 : la boucle est passée du DESIGN à l'IMPLÉMENTÉ (scripts/forge/ + contrats 17 champs + roles.yaml + ADR-002 + skill + 1er run chesscolor). CARTOGRAPHIE / suivi uniquement, ne déclenche AUCUNE action ici.",
+  "wiredStatus": "wired",
+  "payload": {
+    "text": "Compacter la méthode de Pierre en UN skill Claude Code /forge qui déroule la chaîne dans le bon ordre en REFUSANT de sauter une étape, avec une trace + une preuve à chaque étape. Principe : une tâche n'avance que si elle produit un artefact, une preuve, un verdict ; sinon la porte de dispatch GÈLE (contrat 17 champs incomplet => CONTRACT_INCOMPLETE). Trois invariants non négociables : oracle du résultat déterministe non-LLM (le test vert EST le verdict), red-team sur le PLAN (jamais sur l'oracle), HumanGate souverain (NO_CLAIM_ALLOWED, verdict HMAC). ÉTAT 2026-07-10 : implémenté et prouvé mécaniquement. La chaîne réelle = 13 étapes-agents (scripts/forge/dispatch.py ORDER : s0-contrat, s1-prisme, s2-worldscan, s3-decompo, s4-archi, s5-wiremap, s6-redteam-plan, s9-build, s10a-oracle-code, s10b-oracle-archi, s10c-oracle-wiremap, s11-redteam-code, s12-verdict). Modèle jamais en dur : capability_role résolu par roles.yaml (Opus pour s0/s1/s3/s4/s5/s11 ; Haiku pour s2/s9 ; Qwen red-team pour s6 ; déterministe non-LLM pour s10a/b/c/s12). Modules livrés : contract·dispatch·static_oracles·gate·oracle·verdict·studio_link·hook_guard (80 tests verts). PROUVER (3 oracles + verdict HMAC) et FORCER (porte de dispatch + hook dur PreToolUse) livrés ; connecteurs studio ADR-002 (télémétrie · Kaizen-propose · mémoire projet · pré-mortem) propose-only ; skill /forge invocable. 1er run réel PROUVÉ sur chesscolor (la cible initiale roadmap était Leviathan). Restant (fog) : PILOU 3-JSON complet (ms-4) et le graphe de confiance affiché MONTRER (ms-5). Ce texte oriente le suivi ; il ne déclenche rien ici.",
+    "category": "meta"
+  },
+  "created": "2026-07-09T00:00:00Z",
+  "updated": "2026-07-10T00:00:00Z"
+}

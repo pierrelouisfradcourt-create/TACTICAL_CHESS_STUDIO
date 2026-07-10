@@ -1,0 +1,47 @@
+# scripts/forge/contracts/roles.yaml
+# Résolution rôle-de-capacité -> runtime pour les agents Forge.
+# Portée : Forge UNIQUEMENT. Ne touche pas openclaw/capabilities.yaml (SSOT studio, IMP-124).
+# Décisions : ADR-002 gate 1 (full Claude pour cette phase) + gate 4 (Qwen = red team indépendant).
+# Lu par : scripts/forge/contract.py via control_plane.registry.get_model_for_role(role, caps_path=ce fichier).
+# claim_posture: NO_CLAIM_ALLOWED
+
+version: "1.0"
+generated: "2026-07-09"
+source_adr: ADR-002
+
+models:
+  - id: anthropic/claude-opus-4-8
+    name: Claude Opus 4.8
+    provider: claude-local
+    reasoning: high
+    roles:
+      - contract_author     # étape 0 — rédacteur du contrat
+      - prisme              # étape 1 — Prisme Produit (photo du produit fini)
+      - decompose           # étape 3 — décomposition fonctionnelle
+      - architect           # étape 4 — architecte
+      - wiremap             # étape 5 — WireMap isomorphe
+      - redteam_code        # étape 11 — red-team code (contexte vierge)
+
+  - id: anthropic/claude-haiku-4-5-20251001
+    name: Claude Haiku 4.5
+    provider: claude-local
+    reasoning: low
+    roles:
+      - builder             # étape 9 — build (délégation économique)
+      - worldscan           # étape 2 — world scan
+
+  # Gate 4 : validation indépendante. Qwen critique les DÉCISIONS, ne remplace pas les oracles.
+  - id: lmstudio/qwen2.5-14b-instruct
+    name: Qwen2.5 14B — red team / reviewer indépendant
+    provider: lmstudio
+    reasoning: false
+    roles:
+      - redteam_reviewer    # étape 6 — red-team du plan (archi + wiremap)
+
+  # Étapes déterministes (oracles + verdict) : PAS de LLM. Runtime sentinelle non-llm.
+  - id: deterministic/non-llm
+    name: Oracle déterministe (non-LLM)
+    provider: forge
+    reasoning: false
+    roles:
+      - deterministic       # étapes 10a/10b/10c (oracles) + 12 (verdict signé)

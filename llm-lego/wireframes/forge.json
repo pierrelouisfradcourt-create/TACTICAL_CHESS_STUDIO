@@ -1,0 +1,77 @@
+{
+  "project": {
+    "id": "forge",
+    "name": "/forge — Autonomous Engineering Loop (implémenté)",
+    "repoRoot": "scripts/forge/ (existe : contract·dispatch·static_oracles·gate·oracle·verdict·studio_link·hook_guard + contracts/ + oracles.json)",
+    "created": "2026-07-09T00:00:00Z",
+    "updated": "2026-07-10T00:00:00Z",
+    "roadmapRef": "roadmap-forge"
+  },
+  "entries": [
+    {
+      "id": "entry-001",
+      "nodeId": "s0-contrat",
+      "label": "Contrats 17 champs + porte de dispatch (FORCER)",
+      "function": "13 contrats YAML (un par étape ORDER), schéma canonique 17 champs (SCHEMA.md). Porte unique prepare_dispatch : un champ Critique vide/absent => CONTRACT_INCOMPLETE, aucun agent ne démarre. capability_role résolu par roles.yaml (jamais de modèle en dur). Audit append-only dispatch_audit.jsonl.",
+      "files": ["scripts/forge/contracts/", "scripts/forge/contracts/SCHEMA.md", "scripts/forge/contracts/roles.yaml", "scripts/forge/contract.py", "scripts/forge/dispatch.py"],
+      "command": ".venv312/Scripts/python.exe -m pytest scripts/forge/tests/ -q",
+      "test": { "description": "test_contract / test_contract_chain / test_dispatch verts (contrat incomplet => refus)", "file": "scripts/forge/tests/test_dispatch.py", "line": 0, "status": "DONE", "color": "green", "type": "unit" },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "80 tests forge verts au total. Modèle jamais en dur (ADR-002 gate 1).",
+      "order": 1
+    },
+    {
+      "id": "entry-002",
+      "nodeId": "s10a-oracle-code",
+      "label": "PROUVER — oracle déterministe 3 niveaux + verdict HMAC",
+      "function": "Oracle non-LLM par-projet (oracle.py + oracles.json : forge/leviathan/chesscolor) — CODE (tests passent), ARCHI (deps interdites absentes, chaque module a des tests), WIREMAP (isomorphe & cohérente, static_oracles.py). Verdict signé HMAC-SHA256 (verdict.py) software/evidence/claim, NO_CLAIM_ALLOWED. gate.py bloque sur oracle rouge/unrunnable.",
+      "files": ["scripts/forge/oracle.py", "scripts/forge/static_oracles.py", "scripts/forge/oracles.json", "scripts/forge/verdict.py", "scripts/forge/gate.py"],
+      "command": ".venv312/Scripts/python.exe -m pytest scripts/forge/tests/ -q",
+      "test": { "description": "test_oracle_run / test_oracle_resolve / test_static_oracles / test_verdict / test_gate verts", "file": "scripts/forge/tests/test_verdict.py", "line": 0, "status": "DONE", "color": "green", "type": "unit" },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "Les 3 oracles + verdict HMAC + gate sont les étapes déterministes 10a/10b/10c/12 de la chaîne.",
+      "order": 2
+    },
+    {
+      "id": "entry-003",
+      "nodeId": "s6-redteam-plan",
+      "label": "Connecteurs studio ADR-002 (propose-only) + hook dur",
+      "function": "4 connecteurs studio propose-only : télémétrie, Kaizen-propose, mémoire projet, pré-mortem (studio_link.py) — aucun n'écrit d'autorité. Hook dur PreToolUse (hook_guard.py) : aucun sous-agent Forge hors de la porte de dispatch. Le pré-mortem reboucle vers le Red-team du PLAN (étape 6).",
+      "files": ["scripts/forge/studio_link.py", "scripts/forge/hook_guard.py", "docs/adr/ADR-002-forge-studio-integration.md"],
+      "command": ".venv312/Scripts/python.exe -m pytest scripts/forge/tests/ -q",
+      "test": { "description": "test_studio_link / test_hook_guard verts (connecteurs propose-only, hook bloque le hors-porte)", "file": "scripts/forge/tests/test_hook_guard.py", "line": 0, "status": "DONE", "color": "green", "type": "unit" },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "Propose-only = jamais d'écriture d'autorité ; le HumanGate reste souverain.",
+      "order": 3
+    },
+    {
+      "id": "entry-004",
+      "nodeId": "s12-verdict",
+      "label": "Skill /forge + 1er run réel prouvé",
+      "function": "Skill .claude/skills/forge/skill.md invocable : enchaîne les 13 étapes-agents bornées par contrat, oracles non-LLM aux points de preuve, verdict signé → HumanGate. 1er run réel PROUVÉ sur chesscolor (lab/forge_runs/chesscolor/check_chesscolor.py, entrée oracles.json).",
+      "files": [".claude/skills/forge/skill.md", "lab/forge_runs/chesscolor/check_chesscolor.py"],
+      "command": "/forge",
+      "test": { "description": "1er run réel exécuté (chesscolor) ; oracle par-projet vert", "file": "lab/forge_runs/chesscolor/check_chesscolor.py", "line": 0, "status": "DONE", "color": "green", "type": "e2e" },
+      "impRef": null,
+      "humanRequired": true,
+      "notes": "Cible initiale roadmap = Leviathan ; 1er run effectif = chesscolor. Fun/feel = jugement Pierre (NO_CLAIM).",
+      "order": 4
+    },
+    {
+      "id": "entry-005",
+      "nodeId": "",
+      "label": "RESTANT — PILOU 3-JSON complet + graphe de confiance (MONTRER)",
+      "function": "Non livré : PILOU v0 « 3 JSON » complet (facts/decisions/postmortems, confiance 0-100 + source) et le graphe de confiance rouge/orange/vert affiché qui refuse la transition vers le Verdict si Test rouge (incrément 1 texte, incrément 2 builder llm-lego).",
+      "files": [".forge/memory/", "scripts/forge/"],
+      "command": "",
+      "test": { "description": "PILOU relit/écrit avec score de confiance + graphe affiché au HumanGate", "file": "", "line": 0, "status": "PENDING", "color": "orange", "type": "e2e" },
+      "impRef": null,
+      "humanRequired": true,
+      "notes": "Fog honnête : ms-4 (in_progress) + ms-5 (todo) de roadmap-forge. Non couvert par les 80 tests forge actuels.",
+      "order": 5
+    }
+  ]
+}

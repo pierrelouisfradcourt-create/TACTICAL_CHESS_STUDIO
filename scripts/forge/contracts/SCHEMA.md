@@ -1,0 +1,143 @@
+# Contrat d'agent Forge — schéma canonique
+
+> **Date** : 2026-07-09
+> **Source** : session de conception `/forge` (Pierre + Claude Code), consolidée depuis
+> `docs/superpowers/specs/2026-07-09-forge-autonomous-engineering-loop-design.md`
+> et l'itération « planète = contrat de travail d'un agent ».
+> **Statut** : DESIGN — schéma de référence. Le dispatcher qui l'applique est spécifié
+> séparément (voir `/plan`).
+
+---
+
+## Principe
+
+Une **planète** (nœud agent llm-lego + ses satellites) **est le contrat de travail d'un
+sous-agent**. Un agent ne se lance **jamais** sans contrat complet. Au dispatch, le contrat
+est traduit en cadre borné (system prompt + modèle forcé + permissions + oracle de sortie) :
+c'est ce qui donne **anti-drift**, **ciblage de capacité** et **guardrail**.
+
+Doctrine sœur déjà en place : `verdict.py` sépare `software_verdict` / `evidence_verdict` /
+`claim_verdict` (`NO_CLAIM_ALLOWED`) ; `gate.py` bloque sur oracle rouge. Ce schéma ajoute
+la **porte d'entrée** (contrat au dispatch) en miroir de la **porte de sortie** (verdict signé).
+
+---
+
+## Les 3 états d'un champ
+
+Chaque champ a **trois** états possibles — jamais deux :
+
+| État | Sens | Impératif (Critique) | Optionnel (Important/Recommandé) |
+|---|---|---|---|
+| **rempli** | contenu réel | ✅ | ✅ |
+| **déclaré vide** (`aucun`) | décision assumée : ce champ ne s'applique pas | ❌ refus | ✅ |
+| **absent** | non déclaré = oubli | ❌ refus | ❌ refus |
+
+> La distinction clé : `skill: aucun` est une **décision** (l'agent n'a pas besoin de skill).
+> Un champ *absent* est un **oubli** → refus. On ne peut pas « oublier » de penser un champ ;
+> il faut au minimum écrire `aucun`. C'est l'anti-drift à la racine.
+
+---
+
+## Le schéma (16 champs · 10 catégories)
+
+| # | Catégorie | Champ | Rôle | Niveau |
+|---|---|---|---|---|
+| 1 | Identité / posture cognitive | `role` | Point de vue imposé : reviewer senior, architecte, expert IA, CEO, backend, auditeur sécurité… (injecté dans le prompt) | **Critique** |
+| 2a | Identité / posture cognitive | `capability_role` | **Clé de résolution runtime** — jamais un modèle en dur. Résolu par le registry local (ADR-002 gate 1) | **Critique** |
+| 2b | Identité / posture cognitive | `exigences_cognitives` | Exigences de raisonnement/effort/capacité attendues (lisible humain) | **Critique** |
+| 3 | Contexte projet | `memoire` | Navigation projet, architecture, conventions, historique, sources de vérité (*advisory*) | **Critique** |
+| 4 | Contexte projet | `mandatory_read` | Sources **obligatoires** à lire avant toute action (*précondition dure*) | **Critique** |
+| 5 | Mission | `objectif` | But précis de l'intervention | **Critique** |
+| 6 | Frontières | `in_scope` | Zone d'action autorisée | **Critique** |
+| 7 | Frontières | `out_of_scope` | Limites explicites (≠ garde-fou : frontière de périmètre) | **Critique** |
+| 8 | Autorisation | `permissions` | Droits techniques réels : read / write / run / create / delete + dossiers autorisés/interdits | **Critique** |
+| 9 | Gouvernance | `gardeFou` | Règles, interdictions, contraintes d'architecture (≠ hors-scope : frontière comportementale) | **Critique** |
+| 10 | Validation & auditabilité | `success_criteria` | Conditions **objectives** de réussite | **Critique** |
+| 11 | Validation & auditabilité | `tests_oracles` | Tests, métriques, preuves, oracles/ancres non-LLM utilisés | **Critique** |
+| 12 | Validation & auditabilité | `final_report` | Rapport structuré : preuves, claims, écarts, risques (voir Règle de restitution) | **Critique** |
+| 13 | Restitution | `output_contract` | Structure obligatoire de la réponse/livrable | **Critique** |
+| 14 | Capacités | `skill` | Compétences spécialisées | Important |
+| 15 | Capacités | `plugin` | Outils externes | Important |
+| 16 | Traçabilité | `parent_agent` / `delegation_context` | Pourquoi l'agent existe, qui l'a mandaté | Recommandé |
+
+**Règle d'activation** : un champ **Critique** vide ou absent → **l'agent n'est pas activable**.
+Un champ **Important**/**Recommandé** peut être `aucun` **mais jamais absent**.
+
+---
+
+## Relations à ne pas confondre (le schéma n'est pas redondant)
+
+- **`memoire` vs `mandatory_read`** : `memoire` *oriente* (carte des conventions, advisory) ;
+  `mandatory_read` *bloque* (fichiers qui **doivent** être ouverts avant d'agir — précondition dure).
+- **`out_of_scope` vs `gardeFou`** : `out_of_scope` = frontière de **périmètre** (« ne touche pas au shop ») ;
+  `gardeFou` = frontière **comportementale** (« pas de `unwrap()` sans `// SAFETY:` »). Un agent peut
+  respecter ses garde-fous et déborder le scope — d'où deux champs.
+- **La chaîne de validation** (11→12→10→13, pipeline, pas doublon) :
+  `success_criteria` (ce que « réussi » veut dire) → `tests_oracles` (avec quoi on le mesure) →
+  `final_report` (ce qu'on a réellement trouvé) → `output_contract` (la forme imposée du livrable).
+
+---
+
+## RÈGLE DE RESTITUTION (invariant dur)
+
+Tout `final_report` doit **citer l'oracle/l'ancre** qui appuie chaque affirmation.
+
+- Affirmation appuyée par un **oracle non-LLM** (cargo test, pytest, import-linter, HMAC,
+  ancre Lichess, oracle wiremap AST…) → `software_verdict` (OK/FAIL/BLOCKED) +
+  `evidence_verdict: MECHANICAL_VALIDATION_ONLY` autorisés.
+- Affirmation **sans oracle disponible** → l'agent **n'a pas le droit de claim**. Il émet à la
+  place un **besoin HumanGate** : `claim_verdict: NO_CLAIM_ALLOWED` + `fog: <ce qui relève du
+  jugement de Pierre>`.
+
+> Effet : un sous-agent ne peut **jamais** livrer une affirmation auto-certifiée sans preuve
+> mécanique. Soit il prouve avec un oracle, soit il **remonte à Pierre** (fog → HumanGate).
+> Ferme la faille « techniquement correct mais non vérifiable / impossible à auditer ».
+
+Vocabulaire de verdict **unique** : `OK` / `FAIL` / `BLOCKED` (jamais PASS/CONCERNS/FAIL).
+
+---
+
+## Application — le principe de la porte unique
+
+L'enforcement ne repose pas sur une consigne « promise ». Il repose sur **une seule porte** :
+
+> Tout appel de sous-agent Forge passe par **une unique fonction** `dispatch(étape)`.
+> Il n'existe pas d'autre chemin pour lancer un agent.
+
+Cette porte, **avant** de laisser passer quoi que ce soit :
+
+1. **Vérifie le contrat.** Un Critique vide/absent, ou un optionnel non déclaré → lève
+   `CONTRACT_INCOMPLETE` et s'arrête. Aucun agent ne démarre.
+2. **Fabrique le prompt** à partir du contrat (role + objectif + in/out_of_scope + gardeFou,
+   force le `modele`, applique les `permissions`, charge **seulement** les `skill`/`plugin` listés,
+   injecte `success_criteria` + `output_contract` + la Règle de restitution).
+
+Conséquence : **on ne peut pas obtenir le prompt sans passer par la porte, et la porte ne
+fabrique pas de prompt si le contrat est incomplet.** Pas de contrat valide → pas de prompt →
+pas d'agent. Mécanique, pas déclaratif.
+
+---
+
+## Résolution du runtime (ADR-002 gate 1 — jamais de modèle en dur)
+
+Le contrat **ne fixe pas de modèle**. Il déclare `capability_role` (+ `exigences_cognitives`) ;
+le **registry local** résout le runtime via `control_plane.registry.get_model_for_role(role,
+caps_path=scripts/forge/contracts/roles.yaml)`. Un rôle non résolu ⇒ `RoleUnresolved`
+(sous-classe de `ContractIncomplete`) ⇒ contrat non activable.
+
+- Phase actuelle : full Claude pour les producteurs, **Qwen = red-team / reviewer indépendant**
+  (gate 4 — Qwen critique les décisions, ne remplace jamais les oracles techniques).
+- `roles.yaml` est **Forge-scopé** : il ne touche pas `openclaw/capabilities.yaml` (SSOT studio, IMP-124).
+
+## Gouvernance du dispatch (ADR-002 gate 2)
+
+Le spawn d'un sous-agent ne part **jamais** directement de l'agent exécutant : il passe par le
+contrat validé **puis** par `scripts/dispatch_bridge.py` (délégation gouvernée). Claude reste le
+moteur d'orchestration/exécution ; le contrat est la **porte de contrôle**. (Câblage = connecteur 2,
+incrément ultérieur ; C1/C2 ne spawnent rien.)
+
+## Champs — source de vérité
+
+Un contrat par étape vit dans `scripts/forge/contracts/<etape>.yaml` (testable, découplé).
+La carte llm-lego (`llm-lego/library/chain-forge.json`) en est le **miroir visuel** : les
+satellites d'une planète reflètent les champs du contrat. La vérité est le YAML ; le dessin suit.
