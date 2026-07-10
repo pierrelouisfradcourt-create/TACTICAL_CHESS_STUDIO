@@ -10,6 +10,21 @@ from pathlib import Path
 from forge import studio_link as sl
 
 
+def test_global_lesson_reaches_every_project(tmp_path):
+    """#4b : une leçon GLOBALE circule vers TOUT projet (ferme le silo par projet)."""
+    j = tmp_path / "journal.jsonl"
+    sl.record_error("r1", "s10a", "bug spécifique à collect_runner", "collect_runner", journal_path=j)
+    sl.record_global_lesson("s10a", "l'oracle DOIT tester la solvabilité", journal_path=j)
+    # un AUTRE projet doit voir la leçon globale (mais pas l'erreur spécifique de l'autre)
+    pm = sl.premortem("survival_arena", journal_path=j)
+    assert any("solvabilité" in x for x in pm), "la leçon globale doit atteindre survival_arena"
+    assert not any("spécifique à collect_runner" in x for x in pm)
+    # le projet d'origine voit les deux
+    pm2 = sl.premortem("collect_runner", journal_path=j)
+    assert any("solvabilité" in x for x in pm2)
+    assert any("spécifique à collect_runner" in x for x in pm2)
+
+
 def test_telemetry_records_and_aggregates(tmp_path):
     t = tmp_path / "tel.jsonl"
     sl.record_telemetry("run1", "s0-contrat", "claude-opus-4-8", tokens=1200, duration_s=3.0, telemetry_path=t)

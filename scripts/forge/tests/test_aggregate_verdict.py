@@ -157,6 +157,18 @@ def test_redteam_blocked_does_not_flip_software_but_raises_flag():
     assert any("red-team" in f.lower() for f in v.humangate_flags)
 
 
+def test_redteam_blocked_surfaces_objection_in_decision():
+    """#3 : oracles verts + red-team qui bloque => décision AVEC OBJECTION (visible à Pierre)."""
+    v = _agg(redteam_blocked=True, redteam_findings=("mécanique cœur non testée",))
+    assert v.software_verdict == "OK"
+    assert v.decision == "HUMANGATE_READY_WITH_OBJECTION"
+
+
+def test_no_objection_decision_when_redteam_clean():
+    v = _agg(redteam_blocked=False)
+    assert v.decision == "HUMANGATE_READY"
+
+
 # --- honnêteté du reviewer (A2 -> A3), désormais STRUCTURÉE -------------------
 
 def test_real_reviewer_is_recorded():

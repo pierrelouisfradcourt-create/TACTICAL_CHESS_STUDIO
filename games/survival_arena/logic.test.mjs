@@ -109,7 +109,12 @@ test("le score augmente encore plus vite avec des kills", () => {
   const g2 = new SurvivalGame({ seed: 5 });
   g2.enemies.push({ id: 8001, x: g2.player.x + 5, y: g2.player.y, r: 12, speed: 0, hp: 1 });
   for (let i = 0; i < 50; i++) g2.step(16, {});
-  assert.ok(g2.score >= scoreNoKill, "un kill doit au moins égaler le score de pure survie");
+  // STRICT (fini le `>=` tautologique) : le tir auto DOIT tuer l'ennemi placé —
+  // sinon la mécanique cœur (tir/dégâts) est cassée — ET un kill DOIT augmenter
+  // strictement le score. Un jeu au tir mort échouerait ici au lieu de passer vert.
+  const killed = !g2.enemies.some((e) => e.id === 8001);
+  assert.ok(killed, "le tir auto doit TUER l'ennemi placé (mécanique cœur prouvée)");
+  assert.ok(g2.score > scoreNoKill, "un kill doit STRICTEMENT augmenter le score (pas >=)");
 });
 
 test("la difficulté croît : le spawn s'accélère avec le temps", () => {

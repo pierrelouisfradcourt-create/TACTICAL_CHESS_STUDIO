@@ -56,6 +56,10 @@ PROFILES = {
     "full": tuple(ORDER),
     "patch": ("s9-build", "s10a-oracle-code", "s11-redteam-code", "s12-verdict"),
     "review": ("s6-redteam-plan",),
+    # micro : une tâche triviale (fonction pure, one-liner). Proportionnalité : pas
+    # de red-team ni de design — build -> oracle code -> verdict. Évite la cérémonie
+    # 13 étapes sur 78 lignes (finding red-team chesscolor). archi/wiremap = SKIPPED.
+    "micro": ("s9-build", "s10a-oracle-code", "s12-verdict"),
 }
 
 
@@ -78,11 +82,32 @@ class DispatchRecord:
     ts: float
 
 
-def _append_audit(record: DispatchRecord, audit_path: Path | None) -> None:
+def sign_audit_record(rec: dict, key_file: Path | None = None) -> dict:
+    """Ajoute un HMAC à un enregistrement d'audit — une ligne forgée à la main
+    (sans la clé) ne pourra pas se faire passer pour un dispatch validé."""
+    from forge.verdict import _sign_mapping
+    signed = dict(rec)
+    signed["hmac"] = _sign_mapping(rec, key_file)
+    return signed
+
+
+def verify_audit_line(rec: dict, key_file: Path | None = None) -> bool:
+    """Vrai ssi la ligne porte un HMAC valide sur son contenu (hors champ hmac)."""
+    from forge.verdict import _verify_mapping
+    sig = rec.get("hmac")
+    if not sig:
+        return False
+    body = {k: v for k, v in rec.items() if k != "hmac"}
+    return _verify_mapping(body, sig, key_file)
+
+
+def _append_audit(record: DispatchRecord, audit_path: Path | None,
+                  key_file: Path | None = None) -> None:
     path = audit_path or DEFAULT_AUDIT
     path.parent.mkdir(parents=True, exist_ok=True)
+    signed = sign_audit_record(asdict(record), key_file)
     with open(path, "a", encoding="utf-8") as fh:
-        fh.write(json.dumps(asdict(record), ensure_ascii=False, sort_keys=True) + "\n")
+        fh.write(json.dumps(signed, ensure_ascii=False, sort_keys=True) + "\n")
 
 
 def prepare_dispatch(

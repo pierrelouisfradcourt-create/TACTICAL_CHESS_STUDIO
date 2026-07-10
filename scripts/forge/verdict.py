@@ -189,6 +189,7 @@ def new_nonce() -> str:
 # software_verdict de l'agrégat vient UNIQUEMENT des oracles déterministes VÉRIFIÉS.
 # Le red-team est advisory : il lève des flags HumanGate, il ne juge JAMAIS le code.
 DECISION_READY = "HUMANGATE_READY"   # oracles verts — prêt pour la revue de Pierre
+DECISION_READY_OBJECTION = "HUMANGATE_READY_WITH_OBJECTION"  # oracles verts MAIS red-team a bloqué
 DECISION_BLOCKED = "BLOCKED"         # oracle rouge / provenance rompue — la chaîne s'arrête
 
 
@@ -297,7 +298,15 @@ def build_aggregate_verdict(
         else:
             software = "BLOCKED"    # code sauté / rien de prouvé
 
-    decision = DECISION_READY if software == "OK" else DECISION_BLOCKED
+    # Le red-team ne change PAS software_verdict (pas de LLM-as-judge), mais s'il a
+    # BLOQUÉ alors que les oracles sont verts, Pierre doit le VOIR dans la décision
+    # (un jeu "prêt" dont le red-team dit que la mécanique cœur n'est pas prouvée).
+    if software != "OK":
+        decision = DECISION_BLOCKED
+    elif redteam_blocked:
+        decision = DECISION_READY_OBJECTION
+    else:
+        decision = DECISION_READY
 
     # 3) Flags HumanGate (fog) : rouges mécaniques + oracles sautés + advisory red-team.
     if provenance_ok:

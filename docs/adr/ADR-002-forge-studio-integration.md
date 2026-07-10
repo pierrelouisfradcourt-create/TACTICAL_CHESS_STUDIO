@@ -29,7 +29,7 @@ mémoire, des erreurs jamais capitalisées. Exactement le drift qu'on veut tuer.
 | # | Champ / phase du contrat | Se branche sur (existe déjà) | Point d'ancrage |
 |---|---|---|---|
 | 1 | `modele` | **Directeurs** — registre capacités | `control_plane/registry.py:get_model_for_role(role)` ← `openclaw/capabilities.yaml` |
-| 2 | dispatch de l'agent | **Délégation gouvernée** | `scripts/dispatch_bridge.py` (observe→agir, dry-run) · `scripts/cockpit_server.py` · `scripts/council.py` |
+| 2 | dispatch de l'agent | **Porte contrat + hook signé** (⚠ MAJ 2026-07-10 : NON câblé sur `dispatch_bridge.py` — mécanisme réel ci-dessous) | `scripts/forge/dispatch.py:prepare_dispatch` (valide le contrat + **audit signé HMAC**) · `scripts/forge/hook_guard.py` + `.claude/hooks/pretool_forge_guard.py` (vérifie la signature de l'audit) |
 | 3 | chaque appel LLM (transverse) | **Télémétrie / costguard** | `llm-lego/telemetry.mjs` → `telemetry/llm_calls.jsonl` · `scripts/studioV2/control_plane/ci_costguard_report.py` |
 | 4 | `final_report` (verdict) | **Boucle Kaizen** | `lab/chains/kaizen_loop.py` (find/load/save_ledger, lane AUDIT_REQUIRED) · `IMPROVEMENT_LEDGER.yaml` · journal `DREAMS.md` |
 | 5 | `memoire` / le projet forgé | **Mémoire projets** | `studio_state/projects.json` (+ `/api/projects` autopilot) · suivi auto-lego (goal/roadmap/artefact) · `studio_brain/` |
@@ -64,8 +64,11 @@ reste écrit via `kaizen_loop.py`, `save_ledger` protégé par fingerprint.
    `capability_role` + `exigences_cognitives`, le **registry local** résout le runtime. Implémenté
    via `scripts/forge/contracts/roles.yaml` (Forge-scopé, ne touche PAS `capabilities.yaml` SSOT).
 2. **Dispatch gouverné.** Le spawn ne part jamais directement de l'agent exécutant : contrat validé
-   **puis** `dispatch_bridge`. Claude = moteur d'orchestration/exécution ; le contrat = porte de
-   contrôle. (Câblage effectif = connecteur 2, ultérieur.)
+   par `prepare_dispatch` (qui écrit une **ligne d'audit signée HMAC**), puis le hook
+   `pretool_forge_guard` **vérifie la signature** avant d'autoriser le spawn. Claude = moteur
+   d'orchestration ; le contrat = porte. (⚠ MAJ 2026-07-10 : `dispatch_bridge.py` n'est PAS dans
+   cette boucle — il sert l'autoloop IMP, lane distincte. Limite honnête : la porte reste
+   fail-open HORS périmètre Forge et l'isolation signataire/producteur exige une séparation OS.)
 3. **HumanGate.** Forge **propose** (AUDIT_REQUIRED) ; n'écrit jamais seul ledger/projects.json/mémoires.
    Toute écriture durable passe par validation humaine.
 4. **Validation indépendante (phase test).** Claude = agent producteur · **Qwen = red-team / reviewer
@@ -89,10 +92,14 @@ reste écrit via `kaizen_loop.py`, `save_ledger` protégé par fingerprint.
   télémétrie (`record_telemetry`/`run_cost`), Kaizen-propose (`propose_ledger_entry` lane AUDIT_REQUIRED),
   mémoire projet (`propose_project_record`), pré-mortem (`record_error`/`premortem`). Le skill `/forge` les
   appelle aux points de cycle.
-- **Connecteur 2 durci** : hook dur `pretool_forge_guard` (PreToolUse/Task, `.claude/settings.json`) — bloque
-  tout spawn Forge (`FORGE_DISPATCH:<etape>:<run_id>`) sans dispatch validé ; fail-open, spawns hors-forge intacts.
-- **Oracles s10b/s10c implémentés** : `forge.static_oracles.check_architecture`/`check_wiremap` (AST, non-LLM).
-- **Reste** : resync carte llm-lego ; oracles archi/wiremap portée v0 (cibles Python) ; le run réel de bout-en-bout.
+- **Connecteur 2 (hook + audit signé)** : `pretool_forge_guard` (PreToolUse/Task, `.claude/settings.json`)
+  bloque tout spawn Forge (`FORGE_DISPATCH:<etape>:<run_id>`) dont la ligne d'audit **n'a pas de HMAC valide**
+  (MAJ 2026-07-10 : ligne forgée à la main = rejetée). Portée honnête : contrôle la **présence d'un dispatch
+  signé**, PAS la conformité modèle/outils/prompt ; **fail-CLOSED sur le périmètre Forge**, fail-open hors-forge.
+- **Oracles s10b/s10c** : `forge.static_oracles.check_architecture`/`check_wiremap` (AST Python + regex multi-langage,
+  .mjs/méthodes de classe/import dynamique couverts depuis 2026-07-10). Non-LLM.
+- **Verdict** : provenance vérifiée par reçus signés + évidence RE-LUE (`forge.verify_run`, appelé par `/gate`).
+- **Reste** : isolation OS signataire/producteur ; oracle wiremap AST complet (tree-sitter) ; property/mutation testing.
 ```
 software_verdict: OK (document produit, aligné sur la truth map)
 evidence_verdict: MECHANICAL_VALIDATION_ONLY

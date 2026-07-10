@@ -21,7 +21,8 @@ MARKER_TOKEN = "FORGE_DISPATCH"
 SPAWN_TOOLS = ("Task", "Agent")
 
 
-def check_spawn(prompt: str, audit_path: Path | None = None) -> tuple[bool, str]:
+def check_spawn(prompt: str, audit_path: Path | None = None,
+                key_file: Path | None = None) -> tuple[bool, str]:
     """Retourne (autorisé, raison). Sans marqueur Forge => autorisé."""
     match = MARKER.search(prompt or "")
     if not match:
@@ -32,6 +33,7 @@ def check_spawn(prompt: str, audit_path: Path | None = None) -> tuple[bool, str]
     if not path.exists():
         return False, f"forge {etape}/{run_id} : audit absent -> spawn hors contrat"
 
+    from forge.dispatch import verify_audit_line
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line:
@@ -40,13 +42,19 @@ def check_spawn(prompt: str, audit_path: Path | None = None) -> tuple[bool, str]
             rec = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if rec.get("etape") == etape and rec.get("run_id") == run_id:
-            return True, f"dispatch validé {etape}/{run_id}"
+        if rec.get("etape") != etape or rec.get("run_id") != run_id:
+            continue
+        # La ligne doit porter un HMAC valide : une ligne forgée à la main (sans la
+        # clé) est ignorée -> le hook vérifie une PREUVE, pas une simple présence.
+        if not verify_audit_line(rec, key_file):
+            return False, f"forge {etape}/{run_id} : ligne d'audit non signée/altérée -> refus"
+        return True, f"dispatch validé {etape}/{run_id}"
 
     return False, f"forge {etape}/{run_id} : aucun dispatch validé -> spawn hors contrat"
 
 
-def hook_decision(tool: str, prompt: str, audit_path: Path | None = None) -> tuple[int, str]:
+def hook_decision(tool: str, prompt: str, audit_path: Path | None = None,
+                  key_file: Path | None = None) -> tuple[int, str]:
     """Décision du hook PreToolUse : 0 = autoriser, 2 = bloquer.
 
     Fail-OPEN hors périmètre Forge (autre outil, ou aucun marqueur) : le hook ne
@@ -61,7 +69,7 @@ def hook_decision(tool: str, prompt: str, audit_path: Path | None = None) -> tup
         return 0, "non-forge (aucun marqueur)"
     # Périmètre Forge : à partir d'ici, toute erreur bloque (fail-closed).
     try:
-        allow, reason = check_spawn(prompt, audit_path=audit_path)
+        allow, reason = check_spawn(prompt, audit_path=audit_path, key_file=key_file)
     except Exception as exc:  # noqa: BLE001 — en périmètre Forge, l'incertitude = refus
         return 2, f"forge: vérification impossible ({exc}) -> refus fail-closed"
     return (0, reason) if allow else (2, reason)

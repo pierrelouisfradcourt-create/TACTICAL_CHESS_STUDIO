@@ -79,6 +79,12 @@ def run_cost(run_id: str, telemetry_path: Path | None = None) -> dict:
 
 # --- Connecteur 6 : journal d'erreurs + pré-mortem -----------------------------
 
+# Scope d'une leçon TRANSVERSALE (méthode), lue au pré-mortem de TOUT projet.
+# Paie la dette #1 (silo par projet) : la leçon « oracle doit tester la solvabilité »
+# apprise sur un jeu doit atteindre les suivants.
+GLOBAL_SCOPE = "_global_"
+
+
 def record_error(
     run_id: str,
     etape: str,
@@ -93,10 +99,23 @@ def record_error(
     )
 
 
+def record_global_lesson(etape: str, lesson: str, journal_path: Path | None = None) -> None:
+    """Consigne une leçon de MÉTHODE transversale (lue au pré-mortem de tout projet)."""
+    record_error("_method_", etape, lesson, GLOBAL_SCOPE, journal_path=journal_path)
+
+
 def premortem(project: str, journal_path: Path | None = None, limit: int = 5) -> list[str]:
-    """Retourne les dernières erreurs du projet — lu par l'étape 0 pour un pré-mortem (« PILOU »)."""
-    rows = [r for r in _read(journal_path or DEFAULT_ERROR_JOURNAL) if r.get("project") == project]
-    return [f"[{r.get('etape')}] {r.get('error')}" for r in rows[-limit:]]
+    """Erreurs du projet + leçons GLOBALES de méthode — lu à l'étape 0 (« PILOU »).
+
+    Les leçons globales (préfixées ⚑) circulent vers TOUS les projets, ce qui ferme
+    le silo par projet : un enseignement appris ailleurs n'est plus perdu ici.
+    """
+    rows = _read(journal_path or DEFAULT_ERROR_JOURNAL)
+    proj = [r for r in rows if r.get("project") == project]
+    glob = [r for r in rows if r.get("project") == GLOBAL_SCOPE]
+    out = [f"⚑ [{r.get('etape')}] {r.get('error')}" for r in glob[-limit:]]
+    out += [f"[{r.get('etape')}] {r.get('error')}" for r in proj[-limit:]]
+    return out
 
 
 # --- Connecteur 4 : proposition ledger (AUDIT_REQUIRED, jamais d'auto-write) ----

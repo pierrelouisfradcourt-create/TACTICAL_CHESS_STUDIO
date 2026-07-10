@@ -39,6 +39,12 @@ def test_patch_profile_is_the_short_fix_chain():
     ]
 
 
+def test_micro_profile_is_proportional_to_trivial_tasks():
+    """#4a : profil micro pour un one-liner — pas de red-team ni de design."""
+    assert order_for_profile("micro") == ["s9-build", "s10a-oracle-code", "s12-verdict"]
+    assert "s6-redteam-plan" not in order_for_profile("micro")
+
+
 def test_full_profile_is_the_whole_chain():
     assert order_for_profile("full") == list(ORDER)
 
