@@ -65,10 +65,10 @@ export class CollectRunnerGame {
   _rand() {
     let x = this._rngState;
     x ^= x << 13;
-    x >>>= 0;
+    x >>>= 0; // mutation:skip (équivalent : masque 32-bit redondant, re-converti en aval)
     x ^= x >>> 17;
     x ^= x << 5;
-    x >>>= 0;
+    x >>>= 0; // mutation:skip (équivalent : masque 32-bit redondant, re-converti en aval)
     this._rngState = x >>> 0;
     return this._rngState / 4294967296;
   }

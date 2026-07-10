@@ -217,3 +217,79 @@ test("Bonus - reset relance proprement une partie", () => {
   assert.equal(g.level, 1);
   assert.equal(g.onGround, true);
 });
+
+// ============================================================================
+// Tests ANTI-MUTANTS — tuent les survivants du mutation testing (forge.mutation).
+// Chacun échoue si l'opérateur ciblé est muté => la mécanique est désormais gardée.
+// ============================================================================
+
+test("mutant L43: des seeds DIFFÉRENTS donnent des niveaux différents (RNG vraiment seedé)", () => {
+  const a = new CollectRunnerGame({ seed: 1 }).view().coinsOnLevel;
+  const b = new CollectRunnerGame({ seed: 12345 }).view().coinsOnLevel;
+  assert.notDeepStrictEqual(a, b, "deux seeds distincts doivent produire des layouts distincts");
+});
+
+test("mutant L68/L71: positions GOLDEN exactes pour seed=1 (RNG interne figé)", () => {
+  const v = new CollectRunnerGame({ seed: 1 }).view();
+  assert.deepStrictEqual(v.coinsOnLevel.map((c) => +c.x.toFixed(4)), [230.0013, 462.3281, 681.1698]);
+  assert.deepStrictEqual(v.coinsOnLevel.map((c) => +c.y.toFixed(4)), [484.6851, 483.5676, 481.5285]);
+  assert.deepStrictEqual(v.obstaclesOnLevel.map((o) => +o.x.toFixed(4)), [220.0013, 452.3281, 671.1698]);
+});
+
+test("mutant L110: pas de double-saut (jump en l'air est un no-op)", () => {
+  const g = new CollectRunnerGame({ seed: 3 });
+  g.jump();
+  assert.ok(g.vy < 0 && !g.onGround);
+  g.vy = -50; // en pleine montée
+  g.jump();   // 2e saut en l'air
+  assert.strictEqual(g.vy, -50, "un saut en l'air ne doit PAS réarmer vy (onGround && !over)");
+});
+
+test("mutant L118: gravité gelée après défaite (applyGravity direct)", () => {
+  const g = new CollectRunnerGame({ seed: 4 });
+  g.over = true;
+  g.player.y = 100; g.vy = 200;
+  g.applyGravity(16);
+  assert.strictEqual(g.player.y, 100, "après over, applyGravity ne bouge pas le joueur");
+});
+
+test("mutant L124: collision sol à l'égalité exacte (y == GROUND_LEVEL)", () => {
+  const g = new CollectRunnerGame({ seed: 5 });
+  g.player.y = g.height - 40; g.vy = 0; g.onGround = false;
+  g.applyGravity(0); // dt=0 : y reste EXACTEMENT au sol
+  assert.strictEqual(g.onGround, true, "à y==sol, la collision s'applique (>=, pas >)");
+});
+
+test("mutant L143: collecter une pièce incrémente levelCoins (+1, pas -1)", () => {
+  const g = new CollectRunnerGame({ seed: 6 });
+  const before = g.levelCoins;
+  const coin = g.coinsOnLevel[0];
+  g.player.x = coin.x - g.player.width / 2;
+  g.player.y = coin.y - g.player.height / 2;
+  g.collectCoin();
+  assert.strictEqual(g.levelCoins, before + 1);
+});
+
+test("mutant L170: nextLevel n'avance pas si over (guard)", () => {
+  const g = new CollectRunnerGame({ seed: 7 });
+  g.over = true;
+  g.coinsOnLevel.forEach((c) => (c.collected = true));
+  g.nextLevel();
+  assert.strictEqual(g.level, 1, "over => nextLevel ne doit PAS avancer le niveau");
+});
+
+test("mutant L190: onGround=true au début du niveau suivant", () => {
+  const g = new CollectRunnerGame({ seed: 8 });
+  g.onGround = false;
+  g.coinsOnLevel.forEach((c) => (c.collected = true));
+  g.nextLevel();
+  assert.strictEqual(g.level, 2);
+  assert.strictEqual(g.onGround, true, "au niveau suivant, le joueur est au sol");
+});
+
+test("mutant L226: debugHit ne s'applique pas sur une partie GAGNÉE", () => {
+  const g = new CollectRunnerGame({ seed: 9 });
+  g.won = true;
+  g.debugHit();
+  assert.strictEqual(g.over, false, "une partie gagnée ne devient pas 'over' via debugHit");
+});

@@ -42,11 +42,21 @@ class Mutant:
     mutant_text: str
 
 
-def _is_comment_line(text: str, idx: int) -> bool:
+# Marqueur de mutant ÉQUIVALENT : une ligne portant ce commentaire n'est pas mutée.
+# À réserver aux cas PROUVÉS équivalents (mutation inerte, inkillable par définition —
+# ex. `x >>>= 0` redondant : les opérateurs bitwise JS re-convertissent en 32 bits).
+SKIP_MARKER = "mutation:skip"
+
+
+def _skip_occurrence(text: str, idx: int) -> bool:
+    """Ligne de commentaire pur OU portant le marqueur d'équivalence => on ne mute pas."""
     start = text.rfind("\n", 0, idx) + 1
     end = text.find("\n", idx)
-    line = text[start:(end if end != -1 else len(text))].lstrip()
-    return line.startswith("//") or line.startswith("*") or line.startswith("/*")
+    line = text[start:(end if end != -1 else len(text))]
+    stripped = line.lstrip()
+    if stripped.startswith("//") or stripped.startswith("*") or stripped.startswith("/*"):
+        return True
+    return SKIP_MARKER in line
 
 
 def generate_mutants(text: str) -> list[Mutant]:
@@ -59,13 +69,13 @@ def generate_mutants(text: str) -> list[Mutant]:
             if i == -1:
                 break
             start = i + len(token)
-            if _is_comment_line(text, i):
+            if _skip_occurrence(text, i):
                 continue
             mutant = text[:i] + repl + text[i + len(token):]
             mutants.append(Mutant(name, text.count("\n", 0, i) + 1, mutant))
     for pattern, repl, name in _WORD_RULES:
         for m in re.finditer(pattern, text):
-            if _is_comment_line(text, m.start()):
+            if _skip_occurrence(text, m.start()):
                 continue
             mutant = text[:m.start()] + repl + text[m.end():]
             mutants.append(Mutant(name, text.count("\n", 0, m.start()) + 1, mutant))

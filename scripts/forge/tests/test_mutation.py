@@ -35,6 +35,14 @@ def test_no_mutation_no_mutants():
     assert generate_mutants("const x = plainText();\n") == []
 
 
+def test_skip_marker_excludes_equivalent_mutants():
+    """Une ligne marquée `mutation:skip` (mutant prouvé équivalent) n'est pas mutée."""
+    text = "a >= b;\nc >= d; // mutation:skip équivalent\n"
+    muts = [m for m in generate_mutants(text) if m.name == "ge->gt"]
+    assert len(muts) == 1        # seule la ligne non marquée est mutée
+    assert muts[0].line == 1
+
+
 def test_each_occurrence_is_its_own_mutant():
     text = "a >= b; c >= d;\n"                  # deux occurrences => deux mutants
     assert len([m for m in generate_mutants(text) if m.name == "ge->gt"]) == 2
