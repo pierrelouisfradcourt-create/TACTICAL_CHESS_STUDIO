@@ -28,6 +28,10 @@ _RUST_PATH_KW = {"crate", "super", "self", "std", "core", "alloc"}
 
 # --- regex par langage (déterministes) ---
 _RUST_USE = re.compile(r"^\s*(?:pub\s+)?use\s+([\w:]+)", re.M)
+# Statement `use` COMPLET jusqu'au `;` (DOTALL) : capture les imports groupés
+# `use crate::{ui, engine};` et multi-lignes — que _RUST_USE (arrêté à `{`) ratait.
+_RUST_USE_STMT = re.compile(r"\buse\s+(.+?);", re.S)
+_IDENT = re.compile(r"[A-Za-z_]\w*")
 _RUST_MOD = re.compile(r"^\s*(?:pub\s+)?mod\s+(\w+)", re.M)
 _RUST_DEF = re.compile(r"\b(?:fn|struct|enum|trait)\s+(\w+)")
 
@@ -88,16 +92,23 @@ def _imports(path: Path) -> set[str]:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     pkgs.add(alias.name.split(".")[0])
-            elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-                pkgs.add(node.module.split(".")[0])
+            elif isinstance(node, ast.ImportFrom):
+                # Absolu (`from engine import x`) ET relatif (`from ..engine import x`,
+                # level>=1) : le 1er segment du module cible matche un module blueprint.
+                if node.module:
+                    pkgs.add(node.module.split(".")[0])
+                elif node.level:  # `from . import engine` — cible dans les names
+                    for alias in node.names:
+                        pkgs.add(alias.name.split(".")[0])
         return pkgs
 
     if ext == ".rs":
         out: set[str] = set()
-        for use in _RUST_USE.findall(text):
-            for seg in use.split("::"):
-                if seg and seg not in _RUST_PATH_KW:
-                    out.add(seg)
+        # Tokenise le corps de chaque `use ...;` (gère groupes/imbrications/multi-lignes).
+        for body in _RUST_USE_STMT.findall(text):
+            for tok in _IDENT.findall(body):
+                if tok not in _RUST_PATH_KW:
+                    out.add(tok)
         out.update(_RUST_MOD.findall(text))
         return out
 
@@ -198,7 +209,10 @@ def check_architecture(blueprint: dict, src_root: Path) -> dict:
         "passed": not violations,
         "deps_interdites_violées": violations,
         "modules_sans_test": modules_sans_test,
-        "debordements_ownership": [],  # v0 : borné au build-time (permissions), non ré-audité ici
+        # Honnêteté : un stub non implémenté se DÉCLARE (checked:False), il n'a pas
+        # la même forme qu'un vrai résultat vide. L'implémentation réelle est un
+        # chantier séparé — ici on ne prétend pas avoir vérifié l'ownership.
+        "debordements_ownership": {"checked": False, "items": []},
     }
 
 
@@ -226,8 +240,9 @@ def check_wiremap(wiremap: dict, src_root: Path) -> dict:
         obsoletes.extend(f for f in fichiers if f not in existing_files)
 
         if not existing_files:
-            if fichiers:
-                features_manquantes.append(name)
+            # Aucun fichier existant — OU aucun fichier déclaré (fichiers:[]) : une
+            # feature qui ne pointe rien de réel ne peut pas être prouvée verte.
+            features_manquantes.append(name)
             continue
 
         if fonction:

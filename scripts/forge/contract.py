@@ -33,7 +33,7 @@ FORGE_ROLES = CONTRACTS_DIR / "roles.yaml"
 # Le registry LOCAL résout le modèle depuis un rôle (ADR-002 gate 1 : jamais de modèle en dur).
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-from control_plane.registry import get_model_for_role  # noqa: E402
+from control_plane.registry import get_model_for_role, get_provider_for_role  # noqa: E402
 
 # Sentinelle de « déclaré vide » : décision assumée, distincte d'un oubli.
 SENTINEL_EMPTY = "aucun"
@@ -142,6 +142,10 @@ class DispatchPayload:
     prompt: str
     allowed_tools: tuple[str, ...]
     mandatory_read: tuple[str, ...]
+    # provider résolu par le registry (lmstudio / claude-local / forge). Défaut ""
+    # => aucune régression sur les constructions existantes. Lu par l'aiguilleur
+    # runtime (forge.runtime.route_step) pour honorer le contrat à l'exécution.
+    provider: str = ""
 
 
 def _render_prompt(contract: dict) -> str:
@@ -198,6 +202,7 @@ def build_dispatch_payload(
     """
     validate_contract(contract)  # C1 : la porte bloque d'abord
     model = resolve_runtime(contract, caps_path=caps_path)  # registry force le runtime
+    provider = get_provider_for_role(contract["capability_role"], caps_path=caps_path or FORGE_ROLES) or ""
     payload = DispatchPayload(
         etape=etape,
         role=contract["role"],
@@ -205,7 +210,9 @@ def build_dispatch_payload(
         prompt=_render_prompt(contract),
         allowed_tools=_declared_tools(contract),
         mandatory_read=tuple(contract["mandatory_read"]),
+        provider=provider,
     )
-    logger.info("contrat %s activé : rôle=%s -> modèle=%s, %d outils",
-                etape or "?", contract["capability_role"], payload.model, len(payload.allowed_tools))
+    logger.info("contrat %s activé : rôle=%s -> modèle=%s (provider=%s), %d outils",
+                etape or "?", contract["capability_role"], payload.model, provider or "?",
+                len(payload.allowed_tools))
     return payload

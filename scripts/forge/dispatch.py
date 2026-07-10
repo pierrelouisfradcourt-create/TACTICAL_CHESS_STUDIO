@@ -48,6 +48,24 @@ ORDER = [
 # Étapes déterministes (non-LLM) : exécutées par oracle, pas par un agent LLM.
 DETERMINISTIC = ("s10a-oracle-code", "s10b-oracle-archi", "s10c-oracle-wiremap", "s12-verdict")
 
+# Profils de chaîne — sous-ensembles de ORDER pour des usages plus courts que le
+# greenfield complet. `patch` = un fix sur un projet existant (build -> oracle code
+# -> red-team code -> verdict) : les oracles archi/wiremap n'y sont pas applicables
+# et seront émis SKIPPED (reçu signé) au verdict. `review` = red-team d'un plan seul.
+PROFILES = {
+    "full": tuple(ORDER),
+    "patch": ("s9-build", "s10a-oracle-code", "s11-redteam-code", "s12-verdict"),
+    "review": ("s6-redteam-plan",),
+}
+
+
+def order_for_profile(profile: str = "full") -> list[str]:
+    """Étapes d'un profil, dans l'ordre. Profil inconnu => ValueError (fail-fast)."""
+    try:
+        return list(PROFILES[profile])
+    except KeyError:
+        raise ValueError(f"profil inconnu {profile!r} (attendu: {', '.join(PROFILES)})")
+
 
 @dataclass(frozen=True)
 class DispatchRecord:
@@ -55,6 +73,7 @@ class DispatchRecord:
     etape: str
     capability_role: str
     model: str
+    provider: str
     allowed_tools: tuple[str, ...]
     ts: float
 
@@ -84,6 +103,7 @@ def prepare_dispatch(
             etape=etape,
             capability_role=contract["capability_role"],
             model=payload.model,
+            provider=payload.provider,
             allowed_tools=payload.allowed_tools,
             ts=time.time(),
         ),
@@ -97,9 +117,11 @@ def plan_chain(
     run_id: str = "dryrun",
     caps_path: Path | None = None,
     audit_path: Path | None = None,
+    profile: str = "full",
 ) -> list[DispatchPayload]:
-    """Dry-run : prépare le dispatch de TOUTE la chaîne, sans spawn. Preuve de câblage."""
-    return [prepare_dispatch(e, run_id, caps_path=caps_path, audit_path=audit_path) for e in ORDER]
+    """Dry-run : prépare le dispatch des étapes du profil, sans spawn. Preuve de câblage."""
+    return [prepare_dispatch(e, run_id, caps_path=caps_path, audit_path=audit_path)
+            for e in order_for_profile(profile)]
 
 
 def main() -> None:
@@ -107,11 +129,13 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="Dispatch gouverné de la chaîne Forge.")
     parser.add_argument("--dry-run", action="store_true", help="planifie la chaîne sans spawn")
+    parser.add_argument("--profile", default="full", choices=sorted(PROFILES),
+                        help="profil de chaîne (full / patch / review)")
     args = parser.parse_args()
     if args.dry_run:
         audit = REPO_ROOT / "lab" / "forge_evidence" / "dispatch_dryrun.jsonl"
-        plan = plan_chain(run_id="dryrun", audit_path=audit)
-        print(f"Chaîne Forge — {len(plan)} étapes planifiées (aucun spawn) :")
+        plan = plan_chain(run_id="dryrun", audit_path=audit, profile=args.profile)
+        print(f"Chaîne Forge [{args.profile}] — {len(plan)} étapes planifiées (aucun spawn) :")
         for p in plan:
             kind = "déterministe" if p.etape in DETERMINISTIC else "LLM"
             print(f"  {p.etape:22} [{kind:12}] -> {p.model}")

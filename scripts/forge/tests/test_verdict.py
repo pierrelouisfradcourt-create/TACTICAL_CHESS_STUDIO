@@ -29,3 +29,15 @@ def test_tampered_verdict_fails_verification(tmp_path):
     sig = sign_verdict(v, key_file=key)
     forged = build_verdict("demo", passed=False, returncode=1, evidence_path=Path("ev.log"))
     assert verify_verdict(forged, sig, key_file=key) is False
+
+
+def test_verify_without_key_refuses_and_does_not_generate(tmp_path):
+    """Clé absente à la vérif => refus (False), et AUCUNE clé n'est créée.
+
+    Sinon : supprimer .forge_key puis re-signer des verdicts forgés les rendrait
+    tous valides sous la nouvelle clé.
+    """
+    key = tmp_path / "absent_key"
+    v = build_verdict("demo", passed=True, returncode=0, evidence_path=Path("ev.log"))
+    assert verify_verdict(v, "deadbeef", key_file=key) is False
+    assert not key.exists()

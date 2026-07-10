@@ -6,7 +6,8 @@ marqueur (spawn hors Forge) => toujours autorisé (le hook ne gêne pas le reste
 """
 import json
 
-from forge.hook_guard import check_spawn
+import forge.hook_guard as hg
+from forge.hook_guard import check_spawn, hook_decision
 
 
 def test_non_forge_spawn_passe(tmp_path):
@@ -34,3 +35,48 @@ def test_forge_spawn_mauvais_run_bloque(tmp_path):
     audit.write_text(json.dumps({"etape": "s4-archi", "run_id": "AUTRE"}) + "\n", encoding="utf-8")
     allow, reason = check_spawn("FORGE_DISPATCH:s4-archi:run1", audit_path=audit)
     assert allow is False
+
+
+# --- hook_decision : fail-OPEN hors périmètre, fail-CLOSED sur périmètre Forge ---
+
+def test_hook_decision_outil_hors_perimetre_autorise():
+    code, _ = hook_decision("Read", "FORGE_DISPATCH:s4-archi:run1")
+    assert code == 0
+
+
+def test_hook_decision_sans_marqueur_autorise(tmp_path):
+    code, _ = hook_decision("Task", "analyse ce fichier", audit_path=tmp_path / "a.jsonl")
+    assert code == 0
+
+
+def test_hook_decision_marqueur_sans_dispatch_bloque(tmp_path):
+    audit = tmp_path / "a.jsonl"
+    audit.write_text("", encoding="utf-8")
+    code, reason = hook_decision("Task", "x FORGE_DISPATCH:s4-archi:run1 y", audit_path=audit)
+    assert code == 2
+
+
+def test_hook_decision_marqueur_avec_dispatch_autorise(tmp_path):
+    audit = tmp_path / "a.jsonl"
+    audit.write_text(json.dumps({"etape": "s4-archi", "run_id": "run1"}) + "\n", encoding="utf-8")
+    code, _ = hook_decision("Task", "FORGE_DISPATCH:s4-archi:run1", audit_path=audit)
+    assert code == 0
+
+
+def test_hook_decision_fail_closed_si_garde_plante_en_perimetre_forge(monkeypatch):
+    """Marqueur Forge présent + garde qui lève => REFUS (2), pas fail-open silencieux."""
+    def boom(*a, **k):
+        raise RuntimeError("garde cassé")
+    monkeypatch.setattr(hg, "check_spawn", boom)
+    code, reason = hook_decision("Task", "FORGE_DISPATCH:s4-archi:run1")
+    assert code == 2
+    assert "fail-closed" in reason.lower()
+
+
+def test_hook_decision_hors_perimetre_reste_fail_open_si_garde_plante(monkeypatch):
+    """Sans marqueur, une erreur du garde ne doit PAS bloquer (fail-open hors scope)."""
+    def boom(*a, **k):
+        raise RuntimeError("garde cassé")
+    monkeypatch.setattr(hg, "check_spawn", boom)
+    code, _ = hook_decision("Task", "aucun marqueur ici")
+    assert code == 0

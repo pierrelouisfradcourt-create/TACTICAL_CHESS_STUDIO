@@ -9,12 +9,50 @@ from pathlib import Path
 
 import pytest
 
-from forge.dispatch import ORDER, DETERMINISTIC, plan_chain, prepare_dispatch
+import pytest
+
+from forge.dispatch import (
+    DETERMINISTIC,
+    ORDER,
+    PROFILES,
+    order_for_profile,
+    plan_chain,
+    prepare_dispatch,
+)
 
 
 def test_order_covers_the_agent_steps():
     assert len(ORDER) == 13
     assert set(DETERMINISTIC).issubset(set(ORDER))
+
+
+# --- profils de chaîne (full / patch / review) --------------------------------
+
+def test_profiles_are_subsets_of_order():
+    for name, steps in PROFILES.items():
+        assert set(steps).issubset(set(ORDER)), f"profil {name} référence une étape hors ORDER"
+
+
+def test_patch_profile_is_the_short_fix_chain():
+    assert order_for_profile("patch") == [
+        "s9-build", "s10a-oracle-code", "s11-redteam-code", "s12-verdict",
+    ]
+
+
+def test_full_profile_is_the_whole_chain():
+    assert order_for_profile("full") == list(ORDER)
+
+
+def test_unknown_profile_raises():
+    with pytest.raises(ValueError):
+        order_for_profile("mysteryyy")
+
+
+def test_plan_chain_patch_profile_plans_only_its_steps(tmp_path):
+    plan = plan_chain(run_id="p", profile="patch", audit_path=tmp_path / "a.jsonl")
+    assert [p.etape for p in plan] == order_for_profile("patch")
+    for p in plan:
+        assert p.model
 
 
 def test_prepare_dispatch_returns_payload_and_audits(tmp_path):

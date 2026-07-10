@@ -17,6 +17,8 @@ from pathlib import Path
 from forge.dispatch import DEFAULT_AUDIT
 
 MARKER = re.compile(r"FORGE_DISPATCH:([\w.\-]+):([\w.\-]+)")
+MARKER_TOKEN = "FORGE_DISPATCH"
+SPAWN_TOOLS = ("Task", "Agent")
 
 
 def check_spawn(prompt: str, audit_path: Path | None = None) -> tuple[bool, str]:
@@ -42,3 +44,24 @@ def check_spawn(prompt: str, audit_path: Path | None = None) -> tuple[bool, str]
             return True, f"dispatch validé {etape}/{run_id}"
 
     return False, f"forge {etape}/{run_id} : aucun dispatch validé -> spawn hors contrat"
+
+
+def hook_decision(tool: str, prompt: str, audit_path: Path | None = None) -> tuple[int, str]:
+    """Décision du hook PreToolUse : 0 = autoriser, 2 = bloquer.
+
+    Fail-OPEN hors périmètre Forge (autre outil, ou aucun marqueur) : le hook ne
+    gêne jamais les usages non-Forge de l'outil Agent. Fail-CLOSED SUR le périmètre
+    Forge : dès qu'un marqueur ``FORGE_DISPATCH`` est présent, toute impossibilité
+    de vérifier (garde qui lève, audit illisible) => refus (2), jamais un
+    laissez-passer silencieux. C'est la correction du fail-open aveugle.
+    """
+    if tool not in SPAWN_TOOLS:
+        return 0, "outil hors périmètre"
+    if MARKER_TOKEN not in (prompt or ""):
+        return 0, "non-forge (aucun marqueur)"
+    # Périmètre Forge : à partir d'ici, toute erreur bloque (fail-closed).
+    try:
+        allow, reason = check_spawn(prompt, audit_path=audit_path)
+    except Exception as exc:  # noqa: BLE001 — en périmètre Forge, l'incertitude = refus
+        return 2, f"forge: vérification impossible ({exc}) -> refus fail-closed"
+    return (0, reason) if allow else (2, reason)

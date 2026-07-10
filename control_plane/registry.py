@@ -42,6 +42,20 @@ def get_model_for_role(role: str, caps_path: Optional[Path] = None) -> Optional[
     return None
 
 
+def get_provider_for_role(role: str, caps_path: Optional[Path] = None) -> Optional[str]:
+    """Return the provider field for a role's resolved model, or None.
+
+    Mirror read-only de get_model_for_role : le contrat déclare un rôle, le
+    registry résout le provider (lmstudio / claude-local / forge). Utilisé par
+    l'aiguilleur runtime Forge pour honorer payload.provider sans deviner depuis
+    le nom court du modèle.
+    """
+    for model in load_capabilities(caps_path).get("models", []):
+        if role in model.get("roles", []):
+            return model.get("provider")
+    return None
+
+
 def get_provider_status(provider_id: str, prov_path: Optional[Path] = None) -> str:
     """Return the static status field from providers.yaml, or 'UNKNOWN'."""
     for p in load_providers(prov_path).get("providers", []):
