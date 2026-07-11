@@ -1,5 +1,5 @@
 # Contexte courant TCS
-Dernière session : 2026-07-11 — **Forge : les 3 axes machine livrés+poussés** (branche `feat/forge-oracle-gate`, jusqu'à `e75c36b`, origin à jour ; **pas mergé master**).
+Dernière session : 2026-07-11 — **Forge : 3 axes machine livrés + PROUVÉS IN VIVO** (branche `feat/forge-oracle-gate`, jusqu'à `3e5c000`, origin à jour ; **pas mergé master**).
 Avant : /forge complet mergé master (`e7887ce`), Chess TCG pivot mobile (`af21a6d`), council-audit (`ebebb59`).
 Historique archivé : `journal/context-archive-2026-07-05.md` + `journal/context-archive-2026-07-06.md`.
 
@@ -15,9 +15,14 @@ Historique archivé : `journal/context-archive-2026-07-05.md` + `journal/context
   équivalent+justifié » (`mutation_triage.json`) ; s10a mute les fichiers logiques de la WireMap ; survivant non justifié →
   auto-correction. Revue : **1 CRITICAL** (`mgate` perdu par écrasure de `oracle_ok`) + 3 imp. corrigés → `oracle_ok`
   consolidé en UNE définition (code+e2e+wire+mutation) ; clé `(name,line)` ambiguë non triable ; `total==0` escalade-guidée.
-- **Preuve globale** : **218 tests forge verts** ; gardes reproduisent les régressions mesurées sur données réelles ;
-  intégration mutation réelle (vrai mutateur → gate). Specs/plans des 3 axes sous `docs/superpowers/`. software OK / evidence MECHANICAL / claim NO_CLAIM.
-- **Gates Pierre en attente** : (1) re-forge réel avec agents+navigateur (spawn coûteux, prouve les 3 gates in vivo) ;
+- **PREUVE IN VIVO** (harnais scratchpad, non commité) sur le VRAI jeu `games/collect_runner` : les 3 gates s'exécutent
+  réellement → e2e True, wiremap True, gel True (+ FAIL sur suppression R7), mutation **30/30 mutants tués** → `oracle_ok=True`.
+  Le run a EXPOSÉ un bug pré-existant : `_TS_METHOD` ratait les méthodes à défaut objet (`input = {}`) → faux positif
+  « fonction renommée » sur step/applyInput → **corrigé+régression, `3e5c000`**. Valeur du in vivo : les tests synthétiques ne le voyaient pas.
+- **Preuve globale** : **219 tests forge verts** ; gardes reproduisent les régressions mesurées ; intégration mutation réelle.
+  Specs/plans des 3 axes sous `docs/superpowers/`. software OK / evidence MECHANICAL / claim NO_CLAIM.
+- **Gates Pierre en attente** : (1) OPTION démo lourde = relancer la chaîne 13 agents LLM pour FABRIQUER un jeu de zéro
+  (prouve la même chose sur les gates, mais spawn coûteux Claude/Qwen + e2e Playwright) — non fait, non nécessaire ;
   (2) éventuel axe 2-bis (traçabilité jusqu'à la preuve-test) + fix amont `(name,line)` (index d'occurrence dans
   `generate_mutants`) ; (3) merge master de la branche. ⚠️ Non commité hors-axe : `scripts/forge/mutation.py` (durcissement
   `.mutbak` anti-crash session précédente) + modifs pré-existantes (leviathan, llm-lego, IMPROVEMENT_LEDGER) — à trier.
@@ -28,7 +33,6 @@ Historique archivé : `journal/context-archive-2026-07-05.md` + `journal/context
 - **Dispatch gouverné** (`prepare_dispatch` + audit) + **hook dur** PreToolUse (`FORGE_DISPATCH:<etape>:<run>`, fail-open, scopé). **Oracles** CODE + ARCHI/WIREMAP **multi-langages** (Python AST + Rust/TS/GDScript regex). **Connecteurs studio** propose-only (télémétrie/Kaizen/projet/pré-mortem). **Skill `/forge`** invocable. **ADR-002** (6 connecteurs, 4 gates ratifiés).
 - **1er run réel prouvé** : `chesscolor` (Build Haiku réel + 3 oracles + verdict signé ; a détecté une dérive de spec e4). Démo + logs runtime NON committés (volontaire).
 - **Reste** (voir [[forge_contract_dispatcher]]) : A2 exécution modèle réelle (Qwen s6 symbolique) → A3 verdict agrégé → A1 run complet 8 agents ; durcissement oracles (regex→AST), hook, connecteurs→dashboard/ledger réel, world-scan s2, étapes non-agent s7/s8/s13/s14, builder 8/17 facettes.
-- ⚠️ Working tree : modifs pré-existantes hors-forge non committées (leviathan, IMPROVEMENT_LEDGER, validators llm-lego, studio_brain) — à trier.
 
 ## Session 2026-07-08 — llm-lego board : dashboard télémétrie Phase 3.5 (+ council-verdict-last)
 - **Phase 3.5 LIVRÉE** (`GET /api/telemetry` read-only + section « Télémétrie » Accueil) : ferme la boucle
