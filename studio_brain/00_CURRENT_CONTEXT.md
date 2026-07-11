@@ -1,26 +1,26 @@
 # Contexte courant TCS
-Dernière session : 2026-07-11 — **Forge axe 1/3 : GATE E2E livré** (branche `feat/forge-oracle-gate`, 4 commits `a293723`→`1d8b800`, **non poussés**).
+Dernière session : 2026-07-11 — **Forge axes 1 & 2/3 livrés+poussés** (branche `feat/forge-oracle-gate`, jusqu'à `c75e007`, origin à jour ; **pas mergé master**).
 Avant : /forge complet mergé master (`e7887ce`), Chess TCG pivot mobile (`af21a6d`), council-audit (`ebebb59`).
 Historique archivé : `journal/context-archive-2026-07-05.md` + `journal/context-archive-2026-07-06.md`.
 
-## Session 2026-07-11 — Forge : gate e2e (axe 1/3 du renfort « niveau de production »)
+## Session 2026-07-11 — Forge : renfort « niveau de production » (axes 1 & 2 sur 3)
 - **Contexte** : audit de re-forge (`journal/2026-07-10_reforge_experiment.md`) a mesuré que la forge durcie
-  BAISSE le niveau de production — preuve navigateur e2e perdue **2/2 legacy → 0/3 re-forges**, contenu appauvri,
-  wiremap rouge. Objectif ratifié Pierre : « les deux, dans l'ordre » (fiabiliser la machine puis la prouver),
-  sévérité **bloquer + auto-corriger**, découpage **un axe à la fois**. Axe 1 (le plus critique) = **preuve e2e**.
-- **Livré (4 commits, TDD, 186 tests forge verts)** : garde déterministe `check_e2e_harness`
-  (`scripts/forge/static_oracles.py`) — rejette e2e absent/non-câblé/coquille, strip commentaires anti-gaming ;
-  `PLAYABLE_CONTRACT.md` (conventions `window.__game`/`__game_debug`/`#overlay`/`#restart`) ; s9 durci (exige e2e) ;
-  skill s10a branche `oracle_ok = code.ok and e2e_guard["passed"]` → **réutilise la boucle d'escalade existante**
-  (cap `MAX_ESCALATIONS`), aucune orchestration neuve. Spec + plan sous `docs/superpowers/`.
-- **Preuve** : la garde reproduit la régression mesurée (legacy verts, 3 re-forges rouges). Revue indépendante
-  (sous-agent) → 3 pts importants + 5 mineurs **tous corrigés** (wiring durci, anti-gaming commentaires, `oracle_ok`
-  non-jeu, regex input, borne K-1, sentinelle). Limite connue documentée : gaming par string-littérale (non fermé,
-  builders non-adversariaux + HumanGate terminal).
-- **Gates Pierre en attente** : (1) **push** de la branche `feat/forge-oracle-gate` ; (2) re-forge réel avec
-  agents+navigateur (spawn coûteux) ; (3) **axe 2** (traçabilité plan↔code contraignante) puis **axe 3** (gate
-  mutation + contenu). ⚠️ Non commité hors-axe : `scripts/forge/mutation.py` (durcissement `.mutbak` anti-crash de
-  la session précédente) + modifs pré-existantes (leviathan, llm-lego, IMPROVEMENT_LEDGER) — à trier.
+  BAISSE le niveau de production — e2e perdue **2/2 legacy → 0/3 re-forges**, contenu appauvri, wiremap rouge.
+  Objectif ratifié Pierre : « les deux, dans l'ordre », sévérité **bloquer + auto-corriger**, **un axe à la fois**.
+  Méthode commune : brainstorm → spec → plan TDD → exécution → revue indépendante (sous-agent) → correctifs → commits.
+- **Axe 1 — GATE E2E** (4 commits `a293723`→`1d8b800`) : `check_e2e_harness` rejette e2e absent/non-câblé/coquille
+  (strip commentaires anti-gaming) ; `PLAYABLE_CONTRACT.md` ; s9 durci ; skill s10a → `oracle_ok` combiné. Revue :
+  3 importants + 5 mineurs tous corrigés. Limite connue : gaming par string-littérale (non fermé, assumé).
+- **Axe 2 — GEL TRAÇABILITÉ** (3 commits `3f25bbb`→`c75e007`) : `check_feature_set_frozen` — le jeu de règles
+  (features R1..R12) est figé à s5 (`wiremap_frozen.json`) ; WireMap rouge à règles intactes → auto-correction via
+  escalade existante ; règle ajoutée/supprimée ou snapshot absent → STOP dur HumanGate. Revue : 4 importants +
+  mineurs tous corrigés (faux-vert ensemble vide, `run_dir` s10c, ligne STOP réconciliée e2e+wiremap, flag honnête).
+- **Preuve globale** : 202 tests forge verts ; gardes reproduisent les régressions mesurées sur données réelles.
+  Spec/plan des deux axes sous `docs/superpowers/`. Verdict : software OK / evidence MECHANICAL / claim NO_CLAIM.
+- **Gates Pierre en attente** : (1) re-forge réel avec agents+navigateur (spawn coûteux, prouve les 2 gates in vivo) ;
+  (2) **axe 3** = gate mutation + richesse de contenu (`level.mjs`) ; (3) éventuel axe 2-bis (traçabilité jusqu'à la
+  preuve-test) ; (4) merge master de la branche. ⚠️ Non commité hors-axe : `scripts/forge/mutation.py` (durcissement
+  `.mutbak` anti-crash session précédente) + modifs pré-existantes (leviathan, llm-lego, IMPROVEMENT_LEDGER) — à trier.
 
 ## Session 2026-07-09→10 — /forge : usine d'ingénierie contractuelle MERGÉE master
 - **Invariant** : chaque étape = un **contrat d'agent** (17 champs, `scripts/forge/contracts/SCHEMA.md`, 3 états rempli/`aucun`/absent). Aucun agent sans contrat complet ; le registry local (`roles.yaml`) résout le runtime — jamais de modèle en dur.
