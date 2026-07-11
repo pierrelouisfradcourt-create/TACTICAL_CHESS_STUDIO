@@ -47,7 +47,11 @@ _TS_FUNC = re.compile(r"\bfunction\s+(\w+)")
 _TS_ASSIGN = re.compile(r"\b(?:const|let|var)\s+(\w+)\s*=")
 _TS_CLASS = re.compile(r"\bclass\s+(\w+)")
 # Méthode de classe `name(args) {` (B4 corrigé) — les mots-clés de contrôle sont filtrés.
-_TS_METHOD = re.compile(r"^[ \t]*(?:public |private |protected |static |async |get |set |\*\s*)*([A-Za-z_$][\w$]*)\s*\([^;={]*\)\s*\{", re.M)
+# Le corps de la parenthèse tolère `{`/`}`/`=` : défauts objets (`opts = {}`) et
+# params déstructurés (`{x, y}`) sont idiomatiques — les exclure = faux positif
+# « fonction renommée » (bug trouvé in vivo sur games/collect_runner : step/applyInput
+# avec `input = {}`). On borne au `)` fermant et on interdit `;` (frontière de statement).
+_TS_METHOD = re.compile(r"^[ \t]*(?:public |private |protected |static |async |get |set |\*\s*)*([A-Za-z_$][\w$]*)\s*\([^;)]*\)\s*\{", re.M)
 _JS_NONMETHOD = {"if", "for", "while", "switch", "catch", "return", "function", "do", "else", "with"}
 
 _GD_LOAD = re.compile(r"""(?:preload|load)\(\s*['"]([^'"]+)['"]""")

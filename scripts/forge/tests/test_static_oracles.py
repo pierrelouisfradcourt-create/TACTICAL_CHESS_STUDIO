@@ -110,6 +110,25 @@ def test_wiremap_finds_typescript_function(tmp_path):
     assert check_wiremap(wiremap, tmp_path)["passed"] is True
 
 
+def test_wiremap_finds_method_with_object_default_param(tmp_path):
+    # Régression (bug trouvé in vivo sur games/collect_runner) : une méthode avec un
+    # paramètre par défaut objet (`input = {}`) ou déstructuré (`{x, y}`) DOIT être
+    # trouvée — sinon faux positif « fonction renommée ».
+    _write(tmp_path, "game/game.mjs",
+           "export class G {\n"
+           "  applyInput(input = {}) { return input; }\n"
+           "  step(dtMs, input = {}) { return dtMs; }\n"
+           "  draw(ctx, { x, y }) { return x + y; }\n"
+           "}\n")
+    wiremap = {"features": [
+        {"feature": "R2 input", "fichiers": ["game/game.mjs"], "fonction": "applyInput", "preuve": "t"},
+        {"feature": "R1 step", "fichiers": ["game/game.mjs"], "fonction": "step", "preuve": "t"},
+        {"feature": "R draw", "fichiers": ["game/game.mjs"], "fonction": "draw", "preuve": "t"},
+    ]}
+    r = check_wiremap(wiremap, tmp_path)
+    assert r["passed"] is True, r["fonctions_renommées"]
+
+
 def test_wiremap_finds_gdscript_func(tmp_path):
     _write(tmp_path, "ui/hud.gd", "extends Control\n\nfunc update_hud() -> void:\n\tpass\n")
     wiremap = {"features": [
