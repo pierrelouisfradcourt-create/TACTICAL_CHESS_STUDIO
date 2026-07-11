@@ -268,3 +268,71 @@ def check_wiremap(wiremap: dict, src_root: Path) -> dict:
         "obsoletes": obsoletes,
         "preuves_absentes": preuves_absentes,
     }
+
+
+# --- garde structurelle e2e (C3) : l'oracle d'un JEU à UI DOIT prouver la
+# jouabilité par un click-through navigateur RÉEL. Ce check déterministe (aucun
+# run, aucun LLM) rejette un e2e "coquille" (imprime PASS sans piloter) et un
+# run-oracle qui n'appelle jamais l'e2e. Équivalent e2e du mutation-testing.
+#
+# Anti-gaming : les commentaires JS sont retirés avant analyse — un token en
+# commentaire ne prouve rien. Le câblage exige un VERBE d'exécution devant
+# e2e.mjs (une simple mention dans un log/commentaire ne câble aucun oracle).
+# Limite connue (résiduelle, non fermée ici) : un token présent dans une chaîne
+# littérale d'exécution (`console.log("__game")`) reste comptable — acceptable
+# car les builders forge ne sont pas adversariaux et HumanGate reste terminal. ---
+_E2E_MIN_ASSERTIONS = 3
+_E2E_BROWSER = re.compile(r"\b(chromium|playwright|firefox|webkit)\b")
+_E2E_INPUT = re.compile(r"keyboard\.(?:down|up|press|type|insertText)|\.click\(|\.tap\(")
+_E2E_STATE_TOKEN = re.compile(r"__game(?:_debug)?\b|#overlay|#restart")
+# run-oracle doit INVOQUER e2e.mjs (spawn/run/import/node…), pas seulement le
+# mentionner : une occurrence en log/commentaire ne câble rien au gate.
+_E2E_WIRED = re.compile(r"(?:run|spawn|exec|execFile|fork|import|node)\b[^\n]*?e2e\.mjs")
+
+# Retrait des commentaires JS. Le lookbehind (?<!:) épargne les '//' d'URL
+# (http://localhost) pour ne pas tronquer une ligne de code réelle.
+_JS_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+_JS_LINE_COMMENT = re.compile(r"(?<!:)//[^\n]*")
+
+
+def _strip_js_comments(text: str) -> str:
+    return _JS_LINE_COMMENT.sub(" ", _JS_BLOCK_COMMENT.sub(" ", text))
+
+
+def check_e2e_harness(src_root: Path) -> dict:
+    """Le jeu a-t-il un e2e RÉEL, câblé dans son run-oracle ?
+
+    Retourne {passed, raisons[]}. PASS = run-oracle.mjs invoque un e2e.mjs qui
+    lance un vrai navigateur, envoie de vraies entrées, et observe au moins
+    _E2E_MIN_ASSERTIONS fois l'état du jeu (window.__game / #overlay / #restart).
+    """
+    src_root = Path(src_root)
+    raisons: list[str] = []
+
+    runner = src_root / "run-oracle.mjs"
+    if not runner.exists():
+        raisons.append("run-oracle.mjs absent")
+    elif not _E2E_WIRED.search(_strip_js_comments(_read(runner))):
+        raisons.append("run-oracle.mjs n'invoque pas e2e.mjs (volet e2e absent du gate)")
+
+    e2e = src_root / "e2e.mjs"
+    if not e2e.exists():
+        raisons.append("e2e.mjs absent")
+        return {"passed": False, "raisons": raisons}
+
+    text = _strip_js_comments(_read(e2e))
+    if not text.strip():
+        raisons.append("e2e.mjs vide ou illisible")
+        return {"passed": False, "raisons": raisons}
+    if not _E2E_BROWSER.search(text):
+        raisons.append("e2e.mjs ne lance aucun navigateur réel (chromium/playwright)")
+    if not _E2E_INPUT.search(text):
+        raisons.append("e2e.mjs n'envoie aucune entrée réelle (clavier/clic)")
+    n = len(_E2E_STATE_TOKEN.findall(text))
+    if n < _E2E_MIN_ASSERTIONS:
+        raisons.append(
+            f"e2e.mjs n'observe pas assez l'état ({n} réf. window.__game/#overlay/#restart"
+            f" < {_E2E_MIN_ASSERTIONS}) — coquille probable"
+        )
+
+    return {"passed": not raisons, "raisons": raisons}
