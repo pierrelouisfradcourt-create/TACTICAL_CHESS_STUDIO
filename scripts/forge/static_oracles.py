@@ -16,6 +16,7 @@ import ast
 import json
 import logging
 import re
+from collections import Counter
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -388,4 +389,63 @@ def check_feature_set_frozen(wiremap: dict, frozen_features: list[str] | None) -
         "checked": True,
         "ajoutees": ajoutees,
         "supprimees": supprimees,
+    }
+
+
+# --- gate mutation (C1/C2, axe 3) : le mutation testing d'un JEU passe ssi tous
+# les mutants sont tués OU chaque survivant est explicitement trié comme équivalent
+# (justification non vide). total==0 (aucun mutant) => échec : rien n'a été prouvé. ---
+def load_mutation_triage(game_dir) -> list[dict] | None:
+    """Lit <game_dir>/mutation_triage.json ; None si absent/illisible/non-liste."""
+    path = Path(game_dir) / "mutation_triage.json"
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, list) else None
+
+
+def check_mutation_gate(mutation_result: dict, triage_entries: list[dict] | None) -> dict:
+    """« 100% ou survivant justifié ». Retourne {passed, checked, survivants_non_tries[],
+    triage_perimes[]}. Un survivant (name,line) est justifié ssi une entrée de triage a la
+    même clé ET une justification non vide. total==0 => checked False, passed False.
+
+    Garde-fou (name,line non unique) : `name` est la RÈGLE de mutation (ex. 'ge->gt') et
+    `line` sans colonne — deux mutants sur la même ligne partagent la clé. Une clé partagée
+    par plusieurs survivants n'est PAS triable par (name,line) (un triage masquerait un vrai
+    bug) : ces survivants restent non justifiés (marqués « ambigu »). Fix amont = index
+    d'occurrence dans mutation.generate_mutants (hors périmètre axe 3).
+    """
+    if mutation_result.get("total", 0) == 0:
+        return {"passed": False, "checked": False, "survivants_non_tries": [], "triage_perimes": []}
+    triage = triage_entries or []
+    justified = {
+        (t.get("name"), t.get("line"))
+        for t in triage
+        if str(t.get("justification", "")).strip()
+    }
+    survivors = mutation_result.get("survivors", [])
+    counts = Counter((s.get("name"), s.get("line")) for s in survivors)
+    ambigus = {k for k, c in counts.items() if c > 1}   # clé partagée => non triable
+    non_tries: set[str] = set()
+    for s in survivors:
+        key = (s.get("name"), s.get("line"))
+        if key in justified and key not in ambigus:
+            continue
+        label = f"{s.get('name')}@L{s.get('line')}"
+        if key in ambigus:
+            label += " (ambigu: plusieurs mutants même (name,line) — triage impossible)"
+        non_tries.add(label)
+    triage_perimes = sorted(
+        f"{t.get('name')}@L{t.get('line')}"
+        for t in triage
+        if (t.get("name"), t.get("line")) not in set(counts)
+    )
+    return {
+        "passed": not non_tries,
+        "checked": True,
+        "survivants_non_tries": sorted(non_tries),
+        "triage_perimes": triage_perimes,
     }
