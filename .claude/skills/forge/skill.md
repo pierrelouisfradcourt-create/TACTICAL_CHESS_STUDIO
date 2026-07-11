@@ -74,13 +74,27 @@ Pour chaque `etape` dans l'ordre `forge.dispatch.ORDER` :
    **Après le retour** (connecteurs 3+6) : trace le **reviewer réel** (`d.reviewer` ou `res["reviewer"]`, ex. `qwen2.5-14b-instruct` ou `claude-blind (fallback)`), pas le modèle contracté :
    `studio_link.record_telemetry(run_id, etape, reviewer_reel, tokens, duree)`. Ce `reviewer` sera **plié dans le verdict signé** (A3). Si l'agent a échoué/signalé une faille : `studio_link.record_error(run_id, etape, msg, project)`.
 
+   > **Gel du jeu de règles (renfort 2026-07-11, axe 2) — post-étape `s5-wiremap` UNIQUEMENT.** Le `if` ci-dessous garde le bloc scopé : il ne s'exécute qu'à s5 (les autres étapes LLM n'ont pas de `wiremap`). Dès que la WireMap est produite, fige l'ensemble des règles (immuable pour tout le reste du run) :
+   > ```python
+   > if etape == "s5-wiremap":
+   >     import json
+   >     from pathlib import Path
+   >     from forge.static_oracles import frozen_features_from_wiremap
+   >     run_dir = Path("lab/forge_runs/<projet>")   # même run_dir qu'à s10c
+   >     (run_dir / "wiremap_frozen.json").write_text(
+   >         json.dumps({"features": frozen_features_from_wiremap(wiremap)}, ensure_ascii=False),
+   >         encoding="utf-8")
+   > ```
+   > Le builder (s9) met à jour les COLONNES de la WireMap (fonction/fichiers/…) mais ne touche JAMAIS `wiremap_frozen.json`. C'est l'ancre de traçabilité (quelles règles doivent exister), dérivée du product_snapshot (R1..R12).
+
    **Escalade de modèle** (builders Claude uniquement — pas Qwen ni oracles) : un sous-agent trop juste pour sa tâche finit son rapport par `ESCALATE_REQUEST: <raison>`. Après le build **et son oracle** (s10a), décide :
    ```python
    from forge.escalate import parse_agent_escalation, escalation_decision
    requested, why = parse_agent_escalation(agent_output)
-   # L'oracle est calculé D'ABORD (3. s10a ci-dessous), PUIS on décide l'escalade.
+   # Les oracles sont calculés D'ABORD (3. s10a/s10c ci-dessous), PUIS on décide l'escalade.
    oracle_ok = code.ok                              # non-jeu : oracle-code seul
-   # pour un JEU : oracle_ok = code.ok and e2e_guard["passed"]  (garde e2e, s10a)
+   # pour un JEU : oracle_ok = code.ok and e2e_guard["passed"] and wire["passed"]
+   #   (e2e s10a + wiremap s10c ; le gel du jeu de règles est un STOP séparé, cf. s10c)
    d = escalation_decision(payload.model, oracle_ok=oracle_ok, agent_requested=requested,
                            agent_reason=why, escalations_so_far=n)
    ```
@@ -101,8 +115,29 @@ Pour chaque `etape` dans l'ordre `forge.dispatch.ORDER` :
      > Si `not e2e_guard["passed"]` : traite l'oracle comme ÉCHOUÉ (raisons = `e2e_guard["raisons"]`), ce qui alimente la boucle d'escalade (2. ci-dessus, `oracle_ok` combiné) → ré-spawn du contrat s9, modèle ↑, cap `MAX_ESCALATIONS`. Au sommet toujours rouge : verdict BLOCKED + `humangate_flags: ["e2e non prouvé"]`. La garde rejette : `e2e.mjs` absent, non câblé dans `run-oracle.mjs`, ou coquille (< 3 observations de `window.__game`/`#overlay`/`#restart`). Cf. `scripts/forge/contracts/PLAYABLE_CONTRACT.md`.
    - `s10b-oracle-archi` → `archi = forge.static_oracles.check_architecture(blueprint, src_root)`.
    - `s10c-oracle-wiremap` → `wire = forge.static_oracles.check_wiremap(wiremap, src_root)`.
+     > **Auto-correction traçabilité (renfort 2026-07-11, axe 2).** Après `check_wiremap`, vérifie le gel du jeu de règles puis décide :
+     > ```python
+     > from pathlib import Path
+     > from forge.static_oracles import check_feature_set_frozen, load_frozen_features
+     > run_dir = Path("lab/forge_runs/<projet>")   # même run_dir qu'à s5
+     > frozen = check_feature_set_frozen(wiremap, load_frozen_features(run_dir))
+     > if not frozen["passed"]:
+     >     # NON auto-corrigeable => verdict BLOCKED, NE BOUCLE PAS. Flag honnête selon la cause :
+     >     if not frozen["checked"]:
+     >         flag = "snapshot de gel absent (s5 n'a pas figé le jeu de règles)"
+     >     else:
+     >         flag = f"jeu de règles modifié (ajoutées={frozen['ajoutees']}, supprimées={frozen['supprimees']})"
+     >     # humangate_flags: [flag]
+     >     ...
+     > else:
+     >     # fonctions renommées/manquantes mais règles intactes => AUTO-CORRIGEABLE :
+     >     oracle_ok = code.ok and e2e_guard["passed"] and wire["passed"]
+     >     # oracle_ok combiné alimente escalation_decision (2. ci-dessus) → ré-spawn s9
+     >     # avec rapport « rends carte↔code isomorphes, jeu de règles gelé », cap MAX_ESCALATIONS.
+     > ```
+     > `wire` rouge n'est donc plus un cul-de-sac : jeu de règles intact + fonction renommée → re-build ciblé au lieu d'un BLOCKED sec. Une règle disparue (ou un snapshot de gel absent) reste un STOP dur (jugement humain).
    - `s12-verdict` → **agrégation signée** (voir 4).
-   Oracle rouge (`ok is False` / `passed is False`) → **STOP**, ne passe pas les étapes suivantes.
+   Oracle rouge (`ok is False` / `passed is False`) → **STOP**, ne passe pas les étapes suivantes — **SAUF les deux cas d'auto-correction bornée** (renfort 2026-07-11) : (a) garde e2e rouge (s10a) et (b) WireMap rouge à **jeu de règles gelé intact** (s10c) alimentent la boucle d'escalade `escalation_decision` (ré-spawn s9, cap `MAX_ESCALATIONS`) au lieu de STOP. Restent des STOP durs : oracle-code/archi rouges, gel du jeu de règles violé (règle ajoutée/supprimée), snapshot de gel absent, et sommet d'escalade atteint.
 
 4. **Verdict final** (`s12-verdict`) : chaque oracle émet un **reçu signé** (preuve d'exécution, pas narration) ; l'agrégat **vérifie** ces reçus — un `OK` sans reçu valide sur ce `run_id` est **impossible** sans la clé. L'identité réelle du reviewer (A2) et `redteam_ran` (structuré) sont signés — un fallback ne peut pas se faire passer pour Qwen actif :
    ```python
