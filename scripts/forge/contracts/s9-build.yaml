@@ -67,7 +67,11 @@ tests_oracles: >-
   dans run-oracle.mjs) conforme au contrat de jouabilité
   (scripts/forge/contracts/PLAYABLE_CONTRACT.md) : la garde structurelle
   forge.static_oracles.check_e2e_harness REJETTE un e2e absent, non câblé, ou
-  coquille (qui imprime PASS sans piloter).
+  coquille (qui imprime PASS sans piloter). Enfin, pour un JEU, l'oracle-code inclut
+  un GATE MUTATION (forge.mutation.run_mutation_test sur game.mjs +
+  forge.static_oracles.check_mutation_gate) : « 100% des mutants tués OU chaque
+  survivant trié équivalent avec justification dans games/<projet>/mutation_triage.json ».
+  Un survivant non justifié => oracle rouge (auto-correction).
 final_report: >-
   software/evidence/claim séparés ; cite l'oracle code utilisé ; liste les fichiers
   touchés vs ownership ; claim_verdict: NO_CLAIM_ALLOWED. Sans oracle disponible =>

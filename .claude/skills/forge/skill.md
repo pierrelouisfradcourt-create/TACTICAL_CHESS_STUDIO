@@ -92,9 +92,10 @@ Pour chaque `etape` dans l'ordre `forge.dispatch.ORDER` :
    from forge.escalate import parse_agent_escalation, escalation_decision
    requested, why = parse_agent_escalation(agent_output)
    # Les oracles sont calculés D'ABORD (3. s10a/s10c ci-dessous), PUIS on décide l'escalade.
-   oracle_ok = code.ok                              # non-jeu : oracle-code seul
-   # pour un JEU : oracle_ok = code.ok and e2e_guard["passed"] and wire["passed"]
-   #   (e2e s10a + wiremap s10c ; le gel du jeu de règles est un STOP séparé, cf. s10c)
+   # oracle_ok est assigné en UN SEUL endroit (bloc s10c, une fois e2e_guard/mgate/wire connus) :
+   #   non-jeu : oracle_ok = code.ok and wire["passed"]
+   #   JEU     : oracle_ok = code.ok and e2e_guard["passed"] and wire["passed"] and mgate["passed"]
+   # (le gel du jeu de règles est un STOP séparé, cf. s10c).
    d = escalation_decision(payload.model, oracle_ok=oracle_ok, agent_requested=requested,
                            agent_reason=why, escalations_so_far=n)
    ```
@@ -109,10 +110,24 @@ Pour chaque `etape` dans l'ordre `forge.dispatch.ORDER` :
      > ```python
      > from pathlib import Path
      > from forge.static_oracles import check_e2e_harness
-     > e2e_guard = check_e2e_harness(Path("games/<projet>"))
-     > oracle_ok = code.ok and e2e_guard["passed"]   # e2e coquille/absent/non-câblé => oracle rouge
+     > e2e_guard = check_e2e_harness(Path("games/<projet>"))   # contribue à l'oracle_ok combiné (consolidé après s10c)
      > ```
      > Si `not e2e_guard["passed"]` : traite l'oracle comme ÉCHOUÉ (raisons = `e2e_guard["raisons"]`), ce qui alimente la boucle d'escalade (2. ci-dessus, `oracle_ok` combiné) → ré-spawn du contrat s9, modèle ↑, cap `MAX_ESCALATIONS`. Au sommet toujours rouge : verdict BLOCKED + `humangate_flags: ["e2e non prouvé"]`. La garde rejette : `e2e.mjs` absent, non câblé dans `run-oracle.mjs`, ou coquille (< 3 observations de `window.__game`/`#overlay`/`#restart`). Cf. `scripts/forge/contracts/PLAYABLE_CONTRACT.md`.
+     > **Gate mutation (renfort 2026-07-11, axe 3) — « 100% ou survivant justifié ».** Pour un JEU, après l'oracle-code, mute **les fichiers logiques déclarés par la WireMap** (pas seulement `game.mjs` : la logique est répartie — `game.mjs`, `level.mjs`, … ; les fichiers `.mjs` non-test cités dans `wiremap["features"][*]["fichiers"]`) et agrège les résultats :
+     > ```python
+     > from forge.mutation import run_mutation_test
+     > from forge.static_oracles import check_mutation_gate, load_mutation_triage
+     > logic_files = sorted({f for feat in wiremap["features"] for f in feat.get("fichiers", [])
+     >                       if f.endswith(".mjs") and "test" not in f})   # ex. game.mjs, level.mjs
+     > survivors, total = [], 0
+     > for src in logic_files:
+     >     r = run_mutation_test(src, ["node", "--test", "logic.test.mjs", "properties.test.mjs"],
+     >                           cwd="games/<projet>")
+     >     survivors += r["survivors"]; total += r["total"]
+     > mgate = check_mutation_gate({"total": total, "survivors": survivors},
+     >                             load_mutation_triage("games/<projet>"))   # contribue à l'oracle_ok combiné
+     > ```
+     > `not mgate["passed"]` alimente la boucle d'escalade (2. ci-dessus) → ré-spawn s9 « tue le survivant `name@line` par un test, OU triage-le équivalent avec justification dans `mutation_triage.json` », cap `MAX_ESCALATIONS`. Fini le 68% qui passe en silence. Cas `total==0` (aucun fichier logique mutable) : escalade-guidée « déclare/mute les vrais fichiers logiques » — jamais un vert (pas un faux vert), mais pas un cul-de-sac non plus.
    - `s10b-oracle-archi` → `archi = forge.static_oracles.check_architecture(blueprint, src_root)`.
    - `s10c-oracle-wiremap` → `wire = forge.static_oracles.check_wiremap(wiremap, src_root)`.
      > **Auto-correction traçabilité (renfort 2026-07-11, axe 2).** Après `check_wiremap`, vérifie le gel du jeu de règles puis décide :
@@ -130,14 +145,17 @@ Pour chaque `etape` dans l'ordre `forge.dispatch.ORDER` :
      >     # humangate_flags: [flag]
      >     ...
      > else:
-     >     # fonctions renommées/manquantes mais règles intactes => AUTO-CORRIGEABLE :
-     >     oracle_ok = code.ok and e2e_guard["passed"] and wire["passed"]
-     >     # oracle_ok combiné alimente escalation_decision (2. ci-dessus) → ré-spawn s9
-     >     # avec rapport « rends carte↔code isomorphes, jeu de règles gelé », cap MAX_ESCALATIONS.
+     >     # fonctions renommées/manquantes mais règles intactes => AUTO-CORRIGEABLE.
+     >     # ⇒ DÉFINITION UNIQUE de oracle_ok (ici e2e_guard/mgate de s10a ET wire de s10c
+     >     #    sont tous disponibles ; c'est le seul endroit qui l'assigne pour un JEU) :
+     >     oracle_ok = code.ok and e2e_guard["passed"] and wire["passed"] and mgate["passed"]
+     >     # (non-jeu : oracle_ok = code.ok and wire["passed"] — pas d'e2e/mutation)
+     >     # oracle_ok alimente escalation_decision (2. ci-dessus) → ré-spawn s9 avec le rapport
+     >     # cumulé (carte↔code isomorphes + survivants mutation + e2e), cap MAX_ESCALATIONS.
      > ```
-     > `wire` rouge n'est donc plus un cul-de-sac : jeu de règles intact + fonction renommée → re-build ciblé au lieu d'un BLOCKED sec. Une règle disparue (ou un snapshot de gel absent) reste un STOP dur (jugement humain).
+     > `wire` rouge n'est donc plus un cul-de-sac : jeu de règles intact + fonction renommée (ou survivant mutation, ou e2e coquille) → re-build ciblé au lieu d'un BLOCKED sec. Une règle disparue (ou un snapshot de gel absent) reste un STOP dur (jugement humain). **Note : `oracle_ok` n'est assigné qu'ICI** (après que les 3 gardes e2e/mutation/wiremap soient calculées) — les blocs s10a calculent `e2e_guard`/`mgate` mais ne l'assignent pas, pour éviter toute écrasure d'ordre.
    - `s12-verdict` → **agrégation signée** (voir 4).
-   Oracle rouge (`ok is False` / `passed is False`) → **STOP**, ne passe pas les étapes suivantes — **SAUF les deux cas d'auto-correction bornée** (renfort 2026-07-11) : (a) garde e2e rouge (s10a) et (b) WireMap rouge à **jeu de règles gelé intact** (s10c) alimentent la boucle d'escalade `escalation_decision` (ré-spawn s9, cap `MAX_ESCALATIONS`) au lieu de STOP. Restent des STOP durs : oracle-code/archi rouges, gel du jeu de règles violé (règle ajoutée/supprimée), snapshot de gel absent, et sommet d'escalade atteint.
+   Oracle rouge (`ok is False` / `passed is False`) → **STOP**, ne passe pas les étapes suivantes — **SAUF les cas d'auto-correction bornée** (renfort 2026-07-11) : (a) garde e2e rouge (s10a), (b) WireMap rouge à **jeu de règles gelé intact** (s10c) et (c) gate mutation rouge à **survivant non justifié** (s10a) alimentent la boucle d'escalade `escalation_decision` (ré-spawn s9, cap `MAX_ESCALATIONS`) au lieu de STOP. Le gate mutation `total==0` (aucun fichier logique mutable) alimente aussi l'escalade, avec la consigne « déclare/mute les vrais fichiers logiques » (jamais un vert, mais pas un STOP dur). Restent des STOP durs : oracle-code/archi rouges, gel du jeu de règles violé (règle ajoutée/supprimée), snapshot de gel absent, et sommet d'escalade atteint.
 
 4. **Verdict final** (`s12-verdict`) : chaque oracle émet un **reçu signé** (preuve d'exécution, pas narration) ; l'agrégat **vérifie** ces reçus — un `OK` sans reçu valide sur ce `run_id` est **impossible** sans la clé. L'identité réelle du reviewer (A2) et `redteam_ran` (structuré) sont signés — un fallback ne peut pas se faire passer pour Qwen actif :
    ```python
