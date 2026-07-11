@@ -13,6 +13,7 @@ Ces oracles PROUVENT (PASS/FAIL) ; ils ne jugent jamais (aucun LLM).
 from __future__ import annotations
 
 import ast
+import json
 import logging
 import re
 from pathlib import Path
@@ -336,3 +337,55 @@ def check_e2e_harness(src_root: Path) -> dict:
         )
 
     return {"passed": not raisons, "raisons": raisons}
+
+
+# --- gel du jeu de règles (C1/C2, axe 2) : l'ensemble des features (R1..R12) est
+# figé à s5. L'auto-correction d'une WireMap rouge peut RE-POINTER des fonctions
+# (renommage), jamais SUPPRIMER/AJOUTER une règle — sinon la traçabilité devient
+# une carte-tampon (une règle disparue re-verdirait la carte). ---
+def frozen_features_from_wiremap(wiremap: dict) -> list[str]:
+    """Liste ordonnée des noms de features (l'identité d'une règle) d'une WireMap."""
+    return [f.get("feature", "") for f in wiremap.get("features", [])]
+
+
+def load_frozen_features(run_dir) -> list[str] | None:
+    """Lit <run_dir>/wiremap_frozen.json ; None si absent/illisible."""
+    path = Path(run_dir) / "wiremap_frozen.json"
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    feats = data.get("features")
+    return feats if isinstance(feats, list) else None
+
+
+def check_feature_set_frozen(wiremap: dict, frozen_features: list[str] | None) -> dict:
+    """Le jeu de règles courant est-il identique à la référence gelée ?
+
+    Retourne {passed, checked, ajoutees[], supprimees[]}. PASS = ensembles égaux
+    ET bien formés. frozen_features None OU VIDE (référence absente ou jeu à zéro
+    règle) => checked False, passed False : une traçabilité non ancrée n'est pas
+    prouvée (jamais un faux vert). Un `feature` vide (règle sans identité) ou un
+    doublon (masque une suppression) rend l'ancre malformée => passed False.
+    """
+    if not frozen_features:  # None ou [] : pas d'ancre valide (zéro règle inclus)
+        return {"passed": False, "checked": False, "ajoutees": [], "supprimees": []}
+    current = frozen_features_from_wiremap(wiremap)
+    # Intégrité : le `feature` est l'identité d'une règle. Vide => règle sans identité ;
+    # doublon => set() le collapse et masquerait une suppression. Malformé => pas un vert.
+    malformed = (
+        "" in current or "" in frozen_features
+        or len(current) != len(set(current))
+        or len(frozen_features) != len(set(frozen_features))
+    )
+    cur, frozen = set(current), set(frozen_features)
+    ajoutees = sorted(cur - frozen)
+    supprimees = sorted(frozen - cur)
+    return {
+        "passed": not (ajoutees or supprimees or malformed),
+        "checked": True,
+        "ajoutees": ajoutees,
+        "supprimees": supprimees,
+    }
