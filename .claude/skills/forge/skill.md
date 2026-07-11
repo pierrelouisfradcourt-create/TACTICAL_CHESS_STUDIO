@@ -78,7 +78,10 @@ Pour chaque `etape` dans l'ordre `forge.dispatch.ORDER` :
    ```python
    from forge.escalate import parse_agent_escalation, escalation_decision
    requested, why = parse_agent_escalation(agent_output)
-   d = escalation_decision(payload.model, oracle_ok=code.ok, agent_requested=requested,
+   # L'oracle est calculé D'ABORD (3. s10a ci-dessous), PUIS on décide l'escalade.
+   oracle_ok = code.ok                              # non-jeu : oracle-code seul
+   # pour un JEU : oracle_ok = code.ok and e2e_guard["passed"]  (garde e2e, s10a)
+   d = escalation_decision(payload.model, oracle_ok=oracle_ok, agent_requested=requested,
                            agent_reason=why, escalations_so_far=n)
    ```
    Si `d.escalate` : **ré-spawne LE MÊME contrat** (marqueur `FORGE_DISPATCH` compris) avec l'outil Agent `model=d.next_model` (haiku→sonnet→opus), incrémente `n`, trace l'escalade (`record_telemetry`). Le verdict signera le **tier réel** qui a produit l'artefact (honnêteté, comme le reviewer). Au sommet (`opus`) avec échec → `d.escalate` est faux et `d.reason` renvoie à HumanGate : **ne boucle pas**, remonte à Pierre. Cap `MAX_ESCALATIONS`.
@@ -88,6 +91,14 @@ Pour chaque `etape` dans l'ordre `forge.dispatch.ORDER` :
      > **Oracle d'un JEU à UI = click-through Playwright**, pas des tests unitaires. La commande `oracles.json` du jeu lance un e2e qui **clique chaque bouton et parcourt chaque chemin** (déterministe, `returncode` = pass/fail, captures sous `e2e-shots/`). Il mappe 1:1 le Prisme (s1) : *le joueur voit/fait* → clique X, vérifie Y. Harnais de référence : `llm-lego/experiments/belote-claude/web/e2e-lib.mjs` (`startServer` + clics DOM `page.click(...)` + assertions d'état). **Claude-in-Chrome = exploratoire, PAS l'oracle** (LLM, non déterministe).
      > **Oracle d'un JEU = AUSSI la SOLVABILITÉ, pas seulement les mécaniques.** Un jeu aux objectifs inatteignables passe TOUS les tests de mécanique en isolation (« collectCoin marche SI on place le joueur sur la pièce ») tout en étant injouable — prouvé 2× (survival_arena tir/poursuite non testés ; collect_runner pièces hors de portée de saut, 14 tests + e2e verts, injouable au playtest). L'oracle code d'un jeu **inclut obligatoirement** un volet `solvability.mjs` (câblé dans `run-oracle.mjs`) qui : **(1)** mesure l'enveloppe d'action RÉELLE du moteur (ex. hauteur de saut — mesurée, pas hardcodée), **(2)** vérifie que chaque objectif requis y est, **(3)** fait **jouer un bot déterministe qui doit GAGNER**. Modèle à copier : `scripts/forge/templates/solvability.template.mjs` ; réf. vivante : `games/collect_runner/solvability.mjs`. Contractualisé en s9 (`success_criteria`/`tests_oracles`/`output_contract`).
      > **Renforcer/valider les oracles** (au-delà des exemples à seed fixe, qui ratent les mutants) : **(1) property-based** — invariants sur beaucoup de seeds + inputs aléatoires seedés (déterminisme, bornes, monotonies) ; réf. `games/collect_runner/properties.test.mjs`, câblé dans `run-oracle.mjs`. **(2) mutation testing** — le MÉTA-oracle « tes tests attrapent-ils un bug ? » : `PYTHONPATH=scripts python -m forge.mutation <src> --cwd <dir> -- node --test <tests>` mute le code (`>=`→`>`, `&&`→`||`…) et rend un **score de tués/total** + la liste des mutants **survivants** (bugs non détectés) à corriger. Un `>=` tautologique survit → signal direct.
+     > **Gate e2e déterministe (renfort 2026-07-11) — la doctrine Playwright ci-dessus est désormais APPLIQUÉE.** Pour un JEU, avant de conclure l'oracle-code, lance la garde structurelle non-LLM :
+     > ```python
+     > from pathlib import Path
+     > from forge.static_oracles import check_e2e_harness
+     > e2e_guard = check_e2e_harness(Path("games/<projet>"))
+     > oracle_ok = code.ok and e2e_guard["passed"]   # e2e coquille/absent/non-câblé => oracle rouge
+     > ```
+     > Si `not e2e_guard["passed"]` : traite l'oracle comme ÉCHOUÉ (raisons = `e2e_guard["raisons"]`), ce qui alimente la boucle d'escalade (2. ci-dessus, `oracle_ok` combiné) → ré-spawn du contrat s9, modèle ↑, cap `MAX_ESCALATIONS`. Au sommet toujours rouge : verdict BLOCKED + `humangate_flags: ["e2e non prouvé"]`. La garde rejette : `e2e.mjs` absent, non câblé dans `run-oracle.mjs`, ou coquille (< 3 observations de `window.__game`/`#overlay`/`#restart`). Cf. `scripts/forge/contracts/PLAYABLE_CONTRACT.md`.
    - `s10b-oracle-archi` → `archi = forge.static_oracles.check_architecture(blueprint, src_root)`.
    - `s10c-oracle-wiremap` → `wire = forge.static_oracles.check_wiremap(wiremap, src_root)`.
    - `s12-verdict` → **agrégation signée** (voir 4).
