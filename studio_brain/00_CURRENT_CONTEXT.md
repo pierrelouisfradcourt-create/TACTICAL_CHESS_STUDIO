@@ -1,100 +1,79 @@
 # Contexte courant TCS
-Dernière session : 2026-07-11 — **Forge : 3 axes machine livrés + PROUVÉS IN VIVO** (branche `feat/forge-oracle-gate`, jusqu'à `3e5c000`, origin à jour ; **pas mergé master**).
-Avant : /forge complet mergé master (`e7887ce`), Chess TCG pivot mobile (`af21a6d`), council-audit (`ebebb59`).
-Historique archivé : `journal/context-archive-2026-07-05.md` + `journal/context-archive-2026-07-06.md`.
+Dernière session : 2026-07-12 — **Gouvernance : bibliothèque de prompts + revue des contradictions règles/agents/skills** (2 docs, NON commités — gate Pierre).
+Avant : 2026-07-11 (suite) — **Forge 2.0 : P0 intégrité COMPLET (P0.1→P0.4) + tranche P1 mécanique FALSIFIÉE** (branche `feat/forge-oracle-gate`, **RIEN de commité — gate Pierre**).
+
+## Session 2026-07-12 — Prompts + revue règles (NON COMMITÉ)
+- **`docs/prompts/PROMPT_LIBRARY.md`** : prompts optimisés pour tous les workflows (10 sections :
+  démarrage, cadrage, implémentation par lane, oracles, revues, gates, nuit, forge, méta, garde-fous).
+- **`docs/audit/REVUE_REGLES_CONTRADICTIONS_2026-07-12.md`** : 14 findings (4 P0 · 6 P1 · 4 P2).
+  P0 : tests/ (qa-tester vs zone protégée) · AGENTS.md obsolète (Codex/GPT, push main vs master) ·
+  3 règles ledger divergentes (council vs imp-readiness vs CLAUDE.md) · /tick incohérent avec sa hard rule
+  (+ /imp-auto fantôme). Plan de correction en 7 étapes, chaque item = gate Pierre.
+- **Gates Pierre en attente (cette session)** : go/no-go sur le plan de correction ; commit des 2 docs.
+Avant : 3 gates forge prouvés in vivo (`3e5c000`/`87e9ec4`), /forge mergé master (`e7887ce`).
+Historique archivé : `journal/context-archive-2026-07-05/06/08.md`.
+
+## Session 2026-07-11 (suite) — FORGE 2.0 : P0 gelé + P1 falsifié (NON COMMITÉ)
+- **Audit Forge 2.0** : cartographie interne (fichier:ligne) × référentiel industrie → `docs/forge/FORGE_2_DESIGN.md`
+  (PROPOSED). Constat central : Forge vérifie tout SAUF ce que le joueur voit (Art&Presentation r=0.11 vs mécaniques).
+- **P0.1 driver** (`scripts/forge/driver.py`) : machine à états déterministe offline, state.json atomique, reprise
+  après kill, escalade bornée EN CODE — remplace la prose skill.md. Ratifié « conservation des preuves ».
+- **P0.2 preuve mutation** (`scripts/forge/mutation_proof.py`) : reçu mutation signé lié au run_id + sha256
+  (code+tests+harnais e2e+triage). Ferme I1/I2. Revue adversariale (Workflow) : 2 bypass confirmés+reproduits → fermés
+  (is_game reprise, sceau tests indirects).
+- **P0.3** : baseline verte obligatoire ; `verify_run` redescend dans le reçu mutation (échec dur au /gate) ;
+  `is_game` re-dérivé de signaux on-disk non-downgradables. Sweep final adversarial : 3 chemins confirmés → 2 fermés
+  en TDD + **doctrine triage ratifiée Pierre** : survivant trié = JAMAIS un OK propre → `HUMANGATE_READY_WITH_OBJECTION`
+  + flag (aucun nouveau software_verdict).
+- **P0.4** : footgun préfixe (`HUMANGATE_READY` ⊂ `…_WITH_OBJECTION`) → **`forge.verdict.is_clean_pass()` = SEUL
+  prédicat de promotion** (égalité stricte + zéro flag) ; consommé par `propose_ledger_entry` (embarque `clean_pass`).
+  Audit consommateurs : Forge couvert ; `executor_report`/autopilot = lane IMP distincte (namespace ≠, non étendu).
+  Mention : « risque couvert sur les chemins connus », PAS universel.
+- **Preuves P0** : 277 tests forge verts · TDD RED→GREEN sur chaque incrément · repros d'attaque réels (node) fermés.
+  **P0 GELÉ** (décision Pierre) : pas de P0.5, pas de workflow de conformité, pas d'élargissement autopilot/kaizen.
+- **Séparation ratifiée** : intégrité du système Forge (P0) ≠ qualité des jeux générés (gate séparé).
+  `menagerie_tactics` = artefact / gate qualité séparé, PAS un bloqueur P0.
+- **Tranche P1 mécanique-only : CLOSED, expérience FALSIFIÉE** (`docs/forge/P1_MECHANICAL_RESULTS.md`) :
+  capteur advisory `scripts/quality_sensor/` (isolé, seedé, 19/19) exécuté sur breakout+menagerie (verts P0) →
+  **5 signaux, 0 vrai positif**. A1/A2/A3/A5 lisibilité = KEEP (0 FP, détection non prouvée) ; A6 = DROP ;
+  FTUE = MODIFY doc-only (genre-aveugle). Leçon : le goulot = l'interprétation, pas la mesure.
+  **Gate réouverture P1 : détection orthogonale à P0 démontrée d'abord.** Proposition : `docs/forge/P1_1_PROPOSAL.md`
+  (sondes à défauts injectés, DOC SEULEMENT).
+- **P1.1 EXÉCUTÉE — SUCCESS (2026-07-12)** : protocole v2 ratifié+red-teamé (14 findings adjugés), phases A→D
+  sans déviation → **4/4 défauts détectés, 0 FP, P0 vert 5/5, gels sha vérifiés** (`P1_1_RESULTS.md`).
+  Démontré (formulation ratifiée Pierre) : *A1/A2/A3/A5 détectent des défauts synthétiques connus, orthogonaux
+  à P0, sur Breakout, sans FP observé dans cette expérience* — ni généralisation, ni subtil, ni exhaustif.
+- **Décisions Pierre 2026-07-12** : **P1 OUVERTE** (blocage méthodologique levé, pas « P1 validé ») ·
+  sondes → **fixtures permanentes** `fixtures/p1/` (non-régression capteur, `check.mjs` exit 0 prouvé) ·
+  **commits séparés FAITS** : `a13c262` (P0 code) `a2d0b50` (tests TDD) `1663571` (capteur) `103d275`
+  (fixtures) `4a93407` (docs forge) `3ac10cc` (évidences). **Acquis principal nommé par Pierre : le cycle
+  expérimental complet** (hypothèse→contrat→red-team→adjudication→ratification→expérience→conclusion limitée),
+  réutilisable pour tout futur capteur/oracle.
+- **Gates Pierre en attente** : (1) **push** de la branche (non poussée — gate séparé) ; (2) premier incrément
+  P1 (candidat : contrat `s10d-oracle-visual` couche déterministe advisory — proposition à cadrer) ; (3) merge
+  menagerie (gate qualité séparé) ; (4) tri des hors-axe restants non commités (oracles.json+games/breakout
+  [artefact jeu], leviathan, llm-lego, ledger, agents/skills `??` d'autres sessions).
 
 ## Session 2026-07-11 — Forge : renfort « niveau de production » (3 axes machine LIVRÉS)
-- **Contexte** : audit de re-forge (`journal/2026-07-10_reforge_experiment.md`) a mesuré que la forge durcie
-  BAISSE le niveau de production — e2e perdue **2/2 legacy → 0/3 re-forges**, contenu appauvri, wiremap rouge, mutation 67-80%.
-  Objectif ratifié Pierre : « les deux, dans l'ordre », sévérité **bloquer + auto-corriger**, **un axe à la fois**.
-  Méthode commune : brainstorm → spec → plan TDD → exécution → revue indépendante (sous-agent) → correctifs → commits.
-- **Axe 1 — GATE E2E** (`a293723`→`1d8b800`) : `check_e2e_harness` rejette e2e absent/non-câblé/coquille. Revue 3+5 corrigés.
-- **Axe 2 — GEL TRAÇABILITÉ** (`3f25bbb`→`c75e007`) : `check_feature_set_frozen` — jeu de règles (R1..R12) figé à s5
-  (`wiremap_frozen.json`) ; WireMap rouge à règles intactes → auto-correction ; règle ajoutée/supprimée → STOP HumanGate. Revue 4+ corrigés.
-- **Axe 3 — GATE MUTATION** (`c64ae7b`→`e75c36b`) : `check_mutation_gate` « 100% des mutants tués OU survivant trié
-  équivalent+justifié » (`mutation_triage.json`) ; s10a mute les fichiers logiques de la WireMap ; survivant non justifié →
-  auto-correction. Revue : **1 CRITICAL** (`mgate` perdu par écrasure de `oracle_ok`) + 3 imp. corrigés → `oracle_ok`
-  consolidé en UNE définition (code+e2e+wire+mutation) ; clé `(name,line)` ambiguë non triable ; `total==0` escalade-guidée.
-- **PREUVE IN VIVO** (harnais scratchpad, non commité) sur le VRAI jeu `games/collect_runner` : les 3 gates s'exécutent
-  réellement → e2e True, wiremap True, gel True (+ FAIL sur suppression R7), mutation **30/30 mutants tués** → `oracle_ok=True`.
-  Le run a EXPOSÉ un bug pré-existant : `_TS_METHOD` ratait les méthodes à défaut objet (`input = {}`) → faux positif
-  « fonction renommée » sur step/applyInput → **corrigé+régression, `3e5c000`**. Valeur du in vivo : les tests synthétiques ne le voyaient pas.
-- **Preuve globale** : **219 tests forge verts** ; gardes reproduisent les régressions mesurées ; intégration mutation réelle.
-  Specs/plans des 3 axes sous `docs/superpowers/`. software OK / evidence MECHANICAL / claim NO_CLAIM.
-- **Gates Pierre en attente** : (1) OPTION démo lourde = relancer la chaîne 13 agents LLM pour FABRIQUER un jeu de zéro
-  (prouve la même chose sur les gates, mais spawn coûteux Claude/Qwen + e2e Playwright) — non fait, non nécessaire ;
-  (2) éventuel axe 2-bis (traçabilité jusqu'à la preuve-test) + fix amont `(name,line)` (index d'occurrence dans
-  `generate_mutants`) ; (3) merge master de la branche. ⚠️ Non commité hors-axe : `scripts/forge/mutation.py` (durcissement
-  `.mutbak` anti-crash session précédente) + modifs pré-existantes (leviathan, llm-lego, IMPROVEMENT_LEDGER) — à trier.
+- **Axes 1-3 prouvés in vivo** (e2e guard, gel traçabilité, gate mutation) sur `collect_runner` : 30/30 mutants tués,
+  bug `_TS_METHOD` exposé et corrigé (`3e5c000`). 219 tests verts à ce stade. Détail : commits `a293723`→`87e9ec4`.
 
 ## Session 2026-07-09→10 — /forge : usine d'ingénierie contractuelle MERGÉE master
-- **Invariant** : chaque étape = un **contrat d'agent** (17 champs, `scripts/forge/contracts/SCHEMA.md`, 3 états rempli/`aucun`/absent). Aucun agent sans contrat complet ; le registry local (`roles.yaml`) résout le runtime — jamais de modèle en dur.
-- **Chaîne 13 contrats** (s0 Contrat→s1 Prisme→s2 WorldScan→s3 Décompo→s4 Archi→s5 WireMap→s6 RedteamPlan→s9 Build→s10a/b/c Oracles→s11 RedteamCode→s12 Verdict). Modules : `contract, dispatch, static_oracles, gate, oracle, verdict, studio_link, hook_guard`.
-- **Dispatch gouverné** (`prepare_dispatch` + audit) + **hook dur** PreToolUse (`FORGE_DISPATCH:<etape>:<run>`, fail-open, scopé). **Oracles** CODE + ARCHI/WIREMAP **multi-langages** (Python AST + Rust/TS/GDScript regex). **Connecteurs studio** propose-only (télémétrie/Kaizen/projet/pré-mortem). **Skill `/forge`** invocable. **ADR-002** (6 connecteurs, 4 gates ratifiés).
-- **1er run réel prouvé** : `chesscolor` (Build Haiku réel + 3 oracles + verdict signé ; a détecté une dérive de spec e4). Démo + logs runtime NON committés (volontaire).
-- **Reste** (voir [[forge_contract_dispatcher]]) : A2 exécution modèle réelle (Qwen s6 symbolique) → A3 verdict agrégé → A1 run complet 8 agents ; durcissement oracles (regex→AST), hook, connecteurs→dashboard/ledger réel, world-scan s2, étapes non-agent s7/s8/s13/s14, builder 8/17 facettes.
+- **Invariant** : chaque étape = un **contrat d'agent** (17 champs, 3 états) ; registry local résout le runtime.
+- **Chaîne 13 contrats** (s0→s12) ; dispatch gouverné + hook dur ; oracles multi-langages ; connecteurs propose-only ;
+  ADR-002. 1er run réel : `chesscolor`. Reste (cf. [[forge_contract_dispatcher]]) : durcissements + dashboard.
 
-## Session 2026-07-08 — llm-lego board : dashboard télémétrie Phase 3.5 (+ council-verdict-last)
-- **Phase 3.5 LIVRÉE** (`GET /api/telemetry` read-only + section « Télémétrie » Accueil) : ferme la boucle
-  des Phases 3/4 (capturaient sans afficher). Affichage **honnête du faible volume** (bannière « corpus en
-  accumulation », corpus réel = 4 appels/0 verdict), coût = tokens+durée « modèle local 0 € », aucun tarif inventé.
-  Preuve `telemetry-dashboard-validate.mjs` **36/0**. Numéro **3.5** volontaire — Phase 6 = Evolution System, dormant.
-- **Commit combiné `7527282` (NON poussé — gate Pierre pending)** : bundle avec la feature d'une **session Claude
-  parallèle** (working tree partagé, entrelacé dans `telemetry-read.mjs`/`demo-server.ts`/`builder.html`) :
-  `GET /api/council-verdict-last` + dernier verdict council par IMP + bouton « Préparer une session ». Vérifiée
-  **9/9** (`telemetry-read-validate.mjs`, à lancer via `run-validators.mjs` — échoue en standalone :3000 stale).
-- **Régression pleine `run-validators.mjs` 890/0 (46 suites).** `run-validators.mjs` modifié (chess-tcg ×2 → skip
-  `NEEDS_REAL_LIBRARY`) = concern chess-tcg **hors** de ce commit (laissé non stagé). ~11 process node stale (non nettoyés).
-
-## Session 2026-07-08 (soir) — Chess TCG : PIVOT CIBLE MOBILE (ratifié Pierre)
-- **Décision produit** : Chess TCG continue **sur Godot natif, cible MOBILE** (≠ navigateur, ce qu'écrivait la
-  roadmap). Point zéro consigné (`af21a6d`) : proto Godot 3D jouable vs IA (~1800 l. GDScript), moteur de règles
-  **pur headless testé (83/83 verts)**, assets CC0 KayKit 33 MB. Roadmap 7 jalons, **seul Jalon 1 audité**.
-- **2 IMP AUDIT_REQUIRED ouverts** : **IMP-254** (fiche carte lisible, `ui/hud.gd`) · **IMP-255** (cascade de
-  résolution étape-par-étape visible + verdict affichage-vs-règle, `ui/game3d.gd`+`core/rules.gd`, impact HIGH,
-  « risque design n°1 lignée T »).
-- **Passage borné 7 directeurs** (advisory, **zéro écriture**, aucun IMP créé) : 7/7 pertinents ; 8 exécutants
-  hors scope (dont les 3 agents Rust/ML). Fil rouge = le **journal d'événements de `rules.gd`** est l'actif à
-  exploiter (graine replay + cascade IMP-255 + check parité affichage↔règle). Risque n°1 = lisibilité/
-  prédictibilité (converge IMP-254/255). Delta mobile non absorbé par la roadmap : entrée hover→tap, budget perf 33 MB.
-
-## Session 2026-07-08 — council-audit LIVRÉ (`ebebb59`, poussé sur origin/master)
-Bouton **« Auditer via council »** sur les cartes **AUDIT_REQUIRED** du board, **live-only** : graphe council in-file
-(3 voix PLAN_REVIEW/RED_TEAM/DIVERGENCE) via `/api/execute` (Qwen :1234), **contexte IMP injecté**. Synthèse =
-**règle déterministe** (BLOQUE l'emporte · mixte/unparsed→ESCALADE), **aucun 4e LLM**, parsing ancré sur `VERDICT: X`
-final, durci contre l'auto-référence DIVERGENCE (rég. **s6**). **LECTURE SEULE stricte** (n'écrit ni ledger ni
-`HUMANGATE_DECISION_LOG.yaml`). Preuve : **39 suites / 794 verts**, 2 audits live réels. Fichiers : `llm-lego/builder.html`.
-
-## Session 2026-07-07 — Migration ledger IMP-256 + board (poussés `1555173`/`4d4d1a9`)
-- **IMP-256 CLOSED** (schéma ledger `project`+`theme`, 264 entrées) + **board llm-lego** `GET /api/imp-board`.
-  ⚠️ **IMP-247 = vrai trou** : `grep_guard_ledger` ne bloque pas le write-path direct hors `kaizen_loop`
-  (mitigation : `settings.json` ask-gate sur `lab/chains/**`, cf. doctrine ci-dessous).
-
-## ⚠️ DÉCISION MAJEURE — PIVOT PRODUIT (ratifié Pierre, session Claude 2026-07-05/06)
+## ⚠️ DÉCISION MAJEURE — PIVOT PRODUIT (ratifié Pierre, 2026-07-05/06)
 > **Toute session future qui propose du travail Rocky ou de l'outillage builder DOIT renvoyer ici.**
-- **Rocky : GEL.** Post-mortem à écrire ; branche gelée ; **aucune nouvelle session d'optimisation
-  moteur sans HumanGate explicite**.
-- **Factory réorientée** : gamme **jeux de cartes FR** — **Belote = produit 1**, **Tarot = produit 2**
-  (après extraction d'un **moteur de plis** commun).
-- **Prochain cycle — Action 1 (PRÉCÈDE le spec Belote) = RE-TRIAGE du ledger** : les IMP OPEN liés à
-  **Rocky / moteur / training** → passés **FROZEN** (motif « pivot 2026-07-06 »). **Revue de la liste
-  par HumanGate AVANT toute écriture.**
-- **Prochain cycle — Action 2 = spec PRODUIT Belote** : parcours joueur, **IA à niveaux**, hook
-  **défi-par-seed**, web statique **mobile-first / PWA**.
-- **Étage 2** = table entre amis **WebRTC** ; multijoueur public **gated**.
-
-## État git 2026-07-08 — tout poussé sur `origin/master`
-- Poussés ce cycle : IMP-256 `1555173` · board `4d4d1a9` · council-audit `ebebb59` · **pivot mobile chess_tcg
-  `af21a6d`** · ce handoff. Rien en attente.
-- ⚠️ Non commité (hors périmètre, laissé tel quel) : validateurs `llm-lego/*.mjs` + `*_result.json`,
-  `07_CURRENT_STATE.md`, e2e-shots belote — modifs de travail non liées au pivot.
+- **Rocky : GEL.** Aucune session d'optimisation moteur sans HumanGate explicite.
+- **Factory réorientée** : jeux de cartes FR — **Belote = produit 1**, **Tarot = produit 2** (moteur de plis commun).
+- Actions pendantes : re-triage ledger (IMP Rocky → FROZEN, revue HumanGate avant écriture) ; spec produit Belote
+  (IA à niveaux, défi-par-seed, PWA mobile-first) ; étage 2 = table WebRTC, multi public gated.
 
 ## Impasses / doctrine (portées)
-- LEDGER canonique = `lab/chains/IMPROVEMENT_LEDGER.yaml` ; écrire les IMP via `kaizen_loop.py`
-  (exception ponctuelle autorisée : migration schéma IMP-256 en écriture directe, cf. session 07-07).
-  **`.claude/settings.json` (`c7ba7e7`, durcissement IMP-247) : `Write/Edit(lab/chains/**)` déplacés de `allow`
-  vers `ask`** → toute écriture directe sur le ledger (hors `kaizen_loop`) déclenche désormais une **confirmation**.
-  C'est attendu, pas un bug — mitigation du write-path direct que `grep_guard_ledger` ne bloque pas (IMP-247).
-- `train.py` gelé (et de toute façon **Rocky = GEL**). `start_studio.ps1` OK (pas le `.sh`).
-- Serveur builder : `node demo-server.ts` :3000 (`/api/memory*`, `/api/cockpit`, `/api/imp-board`, `/api/execute`).
+- LEDGER canonique = `lab/chains/IMPROVEMENT_LEDGER.yaml` ; écrire via `kaizen_loop.py`.
+  `settings.json` : `Write/Edit(lab/chains/**)` en **ask** (mitigation IMP-247) — attendu, pas un bug.
+- **Forge** : `is_clean_pass()` = seul prédicat de passage propre ; `software_verdict` seul ≠ signal de promotion ;
+  survivant mutation trié = objection, jamais READY propre. Recette d'audit : `grep -rn 'software_verdict.*==.*OK'`.
+- `train.py` gelé (Rocky = GEL). Serveur builder : `node demo-server.ts` :3000.
 - Une variable à la fois · fondations avant features · **aucun commit/push sans go explicite Pierre**.
