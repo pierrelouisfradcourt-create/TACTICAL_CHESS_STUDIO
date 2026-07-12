@@ -130,12 +130,19 @@ def propose_ledger_entry(
 
     N'écrit JAMAIS le ledger : dépose une proposition que Pierre promeut via HumanGate.
     """
+    # Signal de promotion CANONIQUE : software_verdict seul ne distingue pas un OK
+    # propre d'un OK-avec-objection (survivant trié = software OK mais decision
+    # WITH_OBJECTION). La proposition transporte `clean_pass` pour qu'un promoteur
+    # futur ne clé JAMAIS sur software_verdict seul. Import local : évite tout cycle.
+    from forge.verdict import is_clean_pass
     record = {
         "run_id": run_id,
         "project": project,
         "lane": "AUDIT_REQUIRED",
         "status": "PROPOSED",
         "software_verdict": verdict.get("software_verdict"),
+        "decision": verdict.get("decision"),
+        "clean_pass": is_clean_pass(verdict),
         "evidence_verdict": verdict.get("evidence_verdict"),
         "claim_verdict": verdict.get("claim_verdict", "NO_CLAIM_ALLOWED"),
         "ts": time.time(),

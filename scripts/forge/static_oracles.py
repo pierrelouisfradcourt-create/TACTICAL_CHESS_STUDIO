@@ -413,8 +413,14 @@ def load_mutation_triage(game_dir) -> list[dict] | None:
 
 def check_mutation_gate(mutation_result: dict, triage_entries: list[dict] | None) -> dict:
     """« 100% ou survivant justifié ». Retourne {passed, checked, survivants_non_tries[],
-    triage_perimes[]}. Un survivant (name,line) est justifié ssi une entrée de triage a la
-    même clé ET une justification non vide. total==0 => checked False, passed False.
+    triage_perimes[], exception, triaged_survivors[]}. Un survivant (name,line) est justifié
+    ssi une entrée de triage a la même clé ET une justification non vide. total==0 =>
+    checked False, passed False.
+
+    Doctrine P0.3 (ratifiée Pierre 2026-07-11) : le triage reste autorisé (le gate est
+    FRANCHI) mais devient une EXCEPTION TRACÉE, pas une preuve d'équivalence. `exception`
+    vaut True ssi le gate est franchi AVEC au moins un survivant trié (=> jamais un OK
+    propre en aval : HumanGate obligatoire). 100% tués => exception False.
 
     Garde-fou (name,line non unique) : `name` est la RÈGLE de mutation (ex. 'ge->gt') et
     `line` sans colonne — deux mutants sur la même ligne partagent la clé. Une clé partagée
@@ -447,9 +453,15 @@ def check_mutation_gate(mutation_result: dict, triage_entries: list[dict] | None
         for t in triage
         if (t.get("name"), t.get("line")) not in set(counts)
     )
+    passed = not non_tries
+    # Exception de triage : gate franchi ALORS QUE des mutants ont survécu (tous
+    # triés). Ce n'est jamais un OK propre — la couche verdict impose HumanGate.
+    triaged = sorted(f"{s.get('name')}@L{s.get('line')}" for s in survivors) if (passed and survivors) else []
     return {
-        "passed": not non_tries,
+        "passed": passed,
         "checked": True,
         "survivants_non_tries": sorted(non_tries),
         "triage_perimes": triage_perimes,
+        "exception": bool(triaged),
+        "triaged_survivors": triaged,
     }

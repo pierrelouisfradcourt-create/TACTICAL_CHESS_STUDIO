@@ -189,14 +189,58 @@ def new_nonce() -> str:
 # software_verdict de l'agrégat vient UNIQUEMENT des oracles déterministes VÉRIFIÉS.
 # Le red-team est advisory : il lève des flags HumanGate, il ne juge JAMAIS le code.
 DECISION_READY = "HUMANGATE_READY"   # oracles verts — prêt pour la revue de Pierre
-DECISION_READY_OBJECTION = "HUMANGATE_READY_WITH_OBJECTION"  # oracles verts MAIS red-team a bloqué
+DECISION_READY_OBJECTION = "HUMANGATE_READY_WITH_OBJECTION"  # oracles verts MAIS objection (red-team OU exception de triage mutation)
 DECISION_BLOCKED = "BLOCKED"         # oracle rouge / provenance rompue — la chaîne s'arrête
+
+
+def is_clean_pass(verdict: dict) -> bool:
+    """Prédicat CANONIQUE d'un OK PROPRE — le seul autorisé pour décider une
+    promotion. Vrai SSI software_verdict == OK ET decision == HUMANGATE_READY
+    (ÉGALITÉ STRICTE) ET aucun humangate_flag.
+
+    Ferme le footgun : ``HUMANGATE_READY`` est un PRÉFIXE de
+    ``HUMANGATE_READY_WITH_OBJECTION`` — un ``startswith``/``in`` promouvrait un
+    OK-avec-objection. Un consommateur ne doit JAMAIS dériver « propre » de
+    software_verdict seul : un survivant mutation trié reste software_verdict=OK
+    mais decision=WITH_OBJECTION. Ne décide PAS le merge (c'est Pierre) —
+    empêche seulement de confondre OK-avec-réserve et OK-propre. NO_CLAIM_ALLOWED.
+
+    Point d'entrée d'audit de consommation (à rejouer quand un consommateur est
+    ajouté) : `grep -rn 'software_verdict.*==.*OK'` — chaque occurrence qui décide
+    une promotion DOIT passer par ce prédicat, jamais par software_verdict seul.
+    """
+    if not isinstance(verdict, dict):
+        return False
+    return (
+        verdict.get("software_verdict") == "OK"
+        and verdict.get("decision") == DECISION_READY   # strict, jamais startswith/in
+        and not verdict.get("humangate_flags")
+    )
+
+
+def _mutation_triage_exception(code_receipt) -> tuple[bool, list]:
+    """Le reçu code embarque-t-il une preuve mutation avec EXCEPTION DE TRIAGE ?
+
+    Doctrine P0.3 : un mutant survivant trié franchit le gate mutation mais reste
+    une exception — jamais un OK propre. Cette info voyage dans le detail signé du
+    reçu mutation (embarqué par le driver dans le reçu code) ; on la lit du reçu
+    DÉJÀ VÉRIFIÉ (provenance intacte). Retourne (exception, triaged_survivors)."""
+    if code_receipt is None:
+        return (False, [])
+    mut = (code_receipt.detail or {}).get("mutation")
+    if not isinstance(mut, dict):
+        return (False, [])
+    mdetail = (mut.get("receipt") or {}).get("detail") or {}
+    return (bool(mdetail.get("mutation_exception")), list(mdetail.get("triaged_survivors", [])))
 
 
 @dataclass(frozen=True)
 class AggregateVerdict:
     project: str
     run_id: str
+    # INVARIANT : software_verdict n'est PAS un contrat de promotion. Un OK peut
+    # porter une objection (decision=WITH_OBJECTION) ou des flags. Le SEUL prédicat
+    # de passage propre est is_clean_pass() — ne jamais promouvoir sur ce champ seul.
     software_verdict: str            # OK | FAIL | BLOCKED — ORACLES VÉRIFIÉS SEULS
     evidence_verdict: str            # MECHANICAL_VALIDATION_ONLY
     claim_verdict: str               # NO_CLAIM_ALLOWED
@@ -298,12 +342,19 @@ def build_aggregate_verdict(
         else:
             software = "BLOCKED"    # code sauté / rien de prouvé
 
+    # Exception de triage mutation (doctrine P0.3) : un survivant trié franchit le
+    # gate (software peut être OK) mais NE PEUT PAS produire un OK propre — HumanGate
+    # obligatoire. Lue du reçu code vérifié (sinon provenance rompue => déjà BLOCKED).
+    triage_exception, triaged = (_mutation_triage_exception(verified.get("code"))
+                                 if provenance_ok else (False, []))
+
     # Le red-team ne change PAS software_verdict (pas de LLM-as-judge), mais s'il a
     # BLOQUÉ alors que les oracles sont verts, Pierre doit le VOIR dans la décision
     # (un jeu "prêt" dont le red-team dit que la mécanique cœur n'est pas prouvée).
+    # Idem une exception de triage : oracles verts MAIS équivalence non prouvée.
     if software != "OK":
         decision = DECISION_BLOCKED
-    elif redteam_blocked:
+    elif redteam_blocked or triage_exception:
         decision = DECISION_READY_OBJECTION
     else:
         decision = DECISION_READY
@@ -319,6 +370,12 @@ def build_aggregate_verdict(
                 why = (d.get("deps_interdites_violées") or d.get("features_manquantes")
                        or d.get("preuves_absentes") or "violation")
                 flags.append(f"{name} rouge: {why}")
+    if triage_exception:
+        flags.append(
+            f"mutation: {len(triaged)} survivant(s) trié(s) par le producteur "
+            f"({', '.join(triaged)}) — équivalence NON vérifiée mécaniquement, "
+            "ratification HumanGate obligatoire avant tout claim positif"
+        )
     if redteam_blocked:
         flags.append(f"red-team BLOQUE ({redteam_reviewer}) — objection à examiner (advisory)")
     if not redteam_ran:

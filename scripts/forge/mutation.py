@@ -91,8 +91,15 @@ def run_mutation_test(source_path: Path | str, test_argv: list[str], *, cwd: Pat
     import shutil
     source_path = Path(source_path)
     cwd = str(Path(cwd).resolve())   # cwd ABSOLU (Windows : un cwd relatif casse CreateProcess)
+    # BACKUP SUR DISQUE : survit à un kill dur (SIGTERM/timeout où le `finally` ne
+    # tourne pas). Si un backup traîne d'un run précédent tué => on RESTAURE d'abord
+    # (auto-réparation), pour ne jamais laisser un fichier muté en place.
+    bak = source_path.with_suffix(source_path.suffix + ".mutbak")
+    if bak.exists():
+        source_path.write_bytes(bak.read_bytes())
     # Octets exacts pour la restauration (évite toute traduction \n<->\r\n Windows).
     original_bytes = source_path.read_bytes()
+    bak.write_bytes(original_bytes)
     mutants = generate_mutants(original_bytes.decode("utf-8"))
     if limit is not None:
         mutants = mutants[:limit]
@@ -116,6 +123,7 @@ def run_mutation_test(source_path: Path | str, test_argv: list[str], *, cwd: Pat
                 survivors.append({"name": mut.name, "line": mut.line})
     finally:
         source_path.write_bytes(original_bytes)   # TOUJOURS restaurer (octets exacts)
+        bak.unlink(missing_ok=True)                # nettoie le backup en fin normale
     total = len(mutants)
     return {
         "total": total, "killed": killed, "survived": len(survivors),
