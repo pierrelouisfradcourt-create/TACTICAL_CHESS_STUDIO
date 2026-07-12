@@ -1,5 +1,13 @@
 # Contexte courant TCS
-Dernière session : 2026-07-12 — **Gouvernance : bibliothèque de prompts + revue des contradictions règles/agents/skills** (2 docs, NON commités — gate Pierre).
+Dernière session : 2026-07-12 (soir) — **s10d : contrat RATIFIÉ Pierre → red-team (3 relecteurs, 21 findings,
+18 corrigés) → v2 + YAML LIVRÉ** : `scripts/forge/contracts/s10d-oracle-visual.yaml` (validé contract.py →
+non-llm, 277 tests forge verts AVEC le yaml = inertie prouvée), `S10D_CONTRACT_PROPOSAL.md` v2,
+`S10D_REDTEAM_ADJUDICATION.md`. Option B RETIRÉE (contredisait invariant). Critères E1 v2 re-ratifiés
+Pierre (« go E1 ») → **E1 EXÉCUTÉE : SUCCESS** (`S10D_E1_RESULTS.md` — hash canonique identique ×2 sur les
+2 cibles, couverture 4/4, non-nuisance octet prouvée, 0 signal périmètre, gels 5/5, évidence
+`lab/forge_sensors/_e1_evidence/`). Conclusion limitée : intégration inoffensive+reproductible, RIEN sur
+la détection. Incrément P1-1 COMPLET. NON commité.
+Avant : 2026-07-12 — **Gouvernance : bibliothèque de prompts + revue des contradictions règles/agents/skills** (2 docs, NON commités — gate Pierre).
 Avant : 2026-07-11 (suite) — **Forge 2.0 : P0 intégrité COMPLET (P0.1→P0.4) + tranche P1 mécanique FALSIFIÉE** (branche `feat/forge-oracle-gate`, **RIEN de commité — gate Pierre**).
 
 ## Session 2026-07-12 — Prompts + revue règles (NON COMMITÉ)
@@ -49,8 +57,9 @@ Historique archivé : `journal/context-archive-2026-07-05/06/08.md`.
   (fixtures) `4a93407` (docs forge) `3ac10cc` (évidences). **Acquis principal nommé par Pierre : le cycle
   expérimental complet** (hypothèse→contrat→red-team→adjudication→ratification→expérience→conclusion limitée),
   réutilisable pour tout futur capteur/oracle.
-- **Gates Pierre en attente** : (1) **push** de la branche (non poussée — gate séparé) ; (2) premier incrément
-  P1 (candidat : contrat `s10d-oracle-visual` couche déterministe advisory — proposition à cadrer) ; (3) merge
+- **Gates Pierre en attente** : (1) push : **FAIT 2026-07-12** (a13c262..e2e978c → origin ; travail s10d de la
+  session NON commité — gate commit séparé) ; (2) premier incrément
+  P1 : incrément s10d COMPLET (contrat+E1 SUCCESS) — suivant = P1.2 s10e-player-test (à cadrer, gate) ; (3) merge
   menagerie (gate qualité séparé) ; (4) tri des hors-axe restants non commités (oracles.json+games/breakout
   [artefact jeu], leviathan, llm-lego, ledger, agents/skills `??` d'autres sessions).
 
