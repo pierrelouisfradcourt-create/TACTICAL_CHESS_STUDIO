@@ -36,12 +36,13 @@ class StubExecutor:
     échouer sur commande, ou lever (interruption simulée pour tester resume).
     """
 
-    def __init__(self, run_dir=None, wiremap=None, fail_on=(), raise_on=()):
+    def __init__(self, run_dir=None, wiremap=None, fail_on=(), raise_on=(), blocked_on=None):
         self.calls = []
         self.run_dir = run_dir
         self.wiremap = wiremap
         self.fail_on = set(fail_on)
         self.raise_on = set(raise_on)
+        self.blocked_on = blocked_on or {}  # {etape: [findings...]} — panel Prisme, etc.
 
     def __call__(self, payload, decision, context):
         self.calls.append((payload.etape, context.get("model_override")))
@@ -52,6 +53,9 @@ class StubExecutor:
         if payload.etape == "s5-wiremap" and self.wiremap is not None:
             Path(self.run_dir, "wiremap.json").write_text(
                 json.dumps(self.wiremap, ensure_ascii=False), encoding="utf-8")
+        if payload.etape in self.blocked_on:
+            return {"ok": True, "output": f"artefact {payload.etape}",
+                    "blocked": True, "findings": self.blocked_on[payload.etape]}
         return {"ok": True, "output": f"artefact {payload.etape}"}
 
 
@@ -235,6 +239,40 @@ def test_full_sans_blueprint_va_au_bout_mais_verdict_blocked(tmp_path, offline):
     # le gel du jeu de règles est posé par le driver à s5 (plus de prose manuelle)
     frozen = json.loads((run_dir / "wiremap_frozen.json").read_text(encoding="utf-8"))
     assert frozen["features"] == ["R1 boot"]
+
+
+def test_prisme_detecte_mais_ne_decide_jamais(tmp_path, offline):
+    """Tier 2.5 étape 3 : le panel Prisme (s1) DÉTECTE des violations (via
+    forge.panel/check_prisme.mjs, remontées ici par un executor qui simule un
+    finding), mais ne les gate JAMAIS — software_verdict reste identique à un
+    run sans finding, seule la décision/humangate_flags en portent la trace."""
+    wiremap = {"features": [{"feature": "R1 boot", "fonction": "",
+                             "fichiers": ["main.py"], "preuve": "test_boot"}]}
+
+    def _run(blocked_on):
+        run_dir = tmp_path / f"run-{len(blocked_on)}"
+        src = tmp_path / f"src-{len(blocked_on)}"
+        src.mkdir()
+        (src / "main.py").write_text("def boot():\n    pass\n", encoding="utf-8")
+        ex = StubExecutor(run_dir=run_dir, wiremap=wiremap, blocked_on=blocked_on)
+        kw = dict(_kwargs(tmp_path, run_dir))
+        kw["audit_path"] = tmp_path / f"audit-{len(blocked_on)}.jsonl"
+        kw["telemetry_path"] = tmp_path / f"tel-{len(blocked_on)}.jsonl"
+        kw["builder_runs_path"] = tmp_path / f"br-{len(blocked_on)}.jsonl"
+        report = ForgeDriver("proj", "proj-1", profile="full", executor=ex,
+                             src_root=src, **kw).run()
+        record = json.loads((run_dir / "verdict.json").read_text(encoding="utf-8"))
+        return report, record
+
+    report_clean, record_clean = _run({})
+    report_flagged, record_flagged = _run(
+        {"s1-prisme": ["section manquante : ressent"]})
+
+    # même verdict logiciel avec ou sans finding Prisme — il ne décide jamais,
+    # seul humangate_flags porte la trace du finding (visible, jamais tu).
+    assert report_clean["software_verdict"] == report_flagged["software_verdict"]
+    assert any("Prisme" in f for f in record_flagged["humangate_flags"])
+    assert not any("Prisme" in f for f in record_clean["humangate_flags"])
 
 
 # --- boucle d'escalade fermée EN CODE ---------------------------------------------

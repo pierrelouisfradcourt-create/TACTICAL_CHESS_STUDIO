@@ -267,6 +267,7 @@ def build_aggregate_verdict(
     redteam_ran: bool,
     redteam_findings: Sequence[str] = (),
     redteam_blocked: bool = False,
+    extra_advisory: Sequence[str] = (),
     git_head: str = "",
     nonce: str = "",
     ts: float = 0.0,
@@ -282,6 +283,12 @@ def build_aggregate_verdict(
     ``redteam_ran`` est un booléen STRUCTURÉ (dérivé de la RouteDecision réelle),
     pas un sniff de la chaîne reviewer : il alimente le flag d'honnêteté.
     Le red-team n'entre JAMAIS dans le calcul de ``software_verdict``.
+
+    ``extra_advisory`` (Tier 2.5 étape 3) : flags PRÉ-FORMATÉS d'un contrôle qualité
+    additionnel qui DÉTECTE mais ne DÉCIDE jamais (ex. le panel Prisme, s1 : violations
+    de forme remontées par check_prisme.mjs). Même statut que le red-team : n'entre
+    JAMAIS dans ``software_verdict``, pousse ``decision`` vers WITH_OBJECTION s'il y a
+    quelque chose à signaler, toujours visible dans ``humangate_flags`` — jamais tu.
     """
     flags: list[str] = []
     receipts = {"code": code, "archi": archi, "wiremap": wiremap}
@@ -354,7 +361,7 @@ def build_aggregate_verdict(
     # Idem une exception de triage : oracles verts MAIS équivalence non prouvée.
     if software != "OK":
         decision = DECISION_BLOCKED
-    elif redteam_blocked or triage_exception:
+    elif redteam_blocked or triage_exception or extra_advisory:
         decision = DECISION_READY_OBJECTION
     else:
         decision = DECISION_READY
@@ -381,6 +388,7 @@ def build_aggregate_verdict(
     if not redteam_ran:
         # Honnêteté (structurée) : le reviewer indépendant n'a pas tourné.
         flags.append("red-team dégradé: reviewer indépendant n'a pas tourné (fallback)")
+    flags.extend(extra_advisory)
 
     oracles = {name: asdict(sr.receipt) for name, sr in receipts.items() if sr is not None}
     return AggregateVerdict(

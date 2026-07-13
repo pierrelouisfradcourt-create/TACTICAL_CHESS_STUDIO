@@ -506,6 +506,7 @@ class ForgeDriver:
         agg = build_aggregate_verdict(
             self.project, self.run_id, code_r, archi_r, wire_r, reviewer,
             redteam_ran=ran, redteam_findings=findings, redteam_blocked=blocked,
+            extra_advisory=self._prisme_facts(state),
             git_head=current_git_head(), nonce=new_nonce(), ts=time.time(),
             key_file=self.key_file,
         )
@@ -582,6 +583,26 @@ class ForgeDriver:
                     )
                 return ("red-team non exécuté", False, False, ())
         return ("aucun (profil sans red-team)", False, False, ())
+
+    def _prisme_facts(self, state: dict) -> tuple[str, ...]:
+        """Tier 2.5 étape 3 : formalise le panel Prisme (s1) comme un CONTRÔLE
+        QUALITÉ — il détecte des violations de forme (`forge.panel`, garde
+        `check_prisme.mjs`), il ne décide JAMAIS. Ses `findings` (s'il y en a)
+        sont pré-formatés ici et remontés dans `humangate_flags` du verdict signé
+        (via `extra_advisory`) — visibles, jamais tus, mais n'entrent JAMAIS dans
+        le calcul de `software_verdict` (même architecture que le red-team) :
+
+            Builder -> Artifact -> Prisme (détecte) -> Oracle réel -> Decision Gate
+        """
+        if "s1-prisme" not in self.order:
+            return ()
+        d = state["steps"].get("s1-prisme", {}).get("detail", {})
+        if not d.get("redteam_blocked"):
+            return ()
+        return tuple(
+            f"Prisme (s1, contrôle qualité — jamais un juge): {f}"
+            for f in d.get("redteam_findings", ())
+        )
 
     # --- escalade (boucle fermée EN CODE, mêmes bornes que forge.escalate) ----
 

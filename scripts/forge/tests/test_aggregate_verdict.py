@@ -169,6 +169,56 @@ def test_no_objection_decision_when_redteam_clean():
     assert v.decision == "HUMANGATE_READY"
 
 
+# --- extra_advisory (Tier 2.5 étape 3, panel Prisme) : contrôle qualité, jamais juge --
+
+def _agg_with_extra(extra_advisory=(), code="OK", archi="OK", wiremap="OK", run_id="R", key=KEY):
+    return build_aggregate_verdict(
+        "demo", run_id,
+        _code_receipt(code, run_id, key),
+        _rcpt("archi", archi, run_id, key=key),
+        _rcpt("wiremap", wiremap, run_id, key=key),
+        "qwen2.5-14b-instruct", redteam_ran=True, extra_advisory=extra_advisory,
+        nonce="n1", key_file=key,
+    )
+
+
+def test_extra_advisory_ne_change_jamais_software_verdict():
+    """Le panel Prisme (s1) DÉTECTE, il ne DÉCIDE jamais — même architecture que le
+    red-team. Un finding Prisme sur des oracles verts reste software_verdict OK."""
+    v = _agg_with_extra(extra_advisory=("Prisme (s1, contrôle qualité — jamais un juge): "
+                                        "section manquante: ressent",))
+    assert v.software_verdict == "OK"
+
+
+def test_extra_advisory_pousse_objection_et_est_visible_dans_humangate_flags():
+    v = _agg_with_extra(extra_advisory=("Prisme (s1, contrôle qualité — jamais un juge): "
+                                        "section manquante: ressent",))
+    assert v.decision == "HUMANGATE_READY_WITH_OBJECTION"
+    assert any("Prisme" in f for f in v.humangate_flags)
+
+
+def test_extra_advisory_vide_ne_pousse_pas_objection():
+    v = _agg_with_extra(extra_advisory=())
+    assert v.decision == "HUMANGATE_READY"
+
+
+def test_extra_advisory_et_redteam_blocked_cumulent_sans_se_marcher_dessus():
+    """Deux contrôles qualité indépendants (Prisme + red-team) peuvent chacun
+    signaler — les deux flags survivent, aucun n'écrase l'autre."""
+    v = build_aggregate_verdict(
+        "demo", "R",
+        _code_receipt("OK", "R", KEY), _rcpt("archi", "OK", "R", key=KEY),
+        _rcpt("wiremap", "OK", "R", key=KEY), "qwen2.5-14b-instruct",
+        redteam_ran=True, redteam_blocked=True, redteam_findings=("câblage incohérent",),
+        extra_advisory=("Prisme (s1, contrôle qualité — jamais un juge): section manquante",),
+        nonce="n1", key_file=KEY,
+    )
+    assert v.software_verdict == "OK"
+    assert v.decision == "HUMANGATE_READY_WITH_OBJECTION"
+    assert any("red-team" in f.lower() for f in v.humangate_flags)
+    assert any("Prisme" in f for f in v.humangate_flags)
+
+
 # --- honnêteté du reviewer (A2 -> A3), désormais STRUCTURÉE -------------------
 
 def test_real_reviewer_is_recorded():
