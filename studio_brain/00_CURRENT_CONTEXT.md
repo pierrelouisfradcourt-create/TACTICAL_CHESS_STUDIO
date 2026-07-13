@@ -1,21 +1,21 @@
 # Contexte courant TCS
-Dernière session : 2026-07-13 — **WFL-01 (workflow lab breakout) : variante COMPLÉTÉE + oracle figé
-RÉÉCRIT (go Pierre explicite) → VERT symétriquement sur les 2 branches (NON commité).**
-`variant/render.mjs` + `variant/input.mjs` écrits en isolation d'agent (jamais lu `control/render.mjs`/
-`input.mjs` — seulement le contrat + `variant/game.mjs`/`level.mjs` déjà livrés). L'oracle `shared/`
-trouvé au départ était inexécutable sur les 2 branches (API halluciné : `applyInput/view/levelIndex/
-brick.health/status ACTIVE-WON`, zéro historique git pour dater la divergence). **Go Pierre : « corrige
-l'arbitre pour qu'il colle aux deux branches »** → les 3 fichiers (`solvability.mjs`, `logic.test.mjs`,
-`properties.test.mjs`) réécrits contre le contrat RÉEL commun (lu dans le code : `step(dtMs,input)`,
-`status` normalisé win/won-lose/lost, `brick.score??points`, `level`). 2 bugs réels trouvés et corrigés
-EN écrivant (pas après lecture de résultat) : faux positif de scan (commentaire JSDoc citant
-`Math.random()` pris pour du code) + tunnel de collision côté variant (échelle dt px/ms vs px/s, pas
-la même conversion que control). **Résultat final, sha256 vérifié identique (shared=control=variant) :
-25/25 tests + solvabilité bot PASS sur LES DEUX branches**, symétriquement — aucune branche
-disqualifiée par le panel. N=1, portée limitée (règle 4 : N≥2 avant conclusion ferme) ; le panel §3
-n'a jamais été figé AVANT le 1er rollout (déviation actée pour CETTE expérience, pas un précédent).
-Détail complet + tableau des différences control/variant : `lab/workflow_lab/WFL-01/results.md`.
-**Rien commité.**
+Dernière session : 2026-07-13 — **WFL-01 (workflow lab breakout) : COMMITÉ (`ccb46a6`) + rejoué en
+run2 (N=2, règle protocole) → VERT stable sur 2 builds indépendants, oracle réutilisé SANS retouche.**
+Variante run1 complétée (`variant/render.mjs`+`input.mjs`, isolation d'agent respectée). Oracle `shared/`
+trouvé inexécutable au départ (API halluciné : `applyInput/view/levelIndex/brick.health`, zéro
+historique git) → **go Pierre explicite (« corrige l'arbitre pour qu'il colle aux deux branches »)** →
+réécrit contre le contrat RÉEL commun (`step(dtMs,input)`, status normalisé win/won-lose/lost,
+`brick.score??points`) ; 2 bugs trouvés et corrigés EN écrivant (faux positif scan JSDoc, tunnel de
+collision variant dû à l'échelle dt px/ms vs px/s). run1 : 25/25 tests + solvabilité PASS sur les 2
+branches, sha256 vérifié. **Commité + poussé pas encore — commit local seul.** Puis **run2** (10
+fichiers réécrits de zéro dans `run2/`, aucune copie de run1, isolation d'agent maintenue côté
+variante) : **même résultat, 25/25 + solvabilité PASS sur les 2 branches, ET l'oracle de run1 a été
+réutilisé TEL QUEL sans aucune modification** — signal que la réécriture testait le contrat, pas les
+détails d'un build précis. Portée toujours limitée : aucun axe coût/robustesse-processus/visuel mesuré
+(hors scope de cet oracle). Détail : `lab/workflow_lab/WFL-01/results.md` (run1) +
+`results2.md` (run2). **Prochaine étape non tranchée** (proposé à Pierre, pas de réponse encore) :
+instrumenter un axe coût/robustesse avant toute promotion, OU passer à `search.mjs` (prochaine
+expérience candidate documentée). **run2 pas encore commité.**
 Avant : 2026-07-12 — **PLANS D'ARCHITECTURE STUDIO (synthèse tri-IA, NON commité).**
 Tri des dernières discussions GPT/Gemini (lues via Chrome) → 3 docs figés : `docs/forge/STUDIO_ARCHITECTURE.md`
 (vision+couplage org-chart↔Forge, imports MIT Claude-Code-Game-Studios = 49 rôles→contrats, leur trou = notre
