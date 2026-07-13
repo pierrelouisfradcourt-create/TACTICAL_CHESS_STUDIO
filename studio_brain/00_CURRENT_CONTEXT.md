@@ -1,17 +1,19 @@
 # Contexte courant TCS
-Dernière session : 2026-07-13 — **WFL-02 FABRIQUÉ (coup A1 « prisme → panel ×5 »), 6/6 conforme,
-divergence réelle mesurée entre les 5 regards (NON commité).** Go Pierre : « fabrique le prisme à 5
-regards ». 5 artefacts `product_snapshot_{ceo,gd,front,back,joueur}.md` écrits en isolation (charter
-breakout de WFL-01 réutilisé, sha256 identique) + contrôle = le vrai artefact WFL-01 existant (pas
-régénéré). Oracle non-LLM `check_prisme.mjs` (forme seulement, jamais le contenu) : **1 faux positif
-trouvé et corrigé AVANT conclusion** (phrase qui AFFIRME l'absence d'un placeholder « à définir » prise
-pour un placeholder — même famille de bug que WFL-01) → puis 6/6 PASS. Zéro renvoi côté artefacts.
-**Divergence réelle et mesurée (pas supposée)** : aucun des 5 regards ne couvre le bornage de la
-raquette (présent chez le contrôle) — un angle du charter disparaît totalement du panel ; à l'inverse 2
-préoccupations neuves apparaissent (CEO : dérive de scope ; Front : découplage rendu/logique) absentes
-du contrôle. Confirme empiriquement l'hypothèse de `PRISM_SCOPING.md` : le problème de recombinaison
-(coup A2, non traité ici — hors scope volontaire) est réel, pas théorique. Détail :
-`lab/workflow_lab/WFL-02/{PROTOCOL.md,results.md}`. **Rien commité — N=1, pas de conclusion ferme.**
+Dernière session : 2026-07-13 — **WFL-02 coup A1+A2 COMMITÉS (`798e97b` + un commit suivant) : panel
+×5 fabriqué (6/6 conforme) PUIS recombiné mécaniquement, zéro LLM-arbitre.** Go Pierre : « fabrique le
+prisme à 5 regards » puis « réconcilie ». A1 : 5 artefacts `product_snapshot_{ceo,gd,front,back,
+joueur}.md` isolés (charter breakout WFL-01 réutilisé) + contrôle = artefact WFL-01 réel. Oracle
+`check_prisme.mjs` : 1 faux positif trouvé et corrigé avant conclusion → 6/6 PASS. Divergence réelle
+mesurée : le bornage raquette disparaît du panel, 2 préoccupations neuves apparaissent (scope CEO,
+découplage rendu Front). **A2 (`merge_prisme.mjs`)** : décision de conception explicite — union
+mécanique par critère charter cité, ZÉRO LLM-arbitre (risque nommé dans PRISM_SCOPING.md §2). 1 bug
+réel trouvé et corrigé en construisant (`$` en mode /m tronquait la capture à la 1re ligne — sections
+« vides » silencieusement fausses). **Limite honnête trouvée et déclarée, pas cachée** : l'outil
+annonce `FULL_COVERAGE` (6/6 critères structurés couverts) mais NE reproduit PAS le gap « bornage
+raquette » trouvé à la main en A1 — ce gap vit dans la prose libre du charter (`objectif:`), pas dans
+ses 9 tags `criteres_succes` structurés ; l'outil est donc plus grossier que la lecture humaine, déclaré
+tel quel plutôt que silencieusement élargi (élargir au scan de prose libre = réintroduire le risque
+d'interprétation qu'il est censé éviter). Détail : `lab/workflow_lab/WFL-02/{results.md,results_a2.md}`.
 Avant (même session) : **WFL-01 COMMITÉ (`ccb46a6`,`aea2042`)** — run1+run2 (N=2) VERT stable, oracle
 réécrit une fois puis réutilisé sans retouche. **Coût/robustesse mesurés** (`WFL-01/cost_robustness.md`,
 NON commité) : proxy seulement (pas de télémétrie driver réelle) — volume variante +13 à +40 %, overhead
