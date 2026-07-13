@@ -1,0 +1,66 @@
+{
+ "created_ts": 1783952132.5513651,
+ "escalations": 0,
+ "is_game": false,
+ "model_override": null,
+ "profile": "patch",
+ "project": "driver_smoke",
+ "run_id": "driver_smoke-run1",
+ "run_status": "DONE",
+ "steps": {
+  "s10a-oracle-code": {
+   "attempts": 1,
+   "detail": {
+    "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke\\evidence\\oracle_driver_smoke.log",
+    "returncode": 0
+   },
+   "status": "OK",
+   "ts": 1783952428.4329436
+  },
+  "s11-redteam-code": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke\\artifacts\\s11-redteam-code.txt",
+    "artifact_sha256": "9b45957841e569ad73abf7ef9ab7f7c68f299f69ccd65bbc15a2857a6e9c1a52",
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "`clamp(5,10,0)===0` |\n| F2 | Borne `NaN` empoisonne un `x` valide | MEDIUM | `clamp(5,NaN,10)` → `NaN` |\n| F3 | Zéro validation de type, coercion/`NaN` silencieux | MEDIUM | `clamp('abc',0,10)`→`NaN`, `clamp(null,0,10)`→`0` |\n| F4 | Arité non contrôlée → `NaN` silencieux | LOW | `clamp(5)` → `NaN` |\n\nThème transversal : **échecs silencieux**. Le code ne lève jamais ; toute entrée dégénérée (borne inversée, NaN, mauvais type, argument manquant) produit une valeur trompeuse ou `NaN` qui se propage sans détection. C'est le mode de défaillance le plus dangereux pour un utilitaire de bas niveau réutilisé partout.\n\n---\n\n## RAPPORT FINAL (séparation des verdicts)\n\n- **software_verdict: FAIL** — 4 failles reproductibles (F1–F4) sur bornes inversées, propagation NaN, absence de validation de type et d'arité. Chaque assertion est déterministe et exécutable par un oracle Node non-LLM.\n- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — les reproductions F1–F4 sont dérivées des sémantiques ECMAScript de `Math.min`/`Math.max` (coercion `ToNumber`, propagation `NaN`), mécaniquement décidables. **Réserve** : je n'ai pas exécuté ces assertions (contrat `run: aucun`) ; l'evidence n'est pleinement scellée qu'après passage par l'oracle non-LLM aval.\n- **claim_verdict: NO_CLAIM_ALLOWED** — je ne certifie aucun résultat de mon propre chef.\n\n**fog → HumanGate** : deux points de jugement qui ne relèvent pas d'un oracle et remontent à Pierre :\n1. Le contrat de `clamp` **exige-t-il** de gérer les bornes inversées / entrées non-numériques, ou est-ce hors périmètre pour ce smoke-run ? (Sévérité MEDIUM ↔ NON-issue selon la réponse.)\n2. Comportement voulu sur entrée invalide : **lever** (`TypeError`/`RangeError`) vs **retourner une valeur de repli** — décision de design, pas d'oracle.\n\n**Action aval requise** : exécuter les 4 blocs de reproduction ci-dessus via un oracle Node non-LLM pour sceller `software_verdict: FAIL` en evidence complète. Sans cette exécution, rester en `NO_CLAIM_ALLOWED`.",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude"
+   },
+   "status": "OK",
+   "ts": 1783952514.9191527
+  },
+  "s12-verdict": {
+   "attempts": 1,
+   "detail": {
+    "decision": "HUMANGATE_READY",
+    "software_verdict": "OK",
+    "verdict_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke\\verdict.json"
+   },
+   "status": "OK",
+   "ts": 1783952514.9589708
+  },
+  "s9-build": {
+   "attempts": 3,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\driver_smoke\\artifacts\\s9-build.txt",
+    "artifact_sha256": "4bd32fb8ab826321b3dc2f2ab28bb59f45d08c35e9a34a2871756d2a6b463b90",
+    "model": "claude-haiku-4-5-20251001",
+    "model_override": null,
+    "output_excerpt": "---\n\n## RAPPORT FINAL — driver_smoke-run1\n\n### software_verdict: **OK**\n\nLe bug dans `clamp(x, lo, hi)` a été identifié et corrigé. La fonction retourne désormais `Math.min(hi, Math.max(x, lo))` qui borne correctement `x` dans l'intervalle [lo, hi].\n\n**Fichiers modifiés :**\n- `lab/forge_runs/driver_smoke/src/logic.mjs` — correction de la fonction clamp (1 ligne modifiée)\n\n**Ownership respecté :** Aucun fichier hors périmètre modifié. `logic.test.mjs` resté intouché (zone protégée).\n\n### evidence_verdict: **MECHANICAL_VALIDATION_ONLY**\n\n**Oracle code exécuté :**\n```bash\ncd lab/forge_runs/driver_smoke/src && node --test logic.test.mjs\n```\n\n**Résultat oracle :**\n```\n✔ clamp bounds a value above the range (0.4022ms)\n✔ clamp bounds a value below the range (0.0695ms)\n✔ clamp leaves an in-range value untouched (0.0513ms)\n✔ tests 3 | pass 3 | fail 0\n```\n\n### claim_verdict: **NO_CLAIM_ALLOWED**\n\nRaison : Ce projet n'est pas un jeu (is_game: false). Pas de contrat solvabilité ni e2e requis. La correction est purement mécanique et démontrée par l'oracle code (3/3 tests verts).\n\n### Traçabilité\n- **Recherche réutilisation** : `scripts/forge/reuse_ratio.mjs lab/forge_runs/driver_smoke` → reuse_ratio = 0.000 (code auto-contenu, aucun import de module applicatif)\n- **Contrat** : FORGE_DISPATCH:s9-build:driver_smoke-run1\n- **Branche** : feat/forge-oracle-gate\n\n---\n\n**✓ Tâche complétée.** Les 3 tests passent. Logic.mjs est en produit. Prêt pour s10a-oracle-code.",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-haiku-4-5-20251001",
+    "runner": "claude"
+   },
+   "status": "OK",
+   "ts": 1783952428.3398871
+  }
+ },
+ "updated_ts": 1783952514.9599714
+}

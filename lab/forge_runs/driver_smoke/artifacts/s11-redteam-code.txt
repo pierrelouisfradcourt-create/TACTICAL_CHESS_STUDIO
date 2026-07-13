@@ -1,0 +1,86 @@
+# rapport_redteam_code.md — driver_smoke-run1 / s11-redteam-code
+
+**Cible auditée** : `lab/forge_runs/driver_smoke/src/logic.mjs`
+**Code sous revue (intégralité)** :
+```js
+export function clamp(x, lo, hi) {
+  return Math.min(hi, Math.max(x, lo));
+}
+```
+**Posture** : auditeur aveuglé — je n'ai pas vu les justifications du builder et ne les reconstitue pas. Chaque faille ci-dessous est accompagnée d'une reproduction déterministe exécutable par un oracle non-LLM (assertion Node.js), pas d'une suspicion.
+
+> ⚠️ Garde-fou permissions : mon contrat impose `run: aucun`. Je **n'ai pas exécuté** ces reproductions moi-même. Elles sont écrites comme assertions Node autonomes destinées à être passées à un oracle non-LLM en aval. Les valeurs attendues sont dérivées des sémantiques déterministes de `Math.min`/`Math.max` (coercion `ToNumber`, propagation `NaN`) — spécifiées ECMAScript, donc mécaniquement vérifiables.
+
+---
+
+## Failles
+
+### F1 — Bornes inversées (`lo > hi`) silencieusement acceptées → toujours `hi`
+- **angle** : invariant de domaine / contrat implicite `[lo, hi]`
+- **faille** : aucune validation `lo <= hi`. Quand `lo > hi`, `Math.max(x, lo) >= lo > hi`, donc `Math.min(hi, …)` renvoie **toujours `hi`**, quelle que soit `x`. Le résultat sort de l'intention (une valeur valide dans `[hi, lo]` est écrasée) sans erreur ni signal.
+- **sévérité** : MEDIUM (corruption silencieuse de données ; un appelant qui passe les bornes dans le mauvais ordre n'est jamais averti)
+- **reproduction** :
+  ```bash
+  node --input-type=module -e "import {clamp} from './lab/forge_runs/driver_smoke/src/logic.mjs'; console.assert(clamp(5,10,0)===0, 'got '+clamp(5,10,0)); console.assert(clamp(999,10,0)===0); console.log('F1: clamp(5,10,0) =', clamp(5,10,0))"
+  ```
+  Oracle attendu : renvoie `0` (== `hi`) au lieu de lever/normaliser → invariant `lo<=hi` non gardé.
+
+### F2 — Une borne `NaN` empoisonne une entrée `x` valide
+- **angle** : propagation NaN sur argument de configuration (pas seulement sur la donnée)
+- **faille** : `NaN` sur **n'importe quel** argument produit `NaN`. Le cas dangereux : `x` est parfaitement valide mais une borne corrompue détruit le résultat. `Math.max(5, NaN) === NaN`, puis `Math.min(10, NaN) === NaN`.
+- **sévérité** : MEDIUM (contamination silencieuse : la sortie devient `NaN` sans qu'aucune garde ne l'attrape — se propage en aval)
+- **reproduction** :
+  ```bash
+  node --input-type=module -e "import {clamp} from './lab/forge_runs/driver_smoke/src/logic.mjs'; const r=clamp(5,NaN,10); console.assert(Number.isNaN(r),'expected NaN'); console.log('F2: clamp(5,NaN,10) =', r)"
+  ```
+  Oracle attendu : `NaN`. Variantes équivalentes : `clamp(NaN,0,10)` → `NaN`, `clamp(5,0,NaN)` → `NaN`.
+
+### F3 — Aucune validation de type : arguments non-numériques coercés ou transformés en `NaN`, sans `TypeError`
+- **angle** : robustesse de type / contrat d'entrée
+- **faille** : aucun `typeof`/`Number.isFinite`. `Math.min`/`Math.max` appliquent `ToNumber` silencieusement. Résultats incohérents selon le type : `null`→`0`, `[]`→`0`, `"5"`→`5`, mais `"abc"`/`{}`/`undefined`→`NaN`. Un appelant qui passe une chaîne ou un objet obtient soit un résultat coercé trompeur, soit `NaN`, jamais une erreur.
+- **sévérité** : MEDIUM (échecs incohérents et silencieux ; masque les bugs d'appelant)
+- **reproduction** :
+  ```bash
+  node --input-type=module -e "import {clamp} from './lab/forge_runs/driver_smoke/src/logic.mjs'; console.log('null=',clamp(null,0,10)); console.log('\"abc\"=',clamp('abc',0,10)); console.log('[]=',clamp([],0,10)); console.log('\"5\"=',clamp('5',0,10)); console.assert(clamp(null,0,10)===0); console.assert(Number.isNaN(clamp('abc',0,10)))"
+  ```
+  Oracle attendu : `null` → `0`, `"abc"` → `NaN`, `[]` → `0`, `"5"` → `5` — aucune exception levée ⇒ absence totale de garde de type.
+
+### F4 — Arité non contrôlée : arguments manquants → `NaN` silencieux
+- **angle** : robustesse d'appel / arité
+- **faille** : `clamp(5)` laisse `lo`/`hi` à `undefined`. `Math.max(5, undefined) === NaN` puis `Math.min(undefined, NaN) === NaN`. Aucun signal d'usage incorrect.
+- **sévérité** : LOW (erreur d'usage plausible, mais échoue silencieusement au lieu d'erreur claire)
+- **reproduction** :
+  ```bash
+  node --input-type=module -e "import {clamp} from './lab/forge_runs/driver_smoke/src/logic.mjs'; const r=clamp(5); console.assert(Number.isNaN(r)); console.log('F4: clamp(5) =', r)"
+  ```
+  Oracle attendu : `NaN`.
+
+### Note (NON-faille) — `Infinity` est correctement géré
+Contrairement à ce que suggère la piste initiale, `Infinity`/`-Infinity` se comportent correctement : `clamp(Infinity,0,10)===10`, `clamp(-Infinity,0,10)===0`, `clamp(5,-Infinity,Infinity)===5`. Je ne rapporte donc **pas** de faille Infinity — je l'écarte explicitement pour ne pas gonfler le rapport de faux positifs. (Reproduction de contrôle : `node --input-type=module -e "import {clamp} from './lab/forge_runs/driver_smoke/src/logic.mjs'; console.assert(clamp(Infinity,0,10)===10); console.assert(clamp(-Infinity,0,10)===0)"` — passe.)
+
+---
+
+## Synthèse (pour le dispatcher / verdict aval)
+
+| ID | Faille | Sévérité | Reproduction |
+|---|---|---|---|
+| F1 | Bornes inversées `lo>hi` → toujours `hi`, silencieux | MEDIUM | `clamp(5,10,0)===0` |
+| F2 | Borne `NaN` empoisonne un `x` valide | MEDIUM | `clamp(5,NaN,10)` → `NaN` |
+| F3 | Zéro validation de type, coercion/`NaN` silencieux | MEDIUM | `clamp('abc',0,10)`→`NaN`, `clamp(null,0,10)`→`0` |
+| F4 | Arité non contrôlée → `NaN` silencieux | LOW | `clamp(5)` → `NaN` |
+
+Thème transversal : **échecs silencieux**. Le code ne lève jamais ; toute entrée dégénérée (borne inversée, NaN, mauvais type, argument manquant) produit une valeur trompeuse ou `NaN` qui se propage sans détection. C'est le mode de défaillance le plus dangereux pour un utilitaire de bas niveau réutilisé partout.
+
+---
+
+## RAPPORT FINAL (séparation des verdicts)
+
+- **software_verdict: FAIL** — 4 failles reproductibles (F1–F4) sur bornes inversées, propagation NaN, absence de validation de type et d'arité. Chaque assertion est déterministe et exécutable par un oracle Node non-LLM.
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — les reproductions F1–F4 sont dérivées des sémantiques ECMAScript de `Math.min`/`Math.max` (coercion `ToNumber`, propagation `NaN`), mécaniquement décidables. **Réserve** : je n'ai pas exécuté ces assertions (contrat `run: aucun`) ; l'evidence n'est pleinement scellée qu'après passage par l'oracle non-LLM aval.
+- **claim_verdict: NO_CLAIM_ALLOWED** — je ne certifie aucun résultat de mon propre chef.
+
+**fog → HumanGate** : deux points de jugement qui ne relèvent pas d'un oracle et remontent à Pierre :
+1. Le contrat de `clamp` **exige-t-il** de gérer les bornes inversées / entrées non-numériques, ou est-ce hors périmètre pour ce smoke-run ? (Sévérité MEDIUM ↔ NON-issue selon la réponse.)
+2. Comportement voulu sur entrée invalide : **lever** (`TypeError`/`RangeError`) vs **retourner une valeur de repli** — décision de design, pas d'oracle.
+
+**Action aval requise** : exécuter les 4 blocs de reproduction ci-dessus via un oracle Node non-LLM pour sceller `software_verdict: FAIL` en evidence complète. Sans cette exécution, rester en `NO_CLAIM_ALLOWED`.

@@ -49,6 +49,7 @@ from forge.static_oracles import (
     check_architecture,
     check_e2e_harness,
     check_feature_set_frozen,
+    check_reuse_ratio_wired,
     check_wiremap,
     frozen_features_from_wiremap,
     load_frozen_features,
@@ -413,6 +414,10 @@ class ForgeDriver:
             return
         e2e = check_e2e_harness(self.src_root)
         detail["e2e"] = e2e
+        # Advisory (Tier 1 #2) : ne gate jamais oracle_ok — reuse_ratio mesure,
+        # il ne prouve rien. L'absence de câblage reste visible dans le reçu signé
+        # (verdict.json), au lieu de dépendre de la seule citation du builder.
+        detail["reuse_ratio_wired"] = check_reuse_ratio_wired(self.src_root)
 
         files = list(self.logic_files or [])
         if not files:

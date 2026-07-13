@@ -344,6 +344,34 @@ def check_e2e_harness(src_root: Path) -> dict:
     return {"passed": not raisons, "raisons": raisons}
 
 
+# --- garde structurelle reuse_ratio (Tier 1 #2, renfort 2026-07-13) ---------------
+# Le contrat s9-build (§2bis) DEMANDE au builder de citer scripts/forge/reuse_ratio.mjs
+# dans son final_report, mais rien n'obligeait MÉCANIQUEMENT le run-oracle à l'exécuter
+# — un builder pouvait citer la mesure sans jamais l'avoir lancée. Cette garde vérifie
+# seulement que run-oracle.mjs INVOQUE réellement reuse_ratio.mjs (même verbe d'exécution
+# que _E2E_WIRED) ; advisory, jamais gating : reuse_ratio ne juge pas (un ratio bas n'est
+# pas une erreur, cf. reuse_ratio.mjs), seule l'ABSENCE de mesure est rapportée ici.
+_REUSE_RATIO_WIRED = re.compile(r"(?:run|spawn|exec|execFile|fork|import|node)\b[^\n]*?reuse_ratio\.mjs")
+
+
+def check_reuse_ratio_wired(src_root: Path) -> dict:
+    """run-oracle.mjs invoque-t-il réellement reuse_ratio.mjs ?
+
+    Retourne {passed, raisons[]}. Advisory (n'affecte jamais oracle_ok) : contrairement
+    à check_e2e_harness, l'absence de câblage est un FAIT à remonter à HumanGate, pas un
+    FAIL mécanique — reuse_ratio mesure, il ne prouve rien qui gate le code.
+    """
+    src_root = Path(src_root)
+    runner = src_root / "run-oracle.mjs"
+    if not runner.exists():
+        return {"passed": False, "raisons": ["run-oracle.mjs absent"]}
+    if not _REUSE_RATIO_WIRED.search(_strip_js_comments(_read(runner))):
+        return {"passed": False, "raisons": [
+            "run-oracle.mjs n'invoque pas reuse_ratio.mjs (mesure de réutilisation "
+            "jamais exécutée mécaniquement — citation du builder non vérifiable)"]}
+    return {"passed": True, "raisons": []}
+
+
 # --- gel du jeu de règles (C1/C2, axe 2) : l'ensemble des features (R1..R12) est
 # figé à s5. L'auto-correction d'une WireMap rouge peut RE-POINTER des fonctions
 # (renommage), jamais SUPPRIMER/AJOUTER une règle — sinon la traçabilité devient
