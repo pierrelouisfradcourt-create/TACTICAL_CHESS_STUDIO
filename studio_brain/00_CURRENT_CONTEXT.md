@@ -1,21 +1,24 @@
 # Contexte courant TCS
-Dernière session : 2026-07-13 — **WFL-01 (workflow lab breakout) : COMMITÉ (`ccb46a6`) + rejoué en
-run2 (N=2, règle protocole) → VERT stable sur 2 builds indépendants, oracle réutilisé SANS retouche.**
-Variante run1 complétée (`variant/render.mjs`+`input.mjs`, isolation d'agent respectée). Oracle `shared/`
-trouvé inexécutable au départ (API halluciné : `applyInput/view/levelIndex/brick.health`, zéro
-historique git) → **go Pierre explicite (« corrige l'arbitre pour qu'il colle aux deux branches »)** →
-réécrit contre le contrat RÉEL commun (`step(dtMs,input)`, status normalisé win/won-lose/lost,
-`brick.score??points`) ; 2 bugs trouvés et corrigés EN écrivant (faux positif scan JSDoc, tunnel de
-collision variant dû à l'échelle dt px/ms vs px/s). run1 : 25/25 tests + solvabilité PASS sur les 2
-branches, sha256 vérifié. **Commité + poussé pas encore — commit local seul.** Puis **run2** (10
-fichiers réécrits de zéro dans `run2/`, aucune copie de run1, isolation d'agent maintenue côté
-variante) : **même résultat, 25/25 + solvabilité PASS sur les 2 branches, ET l'oracle de run1 a été
-réutilisé TEL QUEL sans aucune modification** — signal que la réécriture testait le contrat, pas les
-détails d'un build précis. Portée toujours limitée : aucun axe coût/robustesse-processus/visuel mesuré
-(hors scope de cet oracle). Détail : `lab/workflow_lab/WFL-01/results.md` (run1) +
-`results2.md` (run2). **Prochaine étape non tranchée** (proposé à Pierre, pas de réponse encore) :
-instrumenter un axe coût/robustesse avant toute promotion, OU passer à `search.mjs` (prochaine
-expérience candidate documentée). **run2 pas encore commité.**
+Dernière session : 2026-07-13 — **WFL-02 FABRIQUÉ (coup A1 « prisme → panel ×5 »), 6/6 conforme,
+divergence réelle mesurée entre les 5 regards (NON commité).** Go Pierre : « fabrique le prisme à 5
+regards ». 5 artefacts `product_snapshot_{ceo,gd,front,back,joueur}.md` écrits en isolation (charter
+breakout de WFL-01 réutilisé, sha256 identique) + contrôle = le vrai artefact WFL-01 existant (pas
+régénéré). Oracle non-LLM `check_prisme.mjs` (forme seulement, jamais le contenu) : **1 faux positif
+trouvé et corrigé AVANT conclusion** (phrase qui AFFIRME l'absence d'un placeholder « à définir » prise
+pour un placeholder — même famille de bug que WFL-01) → puis 6/6 PASS. Zéro renvoi côté artefacts.
+**Divergence réelle et mesurée (pas supposée)** : aucun des 5 regards ne couvre le bornage de la
+raquette (présent chez le contrôle) — un angle du charter disparaît totalement du panel ; à l'inverse 2
+préoccupations neuves apparaissent (CEO : dérive de scope ; Front : découplage rendu/logique) absentes
+du contrôle. Confirme empiriquement l'hypothèse de `PRISM_SCOPING.md` : le problème de recombinaison
+(coup A2, non traité ici — hors scope volontaire) est réel, pas théorique. Détail :
+`lab/workflow_lab/WFL-02/{PROTOCOL.md,results.md}`. **Rien commité — N=1, pas de conclusion ferme.**
+Avant (même session) : **WFL-01 COMMITÉ (`ccb46a6`,`aea2042`)** — run1+run2 (N=2) VERT stable, oracle
+réécrit une fois puis réutilisé sans retouche. **Coût/robustesse mesurés** (`WFL-01/cost_robustness.md`,
+NON commité) : proxy seulement (pas de télémétrie driver réelle) — volume variante +13 à +40 %, overhead
+commentaires ×1,4 à ×6,9 (décroissant), **zéro renvoi sur le code de jeu**. **Scoping coup A**
+(`docs/forge/PRISM_SCOPING.md`, NON commité) : panel ×5 n'existait nulle part avant cette session sauf
+2 lignes du schéma ; divergence trouvée entre le récit du schéma (WireMap recombine) et le contrat réel
+(c'est s3 Décompo qui lit le Prisme, pas s5). Détail complet archivé si besoin dans les fichiers cités.
 Avant : 2026-07-12 — **PLANS D'ARCHITECTURE STUDIO (synthèse tri-IA, NON commité).**
 Tri des dernières discussions GPT/Gemini (lues via Chrome) → 3 docs figés : `docs/forge/STUDIO_ARCHITECTURE.md`
 (vision+couplage org-chart↔Forge, imports MIT Claude-Code-Game-Studios = 49 rôles→contrats, leur trou = notre
