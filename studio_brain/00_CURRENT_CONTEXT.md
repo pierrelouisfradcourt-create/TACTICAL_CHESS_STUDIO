@@ -1,6 +1,12 @@
 # Contexte courant TCS
-Dernière session (suite) : 2026-07-13 — **ROLE-SIM v0 LIVRÉ + trou d'intégration catalogue FERMÉ
-pour les systèmes (NON commité).** Go Pierre « go role sim » puis « passe à la suite logique ».
+Dernière session (suite) : 2026-07-13 — **ROLE-SIM v0 + Search Engine + bibliothèque COMMITÉS
+(`dbcfd2b`).** `knowledge_base/` n'avait JAMAIS été commité avant (KB ingestion de session
+antérieure restée non commitée) — ce commit est le 1er de tout le dossier. Bug réel trouvé en
+committant : `.gitignore` (`*.log` générique) excluait silencieusement
+`knowledge_base/proofs/*.log` — les preuves `proof_of_use` citées par `catalog.json` (tier
+validated) auraient disparu sur un clone frais alors que le catalogue prétendait "validated".
+Exception ajoutée (`!knowledge_base/proofs/*.log`) AVANT le commit. 90/90 tests verts,
+`kb-validate.mjs` PASS. Push pas fait — commit local seul. Go Pierre « go role sim » puis « passe à la suite logique ».
 Premier ROLE gameplay réel : `knowledge_base/roles/pursuer-mobile.yaml` (reprend littéralement
 l'exemple de STUDIO_ARCHITECTURE.md §3) + `role_sim.mjs` (mesure une BANDE DE DIFFICULTÉ par
 simulation seedée, pas un booléen gagné/perdu) + `systems/ai/{pursuer,evader}.mjs`. Discipline
