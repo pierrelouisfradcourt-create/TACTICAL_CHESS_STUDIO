@@ -1,19 +1,29 @@
 # Contexte courant TCS
-Dernière session : 2026-07-13 — **WFL-02 coup A1+A2 COMMITÉS (`798e97b` + un commit suivant) : panel
-×5 fabriqué (6/6 conforme) PUIS recombiné mécaniquement, zéro LLM-arbitre.** Go Pierre : « fabrique le
-prisme à 5 regards » puis « réconcilie ». A1 : 5 artefacts `product_snapshot_{ceo,gd,front,back,
-joueur}.md` isolés (charter breakout WFL-01 réutilisé) + contrôle = artefact WFL-01 réel. Oracle
-`check_prisme.mjs` : 1 faux positif trouvé et corrigé avant conclusion → 6/6 PASS. Divergence réelle
-mesurée : le bornage raquette disparaît du panel, 2 préoccupations neuves apparaissent (scope CEO,
-découplage rendu Front). **A2 (`merge_prisme.mjs`)** : décision de conception explicite — union
-mécanique par critère charter cité, ZÉRO LLM-arbitre (risque nommé dans PRISM_SCOPING.md §2). 1 bug
-réel trouvé et corrigé en construisant (`$` en mode /m tronquait la capture à la 1re ligne — sections
-« vides » silencieusement fausses). **Limite honnête trouvée et déclarée, pas cachée** : l'outil
-annonce `FULL_COVERAGE` (6/6 critères structurés couverts) mais NE reproduit PAS le gap « bornage
-raquette » trouvé à la main en A1 — ce gap vit dans la prose libre du charter (`objectif:`), pas dans
-ses 9 tags `criteres_succes` structurés ; l'outil est donc plus grossier que la lecture humaine, déclaré
-tel quel plutôt que silencieusement élargi (élargir au scan de prose libre = réintroduire le risque
-d'interprétation qu'il est censé éviter). Détail : `lab/workflow_lab/WFL-02/{results.md,results_a2.md}`.
+Dernière session (suite) : 2026-07-13 — **ROLE-SIM v0 LIVRÉ + trou d'intégration catalogue FERMÉ
+pour les systèmes (NON commité).** Go Pierre « go role sim » puis « passe à la suite logique ».
+Premier ROLE gameplay réel : `knowledge_base/roles/pursuer-mobile.yaml` (reprend littéralement
+l'exemple de STUDIO_ARCHITECTURE.md §3) + `role_sim.mjs` (mesure une BANDE DE DIFFICULTÉ par
+simulation seedée, pas un booléen gagné/perdu) + `systems/ai/{pursuer,evader}.mjs`. Discipline
+calibration≠validation respectée (bande `[15,35]` calibrée sur seeds 1..300 réels — un brouillon avait
+des chiffres inventés avant que l'oracle existe, corrigé avant exécution —, validée sur échantillon
+DISJOINT 1000..1299 → PASS, tier `validated`, `proof_of_use` réel).
+**Suite (même session)** : amendement R3 de `kb-validate.mjs` (marqueur fermé
+`"ORIGINAL — aucune inspiration externe citee"` pour le code sans inspiration externe citable — non
+red-teamé externellement, auto-revue seule ; 46 tests existants du validateur toujours verts) →
+`sys-pursuer-mobile`/`sys-evader-basic` enregistrés au catalogue (13 entrées, PASS) → `search.mjs` les
+trouve désormais. **1 bug réel trouvé en vérifiant** : « poursuite » matchait à tort via le mot
+français « pour » (préfixe flou à 4 lettres) → seuil relevé à 5, régression testée. 84 tests verts au
+total (knowledge_base). **Reste déclaré non fait** : le ROLE lui-même n'est pas un `entry_type` du
+catalogue (seuls les systèmes qui le remplissent le sont) — changement de schéma plus lourd, pas fait.
+Détail : `knowledge_base/roles/RESULTS_pursuer_mobile.md` §3bis. **Rien commité.**
+Avant (même session) : **`knowledge_base/search.mjs` LIVRÉ** — Search Engine par intention, déterministe
+non-LLM, 2 bugs réels trouvés et corrigés en testant (pluriel/singulier, mot vide manquant), 12/12
+tests verts. **Toujours NON commité** (à commiter avec ROLE-SIM si Pierre confirme).
+Avant (même session) : **WFL-02 coup A1+A2 COMMITÉS (`798e97b`,`ff0c0fd`)** — panel ×5 fabriqué (go
+Pierre « fabrique le prisme à 5 regards », 6/6 conforme, divergence réelle mesurée : bornage raquette
+disparaît du panel, 2 préoccupations neuves apparaissent) PUIS recombiné mécaniquement (go Pierre
+« réconcilie », zéro LLM-arbitre — union par critère charter cité, limite de granularité déclarée
+honnêtement plutôt que cachée). Détail : `lab/workflow_lab/WFL-02/{results.md,results_a2.md}`.
 Avant (même session) : **WFL-01 COMMITÉ (`ccb46a6`,`aea2042`)** — run1+run2 (N=2) VERT stable, oracle
 réécrit une fois puis réutilisé sans retouche. **Coût/robustesse mesurés** (`WFL-01/cost_robustness.md`,
 NON commité) : proxy seulement (pas de télémétrie driver réelle) — volume variante +13 à +40 %, overhead

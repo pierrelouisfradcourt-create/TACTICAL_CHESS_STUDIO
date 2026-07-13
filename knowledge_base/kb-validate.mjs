@@ -1,0 +1,415 @@
+// kb-validate.mjs — validateur NON-LLM du catalogue knowledge_base/catalog.json.
+// Implémente R1..R12 de docs/forge/KB_INGESTION_CONTRACT.md. Zéro réseau, zéro LLM.
+// Exit 0 = conforme · 1 = violations · 2 = catalogue illisible / erreur interne.
+//
+// v2 (2026-07-12) : durci après red-team claude-blind (LM Studio down). Corrections
+// confirmées par exécution — voir docs/forge/KB_REDTEAM_ADJUDICATION.md :
+//   - toute preuve de chemin (path, proof_of_use, usage_examples, tests) passe par la
+//     MÊME garde : repo-relatif + sous-dossier attendu + pas de '..'/absolu + fichier réel
+//     (pas un dossier) + refus des liens symboliques + confinement realpath.
+//   - R10 pureté : préfixe node: optionnel, spécificateurs nus, import()/require/eval/
+//     Function, Math["random"], fetch/globalThis, après stripping commentaires+chaînes.
+//   - I/O disque encapsulées (plus de crash EISDIR ; toujours un verdict).
+//   - contenu inspecté : marqueur GPL dans du code déclaré permissif -> REJET ; octets d'un
+//     asset 2D ingéré doivent être un raster connu (anti « 3D déclaré 2D »).
+//   - schéma fermé : clé inconnue -> REJET. Casse de fichier vérifiée (portabilité CI).
+import { readFileSync, existsSync, lstatSync, realpathSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { resolve, dirname, isAbsolute, basename, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// ---- listes fermées (le contrat est la spec ; toute extension = amendement ratifié) ----
+const CODE_LICENSES = ["MIT", "CC0-1.0", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause"];
+const GPL_LICENSES = ["GPL-2.0-only", "GPL-2.0-or-later", "GPL-3.0-only", "GPL-3.0-or-later"];
+const ASSET_LICENSES = ["CC0-1.0", "MIT", "CC-BY-4.0", "CC-BY-3.0"];
+const PATTERN_LICENSES = [...CODE_LICENSES, ...GPL_LICENSES];
+const KNOWN_SPDX = [...new Set([...CODE_LICENSES, ...GPL_LICENSES, ...ASSET_LICENSES])];
+
+// v3 (2026-07-13) — amendement R3 (non red-teamé externellement, auto-revue de session
+// seule) : le code purement ORIGINAL, sans inspiration externe citable, n'avait aucun
+// chemin de provenance valide (ni provenance_url, ni dependance pat-*). Marqueur FERMÉ,
+// exact, auditable — pas une auto-déclaration libre : `source` doit commencer PAR CETTE
+// CHAINE EXACTE pour être reconnue comme provenance originale valide (R3).
+const ORIGINAL_MARKER = "ORIGINAL — aucune inspiration externe citee";
+
+const HEX64 = /^[0-9a-f]{64}$/;
+const URL_RE = /^https?:\/\/.+/;
+const ID_PREFIX = { asset: "asset-", system: "sys-", pattern: "pat-", template: "tpl-" };
+// Sous-dossier attendu par type (confinement — R7/§5).
+const SUBDIR = { asset: "knowledge_base/assets/", system: "knowledge_base/systems/",
+  template: "knowledge_base/templates/", pattern: "knowledge_base/patterns/",
+  proof: "knowledge_base/proofs/" };
+
+// Magic bytes des rasters 2D admis (anti « 3D/godot déclaré 2D », red-team F8).
+const RASTER_MAGICS = [
+  [0x89, 0x50, 0x4e, 0x47],       // PNG
+  [0xff, 0xd8, 0xff],             // JPEG
+  [0x47, 0x49, 0x46, 0x38],       // GIF8
+  [0x42, 0x4d],                   // BMP
+];
+function isRaster(buf) {
+  if (buf.length >= 12 && buf.slice(0, 4).toString("latin1") === "RIFF" && buf.slice(8, 12).toString("latin1") === "WEBP") return true;
+  return RASTER_MAGICS.some((sig) => sig.every((b, i) => buf[i] === b));
+}
+
+// R10 — motifs d'impureté. Deux passes distinctes (limite intrinsèque de l'analyse textuelle,
+// cf. §7 : l'AST est le vrai correctif d'un futur incrément) :
+//  - RAW : les motifs qui dépendent d'un LITTÉRAL de chaîne (spécificateur d'import,
+//    notation crochet Math['random']) — scannés sur le texte brut, sinon le stripping les efface.
+//  - STRIPPED : les accès globaux / appels — scannés après retrait commentaires+chaînes,
+//    pour éliminer les faux positifs (window. en commentaire, red-team F5).
+const NODE_MODS = "fs|fs/promises|http|http2|https|net|dns|tls|os|vm|worker_threads|dgram|process|cluster|inspector|repl|readline|child_process";
+const IMPURITY_RAW = [
+  [new RegExp(`\\bfrom\\s*["'](?:node:)?(?:${NODE_MODS})["']`), "import de module Node (fs/http/child_process/…)"],
+  [new RegExp(`\\brequire\\s*\\(\\s*["'](?:node:)?(?:${NODE_MODS})["']`), "require de module Node"],
+  [/\bMath\s*\[\s*["']random["']\s*\]/, "Math['random']"],
+  [/\bglobalThis\s*\[\s*["'](?:fetch|process|require)["']\s*\]/, "globalThis['fetch'|…]"],
+];
+const IMPURITY_STRIPPED = [
+  [/\bimport\s*\(/, "import() dynamique"],
+  [/\beval\s*\(/, "eval("],
+  [/\bnew\s+Function\s*\(/, "new Function("],
+  [/\bfetch\s*\(/, "fetch("],
+  [/\bglobalThis\s*\./, "globalThis (accès global)"],
+  [/\bMath\s*\.\s*random\b/, "Math.random"],
+  [/\bDate\s*\.\s*now\b/, "Date.now (non déterministe)"],
+  [/\bnew\s+Date\b/, "new Date (non déterministe)"],
+  [/\bwindow\s*[.[]/, "window (DOM)"],
+  [/\bdocument\s*[.[]/, "document (DOM)"],
+  [/\bprocess\s*\.\s*(env|exit|argv|binding|cwd)\b/, "process.* (environnement)"],
+];
+// R11 — patterns jamais injectés comme code (scanné sur le texte BRUT : chemins = littéraux).
+const PATTERN_IMPORT = [
+  /\bfrom\s*["'][^"']*patterns\//,
+  /\bimport\s*\(\s*["'][^"']*patterns\//,
+  /\brequire\s*\(\s*["'][^"']*patterns\//,
+];
+
+// Retire commentaires et littéraux de chaîne (réduit les faux positifs R10, red-team F5).
+function stripCommentsAndStrings(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/\/\/[^\n]*/g, " ")
+    .replace(/"(?:\\.|[^"\\])*"/g, '""')
+    .replace(/'(?:\\.|[^'\\])*'/g, "''")
+    .replace(/`(?:\\.|[^`\\])*`/g, "``");
+}
+
+// ---- helpers de typage ----
+function isStr(v) { return typeof v === "string" && v.length > 0; }
+function isStrArr(v) { return Array.isArray(v) && v.every((x) => typeof x === "string"); }
+function isNonEmptyStrArr(v) { return isStrArr(v) && v.length > 0; }
+function isPlainObj(v) { return v !== null && typeof v === "object" && !Array.isArray(v); }
+
+function sha256File(abs) {
+  return createHash("sha256").update(readFileSync(abs)).digest("hex");
+}
+
+// Garde de chemin UNIFIÉE : tout chemin déclaré (path, proof, usage, tests) y passe.
+// Retourne { abs } si OK, sinon { err: "raison" }. NE JETTE JAMAIS.
+function guardedPath(root, p, { subdir, mustBeFile = true }) {
+  if (typeof p !== "string" || p.length === 0) return { err: "chemin vide" };
+  if (p.includes("\\")) return { err: "antislash interdit (chemins portables '/')" };
+  if (isAbsolute(p)) return { err: "chemin absolu interdit" };
+  if (p.split("/").includes("..")) return { err: "'..' interdit" };
+  if (!p.startsWith("knowledge_base/")) return { err: "doit etre sous knowledge_base/" };
+  if (subdir && !p.startsWith(subdir)) return { err: `doit etre sous ${subdir}` };
+  const abs = resolve(root, p);
+  let st;
+  try { st = lstatSync(abs); }
+  catch { return { err: `absent du disque: ${p}` }; }
+  if (st.isSymbolicLink()) return { err: `lien symbolique interdit (confinement): ${p}` };
+  if (mustBeFile && !st.isFile()) return { err: `n'est pas un fichier: ${p}` };
+  // confinement realpath : la cible réelle doit rester sous knowledge_base/
+  try {
+    const realRoot = realpathSync(resolve(root, "knowledge_base"));
+    const real = realpathSync(abs);
+    if (real !== realRoot && !real.startsWith(realRoot + sep)) return { err: `sort de knowledge_base/ (realpath): ${p}` };
+  } catch { return { err: `resolution realpath impossible: ${p}` }; }
+  // casse exacte (portabilité CI sensible à la casse, red-team F4)
+  try {
+    const parent = dirname(abs);
+    if (!readdirSync(parent).includes(basename(abs))) return { err: `casse du nom de fichier non exacte: ${p}` };
+  } catch { /* parent illisible : déjà couvert par lstat plus haut */ }
+  return { abs };
+}
+
+const ASSET_SPEC = {
+  asset_id: isStr, source: isStr, license: isStr, provenance_url: isStr, style: isStr,
+  genre: isNonEmptyStrArr, biome: (v) => v === null || isStr(v),
+  format: (v) => v === "2D" || v === "3D",
+  size_kb: (v) => v === null || (typeof v === "number" && v > 0),
+  sha256: (v) => v === null || (typeof v === "string" && HEX64.test(v)),
+  runtime: (v) => v === "html" || v === "godot",
+  ingested: (v) => typeof v === "boolean",
+  path: (v) => v === null || isStr(v),
+  usage_examples: isStrArr,
+  tier: (v) => v === "candidate" || v === "validated",
+};
+const BRICK_SPEC = {
+  brick_id: isStr,
+  kind: (v) => ["system", "pattern", "template"].includes(v),
+  function: isStr, source: isStr,
+  provenance_url: (v) => v === null || isStr(v),
+  license: isStr,
+  runtime: (v) => ["agnostic", "html", "godot"].includes(v),
+  dependencies: isStrArr, parameters: isPlainObj,
+  genre_compatible: isNonEmptyStrArr, invariants: isNonEmptyStrArr,
+  proof_of_use: (v) => v === null || isStr(v),
+  tier: (v) => v === "candidate" || v === "validated",
+  path: (v) => v === null || isStr(v),
+  sha256: (v) => v === null || (typeof v === "string" && HEX64.test(v)),
+  tests: (v) => v === null || isStr(v),
+  advisory_only: (v) => typeof v === "boolean",
+};
+
+export function validateCatalog(catalog, { root }) {
+  const errors = [];
+  const err = (id, rule, msg) => errors.push({ id, rule, msg });
+  try {
+    _validate(catalog, root, err);
+  } catch (e) {
+    // Aucune faille d'implémentation ne doit transformer un rejet en crash (red-team F1).
+    err("<interne>", "R0", `erreur interne du validateur: ${String(e && e.message || e)}`);
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+function _validate(catalog, root, err) {
+  if (!isPlainObj(catalog) || catalog.catalog_version !== 1 || !Array.isArray(catalog.entries)) {
+    err("<catalog>", "R1", "en-tete invalide (catalog_version doit etre 1, entries un tableau)");
+    return;
+  }
+  const seen = new Map();
+  for (const e of catalog.entries) {
+    const id = e?.asset_id ?? e?.brick_id ?? "<sans-id>";
+    seen.set(id, (seen.get(id) ?? 0) + 1);
+  }
+  for (const [id, n] of seen) if (n > 1) err(id, "R1", `id duplique (${n} occurrences)`);
+
+  const brickIds = new Set(
+    catalog.entries.filter((e) => e?.entry_type === "brick").map((e) => e.brick_id)
+  );
+  for (const e of catalog.entries) {
+    if (!isPlainObj(e) || !["asset", "brick"].includes(e.entry_type)) {
+      err("<entree>", "R1", "entry_type doit etre 'asset' ou 'brick'");
+      continue;
+    }
+    if (e.entry_type === "asset") validateAsset(e, root, err);
+    else validateBrick(e, root, err, brickIds);
+  }
+  detectCycles(catalog.entries.filter((e) => e?.entry_type === "brick"), err);
+}
+
+// Schéma fermé (red-team F6) : chaque champ attendu bien typé + aucune clé inconnue.
+function checkSpec(e, spec, id, err) {
+  let ok = true;
+  for (const [field, check] of Object.entries(spec)) {
+    if (!(field in e)) { err(id, "R1", `champ manquant: ${field}`); ok = false; }
+    else if (!check(e[field])) { err(id, "R1", `champ mal type: ${field}`); ok = false; }
+  }
+  for (const k of Object.keys(e)) {
+    if (k === "entry_type") continue;
+    if (!(k in spec)) { err(id, "R1", `champ inconnu (schema ferme): ${k}`); ok = false; }
+  }
+  return ok;
+}
+
+// Vérif disque d'un fichier ingéré : garde de chemin + sha + (asset) magic bytes + size.
+function checkIngestedFile(id, p, declaredSha, root, subdir, err) {
+  const g = guardedPath(root, p, { subdir, mustBeFile: true });
+  if (g.err) { err(id, "R7", `path: ${g.err}`); return null; }
+  if (declaredSha === null) { err(id, "R7", "sha256 manquant pour un fichier ingere"); return g.abs; }
+  const real = sha256File(g.abs);
+  if (real !== declaredSha) err(id, "R7", `sha256 declare != reel (${declaredSha.slice(0, 12)}… vs ${real.slice(0, 12)}…)`);
+  return g.abs;
+}
+
+function validateAsset(e, root, err) {
+  const id = e.asset_id ?? "<asset-sans-id>";
+  if (!checkSpec(e, ASSET_SPEC, id, err)) return;
+
+  if (!id.startsWith(ID_PREFIX.asset)) err(id, "R1", `asset_id doit commencer par '${ID_PREFIX.asset}'`);
+  if (!KNOWN_SPDX.includes(e.license)) err(id, "R2", `licence hors liste fermee SPDX: ${e.license}`);
+  else if (!ASSET_LICENSES.includes(e.license)) err(id, "R4", `licence non autorisee pour un asset: ${e.license}`);
+  if (!URL_RE.test(e.provenance_url)) err(id, "R3", "provenance_url doit etre http(s)");
+
+  const is3D = e.runtime === "godot" || e.format === "3D";
+  if (is3D && (e.ingested === true || e.path !== null)) {
+    err(id, "R6", "godot/3D = manifest-only : ingested doit etre false et path null");
+    return;
+  }
+
+  if (e.ingested === true) {
+    if (e.path === null) { err(id, "R7", "ingested=true exige un path"); return; }
+    const abs = checkIngestedFile(id, e.path, e.sha256, root, SUBDIR.asset, err);
+    if (abs) {
+      let buf = null;
+      try { buf = readFileSync(abs); } catch { /* déjà géré par la garde */ }
+      if (buf) {
+        if (!isRaster(buf)) err(id, "R6", "octets ne correspondent pas a un raster 2D connu (PNG/JPEG/GIF/BMP/WEBP) — 3D declare 2D ?");
+        if (e.size_kb === null) err(id, "R7", "size_kb manquant pour un asset ingere");
+        else {
+          const realKb = Math.max(1, Math.round(buf.length / 1024));
+          const tol = Math.max(1, 0.1 * realKb);
+          if (Math.abs(e.size_kb - realKb) > tol) err(id, "R7", `size_kb incoherent (declare ${e.size_kb}, reel ~${realKb})`);
+        }
+      }
+    }
+  } else {
+    if (e.path !== null) err(id, "R7", "ingested=false exige path null (manifest-only)");
+    if (e.sha256 !== null || e.size_kb !== null) err(id, "R7", "manifest-only : sha256 et size_kb doivent etre null");
+  }
+
+  if (e.tier === "validated") {
+    if (e.usage_examples.length === 0) err(id, "R8", "tier validated exige usage_examples non vide");
+    for (const u of e.usage_examples) {
+      const g = guardedPath(root, u, { mustBeFile: true });
+      if (g.err) err(id, "R8", `usage_example invalide: ${g.err}`);
+    }
+  }
+}
+
+function validateBrick(e, root, err, brickIds) {
+  const id = e.brick_id ?? "<brick-sans-id>";
+  if (!checkSpec(e, BRICK_SPEC, id, err)) return;
+
+  const prefix = ID_PREFIX[e.kind];
+  if (!id.startsWith(prefix)) err(id, "R1", `brick_id de kind '${e.kind}' doit commencer par '${prefix}'`);
+  if (!KNOWN_SPDX.includes(e.license)) err(id, "R2", `licence hors liste fermee SPDX: ${e.license}`);
+
+  const isCode = e.kind === "system" || e.kind === "template";
+  if (isCode && !CODE_LICENSES.includes(e.license) && KNOWN_SPDX.includes(e.license)) {
+    err(id, "R4", `licence interdite pour du CODE (${e.kind}): ${e.license} — GPL contamine un jeu distribue`);
+  }
+  if (e.kind === "pattern") {
+    if (KNOWN_SPDX.includes(e.license) && !PATTERN_LICENSES.includes(e.license)) err(id, "R5", `licence non autorisee pour un pattern: ${e.license}`);
+    if (e.advisory_only !== true) err(id, "R5", "un pattern est advisory_only: true (cite, jamais injecte)");
+    if (e.provenance_url === null) err(id, "R3", "provenance_url obligatoire pour un pattern (citation verifiable)");
+    if (e.path !== null && !e.path.endsWith(".md")) err(id, "R5", "le path d'un pattern est une fiche .md, jamais un module de code");
+  }
+  if (e.provenance_url !== null && !URL_RE.test(e.provenance_url)) err(id, "R3", "provenance_url doit etre http(s)");
+
+  // Provenance du CODE (red-team F11) : URL OU citation d'un pattern en dépendance.
+  if (isCode) {
+    const citesPattern = e.dependencies.some((d) => typeof d === "string" && d.startsWith("pat-"));
+    const declaredOriginal = e.source.startsWith(ORIGINAL_MARKER);
+    if (e.provenance_url === null && !citesPattern && !declaredOriginal) {
+      err(id, "R3", `code sans provenance : exige provenance_url OU une dependance pat-* (reecriture propre citee) OU source commencant par "${ORIGINAL_MARKER}" (code original declare)`);
+    }
+  }
+
+  // R6 — godot = manifest-only
+  if (e.runtime === "godot" && (e.path !== null || e.tests !== null)) {
+    err(id, "R6", "runtime godot = manifest-only : path et tests doivent etre null");
+    return;
+  }
+  // §1b (red-team F7) : un system/template non-godot DOIT avoir un module.
+  if (isCode && e.runtime !== "godot" && e.path === null) {
+    err(id, "R7", `${e.kind} non-godot exige un path (module) — path null esquive purete/tests`);
+  }
+
+  // R7 — réalité disque du module/fiche
+  let abs = null;
+  if (e.path !== null) {
+    const subdir = SUBDIR[e.kind];
+    const g = guardedPath(root, e.path, { subdir, mustBeFile: true });
+    if (g.err) err(id, "R7", `path: ${g.err}`);
+    else {
+      abs = g.abs;
+      if (e.sha256 === null) err(id, "R7", "sha256 manquant pour un fichier a path non-null");
+      else if (sha256File(abs) !== e.sha256) err(id, "R7", "sha256 declare != reel");
+    }
+  }
+
+  // R8 — tier validated exige une VRAIE preuve confinée (red-team F1/F3)
+  if (e.tier === "validated") {
+    if (e.proof_of_use === null) err(id, "R8", "tier validated exige proof_of_use non-null");
+    else {
+      const g = guardedPath(root, e.proof_of_use, { subdir: SUBDIR.proof, mustBeFile: true });
+      if (g.err) err(id, "R8", `proof_of_use invalide: ${g.err}`);
+    }
+  }
+
+  // R9 — dépendances existantes
+  for (const d of e.dependencies) {
+    if (!brickIds.has(d)) err(id, "R9", `dependance inconnue: ${d}`);
+  }
+
+  // R10/R11/R4-contenu — inspection du contenu des modules code
+  if (isCode && abs !== null) {
+    let raw = "";
+    try { raw = readFileSync(abs, "utf-8"); } catch { /* déjà couvert */ }
+    const code = stripCommentsAndStrings(raw);
+    for (const [re, label] of IMPURITY_RAW) {
+      if (re.test(raw)) err(id, "R10", `motif d'impurete: ${label}`);
+    }
+    for (const [re, label] of IMPURITY_STRIPPED) {
+      if (re.test(code)) err(id, "R10", `motif d'impurete: ${label}`);
+    }
+    for (const re of PATTERN_IMPORT) {
+      if (re.test(raw)) { err(id, "R11", "import depuis patterns/ interdit (cites, jamais injectes)"); break; }
+    }
+    // Marqueur GPL dans du code déclaré permissif (red-team F8) — sur le texte BRUT.
+    if (/GNU (Lesser |Affero )?General Public License/i.test(raw) || /SPDX-License-Identifier:\s*(?:LGPL|GPL|AGPL)/i.test(raw)) {
+      err(id, "R4", "marqueur GPL/LGPL/AGPL dans un module declare permissif — contamination");
+    }
+  }
+
+  // R12 — tests des systems (les systems sont des unités testées ; les templates = squelettes)
+  if (e.kind === "system") {
+    if (e.tests === null) err(id, "R12", "kind system exige un fichier de tests");
+    else {
+      const g = guardedPath(root, e.tests, { subdir: SUBDIR.system, mustBeFile: true });
+      if (g.err) err(id, "R12", `tests: ${g.err}`);
+    }
+  }
+}
+
+function detectCycles(bricks, err) {
+  const deps = new Map(bricks.map((b) => [b.brick_id, (b.dependencies ?? []).filter((d) => typeof d === "string")]));
+  const state = new Map();
+  const visit = (id, trail) => {
+    if (!deps.has(id)) return;
+    const s = state.get(id) ?? 0;
+    if (s === 1) { err(id, "R9", `cycle de dependances: ${[...trail, id].join(" -> ")}`); return; }
+    if (s === 2) return;
+    state.set(id, 1);
+    for (const d of deps.get(id)) visit(d, [...trail, id]);
+    state.set(id, 2);
+  };
+  for (const id of deps.keys()) visit(id, []);
+}
+
+export function loadCatalog(catalogPath) {
+  try {
+    return { catalog: JSON.parse(readFileSync(catalogPath, "utf-8")) };
+  } catch (e) {
+    return { error: String(e) };
+  }
+}
+
+// ---- CLI ----
+const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  try {
+    const catalogPath = resolve(process.argv[2] ?? resolve(dirname(fileURLToPath(import.meta.url)), "catalog.json"));
+    const root = resolve(dirname(catalogPath), "..");
+    const { catalog, error } = loadCatalog(catalogPath);
+    if (error) {
+      console.error(`ILLISIBLE: ${catalogPath}\n${error}`);
+      process.exit(2);
+    }
+    const { ok, errors } = validateCatalog(catalog, { root });
+    if (!ok) {
+      for (const e of errors) console.error(`REJECT ${e.id} [${e.rule}] ${e.msg}`);
+      console.error(`\nVERDICT CATALOGUE: FAIL (${errors.length} violation(s), ${catalog.entries?.length ?? 0} entree(s))`);
+      process.exit(1);
+    }
+    console.log(`VERDICT CATALOGUE: PASS (${catalog.entries.length} entree(s) conformes, 0 violation)`);
+    process.exit(0);
+  } catch (e) {
+    console.error(`ERREUR INTERNE: ${String(e && e.stack || e)}`);
+    process.exit(2);
+  }
+}

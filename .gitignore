@@ -79,6 +79,11 @@ lab/hygiene/
 lab/sandbox/
 rocky_debug.log
 *.log
+# EXCEPTION (2026-07-13) : knowledge_base/proofs/*.log sont des PREUVES permanentes
+# (proof_of_use cité par catalog.json, tier=validated) — pas des logs transitoires.
+# Bug réel trouvé en committant : le *.log ci-dessus les excluait silencieusement,
+# donc un clone frais aurait catalog.json qui prétend "validated" avec la preuve absente.
+!knowledge_base/proofs/*.log
 
 lab/reports/puzzle_eval_latest.*
 

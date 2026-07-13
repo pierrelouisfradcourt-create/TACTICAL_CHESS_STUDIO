@@ -1,0 +1,250 @@
+#!/usr/bin/env node
+// search.mjs — moteur de RECHERCHE PAR INTENTION dans knowledge_base/catalog.json.
+// Zéro réseau, zéro LLM, zéro embedding — un scoreur déterministe par recouvrement de
+// mots-clés sur les champs texte du catalogue, explicable ligne à ligne (pourquoi CE
+// résultat matche). Comble le manque nommé dans docs/forge/STUDIO_MASTER_SCHEMA.html /
+// PRISM_SCOPING.md context : « chercher dans la bibliothèque par intention plutôt que
+// copier-coller à la main » — la pièce la plus manquante de la Forge (`P1..P5` roadmap).
+//
+// Usage :
+//   node search.mjs "zone de controle qui bloque un deplacement"
+//   node search.mjs "degats" --genre tactical --tier validated
+//   node search.mjs "reachability" --kind system --json
+//
+// Filtres optionnels : --genre <g> --kind <system|pattern|asset|template>
+//   --tier <candidate|validated> --format <2D|3D> --runtime <html|agnostic|godot|...>
+//   --min-score <n> (défaut 1) --json (sortie machine-lisible sur stdout)
+//
+// Exit 0 = au moins 1 résultat au-dessus du seuil · 1 = zéro résultat · 2 = erreur
+// (catalogue illisible, argument invalide) — utilisable en script.
+import { readFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DEFAULT_CATALOG_PATH = resolve(__dirname, 'catalog.json');
+const DEFAULT_MIN_SCORE = 1;
+
+// Mots vides FR/EN courts — retirés de la requête pour éviter les faux matches triviaux
+// ("de", "un", "qui"...) qui gonfleraient le score sans rien dire de l'intention.
+const STOPWORDS = new Set([
+  'le', 'la', 'les', 'un', 'une', 'des', 'de', 'du', 'et', 'ou', 'qui', 'que', 'a', 'à',
+  'pour', 'avec', 'sur', 'dans', 'est', 'en', 'au', 'aux', 'ce', 'cet', 'cette', 'ces',
+  'se', 'son', 'sa', 'ses', 'ne', 'pas', 'tout', 'toute', 'tous', 'toutes', 'plus', 'si',
+  'dont', 'ai', 'as', 'ont', 'suis', 'es', 'sont', 'j', 'l', 'd', 'n', 'c', 'm', 's', 'y',
+  'the', 'an', 'of', 'for', 'with', 'on', 'in', 'is', 'and', 'or', 'that', 'which', 'to',
+  'be', 'have', 'not', 'all', 'some', 'any', 'i', 'you', 'it', 'this',
+]);
+
+/**
+ * Normalise une chaîne pour la comparaison : minuscules, accents retirés, ponctuation
+ * réduite à des espaces. Déterministe, aucune dépendance externe.
+ * @param {string} str
+ * @returns {string}
+ */
+function normalize(str) {
+  return String(str)
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/**
+ * Découpe une requête normalisée en tokens uniques, mots vides retirés.
+ * @param {string} query
+ * @returns {string[]}
+ */
+function tokenize(query) {
+  return [...new Set(normalize(query).split(' ').filter((t) => t.length > 1 && !STOPWORDS.has(t)))];
+}
+
+/**
+ * Concatène tous les champs texte pertinents d'une entrée en un seul blob normalisé,
+ * pour le scoring — même traitement quel que soit `entry_type` (asset/brick).
+ * @param {object} entry
+ * @returns {string}
+ */
+function searchableBlob(entry) {
+  const parts = [
+    entry.entry_type,
+    entry.asset_id,
+    entry.brick_id,
+    entry.kind,
+    entry.function,
+    entry.source,
+    entry.style,
+    entry.biome,
+    entry.format,
+    entry.runtime,
+    entry.license,
+    ...(entry.genre || []),
+    ...(entry.genre_compatible || []),
+    ...(entry.invariants || []),
+    ...(entry.dependencies || []),
+  ].filter(Boolean);
+  return normalize(parts.join(' '));
+}
+
+// 5, pas 4 : un seuil à 4 faisait matcher "poursuite" contre le mot français courant
+// "pour" (préfixe de 4) dans un texte sans rapport (invariant "... pour tout ...") —
+// faux positif réel trouvé en vérifiant search.mjs sur le catalogue enrichi (rôles).
+// "degat"/"degats" (préfixe partagé de 5) reste couvert par ce seuil.
+const MIN_SHARED_PREFIX = 5;
+
+/**
+ * Un token de requête "matche" un mot du blob si l'un est préfixe de l'autre, avec au
+ * moins MIN_SHARED_PREFIX caractères communs — tolère les variations singulier/pluriel
+ * simples ("degat" / "degats") SANS stemmer ni dictionnaire (déterministe, explicable).
+ * Bug réel trouvé en testant : un pur `blob.includes(token)` ratait "degats" (requête,
+ * pluriel) contre "degat_effectif" (catalogue, singulier) — corrigé ici.
+ * @param {string} token
+ * @param {string} word
+ * @returns {boolean}
+ */
+function tokenMatchesWord(token, word) {
+  if (token === word) return true;
+  const shared = Math.min(token.length, word.length);
+  if (shared < MIN_SHARED_PREFIX) return false;
+  return token.startsWith(word) || word.startsWith(token);
+}
+
+/**
+ * Score une entrée pour une liste de tokens de requête : nombre de tokens distincts qui
+ * matchent au moins un mot du blob de l'entrée (préfixe partagé, cf. tokenMatchesWord),
+ * + quels tokens ont matché (transparence, jamais une boîte noire).
+ * @param {object} entry
+ * @param {string[]} queryTokens
+ * @returns {{score:number, matchedTokens:string[]}}
+ */
+function scoreEntry(entry, queryTokens) {
+  const blobWords = searchableBlob(entry).split(' ').filter(Boolean);
+  const matchedTokens = queryTokens.filter((token) => blobWords.some((word) => tokenMatchesWord(token, word)));
+  return { score: matchedTokens.length, matchedTokens };
+}
+
+/**
+ * Applique les filtres exacts (genre/kind/tier/format/runtime) déclarés en options —
+ * AVANT le scoring textuel, comme un pré-filtre déterministe classique.
+ * @param {object} entry
+ * @param {object} filters
+ * @returns {boolean}
+ */
+function passesFilters(entry, filters) {
+  if (filters.genre) {
+    const genres = [...(entry.genre || []), ...(entry.genre_compatible || [])].map((g) => g.toLowerCase());
+    if (!genres.includes(filters.genre.toLowerCase())) return false;
+  }
+  if (filters.kind) {
+    const kind = (entry.kind || entry.entry_type || '').toLowerCase();
+    if (kind !== filters.kind.toLowerCase()) return false;
+  }
+  if (filters.tier && (entry.tier || '').toLowerCase() !== filters.tier.toLowerCase()) return false;
+  if (filters.format && (entry.format || '').toLowerCase() !== filters.format.toLowerCase()) return false;
+  if (filters.runtime && (entry.runtime || '').toLowerCase() !== filters.runtime.toLowerCase()) return false;
+  return true;
+}
+
+/**
+ * Recherche par intention dans le catalogue chargé.
+ * @param {string} query texte libre décrivant le besoin
+ * @param {object} catalog {entries:[...]}
+ * @param {object} [options] {genre,kind,tier,format,runtime,minScore}
+ * @returns {Array<{entry:object, score:number, matchedTokens:string[]}>} trié par score
+ *   décroissant, puis tier (validated avant candidate), puis id alphabétique — déterministe.
+ */
+export function search(query, catalog, options = {}) {
+  const queryTokens = tokenize(query);
+  const minScore = Number.isFinite(options.minScore) ? options.minScore : DEFAULT_MIN_SCORE;
+  const entries = (catalog && catalog.entries) || [];
+
+  const results = [];
+  for (const entry of entries) {
+    if (!passesFilters(entry, options)) continue;
+    const { score, matchedTokens } = scoreEntry(entry, queryTokens);
+    if (score >= minScore) results.push({ entry, score, matchedTokens });
+  }
+
+  results.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    const tierRank = (t) => (t === 'validated' ? 0 : 1);
+    const tierDiff = tierRank(a.entry.tier) - tierRank(b.entry.tier);
+    if (tierDiff !== 0) return tierDiff;
+    const idA = a.entry.brick_id || a.entry.asset_id || '';
+    const idB = b.entry.brick_id || b.entry.asset_id || '';
+    return idA.localeCompare(idB);
+  });
+
+  return results;
+}
+
+function loadCatalog(catalogPath) {
+  const raw = readFileSync(catalogPath, 'utf-8');
+  return JSON.parse(raw);
+}
+
+function parseArgs(argv) {
+  const positional = [];
+  const options = {};
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === '--json') {
+      options.json = true;
+    } else if (arg.startsWith('--')) {
+      const key = arg.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+      const value = argv[i + 1];
+      i += 1;
+      options[key] = key === 'minScore' ? Number(value) : value;
+    } else {
+      positional.push(arg);
+    }
+  }
+  return { query: positional.join(' '), options };
+}
+
+function formatResultLine(result) {
+  const { entry, score, matchedTokens } = result;
+  const id = entry.brick_id || entry.asset_id;
+  const label = entry.function || entry.style || '(sans description)';
+  const tier = entry.tier || '?';
+  return `[score=${score}] ${id} (${entry.kind || entry.entry_type}, tier=${tier})\n    ${label}\n    matché sur : ${matchedTokens.join(', ')}\n    path : ${entry.path}`;
+}
+
+function main() {
+  const argv = process.argv.slice(2);
+  const { query, options } = parseArgs(argv);
+
+  if (!query.trim()) {
+    console.error('Usage: node search.mjs "<intention en texte libre>" [--genre X] [--kind system|pattern|asset] [--tier validated|candidate] [--format 2D|3D] [--runtime html|agnostic] [--min-score N] [--json]');
+    process.exit(2);
+  }
+
+  let catalog;
+  try {
+    catalog = loadCatalog(options.catalog ? resolve(options.catalog) : DEFAULT_CATALOG_PATH);
+  } catch (err) {
+    console.error(`catalogue illisible : ${err.message}`);
+    process.exit(2);
+  }
+
+  const results = search(query, catalog, options);
+
+  if (options.json) {
+    console.log(JSON.stringify({ query, count: results.length, results }, null, 2));
+  } else {
+    console.log(`=== RECHERCHE — "${query}" ===\n`);
+    if (results.length === 0) {
+      console.log('Aucun résultat au-dessus du seuil de score.');
+    } else {
+      for (const r of results) console.log(formatResultLine(r) + '\n');
+      console.log(`${results.length} résultat(s).`);
+    }
+  }
+
+  process.exit(results.length > 0 ? 0 : 1);
+}
+
+if (import.meta.url === `file://${process.argv[1]}` || import.meta.url === `file:///${(process.argv[1] || '').replace(/\\/g, '/')}`) {
+  main();
+}
