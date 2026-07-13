@@ -44,6 +44,7 @@ from forge.mutation_proof import (
     run_mutation_for_game,
     verify_mutation_receipt,
 )
+from forge.pool import DEFAULT_POOL_SIZE, pool_decision
 from forge.runtime import RUNNER_CLAUDE_BLIND, RUNNER_QWEN, route_step, run_qwen_step
 from forge.static_oracles import (
     check_architecture,
@@ -99,6 +100,7 @@ class ForgeDriver:
         mutation_runner=None,
         mutation_test_argv: list[str] | None = None,
         mutation_baseline_runner=None,
+        pool_size: int = DEFAULT_POOL_SIZE,
     ) -> None:
         self.project = project
         self.run_id = run_id
@@ -119,6 +121,9 @@ class ForgeDriver:
         self.mutation_runner = mutation_runner
         self.mutation_test_argv = list(mutation_test_argv) if mutation_test_argv else None
         self.mutation_baseline_runner = mutation_baseline_runner
+        # Tier 2 #5 (Concept A) : best-of-N réactif au même tier avant d'escalader de
+        # modèle. pool_size<=1 désactive le pool (chaque FAIL escalade directement).
+        self.pool_size = int(pool_size)
         # P0.3 : un dossier qui porte un harnais de jeu EST un jeu — l'omission du
         # flag is_game ne désarme jamais les gates (aucun chemin vers OK sans preuve).
         if not self.is_game and self.src_root is not None and any(
@@ -588,6 +593,30 @@ class ForgeDriver:
         requested, why = parse_agent_escalation(s9_detail.get("output_excerpt", ""))
         if not (oracle_fail or requested):
             return False
+
+        # Tier 2 #5 (Concept A) : sur un FAIL d'oracle SEULEMENT (jamais sur une
+        # demande explicite de l'agent — lui sait que ce tier est trop faible,
+        # retenter n'y changerait rien), retente d'abord le MÊME tier avant
+        # d'escalader de modèle. Un FAIL peut être un aléa du tirage, pas une
+        # preuve que le tier est trop faible. Zéro surcoût si l'oracle est vert
+        # dès le 1er essai (cette branche n'est jamais atteinte dans ce cas).
+        if oracle_fail and not requested:
+            pool = pool_decision(
+                oracle_ok=False,
+                attempts_at_current_tier=int(state.get("pool_attempts", 0)) + 1,
+                pool_size=self.pool_size,
+            )
+            if pool.retry_same_tier:
+                state["pool_attempts"] = int(state.get("pool_attempts", 0)) + 1
+                for e in ("s9-build", "s10a-oracle-code", "s10b-oracle-archi",
+                          "s10c-oracle-wiremap"):
+                    if e in self.order:
+                        state["steps"][e]["status"] = "PENDING"
+                logger.info("pool: %s", pool.reason)
+                self._save(state)
+                return True
+            # pool épuisé à ce tier -> retombe dans l'escalade de modèle ci-dessous.
+
         current = state.get("model_override") or s9_detail.get("model", "")
         d = escalation_decision(
             current,
@@ -605,6 +634,7 @@ class ForgeDriver:
             return False
         state["model_override"] = d.next_model
         state["escalations"] = int(state.get("escalations", 0)) + 1
+        state["pool_attempts"] = 0  # nouveau tier -> budget de pool reinitialise
         for e in ("s9-build", "s10a-oracle-code", "s10b-oracle-archi",
                   "s10c-oracle-wiremap"):
             if e in self.order:

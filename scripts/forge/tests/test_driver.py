@@ -72,6 +72,23 @@ def _kwargs(tmp_path, run_dir, project="proj", exit_code=0):
     )
 
 
+def _oracle_config_flaky_once(tmp_path, project):
+    """Oracle qui échoue au 1er appel, passe ensuite (FAIL transitoire simulé) —
+    prouve la valeur du pool (Tier 2 #5) : un aléa au tirage n'escalade pas de
+    modèle si le MÊME tier suffit au 2e essai."""
+    marker = tmp_path / "flaky_marker"
+    cfg = tmp_path / "oracles_flaky.json"
+    script = (
+        f"import sys, pathlib; m = pathlib.Path(r'{marker}'); "
+        "sys.exit(0 if m.exists() else (m.write_text('x'), 1)[1])"
+    )
+    cfg.write_text(
+        json.dumps({project: {"cwd": str(tmp_path), "command": [sys.executable, "-c", script]}}),
+        encoding="utf-8",
+    )
+    return cfg
+
+
 # --- run vert de bout en bout ---------------------------------------------------
 
 def test_micro_run_vert_produit_un_verdict_signe(tmp_path, offline):
@@ -222,16 +239,17 @@ def test_full_sans_blueprint_va_au_bout_mais_verdict_blocked(tmp_path, offline):
 # --- boucle d'escalade fermée EN CODE ---------------------------------------------
 
 def test_escalade_bornee_sur_oracle_rouge(tmp_path, offline):
-    """Oracle rouge -> ré-spawn s9 haiku->sonnet->opus, cap 2, puis verdict
-    FAIL signé (l'échec est documenté, jamais masqué, jamais de boucle infinie)."""
+    """Oracle rouge -> pool reactif au meme tier (Tier 2 #5, pool_size=2 par
+    defaut) PUIS re-spawn s9 haiku->sonnet->opus, cap 2, puis verdict FAIL
+    signe (l'echec est documente, jamais masque, jamais de boucle infinie)."""
     run_dir = tmp_path / "run"
     ex = StubExecutor(run_dir=run_dir)
     report = ForgeDriver("proj", "proj-1", profile="micro", executor=ex,
                          **_kwargs(tmp_path, run_dir, exit_code=1)).run()
 
     s9_calls = [c for c in ex.calls if c[0] == "s9-build"]
-    assert len(s9_calls) == 3                          # contrat + 2 escalades
-    assert [c[1] for c in s9_calls] == [None, "sonnet", "opus"]
+    # pool_size=2 : 2 essais par tier (le pool est epuise) avant chaque escalade.
+    assert [c[1] for c in s9_calls] == [None, None, "sonnet", "sonnet", "opus", "opus"]
 
     state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
     assert state["escalations"] == 2
@@ -239,6 +257,46 @@ def test_escalade_bornee_sur_oracle_rouge(tmp_path, offline):
     assert report["status"] == "DONE"
     assert report["software_verdict"] == "FAIL"        # rouge signé, pas masqué
     assert report["decision"] == "BLOCKED"
+
+
+def test_pool_rattrape_un_fail_transitoire_sans_escalader_de_modele(tmp_path, offline):
+    """Valeur centrale du Concept A (Tier 2 #5) : un oracle rouge au 1er essai
+    puis vert au 2e (même tier) rattrape le run SANS jamais bumper le modèle —
+    un FAIL peut être un aléa du tirage, pas une preuve que le tier est trop
+    faible. Zéro escalade coûteuse pour un cas que le pool résout seul."""
+    run_dir = tmp_path / "run"
+    ex = StubExecutor(run_dir=run_dir)
+    kw = dict(
+        run_dir=run_dir,
+        oracle_config=_oracle_config_flaky_once(tmp_path, "proj"),
+        key_file=tmp_path / "forge_test.key",
+        audit_path=tmp_path / "audit.jsonl",
+        telemetry_path=tmp_path / "telemetry.jsonl",
+    )
+    report = ForgeDriver("proj", "proj-1", profile="micro", executor=ex, **kw).run()
+
+    s9_calls = [c for c in ex.calls if c[0] == "s9-build"]
+    assert [c[1] for c in s9_calls] == [None, None]    # 2 essais, MÊME tier (jamais "sonnet")
+
+    state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+    assert state["escalations"] == 0                   # aucune escalade de modèle
+    assert state["pool_attempts"] == 1                 # 1 retry consommé, budget pas repartagé
+
+    assert report["status"] == "DONE"
+    assert report["software_verdict"] == "OK"          # rattrapé par le pool, pas par un tier +fort
+
+
+def test_pool_size_un_desactive_le_pool_escalade_directe(tmp_path, offline):
+    """pool_size=1 restaure le comportement pré-Tier-2 : chaque FAIL escalade
+    directement de modèle, aucun retry au même tier."""
+    run_dir = tmp_path / "run"
+    ex = StubExecutor(run_dir=run_dir)
+    report = ForgeDriver("proj", "proj-1", profile="micro", executor=ex, pool_size=1,
+                         **_kwargs(tmp_path, run_dir, exit_code=1)).run()
+
+    s9_calls = [c for c in ex.calls if c[0] == "s9-build"]
+    assert [c[1] for c in s9_calls] == [None, "sonnet", "opus"]
+    assert report["software_verdict"] == "FAIL"
 
 
 # --- doctrine : le driver orchestre, il ne pense pas et ne spawn pas ---------------

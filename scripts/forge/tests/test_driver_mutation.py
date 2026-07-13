@@ -357,6 +357,7 @@ def test_survivant_non_justifie_fail_et_escalade_bornee(tmp_path, offline):
                          mutation_runner=_one_survivor,
                          **_kwargs(tmp_path, run_dir)).run()
     s9_calls = [c for c in ex.calls if c[0] == "s9-build"]
-    assert [c[1] for c in s9_calls] == [None, "sonnet", "opus"]  # escalade bornée
+    # pool_size=2 (Tier 2 #5) : 2 essais par tier avant chaque escalade bornée.
+    assert [c[1] for c in s9_calls] == [None, None, "sonnet", "sonnet", "opus", "opus"]
     assert report["software_verdict"] == "FAIL"                  # rouge signé
     assert report["decision"] == "BLOCKED"
