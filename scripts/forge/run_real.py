@@ -86,7 +86,13 @@ def _claude_call_raw(prompt: str, model: str, *, add_dir: Path, tools: tuple[str
 
     usage = data.get("usage") or {}
     tokens = int(usage.get("input_tokens", 0)) + int(usage.get("output_tokens", 0))
-    return {"ok": True, "output": str(data.get("result", "")), "tokens": tokens, "duration_s": duration}
+    # Tier 2.5 étape 2 : coût RÉEL (pas estimé) — `claude -p --output-format json`
+    # rend déjà `total_cost_usd` calculé par l'API, aucune table de prix à maintenir.
+    cost_usd = float(data.get("total_cost_usd", 0.0))
+    return {
+        "ok": True, "output": str(data.get("result", "")),
+        "tokens": tokens, "duration_s": duration, "cost_usd": cost_usd,
+    }
 
 
 def claude_executor(add_dir: Path, task_by_step: dict[str, str]):

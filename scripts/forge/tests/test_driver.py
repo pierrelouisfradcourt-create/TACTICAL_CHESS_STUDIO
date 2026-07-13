@@ -69,6 +69,7 @@ def _kwargs(tmp_path, run_dir, project="proj", exit_code=0):
         key_file=tmp_path / "forge_test.key",
         audit_path=tmp_path / "audit.jsonl",
         telemetry_path=tmp_path / "telemetry.jsonl",
+        builder_runs_path=tmp_path / "builder_runs.jsonl",
     )
 
 
@@ -272,6 +273,7 @@ def test_pool_rattrape_un_fail_transitoire_sans_escalader_de_modele(tmp_path, of
         key_file=tmp_path / "forge_test.key",
         audit_path=tmp_path / "audit.jsonl",
         telemetry_path=tmp_path / "telemetry.jsonl",
+        builder_runs_path=tmp_path / "builder_runs.jsonl",
     )
     report = ForgeDriver("proj", "proj-1", profile="micro", executor=ex, **kw).run()
 
@@ -284,6 +286,14 @@ def test_pool_rattrape_un_fail_transitoire_sans_escalader_de_modele(tmp_path, of
 
     assert report["status"] == "DONE"
     assert report["software_verdict"] == "OK"          # rattrapé par le pool, pas par un tier +fort
+
+    # Tier 2.5 étape 2 : observabilité — le builder_run enregistré confirme
+    # mécaniquement que c'est le POOL qui a sauvé la tâche, jamais une escalade.
+    from forge.studio_link import pool_stats
+    stats = pool_stats("proj-1", telemetry_path=kw["builder_runs_path"])
+    assert stats["attempts"] == 2
+    assert stats["pool_saves"] == 1
+    assert stats["escalations_avoided_cost_usd"] >= 0.0
 
 
 def test_pool_size_un_desactive_le_pool_escalade_directe(tmp_path, offline):

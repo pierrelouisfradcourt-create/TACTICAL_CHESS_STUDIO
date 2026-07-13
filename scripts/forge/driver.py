@@ -36,7 +36,7 @@ from pathlib import Path
 
 from forge.contract import ContractIncomplete
 from forge.dispatch import DETERMINISTIC, order_for_profile, prepare_dispatch
-from forge.escalate import escalation_decision, parse_agent_escalation
+from forge.escalate import escalation_decision, parse_agent_escalation, tier_of
 from forge.gate import forge_gate
 from forge.mutation_proof import (
     emit_mutation_receipt,
@@ -55,7 +55,7 @@ from forge.static_oracles import (
     frozen_features_from_wiremap,
     load_frozen_features,
 )
-from forge.studio_link import premortem, record_telemetry
+from forge.studio_link import premortem, record_builder_run, record_telemetry
 from forge.verdict import (
     CLAIM_VERDICT,
     EVIDENCE_VERDICT,
@@ -95,6 +95,7 @@ class ForgeDriver:
         key_file: Path | str | None = None,
         audit_path: Path | str | None = None,
         telemetry_path: Path | str | None = None,
+        builder_runs_path: Path | str | None = None,
         caps_path: Path | str | None = None,
         logic_files: list[str] | None = None,
         mutation_runner=None,
@@ -114,6 +115,7 @@ class ForgeDriver:
         self.key_file = Path(key_file) if key_file else None
         self.audit_path = Path(audit_path) if audit_path else None
         self.telemetry_path = Path(telemetry_path) if telemetry_path else None
+        self.builder_runs_path = Path(builder_runs_path) if builder_runs_path else None
         self.caps_path = Path(caps_path) if caps_path else None
         # P0.2 — preuve mutation d'un JEU : fichiers logiques explicites (sinon
         # dérivés de la WireMap), runner injectable (défaut = forge.mutation réel).
@@ -253,7 +255,7 @@ class ForgeDriver:
         runner, reviewer, qwen_ok = decision.runner, decision.reviewer, False
         output: str | None = None
         blocked, findings = False, []
-        tokens, duration = 0, 0.0
+        tokens, duration, cost_usd = 0, 0.0, 0.0
 
         if decision.runner == RUNNER_QWEN:
             res = run_qwen_step(payload)
@@ -287,6 +289,7 @@ class ForgeDriver:
             findings = list(res.get("findings", []))
             tokens = int(res.get("tokens", 0))
             duration = float(res.get("duration_s", 0.0))
+            cost_usd = float(res.get("cost_usd", 0.0))
 
         artifact = self.run_dir / "artifacts" / f"{etape}.txt"
         artifact.parent.mkdir(parents=True, exist_ok=True)
@@ -305,6 +308,9 @@ class ForgeDriver:
             "output_excerpt": output[-2000:],
             "redteam_blocked": blocked,
             "redteam_findings": findings,
+            "tokens": tokens,
+            "duration_s": duration,
+            "cost_usd": cost_usd,
         }
         self._save(state)
         try:
@@ -591,6 +597,27 @@ class ForgeDriver:
         oracle_fail = code_st == "FAIL" or wire_st == "FAIL"
         s9_detail = state["steps"]["s9-build"].get("detail", {})
         requested, why = parse_agent_escalation(s9_detail.get("output_excerpt", ""))
+
+        # Tier 2.5 étape 2 : un builder_run par TENTATIVE s9, succès inclus (sinon
+        # "quels builders réussissent toujours" resterait invisible). Best-effort.
+        model_for_metrics = state.get("model_override") or s9_detail.get("model", "")
+        try:
+            record_builder_run(
+                self.run_id,
+                tier=tier_of(model_for_metrics),
+                builder_id=model_for_metrics or "inconnu",
+                strategy=("pool_retry" if int(state.get("pool_attempts", 0)) > 0
+                          else "tier_attempt"),
+                duration_s=float(s9_detail.get("duration_s", 0.0)),
+                oracle_result=code_st or "",
+                retry_number=int(state.get("pool_attempts", 0)),
+                tokens=int(s9_detail.get("tokens", 0)),
+                cost_usd=float(s9_detail.get("cost_usd", 0.0)),
+                telemetry_path=self.builder_runs_path,
+            )
+        except OSError:
+            logger.warning("builder_run non écrit pour %s (non bloquant)", self.run_id)
+
         if not (oracle_fail or requested):
             return False
 

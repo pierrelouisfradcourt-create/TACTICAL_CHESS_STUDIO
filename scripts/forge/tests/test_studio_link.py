@@ -64,6 +64,49 @@ def test_propose_project_record(tmp_path):
     assert p.read_text(encoding="utf-8").strip()
 
 
+# --- Tier 2.5 étape 2 : observabilité du pool de builders -------------------------
+
+def test_record_builder_run_and_pool_stats(tmp_path):
+    b = tmp_path / "builder_runs.jsonl"
+    # 1er essai (haiku) échoue, pool retry (même tier) réussit — le pool sauve la tâche.
+    sl.record_builder_run("run1", tier="haiku", builder_id="claude-haiku-4-5-20251001",
+                          strategy="tier_attempt", duration_s=2.0, oracle_result="FAIL",
+                          retry_number=0, tokens=500, cost_usd=0.01, telemetry_path=b)
+    sl.record_builder_run("run1", tier="haiku", builder_id="claude-haiku-4-5-20251001",
+                          strategy="pool_retry", duration_s=2.5, oracle_result="OK",
+                          retry_number=1, tokens=520, cost_usd=0.012, telemetry_path=b)
+    stats = sl.pool_stats("run1", telemetry_path=b)
+    assert stats["attempts"] == 2
+    assert stats["pool_saves"] == 1
+    assert abs(stats["escalations_avoided_cost_usd"] - 0.012) < 1e-9
+    assert stats["by_builder"]["claude-haiku-4-5-20251001"] == {"FAIL": 1, "OK": 1}
+
+
+def test_pool_stats_pool_retry_qui_echoue_aussi_ne_compte_pas_comme_sauve(tmp_path):
+    b = tmp_path / "builder_runs.jsonl"
+    sl.record_builder_run("run1", tier="haiku", builder_id="haiku", strategy="tier_attempt",
+                          duration_s=1.0, oracle_result="FAIL", retry_number=0,
+                          tokens=1, cost_usd=0.001, telemetry_path=b)
+    sl.record_builder_run("run1", tier="haiku", builder_id="haiku", strategy="pool_retry",
+                          duration_s=1.0, oracle_result="FAIL", retry_number=1,
+                          tokens=1, cost_usd=0.001, telemetry_path=b)
+    stats = sl.pool_stats("run1", telemetry_path=b)
+    assert stats["pool_saves"] == 0
+    assert stats["escalations_avoided_cost_usd"] == 0.0
+
+
+def test_pool_stats_filtre_par_run_id(tmp_path):
+    b = tmp_path / "builder_runs.jsonl"
+    sl.record_builder_run("run1", tier="haiku", builder_id="haiku", strategy="tier_attempt",
+                          duration_s=1.0, oracle_result="OK", retry_number=0,
+                          tokens=1, cost_usd=0.0, telemetry_path=b)
+    sl.record_builder_run("run2", tier="opus", builder_id="opus", strategy="tier_attempt",
+                          duration_s=1.0, oracle_result="OK", retry_number=0,
+                          tokens=1, cost_usd=0.0, telemetry_path=b)
+    assert sl.pool_stats("run1", telemetry_path=b)["attempts"] == 1
+    assert sl.pool_stats("run2", telemetry_path=b)["attempts"] == 1
+
+
 def test_connecteurs_necrivent_aucune_memoire_de_reference():
     """Garde propose-only : le module ne référence jamais en écriture le ledger ni projects.json."""
     src = Path(__file__).resolve().parents[1].joinpath("studio_link.py").read_text(encoding="utf-8")

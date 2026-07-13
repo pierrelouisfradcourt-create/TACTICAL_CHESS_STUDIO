@@ -28,6 +28,11 @@ DEFAULT_TELEMETRY = FORGE_EVIDENCE / "forge_telemetry.jsonl"
 DEFAULT_ERROR_JOURNAL = FORGE_REPORTS / "forge_error_journal.jsonl"
 DEFAULT_LEDGER_PROPOSALS = FORGE_REPORTS / "forge_ledger_proposals.jsonl"
 DEFAULT_PROJECT_PROPOSALS = FORGE_REPORTS / "forge_project_proposals.jsonl"
+# Tier 2.5 étape 2 : observabilité dédiée du pool de builders (Tier 2 #5) — sans ça,
+# le pool reste une boîte noire. Un enregistrement par TENTATIVE s9-build (pas un
+# agrégat par run) : c'est la granularité qui répond à « le pool sauve-t-il des
+# tâches ? », « quels builders échouent toujours ? », « quelles stratégies marchent ? ».
+DEFAULT_BUILDER_RUNS = FORGE_EVIDENCE / "forge_builder_runs.jsonl"
 
 
 def _append(path: Path, record: dict) -> None:
@@ -74,6 +79,69 @@ def run_cost(run_id: str, telemetry_path: Path | None = None) -> dict:
         "calls": len(rows),
         "total_tokens": sum(int(r.get("tokens", 0)) for r in rows),
         "total_duration_s": sum(float(r.get("duration_s", 0.0)) for r in rows),
+    }
+
+
+# --- Tier 2.5 étape 2 : observabilité du pool de builders (extension connecteur 3) --
+
+def record_builder_run(
+    run_id: str,
+    *,
+    tier: str | None,
+    builder_id: str,
+    strategy: str,
+    duration_s: float,
+    oracle_result: str,
+    retry_number: int,
+    tokens: int,
+    cost_usd: float,
+    telemetry_path: Path | None = None,
+) -> None:
+    """Trace UNE tentative s9-build : tier/modèle/stratégie/résultat d'oracle/coût.
+
+    `strategy` ∈ {"tier_attempt", "pool_retry"} — premier essai à ce tier, ou retry
+    du pool (Tier 2 #5) au MÊME tier. `oracle_result` = statut réel de s10a-oracle-code
+    pour CETTE tentative (OK/FAIL/BLOCKED/""). Best-effort, jamais bloquant.
+    """
+    _append(
+        telemetry_path or DEFAULT_BUILDER_RUNS,
+        {
+            "task_id": run_id, "tier": tier, "builder_id": builder_id,
+            "strategy": strategy, "duration_s": duration_s, "oracle_result": oracle_result,
+            "retry_number": retry_number, "tokens_estimated": tokens,
+            "cost_estimated": cost_usd, "ts": time.time(),
+        },
+    )
+
+
+def pool_stats(run_id: str, telemetry_path: Path | None = None) -> dict:
+    """Agrège les tentatives s9-build d'un run : ce que le pool a réellement fait.
+
+    - `pool_saves` : nb de retries du pool (Tier 2 #5) qui ont fini par OK — une
+      tâche que l'escalade de modèle (plus chère) n'a pas eu besoin de traiter.
+    - `escalations_avoided_cost_usd` : coût des tentatives pool_retry réussies —
+      un ordre de grandeur de ce qu'une escalade aurait coûté en plus si le pool
+      n'existait pas (approximation : pas un contrefactuel exact).
+    - `by_builder` : {builder_id: {"OK":n, "FAIL":n, "BLOCKED":n}} — quels builders
+      échouent toujours, sur CE run.
+    """
+    rows = [r for r in _read(telemetry_path or DEFAULT_BUILDER_RUNS) if r.get("task_id") == run_id]
+    pool_rows = [r for r in rows if r.get("strategy") == "pool_retry"]
+    pool_saves = sum(1 for r in pool_rows if r.get("oracle_result") == "OK")
+    saved_cost = sum(float(r.get("cost_estimated", 0.0)) for r in pool_rows if r.get("oracle_result") == "OK")
+
+    by_builder: dict[str, dict[str, int]] = {}
+    for r in rows:
+        b = by_builder.setdefault(r.get("builder_id", "?"), {})
+        res = r.get("oracle_result") or "UNKNOWN"
+        b[res] = b.get(res, 0) + 1
+
+    return {
+        "run_id": run_id,
+        "attempts": len(rows),
+        "pool_saves": pool_saves,
+        "escalations_avoided_cost_usd": saved_cost,
+        "by_builder": by_builder,
     }
 
 

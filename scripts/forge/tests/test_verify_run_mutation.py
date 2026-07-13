@@ -78,7 +78,7 @@ def _green_game_verdict(tmp_path):
         mutation_baseline_runner=lambda argv, cwd: True,
         run_dir=run_dir, oracle_config=_oracle_config(tmp_path, "jeu"),
         key_file=key, audit_path=tmp_path / "audit.jsonl",
-        telemetry_path=tmp_path / "t.jsonl",
+        telemetry_path=tmp_path / "t.jsonl", builder_runs_path=tmp_path / "br.jsonl",
     ).run()
     assert report["software_verdict"] == "OK"  # préalable
     return run_dir / "verdict.json", g, key

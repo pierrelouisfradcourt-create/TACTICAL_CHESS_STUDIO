@@ -82,6 +82,7 @@ def _kwargs(tmp_path, run_dir, exit_code=0):
         key_file=tmp_path / "forge_test.key",
         audit_path=tmp_path / "audit.jsonl",
         telemetry_path=tmp_path / "telemetry.jsonl",
+        builder_runs_path=tmp_path / "builder_runs.jsonl",
         mutation_baseline_runner=lambda argv, cwd: True,  # baseline verte stubée
     )
 
