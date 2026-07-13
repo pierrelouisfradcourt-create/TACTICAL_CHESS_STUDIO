@@ -6,10 +6,71 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { search } from './search.mjs';
+import { search, findFulfilling } from './search.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const catalog = JSON.parse(readFileSync(resolve(__dirname, 'catalog.json'), 'utf-8'));
+
+// ---------- pont SEARCH↔ROLE (Tier 1 #4) ----------
+test('findFulfilling : role-pursuer-mobile est reellement couvert par sys-pursuer-mobile', () => {
+  const { role, fulfilling, declaredButNotCovered } = findFulfilling('role-pursuer-mobile', catalog);
+  assert.ok(role, 'le role doit etre trouve dans le catalogue reel');
+  assert.deepEqual(fulfilling.map((b) => b.brick_id), ['sys-pursuer-mobile']);
+  assert.deepEqual(declaredButNotCovered, []);
+});
+
+test('findFulfilling : role-guardian-static est reellement couvert par sys-guardian-zoc', () => {
+  const { fulfilling } = findFulfilling('role-guardian-static', catalog);
+  assert.deepEqual(fulfilling.map((b) => b.brick_id), ['sys-guardian-zoc']);
+});
+
+test('findFulfilling : role inconnu -> role null, listes vides (pas de crash)', () => {
+  const res = findFulfilling('role-n-existe-pas', catalog);
+  assert.equal(res.role, null);
+  assert.deepEqual(res.fulfilling, []);
+  assert.deepEqual(res.declaredButNotCovered, []);
+});
+
+test('findFulfilling : detecte un fulfilled_by perime (declare mais affordances ne couvre plus)', () => {
+  const perime = {
+    catalog_version: 1,
+    entries: [
+      { entry_type: 'role', role_id: 'role-x', archetype: 'x',
+        requires: { move: { type: 'fn()->pos', description: 'x' } },
+        fulfilled_by: ['sys-x'], tier: 'candidate', license: 'MIT',
+        path: 'knowledge_base/roles/x.yaml', proof_of_use: null },
+      { entry_type: 'brick', brick_id: 'sys-x', kind: 'system', function: 'x',
+        source: 'x', provenance_url: null, license: 'MIT', runtime: 'html',
+        dependencies: [], parameters: {}, genre_compatible: ['tactical'],
+        invariants: ['x'], proof_of_use: null, tier: 'candidate',
+        path: null, sha256: null, tests: null, advisory_only: false,
+        affordances: {} }, // ne couvre PAS "move" — perime
+    ],
+  };
+  const { fulfilling, declaredButNotCovered } = findFulfilling('role-x', perime);
+  assert.deepEqual(fulfilling, []);
+  assert.deepEqual(declaredButNotCovered.map((b) => b.brick_id), ['sys-x']);
+});
+
+test('findFulfilling : une piece NON declaree dans fulfilled_by mais qui couvre requires est quand meme trouvee', () => {
+  const undeclared = {
+    catalog_version: 1,
+    entries: [
+      { entry_type: 'role', role_id: 'role-y', archetype: 'y',
+        requires: { move: { type: 'fn()->pos', description: 'y' } },
+        fulfilled_by: [], tier: 'candidate', license: 'MIT',
+        path: 'knowledge_base/roles/y.yaml', proof_of_use: null },
+      { entry_type: 'brick', brick_id: 'sys-y', kind: 'system', function: 'y',
+        source: 'y', provenance_url: null, license: 'MIT', runtime: 'html',
+        dependencies: [], parameters: {}, genre_compatible: ['tactical'],
+        invariants: ['y'], proof_of_use: null, tier: 'candidate',
+        path: null, sha256: null, tests: null, advisory_only: false,
+        affordances: { move: { type: 'fn()->pos', description: 'y' } } },
+    ],
+  };
+  const { fulfilling } = findFulfilling('role-y', undeclared);
+  assert.deepEqual(fulfilling.map((b) => b.brick_id), ['sys-y']);
+});
 
 test('régression : une requête "temps réel/continu" doit préférer sys-pursuer-continuous, pas sys-pursuer-mobile — bug réel trouvé le 2026-07-13 (les 2 fiches se citaient l\'une l\'autre en négation, "pour X" vs "PAS pour X" scoraient pareil ; corrigé en rendant chaque fiche autonome, sans le vocabulaire de l\'autre cas d\'usage)', () => {
   const results = search('poursuite continue temps reel canvas vecteur arcade', catalog);

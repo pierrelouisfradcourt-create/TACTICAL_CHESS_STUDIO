@@ -20,6 +20,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { missingCapabilities } from './kb-validate.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CATALOG_PATH = resolve(__dirname, 'catalog.json');
@@ -71,6 +72,11 @@ function searchableBlob(entry) {
     entry.entry_type,
     entry.asset_id,
     entry.brick_id,
+    // archetype (prose libre du rôle) est délibérément EXCLU du scoring textuel : son
+    // vocabulaire descriptif fait gonfler le score au-delà des pièces qui IMPLÉMENTENT
+    // réellement le mécanisme (régression mesurée : role-guardian-static primait sur
+    // sys-guardian-zoc). Chercher un rôle mécaniquement = --fulfills, pas le scoring flou.
+    entry.role_id,
     entry.kind,
     entry.function,
     entry.source,
@@ -171,12 +177,39 @@ export function search(query, catalog, options = {}) {
     const tierRank = (t) => (t === 'validated' ? 0 : 1);
     const tierDiff = tierRank(a.entry.tier) - tierRank(b.entry.tier);
     if (tierDiff !== 0) return tierDiff;
-    const idA = a.entry.brick_id || a.entry.asset_id || '';
-    const idB = b.entry.brick_id || b.entry.asset_id || '';
+    const idA = a.entry.brick_id || a.entry.asset_id || a.entry.role_id || '';
+    const idB = b.entry.brick_id || b.entry.asset_id || b.entry.role_id || '';
     return idA.localeCompare(idB);
   });
 
   return results;
+}
+
+/**
+ * Le pont SEARCH↔ROLE (Tier 1 #4) : « quelles pièces du catalogue couvrent réellement
+ * ce rôle ? » — une comparaison mécanique (affordances ⊇ requires), pas une lecture de
+ * `fulfilled_by` (qui reste une déclaration, désormais vérifiée par kb-validate.mjs R14,
+ * mais limitée aux bricks QUE le rôle cite). Ici on balaie TOUT le catalogue : une pièce
+ * non encore déclarée dans `fulfilled_by` mais qui couvre déjà `requires` est trouvée.
+ * @param {string} roleId
+ * @param {object} catalog
+ * @returns {{role:object, fulfilling:object[], declaredButNotCovered:object[]}}
+ *   `fulfilling` = bricks dont affordances ⊇ requires (le rôle EST réellement couvert par).
+ *   `declaredButNotCovered` = bricks cités par fulfilled_by dont la couverture est fausse
+ *   (signal direct d'un catalogue périmé — cf. R14).
+ */
+export function findFulfilling(roleId, catalog) {
+  const entries = (catalog && catalog.entries) || [];
+  const role = entries.find((e) => e.entry_type === 'role' && e.role_id === roleId);
+  if (!role) return { role: null, fulfilling: [], declaredButNotCovered: [] };
+
+  const bricks = entries.filter((e) => e.entry_type === 'brick');
+  const fulfilling = bricks.filter((b) => missingCapabilities(role.requires, b.affordances).length === 0);
+  const fulfillingIds = new Set(fulfilling.map((b) => b.brick_id));
+  const declaredButNotCovered = bricks.filter(
+    (b) => (role.fulfilled_by || []).includes(b.brick_id) && !fulfillingIds.has(b.brick_id)
+  );
+  return { role, fulfilling, declaredButNotCovered };
 }
 
 function loadCatalog(catalogPath) {
@@ -205,7 +238,7 @@ function parseArgs(argv) {
 
 function formatResultLine(result) {
   const { entry, score, matchedTokens } = result;
-  const id = entry.brick_id || entry.asset_id;
+  const id = entry.brick_id || entry.asset_id || entry.role_id;
   const label = entry.function || entry.style || '(sans description)';
   const tier = entry.tier || '?';
   return `[score=${score}] ${id} (${entry.kind || entry.entry_type}, tier=${tier})\n    ${label}\n    matché sur : ${matchedTokens.join(', ')}\n    path : ${entry.path}`;
@@ -215,16 +248,42 @@ function main() {
   const argv = process.argv.slice(2);
   const { query, options } = parseArgs(argv);
 
-  if (!query.trim()) {
-    console.error('Usage: node search.mjs "<intention en texte libre>" [--genre X] [--kind system|pattern|asset] [--tier validated|candidate] [--format 2D|3D] [--runtime html|agnostic] [--min-score N] [--json]');
-    process.exit(2);
-  }
-
   let catalog;
   try {
     catalog = loadCatalog(options.catalog ? resolve(options.catalog) : DEFAULT_CATALOG_PATH);
   } catch (err) {
     console.error(`catalogue illisible : ${err.message}`);
+    process.exit(2);
+  }
+
+  // Tier 1 #4 : --fulfills <role_id> bascule sur le pont SEARCH↔ROLE (affordances ⊇
+  // requires), mécanique, indépendant du scoring textuel.
+  if (options.fulfills) {
+    const { role, fulfilling, declaredButNotCovered } = findFulfilling(options.fulfills, catalog);
+    if (!role) {
+      console.error(`role inconnu dans le catalogue : ${options.fulfills}`);
+      process.exit(2);
+    }
+    if (options.json) {
+      console.log(JSON.stringify({ role: role.role_id, fulfilling, declaredButNotCovered }, null, 2));
+    } else {
+      console.log(`=== PONT SEARCH<->ROLE — ${role.role_id} ===\n`);
+      console.log(`requires : ${Object.keys(role.requires).join(', ')}\n`);
+      if (fulfilling.length === 0) {
+        console.log('Aucune piece du catalogue ne couvre ce role.');
+      } else {
+        for (const b of fulfilling) console.log(`  - ${b.brick_id} (tier=${b.tier}) : ${b.function}`);
+      }
+      if (declaredButNotCovered.length > 0) {
+        console.log(`\nATTENTION — declare dans fulfilled_by mais couverture fausse (catalogue perime) :`);
+        for (const b of declaredButNotCovered) console.log(`  - ${b.brick_id}`);
+      }
+    }
+    process.exit(fulfilling.length > 0 ? 0 : 1);
+  }
+
+  if (!query.trim()) {
+    console.error('Usage: node search.mjs "<intention en texte libre>" [--genre X] [--kind system|pattern|asset] [--tier validated|candidate] [--format 2D|3D] [--runtime html|agnostic] [--min-score N] [--json] | --fulfills <role_id>');
     process.exit(2);
   }
 

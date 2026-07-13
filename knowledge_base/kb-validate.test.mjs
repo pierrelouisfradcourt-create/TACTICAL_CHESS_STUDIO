@@ -85,7 +85,10 @@ function baseSystem(f) {
     dependencies: ["pat-damage-floor"], parameters: {},
     genre_compatible: ["tactical"], invariants: ["degats >= 1", "deterministe"],
     proof_of_use: null, tier: "candidate", path: f.system.path, sha256: f.system.sha,
-    tests: f.tests.path, advisory_only: false, affordances: {},
+    tests: f.tests.path, advisory_only: false,
+    // couvre la capacite par defaut de baseRole() (Tier 1 #4, R14) — un pont VRAI
+    // par defaut ; les tests qui veulent une couverture absente l'ecrasent explicitement.
+    affordances: { movement: { type: "fn(pos,targetPos,speed)->pos", description: "se deplace vers la cible" } },
   };
 }
 function baseRole(f) {
@@ -333,6 +336,32 @@ test("R13: fulfilled_by reference une brique inexistante -> rejet", (t) => {
   const r = baseRole(files); r.fulfilled_by = ["sys-n-existe-pas"];
   const res = validateCatalog(makeCatalog([basePattern(files), baseSystem(files), r]), { root });
   assert.ok(res.errors.some((e) => e.rule === "R13"));
+});
+test("R14: brique existante mais affordances ne couvre pas requires -> rejet", (t) => {
+  const { root, files } = makeRoot(t);
+  const s = baseSystem(files); s.affordances = {};
+  const r = baseRole(files); // requires: { movement: {...} }
+  const res = validateCatalog(makeCatalog([basePattern(files), s, r]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R14" && /movement/.test(e.msg)));
+});
+test("R14: brique dont affordances couvre requires -> ok (le pont est vrai)", (t) => {
+  const { root, files } = makeRoot(t);
+  const s = baseSystem(files); // affordances par defaut couvre deja "movement"
+  const r = baseRole(files);
+  const res = validateCatalog(makeCatalog([basePattern(files), s, r]), { root });
+  assert.deepEqual(res.errors, []);
+});
+test("R14: affordances couvre PARTIELLEMENT requires (2 capacites, 1 seule fournie) -> rejet, nomme la manquante", (t) => {
+  const { root, files } = makeRoot(t);
+  const s = baseSystem(files); // affordances par defaut ne fournit QUE "movement"
+  const r = baseRole(files);
+  r.requires = {
+    movement: { type: "fn(pos,targetPos,speed)->pos", description: "se deplace" },
+    distance_metric: { type: "fn(a,b)->number", description: "distance" },
+  };
+  const res = validateCatalog(makeCatalog([basePattern(files), s, r]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R14" && /distance_metric/.test(e.msg)));
+  assert.ok(!res.errors.some((e) => e.rule === "R14" && e.msg.includes("movement,")));
 });
 test("R7: role avec path absent du disque -> rejet", (t) => {
   const { root, files } = makeRoot(t);

@@ -7,8 +7,12 @@
 // prose à côté. `requires` (rôle) et `affordances` (brick, mandatoire, `{}` par défaut)
 // partagent la même forme machine-lisible {capacité: {type, description}}. R13 : le pont
 // `fulfilled_by` -> catalogue est désormais VÉRIFIÉ (brique référencée doit exister) —
-// jusqu'ici une simple citation en prose, jamais contrôlée. La comparaison
-// affordances(pièce) ⊇ requires(rôle) reste hors scope (prochain incrément).
+// jusqu'ici une simple citation en prose, jamais contrôlée.
+//
+// v4 (2026-07-13, Tier 1 #4) : R14 -- le pont SEARCH<->ROLE devient une comparaison
+// REELLE, pas une declaration crue sur parole : fulfilled_by n'est valide que si
+// affordances(piece) recouvre requires(role) (comparaison par nom de capacite,
+// exportee via missingCapabilities pour reutilisation par search.mjs --fulfills).
 //
 // v2 (2026-07-12) : durci après red-team claude-blind (LM Studio down). Corrections
 // confirmées par exécution — voir docs/forge/KB_REDTEAM_ADJUDICATION.md :
@@ -121,6 +125,15 @@ function isCapabilityMap(v) {
 }
 function isNonEmptyCapabilityMap(v) { return isCapabilityMap(v) && Object.keys(v).length > 0; }
 
+// Tier 1 #4 — le pont SEARCH↔ROLE : « affordances(piece) ⊇ requires(role) » devient une
+// comparaison réelle, pas une lecture de prose. Comparaison par NOM de capacité seulement
+// (pas de vérification de signature/type — un futur incrément pourrait durcir ça) : un rôle
+// est couvert par une pièce ssi chaque clé de `requires` existe aussi dans `affordances`.
+export function missingCapabilities(requires, affordances) {
+  const have = affordances || {};
+  return Object.keys(requires || {}).filter((cap) => !(cap in have));
+}
+
 function sha256File(abs) {
   return createHash("sha256").update(readFileSync(abs)).digest("hex");
 }
@@ -224,9 +237,9 @@ function _validate(catalog, root, err) {
   }
   for (const [id, n] of seen) if (n > 1) err(id, "R1", `id duplique (${n} occurrences)`);
 
-  const brickIds = new Set(
-    catalog.entries.filter((e) => e?.entry_type === "brick").map((e) => e.brick_id)
-  );
+  const bricks = catalog.entries.filter((e) => e?.entry_type === "brick");
+  const brickIds = new Set(bricks.map((e) => e.brick_id));
+  const bricksById = new Map(bricks.map((e) => [e.brick_id, e]));
   for (const e of catalog.entries) {
     if (!isPlainObj(e) || !["asset", "brick", "role"].includes(e.entry_type)) {
       err("<entree>", "R1", "entry_type doit etre 'asset', 'brick' ou 'role'");
@@ -234,7 +247,7 @@ function _validate(catalog, root, err) {
     }
     if (e.entry_type === "asset") validateAsset(e, root, err);
     else if (e.entry_type === "brick") validateBrick(e, root, err, brickIds);
-    else validateRole(e, root, err, brickIds);
+    else validateRole(e, root, err, brickIds, bricksById);
   }
   detectCycles(catalog.entries.filter((e) => e?.entry_type === "brick"), err);
 }
@@ -408,7 +421,7 @@ function validateBrick(e, root, err, brickIds) {
 // vérifie PAS encore affordances(piece) ⊇ requires(role) : c'est le pont SEARCH↔ROLE,
 // prochain incrément (Tier 1 #4). R13 vérifie seulement que le pont EXISTE réellement
 // (fulfilled_by pointe une brique réelle du catalogue) — jusqu'ici non vérifié du tout.
-function validateRole(e, root, err, brickIds) {
+function validateRole(e, root, err, brickIds, bricksById) {
   const id = e.role_id ?? "<role-sans-id>";
   if (!checkSpec(e, ROLE_SPEC, id, err)) return;
 
@@ -417,8 +430,16 @@ function validateRole(e, root, err, brickIds) {
 
   // R13 — le pont ROLE -> catalogue existe reellement (fulfilled_by n'est plus une
   // simple citation en prose : chaque brick_id cite doit exister dans le catalogue).
+  // R14 — le pont est VRAI, pas juste déclaré : la brique référencée doit réellement
+  // couvrir chaque capacité de `requires` (affordances ⊇ requires, comparaison par
+  // nom de capacité — Tier 1 #4, cf. knowledge_base/roles/SCHEMA.md).
   for (const b of e.fulfilled_by) {
-    if (!brickIds.has(b)) err(id, "R13", `fulfilled_by reference une brique inconnue: ${b}`);
+    if (!brickIds.has(b)) { err(id, "R13", `fulfilled_by reference une brique inconnue: ${b}`); continue; }
+    const missing = missingCapabilities(e.requires, bricksById.get(b).affordances);
+    if (missing.length > 0) {
+      err(id, "R14", `${b} ne couvre pas les capacites requises: ${missing.join(", ")} `
+        + `(affordances(${b}) doit contenir toutes les cles de requires(${id}))`);
+    }
   }
 
   // R7 — réalité disque du contrat détaillé (le YAML complet vit sous roles/, non
