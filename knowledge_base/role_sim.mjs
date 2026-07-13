@@ -4,6 +4,13 @@
 // (ça, c'est solvability.mjs) — mesure une BANDE DE DIFFICULTÉ sur N essais seedés, et la
 // compare à la bande DÉCLARÉE dans le contrat rôle (knowledge_base/roles/<role>.yaml).
 //
+// GÉNÉRIQUE depuis le 2e rôle (2026-07-13, test de généralisation) : ce fichier ne
+// connaît PLUS la mécanique d'un rôle précis (poursuite, zone de contrôle, ...) — chaque
+// contrat rôle déclare son propre `simulation_module`, un .mjs exportant
+// `runTrial(seed, cfg) -> {succeeded, ticks}`, chargé dynamiquement. La logique
+// pursuer-vs-evader d'origine a été EXTRAITE (inchangée) vers
+// systems/ai/pursuer_scenario.mjs — vérifié : mêmes médianes mesurées après extraction.
+//
 // Lecteur YAML volontairement MINIMAL (pas de dépendance npm) : ne comprend QUE le
 // sous-ensemble utilisé par les contrats rôle (scalaires top-level `key: value`, blocs
 // plats `key:\n  subkey: value` sur UN niveau d'indentation, listes `- item`). Suffisant
@@ -13,9 +20,10 @@
 // Exit 0 = bande mesurée DANS la bande déclarée · 1 = hors bande (rapporté tel quel,
 // jamais édulcoré) · 2 = contrat invalide (champ Critique absent) ou erreur.
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { stepToward, chebyshevDistance } from './systems/ai/pursuer.mjs';
-import { stepAway } from './systems/ai/evader.mjs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 // ---- lecteur YAML minimal (sous-ensemble contrôlé, cf. en-tête) ----
 
@@ -95,6 +103,7 @@ function loadRole(filePath) {
   const license = extractScalar(text, 'license');
   const path = extractScalar(text, 'path');
   const proofOfUse = extractScalar(text, 'proof_of_use');
+  const simulationModule = extractScalar(text, 'simulation_module');
   const simulationConfig = extractFlatBlock(text, 'simulation_config');
   const difficultyTarget = extractFlatBlock(text, 'difficulty_target');
   const requiresPresent = /^requires:[ \t]*$/m.test(text);
@@ -102,6 +111,7 @@ function loadRole(filePath) {
   if (!roleId) findings.push('champ Critique absent : role_id');
   if (!archetype || archetype.length < 20) findings.push('champ Critique absent/trop court : archetype');
   if (!requiresPresent) findings.push('champ Critique absent : requires');
+  if (!simulationModule) findings.push('champ Critique absent : simulation_module');
   if (!simulationConfig) findings.push('champ Critique absent : simulation_config');
   if (!difficultyTarget) findings.push('champ Critique absent : difficulty_target');
   if (!tier) findings.push('champ Critique absent : tier');
@@ -112,53 +122,9 @@ function loadRole(filePath) {
   }
 
   return {
-    role: { roleId, archetype, tier, license, path, proofOfUse, simulationConfig, difficultyTarget },
+    role: { roleId, archetype, tier, license, path, proofOfUse, simulationModule, simulationConfig, difficultyTarget },
     findings,
   };
-}
-
-// ---- PRNG déterministe (mulberry32 — même famille que les autres oracles du studio) ----
-
-function mulberry32(seed) {
-  let a = seed >>> 0;
-  return function next() {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/**
- * Simule UNE poursuite (un seed = une configuration de départ), jusqu'à capture ou
- * max_ticks. Pur vis-à-vis de l'extérieur (RNG créé et consommé localement, seedé).
- * @param {number} seed
- * @param {object} cfg simulation_config (trials/seed_start non utilisés ici — 1 essai)
- * @returns {{caught:boolean, ticks:number}}
- */
-function simulateOne(seed, cfg) {
-  const rng = mulberry32(seed);
-  const half = cfg.arena_half_size;
-  const randCoord = () => Math.round((rng() * 2 - 1) * half);
-
-  let pursuer = { x: randCoord(), y: randCoord() };
-  let evader = { x: randCoord(), y: randCoord() };
-  // Évite un départ déjà capturé (dégénéré) — retirage déterministe borné.
-  let guard = 0;
-  while (chebyshevDistance(pursuer, evader) <= cfg.catch_radius && guard < 50) {
-    evader = { x: randCoord(), y: randCoord() };
-    guard += 1;
-  }
-
-  for (let tick = 1; tick <= cfg.max_ticks; tick += 1) {
-    evader = stepAway(evader, pursuer, cfg.evader_speed);
-    pursuer = stepToward(pursuer, evader, cfg.pursuer_speed);
-    if (chebyshevDistance(pursuer, evader) <= cfg.catch_radius) {
-      return { caught: true, ticks: tick };
-    }
-  }
-  return { caught: false, ticks: null };
 }
 
 function median(sortedNums) {
@@ -169,43 +135,47 @@ function median(sortedNums) {
 }
 
 /**
- * Lance `trials` simulations (seeds seed_start..seed_start+trials-1) et calcule la
- * bande de difficulté mesurée.
- * @param {object} cfg simulation_config complet
- * @returns {{trials:number, caught:number, notCaught:number, catchRate:number, min:(number|null), median:(number|null), max:(number|null), ticksToCatch:number[]}}
+ * Lance `trials` essais (seeds seed_start..seed_start+trials-1) via `runTrial` (fourni
+ * par le module de scénario déclaré par le rôle) et calcule la bande de difficulté
+ * mesurée. GÉNÉRIQUE — ne connaît aucune mécanique de jeu précise.
+ * @param {object} cfg simulation_config complet (trials, seed_start, + params du scénario)
+ * @param {(seed:number, cfg:object) => {succeeded:boolean, ticks:(number|null)}} runTrial
+ * @returns {{trials:number, succeeded:number, notSucceeded:number, successRate:number, min:(number|null), median:(number|null), max:(number|null), ticksToSucceed:number[]}}
  */
-export function measureDifficultyBand(cfg) {
-  const ticksToCatch = [];
-  let notCaught = 0;
+export function measureDifficultyBand(cfg, runTrial) {
+  const ticksToSucceed = [];
+  let notSucceeded = 0;
 
   for (let i = 0; i < cfg.trials; i += 1) {
     const seed = cfg.seed_start + i;
-    const result = simulateOne(seed, cfg);
-    if (result.caught) ticksToCatch.push(result.ticks);
-    else notCaught += 1;
+    const result = runTrial(seed, cfg);
+    if (result.succeeded) ticksToSucceed.push(result.ticks);
+    else notSucceeded += 1;
   }
 
-  const sorted = [...ticksToCatch].sort((a, b) => a - b);
+  const sorted = [...ticksToSucceed].sort((a, b) => a - b);
   return {
     trials: cfg.trials,
-    caught: ticksToCatch.length,
-    notCaught,
-    catchRate: ticksToCatch.length / cfg.trials,
+    succeeded: ticksToSucceed.length,
+    notSucceeded,
+    successRate: ticksToSucceed.length / cfg.trials,
     min: sorted.length ? sorted[0] : null,
     median: median(sorted),
     max: sorted.length ? sorted[sorted.length - 1] : null,
-    ticksToCatch: sorted,
+    ticksToSucceed: sorted,
   };
 }
 
+// Alias de métrique : chaque rôle peut nommer sa métrique dans son propre vocabulaire de
+// domaine (ticks_to_catch_median, ticks_to_reach_goal_median, ...) — tous pointent vers
+// les mêmes champs génériques de measureDifficultyBand.
 const METRIC_KEYS = {
-  ticks_to_catch_median: 'median',
-  ticks_to_catch_min: 'min',
-  ticks_to_catch_max: 'max',
-  catch_rate: 'catchRate',
+  ticks_to_catch_median: 'median', ticks_to_catch_min: 'min', ticks_to_catch_max: 'max', catch_rate: 'successRate',
+  ticks_to_reach_goal_median: 'median', ticks_to_reach_goal_min: 'min', ticks_to_reach_goal_max: 'max', reach_rate: 'successRate',
+  ticks_median: 'median', ticks_min: 'min', ticks_max: 'max', success_rate: 'successRate',
 };
 
-function main() {
+async function main() {
   const rolePath = process.argv[2];
   if (!rolePath) {
     console.error('Usage: node role_sim.mjs <role.yaml>');
@@ -223,15 +193,31 @@ function main() {
   }
 
   console.log(`Rôle : ${role.roleId} (tier=${role.tier})`);
+  console.log(`Scénario : ${role.simulationModule}`);
   console.log(`Config simulation : ${JSON.stringify(role.simulationConfig)}`);
 
-  const measured = measureDifficultyBand(role.simulationConfig);
+  const moduleUrl = pathToFileURL(resolve(REPO_ROOT, role.simulationModule)).href;
+  let scenario;
+  try {
+    scenario = await import(moduleUrl);
+  } catch (e) {
+    console.log(`\n✗ simulation_module illisible/introuvable : ${role.simulationModule}\n    ${e.message}`);
+    console.log('\nRESULT: INVALID_CONTRACT');
+    process.exit(2);
+  }
+  if (typeof scenario.runTrial !== 'function') {
+    console.log(`\n✗ simulation_module n'exporte pas runTrial(seed, cfg) : ${role.simulationModule}`);
+    console.log('\nRESULT: INVALID_CONTRACT');
+    process.exit(2);
+  }
+
+  const measured = measureDifficultyBand(role.simulationConfig, scenario.runTrial);
   const metricKey = METRIC_KEYS[role.difficultyTarget.metric];
   const measuredValue = metricKey ? measured[metricKey] : undefined;
 
   console.log(`\nMesuré sur ${measured.trials} essais (seeds ${role.simulationConfig.seed_start}..${role.simulationConfig.seed_start + role.simulationConfig.trials - 1}) :`);
-  console.log(`  captures : ${measured.caught}/${measured.trials} (catch_rate=${measured.catchRate.toFixed(3)})`);
-  console.log(`  ticks_to_catch : min=${measured.min} médiane=${measured.median} max=${measured.max}`);
+  console.log(`  succès : ${measured.succeeded}/${measured.trials} (success_rate=${measured.successRate.toFixed(3)})`);
+  console.log(`  ticks_to_succeed : min=${measured.min} médiane=${measured.median} max=${measured.max}`);
   console.log(`\nCible déclarée (${role.difficultyTarget.metric}) : [${role.difficultyTarget.min}, ${role.difficultyTarget.max}]`);
   console.log(`Valeur mesurée pour cette métrique : ${measuredValue}`);
 
@@ -259,6 +245,9 @@ function main() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}` || import.meta.url === `file:///${(process.argv[1] || '').replace(/\\/g, '/')}`) {
-  main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((e) => {
+    console.error(`ERREUR INTERNE: ${e && e.stack || e}`);
+    process.exit(2);
+  });
 }

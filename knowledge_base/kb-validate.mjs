@@ -2,6 +2,14 @@
 // Implémente R1..R12 de docs/forge/KB_INGESTION_CONTRACT.md. Zéro réseau, zéro LLM.
 // Exit 0 = conforme · 1 = violations · 2 = catalogue illisible / erreur interne.
 //
+// v3 (2026-07-13, Tier 1 #3) : entry_type "role" — les rôles (knowledge_base/roles/*.yaml)
+// entrent RÉELLEMENT dans le catalogue (indexables, cherchables) au lieu de vivre en
+// prose à côté. `requires` (rôle) et `affordances` (brick, mandatoire, `{}` par défaut)
+// partagent la même forme machine-lisible {capacité: {type, description}}. R13 : le pont
+// `fulfilled_by` -> catalogue est désormais VÉRIFIÉ (brique référencée doit exister) —
+// jusqu'ici une simple citation en prose, jamais contrôlée. La comparaison
+// affordances(pièce) ⊇ requires(rôle) reste hors scope (prochain incrément).
+//
 // v2 (2026-07-12) : durci après red-team claude-blind (LM Studio down). Corrections
 // confirmées par exécution — voir docs/forge/KB_REDTEAM_ADJUDICATION.md :
 //   - toute preuve de chemin (path, proof_of_use, usage_examples, tests) passe par la
@@ -34,11 +42,11 @@ const ORIGINAL_MARKER = "ORIGINAL — aucune inspiration externe citee";
 
 const HEX64 = /^[0-9a-f]{64}$/;
 const URL_RE = /^https?:\/\/.+/;
-const ID_PREFIX = { asset: "asset-", system: "sys-", pattern: "pat-", template: "tpl-" };
+const ID_PREFIX = { asset: "asset-", system: "sys-", pattern: "pat-", template: "tpl-", role: "role-" };
 // Sous-dossier attendu par type (confinement — R7/§5).
 const SUBDIR = { asset: "knowledge_base/assets/", system: "knowledge_base/systems/",
   template: "knowledge_base/templates/", pattern: "knowledge_base/patterns/",
-  proof: "knowledge_base/proofs/" };
+  proof: "knowledge_base/proofs/", role: "knowledge_base/roles/" };
 
 // Magic bytes des rasters 2D admis (anti « 3D/godot déclaré 2D », red-team F8).
 const RASTER_MAGICS = [
@@ -100,6 +108,18 @@ function isStr(v) { return typeof v === "string" && v.length > 0; }
 function isStrArr(v) { return Array.isArray(v) && v.every((x) => typeof x === "string"); }
 function isNonEmptyStrArr(v) { return isStrArr(v) && v.length > 0; }
 function isPlainObj(v) { return v !== null && typeof v === "object" && !Array.isArray(v); }
+// Forme partagée par `requires` (rôle) et `affordances` (brick) — Tier 1 #3 : un ROLE
+// se lie à une pièce ssi affordances(piece) ⊇ requires(role) (pont vérifiable, pas un
+// jugement — cf. knowledge_base/roles/SCHEMA.md §"Un ROLE se lie..."). Cette fonction ne
+// fait QUE valider la FORME ; la comparaison affordances ⊇ requires reste hors scope ici
+// (prochain incrément — le pont SEARCH↔ROLE).
+function isCapabilityMap(v) {
+  if (!isPlainObj(v)) return false;
+  return Object.entries(v).every(
+    ([, c]) => isPlainObj(c) && isStr(c.type) && isStr(c.description) && Object.keys(c).length === 2
+  );
+}
+function isNonEmptyCapabilityMap(v) { return isCapabilityMap(v) && Object.keys(v).length > 0; }
 
 function sha256File(abs) {
   return createHash("sha256").update(readFileSync(abs)).digest("hex");
@@ -161,6 +181,23 @@ const BRICK_SPEC = {
   sha256: (v) => v === null || (typeof v === "string" && HEX64.test(v)),
   tests: (v) => v === null || isStr(v),
   advisory_only: (v) => typeof v === "boolean",
+  // Tier 1 #3 : ce que la pièce EXPOSE réellement — {} pour une brique qui ne remplit
+  // aucun rôle. Mandatoire (schéma fermé) : jamais absent, `{}` = décision explicite.
+  affordances: isCapabilityMap,
+};
+// Un ROLE catalogué : métadonnées d'index + pont vers le catalogue (fulfilled_by,
+// vérifié réellement — R13) et vers le contrat détaillé sur disque (path -> le YAML
+// complet de knowledge_base/roles/, qui porte simulation_module/difficulty_target/etc,
+// non dupliqués ici). `requires` est la contrepartie machine-lisible de affordances.
+const ROLE_SPEC = {
+  role_id: isStr,
+  archetype: isStr,
+  requires: isNonEmptyCapabilityMap,
+  fulfilled_by: isStrArr,
+  tier: (v) => v === "candidate" || v === "validated",
+  license: isStr,
+  path: (v) => v === null || isStr(v),
+  proof_of_use: (v) => v === null || isStr(v),
 };
 
 export function validateCatalog(catalog, { root }) {
@@ -182,7 +219,7 @@ function _validate(catalog, root, err) {
   }
   const seen = new Map();
   for (const e of catalog.entries) {
-    const id = e?.asset_id ?? e?.brick_id ?? "<sans-id>";
+    const id = e?.asset_id ?? e?.brick_id ?? e?.role_id ?? "<sans-id>";
     seen.set(id, (seen.get(id) ?? 0) + 1);
   }
   for (const [id, n] of seen) if (n > 1) err(id, "R1", `id duplique (${n} occurrences)`);
@@ -191,12 +228,13 @@ function _validate(catalog, root, err) {
     catalog.entries.filter((e) => e?.entry_type === "brick").map((e) => e.brick_id)
   );
   for (const e of catalog.entries) {
-    if (!isPlainObj(e) || !["asset", "brick"].includes(e.entry_type)) {
-      err("<entree>", "R1", "entry_type doit etre 'asset' ou 'brick'");
+    if (!isPlainObj(e) || !["asset", "brick", "role"].includes(e.entry_type)) {
+      err("<entree>", "R1", "entry_type doit etre 'asset', 'brick' ou 'role'");
       continue;
     }
     if (e.entry_type === "asset") validateAsset(e, root, err);
-    else validateBrick(e, root, err, brickIds);
+    else if (e.entry_type === "brick") validateBrick(e, root, err, brickIds);
+    else validateRole(e, root, err, brickIds);
   }
   detectCycles(catalog.entries.filter((e) => e?.entry_type === "brick"), err);
 }
@@ -362,6 +400,43 @@ function validateBrick(e, root, err, brickIds) {
     else {
       const g = guardedPath(root, e.tests, { subdir: SUBDIR.system, mustBeFile: true });
       if (g.err) err(id, "R12", `tests: ${g.err}`);
+    }
+  }
+}
+
+// Tier 1 #3 : un rôle catalogué — index + pont VÉRIFIÉ vers le catalogue (R13). Ne
+// vérifie PAS encore affordances(piece) ⊇ requires(role) : c'est le pont SEARCH↔ROLE,
+// prochain incrément (Tier 1 #4). R13 vérifie seulement que le pont EXISTE réellement
+// (fulfilled_by pointe une brique réelle du catalogue) — jusqu'ici non vérifié du tout.
+function validateRole(e, root, err, brickIds) {
+  const id = e.role_id ?? "<role-sans-id>";
+  if (!checkSpec(e, ROLE_SPEC, id, err)) return;
+
+  if (!id.startsWith(ID_PREFIX.role)) err(id, "R1", `role_id doit commencer par '${ID_PREFIX.role}'`);
+  if (!KNOWN_SPDX.includes(e.license)) err(id, "R2", `licence hors liste fermee SPDX: ${e.license}`);
+
+  // R13 — le pont ROLE -> catalogue existe reellement (fulfilled_by n'est plus une
+  // simple citation en prose : chaque brick_id cite doit exister dans le catalogue).
+  for (const b of e.fulfilled_by) {
+    if (!brickIds.has(b)) err(id, "R13", `fulfilled_by reference une brique inconnue: ${b}`);
+  }
+
+  // R7 — réalité disque du contrat détaillé (le YAML complet vit sous roles/, non
+  // dupliqué dans le catalogue : simulation_module/difficulty_target/etc y restent).
+  if (e.path === null) {
+    err(id, "R7", "path obligatoire pour un role (le contrat detaille sur disque)");
+  } else {
+    const g = guardedPath(root, e.path, { subdir: SUBDIR.role, mustBeFile: true });
+    if (g.err) err(id, "R7", `path: ${g.err}`);
+    else if (!e.path.endsWith(".yaml")) err(id, "R1", "le path d'un role est un fichier .yaml");
+  }
+
+  // R8 — tier validated exige une preuve confinee (meme garde que les bricks/assets).
+  if (e.tier === "validated") {
+    if (e.proof_of_use === null) err(id, "R8", "tier validated exige proof_of_use non-null");
+    else {
+      const g = guardedPath(root, e.proof_of_use, { subdir: SUBDIR.proof, mustBeFile: true });
+      if (g.err) err(id, "R8", `proof_of_use invalide: ${g.err}`);
     }
   }
 }

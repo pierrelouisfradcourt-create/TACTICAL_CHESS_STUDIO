@@ -11,11 +11,30 @@ import { search } from './search.mjs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const catalog = JSON.parse(readFileSync(resolve(__dirname, 'catalog.json'), 'utf-8'));
 
-test('recherche par intention : "zone de controle qui bloque un deplacement" trouve pat-zone-of-control', () => {
+test('régression : une requête "temps réel/continu" doit préférer sys-pursuer-continuous, pas sys-pursuer-mobile — bug réel trouvé le 2026-07-13 (les 2 fiches se citaient l\'une l\'autre en négation, "pour X" vs "PAS pour X" scoraient pareil ; corrigé en rendant chaque fiche autonome, sans le vocabulaire de l\'autre cas d\'usage)', () => {
+  const results = search('poursuite continue temps reel canvas vecteur arcade', catalog);
+  assert.equal(results[0].entry.brick_id, 'sys-pursuer-continuous');
+  const mobile = results.find((r) => r.entry.brick_id === 'sys-pursuer-mobile');
+  if (mobile) {
+    assert.ok(mobile.score < results[0].score, 'sys-pursuer-mobile ne doit plus scorer à égalité avec sys-pursuer-continuous sur une requête temps réel');
+  }
+});
+
+test('régression symétrique : une requête "grille/tour par tour" doit préférer sys-pursuer-mobile, pas sys-pursuer-continuous', () => {
+  const results = search('poursuite grille tour par tour plateau rogue-like', catalog);
+  assert.equal(results[0].entry.brick_id, 'sys-pursuer-mobile');
+});
+
+test('recherche par intention : "zone de controle qui bloque un deplacement" trouve le pattern ET le système réel', () => {
+  // Mis à jour le 2026-07-13 : depuis l'enregistrement de sys-guardian-zoc (2e ROLE),
+  // le système qui IMPLÉMENTE réellement le mécanisme matche mieux que la simple
+  // citation du pattern — attendu, pas une régression (chercher "une zone de contrôle
+  // qui bloque un déplacement" doit prioritairement remonter le code qui le FAIT).
   const results = search('zone de controle qui bloque un deplacement', catalog);
   const ids = results.map((r) => r.entry.brick_id);
   assert.ok(ids.includes('pat-zone-of-control'), `attendu pat-zone-of-control dans ${JSON.stringify(ids)}`);
-  assert.equal(results[0].entry.brick_id, 'pat-zone-of-control', 'doit être le résultat le mieux scoré');
+  assert.ok(ids.includes('sys-guardian-zoc'), `attendu sys-guardian-zoc dans ${JSON.stringify(ids)}`);
+  assert.equal(results[0].entry.brick_id, 'sys-guardian-zoc', 'le système réel doit primer sur la citation du pattern');
 });
 
 test('recherche "degats" trouve les 2 entrées damage-floor (pattern ET système)', () => {

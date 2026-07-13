@@ -134,8 +134,61 @@ enregistrés au catalogue) a été traité :
   archétype différent pour tester la généralisation du schéma avant d'investir dans
   l'intégration catalogue.
 
+## 6. Suite (2026-07-13, plus tard) — test EXTERNE indépendant, une vraie limite trouvée
+
+Après l'intégration s9 (`docs/forge/S9_SEARCH_INTEGRATION.md`), un test a été mené dans
+une **session Claude Code totalement séparée**, sans contexte partagé avec celle-ci — un
+prompt de construction (`games/chase_prototype/`, ennemi qui pourchasse le joueur en
+temps réel) demandant à l'agent de suivre le contrat `s9-build.yaml` tel quel et de
+rapporter honnêtement ce qui s'est passé. **Vérifié indépendamment ici, pas pris pour
+argent comptant** : tests (18/18), solvabilité (victoire ET défaite prouvées
+atteignables), e2e Playwright, `reuse_ratio.mjs` (0.000) — tous relancés et confirmés
+identiques au rapport de l'autre session.
+
+**Ce que ce test a révélé** : l'agent a bien cherché AVANT d'écrire (`search.mjs`,
+2 requêtes), trouvé `sys-pursuer-mobile` en tête de liste (tier validated), mais a
+**testé le résultat en isolation avant de l'importer** — et découvert que
+`stepToward()` avance un axe à la fois (trajectoire en L, grille/tour-par-tour), ce qui
+est visiblement cassé pour un ennemi en mouvement continu temps réel. Décision correcte :
+ne pas importer, écrire le delta réel (vecteur normalisé). C'est le comportement voulu
+par le contrat (chercher, TESTER, pas juger sur le nom/score) — mais ça révèle un vrai
+trou dans la bibliothèque : aucune pièce ne sert le mouvement de poursuite continu.
+
+**Deux actions faites en réponse** (go Pierre « les deux ») :
+1. **`sys-pursuer-mobile` précisé** : `function` et `genre_compatible` mis à jour pour
+   déclarer explicitement la limite grille/tour-par-tour (évite de refaire ce test à
+   chaque fois qu'un futur builder cherche « poursuite »).
+2. **`sys-pursuer-continuous` construit** (+ 8 tests, `knowledge_base/systems/ai/
+   pursuer_continuous.mjs`) : mouvement vectoriel continu, direction normalisée,
+   les deux axes bougent simultanément, clampé pour ne jamais dépasser la cible.
+   Provenance : marqueur `ORIGINAL`, inspiré du concept classique « steering behaviors »
+   (Craig Reynolds, 1999 — domaine algorithmique général, pas de code/licence à citer).
+   `tier: candidate`, `proof_of_use: null` (personne ne l'a encore réellement importé
+   dans un jeu gaté — honnête, pas promu sans preuve d'usage réelle).
+
+**Limite trouvée dans `search.mjs` lui-même, puis corrigée (go Pierre « ok corrige »)** :
+en interrogeant `search.mjs` avec une requête orientée « temps réel/continu »,
+`sys-pursuer-mobile` ET `sys-pursuer-continuous` ressortaient avec le **même score** —
+parce que la description de `sys-pursuer-mobile` mentionnait explicitement les mots
+« continu »/« temps réel » pour AVERTIR qu'il ne convient PAS à ce cas, et un matcher par
+mots-clés ne fait pas la différence entre « conçu pour X » et « surtout pas pour X ».
+**Choix de correction délibéré : réparer la DONNÉE, pas le MOTEUR.** Ajouter une notion
+de négation à `search.mjs` aurait réintroduit exactement le risque d'interprétation que
+ce moteur (déterministe, sans jugement sémantique) est censé éviter. Corrigé en rendant
+chaque fiche AUTONOME : `sys-pursuer-mobile` décrit uniquement en vocabulaire grille/
+tour-par-tour (Chebyshev, cases, plateau, rogue-like), `sys-pursuer-continuous`
+uniquement en vocabulaire continu (vecteur, temps écoulé, arcade, défilement libre) —
+zéro mot partagé entre les deux cas d'usage contrastés. Le contexte narratif (pourquoi
+cette distinction a été découverte, quand) reste dans ce document, PAS dans le catalogue
+— un champ `function` de catalogue est une spec, pas un journal. Vérifié après
+correction : requête « temps réel » → `sys-pursuer-continuous` en tête (score 5 vs 1) ;
+requête « grille » → `sys-pursuer-mobile` en tête (score 7 vs 2). 2 tests de régression
+ajoutés (`search.test.mjs`, 15/15 verts).
+
 ```
-software_verdict: OK (mécanisme construit, testé, calibré puis validé hors-échantillon)
+software_verdict: OK (mécanisme construit, testé, calibré puis validé hors-échantillon ;
+  suite : test externe vérifié, trou de bibliothèque comblé, limite de recherche trouvée
+  ET corrigée en réparant la donnée plutôt que le moteur)
 evidence_verdict: MECHANICAL_VALIDATION_ONLY
 claim_verdict: NO_CLAIM_ALLOWED
 ```

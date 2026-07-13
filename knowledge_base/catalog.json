@@ -155,7 +155,8 @@
       "path": "knowledge_base/patterns/tactical_combat/damage_floor.md",
       "sha256": "83346fed7846db4c70bcaadbc38dba3c63671f564300fc917b739122e7857cbb",
       "tests": null,
-      "advisory_only": true
+      "advisory_only": true,
+      "affordances": {}
     },
     {
       "entry_type": "brick",
@@ -183,7 +184,8 @@
       "path": "knowledge_base/patterns/world_sim/full_reachability.md",
       "sha256": "299edd9596ef980c8ee9e1c3c6a0bcc0afee97137462c7cbc00f8ab44f152c8a",
       "tests": null,
-      "advisory_only": true
+      "advisory_only": true,
+      "affordances": {}
     },
     {
       "entry_type": "brick",
@@ -209,7 +211,8 @@
       "path": "knowledge_base/patterns/tactical_combat/zone_of_control.md",
       "sha256": "1bb46c4e412fd36fb1a41df00b2384369221a1efb36653c512c72470edf7d203",
       "tests": null,
-      "advisory_only": true
+      "advisory_only": true,
+      "affordances": {}
     },
     {
       "entry_type": "brick",
@@ -250,7 +253,8 @@
       "path": "knowledge_base/systems/combat/damage_floor.mjs",
       "sha256": "b9e75ca2a043d0458426d6bfdd7cf7962030100fceb8a7ef9cc451792f3f387c",
       "tests": "knowledge_base/systems/combat/damage_floor.test.mjs",
-      "advisory_only": false
+      "advisory_only": false,
+      "affordances": {}
     },
     {
       "entry_type": "brick",
@@ -281,13 +285,14 @@
       "path": "knowledge_base/systems/procgen/reachability.mjs",
       "sha256": "2ec8ae4c238b2d6e7526d65086f464f36d85bb6c9bd40d584bccd36db0b38180",
       "tests": "knowledge_base/systems/procgen/reachability.test.mjs",
-      "advisory_only": false
+      "advisory_only": false,
+      "affordances": {}
     },
     {
       "entry_type": "brick",
       "brick_id": "sys-pursuer-mobile",
       "kind": "system",
-      "function": "deplacement de poursuite pur : avance au plus speed pas (Chebyshev) vers une cible, axe par axe, jamais au-dela",
+      "function": "deplacement de poursuite pur, discret par cases (distance de Chebyshev), un axe a la fois, jamais au-dela de la cible — convient aux jeux a plateau/grille (rogue-like, tactique tour par tour)",
       "source": "ORIGINAL — aucune inspiration externe citee — implementation gloutonne Chebyshev, ecrite pour role-pursuer-mobile (knowledge_base/roles/pursuer-mobile.yaml)",
       "provenance_url": null,
       "license": "MIT",
@@ -296,8 +301,6 @@
       "parameters": {},
       "genre_compatible": [
         "tactical",
-        "action",
-        "survival",
         "roguelike"
       ],
       "invariants": [
@@ -311,7 +314,17 @@
       "path": "knowledge_base/systems/ai/pursuer.mjs",
       "sha256": "e275ebc1d8832119774c50d3ca42b77cdf881a6a717d2f6133ecf61694d3d937",
       "tests": "knowledge_base/systems/ai/pursuer.test.mjs",
-      "advisory_only": false
+      "advisory_only": false,
+      "affordances": {
+        "movement": {
+          "type": "stepToward(pos, targetPos, speed) -> pos",
+          "description": "se deplace d'au plus speed pas (Chebyshev) vers targetPos, un axe a la fois, jamais au-dela de la cible. Pur, deterministe."
+        },
+        "distance_metric": {
+          "type": "chebyshevDistance(a, b) -> number",
+          "description": "distance de Chebyshev entre deux positions {x,y}."
+        }
+      }
     },
     {
       "entry_type": "brick",
@@ -342,7 +355,127 @@
       "path": "knowledge_base/systems/ai/evader.mjs",
       "sha256": "787c16b37984be473e0bf185f15173fd61cb06fc0c5129ee3e38ccda38ef2866",
       "tests": "knowledge_base/systems/ai/evader.test.mjs",
-      "advisory_only": false
+      "advisory_only": false,
+      "affordances": {}
+    },
+    {
+      "entry_type": "brick",
+      "brick_id": "sys-guardian-zoc",
+      "kind": "system",
+      "function": "zone de controle statique, PURE : tronque le mouvement a la premiere case NOUVELLEMENT entree dans la zone dun gardien fixe",
+      "source": "reecriture propre inspiree de pat-zone-of-control (aucun code Wesnoth repris)",
+      "provenance_url": null,
+      "license": "MIT",
+      "runtime": "html",
+      "dependencies": [
+        "pat-zone-of-control"
+      ],
+      "parameters": {},
+      "genre_compatible": [
+        "tactical",
+        "action",
+        "roguelike"
+      ],
+      "invariants": [
+        "deplacement Chebyshev par tick <= speed, jamais depasse",
+        "si deja dans la zone en debut de tick, aucune troncature ce tick",
+        "une entree fraiche dans la zone tronque le mouvement a la case dentree",
+        "deterministe",
+        "speed < 0 ou non fini leve RangeError"
+      ],
+      "proof_of_use": "knowledge_base/proofs/role_sim_guardian_static_validation.log",
+      "tier": "validated",
+      "path": "knowledge_base/systems/ai/zone_of_control.mjs",
+      "sha256": "e6d96629215e3f25b1aceb02f50fc70de995a64a436b0344421ad3e4b4a3f49f",
+      "tests": "knowledge_base/systems/ai/zone_of_control.test.mjs",
+      "advisory_only": false,
+      "affordances": {
+        "zone_check": {
+          "type": "isInZone(pos, guardianPos, zocRadius) -> boolean",
+          "description": "vrai si pos est dans la zone de controle du gardien (distance de Chebyshev <= zocRadius)."
+        },
+        "movement_with_zone": {
+          "type": "stepTowardWithZoC(pos, targetPos, speed, guardianPos, zocRadius) -> pos",
+          "description": "se deplace vers targetPos comme un mouvement de poursuite standard, mais s'arrete des l'entree fraiche dans la zone."
+        }
+      }
+    },
+    {
+      "entry_type": "brick",
+      "brick_id": "sys-pursuer-continuous",
+      "kind": "system",
+      "function": "poursuite vectorielle, pure : direction normalisee, les deux axes bougent simultanement (vitesse en unites par seconde multipliee par le temps ecoule), ne depasse jamais la cible — convient aux jeux a defilement libre, arcade, action en temps reel",
+      "source": "ORIGINAL — aucune inspiration externe citee — mouvement de recherche (seek) inspire du concept classique steering behaviors (Craig Reynolds 1999, domaine algorithmique general, aucun code source ni licence logicielle associee a citer). Trou identifie par un test independant (2026-07-13, games/chase_prototype/) : sys-pursuer-mobile est inadapte au mouvement continu.",
+      "provenance_url": null,
+      "license": "MIT",
+      "runtime": "html",
+      "dependencies": [],
+      "parameters": {},
+      "genre_compatible": [
+        "action",
+        "survival",
+        "shooter",
+        "arcade"
+      ],
+      "invariants": [
+        "deplacement <= speed*dt (norme euclidienne), jamais depasse",
+        "ne depasse jamais la cible (clampe a la distance restante)",
+        "distance a la cible ne peut jamais augmenter apres un pas",
+        "deterministe",
+        "speed ou dt < 0 ou non fini leve RangeError",
+        "distance nulle, speed=0 ou dt=0 -> aucun mouvement, jamais de NaN"
+      ],
+      "proof_of_use": null,
+      "tier": "candidate",
+      "path": "knowledge_base/systems/ai/pursuer_continuous.mjs",
+      "sha256": "4eb4121fd3e571def1602f058a4995e6f8b2d1f98e5aae476f8bc8e9b494eee1",
+      "tests": "knowledge_base/systems/ai/pursuer_continuous.test.mjs",
+      "advisory_only": false,
+      "affordances": {}
+    },
+    {
+      "entry_type": "role",
+      "role_id": "role-pursuer-mobile",
+      "archetype": "poursuivant mobile qui rattrape une cible fuyante en terrain ouvert (pas d'obstacles) ; la difficulte mesuree est le temps de capture sur une distribution de departs, pas le fait binaire de capturer",
+      "requires": {
+        "movement": {
+          "type": "fn(pos, targetPos, speed) -> pos",
+          "description": "se deplace d'au plus speed pas (Chebyshev) vers targetPos, un axe a la fois, jamais au-dela de la cible. Pur, deterministe."
+        },
+        "distance_metric": {
+          "type": "fn(a, b) -> number",
+          "description": "distance de Chebyshev entre deux positions {x,y}, utilisee pour detecter la capture (distance <= catch_radius)."
+        }
+      },
+      "fulfilled_by": [
+        "sys-pursuer-mobile"
+      ],
+      "tier": "validated",
+      "license": "MIT",
+      "path": "knowledge_base/roles/pursuer-mobile.yaml",
+      "proof_of_use": "knowledge_base/proofs/role_sim_pursuer_mobile_validation.log"
+    },
+    {
+      "entry_type": "role",
+      "role_id": "role-guardian-static",
+      "archetype": "entite statique qui projette une zone de controle : tout attaquant qui y penetre voit son deplacement stoppe pour le tick en cours ; la difficulte mesuree est le retard de traversee, pas l'atteinte de l'objectif",
+      "requires": {
+        "zone_check": {
+          "type": "fn(pos, guardianPos, zocRadius) -> boolean",
+          "description": "vrai si pos est dans la zone de controle du gardien (distance de Chebyshev <= zocRadius)."
+        },
+        "movement_with_zone": {
+          "type": "fn(pos, targetPos, speed, guardianPos, zocRadius) -> pos",
+          "description": "se deplace vers targetPos comme un mouvement de poursuite standard, mais s'arrete des l'entree FRAICHE dans la zone."
+        }
+      },
+      "fulfilled_by": [
+        "sys-guardian-zoc"
+      ],
+      "tier": "validated",
+      "license": "MIT",
+      "path": "knowledge_base/roles/guardian-static.yaml",
+      "proof_of_use": "knowledge_base/proofs/role_sim_guardian_static_validation.log"
     }
   ]
 }

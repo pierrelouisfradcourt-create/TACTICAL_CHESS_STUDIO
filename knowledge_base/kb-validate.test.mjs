@@ -26,7 +26,7 @@ function makeRoot(t) {
   const kb = join(root, "knowledge_base");
   for (const d of [
     "assets/characters", "systems/combat", "patterns/tactical_combat",
-    "templates/tactical", "proofs",
+    "templates/tactical", "proofs", "roles",
   ]) mkdirSync(join(kb, d), { recursive: true });
 
   const files = {};
@@ -49,6 +49,9 @@ function makeRoot(t) {
   // une preuve d'usage (fichier réel)
   writeFileSync(join(kb, "proofs/run-green.log"), "exit 0\n");
   files.proof = { path: "knowledge_base/proofs/run-green.log" };
+  // un rôle (fichier YAML réel, contenu non parsé par kb-validate — seul le path compte)
+  writeFileSync(join(kb, "roles/pursuer-mobile.yaml"), "role_id: role-pursuer-mobile\n");
+  files.role = { path: "knowledge_base/roles/pursuer-mobile.yaml" };
   return { root, kb, files };
 }
 
@@ -70,7 +73,7 @@ function basePattern(f) {
     license: "GPL-2.0-or-later", runtime: "agnostic", dependencies: [], parameters: {},
     genre_compatible: ["tactical"], invariants: ["tout coup inflige >= 1"],
     proof_of_use: null, tier: "candidate", path: f.pattern.path, sha256: f.pattern.sha,
-    tests: null, advisory_only: true,
+    tests: null, advisory_only: true, affordances: {},
   };
 }
 function baseSystem(f) {
@@ -82,7 +85,18 @@ function baseSystem(f) {
     dependencies: ["pat-damage-floor"], parameters: {},
     genre_compatible: ["tactical"], invariants: ["degats >= 1", "deterministe"],
     proof_of_use: null, tier: "candidate", path: f.system.path, sha256: f.system.sha,
-    tests: f.tests.path, advisory_only: false,
+    tests: f.tests.path, advisory_only: false, affordances: {},
+  };
+}
+function baseRole(f) {
+  return {
+    entry_type: "role", role_id: "role-pursuer-mobile",
+    archetype: "poursuivant mobile qui rattrape une cible fuyante en terrain ouvert",
+    requires: {
+      movement: { type: "fn(pos,targetPos,speed)->pos", description: "se deplace vers la cible" },
+    },
+    fulfilled_by: ["sys-damage-floor"], // brick_id EXISTANT dans les fixtures partagees
+    tier: "candidate", license: "MIT", path: f.role.path, proof_of_use: null,
   };
 }
 function manifestOnly3D() {
@@ -288,6 +302,83 @@ test("R12: system sans fichier de tests -> rejet", (t) => {
   const s = baseSystem(files); s.tests = null;
   const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
   assert.ok(res.errors.some((e) => e.rule === "R12"));
+});
+
+// ---------- entry_type "role" (Tier 1 #3) ----------
+test("role conforme, fulfilled_by pointe une brique reelle -> ok", (t) => {
+  const { root, files } = makeRoot(t);
+  const res = validateCatalog(makeCatalog([basePattern(files), baseSystem(files), baseRole(files)]), { root });
+  assert.deepEqual(res.errors, []);
+});
+test("R1: role_id sans prefixe 'role-' -> rejet", (t) => {
+  const { root, files } = makeRoot(t);
+  const r = baseRole(files); r.role_id = "pursuer-mobile";
+  const res = validateCatalog(makeCatalog([basePattern(files), baseSystem(files), r]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R1" && /role_id/.test(e.msg)));
+});
+test("R1: requires vide -> rejet (un role exige au moins une capacite)", (t) => {
+  const { root, files } = makeRoot(t);
+  const r = baseRole(files); r.requires = {};
+  const res = validateCatalog(makeCatalog([basePattern(files), baseSystem(files), r]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R1" && /requires/.test(e.msg)));
+});
+test("R1: capacite requires mal formee (description manquante) -> rejet", (t) => {
+  const { root, files } = makeRoot(t);
+  const r = baseRole(files); r.requires = { movement: { type: "fn()->pos" } };
+  const res = validateCatalog(makeCatalog([basePattern(files), baseSystem(files), r]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R1" && /requires/.test(e.msg)));
+});
+test("R13: fulfilled_by reference une brique inexistante -> rejet", (t) => {
+  const { root, files } = makeRoot(t);
+  const r = baseRole(files); r.fulfilled_by = ["sys-n-existe-pas"];
+  const res = validateCatalog(makeCatalog([basePattern(files), baseSystem(files), r]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R13"));
+});
+test("R7: role avec path absent du disque -> rejet", (t) => {
+  const { root, files } = makeRoot(t);
+  const r = baseRole(files); r.path = "knowledge_base/roles/ghost.yaml";
+  const res = validateCatalog(makeCatalog([basePattern(files), baseSystem(files), r]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R7"));
+});
+test("R8: role validated sans proof_of_use -> rejet", (t) => {
+  const { root, files } = makeRoot(t);
+  const r = baseRole(files); r.tier = "validated"; r.proof_of_use = null;
+  const res = validateCatalog(makeCatalog([basePattern(files), baseSystem(files), r]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R8"));
+});
+test("R8: role validated avec preuve reelle -> ok", (t) => {
+  const { root, files } = makeRoot(t);
+  const r = baseRole(files); r.tier = "validated"; r.proof_of_use = files.proof.path;
+  const res = validateCatalog(makeCatalog([basePattern(files), baseSystem(files), r]), { root });
+  assert.deepEqual(res.errors, []);
+});
+test("RT: champ inconnu sur un role -> rejet R1 (schema ferme)", (t) => {
+  const { root, files } = makeRoot(t);
+  const r = { ...baseRole(files), backdoor: true };
+  const res = validateCatalog(makeCatalog([basePattern(files), baseSystem(files), r]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R1" && /inconnu/.test(e.msg)));
+});
+
+// ---------- affordances (brick, Tier 1 #3) ----------
+test("brick sans affordances -> rejet R1 (schema ferme, champ mandatoire)", (t) => {
+  const { root, files } = makeRoot(t);
+  const s = baseSystem(files); delete s.affordances;
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R1" && /affordances/.test(e.msg)));
+});
+test("brick avec affordances bien formees -> ok", (t) => {
+  const { root, files } = makeRoot(t);
+  const s = baseSystem(files);
+  s.affordances = { heal: { type: "fn(hp,amount)->hp", description: "soigne, borne au max" } };
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.deepEqual(res.errors, []);
+});
+test("brick avec affordances mal formees (cle surnumeraire) -> rejet R1", (t) => {
+  const { root, files } = makeRoot(t);
+  const s = baseSystem(files);
+  s.affordances = { heal: { type: "fn(hp,amount)->hp", description: "x", extra: "surnumeraire" } };
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R1" && /affordances/.test(e.msg)));
 });
 
 // ---------- Brique-contrôle anti-théâtre (§6 du contrat) ----------
