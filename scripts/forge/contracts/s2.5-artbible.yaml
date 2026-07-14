@@ -11,6 +11,17 @@
 #          frontmatter de l'art_bible). La conformité esthétique reste un fog HumanGate,
 #          jamais un claim (cf. output_contract).
 #
+# v0.1 (2026-07-14, gate 4 Qwen + sonde adversariale "deceptive builder", cf.
+#          docs/forge/S2_5_ARTBIBLE_DECEPTIVE_PROBE_NOTE.md) : ferme un vecteur de
+#          gaming réel — un agent avait réussi à faire passer l'oracle avec 2 requêtes
+#          génériques tout en affirmant en prose une couverture complète (l'obstacle,
+#          pourtant central au gameplay, n'avait aucune requête). Chaque asset_request
+#          porte désormais `id`/`entity_role`/`purpose`, et l'art_bible porte une 3e
+#          section obligatoire BESOINS VISUELS (liste de {id, entity_role, required,
+#          description}) — l'oracle vérifie mécaniquement qu'un besoin `required:true`
+#          a au moins une requête du même `entity_role`, SANS jamais lire la prose du
+#          rationale (cf. docs/forge/ASSET_CONTRACT_V0.md changelog v0.1).
+#
 # INTÉGRATION CHAÎNE (décision de portée, pas une question ouverte) : ce contrat suit le
 # précédent s10d (scripts/forge/contracts/s10d-oracle-visual.yaml, ligne 5) — DÉFINI et
 # DISPATCHABLE (chargeable par contract.py, résolu par roles.yaml) mais volontairement
@@ -54,9 +65,13 @@ mandatory_read:
 # --- 3. Mission (Critique) ---
 objectif: >-
   Produire art_bible.md (identité visuelle : styles, mood_keywords, rationale liée
-  au product_snapshot) et asset_requests.json (liste structurée de demandes d'asset
-  au format Asset Contract V0, une par besoin visuel identifié), tous deux vérifiés
-  par check_artbible.mjs avant livraison.
+  au product_snapshot, SECTION BESOINS VISUELS listant chaque besoin visuel
+  identifié avec son entity_role et si il est required) et asset_requests.json
+  (liste structurée de demandes d'asset au format Asset Contract V0.1 — chaque
+  request porte id/entity_role/purpose — une par besoin visuel réellement couvert),
+  tous deux vérifiés par check_artbible.mjs avant livraison. Chaque besoin
+  `required:true` DOIT avoir une requête correspondante du même entity_role — pas
+  seulement une mention en prose.
 
 # --- 4. Frontières (Critique) ---
 in_scope: >-
@@ -85,26 +100,38 @@ gardeFou: >-
   (cf. docs/forge/ASSET_CONTRACT_V0.md "Ce que ce contrat ne fait jamais"). Ne
   force jamais un asset_request à passer en OK en assouplissant silencieusement
   ses constraints après un BLOCKED (gaming de l'oracle) — un BLOCKED se rapporte
-  tel quel, avec le detail des filtres non satisfaits.
+  tel quel, avec le detail des filtres non satisfaits. N'affirme JAMAIS en prose
+  (RATIONALE) une couverture que les BESOINS VISUELS/asset_requests structurés ne
+  démontrent pas réellement (v0.1 — la prose n'est jamais vérifiée mécaniquement,
+  seule la donnée structurée l'est ; affirmer plus que ce qui est structuré est
+  exactement le vecteur fermé par v0.1).
 
 # --- 7. Validation & auditabilité (Critique) ---
 success_criteria: >-
-  check_artbible.mjs retourne pass:true : art_bible.md a ses 2 sections (IDENTITÉ
-  VISUELLE, RATIONALE) non triviales et son frontmatter (styles[], mood_keywords[])
-  non vide ; asset_requests.json a la forme {requests[], no_assets_needed,
-  reason|null} cohérente (no_assets_needed=true exige requests=[] et reason
-  rempli ; sinon requests non vide) ; chaque request passe
-  validateRequestShape (zéro erreur) ET son `style` est déclaré dans le
-  frontmatter de la bible.
+  check_artbible.mjs retourne verdict:OK : art_bible.md a ses 3 sections
+  (IDENTITÉ VISUELLE, RATIONALE, BESOINS VISUELS) non triviales et son
+  frontmatter (styles[], mood_keywords[]) non vide ; BESOINS VISUELS contient
+  un bloc ```json {visual_requirements: [{id, entity_role, required,
+  description}]} valide ; asset_requests.json a la forme {requests[],
+  no_assets_needed, reason|null} cohérente (no_assets_needed=true exige
+  requests=[] et reason rempli ; sinon requests non vide) ; chaque request
+  passe validateRequestShape (zéro erreur, y compris id/entity_role/purpose)
+  ET son `style` est déclaré dans le frontmatter de la bible ; ET chaque
+  visual_requirement `required:true` a au moins une request du même
+  `entity_role` (verdict BLOCKED sinon — MISSING_ASSET_COVERAGE).
 tests_oracles: >-
   Oracle déterministe non-LLM : scripts/forge/check_artbible.mjs (forme +
-  cohérence structurelle) qui délègue la validation de forme des asset_requests
-  à scripts/forge/asset_request.mjs::validateRequestShape (réutilisé, pas
-  dupliqué). Le taux de resolution OK/BLOCKED de chaque request (via
-  evaluateAssetRequest contre le catalogue réel) est rapporté en STATISTIQUE
-  advisory dans le reçu — jamais un critère de pass/fail de cet oracle (un
-  BLOCKED bien formé est un résultat légitime, pas une erreur, cf. Asset
-  Contract V0 "BLOCKED vs FAIL"). Jamais de LLM-as-judge sur l'esthétique.
+  cohérence structurelle + couverture besoin<->requête v0.1) qui délègue la
+  validation de forme des asset_requests à
+  scripts/forge/asset_request.mjs::validateRequestShape (réutilisé, pas
+  dupliqué). Vocabulaire de verdict unique OK/FAIL/BLOCKED : FAIL = artefact
+  malformé ; BLOCKED = bien formé mais couverture manquante (MISSING_ASSET_
+  COVERAGE) ; OK = conforme et couvert. Le taux de resolution OK/BLOCKED de
+  chaque request contre le catalogue réel (via evaluateAssetRequest) reste
+  rapporté en STATISTIQUE ADVISORY, totalement distincte de la couverture —
+  jamais un critère de pass/fail (un BLOCKED de resolution bien formé est un
+  résultat légitime, pas une erreur, cf. Asset Contract V0 "BLOCKED vs FAIL").
+  Jamais de LLM-as-judge sur l'esthétique ni sur la véracité de la prose.
 final_report: >-
   software/evidence/claim séparés ; cite check_artbible.mjs comme oracle ; liste
   les asset_requests produits + leur statut de resolution (OK/BLOCKED, jamais
@@ -114,9 +141,12 @@ final_report: >-
 # --- 8. Restitution (Critique) ---
 output_contract: >-
   art_bible.md (frontmatter YAML {styles: string[], mood_keywords: string[]} +
-  sections "## 1. IDENTITÉ VISUELLE" / "## 2. RATIONALE") + asset_requests.json
-  ({requests: AssetRequestV0[], no_assets_needed: bool, reason: string|null}) +
-  reçu check_artbible.mjs (evidence_path).
+  sections "## 1. IDENTITÉ VISUELLE" / "## 2. RATIONALE" / "## 3. BESOINS
+  VISUELS" — cette dernière un bloc ```json {visual_requirements:
+  [{id, entity_role, required, description}]}) + asset_requests.json
+  ({requests: AssetRequestV0_1[] (chaque request : id, entity_role, purpose,
+  type, style, references, constraints, acceptance_tests), no_assets_needed:
+  bool, reason: string|null}) + reçu check_artbible.mjs (evidence_path).
 
 # --- 9. Capacités (Important — `aucun` autorisé, jamais absent) ---
 skill: aucun

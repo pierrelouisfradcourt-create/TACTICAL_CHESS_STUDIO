@@ -1,7 +1,7 @@
 // asset_request.test.mjs — couvre l'Asset Contract V0 (docs/forge/ASSET_CONTRACT_V0.md).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateRequestShape, resolveRequest, runAcceptanceTests, evaluateAssetRequest } from './asset_request.mjs';
+import { validateRequestShape, resolveRequest, runAcceptanceTests, evaluateAssetRequest, ENTITY_ROLES, PURPOSES } from './asset_request.mjs';
 
 // Catalogue minimal de test — miroir volontairement réduit de knowledge_base/catalog.json
 // (mêmes formes que la vraie entrée kenney-survivor1-stand), pour ne pas dépendre du
@@ -70,6 +70,9 @@ function fakeCatalog() {
 
 function baseRequest(overrides = {}) {
   return {
+    id: 'test-request-1',
+    entity_role: 'player',
+    purpose: 'gameplay',
     type: 'sprite',
     style: 'flat-top-down',
     references: [],
@@ -175,6 +178,33 @@ test('max_size_kb avec entry.size_kb null (manifest-only) -> BLOCKED, pas un byp
   });
   const result = evaluateAssetRequest(req, catalog);
   assert.equal(result.verdict, 'BLOCKED');
+});
+
+test('v0.1 : entity_role/purpose/id Critiques -- absents rejetes (gate 4 + sonde deceptive builder, 2026-07-14)', () => {
+  for (const field of ['id', 'entity_role', 'purpose']) {
+    const req = baseRequest();
+    delete req[field];
+    const errors = validateRequestShape(req);
+    assert.ok(errors.some((e) => e.includes(field)), `attendu une erreur citant ${field}`);
+  }
+});
+
+test('v0.1 : entity_role hors liste fermee -> erreur de forme', () => {
+  const req = baseRequest({ entity_role: 'protagoniste' });
+  const errors = validateRequestShape(req);
+  assert.ok(errors.some((e) => e.includes('entity_role invalide')));
+});
+
+test('v0.1 : purpose hors liste fermee -> erreur de forme', () => {
+  const req = baseRequest({ purpose: 'esthetique' });
+  const errors = validateRequestShape(req);
+  assert.ok(errors.some((e) => e.includes('purpose invalide')));
+});
+
+test('v0.1 : ENTITY_ROLES/PURPOSES exportes et couvrent les valeurs du spec', () => {
+  assert.ok(ENTITY_ROLES.includes('obstacle'));
+  assert.ok(ENTITY_ROLES.includes('player'));
+  assert.ok(PURPOSES.includes('gameplay'));
 });
 
 test('resolveRequest et runAcceptanceTests exposes independamment (composabilite)', () => {

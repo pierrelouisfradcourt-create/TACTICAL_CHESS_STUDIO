@@ -1,12 +1,70 @@
 # Asset Contract V0 — schéma de demande d'asset
 
-> **Date** : 2026-07-13
-> **Statut** : DESIGN + IMPLEMENTED (résolveur `scripts/forge/asset_request.mjs`, testé).
-> **Périmètre** : Tier 3 #7, étape 1 sur 2 (cf. `docs/forge/FORGE_STATE_SNAPSHOT_2026-07-13.md`
-> §"Ce qui reste hors de ce snapshot"). L'étape 2 (rôle Art Director) consomme ce contrat —
-> elle n'est pas commencée ici, gate Pierre explicite avant de l'entamer.
+> **Date** : 2026-07-13 (v0) · **mise à jour 2026-07-14 (v0.1)**
+> **Statut** : DESIGN + IMPLEMENTED (résolveur `scripts/forge/asset_request.mjs` +
+> oracle `scripts/forge/check_artbible.mjs`, testés).
+> **Périmètre** : Tier 3 #7. v0 = étape 1 (schéma + résolveur). v0.1 = durcissement
+> post-gate-4 (couverture besoin<->requête, cf. §"Changelog v0.1" ci-dessous).
 > `claim_verdict: NO_CLAIM_ALLOWED` — ce document décrit un mécanisme et ses limites, il ne
 > certifie pas qu'il couvre tous les besoins d'asset futurs du studio.
+
+## Changelog v0.1 (2026-07-14) — couverture besoin<->requête
+
+**Pourquoi** : une sonde adversariale contrôlée (`docs/forge/S2_5_ARTBIBLE_DECEPTIVE_PROBE_NOTE.md`,
+agent explicitement instruit à tromper l'oracle) a produit une art_bible affirmant en prose
+« personnage/pièces/obstacles/décor couverts » avec seulement 2 `asset_request` génériques —
+l'obstacle, pourtant central au gameplay, n'avait aucune requête. `check_artbible.mjs` v0
+passait quand même (`pass:true`) car **rien ne rapprochait mécaniquement les besoins visuels
+déclarés des requêtes produites**. v0.1 ferme ce vecteur, **additivement** (v0 reste valide,
+rien n'est supprimé, cf. `scripts/forge/contracts/redteam-artdirector.yaml` "ne pas supprimer
+les validations existantes").
+
+**Nouveaux champs sur `asset_request`** (en plus des 6 champs v0 ci-dessous) :
+
+```yaml
+asset_request:
+  id:            # identifiant court, non vide — traçabilité (Critique)
+  entity_role:   # enum fermée : player | enemy | npc | boss | item | collectible |
+                 # obstacle | environment | terrain | effect | ui | icon | other (Critique)
+  purpose:       # enum fermée : gameplay | navigation | decoration | ui | feedback |
+                 # animation (Critique — capturé en forme, PAS ENCORE consommé par un
+                 # oracle : honnête, un champ validé n'est pas forcément un champ vérifié)
+  # ... + les 6 champs v0 (type, style, references, constraints, acceptance_tests) inchangés
+```
+
+**Nouvelle section obligatoire dans `art_bible.md`** — `## 3. BESOINS VISUELS`, un bloc
+` ```json ` contenant `{visual_requirements: [{id, entity_role, required, description}]}` :
+chaque besoin visuel identifié à partir du product_snapshot, avec son `entity_role` et si sa
+couverture est `required` (bool explicite, jamais implicite).
+
+**Nouvelle vérification mécanique** (`checkCoverage`, `scripts/forge/check_artbible.mjs`) :
+pour chaque `visual_requirements[i]` avec `required:true`, il doit exister **au moins une**
+`asset_request` du même `entity_role`. Sinon → verdict **`BLOCKED`**, raison
+`MISSING_ASSET_COVERAGE`. **La prose du RATIONALE n'est jamais lue** par cette vérification —
+c'est précisément ce qui ferme le vecteur : affirmer une couverture en texte libre ne suffit
+plus, seule la donnée structurée compte. `no_assets_needed: true` court-circuite entièrement
+la vérification (cf. §"Cas à préserver").
+
+**`check_artbible.mjs` gagne un vrai `verdict` (`OK`/`FAIL`/`BLOCKED`)**, plus rigoureux que le
+`pass` booléen v0 (conservé, `pass = verdict === 'OK'`, pas de rupture pour les appelants
+existants) : `FAIL` = artefact malformé (comme avant) ; `BLOCKED` = bien formé mais couverture
+manquante (nouveau) ; `OK` = conforme et couvert. Ceci est **indépendant** des
+`resolution_stats` (OK/BLOCKED de résolution contre le catalogue), qui restent advisory et
+inchangés — un asset non résolu dans le catalogue n'est jamais une erreur de contrat ; seule
+l'ABSENCE de toute requête pour un besoin `required:true` en est une.
+
+**Cas préservés** (vérifiés par test, cf. `scripts/forge/check_artbible.test.mjs`) :
+- `no_assets_needed: true` → couverture non vérifiée, `OK` (jeu sans asset externe).
+- Un besoin `required: false` sans requête correspondante → pas un manque.
+- Un asset absent du catalogue (`resolution_stats.blocked`) reste **advisory**, jamais
+  transformé en erreur de contrat — distinct de `MISSING_ASSET_COVERAGE`.
+
+**Preuve de correction** : `lab/forge_runs/artbible_adversarial/probe_deceptive_builder/
+v0_1_retrofit_*` reconstruit la MÊME tentative de dissimulation (2 requêtes génériques,
+rationale affirmant une couverture complète) au format v0.1 → `verdict: BLOCKED`,
+`coverage.missing` cite explicitement `obstacle` (l'entité que l'agent avait réussi à
+cacher). Les 6 runs réels antérieurs à v0.1 échouent désormais (`FAIL`, section/champs v0.1
+absents) — **régression attendue et documentée**, pas un bug (ils n'ont jamais visé v0.1).
 
 ## Pourquoi ce document existe
 
@@ -112,22 +170,45 @@ Chaque check est `{check: <nom fermé>, ...params}`. Liste fermée (v0) — un c
 ## Implémentation
 
 - `scripts/forge/asset_request.mjs` : `validateRequestShape()` (règle des 3 états + checks
-  fermés), `resolveRequest(request, catalog)` (filtre + réutilise `search.search()` pour le
-  tri déterministe), `runAcceptanceTests(request, entry)` (exécute chaque check du tableau
-  `acceptance_tests` un par un, retourne `{check, ok, detail}[]`). CLI :
-  `node scripts/forge/asset_request.mjs <request.json> [--catalog <path>] [--json]`.
+  fermés + v0.1 id/entity_role/purpose), `ENTITY_ROLES`/`PURPOSES` (enums fermées, exportées,
+  réutilisées par `check_artbible.mjs` — zéro duplication), `resolveRequest(request, catalog)`
+  (filtre + réutilise `search.search()` pour le tri déterministe), `runAcceptanceTests(request,
+  entry)` (exécute chaque check du tableau `acceptance_tests` un par un, retourne
+  `{check, ok, detail}[]`). CLI : `node scripts/forge/asset_request.mjs <request.json>
+  [--catalog <path>] [--json]`.
+- `scripts/forge/check_artbible.mjs` (v0.1) : `extractVisualRequirements(sectionBody)` (parse
+  le bloc ```json de BESOINS VISUELS — zéro dépendance YAML, ce studio n'utilise que
+  `JSON.parse` pour les artefacts structurés), `validateVisualRequirement(vr, i)`,
+  `checkCoverage(visualRequirements, requests, noAssetsNeeded)` (fonction pure, testée
+  isolément). `checkArtBible()` retourne désormais `{pass, verdict, findings, coverage,
+  resolution_stats}`.
 - `scripts/forge/asset_request.test.mjs` : couvre requête valide résolue (asset Kenney
   existant), requête `BLOCKED` (contrainte insatisfiable), requête `FAIL` (champ Critique
-  absent, check inconnu), distinction absent/`null` déclaré.
+  absent, check inconnu), distinction absent/`null` déclaré, v0.1 id/entity_role/purpose.
+- `scripts/forge/check_artbible.test.mjs` : couvre les 4 scénarios de couverture (besoins
+  tous couverts → OK ; couverture manquante → BLOCKED ; déclaration mensongère en prose sans
+  requête correspondante → BLOCKED quand même ; `no_assets_needed` → OK sans vérification).
 
-## Limites connues (v0, documentées, pas corrigées)
+## Limites connues
 
-- `style_tag_match` est une égalité de chaîne normalisée — deux stylistes différents peuvent
-  utiliser des tags différents pour un style visuellement proche (ex. "flat-top-down" vs
-  "top-down-flat"). Pas de thésaurus v0 : une requête qui ne matche aucun tag existant produit
+- **v0** : `style_tag_match` est une égalité de chaîne normalisée — deux stylistes différents
+  peuvent utiliser des tags différents pour un style visuellement proche (ex. "flat-top-down"
+  vs "top-down-flat"). Pas de thésaurus : une requête qui ne matche aucun tag existant produit
   `BLOCKED`, pas un "plus proche possible" — c'est voulu (pas de résolution floue silencieuse).
-- `references` et le jugement esthétique final restent **hors du mécanique** par construction
-  — c'est la limite structurelle documentée plus haut, pas un oubli.
-- Pas de génération d'asset (aucun appel à un générateur d'image) — ce contrat **résout dans
-  l'existant du catalogue** uniquement. La question "faut-il un générateur d'asset" est hors
-  scope de l'étape 1, à trancher (si besoin) à l'étape 2 ou au-delà.
+- **v0** : `references` et le jugement esthétique final restent **hors du mécanique** par
+  construction — c'est la limite structurelle documentée plus haut, pas un oubli.
+- **v0** : pas de génération d'asset (aucun appel à un générateur d'image) — ce contrat
+  **résout dans l'existant du catalogue** uniquement.
+- **v0.1, NON corrigée (déjà connue, hors scope)** : `style_tag_match` compare des chaînes,
+  jamais une sémantique de viewpoint — un style `flat-top-down` (vue de dessus) peut être
+  déclaré pour un jeu à défilement latéral et résoudre `OK` sans que rien ne le détecte (cf.
+  Défaut 1 de `S2_5_ARTBIBLE_DECEPTIVE_PROBE_NOTE.md`). Corriger ceci exigerait un champ
+  `viewpoint` structuré sur le catalogue ET le schéma de requête — pas fait ici, car un
+  jugement d'adéquation visuelle reste proche du jugement esthétique interdit. La couverture
+  v0.1 ferme le vecteur de **complétude** (est-ce qu'un besoin a une requête), pas celui
+  d'**adéquation** (est-ce que le style de la requête a un sens visuel réel) — deux questions
+  distinctes, la seconde reste un fog HumanGate assumé.
+- **v0.1** : `purpose` est validé en FORME (Critique, jamais absent) mais n'est consommé par
+  AUCUN oracle aujourd'hui — capturé pour un rapprochement futur plus fin, pas un mensonge de
+  conformité (un champ qui passe la validation de forme n'est pas forcément un champ dont la
+  valeur est mécaniquement exploitée, cf. `PURPOSES` dans `asset_request.mjs`).

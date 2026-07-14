@@ -30,6 +30,22 @@ const KNOWN_CHECKS = [
   'usage_referenced',
 ];
 
+// v0.1 (2026-07-14, gate 4 + sonde adversariale "deceptive builder") — ferme le vecteur
+// de gaming trouve en vivo : une art_bible pouvait affirmer en prose "personnage/obstacles/
+// decor couverts" avec seulement 2 requetes generiques, sans qu'aucun mecanisme ne
+// verifie la COUVERTURE besoin<->requete. `entity_role` est la cle mecanique de ce
+// rapprochement (cf. check_artbible.mjs::checkCoverage) -- jamais une metrique esthetique,
+// une simple etiquette de "a quoi sert cette requete dans le jeu".
+export const ENTITY_ROLES = [
+  'player', 'enemy', 'npc', 'boss', 'item', 'collectible', 'obstacle',
+  'environment', 'terrain', 'effect', 'ui', 'icon', 'other',
+];
+// `purpose` est captur en FORME (Critique, jamais absent) mais n'est pas encore
+// consomme par un oracle -- declare pour permettre un futur rapprochement plus fin
+// (ex. differencier un sprite de gameplay d'un sprite de decor pur), pas une metrique
+// active aujourd'hui. Honnete : ne pas laisser croire qu'un champ valide = un champ verifie.
+export const PURPOSES = ['gameplay', 'navigation', 'decoration', 'ui', 'feedback', 'animation'];
+
 /**
  * Normalise un tag de style pour comparaison exacte (pas de similarité floue — cf.
  * docs/forge/ASSET_CONTRACT_V0.md "limites connues").
@@ -53,6 +69,18 @@ export function validateRequestShape(request) {
   }
 
   // Critiques : absent -> erreur explicite (pas de valeur par defaut silencieuse).
+  // v0.1 : id/entity_role/purpose -- sans entity_role, la couverture besoin<->requete
+  // (checkCoverage) ne peut mecaniquement rien rapprocher (cf. changelog v0.1 de
+  // docs/forge/ASSET_CONTRACT_V0.md).
+  if (!('id' in request)) errors.push('champ Critique absent: id');
+  else if (typeof request.id !== 'string' || request.id.trim().length === 0) errors.push('id doit etre une chaine non vide');
+
+  if (!('entity_role' in request)) errors.push('champ Critique absent: entity_role');
+  else if (!ENTITY_ROLES.includes(request.entity_role)) errors.push(`entity_role invalide: ${request.entity_role} (attendu: ${ENTITY_ROLES.join('|')})`);
+
+  if (!('purpose' in request)) errors.push('champ Critique absent: purpose');
+  else if (!PURPOSES.includes(request.purpose)) errors.push(`purpose invalide: ${request.purpose} (attendu: ${PURPOSES.join('|')})`);
+
   if (!('type' in request)) errors.push('champ Critique absent: type');
   else if (!REQUEST_TYPES.includes(request.type)) errors.push(`type invalide: ${request.type} (attendu: ${REQUEST_TYPES.join('|')})`);
 
