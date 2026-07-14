@@ -121,7 +121,10 @@ function passesConstraints(entry, constraints, styleNormalized) {
     if (!constraints.genre.some((g) => entryGenres.includes(g.toLowerCase()))) return false;
   }
   if (constraints.max_size_kb !== null && typeof constraints.max_size_kb === 'number') {
-    if (entry.size_kb !== null && entry.size_kb > constraints.max_size_kb) return false;
+    // entry.size_kb === null (manifest-only 3D, jamais telecharge) : la contrainte
+    // ne peut pas etre VERIFIEE, donc elle n'est pas satisfaite (gate 4 Qwen,
+    // 2026-07-14) -- avant ce fix, une taille inconnue passait silencieusement.
+    if (entry.size_kb === null || entry.size_kb > constraints.max_size_kb) return false;
   }
   if (normalizeTag(entry.style) !== styleNormalized) return false;
   return true;

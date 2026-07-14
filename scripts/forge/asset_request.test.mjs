@@ -166,6 +166,17 @@ test('3D manifest-only : on_disk coherent uniquement si format demande = 3D', ()
   assert.equal(result.resolved.asset_id, 'asset-test-godot');
 });
 
+test('max_size_kb avec entry.size_kb null (manifest-only) -> BLOCKED, pas un bypass silencieux (gate 4 Qwen 2026-07-14)', () => {
+  const catalog = fakeCatalog();
+  const req = baseRequest({
+    style: 'lowpoly',
+    constraints: { format: '3D', runtime: 'godot', license_allowed: [], genre: ['rpg'], max_size_kb: 100 },
+    acceptance_tests: [{ check: 'resolved' }],
+  });
+  const result = evaluateAssetRequest(req, catalog);
+  assert.equal(result.verdict, 'BLOCKED');
+});
+
 test('resolveRequest et runAcceptanceTests exposes independamment (composabilite)', () => {
   const catalog = fakeCatalog();
   const req = baseRequest();
