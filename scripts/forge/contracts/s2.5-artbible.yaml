@@ -22,13 +22,15 @@
 #          a au moins une requête du même `entity_role`, SANS jamais lire la prose du
 #          rationale (cf. docs/forge/ASSET_CONTRACT_V0.md changelog v0.1).
 #
-# INTÉGRATION CHAÎNE (décision de portée, pas une question ouverte) : ce contrat suit le
-# précédent s10d (scripts/forge/contracts/s10d-oracle-visual.yaml, ligne 5) — DÉFINI et
-# DISPATCHABLE (chargeable par contract.py, résolu par roles.yaml) mais volontairement
-# ABSENT de scripts/forge/dispatch.py ORDER/PROFILES pour l'instant : aucun run réel n'a
-# encore exercé cet oracle (contrairement aux familles A1/A2/A3/A5 de s10d, prouvées sur
-# des sondes avant ratification — cf. docs/forge/P1_1_RESULTS.md). Le câblage dans la
-# chaîne "full" est une décision ultérieure, après une première preuve in vivo (gate Pierre).
+# INTÉGRATION CHAÎNE (mise à jour 2026-07-14, câblage réel effectué) : après 6 runs
+# réels (2 non-adversariaux + 4 adversariaux), un gate 4 Qwen, un fix v0.1 vérifié et
+# une preuve v0.1 finale propre (cf. docs/forge/S2_5_ARTBIBLE_*.md), ce contrat est
+# désormais dispatchable via un profil DÉDIÉ : `python scripts/forge/dispatch.py
+# --profile artbible` (ou `run_real.py --profile artbible --task-artbible "..."`).
+# Décision explicite (Pierre) : reste HORS de `ORDER`/`full` — un profil dédié n'est
+# jamais silencieusement inclus dans la chaîne greenfield complète (cf.
+# `dispatch.DEDICATED_PROFILE_STEPS`, testé par `test_dedicated_steps_never_leak_into_full`).
+# Câblage dans "full" resterait une décision ultérieure distincte, non prise ici.
 
 # --- 1. Identité / posture cognitive (Critique) ---
 role: >-
@@ -186,7 +188,6 @@ delegation_context: >-
   Décomposition fonctionnelle (3) — l'identité visuelle et les besoins d'asset
   sont fixés avant la décomposition technique, comme référence stable pour le
   Builder (étape 9) qui résoudra concrètement chaque asset_request au moment
-  d'écrire le rendu. Non câblée dans dispatch.ORDER/PROFILES (cf. note
-  "INTÉGRATION CHAÎNE" en tête de fichier) — activable/dispatchable dès
-  aujourd'hui via prepare_dispatch, promotion dans la chaîne "full" différée à
-  une preuve in vivo.
+  d'écrire le rendu. Câblée dans un profil DÉDIÉ `dispatch.PROFILES["artbible"]`
+  depuis le 2026-07-14 (cf. note "INTÉGRATION CHAÎNE" en tête de fichier) —
+  toujours HORS de `ORDER`/`full` par décision explicite.

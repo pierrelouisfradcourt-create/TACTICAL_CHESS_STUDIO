@@ -38,6 +38,10 @@ _CLAUDE_CMD = shutil.which("claude") or "claude"
 _STEP_TOOLS: dict[str, tuple[str, ...]] = {
     "s9-build": ("Edit", "Read"),
     "s11-redteam-code": ("Read",),
+    # s2.5-artbible (profil dédié `artbible`, Tier 3 #7) : crée 2 fichiers neufs
+    # (art_bible.md, asset_requests.json) — Edit seul ne suffit pas (rien à éditer au
+    # départ) — et s'auto-valide via check_artbible.mjs (cf. contrat, objectif §4).
+    "s2.5-artbible": ("Write", "Read", "Bash"),
 }
 
 
@@ -132,10 +136,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Premier run RÉEL du driver Forge (P0.1).")
     parser.add_argument("--project", required=True)
     parser.add_argument("--run-id", required=True)
-    parser.add_argument("--profile", default="patch", choices=("full", "patch", "review", "micro"))
-    parser.add_argument("--src-root", required=True, help="racine du code réel (relatif au repo)")
+    parser.add_argument("--profile", default="patch",
+                        choices=("full", "patch", "review", "micro", "artbible"))
+    parser.add_argument("--src-root", required=True, help="racine du code réel (relatif au repo) — "
+                        "pour le profil artbible, un dossier existant quelconque (ex. '.') convient, "
+                        "aucun code n'y est écrit")
     parser.add_argument("--task-s9", default="", help="tâche concrète pour le builder (s9-build)")
     parser.add_argument("--task-s11", default="", help="tâche concrète pour le red-team (s11)")
+    parser.add_argument("--task-artbible", default="",
+                        help="tâche concrète pour l'Art Director (s2.5-artbible) — DOIT référencer "
+                        "le chemin réel du product_snapshot.md à lire (ex. 'lit lab/forge_runs/"
+                        "<projet>/product_snapshot.md et livre dans lab/forge_runs/<projet>/')")
     parser.add_argument("--charter", default="", help="charter.yaml (requis si profil=full : "
                         "active le panel Prisme réel à s1-prisme, Tier 2 #6)")
     args = parser.parse_args()
@@ -147,7 +158,11 @@ def main() -> None:
 
     simple_executor = claude_executor(
         add_dir=src_root,
-        task_by_step={"s9-build": args.task_s9, "s11-redteam-code": args.task_s11},
+        task_by_step={
+            "s9-build": args.task_s9,
+            "s11-redteam-code": args.task_s11,
+            "s2.5-artbible": args.task_artbible,
+        },
     )
 
     if args.charter:

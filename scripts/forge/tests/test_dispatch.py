@@ -12,6 +12,7 @@ import pytest
 import pytest
 
 from forge.dispatch import (
+    DEDICATED_PROFILE_STEPS,
     DETERMINISTIC,
     ORDER,
     PROFILES,
@@ -28,9 +29,27 @@ def test_order_covers_the_agent_steps():
 
 # --- profils de chaîne (full / patch / review) --------------------------------
 
-def test_profiles_are_subsets_of_order():
+def test_profiles_are_subsets_of_order_or_explicitly_dedicated():
+    """Un profil référence soit une étape de ORDER (chaîne canonique "full"), soit une
+    étape listée dans DEDICATED_PROFILE_STEPS (hors ORDER par décision explicite, ex.
+    s2.5-artbible — jamais dans "full", cf. commentaire dispatch.py). Aucune autre
+    étape "mystère" : un typo dans un profil doit toujours être détecté."""
+    allowed = set(ORDER) | set(DEDICATED_PROFILE_STEPS)
     for name, steps in PROFILES.items():
-        assert set(steps).issubset(set(ORDER)), f"profil {name} référence une étape hors ORDER"
+        assert set(steps).issubset(allowed), f"profil {name} référence une étape hors ORDER/DEDICATED_PROFILE_STEPS"
+
+
+def test_dedicated_steps_never_leak_into_full():
+    """Une étape dédiée (hors ORDER) ne doit JAMAIS se retrouver dans "full" — sinon
+    la distinction "profil dédié" vs "chaîne canonique" n'a plus de sens (régression
+    du 2026-07-14 : s2.5-artbible câblé dans un profil dédié `artbible`, PAS dans full)."""
+    assert set(DEDICATED_PROFILE_STEPS).isdisjoint(set(ORDER))
+    assert set(DEDICATED_PROFILE_STEPS).isdisjoint(set(order_for_profile("full")))
+
+
+def test_artbible_profile_is_dedicated_and_standalone():
+    assert order_for_profile("artbible") == ["s2.5-artbible"]
+    assert "s2.5-artbible" not in order_for_profile("full")
 
 
 def test_patch_profile_is_the_short_fix_chain():
@@ -59,6 +78,15 @@ def test_plan_chain_patch_profile_plans_only_its_steps(tmp_path):
     assert [p.etape for p in plan] == order_for_profile("patch")
     for p in plan:
         assert p.model
+
+
+def test_plan_chain_artbible_profile_resolves_a_real_runtime(tmp_path):
+    """Preuve de câblage bout-en-bout du profil dédié artbible (2026-07-14) : le
+    contrat charge, se valide, et le registry résout un runtime réel (pas un stub)."""
+    plan = plan_chain(run_id="ab", profile="artbible", audit_path=tmp_path / "a.jsonl")
+    assert [p.etape for p in plan] == ["s2.5-artbible"]
+    assert plan[0].model == "claude-opus-4-8"
+    assert plan[0].provider == "claude-local"
 
 
 def test_prepare_dispatch_returns_payload_and_audits(tmp_path):

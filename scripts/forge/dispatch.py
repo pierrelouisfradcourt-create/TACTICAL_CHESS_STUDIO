@@ -48,10 +48,23 @@ ORDER = [
 # Étapes déterministes (non-LLM) : exécutées par oracle, pas par un agent LLM.
 DETERMINISTIC = ("s10a-oracle-code", "s10b-oracle-archi", "s10c-oracle-wiremap", "s12-verdict")
 
-# Profils de chaîne — sous-ensembles de ORDER pour des usages plus courts que le
-# greenfield complet. `patch` = un fix sur un projet existant (build -> oracle code
-# -> red-team code -> verdict) : les oracles archi/wiremap n'y sont pas applicables
-# et seront émis SKIPPED (reçu signé) au verdict. `review` = red-team d'un plan seul.
+# Étapes délibérément HORS de ORDER (la chaîne canonique greenfield "full") mais
+# réellement contractualisées, prouvées en vivo, et dispatchables via un profil
+# DÉDIÉ — jamais silencieusement incluses dans "full". Une étape n'entre ici
+# qu'après une preuve en vivo distincte (cf. FORGE_STATE_SNAPSHOT/notes du contrat) ;
+# rester hors de ORDER est une décision de portée, pas un oubli. `s2.5-artbible`
+# (Tier 3 #7, Art Director) : 6 runs réels (2 non-adversariaux + 4 adversariaux) +
+# gate 4 Qwen + fix v0.1 + preuve v0.1 finale, cf. docs/forge/S2_5_ARTBIBLE_*.md.
+DEDICATED_PROFILE_STEPS = ("s2.5-artbible",)
+
+# Profils de chaîne — sous-ensembles de ORDER (ou de DEDICATED_PROFILE_STEPS ci-dessus)
+# pour des usages plus courts que le greenfield complet. `patch` = un fix sur un projet
+# existant (build -> oracle code -> red-team code -> verdict) : les oracles archi/
+# wiremap n'y sont pas applicables et seront émis SKIPPED (reçu signé) au verdict.
+# `review` = red-team d'un plan seul. `artbible` = Art Director seul (Tier 3 #7) : un
+# profil dédié, PAS ajouté à `full` — décision explicite de portée (Pierre,
+# 2026-07-14), suppose product_snapshot.md déjà produit (même convention que `review`
+# qui suppose blueprint/wiremap déjà produits).
 PROFILES = {
     "full": tuple(ORDER),
     "patch": ("s9-build", "s10a-oracle-code", "s11-redteam-code", "s12-verdict"),
@@ -60,6 +73,7 @@ PROFILES = {
     # de red-team ni de design — build -> oracle code -> verdict. Évite la cérémonie
     # 13 étapes sur 78 lignes (finding red-team chesscolor). archi/wiremap = SKIPPED.
     "micro": ("s9-build", "s10a-oracle-code", "s12-verdict"),
+    "artbible": ("s2.5-artbible",),
 }
 
 
@@ -155,7 +169,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Dispatch gouverné de la chaîne Forge.")
     parser.add_argument("--dry-run", action="store_true", help="planifie la chaîne sans spawn")
     parser.add_argument("--profile", default="full", choices=sorted(PROFILES),
-                        help="profil de chaîne (full / patch / review)")
+                        help="profil de chaîne (full / patch / review / micro / artbible)")
     args = parser.parse_args()
     if args.dry_run:
         audit = REPO_ROOT / "lab" / "forge_evidence" / "dispatch_dryrun.jsonl"
