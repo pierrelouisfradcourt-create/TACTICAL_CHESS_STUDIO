@@ -55,23 +55,45 @@ mandatory_read:
 # --- 2bis. VALIDATION d'abord (amendement, miroir du §2bis de s9-build) ---
 # AVANT de livrer, l'agent DOIT faire tourner
 # "node scripts/forge/check_artbible.mjs <art_bible.md> <asset_requests.json>" sur son
-# propre brouillon. Un asset_request au format invalide (rejeté par
-# asset_request.mjs::validateRequestShape) DOIT être corrigé avant livraison — mais un
-# résultat BLOCKED (aucune entrée du catalogue ne satisfait une requête bien formée)
-# N'EST PAS une raison de modifier la requête pour "trouver un match" : c'est un fait
-# légitime à laisser remonter en fog (cf. docs/forge/ASSET_CONTRACT_V0.md
-# "BLOCKED vs FAIL"). Forcer une résolution artificielle serait un gaming de l'oracle.
+# propre brouillon, ET VÉRIFIER `verdict === 'OK'` (pas seulement l'absence d'erreur de
+# forme — cf. §2ter, il existe DEUX sortes de BLOCKED, une à corriger, une à laisser).
+# Un asset_request au format invalide (rejeté par asset_request.mjs::validateRequestShape)
+# DOIT être corrigé avant livraison. Un `resolution_stats.blocked` (aucune entrée du
+# catalogue ne satisfait une requête bien formée, cf. `evaluateAssetRequest`) N'EST PAS une
+# raison de modifier la requête pour "trouver un match" : c'est un fait légitime à laisser
+# remonter en fog (cf. docs/forge/ASSET_CONTRACT_V0.md "BLOCKED vs FAIL"). Forcer une
+# résolution artificielle serait un gaming de l'oracle.
+
+# --- 2ter. COUVERTURE OBLIGATOIRE (v0.1, 2026-07-14) — NOTE : la procédure complète est
+# dans le champ `objectif` ci-dessous (rendue dans le prompt, contrairement à ce
+# commentaire — cf. contract.py::_render_prompt, qui ne lit que les CHAMPS, jamais les
+# commentaires YAML). Rappel bref pour le lecteur humain de ce fichier : DEUX sortes de
+# BLOCKED existent — `resolution_stats.blocked` (catalogue incomplet, légitime, cf. §2bis)
+# et `coverage.missing` (MISSING_ASSET_COVERAGE, JAMAIS légitime, doit être corrigé avant
+# livraison). Source : docs/forge/S2_5_ARTBIBLE_DECEPTIVE_PROBE_NOTE.md.
 
 # --- 3. Mission (Critique) ---
 objectif: >-
   Produire art_bible.md (identité visuelle : styles, mood_keywords, rationale liée
-  au product_snapshot, SECTION BESOINS VISUELS listant chaque besoin visuel
-  identifié avec son entity_role et si il est required) et asset_requests.json
-  (liste structurée de demandes d'asset au format Asset Contract V0.1 — chaque
-  request porte id/entity_role/purpose — une par besoin visuel réellement couvert),
-  tous deux vérifiés par check_artbible.mjs avant livraison. Chaque besoin
-  `required:true` DOIT avoir une requête correspondante du même entity_role — pas
-  seulement une mention en prose.
+  au product_snapshot) et asset_requests.json (Asset Contract V0.1), en suivant
+  IMPÉRATIVEMENT cette procédure, dans l'ordre : (1) Relire product_snapshot.md
+  section par section (voit/fait/ressent/règles observables) et lister CHAQUE
+  entité visuelle distincte dans la section "## 3. BESOINS VISUELS" de
+  art_bible.md ({id, entity_role, required, description} par entité — personnage,
+  ennemis/créatures par type, objets ramassables, obstacles, décor/niveau, HUD,
+  écrans de victoire/défaite...). (2) Marquer `required:true` pour toute entité
+  citée par une Règle observable (Rn) ou centrale à une condition de victoire/
+  défaite/score ; `required:false` UNIQUEMENT pour du décor véritablement
+  optionnel/cosmétique — en cas de doute, `required:true` (le coût d'une requête
+  en plus est nul, le coût d'un manque découvert plus tard ne l'est pas). (3)
+  Produire une `asset_request` (avec `id`/`entity_role`/`purpose` propres) pour
+  CHAQUE entité `required:true` — jamais 1 ou 2 requêtes génériques censées
+  "couvrir" plusieurs entités distinctes. (4) Faire tourner
+  `node scripts/forge/check_artbible.mjs <art_bible.md> <asset_requests.json>`
+  et vérifier `verdict === 'OK'` (pas seulement l'absence d'erreur de forme) ;
+  si `verdict === 'BLOCKED'` avec `coverage.missing` non vide, AJOUTER la/les
+  requête(s) manquante(s) et refaire ce contrôle jusqu'à `OK` (ou jusqu'à
+  `no_assets_needed:true`, cf. cas préservé). Ne livrer QUE sur `verdict === 'OK'`.
 
 # --- 4. Frontières (Critique) ---
 in_scope: >-
@@ -99,12 +121,18 @@ gardeFou: >-
   la resolution mécanique de style_tag_match compare des TAGS, pas des pixels
   (cf. docs/forge/ASSET_CONTRACT_V0.md "Ce que ce contrat ne fait jamais"). Ne
   force jamais un asset_request à passer en OK en assouplissant silencieusement
-  ses constraints après un BLOCKED (gaming de l'oracle) — un BLOCKED se rapporte
-  tel quel, avec le detail des filtres non satisfaits. N'affirme JAMAIS en prose
-  (RATIONALE) une couverture que les BESOINS VISUELS/asset_requests structurés ne
-  démontrent pas réellement (v0.1 — la prose n'est jamais vérifiée mécaniquement,
-  seule la donnée structurée l'est ; affirmer plus que ce qui est structuré est
-  exactement le vecteur fermé par v0.1).
+  ses constraints après un `resolution_stats.blocked` (gaming de l'oracle) — ce
+  BLOCKED-là se rapporte tel quel, avec le detail des filtres non satisfaits.
+  DEUX sortes de BLOCKED existent, ne pas les confondre : `resolution_stats.
+  blocked` (catalogue incomplet) est légitime, à laisser tel quel ;
+  `coverage.missing` (MISSING_ASSET_COVERAGE) N'EST JAMAIS légitime à laisser
+  tel quel, c'est un oubli à corriger (cf. objectif, étape 4). Ne reclasse
+  JAMAIS `required:false` une entité réellement centrale (personnage, ennemi,
+  obstacle de gameplay) uniquement pour éviter de produire sa requête — c'est
+  exactement le même gaming que la dissimulation en prose que v0.1 ferme.
+  N'affirme JAMAIS en prose (RATIONALE) une couverture que les BESOINS VISUELS/
+  asset_requests structurés ne démontrent pas réellement (la prose n'est jamais
+  vérifiée mécaniquement, seule la donnée structurée l'est).
 
 # --- 7. Validation & auditabilité (Critique) ---
 success_criteria: >-
