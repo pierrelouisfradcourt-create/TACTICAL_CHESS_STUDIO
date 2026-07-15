@@ -12,7 +12,8 @@
 > `knowledge_base/role_sim.mjs` · `scripts/forge/reuse_ratio.mjs` · `scripts/forge/pool.py` ·
 > `scripts/forge/contracts/s2.5-artbible.yaml` · `knowledge_base/roles/pursuer-mobile.yaml`. Les
 > fiches §2.2/§2.3 (🔴 MANQUANT) ci-dessous sont **périmées** — corrigées inline. Dérive surveillée :
-> `node scripts/forge/studio_selfaudit.mjs` (exit 0 = cartes à jour).
+> `node scripts/forge/studio_selfaudit.mjs` (exit 0 = cartes à jour). **État factuel toujours frais**
+> (auto-généré) : [`STUDIO_STATUS.generated.md`](STUDIO_STATUS.generated.md).
 
 ---
 

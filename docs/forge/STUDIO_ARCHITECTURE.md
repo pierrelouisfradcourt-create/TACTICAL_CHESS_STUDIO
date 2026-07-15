@@ -14,7 +14,8 @@
 > `scripts/forge/contracts/s2.5-artbible.yaml` · `knowledge_base/roles/pursuer-mobile.yaml`. Toute
 > mention 🔴 / « MANQUANT » / « n'existe pas » / « cible » ci-dessous les concernant est **périmée**.
 > La dérive doc↔réalité est désormais surveillée : `node scripts/forge/studio_selfaudit.mjs`
-> (exit 0 = cartes à jour).
+> (exit 0 = cartes à jour). **État factuel toujours frais** (auto-généré, ne pas éditer à la main) :
+> [`STUDIO_STATUS.generated.md`](STUDIO_STATUS.generated.md) — régénérer : `node scripts/forge/studio_selfaudit.mjs --write`.
 
 ---
 

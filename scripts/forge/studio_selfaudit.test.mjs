@@ -8,6 +8,8 @@ import {
   auditDocClaims,
   auditConnectorDormancy,
   runSelfAudit,
+  evaluateDocClaims,
+  generateStatusTable,
 } from './studio_selfaudit.mjs';
 
 function tmpRepo() {
@@ -130,6 +132,46 @@ test('runSelfAudit : integration bout-en-bout, derive -> ok=false', () => {
   assert.equal(r.ok, false);
   assert.equal(r.docDrift.length, 1);
   assert.equal(r.dormancy.filter((d) => d.status === 'dormant').length, 1);
+});
+
+test('evaluateDocClaims : liste TOUS les elements (alignes + derives), pas seulement les derives', () => {
+  const root = tmpRepo();
+  touch(root, 'a/present.mjs');
+  const rows = evaluateDocClaims(root, [
+    { path: 'a/present.mjs', claimed: 'exists', source: 's' }, // aligne
+    { path: 'a/present.mjs', claimed: 'target', source: 's' }, // derive (existe mais dit cible)
+    { path: 'a/absent.mjs', claimed: 'target', source: 's' },  // aligne (encore a construire)
+  ]);
+  assert.equal(rows.length, 3);
+  assert.equal(rows[0].aligned, true);
+  assert.equal(rows[1].aligned, false);
+  assert.equal(rows[2].aligned, true);
+});
+
+test('generateStatusTable : markdown deterministe, sans horodatage, avec le bon statut par ligne', () => {
+  const root = tmpRepo();
+  touch(root, 'knowledge_base/search.mjs'); // existe mais declare cible -> DERIVE
+  touch(root, 'lab/forge_evidence/forge_telemetry.jsonl', 0);
+  touch(root, 'lab/reports/forge_ledger_proposals.jsonl', 10); // dormant
+  writeManifest(root, {
+    doc_claims: [
+      { path: 'knowledge_base/search.mjs', claimed: 'target', source: 'carte' },
+      { path: 'scripts/forge/agents_ccgs', claimed: 'target', source: 'carte' }, // absent -> aligne
+    ],
+    connectors: {
+      reference: 'lab/forge_evidence/forge_telemetry.jsonl',
+      watched: ['lab/reports/forge_ledger_proposals.jsonl'],
+      threshold_days: 3,
+    },
+  });
+  const md1 = generateStatusTable(root);
+  assert.match(md1, /AUTO-GÉNÉRÉ/);
+  assert.match(md1, /knowledge_base\/search\.mjs.*DÉRIVE/);
+  assert.match(md1, /agents_ccgs.*aligné \(encore à construire\)/);
+  assert.match(md1, /dormant/);
+  // deterministe : deux generations identiques (aucun horodatage -> zero bruit git)
+  const md2 = generateStatusTable(root);
+  assert.equal(md1, md2);
 });
 
 test('runSelfAudit : studio aligne -> ok=true', () => {

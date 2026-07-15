@@ -15,4 +15,16 @@ if git diff --cached -- 'src/*.rs' 'ml/*.py' | grep -E '^\+(.*TODO|.*FIXME)' | g
   echo "⚠️  TODO/FIXME sans référence IMP-XXX."
   exit 1
 fi
+
+# Tableau de faits vivant du studio (audit cognitif L1) : régénère l'état factuel
+# depuis le disque et le stage, pour qu'il ne se périme jamais silencieusement.
+# FAIL-OPEN STRICT : l'audit sort 1 s'il détecte une dérive (ex. connecteurs
+# dormants) — on ne bloque JAMAIS le commit là-dessus (ce serait le rôle d'un
+# gate séparé, non retenu). On veut seulement que le fichier reflète la réalité.
+if command -v node >/dev/null 2>&1; then
+  node scripts/forge/studio_selfaudit.mjs --write >/dev/null 2>&1 || true
+  git add docs/forge/STUDIO_STATUS.generated.md 2>/dev/null || true
+  echo "🔄 STUDIO_STATUS.generated.md rafraîchi (état factuel du studio)"
+fi
+
 echo "✅ pre-commit OK"
