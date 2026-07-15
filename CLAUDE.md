@@ -7,6 +7,19 @@
 * Separer software\_verdict / evidence\_verdict / claim\_verdict
 * HumanGate decide merge/reject/freeze — pas Claude Code
 
+## Délégation aux sous-agents (doctrine Pierre)
+
+Déléguer sert à garder l'orchestrateur (le cerveau avec qui Pierre parle) à **contexte
+propre** : il ne se remplit pas du détail du build, et **c'est précisément ce qui le rend
+capable de servir de garde-fou** — il valide chaque rapport de sous-agent et y détecte
+erreurs/hallucinations, comme un œil frais indépendant. L'indépendance des contextes EST
+le mécanisme de vérité.
+
+* Déléguer ce qui est **borné, bruyant, résumable** (exploration, recherche, audit multi-fichiers, outillage isolé). Rester en direct si c'est petit, couplé, ou dépend d'un modèle mental partagé.
+* L'orchestrateur **ne lit pas les transcripts bruts** des sous-agents et **confronte chaque rapport au réel** (relance tests/oracle) avant d'y croire — jamais sur parole.
+* Tâche déléguée = **commande de fabrication précise** (objectif · entrées · sortie · preuve), jamais « pense à l'architecture ».
+* Un sous-agent **ne commite ni ne push** (gate Pierre). **Périmètre FORGE : aucun sous-agent sans contrat validé** — la délégation libre vaut pour l'outillage studio, PAS pour les agents de génération de jeu.
+
 ## Stack par lane
 
 ### Lane STUDIO (autopilot.py)
