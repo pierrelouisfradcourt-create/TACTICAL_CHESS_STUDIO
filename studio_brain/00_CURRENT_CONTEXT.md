@@ -15,15 +15,18 @@ intra-run, PILOU inter-run) mais elle DÉRIVAIT au niveau studio (cartes périm�
   + 1er commit de STUDIO_ARCHITECTURE/ATLAS/MASTER_SCHEMA. Régression `pytest scripts/forge/tests/` 390/390.
 Détail : memory [[forge_cognitive_audit]]. Reste (levier L5) : connecteurs ledger/project proposals dormants.
 
-## ⏸️ ABSENCE PIERRE — GATES EN ATTENTE AU RETOUR (clôture 2026-07-15)
-1. **PUSH** : **27 commits** locaux non poussés sur `feat/forge-oracle-gate` (fast-forward propre, tip origin
-   `f6bfab8`). Inclut le trio P0 + tout le Forge 07-11→15 (art bible/s2.5, KB, pool, panel). **Go push explicite requis.**
-2. **Commit artefacts shmup** : `games/shmup_slice/` + `docs/forge/FORGE_IMPROVEMENT_REPORT_shmup_run1.md`
-   (+ SHMUP_PREPROD) — sur disque, NON commités.
-3. **Bug timeout Windows = P0 Forge** : corriger AVANT tout re-run full (tuer l'ARBRE de process au timeout ;
-   inspecter le disque avant de conclure BLOCKED). Sinon chaque run refait 2h15 + faux BLOCKED.
-4. **3D** : télécharger `RealESRGAN` pour tester la texture ? ; le pipeline est un générateur prouvé, PAS un
+## ✅ CLÔTURE 2026-07-15 FAITE (avant absence Pierre)
+- **Push FAIT** : `origin/feat/forge-oracle-gate` à jour jusqu'à `ce3311e` (30 commits poussés : trio P0 +
+  Forge 07-11→15 + archive shmup + handoff). Plus rien de local-only.
+- **Artefacts shmup COMMITÉS+poussés** : `games/shmup_slice/` (`d2a522b`), rapports + trace run (`d2a522b`,`ce3311e`).
+
+## ⏸️ GATES EN ATTENTE AU RETOUR (décisions Pierre)
+1. **Bug timeout Windows = P0 Forge** : corriger AVANT tout re-run full (tuer l'ARBRE de process au timeout ;
+   inspecter le disque avant de conclure BLOCKED). Sinon chaque run refait 2h15 + faux BLOCKED. Puis reprendre
+   le run shmup pour un vrai verdict signé (le jeu existe déjà + passe l'oracle).
+2. **3D** : télécharger `RealESRGAN` pour tester la texture ? ; le pipeline est un générateur prouvé, PAS un
    consommateur validé → pas de 3D sous oracle sans validateur.
+3. **L5 audit** : connecteurs ledger/project proposals dormants (signalés par `studio_selfaudit.mjs`).
 
 ## Sessions 2026-07-14 clôturées
 - **shmup run1** (« Fable 5 Forge supervisor role ») : 1er run FULL réel s0→s12, jeu temps-réel 3 maps+3 boss
