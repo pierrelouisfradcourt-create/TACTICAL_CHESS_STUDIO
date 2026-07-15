@@ -1,32 +1,39 @@
 # Contexte courant TCS
 
-## Session 2026-07-15 — Audit cognitif Forge + trio P0 (COMMITÉ, non poussé)
-Question auditée : « la Forge est-elle un studio IA cohérent avec mémoire collective, ou des agents en
-file indienne ? » **Verdict** : cohérente EN PRODUCTION (contrat→oracle→verdict signé→HumanGate, blackboard
-intra-run, PILOU inter-run) mais elle DÉRIVAIT au niveau studio (cartes périmées, raisonnement non accumulé).
-**Trio P0 construit+prouvé+COMMITÉ** (`d415c9b` + `9607bc4` sur `feat/forge-oracle-gate`) :
-- **L1** `scripts/forge/studio_selfaudit.mjs` — auto-audit déterministe du studio (dérive doc↔réalité +
-  connecteurs dormants). `--write` génère `docs/forge/STUDIO_STATUS.generated.md` (tableau de faits vivant,
-  déterministe) **rafraîchi AUTO au pre-commit** (`.claude/hooks/pre-commit`, fail-open).
-- **L2** Project Bible par jeu : `studio_link.project_bible()` lu en s0 + `propose_bible_entry()` propose-only ;
-  template `docs/forge/PROJECT_BIBLE.template.md`.
-- **L3** section « Lane FORGE » + routing `/forge` dans CLAUDE.md.
-- **6 cartes corrigées** (search.mjs/role_sim/reuse_ratio/pool.py/s2.5-artbible/pursuer-mobile « cible »→« existe »)
-  + 1er commit de STUDIO_ARCHITECTURE/ATLAS/MASTER_SCHEMA. Régression `pytest scripts/forge/tests/` 390/390.
-Détail : memory [[forge_cognitive_audit]]. Reste (levier L5) : connecteurs ledger/project proposals dormants.
+## Session 2026-07-15 (GROSSE journée) — la Forge gagne sa MÉMOIRE QUI COMPOSE
+Audit cognitif « studio cohérent ? » → cohérent en prod, dérivait au niveau studio. Puis grande session
+« mémoire qui compose » (méthode : recherche sources béton → brainstorm → délégation → vérif → commit).
+**Tout committé + poussé sur `feat/forge-oracle-gate`** (jusqu'à `9e2362e`).
 
-## ✅ CLÔTURE 2026-07-15 FAITE (avant absence Pierre)
-- **Push FAIT** : `origin/feat/forge-oracle-gate` à jour jusqu'à `ce3311e` (30 commits poussés : trio P0 +
-  Forge 07-11→15 + archive shmup + handoff). Plus rien de local-only.
-- **Artefacts shmup COMMITÉS+poussés** : `games/shmup_slice/` (`d2a522b`), rapports + trace run (`d2a522b`,`ce3311e`).
+**Ce que la Forge a gagné (généré depuis le réel, increvable) :**
+- **4 tables générées** : `STUDIO_STATUS` (auto-audit L1, rafraîchi au pre-commit) · `AGENT_CONTEXT_MAP` ·
+  `MASTER_INDEX` (sources de vérité) · `COMPONENT_DESIGN` (composants du code). Mémoire ADRESSABLE. [[forge_cognitive_audit]]
+- **Boucle d'apprentissage FERMÉE des 2 côtés** : journal d'erreurs qui COMPOSE (erreur+réparation) + découpé
+  par domaine (html/python/rust/godot/forge/_global_) + **auto-écrit sur échec** + **relu au retry** (driver) +
+  **lire-d'abord/écrire-si-nouveau** (skill) + **date ISO lisible**. Fichiers `studio_link.py`, `driver.py`, skill.
+- **Bug timeout Windows P0 CORRIGÉ** (`9e2362e`) : tue l'arbre de process (taskkill /T) + salvage le build au
+  lieu de le jeter (prouvé sur un vrai petit-fils). → **le run shmup peut être repris pour un vrai verdict.**
+- **Doctrine de délégation** gravée dans CLAUDE.md (orchestrateur = garde-fou à contexte propre) [[delegation_clean_verifier]].
 
-## ⏸️ GATES EN ATTENTE AU RETOUR (décisions Pierre)
-1. **Bug timeout Windows = P0 Forge** : corriger AVANT tout re-run full (tuer l'ARBRE de process au timeout ;
-   inspecter le disque avant de conclure BLOCKED). Sinon chaque run refait 2h15 + faux BLOCKED. Puis reprendre
-   le run shmup pour un vrai verdict signé (le jeu existe déjà + passe l'oracle).
-2. **3D** : télécharger `RealESRGAN` pour tester la texture ? ; le pipeline est un générateur prouvé, PAS un
-   consommateur validé → pas de 3D sous oracle sans validateur.
-3. **L5 audit** : connecteurs ledger/project proposals dormants (signalés par `studio_selfaudit.mjs`).
+**Étendu à NOUS (Claude↔Pierre), pas que la Forge :**
+- `memory/session_lessons.md` — journal de leçons (erreur/fix/pourquoi), déclencheur = correction de Pierre.
+- `memory/research_agent_selfimprovement.md` — recherche sourcée béton : studio DÉJÀ aligné SOTA (journal=Reflexion,
+  oracle=vérificateur, délégation=Anthropic) ; **top levier neuf = skill library exécutable (Voyager)**.
+
+**Décision d'architecture RATIFIÉE (diviser, pas de monolithe) :**
+```
+BIBLIOTHÈQUE {assets 3D | code (logique) | rôles}  = le vérifié réutilisable (knowledge_base = embryon)
+DOSSIER RÉFÉRENCE {recherche | décisions}          = le savoir/pourquoi (Research + Project Bible)
+```
+
+## ⏸️ SUITE / GATES AU RETOUR (décisions Pierre)
+- **cp1252/F5c** : correctif hérité prêt (mêle cp1252 + un changement de logique verdict F5c). Reco Fable : commiter le tout. **Gate toi.**
+- **Dossier de référence** : en construction dans un AUTRE chat (prompt de reprise livré ; ce chat a drifté « bille en tête » → redirigé, cf. [[session_lessons]] L6). Structure à co-décider (candidate→validated ? confiance vs tier ?).
+- **Project Bible du shmup** : 10 min avec ta vision (mécanisme prêt, aucune bible réelle écrite).
+- **Skill library (rayon code)** : le gros levier suivant, APRÈS le dossier de référence. Réutiliser knowledge_base.
+- **Re-run shmup** : timeout fixé → reprendre pour un vrai verdict signé.
+- Petits que Fable fait : R1 CLAUDE.md (règles périmètre en positif) · dérive `memory/` dans l'ATLAS · L5 connecteurs dormants.
+- **3D** : `RealESRGAN` téléchargé (`~/3d-pipeline/…/hy3dpaint/ckpt/`), texture NON testée ; pas de validateur 3D [[forge_3d_pipeline]].
 
 ## Sessions 2026-07-14 clôturées
 - **shmup run1** (« Fable 5 Forge supervisor role ») : 1er run FULL réel s0→s12, jeu temps-réel 3 maps+3 boss
