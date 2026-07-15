@@ -16,6 +16,7 @@ import argparse
 import json
 import logging
 import time
+from datetime import datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -211,9 +212,11 @@ def record_error(
     target = journal_path or _domain_journal_path(domain)
     _append(
         target,
+        # `date` = date LISIBLE ISO (recherche/tri/purge humaine, ex. « voir les fixes
+        # d'il y a un an ») ; `ts` = timestamp machine conservé pour l'ordre exact.
         {"run_id": run_id, "etape": etape, "project": project, "error": error,
          "resolution": resolution, "status": "fixed" if resolution else "open",
-         "ts": time.time()},
+         "date": datetime.now().isoformat(timespec="seconds"), "ts": time.time()},
     )
 
 
