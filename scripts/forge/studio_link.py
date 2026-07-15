@@ -12,6 +12,7 @@ durable exige un HumanGate séparé (promotion via kaizen_loop / édition Pierre
 """
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import time
@@ -26,7 +27,15 @@ FORGE_REPORTS = REPO_ROOT / "lab" / "reports"
 FORGE_RUNS = REPO_ROOT / "lab" / "forge_runs"
 
 DEFAULT_TELEMETRY = FORGE_EVIDENCE / "forge_telemetry.jsonl"
+# Journal MONOLITHE historique (pré-refactor par domaine). Conservé INTACT : il
+# contient les vraies leçons (collect_runner/breakout/shmup, tous jeux HTML) + les
+# leçons globales de méthode. On ne le RÉÉCRIT jamais — il sert de FALLBACK-LECTURE
+# (voir `premortem`) pour ne rien perdre pendant la migration.
 DEFAULT_ERROR_JOURNAL = FORGE_REPORTS / "forge_error_journal.jsonl"
+# Refactor connecteur 6 : journaux PAR DOMAINE sous lab/reports/error_journal/.
+# Isole les leçons par nature de cible (un run rust ne lit pas les leçons html) pour
+# éviter qu'un agent tire une leçon hors-sujet d'un monolithe indifférencié.
+DOMAIN_JOURNAL_DIR = FORGE_REPORTS / "error_journal"
 DEFAULT_LEDGER_PROPOSALS = FORGE_REPORTS / "forge_ledger_proposals.jsonl"
 DEFAULT_PROJECT_PROPOSALS = FORGE_REPORTS / "forge_project_proposals.jsonl"
 DEFAULT_BIBLE_PROPOSALS = FORGE_REPORTS / "forge_bible_proposals.jsonl"
@@ -154,6 +163,28 @@ def pool_stats(run_id: str, telemetry_path: Path | None = None) -> dict:
 # apprise sur un jeu doit atteindre les suivants.
 GLOBAL_SCOPE = "_global_"
 
+# Domaines de journal connus (extensible : ajouter une entrée suffit). Chaque domaine
+# a son propre fichier error_journal/<domaine>.jsonl. `GLOBAL_SCOPE` est un domaine à
+# part entière : les leçons de MÉTHODE transversales y vivent et sont lues quel que
+# soit le domaine demandé.
+KNOWN_DOMAINS: list[str] = ["html", "python", "rust", "godot", "forge", GLOBAL_SCOPE]
+
+# Domaines pour lesquels on lit AUSSI le monolithe historique en fallback. Ses vraies
+# entrées sont TOUTES des jeux HTML (collect_runner/breakout/shmup) : on ne les rejoue
+# que pour un run html/forge, JAMAIS pour un run rust/godot (sinon on polluerait un run
+# d'un autre domaine avec des leçons hors-sujet). Choix NON-DESTRUCTIF : fallback-lecture
+# plutôt que migration ponctuelle du fichier (voir note de migration dans premortem).
+LEGACY_FALLBACK_DOMAINS: frozenset[str] = frozenset({"html", "forge"})
+
+# Domaine par défaut d'un run Forge quand aucun n'est précisé. `forge` = plomberie de
+# la boucle elle-même (contrats, oracles, driver) — cohérent avec l'ancien défaut.
+DEFAULT_DOMAIN = "forge"
+
+
+def _domain_journal_path(domain: str) -> Path:
+    """Chemin du journal d'un domaine sous error_journal/<domaine>.jsonl."""
+    return DOMAIN_JOURNAL_DIR / f"{domain}.jsonl"
+
 
 def record_error(
     run_id: str,
@@ -161,31 +192,191 @@ def record_error(
     error: str,
     project: str,
     journal_path: Path | None = None,
+    resolution: str | None = None,
+    domain: str = DEFAULT_DOMAIN,
 ) -> None:
-    """Journalise une erreur/finding red-team d'un run (best-effort, non bloquant)."""
+    """Journalise une erreur/finding red-team d'un run (best-effort, non bloquant).
+
+    2 colonnes : l'échec (`error`) ET, si connue, sa réparation (`resolution` — la
+    « 2e colonne » : COMMENT on a réparé). Une entrée avec `resolution` non vide est
+    marquée ``status="fixed"`` ; sans, ``status="open"``. Ces deux champs sont
+    RÉTROCOMPATIBLES : les entrées historiques du journal (sans `resolution`/`status`)
+    restent lisibles telles quelles par `premortem`.
+
+    Routage : `domain` route vers error_journal/<domain>.jsonl (isolation par nature de
+    cible). Un `journal_path` EXPLICITE PRIME toujours sur le routage par domaine — c'est
+    la garantie de rétrocompat : les appels existants qui passent `journal_path=` écrivent
+    exactement où avant, `domain` est simplement ignoré dans ce cas.
+    """
+    target = journal_path or _domain_journal_path(domain)
     _append(
-        journal_path or DEFAULT_ERROR_JOURNAL,
-        {"run_id": run_id, "etape": etape, "project": project, "error": error, "ts": time.time()},
+        target,
+        {"run_id": run_id, "etape": etape, "project": project, "error": error,
+         "resolution": resolution, "status": "fixed" if resolution else "open",
+         "ts": time.time()},
     )
 
 
+def record_fix(
+    run_id: str,
+    etape: str,
+    error: str,
+    resolution: str,
+    project: str,
+    journal_path: Path | None = None,
+    domain: str = DEFAULT_DOMAIN,
+) -> None:
+    """Consigne en UNE entrée l'erreur ET sa réparation — la « 2e colonne ».
+
+    À utiliser quand un échec d'étape a été RÉPARÉ dans le run : le journal apprend
+    ainsi la RÉPARATION (pas seulement l'échec), et le pré-mortem du run suivant peut
+    surfacer « voici comment on a corrigé ce problème la dernière fois ». Équivaut à
+    `record_error(..., resolution=resolution)` : `status="fixed"`, `resolution` renseigné.
+    `domain` route comme dans `record_error` ; `journal_path` explicite prime.
+    """
+    record_error(run_id, etape, error, project, journal_path=journal_path,
+                 resolution=resolution, domain=domain)
+
+
 def record_global_lesson(etape: str, lesson: str, journal_path: Path | None = None) -> None:
-    """Consigne une leçon de MÉTHODE transversale (lue au pré-mortem de tout projet)."""
-    record_error("_method_", etape, lesson, GLOBAL_SCOPE, journal_path=journal_path)
+    """Consigne une leçon de MÉTHODE transversale (lue au pré-mortem de tout projet).
+
+    Écrit dans le domaine `_global_` (error_journal/_global_.jsonl) : ces leçons sont
+    relues quel que soit le domaine demandé au pré-mortem. `journal_path` explicite prime.
+    """
+    record_error("_method_", etape, lesson, GLOBAL_SCOPE,
+                 journal_path=journal_path, domain=GLOBAL_SCOPE)
 
 
-def premortem(project: str, journal_path: Path | None = None, limit: int = 5) -> list[str]:
+def _format_entry(row: dict, prefix: str = "") -> str:
+    """Ligne de pré-mortem pour une entrée de journal, réparation incluse si connue.
+
+    Tolère les vieilles entrées SANS clé `resolution`/`status` (accès via .get). Une
+    résolution non vide ajoute « → ✅ RÉPARÉ: <resolution> » (la 2e colonne).
+    """
+    base = f"{prefix}[{row.get('etape')}] {row.get('error')}"
+    resolution = row.get("resolution")
+    if resolution:
+        return f"{base} → ✅ RÉPARÉ: {resolution}"
+    return base
+
+
+def premortem(
+    project: str,
+    domain: str | None = None,
+    journal_path: Path | None = None,
+    limit: int = 5,
+) -> list[str]:
     """Erreurs du projet + leçons GLOBALES de méthode — lu à l'étape 0 (« PILOU »).
 
     Les leçons globales (préfixées ⚑) circulent vers TOUS les projets, ce qui ferme
-    le silo par projet : un enseignement appris ailleurs n'est plus perdu ici.
+    le silo par projet : un enseignement appris ailleurs n'est plus perdu ici. Quand
+    une entrée porte une réparation (`resolution`), le pré-mortem la fait apparaître
+    (« → ✅ RÉPARÉ: … ») pour que le run suivant apprenne la RÉPARATION, pas juste
+    l'échec. Les vieilles entrées sans `resolution`/`status` restent surfacées inchangées.
+
+    Deux modes :
+    - `journal_path` fourni → mode RÉTROCOMPAT : lit ce SEUL fichier (projet + global
+      dedans), comportement identique à l'ancien pré-mortem. `domain` est ignoré.
+    - `journal_path=None` → mode DOMAINE : lit TOUJOURS le journal `_global_` (leçons
+      transversales) PLUS, si `domain` est fourni, le journal de ce domaine (entrées du
+      `project`). Pour un domaine à fallback (html/forge) ET pour les leçons globales, on
+      relit AUSSI le monolithe historique (NON-DESTRUCTIF) afin de ne perdre aucune leçon
+      déjà accumulée. Un run rust/godot ne voit jamais les vieilles leçons html du monolithe.
+
+    Note de migration (choix assumé) : FALLBACK-LECTURE, pas migration ponctuelle. Le
+    monolithe `forge_error_journal.jsonl` reste intact et lisible ; on ne le réécrit ni ne
+    le déplace. Avantage : zéro risque de perte/corruption de données réelles, réversible.
+    Coût : une lecture de plus pour les domaines html/forge — négligeable.
     """
-    rows = _read(journal_path or DEFAULT_ERROR_JOURNAL)
-    proj = [r for r in rows if r.get("project") == project]
-    glob = [r for r in rows if r.get("project") == GLOBAL_SCOPE]
-    out = [f"⚑ [{r.get('etape')}] {r.get('error')}" for r in glob[-limit:]]
-    out += [f"[{r.get('etape')}] {r.get('error')}" for r in proj[-limit:]]
+    if journal_path is not None:
+        rows = _read(journal_path)
+        proj = [r for r in rows if r.get("project") == project]
+        glob = [r for r in rows if r.get("project") == GLOBAL_SCOPE]
+        out = [_format_entry(r, prefix="⚑ ") for r in glob[-limit:]]
+        out += [_format_entry(r) for r in proj[-limit:]]
+        return out
+
+    # Mode domaine : leçons globales (journal dédié + fallback monolithe global).
+    glob = list(_read(_domain_journal_path(GLOBAL_SCOPE)))
+    glob += [r for r in _read(DEFAULT_ERROR_JOURNAL) if r.get("project") == GLOBAL_SCOPE]
+
+    proj: list[dict] = []
+    if domain is not None:
+        proj += [r for r in _read(_domain_journal_path(domain)) if r.get("project") == project]
+        if domain in LEGACY_FALLBACK_DOMAINS:
+            proj += [r for r in _read(DEFAULT_ERROR_JOURNAL) if r.get("project") == project]
+
+    out = [_format_entry(r, prefix="⚑ ") for r in glob[-limit:]]
+    out += [_format_entry(r) for r in proj[-limit:]]
     return out
+
+
+# --- Index des journaux par domaine (déterministe, non-LLM) --------------------
+
+INDEX_FILENAME = "INDEX.generated.md"
+
+
+def _count_entries(path: Path) -> int:
+    """Nombre de lignes JSON non vides d'un journal (0 si absent)."""
+    return len(_read(path))
+
+
+def list_journals(reports_dir: Path | None = None) -> list[dict]:
+    """Index léger des journaux par domaine : un dict par domaine, trié par nom.
+
+    Recense les `KNOWN_DOMAINS` PLUS tout autre `error_journal/*.jsonl` déjà présent
+    (domaines ajoutés sans toucher au code). `reports_dir` = racine des rapports (défaut
+    `lab/reports`) ; le sous-dossier `error_journal/` en est déduit — pratique pour isoler
+    dans un tmp_path de test. Chaque entrée : {domaine, chemin(str), entries(int), existe(bool)}.
+    """
+    root = reports_dir or FORGE_REPORTS
+    jdir = root / "error_journal"
+
+    domaines = set(KNOWN_DOMAINS)
+    if jdir.exists():
+        domaines.update(p.stem for p in jdir.glob("*.jsonl"))
+
+    out: list[dict] = []
+    for domaine in sorted(domaines):
+        path = jdir / f"{domaine}.jsonl"
+        out.append({
+            "domaine": domaine,
+            "chemin": str(path),
+            "entries": _count_entries(path),
+            "existe": path.exists(),
+        })
+    return out
+
+
+def generate_journal_index(reports_dir: Path | None = None) -> str:
+    """Rend l'index des journaux en Markdown DÉTERMINISTE (aucun horodatage).
+
+    Sortie stable à contenu constant : ré-générable au pré-commit sans diff parasite.
+    Le monolithe historique est signalé en note (lu en fallback, jamais réécrit).
+    """
+    lignes = ["# Journaux d'erreurs Forge par domaine", ""]
+    lignes.append("| domaine | entries | existe | chemin |")
+    lignes.append("|---|---:|:---:|---|")
+    for j in list_journals(reports_dir):
+        existe = "oui" if j["existe"] else "non"
+        lignes.append(f"| {j['domaine']} | {j['entries']} | {existe} | {j['chemin']} |")
+    lignes.append("")
+    lignes.append("> Note : `forge_error_journal.jsonl` (monolithe historique) est lu en "
+                  "fallback pour les domaines html/forge et jamais réécrit (migration "
+                  "non-destructive).")
+    lignes.append("")
+    return "\n".join(lignes)
+
+
+def write_journal_index(reports_dir: Path | None = None) -> Path:
+    """Écrit l'index Markdown dans error_journal/INDEX.generated.md. Renvoie le chemin."""
+    root = reports_dir or FORGE_REPORTS
+    jdir = root / "error_journal"
+    jdir.mkdir(parents=True, exist_ok=True)
+    path = jdir / INDEX_FILENAME
+    path.write_text(generate_journal_index(reports_dir), encoding="utf-8")
+    return path
 
 
 # --- Project Bible : mémoire de DÉCISION par projet (persistante entre runs) ----
@@ -290,3 +481,24 @@ def propose_project_record(
               "status": "PROPOSED", "ts": time.time()}
     _append(proposals_path or DEFAULT_PROJECT_PROPOSALS, record)
     return record
+
+
+# --- CLI : index des journaux (déterministe) -----------------------------------
+
+def main(argv: list[str] | None = None) -> int:
+    """Petit CLI : affiche l'index des journaux, ou l'écrit avec ``--write``."""
+    parser = argparse.ArgumentParser(description="Index des journaux d'erreurs Forge par domaine.")
+    parser.add_argument("--write", action="store_true",
+                        help="écrit error_journal/INDEX.generated.md (sinon affiche seulement)")
+    args = parser.parse_args(argv)
+    if args.write:
+        path = write_journal_index()
+        logger.info("index des journaux écrit : %s", path)
+        print(str(path))
+    else:
+        print(generate_journal_index())
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
