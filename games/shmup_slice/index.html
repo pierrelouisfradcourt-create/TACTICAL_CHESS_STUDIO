@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shmup Slice</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: monospace; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    #gameContainer { text-align: center; position: relative; }
+    canvas { border: 2px solid #fff; display: block; background: #1a1a2e; }
+    #overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: #fff; padding: 40px; border-radius: 8px; z-index: 10; }
+    #overlay.hidden { display: none; }
+    #restart { margin-top: 20px; padding: 10px 20px; background: #0f0; color: #000; border: none; cursor: pointer; font-size: 16px; font-weight: bold; }
+    #instructions { color: #0f0; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <canvas id="gameCanvas"></canvas>
+    <div id="overlay" class="hidden">
+      <h1 id="overlayText">GAME OVER</h1>
+      <button id="restart">RESTART</button>
+    </div>
+    <div id="instructions">
+      <p>← → ↑ ↓ (ou WASD) pour se déplacer | SPACE pour tirer</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeGame } from './main.mjs';
+
+    const canvas = document.getElementById('gameCanvas');
+    const domEls = {
+      overlay: document.getElementById('overlay'),
+      overlayText: document.getElementById('overlayText'),
+    };
+    const restartBtn = document.getElementById('restart');
+
+    const seedParam = new URLSearchParams(location.search).get('seed');
+    const seed = seedParam !== null ? Number(seedParam) : 42;
+
+    const game = initializeGame(canvas, seed, domEls);
+    game.start();
+
+    // L'overlay suit l'état à chaque frame (main.mjs -> render.updateOverlay) —
+    // aucune logique d'affichage ici, juste le déclenchement du restart.
+    restartBtn.addEventListener('click', () => {
+      game.restart();
+    });
+
+    console.log('interface jouable');
+  </script>
+</body>
+</html>

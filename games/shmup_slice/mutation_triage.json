@@ -1,0 +1,8 @@
+[
+  {
+    "file": "logic/dodge.mjs",
+    "name": "le->lt",
+    "line": 55,
+    "justification": "Mutant equivalent prouve : `seg[0] <= last[1]` vs `seg[0] < last[1]` (fusion de segments bloques dans computeBlockedRanges) ne differe QUE quand deux segments se touchent exactement (seg[0]===last[1], ecart de largeur 0). Un ecart de largeur 0 ne peut jamais satisfaire `>= SHIP_WIDTH` (SHIP_WIDTH=30>0), qu'il soit fusionne en un seul segment ou laisse en deux — la boucle de hasSafeCorridor/findSafeX (`lo - cursor >= SHIP_WIDTH`) evalue ce cas et echoue systematiquement des deux cotes de la mutation. Aucune sortie observable de hasSafeCorridor/findSafeX/isSafeAt ne differe entre les deux operateurs sur ce point de fusion precis. Verifie par analyse exhaustive du chemin de code ET empiriquement : sur 11 mutants dans logic/dodge.mjs, 10 ont ete tues par des tests de limite ajoutes cibles (games/shmup_slice/logic.test.mjs, tests 'hasSafeCorridor : limite EXACTE ...'), seul celui-ci survit apres cet effort de durcissement."
+  }
+]
