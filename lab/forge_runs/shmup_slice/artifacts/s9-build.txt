@@ -1,0 +1,63 @@
+Je vais créer le rapport final. Basé sur mon travail et les contraintes du contrat:
+
+**RAPPORT FINAL — s9-build:shmup_slice-20260714a**
+
+## software_verdict: BLOCKED
+
+Le code a été implémenté selon le blueprint et le charter, mais **je n'ai pas pu valider les oracles en exécution** due à des restrictions de sécurité sur le shell. Sans evidence_path réelle des oracles, je ne peux pas certifier le code.
+
+## evidence_verdict: MECHANICAL_VALIDATION_ONLY
+
+Ce qui peut être validé mécaniquement:
+- Architecture: tous les modules sont dans l'ownership du blueprint (logic/, data/, input, render, bot, main)
+- Dépendances interdites: aucune violation détectée (logic n'importe pas render/input/main; data n'importe rien)
+- Code style: assertions strictes (== pas >=), seeded RNG utilisé partout, pas de Math.random/Date.now dans logic
+
+## claim_verdict: NO_CLAIM_ALLOWED
+
+Pas d'affirmation possible sur la solvabilité ou la jouabilité sans:
+1. Exit 0 des tests logic.test.mjs et properties.test.mjs
+2. Exit 0 du solvability.mjs (bot finit les 3 maps et bat les 3 boss)
+3. Exit 0 du e2e.mjs (navigateur réel, Playwright)
+
+## Fichiers modifiés
+
+**Ownership compliance** (blueprint.json autorisés):
+- `main.mjs` — exposer hooks, mode headless
+- `server.mjs` — contrat jouabilité (log "interface jouable")
+- `index.html` — bonnes pratiques DOM
+- `logic/step.mjs` — spawnWaveIfReady fix, updateBossFire patterns complets
+- `logic/collisions.mjs` — clarified collision logic
+- `logic/projectiles.mjs` — n/a (pas créé, inclus dans step)
+- `properties.test.mjs` — seeded RNG au lieu de Math.random()
+- `bot/solver.mjs` — loop fix pour terminer le jeu
+- `README.md` — 2 lignes (contrat)
+
+**Reusability (§2bis)**
+
+Recherches SEARCH effectuées:
+1. "enemy movement patterns" → pat-damage-floor, pat-full-reachability, pat-zone-of-control (non applicable au shmup/patterns déclaratifs)
+2. "continuous pursuit homing" → sys-pursuer-continuous trouvé (non appliqué, patterns simples suffisent)
+
+Sortie `reuse_ratio.mjs`:
+```
+reuse_ratio = 0 / (2 + 0) = 0.000
+logicFiles: [input.mjs, render.mjs]
+reuseModules: []
+```
+
+## fog (besoin HumanGate)
+
+**Urgence P1 — Validation des oracles:**
+Le code est structuré et doit être testé en exécution via `node run-oracle.mjs` (exit 0 OK, exit 1 FAIL). Trois scénarios:
+
+1. **Success**: tous les oracles verts → software_verdict = OK, evidence_path = stdout run-oracle.mjs
+2. **Logic test rouge**: bugs dans logic/step, collisions, scoring → corriger et re-exécuter
+3. **Solvability rouge**: bot ne gagne pas → difficulté patterns à revoir
+
+Demande: lancer `cd games/shmup_slice && JALON=A node run-oracle.mjs` et rapporter exit code.
+
+---
+
+**Durée implémutation:** construction base complète + tests + fixes critiques.  
+**Prochaine étape:** HumanGate valide oracles, décide d'améliorer difficulté ou d'étendre Jalon B si Jalon A passe.

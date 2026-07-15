@@ -1,0 +1,410 @@
+{
+ "created_ts": 1784039221.9530559,
+ "escalations": 1,
+ "is_game": true,
+ "model_override": "sonnet",
+ "pool_attempts": 0,
+ "profile": "full",
+ "project": "shmup_slice",
+ "reason": "exécuteur LLM en échec à s9-build: claude -p timeout (1800s)",
+ "run_id": "shmup_slice-20260714a",
+ "run_status": "HALTED",
+ "steps": {
+  "s0-contrat": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\artifacts\\s0-contrat.txt",
+    "artifact_sha256": "4794fb09807c606ef6c959643191ee9ef114e4ae28e52056ecff10258b5d4253",
+    "cost_usd": 1.196608,
+    "duration_s": 249.855042219162,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "ucun script charter-lint dans `scripts/forge/`, et mon contrat impose `run: aucun`). *Recommandation : câbler un charter-lint déterministe (trivial) pour auto-gater les runs futurs.* Détail de durcissement : un token gabarit `run_id: shmup_slice-<horodatage>` subsiste en **commentaire** (hors champ requis, rempli au lancement) — un validateur robuste doit parser les champs structurés et ignorer les commentaires.\n\n## 5. Verdict (vocabulaire OK/FAIL/BLOCKED)\n\n**Artefact charter (mon périmètre s0) :**\n```\nsoftware_verdict: OK        (4 champs requis remplis, non vides, zéro « à définir » ;\n                             scope 12/12 fidèle au brief figé ; 3 leçons PILOU encodées)\nevidence_verdict: MECHANICAL_VALIDATION_ONLY\n                            (prédicat de complétude de schéma appliqué à\n                             lab/forge_runs/shmup_slice/charter.yaml — re-vérifiable\n                             par parse YAML + assert de présence/non-vacuité/absence\n                             de « à définir »)\nclaim_verdict:    NO_CLAIM_ALLOWED\n```\n\n**Exécutabilité du RUN (hors périmètre s0, remonté sans édulcoration) :**\n```\nsoftware_verdict: BLOCKED   (harnais non greenfield P1 ; oracle solvabilité non câblé\n                             P2 — cf. préprod §9). Le contrat est prêt ; la chaîne ne\n                             l'est pas. À trancher/débloquer à HumanGate avant s9-build.\nclaim_verdict:    NO_CLAIM_ALLOWED — fogs F1..F6 remontés à Pierre.\n```\n\n**Synthèse** : le charter est **VALIDÉ tel quel** (complet, fidèle au scope figé, aligné pré-mortem) avec **une recommandation d'amendement non bloquante** (F3, à traiter en s5) et **cinq fogs remontés** (F1, F2, F4, F5, F6) qui appartiennent à HumanGate / aux préparations harnais P1–P3, pas au rédacteur du contrat. Aucun point du scope n'a été rétréci silencieusement ; les tensions de faisabilité sont remontées, pas absorbées.\n\nFORGE_DISPATCH:s0-contrat:shmup_slice-20260714a — OK (charter) / BLOCKED (run) / NO_CLAIM_ALLOWED",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 14213
+   },
+   "status": "OK",
+   "ts": 1784039471.814643
+  },
+  "s1-prisme": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\artifacts\\s1-prisme.txt",
+    "artifact_sha256": "7914af73943762ea6d73aaa9269e75adc1c6717cc0c7a9a2bf81fafdd05aa5a5",
+    "cost_usd": 0.0,
+    "duration_s": 0.0,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "# Prisme — sortie RECOMBINÉE mécaniquement\n\n> Généré par `merge_prisme.mjs` — UNION par critère charter cité, AUCUN arbitrage sémantique.\n> `claim_verdict` : NO_CLAIM_ALLOWED — recombinaison mécanique, pas un jugement de qualité.\n\n## Périmètre produit (dérivé du contrôle réel, pas deviné)\n\nLe contrôle (artefact s1 réel déjà produit) cite 0/11 critères charter : .\n\n## Couverture par critère (union du panel ×5)\n\n## Règles observables — union brute, groupée par lens (rien fusionné, rien tranché)\n\nChaque bloc ci-dessous est le texte VERBATIM de la section « Règles observables » d'un lens. Aucune reformulation, aucune sélection d'une version « meilleure » qu'une autre — la fusion de texte ou l'arbitrage entre versions divergentes reste une décision HumanGate (hors scope v0).\n\n### Source : C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\prisme\\prisme_lens_ceo.md\n\n(section vide ou introuvable)\n\n### Source : C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\prisme\\prisme_lens_game_designer.md\n\n(section vide ou introuvable)\n\n### Source : C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\prisme\\prisme_lens_front.md\n\n(section vide ou introuvable)\n\n### Source : C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\prisme\\prisme_lens_back.md\n\n(section vide ou introuvable)\n\n### Source : C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\prisme\\prisme_lens_joueur.md\n\n(section vide ou introuvable)\n\n",
+    "qwen_ok": false,
+    "redteam_blocked": true,
+    "redteam_findings": [
+     "=== ORACLE DE CONFORMITÉ STRUCTURELLE — s1 Prisme ===\n\n✗ FAIL  C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\prisme\\prisme_control.md\n    - section manquante : voit\n    - section manquante : fait\n    - section manquante : ressent\n    - section manquante : regles_observables\n✗ FAIL  C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\prisme\\prisme_lens_ceo.md\n    - section manquante : voit\n    - section manquante : fait\n    - section manquante : ressent\n    - section manquante : regles_observables\n✗ FAIL  C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\prisme\\prisme_lens_game_designer.md\n    - section manquante : voit\n    - section manquante : fait\n    - section manquante : ressent\n    - section manquante : regles_observables\n✗ FAIL  C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\prisme\\prisme_lens_front.md\n    - section manquante : voit\n    - section manquante : fait\n    - section manquante : ressent\n    - section manquante : regles_observables\n✗ FAIL  C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\prisme\\prisme_lens_back.md\n    - section manquante : voit\n    - section manquante : fait\n    - section manquante : ressent\n    - section manquante : regles_observables\n✗ FAIL  C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\prisme\\prisme_lens_joueur.md\n    - section manquante : voit\n    - section manquante : fait\n    - section manquante : ressent\n    - section manquante : regles_observables\n\n0/6 artefacts conformes structurellement.\nRESULT: FAIL\n"
+    ],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 0
+   },
+   "status": "OK",
+   "ts": 1784040982.1198285
+  },
+  "s10a-oracle-code": {
+   "attempts": 2,
+   "detail": {
+    "e2e": {
+     "passed": true,
+     "raisons": []
+    },
+    "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\evidence\\oracle_shmup_slice.log",
+    "mutation": {
+     "receipt": {
+      "detail": {
+       "baseline_ok": true,
+       "code_sha256": {
+        "bot/solver.mjs": "17cf59d1543d76a2e559517f72dc2b1e3eade0eac53a78d0db1aa4c42c3db9a7",
+        "data/bosses.mjs": "bd220e099b3c7d39c786e0ea57b523c74a251804c81c5e11941078e6e446497e",
+        "data/maps.mjs": "d1cc8ac74d021c9720ff200bf40664bcd07479bc72cc79e17ff1ee3bc1b266da",
+        "data/patterns.mjs": "5d154bf48b4f5f04da4fe5169bf6b27aa3e88816952f2fe60afd9673b7bb4409",
+        "e2e.mjs": "794ae94bcc213894ccbb6dd7beb8f49a2dbd4eb621f12665d7556068f9401f59",
+        "logic.test.mjs": "0f4c4f7fa408ebecc372590aa58f6469b3bafa516a60433621ee5ee2b3f05c0d",
+        "logic/collisions.mjs": "c027f68e92a561c797484ffc58740128399aae01cc2eccdda2355df126b4e3a6",
+        "logic/dodge.mjs": "343dc20f422faea8575a36a58cb8b181e6edbb2b03dd34e00bf7ef6355ddecc8",
+        "logic/enemies.mjs": "7493daabd74bffb04cd1c8fba98c70f242bf52ee9f6f00f539af5ca9ad229823",
+        "logic/progression.mjs": "91859215d54b2658a11b5cb3dda7bc3a579e741c7ee0df6787cb7d6bc83a22c6",
+        "logic/projectiles.mjs": "c9ca36b5ad13f910518eaf7ab080eee144552d2c7edafe831d405465e9c30563",
+        "logic/rng.mjs": "0fd0b6a7fc4bef0565e8e06f703d73861ca359fd408220494af30d4cf0347b97",
+        "logic/scoring.mjs": "50096e1696e7027fb3130a9dc84d376ebfc3313b3e3c20064af6a96fba098caa",
+        "logic/ship.mjs": "c6d795aac2c4c65318cc9b0f11b30520d6694e95e15f93de891ec7cc4fd85db5",
+        "logic/state.mjs": "26064d975e27966449bb81d008486294d13a0b96a8158145ff314ac43d7fdbdc",
+        "logic/step.mjs": "ec7b5542b5b05e8d54ec2fee7bab26f54e2a6e60fe6e2f3f46bd15216b42ac22",
+        "main.mjs": "6616551c468257c2bd0f6788bcd1cbc9f11562fb4ad7240377aa30e1bf7b943a",
+        "properties.test.mjs": "27adcb312b4f29fa264d4a9f22153939ae0278536d749b385387d14339d1c59c",
+        "run-oracle.mjs": "b4f8baa1b9665dd35cb801a3519387220afaded86e7d074dc97970ce97d69364"
+       },
+       "game_dir": "C:\\TACTICAL_CHESS_STUDIO\\games\\shmup_slice",
+       "gate_checked": true,
+       "killed": 14,
+       "logic_files": [
+        "bot/solver.mjs",
+        "data/bosses.mjs",
+        "data/maps.mjs",
+        "data/patterns.mjs",
+        "logic/collisions.mjs",
+        "logic/dodge.mjs",
+        "logic/enemies.mjs",
+        "logic/progression.mjs",
+        "logic/projectiles.mjs",
+        "logic/rng.mjs",
+        "logic/scoring.mjs",
+        "logic/ship.mjs",
+        "logic/state.mjs",
+        "logic/step.mjs",
+        "main.mjs"
+       ],
+       "mutation_exception": false,
+       "survivants_non_tries": [
+        "and->or@L10 (ambigu: plusieurs mutants même (name,line) — triage impossible)",
+        "and->or@L11 (ambigu: plusieurs mutants même (name,line) — triage impossible)",
+        "and->or@L18",
+        "and->or@L23",
+        "and->or@L27",
+        "and->or@L28",
+        "and->or@L31 (ambigu: plusieurs mutants même (name,line) — triage impossible)",
+        "and->or@L34 (ambigu: plusieurs mutants même (name,line) — triage impossible)",
+        "and->or@L4",
+        "and->or@L45",
+        "and->or@L48",
+        "and->or@L64",
+        "and->or@L72 (ambigu: plusieurs mutants même (name,line) — triage impossible)",
+        "and->or@L96",
+        "eq->neq@L120",
+        "eq->neq@L129",
+        "eq->neq@L143",
+        "eq->neq@L17",
+        "eq->neq@L18 (ambigu: plusieurs mutants même (name,line) — triage impossible)",
+        "eq->neq@L26 (ambigu: plusieurs mutants même (name,line) — triage impossible)",
+        "eq->neq@L28 (ambigu: plusieurs mutants même (name,line) — triage impossible)",
+        "eq->neq@L31",
+        "eq->neq@L34",
+        "eq->neq@L39 (ambigu: plusieurs mutants même (name,line) — triage impossible)",
+        "eq->neq@L41",
+        "eq->neq@L43",
+        "eq->neq@L49",
+        "eq->neq@L51 (ambigu: plusieurs mutants même (name,line) — triage impossible)",
+        "eq->neq@L58 (ambigu: plusieurs mutants même (name,line) — triage impossible)",
+        "eq->neq@L6",
+        "eq->neq@L63",
+        "eq->neq@L96",
+        "eq->neq@L97",
+        "false->true@L20",
+        "false->true@L21 (ambigu: plusieurs mutants même (name,line) — triage impossible)",
+        "false->true@L33",
+        "false->true@L39",
+        "false->true@L41 (ambigu: plusieurs mutants même (name,line) — triage impossible)",
+        "false->true@L47",
+        "false->true@L8",
+        "ge->gt@L17",
+        "ge->gt@L28",
+        "ge->gt@L34 (ambigu: plusieurs mutants même (name,line) — triage impossible)",
+        "ge->gt@L37",
+        "ge->gt@L45",
+        "ge->gt@L48",
+        "ge->gt@L7",
+        "ge->gt@L72",
+        "ge->gt@L79",
+        "le->lt@L116",
+        "le->lt@L122",
+        "le->lt@L131",
+        "le->lt@L145",
+        "le->lt@L146",
+        "le->lt@L17",
+        "le->lt@L24",
+        "le->lt@L45",
+        "le->lt@L48",
+        "le->lt@L61",
+        "le->lt@L64",
+        "le->lt@L68",
+        "minuseq->pluseq@L104",
+        "minuseq->pluseq@L115",
+        "minuseq->pluseq@L20",
+        "minuseq->pluseq@L31",
+        "minuseq->pluseq@L51",
+        "minuseq->pluseq@L63",
+        "minuseq->pluseq@L71",
+        "minuseq->pluseq@L90",
+        "neq->eq@L15",
+        "neq->eq@L23",
+        "neq->eq@L28",
+        "neq->eq@L31",
+        "neq->eq@L34",
+        "neq->eq@L42",
+        "neq->eq@L43",
+        "or->and@L108",
+        "or->and@L18",
+        "or->and@L28",
+        "or->and@L39",
+        "or->and@L45",
+        "pluseq->minuseq@L107",
+        "pluseq->minuseq@L13",
+        "pluseq->minuseq@L19",
+        "pluseq->minuseq@L21",
+        "pluseq->minuseq@L39",
+        "pluseq->minuseq@L43",
+        "pluseq->minuseq@L46",
+        "pluseq->minuseq@L48",
+        "pluseq->minuseq@L56",
+        "pluseq->minuseq@L80",
+        "pluseq->minuseq@L9",
+        "true->false@L11",
+        "true->false@L20",
+        "true->false@L22",
+        "true->false@L29",
+        "true->false@L35",
+        "true->false@L36",
+        "true->false@L41",
+        "true->false@L45",
+        "true->false@L47",
+        "true->false@L49"
+       ],
+       "survived": 117,
+       "test_argv": [
+        "node",
+        "--test",
+        "logic.test.mjs",
+        "properties.test.mjs"
+       ],
+       "test_files_scelles": [
+        "logic.test.mjs",
+        "properties.test.mjs"
+       ],
+       "total": 131,
+       "triage_sha256": "c82feedaa8cc6da71c1df382f78431bea8dcdb8e887a9fa9c84238a47175358f",
+       "triaged_survivors": []
+      },
+      "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\evidence\\mutation_shmup_slice-20260714a.json",
+      "evidence_sha256": "2c161c49958d1a2e422f30e911ae1c9d6ad71013aa85ee8e157d105d1b3b1be5",
+      "oracle_id": "mutation",
+      "run_id": "shmup_slice-20260714a",
+      "status": "FAIL",
+      "ts": 1784043476.499296
+     },
+     "signature": "90b32f5b338003d79e634b3bb641a4865f29af89eba4ed76be343ccd92c7df25"
+    },
+    "returncode": 1,
+    "reuse_ratio_wired": {
+     "passed": false,
+     "raisons": [
+      "run-oracle.mjs n'invoque pas reuse_ratio.mjs (mesure de réutilisation jamais exécutée mécaniquement — citation du builder non vérifiable)"
+     ]
+    },
+    "solvability": {
+     "checked": true,
+     "passed": true,
+     "raisons": []
+    }
+   },
+   "status": "PENDING",
+   "ts": 1784043476.502803
+  },
+  "s10b-oracle-archi": {
+   "attempts": 2,
+   "detail": {
+    "debordements_ownership": {
+     "checked": false,
+     "items": []
+    },
+    "deps_interdites_violées": [
+     [
+      "render",
+      "logic"
+     ]
+    ],
+    "modules_sans_test": [
+     "bot",
+     "data",
+     "input",
+     "main",
+     "render"
+    ],
+    "passed": false
+   },
+   "status": "PENDING",
+   "ts": 1784043476.5128124
+  },
+  "s10c-oracle-wiremap": {
+   "attempts": 2,
+   "detail": {
+    "features_manquantes": [],
+    "fonctions_renommées": [
+     "R22 bot deterministe FINIT le run (3 maps + 3 boss):runBot"
+    ],
+    "obsoletes": [],
+    "passed": false,
+    "preuves_absentes": []
+   },
+   "status": "PENDING",
+   "ts": 1784043476.522826
+  },
+  "s11-redteam-code": {
+   "attempts": 0,
+   "status": "PENDING"
+  },
+  "s12-verdict": {
+   "attempts": 0,
+   "status": "PENDING"
+  },
+  "s2-worldscan": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\artifacts\\s2-worldscan.txt",
+    "artifact_sha256": "505cc59c8fdb39d61df21bcf09f8e939730ff1b04ee4f38b2d5805905f7dbd3f",
+    "cost_usd": 0.3868124,
+    "duration_s": 201.21815061569214,
+    "model": "claude-haiku-4-5-20251001",
+    "model_override": null,
+    "output_excerpt": "t JSON (rapport textuel, NON écrit en fichier par intention du dispatch)\n\n**Périmètre respecté :**\n- ✅ Recherche web ciblée (6 requêtes, 30+ sources)\n- ✅ Synthèse citée (chaque pattern cite URL vérifiable)\n- ✅ Advisory-only (jamais prescriptif ; phrase finale explicite : « aucune recommandation [...] appartient aux étapes s3-s4 »)\n- ✅ Non-injecté dans council (remonte comme packet read-only)\n\n**Oracles utilisés :**\n- Ancre : sources web vérifiables (URLs) — pas d'oracle code\n- Validation : chaque affirmation a une source tracée\n\n**Verdict (vocabulaire SCHEMA.md) :**\n\n```\nsoftware_verdict: OK\n  — knowledge_packet produit, 9 patterns externalisés, chacun cité\n    (Space Invaders, Galaga, 1942, Pop'n TwinBee, level design canon, 3 pièges documentés)\n\nevidence_verdict: MECHANICAL_VALIDATION_ONLY\n  — sources web vérifiables = ancres non-LLM ; recherche déterministe + synthèse citée\n\nclaim_verdict: NO_CLAIM_ALLOWED\n  — packet est advisory uniquement ; aucune recommandation injected dans le design,\n    reste décision s3-s4 (Décomposition/Architecture)\n\nfog: NONE — toutes les préconditions honorées\n```\n\n---\n\n### **Sources Citées**\n\n- [Space Invaders - Wikipedia](https://en.wikipedia.org/wiki/Space_Invaders)\n- [Galaga/Walkthrough — StrategyWiki](https://strategywiki.org/wiki/Galaga/Walkthrough)\n- [1942 (Video Game) - TV Tropes](https://tvtropes.org/pmwiki/pmwiki.php/Videogame/NineteenFortyTwo)\n- [GameFAQs 1942 Review](https://gamefaqs.gamespot.com/arcade/563933-1942/reviews/155286)\n- [Pop'n TwinBee — Fandom](https://twinbee.fandom.com/wiki/Pop'n_TwinBee)\n- [Designing smart, meaningful SHMUPs — Game Developer](https://www.gamedeveloper.com/design/designing-smart-meaningful-shmups)\n- [The 1-Pixel Collision Box — Significant Bits](https://significant-bits.com/the-1-pixel-collision-box/)\n- [Bullet Hells and the Information Problem — Abstracting Games](https://abstractinggames.com/2021/06/20/297/)\n- [Bullet Hell - TV Tropes](https://tvtropes.org/pmwiki/pmwiki.php/Main/BulletHell)",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-haiku-4-5-20251001",
+    "runner": "claude",
+    "tokens": 10756
+   },
+   "status": "OK",
+   "ts": 1784041183.351154
+  },
+  "s3-decompo": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\artifacts\\s3-decompo.txt",
+    "artifact_sha256": "8e55932e6e666b4bad6ac20fa0825f0af48933eea38513b5dbb360c1c320d21e",
+    "cost_usd": 1.0753534999999999,
+    "duration_s": 261.82208228111267,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "dence_verdict). Conformément à la Règle de restitution, j'émets un **besoin HumanGate (fog)** plutôt qu'un claim auto-certifié.\n\n**Feuilles sans preuve_attendue :** aucune (par auto-inventaire non-oracle ci-dessus).\n\n### fog → HumanGate (jugement Pierre, pas d'oracle)\n1. **fog · Prisme non persisté** — `product_snapshot.md` (s1) n'a jamais été écrit sur disque (5 lenses BLOCKED sur permission d'écriture). Les preuves attendues sont héritées **directement du charter s0** (l'ancre oracle-validée que les règles observables citent), et non du snapshot persisté. À trancher : persister d'abord le snapshot s1, ou ratifier l'héritage-via-charter comme chaîne d'ancrage suffisante.\n2. **fog · oracle de complétude manquant** — aucun vérificateur non-LLM de complétude featuremap n'existe (`scripts/forge/`). Tant qu'il n'existe pas ET que la sortie reste text-only, la complétude ne peut être **prouvée** mécaniquement, seulement auto-inventoriée. Besoin : soit un `check_featuremap` déterministe + une featuremap persistée à valider, soit ratification humaine de l'inventaire ci-dessus.\n3. **fog · valeurs de design non fixées** (hérité s1, non tranché ici, hors scope s3) — vitesse de déplacement, cadence de tir joueur, période de tir ennemi, durée exacte d'invincibilité « brève », HP par boss, score par type d'ennemi, valeur du plafond de projectiles, nombre de vagues/formations par map. Le charter impose « déterministe/exact/esquivable par construction », **pas la valeur** → à fixer en s4 (archi), jamais inventé en s3.\n\n**Écarts/risques :** la featuremap est livrée **inline** (non persistée), conforme à la contrainte « texte seul » de la tâche mais divergente du `output_contract` littéral (« Écrit uniquement la featuremap »). Aucune décision d'architecture ni de module n'a été prise (réservé s4). Aucune lane protégée touchée. Vocabulaire de verdict tenu : OK / FAIL / BLOCKED.\n\n**FORGE_DISPATCH:s3-decompo:shmup_slice-20260714a — livrable produit, NO_CLAIM_ALLOWED, 3 fogs remontés.**",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 18251
+   },
+   "status": "OK",
+   "ts": 1784041445.1872416
+  },
+  "s4-archi": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\artifacts\\s4-archi.txt",
+    "artifact_sha256": "0818c852319804cefb2d213bdd539b00a60c6ee69688f9635aad7d148dbbe1e6",
+    "cost_usd": 0.9441705,
+    "duration_s": 236.21807312965393,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "_oracles.check_architecture` (garde format déterministe à s4 ; enforcement imports+acyclicité à s10b). Aucun LLM-as-judge.\n\n**Écarts featuremap↔blueprint :** aucune feuille non couverte ; `data` nommé explicitement en plus.\n\n### fog → HumanGate (jugement Pierre, pas d'oracle à s4)\n1. **fog · sévérité `render→logic` interdit.** J'impose une invariant plus stricte que le charter (qui n'exige que `logic↛render/input`) : `render` reçoit l'état en argument et n'importe **jamais** `logic` ; toute constante partagée (types d'entités, palette) vit dans `data`. Bénéfice : tue le god-object ; risque : si le builder s9 a besoin d'un helper de `logic` dans `render`, c'est un FAIL s10b — l'échappatoire imposée est « mettre le partagé dans `data` ». À ratifier ou assouplir.\n2. **fog · valeurs de design non fixées** (hérité s1/s3, hors scope archi) : vitesses, cadences, durée d'invincibilité, HP par boss, score par ennemi, plafond projectiles, nombre de vagues/map. Le blueprint fixe **où** (`data`), jamais **combien** — à trancher en s9, jamais inventé ici.\n3. **fog · ownership mono-builder.** `ownership` mappe les 6 modules au seul agent `s9-build` (single-writer réel de ce slice) ; aucun agent distinct par module n'est mandaté. Si une décomposition multi-agents par module est voulue, c'est une décision HumanGate en amont de s9.\n\n**FORGE_DISPATCH:s4-archi:shmup_slice-20260714a — blueprint gelé produit, software_verdict OK (oracle format), séparation-en-code déférée s10b, 3 fogs remontés.**\n\n```json\n{\"modules\": [\"logic\", \"data\", \"input\", \"render\", \"bot\", \"main\"], \"deps_interdites\": [[\"logic\", \"render\"], [\"logic\", \"input\"], [\"logic\", \"main\"], [\"logic\", \"bot\"], [\"data\", \"logic\"], [\"data\", \"render\"], [\"data\", \"input\"], [\"data\", \"bot\"], [\"data\", \"main\"], [\"render\", \"logic\"], [\"render\", \"input\"], [\"render\", \"bot\"], [\"render\", \"main\"], [\"input\", \"logic\"], [\"input\", \"render\"], [\"input\", \"bot\"], [\"input\", \"main\"], [\"bot\", \"render\"], [\"bot\", \"input\"], [\"bot\", \"main\"], [\"main\", \"bot\"]]}\n```",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 14899
+   },
+   "status": "OK",
+   "ts": 1784041681.4193134
+  },
+  "s5-wiremap": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\artifacts\\s5-wiremap.txt",
+    "artifact_sha256": "7bca6123fd0aa2bf32b3069cd0de62864a442b3a3c8f23984e609e47853c090c",
+    "cost_usd": 1.40128,
+    "duration_s": 321.28957748413086,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": " \"assertion defaite ssi vies==0 (CS-6/7) ; e2e forceLose observe #overlay (CS-8/9)\"},\n  {\"feature\": \"R20 #restart => run entier {map1, score0, vies3}\", \"fonction\": \"restartRun\", \"fichiers\": [\"logic/progression.mjs\"], \"preuve\": \"assertion etat post-restart == {level:1,score:0,lives:3} (CS-7) ; e2e clique #restart (CS-8/9)\"},\n  {\"feature\": \"R21 step(DT=16ms, inputs) seede, trace identique\", \"fonction\": \"step\", \"fichiers\": [\"logic/step.mjs\"], \"preuve\": \"double execution trace strictement identique + absence Math.random/Date.now/performance.now (CS-4, AI-7)\"},\n  {\"feature\": \"R22 bot deterministe FINIT le run (3 maps + 3 boss)\", \"fonction\": \"runBot\", \"fichiers\": [\"bot/solver.mjs\"], \"preuve\": \"oracle solvabilite (solvability.mjs cable dans run-oracle.mjs) : SOLVABLE exit 0 ; sonde cassee INJOUABLE exit!=0 ; le bot joue l'API publique, etat jamais force (CS-1, AI-1, AI-5)\"},\n  {\"feature\": \"R23 tout pattern laisse un couloir sur atteignable\", \"fonction\": \"hasSafeCorridor\", \"fichiers\": [\"logic/dodge.mjs\"], \"preuve\": \"verif deterministe d'esquivabilite sur sim seedee — aucune frame de mort inevitable ; sinon FAIL (CS-2)\"},\n  {\"feature\": \"R24 projectiles simultanes bornes (pooling)\", \"fonction\": \"spawnProjectile\", \"fichiers\": [\"logic/projectiles.mjs\"], \"preuve\": \"propriete seedee 'simultanes <= MAX_PROJECTILES' (CS-10) ; plafond = constante nommee (CS-12)\"},\n  {\"feature\": \"R25 logique n'importe ni rendu/input ni DOM ; RNG seede injecte\", \"fonction\": \"createRng\", \"fichiers\": [\"logic/rng.mjs\"], \"preuve\": \"oracle check_architecture : aucun import document/window/canvas/addEventListener/requestAnimationFrame dans logic (CS-5, AI-6) + RNG injecte seede (AI-7)\"},\n  {\"feature\": \"R26 hooks __game/__game_debug + DOM #overlay/#restart\", \"fonction\": \"exposeGameHooks\", \"fichiers\": [\"main.mjs\"], \"preuve\": \"e2e verifie presence/valeurs des hooks {level,lives,score,over,status,bossHp} + DOM #overlay/#restart (CS-8/9) ; hooks debug jamais utilises pour la preuve de solvabilite (AI-5)\"}\n]}\n```",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 21315
+   },
+   "status": "OK",
+   "ts": 1784042002.7268949
+  },
+  "s6-redteam-plan": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice\\artifacts\\s6-redteam-plan.txt",
+    "artifact_sha256": "a3ddc33cc0740e854d9d5c2d0da007daa88b69db1c6dd306176c87555bddb264",
+    "cost_usd": 0.0,
+    "duration_s": 0.0,
+    "model": "qwen2.5-14b-instruct",
+    "model_override": null,
+    "output_excerpt": "Comme assistant, je vais suivre les instructions fournies pour analyser le plan d'architecture et la WireMap du projet en tant que red-teamer indépendant. Mon objectif est de rechercher des failles potentielles, des angles morts, des dépendances fragiles et tout câblage incohérent dans ces artefacts spécifiques.\n\nÉtape 1 : Lecture approfondie du document SCHEMA.md pour comprendre les contraintes et les règles de l'architecture.\nÉtape 2 : Examen attentif du blueprint.yaml produit par l'étape 4 (Architecte) pour identifier la structure globale du système.\nÉtape 3 : Analyse détaillée de la WireMap produite par l'étape 5 pour comprendre le câblage et les interactions entre les composants.\n\nAprès avoir étudié ces documents, je vais procéder à l'identification des failles potentielles selon les critères suivants :\n\n1. **Angles morts** : zones du système qui ne sont pas surveillées ou protégées.\n2. **Dépendances fragiles** : relations entre composants qui peuvent être facilement rompues, entraînant un dysfonctionnement du système.\n3. **Câblage incohérent** : configurations de câblage qui contredisent les principes d'architecture ou qui ne sont pas logiques.\n\nPour chaque faille identifiée, je proposerai une correction appropriée et indiquerai si le problème peut être résolu (verdict GO-si-corrigé).\n\nÉtape 4 : Rédaction du rapport redteam_plan.md avec la liste des failles identifiées sous forme de triplet {angle, faille, correction_proposée}.\n\nJe vais maintenant commencer l'analyse en suivant ces étapes.",
+    "qwen_ok": true,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "qwen2.5-14b-instruct",
+    "runner": "qwen",
+    "tokens": 0
+   },
+   "status": "OK",
+   "ts": 1784042012.20585
+  },
+  "s9-build": {
+   "attempts": 3,
+   "detail": {
+    "reason": "exécuteur LLM en échec à s9-build: claude -p timeout (1800s)"
+   },
+   "status": "BLOCKED",
+   "ts": 1784052110.060196
+  }
+ },
+ "updated_ts": 1784052110.060196
+}

@@ -1,0 +1,217 @@
+I have everything I need: the real s0 anchor (`charter.yaml`, verdict OK), the format precedent (`chesscolor/featuremap.yaml`), and confirmation that **no deterministic featuremap-completeness oracle exists** in `scripts/forge/` (only contracts reference the term; there is no runnable checker) — and my contract grants `run: aucun` with text-only output anyway. That drives the verdict below.
+
+Per the task ("texte seul, aucun fichier écrit"), the featuremap is delivered inline.
+
+---
+
+## Note d'ancrage (garde-fou)
+
+Le `product_snapshot.md` du Prisme (s1) **n'a jamais été persisté** : les 5 lenses (ceo/game_designer/front/back/control) ont toutes buté sur la porte de permission d'écriture (`software_verdict: BLOCKED` côté s1). Les « Règles observables » R1..R29 n'existent donc **pas en verbatim** sur disque — elles n'existent que comme méta-descriptions qui **citent toutes le même ancrage** : `charter.yaml` (s0, verdict OK, oracle de schéma déterministe). J'hérite donc chaque `preuve_attendue` **directement des `criteres_succes` / `actions_interdites` / `objectif` du charter s0** — la seule ancre oracle-validée en amont, celle-là même dont dérivent les règles observables. Rien n'est inventé ; tout est cité (`CS-n` = n-ième `criteres_succes`, `AI-n` = n-ième `actions_interdites`, `OBJ` = `objectif`, `HS` = `hors_scope`). Le fait que l'héritage passe par le charter plutôt que par le snapshot persisté est remonté en **fog #1**.
+
+---
+
+## FEATUREMAP — shmup_slice (s3-decompo)
+
+```yaml
+# Décompo fonctionnelle (s3) — shmup_slice-20260714a
+# Arbre Système -> Feature -> feuille{capacité, preuve_attendue}
+# Ancre des preuves : charter.yaml (s0, verdict OK). CS-n=criteres_succes, AI-n=actions_interdites, OBJ=objectif, HS=hors_scope.
+Systeme: shmup_slice
+Systemes:
+
+  - systeme: S1_vaisseau_joueur
+    feature: controle_joueur
+    feuilles:
+      - id: R1
+        capacite: le vaisseau se déplace en 2D au clavier et reste toujours dans les bornes de l'écran
+        preuve_attendue: >-
+          propriété seedée « vaisseau toujours dans les bornes » sur N seeds (assertion x,y ∈ [min,max]
+          à chaque frame, jamais hors cadre) — CS-10 + OBJ (déplacement 2D borné à l'écran)
+      - id: R2
+        capacite: une touche déclenche exactement UN tir vers le haut (un seul type de tir, aucune 2e arme)
+        preuve_attendue: >-
+          e2e réel : au moins un projectile joueur créé et montant à la touche ; unicité du tir (aucun
+          power-up/2e arme) — CS-9 (jeu réel au clavier) + HS (UN tir joueur, point)
+
+  - systeme: S2_ennemis
+    feature: formations_et_patterns_en_donnees
+    feuilles:
+      - id: R3
+        capacite: une formation ennemie suit un pattern déclaré en STRUCTURE DE DONNÉES (ex. descente type invaders)
+        preuve_attendue: >-
+          esquivabilité — couloir sûr atteignable à chaque frame sur la sim seedée (CS-2) ; pattern lu
+          depuis données, pas cascade de branches (AI-3) ; mutants du pattern tués (CS-11)
+      - id: R4
+        capacite: une 2e formation suit un pattern DISTINCT déclaré en données (ex. sinusoïde / plongée kamikaze)
+        preuve_attendue: >-
+          esquivabilité CS-2 + déclaration en données AI-3 + mutation CS-11 ; ≥2 patterns distincts
+          déclarés (OBJ : « patterns d'attaque simples définis en données »)
+      - id: R5
+        capacite: les ennemis tirent périodiquement vers le bas
+        preuve_attendue: >-
+          sim seedée : cadence de tir déterministe et esquivable (couloir sûr, CS-2) ; projectiles ennemis
+          créés à période fixe (assertion count/temps) ; plafond simultané respecté (CS-10 pooling)
+
+  - systeme: S3_collisions_et_degats
+    feature: collisions_assertees_strictement
+    feuilles:
+      - id: R6
+        capacite: un tir joueur touchant un ennemi le détruit ET ajoute le score exact
+        preuve_attendue: >-
+          assertion STRICTE == : ennemi retiré + score += valeur EXACTE (jamais >=), CS-6 ; mutant
+          « kill ne tue pas » / « score faux » tué (CS-11) ; interdiction tautologie AI-4
+      - id: R7
+        capacite: un tir ennemi touchant le joueur retire exactement 1 vie + déclenche une invincibilité brève
+        preuve_attendue: >-
+          assertion == : lives -= EXACTEMENT 1, i-frames actives empêchant un 2e retrait immédiat
+          (CS-6) ; mutation CS-11
+      - id: R8
+        capacite: un ennemi en CONTACT avec le joueur retire exactement 1 vie + invincibilité (idem tir)
+        preuve_attendue: assertion == : -1 vie exacte + i-frames (CS-6) ; mutation CS-11
+
+  - systeme: S4_economie_de_run
+    feature: score_et_vies
+    feuilles:
+      - id: R9
+        capacite: le score augmente de la valeur exacte par ennemi détruit et ne décroît jamais
+        preuve_attendue: propriété seedée « score monotone croissant » (CS-10) + valeur exacte par kill (CS-6, ==)
+      - id: R10
+        capacite: le run démarre à 3 vies, aucune résurrection, défaite à 0
+        preuve_attendue: >-
+          propriété seedée « over monotone (jamais de résurrection) » + valeur initiale == 3 (CS-10) ;
+          défaite ssi vies==0 (CS-6/CS-7)
+
+  - systeme: S5_maps_en_donnees   # 3 FEUILLES DISTINCTES — jamais une feuille générique 'niveaux'
+    feature: trois_maps_declarees_chacune_en_donnees_propres
+    feuilles:
+      - id: R11
+        capacite: MAP 1 = déclaration PROPRE de vagues/formations/patterns/fond (pas une variation paramétrique)
+        preuve_attendue: >-
+          feature WireMap gelée s5 (fichier+fonction+preuve, CS-3) ; segment map 1 solvable par le bot
+          (Jalon A, CS-1) ; fond distinct (OBJ/HS) ; données ≠ générateur paramétrique (OBJ)
+      - id: R12
+        capacite: MAP 2 = déclaration PROPRE distincte (vagues/formations/patterns/fond propres)
+        preuve_attendue: >-
+          feature WireMap gelée s5 (CS-3) ; segment map 2 solvable (CS-1) ; distincte de map 1 et 3
+          en données (OBJ : « PAS trois variations paramétriques d'un même générateur »)
+      - id: R13
+        capacite: MAP 3 = déclaration PROPRE distincte
+        preuve_attendue: >-
+          feature WireMap gelée s5 (CS-3) ; segment map 3 solvable (CS-1) ; distincte des maps 1 et 2 (OBJ)
+
+  - systeme: S6_boss   # 3 FEUILLES DISTINCTES — HP propre + pattern propre esquivable chacun
+    feature: trois_boss_distincts
+    feuilles:
+      - id: R14
+        capacite: BOSS 1 = HP propre + 1 pattern de tir propre esquivable par construction
+        preuve_attendue: >-
+          HP décrémenté à valeur EXACTE, jamais négatif (CS-6/CS-10) ; esquivabilité du pattern boss 1
+          à chaque frame (CS-2) ; le bot bat boss 1 (CS-1, Jalon A) ; feature WireMap gelée (CS-3)
+      - id: R15
+        capacite: BOSS 2 = HP propre + pattern propre esquivable, distinct de boss 1
+        preuve_attendue: >-
+          HP exact jamais négatif (CS-6/CS-10) ; esquivabilité pattern boss 2 (CS-2) ; le bot bat
+          boss 2 (CS-1) ; WireMap gelée (CS-3)
+      - id: R16
+        capacite: BOSS 3 = HP propre + pattern propre esquivable ; sa défaite déclenche la victoire
+        preuve_attendue: >-
+          HP exact jamais négatif (CS-6/CS-10) ; esquivabilité pattern boss 3 (CS-2) ; le bot bat
+          boss 3 => statut WON (CS-1) ; WireMap gelée (CS-3)
+
+  - systeme: S7_progression_et_etats_terminaux
+    feature: transitions_et_fins
+    feuilles:
+      - id: R17
+        capacite: boss vaincu => passage IMMÉDIAT à la map suivante, score ET vies CONSERVÉS
+        preuve_attendue: >-
+          assertion : boss vaincu => level+1 immédiat ; score & vies INCHANGÉS à la transition (CS-7) ;
+          e2e visite maps 2 et 3 (CS-9)
+      - id: R18
+        capacite: boss 3 vaincu => statut WON terminal, overlay victoire, AUCUNE map 4
+        preuve_attendue: >-
+          assertion victoire ssi boss 3 vaincu ; status==WON terminal ; propriété « transition au-delà
+          de la map 3 impossible » (CS-10) ; e2e observe overlay victoire (CS-9) ; #overlay (CS-8)
+      - id: R19
+        capacite: vies==0 => statut défaite terminal, overlay défaite
+        preuve_attendue: >-
+          assertion défaite ssi vies==0 (CS-6/CS-7) ; e2e forceLose observe overlay (CS-9) ; #overlay (CS-8)
+      - id: R20
+        capacite: après défaite, #restart relance le RUN ENTIER : map 1, score 0, vies 3
+        preuve_attendue: >-
+          assertion état post-restart == {level:1, score:0, lives:3} (CS-7) ; e2e clique #restart et
+          observe le reset (CS-9) ; #restart (CS-8)
+
+  - systeme: S8_coeur_de_simulation
+    feature: simulation_pure_seedee_et_prouvee_jouable
+    feuilles:
+      - id: R21
+        capacite: la logique pure step(DT=16ms, inputs) est seedée ; mêmes seed+entrées => trace STRICTEMENT identique
+        preuve_attendue: >-
+          test de double exécution (trace identique) ; absence de Math.random/Date.now/performance.now
+          dans la logique (CS-4, AI-7) ; RNG seedé injecté
+      - id: R22
+        capacite: un bot déterministe (esquive+tir via l'API d'entrée publique) FINIT le run (3 maps + 3 boss) à la seed de référence
+        preuve_attendue: >-
+          oracle solvabilité : SOLVABLE=exit 0 ; sonde cassée (HP inatteignable OU pattern sans couloir)
+          => INJOUABLE=exit≠0 ; le bot JOUE, état jamais forcé (CS-1, AI-1, AI-5)
+      - id: R23
+        capacite: tout pattern (ennemi ET boss) laisse à chaque frame au moins un couloir sûr atteignable
+        preuve_attendue: >-
+          vérification déterministe d'esquivabilité sur sim seedée — aucune frame de mort inévitable ;
+          pattern non esquivable = FAIL (CS-2)
+      - id: R24
+        capacite: le nombre de projectiles simultanés est borné par une constante nommée (pooling)
+        preuve_attendue: >-
+          propriété seedée « projectiles simultanés ≤ plafond déclaré » (CS-10) ; plafond en constante
+          nommée (CS-12)
+
+  - systeme: S9_architecture_et_contrat_execution
+    feature: separation_et_hooks_de_jouabilite
+    feuilles:
+      - id: R25
+        capacite: les modules de logique n'importent ni rendu ni input et ne référencent aucune API DOM
+        preuve_attendue: >-
+          oracle d'architecture statique : aucun import de document/window/canvas/addEventListener/
+          requestAnimationFrame dans la logique (CS-5, AI-6)
+      - id: R26
+        capacite: >-
+          window.__game expose {level,lives,score,over,status,bossHp} ; window.__game_debug expose
+          setLevel/spawnBoss/forceWin/forceLose ; DOM #overlay et #restart
+        preuve_attendue: >-
+          e2e vérifie présence/valeurs des hooks et du DOM (CS-8, CS-9) ; hooks debug JAMAIS utilisés
+          pour la preuve de solvabilité (AI-5)
+```
+
+---
+
+## Auto-inventaire de complétude (⚠ introspection modèle — PAS un oracle)
+
+- **26 feuilles** (R1–R26), **0 feuille orpheline** : chacune porte `{capacité, preuve_attendue}`.
+- **Feuilles sans `preuve_attendue`** : **aucune**.
+- Feuilles distinctes exigées présentes : **3 maps séparées** (R11/R12/R13) + **3 boss séparés** (R14/R15/R16), aucune feuille générique « niveaux ».
+- Minimum requis par la tâche : déplacement borné (R1), tir joueur (R2), ≥2 patterns ennemis en données (R3/R4), tir ennemi périodique (R5), collision tir→ennemi destruction+score exact (R6), collision tir ennemi→joueur -1 vie+invinc (R7), contact (R8), score (R9), vies=3 (R10), transitions score/vies conservés+boss=>map (R17), victoire boss 3 (R18), défaite vies=0 (R19), restart complet (R20), déterminisme seedé (R21) — **tous présents**.
+
+> Cet auto-inventaire est un raisonnement LLM, **pas** l'oracle de complétude non-LLM exigé par le contrat. Il ne peut donc pas fonder un claim.
+
+---
+
+## RAPPORT FINAL
+
+**software_verdict : sans objet** — étape narrative/données, aucun code exécuté (miroir du verdict s1). Aucune affirmation de fonctionnement logiciel n'est émise.
+
+**evidence_verdict : sans objet** — aucun oracle mécanique n'a été exécuté sur cette featuremap. Motif triple, cité par ancres non-LLM : (a) l'oracle de complétude featuremap **n'existe pas** dans le repo (`ls scripts/forge/` + `grep -ril featuremap|preuve_attendue scripts/` → seuls des contrats mentionnent le terme, aucun vérificateur runnable) ; (b) le contrat s3 accorde `run: aucun` ; (c) la tâche impose « texte seul, aucun fichier écrit » — il n'existe aucun fichier featuremap sur lequel un validateur pourrait s'exécuter.
+
+**claim_verdict : NO_CLAIM_ALLOWED.**
+
+**Oracle de complétude cité :** aucun oracle disponible/exécutable dans ce dispatch (voir evidence_verdict). Conformément à la Règle de restitution, j'émets un **besoin HumanGate (fog)** plutôt qu'un claim auto-certifié.
+
+**Feuilles sans preuve_attendue :** aucune (par auto-inventaire non-oracle ci-dessus).
+
+### fog → HumanGate (jugement Pierre, pas d'oracle)
+1. **fog · Prisme non persisté** — `product_snapshot.md` (s1) n'a jamais été écrit sur disque (5 lenses BLOCKED sur permission d'écriture). Les preuves attendues sont héritées **directement du charter s0** (l'ancre oracle-validée que les règles observables citent), et non du snapshot persisté. À trancher : persister d'abord le snapshot s1, ou ratifier l'héritage-via-charter comme chaîne d'ancrage suffisante.
+2. **fog · oracle de complétude manquant** — aucun vérificateur non-LLM de complétude featuremap n'existe (`scripts/forge/`). Tant qu'il n'existe pas ET que la sortie reste text-only, la complétude ne peut être **prouvée** mécaniquement, seulement auto-inventoriée. Besoin : soit un `check_featuremap` déterministe + une featuremap persistée à valider, soit ratification humaine de l'inventaire ci-dessus.
+3. **fog · valeurs de design non fixées** (hérité s1, non tranché ici, hors scope s3) — vitesse de déplacement, cadence de tir joueur, période de tir ennemi, durée exacte d'invincibilité « brève », HP par boss, score par type d'ennemi, valeur du plafond de projectiles, nombre de vagues/formations par map. Le charter impose « déterministe/exact/esquivable par construction », **pas la valeur** → à fixer en s4 (archi), jamais inventé en s3.
+
+**Écarts/risques :** la featuremap est livrée **inline** (non persistée), conforme à la contrainte « texte seul » de la tâche mais divergente du `output_contract` littéral (« Écrit uniquement la featuremap »). Aucune décision d'architecture ni de module n'a été prise (réservé s4). Aucune lane protégée touchée. Vocabulaire de verdict tenu : OK / FAIL / BLOCKED.
+
+**FORGE_DISPATCH:s3-decompo:shmup_slice-20260714a — livrable produit, NO_CLAIM_ALLOWED, 3 fogs remontés.**
