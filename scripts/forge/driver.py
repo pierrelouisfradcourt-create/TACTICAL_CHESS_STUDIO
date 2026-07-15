@@ -51,11 +51,18 @@ from forge.static_oracles import (
     check_e2e_harness,
     check_feature_set_frozen,
     check_reuse_ratio_wired,
+    check_solvability_wired,
     check_wiremap,
     frozen_features_from_wiremap,
     load_frozen_features,
 )
-from forge.studio_link import premortem, record_builder_run, record_telemetry
+from forge.studio_link import (
+    premortem,
+    record_builder_run,
+    record_error,
+    record_fix,
+    record_telemetry,
+)
 from forge.verdict import (
     CLAIM_VERDICT,
     EVIDENCE_VERDICT,
@@ -68,6 +75,10 @@ from forge.verdict import (
 )
 
 logger = logging.getLogger(__name__)
+
+# scripts/forge/driver.py -> parents[2] == racine du repo. Sert à décider où va le
+# journal d'erreurs quand aucun chemin n'est injecté (voir _journal_target).
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Statuts d'étape. RUNNING = en cours (une étape retrouvée RUNNING à la reprise
 # a été interrompue : elle est rejouée, attempts conservé — jamais silencieux).
@@ -96,6 +107,7 @@ class ForgeDriver:
         audit_path: Path | str | None = None,
         telemetry_path: Path | str | None = None,
         builder_runs_path: Path | str | None = None,
+        journal_path: Path | str | None = None,
         caps_path: Path | str | None = None,
         logic_files: list[str] | None = None,
         mutation_runner=None,
@@ -116,6 +128,10 @@ class ForgeDriver:
         self.audit_path = Path(audit_path) if audit_path else None
         self.telemetry_path = Path(telemetry_path) if telemetry_path else None
         self.builder_runs_path = Path(builder_runs_path) if builder_runs_path else None
+        # Connecteur 6 (journal d'erreurs) : chemin injectable comme la télémétrie
+        # (best-effort, jamais bloquant). None = cible déduite par _journal_target
+        # (routage par domaine studio pour un run DANS le repo ; journal local sinon).
+        self.journal_path = Path(journal_path) if journal_path else None
         self.caps_path = Path(caps_path) if caps_path else None
         # P0.2 — preuve mutation d'un JEU : fichiers logiques explicites (sinon
         # dérivés de la WireMap), runner injectable (défaut = forge.mutation réel).
@@ -249,7 +265,8 @@ class ForgeDriver:
                 etape, self.run_id, caps_path=self.caps_path, audit_path=self.audit_path
             )
         except ContractIncomplete as exc:
-            return self._halt_step(state, entry, f"contrat non activable à {etape}: {exc}")
+            return self._halt_step(state, entry, f"contrat non activable à {etape}: {exc}",
+                                   etape=etape)
 
         decision = route_step(payload)
         runner, reviewer, qwen_ok = decision.runner, decision.reviewer, False
@@ -270,6 +287,7 @@ class ForgeDriver:
                     state, entry,
                     f"aucun exécuteur LLM fourni au driver — étape {etape} "
                     "inexécutable (hypothèse inconnue = BLOCKED)",
+                    etape=etape,
                 )
             context = {
                 "run_id": self.run_id,
@@ -283,7 +301,8 @@ class ForgeDriver:
             res = self.executor(payload, decision, context)
             if not isinstance(res, dict) or not res.get("ok"):
                 why = res.get("reason", "sans raison") if isinstance(res, dict) else "retour invalide"
-                return self._halt_step(state, entry, f"exécuteur LLM en échec à {etape}: {why}")
+                return self._halt_step(state, entry, f"exécuteur LLM en échec à {etape}: {why}",
+                                       etape=etape)
             output = str(res.get("output", ""))
             blocked = bool(res.get("blocked", False))
             findings = list(res.get("findings", []))
@@ -318,15 +337,72 @@ class ForgeDriver:
                              telemetry_path=self.telemetry_path)
         except OSError:
             logger.warning("télémétrie non écrite pour %s (non bloquant)", etape)
+        # Une étape qui PASSE alors qu'une tentative précédente avait échoué (retry
+        # après escalade/pool, ou reprise d'une étape interrompue) : le journal
+        # apprend la RÉPARATION (2e colonne), pas seulement l'échec. Best-effort.
+        if entry["attempts"] > 1:
+            tier = tier_of(state.get("model_override") or payload.model) or "inconnu"
+            self._journal_fix(
+                etape,
+                f"échec d'une tentative précédente à {etape}",
+                f"réparé à la tentative {entry['attempts']} (tier {tier})",
+            )
         if etape == "s5-wiremap":
             self._freeze_rules(state)
         return True
 
+    def _domain(self) -> str:
+        """Domaine du journal d'erreurs de CE run (route l'écriture et la lecture du
+        pré-mortem quand la cible est déduite par domaine). Un JEU écrit/lit ses leçons
+        html (fixtures HTML/2D réelles) ; tout le reste relève de la plomberie `forge`.
+        Simple et extensible."""
+        return "html" if self.is_game else "forge"
+
+    def _journal_target(self) -> Path | None:
+        """Cible du journal d'erreurs, ou None pour un routage par domaine (studio_link
+        écrit alors dans lab/reports/error_journal/<domaine>.jsonl).
+
+        - journal_path injecté (tests, orchestrateur) => ce fichier exact.
+        - sinon run_dir DANS le repo (run studio réel) => None : le journal studio
+          accumule les leçons cross-run/cross-projet, et le pré-mortem les relit.
+        - sinon (run_dir hors repo — tmp de test non injecté) => journal LOCAL au
+          run_dir : la boucle reste fermée dans le run SANS jamais écrire dans le repo.
+        """
+        if self.journal_path is not None:
+            return self.journal_path
+        try:
+            self.run_dir.resolve().relative_to(_REPO_ROOT)
+            return None  # sous le repo -> journaux studio par domaine
+        except ValueError:
+            return self.run_dir / "error_journal.jsonl"
+
+    def _journal_error(self, etape: str, reason: str) -> None:
+        """Best-effort : consigne un échec d'étape au journal (JAMAIS bloquant —
+        même patron que la télémétrie). Une écriture qui lève n'échoue pas le run."""
+        try:
+            record_error(self.run_id, etape, reason, self.project,
+                         journal_path=self._journal_target(), domain=self._domain())
+        except Exception:  # noqa: BLE001 — best-effort, jamais bloquant
+            logger.warning("journal d'erreurs non écrit pour %s (non bloquant)", etape)
+
+    def _journal_fix(self, etape: str, error: str, resolution: str) -> None:
+        """Best-effort : consigne la RÉPARATION d'un échec précédent (2e colonne du
+        journal). Jamais bloquant."""
+        try:
+            record_fix(self.run_id, etape, error, resolution, self.project,
+                       journal_path=self._journal_target(), domain=self._domain())
+        except Exception:  # noqa: BLE001 — best-effort, jamais bloquant
+            logger.warning("réparation non écrite au journal pour %s (non bloquant)", etape)
+
     def _premortem(self) -> list[str]:
+        # Lit le MÊME journal que celui où l'on écrit (même cible, même domaine) : une
+        # nouvelle tentative voit ainsi l'échec qu'on vient de consigner. Best-effort.
         if self._premortem_cache is None:
             try:
-                self._premortem_cache = premortem(self.project)
-            except (OSError, ValueError):
+                self._premortem_cache = premortem(
+                    self.project, domain=self._domain(),
+                    journal_path=self._journal_target())
+            except Exception:  # noqa: BLE001 — lecture best-effort
                 self._premortem_cache = []
         return self._premortem_cache
 
@@ -348,14 +424,16 @@ class ForgeDriver:
             encoding="utf-8",
         )
 
-    def _halt_step(self, state: dict, entry: dict, reason: str) -> bool:
+    def _halt_step(self, state: dict, entry: dict, reason: str,
+                   etape: str | None = None) -> bool:
         entry["status"] = "BLOCKED"
         entry["detail"] = {"reason": reason}
         entry["ts"] = time.time()
         state["run_status"] = "HALTED"
         state["reason"] = reason
-        self._save(state)
+        self._save(state)  # état persisté AVANT le journal : une écriture ratée n'y touche pas
         logger.warning("driver HALTED: %s", reason)
+        self._journal_error(etape or self._etape_of(state, entry), reason)
         return False
 
     # --- étapes déterministes (exécutées par le driver, jamais un LLM) --------
@@ -400,9 +478,10 @@ class ForgeDriver:
                 "reason": f"étape déterministe {etape!r} non câblée dans le driver"})
 
     def _run_code_oracle(self, state: dict, entry: dict) -> None:
-        """s10a. Non-jeu : forge_gate seul (inchangé). JEU (P0.2) : le vert exige
-        oracle code vert ET garde e2e verte ET reçu mutation signé vert — FAIL
-        alimente l'escalade ; preuve impossible = BLOCKED (hypothèse inconnue)."""
+        """s10a. Non-jeu : forge_gate seul (inchangé). JEU (P0.2/P2) : le vert exige
+        oracle code vert ET garde e2e verte ET garde solvabilité verte ET reçu
+        mutation signé vert — FAIL alimente l'escalade ; preuve impossible =
+        BLOCKED (hypothèse inconnue)."""
         res = forge_gate(
             self.project,
             config_path=self.oracle_config,
@@ -425,6 +504,12 @@ class ForgeDriver:
             return
         e2e = check_e2e_harness(self.src_root)
         detail["e2e"] = e2e
+        # P2 (leçon survival_arena/collect_runner : deux jeux injouables tous gates
+        # verts) : la solvabilité contribue au gate AU MÊME TITRE que la garde e2e —
+        # un jeu sans solvability.mjs câblé dans run-oracle.mjs ne peut pas verdir
+        # s10a (échec => FAIL avec raisons, alimente la boucle d'escalade).
+        solvability = check_solvability_wired(self.src_root)
+        detail["solvability"] = solvability
         # Advisory (Tier 1 #2) : ne gate jamais oracle_ok — reuse_ratio mesure,
         # il ne prouve rien. L'absence de câblage reste visible dans le reçu signé
         # (verdict.json), au lieu de dépendre de la seule citation du builder.
@@ -456,7 +541,8 @@ class ForgeDriver:
 
         if status == "BLOCKED":
             final = "BLOCKED"
-        elif status == "FAIL" or not e2e["passed"] or receipt.receipt.status != "OK":
+        elif (status == "FAIL" or not e2e["passed"] or not solvability["passed"]
+              or receipt.receipt.status != "OK"):
             final = "FAIL"  # rouge mécanique => alimente la boucle d'escalade
         else:
             # Auto-contrôle structurel AVANT de poser un OK : une preuve qui ne se
@@ -523,11 +609,46 @@ class ForgeDriver:
             "decision": record["decision"],
         })
 
-    def _finish_step(self, state: dict, entry: dict, status: str, detail: dict) -> None:
+    def _finish_step(self, state: dict, entry: dict, status: str, detail: dict,
+                     etape: str | None = None) -> None:
         entry["status"] = status
         entry["detail"] = detail
         entry["ts"] = time.time()
-        self._save(state)
+        self._save(state)  # état persisté AVANT le journal (best-effort, non bloquant)
+        # Étape déterministe rouge (oracle FAIL, artefact d'entrée absent...) : consigne
+        # le motif au journal. L'étape est dérivée du state si non passée (les helpers
+        # d'oracle appellent _finish_step sans la répéter).
+        if status in ("FAIL", "BLOCKED"):
+            self._journal_error(etape or self._etape_of(state, entry),
+                                self._failure_reason(detail, status))
+
+    @staticmethod
+    def _etape_of(state: dict, entry: dict) -> str:
+        """Nom de l'étape correspondant à un `entry` de state (identité d'objet)."""
+        for e, st in (state.get("steps") or {}).items():
+            if st is entry:
+                return e
+        return "?"
+
+    @staticmethod
+    def _failure_reason(detail: dict, status: str) -> str:
+        """Motif lisible d'un échec pour le journal : `reason` explicite si présent,
+        sinon un résumé des gardes rouges (returncode, e2e/solvabilité/mutation)."""
+        if detail.get("reason"):
+            return str(detail["reason"])
+        bits: list[str] = []
+        if "returncode" in detail:
+            bits.append(f"returncode={detail['returncode']}")
+        for k in ("e2e", "solvability", "wiremap"):
+            v = detail.get(k)
+            if isinstance(v, dict) and v.get("passed") is False:
+                bits.append(f"{k} non passé")
+        mut = detail.get("mutation")
+        if isinstance(mut, dict):
+            rc = mut.get("receipt") or {}
+            if rc.get("status") and rc.get("status") != "OK":
+                bits.append(f"mutation={rc.get('status')}")
+        return "; ".join(bits) or status
 
     def _receipt(self, state: dict, oracle_id: str, etape: str):
         """Reçu signé depuis l'état persisté — reconstructible après reprise."""
@@ -660,6 +781,7 @@ class ForgeDriver:
                           "s10c-oracle-wiremap"):
                     if e in self.order:
                         state["steps"][e]["status"] = "PENDING"
+                self._premortem_cache = None  # la re-tentative relit le journal À JOUR
                 logger.info("pool: %s", pool.reason)
                 self._save(state)
                 return True
@@ -687,6 +809,7 @@ class ForgeDriver:
                   "s10c-oracle-wiremap"):
             if e in self.order:
                 state["steps"][e]["status"] = "PENDING"
+        self._premortem_cache = None  # le re-build au tier +fort relit le journal À JOUR
         logger.info("escalade #%s: %s", state["escalations"], d.reason)
         self._save(state)
         return True
@@ -760,7 +883,7 @@ class ForgeDriver:
             return True
         code = (state.get("steps") or {}).get("s10a-oracle-code", {})
         detail = code.get("detail") or {}
-        if "mutation" in detail or "e2e" in detail:
+        if "mutation" in detail or "e2e" in detail or "solvability" in detail:
             return True
         if self.src_root is not None and any(
                 (self.src_root / f).exists() for f in ("run-oracle.mjs", "e2e.mjs")):
