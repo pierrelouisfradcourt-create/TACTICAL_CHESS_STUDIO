@@ -38,6 +38,23 @@
 * Tests : .venv312\\Scripts\\python.exe -m pytest lab/chess\_fantasy/tests/ -v
 * Ne pas toucher src/ pour cette lane
 
+### Lane FORGE (usine à jeux — /forge)
+
+* Rôle : GÉNÈRE DES JEUX (pas des IMP — le ledger/kaizen est la lane STUDIO, distincte).
+* Skill : `/forge` · orchestrateur = Fable (mode superpowers), spawn via la porte uniquement.
+* Code : scripts/forge/ (dispatch.py, driver.py, oracle.py, gate.py, verdict.py, static\_oracles.py, studio\_link.py).
+* Contrats d'agent : scripts/forge/contracts/<etape>.yaml (schéma SCHEMA.md, 17 champs).
+* Jeux produits : games/<jeu>/ · bibliothèque : knowledge\_base/ · preuves/état : lab/forge\_runs/ + lab/forge\_evidence/.
+* **Invariants durs (ADR-002)** — non négociables :
+  - Aucun sous-agent sans **contrat validé** : porte `forge.dispatch.prepare_dispatch` + hook `pretool_forge_guard` (ACTIF dans .claude/settings.json — fail-closed en périmètre Forge).
+  - Oracles = **déterministes non-LLM** (code/archi/wiremap + mutation + solvabilité) ; verdict **signé HMAC**, re-vérifié par `forge.verify_run`.
+  - `software_verdict` vient UNIQUEMENT des reçus d'oracle vérifiés ; red-team = **advisory** (jamais juge du code).
+  - **HumanGate (Pierre) décide** merge/reject/freeze — jamais la Forge. Écritures durables (ledger, projets, memory/) = propose-only, ratifiées par Pierre.
+  - `claim_verdict: NO_CLAIM_ALLOWED` toujours.
+* Cartes de référence (companions, statut PROPOSED) : docs/forge/STUDIO\_ARCHITECTURE.md · STUDIO\_AGENT\_ATLAS.md · STUDIO\_MASTER\_SCHEMA.html.
+* Auto-audit de la lane (dérive doc↔réalité, connecteurs dormants) : `node scripts/forge/studio_selfaudit.mjs`.
+* Ne jamais toucher autopilot.py ni la lane STUDIO pour cette lane.
+
 ## Fichiers cles
 
 * autopilot.py : studio UI + API
@@ -63,6 +80,7 @@ Table de correspondance intention → skill à invoquer. Utiliser `/skill-name` 
 
 | Intention | Skill |
 |---|---|
+| générer un jeu / forge | /forge |
 | oracle / vérification | /smoke-check |
 | IMP status | /sprint-status |
 | IMP pickup | /imp-readiness |

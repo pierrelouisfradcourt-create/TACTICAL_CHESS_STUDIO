@@ -23,11 +23,13 @@ logger = logging.getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FORGE_EVIDENCE = REPO_ROOT / "lab" / "forge_evidence"
 FORGE_REPORTS = REPO_ROOT / "lab" / "reports"
+FORGE_RUNS = REPO_ROOT / "lab" / "forge_runs"
 
 DEFAULT_TELEMETRY = FORGE_EVIDENCE / "forge_telemetry.jsonl"
 DEFAULT_ERROR_JOURNAL = FORGE_REPORTS / "forge_error_journal.jsonl"
 DEFAULT_LEDGER_PROPOSALS = FORGE_REPORTS / "forge_ledger_proposals.jsonl"
 DEFAULT_PROJECT_PROPOSALS = FORGE_REPORTS / "forge_project_proposals.jsonl"
+DEFAULT_BIBLE_PROPOSALS = FORGE_REPORTS / "forge_bible_proposals.jsonl"
 # Tier 2.5 étape 2 : observabilité dédiée du pool de builders (Tier 2 #5) — sans ça,
 # le pool reste une boîte noire. Un enregistrement par TENTATIVE s9-build (pas un
 # agrégat par run) : c'est la granularité qui répond à « le pool sauve-t-il des
@@ -184,6 +186,58 @@ def premortem(project: str, journal_path: Path | None = None, limit: int = 5) ->
     out = [f"⚑ [{r.get('etape')}] {r.get('error')}" for r in glob[-limit:]]
     out += [f"[{r.get('etape')}] {r.get('error')}" for r in proj[-limit:]]
     return out
+
+
+# --- Project Bible : mémoire de DÉCISION par projet (persistante entre runs) ----
+
+# Où vit la bible d'un projet : à côté de son state.json, dans le run_dir stable par
+# projet. C'est une mémoire de RÉFÉRENCE — un agent ne l'écrit jamais (il PROPOSE via
+# propose_bible_entry ; Pierre ratifie). Le lecteur ci-dessous est branché en s0
+# (mandatory_read) : la vision cesse d'être reconstruite à zéro à chaque run.
+
+BIBLE_FILENAME = "PROJECT_BIBLE.md"
+
+
+def project_bible(project: str, runs_root: Path | None = None) -> str:
+    """Texte de la Project Bible d'un projet, ou "" si aucune (jamais une exception).
+
+    Lu par l'étape 0 (s0-contrat) pour injecter vision/piliers/décisions validées et
+    ABANDONNÉES (+ raisons) du projet dans le cadrage du run suivant. Absent = "" :
+    un projet neuf n'a pas encore de bible, ce n'est pas une erreur.
+    """
+    path = (runs_root or FORGE_RUNS) / project / BIBLE_FILENAME
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8")
+
+
+def propose_bible_entry(
+    project: str,
+    kind: str,
+    decision: str,
+    rationale: str,
+    proposals_path: Path | None = None,
+) -> dict:
+    """Propose une entrée de Project Bible issue d'un run. PROPOSE-ONLY.
+
+    N'écrit JAMAIS la bible de référence : dépose une proposition que Pierre promeut
+    (HumanGate) dans `lab/forge_runs/<projet>/PROJECT_BIBLE.md`. `kind` ∈
+    {"validated","abandoned"} — une décision actée, ou une voie écartée + sa raison
+    (la mémoire la plus précieuse : empêche un run futur de re-proposer un cul-de-sac).
+    """
+    if kind not in ("validated", "abandoned"):
+        raise ValueError(f"kind doit valoir 'validated' ou 'abandoned', reçu {kind!r}")
+    record = {
+        "project": project,
+        "kind": kind,
+        "decision": decision,
+        "rationale": rationale,
+        "status": "PROPOSED",
+        "ts": time.time(),
+    }
+    _append(proposals_path or DEFAULT_BIBLE_PROPOSALS, record)
+    logger.info("proposition Project Bible déposée (%s) pour %s", kind, project)
+    return record
 
 
 # --- Connecteur 4 : proposition ledger (AUDIT_REQUIRED, jamais d'auto-write) ----

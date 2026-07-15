@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STUDIO FORGE — Plan d'architecture agentique (A·B·C)</title>
+<style>
+  html,body{margin:0;padding:0;background:#06101f}
+  .bp{--bg:#0a1730;--panel:#0e2044;--panel2:#0b1a38;--grid:rgba(130,190,255,.09);
+     --ink:#d3e6ff;--muted:#83a6d6;--cyan:#59cbff;--amber:#ffb454;
+     --fable:#b79cff;--opus:#7aa0ff;--haiku:#4fd6c6;--qwen:#ffca6b;--nonllm:#9fb3cf;--human:#ff8098;
+     background:var(--bg);color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+     border:1px solid rgba(130,190,255,.3);border-radius:8px;padding:16px;max-width:1220px;margin:18px auto;
+     background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:26px 26px}
+  .bp .cart{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;border:1px solid rgba(130,190,255,.35);border-radius:6px;padding:8px 11px;margin-bottom:10px;background:var(--panel2)}
+  .bp .cart .t{font-size:14px;font-weight:700;letter-spacing:.05em;color:#fff}
+  .bp .cart .m{font-size:10px;color:var(--muted)}
+  .bp .cart .k{font-size:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .bp .sq{width:11px;height:11px;border-radius:2px;display:inline-block;vertical-align:-1px}
+  .bp h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin:18px 0 6px;border-bottom:1px dashed rgba(130,190,255,.3);padding-bottom:4px}
+  .bp svg{max-width:100%;height:auto;display:block}
+  .bp .note{font-size:10.5px;color:var(--muted);margin-top:6px;line-height:1.5}
+  .bp code{color:var(--cyan)}
+  .bp .live{animation:pulse 2.2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+</style>
+</head>
+<body>
+<div class="bp">
+  <div class="cart">
+    <div><div class="t">STUDIO FORGE — PLAN D'ARCHITECTURE AGENTIQUE · A / B / C</div>
+      <div class="m">rev. 2026-07-12 · doc figé (source : cartographie mécanique du repo — rien d'inventé, que de la synthèse) · compagnons : STUDIO_ARCHITECTURE.md · STUDIO_AGENT_ATLAS.md</div></div>
+    <div class="k">
+      <span><i class="sq" style="background:#59cbff"></i> EXISTE (câblé/prouvé)</span>
+      <span><i class="sq" style="background:#ffb454"></i> CIBLE (à construire/importer)</span>
+      <span>— plein = écrit · pointillé = lit · <span style="color:#ffb454">↺ renvoi</span> · <span style="color:#ff8098">⛔ stop</span></span>
+    </div>
+  </div>
+
+  <div class="note" style="border:1px solid #ffb454;border-radius:6px;padding:8px 11px;margin-bottom:10px;color:#ffdca6">
+    <b>⚠ MISE À JOUR 2026-07-15</b> — auto-audit <code>scripts/forge/studio_selfaudit.mjs</code>. Cet instantané date du 12-07 : <b>6 cases marquées « cible » existent désormais</b> (search.mjs · role_sim.mjs · reuse_ratio.mjs · pool.py · s2.5-artbible.yaml · roles/pursuer-mobile.yaml). Les mentions « (cible) » ci-dessous les concernant sont périmées. Vérif continue : <code>node scripts/forge/studio_selfaudit.mjs</code> (exit 0 = à jour).
+  </div>
+
+  <!-- ============================================================ A ============ -->
+  <h3>Détail A · Le PRISME — refraction de l'intention en agents-visions, recombinée par la WireMap</h3>
+  <svg viewBox="0 0 780 400" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#59cbff"/></marker>
+      <marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#ffb454"/></marker>
+    </defs>
+    <text x="12" y="182" fill="#d3e6ff" font-size="11" font-family="monospace">INTENTION</text>
+    <text x="12" y="196" fill="#83a6d6" font-size="10" font-family="monospace">PRODUIT (s0 charter)</text>
+    <line x1="12" y1="205" x2="112" y2="205" stroke="#d3e6ff" stroke-width="2.4" marker-end="url(#a)"/>
+    <polygon points="118,205 210,128 210,282" fill="rgba(89,203,255,.10)" stroke="#59cbff" stroke-width="1.6"/>
+    <text x="164" y="210" fill="#59cbff" font-size="10" text-anchor="middle" font-family="monospace">PRISME</text>
+    <text x="164" y="300" fill="#83a6d6" font-size="9" text-anchor="middle" font-family="monospace">s1 · panel multi-visions</text>
+    <g stroke="#ffb454" stroke-width="1.3" opacity=".85">
+      <line x1="210" y1="150" x2="330" y2="52" marker-end="url(#aa)"/>
+      <line x1="210" y1="168" x2="330" y2="112" marker-end="url(#aa)"/>
+      <line x1="210" y1="205" x2="330" y2="172" marker-end="url(#aa)"/>
+      <line x1="210" y1="242" x2="330" y2="232" marker-end="url(#aa)"/>
+      <line x1="210" y1="260" x2="330" y2="292" marker-end="url(#aa)"/>
+    </g>
+    <g font-family="monospace" font-size="10.5">
+      <rect x="332" y="36" width="170" height="34" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454"/><text x="342" y="50" fill="#ffdca6">CEO</text><text x="342" y="63" fill="#83a6d6" font-size="9">vision · marché · budget</text>
+      <rect x="332" y="96" width="170" height="34" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454"/><text x="342" y="110" fill="#ffdca6">GAME DESIGNER</text><text x="342" y="123" fill="#83a6d6" font-size="9">fun · systèmes · boucles</text>
+      <rect x="332" y="156" width="170" height="34" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454"/><text x="342" y="170" fill="#ffdca6">DEV FRONT-END</text><text x="342" y="183" fill="#83a6d6" font-size="9">UI · game-feel · lisibilité</text>
+      <rect x="332" y="216" width="170" height="34" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454"/><text x="342" y="230" fill="#ffdca6">DEV BACK-END</text><text x="342" y="243" fill="#83a6d6" font-size="9">moteur · perf · déterminisme</text>
+      <rect x="332" y="276" width="170" height="34" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454"/><text x="342" y="290" fill="#ffdca6">JOUEUR</text><text x="342" y="303" fill="#83a6d6" font-size="9">expérience · frustration · clarté</text>
+    </g>
+    <g stroke="#ffb454" stroke-width="1" opacity=".6">
+      <line x1="502" y1="53" x2="600" y2="150"/><line x1="502" y1="113" x2="600" y2="165"/>
+      <line x1="502" y1="173" x2="600" y2="185"/><line x1="502" y1="233" x2="600" y2="205"/><line x1="502" y1="293" x2="600" y2="220"/>
+    </g>
+    <rect x="60" y="330" width="230" height="46" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/>
+    <text x="72" y="350" fill="#59cbff" font-size="10.5" font-family="monospace">s2 · WORLD SCAN (web)</text>
+    <text x="72" y="365" fill="#83a6d6" font-size="9" font-family="monospace">patterns externes cités · advisory</text>
+    <path d="M290 350 C 440 350 470 250 598 205" fill="none" stroke="#59cbff" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a)"/>
+    <rect x="600" y="130" width="168" height="110" rx="7" fill="rgba(89,203,255,.10)" stroke="#59cbff" stroke-width="1.6"/>
+    <text x="684" y="160" fill="#fff" font-size="12" text-anchor="middle" font-family="monospace" font-weight="700">WIREMAP</text>
+    <text x="684" y="178" fill="#83a6d6" font-size="9" text-anchor="middle" font-family="monospace">s5 · recombine</text>
+    <text x="684" y="192" fill="#83a6d6" font-size="9" text-anchor="middle" font-family="monospace">visions + patterns</text>
+    <text x="684" y="212" fill="#59cbff" font-size="9" text-anchor="middle" font-family="monospace">→ carte + preuves</text>
+    <text x="684" y="226" fill="#ff8098" font-size="9" text-anchor="middle" font-family="monospace">GÈLE les règles ⛔</text>
+    <line x1="684" y1="240" x2="684" y2="270" stroke="#59cbff" stroke-width="1.6" marker-end="url(#a)"/>
+    <text x="684" y="285" fill="#83a6d6" font-size="9.5" text-anchor="middle" font-family="monospace">→ BUILD (s9)</text>
+  </svg>
+  <div class="note">L'INTENTION (charter s0) traverse le PRISME (s1) qui la <b>refracte en agents-visions</b> (ambre = cible ; aujourd'hui s1 = 1 agent Opus). La <b>WIREMAP (s5)</b> recombine ces visions <b>+ les patterns du WORLD SCAN (s2)</b> en une carte constructible à preuves, puis <b>gèle le jeu de règles</b>. Triangle Prisme ↔ World Scan ↔ WireMap.</div>
+
+  <!-- ============================================================ B ============ -->
+  <h3>Coupe B · La pyramide — flux, revues, renvois (fouille → web → pool de builders)</h3>
+  <svg viewBox="0 0 1180 920" xmlns="http://www.w3.org/2000/svg" font-family="monospace">
+    <defs>
+      <marker id="bc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#59cbff"/></marker>
+      <marker id="ba" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#ffb454"/></marker>
+      <marker id="br" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#ff8098"/></marker>
+    </defs>
+
+    <rect x="400" y="14" width="380" height="42" rx="8" fill="rgba(183,156,255,.16)" stroke="#b79cff" stroke-width="1.6"/>
+    <text x="590" y="32" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="700">FABLE — DIRECTION / ORCHESTRATEUR</text>
+    <text x="590" y="47" text-anchor="middle" fill="#83a6d6" font-size="9">spawn via la porte · décide l'escalade · ne juge jamais</text>
+    <line x1="590" y1="56" x2="590" y2="72" stroke="#59cbff" stroke-width="1.6" marker-end="url(#bc)"/>
+    <rect x="430" y="74" width="320" height="26" rx="6" fill="none" stroke="#9fb3cf" stroke-dasharray="5 3"/>
+    <text x="590" y="91" text-anchor="middle" fill="#d3e6ff" font-size="9.5">porte prepare_dispatch — contrat complet ou pas d'agent</text>
+    <line x1="590" y1="100" x2="590" y2="122" stroke="#59cbff" stroke-width="1.6" marker-end="url(#bc)"/>
+
+    <rect x="30" y="124" width="1120" height="222" rx="8" fill="rgba(11,26,56,.55)" stroke="rgba(130,190,255,.28)"/>
+    <text x="44" y="142" fill="#59cbff" font-size="10" letter-spacing="2">ÉTAGE 1 · DESIGN</text>
+    <rect x="48" y="152" width="200" height="48" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><rect x="56" y="160" width="8" height="8" rx="2" fill="#7aa0ff"/>
+    <text x="70" y="169" fill="#d3e6ff" font-size="10.5" font-weight="700">s0 CONTRAT</text><text x="56" y="190" fill="#83a6d6" font-size="9">charter · actions interdites</text>
+    <line x1="248" y1="176" x2="268" y2="176" stroke="#59cbff" stroke-width="1.4" marker-end="url(#bc)"/>
+    <rect x="270" y="152" width="250" height="48" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-dasharray="6 3"/><rect x="278" y="160" width="8" height="8" rx="2" fill="#7aa0ff"/>
+    <text x="292" y="169" fill="#ffdca6" font-size="10.5" font-weight="700">s1 PRISME — PANEL ▷ Détail A</text><text x="278" y="190" fill="#83a6d6" font-size="9">CEO · GD · Front · Back · Joueur</text>
+    <line x1="520" y1="176" x2="540" y2="176" stroke="#59cbff" stroke-width="1.4" marker-end="url(#bc)"/>
+    <rect x="542" y="152" width="230" height="48" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><rect x="550" y="160" width="8" height="8" rx="2" fill="#4fd6c6"/>
+    <text x="564" y="169" fill="#d3e6ff" font-size="10.5" font-weight="700">s2 WORLD SCAN (web)</text><text x="550" y="190" fill="#83a6d6" font-size="9">patterns cités · advisory</text>
+    <line x1="772" y1="176" x2="792" y2="176" stroke="#59cbff" stroke-width="1.4" marker-end="url(#bc)"/>
+    <rect x="794" y="152" width="200" height="48" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><rect x="802" y="160" width="8" height="8" rx="2" fill="#7aa0ff"/>
+    <text x="816" y="169" fill="#d3e6ff" font-size="10.5" font-weight="700">s3 DÉCOMPO</text><text x="802" y="190" fill="#83a6d6" font-size="9">featuremap + preuves</text>
+    <path d="M894 200 L894 207 L158 207 L158 214" fill="none" stroke="#59cbff" stroke-width="1.4" marker-end="url(#bc)"/>
+    <path d="M395 200 L395 211 L420 211 L420 216" fill="none" stroke="#59cbff" stroke-width="1" stroke-dasharray="4 3"/>
+    <path d="M657 200 L657 213 L470 213 L470 216" fill="none" stroke="#59cbff" stroke-width="1" stroke-dasharray="4 3"/>
+    <rect x="48" y="216" width="220" height="48" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><rect x="56" y="224" width="8" height="8" rx="2" fill="#7aa0ff"/>
+    <text x="70" y="233" fill="#d3e6ff" font-size="10.5" font-weight="700">s4 ARCHITECTE</text><text x="56" y="254" fill="#83a6d6" font-size="9">blueprint · deps · ownership</text>
+    <line x1="268" y1="240" x2="288" y2="240" stroke="#59cbff" stroke-width="1.4" marker-end="url(#bc)"/>
+    <rect x="290" y="216" width="260" height="48" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff" stroke-width="2"/><rect x="298" y="224" width="8" height="8" rx="2" fill="#7aa0ff"/>
+    <text x="312" y="233" fill="#fff" font-size="10.5" font-weight="700">s5 WIREMAP ⟵ prisme + world-scan</text><text x="298" y="254" fill="#ff8098" font-size="9">recombine · GÈLE les règles ⛔</text>
+    <line x1="550" y1="240" x2="570" y2="240" stroke="#59cbff" stroke-width="1.4" marker-end="url(#bc)"/>
+    <rect x="572" y="216" width="250" height="48" rx="6" fill="rgba(89,203,255,.10)" stroke="#ffca6b"/><rect x="580" y="224" width="8" height="8" rx="2" fill="#ffca6b"/>
+    <text x="594" y="233" fill="#d3e6ff" font-size="10.5" font-weight="700">s6 RED-TEAM PLAN (Qwen)</text><text x="580" y="254" fill="#83a6d6" font-size="9">indépendant · REVUE du plan</text>
+    <rect x="844" y="216" width="150" height="48" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-dasharray="6 3"/><rect x="852" y="224" width="8" height="8" rx="2" fill="#7aa0ff"/>
+    <text x="866" y="233" fill="#ffdca6" font-size="10.5" font-weight="700">s2.5 ART BIBLE</text><text x="852" y="254" fill="#83a6d6" font-size="9">style lock</text>
+    <path d="M697 264 L697 278 L158 278 L158 266" fill="none" stroke="#ffca6b" stroke-width="1.2" stroke-dasharray="5 3" marker-end="url(#ba)"/>
+    <text x="420" y="290" fill="#ffca6b" font-size="9">↺ « GO si corrigé » → le plan repasse (s4/s5) avant build</text>
+
+    <line x1="590" y1="346" x2="590" y2="364" stroke="#59cbff" stroke-width="1.6" marker-end="url(#bc)"/>
+
+    <rect x="30" y="366" width="1120" height="252" rx="8" fill="rgba(11,26,56,.55)" stroke="rgba(130,190,255,.28)"/>
+    <text x="44" y="384" fill="#59cbff" font-size="10" letter-spacing="2">ÉTAGE 2 · BUILD — FOUILLE → WEB → POOL (fin du from-scratch)</text>
+    <rect x="48" y="394" width="250" height="64" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-dasharray="6 3"/>
+    <text x="60" y="412" fill="#ffdca6" font-size="10.5" font-weight="700">① FOUILLE BIBLIOTHÈQUE</text>
+    <text x="60" y="428" fill="#83a6d6" font-size="9">search.mjs — filtres déterministes</text>
+    <text x="60" y="442" fill="#83a6d6" font-size="9">knowledge_base/catalog.json</text>
+    <line x1="298" y1="426" x2="328" y2="426" stroke="#ffb454" stroke-width="1.4" marker-end="url(#ba)"/>
+    <text x="313" y="418" fill="#ffb454" font-size="9" text-anchor="middle">manque ?</text>
+    <rect x="330" y="394" width="250" height="64" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-dasharray="6 3"/>
+    <text x="342" y="412" fill="#ffdca6" font-size="10.5" font-weight="700">② RETOUR WEB (delta)</text>
+    <text x="342" y="428" fill="#83a6d6" font-size="9">world-scan ciblé du manquant · cité</text>
+    <text x="342" y="442" fill="#ff8098" font-size="9">ingestion / download = gate Pierre ⛔</text>
+    <line x1="580" y1="426" x2="610" y2="426" stroke="#ffb454" stroke-width="1.4" marker-end="url(#ba)"/>
+    <rect x="612" y="382" width="330" height="108" rx="7" fill="rgba(255,180,84,.10)" stroke="#ffb454" stroke-width="1.8" stroke-dasharray="7 3"/>
+    <text x="624" y="400" fill="#ffdca6" font-size="10.5" font-weight="700">③ POOL DE BUILDERS — 1 par module</text>
+    <rect x="624" y="410" width="96" height="32" rx="5" fill="rgba(79,214,198,.12)" stroke="#4fd6c6"/><text x="672" y="424" text-anchor="middle" fill="#d3e6ff" font-size="9">moteur</text><text x="672" y="436" text-anchor="middle" fill="#83a6d6" font-size="8">haiku ↑</text>
+    <rect x="728" y="410" width="96" height="32" rx="5" fill="rgba(79,214,198,.12)" stroke="#4fd6c6"/><text x="776" y="424" text-anchor="middle" fill="#d3e6ff" font-size="9">niveau/gen</text><text x="776" y="436" text-anchor="middle" fill="#83a6d6" font-size="8">haiku ↑</text>
+    <rect x="832" y="410" width="96" height="32" rx="5" fill="rgba(79,214,198,.12)" stroke="#4fd6c6"/><text x="880" y="424" text-anchor="middle" fill="#d3e6ff" font-size="9">UI/render</text><text x="880" y="436" text-anchor="middle" fill="#83a6d6" font-size="8">haiku ↑</text>
+    <text x="624" y="462" fill="#83a6d6" font-size="9">borné par l'OWNERSHIP du blueprint (sharding naturel)</text>
+    <text x="624" y="476" fill="#59cbff" font-size="9">pool.py construit (best-of-N même tier) — 2026-07-13</text>
+    <line x1="942" y1="426" x2="972" y2="426" stroke="#ffb454" stroke-width="1.4" marker-end="url(#ba)"/>
+    <rect x="974" y="394" width="160" height="64" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-dasharray="6 3"/>
+    <text x="986" y="414" fill="#ffdca6" font-size="10.5" font-weight="700">④ s8 HABILLAGE</text>
+    <text x="986" y="430" fill="#83a6d6" font-size="9">assets · agent aveugle</text>
+    <text x="986" y="444" fill="#83a6d6" font-size="9">peau sur ancres math</text>
+    <path d="M173 458 L173 508 L660 508 L660 492" fill="none" stroke="#ffb454" stroke-width="1.2" marker-end="url(#ba)"/>
+    <text x="330" y="522" fill="#ffb454" font-size="9">pièces trouvées → IMPORT RÉEL (jamais de copie) → seuls les deltas se codent</text>
+
+    <line x1="590" y1="618" x2="590" y2="634" stroke="#59cbff" stroke-width="1.6" marker-end="url(#bc)"/>
+
+    <rect x="30" y="636" width="1120" height="116" rx="8" fill="rgba(11,26,56,.55)" stroke="rgba(130,190,255,.28)"/>
+    <text x="44" y="654" fill="#59cbff" font-size="10" letter-spacing="2">ÉTAGE 3 · PROVE — oracles déterministes · red-team advisory</text>
+    <rect x="48" y="662" width="205" height="50" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><text x="60" y="680" fill="#d3e6ff" font-size="10" font-weight="700">s10a ORACLE CODE</text><text x="60" y="700" fill="#83a6d6" font-size="8.5">tests·e2e·mutation·solva</text>
+    <line x1="253" y1="687" x2="268" y2="687" stroke="#59cbff" stroke-width="1.3" marker-end="url(#bc)"/>
+    <rect x="270" y="662" width="205" height="50" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><text x="282" y="680" fill="#d3e6ff" font-size="10" font-weight="700">s10b ORACLE ARCHI</text><text x="282" y="700" fill="#83a6d6" font-size="8.5">deps AST · rouge = ⛔</text>
+    <line x1="475" y1="687" x2="490" y2="687" stroke="#59cbff" stroke-width="1.3" marker-end="url(#bc)"/>
+    <rect x="492" y="662" width="205" height="50" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><text x="504" y="680" fill="#d3e6ff" font-size="10" font-weight="700">s10c ORACLE WIREMAP</text><text x="504" y="700" fill="#83a6d6" font-size="8.5">carte↔code · règle disparue ⛔</text>
+    <line x1="697" y1="687" x2="712" y2="687" stroke="#59cbff" stroke-width="1.3" marker-end="url(#bc)"/>
+    <rect x="714" y="662" width="205" height="50" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><text x="726" y="680" fill="#d3e6ff" font-size="10" font-weight="700">s11 RED-TEAM CODE</text><text x="726" y="700" fill="#83a6d6" font-size="8.5">aveuglé · advisory · flags</text>
+    <line x1="919" y1="687" x2="934" y2="687" stroke="#59cbff" stroke-width="1.3" marker-end="url(#bc)"/>
+    <rect x="936" y="662" width="198" height="50" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff" stroke-width="2"/><text x="948" y="680" fill="#fff" font-size="10" font-weight="700">s12 VERDICT SIGNÉ</text><text x="948" y="700" fill="#83a6d6" font-size="8.5">HMAC · is_clean_pass</text>
+    <text x="48" y="742" fill="#83a6d6" font-size="9">annexe : s10d capteur visuel (advisory) · cible <tspan fill="#ffb454">Role-Sim (bande de difficulté)</tspan></text>
+    <path d="M150 662 L150 545 L660 545 L660 528" fill="none" stroke="#ffb454" stroke-width="1.3" stroke-dasharray="6 3" marker-end="url(#ba)"/>
+    <text x="330" y="540" fill="#ffb454" font-size="9">↺ oracle rouge → RE-BUILD · escalade ×2 max (haiku→sonnet→opus) puis remontée Pierre</text>
+
+    <!-- ★ TABLE DES BILANS (case spéciale, cible) -->
+    <rect x="30" y="772" width="430" height="56" rx="7" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-width="1.8" stroke-dasharray="7 3"/>
+    <text x="44" y="792" fill="#ffdca6" font-size="10.5" font-weight="700">★ TABLE DES BILANS — chat multi-LLM (cible)</text>
+    <text x="44" y="808" fill="#83a6d6" font-size="9">GPT · Gemini · Qwen · Claude déposent leurs bilans → lab/reports/bilans/</text>
+    <text x="44" y="821" fill="#83a6d6" font-size="8.5">raccord mémoire : propose-only · nourrit le PILOU · lu par Pierre</text>
+    <path d="M816 712 L816 744 L245 744 L245 770" fill="none" stroke="#ffb454" stroke-width="1.1" stroke-dasharray="5 3" marker-end="url(#ba)"/>
+    <path d="M245 828 L245 844" fill="none" stroke="#ffb454" stroke-width="1.3" marker-end="url(#ba)"/>
+
+    <path d="M372 712 L372 758 L500 758 L500 844" fill="none" stroke="#ff8098" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#br)"/>
+    <text x="560" y="764" fill="#ff8098" font-size="9">⛔ STOP dur → BLOCKED</text>
+    <path d="M1035 712 L1035 844" fill="none" stroke="#59cbff" stroke-width="1.6" marker-end="url(#bc)"/>
+
+    <rect x="30" y="846" width="1120" height="46" rx="8" fill="rgba(255,128,152,.14)" stroke="#ff8098" stroke-width="1.6"/>
+    <text x="590" y="865" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">FONDATION · HUMANGATE — PIERRE</text>
+    <text x="590" y="880" text-anchor="middle" fill="#83a6d6" font-size="9">ratifie / rejette / gèle · seul décideur de merge</text>
+    <path d="M30 868 L14 868 L14 35 L398 35" fill="none" stroke="#ff8098" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#br)"/>
+    <text x="22" y="450" fill="#ff8098" font-size="9" transform="rotate(-90 22 450)">↺ reject / objection → Fable</text>
+  </svg>
+
+  <!-- ============================================================ C ============ -->
+  <h3>Nomenclature C · Flux mémoire par agent — lit (pointillé) · écrit (plein) · zones fixes du repo</h3>
+  <svg viewBox="0 0 1180 720" xmlns="http://www.w3.org/2000/svg" font-family="monospace">
+    <defs>
+      <marker id="cc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#59cbff"/></marker>
+      <marker id="ca" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#ffb454"/></marker>
+      <marker id="cr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#ff8098"/></marker>
+    </defs>
+
+    <g font-size="10">
+      <rect x="40" y="26" width="240" height="38" rx="6" fill="rgba(183,156,255,.16)" stroke="#b79cff"/><text x="52" y="43" fill="#fff" font-weight="700">FABLE</text><text x="52" y="56" fill="#83a6d6" font-size="8.5">orchestre · audite</text>
+      <rect x="40" y="84" width="240" height="38" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><text x="52" y="101" fill="#d3e6ff" font-weight="700">s0 CONTRAT</text><text x="52" y="114" fill="#83a6d6" font-size="8.5">lit le PILOU (pré-mortem)</text>
+      <rect x="40" y="142" width="240" height="38" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-dasharray="5 3"/><text x="52" y="159" fill="#ffdca6" font-weight="700">s1 PRISME (panel ×5)</text><text x="52" y="172" fill="#83a6d6" font-size="8.5">CEO·GD·Front·Back·Joueur</text>
+      <rect x="40" y="200" width="240" height="38" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><text x="52" y="217" fill="#d3e6ff" font-weight="700">s2 WORLD SCAN</text><text x="52" y="230" fill="#83a6d6" font-size="8.5">web cité · advisory</text>
+      <rect x="40" y="258" width="240" height="38" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><text x="52" y="275" fill="#d3e6ff" font-weight="700">s3·s4·s5 DESIGN→WIREMAP</text><text x="52" y="288" fill="#83a6d6" font-size="8.5">featuremap·blueprint·gel</text>
+      <rect x="40" y="316" width="240" height="38" rx="6" fill="rgba(89,203,255,.10)" stroke="#ffca6b"/><text x="52" y="333" fill="#d3e6ff" font-weight="700">s6 RED-TEAM PLAN (Qwen)</text><text x="52" y="346" fill="#83a6d6" font-size="8.5">revue indépendante</text>
+      <rect x="40" y="374" width="240" height="38" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-dasharray="5 3"/><text x="52" y="391" fill="#ffdca6" font-weight="700">POOL BUILDERS (s9 ×N)</text><text x="52" y="404" fill="#83a6d6" font-size="8.5">1/module · escalade ×2</text>
+      <rect x="40" y="432" width="240" height="38" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><text x="52" y="449" fill="#d3e6ff" font-weight="700">ORACLES s10a/b/c (+s11)</text><text x="52" y="462" fill="#83a6d6" font-size="8.5">preuves · zéro LLM</text>
+      <rect x="40" y="490" width="240" height="38" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff" stroke-width="2"/><text x="52" y="507" fill="#fff" font-weight="700">s12 VERDICT</text><text x="52" y="520" fill="#83a6d6" font-size="8.5">agrège les reçus · signe</text>
+      <rect x="40" y="566" width="240" height="44" rx="6" fill="rgba(255,128,152,.14)" stroke="#ff8098" stroke-width="1.6"/><text x="52" y="585" fill="#fff" font-weight="700">PIERRE — HUMANGATE</text><text x="52" y="600" fill="#83a6d6" font-size="8.5">seul écrivain de la référence</text>
+    </g>
+    <path d="M40 451 L22 451 L22 393 L38 393" fill="none" stroke="#ffb454" stroke-width="1.2" stroke-dasharray="5 3" marker-end="url(#ca)"/>
+    <text x="16" y="428" fill="#ffb454" font-size="8.5" transform="rotate(-90 16 428)">↺ ×2</text>
+    <path d="M40 335 L28 335 L28 277 L38 277" fill="none" stroke="#ffca6b" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#ca)"/>
+    <path d="M40 588 L8 588 L8 45 L38 45" fill="none" stroke="#ff8098" stroke-width="1.2" stroke-dasharray="6 4" marker-end="url(#cr)"/>
+
+    <g font-size="9.5">
+      <rect x="640" y="20" width="500" height="112" rx="7" fill="rgba(14,32,68,.7)" stroke="#59cbff"/>
+      <text x="654" y="38" fill="#59cbff" font-weight="700">lab/forge_runs/&lt;projet&gt;/</text>
+      <text x="654" y="56" fill="#d3e6ff">artifacts/&lt;étape&gt;.txt · wiremap_frozen.json</text>
+      <text x="654" y="72" fill="#d3e6ff">verdict.json</text>
+      <text x="654" y="92" fill="#4fd6c6" class="live">state.json — cœur du plan VIVANT (statut par étape)</text>
+      <text x="654" y="108" fill="#83a6d6" font-size="8.5">écrit par le driver, étape par étape → allume les cases</text>
+      <rect x="640" y="150" width="500" height="66" rx="7" fill="rgba(14,32,68,.7)" stroke="#59cbff"/>
+      <text x="654" y="168" fill="#59cbff" font-weight="700">lab/forge_evidence/</text>
+      <text x="654" y="186" fill="#d3e6ff">oracle_*.log · forge_telemetry.jsonl · dispatch_audit.jsonl</text>
+      <text x="654" y="202" fill="#83a6d6" font-size="8.5">preuves relues par verify_run (sceau non décoratif)</text>
+      <rect x="640" y="234" width="500" height="46" rx="7" fill="rgba(14,32,68,.7)" stroke="#59cbff"/>
+      <text x="654" y="252" fill="#59cbff" font-weight="700">llm-lego/knowledge/&lt;IMP&gt;.json</text>
+      <text x="654" y="268" fill="#83a6d6" font-size="8.5">packets web cités · gitignored · advisory-only</text>
+      <rect x="640" y="298" width="500" height="76" rx="7" fill="rgba(255,180,84,.08)" stroke="#ffb454" stroke-dasharray="6 3"/>
+      <text x="654" y="316" fill="#ffb454" font-weight="700">knowledge_base/  — LA BIBLIOTHÈQUE</text>
+      <text x="654" y="334" fill="#d3e6ff">catalog.json · search.mjs (construit) · proofs/ · assets|systems|patterns</text>
+      <text x="654" y="350" fill="#83a6d6" font-size="8.5">admission kb-validate · candidate→validated = preuve de gate vert</text>
+      <rect x="640" y="392" width="500" height="46" rx="7" fill="rgba(14,32,68,.7)" stroke="#59cbff"/>
+      <text x="654" y="410" fill="#59cbff" font-weight="700">games/&lt;jeu&gt;/*</text>
+      <text x="654" y="426" fill="#83a6d6" font-size="8.5">le produit : moteur + UI + run-oracle.mjs + solvability + e2e</text>
+      <rect x="640" y="456" width="500" height="46" rx="7" fill="rgba(14,32,68,.7)" stroke="#59cbff"/>
+      <text x="654" y="474" fill="#59cbff" font-weight="700">lab/reports/forge_*.jsonl</text>
+      <text x="654" y="490" fill="#83a6d6" font-size="8.5">propose-only : kaizen · projets · journal d'erreurs (PILOU)</text>
+      <rect x="640" y="516" width="500" height="50" rx="7" fill="rgba(255,180,84,.08)" stroke="#ffb454" stroke-width="1.6" stroke-dasharray="7 3"/>
+      <text x="654" y="534" fill="#ffb454" font-weight="700">★ lab/reports/bilans/ — TABLE MULTI-LLM (cible)</text>
+      <text x="654" y="550" fill="#83a6d6" font-size="8.5">bilans GPT · Gemini · Qwen · Claude — propose-only · nourrit le PILOU</text>
+      <rect x="640" y="584" width="500" height="66" rx="7" fill="rgba(255,128,152,.08)" stroke="#ff8098" stroke-width="1.6"/>
+      <text x="654" y="602" fill="#ff8098" font-weight="700">🔒 RÉFÉRENCE — écrite par Pierre SEUL</text>
+      <text x="654" y="620" fill="#d3e6ff">lab/chains/IMPROVEMENT_LEDGER.yaml · memory/ · studio_brain/</text>
+      <text x="654" y="636" fill="#83a6d6" font-size="8.5">les agents PROPOSENT · jamais d'écriture directe</text>
+    </g>
+
+    <path d="M280 45 C 460 45 500 176 638 178" fill="none" stroke="#59cbff" stroke-width="1.2" marker-end="url(#cc)"/>
+    <path d="M638 478 C 430 478 430 112 282 110" fill="none" stroke="#59cbff" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#cc)"/>
+    <path d="M280 96 C 470 96 490 48 638 48" fill="none" stroke="#59cbff" stroke-width="1.2" marker-end="url(#cc)"/>
+    <path d="M638 58 C 480 58 470 152 282 152" fill="none" stroke="#59cbff" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#cc)"/>
+    <path d="M280 166 C 480 166 500 66 638 66" fill="none" stroke="#ffb454" stroke-width="1.2" marker-end="url(#ca)"/>
+    <path d="M638 74 C 480 74 480 208 282 208" fill="none" stroke="#59cbff" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#cc)"/>
+    <path d="M280 226 C 470 226 480 256 638 256" fill="none" stroke="#59cbff" stroke-width="1.2" marker-end="url(#cc)"/>
+    <path d="M638 82 C 486 82 480 266 282 266" fill="none" stroke="#59cbff" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#cc)"/>
+    <path d="M280 284 C 500 284 520 90 638 88" fill="none" stroke="#59cbff" stroke-width="1.2" marker-end="url(#cc)"/>
+    <path d="M638 96 C 500 96 500 324 282 324" fill="none" stroke="#59cbff" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#cc)"/>
+    <path d="M280 340 C 520 340 540 100 638 100" fill="none" stroke="#59cbff" stroke-width="1.2" marker-end="url(#cc)"/>
+    <path d="M280 348 C 500 350 540 534 638 536" fill="none" stroke="#ffb454" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ca)"/>
+    <path d="M638 104 C 510 104 500 382 282 382" fill="none" stroke="#59cbff" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#cc)"/>
+    <path d="M638 330 C 480 330 470 390 282 390" fill="none" stroke="#ffb454" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#ca)"/>
+    <text x="452" y="352" fill="#ffb454" font-size="8.5">fouille (search) + import réel</text>
+    <path d="M280 402 C 480 402 500 414 638 414" fill="none" stroke="#59cbff" stroke-width="1.3" marker-end="url(#cc)"/>
+    <path d="M280 410 C 520 412 540 360 638 356" fill="none" stroke="#ffb454" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ca)"/>
+    <text x="500" y="378" fill="#ffb454" font-size="8.5">propose candidate</text>
+    <path d="M638 420 C 490 420 480 442 282 442" fill="none" stroke="#59cbff" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#cc)"/>
+    <path d="M280 456 C 520 456 540 196 638 194" fill="none" stroke="#59cbff" stroke-width="1.3" marker-end="url(#cc)"/>
+    <path d="M638 204 C 520 204 500 498 282 498" fill="none" stroke="#59cbff" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#cc)"/>
+    <path d="M280 512 C 540 512 560 74 638 72" fill="none" stroke="#59cbff" stroke-width="1.3" marker-end="url(#cc)"/>
+    <path d="M638 68 C 560 68 560 574 282 574" fill="none" stroke="#59cbff" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#cc)"/>
+    <path d="M638 540 C 520 540 500 582 282 582" fill="none" stroke="#ffb454" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#ca)"/>
+    <path d="M638 484 C 520 484 510 592 282 592" fill="none" stroke="#59cbff" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#cc)"/>
+    <path d="M282 602 C 480 612 540 616 638 614" fill="none" stroke="#ff8098" stroke-width="1.5" marker-end="url(#cr)"/>
+    <text x="60" y="680" fill="#83a6d6" font-size="9">pointillé = LIT · plein = ÉCRIT · <tspan fill="#ffb454">ambre = cible (fouille · propose · panel · bilans ★)</tspan> · <tspan fill="#ff8098">rouge = référence/stop</tspan> · ↺ gauche : renvois (oracles→builders ×2 · s6→plan · Pierre→Fable)</text>
+    <text x="60" y="696" fill="#83a6d6" font-size="9">modèles : scripts/forge/contracts/roles.yaml · contrats : scripts/forge/contracts/&lt;étape&gt;.yaml (16 champs)</text>
+  </svg>
+
+  <!-- ============================================================ E ============ -->
+  <h3>Détail E · L'ARBRE — MCTS sur le workflow (le studio comme échiquier)</h3>
+  <svg viewBox="0 0 1180 440" xmlns="http://www.w3.org/2000/svg" font-family="monospace">
+    <defs>
+      <marker id="ec" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#59cbff"/></marker>
+      <marker id="ea" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#ffb454"/></marker>
+      <marker id="er" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#ff8098"/></marker>
+    </defs>
+    <!-- racine -->
+    <rect x="34" y="168" width="256" height="66" rx="8" fill="rgba(89,203,255,.10)" stroke="#59cbff" stroke-width="2"/>
+    <text x="46" y="188" fill="#fff" font-size="11" font-weight="700">RACINE — WORKFLOW ACTUEL</text>
+    <text x="46" y="204" fill="#83a6d6" font-size="9">= la POSITION · branche CONTRÔLE</text>
+    <text x="46" y="219" fill="#83a6d6" font-size="9">même input · seeds figés</text>
+    <!-- coups -->
+    <g stroke="#ffb454" stroke-width="1.3">
+      <path d="M290 185 C 330 185 330 90 368 88" fill="none" marker-end="url(#ea)"/>
+      <path d="M290 201 C 330 201 330 201 368 201" fill="none" marker-end="url(#ea)"/>
+      <path d="M290 217 C 330 217 330 314 368 312" fill="none" marker-end="url(#ea)"/>
+    </g>
+    <text x="298" y="160" fill="#ffb454" font-size="8.5">coups = 1 mutation</text>
+    <text x="298" y="172" fill="#ffb454" font-size="8.5">bornée du schéma</text>
+    <rect x="370" y="62" width="212" height="50" rx="7" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-dasharray="6 3"/>
+    <text x="382" y="82" fill="#ffdca6" font-size="10" font-weight="700">coup A · prisme → panel ×5</text>
+    <text x="382" y="98" fill="#83a6d6" font-size="8.5">prior : bilans tri-IA · n=0</text>
+    <rect x="370" y="176" width="212" height="50" rx="7" fill="rgba(255,180,84,.16)" stroke="#ffb454" stroke-width="1.8" stroke-dasharray="6 3"/>
+    <text x="382" y="196" fill="#ffdca6" font-size="10" font-weight="700">coup B · builder → POOL</text>
+    <text x="382" y="212" fill="#83a6d6" font-size="8.5">prior : PILOU (s9 sature) · n=1 ►</text>
+    <rect x="370" y="288" width="212" height="50" rx="7" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-dasharray="6 3"/>
+    <text x="382" y="308" fill="#ffdca6" font-size="10" font-weight="700">coup C · world-scan élargi</text>
+    <text x="382" y="324" fill="#83a6d6" font-size="8.5">prior : faible · n=0</text>
+    <!-- rollout du coup exploité -->
+    <line x1="582" y1="201" x2="636" y2="201" stroke="#ffb454" stroke-width="1.4" marker-end="url(#ea)"/>
+    <rect x="638" y="152" width="240" height="98" rx="7" fill="rgba(89,203,255,.10)" stroke="#59cbff"/>
+    <text x="650" y="172" fill="#fff" font-size="10.5" font-weight="700">ROLLOUT = RUN FORKÉ</text>
+    <text x="650" y="190" fill="#d3e6ff" font-size="9">fork TARDIF : s0→s5 en cache</text>
+    <text x="650" y="205" fill="#d3e6ff" font-size="9">(on fork le fil, pas l'input)</text>
+    <text x="650" y="220" fill="#83a6d6" font-size="8.5">petits modèles · escalade ×2 max</text>
+    <text x="650" y="235" fill="#83a6d6" font-size="8.5">budget rollouts plafonné AVANT</text>
+    <!-- panel -->
+    <line x1="878" y1="201" x2="930" y2="201" stroke="#59cbff" stroke-width="1.4" marker-end="url(#ec)"/>
+    <rect x="932" y="130" width="216" height="142" rx="7" fill="rgba(89,203,255,.10)" stroke="#59cbff"/>
+    <text x="944" y="150" fill="#fff" font-size="10.5" font-weight="700">PANEL (récompense)</text>
+    <text x="944" y="168" fill="#d3e6ff" font-size="9">tokens/étape (télémétrie)</text>
+    <text x="944" y="183" fill="#d3e6ff" font-size="9">renvois ↺ · escalades</text>
+    <text x="944" y="198" fill="#d3e6ff" font-size="9">rendu visuel (s10d)</text>
+    <text x="944" y="213" fill="#d3e6ff" font-size="9">solvabilité + tours bot (durée*)</text>
+    <text x="944" y="228" fill="#ffb454" font-size="9">difficulté (Role-Sim, cible)</text>
+    <text x="944" y="243" fill="#d3e6ff" font-size="9">verdict · is_clean_pass</text>
+    <text x="944" y="261" fill="#83a6d6" font-size="8">* proxy honnête, pas des heures humaines</text>
+    <!-- backprop -->
+    <path d="M1040 130 C 1040 34 300 34 162 166" fill="none" stroke="#ffb454" stroke-width="1.2" stroke-dasharray="6 3" marker-end="url(#ea)"/>
+    <text x="560" y="28" fill="#ffb454" font-size="9">RÉTROPROPAGATION — le score remonte : PILOU (leçons _global_) + tableau des branches (n, score moyen)</text>
+    <!-- selection -->
+    <rect x="638" y="330" width="510" height="52" rx="8" fill="rgba(255,128,152,.14)" stroke="#ff8098" stroke-width="1.6"/>
+    <text x="893" y="352" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">SÉLECTION = HUMANGATE — PIERRE : keep / kill / re-explorer</text>
+    <text x="893" y="368" text-anchor="middle" fill="#83a6d6" font-size="8.5">pondérations du panel FIGÉES AVANT · le « fun » reste hors panel (jugement humain)</text>
+    <path d="M1040 272 L1040 328" fill="none" stroke="#ff8098" stroke-width="1.3" marker-end="url(#er)"/>
+    <text x="46" y="415" fill="#83a6d6" font-size="9">politique d'arbre : UCB à petit budget — explorer l'incertain (n faible), exploiter le prometteur (score haut) · 1 coup = 1 variable · branche contrôle TOUJOURS courue</text>
+    <text x="46" y="430" fill="#83a6d6" font-size="9">légitime PARCE QUE la récompense est un ORACLE (pas des vibes) — c'est l'acquis P0/P1 qui rend le MCTS possible · protocole : WORKFLOW_LAB_PROTOCOL.md</text>
+  </svg>
+
+  <div class="note"><b style="color:#d3e6ff">PLAN VIVANT (cible courte)</b> — le driver écrit déjà <code>state.json</code> avec le statut de chaque étape (PENDING/RUNNING/OK/FAIL). Une page <code>forge-live.html</code> qui lit ce fichier suffit à allumer les cases de CE plan pendant un run. Rien à inventer : un afficheur.<br>
+  <b style="color:#d3e6ff">★ TABLE DES BILANS (cible)</b> — la case « chat multi-LLM » : chaque LLM (GPT, Gemini, Qwen, Claude) dépose son bilan dans <code>lab/reports/bilans/</code> (propose-only, nourrit le PILOU, lu par Pierre au gate). Raccord avec la mémoire existante — aucune nouvelle infrastructure, un dossier + une convention de dépôt.<br>
+  <b style="color:#d3e6ff">♟ L'ARBRE (Détail E)</b> — MCTS à petit budget sur l'espace des workflows : coups = mutations de schéma (données, zéro token), rollouts = runs forkés tardivement (cache s0→s5), récompense = le panel d'oracles, sélection = Pierre. Le run dir étant un fil, forker un workflow = forker une conversation.</div>
+</div>
+</body>
+</html>
