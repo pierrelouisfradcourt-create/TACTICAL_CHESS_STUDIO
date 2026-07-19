@@ -1,0 +1,80 @@
+{
+  "project": "auto_battler_i1",
+  "run_id": "auto_battler_i1",
+  "software_verdict": "OK",
+  "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "decision": "HUMANGATE_READY_WITH_OBJECTION",
+  "oracles": {
+    "code": {
+      "oracle_id": "code",
+      "run_id": "auto_battler_i1",
+      "status": "OK",
+      "evidence_sha256": "5cc6ba08107fd9d4b6e6ba7b11c3dc7b59940748d69345974a48a8e54388fc0a",
+      "detail": {
+        "tests": 31,
+        "static_scan": "clean",
+        "returncode": 0
+      },
+      "ts": 1784452061.1364124,
+      "evidence_path": "lab\\forge_runs\\auto_battler_i1\\evidence\\code-oracle.txt"
+    },
+    "archi": {
+      "oracle_id": "archi",
+      "run_id": "auto_battler_i1",
+      "status": "OK",
+      "evidence_sha256": "",
+      "detail": {
+        "passed": true,
+        "deps_interdites_violées": [],
+        "modules_sans_test": [],
+        "debordements_ownership": {
+          "checked": false,
+          "items": []
+        }
+      },
+      "ts": 1784452061.1364124,
+      "evidence_path": ""
+    },
+    "wiremap": {
+      "oracle_id": "wiremap",
+      "run_id": "auto_battler_i1",
+      "status": "OK",
+      "evidence_sha256": "",
+      "detail": {
+        "wire": {
+          "passed": true,
+          "features_manquantes": [],
+          "fonctions_renommées": [],
+          "obsoletes": [],
+          "preuves_absentes": []
+        },
+        "gel_passed": true
+      },
+      "ts": 1784452061.1364124,
+      "evidence_path": ""
+    }
+  },
+  "redteam_reviewer": "qwen2.5-14b-instruct (plan) + claude-opus-4-8 (code)",
+  "redteam_ran": true,
+  "provenance_ok": true,
+  "git_head": "2dac36f11fad67cb04289714ccba55928be6b8b4",
+  "nonce": "b90ddd387d7f470318b9c7fde6c217bd",
+  "ts": 1784452061.1364124,
+  "redteam_advisory": [
+    "F1 HIGH Purity leak: createGameState shallow-copies players/entities",
+    "F2 MED serialize collapses Map/Set/Date to {} -> hash collision / s",
+    "F3 MED serialize on circular ref -> RangeError crash instead of typ",
+    "F4 MED Freeze contamination: shared eventLog element refs across st",
+    "F5 LOW serialize honors toJSON -> bypasses canonicalization.",
+    "F6 LOW BigInt throws V8-native error not the guarded one."
+  ],
+  "humangate_flags": [
+    "mutation 34/39 tues (87%) -- gate PASS avec EXCEPTION (5 survivants tries equivalents, doctrine P0.3 : jamais un OK propre)",
+    "red-team F1 [HIGH latent] fuite de purete (shallow copy) -- CORRIGEE (deepClone) + tests gate R22/R23 (echouent sur code d avant)",
+    "red-team F2/F3 [MED] serialize Map/Set/Date/cycle -- CORRIGE (reject non-plain + garde cycle) + tests R24/R25",
+    "red-team a REFUTE : RNG solide+vecteur d or, registres figes, P11 tient, canonicalisation cles stable",
+    "cross-machine hash (INV-19 volet 2 / oracle c) = FOG HumanGate -- aucun oracle machinerie (single-host)"
+  ],
+  "hmac": "6764b26c9408ef95ad240cd2ab65321c978985a6d10314aa2d80f8b3ab01db30"
+}

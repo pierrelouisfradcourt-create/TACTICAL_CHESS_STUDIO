@@ -1,0 +1,78 @@
+=== AUTO_BATTLER ENGINE ORACLE ===
+
+Phase 1: Static scan for forbidden patterns...
+  OK: engine/types.mjs
+  OK: engine/rng.mjs
+  OK: engine/registry.mjs
+  OK: engine/serialize.mjs
+  OK: engine/state.mjs
+  OK: engine/inputs.mjs
+  OK: engine/eventlog.mjs
+  OK: engine/transition.mjs
+  OK: engine/replay.mjs
+  OK: engine/match.mjs
+Scan PASSED: no forbidden patterns found
+
+Phase 2: Running logic tests (logic.test.mjs)...
+✔ R1: transition is deterministic (0.822ms)
+✔ R2: transition does not mutate input state (0.1718ms)
+✔ R3: RNG is deterministic (0.1002ms)
+✔ R4: replay is consistent and deterministic (0.9112ms)
+✔ R5: event log is append-only and immutable (0.1157ms)
+✔ R6: event kind registry is frozen and validated (0.2336ms)
+✔ R7: input kind registry and validation (0.1015ms)
+✔ R8: serialization rejects NaN/Infinity and normalizes -0 (0.1218ms)
+✔ R9: types exports only abstract identifiers (0.0943ms)
+✔ R10: runMatch completes with valid inputs (0.1555ms)
+✔ R11: RNG golden vector for seed 42 is pinned exactly (0.0987ms)
+✔ R12: RNG rejects non-integer numeric seed and state (0.0886ms)
+✔ R13: serialize sorts nested object keys alphabetically (0.1385ms)
+✔ R14: serialize handles null nested values safely; statesEqual both directions (0.1205ms)
+✔ R15: validateInput returns ok:false explicitly when kind is missing; ok:true for all known kinds (0.0872ms)
+✔ R16: applyInput phase transition is exact (0.0458ms)
+✔ R17: initState and createGameState validate inputs strictly (0.0779ms)
+✔ R18: freezeState deep-freezes nested arrays, objects, and grandchildren (0.1359ms)
+✔ R19: type predicates and ID makers are strict (0.1116ms)
+✔ R20: isState rejects each field individually while accepting a fully valid state (0.0541ms)
+✔ R21: runMatch validates seed strictly (0.0436ms)
+✔ R22: transition output shares no nested references with input (deep purity) (0.0699ms)
+✔ R23: eventLog elements share no references across states (deep purity) (0.0473ms)
+✔ R24: serialize rejects Map, Set, and Date instead of silently collapsing them (0.0944ms)
+✔ R25: serialize rejects circular references with a typed error, not a raw RangeError (0.0958ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 58.2803
+
+Logic tests PASSED
+
+Phase 3: Running properties tests (properties.test.mjs)...
+✔ Property: transition(state, inputs) is deterministic across multiple seeds (1.8611ms)
+✔ Property: replay is deterministic for various input sequences (2.0203ms)
+✔ Property: statesEqual is reflexive and symmetric (1.03ms)
+✔ Property: RNG state is always uint32 (0.2653ms)
+✔ Property: runMatch completes for random input sequences (0.4688ms)
+✔ Property: serialize is consistent for same state (0.2656ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 56.3786
+
+Properties tests PASSED
+
+=== ORACLE VERDICT: OK ===
+  Static scan: PASSED
+  Logic tests: PASSED
+  Properties tests: PASSED
+
+Auto_battler engine is deterministic, pure, and validated.
+
+EXIT=0

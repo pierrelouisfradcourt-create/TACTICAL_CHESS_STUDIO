@@ -1,0 +1,40 @@
+{
+  "patterns": [
+    {
+      "pattern": "Event Sourcing + Deterministic Replay",
+      "source_url": "https://nautilustrader.io/docs/latest/concepts/event_sourcing/",
+      "pertinence": "Modèle fondamental : chaque opération est un événement append-only stocké, et tout état futur est reproductible en rejouant le journal d'événements. Directement applicable à un EventLog immuable qui peut recréer l'état exact du jeu initial + inputs."
+    },
+    {
+      "pattern": "Deterministic Lockstep Simulation",
+      "source_url": "https://gafferongames.com/post/deterministic_lockstep/",
+      "pertinence": "Protocole classique RTS (Age of Empires, StarCraft) : chaque client simule localement en état identique sur tous les clients, synchronisé via inputs seedés. La logique métier est déterministe, PRNG a seed commun — même architecture que le noyau auto-battler replayable bit-exact."
+    },
+    {
+      "pattern": "Pure Reducer Pattern (Redux Principles)",
+      "source_url": "https://redux.js.org/tutorials/fundamentals/part-3-state-actions-reducers",
+      "pertinence": "Fonction pure transition(state, action) -> nextState sans mutations. Appels multiples des mêmes inputs = même résultat. Fondation de la reproductibilité pour un moteur déterministe ; permet undo/redo et time-travel par rejoue du journal d'actions."
+    },
+    {
+      "pattern": "PRNG Seeded dans l'État de Jeu",
+      "source_url": "https://davekoala.github.io/blog/code/deterministic-randomness-shuffling-with-seeds/",
+      "pertinence": "Stocker l'état PRNG comme partie du GameState permet rejoue bit-exact : même seed initial + même état PRNG à chaque étape = même séquence aléatoire. Critique pour un auto-battler où la randomité doit être rejouable via replay d'inputs."
+    },
+    {
+      "pattern": "Hearthstone Battlegrounds Simulators",
+      "source_url": "https://github.com/twanvl/hearthstone-battlegrounds-simulator",
+      "pertinence": "Référence vivante d'un jeu de stratégie déterministe auto-jouable : simulation détachée du client qui exécute les mêmes règles (transition + randomité seedée). Illustre game state hashing et simulation reproductible."
+    },
+    {
+      "pattern": "Headless Simulation Layer (Séparation Moteur/Rendu)",
+      "source_url": "https://medium.com/@jengas/a-blueprint-for-world-model-games-c15acdae79be",
+      "pertinence": "Architecture content-agnostic : moteur déterministe indépendant du rendu, communication via capture d'état pur. Permet replay serveur, test IA, vérification détachée — aligné avec la séparation simulation != UI de notre noyau."
+    },
+    {
+      "pattern": "State Snapshots & Canonical Serialization",
+      "source_url": "https://en.wikipedia.org/wiki/Snapshot_testing",
+      "pertinence": "Sérialisation canonique des GameState pour checkpointing. Essentiel pour snapshot-and-restore, validation oracle, et preuves reproductibles dans un système replay."
+    }
+  ],
+  "advisory": true
+}

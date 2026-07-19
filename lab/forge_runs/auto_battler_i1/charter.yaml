@@ -1,0 +1,61 @@
+# charter.yaml — run auto_battler_i1 (incrément 1 engine-core)
+# Produit par Forge s0-contrat (opus), à partir de la portée ratifiée HumanGate #4 (2026-07-18).
+objectif: >-
+  Implémenter le noyau moteur (engine-core) de l'incrément 1 du projet auto_battler :
+  une boucle de simulation déterministe et PURE respectant État(t) + Entrées(t) = État(t+1)
+  (INV-1, INV-3), capable de faire tourner un Match composé d'états et d'entrées MÊME SI
+  aucune règle de jeu n'est encore implémentée. Le noyau livre exactement et uniquement les
+  invariants déjà verrouillés dans les Core Rules : (1) un GameState complet et sérialisable
+  contenant rng_state comme composante ; (2) rng_state seedé à l'init SEULEMENT, jamais
+  re-seedé (INV-2) et n'évoluant que sur consommation par une règle autorisée ; (3) un
+  EventLog, journal ordonné d'Events, seule interface vers un futur Renderer (INV-5) ;
+  (4) la liste CLOSE des 7 Inputs — Buy, Sell, Reroll, Lock, LevelUp, Place,
+  ConfirmPreparation (INV-13, Merge n'étant PAS un Input) — chacun produisant une transition
+  valide OU un rejet déterministe ; (5) la sérialisation / désérialisation canonique de
+  l'état et un système de replay (état initial + journal d'Inputs → même état final au bit
+  près, INV-4) ; (6) les hooks Oracle validant INV-1..5, INV-12 (registre fermé des 19
+  Events), INV-13, INV-19 (aucun état implicite). Architecture strictement content-agnostic
+  (P11) : uniquement les abstractions génériques EntityId, PlayerId, Input, Event, State.
+hors_scope:
+  - "Combat : aucune résolution de combat, aucun tick de bataille, aucun calcul de dégâts ou de vie."
+  - "Economy : aucune économie, aucun revenu, aucun intérêt, aucune ressource monétaire simulée."
+  - "Shop : aucune boutique, aucune offre, aucun coût d'achat."
+  - "Pool : aucun pool partagé d'unités, aucune probabilité de tirage."
+  - "Bench : aucun banc, aucune zone de réserve gérée par des règles."
+  - "Mana : aucun système de mana ni de ressource de capacité."
+  - "Meta : aucune méta-progression, aucun classement, aucun cross-partie."
+  - "Balance : aucun réglage d'équilibrage, aucune valeur numérique de gameplay."
+  - "DSL runtime : aucun interpréteur/exécuteur de DSL de contenu."
+  - "Pairing : aucun appariement de joueurs, aucun round-robin, aucun matchmaking."
+  - "Ghost Board : aucun plateau fantôme, aucune copie d'adversaire."
+  - "Renderer : aucun rendu, aucune sortie visuelle (l'EventLog est la seule interface prévue vers un futur Renderer, mais le Renderer lui-même est hors périmètre)."
+  - "UI : aucune interface utilisateur, aucun contrôle interactif."
+  - "Tout contenu de jeu : aucune unité, aucune capacité, aucun objet, aucun trait, aucune règle de gameplay concrète."
+  - "Toute connaissance de types de contenu (P11) : le noyau n'introduit jamais Warrior, Mage, Origin, Trait ni Item — abstractions génériques uniquement."
+  - "Toute valeur marquée TBD dans les bibles (Life initiale, tick_limit, dimensions du Board, etc.) : elle reste en fog HumanGate, jamais posée en constante."
+  - "Si l'un de ces concepts devient nécessaire pour finir i1, c'est une DÉRIVE DE PÉRIMÈTRE = STOP."
+criteres_succes:
+  - "C1 — GameState : la structure est complète et sérialisable (elle contient rng_state comme composante), et se désérialise en un état équivalent au bit près."
+  - "C2 — Transitions : chacun des 7 Inputs (Buy, Sell, Reroll, Lock, LevelUp, Place, ConfirmPreparation) produit soit une transition valide, soit un rejet déterministe ; aucun comportement non déterministe."
+  - "C3 — Replay : rejouer l'état initial + le journal d'Inputs reproduit EXACTEMENT le même état final."
+  - "C4 — Oracles : les oracles INV-1 (transition pure), INV-2 (rng_state seedé une seule fois), INV-3 (déterminisme État(t)+Entrées(t)=État(t+1)), INV-4 (replay fidèle), INV-5 (EventLog seule interface Renderer), INV-12 (registre fermé des 19 Events), INV-13 (liste close des 7 Inputs), INV-19 (aucun état implicite) passent tous."
+  - "C5 — Architecture P11 : le noyau est content-agnostic — aucun type de contenu concret, uniquement EntityId, PlayerId, Input, Event, State."
+  - "Oracle (a) : même état initial + mêmes Inputs → même GameState final au bit près (automatisé, même machine)."
+  - "Oracle (b) : le replay reproduit l'état final (automatisé)."
+  - "Oracle (c) : volet même-machine de la reproductibilité du hash final via sérialisation canonique = automatisé ; l'égalité cross-machine du hash est remontée en fog HumanGate honnête, jamais claimée, sans machinerie d'oracle."
+  - "Oracle (d) : chaque Input mène à une transition valide OU à un rejet déterministe (automatisé)."
+  - "Oracle (e) : rng_state n'évolue que sur consommation par une règle autorisée (automatisé)."
+  - "Résultat normal explicite : l'ABSENCE de preuve sur combat / économie / unités / DSL / gameplay est un succès attendu de i1, PAS un échec."
+actions_interdites:
+  - "Implémenter Combat, Economy, Shop, Pool, Bench, Mana, Meta, Balance, DSL runtime, Pairing, Ghost Board, Renderer ou UI, en tout ou partie."
+  - "Introduire une unité, un contenu, ou une règle de gameplay concrète, de quelque nature que ce soit."
+  - "Violer P11 en référençant un type de contenu concret (Warrior, Mage, Origin, Trait, Item) au lieu des abstractions génériques (EntityId, PlayerId, Input, Event, State)."
+  - "Ajouter un 8e Input ou traiter Merge comme un Input : la liste des 7 Inputs est CLOSE (INV-13)."
+  - "Re-seeder rng_state après l'init, ou le faire évoluer autrement que par consommation d'une règle autorisée (INV-2)."
+  - "Utiliser Date.now, Math.random, performance.now ou setTimeout : seul rng_state fait foi comme source d'entropie / de temps."
+  - "Inventer / poser une valeur marquée TBD dans les bibles (Life initiale, tick_limit, dimensions du Board…) : la remonter en fog HumanGate au lieu d'une constante arbitraire."
+  - "Créer un canal de sortie ou d'état hors de l'EventLog (INV-5) ou introduire un état implicite non porté par le GameState (INV-19)."
+  - "Claimer une reproductibilité cross-machine du hash : elle reste en fog HumanGate, sans oracle."
+  - "Modifier tests/** (zone protégée), games/auto_battler/bibles/** (lecture seule), scripts/** ou .claude/**."
+  - "Exécuter tout git commit ou git push : décision HumanGate (Pierre) exclusivement."
+  - "Continuer si un concept hors périmètre devient nécessaire pour finir i1 : c'est une dérive de périmètre → STOP et remontée HumanGate."
