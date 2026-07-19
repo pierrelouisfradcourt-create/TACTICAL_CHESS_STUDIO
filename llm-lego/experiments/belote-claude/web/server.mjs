@@ -78,7 +78,11 @@ const server = createServer(async (req, res) => {
       const body = await readJson(req);
       const seed = Number.isFinite(+body.seed) ? +body.seed : 1;
       const target = Number.isFinite(+body.target) ? +body.target : 501;
-      game = new BeloteDriver({ seed, target });
+      // startDealer=3 place l'humain (siège 0) en tête (eldestOrder(3) = [0,1,2,3]) :
+      // c'est lui qui enchérit et entame le 1er pli de la 1re donne — plus dynamique
+      // que d'attendre que l'IA joue en premier. N'affecte QUE le jeu web (le CLI et
+      // verify-parity.mjs gardent le défaut startDealer=0 du driver).
+      game = new BeloteDriver({ seed, target, startDealer: 3 });
       return send(res, 200, game.view());
     }
 

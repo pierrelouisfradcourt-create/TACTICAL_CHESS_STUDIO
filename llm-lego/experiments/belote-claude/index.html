@@ -59,10 +59,10 @@
     .chip::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--teamB); }
     .chip.us::before { background: var(--teamA); }
     .chip .row { display: flex; align-items: baseline; gap: 6px; }
-    .chip .lbl { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .chip .val { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--cream); margin-left: auto; }
+    .chip .lbl { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chip .val { font-family: var(--font-display); font-size: 28px; font-weight: 700; color: var(--cream); margin-left: auto; }
     .chip.lead .val { color: var(--brass-hi); }
-    .chip .ann { font-size: 10.5px; line-height: 1.15; margin-top: 1px; min-height: 12px; color: #ffe0a3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chip .ann { font-size: 12.5px; line-height: 1.2; margin-top: 1px; min-height: 14px; color: #ffe0a3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .chip .ann.empty { color: transparent; }
     .hud-actions { display: flex; align-items: center; gap: 6px; flex-basis: 100%; justify-content: center; }
     .hud-actions label { font-size: 10px; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 1px; }
@@ -99,8 +99,8 @@
     .pod { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 3px; width: 84px; z-index: 3; pointer-events: none; }
     .pod-N { top: -6px; left: 50%; transform: translate(-50%, -50%); }
     .pod-S { bottom: -6px; left: 50%; transform: translate(-50%, 50%); }
-    .pod-W { left: -6px; top: 50%; transform: translate(-50%, -50%); }
-    .pod-E { right: -6px; top: 50%; transform: translate(50%, -50%); }
+    .pod-W { left: 2px; top: 50%; transform: translate(0, -50%); }
+    .pod-E { right: 2px; top: 50%; transform: translate(0, -50%); }
     .avatar {
       width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-size: 24px;
       background: radial-gradient(circle at 35% 30%, #3a4a44, #1a2420);
@@ -609,6 +609,7 @@
       if (status !== 200) { showErr(data.error || "coup refusé"); if (data.state) render(data.state); return; }
       await apply(data);
     }
+    function randomSeed() { return Math.floor(Math.random() * 1e6) + 1; }
     async function newGame() {
       const seed = Number($("seed").value) || 1;
       const target = Number($("target").value) || 1000;
@@ -617,6 +618,7 @@
       $("gamePanel").classList.add("hidden");
       shown.clear(); trickEl.innerHTML = ""; lastWinner = null;
       const { data } = await api("/api/new", { seed, target });
+      $("seed").value = randomSeed(); // prépare une donne différente pour la prochaine partie
       await apply(data);
     }
 
@@ -687,6 +689,7 @@
       window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
     }
 
+    $("seed").value = randomSeed(); // partie différente dès le premier "Jouer", pas de rejeu fixe
     $("sortPref").value = sortPref;
     $("sortPref").addEventListener("change", () => {
       sortPref = $("sortPref").value;
