@@ -21,9 +21,9 @@
 
 | Connecteur | État |
 |---|---|
-| `lab/reports/forge_ledger_proposals.jsonl` | ⚠ dormant (retard 4.2 j) |
-| `lab/reports/forge_project_proposals.jsonl` | ⚠ dormant (retard 4.2 j) |
+| `lab/reports/forge_ledger_proposals.jsonl` | ✅ frais |
+| `lab/reports/forge_project_proposals.jsonl` | ✅ frais |
 | `lab/reports/forge_bible_proposals.jsonl` | · jamais écrit (informatif) |
 
-**Verdict global** : ⚠ DÉRIVE DÉTECTÉE (dérive doc : 0 · connecteurs dormants : 2)
+**Verdict global** : ✅ ALIGNÉ (dérive doc : 0 · connecteurs dormants : 0)
 
