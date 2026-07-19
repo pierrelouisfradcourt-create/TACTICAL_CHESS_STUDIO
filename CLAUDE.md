@@ -22,16 +22,23 @@ le mécanisme de vérité.
 
 ## Stack par lane
 
-### Lane STUDIO (autopilot.py)
+### Lane STUDIO (autopilot.py) — ❄️ GELÉE (ratifié Pierre 2026-07-19)
 
-* Fichier unique : autopilot.py (\~5200 lignes)
-* Serveur Flask + HTML inline dans les strings Python
-* Modele principal : Qwen2.5-14B (LM\_MODEL ligne 27)
-* Qwen3.6 INTERDIT pour JSON — thinking mode vide le content
-* LM Studio local port 1234
-* Boutons HTML dans les strings Python — pas de fichier HTML separe
-* Ne jamais creer de nouveaux fichiers pour cette lane
-* Ne jamais toucher src/ pour cette lane
+* **GEL** : aucune session de travail sur `autopilot.py`, `scripts/studioV2/`, `start_studio.ps1`,
+  `stop_studio.ps1` sans HumanGate explicite de Pierre. Ne pas corriger, ne pas étendre, ne pas
+  « améliorer en passant ». Lire est autorisé.
+* Périmètre du gel : `autopilot.py` (9029 lignes, inchangé depuis 2026-06-29) · `scripts/studioV2/`
+  (45 fichiers, inchangé depuis 2026-06-26) · les lanceurs `start_studio.ps1` / `stop_studio.ps1`.
+  **Hors gel** : `tests/studioV2/` (zone protégée, régime propre) et `repos/games/studioV2_MIGRATED_HOLD/` (déjà archivé).
+* Conséquence à connaître : `lab/agent_policy/*.json` (matrice de permissions 62 règles, forbidden\_surfaces,
+  autonomy\_levels…) n'est consommé QUE par cette lane → l'étage de politique et sa taxonomie
+  d'agents `producer/code/qa/review/docs` sont **legacy de fait**. Les taxonomies vivantes sont
+  `.claude/agents/` et les contrats Forge. Défaut connu et NON corrigé (gel) : `_check_tool_permission`
+  (autopilot.py ~l.843) ignore `agent_id` et échoue en mode ouvert, contredisant son `deny_by_default: true`.
+* Si le gel est un jour levé — contexte technique d'origine : serveur Flask, HTML inline dans les
+  strings Python (pas de fichier HTML séparé), modèle Qwen2.5-14B (`LM_MODEL`), LM Studio port 1234,
+  Qwen3.6 INTERDIT pour le JSON (thinking mode vide le content). Ne jamais créer de nouveaux fichiers
+  pour cette lane, ne jamais toucher `src/`.
 
 ### Lane ROCKY\_MOTEUR (Rust)
 

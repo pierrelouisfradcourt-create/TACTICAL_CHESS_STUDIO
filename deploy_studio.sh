@@ -60,90 +60,25 @@ EOF
 fi
 
 # ════════════════════════════════════════════════════════════
-# AGENTS Claude Code
+# AGENTS Claude Code — GÉNÉRATION RETIRÉE (2026-07-19)
 # ════════════════════════════════════════════════════════════
-cat > "$C/agents/producteur-dur.md" << 'EOF'
----
-name: producteur-dur
-model: claude-sonnet-4-6
-role: Code structurel et refactors lourds
-escalates_to: pierre
-forbidden_paths: [tests/, eval/, oracle/, bench/, puzzles/, .github/]
----
-Tu exécutes le code difficile. Toujours un plan avant d'écrire.
-Merge uniquement si cargo test + pytest verts + sign-off Pierre.
-EOF
-
-cat > "$C/agents/engine-programmer.md" << 'EOF'
----
-name: engine-programmer
-model: claude-sonnet-4-6
-role: Moteur Rust — search, eval, transposition table
-domain: src/engine/ src/search/
-escalates_to: producteur-dur
----
-Spécialiste alpha-beta, LMR, quiescence, Zobrist.
-Oracle : cargo test + cargo bench (zéro régression).
-EOF
-
-cat > "$C/agents/ai-programmer.md" << 'EOF'
----
-name: ai-programmer
-model: claude-sonnet-4-6
-role: Neural Rocky + pipeline φ(T)
-domain: src/neural/ ml/
-escalates_to: producteur-dur
----
-Bloqueur P4 : dataset BROKEN dans ml/adapter.py — combler les 3 trous SearchTraceSchema.
-Oracle : ELO hybride > heuristique + 20 pts.
-EOF
-
-cat > "$C/agents/gameplay-programmer.md" << 'EOF'
----
-name: gameplay-programmer
-model: claude-sonnet-4-6
-role: Mécaniques Godot
-domain: assets/godot/
-escalates_to: producteur-dur
----
-GDScript ou GDExtension Rust. Oracle : compile + une partie se joue sans crash.
-Fun / feel → escalader à Pierre.
-EOF
-
-cat > "$C/agents/performance-analyst.md" << 'EOF'
----
-name: performance-analyst
-model: claude-haiku-4-5
-role: Profiling Rust + Godot
-escalates_to: engine-programmer
----
-cargo bench + flamegraph pour Rocky. Profiler Godot pour les jeux.
-Régression > 5% vs baseline MEMORY.md → stop merge.
-EOF
-
-cat > "$C/agents/qa-tester.md" << 'EOF'
----
-name: qa-tester
-model: claude-haiku-4-5
-role: Tests, régression, couverture
-domain: tests/
-escalates_to: producteur-dur
----
-cargo test + pytest. Bug reproductible → fix. Feeling → Pierre.
-EOF
-
-cat > "$C/agents/game-designer.md" << 'EOF'
----
-name: game-designer
-model: claude-sonnet-4-6
-role: Design mécaniques et systèmes
-domain: design/
-escalates_to: pierre
----
-GDD, systèmes, économie, progression. Fun / feel = gate Pierre.
-Produit des GDD dans design/ avant toute implémentation.
-EOF
-
+# Ce script générait ici 7 fiches .claude/agents/*.md par `cat >` (écriture
+# TRONQUANTE). Les fiches sont désormais MAINTENUES À LA MAIN et versionnées.
+#
+# Pourquoi le retrait : les fiches générées étaient cassées et le sont restées
+# des mois sans que rien ne le signale —
+#   - pas de champ `description:` (REQUIS par Claude Code) => agents JAMAIS chargés
+#   - `model: claude-sonnet-4-6` => identifiant de modèle inexistant
+#   - `role:`/`domain:`/`escalates_to:`/`forbidden_paths:` => champs custom lus
+#     par AUCUN runtime (garanties décoratives, notamment sur `tests/`)
+#   - plusieurs `domain:` pointaient vers des dossiers disparus (design/,
+#     assets/godot/, src/neural/, src/search/)
+# Réparées le 2026-07-19. Ré-exécuter la génération les ÉCRASERAIT en silence.
+#
+# Si une génération est un jour souhaitée, elle doit être DÉRIVÉE d'une source
+# unique (cf. convergence des taxonomies d'agents) et jamais écrite à la main
+# des deux côtés. Voir studio_brain/00_CURRENT_CONTEXT.md (session 2026-07-19)
+# et le capteur scripts/forge/declaration_readers.mjs.
 # ════════════════════════════════════════════════════════════
 # SKILLS Claude Code
 # ════════════════════════════════════════════════════════════
