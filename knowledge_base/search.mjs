@@ -17,7 +17,7 @@
 //
 // Exit 0 = au moins 1 résultat au-dessus du seuil · 1 = zéro résultat · 2 = erreur
 // (catalogue illisible, argument invalide) — utilisable en script.
-import { readFileSync } from 'node:fs';
+import { readFileSync, appendFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { missingCapabilities } from './kb-validate.mjs';
@@ -25,6 +25,10 @@ import { missingCapabilities } from './kb-validate.mjs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CATALOG_PATH = resolve(__dirname, 'catalog.json');
 const DEFAULT_MIN_SCORE = 1;
+// Auto-journalisation CLI (preuve mécanique passive qu'une recherche a eu lieu — pas une
+// déclaration de contrat espérée). Runtime, append-only, churne : gitignoré comme
+// lab/events.jsonl (cf. .gitignore racine), PAS une preuve à committer.
+const DEFAULT_SEARCH_LOG_PATH = resolve(__dirname, 'search_log.jsonl');
 
 // Mots vides FR/EN courts — retirés de la requête pour éviter les faux matches triviaux
 // ("de", "un", "qui"...) qui gonfleraient le score sans rien dire de l'intention.
@@ -212,6 +216,58 @@ export function findFulfilling(roleId, catalog) {
   return { role, fulfilling, declaredButNotCovered };
 }
 
+/**
+ * Auto-journalisation best-effort d'un appel CLI de recherche : append UNE ligne JSONL
+ * {query, matchCount, ts} à logPath. N'est appelée QUE depuis main() (CLI) — search() et
+ * findFulfilling() restent des fonctions pures sans effet de bord (utilisées par les tests).
+ * Best-effort volontaire (même esprit que studio_link.py `_append` en Python, mais ici on
+ * catch explicitement) : si l'écriture échoue (dossier absent, permissions, disque plein…),
+ * la recherche doit TOUJOURS répondre — le log ne doit jamais faire planter l'outil.
+ * @param {string} query
+ * @param {number} matchCount
+ * @param {string} [logPath]
+ * @returns {void}
+ */
+export function logSearchInvocation(query, matchCount, logPath = DEFAULT_SEARCH_LOG_PATH) {
+  try {
+    mkdirSync(dirname(logPath), { recursive: true });
+    const record = { query, matchCount, ts: new Date().toISOString() };
+    appendFileSync(logPath, JSON.stringify(record) + '\n', 'utf-8');
+  } catch {
+    // Best-effort, intentionnel : un log qui échoue ne doit jamais empêcher la recherche
+    // de répondre. Pas de re-throw, pas de log d'erreur bruyant (silencieux par design).
+  }
+}
+
+/**
+ * Lit search_log.jsonl et retourne les entrées dont `ts >= sinceIso` — sert de PREUVE
+ * mécanique qu'au moins une recherche a eu lieu depuis un instant donné (ex: le début
+ * d'une étape Forge), sans faire confiance à une déclaration de contrat.
+ * @param {string} sinceIso date ISO 8601 (comparaison lexicale, valide pour ISO 8601 UTC)
+ * @param {string} [logPath]
+ * @returns {{count:number, entries:object[]}}
+ */
+export function searchLogSince(sinceIso, logPath = DEFAULT_SEARCH_LOG_PATH) {
+  let raw;
+  try {
+    raw = readFileSync(logPath, 'utf-8');
+  } catch {
+    return { count: 0, entries: [] };
+  }
+  const entries = [];
+  for (const line of raw.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const record = JSON.parse(trimmed);
+      if (record.ts && record.ts >= sinceIso) entries.push(record);
+    } catch {
+      // ligne corrompue : ignorée, jamais fatale.
+    }
+  }
+  return { count: entries.length, entries };
+}
+
 function loadCatalog(catalogPath) {
   const raw = readFileSync(catalogPath, 'utf-8');
   return JSON.parse(raw);
@@ -288,6 +344,7 @@ function main() {
   }
 
   const results = search(query, catalog, options);
+  logSearchInvocation(query, results.length, options.logPath);
 
   if (options.json) {
     console.log(JSON.stringify({ query, count: results.length, results }, null, 2));
