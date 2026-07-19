@@ -2,14 +2,15 @@
 
 **Date** : 2026-07-18
 **Source** : session Pierre × Claude (Fable 5) — dérivée de `00_ARCHITECTURE.md` (RATIFIÉ — P1, P2, P6, P7, P8, **P10**), de `02_CORE_RULES.md` (INV-3, INV-12, INV-13, INV-17, INV-18, INV-19), de `03_DECISION_BIBLE.md` (DEC-1..5 ; DP-1, DP-6.1..6.5, DP-7 — délégations explicites à cette bible), de `HUMANGATE_2026-07-18_FOUNDATION.md` (verbatim — QC-6), `HUMANGATE_2026-07-18_DECISIONS.md` (verbatim — QD-1, QD-3), **`HUMANGATE_2026-07-18_GATE3.md` (verbatim — ratification des QB-1..5, QB-7..16 et de P10)**, et de `SOURCE_GAME_BIBLE_V1_PIERRE.md` (notes brutes, jamais réécrites — déroulé de combat, Mana, Placement)
-**Statut** : **DRAFT — décisions gate #3 intégrées ; ratification finale du document pending**
+**Statut** : **DRAFT — décisions gate #3 + QB-6 (gate 2026-07-19) intégrées ; ratification finale du document pending**
 **Gabarit** : `00_TEMPLATE.md` (11 sections, ordre figé) · **Termes** : `00_VOCABULARY.md`
 
 Convention du document : les 16 forks QB-1..16 des versions antérieures sont TRANCHÉS par le
 HumanGate #3 — chaque décision est intégrée inline avec la mention « ratifié gate #3, QB-n »,
 qui renvoie au verbatim `HUMANGATE_2026-07-18_GATE3.md` (ratifié HumanGate 2026-07-18, gate #3).
-Exception : **QB-6 n'apparaît PAS dans le verbatim du gate #3** — elle reste la SEULE question
-ouverte de ce document (marqueur maintenu, non tranchée ici). Les conséquences purement
+Exception : **QB-6 n'apparaissait PAS dans le verbatim du gate #3** — elle a été tranchée
+séparément par un gate dédié le 2026-07-19 (`HUMANGATE_2026-07-19_QB6.md`, ratifié : match nul,
+aucune perte de Life pour aucun des deux Players). Les conséquences purement
 structurelles d'une décision ratifiée sont marquées *(dérivé)* ; les points différés à un gate
 futur portent leur propriétaire (récapitulatif en fin de document).
 
@@ -272,7 +273,8 @@ mécanismes ici, AUCUNE valeur.
     départage total, donc un vainqueur unique, sans jamais consommer `rng_state` (CBT-9).
 - **Sortie** : un vainqueur unique (jamais d'ex æquo résiduel — DEC-2/DEC-4). Le cas
   distinct de l'anéantissement MUTUEL avant `tick_limit` reste un fork séparé : QB-6
-  (non couvert par le verbatim du gate #3 — voir Flux T10).
+  (ratifié 2026-07-19 : match nul, aucune Life perdue — voir Flux T10). DP-7 lui-même ne
+  produit jamais de match nul ; seul le fork QB-6 le peut, et uniquement avant `tick_limit`.
 
 # Flux
 
@@ -345,7 +347,9 @@ T10. Fin de Tick        — vérifications, dans cet ordre :
                           (1) un camp sans Unit vivante (Health > 0) → Event Victory
                               (élimination) ;
                           (2) les DEUX camps sans Unit vivante (anéantissement mutuel) →
-                              NON COUVERT par le gate #3 : QB-6 `[QUESTION → Pierre]` ;
+                              MATCH NUL (ratifié QB-6, gate 2026-07-19) : Event Victory
+                              émis avec `resolution_kind: "draw"` *(dérivé)*, AUCUNE perte
+                              de Life pour aucun des deux Players sur ce round ;
                           (3) compteur = tick_limit sans vainqueur → DP-7 → Event Victory
                               (mode tick_limit).
                           Sinon : Tick suivant (T1).
@@ -423,8 +427,9 @@ Bible ; validation fail-hard (CBT-5).
                ticks_elapsed, survivors: [ { unit_instance_id, health_remaining } ] }`
   — ce payload EST la matérialisation du `CombatResult` : `survivors` alimente la formule
   V1 des dégâts au Seat (« les dégâts dépendent des survivants + niveau de la manche » —
-  formule TBD, propriétaire Core Rules/Economy). Un `resolution_kind` supplémentaire
-  dépendra de la réponse à QB-6 (anéantissement mutuel — non couvert par le gate #3).
+  formule TBD, propriétaire Core Rules/Economy). Le `resolution_kind` gagne une valeur
+  supplémentaire pour l'anéantissement mutuel (ratifié QB-6, gate 2026-07-19 : match nul,
+  proposé `"draw"` *(dérivé, nom à confirmer à l'intégration DSL/Technical)*).
 
 Note « pas davantage » (gate #3, QB-9) : ni `ManaChanged`, ni `BuffApplied`/`BuffExpired`
 distincts n'existent — les besoins de restitution correspondants sont couverts par
@@ -476,8 +481,9 @@ Ce que le Combat expose aux Campaigns (advisory, jamais gate de merge — P7) :
   par UnitDefinition, par Tick — profil temporel d'un Combat.
 - **Fréquence des résolutions DP-7** : proportion de Combats conclus au `tick_limit` —
   un taux élevé est un signal design pour Pierre (voir Human Notes), pas un bug.
-- **Fréquence des anéantissements mutuels** (alimente la décision QB-6 — toujours
-  ouverte).
+- **Fréquence des anéantissements mutuels (matchs nuls)** — QB-6 ratifiée (match nul, sans
+  perte de Life) ; cette métrique nourrit désormais un signal Balance/Meta (fréquence des
+  nuls trop haute/basse), pas une décision de résolution.
 - **Courbe de Mana et nombre de Casts** par Combat et par UnitDefinition (sources
   ratifiées QB-11 : Attack, Damage reçu, Effects DSL).
 - **Survivants par Combat** (nombre, Health restante) — donnée d'entrée de la formule de
@@ -557,10 +563,11 @@ Ce qui reste du ressort de Pierre, hors de portée d'un Oracle :
 
 ---
 
-## Décisions ratifiées — récapitulatif (HumanGate 2026-07-18, gate #3)
+## Décisions ratifiées — récapitulatif (HumanGate 2026-07-18, gate #3 + QB-6 2026-07-19)
 
-Source verbatim : `HUMANGATE_2026-07-18_GATE3.md`. Toutes les décisions sont intégrées
-inline dans le corps du document. **Seule QB-6 reste ouverte** (absente du verbatim).
+Source verbatim : `HUMANGATE_2026-07-18_GATE3.md` (QB-1..16 sauf QB-6) +
+`HUMANGATE_2026-07-19_QB6.md` (QB-6, gate dédié). Toutes les décisions sont intégrées
+inline dans le corps du document. **Toutes les questions QB-1..16 sont désormais tranchées.**
 
 | ID | Décision ratifiée | Section |
 |---|---|---|
@@ -569,7 +576,7 @@ inline dans le corps du document. **Seule QB-6 reste ouverte** (absente du verba
 | QB-3 | Ordre V1 restauré : `Movement → Targeting → Attack` — la cible est choisie APRÈS la nouvelle position (corrige l'inversion proposée) | Flux T3–T5, DP-6.1 |
 | QB-4 | Sémantique HYBRIDE : Tick séquentiel dans l'exécution, simultané dans les effets — phases séquentielles, cycle `Intent → Validation → Resolution → Commit` par phase, décisions sur le même état, conséquences commitées ensemble | Concepts, Flux, DP-1 |
 | QB-5 | Fin de Tick : `Damage → Death → Cleanup → Casts des survivants` — une Unit morte ne lance JAMAIS son sort | Flux T6–T9, DP-6.4 |
-| QB-6 | **NON COUVERTE par le verbatim du gate #3** — anéantissement mutuel au même Tick : reste ouverte `[QUESTION → Pierre]` | Flux T10, DP-7 |
+| QB-6 | Anéantissement mutuel au même Tick → **MATCH NUL** : aucune perte de Life pour aucun des deux Players (ratifié gate dédié 2026-07-19, `HUMANGATE_2026-07-19_QB6.md` — non couverte par le verbatim du gate #3) | Flux T10, DP-7 |
 | QB-7 | `total_remaining_power` = fonction canonique définie par la Balance Bible — CITÉE ici, jamais définie (P10) | DP-7, Paramètres |
 | QB-8 | `deterministic_order` = la TieBreakChain, unique, aucun autre ordre | DP-7, Paramètres |
 | QB-9 | Events étendus : `Heal`, `Shield`, `Buff`, `Debuff` — « pas davantage » ; registre de la liste close : Core Rules (P10) | Événements |
@@ -581,13 +588,15 @@ inline dans le corps du document. **Seule QB-6 reste ouverte** (absente du verba
 | QB-15 | Termes nouveaux ratifiés — inscription au Vocabulary (mise à jour parallèle de `00_VOCABULARY.md`) | Concepts |
 | QB-16 | Chaque Effect déclare `MaxTriggerPerTick` dans le DSL ; le Combat le VALIDE (garde-fou anti-boucle) | DSL Hooks, Flux, Paramètres |
 
-Points DIFFÉRÉS à un gate futur, propriétaire assigné (hors périmètre du gate #3 ; aucun
-marqueur — QB-6 est la seule question de design ouverte) : dimensions et orientation du
-Board (Core Rules) ; retombée du Mana après Cast (« retombe à zéro » proposé — Combat
-Bible) ; articulation Shield ↔ Damage (Combat Bible, avec la DSL Bible) ; valeurs de tous
-les Paramètres TBD (propriétaires en table, calibrage Balance — P10).
+Points DIFFÉRÉS à un gate futur, propriétaire assigné (hors périmètre du gate #3 et du gate
+QB-6 du 2026-07-19) : dimensions et orientation du Board (Core Rules) ; retombée du Mana
+après Cast (« retombe à zéro » proposé — Combat Bible) ; articulation Shield ↔ Damage
+(Combat Bible, avec la DSL Bible) ; valeurs de tous les Paramètres TBD (propriétaires en
+table, calibrage Balance — P10) ; nom exact du `resolution_kind` du match nul (proposé
+`"draw"`, détail structurel à confirmer à l'intégration DSL/Technical, pas un fork de design).
 
-*Fin du document — Combat Bible. Statut : DRAFT — décisions gate #3 intégrées
-(`HUMANGATE_2026-07-18_GATE3.md`) ; ratification finale du document pending. Les
+*Fin du document — Combat Bible. Statut : DRAFT — décisions gate #3
+(`HUMANGATE_2026-07-18_GATE3.md`) et QB-6 (`HUMANGATE_2026-07-19_QB6.md`) intégrées ;
+ratification finale du document pending. Les
 invariants CBT-1..9 et le TickPipeline ne deviennent contrat moteur qu'après cette
 ratification.*

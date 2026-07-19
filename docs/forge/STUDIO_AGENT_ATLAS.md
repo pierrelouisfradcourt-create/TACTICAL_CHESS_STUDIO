@@ -117,7 +117,7 @@ Format compact : chaque fiche = les 8 points. `capability_role`→modèle résol
 
 ### 1.S — Services & infra (pas des agents LLM, mais des pièces du système)
 - **Connecteurs studio** (`studio_link`, **propose-only**) : #3 Télémétrie (`forge_telemetry.jsonl`) · #4 Kaizen-propose (`forge_ledger_proposals.jsonl`, lane AUDIT_REQUIRED PROPOSED, porte `clean_pass`) · #5 Mémoire projet (`forge_project_proposals.jsonl`) · #6 Journal d'erreurs + **pré-mortem PILOU** (`forge_error_journal.jsonl`, leçons `_global_` vers tous les projets).
-- **Driver** (`driver.py`) : machine à états déterministe, reprise après kill (`state.json` atomique), game-ness non-downgradable, escalade en code. **Hook guard** (`hook_guard.py`) : fail-CLOSED en périmètre Forge (logique câblée, durcissement infra différé).
+- **Driver** (`driver.py`) : machine à états déterministe, reprise après kill (`state.json` atomique), game-ness non-downgradable, escalade en code. **Hook guard** (`hook_guard.py`) : fail-CLOSED en périmètre Forge, **ACTIF depuis 2026-07-10** — câblé dans `.claude/settings.json` (`PreToolUse`/`Task` → `.claude/hooks/pretool_forge_guard.py`), vérifie la signature HMAC de l'audit avant tout spawn marqué `FORGE_DISPATCH:*` (cf. ADR-002 §7).
 
 ---
 
