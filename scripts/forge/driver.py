@@ -51,10 +51,12 @@ from forge.static_oracles import (
     check_e2e_harness,
     check_feature_set_frozen,
     check_reuse_ratio_wired,
+    check_search_consulted,
     check_solvability_wired,
     check_wiremap,
     frozen_features_from_wiremap,
     load_frozen_features,
+    utc_iso_now,
 )
 from forge.studio_link import (
     premortem,
@@ -142,6 +144,11 @@ class ForgeDriver:
         # Tier 2 #5 (Concept A) : best-of-N réactif au même tier avant d'escalader de
         # modèle. pool_size<=1 désactive le pool (chaque FAIL escalade directement).
         self.pool_size = int(pool_size)
+        # Phase 1b (bibliothèque de code, 2026-07-19) : horodatage de démarrage du
+        # driver — sert de référence à check_search_consulted (« une recherche a-t-elle
+        # eu lieu depuis que ce run a commencé ? »). Fixé une fois, pas par tentative :
+        # signal coarse mais honnête, jamais gating.
+        self._driver_start_ts = utc_iso_now()
         # P0.3 : un dossier qui porte un harnais de jeu EST un jeu — l'omission du
         # flag is_game ne désarme jamais les gates (aucun chemin vers OK sans preuve).
         if not self.is_game and self.src_root is not None and any(
@@ -514,6 +521,12 @@ class ForgeDriver:
         # il ne prouve rien. L'absence de câblage reste visible dans le reçu signé
         # (verdict.json), au lieu de dépendre de la seule citation du builder.
         detail["reuse_ratio_wired"] = check_reuse_ratio_wired(self.src_root)
+        # Phase 1b (bibliothèque de code) : le contrat s9-build DIT au builder de
+        # chercher avant d'écrire (§2bis) — c'était une consigne espérée, jamais
+        # prouvée. search.mjs s'auto-journalise depuis Phase 1a ; on lit cette trace
+        # ici. Advisory, comme reuse_ratio_wired : ne gate JAMAIS oracle_ok (chercher
+        # et ne rien trouver de pertinent est un résultat légitime, pas un échec).
+        detail["search_consulted"] = check_search_consulted(self._driver_start_ts)
 
         files = list(self.logic_files or [])
         if not files:

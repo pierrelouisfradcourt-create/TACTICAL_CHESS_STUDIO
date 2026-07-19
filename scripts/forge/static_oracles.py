@@ -17,6 +17,7 @@ import json
 import logging
 import re
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -200,7 +201,32 @@ def check_architecture(blueprint: dict, src_root: Path) -> dict:
     """
     src_root = Path(src_root)
     modules = set(blueprint.get("modules", []))
-    forbidden = {(a, b) for a, b in blueprint.get("deps_interdites", [])}
+    # F2b (red-team, 2026-07-14) : un deps_interdites malformé (ex. la str
+    # 'ui->engine' au lieu de la paire ['ui', 'engine']) levait ValueError au
+    # dépaquetage — l'exception traversait le driver (crash-loop : s10b RUNNING
+    # rejoué à chaque reprise). Un oracle ne lève JAMAIS sur son entrée : entrée
+    # malformée => FAIL honnête avec raison explicite (jamais un faux vert).
+    deps_raw = blueprint.get("deps_interdites", [])
+    malformes: list[str] = []
+    forbidden: set[tuple[str, str]] = set()
+    if not isinstance(deps_raw, list):
+        malformes.append(repr(deps_raw))
+    else:
+        for pair in deps_raw:
+            if (isinstance(pair, (list, tuple)) and len(pair) == 2
+                    and all(isinstance(x, str) for x in pair)):
+                forbidden.add((pair[0], pair[1]))
+            else:
+                malformes.append(repr(pair))
+    if malformes:
+        return {
+            "passed": False,
+            "raison": ("deps_interdites malformées — paire [source, cible] (str) "
+                       f"attendue, reçu : {', '.join(malformes)}"),
+            "deps_interdites_violées": [],
+            "modules_sans_test": [],
+            "debordements_ownership": {"checked": False, "items": []},
+        }
 
     violations: list[list[str]] = []
     modules_with_files: set[str] = set()
@@ -344,6 +370,52 @@ def check_e2e_harness(src_root: Path) -> dict:
     return {"passed": not raisons, "raisons": raisons}
 
 
+# --- garde structurelle solvabilité (P2, leçon survival_arena/collect_runner) -----
+# Le contrat s9-build EXIGE la solvabilité en prose (tests_oracles : « solvability.mjs
+# câblé dans run-oracle.mjs » ; success_criteria : « un bot joue et GAGNE ») mais
+# AUCUNE garde mécanique ne la vérifiait : deux jeux injouables ont passé tous les
+# gates verts. MIROIR structurel de check_e2e_harness : mêmes helpers
+# (_read/_strip_js_comments), même verbe d'exécution exigé, même niveau de
+# strictesse — ni plus, ni moins. Limite connue assumée (identique à _E2E_WIRED,
+# résiduelle, non fermée ici) : un token dans une chaîne littérale d'exécution
+# (`console.log("solvability.mjs")` sur une ligne portant un verbe) reste comptable
+# — acceptable car les builders forge ne sont pas adversariaux et HumanGate reste
+# terminal. Cette garde prouve le CÂBLAGE (le harnais existe et le gate l'exécute),
+# jamais que le bot gagne réellement — ça, seule l'exécution de run-oracle.mjs le
+# prouve (elle échoue alors mécaniquement si le harnais est câblé : d'où ce check).
+_SOLVABILITY_WIRED = re.compile(r"(?:run|spawn|exec|execFile|fork|import|node)\b[^\n]*?solvability\.mjs")
+
+
+def check_solvability_wired(root: Path) -> dict:
+    """Le jeu a-t-il un harnais de solvabilité, câblé dans son run-oracle ?
+
+    Retourne {passed, raisons[], checked} homogène aux autres gardes. PASS =
+    solvability.mjs existe, non vide, ET run-oracle.mjs l'INVOQUE via un verbe
+    d'exécution (commentaires JS retirés avant analyse — une mention en
+    commentaire/log ne câble aucun oracle). checked est toujours True : la garde
+    est purement statique, elle s'évalue dans tous les cas.
+    """
+    root = Path(root)
+    raisons: list[str] = []
+
+    runner = root / "run-oracle.mjs"
+    if not runner.exists():
+        raisons.append("run-oracle.mjs absent")
+    elif not _SOLVABILITY_WIRED.search(_strip_js_comments(_read(runner))):
+        raisons.append(
+            "run-oracle.mjs n'invoque pas solvability.mjs (volet solvabilité absent du gate)")
+
+    solv = root / "solvability.mjs"
+    if not solv.exists():
+        raisons.append("solvability.mjs absent")
+        return {"passed": False, "raisons": raisons, "checked": True}
+
+    if not _strip_js_comments(_read(solv)).strip():
+        raisons.append("solvability.mjs vide ou illisible")
+
+    return {"passed": not raisons, "raisons": raisons, "checked": True}
+
+
 # --- garde structurelle reuse_ratio (Tier 1 #2, renfort 2026-07-13) ---------------
 # Le contrat s9-build (§2bis) DEMANDE au builder de citer scripts/forge/reuse_ratio.mjs
 # dans son final_report, mais rien n'obligeait MÉCANIQUEMENT le run-oracle à l'exécuter
@@ -370,6 +442,53 @@ def check_reuse_ratio_wired(src_root: Path) -> dict:
             "run-oracle.mjs n'invoque pas reuse_ratio.mjs (mesure de réutilisation "
             "jamais exécutée mécaniquement — citation du builder non vérifiable)"]}
     return {"passed": True, "raisons": []}
+
+
+# Chemin par défaut du log d'auto-journalisation de knowledge_base/search.mjs (miroir
+# Python de searchLogSince en JS). scripts/forge/static_oracles.py -> parents[2] == repo root.
+_SEARCH_LOG_DEFAULT = Path(__file__).resolve().parents[2] / "knowledge_base" / "search_log.jsonl"
+
+
+def utc_iso_now() -> str:
+    """Horodatage UTC ISO 8601 millisecondes + suffixe 'Z' — MÊME format que
+    `new Date().toISOString()` en JS (search.mjs), pour que la comparaison lexicale
+    `ts >= since` reste valide entre les deux langages (évite le piège '+00:00' vs 'Z',
+    qui ne trient PAS pareil en ASCII)."""
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def check_search_consulted(since_iso: str, log_path: Path | None = None) -> dict:
+    """`knowledge_base/search.mjs` a-t-il été appelé au moins une fois depuis `since_iso` ?
+
+    Retourne {passed, raisons[], count}. Advisory (n'affecte jamais oracle_ok), même esprit
+    que `check_reuse_ratio_wired` : le contrat s9-build DIT au builder de chercher avant
+    d'écrire, mais c'est une consigne de prompt, pas une preuve. `search.mjs` s'auto-
+    journalise à chaque appel CLI (best-effort, JSONL) ; on lit cette trace en lecture
+    seule ici — jamais on ne fait confiance à la seule citation du builder. Absence de
+    fichier de log = jamais recherché (ou log gitignoré non présent) : FAIL informatif,
+    pas une erreur (peut être légitime si aucune brique ne pouvait matcher).
+    """
+    path = log_path or _SEARCH_LOG_DEFAULT
+    if not path.exists():
+        return {"passed": False, "count": 0,
+                "raisons": ["aucune recherche journalisée (search_log.jsonl absent)"]}
+    count = 0
+    for line in _read(path).splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue  # ligne corrompue : ignorée, jamais fatale (même esprit que searchLogSince)
+        ts = record.get("ts")
+        if isinstance(ts, str) and ts >= since_iso:
+            count += 1
+    if count == 0:
+        return {"passed": False, "count": 0, "raisons": [
+            f"aucune recherche journalisée depuis {since_iso} (contrat s9-build §2bis "
+            "non respecté, ou aucune brique ne pouvait matcher)"]}
+    return {"passed": True, "count": count, "raisons": []}
 
 
 # --- gel du jeu de règles (C1/C2, axe 2) : l'ensemble des features (R1..R12) est
