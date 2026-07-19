@@ -24,6 +24,7 @@ import { missingCapabilities } from './kb-validate.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CATALOG_PATH = resolve(__dirname, 'catalog.json');
+const DEFAULT_SYNONYMS_PATH = resolve(__dirname, 'synonyms.json');
 const DEFAULT_MIN_SCORE = 1;
 // Auto-journalisation CLI (preuve mécanique passive qu'une recherche a eu lieu — pas une
 // déclaration de contrat espérée). Runtime, append-only, churne : gitignoré comme
@@ -63,6 +64,48 @@ function normalize(str) {
  */
 function tokenize(query) {
   return [...new Set(normalize(query).split(' ').filter((t) => t.length > 1 && !STOPWORDS.has(t)))];
+}
+
+/**
+ * Élargit un ensemble de tokens de requête via un dictionnaire de synonymes déterministe
+ * (aucun embedding, aucun LLM) : pour chaque token présent — comme CLÉ de groupe OU comme
+ * MEMBRE d'un groupe — tous les autres membres du groupe sont ajoutés au résultat.
+ * Le résultat est TOUJOURS un sur-ensemble de `tokens` (jamais de suppression) et jamais
+ * de mutation de l'entrée — fonction pure.
+ * @param {string[]} tokens tokens de requête (déjà normalisés, cf. tokenize())
+ * @param {object} synonymMap {groupe_canonique: [synonyme, ...]} — peut être vide/absent
+ * @returns {string[]} nouveau tableau de tokens uniques, sur-ensemble de `tokens`
+ */
+export function expandWithSynonyms(tokens, synonymMap) {
+  const expanded = new Set(tokens);
+  if (!synonymMap || typeof synonymMap !== 'object') return [...expanded];
+
+  for (const token of tokens) {
+    for (const [groupKey, members] of Object.entries(synonymMap)) {
+      if (!Array.isArray(members)) continue;
+      const inGroup = token === groupKey || members.includes(token);
+      if (!inGroup) continue;
+      expanded.add(groupKey);
+      for (const member of members) expanded.add(member);
+    }
+  }
+  return [...expanded];
+}
+
+/**
+ * Charge synonyms.json de façon best-effort : fichier absent/illisible/JSON invalide →
+ * objet vide (comportement IDENTIQUE à avant l'existence de cette feature, pas de crash).
+ * @param {string} synonymsPath
+ * @returns {object}
+ */
+function loadSynonyms(synonymsPath) {
+  try {
+    const raw = readFileSync(synonymsPath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -165,7 +208,9 @@ function passesFilters(entry, filters) {
  *   décroissant, puis tier (validated avant candidate), puis id alphabétique — déterministe.
  */
 export function search(query, catalog, options = {}) {
-  const queryTokens = tokenize(query);
+  const rawTokens = tokenize(query);
+  const synonymMap = loadSynonyms(options.synonymsPath ? resolve(options.synonymsPath) : DEFAULT_SYNONYMS_PATH);
+  const queryTokens = expandWithSynonyms(rawTokens, synonymMap);
   const minScore = Number.isFinite(options.minScore) ? options.minScore : DEFAULT_MIN_SCORE;
   const entries = (catalog && catalog.entries) || [];
 
