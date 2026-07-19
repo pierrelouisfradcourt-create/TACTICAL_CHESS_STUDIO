@@ -2,7 +2,7 @@
 
 **Date** : 2026-07-18
 **Source** : session Pierre × Claude (Fable 5) — dérivée de `00_ARCHITECTURE.md` (RATIFIÉ — P6 est le principe directeur de cette bible), de `02_CORE_RULES.md` (INV-10, INV-18, INV-19 ; trois points de décision core délégués ici), de `HUMANGATE_2026-07-18_FOUNDATION.md` (verbatim — QC-3 Merge automatique, QC-4 Ghost Board, QC-6 chaîne d'égalité), de `HUMANGATE_2026-07-18_DECISIONS.md` (verbatim — ratification QD-1..6, interprétation Merge, INV-19) et de `SOURCE_GAME_BIBLE_V1_PIERRE.md` (notes brutes, jamais réécrites — taxonomie des décisions d'Unit)
-**Statut** : IMPLEMENTED (documentaire) — ratifié HumanGate 2026-07-18 (QD-1..6 intégrées) ; document VERROUILLÉ, toute modification repasse par HumanGate
+**Statut** : IMPLEMENTED (documentaire) — ratifié HumanGate 2026-07-18 (QD-1..6 intégrées) + DP-9 ajouté HumanGate 2026-07-19 (`HUMANGATE_2026-07-19_DP9.md`) ; document VERROUILLÉ, toute modification repasse par HumanGate
 **Gabarit** : `00_TEMPLATE.md` (11 sections, ordre figé) · **Termes** : `00_VOCABULARY.md`
 
 ---
@@ -261,6 +261,21 @@ Chaque Unit décide seule en Combat (« Aucune micro-gestion par le joueur » �
   chaque Campaign (P7, ratifié).
 - **Propriétaire des valeurs** : Simulation Bible (contenu des politiques avancées) ·
   Platform Bible (incarnation des Seats).
+
+### DP-9 — Refus de Buy à Bench plein *(ratifié HumanGate 2026-07-19, `HUMANGATE_2026-07-19_DP9.md`)*
+- **Déclencheur** : Input `Buy` reçu pendant la Preparation State, Bench du Player à
+  capacité pleine (paramètre déclaré ECO-7 — Economy Bible ; valeur : Balance Bible).
+- **État lu** : occupation du Bench du Player (nombre d'UnitInstances vs capacité
+  déclarée).
+- **Sortie** : rejet déterministe de l'Input — aucun débit de Gold, aucun débit du Pool,
+  aucune Unit détruite (QE-7, ratifié gate #3). Distinct d'INV-13 : l'Input `Buy` fait
+  partie de la liste close, seul son EFFET est refusé pour cause d'état.
+- **Ordre total** : binaire — Bench plein → refus ; sinon → transaction normale (débit
+  du Pool au Buy, QE-2). Aucun ex æquo possible, la TieBreakChain n'intervient pas.
+- **Aucune exception ratifiée** (ECO-7) : pas d'exception « l'achat complète un Merge » —
+  en ajouter une serait une règle nouvelle, gate séparé.
+- **Propriétaire des valeurs** : Economy Bible (schéma du refus) · Balance Bible
+  (capacité chiffrée du Bench).
 
 ### Note de périmètre — invocations
 Le périmètre ratifié inclut les **invocations** (Units créées par des Effects — Event

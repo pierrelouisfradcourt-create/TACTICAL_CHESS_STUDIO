@@ -35,7 +35,13 @@ const ENGINE_MODULES = [
   'engine/eventlog.mjs',
   'engine/transition.mjs',
   'engine/replay.mjs',
-  'engine/match.mjs'
+  'engine/match.mjs',
+  'pool/pool.mjs',
+  'shop/shop.mjs',
+  'bench/bench.mjs',
+  'merge/merge.mjs',
+  'economy/gold.mjs',
+  'preparation/preparation.mjs'
 ];
 
 function removeComments(code) {
@@ -129,11 +135,51 @@ function main() {
 
   console.log('Properties tests PASSED\n');
 
+  // Phase 4: Run preparation + economy tests (increment 2)
+  console.log('Phase 4: Running preparation tests (preparation.test.mjs)...');
+
+  try {
+    const prepResult = execSync('node --test preparation.test.mjs', {
+      cwd: __dirname,
+      encoding: 'utf-8',
+      stdio: 'pipe'
+    });
+    console.log(prepResult);
+  } catch (e) {
+    console.error('Preparation tests FAILED:');
+    console.error(e.stdout || e.message);
+    console.log('\nPreparation tests FAILED\n');
+    process.exit(1);
+  }
+
+  console.log('Preparation tests PASSED\n');
+
+  // Phase 5: Run preparation + economy property/hardening tests (increment 2)
+  console.log('Phase 5: Running preparation property tests (properties.i2.test.mjs)...');
+
+  try {
+    const propsI2Result = execSync('node --test properties.i2.test.mjs', {
+      cwd: __dirname,
+      encoding: 'utf-8',
+      stdio: 'pipe'
+    });
+    console.log(propsI2Result);
+  } catch (e) {
+    console.error('Preparation property tests FAILED:');
+    console.error(e.stdout || e.message);
+    console.log('\nPreparation property tests FAILED\n');
+    process.exit(1);
+  }
+
+  console.log('Preparation property tests PASSED\n');
+
   // All phases passed
   console.log('=== ORACLE VERDICT: OK ===');
   console.log('  Static scan: PASSED');
   console.log('  Logic tests: PASSED');
   console.log('  Properties tests: PASSED');
+  console.log('  Preparation tests: PASSED');
+  console.log('  Preparation property tests: PASSED');
   console.log('\nAuto_battler engine is deterministic, pure, and validated.\n');
 
   process.exit(0);

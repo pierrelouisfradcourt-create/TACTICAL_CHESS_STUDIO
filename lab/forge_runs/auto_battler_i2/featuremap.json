@@ -1,0 +1,131 @@
+{
+  "systemes": [
+    {
+      "systeme": "Pool System",
+      "features": [
+        {
+          "feature": "Conservation comptable du Pool",
+          "feuilles": [
+            {
+              "capacite": "Maintenir l'invariant Pool + Shops réservées + possessions(Board+Bench) par UnitDefinition sur toute séquence d'Inputs valide, selon la règle de comptage ratifiée (réservation au tirage, débit au Buy, jamais au Place, restitution au Sell, Merge = compactage sans effet Pool)",
+              "preuve_attendue": "R1 — Conservation du Pool (INV-7, ECO-1) : property-test sur séquences d'Inputs aléatoires seedées"
+            },
+            {
+              "capacite": "Débiter le Pool exclusivement au moment du Buy, jamais au moment du Place",
+              "preuve_attendue": "R2 — Débit du Pool au Buy, jamais au Place (QE-2) : fixture Buy→Place, Pool décrémenté après Buy, inchangé après Place"
+            },
+            {
+              "capacite": "Restituer au Pool, lors d'un Sell, le nombre exact d'exemplaires physiques consommés pour produire l'Unit vendue selon son Star (ex. ★2 → +3)",
+              "preuve_attendue": "R3 — Sell rend les exemplaires physiques (QE-1) : fixture Sell ★1 et Sell ★2, vérifier le delta Pool exact"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Shop System",
+      "features": [
+        {
+          "feature": "Tirage de Shop",
+          "feuilles": [
+            {
+              "capacite": "Produire un tirage de Shop déterministe à partir du rng_state courant : à rng_state identique, Shop identique bit à bit",
+              "preuve_attendue": "R6 — Tirage économique déterministe (ECO-5, DEC-3) : deux inits même seed, comparer ShopRolled"
+            },
+            {
+              "capacite": "Réserver (sans débiter) les exemplaires tirés dans le Pool au moment du tirage de Shop",
+              "preuve_attendue": "R1 — Conservation du Pool (INV-7, ECO-1) : la réservation au tirage fait partie de la règle de comptage invariante, vérifiée par property-test sur séquences d'Inputs"
+            }
+          ]
+        },
+        {
+          "feature": "Lock de Shop",
+          "feuilles": [
+            {
+              "capacite": "Verrouiller une Shop pour qu'elle reste identique au Round suivant, sans consommer de rng_state pour cette Shop et sans coût en Gold",
+              "preuve_attendue": "R7 — Lock conservatif (ECO-8) : fixture Lock → Round suivant → Shop identique bit à bit, rng_state inchangé pour ce tirage"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Merge System",
+      "features": [
+        {
+          "feature": "Merge automatique",
+          "feuilles": [
+            {
+              "capacite": "Détecter 3 UnitInstances identiques (même UnitDefinition + même Star) sur Board/Bench et déclencher MergeTriggered puis MergeResolved sans Input joueur",
+              "preuve_attendue": "R4 — Merge automatique, cascades par ordre de création (INV-16, QD-4, DP-4) : fixture de cascade"
+            },
+            {
+              "capacite": "Consommer les 3 UnitInstances par ordre de création (A+B+C, D surnuméraire préservé) et produire une nouvelle UnitInstance de Star strictement supérieur avec un nouvel unit_instance_id",
+              "preuve_attendue": "R4 — Merge automatique, cascades par ordre de création (INV-16, QD-4, DP-4) : property-test « Star produit > Star consommé »"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Economy System (Gold)",
+      "features": [
+        {
+          "feature": "Mouvements de Gold",
+          "feuilles": [
+            {
+              "capacite": "Appliquer le delta de Gold d'un Seat sur toute transition comme somme algébrique exacte des transactions de la liste close déclarée (Income, Buy, Sell, Reroll, LevelUp, rewards), sans Interest ni streak",
+              "preuve_attendue": "R8 — Gold : liste close de mouvements (ECO-3, INV-19) : property-test delta Gold = somme du journal ; audit statique aucun site d'écriture du Gold hors module de transactions"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Bench System",
+      "features": [
+        {
+          "feature": "Gestion de capacité du Bench",
+          "feuilles": [
+            {
+              "capacite": "Rejeter un Input Buy de façon déterministe quand le Bench est à capacité pleine, sans débit de Gold, sans débit du Pool, sans destruction d'Unit",
+              "preuve_attendue": "R5 — Refus de Buy à Bench plein, sans effet de bord (DP-9, QE-7) : fixture Bench plein → Buy → assert aucun changement d'état hors le rejet enregistré au journal"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Preparation State",
+      "features": [
+        {
+          "feature": "Fenêtre d'Inputs Preparation",
+          "feuilles": [
+            {
+              "capacite": "Accepter la liste close des 7 Inputs (Buy, Sell, Reroll, Lock, LevelUp, Place, ConfirmPreparation) avec un effet économique réel appliqué à l'état",
+              "preuve_attendue": "R9 — Preparation State reste une fenêtre unique (QC-2, hérité i1) : hérité des fixtures i1, non affaibli"
+            },
+            {
+              "capacite": "Clore la fenêtre Preparation uniquement via l'Input ConfirmPreparation, aucun Input accepté pendant Combat",
+              "preuve_attendue": "R9 — Preparation State reste une fenêtre unique (QC-2, hérité i1) : hérité des fixtures i1, non affaibli"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Event Log System",
+      "features": [
+        {
+          "feature": "Registre d'Events économiques et système",
+          "feuilles": [
+            {
+              "capacite": "Émettre GoldChanged, ShopRolled, UnitBought, UnitSold, PlayerLevelUp, MergeTriggered, MergeResolved avec les payloads structurels définis par la Economy Bible, aucun autre nom d'Event, aucun champ hors contrat",
+              "preuve_attendue": "R10 — Événements économiques dans le registre fermé (INV-12, QE-6) : validation de schéma sur chaque Event économique émis"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

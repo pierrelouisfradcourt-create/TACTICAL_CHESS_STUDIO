@@ -1,0 +1,74 @@
+{
+  "project": "auto_battler",
+  "run_id": "auto_battler_i2",
+  "software_verdict": "OK",
+  "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "decision": "HUMANGATE_READY_WITH_OBJECTION",
+  "oracles": {
+    "code": {
+      "oracle_id": "code",
+      "run_id": "auto_battler_i2",
+      "status": "OK",
+      "evidence_sha256": "54a648cd9fba6213ad41d68955887a217ee9c6006cae2c75cd694db7777ea423",
+      "detail": {
+        "returncode": 0
+      },
+      "ts": 0.0,
+      "evidence_path": "lab\\forge_runs\\auto_battler_i2\\evidence\\oracle_auto_battler.log"
+    },
+    "archi": {
+      "oracle_id": "archi",
+      "run_id": "auto_battler_i2",
+      "status": "OK",
+      "evidence_sha256": "",
+      "detail": {
+        "passed": true,
+        "deps_interdites_violées": [],
+        "modules_sans_test": [],
+        "debordements_ownership": {
+          "checked": false,
+          "items": []
+        }
+      },
+      "ts": 0.0,
+      "evidence_path": ""
+    },
+    "wiremap": {
+      "oracle_id": "wiremap",
+      "run_id": "auto_battler_i2",
+      "status": "OK",
+      "evidence_sha256": "",
+      "detail": {
+        "wire": {
+          "passed": true,
+          "features_manquantes": [],
+          "fonctions_renommées": [],
+          "obsoletes": [],
+          "preuves_absentes": []
+        },
+        "gel_passed": true
+      },
+      "ts": 0.0,
+      "evidence_path": ""
+    }
+  },
+  "redteam_reviewer": "claude-opus-4-8 (s11 redteam code, independant du builder)",
+  "redteam_ran": true,
+  "provenance_ok": true,
+  "git_head": "da15b37faa821b431f4159756f938d8e9de2f370",
+  "nonce": "fedbc15561ad53845db1c262e34f29ee",
+  "ts": 0.0,
+  "redteam_advisory": [
+    "HIGH-1 [CORRIGE] Purity/replay leak: makeUnitInstanceId() utilisait un compteur module-global (viole INV-19) -- corrige : id derive de rng_state (nextRng), prouve empiriquement (meme etat+Input -> meme id, 2 runs)",
+    "MED-2 [OUVERT] ECO-1 'reservation au tirage' non implementee : reservePool est un no-op, drawShop ne borne pas contre le stock pool -- le test R1 ne couvre qu'une propriete plus faible que ECO-1 ratifiee",
+    "MED-3 [OUVERT] handleBuy ignore shop_index et ne consomme jamais le slot de Shop -- Buy fonctionne independamment du contenu affiche de la Shop",
+    "MED-4 [OUVERT] Drift de payload vs 05_ECONOMY_BIBLE.md : UnitBought manque shop_slot (+ ajoute unit_instance_id non contractuel), UnitSold manque unit_definition, ShopRolled manque odds_table_version",
+    "MED-5 [OUVERT] ConfirmPreparation emet un Event Spawn detourne de son sens (kind='Spawn' pour une transition de phase, pas un vrai spawn d'unite)",
+    "LOW-6 [OUVERT] drawShop: selection modulo biaisee (value % length) -- qualite de distribution seulement, table d'odds reelle TBD de toute facon"
+  ],
+  "humangate_flags": [
+    "88/91 tues (96.7%) -- gate PASS avec EXCEPTION (3 survivants tries equivalents dans mutation_triage.i2.json, doctrine: jamais un OK propre)"
+  ],
+  "hmac": "5dee6e8b4be26ea509a60db2f678dd08e2280882ae64f1d2abfd70f49c712725"
+}

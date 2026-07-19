@@ -239,11 +239,10 @@ existants qui touchent l'économie :
 - **DP-4 — Merge automatique** (Decision Bible) : ordre de consommation ratifié (QD-4) ;
   l'effet COMPTABLE du Merge est fixé (dérivé de QE-1, gate #3) : COMPACTAGE — aucun
   exemplaire créé, détruit ni rendu au Pool (ECO-1).
-- **À enregistrer** : la politique de Bench plein ratifiée (QE-7 — Buy REFUSÉ, aucune
-  destruction automatique) introduit un rejet automatique par le moteur : ce site devra
-  être enregistré sous un DP-n dans la Decision Bible AVANT implémentation (DEC-1,
-  fail-hard). Aucune exception (ex. complétion d'un Merge) n'est ratifiée — en ajouter
-  une serait une règle nouvelle : gate.
+- **Enregistré** : la politique de Bench plein ratifiée (QE-7 — Buy REFUSÉ, aucune
+  destruction automatique) est le site de décision **DP-9** (`03_DECISION_BIBLE.md`,
+  ratifié `HUMANGATE_2026-07-19_DP9.md`) — DEC-1 satisfaite. Aucune exception (ex.
+  complétion d'un Merge) n'est ratifiée — en ajouter une serait une règle nouvelle : gate.
 
 # Flux
 
@@ -262,7 +261,7 @@ Round start
                            conservée, aucun re-tirage — ECO-8 ; ordre entre Seats : DP-2)
   → Preparation State     (transactions par Inputs — Buy, Sell, Reroll, Lock, LevelUp ;
                            ordre total = journal d'Inputs, INV-4 ; Buy = débit du Pool,
-                           Bench plein → refus — QE-2/QE-7 ; Merge automatique DP-4 —
+                           Bench plein → refus — QE-2/QE-7/DP-9 ; Merge automatique DP-4 —
                            compactage sans effet Pool, QE-1)
   → ConfirmPreparation    (clôt les transactions du Round — QC-5 ; aucun Input, donc
                            aucune transaction, pendant le Combat — INV-13)
