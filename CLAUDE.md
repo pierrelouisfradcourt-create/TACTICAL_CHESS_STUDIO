@@ -43,20 +43,20 @@ le mécanisme de vérité.
 ### Lane ROCKY\_MOTEUR (Rust)
 
 * Moteur principal : src/chess/
-* Ne jamais toucher autopilot.py pour cette lane
+* Reste dans src/chess/ pour cette lane (jamais autopilot.py)
 * Validation : cargo build --release \&\& cargo test
 
 ### Lane IA\_APPRENTISSAGE (Python/ML)
 
 * Dossier : ml/ et lab/
 * venv : .venv312\\Scripts\\python.exe
-* Ne pas toucher autopilot.py ni src/
+* Reste dans ml/ et lab/ pour cette lane (jamais autopilot.py ni src/)
 
 ### Lane JEUX (Python prototype)
 
 * Dossier : lab/chess\_fantasy/
 * Tests : .venv312\\Scripts\\python.exe -m pytest lab/chess\_fantasy/tests/ -v
-* Ne pas toucher src/ pour cette lane
+* Reste dans lab/chess\_fantasy/ pour cette lane (jamais src/)
 
 ### Lane FORGE (usine à jeux — /forge)
 
@@ -73,7 +73,7 @@ le mécanisme de vérité.
   - `claim_verdict: NO_CLAIM_ALLOWED` toujours.
 * Cartes de référence (companions, statut PROPOSED) : docs/forge/STUDIO\_ARCHITECTURE.md · STUDIO\_AGENT\_ATLAS.md · STUDIO\_MASTER\_SCHEMA.html.
 * Auto-audit de la lane (dérive doc↔réalité, connecteurs dormants) : `node scripts/forge/studio_selfaudit.mjs`.
-* Ne jamais toucher autopilot.py ni la lane STUDIO pour cette lane.
+* Reste dans scripts/forge/, games/, knowledge\_base/, lab/forge\_* pour cette lane (jamais autopilot.py ni la lane STUDIO).
 
 ## Fichiers cles
 
