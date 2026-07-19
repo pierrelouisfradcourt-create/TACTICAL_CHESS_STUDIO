@@ -73,6 +73,21 @@ def test_unknown_profile_raises():
         order_for_profile("mysteryyy")
 
 
+def test_increment_profile_skips_s0_s1_s2_but_keeps_archi_and_wiremap():
+    """Ratifié Pierre 2026-07-19 (FORGE_PLAN_PROPOSAL.md §5 R1) : un incrément sur un
+    projet dont le corpus de bibles fait déjà foi saute charter/prisme/world-scan, mais
+    REFAIT archi/wiremap (contrairement à `patch`) — c'est justement ce qu'un moteur
+    multi-incréments doit re-prouver à chaque incrément (deps_interdites, wiremap à jour)."""
+    steps = order_for_profile("increment")
+    assert steps == [
+        "s3-decompo", "s4-archi", "s5-wiremap", "s6-redteam-plan", "s9-build",
+        "s10a-oracle-code", "s10b-oracle-archi", "s10c-oracle-wiremap",
+        "s11-redteam-code", "s12-verdict",
+    ]
+    assert "s0-contrat" not in steps and "s1-prisme" not in steps and "s2-worldscan" not in steps
+    assert "s10b-oracle-archi" in steps and "s10c-oracle-wiremap" in steps
+
+
 def test_plan_chain_patch_profile_plans_only_its_steps(tmp_path):
     plan = plan_chain(run_id="p", profile="patch", audit_path=tmp_path / "a.jsonl")
     assert [p.etape for p in plan] == order_for_profile("patch")

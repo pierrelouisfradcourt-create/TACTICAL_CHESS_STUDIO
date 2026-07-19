@@ -74,6 +74,23 @@ PROFILES = {
     # 13 étapes sur 78 lignes (finding red-team chesscolor). archi/wiremap = SKIPPED.
     "micro": ("s9-build", "s10a-oracle-code", "s12-verdict"),
     "artbible": ("s2.5-artbible",),
+    # increment : un incrément sur un projet existant dont le corpus de design (bibles)
+    # est déjà la source de vérité — saute s0/s1/s2 (charter/prisme/world scan, déjà
+    # couverts) mais REFAIT archi/wiremap contrairement à `patch`, parce qu'un moteur
+    # multi-incréments a justement le plus besoin de deps_interdites et de wiremap à
+    # jour à chaque incrément (cf. FORGE_PLAN_PROPOSAL.md §5 R1, ratifié Pierre 2026-07-19).
+    "increment": (
+        "s3-decompo",
+        "s4-archi",
+        "s5-wiremap",
+        "s6-redteam-plan",
+        "s9-build",
+        "s10a-oracle-code",
+        "s10b-oracle-archi",
+        "s10c-oracle-wiremap",
+        "s11-redteam-code",
+        "s12-verdict",
+    ),
 }
 
 

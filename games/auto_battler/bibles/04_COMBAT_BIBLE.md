@@ -130,8 +130,8 @@ document) : `TickPipeline`, `CombatSetup`, `ResolutionQueue`, `CombatResult`, `C
   Manhattan**, **AUCUNE diagonale implicite** ; une Unit au plus par Cell. Les notions V1
   « Première ligne / Deuxième ligne / Arrière / Coins / Centre » s'y projettent
   naturellement, en cohérence avec la clé 3 de la TieBreakChain (QD-1). Les DIMENSIONS du
-  Board (et l'orientation des deux camps) restent TBD en Paramètres — propriétaire :
-  Core Rules, valeur via gate futur ; ce n'est plus une question ouverte.
+  Board (et l'orientation des deux camps) sont **v0 = 8×8, miroir** (ratifiées
+  `HUMANGATE_2026-07-19_VALUES_V0.md`) — propriétaire Core Rules, valeur provisoire.
 - **Distances en Combat** (ratifié gate #3, QB-2) — une métrique UNIQUE, **Manhattan**,
   pour la Range, le déplacement et les tie-breaks (cohérence QD-1). Sens contextuel par
   usage : départage de **cibles** candidates = distance entre la Cell de l'Unit qui décide
@@ -161,8 +161,8 @@ ou une constante d'équilibrage — toute valeur de calibrage → Balance Bible.
 
 | Nom | Valeur | Unité | Propriétaire |
 |---|---|---|---|
-| `tick_limit` (Ticks max d'un Combat) | TBD — existence : cette bible (CBT-2) ; **valeur : Balance Bible** (ratifié gate #3, QB-14 — P10) | Ticks | Combat Bible (existence) · Balance Bible (valeur) |
-| Dimensions du Board (largeur × profondeur) et orientation des camps | TBD — valeur via gate futur (gate #3 : plus une question ouverte) | Cells | Core Rules (dimensions — Vocabulary « Board ») · Combat Bible (géométrie) |
+| `tick_limit` (Ticks max d'un Combat) | **v0 = 50, PROVISOIRE** — existence : cette bible (CBT-2) ; valeur : Balance Bible (ratifié gate #3, QB-14 — P10) ; calcul sourcé TFT (40 s max de combat ÷ ~0,8 s/Tick équivalent), ratifié gate `HUMANGATE_2026-07-19_VALUES_V0.md`, calibrable dès les premières simulations (P7) | Ticks | Combat Bible (existence) · Balance Bible (valeur) |
+| Dimensions du Board (largeur × profondeur) et orientation des camps | **v0 = 8×8, orientation miroir** (ratifié `HUMANGATE_2026-07-19_VALUES_V0.md`) | Cells | Core Rules (dimensions — Vocabulary « Board ») · Combat Bible (géométrie) |
 | Géométrie | **ratifié** : orthogonale, coordonnées entières, aucune diagonale implicite (gate #3, QB-1) | — | Combat Bible (géométrie) |
 | Occupation d'une Cell | 1 Unit au plus (modèle orthogonal ratifié — gate #3, QB-1) | Unit/Cell | Combat Bible |
 | Métrique de distance (Range, déplacement, clé 3) | **ratifié** : Manhattan unique (gate #3, QB-2) | Cells | Combat Bible (délégation Decision Bible, clé 3) |
@@ -171,7 +171,7 @@ ou une constante d'équilibrage — toute valeur de calibrage → Balance Bible.
 | Mana initial en début de Combat | TBD | Mana | Combat Bible (règle) · Content/DSL (valeurs par UnitDefinition) · Balance (calibrage, P10) |
 | Gains de Mana (par Attack / par Damage reçu / par Effect DSL) | sources **ratifiées** (gate #3, QB-11) ; montants TBD | Mana | Combat Bible (moments de crédit) · Content/DSL (montants, données) · Balance (calibrage, P10) |
 | Seuil de Mana plein (déclenche le Cast) | TBD | Mana | Content Bible (par UnitDefinition, via DSL) |
-| Retombée du Mana après Cast | proposé : retombe à zéro — décision via gate futur (hors périmètre gate #3) | — | Combat Bible |
+| Retombée du Mana après Cast | **ratifié : retombe à zéro** (`HUMANGATE_2026-07-19_VALUES_V0.md`) | — | Combat Bible |
 | `total_remaining_power` (clé 1 de DP-7) | **fonction canonique définie par la Balance Bible** — CITÉE ici, jamais définie (ratifié gate #3, QB-7 — P10) | — | Balance Bible |
 | `deterministic_order` (clé 3 de DP-7) | **ratifié** : la TieBreakChain, unique, aucun autre ordre (gate #3, QB-8) | — | Decision Bible (QD-1) |
 | Garde-fou des cascades d'Effects intra-Tick | **ratifié** : `MaxTriggerPerTick` par Effect, déclaré dans le DSL, VALIDÉ par le Combat (gate #3, QB-16) | Triggers/Tick | DSL Bible (déclaration) · Combat Bible (validation à l'exécution) |
@@ -342,7 +342,8 @@ T9.  Casts des survivants (DP-6.4)
                         — toute Unit VIVANTE à Mana plein → Event Cast ; Effects de
                           l'Ability résolus via la ResolutionQueue. Une même Unit peut
                           avoir attaqué en T5 PUIS caster ici (ratifié gate #3, QB-10 :
-                          cumulables). Retombée du Mana : Paramètres (gate futur).
+                          cumulables). Retombée du Mana : retombe à zéro (v0, ratifié
+                          `HUMANGATE_2026-07-19_VALUES_V0.md`).
 T10. Fin de Tick        — vérifications, dans cet ordre :
                           (1) un camp sans Unit vivante (Health > 0) → Event Victory
                               (élimination) ;
@@ -548,10 +549,9 @@ Ce qui reste du ressort de Pierre, hors de portée d'un Oracle :
   mécaniquement correct mais peut être RESSENTI comme volé. Si la fréquence DP-7 monte
   (Simulation Hooks), c'est un signal design — leviers chez Balance (valeur du
   `tick_limit`, calibrage des Damages), décision Pierre, jamais automatique.
-- **La géométrie est ratifiée, les dimensions restent un choix de feel** (QB-1) :
-  « lignes, coins, centre » (V1) doivent rester lisibles sur un écran mobile — le nombre
-  de Cells, arbitré par Pierre via les Core Rules (gate futur), pèsera plus lourd que
-  tout argument technique.
+- **La géométrie est ratifiée, les dimensions sont v0 = 8×8** (QB-1, `HUMANGATE_2026-07-19_VALUES_V0.md`) :
+  « lignes, coins, centre » (V1) doivent rester lisibles sur un écran mobile — la valeur
+  reste PROVISOIRE, ajustable par Pierre au playtest si 8×8 ne rend pas bien à l'écran.
 - **« Dying breath » — tranché** (gate #3, QB-5) : aucun acte posthume — une Unit morte
   ne lance jamais son sort. Si la dramaturgie manque au playtest, c'est un signal design
   à remonter en gate, pas une règle à contourner.
