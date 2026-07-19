@@ -11,7 +11,7 @@ import { BeloteDriver } from "./driver.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, ".."); // experiments/belote-claude/
-const PORT = Number(process.env.BELOTE_PORT || 4137);
+const PORT = Number(process.env.PORT || process.env.BELOTE_PORT || 4137);
 
 let game = null; // une seule partie en mémoire (usage local mono-joueur)
 
@@ -53,6 +53,12 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && (path === "/" || path === "/index.html")) {
       return serveFile(res, "index.html", "text/html; charset=utf-8");
     }
+    if (req.method === "GET" && path === "/manifest.webmanifest") {
+      return serveFile(res, "manifest.webmanifest", "application/manifest+json; charset=utf-8");
+    }
+    if (req.method === "GET" && path === "/sw.js") {
+      return serveFile(res, "sw.js", "text/javascript; charset=utf-8");
+    }
     // modules ES du moteur, servis pour l'UI (source unique de vérité, pas de copie).
     if (req.method === "GET" && /^\/src\/[a-z0-9_-]+\.mjs$/i.test(path)) {
       return serveFile(res, path.slice(1), "text/javascript; charset=utf-8");
@@ -60,6 +66,7 @@ const server = createServer(async (req, res) => {
     // assets (spritesheet cartes, dos, tapis, preview)
     if (req.method === "GET" && path.startsWith("/assets/")) {
       const type = path.endsWith(".svg") ? "image/svg+xml"
+        : path.endsWith(".png") ? "image/png"
         : path.endsWith(".html") ? "text/html; charset=utf-8"
         : path.endsWith(".css") ? "text/css; charset=utf-8"
         : "application/octet-stream";

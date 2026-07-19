@@ -3,7 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Belote (Claude) — jouable</title>
+  <title>Belote</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/assets/icon-192.png" sizes="192x192" type="image/png" />
+  <link rel="apple-touch-icon" href="/assets/icon-192.png" />
+  <meta name="theme-color" content="#10583e" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Belote" />
   <style>
     :root {
       --felt-lo: #0a3d2c; --felt-mid: #10583e; --felt-hi: #18815e;
@@ -35,7 +44,7 @@
 
     /* ---------- HUD ---------- */
     .hud {
-      display: flex; align-items: center; gap: 10px; padding: 10px 12px 8px;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 12px 8px;
       background: linear-gradient(#0006, #0000);
     }
     .brand { font-family: var(--font-display); font-size: 17px; color: var(--brass-hi);
@@ -55,7 +64,7 @@
     .chip.lead .val { color: var(--brass-hi); }
     .chip .ann { font-size: 10.5px; line-height: 1.15; margin-top: 1px; min-height: 12px; color: #ffe0a3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .chip .ann.empty { color: transparent; }
-    .hud-actions { display: flex; align-items: center; gap: 6px; }
+    .hud-actions { display: flex; align-items: center; gap: 6px; flex-basis: 100%; justify-content: center; }
     .hud-actions label { font-size: 10px; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 1px; }
     .hud-actions input { width: 42px; padding: 3px; border-radius: 6px; border: 1px solid #0006; text-align: center;
       background: #f7f4ec; color: #222; font-size: 12px; }
@@ -172,15 +181,17 @@
     /* ---------- main (éventail) ---------- */
     .hand-actions { display: flex; justify-content: center; gap: 8px; min-height: 0; padding: 0 6px; }
     .declbtn { font-size: 12px; padding: 6px 14px; border-radius: 10px; }
-    .hand-wrap { padding: 4px 6px 14px; display: flex; justify-content: center; align-items: flex-end;
-      min-height: 118px; background: linear-gradient(#0000, #0006); }
-    #hand { position: relative; display: flex; justify-content: center; align-items: flex-end; padding-top: 22px; }
-    .handcard { position: relative; margin: 0 -10px; transition: transform .16s ease, filter .16s ease;
+    .hand-wrap { padding: 4px 4px 14px; display: flex; justify-content: center; align-items: flex-end;
+      min-height: 142px; background: linear-gradient(#0000, #0006); }
+    #hand { position: relative; display: flex; justify-content: center; align-items: flex-end; padding-top: 24px; }
+    .handcard { position: relative; margin: 0 -12px; transition: transform .16s ease, filter .16s ease;
       transform: rotate(var(--rot)) translateY(var(--ty)); transform-origin: bottom center; cursor: default;
       touch-action: none; /* le glissé de rangement ne fait pas défiler la page (tactile) */ }
     .handcard.dragging { transition: none; z-index: 60; filter: brightness(1.08); cursor: grabbing; }
-    .handcard .card { width: 60px; height: 86px; }
-    .handcard .card .pip { font-size: 34px; }
+    .handcard .card { width: 62px; height: 114px; }
+    .handcard .card .pip { font-size: 44px; }
+    .handcard .card .corner b { font-size: 15px; }
+    .handcard .card .corner i { font-size: 13px; }
     .handcard .pts { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 9.5px;
       color: var(--muted); white-space: nowrap; opacity: 0; transition: opacity .15s; }
     .handcard.legal { cursor: pointer; }
@@ -212,7 +223,11 @@
     @media (prefers-reduced-motion: reduce) {
       .cardwrap { transition: none; } .pod.active .halo { animation: none; }
     }
-    @media (max-height: 680px) { .handcard .card { width: 52px; height: 74px; } .avatar { width: 40px; height: 40px; font-size: 20px; } }
+    @media (max-height: 680px) {
+      .handcard .card { width: 56px; height: 94px; }
+      .handcard .card .pip { font-size: 40px; }
+      .avatar { width: 40px; height: 40px; font-size: 20px; }
+    }
   </style>
 </head>
 <body>
@@ -667,6 +682,10 @@
     }
     $("beloteBtn").addEventListener("click", () => declareBelote("belote"));
     $("rebeloteBtn").addEventListener("click", () => declareBelote("rebelote"));
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+    }
 
     $("sortPref").value = sortPref;
     $("sortPref").addEventListener("change", () => {

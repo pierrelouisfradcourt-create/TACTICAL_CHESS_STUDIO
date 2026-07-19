@@ -194,3 +194,57 @@ ambiguïté que le prompt n'a pas levée** — donc déjà de la matière pour l
   distinct du code testé) + un **recompte manuel** + des **mains aléatoires**. Un test qui
   réutilise la fonction testée pour se valider est circulaire ; l'audit indépendant est ce qui
   transforme « ça tourne » en « c'est correct ».
+
+---
+
+## Partie 4 — passe déploiement mobile (2026-07-19)
+
+> Contexte différent des passes 1-3 : il ne s'agit plus de construire le moteur mais de le
+> rendre installable et jouable sur le téléphone réel d'une joueuse (test terrain, pas oracle
+> automatisé). Serveur Node existant exposé sur Render (`web/server.mjs`), manifeste PWA +
+> service worker ajoutés pour l'installation écran d'accueil.
+
+### E10 — Icônes SVG seules insuffisantes pour l'installabilité Chrome Android
+- **Quoi** : premier manifeste avec uniquement une icône `image/svg+xml` (`sizes: "any"`).
+  Chrome Android ne proposait que « Créer un raccourci » (lien simple, pas d'app standalone),
+  jamais « Installer l'application ».
+- **Pourquoi** : malgré le support théorique du SVG dans les manifestes, l'heuristique
+  d'installabilité de Chrome sur Android est fiable seulement avec des icônes **PNG raster**
+  (192×192 et 512×512).
+- **Comment corrigé** : rasterisation de l'icône via Playwright headless (déjà présent comme
+  devDependency du projet) → `assets/icon-192.png` / `icon-512.png`, référencées dans le
+  manifeste avec `purpose: any` et `purpose: maskable`. Résultat confirmé par la joueuse : le
+  menu propose maintenant « Installer l'application ».
+- **Meilleur prompt** : pour toute PWA ciblant Android, exiger d'emblée des icônes PNG
+  192/512 — ne pas se fier au support SVG même quand la spec l'autorise.
+
+### E11 — Service worker cache-first : les mises à jour de l'appli restent invisibles
+- **Quoi** : première version du service worker en stratégie **cache-first** pour la coquille
+  statique (`caches.match(req).then(hit => hit || fetch(req))`). Après un premier déploiement,
+  toute modification ultérieure de `index.html` restait invisible sur les appareils ayant déjà
+  visité le site — y compris **pendant mes propres tests locaux**, où j'ai perdu du temps à
+  chercher un bug de CSS qui n'existait pas (le fichier servi n'était simplement pas le bon).
+- **Pourquoi** : `caches.match` sert toujours l'entrée en cache si elle existe, sans jamais
+  revalider contre le réseau, et le service worker ne se met à jour que si son propre script
+  (`sw.js`) change — pas si `index.html` change. Piège classique des PWA en développement actif.
+- **Comment corrigé** : stratégie inversée en **réseau-d'abord** pour la coquille (fetch réseau,
+  mise à jour du cache à la volée, fallback cache seulement si le réseau échoue = hors-ligne).
+  Version de cache bumpée (`v2` → `v3`) pour purger l'ancien cache déjà posé sur les appareils.
+- **Meilleur prompt** : pour un projet en itération active (pas un livrable figé), préciser
+  « service worker réseau-d'abord, pas cache-first » dès le départ — le cache-first est correct
+  seulement pour un contenu qui ne bougera plus.
+
+### E12 — Barre de geste Android : hors du périmètre corrigeable
+- **Quoi** : la joueuse signale que la bande de navigation Android (bas d'écran, geste retour)
+  reste active pendant le jeu et déclenche des retours involontaires en essayant de jouer une
+  carte (glissé vers le bas de l'éventail proche du bord de l'écran).
+- **Pourquoi** : cette bande appartient au système d'exploitation, pas à l'application. Android
+  la garde volontairement accessible en permanence (sécurité de navigation), même pour les
+  applications natives en plein écran — aucune API web (PWA installée, pas TWA packagée) ne
+  permet de la supprimer durablement.
+- **Comment corrigé** : **non corrigé, hors périmètre** — décision explicite de la joueuse
+  (« si tu n'as pas de fix on reste comme ça ») plutôt que de proposer un correctif partiel
+  (fullscreen en haut d'écran seulement, qui ne réglait pas la gêne réelle en bas d'écran).
+- **Meilleur prompt** : pour une appli à gestes proches du bord d'écran (glisser une carte, un
+  panneau, etc.), prévoir une marge de sécurité tactile en bas de zone interactive dès la
+  conception — ou documenter clairement que la zone système reste hors de portée de l'appli.
