@@ -42,12 +42,16 @@ def _check_mutation_proof(data: dict, key_file: Path | None) -> list[str]:
         return []
     detail = code_r.get("detail") or {}
     mut = detail.get("mutation")
-    # Marqueurs de game-ness durables : preuve mutation, garde e2e, OU la trace de
-    # dégradation laissée par le driver quand il a invalidé une preuve mutation
-    # (mutation_verification) — cette dernière survit au retrait de e2e/mutation
-    # dans un state.json falsifié (finding 1 : le verdict BLOCKED reste détecté
-    # comme jeu, donc jamais overall=True sans preuve).
+    # Marqueurs de game-ness durables : preuve mutation, garde e2e, garde
+    # SOLVABILITÉ (F5c, 2026-07-14 : aligné sur driver._effective_is_game — le
+    # driver marque 'solvability' dans le detail du reçu code d'un jeu, l'omettre
+    # ici laissait un angle mort), OU la trace de dégradation laissée par le
+    # driver quand il a invalidé une preuve mutation (mutation_verification) —
+    # cette dernière survit au retrait de e2e/mutation dans un state.json falsifié
+    # (finding 1 : le verdict BLOCKED reste détecté comme jeu, donc jamais
+    # overall=True sans preuve).
     is_game = (isinstance(mut, dict) or detail.get("e2e") is not None
+               or detail.get("solvability") is not None
                or "mutation_verification" in detail)
     if not is_game:
         return []  # non-jeu : la mutation n'est pas exigée
@@ -116,7 +120,24 @@ def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
     }
 
 
+def _harden_streams() -> None:
+    """Robustesse encodage console (P3) : sous Windows cp1252, les caractères
+    non encodables (⚠, ✗) levaient UnicodeEncodeError → exit 1 factice sur un
+    verdict pourtant AUTHENTIQUE, faussant toute gate automatisée. On garde
+    l'encodage natif du flux mais on remplace les caractères non représentables
+    (errors='replace') au lieu de crasher. Aucune logique de vérification ni
+    exit code sémantique (0/2) n'est modifié."""
+    for stream in (sys.stdout, sys.stderr):
+        reconf = getattr(stream, "reconfigure", None)
+        if reconf is not None:
+            try:
+                reconf(errors="replace")
+            except (OSError, ValueError):
+                pass  # flux exotique (fermé, non-buffer) : on n'aggrave pas
+
+
 def main(argv: list[str] | None = None) -> int:
+    _harden_streams()
     argv = argv if argv is not None else sys.argv[1:]
     if not argv:
         print("usage: python -m forge.verify_run <verdict.json>", file=sys.stderr)
