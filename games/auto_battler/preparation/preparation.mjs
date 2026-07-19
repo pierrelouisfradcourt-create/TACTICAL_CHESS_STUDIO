@@ -147,7 +147,16 @@ export function applyPreparationInput(state, input) {
 }
 
 /**
- * Buy: Bench full check (DP-9) → if full, reject. Else: debit Pool, debit Gold, add to Bench.
+ * Buy: Bench full check (DP-9) → if full, reject. Shop-slot check (MED-3) →
+ * shop_index must reference a real Shop slot that actually holds unitDefId,
+ * else reject deterministically. Else: consume the Shop slot, debit Gold,
+ * add to Bench.
+ *
+ * Pool accounting (ECO-1, reservation au tirage): the exemplar backing this
+ * Shop slot was already reserved out of the Pool's available count when the
+ * Shop was drawn (shop.drawShop → pool.reservePool). Buy converts that
+ * reserved exemplar into a possession (Bench unit) — it does NOT touch
+ * state.pool again, since doing so would double-debit the same exemplar.
  */
 function handleBuy(state, seatId, payload) {
   const { unitDefId, shop_index } = payload;
@@ -167,10 +176,17 @@ function handleBuy(state, seatId, payload) {
     return state;
   }
 
-  // Check Pool has the unit
-  const poolCount = pool.getPoolCount(state.pool, unitDefId);
-  if (poolCount < 1) {
-    return state; // Reject: unit not available
+  // MED-3: shop_index must reference a real, in-bounds Shop slot whose
+  // content actually matches unitDefId. Buy must not succeed independently
+  // of what the Shop displays.
+  const playerShop = Array.isArray(player.shop) ? player.shop : [];
+  if (
+    !Number.isInteger(shop_index) ||
+    shop_index < 0 ||
+    shop_index >= playerShop.length ||
+    playerShop[shop_index] !== unitDefId
+  ) {
+    return state; // Reject: Shop slot invalid or does not match unitDefId
   }
 
   // Debit Gold
@@ -181,9 +197,6 @@ function handleBuy(state, seatId, payload) {
 
   // All checks passed: apply transaction
   let newState = state;
-
-  // Debit Pool
-  const newPool = pool.debitPool(state.pool, unitDefId, 1);
 
   // Debit Gold and emit GoldChanged
   const newGold = player.gold - cost;
@@ -206,18 +219,28 @@ function handleBuy(state, seatId, payload) {
 
   const newBench = bench.addToBench(player.bench, unitInstance);
 
-  // Emit UnitBought
+  // Consume the Shop slot: the exemplar leaves the "reserved" account and
+  // becomes a possession (MED-3).
+  const newShop = [
+    ...playerShop.slice(0, shop_index),
+    ...playerShop.slice(shop_index + 1)
+  ];
+
+  // Emit UnitBought — payload matches 05_ECONOMY_BIBLE.md exactly:
+  // {seat_id, unit_definition, shop_slot, gold_cost} (MED-4). Note:
+  // unit_instance_id is NOT part of this event's contract; it still lives
+  // on the unit instance stored on the Bench.
   newEventLog = appendEvent(newEventLog, {
     kind: 'UnitBought',
     seat_id: seatId,
     unit_definition: unitDefId,
-    gold_cost: cost,
-    unit_instance_id: unitInstance.unit_instance_id
+    shop_slot: shop_index,
+    gold_cost: cost
   });
 
   // Update state
   const newPlayers = { ...state.players };
-  newPlayers[seatId] = { ...player, gold: newGold, bench: newBench };
+  newPlayers[seatId] = { ...player, gold: newGold, bench: newBench, shop: newShop };
 
   newState = createGameState({
     seed: state.seed,
@@ -228,8 +251,8 @@ function handleBuy(state, seatId, payload) {
     phase: state.phase
   });
 
-  // Attach economic fields
-  newState.pool = newPool;
+  // Attach economic fields — Pool untouched (ECO-1: already reserved at draw).
+  newState.pool = state.pool;
   newState.bench_capacity = state.bench_capacity;
 
   // Auto-merge check
@@ -290,11 +313,14 @@ function handleSell(state, seatId, payload) {
 
   const newBench = removalResult.newBench;
 
-  // Emit UnitSold
+  // Emit UnitSold — payload matches 05_ECONOMY_BIBLE.md exactly:
+  // {seat_id, unit_instance, unit_definition, star, pool_returned,
+  // gold_credited} (MED-4: unit_definition was missing).
   newEventLog = appendEvent(newEventLog, {
     kind: 'UnitSold',
     seat_id: seatId,
     unit_instance: unit_instance_id,
+    unit_definition: unit_def_id,
     star: star,
     pool_returned: Math.pow(3, star - 1),
     gold_credited: credit
@@ -320,8 +346,15 @@ function handleSell(state, seatId, payload) {
   return newState2;
 }
 
+// Fixture-only odds table version tag for ShopRolled payloads (ECO-4).
+// This is NOT a Balance Bible value — it is a provisional placeholder for
+// the contractual field; the real odds table / versioning is TBD.
+const ODDS_TABLE_VERSION_FIXTURE = 'v0-fixture';
+
 /**
- * Reroll: debit Gold, re-draw Shop.
+ * Reroll: debit Gold, release the current Shop's reservation back to the
+ * Pool (ECO-1: "réserve levée, retour au tirage"), re-draw a fresh Shop
+ * (which reserves new exemplars out of the Pool, MED-2).
  */
 function handleReroll(state, seatId, payload) {
   const player = state.players[seatId];
@@ -334,10 +367,18 @@ function handleReroll(state, seatId, payload) {
     return state; // Reject: insufficient gold
   }
 
-  // Re-draw Shop (consume RNG)
-  const { rng_state: newRngState, shop: newShop } = shop.drawShop(
+  // Release the outgoing Shop's reservation: every undrawn/unbought slot
+  // returns 1 exemplar to the Pool's available count before the new draw.
+  const oldShop = Array.isArray(player.shop) ? player.shop : [];
+  let releasedPool = state.pool;
+  for (const unitDefId of oldShop) {
+    releasedPool = pool.restorePool(releasedPool, unitDefId, 1);
+  }
+
+  // Re-draw Shop (consume RNG); reserves new exemplars out of releasedPool.
+  const { rng_state: newRngState, shop: newShop, pool: reservedPool } = shop.drawShop(
     state.rng_state,
-    state.pool,
+    releasedPool,
     player.level,
     SHOP_SIZE
   );
@@ -352,11 +393,14 @@ function handleReroll(state, seatId, payload) {
     source: 'Reroll'
   });
 
-  // Emit ShopRolled
+  // Emit ShopRolled — payload matches 05_ECONOMY_BIBLE.md exactly:
+  // {seat_id, shop_content, odds_table_version, cause} (MED-4:
+  // odds_table_version was missing).
   newEventLog = appendEvent(newEventLog, {
     kind: 'ShopRolled',
     seat_id: seatId,
     shop_content: newShop,
+    odds_table_version: ODDS_TABLE_VERSION_FIXTURE,
     cause: 'Reroll'
   });
 
@@ -374,7 +418,7 @@ function handleReroll(state, seatId, payload) {
   });
 
   // Attach economic fields
-  newState3.pool = state.pool;
+  newState3.pool = reservedPool;
   newState3.bench_capacity = state.bench_capacity;
 
   return newState3;
@@ -522,18 +566,19 @@ function handlePlace(state, seatId, payload) {
 
 /**
  * ConfirmPreparation: close the Preparation phase, advance to Battle.
+ *
+ * MED-5: no Event is emitted for the phase transition itself. Spawn means
+ * "a unit appears" (a real game entity), not "phase changed" — none of the
+ * 19 frozen Event kinds (engine/registry.mjs, INV-12) represents a phase
+ * transition, and the registry is closed (no new kind without a separate
+ * HumanGate). state.phase is already part of the returned GameState, which
+ * is sufficient to observe the transition; no Event is required for it.
  */
 function handleConfirmPreparation(state, seatId, payload) {
-  // Advance phase
-  let newEventLog = appendEvent(state.eventLog, {
-    kind: 'Spawn', // Placeholder for phase transition
-    phase: 'Battle'
-  });
-
   const newState7 = createGameState({
     seed: state.seed,
     rng_state: state.rng_state,
-    eventLog: newEventLog,
+    eventLog: state.eventLog,
     players: state.players,
     entities: state.entities,
     phase: 'Battle'

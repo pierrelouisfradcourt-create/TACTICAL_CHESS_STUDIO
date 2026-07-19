@@ -25,23 +25,46 @@ import * as goldMod from './economy/gold.mjs';
 // pool/pool.mjs
 // =====================================================================
 
-test('pool.reservePool: valid string unitDefId does not throw (kills neq->eq @23)', () => {
-  assert.doesNotThrow(() => poolMod.reservePool({}, 'unit_1', 2));
+test('pool.reservePool: valid string unitDefId does not throw when stock is sufficient (kills neq->eq @23)', () => {
+  assert.doesNotThrow(() => poolMod.reservePool({ unit_1: 5 }, 'unit_1', 2));
+});
+
+test('pool.reservePool: reserving more than available throws (MED-2: reservePool is a real operation, not a no-op)', () => {
+  assert.throws(() => poolMod.reservePool({ unit_1: 1 }, 'unit_1', 2), /insufficient/);
+  assert.throws(() => poolMod.reservePool({}, 'unit_1', 1), /insufficient/);
+});
+
+test('pool.reservePool: decrements available and deletes key at zero (MED-2)', () => {
+  const p1 = poolMod.reservePool({ unit_1: 5 }, 'unit_1', 2);
+  assert.equal(p1.unit_1, 3);
+  const p2 = poolMod.reservePool({ unit_1: 2 }, 'unit_1', 2);
+  assert.equal(p2.unit_1, undefined, 'key deleted when count reaches 0');
 });
 
 test('pool.reservePool: non-string unitDefId throws', () => {
   assert.throws(() => poolMod.reservePool({}, 123, 2));
 });
 
-test('pool.reservePool: qty validation isolates each OR clause (kills neq->eq/or->and @26)', () => {
+test('pool.reservePool: qty validation isolates each OR clause (kills neq->eq/or->and)', () => {
   // valid: number, integer, >=0 -> no throw
   assert.doesNotThrow(() => poolMod.reservePool({}, 'unit_1', 0));
-  // non-integer number: isolates "!Number.isInteger" clause true, others false
-  assert.throws(() => poolMod.reservePool({}, 'unit_1', 1.5));
+  // non-integer number: isolates "!Number.isInteger" clause true, others false.
+  // Uses a pool with SUFFICIENT stock (not {}) so the later insufficiency
+  // check (current < qty) can't incidentally throw and mask a weakened
+  // type guard — this is what actually kills the first `||`->`&&` mutant
+  // (MED-2: an empty-pool fixture here would pass on a broken type guard,
+  // because 0 < 1.5 still throws via the wrong code path).
+  assert.throws(() => poolMod.reservePool({ unit_1: 10 }, 'unit_1', 1.5));
   // negative integer: isolates "qty < 0" clause true, others false
-  assert.throws(() => poolMod.reservePool({}, 'unit_1', -1));
+  assert.throws(() => poolMod.reservePool({ unit_1: 10 }, 'unit_1', -1));
   // wrong type entirely
-  assert.throws(() => poolMod.reservePool({}, 'unit_1', '2'));
+  assert.throws(() => poolMod.reservePool({ unit_1: 10 }, 'unit_1', '2'));
+});
+
+test('pool.getPoolCount: returns the stored count, or 0 when absent', () => {
+  assert.equal(poolMod.getPoolCount({ unit_1: 7 }, 'unit_1'), 7);
+  assert.equal(poolMod.getPoolCount({ unit_1: 7 }, 'unit_2'), 0);
+  assert.equal(poolMod.getPoolCount({}, 'unit_1'), 0);
 });
 
 test('pool.debitPool: qty validation isolates each OR clause (kills or->and @48)', () => {
@@ -100,6 +123,23 @@ test('shop.drawShop: empty pool yields empty shop; non-empty pool yields shopSiz
   const { shop: fullShop } = shopMod.drawShop(1, FULL_POOL, 1, 5);
   assert.equal(fullShop.length, 5);
   assert.ok(fullShop.every(id => Object.keys(FULL_POOL).includes(id)));
+});
+
+test('shop.drawShop: never draws more exemplars of a unitDefId than available; reserves into the returned pool (MED-2)', () => {
+  // Only 2 exemplars of unit_1 exist; asking for 5 slots from a pool that
+  // ONLY has unit_1 must yield a shop of length 2, not 5 (no over-draw).
+  const scarcePool = { unit_1: 2 };
+  const { shop, pool: newPool } = shopMod.drawShop(1, scarcePool, 1, 5);
+  assert.equal(shop.length, 2, 'shop is bounded by real Pool stock, not forced to shopSize');
+  assert.deepEqual(shop, ['unit_1', 'unit_1']);
+  assert.equal(newPool.unit_1, undefined, 'Pool fully reserved (available count reaches 0, key deleted)');
+});
+
+test('shop.drawShop: reserves drawn exemplars out of the returned pool (MED-2)', () => {
+  const { shop, pool: newPool } = shopMod.drawShop(1, FULL_POOL, 1, 5);
+  const totalBefore = Object.values(FULL_POOL).reduce((a, b) => a + b, 0);
+  const totalAfter = Object.values(newPool).reduce((a, b) => a + b, 0);
+  assert.equal(totalAfter, totalBefore - shop.length, 'returned pool is decremented by exactly the number of reserved slots');
 });
 
 // =====================================================================
@@ -257,7 +297,11 @@ test('gold.computeGoldDelta: tx.amount validation (kills or->and @80)', () => {
 // preparation/preparation.mjs
 // =====================================================================
 
-function makeFreshPrepState(seed, gold) {
+// shop defaults to a single unit_1 slot at index 0. Callers that need a
+// specific Shop content (e.g. unit_2, or several slots for repeated Buys at
+// shop_index 0 — MED-3: Buy consumes the slot, subsequent slots shift down)
+// pass their own array.
+function makeFreshPrepState(seed, gold, shop = ['unit_1']) {
   const s0 = state.initState(seed);
   let ps = prep.initPrepState(s0, ['player_0']);
   const player = ps.players['player_0'];
@@ -265,7 +309,7 @@ function makeFreshPrepState(seed, gold) {
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
-    players: { player_0: { ...player, gold } },
+    players: { player_0: { ...player, gold, shop } },
     entities: ps.entities,
     phase: ps.phase
   }, ps.pool, ps.bench_capacity);
@@ -434,7 +478,9 @@ test('prep.handleReroll: unlocks a previously locked shop (kills false->true @36
 });
 
 test('prep.applyAutoMerge: merged bench units collapse to 1 star-2 unit on the bench (kills eq->neq @591)', () => {
-  let ps = makeFreshPrepState(17, 50);
+  // 3 slots so shop_index 0 stays valid across all 3 Buys (MED-3: each Buy
+  // consumes and removes its slot, shifting the remaining entries down).
+  let ps = makeFreshPrepState(17, 50, ['unit_1', 'unit_1', 'unit_1']);
 
   for (let i = 0; i < 3; i++) {
     ps = prep.applyPreparationInput(ps, {
@@ -463,7 +509,7 @@ test('prep.applyAutoMerge: a board-only merge places the produced unit on the bo
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
-    players: { player_0: { ...player, gold: 50, board: [b1, b2, b3] } },
+    players: { player_0: { ...player, gold: 50, board: [b1, b2, b3], shop: ['unit_2'] } },
     entities: ps.entities,
     phase: ps.phase
   }, ps.pool, ps.bench_capacity);
@@ -497,7 +543,7 @@ test('prep.applyAutoMerge: pre-existing board units are untouched by a bench-onl
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
-    players: { player_0: { ...player, gold: 50, board: [sentinelBoardUnit] } },
+    players: { player_0: { ...player, gold: 50, board: [sentinelBoardUnit], shop: ['unit_1', 'unit_1', 'unit_1'] } },
     entities: ps.entities,
     phase: ps.phase
   }, ps.pool, ps.bench_capacity);

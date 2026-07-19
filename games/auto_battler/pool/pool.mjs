@@ -10,14 +10,19 @@ export function createPool() {
 }
 
 /**
- * Reserve exemplars from the pool into a shop.
- * Does NOT debit the pool — exemplars are marked reserved.
- * Reserve must match the total exemplars drawn for display.
- * @param {Object} pool - current pool state
+ * Reserve exemplars from the pool into a shop (ECO-1: "réservation au tirage").
+ * Decrements the pool's AVAILABLE count for unitDefId by qty — the reserved
+ * account itself is not materialized here (it is the Shop content: the
+ * caller, e.g. shop.drawShop, is responsible for tracking which unitDefId
+ * is reserved by keeping it in the drawn Shop array). Physical exemplar
+ * total (Pool available + Shops reserved + possessions) is conserved: this
+ * function is the "available -= qty" half of the "reserved += qty" move.
+ * @param {Object} pool - current pool state (available exemplars)
  * @param {string} unitDefId - unit definition ID
  * @param {number} qty - quantity to reserve
- * @throws if qty < 0, qty is not integer, unitDefId is invalid
- * @returns {Object} new pool state (immutable)
+ * @throws if qty < 0, qty is not integer, unitDefId is invalid, or pool has
+ *   fewer than qty available exemplars for unitDefId
+ * @returns {Object} new pool state (immutable) with availability decremented
  */
 export function reservePool(pool, unitDefId, qty) {
   if (typeof unitDefId !== 'string') {
@@ -27,9 +32,19 @@ export function reservePool(pool, unitDefId, qty) {
     throw new Error('qty must be a non-negative integer');
   }
 
-  // Reservation does not affect the pool directly — it's a separate account
-  // (shop_reserved). This function is a no-op sanity check.
-  return { ...pool };
+  const current = pool[unitDefId] || 0;
+  if (current < qty) {
+    throw new Error(`Pool insufficient to reserve: ${unitDefId} has ${current} available, need ${qty}`);
+  }
+
+  const newPool = { ...pool };
+  if (current - qty === 0) {
+    delete newPool[unitDefId];
+  } else {
+    newPool[unitDefId] = current - qty;
+  }
+
+  return newPool;
 }
 
 /**

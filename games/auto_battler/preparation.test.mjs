@@ -17,27 +17,37 @@ import * as benchMod from './bench/bench.mjs';
 import * as mergeMod from './merge/merge.mjs';
 import * as goldMod from './economy/gold.mjs';
 
-// --- R1: Pool conservation under valid input sequences ---
-test('R1: Pool conservation across Buy/Sell/Reroll sequences', () => {
-  const seed = 42;
-  const initialState = state.initState(seed);
-  const prepState = prep.initPrepState(initialState, ['player_0', 'player_1']);
+// --- Helper: total physical exemplars across Pool + Shops (reserved) +
+// Possessions (Bench/Board, weighted by star tier, ECO-1). Used to verify
+// the FULL conservation invariant, not just the Pool account alone
+// (MED-2: previous R1 only checked Pool, missing Shops+Possessions).
+function totalExemplars(prepState) {
+  const poolTotal = poolMod.getTotalPoolCount(prepState.pool);
 
-  // Snapshot initial pool
-  const initialPoolTotal = poolMod.getTotalPoolCount(prepState.pool);
+  let shopTotal = 0;
+  let possessionsTotal = 0;
+  for (const seatId of Object.keys(prepState.players)) {
+    const p = prepState.players[seatId];
+    const shop = Array.isArray(p.shop) ? p.shop : [];
+    shopTotal += shop.length;
+    for (const unit of [...(p.bench || []), ...(p.board || [])]) {
+      possessionsTotal += Math.pow(3, (unit.star || 1) - 1);
+    }
+  }
 
-  // Buy, Sell, Reroll sequence (property-based: 20 random seeds)
+  return poolTotal + shopTotal + possessionsTotal;
+}
+
+// --- R1: Full ECO-1 conservation (Pool + Shops reserved + Possessions) ---
+test('R1: Pool+Shops+Possessions conservation across Draw/Buy/Reroll/Sell sequences', () => {
   for (let i = 0; i < 20; i++) {
     const testSeed = 100 + i;
     let s = state.initState(testSeed);
     s = prep.initPrepState(s, ['player_0']);
 
-    const initialTotal = poolMod.getTotalPoolCount(s.pool);
-
-    // Income to player (fixture: add 10 gold to play with)
     const player = s.players['player_0'];
     const updatedPlayers = { ...s.players };
-    updatedPlayers['player_0'] = { ...player, gold: 20 };
+    updatedPlayers['player_0'] = { ...player, gold: 30 };
     s = createExtendedGameState({
       seed: s.seed,
       rng_state: s.rng_state,
@@ -47,25 +57,55 @@ test('R1: Pool conservation across Buy/Sell/Reroll sequences', () => {
       phase: s.phase
     }, s.pool, s.bench_capacity);
 
-    // Apply some inputs
-    const inputs = [
-      { kind: 'Buy', seatId: 'player_0', unitDefId: 'unit_1', shop_index: 0 },
-      { kind: 'Buy', seatId: 'player_0', unitDefId: 'unit_2', shop_index: 1 }
-    ];
+    const totalBefore = totalExemplars(s);
 
-    let currentState = s;
-    for (const inp of inputs) {
-      currentState = prep.applyPreparationInput(currentState, inp);
+    // Draw a real Shop: reserves exemplars out of the Pool (ECO-1/MED-2).
+    const draw = shopMod.drawShop(s.rng_state, s.pool, 1, 5);
+    let playersAfterDraw = { ...s.players };
+    playersAfterDraw['player_0'] = { ...s.players['player_0'], shop: draw.shop };
+    s = createExtendedGameState({
+      seed: s.seed,
+      rng_state: draw.rng_state,
+      eventLog: s.eventLog,
+      players: playersAfterDraw,
+      entities: s.entities,
+      phase: s.phase
+    }, draw.pool, s.bench_capacity);
+
+    assert.equal(totalExemplars(s), totalBefore, `Seed ${testSeed}: conservation holds after Shop draw (reservation)`);
+
+    // Buy the first Shop slot, if the draw produced one.
+    if (s.players['player_0'].shop.length > 0) {
+      const boughtId = s.players['player_0'].shop[0];
+      s = prep.applyPreparationInput(s, {
+        kind: 'Buy',
+        seatId: 'player_0',
+        unitDefId: boughtId,
+        shop_index: 0
+      });
+      assert.equal(totalExemplars(s), totalBefore, `Seed ${testSeed}: conservation holds after Buy`);
     }
 
-    const finalTotal = poolMod.getTotalPoolCount(currentState.pool);
-    // Pool should be conserved: initial - number bought = final
-    assert.equal(finalTotal, initialTotal - 2, `Seed ${testSeed}: pool conservation after 2 buys`);
+    // Reroll: releases the current Shop's reservation, draws a fresh one.
+    s = prep.applyPreparationInput(s, { kind: 'Reroll', seatId: 'player_0' });
+    assert.equal(totalExemplars(s), totalBefore, `Seed ${testSeed}: conservation holds after Reroll`);
+
+    // Sell a bought unit, if one made it onto the bench.
+    const benchUnit = s.players['player_0'].bench[0];
+    if (benchUnit) {
+      s = prep.applyPreparationInput(s, {
+        kind: 'Sell',
+        seatId: 'player_0',
+        unit_instance_id: benchUnit.unit_instance_id
+      });
+      assert.equal(totalExemplars(s), totalBefore, `Seed ${testSeed}: conservation holds after Sell`);
+    }
   }
 });
 
-// --- R2: Buy debits Pool, Place does not ---
-test('R2: Buy debits Pool; Place leaves Pool unchanged', () => {
+// --- R2: Shop draw reserves from Pool; Buy leaves Pool unchanged (already
+// reserved at draw, ECO-1); Place leaves Pool unchanged ---
+test('R2: Shop draw debits Pool by reservation; Buy does not re-debit; Place leaves Pool unchanged', () => {
   const s0 = state.initState(123);
   let ps = prep.initPrepState(s0, ['player_0']);
 
@@ -80,18 +120,36 @@ test('R2: Buy debits Pool; Place leaves Pool unchanged', () => {
     phase: ps.phase
   }, ps.pool, ps.bench_capacity);
 
-  const poolBefore = poolMod.getTotalPoolCount(ps.pool);
+  const poolBeforeDraw = poolMod.getTotalPoolCount(ps.pool);
 
-  // Buy
+  // Draw a Shop: this is where the Pool is actually debited (ECO-1/MED-2).
+  const draw = shopMod.drawShop(ps.rng_state, ps.pool, 1, 5);
+  let playersAfterDraw = { ...ps.players };
+  playersAfterDraw['player_0'] = { ...ps.players['player_0'], shop: draw.shop };
+  ps = createExtendedGameState({
+    seed: ps.seed,
+    rng_state: draw.rng_state,
+    eventLog: ps.eventLog,
+    players: playersAfterDraw,
+    entities: ps.entities,
+    phase: ps.phase
+  }, draw.pool, ps.bench_capacity);
+
+  const poolAfterDraw = poolMod.getTotalPoolCount(ps.pool);
+  assert.equal(poolAfterDraw, poolBeforeDraw - draw.shop.length, 'Shop draw reserves exemplars from Pool (ECO-1)');
+
+  // Buy the first drawn slot
+  assert.ok(draw.shop.length > 0, 'precondition: draw produced at least one slot');
+  const boughtId = ps.players['player_0'].shop[0];
   ps = prep.applyPreparationInput(ps, {
     kind: 'Buy',
     seatId: 'player_0',
-    unitDefId: 'unit_1',
+    unitDefId: boughtId,
     shop_index: 0
   });
 
   const poolAfterBuy = poolMod.getTotalPoolCount(ps.pool);
-  assert.equal(poolAfterBuy, poolBefore - 1, 'Buy debits Pool by 1');
+  assert.equal(poolAfterBuy, poolAfterDraw, 'Buy does not further debit Pool (exemplar already reserved at draw)');
 
   // Place (Bench → Board)
   const unit = ps.players['player_0'].bench[0];
@@ -114,11 +172,14 @@ test('R3: Sell ★1 returns 1 exemplar, Sell ★2 returns 3', () => {
   let ps = prep.initPrepState(s0, ['player_0']);
 
   const player = ps.players['player_0'];
+  // Populate the Shop directly (MED-3: Buy now requires a matching Shop
+  // slot). No reservation bookkeeping needed here — R1/R2 already cover the
+  // draw-time Pool reservation; this test is about Sell's restorePool math.
   ps = createExtendedGameState({
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
-    players: { player_0: { ...player, gold: 50 } },
+    players: { player_0: { ...player, gold: 50, shop: ['unit_1'] } },
     entities: ps.entities,
     phase: ps.phase
   }, ps.pool, ps.bench_capacity);
@@ -136,6 +197,9 @@ test('R3: Sell ★1 returns 1 exemplar, Sell ★2 returns 3', () => {
   const star1Unit = ps.players['player_0'].bench[0];
   assert.equal(star1Unit.star, 1, 'Bought unit is ★1');
 
+  const poolAfterBuy = poolMod.getTotalPoolCount(ps.pool);
+  assert.equal(poolAfterBuy, poolBefore, 'Buy does not debit Pool (exemplar already reserved at draw, ECO-1)');
+
   // Sell it
   ps = prep.applyPreparationInput(ps, {
     kind: 'Sell',
@@ -144,7 +208,7 @@ test('R3: Sell ★1 returns 1 exemplar, Sell ★2 returns 3', () => {
   });
 
   const poolAfterSellStar1 = poolMod.getTotalPoolCount(ps.pool);
-  assert.equal(poolAfterSellStar1, poolBefore - 1 + 1, 'Sell ★1 returns 1 exemplar');
+  assert.equal(poolAfterSellStar1, poolAfterBuy + 1, 'Sell ★1 returns 1 exemplar');
 
   // Manually create a ★2 unit for testing
   const star2Unit = {
@@ -337,8 +401,96 @@ test('R9: Input list closed; only known kinds accepted', () => {
   assert.ok(resultInvalid === ps, 'Invalid input rejected deterministically');
 });
 
+// --- MED-3: handleBuy must honor the real Shop content, not just accept any shop_index ---
+test('MED-3: Buy is rejected when shop_index is out of bounds or does not match the Shop content', () => {
+  const s0 = state.initState(600);
+  let ps = prep.initPrepState(s0, ['player_0']);
+  const player = ps.players['player_0'];
+  ps = createExtendedGameState({
+    seed: ps.seed,
+    rng_state: ps.rng_state,
+    eventLog: ps.eventLog,
+    players: { player_0: { ...player, gold: 50, shop: ['unit_1', 'unit_3'] } },
+    entities: ps.entities,
+    phase: ps.phase
+  }, ps.pool, ps.bench_capacity);
+
+  const benchBefore = ps.players['player_0'].bench.length;
+  const goldBefore = ps.players['player_0'].gold;
+  const shopBefore = [...ps.players['player_0'].shop];
+  const eventLogBefore = ps.eventLog.length;
+
+  // Out-of-bounds shop_index
+  let rejected1 = prep.applyPreparationInput(ps, {
+    kind: 'Buy',
+    seatId: 'player_0',
+    unitDefId: 'unit_1',
+    shop_index: 5
+  });
+  assert.equal(rejected1.players['player_0'].bench.length, benchBefore, 'out-of-bounds shop_index: Bench unchanged');
+  assert.equal(rejected1.players['player_0'].gold, goldBefore, 'out-of-bounds shop_index: Gold unchanged');
+  assert.deepEqual(rejected1.players['player_0'].shop, shopBefore, 'out-of-bounds shop_index: Shop unchanged');
+  assert.equal(rejected1.eventLog.length, eventLogBefore, 'out-of-bounds shop_index: no events emitted');
+
+  // In-bounds shop_index but unitDefId does not match what's actually there
+  // (shop[0] is 'unit_1', not 'unit_3' — a Buy for unit_3 at index 0 must fail)
+  let rejected2 = prep.applyPreparationInput(ps, {
+    kind: 'Buy',
+    seatId: 'player_0',
+    unitDefId: 'unit_3',
+    shop_index: 0
+  });
+  assert.equal(rejected2.players['player_0'].bench.length, benchBefore, 'mismatched unitDefId: Bench unchanged');
+  assert.equal(rejected2.players['player_0'].gold, goldBefore, 'mismatched unitDefId: Gold unchanged');
+  assert.deepEqual(rejected2.players['player_0'].shop, shopBefore, 'mismatched unitDefId: Shop unchanged');
+  assert.equal(rejected2.eventLog.length, eventLogBefore, 'mismatched unitDefId: no events emitted');
+
+  // Negative shop_index
+  let rejected3 = prep.applyPreparationInput(ps, {
+    kind: 'Buy',
+    seatId: 'player_0',
+    unitDefId: 'unit_1',
+    shop_index: -1
+  });
+  assert.equal(rejected3.players['player_0'].bench.length, benchBefore, 'negative shop_index: Bench unchanged');
+
+  // Exact boundary: shop_index === shop.length (one past the last valid slot)
+  let rejected4 = prep.applyPreparationInput(ps, {
+    kind: 'Buy',
+    seatId: 'player_0',
+    unitDefId: 'unit_1',
+    shop_index: shopBefore.length
+  });
+  assert.equal(rejected4.players['player_0'].bench.length, benchBefore, 'boundary shop_index === shop.length: Bench unchanged');
+  assert.deepEqual(rejected4.players['player_0'].shop, shopBefore, 'boundary shop_index === shop.length: Shop unchanged');
+
+  // A valid Buy (matches shop[1] === 'unit_3') succeeds and removes that
+  // exact entry from the Shop.
+  let accepted = prep.applyPreparationInput(ps, {
+    kind: 'Buy',
+    seatId: 'player_0',
+    unitDefId: 'unit_3',
+    shop_index: 1
+  });
+  assert.equal(accepted.players['player_0'].bench.length, benchBefore + 1, 'valid Buy: unit added to Bench');
+  assert.deepEqual(accepted.players['player_0'].shop, ['unit_1'], 'valid Buy: bought slot removed from Shop, other slot preserved');
+});
+
+// --- MED-5: ConfirmPreparation must not emit a fake Spawn event ---
+test('MED-5: ConfirmPreparation advances phase without emitting any Event (Spawn is not a phase transition)', () => {
+  const s0 = state.initState(601);
+  let ps = prep.initPrepState(s0, ['player_0']);
+
+  const eventLogBefore = ps.eventLog.length;
+  ps = prep.applyPreparationInput(ps, { kind: 'ConfirmPreparation', seatId: 'player_0' });
+
+  assert.equal(ps.phase, 'Battle', 'phase advances to Battle');
+  assert.equal(ps.eventLog.length, eventLogBefore, 'no Event emitted for the phase transition itself');
+  assert.ok(!ps.eventLog.some(e => e.kind === 'Spawn'), 'no fake Spawn event on the log');
+});
+
 // --- R10: Event schema validation ---
-test('R10: Emitted events have correct kind and payload structure', () => {
+test('R10: Emitted events have correct kind and payload structure (05_ECONOMY_BIBLE.md contract, MED-4)', () => {
   const s0 = state.initState(444);
   let ps = prep.initPrepState(s0, ['player_0']);
 
@@ -352,13 +504,28 @@ test('R10: Emitted events have correct kind and payload structure', () => {
     phase: ps.phase
   }, ps.pool, ps.bench_capacity);
 
+  // Reroll first to populate a real Shop and check ShopRolled's payload.
+  const eventLogBeforeReroll = ps.eventLog.length;
+  ps = prep.applyPreparationInput(ps, { kind: 'Reroll', seatId: 'player_0' });
+  const rerollEvents = ps.eventLog.slice(eventLogBeforeReroll);
+
+  const shopRolledEvent = rerollEvents.find(e => e.kind === 'ShopRolled');
+  assert.ok(shopRolledEvent, 'ShopRolled found');
+  assert.equal(typeof shopRolledEvent.seat_id, 'string', 'seat_id is string');
+  assert.ok(Array.isArray(shopRolledEvent.shop_content), 'shop_content is an array');
+  assert.equal(typeof shopRolledEvent.odds_table_version, 'string', 'odds_table_version present (MED-4)');
+  assert.equal(shopRolledEvent.cause, 'Reroll', 'cause is Reroll');
+
+  assert.ok(ps.players['player_0'].shop.length > 0, 'precondition: Reroll produced a non-empty shop');
+  const boughtId = ps.players['player_0'].shop[0];
+
   const eventLogBefore = ps.eventLog.length;
 
   // Buy to trigger events
   ps = prep.applyPreparationInput(ps, {
     kind: 'Buy',
     seatId: 'player_0',
-    unitDefId: 'unit_1',
+    unitDefId: boughtId,
     shop_index: 0
   });
 
@@ -379,13 +546,33 @@ test('R10: Emitted events have correct kind and payload structure', () => {
   assert.equal(typeof goldChangedEvent.new_gold, 'number', 'new_gold is number');
   assert.equal(typeof goldChangedEvent.source, 'string', 'source is string');
 
-  // Verify UnitBought payload
+  // Verify UnitBought payload matches the bible exactly (MED-4):
+  // {seat_id, unit_definition, shop_slot, gold_cost} — no unit_instance_id.
   const unitBoughtEvent = newEvents.find(e => e.kind === 'UnitBought');
   assert.ok(unitBoughtEvent, 'UnitBought found');
   assert.equal(typeof unitBoughtEvent.seat_id, 'string', 'seat_id is string');
-  assert.equal(typeof unitBoughtEvent.unit_definition, 'string', 'unit_definition is string');
+  assert.equal(unitBoughtEvent.unit_definition, boughtId, 'unit_definition matches the bought unitDefId');
+  assert.equal(unitBoughtEvent.shop_slot, 0, 'shop_slot present and matches the consumed slot (MED-4)');
   assert.equal(typeof unitBoughtEvent.gold_cost, 'number', 'gold_cost is number');
-  assert.equal(typeof unitBoughtEvent.unit_instance_id, 'string', 'unit_instance_id is string');
+  assert.equal(unitBoughtEvent.unit_instance_id, undefined, 'unit_instance_id is NOT contractual on UnitBought (MED-4)');
+
+  // Sell it to verify UnitSold's payload (MED-4: unit_definition was missing).
+  const eventLogBeforeSell = ps.eventLog.length;
+  const boughtUnit = ps.players['player_0'].bench[0];
+  ps = prep.applyPreparationInput(ps, {
+    kind: 'Sell',
+    seatId: 'player_0',
+    unit_instance_id: boughtUnit.unit_instance_id
+  });
+  const sellEvents = ps.eventLog.slice(eventLogBeforeSell);
+  const unitSoldEvent = sellEvents.find(e => e.kind === 'UnitSold');
+  assert.ok(unitSoldEvent, 'UnitSold found');
+  assert.equal(typeof unitSoldEvent.seat_id, 'string', 'seat_id is string');
+  assert.equal(typeof unitSoldEvent.unit_instance, 'string', 'unit_instance is string');
+  assert.equal(unitSoldEvent.unit_definition, boughtId, 'unit_definition present on UnitSold (MED-4)');
+  assert.equal(typeof unitSoldEvent.star, 'number', 'star is number');
+  assert.equal(typeof unitSoldEvent.pool_returned, 'number', 'pool_returned is number');
+  assert.equal(typeof unitSoldEvent.gold_credited, 'number', 'gold_credited is number');
 });
 
 // --- Immutability test ---
@@ -401,7 +588,7 @@ test('Preparation state is immutable; transitions do not mutate input', () => {
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
-    players: { player_0: { ...player, gold: 50 } },
+    players: { player_0: { ...player, gold: 50, shop: ['unit_1'] } },
     entities: ps.entities,
     phase: ps.phase
   }, ps.pool, ps.bench_capacity);
