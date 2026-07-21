@@ -125,6 +125,17 @@ function isCapabilityMap(v) {
 }
 function isNonEmptyCapabilityMap(v) { return isCapabilityMap(v) && Object.keys(v).length > 0; }
 
+// Champ FACULTATIF d'un schéma par ailleurs fermé (checkSpec ci-dessous) : la clé peut être
+// ABSENTE (aucune erreur R1 "champ manquant") ; SI PRÉSENTE, elle est type-vérifiée normalement
+// par `check`. Générique et réutilisable — n'affecte que les specs qui l'utilisent explicitement
+// (ex. BRICK_SPEC::usage_examples) ; ASSET_SPEC::usage_examples reste un champ ordinaire
+// (obligatoire, comme avant).
+function optional(check) {
+  const wrapped = (v) => v === undefined || check(v);
+  wrapped.__optional = true;
+  return wrapped;
+}
+
 // Tier 1 #4 — le pont SEARCH↔ROLE : « affordances(piece) ⊇ requires(role) » devient une
 // comparaison réelle, pas une lecture de prose. Comparaison par NOM de capacité seulement
 // (pas de vérification de signature/type — un futur incrément pourrait durcir ça) : un rôle
@@ -197,6 +208,10 @@ const BRICK_SPEC = {
   // Tier 1 #3 : ce que la pièce EXPOSE réellement — {} pour une brique qui ne remplit
   // aucun rôle. Mandatoire (schéma fermé) : jamais absent, `{}` = décision explicite.
   affordances: isCapabilityMap,
+  // R8 (Forge V2 §4-A, arbitrage Pierre) : miroir FACULTATIF d'ASSET_SPEC::usage_examples —
+  // même forme (tableau de chaînes), mais optionnel (une brick pré-existante sans ce champ
+  // reste valide ; proof_of_use ci-dessus reste SA preuve d'usage réelle, requise si validated).
+  usage_examples: optional(isStrArr),
 };
 // Un ROLE catalogué : métadonnées d'index + pont vers le catalogue (fulfilled_by,
 // vérifié réellement — R13) et vers le contrat détaillé sur disque (path -> le YAML
@@ -256,8 +271,11 @@ function _validate(catalog, root, err) {
 function checkSpec(e, spec, id, err) {
   let ok = true;
   for (const [field, check] of Object.entries(spec)) {
-    if (!(field in e)) { err(id, "R1", `champ manquant: ${field}`); ok = false; }
-    else if (!check(e[field])) { err(id, "R1", `champ mal type: ${field}`); ok = false; }
+    if (!(field in e)) {
+      if (!check.__optional) { err(id, "R1", `champ manquant: ${field}`); ok = false; }
+      continue;
+    }
+    if (!check(e[field])) { err(id, "R1", `champ mal type: ${field}`); ok = false; }
   }
   for (const k of Object.keys(e)) {
     if (k === "entry_type") continue;

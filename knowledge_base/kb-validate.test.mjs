@@ -588,3 +588,46 @@ test("RT-F6: champ inconnu 'backdoor' -> rejet R1", (t) => {
   const res = validateCatalog(makeCatalog([a]), { root });
   assert.ok(res.errors.some((e) => e.rule === "R1" && /inconnu/.test(e.msg)));
 });
+
+// ---------- R8 (Forge V2 §4-A, arbitrage Pierre) : BRICK_SPEC::usage_examples FACULTATIF ----------
+// Miroir d'ASSET_SPEC::usage_examples mais optionnel (une brick preexistante sans ce champ reste
+// valide). Trois cas exiges par l'arbitrage : (a) mal type -> FAIL, (b) schema toujours ferme pour
+// tout AUTRE champ inconnu -> FAIL, (c) absent -> PASS.
+
+// (a) brick avec usage_examples mal type (pas un tableau) -> FAIL.
+test("R8-a: brick avec usage_examples: \"pas-un-tableau\" -> rejet R1 (mal type)", (t) => {
+  const { root, files } = makeRoot(t);
+  const s = { ...baseSystem(files), usage_examples: "pas-un-tableau" };
+  const res = validateCatalog(makeCatalog([s]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R1" && /mal type: usage_examples/.test(e.msg)));
+});
+
+// (b) le schema reste FERME pour tout AUTRE champ inconnu sur une brick (miroir de RT-F6, mais sur
+// BRICK_SPEC precisement, pour prouver que rendre UN champ facultatif n'a pas ouvert le schema).
+test("R8-b: champ inconnu quelconque sur une brick -> toujours rejet R1 (schema reste ferme)", (t) => {
+  const { root, files } = makeRoot(t);
+  const s = { ...baseSystem(files), totally_unknown_field: 42 };
+  const res = validateCatalog(makeCatalog([s]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R1" && /inconnu/.test(e.msg) && /totally_unknown_field/.test(e.msg)));
+});
+
+// (c) brick SANS usage_examples (cle absente) -> PASS (facultatif — le comportement historique,
+// exerce par toute brick preexistante du catalogue reel, doit rester valide).
+test("R8-c: brick sans usage_examples -> ok, zero erreur (facultatif)", (t) => {
+  const { root, files } = makeRoot(t);
+  const s = baseSystem(files);
+  assert.ok(!("usage_examples" in s), "fixture de depart : la cle est bien absente");
+  // basePattern(files) est inclus car baseSystem depend de "pat-damage-floor" (R9) — inchange
+  // par rapport au cas nominal, seul le point teste ici est usage_examples absent.
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.deepEqual(res.errors, []);
+});
+
+// Positif complementaire : brick AVEC usage_examples valide (tableau de chaines) -> PASS. Preuve
+// que le champ, une fois rempli (fill_usage_examples.mjs), valide reellement.
+test("R8-d: brick avec usage_examples valide (tableau de chaines) -> ok, zero erreur", (t) => {
+  const { root, files } = makeRoot(t);
+  const s = { ...baseSystem(files), usage_examples: ["games/kb_tactics/game.mjs"] };
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.deepEqual(res.errors, []);
+});
