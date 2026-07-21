@@ -88,6 +88,28 @@ function extractFlatBlock(text, blockKey) {
   return Object.keys(result).length ? result : null;
 }
 
+// Ouverture aux futurs runtimes — FAIL-CLOSED (spec etape 0 §5). Le schema NOMME des
+// runtimes futurs pour que les contrats restent ecrits sans eux ; l executeur REFUSE
+// tout ce qu il ne sait pas executer. Declarer un point d extension sans le fermer,
+// c est reproduire le mode de panne « declare != execute ».
+export const IMPLEMENTED_RUNTIMES = ['node', 'godot'];
+export const RESERVED_RUNTIMES = ['unity', 'unreal'];
+
+/**
+ * @param {string|null} value valeur declaree (null/absent = defaut 'node')
+ * @returns {string[]} findings (vide = accepte)
+ */
+export function checkSimulationRuntime(value) {
+  if (value === null || value === undefined || value === '') return [];
+  if (IMPLEMENTED_RUNTIMES.includes(value)) return [];
+  if (RESERVED_RUNTIMES.includes(value)) {
+    return [`simulation_runtime '${value}' : reconnu par le schema, non implemente par l executeur `
+      + `(implementes : ${IMPLEMENTED_RUNTIMES.join(', ')})`];
+  }
+  return [`simulation_runtime '${value}' : inconnu du schema `
+    + `(implementes : ${IMPLEMENTED_RUNTIMES.join(', ')} · reserves : ${RESERVED_RUNTIMES.join(', ')})`];
+}
+
 /**
  * Charge et valide la structure minimale d'un contrat rôle (règle des 3 états, SCHEMA.md).
  * @param {string} filePath
@@ -107,6 +129,8 @@ function loadRole(filePath) {
   const simulationConfig = extractFlatBlock(text, 'simulation_config');
   const difficultyTarget = extractFlatBlock(text, 'difficulty_target');
   const requiresPresent = /^requires:[ \t]*$/m.test(text);
+  const simulationRuntime = extractScalar(text, 'simulation_runtime');
+  findings.push(...checkSimulationRuntime(simulationRuntime));
 
   if (!roleId) findings.push('champ Critique absent : role_id');
   if (!archetype || archetype.length < 20) findings.push('champ Critique absent/trop court : archetype');
@@ -122,7 +146,7 @@ function loadRole(filePath) {
   }
 
   return {
-    role: { roleId, archetype, tier, license, path, proofOfUse, simulationModule, simulationConfig, difficultyTarget },
+    role: { roleId, archetype, tier, license, path, proofOfUse, simulationModule, simulationConfig, difficultyTarget, simulationRuntime },
     findings,
   };
 }

@@ -5,7 +5,7 @@
 // factice minimal (pour prouver la généricité elle-même, pas seulement rejouer pursuer).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { measureDifficultyBand } from './role_sim.mjs';
+import { measureDifficultyBand, checkSimulationRuntime } from './role_sim.mjs';
 import { runTrial as pursuerRunTrial } from './systems/ai/pursuer_scenario.mjs';
 
 const PURSUER_CFG = { trials: 50, seed_start: 1, max_ticks: 60, arena_half_size: 20, catch_radius: 1, pursuer_speed: 2, evader_speed: 1 };
@@ -55,4 +55,33 @@ test('measureDifficultyBand : est réellement agnostique au scénario — un run
   const result = measureDifficultyBand(cfg, toyRunTrial);
   assert.equal(result.succeeded, 10, '10 seeds pairs sur 20 essais consécutifs à partir de 1');
   assert.equal(result.successRate, 0.5);
+});
+
+// ---- Garde fail-closed sur simulation_runtime (spec étape 0 §5) ----
+test('simulation_runtime absent -> defaut node, aucun finding (retrocompatible)', () => {
+  assert.deepEqual(checkSimulationRuntime(null), []);
+});
+
+test('simulation_runtime: godot -> implemente, aucun finding', () => {
+  assert.deepEqual(checkSimulationRuntime('godot'), []);
+});
+
+test('simulation_runtime: node -> implemente, aucun finding', () => {
+  assert.deepEqual(checkSimulationRuntime('node'), []);
+});
+
+test('simulation_runtime: unity -> RESERVE mais non implemente -> finding explicite', () => {
+  const f = checkSimulationRuntime('unity');
+  assert.equal(f.length, 1);
+  assert.match(f[0], /reconnu par le schema, non implemente/);
+});
+
+test('simulation_runtime: unreal -> reserve, meme traitement', () => {
+  assert.equal(checkSimulationRuntime('unreal').length, 1);
+});
+
+test('simulation_runtime inconnu -> finding, jamais un silence', () => {
+  const f = checkSimulationRuntime('bricolage');
+  assert.equal(f.length, 1);
+  assert.match(f[0], /inconnu/);
 });
