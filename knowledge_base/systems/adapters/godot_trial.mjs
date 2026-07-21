@@ -20,8 +20,12 @@ const REQUIRED_CFG = ['godot_project', 'godot_script', 'trial_timeout_ms'];
  * @returns {{succeeded: boolean, ticks: (number|null)}}
  */
 export function parseReceipt(stdout) {
-  const line = String(stdout).split(/\r?\n/).find((l) => l.startsWith(PREFIX));
-  if (!line) throw new Error(`aucun recu FORGE_TRIAL dans la sortie Godot`);
+  const lines = String(stdout).split(/\r?\n/).filter((l) => l.startsWith(PREFIX));
+  if (lines.length === 0) throw new Error(`aucun recu FORGE_TRIAL dans la sortie Godot`);
+  if (lines.length > 1) {
+    throw new Error(`${lines.length} recus FORGE_TRIAL trouves dans la sortie Godot (ambigu, 1 attendu)`);
+  }
+  const line = lines[0];
   let parsed;
   try {
     parsed = JSON.parse(line.slice(PREFIX.length));
@@ -48,6 +52,9 @@ export function makeGodotRunTrial(spawnFn, binResolver) {
       if (cfg == null || cfg[k] === undefined) {
         throw new Error(`simulation_config incomplet : champ '${k}' requis par godot_trial`);
       }
+    }
+    if (typeof cfg.trial_timeout_ms !== 'number' || !Number.isFinite(cfg.trial_timeout_ms) || cfg.trial_timeout_ms <= 0) {
+      throw new Error(`simulation_config invalide : champ 'trial_timeout_ms' doit etre un nombre fini strictement positif`);
     }
     const bin = getBin();
     const args = [

@@ -21,6 +21,11 @@ test('parseReceipt rejette un recu au mauvais type', () => {
   assert.throws(() => parseReceipt('FORGE_TRIAL {"succeeded":"oui","ticks":9}'), /champ succeeded/);
 });
 
+test('parseReceipt rejette une sortie avec plusieurs recus (ambigu)', () => {
+  const out = 'FORGE_TRIAL {"succeeded":true,"ticks":1}\nblabla\nFORGE_TRIAL {"succeeded":false,"ticks":null}\n';
+  assert.throws(() => parseReceipt(out), /2/);
+});
+
 test('runTrial passe le seed a Godot et rend le recu', () => {
   const calls = [];
   const spawnFn = (bin, args) => {
@@ -47,4 +52,38 @@ test('cfg incomplet -> erreur explicite avant tout spawn', () => {
   const runTrial = makeGodotRunTrial(spawnFn, () => 'FAKE_GODOT');
   assert.throws(() => runTrial(1, { godot_project: 'x' }), /godot_script/);
   assert.equal(spawned, false);
+});
+
+test('trial_timeout_ms non numerique -> erreur explicite avant tout spawn', () => {
+  let spawned = false;
+  const spawnFn = () => { spawned = true; return { status: 0, stdout: '', stderr: '' }; };
+  const runTrial = makeGodotRunTrial(spawnFn, () => 'FAKE_GODOT');
+  const badCfg = { ...CFG, trial_timeout_ms: 'trente mille' };
+  assert.throws(() => runTrial(1, badCfg), /trial_timeout_ms/);
+  assert.equal(spawned, false);
+});
+
+test('trial_timeout_ms negatif ou nul -> erreur explicite avant tout spawn', () => {
+  let spawned = false;
+  const spawnFn = () => { spawned = true; return { status: 0, stdout: '', stderr: '' }; };
+  const runTrial = makeGodotRunTrial(spawnFn, () => 'FAKE_GODOT');
+  assert.throws(() => runTrial(1, { ...CFG, trial_timeout_ms: 0 }), /trial_timeout_ms/);
+  assert.equal(spawned, false);
+});
+
+test('runTrial transmet trial_timeout_ms dans opts.timeout au spawnFn', () => {
+  let capturedOpts = null;
+  const spawnFn = (bin, args, opts) => {
+    capturedOpts = opts;
+    return { status: 0, stdout: 'FORGE_TRIAL {"succeeded":true,"ticks":5}', stderr: '' };
+  };
+  const runTrial = makeGodotRunTrial(spawnFn, () => 'FAKE_GODOT');
+  runTrial(1, CFG);
+  assert.equal(capturedOpts.timeout, CFG.trial_timeout_ms);
+});
+
+test('depassement de timeout -> runTrial leve et ne rend jamais de recu', () => {
+  const spawnFn = () => ({ error: new Error('spawnSync ETIMEDOUT'), status: null, stdout: '', stderr: '' });
+  const runTrial = makeGodotRunTrial(spawnFn, () => 'FAKE_GODOT');
+  assert.throws(() => runTrial(1, CFG), /ETIMEDOUT|spawn Godot impossible/);
 });
