@@ -11,7 +11,12 @@ func _initialize() -> void:
 		printerr("argument --seed=<N> manquant")
 		quit(2)
 		return
-	var seed_value: int = int(args["seed"])
+	var seed_str: String = args["seed"]
+	if not seed_str.is_valid_int():
+		printerr("--seed argument doit être un entier valide")
+		quit(2)
+		return
+	var seed_value: int = int(seed_str)
 	var succeeded: bool = (seed_value % 10) != 0
 	var ticks = (seed_value % 7) + 3 if succeeded else null
 	print(PREFIX + JSON.stringify({"succeeded": succeeded, "ticks": ticks}))
