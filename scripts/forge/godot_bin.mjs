@@ -6,6 +6,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(HERE, '../..');
 const DEFAULT_CONFIG = resolve(HERE, 'godot.config.json');
 
 const HOWTO =
@@ -41,6 +42,7 @@ export function resolveGodotBin(opts = {}) {
   }
 
   if (!candidate) throw new Error(`Binaire Godot non configure. ${HOWTO}`);
+  candidate = resolve(REPO_ROOT, candidate);
   if (!existsSync(candidate)) {
     throw new Error(`Binaire Godot introuvable sur le disque : ${candidate} (declare par ${origin}). ${HOWTO}`);
   }
