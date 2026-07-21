@@ -41,7 +41,8 @@
     <b>⚠ MISE À JOUR 2026-07-20</b> — cet instantané date du 12-07, cumul des vérifications depuis :<br>
     <b>07-15</b> — auto-audit <code>scripts/forge/studio_selfaudit.mjs</code> : <b>6 cases marquées « cible » existaient déjà</b> (search.mjs · role_sim.mjs · reuse_ratio.mjs · pool.py · s2.5-artbible.yaml · roles/pursuer-mobile.yaml).<br>
     <b>07-20</b> — nouveautés VÉRIFIÉES sur le repo : profil de chaîne <code>increment</code> (<code>scripts/forge/dispatch.py</code>, saute s0/s1/s2 sur un projet existant, refait archi/wiremap) · outils Knowledge Resolver V1 <code>scripts/forge/knowledge_trace.mjs</code> + <code>pending_review.mjs</code> (41 tests, 24+17) · 2<sup>e</sup> jeu forgé de bout en bout <code>card_engine</code> (verdict signé <code>HUMANGATE_READY_WITH_OBJECTION</code>, <code>python -m forge.verify_run</code> confirme HMAC/évidence/mutation authentiques) · ledger triagé en archive vivante (4 OPEN, cf. <code>CLAUDE.md</code>) · chaîne décisionnelle canonique auditée (<code>docs/audit/DECISION_LAYER_AUDIT_2026-07-19.md</code>, PROPOSED) · mission Forge V2 lancée (P1 autopsie / P2 patterns / consolidation, toutes PROPOSED, gate Pierre — voir Détail F ci-dessous).<br>
-    Les mentions « (cible) » restantes ci-dessous sont à vérifier au cas par cas. Vérif continue : <code>node scripts/forge/studio_selfaudit.mjs</code> (exit 0 = à jour). État factuel toujours frais (auto-généré) : <code>docs/forge/STUDIO_STATUS.generated.md</code>.
+    Les mentions « (cible) » restantes ci-dessous sont à vérifier au cas par cas. Vérif continue : <code>node scripts/forge/studio_selfaudit.mjs</code> (exit 0 = à jour). État factuel toujours frais (auto-généré) : <code>docs/forge/STUDIO_STATUS.generated.md</code>.<br>
+    <b>07-20 (soir)</b> — §4-A câblé+commité (7 commits <code>1143682→8c5ccf0</code>) · Run A <code>card_engine</code> ACCEPTÉ (HumanGate) · capteur dominance advisory EXISTE (<code>lab/forge_sensors/dominance</code>, sondes P1.1 vertes) · <code>pending_review</code> 11/11 disposé · drafts P0 Bibles BAS déposés (gate à venir).
   </div>
 
   <!-- ============================================================ A ============ -->
@@ -237,10 +238,11 @@
       <text x="654" y="92" fill="#4fd6c6" class="live">state.json — cœur du plan VIVANT (statut par étape)</text>
       <text x="654" y="108" fill="#83a6d6" font-size="8.5">écrit par le driver, étape par étape → allume les cases</text>
       <text x="654" y="124" fill="#59cbff" font-size="9">knowledge_trace.json — lineage de lecture (Resolver V1)</text>
-      <rect x="640" y="150" width="500" height="66" rx="7" fill="rgba(14,32,68,.7)" stroke="#59cbff"/>
+      <rect x="640" y="150" width="500" height="80" rx="7" fill="rgba(14,32,68,.7)" stroke="#59cbff"/>
       <text x="654" y="168" fill="#59cbff" font-weight="700">lab/forge_evidence/</text>
       <text x="654" y="186" fill="#d3e6ff">oracle_*.log · forge_telemetry.jsonl · dispatch_audit.jsonl</text>
       <text x="654" y="202" fill="#83a6d6" font-size="8.5">preuves relues par verify_run (sceau non décoratif)</text>
+      <text x="654" y="218" fill="#59cbff" font-size="8.5">lab/forge_sensors/dominance/ — capteur dominance, advisory (sondes P1.1 vertes)</text>
       <rect x="640" y="234" width="500" height="46" rx="7" fill="rgba(14,32,68,.7)" stroke="#59cbff"/>
       <text x="654" y="252" fill="#59cbff" font-weight="700">llm-lego/knowledge/&lt;IMP&gt;.json</text>
       <text x="654" y="268" fill="#83a6d6" font-size="8.5">packets web cités · gitignored · advisory-only</text>
@@ -255,6 +257,7 @@
       <text x="654" y="472" fill="#59cbff" font-weight="700">lab/reports/forge_*.jsonl</text>
       <text x="654" y="486" fill="#83a6d6" font-size="8.5">propose-only : kaizen · projets · journal d'erreurs (PILOU)</text>
       <text x="654" y="502" fill="#59cbff" font-size="8.5">pending_review.mjs (lecteur read-only des files — construit)</text>
+      <text x="654" y="512" fill="#59cbff" font-size="8.5">pending_review_decisions.jsonl — décisions de gate, actes Pierre</text>
       <rect x="640" y="516" width="500" height="50" rx="7" fill="rgba(255,180,84,.08)" stroke="#ffb454" stroke-width="1.6" stroke-dasharray="7 3"/>
       <text x="654" y="534" fill="#ffb454" font-weight="700">★ lab/reports/bilans/ — TABLE MULTI-LLM (HYPOTHÈSE)</text>
       <text x="654" y="550" fill="#83a6d6" font-size="8.5">bilans GPT · Gemini · Qwen · Claude — propose-only · nourrit le PILOU</text>
@@ -308,14 +311,15 @@
       · <b><code>mandatory_read</code></b> (doc→contexte) — prouvé quand déclaré par contrat <span style="color:#83a6d6">— trou : good-faith, des types entiers n'y sont pas routés (packets)</span>
     </div>
 
-    <div style="color:#ffdca6;font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px"><i class="sq" style="background:#ffb454"></i> Renforcements — PROPOSED, gate Pierre (docs/audit/FORGE_V2_CONSOLIDATION.md §4)</div>
-    <div style="font-size:10px;line-height:1.7;color:#ffdca6">
-      · <b>R1</b> check anti-théâtre des harnais — un oracle à flags littéraux ROUGIT à s10a au lieu d'être découvert tardivement<br>
-      · <b>R2</b> playtest Pierre → <code>error_journal(domain=playtest)</code> — contraint le pré-mortem du run suivant<br>
-      · <b>R3</b> <code>verify_run</code> recoupe <code>knowledge_trace</code> — une trace non recoupable invalide le run<br>
-      · <b>R6</b> packets web → <code>mandatory_read</code> de s3/s4 (2 lignes de contrat)<br>
-      · <b>R7</b> champ design-intent au charter — plateforme · jeu de référence · critères de démo, choisis par Pierre<br>
-      · <b>R8</b> <code>usage_examples</code> rempli automatiquement à l'import détecté (<code>reuse_ratio</code> → catalog)
+    <div style="color:#59cbff;font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px"><i class="sq" style="background:#59cbff"></i> Renforcements — EXISTE, câblés+falsifiés+commités (go Pierre, 2026-07-20 soir)</div>
+    <div style="font-size:10px;line-height:1.7;color:#d3e6ff">
+      · <b>R1</b> <code>check_harness_no_hardcoded_flags</code> — GATING dans <code>driver.py</code> (s10a) : un oracle à flags littéraux ROUGIT au lieu d'être découvert tardivement<br>
+      · <b>R2</b> <code>record_playtest</code> (<code>studio_link.py</code>) — playtest Pierre → <code>error_journal(domain=playtest)</code>, contraint le pré-mortem du run suivant<br>
+      · <b>R3</b> <code>verify_run</code> recoupe <code>knowledge_trace</code> (<code>verify_run.py</code>) — une trace non recoupable invalide le run<br>
+      · <b>R6</b> <code>mandatory_read</code> — packets web routés dans les contrats <code>s3-decompo.yaml</code>/<code>s4-archi.yaml</code><br>
+      · <b>R7</b> <code>check_charter</code> (<code>static_oracles.py</code>) + skill <code>s0</code> — champ design-intent au charter : plateforme · jeu de référence · critères de démo, choisis par Pierre<br>
+      · <b>R8</b> <code>fill_usage_examples.mjs</code> (<code>knowledge_base/</code>) — <code>usage_examples</code> rempli automatiquement à l'import détecté (<code>reuse_ratio</code> → catalog)<br>
+      · <b>R9</b> solvabilité 5 volets — <code>games/auto_battler/solvability.mjs</code> (falsifié par <code>solvability.falsification.test.mjs</code>, chaque volet forcé à ROUGIR) — <b>LE prioritaire ratifié</b>
     </div>
 
     <div style="color:#ff8098;font-size:9.5px;margin-top:10px">⛔ HOLD ratifié : PAS de Resolver-comme-architecture (déjà tranché, cf. mémoire studio).</div>

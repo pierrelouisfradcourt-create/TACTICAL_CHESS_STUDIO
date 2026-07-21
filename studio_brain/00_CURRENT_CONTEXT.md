@@ -77,11 +77,20 @@
   sait compléter, pas jouer-à-niveau ; Rocky échec gelé +10 FAIL confirmé hooks) · chaîne dure :
   P0 valeurs → P1 agent-à-niveau PROUVÉ → P3 calibration → L2 mesure · « bloque si skill plat » acté
   erreur de fusion (seul le déterministe gate, cohérent §4-B).
-- ⏸️ Gates Pierre en attente : (a) BAS V2 — ratifier verdicts par ligne + P0 (créer Balance/Simulation/
-  Content Bibles + remplir valeurs TBD = première tâche bloquante) + décision de lancer (ou non) le
-  chantier-recherche agent-à-niveau ; (b) arbitrage R8 ; (c) verdict Run A card_engine ; (d) revue
-  pending_review (7 items) ; (e) audit §3-i + batch §3-ii ; (f) R10 sentinelle plateforme + télémétrie
-  volet 5 ; (g) sondes P1.1 capteur dominance ; (h) **commit global** (plan de commits sur demande).
+- **LES 8 GATES TRANCHÉES ET EXÉCUTÉES (2026-07-20)** : BAS V2 ratifié (P0 drafts livrés : 32 valeurs,
+  6 choix design purs, 2 écarts code↔intention V-13b/V-24) · Run A card_engine ACCEPTÉ (fiche
+  HUMANGATE_2026-07-20_RUN_A) · pending_review 11/11 disposé (L1-L2 reject, reste accept — M3 ✓,
+  décisions dans lab/reports/pending_review_decisions.jsonl, promotion matérielle différée à l'étape
+  Promotion Policies) · R8 confirmé · format décision consacré + batch §3-ii FAIT (gabarits LEGACY,
+  STUDIO ALIGNÉ ✅, watchlist 34, T1 fermée confirmée par fil-piège) · R10 sentinelle ABANDONNÉE (>5 min)
+  · capteur dominance LIVRÉ (sondes vertes, 5 unités dominant_agreed advisory sur contenu réel — limite
+  inter-rangs documentée) · **7 COMMITS** (1143682→8c5ccf0 : ledger, forge+resolver, card_engine,
+  auto_battler+R9+drafts, KB, capteurs/décisions, docs/gouvernance). RIEN POUSSÉ (gate push séparée).
+- ⏸️ Restes : **200 fichiers non commités HORS de mon périmètre** (llm-lego 74, lab anciens 47,
+  studio 36, games shmup/leviathan 30, fixtures p1 5…) = territoire des sessions parallèles/antérieures
+  — à commiter par elles ou sur go sweep explicite Pierre. À venir : chantier-recherche agent-à-niveau
+  (protocole d'abord) · cycle de gates Bibles P0 · Run B Tarot · playtest AutoBattler (+record_playtest)
+  · M1-M4 (2 runs restants) · push (gate).
 - Pendantes : playtest AutoBattler (prioritaire côté jeux, hors refonte studio).
 
 ## Session 2026-07-19 (chat déploiement Belote) — Belote PUBLIÉ en ligne + PWA installable

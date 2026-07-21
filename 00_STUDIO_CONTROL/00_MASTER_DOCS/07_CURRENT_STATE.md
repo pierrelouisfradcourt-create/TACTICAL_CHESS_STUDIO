@@ -1,6 +1,21 @@
 # Current State
 
-Date : 2026-06-08 — sprint update : 2026-06-03/04
+## État 2026-07-20 (source de vérité : voir studio_brain/00_CURRENT_CONTEXT.md)
+
+- Ledger `lab/chains/IMPROVEMENT_LEDGER.yaml` : 4 OPEN / 38 FROZEN / 3 REJECTED (archive vivante, triage v2 2026-07-19 — plus d'IMP réflexe, entrées nouvelles via proposition Forge ratifiée ou demande explicite Pierre).
+- 2e jeu forgé accepté : `card_engine` (verdict signé, `verify_run` HMAC/évidence/mutation authentiques, HumanGate 2026-07-20).
+- `auto_battler` : solvabilité 5 volets câblée (`games/auto_battler/solvability.mjs`, falsifiée par `solvability.falsification.test.mjs`) ; drafts P0 des Bibles déposés, en attente de gate.
+- Belote publiée en ligne : belote-claude.onrender.com (PWA installable Android confirmée terrain).
+- Forge V2 : boucle d'apprentissage câblée — renforcements §4-A (R1/R2/R3/R6/R7/R8/R9) commités (7 commits `1143682→8c5ccf0`), capteur dominance advisory EXISTE.
+- Knowledge Resolver V1 : M1-M3 mesurés, 2 runs restants avant conclusion.
+- Mode de travail studio : Fable = poste de commande (stratégie/orchestration/gates) · Opus = raisonnement profond · Sonnet = exécution.
+- Lanes gelées (HumanGate explicite requis pour toucher) : ROCKY_MOTEUR (`autopilot.py`, `scripts/studioV2/`) et lane STUDIO — voir CLAUDE.md.
+
+Les sections ci-dessous datent de juin 2026 — historiques, ne pas s'y fier pour l'état courant.
+
+---
+
+Date : 2026-07-01 — sprint update : 2026-06-03/04
 
 ---
 
@@ -8,10 +23,10 @@ Date : 2026-06-08 — sprint update : 2026-06-03/04
 
 | Métrique | Valeur |
 |---|---|
-| Total IMPs | 119 |
-| CLOSED | 126 |
-| OPEN | 19 |
-| DEFERRED | 1 |
+| Total IMPs | 217 |
+| CLOSED | 218 |
+| OPEN | 25 |
+| DEFERRED | 0 |
 
 ### IMPs OPEN
 
@@ -88,7 +103,7 @@ Date : 2026-06-08 — sprint update : 2026-06-03/04
 
 ## Autopilote — autopilot.py
 
-- **Lignes** : ~7487 (refactorisé 2026-06-03, retrait complet Claude API)
+- **Lignes** : ~9029 (refactorisé 2026-06-03, retrait complet Claude API)
 - **LM_MODEL** : `qwen2.5-14b-instruct` (LM Studio, port 1234)
 - **Port** : 7331
 
