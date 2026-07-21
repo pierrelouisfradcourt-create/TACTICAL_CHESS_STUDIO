@@ -1,0 +1,18 @@
+{
+  "survivor_justifications": [
+    {
+      "line": 30,
+      "mutation": "true -> false",
+      "statement": "visited[from] = true -> visited[from] = false",
+      "rationale": "EQUIVALENT — Le marquage de `from` en visited ne s'affiche pas dans les tests de correctness car `from` est le point de départ de la BFS et ne sera jamais revisité comme un voisin (la BFS n'explore que les voisins, pas le nœud courant lui-même). L'algorithme retourne correctement la cible même avec cette mutation.",
+      "proof": "Les tests incluent des cas sans limite d'exploration (path_length) qui trouvent correctement la cible et passent avec ou sans le marquage de `from`."
+    },
+    {
+      "line": 50,
+      "mutation": "true -> false",
+      "statement": "visited[neighbor] = true -> visited[neighbor] = false",
+      "rationale": "EQUIVALENT — Ne pas marquer un voisin en visited cause une exploration redondante mais pas une faux-résultat. Le même voisin peut être ajouté plusieurs fois à la queue, mais la BFS continue d'explorer et finit par trouver la cible. La distance retournée reste correcte car elle est calculée à l'ajout en queue, pas à la revisit.",
+      "proof": "Tous les tests de correctness (path_length, next_step) retournent le résultat attendu même avec cette mutation car la BFS trouve toujours la cible. La sortie correcte n'est pas affectée."
+    }
+  ]
+}
