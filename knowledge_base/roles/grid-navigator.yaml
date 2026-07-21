@@ -39,9 +39,15 @@ simulation_module: knowledge_base/systems/navigation/grid_nav_scenario.mjs
 # silencieuse ou un défaut permissif.
 simulation_runtime: godot
 
+# Fenêtre de VALIDATION, volontairement DISJOINTE de toutes les fenêtres ayant servi
+# à choisir la bande (cf. calibration_note, correctif de revue) : la fenêtre 3000..3299
+# n'a jamais été explorée pendant la calibration. Même discipline que pursuer-mobile.yaml,
+# qui calibre sur 1..300 et valide sur une fenêtre disjointe — sinon le PASS serait vrai
+# PAR CONSTRUCTION (on rejouerait les graines déterministes ayant servi à fixer la bande)
+# au lieu d'être une confirmation indépendante.
 simulation_config:
   trials: 300
-  seed_start: 1000
+  seed_start: 3000
   max_ticks: 200
   godot_project: games/grid_nav_probe
   godot_script: res://trial.gd
@@ -87,8 +93,17 @@ calibration_note: >-
   magnitude, il pourrait retomber dans le régime dégénéré (médiane collée au
   plancher) sans que la bande [28,32] le détecte différemment d'un bug réel — cette
   dépendance à la fenêtre de graines est une limite CONNUE de la mesure, pas
-  corrigée ici. Preuve brute complète (sortie réelle, pas résumée) :
-  knowledge_base/proofs/role_sim_grid_navigator_calibration.log.
+  corrigée ici. CORRECTIF DE REVUE (2026-07-21) — un défaut de méthode a été relevé
+  et corrigé : la fenêtre 1000..1299 avait servi À LA FOIS à choisir la bande et à la
+  valider. Le PASS était donc vrai PAR CONSTRUCTION (rejeu des mêmes graines
+  déterministes), pas une confirmation indépendante — exactement la discipline que
+  pursuer-mobile.yaml établit en calibrant sur 1..300 puis validant sur une fenêtre
+  disjointe. La validation officielle tourne désormais sur 3000..3299, fenêtre JAMAIS
+  explorée pendant la calibration. Mesure sur cette fenêtre tenue à l'écart :
+  min=26, médiane=30, max=34, 300/300 succès — identique à la fenêtre de calibration
+  et dans la bande. La bande généralise donc réellement à des graines non vues, ce qui
+  était jusque-là supposé et non démontré. Preuve brute complète (sortie réelle, pas
+  résumée) : knowledge_base/proofs/role_sim_grid_navigator_calibration.log.
 
 proof_of_use: null
 
