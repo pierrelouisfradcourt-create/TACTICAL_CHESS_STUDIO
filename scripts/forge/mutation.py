@@ -66,19 +66,45 @@ class Mutant:
 # ex. `x >>>= 0` redondant : les opérateurs bitwise JS re-convertissent en 32 bits).
 SKIP_MARKER = "mutation:skip"
 
+# Préfixes de commentaire pur par défaut (JS/Rust/C-like). NE PAS y ajouter `#`
+# globalement : en JS moderne `#` introduit un champ privé de classe
+# (`#alive = true;`), pas un commentaire — le confondre supprimerait
+# silencieusement un mutant légitime. Le `#` GDScript/Python est ajouté au cas
+# par cas via `comment_prefixes_for`, dérivé de l'extension du fichier source.
+DEFAULT_COMMENT_PREFIXES: tuple[str, ...] = ("//", "*", "/*")
 
-def _skip_occurrence(text: str, idx: int) -> bool:
+# Extensions dont le marqueur de commentaire pur est `#` (GDScript, Python).
+_HASH_COMMENT_EXTENSIONS = (".gd", ".py")
+
+
+def comment_prefixes_for(source_path: Path | str) -> tuple[str, ...]:
+    """Préfixes de commentaire pur à utiliser pour ce fichier source.
+
+    `.gd`/`.py` ajoutent `#` (sans quoi chaque commentaire GDScript contenant
+    `and`/`or`/`true`/`false`/`==`/`!=` produit un survivant inkillable par
+    construction — cf. mesure empirique du défaut). Tout le reste garde le
+    défaut inchangé (`//`, `*`, `/*`).
+    """
+    suffix = Path(source_path).suffix.lower()
+    if suffix in _HASH_COMMENT_EXTENSIONS:
+        return DEFAULT_COMMENT_PREFIXES + ("#",)
+    return DEFAULT_COMMENT_PREFIXES
+
+
+def _skip_occurrence(text: str, idx: int,
+                     comment_prefixes: tuple[str, ...] = DEFAULT_COMMENT_PREFIXES) -> bool:
     """Ligne de commentaire pur OU portant le marqueur d'équivalence => on ne mute pas."""
     start = text.rfind("\n", 0, idx) + 1
     end = text.find("\n", idx)
     line = text[start:(end if end != -1 else len(text))]
     stripped = line.lstrip()
-    if stripped.startswith("//") or stripped.startswith("*") or stripped.startswith("/*"):
+    if any(stripped.startswith(prefix) for prefix in comment_prefixes):
         return True
     return SKIP_MARKER in line
 
 
-def generate_mutants(text: str) -> list[Mutant]:
+def generate_mutants(text: str,
+                     comment_prefixes: tuple[str, ...] = DEFAULT_COMMENT_PREFIXES) -> list[Mutant]:
     """Un mutant par occurrence mutable (hors ligne de commentaire pur)."""
     mutants: list[Mutant] = []
     for token, repl, name in RULES:
@@ -88,19 +114,19 @@ def generate_mutants(text: str) -> list[Mutant]:
             if i == -1:
                 break
             start = i + len(token)
-            if _skip_occurrence(text, i):
+            if _skip_occurrence(text, i, comment_prefixes):
                 continue
             mutant = text[:i] + repl + text[i + len(token):]
             mutants.append(Mutant(name, text.count("\n", 0, i) + 1, mutant))
     for pattern, repl, name in _WORD_RULES:
         for m in re.finditer(pattern, text):
-            if _skip_occurrence(text, m.start()):
+            if _skip_occurrence(text, m.start(), comment_prefixes):
                 continue
             mutant = text[:m.start()] + repl + text[m.end():]
             mutants.append(Mutant(name, text.count("\n", 0, m.start()) + 1, mutant))
     for pattern, repl, name in _EQ_RULES:
         for m in pattern.finditer(text):
-            if _skip_occurrence(text, m.start()):
+            if _skip_occurrence(text, m.start(), comment_prefixes):
                 continue
             mutant = text[:m.start()] + repl + text[m.end():]
             mutants.append(Mutant(name, text.count("\n", 0, m.start()) + 1, mutant))
@@ -125,7 +151,7 @@ def run_mutation_test(source_path: Path | str, test_argv: list[str], *, cwd: Pat
     # Octets exacts pour la restauration (évite toute traduction \n<->\r\n Windows).
     original_bytes = source_path.read_bytes()
     bak.write_bytes(original_bytes)
-    mutants = generate_mutants(original_bytes.decode("utf-8"))
+    mutants = generate_mutants(original_bytes.decode("utf-8"), comment_prefixes_for(source_path))
     if limit is not None:
         mutants = mutants[:limit]
     # Résout l'exe (Windows : `node` -> node.exe via PATHEXT, que CreateProcess ne fait pas).

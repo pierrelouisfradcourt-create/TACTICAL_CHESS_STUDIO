@@ -87,3 +87,53 @@ def test_and_or_only_as_whole_words():
         names = {m.name for m in generate_mutants(src)}
         assert "and->or" not in names
         assert "or->and" not in names
+
+
+def test_gdscript_hash_comment_skipped_with_hash_prefix():
+    """Correctif de revue : un commentaire GDScript pur (`#`) n'est pas mute
+    quand les prefixes de commentaire incluent `#`."""
+    from forge.mutation import generate_mutants
+    text = "# si a and b vaut true\n"
+    muts = generate_mutants(text, comment_prefixes=("//", "*", "/*", "#"))
+    assert muts == []
+
+
+def test_gdscript_hash_comment_still_mutates_with_default_prefixes():
+    """Le meme texte produit toujours ses mutants avec les prefixes par defaut :
+    preuve que le defaut est inchange (aucune regression JS/Rust)."""
+    from forge.mutation import generate_mutants
+    text = "# si a and b vaut true\n"
+    names = {m.name for m in generate_mutants(text)}
+    assert "and->or" in names
+    assert "true->false" in names
+
+
+def test_js_private_field_not_treated_as_comment():
+    """Garde anti-faux-positif : un champ prive JS commencant par `#` apres
+    indentation reste mute avec les prefixes par defaut. `#` n'est PAS ajoute
+    a la liste globale des marqueurs de commentaire — en JS moderne il
+    introduit un champ prive de classe, pas un commentaire."""
+    from forge.mutation import generate_mutants
+    text = "class Foo {\n  #alive = true;\n}\n"
+    names = {m.name for m in generate_mutants(text)}
+    assert "true->false" in names
+
+
+def test_gdscript_trailing_comment_line_still_mutates_code_part():
+    """Seul le commentaire PUR est exclu : une ligne de code portant un
+    commentaire en fin de ligne reste mutee."""
+    from forge.mutation import generate_mutants
+    text = "if a and b: # remarque\n"
+    names = {m.name for m in generate_mutants(text, comment_prefixes=("//", "*", "/*", "#"))}
+    assert "and->or" in names
+
+
+def test_comment_prefixes_for_extension():
+    """run_mutation_test derive les prefixes depuis l'extension du fichier
+    source : `.gd` et `.py` ajoutent `#`, tout le reste garde le defaut."""
+    from forge.mutation import comment_prefixes_for
+    assert "#" in comment_prefixes_for("foo.gd")
+    assert "#" in comment_prefixes_for("foo.py")
+    assert "#" not in comment_prefixes_for("foo.js")
+    assert "#" not in comment_prefixes_for("foo.ts")
+    assert "#" not in comment_prefixes_for("foo.rs")
