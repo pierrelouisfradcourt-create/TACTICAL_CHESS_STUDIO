@@ -19,8 +19,26 @@ const MAX_DISTANCE := 1000
 ## Calcule un pas depuis from vers to, en évitant les murs.
 ## Retourne la position après un pas du chemin le plus court, ou from si impossible.
 static func next_step(from: Vector2i, to: Vector2i, walls: Dictionary) -> Vector2i:
+	return _bfs_next_step(from, to, walls)["step"]
+
+## Comme next_step, mais retourne aussi le nombre d'expansions de nœuds (nombre
+## de fois où le corps de la boucle de voisinage a tourné) effectuées par le
+## BFS sous-jacent. Fonction pure, déterministe, aucun état partagé entre
+## appels : le compteur est une valeur locale renvoyée, pas une variable
+## globale. Existe pour rendre observable le TRAVAIL du BFS (pas seulement son
+## résultat) — sans ça, une marque `visited` cassée qui ferait ré-explorer les
+## mêmes cellules ne serait pas testable autrement que par le résultat final,
+## qui peut rester correct malgré le travail gaspillé.
+static func next_step_expansions(from: Vector2i, to: Vector2i, walls: Dictionary) -> int:
+	return _bfs_next_step(from, to, walls)["expansions"]
+
+## Implémentation partagée de next_step/next_step_expansions. Retourne
+## {"step": Vector2i, "expansions": int}. Un seul chemin de code : toute
+## mutation du marquage `visited` affecte next_step ET next_step_expansions
+## de la même façon, puisque les deux appellent cette fonction.
+static func _bfs_next_step(from: Vector2i, to: Vector2i, walls: Dictionary) -> Dictionary:
 	if from == to:
-		return from
+		return {"step": from, "expansions": 0}
 
 	# BFS pour trouver le chemin le plus court, puis retourner le premier pas.
 	var queue: Array = [from]
@@ -29,6 +47,7 @@ static func next_step(from: Vector2i, to: Vector2i, walls: Dictionary) -> Vector
 	var visited := {}
 	visited[from] = true
 
+	var expansions := 0
 	var head := 0
 	var found := false
 	while head < queue.size() and not found:
@@ -36,6 +55,7 @@ static func next_step(from: Vector2i, to: Vector2i, walls: Dictionary) -> Vector
 		head += 1
 
 		for direction in DIRECTIONS:
+			expansions += 1
 			var neighbor = current + direction
 
 			# Déjà visité ? skip.
@@ -58,14 +78,14 @@ static func next_step(from: Vector2i, to: Vector2i, walls: Dictionary) -> Vector
 
 	# Si la cible n'a pas été trouvée, retourner from.
 	if not found:
-		return from
+		return {"step": from, "expansions": expansions}
 
 	# Reconstituer le chemin en remontant les parents.
 	var current = to
 	while parent[current] != from:
 		current = parent[current]
 
-	return current
+	return {"step": current, "expansions": expansions}
 
 ## Calcule la longueur du chemin le plus court depuis from vers to.
 ## Retourne -1 si inatteignable. Explore au maximum 10000 cellules pour éviter boucles infinies.

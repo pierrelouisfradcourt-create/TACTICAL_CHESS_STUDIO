@@ -1,18 +1,16 @@
-{
-  "survivor_justifications": [
-    {
-      "line": 30,
-      "mutation": "true -> false",
-      "statement": "visited[from] = true -> visited[from] = false",
-      "rationale": "EQUIVALENT — Le marquage de `from` en visited ne s'affiche pas dans les tests de correctness car `from` est le point de départ de la BFS et ne sera jamais revisité comme un voisin (la BFS n'explore que les voisins, pas le nœud courant lui-même). L'algorithme retourne correctement la cible même avec cette mutation.",
-      "proof": "Les tests incluent des cas sans limite d'exploration (path_length) qui trouvent correctement la cible et passent avec ou sans le marquage de `from`."
-    },
-    {
-      "line": 50,
-      "mutation": "true -> false",
-      "statement": "visited[neighbor] = true -> visited[neighbor] = false",
-      "rationale": "EQUIVALENT — Ne pas marquer un voisin en visited cause une exploration redondante mais pas une faux-résultat. Le même voisin peut être ajouté plusieurs fois à la queue, mais la BFS continue d'explorer et finit par trouver la cible. La distance retournée reste correcte car elle est calculée à l'ajout en queue, pas à la revisit.",
-      "proof": "Tous les tests de correctness (path_length, next_step) retournent le résultat attendu même avec cette mutation car la BFS trouve toujours la cible. La sortie correcte n'est pas affectée."
-    }
-  ]
-}
+[
+  {
+    "name": "true->false",
+    "line": 48,
+    "justification": "EQUIVALENT PROUVE PAR LECTURE DU GARDE. Le marquage `visited[from] = true` (l.48) n'est jamais LU par sa valeur : le seul garde qui consulte `visited` dans cette fonction est `if visited.has(neighbor)` (l.62), qui teste la PRESENCE DE LA CLE, pas son contenu. Muter la valeur en `false` cree exactement la meme cle dans le Dictionary, donc `has()` rend le meme booleen, donc le BFS suit le meme parcours, produit le meme `parent`, la meme reconstruction de chemin et le meme compteur d'expansions. Aucun comportement observable ne differe : aucun test ne peut distinguer le mutant de l'original, y compris via next_step_expansions (ajoute precisement pour rendre le TRAVAIL observable, et qui ne les separe pas non plus). NOTE : remplace une premiere justification qui affirmait « les tests passent quand meme » — argument circulaire (c'est la definition d'un survivant, pas une preuve) et de surcroit faux, puisqu'il supposait un comportement different mais benin.",
+    "verifie_le": "2026-07-21",
+    "methode": "lecture du garde l.62 (visited.has) + re-execution du gate mutation apres ajout de 5 tests sur next_step_expansions : les 2 mutants survivent toujours, conformement a l'equivalence."
+  },
+  {
+    "name": "true->false",
+    "line": 70,
+    "justification": "EQUIVALENT PROUVE PAR LECTURE DU GARDE, meme argument qu'en l.48. `visited[neighbor] = true` n'est lu que par `visited.has(neighbor)` (l.62) : la valeur stockee est inerte, seule la presence de la cle compte. Le mutant `= false` enregistre la meme cle et produit donc un parcours, un resultat et un nombre d'expansions identiques. ATTENTION AU CONTRE-SENS : supprimer entierement le marquage serait un VRAI bug (re-enfilement des memes noeuds, travail qui explose) et serait tue par le test de borne d'expansions sur grande grille. Ce n'est PAS ce que fait ce mutant : il ecrit toujours la cle, il n'en change que la valeur, qui n'est jamais consultee.",
+    "verifie_le": "2026-07-21",
+    "methode": "lecture du garde l.62 (visited.has) + re-execution du gate mutation : survivant confirme, conformement a l'equivalence."
+  }
+]
