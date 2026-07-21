@@ -21,8 +21,8 @@
 
 | Connecteur | État |
 |---|---|
-| `lab/reports/forge_ledger_proposals.jsonl` | ✅ frais |
-| `lab/reports/forge_project_proposals.jsonl` | ✅ frais |
+| `lab/reports/forge_ledger_proposals.jsonl` | · référence absente (non évaluable) |
+| `lab/reports/forge_project_proposals.jsonl` | · référence absente (non évaluable) |
 | `lab/reports/forge_bible_proposals.jsonl` | · jamais écrit (informatif) |
 
 **Verdict global** : ✅ ALIGNÉ (dérive doc : 0 · connecteurs dormants : 0)
