@@ -2,11 +2,33 @@
 #project #gamedesign
 
 > Source canonique : `docs/studio_v2/10_CERFA_SNAKE_SURVIVOR.md`, `11_ROADMAP_SNAKE_SURVIVOR.md`, `12_PLAN_BUILD_SNAKE_SURVIVOR.md`
-> Titre 1 de la séquence produit. Seed du studio_kit.
+> ~~Titre 1 de la séquence produit.~~ **SUPERSEDED** — voir note 2026-07-12 ci-dessous.
 
 ---
 
-## État actuel — 2026-06-28
+## ⚠️ SUPERSEDED — 2026-07-12 (revue hebdomadaire mémoire)
+
+**Ce projet n'est plus le Titre 1 actif.** Le [[../decisions/decision-log|pivot produit du 2026-07-05/06]] a gelé Rocky et réorienté la factory vers une gamme de jeux de cartes FR (**Belote = produit 1**, Tarot = produit 2). Snake: Survivor RPG n'a pas été abandonné suite à un échec de kill-gate — **le kill-gate P0 n'a jamais été tranché** (0 playtest enregistré, 2 builds Godot/HTML jamais réconciliés, cf. note 2026-07-05 ci-dessous) — le studio a changé de pari avant résolution.
+
+**Statut** : archivé, pas de reprise sans HumanGate explicite. Les priors CR-001→CR-006 ([[../gamedesign/lessons|Leçons Gamedev]]) restent `prior` (`evidence_n: 0`) — aucune donnée de jeu réel n'a été produite sur ce titre.
+
+---
+
+## Mise à jour — 2026-07-05 (revue hebdomadaire mémoire)
+
+**Aucune activité git sur `games/` depuis le 2026-06-28** — 7 jours. Le kill-gate P0 n'a pas bougé. Aucun résultat de playtest n'a été enregistré nulle part (ni ici, ni en mémoire Cowork, ni en télémétrie).
+
+**Point à réconcilier — deux builds coexistent sans arbitrage écrit :**
+- `games/snake_survivor/` (Godot 4, wave 2) — dernier fichier modifié 2026-06-28 11:41. C'est le build décrit ci-dessous (section « État actuel — 2026-06-28 »).
+- `games/snake_genesis/` (HTML, `snake_genesis.html` + `snake_genesis_part1.html`) — créé **après**, 2026-06-28 12:38-12:56, à partir du `snake_genesis_v9.html` fourni par Pierre.
+
+La mémoire de session Cowork du 2026-06-28 indique qu'une décision a été prise **le même jour** d'abandonner le build Godot (pas d'éditeur Godot utilisable en Cowork → bugs corrigés à l'aveugle) au profit du HTML (boucle de feedback navigateur instantanée). Cette décision n'a **jamais été écrite dans `decisions/decision-log.md`** ni dans ce fichier — seule la mémoire éphémère Cowork la porte. Les horodatages fichiers corroborent la séquence (Godot fini à 11:41, HTML commence à 12:38) mais **cette note ne remplace pas une ratification HumanGate explicite**.
+
+**Action demandée à Pierre :** confirmer quel build est la base canonique (Godot wave-2 ou HTML genesis) avant toute reprise de travail sur ce titre, et si confirmé, loguer la décision dans `decisions/decision-log.md`.
+
+---
+
+## État actuel — 2026-06-28 (build Godot, non confirmé comme actif)
 
 | Champ | Valeur |
 |---|---|

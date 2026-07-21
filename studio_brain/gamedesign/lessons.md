@@ -5,6 +5,10 @@
 > Statut de chaque règle : `prior` (emprunté), `observed` (vu sur nos jeux), `validated` (confirmé ≥ N titres).
 > Source causale : `docs/studio_v2/09_DESIGN_COMPILER_COLDSTART.md`
 
+> **Revue 2026-07-12** : aucune promotion cette semaine. Tous les CR-*/RD-* restent `prior`, `evidence_n: 0` — aucun jeu n'a encore été playtesté avec de vrais joueurs ni shippé avec télémétrie. Le [[../decisions/decision-log|pivot produit 2026-07-05/06]] (Rocky gelé → Belote/Tarot) n'invalide aucune règle ici : ces priors sont génériques marché Steam, réutilisables tels quels sur le nouveau Titre 1.
+>
+> **Revue 2026-07-19** : aucune promotion — toujours aucun playtest joueur réel, ni sur Belote (0 activité git depuis 2026-07-06) ni sur `games/auto_battler/` (le travail Forge de la période est du QA/oracle mécanique — build/tests/mutation/red-team — pas un playtest de fun). Un nouveau prior sourcé ajouté ci-dessous (CB-001, pacing combat) suite à une recherche TFT commandée par un HumanGate. Les CR-*/RD-* génériques marché restent valables quel que soit le Titre 1 réel du moment.
+
 ---
 
 ## Règles de Fun & Rétention
@@ -68,6 +72,18 @@
 **Application** : Phase 0 = prototype du hook uniquement. Kill-gate Pierre avant Phase 1.
 
 **Statut** : `prior` (doctrine TCS + game design fondamentaux)
+
+---
+
+## Règles de Pacing / Combat (Auto Battler)
+
+### CB-001 — Plafond de combat ≈ 40 s temps réel (référence TFT)
+**Principe** : Teamfight Tactics plafonne un combat à **40 secondes réelles** (30 s de combat normal + 15 s de « URF Overtime » qui accélère le rythme en fin de combat pour forcer une issue). L'Attack Speed de base des unités tourne le plus souvent autour de 0,6-0,8 attaque/seconde hors buffs.
+
+**Conséquence pratique** : un combat doit toujours terminer (invariant QC-6 de `games/auto_battler`, ratifié HumanGate 2026-07-18). Hypothèse de travail non prouvée : 1 Tick ≈ 1 fenêtre d'action globale ≈ ~0,8 s équivalent-TFT ⇒ `tick_limit = 50` (40 s ÷ 0,8 s). Valeur v0 **provisoire**, calibrable par Balance dès les premières simulations réelles — aucune équivalence Tick↔temps réel n'est validée par un playtest.
+
+**Statut** : `prior` (recherche sourcée WebSearch 2026-07-19, TFT wiki) — `evidence_n: 0` (aucune simulation `auto_battler` réelle encore mesurée)
+**Source** : `games/auto_battler/bibles/HUMANGATE_2026-07-19_VALUES_V0.md`
 
 ---
 
@@ -139,5 +155,5 @@ Le système CERFA → /plan → build → télémétrie → post-mortem apprend 
 
 ## Liens
 - [[../doctrine/studio-doctrine|Doctrine]]
-- [[../projects/snake-survivor-genesis|Snake: Survivor RPG]]
+- [[../projects/snake-survivor-genesis|Snake: Survivor RPG]] (SUPERSEDED — historique)
 - [[../reference/sources-of-truth|Sources de vérité dans le repo]]

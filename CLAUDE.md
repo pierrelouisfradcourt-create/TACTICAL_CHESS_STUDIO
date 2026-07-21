@@ -19,6 +19,15 @@ le mécanisme de vérité.
 * L'orchestrateur **ne lit pas les transcripts bruts** des sous-agents et **confronte chaque rapport au réel** (relance tests/oracle) avant d'y croire — jamais sur parole.
 * Tâche déléguée = **commande de fabrication précise** (objectif · entrées · sortie · preuve), jamais « pense à l'architecture ».
 * Un sous-agent **ne commite ni ne push** (gate Pierre). **Périmètre FORGE : aucun sous-agent sans contrat validé** — la délégation libre vaut pour l'outillage studio, PAS pour les agents de génération de jeu.
+* **Répartition par modèle (ratifiée Pierre 2026-07-19)** — la session Fable 5 = **poste de commande** :
+  stratégie · architecture globale · grands plans d'exécution · découpage des problèmes · orchestration
+  multi-agents · synthèse des rapports · préparation des décisions HumanGate. Jamais un terminal
+  d'exécution : pas de tâches mécaniques ni d'explorations longues dans ce contexte.
+  **Opus** = expert de raisonnement profond (audits complexes, architecture, arbitrages techniques
+  importants, challenge fort des hypothèses). **Sonnet** = bras d'exécution (exploration repo,
+  modifications, tests, vérifications mécaniques, tâches répétitives).
+  Avant tout gros travail : **plan clair** — objectifs · périmètre · agents assignés · validations
+  attendues · risques.
 
 ## Stack par lane
 
@@ -115,6 +124,9 @@ Table de correspondance intention → skill à invoquer. Utiliser `/skill-name` 
 | verdict signé | /verdict |
 | gate humain | /gate |
 
+Legacy gelés (triage v2 2026-07-19 — invoquer sur demande explicite Pierre uniquement) :
+`/autoloop`, `/tick`, `/sprint-plan`, `/sprint-status`, `/imp-readiness`, `/council`.
+
 ## Avant toute implementation
 
 ### 1. Quels sont les comportements évidents de ce type de composant ?
@@ -188,7 +200,8 @@ Trois référents, trois rôles distincts. Ne pas les confondre ni les fusionner
 1. Mets à jour `studio_brain/00_CURRENT_CONTEXT.md` : dernière session (date), en cours,
    décisions récentes (ratifiées Pierre uniquement), prochaine étape, impasses.
 2. Faits durables nouveaux (préférences, contraintes projet, incidents) → mécanisme auto-mémoire (`memory/`).
-3. Si un IMP a été touché : entrée dans `lab/chains/IMPROVEMENT_LEDGER.yaml`.
+3. Ledger `lab/chains/` = **archive vivante** (triage v2 2026-07-19) : nouvelles entrées uniquement
+   via proposition Forge ratifiée ou demande explicite Pierre — plus d'IMP réflexe en fin de session.
 4. Garde `00_CURRENT_CONTEXT.md` sous 100 lignes. Archive le vieux contexte dans `studio_brain/journal/`.
 
 ### Règles

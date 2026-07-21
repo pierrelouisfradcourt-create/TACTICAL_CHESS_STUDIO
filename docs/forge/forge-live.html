@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FORGE LIVE — le fil du run</title>
+<style>
+  :root{--bg:#0a1730;--panel:#0e2044;--panel2:#0b1a38;--grid:rgba(130,190,255,.08);
+    --ink:#d3e6ff;--muted:#83a6d6;--cyan:#59cbff;--amber:#ffb454;--green:#5ee8a4;--red:#ff8098;
+    --fable:#b79cff;--opus:#7aa0ff;--haiku:#4fd6c6;--qwen:#ffca6b;--nonllm:#9fb3cf}
+  html,body{margin:0;background:#06101f;color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .wrap{max-width:1100px;margin:16px auto;padding:14px;border:1px solid rgba(130,190,255,.3);border-radius:8px;background:var(--bg);
+    background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:26px 26px}
+  .cart{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;border:1px solid rgba(130,190,255,.35);
+    border-radius:6px;padding:8px 12px;background:var(--panel2);margin-bottom:12px}
+  .cart .t{font-weight:700;color:#fff;font-size:14px;letter-spacing:.04em}
+  .cart .m{font-size:10.5px;color:var(--muted)}
+  .cart input{background:var(--panel);border:1px solid rgba(130,190,255,.35);color:var(--ink);border-radius:5px;padding:4px 8px;font:inherit;font-size:11px;width:150px}
+  .cart button{background:rgba(89,203,255,.15);border:1px solid var(--cyan);color:var(--cyan);border-radius:5px;padding:4px 10px;font:inherit;font-size:11px;cursor:pointer}
+  .cart button.demo{border-color:var(--amber);color:var(--amber);background:rgba(255,180,84,.12)}
+  .grid{display:grid;grid-template-columns:1fr 250px;gap:12px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .thread{display:flex;flex-direction:column;gap:8px}
+  .bulle{border:1px solid rgba(130,190,255,.3);border-radius:9px;padding:8px 11px;background:var(--panel);opacity:.42;transition:all .35s;position:relative}
+  .bulle .who{display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:700}
+  .bulle .dot{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+  .bulle .role{color:var(--muted);font-weight:400;font-size:10px}
+  .bulle .st{margin-left:auto;font-size:9.5px;padding:1px 7px;border-radius:5px;letter-spacing:.05em}
+  .bulle .meta{font-size:9.5px;color:var(--muted);margin-top:4px;word-break:break-all}
+  .bulle .retry{position:absolute;left:-26px;top:50%;transform:translateY(-50%);color:var(--amber);font-size:10px}
+  .bulle.PENDING{opacity:.42}
+  .bulle.RUNNING{opacity:1;border-color:var(--amber);box-shadow:0 0 14px rgba(255,180,84,.25);animation:pulse 1.4s ease-in-out infinite}
+  .bulle.OK{opacity:1;border-color:var(--cyan)}
+  .bulle.FAIL{opacity:1;border-color:var(--red)}
+  .bulle.BLOCKED{opacity:1;border-color:var(--red);border-style:double;border-width:3px}
+  .bulle.SKIPPED{opacity:.6;border-style:dashed}
+  @keyframes pulse{0%,100%{box-shadow:0 0 6px rgba(255,180,84,.15)}50%{box-shadow:0 0 18px rgba(255,180,84,.4)}}
+  .st.PENDING{background:rgba(131,166,214,.15);color:var(--muted)}
+  .st.RUNNING{background:rgba(255,180,84,.2);color:var(--amber)}
+  .st.OK{background:rgba(94,232,164,.15);color:var(--green)}
+  .st.FAIL,.st.BLOCKED{background:rgba(255,128,152,.18);color:var(--red)}
+  .st.SKIPPED{background:rgba(131,166,214,.12);color:var(--muted)}
+  .verdict{border:2px solid var(--cyan);border-radius:9px;padding:10px 12px;background:rgba(89,203,255,.08);display:none}
+  .verdict.show{display:block}
+  .verdict .vt{font-weight:700;font-size:12px;color:#fff}
+  .verdict .flags{font-size:9.5px;color:var(--amber);margin-top:4px}
+  .pierre{border:1.5px solid var(--red);border-radius:9px;padding:9px 12px;background:rgba(255,128,152,.09);font-size:11px}
+  .pierre b{color:#fff}
+  .zones{display:flex;flex-direction:column;gap:8px}
+  .zone{border:1px solid rgba(130,190,255,.3);border-radius:8px;padding:8px 10px;background:var(--panel2);font-size:10px}
+  .zone b{display:block;font-size:10.5px;color:var(--cyan);margin-bottom:3px}
+  .zone.amber{border-color:var(--amber);border-style:dashed}
+  .zone.amber b{color:var(--amber)}
+  .zone.red{border-color:var(--red)}
+  .zone.red b{color:var(--red)}
+  .zone .p{color:var(--muted);word-break:break-all}
+  .hint{margin-top:10px;font-size:10px;color:var(--muted);border:1px dashed rgba(130,190,255,.3);border-radius:6px;padding:7px 10px;display:none}
+  .hint code{color:var(--cyan)}
+  .statusline{font-size:10px;color:var(--muted);margin:6px 0}
+  .statusline .on{color:var(--green)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cart">
+    <div>
+      <div class="t">⚒ FORGE LIVE — LE FIL DU RUN</div>
+      <div class="m">chaque agent poste son message · state.json = index du fil · projection « chat multi-agent » du plan D</div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input id="run" placeholder="nom du run (ex. chesscolor)">
+      <button onclick="startWatch()">SUIVRE</button>
+      <button class="demo" onclick="startDemo()">DÉMO</button>
+    </div>
+  </div>
+  <div class="statusline" id="status">en attente d'un run…</div>
+  <div class="grid">
+    <div>
+      <div class="thread" id="thread"></div>
+      <div style="height:8px"></div>
+      <div class="verdict" id="verdict"></div>
+      <div style="height:8px"></div>
+      <div class="pierre" id="pierre"><b>PIERRE — HUMANGATE</b> · <span id="pierreMsg">en attente du verdict signé…</span></div>
+    </div>
+    <div class="zones">
+      <div class="zone amber"><b>📚 BIBLIOTHÈQUE (trans-runs)</b><span class="p">knowledge_base/ — catalog · search (cible) · proofs</span></div>
+      <div class="zone"><b>🎮 PRODUIT</b><span class="p">games/&lt;jeu&gt;/ — moteur · oracle 4 volets</span></div>
+      <div class="zone"><b>🧾 PREUVES SIGNÉES</b><span class="p">lab/forge_evidence/ — le fil CITE un reçu HMAC, ne le remplace jamais</span></div>
+      <div class="zone amber"><b>★ TABLE DES BILANS (cible)</b><span class="p">lab/reports/bilans/ — dépôts multi-LLM, propose-only</span></div>
+      <div class="zone red"><b>🔒 RÉFÉRENCE (Pierre seul)</b><span class="p">ledger · memory/ · studio_brain/</span></div>
+    </div>
+  </div>
+  <div class="hint" id="hint">
+    Pour suivre un vrai run : sers le repo (<code>.venv312/Scripts/python.exe -m http.server 8123</code> à la racine)
+    puis ouvre <code>http://localhost:8123/docs/forge/forge-live.html?run=&lt;projet&gt;</code>.
+    Le driver écrit <code>lab/forge_runs/&lt;projet&gt;/state.json</code> à chaque étape — cette page ne fait que le lire (afficheur pur, zéro écriture).
+  </div>
+</div>
+<script>
+"use strict";
+// ---- cartographie d'affichage (miroir de dispatch.ORDER + roles.yaml — affichage seul) ----
+const STEPS = [
+  ["s0-contrat","Contrat","opus","charter · actions interdites"],
+  ["s1-prisme","Prisme (panel)","opus","ce que le joueur voit/fait/ressent"],
+  ["s2-worldscan","World Scan","haiku","patterns web cités · advisory"],
+  ["s3-decompo","Décompo","opus","featuremap + preuves attendues"],
+  ["s4-archi","Architecte","opus","blueprint · deps · ownership"],
+  ["s5-wiremap","WireMap","opus","recombine · gèle les règles"],
+  ["s6-redteam-plan","Red-team Plan","qwen","revue indépendante du plan"],
+  ["s9-build","Builder","haiku","code borné à l'ownership"],
+  ["s10a-oracle-code","Oracle Code","nonllm","tests · e2e · mutation · solvabilité"],
+  ["s10b-oracle-archi","Oracle Archi","nonllm","deps réelles vs interdites"],
+  ["s10c-oracle-wiremap","Oracle WireMap","nonllm","carte ↔ code · gel vérifié"],
+  ["s11-redteam-code","Red-team Code","opus","réfute le diff · aveuglé"],
+  ["s12-verdict","Verdict signé","nonllm","agrège les reçus · HMAC"],
+];
+const MODEL = {opus:["#7aa0ff","Opus"],haiku:["#4fd6c6","Haiku ↑"],qwen:["#ffca6b","Qwen"],nonllm:["#9fb3cf","non-LLM"],fable:["#b79cff","Fable"]};
+const $=id=>document.getElementById(id);
+let timer=null, demoTimer=null, base=null;
+
+function bubble(step,label,model,desc,st){
+  const [color,mname]=MODEL[model]||MODEL.nonllm;
+  const attempts=st&&st.attempts>1?`<span class="retry">↺${st.attempts}</span>`:"";
+  const status=st?st.status:"PENDING";
+  const extra=st?Object.entries(st).filter(([k])=>!["status","attempts"].includes(k))
+    .map(([k,v])=>`${k}=${typeof v==="string"?v.slice(0,60):JSON.stringify(v)}`).join(" · "):"";
+  return `<div class="bulle ${status}" id="b-${step}">${attempts}
+    <div class="who"><i class="dot" style="background:${color}"></i>${label}
+      <span class="role">${step} · ${mname}</span>
+      <span class="st ${status}">${status}</span></div>
+    <div class="meta">${desc}${extra?" — "+extra:""}</div></div>`;
+}
+function render(state){
+  const steps=state.steps||{};
+  const keys=STEPS.filter(([k])=>k in steps);
+  const extras=Object.keys(steps).filter(k=>!STEPS.some(([s])=>s===k)).map(k=>[k,k,"nonllm",""]);
+  $("thread").innerHTML=[...keys,...extras].map(([k,l,m,d])=>bubble(k,l,m,d,steps[k])).join("");
+  const esc=state.escalations?` · escalade ×${state.escalations}${state.model_override?" → "+state.model_override:""}`:"";
+  $("status").innerHTML=`run <b style="color:#fff">${state.run_id||"?"}</b> · profil ${state.profile||"?"} · `+
+    `<span class="${state.run_status==="RUNNING"?"on":""}">${state.run_status||"?"}</span>`+
+    `${state.is_game?" · JEU":""}${esc} · <span id="tick">⟳</span>`;
+}
+async function fetchJson(url){
+  const r=await fetch(url,{cache:"no-store"});
+  if(!r.ok)throw new Error(r.status);
+  return r.json();
+}
+async function detectBase(run){
+  for(const b of ["../..",".","../../..",""]){
+    try{await fetchJson(`${b}/lab/forge_runs/${run}/state.json`);return b;}catch(e){}
+  }
+  return null;
+}
+async function tick(run){
+  try{
+    const state=await fetchJson(`${base}/lab/forge_runs/${run}/state.json`);
+    render(state);
+    try{
+      const v=await fetchJson(`${base}/lab/forge_runs/${run}/verdict.json`);
+      $("verdict").className="verdict show";
+      $("verdict").innerHTML=`<div class="vt">📜 VERDICT SIGNÉ — ${v.software_verdict} / ${v.decision}</div>`+
+        `<div class="flags">${(v.humangate_flags||[]).map(f=>"⚑ "+f).join("<br>")||"aucun flag"}</div>`;
+      $("pierreMsg").textContent=v.decision&&v.decision.startsWith("HUMANGATE_READY")?
+        "le fil attend ta réponse : ratifier / rejeter / geler.":"verdict "+v.decision+" — décision requise.";
+    }catch(e){/* pas encore de verdict */}
+  }catch(e){
+    $("status").innerHTML=`<span style="color:var(--red)">state.json introuvable pour « ${run} »</span> — vérifie le nom ou lance la DÉMO.`;
+    $("hint").style.display="block";
+  }
+}
+async function startWatch(){
+  stopAll();
+  const run=$("run").value.trim();
+  if(!run){$("hint").style.display="block";return;}
+  $("status").textContent="connexion…";
+  base=await detectBase(run);
+  if(base===null){
+    $("status").innerHTML=`<span style="color:var(--red)">state.json introuvable pour « ${run} »</span> — le run n'a pas (encore) tourné via le driver, ou la page n'est pas servie par http.`;
+    $("hint").style.display="block";
+    render({run_id:run,profile:"full",run_status:"?",steps:Object.fromEntries(STEPS.map(([k])=>[k,{status:"PENDING",attempts:0}]))});
+    return;
+  }
+  await tick(run);
+  timer=setInterval(()=>tick(run),1500);
+}
+// ---- mode démo : fait vivre le fil sans run réel (aucune écriture, données factices) ----
+function startDemo(){
+  stopAll();
+  $("hint").style.display="none";
+  const state={run_id:"demo-dungeon-dash",profile:"full",run_status:"RUNNING",is_game:true,escalations:0,model_override:null,
+    steps:Object.fromEntries(STEPS.map(([k])=>[k,{status:"PENDING",attempts:0}]))};
+  const order=STEPS.map(([k])=>k);
+  let i=0, phase=0, failedOnce=false;
+  render(state);
+  demoTimer=setInterval(()=>{
+    if(i>=order.length){
+      state.run_status="DONE";render(state);
+      $("verdict").className="verdict show";
+      $("verdict").innerHTML=`<div class="vt">📜 VERDICT SIGNÉ — OK / HUMANGATE_READY_WITH_OBJECTION</div>`+
+        `<div class="flags">⚑ mutation : 1 survivant trié (équivalence à ratifier) · ⚑ red-team dégradé (démo)</div>`;
+      $("pierreMsg").textContent="le fil attend ta réponse : ratifier / rejeter / geler.";
+      clearInterval(demoTimer);return;
+    }
+    const k=order[i], st=state.steps[k];
+    if(phase===0){st.status="RUNNING";st.attempts=(st.attempts||0)+1;phase=1;}
+    else{
+      // simule un oracle rouge -> renvoi borné sur le builder (montre le ↺)
+      if(k==="s10a-oracle-code"&&!failedOnce){
+        st.status="FAIL";failedOnce=true;
+        state.steps["s9-build"].status="RUNNING";state.steps["s9-build"].attempts=2;
+        state.escalations=1;state.model_override="sonnet";
+        render(state);
+        setTimeout(()=>{state.steps["s9-build"].status="OK";},900);
+        i=STEPS.findIndex(([s])=>s==="s10a-oracle-code");phase=0;
+        setTimeout(()=>{st.status="PENDING";render(state);},900);
+        i=8;return;
+      }
+      st.status="OK";phase=0;i++;
+    }
+    render(state);
+  },850);
+}
+function stopAll(){if(timer)clearInterval(timer);if(demoTimer)clearInterval(demoTimer);timer=demoTimer=null;
+  $("verdict").className="verdict";$("pierreMsg").textContent="en attente du verdict signé…";}
+// auto-démarrage via ?run= ou ?demo=1
+const q=new URLSearchParams(location.search);
+if(q.get("demo")){startDemo();}
+else if(q.get("run")){$("run").value=q.get("run");startWatch();}
+else{render({run_id:"—",profile:"full",run_status:"IDLE",steps:Object.fromEntries(STEPS.map(([k])=>[k,{status:"PENDING",attempts:0}]))});}
+</script>
+</body>
+</html>

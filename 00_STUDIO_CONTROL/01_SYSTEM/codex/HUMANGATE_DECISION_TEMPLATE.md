@@ -1,5 +1,7 @@
 ﻿# HumanGate Decision Template
 
+⚠ LEGACY (ratifié Pierre 2026-07-20) — jamais employé ; canonique = decision-log.md + HUMANGATE_*.md par incrément.
+
 status: DOCUMENTED_ONLY
 
 ## Decision

@@ -1,5 +1,7 @@
 # STUDIO_HUMANGATE_DECISION_RECORD_V0
 
+⚠ LEGACY (ratifié Pierre 2026-07-20) — jamais employé ; canonique = decision-log.md + HUMANGATE_*.md par incrément.
+
 Status: DOCUMENTED_ONLY
 Surface: canonical_docs
 Authority: Human-only decision record for one bounded execution step

@@ -1,5 +1,89 @@
 # Contexte courant TCS
 
+## Session 2026-07-19 (chat stratégie, suite) — mode commandement + mission Opus lancée
+- **Mode raffiné (ratifié Pierre)** : Fable = UNIQUEMENT couche de commandement (stratégie · arbitrage ·
+  mémoire · vision Forge · plans) ; Opus = raisonnement profond ; Sonnet = mécanique validée.
+- **Directives jeux (Pierre)** : Belote sur Render → micropatchs seulement ; AutoBattler → playtest
+  local PRIORITAIRE avant toute décision release ; ne pas mélanger jeux et refonte studio.
+- **LIVRÉ — audit Opus « couche décisionnelle »** (`docs/audit/DECISION_LAYER_AUDIT_2026-07-19.md`,
+  PROPOSED, annoté contre-vérif Fable 2026-07-20) : chaîne canonique trouvée 6/6 maillons ; trou T1 =
+  écriture mémoire Forge→ledger (proposals SANS lecteur de contenu — contre-vérifié par grep indépendant) ;
+  3 gabarits HumanGate DOCUMENTED_ONLY jamais employés ; `project_bible`/`propose_bible_entry` inertes.
+- **Architecture Knowledge Resolver — direction RATIFIÉE (2026-07-20)** après challenge de conception
+  Fable×Pierre : résolveur = consolidation (pas de nouvelle couche), rasoir 4 conditions pour l'auto-
+  promotion, score advisory jamais juge, modes automatic/oracle/human (consensus supprimé), HumanGate
+  conservé comme nom de l'acte, ordre incrémental 5 étapes, règle anti-couches. Protocole V1 rédigé :
+  `docs/forge/KNOWLEDGE_RESOLVER_V1_PROTOCOL.md` (PROPOSED — H1, métriques M1-M4 posées avant,
+  sonde anti-théâtre, zéro écriture, non-mélange jeux).
+- **Resolver V1 CONSTRUIT (2026-07-20, gate Pierre)** : `scripts/forge/knowledge_trace.mjs` (+ `--verify`
+  anti-théâtre, exit 1 prouvé) + `pending_review.mjs` (read-only strict) — 41/41 tests verts REJOUÉS par
+  l'orchestrateur ; file réelle visible : 9 dépôts dormants (4 ledger + 4 project + 1 erreur). Limite
+  d'usage : items.json JAMAIS dans le run_dir (auto-confirmation du verify). NON COMMITÉ.
+  Reste V1 : M1-M4 sur 3 runs naturels (trace + verify par run, revue file par session de gate).
+- **FORGE Run A `card_engine-20260720a` TERMINÉ (2026-07-20, go Pierre « forge le tarot »)** :
+  CardEngine V0 (core content-agnostic) + BeloteRules (parité 15 goldens vs belote-claude publié,
+  JAMAIS touché) + harnais. **Verdict signé OK / HUMANGATE_READY_WITH_OBJECTION — verify_run overall
+  TRUE** (HMAC+évidence+mutation+git). 97 tests · parité 20/20 · solvabilité 5 seeds + playGame ·
+  mutation canonique 206 mutants / 11 survivants TOUS triés (gate passed, exception). ~1,81 M tokens.
+  Histoire (journalisée connecteur 6) : haiku « ALL PASS » démenti par oracles → escalade sonnet ×3 ;
+  red-team code opus blind : HIGH trickWinner + R6 jamais appliquée en jeu réel + théâtre solver
+  (flags littéraux) — tout corrigé/prouvé ; verify_run a REJETÉ un reçu mutation artisanal → refait
+  canoniquement. Run B (TarotRules, profil increment) = APRÈS gate Pierre.
+- **Resolver V1 — 1er point de mesure réel** : knowledge_trace 5 items **FOUND partout, sonde
+  anti-théâtre exit 0** (après leçon de format : ref = TOKEN recoupable, pas description). M1 ✓ M2 ✓ ;
+  M3 en attente décisions file ; M4 ok. 2 propositions Run A déposées (ledger + projet, propose-only).
+- **MISSION FORGE V2 LIVRÉE (2026-07-20)** : P1 autopsie horodatée + P2 challenge Opus (T1/T5 à moitié
+  infirmées, 2 angles morts dont l'auto-attestation de la knowledge_trace, ZÉRO cas Evolve justifié)
+  + **`docs/audit/FORGE_V2_CONSOLIDATION.md`** (PROPOSED) : 4 compilateurs d'actifs + formes-cibles,
+  6 règles d'orchestration (O1-O6, chacune née d'un fait), workflow cible amendé aux bornes,
+  6 renforcements de l'existant (R1 anti-théâtre · R2 playtest→journal · R3 verify_run⟷trace ·
+  R6 packets→mandatory_read · R7 design-intent charter · R8 usage_examples), hypothèses classées,
+  tableau de bord baseline. MAJ `STUDIO_MASTER_SCHEMA.html` en cours (Sonnet).
+- **RATIFIÉ (2026-07-20)** : principe de viabilité (« la Forge n'a pas à prouver le fun — elle empêche
+  de construire sur un système manifestement invalide ») · **R9 solvabilité minimale 5 volets =
+  PRIORITAIRE** · santé ludique = classe d'oracle EXPÉRIMENTALE advisory (familles impasse/faux-choix/
+  atrophie ABANDONNÉES) · consolidation restructurée §4-A renforcements prouvés / §4-B capteurs
+  expérimentaux. Mémoire : forge_viability_doctrine.
+- **§4-A EXÉCUTÉ (go Pierre, 2026-07-20)** — tous renforcements câblés ET falsifiés, contre-vérifiés
+  par l'orchestrateur : R9 solvabilité auto_battler 5 volets (oracle exit 0, falsification 14 tests,
+  `check_solvability_wired` false→true, zéro bug de jeu, note : victoire de PARTIE non définie par les
+  règles = TODO FOG existant) · R1 anti-théâtre GATING au driver s10a (fixture théâtrale → BLOCKED ;
+  a débusqué du théâtre dans nos propres fixtures de test, corrigé) · R3 verify_run⟷knowledge_trace
+  (trace théâtrale → REJET) · R2 record_playtest→pré-mortem (appelant = orchestrateur à chaque
+  playtest) · R6 packets en mandatory_read s3/s4 · R7 design-intent charter + check_charter (18 tests)
+  + câblé au skill s0 · R8 usage_examples 2/30 remplis réels (kb-validate PASS, idempotence sha
+  identique ; ARBITRAGE orchestrateur : BRICK_SPEC étendu d'un champ optionnel + helper optional() —
+  enabler minimal de la ratification, falsifié 4 tests, à confirmer en gate). pytest 482/483 ·
+  auto_battler 158 tests · KB 115 tests.
+- **AUDIT R10 LIVRÉ (2026-07-20)** : `docs/audit/FORGE_V2_R10_HEALTH_ORACLE_AUDIT.md` — verdict :
+  la CLASSE « oracles santé ludique structurelle » = DOCUMENTED_ONLY → **ABANDON recommandé** (membres
+  déjà couverts par R9/§4-B ou ratifiés-abandonnés). Une seule proposition minimale survit : sentinelle
+  plateforme (`plateforme_cible ⇒ artefact présent`, advisory, greffe s10a, valeur FAIBLE — appel Pierre)
+  + option télémétrie usage-par-contenu sur volet 5.
+- **AUDIT BAS LIVRÉ (2026-07-20)** : `docs/audit/FORGE_BALANCE_ASSURANCE_SYSTEM_AUDIT.md` — L1 génération
+  contrainte = MANQUE réel (matrice Chess TCG DOCUMENTED_ONLY, générateur NOT_FOUND en code, vérifié
+  08_GENERATOR_UNIFIED_CANDIDATE.md:49) → Evolve/gate déterministe ; L2 simulation = EXTENSION de
+  `role_sim.mjs` (primitif L2 exact, orphelin dans knowledge_base/, jamais appliqué à un vrai jeu,
+  bande gardien [1,999] = exemple d'une bande qui ne peut pas rougir) → Improve advisory conditionné ;
+  L3 pont LLM-seed-oracle = MANQUE du connecteur → Improve. P0 : Bibles AutoBattler = schémas excellents
+  mais VALEURS TOUTES TBD + Balance/Simulation/Content Bibles inexistantes → première tâche = imposer
+  les valeurs, pas construire les agents. TENSION signalée non tranchée : verbatim mission (« skill plat
+  bloque ») vs ratification §4-B (dominance advisory) — lecture compatible : L1/L3 gatent, L2 advisory.
+- **BAS V2 LIVRÉ (2026-07-20, corrections game master intégrées)** :
+  `docs/audit/FORGE_BALANCE_ASSURANCE_SYSTEM_AUDIT_V2.md` — L1 process d'enveloppe PAR JEU (Evolve,
+  gate dur, matrice Chess TCG = contenu d'avril NON ressuscité) · L2 Improve-conditionné ADVISORY
+  post-démo (radar sur les itérations du game master, jamais la 1re sortie) · L3 pont seed (Improve,
+  bots-qui-complètent suffisent à rejouer) · **agents-joueurs = RISQUE MAJEUR NON RÉSOLU** (le studio
+  sait compléter, pas jouer-à-niveau ; Rocky échec gelé +10 FAIL confirmé hooks) · chaîne dure :
+  P0 valeurs → P1 agent-à-niveau PROUVÉ → P3 calibration → L2 mesure · « bloque si skill plat » acté
+  erreur de fusion (seul le déterministe gate, cohérent §4-B).
+- ⏸️ Gates Pierre en attente : (a) BAS V2 — ratifier verdicts par ligne + P0 (créer Balance/Simulation/
+  Content Bibles + remplir valeurs TBD = première tâche bloquante) + décision de lancer (ou non) le
+  chantier-recherche agent-à-niveau ; (b) arbitrage R8 ; (c) verdict Run A card_engine ; (d) revue
+  pending_review (7 items) ; (e) audit §3-i + batch §3-ii ; (f) R10 sentinelle plateforme + télémétrie
+  volet 5 ; (g) sondes P1.1 capteur dominance ; (h) **commit global** (plan de commits sur demande).
+- Pendantes : playtest AutoBattler (prioritaire côté jeux, hors refonte studio).
+
 ## Session 2026-07-19 (chat déploiement Belote) — Belote PUBLIÉ en ligne + PWA installable
 - Suite directe de l'arbitrage flagship (voir archive stratégie ci-dessous) : Belote (`llm-lego/
   experiments/belote-claude`) déployé réellement — repo GitHub `belote-claude` (privé) + Render
@@ -74,8 +158,8 @@ shmup run1, pipeline 3D, factory contractuelle mergée master.
   ⇒ `lab/agent_policy/` + taxonomie `producer/code/qa` = **legacy de fait** ; plus que 2 taxonomies
   vivantes (`.claude/agents/` + contrats Forge). Détail : [[lane_studio_frozen]].
 - **Factory réorientée** : jeux de cartes FR — **Belote = produit 1**, **Tarot = produit 2** (moteur de plis commun).
-- Actions pendantes : re-triage ledger (IMP Rocky → FROZEN, revue HumanGate avant écriture) ; spec produit Belote
-  (IA à niveaux, défi-par-seed, PWA mobile-first) ; étage 2 = table WebRTC, multi public gated.
+- Actions du pivot : re-triage ledger FAIT (triage v2 2026-07-19, non commité) ; spec produit Belote
+  EXISTE (docs/superpowers/specs/2026-07-06-belote-bloc2-*) et Belote est PUBLIÉE ; reste : étage 2 WebRTC gated.
 
 ## Impasses / doctrine (portées)
 - LEDGER canonique = `lab/chains/IMPROVEMENT_LEDGER.yaml` ; écrire via `kaizen_loop.py`.

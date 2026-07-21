@@ -12,13 +12,20 @@
 ---
 
 ## Projets actifs
-→ [[projects/snake-survivor-genesis|Snake: Survivor RPG — Genesis]] — Titre 1, bullet-heaven roguelite PC
+→ [[projects/snake-survivor-genesis|Snake: Survivor RPG — Genesis]] — **SUPERSEDED.** Kill-gate P0 jamais résolu (0 playtest enregistré). Remplacé par le pivot produit du 2026-07-05/06 (voir Décisions). Fiche conservée pour historique/apprentissages, pas de reprise sans HumanGate explicite.
+→ **Pivot produit (2026-07-05/06)** : Rocky gelé → gamme cartes FR, **Belote = produit 1**. Bloc 1 (règles/table/matériel) livré 2026-07-06 (`8e011fe`), non poussé, 2 gates Pierre en attente. ⚠️ **0 activité git depuis 2026-07-06** (13 jours) — le travail réel de la période s'est porté sur `games/auto_battler/` (ci-dessous), sans arbitrage HumanGate écrit sur le statut de Belote. À clarifier avec Pierre.
+→ **`games/auto_battler/`** — chantier réellement actif depuis 2026-07-18 (Battlegrounds×TFT, Game Bible V1 de Pierre). Architecture 16 bibles RATIFIÉE via 7 HumanGates (Foundation, Gate #2, Gate #3, Gate #4-incrément1, QB-6, DP-9, Values-v0). Forgé via profil `increment` : `auto_battler_i1` engine-core mergé (`44592b3`), `auto_battler_i2` preparation+economy mergé (`e72a0e4` + fix `bccbef9`, HIGH-1 déterminisme détecté par red-team puis corrigé). **Rien poussé** (push = gate séparé, non demandé). C'est le chemin critique réel des 13 derniers jours de git.
+→ **Forge 2.0** (`scripts/forge/`) — usine contractuelle QA/oracle du studio (13 contrats s0→s12 mergés master). P0 intégrité **GELÉ** (décision Pierre 2026-07-11, 277 tests verts). P1 mécanique-only falsifiée puis **P1 OUVERTE** (2026-07-12) : sondes A1/A2/A3/A5 promues fixtures permanentes `fixtures/p1/`. P1.1 SUCCESS (4/4 défauts détectés, 0 FP). s10d (oracle visuel advisory) incrément P1-1 COMPLET, poussé (`f6bfab8`). Profil `increment` ajouté 2026-07-19 pour servir `auto_battler`.
+→ **Lane STUDIO : GEL** (ratifié Pierre 2026-07-19) — `autopilot.py`, `scripts/studioV2/`, lanceurs. Voir Décisions.
+→ `games/kb_tactics/` — jeu tactique HTML assemblé par ingestion depuis une knowledge base (`knowledge_base/`, mission Pierre 2026-07-12). Réussite mécanique, **NON commité**, gates Pierre en attente (ratifier contrat, conclusion §5, go Kenney download, commit).
+→ `games/leviathan/` (Capacitor/Vite, idle+combat) et `games/chess_tcg/` (Godot, pivot mobile) — prototypes expérimentaux actifs, hors chemin critique produit principal.
+→ `llm-lego/` — outil interne (builder visuel de chaînes LLM). Activité continue (belote-claude/belote-qwen experiments, wireframes).
 
 ---
 
 ## Design & Apprentissage
 → [[gamedesign/lessons|Leçons Gamedev]] — règles extraites de la recherche marché + post-mortems
-→ [[gamedesign/cerfa-template|CERFA Template]] — manifeste d'instanciation par jeu (lien vers `docs/studio_v2/08_GAME_MANIFEST_CERFA.md`)
+→ CERFA Template — manifeste d'instanciation par jeu : `docs/studio_v2/08_GAME_MANIFEST_CERFA.md` (fichier vault jamais créé — lien direct vers la source, pas de wikilink mort)
 
 ---
 
@@ -56,15 +63,15 @@
 
 ## Dashboard rapide
 
-| Titre 1 | Snake: Survivor RPG — Genesis |
+| Titre 1 (historique) | Snake: Survivor RPG — Genesis — **SUPERSEDED 2026-07-05/06** |
 |---|---|
-| Phase actuelle | Phase 0 build complet — **Kill-gate P0 EN ATTENTE** (Pierre joue) |
-| Build dispo | `games/snake_survivor/` — wave 2 : boucle survivor complète, Constriction, 5 ennemis, 3 éléments, boss |
-| Chemin critique | **kill-gate P0** → page Steam → démo → Bullet Fest → EA |
-| Kill-gate P0 | Hook fun à la minute 12 ? **Pierre tranche avant tout investissement Phase 1.** |
-| Budget | < 2 000 € total |
-| Stack | Godot 4 + Rust (Rocky/GDExtension si profilé) + Qwen local |
-| Dernière revue vault | 2026-06-28 |
+| Statut final | Kill-gate P0 jamais tranché (0 playtest enregistré, 2 builds jamais réconciliés). Le studio a pivoté avant résolution — pas d'échec constaté, juste un changement de pari produit. |
+| Page Steam | Jamais ouverte. Pas de wishlists. |
+| Chemin critique actuel | **Statut à clarifier avec Pierre.** `auto_battler` = chantier réellement actif (13 j de git consécutifs, incréments 1-2 Forge mergés non poussés) ; Belote (produit 1 nominal du pivot 07-05/06) = 0 activité depuis 2026-07-06. |
+| En parallèle | Forge 2.0 (QA/oracle interne, P0 gelé, P1 ouverte, profil `increment` ajouté) · `kb_tactics` (KB ingestion, gates Pierre en attente) · leviathan / chess_tcg (prototypes expérimentaux) |
+| Budget | < 2 000 € total (contrainte studio globale, inchangée) |
+| Lane STUDIO | **GEL** (ratifié Pierre 2026-07-19) — `autopilot.py`/`scripts/studioV2/`/lanceurs, lire OK modifier = HumanGate |
+| Dernière revue vault | 2026-07-19 (revue hebdomadaire mémoire) |
 
 ---
 

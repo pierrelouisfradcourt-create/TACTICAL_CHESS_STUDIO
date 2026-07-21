@@ -139,6 +139,44 @@
 
 ---
 
+## 2026-07-05/06 — PIVOT PRODUIT : Rocky gelé → gamme cartes FR (Belote produit 1)
+
+**Décision** : Geler Rocky (aucune session d'optimisation moteur sans HumanGate explicite). Réorienter la factory vers une gamme de jeux de cartes FR — **Belote = produit 1**, **Tarot = produit 2** (moteur de plis commun). Snake: Survivor RPG — Genesis devient de fait [[../projects/snake-survivor-genesis|SUPERSEDED]] : son kill-gate P0 n'a jamais été tranché, le studio a changé de pari avant résolution.
+
+**Contexte** : rattrapage tardif — cette décision, ratifiée par Pierre le 2026-07-05/06, n'avait pas été journalisée ici (seul `studio_brain/00_CURRENT_CONTEXT.md` la portait). Ajoutée le 2026-07-12 pour combler l'écart entre le handoff courant et le registre canonique.
+
+**Actions pendantes** (héritées, toujours ouvertes au 2026-07-12) : re-triage ledger (IMP Rocky → FROZEN, revue HumanGate avant écriture) ; spec produit Belote (IA à niveaux, défi-par-seed, PWA mobile-first) ; étage 2 = table WebRTC, multi public gated. Bloc 1 Belote (règles/table/matériel) livré 2026-07-06 (`8e011fe`), non poussé.
+
+**Critères de révision** : HumanGate Pierre uniquement.
+
+---
+
+## 2026-07-11 — Forge 2.0 : P0 intégrité GELÉ
+
+**Décision** : Geler le socle P0 de Forge (driver déterministe, preuve mutation signée, doctrine triage, `is_clean_pass()` comme seul prédicat de promotion propre) après 277 tests verts et 3 audits adversariaux fermés. Pas de P0.5, pas de workflow de conformité étendu, pas d'élargissement vers autopilot/kaizen sans HumanGate explicite.
+
+**Contexte** : séparation ratifiée entre intégrité du système Forge (P0, gelé) et qualité des jeux générés (gate séparé, ex. `menagerie_tactics` — artefact, pas un bloqueur P0).
+
+**Critères de révision** : HumanGate Pierre uniquement.
+
+---
+
+## 2026-07-19 — Lane STUDIO gelée (autopilot.py, scripts/studioV2/, lanceurs)
+
+**Décision** : Geler la lane STUDIO — aucune session de travail sur `autopilot.py` (9029 lignes, inchangé depuis 2026-06-29), `scripts/studioV2/` (45 fichiers, inchangé depuis 2026-06-26), `start_studio.ps1` / `stop_studio.ps1` sans HumanGate explicite de Pierre. Ne pas corriger, ne pas étendre, ne pas « améliorer en passant ». Lire reste autorisé. Hors gel : `tests/studioV2/` (zone protégée, régime propre) et `repos/games/studioV2_MIGRATED_HOLD/` (déjà archivé).
+
+**Contexte** : audit « déclaré ≠ exécuté » du 2026-07-19 (session studio/méta, déclenché par une comparaison ChatGPT du studio avec ECC/Donchitos) — 3 strates mortes trouvées dans la lane STUDIO : (1) `.claude/agents/*.md` (15 fiches) jamais chargées faute de `description:` (champ requis absent) ; (2) `lab/agent_policy/tool_permission_matrix.json` (62 règles) câblée mais `_check_tool_permission` (`autopilot.py` ~l.843) ignore `agent_id` et échoue en mode ouvert (matrice absente → ALLOW), contredisant son propre `deny_by_default: true` ; (3) 3 taxonomies d'agents concurrentes qui ne se parlent pas (`producer/code/qa/review/docs` de la matrice · `producteur-dur/qa-lead/...` de `.claude/agents/` · `builder/architect/...` des contrats Forge).
+
+**Conséquence directe** : `lab/agent_policy/*.json` et sa taxonomie `producer/code/qa/review/docs` deviennent **legacy de fait** — il ne reste que 2 taxonomies vivantes : `.claude/agents/` et les contrats Forge. Le défaut `_check_tool_permission` est un défaut **connu et NON corrigé** tant que le gel tient.
+
+**Réparation en session (NON commitée)** : 13 des 15 fiches d'agents corrigées (`description:` ajoutée, `model:` en alias, champs custom déplacés dans le corps, `disallowedTools: Write, Edit` câblé) et validées empiriquement (chargement à chaud confirmé). `gameplay-programmer` et `godot-shader-specialist` laissés intacts (rôles possiblement sans objet — décision Pierre en attente).
+
+**Décisions Pierre en attente** : (a) correctif `_check_tool_permission` = lane STUDIO, donc sous gel ; (b) sort des 2 agents inertes ; (c) convergence des 3 taxonomies (prérequis à tout compilateur de politique) ; (d) `games/auto_battler/` (chantier actif) n'est le domaine d'aucun agent déclaré.
+
+**Critères de révision** : HumanGate Pierre uniquement.
+
+---
+
 ## Template pour nouvelles entrées
 
 ```
