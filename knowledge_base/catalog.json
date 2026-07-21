@@ -775,7 +775,24 @@
    "sha256": "4dbd8a87aa04bb05b28866ab375e5546b38ee8ded6b008a96f4c94680afdb9bf",
    "tests": "knowledge_base/systems/navigation/run_tests.gd",
    "advisory_only": false,
-   "affordances": {}
+   "affordances": {
+    "next_step": {
+     "type": "fn(from: Vector2i, to: Vector2i, walls: Dictionary) -> Vector2i",
+     "description": "premier pas du chemin le plus court de from vers to en evitant les murs ; rend from si to est inatteignable. Pur, deterministe, 4 directions."
+    },
+    "path_length": {
+     "type": "fn(from: Vector2i, to: Vector2i, walls: Dictionary) -> int",
+     "description": "longueur du chemin le plus court de from vers to, -1 si inatteignable ou si l'exploration depasse 10000 cellules. Pur, deterministe."
+    },
+    "next_step_expansions": {
+     "type": "fn(from: Vector2i, to: Vector2i, walls: Dictionary) -> int",
+     "description": "nombre d'expansions de noeuds effectuees par le BFS sous-jacent — rend le TRAVAIL observable, pas seulement le resultat. Pur, aucun etat partage entre appels."
+    }
+   },
+   "learned_from": {
+    "game": "grid_nav_probe",
+    "reference": "Pac-Man (1980)"
+   }
   }
  ]
 }

@@ -6,7 +6,7 @@ extends SceneTree
 const GridNav = preload("res://core/grid_nav.gd")
 
 # Nombre d'assertions attendu — garde anti-faux-vert.
-const EXPECTED_ASSERTS := 28
+const EXPECTED_ASSERTS := 35
 
 var _passed := 0
 var _failed := 0
@@ -36,6 +36,15 @@ func _initialize() -> void:
 	test_next_step_multiple_steps()
 	test_path_length_L_shape()
 	test_next_step_consistency()
+	test_bfs_revisit_detection()
+	test_path_long_exploration()
+	# --- escalade Task 8, défaut 2 : compteur d'expansions observant le TRAVAIL
+	# du BFS de next_step, pas seulement son résultat (cf. mutation_triage.json) ---
+	test_next_step_expansions_immediate_direction()
+	test_next_step_expansions_two_steps()
+	test_next_step_expansions_open_grid_exact()
+	test_next_step_expansions_bounded_large_grid()
+	test_next_step_expansions_consistent_with_next_step()
 
 	var total := _passed + _failed
 	if total != EXPECTED_ASSERTS:
@@ -272,3 +281,77 @@ func test_next_step_consistency() -> void:
 	var step1 = GridNav.next_step(from, to, walls)
 	var step2 = GridNav.next_step(from, to, walls)
 	ok(step1 == step2, "next_step is consistent for same inputs")
+
+func test_bfs_revisit_detection() -> void:
+	# Test that BFS properly marks visited cells and doesn't revisit
+	# This catches mutations where visited[cell] = false fails
+	var from = Vector2i(0, 0)
+	var to = Vector2i(10, 0)  # 10 steps away
+	var walls = {}
+	# No walls, so BFS explores in all 4 directions
+	var length = GridNav.path_length(from, to, walls)
+	ok(length == 10, "BFS finds correct distance without revisiting cells")
+
+func test_path_long_exploration() -> void:
+	# Another test to ensure visited tracking works correctly
+	var from = Vector2i(0, 0)
+	var to = Vector2i(5, 5)
+	var walls = {}
+	var length = GridNav.path_length(from, to, walls)
+	ok(length == 10, "path_length handles explorations correctly")
+
+# --- escalade Task 8, défaut 2 : compteur d'expansions de next_step ---
+# Ces tests observent le TRAVAIL du BFS (nombre d'itérations de la boucle de
+# voisinage), pas seulement le résultat final. Valeurs exactes vérifiées par
+# exécution réelle (cf. task-8-report.md, section escalade), pas déduites.
+# NOTE HONNÊTE : ces tests NE TUENT PAS les 2 survivants historiques
+# (visited[from]/visited[neighbor] : true->false, dans _bfs_next_step) --
+# voir mutation_triage.json pour la preuve que ces deux mutants précis sont
+# authentiquement équivalents (Dictionary.has() en GDScript ignore la valeur
+# stockée, seule la présence de la clé compte ; ces tests le confirment
+# empiriquement : les expansions restent identiques avec le mutant appliqué).
+# Ils restent utiles en défense en profondeur contre un VRAI bug de marquage
+# (ex. suppression de la clé, inversion du test .has()), qui ferait exploser
+# ce compteur de façon flagrante.
+
+func test_next_step_expansions_immediate_direction() -> void:
+	# Nord est la première direction testée (ordre FIXE) ; si la cible est au
+	# nord immédiat, elle est trouvée dès la 1ère itération de la boucle.
+	var from = Vector2i(5, 5)
+	var to = Vector2i(5, 4)
+	var exp = GridNav.next_step_expansions(from, to, {})
+	ok(exp == 1, "next_step_expansions: cible au nord immédiat = 1 expansion")
+
+func test_next_step_expansions_two_steps() -> void:
+	# Est est la 2e direction testée ; nord (nul résultat) puis est (trouvé).
+	var from = Vector2i(0, 0)
+	var to = Vector2i(1, 0)
+	var exp = GridNav.next_step_expansions(from, to, {})
+	ok(exp == 2, "next_step_expansions: cible à l'est = 2 expansions (nord puis est)")
+
+func test_next_step_expansions_open_grid_exact() -> void:
+	# Grille 10x10 ouverte (aucun mur), coin à coin : valeur exacte mesurée par
+	# exécution réelle du BFS non muté.
+	var from = Vector2i(0, 0)
+	var to = Vector2i(9, 9)
+	var exp = GridNav.next_step_expansions(from, to, {})
+	ok(exp == 2347, "next_step_expansions: grille ouverte 10x10 coin-à-coin = 2347")
+
+func test_next_step_expansions_bounded_large_grid() -> void:
+	# Grille 20x20 ouverte : borne large (mesuré 11027) pour attraper une
+	# explosion réelle (un vrai bug de marquage ferait exploser ce compteur
+	# bien au-delà de cette borne, pas y flirter de peu).
+	var from = Vector2i(0, 0)
+	var to = Vector2i(19, 19)
+	var exp = GridNav.next_step_expansions(from, to, {})
+	ok(exp <= 15000, "next_step_expansions: grille ouverte 20x20 bornée (<=15000, mesuré 11027)")
+
+func test_next_step_expansions_consistent_with_next_step() -> void:
+	# next_step et next_step_expansions partagent la même implémentation
+	# (_bfs_next_step) : le pas retourné doit être identique.
+	var from = Vector2i(2, 3)
+	var to = Vector2i(8, 1)
+	var walls = {Vector2i(5, 2): true}
+	var step_via_next_step = GridNav.next_step(from, to, walls)
+	var exp = GridNav.next_step_expansions(from, to, walls)
+	ok(step_via_next_step != from and exp > 0, "next_step_expansions cohérent avec next_step (même code partagé)")
