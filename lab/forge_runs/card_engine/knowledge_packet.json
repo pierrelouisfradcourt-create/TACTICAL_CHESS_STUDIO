@@ -1,0 +1,121 @@
+{
+  "advisory": true,
+  "run_id": "card_engine-20260720a",
+  "etape": "s2-worldscan",
+  "patterns": [
+    {
+      "pattern": "Separation of Rules Interface and Score Interface as distinct contracts. Strategy and Abstract Factory patterns delegate rule validation (legal moves, trick winner) from score calculation (points accumulation, contract evaluation). This enables parameterizable adaptors (Belote, Tarot) without code duplication.",
+      "source_url": "https://bennycheung.github.io/game-architecture-card-ai-1",
+      "pertinence": "Directly applicable to CardEngine V0 core design — two interfaces anticipated in charter."
+    },
+    {
+      "pattern": "Bidding as a modular, reusable component in trick-taking engines. Bidding implements phase sequencing (multiple rounds, pass-or-claim decision logic) separately from hand play logic, enabling tests and reuse across games.",
+      "source_url": "https://arxiv.org/pdf/2603.03252",
+      "pertinence": "Valet testbed identifies bidding as major architectural lever; applies to Belote V0 and parameterizes for Tarot 3/4/5-player variants."
+    },
+    {
+      "pattern": "Event-driven architecture with task scheduling for concurrent games. Game engines use event managers and thread pools to support multiple simultaneous games without coupling game logic to I/O or concurrency primitives.",
+      "source_url": "https://research.vu.nl/en/publications/a-simple-online-card-game-engine-for-teaching-purposes/",
+      "pertinence": "Headless engine anticipates future multi-game scenarios; event isolation keeps V0 deterministic while permitting horizontal scaling."
+    },
+    {
+      "pattern": "Deterministic Replay via Seeded RNG. A single seeded random number generator is consumed only at deck initialization (shuffle, cut). All subsequent game state is deterministic, enabling perfect replay by recording seed + move sequence.",
+      "source_url": "https://medium.com/@naomijoyce/random-number-generation-in-video-games-dda985c5652f",
+      "pertinence": "CardEngine charter mandates seed-first determinism and replay — this pattern is canonical for trick-taking engines."
+    },
+    {
+      "pattern": "Composition over Inheritance for game entity modeling. Player contains Hand, Score, Bid; Game contains Players, Trick, Deck. Composition avoids deep hierarchies and enables partial state queries (hand visibility, legal moves) without mutation.",
+      "source_url": "https://www.clear.rice.edu/comp202/06-fall/assignments/cardgame/",
+      "pertinence": "Applicable to CardEngine core (Card, Deck, Hand, Trick hierarchy) and future UI consumerism."
+    },
+    {
+      "pattern": "Delta-based rule specification: Solitaire variants differ only in a few rules (color alternation, suit matching). Framework designed such that rule delta engenders only code delta, not rewrite of core engine.",
+      "source_url": "http://www.bandgap.cs.rice.edu/workshops/oopd/sigcse2006/WebDocs/CardGame/assignment.html",
+      "pertinence": "Tricks-taking variations (Belote, Tarot, Skat) share core logic but differ in bidding, scoring thresholds, cardinality. Parametric interfaces isolate deltas."
+    },
+    {
+      "pattern": "Valet standardized testbed architecture: 8 trick-taking games with substantial variation in scoring methods, partnerships (teams vs. all-vs-all), trump selection (bidding vs. top card), and oudler/special card rules. Used for AI research; reveals high-variance surface area.",
+      "source_url": "https://arxiv.org/pdf/2603.03252",
+      "pertinence": "Documents that Belote, Tarot, Skat share structural invariants but differ on 3-4 major knobs: scoring curve, player count, special cards, trump phase. CardEngine interfaces must parameterize these."
+    },
+    {
+      "pattern": "Invariant assertions by equality, not inequality (≥, ≤). Card conservation (always 32 or 78), exactly one trick winner, sum of points = base. These are testable by strict equality; using ≥ tolerates bugs that equality would catch.",
+      "source_url": "https://www.clear.rice.edu/comp202/06-fall/assignments/cardgame/",
+      "pertinence": "CardEngine charter §pré-mortem 2 mandates strict assertions; pattern validates architectural guard-rails."
+    }
+  ],
+  "tarot_facts": [
+    {
+      "fait": "78-card Tarot deck: 4 suits × 14 ranks (Roi, Dame, Cavalier, Valet, 10–1) = 56 cards + 21 atouts (trumps 21–1) + 1 Excuse (Fool) = 78 total.",
+      "source_url": "https://en.wikipedia.org/wiki/French_Tarot"
+    },
+    {
+      "fait": "Oudlers (three 'key' cards): 1 of trumps, 21 of trumps, and Excuse. These reduce point threshold needed to win. Total points in deck = 91 (not 162 like Belote).",
+      "source_url": "https://www.pagat.com/tarot/frtarot.html"
+    },
+    {
+      "fait": "Card point values: Kings and oudlers = 4.5 pts; Queens = 3.5; Knights = 2.5; Jacks = 1.5; all others = 0.5. Base score calculation starts at 25 points, adjusted by point differential vs. threshold + Petit au bout bonus.",
+      "source_url": "https://www.tarot-classique.com/rules/card-values-points-and-contracts/"
+    },
+    {
+      "fait": "Contract thresholds based on oudler capture: 3 oudlers → need 36 points; 2 → 41; 1 → 51; 0 → 56. These are asymmetric discontinuities; off-by-one errors (35 vs 36) are implementation pitfall.",
+      "source_url": "https://viptarot.fr/en/french-tarot-rules/"
+    },
+    {
+      "fait": "Excuse (Fool) at last trick rule: If an opponent plays Excuse to the last trick, the taker (declarer) captures it even if they do not win the trick. Excuse always 'changes sides' at final trick — exceptional rule unique to Tarot.",
+      "source_url": "https://tarometre.fr/en/official-rules"
+    },
+    {
+      "fait": "Poignées (handfuls): Player with 10+ trumps declares +20 pts (single), 13+ → +40 (double), 15+ → +60 (triple). Declared at first trick only; multipliers stack with contract multiplier.",
+      "source_url": "https://www.pagat.com/tarot/frtarot.html"
+    },
+    {
+      "fait": "Player count: 3, 4, or 5 players. 5-player variant uses chien (kitty) of 6 cards; taker draws after auction and discards 6. Distribution and role assignment (attacker vs. defenders) changes with player count.",
+      "source_url": "https://tradigames.com/tarot.php?lang=en"
+    },
+    {
+      "fait": "Petit au bout (Little at the end): If the 1 of trumps (Petit) is played to the last trick, bonus is +10 for the player capturing it (taker or defender), added after main score calculation. Interacts with Excuse rule.",
+      "source_url": "https://letarot.net/en/rules.html"
+    }
+  ],
+  "implementation_pitfalls": [
+    {
+      "pitfall": "Off-by-one on score threshold (81 vs 82 in Belote, 35 vs 36 in Tarot 3-oudler contract). These are binary discontinuities; off-by-one silently reverses contract outcome without invariant breach.",
+      "mitigation_pattern": "Test exact equality on threshold-boundary fixtures; never use ≥ where == is semantically correct.",
+      "sources": [
+        "https://www.pagat.com/jass/belote.html",
+        "https://viptarot.fr/en/french-tarot-rules/"
+      ]
+    },
+    {
+      "pitfall": "Excuse (or Belote R+D) captured by wrong player due to logic flaw in trick-winner resolution. Tarot: Excuse at last trick must force side-change; Belote: R+D detection order-invariant but declaration flag ('beloteDeclared') must be explicit.",
+      "mitigation_pattern": "Property-test trick winner over card permutations; isolate side-change logic in unit tests with fixtures defining explicit card order.",
+      "sources": [
+        "https://tarometre.fr/en/official-rules",
+        "https://www.pagat.com/jass/belote.html"
+      ]
+    },
+    {
+      "pitfall": "Card point totals drift due to asymmetric baremes (Belote: 152 base; Tarot: 91). Summing points during play can accumulate floating-point or rounding errors if not using half-point values explicitly (4.5, 3.5, etc.)",
+      "mitigation_pattern": "Use fixed-denominator arithmetic (e.g., tenths: 45 = 4.5 pts) or explicit fractional types; verify total === expected on every deal.",
+      "sources": [
+        "https://www.pagat.com/jass/belote.html",
+        "https://www.tarot-classique.com/rules/card-values-points-and-contracts/"
+      ]
+    },
+    {
+      "pitfall": "Hand/deck ordering must not affect annonce (Belote) or Petite (Tarot) detection. Naive 'scan hand in order' algorithms break on permutations or post-sort bugs.",
+      "mitigation_pattern": "Implement detection as set/multiset operations (order-agnostic); property-test on random hand permutations with fixed seed.",
+      "sources": [
+        "https://www.clear.rice.edu/comp202/06-fall/assignments/cardgame/",
+        "https://www.pagat.com/tarot/frtarot.html"
+      ]
+    }
+  ],
+  "sources_primary": [
+    "https://www.pagat.com/tarot/frtarot.html",
+    "https://viptarot.fr/en/french-tarot-rules/",
+    "https://arxiv.org/pdf/2603.03252"
+  ],
+  "notes": "World Scan advisory-only — patterns cite open-source implementations and peer-reviewed game-theory research; Tarot facts sourced from official FFT rules (pagat.com, viptarot.fr, tarometre.fr official FFT mirror); implementation pitfalls derived from known Belote/Tarot bug categories. No claim on what CardEngine must implement — merely what existing trick-taking engines solve and how."
+}

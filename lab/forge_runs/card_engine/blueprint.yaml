@@ -1,0 +1,528 @@
+# blueprint.yaml — FORGE run card_engine-20260720a — étape 4 (Architecture)
+# GELÉ à s4. Découpage par responsabilité (OÙ) des features s3 (QUOI).
+# Frontière dure core <-> adaptateur : AUCUNE constante Belote (32, 82, 162, 152, 250,
+# barèmes) ne vit dans core/** — invariant vérifiable par l'oracle s10b (deps interdites +
+# grep de constantes). Le core est content-agnostic et anticipe le Tarot par PARAMÈTRES,
+# jamais par code Tarot. Le sens de dépendance est unique : adapters/** -> core/**,
+# harness/** -> {core, adapters}. Jamais l'inverse.
+#
+# Format compatible gabarit auto_battler_i2 : chaque module porte nom/chemin/responsabilite/
+# capacites/depend_de/deps_interdites ; sections globales deps_autorisees, deps_interdites,
+# ownership, invariants_archi.
+
+run_id: card_engine-20260720a
+etape: s4-archi
+emplacement: games/card_engine/
+gabarit_source: lab/forge_runs/auto_battler_i2/blueprint.yaml
+reference_decoupage: llm-lego/experiments/belote-claude/src/ (lecture seule — jamais importé)
+
+# ------------------------------------------------------------------------------------------
+# COUCHE 1 — NOYAU GÉNÉRIQUE : modèle (Card / Deck / Hand / Trick)
+# ------------------------------------------------------------------------------------------
+modules:
+  - nom: core/card
+    chemin: games/card_engine/core/card.mjs
+    responsabilite: >-
+      Identité de carte GÉNÉRIQUE, stable, unique, sérialisable — un id string opaque assigné
+      par le DeckSpec de l'adaptateur (Belote: `rank-suit`). Le core ne présuppose NI rang NI
+      enseigne : une carte est `{ ...attributs, id }`. Anticipe une carte spéciale hors
+      suit×rank (ex. Excuse au Tarot) qui porte son propre id. Comparaison bit-à-bit par id.
+    capacites:
+      - "[R1] Porter un id stable/unique/sérialisable, générique (l'adaptateur fournit le schéma d'attributs)"
+    depend_de: []
+    deps_interdites:
+      - "games/card_engine/adapters/**"
+      - "games/card_engine/harness/**"
+
+  - nom: core/deck
+    chemin: games/card_engine/core/deck.mjs
+    responsabilite: >-
+      Construction d'un paquet à partir d'un DeckSpec fourni par l'adaptateur (enseignes,
+      rangs, cartes spéciales) — taille et composition PARAMÉTRIQUES, aucun hard-code d'un jeu
+      concret (ni 32 ni 78). Fournit les helpers de conservation de multiset (aucune carte
+      créée ni perdue).
+    capacites:
+      - "[R15] Taille/composition de paquet exposées par l'interface, fixées par l'adaptateur (32 Belote, dimensionnable Tarot) sans logique Tarot"
+      - "[R14] Helper de conservation : multiset d'une opération = paquet de référence (égalité de multisets, zéro doublon/perte)"
+    depend_de:
+      - games/card_engine/core/card.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/**"
+      - "games/card_engine/harness/**"
+
+  - nom: core/hand
+    chemin: games/card_engine/core/hand.mjs
+    responsabilite: >-
+      Main comme collection INTERROGEABLE sans effet de bord : lister le contenu, projeter des
+      coups candidats. Toute interrogation retourne une nouvelle valeur (copie) — jamais de
+      mutation de l'état sérialisable pendant une lecture.
+    capacites:
+      - "[R6] Interroger contenu/coups d'une main ne mute pas l'état (deux lectures successives deep-equal, état inchangé)"
+    depend_de:
+      - games/card_engine/core/card.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/**"
+      - "games/card_engine/harness/**"
+
+  - nom: core/trick
+    chemin: games/card_engine/core/trick.mjs
+    responsabilite: >-
+      Structure d'un pli : cartes posées (dans l'ordre) + couleur demandée, résolvant
+      EXACTEMENT un gagnant via un COMPARATEUR injecté par l'adaptateur (jamais une règle de
+      force codée en dur). Expose un point d'accroche optionnel de ré-attribution de capture
+      (anticipe l'Excuse au dernier pli du Tarot) — no-op si l'adaptateur ne le fournit pas.
+    capacites:
+      - "[R7] Résoudre exactement un `{seat}` gagnant via comparateur adaptateur (un seul, jamais zéro ni deux)"
+      - "[R15] Hook optionnel reassignCapture(trick, winner) pour capture spéciale (Excuse Tarot) — absent = no-op, aucun code Tarot"
+    depend_de:
+      - games/card_engine/core/card.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/**"
+      - "games/card_engine/harness/**"
+
+  # ----------------------------------------------------------------------------------------
+  # COUCHE 2 — NOYAU GÉNÉRIQUE : interfaces de contrat (LA FRONTIÈRE core <-> adaptateur)
+  # ----------------------------------------------------------------------------------------
+  - nom: core/rules_interface
+    chemin: games/card_engine/core/rules_interface.mjs
+    responsabilite: >-
+      CONTRAT Rules (typedef JSDoc + validateur assertRulesAdapter) : l'unique surface par
+      laquelle le core connaît un jeu concret. Contient ZÉRO constante et ZÉRO règle — décrit
+      et VÉRIFIE la forme paramétrique qu'un adaptateur doit exposer. Signature tranchée en
+      s4 (voir invariants_archi « SIGNATURE RULES ») : topologie de sièges paramétrique
+      (seatCount, teamOf, partnerOf pouvant renvoyer null pour équipes asymétriques
+      attaquant/défenseurs), deckSpec, phases deal/completeDeal/auction optionnelles,
+      legalMoves, compareInTrick, trickWinner, reassignCapture optionnel.
+    capacites:
+      - "[R15] Surface stable et paramétrique {coups légaux, gagnant, structure donne/enchère} anticipant taille paquet, cartes spéciales, phase d'enchère, nombre de joueurs/équipes asymétriques"
+      - "[R6] Le contrat impose un rejet déterministe observable d'un coup hors legalMoves (aucun état illégal silencieux)"
+    depend_de:
+      - games/card_engine/core/card.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/**"
+      - "games/card_engine/harness/**"
+
+  - nom: core/score_interface
+    chemin: games/card_engine/core/score_interface.mjs
+    responsabilite: >-
+      CONTRAT Score (typedef JSDoc + validateur assertScoreAdapter) : décompte de manche,
+      indépendant de tout jeu concret. ZÉRO barème, ZÉRO seuil, ZÉRO point de capot dans le
+      core. Signature tranchée en s4 (voir « SIGNATURE SCORE ») : cardValue(card, contract) ->
+      number (le core n'assume pas l'entier — un adaptateur Tarot peut travailler en dixièmes
+      pour les ½-points sans toucher au core) ; scoreDeal(tricks, contract, ctx) ->
+      ScoreResult où l'ÉVALUATION DE CONTRAT vit DANS l'adaptateur (fonction des cartes-clés
+      capturées façon oudlers, pas une constante) ; bonusHooks paramétriques.
+    capacites:
+      - "[R15] Décompte de manche paramétrable (barème, seuil de contrat, points de capot, valeurs fractionnaires) exprimé par l'interface, démontré par un point d'extension"
+    depend_de:
+      - games/card_engine/core/card.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/**"
+      - "games/card_engine/harness/**"
+
+  # ----------------------------------------------------------------------------------------
+  # COUCHE 3 — NOYAU GÉNÉRIQUE : déterminisme seed-first (substrat, generic)
+  # ----------------------------------------------------------------------------------------
+  - nom: core/rng
+    chemin: games/card_engine/core/rng.mjs
+    responsabilite: >-
+      RNG déterministe seed-first (mulberry32) + shuffle Fisher-Yates à RNG injectable, sans
+      mutation d'entrée. UN SEUL flux par partie. Aucune connaissance de jeu.
+    capacites:
+      - "[R13] Un unique flux RNG seedé, reproductible ; shuffle ne mute pas l'entrée"
+    depend_de: []
+    deps_interdites:
+      - "games/card_engine/adapters/**"
+      - "games/card_engine/harness/**"
+
+  - nom: core/shoe
+    chemin: games/card_engine/core/shoe.mjs
+    responsabilite: >-
+      Sabot générique : newShoe(seed, deck) (mélange initial unique), cut(deck, rng,
+      { minOffset }) — bornes DÉRIVÉES de deck.length (jamais 32/29 en dur), minOffset =
+      paramètre de déterminisme générique (défaut petit, garde anti-coupe-triviale, pas une
+      constante Belote), coupe jamais fixe/jamais 0 ; pickup(tricks, teamOrder) SANS RNG,
+      recomposition paramétrique par ordre d'équipes (préneur-puis-défense chez Belote).
+    capacites:
+      - "[R13] RNG consommé UNIQUEMENT au mélange initial et aux coupes ; coupe bornée dans [minOffset, len-minOffset], jamais fixe/0"
+      - "[R14] pickup déterministe sans hasard : deux pickup sur plis identiques -> paquet identique ; distribution+pickup = permutation conservant le multiset"
+    depend_de:
+      - games/card_engine/core/rng.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/**"
+      - "games/card_engine/harness/**"
+
+  - nom: core/trickplay
+    chemin: games/card_engine/core/trickplay.mjs
+    responsabilite: >-
+      Enchaînement GÉNÉRIQUE des plis : joue un pli en sollicitant, par SIÈGE, l'adaptateur
+      (legalMoves) et un sélecteur de coup injecté, refuse tout coup hors legalMoves, résout
+      le gagnant via core/trick, puis CHAÎNE — le gagnant d'un pli entame le suivant — pour
+      trickCount plis. seatCount et trickCount sont LUS de l'adaptateur, jamais 4/8 en dur.
+      Travaille sur une copie jouable ; ne mute jamais l'état sérialisable interrogeable.
+    capacites:
+      - "[R13] Chaînage déterministe des plis (gagnant entame le suivant), aucun RNG pendant le jeu — rejouable à l'identique (rattache la preuve d'enchaînement, décision s4 no.4)"
+      - "[R7] Délègue la résolution du gagnant unique à core/trick"
+      - "[R6] Rejette tout coup choisi hors de l'ensemble legalMoves de l'adaptateur (garde d'état légal)"
+    depend_de:
+      - games/card_engine/core/trick.mjs
+      - games/card_engine/core/rules_interface.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/**"
+      - "games/card_engine/harness/**"
+
+  # ----------------------------------------------------------------------------------------
+  # COUCHE 4 — ADAPTATEUR BeloteRules (TOUTES les constantes Belote vivent ICI)
+  # ----------------------------------------------------------------------------------------
+  - nom: belote/cards
+    chemin: games/card_engine/adapters/belote/cards.mjs
+    responsabilite: >-
+      DeckSpec Belote (4 enseignes × 8 rangs = 32), deux barèmes (PLAIN/TRUMP), deux ordres de
+      force (PLAIN_ORDER/TRUMP_ORDER), cardValue/cardStrength, totalCardPoints. Détenteur
+      EXCLUSIF des constantes Belote de cartes (barèmes 11/10/20/14/4/3/2, total 152).
+    capacites:
+      - "[R1] Instancier 32 cartes d'id `rank-suit` unique via le DeckSpec"
+      - "[R2] Deux barèmes selon l'atout (non-atout 30/couleur, atout 62/couleur) — égalité exacte par rang"
+      - "[R3] Deux ordres de force (non-atout / atout) — comparaison par égalité d'ordre"
+      - "[R12] totalCardPoints(atout) === 152 pour chaque couleur d'atout"
+    depend_de:
+      - games/card_engine/core/card.mjs
+      - games/card_engine/core/deck.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/stub/**"
+      - "games/card_engine/harness/**"
+      - "llm-lego/**"
+
+  - nom: belote/deal
+    chemin: games/card_engine/adapters/belote/deal.mjs
+    responsabilite: >-
+      Distribution Belote en deux temps : deal (3 puis 2 = 5/joueur + retournée, talon 11) et
+      completeDeal (préneur intègre la retournée puis complément à 8 : préneur +2, autres +3),
+      eldestOrder. Ne mute pas ses entrées.
+    capacites:
+      - "[R4] Après deal : main=5, talon=11 ; après completeDeal : main=8 exactement (égalité des tailles)"
+    depend_de:
+      - games/card_engine/core/rng.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/stub/**"
+      - "games/card_engine/harness/**"
+      - "llm-lego/**"
+
+  - nom: belote/bidding
+    chemin: games/card_engine/adapters/belote/bidding.mjs
+    responsabilite: >-
+      Enchère Belote en deux tours (runAuction) : tour 1 prendre la couleur retournée ; tour 2
+      nommer une autre couleur (jamais la retournée) ; passe général -> null (redonne).
+      Produit un Contract Belote { taker, atout, round } conforme au contrat Rules générique.
+    capacites:
+      - "[R5] Fixtures prise T1 / prise T2 / passe général -> couleur retournée / autre couleur / null (égalité exacte)"
+    depend_de:
+      - games/card_engine/adapters/belote/cards.mjs
+      - games/card_engine/adapters/belote/deal.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/stub/**"
+      - "games/card_engine/harness/**"
+      - "llm-lego/**"
+
+  - nom: belote/rules
+    chemin: games/card_engine/adapters/belote/rules.mjs
+    responsabilite: >-
+      Règles de pli Belote : legalMoves (obligations complètes — fournir, monter à l'atout,
+      couper/surcouper si adversaire maître, libre si partenaire maître/sans atout),
+      trickWinner (plus fort atout sinon plus forte de la demande), teamOf/partnerOf (4 sièges,
+      0&2 vs 1&3), beloteTeam/beloteHolder. Fournit le comparateur injecté à core/trick.
+    capacites:
+      - "[R6] legalMoves renvoie EXACTEMENT le sous-ensemble légal par branche (égalité d'ensembles, jamais sur-ensemble)"
+      - "[R7] trickWinner désigne le gagnant unique (fixtures sans atout / coupé / surcoupé)"
+    depend_de:
+      - games/card_engine/adapters/belote/cards.mjs
+      - games/card_engine/core/trick.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/stub/**"
+      - "games/card_engine/harness/**"
+      - "llm-lego/**"
+
+  - nom: belote/scoring
+    chemin: games/card_engine/adapters/belote/scoring.mjs
+    responsabilite: >-
+      Décompte de manche Belote (scoreDeal) : base 162 (points cartes + dix de der), contrat
+      82 (dedans sinon), capot 250, belote-rebelote +20 conditionnée à beloteDeclared.
+      Détenteur EXCLUSIF des seuils Belote (82, 162, 250, +20). L'ÉVALUATION DE CONTRAT (seuil
+      82) vit ici, pas dans core/score_interface.
+    capacites:
+      - "[R8] Fixtures contrat réussi / dedans / capot vérifiées par égalité exacte ; seuil >= 82 testé sur la frontière 81 vs 82 (seul >= sémantiquement correct autorisé)"
+      - "[R9] R+D d'atout : beloteDeclared=true -> +20, =false -> +0 (égalité exacte)"
+      - "[R12] base[0] + base[1] === 162 sur toute donne"
+    depend_de:
+      - games/card_engine/adapters/belote/cards.mjs
+      - games/card_engine/adapters/belote/rules.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/stub/**"
+      - "games/card_engine/harness/**"
+      - "llm-lego/**"
+
+  - nom: belote/annonces
+    chemin: games/card_engine/adapters/belote/annonces.mjs
+    responsabilite: >-
+      Annonces Belote (bonusHook du 1er pli) : détection (suites tierce/cinquante/cent, carrés
+      V=200/9=150/…), comparaison (points -> carré>suite -> carte haute -> atout -> aînesse),
+      résolution « le camp gagnant marque tout », annulation à égalité parfaite. Détection
+      indépendante de l'ordre de la main.
+    capacites:
+      - "[R10] Deux camps déclarant -> bonus au seul gagnant = somme exacte ; égalité parfaite -> annule:true, bonus [0,0]"
+      - "[R11] detectAnnonces(main) ≡ detectAnnonces(permutation(main)) (property-test permutations seedées, deep-equal)"
+    depend_de:
+      - games/card_engine/adapters/belote/cards.mjs
+      - games/card_engine/adapters/belote/rules.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/stub/**"
+      - "games/card_engine/harness/**"
+      - "llm-lego/**"
+
+  - nom: belote/game
+    chemin: games/card_engine/adapters/belote/game.mjs
+    responsabilite: >-
+      ORCHESTRATION Belote (playDeal / playGame) : compose core/shoe (newShoe/cut/pickup) +
+      core/trickplay (chaînage des 8 plis) + phases Belote (deal -> bidding -> completeDeal ->
+      jeu -> scoreDeal). Le séquencement propre à la Belote (enchère, retournée, 8 plis, cible
+      de partie) vit ICI — pas dans le core. Produit un état de partie sérialisable/rejouable.
+    capacites:
+      - "[R8] Une partie atteint un score de manche cohérent (base 162, contrat évalué au seuil 82) — score terminal par égalité exacte"
+      - "[R13] Deux playGame({seed}) -> donne 1 identique ; seed + séquence -> partie identique (historiques deep-equal)"
+    depend_de:
+      - games/card_engine/core/shoe.mjs
+      - games/card_engine/core/trickplay.mjs
+      - games/card_engine/adapters/belote/deal.mjs
+      - games/card_engine/adapters/belote/bidding.mjs
+      - games/card_engine/adapters/belote/rules.mjs
+      - games/card_engine/adapters/belote/scoring.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/stub/**"
+      - "games/card_engine/harness/**"
+      - "llm-lego/**"
+
+  - nom: belote/index
+    chemin: games/card_engine/adapters/belote/index.mjs
+    responsabilite: >-
+      Assemble l'objet adaptateur BeloteRules + BeloteScore satisfaisant les DEUX contrats
+      (assertRulesAdapter + assertScoreAdapter de core) et l'expose comme unique point d'entrée
+      Belote pour les consommateurs (harness, futures UI). Pure composition, aucune règle
+      propre.
+    capacites:
+      - "[R15] L'objet Belote satisfait assertRulesAdapter + assertScoreAdapter du core (le contrat est réellement honoré, pas seulement déclaré)"
+    depend_de:
+      - games/card_engine/core/rules_interface.mjs
+      - games/card_engine/core/score_interface.mjs
+      - games/card_engine/adapters/belote/cards.mjs
+      - games/card_engine/adapters/belote/deal.mjs
+      - games/card_engine/adapters/belote/bidding.mjs
+      - games/card_engine/adapters/belote/rules.mjs
+      - games/card_engine/adapters/belote/scoring.mjs
+      - games/card_engine/adapters/belote/annonces.mjs
+      - games/card_engine/adapters/belote/game.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/stub/**"
+      - "games/card_engine/harness/**"
+      - "llm-lego/**"
+
+  # ----------------------------------------------------------------------------------------
+  # COUCHE 5 — STUB NON-BELOTE (preuve d'extensibilité R15, zéro code Tarot)
+  # ----------------------------------------------------------------------------------------
+  - nom: stub/minimal
+    chemin: games/card_engine/adapters/stub/minimal.mjs
+    responsabilite: >-
+      Adaptateur non-Belote MINIMAL (ex. jeu « carte haute » trivial) satisfaisant les deux
+      contrats core, avec une topologie/paquet DIFFÉRENTS de la Belote (autre taille de paquet,
+      autre seatCount), qui CHARGE/COMPILE sans aucune logique Tarot ni aucune constante
+      Belote. Preuve exécutable que la frontière core est réellement content-agnostic.
+    capacites:
+      - "[R15] Implémente assertRulesAdapter + assertScoreAdapter avec un paquet/topologie non-Belote ; s'importe et satisfait le contrat sans exécuter de règle Tarot"
+    depend_de:
+      - games/card_engine/core/rules_interface.mjs
+      - games/card_engine/core/score_interface.mjs
+      - games/card_engine/core/card.mjs
+      - games/card_engine/core/deck.mjs
+    deps_interdites:
+      - "games/card_engine/adapters/belote/**"
+      - "games/card_engine/harness/**"
+      - "llm-lego/**"
+
+  # ----------------------------------------------------------------------------------------
+  # COUCHE 6 — HARNAIS CONSOMMATEURS (bot de solvabilité + parité goldens)
+  # ----------------------------------------------------------------------------------------
+  - nom: harness/solver
+    chemin: games/card_engine/harness/solver.mjs
+    responsabilite: >-
+      Bot déterministe minimal (chooseMove) — sélectionne toujours un coup LÉGAL via un
+      tie-break déterministe, jamais hors legalMoves — et pilote belote/game.playGame de bout
+      en bout jusqu'à un score cohérent. C'est l'ORACLE DE SOLVABILITÉ (décision s4 no.3 :
+      le bot vit dans harness/, consommateur, jamais importé par core ni adapters).
+    capacites:
+      - "[R6] Chaque coup choisi ∈ legalMoves de l'état courant (appartenance vérifiée à chaque tour, aucun état illégal)"
+      - "[R8] Une partie bot complète atteint base[0]+base[1]=162 et un contrat évalué — capture sous evidence_path"
+      - "[R13] Deux runs du bot (même seed + séquence) -> historiques deep-equal du 1er coup au score terminal"
+    depend_de:
+      - games/card_engine/adapters/belote/index.mjs
+    deps_interdites:
+      - "games/card_engine/core/**  (import direct interdit : passer par l'adaptateur)"
+      - "llm-lego/**"
+
+  - nom: harness/parity
+    chemin: games/card_engine/harness/parity.mjs
+    responsabilite: >-
+      Harnais de PARITÉ (décision s4 no.3 : vit dans harness/) — rejoue les goldens dérivés
+      (lecture seule) de belote-claude et vérifie que BeloteRules produit le MÊME résultat
+      (coups légaux / gagnant de pli / score de manche). Chaque golden cite sa source côté
+      belote-claude et porte son evidence_path. Ne modifie JAMAIS belote-claude.
+    capacites:
+      - "[R6] Parité coups légaux : legalMoves CardEngine = ensemble belote-claude (égalité d'ensembles)"
+      - "[R7] Parité gagnant de pli : `{seat}` gagnant identique (un seul)"
+      - "[R8] Parité score de manche : scoreDeal identique champ à champ (égalité exacte), chaque golden traçant sa source"
+    depend_de:
+      - games/card_engine/adapters/belote/index.mjs
+      - games/card_engine/harness/goldens/
+    deps_interdites:
+      - "games/card_engine/core/**  (import direct interdit : passer par l'adaptateur)"
+      - "llm-lego/**  (source des goldens, dérivée hors-ligne, jamais importée à l'exécution)"
+
+  - nom: harness/goldens
+    chemin: games/card_engine/harness/goldens/
+    responsabilite: >-
+      DONNÉES (JSON) : corpus de goldens de parité dérivés hors-ligne des tests et comportements
+      observés de belote-claude. Chaque fichier porte un champ `source` citant l'origine
+      belote-claude. Pas de code ; lecture seule pour harness/parity.
+    capacites:
+      - "[R6,R7,R8] Fixtures de parité {coups légaux, gagnant, score} avec citation de source"
+    depend_de: []
+    deps_interdites:
+      - "*  (données pures : aucun import)"
+
+# ------------------------------------------------------------------------------------------
+# DÉPENDANCES AUTORISÉES (sens unique adapters/harness -> core ; belote interne ; jamais l'inverse)
+# ------------------------------------------------------------------------------------------
+deps_autorisees:
+  # core interne
+  - "games/card_engine/core/deck.mjs -> games/card_engine/core/card.mjs"
+  - "games/card_engine/core/hand.mjs -> games/card_engine/core/card.mjs"
+  - "games/card_engine/core/trick.mjs -> games/card_engine/core/card.mjs"
+  - "games/card_engine/core/rules_interface.mjs -> games/card_engine/core/card.mjs"
+  - "games/card_engine/core/score_interface.mjs -> games/card_engine/core/card.mjs"
+  - "games/card_engine/core/shoe.mjs -> games/card_engine/core/rng.mjs"
+  - "games/card_engine/core/trickplay.mjs -> games/card_engine/core/trick.mjs"
+  - "games/card_engine/core/trickplay.mjs -> games/card_engine/core/rules_interface.mjs"
+  # belote -> core
+  - "games/card_engine/adapters/belote/cards.mjs -> games/card_engine/core/card.mjs"
+  - "games/card_engine/adapters/belote/cards.mjs -> games/card_engine/core/deck.mjs"
+  - "games/card_engine/adapters/belote/deal.mjs -> games/card_engine/core/rng.mjs"
+  - "games/card_engine/adapters/belote/rules.mjs -> games/card_engine/core/trick.mjs"
+  - "games/card_engine/adapters/belote/game.mjs -> games/card_engine/core/shoe.mjs"
+  - "games/card_engine/adapters/belote/game.mjs -> games/card_engine/core/trickplay.mjs"
+  - "games/card_engine/adapters/belote/index.mjs -> games/card_engine/core/rules_interface.mjs"
+  - "games/card_engine/adapters/belote/index.mjs -> games/card_engine/core/score_interface.mjs"
+  # belote interne
+  - "games/card_engine/adapters/belote/bidding.mjs -> games/card_engine/adapters/belote/cards.mjs"
+  - "games/card_engine/adapters/belote/bidding.mjs -> games/card_engine/adapters/belote/deal.mjs"
+  - "games/card_engine/adapters/belote/rules.mjs -> games/card_engine/adapters/belote/cards.mjs"
+  - "games/card_engine/adapters/belote/scoring.mjs -> games/card_engine/adapters/belote/cards.mjs"
+  - "games/card_engine/adapters/belote/scoring.mjs -> games/card_engine/adapters/belote/rules.mjs"
+  - "games/card_engine/adapters/belote/annonces.mjs -> games/card_engine/adapters/belote/cards.mjs"
+  - "games/card_engine/adapters/belote/annonces.mjs -> games/card_engine/adapters/belote/rules.mjs"
+  - "games/card_engine/adapters/belote/game.mjs -> games/card_engine/adapters/belote/deal.mjs"
+  - "games/card_engine/adapters/belote/game.mjs -> games/card_engine/adapters/belote/bidding.mjs"
+  - "games/card_engine/adapters/belote/game.mjs -> games/card_engine/adapters/belote/rules.mjs"
+  - "games/card_engine/adapters/belote/game.mjs -> games/card_engine/adapters/belote/scoring.mjs"
+  - "games/card_engine/adapters/belote/index.mjs -> games/card_engine/adapters/belote/*.mjs"
+  # stub -> core (jamais belote)
+  - "games/card_engine/adapters/stub/minimal.mjs -> games/card_engine/core/rules_interface.mjs"
+  - "games/card_engine/adapters/stub/minimal.mjs -> games/card_engine/core/score_interface.mjs"
+  - "games/card_engine/adapters/stub/minimal.mjs -> games/card_engine/core/{card,deck}.mjs"
+  # harness -> adaptateur (jamais core direct)
+  - "games/card_engine/harness/solver.mjs -> games/card_engine/adapters/belote/index.mjs"
+  - "games/card_engine/harness/parity.mjs -> games/card_engine/adapters/belote/index.mjs"
+  - "games/card_engine/harness/parity.mjs -> games/card_engine/harness/goldens/"
+
+# ------------------------------------------------------------------------------------------
+# DÉPENDANCES INTERDITES (l'oracle s10b grep ces sens + les constantes Belote dans core/**)
+# ------------------------------------------------------------------------------------------
+deps_interdites:
+  # (1) le core ne connaît AUCUN jeu concret ni consommateur
+  - "games/card_engine/core/** -> games/card_engine/adapters/**"
+  - "games/card_engine/core/** -> games/card_engine/harness/**"
+  # (2) les adaptateurs sont des frères : aucun import croisé
+  - "games/card_engine/adapters/belote/** -> games/card_engine/adapters/stub/**"
+  - "games/card_engine/adapters/stub/** -> games/card_engine/adapters/belote/**"
+  # (3) les adaptateurs ignorent les consommateurs
+  - "games/card_engine/adapters/** -> games/card_engine/harness/**"
+  # (4) le harnais ne court-circuite jamais la frontière (passe par l'adaptateur, pas core direct)
+  - "games/card_engine/harness/** -> games/card_engine/core/**"
+  # (5) belote-claude est SOURCE READ-ONLY des goldens, jamais importé à l'exécution
+  - "games/card_engine/** -> llm-lego/**"
+  # (6) zéro dépendance tierce (node:test + node: builtins seuls)
+  - "games/card_engine/** -> <tout node_modules tiers>"
+  # (7) INVARIANT DE CONSTANTES : aucune constante Belote (32, 82, 162, 152, 250, barèmes
+  #     11/10/20/14, +20, ordres 7<8<9…) présente dans games/card_engine/core/** (grep s10b)
+  - "games/card_engine/core/** ne contient AUCUNE constante numérique Belote (grep : 32|82|162|152|250|barèmes)"
+
+# ------------------------------------------------------------------------------------------
+ownership:
+  games/card_engine/core/card.mjs: builder
+  games/card_engine/core/deck.mjs: builder
+  games/card_engine/core/hand.mjs: builder
+  games/card_engine/core/trick.mjs: builder
+  games/card_engine/core/rules_interface.mjs: builder
+  games/card_engine/core/score_interface.mjs: builder
+  games/card_engine/core/rng.mjs: builder
+  games/card_engine/core/shoe.mjs: builder
+  games/card_engine/core/trickplay.mjs: builder
+  games/card_engine/adapters/belote/cards.mjs: builder
+  games/card_engine/adapters/belote/deal.mjs: builder
+  games/card_engine/adapters/belote/bidding.mjs: builder
+  games/card_engine/adapters/belote/rules.mjs: builder
+  games/card_engine/adapters/belote/scoring.mjs: builder
+  games/card_engine/adapters/belote/annonces.mjs: builder
+  games/card_engine/adapters/belote/game.mjs: builder
+  games/card_engine/adapters/belote/index.mjs: builder
+  games/card_engine/adapters/stub/minimal.mjs: builder
+  games/card_engine/harness/solver.mjs: builder
+  games/card_engine/harness/parity.mjs: builder
+  games/card_engine/harness/goldens/: builder (données dérivées read-only de belote-claude)
+
+# ------------------------------------------------------------------------------------------
+invariants_archi:
+  # --- frontière dure core <-> adaptateur ---
+  - "FRONTIÈRE : le sens de dépendance est unique — adapters/** -> core/**, harness/** -> adapters/**. AUCUN import core->adapters, core->harness, adapters->harness, harness->core-direct."
+  - "CONSTANTES : aucune constante Belote (taille 32, seuils 82/162/152/250, barèmes de points, ordres de force) ne vit dans core/** ; elles sont TOUTES dans adapters/belote/{cards,scoring}.mjs. Vérifiable par grep (oracle s10b)."
+  - "ZÉRO-DÉPENDANCE : le package n'importe aucun node_modules tiers ; node:test + builtins node: seuls. Audit statique = aucune dép tierce."
+  - "belote-claude (llm-lego/**) est SOURCE READ-ONLY des goldens : jamais importé à l'exécution, jamais modifié."
+
+  # --- SIGNATURE RULES (décision s4 no.1 — tranchée ici, gelée à s5) ---
+  - >-
+    SIGNATURE RULES (contrat paramétrique, checklist d'expressivité = 8 faits Tarot FFT, ZÉRO code Tarot en V0) :
+    { seatCount:int (Belote 4 · Tarot 3/4/5) ;
+      teamOf(seat)->teamId, partnerOf(seat)->seat|null (null = attaquant solo/équipes asymétriques attaquant-vs-défenseurs) ;
+      deckSpec:{ suits[], ranks[], specials[] } (specials = cartes hors suit×rank, ex. Excuse ; « atouts » exprimables comme une enseigne — couvre les 78 cartes + 21 atouts) ;
+      deal(deck,dealer,rng)->{ hands[], kitty?, turnUp? } (kitty = chien Tarot ; turnUp = retournée Belote) ;
+      completeDeal?(...)->hands[] (phase optionnelle : complément Belote / écart Tarot) ;
+      runAuction(hands,ctx)->Contract|null (Contract={ taker, trump|null, level, ... } ; multi-tours ; null = redonne) ;
+      trickCount:int (dérivé handSize, LU par core/trickplay — jamais 8 en dur) ;
+      legalMoves(hand,trick,contract,mover)->Card[] (ensemble exact) ;
+      compareInTrick(a,b,contract)->number (comparateur de force injecté à core/trick) ;
+      trickWinner(trick,contract)->{ seat } (exactement un) ;
+      reassignCapture?(trick,winner,ctx)->captures (hook OPTIONNEL : Excuse au dernier pli / Petit au bout — absent chez Belote = no-op) }.
+  # --- SIGNATURE SCORE (décision s4 no.1) ---
+  - >-
+    SIGNATURE SCORE (contrat paramétrique) :
+    { cardValue(card,contract)->number (le core n'assume PAS l'entier — un adaptateur Tarot peut travailler en dixièmes pour les ½-points 4.5/3.5 sans toucher au core ; couvre le pitfall des barèmes fractionnaires) ;
+      scoreDeal(tricks,contract,ctx)->ScoreResult{ pointsByTeam[], base, bonuses[], contractMet:bool, scores[] } ;
+      ÉVALUATION DE CONTRAT vit DANS scoreDeal de l'adaptateur, fonction des cartes-clés capturées (oudlers Tarot / seuil 82 Belote) — JAMAIS une constante du core ;
+      bonusHooks[]?:déclarations du 1er pli et bonus terminaux (belote-rebelote, annonces Belote ; poignées, Petit au bout Tarot) — le core reste agnostique aux déclarations. }.
+
+  # --- checklist d'expressivité Tarot (démontre l'anticipation SANS code Tarot) ---
+  - "EXPRESSIVITÉ TAROT (8 faits FFT couverts par paramètres, 0 code Tarot) : (a) 78 cartes/atouts/Excuse -> deckSpec.{suits,ranks,specials} ; (b) ½-points -> cardValue:number (dixièmes possibles) ; (c) seuils oudlers 36/41/51/56 -> évaluation de contrat interne à scoreDeal ; (d) Excuse dernier pli -> reassignCapture? ; (e) poignées/annonces -> bonusHooks ; (f) chien 3/4/5 joueurs -> seatCount + deal.kitty + completeDeal ; (g) équipes asymétriques -> teamOf/partnerOf(null) ; (h) Petit au bout -> bonusHook terminal. Le stub non-Belote prouve la frontière ; aucun de ces éléments n'est IMPLÉMENTÉ en V0."
+
+  # --- garanties de comportement (décisions s4 no.2/3/4) ---
+  - "CONTENT-AGNOSTIC RUNTIME : core/trickplay lit seatCount/trickCount de l'adaptateur ; il n'existe aucun 4 ni 8 en dur dans core/**. L'orchestration Belote-shaped (enchère, retournée, 8 plis, cible partie) vit dans adapters/belote/game.mjs, pas dans le core."
+  - "NON-MUTATION : les interrogations (core/hand, legalMoves) ne mutent jamais l'état sérialisable ; core/trickplay travaille sur une copie jouable explicite (comme belote-claude game.mjs `play = fullHands.map(h=>h.slice())`). L'état de replay reste comparable bit-à-bit."
+  - "DÉTERMINISME (décision s4 no.4) : le RNG (un seul flux, core/rng) n'est consommé qu'au mélange initial et aux coupes (core/shoe) ; le jeu des plis et le pickup n'utilisent AUCUN hasard. L'enchaînement des plis (gagnant entame le suivant) vit dans core/trickplay et porte la preuve R13 (deux runs même seed -> historiques deep-equal)."
+  - "PLACEMENT CONSOMMATEURS (décision s4 no.3) : le bot de solvabilité (harness/solver), le harnais de parité (harness/parity) et les goldens (harness/goldens) vivent hors du moteur, consommateurs de l'adaptateur via belote/index — jamais importés par core ni adapters. Le stub non-Belote (adapters/stub/minimal) est un adaptateur frère, jamais couplé à Belote."
+  - "PARITÉ SANS CONTAMINATION : harness/parity dérive ses goldens hors-ligne de belote-claude (chaque golden cite sa source) mais n'importe jamais llm-lego/** à l'exécution ; belote-claude reste intact."

@@ -1,0 +1,327 @@
+{
+  "run_id": "card_engine-20260720a",
+  "etape": "s3-decompo",
+  "note": "Decomposition fonctionnelle (QUOI). Chaque feuille porte une preuve_attendue heritee d'une regle observable R1..R15 (product_snapshot, gelees a s5). Aucune regle inventee. Le decoupage modulaire (OU) releve de s4.",
+  "systemes": [
+    {
+      "systeme": "Noyau generique — Primitives de modele (Card/Deck/Hand/Trick)",
+      "features": [
+        {
+          "feature": "Carte (Card)",
+          "capacites": [
+            {
+              "capacite": "Porter une identite de carte stable, unique et serialisable via un id `rank-suit`, comme entite generique instanciee par l'adaptateur concret et comparable bit-a-bit entre executions",
+              "preuve_attendue": "Sur le paquet complet, chaque carte a un id `rank-suit` unique, distinct, une occurrence de chaque (rang, enseigne) — verifie par egalite de cardinalite (32) et unicite des ids",
+              "regle": "R1"
+            }
+          ]
+        },
+        {
+          "feature": "Paquet (Deck)",
+          "capacites": [
+            {
+              "capacite": "Constituer un paquet dont la taille et la composition (enseignes, rangs, cartes speciales) sont exposees par l'interface et fixees par l'adaptateur, sans hard-code d'un jeu concret dans le core",
+              "preuve_attendue": "La taille de paquet est un parametre de l'interface (32 pour Belote, dimensionnable) — un stub non-Belote peut declarer une autre taille et charger/compiler sans logique Tarot",
+              "regle": "R15"
+            },
+            {
+              "capacite": "Conserver le multiset du paquet a toute operation de modele (aucune carte creee ni perdue)",
+              "preuve_attendue": "Apres toute operation, le multiset des cartes du deck courant est egal a `fullDeck()` — egalite de multisets (pas d'inclusion), zero doublon zero perte",
+              "regle": "R14"
+            }
+          ]
+        },
+        {
+          "feature": "Main (Hand)",
+          "capacites": [
+            {
+              "capacite": "Representer une main comme collection interrogeable (contenu, coups disponibles) sans muter le modele lors d'une interrogation entre deux coups",
+              "preuve_attendue": "Interroger les coups legaux / le contenu d'une main ne modifie pas l'etat — deux interrogations successives renvoient un resultat identique et l'etat reste deep-equal a lui-meme",
+              "regle": "R6"
+            }
+          ]
+        },
+        {
+          "feature": "Pli (Trick)",
+          "capacites": [
+            {
+              "capacite": "Structurer un pli comme 4 cartes posees + couleur demandee, capable de designer exactement un gagnant, generique vis-a-vis de la regle de comparaison fournie par l'adaptateur",
+              "preuve_attendue": "Pour tout pli complet, la structure expose une couleur demandee et resout exactement un `{player}` gagnant — verifie par egalite (un seul gagnant, jamais zero ni deux)",
+              "regle": "R7"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Noyau generique — Interfaces de contrat (Rules Interface + Score Interface)",
+      "features": [
+        {
+          "feature": "Rules Interface",
+          "capacites": [
+            {
+              "capacite": "Exposer une surface stable et parametrique {coups legaux, gagnant de pli, structure de donne/enchere} comme unique contrat entre core et adaptateur, anticipant taille de paquet, cartes speciales, phase d'enchere, nombre de joueurs/equipes",
+              "preuve_attendue": "Un stub d'adaptateur non-Belote implemente la Rules Interface et charge/compile sans aucune logique Tarot ; le package reste zero-dependance (node:test seul, aucun node_modules tiers a l'audit statique)",
+              "regle": "R15"
+            },
+            {
+              "capacite": "Rejeter tout coup hors de l'ensemble des coups legaux de facon deterministe et observable, sans jamais laisser passer un etat illegal silencieux ni crash ambigu",
+              "preuve_attendue": "Un coup hors `legalMoves` est rejete par une erreur explicite deterministe ; fixture coup illegal → rejet observable, aucun etat illegal atteint",
+              "regle": "R6"
+            }
+          ]
+        },
+        {
+          "feature": "Score Interface",
+          "capacites": [
+            {
+              "capacite": "Exposer une surface stable de decompte de manche (points cartes par camp, dix de der, bonus, evaluation de contrat) independante des regles concretes de jeu et branchable par tout adaptateur",
+              "preuve_attendue": "La Score Interface est appelable par un adaptateur sans dependre du detail Belote ; sa parametrabilite (barme, seuil de contrat, points de capot) est exprimee par l'interface et demontree par un point d'extension documente",
+              "regle": "R15"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Noyau generique — Determinisme seed-first (Sabot / RNG / Replay)",
+      "features": [
+        {
+          "feature": "Sabot seede (Shoe)",
+          "capacites": [
+            {
+              "capacite": "N'entretenir qu'un unique flux RNG par partie, consomme uniquement au melange initial et aux coupes, jamais ailleurs (le ramassage n'utilise aucun hasard)",
+              "preuve_attendue": "Deux `playGame({seed})` produisent une donne 1 identique (deep-equal) ; le RNG n'est sollicite qu'au shuffle et aux coupes — verifie par tracage du flux",
+              "regle": "R13"
+            },
+            {
+              "capacite": "Borner chaque coupe a c ∈ [3, 29] (COUPE_MIN=3), jamais fixe, jamais 0",
+              "preuve_attendue": "Sur seeds varies, les positions de coupe sont variees et toutes dans [3,29] — verifie par egalite des bornes, aucune coupe a 0 ni constante",
+              "regle": "R13"
+            }
+          ]
+        },
+        {
+          "feature": "Ramassage sans hasard (Pickup)",
+          "capacites": [
+            {
+              "capacite": "Recomposer le paquet apres les plis de facon deterministe (camp preneur puis camp defense) sans consommer de RNG, comme permutation conservant les 32 cartes",
+              "preuve_attendue": "Deux `pickup` sur des plis identiques produisent un paquet identique ; distribution puis pickup = permutation dont le multiset egale `fullDeck()`",
+              "regle": "R14"
+            }
+          ]
+        },
+        {
+          "feature": "Replay deterministe",
+          "capacites": [
+            {
+              "capacite": "Rejouer une partie bit-a-bit : une meme seed rejoue la donne 1 a l'identique ; seed + sequence de coups rejoue toute la partie",
+              "preuve_attendue": "Deux executions d'une meme seed (+ meme sequence de coups pour donnes ≥ 2) produisent des historiques deep-equal",
+              "regle": "R13"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Adaptateur BeloteRules — Cartes, barmes et forces",
+      "features": [
+        {
+          "feature": "Composition du jeu Belote",
+          "capacites": [
+            {
+              "capacite": "Instancier un jeu de 32 cartes : 4 enseignes (pique, coeur, carreau, trefle) × 8 rangs (7,8,9,10,V,D,R,A), chaque carte d'id unique `rank-suit`",
+              "preuve_attendue": "`fullDeck()` a exactement 32 elements, tous distincts, une occurrence de chaque (rang, enseigne) — egalite de cardinalite et unicite",
+              "regle": "R1"
+            }
+          ]
+        },
+        {
+          "feature": "Barmes de points",
+          "capacites": [
+            {
+              "capacite": "Appliquer deux barmes selon l'atout — non-atout A=11,10=10,R=4,D=3,V=2,9/8/7=0 (30/couleur) ; atout V=20,9=14,A=11,10=10,R=4,D=3,8/7=0 (62/couleur)",
+              "preuve_attendue": "Pour chaque rang, `cardPoints(c, atout)` egale la valeur attendue par egalite exacte, selon que `c.suit===atout`",
+              "regle": "R2"
+            },
+            {
+              "capacite": "Garantir l'invariant du total des points cartes : somme sur les 32 = 152 pour tout atout",
+              "preuve_attendue": "`totalCardPoints(atout) === 152` pour chacune des 4 couleurs d'atout — egalite exacte",
+              "regle": "R12"
+            }
+          ]
+        },
+        {
+          "feature": "Ordres de force",
+          "capacites": [
+            {
+              "capacite": "Appliquer deux ordres de force — non-atout 7<8<9<V<D<R<10<A ; atout 7<8<D<R<10<A<9<V",
+              "preuve_attendue": "`cardStrength` sur paires cles verifie par egalite d'ordre (ex. a l'atout V > 9 > A > 10 ; hors atout 10 > R > D)",
+              "regle": "R3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Adaptateur BeloteRules — Donne et enchere",
+      "features": [
+        {
+          "feature": "Distribution en deux temps",
+          "capacites": [
+            {
+              "capacite": "Distribuer 3 puis 2 cartes par joueur (5) + 1 retournee, talon de 11 ; apres la prise, integrer la retournee au preneur puis completer chaque main a 8 (preneur +2, autres +3)",
+              "preuve_attendue": "Apres `deal` chaque main = 5 et talon = 11 ; apres `completeDeal` chaque main = 8 exactement — egalite exacte des tailles",
+              "regle": "R4"
+            }
+          ]
+        },
+        {
+          "feature": "Enchere en deux tours",
+          "capacites": [
+            {
+              "capacite": "Conduire l'enchere en deux tours — tour 1 prendre la couleur retournee ; tour 2 nommer une autre couleur (jamais la retournee) ; passe general → null → redonne",
+              "preuve_attendue": "Fixtures forcant prise T1, prise T2, et passe general → `runBidding` renvoie respectivement la couleur retournee, une autre couleur, et `null` — egalite exacte",
+              "regle": "R5"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Adaptateur BeloteRules — Jeu du pli",
+      "features": [
+        {
+          "feature": "Coups legaux (obligations)",
+          "capacites": [
+            {
+              "capacite": "Calculer l'ensemble exact des coups legaux : fournir la couleur demandee ; a l'atout demande monter si possible sinon fournir un atout ; ne pouvant fournir, partenaire maitre → libre, adversaire maitre → couper/surcouper (ou fournir un atout si on ne peut monter), sans atout → defausse libre",
+              "preuve_attendue": "Fixtures par branche : `legalMoves` renvoie exactement le sous-ensemble attendu (egalite d'ensembles, jamais un sur-ensemble)",
+              "regle": "R6"
+            }
+          ]
+        },
+        {
+          "feature": "Gagnant de pli",
+          "capacites": [
+            {
+              "capacite": "Designer le gagnant unique d'un pli : s'il y a au moins un atout joue, le plus fort atout gagne ; sinon la plus forte carte de la couleur demandee",
+              "preuve_attendue": "Fixtures (pli sans atout, pli coupe, pli surcoupe) → un seul `{player}` gagnant verifie par egalite",
+              "regle": "R7"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Adaptateur BeloteRules — Decompte et bonus",
+      "features": [
+        {
+          "feature": "Decompte de manche",
+          "capacites": [
+            {
+              "capacite": "Decompter la manche sur base 162 (points cartes par camp + dix de der +10 au vainqueur du dernier pli) ; preneur reussit si base[preneur] ≥ 82 sinon dedans (defense encaisse 162) ; capot (8 plis) = 250 au camp qui rafle, l'autre 0",
+              "preuve_attendue": "Fixtures contrat reussi / dedans / capot : scores verifies par egalite exacte ; le seuil ≥ 82 EST la regle (seul >= autorise, teste sur la frontiere 81 vs 82)",
+              "regle": "R8"
+            },
+            {
+              "capacite": "Garantir l'invariant de repartition : base[0] + base[1] = 162 sur toute donne",
+              "preuve_attendue": "`base[0] + base[1] === 162` sur toute donne jouee — egalite exacte",
+              "regle": "R12"
+            }
+          ]
+        },
+        {
+          "feature": "Belote-rebelote",
+          "capacites": [
+            {
+              "capacite": "Attribuer +20 au camp detenant Roi ET Dame d'atout, acquis meme preneur dedans, mais seulement si declare (`beloteDeclared`) ; en headless les bots declarent toujours",
+              "preuve_attendue": "Fixture avec R+D d'atout : `beloteDeclared=true` → +20, `beloteDeclared=false` → +0 — egalite exacte des deux cas",
+              "regle": "R9"
+            }
+          ]
+        },
+        {
+          "feature": "Annonces",
+          "capacites": [
+            {
+              "capacite": "Detecter, comparer et resoudre les annonces : suites (tierce 20 / cinquante 50 / cent 100) et carres (V=200,9=150,A/R/D/10=100,8/7=0) ; comparaison points → carre>suite → carte haute → atout → ainesse ; seul le camp de la meilleure marque toutes ses annonces ; egalite parfaite cross-camp → annule (0/0) ; seules les annonces declarees entrent au pool",
+              "preuve_attendue": "Fixtures deux camps declarant → bonus au seul gagnant = somme exacte de ses annonces ; egalite parfaite → `annule:true` et bonus [0,0] — egalite exacte",
+              "regle": "R10"
+            },
+            {
+              "capacite": "Detecter les annonces independamment de l'ordre de la main : detectAnnonces(main) ≡ detectAnnonces(permutation(main))",
+              "preuve_attendue": "Property-test sur permutations aleatoires seedees d'une meme main → resultat de detection identique (deep-equal) pour toute permutation",
+              "regle": "R11"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Oracle de solvabilite — Bot deterministe minimal",
+      "features": [
+        {
+          "feature": "Choix de coup deterministe",
+          "capacites": [
+            {
+              "capacite": "Choisir via `chooseMove` un coup toujours legal a partir de l'etat courant, jamais hors de l'ensemble des coups legaux",
+              "preuve_attendue": "Sur toute la partie jouee par le bot, chaque coup choisi appartient a `legalMoves` de l'etat courant — verifie par appartenance a l'ensemble a chaque tour, aucun etat illegal atteint",
+              "regle": "R6"
+            }
+          ]
+        },
+        {
+          "feature": "Partie complete jusqu'a score coherent",
+          "capacites": [
+            {
+              "capacite": "Jouer des parties completes de Belote de bout en bout, seed-first, jusqu'a un score de manche coherent (base 162, contrat evalue), prouvant la mecanique EN PARTIE JOUEE et non seulement en unites isolees",
+              "preuve_attendue": "Une partie bot complete atteint un score de manche coherent : base[0]+base[1]=162 et contrat evalue selon le seuil 82 — egalite exacte sur le score terminal, capture sous evidence_path",
+              "regle": "R8"
+            },
+            {
+              "capacite": "Enchainer plis et donnes de facon deterministe et reproductible (le gagnant d'un pli entame le suivant), toute la sequence rejouable a l'identique",
+              "preuve_attendue": "Deux runs du bot sur meme seed (+ meme sequence) produisent des historiques de partie deep-equal, du 1er coup au score terminal",
+              "regle": "R13"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Harnais de parite — Goldens derives de belote-claude",
+      "features": [
+        {
+          "feature": "Parite des coups legaux",
+          "capacites": [
+            {
+              "capacite": "Rejouer les goldens de coups legaux derives (lecture seule) de belote-claude et verifier que BeloteRules produit exactement le meme ensemble, chaque golden citant sa source cote belote-claude",
+              "preuve_attendue": "Pour chaque golden de coups legaux, `legalMoves` de CardEngine = l'ensemble de belote-claude par egalite d'ensembles (jamais sur-ensemble) ; chaque golden porte son evidence_path source",
+              "regle": "R6"
+            }
+          ]
+        },
+        {
+          "feature": "Parite du gagnant de pli",
+          "capacites": [
+            {
+              "capacite": "Rejouer les goldens de gagnant de pli derives de belote-claude et verifier le gagnant unique identique",
+              "preuve_attendue": "Pour chaque golden de pli, le `{player}` gagnant de CardEngine egale celui de belote-claude par egalite (un seul gagnant) ; golden trace vers sa source",
+              "regle": "R7"
+            }
+          ]
+        },
+        {
+          "feature": "Parite du score de manche",
+          "capacites": [
+            {
+              "capacite": "Rejouer les goldens de score de manche derives de belote-claude et verifier l'egalite exacte du decompte (points camps, dix de der, contrat, belote, annonces)",
+              "preuve_attendue": "Pour chaque golden de score, `scoreDeal` de CardEngine = le score de belote-claude par egalite exacte champ a champ ; chaque golden cite sa source cote belote-claude, capture sous evidence_path",
+              "regle": "R8"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

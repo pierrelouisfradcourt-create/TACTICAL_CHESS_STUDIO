@@ -1,0 +1,436 @@
+{
+  "_comment": "WireMap isomorphe (s5) — CardEngine V0 + BeloteRules. Lue par scripts/forge/static_oracles.check_wiremap (isomorphisme WireMap<->code) ET GELÉE par frozen_features_from_wiremap (le champ `feature` = l'identité gelée d'une règle). Isomorphe au blueprint.yaml s4 : section = module = fichier/dossier sous games/card_engine/. Une feature par capacité-slot du blueprint (39). Les 31 capacités de la featuremap s3 sont chacune portées par EXACTEMENT une feature primaire (preuve héritée de sa preuve_attendue s3) ; les 8 features restantes sont les slots architecturaux du blueprint (hooks d'anticipation R15, substrat générique core/trickplay, orchestration belote/game, contrat belote/index, stub non-Belote, corpus goldens) qui gardent la carte isomorphe au blueprint sans dupliquer aucune capacité featuremap. Le builder (s9) DOIT créer EXACTEMENT ces noms de fonction dans ces fichiers.",
+  "run_id": "card_engine-20260720a",
+  "etape": "s5-wiremap",
+  "features": [
+    {
+      "feature": "core_card_stable_id",
+      "section": "games/card_engine/core/card.mjs",
+      "fichiers": [
+        "core/card.mjs"
+      ],
+      "fonction": "makeCard",
+      "version": "0.1.0",
+      "preuve": "R1 — Sur le paquet complet, chaque carte a un id `rank-suit` unique, distinct, une occurrence de chaque (rang, enseigne) — vérifié par égalité de cardinalité (32) et unicité des ids",
+      "statut": "construit"
+    },
+    {
+      "feature": "core_deck_parametric_size",
+      "section": "games/card_engine/core/deck.mjs",
+      "fichiers": [
+        "core/deck.mjs"
+      ],
+      "fonction": "buildDeck",
+      "version": "0.1.0",
+      "preuve": "R15 — La taille de paquet est un paramètre de l'interface (32 pour Belote, dimensionnable) — un stub non-Belote peut déclarer une autre taille et charger/compiler sans logique Tarot",
+      "statut": "construit"
+    },
+    {
+      "feature": "core_deck_multiset_conservation",
+      "section": "games/card_engine/core/deck.mjs",
+      "fichiers": [
+        "core/deck.mjs"
+      ],
+      "fonction": "assertMultisetConserved",
+      "version": "0.1.0",
+      "preuve": "R14 — Après toute opération, le multiset des cartes du deck courant est égal à `fullDeck()` — égalité de multisets (pas d'inclusion), zéro doublon zéro perte",
+      "statut": "construit"
+    },
+    {
+      "feature": "core_hand_readonly_query",
+      "section": "games/card_engine/core/hand.mjs",
+      "fichiers": [
+        "core/hand.mjs"
+      ],
+      "fonction": "projectMoves",
+      "version": "0.1.0",
+      "preuve": "R6 — Interroger les coups légaux / le contenu d'une main ne modifie pas l'état — deux interrogations successives renvoient un résultat identique et l'état reste deep-equal à lui-même",
+      "statut": "construit"
+    },
+    {
+      "feature": "core_trick_single_winner",
+      "section": "games/card_engine/core/trick.mjs",
+      "fichiers": [
+        "core/trick.mjs"
+      ],
+      "fonction": "resolveTrick",
+      "version": "0.1.0",
+      "preuve": "R7 — Pour tout pli complet, la structure expose une couleur demandée et résout exactement un `{seat}` gagnant via le comparateur adaptateur injecté — vérifié par égalité (un seul gagnant, jamais zéro ni deux)",
+      "statut": "construit"
+    },
+    {
+      "feature": "core_trick_reassign_capture_hook",
+      "section": "games/card_engine/core/trick.mjs",
+      "fichiers": [
+        "core/trick.mjs"
+      ],
+      "fonction": "reassignCapture",
+      "version": "0.1.0",
+      "preuve": "R15 (slot d'anticipation blueprint) — reassignCapture(trick, winner) absent chez l'adaptateur Belote = no-op (capture inchangée) ; présent = point d'accroche exécuté sans aucun code Tarot en V0",
+      "statut": "construit"
+    },
+    {
+      "feature": "core_rules_interface_parametric_surface",
+      "section": "games/card_engine/core/rules_interface.mjs",
+      "fichiers": [
+        "core/rules_interface.mjs"
+      ],
+      "fonction": "assertRulesAdapter",
+      "version": "0.1.0",
+      "preuve": "R15 — Un stub d'adaptateur non-Belote implémente la Rules Interface et charge/compile sans aucune logique Tarot ; le package reste zéro-dépendance (node:test seul, aucun node_modules tiers à l'audit statique)",
+      "statut": "construit"
+    },
+    {
+      "feature": "core_rules_interface_illegal_move_reject",
+      "section": "games/card_engine/core/rules_interface.mjs",
+      "fichiers": [
+        "core/rules_interface.mjs"
+      ],
+      "fonction": "assertLegalMove",
+      "version": "0.1.0",
+      "preuve": "R6 — Un coup hors `legalMoves` est rejeté par une erreur explicite déterministe ; fixture coup illégal → rejet observable, aucun état illégal atteint",
+      "statut": "construit"
+    },
+    {
+      "feature": "core_score_interface_parametric_scoring",
+      "section": "games/card_engine/core/score_interface.mjs",
+      "fichiers": [
+        "core/score_interface.mjs"
+      ],
+      "fonction": "assertScoreAdapter",
+      "version": "0.1.0",
+      "preuve": "R15 — La Score Interface est appelable par un adaptateur sans dépendre du détail Belote ; sa paramétrabilité (barème, seuil de contrat, points de capot) est exprimée par l'interface et démontrée par un point d'extension documenté",
+      "statut": "construit"
+    },
+    {
+      "feature": "core_rng_single_seeded_stream",
+      "section": "games/card_engine/core/rng.mjs",
+      "fichiers": [
+        "core/rng.mjs"
+      ],
+      "fonction": "shuffle",
+      "version": "0.1.0",
+      "preuve": "R13 — Deux `playGame({seed})` produisent une donne 1 identique (deep-equal) ; le RNG n'est sollicité qu'au shuffle et aux coupes — shuffle ne mute pas l'entrée, un unique flux par partie, vérifié par traçage du flux",
+      "statut": "construit"
+    },
+    {
+      "feature": "core_shoe_bounded_cut",
+      "section": "games/card_engine/core/shoe.mjs",
+      "fichiers": [
+        "core/shoe.mjs"
+      ],
+      "fonction": "cut",
+      "version": "0.1.0",
+      "preuve": "R13 — Sur seeds variés, les positions de coupe sont variées et toutes dans [minOffset, len-minOffset] (bornes dérivées de deck.length, jamais 32/29 en dur) — jamais fixe ni 0, vérifié par égalité des bornes",
+      "statut": "construit"
+    },
+    {
+      "feature": "core_shoe_deterministic_pickup",
+      "section": "games/card_engine/core/shoe.mjs",
+      "fichiers": [
+        "core/shoe.mjs"
+      ],
+      "fonction": "pickup",
+      "version": "0.1.0",
+      "preuve": "R14 — Deux `pickup` sur des plis identiques produisent un paquet identique (aucun RNG) ; distribution puis pickup = permutation dont le multiset égale `fullDeck()`",
+      "statut": "construit"
+    },
+    {
+      "feature": "core_trickplay_deterministic_chaining",
+      "section": "games/card_engine/core/trickplay.mjs",
+      "fichiers": [
+        "core/trickplay.mjs"
+      ],
+      "fonction": "playTricks",
+      "version": "0.1.0",
+      "preuve": "R13 (substrat générique blueprint, décision s4 no.4) — chaînage déterministe : le gagnant d'un pli entame le suivant sur trickCount plis LUS de l'adaptateur (jamais 8 en dur), aucun RNG pendant le jeu — deux enchaînements sur même état → historiques deep-equal",
+      "statut": "construit"
+    },
+    {
+      "feature": "core_trickplay_winner_delegation",
+      "section": "games/card_engine/core/trickplay.mjs",
+      "fichiers": [
+        "core/trickplay.mjs"
+      ],
+      "fonction": "playTrick",
+      "version": "0.1.0",
+      "preuve": "R7 (substrat générique blueprint) — playTrick délègue la désignation du gagnant unique à core/trick.resolveTrick (un seul `{seat}`, jamais recalculé localement)",
+      "statut": "construit"
+    },
+    {
+      "feature": "core_trickplay_illegal_move_guard",
+      "section": "games/card_engine/core/trickplay.mjs",
+      "fichiers": [
+        "core/trickplay.mjs"
+      ],
+      "fonction": "playTrick",
+      "version": "0.1.0",
+      "preuve": "R6 (substrat générique blueprint) — un coup choisi hors de l'ensemble legalMoves de l'adaptateur est rejeté (erreur déterministe) avant toute mutation de l'état jouable — travaille sur une copie, aucun état illégal atteint",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_cards_deck32",
+      "section": "games/card_engine/adapters/belote/cards.mjs",
+      "fichiers": [
+        "adapters/belote/cards.mjs"
+      ],
+      "fonction": "fullDeck",
+      "version": "0.1.0",
+      "preuve": "R1 — `fullDeck()` a exactement 32 éléments, tous distincts, une occurrence de chaque (rang, enseigne) — égalité de cardinalité et unicité",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_cards_two_point_scales",
+      "section": "games/card_engine/adapters/belote/cards.mjs",
+      "fichiers": [
+        "adapters/belote/cards.mjs"
+      ],
+      "fonction": "cardPoints",
+      "version": "0.1.0",
+      "preuve": "R2 — Pour chaque rang, `cardPoints(c, atout)` égale la valeur attendue par égalité exacte, selon que `c.suit===atout` (non-atout 30/couleur, atout 62/couleur)",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_cards_total152",
+      "section": "games/card_engine/adapters/belote/cards.mjs",
+      "fichiers": [
+        "adapters/belote/cards.mjs"
+      ],
+      "fonction": "totalCardPoints",
+      "version": "0.1.0",
+      "preuve": "R12 — `totalCardPoints(atout) === 152` pour chacune des 4 couleurs d'atout — égalité exacte",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_cards_two_strength_orders",
+      "section": "games/card_engine/adapters/belote/cards.mjs",
+      "fichiers": [
+        "adapters/belote/cards.mjs"
+      ],
+      "fonction": "cardStrength",
+      "version": "0.1.0",
+      "preuve": "R3 — `cardStrength` sur paires clés vérifié par égalité d'ordre (ex. à l'atout V > 9 > A > 10 ; hors atout 10 > R > D)",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_deal_two_phase",
+      "section": "games/card_engine/adapters/belote/deal.mjs",
+      "fichiers": [
+        "adapters/belote/deal.mjs"
+      ],
+      "fonction": "deal",
+      "version": "0.1.0",
+      "preuve": "R4 — Après `deal` chaque main = 5 et talon = 11 ; après `completeDeal` chaque main = 8 exactement — égalité exacte des tailles",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_bidding_two_rounds",
+      "section": "games/card_engine/adapters/belote/bidding.mjs",
+      "fichiers": [
+        "adapters/belote/bidding.mjs"
+      ],
+      "fonction": "runAuction",
+      "version": "0.1.0",
+      "preuve": "R5 — Fixtures forçant prise T1, prise T2, et passe général → `runAuction` renvoie respectivement la couleur retournée, une autre couleur (jamais la retournée), et `null` (redonne) — égalité exacte",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_rules_legal_moves",
+      "section": "games/card_engine/adapters/belote/rules.mjs",
+      "fichiers": [
+        "adapters/belote/rules.mjs"
+      ],
+      "fonction": "legalMoves",
+      "version": "0.1.0",
+      "preuve": "R6 — Fixtures par branche : `legalMoves` renvoie exactement le sous-ensemble attendu (égalité d'ensembles, jamais un sur-ensemble)",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_rules_trick_winner",
+      "section": "games/card_engine/adapters/belote/rules.mjs",
+      "fichiers": [
+        "adapters/belote/rules.mjs"
+      ],
+      "fonction": "trickWinner",
+      "version": "0.1.0",
+      "preuve": "R7 — Fixtures (pli sans atout, pli coupé, pli surcoupé) → un seul `{seat}` gagnant vérifié par égalité (plus fort atout sinon plus forte de la demande)",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_scoring_deal_score",
+      "section": "games/card_engine/adapters/belote/scoring.mjs",
+      "fichiers": [
+        "adapters/belote/scoring.mjs"
+      ],
+      "fonction": "scoreDeal",
+      "version": "0.1.0",
+      "preuve": "R8 — Fixtures contrat réussi / dedans / capot : scores vérifiés par égalité exacte ; le seuil ≥ 82 EST la règle (seul >= autorisé, testé sur la frontière 81 vs 82) ; capot = 250",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_scoring_base162_invariant",
+      "section": "games/card_engine/adapters/belote/scoring.mjs",
+      "fichiers": [
+        "adapters/belote/scoring.mjs"
+      ],
+      "fonction": "scoreDeal",
+      "version": "0.1.0",
+      "preuve": "R12 — `base[0] + base[1] === 162` sur toute donne jouée — égalité exacte",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_scoring_belote_rebelote",
+      "section": "games/card_engine/adapters/belote/scoring.mjs",
+      "fichiers": [
+        "adapters/belote/scoring.mjs"
+      ],
+      "fonction": "scoreDeal",
+      "version": "0.1.0",
+      "preuve": "R9 — Fixture avec R+D d'atout : `beloteDeclared=true` → +20, `beloteDeclared=false` → +0 — égalité exacte des deux cas",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_annonces_resolve",
+      "section": "games/card_engine/adapters/belote/annonces.mjs",
+      "fichiers": [
+        "adapters/belote/annonces.mjs"
+      ],
+      "fonction": "resolveAnnonces",
+      "version": "0.1.0",
+      "preuve": "R10 — Fixtures deux camps déclarant → bonus au seul gagnant = somme exacte de ses annonces ; égalité parfaite → `annule:true` et bonus [0,0] — égalité exacte",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_annonces_order_independent",
+      "section": "games/card_engine/adapters/belote/annonces.mjs",
+      "fichiers": [
+        "adapters/belote/annonces.mjs"
+      ],
+      "fonction": "detectAnnonces",
+      "version": "0.1.0",
+      "preuve": "R11 — Property-test sur permutations aléatoires seedées d'une même main → résultat de détection identique (deep-equal) pour toute permutation",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_game_coherent_score",
+      "section": "games/card_engine/adapters/belote/game.mjs",
+      "fichiers": [
+        "adapters/belote/game.mjs"
+      ],
+      "fonction": "playDeal",
+      "version": "0.1.0",
+      "preuve": "R8 (orchestration blueprint) — playDeal compose core/shoe + core/trickplay + phases Belote (deal→bidding→completeDeal→jeu→scoreDeal) et atteint un score de manche cohérent (base 162, contrat évalué au seuil 82) — score terminal par égalité exacte",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_game_replay_identical",
+      "section": "games/card_engine/adapters/belote/game.mjs",
+      "fichiers": [
+        "adapters/belote/game.mjs"
+      ],
+      "fonction": "playGame",
+      "version": "0.1.0",
+      "preuve": "R13 — Deux exécutions d'une même seed (+ même séquence de coups pour donnes ≥ 2) produisent des historiques deep-equal",
+      "statut": "construit"
+    },
+    {
+      "feature": "belote_index_satisfies_contracts",
+      "section": "games/card_engine/adapters/belote/index.mjs",
+      "fichiers": [
+        "adapters/belote/index.mjs"
+      ],
+      "fonction": "createBeloteAdapter",
+      "version": "0.1.0",
+      "preuve": "R15 (composition blueprint) — l'objet BeloteRules+BeloteScore assemblé satisfait assertRulesAdapter ET assertScoreAdapter du core (le contrat est réellement honoré, pas seulement déclaré)",
+      "statut": "construit"
+    },
+    {
+      "feature": "stub_minimal_non_belote_adapter",
+      "section": "games/card_engine/adapters/stub/minimal.mjs",
+      "fichiers": [
+        "adapters/stub/minimal.mjs"
+      ],
+      "fonction": "createStubAdapter",
+      "version": "0.1.0",
+      "preuve": "R15 (preuve d'extensibilité blueprint) — le stub non-Belote (paquet/seatCount différents de la Belote) s'importe et satisfait assertRulesAdapter + assertScoreAdapter sans exécuter aucune règle Tarot ni aucune constante Belote",
+      "statut": "construit"
+    },
+    {
+      "feature": "harness_solver_legal_choice",
+      "section": "games/card_engine/harness/solver.mjs",
+      "fichiers": [
+        "harness/solver.mjs"
+      ],
+      "fonction": "chooseMove",
+      "version": "0.1.0",
+      "preuve": "R6 — Sur toute la partie jouée par le bot, chaque coup choisi appartient à `legalMoves` de l'état courant — vérifié par appartenance à l'ensemble à chaque tour, aucun état illégal atteint",
+      "statut": "construit"
+    },
+    {
+      "feature": "harness_solver_complete_game_score",
+      "section": "games/card_engine/harness/solver.mjs",
+      "fichiers": [
+        "harness/solver.mjs"
+      ],
+      "fonction": "runSolver",
+      "version": "0.1.0",
+      "preuve": "R8 — Une partie bot complète atteint un score de manche cohérent : base[0]+base[1]=162 et contrat évalué selon le seuil 82 — égalité exacte sur le score terminal, capture sous evidence_path",
+      "statut": "construit"
+    },
+    {
+      "feature": "harness_solver_deterministic_replay",
+      "section": "games/card_engine/harness/solver.mjs",
+      "fichiers": [
+        "harness/solver.mjs"
+      ],
+      "fonction": "runSolver",
+      "version": "0.1.0",
+      "preuve": "R13 — Deux runs du bot sur même seed (+ même séquence) produisent des historiques de partie deep-equal, du 1er coup au score terminal",
+      "statut": "construit"
+    },
+    {
+      "feature": "harness_parity_legal_moves",
+      "section": "games/card_engine/harness/parity.mjs",
+      "fichiers": [
+        "harness/parity.mjs"
+      ],
+      "fonction": "checkLegalParity",
+      "version": "0.1.0",
+      "preuve": "R6 — Pour chaque golden de coups légaux, `legalMoves` de CardEngine = l'ensemble de belote-claude par égalité d'ensembles (jamais sur-ensemble) ; chaque golden porte son evidence_path source",
+      "statut": "construit"
+    },
+    {
+      "feature": "harness_parity_trick_winner",
+      "section": "games/card_engine/harness/parity.mjs",
+      "fichiers": [
+        "harness/parity.mjs"
+      ],
+      "fonction": "checkWinnerParity",
+      "version": "0.1.0",
+      "preuve": "R7 — Pour chaque golden de pli, le `{seat}` gagnant de CardEngine égale celui de belote-claude par égalité (un seul gagnant) ; golden tracé vers sa source",
+      "statut": "construit"
+    },
+    {
+      "feature": "harness_parity_deal_score",
+      "section": "games/card_engine/harness/parity.mjs",
+      "fichiers": [
+        "harness/parity.mjs"
+      ],
+      "fonction": "checkScoreParity",
+      "version": "0.1.0",
+      "preuve": "R8 — Pour chaque golden de score, `scoreDeal` de CardEngine = le score de belote-claude par égalité exacte champ à champ ; chaque golden cite sa source côté belote-claude, capture sous evidence_path",
+      "statut": "construit"
+    },
+    {
+      "feature": "harness_goldens_corpus",
+      "section": "games/card_engine/harness/goldens/",
+      "fichiers": [
+        "harness/goldens/"
+      ],
+      "fonction": "",
+      "version": "0.1.0",
+      "preuve": "R6,R7,R8 (corpus de données blueprint) — corpus JSON de goldens de parité {coups légaux, gagnant de pli, score de manche} dérivés hors-ligne de belote-claude, chaque fichier portant un champ `source` citant son origine (aucun code ; lecture seule pour harness/parity)",
+      "statut": "construit"
+    }
+  ]
+}
