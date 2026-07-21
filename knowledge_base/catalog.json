@@ -793,6 +793,28 @@
     "game": "grid_nav_probe",
     "reference": "Pac-Man (1980)"
    }
+  },
+  {
+   "entry_type": "role",
+   "role_id": "role-grid-navigator",
+   "archetype": "Une entité qui doit atteindre une position cible fixe à travers un espace comportant des obstacles, en suivant à chaque instant le plus court chemin disponible vers cette cible.",
+   "requires": {
+    "next_step": {
+     "type": "fn(from, to, walls) -> pos",
+     "description": "premier pas du chemin le plus court de from vers to en evitant walls, ou from si to est inatteignable. Pur, deterministe, 4 directions."
+    },
+    "path_length": {
+     "type": "fn(from, to, walls) -> int",
+     "description": "longueur du chemin le plus court de from vers to, -1 si inatteignable. Pur, deterministe."
+    }
+   },
+   "fulfilled_by": [
+    "sys-grid-nav-m01"
+   ],
+   "tier": "candidate",
+   "license": "MIT",
+   "path": "knowledge_base/roles/grid-navigator.yaml",
+   "proof_of_use": null
   }
  ]
 }
