@@ -220,6 +220,52 @@ function godotSystemBrick(kb, files, name = "sys-godot-trial", brickId = "sys-go
   return s;
 }
 
+// Fabrique une brick "system" godot dont le CONTENU .gd est fourni par l'appelant (au lieu
+// du corps fixe de godotSystemBrick ci-dessus) — meme convention que systemWith() (JS) mais
+// pour un fichier .gd reel sur disque, sha256 reel. Sert les tests R10/GDScript ci-dessous.
+function godotBrickWithSource(kb, files, src, name = "sys-godot-src", brickId = "sys-godot-src") {
+  const p = `knowledge_base/systems/combat/${name}.gd`;
+  writeFileSync(join(kb, "systems/combat", `${name}.gd`), src);
+  const s = baseSystem(files);
+  s.brick_id = brickId; s.runtime = "godot"; s.path = p; s.sha256 = sha256(Buffer.from(src));
+  s.dependencies = ["pat-damage-floor"];
+  return s;
+}
+
+// ---------- R10 GDScript (amendement etape 0, spec 2026-07-21 §8b) ----------
+test("R10 GDScript: randi() dans une brique godot -> rejet R10", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const s = godotBrickWithSource(kb, files, "var x = randi()\n");
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R10" && /randi/.test(e.msg)), JSON.stringify(res.errors));
+});
+test("R10 GDScript: Time.get_ticks_msec() -> rejet R10 (non deterministe)", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const s = godotBrickWithSource(kb, files, "var t = Time.get_ticks_msec()\n");
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R10"));
+});
+test("R10 GDScript: FileAccess.open() -> rejet R10 (I/O)", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const s = godotBrickWithSource(kb, files, 'var f = FileAccess.open("x", 1)\n');
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R10"));
+});
+test("R10 GDScript: du .gd pur ne declenche AUCUN R10", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const src = "func step(pos: Vector2i, dir: Vector2i) -> Vector2i:\n\treturn pos + dir\n";
+  const s = godotBrickWithSource(kb, files, src);
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.deepEqual(res.errors.filter((e) => e.rule === "R10"), []);
+});
+test("R10 GDScript: le mot randi en COMMENTAIRE ne declenche pas R10 (pas de faux positif)", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const src = "# ne jamais utiliser randi() ici\nfunc f() -> int:\n\treturn 1\n";
+  const s = godotBrickWithSource(kb, files, src);
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.deepEqual(res.errors.filter((e) => e.rule === "R10"), []);
+});
+
 test("R6: brick system runtime godot avec path .gd + tests + sha256 -> ACCEPTEE", (t) => {
   const { root, kb, files } = makeRoot(t);
   const s = godotSystemBrick(kb, files);

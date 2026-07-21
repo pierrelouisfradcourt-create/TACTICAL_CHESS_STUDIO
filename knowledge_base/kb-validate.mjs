@@ -90,6 +90,37 @@ const IMPURITY_STRIPPED = [
   [/\bdocument\s*[.[]/, "document (DOM)"],
   [/\bprocess\s*\.\s*(env|exit|argv|binding|cwd)\b/, "process.* (environnement)"],
 ];
+// R10 — motifs d'impureté GDScript. Symétrique d'IMPURITY_STRIPPED (JS), appliqué aux
+// seuls fichiers .gd : les motifs JS n'ont aucun équivalent lexical en GDScript, donc
+// sans cette liste une brique Godot non déterministe passait la garde sans être vue
+// (amendement étape 0, spec 2026-07-21 §8b). Scanné APRÈS retrait des commentaires
+// (`#` en GDScript) et des chaînes, comme pour le JS.
+export const IMPURITY_GDSCRIPT = [
+  [/\brand[if]\b/, "randi/randf (aleatoire non seede)"],
+  [/\brandi_range\b/, "randi_range"],
+  [/\brandf_range\b/, "randf_range"],
+  [/\brandomize\b/, "randomize"],
+  [/\brand_from_seed\b/, "rand_from_seed"],
+  [/\bRandomNumberGenerator\b/, "RandomNumberGenerator"],
+  [/\bOS\s*\./, "OS.* (environnement)"],
+  [/\bTime\s*\./, "Time.* (non deterministe)"],
+  [/\bFileAccess\b/, "FileAccess (I/O)"],
+  [/\bDirAccess\b/, "DirAccess (I/O)"],
+  [/\bHTTPRequest\b/, "HTTPRequest (reseau)"],
+  [/\bHTTPClient\b/, "HTTPClient (reseau)"],
+  [/\bEngine\s*\./, "Engine.* (etat moteur)"],
+  [/\bInput\s*\./, "Input.* (etat externe)"],
+];
+
+// Retire commentaires `#` et littéraux de chaîne d'une source GDScript.
+function stripGdscriptCommentsAndStrings(src) {
+  return src
+    .replace(/"""[\s\S]*?"""/g, '""')
+    .replace(/#[^\n]*/g, " ")
+    .replace(/"(?:\\.|[^"\\])*"/g, '""')
+    .replace(/'(?:\\.|[^'\\])*'/g, "''");
+}
+
 // R11 — patterns jamais injectés comme code (scanné sur le texte BRUT : chemins = littéraux).
 const PATTERN_IMPORT = [
   /\bfrom\s*["'][^"']*patterns\//,
@@ -406,16 +437,29 @@ function validateBrick(e, root, err, brickIds) {
     if (!brickIds.has(d)) err(id, "R9", `dependance inconnue: ${d}`);
   }
 
-  // R10/R11/R4-contenu — inspection du contenu des modules code
+  // R10/R11/R4-contenu — inspection du contenu des modules code. Aiguillage par extension
+  // (amendement étape 0, spec 2026-07-21 §8b) : les motifs JS n'ont aucun équivalent
+  // lexical en GDScript, donc un fichier .gd suit sa PROPRE liste de motifs d'impureté ;
+  // tout le reste (JS/.mjs) suit exactement les deux passes RAW/STRIPPED existantes,
+  // inchangées. R11 (import patterns/) et le marqueur GPL restent appliqués aux DEUX
+  // langages, sur le texte brut — hors de la branche par langage.
   if (isCode && abs !== null) {
     let raw = "";
     try { raw = readFileSync(abs, "utf-8"); } catch { /* déjà couvert */ }
-    const code = stripCommentsAndStrings(raw);
-    for (const [re, label] of IMPURITY_RAW) {
-      if (re.test(raw)) err(id, "R10", `motif d'impurete: ${label}`);
-    }
-    for (const [re, label] of IMPURITY_STRIPPED) {
-      if (re.test(code)) err(id, "R10", `motif d'impurete: ${label}`);
+    const isGd = e.path.endsWith(".gd");
+    if (isGd) {
+      const code = stripGdscriptCommentsAndStrings(raw);
+      for (const [re, label] of IMPURITY_GDSCRIPT) {
+        if (re.test(code)) err(id, "R10", `motif d'impurete GDScript: ${label}`);
+      }
+    } else {
+      const code = stripCommentsAndStrings(raw);
+      for (const [re, label] of IMPURITY_RAW) {
+        if (re.test(raw)) err(id, "R10", `motif d'impurete: ${label}`);
+      }
+      for (const [re, label] of IMPURITY_STRIPPED) {
+        if (re.test(code)) err(id, "R10", `motif d'impurete: ${label}`);
+      }
     }
     for (const re of PATTERN_IMPORT) {
       if (re.test(raw)) { err(id, "R11", "import depuis patterns/ interdit (cites, jamais injectes)"); break; }
