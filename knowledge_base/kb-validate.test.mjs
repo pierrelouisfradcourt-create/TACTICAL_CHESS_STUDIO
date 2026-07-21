@@ -266,6 +266,40 @@ test("R10 GDScript: le mot randi en COMMENTAIRE ne declenche pas R10 (pas de fau
   assert.deepEqual(res.errors.filter((e) => e.rule === "R10"), []);
 });
 
+// ---------- Correctif de revue : '#' DANS une chaine n'est pas un commentaire ----------
+// stripGdscriptCommentsAndStrings retirait les commentaires AVANT les chaines : un '#'
+// a l'interieur d'un litteral de chaine etait pris pour un debut de commentaire, effacant
+// tout le reste de la ligne — y compris de l'impurete reelle (randi() invisible). Ces 5 tests
+// verifient l'analyseur en une seule passe (correctif de revue, gate contre-verifie).
+test("R10 GDScript: '#' DANS une chaine de format idiomatique -> rejet R10 (randi visible)", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const src = 'var label := "#%d" % randi()\n';
+  const s = godotBrickWithSource(kb, files, src);
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R10" && /randi/.test(e.msg)), JSON.stringify(res.errors));
+});
+test("R10 GDScript: '#' dans une chaine suivi d'un vrai appel non-deterministe -> rejet R10", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const src = 'var s = "hp: #"; var d = randi_range(1, 3)\n';
+  const s = godotBrickWithSource(kb, files, src);
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R10" && /randi_range/.test(e.msg)), JSON.stringify(res.errors));
+});
+test("R10 GDScript: guillemet DANS un commentaire n'ouvre pas de fausse chaine (code suivant reste visible)", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const src = "# n'utilise pas randi\nfunc f() -> int:\n\treturn 1\n";
+  const s = godotBrickWithSource(kb, files, src);
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.deepEqual(res.errors.filter((e) => e.rule === "R10"), []);
+});
+test("R10 GDScript: chaine triple-guillemets contenant randi() -> AUCUN R10 (c'est du texte)", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const src = 'var doc := """\nExemple: randi() retourne un entier.\n"""\nfunc f() -> int:\n\treturn 1\n';
+  const s = godotBrickWithSource(kb, files, src);
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.deepEqual(res.errors.filter((e) => e.rule === "R10"), []);
+});
+
 test("R6: brick system runtime godot avec path .gd + tests + sha256 -> ACCEPTEE", (t) => {
   const { root, kb, files } = makeRoot(t);
   const s = godotSystemBrick(kb, files);
