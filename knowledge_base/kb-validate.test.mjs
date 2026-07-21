@@ -755,3 +755,36 @@ test("R8-d: brick avec usage_examples valide (tableau de chaines) -> ok, zero er
   const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
   assert.deepEqual(res.errors, []);
 });
+
+// ---------- learned_from (Task 7) ----------
+test("learned_from absent -> brick valide (facultatif, retrocompatible)", (t) => {
+  const { root, files } = makeRoot(t);
+  const b = baseSystem(files);
+  delete b.learned_from;
+  const { errors } = validateCatalog(makeCatalog([basePattern(files), b]), { root });
+  assert.deepEqual(errors.filter((e) => /learned_from/.test(e.msg)), []);
+});
+
+test("learned_from bien forme -> accepte", (t) => {
+  const { root, files } = makeRoot(t);
+  const b = baseSystem(files);
+  b.learned_from = { game: "01_grid_nav_probe", reference: "Pac-Man (1980)" };
+  const { errors } = validateCatalog(makeCatalog([basePattern(files), b]), { root });
+  assert.deepEqual(errors.filter((e) => /learned_from/.test(e.msg)), []);
+});
+
+test("learned_from avec une cle inconnue -> rejet R1 (schema ferme)", (t) => {
+  const { root, files } = makeRoot(t);
+  const b = baseSystem(files);
+  b.learned_from = { game: "x", reference: "y", extra: "z" };
+  const { ok } = validateCatalog(makeCatalog([basePattern(files), b]), { root });
+  assert.equal(ok, false);
+});
+
+test("learned_from avec un champ manquant -> rejet R1", (t) => {
+  const { root, files } = makeRoot(t);
+  const b = baseSystem(files);
+  b.learned_from = { game: "x" };
+  const { ok } = validateCatalog(makeCatalog([basePattern(files), b]), { root });
+  assert.equal(ok, false);
+});

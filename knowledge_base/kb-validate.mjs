@@ -203,6 +203,12 @@ function isCapabilityMap(v) {
 }
 function isNonEmptyCapabilityMap(v) { return isCapabilityMap(v) && Object.keys(v).length > 0; }
 
+// Provenance d'apprentissage (spec etape 0 §9) : de quel jeu du curriculum et de
+// quelle reference commerciale la mecanique est issue. Schema ferme a 2 cles.
+function isLearnedFrom(v) {
+  return isPlainObj(v) && isStr(v.game) && isStr(v.reference) && Object.keys(v).length === 2;
+}
+
 // Champ FACULTATIF d'un schéma par ailleurs fermé (checkSpec ci-dessous) : la clé peut être
 // ABSENTE (aucune erreur R1 "champ manquant") ; SI PRÉSENTE, elle est type-vérifiée normalement
 // par `check`. Générique et réutilisable — n'affecte que les specs qui l'utilisent explicitement
@@ -290,6 +296,10 @@ const BRICK_SPEC = {
   // même forme (tableau de chaînes), mais optionnel (une brick pré-existante sans ce champ
   // reste valide ; proof_of_use ci-dessus reste SA preuve d'usage réelle, requise si validated).
   usage_examples: optional(isStrArr),
+  // Provenance d'apprentissage (spec etape 0 §9) : de quel jeu du curriculum et de quelle
+  // reference commerciale la mecanique est issue. Facultatif — les 9 briques existantes sans
+  // ce champ restent valides. Schema ferme : exactement {game: string, reference: string}.
+  learned_from: optional(isLearnedFrom),
 };
 // Un ROLE catalogué : métadonnées d'index + pont vers le catalogue (fulfilled_by,
 // vérifié réellement — R13) et vers le contrat détaillé sur disque (path -> le YAML
