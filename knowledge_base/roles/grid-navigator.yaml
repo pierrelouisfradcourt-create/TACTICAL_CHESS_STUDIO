@@ -56,10 +56,19 @@ simulation_config:
 # Bande de difficulté DÉCLARÉE — fixée APRÈS calibration réelle (voir calibration_note),
 # AVANT la mesure de validation officielle (celle exécutée par la commande de
 # vérification ci-dessous, qui tourne sur la simulation_config déclarée plus haut).
+# CE QUE CETTE BANDE TESTE — reformulé le 2026-07-21 après correction de la tautologie.
+# Elle ne mesure PAS un étalement de difficulté : elle teste l'OPTIMALITÉ du navigateur.
+# Le générateur creuse une route monotone garantie entre (1,1) et (14,14) sur une grille
+# 16x16 à ~60% de murs. La longueur de cette route est exactement la distance de Manhattan,
+# 13+13 = 26 — le plancher absolu. Aucun chemin plus court ne peut exister. Une bande
+# ponctuelle [26,26] signifie donc : « sur chacune des 300 graines, l'implémentation trouve
+# le plus court chemin ». Une implémentation même légèrement sous-optimale rend >26 et sort
+# de la bande. C'est le contrôle le PLUS STRICT possible sur cette métrique, pas un aveu de
+# faiblesse — une bande large aurait au contraire accepté un navigateur médiocre.
 difficulty_target:
   metric: ticks_to_reach_goal_median
-  min: 28
-  max: 32
+  min: 26
+  max: 26
 
 calibration_note: >-
   Calibration du 2026-07-21, ~1160 essais réels au total sur PLUSIEURS fenêtres de

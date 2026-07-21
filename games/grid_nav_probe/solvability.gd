@@ -22,6 +22,14 @@
 # script `extends SceneTree` etant cense etre LE main loop, pas un objet
 # ordinaire qu'on cree a la volee).
 #
+# MISE A JOUR (escalade Task 8fix) : le paragraphe ci-dessus decrit le mandat
+# ORIGINEL (tache 10, generation de labyrinthe seule). La tache 8fix a depuis
+# corrige le defaut tautologique (path_length interrogeant la brique testee)
+# ICI ET dans trial.gd::_generate_maze_deterministic, par coherence de contrat
+# ("aucun des deux generateurs n'appelle GridNav.path_length"). La duplication
+# de code documentee ci-dessus reste vraie et assumee ; seule la regle
+# "ne pas toucher trial.gd" a ete explicitement levee par le contrat 8fix.
+#
 # Purete (contrat de la tache) : aucun alea non seede, aucune dependance a
 # l'horloge. randi/randf/randomize/Time.* sont INTERDITS ici — seul le hash
 # deterministe (seed, x, y) pilote la generation, a l'identique de trial.gd :
@@ -91,8 +99,21 @@ func solve(seed: int, max_ticks: int) -> Dictionary:
 
 ## Genere un labyrinthe deterministe a partir du seed. Duplique de
 ## trial.gd::_generate_maze_deterministic (cf. arbitrage en en-tete) : hash
-## lineaire (seed, x, y), ~30% de murs, repli garanti solvable si le labyrinthe
-## issu du hash seul ne l'est pas pour cette graine.
+## lineaire (seed, x, y), ~30% de murs.
+##
+## CORRECTIF (escalade Task 8fix, defaut CRITIQUE) : l'ancienne version
+## demandait a GridNav.path_length — la brique meme qu'on teste — si un chemin
+## de secours etait necessaire. Consequence : succeeded ne pouvait etre faux
+## que si next_step contredisait path_length, deux fonctions du MEME BFS
+## partage. "50/50 gagnes" ne prouvait donc rien, c'etait vrai par
+## construction. Correctif retenu : le chemin de secours est desormais creuse
+## INCONDITIONNELLEMENT, deterministe et depend de la graine, SANS jamais
+## consulter GridNav. Le chemin existe alors parce que CE generateur l'a
+## trace — fait independant de tout ce que la brique pense. Si next_step est
+## casse, le bot n'atteindra pas la cible malgre ce chemin garanti =>
+## succeeded=false => l'oracle detecte enfin une brique defaillante (preuve
+## par le controle negatif dans tests/run_tests.gd : cible entierement muree
+## => succeeded=false, atteignable).
 func _generate_maze_deterministic(seed: int, width: int, height: int) -> Dictionary:
 	var walls := {}
 
@@ -100,7 +121,7 @@ func _generate_maze_deterministic(seed: int, width: int, height: int) -> Diction
 	for y in range(height):
 		for x in range(width):
 			var pos_hash: int = ((seed * (x + y * width)) + x * 73 + y * 83) % mod
-			if (pos_hash % 10) > 6:
+			if (pos_hash % 10) > 3:
 				walls[Vector2i(x, y)] = true
 
 	var start := Vector2i(1, 1)
@@ -108,8 +129,8 @@ func _generate_maze_deterministic(seed: int, width: int, height: int) -> Diction
 	walls.erase(start)
 	walls.erase(target)
 
-	if GridNav.path_length(start, target, walls) < 0:
-		_carve_fallback_path(seed, width, height, start, target, walls)
+	# Inconditionnel : jamais de question posee a GridNav sur sa propre solvabilite.
+	_carve_fallback_path(seed, width, height, start, target, walls)
 
 	return walls
 

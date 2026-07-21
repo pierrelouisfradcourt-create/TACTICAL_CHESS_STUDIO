@@ -46,22 +46,30 @@ func run_simulation(seed: int, max_ticks: int) -> Dictionary:
 	var agent_pos = Vector2i(1, 1)
 	var target_pos = Vector2i(maze_width - 2, maze_height - 2)
 
-	# Vérifier que la cible est atteignable.
-	var path_len = GridNav.path_length(agent_pos, target_pos, walls)
-	if path_len < 0:
-		# Cible inaccessible.
-		return {"succeeded": false, "ticks": null}
+	return run_simulation_with_walls(walls, agent_pos, target_pos, max_ticks)
 
-	# Simuler la navigation : faire des pas jusqu'à atteindre la cible ou timeout.
+## CORRECTIF (escalade Task 8fix) : boucle de simulation extraite de
+## run_simulation() pour accepter un `walls` FOURNI en argument, au lieu de
+## toujours générer le sien. Isolée pour être testable en isolation par
+## tests/run_tests.gd — c'est le contrôle négatif : une cible entièrement
+## murée doit produire succeeded=false, ce qui prouve que cette issue est
+## ATTEIGNABLE (sans quoi "50/50 gagnés" ne serait pas une mesure).
+## Fonction pure, static : ne modifie pas walls, aucun état partagé.
+## Retourne {"succeeded": bool, "ticks": int|null}
+static func run_simulation_with_walls(walls: Dictionary, agent_pos: Vector2i, target_pos: Vector2i, max_ticks: int) -> Dictionary:
 	var ticks := 0
-	var current_pos = agent_pos
-
+	var current_pos := agent_pos
 	while ticks < max_ticks and current_pos != target_pos:
-		current_pos = GridNav.next_step(current_pos, target_pos, walls)
+		var next_pos: Vector2i = GridNav.next_step(current_pos, target_pos, walls)
+		if next_pos == current_pos:
+			# next_step ne progresse plus (cible inatteignable depuis ici) :
+			# échouer explicitement plutôt que consommer les ticks restants.
+			break
+		current_pos = next_pos
 		ticks += 1
 
-	var succeeded = (current_pos == target_pos)
-	return {"succeeded": succeeded, "ticks": ticks if succeeded else null}
+	var succeeded: bool = (current_pos == target_pos)
+	return {"succeeded": succeeded, "ticks": (ticks if succeeded else null)}
 
 ## Génère un labyrinthe déterministe à partir du seed.
 ## Utilise un hash prédéfini au lieu de randi (interdit par R10).
@@ -70,32 +78,22 @@ func run_simulation(seed: int, max_ticks: int) -> Dictionary:
 ## L (toute la ligne y=1 + toute la colonne x=width-2), qui est TOUJOURS le plus
 ## court chemin possible (longueur Manhattan-minimale entre (1,1) et
 ## (width-2,height-2)) quel que soit le seed -> ticks constant = 26 pour toute
-## graine, mesure dégénérée.
+## graine, mesure dégénérée. Un chemin creusé inconditionnel avait alors été
+## REJETÉ pour ce même motif (borne Manhattan atteinte quoi qu'il arrive).
 ##
-## PISTE REJETÉE APRÈS PREUVE EMPIRIQUE : remplacer le corridor par un « chemin
-## creusé » qui n'avance que vers la cible (comme suggéré initialement) a le
-## MÊME défaut structurel. Un tel chemin atteint déjà la borne inférieure de
-## Manhattan (aucun chemin entre deux points fixes ne peut être plus court) ;
-## dégager ses cellules ne peut donc que RACCOURCIR ou ÉGALER le plus court
-## chemin réel, jamais l'allonger -- et comme il fournit toujours au moins un
-## chemin de longueur Manhattan-minimale, le plus court chemin réel reste
-## systématiquement égal à cette borne, quelle que soit la graine. Mesuré :
-## avec un chemin creusé (y compris avec détours seedés bornés), ticks=26 sur
-## les 12 graines de test, IDENTIQUE au bug d'origine. Un chemin creusé
-## inconditionnel ne peut donc jamais produire de variance réelle par
-## construction : ce n'est pas un défaut d'implémentation, c'est une
-## conséquence mathématique de dégager systématiquement de la connexité.
-##
-## CORRECTIF RETENU : ne RIEN dégager par défaut. Le labyrinthe issu du seul
-## hachage a, lui, une vraie variance (mesuré sur les mêmes 12 graines à ce
-## seuil de densité : longueurs 26/30/34, aucune instance injouable) car le
-## hachage ne garantit rien -- certaines graines laissent un chemin direct
-## ouvert, d'autres non. On ne creuse un chemin de secours (repli monotone,
-## garanti solvable) QUE si le labyrinthe issu du hachage seul est
-## injouable (path_length < 0) pour cette graine précise -- cas rare à cette
-## densité, mesuré 0/12 sur l'échantillon de preuve. Ce repli sacrifie
-## sciemment la variance de CETTE instance à sa solvabilité (compromis
-## assumé, cf. contrat : "grande majorité des cas" solvable, pas 100%).
+## RENVERSEMENT (escalade Task 8fix, défaut CRITIQUE) : ce même arbitrage a été
+## rouvert côté solvability.gd, où le générateur interrogeait GridNav.path_length
+## — la brique même qu'on teste — pour décider s'il fallait un chemin de
+## secours. Deux fonctions du même BFS partagé se répondaient l'une à l'autre :
+## l'oracle ne pouvait jamais détecter next_step cassé. Le correctif retenu là-bas
+## (creuser INCONDITIONNELLEMENT, sans jamais consulter GridNav) est appliqué ici
+## À L'IDENTIQUE, par cohérence de contrat ("aucun des deux générateurs ne doit
+## appeler GridNav.path_length"). CONSÉQUENCE ASSUMÉE, PAS CACHÉE : la variance de
+## ticks mesurée par trial.gd redevient dégénérée (le chemin creusé est de
+## nouveau Manhattan-minimal, donc constant par construction) — c'est le prix du
+## fait que le générateur ne demande plus RIEN à la brique. Distribution réelle
+## à mesurer sur ≥15 graines (cf. task-8fix-report.md) pour recalibrer la bande
+## de difficulté séparément ; ce fichier ne maquille pas le résultat.
 func _generate_maze_deterministic(seed: int, width: int, height: int) -> Dictionary:
 	var walls = {}
 
@@ -105,7 +103,7 @@ func _generate_maze_deterministic(seed: int, width: int, height: int) -> Diction
 		for x in range(width):
 			var pos_hash: int = ((seed * (x + y * width)) + x * 73 + y * 83) % mod
 			# Probabilité de mur = pos_hash % 10 > 6, ~30% des cellules.
-			if (pos_hash % 10) > 6:
+			if (pos_hash % 10) > 3:
 				walls[Vector2i(x, y)] = true
 
 	var start := Vector2i(1, 1)
@@ -113,8 +111,8 @@ func _generate_maze_deterministic(seed: int, width: int, height: int) -> Diction
 	walls.erase(start)
 	walls.erase(target)
 
-	if GridNav.path_length(start, target, walls) < 0:
-		_carve_fallback_path(seed, width, height, start, target, walls)
+	# Inconditionnel : jamais de question posée à GridNav sur sa propre solvabilité.
+	_carve_fallback_path(seed, width, height, start, target, walls)
 
 	return walls
 

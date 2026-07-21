@@ -13,8 +13,21 @@ const DIRECTIONS := [
 	Vector2i(-1, 0),  # ouest
 ]
 
-# Distance infinie de Manhattan sur une grille non limitée.
-const MAX_DISTANCE := 1000
+# Borne d'exploration PARTAGEE par les deux BFS de ce module.
+#
+# Pourquoi elle existe : `walls` est un Dictionary CREUX, sans bords de grille — le
+# plan est donc infini. Sur une cible inatteignable, un BFS non borne explore
+# indefiniment et ne rend JAMAIS la main.
+#
+# Defaut reel corrige le 2026-07-21 : `path_length` portait cette borne (en local),
+# `_bfs_next_step` ne la portait PAS. `next_step` gelait donc sur toute cible
+# inatteignable en grille ouverte, alors que le catalogue declare l'affordance
+# « rend from si to est inatteignable ». Le bug etait MASQUE par une tautologie du
+# generateur de labyrinthe (il demandait a path_length si un chemin existait avant de
+# rendre le labyrinthe, donc aucune cible n'etait jamais inatteignable). Retirer la
+# tautologie l'a expose. La constante est desormais unique et partagee : l'asymetrie
+# entre les deux fonctions ne peut plus se reintroduire silencieusement.
+const MAX_CELLS_EXPLORED := 10000
 
 ## Calcule un pas depuis from vers to, en évitant les murs.
 ## Retourne la position après un pas du chemin le plus court, ou from si impossible.
@@ -50,7 +63,11 @@ static func _bfs_next_step(from: Vector2i, to: Vector2i, walls: Dictionary) -> D
 	var expansions := 0
 	var head := 0
 	var found := false
-	while head < queue.size() and not found:
+	# Borne d'exploration OBLIGATOIRE (cf. MAX_CELLS_EXPLORED) : sans elle, une cible
+	# inatteignable sur ce plan infini fait tourner ce BFS indefiniment. Quand la borne
+	# est atteinte sans avoir trouve, `found` reste false et la fonction rend `from` —
+	# ce qui honore l'affordance declaree au catalogue.
+	while head < queue.size() and not found and visited.size() < MAX_CELLS_EXPLORED:
 		var current = queue[head]
 		head += 1
 
@@ -99,9 +116,9 @@ static func path_length(from: Vector2i, to: Vector2i, walls: Dictionary) -> int:
 	visited[from] = 0  # distance de from à from
 
 	var head := 0  # pointeur sur la queue
-	var max_cells_explored := 10000
+	# Meme borne partagee que _bfs_next_step (cf. MAX_CELLS_EXPLORED).
 
-	while head < queue.size() and visited.size() < max_cells_explored:
+	while head < queue.size() and visited.size() < MAX_CELLS_EXPLORED:
 		var current = queue[head]
 		head += 1
 		var current_dist = visited[current]

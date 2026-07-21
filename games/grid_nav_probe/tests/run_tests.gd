@@ -4,9 +4,10 @@
 extends SceneTree
 
 const GridNav = preload("res://core/grid_nav.gd")
+const Trial = preload("res://trial.gd")
 
 # Nombre d'assertions attendu — garde anti-faux-vert.
-const EXPECTED_ASSERTS := 35
+const EXPECTED_ASSERTS := 39
 
 var _passed := 0
 var _failed := 0
@@ -45,6 +46,11 @@ func _initialize() -> void:
 	test_next_step_expansions_open_grid_exact()
 	test_next_step_expansions_bounded_large_grid()
 	test_next_step_expansions_consistent_with_next_step()
+	# --- escalade Task 8fix, defaut CRITIQUE : controle negatif de l'oracle de
+	# solvabilite. Sans ces deux tests, "succeeded=false" ne serait jamais prouve
+	# ATTEIGNABLE par la boucle de simulation extraite (Trial.run_simulation_with_walls) ---
+	test_trial_walled_target_unreachable_fails()
+	test_trial_clear_corridor_succeeds_exact_ticks()
 
 	var total := _passed + _failed
 	if total != EXPECTED_ASSERTS:
@@ -355,3 +361,34 @@ func test_next_step_expansions_consistent_with_next_step() -> void:
 	var step_via_next_step = GridNav.next_step(from, to, walls)
 	var exp = GridNav.next_step_expansions(from, to, walls)
 	ok(step_via_next_step != from and exp > 0, "next_step_expansions cohérent avec next_step (même code partagé)")
+
+# --- escalade Task 8fix : contrôle négatif de l'oracle de solvabilité ---
+# Le défaut CRITIQUE corrigé (solvability.gd + trial.gd) était que le générateur
+# de labyrinthe interrogeait GridNav.path_length — la brique même qu'on teste —
+# pour décider s'il fallait un chemin de secours. "succeeded=false" n'était donc
+# jamais ATTEIGNABLE par construction : ces deux tests le prouvent.
+
+func test_trial_walled_target_unreachable_fails() -> void:
+	# Cible entièrement murée (encerclée des 4 côtés) : aucun chemin ne peut
+	# exister vers elle, quel que soit `walls` par ailleurs. C'est le cœur du
+	# correctif : il prouve que succeeded=false est ATTEIGNABLE par la boucle
+	# de simulation extraite, indépendamment de tout générateur de labyrinthe.
+	var target := Vector2i(5, 5)
+	var walls := {}
+	walls[Vector2i(4, 5)] = true
+	walls[Vector2i(6, 5)] = true
+	walls[Vector2i(5, 4)] = true
+	walls[Vector2i(5, 6)] = true
+	var result := Trial.run_simulation_with_walls(walls, Vector2i(0, 0), target, 200)
+	ok(result["succeeded"] == false, "trial: cible entièrement murée => succeeded=false")
+	ok(result["ticks"] == null, "trial: cible entièrement murée => ticks=null")
+
+func test_trial_clear_corridor_succeeds_exact_ticks() -> void:
+	# Couloir dégagé trivial, aucun mur : nombre de pas exact et vérifiable
+	# (distance de Manhattan = 3), aucune ambiguïté possible sur le résultat.
+	var start := Vector2i(0, 0)
+	var target := Vector2i(3, 0)
+	var walls := {}
+	var result := Trial.run_simulation_with_walls(walls, start, target, 200)
+	ok(result["succeeded"] == true, "trial: couloir dégagé => succeeded=true")
+	ok(result["ticks"] == 3, "trial: couloir dégagé => ticks=3 exact")
