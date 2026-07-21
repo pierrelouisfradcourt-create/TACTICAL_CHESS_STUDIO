@@ -32,7 +32,26 @@ RULES: tuple[tuple[str, str, str], ...] = (
     ("+=", "-=", "pluseq->minuseq"),
     ("-=", "+=", "minuseq->pluseq"),
 )
-_WORD_RULES = ((r"\btrue\b", "false", "true->false"), (r"\bfalse\b", "true", "false->true"))
+# Règles à frontière de mot. Regroupe les booléens (tous langages) et les opérateurs
+# logiques GDScript/Python (`and`/`or`), qui n'ont pas d'équivalent dans RULES —
+# RULES ne couvre que `&&`/`||` (JS/Rust). Sans ces entrées, muter un `.gd` ne
+# produisait presque aucun mutant : gate mutation édenté (plan étape 0, tâche 4).
+# Frontière \b obligatoire : sinon `operand`, `random`, `sword` génèrent des mutants
+# syntaxiquement absurdes en masse.
+_WORD_RULES = (
+    (r"\btrue\b", "false", "true->false"),
+    (r"\bfalse\b", "true", "false->true"),
+    (r"\band\b", "or", "and->or"),
+    (r"\bor\b", "and", "or->and"),
+)
+
+# Égalité non stricte (GDScript/Python). Ces règles sont appliquées APRÈS celles de
+# RULES et jamais à l'intérieur d'un `===`/`!==` : muter le `==` d'un `===` JS
+# produirait `=!=`, une faute de syntaxe (mutant inkillable et trompeur).
+_EQ_RULES = (
+    (re.compile(r"(?<![=!<>])==(?!=)"), "!=", "eqeq->neq"),
+    (re.compile(r"(?<![=!<>])!=(?!=)"), "==", "neq->eqeq"),
+)
 
 
 @dataclass(frozen=True)
@@ -75,6 +94,12 @@ def generate_mutants(text: str) -> list[Mutant]:
             mutants.append(Mutant(name, text.count("\n", 0, i) + 1, mutant))
     for pattern, repl, name in _WORD_RULES:
         for m in re.finditer(pattern, text):
+            if _skip_occurrence(text, m.start()):
+                continue
+            mutant = text[:m.start()] + repl + text[m.end():]
+            mutants.append(Mutant(name, text.count("\n", 0, m.start()) + 1, mutant))
+    for pattern, repl, name in _EQ_RULES:
+        for m in pattern.finditer(text):
             if _skip_occurrence(text, m.start()):
                 continue
             mutant = text[:m.start()] + repl + text[m.end():]
