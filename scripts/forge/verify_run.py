@@ -21,11 +21,19 @@ le hash ET re-signer) et rend la vérification mécanique au lieu de narrative.
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
 from forge.mutation_proof import verify_mutation_receipt
 from forge.verdict import _verify_mapping, current_git_head, sha256_file
+
+# R3 (FORGE_V2_CONSOLIDATION.md §4-A, ferme AM1) : script + timeout du recoupement
+# knowledge_trace. scripts/forge/verify_run.py -> parent == scripts/forge (même
+# dossier que knowledge_trace.mjs).
+_KNOWLEDGE_TRACE_SCRIPT = Path(__file__).resolve().parent / "knowledge_trace.mjs"
+_KNOWLEDGE_TRACE_TIMEOUT_S = 60
 
 
 def _check_mutation_proof(data: dict, key_file: Path | None) -> list[str]:
@@ -66,6 +74,50 @@ def _check_mutation_proof(data: dict, key_file: Path | None) -> list[str]:
     return [] if chk["passed"] else list(chk["raisons"])
 
 
+def _check_knowledge_trace(run_dir: Path) -> tuple[list[str], list[str]]:
+    """R3 — recoupe <run_dir>/knowledge_trace.json via `node knowledge_trace.mjs
+    --verify` (ferme AM1) : le lineage de lecture (pré-mortem/knowledge_base/
+    mandatory_read/packet servis à un run) était jusqu'ici AUTO-ATTESTÉ, jamais
+    recoupé par un tiers mécanique. Retourne (problems, warnings) — jamais ne lève.
+
+    - trace ABSENTE : simple avertissement NON BLOQUANT (tous les runs n'en portent
+      pas encore) — pas la même sévérité qu'une trace présente mais falsifiée.
+    - trace PRÉSENTE et le sous-processus échoue (exit != 0 : au moins un item
+      NOT_FOUND = théâtre, ou trace corrompue/run_dir absent) : échec DUR, listé
+      dans `problems` — même sévérité que la preuve mutation (P0.3).
+    - node INDISPONIBLE (introuvable, erreur de spawn, timeout) : avertissement
+      honnête. L'absence d'outil ne se travestit JAMAIS en vérification réussie.
+    """
+    problems: list[str] = []
+    warnings: list[str] = []
+    run_dir = Path(run_dir)
+    trace_path = run_dir / "knowledge_trace.json"
+    if not trace_path.exists():
+        warnings.append(
+            "knowledge_trace.json absent — lineage non recoupé (tous les runs "
+            "n'en portent pas encore, cf. FORGE_V2_CONSOLIDATION.md R3)")
+        return problems, warnings
+
+    node_cmd = shutil.which("node") or "node"
+    try:
+        proc = subprocess.run(
+            [node_cmd, str(_KNOWLEDGE_TRACE_SCRIPT), "--verify", str(run_dir.resolve())],
+            capture_output=True, text=True, encoding="utf-8",
+            timeout=_KNOWLEDGE_TRACE_TIMEOUT_S,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        warnings.append(
+            f"knowledge_trace.mjs --verify non exécutable (node indisponible ?) : {exc}")
+        return problems, warnings
+
+    if proc.returncode != 0:
+        detail = "\n".join(part for part in (proc.stderr, proc.stdout) if part).strip()
+        problems.append(
+            f"knowledge_trace --verify a échoué (exit {proc.returncode}) : {detail[-2000:]}"
+        )
+    return problems, warnings
+
+
 def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
     """Vérifie un verdict.json. Retourne un dict structuré (jamais ne lève sur contenu)."""
     path = Path(verdict_path)
@@ -104,7 +156,12 @@ def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
     git_current = current_git_head()
     git_ok = (not git_stored) or (git_current == git_stored)
 
-    overall = hmac_ok and evidence_ok and mutation_ok
+    # (4) knowledge_trace (R3, ferme AM1) : échec DUR si présente et falsifiée ;
+    # absente = avertissement seul (tous les runs n'en portent pas encore).
+    knowledge_trace_problems, knowledge_trace_warnings = _check_knowledge_trace(path.parent)
+    knowledge_trace_ok = not knowledge_trace_problems
+
+    overall = hmac_ok and evidence_ok and mutation_ok and knowledge_trace_ok
     return {
         "overall": overall,
         "hmac_ok": hmac_ok,
@@ -115,6 +172,9 @@ def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
         "git_ok": git_ok,
         "git_stored": git_stored,
         "git_current": git_current,
+        "knowledge_trace_ok": knowledge_trace_ok,
+        "knowledge_trace_problems": knowledge_trace_problems,
+        "knowledge_trace_warnings": knowledge_trace_warnings,
         "software_verdict": data.get("software_verdict"),
         "decision": data.get("decision"),
     }
@@ -151,6 +211,11 @@ def main(argv: list[str] | None = None) -> int:
     print(f"preuve mutation  : {'OK' if res['mutation_ok'] else 'INVALIDE/PÉRIMÉE'}")
     for p in res.get("mutation_problems", []):
         print(f"   ✗ {p}")
+    print(f"knowledge_trace  : {'OK' if res.get('knowledge_trace_ok', True) else 'REJET (théâtre/corrompu)'}")
+    for p in res.get("knowledge_trace_problems", []):
+        print(f"   ✗ {p}")
+    for w in res.get("knowledge_trace_warnings", []):
+        print(f"   ⚠ {w}")
     if not res["git_ok"]:
         print(f"⚠ dérive git : signé {res['git_stored'][:12]} != courant {res['git_current'][:12]} (TOCTOU)")
     print(f"\nVÉRIFICATION : {'AUTHENTIQUE' if res['overall'] else 'REJET'}")

@@ -168,7 +168,7 @@ GLOBAL_SCOPE = "_global_"
 # a son propre fichier error_journal/<domaine>.jsonl. `GLOBAL_SCOPE` est un domaine à
 # part entière : les leçons de MÉTHODE transversales y vivent et sont lues quel que
 # soit le domaine demandé.
-KNOWN_DOMAINS: list[str] = ["html", "python", "rust", "godot", "forge", GLOBAL_SCOPE]
+KNOWN_DOMAINS: list[str] = ["html", "python", "rust", "godot", "forge", "playtest", GLOBAL_SCOPE]
 
 # Domaines pour lesquels on lit AUSSI le monolithe historique en fallback. Ses vraies
 # entrées sont TOUTES des jeux HTML (collect_runner/breakout/shmup) : on ne les rejoue
@@ -180,6 +180,13 @@ LEGACY_FALLBACK_DOMAINS: frozenset[str] = frozenset({"html", "forge"})
 # Domaine par défaut d'un run Forge quand aucun n'est précisé. `forge` = plomberie de
 # la boucle elle-même (contrats, oracles, driver) — cohérent avec l'ancien défaut.
 DEFAULT_DOMAIN = "forge"
+
+# Domaine dédié aux retours de playtest Pierre (R2, FORGE_V2_CONSOLIDATION.md §4-A).
+# Servi comme GLOBAL_SCOPE — TOUJOURS lu au pré-mortem, quel que soit le `domain`
+# demandé par l'appelant (voir `premortem`) : un retour de playtest ne doit jamais
+# dépendre du domaine (html/forge/rust/godot...) du run qui consulte, sinon il
+# s'évapore silencieusement (constat P6 : 0 fichier de playtest, jamais consigné).
+PLAYTEST_DOMAIN = "playtest"
 
 
 def _domain_journal_path(domain: str) -> Path:
@@ -239,6 +246,33 @@ def record_fix(
     """
     record_error(run_id, etape, error, project, journal_path=journal_path,
                  resolution=resolution, domain=domain)
+
+
+def record_playtest(
+    project: str,
+    constat: str,
+    regle_observable: str,
+    run_id: str = "playtest",
+    journal_path: Path | None = None,
+) -> None:
+    """Capture un playtest Pierre (R2, FORGE_V2_CONSOLIDATION.md §4-A) : `constat`
+    (ce qui a été observé en jeu) -> `regle_observable` (la contrainte que le run
+    SUIVANT doit respecter). Avant R2, un retour de playtest était une conversation
+    qui s'évaporait (0 fichier — constat P6). Ce helper route CE type de
+    connaissance vers le canal DÉJÀ prouvé (error_journal + pré-mortem, card_engine)
+    plutôt que d'inventer un nouveau mécanisme : réutilise `record_error` (même
+    signature, mêmes garanties best-effort), domaine dédié `PLAYTEST_DOMAIN`.
+
+    `regle_observable` est passée comme `resolution` de `record_error` : la 2e
+    colonne du journal (affichée « → ✅ RÉPARÉ: <règle> » par `_format_entry`) porte
+    ainsi la contrainte actionnable, pas seulement le constat — exactement le
+    mécanisme déjà prouvé pour une réparation d'erreur, réutilisé tel quel pour un
+    playtest (même esprit que `record_fix`).
+    """
+    record_error(
+        run_id, "playtest", constat, project,
+        journal_path=journal_path, resolution=regle_observable, domain=PLAYTEST_DOMAIN,
+    )
 
 
 def record_global_lesson(etape: str, lesson: str, journal_path: Path | None = None) -> None:
@@ -309,6 +343,15 @@ def premortem(
         proj += [r for r in _read(_domain_journal_path(domain)) if r.get("project") == project]
         if domain in LEGACY_FALLBACK_DOMAINS:
             proj += [r for r in _read(DEFAULT_ERROR_JOURNAL) if r.get("project") == project]
+
+    # R2 : le domaine `playtest` est TOUJOURS servi (même traitement que
+    # GLOBAL_SCOPE) — le driver n'appelle premortem qu'avec UN SEUL domaine à la
+    # fois (ForgeDriver._domain -> "html" ou "forge"), donc sans cet ajout un
+    # retour de playtest resterait filtré hors de la vue du run suivant et
+    # s'évaporerait quand même. Pas de double-lecture si `playtest` est déjà le
+    # domaine explicitement demandé.
+    if domain != PLAYTEST_DOMAIN:
+        proj += [r for r in _read(_domain_journal_path(PLAYTEST_DOMAIN)) if r.get("project") == project]
 
     out = [_format_entry(r, prefix="⚑ ") for r in glob[-limit:]]
     out += [_format_entry(r) for r in proj[-limit:]]

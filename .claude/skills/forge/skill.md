@@ -45,6 +45,16 @@ rappels = premortem("<projet>")   # dernières erreurs du projet
 ```
 Injecte `rappels` dans le contexte de l'étape 0 (via son `mandatory_read`).
 
+## Oracle charter (R7, après l'étape 0 — obligatoire)
+
+Dès que s0 rend `charter.yaml`, valide-le mécaniquement AVANT s1 :
+```python
+from forge.static_oracles import check_charter
+r = check_charter(charter_dict)   # 7 champs requis dont plateforme_cible · reference_jeu · criteres_demo[]
+```
+`passed` faux → re-spawn s0 avec les raisons (jamais un charter incomplet vers l'aval). `reference_jeu`
+vient de PIERRE (design-intent) — un agent ne l'invente jamais : absent = fog HumanGate.
+
 ## Boucle d'orchestration
 
 Pour chaque `etape` dans l'ordre `forge.dispatch.ORDER` :

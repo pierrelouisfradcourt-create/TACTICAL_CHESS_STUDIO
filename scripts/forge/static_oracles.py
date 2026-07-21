@@ -16,6 +16,7 @@ import ast
 import json
 import logging
 import re
+import unicodedata
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -444,6 +445,73 @@ def check_reuse_ratio_wired(src_root: Path) -> dict:
     return {"passed": True, "raisons": []}
 
 
+# --- garde anti-théâtre des harnais (R1, FORGE_V2_CONSOLIDATION.md §4-A) -----------
+# Pattern bi-projet constaté (audit P1) : un harnais/oracle qui ÉCRIT son statut de
+# succès en LITTÉRAL (`passed: true`, `ok: true`...) au lieu de le CALCULER est un
+# théâtre d'oracle — il rougit ici (s10a, driver), pas 10 étapes plus tard via un
+# red-team tardif. MIROIR structurel de check_e2e_harness : mêmes helpers
+# (_read/_strip_js_comments), même forme {passed, raisons[]}, jamais d'exception sur
+# entrée malformée (fichier illisible => simplement rien à y trouver, pas un crash).
+_HARNESS_SUCCESS_KEYS = (
+    "allMovesLegal", "passed", "ok", "success", "solved", "solvable", "won",
+    "valid", "legal", "reachable", "verified", "complete", "completed",
+)
+_HARNESS_KEYS_ALT = "|".join(_HARNESS_SUCCESS_KEYS)
+# `key: true` (objet littéral) — sans ambiguïté, `:` n'introduit jamais une comparaison.
+_HARNESS_KEY_COLON = re.compile(rf"\b(?:{_HARNESS_KEYS_ALT})\s*:\s*true\b", re.I)
+# `key = true` (affectation) — négation devant `=` : exclut `==`/`===` (comparaisons,
+# pas des affectations) via le lookahead qui refuse un second `=` immédiat.
+_HARNESS_KEY_ASSIGN = re.compile(rf"\b(?:{_HARNESS_KEYS_ALT})\s*=(?!=)\s*true\b", re.I)
+
+_HARNESS_FIXED_NAMES = ("run-oracle.mjs", "solvability.mjs")
+_HARNESS_DIR_NAME = "harness"
+
+
+def _harness_files(src_root: Path) -> list[Path]:
+    """Fichiers harnais/oracle scannés : run-oracle.mjs, solvability.mjs (racine),
+    harness/*.mjs — la surface exacte visée par le renfort R1."""
+    root = Path(src_root)
+    files = [root / name for name in _HARNESS_FIXED_NAMES if (root / name).exists()]
+    harness_dir = root / _HARNESS_DIR_NAME
+    if harness_dir.is_dir():
+        files.extend(sorted(p for p in harness_dir.glob("*.mjs") if p.is_file()))
+    return files
+
+
+def check_harness_no_hardcoded_flags(src_root: Path) -> dict:
+    """Un harnais/oracle de jeu écrit-il un flag de succès en DUR au lieu de le calculer ?
+
+    Retourne {passed, raisons[]}. Heuristique : une clé de succès connue
+    (allMovesLegal/passed/ok/success/solved/solvable/won/valid/legal/reachable/
+    verified/complete/completed) affectée au littéral booléen `true` SANS expression
+    (ni comparaison, ni calcul) est suspecte — un harnais sain CALCULE son statut
+    (`passed: bot.won`, `const ok = moves.every(isLegal)`), il ne l'écrit jamais en
+    dur. Les commentaires JS sont retirés avant analyse (un flag en commentaire ne
+    prouve rien, même esprit que check_e2e_harness/check_solvability_wired).
+
+    Aucun fichier harnais trouvé (run-oracle.mjs/solvability.mjs/harness/*.mjs tous
+    absents) => rien à scanner ici : PASS vacueux. L'ABSENCE du harnais est déjà le
+    rôle de check_e2e_harness / check_solvability_wired — ce n'est pas celui-ci qui
+    la re-signale (pas de double-comptage d'une même faute).
+    """
+    src_root = Path(src_root)
+    raisons: list[str] = []
+    for f in _harness_files(src_root):
+        text = _strip_js_comments(_read(f))
+        for pattern in (_HARNESS_KEY_COLON, _HARNESS_KEY_ASSIGN):
+            for m in pattern.finditer(text):
+                line_no = text.count("\n", 0, m.start()) + 1
+                try:
+                    rel = f.relative_to(src_root)
+                except ValueError:
+                    rel = f
+                raisons.append(
+                    f"{rel}:{line_no} — flag littéral suspect « {m.group(0).strip()} » "
+                    "(statut écrit en dur, pas calculé)"
+                )
+    return {"passed": not raisons, "raisons": raisons}
+
+
 # Chemin par défaut du log d'auto-journalisation de knowledge_base/search.mjs (miroir
 # Python de searchLogSince en JS). scripts/forge/static_oracles.py -> parents[2] == repo root.
 _SEARCH_LOG_DEFAULT = Path(__file__).resolve().parents[2] / "knowledge_base" / "search_log.jsonl"
@@ -612,3 +680,73 @@ def check_mutation_gate(mutation_result: dict, triage_entries: list[dict] | None
         "exception": bool(triaged),
         "triaged_survivors": triaged,
     }
+
+
+# --- oracle CHARTER (R7, FORGE_V2_CONSOLIDATION.md §4-A) --------------------------
+# Le contrat s0-contrat EXIGE en prose que charter.yaml porte 4 champs originaux
+# (objectif, hors_scope[], criteres_succes[], actions_interdites[]) PLUS 3 champs de
+# design-intent (plateforme_cible, reference_jeu, criteres_demo[] — R7) sans aucun
+# « à définir » résiduel, mais rien ne le vérifiait MÉCANIQUEMENT : appelé par
+# l'orchestrateur à s0 (comme le validateur ad-hoc du run card_engine).
+_CHARTER_STRING_FIELDS = ("objectif", "plateforme_cible", "reference_jeu")
+_CHARTER_LIST_FIELDS = ("hors_scope", "criteres_succes", "actions_interdites", "criteres_demo")
+_TODO_PLACEHOLDER = "a definir"
+
+
+def _normalize_accents_casse(value: str) -> str:
+    """Neutralise accents ET casse (« À Définir » / « a definir » -> même forme)."""
+    decomposed = unicodedata.normalize("NFKD", value)
+    ascii_only = "".join(c for c in decomposed if not unicodedata.combining(c))
+    return ascii_only.lower()
+
+
+def _is_todo_placeholder(value: str) -> bool:
+    return _TODO_PLACEHOLDER in _normalize_accents_casse(value)
+
+
+def check_charter(charter: dict) -> dict:
+    """charter.yaml porte-t-il TOUS ses champs obligatoires, remplis, sans « à
+    définir » résiduel — design-intent (R7) inclus ?
+
+    Retourne {passed, raisons[]}. Jamais d'exception sur entrée malformée (charter
+    n'est pas un mapping, champ d'un type inattendu...) — FAIL honnête avec raison
+    explicite, même doctrine que check_architecture sur un blueprint malformé.
+
+    Champs requis :
+    - chaînes non vides : objectif, plateforme_cible, reference_jeu
+    - listes NON VIDES de chaînes non vides : hors_scope, criteres_succes,
+      actions_interdites, criteres_demo (le design-intent R7)
+
+    « à définir » est détecté insensible aux accents ET à la casse (« À Définir »,
+    « a definir »... tous rejetés) dans N'IMPORTE QUELLE valeur (scalaire ou item de
+    liste). N'évalue AUCUNE provenance (qui a choisi reference_jeu, Pierre ou
+    l'agent) — c'est un fait de gate humain, pas de schéma ; cette limite est
+    assumée, pas cachée (cf. gardeFou du contrat s0-contrat : une provenance
+    absente/douteuse remonte en fog HumanGate, pas un rejet mécanique de ce
+    validateur).
+    """
+    if not isinstance(charter, dict):
+        return {"passed": False,
+                "raisons": [f"charter n'est pas un mapping (reçu {type(charter).__name__})"]}
+
+    raisons: list[str] = []
+
+    for field in _CHARTER_STRING_FIELDS:
+        value = charter.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raisons.append(f"'{field}' absent ou vide")
+        elif _is_todo_placeholder(value):
+            raisons.append(f"'{field}' contient un « à définir » résiduel : {value!r}")
+
+    for field in _CHARTER_LIST_FIELDS:
+        value = charter.get(field)
+        if not isinstance(value, list) or not value:
+            raisons.append(f"'{field}' absent ou vide (liste non vide attendue)")
+            continue
+        for i, item in enumerate(value):
+            if not isinstance(item, str) or not item.strip():
+                raisons.append(f"'{field}[{i}]' absent ou vide")
+            elif _is_todo_placeholder(item):
+                raisons.append(f"'{field}[{i}]' contient un « à définir » résiduel : {item!r}")
+
+    return {"passed": not raisons, "raisons": raisons}

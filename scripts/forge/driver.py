@@ -50,6 +50,7 @@ from forge.static_oracles import (
     check_architecture,
     check_e2e_harness,
     check_feature_set_frozen,
+    check_harness_no_hardcoded_flags,
     check_reuse_ratio_wired,
     check_search_consulted,
     check_solvability_wired,
@@ -517,6 +518,12 @@ class ForgeDriver:
         # s10a (échec => FAIL avec raisons, alimente la boucle d'escalade).
         solvability = check_solvability_wired(self.src_root)
         detail["solvability"] = solvability
+        # R1 (FORGE_V2_CONSOLIDATION.md §4-A) : anti-théâtre des harnais — contribue
+        # au gate AU MÊME TITRE que e2e/solvabilité (pas advisory) : un flag de
+        # succès écrit en dur (`passed: true`) rougit ICI, pas dix étapes plus tard
+        # via un red-team tardif (pattern déjà constaté 2 fois, bi-projet).
+        harness_flags = check_harness_no_hardcoded_flags(self.src_root)
+        detail["harness_no_hardcoded_flags"] = harness_flags
         # Advisory (Tier 1 #2) : ne gate jamais oracle_ok — reuse_ratio mesure,
         # il ne prouve rien. L'absence de câblage reste visible dans le reçu signé
         # (verdict.json), au lieu de dépendre de la seule citation du builder.
@@ -555,7 +562,7 @@ class ForgeDriver:
         if status == "BLOCKED":
             final = "BLOCKED"
         elif (status == "FAIL" or not e2e["passed"] or not solvability["passed"]
-              or receipt.receipt.status != "OK"):
+              or not harness_flags["passed"] or receipt.receipt.status != "OK"):
             final = "FAIL"  # rouge mécanique => alimente la boucle d'escalade
         else:
             # Auto-contrôle structurel AVANT de poser un OK : une preuve qui ne se
