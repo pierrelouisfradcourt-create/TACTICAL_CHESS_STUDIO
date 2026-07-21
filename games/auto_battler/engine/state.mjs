@@ -51,7 +51,12 @@ export function createGameState(fields) {
     eventLog: Array.isArray(fields.eventLog) ? deepClone(fields.eventLog) : [],
     players: fields.players ? deepClone(fields.players) : {},
     entities: fields.entities ? deepClone(fields.entities) : {},
-    phase: fields.phase
+    phase: fields.phase,
+    // RO-5: preserve extra fields (pool, bench_capacity, round_index, etc.)
+    // so handlers don't need to manually re-attach them
+    ...(fields.pool !== undefined && { pool: deepClone(fields.pool) }),
+    ...(fields.bench_capacity !== undefined && { bench_capacity: fields.bench_capacity }),
+    ...(fields.round_index !== undefined && { round_index: fields.round_index })
   };
 
   return state;

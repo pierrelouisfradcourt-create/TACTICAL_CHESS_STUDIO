@@ -322,13 +322,22 @@ Events (P10). Champs STRUCTURELS uniquement — aucune valeur :
 - `ShopRolled` — { `seat_id` ; `shop_content` : liste ordonnée des UnitDefinition
   proposées ; `odds_table_version` (ECO-4) ; `cause` : début de Round ou Reroll }.
   Une Shop sous Lock n'émet pas de `ShopRolled` (aucun re-tirage — ECO-8, dérivé).
-- `UnitBought` — { `seat_id` ; `unit_definition` ; `shop_slot` ; `gold_cost` (débité) }.
+- `UnitBought` — { `seat_id` ; `unit_definition` ; `shop_slot` ; `gold_cost` (débité) ;
+  `unit_instance_id` ; `bench_index` }. Les deux derniers champs sont **ajoutés par le gate
+  2026-07-19 « renderer aveugle »** : sans eux, un Renderer aveugle (INV-5) ne peut ni
+  identifier ni positionner l'unité achetée. Ils annulent le choix MED-4 antérieur, qui
+  gardait `unit_instance_id` hors du contrat de cet Event.
   Le placement ultérieur (`Purchased → {Board | Bench}`, QD-5) n'est pas porté par cet
   Event.
-- `UnitSold` — { `seat_id` ; `unit_instance` ; `unit_definition` ; `star` ;
+- `UnitSold` — { `seat_id` ; `unit_instance` ; `unit_definition` ; `star` ; `from_zone` ;
+  `from_index` (les deux **ajoutés par le gate 2026-07-19 « renderer aveugle »** : d'où
+  l'unité est retirée à l'écran) ;
   `pool_returned` : nombre d'exemplaires physiques rendus au Pool (ECO-1) ;
   `gold_credited` }.
 - `PlayerLevelUp` — { `seat_id` ; `old_level` ; `new_level` ; `gold_cost` (débité) }.
+- `ShopLocked` — { `seat_id` ; `locked` : booléen }. **Ajouté par le gate 2026-07-19
+  « renderer aveugle »** : `Lock` changeait `shop_locked` sans rien émettre, rendant l'état
+  de verrou indessinable. Couvre le verrouillage ET le déverrouillage.
 
 Ces payloads portent des CHAMPS, jamais des valeurs : montants, coûts et tailles
 restent TBD (valeurs : Balance Bible — P10). La sémantique d'émission exacte (quels

@@ -72,7 +72,8 @@ Chaque invariant est falsifiable ; vérification mécanique en Oracle Hooks.
   (Combat Bible, DSL Hooks — « obligation de contrat »).
 - **DSL-4 — Events du registre uniquement.** Un document DSL ne peut RÉFÉRENCER (Triggers,
   mapping des primitives) que des noms d'Events du registre unique tenu par les Core Rules
-  (INV-12, P10 — liste close de 19 noms). Toute référence hors registre = rejet fail-hard.
+  (INV-12, P10 — liste close de 22 noms depuis le gate 2026-07-19 « renderer aveugle »).
+  Toute référence hors registre = rejet fail-hard.
 - **DSL-5 — Tout contenu DSL est versionné.** Tout document DSL porte un identifiant de
   version ; toute modification de contenu change la version (analogue d'ECO-4) ; tout
   Match et toute Campaign consignent la version du contenu employé.

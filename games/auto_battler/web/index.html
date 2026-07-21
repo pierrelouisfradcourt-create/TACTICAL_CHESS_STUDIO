@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Table de guerre — Préparation</title>
+<style>
+  :root {
+    --felt: #16302B;
+    --brass: #B98A3C;
+    --parchment: #E8DFC8;
+    --stone: #3E5C55;
+    --alarm: #C8442F;
+    --font-display: "Bahnschrift", "Oswald", "Arial Narrow", sans-serif;
+    --font-body: "Segoe UI", "Calibri", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--felt);
+    color: var(--parchment);
+    font-family: var(--font-body);
+    height: 100%;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .war-table {
+    display: grid;
+    grid-template-columns: 240px auto 240px;
+    grid-template-rows: auto auto;
+    gap: 18px;
+    max-width: 1140px;
+    width: 100%;
+  }
+  .plate {
+    background: var(--stone);
+    border: 1px solid rgba(184, 138, 60, 0.4);
+    border-radius: 2px;
+    padding: 16px 18px;
+    align-self: start;
+  }
+  .plate-title {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+    color: var(--brass);
+    margin: 0 0 10px 0;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(232, 223, 200, 0.08);
+    padding-bottom: 6px;
+  }
+  .stat-label {
+    font-size: 12px;
+    color: var(--parchment);
+    opacity: 0.75;
+  }
+  .stat-value {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    font-size: 24px;
+    color: var(--parchment);
+  }
+  #timer {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    font-size: 24px;
+    color: var(--brass);
+  }
+  /* E1/E4: l'enjeu doit se voir. Vie basse ou plateau saturé -> la valeur passe en alarme. */
+  .stat-value.is-alarm { color: var(--alarm); }
+  .board-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  canvas#board {
+    background-color: var(--felt);
+    border-radius: 4px;
+    max-width: 100%;
+    height: auto;
+  }
+  #phase-banner, #merge-banner {
+    font-family: var(--font-display);
+    letter-spacing: 0.04em;
+    font-size: 13px;
+    min-height: 16px;
+    text-align: center;
+  }
+  #phase-banner.is-visible { color: var(--alarm); }
+  #merge-banner { color: var(--brass); }
+  .shop-grid, .bench-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .shop-slot, .bench-slot {
+    font-family: var(--font-body);
+    background-color: var(--felt);
+    border: 1px solid var(--brass);
+    color: var(--parchment);
+    border-radius: 2px;
+    padding: 9px 11px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    text-align: left;
+    font-size: 13px;
+  }
+  .shop-slot:disabled, .bench-slot:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .shop-slot--empty, .bench-slot--empty {
+    border: 1px dashed rgba(184, 138, 60, 0.3);
+    min-height: 36px;
+  }
+  .unit-cost, .unit-star {
+    font-variant-numeric: tabular-nums;
+    color: var(--brass);
+    flex: none;
+    margin-left: 10px;
+  }
+  /* G2/G4 — tribu + mots-clés lisibles AVANT l'achat, sous le nom de l'unité. */
+  .unit-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .unit-tags {
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    color: var(--brass);
+    opacity: 0.9;
+  }
+  .is-selected {
+    outline: 2px solid var(--alarm);
+    outline-offset: 1px;
+  }
+  .controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  button {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 12px;
+    background-color: var(--brass);
+    color: var(--felt);
+    border: none;
+    border-radius: 2px;
+    padding: 11px 12px;
+    cursor: pointer;
+  }
+  button:disabled {
+    background-color: rgba(184, 138, 60, 0.3);
+    color: rgba(232, 223, 200, 0.5);
+    cursor: not-allowed;
+  }
+  #btn-lock.is-active {
+    background-color: var(--stone);
+    color: var(--parchment);
+    border: 1px solid var(--brass);
+  }
+  #feedback {
+    grid-column: 1 / -1;
+    min-height: 22px;
+    text-align: center;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--parchment);
+    opacity: 0.85;
+  }
+  #feedback.is-refusal { color: var(--alarm); opacity: 1; }
+  .shop-odds {
+    font-size: 11px;
+    color: var(--parchment);
+    opacity: 0.7;
+    margin: 0 0 10px 0;
+  }
+  .unit-card {
+    width: 100%;
+    max-width: 480px;
+    min-height: 20px;
+    background: var(--stone);
+    border: 1px solid rgba(184, 138, 60, 0.4);
+    border-radius: 2px;
+    padding: 0;
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--parchment);
+  }
+  .combat-panel {
+    width: 100%;
+    max-width: 480px;
+    background: var(--stone);
+    border: 1px solid var(--brass);
+    border-radius: 2px;
+    padding: 0;
+    text-align: center;
+  }
+  .combat-panel:empty { display: none; }
+  .combat-panel.has-content { padding: 12px 14px; }
+  .combat-panel .combat-verdict {
+    display: block;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    font-size: 16px;
+    color: var(--brass);
+    margin-bottom: 8px;
+  }
+  .combat-panel .combat-lines {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--parchment);
+  }
+  .combat-panel .combat-next {
+    margin-top: 8px;
+    font-size: 11px;
+    opacity: 0.7;
+    font-style: italic;
+  }
+  .unit-card:empty { display: none; }
+  .unit-card.has-content { padding: 10px 14px; }
+  .unit-card .unit-card-name {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 13px;
+    color: var(--brass);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .unit-card .unit-card-stats {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 4px;
+  }
+  .unit-card .unit-card-keywords {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 6px 0 6px 0;
+    padding-left: 8px;
+    border-left: 2px solid var(--brass);
+  }
+  .unit-card .unit-card-keyword {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  .unit-card .unit-card-keyword b {
+    color: var(--brass);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 11px;
+  }
+  .unit-card .unit-card-desc {
+    opacity: 0.8;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+  <div class="war-table">
+    <section class="plate" aria-label="Commandant">
+      <p class="plate-title">Commandant</p>
+      <div class="stat-row">
+        <span class="stat-label">Vie</span>
+        <span class="stat-value" id="life">30</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Or</span>
+        <span class="stat-value" id="gold">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Niveau</span>
+        <span class="stat-value" id="level">1</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Unités posées</span>
+        <span class="stat-value" id="board-capacity">0 / 1</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Tour</span>
+        <span class="stat-value" id="round">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Chrono</span>
+        <span id="timer">30</span>
+      </div>
+      <div class="controls">
+        <button type="button" id="btn-sell" disabled>Vendre l'unité sélectionnée</button>
+        <button type="button" id="btn-ready">Prêt</button>
+      </div>
+    </section>
+
+    <section class="board-column" aria-label="Plateau">
+      <div id="phase-banner"></div>
+      <canvas id="board" width="576" height="576"></canvas>
+      <div id="merge-banner"></div>
+      <div id="combat-panel" class="combat-panel"></div>
+      <div id="unit-card" class="unit-card"></div>
+    </section>
+
+    <section class="plate" aria-label="Boutique et banc">
+      <p class="plate-title">Boutique</p>
+      <p id="shop-odds" class="shop-odds"></p>
+      <div class="shop-grid" id="shop"></div>
+      <div class="controls">
+        <button type="button" id="btn-reroll">Rafraîchir</button>
+        <button type="button" id="btn-levelup">Monter de niveau</button>
+        <button type="button" id="btn-lock">Verrouiller</button>
+      </div>
+      <p class="plate-title" style="margin-top:16px;">Banc</p>
+      <div class="bench-grid" id="bench"></div>
+    </section>
+
+    <div id="feedback"></div>
+  </div>
+
+  <script type="module" src="/app/app.mjs"></script>
+</body>
+</html>

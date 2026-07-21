@@ -166,7 +166,7 @@ HumanGate) ou présentes dans la V1 apparaissent ; tout le reste est TBD chez so
 | Part du Placement dans la victoire | ~30 % (objectif V1) | % | Meta Bible |
 | Life initiale du Seat | TBD | points | Core Rules (valeur proposée par Economy Bible) |
 | Dégâts au Seat après Combat perdu | TBD — dépendent des survivants + niveau du Round (V1) | points | Core Rules (formule TBD) |
-| Capacité du Bench (places) | TBD | Units | Economy/Balance Bible (concept : Core Rules, QD-5) |
+| Capacité du Bench (places) | **9** (v0 sourcée TFT, ratifiée gate 2026-07-19 « renderer aveugle » ; moteur encore à 8, à aligner) | Units | Economy/Balance Bible (concept : Core Rules, QD-5) |
 | Income, intérêts, coûts, probabilités Shop, taille du Pool | TBD | — | Economy Bible |
 | Valeurs des Thresholds de Synergy (ex. V1 : 2/4/6/8) | TBD | Units | Content Bible (valeurs) — mécanisme : Core Rules (INV-11) |
 | tick_limit (Ticks max d'un Combat) | TBD | Ticks | Combat Bible (principe « tout Combat termine » : Core Rules, INV-18) |
@@ -234,7 +234,8 @@ Principe : vocabulaire **FERMÉ** (P2, INV-12) et **registre UNIQUE tenu ICI** (
 HumanGate 2026-07-18, gate #3) : les Core Rules tiennent la liste close des NOMS d'Events ;
 chaque bible propriétaire définit les payloads de SES Events — jamais l'inverse.
 
-Liste close ratifiée — **19 Events** (graine architecture + gates Foundation + gate #3) :
+Liste close ratifiée — **22 Events** (graine architecture + gates Foundation + gate #3
++ gate 2026-07-19 « renderer aveugle », qui a porté le registre de 19 à 22) :
 
 | Event | Bible propriétaire du payload | Ratification |
 |---|---|---|
@@ -257,11 +258,26 @@ Liste close ratifiée — **19 Events** (graine architecture + gates Foundation 
 | **UnitBought** | Economy | QE-6, gate #3 |
 | **UnitSold** | Economy | QE-6, gate #3 |
 | **PlayerLevelUp** | Economy | QE-6, gate #3 |
+| **UnitPlaced** | Core Rules / Decision | gate 2026-07-19 « renderer aveugle » |
+| **ShopLocked** | Economy | gate 2026-07-19 « renderer aveugle » |
+| **PhaseChanged** | Core Rules | gate 2026-07-19 « renderer aveugle » |
 
+- **UnitPlaced / ShopLocked / PhaseChanged** *(ratifiés HumanGate 2026-07-19, verbatim
+  `HUMANGATE_2026-07-19_RENDERER.md`)* : ajoutés parce que `Place`, `Lock` et
+  `ConfirmPreparation` changeaient l'état **sans rien émettre**, rendant l'écran de
+  préparation indessinable par un Renderer aveugle (INV-5). `UnitPlaced` porte le
+  déplacement d'une UnitInstance entre zones (`{seat_id, unit_instance_id, from_zone,
+  from_index, to_zone, to_index}`) et couvre aussi le repositionnement sur le Board ;
+  `ShopLocked` porte `{seat_id, locked}` (verrouillage ET déverrouillage) ; `PhaseChanged`
+  porte `{from_phase, to_phase}`.
 - **MergeTriggered / MergeResolved** *(ratifiés HumanGate 2026-07-18, QC-3)* : émis par le
   système de merge automatique pendant la Preparation State — `MergeTriggered` quand 3 Units
   identiques sont réunies, `MergeResolved` quand la Unit de Star supérieur est produite
-  (INV-16). Requis pour le replay et le Renderer. Payloads : TBD.
+  (INV-16). Requis pour le replay et le Renderer. Payloads : `MergeTriggered`
+  { `seat_id`, `unit_def_id`, `star`, `consumed_count` } ; `MergeResolved`
+  { `seat_id`, `unit_def_id`, `new_star`, `produced_unit_id`, `to_zone`, `to_index` } —
+  `to_zone`/`to_index` **ajoutés par le gate 2026-07-19 « renderer aveugle »** (où atterrit
+  l'unité produite ; sans eux le Renderer ne peut pas la placer).
 - Les **payloads détaillés** de chaque Event sont définis par sa bible propriétaire (colonne
   ci-dessus — P10) : Events de combat → Combat Bible, Events économiques → Economy Bible,
   PairingResolved → Decision Bible. Aucune bible ne définit le payload d'un Event qu'elle

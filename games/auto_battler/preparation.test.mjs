@@ -5,17 +5,15 @@ import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 
 import * as state from './engine/state.mjs';
-import * as transition from './engine/transition.mjs';
 import * as serialize from './engine/serialize.mjs';
 import * as types from './engine/types.mjs';
 import { nextRng } from './engine/rng.mjs';
 import * as prep from './preparation/preparation.mjs';
-import { createExtendedGameState } from './preparation/preparation.mjs';
+import { createGameState } from './engine/state.mjs';
 import * as poolMod from './pool/pool.mjs';
 import * as shopMod from './shop/shop.mjs';
 import * as benchMod from './bench/bench.mjs';
 import * as mergeMod from './merge/merge.mjs';
-import * as goldMod from './economy/gold.mjs';
 
 // --- Helper: total physical exemplars across Pool + Shops (reserved) +
 // Possessions (Bench/Board, weighted by star tier, ECO-1). Used to verify
@@ -48,14 +46,16 @@ test('R1: Pool+Shops+Possessions conservation across Draw/Buy/Reroll/Sell sequen
     const player = s.players['player_0'];
     const updatedPlayers = { ...s.players };
     updatedPlayers['player_0'] = { ...player, gold: 30 };
-    s = createExtendedGameState({
+    s = createGameState({
       seed: s.seed,
       rng_state: s.rng_state,
       eventLog: s.eventLog,
       players: updatedPlayers,
       entities: s.entities,
-      phase: s.phase
-    }, s.pool, s.bench_capacity);
+      phase: s.phase,
+      pool: s.pool,
+      bench_capacity: s.bench_capacity
+    });
 
     const totalBefore = totalExemplars(s);
 
@@ -63,14 +63,16 @@ test('R1: Pool+Shops+Possessions conservation across Draw/Buy/Reroll/Sell sequen
     const draw = shopMod.drawShop(s.rng_state, s.pool, 1, 5);
     let playersAfterDraw = { ...s.players };
     playersAfterDraw['player_0'] = { ...s.players['player_0'], shop: draw.shop };
-    s = createExtendedGameState({
+    s = createGameState({
       seed: s.seed,
       rng_state: draw.rng_state,
       eventLog: s.eventLog,
       players: playersAfterDraw,
       entities: s.entities,
-      phase: s.phase
-    }, draw.pool, s.bench_capacity);
+      phase: s.phase,
+      pool: draw.pool,
+      bench_capacity: s.bench_capacity
+    });
 
     assert.equal(totalExemplars(s), totalBefore, `Seed ${testSeed}: conservation holds after Shop draw (reservation)`);
 
@@ -111,14 +113,16 @@ test('R2: Shop draw debits Pool by reservation; Buy does not re-debit; Place lea
 
   // Give player gold
   const player = ps.players['player_0'];
-  ps = createExtendedGameState({
+  ps = createGameState({
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
     players: { player_0: { ...player, gold: 50 } },
     entities: ps.entities,
-    phase: ps.phase
-  }, ps.pool, ps.bench_capacity);
+    phase: ps.phase,
+    pool: ps.pool,
+    bench_capacity: ps.bench_capacity
+  });
 
   const poolBeforeDraw = poolMod.getTotalPoolCount(ps.pool);
 
@@ -126,14 +130,16 @@ test('R2: Shop draw debits Pool by reservation; Buy does not re-debit; Place lea
   const draw = shopMod.drawShop(ps.rng_state, ps.pool, 1, 5);
   let playersAfterDraw = { ...ps.players };
   playersAfterDraw['player_0'] = { ...ps.players['player_0'], shop: draw.shop };
-  ps = createExtendedGameState({
+  ps = createGameState({
     seed: ps.seed,
     rng_state: draw.rng_state,
     eventLog: ps.eventLog,
     players: playersAfterDraw,
     entities: ps.entities,
-    phase: ps.phase
-  }, draw.pool, ps.bench_capacity);
+    phase: ps.phase,
+    pool: draw.pool,
+    bench_capacity: ps.bench_capacity
+  });
 
   const poolAfterDraw = poolMod.getTotalPoolCount(ps.pool);
   assert.equal(poolAfterDraw, poolBeforeDraw - draw.shop.length, 'Shop draw reserves exemplars from Pool (ECO-1)');
@@ -175,14 +181,16 @@ test('R3: Sell ★1 returns 1 exemplar, Sell ★2 returns 3', () => {
   // Populate the Shop directly (MED-3: Buy now requires a matching Shop
   // slot). No reservation bookkeeping needed here — R1/R2 already cover the
   // draw-time Pool reservation; this test is about Sell's restorePool math.
-  ps = createExtendedGameState({
+  ps = createGameState({
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
     players: { player_0: { ...player, gold: 50, shop: ['unit_1'] } },
     entities: ps.entities,
-    phase: ps.phase
-  }, ps.pool, ps.bench_capacity);
+    phase: ps.phase,
+    pool: ps.pool,
+    bench_capacity: ps.bench_capacity
+  });
 
   const poolBefore = poolMod.getTotalPoolCount(ps.pool);
 
@@ -217,14 +225,16 @@ test('R3: Sell ★1 returns 1 exemplar, Sell ★2 returns 3', () => {
     star: 2,
     creation_tick: 0
   };
-  ps = createExtendedGameState({
+  ps = createGameState({
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
     players: { player_0: { ...ps.players['player_0'], bench: [star2Unit], gold: 50 } },
     entities: ps.entities,
-    phase: ps.phase
-  }, ps.pool, ps.bench_capacity);
+    phase: ps.phase,
+    pool: ps.pool,
+    bench_capacity: ps.bench_capacity
+  });
 
   const poolBeforeSellStar2 = poolMod.getTotalPoolCount(ps.pool);
 
@@ -291,14 +301,16 @@ test('R5: Buy rejected when Bench full (DP-9); zero side effects', () => {
   }
 
   const player = ps.players['player_0'];
-  ps = createExtendedGameState({
+  ps = createGameState({
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
     players: { player_0: { ...player, bench: fullBench, gold: 50 } },
     entities: ps.entities,
-    phase: ps.phase
-  }, ps.pool, ps.bench_capacity);
+    phase: ps.phase,
+    pool: ps.pool,
+    bench_capacity: ps.bench_capacity
+  });
 
   const goldBefore = ps.players['player_0'].gold;
   const poolBefore = { ...ps.pool };
@@ -360,19 +372,12 @@ test('R7: Lock preserves Shop exactly; no RNG consumed', () => {
   assert.ok(ps.players['player_0'].shop_locked, 'Shop marked as locked');
 });
 
-// --- R8: Gold transaction sum invariant ---
-test('R8: Gold delta = sum of transaction amounts', () => {
-  const transactions = [
-    { amount: 10, source: 'Income' },
-    { amount: -3, source: 'Buy' },
-    { amount: -1, source: 'Reroll' },
-    { amount: 2, source: 'Sell' }
-  ];
-
-  const delta = goldMod.computeGoldDelta(transactions);
-  assert.equal(delta, 10 - 3 - 1 + 2, 'Gold delta computed correctly');
-  assert.equal(delta, 8, 'Sum matches expected result');
-});
+// --- R8 removed (s9-build commande F, F2): tested economy/gold.mjs::computeGoldDelta, a module
+// DELETED as dead code — imported by preparation.mjs and round.mjs but never called
+// (`grep "goldModule\."` = 0 hits across the repo). Gold arithmetic on the REAL path is covered
+// by every Buy/Sell/Reroll/LevelUp test in this file and in properties.i2.test.mjs, which all
+// assert the exact resulting `.gold` on real GameState after a real applyPreparationInput call —
+// not gold.mjs's standalone, never-invoked helper.
 
 // --- R9: Input list close verification ---
 test('R9: Input list closed; only known kinds accepted', () => {
@@ -406,14 +411,16 @@ test('MED-3: Buy is rejected when shop_index is out of bounds or does not match 
   const s0 = state.initState(600);
   let ps = prep.initPrepState(s0, ['player_0']);
   const player = ps.players['player_0'];
-  ps = createExtendedGameState({
+  ps = createGameState({
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
     players: { player_0: { ...player, gold: 50, shop: ['unit_1', 'unit_3'] } },
     entities: ps.entities,
-    phase: ps.phase
-  }, ps.pool, ps.bench_capacity);
+    phase: ps.phase,
+    pool: ps.pool,
+    bench_capacity: ps.bench_capacity
+  });
 
   const benchBefore = ps.players['player_0'].bench.length;
   const goldBefore = ps.players['player_0'].gold;
@@ -476,8 +483,8 @@ test('MED-3: Buy is rejected when shop_index is out of bounds or does not match 
   assert.deepEqual(accepted.players['player_0'].shop, ['unit_1'], 'valid Buy: bought slot removed from Shop, other slot preserved');
 });
 
-// --- MED-5: ConfirmPreparation must not emit a fake Spawn event ---
-test('MED-5: ConfirmPreparation advances phase without emitting any Event (Spawn is not a phase transition)', () => {
+// --- RO-2/R1b: ConfirmPreparation must emit PhaseChanged event (gate 2026-07-19) ---
+test('MED-5: ConfirmPreparation advances phase and emits PhaseChanged Event (R1b, gate 2026-07-19)', () => {
   const s0 = state.initState(601);
   let ps = prep.initPrepState(s0, ['player_0']);
 
@@ -485,8 +492,11 @@ test('MED-5: ConfirmPreparation advances phase without emitting any Event (Spawn
   ps = prep.applyPreparationInput(ps, { kind: 'ConfirmPreparation', seatId: 'player_0' });
 
   assert.equal(ps.phase, 'Battle', 'phase advances to Battle');
-  assert.equal(ps.eventLog.length, eventLogBefore, 'no Event emitted for the phase transition itself');
-  assert.ok(!ps.eventLog.some(e => e.kind === 'Spawn'), 'no fake Spawn event on the log');
+  assert.equal(ps.eventLog.length, eventLogBefore + 1, 'PhaseChanged Event is emitted (R1b)');
+  const phaseChangedEvent = ps.eventLog[ps.eventLog.length - 1];
+  assert.equal(phaseChangedEvent.kind, 'PhaseChanged', 'PhaseChanged event emitted');
+  assert.equal(phaseChangedEvent.from_phase, 'Preparation', 'from_phase is Preparation (RO-2)');
+  assert.equal(phaseChangedEvent.to_phase, 'Battle', 'to_phase is Battle (RO-2)');
 });
 
 // --- R10: Event schema validation ---
@@ -495,14 +505,16 @@ test('R10: Emitted events have correct kind and payload structure (05_ECONOMY_BI
   let ps = prep.initPrepState(s0, ['player_0']);
 
   const player = ps.players['player_0'];
-  ps = createExtendedGameState({
+  ps = createGameState({
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
     players: { player_0: { ...player, gold: 50 } },
     entities: ps.entities,
-    phase: ps.phase
-  }, ps.pool, ps.bench_capacity);
+    phase: ps.phase,
+    pool: ps.pool,
+    bench_capacity: ps.bench_capacity
+  });
 
   // Reroll first to populate a real Shop and check ShopRolled's payload.
   const eventLogBeforeReroll = ps.eventLog.length;
@@ -546,15 +558,16 @@ test('R10: Emitted events have correct kind and payload structure (05_ECONOMY_BI
   assert.equal(typeof goldChangedEvent.new_gold, 'number', 'new_gold is number');
   assert.equal(typeof goldChangedEvent.source, 'string', 'source is string');
 
-  // Verify UnitBought payload matches the bible exactly (MED-4):
-  // {seat_id, unit_definition, shop_slot, gold_cost} — no unit_instance_id.
+  // Verify UnitBought payload matches the bible exactly (R1b, gate 2026-07-19):
+  // {seat_id, unit_definition, shop_slot, gold_cost, unit_instance_id, bench_index}
   const unitBoughtEvent = newEvents.find(e => e.kind === 'UnitBought');
   assert.ok(unitBoughtEvent, 'UnitBought found');
   assert.equal(typeof unitBoughtEvent.seat_id, 'string', 'seat_id is string');
   assert.equal(unitBoughtEvent.unit_definition, boughtId, 'unit_definition matches the bought unitDefId');
-  assert.equal(unitBoughtEvent.shop_slot, 0, 'shop_slot present and matches the consumed slot (MED-4)');
+  assert.equal(unitBoughtEvent.shop_slot, 0, 'shop_slot present and matches the consumed slot');
   assert.equal(typeof unitBoughtEvent.gold_cost, 'number', 'gold_cost is number');
-  assert.equal(unitBoughtEvent.unit_instance_id, undefined, 'unit_instance_id is NOT contractual on UnitBought (MED-4)');
+  assert.equal(typeof unitBoughtEvent.unit_instance_id, 'string', 'unit_instance_id present (R1b, gate 2026-07-19)');
+  assert.equal(typeof unitBoughtEvent.bench_index, 'number', 'bench_index present (R1b, gate 2026-07-19)');
 
   // Sell it to verify UnitSold's payload (MED-4: unit_definition was missing).
   const eventLogBeforeSell = ps.eventLog.length;
@@ -569,10 +582,12 @@ test('R10: Emitted events have correct kind and payload structure (05_ECONOMY_BI
   assert.ok(unitSoldEvent, 'UnitSold found');
   assert.equal(typeof unitSoldEvent.seat_id, 'string', 'seat_id is string');
   assert.equal(typeof unitSoldEvent.unit_instance, 'string', 'unit_instance is string');
-  assert.equal(unitSoldEvent.unit_definition, boughtId, 'unit_definition present on UnitSold (MED-4)');
+  assert.equal(unitSoldEvent.unit_definition, boughtId, 'unit_definition present on UnitSold');
   assert.equal(typeof unitSoldEvent.star, 'number', 'star is number');
   assert.equal(typeof unitSoldEvent.pool_returned, 'number', 'pool_returned is number');
   assert.equal(typeof unitSoldEvent.gold_credited, 'number', 'gold_credited is number');
+  assert.equal(unitSoldEvent.from_zone, 'bench', 'from_zone present (R1b, gate 2026-07-19)');
+  assert.equal(typeof unitSoldEvent.from_index, 'number', 'from_index present (R1b, gate 2026-07-19)');
 });
 
 // --- Immutability test ---
@@ -584,14 +599,16 @@ test('Preparation state is immutable; transitions do not mutate input', () => {
   ps = state.freezeState(ps);
 
   const player = ps.players['player_0'];
-  const frozenPS = createExtendedGameState({
+  const frozenPS = createGameState({
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
     players: { player_0: { ...player, gold: 50, shop: ['unit_1'] } },
     entities: ps.entities,
-    phase: ps.phase
-  }, ps.pool, ps.bench_capacity);
+    phase: ps.phase,
+    pool: ps.pool,
+    bench_capacity: ps.bench_capacity
+  });
 
   const frozenFinal = state.freezeState(frozenPS);
   const serializedBefore = serialize.serialize(frozenFinal);

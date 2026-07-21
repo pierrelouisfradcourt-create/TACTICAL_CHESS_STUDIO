@@ -1,7 +1,8 @@
 // registry.mjs - Frozen event and input kind registries
 import { isEvent, isInput } from './types.mjs';
 
-// 19 event kinds (frozen)
+// 22 event kinds (frozen) — HumanGate 2026-07-19 renderer aveugle (R1b)
+// Added: UnitPlaced, ShopLocked, PhaseChanged (ratifié, bibles 02_CORE_RULES.md)
 const _EVENT_KINDS = [
   'Spawn',
   'Move',
@@ -21,7 +22,10 @@ const _EVENT_KINDS = [
   'ShopRolled',
   'UnitBought',
   'UnitSold',
-  'PlayerLevelUp'
+  'PlayerLevelUp',
+  'UnitPlaced',
+  'ShopLocked',
+  'PhaseChanged'
 ];
 
 // 7 input kinds (frozen)

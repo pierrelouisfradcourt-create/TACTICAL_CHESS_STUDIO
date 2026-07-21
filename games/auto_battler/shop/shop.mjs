@@ -3,6 +3,8 @@
 
 import { nextRng } from '../engine/rng.mjs';
 import { reservePool } from '../pool/pool.mjs';
+import { SHOP_ODDS_TABLE } from '../params.v0.mjs';
+import { getUnitRank } from '../content/units.v0.mjs';
 
 /**
  * Shop state: array of unit definitions available for purchase in this shop window.
@@ -14,8 +16,15 @@ import { reservePool } from '../pool/pool.mjs';
  * Deterministic draw: same (rng_state, level) => same shop.
  * Uses nextRng to consume rng_state deterministically.
  *
- * TEST VERSION: uniformly draws from available unit definitions (not tied to level yet).
- * Actual odds table (DP-5, ECO-4) is TBD by Economy/Balance Bible.
+ * C2 (s9-build playtest fix): the draw is now WEIGHTED by SHOP_ODDS_TABLE[level][rank-1]
+ * (rank looked up via content/units.v0.mjs::getUnitRank — the single source shared with the
+ * display layer, ECO-2/INV-8). At each slot, weights are summed over the units still
+ * available in this draw and one nextRng draw picks among them proportionally to weight
+ * (deterministic: value % totalWeight, walked against cumulative weights in array order).
+ * If every available unit has weight 0 at this level (all remaining ranks excluded by the
+ * table), the slot falls back to a uniform pick among available units rather than stalling —
+ * this keeps the draw total deterministic and never silently drops a slot for a reason a
+ * player can't see.
  *
  * ECO-1: each drawn slot is RESERVED from the pool at draw time (reservePool)
  * — the draw never yields more exemplars of a given unitDefId than the pool
@@ -26,7 +35,7 @@ import { reservePool } from '../pool/pool.mjs';
  *
  * @param {number} rng_state - current RNG state
  * @param {Object} pool - pool state (available exemplars, pre-reservation)
- * @param {number} level - player level (currently unused in test distribution; future: affects odds)
+ * @param {number} level - player level (indexes SHOP_ODDS_TABLE, clamped to its length)
  * @param {number} shopSize - number of units to draw (typically 5 for TFT-like games; fixture TBD)
  * @returns {Object} {rng_state: new_state, shop: [unitDefId, ...], pool: newPool}
  *   newPool is the pool AFTER reserving every drawn exemplar (ECO-1).
@@ -45,6 +54,9 @@ export function drawShop(rng_state, pool, level, shopSize = 5) {
   // Working copy of pool availability, decremented as slots reserve exemplars.
   let remaining = { ...pool };
 
+  const levelIndex = Math.min(level, SHOP_ODDS_TABLE.length) - 1;
+  const weightsForLevel = SHOP_ODDS_TABLE[levelIndex];
+
   const shop = [];
   let state = rng_state;
 
@@ -58,12 +70,34 @@ export function drawShop(rng_state, pool, level, shopSize = 5) {
       break;
     }
 
+    // Weight each available unit by its rank's odds at this level.
+    const weighted = availableUnits.map(unitDefId => {
+      const rank = getUnitRank(unitDefId);
+      const w = rank >= 1 && rank <= weightsForLevel.length ? weightsForLevel[rank - 1] : 0;
+      return { unitDefId, w };
+    });
+    const totalWeight = weighted.reduce((sum, e) => sum + e.w, 0);
+
     const { rng_state: nextState, value } = nextRng(state);
     state = nextState;
 
-    // Select a unit uniformly: value % availableUnits.length
-    const index = value % availableUnits.length;
-    const chosen = availableUnits[index];
+    let chosen;
+    if (totalWeight > 0) {
+      let roll = value % totalWeight;
+      chosen = weighted[weighted.length - 1].unitDefId; // fallback for rounding safety
+      for (const entry of weighted) {
+        if (roll < entry.w) {
+          chosen = entry.unitDefId;
+          break;
+        }
+        roll -= entry.w;
+      }
+    } else {
+      // No available unit has nonzero weight at this level: fall back to uniform
+      // among available units so the slot still fills deterministically.
+      const index = value % availableUnits.length;
+      chosen = availableUnits[index];
+    }
 
     // Reserve the exemplar: moves it from "available" to "reserved" (the
     // Shop array itself is the record of the reserved account).

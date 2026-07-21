@@ -2,8 +2,21 @@
 
 **Date** : 2026-07-18
 **Source** : session Pierre × Claude (Fable 5) — dérivée de `00_ARCHITECTURE.md` (RATIFIÉ — P1, P2, P6, P7, P8, **P10**), de `02_CORE_RULES.md` (INV-3, INV-12, INV-13, INV-17, INV-18, INV-19), de `03_DECISION_BIBLE.md` (DEC-1..5 ; DP-1, DP-6.1..6.5, DP-7 — délégations explicites à cette bible), de `HUMANGATE_2026-07-18_FOUNDATION.md` (verbatim — QC-6), `HUMANGATE_2026-07-18_DECISIONS.md` (verbatim — QD-1, QD-3), **`HUMANGATE_2026-07-18_GATE3.md` (verbatim — ratification des QB-1..5, QB-7..16 et de P10)**, et de `SOURCE_GAME_BIBLE_V1_PIERRE.md` (notes brutes, jamais réécrites — déroulé de combat, Mana, Placement)
-**Statut** : **DRAFT — décisions gate #3 + QB-6 (gate 2026-07-19) intégrées ; ratification finale du document pending**
+**Statut** : **v0 OPPOSABLE — première version produite par l'orchestrateur (2026-07-19), provisoire, jugée par Pierre en jouant. Les décisions ratifiées en HumanGate restent seules sources ; tout le reste est révisable.**
 **Gabarit** : `00_TEMPLATE.md` (11 sections, ordre figé) · **Termes** : `00_VOCABULARY.md`
+**Companion** : `COMBAT_EVENT_FIELDS.md` (champs d'Events requis par un Renderer aveugle — registre CLOS à 22 noms)
+
+Convention v0 (2026-07-19) : ce document est désormais **opposable** — les invariants CBT-1..9,
+le TickPipeline et les payloads ci-dessous sont un contrat moteur. Trois niveaux d'autorité
+coexistent, jamais confondus :
+- **ratifié** — décision HumanGate (gate #3 QB-1..16, QB-6 2026-07-19, QD-1, `VALUES_V0`,
+  `RENDERER`). Seule source non révisable ici. Un agent ne la rouvre jamais.
+- **v0 sourcé** — résolu par l'orchestrateur à partir d'une source citée (un autre document
+  du corpus, un verbatim de gate, ou le code réel). La source est nommée à chaque fois.
+- **v0 par cohérence** — résolu par déduction depuis des éléments ratifiés, raisonnement
+  écrit inline. Révisable au premier playtest sans gate.
+Tout ce qui n'entre dans aucun des trois reste écrit **NON DOCUMENTÉ** — jamais comblé par
+une valeur plausible.
 
 Convention du document : les 16 forks QB-1..16 des versions antérieures sont TRANCHÉS par le
 HumanGate #3 — chaque décision est intégrée inline avec la mention « ratifié gate #3, QB-n »,
@@ -149,13 +162,58 @@ document) : `TickPipeline`, `CombatSetup`, `ResolutionQueue`, `CombatResult`, `C
   plein : Cast automatique (Vocabulary). Retombée du Mana après un Cast : règle due ici,
   proposition « retombe à zéro » maintenue — décision via gate futur, propriétaire :
   Combat Bible (hors périmètre du gate #3, qui ratifiait les sources uniquement).
-- **Cadence d'Attack** *(proposé)* — l'Attack est « récurrente » (Vocabulary) ; la forme
-  proposée est une cadence exprimée en Ticks entre deux Attacks, déclarée par
-  UnitDefinition (valeurs → Content/DSL). Aucune valeur ici.
+- **Cadence d'Attack** — **v0 par cohérence**. L'Attack est « récurrente » (Vocabulary).
+  FORME fixée ici : un entier `attack_cadence` en **Ticks entre deux Attacks**, déclaré par
+  UnitDefinition (`07_DSL_BIBLE.md`, bloc `stats`) ; la VALEUR appartient au Content/DSL, le
+  calibrage à Balance (P10). Trois règles dues ici, déduites du pipeline :
+  1. `attack_cadence ≥ 1` — T5 est UNE phase par Tick, donc une UnitInstance ne peut pas
+     attaquer deux fois dans le même Tick, quelle que soit la valeur déclarée ;
+  2. le compteur de cadence est un état de l'UnitInstance, avancé **à chaque Tick**, jamais
+     remis à zéro par un déplacement (T3) ni par un changement de cible (T4) — sinon un
+     Targeting oscillant deviendrait un levier caché, contraire à DEC-2/CBT-3 ;
+  3. il est remis à zéro au Commit du Tick où l'Attack est émise (T5).
+  Cas non couvert : une Unit dont l'UnitDefinition ne déclare aucune cadence n'attaque
+  jamais — elle reste une cible et une porteuse d'Effects. Rendre `attack_cadence`
+  obligatoire ou non appartient au validateur DSL (QL-6, `07_DSL_BIBLE.md`) — **NON DOCUMENTÉ**.
+- **Vitesse de déplacement** — **v0 par cohérence**. FORME fixée ici : un entier
+  `move_speed` en **Cells par Tick** déclaré par UnitDefinition ; la VALEUR appartient au
+  Content/DSL, le calibrage à Balance. Règles dues ici :
+  1. la Cell de destination choisie en T3 est à distance **Manhattan ≤ `move_speed`** de la
+     Cell de départ (métrique unique QB-2), et libre au Commit (une Unit au plus par Cell,
+     QB-1) ;
+  2. **le CHEMIN entre `from_cell` et `to_cell` n'est PAS un fait de simulation** : aucune
+     règle du corpus ne le lit (aucune traversée, zone de contrôle ni attaque d'opportunité
+     n'est documentée). C'est une indication de rendu, exactement au même titre que le vol
+     d'un projectile (voir Événements). Conséquence : la géométrie exacte du trajet ne peut
+     être invoquée par aucun Effect. Le jour où une règle lirait le chemin, il deviendrait
+     un fait de simulation → gate HumanGate ;
+  3. `move_speed = 0` est licite et signifie « ne se déplace jamais » — l'Unit reste
+     acteur de T4/T5/T9. Aucun Event `Move` n'est émis pour un déplacement nul.
+- **Mana initial et seuil** — **v0 par cohérence**, complète QB-11 (qui ne ratifiait que les
+  SOURCES). FORME fixée ici : deux entiers déclarés par UnitDefinition, `mana_initial` et
+  `mana_threshold` ; valeurs → Content/DSL, calibrage → Balance. Règles dues ici :
+  1. `0 ≤ mana_initial ≤ mana_threshold`, vérifié fail-hard par le validateur DSL (P8) ;
+  2. le Mana est **borné au seuil** : tout crédit est appliqué comme `min(mana + gain,
+     mana_threshold)`, aucun report d'excédent — cohérent avec la retombée à zéro ratifiée
+     (`VALUES_V0`), qui ne conserve rien d'un Cast au suivant ;
+  3. une UnitDefinition **sans Ability** n'a pas de `mana_threshold` : elle accumule le Mana
+     sans jamais atteindre de seuil et ne Caste jamais. Elle n'est pas un cas spécial du
+     pipeline — T9 ne la sélectionne simplement pas ;
+  4. si `mana_initial == mana_threshold`, le Cast a lieu en T9 du Tick 1 : conséquence
+     déterministe assumée, aucune exception d'amorçage.
+- **Phase du Match pendant un Combat** — **v0 sourcé** (`preparation/preparation.mjs:663-669`,
+  ratifié `HUMANGATE_2026-07-19_RENDERER.md`). Les noms de phase canoniques sont
+  `'Preparation'` et `'Battle'` ; un Combat se déroule pendant `'Battle'`. La transition
+  `'Preparation' → 'Battle'` est portée par l'Event `PhaseChanged` (payload
+  `{from_phase, to_phase}`), **propriétaire Core Rules — jamais émis par le Combat**
+  (CBT-5 : le Combat n'émet que les 11 Events de sa liste). Le nom de la phase qui SUIT un
+  Combat n'est fixé par aucun document ni par le code (`transition.mjs:46` entre en
+  `'Battle'` et n'en sort jamais) — **NON DOCUMENTÉ**, propriétaire Core Rules.
 
 # Paramètres
 
-AUCUN chiffre nouveau n'est fixé ici. Toute valeur est TBD chez son propriétaire.
+AUCUN chiffre nouveau n'est fixé ici. La v0 fixe des **FORMES** (type, unité, contrainte,
+moment d'application) ; toute VALEUR reste chez son propriétaire.
 Rappel P10 (ratifié gate #3) : cette bible ne définit JAMAIS un coefficient, une formule
 ou une constante d'équilibrage — toute valeur de calibrage → Balance Bible.
 
@@ -166,11 +224,13 @@ ou une constante d'équilibrage — toute valeur de calibrage → Balance Bible.
 | Géométrie | **ratifié** : orthogonale, coordonnées entières, aucune diagonale implicite (gate #3, QB-1) | — | Combat Bible (géométrie) |
 | Occupation d'une Cell | 1 Unit au plus (modèle orthogonal ratifié — gate #3, QB-1) | Unit/Cell | Combat Bible |
 | Métrique de distance (Range, déplacement, clé 3) | **ratifié** : Manhattan unique (gate #3, QB-2) | Cells | Combat Bible (délégation Decision Bible, clé 3) |
-| Vitesse de déplacement | TBD | Cells/Tick | Content Bible (valeur par UnitDefinition, via DSL) · Combat Bible (forme) · Balance (calibrage, P10) |
-| Cadence d'Attack | TBD | Ticks/Attack | Content Bible (valeurs, via DSL) · Combat Bible (forme) · Balance (calibrage, P10) |
-| Mana initial en début de Combat | TBD | Mana | Combat Bible (règle) · Content/DSL (valeurs par UnitDefinition) · Balance (calibrage, P10) |
-| Gains de Mana (par Attack / par Damage reçu / par Effect DSL) | sources **ratifiées** (gate #3, QB-11) ; montants TBD | Mana | Combat Bible (moments de crédit) · Content/DSL (montants, données) · Balance (calibrage, P10) |
-| Seuil de Mana plein (déclenche le Cast) | TBD | Mana | Content Bible (par UnitDefinition, via DSL) |
+| Vitesse de déplacement | **FORME v0 par cohérence** : entier `move_speed` ≥ 0, destination à distance Manhattan ≤ `move_speed`, chemin NON simulé (Concepts) ; **valeur : chez son propriétaire** | Cells/Tick | Content Bible (valeur par UnitDefinition, via DSL) · Combat Bible (forme) · Balance (calibrage, P10) |
+| Cadence d'Attack | **FORME v0 par cohérence** : entier `attack_cadence` ≥ 1, compteur avancé chaque Tick, remis à zéro à l'émission de l'Attack (Concepts) ; **valeur : chez son propriétaire** | Ticks/Attack | Content Bible (valeurs, via DSL) · Combat Bible (forme) · Balance (calibrage, P10) |
+| Mana initial en début de Combat | **RÈGLE v0 par cohérence** : `mana_initial` déclaré par UnitDefinition, appliqué en C3, contrainte `0 ≤ mana_initial ≤ mana_threshold` fail-hard (Concepts) ; **valeur : chez son propriétaire** | Mana | Combat Bible (règle) · Content/DSL (valeurs par UnitDefinition) · Balance (calibrage, P10) |
+| Gains de Mana (par Attack / par Damage reçu / par Effect DSL) | sources **ratifiées** (gate #3, QB-11) ; **moments de crédit v0 par cohérence** : attaquant ET cible au MÊME Commit T6, Effect DSL au Commit de sa propre phase ; crédit borné `min(mana+gain, seuil)` ; **montants : chez leur propriétaire** | Mana | Combat Bible (moments de crédit) · Content/DSL (montants, données) · Balance (calibrage, P10) |
+| Seuil de Mana plein (déclenche le Cast) | **FORME v0 par cohérence** : entier `mana_threshold` > 0 par UnitDefinition ; absent ⇒ l'Unit ne Caste jamais (Concepts) ; **valeur : chez son propriétaire** | Mana | Content Bible (par UnitDefinition, via DSL) |
+| Articulation Shield ↔ Damage | **RÈGLE v0 sourcée** (`00_VOCABULARY.md`, entrée Shield : « absorbe du Damage AVANT la Health ») — absorption prioritaire, Shield scalaire cumulatif, détail en Événements | — | Combat Bible (règle) · Content/DSL (montants) |
+| `resolution_kind` du match nul | **v0 fixé : `"draw"`** (cohérence avec le verbatim QB-6 « match nul » ; `winner_side_ref` vaut alors `null`) | — | Combat Bible |
 | Retombée du Mana après Cast | **ratifié : retombe à zéro** (`HUMANGATE_2026-07-19_VALUES_V0.md`) | — | Combat Bible |
 | `total_remaining_power` (clé 1 de DP-7) | **fonction canonique définie par la Balance Bible** — CITÉE ici, jamais définie (ratifié gate #3, QB-7 — P10) | — | Balance Bible |
 | `deterministic_order` (clé 3 de DP-7) | **ratifié** : la TieBreakChain, unique, aucun autre ordre (gate #3, QB-8) | — | Decision Bible (QD-1) |
@@ -321,17 +381,32 @@ T2.  Auras              — recalculées au DÉBUT de chaque Tick, jamais en con
 T3.  Movement (DP-6.3, guidé par DP-6.2)
                         — ordre V1 RESTAURÉ (ratifié gate #3, QB-3) : le déplacement
                           PRÉCÈDE le Targeting. Toute Unit hors de sa Range choisit une
-                          Cell → Event Move ; vitesse en Cells/Tick : TBD (Paramètres).
+                          Cell libre à distance Manhattan ≤ `move_speed` → UN Event Move
+                          par Unit et par Tick (`from_cell` → `to_cell`) ; le chemin n'est
+                          pas un fait de simulation (v0, Concepts). Déplacement nul →
+                          aucun Event.
 T4.  Targeting (DP-6.1) — une Unit choisit sa cible APRÈS avoir atteint sa nouvelle
                           position (ratifié gate #3, QB-3 — corrige l'inversion proposée
                           antérieurement). Acquisition/ré-acquisition pour toute Unit
                           sans cible valide (« Mort → Nouvelle cible », V1).
-T5.  Attack             — toute Unit dans sa Range, cadence prête → Event Attack sur sa
-                          cible (l'Attack constate l'acte ; les points arrivent en T6).
+T5.  Attack             — toute Unit dans sa Range, cadence prête (compteur ≥
+                          `attack_cadence`) → Event Attack sur sa cible ; le compteur est
+                          remis à zéro au Commit (v0, Concepts). L'Attack constate l'acte ;
+                          les points arrivent en T6. **Rien ne peut échouer entre T5 et
+                          T6** : aucun tirage (CBT-9), aucune interception, aucune esquive
+                          — la cible d'un Attack de T5 subit son Damage en T6, quoi qu'il
+                          arrive *(dérivé de CBT-9 + QB-4)*.
 T6.  Damage             — Events Damage des Attacks de T5, appliqués ENSEMBLE au Commit ;
-                          crédits de Mana « en attaquant » (attaquant) et « en recevant
-                          des dégâts » (cible) au MÊME Commit (ratifié gate #3, QB-11 ;
-                          simultanéité : QB-4).
+                          absorption par le Shield AVANT la Health (v0 sourcé — voir
+                          Événements) ; crédits de Mana « en attaquant » (attaquant) et
+                          « en recevant des dégâts » (cible) au MÊME Commit (ratifié
+                          gate #3, QB-11 ; simultanéité : QB-4), bornés au seuil. Le
+                          crédit « dégâts reçus » se calcule sur le montant REÇU
+                          (`amount`), avant absorption — *v0 par cohérence : sinon un
+                          Shield supprimerait entièrement une source de Mana ratifiée
+                          (QB-11), ce qu'aucun gate n'a décidé*. Une Unit créditée en T6
+                          puis morte en T7 ne Caste jamais (QB-5) — le crédit est sans
+                          effet, aucun cas particulier.
 T7.  Death              — toute Unit à Health ≤ 0 → Event Death. Une Unit morte ne lance
                           JAMAIS son sort (ratifié gate #3, QB-5). Triggers « à la mort »
                           (DSL) résolus via la ResolutionQueue au sein de la phase,
@@ -345,12 +420,16 @@ T9.  Casts des survivants (DP-6.4)
                           cumulables). Retombée du Mana : retombe à zéro (v0, ratifié
                           `HUMANGATE_2026-07-19_VALUES_V0.md`).
 T10. Fin de Tick        — vérifications, dans cet ordre :
-                          (1) un camp sans Unit vivante (Health > 0) → Event Victory
-                              (élimination) ;
+                          (1) EXACTEMENT UN camp sans Unit vivante (Health > 0) → Event
+                              Victory (élimination). Le quantificateur « exactement un »
+                              est **v0 par cohérence** : sans lui, le prédicat (1) est
+                              aussi vrai lors d'un anéantissement mutuel et rendrait QB-6
+                              inatteignable ;
                           (2) les DEUX camps sans Unit vivante (anéantissement mutuel) →
                               MATCH NUL (ratifié QB-6, gate 2026-07-19) : Event Victory
-                              émis avec `resolution_kind: "draw"` *(dérivé)*, AUCUNE perte
-                              de Life pour aucun des deux Players sur ce round ;
+                              émis avec `resolution_kind: "draw"` (**v0 fixé** — le nom
+                              n'est plus « à confirmer »), `winner_side_ref: null`, AUCUNE
+                              perte de Life pour aucun des deux Players sur ce round ;
                           (3) compteur = tick_limit sans vainqueur → DP-7 → Event Victory
                               (mode tick_limit).
                           Sinon : Tick suivant (T1).
@@ -384,11 +463,26 @@ Bible ; validation fail-hard (CBT-5).
 **Enveloppe commune** — champs présents sur tout Event de combat :
 
 ```text
-{ event,          # nom, liste close (INV-12 — registre : Core Rules)
+{ kind,           # nom, liste close (INV-12 — registre : Core Rules)
   combat_ref,     # identifiant du Combat dans le Round (rattache le segment de log)
   tick,           # numéro de Tick (0 = CombatSetup)
   seq }           # rang dans le Tick — matérialise l'ordre total DP-1
 ```
+
+**Divergence déclaré↔implémenté corrigée ici (v0 sourcé — code réel)** : les versions
+antérieures nommaient ce champ `event`. Le moteur réel nomme le discriminant `kind` —
+`engine/eventlog.mjs:11` (`assertKnownEvent(event.kind)`), `engine/registry.mjs:45-53`, et
+les 13 sites d'émission de `preparation/preparation.mjs`. Le code étant déjà mergé et
+poussé, c'est la bible qui s'aligne, pas l'inverse. **`combat_ref`, `tick` et `seq`
+n'existent dans AUCUN Event émis à ce jour** — aucun module Combat n'existe
+(`engine/` ne contient aucun fichier de combat ; le seul `kind: 'Spawn'` du dépôt est un
+placeholder explicite, `engine/transition.mjs:39`). L'enveloppe reste donc une exigence à
+implémenter, pas un constat.
+
+**Identité d'un Event (v0 par cohérence)** — le triplet `(combat_ref, tick, seq)` identifie
+de façon unique tout Event d'un segment de combat. C'est cette clé, et elle seule, que
+référencent les champs `source_ref` ci-dessous : sans identité d'Event, un `source_ref`
+n'est pas résoluble.
 
 **Payloads spécifiques (champs en sus de l'enveloppe)** :
 
@@ -397,16 +491,50 @@ Bible ; validation fail-hard (CBT-5).
   — `side_ref` identifie le camp : `seat_index` du Player, ou référence de GhostBoard
   (`ghost_of_seat_index`) ; forme exacte → Technical Bible.
 - `Move`     : `{ unit_instance_id, from_cell, to_cell }`
-- `Attack`   : `{ attacker_unit_instance_id, target_unit_instance_id }`
+  — un seul Move par Unit et par Tick ; le chemin entre les deux Cells n'est pas un fait
+  de simulation (v0, Concepts).
+- `Attack`   : `{ attacker_unit_instance_id, target_unit_instance_id,
+               attacker_cell, target_cell, delivery }`
   — l'Attack CONSTATE l'acte ; les points retirés arrivent par l'Event Damage (séparation
   acte/conséquence, nécessaire aux Triggers « à l'Attack »).
-- `Cast`     : `{ caster_unit_instance_id, ability_ref, targets | zone }`
+  — `attacker_cell` / `target_cell` **v0 par cohérence** : redondants (reconstituables en
+  cumulant `Spawn.cell` et les `Move` du même segment) mais explicites, au même titre et
+  pour la même raison que `target_health_after`. Justification vérifiée sur le code réel :
+  `renderer/viewmodel.mjs:93-116` montre ce qu'il en coûte quand un Event omet une donnée
+  reconstituable — le Renderer y ré-implémente la règle de `merge/merge.mjs::detectMerge`
+  pour retrouver les unités consommées, ce que le commentaire du fichier qualifie
+  lui-même de « GENUINE GAP ». Un Renderer aveugle ne doit pas rejouer le moteur.
+  — `delivery` **v0 par cohérence** : énumération FERMÉE et **purement décorative**
+  `{ melee | projectile }`, déclarée par UnitDefinition (donnée Content/DSL). Elle ne
+  change AUCUN fait de simulation : la résolution est déjà faite quand l'Event est émis.
+  Sans elle, un Renderer aveugle devrait deviner « flèche ou coup » en inférant la Range
+  depuis la distance Manhattan — c'est-à-dire ré-encoder une règle de gameplay.
+- `Cast`     : `{ caster_unit_instance_id, ability_ref, targets | zone,
+               caster_cell, impact_cells, delivery }`
   — `targets` : liste d'`unit_instance_id` ; `zone` : ensemble de Cells ; l'un des deux
   selon la forme déclarée de l'Ability (DSL).
+  — `caster_cell` / `impact_cells` **v0 par cohérence** : `impact_cells` est l'ensemble des
+  Cells où l'Ability se manifeste — égal à `zone` quand l'Ability est zonale, aux Cells
+  des `targets` quand elle est unitaire. Il rend l'explosion dessinable sans que le
+  Renderer ait à tenir la position de chaque cible.
+  — `delivery` : mêmes propriétés que sur `Attack`, énumération `{ instant | projectile }`,
+  décorative.
 - `Damage`   : `{ source_kind (Attack | Ability | Effect), source_ref,
-               target_unit_instance_id, amount, target_health_after }`
-  — `target_health_after` (proposé) : redondant mais rend le log lisible et auditable
-  sans rejouer ; à confirmer avec la Technical Bible.
+               source_unit_instance_id, target_unit_instance_id, amount,
+               absorbed_by_shield, target_shield_after, target_health_after }`
+  — `source_ref` **v0 par cohérence — définition due, jusqu'ici NON DOCUMENTÉE** : c'est
+  l'identité `(combat_ref, tick, seq)` de l'Event CAUSAL — l'`Attack` de T5 quand
+  `source_kind = Attack`, le `Cast` de T9 quand `source_kind = Ability`, l'Event qui a
+  appliqué l'Effect quand `source_kind = Effect`. Sans cette définition, deux Attacks
+  émises au même Tick contre la MÊME cible produisent deux Damages indiscernables : ni le
+  Renderer ni l'auditeur ne peut rattacher un impact à son acte. La même définition vaut
+  pour le `source_ref` de `Death`, `Heal`, `Shield`, `Buff` et `Debuff`.
+  — `source_unit_instance_id` **v0 par cohérence** : l'auteur du Damage, explicite (un
+  `source_ref` seul oblige à remonter le log).
+  — `amount` est le montant REÇU avant absorption ; `absorbed_by_shield` la part absorbée ;
+  la part retirée à la Health vaut `amount - absorbed_by_shield`.
+  — `target_health_after` : redondant mais rend le log lisible et auditable sans rejouer
+  (formulation d'origine conservée).
 
 **Payloads des quatre Events ratifiés gate #3 (QB-9 — « pas davantage »)** :
 
@@ -414,28 +542,66 @@ Bible ; validation fail-hard (CBT-5).
                amount, target_health_after }`
   — un gain de Health n'est JAMAIS représenté par un Event Damage.
 - `Shield`   : `{ source_kind (Ability | Effect), source_ref, target_unit_instance_id,
-               amount }`
-  — constate l'octroi d'une protection ; l'articulation exacte Shield ↔ Damage est une
-  règle Combat due lors de l'entrée du premier contenu qui l'emploie (gate futur,
-  propriétaire : Combat Bible ; montants : données DSL).
+               amount, target_shield_after }`
+  — constate l'octroi d'une protection.
+  — **Articulation Shield ↔ Damage — v0 sourcé** (`00_VOCABULARY.md`, entrée Shield :
+  « Protection qui absorbe du Damage AVANT la Health d'une Unit » ; règle d'usage n° 3 du
+  Vocabulary : en cas de conflit, le Vocabulary gagne). Règle fixée ici :
+  1. une UnitInstance porte **un Shield scalaire unique** ≥ 0 ; plusieurs Events `Shield`
+     s'ADDITIONNENT sur ce scalaire (v0 par cohérence — aucun contenu n'existe encore qui
+     distinguerait des boucliers par source ou par durée) ;
+  2. à l'application d'un Damage de montant `amount` :
+     `absorbed = min(amount, shield)` ; `shield ← shield - absorbed` ;
+     `health ← health - (amount - absorbed)` ;
+  3. un Damage entièrement absorbé émet quand même son Event `Damage` (l'Event CONSTATE la
+     réception — `absorbed_by_shield == amount`, `target_health_after` inchangé). C'est ce
+     qui permet au Renderer de montrer un coup encaissé par le bouclier, et au Mana d'être
+     crédité (T6) ;
+  4. un Shield n'empêche pas la Death : seule la Health à ≤ 0 déclenche T7 ;
+  5. **NON DOCUMENTÉ** : l'expiration d'un Shield (durée, fin de Combat, dissipation) —
+     aucun Event de retrait n'existe dans la liste close et le gate QB-9 dit
+     « pas davantage ». Un contenu qui exigerait un Shield à durée limitée devra passer un
+     gate (propriétaires : Combat Bible + DSL Bible).
 - `Buff`     : `{ target_unit_instance_id, source_ref, effect_ref }`
   — constate l'application d'un Effect bénéfique (Buffs initiaux C2, Auras T2,
   Abilities/Effects en Tick) ; catégorisation fine de la source → Technical Bible.
 - `Debuff`   : `{ target_unit_instance_id, source_ref, effect_ref }`
   — même structure que `Buff` ; Effect défavorable.
 - `Death`    : `{ unit_instance_id, source_ref }`
-- `Victory`  : `{ winner_side_ref, resolution_kind (elimination | tick_limit),
+- `Victory`  : `{ winner_side_ref, resolution_kind (elimination | tick_limit | draw),
                ticks_elapsed, survivors: [ { unit_instance_id, health_remaining } ] }`
   — ce payload EST la matérialisation du `CombatResult` : `survivors` alimente la formule
   V1 des dégâts au Seat (« les dégâts dépendent des survivants + niveau de la manche » —
-  formule TBD, propriétaire Core Rules/Economy). Le `resolution_kind` gagne une valeur
-  supplémentaire pour l'anéantissement mutuel (ratifié QB-6, gate 2026-07-19 : match nul,
-  proposé `"draw"` *(dérivé, nom à confirmer à l'intégration DSL/Technical)*).
+  formule TBD, propriétaire Core Rules/Economy).
+  — `resolution_kind` est une énumération FERMÉE à **trois** valeurs. **`"draw"` est fixé
+  en v0** (le nom n'est plus « proposé, à confirmer ») : cohérence lexicale avec le
+  verbatim QB-6 « match nul » et avec les identifiants canoniques en anglais (Q1,
+  `00_VOCABULARY.md` §0). Dans ce cas et dans ce cas seul, **`winner_side_ref` vaut
+  `null`** et `survivors` est vide *(v0 par cohérence : QB-6 ratifie qu'il n'y a ni
+  vainqueur ni perdant — un `winner_side_ref` non nul en fabriquerait un)*.
 
 Note « pas davantage » (gate #3, QB-9) : ni `ManaChanged`, ni `BuffApplied`/`BuffExpired`
 distincts n'existent — les besoins de restitution correspondants sont couverts par
 `Buff`/`Debuff` ou assumés absents (jauge de Mana → Human Notes). Toute extension future
 de la liste close = gate HumanGate via le registre des Core Rules (INV-12, P10).
+
+### Le vol des projectiles est DÉCORATIF (ratifié Pierre)
+
+Règle de frontière, et raison pour laquelle le registre reste CLOS à 22 noms :
+
+> Quand un Event `Attack` ou `Cast` est émis, **la résolution est DÉJÀ faite**. Un projectile
+> qui traverse l'écran ne peut ni rater, ni être intercepté, ni être annulé en vol : il
+> n'existe aucun état de simulation « projectile en vol », donc aucun Event ne peut le
+> décrire. Les champs `attacker_cell` / `target_cell` / `caster_cell` / `impact_cells` /
+> `delivery` sont des **indications de rendu**, pas des faits de simulation. La DURÉE du vol
+> n'est pas et ne sera pas un champ d'Event : le temps réel par Tick est un choix
+> **Renderer** (P2) — ratifié explicitement dans `HUMANGATE_2026-07-19_VALUES_V0.md` :
+> « le temps réel par Tick est un choix RENDERER (P2), hors du moteur ».
+
+Conséquence directe : aucune animation de combat n'exige un 23ᵉ nom d'Event
+(`ProjectileLaunched`, `ProjectileHit`, `AttackMissed`, `ManaChanged`…). Le détail
+champ par champ, vérifié contre le code, est dans `COMBAT_EVENT_FIELDS.md` — document
+companion, à lire avant toute implémentation du Renderer de combat.
 
 # Oracle Hooks
 
@@ -571,7 +737,7 @@ inline dans le corps du document. **Toutes les questions QB-1..16 sont désormai
 
 | ID | Décision ratifiée | Section |
 |---|---|---|
-| QB-1 | Grille ORTHOGONALE, coordonnées entières, distance Manhattan, AUCUNE diagonale implicite ; dimensions/orientation → TBD Paramètres (propriétaire Core Rules, gate futur) | Concepts, Paramètres |
+| QB-1 | Grille ORTHOGONALE, coordonnées entières, distance Manhattan, AUCUNE diagonale implicite ; dimensions/orientation depuis ratifiées **v0 = 8×8 miroir** (`HUMANGATE_2026-07-19_VALUES_V0.md`, propriétaire Core Rules — valeur provisoire) | Concepts, Paramètres |
 | QB-2 | Métrique UNIQUE Manhattan (Range, déplacement, clé 3) + sens contextuels par usage | Concepts, DP-1 |
 | QB-3 | Ordre V1 restauré : `Movement → Targeting → Attack` — la cible est choisie APRÈS la nouvelle position (corrige l'inversion proposée) | Flux T3–T5, DP-6.1 |
 | QB-4 | Sémantique HYBRIDE : Tick séquentiel dans l'exécution, simultané dans les effets — phases séquentielles, cycle `Intent → Validation → Resolution → Commit` par phase, décisions sur le même état, conséquences commitées ensemble | Concepts, Flux, DP-1 |
@@ -588,15 +754,45 @@ inline dans le corps du document. **Toutes les questions QB-1..16 sont désormai
 | QB-15 | Termes nouveaux ratifiés — inscription au Vocabulary (mise à jour parallèle de `00_VOCABULARY.md`) | Concepts |
 | QB-16 | Chaque Effect déclare `MaxTriggerPerTick` dans le DSL ; le Combat le VALIDE (garde-fou anti-boucle) | DSL Hooks, Flux, Paramètres |
 
-Points DIFFÉRÉS à un gate futur, propriétaire assigné (hors périmètre du gate #3 et du gate
-QB-6 du 2026-07-19) : dimensions et orientation du Board (Core Rules) ; retombée du Mana
-après Cast (« retombe à zéro » proposé — Combat Bible) ; articulation Shield ↔ Damage
-(Combat Bible, avec la DSL Bible) ; valeurs de tous les Paramètres TBD (propriétaires en
-table, calibrage Balance — P10) ; nom exact du `resolution_kind` du match nul (proposé
-`"draw"`, détail structurel à confirmer à l'intégration DSL/Technical, pas un fork de design).
+## Résolutions v0 de l'orchestrateur (2026-07-19) — révisables sans gate
 
-*Fin du document — Combat Bible. Statut : DRAFT — décisions gate #3
-(`HUMANGATE_2026-07-18_GATE3.md`) et QB-6 (`HUMANGATE_2026-07-19_QB6.md`) intégrées ;
-ratification finale du document pending. Les
-invariants CBT-1..9 et le TickPipeline ne deviennent contrat moteur qu'après cette
-ratification.*
+Ce que cette version a fermé, et sur quelle autorité. Aucune de ces lignes n'est une
+décision HumanGate : Pierre les juge en jouant, pas en les ratifiant à l'avance.
+
+| Point | Résolution v0 | Autorité | Section |
+|---|---|---|---|
+| Vitesse de déplacement | FORME : `move_speed` entier en Cells/Tick, destination Manhattan ≤ `move_speed`, chemin NON simulé ; valeur laissée au Content/DSL | par cohérence (QB-1/QB-2 + absence de toute règle lisant le chemin) | Concepts, Paramètres, Flux T3 |
+| Cadence d'Attack | FORME : `attack_cadence` entier ≥ 1 Tick, compteur avancé chaque Tick, remis à zéro à l'émission ; valeur laissée au Content/DSL | par cohérence (T5 = une phase par Tick) | Concepts, Paramètres, Flux T5 |
+| Mana initial | RÈGLE : `mana_initial` appliqué en C3, `0 ≤ mana_initial ≤ mana_threshold` fail-hard ; valeur laissée au Content/DSL | par cohérence (QB-11 + retombée à zéro ratifiée) | Concepts, Paramètres |
+| Gains de Mana | MOMENTS : attaquant + cible au même Commit T6 ; borne `min(mana+gain, seuil)` ; assiette = montant reçu avant absorption ; montants laissés au Content/DSL | par cohérence (QB-11 + QB-4) | Paramètres, Flux T6 |
+| Seuil de Mana | FORME : `mana_threshold` entier > 0 ; absent ⇒ ne Caste jamais ; valeur laissée au Content/DSL | par cohérence | Concepts, Paramètres |
+| Shield ↔ Damage | Absorption prioritaire, Shield scalaire cumulatif, Event `Damage` émis même absorbé, pas d'obstacle à la Death | **sourcé** : `00_VOCABULARY.md`, entrée Shield | Événements |
+| `resolution_kind` du nul | **`"draw"` fixé**, `winner_side_ref: null`, `survivors` vide | par cohérence (verbatim QB-6 + Q1 identifiants anglais) | Flux T10, Événements |
+| Cas (1) de T10 | « EXACTEMENT un camp sans Unit vivante » | par cohérence (sans quoi QB-6 est inatteignable) | Flux T10 |
+| Discriminant d'Event | `kind` (et non `event`) | **sourcé** : `engine/eventlog.mjs:11`, `engine/registry.mjs:45-53` | Événements |
+| Identité d'un Event | `(combat_ref, tick, seq)` | par cohérence (prérequis de tout `source_ref`) | Événements |
+| `source_ref` | Référence l'identité de l'Event CAUSAL (Attack / Cast / Effect) | par cohérence (deux Attacks simultanées sur la même cible sont sinon indiscernables) | Événements |
+| Champs de restitution | `attacker_cell`, `target_cell`, `caster_cell`, `impact_cells`, `delivery`, `source_unit_instance_id`, `absorbed_by_shield`, `target_shield_after` — tous DÉCORATIFS ou redondants, aucun nouvel Event | par cohérence + précédent `target_health_after` ; contre-exemple vérifié `renderer/viewmodel.mjs:93-116` | Événements, `COMBAT_EVENT_FIELDS.md` |
+| Phase du Combat | `'Battle'` (entrée depuis `'Preparation'`) | **sourcé** : `preparation/preparation.mjs:663-669` | Concepts |
+
+Points qui restent DIFFÉRÉS à un gate, propriétaire assigné : valeurs chiffrées de tous les
+Paramètres marqués « valeur : chez son propriétaire » (Content/DSL, calibrage Balance — P10) ;
+expiration/dissipation d'un Shield (Combat + DSL) ; nom de la phase qui SUIT un Combat
+(Core Rules) ; complétude du schéma `stats` d'une UnitDefinition (QL-6, DSL Bible).
+
+**Avertissement de dépendance, vérifié** : les Paramètres ci-dessus délèguent leurs valeurs à
+la **Balance Bible** et à la **Content Bible** — aucun de ces deux documents n'existe dans
+`games/auto_battler/bibles/` (contenu réel au 2026-07-19 : `00_ARCHITECTURE`, `00_TEMPLATE`,
+`00_VOCABULARY`, `01_GAME_BIBLE`, `02_CORE_RULES`, `03_DECISION_BIBLE`, `04_COMBAT_BIBLE`,
+`05_ECONOMY_BIBLE`, `06_META_BIBLE`, `07_DSL_BIBLE` + verbatims HumanGate). Il en va de même
+pour la **Technical Bible**, la **Oracle Bible** et la **Simulation Bible**, citées par ce
+document. Un builder qui rencontre l'une de ces délégations ne trouvera pas de destinataire :
+il remonte en fog HumanGate, il n'invente pas la valeur.
+
+*Fin du document — Combat Bible. Statut : **v0 OPPOSABLE** (2026-07-19), produite par
+l'orchestrateur, provisoire. Les invariants CBT-1..9, le TickPipeline et les payloads
+ci-dessus SONT le contrat moteur de l'incrément Combat ; les décisions HumanGate
+(`HUMANGATE_2026-07-18_GATE3.md`, `HUMANGATE_2026-07-19_QB6.md`,
+`HUMANGATE_2026-07-19_VALUES_V0.md`, `HUMANGATE_2026-07-19_RENDERER.md`) restent les seules
+sources non révisables ; tout ce que cette version a résolu en « v0 sourcé » ou « v0 par
+cohérence » est révisable par Pierre après playtest, sans gate.*

@@ -10,44 +10,17 @@ import * as serialize from './engine/serialize.mjs';
 import * as state from './engine/state.mjs';
 import * as inputs from './engine/inputs.mjs';
 import * as eventlog from './engine/eventlog.mjs';
-import * as transition from './engine/transition.mjs';
-import * as replay from './engine/replay.mjs';
-import * as match from './engine/match.mjs';
 
-// R1: Determinism - transition(state, inputs)×2 => statesEqual
-test('R1: transition is deterministic', () => {
-  const seed = 12345;
-  const s1 = state.initState(seed);
-  const inputSeq = [
-    { kind: 'Buy' },
-    { kind: 'Lock' }
-  ];
-
-  const result1 = transition.transition(s1, inputSeq);
-  const result2 = transition.transition(s1, inputSeq);
-
-  assert.ok(serialize.statesEqual(result1, result2), 'Two identical transitions should produce equal states');
-});
-
-// R2: Immutability - freeze state then transition => doesn't throw, state unchanged
-test('R2: transition does not mutate input state', () => {
-  const seed = 54321;
-  let s1 = state.initState(seed);
-  const frozen = state.freezeState(s1);
-  const originalSerialized = serialize.serialize(frozen);
-
-  const inputSeq = [{ kind: 'Place' }];
-  const result = transition.transition(frozen, inputSeq);
-
-  // Input should be unchanged
-  assert.equal(serialize.serialize(frozen), originalSerialized, 'Input state should not be mutated');
-
-  // Result should be a new object
-  assert.notEqual(result, frozen, 'Result should be a different object');
-
-  // Result should be valid
-  assert.ok(types.isState(result), 'Result should be a valid state');
-});
+// --- s9-build commande F (F2): engine/transition.mjs, engine/replay.mjs and engine/match.mjs
+// were DELETED — a second, dead input circuit, imported only by tests and run-oracle.mjs, never
+// by the real game (app -> input/submit.mjs -> preparation.applyPreparationInput). R1
+// (transition determinism), R2 (transition purity via freezeState), R4 (replay consistency),
+// R10 (runMatch completes), R16 (applyInput phase transition) and R21 (runMatch seed validation)
+// tested ONLY that dead module and are REMOVED with it — the real circuit's purity/determinism
+// is covered by preparation.test.mjs ("Preparation state is immutable"), R22/R23 below (now
+// pointed at state.createGameState, the real function they were actually exercising), and the
+// property/hardening suites (properties.i2/i25/i25e/combat.test.mjs) that all drive
+// applyPreparationInput directly.
 
 // R3: RNG determinism - initState×2 => rng_state equal; nextRng deterministic
 test('R3: RNG is deterministic', () => {
@@ -62,41 +35,6 @@ test('R3: RNG is deterministic', () => {
 
   assert.equal(rs1, rs2, 'nextRng is deterministic');
   assert.equal(v1, v2, 'nextRng values are deterministic');
-
-  // Transition without consuming RNG should leave rng_state unchanged
-  let s3 = state.initState(seed);
-  const rs_before = s3.rng_state;
-  const s3_after = transition.transition(s3, [{ kind: 'Buy' }]);
-  // RNG unchanged unless explicitly consumed
-  assert.equal(s3_after.rng_state, rs_before, 'RNG state unchanged by transition without consumption');
-});
-
-// R4: Replay consistency - replay vs step-by-step; two replays equal
-test('R4: replay is consistent and deterministic', () => {
-  const seed = 11111;
-  const s0 = state.initState(seed);
-  const inputs = [
-    { kind: 'Reroll' },
-    { kind: 'Lock' },
-    { kind: 'ConfirmPreparation' }
-  ];
-
-  // Method 1: Replay
-  const replayResult = replay.replay(s0, inputs);
-
-  // Method 2: Step-by-step
-  let s = s0;
-  for (const inp of inputs) {
-    s = transition.transition(s, [inp]);
-  }
-
-  assert.ok(serialize.statesEqual(replayResult.finalState, s), 'Replay equals step-by-step');
-  assert.deepEqual(replayResult.eventLog, s.eventLog, 'Event logs match');
-
-  // Replay again should be identical
-  const replayResult2 = replay.replay(s0, inputs);
-  assert.ok(serialize.statesEqual(replayResult.finalState, replayResult2.finalState), 'Two replays are equal');
-  assert.deepEqual(replayResult.eventLog, replayResult2.eventLog, 'Event logs are equal on replay');
 });
 
 // R5: Event log immutability - appendEvent returns new log without mutation
@@ -117,7 +55,7 @@ test('R5: event log is append-only and immutable', () => {
 
 // R6: Event kind registry - known events pass, unknown throw
 test('R6: event kind registry is frozen and validated', () => {
-  assert.equal(registry.EVENT_KINDS.length, 19, 'EVENT_KINDS has 19 entries');
+  assert.equal(registry.EVENT_KINDS.length, 22, 'EVENT_KINDS has 22 entries (HumanGate 2026-07-19: +UnitPlaced, ShopLocked, PhaseChanged)');
 
   registry.assertKnownEvent('Spawn');
   registry.assertKnownEvent('Victory');
@@ -209,27 +147,6 @@ test('R9: types exports only abstract identifiers', () => {
   assert.ok(types.isState(state.initState(0)), 'isState accepts valid state');
 });
 
-// R10: Match execution - no crashes with valid inputs
-test('R10: runMatch completes with valid inputs', () => {
-  const seed = 42;
-  const inputs = [
-    { kind: 'Buy' },
-    { kind: 'Lock' },
-    { kind: 'ConfirmPreparation' }
-  ];
-
-  const result = match.runMatch(seed, inputs);
-
-  assert.ok(types.isState(result.finalState), 'Result has valid state');
-  assert.ok(Array.isArray(result.eventLog), 'Result has event log');
-  assert.ok(result.eventLog.length > 0, 'Event log contains events');
-
-  // Empty input log should still work
-  const result2 = match.runMatch(seed, []);
-  assert.ok(types.isState(result2.finalState), 'Match with empty inputs completes');
-  assert.ok(Array.isArray(result2.eventLog), 'Event log exists even for empty inputs');
-});
-
 // --- Mutation-hardening tests (s9 escalation: kill mutation survivors) ---
 
 // R11: RNG golden vector - pins the exact deterministic sequence for a known seed.
@@ -316,19 +233,6 @@ test('R15: validateInput returns ok:false explicitly when kind is missing; ok:tr
     const r = inputs.validateInput({ kind });
     assert.equal(r.ok, true, `Known kind ${kind} must validate ok:true`);
   }
-});
-
-// R16: applyInput advances phase to 'Battle' if-and-only-if the input is
-// ConfirmPreparation. Kills the eq->neq mutant on `input.kind === 'ConfirmPreparation'`.
-test('R16: applyInput phase transition is exact', () => {
-  const s0 = state.initState(7);
-  assert.equal(s0.phase, 'Shop', 'Initial phase is Shop');
-
-  const s1 = transition.applyInput(s0, { kind: 'Buy' });
-  assert.equal(s1.phase, 'Shop', 'Non-ConfirmPreparation input leaves phase unchanged');
-
-  const s2 = transition.applyInput(s0, { kind: 'ConfirmPreparation' });
-  assert.equal(s2.phase, 'Battle', 'ConfirmPreparation input advances phase to Battle');
 });
 
 // R17: initState/createGameState reject invalid seed and fields explicitly. Kills the
@@ -426,21 +330,17 @@ test('R20: isState rejects each field individually while accepting a fully valid
   assert.equal(types.isState({ ...valid, phase: 42 }), false, 'non-string phase is rejected');
 });
 
-// R21: runMatch rejects a non-integer numeric seed explicitly. Kills the or->and
-// mutant on match.mjs's own copy of the seed-shape guard.
-test('R21: runMatch validates seed strictly', () => {
-  assert.throws(() => match.runMatch(3.5, []), /Seed must be an integer/, 'runMatch rejects non-integer number');
-  assert.throws(() => match.runMatch('7', []), /Seed must be an integer/, 'runMatch rejects non-number type');
-});
-
 // --- s9 red-team correction tests (F1/F2/F3/F4): these FAIL on the pre-fix code ---
 
 // R22: createGameState performs a genuine DEEP clone of players/entities - the output
 // state must share NO mutable reference with the input state's nested substructures,
 // at any depth. This is the exact F1 red-team-proven leak: before the fix,
-// `{...fields.players}` only copied the TOP level, so after transition(s0,[]),
-// mutating s1.players.player_0.gold also silently mutated s0.
-test('R22: transition output shares no nested references with input (deep purity)', () => {
+// `{...fields.players}` only copied the TOP level, so a SECOND createGameState call built
+// FROM a first state's fields silently shared nested references with it.
+// (s9-build commande F, F2: was exercised through the now-deleted engine/transition.mjs, whose
+// transition(s0, []) with no inputs did nothing but call createGameState(s0) — calling
+// createGameState directly tests the exact same real function with one less dead dependency.)
+test('R22: createGameState output shares no nested references with input (deep purity)', () => {
   const s0 = state.createGameState({
     seed: 1,
     rng_state: 1,
@@ -450,7 +350,7 @@ test('R22: transition output shares no nested references with input (deep purity
     phase: 'Shop'
   });
 
-  const s1 = transition.transition(s0, []);
+  const s1 = state.createGameState(s0);
 
   // Mutate every level of the OUTPUT state's nested substructures.
   s1.players.player_0.gold = 999;
@@ -477,6 +377,7 @@ test('R22: transition output shares no nested references with input (deep purity
 // just the array wrapper. This is the exact F4 red-team-proven leak: `[...eventLog]`
 // copies the array but keeps the SAME element references, so
 // `s1.eventLog[0] === s2.eventLog[0]`, and freezeState(s2) would freeze s1's event too.
+// (s9-build commande F, F2: see R22's note — calls createGameState directly now.)
 test('R23: eventLog elements share no references across states (deep purity)', () => {
   const s0 = state.createGameState({
     seed: 1,
@@ -487,7 +388,7 @@ test('R23: eventLog elements share no references across states (deep purity)', (
     phase: 'Shop'
   });
 
-  const s1 = transition.transition(s0, []);
+  const s1 = state.createGameState(s0);
 
   assert.notEqual(s1.eventLog[0], s0.eventLog[0], 'event object is a new reference');
   assert.notEqual(s1.eventLog[0].meta, s0.eventLog[0].meta, 'nested event field is a new reference');

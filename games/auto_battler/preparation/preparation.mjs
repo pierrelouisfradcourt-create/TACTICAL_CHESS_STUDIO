@@ -1,42 +1,55 @@
 // preparation/preparation.mjs - Preparation phase input handler
 // Routes input kinds to economic actions: Buy, Sell, Reroll, Lock, LevelUp, Place, ConfirmPreparation
 
-import { createGameState, freezeState } from '../engine/state.mjs';
+import { createGameState } from '../engine/state.mjs';
 import { appendEvent } from '../engine/eventlog.mjs';
 import { nextRng } from '../engine/rng.mjs';
 import { validateInputSync } from '../engine/inputs.mjs';
 import * as pool from '../pool/pool.mjs';
 import * as shop from '../shop/shop.mjs';
 import * as bench from '../bench/bench.mjs';
-import * as goldModule from '../economy/gold.mjs';
+import * as board from '../board/board.mjs';
 import * as mergeModule from '../merge/merge.mjs';
+import { getUnitRank, getAllUnitDefIds } from '../content/units.v0.mjs';
+import {
+  BENCH_CAPACITY,
+  SHOP_SIZE,
+  REROLL_COST,
+  SELL_STAR_MULTIPLIER,
+  POOL_EXEMPLARS_PER_UNIT,
+  LIFE_INITIAL,
+  LIFE_FLOOR,
+  LEVEL_UP_COSTS,
+  boardCapacityForLevel
+} from '../params.v0.mjs';
 
-// Constants (TBD values, fixture defaults for now)
-const BENCH_CAPACITY = 8; // ECO-7: schéma ici, valeur Balance Bible
-const UNIT_DEF_IDS = ['unit_1', 'unit_2', 'unit_3', 'unit_4', 'unit_5']; // fixture
-const SHOP_SIZE = 5; // fixture TBD
+// D1 (i2.5 commande D): the content set went from 5 units to 15. The Buy/Sell price tables were
+// per-unit literals here — a 15-line table maintained by hand next to the content, i.e. a second
+// source of truth waiting to drift. They are now DERIVED, from the two facts already documented
+// in content/units.v0.mjs and params.v0.mjs:
+//     Buy cost      = rank                                     (rank === Buy cost, by contract)
+//     Sell credit   = rank * SELL_STAR_MULTIPLIER[star - 1]    (extracted verbatim, same numbers)
+// Verified against the removed tables: unit_2 (rank 2) gave {star1: 2, star2: 4, star3: 12},
+// which is exactly 2 * [1, 2, 6]. No price changed for any pre-existing unit.
+const UNIT_DEF_IDS = getAllUnitDefIds();
 const GOLD_COSTS = {
-  Buy: { unit_1: 1, unit_2: 2, unit_3: 3, unit_4: 4, unit_5: 5 },
-  Reroll: 1,
-  LevelUp: { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 }
-};
-const GOLD_CREDITS = {
-  Sell: { unit_1: { star1: 1, star2: 2, star3: 6 },
-          unit_2: { star1: 2, star2: 4, star3: 12 },
-          unit_3: { star1: 3, star2: 6, star3: 18 },
-          unit_4: { star1: 4, star2: 8, star3: 24 },
-          unit_5: { star1: 5, star2: 10, star3: 30 } }
+  Reroll: REROLL_COST
+  // LevelUp is NOT duplicated here (F1, s9-build commande F): the table now goes to level 10
+  // and is the SINGLE source of truth in params.v0.mjs::LEVEL_UP_COSTS, read directly by
+  // handleLevelUp below AND by renderer/render_dom.mjs — see the source/rationale comment there.
 };
 
-/**
- * Create a GameState and attach economic fields.
- * (Helper to work around createGameState not copying extra fields)
- */
-export function createExtendedGameState(fields, pool, benchCapacity) {
-  const state = createGameState(fields);
-  state.pool = pool || {};
-  state.bench_capacity = benchCapacity || BENCH_CAPACITY;
-  return state;
+/** Buy cost of a unit definition: its rank. Unknown definition -> 0 (never throws). */
+function buyCostOf(unitDefId) {
+  return getUnitRank(unitDefId);
+}
+
+/** Sell credit: rank * SELL_STAR_MULTIPLIER[star - 1]. Unknown unit or star -> 0. */
+function sellCreditOf(unitDefId, star) {
+  const rank = getUnitRank(unitDefId);
+  const multiplier = SELL_STAR_MULTIPLIER[star - 1];
+  if (!rank || multiplier === undefined) return 0;
+  return rank * multiplier;
 }
 
 /**
@@ -67,10 +80,12 @@ export function initPrepState(baseState, seatIds) {
     throw new Error('seatIds must be an array');
   }
 
-  // Initialize pool with fixture units (1 of each)
+  // Initialize pool: every unit definition of content/units.v0.mjs (15 since D1), same fixture
+  // count each. The id list is no longer duplicated here — adding a unit to the content set is
+  // enough for it to exist in the Pool.
   let initPool = {};
   for (const unitDefId of UNIT_DEF_IDS) {
-    initPool[unitDefId] = 10; // Fixture: 10 exemplars of each unit type
+    initPool[unitDefId] = POOL_EXEMPLARS_PER_UNIT;
   }
 
   // Initialize each player's bench, board, gold, level
@@ -78,6 +93,11 @@ export function initPrepState(baseState, seatIds) {
   for (const seatId of seatIds) {
     players[seatId] = {
       gold: 0, // Will receive Income on first round
+      // E1 (s9-build commande E): the Seat's Life. INV-15 — exactly ONE Life per Player, and it
+      // is a resource of the Player/Seat, never of a Unit (INV-14: a Unit has Health).
+      // LIFE_INITIAL is a ratified v0 value sourced from HSBG (params.v0.mjs); the Core Rules
+      // Paramètres table listed it as "TBD" and this is the proposal that fills it.
+      life: LIFE_INITIAL,
       bench: [],
       board: [],
       level: 1,
@@ -86,14 +106,16 @@ export function initPrepState(baseState, seatIds) {
     };
   }
 
-  return createExtendedGameState({
+  return createGameState({
     seed: baseState.seed,
     rng_state: baseState.rng_state,
     eventLog: baseState.eventLog,
     players,
     entities: baseState.entities,
-    phase: baseState.phase
-  }, initPool, BENCH_CAPACITY);
+    phase: 'Preparation',
+    pool: initPool,
+    bench_capacity: BENCH_CAPACITY
+  });
 }
 
 /**
@@ -112,6 +134,15 @@ export function applyPreparationInput(state, input) {
   }
 
   const { kind, seatId, ...payload } = input;
+
+  // E1/INV-9: « Un Seat dont la Life est amenée à zéro est éliminé, plus aucun Input ». The
+  // check is here, at the single routing point, so that NO handler can be reached afterwards —
+  // an eliminated Seat cannot buy, sell, reroll, level, place, or confirm. State unchanged, no
+  // Event, same refusal shape as every other rejection path (R14).
+  const actingPlayer = state.players ? state.players[seatId] : null;
+  if (actingPlayer && typeof actingPlayer.life === 'number' && actingPlayer.life <= LIFE_FLOOR) {
+    return state;
+  }
 
   // Route by kind
   let newState = state;
@@ -190,7 +221,7 @@ function handleBuy(state, seatId, payload) {
   }
 
   // Debit Gold
-  const cost = GOLD_COSTS.Buy[unitDefId] || 0;
+  const cost = buyCostOf(unitDefId);
   if (player.gold < cost) {
     return state; // Reject: insufficient gold
   }
@@ -218,6 +249,7 @@ function handleBuy(state, seatId, payload) {
   };
 
   const newBench = bench.addToBench(player.bench, unitInstance);
+  const benchIndex = newBench.length - 1; // Index of newly added unit
 
   // Consume the Shop slot: the exemplar leaves the "reserved" account and
   // becomes a possession (MED-3).
@@ -226,19 +258,18 @@ function handleBuy(state, seatId, payload) {
     ...playerShop.slice(shop_index + 1)
   ];
 
-  // Emit UnitBought — payload matches 05_ECONOMY_BIBLE.md exactly:
-  // {seat_id, unit_definition, shop_slot, gold_cost} (MED-4). Note:
-  // unit_instance_id is NOT part of this event's contract; it still lives
-  // on the unit instance stored on the Bench.
+  // Emit UnitBought — now includes unit_instance_id and bench_index (R1b, gate 2026-07-19)
   newEventLog = appendEvent(newEventLog, {
     kind: 'UnitBought',
     seat_id: seatId,
     unit_definition: unitDefId,
     shop_slot: shop_index,
-    gold_cost: cost
+    gold_cost: cost,
+    unit_instance_id: newUnitInstanceId,
+    bench_index: benchIndex
   });
 
-  // Update state
+  // Update state (now createGameState preserves pool and bench_capacity automatically)
   const newPlayers = { ...state.players };
   newPlayers[seatId] = { ...player, gold: newGold, bench: newBench, shop: newShop };
 
@@ -248,12 +279,11 @@ function handleBuy(state, seatId, payload) {
     eventLog: newEventLog,
     players: newPlayers,
     entities: state.entities,
-    phase: state.phase
+    phase: state.phase,
+    pool: state.pool,
+    bench_capacity: state.bench_capacity,
+    round_index: state.round_index
   });
-
-  // Attach economic fields — Pool untouched (ECO-1: already reserved at draw).
-  newState.pool = state.pool;
-  newState.bench_capacity = state.bench_capacity;
 
   // Auto-merge check
   newState = applyAutoMerge(newState, seatId);
@@ -262,7 +292,8 @@ function handleBuy(state, seatId, payload) {
 }
 
 /**
- * Sell: restore Pool (by Star), credit Gold, remove from Bench/Board.
+ * Sell: restore Pool (by Star), credit Gold, remove from Bench or Board.
+ * Now supports selling units from the Board (RO-4).
  */
 function handleSell(state, seatId, payload) {
   const { unit_instance_id } = payload;
@@ -278,19 +309,24 @@ function handleSell(state, seatId, payload) {
 
   // Find unit on Bench or Board
   let unit = bench.findOnBench(player.bench, unit_instance_id);
-  let isOnBench = unit !== null;
+  let fromZone = 'bench';
+  let fromIndex = player.bench.findIndex(u => u && u.unit_instance_id === unit_instance_id);
 
   if (!unit) {
-    // Try Board (future: not yet implemented, assume Bench only)
-    return state; // Unit not found
+    // Try Board
+    unit = board.findOnBoard(player.board, unit_instance_id);
+    fromZone = 'board';
+    fromIndex = board.getBoardIndex(player.board, unit_instance_id);
+
+    if (!unit) {
+      return state; // Unit not found
+    }
   }
 
   const { unit_def_id, star } = unit;
 
-  // Compute Sell credit (Rarity × Star, fixture TBD)
-  const sellCreditTable = GOLD_CREDITS.Sell[unit_def_id] || {};
-  const creditKey = `star${star}`;
-  const credit = sellCreditTable[creditKey] || 0;
+  // Compute Sell credit (Rank × Star multiplier, fixture TBD — see the header note)
+  const credit = sellCreditOf(unit_def_id, star);
 
   // Restore Pool by Star
   const newPool = pool.restorePool(state.pool, unit_def_id, star);
@@ -305,17 +341,25 @@ function handleSell(state, seatId, payload) {
     source: 'Sell'
   });
 
-  // Remove from Bench
-  const removalResult = bench.removeFromBench(player.bench, unit_instance_id);
-  if (!removalResult.ok) {
-    return state; // Should not happen if findOnBench succeeded
+  // Remove from Bench or Board
+  let newBench = player.bench;
+  let newBoard = player.board;
+
+  if (fromZone === 'bench') {
+    const removalResult = bench.removeFromBench(player.bench, unit_instance_id);
+    if (!removalResult.ok) {
+      return state;
+    }
+    newBench = removalResult.newBench;
+  } else {
+    const removalResult = board.removeFromBoard(player.board, unit_instance_id);
+    if (!removalResult.ok) {
+      return state;
+    }
+    newBoard = removalResult.newBoard;
   }
 
-  const newBench = removalResult.newBench;
-
-  // Emit UnitSold — payload matches 05_ECONOMY_BIBLE.md exactly:
-  // {seat_id, unit_instance, unit_definition, star, pool_returned,
-  // gold_credited} (MED-4: unit_definition was missing).
+  // Emit UnitSold — now includes from_zone and from_index (R1b, gate 2026-07-19)
   newEventLog = appendEvent(newEventLog, {
     kind: 'UnitSold',
     seat_id: seatId,
@@ -323,27 +367,28 @@ function handleSell(state, seatId, payload) {
     unit_definition: unit_def_id,
     star: star,
     pool_returned: Math.pow(3, star - 1),
-    gold_credited: credit
+    gold_credited: credit,
+    from_zone: fromZone,
+    from_index: fromIndex
   });
 
   // Update state
   const newPlayers = { ...state.players };
-  newPlayers[seatId] = { ...player, gold: newGold, bench: newBench };
+  newPlayers[seatId] = { ...player, gold: newGold, bench: newBench, board: newBoard };
 
-  const newState2 = createGameState({
+  const newState = createGameState({
     seed: state.seed,
     rng_state: state.rng_state,
     eventLog: newEventLog,
     players: newPlayers,
     entities: state.entities,
-    phase: state.phase
+    phase: state.phase,
+    pool: newPool,
+    bench_capacity: state.bench_capacity,
+    round_index: state.round_index
   });
 
-  // Attach economic fields
-  newState2.pool = newPool;
-  newState2.bench_capacity = state.bench_capacity;
-
-  return newState2;
+  return newState;
 }
 
 // Fixture-only odds table version tag for ShopRolled payloads (ECO-4).
@@ -394,8 +439,7 @@ function handleReroll(state, seatId, payload) {
   });
 
   // Emit ShopRolled — payload matches 05_ECONOMY_BIBLE.md exactly:
-  // {seat_id, shop_content, odds_table_version, cause} (MED-4:
-  // odds_table_version was missing).
+  // {seat_id, shop_content, odds_table_version, cause}
   newEventLog = appendEvent(newEventLog, {
     kind: 'ShopRolled',
     seat_id: seatId,
@@ -408,24 +452,25 @@ function handleReroll(state, seatId, payload) {
   const newPlayers = { ...state.players };
   newPlayers[seatId] = { ...player, gold: newGold, shop: newShop, shop_locked: false };
 
-  const newState3 = createGameState({
+  const newState = createGameState({
     seed: state.seed,
     rng_state: newRngState,
     eventLog: newEventLog,
     players: newPlayers,
     entities: state.entities,
-    phase: state.phase
+    phase: state.phase,
+    pool: reservedPool,
+    bench_capacity: state.bench_capacity,
+    round_index: state.round_index
   });
 
-  // Attach economic fields
-  newState3.pool = reservedPool;
-  newState3.bench_capacity = state.bench_capacity;
-
-  return newState3;
+  return newState;
 }
 
 /**
- * Lock: conserve Shop without cost.
+ * Lock: toggle shop lock state.
+ * RO-1: Lock is a TOGGLE — verrouiller une boutique déjà verrouillée la déverrouille.
+ * Emits ShopLocked{locked} (R1b, gate 2026-07-19).
  */
 function handleLock(state, seatId, payload) {
   const player = state.players[seatId];
@@ -433,24 +478,34 @@ function handleLock(state, seatId, payload) {
     return state;
   }
 
-  // Just mark shop as locked; no RNG consumption, no cost
-  const newPlayers = { ...state.players };
-  newPlayers[seatId] = { ...player, shop_locked: true };
+  // Toggle shop_locked state
+  const newLockedState = !player.shop_locked;
 
-  const newState4 = createGameState({
-    seed: state.seed,
-    rng_state: state.rng_state,
-    eventLog: state.eventLog,
-    players: newPlayers,
-    entities: state.entities,
-    phase: state.phase
+  let newEventLog = state.eventLog;
+
+  // Emit ShopLocked event
+  newEventLog = appendEvent(newEventLog, {
+    kind: 'ShopLocked',
+    seat_id: seatId,
+    locked: newLockedState
   });
 
-  // Attach economic fields
-  newState4.pool = state.pool;
-  newState4.bench_capacity = state.bench_capacity;
+  const newPlayers = { ...state.players };
+  newPlayers[seatId] = { ...player, shop_locked: newLockedState };
 
-  return newState4;
+  const newState = createGameState({
+    seed: state.seed,
+    rng_state: state.rng_state,
+    eventLog: newEventLog,
+    players: newPlayers,
+    entities: state.entities,
+    phase: state.phase,
+    pool: state.pool,
+    bench_capacity: state.bench_capacity,
+    round_index: state.round_index
+  });
+
+  return newState;
 }
 
 /**
@@ -463,7 +518,19 @@ function handleLevelUp(state, seatId, payload) {
   }
 
   const newLevel = (player.level || 1) + 1;
-  const cost = GOLD_COSTS.LevelUp[newLevel] || 0;
+  const cost = LEVEL_UP_COSTS[newLevel];
+
+  // E4 side-effect (commande E) — HISTORY, resolved by F1 (s9-build commande F): the LevelUp
+  // price table used to stop at level 5, and the older code read it as
+  // `GOLD_COSTS.LevelUp[newLevel] || 0` — so EVERY level from 6 upward cost ZERO gold, handing
+  // out unlimited board slots (E4) for free. `0` was itself an invented price. F1 extends
+  // LEVEL_UP_COSTS (params.v0.mjs) to level 10, sourced TFT and transposed — see the comment
+  // there for the exact derivation. The refusal below still invents nothing: level 10 is this
+  // v0's ratified ceiling, so a level 11 Input is rejected, state strictly unchanged (R14) —
+  // never a repli to 0, never a level invented past the table.
+  if (cost === undefined) {
+    return state; // Reject: no ratified price for this level — refuse rather than invent one
+  }
 
   if (player.gold < cost) {
     return state; // Reject: insufficient gold
@@ -492,29 +559,30 @@ function handleLevelUp(state, seatId, payload) {
   const newPlayers = { ...state.players };
   newPlayers[seatId] = { ...player, gold: newGold, level: newLevel };
 
-  const newState5 = createGameState({
+  const newState = createGameState({
     seed: state.seed,
     rng_state: state.rng_state,
     eventLog: newEventLog,
     players: newPlayers,
     entities: state.entities,
-    phase: state.phase
+    phase: state.phase,
+    pool: state.pool,
+    bench_capacity: state.bench_capacity,
+    round_index: state.round_index
   });
 
-  // Attach economic fields
-  newState5.pool = state.pool;
-  newState5.bench_capacity = state.bench_capacity;
-
-  return newState5;
+  return newState;
 }
 
 /**
- * Place: move unit between Board and Bench (no Pool/Gold effect).
+ * Place: move unit between Bench and Board, or reposition on Board.
+ * Supports: bench→board, board→board (reposition), board→bench (RO-4).
+ * Emits UnitPlaced event with zone and index information (R1b, gate 2026-07-19).
  */
 function handlePlace(state, seatId, payload) {
-  const { unit_instance_id, target_zone } = payload;
+  const { unit_instance_id, to_zone, to_index } = payload;
 
-  if (typeof unit_instance_id !== 'string' || typeof target_zone !== 'string') {
+  if (typeof unit_instance_id !== 'string' || typeof to_zone !== 'string' || typeof to_index !== 'number') {
     return state;
   }
 
@@ -523,72 +591,162 @@ function handlePlace(state, seatId, payload) {
     return state;
   }
 
-  // Find unit on Bench
-  const unit = bench.findOnBench(player.bench, unit_instance_id);
-  if (!unit) {
-    return state; // Not found
+  let fromZone = null;
+  let fromIndex = null;
+  let unit = null;
+  let newBench = player.bench;
+  let newBoard = player.board;
+
+  // Find unit on Bench or Board
+  unit = bench.findOnBench(player.bench, unit_instance_id);
+  if (unit) {
+    fromZone = 'bench';
+    fromIndex = player.bench.findIndex(u => u && u.unit_instance_id === unit_instance_id);
+  } else {
+    unit = board.findOnBoard(player.board, unit_instance_id);
+    if (unit) {
+      fromZone = 'board';
+      fromIndex = board.getBoardIndex(player.board, unit_instance_id);
+    }
   }
 
-  // Move to target zone (placeholder: only Bench→Board supported for now)
-  if (target_zone === 'board') {
-    const removalResult = bench.removeFromBench(player.bench, unit_instance_id);
-    if (!removalResult.ok) {
+  if (!unit) {
+    return state; // Unit not found
+  }
+
+  // Handle different movement types
+  if (to_zone === 'bench') {
+    // Remove from board or bench, add to bench
+    if (fromZone === 'bench') {
+      return state; // Already on bench
+    }
+
+    const boardRemovalResult = board.removeFromBoard(player.board, unit_instance_id);
+    if (!boardRemovalResult.ok) {
       return state;
     }
 
-    const newBench = removalResult.newBench;
-    const newBoard = [...player.board, { ...unit }];
+    const benchAddResult = bench.addToBench(player.bench, { ...unit });
+    if (!benchAddResult) {
+      return state;
+    }
 
-    const newPlayers = { ...state.players };
-    newPlayers[seatId] = { ...player, bench: newBench, board: newBoard };
+    newBoard = boardRemovalResult.newBoard;
+    newBench = benchAddResult;
+  } else if (to_zone === 'board') {
+    // Validate board index
+    if (!board.isValidIndex(to_index)) {
+      return state;
+    }
 
-    const newState6 = createGameState({
-      seed: state.seed,
-      rng_state: state.rng_state,
-      eventLog: state.eventLog,
-      players: newPlayers,
-      entities: state.entities,
-      phase: state.phase
-    });
+    // C1 (s9-build playtest fix): placement is restricted to the seat's own half of the
+    // board (BOARD_ORIENTATION = 'mirror', params.v0.mjs, ratified R11/RO-4). Reject
+    // deterministically, state strictly unchanged — same refusal shape as every other
+    // rejection path in this handler (R14: no rejection Event exists; input/submit.mjs
+    // detects refusal by before/after state comparison).
+    if (!board.isInPlayerHalf(to_index, seatId)) {
+      return state;
+    }
 
-    // Attach economic fields
-    newState6.pool = state.pool;
-    newState6.bench_capacity = state.bench_capacity;
+    // E4 (s9-build commande E): the LEVEL limits how many units may stand on the board at once
+    // (TFT source: board units <= level, params.v0.mjs::boardCapacityForLevel). Checked ONLY for
+    // a move that ADDS a unit to the board — a board->board reposition does not change the count
+    // and must stay free. Refused deterministically, state strictly unchanged, no Event (R14);
+    // input/feedback.mjs names the cause on screen ("Plateau plein — montez de niveau").
+    // Checked BEFORE occupancy: "you have no slot at all" is a truer cause than "that cell is
+    // taken" when both are true.
+    if (fromZone === 'bench' && player.board.length >= boardCapacityForLevel(player.level || 1)) {
+      return state;
+    }
 
-    return newState6;
-  } else if (target_zone === 'bench') {
-    // Board→Bench not yet implemented
-    return state;
+    if (!board.isCellFree(player.board, to_index)) {
+      return state; // Cell occupied
+    }
+
+    if (fromZone === 'bench') {
+      // Bench → Board: remove from bench, place on board
+      const benchRemovalResult = bench.removeFromBench(player.bench, unit_instance_id);
+      if (!benchRemovalResult.ok) {
+        return state;
+      }
+
+      const boardPlaceResult = board.placeOnBoard(player.board, unit, to_index);
+      if (!boardPlaceResult.ok) {
+        return state;
+      }
+
+      newBench = benchRemovalResult.newBench;
+      newBoard = boardPlaceResult.newBoard;
+    } else {
+      // Board → Board: reposition
+      const moveResult = board.moveOnBoard(player.board, unit_instance_id, to_index);
+      if (!moveResult.ok) {
+        return state;
+      }
+
+      newBoard = moveResult.newBoard;
+    }
+  } else {
+    return state; // Invalid zone
   }
 
-  return state;
+  // Emit UnitPlaced — includes from_zone, from_index, to_zone, to_index (R1b, gate 2026-07-19)
+  let newEventLog = appendEvent(state.eventLog, {
+    kind: 'UnitPlaced',
+    seat_id: seatId,
+    unit_instance_id: unit_instance_id,
+    from_zone: fromZone,
+    from_index: fromIndex,
+    to_zone: to_zone,
+    to_index: to_index
+  });
+
+  // Update state
+  const newPlayers = { ...state.players };
+  newPlayers[seatId] = { ...player, bench: newBench, board: newBoard };
+
+  const newState = createGameState({
+    seed: state.seed,
+    rng_state: state.rng_state,
+    eventLog: newEventLog,
+    players: newPlayers,
+    entities: state.entities,
+    phase: state.phase,
+    pool: state.pool,
+    bench_capacity: state.bench_capacity,
+    round_index: state.round_index
+  });
+
+  return newState;
 }
 
 /**
- * ConfirmPreparation: close the Preparation phase, advance to Battle.
- *
- * MED-5: no Event is emitted for the phase transition itself. Spawn means
- * "a unit appears" (a real game entity), not "phase changed" — none of the
- * 19 frozen Event kinds (engine/registry.mjs, INV-12) represents a phase
- * transition, and the registry is closed (no new kind without a separate
- * HumanGate). state.phase is already part of the returned GameState, which
- * is sufficient to observe the transition; no Event is required for it.
+ * ConfirmPreparation: transition from Preparation to Battle phase.
+ * Emits PhaseChanged event (R1b, gate 2026-07-19, RO-2).
  */
 function handleConfirmPreparation(state, seatId, payload) {
-  const newState7 = createGameState({
-    seed: state.seed,
-    rng_state: state.rng_state,
-    eventLog: state.eventLog,
-    players: state.players,
-    entities: state.entities,
-    phase: 'Battle'
+  const fromPhase = state.phase || 'Preparation';
+  const toPhase = 'Battle';
+
+  let newEventLog = appendEvent(state.eventLog, {
+    kind: 'PhaseChanged',
+    from_phase: fromPhase,
+    to_phase: toPhase
   });
 
-  // Attach economic fields
-  newState7.pool = state.pool;
-  newState7.bench_capacity = state.bench_capacity;
+  const newState = createGameState({
+    seed: state.seed,
+    rng_state: state.rng_state,
+    eventLog: newEventLog,
+    players: state.players,
+    entities: state.entities,
+    phase: toPhase,
+    pool: state.pool,
+    bench_capacity: state.bench_capacity,
+    round_index: state.round_index
+  });
 
-  return newState7;
+  return newState;
 }
 
 /**
@@ -619,6 +777,12 @@ function applyAutoMerge(state, seatId) {
 
   const { newUnits, consumed3, produced1 } = mergeResult;
 
+  // Determine destination of produced unit (bench or board, same as oldest consumed)
+  const producedWasOnBench = player.bench.some(b => b.unit_instance_id === consumed3[0].unit_instance_id);
+  const producedBoardIndex = producedWasOnBench
+    ? null
+    : board.getBoardIndex(player.board, consumed3[0].unit_instance_id);
+
   // Emit MergeTriggered and MergeResolved
   let newEventLog = appendEvent(state.eventLog, {
     kind: 'MergeTriggered',
@@ -628,22 +792,18 @@ function applyAutoMerge(state, seatId) {
     consumed_count: 3
   });
 
+  // MergeResolved now includes to_zone and to_index (R1b, gate 2026-07-19)
   newEventLog = appendEvent(newEventLog, {
     kind: 'MergeResolved',
     seat_id: seatId,
     unit_def_id: mergeDetection.unitDefId,
     new_star: produced1.star,
-    produced_unit_id: produced1.unit_instance_id
+    produced_unit_id: produced1.unit_instance_id,
+    to_zone: producedWasOnBench ? 'bench' : 'board',
+    to_index: producedWasOnBench ? null : producedBoardIndex
   });
 
   // Update Bench and Board from merged units.
-  // The produced unit has a freshly-generated unit_instance_id that matches
-  // NEITHER the pre-merge Bench nor Board (BUG found via mutation testing,
-  // s9 i2 escalation): fixing it here by inheriting the zone of the oldest
-  // consumed unit (consumed3[0]) rather than relying on identity matching
-  // for the produced unit specifically.
-  const producedWasOnBench = player.bench.some(b => b.unit_instance_id === consumed3[0].unit_instance_id);
-
   const newBench = newUnits.filter(u => {
     if (u.unit_instance_id === produced1.unit_instance_id) {
       return producedWasOnBench;
@@ -663,19 +823,18 @@ function applyAutoMerge(state, seatId) {
   const newPlayers = { ...state.players };
   newPlayers[seatId] = { ...player, bench: newBench, board: newBoard };
 
-  const newState8 = createGameState({
+  const newState = createGameState({
     seed: state.seed,
     rng_state: rngAfterId,
     eventLog: newEventLog,
     players: newPlayers,
     entities: state.entities,
-    phase: state.phase
+    phase: state.phase,
+    pool: state.pool,
+    bench_capacity: state.bench_capacity,
+    round_index: state.round_index
   });
 
-  // Attach economic fields
-  newState8.pool = state.pool;
-  newState8.bench_capacity = state.bench_capacity;
-
   // Recursively check for chained merges (e.g., merge produces ★2, triggers another ★2+★1→★2)
-  return applyAutoMerge(newState8, seatId);
+  return applyAutoMerge(newState, seatId);
 }

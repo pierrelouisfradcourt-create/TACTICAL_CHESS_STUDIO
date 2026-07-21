@@ -1,7 +1,8 @@
 // properties.i2.test.mjs - Mutation-hardening pass (s9 escalation, i2 increment)
 // Targets specific survivor mutants reported by the mutation gate on:
 // pool/pool.mjs, shop/shop.mjs, bench/bench.mjs, merge/merge.mjs,
-// economy/gold.mjs, preparation/preparation.mjs
+// preparation/preparation.mjs
+// (economy/gold.mjs removed s9-build commande F, F2 — see the note where its section used to be.)
 //
 // Each test below is written to be OBSERVABLY different between the
 // original operator and its mutant (||-> &&, !== -> ===, === -> !==,
@@ -14,12 +15,11 @@ import * as assert from 'node:assert/strict';
 
 import * as state from './engine/state.mjs';
 import * as prep from './preparation/preparation.mjs';
-import { createExtendedGameState } from './preparation/preparation.mjs';
+import { createGameState } from './engine/state.mjs';
 import * as poolMod from './pool/pool.mjs';
 import * as shopMod from './shop/shop.mjs';
 import * as benchMod from './bench/bench.mjs';
 import * as mergeMod from './merge/merge.mjs';
-import * as goldMod from './economy/gold.mjs';
 
 // =====================================================================
 // pool/pool.mjs
@@ -262,36 +262,16 @@ test('merge.canMerge: reflects detectMerge strictly (kills neq->eq @108)', () =>
 });
 
 // =====================================================================
-// economy/gold.mjs
+// economy/gold.mjs — REMOVED (s9-build commande F, F2): dead code. Imported by
+// preparation.mjs and round.mjs but NEVER CALLED (`grep "goldModule\."` = 0 hits in the whole
+// repo, not just games/auto_battler). Its five mutation-hardening tests below validated ONLY
+// this unreachable module's own internal arithmetic (applyGoldTransaction, computeGoldDelta) —
+// never the real gold path, which is preparation.mjs directly mutating `player.gold` inline in
+// handleBuy/handleSell/handleReroll/handleLevelUp and round.mjs's Income credit. That real path
+// is covered by every Buy/Sell/Reroll/LevelUp test elsewhere in this file and in
+// preparation.test.mjs / properties.i25e.test.mjs, which assert the exact resulting `.gold` on
+// real GameState. The file gold.mjs was deleted with these tests.
 // =====================================================================
-
-test('gold.applyGoldTransaction: currentGold validation isolates each OR clause (kills neq->eq/or->and @43)', () => {
-  assert.doesNotThrow(() => goldMod.applyGoldTransaction(5, 1, 'Income'));
-  assert.throws(() => goldMod.applyGoldTransaction(1.5, 1, 'Income')); // non-integer number
-  assert.throws(() => goldMod.applyGoldTransaction(-1, 1, 'Income'));  // integer but < 0
-  assert.throws(() => goldMod.applyGoldTransaction('5', 1, 'Income')); // wrong type
-});
-
-test('gold.applyGoldTransaction: delta validation isolates each OR clause (kills neq->eq/or->and @46)', () => {
-  assert.throws(() => goldMod.applyGoldTransaction(5, 1.5, 'Income'));
-  assert.throws(() => goldMod.applyGoldTransaction(5, '1', 'Income'));
-});
-
-test('gold.applyGoldTransaction: delta=0 is credit, not debit (kills ge->gt @64)', () => {
-  const { transaction } = goldMod.applyGoldTransaction(5, 0, 'Income');
-  assert.equal(transaction.type, 'credit');
-});
-
-test('gold.applyGoldTransaction: negative delta is debit', () => {
-  const { newGold, transaction } = goldMod.applyGoldTransaction(5, -2, 'Sell');
-  assert.equal(newGold, 3);
-  assert.equal(transaction.type, 'debit');
-});
-
-test('gold.computeGoldDelta: tx.amount validation (kills or->and @80)', () => {
-  assert.throws(() => goldMod.computeGoldDelta([{ amount: 1.5, source: 'Income' }]));
-  assert.throws(() => goldMod.computeGoldDelta([{ amount: '1', source: 'Income' }]));
-});
 
 // =====================================================================
 // preparation/preparation.mjs
@@ -305,18 +285,20 @@ function makeFreshPrepState(seed, gold, shop = ['unit_1']) {
   const s0 = state.initState(seed);
   let ps = prep.initPrepState(s0, ['player_0']);
   const player = ps.players['player_0'];
-  return createExtendedGameState({
+  return createGameState({
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
     players: { player_0: { ...player, gold, shop } },
     entities: ps.entities,
-    phase: ps.phase
-  }, ps.pool, ps.bench_capacity);
+    phase: ps.phase,
+    pool: ps.pool,
+    bench_capacity: ps.bench_capacity
+  });
 }
 
-test('prep.createExtendedGameState: respects an explicit truthy benchCapacity (kills or->and @40)', () => {
-  const s = createExtendedGameState({ seed: 1, rng_state: 1, eventLog: [], players: {}, entities: {}, phase: 'Preparation' }, {}, 3);
+test('state.createGameState: preserves pool and bench_capacity fields (kills or->and @40)', () => {
+  const s = createGameState({ seed: 1, rng_state: 1, eventLog: [], players: {}, entities: {}, phase: 'Preparation', pool: {}, bench_capacity: 3 });
   assert.equal(s.bench_capacity, 3);
 });
 
@@ -388,14 +370,16 @@ test('prep.handleLevelUp: newLevel and cost computed from actual player.level, n
   const s0 = state.initState(13);
   let ps = prep.initPrepState(s0, ['player_0']);
   const player = ps.players['player_0'];
-  ps = createExtendedGameState({
+  ps = createGameState({
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
     players: { player_0: { ...player, gold: 50, level: 3 } },
     entities: ps.entities,
-    phase: ps.phase
-  }, ps.pool, ps.bench_capacity);
+    phase: ps.phase,
+    pool: ps.pool,
+    bench_capacity: ps.bench_capacity
+  });
 
   ps = prep.applyPreparationInput(ps, { kind: 'LevelUp', seatId: 'player_0' });
 
@@ -419,7 +403,8 @@ test('prep.handlePlace: valid Place actually moves the unit Bench->Board (kills 
     kind: 'Place',
     seatId: 'player_0',
     unit_instance_id: unit.unit_instance_id,
-    target_zone: 'board'
+    to_zone: 'board',
+    to_index: 32 // C1 (s9-build): row 4 col 0 — player_0's own half (index 0 is now enemy zone)
   });
 
   assert.equal(ps.players['player_0'].bench.length, benchBefore - 1, 'unit removed from bench');
@@ -461,14 +446,16 @@ test('prep.handleReroll: unlocks a previously locked shop (kills false->true @36
   const s0 = state.initState(16);
   let ps = prep.initPrepState(s0, ['player_0']);
   const player = ps.players['player_0'];
-  ps = createExtendedGameState({
+  ps = createGameState({
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
     players: { player_0: { ...player, gold: 50 } },
     entities: ps.entities,
-    phase: ps.phase
-  }, ps.pool, ps.bench_capacity);
+    phase: ps.phase,
+    pool: ps.pool,
+    bench_capacity: ps.bench_capacity
+  });
 
   ps = prep.applyPreparationInput(ps, { kind: 'Lock', seatId: 'player_0' });
   assert.equal(ps.players['player_0'].shop_locked, true, 'precondition: shop is locked');
@@ -505,14 +492,16 @@ test('prep.applyAutoMerge: a board-only merge places the produced unit on the bo
   const b1 = { unit_instance_id: 'board_u1', unit_def_id: 'unit_1', star: 1, creation_tick: 0 };
   const b2 = { unit_instance_id: 'board_u2', unit_def_id: 'unit_1', star: 1, creation_tick: 1 };
   const b3 = { unit_instance_id: 'board_u3', unit_def_id: 'unit_1', star: 1, creation_tick: 2 };
-  ps = createExtendedGameState({
+  ps = createGameState({
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
     players: { player_0: { ...player, gold: 50, board: [b1, b2, b3], shop: ['unit_2'] } },
     entities: ps.entities,
-    phase: ps.phase
-  }, ps.pool, ps.bench_capacity);
+    phase: ps.phase,
+    pool: ps.pool,
+    bench_capacity: ps.bench_capacity
+  });
 
   // Buying an UNRELATED unit adds it to the (currently empty) bench and
   // triggers applyAutoMerge, which discovers the pre-existing board merge.
@@ -539,14 +528,16 @@ test('prep.applyAutoMerge: pre-existing board units are untouched by a bench-onl
   let ps = prep.initPrepState(s0, ['player_0']);
   const player = ps.players['player_0'];
   const sentinelBoardUnit = { unit_instance_id: 'sentinel_board_unit', unit_def_id: 'unit_2', star: 1, creation_tick: 0 };
-  ps = createExtendedGameState({
+  ps = createGameState({
     seed: ps.seed,
     rng_state: ps.rng_state,
     eventLog: ps.eventLog,
     players: { player_0: { ...player, gold: 50, board: [sentinelBoardUnit], shop: ['unit_1', 'unit_1', 'unit_1'] } },
     entities: ps.entities,
-    phase: ps.phase
-  }, ps.pool, ps.bench_capacity);
+    phase: ps.phase,
+    pool: ps.pool,
+    bench_capacity: ps.bench_capacity
+  });
 
   for (let i = 0; i < 3; i++) {
     ps = prep.applyPreparationInput(ps, {
