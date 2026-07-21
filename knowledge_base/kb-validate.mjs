@@ -368,14 +368,15 @@ function validateBrick(e, root, err, brickIds) {
     }
   }
 
-  // R6 — godot = manifest-only
-  if (e.runtime === "godot" && (e.path !== null || e.tests !== null)) {
-    err(id, "R6", "runtime godot = manifest-only : path et tests doivent etre null");
-    return;
-  }
-  // §1b (red-team F7) : un system/template non-godot DOIT avoir un module.
-  if (isCode && e.runtime !== "godot" && e.path === null) {
-    err(id, "R7", `${e.kind} non-godot exige un path (module) — path null esquive purete/tests`);
+  // R6 — « manifest-only » s'applique aux ASSETS godot/3D (modèles non ingérés),
+  // PAS au code GDScript, qui doit être prouvable comme n'importe quel autre code.
+  // Amendement étape 0 (spec 2026-07-21 §8a) : un system/template Godot suit
+  // exactement le même régime de preuve qu'un module non-godot — path + sha256
+  // + tests. Aucune garde existante n'est desserrée : le cas asset reste traité
+  // par validateAsset (R6, inchangé), et l'exigence de path ci-dessous devient
+  // universelle pour le code au lieu d'exempter Godot.
+  if (isCode && e.path === null) {
+    err(id, "R7", `${e.kind} exige un path (module) — path null esquive purete/tests`);
   }
 
   // R7 — réalité disque du module/fiche

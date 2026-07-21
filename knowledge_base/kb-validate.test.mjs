@@ -194,10 +194,54 @@ test("R6: asset godot/3D avec ingested=true -> rejet", (t) => {
   const res = validateCatalog(makeCatalog([a]), { root });
   assert.ok(res.errors.some((e) => e.rule === "R6"));
 });
-test("R6: brick runtime godot avec path non-null -> rejet", (t) => {
+// Amendement etape 0 (2026-07-21) : R6 "manifest-only" ne s'applique plus au CODE godot
+// (seulement aux assets 3D non ingeres, cf. validateAsset ci-dessus, inchange). Un system
+// runtime:godot avec un vrai path/sha256/tests suit desormais exactement le meme regime
+// de preuve qu'un system non-godot -> plus de rejet R6 automatique.
+test("R6 amende: brick system runtime godot avec path/sha256/tests reels -> plus de rejet R6", (t) => {
   const { root, files } = makeRoot(t);
   const s = baseSystem(files); s.runtime = "godot";
   const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.deepEqual(res.errors.filter((e) => e.rule === "R6"), []);
+  assert.equal(res.ok, true);
+});
+
+// Fabrique une brick "system" godot avec un vrai fichier .gd sur disque (meme convention
+// que systemWith() plus bas : ecrit un fichier reel dans la temp knowledge_base/, calcule
+// son sha256 reel). Reutilise le fichier de tests partage (files.tests.path) : un system
+// godot suit le meme regime de preuve qu'un system non-godot, y compris R12 (tests).
+function godotSystemBrick(kb, files, name = "sys-godot-trial", brickId = "sys-godot-trial") {
+  const body = "extends Node\n\nfunc _ready() -> void:\n\tpass\n";
+  const p = `knowledge_base/systems/combat/${name}.gd`;
+  writeFileSync(join(kb, "systems/combat", `${name}.gd`), body);
+  const s = baseSystem(files);
+  s.brick_id = brickId; s.runtime = "godot"; s.path = p; s.sha256 = sha256(Buffer.from(body));
+  s.dependencies = ["pat-damage-floor"];
+  return s;
+}
+
+test("R6: brick system runtime godot avec path .gd + tests + sha256 -> ACCEPTEE", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const s = godotSystemBrick(kb, files);
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.deepEqual(res.errors.filter((e) => e.rule === "R6"), []);
+  assert.equal(res.ok, true);
+});
+
+test("R6: brick system runtime godot SANS path -> rejet R7 (pas d esquive de preuve)", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const s = godotSystemBrick(kb, files);
+  s.path = null; s.sha256 = null; s.tests = null;
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.equal(res.ok, false);
+  assert.ok(res.errors.some((e) => e.rule === "R7"));
+});
+
+test("R6 INCHANGEE: asset 3D/godot ingere reste rejete (manifest-only)", (t) => {
+  const { root, files } = makeRoot(t);
+  const a = { ...manifestOnly3D(), ingested: true, path: files.asset.path, sha256: files.asset.sha, size_kb: files.asset.kb };
+  const res = validateCatalog(makeCatalog([a]), { root });
+  assert.equal(res.ok, false);
   assert.ok(res.errors.some((e) => e.rule === "R6"));
 });
 
