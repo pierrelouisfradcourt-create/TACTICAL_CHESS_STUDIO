@@ -12,11 +12,17 @@ role_id: role-grid-navigator
 
 archetype: >-
   Une entité qui doit atteindre une position cible fixe à travers un espace comportant
-  des obstacles, en suivant à chaque instant le plus court chemin disponible vers cette
-  cible. Le défi produit n'est PAS "l'agent atteint-il la cible" (ça, c'est une
-  solvabilité binaire, hors scope ici) mais "en combien de pas, sur une distribution
-  d'agencements d'obstacles variés" — la bande de difficulté est la donnée de
-  conception qui intéresse le Game Designer.
+  des obstacles, en suivant le plus court chemin disponible vers cette cible. Ce que la
+  mesure vérifie est l'OPTIMALITÉ du navigateur : sur chaque agencement, atteint-il la
+  cible en exactement la longueur du plus court chemin ? CE N'EST PAS UNE BANDE DE
+  DIFFICULTÉ (correction 2026-07-21, audit de falsification Pierre) : le générateur
+  creuse une route monotone garantie, donc le plus court chemin vaut TOUJOURS la distance
+  de Manhattan (26 sur cette grille). La métrique ne prend qu'une seule valeur ; sa
+  variance est nulle. C'est un TEST D'OPTIMALITÉ BINAIRE déguisé en bande (optimal=26 /
+  sous-optimal≠26), pas une difficulté graduée. Prouvé : sur 60 graines, ticks==path_length
+  à 100%, une seule valeur distincte ; tandis que next_step_expansions (le travail du BFS)
+  variait de 2214 à 4362 sur les mêmes graines — la difficulté existe dans l'artefact, la
+  métrique choisie y est simplement aveugle. Voir design_debt plus bas.
 
 requires:
   next_step: >-
@@ -113,6 +119,22 @@ calibration_note: >-
   et dans la bande. La bande généralise donc réellement à des graines non vues, ce qui
   était jusque-là supposé et non démontré. Preuve brute complète (sortie réelle, pas
   résumée) : knowledge_base/proofs/role_sim_grid_navigator_calibration.log.
+
+# DETTE DE CONCEPTION (ratifiée Pierre 2026-07-21). Champ NON consommé par l'oracle —
+# note humaine durable, portée par le contrat pour que tout consommateur du rôle la voie.
+design_debt: >-
+  Ce rôle NE fournit PAS un vrai benchmark de difficulté variable. Sa métrique
+  (ticks_to_reach_goal) mesure la longueur du plus court chemin, qui est constante par
+  construction du générateur (route monotone garantie). Décision assumée : NE PAS refaire
+  le générateur maintenant — l'objectif de grid-navigator est un test d'adaptateur / de
+  chaîne, pas un jeu à difficulté graduée, et le comportement actuel y suffit. Si un vrai
+  benchmark de difficulté est requis plus tard, deux voies (aucune n'est un réglage) :
+  (a) changer la métrique du rôle pour next_step_expansions — le travail du BFS, qui varie
+  réellement avec la structure (mesuré : 2214..4362, 21 valeurs distinctes sur 60 graines) ;
+  (b) écrire un générateur à DÉTOURS FORCÉS (murs obligeant à s'éloigner de la cible avant
+  d'y revenir), pour que la longueur du plus court chemin cesse d'être constante. Tant que
+  cette dette n'est pas levée, ne pas présenter la sortie de ce rôle comme une "bande de
+  difficulté" dans un rapport orienté Game Designer.
 
 proof_of_use: null
 

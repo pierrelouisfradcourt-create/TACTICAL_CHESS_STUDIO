@@ -80,7 +80,7 @@ le mécanisme de vérité.
   - `software_verdict` vient UNIQUEMENT des reçus d'oracle vérifiés ; red-team = **advisory** (jamais juge du code).
   - **HumanGate (Pierre) décide** merge/reject/freeze — jamais la Forge. Écritures durables (ledger, projets, memory/) = propose-only, ratifiées par Pierre.
   - `claim_verdict: NO_CLAIM_ALLOWED` toujours.
-* Cartes de référence (companions, statut PROPOSED) : docs/forge/STUDIO\_ARCHITECTURE.md · STUDIO\_AGENT\_ATLAS.md · STUDIO\_MASTER\_SCHEMA.html.
+  - **Preuve de variance des métriques (ratifié Pierre 2026-07-21)** — toute métrique qui sert à **classer, générer ou calibrer** un jeu (bande de difficulté, score de fun, diversité…) doit d'abord **prouver qu'elle porte une information variable** : mesurer sa distribution sur un échantillon et montrer ≥2 valeurs distinctes non triviales. Une métrique à variance nulle (ou identiquement égale à une autre grandeur, ex. `ticks == plus-court-chemin`) valide le moteur mais **ne mesure pas ce que son nom promet** — c'est une promesse trop forte, à requalifier honnêtement, pas un bug. Leçon : audit de falsification grid-navigator (voir son champ `design_debt`).
 * Auto-audit de la lane (dérive doc↔réalité, connecteurs dormants) : `node scripts/forge/studio_selfaudit.mjs`.
 * Reste dans scripts/forge/, games/, knowledge\_base/, lab/forge\_* pour cette lane (jamais autopilot.py ni la lane STUDIO).
 
