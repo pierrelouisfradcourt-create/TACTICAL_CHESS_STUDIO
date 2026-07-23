@@ -46,7 +46,27 @@ ORDER = [
 ]
 
 # Étapes déterministes (non-LLM) : exécutées par oracle, pas par un agent LLM.
+# Invariant couvert par un test existant (test_dispatch.test_order_covers_the_agent_steps) :
+# DETERMINISTIC ⊆ ORDER. Reste vrai ICI — les 4 étapes ci-dessous sont toutes des membres
+# canoniques de "full". Une étape déterministe qui vit HORS ORDER (profil dédié) va dans
+# DEDICATED_DETERMINISTIC_STEPS ci-dessous, PAS ici : mélanger casserait à la fois cet
+# invariant et `plan_chain(profile="full")` (qui n'a que les étapes de ORDER).
 DETERMINISTIC = ("s10a-oracle-code", "s10b-oracle-archi", "s10c-oracle-wiremap", "s12-verdict")
+
+# Étapes déterministes qui vivent HORS de ORDER, jumelles de DEDICATED_PROFILE_STEPS mais
+# pour la catégorie « oracle non-LLM » plutôt que « agent LLM ». s10s-oracle-standard (les
+# six oracles du STANDARD, scripts/forge/standard_oracles.py) n'est dispatchable que via le
+# profil dédié `standard` (cf. DEDICATED_PROFILE_STEPS et PROFILES["standard"] plus bas) —
+# jamais dans `full`. Séparée de DETERMINISTIC pour ne PAS casser l'invariant DETERMINISTIC
+# ⊆ ORDER ci-dessus (contrat déjà vérifié par un test existant, non modifiable). Utiliser
+# `is_deterministic_step(etape)` pour tester l'UNE ou l'AUTRE catégorie.
+DEDICATED_DETERMINISTIC_STEPS = ("s10s-oracle-standard",)
+
+
+def is_deterministic_step(etape: str) -> bool:
+    """Vrai si `etape` est un oracle non-LLM — canonique (DETERMINISTIC, dans ORDER)
+    OU dédié (DEDICATED_DETERMINISTIC_STEPS, hors ORDER, profil dédié uniquement)."""
+    return etape in DETERMINISTIC or etape in DEDICATED_DETERMINISTIC_STEPS
 
 # Étapes délibérément HORS de ORDER (la chaîne canonique greenfield "full") mais
 # réellement contractualisées, prouvées en vivo, et dispatchables via un profil
@@ -55,7 +75,11 @@ DETERMINISTIC = ("s10a-oracle-code", "s10b-oracle-archi", "s10c-oracle-wiremap",
 # rester hors de ORDER est une décision de portée, pas un oubli. `s2.5-artbible`
 # (Tier 3 #7, Art Director) : 6 runs réels (2 non-adversariaux + 4 adversariaux) +
 # gate 4 Qwen + fix v0.1 + preuve v0.1 finale, cf. docs/forge/S2_5_ARTBIBLE_*.md.
-DEDICATED_PROFILE_STEPS = ("s2.5-artbible",)
+# `s9-build-standard` / `s10s-oracle-standard` (curriculum de jeux, 2026-07-22) : la
+# variante STANDARD contrat/repo/wiremap du build et de son oracle — dispatchable
+# UNIQUEMENT via le profil dédié `standard`, jamais mêlée à "full" (le squelette gelé
+# est un mode opératoire distinct du greenfield Prisme->WireMap classique).
+DEDICATED_PROFILE_STEPS = ("s2.5-artbible", "s9-build-standard", "s10s-oracle-standard")
 
 # Profils de chaîne — sous-ensembles de ORDER (ou de DEDICATED_PROFILE_STEPS ci-dessus)
 # pour des usages plus courts que le greenfield complet. `patch` = un fix sur un projet
@@ -88,6 +112,21 @@ PROFILES = {
         "s10a-oracle-code",
         "s10b-oracle-archi",
         "s10c-oracle-wiremap",
+        "s11-redteam-code",
+        "s12-verdict",
+    ),
+    # standard : curriculum de jeux (Pong -> ...) sur squelette gelé (scripts/forge/standard/).
+    # Remplace s9-build par son jumeau STANDARD (s9-build-standard, hors ORDER par décision
+    # explicite — cf. DEDICATED_PROFILE_STEPS) ; GARDE s10a-oracle-code (le gate mutation/
+    # e2e/solvabilité générique reste applicable) et AJOUTE s10s-oracle-standard (les six
+    # oracles du squelette, jumeau déterministe de s9-build-standard, également hors ORDER) ;
+    # garde s11-redteam-code (advisory) et s12-verdict (agrégation signée) de la chaîne
+    # canonique. Pas d'archi/wiremap génériques (s10b/s10c) : c'est s10s qui en tient lieu
+    # pour cette variante — décision de portée, ratifiée Pierre 2026-07-22, PAS dans "full".
+    "standard": (
+        "s9-build-standard",
+        "s10a-oracle-code",
+        "s10s-oracle-standard",
         "s11-redteam-code",
         "s12-verdict",
     ),
@@ -193,7 +232,7 @@ def main() -> None:
         plan = plan_chain(run_id="dryrun", audit_path=audit, profile=args.profile)
         print(f"Chaîne Forge [{args.profile}] — {len(plan)} étapes planifiées (aucun spawn) :")
         for p in plan:
-            kind = "déterministe" if p.etape in DETERMINISTIC else "LLM"
+            kind = "déterministe" if is_deterministic_step(p.etape) else "LLM"
             print(f"  {p.etape:22} [{kind:12}] -> {p.model}")
         print(f"Audit : {audit}")
     else:

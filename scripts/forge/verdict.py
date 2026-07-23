@@ -234,6 +234,20 @@ def _mutation_triage_exception(code_receipt) -> tuple[bool, list]:
     return (bool(mdetail.get("mutation_exception")), list(mdetail.get("triaged_survivors", [])))
 
 
+def _red_facets(detail: dict) -> list[str]:
+    """Noms des VOLETS rouges d'un reçu multi-volets (ex. les six oracles du STANDARD,
+    dont le detail est {volet: {passed: bool, ...}}). Sert uniquement à rendre le flag
+    HumanGate CITABLE (« standard rouge: ['placement', 'index'] ») au lieu d'un
+    « violation » opaque. Ne juge rien : le statut vient du reçu signé, pas d'ici.
+    [] si le detail n'a pas cette forme (archi/wiremap) -> le message générique reste."""
+    if not isinstance(detail, dict):
+        return []
+    return sorted(
+        k for k, v in detail.items()
+        if isinstance(v, dict) and "passed" in v and not v.get("passed")
+    )
+
+
 @dataclass(frozen=True)
 class AggregateVerdict:
     project: str
@@ -245,7 +259,7 @@ class AggregateVerdict:
     evidence_verdict: str            # MECHANICAL_VALIDATION_ONLY
     claim_verdict: str               # NO_CLAIM_ALLOWED
     decision: str                    # HUMANGATE_READY | BLOCKED (jamais 'merge' — c'est Pierre)
-    oracles: dict                    # {code, archi, wiremap} -> reçus (dict) dont la provenance est vérifiée
+    oracles: dict                    # {code, archi, wiremap[, standard]} -> reçus (dict) dont la provenance est vérifiée
     redteam_reviewer: str            # identité RÉELLE (A2) : qwen2.5-14b-instruct | claude-blind (fallback)
     redteam_ran: bool                # le reviewer INDÉPENDANT a-t-il réellement tourné ? (structuré, pas sniff de string)
     provenance_ok: bool = True       # tous les reçus vérifiés (signature + run_id concordant)
@@ -268,6 +282,7 @@ def build_aggregate_verdict(
     redteam_findings: Sequence[str] = (),
     redteam_blocked: bool = False,
     extra_advisory: Sequence[str] = (),
+    standard: SignedReceipt | None = None,
     git_head: str = "",
     nonce: str = "",
     ts: float = 0.0,
@@ -284,6 +299,14 @@ def build_aggregate_verdict(
     pas un sniff de la chaîne reviewer : il alimente le flag d'honnêteté.
     Le red-team n'entre JAMAIS dans le calcul de ``software_verdict``.
 
+    ``standard`` (curriculum de jeux, 2026-07-23) : reçu de ``s10s-oracle-standard``
+    (les six oracles du STANDARD). OPTIONNEL et rétro-compatible — omis, l'agrégat se
+    comporte exactement comme avant (profils antérieurs au STANDARD, appelants tiers).
+    Fourni, il est traité EXACTEMENT comme archi/wiremap : provenance re-vérifiée,
+    statut agrégé dans ``software_verdict``, rouge/sauté visible dans ``humangate_flags``.
+    Un profil qui MESURE six oracles sans les faire entrer dans le verdict signé ne
+    prouve rien de ce qu'il mesure — d'où ce quatrième reçu.
+
     ``extra_advisory`` (Tier 2.5 étape 3) : flags PRÉ-FORMATÉS d'un contrôle qualité
     additionnel qui DÉTECTE mais ne DÉCIDE jamais (ex. le panel Prisme, s1 : violations
     de forme remontées par check_prisme.mjs). Même statut que le red-team : n'entre
@@ -292,6 +315,8 @@ def build_aggregate_verdict(
     """
     flags: list[str] = []
     receipts = {"code": code, "archi": archi, "wiremap": wiremap}
+    if standard is not None:
+        receipts["standard"] = standard
     verified: dict = {}
     provenance_ok = True
 
@@ -339,7 +364,9 @@ def build_aggregate_verdict(
     if not provenance_ok:
         software = "BLOCKED"     # aucune narration ne remplace un reçu signé
     else:
-        statuses = [verified[n].status for n in ("code", "archi", "wiremap")]
+        # Tous les reçus FOURNIS comptent (dont `standard` quand il est là) — pas une
+        # liste en dur : ajouter un oracle sans l'agréger reviendrait à le mesurer pour rien.
+        statuses = [verified[n].status for n in receipts]
         if "BLOCKED" in statuses:
             software = "BLOCKED"
         elif "FAIL" in statuses:
@@ -368,14 +395,14 @@ def build_aggregate_verdict(
 
     # 3) Flags HumanGate (fog) : rouges mécaniques + oracles sautés + advisory red-team.
     if provenance_ok:
-        for name in ("archi", "wiremap"):
+        for name in [n for n in ("archi", "wiremap", "standard") if n in receipts]:
             st = verified[name].status
             if st == "SKIPPED":
                 flags.append(f"{name} non vérifiée (oracle sauté dans ce profil)")
             elif st != "OK":
                 d = verified[name].detail
                 why = (d.get("deps_interdites_violées") or d.get("features_manquantes")
-                       or d.get("preuves_absentes") or "violation")
+                       or d.get("preuves_absentes") or _red_facets(d) or "violation")
                 flags.append(f"{name} rouge: {why}")
     if triage_exception:
         flags.append(

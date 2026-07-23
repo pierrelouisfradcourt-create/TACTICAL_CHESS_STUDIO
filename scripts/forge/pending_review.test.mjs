@@ -21,6 +21,7 @@ function writeJsonl(root, relPath, lines) {
 
 const LEDGER_CFG = QUEUE_FILES.find((f) => f.id === 'forge_ledger_proposals');
 const ERROR_CFG = QUEUE_FILES.find((f) => f.id === 'error_proposals');
+const BRICK_CFG = QUEUE_FILES.find((f) => f.id === 'forge_brick_proposals');
 
 // --- loadQueueFile ------------------------------------------------------------------------
 
@@ -163,6 +164,38 @@ test('aggregate: fichier absent + fichier present cohabitent sans erreur fatale'
   const absentSource = r.sources.find((s) => s.id === 'forge_project_proposals');
   assert.equal(absentSource.status, 'ABSENT');
   assert.equal(r.total_items, 1);
+});
+
+// --- forge_brick_proposals (le dépositaire, 5e file) -----------------------------------------
+
+test('QUEUE_FILES: forge_brick_proposals est bien la 5e file, cle sujet brick_id', () => {
+  assert.ok(BRICK_CFG, 'forge_brick_proposals doit etre dans QUEUE_FILES');
+  assert.equal(BRICK_CFG.subject_field, 'brick_id');
+  assert.equal(BRICK_CFG.ts_field, 'ts');
+});
+
+test('forge_brick_proposals: lu par aggregate, brick_id distinct compte comme sujet distinct meme projet identique', () => {
+  const root = fakeRepo();
+  writeJsonl(root, BRICK_CFG.path, [
+    JSON.stringify({ type: 'brick', brick_id: 'sys-a', project: 'shmup_slice', run_id: 'r1', kind: 'system', function: 'f', path: 'games/shmup_slice/logic/a.mjs', ts: 1000 }),
+    JSON.stringify({ type: 'brick', brick_id: 'sys-b', project: 'shmup_slice', run_id: 'r2', kind: 'system', function: 'g', path: 'games/shmup_slice/logic/b.mjs', ts: 2000 }),
+  ]);
+  const r = aggregate(root, 100000);
+  assert.equal(r.total_items, 2);
+  const items = r.ranked.filter((it) => it.source_file === 'forge_brick_proposals');
+  assert.equal(items.length, 2);
+  // memes projet, brick_id different -> deux sujets distincts, occurrences=1 chacun
+  assert.ok(items.every((it) => it.occurrences === 1));
+  const a = items.find((it) => it.subject_key === 'sys-a');
+  assert.equal(a.fields.path, 'games/shmup_slice/logic/a.mjs');
+  assert.equal(a.fields.project, 'shmup_slice');
+});
+
+test('fichier absent: forge_brick_proposals absent ne casse pas aggregate (statut ABSENT)', () => {
+  const root = fakeRepo();
+  const r = aggregate(root, 100000);
+  const absentSource = r.sources.find((s) => s.id === 'forge_brick_proposals');
+  assert.equal(absentSource.status, 'ABSENT');
 });
 
 // --- CLI (spawn reel du script) ---------------------------------------------------------------

@@ -14,11 +14,21 @@
 //   lab/reports/forge_ledger_proposals.jsonl   — clé sujet: "project"     · horodatage: "ts" (epoch s)
 //   lab/reports/forge_project_proposals.jsonl  — clé sujet: "project"     · horodatage: "ts" (epoch s)
 //   lab/reports/error_proposals.jsonl          — clé sujet: "error_signature" · horodatage: "created_ts" (epoch s)
+//   lab/reports/forge_bible_proposals.jsonl    — clé sujet: "project"     · horodatage: "ts" (epoch s)
+//     (4e file, `studio_link.propose_bible_entry` — PROPOSE-ONLY, promotion 100% humaine
+//     vers lab/forge_runs/<projet>/PROJECT_BIBLE.md ; record réel : project/kind/decision/
+//     rationale/status/ts — voir PASSTHROUGH_FIELDS ci-dessous pour kind/rationale)
+//   lab/reports/forge_brick_proposals.jsonl    — clé sujet: "brick_id"    · horodatage: "ts" (epoch s)
+//     (5e file, `studio_link.propose_brick` — le dépositaire, PROPOSE-ONLY, ratification
+//     Pierre 2026-07-23 ; promotion 100% humaine vers knowledge_base/catalog.json ; record
+//     réel : type("brick")/brick_id/run_id/project/kind/function/path/status/ts — clé sujet
+//     "brick_id" (pas "project") car deux propositions du MÊME projet peuvent porter des
+//     briques DIFFÉRENTES — voir PASSTHROUGH_FIELDS ci-dessous pour brick_id/kind/function/path)
 //   Un fichier absent est signalé ABSENT — jamais une erreur fatale.
 //
 // Dédoublonnage ("occurrences du même sujet") : DOCUMENTÉ ainsi — deux items du MÊME
 // fichier source partageant la même clé sujet (project, ou error_signature) sont considérés
-// comme le même sujet. On ne dédoublonne PAS across les 3 fichiers (leurs clés ne sont pas
+// comme le même sujet. On ne dédoublonne PAS across les fichiers de file (leurs clés ne sont pas
 // comparables : un "project" de forge_ledger_proposals et un "error_signature" ne désignent
 // pas la même notion). Si le champ clé est absent sur un item, une clé de repli est utilisée
 // (voir KEY_FALLBACK_PREFIX) et l'item est marqué `key_fallback: true` — jamais un crash.
@@ -41,12 +51,23 @@ export const QUEUE_FILES = [
   { id: 'forge_ledger_proposals', path: 'lab/reports/forge_ledger_proposals.jsonl', subject_field: 'project', ts_field: 'ts' },
   { id: 'forge_project_proposals', path: 'lab/reports/forge_project_proposals.jsonl', subject_field: 'project', ts_field: 'ts' },
   { id: 'error_proposals', path: 'lab/reports/error_proposals.jsonl', subject_field: 'error_signature', ts_field: 'created_ts' },
+  // 4e file (studio_link.propose_bible_entry) : même clé sujet que ledger/project
+  // ("project" — record réel écrit par la fonction), même champ d'horodatage epoch
+  // secondes ("ts", via studio_link.time.time()). Un fichier absent reste ABSENT,
+  // jamais une erreur.
+  { id: 'forge_bible_proposals', path: 'lab/reports/forge_bible_proposals.jsonl', subject_field: 'project', ts_field: 'ts' },
+  // 5e file (studio_link.propose_brick — le dépositaire). Clé sujet "brick_id" (PAS
+  // "project" comme les 4 files ci-dessus) : le sujet examiné par Pierre est LA BRIQUE,
+  // pas le projet qui l'a produite — deux propositions du même projet peuvent porter des
+  // briques distinctes et ne doivent pas être comptées comme « le même sujet ». Même champ
+  // d'horodatage epoch secondes ("ts"). Un fichier absent reste ABSENT, jamais une erreur.
+  { id: 'forge_brick_proposals', path: 'lab/reports/forge_brick_proposals.jsonl', subject_field: 'brick_id', ts_field: 'ts' },
 ];
 
 const KEY_FALLBACK_PREFIX = '__no_subject_field__:';
 const DEFAULT_TOP = 5;
 
-// Champs "de reproduction" optionnels rencontrés dans les 3 schémas réels — passés tels
+// Champs "de reproduction" optionnels rencontrés dans les schémas réels — passés tels
 // quels s'ils sont présents. AUCUN champ nommé "reproduction" n'existe dans les données
 // réelles actuelles (2026-07-20) : ceci est un écart signalé, pas résolu en silence — voir
 // le rapport de livraison.
@@ -54,10 +75,21 @@ const PASSTHROUGH_FIELDS = [
   'run_id', 'project', 'folder', 'stage', 'software_verdict', 'decision', 'clean_pass',
   'lane', 'status', 'error_excerpt', 'title', 'oracle_type', 'source', 'proposal_id',
   'error_signature', 'closed', 'ecg_state',
+  // forge_bible_proposals (studio_link.propose_bible_entry) : 'decision' est déjà
+  // couvert ci-dessus (même nom de champ que ledger) ; 'kind' et 'rationale' sont
+  // spécifiques à ce record réel (kind ∈ {"validated","abandoned"}, rationale =
+  // le pourquoi, la mémoire la plus précieuse pour un "abandoned").
+  'kind', 'rationale',
+  // forge_brick_proposals (studio_link.propose_brick, le dépositaire) : 'kind' est déjà
+  // couvert ci-dessus (même nom de champ, sens différent ici : BRICK_SPEC::kind ∈
+  // {"system","pattern","template"}) ; 'brick_id', 'function' et 'path' sont spécifiques —
+  // 'path' est la preuve que le code existe déjà sur disque (pas une intention), 'function'
+  // la description courte que Pierre relit pour décider de la promotion.
+  'brick_id', 'function', 'path',
 ];
 
 export const OUT_OF_SCOPE = [
-  'aucune donnée "reproduction" dédiée n\'existe dans les 3 fichiers réels actuels — le '
+  'aucune donnée "reproduction" dédiée n\'existe dans les fichiers de file actuels — le '
     + 'passthrough expose les champs optionnels disponibles (voir PASSTHROUGH_FIELDS), pas un '
     + 'champ "reproduction" formel qui n\'existe simplement pas encore.',
   'la logique "anti-postpone" du protocole (§5 : un Postpone revient en tête de file à '

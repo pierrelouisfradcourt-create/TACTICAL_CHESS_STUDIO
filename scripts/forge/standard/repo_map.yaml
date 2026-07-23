@@ -1,0 +1,69 @@
+# TABLE category -> dossier. Donnee FIGEE du standard.
+#
+# C'est ICI, et nulle part ailleurs, que la question « ou va ce fichier » est
+# tranchee. Le builder ne la pose jamais : la reconciliation applique cette table.
+# Sinon le point de freestyle se deplace simplement de « quel systeme » a « ou je
+# pose le fichier » (FORGE_STANDARD_v1.md §2).
+#
+# REGLE DE MATERIALISATION : un dossier n'est cree que lorsqu'un contrat l'exige.
+# L'oracle verifie dans LES DEUX SENS — tout dossier reference existe, tout dossier
+# qui existe est reference. Un dossier vide est un FAIL, pas une commodite : huit
+# dossiers vides sur Pong ressemblent a une structure sans en etre une.
+
+schema_version: 1
+
+# Racines universelles (structure de GAME_PROJECT, §2 passe 1).
+roots:
+  charter:    "00_CHARTER/"
+  design:     "01_DESIGN/"
+  entities:   "02_ENTITIES/"
+  world:      "03_WORLD/"
+  assets:     "04_ASSETS/"
+  systems:    "05_SYSTEMS/"
+  runtime:    "06_RUNTIME/"
+  tests:      "07_TESTS/"
+  telemetry:  "08_TELEMETRY/"
+  wiremap:    "09_WIREMAP/"
+  forge:      "10_FORGE/"
+
+# Mapping categorie -> emplacement (passe 2 : meublage).
+# La categorie est declaree A LA CREATION du contrat et n'est jamais reevaluee
+# apres coup selon la complexite de l'objet (§1, regle de categorie).
+mapping:
+
+  # --- systemes : services partages entre plusieurs entites ---
+  system:             "05_SYSTEMS/{id}/"
+  system.adapter:     "06_RUNTIME/adapters/{id}/"
+
+  # --- entites : objets du jeu, meme complexes, tant qu'ils ne sont pas partages ---
+  entity:             "02_ENTITIES/{id}/"
+  entity.player:      "02_ENTITIES/players/{id}/"
+  entity.enemy:       "02_ENTITIES/enemies/{id}/"
+  entity.boss:        "02_ENTITIES/bosses/{id}/"
+  entity.prop:        "02_ENTITIES/props/{id}/"
+
+  # --- monde ---
+  level:              "03_WORLD/levels/{id}/"
+  world.rules:        "03_WORLD/rules/{id}/"
+
+  # --- contenu ---
+  asset.sprite:       "04_ASSETS/sprites/"
+  asset.audio:        "04_ASSETS/audio/"
+  asset.font:         "04_ASSETS/fonts/"
+
+  # --- preuve ---
+  test.unit:          "07_TESTS/unit/"
+  test.oracle:        "07_TESTS/oracle/"
+  test.solvability:   "07_TESTS/oracle/"
+
+  # --- gouvernance du jeu ---
+  charter:            "00_CHARTER/"
+  design.doc:         "01_DESIGN/"
+  telemetry:          "08_TELEMETRY/"
+  wiremap:            "09_WIREMAP/"
+  validator:          "10_FORGE/validators/"
+
+# Categories connues mais volontairement SANS emplacement : une categorie absente
+# de `mapping` est un FAIL a la reconciliation, jamais un placement par defaut.
+# Ajouter une categorie = modifier ce fichier = gate Pierre (une table figee qui
+# se complete au fil de l'eau par le builder n'est plus figee).

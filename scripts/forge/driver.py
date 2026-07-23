@@ -34,10 +34,13 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
+import yaml
+
 from forge.contract import ContractIncomplete
-from forge.dispatch import DETERMINISTIC, order_for_profile, prepare_dispatch
+from forge.dispatch import is_deterministic_step, order_for_profile, prepare_dispatch
 from forge.escalate import escalation_decision, parse_agent_escalation, tier_of
 from forge.gate import forge_gate
+from forge.oracle import OracleNotFound, resolve_oracle
 from forge.mutation_proof import (
     emit_mutation_receipt,
     logic_files_from_wiremap,
@@ -46,6 +49,14 @@ from forge.mutation_proof import (
 )
 from forge.pool import DEFAULT_POOL_SIZE, pool_decision
 from forge.runtime import RUNNER_CLAUDE_BLIND, RUNNER_QWEN, route_step, run_qwen_step
+from forge.standard_oracles import (
+    check_budget,
+    check_collisions,
+    check_contract_completeness,
+    check_index,
+    check_line_states,
+    check_placement,
+)
 from forge.static_oracles import (
     check_architecture,
     check_e2e_harness,
@@ -60,11 +71,17 @@ from forge.static_oracles import (
     utc_iso_now,
 )
 from forge.studio_link import (
+    DEFAULT_BUILDER_RUNS,
+    DEFAULT_TELEMETRY,
+    pool_stats,
     premortem,
+    project_bible,
     record_builder_run,
     record_error,
     record_fix,
     record_telemetry,
+    run_cost,
+    write_journal_index,
 )
 from forge.verdict import (
     CLAIM_VERDICT,
@@ -82,6 +99,10 @@ logger = logging.getLogger(__name__)
 # scripts/forge/driver.py -> parents[2] == racine du repo. Sert à décider où va le
 # journal d'erreurs quand aucun chemin n'est injecté (voir _journal_target).
 _REPO_ROOT = Path(__file__).resolve().parents[2]
+
+# scripts/forge/standard/ : les trois fichiers de référence du STANDARD (jamais
+# spécifiques à un jeu) consommés par s10s-oracle-standard (_run_standard_oracle).
+_STANDARD_DIR = _REPO_ROOT / "scripts" / "forge" / "standard"
 
 # Statuts d'étape. RUNNING = en cours (une étape retrouvée RUNNING à la reprise
 # a été interrompue : elle est rejouée, attempts conservé — jamais silencieux).
@@ -105,12 +126,15 @@ class ForgeDriver:
         executor=None,
         src_root: Path | str | None = None,
         is_game: bool = False,
+        game_dir: Path | str | None = None,
+        catalog_path: Path | str | None = None,
         oracle_config: Path | str | None = None,
         key_file: Path | str | None = None,
         audit_path: Path | str | None = None,
         telemetry_path: Path | str | None = None,
         builder_runs_path: Path | str | None = None,
         journal_path: Path | str | None = None,
+        journal_index_dir: Path | str | None = None,
         caps_path: Path | str | None = None,
         logic_files: list[str] | None = None,
         mutation_runner=None,
@@ -125,6 +149,16 @@ class ForgeDriver:
         self.run_dir = Path(run_dir)
         self.executor = executor
         self.src_root = Path(src_root) if src_root else None
+        # s10s-oracle-standard (STANDARD, curriculum de jeux) : dossier du jeu courant
+        # (00_CHARTER/09_WIREMAP/...). Injectable pour les tests (même patron que
+        # src_root) ; par défaut games/<project> sous la racine du repo.
+        self.game_dir = Path(game_dir) if game_dir else (_REPO_ROOT / "games" / project)
+        # Budget (s10s, volet check_budget) : catalogue RÉEL de briques (knowledge_base/
+        # catalog.json, entry_type == "brick" — distinct des `asset`). Injectable (même
+        # patron que game_dir) pour les tests ; par défaut le catalogue réel du dépôt.
+        self.catalog_path = (
+            Path(catalog_path) if catalog_path else (_REPO_ROOT / "knowledge_base" / "catalog.json")
+        )
         self.is_game = bool(is_game)
         self.oracle_config = Path(oracle_config) if oracle_config else None
         self.key_file = Path(key_file) if key_file else None
@@ -135,6 +169,11 @@ class ForgeDriver:
         # (best-effort, jamais bloquant). None = cible déduite par _journal_target
         # (routage par domaine studio pour un run DANS le repo ; journal local sinon).
         self.journal_path = Path(journal_path) if journal_path else None
+        # Connecteur 6 (suite) : dossier d'index des journaux (studio_link.write_journal_index,
+        # `reports_dir`). Injectable (tests) ; None => défaut PRODUCTION (lab/reports réel) MAIS
+        # seulement pour un run RÉEL — voir _regenerate_journal_index (même discriminant que
+        # _journal_target : run_dir hors dépôt = run de test = jamais d'écriture repo réelle).
+        self.journal_index_dir = Path(journal_index_dir) if journal_index_dir else None
         self.caps_path = Path(caps_path) if caps_path else None
         # P0.2 — preuve mutation d'un JEU : fichiers logiques explicites (sinon
         # dérivés de la WireMap), runner injectable (défaut = forge.mutation réel).
@@ -159,6 +198,11 @@ class ForgeDriver:
                         self.src_root)
         self.state_path = self.run_dir / "state.json"
         self._premortem_cache: list[str] | None = None
+        # s0-contrat mandatory_read (contracts/s0-contrat.yaml l.26) : "la Project
+        # Bible du projet si elle existe, via studio_link.project_bible". Même
+        # patron de cache que le pré-mortem (calculée une fois, pas par tentative :
+        # une bible ne change pas au cours d'un run).
+        self._bible_cache: str | None = None
 
     # --- boucle principale -------------------------------------------------
 
@@ -169,6 +213,7 @@ class ForgeDriver:
         if state is None:
             return self._halted_report(refus, state_known=False)
         if state.get("run_status") == "DONE":
+            self._regenerate_journal_index()
             return self._final_report(state)  # idempotent : rien à rejouer
 
         state["run_status"] = "RUNNING"
@@ -184,13 +229,43 @@ class ForgeDriver:
                 break
             if etape == first_post and self._maybe_escalate(state):
                 continue  # s9 + oracles remis à PENDING — la boucle les rejoue
-            if etape in DETERMINISTIC:
+            if is_deterministic_step(etape):
                 self._run_deterministic(state, etape)
             elif not self._run_llm(state, etape):
                 return self._halted_report(state.get("reason", ""))
         state["run_status"] = "DONE"
         self._save(state)
+        self._regenerate_journal_index()
         return self._final_report(state)
+
+    def _regenerate_journal_index(self) -> None:
+        """Connecteur 6 (suite) : régénère lab/reports/error_journal/INDEX.generated.md
+        (studio_link.write_journal_index) à la fin d'un run, pour que le journal
+        d'erreurs devienne lisible par un HUMAIN — pas seulement relu par le
+        pré-mortem à l'intérieur d'un prompt LLM.
+
+        JAMAIS bloquant (même garantie que la télémétrie/journal) : une écriture
+        qui échoue (disque, permission, dossier absent) est tracée en log, jamais
+        propagée — un run déjà terminé ne doit jamais échouer sur cette écriture
+        secondaire.
+
+        Ne s'exécute, par défaut, QUE pour un run RÉEL — même discriminant que
+        `_journal_target()` (run_dir SOUS le dépôt). Un run de test (run_dir hors
+        dépôt, ex. `tmp_path` pytest) n'écrit donc jamais dans le dépôt réel — sans
+        cette garde, chacun des centaines de runs de la suite de tests écrirait
+        dans lab/reports/error_journal/ du worktree à chaque exécution de pytest.
+        `journal_index_dir` injecté PRIME toujours sur ce discriminant (tests qui
+        veulent exercer explicitement l'écriture, vers un dossier tmp)."""
+        if self.journal_index_dir is None:
+            try:
+                self.run_dir.resolve().relative_to(_REPO_ROOT)
+            except ValueError:
+                return  # run hors dépôt (test) : rien à régénérer
+        try:
+            write_journal_index(reports_dir=self.journal_index_dir)
+        except OSError:
+            logger.warning("index des journaux non régénéré pour %s (non bloquant)",
+                           self.run_id)
 
     # --- état persistant ----------------------------------------------------
 
@@ -243,6 +318,13 @@ class ForgeDriver:
                 "run_status": "RUNNING",
                 "created_ts": time.time(),
                 "steps": {e: {"status": "PENDING", "attempts": 0} for e in self.order},
+                # Budget (s10s, check_budget) : instantané des brick_id du catalogue AU
+                # DÉMARRAGE du run — pas recalculable après coup, donc capturé une seule
+                # fois ici (jamais réécrit à la reprise, cf. `if self.state_path.exists()`
+                # ci-dessus qui retourne AVANT ce bloc). None = catalogue illisible au
+                # démarrage : l'oracle budget se déclare alors NON MESURÉ, jamais vert
+                # par défaut (cf. `_run_standard_oracle`).
+                "catalog_brick_ids_snapshot": self._catalog_brick_ids_snapshot(),
             },
             "",
         )
@@ -305,6 +387,10 @@ class ForgeDriver:
                 "dispatch_marker": f"FORGE_DISPATCH:{etape}:{self.run_id}",
                 "attempt": entry["attempts"],
                 "premortem": self._premortem(),
+                # s0-contrat SEULEMENT (contrat s0 §2 mandatory_read) : "" pour
+                # toute autre étape — un contexte non-s0 ne doit RIEN changer
+                # (project_bible falsy => run_real n'injecte aucune section).
+                "project_bible": self._project_bible() if etape == "s0-contrat" else "",
             }
             res = self.executor(payload, decision, context)
             if not isinstance(res, dict) or not res.get("ok"):
@@ -414,6 +500,18 @@ class ForgeDriver:
                 self._premortem_cache = []
         return self._premortem_cache
 
+    def _project_bible(self) -> str:
+        """Texte de la Project Bible du PROJET (studio_link.project_bible), lu une
+        seule fois par run — même patron que `_premortem` (calcul paresseux, mis en
+        cache, jamais bloquant). "" si aucune bible (projet neuf) : ce n'est pas
+        une anomalie, l'appelant n'injecte alors rien dans le prompt."""
+        if self._bible_cache is None:
+            try:
+                self._bible_cache = project_bible(self.project)
+            except Exception:  # noqa: BLE001 — lecture best-effort
+                self._bible_cache = ""
+        return self._bible_cache
+
     def _freeze_rules(self, state: dict) -> None:
         """Post-s5 : fige le jeu de règles (wiremap_frozen.json) — jamais d'écrasement."""
         frozen_path = self.run_dir / "wiremap_frozen.json"
@@ -479,6 +577,8 @@ class ForgeDriver:
                 self._finish_step(state, entry, "OK" if r["passed"] else "FAIL", r)
         elif etape == "s10c-oracle-wiremap":
             self._run_wiremap_oracle(state, entry)
+        elif etape == "s10s-oracle-standard":
+            self._run_standard_oracle(state, entry)
         elif etape == "s12-verdict":
             self._run_verdict(state, entry)
         else:  # étape déterministe inconnue : jamais un vert par défaut
@@ -510,13 +610,40 @@ class ForgeDriver:
                                 "— hypothèse inconnue = BLOCKED")
             self._finish_step(state, entry, "BLOCKED", detail)
             return
-        e2e = check_e2e_harness(self.src_root)
+        std_topo = self._standard_topology()
+        # C2 — DÉCISION PIERRE 2026-07-23, profil `standard` UNIQUEMENT : le volet e2e
+        # est SAUTÉ, explicitement et dans le reçu SIGNÉ. Motif mécanique :
+        # scripts/forge/standard/core_requirements.yaml ne déclare QUE quatre formes de
+        # preuve (artifact/test/bot_action/pixel) — aucune n'est `e2e` — et
+        # check_e2e_harness exige un run-oracle.mjs + e2e.mjs à la RACINE, topologie que
+        # le STANDARD n'utilise pas. Exiger un harnais Playwright par jeu du curriculum
+        # élargirait le système. Forme copiée de ce que `patch` fait déjà d'archi/wiremap
+        # (_receipt) : SKIPPED motivé, JAMAIS un faux OK, JAMAIS un silence. Les profils
+        # full/increment gardent la garde e2e telle quelle.
+        if std_topo:
+            e2e = {
+                "status": "SKIPPED",
+                "checked": False,
+                "reason": "profil standard : preuve par bot_action/pixel "
+                          "(core_requirements.yaml ne déclare aucune preuve e2e), "
+                          "décision Pierre 2026-07-23",
+            }
+            e2e_ok = True   # sauté != vert : le SKIPPED motivé voyage dans le reçu signé
+        else:
+            e2e = check_e2e_harness(self.src_root)
+            e2e_ok = bool(e2e["passed"])
         detail["e2e"] = e2e
         # P2 (leçon survival_arena/collect_runner : deux jeux injouables tous gates
         # verts) : la solvabilité contribue au gate AU MÊME TITRE que la garde e2e —
         # un jeu sans solvability.mjs câblé dans run-oracle.mjs ne peut pas verdir
         # s10a (échec => FAIL avec raisons, alimente la boucle d'escalade).
-        solvability = check_solvability_wired(self.src_root)
+        # C3 : en topologie STANDARD la preuve vit en 07_TESTS/oracle/ et le « runner »
+        # est la commande d'oracle du projet — la garde reçoit les deux en champs
+        # structurés, elle ne devine pas la topologie.
+        solvability = check_solvability_wired(
+            self.src_root, standard_topology=std_topo,
+            runner_argv=self._oracle_argv() if std_topo else (),
+        )
         detail["solvability"] = solvability
         # R1 (FORGE_V2_CONSOLIDATION.md §4-A) : anti-théâtre des harnais — contribue
         # au gate AU MÊME TITRE que e2e/solvabilité (pas advisory) : un flag de
@@ -535,11 +662,27 @@ class ForgeDriver:
         # et ne rien trouver de pertinent est un résultat légitime, pas un échec).
         detail["search_consulted"] = check_search_consulted(self._driver_start_ts)
 
+        # C4 — les fichiers à MUTER viennent de la VRAIE wiremap. Le driver ne regardait
+        # que `run_dir/wiremap.json` ; en topologie STANDARD la wiremap vit en
+        # `games/<projet>/09_WIREMAP/wiremap.json` (self.game_dir) — d'où un BLOCKED
+        # « fichiers logiques inconnus » et un gate mutation qui NE TOURNAIT JAMAIS
+        # (un jeu à 20% de mutation serait passé en silence). Les deux emplacements sont
+        # consultés, celui du STANDARD d'abord quand le profil est `standard`.
         files = list(self.logic_files or [])
-        if not files:
-            wiremap = self._read_json(self.run_dir / "wiremap.json")
+        sources = [self.run_dir / "wiremap.json"]
+        if std_topo:
+            sources.insert(0, self.game_dir / "09_WIREMAP" / "wiremap.json")
+        wiremap_used = ""
+        for candidate in sources:
+            if files:
+                break
+            wiremap = self._read_json(candidate)
             if wiremap is not None:
-                files = logic_files_from_wiremap(wiremap)
+                files = self._logic_files_from_wiremap_any(wiremap)
+                if files:
+                    wiremap_used = str(candidate)
+        if wiremap_used:
+            detail["logic_files_source"] = wiremap_used
         if not files:
             detail["reason"] = (
                 "fichiers logiques inconnus (ni logic_files ni wiremap.json) — "
@@ -547,9 +690,20 @@ class ForgeDriver:
             self._finish_step(state, entry, "BLOCKED", detail)
             return
 
+        # C4 (suite) : la commande de test qui juge les mutants. Défaut historique
+        # (DEFAULT_TEST_ARGV = `node --test logic.test.mjs properties.test.mjs`) = la
+        # topologie LEGACY ; en STANDARD les tests sont en 07_TESTS/unit/ et cette
+        # commande n'existe pas -> baseline rouge -> mutation jamais lancée. On réutilise
+        # alors la commande d'oracle DÉJÀ résolue du projet (oracles.json), c'est-à-dire
+        # exactement ce que forge_gate exécute : muter le code puis rejouer la commande
+        # qui SERT DE PREUVE est la sémantique même du gate mutation. Un
+        # `mutation_test_argv` explicite de l'appelant reste prioritaire.
+        test_argv = self.mutation_test_argv
+        if test_argv is None and std_topo:
+            test_argv = list(self._oracle_argv()) or None
         result = run_mutation_for_game(
             self.src_root, files,
-            test_argv=self.mutation_test_argv, runner=self.mutation_runner,
+            test_argv=test_argv, runner=self.mutation_runner,
             baseline_runner=self.mutation_baseline_runner,
         )
         receipt = emit_mutation_receipt(
@@ -561,7 +715,7 @@ class ForgeDriver:
 
         if status == "BLOCKED":
             final = "BLOCKED"
-        elif (status == "FAIL" or not e2e["passed"] or not solvability["passed"]
+        elif (status == "FAIL" or not e2e_ok or not solvability["passed"]
               or not harness_flags["passed"] or receipt.receipt.status != "OK"):
             final = "FAIL"  # rouge mécanique => alimente la boucle d'escalade
         else:
@@ -578,6 +732,61 @@ class ForgeDriver:
                 detail["mutation_verification"] = check
                 final = "BLOCKED"
         self._finish_step(state, entry, final, detail)
+
+    # --- topologie de dépôt (C2/C3/C4) -------------------------------------
+    # Deux topologies coexistent et AUCUNE ne remplace l'autre : LEGACY (harnais
+    # run-oracle.mjs/e2e.mjs à la racine du jeu — games/collect_runner, shmup_slice…)
+    # et STANDARD (squelette figé scripts/forge/standard/, curriculum de jeux). Le
+    # discriminant est le PROFIL de chaîne, un champ structuré déjà porté par le run
+    # (state.json/`profile`), jamais un sniff de dossier.
+
+    def _standard_topology(self) -> bool:
+        """Le run suit-il la topologie STANDARD (profil dédié `standard`) ?"""
+        return self.profile == "standard"
+
+    def _oracle_argv(self) -> tuple[str, ...]:
+        """Commande d'oracle RÉSOLUE du projet (oracles.json), telle que forge_gate
+        l'exécute. () si non résoluble — le gate a déjà rendu BLOCKED dans ce cas, et
+        une commande inconnue ne doit jamais valoir câblage prouvé."""
+        try:
+            return tuple(resolve_oracle(self.project, config_path=self.oracle_config).command)
+        except (OracleNotFound, OSError, ValueError, KeyError) as exc:
+            logger.warning("oracle non résolu pour %s (%s) — argv inconnu", self.project, exc)
+            return ()
+
+    @staticmethod
+    def _logic_files_from_wiremap_any(wiremap: dict) -> list[str]:
+        """Fichiers logiques d'une wiremap LEGACY (`features[]`, `fichiers[]` de chaînes)
+        OU STANDARD (`schema_version: 2` : `lines[]`, `fichiers[]` d'objets
+        {path, category}). La FORMULE (« .mjs non-test ») n'est pas dupliquée : on
+        normalise la forme, puis on appelle `mutation_proof.logic_files_from_wiremap`
+        — une seule implémentation de la règle, comme l'exige FORGE_SYSTEM_CONTRACT."""
+        if not isinstance(wiremap, dict):
+            return []
+        entries = []
+        for key in ("features", "lines"):
+            for item in (wiremap.get(key) or []):
+                if not isinstance(item, dict):
+                    continue
+                paths = []
+                for f in (item.get("fichiers") or []):
+                    if isinstance(f, dict):
+                        # Le format 2 porte la CATÉGORIE (table figée repo_map.yaml) :
+                        # `test.unit` / `test.oracle` / `test.solvability` sont de la
+                        # PREUVE, jamais du code à muter. On lit le champ structuré
+                        # existant au lieu de deviner d'après le nom — l'heuristique de
+                        # nom (« test » dans le chemin) est insensible à la casse du
+                        # STANDARD (« 07_TESTS/ ») et classerait solvability.mjs comme
+                        # code mutable, c.-à-d. muterait sa propre preuve.
+                        if str(f.get("category", "")).startswith("test."):
+                            continue
+                        p = f.get("path")
+                    else:
+                        p = f
+                    if isinstance(p, str):
+                        paths.append(p)
+                entries.append({"fichiers": paths})
+        return logic_files_from_wiremap({"features": entries})
 
     def _run_wiremap_oracle(self, state: dict, entry: dict) -> None:
         wiremap = self._read_json(self.run_dir / "wiremap.json")
@@ -604,15 +813,120 @@ class ForgeDriver:
         wire = check_wiremap(wiremap, self.src_root)
         self._finish_step(state, entry, "OK" if wire["passed"] else "FAIL", wire)
 
+    def _run_standard_oracle(self, state: dict, entry: dict) -> None:
+        """s10s. Six oracles du STANDARD (scripts/forge/standard_oracles.py), mode
+        APRÈS BUILD, sur le jeu courant (self.game_dir : games/<project>/). Jamais
+        d'exception sur une entrée absente/malformée — reçu BLOCKED motivé, même
+        discipline que check_architecture (crash-loop réel évité, cf. son commentaire).
+        FAIL si UN SEUL des six oracles échoue ; le détail de chacun est conservé."""
+        game_contract = self._read_yaml(self.game_dir / "00_CHARTER" / "game_contract.yaml")
+        wiremap = self._read_json(self.game_dir / "09_WIREMAP" / "wiremap.json")
+        core_requirements = self._read_yaml(_STANDARD_DIR / "core_requirements.yaml")
+        repo_map = self._read_yaml(_STANDARD_DIR / "repo_map.yaml")
+        capabilities = self._read_yaml(_STANDARD_DIR / "capabilities.yaml")
+
+        missing: list[str] = []
+        if game_contract is None:
+            missing.append(f"{self.game_dir}/00_CHARTER/game_contract.yaml absent ou illisible")
+        if wiremap is None:
+            missing.append(f"{self.game_dir}/09_WIREMAP/wiremap.json absent ou illisible")
+        if core_requirements is None:
+            missing.append("scripts/forge/standard/core_requirements.yaml absent ou illisible")
+        if repo_map is None:
+            missing.append("scripts/forge/standard/repo_map.yaml absent ou illisible")
+        if capabilities is None:
+            missing.append("scripts/forge/standard/capabilities.yaml absent ou illisible")
+        if missing:
+            self._finish_step(state, entry, "BLOCKED", {
+                "reason": "entrée(s) requise(s) absente(s)/illisible(s) pour l'oracle "
+                          "standard — hypothèse inconnue = BLOCKED",
+                "missing": missing,
+            })
+            return
+
+        contract_r = check_contract_completeness(game_contract, "game")
+
+        # Budget (check_budget) : `deposited_bricks` DOIT venir du RÉEL (le différentiel
+        # du catalogue de briques, knowledge_base/catalog.json), jamais du budget déclaré
+        # lui-même — sinon la vérification « toute brique déposée appartient à reuses∪adds »
+        # est vraie PAR CONSTRUCTION (tautologie corrigée une fois déjà, commit bb6ea2f).
+        # `library_index` = le catalogue réel filtré sur entry_type == "brick" (BRICK_SPEC,
+        # knowledge_base/kb-validate.mjs) — distinct des entrées `asset`.
+        catalog_now = self._load_brick_catalog(self.catalog_path)
+        snapshot = state.get("catalog_brick_ids_snapshot")
+        if catalog_now is None:
+            budget_r = {
+                "passed": False, "measured": False,
+                "reason": f"{self.catalog_path} absent ou illisible au moment de l'oracle "
+                          "— budget non mesurable",
+            }
+        elif snapshot is None:
+            # Run démarré avant ce mécanisme (state.json ancien), ou catalogue illisible
+            # AU DÉMARRAGE du run (snapshot jamais pris) : le différentiel est incalculable.
+            # NON MESURÉ, jamais vert par défaut (hypothèse inconnue = BLOCKED, cf. plus bas).
+            budget_r = {
+                "passed": False, "measured": False,
+                "reason": "instantané de catalogue absent du state (run démarré avant ce "
+                          "mécanisme, ou catalogue illisible au démarrage) — budget non "
+                          "mesurable",
+            }
+        else:
+            library_index = {bid: {"tier": e.get("tier")} for bid, e in catalog_now.items()}
+            deposited = sorted(set(catalog_now.keys()) - set(snapshot))
+            budget_r = dict(check_budget(game_contract, deposited, library_index))
+            budget_r["measured"] = True
+
+        line_r = check_line_states(wiremap, core_requirements, frozen="built")
+        placement_r = check_placement(wiremap, repo_map)
+        # C5 — `repo_map` PASSÉ : sans lui, check_index n'exécute PAS son volet
+        # `dossiers_hors_structure` (« la fermeture côté disque » du standard,
+        # SCHEMA.md §3) — il était testé mais n'avait jamais tourné sur un jeu réel.
+        index_r = check_index(wiremap, self.game_dir, built=True, repo_map=repo_map)
+        collisions_r = check_collisions(wiremap, capabilities)
+
+        detail = {
+            "contract_completeness": contract_r,
+            "budget": budget_r,
+            "line_states": line_r,
+            "placement": placement_r,
+            "index": index_r,
+            "collisions": collisions_r,
+        }
+        # Priorité (arbitrage coordinateur) : UNE PREUVE D'ÉCHEC L'EMPORTE SUR UNE
+        # ABSENCE DE PREUVE. FAIL = « c'est faux, prouvé » (répare le JEU) ; BLOCKED =
+        # « je ne peux pas savoir » (répare l'INSTRUMENT) — les confondre envoie le
+        # builder réparer la mauvaise chose ET rend une violation réelle invisible
+        # derrière un problème d'instrumentation. Donc : un volet démontré en violation
+        # (budget mesuré et FAIL inclus) rend le pas FAIL, MÊME si le budget n'a par
+        # ailleurs pas pu être mesuré. BLOCKED seulement si budget non mesurable ET
+        # qu'aucun autre volet n'a échoué — le seul cas où on ne sait vraiment rien.
+        # Dans tous les cas, `measured`/`reason` du budget restent visibles dans le détail.
+        _CORE_FACETS = ("contract_completeness", "line_states", "placement", "index", "collisions")
+        other_violation = any(not bool(detail[k].get("passed")) for k in _CORE_FACETS)
+        budget_measured = bool(budget_r.get("measured"))
+        budget_violation = budget_measured and not bool(budget_r.get("passed"))
+        if other_violation or budget_violation:
+            status = "FAIL"
+        elif not budget_measured:
+            status = "BLOCKED"
+        else:
+            status = "OK"
+        self._finish_step(state, entry, status, detail)
+
     def _run_verdict(self, state: dict, entry: dict) -> None:
         code_r = self._receipt(state, "code", "s10a-oracle-code")
         archi_r = self._receipt(state, "archi", "s10b-oracle-archi")
         wire_r = self._receipt(state, "wiremap", "s10c-oracle-wiremap")
+        # C1 — les six oracles du STANDARD entrent dans le verdict SIGNÉ, verts comme
+        # rouges. Hors profil `standard`, `_receipt` rend un SKIPPED SIGNÉ (même patron
+        # qu'archi/wiremap en profil `patch`) : sauter est assumé et auditable, jamais
+        # un trou silencieux. Un profil qui mesure sans agréger ne prouve rien.
+        std_r = self._receipt(state, "standard", "s10s-oracle-standard")
         reviewer, ran, blocked, findings = self._redteam_facts(state)
         agg = build_aggregate_verdict(
             self.project, self.run_id, code_r, archi_r, wire_r, reviewer,
             redteam_ran=ran, redteam_findings=findings, redteam_blocked=blocked,
-            extra_advisory=self._prisme_facts(state),
+            extra_advisory=self._prisme_facts(state), standard=std_r,
             git_head=current_git_head(), nonce=new_nonce(), ts=time.time(),
             key_file=self.key_file,
         )
@@ -747,17 +1061,53 @@ class ForgeDriver:
 
     # --- escalade (boucle fermée EN CODE, mêmes bornes que forge.escalate) ----
 
+    def _builder_step(self) -> str | None:
+        """L'étape BUILDER de ce profil, quel que soit son nom de variante.
+
+        Historiquement `_maybe_escalate` testait `"s9-build" not in self.order` en dur.
+        Le profil `standard` (curriculum de jeux) a pour builder `s9-build-standard` :
+        la garde sortait donc immédiatement et TOUTE la boucle (pool + escalade de
+        modèle) était INERTE pour ce profil — pas un crash, un silence. Le run partait
+        en un seul coup, sans jamais pouvoir se corriger, ce qui est précisément la
+        capacité que le driver est censé apporter. Dériver le nom au lieu de le figer
+        évite que la prochaine variante de builder retombe dans le même trou."""
+        for etape in self.order:
+            if etape.startswith("s9-build"):
+                return etape
+        return None
+
+    def _steps_to_replay(self) -> tuple[str, ...]:
+        """Étapes remises à PENDING quand on retente (pool) ou qu'on escalade : le
+        builder du profil et ses oracles. Dérivé de `self.order` au lieu d'une liste
+        figée — la liste en dur ne citait que `s9-build`/s10a/s10b/s10c, si bien que
+        le profil `standard` rejouait son oracle SANS jamais rejouer son builder :
+        une boucle qui re-juge un code inchangé ne peut rien corriger.
+
+        Pour les profils existants le résultat est IDENTIQUE à l'ancienne liste
+        (mêmes noms, même filtrage par appartenance à l'ordre) : ajout pur."""
+        return tuple(
+            e for e in self.order
+            if e.startswith("s9-build") or e.startswith("s10")
+        )
+
     def _maybe_escalate(self, state: dict) -> bool:
         """Évaluée quand la boucle atteint la 1re étape post-oracles. True =
         s9 + oracles remis à PENDING (re-build au tier supérieur)."""
-        if "s9-build" not in self.order:
+        builder = self._builder_step()
+        if builder is None:
             return False
         code_st = state["steps"].get("s10a-oracle-code", {}).get("status")
         wire_st = state["steps"].get("s10c-oracle-wiremap", {}).get("status")
+        # s10s : oracle des SIX volets du standard — son FAIL doit déclencher le
+        # re-build au même titre que le code ou la wiremap, sinon le profil `standard`
+        # constate l'échec sans jamais le corriger. Ajout STRICTEMENT additif :
+        # s10b-archi reste volontairement HORS du prédicat, exactement comme avant,
+        # et pour `full` (où s10s n'est pas dans l'ordre) le prédicat est inchangé.
+        std_st = state["steps"].get("s10s-oracle-standard", {}).get("status")
         # FAIL uniquement : BLOCKED = infra/hypothèse inconnue, ré-escalader le
         # builder n'y changerait rien (et le gel violé est un STOP dur).
-        oracle_fail = code_st == "FAIL" or wire_st == "FAIL"
-        s9_detail = state["steps"]["s9-build"].get("detail", {})
+        oracle_fail = code_st == "FAIL" or wire_st == "FAIL" or std_st == "FAIL"
+        s9_detail = state["steps"][builder].get("detail", {})
         requested, why = parse_agent_escalation(s9_detail.get("output_excerpt", ""))
 
         # Tier 2.5 étape 2 : un builder_run par TENTATIVE s9, succès inclus (sinon
@@ -797,10 +1147,8 @@ class ForgeDriver:
             )
             if pool.retry_same_tier:
                 state["pool_attempts"] = int(state.get("pool_attempts", 0)) + 1
-                for e in ("s9-build", "s10a-oracle-code", "s10b-oracle-archi",
-                          "s10c-oracle-wiremap"):
-                    if e in self.order:
-                        state["steps"][e]["status"] = "PENDING"
+                for e in self._steps_to_replay():
+                    state["steps"][e]["status"] = "PENDING"
                 self._premortem_cache = None  # la re-tentative relit le journal À JOUR
                 logger.info("pool: %s", pool.reason)
                 self._save(state)
@@ -825,16 +1173,85 @@ class ForgeDriver:
         state["model_override"] = d.next_model
         state["escalations"] = int(state.get("escalations", 0)) + 1
         state["pool_attempts"] = 0  # nouveau tier -> budget de pool reinitialise
-        for e in ("s9-build", "s10a-oracle-code", "s10b-oracle-archi",
-                  "s10c-oracle-wiremap"):
-            if e in self.order:
-                state["steps"][e]["status"] = "PENDING"
+        for e in self._steps_to_replay():
+            state["steps"][e]["status"] = "PENDING"
         self._premortem_cache = None  # le re-build au tier +fort relit le journal À JOUR
         logger.info("escalade #%s: %s", state["escalations"], d.reason)
         self._save(state)
         return True
 
     # --- rapports -------------------------------------------------------------
+
+    def _cost_and_effort(self, state: dict) -> dict:
+        """Coût réel (connecteur 3, `studio_link.run_cost`) + pool réel (Tier 2.5
+        étape 2, `studio_link.pool_stats`) + effort réel (déjà présent dans
+        `state.json` : escalades, tentatives de pool, tentatives par étape).
+        Best-effort sur le coût ET sur le pool (une télémétrie illisible ne casse
+        jamais le rapport) — RÈGLE DURE, identique pour les deux : distingue
+        explicitement NON MESURÉ (fichier de télémétrie absent ou vide) d'un ZÉRO
+        réellement mesuré. Afficher « 0 token » ou « pool_saves: 0 » pour un run
+        dont le fichier source n'existe pas (ex. worktree neuf : `lab/forge_evidence`
+        est gitignoré) serait une affirmation fausse (cf. commande de fabrication) ;
+        un `pool_attempts` à 0 tiré de `state.json`, lui, est un vrai zéro (aucune
+        re-tentative), jamais maquillé. Coût et pool sont ACCESSOIRES au verdict :
+        ils dégradent, ils n'emportent JAMAIS le rapport d'un run réussi."""
+        tpath = self.telemetry_path or DEFAULT_TELEMETRY
+        try:
+            telemetry_measured = tpath.exists() and tpath.stat().st_size > 0
+        except OSError:
+            telemetry_measured = False
+        try:
+            cost = run_cost(self.run_id, telemetry_path=self.telemetry_path)
+        except (OSError, ValueError):
+            # ValueError couvre JSONDecodeError : `studio_link._read` fait un
+            # `json.loads` NU par ligne, et `forge_telemetry.jsonl` est écrit en
+            # APPEND par des sous-processus concurrents qu'on tue par arbre au
+            # timeout (FIR-01) — une ligne tronquée est un cas réel, pas théorique.
+            # Cette fragilité était inoffensive tant que rien n'appelait `run_cost` ;
+            # depuis qu'elle est branchée ici, une seule ligne corrompue ferait
+            # planter le rapport final d'un run PAR AILLEURS RÉUSSI. Le coût est
+            # accessoire au verdict : il dégrade, il n'emporte jamais le rapport.
+            cost = {"run_id": self.run_id, "calls": 0, "total_tokens": 0,
+                    "total_duration_s": 0.0}
+            telemetry_measured = False
+        cost["measured"] = telemetry_measured
+        if not telemetry_measured:
+            cost["reason"] = (
+                f"{tpath} absent ou vide — coût NON MESURÉ (pas un zéro réel)")
+
+        bpath = self.builder_runs_path or DEFAULT_BUILDER_RUNS
+        try:
+            builder_runs_measured = bpath.exists() and bpath.stat().st_size > 0
+        except OSError:
+            builder_runs_measured = False
+        try:
+            pool = pool_stats(self.run_id, telemetry_path=self.builder_runs_path)
+        except (OSError, ValueError):
+            # Même garantie que pour `cost` ci-dessus : `forge_builder_runs.jsonl`
+            # est écrit en APPEND par les mêmes sous-processus concurrents (une
+            # tentative s9-build par ligne) et peut être tronqué au même timeout.
+            pool = {"run_id": self.run_id, "attempts": 0, "pool_saves": 0,
+                    "escalations_avoided_cost_usd": 0.0, "by_builder": {}}
+            builder_runs_measured = False
+        pool["measured"] = builder_runs_measured
+        if not builder_runs_measured:
+            pool["reason"] = (
+                f"{bpath} absent ou vide — pool NON MESURÉ (pas un zéro réel)")
+
+        steps = state.get("steps") or {}
+        return {
+            "cost": cost,
+            "pool": pool,
+            "effort": {
+                "escalations": int(state.get("escalations", 0)),
+                "pool_attempts": int(state.get("pool_attempts", 0)),
+                "attempts_total": sum(int(st.get("attempts", 0)) for st in steps.values()),
+                "steps_with_retries": {
+                    e: int(st.get("attempts", 0)) for e, st in steps.items()
+                    if int(st.get("attempts", 0)) > 1
+                },
+            },
+        }
 
     def _final_report(self, state: dict) -> dict:
         base = {
@@ -845,6 +1262,7 @@ class ForgeDriver:
             "evidence_verdict": EVIDENCE_VERDICT,
             "claim_verdict": CLAIM_VERDICT,
             "state_path": str(self.state_path),
+            **self._cost_and_effort(state),
         }
         s12 = state["steps"].get("s12-verdict", {})
         detail = s12.get("detail", {})
@@ -922,3 +1340,51 @@ class ForgeDriver:
         except (OSError, ValueError):
             return None
         return data if isinstance(data, dict) else None
+
+    @staticmethod
+    def _read_yaml(path: Path) -> dict | None:
+        """Lit un YAML d'entrée ; absent/illisible/mal formé => None (l'appelant BLOQUE).
+        Jamais d'exception — même discipline que _read_json (F2b, crash-loop évité)."""
+        if not path.exists():
+            return None
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (OSError, yaml.YAMLError):
+            return None
+        return data if isinstance(data, dict) else None
+
+    @staticmethod
+    def _load_brick_catalog(path: Path) -> dict[str, dict] | None:
+        """Charge knowledge_base/catalog.json et n'en retient QUE les entrées `brick`
+        (BRICK_SPEC, knowledge_base/kb-validate.mjs — champ `brick_id`, distinct des
+        entrées `asset`), indexées par `brick_id`. Jamais d'exception : catalogue
+        absent/illisible/mal formé => None (l'appelant déclare le volet budget NON
+        MESURÉ, jamais un faux vert par catalogue fantôme)."""
+        if not path.exists():
+            return None
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            # ValueError couvre JSONDecodeError. Sans lui, la docstring ci-dessus
+            # (« mal formé => None ») était une promesse non tenue : un catalogue
+            # au JSON cassé faisait LEVER l'oracle de budget au lieu de le déclarer
+            # NON MESURÉ. Même famille que `_read_json`/`_load_state`.
+            return None
+        if not isinstance(data, dict):
+            return None
+        entries = data.get("entries")
+        if not isinstance(entries, list):
+            return None
+        out: dict[str, dict] = {}
+        for e in entries:
+            if (isinstance(e, dict) and e.get("entry_type") == "brick"
+                    and isinstance(e.get("brick_id"), str) and e["brick_id"]):
+                out[e["brick_id"]] = e
+        return out
+
+    def _catalog_brick_ids_snapshot(self) -> list[str] | None:
+        """Instantané des `brick_id` du catalogue AU DÉMARRAGE du run — capturé une
+        seule fois par `_load_state` (jamais recalculé à la reprise). None si le
+        catalogue est illisible à cet instant (le volet budget sera NON MESURÉ)."""
+        catalog = self._load_brick_catalog(self.catalog_path)
+        return sorted(catalog.keys()) if catalog is not None else None

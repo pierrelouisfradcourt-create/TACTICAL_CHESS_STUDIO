@@ -20,6 +20,7 @@ import unicodedata
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -387,16 +388,40 @@ def check_e2e_harness(src_root: Path) -> dict:
 _SOLVABILITY_WIRED = re.compile(r"(?:run|spawn|exec|execFile|fork|import|node)\b[^\n]*?solvability\.mjs")
 
 
-def check_solvability_wired(root: Path) -> dict:
-    """Le jeu a-t-il un harnais de solvabilité, câblé dans son run-oracle ?
+# C3 — DEUX TOPOLOGIES COEXISTENT, aucune ne remplace l'autre :
+#   * LEGACY (games/collect_runner, games/shmup_slice, games/kb_tactics…) : harnais à la
+#     RACINE du jeu (run-oracle.mjs + solvability.mjs) ;
+#   * STANDARD (curriculum de jeux, scripts/forge/standard/repo_map.yaml — table FIGÉE) :
+#     la preuve de solvabilité vit en `07_TESTS/oracle/solvability.mjs` (catégorie
+#     `test.solvability`) et il n'y a PAS de run-oracle.mjs — le rôle de « runner qui
+#     câble la preuve au gate » est tenu par la COMMANDE D'ORACLE du projet (oracles.json,
+#     celle-là même que forge_gate exécute).
+# La garde ne bascule donc pas de l'une à l'autre : elle reçoit du driver un champ
+# STRUCTURÉ (`standard_topology`) — jamais un sniff de dossier — et applique la
+# vérification correspondante. Même exigence dans les deux cas : le fichier existe, il
+# n'est pas vide, ET l'exécutant du gate l'invoque réellement.
+_STANDARD_SOLVABILITY_REL = "07_TESTS/oracle/solvability.mjs"
 
-    Retourne {passed, raisons[], checked} homogène aux autres gardes. PASS =
-    solvability.mjs existe, non vide, ET run-oracle.mjs l'INVOQUE via un verbe
-    d'exécution (commentaires JS retirés avant analyse — une mention en
-    commentaire/log ne câble aucun oracle). checked est toujours True : la garde
-    est purement statique, elle s'évalue dans tous les cas.
+
+def check_solvability_wired(
+    root: Path, *, standard_topology: bool = False,
+    runner_argv: Sequence[str] = (),
+) -> dict:
+    """Le jeu a-t-il un harnais de solvabilité, câblé dans ce qui exécute le gate ?
+
+    Retourne {passed, raisons[], checked} homogène aux autres gardes (+ `topology`
+    en topologie STANDARD, où le champ est neuf : la forme du reçu LEGACY est
+    inchangée, un test l'assert en égalité stricte).
+    PASS (topologie LEGACY, défaut, comportement INCHANGÉ) = solvability.mjs existe à la
+    racine, non vide, ET run-oracle.mjs l'INVOQUE via un verbe d'exécution (commentaires
+    JS retirés avant analyse — une mention en commentaire/log ne câble aucun oracle).
+    PASS (topologie STANDARD, `standard_topology=True`) = `07_TESTS/oracle/solvability.mjs`
+    existe, non vide, ET `runner_argv` (la commande d'oracle réellement résolue pour ce
+    projet) l'invoque. checked est toujours True : la garde est purement statique.
     """
     root = Path(root)
+    if standard_topology:
+        return _check_solvability_standard(root, tuple(runner_argv or ()))
     raisons: list[str] = []
 
     runner = root / "run-oracle.mjs"
@@ -414,7 +439,37 @@ def check_solvability_wired(root: Path) -> dict:
     if not _strip_js_comments(_read(solv)).strip():
         raisons.append("solvability.mjs vide ou illisible")
 
+    # Forme du reçu LEGACY inchangée au champ près (test_driver_solvability l'assert en
+    # égalité stricte) : la topologie n'est nommée que là où elle est nouvelle.
     return {"passed": not raisons, "raisons": raisons, "checked": True}
+
+
+def _check_solvability_standard(root: Path, runner_argv: tuple) -> dict:
+    """Volet solvabilité pour la topologie STANDARD (cf. commentaire ci-dessus).
+
+    `runner_argv` = la commande d'oracle RÉSOLUE du projet (forge.oracle.resolve_oracle),
+    c'est-à-dire exactement ce que forge_gate lance. L'invocation est cherchée dans les
+    ARGUMENTS (pas dans un fichier source) : c'est là que vit le câblage en topologie
+    STANDARD. `runner_argv` vide (oracle non résolu) => câblage NON prouvé, jamais un
+    vert par défaut."""
+    raisons: list[str] = []
+    solv = root / "07_TESTS" / "oracle" / "solvability.mjs"
+
+    if not any("solvability.mjs" in str(a) for a in runner_argv):
+        raisons.append(
+            f"la commande d'oracle du projet n'invoque pas {_STANDARD_SOLVABILITY_REL} "
+            f"(volet solvabilité absent du gate) — argv={list(runner_argv)}")
+
+    if not solv.exists():
+        raisons.append(f"{_STANDARD_SOLVABILITY_REL} absent (topologie STANDARD)")
+        return {"passed": False, "raisons": raisons, "checked": True,
+                "topology": "standard"}
+
+    if not _strip_js_comments(_read(solv)).strip():
+        raisons.append(f"{_STANDARD_SOLVABILITY_REL} vide ou illisible")
+
+    return {"passed": not raisons, "raisons": raisons, "checked": True,
+            "topology": "standard"}
 
 
 # --- garde structurelle reuse_ratio (Tier 1 #2, renfort 2026-07-13) ---------------
