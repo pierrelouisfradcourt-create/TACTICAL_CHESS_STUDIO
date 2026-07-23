@@ -14,7 +14,7 @@ import json
 import re
 from pathlib import Path
 
-from forge.dispatch import DEFAULT_AUDIT
+from forge.dispatch import DEFAULT_AUDIT, EVENT_AUTHORIZED, EVENT_PREPARED
 
 # Marqueur : FORGE_DISPATCH:<etape>:<run_id>[:<attempt>]. Le 3e groupe (attempt) est
 # OPTIONNEL — une ligne d'audit / un prompt au FORMAT HISTORIQUE 2-champs reste reconnu.
@@ -23,6 +23,21 @@ from forge.dispatch import DEFAULT_AUDIT
 MARKER = re.compile(r"FORGE_DISPATCH:([\w.\-]+):([\w.\-]+)(?::(\d+))?")
 MARKER_TOKEN = "FORGE_DISPATCH"
 SPAWN_TOOLS = ("Task", "Agent")
+
+
+def marker_key(prompt: str) -> tuple[str, str, int] | None:
+    """(etape, run_id, attempt) du marqueur, ou None s'il n'y en a pas.
+
+    `attempt` vaut 0 pour un marqueur historique 2-champs — même convention que
+    `DispatchRecord.attempt` (défaut 0), donc la corrélation reste exacte. Fonction
+    PURE (aucune I/O) : c'est le seul point d'analyse du marqueur, partagé par le
+    garde PreToolUse et par le hook PostToolUse (`spawn_executed`).
+    """
+    match = MARKER.search(prompt or "")
+    if not match:
+        return None
+    attempt = int(match.group(3)) if match.group(3) is not None else 0
+    return match.group(1), match.group(2), attempt
 
 
 def check_spawn(prompt: str, audit_path: Path | None = None,
@@ -62,6 +77,12 @@ def check_spawn(prompt: str, audit_path: Path | None = None,
             continue
         if attempt is not None and rec.get("attempt") != attempt:
             continue
+        # L'unicité (D4) porte sur la PRÉPARATION, pas sur les événements de cycle de
+        # vie. Depuis la Phase 2b, le même triplet reçoit aussi `spawn_authorized` /
+        # `spawn_executed` : les compter ferait passer un spawn parfaitement légitime
+        # pour un replay (count >= 2). Ligne historique sans `event` => spawn_prepared.
+        if (rec.get("event") or EVENT_PREPARED) != EVENT_PREPARED:
+            continue
         # La ligne doit porter un HMAC valide : une ligne forgée à la main (sans la
         # clé) ne compte pas -> le hook vérifie une PREUVE, pas une simple présence.
         if not verify_audit_line(rec, key_file):
@@ -77,6 +98,55 @@ def check_spawn(prompt: str, audit_path: Path | None = None,
     if saw_tampered:
         return False, f"forge {key} : ligne d'audit non signée/altérée -> refus"
     return False, f"forge {key} : aucun dispatch validé -> spawn hors contrat"
+
+
+def record_authorization(prompt: str, audit_path: Path | None = None,
+                         key_file: Path | None = None) -> bool:
+    """Trace `spawn_authorized` — l'autorité qui AUTORISE écrit sa décision.
+
+    ⚠ NON CÂBLÉE EN PRODUCTION (état assumé, Phase 2b) : le seul appelant légitime est
+    `.claude/hooks/pretool_forge_guard.py`, HORS PÉRIMÈTRE de ce chantier (le script de
+    hook de la session en cours ne devait pas être modifié). Le câblage tient en une
+    ligne (`record_authorization(prompt)` après que `code` est figé, dans un try/except
+    nu) et attend un go de Pierre. Les deux événements CÂBLÉS et suffisants à la preuve
+    sont `spawn_prepared` (prepare_dispatch) et `spawn_executed` (hook PostToolUse +
+    driver) — Pierre : « la preuve finale vient de spawn_executed ». `spawn_proof`
+    compte déjà `authorized` : le lecteur existe, seul l'écrivain reste à brancher.
+
+    DÉLIBÉRÉMENT SÉPARÉE de `hook_decision`, qui doit rester une fonction PURE :
+    1. la décision du hook ne peut pas dépendre d'une écriture (elle est déjà prise
+       quand on appelle ceci — l'audit ne peut donc jamais changer un allow en deny) ;
+    2. `hook_decision` est appelée par des dizaines de tests sans `audit_path` : y
+       cacher une écriture polluerait le fichier d'audit RÉEL du dépôt.
+    L'appelant (le script de hook) appelle ceci UNIQUEMENT après un allow en périmètre
+    Forge. Best-effort total (`append_spawn_event` ne lève jamais) : un audit non
+    écrit dégrade la preuve, il ne bloque pas un spawn déjà autorisé.
+    """
+    key = marker_key(prompt)
+    if key is None:
+        return False
+    from forge.dispatch import append_spawn_event
+    etape, run_id, attempt = key
+    return append_spawn_event(EVENT_AUTHORIZED, etape, run_id, attempt,
+                              audit_path=audit_path, key_file=key_file)
+
+
+def record_execution(prompt: str, audit_path: Path | None = None,
+                     key_file: Path | None = None) -> bool:
+    """Trace `spawn_executed` — LA preuve d'action (Pierre : « la preuve finale vient
+    de spawn_executed »). Appelée par le hook PostToolUse APRÈS le retour réel de
+    l'agent : à ce point, l'exécution a eu lieu, ce n'est plus une intention.
+
+    Mêmes garanties que `record_authorization` : pure lecture du marqueur + écriture
+    best-effort, aucune décision, aucun blocage possible.
+    """
+    key = marker_key(prompt)
+    if key is None:
+        return False
+    from forge.dispatch import EVENT_EXECUTED, append_spawn_event
+    etape, run_id, attempt = key
+    return append_spawn_event(EVENT_EXECUTED, etape, run_id, attempt,
+                              audit_path=audit_path, key_file=key_file)
 
 
 def hook_decision(tool: str, prompt: str, audit_path: Path | None = None,

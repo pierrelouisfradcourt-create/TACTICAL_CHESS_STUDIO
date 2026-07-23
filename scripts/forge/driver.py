@@ -37,7 +37,14 @@ from pathlib import Path
 import yaml
 
 from forge.contract import ContractIncomplete
-from forge.dispatch import is_deterministic_step, order_for_profile, prepare_dispatch
+from forge.dispatch import (
+    EVENT_EXECUTED,
+    append_spawn_event,
+    is_deterministic_step,
+    order_for_profile,
+    prepare_dispatch,
+    spawn_proof,
+)
 from forge.escalate import escalation_decision, parse_agent_escalation, tier_of
 from forge.gate import forge_gate
 from forge.oracle import OracleNotFound, resolve_oracle
@@ -340,6 +347,33 @@ class ForgeDriver:
         )
         os.replace(tmp, self.state_path)
 
+    # --- preuve d'exécution (DISPATCH_SPAWN_AUTHORITY_V1) ---------------------
+
+    def _record_spawn_executed(self, etape: str, attempt: int, payload=None) -> None:
+        """Écrit `spawn_executed` — CHEMIN B (headless / driver).
+
+        Le hook PostToolUse ne voit que les spawns passés par l'outil `Task` (chemin A,
+        orchestrateur interactif). Un run headless (`run_real.py` -> `claude -p`, ou
+        tout exécuteur injecté) n'est PAS un appel d'outil Task : aucun hook ne se
+        déclenche. Sans cet appel en code, la preuve d'exécution n'existerait que sur
+        la moitié des runs.
+
+        Appelée UNIQUEMENT après le RETOUR RÉEL de l'exécution (jamais avant) : c'est
+        ce qui la distingue de `spawn_prepared`. Best-effort (`append_spawn_event` ne
+        lève jamais) — une preuve non écrite n'a jamais le droit de casser un run.
+
+        Clé de signature : la clé d'audit PAR DÉFAUT, comme `prepare_dispatch`. Surtout
+        PAS `self.key_file` (clé de VERDICT, distincte) — signer l'audit avec une autre
+        clé rendrait la ligne invérifiable par le garde et par `spawn_proof`.
+        """
+        append_spawn_event(
+            EVENT_EXECUTED, etape, self.run_id, attempt,
+            model=getattr(payload, "model", "") or "",
+            provider=getattr(payload, "provider", "") or "",
+            allowed_tools=tuple(getattr(payload, "allowed_tools", ()) or ()),
+            audit_path=self.audit_path,
+        )
+
     # --- étapes LLM (déléguées à l'exécuteur) --------------------------------
 
     def _run_llm(self, state: dict, etape: str) -> bool:
@@ -369,6 +403,8 @@ class ForgeDriver:
             res = run_qwen_step(payload)
             if res["ok"]:
                 output, reviewer, qwen_ok = res["output"], res["reviewer"], True
+                # L'exécution a réellement eu lieu ET rendu un résultat : preuve d'action.
+                self._record_spawn_executed(etape, entry["attempts"], payload)
             else:
                 runner, reviewer = RUNNER_CLAUDE_BLIND, res["reviewer"]
 
@@ -394,6 +430,10 @@ class ForgeDriver:
                 "project_bible": self._project_bible() if etape == "s0-contrat" else "",
             }
             res = self.executor(payload, decision, context)
+            # Preuve d'action AVANT de juger le retour : un exécuteur qui rend `ok:False`
+            # (timeout `claude -p`, sortie invalide) A TOUT DE MÊME ÉTÉ EXÉCUTÉ. La ligne
+            # atteste le SPAWN, pas sa réussite — le verdict, lui, reste ailleurs.
+            self._record_spawn_executed(etape, entry["attempts"], payload)
             if not isinstance(res, dict) or not res.get("ok"):
                 why = res.get("reason", "sans raison") if isinstance(res, dict) else "retour invalide"
                 return self._halt_step(state, entry, f"exécuteur LLM en échec à {etape}: {why}",
@@ -562,8 +602,14 @@ class ForgeDriver:
         except ContractIncomplete as exc:
             self._finish_step(state, entry, "BLOCKED",
                               {"reason": f"contrat non activable: {exc}"})
-            return
+            return  # rien préparé d'exécutable -> AUCUN spawn_executed (honnête)
 
+        # Une étape déterministe passe par la MÊME porte (prepare_dispatch écrit son
+        # `spawn_prepared`) : sans `spawn_executed` symétrique, tout oracle apparaîtrait
+        # à jamais « préparé mais non exécuté » et noierait `unproven` sous du faux
+        # positif. Ici le « spawn » est l'exécution IN-PROCESS de l'oracle, pas un
+        # agent — la ligne prouve que le dispatch a bien donné lieu à une exécution.
+        # Écrite APRÈS le branchement, jamais avant (sinon : preuve d'intention à nouveau).
         if etape == "s10a-oracle-code":
             self._run_code_oracle(state, entry)
         elif etape == "s10b-oracle-archi":
@@ -586,6 +632,7 @@ class ForgeDriver:
         else:  # étape déterministe inconnue : jamais un vert par défaut
             self._finish_step(state, entry, "BLOCKED", {
                 "reason": f"étape déterministe {etape!r} non câblée dans le driver"})
+        self._record_spawn_executed(etape, entry["attempts"])
 
     def _run_code_oracle(self, state: dict, entry: dict) -> None:
         """s10a. Non-jeu : forge_gate seul (inchangé). JEU (P0.2/P2) : le vert exige
@@ -1240,10 +1287,27 @@ class ForgeDriver:
             pool["reason"] = (
                 f"{bpath} absent ou vide — pool NON MESURÉ (pas un zéro réel)")
 
+        # LECTEUR de `spawn_executed` (DISPATCH_SPAWN_AUTHORITY_V1) — la preuve d'action
+        # entre dans le rapport humain de fin de run, à côté du coût et du pool. Rend
+        # visible ce que personne ne pouvait voir : l'écart entre les dispatches PRÉPARÉS
+        # et les spawns réellement EXÉCUTÉS (`unproven`), et la duplication de préparation
+        # (`prepared` >> `prepared_distinct`, cas réel pong-01 : 8 lignes / 2 triplets).
+        # Même règle dure que cost/pool : audit absent ou vide => measured=False + raison,
+        # jamais un « 0 exécuté » silencieux. Clé d'audit par défaut (pas self.key_file,
+        # qui est la clé de verdict) : c'est celle avec laquelle prepare_dispatch signe.
+        # Accessoire au verdict comme cost/pool : il dégrade, il n'emporte jamais un run.
+        try:
+            spawn = spawn_proof(self.run_id, audit_path=self.audit_path)
+        except Exception:  # noqa: BLE001 — une preuve illisible ne casse pas le rapport
+            spawn = {"run_id": self.run_id, "measured": False, "prepared": 0,
+                     "prepared_distinct": 0, "authorized": 0, "executed": 0,
+                     "unproven": [], "reason": "audit de dispatch illisible — NON MESURÉ"}
+
         steps = state.get("steps") or {}
         return {
             "cost": cost,
             "pool": pool,
+            "spawn": spawn,
             "effort": {
                 "escalations": int(state.get("escalations", 0)),
                 "pool_attempts": int(state.get("pool_attempts", 0)),
