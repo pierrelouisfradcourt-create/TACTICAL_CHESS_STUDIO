@@ -352,7 +352,8 @@ class ForgeDriver:
 
         try:
             payload = prepare_dispatch(
-                etape, self.run_id, caps_path=self.caps_path, audit_path=self.audit_path
+                etape, self.run_id, caps_path=self.caps_path, audit_path=self.audit_path,
+                profile=self.profile, attempt=entry["attempts"],
             )
         except ContractIncomplete as exc:
             return self._halt_step(state, entry, f"contrat non activable à {etape}: {exc}",
@@ -384,7 +385,7 @@ class ForgeDriver:
                 "project": self.project,
                 "run_dir": str(self.run_dir),
                 "model_override": state.get("model_override"),
-                "dispatch_marker": f"FORGE_DISPATCH:{etape}:{self.run_id}",
+                "dispatch_marker": f"FORGE_DISPATCH:{etape}:{self.run_id}:{entry['attempts']}",
                 "attempt": entry["attempts"],
                 "premortem": self._premortem(),
                 # s0-contrat SEULEMENT (contrat s0 §2 mandatory_read) : "" pour
@@ -555,7 +556,8 @@ class ForgeDriver:
 
         try:
             prepare_dispatch(
-                etape, self.run_id, caps_path=self.caps_path, audit_path=self.audit_path
+                etape, self.run_id, caps_path=self.caps_path, audit_path=self.audit_path,
+                profile=self.profile, attempt=entry["attempts"],
             )
         except ContractIncomplete as exc:
             self._finish_step(state, entry, "BLOCKED",

@@ -19,6 +19,7 @@ from pathlib import Path
 
 from forge.contract import (
     REPO_ROOT,
+    ContractIncomplete,
     DispatchPayload,
     build_dispatch_payload,
     load_contract,
@@ -141,6 +142,16 @@ def order_for_profile(profile: str = "full") -> list[str]:
         raise ValueError(f"profil inconnu {profile!r} (attendu: {', '.join(PROFILES)})")
 
 
+def profile_allowed_for_contract(etape: str, profile: str) -> bool:
+    """Vrai ssi `etape` appartient au `profile` — appartenance profil->étapes (D1).
+
+    Source de vérité UNIQUE : `order_for_profile` (les PROFILES déjà testés). Pas de
+    2e source divergente (pas de champ `allowed_profiles` dans les contrats YAML).
+    Profil inconnu => ValueError propagé (fail-fast, comme `order_for_profile`).
+    """
+    return etape in order_for_profile(profile)
+
+
 @dataclass(frozen=True)
 class DispatchRecord:
     run_id: str
@@ -150,6 +161,18 @@ class DispatchRecord:
     provider: str
     allowed_tools: tuple[str, ...]
     ts: float
+    # Champs additifs (Phase 2a DISPATCH_SPAWN_AUTHORITY_V1). Defaults => les lignes
+    # d'audit historiques (écrites sans ces champs) restent vérifiables : le HMAC porte
+    # sur le corps réellement présent, `verify_audit_line` ne les exige pas.
+    # - event : type d'événement de la ligne (aujourd'hui toujours "spawn_prepared" ;
+    #   la préparation, pas encore le spawn — le PostToolUse `spawn_executed` est Phase 2b,
+    #   hors périmètre).
+    # - attempt : n° de tentative (corrèle la ligne au triplet du marqueur, unicité D4).
+    # - unprofiled : true ssi le dispatch a été autorisé HORS de son profil via
+    #   allow_unprofiled — trace INFALSIFIABLE (dans le corps signé) d'une dérogation D1.
+    event: str = "spawn_prepared"
+    attempt: int = 0
+    unprofiled: bool = False
 
 
 def sign_audit_record(rec: dict, key_file: Path | None = None) -> dict:
@@ -185,13 +208,33 @@ def prepare_dispatch(
     run_id: str,
     caps_path: Path | None = None,
     audit_path: Path | None = None,
+    *,
+    profile: str | None = None,
+    attempt: int = 0,
+    allow_unprofiled: bool = False,
 ) -> DispatchPayload:
     """Valide le contrat de l'étape, fabrique le payload borné, trace l'audit.
 
     Ne spawn rien : retourne le payload que l'orchestrateur donnera au sous-agent.
+
+    Appartenance profil (D1) : si `profile` est fourni ET que `etape` n'en fait pas
+    partie ET que `allow_unprofiled` est faux => `ContractIncomplete` (contrat non
+    dispatchable dans ce profil). `allow_unprofiled=True` autorise la dérogation et
+    l'inscrit (`unprofiled: true`) dans le corps SIGNÉ de la ligne d'audit. `profile=None`
+    => aucun contrôle (comportement historique strictement inchangé, rétro-compat totale).
+    `attempt` corrèle la ligne au triplet du marqueur de spawn (unicité D4).
     """
     contract = load_contract(etape)
     payload = build_dispatch_payload(contract, etape=etape, caps_path=caps_path)
+    unprofiled = False
+    if profile is not None and not profile_allowed_for_contract(etape, profile):
+        if not allow_unprofiled:
+            raise ContractIncomplete(
+                f"étape {etape!r} hors du profil {profile!r} "
+                f"(non membre de order_for_profile({profile!r})) — dispatch refusé ; "
+                f"utilise allow_unprofiled=True pour un run hors-profil assumé"
+            )
+        unprofiled = True
     _append_audit(
         DispatchRecord(
             run_id=run_id,
@@ -201,6 +244,9 @@ def prepare_dispatch(
             provider=payload.provider,
             allowed_tools=payload.allowed_tools,
             ts=time.time(),
+            event="spawn_prepared",
+            attempt=attempt,
+            unprofiled=unprofiled,
         ),
         audit_path,
     )
