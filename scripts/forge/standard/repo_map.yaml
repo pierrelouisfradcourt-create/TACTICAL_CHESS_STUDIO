@@ -9,6 +9,33 @@
 # L'oracle verifie dans LES DEUX SENS — tout dossier reference existe, tout dossier
 # qui existe est reference. Un dossier vide est un FAIL, pas une commodite : huit
 # dossiers vides sur Pong ressemblent a une structure sans en etre une.
+#
+# REGLE D'IDENTITE DES GABARITS (REPO_MAP_TEMPLATE_IDENTITY_V1, ratifiee Pierre
+# 2026-07-23) : « Un gabarit qui revendique un artefact concret doit porter un
+# identifiant stable permettant une correspondance univoque. Les motifs generiques
+# sont reserves aux categories, pas aux preuves d'existence. »
+#
+# Deux formes de gabarit, distinguees par la TERMINAISON — c'est la table qui
+# declare la forme, le code ne code en dur aucune liste de categories :
+#   * gabarit de DOSSIER   -> se termine par « / » ; `{id}` = identifiant du
+#     contenant (system_parent, sinon identifiant de la ligne). Un chemin est
+#     valide s'il commence par ce prefixe. Ex. `system: 05_SYSTEMS/{id}/`.
+#   * gabarit d'ARTEFACT NOMME -> ne se termine PAS par « / » et porte `{id}` ;
+#     `{id}` = le NOM DU FICHIER lui-meme. Le chemin declare doit valoir EXACTEMENT
+#     le gabarit substitue : l'artefact vit directement dans le dossier de sa
+#     categorie (pas de sous-dossier), et son nom EST son identite.
+#     Ex. `test.solvability: 07_TESTS/oracle/{id}` -> 07_TESTS/oracle/solvability.mjs.
+#
+# Portee de l'obligation `{id}` (decision, `scope: [test.*, asset.*]`) : toute
+# categorie `test.*` ou `asset.*` DOIT porter `{id}` — c'est verifie mecaniquement
+# (scripts/forge/tests/test_standard_oracles.py, invariant de table). Sans `{id}`,
+# plusieurs lignes revendiquent le meme artefact via un motif generique et l'oracle
+# ne voit que des motifs, jamais des identites : il ne peut pas voir la collision.
+#
+# Deux categories peuvent partager un DOSSIER (`test.oracle` et `test.solvability`
+# ci-dessous) : ce n'est plus une ambiguite depuis que l'identite est le nom du
+# fichier et non le dossier. Le cas pathologique — les deux revendiquant le MEME
+# fichier — est attrape par `revendications_multiples` dans `check_placement`.
 
 schema_version: 1
 
@@ -46,15 +73,17 @@ mapping:
   level:              "03_WORLD/levels/{id}/"
   world.rules:        "03_WORLD/rules/{id}/"
 
-  # --- contenu ---
-  asset.sprite:       "04_ASSETS/sprites/"
-  asset.audio:        "04_ASSETS/audio/"
-  asset.font:         "04_ASSETS/fonts/"
+  # --- contenu : artefacts NOMMES ({id} = nom du fichier, extension comprise) ---
+  # L'extension n'est PAS figee dans le gabarit : un asset audio est un .wav, un
+  # .ogg, son manifeste ou sa licence — c'est le NOM qui identifie, pas le format.
+  asset.sprite:       "04_ASSETS/sprites/{id}"
+  asset.audio:        "04_ASSETS/audio/{id}"
+  asset.font:         "04_ASSETS/fonts/{id}"
 
-  # --- preuve ---
-  test.unit:          "07_TESTS/unit/"
-  test.oracle:        "07_TESTS/oracle/"
-  test.solvability:   "07_TESTS/oracle/"
+  # --- preuve : artefacts NOMMES (idem) ---
+  test.unit:          "07_TESTS/unit/{id}"
+  test.oracle:        "07_TESTS/oracle/{id}"
+  test.solvability:   "07_TESTS/oracle/{id}"
 
   # --- gouvernance du jeu ---
   charter:            "00_CHARTER/"

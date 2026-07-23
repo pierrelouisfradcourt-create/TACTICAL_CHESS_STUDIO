@@ -792,6 +792,258 @@ def test_placement_v2_fichier_path_empty_fail():
     assert any("core.main_loop" in x for x in rep["categorie_fichier_non_declaree"])
 
 
+# ---------------------------------------------------------------------------------------
+# 4ter. REPO_MAP_TEMPLATE_IDENTITY_V1 — identité obligatoire des gabarits d'artefacts
+#       nommés (ratifié Pierre 2026-07-23).
+#
+#       « Un gabarit qui revendique un artefact concret doit porter un identifiant stable
+#       permettant une correspondance univoque. Les motifs génériques sont réservés aux
+#       catégories, pas aux preuves d'existence. »
+#
+#       Le livrable de cette tranche, ce sont les DEUX détections (`same_target_multiple_ids`,
+#       `same_id_multiple_targets`) ET la preuve qu'une configuration légitime reste VERTE :
+#       une règle qui rougit tout ne prouve rien.
+# ---------------------------------------------------------------------------------------
+
+
+def _repo_map_named_artifacts() -> dict:
+    """Même FORME que la table réelle après la décision : `test.*`/`asset.*` portent
+    `{id}` et ne se terminent pas par `/` (gabarits d'artefact nommé)."""
+    return {
+        "roots": {"systems": "05_SYSTEMS/", "tests": "07_TESTS/", "assets": "04_ASSETS/"},
+        "mapping": {
+            "system": "05_SYSTEMS/{id}/",
+            "asset.audio": "04_ASSETS/audio/{id}",
+            "asset.sprite": "04_ASSETS/sprites/{id}",
+            "test.unit": "07_TESTS/unit/{id}",
+            "test.oracle": "07_TESTS/oracle/{id}",
+            "test.solvability": "07_TESTS/oracle/{id}",
+        },
+    }
+
+
+def _wiremap_named(lines: list) -> dict:
+    return {
+        "schema_version": 2,
+        "systems": [
+            {"id": "game_loop", "category": "system", "allowed_deps": []},
+            {"id": "game_state", "category": "system", "allowed_deps": []},
+        ],
+        "lines": lines,
+    }
+
+
+def test_repo_map_reel_tous_les_gabarits_test_et_asset_portent_un_id():
+    """INVARIANT DE TABLE (`require_id: true`, `scope: [test.*, asset.*]`) : la règle
+    ne peut pas s'appliquer si la table retombe sur un motif générique. C'est ici qu'on
+    empêche la régression silencieuse de `repo_map.yaml`."""
+    data = yaml.safe_load(STANDARD_DIR.joinpath("repo_map.yaml").read_text(encoding="utf-8"))
+    mapping = data["mapping"]
+    en_scope = [c for c in mapping if c.startswith(("test.", "asset."))]
+    assert len(en_scope) == 6, en_scope
+    for cat in en_scope:
+        gabarit = mapping[cat]
+        assert "{id}" in gabarit, f"{cat} : gabarit sans identité ({gabarit!r})"
+        assert not gabarit.endswith("/"), f"{cat} : gabarit de dossier, pas d'artefact nommé"
+
+
+def test_identity_same_target_multiple_ids_fail():
+    """CAS EXIGÉ (`same_target_multiple_ids: FAIL`) — le cas réel Pong réduit à deux
+    lignes : un même fichier de preuve revendiqué par deux lignes. Sans identité de
+    gabarit, l'oracle ne voyait qu'un motif générique et laissait passer."""
+    wiremap = _wiremap_named([
+        {"id": "core.boot", "category": "system", "system_parent": "game_loop",
+         "address": "05_SYSTEMS/game_loop/",
+         "fichiers": [{"path": "07_TESTS/oracle/solvability.mjs",
+                       "category": "test.solvability"}]},
+        {"id": "core.restart", "category": "system", "system_parent": "game_state",
+         "address": "05_SYSTEMS/game_state/",
+         "fichiers": [{"path": "07_TESTS/oracle/solvability.mjs",
+                       "category": "test.solvability"}]},
+    ])
+    rep = check_placement(wiremap, _repo_map_named_artifacts())
+    assert rep["passed"] is False
+    assert len(rep["revendications_multiples"]) == 1
+    viol = rep["revendications_multiples"][0]
+    # Pas de rustine « première correspondance » : le conflit est ÉNUMÉRÉ en entier.
+    assert "07_TESTS/oracle/solvability.mjs" in viol
+    assert "core.boot" in viol and "core.restart" in viol
+    # aucun autre volet n'est perturbé — le fichier est bien placé, il est mal PARTAGÉ.
+    assert rep["fichier_adresse_incoherente"] == []
+    assert rep["identite_ambigue"] == []
+
+
+def test_identity_same_target_deux_categories_meme_fichier_fail():
+    """Variante du même sens : une seule ligne, mais deux catégories qui revendiquent
+    le MÊME fichier (`test.oracle` et `test.solvability` partagent un dossier). Le
+    partage de dossier reste légitime ; revendiquer le même artefact ne l'est pas."""
+    wiremap = _wiremap_named([
+        {"id": "core.boot", "category": "system", "system_parent": "game_loop",
+         "address": "05_SYSTEMS/game_loop/",
+         "fichiers": [
+             {"path": "07_TESTS/oracle/solvability.mjs", "category": "test.solvability"},
+             {"path": "07_TESTS/oracle/solvability.mjs", "category": "test.oracle"},
+         ]},
+    ])
+    rep = check_placement(wiremap, _repo_map_named_artifacts())
+    assert rep["passed"] is False
+    assert any("test.oracle" in x and "test.solvability" in x
+               for x in rep["revendications_multiples"])
+
+
+def test_identity_same_id_multiple_targets_fail():
+    """CAS EXIGÉ (`same_id_multiple_targets: FAIL`) — un même identifiant (`loop.test.mjs`
+    en `test.unit`) désigne deux fichiers distincts : le nom ne permet plus de
+    correspondance univoque."""
+    wiremap = _wiremap_named([
+        {"id": "core.main_loop", "category": "system", "system_parent": "game_loop",
+         "address": "05_SYSTEMS/game_loop/",
+         "fichiers": [{"path": "07_TESTS/unit/loop.test.mjs", "category": "test.unit"}]},
+        {"id": "core.game_state", "category": "system", "system_parent": "game_state",
+         "address": "05_SYSTEMS/game_state/",
+         "fichiers": [{"path": "05_SYSTEMS/game_state/loop.test.mjs",
+                       "category": "test.unit"}]},
+    ])
+    rep = check_placement(wiremap, _repo_map_named_artifacts())
+    assert rep["passed"] is False
+    assert len(rep["identite_ambigue"]) == 1
+    viol = rep["identite_ambigue"][0]
+    assert "test.unit:loop.test.mjs" in viol
+    assert "07_TESTS/unit/loop.test.mjs" in viol
+    assert "05_SYSTEMS/game_state/loop.test.mjs" in viol
+
+
+def test_identity_configuration_legitime_reste_verte():
+    """ANTI-THÉÂTRE — une carte où chaque artefact nommé est revendiqué par EXACTEMENT
+    une ligne reste VERTE : plusieurs lignes déposent des tests et des assets, aucune
+    ne partage un artefact. Une règle d'unicité qui rougirait ce cas ne mesurerait plus
+    l'unicité mais la simple présence de fichiers `test.*`/`asset.*`."""
+    wiremap = _wiremap_named([
+        {"id": "core.main_loop", "category": "system", "system_parent": "game_loop",
+         "address": "05_SYSTEMS/game_loop/",
+         "fichiers": [
+             {"path": "05_SYSTEMS/game_loop/loop.mjs", "category": "system"},
+             {"path": "07_TESTS/unit/loop.test.mjs", "category": "test.unit"},
+             {"path": "07_TESTS/oracle/solvability.mjs", "category": "test.solvability"},
+         ]},
+        {"id": "core.game_state", "category": "system", "system_parent": "game_state",
+         "address": "05_SYSTEMS/game_state/",
+         "fichiers": [
+             {"path": "05_SYSTEMS/game_state/state.mjs", "category": "system"},
+             {"path": "07_TESTS/unit/state.test.mjs", "category": "test.unit"},
+         ]},
+        {"id": "core.audio", "category": "system", "system_parent": "game_loop",
+         "address": "05_SYSTEMS/game_loop/",
+         # un même déposant peut poser PLUSIEURS artefacts nommés distincts d'une même
+         # catégorie (le son, son manifeste, sa licence) : ce n'est pas une collision.
+         "fichiers": [
+             {"path": "04_ASSETS/audio/bounce.wav", "category": "asset.audio"},
+             {"path": "04_ASSETS/audio/manifest.json", "category": "asset.audio"},
+             {"path": "04_ASSETS/audio/LICENSE.txt", "category": "asset.audio"},
+         ]},
+    ])
+    rep = check_placement(wiremap, _repo_map_named_artifacts())
+    assert rep["passed"] is True, rep
+    assert rep["revendications_multiples"] == []
+    assert rep["identite_ambigue"] == []
+    assert rep["fichier_adresse_incoherente"] == []
+
+
+def test_identity_fichier_partage_hors_scope_reste_vert():
+    """PORTÉE (`scope: [test.*, asset.*]`) — un fichier de SYSTÈME partagé par plusieurs
+    lignes du même système (le cas normal de Pong : `loop.mjs` cité par 5 lignes) n'est
+    PAS concerné : la décision porte sur les artefacts nommés, pas sur les catégories
+    de dossier. Élargir la portée serait un jugement, pas cette décision."""
+    wiremap = _wiremap_named([
+        {"id": "core.boot", "category": "system", "system_parent": "game_loop",
+         "address": "05_SYSTEMS/game_loop/",
+         "fichiers": [{"path": "05_SYSTEMS/game_loop/loop.mjs", "category": "system"}]},
+        {"id": "core.main_loop", "category": "system", "system_parent": "game_loop",
+         "address": "05_SYSTEMS/game_loop/",
+         "fichiers": [{"path": "05_SYSTEMS/game_loop/loop.mjs", "category": "system"}]},
+    ])
+    rep = check_placement(wiremap, _repo_map_named_artifacts())
+    assert rep["passed"] is True
+    assert rep["revendications_multiples"] == []
+
+
+def test_identity_artefact_nomme_en_sous_dossier_incoherent():
+    """Un artefact nommé vit DIRECTEMENT dans le dossier de sa catégorie : son nom est
+    son identité. Un sous-dossier rouvrirait deux `player.png` distincts sous un même
+    nom — exactement l'ambiguïté que la décision ferme."""
+    wiremap = _wiremap_named([
+        {"id": "core.render", "category": "system", "system_parent": "game_loop",
+         "address": "05_SYSTEMS/game_loop/",
+         "fichiers": [{"path": "04_ASSETS/sprites/hud/player.png",
+                       "category": "asset.sprite"}]},
+    ])
+    rep = check_placement(wiremap, _repo_map_named_artifacts())
+    assert rep["passed"] is False
+    assert any("04_ASSETS/sprites/player.png" in x
+               for x in rep["fichier_adresse_incoherente"])
+
+
+def test_identity_gabarit_dossier_conserve_le_comportement_prefixe():
+    """NON-RÉGRESSION — une table qui garde des gabarits de DOSSIER pour `test.*`
+    (forme d'avant la décision) conserve EXACTEMENT l'ancien jugement : c'est la forme
+    déclarée par la table qui commande, jamais une liste de catégories codée en dur."""
+    wiremap = _wiremap_named([
+        {"id": "core.boot", "category": "system", "system_parent": "game_loop",
+         "address": "05_SYSTEMS/game_loop/",
+         "fichiers": [{"path": "07_TESTS/oracle/solvability.mjs", "category": "test.oracle"}]},
+        {"id": "core.restart", "category": "system", "system_parent": "game_state",
+         "address": "05_SYSTEMS/game_state/",
+         "fichiers": [{"path": "07_TESTS/oracle/solvability.mjs", "category": "test.oracle"}]},
+    ])
+    rep = check_placement(wiremap, _repo_map_with_tests())
+    assert rep["passed"] is True
+    assert rep["revendications_multiples"] == []
+
+
+def test_identity_v1_wiremap_non_concernee():
+    """RÉTROCOMPAT STRICTE — une wiremap `schema_version: 1` (preuve de run passé) n'est
+    jugée sur aucune des deux nouvelles contraintes."""
+    wiremap = {
+        "schema_version": 1,
+        "lines": [
+            {"id": "game_loop", "category": "system", "address": "05_SYSTEMS/game_loop/",
+             "fichiers": ["07_TESTS/oracle/solvability.mjs"]},
+            {"id": "game_state", "category": "system", "address": "05_SYSTEMS/game_state/",
+             "fichiers": ["07_TESTS/oracle/solvability.mjs"]},
+        ],
+    }
+    rep = check_placement(wiremap, _repo_map_named_artifacts())
+    assert rep["passed"] is True
+    assert rep["revendications_multiples"] == []
+    assert rep["identite_ambigue"] == []
+
+
+def test_identity_adresse_de_ligne_inchangee_par_le_nouveau_gabarit():
+    """Une LIGNE n'est pas un fichier : même quand sa catégorie porte désormais un
+    gabarit d'artefact nommé, son `address` reste jugée sur le DOSSIER de la catégorie
+    (comportement identique à avant la décision)."""
+    wiremap = {
+        "schema_version": 2,
+        "lines": [{"id": "t1", "category": "test.unit", "address": "07_TESTS/unit/"}],
+    }
+    rep = check_placement(wiremap, _repo_map_named_artifacts())
+    assert rep["passed"] is True
+    assert rep["adresse_incoherente"] == []
+
+
+def test_identity_chemin_dossier_declare_comme_artefact_nomme_fail():
+    """Robustesse : un `path` qui se termine par « / » n'est pas un artefact nommé."""
+    wiremap = _wiremap_named([
+        {"id": "core.boot", "category": "system", "system_parent": "game_loop",
+         "address": "05_SYSTEMS/game_loop/",
+         "fichiers": [{"path": "07_TESTS/oracle/", "category": "test.oracle"}]},
+    ])
+    rep = check_placement(wiremap, _repo_map_named_artifacts())
+    assert rep["passed"] is False
+    assert any("dossier reçu" in x for x in rep["fichier_adresse_incoherente"])
+    assert rep["revendications_multiples"] == []
+
+
 # =======================================================================================
 # 5. check_index
 # =======================================================================================

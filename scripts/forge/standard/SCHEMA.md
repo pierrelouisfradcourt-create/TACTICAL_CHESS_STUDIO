@@ -170,6 +170,52 @@ La catégorie est **déclarée à la création**, jamais inférée du nom de fic
 → test) : une heuristique de nommage est fausse dès qu'un fichier est mal nommé, et c'est
 précisément la garantie que ce format retire au builder.
 
+`fichiers[]` liste ce que la ligne **dépose**, jamais ce qu'elle consomme. Ce qu'une ligne
+lit ou importe passe par `requires` / `allowed_deps` — ce sont deux questions distinctes, et
+les confondre est exactement ce qui a fait déclarer un même fichier de preuve par six lignes.
+
+#### Identité des gabarits d'artefacts nommés (`REPO_MAP_TEMPLATE_IDENTITY_V1`)
+
+> Règle (verbatim, ratifiée Pierre 2026-07-23) : « Un gabarit qui revendique un artefact
+> concret doit porter un identifiant stable permettant une correspondance univoque. Les
+> motifs génériques sont réservés aux catégories, pas aux preuves d'existence. »
+
+```yaml
+rule:
+  named_artifact_templates: { require_id: true, require_unique_binding: true }
+scope: [test.*, asset.*]
+validation:
+  duplicate_claims:
+    same_target_multiple_ids: FAIL
+    same_id_multiple_targets: FAIL
+```
+
+`repo_map.yaml` porte donc deux formes de gabarit, distinguées par leur terminaison — c'est
+la **table** qui déclare la forme, aucun code ne liste `test.*`/`asset.*` en dur :
+
+| Forme | Terminaison | `{id}` vaut | Contrôle du chemin |
+|---|---|---|---|
+| dossier (motif de **catégorie**) | `/` final | le contenant (`system_parent`, sinon l'id de la ligne) | préfixe |
+| artefact **nommé** | pas de `/` final, `{id}` obligatoire | le **nom du fichier** | égalité exacte |
+
+Conséquence assumée : un artefact nommé vit **directement** dans le dossier de sa catégorie
+(`07_TESTS/oracle/solvability.mjs`, `04_ASSETS/audio/bounce.wav`) — pas de sous-dossier, car
+deux `player.png` dans deux sous-dossiers rouvriraient l'ambiguïté que la règle ferme.
+L'extension n'est pas figée dans le gabarit : c'est le nom qui identifie, pas le format.
+
+`check_placement` en tire deux volets, appliqués aux seuls gabarits d'artefact nommé :
+
+- `revendications_multiples` (`same_target_multiple_ids`) — un même fichier revendiqué par
+  plusieurs identités déposantes (ligne + catégorie). Un artefact nommé a **un** déposant.
+- `identite_ambigue` (`same_id_multiple_targets`) — un même identifiant (catégorie + nom)
+  désignant plusieurs fichiers distincts : le nom ne désigne plus rien d'univoque.
+
+Les deux **énumèrent** le conflit ; il n'existe aucune résolution par « première
+correspondance » — choisir un revendiquant au hasard cacherait le problème au lieu de le
+montrer. Deux catégories peuvent partager un dossier (`test.oracle` / `test.solvability`) :
+depuis que l'identité est le nom du fichier, ce partage n'est plus ambigu, et le cas
+pathologique (les deux revendiquant le même fichier) tombe dans `revendications_multiples`.
+
 Les wiremaps antérieures (`schema_version` absent, ou `1`) ne sont **pas concernées** :
 `check_placement` ne touche à leur `fichiers[]` sous aucune forme — ce sont des preuves de
 runs passés, pas des cibles de la normalisation.

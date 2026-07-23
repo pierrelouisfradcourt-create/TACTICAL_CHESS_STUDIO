@@ -440,17 +440,57 @@ def check_line_states(wiremap: dict, core_requirements: dict, frozen: bool | str
 # --------------------------------------------------------------------------------------
 
 
+def _is_named_artifact_template(template: object) -> bool:
+    """Gabarit d'ARTEFACT NOMMÉ au sens `REPO_MAP_TEMPLATE_IDENTITY_V1` (ratifié
+    Pierre 2026-07-23) : « Un gabarit qui revendique un artefact concret doit porter
+    un identifiant stable permettant une correspondance univoque. Les motifs
+    génériques sont réservés aux catégories, pas aux preuves d'existence. »
+
+    La FORME est déclarée par la table, jamais codée en dur ici (aucune liste
+    `test.*`/`asset.*` dans le code) : un gabarit qui ne se termine PAS par `/` et
+    qui porte `{id}` désigne un fichier nommé ; tout le reste est un dossier
+    (motif générique de catégorie). L'obligation de porter `{id}` sur les catégories
+    `test.*`/`asset.*` (le `scope` de la décision) est un invariant de la TABLE,
+    vérifié mécaniquement côté tests."""
+    if not isinstance(template, str):
+        return False
+    t = template.strip().replace("\\", "/")
+    return bool(t) and not t.endswith("/") and "{id}" in t
+
+
+def _named_artifact_dir(template: str) -> str:
+    """Dossier d'un gabarit d'artefact nommé (segment `{id}` terminal retiré).
+
+    Sert à garder INCHANGÉ le comportement des `address` de ligne : une adresse
+    reste jugée sur le dossier de la catégorie, jamais sur un nom de fichier."""
+    t = template.strip().replace("\\", "/")
+    head = t.rsplit("/", 1)[0] if "/" in t else ""
+    return (head + "/") if head else ""
+
+
 def _template_expected_prefix(template: str, deriv_id: str) -> str:
     """Gabarit `mapping[category]` -> préfixe de chemin attendu, `{id}` substitué.
 
     Fonction unique pour les DEUX usages du gabarit (adresse de ligne §4.3 ET
-    placement de fichier §1 déclaré) — ne jamais dupliquer cette substitution."""
+    placement de fichier §1 déclaré) — ne jamais dupliquer cette substitution.
+
+    Un gabarit d'ARTEFACT NOMMÉ (`07_TESTS/oracle/{id}`) n'a pas de préfixe au sens
+    d'un dossier de ligne : on retombe sur son dossier (`07_TESTS/oracle/`), ce qui
+    laisse le jugement des `address` STRICTEMENT identique à avant la décision
+    `REPO_MAP_TEMPLATE_IDENTITY_V1` — une ligne n'est pas un fichier."""
+    if _is_named_artifact_template(template):
+        return _named_artifact_dir(template)
     return template.replace("{id}", deriv_id).replace("\\", "/").rstrip("/") + "/"
+
+
+def _named_artifact_expected_path(template: str, artifact_id: str) -> str:
+    """Chemin EXACT attendu pour un artefact nommé d'identifiant `artifact_id`."""
+    return template.strip().replace("\\", "/").replace("{id}", artifact_id)
 
 
 def _check_declared_fichiers(
     fichiers: list, lid: str, deriv_id: str, mapping: dict
-) -> tuple[list[str], list[str], list[str]]:
+) -> tuple[list[str], list[str], list[str], list[tuple[str, str, str, str]]]:
     """Valide les entrées `fichiers[]` d'une ligne de wiremap `schema_version: 2`
     (`standard/SCHEMA.md` §3 — format déclaré, jamais déduit du nom de fichier).
 
@@ -463,13 +503,24 @@ def _check_declared_fichiers(
       (jamais de placement par défaut, même discipline que `categorie_non_mappee`).
     - `path` incohérent avec le gabarit `mapping[category]` (même fonction que pour
       l'adresse d'une ligne, `_template_expected_prefix`) -> `fichier_adresse_incoherente`.
+    - si le gabarit est un gabarit d'ARTEFACT NOMMÉ (`REPO_MAP_TEMPLATE_IDENTITY_V1`),
+      l'identifiant est le NOM DU FICHIER et le chemin doit valoir EXACTEMENT le gabarit
+      substitué (l'artefact vit directement dans le dossier de sa catégorie) ; la
+      revendication est en outre COLLECTÉE pour que `check_placement` puisse juger
+      l'unicité de la liaison identité<->cible (ce que la table ne permettait pas de
+      voir tant que les gabarits `test.*`/`asset.*` étaient des motifs génériques).
 
     Retourne (categorie_fichier_non_declaree, categorie_fichier_non_mappee,
-    fichier_adresse_incoherente). Jamais d'exception sur entrée malformée.
+    fichier_adresse_incoherente, revendications) où `revendications` est la liste des
+    (category, artifact_id, path, line_id) portant sur un artefact nommé — une
+    revendication est enregistrée MÊME si son chemin est incohérent : un fichier mal
+    placé reste revendiqué, et c'est ce qui rend l'ambiguïté d'identité visible.
+    Jamais d'exception sur entrée malformée.
     """
     non_declaree: list[str] = []
     non_mappee: list[str] = []
     incoherente: list[str] = []
+    revendications: list[tuple[str, str, str, str]] = []
 
     for entry in fichiers:
         if not isinstance(entry, dict):
@@ -492,12 +543,30 @@ def _check_declared_fichiers(
             non_mappee.append(f"{lid}:{fpath}:{fcategory}")
             continue
 
-        expected = _template_expected_prefix(ftemplate, deriv_id)
         norm_path = fpath.strip().replace("\\", "/")
+
+        if _is_named_artifact_template(ftemplate):
+            artifact_id = norm_path.rsplit("/", 1)[-1]
+            if not artifact_id:
+                # chemin qui se termine par « / » : un dossier n'est pas un artefact nommé.
+                incoherente.append(
+                    f"{lid}:{fpath} (artefact nommé attendu, dossier reçu, category={fcategory})"
+                )
+                continue
+            expected_path = _named_artifact_expected_path(ftemplate, artifact_id)
+            if norm_path != expected_path:
+                incoherente.append(
+                    f"{lid}:{fpath} (artefact nommé attendu exactement à "
+                    f"'{expected_path}', category={fcategory})"
+                )
+            revendications.append((fcategory, artifact_id, norm_path, lid))
+            continue
+
+        expected = _template_expected_prefix(ftemplate, deriv_id)
         if not norm_path.startswith(expected):
             incoherente.append(f"{lid}:{fpath} (attendu sous '{expected}', category={fcategory})")
 
-    return non_declaree, non_mappee, incoherente
+    return non_declaree, non_mappee, incoherente, revendications
 
 
 def check_placement(wiremap: dict, repo_map: dict) -> dict:
@@ -531,10 +600,21 @@ def check_placement(wiremap: dict, repo_map: dict) -> dict:
       `schema_version` absente ou `1` ne subissent AUCUN changement de comportement —
       ce sont des preuves de runs passés (rétro-compatibilité stricte).
 
+    - **`REPO_MAP_TEMPLATE_IDENTITY_V1`** (ratifié Pierre 2026-07-23), sur les seuls
+      gabarits d'ARTEFACT NOMMÉ de la table (`test.*`/`asset.*` : `.../{id}` sans `/`
+      final) : `duplicate_claims` est un `FAIL` dans les deux sens —
+      `same_target_multiple_ids` -> `revendications_multiples` (un même fichier
+      revendiqué par plusieurs identités : c'est la contrainte qui manquait, un
+      artefact nommé a UN déposant) et `same_id_multiple_targets` ->
+      `identite_ambigue` (un même identifiant désignant plusieurs fichiers distincts :
+      plus de correspondance univoque). Aucune rustine « première correspondance » :
+      les deux volets ÉNUMÈRENT le conflit au lieu d'en choisir un arbitrairement.
+
     Retourne {passed, adresse_manquante[], categorie_manquante[], categorie_non_mappee[],
     adresse_incoherente[], system_parent_inconnu[], systeme_categorie_non_mappee[],
     categorie_fichier_non_declaree[], categorie_fichier_non_mappee[],
-    fichier_adresse_incoherente[]}. Jamais d'exception sur entrée malformée.
+    fichier_adresse_incoherente[], revendications_multiples[], identite_ambigue[]}.
+    Jamais d'exception sur entrée malformée.
     """
     empty = {
         "adresse_manquante": [],
@@ -546,6 +626,8 @@ def check_placement(wiremap: dict, repo_map: dict) -> dict:
         "categorie_fichier_non_declaree": [],
         "categorie_fichier_non_mappee": [],
         "fichier_adresse_incoherente": [],
+        "revendications_multiples": [],
+        "identite_ambigue": [],
     }
     if not isinstance(wiremap, dict):
         return {
@@ -581,6 +663,10 @@ def check_placement(wiremap: dict, repo_map: dict) -> dict:
     categorie_fichier_non_declaree: list[str] = []
     categorie_fichier_non_mappee: list[str] = []
     fichier_adresse_incoherente: list[str] = []
+    # Revendications d'artefacts NOMMÉS, toutes lignes confondues (REPO_MAP_TEMPLATE_
+    # IDENTITY_V1) : (category, artifact_id, path, line_id). L'unicité de la liaison
+    # ne peut se juger qu'ICI — une ligne seule ne voit pas ce que les autres revendiquent.
+    revendications: list[tuple[str, str, str, str]] = []
 
     for system in systems:
         if not isinstance(system, dict):
@@ -603,10 +689,13 @@ def check_placement(wiremap: dict, repo_map: dict) -> dict:
                     isinstance(system_parent_f, str) and system_parent_f.strip() != ""
                 )
                 deriv_id_f = system_parent_f if has_system_parent_f else lid
-                nd, nm, inc = _check_declared_fichiers(fichiers_raw, lid, deriv_id_f, mapping)
+                nd, nm, inc, rev = _check_declared_fichiers(
+                    fichiers_raw, lid, deriv_id_f, mapping
+                )
                 categorie_fichier_non_declaree += nd
                 categorie_fichier_non_mappee += nm
                 fichier_adresse_incoherente += inc
+                revendications += rev
 
         address = line.get("address")
         if not (isinstance(address, str) and address.strip()):
@@ -639,6 +728,34 @@ def check_placement(wiremap: dict, repo_map: dict) -> dict:
         if not norm_addr.startswith(expected):
             adresse_incoherente.append(f"{lid}: attendu '{expected}', reçu '{address}'")
 
+    # --- REPO_MAP_TEMPLATE_IDENTITY_V1 : unicité de la liaison identité <-> cible ---
+    # `same_target_multiple_ids` : une cible revendiquée par plusieurs identités
+    # distinctes (identité = ligne déposante + catégorie de l'artefact).
+    par_cible: dict[str, set[tuple[str, str]]] = {}
+    # `same_id_multiple_targets` : un identifiant (catégorie + nom d'artefact) qui
+    # désigne plusieurs fichiers distincts.
+    par_identite: dict[tuple[str, str], set[str]] = {}
+    for fcat, aid, fpath, line_id in revendications:
+        par_cible.setdefault(fpath, set()).add((line_id, fcat))
+        par_identite.setdefault((fcat, aid), set()).add(fpath)
+
+    revendications_multiples: list[str] = []
+    for fpath in sorted(par_cible):
+        identites = sorted(par_cible[fpath])
+        if len(identites) > 1:
+            detail_ids = ", ".join(f"{lid}/{cat}" for lid, cat in identites)
+            revendications_multiples.append(
+                f"{fpath} : revendiqué par {len(identites)} identités distinctes ({detail_ids})"
+            )
+
+    identite_ambigue: list[str] = []
+    for fcat, aid in sorted(par_identite):
+        cibles = sorted(par_identite[(fcat, aid)])
+        if len(cibles) > 1:
+            identite_ambigue.append(
+                f"{fcat}:{aid} : {len(cibles)} cibles distinctes ({', '.join(cibles)})"
+            )
+
     passed = not (
         adresse_manquante
         or categorie_manquante
@@ -649,6 +766,8 @@ def check_placement(wiremap: dict, repo_map: dict) -> dict:
         or categorie_fichier_non_declaree
         or categorie_fichier_non_mappee
         or fichier_adresse_incoherente
+        or revendications_multiples
+        or identite_ambigue
     )
     return {
         "passed": passed,
@@ -661,6 +780,8 @@ def check_placement(wiremap: dict, repo_map: dict) -> dict:
         "categorie_fichier_non_declaree": categorie_fichier_non_declaree,
         "categorie_fichier_non_mappee": categorie_fichier_non_mappee,
         "fichier_adresse_incoherente": fichier_adresse_incoherente,
+        "revendications_multiples": revendications_multiples,
+        "identite_ambigue": identite_ambigue,
     }
 
 
