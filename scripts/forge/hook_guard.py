@@ -14,7 +14,13 @@ import json
 import re
 from pathlib import Path
 
-from forge.dispatch import DEFAULT_AUDIT, EVENT_AUTHORIZED, EVENT_PREPARED
+# STDLIB-ONLY OBLIGATOIRE ici : ce garde est fail-CLOSED en périmètre Forge, donc un
+# ImportError dans SA chaîne d'import ne serait pas une panne mais un REFUS UNIVERSEL de
+# tout spawn Forge. `forge.audit` ne dépend que de la stdlib (+ forge.verdict, stdlib
+# aussi) ; passer par `forge.dispatch` traînerait `forge.contract` -> `yaml`, absent hors
+# venv (worktrees) — c'est exactement la panne corrigée. Ne jamais réintroduire d'import
+# `forge.dispatch` dans ce module, ni au niveau module ni dans une fonction.
+from forge.audit import DEFAULT_AUDIT, EVENT_AUTHORIZED, EVENT_PREPARED
 
 # Marqueur : FORGE_DISPATCH:<etape>:<run_id>[:<attempt>]. Le 3e groupe (attempt) est
 # OPTIONNEL — une ligne d'audit / un prompt au FORMAT HISTORIQUE 2-champs reste reconnu.
@@ -62,7 +68,7 @@ def check_spawn(prompt: str, audit_path: Path | None = None,
     if not path.exists():
         return False, f"forge {key} : audit absent -> spawn hors contrat"
 
-    from forge.dispatch import verify_audit_line
+    from forge.audit import verify_audit_line
     valid_count = 0
     saw_tampered = False  # ligne qui matche la clé mais HMAC absent/invalide
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -125,7 +131,7 @@ def record_authorization(prompt: str, audit_path: Path | None = None,
     key = marker_key(prompt)
     if key is None:
         return False
-    from forge.dispatch import append_spawn_event
+    from forge.audit import append_spawn_event
     etape, run_id, attempt = key
     return append_spawn_event(EVENT_AUTHORIZED, etape, run_id, attempt,
                               audit_path=audit_path, key_file=key_file)
@@ -143,7 +149,7 @@ def record_execution(prompt: str, audit_path: Path | None = None,
     key = marker_key(prompt)
     if key is None:
         return False
-    from forge.dispatch import EVENT_EXECUTED, append_spawn_event
+    from forge.audit import EVENT_EXECUTED, append_spawn_event
     etape, run_id, attempt = key
     return append_spawn_event(EVENT_EXECUTED, etape, run_id, attempt,
                               audit_path=audit_path, key_file=key_file)
