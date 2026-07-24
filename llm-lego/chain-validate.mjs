@@ -132,7 +132,7 @@ try {
   const lib = (await api("/api/library")).json?.bricks || [];
   check("REGRESSION: 5 agent bricks intact", lib.filter((b) => b.kind === "agent").length >= 5);
   const wm = await api("/api/wireframes/llm-lego");
-  check("REGRESSION: Wire Map llm-lego still 12 entries", (wm.json?.entries || []).length === 12);
+  check("REGRESSION: Wire Map llm-lego still 13 entries", (wm.json?.entries || []).length === 13);
 
   // cleanup
   if (cid) await api("/api/library/" + cid, { method: "DELETE" });

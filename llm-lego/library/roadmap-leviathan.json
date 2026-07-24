@@ -1,0 +1,58 @@
+{
+  "id": "roadmap-leviathan",
+  "kind": "roadmap",
+  "name": "Leviathan — Roadmap (état réel, suivi d'avancement)",
+  "maturity": "draft",
+  "badge": "demo",
+  "roadmapRef": null,
+  "sourceRef": "ADR-001 (docs/adr/ADR-001-moteur-stack-leviathan.md, Accepted option B) + plan incrément « Le Cœur Vivant » + IMP-260. Greenfield total (aucun code jeu écrit au 2026-07-08). Statuts reflètent la réalité mesurée, pas une intention.",
+  "payload": {
+    "category": "produit",
+    "milestones": [
+      {
+        "id": "ms-1-adr-moteur",
+        "title": "Jalon 1 — ADR moteur/stack",
+        "description": "Choix moteur fondateur. FAIT 2026-07-08 : ADR-001 Accepted, option B = Web (React/TS + Vite + Capacitor + PixiJS), fallback Godot documenté. Ratifié gate Pierre [PROCÉDER].",
+        "status": "done",
+        "goalRef": null
+      },
+      {
+        "id": "ms-2-toolchain-mobile",
+        "title": "Jalon 2 — Toolchain mobile (EN COURS)",
+        "description": "Monter la chaîne Android sur le poste (Windows, iOS différé à un Mac). Avancement : JDK 17 Temurin installé + JAVA_HOME posé (0.1 done) ; Android Studio en installation (0.2) ; SDK API 35 + Build-Tools + Platform-Tools/adb + ANDROID_HOME (0.3) + device Redmi Note 15 Pro+ USB debug (0.4) à venir.",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "ms-3-coeur-vivant",
+        "title": "Jalon 3 — Incrément « Le Cœur Vivant » (IMP-260)",
+        "description": "Plus petit incrément testable (PAS la Vertical Slice §19) : Titan animé stade 1 + cycle idle minimal + 1 combat auto-battler 2 héros factices + 1 Ultime manuel. games/leviathan/. AVANCEMENT 2026-07-09 : Tasks 1-9 done (logique pure rng/idle/combat/store+gameLoop = 22 tests vitest verts + clamp anti-spiral Qwen ; rendu Pixi Titan/combat ; UI React ; intégration). typecheck+build OK, JOUABLE NAVIGATEUR. Reste : Task 10 build device Redmi + Task 11 mesure perf (le gate 60fps).",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "ms-4-gate-perf",
+        "title": "Jalon 4 — Gate perf (a) 60 FPS mesuré sur device",
+        "description": "Décisif : mesurer (pas supposer) 60 FPS + batterie/crash sur Redmi Note 15 Pro+ (réf plancher §16 Galaxy A54). Atteint → on continue sur Web (B). Échoué → déclenche le fallback Godot de l'ADR-001 avant tout investissement contenu. Jugement fun/feel = Pierre (NO_CLAIM).",
+        "status": "todo",
+        "goalRef": "goal-leviathan"
+      },
+      {
+        "id": "ms-5-backend-adr2",
+        "title": "Jalon 5 — ADR-002 backend état-par-joueur",
+        "description": "Décision séparée : serveur léger §15.5 (état-par-joueur + événements, pas de MMO). Lean provisoire : fonctions serverless + DB managée, claim idle vérifié horloge-serveur contre la triche. À écrire.",
+        "status": "todo",
+        "goalRef": null
+      },
+      {
+        "id": "ms-6-vertical-slice",
+        "title": "Jalon 6 — Vertical Slice §19 (horizon)",
+        "description": "Le Désert de Rouille jouable 30 min, gates techniques (60 FPS/batterie/crash) + gate émotionnelle (attachement ≥4/5). NON entamé — au-delà de l'incrément cœur-de-boucle. Rappel : gates §16/§19 pas encore opposables (cf. revue qa-lead).",
+        "status": "todo",
+        "goalRef": "goal-leviathan"
+      }
+    ]
+  },
+  "created": "2026-07-08T00:00:00Z",
+  "updated": "2026-07-08T00:00:00Z"
+}

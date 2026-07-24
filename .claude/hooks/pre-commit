@@ -21,10 +21,33 @@ fi
 # FAIL-OPEN STRICT : l'audit sort 1 s'il détecte une dérive (ex. connecteurs
 # dormants) — on ne bloque JAMAIS le commit là-dessus (ce serait le rôle d'un
 # gate séparé, non retenu). On veut seulement que le fichier reflète la réalité.
+# R3 (audit 2026-07-24) : la sortie était jetée (>/dev/null) donc invisible même
+# en cas de dérive détectée. On la rend visible (artefact stable + résumé 1 ligne)
+# SANS jamais transformer ceci en gate — `|| true` reste partout, un crash node
+# ou un exit 1 du selfaudit ne doit JAMAIS faire échouer ce hook.
 if command -v node >/dev/null 2>&1; then
-  node scripts/forge/studio_selfaudit.mjs --write >/dev/null 2>&1 || true
+  mkdir -p lab/reports 2>/dev/null || true
+  SELFAUDIT_JSON="$(node scripts/forge/studio_selfaudit.mjs --write 2>/dev/null)" || true
+  if [ -n "$SELFAUDIT_JSON" ]; then
+    printf '%s\n' "$SELFAUDIT_JSON" > lab/reports/selfaudit_last.json 2>/dev/null || true
+  fi
   git add docs/forge/STUDIO_STATUS.generated.md 2>/dev/null || true
   echo "🔄 STUDIO_STATUS.generated.md rafraîchi (état factuel du studio)"
+  node -e "
+    try {
+      const fs = require('fs');
+      const r = JSON.parse(fs.readFileSync('lab/reports/selfaudit_last.json', 'utf-8'));
+      const drift = (r.docDrift || []).length;
+      const dormant = (r.dormancy || []).filter(d => d.status === 'dormant').length;
+      if (drift === 0) {
+        console.log('selfaudit: OK — 0 dérive, ' + dormant + ' connecteur(s) dormant(s)');
+      } else {
+        console.log('selfaudit: ' + (drift + dormant) + ' finding(s) — voir lab/reports/selfaudit_last.json');
+      }
+    } catch (e) {
+      console.log('selfaudit: non disponible (' + e.message + ') — voir lab/reports/selfaudit_last.json');
+    }
+  " 2>/dev/null || echo "selfaudit: non disponible — voir lab/reports/selfaudit_last.json"
 fi
 
 echo "✅ pre-commit OK"

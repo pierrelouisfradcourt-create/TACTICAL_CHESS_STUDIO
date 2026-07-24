@@ -148,8 +148,19 @@ class DispatchPayload:
     provider: str = ""
 
 
-def _render_prompt(contract: dict) -> str:
-    """Assemble le prompt borné à partir des champs du contrat."""
+def _render_prompt(contract: dict, etape: str = "", run_id: str = "") -> str:
+    """Assemble le prompt borné à partir des champs du contrat.
+
+    R2 (audit branchements 2026-07-24) : quand `etape` ET `run_id` sont connus
+    (la porte réelle — `dispatch.prepare_dispatch` — les fournit toujours), le
+    prompt PORTE systématiquement le marqueur ``FORGE_DISPATCH:<etape>:<run_id>``
+    attendu par `forge.hook_guard.MARKER` / `.claude/hooks/pretool_forge_guard.py`.
+    AVANT ce correctif, ce marqueur était apposé À LA MAIN par l'orchestrateur
+    (cf. `scripts/forge/run_real.py::claude_executor`, `context['dispatch_marker']`) —
+    un oubli à ce niveau désarmait silencieusement le hook dur. Un appel direct
+    sans run_id (tests C1/C2 unitaires, dry-run sans run réel) omet le marqueur :
+    comportement strictement inchangé pour ces usages.
+    """
     sections = [
         ("RÔLE", contract["role"]),
         ("OBJECTIF", contract["objectif"]),
@@ -164,10 +175,13 @@ def _render_prompt(contract: dict) -> str:
     ]
     body = "\n\n".join(f"## {title}\n{value}" for title, value in sections)
     reads = "\n".join(f"- {r}" for r in contract["mandatory_read"])
-    return (
+    prompt = (
         f"{body}\n\n## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION\n{reads}\n\n"
         f"## {RESTITUTION_RULE}"
     )
+    if etape and run_id:
+        prompt += f"\n\n## MARQUEUR DE DISPATCH (ne pas modifier)\nFORGE_DISPATCH:{etape}:{run_id}"
+    return prompt
 
 
 def _declared_tools(contract: dict) -> tuple[str, ...]:
@@ -193,12 +207,17 @@ def resolve_runtime(contract: dict, caps_path: Path | None = None) -> str:
 
 
 def build_dispatch_payload(
-    contract: dict, etape: str = "", caps_path: Path | None = None
+    contract: dict, etape: str = "", caps_path: Path | None = None, run_id: str = ""
 ) -> DispatchPayload:
     """C1+C2 — refuse si le contrat est incomplet, sinon fabrique le payload borné.
 
     Le role (posture) est INJECTÉ dans le payload ; le modèle est FORCÉ par le
     registry local à partir du capability_role (jamais écrit en dur dans le contrat).
+
+    R2 : `run_id`, quand fourni (toujours le cas via la porte réelle
+    `dispatch.prepare_dispatch`), fait porter au prompt le marqueur
+    ``FORGE_DISPATCH:<etape>:<run_id>`` attendu par le hook dur — plus besoin que
+    l'orchestrateur l'appose à la main. Omis (défaut "") : comportement inchangé.
     """
     validate_contract(contract)  # C1 : la porte bloque d'abord
     model = resolve_runtime(contract, caps_path=caps_path)  # registry force le runtime
@@ -207,7 +226,7 @@ def build_dispatch_payload(
         etape=etape,
         role=contract["role"],
         model=model,
-        prompt=_render_prompt(contract),
+        prompt=_render_prompt(contract, etape=etape, run_id=run_id),
         allowed_tools=_declared_tools(contract),
         mandatory_read=tuple(contract["mandatory_read"]),
         provider=provider,

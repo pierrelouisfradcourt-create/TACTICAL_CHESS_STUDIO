@@ -175,6 +175,29 @@ const CONFIGS = {
     salientChanged: (a, b) => a.hpSum !== b.hpSum || a.enemiesAlive !== b.enemiesAlive ||
                               a.playersAlive !== b.playersAlive || a.turn !== b.turn,
   },
+
+  // Jeu ASSEMBLÉ depuis la Knowledge Base (mission ingestion). Run s10d ADVISORY :
+  // le HUD (HP/TOUR/STATUT) est dessiné SUR le canvas, pas en DOM — seuls h1/.hint sont
+  // du texte DOM mesurable ; #restart vit dans l'overlay (visible seulement en défaite).
+  // Signal honnête sur la mismatch de genre (le capteur est calibré sur des jeux DOM).
+  kb_tactics: {
+    dir: join(REPO, "games", "kb_tactics"),
+    serverScript: "server.mjs",
+    portEnv: "KB_TACTICS_PORT",
+    port: 4626,
+    readyMarker: "interface jouable",
+    urlPath: "/?seed=888",
+    canvas: "#board",
+    bg: [13, 15, 22], // #0d0f16
+    textTargets: ["h1", ".hint"],
+    interactive: ["#restart"],
+    input: { kind: "keyboard", alphabet: ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"], holdMs: 60, steps: 40, seed: 1234 },
+    readyFn: () => !!(window.__game && window.__game.player),
+    sampleFn: () => { const g = window.__game; return { x: g.player.x, y: g.player.y, hp: g.player.hp, turn: g.turn, status: g.status }; },
+    forceOverlayFn: () => { window.__game_debug.forceLose(); },
+    reward: (s) => s.turn,
+    salientChanged: (a, b) => a.x !== b.x || a.y !== b.y || a.hp !== b.hp || a.turn !== b.turn,
+  },
 };
 
 async function applyInput(page, cfg, token) {

@@ -1,0 +1,2382 @@
+{
+  "schema": "wiremap.project/v1",
+  "projet": "auto_battler",
+  "src_root": "games/auto_battler",
+  "genere_par": "s5-wiremap:auto_battler_i2_5-20260719c",
+  "horodatage": "2026-07-19T19:20:00Z",
+  "note": "Carte du PROJET (cible complète), distincte de wiremap.json qui ne porte que l'incrément courant et qui seul est consommé par l'oracle check_wiremap. Aucune couleur n'est stockée : elle se dérive du statut à l'affichage. 'preuve' dit ce qui doit être VRAI ; 'oracle' dit QUI le prouve — trois etats seulement : rempli, 'aucun — jugement Pierre', ou 'NON ÉTABLI — à combler'.",
+  "features": [
+    {
+      "feature": "types_entity_id",
+      "section": "games/auto_battler/engine/types.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/types.mjs"
+      ],
+      "fonction": "makeEntityId",
+      "version": "0.1.0",
+      "preuve": "R9 — makeEntityId retourne un EntityId opaque sans contenu de jeu (surface P11 content-agnostic)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "types_player_id",
+      "section": "games/auto_battler/engine/types.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/types.mjs"
+      ],
+      "fonction": "makePlayerId",
+      "version": "0.1.0",
+      "preuve": "R9 — makePlayerId produit un PlayerId content-agnostic, aucune sémantique de contenu métier (P11)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "types_input_envelope",
+      "section": "games/auto_battler/engine/types.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/types.mjs"
+      ],
+      "fonction": "isInput",
+      "version": "0.1.0",
+      "preuve": "R9 — isInput reconnaît l'enveloppe Input générique sans référence à un contenu de jeu",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "types_event_envelope",
+      "section": "games/auto_battler/engine/types.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/types.mjs"
+      ],
+      "fonction": "isEvent",
+      "version": "0.1.0",
+      "preuve": "R9 — isEvent reconnaît l'enveloppe Event générique, indépendante du contenu (P11)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "types_state_shape",
+      "section": "games/auto_battler/engine/types.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/types.mjs"
+      ],
+      "fonction": "isState",
+      "version": "0.1.0",
+      "preuve": "R9 — isState valide la forme de State sans aucun champ spécifique à un jeu (content-agnostic)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "rng_seed_once",
+      "section": "games/auto_battler/engine/rng.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/rng.mjs"
+      ],
+      "fonction": "seedRng",
+      "version": "0.1.0",
+      "preuve": "R3 — seedRng(seed) initialise rng_state une seule fois; deux seeds égaux -> rng_state égaux (INV-2)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "rng_next_deterministic",
+      "section": "games/auto_battler/engine/rng.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/rng.mjs"
+      ],
+      "fonction": "nextRng",
+      "version": "0.1.0",
+      "preuve": "R3 — nextRng(rng_state) déterministe: même rng_state -> même {rng_state,value} (INV-2)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "registry_event_membership",
+      "section": "games/auto_battler/engine/registry.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/registry.mjs"
+      ],
+      "fonction": "isKnownEvent",
+      "version": "0.1.0",
+      "preuve": "R6 — isKnownEvent(kind) vrai ssi kind dans EVENT_KINDS (registre fermé 19)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "registry_event_assert_fail_hard",
+      "section": "games/auto_battler/engine/registry.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/registry.mjs"
+      ],
+      "fonction": "assertKnownEvent",
+      "version": "0.1.0",
+      "preuve": "R6 — assertKnownEvent(kind) lève fail-hard sur un Event hors registre (INV-12)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "registry_input_membership",
+      "section": "games/auto_battler/engine/registry.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/registry.mjs"
+      ],
+      "fonction": "isKnownInput",
+      "version": "0.1.0",
+      "preuve": "R7 — isKnownInput(kind) vrai ssi kind dans INPUT_KINDS (alphabet fermé 7)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "registry_input_assert_fail_hard",
+      "section": "games/auto_battler/engine/registry.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/registry.mjs"
+      ],
+      "fonction": "assertKnownInput",
+      "version": "0.1.0",
+      "preuve": "R7 — assertKnownInput(kind) rejet déterministe/fail-hard hors alphabet des 7 Inputs (INV-13)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "serialize_canonical",
+      "section": "games/auto_battler/engine/serialize.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/serialize.mjs"
+      ],
+      "fonction": "serialize",
+      "version": "0.1.0",
+      "preuve": "R4 — serialize(state) produit une forme canonique stable (clés ordonnées) permettant comparaison bit-exacte (INV-4)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "state_structural_equality",
+      "section": "games/auto_battler/engine/serialize.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/serialize.mjs"
+      ],
+      "fonction": "statesEqual",
+      "version": "0.1.0",
+      "preuve": "R4 — statesEqual(a,b) vrai ssi serialize(a)===serialize(b) (égalité structurelle, base du replay bit-exact)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "state_init_seeded",
+      "section": "games/auto_battler/engine/state.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/state.mjs"
+      ],
+      "fonction": "initState",
+      "version": "0.1.0",
+      "preuve": "R3 — initState(seed) sème rng_state une seule fois et grave le seed dans l'état (INV-2)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "state_create_immutable",
+      "section": "games/auto_battler/engine/state.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/state.mjs"
+      ],
+      "fonction": "createGameState",
+      "version": "0.1.0",
+      "preuve": "R2 — createGameState retourne un état neuf; aucune référence mutable partagée avec l'appelant (INV-1/3)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "state_deep_freeze",
+      "section": "games/auto_battler/engine/state.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/state.mjs"
+      ],
+      "fonction": "freezeState",
+      "version": "0.1.0",
+      "preuve": "R2 — freezeState gèle l'état en profondeur; toute mutation ultérieure échoue (non-mutation, INV-1/3)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "inputs_build",
+      "section": "games/auto_battler/engine/inputs.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/inputs.mjs"
+      ],
+      "fonction": "buildInput",
+      "version": "0.1.0",
+      "preuve": "R7 — buildInput construit un Input valide pour un kind dans INPUT_KINDS (constructeurs des 7 Inputs)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "inputs_validate_reject",
+      "section": "games/auto_battler/engine/inputs.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/inputs.mjs"
+      ],
+      "fonction": "validateInput",
+      "version": "0.1.0",
+      "preuve": "R7 — validateInput accepte les 7 Inputs connus et rejette de façon déterministe tout kind inconnu (INV-13)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "eventlog_create",
+      "section": "games/auto_battler/engine/eventlog.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/eventlog.mjs"
+      ],
+      "fonction": "createEventLog",
+      "version": "0.1.0",
+      "preuve": "R5 — createEventLog crée un journal append-only vide, seule sortie observable de l'état (INV-5)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "eventlog_append_only",
+      "section": "games/auto_battler/engine/eventlog.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/eventlog.mjs"
+      ],
+      "fonction": "appendEvent",
+      "version": "0.1.0",
+      "preuve": "R5 — appendEvent ajoute en fin sans muter les entrées existantes; l'EventLog reste la seule sortie (INV-5)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "transition_deterministic",
+      "section": "games/auto_battler/engine/transition.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/transition.mjs"
+      ],
+      "fonction": "transition",
+      "version": "0.1.0",
+      "preuve": "R1 — transition(state,inputs) déterministe: mêmes entrées -> même nextState à chaque exécution (INV-1/3)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "transition_pure_apply",
+      "section": "games/auto_battler/engine/transition.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/transition.mjs"
+      ],
+      "fonction": "applyInput",
+      "version": "0.1.0",
+      "preuve": "R2 — applyInput applique un Input sans muter l'état d'entrée (reducer pur, INV-1/3)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "engine_no_ambient_state",
+      "section": "games/auto_battler/engine/transition.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/transition.mjs"
+      ],
+      "fonction": "transition",
+      "version": "0.1.0",
+      "preuve": "R8 — transition n'appelle ni Date.now ni Math.random ni timer; l'entropie provient uniquement de rng_state (INV-19)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "replay_bit_exact",
+      "section": "games/auto_battler/engine/replay.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/replay.mjs"
+      ],
+      "fonction": "replay",
+      "version": "0.1.0",
+      "preuve": "R4 — replay(initialState,inputLog) reproduit finalState et eventLog bit-exacts à chaque exécution (INV-4)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "match_empty_ruleset_no_crash",
+      "section": "games/auto_battler/engine/match.mjs",
+      "fichiers": [
+        "games/auto_battler/engine/match.mjs"
+      ],
+      "fonction": "runMatch",
+      "version": "0.1.0",
+      "preuve": "R10 — runMatch(seed,inputLog) exécute un jeu de règles vide jusqu'au bout sans crash (INV-1)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i1",
+      "horodatage": "2026-07-19T08:00:16Z"
+    },
+    {
+      "feature": "pool_invariant_maintained",
+      "section": "games/auto_battler/pool/pool.mjs",
+      "fichiers": [
+        "games/auto_battler/pool/pool.mjs"
+      ],
+      "fonction": "getTotalPoolCount",
+      "version": "0.2.0",
+      "preuve": "R1 — INV-7/ECO-1 : Pool + Shops + possessions doit rester une somme invariante à tout instant",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i2",
+      "horodatage": "2026-07-19T11:55:07Z"
+    },
+    {
+      "feature": "pool_debit_on_buy",
+      "section": "games/auto_battler/pool/pool.mjs",
+      "fichiers": [
+        "games/auto_battler/pool/pool.mjs"
+      ],
+      "fonction": "debitPool",
+      "version": "0.2.0",
+      "preuve": "R2 — QE-2 : le Pool est débité au Buy, jamais au Place",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i2",
+      "horodatage": "2026-07-19T11:55:07Z"
+    },
+    {
+      "feature": "pool_restore_on_sell",
+      "section": "games/auto_battler/pool/pool.mjs",
+      "fichiers": [
+        "games/auto_battler/pool/pool.mjs"
+      ],
+      "fonction": "restorePool",
+      "version": "0.2.0",
+      "preuve": "R3 — QE-1 : restitution au Pool au Sell selon le Star (★2→+3)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i2",
+      "horodatage": "2026-07-19T11:55:07Z"
+    },
+    {
+      "feature": "shop_deterministic_draw",
+      "section": "games/auto_battler/shop/shop.mjs",
+      "fichiers": [
+        "games/auto_battler/shop/shop.mjs"
+      ],
+      "fonction": "drawShop",
+      "version": "0.2.0",
+      "preuve": "R6 — ECO-5/DEC-3 : tirage de Shop déterministe piloté par rng_state",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i2",
+      "horodatage": "2026-07-19T11:55:07Z"
+    },
+    {
+      "feature": "shop_reserve_drawn_copies",
+      "section": "games/auto_battler/shop/shop.mjs",
+      "fichiers": [
+        "games/auto_battler/shop/shop.mjs",
+        "games/auto_battler/pool/pool.mjs"
+      ],
+      "fonction": "drawShop",
+      "version": "0.2.0",
+      "preuve": "R1 — INV-7/ECO-1 : les exemplaires tirés sont réservés dans le Pool (drawShop appelle reservePool)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i2",
+      "horodatage": "2026-07-19T11:55:07Z"
+    },
+    {
+      "feature": "shop_lock",
+      "section": "games/auto_battler/shop/shop.mjs",
+      "fichiers": [
+        "games/auto_battler/shop/shop.mjs"
+      ],
+      "fonction": "lockShop",
+      "version": "0.2.0",
+      "preuve": "R7 — ECO-8 : Shop identique au Round suivant, sans coût",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i2",
+      "horodatage": "2026-07-19T11:55:07Z"
+    },
+    {
+      "feature": "merge_detect_triplet",
+      "section": "games/auto_battler/merge/merge.mjs",
+      "fichiers": [
+        "games/auto_battler/merge/merge.mjs"
+      ],
+      "fonction": "detectMerge",
+      "version": "0.2.0",
+      "preuve": "R4 — INV-16/QD-4/DP-4 : détection de 3 UnitInstances identiques, MergeTriggered/MergeResolved sans Input",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i2",
+      "horodatage": "2026-07-19T11:55:07Z"
+    },
+    {
+      "feature": "merge_resolve_creation_order",
+      "section": "games/auto_battler/merge/merge.mjs",
+      "fichiers": [
+        "games/auto_battler/merge/merge.mjs"
+      ],
+      "fonction": "resolveMerge",
+      "version": "0.2.0",
+      "preuve": "R4 : consommation par ordre de création, production d'un Star supérieur + nouvel unit_instance_id",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i2",
+      "horodatage": "2026-07-19T11:55:07Z"
+    },
+    {
+      "feature": "economy_gold_delta_ledger",
+      "section": "games/auto_battler/economy/gold.mjs",
+      "fichiers": [
+        "games/auto_battler/economy/gold.mjs"
+      ],
+      "fonction": "computeGoldDelta",
+      "version": "0.2.0",
+      "preuve": "R8 — ECO-3/INV-19 : Delta Gold = somme algébrique de la liste close de transactions",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i2",
+      "horodatage": "2026-07-19T11:55:07Z"
+    },
+    {
+      "feature": "bench_reject_buy_when_full",
+      "section": "games/auto_battler/bench/bench.mjs",
+      "fichiers": [
+        "games/auto_battler/bench/bench.mjs",
+        "games/auto_battler/preparation/preparation.mjs"
+      ],
+      "fonction": "isBenchFull",
+      "version": "0.2.0",
+      "preuve": "R5 — DP-9/QE-7 : rejet du Buy à Bench plein, sans effet de bord (isBenchFull consultée par applyPreparationInput)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i2",
+      "horodatage": "2026-07-19T11:55:07Z"
+    },
+    {
+      "feature": "preparation_accept_inputs",
+      "section": "games/auto_battler/preparation/preparation.mjs",
+      "fichiers": [
+        "games/auto_battler/preparation/preparation.mjs"
+      ],
+      "fonction": "applyPreparationInput",
+      "version": "0.2.0",
+      "preuve": "R9 — QC-2 : les 7 Inputs sont acceptés avec un effet économique réel (routage vers pool/shop/bench/merge/gold)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i2",
+      "horodatage": "2026-07-19T11:55:07Z"
+    },
+    {
+      "feature": "preparation_close_on_confirm",
+      "section": "games/auto_battler/preparation/preparation.mjs",
+      "fichiers": [
+        "games/auto_battler/preparation/preparation.mjs"
+      ],
+      "fonction": "applyPreparationInput",
+      "version": "0.2.0",
+      "preuve": "R9 — QC-2 : la fenêtre Preparation ne se clôt que via ConfirmPreparation (cas géré dans applyPreparationInput)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i2",
+      "horodatage": "2026-07-19T11:55:07Z"
+    },
+    {
+      "feature": "eventlog_emit_economic_and_merge_events",
+      "section": "games/auto_battler/preparation/preparation.mjs",
+      "fichiers": [
+        "games/auto_battler/preparation/preparation.mjs"
+      ],
+      "fonction": "applyPreparationInput",
+      "version": "0.2.0",
+      "preuve": "R10 — INV-12/QE-6 : émission des 5 Events économiques + MergeTriggered/MergeResolved avec payloads structurels (appendEvent appelé depuis applyPreparationInput)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "CONSTRUIT",
+      "origine": "auto_battler_i2",
+      "horodatage": "2026-07-19T11:55:07Z"
+    },
+    {
+      "feature": "registry_22_event_kinds",
+      "section": "games/auto_battler/engine/",
+      "fichiers": [
+        "games/auto_battler/engine/registry.mjs"
+      ],
+      "fonction": "EVENT_KINDS",
+      "version": "0.3.0",
+      "preuve": "R1b — INV-12 : EVENT_KINDS contient exactement les 22 noms ratifiés (02_CORE_RULES.md:237-263), soit les 19 actuels + UnitPlaced + ShopLocked + PhaseChanged ; assertion stricte EVENT_KINDS.length === 22 et égalité ensembliste avec le registre de la bible",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "registry_fail_hard_unknown_event",
+      "section": "games/auto_battler/engine/",
+      "fichiers": [
+        "games/auto_battler/engine/registry.mjs"
+      ],
+      "fonction": "assertKnownEvent",
+      "version": "0.3.0",
+      "preuve": "R1b — INV-12 : tout nom d'Event hors des 22 fait échouer le run (fail-hard, pas un avertissement) ; aucun Event de rejet n'est ajouté au registre (R14)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "state_preserves_extra_fields",
+      "section": "games/auto_battler/engine/",
+      "fichiers": [
+        "games/auto_battler/engine/state.mjs"
+      ],
+      "fonction": "createGameState",
+      "version": "0.3.0",
+      "preuve": "RO-5 — createGameState cesse de perdre les champs hors de ses six clés : après reconstruction, pool, bench_capacity et round_index sont strictement conservés ; aucun handler de preparation.mjs ne les ré-attache à la main",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "engine_applyinput_not_reachable_from_ui",
+      "section": "games/auto_battler/engine/",
+      "fichiers": [
+        "games/auto_battler/engine/transition.mjs",
+        "games/auto_battler/run-oracle.mjs"
+      ],
+      "fonction": "applyInput",
+      "version": "0.3.0",
+      "preuve": "INVARIANT NON COUVERT PAR check_architecture (input -> engine est légitime pour buildInput) — transition.mjs::applyInput est un SECOND chemin d'application d'Input, parallèle à applyPreparationInput : il émet un Event 'Spawn' placeholder pour tout Input accepté et force phase='Battle'. Preuve : aucun appel à applyInput depuis games/auto_battler/input/ ni games/auto_battler/app/ (scan statique dans run-oracle.mjs, commentaires retirés avant analyse)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "board_index_validity",
+      "section": "games/auto_battler/board/",
+      "fichiers": [
+        "games/auto_battler/board/board.mjs"
+      ],
+      "fonction": "isValidIndex",
+      "version": "0.3.0",
+      "preuve": "RO-4 — un index de case est valide ssi il désigne une case de la grille BOARD_WIDTH × BOARD_HEIGHT lue depuis params.v0.mjs ; tout autre index est rejeté sans effet de bord",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "board_cell_free",
+      "section": "games/auto_battler/board/",
+      "fichiers": [
+        "games/auto_battler/board/board.mjs"
+      ],
+      "fonction": "isCellFree",
+      "version": "0.3.0",
+      "preuve": "RO-4 — occupation logique : isCellFree(board, index) est vrai ssi aucune UnitInstance n'occupe cet index ; deux UnitInstances ne peuvent jamais porter le même index",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "board_place_unit",
+      "section": "games/auto_battler/board/",
+      "fichiers": [
+        "games/auto_battler/board/board.mjs"
+      ],
+      "fonction": "placeOnBoard",
+      "version": "0.3.0",
+      "preuve": "RO-4 — pose d'une UnitInstance à un index donné : l'unité posée porte sa coordonnée dans l'état résultant (le payload UnitPlaced ratifié exige to_index) ; pose sur case occupée ou index invalide = rejet sans effet de bord",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "board_remove_unit",
+      "section": "games/auto_battler/board/",
+      "fichiers": [
+        "games/auto_battler/board/board.mjs"
+      ],
+      "fonction": "removeFromBoard",
+      "version": "0.3.0",
+      "preuve": "RO-4 — retrait d'une UnitInstance du plateau : la case libérée redevient libre, l'unité disparaît du plateau, aucune autre unité ne change d'index",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "board_move_unit",
+      "section": "games/auto_battler/board/",
+      "fichiers": [
+        "games/auto_battler/board/board.mjs"
+      ],
+      "fonction": "moveOnBoard",
+      "version": "0.3.0",
+      "preuve": "RO-4 — déplacement case→case : l'unité change d'index, la case d'origine redevient libre, la case de destination était libre avant le déplacement",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "place_bench_to_board_indexed",
+      "section": "games/auto_battler/preparation/",
+      "fichiers": [
+        "games/auto_battler/preparation/preparation.mjs",
+        "games/auto_battler/board/board.mjs"
+      ],
+      "fonction": "handlePlace",
+      "version": "0.3.0",
+      "preuve": "RO-4 + R4 — Place banc→plateau accepte un index de destination et délègue à board/ ; l'unité posée occupe strictement l'index demandé (aujourd'hui : {unit_instance_id, target_zone} seulement, empilement sans coordonnée, preparation.mjs:540)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "place_board_to_board",
+      "section": "games/auto_battler/preparation/",
+      "fichiers": [
+        "games/auto_battler/preparation/preparation.mjs",
+        "games/auto_battler/board/board.mjs"
+      ],
+      "fonction": "handlePlace",
+      "version": "0.3.0",
+      "preuve": "RO-4 + Prisme « repositionne sur le plateau » — Place plateau→plateau déplace l'unité vers la case demandée ; le repositionnement n'existe pas aujourd'hui",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "place_board_to_bench",
+      "section": "games/auto_battler/preparation/",
+      "fichiers": [
+        "games/auto_battler/preparation/preparation.mjs",
+        "games/auto_battler/bench/bench.mjs"
+      ],
+      "fonction": "handlePlace",
+      "version": "0.3.0",
+      "preuve": "RO-4 — Place plateau→banc retire l'unité du plateau et l'ajoute au banc si le banc n'est pas plein ; aujourd'hui la branche target_zone === 'bench' retourne l'état inchangé (preparation.mjs:559-562)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "place_emits_unitplaced",
+      "section": "games/auto_battler/preparation/",
+      "fichiers": [
+        "games/auto_battler/preparation/preparation.mjs"
+      ],
+      "fonction": "handlePlace",
+      "version": "0.3.0",
+      "preuve": "R1b — chaque Place accepté émet exactement un UnitPlaced de payload ratifié {seat_id, unit_instance_id, from_zone, from_index, to_zone, to_index} (02_CORE_RULES.md:265-272), chaque champ strictement égal aux zone et index réels de l'état résultant",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "sell_from_board",
+      "section": "games/auto_battler/preparation/",
+      "fichiers": [
+        "games/auto_battler/preparation/preparation.mjs"
+      ],
+      "fonction": "handleSell",
+      "version": "0.3.0",
+      "preuve": "RO-4 + R7 — Sell accepte une UnitInstance posée sur le PLATEAU avec restitution au Pool selon le Star (QE-1) ; aujourd'hui handleSell ne consulte que bench.findOnBench (preparation.mjs:280-286) : rejet SILENCIEUX",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "unitsold_payload_from_zone_index",
+      "section": "games/auto_battler/preparation/",
+      "fichiers": [
+        "games/auto_battler/preparation/preparation.mjs"
+      ],
+      "fonction": "handleSell",
+      "version": "0.3.0",
+      "preuve": "R1b — UnitSold porte from_zone et from_index en plus des champs existants ; les deux désignent strictement la zone et l'index qu'occupait l'unité juste avant sa suppression, vérifiés contre l'état d'avant (l.319-327 aujourd'hui)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "lock_is_toggle_emitting_shoplocked",
+      "section": "games/auto_battler/preparation/",
+      "fichiers": [
+        "games/auto_battler/preparation/preparation.mjs"
+      ],
+      "fonction": "handleLock",
+      "version": "0.3.0",
+      "preuve": "RO-1 + R1b — Lock est une BASCULE : verrouiller une boutique déjà verrouillée la déverrouille ; chaque changement effectif de shop_locked émet exactement un ShopLocked{seat_id, locked} ; aucun ShopLocked quand shop_locked ne change pas. Aujourd'hui handleLock force shop_locked à true sans condition et sans Event (l.438)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "confirm_emits_phasechanged",
+      "section": "games/auto_battler/preparation/",
+      "fichiers": [
+        "games/auto_battler/preparation/preparation.mjs"
+      ],
+      "fonction": "handleConfirmPreparation",
+      "version": "0.3.0",
+      "preuve": "R1b + RO-2 — ConfirmPreparation émet exactement un PhaseChanged{from_phase, to_phase} avec les littéraux canoniques 'Preparation' → 'Battle' ; le commentaire MED-5 (l.567-576) qui justifiait l'absence d'Event a disparu du chemin de code",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "unitbought_payload_instance_and_bench_index",
+      "section": "games/auto_battler/preparation/",
+      "fichiers": [
+        "games/auto_battler/preparation/preparation.mjs"
+      ],
+      "fonction": "handleBuy",
+      "version": "0.3.0",
+      "preuve": "R1b — UnitBought porte unit_instance_id et bench_index en plus de {seat_id, unit_definition, shop_slot, gold_cost} ; unit_instance_id est strictement celui de l'UnitInstance ajoutée au banc et bench_index son index réel (aujourd'hui 4 champs, l.233-239, exclusion MED-4 documentée)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "mergeresolved_payload_destination",
+      "section": "games/auto_battler/preparation/",
+      "fichiers": [
+        "games/auto_battler/preparation/preparation.mjs"
+      ],
+      "fonction": "applyAutoMerge",
+      "version": "0.3.0",
+      "preuve": "R1b — MergeResolved porte to_zone et to_index (02_CORE_RULES.md:273-280) : la destination est calculée par preparation/ au moment de la réintégration et désigne strictement la zone et l'index où se trouve l'UnitInstance produite après la fusion (aujourd'hui 4 champs, l.631-637). Le Merge reste un acte système, jamais un Input",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "preparation_reads_params_v0",
+      "section": "games/auto_battler/preparation/",
+      "fichiers": [
+        "games/auto_battler/preparation/preparation.mjs",
+        "games/auto_battler/params.v0.mjs"
+      ],
+      "fonction": "applyPreparationInput",
+      "version": "0.3.0",
+      "preuve": "R11 — BENCH_CAPACITY, SHOP_SIZE et GOLD_COSTS.Reroll sont LUS depuis params.v0.mjs et ne sont plus déclarés dans preparation.mjs (l.15-22 aujourd'hui : BENCH_CAPACITY = 8, GOLD_COSTS.Reroll = 1) ; le 9e Buy est accepté, le 10e refusé sans effet de bord ; un Reroll décroît l'or d'exactement 2",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "round_new_game",
+      "section": "games/auto_battler/round/",
+      "fichiers": [
+        "games/auto_battler/round/round.mjs"
+      ],
+      "fonction": "newGame",
+      "version": "0.3.0",
+      "preuve": "R13 — newGame(seed) produit une partie neuve : initState + initPrepState + round_index à 0 ; juste après initialisation, state.round_index vaut exactement 0 et round_index survit à toute transition (RO-5)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "round_start_order_income_then_shops",
+      "section": "games/auto_battler/round/",
+      "fichiers": [
+        "games/auto_battler/round/round.mjs"
+      ],
+      "fonction": "startRound",
+      "version": "0.3.0",
+      "preuve": "R13 — ordonnancement ratifié 05_ECONOMY_BIBLE.md:250-261 : dans le journal, tous les GoldChanged{source:'Income'} précèdent strictement tous les ShopRolled du même Round ; itération sur les Seats en seat_index croissant (DP-2) ; ShopRolled{cause:'RoundStart'} (RO-3) ; les exemplaires tirés sont RÉSERVÉS dans le Pool, pas débités (QE-2). Après le Round 0, l'or du Seat est non nul et la Shop non vide — plus d'impasse de départ",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "round_income_base_only",
+      "section": "games/auto_battler/round/",
+      "fichiers": [
+        "games/auto_battler/round/round.mjs",
+        "games/auto_battler/economy/gold.mjs"
+      ],
+      "fonction": "computeIncome",
+      "version": "0.3.0",
+      "preuve": "R13 + R11 — Income = revenu de base SEUL, min(3 + round_index, 10) (05_ECONOMY_BIBLE.md:210 : Interest et primes de série REJETÉS, QE-4/QE-5) : le delta d'or de début de Round ne dépend jamais de l'or épargné ni de l'historique de résultats ; le crédit passe par applyGoldTransaction (aucun crédit hors du ledger ECO-3) et émet GoldChanged{seat_id, delta, new_gold, source:'Income'} SANS clé input_ref",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "round_skips_locked_shop",
+      "section": "games/auto_battler/round/",
+      "fichiers": [
+        "games/auto_battler/round/round.mjs",
+        "games/auto_battler/shop/shop.mjs"
+      ],
+      "fonction": "startRound",
+      "version": "0.3.0",
+      "preuve": "ECO-8 (05_ECONOMY_BIBLE.md:134-138) — Lock posé au Round r : au Round r+1 la Shop est identique bit à bit, aucun ShopRolled n'est émis pour ce Seat et rng_state est strictement inchangé par ce tirage",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "layout_pixel_to_cell",
+      "section": "games/auto_battler/layout/",
+      "fichiers": [
+        "games/auto_battler/layout/layout.mjs"
+      ],
+      "fonction": "pixelToCellIndex",
+      "version": "0.3.0",
+      "preuve": "Géométrie PURE partagée vue/entrée — pixelToCellIndex(x, y) rend l'index de case du plateau ou une absence hors plateau ; fonction pure : ne lit aucun GameState, aucun Event, aucune horloge (motif ECO-2 : une seule source lue par l'affichage et par l'entrée)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "layout_cell_to_rect",
+      "section": "games/auto_battler/layout/",
+      "fichiers": [
+        "games/auto_battler/layout/layout.mjs"
+      ],
+      "fonction": "cellIndexToRect",
+      "version": "0.3.0",
+      "preuve": "Géométrie PURE — cellIndexToRect(index) rend le rectangle écran de la case ; réciproque exacte de pixelToCellIndex sur tout le domaine (property-test aller-retour)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "layout_bench_slot_rects",
+      "section": "games/auto_battler/layout/",
+      "fichiers": [
+        "games/auto_battler/layout/layout.mjs"
+      ],
+      "fonction": "benchSlotRects",
+      "version": "0.3.0",
+      "preuve": "R11 — benchSlotRects rend exactement autant de rectangles que la capacité de banc déclarée dans params.v0.mjs, sans recouvrement",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "layout_shop_slot_rects",
+      "section": "games/auto_battler/layout/",
+      "fichiers": [
+        "games/auto_battler/layout/layout.mjs"
+      ],
+      "fonction": "shopSlotRects",
+      "version": "0.3.0",
+      "preuve": "R11 — shopSlotRects rend exactement autant de rectangles que la taille de boutique déclarée dans params.v0.mjs, sans recouvrement",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "gesture_produces_single_input",
+      "section": "games/auto_battler/input/",
+      "fichiers": [
+        "games/auto_battler/input/gestures.mjs"
+      ],
+      "fonction": "buildInputFromGesture",
+      "version": "0.3.0",
+      "preuve": "R4 — INV-13 : un geste produit exactement UN Input de la liste close des 7 et jamais deux (clic emplacement → Buy · geste de vente → Sell · Rafraîchir → Reroll · Verrouiller → Lock · Monter de niveau → LevelUp · glisser → Place portant zone et index de destination via layout/ · Prêt → ConfirmPreparation)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "submit_single_funnel",
+      "section": "games/auto_battler/input/",
+      "fichiers": [
+        "games/auto_battler/input/submit.mjs"
+      ],
+      "fonction": "submitInput",
+      "version": "0.3.0",
+      "preuve": "R4 — entonnoir unique : submit.mjs est le SEUL site d'appel d'applyPreparationInput dans tout le jeu ; aucun autre chemin d'écriture d'un champ de Seat {gold, bench, board, level, shop, shop_locked} ni de round_index côté interface (check_architecture prouve l'existence de l'arête input -> preparation, pas son unicité : scan statique dans run-oracle.mjs)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "submit_detects_rejection",
+      "section": "games/auto_battler/input/",
+      "fichiers": [
+        "games/auto_battler/input/submit.mjs"
+      ],
+      "fonction": "detectRejection",
+      "version": "0.3.0",
+      "preuve": "R14 — le refus est détecté par comparaison PROFONDE état-avant/état-après, sans consulter le journal (aucun Event de rejet n'existe, registre clos à 22) : sur Input refusé l'EventLog est de même longueur avant et après et l'état est profondément égal",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "feedback_shows_rejection",
+      "section": "games/auto_battler/input/",
+      "fichiers": [
+        "games/auto_battler/input/feedback.mjs"
+      ],
+      "fonction": "showRejection",
+      "version": "0.3.0",
+      "preuve": "R7 + R14 — le retour de refus est écrit dans un élément DOM propre à feedback.mjs, hors de toute surface du renderer, en langage d'action (« Banc plein — vendez une unité ») ; causes documentées et elles seules : or insuffisant et banc plein (DP-9). Le DOM porte un retour détectable par sélecteur stable ET l'état est profondément égal à l'état d'avant",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "timer_countdown",
+      "section": "games/auto_battler/input/",
+      "fichiers": [
+        "games/auto_battler/input/timer.mjs",
+        "games/auto_battler/params.v0.mjs"
+      ],
+      "fonction": "startTimer",
+      "version": "0.3.0",
+      "preuve": "R5 + R11 + QC-5/INV-3 — le décompte est tenu ENTIÈREMENT hors du GameState (aucun champ de temps dans l'état, aucun timer moteur) ; sa durée est lue depuis params.v0.mjs et vaut strictement 30 ; aucune autre constante de durée en dur dans l'interface",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "timer_expiry_emits_confirm",
+      "section": "games/auto_battler/input/",
+      "fichiers": [
+        "games/auto_battler/input/timer.mjs",
+        "games/auto_battler/input/submit.mjs"
+      ],
+      "fonction": "onTimerExpired",
+      "version": "0.3.0",
+      "preuve": "R5 — à expiration, le minuteur passe par submit.mjs et émet exactement le même Input ConfirmPreparation que le bouton « prêt », sans aucun autre effet : expiration et clic produisent des journaux d'Inputs identiques et des journaux d'Events identiques",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "viewmodel_folds_eventlog_only",
+      "section": "games/auto_battler/renderer/",
+      "fichiers": [
+        "games/auto_battler/renderer/viewmodel.mjs"
+      ],
+      "fonction": "foldEventLog",
+      "version": "0.3.0",
+      "preuve": "R1 — INV-5 : le modèle de vue est plié depuis les SEULES conditions initiales connues (or 0, niveau 1, banc vide, plateau vide, boutique vide, verrou faux) + l'Event Log ; sa signature n'accepte aucun paramètre d'état et le module ne référence ni GameState ni window.__game. Comparaison champ à champ au Seat moteur sur {gold, level, shop, shop_locked, bench, board} : égalité stricte",
+      "oracle": "scripts/forge/static_oracles.py::check_architecture",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "render_dom_surfaces",
+      "section": "games/auto_battler/renderer/",
+      "fichiers": [
+        "games/auto_battler/renderer/render_dom.mjs"
+      ],
+      "fonction": "renderDom",
+      "version": "0.3.0",
+      "preuve": "R8 + R10 — or, niveau, 5 emplacements de boutique cliquables, état de verrou, 9 places de banc, minuteur et 4 boutons (Rafraîchir, Monter de niveau, Verrouiller, Prêt) sont du TEXTE et des ÉLÉMENTS DOM RÉELS, chacun résolu par un sélecteur stable renvoyant un unique élément — jamais des pixels peints dans le canvas",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "render_canvas_board_and_units",
+      "section": "games/auto_battler/renderer/",
+      "fichiers": [
+        "games/auto_battler/renderer/render_canvas.mjs",
+        "games/auto_battler/layout/layout.mjs"
+      ],
+      "fonction": "renderCanvas",
+      "version": "0.3.0",
+      "preuve": "R8 + R3 — le canvas dessine le plateau 8×8 miroir (64 cases distinguables) et les unités posées à la case portée par UnitPlaced avec leur Star lisible : deux rendus ne différant que par le Star d'une unité, ou que par le to_index d'un UnitPlaced, produisent des images différentes ; chaque Event observable ajouté au journal change l'image, debug éteint (R9)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "render_canvas_timer_ring_frame_counter",
+      "section": "games/auto_battler/renderer/",
+      "fichiers": [
+        "games/auto_battler/renderer/render_canvas.mjs"
+      ],
+      "fonction": "drawTimerRing",
+      "version": "0.3.0",
+      "preuve": "R2 — le liseré-chronomètre qui fait le tour de l'aire de jeu se consume sur le COMPTEUR DE TRAMES INJECTÉ, jamais sur l'horloge murale : deux rendus du même journal au même numéro de trame injecté sont identiques octet pour octet",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "renderer_debug_overlay_off_by_default",
+      "section": "games/auto_battler/renderer/",
+      "fichiers": [
+        "games/auto_battler/renderer/render_dom.mjs"
+      ],
+      "fonction": "isDebugEnabled",
+      "version": "0.3.0",
+      "preuve": "R9 — l'affichage de debug est éteint par défaut au chargement et pendant toute mesure d'oracle : le capteur ne trouve aucun élément de debug ; les différences d'image de R3 sont mesurées sur le rendu de production (un vidage textuel ne peut pas satisfaire R3)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "app_boot_composition",
+      "section": "games/auto_battler/app/",
+      "fichiers": [
+        "games/auto_battler/app/boot.mjs"
+      ],
+      "fonction": "boot",
+      "version": "0.3.0",
+      "preuve": "Racine de composition — boot lit la seed dans l'URL, appelle round.newGame(seed) puis round.startRound(), câble input/ et appelle renderer avec le SEUL Event Log ; ne contient aucune règle de jeu, ne construit aucun Input, ne dessine rien lui-même et n'atteint ni preparation/ ni le moteur (deps_interdites [app, engine] et [app, preparation])",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "app_frame_counter",
+      "section": "games/auto_battler/app/",
+      "fichiers": [
+        "games/auto_battler/app/boot.mjs"
+      ],
+      "fonction": "nextFrame",
+      "version": "0.3.0",
+      "preuve": "R2 — le compteur de trames est tenu par app/ et INJECTÉ au renderer ; il est figeable sous oracle, ce qui rend le rendu reproductible octet pour octet",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "app_exposes_state_for_sensor",
+      "section": "games/auto_battler/app/",
+      "fichiers": [
+        "games/auto_battler/app/boot.mjs"
+      ],
+      "fonction": "exposeGameForSensor",
+      "version": "0.3.0",
+      "preuve": "R10 — l'état est exposé au navigateur en global (window.__game) pour le capteur déterministe ; le renderer ne le lit jamais (un accès global n'est pas un import et échappe à deps_interdites : scan statique dans run-oracle.mjs). Deux chargements avec la même seed produisent des journaux d'Events strictement identiques ; deux seeds différentes des journaux différents",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "web_serves_subdir_modules",
+      "section": "games/auto_battler/web/",
+      "fichiers": [
+        "games/auto_battler/web/server.mjs"
+      ],
+      "fonction": "serveFile",
+      "version": "0.3.0",
+      "preuve": "Transport — server.mjs sert index.html ET les modules .mjs des SOUS-DOSSIERS (engine/, renderer/, app/…) et refuse toute traversée de chemin. Le patron des sondes P1 (fixtures/p1/probe_clean/server.mjs:31, ALLOWED_FILE limité aux fichiers de racine) rendrait ce jeu inchargeable : il n'est PAS repris tel quel",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "web_announces_ready",
+      "section": "games/auto_battler/web/",
+      "fichiers": [
+        "games/auto_battler/web/server.mjs"
+      ],
+      "fonction": "startServer",
+      "version": "0.3.0",
+      "preuve": "R10 — le serveur ANNONCE sa disponibilité sur stdout avant toute mesure ; le capteur détecte la ligne d'annonce avant de commencer, échec sur timeout. server.mjs n'importe aucun module de jeu (deps_interdites [web, *])",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "web_dom_skeleton",
+      "section": "games/auto_battler/web/",
+      "fichiers": [
+        "games/auto_battler/web/index.html"
+      ],
+      "fonction": "",
+      "version": "0.3.0",
+      "preuve": "R10 + R8 — index.html porte le squelette DOM à identifiants stables (or, niveau, 5 emplacements, verrou, 9 places de banc, minuteur, 4 boutons, zone de retour de refus, canvas), la couleur de fond déclarée et la typographie ; il charge app/boot.mjs et rien d'autre",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "params_v0_ui_values",
+      "section": "games/auto_battler/params.v0.mjs",
+      "fichiers": [
+        "games/auto_battler/params.v0.mjs"
+      ],
+      "fonction": "BENCH_CAPACITY",
+      "version": "0.3.0",
+      "preuve": "R11 — SITE DE DÉCLARATION UNIQUE : minuteur 30 s, boutique 5 emplacements, banc 9 places, Reroll 2 or et la géométrie de cellule pour layout/ sont déclarés ici et nulle part ailleurs (valeurs v0 sourcées, gate 2026-07-19). Le fichier n'importe RIEN",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "params_v0_income_scale",
+      "section": "games/auto_battler/params.v0.mjs",
+      "fichiers": [
+        "games/auto_battler/params.v0.mjs"
+      ],
+      "fonction": "INCOME_BASE",
+      "version": "0.3.0",
+      "preuve": "R11 + R13 — le barème d'Income min(3 + round_index, 10) est déclaré ici et lu par round/ ; aucune autre constante d'Income n'existe dans le code. NE SONT PAS ICI, faute de source : le coût de montée de niveau (reste la table du moteur) et la limite d'unités posables (NON DOCUMENTÉE)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "static_scan_renderer_purity",
+      "section": "games/auto_battler/run-oracle.mjs",
+      "fichiers": [
+        "games/auto_battler/run-oracle.mjs"
+      ],
+      "fonction": "scanModule",
+      "version": "0.3.0",
+      "preuve": "R2 + R1 (volets NON couverts par check_architecture, qui ne lit que les imports) — le scan statique de run-oracle.mjs est étendu à renderer/ : zéro Math.random, zéro Date, zéro performance.now, et aucune référence à window.__game dans le module Renderer. Commentaires retirés avant analyse",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "static_scan_no_time_field_in_gamestate",
+      "section": "games/auto_battler/run-oracle.mjs",
+      "fichiers": [
+        "games/auto_battler/run-oracle.mjs"
+      ],
+      "fonction": "scanModule",
+      "version": "0.3.0",
+      "preuve": "R5 + QC-5/INV-3 — audit de schéma d'état : le GameState ne porte aucun champ d'horloge, de durée ou de temps réel ; le moteur n'utilise aucun timer (recoupe l'Oracle Hook INV-1/INV-3)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "static_scan_no_hardcoded_gameplay_constants",
+      "section": "games/auto_battler/run-oracle.mjs",
+      "fichiers": [
+        "games/auto_battler/run-oracle.mjs"
+      ],
+      "fonction": "scanModule",
+      "version": "0.3.0",
+      "preuve": "R11 — audit statique : aucune constante de gameplay v0 (minuteur, taille de boutique, capacité de banc, coût de Reroll, barème d'Income, dimensions de plateau) n'est déclarée hors de params.v0.mjs",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "solvability_bot_mouse_only",
+      "section": "games/auto_battler/solvability.mjs",
+      "fichiers": [
+        "games/auto_battler/solvability.mjs"
+      ],
+      "fonction": "runSolvability",
+      "version": "0.3.0",
+      "preuve": "R6 + RO-6 — bot déterministe pilotant un vrai navigateur, ne disposant QUE des contrôles de l'interface, depuis une partie NEUVE (aucune injection d'or ni d'unité) : acheter → poser → fusionner → confirmer, seed déclarée AVANT exécution, en 6 Rounds au plus. À la fin, le journal contient au moins un GoldChanged{source:'Income'}, un ShopRolled d'ouverture, un UnitBought, un UnitPlaced, un MergeTriggered, un MergeResolved et un PhaseChanged. Le harnais n'importe aucun module de logique : zéro site d'écriture de players[seat].gold/shop/bench/board",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "e2e_click_through",
+      "section": "games/auto_battler/e2e.mjs",
+      "fichiers": [
+        "games/auto_battler/e2e.mjs"
+      ],
+      "fonction": "runE2E",
+      "version": "0.3.0",
+      "preuve": "R3 + R7 + R9 + R10 — click-through de la préparation dans un navigateur réel avec entrées réelles : un geste = un Input, refus visible dans le DOM, minuteur, différences d'image de R3 mesurées debug éteint, au moins 3 observations de l'état du jeu. N'importe aucun module de logique",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "run_oracle_wires_e2e_and_solvability",
+      "section": "games/auto_battler/run-oracle.mjs",
+      "fichiers": [
+        "games/auto_battler/run-oracle.mjs"
+      ],
+      "fonction": "main",
+      "version": "0.3.0",
+      "preuve": "forge.static_oracles.check_e2e_harness + check_solvability_wired — run-oracle.mjs INVOQUE e2e.mjs ET solvability.mjs par un verbe d'exécution réel (les deux gardes retirent les commentaires JS avant analyse : une mention en commentaire ne câble rien), en plus des phases existantes (scan statique + logic + properties + preparation + properties.i2)",
+      "oracle": "games/auto_battler/run-oracle.mjs",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z",
+      "promotion": "CONSTRUIT au versement post-s10c de ce run"
+    },
+    {
+      "feature": "combat_pure_function",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "CBT-1 — le Combat est une fonction pure : entrée = snapshots des deux Boards, sortie = CombatResult + Events ; deux exécutions du même couple de snapshots donnent le même résultat bit à bit",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_terminates_within_tick_limit",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "INV-18/CBT-2 — tout Combat émet un résultat en au plus tick_limit Ticks (valeur v0 TICK_LIMIT déjà déclarée dans params.v0.mjs, HUMANGATE_2026-07-19_VALUES_V0.md)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_tick_pipeline_fixed",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "CBT-3 — l'ordre de traitement intra-Tick est un ordre total FIGÉ, avec UNE seule implémentation du TickPipeline dans le code",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_setup_spawn",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "CombatSetup — instanciation des Units des deux camps avant le premier Tick ; émet Spawn (registre des 22, propriétaire du payload : Combat Bible)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_movement",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "DP-6.3 — style de déplacement : toute Unit hors de sa Range choisit sa case de destination par une fonction déterministe état → choix, ex æquo départagés par la TieBreakChain ; émet Move",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_targeting",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "DP-6.1 — priorité de cible évaluée à la phase Targeting, APRÈS le Movement ; critère déclaré en DSL par UnitDefinition ; dernier recours = TieBreakChain complète (état donné → cible unique, rejoué deux fois → même cible)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_distance_metric_manhattan",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "QB-2 (gate #3) — une métrique de distance UNIQUE, Manhattan, employée par le Targeting et le déplacement ; aucune seconde métrique dans le code",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_attack",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Attack récurrente selon la cadence déclarée de l'UnitDefinition ; émet Attack puis Damage",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_mana_gain_sources_closed",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "QB-11 (gate #3) — le Mana se remplit UNIQUEMENT par attaque, dégâts reçus et effets déclarés en DSL ; le remplissage avec le temps de la V1 est RETIRÉ : aucun site de gain de Mana ne lit le Tick",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_mana_falloff_after_cast",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "QB-11 — après un Cast le Mana retombe selon MANA_FALLOFF_AFTER_CAST, déjà déclaré dans params.v0.mjs (valeur v0 ratifiée) ; site de déclaration unique",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_cast_ability",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "DP-6.4 — le Cast est AUTOMATIQUE à Mana plein ; la sélection de cible/zone est déclarée en DSL, vocabulaire fermé ; émet Cast",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_damage",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "INV-14 — les Events Damage d'un Combat ne diminuent que des Health de Units, jamais une Life de Player",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_heal_shield_buff_debuff",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "QB-9 (gate #3) — Heal, Shield, Buff, Debuff appartiennent au registre des 22 et voient leur payload validé par schéma (champ manquant ou champ en trop = échec)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_death",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Death — une Unit dont les Health atteignent zéro quitte le Board de combat et libère sa cible ; le survivant re-cible au Tick suivant",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_victory",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Victory — un camp anéanti produit un vainqueur unique ; QB-6 ratifiée : l'anéantissement mutuel est un match nul",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_tie_break_at_tick_limit",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "DP-7/INV-18/QC-6 — au tick_limit sans vainqueur, chaîne ratifiée total_remaining_power puis units_remaining puis deterministic_order ; fixture d'égalité rejouée deux fois → même vainqueur",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_zero_inputs",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "CBT-7/INV-13 — le Combat ne consomme AUCUN Input : tout Input soumis pendant un Combat est rejeté",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_no_rng",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "CBT-9/DEC-3 — aucun accès à rng_state depuis le module Combat : aucun DecisionPoint de Combat n'est un tirage",
+      "oracle": "scripts/forge/static_oracles.py::check_architecture",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_isolated_from_out_of_combat_state",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "CBT-6 — le Combat ne lit ni ne modifie JAMAIS l'état hors-combat (Bench, Gold, Pool, Shop, Life) : sérialisation avant/après un Combat identique bit à bit",
+      "oracle": "scripts/forge/static_oracles.py::check_architecture",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_camp_symmetry",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "CBT-8 — la résolution ne distingue pas un snapshot vivant d'un GhostBoard : Combat(A, snapshot de B) et Combat(A, GhostBoard de même contenu) produisent le même résultat",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "combat_board_geometry",
+      "section": "games/auto_battler/combat/ (Combat Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "QB-1 (gate #3) — le Board de Combat est la grille déclarée dans params.v0.mjs (BOARD_WIDTH, BOARD_HEIGHT, BOARD_ORIENTATION 'mirror'), lue depuis ce site unique et jamais redéclarée",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "pairing_by_round",
+      "section": "games/auto_battler/pairing/ (Decision Bible DP-3)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "DP-3 — appariement des Seats à chaque Round, ordre total déterministe ; émet PairingResolved (registre des 22, payload propriété Decision Bible)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "pairing_ghost_board_on_odd_count",
+      "section": "games/auto_battler/pairing/ (Decision Bible DP-3)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "QC-4 — nombre impair de survivants : le Seat surnuméraire affronte un Ghost Board, copie figée d'un adversaire",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "ghost_board_immutable_snapshot",
+      "section": "games/auto_battler/pairing/ (Decision Bible DP-3)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "INV-17 + QD-3 — le Ghost Board est le snapshot du DERNIER board validé (pris après ConfirmPreparation, avant Combat) et ne change jamais : sérialisation avant et après le Combat qui l'utilise, identique bit à bit",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "round_resolution_rewards",
+      "section": "games/auto_battler/round_resolution/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "QC-1 — la Round Resolution peut produire des rewards ; tout crédit de Gold passe par le ledger fermé ECO-3 (source 'reward', déjà dans la liste close de economy/gold.mjs) et émet GoldChanged sans input_ref",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "round_resolution_damage_to_seat",
+      "section": "games/auto_battler/round_resolution/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Dégâts au Seat après un Combat perdu, fonction des survivants et du niveau du Round (V1). FORMULE TBD — propriétaire Core Rules/Economy, aucune valeur ratifiée à ce jour",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "seat_life_unique_and_updated",
+      "section": "games/auto_battler/round_resolution/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "INV-15 — exactement un champ Life par Player, jamais porté par une Unit (INV-14) ; la Life est mise à jour à la Round Resolution. Valeur initiale TBD",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "seat_elimination",
+      "section": "games/auto_battler/round_resolution/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "INV-9 — un Seat dont la Life atteint zéro est éliminé définitivement et n'a plus aucun Input accepté",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "match_victory_last_seat",
+      "section": "games/auto_battler/round_resolution/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "INV-9 — le dernier Seat non éliminé gagne le Match : avant-dernier Seat éliminé → Event Victory émis, Match terminé",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "round_loop_full_cycle",
+      "section": "games/auto_battler/round_resolution/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Flux ratifié 02_CORE_RULES.md — Preparation State → ConfirmPreparation → Pairing → Combat Simulation → Round Resolution → Life update → Round suivant, dans cet ordre et sans phase intercalée",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "lobby_n_seats",
+      "section": "games/auto_battler/lobby/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "INV-6/P3 — un Match se joue à N Seats (référence ratifiée N = 8, paramétrable) : initialiser avec N produit exactement N Seats",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "seat_player_occupant_agnostic",
+      "section": "games/auto_battler/lobby/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Hiérarchie ratifiée Lobby → Seat → Player → Army : le Player est l'occupant logique d'un Seat — humain, bot ou IA de simulation, SANS distinction pour le moteur",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "shop_odds_table_by_level_and_rarity",
+      "section": "games/auto_battler/economy/ (Economy Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "ECO-4 — toute table d'odds est fonction (Level, Rarity), indexée exhaustivement et VERSIONNÉE (odds_table_version est déjà un champ du payload ShopRolled). VALEURS TBD",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "shop_odds_single_source_display_and_draw",
+      "section": "games/auto_battler/economy/ (Economy Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "ECO-2/INV-8/P4 — une SEULE table d'odds, lue à la fois par l'affichage et par le tirage : probabilités affichées = probabilités réelles",
+      "oracle": "scripts/forge/static_oracles.py::check_architecture",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "level_never_degrades_access",
+      "section": "games/auto_battler/economy/ (Economy Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "ECO-6 — monter de Level ne réduit jamais l'accès à une Rarity déjà accessible (propriété de schéma sur les tables remplies)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "levelup_cost_table",
+      "section": "games/auto_battler/economy/ (Economy Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Coût de montée de Level — le moteur porte aujourd'hui une table par niveau cible (preparation.mjs) ; la valeur de référence reste NON DOCUMENTÉE dans les bibles, propriétaire Economy/Balance Bible",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "pool_size_by_rarity",
+      "section": "games/auto_battler/economy/ (Economy Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "ECO-1 — le Pool est compté en EXEMPLAIRES PHYSIQUES par UnitDefinition ; la taille du Pool par Rarity calibre la contestation du Lobby. VALEURS TBD",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "level_gates_army_size_and_odds",
+      "section": "games/auto_battler/economy/ (Economy Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Le Level gouverne la taille d'Army déployable sur le Board et les odds de la Shop. La limite d'unités posables n'est à ce jour NI documentée NI implémentée (retirée du gate v0 : ce serait ÉTENDRE une règle)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "synergy_origins_and_classes",
+      "section": "games/auto_battler/synergy/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Une UnitDefinition appartient à une ou plusieurs Origins et à une ou plusieurs Classes ; les Synergies sont déclarées en DSL, jamais codées en dur",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "synergy_thresholds_non_linear",
+      "section": "games/auto_battler/synergy/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "INV-11 — une Synergy ne produit d'Effect qu'à ses Thresholds : une équipe entre deux Thresholds a des Effects strictement identiques à ceux du Threshold inférieur. VALEURS des paliers TBD (Content Bible)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "items_attach_to_unit",
+      "section": "games/auto_battler/items/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Un Item déclaré en DSL améliore, transforme ou spécialise une UnitInstance ; schéma déclaratif Item de la DSL Bible",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "items_change_decisions",
+      "section": "games/auto_battler/items/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Exigence V1 — un Item doit modifier les DÉCISIONS du joueur, pas seulement augmenter des statistiques. Human Note explicite de la DSL Bible : aucun oracle ne sait mesurer cela",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "dsl_closed_world_whitelist",
+      "section": "games/auto_battler/dsl/ (DSL Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "DSL-1 — tout document DSL n'emploie que des primitives de la whitelist ; un document employant une primitive hors whitelist est REJETÉ par le validateur",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "dsl_extension_requires_humangate",
+      "section": "games/auto_battler/dsl/ (DSL Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "DSL-2 — toute extension de la whitelist référence un gate HumanGate : audit documentaire de tout diff de la whitelist",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "dsl_max_trigger_per_tick",
+      "section": "games/auto_battler/dsl/ (DSL Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "DSL-3 — tout Effect déclaré porte MaxTriggerPerTick ; un document contenant un Effect sans ce champ est rejeté",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "dsl_events_from_registry_only",
+      "section": "games/auto_battler/dsl/ (DSL Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "DSL-4 — un document DSL ne peut RÉFÉRENCER qu'un Event du registre des 22 ; tout autre nom fait échouer la validation (recoupe INV-12)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "dsl_documents_versioned",
+      "section": "games/auto_battler/dsl/ (DSL Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "DSL-5 — tout document DSL porte un identifiant de version : audit de schéma",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "dsl_no_state_outside_gamestate",
+      "section": "games/auto_battler/dsl/ (DSL Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "DSL-6/INV-19 — aucune déclaration DSL ne crée ni ne référence un état hors GameState : audit de grammaire, aucun constructeur d'état",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "dsl_budgets_validated",
+      "section": "games/auto_battler/dsl/ (DSL Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "DSL-7 — les budgets de création (nombre de capacités, coût, complexité) sont présents, bien formés et vérifiés par le validateur",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "dsl_no_own_randomness",
+      "section": "games/auto_battler/dsl/ (DSL Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "DSL-8/DEC-3 — la grammaire DSL ne contient AUCUNE construction de tirage : le hasard n'existe que là où la règle du moteur définit un tirage via rng_state",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "dsl_validator",
+      "section": "games/auto_battler/dsl/ (DSL Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Validateur DSL — porte d'entrée du contenu : tout document accepté est interprétable par le moteur sans erreur (property-test d'interprétabilité)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "content_real_unit_definitions",
+      "section": "games/auto_battler/content/ (Content Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "P11 — les UnitDefinition restent aujourd'hui des identifiants de FIXTURE ; le contenu réel est écrit en DSL CONTRE la Meta Bible et la DSL Bible, sans jamais toucher le noyau content-agnostic",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "content_abilities",
+      "section": "games/auto_battler/content/ (Content Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Schéma déclaratif Ability de la DSL Bible : une Ability lancée au Cast, composée d'Effects du monde fermé",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "content_unit_readability",
+      "section": "games/auto_battler/content/ (Content Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Lisibilité — chaque Unit doit être reconnaissable immédiatement (silhouette, couleur, animation, Ability). Human Note : jugement de playtest, aucune mesure",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "bot_policy_versioned_deterministic",
+      "section": "games/auto_battler/bot/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "DP-8 — une BotPolicy versionnée est déterministe à version donnée : même état → même séquence d'Inputs, rejouée deux fois à l'identique",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "bot_emits_closed_list_inputs",
+      "section": "games/auto_battler/bot/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "DP-8/INV-13 — un Bot EST un Player : il produit une séquence d'Inputs de la liste close des 7, terminée par ConfirmPreparation, par le MÊME chemin que l'interface",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "render_combat_from_eventlog",
+      "section": "games/auto_battler/renderer/ (surfaces futures)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "INV-5/P2 — le Combat est restitué à partir du SEUL Event Log (Spawn, Move, Attack, Cast, Damage, Heal, Shield, Buff, Debuff, Death, Victory) ; le renderer ne lit toujours pas le GameState",
+      "oracle": "scripts/forge/static_oracles.py::check_architecture",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "render_mana_gauge",
+      "section": "games/auto_battler/renderer/ (surfaces futures)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Human Note Combat Bible — la jauge de Mana n'est PAS restituable en continu : le gate #3 (QB-9) a tranché « pas davantage » d'Events, donc le Mana entre deux Events n'est pas observable par un renderer aveugle. Trou déclaré, à trancher par gate avant toute jauge continue",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "render_unit_animations",
+      "section": "games/auto_battler/renderer/ (surfaces futures)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Qualité et lisibilité des animations d'Unit — R12 : les alarmes mécaniques prouvent que l'écran n'est pas cassé, jamais qu'il est bon",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "render_ability_vfx",
+      "section": "games/auto_battler/renderer/ (surfaces futures)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Effets visuels d'Ability : lisibilité du « pourquoi je gagne/perds » (Feedback, Game Bible). Aucun oracle ne mesure la lisibilité",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "render_synergy_panel",
+      "section": "games/auto_battler/renderer/ (surfaces futures)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Affichage des Synergies actives et de leurs Thresholds atteints — le joueur doit comprendre quelle Synergy fonctionne (Feedback, Game Bible)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "render_combat_speed_and_readability",
+      "section": "games/auto_battler/renderer/ (surfaces futures)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Les combats doivent être rapides, lisibles et satisfaisants (ADN du jeu). Jugement de playtest",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "ui_main_menu",
+      "section": "games/auto_battler/ui/ (UX/UI Bible — hors périmètre i2.5)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Menu principal du jeu — hors périmètre explicite de l'incrément 2.5 (Prisme § Hors périmètre : menus)",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "ui_options_screen",
+      "section": "games/auto_battler/ui/ (UX/UI Bible — hors périmètre i2.5)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Écran d'options (réglages, accessibilité) — hors périmètre explicite de l'incrément 2.5",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "ui_sound_toggle_button",
+      "section": "games/auto_battler/ui/ (UX/UI Bible — hors périmètre i2.5)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Bouton son (couper/rétablir) — hors périmètre explicite de l'incrément 2.5 (Prisme § Hors périmètre : sons, menus)",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "ui_match_end_screen",
+      "section": "games/auto_battler/ui/ (UX/UI Bible — hors périmètre i2.5)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Écran de fin de Match (classement, ordre d'élimination) — le classement final est déjà exposé en Simulation Hook des Core Rules",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "ui_shop_odds_display",
+      "section": "games/auto_battler/ui/ (UX/UI Bible — hors périmètre i2.5)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "INV-8/ECO-2 — l'affichage des probabilités de la Shop lit la MÊME table que le tirage : probabilités affichées = probabilités réelles",
+      "oracle": "scripts/forge/static_oracles.py::check_architecture",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "ui_player_life_display",
+      "section": "games/auto_battler/ui/ (UX/UI Bible — hors périmètre i2.5)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Affichage de la Life du Player — n'existe PAS dans le moteur aujourd'hui (Prisme § Périmètre réel : la vie du joueur n'est pas affichée car elle n'existe pas)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "ui_opponent_list_display",
+      "section": "games/auto_battler/ui/ (UX/UI Bible — hors périmètre i2.5)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Affichage de la liste des adversaires et de leurs Armies — n'existe PAS dans le moteur aujourd'hui (Prisme § Périmètre réel)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "ui_round_number_display",
+      "section": "games/auto_battler/ui/ (UX/UI Bible — hors périmètre i2.5)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Affichage du numéro de Round — round_index existe côté GameState dès i2.5 mais N'EST PAS affiché (décision explicite du Prisme) ; l'afficher exigerait de statuer sur l'Event de début de Round, le registre restant clos à 22",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "ui_drag_and_drop_feel",
+      "section": "games/auto_battler/ui/ (UX/UI Bible — hors périmètre i2.5)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Confort du glisser-déposer d'une Unit (accroche, aimantation, annulation) — jugement produit",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "audio_sfx",
+      "section": "games/auto_battler/audio/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Effets sonores (achat, vente, fusion, cast, mort, fin de chronomètre) — hors périmètre explicite de l'incrément 2.5 (Prisme : sons)",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "audio_music",
+      "section": "games/auto_battler/audio/",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Musique et ambiance sonore — hors périmètre explicite de l'incrément 2.5",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "visual_style_quality",
+      "section": "games/auto_battler/visual/ (Visual Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "R12 — lisibilité, beauté, cohérence graphique, qualité d'animation. L'écran n'est pas fait quand les oracles sont verts ; il est fait quand Pierre l'a regardé",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "visual_war_table_direction",
+      "section": "games/auto_battler/visual/ (Visual Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Direction artistique « table de guerre » (palette 4 valeurs + 1 alarme, typographie à trois rôles, chronomètre-cadre qui se consume) : CONSIGNE DE FABRICATION, jamais une règle opposable — rien ici ne peut faire échouer un verdict",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "visual_final_assets",
+      "section": "games/auto_battler/visual/ (Visual Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Assets définitifs — hors périmètre explicite : l'habillage arrive après la décision de licence",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "platform_solo_vs_bots",
+      "section": "games/auto_battler/platform/ (Platform Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Mode solo contre des Bots — un Bot est un Player occupant un Seat, sans distinction pour le moteur (DP-8)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "platform_matchmaking_and_network",
+      "section": "games/auto_battler/platform/ (Platform Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Appariement de Lobby et réseau — décisions produit de la Platform Bible, non tranchées",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "platform_save_and_resume",
+      "section": "games/auto_battler/platform/ (Platform Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Sauvegarde/reprise — INV-2 : sérialiser le GameState en cours de Match (rng_state inclus), restaurer, continuer → identique au run ininterrompu",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "platform_replay_cross_machine",
+      "section": "games/auto_battler/platform/ (Platform Bible)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "INV-19 — le replay du même Match exécuté sur DEUX machines différentes produit un Event Log identique au bit près (attrape dépendance machine, ordre mémoire, timestamp système). Aucun harnais multi-machines n'existe",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "simulation_campaigns",
+      "section": "games/auto_battler/simulation/ (Simulation + Meta + Balance Bibles)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "P7 — la Simulation EXPLORE (elle ne valide jamais) : Campaigns de Matchs joués par des BotPolicies versionnées, version et force des Bots consignées (META-4)",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "meta_objectives_advisory",
+      "section": "games/auto_battler/simulation/ (Simulation + Meta + Balance Bibles)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "META-2 — toute métrique méta est ADVISORY : aucune ne peut être un gate de merge. Les objectifs OBJ-1..OBJ-10 et OBJ-E1..OBJ-E3 sont des quadruplets complets (META-1), leurs seuils ne bougent que par HumanGate (META-3)",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "meta_placement_share_protocol",
+      "section": "games/auto_battler/simulation/ (Simulation + Meta + Balance Bibles)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "OBJ-3 — la part du Placement dans la victoire est mesurée par protocole de permutation pré-enregistré (re-simulation à Placements permutés), jamais par une constante du moteur",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "balance_maintenance_manual",
+      "section": "games/auto_battler/simulation/ (Simulation + Meta + Balance Bibles)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Balance Bible — manuel de maintenance : comment mesurer, comment décider d'un ajustement, quels leviers. AUCUN budget n'y vit (P5). Les valeurs v0 de params.v0.mjs y sont révisables",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "meta_alive_not_solved",
+      "section": "games/auto_battler/simulation/ (Simulation + Meta + Balance Bibles)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "Un méta VIVANT (plusieurs Archetypes viables, Pivots possibles) contre un méta RÉSOLU : les seuils détectent la résolution, mais la frontière reste un jugement de Pierre appuyé sur des mesures advisory",
+      "oracle": "aucun — jugement Pierre",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    },
+    {
+      "feature": "match_duration_target",
+      "section": "games/auto_battler/simulation/ (Simulation + Meta + Balance Bibles)",
+      "fichiers": [],
+      "fonction": "",
+      "version": "0.0.0",
+      "preuve": "OBJ-2 — durée cible d'un Match (objectif V1 repris par la Meta Bible). Mesurée en Rounds par les Simulation Hooks ; « le Match ne traîne pas / ne se bâcle pas » reste un jugement de playtest",
+      "oracle": "NON ÉTABLI — à combler",
+      "statut": "PRÉVU",
+      "origine": "s5-wiremap:auto_battler_i2_5-20260719c",
+      "horodatage": "2026-07-19T19:20:00Z"
+    }
+  ],
+  "_regle_statut": "PRÉVU = écrit par le cartographe. CONSTRUIT = VERSÉ depuis un run dont l oracle wiremap (s10c) est passé. Jamais un drapeau posé à la main."
+}

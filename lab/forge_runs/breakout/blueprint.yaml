@@ -1,0 +1,58 @@
+# Architecture (s4) — Breakout (casse-briques web déterministe)
+# run_id : breakout-20260711
+# Lu par forge.static_oracles.check_architecture (oracle ARCHI déterministe, non-LLM).
+#
+# HYPOTHÈSE DE MODULE (vérifiée) — _module_of(path, src_root) renvoie le 1er segment
+# sous src_root, ou le stem du fichier s'il est à plat sous src_root. La chaîne Forge
+# lance l'oracle avec src_root = games/breakout/ (convention prouvée par le run frère
+# games/collect_runner : blueprint modules=[game,level,render,input], fichiers .mjs à
+# plat). Donc games/breakout/game.mjs -> module « game ». Les modules ci-dessous sont
+# donc les STEMS des fichiers .mjs à plat, PAS le 1er dossier « games ».
+# index.html n'est PAS un module scanné (.html hors SOURCE_EXTS) — c'est le point de
+# composition DOM, pas une frontière vérifiée par l'oracle archi.
+#
+# Principe directeur (charter R19) : la logique PURE (game, level) n'importe NI render
+# NI input NI server, et ne référence aucune API DOM. render/input/server consomment
+# l'état produit par game/level, jamais l'inverse. level est pur en (seed, index) et
+# ne connaît pas l'état de jeu (pas de dépendance level -> game).
+
+modules: [game, level, render, input, server]
+
+# Dépendances AUTORISÉES (documentation — l'oracle ne vérifie QUE les interdictions).
+deps_autorisees:
+  - [game, level]      # game charge/regénère la disposition des briques via level
+  - [render, game]     # render lit l'état de jeu pour dessiner (lecture seule)
+  - [render, level]    # render lit la disposition générée pour dessiner
+  - [input, game]      # input traduit les touches en intentions -> game.applyInput
+
+# Dépendances INTERDITES — frontières dures. paire [a, b] = a NE DOIT PAS importer b.
+deps_interdites:
+  - [game, render]     # la logique ne dépend jamais du rendu (R19)
+  - [game, input]      # la logique ne connaît pas le clavier (reçoit des intentions)
+  - [game, server]     # la logique ne dépend pas du transport/serveur
+  - [level, render]    # la génération de niveau est pure, sans rendu
+  - [level, input]     # la génération de niveau ne connaît pas l'entrée
+  - [level, game]      # génération pure en (seed, index), indépendante de l'état de jeu
+  - [level, server]    # la génération de niveau ne dépend pas du serveur
+  - [render, input]    # le rendu ne pilote pas l'entrée (frontières disjointes)
+  - [render, server]   # le rendu ne dépend pas du serveur
+  - [input, render]    # l'input ne dépend pas du rendu
+  - [input, server]    # l'input ne dépend pas du serveur
+
+# Ownership — qui écrit quoi (le build s9 se borne STRICTEMENT à ces fichiers).
+ownership:
+  game: [games/breakout/game.mjs]
+  level: [games/breakout/level.mjs]
+  render: [games/breakout/render.mjs]
+  input: [games/breakout/input.mjs]
+  server: [games/breakout/server.mjs]
+
+# Invariants d'architecture (prouvés par l'oracle archi statique de run-oracle.mjs).
+invariants_archi:
+  - "game.mjs et level.mjs n'importent jamais render, input ni server."
+  - "game.mjs et level.mjs ne référencent aucune API DOM (document, window, canvas, addEventListener, requestAnimationFrame)."
+  - "toute mutation de l'état de jeu passe par une fonction de game.mjs (createGame, step, applyInput, reset) — jamais mutée directement par render, input ou index.html."
+  - "level.mjs est pur en fonction de (seed, index) : RNG xorshift seedé, aucun Math.random()/Date.now()/performance.now()."
+  - "render.mjs lit l'état et ne le mute jamais ; input.mjs émet des intentions et ne mute pas l'état directement."
+  - "aucune dépendance cyclique : game -> level (feuille) ; render/input/server consomment, jamais consommés par la logique."
+  - "index.html est le SEUL point de composition (logique + rendu + input se rejoignent par consommation) ; il n'est pas un module de logique."

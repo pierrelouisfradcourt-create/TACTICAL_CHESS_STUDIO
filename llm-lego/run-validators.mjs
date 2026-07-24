@@ -36,7 +36,7 @@ const snapshot = (dir) =>
 // library (autopilot bricks + the saved Chaîne idée→IMP) so it runs separately via
 // run-corrections.mjs — it CANNOT run against the isolated library-test store. Skip
 // both here and log the skip (no silent cap).
-const NEEDS_REAL_LIBRARY = ["corrections-validate.mjs"];
+const NEEDS_REAL_LIBRARY = ["corrections-validate.mjs", "chess-tcg-validate.mjs", "chess-tcg-layer-wm-validate.mjs"];
 const SKIP = [...NEEDS_REAL_LIBRARY, ...(process.env["LEGO_RUN_QWEN"] === "1" ? [] : ["oracle-validate.mjs"])];
 const ALL = readdirSync(__dirname).filter((f) => f.endsWith("-validate.mjs")).sort();
 const validators = ALL.filter((f) => !SKIP.includes(f));

@@ -1,0 +1,186 @@
+{
+  "_comment": "WireMap isomorphe (s5) — Breakout (casse-briques web deterministe). Lue par forge.static_oracles.check_wiremap ET GELEE. Une feature par Regle observable de product_snapshot.md (R1..R20). Isomorphe au blueprint.yaml (modules game/level/render/input) : fichiers repo-relatifs coherents avec l'ownership. Le builder (s9) DOIT creer EXACTEMENT ces noms de fonction dans ces fichiers. server.mjs (support hors-ligne) ne porte aucune Regle observable — non liste.",
+  "run_id": "breakout-20260711",
+  "features": [
+    {
+      "feature": "R1 la balle avance en continu",
+      "module": "game",
+      "fonction": "step",
+      "fichiers": ["games/breakout/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: apres un step(state), la position de la balle vaut exactement (x+vx, y+vy) et differe de la position precedente, delta strictement egal a (vx,vy).",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R2 rebond mur lateral gauche/droit",
+      "module": "game",
+      "fonction": "bounceWall",
+      "fichiers": ["games/breakout/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: balle posee au contact d'un mur lateral, un step, vx vaut exactement -vx_avant et vy est inchange.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R3 rebond plafond",
+      "module": "game",
+      "fonction": "bounceCeiling",
+      "fichiers": ["games/breakout/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: balle posee au contact du plafond, un step, vy vaut exactement -vy_avant et vx est inchange.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R4 rebond raquette, angle selon point d'impact",
+      "module": "game",
+      "fonction": "bouncePaddle",
+      "fichiers": ["games/breakout/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: pour 3 points d'impact (bord gauche, centre, bord droit) sur la raquette, vy vaut exactement -vy_avant et vx vaut la valeur exacte de la formule d'angle (vx negatif a gauche, nul au centre, positif a droite).",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R5 rebond sur une brique selon la face touchee",
+      "module": "game",
+      "fonction": "bounceBrick",
+      "fichiers": ["games/breakout/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: balle posee au contact d'une face de brique, un step, la composante de vitesse normale a cette face vaut exactement son opposee, l'autre composante est inchangee.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R6 deplacement raquette gauche/droite au clavier",
+      "module": "input",
+      "fonction": "createInput",
+      "fichiers": ["games/breakout/input.mjs"],
+      "version": "v1",
+      "preuve": "e2e: appui clavier gauche reel puis lecture window.__game_debug, paddle.x diminue du pas exact; appui droite, paddle.x augmente du meme pas exact.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R7 la raquette reste bornee dans l'aire",
+      "module": "game",
+      "fonction": "applyInput",
+      "fichiers": ["games/breakout/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: applyInput(state,'LEFT') repete au-dela du bord borne paddle.x exactement a bord_gauche (jamais en deca); a droite paddle.x borne exactement a bord_droit - largeur_raquette.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R8 brique touchee = detruite + score",
+      "module": "game",
+      "fonction": "breakBrick",
+      "fichiers": ["games/breakout/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: au contact d'une brique cassable, le compte de briques cassables restantes passe exactement de n a n-1 et le score augmente exactement de la valeur de la brique.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R9 une brique cassee ne reapparait pas",
+      "module": "game",
+      "fonction": "step",
+      "fichiers": ["games/breakout/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: apres breakBrick, N step successifs sans nouveau contact laissent la brique absente de l'etat et le compte de briques inchange (aucune reapparition).",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R10 niveau seede deterministe",
+      "module": "level",
+      "fonction": "generateLevel",
+      "fichiers": ["games/breakout/level.mjs"],
+      "version": "v1",
+      "preuve": "properties.test: generateLevel(seed,index) appele deux fois avec le meme couple retourne une disposition strictement identique (deep equal des positions, dimensions et breakable); aucun Math.random/Date.now/performance.now.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R11 balle sous la raquette = perte d'une vie + service",
+      "module": "game",
+      "fonction": "loseLife",
+      "fichiers": ["games/breakout/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: sur sortie basse (balle sous la raquette), les vies passent exactement de v a v-1 et la balle est remise a l'etat de service si v-1 > 0.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R12 defaite ssi vies == 0",
+      "module": "game",
+      "fonction": "checkLose",
+      "fichiers": ["games/breakout/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: assertion stricte — vies==0 => status===LOST et vies>0 => status!==LOST.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R13 victoire de niveau ssi briques cassables restantes == 0",
+      "module": "game",
+      "fonction": "checkWin",
+      "fichiers": ["games/breakout/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: assertion stricte — briques cassables restantes==0 declenche la victoire de niveau; un compte de 1 ne la declenche pas.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R14 progression de niveau (index +1, rechargement seede)",
+      "module": "game",
+      "fonction": "nextLevel",
+      "fichiers": ["games/breakout/game.mjs"],
+      "version": "v1",
+      "preuve": "properties.test: sur niveau nettoye non-dernier, nextLevel incremente levelIndex exactement de +1 et recharge les briques via generateLevel (disposition seedee non vide).",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R15 victoire de partie au dernier niveau",
+      "module": "game",
+      "fonction": "nextLevel",
+      "fichiers": ["games/breakout/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: nextLevel appele sur le dernier niveau nettoye fait passer status exactement a WON.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R16 overlay reflete l'etat de fin/pause",
+      "module": "render",
+      "fonction": "drawOverlay",
+      "fichiers": ["games/breakout/render.mjs"],
+      "version": "v1",
+      "preuve": "e2e: provoquer VICTOIRE, DEFAITE et PAUSE; #overlay est visible avec trois libelles distincts et masque en jeu actif.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R17 restart remet l'etat initial",
+      "module": "game",
+      "fonction": "reset",
+      "fichiers": ["games/breakout/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: apres alteration, reset(state) remet vies/score/levelIndex exactement aux valeurs initiales et recharge le niveau 1 seede; le cablage #restart est prouve e2e.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R18 hooks de jouabilite exposes",
+      "module": "game",
+      "fonction": "readDebug",
+      "fichiers": ["games/breakout/game.mjs"],
+      "version": "v1",
+      "preuve": "e2e: window.__game, window.__game_debug (vies, niveau, briques restantes, balle x/y, raquette x, status), #overlay et #restart presents et lisibles; readDebug(state) reflete l'etat exact.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R19 logique separee du rendu et de l'input",
+      "module": "render",
+      "fonction": "draw",
+      "fichiers": ["games/breakout/render.mjs"],
+      "version": "v1",
+      "preuve": "run-oracle (oracle archi statique deterministe): draw(state) lit l'etat sans le muter; game.mjs et level.mjs n'importent ni render ni input et ne referencent aucune API DOM (document, window, canvas, addEventListener, requestAnimationFrame) — zero occurrence.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R20 solvabilite prouvee par un bot",
+      "module": "solvability",
+      "fonction": "runBot",
+      "fichiers": ["games/breakout/solvability.mjs"],
+      "version": "v1",
+      "preuve": "solvability: runBot({seed}) pilote la raquette via l'API publique (applyInput/step), casse toutes les briques du niveau 1 et retourne status===WON avec code retour 0 (SOLVABLE); sur jeu volontairement casse, code retour non nul (INJOUABLE); aucun forcage d'etat a la main.",
+      "statut": "a_faire"
+    }
+  ]
+}

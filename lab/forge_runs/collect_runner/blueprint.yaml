@@ -1,0 +1,35 @@
+# Architecture (s4) — Collect Runner
+# Lu par forge.static_oracles.check_architecture
+#
+# Principe : game.mjs et level.mjs sont de la logique PURE — aucun import de
+# render ni input, aucun accès DOM (pas de `document`, `window`, `canvas`,
+# `addEventListener`). render/input consomment l'état produit par game/level,
+# jamais l'inverse.
+
+modules: [game, level, render, input]
+
+# Dépendances autorisées (documentation — non vérifiées mécaniquement par
+# l'oracle, qui ne vérifie que les interdictions ci-dessous).
+deps_autorisees:
+  - [render, game]     # render lit l'état pour dessiner
+  - [render, level]    # render lit le niveau généré pour dessiner
+  - [input, game]      # input traduit les touches en appels game.applyInput/jump
+
+# Dépendances interdites — la logique ne touche jamais l'UI.
+deps_interdites:
+  - [game, render]
+  - [game, input]
+  - [level, render]
+  - [level, input]
+
+ownership:
+  game: builder
+  level: builder
+  render: builder
+  input: builder
+
+invariants_archi:
+  - "game.mjs et level.mjs n'importent jamais render ni input"
+  - "game.mjs et level.mjs ne référencent aucune API DOM (document, window, canvas, addEventListener)"
+  - "toute mutation d'état de jeu passe par une fonction de game.mjs (step, applyInput, jump, applyGravity, collectCoin, hitObstacle, nextLevel) — jamais mutée directement par render/input"
+  - "level.mjs est pur en fonction de (seed, levelIndex) : aucun état global, aucun Math.random() non seedé"

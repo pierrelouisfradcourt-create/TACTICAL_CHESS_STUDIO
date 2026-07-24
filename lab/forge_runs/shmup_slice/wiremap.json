@@ -1,5 +1,5 @@
 {
- "_comment": "WireMap isomorphe (s5) — Shmup Slice. Colonnes statut/version ajoutees par s9-build (2026-07-14) apres implementation+oracle vert (run-oracle.mjs: logic 53/53, properties 7/7, solvabilite 5 seeds PASS, e2e Playwright PASS avec les 3 boss reellement vaincus). preuve conservee telle que gelee a s5 ; verifiee correcte contre le code livre.",
+ "_comment": "WireMap isomorphe (s5) — Shmup Slice. Colonnes statut/version ajoutees par s9-build (2026-07-14) apres implementation+oracle vert (run-oracle.mjs: logic 65/65, properties 7/7, solvabilite 5 seeds PASS, e2e Playwright PASS avec les 3 boss reellement vaincus). preuve conservee telle que gelee a s5 ; verifiee correcte contre le code livre. MAJ s9-build re-dispatch (2026-07-18) : gate mutation ferme (112 mutants, 111 tues, 1 survivant trie equivalent dodge L55) — bot/solver.mjs (14/14) et main.mjs (18/18), auparavant hors couverture de la commande de test scellee, sont desormais tues par des tests unitaires reels ajoutes a logic.test.mjs (computeBotInputs/runBot pour le bot ; environnement navigateur simule window/rAF/canvas pour main). Aucune ligne de logique de jeu modifiee ; seul un `export` ajoute a computeBotInputs.",
  "features": [
   {
    "feature": "R1 déplacement 2D borné à l'écran",
@@ -219,7 +219,7 @@
    ],
    "version": "v1",
    "statut": "fait",
-   "preuve": "oracle solvabilite (solvability.mjs cable dans run-oracle.mjs) : SOLVABLE exit 0 sur 5 seeds (1,2,3,4,5) ; sonde de controle REELLE (mur de projectiles complet, hasSafeCorridor execute pour de vrai) sort INJOUABLE ; le bot joue l'API publique (createInitialState+step), etat jamais force (CS-1, AI-1, AI-5). Note builder : bot/solver.mjs prouve correct par solvabilite reelle (5/5 seeds + e2e navigateur reel), pas par mutation testing sur logic+properties (hors perimetre de ce couple de fichiers, cf. rapport final)."
+   "preuve": "oracle solvabilite (solvability.mjs cable dans run-oracle.mjs) : SOLVABLE exit 0 sur 5 seeds (1,2,3,4,5) ; sonde de controle REELLE (mur de projectiles complet, hasSafeCorridor execute pour de vrai) sort INJOUABLE ; le bot joue l'API publique (createInitialState+step), etat jamais force (CS-1, AI-1, AI-5). Note builder (MAJ 2026-07-18) : bot/solver.mjs est prouve correct par solvabilite reelle (5/5 seeds + e2e navigateur reel) ET desormais couvert par le gate mutation — 14/14 mutants tues via tests unitaires ajoutes a logic.test.mjs (computeBotInputs exporte + teste EN ISOLATION : esquive/poursuite/centre-boss/defaut-largeur/inputs ; runBot(1) teste comme run complet gagnant). L'ancienne note « hors perimetre mutation » est caduque."
   },
   {
    "feature": "R23 tout pattern laisse un couloir sur atteignable",
@@ -259,7 +259,7 @@
    ],
    "version": "v1",
    "statut": "fait",
-   "preuve": "e2e verifie presence/valeurs des hooks {level,lives,score,over,status,bossHp} (+shipX/bossX au-dela du minimum, pour piloter le combat de boss reel en e2e) + DOM #overlay/#restart (CS-8/9) ; hooks debug jamais utilises pour la preuve de solvabilite (AI-5, solvability.mjs n'importe que logic/ et bot/)"
+   "preuve": "e2e verifie presence/valeurs des hooks {level,lives,score,over,status,bossHp} (+shipX/bossX au-dela du minimum, pour piloter le combat de boss reel en e2e) + DOM #overlay/#restart (CS-8/9) ; hooks debug jamais utilises pour la preuve de solvabilite (AI-5, solvability.mjs n'importe que logic/ et bot/). MAJ 2026-07-18 : main.mjs desormais couvert par le gate mutation — 18/18 mutants tues via tests unitaires headless ajoutes a logic.test.mjs (environnement navigateur simule window/rAF/canvas, sans navigateur reel) : garde window (L58), detection over ACTIVE/WON (L63), bornes setLevel/spawnBoss (L74/L83/L86), accumulateur a pas fixe 16ms=>1 pas (L33/L37/L40/L42), source d'entree clavier (L18), garde de start() navigateur/headless (L103)"
   }
  ]
 }

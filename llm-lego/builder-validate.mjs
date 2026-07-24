@@ -448,13 +448,18 @@ try {
   // (2) project dropdown loaded from GET /api/wireframes (>=1)
   const projOpts = await page.$$eval('[data-testid="wm-project-select"] option', (els) => els.map((e) => e.value));
   check("projects dropdown lists >=1 project (llm-lego)", projOpts.includes("llm-lego"));
-  check("12 entries loaded for llm-lego (8 historiques + selector/library/wiremap-corr/recenter)", (await page.$$eval('[data-testid="wm-row"]', (e) => e.length)) === 12);
+  // Multi-projet : le builder auto-ouvre projects[0] (ordre alphabétique du dossier
+  // wireframes/, donc 'chess-tcg-3d' avant 'llm-lego'). Sélectionner llm-lego EXPLICITEMENT
+  // pour ne pas dépendre du projet par défaut — ce test cible le Wire Map llm-lego.
+  await page.getByTestId("wm-project-select").selectOption("llm-lego");
+  await page.waitForTimeout(150);
+  check("13 entries loaded for llm-lego (12 historiques + cartographie-chess-tcg-3d)", (await page.$$eval('[data-testid="wm-row"]', (e) => e.length)) === 13);
 
   // Compact layout: the feature names must be readable with NO horizontal scroll.
   const wmScroll = await page.$eval('[data-testid="wm-scroll"]', (el) => ({ sw: el.scrollWidth, cw: el.clientWidth }));
   check("compact table: no horizontal scroll", wmScroll.sw <= wmScroll.cw + 2);
   const nodeNames = await page.$$eval('[data-testid="wm-row"] [data-testid="wm-node"]', (els) => els.map((e) => e.textContent.trim()));
-  check("all 12 feature names present & non-empty", nodeNames.length === 12 && nodeNames.every((n) => n.length > 0));
+  check("all 13 feature names present & non-empty", nodeNames.length === 13 && nodeNames.every((n) => n.length > 0));
   const nodeCellsOk = await page.$$eval('[data-testid="wm-row"] .wm-node-name', (els) => els.every((e) => e.scrollWidth <= e.clientWidth + 1));
   check("Nœud column not truncated (fits its cell)", nodeCellsOk);
   const collapsedByDefault = await page.$$eval('[data-testid="wm-detail"]', (e) => e.length);
@@ -465,11 +470,12 @@ try {
   await page.getByTestId("wm-expand-" + firstEid).click(); // collapse again
 
   // CORRECTION 1 — audit counts the PROJECT's entries, not the canvas. Canvas is
-  // empty here, yet llm-lego has 12 mapped entries → report must say 12/12,
+  // empty here, yet llm-lego has 13 entries (12 with a nodeId) → report must say
+  // 12/13 (the cartographie-chess-tcg-3d journal entry has no canvas nodeId),
   // coherent with the table above it.
   await page.getByTestId("wm-audit").click();
   const auditLL = await page.locator('[data-testid="wm-audit-report"]').textContent();
-  check("Corr1: audit coherent with table — 12/12 mapped (not canvas-derived)", /Nœuds mappés\s*:\s*12\/12/.test(auditLL));
+  check("Corr1: audit coherent with table — 12/13 mapped (not canvas-derived)", /Nœuds mappés\s*:\s*12\/13/.test(auditLL));
   await page.screenshot({ path: "builder_wiremap_compact.png", fullPage: false });
   log("screenshot -> builder_wiremap_compact.png");
 

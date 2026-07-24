@@ -146,13 +146,22 @@ def prepare_dispatch(
     run_id: str,
     caps_path: Path | None = None,
     audit_path: Path | None = None,
+    run_dir: Path | None = None,
 ) -> DispatchPayload:
     """Valide le contrat de l'étape, fabrique le payload borné, trace l'audit.
 
     Ne spawn rien : retourne le payload que l'orchestrateur donnera au sous-agent.
+
+    ``run_dir`` (Context Manifest, docs/forge/CONTEXT_LOOP_V1_1_FRESHNESS.md §7) :
+    optionnel — dérivé depuis ``run_id`` via ``context_manifest.default_run_dir``
+    si non fourni. N'affecte QUE l'emplacement de la mesure advisory ; le dispatch
+    lui-même n'en dépend pas.
     """
     contract = load_contract(etape)
-    payload = build_dispatch_payload(contract, etape=etape, caps_path=caps_path)
+    # R2 (audit branchements 2026-07-24) : run_id transite jusqu'à _render_prompt
+    # pour que le prompt porte SYSTÉMATIQUEMENT son marqueur FORGE_DISPATCH — la
+    # porte n'a plus besoin que l'orchestrateur l'appose à la main.
+    payload = build_dispatch_payload(contract, etape=etape, caps_path=caps_path, run_id=run_id)
     _append_audit(
         DispatchRecord(
             run_id=run_id,
@@ -166,6 +175,23 @@ def prepare_dispatch(
         audit_path,
     )
     logger.info("dispatch préparé : run=%s étape=%s modèle=%s", run_id, etape, payload.model)
+
+    # Context Manifest (kind "dispatch") : MESURE advisory, jamais bloquante.
+    # Une exception ici (I/O, résolution de source, table absente...) ne doit
+    # JAMAIS faire échouer un dispatch déjà validé — best-effort strict.
+    try:
+        from forge import context_manifest
+        effective_run_dir = run_dir if run_dir is not None else context_manifest.default_run_dir(run_id)
+        context_manifest.append_dispatch_manifest(
+            etape, run_id, payload, contract, run_dir=effective_run_dir,
+            caps_path=caps_path,
+        )
+    except Exception:
+        logger.warning(
+            "context manifest (dispatch) non écrit pour run=%s étape=%s (advisory, non bloquant)",
+            run_id, etape, exc_info=True,
+        )
+
     return payload
 
 

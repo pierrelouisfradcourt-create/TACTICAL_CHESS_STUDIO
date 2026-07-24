@@ -514,11 +514,28 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
         # (g) pré-mortem : erreurs des runs passés injectées dans le prompt réel —
         # le driver la fournit déjà dans le context (forge.studio_link.premortem).
         pm = context.get("premortem") or []
+        premortem_section = None
         if pm:
-            parts.append("## PRÉ-MORTEM (erreurs des runs passés)\n"
-                         + "\n".join(f"- {p}" for p in pm))
+            premortem_section = ("## PRÉ-MORTEM (erreurs des runs passés)\n"
+                                 + "\n".join(f"- {p}" for p in pm))
+            parts.append(premortem_section)
         parts.append(context["dispatch_marker"])
         prompt = "\n\n".join(parts)
+
+        # Context Manifest (kind "execution") : mesure advisory du prompt final
+        # au moment où il existe réellement — jamais bloquant (best-effort strict,
+        # docs/forge/CONTEXT_LOOP_V1_1_FRESHNESS.md §7).
+        try:
+            from forge import context_manifest
+            context_manifest.append_execution_manifest(
+                context["run_id"], etape, Path(context["run_dir"]), prompt,
+                model=payload.model, premortem_section=premortem_section,
+            )
+        except Exception:
+            logger.warning(
+                "context manifest (execution) non écrit pour étape=%s (advisory, non bloquant)",
+                etape, exc_info=True,
+            )
 
         # (c) escalade honorée : le driver écrit model_override dans le context à
         # chaque escalade (forge.driver._maybe_escalate) — l'ignorer rendrait

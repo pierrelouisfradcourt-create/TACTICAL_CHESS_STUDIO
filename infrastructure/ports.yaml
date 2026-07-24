@@ -1,0 +1,64 @@
+# infrastructure/ports.yaml
+# Registre unique des ports et sockets du studio.
+# Source de vérité pour la configuration réseau. Ne pas dupliquer dans d'autres fichiers.
+# Mis à jour : 2026-06-26
+
+services:
+
+  autopilot:
+    port: 7331
+    host: localhost
+    protocol: HTTP
+    process: python autopilot.py
+    managed_by: manual
+    health_check: "GET http://localhost:7331/api/health"
+    note: "Dashboard + LM Studio integration + WebSocket terminal. Port ouvert uniquement en dev local."
+
+  claude_proxy:
+    port: 8765
+    host: 127.0.0.1
+    protocol: HTTP
+    process: python scripts/claude_proxy.py
+    managed_by: supervisord_or_ps1
+    health_check: "GET http://127.0.0.1:8765/health"
+    env:
+      CLAUDE_PROXY_SYSTEM_FILE: studio/openclaw-workspace/BOOTSTRAP.md
+    note: "Bridge claude --print. Max 3 workers concurrent (ThreadPoolExecutor). Timeout 300s."
+
+  canvas_gateway:
+    port: 8766
+    host: 127.0.0.1
+    protocol: HTTP
+    process: python scripts/canvas_gateway.py
+    managed_by: supervisord_or_ps1
+    health_check: "GET http://127.0.0.1:8766/health"
+    env:
+      STUDIO_HMAC_KEY: "chargée depuis ~/.openclaw/.env — jamais dans le repo"
+    dependencies:
+      - claude_proxy
+    note: "Canvas Pierre. Refuse de démarrer sans STUDIO_HMAC_KEY. SSE sur /api/meta/stream."
+
+  lm_studio:
+    port: 1234
+    host: localhost
+    protocol: HTTP
+    process: "LM Studio (application GUI Windows)"
+    managed_by: manual
+    health_check: "GET http://localhost:1234/v1/models"
+    models_active:
+      director: "qwen2.5-14b-instruct"
+      ceo: "qwen3.6-27b"
+      coder: "qwen2.5-coder-14b"
+    note: "Serveur de modèles local. Non géré par supervisord (GUI). Démarrer manuellement avant les autres services."
+
+# Ports réservés pour Phase 1+
+reserved:
+  llm_gateway:
+    port: 9000
+    status: PLANNED_PHASE1
+    note: "OpenClaw LLM Gateway — routing_table.yaml"
+
+  governance_service:
+    port: 9001
+    status: PLANNED_PHASE3
+    note: "Governor + policy.yaml — déterministe Python pur"

@@ -138,6 +138,46 @@ def test_unknown_step_raises(tmp_path):
         prepare_dispatch("s99-inexistant", run_id="x", audit_path=tmp_path / "a.jsonl")
 
 
+# --- R2 (audit branchements 2026-07-24) : marqueur injecté par la porte -----------
+
+def test_prepare_dispatch_injecte_le_marqueur_forge_dispatch(tmp_path):
+    """La porte (prepare_dispatch) connaît etape ET run_id : le prompt qu'elle
+    produit doit systématiquement porter le marqueur exact attendu par le hook,
+    plus besoin que l'orchestrateur l'appose à la main."""
+    from forge.hook_guard import MARKER
+    audit = tmp_path / "audit.jsonl"
+    payload = prepare_dispatch("s4-archi", run_id="run-int-1", audit_path=audit)
+    matches = MARKER.findall(payload.prompt)
+    assert matches == [("s4-archi", "run-int-1")]
+
+
+def test_hook_autorise_un_prompt_rendu_par_la_porte_avec_son_audit(tmp_path):
+    """Comportement APRÈS le correctif : un prompt réellement produit par
+    prepare_dispatch (donc avec sa ligne d'audit signée correspondante) passe le
+    hook — la porte s'auto-atteste correctement de bout en bout."""
+    from forge.hook_guard import hook_decision
+    audit = tmp_path / "audit.jsonl"
+    key = tmp_path / "audit.key"
+    payload = prepare_dispatch("s4-archi", run_id="run-int-2",
+                              audit_path=audit)
+    code, reason = hook_decision("Task", payload.prompt, audit_path=audit)
+    assert code == 0, reason
+
+
+def test_hook_refuse_un_marqueur_sans_ligne_d_audit_correspondante(tmp_path):
+    """Comportement AVANT/attaque : un prompt qui PORTE le marqueur (etape/run_id
+    plausibles) mais dont AUCUN dispatch validé n'a été enregistré (audit vide/
+    absent) reste refusé — le marqueur seul ne suffit jamais, il faut la preuve
+    d'audit signée que seule la porte produit."""
+    from forge.hook_guard import MARKER, hook_decision
+    audit = tmp_path / "audit.jsonl"
+    audit.write_text("", encoding="utf-8")  # aucun dispatch validé enregistré
+    fake_prompt = "## RÔLE\nun faux prompt\n\nFORGE_DISPATCH:s4-archi:run-jamais-audite"
+    assert MARKER.search(fake_prompt)  # le marqueur est bien présent/valide
+    code, reason = hook_decision("Task", fake_prompt, audit_path=audit)
+    assert code == 2, reason
+
+
 def test_dispatch_module_ne_spawn_pas():
     """Le dispatch gouverné TRACE et prépare — le spawn appartient au skill /forge."""
     source = Path(__file__).resolve().parents[1].joinpath("dispatch.py").read_text(encoding="utf-8")

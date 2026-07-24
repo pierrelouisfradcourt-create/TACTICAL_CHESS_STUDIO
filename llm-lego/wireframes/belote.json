@@ -1,0 +1,187 @@
+{
+  "project": {
+    "id": "belote",
+    "name": "Belote",
+    "repoRoot": "llm-lego/experiments/belote-claude/",
+    "created": "2026-07-04T15:25:39.774Z",
+    "roadmapRef": "roadmap-belote"
+  },
+  "entries": [
+    {
+      "id": "wm-001",
+      "nodeId": "",
+      "label": "Cartes & barèmes (jeu de 32)",
+      "function": "Module cards : 32 cartes, barèmes atout/non-atout, ordre de force, invariant total=152.",
+      "files": [
+        "src/cards.mjs"
+      ],
+      "command": "node --test test/cards.test.mjs",
+      "test": {
+        "description": "5 tests: unicité 32 cartes, total 152, barèmes V=20/9=14, force atout",
+        "file": "test/cards.test.mjs",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "unit"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "",
+      "order": 1
+    },
+    {
+      "id": "wm-002",
+      "nodeId": "",
+      "label": "Distribution 3-2 + retournée + complement a 8",
+      "function": "Module deal : melange deterministe, deal 5 cartes/joueur + carte retournee + talon 11, completeDeal preneur+2/autres+3. Corrige E1.",
+      "files": [
+        "src/deal.mjs"
+      ],
+      "command": "node --test test/deal.test.mjs",
+      "test": {
+        "description": "3 tests: shuffle deterministe, deal 5+turnUp+talon11, completeDeal 8 sans doublon",
+        "file": "test/deal.test.mjs",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "unit"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "E1: distribution belote en 2 temps (corrigee)",
+      "order": 2
+    },
+    {
+      "id": "wm-003",
+      "nodeId": "",
+      "label": "Regles du pli : coups legaux + gagnant",
+      "function": "Module rules : trickWinner (atout>couleur demandee), legalMoves avec toutes les obligations belote (fournir, monter, couper/surcouper, partenaire maitre = libre), beloteTeam (R+D atout).",
+      "files": [
+        "src/rules.mjs"
+      ],
+      "command": "node --test test/rules.test.mjs",
+      "test": {
+        "description": "9 tests: gagnant pli, fournir, monter atout, couper vs adversaire, libre si partenaire maitre, surcouper, belote",
+        "file": "test/rules.test.mjs",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "unit"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "",
+      "order": 3
+    },
+    {
+      "id": "wm-004",
+      "nodeId": "",
+      "label": "Decompte de la donne (contrat/belote/der/capot)",
+      "function": "Module scoring : points cartes par equipe + dix de der, belote +20 (meme dedans), contrat (chute sous 82 = defense encaisse 162), capot 250. Invariant base=162.",
+      "files": [
+        "src/scoring.mjs"
+      ],
+      "command": "node --test test/scoring.test.mjs",
+      "test": {
+        "description": "5 tests: total 162, contrat reussi, dedans, belote+20, capot 250",
+        "file": "test/scoring.test.mjs",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "unit"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "E3: gagner les plis != marquer (test corrige)",
+      "order": 4
+    },
+    {
+      "id": "wm-005",
+      "nodeId": "",
+      "label": "Enchere (choix preneur + atout)",
+      "function": "Module bidding : heuristique force de main, tour 1 prise couleur retournee (+carte retournee), tour 2 couleur libre, null si tous passent. Corrige E4.",
+      "files": [
+        "src/bidding.mjs"
+      ],
+      "command": "node --test test/bidding.test.mjs",
+      "test": {
+        "description": "3 tests: handStrength, prise tour 1, personne ne prend",
+        "file": "test/bidding.test.mjs",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "unit"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "E4: carte retournee integree a la decision tour 1",
+      "order": 5
+    },
+    {
+      "id": "wm-006",
+      "nodeId": "",
+      "label": "Moteur de jeu (pli / donne / partie)",
+      "function": "Module game : IA legale (gagne au moindre cout sinon defausse), playTrick, playDeal (enchere+distribution+8 plis+score), playGame boucle jusqua cible, deterministe par seed.",
+      "files": [
+        "src/game.mjs"
+      ],
+      "command": "node --test test/game.test.mjs",
+      "test": {
+        "description": "5 tests: playTrick, 32 cartes/donne, invariant 162, partie complete terminee, determinisme",
+        "file": "test/game.test.mjs",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "unit"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "",
+      "order": 6
+    },
+    {
+      "id": "wm-007",
+      "nodeId": "",
+      "label": "CLI jouable (auto-play demonstratif)",
+      "function": "cli.mjs : joue une partie complete et affiche un resume lisible (donneur/preneur/atout/belote/dedans/capot/cumul), option --verbose pli par pli. Prouve la jouabilite en CLI.",
+      "files": [
+        "cli.mjs"
+      ],
+      "command": "node cli.mjs --seed 3 --target 501",
+      "test": {
+        "description": "Execution manuelle : partie complete affichee, vainqueur >= cible, coups legaux verifies au log verbose",
+        "file": "cli.mjs",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "e2e"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "E5/E6: annonces hors perimetre, auto-play (pas de mode humain)",
+      "order": 7
+    },
+    {
+      "id": "wm-008",
+      "nodeId": "",
+      "label": "Vrai test de jeu (parties aleatoires + audits independants)",
+      "function": "tools/real-play.mjs : 3 parties completes en melange aleatoire reel, auditeur de legalite INDEPENDANT (576 coups, 0 violation, coupe 62x/surcoupe 15x), recompte manuel des points=162, moteur<=>replay identiques.",
+      "files": [
+        "tools/real-play.mjs"
+      ],
+      "command": "node tools/real-play.mjs",
+      "test": {
+        "description": "3 parties aleatoires jouees jusqua la fin, distribution/coupe/points verifies independamment, 0 violation",
+        "file": "tools/real-play.mjs",
+        "line": 1,
+        "status": "PASS",
+        "color": "green",
+        "type": "e2e"
+      },
+      "impRef": null,
+      "humanRequired": false,
+      "notes": "E9: coupe obligatoire prouvee sur mains neuves",
+      "order": 8
+    }
+  ]
+}

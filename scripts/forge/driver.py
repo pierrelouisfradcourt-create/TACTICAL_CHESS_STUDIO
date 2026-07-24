@@ -66,6 +66,7 @@ from forge.studio_link import (
     record_fix,
     record_telemetry,
 )
+from forge.verify_run import verify_run
 from forge.verdict import (
     CLAIM_VERDICT,
     EVIDENCE_VERDICT,
@@ -622,11 +623,51 @@ class ForgeDriver:
             json.dumps(record, ensure_ascii=False, sort_keys=True, indent=1),
             encoding="utf-8",
         )
-        # OK = l'agrégation a tourné ; le verdict LOGICIEL est porté par son contenu.
+        # R1 (audit branchements 2026-07-24) : re-vérification MÉCANIQUE du
+        # verdict qui vient d'être écrit — HMAC + évidence + preuve mutation +
+        # knowledge_trace (forge.verify_run, le même maillon que `/gate`).
+        # AVANT ce correctif, verify_run n'était JAMAIS appelé par le driver
+        # (grep vide dans driver.py) : la re-vérification restait une étape
+        # manuelle. Appelée ICI, une seule fois par appel de _run_verdict
+        # (jamais en boucle) : un verdict falsifié/altéré (évidence truquée
+        # après coup, HMAC incohérent, lineage théâtral) ne peut plus se
+        # présenter à HumanGate comme un OK silencieux — l'étape devient
+        # BLOCKED avec une raison explicite, jamais un vert masqué.
+        verification = verify_run(verdict_path, key_file=self.key_file)
+        blocking: list[str] = list(verification.get("evidence_problems", ()))
+        blocking += list(verification.get("knowledge_trace_problems", ()))
+        if not verification.get("hmac_ok", False):
+            blocking.insert(0, "HMAC du verdict invalide")
+        # Portée déclarée : `verify_mutation_receipt` (forge.mutation_proof) exige
+        # `status == "OK"` sur le reçu mutation embarqué (cf. test_verify_run_
+        # mutation.py) — un reçu mutation LÉGITIMEMENT non-OK (baseline rouge,
+        # survivant non trié...) échoue donc TOUJOURS ce sous-check, sans que ce
+        # soit une falsification : c'est le reflet honnête d'un gate mutation
+        # rouge déjà porté par software_verdict=FAIL. Reproduit en pratique :
+        # câbler `mutation_problems` en gate dur inconditionnel faisait échouer
+        # à tort 2 tests légitimes (baseline rouge, survivant non justifié) — le
+        # verdict FAIL qu'ils produisent est authentique, pas falsifié. On ne
+        # gate donc sur `mutation_problems` QUE quand l'agrégat prétend OK :
+        # c'est le seul cas où HumanGate pourrait ratifier un vert fabriqué.
+        # HMAC/évidence/knowledge_trace restent des gates DURS quel que soit le
+        # statut affiché (falsifier un log reste une falsification, OK ou FAIL).
+        if record["software_verdict"] == "OK":
+            blocking += list(verification.get("mutation_problems", ()))
+        if blocking:
+            self._finish_step(state, entry, "BLOCKED", {
+                "verdict_path": str(verdict_path),
+                "reason": f"verify_run: {'; '.join(blocking)}",
+                "verify_run": verification,
+            })
+            return
+        # OK = l'agrégation a tourné ET verify_run confirme l'authenticité du
+        # reçu signé ; le verdict LOGICIEL (OK/FAIL/BLOCKED) est porté par son
+        # contenu, pas par ce statut d'étape.
         self._finish_step(state, entry, "OK", {
             "verdict_path": str(verdict_path),
             "software_verdict": record["software_verdict"],
             "decision": record["decision"],
+            "verify_run": "AUTHENTIQUE",
         })
 
     def _finish_step(self, state: dict, entry: dict, status: str, detail: dict,

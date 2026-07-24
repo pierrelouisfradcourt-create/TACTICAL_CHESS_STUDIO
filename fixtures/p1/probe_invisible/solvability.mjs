@@ -9,6 +9,7 @@
 //   2. vérifier que les briques requises sont atteignables (diagnostic)
 //   3. lancer un bot déterministe qui pilote via applyInput et gagne
 import { BreakoutGame } from "./game.mjs";
+import { pathToFileURL } from "node:url";
 
 const DT = 16; // ms/frame simulée
 
@@ -124,6 +125,6 @@ function main() {
 }
 
 // N'exécute main() que si ce fichier est appelé directement
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }

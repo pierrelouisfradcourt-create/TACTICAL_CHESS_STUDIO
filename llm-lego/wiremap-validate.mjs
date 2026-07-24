@@ -37,7 +37,7 @@ try {
   // A) The 4 new software entries exist in wireframes/llm-lego.json.
   const doc = await api("/api/wireframes/llm-lego");
   const ids = (doc?.entries || []).map((e) => e.nodeId);
-  check("llm-lego has 12 entries", (doc?.entries || []).length === 12);
+  check("llm-lego has 13 entries", (doc?.entries || []).length === 13);
   for (const need of ["view-selector", "library", "wiremap-corrections", "wiremap-recenter"]) {
     check(`entry '${need}' present`, ids.includes(need));
   }
@@ -52,7 +52,7 @@ try {
     const u = await unmappedRows(), m = await mapButtons(), r = await wmRows();
     check(`graph '${key}': 0 NON MAPPÉ rows`, u === 0);
     check(`graph '${key}': 0 '+ mapper' buttons`, m === 0);
-    check(`graph '${key}': llm-lego still 12 rows (canvas-independent)`, r === 12);
+    check(`graph '${key}': llm-lego still 13 rows (canvas-independent)`, r === 13);
   }
 
   // C) Pose an Agent node manually (+ attach a library brick) → still no effect
@@ -66,7 +66,7 @@ try {
   await page.waitForSelector(`[data-testid="node-brick-${agentId}"]`, { timeout: 5000 });
   await openWireMapOn("llm-lego");
   check("posed Agent node (with attached fiche) → 0 NON MAPPÉ rows", (await unmappedRows()) === 0);
-  check("posed Agent node → llm-lego still 12 rows", (await wmRows()) === 12);
+  check("posed Agent node → llm-lego still 13 rows", (await wmRows()) === 13);
 
   // D) ÉTANCHÉITÉ: Wire Map interactions must NEVER request /api/library.
   //    Reset the request log AFTER mount (mount legitimately loads the library
@@ -82,16 +82,16 @@ try {
   const libCalls = reqLog.filter((u) => u.includes("/api/library"));
   check("Wire Map made ZERO /api/library requests (étanchéité)", libCalls.length === 0);
   if (libCalls.length) log(`  leaked calls: ${JSON.stringify(libCalls)}`);
-  // restore llm-lego (the add-entry above targeted llm-lego — undo it to keep the seed at 12)
+  // restore llm-lego (the add-entry above targeted llm-lego — undo it to keep the seed at 13)
   {
     const d = await api("/api/wireframes/llm-lego");
-    if ((d?.entries || []).length > 12) {
-      d.entries = d.entries.filter((e) => /^entry-0(0[1-9]|1[0-2])$/.test(e.id)); // keep the 12 canonical
+    if ((d?.entries || []).length > 13) {
+      d.entries = d.entries.filter((e) => /^entry-0(0[1-9]|1[0-3])$/.test(e.id)); // keep the 13 canonical (incl. entry-013 cartographie)
       await fetch(BASE + "/api/wireframes/llm-lego", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
     }
   }
   const restored = await api("/api/wireframes/llm-lego");
-  check("llm-lego restored to 12 entries after test", (restored?.entries || []).length === 12);
+  check("llm-lego restored to 13 entries after test", (restored?.entries || []).length === 13);
   await page.reload({ waitUntil: "load" });
   await page.waitForSelector('[data-testid="tab-wiremap"]', { timeout: 10000 });
   await openWireMapOn("llm-lego");

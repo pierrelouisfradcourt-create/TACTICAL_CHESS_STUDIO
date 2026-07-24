@@ -166,7 +166,7 @@ try {
   const lib = await api("/api/library");
   check("REGRESSION: 5 agent bricks intact", (lib.json?.bricks || []).filter((b) => b.kind === "agent").length >= 5);
   const wm = await api("/api/wireframes/llm-lego");
-  check("REGRESSION: Wire Map llm-lego still 12 entries", (wm.json?.entries || []).length === 12);
+  check("REGRESSION: Wire Map llm-lego still 13 entries", (wm.json?.entries || []).length === 13);
 
   out.pass = Object.values(out.checks).every(Boolean);
   log(out.pass ? "\n=== ALL PROMPT CHECKS PASSED ===" : `\n=== FAILED: ${out.failed} ===`);

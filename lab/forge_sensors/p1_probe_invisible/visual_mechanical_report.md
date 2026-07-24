@@ -20,4 +20,4 @@ Seed FTUE: `1234` · mode: `seeded_exploration` · 40 inputs (rejouable).
 | A1_contrast:#restart | signal_absent | 10.15 | < 4.5 | WCAG AA (bouton) |
 
 ## Signaux bruts (sans seuil)
-- A4_distinct_colors = 15 (signal brut, sans seuil (cohérence palette = P2/art bible))
+- A4_distinct_colors = 14 (signal brut, sans seuil (cohérence palette = P2/art bible))

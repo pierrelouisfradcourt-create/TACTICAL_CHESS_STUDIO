@@ -131,6 +131,82 @@ def test_chaque_etape_passe_par_la_porte_de_dispatch(tmp_path, offline):
     assert all(rec["run_id"] == "proj-1" for rec in lines)
 
 
+# --- R1 (audit branchements 2026-07-24) : verify_run appelé APRÈS le verdict ------
+
+def test_verify_run_est_appele_et_trace_authentique_dans_le_detail(tmp_path, offline):
+    """(a) succès : un verdict valide passe et le detail de s12 porte la trace
+    verify_run — la re-vérification mécanique a bien tourné, pas seulement
+    l'agrégation."""
+    run_dir = tmp_path / "run"
+    ex = StubExecutor(run_dir=run_dir)
+    report = ForgeDriver("proj", "proj-1", profile="micro", executor=ex,
+                         **_kwargs(tmp_path, run_dir)).run()
+    assert report["software_verdict"] == "OK"
+
+    state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+    s12 = state["steps"]["s12-verdict"]
+    assert s12["status"] == "OK"
+    assert s12["detail"]["verify_run"] == "AUTHENTIQUE"
+
+
+def test_knowledge_trace_theatrale_bloque_s12_meme_si_oracles_verts(tmp_path, offline):
+    """(b) échec volontaire : un knowledge_trace.json THÉÂTRAL (référence tracée
+    introuvable dans les artefacts du run — cf. test_verify_run_knowledge_trace.py)
+    déposé dans run_dir AVANT le run. `build_aggregate_verdict` ne regarde JAMAIS
+    ce fichier (aucun rapport avec les oracles code/archi/wiremap) : AVANT ce
+    correctif, ce théâtre passait donc en OK silencieux malgré des oracles
+    parfaitement verts — seul verify_run le détecte. APRÈS le correctif, s12 doit
+    être BLOCKED. Nécessite node (skip sinon, même garde que test_verify_run_
+    knowledge_trace.py)."""
+    import shutil
+    if shutil.which("node") is None:
+        pytest.skip("node indisponible")
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True)
+    (run_dir / "knowledge_trace.json").write_text(json.dumps({
+        "run_id": "proj-1", "created": "2026-07-24T00:00:00.000Z",
+        "schema_version": 1,
+        "items": [{
+            "source": "knowledge_base", "ref": "REF-INTROUVABLE-XYZ-999",
+            "provenance": "ADVISORY", "valid_as_of": "2026-07-24T00:00:00Z",
+            "reason": "test R1 théâtre",
+        }],
+    }), encoding="utf-8")
+
+    ex = StubExecutor(run_dir=run_dir)
+    report = ForgeDriver("proj", "proj-1", profile="micro", executor=ex,
+                         **_kwargs(tmp_path, run_dir)).run()
+
+    state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+    s12 = state["steps"]["s12-verdict"]
+    assert s12["status"] == "BLOCKED"
+    assert "verify_run" in s12["detail"]["reason"]
+    assert report["software_verdict"] == "BLOCKED"
+
+
+def test_verify_run_appele_une_seule_fois_par_appel_de_run_verdict(tmp_path, offline, monkeypatch):
+    """(c) anti-double-exécution : un run vert normal ne doit déclencher verify_run
+    qu'UNE fois (pas une fois pour décider, une autre pour logger)."""
+    import forge.driver as driver_mod
+    real_verify_run = driver_mod.verify_run
+    calls = []
+
+    def counting_verify_run(*args, **kwargs):
+        calls.append((args, kwargs))
+        return real_verify_run(*args, **kwargs)
+
+    monkeypatch.setattr(driver_mod, "verify_run", counting_verify_run)
+
+    run_dir = tmp_path / "run"
+    ex = StubExecutor(run_dir=run_dir)
+    report = ForgeDriver("proj", "proj-1", profile="micro", executor=ex,
+                         **_kwargs(tmp_path, run_dir)).run()
+
+    assert report["software_verdict"] == "OK"
+    assert len(calls) == 1
+
+
 def test_telemetrie_tracee_pour_les_etapes_llm(tmp_path, offline):
     run_dir = tmp_path / "run"
     kw = _kwargs(tmp_path, run_dir)

@@ -1,0 +1,30 @@
+Red-team CODE terminé. Rapport écrit dans `lab/forge_runs/shmup_slice_patch1/rapport_redteam_code.md` (seul fichier écrit, conforme au contrat).
+
+## Découverte centrale
+**Le build patch1 n'a produit AUCUN code.** L'étape `s9-build` a livré un *plan* qui se termine par une question interactive (`**Which approach?** 1. Subagent-Driven / 2. Inline`) — l'agent s'est arrêté sans jamais exécuter. Pourtant `s9-build.status == "OK"`. Le « diff à red-teamer » est vide.
+
+Ancres mécaniques (rejouables sans git, non-LLM) :
+- `artifacts/s9-build.txt` = plan + question, 0 ligne de code / 0 diff.
+- `Grep drawImage|new Image|preload|sprite` sur tout `games/shmup_slice/` → **0 match** ; `render.mjs` toujours `fillRect`/`arc` brut (le défaut « visuellement mort » ciblé).
+- **0** sprite sur disque ; les 13 sprites + préload du plan sont absents.
+- `state.json` : `s10a-oracle-code` a déjà mis **BLOCKED** (`evidence_path:""`, `returncode:-1`) — le filet a tenu, mais s9=OK est un faux vert.
+
+## Failles (rangées)
+| # | Sévérité | Faille |
+|---|---|---|
+| **F1** | CRITICAL | Build fantôme : s9 livre un plan, zéro code, marqué OK |
+| **F2** | HIGH | Gate leak : `s9-build.status=OK` sur sortie interactive non-terminale |
+| **F3** | CRITICAL | Aucune preuve patch1 (ni logic_files, ni wiremap, ni reçu mutation) ⇒ verdict doit rester BLOCKED |
+| A1 | MEDIUM (advisory, pré-existant) | Score fantôme : ennemi échappé rapporte +100 sans kill (`step.mjs` L91<L94 + `scoring.mjs:17`) ; chemin jamais testé (tous les tests `prevEnemyCount=0`) |
+| A2 | MEDIUM (advisory) | Périmètre mutation exclut `knowledge_base/.../damage_floor.mjs` (applyHit) — la math de dégâts/vies est hors périmètre scellé + arête d'archi invisible à `check_architecture` |
+| A3 | LOW (advisory) | Test « exactly one projectile per frame » n'assert que `>0` et `<=30` — n'vérifie pas l'exactitude |
+| A4 | LOW/info | Code mort : statut `'BOSS'` jamais assigné, `awardScore.reason` inutilisé, seuil `700` mort |
+
+Chaque faille a une reproduction déterministe exécutable par un oracle aval (détaillées dans le rapport). A1–A4 sont pré-existants au jeu de base et **non corrigés** par patch1 (puisqu'il n'a rien construit) — clairement séparés du delta.
+
+## Verdicts (séparés)
+- **software_verdict : BLOCKED** — delta patch1 vide et sans preuve (ancres : artefact s9, grep/glob disque, `s10a`). Cohérent avec `s10a`. Pas FAIL : il n'y a pas de code cassé, il n'y a *pas de code*.
+- **evidence_verdict : MECHANICAL_VALIDATION_ONLY** — je n'ai exécuté aucune repro (`run: aucun`).
+- **claim_verdict : NO_CLAIM_ALLOWED**
+
+**fog → HumanGate (Pierre) :** (1) relancer patch1 (option 1 ou 2) ou le rejeter et re-dispatcher avec un contrat interdisant à s9 de rendre un plan comme livrable de build ; (2) durcir la porte s9 pour refuser tout artefact sans marqueur terminal `FORGE_DISPATCH` + bloc verdict ; (3) faire exécuter A1/A3 avant tout futur s12 ; (4) trancher l'inclusion de `damage_floor.mjs` dans le périmètre scellé (A2).

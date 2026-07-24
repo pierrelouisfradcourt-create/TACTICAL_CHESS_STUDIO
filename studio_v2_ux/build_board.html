@@ -1,0 +1,976 @@
+<!-- DÉPRÉCIÉ — voir studio_cockpit.html (UX canonique) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Build Board — Tactical Chess Studio</title>
+<style>
+  /* ── Reset & tokens ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a0a0f;
+    --bg1:       #111118;
+    --bg2:       #18181f;
+    --bg3:       #22222c;
+    --border:    #2a2a38;
+    --border2:   #363648;
+    --text:      #e8e8f0;
+    --text2:     #9090a8;
+    --text3:     #5a5a72;
+    --accent:    #6c6ef5;
+    --accent2:   #4d4fcc;
+    --green:     #3ecf8e;
+    --yellow:    #f0a742;
+    --red:       #f04060;
+    --purple:    #a855f7;
+    --cyan:      #22d3ee;
+    --radius:    8px;
+    --radius2:   12px;
+    --shadow:    0 4px 24px rgba(0,0,0,.6);
+    --font:      'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono:      'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --panel-w:   460px;
+    --strip-h:   48px;
+  }
+
+  html, body {
+    height: 100%; background: var(--bg); color: var(--text);
+    font-family: var(--font); font-size: 13px; line-height: 1.5;
+    overflow: hidden;
+  }
+
+  /* ── Layout ── */
+  #root { display: flex; flex-direction: column; height: 100vh; }
+
+  /* ── Status Strip ── */
+  #status-strip {
+    height: var(--strip-h); min-height: var(--strip-h);
+    background: var(--bg1); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0;
+    padding: 0 20px; font-size: 11.5px; flex-shrink: 0;
+    position: relative; z-index: 10;
+  }
+
+  .strip-logo {
+    font-weight: 700; letter-spacing: .04em; color: var(--text);
+    margin-right: 24px; display: flex; align-items: center; gap: 8px;
+  }
+  .strip-logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+  .strip-sep { width: 1px; height: 20px; background: var(--border); margin: 0 14px; }
+
+  .strip-pill {
+    display: flex; align-items: center; gap: 5px;
+    padding: 2px 10px; border-radius: 20px;
+    background: var(--bg2); border: 1px solid var(--border);
+    cursor: default; transition: border-color .15s;
+    white-space: nowrap;
+  }
+  .strip-pill:hover { border-color: var(--border2); }
+  .strip-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot-green { background: var(--green); box-shadow: 0 0 4px var(--green); }
+  .dot-yellow { background: var(--yellow); }
+  .dot-red { background: var(--red); }
+  .dot-grey { background: var(--text3); }
+
+  .strip-kv { color: var(--text2); }
+  .strip-kv span { color: var(--text); font-weight: 500; }
+
+  .strip-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+  #strip-refresh-btn {
+    height: 28px; padding: 0 12px; border-radius: var(--radius);
+    border: 1px solid var(--border2); background: transparent;
+    color: var(--text2); font-size: 11px; cursor: pointer;
+    transition: all .15s;
+  }
+  #strip-refresh-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  #strip-server-status { font-size: 10.5px; color: var(--text3); }
+
+  /* ── Main area ── */
+  #main { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Board ── */
+  #board-area {
+    flex: 1; overflow-x: auto; overflow-y: hidden;
+    padding: 20px; display: flex; flex-direction: column;
+  }
+
+  .board-header {
+    display: flex; align-items: baseline; gap: 12px;
+    margin-bottom: 18px; flex-shrink: 0;
+  }
+  .board-title { font-size: 18px; font-weight: 700; }
+  .board-subtitle { color: var(--text3); font-size: 12px; }
+
+  .board-controls {
+    margin-left: auto; display: flex; align-items: center; gap: 8px;
+  }
+  .btn-ghost {
+    height: 28px; padding: 0 12px; border-radius: var(--radius);
+    border: 1px solid var(--border2); background: transparent;
+    color: var(--text2); font-size: 11px; cursor: pointer;
+    transition: all .15s; font-family: var(--font);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--border2); background: var(--bg2); }
+  .btn-accent {
+    height: 28px; padding: 0 14px; border-radius: var(--radius);
+    border: none; background: var(--accent); color: #fff;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    transition: background .15s; font-family: var(--font);
+  }
+  .btn-accent:hover { background: var(--accent2); }
+
+  /* Kanban columns */
+  #kanban {
+    display: flex; gap: 12px; flex: 1; min-height: 0;
+    min-width: max-content;
+  }
+
+  .column {
+    width: 230px; min-width: 230px; display: flex; flex-direction: column;
+    background: var(--bg1); border: 1px solid var(--border);
+    border-radius: var(--radius2); overflow: hidden;
+  }
+
+  .col-header {
+    padding: 12px 14px 10px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  }
+  .col-icon { font-size: 14px; }
+  .col-name { font-weight: 600; font-size: 12px; flex: 1; }
+  .col-count {
+    font-size: 10.5px; font-weight: 600; padding: 1px 7px;
+    border-radius: 10px; background: var(--bg3); color: var(--text2);
+  }
+
+  .col-body {
+    flex: 1; overflow-y: auto; padding: 10px 8px; display: flex;
+    flex-direction: column; gap: 8px;
+  }
+  .col-body::-webkit-scrollbar { width: 4px; }
+  .col-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .col-empty {
+    text-align: center; color: var(--text3); font-size: 11px;
+    padding: 20px 10px; border: 1px dashed var(--border);
+    border-radius: var(--radius); margin: 4px;
+  }
+
+  /* Project card */
+  .card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px;
+    cursor: pointer; transition: border-color .15s, transform .1s;
+    position: relative;
+  }
+  .card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+  .card-title { font-weight: 600; font-size: 12.5px; margin-bottom: 4px; line-height: 1.3; }
+  .card-genre { font-size: 10px; color: var(--text3); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; }
+
+  .card-metric {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; color: var(--text2); margin-bottom: 4px;
+  }
+  .card-metric-val { font-weight: 600; color: var(--text); }
+
+  .card-tags { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
+  .tag {
+    font-size: 9.5px; padding: 1px 6px; border-radius: 10px;
+    font-weight: 500; letter-spacing: .02em;
+  }
+  .tag-green { background: rgba(62,207,142,.15); color: var(--green); }
+  .tag-yellow { background: rgba(240,167,66,.15); color: var(--yellow); }
+  .tag-red { background: rgba(240,64,96,.15); color: var(--red); }
+  .tag-purple { background: rgba(168,85,247,.15); color: var(--purple); }
+  .tag-blue { background: rgba(108,110,245,.15); color: var(--accent); }
+  .tag-cyan { background: rgba(34,211,238,.15); color: var(--cyan); }
+  .tag-grey { background: var(--bg3); color: var(--text3); }
+
+  .card-priority {
+    position: absolute; top: 10px; right: 10px;
+    width: 6px; height: 6px; border-radius: 50%;
+  }
+
+  .card-bar-wrap { margin-top: 8px; height: 3px; background: var(--bg3); border-radius: 2px; }
+  .card-bar { height: 3px; border-radius: 2px; transition: width .3s; }
+  .bar-green { background: var(--green); }
+  .bar-yellow { background: var(--yellow); }
+  .bar-red { background: var(--red); }
+  .bar-blue { background: var(--accent); }
+
+  /* ── Detail Panel ── */
+  #detail-panel {
+    width: var(--panel-w); min-width: var(--panel-w);
+    background: var(--bg1); border-left: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
+    transition: transform .2s;
+  }
+  #detail-panel.hidden { transform: translateX(var(--panel-w)); width: 0; min-width: 0; border: none; }
+
+  .panel-header {
+    padding: 18px 20px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; gap: 12px; flex-shrink: 0;
+  }
+  .panel-close {
+    margin-left: auto; background: none; border: none; color: var(--text3);
+    cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 6px;
+    border-radius: 4px; transition: color .15s, background .15s;
+  }
+  .panel-close:hover { color: var(--text); background: var(--bg3); }
+
+  .panel-title { font-size: 16px; font-weight: 700; line-height: 1.3; }
+  .panel-subtitle { color: var(--text3); font-size: 11px; margin-top: 3px; }
+
+  .panel-stage-badge {
+    padding: 3px 10px; border-radius: 20px; font-size: 10.5px; font-weight: 600;
+    white-space: nowrap; margin-top: 4px; display: inline-block;
+  }
+
+  .panel-body { flex: 1; overflow-y: auto; padding: 18px 20px; }
+  .panel-body::-webkit-scrollbar { width: 4px; }
+  .panel-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .panel-section { margin-bottom: 22px; }
+  .panel-section-title {
+    font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text3); margin-bottom: 10px;
+  }
+
+  .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .metric-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 12px;
+  }
+  .metric-label { font-size: 10px; color: var(--text3); margin-bottom: 3px; }
+  .metric-value { font-size: 18px; font-weight: 700; }
+  .metric-delta { font-size: 10px; margin-top: 1px; }
+  .delta-up { color: var(--green); }
+  .delta-down { color: var(--red); }
+
+  /* Action buttons */
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .action-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--bg2);
+    color: var(--text2); font-size: 11.5px; cursor: pointer;
+    transition: all .15s; font-family: var(--font); text-align: left;
+  }
+  .action-btn:hover { border-color: var(--accent); color: var(--text); background: var(--bg3); }
+  .action-btn .action-icon { font-size: 14px; }
+  .action-btn.destructive:hover { border-color: var(--red); color: var(--red); }
+
+  .action-full {
+    grid-column: 1 / -1; background: rgba(108,110,245,.1);
+    border-color: var(--accent); color: var(--accent); font-weight: 600;
+  }
+  .action-full:hover { background: rgba(108,110,245,.2); }
+
+  /* Telemetry chart placeholder */
+  .tele-wrap {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .tele-placeholder { color: var(--text3); font-size: 11px; }
+
+  .tele-sparkline {
+    width: 100%; height: 60px; margin-top: 8px;
+  }
+
+  /* Log lines */
+  .log-lines {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 12px;
+    font-family: var(--mono); font-size: 10.5px; color: var(--text2);
+    max-height: 140px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .log-lines::-webkit-scrollbar { width: 3px; }
+  .log-lines::-webkit-scrollbar-thumb { background: var(--border2); }
+  .log-line { display: flex; gap: 8px; }
+  .log-ts { color: var(--text3); flex-shrink: 0; }
+  .log-ok { color: var(--green); }
+  .log-warn { color: var(--yellow); }
+  .log-err { color: var(--red); }
+  .log-info { color: var(--text2); }
+
+  /* Placeholder screens */
+  #empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 100%; color: var(--text3);
+    gap: 10px; text-align: center;
+  }
+  .empty-icon { font-size: 40px; opacity: .4; }
+  .empty-title { font-size: 15px; font-weight: 600; color: var(--text2); }
+  .empty-body { font-size: 12px; max-width: 260px; }
+
+  /* Scrollbar global */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Tooltip */
+  [title] { cursor: default; }
+
+  /* Animations */
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .pulsing { animation: pulse 1.6s infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinning { animation: spin .8s linear infinite; }
+
+  /* Notification toast */
+  #toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--bg2); border: 1px solid var(--border2);
+    border-radius: var(--radius); padding: 10px 18px;
+    font-size: 12px; color: var(--text); box-shadow: var(--shadow);
+    transition: transform .2s; z-index: 1000; pointer-events: none;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div style="background:#f0a74222;border:1px solid #f0a742;color:#f0a742;padding:8px 16px;font-size:12px;font-family:sans-serif;text-align:center">Déprécié — voir <strong>studio_cockpit.html</strong> (UX canonique)</div>
+<div id="root">
+
+  <!-- STATUS STRIP -->
+  <div id="status-strip">
+    <div class="strip-logo">
+      <div class="strip-logo-dot"></div>
+      TACTICAL CHESS STUDIO
+    </div>
+    <div class="strip-sep"></div>
+    <div class="strip-pill" id="pill-server" title="Autopilot server connection">
+      <div class="dot dot-grey" id="dot-server"></div>
+      <span class="strip-kv">Server</span>
+    </div>
+    <div style="width:8px"></div>
+    <div class="strip-pill" id="pill-health" title="System health">
+      <div class="dot dot-grey" id="dot-health"></div>
+      <span class="strip-kv">Health</span>
+    </div>
+    <div class="strip-sep"></div>
+    <div class="strip-kv" id="strip-imp-open" title="Open IMPs">Open IMPs: <span>—</span></div>
+    <div style="width:16px"></div>
+    <div class="strip-kv" id="strip-imp-next" title="Next IMP">Next: <span>—</span></div>
+    <div class="strip-sep"></div>
+    <div class="strip-kv" id="strip-elo" title="Current ELO">ELO: <span>—</span></div>
+    <div style="width:16px"></div>
+    <div class="strip-kv" id="strip-draw" title="Draw rate">Draw: <span>—</span></div>
+
+    <div class="strip-right">
+      <span id="strip-server-status" class="pulsing">connecting…</span>
+      <button id="strip-refresh-btn" onclick="refreshStrip()">↻ Refresh</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+
+    <!-- BOARD AREA -->
+    <div id="board-area">
+      <div class="board-header">
+        <div>
+          <div class="board-title">Build Board</div>
+          <div class="board-subtitle">Game projects — idea to published</div>
+        </div>
+        <div class="board-controls">
+          <button class="btn-ghost" onclick="filterCards('all')" id="filter-all" style="border-color:var(--accent);color:var(--text)">All</button>
+          <button class="btn-ghost" onclick="filterCards('action')" id="filter-action">Action</button>
+          <button class="btn-ghost" onclick="filterCards('puzzle')" id="filter-puzzle">Puzzle</button>
+          <button class="btn-ghost" onclick="filterCards('strategy')" id="filter-strategy">Strategy</button>
+          <div style="width:4px"></div>
+          <button class="btn-accent" onclick="showNewProjectModal()">+ New Project</button>
+        </div>
+      </div>
+
+      <div id="kanban"></div>
+    </div>
+
+    <!-- DETAIL PANEL -->
+    <div id="detail-panel" class="hidden">
+      <div class="panel-header">
+        <div style="flex:1">
+          <div class="panel-title" id="panel-title">—</div>
+          <div class="panel-subtitle" id="panel-subtitle">—</div>
+          <div id="panel-stage-badge" class="panel-stage-badge" style="margin-top:6px"></div>
+        </div>
+        <button class="panel-close" onclick="closePanel()" title="Close">✕</button>
+      </div>
+
+      <div class="panel-body" id="panel-body">
+        <!-- injected by renderPanel() -->
+      </div>
+    </div>
+
+  </div><!-- #main -->
+</div><!-- #root -->
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────
+// DATA — mock projects + stage config
+// ─────────────────────────────────────────────
+const STAGES = [
+  { id: 'idea',      label: 'Idea',      icon: '💡', color: '#9090a8' },
+  { id: 'scaffold',  label: 'Scaffold',  icon: '🏗️',  color: '#6c6ef5' },
+  { id: 'assets',    label: 'Assets',    icon: '🎨',  color: '#a855f7' },
+  { id: 'playtest',  label: 'Playtest',  icon: '🎮',  color: '#f0a742' },
+  { id: 'patch',     label: 'Patch',     icon: '🔧',  color: '#22d3ee' },
+  { id: 'published', label: 'Published', icon: '🚀',  color: '#3ecf8e' },
+];
+
+const PROJECTS = [
+  {
+    id: 'snake-survivor',
+    title: 'Snake: Survivor — Genesis',
+    genre: 'Action / Roguelite',
+    stage: 'playtest',
+    priority: 'high',
+    tags: ['godot', 'steam', 'v0.4.2'],
+    metrics: {
+      wishlists: { label: 'Wishlists', value: '1 247', delta: '+84 this week', up: true },
+      retention:  { label: '7-day Retention', value: '34%', delta: '+3pp', up: true },
+      sessions:   { label: 'Avg Session', value: '18 min', delta: '—', up: null },
+      bugs:       { label: 'Open Bugs', value: '12', delta: '-5 closed', up: false },
+    },
+    progress: 68,
+    barClass: 'bar-yellow',
+    logs: [
+      { ts: '10:42', cls: 'log-ok',   msg: 'cargo build --release → OK (4.2s)' },
+      { ts: '10:38', cls: 'log-warn', msg: 'playtest session P07: crash on wave 12 boss' },
+      { ts: '10:30', cls: 'log-info', msg: 'asset pipeline: 3 sprites exported' },
+      { ts: '09:55', cls: 'log-ok',   msg: 'patch v0.4.2 applied — feel fix' },
+      { ts: '09:20', cls: 'log-err',  msg: 'P05 crash: NullRef in ItemDropSystem' },
+    ],
+    description: 'Fast-paced roguelite where a snake eats to evolve and survives waves of predators. Steam Nextfest target Q3 2026. Core loop validated, now in playtest hardening.',
+    actions: ['run_build', 'run_tests', 'open_playtest', 'generate_patch', 'view_crashes', 'to_published'],
+  },
+  {
+    id: 'chess-blitz',
+    title: 'Chess Blitz: Tactics',
+    genre: 'Strategy / Puzzle',
+    stage: 'patch',
+    priority: 'medium',
+    tags: ['rust', 'wasm', 'v1.2.1'],
+    metrics: {
+      wishlists:  { label: 'Wishlists', value: '3 841', delta: '+12 this week', up: true },
+      retention:  { label: '30-day Ret.', value: '61%', delta: '+1pp', up: true },
+      sessions:   { label: 'Avg Session', value: '26 min', delta: '+2 min', up: true },
+      bugs:       { label: 'Open Bugs', value: '3', delta: '-8 closed', up: false },
+    },
+    progress: 90,
+    barClass: 'bar-green',
+    logs: [
+      { ts: '11:02', cls: 'log-ok',   msg: 'v1.2.1 patch build succeeded' },
+      { ts: '10:50', cls: 'log-info', msg: 'ELO recalibration complete: 1847 → 1891' },
+      { ts: '10:30', cls: 'log-ok',   msg: 'cargo test — 412/412 passed' },
+    ],
+    description: 'Competitive chess tactics trainer with AI opponents built on the Rocky engine. Live on itch.io. Patch 1.2.1 addresses endgame evaluation drift.',
+    actions: ['run_build', 'run_tests', 'generate_patch', 'to_published'],
+  },
+  {
+    id: 'hex-survivors',
+    title: 'Hex Survivors',
+    genre: 'Strategy / Autobattler',
+    stage: 'assets',
+    priority: 'medium',
+    tags: ['godot', 'steam', 'pre-alpha'],
+    metrics: {
+      wishlists: { label: 'Wishlists', value: '0', delta: 'not listed', up: null },
+      retention:  { label: 'Playtest', value: '2/10', delta: 'sessions done', up: null },
+      sessions:   { label: 'Art done', value: '40%', delta: '—', up: null },
+      bugs:       { label: 'Blockers', value: '0', delta: '', up: null },
+    },
+    progress: 40,
+    barClass: 'bar-blue',
+    logs: [
+      { ts: '09:14', cls: 'log-info', msg: 'hex tile sprite set v2 exported' },
+      { ts: '08:55', cls: 'log-warn', msg: 'unit animations: 6 of 15 complete' },
+    ],
+    description: 'Hexagonal autobattler where biomes evolve mid-fight. Asset sprint in progress — tile art and unit animations. Scaffold code complete.',
+    actions: ['run_build', 'open_playtest', 'view_crashes'],
+  },
+  {
+    id: 'gravity-maze',
+    title: 'Gravity Maze',
+    genre: 'Puzzle / Physics',
+    stage: 'scaffold',
+    priority: 'low',
+    tags: ['godot', 'mobile'],
+    metrics: {
+      wishlists: { label: 'Concept score', value: '7.4/10', delta: 'internal review', up: null },
+      retention:  { label: 'Prototype', value: 'WIP', delta: '—', up: null },
+      sessions:   { label: 'Levels done', value: '5', delta: 'of 20 target', up: null },
+      bugs:       { label: 'Blockers', value: '1', delta: 'physics drift', up: null },
+    },
+    progress: 18,
+    barClass: 'bar-blue',
+    logs: [
+      { ts: '14:20', cls: 'log-warn', msg: 'physics drift on mobile: issue #GZ-04' },
+      { ts: '13:45', cls: 'log-ok',   msg: 'scaffold: main scene + 5 levels' },
+    ],
+    description: 'Sokoban-inspired puzzle where gravity flips per block type. Mobile-first. Scaffold underway, physics stability needs resolving before asset work starts.',
+    actions: ['run_build', 'run_tests', 'view_crashes'],
+  },
+  {
+    id: 'forest-idle',
+    title: 'Forest Idle: Ecosystem',
+    genre: 'Idle / Simulation',
+    stage: 'idea',
+    priority: 'low',
+    tags: ['concept', 'steam'],
+    metrics: {
+      wishlists: { label: 'Concept votes', value: '42', delta: 'internal', up: null },
+      retention:  { label: 'Status', value: 'Spec', delta: '—', up: null },
+      sessions:   { label: 'ROI est.', value: 'Medium', delta: '—', up: null },
+      bugs:       { label: 'Blockers', value: '—', delta: '', up: null },
+    },
+    progress: 5,
+    barClass: 'bar-blue',
+    logs: [
+      { ts: '2026-06-20', cls: 'log-info', msg: 'GDD v0.1 written — pending HumanGate' },
+    ],
+    description: 'Idle ecosystem sim: plant trees, attract wildlife, survive seasons. IMP drafted. Awaiting HumanGate go/no-go before scaffold.',
+    actions: ['to_scaffold'],
+  },
+  {
+    id: 'dungeon-draft',
+    title: 'Dungeon Draft',
+    genre: 'Roguelite / Deckbuilder',
+    stage: 'published',
+    priority: 'low',
+    tags: ['steam', 'live', 'v2.1.0'],
+    metrics: {
+      wishlists:  { label: 'Reviews', value: '88% pos', delta: '241 reviews', up: true },
+      retention:  { label: '30-day Ret.', value: '58%', delta: '—', up: null },
+      sessions:   { label: 'Avg Session', value: '41 min', delta: '+5 min', up: true },
+      bugs:       { label: 'Open Bugs', value: '1', delta: 'cosmetic', up: null },
+    },
+    progress: 100,
+    barClass: 'bar-green',
+    logs: [
+      { ts: '2026-06-10', cls: 'log-ok', msg: 'v2.1.0 shipped — hotfix balance patch' },
+      { ts: '2026-06-01', cls: 'log-ok', msg: 'review milestone: 200+ reviews' },
+    ],
+    description: 'Roguelite deckbuilder with procedural dungeon layouts. Live on Steam. Maintenance mode — cosmetic DLC planned for Q4 2026.',
+    actions: ['generate_patch', 'view_crashes'],
+  },
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let selectedProject = null;
+let activeFilter = 'all';
+let stripData = null;
+
+const API_BASE = 'http://localhost:7331';
+const ENDPOINTS = {
+  health:  '/api/health',
+  ledger:  '/api/ledger-status',
+  metrics: '/api/metrics',
+};
+
+// ─────────────────────────────────────────────
+// STRIP — fetch with graceful degradation
+// ─────────────────────────────────────────────
+async function fetchJSON(path, timeout = 4000) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const r = await fetch(API_BASE + path, { signal: ctrl.signal });
+    clearTimeout(id);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } catch {
+    clearTimeout(id);
+    return null;
+  }
+}
+
+async function refreshStrip() {
+  const statusEl = document.getElementById('strip-server-status');
+  const dotServer = document.getElementById('dot-server');
+  const dotHealth = document.getElementById('dot-health');
+  statusEl.textContent = 'refreshing…';
+  statusEl.className = 'pulsing';
+
+  const [health, ledger, metrics] = await Promise.all([
+    fetchJSON(ENDPOINTS.health),
+    fetchJSON(ENDPOINTS.ledger),
+    fetchJSON(ENDPOINTS.metrics),
+  ]);
+
+  const online = !!(health || ledger || metrics);
+
+  if (online) {
+    dotServer.className = 'dot dot-green';
+    statusEl.textContent = 'live';
+    statusEl.className = '';
+  } else {
+    dotServer.className = 'dot dot-yellow';
+    statusEl.textContent = 'offline — mock data';
+    statusEl.className = '';
+  }
+
+  // Health dot
+  if (health) {
+    const allOk = health.venv312 !== false && health.lm !== false;
+    dotHealth.className = allOk ? 'dot dot-green' : 'dot dot-yellow';
+  } else {
+    dotHealth.className = 'dot dot-grey';
+  }
+
+  // Ledger
+  const openEl = document.querySelector('#strip-imp-open span');
+  const nextEl = document.querySelector('#strip-imp-next span');
+  if (ledger) {
+    openEl.textContent = ledger.open ?? ledger.open_count ?? '—';
+    nextEl.textContent = ledger.next_imp ?? ledger.next ?? '—';
+  } else {
+    openEl.textContent = '—';
+    nextEl.textContent = '—';
+  }
+
+  // Metrics
+  const eloEl = document.querySelector('#strip-elo span');
+  const drawEl = document.querySelector('#strip-draw span');
+  if (metrics) {
+    eloEl.textContent = metrics.elo ?? metrics.elo_current ?? '—';
+    drawEl.textContent = metrics.draw_rate ? (metrics.draw_rate * 100).toFixed(1) + '%' : '—';
+  } else {
+    eloEl.textContent = '1 847';   // mock fallback
+    drawEl.textContent = '38.2%';  // mock fallback
+  }
+
+  stripData = { health, ledger, metrics, online };
+}
+
+// ─────────────────────────────────────────────
+// KANBAN RENDER
+// ─────────────────────────────────────────────
+function stageColor(stageId) {
+  return STAGES.find(s => s.id === stageId)?.color ?? '#9090a8';
+}
+
+function priorityColor(p) {
+  return { high: '#f04060', medium: '#f0a742', low: '#5a5a72' }[p] ?? '#5a5a72';
+}
+
+function genreKey(g) {
+  const lower = g.toLowerCase();
+  if (lower.includes('action') || lower.includes('roguelite')) return 'action';
+  if (lower.includes('puzzle') || lower.includes('physics')) return 'puzzle';
+  if (lower.includes('strategy') || lower.includes('autobattler') || lower.includes('deckbuilder')) return 'strategy';
+  return 'other';
+}
+
+function filterCards(genre) {
+  activeFilter = genre;
+  document.querySelectorAll('.board-controls .btn-ghost').forEach(b => {
+    b.style.borderColor = '';
+    b.style.color = '';
+  });
+  const btn = document.getElementById('filter-' + genre);
+  if (btn) { btn.style.borderColor = 'var(--accent)'; btn.style.color = 'var(--text)'; }
+  renderBoard();
+}
+
+function buildCard(project) {
+  const col = stageColor(project.stage);
+  const [mk, mv] = Object.entries(project.metrics)[0];
+  const isSelected = selectedProject?.id === project.id;
+
+  const tagsHtml = project.tags.map(t =>
+    `<span class="tag tag-grey">${t}</span>`
+  ).join('');
+
+  return `
+  <div class="card${isSelected ? ' selected' : ''}" id="card-${project.id}"
+       onclick="selectProject('${project.id}')">
+    <div class="card-priority" style="background:${priorityColor(project.priority)}" title="Priority: ${project.priority}"></div>
+    <div class="card-title">${project.title}</div>
+    <div class="card-genre">${project.genre}</div>
+    <div class="card-metric">
+      <span>${mv.label}</span>
+      <span class="card-metric-val">${mv.value}</span>
+    </div>
+    <div class="card-bar-wrap"><div class="card-bar ${project.barClass}" style="width:${project.progress}%"></div></div>
+    <div class="card-tags" style="margin-top:8px">${tagsHtml}</div>
+  </div>`;
+}
+
+function renderBoard() {
+  const kanban = document.getElementById('kanban');
+  const projects = activeFilter === 'all'
+    ? PROJECTS
+    : PROJECTS.filter(p => genreKey(p.genre) === activeFilter);
+
+  kanban.innerHTML = STAGES.map(stage => {
+    const cards = projects.filter(p => p.stage === stage.id);
+    const cardsHtml = cards.length
+      ? cards.map(buildCard).join('')
+      : `<div class="col-empty">Drop a project here</div>`;
+    return `
+    <div class="column">
+      <div class="col-header">
+        <span class="col-icon">${stage.icon}</span>
+        <span class="col-name" style="color:${stage.color}">${stage.label}</span>
+        <span class="col-count">${cards.length}</span>
+      </div>
+      <div class="col-body">${cardsHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────
+// DETAIL PANEL
+// ─────────────────────────────────────────────
+const ACTION_META = {
+  run_build:      { icon: '⚙️', label: 'Run Build' },
+  run_tests:      { icon: '✅', label: 'Run Tests' },
+  open_playtest:  { icon: '🎮', label: 'Launch Playtest' },
+  generate_patch: { icon: '📦', label: 'Generate Patch' },
+  view_crashes:   { icon: '🔴', label: 'View Crashes', cls: 'destructive' },
+  to_published:   { icon: '🚀', label: 'Mark Published', cls: 'action-full' },
+  to_scaffold:    { icon: '🏗️', label: 'Start Scaffold', cls: 'action-full' },
+};
+
+function selectProject(id) {
+  selectedProject = PROJECTS.find(p => p.id === id);
+  if (!selectedProject) return;
+
+  // Update card highlight
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById('card-' + id);
+  if (card) card.classList.add('selected');
+
+  renderPanel();
+  document.getElementById('detail-panel').classList.remove('hidden');
+}
+
+function closePanel() {
+  selectedProject = null;
+  document.getElementById('detail-panel').classList.add('hidden');
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+}
+
+function renderPanel() {
+  const p = selectedProject;
+  if (!p) return;
+
+  const stage = STAGES.find(s => s.id === p.stage);
+  document.getElementById('panel-title').textContent = p.title;
+  document.getElementById('panel-subtitle').textContent = p.genre + ' · ' + p.tags.join(' · ');
+
+  const badge = document.getElementById('panel-stage-badge');
+  badge.textContent = (stage?.icon ?? '') + ' ' + (stage?.label ?? p.stage);
+  badge.style.background = (stage?.color ?? '#444') + '22';
+  badge.style.color = stage?.color ?? '#aaa';
+  badge.style.border = '1px solid ' + (stage?.color ?? '#444') + '44';
+
+  // Metrics
+  const metricsHtml = Object.values(p.metrics).map(m => {
+    const deltaClass = m.up === true ? 'delta-up' : m.up === false ? 'delta-down' : '';
+    const deltaPrefix = m.up === true ? '▲ ' : m.up === false ? '▼ ' : '';
+    return `
+    <div class="metric-card">
+      <div class="metric-label">${m.label}</div>
+      <div class="metric-value">${m.value}</div>
+      ${m.delta ? `<div class="metric-delta ${deltaClass}">${deltaPrefix}${m.delta}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  // Actions
+  const actionsHtml = p.actions.map(a => {
+    const meta = ACTION_META[a] ?? { icon: '▶', label: a };
+    return `<button class="action-btn ${meta.cls ?? ''}" onclick="handleAction('${p.id}','${a}')">
+      <span class="action-icon">${meta.icon}</span>${meta.label}
+    </button>`;
+  }).join('');
+
+  // Log lines
+  const logsHtml = p.logs.map(l =>
+    `<div class="log-line"><span class="log-ts">${l.ts}</span><span class="${l.cls}">${l.msg}</span></div>`
+  ).join('');
+
+  // Telemetry sparkline (svg mock)
+  const sparkPoints = generateSparkline(p.progress, 20);
+  const col = stage?.color ?? '#6c6ef5';
+
+  document.getElementById('panel-body').innerHTML = `
+  <div class="panel-section">
+    <div class="panel-section-title">Description</div>
+    <p style="color:var(--text2);font-size:12px;line-height:1.6">${p.description}</p>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-section-title">Key Metrics</div>
+    <div class="metrics-grid">${metricsHtml}</div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-section-title">Telemetry — Engagement</div>
+    <div class="tele-wrap">
+      <svg class="tele-sparkline" viewBox="0 0 320 60" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${col}" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="${col}" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="${sparkPoints.area}" fill="url(#sg)"/>
+        <path d="${sparkPoints.line}" fill="none" stroke="${col}" stroke-width="1.5"/>
+      </svg>
+      <div class="tele-placeholder" style="font-size:10px;margin-top:4px">
+        Daily engagement · last 20 sessions (mock) · hook up <code>/api/playtest-sessions</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-section-title">Actions</div>
+    <div class="action-grid">${actionsHtml}</div>
+  </div>
+
+  <div class="panel-section">
+    <div class="panel-section-title">Recent Build Log</div>
+    <div class="log-lines">${logsHtml}</div>
+  </div>
+
+  <div class="panel-section" style="border-top:1px solid var(--border);padding-top:16px">
+    <div class="panel-section-title">Autopilot Endpoints</div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;flex-direction:column;gap:3px">
+      <div><span style="color:var(--green)">GET</span> /api/health · /api/ledger-status · /api/metrics</div>
+      <div><span style="color:var(--yellow)">TODO</span> /api/projects · /api/builds · /api/playtest-sessions</div>
+    </div>
+  </div>`;
+}
+
+function generateSparkline(baseValue, points) {
+  const w = 320, h = 60;
+  const vals = [];
+  let v = baseValue * 0.6 + Math.random() * 10;
+  for (let i = 0; i < points; i++) {
+    v = Math.max(5, Math.min(95, v + (Math.random() - 0.48) * 12));
+    vals.push(v);
+  }
+  const xs = vals.map((_, i) => (i / (points - 1)) * w);
+  const ys = vals.map(v => h - (v / 100) * (h - 6) - 3);
+
+  const linePts = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+  const areaPts = linePts + ` L${w},${h} L0,${h} Z`;
+  return { line: linePts, area: areaPts };
+}
+
+// ─────────────────────────────────────────────
+// ACTIONS
+// ─────────────────────────────────────────────
+function handleAction(projectId, action) {
+  const p = PROJECTS.find(x => x.id === projectId);
+  const labels = {
+    run_build:      () => triggerBuild(p),
+    run_tests:      () => triggerTests(p),
+    open_playtest:  () => showToast('🎮 Launching playtest session…'),
+    generate_patch: () => showToast('📦 Patch generation queued — check autoloop'),
+    view_crashes:   () => showToast('🔴 Crash report: hook up /api/playtest-sessions'),
+    to_published:   () => advanceStage(p, 'published'),
+    to_scaffold:    () => advanceStage(p, 'scaffold'),
+  };
+  (labels[action] ?? (() => showToast('Action: ' + action)))();
+}
+
+async function triggerBuild(p) {
+  showToast('⚙️ Build triggered via autopilot…');
+  // Try real endpoint; degrade gracefully
+  const r = await fetchJSON('/api/autoloop-status');
+  if (r) {
+    showToast('⚙️ Autoloop status fetched — build queued');
+  } else {
+    showToast('⚙️ Offline: build queued (mock)');
+  }
+}
+
+async function triggerTests(p) {
+  showToast('✅ Running tests…');
+  const r = await fetchJSON('/api/lm-probe');
+  if (r) {
+    showToast('✅ LM online · tests dispatched');
+  } else {
+    showToast('✅ Offline: mock test pass (412/412)');
+  }
+}
+
+function advanceStage(p, to) {
+  const stageIdx = STAGES.findIndex(s => s.id === to);
+  if (stageIdx < 0) return;
+  p.stage = to;
+  p.progress = Math.max(p.progress, Math.round((stageIdx / (STAGES.length - 1)) * 100));
+  renderBoard();
+  renderPanel();
+  showToast(`Moved "${p.title}" → ${STAGES[stageIdx].label}`);
+}
+
+function showNewProjectModal() {
+  const title = prompt('New project title:');
+  if (!title) return;
+  const genre = prompt('Genre (e.g. Action / Roguelite):') ?? 'Unknown';
+  const id = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  PROJECTS.push({
+    id,
+    title,
+    genre,
+    stage: 'idea',
+    priority: 'medium',
+    tags: ['new'],
+    metrics: {
+      status: { label: 'Status', value: 'Concept', delta: '', up: null },
+    },
+    progress: 2,
+    barClass: 'bar-blue',
+    logs: [{ ts: new Date().toLocaleTimeString('fr', {hour:'2-digit',minute:'2-digit'}), cls: 'log-info', msg: 'Project created' }],
+    description: 'New project — fill in GDD.',
+    actions: ['to_scaffold'],
+  });
+  renderBoard();
+  showToast(`Added "${title}" to Idea stage`);
+}
+
+// ─────────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────────
+let _toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+function init() {
+  renderBoard();
+  refreshStrip();
+  // Auto-refresh strip every 30s
+  setInterval(refreshStrip, 30_000);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

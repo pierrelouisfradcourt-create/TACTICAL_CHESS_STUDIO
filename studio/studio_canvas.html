@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tactical Chess Studio — Canvas</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0d;--surface:#161616;--surface2:#1e1e1e;--border:#2a2a2a;
+  --text:#e8e4d9;--muted:#666;
+  --accent:#c8a96e;--accent-dim:#8a7048;
+  --pass:#27ae60;--fail:#c0392b;--blocked:#e67e22;--pending:#3498db;
+}
+body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;
+  min-height:100vh;display:flex;flex-direction:column;gap:1rem;padding:1rem;}
+
+/* ── Topbar ──────────────────────────────────────────────── */
+.topbar{display:flex;align-items:center;gap:1rem;padding:.7rem 1rem;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;}
+.topbar h1{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;
+  color:var(--accent);letter-spacing:-.02em;flex:1;}
+.verdict-badge{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  padding:.3rem .7rem;border-radius:4px;border:1px solid;}
+.verdict-badge.PASS{color:var(--pass);border-color:var(--pass)}
+.verdict-badge.FAIL{color:var(--fail);border-color:var(--fail)}
+.verdict-badge.BLOCKED{color:var(--blocked);border-color:var(--blocked)}
+.verdict-badge.UNKNOWN{color:var(--muted);border-color:var(--muted)}
+.ts{font-size:.58rem;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
+.dot.ok{background:var(--pass)}.dot.err{background:var(--fail)}.dot.spin{background:var(--accent);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── Grid ────────────────────────────────────────────────── */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+
+/* ── Cards ───────────────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem}
+.card h2{font-size:.6rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;
+  margin-bottom:.8rem;padding-bottom:.4rem;border-bottom:1px solid var(--border)}
+
+/* ── ELO ─────────────────────────────────────────────────── */
+.elo-row{display:flex;flex-direction:column;gap:.6rem;margin-bottom:.8rem}
+.elo-label{display:flex;justify-content:space-between;font-size:.68rem;margin-bottom:.2rem}
+.elo-label .name{color:var(--muted)}
+.elo-label .val{color:var(--text);font-weight:700}
+.bar-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.bar-fill.hybrid{background:var(--accent)}
+.bar-fill.heuristic{background:#5dade2}
+.bar-fill.neural{background:#8e44ad}
+.delta{font-size:.72rem;margin-top:.6rem;padding:.5rem;background:var(--surface2);border-radius:5px}
+.delta .d-val{font-weight:700}
+.delta .d-val.pos{color:var(--pass)}.delta .d-val.neg{color:var(--fail)}
+.target-note{font-size:.6rem;color:var(--muted);margin-top:.3rem}
+
+/* ── Oracles ─────────────────────────────────────────────── */
+.oracle-row{display:flex;justify-content:space-between;align-items:center;
+  padding:.45rem .5rem;border-radius:5px;font-size:.68rem;margin-bottom:.3rem;
+  background:var(--surface2)}
+.oracle-row .on{color:var(--muted)}.oracle-row .ov{font-weight:700}
+.oracle-row .ov.PASS{color:var(--pass)}.oracle-row .ov.FAIL{color:var(--fail)}
+.oracle-row .ov.NA{color:var(--muted)}
+.level-row{display:flex;gap:.4rem;margin-top:.4rem;flex-wrap:wrap}
+.lvl-chip{font-size:.6rem;padding:.2rem .5rem;border-radius:3px;border:1px solid}
+.lvl-chip.PASS{color:var(--pass);border-color:var(--pass)}
+.lvl-chip.FAIL{color:var(--fail);border-color:var(--fail)}
+
+/* ── IMPs ────────────────────────────────────────────────── */
+.imp-list{display:flex;flex-direction:column;gap:.3rem;max-height:200px;overflow-y:auto}
+.imp-item{font-size:.65rem;padding:.3rem .5rem;background:var(--surface2);
+  border-radius:4px;border-left:2px solid var(--accent-dim);color:var(--muted)}
+.imp-item .imp-id{color:var(--accent);font-weight:700;margin-right:.4rem}
+.imp-empty{font-size:.68rem;color:var(--pass)}
+
+/* ── Blockers ────────────────────────────────────────────── */
+.blocker-band{background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.4);
+  border-radius:8px;padding:.8rem 1rem;display:flex;flex-direction:column;gap:.4rem}
+.blocker-band h2{color:var(--fail);border-color:rgba(192,57,43,.3)}
+.blocker-item{font-size:.68rem;color:var(--fail)}
+.blocker-item::before{content:"⚠ ";opacity:.7}
+.no-blockers{font-size:.68rem;color:var(--pass)}
+
+/* ── Gates Pierre ────────────────────────────────────────── */
+.gates-section{background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:1rem}
+.gates-section h2{font-size:.6rem;color:var(--muted);letter-spacing:.14em;
+  text-transform:uppercase;margin-bottom:.8rem;padding-bottom:.4rem;
+  border-bottom:1px solid var(--border)}
+.gates-grid{display:flex;flex-direction:column;gap:.6rem}
+.gate-card{background:var(--surface2);border:1px solid var(--pending);
+  border-radius:6px;padding:.8rem;display:flex;flex-direction:column;gap:.4rem}
+.gate-meta{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.gate-id{font-size:.6rem;color:var(--pending);font-weight:700}
+.gate-agent{font-size:.58rem;color:var(--muted);background:var(--border);
+  padding:.1rem .4rem;border-radius:3px}
+.gate-ts{font-size:.58rem;color:var(--muted);margin-left:auto}
+.gate-title{font-size:.72rem;font-weight:700}
+.gate-desc{font-size:.65rem;color:var(--muted);line-height:1.5}
+.gate-actions{display:flex;gap:.5rem;margin-top:.2rem}
+.btn{padding:.4rem .9rem;font-family:'Space Mono',monospace;font-size:.62rem;
+  letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:5px;
+  border:1px solid;transition:all .15s}
+.btn:hover{transform:scale(1.02)}.btn:active{transform:scale(.98)}
+.btn-approve{background:rgba(39,174,96,.1);border-color:var(--pass);color:var(--pass)}
+.btn-approve:hover{background:rgba(39,174,96,.2)}
+.btn-reject{background:rgba(192,57,43,.1);border-color:var(--fail);color:var(--fail)}
+.btn-reject:hover{background:rgba(192,57,43,.2)}
+.no-gates{font-size:.68rem;color:var(--muted)}
+
+/* ── Modal ───────────────────────────────────────────────── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);
+  z-index:100;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:1.5rem;width:min(480px,90vw);display:flex;flex-direction:column;gap:1rem}
+.modal h3{font-family:'Syne',sans-serif;color:var(--accent);font-size:.9rem}
+.modal-meta{font-size:.65rem;color:var(--muted)}
+.modal textarea{background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);font-family:'Space Mono',monospace;font-size:.68rem;
+  border-radius:5px;padding:.6rem;resize:vertical;min-height:80px;width:100%}
+.modal textarea:focus{outline:none;border-color:var(--accent-dim)}
+.modal-actions{display:flex;gap:.5rem}
+.btn-cancel{background:none;border-color:var(--border);color:var(--muted)}
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <h1>TACTICAL CHESS STUDIO</h1>
+  <span class="verdict-badge UNKNOWN" id="global-verdict">—</span>
+  <span class="ts" id="ts">—</span>
+  <div class="dot spin" id="dot" title="Connexion gateway"></div>
+</div>
+
+<!-- Main grid -->
+<div class="grid">
+
+  <!-- ELO -->
+  <div class="card">
+    <h2>ELO</h2>
+    <div class="elo-row">
+      <div class="elo-label"><span class="name">Hybride</span><span class="val" id="elo-hybrid">—</span></div>
+      <div class="bar-track"><div class="bar-fill hybrid" id="bar-hybrid" style="width:0%"></div></div>
+    </div>
+    <div class="elo-row">
+      <div class="elo-label"><span class="name">Heuristique</span><span class="val" id="elo-heuristic">—</span></div>
+      <div class="bar-track"><div class="bar-fill heuristic" id="bar-heuristic" style="width:0%"></div></div>
+    </div>
+    <div class="elo-row">
+      <div class="elo-label"><span class="name">Neural seul</span><span class="val" id="elo-neural">—</span></div>
+      <div class="bar-track"><div class="bar-fill neural" id="bar-neural" style="width:0%"></div></div>
+    </div>
+    <div class="delta">
+      Δ hybride vs heuristique : <span class="d-val" id="delta">—</span>
+      <div class="target-note" id="target-note">cible : heuristique + 20</div>
+    </div>
+  </div>
+
+  <!-- Oracles -->
+  <div class="card">
+    <h2>Oracles</h2>
+    <div class="oracle-row">
+      <span class="on">ELO match</span>
+      <span class="ov NA" id="elo-verdict">—</span>
+    </div>
+    <div class="oracle-row">
+      <span class="on">Lichess puzzles</span>
+      <span class="ov NA" id="pzl-verdict">—</span>
+    </div>
+    <div class="level-row" id="pzl-levels"></div>
+  </div>
+
+  <!-- IMPs ouverts -->
+  <div class="card">
+    <h2>IMPs ouverts</h2>
+    <div class="imp-list" id="imp-list">
+      <span class="imp-item">Chargement…</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Blockers -->
+<div id="blockers-wrap"></div>
+
+<!-- Gates Pierre -->
+<div class="gates-section">
+  <h2>Gates Pierre</h2>
+  <div class="gates-grid" id="gates-grid">
+    <span class="no-gates">Aucune gate en attente.</span>
+  </div>
+</div>
+
+<!-- Modal justification -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Gate Pierre</h3>
+    <div class="modal-meta" id="modal-meta"></div>
+    <textarea id="modal-justif" placeholder="Justification (optionnelle)…"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-approve" id="modal-approve">✓ Approuver</button>
+      <button class="btn btn-reject"  id="modal-reject">✗ Rejeter</button>
+      <button class="btn btn-cancel"  id="modal-cancel">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const GW = 'http://127.0.0.1:8766';
+const POLL_MS = 5000;
+
+let _pendingGate = null;
+
+// ── Fetch & render ────────────────────────────────────────
+async function refresh() {
+  const dot = document.getElementById('dot');
+  try {
+    const res = await fetch(`${GW}/api/meta`, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    dot.className = 'dot ok';
+    render(d);
+  } catch(e) {
+    dot.className = 'dot err';
+    setVerdict('UNKNOWN');
+  }
+}
+
+function render(d) {
+  // Timestamp
+  const ts = d.timestamp ? new Date(d.timestamp).toLocaleString('fr-FR') : '—';
+  document.getElementById('ts').textContent = ts;
+
+  // Verdict global
+  const gv = d.global_verdict || 'UNKNOWN';
+  setVerdict(gv);
+
+  // ELO — préférer elo_live (après patch C) sinon fallback memory
+  const live = d.elo_live || {};
+  const mem  = d.memory || {};
+  const hybrid    = live.hybrid    ?? mem.elo_hybrid    ?? null;
+  const heuristic = live.heuristic ?? mem.elo_heuristic ?? null;
+  const neural    = live.neural    ?? mem.elo_neural    ?? null;
+  const delta     = live.delta     ?? (d.oracles?.elo_match?.delta_hybrid_vs_heuristic ?? null);
+
+  const ELO_MAX = 1600;
+  setElo('elo-hybrid',    'bar-hybrid',    hybrid,    ELO_MAX);
+  setElo('elo-heuristic', 'bar-heuristic', heuristic, ELO_MAX);
+  setElo('elo-neural',    'bar-neural',    neural,    ELO_MAX);
+
+  const deltaEl = document.getElementById('delta');
+  if (delta !== null) {
+    const sign = delta >= 0 ? '+' : '';
+    deltaEl.textContent = `${sign}${delta.toFixed(1)} pts`;
+    deltaEl.className = 'd-val ' + (delta >= 20 ? 'pos' : 'neg');
+  } else {
+    deltaEl.textContent = '—';
+    deltaEl.className = 'd-val';
+  }
+
+  const target = mem.elo_target || 'heuristique + 20';
+  document.getElementById('target-note').textContent = `cible : ${target}`;
+
+  // Oracles
+  const elo_o = d.oracles?.elo_match || {};
+  const pzl_o = d.oracles?.lichess_eval || {};
+  setOracle('elo-verdict', elo_o.available ? elo_o.verdict : 'NA');
+  setOracle('pzl-verdict', pzl_o.available ? pzl_o.verdict : 'NA');
+
+  const levelsEl = document.getElementById('pzl-levels');
+  levelsEl.innerHTML = '';
+  (pzl_o.levels || []).forEach(lv => {
+    const chip = document.createElement('span');
+    chip.className = `lvl-chip ${lv.verdict}`;
+    chip.textContent = `L${lv.level} ${lv.solved_pct?.toFixed(1)}%`;
+    chip.title = `seuil ${lv.threshold_pct}%`;
+    levelsEl.appendChild(chip);
+  });
+
+  // IMPs
+  const impEl = document.getElementById('imp-list');
+  impEl.innerHTML = '';
+  const valides = d.imps_info?.valides || [];
+  if (valides.length === 0) {
+    impEl.innerHTML = '<span class="imp-empty">Aucun IMP ouvert ✓</span>';
+  } else {
+    valides.forEach(id => {
+      const el = document.createElement('div');
+      el.className = 'imp-item';
+      el.innerHTML = `<span class="imp-id">${id}</span>`;
+      impEl.appendChild(el);
+    });
+  }
+
+  // Blockers
+  renderBlockers(d.blockers || []);
+
+  // Gates Pierre
+  renderGates(d.pending_gates || []);
+}
+
+function setVerdict(v) {
+  const el = document.getElementById('global-verdict');
+  el.textContent = v;
+  el.className = `verdict-badge ${v}`;
+}
+
+function setElo(valId, barId, val, max) {
+  document.getElementById(valId).textContent = val !== null ? Math.round(val) : '—';
+  document.getElementById(barId).style.width = val !== null ? `${Math.min(100, (val / max) * 100).toFixed(1)}%` : '0%';
+}
+
+function setOracle(id, verdict) {
+  const el = document.getElementById(id);
+  el.textContent = verdict || 'NA';
+  el.className = `ov ${verdict || 'NA'}`;
+}
+
+function renderBlockers(blockers) {
+  const wrap = document.getElementById('blockers-wrap');
+  if (blockers.length === 0) {
+    wrap.innerHTML = '';
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="blocker-band">
+      <h2>Bloqueurs</h2>
+      ${blockers.map(b => `<div class="blocker-item">${escHtml(b)}</div>`).join('')}
+    </div>`;
+}
+
+function renderGates(gates) {
+  const el = document.getElementById('gates-grid');
+  if (gates.length === 0) {
+    el.innerHTML = '<span class="no-gates">Aucune gate en attente.</span>';
+    return;
+  }
+  el.innerHTML = gates.map(g => `
+    <div class="gate-card">
+      <div class="gate-meta">
+        <span class="gate-id">${escHtml(g.gate_id)}</span>
+        <span class="gate-agent">@${escHtml(g.agent || '?')}</span>
+        <span class="gate-ts">${g.created_at ? new Date(g.created_at).toLocaleString('fr-FR') : ''}</span>
+      </div>
+      <div class="gate-title">${escHtml(g.title)}</div>
+      ${g.description ? `<div class="gate-desc">${escHtml(g.description)}</div>` : ''}
+      <div class="gate-actions">
+        <button class="btn btn-approve" onclick="openModal(${JSON.stringify(g)}, 'APPROVE')">✓ Approuver</button>
+        <button class="btn btn-reject"  onclick="openModal(${JSON.stringify(g)}, 'REJECT')">✗ Rejeter</button>
+      </div>
+    </div>`).join('');
+}
+
+// ── Modal ─────────────────────────────────────────────────
+function openModal(gate, verdict) {
+  _pendingGate = { gate, verdict };
+  document.getElementById('modal-title').textContent =
+    verdict === 'APPROVE' ? `Approuver : ${gate.title}` : `Rejeter : ${gate.title}`;
+  document.getElementById('modal-meta').textContent =
+    `${gate.gate_id} · @${gate.agent || '?'}`;
+  document.getElementById('modal-justif').value = '';
+  document.getElementById('modal').classList.add('show');
+  document.getElementById('modal-justif').focus();
+}
+
+document.getElementById('modal-approve').addEventListener('click', () => submitGate('APPROVE'));
+document.getElementById('modal-reject').addEventListener('click',  () => submitGate('REJECT'));
+document.getElementById('modal-cancel').addEventListener('click',  closeModal);
+document.getElementById('modal').addEventListener('click', e => { if(e.target.id === 'modal') closeModal(); });
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+  _pendingGate = null;
+}
+
+async function submitGate(verdict) {
+  if (!_pendingGate) return;
+  const { gate } = _pendingGate;
+  const justif = document.getElementById('modal-justif').value.trim();
+  closeModal();
+  try {
+    const res = await fetch(`${GW}/api/gate/${encodeURIComponent(gate.gate_id)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verdict, justification: justif || null }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(`Erreur gate : ${err.detail || res.status}`);
+    } else {
+      await refresh();
+    }
+  } catch(e) {
+    alert(`Gateway inaccessible : ${e.message}`);
+  }
+}
+
+// ── Util ──────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ──────────────────────────────────────────────────
+refresh();
+setInterval(refresh, POLL_MS);
+</script>
+</body>
+</html>

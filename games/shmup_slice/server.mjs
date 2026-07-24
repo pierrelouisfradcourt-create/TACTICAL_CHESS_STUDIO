@@ -30,6 +30,7 @@ const MIME = {
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
 };
 
 function typeFor(path) {
@@ -38,7 +39,7 @@ function typeFor(path) {
 
 // Autorise uniquement des sous-chemins sûrs (lettres/chiffres/-_/. et /) avec
 // une extension whitelistée — pas de fichier arbitraire hors du dossier du jeu.
-const ALLOWED_PATH = /^\/[a-zA-Z0-9_\-./]+\.(mjs|js|css|json)$/;
+const ALLOWED_PATH = /^\/[a-zA-Z0-9_\-./]+\.(mjs|js|css|json|png)$/;
 
 async function serveFile(res, base, relPath) {
   try {

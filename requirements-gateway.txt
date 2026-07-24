@@ -1,0 +1,8 @@
+# requirements-gateway.txt — dependances de scripts/canvas_gateway.py (port :8766)
+# Sert le cockpit canonique (studio_v2_ux/studio_cockpit.html) : SSE /api/meta/stream
+# + REST read-only (director/factory/neural/openclaw) + gate HMAC.
+# Install : python -m pip install -r requirements-gateway.txt
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pyyaml>=6.0          # canvas_gateway importe yaml (roster OpenClaw)
+# pydantic est tire par fastapi (BaseModel des payloads gate/refresh)

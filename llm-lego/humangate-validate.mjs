@@ -95,7 +95,7 @@ try {
 
   // 6) REGRESSION: Wire Map 12, library 11 kinds reachable.
   const wm = await api("/api/wireframes/llm-lego");
-  check("REGRESSION: Wire Map llm-lego still 12 entries", (wm?.entries || []).length === 12);
+  check("REGRESSION: Wire Map llm-lego still 13 entries", (wm?.entries || []).length === 13);
   await page.getByTestId("tab-library").click();
   const kinds = await page.$$eval('[data-testid="lib-filter"] option', (els) => els.map((e) => e.value));
   check("REGRESSION: library filter offers all 11 kinds + Tous", JSON.stringify(kinds) === JSON.stringify(["all", "agent", "prompt", "chain", "oracle", "roadmap", "goal", "outputformat", "router", "tool", "note", "artefact"]));

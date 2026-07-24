@@ -1,0 +1,78 @@
+{
+  "project": "collect_runner",
+  "run_id": "collect_runner-20260710",
+  "software_verdict": "FAIL",
+  "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "decision": "BLOCKED",
+  "oracles": {
+    "code": {
+      "oracle_id": "code",
+      "run_id": "collect_runner-20260710",
+      "status": "OK",
+      "evidence_sha256": "9403c972f564bf6dd58a5f0aee14d0d2d5535f8621fcb338dc4fc87c41c5f3ea",
+      "detail": {
+        "returncode": 0
+      },
+      "ts": 0.0
+    },
+    "archi": {
+      "oracle_id": "archi",
+      "run_id": "collect_runner-20260710",
+      "status": "OK",
+      "evidence_sha256": "",
+      "detail": {
+        "passed": true,
+        "deps_interdites_violées": [],
+        "modules_sans_test": [],
+        "debordements_ownership": {
+          "checked": false,
+          "items": []
+        }
+      },
+      "ts": 0.0
+    },
+    "wiremap": {
+      "oracle_id": "wiremap",
+      "run_id": "collect_runner-20260710",
+      "status": "FAIL",
+      "evidence_sha256": "",
+      "detail": {
+        "passed": false,
+        "features_manquantes": [],
+        "fonctions_renommées": [
+          "R1 avance auto:step",
+          "R2 deplacement gauche:applyInput",
+          "R3 deplacement droite:applyInput",
+          "R4 saut:jump",
+          "R5 pas de double saut:jump",
+          "R6 gravite et retombee:applyGravity",
+          "R7 collecte piece -> compteur+1:collectCoin",
+          "R8 collision obstacle -> defaite:hitObstacle",
+          "R9 defaite fige la progression:step",
+          "R10 fin de niveau -> niveau suivant:nextLevel",
+          "R11 dernier niveau fini -> victoire:nextLevel",
+          "R12 generation seedee deterministe:generateLevel"
+        ],
+        "obsoletes": [],
+        "preuves_absentes": []
+      },
+      "ts": 0.0
+    }
+  },
+  "redteam_reviewer": "qwen2.5-14b-instruct",
+  "redteam_ran": true,
+  "provenance_ok": true,
+  "git_head": "d28190ace461fedb035b7080bc8401acfa050b33",
+  "nonce": "969bdf58712439bb9a7c669b9f34c5f1",
+  "ts": 0.0,
+  "redteam_advisory": [
+    "Qwen(plan): preuve jump vy/onGround manquante",
+    "Qwen: reset pièces au passage niveau",
+    "Qwen: interface game/level à clarifier"
+  ],
+  "humangate_flags": [
+    "wiremap rouge: violation"
+  ],
+  "hmac": "1a3b65219d70610ef8543d1a9307d7753baa5c4791504156fea6d17e72be4ced"
+}

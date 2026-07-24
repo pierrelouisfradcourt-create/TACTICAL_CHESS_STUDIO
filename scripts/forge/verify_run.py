@@ -26,6 +26,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from forge.context_manifest import verify_manifest_record
 from forge.mutation_proof import verify_mutation_receipt
 from forge.verdict import _verify_mapping, current_git_head, sha256_file
 
@@ -118,6 +119,52 @@ def _check_knowledge_trace(run_dir: Path) -> tuple[list[str], list[str]]:
     return problems, warnings
 
 
+def _check_context_manifest(run_dir: Path, key_file: Path | None) -> tuple[list[str], list[str]]:
+    """Contrôle du Context Manifest (mesure advisory de fraîcheur/traçabilité,
+    docs/forge/CONTEXT_LOOP_V1_1_FRESHNESS.md §7) — PAS un gate : cette fonction
+    ne fait QUE recouper une mesure déjà écrite, elle ne décide rien et n'entre
+    PAS dans les gates existants du driver (hmac_ok/evidence/knowledge_trace).
+
+    - fichier manifest ABSENT (répertoire ``context/`` absent ou vide) : simple
+      note informative (les runs antérieurs à cette mesure n'en portent pas) —
+      JAMAIS un problème, jamais un échec.
+    - ligne présente avec HMAC invalide : problème DUR (la mesure a été altérée
+      après coup — la ligne ne prouve plus rien).
+    - on ne re-vérifie PAS que les sources listées sont inchangées : elles
+      évoluent légitimement après le run (c'est le travail du context_check,
+      pas de verify_run).
+
+    Retourne (problems, notes) — n'affecte JAMAIS ``overall``."""
+    problems: list[str] = []
+    notes: list[str] = []
+    ctx_dir = Path(run_dir) / "context"
+    if not ctx_dir.is_dir():
+        notes.append("context manifest absent (run antérieur à cette mesure, non bloquant)")
+        return problems, notes
+    manifest_files = sorted(ctx_dir.glob("*.manifest.jsonl"))
+    if not manifest_files:
+        notes.append("répertoire context/ vide — aucune ligne de manifest à recouper (non bloquant)")
+        return problems, notes
+    for mf in manifest_files:
+        try:
+            raw_text = mf.read_text(encoding="utf-8")
+        except OSError as exc:
+            notes.append(f"{mf.name}: illisible ({exc}) — non bloquant")
+            continue
+        for i, raw in enumerate(raw_text.splitlines(), start=1):
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                rec = json.loads(raw)
+            except ValueError:
+                problems.append(f"{mf.name}:{i}: ligne JSON invalide")
+                continue
+            if not verify_manifest_record(rec, key_file):
+                problems.append(f"{mf.name}:{i}: HMAC invalide (kind={rec.get('kind')!r})")
+    return problems, notes
+
+
 def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
     """Vérifie un verdict.json. Retourne un dict structuré (jamais ne lève sur contenu)."""
     path = Path(verdict_path)
@@ -161,6 +208,11 @@ def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
     knowledge_trace_problems, knowledge_trace_warnings = _check_knowledge_trace(path.parent)
     knowledge_trace_ok = not knowledge_trace_problems
 
+    # (5) Context Manifest (advisory, jamais un gate) : recoupe les lignes déjà
+    # écrites, n'entre PAS dans `overall` — c'est une mesure de fraîcheur, pas
+    # un oracle de vérité logicielle (cf. _check_context_manifest ci-dessus).
+    context_manifest_problems, context_manifest_notes = _check_context_manifest(path.parent, key_file)
+
     overall = hmac_ok and evidence_ok and mutation_ok and knowledge_trace_ok
     return {
         "overall": overall,
@@ -175,6 +227,8 @@ def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
         "knowledge_trace_ok": knowledge_trace_ok,
         "knowledge_trace_problems": knowledge_trace_problems,
         "knowledge_trace_warnings": knowledge_trace_warnings,
+        "context_manifest_problems": context_manifest_problems,
+        "context_manifest_notes": context_manifest_notes,
         "software_verdict": data.get("software_verdict"),
         "decision": data.get("decision"),
     }

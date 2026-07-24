@@ -114,6 +114,31 @@ def test_mandatory_read_present_dans_payload(contract):
     assert tuple(contract["mandatory_read"]) == payload.mandatory_read
 
 
+# --- R2 (audit branchements 2026-07-24) : marqueur FORGE_DISPATCH injecté ---
+
+def test_prompt_porte_le_marqueur_forge_dispatch_matchant_la_regex_du_hook(contract):
+    """Avant ce correctif, le marqueur FORGE_DISPATCH:<etape>:<run_id> attendu par
+    hook_guard.MARKER était apposé À LA MAIN par l'orchestrateur — build_dispatch_
+    payload (donc _render_prompt) ne l'injectait pas. Avec run_id fourni, le prompt
+    DOIT contenir exactement un marqueur valide, avec les vraies valeurs."""
+    from forge.hook_guard import MARKER
+    payload = build_dispatch_payload(contract, etape=FIXTURE, run_id="run-42")
+    matches = MARKER.findall(payload.prompt)
+    assert len(matches) == 1, f"un seul marqueur attendu, trouvé: {matches}"
+    etape, run_id = matches[0]
+    assert etape == FIXTURE
+    assert run_id == "run-42"
+
+
+def test_marqueur_absent_sans_run_id_comportement_inchange(contract):
+    """Sans run_id (comme tous les appels directs existants, ex. tests C1/C2 ci-
+    dessus) : aucun marqueur — comportement STRICTEMENT inchangé pour un appel de
+    build_dispatch_payload hors du contexte d'un run réel."""
+    from forge.hook_guard import MARKER_TOKEN
+    payload = build_dispatch_payload(contract, etape=FIXTURE)
+    assert MARKER_TOKEN not in payload.prompt
+
+
 # --- C1 : la porte qui bloque ---
 
 def test_critique_absent_refuse(contract):

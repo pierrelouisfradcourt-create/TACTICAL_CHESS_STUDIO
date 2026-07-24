@@ -13,6 +13,8 @@ import { hasSafeCorridor, findSafeX, isSafeAt } from './logic/dodge.mjs';
 import { awardScore, updateScoreFromKills } from './logic/scoring.mjs';
 import { spawnProjectile } from './logic/projectiles.mjs';
 import { MAP_1 } from './data/maps.mjs';
+import { runBot } from './bot/solver.mjs';
+import { initializeGame } from './main.mjs';
 
 test('Initial state setup', (t) => {
   const state = createInitialState();
@@ -854,4 +856,195 @@ test('R25 — logic/*.mjs et bot/*.mjs n\'importent pas render/input/main, aucun
       }
     }
   }
+});
+
+// ===========================================================================
+// R22 — bot/solver.mjs sous le GATE MUTATION via son SEUL point d'entrée
+// public (runBot). computeBotInputs est interne (non exporté) et NE PEUT PAS
+// être testé en isolation sans modifier bot/solver.mjs (interdit) : on le
+// couvre donc par le comportement OBSERVABLE de runBot, verrouillé sur une
+// trace déterministe exacte (seed => run identique). Cette empreinte tue les
+// mutants d'opérateur de solver.mjs qui altèrent la navigation/l'esquive/la
+// boucle/le verdict (issue/statut/score/vies/niveau/pas/esquivabilité).
+// ===========================================================================
+test('R22 — runBot : trace déterministe EXACTE par seed (empreinte anti-mutation du bot)', () => {
+  // Valeurs gelées mesurées sur le code livré (run reproductible, RNG seedé,
+  // DT fixe). Tout mutant qui change la politique du bot, sa boucle de jeu ou
+  // le calcul du verdict fait diverger AU MOINS un de ces champs.
+  const EXPECTED = [
+    { seed: 1, won: true, finalStatus: 'WON', finalLevel: 3, finalScore: 9400, finalLives: 3, steps: 3875 },
+    { seed: 2, won: true, finalStatus: 'WON', finalLevel: 3, finalScore: 9400, finalLives: 2, steps: 3882 },
+    { seed: 3, won: true, finalStatus: 'WON', finalLevel: 3, finalScore: 9400, finalLives: 1, steps: 3523 },
+    { seed: 4, won: true, finalStatus: 'WON', finalLevel: 3, finalScore: 9700, finalLives: 3, steps: 3798 },
+    { seed: 5, won: true, finalStatus: 'WON', finalLevel: 3, finalScore: 9700, finalLives: 3, steps: 4363 },
+  ];
+  for (const e of EXPECTED) {
+    const r = runBot(e.seed);
+    strictEqual(r.won, e.won, `seed ${e.seed}: won (tue eq->neq @L61 'status===WON', et tout mutant faisant perdre le bot : L23/L50/L33/L35)`);
+    strictEqual(r.finalStatus, e.finalStatus, `seed ${e.seed}: finalStatus`);
+    strictEqual(r.finalLevel, e.finalLevel, `seed ${e.seed}: finalLevel`);
+    strictEqual(r.finalScore, e.finalScore, `seed ${e.seed}: finalScore EXACT (tue true->false @L34 / false->true @L33 qui dévient la visée)`);
+    strictEqual(r.finalLives, e.finalLives, `seed ${e.seed}: finalLives EXACT`);
+    strictEqual(r.steps, e.steps, `seed ${e.seed}: steps EXACT (tue or->and @L25 'width||0', et les mutants de boucle L50 qui itèrent jusqu'à MAX_STEPS)`);
+    strictEqual(r.corridorViolations, 0, `seed ${e.seed}: aucune frame sans couloir sûr`);
+    strictEqual(r.corridorAlwaysSafe, true, `seed ${e.seed}: corridorAlwaysSafe (tue eq->neq @L69 'corridorViolations===0')`);
+  }
+});
+
+// ===========================================================================
+// R26 — main.mjs (intégration boucle + hooks) sous le GATE MUTATION.
+// Environnement navigateur SIMULÉ, sans navigateur réel : window/rAF/Image/
+// canvas stubés. On pilote la vraie boucle de jeu (main.mjs + render.mjs réel)
+// et les hooks debug (setLevel/spawnBoss/forceWin/forceLose) pour tuer les
+// mutants d'opérateur de main.mjs (garde window, détection over, bornes
+// setLevel/spawnBoss, accumulateur à pas fixe, source d'entrée, garde start()).
+// ===========================================================================
+function makeFakeCtx() {
+  // Proxy universel : toute lecture de propriété renvoie le proxy (callable et
+  // chaînable — createLinearGradient().addColorStop() marche), tout appel
+  // renvoie le proxy. Suffit à render.mjs pour ne jamais throw ; le rendu
+  // produit n'a aucune importance pour les mutants de LOGIQUE de main.mjs.
+  const canvas = { width: GAME_WIDTH, height: GAME_HEIGHT, style: {} };
+  const p = new Proxy(function () {}, {
+    get(t, prop) {
+      if (prop === 'canvas') return canvas;
+      if (prop === Symbol.toPrimitive) return () => 0;
+      return p;
+    },
+    set() { return true; },
+    apply() { return p; },
+  });
+  return p;
+}
+function makeFakeCanvas() {
+  return { getContext: () => makeFakeCtx(), width: GAME_WIDTH, height: GAME_HEIGHT, style: {} };
+}
+function withBrowserEnv(fn) {
+  const saved = {
+    window: globalThis.window,
+    raf: globalThis.requestAnimationFrame,
+    caf: globalThis.cancelAnimationFrame,
+    img: globalThis.Image,
+  };
+  const listeners = {};
+  const rafCbs = [];
+  globalThis.window = { addEventListener: (ev, cb) => { (listeners[ev] ||= []).push(cb); } };
+  globalThis.requestAnimationFrame = (cb) => { rafCbs.push(cb); return rafCbs.length; };
+  globalThis.cancelAnimationFrame = () => {};
+  globalThis.Image = class { set src(v) {} set onload(f) {} set onerror(f) {} addEventListener() {} };
+  try {
+    return fn({ listeners, rafCbs, canvas: makeFakeCanvas() });
+  } finally {
+    globalThis.window = saved.window;
+    globalThis.requestAnimationFrame = saved.raf;
+    globalThis.cancelAnimationFrame = saved.caf;
+    globalThis.Image = saved.img;
+  }
+}
+
+test('R26 — main.mjs headless (sans window/rAF) : initializeGame+start ne throw pas, aucun hook (garde L58/L103)', () => {
+  // Aucun environnement navigateur : window et requestAnimationFrame sont
+  // indéfinis. exposeGameHooks (L58) DOIT retourner tôt ; start() (L103, mode
+  // headless) DOIT être un no-op. Les mutants inversent ces gardes et touchent
+  // window/requestAnimationFrame indéfinis => ReferenceError => test rouge.
+  ok(typeof globalThis.window === 'undefined', 'pré-condition : pas de window (environnement propre)');
+  const g = initializeGame(null, 1, null); // L58 eq->neq : mutant tenterait window.__game=... => throw
+  g.start();                               // L103 and->or : mutant tenterait requestAnimationFrame(...) => throw
+  ok(g && g.state, 'jeu construit en headless sans throw');
+  strictEqual(g.state.level, 1, 'état initial intact');
+});
+
+test('R26 — main.mjs L18 : avec window, câble createInputHandler (listener clavier), pas getNullInput', () => {
+  withBrowserEnv(({ listeners }) => {
+    initializeGame(null, 1, null);
+    // Original (typeof window !== 'undefined') => createInputHandler() enregistre
+    // un listener keydown. Mutant (=== 'undefined') => getNullInput, aucun listener.
+    ok(Array.isArray(listeners['keydown']) && listeners['keydown'].length > 0,
+      'un listener keydown doit être enregistré (tue neq->eq @L18)');
+  });
+});
+
+test('R26 — main.mjs L63 : __game.over = (status===WON || status===LOST), false sinon', () => {
+  withBrowserEnv(() => {
+    const g = initializeGame(null, 1, null);
+    strictEqual(window.__game.over, false,
+      'ACTIVE initial => over=false (tue eq->neq sur ===LOST : le mutant rendrait true)');
+    window.__game_debug.forceWin();
+    strictEqual(window.__game.over, true,
+      'WON => over=true (tue eq->neq sur ===WON ET or->and @L63)');
+    initializeGame(null, 2, null); // réexpose window.__game / __game_debug pour ce nouveau jeu (ACTIVE)
+    window.__game_debug.forceLose();
+    strictEqual(window.__game.over, true, 'LOST => over=true');
+  });
+});
+
+test('R26 — main.mjs L74 : setLevel borne EXACTE n∈[1,3] (>=1 ET <=3), hors borne ignoré', () => {
+  withBrowserEnv(() => {
+    const g = initializeGame(null, 1, null);
+    window.__game_debug.setLevel(2);
+    strictEqual(g.state.level, 2, 'setLevel(2) applique');
+    window.__game_debug.setLevel(1);
+    strictEqual(g.state.level, 1, 'setLevel(1) applique la borne basse EXACTE (tue ge->gt : n>1 ignorerait 1)');
+    window.__game_debug.setLevel(3);
+    strictEqual(g.state.level, 3, 'setLevel(3) applique la borne haute EXACTE (tue le->lt : n<3 ignorerait 3)');
+    window.__game_debug.setLevel(0);
+    strictEqual(g.state.level, 3, 'setLevel(0) IGNORÉ (tue and->or : n>=1||n<=3 accepterait 0 => level 0)');
+    window.__game_debug.setLevel(4);
+    strictEqual(g.state.level, 3, 'setLevel(4) IGNORÉ (borne haute respectée)');
+  });
+});
+
+test('R26 — main.mjs L83/L86 : spawnBoss borne EXACTE n∈[1,3], active le boss', () => {
+  withBrowserEnv(() => {
+    const g = initializeGame(null, 1, null);
+    window.__game_debug.spawnBoss(1);
+    strictEqual(g.state.bossActive, true, 'spawnBoss active bossActive (tue true->false @L86)');
+    strictEqual(g.state.level, 1, 'spawnBoss(1) depuis lvl1 => level 1');
+    window.__game_debug.setLevel(2);
+    window.__game_debug.spawnBoss(1);
+    strictEqual(g.state.level, 1, 'spawnBoss(1) depuis lvl2 => level 1 (tue ge->gt @L83 : n>1 retomberait sur state.level=2)');
+    window.__game_debug.setLevel(1);
+    window.__game_debug.spawnBoss(3);
+    strictEqual(g.state.level, 3, 'spawnBoss(3) => level 3 (tue le->lt @L83 : n<3 retomberait sur state.level=1)');
+    window.__game_debug.setLevel(2);
+    window.__game_debug.spawnBoss(0);
+    strictEqual(g.state.level, 2, 'spawnBoss(0) hors borne => garde level 2 (tue and->or @L83 : n>=1||n<=3 sauterait à 0)');
+  });
+});
+
+test('R26 — main.mjs L33/L37/L40 : boucle rAF, accumulateur à pas fixe, borne EXACTE 16ms', () => {
+  withBrowserEnv(({ rafCbs, canvas }) => {
+    // L33 (lastT===null) : le PREMIER frame ne produit aucun pas (elapsedS=0).
+    const g = initializeGame(canvas, 1, null);
+    g.start();
+    const loop = rafCbs[rafCbs.length - 1]; // gameLoop (se réenregistre lui-même : même closure)
+    loop(1000); // premier frame : lastT=1000, elapsedS=0
+    strictEqual(g.state.elapsedMs, 0,
+      'premier frame => 0 pas (tue eq->neq @L33 : mutant lastT!==null stepperait t/1000)');
+    // L37 (accumulator += elapsedS) : +100ms => 6 pas de 16ms => elapsedMs 96.
+    loop(1100);
+    strictEqual(g.state.elapsedMs, 96,
+      '+100ms => 6 pas de 16ms (tue pluseq->minuseq @L37 : mutant -= n\'avancerait jamais la sim)');
+
+    // L40 (accumulator >= STEP_S) : un frame de EXACTEMENT 16ms => 1 pas (limite incluse).
+    const g2 = initializeGame(canvas, 1, null);
+    g2.start();
+    const loop2 = rafCbs[rafCbs.length - 1];
+    loop2(0);   // premier frame
+    loop2(16);  // +16ms EXACT => accumulator == STEP_S
+    strictEqual(g2.state.elapsedMs, 16,
+      'frame de 16ms EXACT => 1 pas (tue ge->gt @L40 : le mutant > raterait la limite => 0 pas)');
+  });
+});
+
+test('R26 — main.mjs L42 : accumulateur DÉCRÉMENTÉ par pas (le mutant += boucle sans fin => tué par timeout)', () => {
+  withBrowserEnv(({ rafCbs, canvas }) => {
+    const g = initializeGame(canvas, 1, null);
+    g.start();
+    const loop = rafCbs[rafCbs.length - 1];
+    loop(0);
+    loop(100); // +100ms : la boucle while doit CONSOMMER l'accumulateur et terminer
+    ok(g.state.elapsedMs > 0,
+      'la sim a avancé et la boucle a terminé (sur minuseq->pluseq @L42 le while ne terminerait jamais => timeout = mutant tué)');
+  });
 });

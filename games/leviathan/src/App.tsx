@@ -4,6 +4,7 @@ import { createStore, GameState, GameStore } from './store/gameStore'
 import { advance } from './gameLoop'
 import { createIdle } from './systems/idle'
 import { initPixi } from './game/pixiApp'
+import { loadTextures } from './game/assets'
 import { createTitanScene } from './game/titanScene'
 import { createCombatScene } from './game/combatScene'
 import { mountFpsMeter } from './perf/fpsMeter'
@@ -38,19 +39,26 @@ export function App() {
     let disposed = false
     const cleanups: Array<() => void> = []
     initPixi(hostRef.current!)
-      .then((app) => {
+      .then(async (app) => {
         if (disposed) { app.destroy(true); return }
-        const titan = createTitanScene(app)
-        const combat = createCombatScene(app, store)
+        const tex = await loadTextures()
+        if (disposed) { app.destroy(true); return }
+        const titan = createTitanScene(app, tex.titan)
+        const combat = createCombatScene(app, store, tex)
         app.stage.addChild(titan.container, combat.container)
-        cleanups.push(mountFpsMeter(), () => titan.destroy(), () => combat.destroy(), () => app.destroy(true))
+        cleanups.push(mountFpsMeter())
         cleanups.push(store.subscribe((s) => titan.setStress(s.stressLevel)))
         // reprise après arrière-plan : rAF pausé pendant que caché -> à la reprise, accrue rattrape
-        // (dt = durée d'absence, borné par OFFLINE_CAP). Aucun reset de lastTick (sinon on jetterait le catch-up).
+        // (dt = durée d'absence, borné par OFFLINE_CAP). Aucun reset de lastTick.
         const acc = { t: 0 }
         const loop = (ticker: Ticker) => advance(store, wallClock(), acc, ticker.deltaMS)
         app.ticker.add(loop)
-        cleanups.push(() => app.ticker.remove(loop))
+        // Teardown ordonné : retirer les callbacks du ticker AVANT de détruire l'app
+        // (app.destroy(true) nullifie app.ticker -> tout remove ultérieur throw).
+        cleanups.push(() => app.ticker?.remove(loop))
+        cleanups.push(() => titan.destroy())
+        cleanups.push(() => combat.destroy())
+        cleanups.push(() => { if (app.renderer) app.destroy(true) })
       })
       .catch((e) => setError(String(e)))
 

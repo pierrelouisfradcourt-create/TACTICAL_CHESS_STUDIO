@@ -136,7 +136,7 @@ try {
   check("Council looped still executes (reviewer runs, multiple iterations)", rl.filter((x) => x === "coder").length >= 2);
 
   const wm = await api("/api/wireframes/llm-lego");
-  check("REGRESSION: Wire Map llm-lego still 12 entries", (wm.json?.entries || []).length === 12);
+  check("REGRESSION: Wire Map llm-lego still 13 entries", (wm.json?.entries || []).length === 13);
 
   await api("/api/library/agent-rich", { method: "DELETE" });
 

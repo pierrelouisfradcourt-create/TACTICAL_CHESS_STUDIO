@@ -1,0 +1,240 @@
+{
+  "sensor": "visual_mechanical",
+  "version": "0",
+  "advisory": true,
+  "game": "kb_tactics",
+  "run": {
+    "seed": 1234,
+    "mode": "seeded_exploration",
+    "input_sequence": [
+      "ArrowRight",
+      "ArrowLeft",
+      "ArrowUp",
+      "ArrowUp",
+      "ArrowRight",
+      "ArrowRight",
+      "ArrowRight",
+      "ArrowUp",
+      "ArrowDown",
+      "ArrowRight",
+      "ArrowLeft",
+      "ArrowDown",
+      "ArrowUp",
+      "ArrowLeft",
+      "ArrowDown",
+      "ArrowDown",
+      "ArrowDown",
+      "ArrowRight",
+      "ArrowUp",
+      "ArrowUp",
+      "ArrowLeft",
+      "ArrowUp",
+      "ArrowUp",
+      "ArrowRight",
+      "ArrowLeft",
+      "ArrowRight",
+      "ArrowLeft",
+      "ArrowLeft",
+      "ArrowUp",
+      "ArrowUp",
+      "ArrowDown",
+      "ArrowRight",
+      "ArrowLeft",
+      "ArrowDown",
+      "ArrowLeft",
+      "ArrowUp",
+      "ArrowDown",
+      "ArrowDown",
+      "ArrowRight",
+      "ArrowLeft"
+    ]
+  },
+  "observations": [
+    {
+      "id": "A1_contrast:h1",
+      "kind": "readability",
+      "outcome": "signal_absent",
+      "measured": 9.08,
+      "threshold": {
+        "value": 4.5,
+        "op": "<",
+        "status": "hypothesis"
+      },
+      "justification": "WCAG AA texte normal = 4.5:1",
+      "raw": {
+        "color": "rgb(159, 179, 200)",
+        "bg": "rgb(10, 12, 18)",
+        "fontSize": 16
+      },
+      "artifact": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_sensors\\kb_tactics\\shots\\01-active.png"
+    },
+    {
+      "id": "A1_contrast:.hint",
+      "kind": "readability",
+      "outcome": "signal_absent",
+      "measured": 7.42,
+      "threshold": {
+        "value": 4.5,
+        "op": "<",
+        "status": "hypothesis"
+      },
+      "justification": "WCAG AA texte normal = 4.5:1",
+      "raw": {
+        "color": "rgb(147, 161, 176)",
+        "bg": "rgb(10, 12, 18)",
+        "fontSize": 12
+      },
+      "artifact": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_sensors\\kb_tactics\\shots\\01-active.png"
+    },
+    {
+      "id": "A3_empty_density",
+      "kind": "readability",
+      "outcome": "signal_absent",
+      "measured": 0.099,
+      "threshold": {
+        "value": 0.92,
+        "op": ">",
+        "status": "hypothesis"
+      },
+      "justification": "hypothèse: >92% de fond = écran vide",
+      "raw": {
+        "downsample": "200x150",
+        "bg": [
+          13,
+          15,
+          22
+        ]
+      },
+      "artifact": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_sensors\\kb_tactics\\shots\\01-active.png"
+    },
+    {
+      "id": "A5_h_overflow",
+      "kind": "readability",
+      "outcome": "signal_absent",
+      "measured": 0,
+      "threshold": {
+        "value": 0,
+        "op": ">",
+        "status": "hypothesis"
+      },
+      "justification": "hypothèse: contenu ne doit pas déborder la fenêtre",
+      "raw": {
+        "scrollWidth_minus_innerWidth": 0
+      },
+      "artifact": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_sensors\\kb_tactics\\shots\\01-active.png"
+    },
+    {
+      "id": "A6_render_alive",
+      "kind": "readability",
+      "outcome": "signal_detected",
+      "measured": 0,
+      "threshold": {
+        "value": 0.001,
+        "op": "<",
+        "status": "hypothesis"
+      },
+      "justification": "hypothèse: <0.1% de pixels changés sur 200ms = rendu figé",
+      "raw": {
+        "frames_200ms_apart": true
+      },
+      "artifact": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_sensors\\kb_tactics\\shots\\01-active.png"
+    },
+    {
+      "id": "B2_steps_to_first_reward",
+      "kind": "ftue",
+      "outcome": "signal_absent",
+      "measured": 1,
+      "threshold": {
+        "value": 20,
+        "op": ">",
+        "status": "hypothesis"
+      },
+      "justification": "hypothèse: une récompense doit arriver en <20 inputs naïfs",
+      "raw": {
+        "reached": true,
+        "steps": 1,
+        "ftue": {
+          "steps_to_first_delta": 1,
+          "steps_to_first_reward": 1,
+          "dead_input_rate": 0,
+          "longest_stall": 0
+        }
+      },
+      "artifact": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_sensors\\kb_tactics\\shots\\01-active.png"
+    },
+    {
+      "id": "B1_dead_input_rate",
+      "kind": "ftue",
+      "outcome": "signal_absent",
+      "measured": 0,
+      "threshold": {
+        "value": 0.5,
+        "op": ">",
+        "status": "hypothesis"
+      },
+      "justification": "hypothèse: >50% d'inputs sans effet = contrôles peu réactifs",
+      "raw": {
+        "dead_input_rate": 0,
+        "steps": 40
+      },
+      "artifact": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_sensors\\kb_tactics\\shots\\01-active.png"
+    },
+    {
+      "id": "B3_longest_stall",
+      "kind": "ftue",
+      "outcome": "signal_absent",
+      "measured": 0,
+      "threshold": {
+        "value": 8,
+        "op": ">",
+        "status": "hypothesis"
+      },
+      "justification": "hypothèse: >8 inputs consécutifs sans effet = blocage",
+      "raw": {
+        "longest_stall": 0
+      },
+      "artifact": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_sensors\\kb_tactics\\shots\\01-active.png"
+    },
+    {
+      "id": "A2_target_size:#restart",
+      "kind": "readability",
+      "outcome": "signal_absent",
+      "measured": 33,
+      "threshold": {
+        "value": 24,
+        "op": "<",
+        "status": "hypothesis"
+      },
+      "justification": "hypothèse: cible interactive >= 24px (min tactile)",
+      "raw": {
+        "w": 88.53125,
+        "h": 33
+      },
+      "artifact": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_sensors\\kb_tactics\\shots\\02-overlay.png"
+    },
+    {
+      "id": "A1_contrast:#restart",
+      "kind": "readability",
+      "outcome": "signal_absent",
+      "measured": 6.89,
+      "threshold": {
+        "value": 4.5,
+        "op": "<",
+        "status": "hypothesis"
+      },
+      "justification": "WCAG AA (bouton)",
+      "raw": {
+        "color": "rgb(255, 255, 255)",
+        "bg": "rgb(31, 92, 153)"
+      },
+      "artifact": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_sensors\\kb_tactics\\shots\\02-overlay.png"
+    }
+  ],
+  "raw_measurements": [
+    {
+      "id": "A4_distinct_colors",
+      "value": 488,
+      "note": "signal brut, sans seuil (cohérence palette = P2/art bible)"
+    }
+  ]
+}

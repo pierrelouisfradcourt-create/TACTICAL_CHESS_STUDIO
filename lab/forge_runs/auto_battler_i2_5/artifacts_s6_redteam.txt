@@ -1,0 +1,76 @@
+## Rapport d'attaque du PLAN
+
+### Finding 1: Hypothèse non vérifiée sur la génération aléatoire de la boutique au début du tour
+
+**Gravité**: HIGH  
+**Problème concret**: La génération aléatoire des unités disponibles dans la boutique au début de chaque tour n'est pas clairement définie ou testée. Si cette génération est biaisée ou non-déterministe, cela peut entraîner une incohérence entre les parties jouées par différents utilisateurs et un manque de répétabilité des résultats.
+
+**Pourquoi le plan actuel ne l'attrape pas**: Le plan prévoit d'ajouter la génération aléatoire en début de tour, mais il n'y a aucune mention de tests ou de mécanismes pour vérifier que cette génération est correcte et non biaisée. Il est crucial de garantir que chaque partie commence avec une boutique générée de manière équitable.
+
+### Finding 2: Contradiction entre le renderer aveugle et les changements d'état
+
+**Gravité**: HIGH  
+**Problème concret**: Le renderer ne lit jamais l'état du jeu, ce qui signifie qu'il doit se baser uniquement sur le journal des événements pour afficher correctement la situation actuelle. Cependant, si un événement est manquant ou incorrect dans le journal (par exemple, une unité n'est pas marquée comme vendue), cela peut entraîner un rendu incohérent.
+
+**Pourquoi le plan actuel ne l'attrape pas**: Le renderer étant aveugle et se basant uniquement sur les événements du journal, il est essentiel que tous les changements d'état soient correctement enregistrés. Si une partie de ces changements n'est pas prise en compte (par exemple, la vente d'une unité sans marquage approprié), le rendu sera incorrect.
+
+### Finding 3: Cas où la solvabilité échouera
+
+**Gravité**: MED  
+**Problème concret**: Le bot de solvabilité doit acheter, poser et fusionner des unités en six tours maximum. Cependant, si les unités disponibles dans la boutique ne sont pas suffisamment variées ou puissantes pour permettre une telle stratégie, le bot pourrait échouer.
+
+**Pourquoi le plan actuel ne l'attrape pas**: Le plan prévoit d'améliorer la génération de la boutique au début du tour mais n'évalue pas si les unités générées sont suffisamment variées et puissantes pour permettre une stratégie gagnante en six tours. Il est nécessaire de garantir que chaque partie offre des possibilités stratégiques suffisantes.
+
+### Finding 4: Hypothèse non vérifiée sur la gestion des clics
+
+**Gravité**: MED  
+**Problème concret**: La couche d'entrée qui gère les clics et fabrique les inputs doit être très précise pour éviter que le joueur ne puisse pas effectuer certaines actions. Si cette couche est mal configurée, cela peut entraîner des refus inattendus ou des comportements erratiques du jeu.
+
+**Pourquoi le plan actuel ne l'attrape pas**: Le plan prévoit de séparer la gestion des clics et de tenir un minuteur, mais il n'y a aucune mention de tests pour vérifier que cette couche fonctionne correctement. Il est crucial d'assurer que chaque action du joueur est traitée comme prévu.
+
+### Finding 5: Omission dans l'ajout de coordonnées au plateau
+
+**Gravité**: LOW  
+**Problème concret**: Le plan prévoit d'ajouter des cases au plateau (8x8) mais ne mentionne pas comment ces cases seront utilisées ou vérifiées. Si les coordonnées du plateau sont mal gérées, cela peut entraîner des erreurs dans la positionnement et le déplacement des unités.
+
+**Pourquoi le plan actuel ne l'attrape pas**: Le plan prévoit d'ajouter des cases au plateau mais n'évalue pas comment ces coordonnées seront utilisées ou vérifiées. Il est nécessaire de garantir que chaque mouvement sur le plateau est correctement géré et qu'il n'y a pas de chevauchements ou de positions invalides.
+
+### Finding 6: Hypothèse non vérifiée sur la crédibilité des revenus
+
+**Gravité**: MED  
+**Problème concret**: Le plan prévoit d'ajouter un revenu min(3+round_index,10) en début de tour. Cependant, si ce calcul est mal implémenté ou s'il y a une erreur dans la génération du revenu, cela peut entraîner des incohérences dans l'économie du jeu.
+
+**Pourquoi le plan actuel ne l'attrape pas**: Le plan prévoit d'ajouter un revenu en début de tour mais n'évalue pas comment ce calcul est implémenté ou s'il y a des erreurs potentielles. Il est crucial de garantir que chaque joueur reçoit correctement son revenu à chaque tour.
+
+### Finding 7: Contradiction entre l'état du jeu et le rendu
+
+**Gravité**: HIGH  
+**Problème concret**: Le renderer ne lit jamais l'état du jeu, ce qui signifie qu'il doit se baser uniquement sur les événements enregistrés dans le journal pour afficher correctement la situation actuelle. Cependant, si un événement est manquant ou incorrect dans le journal (par exemple, une unité n'est pas marquée comme vendue), cela peut entraîner un rendu incohérent.
+
+**Pourquoi le plan actuel ne l'attrape pas**: Le renderer étant aveugle et se basant uniquement sur les événements du journal, il est essentiel que tous les changements d'état soient correctement enregistrés. Si une partie de ces changements n'est pas prise en compte (par exemple, la vente d'une unité sans marquage approprié), le rendu sera incorrect.
+
+### Finding 8: Omission dans l'ajout des champs au journal
+
+**Gravité**: LOW  
+**Problème concret**: Le plan prévoit de compléter le journal d'événements avec plusieurs nouveaux noms et champs, mais ne mentionne pas comment ces ajouts seront vérifiés ou utilisés. Si certains événements sont manquants ou incorrects dans le journal, cela peut entraîner des incohérences dans la gestion de l'état du jeu.
+
+**Pourquoi le plan actuel ne l'attrape pas**: Le plan prévoit d'ajouter plusieurs nouveaux noms et champs au journal mais n'évalue pas comment ces ajouts seront vérifiés ou utilisés. Il est nécessaire de garantir que chaque événement enregistré dans le journal est correct et utile.
+
+### Finding 9: Hypothèse non vérifiée sur la gestion des tours
+
+**Gravité**: MED  
+**Problème concret**: Le plan prévoit d'ajouter un round_index pour gérer les tours, mais ne mentionne pas comment ce round_index sera utilisé ou vérifié. Si le round_index est mal implémenté ou s'il y a une erreur dans la gestion des tours, cela peut entraîner des incohérences dans l'évolution du jeu.
+
+**Pourquoi le plan actuel ne l'attrape pas**: Le plan prévoit d'ajouter un round_index pour gérer les tours mais n'évalue pas comment ce round_index sera utilisé ou vérifié. Il est crucial de garantir que chaque tour est correctement géré et qu'il n'y a pas de chevauchements ou de tours manquants.
+
+### Finding 10: Contradiction entre la gestion des clics et le rendu
+
+**Gravité**: MED  
+**Problème concret**: La couche d'entrée qui gère les clics doit être très précise pour éviter que le joueur ne puisse pas effectuer certaines actions. Si cette couche est mal configurée, cela peut entraîner des refus inattendus ou des comportements erratiques du jeu.
+
+**Pourquoi le plan actuel ne l'attrape pas**: Le plan prévoit de séparer la gestion des clics et de tenir un minuteur, mais il n'y a aucune mention de tests pour vérifier que cette couche fonctionne correctement. Il est crucial d'assurer que chaque action du joueur est traitée comme prévu.
+
+### Verdict
+Le plan actuel présente plusieurs hypothèses non vérifiées et contradictions potentielles qui peuvent entraîner des problèmes dans l'évolution du jeu. Ces risques doivent être pris en compte et corrigés avant la mise en œuvre pour garantir une expérience utilisateur cohérente et répétable.
+
+**Verdict**: FAIL-si-non-corrigé

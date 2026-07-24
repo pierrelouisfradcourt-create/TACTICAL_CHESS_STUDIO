@@ -1,0 +1,8 @@
+[
+  {
+    "file": "level.mjs",
+    "name": "ge->gt",
+    "line": 13,
+    "justification": "MUTANT ÉQUIVALENT prouvé. Ligne 13 = 's >>>= 0' -> mutant 's >>> 0' (sans affectation). La valeur normalisée est immédiatement reconsommée par la ligne 14 's ^= s >> 17', dont l'opérande passe par ToInt32 : le motif de bits est identique avec ou sans la normalisation intermédiaire. Seule la normalisation FINALE (ligne 15, avant 's / 0xffffffff') est observable — et son mutant EST tué. Équivalence vérifiée empiriquement : séquences RNG identiques sur 500 seeds x 50 tirages (0 divergence)."
+  }
+]

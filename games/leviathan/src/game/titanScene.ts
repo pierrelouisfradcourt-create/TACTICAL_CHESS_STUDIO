@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Ticker } from 'pixi.js'
+import { Application, Container, Graphics, Sprite, Texture, Ticker } from 'pixi.js'
 
 export interface TitanScene { container: Container; setStress: (level: number) => void; destroy: () => void }
 export const TITAN_BASE_PARTICLES = 80
@@ -7,22 +7,21 @@ export const MAX_STRESS = 8 // cap (Qwen red-team #6) : borne la molette pour ne
 
 interface Mote { g: Graphics; x: number; y: number; vy: number }
 
-export function createTitanScene(app: Application): TitanScene {
+export function createTitanScene(app: Application, titanTex: Texture): TitanScene {
   const root = new Container()
   const W = () => app.screen.width, H = () => app.screen.height
 
-  // Parallaxe : fond terne + collines qui défilent (le monde §14)
+  // Parallaxe : fond terne + collines qui défilent (le monde §14 — atmosphère procédurale)
   const far = new Graphics().rect(0, 0, W(), H()).fill('#141d26')
   const hills = new Graphics()
   for (let i = 0; i < 8; i++) hills.circle(i * 200, H() * 0.72, 150).fill({ color: '#1d2c33', alpha: 0.6 })
   root.addChild(far, hills)
 
-  // Titan : carapace arrondie luxuriante (premier plan §14) + lumière qui pulse
-  const titan = new Container()
-  const body = new Graphics().roundRect(-130, -90, 260, 180, 46).fill('#2f6d5b')
-  const canopy = new Graphics().circle(-40, -70, 34).fill('#3fa07a').circle(50, -60, 40).fill('#348f6b')
-  const light = new Graphics().circle(0, -10, 30).fill('#7fe9c4')
-  titan.addChild(body, canopy, light)
+  // Titan : vrai sprite (tortue CC0 Oiboo) — placeholder d'emprunt, pas le Titan final
+  const titan = new Sprite(titanTex)
+  titan.anchor.set(0.5)
+  const BASE_SCALE = 4 // 64px -> 256px, net (nearest)
+  titan.scale.set(BASE_SCALE)
   titan.x = W() / 2; titan.y = H() * 0.55
   root.addChild(titan)
 
@@ -43,8 +42,8 @@ export function createTitanScene(app: Application): TitanScene {
   let t = 0
   const tick = (ticker: Ticker) => {
     t += ticker.deltaTime
-    light.scale.set(1 + 0.18 * Math.sin(t * 0.1))
-    titan.y = H() * 0.55 + Math.sin(t * 0.03) * 6
+    titan.scale.set(BASE_SCALE * (1 + 0.03 * Math.sin(t * 0.1))) // pulsation subtile (vie)
+    titan.y = H() * 0.55 + Math.sin(t * 0.03) * 6                 // léger bob
     hills.x -= 0.3 * ticker.deltaTime
     if (hills.x < -200) hills.x = 0
     for (const m of pool) {
@@ -58,6 +57,6 @@ export function createTitanScene(app: Application): TitanScene {
   return {
     container: root,
     setStress: (level: number) => ensure(TITAN_BASE_PARTICLES + Math.min(Math.max(level, 0), MAX_STRESS) * TITAN_PARTICLES_PER_STRESS),
-    destroy: () => { app.ticker.remove(tick); root.destroy({ children: true }) },
+    destroy: () => { app.ticker?.remove(tick); if (!root.destroyed) root.destroy({ children: true }) },
   }
 }

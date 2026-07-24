@@ -1,0 +1,37 @@
+{
+  "game": "kb_tactics",
+  "description": "Jeu tactique HTML tour-par-tour ASSEMBLÉ depuis la Game Knowledge Base : atteindre la sortie en évitant des poursuivants lents. Preuve d'assemblage-depuis-ingestion (mission KB §4/§5).",
+  "runtime": "html",
+  "catalog": "knowledge_base/catalog.json",
+  "consumes": {
+    "assets_ingested": [
+      { "asset_id": "asset-kenney-survivor1-stand", "role": "sprite joueur", "loaded_url": "/knowledge_base/assets/characters/kenney_survivor1_stand.png", "proof": "e2e.mjs vérifie window.__game_debug.assetsLoaded.player === true" },
+      { "asset_id": "asset-kenney-zombie1-stand", "role": "sprite ennemi", "loaded_url": "/knowledge_base/assets/creatures/kenney_zombie1_stand.png", "proof": "e2e.mjs vérifie window.__game_debug.assetsLoaded.enemy === true" }
+    ],
+    "systems_imported": [
+      { "brick_id": "sys-damage-floor", "import": "../../knowledge_base/systems/combat/damage_floor.mjs", "used_in": "game.mjs (combat : applyHit ennemi adjacent)", "proof": "logic.test.mjs 'combat : effectiveDamage' + import réel (pas de copie)" },
+      { "brick_id": "sys-reachability", "import": "../../knowledge_base/systems/procgen/reachability.mjs", "used_in": "level.mjs (garantie d'atteignabilité) + game.mjs (reachableFromPlayer)", "proof": "logic.test.mjs 'sortie toujours atteignable' + solvability diagnostic" }
+    ],
+    "patterns_cited": [
+      { "brick_id": "pat-damage-floor", "citation": "game.mjs combat — implémenté VIA sys-damage-floor", "mode": "advisory" },
+      { "brick_id": "pat-full-reachability", "citation": "level.mjs génération — garanti VIA sys-reachability", "mode": "advisory" },
+      { "brick_id": "pat-zone-of-control", "citation": "game.mjs NOTE ZoC — conception seulement, aucun code de pattern importé", "mode": "advisory" }
+    ]
+  },
+  "from_scratch_declared": {
+    "note": "Part inventée pour CE jeu, non issue de la KB — déclarée honnêtement (mission §5c : minoritaire et déclarée).",
+    "files": [
+      "game.mjs (machine à états tour-par-tour, IA de poursuite lente, boucle de combat)",
+      "level.mjs (placement seedé xorshift32, densité d'obstacles)",
+      "render.mjs, input.mjs, main.mjs, index.html, server.mjs (UI/serveur, sans règles)",
+      "logic.test.mjs, properties.test.mjs, e2e.mjs, solvability.mjs, run-oracle.mjs (oracle)"
+    ],
+    "reused_core_logic": "combat (dégâts plancher) et atteignabilité (BFS) = importés de la KB ; le reste = orchestration spécifique au genre."
+  },
+  "gates": {
+    "oracle": "node run-oracle.mjs (logic + properties + e2e + solvabilité)",
+    "solvability": "un bot déterministe gagne sur 6 seeds",
+    "mutation": "forge.mutation sur game.mjs + level.mjs",
+    "visual_sensor_s10d": "advisory (capteur lisibilité A1/A2/A3/A5)"
+  }
+}

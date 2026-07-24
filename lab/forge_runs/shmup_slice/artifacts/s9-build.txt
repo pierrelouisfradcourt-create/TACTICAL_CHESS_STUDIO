@@ -1,63 +1,42 @@
-Je vais créer le rapport final. Basé sur mon travail et les contraintes du contrat:
-
-**RAPPORT FINAL — s9-build:shmup_slice-20260714a**
-
-## software_verdict: BLOCKED
-
-Le code a été implémenté selon le blueprint et le charter, mais **je n'ai pas pu valider les oracles en exécution** due à des restrictions de sécurité sur le shell. Sans evidence_path réelle des oracles, je ne peux pas certifier le code.
-
-## evidence_verdict: MECHANICAL_VALIDATION_ONLY
-
-Ce qui peut être validé mécaniquement:
-- Architecture: tous les modules sont dans l'ownership du blueprint (logic/, data/, input, render, bot, main)
-- Dépendances interdites: aucune violation détectée (logic n'importe pas render/input/main; data n'importe rien)
-- Code style: assertions strictes (== pas >=), seeded RNG utilisé partout, pas de Math.random/Date.now dans logic
-
-## claim_verdict: NO_CLAIM_ALLOWED
-
-Pas d'affirmation possible sur la solvabilité ou la jouabilité sans:
-1. Exit 0 des tests logic.test.mjs et properties.test.mjs
-2. Exit 0 du solvability.mjs (bot finit les 3 maps et bat les 3 boss)
-3. Exit 0 du e2e.mjs (navigateur réel, Playwright)
-
-## Fichiers modifiés
-
-**Ownership compliance** (blueprint.json autorisés):
-- `main.mjs` — exposer hooks, mode headless
-- `server.mjs` — contrat jouabilité (log "interface jouable")
-- `index.html` — bonnes pratiques DOM
-- `logic/step.mjs` — spawnWaveIfReady fix, updateBossFire patterns complets
-- `logic/collisions.mjs` — clarified collision logic
-- `logic/projectiles.mjs` — n/a (pas créé, inclus dans step)
-- `properties.test.mjs` — seeded RNG au lieu de Math.random()
-- `bot/solver.mjs` — loop fix pour terminer le jeu
-- `README.md` — 2 lignes (contrat)
-
-**Reusability (§2bis)**
-
-Recherches SEARCH effectuées:
-1. "enemy movement patterns" → pat-damage-floor, pat-full-reachability, pat-zone-of-control (non applicable au shmup/patterns déclaratifs)
-2. "continuous pursuit homing" → sys-pursuer-continuous trouvé (non appliqué, patterns simples suffisent)
-
-Sortie `reuse_ratio.mjs`:
-```
-reuse_ratio = 0 / (2 + 0) = 0.000
-logicFiles: [input.mjs, render.mjs]
-reuseModules: []
-```
-
-## fog (besoin HumanGate)
-
-**Urgence P1 — Validation des oracles:**
-Le code est structuré et doit être testé en exécution via `node run-oracle.mjs` (exit 0 OK, exit 1 FAIL). Trois scénarios:
-
-1. **Success**: tous les oracles verts → software_verdict = OK, evidence_path = stdout run-oracle.mjs
-2. **Logic test rouge**: bugs dans logic/step, collisions, scoring → corriger et re-exécuter
-3. **Solvability rouge**: bot ne gagne pas → difficulté patterns à revoir
-
-Demande: lancer `cd games/shmup_slice && JALON=A node run-oracle.mjs` et rapporter exit code.
+Git operations are denied for me (consistent with the builder gate — no commits). I've confirmed everything else directly. The WireMap JSON is valid. Here is my final report.
 
 ---
 
-**Durée implémutation:** construction base complète + tests + fixes critiques.  
-**Prochaine étape:** HumanGate valide oracles, décide d'améliorer difficulté ou d'étendre Jalon B si Jalon A passe.
+## Rapport final — s9-build shmup_slice (re-dispatch)
+
+### Diagnostic
+Le jeu était déjà entièrement implémenté et les 4 volets de `run-oracle.mjs` (logic / properties / solvabilité / e2e) étaient **verts**. La boucle de re-dispatch venait du **gate mutation** : `mutation=FAIL`. J'ai reproduit le run réel (`forge.mutation_proof.run_mutation_for_game`, wiremap-derived, commande scellée `node --test logic.test.mjs properties.test.mjs`) : **112 mutants, 79 tués, 33 survivants** — dont **32 non triés**, tous dans `bot/solver.mjs` (0/14) et `main.mjs` (0/18).
+
+**Cause-racine de la boucle** : la tentative précédente a correctement diagnostiqué ces 32 survivants puis a **punté en HumanGate**, croyant `logic.test.mjs`/`properties.test.mjs` intouchables (« scellés »). C'était une erreur : le « sceau » mutation est une **empreinte de fraîcheur calculée au moment de la preuve** (anti-affaiblissement post-hoc), pas un verrou d'écriture. La zone protégée `tests/**` est le dossier `tests/` **à la racine du repo** (tests Rocky/ML du studio) — pas les tests propres du jeu sous `games/shmup_slice/`, qui sont des livrables builder (la WireMap les cite comme preuve de presque chaque feature). Triager les 32 survivants comme « équivalents » aurait été **mensonger** (ces mutations changent réellement le comportement). La résolution honnête et dans le périmètre : **étendre la suite du jeu avec de vrais tests comportementaux**.
+
+### Correctif (dans l'ownership)
+- **`bot/solver.mjs`** : `export` ajouté à `computeBotInputs` (aucune ligne de logique modifiée).
+- **`logic.test.mjs`** (test propre du jeu) : +2 imports, **+15 tests** tuant chacun un mutant nommé :
+  - Bot : `computeBotInputs` testé en isolation (esquive→`findSafeX`, poursuite boss AND-pas-OR, centre-boss `x+width/2`, inputs au repos) + `runBot(1)` comme run complet gagnant (boucle, `won`, `corridorAlwaysSafe`).
+  - Main : environnement navigateur **simulé** (`window`/`rAF`/`canvas` stubs, sans navigateur réel) pour piloter `initializeGame` en headless — garde `window`, détection `over`, bornes `setLevel`/`spawnBoss`, accumulateur à pas fixe (16 ms ⇒ 1 pas exact, exploitant la limite `>=`), source d'entrée clavier, garde de `start()`.
+
+### Preuves (oracles déterministes non-LLM, re-exécutés ce tour)
+- **`run-oracle.mjs`** : logic **65/65** · properties **7/7** · solvabilité **5/5 seeds PASS** · e2e Playwright **PASS** → `VERDICT ORACLE: PASS`.
+- **Gate mutation** (`run_mutation_for_game` + `check_mutation_gate` + triage) : baseline verte, **112 mutants, 111 tués, 1 survivant** = `dodge le->lt@L55` (déjà trié **équivalent-prouvé**, justification rigoureuse, non ajoutée par moi). `GATE passed: True`, `survivants_non_tries: []`, `triage_perimes: []`. Focus : `bot/solver.mjs` **14/14**, `main.mjs` **18/18**.
+- **Architecture** : aucun import inter-module interdit dans `logic/`/`data/`/`bot/` ; test R25 in-suite PASS. Mon seul changement de source est un `export` — deps identiques.
+- **`reuse_ratio`** = 0.000 (advisory, non-gating ; `evidence_path` = sortie `run-oracle.mjs` volet (e)). **Aucune requête `knowledge_base/search.mjs`** : le delta de ce dispatch est de la **couverture de test** sur du code existant — aucune nouvelle logique de jeu réutilisable écrite, donc §2bis non déclenché.
+
+### Exception mutation (doctrine P0.3 — à porter au verdict/HumanGate)
+Le gate passe **avec exception** : `mutation_exception=True`, `triaged_survivors=['le->lt@L55']`. Par doctrine ratifiée (survivant trié ⇒ **jamais un OK propre**, WITH_OBJECTION), le reçu propage cette objection au verdict s12 : ce n'est **pas** un 100 % pristine, la ratification `merge/reject/freeze` revient à Pierre (HumanGate).
+
+### Fichiers touchés vs ownership
+| Fichier | Ownership | Statut |
+|---|---|---|
+| `games/shmup_slice/bot/solver.mjs` | module `bot` ✓ | `export` ajouté |
+| `games/shmup_slice/logic.test.mjs` | oracle-code du jeu (≠ `tests/**` protégé) ✓ | +2 imports, +15 tests |
+| `lab/forge_runs/shmup_slice/wiremap.json` | scope de MAJ WireMap ✓ | `_comment`, preuves R22/R26 corrigées (note « hors mutation » caduque) |
+
+Non touchés : toute logique de jeu (`logic/`, `data/`, `render.mjs`, `input.mjs`, `main.mjs`), `run-oracle.mjs`, `solvability.mjs`, `e2e.mjs`, `mutation_triage.json`, le harnais `scripts/forge/*`. Scripts de repro temporaires supprimés. **Aucun commit** (git refusé côté builder — conforme à la gate).
+
+```
+software_verdict: OK        (jeu : run-oracle.mjs 4 volets PASS + gate mutation FERMÉ 111/112, avec 1 exception triée-équivalente propagée au verdict ; architecture propre ; WireMap conforme au code)
+evidence_verdict: MECHANICAL_VALIDATION_ONLY
+claim_verdict: NO_CLAIM_ALLOWED
+```
+
+FORGE_DISPATCH:s9-build:shmup_slice-20260714a — OK (gate mutation fermé, WITH_OBJECTION dodge L55) / MECHANICAL_VALIDATION_ONLY / NO_CLAIM_ALLOWED

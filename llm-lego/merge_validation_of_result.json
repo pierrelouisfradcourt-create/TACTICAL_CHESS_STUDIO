@@ -1,0 +1,143 @@
+{
+  "steps": [
+    "goto http://localhost:3212/builder -> HTTP 200",
+    "✅ PHASE0 cible = VRAIE library (isTestLibrary===false)",
+    "✅ PHASE0 mécanisme de boucle réutilisable présent (loop NOK, maxIterations, okAfter reviewer)",
+    "=== Briques : 2 prompts + 2 oracles + 2 outputformats (à la souris) ===",
+    "＋ prompt créé à la souris: prompt-mr57tpgx « Instructions de fusion diff-based »",
+    "＋ oracle créé à la souris: oracle-mr57tpwo « Merge Validator »",
+    "＋ prompt créé à la souris: prompt-mr57tqe9 « Instructions de critique structurée »",
+    "＋ oracle créé à la souris: oracle-mr57tqu1 « Vérificateur de complétude de correction »",
+    "＋ outputformat créé à la souris: outputformat-mr57trb6 « Sortie Developer (files+diff) »",
+    "＋ outputformat créé à la souris: outputformat-mr57trqv « Sortie QA (verdict+issues) »",
+    "✅ 6 briques présentes (2 prompt / 2 oracle / 2 outputformat)",
+    "=== Concept 1 — Merge Engine (chaîne à la souris) ===",
+    "✅ Merge: oracle « Merge Validator » attaché au Merger (gardien, pas inline)",
+    "✅ Merge: Merger porte producerRef (prompt fusion) + oracleRef (gardien)",
+    "✅ Merge: exécutée mockAdapters (3 steps), converge en atteignant le Merger",
+    "✅ Merge: chaîne sauvegardée",
+    "=== Concept 2 — Validation Loop (chaîne bouclée à la souris) ===",
+    "✅ Loop: oracle « complétude » attaché au nœud Generate (gardien)",
+    "✅ Loop: edge de boucle reviewer→coder (NOK, maxIterations) conservé après trim",
+    "✅ Loop: itérations réelles (reviewer ×3, coder ×3, ≥2 passes)",
+    "✅ Loop: edge de boucle réellement suivi (2 routing loop-iteration observés)",
+    "✅ Loop: s'arrête (dernier verdict reviewer = OK, itér max=3 < borne)",
+    "✅ Loop: chaîne bouclée sauvegardée",
+    "✅ Loop: chaîne persistée avec edge de boucle (loop:true, maxIterations)",
+    "=== Concept 3 — outputformat attachés au 8ᵉ satellite d'un Agent ===",
+    "✅ Concept3: Agent composite posé avec satellite « sortie attendue »",
+    "✅ Concept3: « Sortie Developer (files+diff) » attaché au 8ᵉ satellite (contrat rendu)",
+    "✅ Concept3: contrat Developer contient le schéma files/diff",
+    "✅ Concept3: « Sortie QA (verdict+issues) » attaché au 8ᵉ satellite (contrat rendu)",
+    "✅ Concept3: contrat QA contient verdict + issues",
+    "✅ Concept3: carte d'identité progresse (X/8)",
+    "Bibliothèque après: 53 (avant: 45)",
+    "✅ aucune erreur console pendant la passe",
+    "\n=== IMPORT MERGE/VALIDATION/OUTPUTFORMAT — TOUT VERT ==="
+  ],
+  "checks": {
+    "PHASE0 cible = VRAIE library (isTestLibrary===false)": true,
+    "PHASE0 mécanisme de boucle réutilisable présent (loop NOK, maxIterations, okAfter reviewer)": true,
+    "6 briques présentes (2 prompt / 2 oracle / 2 outputformat)": true,
+    "Merge: oracle « Merge Validator » attaché au Merger (gardien, pas inline)": true,
+    "Merge: Merger porte producerRef (prompt fusion) + oracleRef (gardien)": true,
+    "Merge: exécutée mockAdapters (3 steps), converge en atteignant le Merger": true,
+    "Merge: chaîne sauvegardée": true,
+    "Loop: oracle « complétude » attaché au nœud Generate (gardien)": true,
+    "Loop: edge de boucle reviewer→coder (NOK, maxIterations) conservé après trim": true,
+    "Loop: itérations réelles (reviewer ×3, coder ×3, ≥2 passes)": true,
+    "Loop: edge de boucle réellement suivi (2 routing loop-iteration observés)": true,
+    "Loop: s'arrête (dernier verdict reviewer = OK, itér max=3 < borne)": true,
+    "Loop: chaîne bouclée sauvegardée": true,
+    "Loop: chaîne persistée avec edge de boucle (loop:true, maxIterations)": true,
+    "Concept3: Agent composite posé avec satellite « sortie attendue »": true,
+    "Concept3: « Sortie Developer (files+diff) » attaché au 8ᵉ satellite (contrat rendu)": true,
+    "Concept3: contrat Developer contient le schéma files/diff": true,
+    "Concept3: « Sortie QA (verdict+issues) » attaché au 8ᵉ satellite (contrat rendu)": true,
+    "Concept3: contrat QA contient verdict + issues": true,
+    "Concept3: carte d'identité progresse (X/8)": true,
+    "aucune erreur console pendant la passe": true
+  },
+  "phase0": [
+    "Bibliothèque avant: 45 briques (attendu ~45).",
+    "kind outputformat déjà présent: 3 briques (Texte libre, Structuré, 3-Verdicts (canonique TCS)). Nouveaux modèles ajoutés de façon cohérente (structured/json).",
+    "Mécanisme boucle réutilisé: loop edge condition=NOK maxIterations=5, reviewer okAfter=2. Aucun nouveau mécanisme inventé.",
+    "Collision d'id: nulle — briques créées via UI (ids générés mrXXXX), chaînes via 💾 (ids chain-XXXX). Idempotence par NOM: réutilisation si déjà présent."
+  ],
+  "ids": {
+    "bricks": {
+      "mergePromptId": "prompt-mr57tpgx",
+      "mergeOracleId": "oracle-mr57tpwo",
+      "critiquePromptId": "prompt-mr57tqe9",
+      "completenessOracleId": "oracle-mr57tqu1",
+      "ofDevId": "outputformat-mr57trb6",
+      "ofQaId": "outputformat-mr57trqv"
+    },
+    "mergeChainId": "chain-mr57tuy5",
+    "loopChainId": "chain-mr57tyou"
+  },
+  "pass": true,
+  "countBefore": 45,
+  "mergeTrace": [
+    "llm-2",
+    "llm-3",
+    "llm-4"
+  ],
+  "loopTrace": [
+    {
+      "nodeId": "coder-9",
+      "iter": 1,
+      "reason": "",
+      "decision": ""
+    },
+    {
+      "nodeId": "llm-10",
+      "iter": 1,
+      "reason": "",
+      "decision": ""
+    },
+    {
+      "nodeId": "reviewer-9",
+      "iter": 1,
+      "reason": "🔀 routeKey=\"NOK\" · reason=loop-iteration",
+      "decision": "décision: NOK"
+    },
+    {
+      "nodeId": "coder-9",
+      "iter": 2,
+      "reason": "",
+      "decision": ""
+    },
+    {
+      "nodeId": "llm-10",
+      "iter": 2,
+      "reason": "",
+      "decision": ""
+    },
+    {
+      "nodeId": "reviewer-9",
+      "iter": 2,
+      "reason": "🔀 routeKey=\"NOK\" · reason=loop-iteration",
+      "decision": "décision: NOK"
+    },
+    {
+      "nodeId": "coder-9",
+      "iter": 3,
+      "reason": "",
+      "decision": ""
+    },
+    {
+      "nodeId": "llm-10",
+      "iter": 3,
+      "reason": "",
+      "decision": ""
+    },
+    {
+      "nodeId": "reviewer-9",
+      "iter": 3,
+      "reason": "",
+      "decision": "décision: OK"
+    }
+  ],
+  "countAfter": 53
+}

@@ -1,0 +1,73 @@
+{
+  "steps": [
+    "✅ inspecteur chat ouvert (topic, voix A/B, maxTurns)",
+    "✅ nœud chat visuel distinct sur le canvas (bulles A ⇄ B)",
+    "✅ maxTurns au-delà du plafond → plafonné à 12",
+    "✅ MOCK : transcript produit, flag mock=true",
+    "✅ MOCK : chaque message labellisé [mock] (zéro appel réel par construction)",
+    "✅ MOCK : transcript consultable dans l'inspecteur (voix identifiées)",
+    "✅ RÉEL : transcript ≥ 2 échanges, NON mock",
+    "✅ RÉEL : voix alternées A/B",
+    "✅ RÉEL : contenu non vide et non-[mock] pour chaque tour",
+    "✅ RÉEL : respecte le plafond maxTurns=4 (≤ 4 échanges)",
+    "\n──── TRANSCRIPT RÉEL (vérification humaine du contenu) ────",
+    "  [A] Optimiste: Imaginons un instant qu'avant chaque fusion (merge) dans notre codebase, nous ayons besoin d'une validation humaine (HumanGate). Bien que cette mesure puisse sembler sûre et rassurante sur le plan humain, elle risque de ",
+    "  [B] Critique: Bien que l'automatisation soit importante, elle ne peut pas remplacer complètement la vigilance humaine. Un HumanGate avant chaque merge permettrait de s'assurer qu'aucune erreur ou malveillance n'est intégrée dans le co",
+    "  [A] Optimiste: Je comprends ta préoccupation pour la sécurité et la qualité du code, mais je pense qu'une surdéfinition des contrôles humains peut entraîner une perte de temps considérable. Avec une automatisation robuste des tests et ",
+    "  [B] Critique: Je partage ta vision sur l'importance de l'automatisation, mais je crains qu'elle ne puisse pas détecter certains problèmes complexes ou contextuels qui nécessitent une analyse humaine. Un HumanGate offre un dernier nive",
+    "──────────────────────────────────────────────────────────\n",
+    "ℹ️ CHAT_DOWN_BASE non fourni — cas « LM Studio éteint » couvert par Vitest (chat.test.ts).",
+    "✅ aucune erreur console/page pendant le parcours",
+    "\n✅ CHAT — tous les checks passent"
+  ],
+  "checks": {
+    "inspecteur chat ouvert (topic, voix A/B, maxTurns)": true,
+    "nœud chat visuel distinct sur le canvas (bulles A ⇄ B)": true,
+    "maxTurns au-delà du plafond → plafonné à 12": true,
+    "MOCK : transcript produit, flag mock=true": true,
+    "MOCK : chaque message labellisé [mock] (zéro appel réel par construction)": true,
+    "MOCK : transcript consultable dans l'inspecteur (voix identifiées)": true,
+    "RÉEL : transcript ≥ 2 échanges, NON mock": true,
+    "RÉEL : voix alternées A/B": true,
+    "RÉEL : contenu non vide et non-[mock] pour chaque tour": true,
+    "RÉEL : respecte le plafond maxTurns=4 (≤ 4 échanges)": true,
+    "aucune erreur console/page pendant le parcours": true
+  },
+  "pass": true,
+  "transcripts": {
+    "mock": [
+      {
+        "voice": "A",
+        "name": "Optimiste",
+        "text": "[mock] Optimiste ouvre sur « Faut-il ajouter un HumanGate avant chaque merge ? » (aucun appel réseau)."
+      },
+      {
+        "voice": "B",
+        "name": "Critique",
+        "text": "[mock] Critique répond brièvement — transcript factice de structure."
+      }
+    ],
+    "real": [
+      {
+        "voice": "A",
+        "name": "Optimiste",
+        "text": "Imaginons un instant qu'avant chaque fusion (merge) dans notre codebase, nous ayons besoin d'une validation humaine (HumanGate). Bien que cette mesure puisse sembler sûre et rassurante sur le plan humain, elle risque de freiner considérablement nos processus de développement. À mon sens, l'automatisation fine des tests et des validations est la clé pour maintenir à la fois la vitesse et la qualité de notre travail."
+      },
+      {
+        "voice": "B",
+        "name": "Critique",
+        "text": "Bien que l'automatisation soit importante, elle ne peut pas remplacer complètement la vigilance humaine. Un HumanGate avant chaque merge permettrait de s'assurer qu'aucune erreur ou malveillance n'est intégrée dans le codebase, ce qui est crucial pour maintenir la qualité et la sécurité du logiciel à long terme."
+      },
+      {
+        "voice": "A",
+        "name": "Optimiste",
+        "text": "Je comprends ta préoccupation pour la sécurité et la qualité du code, mais je pense qu'une surdéfinition des contrôles humains peut entraîner une perte de temps considérable. Avec une automatisation robuste des tests et validations, nous pouvons maintenir un niveau élevé de sécurité tout en maintenant notre vitesse de développement."
+      },
+      {
+        "voice": "B",
+        "name": "Critique",
+        "text": "Je partage ta vision sur l'importance de l'automatisation, mais je crains qu'elle ne puisse pas détecter certains problèmes complexes ou contextuels qui nécessitent une analyse humaine. Un HumanGate offre un dernier niveau de protection contre les erreurs systématiques ou intentionnelles que l'automatisation pourrait manquer."
+      }
+    ]
+  }
+}

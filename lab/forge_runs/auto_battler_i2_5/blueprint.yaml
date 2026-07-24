@@ -1,0 +1,678 @@
+# blueprint.yaml — auto_battler i2.5 (premier rendu jouable, is_game=true)
+#
+# GELÉ à l'issue de l'étape 4. src_root du projet : games/auto_battler (scripts/forge/oracles.json:84-89).
+# Granularité des modules = celle de l'oracle : forge.static_oracles._module_of (l.73-76) définit
+# le module d'un fichier comme son PREMIER dossier sous src_root, ou son stem s'il est à la racine.
+# Toute paire deps_interdites plus fine qu'un dossier de premier niveau est INVÉRIFIABLE par
+# check_architecture — c'est pourquoi les interdictions ci-dessous sont posées au niveau dossier
+# (plus strict que la formulation du product_snapshot, jamais plus permissif ; motif en §notes).
+#
+# Trois couches, jamais confondues (exigence structurante de l'incrément) :
+#   1. MOTEUR (pur, déterministe) : engine, pool, shop, bench, merge, economy, board, preparation, round
+#   2. COUCHE D'ENTRÉE (voit l'état) : input  — clics → Inputs, appel d'applyPreparationInput,
+#      détection du refus (R14), minuteur (R5)
+#   3. RENDERER (AVEUGLE, INV-5) : renderer — n'a que l'Event Log en entrée
+#   + composition : app (racine de composition), web (serveur statique), layout (géométrie pure)
+
+modules:
+  # ---------------------------------------------------------------- couche 1 : moteur
+  - nom: games/auto_battler/engine/
+    fichiers:
+      - games/auto_battler/engine/registry.mjs
+      - games/auto_battler/engine/state.mjs
+      - games/auto_battler/engine/types.mjs
+      - games/auto_battler/engine/transition.mjs
+      - games/auto_battler/engine/inputs.mjs
+      - games/auto_battler/engine/eventlog.mjs
+      - games/auto_battler/engine/rng.mjs
+      - games/auto_battler/engine/serialize.mjs
+      - games/auto_battler/engine/replay.mjs
+      - games/auto_battler/engine/match.mjs
+    responsabilite: >-
+      Noyau content-agnostic (P11) INCHANGÉ dans son rôle, mais RÉPARÉ sur deux points de
+      l'incrément — débordement de périmètre assumé sur du code i1 déjà mergé :
+      (a) registry.mjs porte le registre d'Events de 19 à 22 noms (ajout UnitPlaced,
+      ShopLocked, PhaseChanged) — vérifié : engine/registry.mjs:5-25 en déclare 19 alors que
+      02_CORE_RULES.md:237-263 en ratifie 22 ;
+      (b) state.mjs::createGameState cesse de perdre les champs hors de ses six clés (RO-5) —
+      vérifié : state.mjs:45-55 ne recopie que {seed, rng_state, eventLog, players, entities,
+      phase}, d'où les ré-attachements manuels de pool/bench_capacity dans CHAQUE handler de
+      preparation.mjs (l.254-256, 343-344, 420-422, 449-451, 504-506, 554-556, 587-589,
+      675-677) ; round_index y disparaîtrait de la même façon.
+      Le moteur ne connaît NI le rendu, NI l'entrée, NI le Round.
+    depend_de: []
+    couvre: ["Systeme 1 (round_index porté par le GameState)", "Systeme 2 (registre 22)", "Systeme 8 (aucun timer moteur, QC-5/INV-3)"]
+
+  - nom: games/auto_battler/pool/
+    fichiers: [games/auto_battler/pool/pool.mjs]
+    responsabilite: >-
+      INCHANGÉ (i2). Comptabilité du Pool par UnitDefinition : reserve au tirage, débit au Buy,
+      restore au Sell selon le Star. Invariant Pool + Shops réservées + possessions (INV-7).
+    depend_de: [games/auto_battler/engine/]
+    couvre: ["Systeme 1 (réservation au tirage d'ouverture)"]
+
+  - nom: games/auto_battler/shop/
+    fichiers: [games/auto_battler/shop/shop.mjs]
+    responsabilite: >-
+      INCHANGÉ dans sa mécanique (drawShop déterministe piloté par rng_state, réservation via
+      pool). Consommé par round/ pour le TIRAGE D'OUVERTURE de début de Round, en plus du
+      Reroll déjà câblé dans preparation/.
+    depend_de: [games/auto_battler/engine/, games/auto_battler/pool/]
+    couvre: ["Systeme 1 (tirage d'ouverture)"]
+
+  - nom: games/auto_battler/bench/
+    fichiers: [games/auto_battler/bench/bench.mjs]
+    responsabilite: >-
+      INCHANGÉ dans sa mécanique (capacité, rejet sans effet de bord — DP-9). La VALEUR de
+      capacité cesse d'être une constante de preparation.mjs et vient de params.v0.mjs (R11 :
+      8 → 9). Vérifié : preparation.mjs:15 déclare BENCH_CAPACITY = 8.
+    depend_de: [games/auto_battler/engine/]
+    couvre: ["Systeme 13 (banc 9 places)", "Systeme 9 (refus banc plein)"]
+
+  - nom: games/auto_battler/merge/
+    fichiers: [games/auto_battler/merge/merge.mjs]
+    responsabilite: >-
+      INCHANGÉ. Détection/résolution de Merge (3 UnitInstances identiques), acte système jamais
+      déclenché par un Input. La DESTINATION de l'unité produite (to_zone/to_index, R1b) est
+      calculée par preparation/ au moment de la réintégration, pas par merge/ qui ignore les zones.
+    depend_de: [games/auto_battler/engine/]
+    couvre: ["Systeme 2 (MergeResolved += to_zone/to_index)"]
+
+  - nom: games/auto_battler/economy/
+    fichiers: [games/auto_battler/economy/gold.mjs]
+    responsabilite: >-
+      INCHANGÉ. Ledger fermé des mouvements de Gold (liste close ECO-3 : Income, Buy, Reroll,
+      LevelUp, Sell, reward — vérifié gold.mjs:5-12, 'Income' est DÉJÀ dans la liste close).
+      round/ passe par applyGoldTransaction pour créditer l'Income : aucun crédit d'or hors de
+      ce ledger.
+    depend_de: [games/auto_battler/engine/]
+    couvre: ["Systeme 1 (crédit d'Income)"]
+
+  - nom: games/auto_battler/board/
+    fichiers: [games/auto_battler/board/board.mjs]
+    responsabilite: >-
+      NOUVEAU. Adressage LOGIQUE du plateau (RO-4) : le plateau devient une grille de
+      BOARD_WIDTH × BOARD_HEIGHT cases indexées ; occupation, case libre, pose, retrait,
+      déplacement case→case, validité d'un index. Vérifié : preparation.mjs:540 empile
+      l'unité dans `[...player.board, {...unit}]` SANS aucune coordonnée, et le commentaire
+      l.532 dit lui-même « placeholder: only Bench→Board supported for now » — le moteur n'a
+      aujourd'hui AUCUNE notion de case, alors que le payload UnitPlaced ratifié exige to_index.
+      board/ ne connaît NI le Gold, NI la Shop, NI le pixel : c'est de l'adressage, pas du dessin
+      (la géométrie écran vit dans layout/).
+    depend_de: [games/auto_battler/engine/, params.v0.mjs]
+    couvre: ["Systeme 2 (UnitPlaced)", "Systeme 6 (unités à la case portée par UnitPlaced)", "Systeme 7 (Place banc→plateau, plateau→plateau, plateau→banc)"]
+
+  - nom: games/auto_battler/preparation/
+    fichiers: [games/auto_battler/preparation/preparation.mjs]
+    responsabilite: >-
+      Couche d'orchestration de la fenêtre Preparation : route les 7 Inputs de la liste close.
+      Travail de l'incrément, tout en délégation (anti god-object) :
+      (a) handlePlace passe par board/ et accepte banc→plateau, plateau→plateau et plateau→banc,
+      avec un index de destination (aujourd'hui : {unit_instance_id, target_zone} seulement,
+      preparation.mjs:515 ; la branche 'bench' retourne l'état inchangé, l.559-562) ;
+      (b) handleSell accepte une unité posée sur le PLATEAU (aujourd'hui rejet silencieux :
+      handleSell ne consulte que bench.findOnBench, l.280-286) ;
+      (c) handleLock devient une BASCULE et émet ShopLocked{locked} (aujourd'hui : force
+      `shop_locked: true` sans condition et sans Event, l.438) ;
+      (d) Place émet UnitPlaced, ConfirmPreparation émet PhaseChanged (le commentaire MED-5
+      l.567-576 qui justifiait l'absence d'Event disparaît du chemin de code) ;
+      (e) UnitBought += unit_instance_id, bench_index (aujourd'hui 4 champs, l.233-239, avec
+      exclusion volontaire documentée MED-4) ; UnitSold += from_zone, from_index (l.319-327) ;
+      MergeResolved += to_zone, to_index (l.631-637) ;
+      (f) les constantes de gameplay (BENCH_CAPACITY, SHOP_SIZE, GOLD_COSTS.Reroll) sont LUES
+      depuis params.v0.mjs, plus déclarées ici (l.15-22).
+      Reste la SEULE porte d'écriture de l'état d'un Seat pendant la fenêtre Preparation.
+    depend_de:
+      - games/auto_battler/engine/
+      - games/auto_battler/pool/
+      - games/auto_battler/shop/
+      - games/auto_battler/bench/
+      - games/auto_battler/merge/
+      - games/auto_battler/economy/
+      - games/auto_battler/board/
+      - params.v0.mjs
+    couvre: ["Systeme 2 (Events muets)", "Systeme 7 (un geste = un Input)", "Systeme 9 (rejet sans effet de bord)", "Systeme 13 (valeurs v0)"]
+
+  - nom: games/auto_battler/round/
+    fichiers: [games/auto_battler/round/round.mjs]
+    responsabilite: >-
+      NOUVEAU. Cycle de vie du Round et création de partie — c'est le module qui fait que
+      LE JEU PEUT DÉMARRER (R13). (a) newGame(seed) : initState + initPrepState + round_index à 0 ;
+      (b) startRound(state) : ordonnancement ratifié 05_ECONOMY_BIBLE.md:250-261
+      Income → tirage des Shops → Preparation State, itéré sur les Seats en seat_index croissant
+      (DP-2) ; Income = min(3 + round_index, 10) lu depuis params.v0.mjs, revenu de base SEUL
+      (Interest/primes REJETÉS, QE-4/QE-5, 05_ECONOMY_BIBLE.md:210) ; émet GoldChanged{source:'Income'}
+      SANS input_ref, puis ShopRolled{cause:'RoundStart'} (RO-3), en sautant les Shops verrouillées
+      (ECO-8) sans consommer de rng_state ; (c) porte l'incrément de round_index.
+      Facade unique de démarrage : app/ ne connaît que ce module pour créer et avancer une partie.
+      Vérifié : aucun code d'Income n'existe aujourd'hui (grep « Income » sur games/auto_battler/**.mjs
+      = uniquement la liste close de economy/gold.mjs), initPrepState pose gold:0 et shop:[]
+      (preparation.mjs:79-86) — impasse totale.
+    depend_de:
+      - games/auto_battler/engine/
+      - games/auto_battler/preparation/
+      - games/auto_battler/pool/
+      - games/auto_battler/shop/
+      - games/auto_battler/economy/
+      - params.v0.mjs
+    couvre: ["Systeme 1 (démarrage complet)"]
+
+  # ------------------------------------------------- géométrie pure (partagée vue/entrée)
+  - nom: games/auto_battler/layout/
+    fichiers: [games/auto_battler/layout/layout.mjs]
+    responsabilite: >-
+      NOUVEAU. Géométrie d'écran PURE, sans état de jeu : conversion pixel → index de case,
+      index de case → rectangle, rectangles des places de banc et des emplacements de boutique.
+      Existe pour une raison précise : le renderer doit DESSINER les cases et la couche d'entrée
+      doit RÉSOUDRE un clic en case ; sans module partagé, la même géométrie serait dupliquée des
+      deux côtés et dériverait (même motif qu'ECO-2 « une seule table lue par l'affichage et par
+      le tirage »). Ne lit aucun GameState, aucun Event, aucune horloge.
+    depend_de: [params.v0.mjs]
+    couvre: ["Systeme 6 (plateau et unités dans le canvas)", "Systeme 7 (Place au glisser)"]
+
+  # ------------------------------------------------------ couche 2 : entrée (voit l'état)
+  - nom: games/auto_battler/input/
+    fichiers:
+      - games/auto_battler/input/gestures.mjs
+      - games/auto_battler/input/submit.mjs
+      - games/auto_battler/input/feedback.mjs
+      - games/auto_battler/input/timer.mjs
+    responsabilite: >-
+      NOUVEAU. LA COUCHE D'ENTRÉE — le seul module autorisé à la fois à voir l'état et à toucher
+      le DOM d'interaction. Découpée en quatre responsabilités pour ne pas devenir un god-object :
+      · gestures.mjs — écoute les clics/glissers (boutons, emplacements de boutique, places de
+        banc, canvas via layout/) et construit UN Input de la liste close INV-13, jamais deux ;
+      · submit.mjs — LE point d'appel unique d'applyPreparationInput dans tout le jeu (entonnoir),
+        et le comparateur profond état-avant/état-après qui DÉTECTE le refus (R14 : aucun Event de
+        rejet n'existe, le registre reste clos à 22) ;
+      · feedback.mjs — écrit le retour de refus dans son propre élément DOM (« Banc plein — vendez
+        une unité »), hors de toute surface du renderer ; c'est ici et NULLE PART AILLEURS que R7
+        est tenu ;
+      · timer.mjs — décompte de 30 s (params.v0.mjs) tenu ENTIÈREMENT hors du GameState (QC-5 :
+        « jamais de timer moteur »), qui à expiration passe par submit.mjs pour émettre exactement
+        le même Input ConfirmPreparation que le bouton « prêt ».
+      Ne dessine JAMAIS l'écran de jeu et ne déclenche JAMAIS le rendu : c'est app/ qui re-rend.
+    depend_de:
+      - games/auto_battler/engine/
+      - games/auto_battler/preparation/
+      - games/auto_battler/layout/
+      - params.v0.mjs
+    couvre: ["Systeme 7 (contrôles → Inputs)", "Systeme 8 (minuteur)", "Systeme 9 (rejet observable)"]
+
+  # ---------------------------------------------- couche 3 : renderer AVEUGLE (INV-5, R1)
+  - nom: games/auto_battler/renderer/
+    fichiers:
+      - games/auto_battler/renderer/viewmodel.mjs
+      - games/auto_battler/renderer/render_dom.mjs
+      - games/auto_battler/renderer/render_canvas.mjs
+    responsabilite: >-
+      NOUVEAU. LE RENDERER AVEUGLE. Son unique entrée est l'Event Log (+ un compteur de trames
+      injecté). Il ne lit JAMAIS le GameState, ne l'importe pas, ne le référence pas, et ne lit
+      pas non plus l'objet global du capteur (R10).
+      · viewmodel.mjs — plie le journal depuis les conditions initiales connues (or 0, niveau 1,
+        banc vide, plateau vide, boutique vide, verrou faux) en un modèle de vue ; c'est ici que
+        R3 échoue quand un Event ne porte pas assez d'information pour être dessiné ;
+      · render_dom.mjs — or, niveau, 5 emplacements de boutique, verrou, 9 places de banc,
+        minuteur, 4 boutons en TEXTE et ÉLÉMENTS DOM RÉELS (R8), sélecteurs stables (R10) ;
+      · render_canvas.mjs — plateau 8×8 miroir et unités posées avec leur Star, via layout/ ;
+        liseré-chronomètre qui se consume sur le COMPTEUR DE TRAMES INJECTÉ, jamais sur l'horloge
+        murale (R2 + direction artistique) ; overlay de debug éteint par défaut (R9).
+      Aucun Math.random, aucun Date, aucun performance.now dans ce module.
+    depend_de:
+      - games/auto_battler/layout/
+      - params.v0.mjs
+    couvre: ["Systeme 3 (renderer aveugle)", "Systeme 4 (rendu déterministe)", "Systeme 5 (couverture Event → écran)", "Systeme 6 (HTML/canvas)", "Systeme 12 (debug éteint)", "Systeme 14 (style — aucun oracle)"]
+
+  # -------------------------------------------------------------- composition & transport
+  - nom: games/auto_battler/app/
+    fichiers: [games/auto_battler/app/boot.mjs]
+    responsabilite: >-
+      NOUVEAU. Racine de composition, côté navigateur, et ELLE SEULE : lit la seed dans l'URL,
+      appelle round.newGame(seed) puis round.startRound(), expose l'état en global sous
+      window.__game pour le capteur (R10), câble input/ (en lui passant l'état courant et en
+      recevant l'état suivant), tient le compteur de trames et appelle renderer avec le SEUL
+      Event Log. Ne contient aucune règle de jeu, ne construit aucun Input, ne dessine rien
+      lui-même. C'est le seul endroit où le mot « window » et une règle de rendu se croisent.
+    depend_de:
+      - games/auto_battler/round/
+      - games/auto_battler/input/
+      - games/auto_battler/renderer/
+      - games/auto_battler/layout/
+      - params.v0.mjs
+    couvre: ["Systeme 4 (compteur de trames injectable)", "Systeme 11 (seed par URL, état en global)"]
+
+  - nom: games/auto_battler/web/
+    fichiers:
+      - games/auto_battler/web/server.mjs
+      - games/auto_battler/web/index.html
+    responsabilite: >-
+      NOUVEAU. Transport uniquement. server.mjs sert index.html et les modules .mjs, y compris
+      ceux des SOUS-DOSSIERS (engine/, renderer/, app/… — le patron de serveur des sondes P1
+      n'autorise que les fichiers de la racine : fixtures/p1/probe_clean/server.mjs:31
+      `ALLOWED_FILE = /^\/[a-zA-Z0-9_-]+\.(mjs|js|css|json)$/` ; le reprendre tel quel rendrait
+      ce jeu inchargeable), refuse toute traversée de chemin, et ANNONCE sa disponibilité sur
+      stdout avant toute mesure (R10). index.html porte le squelette DOM (identifiants stables),
+      la couleur de fond déclarée et la typographie ; il charge app/boot.mjs.
+      N'importe AUCUN module de jeu : un serveur statique qui connaît les règles est un défaut.
+    depend_de: []
+    couvre: ["Systeme 11 (serveur, stdout, couleur de fond, sélecteurs stables)", "Systeme 6 (squelette DOM)"]
+
+  # --------------------------------------------------------------- paramètres et oracles
+  - nom: games/auto_battler/params.v0.mjs
+    fichiers: [games/auto_battler/params.v0.mjs]
+    responsabilite: >-
+      SITE DE DÉCLARATION UNIQUE des valeurs de travail v0 (R11). Existe déjà (BOARD_WIDTH 8,
+      BOARD_HEIGHT 8, BOARD_ORIENTATION 'mirror', MANA_FALLOFF_AFTER_CAST, TICK_LIMIT) et reste
+      à sa place — il est cité comme source par HUMANGATE_2026-07-19_VALUES_V0.md et par
+      COMBAT_GATE_PREP.md ; le déplacer casserait ces renvois. S'y AJOUTENT, et nulle part
+      ailleurs : minuteur 30 s, boutique 5 emplacements, banc 9 places, Reroll 2 or, barème
+      d'Income min(3 + round_index, 10), géométrie de cellule pour layout/.
+      NE RESTENT PAS ICI, faute de source : le coût de montée de niveau (reste la table du
+      moteur, preparation.mjs:21) et la limite d'unités posables (NON DOCUMENTÉE, non implémentée).
+      Fichier de constantes : n'importe RIEN.
+    depend_de: []
+    couvre: ["Systeme 13 (valeurs v0, site unique)", "Systeme 8 (durée 30 s)"]
+
+  - nom: games/auto_battler/solvability.mjs
+    fichiers: [games/auto_battler/solvability.mjs]
+    responsabilite: >-
+      NOUVEAU (exigé par la garde forge.static_oracles.check_solvability_wired : fichier présent,
+      non vide, INVOQUÉ par run-oracle.mjs). Bot déterministe qui pilote un vrai navigateur et
+      ne dispose QUE des contrôles de l'interface : depuis une partie NEUVE (aucune injection
+      d'or ni d'unité), acheter → poser → fusionner → confirmer, en 6 Rounds au plus (RO-6),
+      seed déclarée AVANT exécution. N'importe aucun module de logique : son échec doit être
+      imputable au jeu, jamais au harnais.
+    depend_de: []
+    couvre: ["Systeme 10 (solvabilité à la souris)"]
+
+  - nom: games/auto_battler/e2e.mjs
+    fichiers: [games/auto_battler/e2e.mjs]
+    responsabilite: >-
+      NOUVEAU (exigé par forge.static_oracles.check_e2e_harness : navigateur réel, entrées
+      réelles, au moins N observations de window.__game/#overlay/#restart, invoqué par
+      run-oracle.mjs). Click-through de la préparation : un Input par geste, refus visible,
+      minuteur, images de R3 mesurées debug éteint. N'importe aucun module de logique.
+    depend_de: []
+    couvre: ["Systeme 5 (différences d'image)", "Systeme 7 (un geste = un Input)", "Systeme 9 (retour de refus dans le DOM)", "Systeme 11"]
+
+  - nom: games/auto_battler/run-oracle.mjs
+    fichiers: [games/auto_battler/run-oracle.mjs]
+    responsabilite: >-
+      EXISTANT, à étendre : porte d'oracle du jeu (scripts/forge/oracles.json:84-89 →
+      `node run-oracle.mjs` depuis games/auto_battler). Doit désormais INVOQUER e2e.mjs ET
+      solvability.mjs (verbes d'exécution réels : les deux gardes retirent les commentaires JS
+      avant analyse — une mention en commentaire ne câble rien).
+    depend_de: []
+    couvre: ["Systeme 10", "Systeme 5"]
+
+# ---------------------------------------------------------------------------------------
+# Dépendances AUTORISÉES (arêtes du graphe ; tout ce qui n'y figure pas et qui est listé en
+# deps_interdites est refusé mécaniquement). Graphe ACYCLIQUE, vérifiable par lecture :
+# engine et params.v0 sont des puits ; app est la seule source ; aucune arête ne remonte.
+deps_autorisees:
+  - "pool -> engine"
+  - "shop -> engine"
+  - "shop -> pool"
+  - "bench -> engine"
+  - "merge -> engine"
+  - "economy -> engine"
+  - "board -> engine"
+  - "board -> params.v0"
+  - "layout -> params.v0"
+  - "preparation -> engine"
+  - "preparation -> pool"
+  - "preparation -> shop"
+  - "preparation -> bench"
+  - "preparation -> merge"
+  - "preparation -> economy"
+  - "preparation -> board"
+  - "preparation -> params.v0"
+  - "round -> engine"
+  - "round -> preparation"
+  - "round -> pool"
+  - "round -> shop"
+  - "round -> economy"
+  - "round -> params.v0"
+  - "input -> engine"
+  - "input -> preparation"
+  - "input -> layout"
+  - "input -> params.v0"
+  - "renderer -> layout"
+  - "renderer -> params.v0"
+  - "app -> round"
+  - "app -> input"
+  - "app -> renderer"
+  - "app -> layout"
+  - "app -> params.v0"
+  - "solvability -> params.v0"
+  - "e2e -> params.v0"
+  - "solvability -> input   # toléré par la featuremap (« le harnais n'importe que la couche d'entrée ») ; en pratique le harnais pilote un navigateur et n'importe rien"
+  - "e2e -> input           # idem"
+
+# ---------------------------------------------------------------------------------------
+# Dépendances INTERDITES — livrable central. Format consommé par
+# forge.static_oracles.check_architecture : liste de paires [source, cible] de NOMS DE MODULE
+# (premier dossier sous src_root, ou stem d'un fichier racine). Voir le bloc blueprint_oracle
+# en fin de fichier pour la projection JSON exacte à matérialiser en blueprint.json.
+deps_interdites:
+  # --- INV-5 / R1 : LE RENDERER EST AVEUGLE. Interdiction la plus importante du blueprint.
+  #     Posée au niveau du dossier `engine` (et non engine/state, engine/transition, engine/rng
+  #     séparément) parce que _module_of ne distingue pas les sous-dossiers : une paire plus fine
+  #     serait INVÉRIFIABLE. Plus strict que le product_snapshot, jamais plus permissif.
+  - [renderer, engine]
+  - [renderer, preparation]
+  - [renderer, pool]
+  - [renderer, shop]
+  - [renderer, bench]
+  - [renderer, merge]
+  - [renderer, economy]
+  - [renderer, board]
+  - [renderer, round]
+  - [renderer, input]
+  - [renderer, app]
+  - [renderer, web]
+
+  # --- P11 : engine reste content-agnostic (aucune remontée du noyau vers quoi que ce soit)
+  - [engine, pool]
+  - [engine, shop]
+  - [engine, bench]
+  - [engine, merge]
+  - [engine, economy]
+  - [engine, board]
+  - [engine, preparation]
+  - [engine, round]
+  - [engine, layout]
+  - [engine, renderer]
+  - [engine, input]
+  - [engine, app]
+  - [engine, web]
+  - [engine, "params.v0"]
+
+  # --- params.v0 est un fichier de constantes : il n'importe rien
+  - ["params.v0", engine]
+  - ["params.v0", pool]
+  - ["params.v0", shop]
+  - ["params.v0", bench]
+  - ["params.v0", merge]
+  - ["params.v0", economy]
+  - ["params.v0", board]
+  - ["params.v0", preparation]
+  - ["params.v0", round]
+  - ["params.v0", layout]
+  - ["params.v0", renderer]
+  - ["params.v0", input]
+  - ["params.v0", app]
+  - ["params.v0", web]
+
+  # --- feuilles du moteur : elles ne se connaissent pas entre elles et ne remontent jamais
+  - [pool, shop]
+  - [pool, bench]
+  - [pool, merge]
+  - [pool, economy]
+  - [pool, board]
+  - [pool, preparation]
+  - [pool, round]
+  - [pool, layout]
+  - [pool, renderer]
+  - [pool, input]
+  - [pool, app]
+  - [pool, web]
+  - [bench, pool]
+  - [bench, shop]
+  - [bench, merge]
+  - [bench, economy]
+  - [bench, board]
+  - [bench, preparation]
+  - [bench, round]
+  - [bench, layout]
+  - [bench, renderer]
+  - [bench, input]
+  - [bench, app]
+  - [bench, web]
+  - [merge, pool]
+  - [merge, shop]
+  - [merge, bench]
+  - [merge, economy]
+  - [merge, board]
+  - [merge, preparation]
+  - [merge, round]
+  - [merge, layout]
+  - [merge, renderer]
+  - [merge, input]
+  - [merge, app]
+  - [merge, web]
+  - [economy, pool]
+  - [economy, shop]
+  - [economy, bench]
+  - [economy, merge]
+  - [economy, board]
+  - [economy, preparation]
+  - [economy, round]
+  - [economy, layout]
+  - [economy, renderer]
+  - [economy, input]
+  - [economy, app]
+  - [economy, web]
+  - [board, pool]
+  - [board, shop]
+  - [board, bench]
+  - [board, merge]
+  - [board, economy]
+  - [board, preparation]
+  - [board, round]
+  - [board, layout]
+  - [board, renderer]
+  - [board, input]
+  - [board, app]
+  - [board, web]
+  - [shop, bench]
+  - [shop, merge]
+  - [shop, economy]
+  - [shop, board]
+  - [shop, preparation]
+  - [shop, round]
+  - [shop, layout]
+  - [shop, renderer]
+  - [shop, input]
+  - [shop, app]
+  - [shop, web]
+
+  # --- layout : géométrie PURE. S'il pouvait voir le jeu, il redeviendrait un renderer
+  #     bis et INV-5 serait contournable par un chemin indirect renderer -> layout -> engine.
+  - [layout, engine]
+  - [layout, pool]
+  - [layout, shop]
+  - [layout, bench]
+  - [layout, merge]
+  - [layout, economy]
+  - [layout, board]
+  - [layout, preparation]
+  - [layout, round]
+  - [layout, renderer]
+  - [layout, input]
+  - [layout, app]
+  - [layout, web]
+
+  # --- preparation : le routeur d'Inputs ne connaît ni le Round, ni l'écran, ni l'entrée
+  - [preparation, round]
+  - [preparation, layout]
+  - [preparation, renderer]
+  - [preparation, input]
+  - [preparation, app]
+  - [preparation, web]
+
+  # --- round : cycle de Round, aveugle à l'interface (sinon le minuteur pourrait y entrer)
+  - [round, layout]
+  - [round, renderer]
+  - [round, input]
+  - [round, app]
+  - [round, web]
+
+  # --- input : passe par preparation et RIEN d'autre ; ne dessine pas ; n'ouvre pas de Round
+  - [input, pool]
+  - [input, shop]
+  - [input, bench]
+  - [input, merge]
+  - [input, economy]
+  - [input, board]
+  - [input, round]
+  - [input, renderer]
+  - [input, app]
+  - [input, web]
+
+  # --- app : racine de composition, mais PAS un raccourci vers le moteur (sinon l'entonnoir
+  #     unique d'applyPreparationInput serait contournable depuis le boot)
+  - [app, engine]
+  - [app, preparation]
+  - [app, pool]
+  - [app, shop]
+  - [app, bench]
+  - [app, merge]
+  - [app, economy]
+  - [app, board]
+  - [app, web]
+
+  # --- web : transport pur, ignorant des règles
+  - [web, engine]
+  - [web, pool]
+  - [web, shop]
+  - [web, bench]
+  - [web, merge]
+  - [web, economy]
+  - [web, board]
+  - [web, preparation]
+  - [web, round]
+  - [web, layout]
+  - [web, renderer]
+  - [web, input]
+  - [web, app]
+
+  # --- harnais d'oracle de jeu : l'échec doit être imputable au JEU, jamais au harnais
+  #     (aucun accès direct au moteur ⇒ aucun site d'écriture de players[seat].gold/shop)
+  - [solvability, engine]
+  - [solvability, preparation]
+  - [solvability, pool]
+  - [solvability, shop]
+  - [solvability, bench]
+  - [solvability, merge]
+  - [solvability, economy]
+  - [solvability, board]
+  - [solvability, round]
+  - [solvability, renderer]
+  - [solvability, app]
+  - [e2e, engine]
+  - [e2e, preparation]
+  - [e2e, pool]
+  - [e2e, shop]
+  - [e2e, bench]
+  - [e2e, merge]
+  - [e2e, economy]
+  - [e2e, board]
+  - [e2e, round]
+  - [e2e, renderer]
+  - [e2e, app]
+
+ownership:
+  games/auto_battler/engine/: builder            # s9-build — débordement i1 assumé (registre 22, RO-5)
+  games/auto_battler/pool/: builder              # inchangé
+  games/auto_battler/shop/: builder              # inchangé
+  games/auto_battler/bench/: builder
+  games/auto_battler/merge/: builder             # inchangé
+  games/auto_battler/economy/: builder           # inchangé
+  games/auto_battler/board/: builder             # nouveau
+  games/auto_battler/preparation/: builder       # débordement i2 assumé (R1b, RO-1, RO-4)
+  games/auto_battler/round/: builder             # nouveau
+  games/auto_battler/layout/: builder            # nouveau
+  games/auto_battler/input/: builder             # nouveau
+  games/auto_battler/renderer/: builder          # nouveau
+  games/auto_battler/app/: builder               # nouveau
+  games/auto_battler/web/: builder               # nouveau
+  games/auto_battler/params.v0.mjs: builder      # ajout de valeurs déjà ratifiées, aucune invention
+  games/auto_battler/solvability.mjs: builder    # nouveau
+  games/auto_battler/e2e.mjs: builder            # nouveau
+  games/auto_battler/run-oracle.mjs: builder     # extension (câblage e2e + solvabilité)
+  games/auto_battler/bibles/: HORS OWNERSHIP BUILDER — HumanGate Pierre uniquement
+  tests/: HORS OWNERSHIP BUILDER — zone protégée (.claude/rules/tests.md)
+
+invariants_archi:
+  # --- vérifiables par forge.static_oracles.check_architecture (deps_interdites) ---
+  - "INV-5/R1 — Le module renderer/ n'importe AUCUN module de logique ni le moteur : son unique entrée est l'Event Log, passé par app/. Oracle : les 12 paires [renderer, *] de deps_interdites. Formulation d'oracle déjà écrite dans 02_CORE_RULES.md:304-305."
+  - "R1 (chemin indirect) — layout/ ne peut voir ni le moteur ni la logique : sans cela, renderer -> layout -> engine rendrait INV-5 contournable par transitivité."
+  - "P11 — engine/** reste content-agnostic : le sens de dépendance est exclusivement modules-métier -> engine, jamais l'inverse (14 paires [engine, *])."
+  - "R4 (volet architectural) — la couche d'entrée ne peut atteindre ni le Pool, ni la Shop, ni le Bench, ni l'Economy directement : tout passe par preparation/. Et app/ ne peut pas atteindre preparation/ : il n'existe donc AUCUN chemin d'écriture de l'état côté interface qui ne traverse pas la couche d'entrée."
+  - "R13/R6 — solvability.mjs et e2e.mjs n'importent aucun module de logique : un harnais qui ne peut pas importer le moteur ne peut pas fabriquer l'or ni la boutique de départ."
+  - "R10 — web/ n'importe aucun module de jeu : le serveur est du transport, pas un morceau du jeu."
+  - "Acyclicité — engine et params.v0 sont des puits (0 dépendance sortante), app est la seule source ; toute arête va d'une couche haute vers une couche basse. Aucun cycle possible par construction."
+
+  # --- NON vérifiables par check_architecture : à porter par la WireMap (étape 5), les tests
+  #     du builder, ou à remonter en fog. Déclarés ici pour qu'ils ne soient pas crus prouvés.
+  - "NON COUVERT PAR L'ORACLE D'ARCHI — R2 : zéro Math.random, zéro Date, zéro performance.now dans renderer/. check_architecture ne lit que les imports, pas les identifiants globaux. À prouver par audit statique dédié + double rendu à trame figée."
+  - "NON COUVERT PAR L'ORACLE D'ARCHI — R1 (global) : renderer/ ne référence pas window.__game. L'état est exposé en global pour le capteur (R10) ; un accès global n'est PAS un import et échappe donc à deps_interdites. À prouver par audit statique du module."
+  - "NON COUVERT PAR L'ORACLE D'ARCHI — entonnoir unique : applyPreparationInput n'est appelé, côté interface, que depuis input/submit.mjs (un seul site). check_architecture prouve que l'arête input -> preparation existe, pas qu'elle est unique."
+  - "NON COUVERT PAR L'ORACLE D'ARCHI — R5/QC-5 : aucun champ de temps dans le GameState. À prouver par audit de schéma d'état."
+  - "R14 — le retour de refus est écrit par input/feedback.mjs et par personne d'autre ; il n'existe aucun Event de rejet (registre clos à 22) et le renderer ne le dessine jamais."
+  - "R11 — une valeur de travail v0 a un seul site de déclaration : params.v0.mjs. Aucune constante de gameplay ne subsiste dans preparation.mjs (l.15-22 aujourd'hui : BENCH_CAPACITY, SHOP_SIZE, GOLD_COSTS)."
+  - "R1b — aucun changement d'état observable d'un Seat n'est muet : tout Input accepté qui modifie {gold, bench, board, level, shop, shop_locked} émet au moins un Event, et l'état observable est reconstructible depuis les seules conditions initiales + le journal."
+  - "Anti god-object — preparation/ délègue et ne réimplémente aucune règle de pool/shop/bench/merge/economy/board ; input/ est découpé en gestes/soumission/retour/minuteur ; renderer/ en modèle de vue/DOM/canvas. Aucun de ces modules ne dépasse une responsabilité nommable en une phrase."
+  - "Le Merge reste un acte système : jamais un Input, jamais déclenché par input/ ni par app/."
+
+# ---------------------------------------------------------------------------------------
+# Projection destinée à l'oracle. C'est CE bloc, et lui seul, qui doit être matérialisé en
+# lab/forge_runs/auto_battler_i2_5/blueprint.json (le driver lit `blueprint.json` dans le
+# run_dir : scripts/forge/driver.py:468). src_root = games/auto_battler.
+# Les noms sont ceux que forge.static_oracles._module_of produit réellement.
+blueprint_oracle:
+  src_root: games/auto_battler
+  modules:
+    - engine
+    - pool
+    - shop
+    - bench
+    - merge
+    - economy
+    - board
+    - preparation
+    - round
+    - layout
+    - input
+    - renderer
+    - app
+    - web
+    - params.v0
+    - solvability
+    - e2e
+  note_deps_interdites: >-
+    identique, paire pour paire, à la clé deps_interdites de ce fichier (liste de paires
+    [source, cible] de str, format exact dépaqueté par check_architecture, static_oracles.py:215-220).
+
+# ---------------------------------------------------------------------------------------
+notes:
+  granularite_oracle: >-
+    forge.static_oracles._module_of (static_oracles.py:73-76) réduit tout fichier à son premier
+    dossier sous src_root. Les interdictions du product_snapshot formulées en `renderer ↛
+    engine/state`, `renderer ↛ engine/transition`, `renderer ↛ rng` ne sont donc PAS
+    exprimables telles quelles : elles sont posées ici en `renderer ↛ engine`, qui les couvre
+    toutes les trois et davantage. Écart déclaré, dans le sens strict uniquement.
+  modules_sans_test: >-
+    check_architecture rapporte aussi modules_sans_test (non gatant). Un fichier compte comme
+    test si son nom contient « test » ou « spec » (static_oracles.py:185-187). solvability.mjs,
+    e2e.mjs, web/ et app/ n'auront vraisemblablement pas de test unitaire important leur module :
+    ces entrées apparaîtront dans modules_sans_test — c'est un fait rapporté, pas un FAIL.
+  contradictions_signalees:
+    - "engine/registry.mjs:5-25 déclare 19 Events ; 02_CORE_RULES.md:237-263 en ratifie 22. Écart réel, dans le périmètre de l'incrément."
+    - "engine/state.mjs:45-55 — createGameState ne recopie que 6 clés ; pool et bench_capacity sont ré-attachés à la main dans 8 endroits de preparation.mjs. round_index subirait le même sort (RO-5)."
+    - "preparation.mjs:438 — handleLock force shop_locked à true sans condition : ce n'est pas la bascule exigée par RO-1, et aucun Event n'est émis."
+    - "preparation.mjs:280-286 — handleSell ne consulte que le banc : vendre une unité posée sur le plateau est aujourd'hui un rejet SILENCIEUX (contredit R7 autant que RO-4)."
+    - "preparation.mjs:514-565 — handlePlace n'accepte que {unit_instance_id, target_zone}, empile sans coordonnée (l.540) et la branche 'bench' retourne l'état inchangé (l.559-562) : ni plateau→plateau ni plateau→banc n'existent, alors que UnitPlaced exige from_index/to_index."
+    - "preparation.mjs:15 BENCH_CAPACITY = 8 (contre 9 ratifié) et l.20 GOLD_COSTS.Reroll = 1 (contre 2, R11)."
+    - "Aucun Income, aucun round_index, aucun tirage d'ouverture n'existe (grep « Income » sur games/auto_battler/**.mjs : seulement la liste close de economy/gold.mjs). initPrepState pose gold:0 et shop:[] (preparation.mjs:79-86) : impasse de départ, R13."
+    - "NOUVEAU, non listé par la featuremap — engine/transition.mjs:27-56 (applyInput) est un SECOND chemin d'application d'Input, parallèle à applyPreparationInput : il émet un Event 'Spawn' placeholder pour TOUT Input accepté et force phase='Battle' sur ConfirmPreparation. Un appel depuis l'interface polluerait le journal d'Events (Spawn hors de son sens Combat) et contournerait R4. Aucune paire deps_interdites ne peut l'interdire (input -> engine est légitime pour buildInput) : porté ici en invariant non couvert par l'oracle, à câbler en WireMap (étape 5) ou à remonter en fog."
+    - "NOUVEAU, non listé par la featuremap — fixtures/p1/probe_clean/server.mjs:31 (patron de serveur des sondes) n'autorise QUE les fichiers de la racine du dossier ; ce jeu a ses modules en sous-dossiers. Reprendre ce patron tel quel rendrait la page inchargeable. Porté en responsabilité explicite de web/server.mjs."
+  fog_humangate:
+    - "R6/RO-6 — l'atteignabilité de la fusion en 6 Rounds dépend de la seed (Income 3 au Round 0, coûts de fixture 1 à 5 or, tirage uniforme sur 5 UnitDefinition, shop/shop.mjs:51-72). Le budget de Rounds est un jugement Pierre : aucune bible ne le fixe."
+    - "R7/R14 — distinguer un Input REJETÉ d'un Input ACCEPTÉ sans effet observable (ex. Lock idempotent) n'est documenté par aucune bible. RO-1 (bascule) supprime le cas pour Lock, mais le critère général reste un trou déclaré."
+    - "R12 — le style visuel, la lisibilité et la qualité d'animation n'ont AUCUN oracle : l'écran n'est pas fait quand les gardes sont vertes, il est fait quand Pierre l'a regardé."
+
+software_verdict: OK
+evidence_verdict: MECHANICAL_VALIDATION_ONLY
+claim_verdict: NO_CLAIM_ALLOWED

@@ -1,0 +1,381 @@
+{
+  "id": "chain-mrdrqp15",
+  "kind": "chain",
+  "name": "/forge",
+  "maturity": "draft",
+  "badge": "demo",
+  "roadmapRef": null,
+  "sourceRef": null,
+  "wiredStatus": "unset",
+  "payload": {
+    "nodes": [
+      {
+        "id": "s0-contrat",
+        "type": "agent",
+        "x": 40,
+        "y": 40,
+        "data": {
+          "role": "contrat",
+          "note": "Étape 0 CONTRAT (DÉCRITE) : charter.yaml — objectif · hors-scope · critères de succès · actions interdites. Condition de sortie : aucun champ « à définir ». Sinon → GEL."
+        }
+      },
+      {
+        "id": "s1-prisme",
+        "type": "artefact",
+        "x": 300,
+        "y": 40,
+        "data": {
+          "title": "Étape 1 — Prisme Produit (product_snapshot.md)",
+          "description": "Le produit vu par l'UTILISATEUR : vue utilisateur · parcours · états visibles · règles observables. ZÉRO technique. Entrée de toute la rétro-ingénierie.",
+          "artefactType": "document"
+        }
+      },
+      {
+        "id": "s2-worldscan",
+        "type": "tool",
+        "x": 560,
+        "y": 40,
+        "data": {
+          "name": "world-scan",
+          "description": "Étape 2 WORLD SCAN (DÉCRITE) : recherche web citée sur produits comparables (découpage, features, pièges). Réutilise le skill /world-scan → knowledge packet advisory-only. Section evidence : FOUND vs USED."
+        }
+      },
+      {
+        "id": "s3-decompo",
+        "type": "agent",
+        "x": 820,
+        "y": 40,
+        "data": {
+          "role": "décompo-fonctionnelle",
+          "note": "Étape 3 DÉCOMPO (DÉCRITE) : rétro-ingénierie du Prisme → arbre Système→Feature→capacité, chaque feuille portant sa preuve attendue. Seed la colonne Feature de la WireMap, justifie l'architecture."
+        }
+      },
+      {
+        "id": "af-featuremap",
+        "type": "artefact",
+        "x": 820,
+        "y": 250,
+        "data": {
+          "title": "Livrable étape 3 — featuremap",
+          "description": "Arbre Système→Feature→capacité + preuve attendue par feuille. Rend le découpage du repo non arbitraire et attaquable par le red-team.",
+          "artefactType": "document"
+        }
+      },
+      {
+        "id": "s4-archi",
+        "type": "agent",
+        "x": 1080,
+        "y": 40,
+        "data": {
+          "role": "architecte",
+          "note": "Étape 4 ARCHITECTURE (DÉCRITE) : blueprint.yaml — modules (grappes de features) · dépendances autorisées/INTERDITES (ex: ui→api→engine ok, ui→engine interdit) · OWNERSHIP · proof-contract d'archi. Gelé avant tout fichier."
+        }
+      },
+      {
+        "id": "s5-wiremap",
+        "type": "artefact",
+        "x": 1080,
+        "y": 430,
+        "data": {
+          "title": "Étape 5 — WireMap isomorphe",
+          "description": "Épouse l'architecture : sections WireMap ≡ modules ≡ dossiers src/. 1 entrée/capacité : feature→appel→fichiers→fonction→version→preuve→statut. CÂBLÉE AVANT une ligne de code. Source de vérité fonctionnelle.",
+          "artefactType": "document"
+        }
+      },
+      {
+        "id": "s6-redteam-plan",
+        "type": "agent",
+        "x": 820,
+        "y": 430,
+        "data": {
+          "role": "red-team (archi + wiremap)",
+          "note": "Étape 6 RED-TEAM du PLAN (DÉCRITE) : attaque couplage · évolution · testabilité · ownership · COLLISION · ROI · « prouver ? ». Tue les god-objects avant qu'ils existent. Le red-team porte sur le PLAN, jamais sur l'oracle. Point de reboucle de la Mémoire."
+        }
+      },
+      {
+        "id": "s7-blueprint-gate",
+        "type": "humangate",
+        "x": 560,
+        "y": 430,
+        "data": {
+          "message": "Étape 7 BLUEPRINT GATE (Pierre) : décompo + architecture + wiremap gelés ET isomorphes ? GO / retour 1-5.",
+          "rule": "isomorphisme wiremap ↔ archi vérifié",
+          "context": [
+            "featuremap",
+            "blueprint.yaml",
+            "wiremap"
+          ],
+          "actsAsOracle": true
+        }
+      },
+      {
+        "id": "s8-createrepo",
+        "type": "tool",
+        "x": 300,
+        "y": 430,
+        "data": {
+          "name": "create-repo",
+          "description": "Étape 8 CREATE REPO (DÉCRITE) : la structure physique est une CONSÉQUENCE du blueprint gelé — jamais « au feeling ». L'arborescence src/ tombe des modules de l'architecture."
+        }
+      },
+      {
+        "id": "s9-build",
+        "type": "agent",
+        "x": 40,
+        "y": 430,
+        "data": {
+          "role": "builder (borné par l'ownership)",
+          "note": "Étape 9 BUILD (DÉCRITE) : délégation BORNÉE PAR L'OWNERSHIP (les builders lisent la WireMap), micro-commits, + MAJ de la WireMap si une feature naît/change d'ancrage. Sous-agents Claude Code / Qwen. Graph-coloring anti-collision ressuscité."
+        }
+      },
+      {
+        "id": "s10a-oracle-code",
+        "type": "agent",
+        "x": 40,
+        "y": 790,
+        "data": {
+          "role": "oracle CODE (déterministe non-LLM)",
+          "oracleRef": "oracle-forge-code"
+        },
+        "attachedOracle": {
+          "id": "oracle-forge-code",
+          "name": "Étape 10a — Oracle CODE : les tests passent (cargo test / pytest / vitest)",
+          "badge": "target"
+        }
+      },
+      {
+        "id": "s10b-oracle-archi",
+        "type": "agent",
+        "x": 300,
+        "y": 790,
+        "data": {
+          "role": "oracle ARCHITECTURE (déterministe non-LLM)",
+          "oracleRef": "oracle-forge-archi"
+        },
+        "attachedOracle": {
+          "id": "oracle-forge-archi",
+          "name": "Étape 10b — Oracle ARCHI : dépendances interdites absentes · chaque module a des tests (import-linter)",
+          "badge": "target"
+        }
+      },
+      {
+        "id": "s10c-oracle-wiremap",
+        "type": "agent",
+        "x": 560,
+        "y": 790,
+        "data": {
+          "role": "oracle WIREMAP (déterministe non-LLM)",
+          "oracleRef": "oracle-forge-wiremap"
+        },
+        "attachedOracle": {
+          "id": "oracle-forge-wiremap",
+          "name": "Étape 10c — Oracle WIREMAP : isomorphe & cohérente (fichiers/fonctions/preuves/statut ; détecte renommages)",
+          "badge": "target"
+        }
+      },
+      {
+        "id": "oracle-join",
+        "type": "join",
+        "x": 820,
+        "y": 790,
+        "data": {
+          "waitFor": [
+            "s10a-oracle-code",
+            "s10b-oracle-archi",
+            "s10c-oracle-wiremap"
+          ]
+        }
+      },
+      {
+        "id": "s11-redteam-code",
+        "type": "agent",
+        "x": 1080,
+        "y": 790,
+        "data": {
+          "role": "red-team CODE (aveuglé)",
+          "note": "Étape 11 RED-TEAM CODE (DÉCRITE) : sous-agent AVEUGLÉ — spec + code seuls, contexte vierge, ne reçoit PAS le raisonnement du builder → « trouve la faille ». Rapport multi-angle (technique · utilisateur · adversaire · agentique)."
+        }
+      },
+      {
+        "id": "s12-verdict",
+        "type": "agent",
+        "x": 1080,
+        "y": 1000,
+        "data": {
+          "role": "verdict signé HMAC",
+          "note": "Étape 12 VERDICT (DÉCRITE) : matrice software_verdict / evidence_verdict / claim_verdict (+ decision) signée HMAC. claim_verdict: NO_CLAIM_ALLOWED. FAIL ou HMAC invalide → stop."
+        }
+      },
+      {
+        "id": "s13-humangate",
+        "type": "humangate",
+        "x": 820,
+        "y": 1000,
+        "data": {
+          "message": "Étape 13 HUMAN GATE (Pierre, souverain) : MERGE · REJECT · FREEZE. Jamais « continue ». Pierre audite la chaîne de preuves (graphe de confiance), pas le code ligne à ligne.",
+          "rule": "merge/reject/freeze",
+          "context": [
+            "verdict HMAC",
+            "graphe de confiance"
+          ],
+          "actsAsOracle": false
+        }
+      },
+      {
+        "id": "s14-memoire",
+        "type": "tool",
+        "x": 560,
+        "y": 1000,
+        "data": {
+          "name": "PILOU — mémoire (facts / decisions / postmortems)",
+          "description": "Étape 14 MÉMOIRE (DÉCRITE) : écrit facts.json · decisions.json · postmortems.json (confiance 0-100 + source). La mémoire des pannes nourrit le pré-mortem → REBOUCLE vers l'étape 6 (Red-team)."
+        }
+      },
+      {
+        "id": "note-invariants",
+        "type": "note",
+        "x": 293.5086401202104,
+        "y": 927.4004507888806,
+        "data": {
+          "text": "INVARIANTS DOCTRINAUX (non négociables) : (1) l'oracle du résultat est DÉTERMINISTE et non-LLM — le test vert EST le verdict ; (2) le red-team porte sur le PLAN, pas sur l'oracle ; (3) HumanGate reste souverain (NO_CLAIM_ALLOWED, verdict HMAC). Ce graphe = cartographie du design, aucune étape n'est exécutée ici."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e0",
+        "from": "s0-contrat",
+        "to": "s1-prisme"
+      },
+      {
+        "id": "e1",
+        "from": "s1-prisme",
+        "to": "s2-worldscan"
+      },
+      {
+        "id": "e2",
+        "from": "s2-worldscan",
+        "to": "s3-decompo"
+      },
+      {
+        "id": "e3",
+        "from": "s3-decompo",
+        "to": "af-featuremap"
+      },
+      {
+        "id": "e3b",
+        "from": "s3-decompo",
+        "to": "s4-archi"
+      },
+      {
+        "id": "e4",
+        "from": "s4-archi",
+        "to": "s5-wiremap"
+      },
+      {
+        "id": "e5",
+        "from": "s5-wiremap",
+        "to": "s6-redteam-plan"
+      },
+      {
+        "id": "e6",
+        "from": "s6-redteam-plan",
+        "to": "s7-blueprint-gate"
+      },
+      {
+        "id": "e7",
+        "from": "s7-blueprint-gate",
+        "to": "s8-createrepo"
+      },
+      {
+        "id": "e8",
+        "from": "s8-createrepo",
+        "to": "s9-build"
+      },
+      {
+        "id": "e9a",
+        "from": "s9-build",
+        "to": "s10a-oracle-code"
+      },
+      {
+        "id": "e9b",
+        "from": "s9-build",
+        "to": "s10b-oracle-archi"
+      },
+      {
+        "id": "e9c",
+        "from": "s9-build",
+        "to": "s10c-oracle-wiremap"
+      },
+      {
+        "id": "e10a",
+        "from": "s10a-oracle-code",
+        "to": "oracle-join"
+      },
+      {
+        "id": "e10b",
+        "from": "s10b-oracle-archi",
+        "to": "oracle-join"
+      },
+      {
+        "id": "e10c",
+        "from": "s10c-oracle-wiremap",
+        "to": "oracle-join"
+      },
+      {
+        "id": "e-oracle-red",
+        "from": "oracle-join",
+        "to": "s9-build",
+        "loop": true,
+        "condition": "oracle ROUGE → classifie l'échec → retour Build",
+        "maxIterations": 3
+      },
+      {
+        "id": "e11",
+        "from": "oracle-join",
+        "to": "s11-redteam-code",
+        "condition": "oracle VERT"
+      },
+      {
+        "id": "e12",
+        "from": "s11-redteam-code",
+        "to": "s12-verdict"
+      },
+      {
+        "id": "e13",
+        "from": "s12-verdict",
+        "to": "s13-humangate"
+      },
+      {
+        "id": "e14",
+        "from": "s13-humangate",
+        "to": "s14-memoire"
+      },
+      {
+        "id": "e-loop-memoire",
+        "from": "s14-memoire",
+        "to": "s6-redteam-plan",
+        "loop": true,
+        "condition": "Mémoire → nourrit le re-plan → reboucle vers Red-team (étape 6)",
+        "maxIterations": 3
+      },
+      {
+        "id": "edge-1000",
+        "from": "note-invariants",
+        "to": "s10b-oracle-archi",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": ""
+      }
+    ],
+    "initialInput": {
+      "note": "ESQUISSE — représente visuellement la boucle /forge, ne l'exécute pas. Invariants : oracle déterministe non-LLM · red-team sur le PLAN · HumanGate souverain (NO_CLAIM_ALLOWED)."
+    },
+    "category": "chaine",
+    "tags": [
+      "production"
+    ]
+  },
+  "created": "2026-07-09T17:16:28.601Z",
+  "updated": "2026-07-09T17:16:28.601Z"
+}

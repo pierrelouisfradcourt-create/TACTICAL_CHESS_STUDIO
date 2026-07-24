@@ -1,0 +1,113 @@
+{
+  "_comment": "WireMap isomorphe (s5) — Collect Runner. Lu par forge.static_oracles.check_wiremap. Une feature par Règle observable de product_snapshot.md (R1..R12). Le builder DOIT créer exactement ces noms de fonction dans ces fichiers.",
+  "features": [
+    {
+      "feature": "R1 avance auto",
+      "module": "game",
+      "fonction": "step",
+      "fichiers": ["games/collect_runner/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: appeler step(state, dt) N fois sans input fait strictement augmenter state.player.x",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R2 deplacement gauche",
+      "module": "game",
+      "fonction": "applyInput",
+      "fichiers": ["games/collect_runner/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: applyInput(state, {left:true}) puis step sur dt donne un x inferieur au meme step sans input",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R3 deplacement droite",
+      "module": "game",
+      "fonction": "applyInput",
+      "fichiers": ["games/collect_runner/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: applyInput(state, {right:true}) puis step sur dt donne un x superieur au meme step sans input",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R4 saut",
+      "module": "game",
+      "fonction": "jump",
+      "fichiers": ["games/collect_runner/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: jump(state) avec onGround=true met vy < 0 et onGround=false",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R5 pas de double saut",
+      "module": "game",
+      "fonction": "jump",
+      "fichiers": ["games/collect_runner/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: jump(state) avec onGround=false laisse vy inchange (no-op)",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R6 gravite et retombee",
+      "module": "game",
+      "fonction": "applyGravity",
+      "fichiers": ["games/collect_runner/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: appliquer applyGravity(state, dt) en boucle apres un saut fait redescendre y jusqu'a onGround=true",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R7 collecte piece -> compteur+1",
+      "module": "game",
+      "fonction": "collectCoin",
+      "fichiers": ["games/collect_runner/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: collectCoin(state, coinId) fait passer state.coins de n a n+1 et retire la piece des pieces actives",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R8 collision obstacle -> defaite",
+      "module": "game",
+      "fonction": "hitObstacle",
+      "fichiers": ["games/collect_runner/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: hitObstacle(state) fait passer state.status a 'defeat'",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R9 defaite fige la progression",
+      "module": "game",
+      "fonction": "step",
+      "fichiers": ["games/collect_runner/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: apres hitObstacle, rappeler step(state, dt) ne change plus state.player.x",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R10 fin de niveau -> niveau suivant",
+      "module": "game",
+      "fonction": "nextLevel",
+      "fichiers": ["games/collect_runner/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: nextLevel(state) sur un niveau non-dernier incremente state.levelIndex et regenere le niveau via generateLevel",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R11 dernier niveau fini -> victoire",
+      "module": "game",
+      "fonction": "nextLevel",
+      "fichiers": ["games/collect_runner/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: nextLevel(state) appele sur le dernier niveau fait passer state.status a 'victory'",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R12 generation seedee deterministe",
+      "module": "level",
+      "fonction": "generateLevel",
+      "fichiers": ["games/collect_runner/level.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: generateLevel(seed, levelIndex) appele deux fois avec le meme couple retourne une disposition de pieces/obstacles strictement identique (deep equal)",
+      "statut": "a_faire"
+    }
+  ]
+}

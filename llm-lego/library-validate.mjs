@@ -212,7 +212,7 @@ try {
   await page.getByTestId("wm-project-select").selectOption("llm-lego");
   await page.waitForFunction(() => document.querySelectorAll('[data-testid="wm-scroll"] tbody tr').length >= 12, null, { timeout: 5000 }).catch(() => {});
   const wmDoc = await api("/api/wireframes/llm-lego");
-  check("Wire Map llm-lego has 12 entries", (wmDoc.json?.entries || []).length === 12);
+  check("Wire Map llm-lego has 13 entries", (wmDoc.json?.entries || []).length === 13);
   await page.getByTestId("wm-audit").click();
   const auditText = await page.locator('[data-testid="wm-audit-report"] pre').first().textContent().catch(() => "");
   check("Wire Map audit runs (coverage report)", (auditText || "").includes("Couverture") || (auditText || "").includes("mappés"));

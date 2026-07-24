@@ -1,0 +1,33 @@
+{
+ "created_ts": 1784395871.778843,
+ "escalations": 0,
+ "is_game": true,
+ "model_override": null,
+ "profile": "artbible",
+ "project": "shmup_slice_art",
+ "run_id": "shmup_slice_art-20260718a",
+ "run_status": "DONE",
+ "steps": {
+  "s2.5-artbible": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\shmup_slice_art\\artifacts\\s2.5-artbible.txt",
+    "artifact_sha256": "0839c0fb9b2ea18b87dd63bc41b3a861bc86297e68c8511cc9c2acd48f99c2e2",
+    "cost_usd": 1.7088464999999997,
+    "duration_s": 306.1181170940399,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "ion_stats: 0 OK / 18 BLOCKED`) :\n\n| entité | entity_role | style | resolution |\n|---|---|---|---|\n| ship-player | player | kawaii-chibi | BLOCKED |\n| shot-player, shot-enemy, shot-boss, vfx-explosion | effect | pop-vfx | BLOCKED |\n| enemy-invaders, enemy-sine | enemy | kawaii-chibi | BLOCKED |\n| boss-1, boss-2, boss-3 | boss | kawaii-chibi | BLOCKED |\n| bg-map1, bg-map2, bg-map3 | environment | candy-pop | BLOCKED |\n| hud-life, hud-bosshp, screen-victory, screen-defeat, btn-restart | ui | chunky-hud | BLOCKED |\n\nLes 18 `BLOCKED` de resolution sont **légitimes et attendus** : le catalogue réel ne contient que les styles `flat-top-down / lowpoly / photoscan-pbr` — **aucun** tag `kawaii-chibi / candy-pop / pop-vfx / chunky-hud`. Le `BLOCKED` de resolution (catalogue incomplet) est distinct du `MISSING_ASSET_COVERAGE` (oubli) — ce dernier est vide. **Aucune contrainte n'a été relâchée** pour forcer un OK de resolution (pas de gaming de l'oracle) ; je n'ai pas trahi la direction kawaii imposée par Pierre en déclarant `flat-top-down`.\n\n### claim_verdict: NO_CLAIM_ALLOWED\n\n**Fog → HumanGate (jugement Pierre, hors oracle)** :\n1. **Conformité esthétique non évaluée** — `style_tag_match` compare des tags de métadonnées, pas des pixels. Rien ici ne certifie que ces sprites seront « jolis » ou « dans le bon esprit Pop'n TwinBee ». Décision Pierre.\n2. **Sourcing des 18 assets** — les 18 requêtes sont `BLOCKED` faute d'assets kawaii au catalogue. Décision Pierre : ingérer de nouveaux assets (gate ingestion explicite, `knowledge_base/README.md`), commander une génération, ou trancher que le style demandé n'existe pas encore. **Aucun octet réseau, aucune écriture `catalog.json`** effectués.\n3. **Adéquation viewpoint non vérifiée** (limite v0.1 connue) — le contrat ne détecte pas si un style top-down serait réutilisé à tort pour ce vertical scroller.\n\n**Pré-mortem respecté** : reçu d'oracle avec `evidence_path` ré-exécutable fourni (sinon BLOCKED). Aucun commit / push (gate Pierre).",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 19791
+   },
+   "status": "OK",
+   "ts": 1784396177.9089558
+  }
+ },
+ "updated_ts": 1784396177.91443
+}

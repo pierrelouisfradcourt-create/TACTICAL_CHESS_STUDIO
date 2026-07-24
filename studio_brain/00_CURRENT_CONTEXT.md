@@ -1,179 +1,138 @@
 # Contexte courant TCS
 
-## Session 2026-07-19 (chat stratégie, suite) — mode commandement + mission Opus lancée
-- **Mode raffiné (ratifié Pierre)** : Fable = UNIQUEMENT couche de commandement (stratégie · arbitrage ·
-  mémoire · vision Forge · plans) ; Opus = raisonnement profond ; Sonnet = mécanique validée.
-- **Directives jeux (Pierre)** : Belote sur Render → micropatchs seulement ; AutoBattler → playtest
-  local PRIORITAIRE avant toute décision release ; ne pas mélanger jeux et refonte studio.
-- **LIVRÉ — audit Opus « couche décisionnelle »** (`docs/audit/DECISION_LAYER_AUDIT_2026-07-19.md`,
-  PROPOSED, annoté contre-vérif Fable 2026-07-20) : chaîne canonique trouvée 6/6 maillons ; trou T1 =
-  écriture mémoire Forge→ledger (proposals SANS lecteur de contenu — contre-vérifié par grep indépendant) ;
-  3 gabarits HumanGate DOCUMENTED_ONLY jamais employés ; `project_bible`/`propose_bible_entry` inertes.
-- **Architecture Knowledge Resolver — direction RATIFIÉE (2026-07-20)** après challenge de conception
-  Fable×Pierre : résolveur = consolidation (pas de nouvelle couche), rasoir 4 conditions pour l'auto-
-  promotion, score advisory jamais juge, modes automatic/oracle/human (consensus supprimé), HumanGate
-  conservé comme nom de l'acte, ordre incrémental 5 étapes, règle anti-couches. Protocole V1 rédigé :
-  `docs/forge/KNOWLEDGE_RESOLVER_V1_PROTOCOL.md` (PROPOSED — H1, métriques M1-M4 posées avant,
-  sonde anti-théâtre, zéro écriture, non-mélange jeux).
-- **Resolver V1 CONSTRUIT (2026-07-20, gate Pierre)** : `scripts/forge/knowledge_trace.mjs` (+ `--verify`
-  anti-théâtre, exit 1 prouvé) + `pending_review.mjs` (read-only strict) — 41/41 tests verts REJOUÉS par
-  l'orchestrateur ; file réelle visible : 9 dépôts dormants (4 ledger + 4 project + 1 erreur). Limite
-  d'usage : items.json JAMAIS dans le run_dir (auto-confirmation du verify). NON COMMITÉ.
-  Reste V1 : M1-M4 sur 3 runs naturels (trace + verify par run, revue file par session de gate).
-- **FORGE Run A `card_engine-20260720a` TERMINÉ (2026-07-20, go Pierre « forge le tarot »)** :
-  CardEngine V0 (core content-agnostic) + BeloteRules (parité 15 goldens vs belote-claude publié,
-  JAMAIS touché) + harnais. **Verdict signé OK / HUMANGATE_READY_WITH_OBJECTION — verify_run overall
-  TRUE** (HMAC+évidence+mutation+git). 97 tests · parité 20/20 · solvabilité 5 seeds + playGame ·
-  mutation canonique 206 mutants / 11 survivants TOUS triés (gate passed, exception). ~1,81 M tokens.
-  Histoire (journalisée connecteur 6) : haiku « ALL PASS » démenti par oracles → escalade sonnet ×3 ;
-  red-team code opus blind : HIGH trickWinner + R6 jamais appliquée en jeu réel + théâtre solver
-  (flags littéraux) — tout corrigé/prouvé ; verify_run a REJETÉ un reçu mutation artisanal → refait
-  canoniquement. Run B (TarotRules, profil increment) = APRÈS gate Pierre.
-- **Resolver V1 — 1er point de mesure réel** : knowledge_trace 5 items **FOUND partout, sonde
-  anti-théâtre exit 0** (après leçon de format : ref = TOKEN recoupable, pas description). M1 ✓ M2 ✓ ;
-  M3 en attente décisions file ; M4 ok. 2 propositions Run A déposées (ledger + projet, propose-only).
-- **MISSION FORGE V2 LIVRÉE (2026-07-20)** : P1 autopsie horodatée + P2 challenge Opus (T1/T5 à moitié
-  infirmées, 2 angles morts dont l'auto-attestation de la knowledge_trace, ZÉRO cas Evolve justifié)
-  + **`docs/audit/FORGE_V2_CONSOLIDATION.md`** (PROPOSED) : 4 compilateurs d'actifs + formes-cibles,
-  6 règles d'orchestration (O1-O6, chacune née d'un fait), workflow cible amendé aux bornes,
-  6 renforcements de l'existant (R1 anti-théâtre · R2 playtest→journal · R3 verify_run⟷trace ·
-  R6 packets→mandatory_read · R7 design-intent charter · R8 usage_examples), hypothèses classées,
-  tableau de bord baseline. MAJ `STUDIO_MASTER_SCHEMA.html` en cours (Sonnet).
-- **RATIFIÉ (2026-07-20)** : principe de viabilité (« la Forge n'a pas à prouver le fun — elle empêche
-  de construire sur un système manifestement invalide ») · **R9 solvabilité minimale 5 volets =
-  PRIORITAIRE** · santé ludique = classe d'oracle EXPÉRIMENTALE advisory (familles impasse/faux-choix/
-  atrophie ABANDONNÉES) · consolidation restructurée §4-A renforcements prouvés / §4-B capteurs
-  expérimentaux. Mémoire : forge_viability_doctrine.
-- **§4-A EXÉCUTÉ (go Pierre, 2026-07-20)** — tous renforcements câblés ET falsifiés, contre-vérifiés
-  par l'orchestrateur : R9 solvabilité auto_battler 5 volets (oracle exit 0, falsification 14 tests,
-  `check_solvability_wired` false→true, zéro bug de jeu, note : victoire de PARTIE non définie par les
-  règles = TODO FOG existant) · R1 anti-théâtre GATING au driver s10a (fixture théâtrale → BLOCKED ;
-  a débusqué du théâtre dans nos propres fixtures de test, corrigé) · R3 verify_run⟷knowledge_trace
-  (trace théâtrale → REJET) · R2 record_playtest→pré-mortem (appelant = orchestrateur à chaque
-  playtest) · R6 packets en mandatory_read s3/s4 · R7 design-intent charter + check_charter (18 tests)
-  + câblé au skill s0 · R8 usage_examples 2/30 remplis réels (kb-validate PASS, idempotence sha
-  identique ; ARBITRAGE orchestrateur : BRICK_SPEC étendu d'un champ optionnel + helper optional() —
-  enabler minimal de la ratification, falsifié 4 tests, à confirmer en gate). pytest 482/483 ·
-  auto_battler 158 tests · KB 115 tests.
-- **AUDIT R10 LIVRÉ (2026-07-20)** : `docs/audit/FORGE_V2_R10_HEALTH_ORACLE_AUDIT.md` — verdict :
-  la CLASSE « oracles santé ludique structurelle » = DOCUMENTED_ONLY → **ABANDON recommandé** (membres
-  déjà couverts par R9/§4-B ou ratifiés-abandonnés). Une seule proposition minimale survit : sentinelle
-  plateforme (`plateforme_cible ⇒ artefact présent`, advisory, greffe s10a, valeur FAIBLE — appel Pierre)
-  + option télémétrie usage-par-contenu sur volet 5.
-- **AUDIT BAS LIVRÉ (2026-07-20)** : `docs/audit/FORGE_BALANCE_ASSURANCE_SYSTEM_AUDIT.md` — L1 génération
-  contrainte = MANQUE réel (matrice Chess TCG DOCUMENTED_ONLY, générateur NOT_FOUND en code, vérifié
-  08_GENERATOR_UNIFIED_CANDIDATE.md:49) → Evolve/gate déterministe ; L2 simulation = EXTENSION de
-  `role_sim.mjs` (primitif L2 exact, orphelin dans knowledge_base/, jamais appliqué à un vrai jeu,
-  bande gardien [1,999] = exemple d'une bande qui ne peut pas rougir) → Improve advisory conditionné ;
-  L3 pont LLM-seed-oracle = MANQUE du connecteur → Improve. P0 : Bibles AutoBattler = schémas excellents
-  mais VALEURS TOUTES TBD + Balance/Simulation/Content Bibles inexistantes → première tâche = imposer
-  les valeurs, pas construire les agents. TENSION signalée non tranchée : verbatim mission (« skill plat
-  bloque ») vs ratification §4-B (dominance advisory) — lecture compatible : L1/L3 gatent, L2 advisory.
-- **BAS V2 LIVRÉ (2026-07-20, corrections game master intégrées)** :
-  `docs/audit/FORGE_BALANCE_ASSURANCE_SYSTEM_AUDIT_V2.md` — L1 process d'enveloppe PAR JEU (Evolve,
-  gate dur, matrice Chess TCG = contenu d'avril NON ressuscité) · L2 Improve-conditionné ADVISORY
-  post-démo (radar sur les itérations du game master, jamais la 1re sortie) · L3 pont seed (Improve,
-  bots-qui-complètent suffisent à rejouer) · **agents-joueurs = RISQUE MAJEUR NON RÉSOLU** (le studio
-  sait compléter, pas jouer-à-niveau ; Rocky échec gelé +10 FAIL confirmé hooks) · chaîne dure :
-  P0 valeurs → P1 agent-à-niveau PROUVÉ → P3 calibration → L2 mesure · « bloque si skill plat » acté
-  erreur de fusion (seul le déterministe gate, cohérent §4-B).
-- **LES 8 GATES TRANCHÉES ET EXÉCUTÉES (2026-07-20)** : BAS V2 ratifié (P0 drafts livrés : 32 valeurs,
-  6 choix design purs, 2 écarts code↔intention V-13b/V-24) · Run A card_engine ACCEPTÉ (fiche
-  HUMANGATE_2026-07-20_RUN_A) · pending_review 11/11 disposé (L1-L2 reject, reste accept — M3 ✓,
-  décisions dans lab/reports/pending_review_decisions.jsonl, promotion matérielle différée à l'étape
-  Promotion Policies) · R8 confirmé · format décision consacré + batch §3-ii FAIT (gabarits LEGACY,
-  STUDIO ALIGNÉ ✅, watchlist 34, T1 fermée confirmée par fil-piège) · R10 sentinelle ABANDONNÉE (>5 min)
-  · capteur dominance LIVRÉ (sondes vertes, 5 unités dominant_agreed advisory sur contenu réel — limite
-  inter-rangs documentée) · **7 COMMITS** (1143682→8c5ccf0 : ledger, forge+resolver, card_engine,
-  auto_battler+R9+drafts, KB, capteurs/décisions, docs/gouvernance). RIEN POUSSÉ (gate push séparée).
-- ⏸️ Restes : **200 fichiers non commités HORS de mon périmètre** (llm-lego 74, lab anciens 47,
-  studio 36, games shmup/leviathan 30, fixtures p1 5…) = territoire des sessions parallèles/antérieures
-  — à commiter par elles ou sur go sweep explicite Pierre. À venir : chantier-recherche agent-à-niveau
-  (protocole d'abord) · cycle de gates Bibles P0 · Run B Tarot · playtest AutoBattler (+record_playtest)
-  · M1-M4 (2 runs restants) · push (gate).
-- Pendantes : playtest AutoBattler (prioritaire côté jeux, hors refonte studio).
+## Session 2026-07-25 (Fable, suite) — Context Loop GO implémenté (chemin ratifié Pierre)
+- **Livré, testé, NON commité** : `scripts/forge/context_manifest.py` (2 kinds signés HMAC :
+  dispatch = photo sources+contract_sha256+payload_prompt_sha256, execution =
+  final_prompt_sha256+chars+premortem_sha256+budget) · `model_windows.json` (fenêtres à
+  calibrer) · câblage best-effort dans `prepare_dispatch` + `claude_executor` (jamais
+  bloquant, driver.py intact) · `verify_run` étendu (context_manifest_problems/notes,
+  hors gates) · `context_check.mjs` advisory (diff+score FRESH/STALE_WARNING/
+  STALE_CRITICAL/REQUIRES_REFRESH/NO_MANIFEST + budget + recommandations texte, exit 0).
+- **Preuves relancées par l'orchestrateur** : pytest 516 passed (490+26) · node 34/34 ·
+  intégration croisée sur sonde réelle : manifest signé (HMAC OK) → lu par le Node,
+  dérive « wiremap added » → REQUIRES_REFRESH. Sonde _ctx_smoke supprimée.
+- **Trou attrapé et corrigé en couture** : statut `added` absent de ma spec de score
+  (FRESH à tort) → corrigé + 2 tests. Leçon : le test d'intégration orchestrateur entre
+  deux agents parallèles reste obligatoire.
+- **Prochaine étape (chemin Pierre)** : run Forge réel observé → mesurer les dérives
+  réelles → ensuite seulement décider refresh auto / transcript / impact graph.
+- **V2 Context Continuity (même jour, architecture seule)** :
+  `docs/forge/CONTEXT_LOOP_V2_PROPOSAL.md` — 6 briques (refresh delta A · reads index B ·
+  impact C · checkpoint handoff 4 · héritage contrôlé/Core Memory 5 · wiremap_nav 6),
+  ordre recommandé : run observé → nav → B-lite → checkpoint → héritage → refresh → impact.
+  Contrainte clé : pas de métrique fenêtre live en claude -p ⇒ handoff aux frontières
+  d'activation (retry/escalade), checkpoint = état structuré falsifiable ≠ résumé.
+  5 décisions D1-D5 en attente (D1 = ressusciter PROJECT_BIBLE en Core Memory ou supprimer).
+- **D1-D5 RATIFIÉES Pierre (retour architecture, même jour)** : doc consolidé (§0 — trois
+  mémoires courte/longue/forensic, pyramide de contexte, BIBLE/CORE_MEMORY/ARCHIVE séparés,
+  ordre final : run observé → nav → checkpoint → sonde stream-json → core memory → refresh
+  → impact). Brique 6 (wiremap_nav, D2 « GO maintenant ») lancée en construction.
+- **Brique 6 LIVRÉE (même jour, non commitée)** : `scripts/forge/wiremap_nav.mjs` +
+  39 tests verts (relancés orchestrateur) — requêtes avant/inverse validées sur les 2
+  régimes réels (shmup_slice driver / card_engine prose « traçabilité réduite »),
+  branchements checkpoint/manifest prêts (dormants faute de données), affichage modèles
+  dédoublonné ×N. Découverte honnête : filtre startsWith capture shmup_slice_art
+  (run voisin, affiché status=n/a, jamais inventé). Suite mjs complète : 244+39 verts.
+- **Reste pour dérouler l'ordre D5** : choix Pierre du jeu/objectif du run observé (étape 0)
+  + éventuel commit de sauvegarde (patch fiabilisation + context loop + nav, ~10 fichiers).
+- **WHY (retour Pierre, même jour)** : évalué comme primitive du DISPATCH —
+  `docs/forge/WHY_ACTIVATION_PRIMITIVE.md`. Découverte : champ 16 du schéma prévoyait
+  déjà « pourquoi l'agent existe » et a dégénéré en topologie jamais rendue au prompt.
+  Proposition : `why {type, ref falsifiable, text}` au dispatch + manifest + checkpoint ;
+  pilote manuel au run observé (H1-H3, contre-exemple cherché). Décisions W1-W4 en attente.
 
-## Session 2026-07-19 (chat déploiement Belote) — Belote PUBLIÉ en ligne + PWA installable
-- Suite directe de l'arbitrage flagship (voir archive stratégie ci-dessous) : Belote (`llm-lego/
-  experiments/belote-claude`) déployé réellement — repo GitHub `belote-claude` (privé) + Render
-  free tier → **https://belote-claude.onrender.com** live, vérifié par requêtes prod (index/
-  manifest/icônes/API 200). Committé+poussé `8d4145f` sur `feat/forge-oracle-gate`.
-- PWA installable Android confirmée par la joueuse réelle (grand-mère de Pierre) après 2 itérations :
-  icônes SVG seules insuffisantes pour l'installabilité Chrome → PNG 192/512 rasterisées via
-  Playwright ; service worker cache-first corrigé en réseau-d'abord (servait une version périmée
-  à chaque mise à jour, y compris pendant mes propres tests locaux — piège noté).
-- Retours terrain corrigés : HUD score écrasé par les réglages (scindé en 2 lignes), cartes en
-  main trop petites (agrandies 62×114, symboles 44px, recalculé pour ne pas déborder à 8 cartes).
-- Limite documentée et acceptée telle quelle (décision Pierre) : la bande de geste Android (bas
-  d'écran) provoque des retours involontaires en jouant une carte — hors de portée d'une PWA
-  installée (pas un TWA), non corrigée sur décision explicite. Détail complet + leçons dans
-  `llm-lego/experiments/belote-claude/JOURNAL_ERREURS.md` (Partie 4, E10-E12).
-- Reste ouvert : suivi de la session parallèle auto battler (non dupliquée ici) ; ledger triage v2
-  toujours à commiter (gate Pierre, voir archive stratégie).
+## Session 2026-07-25 (Fable) — Agent Context Audit (pré-run, lecture seule)
+- **Livré** : `docs/audit/AGENT_CONTEXT_AUDIT_2026-07-25.md` — bootstrap/runtime/persistent
+  des agents Forge, 3 sous-agents contre-vérifiés. 8 écarts E1→E8.
+- **Clés** : mandatory_read = consigne (s0→s6 sans outil Read) · prompt non versionné ni
+  reconstituible · aucune trace de ce qu'un agent LIT (json only, pas de transcript) ·
+  search KB : 5 requêtes historiques, toutes matchCount:0 · contrat/prompt modifiables
+  post-validation (HMAC ne signe pas le contenu) · R2 = 1/3 corrigé (doublon marqueur
+  run_real.py:520 + skill.md:82 périmé) · régime prose (16/21) hérite 494 allow/0 deny
+  (git commit inclus) sans garde-fou code · seul canal mémoire→prompt : premortem.
+- **En attente Pierre** : solutions E1→E8 (aucune codée — mission lecture seule).
+- **Suite (même jour)** : mandat permanent « Architecte du contexte agentique » confié à
+  Fable. Architecture livrée : `docs/forge/CONTEXT_LOOP_V1_PROPOSAL.md` (PROPOSED) —
+  Context Manifest signé à la porte, context_diff + table CONTEXT_CONSUMERS, Integrity
+  Check advisory, refresh ciblé driver, capture transcript opt-in. 5 décisions au §10
+  (go étapes 1-3 · advisory vs futur gate · timing refresh · transcript · driver-only V1).
+  Cas réel motivant : wiremap shmup_slice modifiée 4 j après son gel (mtimes 14/07 vs 18/07).
+- **V1.1 Freshness (même jour)** : `docs/forge/CONTEXT_LOOP_V1_1_FRESHNESS.md` — audit
+  CONTEXT_BUDGET (fenêtres modèles NOT_FOUND, tokens sommés post-appel, prompt total non
+  plafonné, one-shot confirmé ⇒ fraîcheur cognitive = Source+Budget Freshness), score
+  advisory FRESH/STALE_WARNING/STALE_CRITICAL/REQUIRES_REFRESH, arbitrage Pierre consolidé :
+  GO manifest+prompt_sha256+integrity check advisory · ATTENTE refresh auto/transcript/
+  impact auto. Périmètre GO exact au §7 — prêt à coder sur go.
 
-## Session 2026-07-19 (chat stratégie productivité/entreprise — condensée)
-Détail complet : `journal/context-archive-2026-07-19-strategie.md` — diagnostic « déclaré ≠ exécuté »
-au niveau PRODUIT, 3 dossiers PROPOSED (ledger triage, S13 release, arbitrage flagship), retour
-Pierre (triage v2 révisé, S13 ratifiée dans le principe, arbitrage résolu par l'action — voir
-session Belote ci-dessus), mode figé RATIFIÉ (Fable/Opus/Sonnet), **triage v2 exécuté mais NON
-COMMITÉ** (action pendante : commit gate Pierre, ne pas restaurer le ledger via checkout).
+## Session 2026-07-24 (Fable) — Audit branchements Forge (Phase 1 mission Pierre)
+- **Livré** : `docs/audit/FORGE_AUDIT_BRANCHEMENTS_2026-07-24.md` — photographie complète
+  Kernel/Workflow/Mémoire/Branchements, 4 sous-agents contre-vérifiés (2 claims corrigés).
+- **Écarts majeurs** : driver adopté 5/21 runs (prose majoritaire, même après card_engine) ·
+  `verify_run` jamais appelé par driver.py · hook forge fail-open sans marqueur auto-apposé ·
+  capteurs visuels + s10d jamais branchés au verdict · selfaudit neutralisé au pre-commit
+  (`|| true`, sortie jetée) · décisions Pierre du 20/07 enregistrées mais jamais appliquées ·
+  seule boucle mémoire fermée = error_journal↔premortem.
+- **En attente Pierre** : 8 arbitrages listés au §5 du rapport (dont go/no-go Phase 2
+  rapports agents + choix du run observé Phase 3, et commit de sauvegarde des 203 fichiers).
 
-## Session 2026-07-19 (chat studio/méta — archivée)
-Archive complète : `journal/context-archive-2026-07-19-audit.md` — audit « déclaré ≠ exécuté » :
-3 strates mortes (fiches agents jamais chargées → 13 réparées, matrice permissions ignorant agent_id,
-3 taxonomies), capteur `declaration_readers.mjs` (25 tests verts), doctrine Declared→Referenced→
-Executed→Verified, 4 décisions Pierre en attente, leçon fiabilité sous-agents (1 citation fabriquée).
+## Session 2026-07-24 (Fable, suite) — Patch fiabilisation Forge V1 (go Pierre)
+- **Livré, testé (490 passed, 1 skipped relancés par l'orchestrateur), NON commité** :
+  R1 `verify_run` câblé dans `driver.py._run_verdict` (échec ⇒ s12 BLOCKED, 1 seul appel) ·
+  R2 marqueur `FORGE_DISPATCH:<etape>:<run_id>` injecté par `contract.py._render_prompt`
+  via `prepare_dispatch` (hook plus jamais désarmé par oubli sur le chemin de la porte) ·
+  R3 pre-commit : selfaudit visible (`lab/reports/selfaudit_last.json` + résumé 1 ligne,
+  toujours non bloquant) · R4 `scripts/forge/apply_decisions.mjs` (+17 tests) : marquage
+  `review_status` des propositions depuis les décisions Pierre, dry-run par défaut,
+  **`--apply` réel jamais exécuté** (attend go Pierre ; dry-run : 10 marquages, 1 orpheline).
+- **Écart d'ingénierie à ratifier** : gate mutation de verify_run restreint aux verdicts OK
+  (un FAIL légitime échouerait toujours `verify_mutation_receipt`) — HMAC/évidence/
+  knowledge_trace restent des gates durs inconditionnels.
+- **Prochaine étape** : go Pierre sur `apply_decisions --apply`, doctrine driver (option A
+  recommandée), sort des 3 éléments passifs (s10d, PROJECT_BIBLE, .claude/agents côté Forge).
 
-## Session 2026-07-19 (chat auto battler, suite) — Incrément 2 forgé + mergé, calibration Forge
-- **Calibration Forge** : doc corrigée (hook dur `pretool_forge_guard` ACTIF depuis 2026-07-10,
-  pas différé — 2 docs stales corrigées) ; `FORGE_FORMATS_REFERENCE.md` créé (formats réels
-  wiremap/triage/blueprint oracle/verdict, exemples tirés du run i1) ; `COMBAT_GATE_PREP.md`
-  créé (prérequis incrément Combat, ne tranche rien). Committé+poussé `501491f`.
-- **Gates infra Combat posés** (ratifiés Pierre en session) : profil Forge `increment` ajouté
-  à `scripts/forge/dispatch.py` (test dédié, suite verte 432 passed), convention run_dir
-  `auto_battler_i<N>`, valeurs v0 (Board 8×8 miroir, Mana→0 après Cast, `tick_limit=50`
-  calculé sourcé TFT). Committé+poussé `da15b37`.
-- **QB-6 ratifiée** (anéantissement mutuel = match nul, aucune perte de Life) et **DP-9 ajoutée**
-  (Bench plein → Buy refusé, gap signalé par 05_ECONOMY_BIBLE.md lui-même, comblé avant build) —
-  verbatim dans `HUMANGATE_2026-07-19_QB6.md` / `HUMANGATE_2026-07-19_DP9.md`.
-- **Incrément 2 « preparation + economy » FORGÉ EN RÉEL** (`auto_battler_i2`, profil `increment`,
-  s3→s12 exécutés réellement — decompo/archi/wiremap/red-team-plan Qwen/build/oracles/
-  mutation/red-team-code Opus/verdict signé). Red-team code a trouvé HIGH-1 (compteur
-  module-global cassant le déterminisme replay, INV-19) → **corrigé et prouvé** avant merge.
-  Verdict `HUMANGATE_READY_WITH_OBJECTION`, authentique (`forge.verify_run` exit 0).
-  **HumanGate Pierre : MERGE ratifié** → committé `e72a0e4`. Petite itération déléguée pour
-  les 4 findings MED (réservation Pool réelle, Buy lié à la Shop, payloads Events alignés
-  bible, faux Event Spawn retiré) → **corrigés, re-vérifiés indépendamment** (92/92 tests,
-  91/98 mutants=92.9%, 4 oracles verts), committé `bccbef9` (inclut aussi `shop/shop.mjs`
-  oublié du commit de merge — repéré par re-vérification indépendante, pas par le sous-agent).
-  **Rien poussé** (gate séparé, non demandé).
-- Reste ouvert : incrément 3 Combat toujours bloqué sur l'incrément « economy » côté
-  bibles/gate (celui-ci est maintenant FAIT — débloque potentiellement la suite), LOW-6
-  (biais mineur tirage Shop, non traité, non demandé).
+## Session 2026-07-21 (Opus) — Forge V0 : Godot devient le 1er backend certifie
+- **Ratifie Pierre** : Godot = runtime canonique de la Forge. Le contrat `role` reste la
+  FRONTIERE (aucun moteur nomme). Concept central : **substituabilite certifiee** — une
+  implementation est substituable si, sous LA MEME simulation_config et LES MEMES graines,
+  sa bande mesuree retombe dans la bande declaree. Prouvee par mesure, jamais affirmee.
+  Pas de portage Unity/Unreal maintenant ; contrats ouverts aux futurs runtimes, fail-closed.
+- **Ou vit le travail** : worktree `.claude/worktrees/forge-godot-etape0`, branche
+  `feat/forge-godot-etape0`, **24 commits, RIEN DE POUSSE**. Spec + plan versionnes dans
+  `docs/superpowers/{specs,plans}/2026-07-21-forge-godot-etape0*`.
+  Journal detaille : `.superpowers/sdd/progress.md`.
+- **Constat qui a change l'ampleur** : l'infra Godot existait deja (games/chess_tcg,
+  harnais headless 83/83 avec garde EXPECTED_ASSERTS ; `.gd` deja dans static_oracles).
+  Il manquait 3 choses, toutes livrees : mutation GDScript, solvabilite, cablage.
+- **LIVRE** : resolveur de binaire Godot · adaptateur `godot_trial.mjs` (role_sim.mjs INTACT,
+  aucun couplage moteur) · mutation.py comprend and/or + ==/!= + `#` comme commentaire ·
+  kb-validate ouvre le code Godot (R6) et voit les impuretes GDScript (R10) · champ
+  `learned_from` · garde fail-closed `simulation_runtime` · brique M01 + contrat de role ·
+  oracle de solvabilite R9 Godot · verdict signe **verify_run = AUTHENTIQUE (exit 0)** ·
+  instrumentation d'apprentissage + protocole `external_sources/`.
+- **Contrat Forge cree** : `scripts/forge/contracts/s9-build-godot.yaml`, valide par la porte
+  `prepare_dispatch`. Porte verifiee cryptographiquement (etape/run_id inventes = BLOQUES).
+  Ecart connu : le hook est fail-OPEN sans marqueur `FORGE_DISPATCH`.
 
-## Session 2026-07-18 (archivée)
-Archive complète : `journal/context-archive-2026-07-18.md` — architecture 16 bibles auto_battler
-RATIFIÉE, 4 HumanGates, corpus 00–07, run Forge `auto_battler_i1` s0→s12 mergé (`44592b3`).
+### DECISION EN ATTENTE DE PIERRE
+Le verdict est **AUTHENTIQUE** mais porte objection : `decision=HUMANGATE_READY_WITH_OBJECTION`,
+`is_clean_pass=FALSE`. Or `verdict.py:196` fait de `is_clean_pass` le SEUL predicat autorise
+pour promouvoir. Le plan demandait `tier=validated` -> **conflit plan vs doctrine**.
+**Defaut applique : la brique reste `candidate`, `proof_of_use=null`.** A trancher.
 
-## Historique 2026-07-09 → 2026-07-15 (archivé)
-Archive complète : `journal/context-archive-2026-07-14-15.md` — mémoire qui compose (Forge),
-shmup run1, pipeline 3D, factory contractuelle mergée master.
+### BLOQUEUR TECHNIQUE OUVERT (revue finale, CRITIQUE)
+**La solvabilite R9 est une TAUTOLOGIE.** `solvability.gd:111` : le generateur de labyrinthe
+appelle `GridNav.path_length` — LA BRIQUE TESTEE — et creuse un repli jusqu'a ce qu'un chemin
+existe, avant de rendre le labyrinthe ; le bot le parcourt ensuite avec le meme BFS.
+`succeeded` ne peut etre faux que si `next_step` contredit `path_length`. "50/50 gagnes" ne
+prouve donc PAS "un bot gagne vraiment". Meme defaut dans `trial.gd` (branche `path_len < 0`
+morte) => le "300/300" du role_sim est aussi garanti par construction.
+**Correctif requis avant tout claim R9** : le generateur ne doit pas consulter la brique ;
+des instances reellement injouables doivent exister ; `succeeded=false` doit etre ATTEIGNABLE.
+Autres findings importants : couplage moteur (`godot_project`/`godot_script`) DANS
+`simulation_config` cense etre agnostique ; log de validation role_sim non scelle (chiffres
+transcrits a la main dans le verdict) ; bande ternaire {26,30,34} qui mesure le regime de
+graines plus que la capacite.
 
-## ⚠️ DÉCISION MAJEURE — PIVOT PRODUIT (ratifié Pierre, 2026-07-05/06)
-> **Toute session future qui propose du travail Rocky ou de l'outillage builder DOIT renvoyer ici.**
-- **Rocky : GEL.** Aucune session d'optimisation moteur sans HumanGate explicite.
-- **Lane STUDIO : GEL** (ratifié Pierre 2026-07-19) — `autopilot.py`, `scripts/studioV2/`, lanceurs.
-  Lire OK, modifier = HumanGate. Hors gel : `tests/studioV2/`, `studioV2_MIGRATED_HOLD/`.
-  ⇒ `lab/agent_policy/` + taxonomie `producer/code/qa` = **legacy de fait** ; plus que 2 taxonomies
-  vivantes (`.claude/agents/` + contrats Forge). Détail : [[lane_studio_frozen]].
-- **Factory réorientée** : jeux de cartes FR — **Belote = produit 1**, **Tarot = produit 2** (moteur de plis commun).
-- Actions du pivot : re-triage ledger FAIT (triage v2 2026-07-19, non commité) ; spec produit Belote
-  EXISTE (docs/superpowers/specs/2026-07-06-belote-bloc2-*) et Belote est PUBLIÉE ; reste : étage 2 WebRTC gated.
+### Prochaine etape
+Corriger la tautologie R9, puis re-mesurer, puis revenir au gate de promotion.
 
-## Impasses / doctrine (portées)
-- LEDGER canonique = `lab/chains/IMPROVEMENT_LEDGER.yaml` ; écrire via `kaizen_loop.py`.
-  `settings.json` : `Write/Edit(lab/chains/**)` en **ask** (mitigation IMP-247) — attendu, pas un bug.
-- **Forge** : `is_clean_pass()` = seul prédicat de passage propre ; `software_verdict` seul ≠ signal de promotion ;
-  survivant mutation trié = objection, jamais READY propre. Recette d'audit : `grep -rn 'software_verdict.*==.*OK'`.
-- `train.py` gelé (Rocky = GEL). Serveur builder : `node demo-server.ts` :3000.
-- Une variable à la fois · fondations avant features · **aucun commit/push sans go explicite Pierre**.

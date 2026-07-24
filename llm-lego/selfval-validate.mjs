@@ -110,7 +110,7 @@ try {
   check("REGRESSION double-run: search → node-search", r1.includes("node-search") && !r1.includes("node-chat"));
   check("REGRESSION double-run: chat → node-chat", r2.includes("node-chat") && !r2.includes("node-search"));
   const wm = await api("/api/wireframes/llm-lego");
-  check("REGRESSION: Wire Map llm-lego still 12 entries", (wm.json?.entries || []).length === 12);
+  check("REGRESSION: Wire Map llm-lego still 13 entries", (wm.json?.entries || []).length === 13);
 
   out.pass = Object.values(out.checks).every(Boolean);
   log(out.pass ? "\n=== ALL SELF-VALIDATION CHECKS PASSED ===" : `\n=== FAILED: ${out.failed} ===`);
