@@ -194,10 +194,134 @@ test("R6: asset godot/3D avec ingested=true -> rejet", (t) => {
   const res = validateCatalog(makeCatalog([a]), { root });
   assert.ok(res.errors.some((e) => e.rule === "R6"));
 });
-test("R6: brick runtime godot avec path non-null -> rejet", (t) => {
+// Amendement etape 0 (2026-07-21) : R6 "manifest-only" ne s'applique plus au CODE godot
+// (seulement aux assets 3D non ingeres, cf. validateAsset ci-dessus, inchange). Un system
+// runtime:godot avec un vrai path/sha256/tests suit desormais exactement le meme regime
+// de preuve qu'un system non-godot -> plus de rejet R6 automatique.
+test("R6 amende: brick system runtime godot avec path/sha256/tests reels -> plus de rejet R6", (t) => {
   const { root, files } = makeRoot(t);
   const s = baseSystem(files); s.runtime = "godot";
   const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.deepEqual(res.errors.filter((e) => e.rule === "R6"), []);
+  assert.equal(res.ok, true);
+});
+
+// Fabrique une brick "system" godot avec un vrai fichier .gd sur disque (meme convention
+// que systemWith() plus bas : ecrit un fichier reel dans la temp knowledge_base/, calcule
+// son sha256 reel). Reutilise le fichier de tests partage (files.tests.path) : un system
+// godot suit le meme regime de preuve qu'un system non-godot, y compris R12 (tests).
+function godotSystemBrick(kb, files, name = "sys-godot-trial", brickId = "sys-godot-trial") {
+  const body = "extends Node\n\nfunc _ready() -> void:\n\tpass\n";
+  const p = `knowledge_base/systems/combat/${name}.gd`;
+  writeFileSync(join(kb, "systems/combat", `${name}.gd`), body);
+  const s = baseSystem(files);
+  s.brick_id = brickId; s.runtime = "godot"; s.path = p; s.sha256 = sha256(Buffer.from(body));
+  s.dependencies = ["pat-damage-floor"];
+  return s;
+}
+
+// Fabrique une brick "system" godot dont le CONTENU .gd est fourni par l'appelant (au lieu
+// du corps fixe de godotSystemBrick ci-dessus) — meme convention que systemWith() (JS) mais
+// pour un fichier .gd reel sur disque, sha256 reel. Sert les tests R10/GDScript ci-dessous.
+function godotBrickWithSource(kb, files, src, name = "sys-godot-src", brickId = "sys-godot-src") {
+  const p = `knowledge_base/systems/combat/${name}.gd`;
+  writeFileSync(join(kb, "systems/combat", `${name}.gd`), src);
+  const s = baseSystem(files);
+  s.brick_id = brickId; s.runtime = "godot"; s.path = p; s.sha256 = sha256(Buffer.from(src));
+  s.dependencies = ["pat-damage-floor"];
+  return s;
+}
+
+// ---------- R10 GDScript (amendement etape 0, spec 2026-07-21 §8b) ----------
+test("R10 GDScript: randi() dans une brique godot -> rejet R10", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const s = godotBrickWithSource(kb, files, "var x = randi()\n");
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R10" && /randi/.test(e.msg)), JSON.stringify(res.errors));
+});
+test("R10 GDScript: Time.get_ticks_msec() -> rejet R10 (non deterministe)", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const s = godotBrickWithSource(kb, files, "var t = Time.get_ticks_msec()\n");
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R10"));
+});
+test("R10 GDScript: FileAccess.open() -> rejet R10 (I/O)", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const s = godotBrickWithSource(kb, files, 'var f = FileAccess.open("x", 1)\n');
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R10"));
+});
+test("R10 GDScript: du .gd pur ne declenche AUCUN R10", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const src = "func step(pos: Vector2i, dir: Vector2i) -> Vector2i:\n\treturn pos + dir\n";
+  const s = godotBrickWithSource(kb, files, src);
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.deepEqual(res.errors.filter((e) => e.rule === "R10"), []);
+});
+test("R10 GDScript: le mot randi en COMMENTAIRE ne declenche pas R10 (pas de faux positif)", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const src = "# ne jamais utiliser randi() ici\nfunc f() -> int:\n\treturn 1\n";
+  const s = godotBrickWithSource(kb, files, src);
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.deepEqual(res.errors.filter((e) => e.rule === "R10"), []);
+});
+
+// ---------- Correctif de revue : '#' DANS une chaine n'est pas un commentaire ----------
+// stripGdscriptCommentsAndStrings retirait les commentaires AVANT les chaines : un '#'
+// a l'interieur d'un litteral de chaine etait pris pour un debut de commentaire, effacant
+// tout le reste de la ligne — y compris de l'impurete reelle (randi() invisible). Ces 5 tests
+// verifient l'analyseur en une seule passe (correctif de revue, gate contre-verifie).
+test("R10 GDScript: '#' DANS une chaine de format idiomatique -> rejet R10 (randi visible)", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const src = 'var label := "#%d" % randi()\n';
+  const s = godotBrickWithSource(kb, files, src);
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R10" && /randi/.test(e.msg)), JSON.stringify(res.errors));
+});
+test("R10 GDScript: '#' dans une chaine suivi d'un vrai appel non-deterministe -> rejet R10", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const src = 'var s = "hp: #"; var d = randi_range(1, 3)\n';
+  const s = godotBrickWithSource(kb, files, src);
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.ok(res.errors.some((e) => e.rule === "R10" && /randi_range/.test(e.msg)), JSON.stringify(res.errors));
+});
+test("R10 GDScript: guillemet DANS un commentaire n'ouvre pas de fausse chaine (code suivant reste visible)", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const src = "# n'utilise pas randi\nfunc f() -> int:\n\treturn 1\n";
+  const s = godotBrickWithSource(kb, files, src);
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.deepEqual(res.errors.filter((e) => e.rule === "R10"), []);
+});
+test("R10 GDScript: chaine triple-guillemets contenant randi() -> AUCUN R10 (c'est du texte)", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const src = 'var doc := """\nExemple: randi() retourne un entier.\n"""\nfunc f() -> int:\n\treturn 1\n';
+  const s = godotBrickWithSource(kb, files, src);
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.deepEqual(res.errors.filter((e) => e.rule === "R10"), []);
+});
+
+test("R6: brick system runtime godot avec path .gd + tests + sha256 -> ACCEPTEE", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const s = godotSystemBrick(kb, files);
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.deepEqual(res.errors.filter((e) => e.rule === "R6"), []);
+  assert.equal(res.ok, true);
+});
+
+test("R6: brick system runtime godot SANS path -> rejet R7 (pas d esquive de preuve)", (t) => {
+  const { root, kb, files } = makeRoot(t);
+  const s = godotSystemBrick(kb, files);
+  s.path = null; s.sha256 = null; s.tests = null;
+  const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
+  assert.equal(res.ok, false);
+  assert.ok(res.errors.some((e) => e.rule === "R7"));
+});
+
+test("R6 INCHANGEE: asset 3D/godot ingere reste rejete (manifest-only)", (t) => {
+  const { root, files } = makeRoot(t);
+  const a = { ...manifestOnly3D(), ingested: true, path: files.asset.path, sha256: files.asset.sha, size_kb: files.asset.kb };
+  const res = validateCatalog(makeCatalog([a]), { root });
+  assert.equal(res.ok, false);
   assert.ok(res.errors.some((e) => e.rule === "R6"));
 });
 
@@ -630,4 +754,37 @@ test("R8-d: brick avec usage_examples valide (tableau de chaines) -> ok, zero er
   const s = { ...baseSystem(files), usage_examples: ["games/kb_tactics/game.mjs"] };
   const res = validateCatalog(makeCatalog([basePattern(files), s]), { root });
   assert.deepEqual(res.errors, []);
+});
+
+// ---------- learned_from (Task 7) ----------
+test("learned_from absent -> brick valide (facultatif, retrocompatible)", (t) => {
+  const { root, files } = makeRoot(t);
+  const b = baseSystem(files);
+  delete b.learned_from;
+  const { errors } = validateCatalog(makeCatalog([basePattern(files), b]), { root });
+  assert.deepEqual(errors.filter((e) => /learned_from/.test(e.msg)), []);
+});
+
+test("learned_from bien forme -> accepte", (t) => {
+  const { root, files } = makeRoot(t);
+  const b = baseSystem(files);
+  b.learned_from = { game: "01_grid_nav_probe", reference: "Pac-Man (1980)" };
+  const { errors } = validateCatalog(makeCatalog([basePattern(files), b]), { root });
+  assert.deepEqual(errors.filter((e) => /learned_from/.test(e.msg)), []);
+});
+
+test("learned_from avec une cle inconnue -> rejet R1 (schema ferme)", (t) => {
+  const { root, files } = makeRoot(t);
+  const b = baseSystem(files);
+  b.learned_from = { game: "x", reference: "y", extra: "z" };
+  const { ok } = validateCatalog(makeCatalog([basePattern(files), b]), { root });
+  assert.equal(ok, false);
+});
+
+test("learned_from avec un champ manquant -> rejet R1", (t) => {
+  const { root, files } = makeRoot(t);
+  const b = baseSystem(files);
+  b.learned_from = { game: "x" };
+  const { ok } = validateCatalog(makeCatalog([basePattern(files), b]), { root });
+  assert.equal(ok, false);
 });

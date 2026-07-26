@@ -15,9 +15,12 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
+
+from forge.verify_run import _harden_streams
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +43,10 @@ DOMAIN_JOURNAL_DIR = FORGE_REPORTS / "error_journal"
 DEFAULT_LEDGER_PROPOSALS = FORGE_REPORTS / "forge_ledger_proposals.jsonl"
 DEFAULT_PROJECT_PROPOSALS = FORGE_REPORTS / "forge_project_proposals.jsonl"
 DEFAULT_BIBLE_PROPOSALS = FORGE_REPORTS / "forge_bible_proposals.jsonl"
+# Le dépositaire (boucle bibliothèque, ratification Pierre 2026-07-23 : « réciprocité dure +
+# construire le dépositaire ») : un jeu forgé PROPOSE un dépôt de brique ici ; Pierre PROMEUT
+# manuellement dans knowledge_base/catalog.json (voir propose_brick ci-dessous).
+DEFAULT_BRICK_PROPOSALS = FORGE_REPORTS / "forge_brick_proposals.jsonl"
 # Tier 2.5 étape 2 : observabilité dédiée du pool de builders (Tier 2 #5) — sans ça,
 # le pool reste une boîte noire. Un enregistrement par TENTATIVE s9-build (pas un
 # agrégat par run) : c'est la granularité qui répond à « le pool sauve-t-il des
@@ -134,8 +141,17 @@ def pool_stats(run_id: str, telemetry_path: Path | None = None) -> dict:
     - `escalations_avoided_cost_usd` : coût des tentatives pool_retry réussies —
       un ordre de grandeur de ce qu'une escalade aurait coûté en plus si le pool
       n'existait pas (approximation : pas un contrefactuel exact).
-    - `by_builder` : {builder_id: {"OK":n, "FAIL":n, "BLOCKED":n}} — quels builders
-      échouent toujours, sur CE run.
+    - `by_tier` : {tier: {"OK":n, "FAIL":n, "BLOCKED":n}} — QUEL TIER réussit, sur CE
+      run. C'est l'agrégat FIABLE : le champ `tier` du journal est normalisé à
+      l'écriture par `escalate.tier_of` (haiku/sonnet/opus).
+    - `by_builder` : même comptage, mais clé sur `builder_id` BRUT — à ne pas utiliser
+      pour conclure. Constat mesuré sur les données réelles du 2026-07-23 :
+      `builder_id` vaut `model_override or s9_detail["model"]` (driver.py ~l.997),
+      donc l'identifiant COMPLET du registry à la 1re tentative
+      (`claude-haiku-4-5-20251001`) et le nom COURT après escalade (`sonnet`, `opus`)
+      — un même tier apparaît sous deux clés. Champ conservé tel quel (c'est la donnée
+      telle qu'elle a été écrite, on ne réécrit pas l'histoire), mais tout comptage
+      « quel builder échoue toujours » doit passer par `by_tier`.
     """
     rows = [r for r in _read(telemetry_path or DEFAULT_BUILDER_RUNS) if r.get("task_id") == run_id]
     pool_rows = [r for r in rows if r.get("strategy") == "pool_retry"]
@@ -143,16 +159,22 @@ def pool_stats(run_id: str, telemetry_path: Path | None = None) -> dict:
     saved_cost = sum(float(r.get("cost_estimated", 0.0)) for r in pool_rows if r.get("oracle_result") == "OK")
 
     by_builder: dict[str, dict[str, int]] = {}
+    by_tier: dict[str, dict[str, int]] = {}
     for r in rows:
-        b = by_builder.setdefault(r.get("builder_id", "?"), {})
         res = r.get("oracle_result") or "UNKNOWN"
+        b = by_builder.setdefault(r.get("builder_id", "?"), {})
         b[res] = b.get(res, 0) + 1
+        # `tier` est écrit normalisé ; une vieille ligne sans ce champ retombe sur
+        # "inconnu" plutôt que de polluer un tier réel avec un identifiant brut.
+        t = by_tier.setdefault(r.get("tier") or "inconnu", {})
+        t[res] = t.get(res, 0) + 1
 
     return {
         "run_id": run_id,
         "attempts": len(rows),
         "pool_saves": pool_saves,
         "escalations_avoided_cost_usd": saved_cost,
+        "by_tier": by_tier,
         "by_builder": by_builder,
     }
 
@@ -477,6 +499,56 @@ def propose_bible_entry(
     return record
 
 
+# --- Le dépositaire : proposition de brique (PROPOSE-ONLY, jamais d'auto-write) -
+
+# Défaut d'origine (audit 2026-07-23) : un jeu forgé n'a AUCUN moyen de déposer une brique
+# dans la bibliothèque — `propose_bible_entry`/`propose_ledger_entry`/`propose_project_record`
+# existent, `propose_brick` non. Le contrat du forgeron interdit d'écrire `catalog.json`
+# directement (propose-only) et personne d'autre n'a le devoir de déposer : la flèche
+# « un jeu dépose une brique » n'existait dans aucun code. Ratification Pierre 2026-07-23
+# (« réciprocité dure + construire le dépositaire ») : PROPOSE en JSONL, Pierre PROMEUT à la
+# main dans catalog.json. Patron repris à l'identique de `propose_bible_entry` ci-dessus —
+# aucun mécanisme neuf.
+
+def propose_brick(
+    run_id: str,
+    project: str,
+    brick_id: str,
+    kind: str,
+    function: str,
+    path: str,
+    proposals_path: Path | None = None,
+) -> dict:
+    """Propose un dépôt de brique issue d'un run. PROPOSE-ONLY.
+
+    N'écrit JAMAIS `knowledge_base/catalog.json` : dépose une proposition que Pierre
+    promeut (HumanGate) dans le catalogue. Champs minimaux pour qu'un humain puisse
+    évaluer et promouvoir honnêtement — PAS tout le schéma BRICK_SPEC (kb-validate.mjs) :
+    `dependencies`/`parameters`/`genre_compatible`/`invariants`/`tests`/`sha256`/`affordances`/
+    `tier` restent à la charge de Pierre au moment de la promotion, une fois le code relu.
+
+    - `brick_id` : identifiant candidat (Pierre peut le renommer en promouvant).
+    - `kind` : ∈ {"system","pattern","template"} (BRICK_SPEC::kind).
+    - `function` : description courte d'une phrase — ce que la brique fait.
+    - `path` : chemin RÉEL du code produit par le run (relatif au repo), la preuve que la
+      brique existe déjà sur disque, pas une intention.
+    """
+    record = {
+        "type": "brick",
+        "brick_id": brick_id,
+        "run_id": run_id,
+        "project": project,
+        "kind": kind,
+        "function": function,
+        "path": path,
+        "status": "PROPOSED",
+        "ts": time.time(),
+    }
+    _append(proposals_path or DEFAULT_BRICK_PROPOSALS, record)
+    logger.info("proposition de brique déposée (%s) pour %s", brick_id, project)
+    return record
+
+
 # --- Connecteur 4 : proposition ledger (AUDIT_REQUIRED, jamais d'auto-write) ----
 
 def propose_ledger_entry(
@@ -529,14 +601,123 @@ def propose_project_record(
     return record
 
 
-# --- CLI : index des journaux (déterministe) -----------------------------------
+# --- CLI : index des journaux + entrées d'écriture humaine ---------------------
+#
+# `record_playtest` / `record_global_lesson` / `propose_bible_entry` ont un
+# consommateur prouvé (error_journal relu par `premortem`, injecté au prompt de
+# l'étape suivante — ou `pending_review.mjs` pour la bible) mais AUCUN appelant :
+# consigner un playtest ou une leçon de méthode est un acte HUMAIN, il ne peut pas
+# être fabriqué par du code. Ces sous-commandes sont l'appelant : un terminal, pas
+# de la prose perdue dans un document.
+#
+# `--write` (comportement PRÉ-EXISTANT) reste inchangé : sans sous-commande, le
+# CLI affiche ou écrit l'index des journaux, exactement comme avant ce chantier.
 
-def main(argv: list[str] | None = None) -> int:
-    """Petit CLI : affiche l'index des journaux, ou l'écrit avec ``--write``."""
-    parser = argparse.ArgumentParser(description="Index des journaux d'erreurs Forge par domaine.")
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="CLI Forge studio_link : index des journaux + écritures humaines.")
     parser.add_argument("--write", action="store_true",
                         help="écrit error_journal/INDEX.generated.md (sinon affiche seulement)")
-    args = parser.parse_args(argv)
+    sub = parser.add_subparsers(dest="cmd")
+
+    p_playtest = sub.add_parser(
+        "playtest", help="consigne un playtest Pierre (record_playtest -> error_journal, domaine playtest)")
+    p_playtest.add_argument("--project", required=True, help="projet forgé concerné")
+    p_playtest.add_argument("--constat", required=True, help="ce qui a été observé en jeu")
+    p_playtest.add_argument("--regle-observable", required=True, dest="regle_observable",
+                            help="la contrainte que le run SUIVANT doit respecter")
+    p_playtest.add_argument("--run-id", default="playtest", help="défaut: 'playtest'")
+    p_playtest.add_argument("--journal-path", type=Path, default=None,
+                            help="défaut: error_journal/playtest.jsonl")
+
+    p_lesson = sub.add_parser(
+        "lesson", help="consigne une leçon GLOBALE de méthode (record_global_lesson -> error_journal, domaine _global_)")
+    p_lesson.add_argument("--etape", required=True, help="étape du pipeline concernée (ex. s9-build)")
+    p_lesson.add_argument("--lesson", required=True, help="la leçon de méthode, transversale à tout projet")
+    p_lesson.add_argument("--journal-path", type=Path, default=None,
+                          help="défaut: error_journal/_global_.jsonl")
+
+    p_bible = sub.add_parser(
+        "bible", help="propose une entrée de Project Bible (propose_bible_entry -> forge_bible_proposals.jsonl, PROPOSE-ONLY)")
+    p_bible.add_argument("--project", required=True, help="projet forgé concerné")
+    p_bible.add_argument("--kind", required=True, choices=("validated", "abandoned"),
+                         help="décision actée, ou voie écartée + sa raison")
+    p_bible.add_argument("--decision", required=True, help="la décision elle-même")
+    p_bible.add_argument("--rationale", required=True, help="pourquoi (la mémoire la plus précieuse pour 'abandoned')")
+    p_bible.add_argument("--proposals-path", type=Path, default=None,
+                         help="défaut: lab/reports/forge_bible_proposals.jsonl")
+
+    p_brick = sub.add_parser(
+        "brick", help="propose un dépôt de brique (propose_brick -> forge_brick_proposals.jsonl, PROPOSE-ONLY)")
+    p_brick.add_argument("--project", required=True, help="projet forgé concerné")
+    p_brick.add_argument("--run-id", required=True, help="run qui a produit la brique")
+    p_brick.add_argument("--brick-id", required=True, dest="brick_id", help="identifiant candidat de la brique")
+    p_brick.add_argument("--kind", required=True, choices=("system", "pattern", "template"),
+                         help="BRICK_SPEC::kind (kb-validate.mjs)")
+    p_brick.add_argument("--function", required=True, help="description courte : ce que la brique fait")
+    p_brick.add_argument("--path", required=True, help="chemin RÉEL du code produit par le run (relatif au repo)")
+    p_brick.add_argument("--proposals-path", type=Path, default=None,
+                         help="défaut: lab/reports/forge_brick_proposals.jsonl")
+
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI : index des journaux (``--write``) + sous-commandes ``playtest`` /
+    ``lesson`` / ``bible`` pour les écritures qui n'ont pas d'appelant automatisable.
+
+    Robustesse : `_harden_streams()` est appelée EN PREMIER (console Windows cp1252 —
+    un `constat`/`rationale` accentué non représentable levait `UnicodeEncodeError`
+    et faussait le code de sortie, incident réel de ce dépôt). Des arguments
+    manquants ou invalides ne produisent JAMAIS de trace Python nue ni d'écriture
+    partielle : argparse imprime un usage clair sur stderr et sort en code != 0
+    *avant* tout appel à une fonction d'écriture (validation puis écriture, jamais
+    l'inverse) ; une erreur de validation métier (`kind` invalide en dehors
+    d'argparse, ex. appel direct de la fonction) est aussi convertie en code 2,
+    jamais une trace Python.
+    """
+    _harden_streams()
+    parser = _build_parser()
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        # argparse a déjà imprimé un usage clair sur stderr ; on ne fait que
+        # convertir son SystemExit en valeur de retour entière (contrat de `main`:
+        # toujours un int, jamais une exception qui remonte à l'appelant Python).
+        return exc.code if isinstance(exc.code, int) else 2
+
+    if args.cmd == "playtest":
+        path = args.journal_path or _domain_journal_path(PLAYTEST_DOMAIN)
+        record_playtest(args.project, args.constat, args.regle_observable,
+                        run_id=args.run_id, journal_path=args.journal_path)
+        print(f"playtest consigné -> {path}")
+        return 0
+
+    if args.cmd == "lesson":
+        path = args.journal_path or _domain_journal_path(GLOBAL_SCOPE)
+        record_global_lesson(args.etape, args.lesson, journal_path=args.journal_path)
+        print(f"leçon globale consignée -> {path}")
+        return 0
+
+    if args.cmd == "bible":
+        path = args.proposals_path or DEFAULT_BIBLE_PROPOSALS
+        try:
+            propose_bible_entry(args.project, args.kind, args.decision, args.rationale,
+                                proposals_path=args.proposals_path)
+        except ValueError as exc:
+            print(f"erreur: {exc}", file=sys.stderr)
+            return 2
+        print(f"proposition Project Bible déposée -> {path}")
+        return 0
+
+    if args.cmd == "brick":
+        path = args.proposals_path or DEFAULT_BRICK_PROPOSALS
+        propose_brick(args.run_id, args.project, args.brick_id, args.kind, args.function, args.path,
+                      proposals_path=args.proposals_path)
+        print(f"proposition de brique déposée -> {path}")
+        return 0
+
+    # Comportement PRÉ-EXISTANT, strictement inchangé (aucune sous-commande donnée).
     if args.write:
         path = write_journal_index()
         logger.info("index des journaux écrit : %s", path)

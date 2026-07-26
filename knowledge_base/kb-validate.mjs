@@ -90,6 +90,84 @@ const IMPURITY_STRIPPED = [
   [/\bdocument\s*[.[]/, "document (DOM)"],
   [/\bprocess\s*\.\s*(env|exit|argv|binding|cwd)\b/, "process.* (environnement)"],
 ];
+// R10 — motifs d'impureté GDScript. Symétrique d'IMPURITY_STRIPPED (JS), appliqué aux
+// seuls fichiers .gd : les motifs JS n'ont aucun équivalent lexical en GDScript, donc
+// sans cette liste une brique Godot non déterministe passait la garde sans être vue
+// (amendement étape 0, spec 2026-07-21 §8b). Scanné APRÈS retrait des commentaires
+// (`#` en GDScript) et des chaînes, comme pour le JS.
+export const IMPURITY_GDSCRIPT = [
+  [/\brand[if]\b/, "randi/randf (aleatoire non seede)"],
+  [/\brandi_range\b/, "randi_range"],
+  [/\brandf_range\b/, "randf_range"],
+  [/\brandomize\b/, "randomize"],
+  [/\brand_from_seed\b/, "rand_from_seed"],
+  [/\bRandomNumberGenerator\b/, "RandomNumberGenerator"],
+  [/\bOS\s*\./, "OS.* (environnement)"],
+  [/\bTime\s*\./, "Time.* (non deterministe)"],
+  [/\bFileAccess\b/, "FileAccess (I/O)"],
+  [/\bDirAccess\b/, "DirAccess (I/O)"],
+  [/\bHTTPRequest\b/, "HTTPRequest (reseau)"],
+  [/\bHTTPClient\b/, "HTTPClient (reseau)"],
+  [/\bEngine\s*\./, "Engine.* (etat moteur)"],
+  [/\bInput\s*\./, "Input.* (etat externe)"],
+];
+
+// Retire commentaires `#` et littéraux de chaîne d'une source GDScript.
+//
+// Correctif de revue (Important, contre-vérifié) : l'ancienne version enchaînait des
+// .replace() — commentaires RETIRÉS AVANT les chaînes. Un '#' à l'INTÉRIEUR d'une chaîne
+// ("#%d" % randi(), idiomatique en GDScript) était donc pris pour un début de commentaire,
+// effaçant tout le reste de la ligne — y compris du code impur réel (randi() invisible).
+// Aucun ordre de .replace() ne peut résoudre ça : commentaires et chaînes s'imbriquent
+// mutuellement (un '#' en chaîne n'est pas un commentaire ; un guillemet en commentaire
+// n'ouvre pas une chaîne). Seul un balayage caractère par caractère en une seule passe,
+// qui suit l'état courant du texte, tranche correctement les deux cas à la fois.
+function stripGdscriptCommentsAndStrings(src) {
+  let out = "";
+  const n = src.length;
+  let i = 0;
+  while (i < n) {
+    const c = src[i];
+    // Chaîne triple-guillemets (multi-lignes) : le contenu est du texte, jamais du code —
+    // neutralisé en bloc, mais les sauts de ligne internes sont préservés (pas de fusion
+    // de lignes voisines).
+    if (c === '"' && src[i + 1] === '"' && src[i + 2] === '"') {
+      i += 3;
+      while (i < n && !(src[i] === '"' && src[i + 1] === '"' && src[i + 2] === '"')) {
+        if (src[i] === "\n") out += "\n";
+        i++;
+      }
+      if (i < n) i += 3; // consomme le """ fermant (fin de fichier = triple-chaine non fermee tolerable)
+      out += '""';
+      continue;
+    }
+    // Commentaire `#` HORS chaîne : court jusqu'à la fin de ligne (le \n lui-même n'est
+    // pas consommé ici, l'itération suivante le traite normalement — saut de ligne préservé).
+    // Un guillemet dans ce commentaire n'ouvre PAS de chaîne : on saute les caractères bruts.
+    if (c === "#") {
+      while (i < n && src[i] !== "\n") i++;
+      continue;
+    }
+    // Chaîne `"..."` ou `'...'` : le `#` à l'intérieur n'est PAS un commentaire (on avance
+    // caractère par caractère sans jamais retester le cas '#'). Échappements \" et \'
+    // gérés. Une chaîne non fermée avant fin de ligne est traitée en dégradé (borne à la
+    // ligne courante) plutôt que d'avaler le reste du fichier.
+    if (c === '"' || c === "'") {
+      const quote = c;
+      i++;
+      while (i < n && src[i] !== quote && src[i] !== "\n") {
+        i += src[i] === "\\" && i + 1 < n ? 2 : 1;
+      }
+      if (i < n && src[i] === quote) i++;
+      out += quote === '"' ? '""' : "''";
+      continue;
+    }
+    out += c;
+    i++;
+  }
+  return out;
+}
+
 // R11 — patterns jamais injectés comme code (scanné sur le texte BRUT : chemins = littéraux).
 const PATTERN_IMPORT = [
   /\bfrom\s*["'][^"']*patterns\//,
@@ -124,6 +202,12 @@ function isCapabilityMap(v) {
   );
 }
 function isNonEmptyCapabilityMap(v) { return isCapabilityMap(v) && Object.keys(v).length > 0; }
+
+// Provenance d'apprentissage (spec etape 0 §9) : de quel jeu du curriculum et de
+// quelle reference commerciale la mecanique est issue. Schema ferme a 2 cles.
+function isLearnedFrom(v) {
+  return isPlainObj(v) && isStr(v.game) && isStr(v.reference) && Object.keys(v).length === 2;
+}
 
 // Champ FACULTATIF d'un schéma par ailleurs fermé (checkSpec ci-dessous) : la clé peut être
 // ABSENTE (aucune erreur R1 "champ manquant") ; SI PRÉSENTE, elle est type-vérifiée normalement
@@ -212,6 +296,10 @@ const BRICK_SPEC = {
   // même forme (tableau de chaînes), mais optionnel (une brick pré-existante sans ce champ
   // reste valide ; proof_of_use ci-dessus reste SA preuve d'usage réelle, requise si validated).
   usage_examples: optional(isStrArr),
+  // Provenance d'apprentissage (spec etape 0 §9) : de quel jeu du curriculum et de quelle
+  // reference commerciale la mecanique est issue. Facultatif — les 9 briques existantes sans
+  // ce champ restent valides. Schema ferme : exactement {game: string, reference: string}.
+  learned_from: optional(isLearnedFrom),
 };
 // Un ROLE catalogué : métadonnées d'index + pont vers le catalogue (fulfilled_by,
 // vérifié réellement — R13) et vers le contrat détaillé sur disque (path -> le YAML
@@ -368,14 +456,15 @@ function validateBrick(e, root, err, brickIds) {
     }
   }
 
-  // R6 — godot = manifest-only
-  if (e.runtime === "godot" && (e.path !== null || e.tests !== null)) {
-    err(id, "R6", "runtime godot = manifest-only : path et tests doivent etre null");
-    return;
-  }
-  // §1b (red-team F7) : un system/template non-godot DOIT avoir un module.
-  if (isCode && e.runtime !== "godot" && e.path === null) {
-    err(id, "R7", `${e.kind} non-godot exige un path (module) — path null esquive purete/tests`);
+  // R6 — « manifest-only » s'applique aux ASSETS godot/3D (modèles non ingérés),
+  // PAS au code GDScript, qui doit être prouvable comme n'importe quel autre code.
+  // Amendement étape 0 (spec 2026-07-21 §8a) : un system/template Godot suit
+  // exactement le même régime de preuve qu'un module non-godot — path + sha256
+  // + tests. Aucune garde existante n'est desserrée : le cas asset reste traité
+  // par validateAsset (R6, inchangé), et l'exigence de path ci-dessous devient
+  // universelle pour le code au lieu d'exempter Godot.
+  if (isCode && e.path === null) {
+    err(id, "R7", `${e.kind} exige un path (module) — path null esquive purete/tests`);
   }
 
   // R7 — réalité disque du module/fiche
@@ -405,16 +494,29 @@ function validateBrick(e, root, err, brickIds) {
     if (!brickIds.has(d)) err(id, "R9", `dependance inconnue: ${d}`);
   }
 
-  // R10/R11/R4-contenu — inspection du contenu des modules code
+  // R10/R11/R4-contenu — inspection du contenu des modules code. Aiguillage par extension
+  // (amendement étape 0, spec 2026-07-21 §8b) : les motifs JS n'ont aucun équivalent
+  // lexical en GDScript, donc un fichier .gd suit sa PROPRE liste de motifs d'impureté ;
+  // tout le reste (JS/.mjs) suit exactement les deux passes RAW/STRIPPED existantes,
+  // inchangées. R11 (import patterns/) et le marqueur GPL restent appliqués aux DEUX
+  // langages, sur le texte brut — hors de la branche par langage.
   if (isCode && abs !== null) {
     let raw = "";
     try { raw = readFileSync(abs, "utf-8"); } catch { /* déjà couvert */ }
-    const code = stripCommentsAndStrings(raw);
-    for (const [re, label] of IMPURITY_RAW) {
-      if (re.test(raw)) err(id, "R10", `motif d'impurete: ${label}`);
-    }
-    for (const [re, label] of IMPURITY_STRIPPED) {
-      if (re.test(code)) err(id, "R10", `motif d'impurete: ${label}`);
+    const isGd = e.path.endsWith(".gd");
+    if (isGd) {
+      const code = stripGdscriptCommentsAndStrings(raw);
+      for (const [re, label] of IMPURITY_GDSCRIPT) {
+        if (re.test(code)) err(id, "R10", `motif d'impurete GDScript: ${label}`);
+      }
+    } else {
+      const code = stripCommentsAndStrings(raw);
+      for (const [re, label] of IMPURITY_RAW) {
+        if (re.test(raw)) err(id, "R10", `motif d'impurete: ${label}`);
+      }
+      for (const [re, label] of IMPURITY_STRIPPED) {
+        if (re.test(code)) err(id, "R10", `motif d'impurete: ${label}`);
+      }
     }
     for (const re of PATTERN_IMPORT) {
       if (re.test(raw)) { err(id, "R11", "import depuis patterns/ interdit (cites, jamais injectes)"); break; }

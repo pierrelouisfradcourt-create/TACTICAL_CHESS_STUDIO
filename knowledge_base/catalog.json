@@ -744,6 +744,77 @@
    "path": "knowledge_base/assets/props/candypack1_explosionpink05.png",
    "usage_examples": [],
    "tier": "candidate"
+  },
+  {
+   "entry_type": "brick",
+   "brick_id": "sys-grid-nav-m01",
+   "kind": "system",
+   "function": "BFS déterministe sur grille 4-directions; next_step retourne le premier pas du chemin optimal; path_length retourne la distance du chemin le plus court ou -1",
+   "source": "ORIGINAL — aucune inspiration externe citee",
+   "provenance_url": null,
+   "license": "MIT",
+   "runtime": "godot",
+   "dependencies": [],
+   "parameters": {},
+   "genre_compatible": [
+    "tactical",
+    "roguelike",
+    "survival",
+    "puzzle"
+   ],
+   "invariants": [
+    "déterministe (même seed -> même résultat)",
+    "pur (pas d'état global, pas de modification d'arguments)",
+    "déplacement en 4 directions seulement (haut, droite, bas, gauche)",
+    "respecte les murs fournis",
+    "retourne -1 si cible inatteignable ou exploration > 10000 cellules"
+   ],
+   "proof_of_use": null,
+   "tier": "candidate",
+   "path": "knowledge_base/systems/navigation/grid_nav.gd",
+   "sha256": "f064870f736c147e10454387ac4636316432843914afce81e00366c2750d8b55",
+   "tests": "knowledge_base/systems/navigation/run_tests.gd",
+   "advisory_only": false,
+   "affordances": {
+    "next_step": {
+     "type": "fn(from: Vector2i, to: Vector2i, walls: Dictionary) -> Vector2i",
+     "description": "premier pas du chemin le plus court de from vers to en evitant les murs ; rend from si to est inatteignable. Pur, deterministe, 4 directions."
+    },
+    "path_length": {
+     "type": "fn(from: Vector2i, to: Vector2i, walls: Dictionary) -> int",
+     "description": "longueur du chemin le plus court de from vers to, -1 si inatteignable ou si l'exploration depasse 10000 cellules. Pur, deterministe."
+    },
+    "next_step_expansions": {
+     "type": "fn(from: Vector2i, to: Vector2i, walls: Dictionary) -> int",
+     "description": "nombre d'expansions de noeuds effectuees par le BFS sous-jacent — rend le TRAVAIL observable, pas seulement le resultat. Pur, aucun etat partage entre appels."
+    }
+   },
+   "learned_from": {
+    "game": "grid_nav_probe",
+    "reference": "Pac-Man (1980)"
+   }
+  },
+  {
+   "entry_type": "role",
+   "role_id": "role-grid-navigator",
+   "archetype": "Une entité qui doit atteindre une position cible fixe à travers un espace comportant des obstacles, en suivant à chaque instant le plus court chemin disponible vers cette cible.",
+   "requires": {
+    "next_step": {
+     "type": "fn(from, to, walls) -> pos",
+     "description": "premier pas du chemin le plus court de from vers to en evitant walls, ou from si to est inatteignable. Pur, deterministe, 4 directions."
+    },
+    "path_length": {
+     "type": "fn(from, to, walls) -> int",
+     "description": "longueur du chemin le plus court de from vers to, -1 si inatteignable. Pur, deterministe."
+    }
+   },
+   "fulfilled_by": [
+    "sys-grid-nav-m01"
+   ],
+   "tier": "candidate",
+   "license": "MIT",
+   "path": "knowledge_base/roles/grid-navigator.yaml",
+   "proof_of_use": null
   }
  ]
 }

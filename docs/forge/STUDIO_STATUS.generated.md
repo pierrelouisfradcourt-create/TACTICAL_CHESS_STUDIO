@@ -25,5 +25,11 @@
 | `lab/reports/forge_project_proposals.jsonl` | ✅ frais |
 | `lab/reports/forge_bible_proposals.jsonl` | · jamais écrit (informatif) |
 
-**Verdict global** : ✅ ALIGNÉ (dérive doc : 0 · connecteurs dormants : 0)
+## Contrat de système Forge — règles canoniques citées par le pilotage
+
+| Règle | Symboles attendus | Verdict |
+|---|---|---|
+| *(toutes les règles canoniques)* | — | ✅ synchronisé (mécaniquement) |
+
+**Verdict global** : ✅ ALIGNÉ (dérive doc : 0 · connecteurs dormants : 0 · contrat de système : ok)
 

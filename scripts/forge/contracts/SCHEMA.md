@@ -127,7 +127,11 @@ caps_path=scripts/forge/contracts/roles.yaml)`. Un rôle non résolu ⇒ `RoleUn
 
 - Phase actuelle : full Claude pour les producteurs, **Qwen = red-team / reviewer indépendant**
   (gate 4 — Qwen critique les décisions, ne remplace jamais les oracles techniques).
-- `roles.yaml` est **Forge-scopé** : il ne touche pas `openclaw/capabilities.yaml` (SSOT studio, IMP-124).
+- `roles.yaml` est **Forge-scopé** et constitue la **seule** source de résolution de rôle de la Forge
+  (`contract.resolve_runtime` passe toujours `caps_path=FORGE_ROLES`). Il ne touche pas
+  `openclaw/capabilities.yaml`, qui n'est **plus** le « SSOT studio » : openclaw est **legacy**
+  depuis le 2026-07-23 (Pierre : « on travaille que claude et forge »). Ce chemin n'est que le
+  défaut du module partagé `control_plane/registry.py:15`, consommé par la lane STUDIO gelée.
 
 ## Gouvernance du dispatch (ADR-002 gate 2)
 

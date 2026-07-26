@@ -88,12 +88,81 @@ function extractFlatBlock(text, blockKey) {
   return Object.keys(result).length ? result : null;
 }
 
+// Ouverture aux futurs runtimes — FAIL-CLOSED (spec etape 0 §5). Le schema NOMME des
+// runtimes futurs pour que les contrats restent ecrits sans eux ; l executeur REFUSE
+// tout ce qu il ne sait pas executer. Declarer un point d extension sans le fermer,
+// c est reproduire le mode de panne « declare != execute ».
+export const IMPLEMENTED_RUNTIMES = ['node', 'godot'];
+export const RESERVED_RUNTIMES = ['unity', 'unreal'];
+
+/**
+ * @param {string|null} value valeur deja nettoyee (commentaire retire, trim) — null/absent = defaut 'node'
+ * @returns {string[]} findings (vide = accepte)
+ */
+export function checkSimulationRuntime(value) {
+  if (value === null || value === undefined || value === '') return [];
+  if (IMPLEMENTED_RUNTIMES.includes(value)) return [];
+  if (RESERVED_RUNTIMES.includes(value)) {
+    return [`simulation_runtime '${value}' : reconnu par le schema, non implemente par l executeur `
+      + `(implementes : ${IMPLEMENTED_RUNTIMES.join(', ')})`];
+  }
+  const knownRuntimes = [...IMPLEMENTED_RUNTIMES, ...RESERVED_RUNTIMES];
+  const caseInsensitiveMatch = knownRuntimes.find((r) => r.toLowerCase() === value.toLowerCase());
+  if (caseInsensitiveMatch) {
+    return [`simulation_runtime '${value}' : casse invalide — comparaison strictement sensible a la `
+      + `casse, orthographe attendue '${caseInsensitiveMatch}'`];
+  }
+  return [`simulation_runtime '${value}' : inconnu du schema `
+    + `(implementes : ${IMPLEMENTED_RUNTIMES.join(', ')} · reserves : ${RESERVED_RUNTIMES.join(', ')})`];
+}
+
+/**
+ * Retire un commentaire de fin de ligne (` #...`) d'un scalaire deja extrait, et trim.
+ * @param {string} raw
+ * @returns {string}
+ */
+function stripInlineComment(raw) {
+  const idx = raw.search(/\s#/);
+  return (idx === -1 ? raw : raw.slice(0, idx)).trim();
+}
+
+const SIMULATION_RUNTIME_ILLISIBLE =
+  'simulation_runtime : champ present mais illisible (liste YAML, bloc, ou valeur vide) — '
+  + 'ce lecteur YAML minimal n\'accepte ici qu\'un scalaire unique sur une ligne, '
+  + `ex: simulation_runtime: ${IMPLEMENTED_RUNTIMES[0]}`;
+
+/**
+ * Valide le champ `simulation_runtime` a partir du TEXTE BRUT du contrat, pas de la
+ * valeur deja extraite — c'est justement l'extraction qui ment sur une liste/bloc (elle
+ * renvoie null, indiscernable d'un champ absent). La detection de presence se fait donc
+ * par une regex sur le texte ; extractScalar ne sert plus qu'a recuperer la valeur QUAND
+ * elle est un scalaire exploitable.
+ * @param {string} text texte complet du contrat
+ * @returns {{findings: string[], value: (string|null)}}
+ */
+export function checkSimulationRuntimePresence(text) {
+  const keyPresent = /^simulation_runtime:/m.test(text);
+  if (!keyPresent) return { findings: [], value: null };
+
+  const rawValue = extractScalar(text, 'simulation_runtime');
+  if (rawValue === null || rawValue === undefined || rawValue === '') {
+    return { findings: [SIMULATION_RUNTIME_ILLISIBLE], value: null };
+  }
+
+  const cleaned = stripInlineComment(rawValue);
+  if (cleaned === '') {
+    return { findings: [SIMULATION_RUNTIME_ILLISIBLE], value: null };
+  }
+
+  return { findings: checkSimulationRuntime(cleaned), value: cleaned };
+}
+
 /**
  * Charge et valide la structure minimale d'un contrat rôle (règle des 3 états, SCHEMA.md).
  * @param {string} filePath
  * @returns {{role:object, findings:string[]}}
  */
-function loadRole(filePath) {
+export function loadRole(filePath) {
   const text = readFileSync(filePath, 'utf-8');
   const findings = [];
 
@@ -107,6 +176,8 @@ function loadRole(filePath) {
   const simulationConfig = extractFlatBlock(text, 'simulation_config');
   const difficultyTarget = extractFlatBlock(text, 'difficulty_target');
   const requiresPresent = /^requires:[ \t]*$/m.test(text);
+  const { findings: simulationRuntimeFindings, value: simulationRuntime } = checkSimulationRuntimePresence(text);
+  findings.push(...simulationRuntimeFindings);
 
   if (!roleId) findings.push('champ Critique absent : role_id');
   if (!archetype || archetype.length < 20) findings.push('champ Critique absent/trop court : archetype');
@@ -122,7 +193,7 @@ function loadRole(filePath) {
   }
 
   return {
-    role: { roleId, archetype, tier, license, path, proofOfUse, simulationModule, simulationConfig, difficultyTarget },
+    role: { roleId, archetype, tier, license, path, proofOfUse, simulationModule, simulationConfig, difficultyTarget, simulationRuntime },
     findings,
   };
 }

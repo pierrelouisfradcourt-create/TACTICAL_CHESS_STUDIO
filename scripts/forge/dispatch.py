@@ -14,19 +14,40 @@ from __future__ import annotations
 import json
 import logging
 import time
-from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from forge.contract import (
     REPO_ROOT,
+    ContractIncomplete,
     DispatchPayload,
     build_dispatch_payload,
     load_contract,
 )
 
-logger = logging.getLogger(__name__)
+# La couche « fichier d'audit » (événements, enregistrement signé, écriture, lecture)
+# vit dans `forge.audit`, module STDLIB-ONLY. Raison : le garde de spawn
+# (`forge.hook_guard`) est fail-CLOSED en périmètre Forge — s'il ne peut pas s'importer,
+# il refuse TOUT spawn Forge. Il ne doit donc pas traverser ce module-ci, qui dépend de
+# `forge.contract` -> `yaml` (absent hors venv, c.-à-d. dans les worktrees).
+# Les noms ci-dessous sont RÉ-EXPORTÉS : `from forge.dispatch import DEFAULT_AUDIT /
+# EVENT_* / verify_audit_line / append_spawn_event / spawn_proof / ...` reste valide
+# (driver.py et les tests existants en dépendent), avec exactement le même objet.
+from forge.audit import (  # noqa: F401 — ré-exports d'API historique, usage indirect
+    DEFAULT_AUDIT,
+    EVENT_AUTHORIZED,
+    EVENT_EXECUTED,
+    EVENT_PREPARED,
+    SPAWN_EVENTS,
+    DispatchRecord,
+    _append_audit,
+    _iter_audit_records,
+    append_spawn_event,
+    sign_audit_record,
+    spawn_proof,
+    verify_audit_line,
+)
 
-DEFAULT_AUDIT = REPO_ROOT / "lab" / "forge_evidence" / "dispatch_audit.jsonl"
+logger = logging.getLogger(__name__)
 
 # Ordre logique de la chaîne (les 13 étapes-agents qui ont un contrat).
 ORDER = [
@@ -46,7 +67,27 @@ ORDER = [
 ]
 
 # Étapes déterministes (non-LLM) : exécutées par oracle, pas par un agent LLM.
+# Invariant couvert par un test existant (test_dispatch.test_order_covers_the_agent_steps) :
+# DETERMINISTIC ⊆ ORDER. Reste vrai ICI — les 4 étapes ci-dessous sont toutes des membres
+# canoniques de "full". Une étape déterministe qui vit HORS ORDER (profil dédié) va dans
+# DEDICATED_DETERMINISTIC_STEPS ci-dessous, PAS ici : mélanger casserait à la fois cet
+# invariant et `plan_chain(profile="full")` (qui n'a que les étapes de ORDER).
 DETERMINISTIC = ("s10a-oracle-code", "s10b-oracle-archi", "s10c-oracle-wiremap", "s12-verdict")
+
+# Étapes déterministes qui vivent HORS de ORDER, jumelles de DEDICATED_PROFILE_STEPS mais
+# pour la catégorie « oracle non-LLM » plutôt que « agent LLM ». s10s-oracle-standard (les
+# six oracles du STANDARD, scripts/forge/standard_oracles.py) n'est dispatchable que via le
+# profil dédié `standard` (cf. DEDICATED_PROFILE_STEPS et PROFILES["standard"] plus bas) —
+# jamais dans `full`. Séparée de DETERMINISTIC pour ne PAS casser l'invariant DETERMINISTIC
+# ⊆ ORDER ci-dessus (contrat déjà vérifié par un test existant, non modifiable). Utiliser
+# `is_deterministic_step(etape)` pour tester l'UNE ou l'AUTRE catégorie.
+DEDICATED_DETERMINISTIC_STEPS = ("s10s-oracle-standard",)
+
+
+def is_deterministic_step(etape: str) -> bool:
+    """Vrai si `etape` est un oracle non-LLM — canonique (DETERMINISTIC, dans ORDER)
+    OU dédié (DEDICATED_DETERMINISTIC_STEPS, hors ORDER, profil dédié uniquement)."""
+    return etape in DETERMINISTIC or etape in DEDICATED_DETERMINISTIC_STEPS
 
 # Étapes délibérément HORS de ORDER (la chaîne canonique greenfield "full") mais
 # réellement contractualisées, prouvées en vivo, et dispatchables via un profil
@@ -55,7 +96,11 @@ DETERMINISTIC = ("s10a-oracle-code", "s10b-oracle-archi", "s10c-oracle-wiremap",
 # rester hors de ORDER est une décision de portée, pas un oubli. `s2.5-artbible`
 # (Tier 3 #7, Art Director) : 6 runs réels (2 non-adversariaux + 4 adversariaux) +
 # gate 4 Qwen + fix v0.1 + preuve v0.1 finale, cf. docs/forge/S2_5_ARTBIBLE_*.md.
-DEDICATED_PROFILE_STEPS = ("s2.5-artbible",)
+# `s9-build-standard` / `s10s-oracle-standard` (curriculum de jeux, 2026-07-22) : la
+# variante STANDARD contrat/repo/wiremap du build et de son oracle — dispatchable
+# UNIQUEMENT via le profil dédié `standard`, jamais mêlée à "full" (le squelette gelé
+# est un mode opératoire distinct du greenfield Prisme->WireMap classique).
+DEDICATED_PROFILE_STEPS = ("s2.5-artbible", "s9-build-standard", "s10s-oracle-standard")
 
 # Profils de chaîne — sous-ensembles de ORDER (ou de DEDICATED_PROFILE_STEPS ci-dessus)
 # pour des usages plus courts que le greenfield complet. `patch` = un fix sur un projet
@@ -91,6 +136,21 @@ PROFILES = {
         "s11-redteam-code",
         "s12-verdict",
     ),
+    # standard : curriculum de jeux (Pong -> ...) sur squelette gelé (scripts/forge/standard/).
+    # Remplace s9-build par son jumeau STANDARD (s9-build-standard, hors ORDER par décision
+    # explicite — cf. DEDICATED_PROFILE_STEPS) ; GARDE s10a-oracle-code (le gate mutation/
+    # e2e/solvabilité générique reste applicable) et AJOUTE s10s-oracle-standard (les six
+    # oracles du squelette, jumeau déterministe de s9-build-standard, également hors ORDER) ;
+    # garde s11-redteam-code (advisory) et s12-verdict (agrégation signée) de la chaîne
+    # canonique. Pas d'archi/wiremap génériques (s10b/s10c) : c'est s10s qui en tient lieu
+    # pour cette variante — décision de portée, ratifiée Pierre 2026-07-22, PAS dans "full".
+    "standard": (
+        "s9-build-standard",
+        "s10a-oracle-code",
+        "s10s-oracle-standard",
+        "s11-redteam-code",
+        "s12-verdict",
+    ),
 }
 
 
@@ -102,43 +162,14 @@ def order_for_profile(profile: str = "full") -> list[str]:
         raise ValueError(f"profil inconnu {profile!r} (attendu: {', '.join(PROFILES)})")
 
 
-@dataclass(frozen=True)
-class DispatchRecord:
-    run_id: str
-    etape: str
-    capability_role: str
-    model: str
-    provider: str
-    allowed_tools: tuple[str, ...]
-    ts: float
+def profile_allowed_for_contract(etape: str, profile: str) -> bool:
+    """Vrai ssi `etape` appartient au `profile` — appartenance profil->étapes (D1).
 
-
-def sign_audit_record(rec: dict, key_file: Path | None = None) -> dict:
-    """Ajoute un HMAC à un enregistrement d'audit — une ligne forgée à la main
-    (sans la clé) ne pourra pas se faire passer pour un dispatch validé."""
-    from forge.verdict import _sign_mapping
-    signed = dict(rec)
-    signed["hmac"] = _sign_mapping(rec, key_file)
-    return signed
-
-
-def verify_audit_line(rec: dict, key_file: Path | None = None) -> bool:
-    """Vrai ssi la ligne porte un HMAC valide sur son contenu (hors champ hmac)."""
-    from forge.verdict import _verify_mapping
-    sig = rec.get("hmac")
-    if not sig:
-        return False
-    body = {k: v for k, v in rec.items() if k != "hmac"}
-    return _verify_mapping(body, sig, key_file)
-
-
-def _append_audit(record: DispatchRecord, audit_path: Path | None,
-                  key_file: Path | None = None) -> None:
-    path = audit_path or DEFAULT_AUDIT
-    path.parent.mkdir(parents=True, exist_ok=True)
-    signed = sign_audit_record(asdict(record), key_file)
-    with open(path, "a", encoding="utf-8") as fh:
-        fh.write(json.dumps(signed, ensure_ascii=False, sort_keys=True) + "\n")
+    Source de vérité UNIQUE : `order_for_profile` (les PROFILES déjà testés). Pas de
+    2e source divergente (pas de champ `allowed_profiles` dans les contrats YAML).
+    Profil inconnu => ValueError propagé (fail-fast, comme `order_for_profile`).
+    """
+    return etape in order_for_profile(profile)
 
 
 def prepare_dispatch(
@@ -147,6 +178,10 @@ def prepare_dispatch(
     caps_path: Path | None = None,
     audit_path: Path | None = None,
     run_dir: Path | None = None,
+    *,
+    profile: str | None = None,
+    attempt: int = 0,
+    allow_unprofiled: bool = False,
 ) -> DispatchPayload:
     """Valide le contrat de l'étape, fabrique le payload borné, trace l'audit.
 
@@ -156,12 +191,28 @@ def prepare_dispatch(
     optionnel — dérivé depuis ``run_id`` via ``context_manifest.default_run_dir``
     si non fourni. N'affecte QUE l'emplacement de la mesure advisory ; le dispatch
     lui-même n'en dépend pas.
+
+    Appartenance profil (D1) : si `profile` est fourni ET que `etape` n'en fait pas
+    partie ET que `allow_unprofiled` est faux => `ContractIncomplete` (contrat non
+    dispatchable dans ce profil). `allow_unprofiled=True` autorise la dérogation et
+    l'inscrit (`unprofiled: true`) dans le corps SIGNÉ de la ligne d'audit. `profile=None`
+    => aucun contrôle (comportement historique strictement inchangé, rétro-compat totale).
+    `attempt` corrèle la ligne au triplet du marqueur de spawn (unicité D4).
     """
     contract = load_contract(etape)
     # R2 (audit branchements 2026-07-24) : run_id transite jusqu'à _render_prompt
     # pour que le prompt porte SYSTÉMATIQUEMENT son marqueur FORGE_DISPATCH — la
     # porte n'a plus besoin que l'orchestrateur l'appose à la main.
     payload = build_dispatch_payload(contract, etape=etape, caps_path=caps_path, run_id=run_id)
+    unprofiled = False
+    if profile is not None and not profile_allowed_for_contract(etape, profile):
+        if not allow_unprofiled:
+            raise ContractIncomplete(
+                f"étape {etape!r} hors du profil {profile!r} "
+                f"(non membre de order_for_profile({profile!r})) — dispatch refusé ; "
+                f"utilise allow_unprofiled=True pour un run hors-profil assumé"
+            )
+        unprofiled = True
     _append_audit(
         DispatchRecord(
             run_id=run_id,
@@ -171,6 +222,9 @@ def prepare_dispatch(
             provider=payload.provider,
             allowed_tools=payload.allowed_tools,
             ts=time.time(),
+            event="spawn_prepared",
+            attempt=attempt,
+            unprofiled=unprofiled,
         ),
         audit_path,
     )
@@ -213,13 +267,21 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true", help="planifie la chaîne sans spawn")
     parser.add_argument("--profile", default="full", choices=sorted(PROFILES),
                         help="profil de chaîne (full / patch / review / micro / artbible)")
+    parser.add_argument("--spawn-proof", metavar="RUN_ID",
+                        help="preuve d'action d'un run : préparés / autorisés / exécutés")
+    parser.add_argument("--audit", metavar="PATH", default=None,
+                        help=f"fichier d'audit à lire (défaut: {DEFAULT_AUDIT})")
     args = parser.parse_args()
-    if args.dry_run:
+    if args.spawn_proof:
+        proof = spawn_proof(args.spawn_proof,
+                            audit_path=Path(args.audit) if args.audit else None)
+        print(json.dumps(proof, ensure_ascii=False, indent=2))
+    elif args.dry_run:
         audit = REPO_ROOT / "lab" / "forge_evidence" / "dispatch_dryrun.jsonl"
         plan = plan_chain(run_id="dryrun", audit_path=audit, profile=args.profile)
         print(f"Chaîne Forge [{args.profile}] — {len(plan)} étapes planifiées (aucun spawn) :")
         for p in plan:
-            kind = "déterministe" if p.etape in DETERMINISTIC else "LLM"
+            kind = "déterministe" if is_deterministic_step(p.etape) else "LLM"
             print(f"  {p.etape:22} [{kind:12}] -> {p.model}")
         print(f"Audit : {audit}")
     else:

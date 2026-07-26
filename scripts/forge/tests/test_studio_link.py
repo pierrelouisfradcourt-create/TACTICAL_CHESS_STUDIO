@@ -64,6 +64,35 @@ def test_propose_project_record(tmp_path):
     assert p.read_text(encoding="utf-8").strip()
 
 
+# --- Le dépositaire : propose_brick (PROPOSE-ONLY, jamais catalog.json) -----------
+
+def test_propose_brick_is_propose_only_and_never_writes_catalog(tmp_path):
+    p = tmp_path / "brick_prop.jsonl"
+    rec = sl.propose_brick(
+        run_id="shmup_slice-1", project="shmup_slice", brick_id="sys-damage-floor-shield-m01",
+        kind="system", function="plancher de degats + bouclier partage",
+        path="games/shmup_slice/logic/collisions.mjs", proposals_path=p,
+    )
+    assert rec["status"] == "PROPOSED"
+    assert rec["type"] == "brick"
+    assert rec["brick_id"] == "sys-damage-floor-shield-m01"
+    assert rec["project"] == "shmup_slice"
+    assert rec["path"] == "games/shmup_slice/logic/collisions.mjs"
+    on_disk = json.loads(p.read_text(encoding="utf-8").strip())
+    assert on_disk["run_id"] == "shmup_slice-1"
+    # jamais d'écriture ailleurs que le fichier de propositions explicite
+    assert not (tmp_path / "catalog.json").exists()
+
+
+def test_propose_brick_default_path_is_forge_reports_not_knowledge_base(monkeypatch, tmp_path):
+    """La proposition part sous lab/reports/ (DEFAULT_BRICK_PROPOSALS), jamais sous
+    knowledge_base/ — vérifie le chemin par défaut sans dépendre du disque réel."""
+    monkeypatch.setattr(sl, "DEFAULT_BRICK_PROPOSALS", tmp_path / "forge_brick_proposals.jsonl")
+    sl.propose_brick(run_id="r1", project="p1", brick_id="b1", kind="system",
+                     function="f", path="games/p1/x.mjs")
+    assert (tmp_path / "forge_brick_proposals.jsonl").exists()
+
+
 # --- Tier 2.5 étape 2 : observabilité du pool de builders -------------------------
 
 def test_record_builder_run_and_pool_stats(tmp_path):
@@ -93,6 +122,31 @@ def test_pool_stats_pool_retry_qui_echoue_aussi_ne_compte_pas_comme_sauve(tmp_pa
     stats = sl.pool_stats("run1", telemetry_path=b)
     assert stats["pool_saves"] == 0
     assert stats["escalations_avoided_cost_usd"] == 0.0
+
+
+def test_pool_stats_by_tier_regroupe_ce_que_by_builder_eclate(tmp_path):
+    """`builder_id` n'est PAS normalisé dans la donnée réelle : le driver y met
+    `model_override or s9_detail["model"]`, donc l'identifiant COMPLET du registry à
+    la 1re tentative et le nom COURT après escalade. Mesuré le 2026-07-23 sur
+    `forge_builder_runs.jsonl` : `claude-haiku-4-5-20251001` ET `sonnet`/`opus` dans
+    le même fichier. Conséquence : un même tier compte pour deux entités dans
+    `by_builder` — statistique silencieusement fausse, pas un crash. `by_tier`
+    s'appuie sur le champ `tier`, lui normalisé à l'écriture, et regroupe juste."""
+    b = tmp_path / "builder_runs.jsonl"
+    # deux tentatives du MÊME tier, écrites avec deux identifiants différents
+    sl.record_builder_run("run1", tier="haiku", builder_id="claude-haiku-4-5-20251001",
+                          strategy="tier_attempt", duration_s=1.0, oracle_result="FAIL",
+                          retry_number=0, tokens=1, cost_usd=0.0, telemetry_path=b)
+    sl.record_builder_run("run1", tier="haiku", builder_id="haiku",
+                          strategy="pool_retry", duration_s=1.0, oracle_result="FAIL",
+                          retry_number=1, tokens=1, cost_usd=0.0, telemetry_path=b)
+
+    stats = sl.pool_stats("run1", telemetry_path=b)
+
+    # by_builder éclate : deux clés pour un seul tier (constat, pas un souhait)
+    assert len(stats["by_builder"]) == 2
+    # by_tier regroupe : une seule clé, le compte est juste
+    assert stats["by_tier"] == {"haiku": {"FAIL": 2}}
 
 
 def test_pool_stats_filtre_par_run_id(tmp_path):

@@ -1,6 +1,11 @@
 # scripts/forge/contracts/roles.yaml
 # Résolution rôle-de-capacité -> runtime pour les agents Forge.
-# Portée : Forge UNIQUEMENT. Ne touche pas openclaw/capabilities.yaml (SSOT studio, IMP-124).
+# Portée : Forge UNIQUEMENT. Ne touche pas openclaw/capabilities.yaml — qui n'est PLUS le « SSOT
+# studio » : openclaw est LEGACY depuis le 2026-07-23 (Pierre : « on travaille que claude et forge »).
+# Ce fichier-ci est la seule source de résolution de rôle de la Forge : `contract.resolve_runtime`
+# passe toujours `caps_path=FORGE_ROLES`. Le chemin openclaw n'est que le DÉFAUT du module partagé
+# `control_plane/registry.py:15`, consommé par la lane STUDIO, elle-même gelée. (Étiquette
+# « SSOT studio, IMP-124 » corrigée le 2026-07-23 : elle était devenue fausse.)
 # Décisions : ADR-002 gate 1 (full Claude pour cette phase) + gate 4 (Qwen = red team indépendant).
 # Lu par : scripts/forge/contract.py via control_plane.registry.get_model_for_role(role, caps_path=ce fichier).
 # claim_posture: NO_CLAIM_ALLOWED
@@ -9,9 +14,28 @@ version: "1.0"
 generated: "2026-07-09"
 source_adr: ADR-002
 
-# Orchestrateur de la chaîne : FABLE en mode superpowers DÉMARRE et pilote /forge
-# (charge le skill, spawn les sous-agents via la porte prepare_dispatch, aiguille A2,
-# décide l'escalade). Décision Pierre 2026-07-10. Fable n'est PAS un tier de build.
+# DEUX RÔLES DISTINCTS, longtemps confondus sous un seul nom (défaut trouvé et corrigé
+# le 2026-07-23) :
+#
+#  * `orchestrator`     — la SESSION qui pilote /forge, celle avec qui Pierre parle.
+#    Ce rôle n'est résolu par AUCUN code : la porte ne le dispatche jamais, la session
+#    elle-même l'incarne, et c'est PIERRE qui choisit son modèle en ouvrant la session.
+#    L'entrée ci-dessous est donc purement DESCRIPTIVE. Fable en mode superpowers
+#    (décision Pierre 2026-07-10).
+#
+#  * `run_orchestrator` — l'AGENT SPAWNÉ sous contrat (scripts/forge/contracts/
+#    orchestrator.yaml) qui conduit UN run : il lance run_real.py, laisse la chaîne
+#    boucler, vérifie le verdict, restitue. Celui-là EST résolu par le registry, donc
+#    son modèle a un effet mécanique et un coût réel. Sous **Opus** — décision Pierre
+#    2026-07-22 : « Fable consomme trop, je ne peux pas l'utiliser sur des trucs comme
+#    Pong ». Aucun des deux n'est un tier de build.
+#
+# Pourquoi les séparer : le registry résout un rôle par ORDRE DE DÉCLARATION (premier
+# modèle qui déclare le rôle gagne, control_plane/registry.py:39). Tant que les deux
+# usages partageaient le nom `orchestrator`, écrire « Fable OU Opus » en commentaire ne
+# changeait rien — le code rendait Fable, toujours. Une décision de Pierre vivait à côté
+# d'une donnée qui la contredisait : exactement le défaut que le contrat de système
+# interdit.
 #
 # Escalade de modèle (scripts/forge/escalate.py) : échelle des BUILDERS Claude
 # haiku -> sonnet -> opus. Un tier faible peut demander (ESCALATE_REQUEST) ou déclencher
@@ -31,6 +55,18 @@ models:
     provider: claude-local
     reasoning: high
     roles:
+      - run_orchestrator    # agent SPAWNÉ qui conduit un run (contrats/orchestrator.yaml).
+                            # Distinct de `orchestrator` (la session, descriptive, Fable) :
+                            # celui-ci est résolu par le registry et dispatché par la porte,
+                            # donc son modèle a un coût réel. Opus — RATIFIÉ Pierre
+                            # 2026-07-23 (« intention ≠ exécution »).
+                            # Réserve exprimée dans la même ratification, PAS ENCORE
+                            # IMPLÉMENTÉE : l'orchestrateur ne doit pas consommer le tier
+                            # maximal en permanence si la tâche peut être traitée plus bas.
+                            # Aucun mécanisme ne porte encore cette règle — `escalate.py` ne
+                            # couvre que les BUILDERS. Tant qu'aucun champ structuré ne
+                            # l'exprime, cette ligne reste une INTENTION, pas une politique
+                            # active : ne pas la lire comme un comportement en vigueur.
       - contract_author     # étape 0 — rédacteur du contrat
       - prisme              # étape 1 — Prisme Produit (photo du produit fini)
       - art_director        # étape 2.5 — Art Bible + asset_requests (Tier 3 #7)
@@ -38,6 +74,14 @@ models:
       - architect           # étape 4 — architecte
       - wiremap             # étape 5 — WireMap isomorphe
       - redteam_code        # étape 11 — red-team code (contexte vierge)
+      - game_forger         # étape 9 variante STANDARD — forge un JEU ENTIER depuis un
+                            # squelette gelé. Distinct de `builder` : ce rôle tient
+                            # simultanément toutes les lignes du squelette, plusieurs
+                            # runtimes, une parité entre implémentations et six oracles,
+                            # sans droit d'ajouter quoi que ce soit hors plan. Raisonnement
+                            # soutenu sous contrainte, pas exécution mécanique — `builder`
+                            # (haiku) reste juste pour ce à quoi il était calibré : une
+                            # brique isolée. Ajouté 2026-07-22, gate Pierre.
 
   - id: anthropic/claude-haiku-4-5-20251001
     name: Claude Haiku 4.5

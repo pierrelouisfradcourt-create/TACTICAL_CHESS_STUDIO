@@ -177,6 +177,136 @@
 
 ---
 
+## 2026-07-23 — Séparer l'intention de l'exécution : `orchestrator` vs `run_orchestrator`
+
+**Décision** : Deux rôles distincts là où un seul nom était employé. `orchestrator` désigne la SESSION que Pierre pilote — descriptive, résolue par aucun code, son modèle est choisi par Pierre en ouvrant la session (Fable, inchangé depuis le 2026-07-10). `run_orchestrator` désigne l'AGENT spawné sous contrat (`scripts/forge/contracts/orchestrator.yaml`) qui conduit un run — résolu par le registry, donc son modèle a un coût réel : **Opus**.
+
+**Contexte** : la décision de Pierre du 2026-07-22 (« Fable consomme trop, je ne peux pas l'utiliser sur des trucs comme Pong ») avait été enregistrée **en commentaire** dans `roles.yaml`. Or `control_plane/registry.py:39` résout un rôle par ordre de déclaration : le code rendait Fable, toujours. La décision et la donnée qui la contredisait ont cohabité 24 h.
+
+**Réserve exprimée, NON implémentée** : l'orchestrateur ne doit pas consommer le tier maximal en permanence si la tâche peut être traitée plus bas. Aucun mécanisme ne porte cette règle (`escalate.py` ne couvre que les builders). Inscrite comme intention explicite dans `roles.yaml`, à ne pas lire comme un comportement en vigueur.
+
+**Alternatives rejetées** : arbitrer entre Fable et Opus sous un nom unique (aurait laissé la même ambiguïté) ; corriger le commentaire sans toucher la donnée (aurait effacé la décision au lieu de la réaliser).
+
+**Critères de révision** : HumanGate Pierre. À revoir quand un champ structuré exprimera l'escalade de l'orchestrateur.
+
+---
+
+## 2026-07-23 — Aucune décision ne vit dans un commentaire
+
+**Décision** : Toute donnée qui influence un comportement doit avoir un **champ structuré validé**. Un commentaire peut porter le POURQUOI, jamais la décision elle-même. S'applique aux contrats, aux wiremaps et aux registres, présents et futurs. Corollaire : quand deux usages partagent un nom, séparer les champs plutôt qu'arbitrer entre eux.
+
+**Contexte** : deux incidents le même jour. (1) La décision Fable/Opus en commentaire (ci-dessus). (2) `builder_id` du journal de builders vaut l'identifiant complet du registry à la 1re tentative et le nom court du tier après escalade — `by_builder` éclatait donc un même tier en deux entités : statistique silencieusement fausse, jamais un crash, invisible tant que la fonction était morte. Cadre donné par Pierre : « Une intention non reliée mécaniquement au système finit par diverger. Les contrats, index et validations doivent rester la source de vérité. » — le même problème que la Wiremap.
+
+**Critères de révision** : aucun — principe de méthode, pas une décision de produit.
+
+---
+
+## 2026-07-23 — OpenClaw est legacy : le studio ne travaille plus que Claude + Forge
+
+**Décision** : `openclaw/` et `studio/openclaw-workspace/` sont **legacy**. Les seules surfaces de travail sont Claude (skills et agents sous `.claude/`) et la Forge (`scripts/forge/`, `games/`, `knowledge_base/`, `lab/forge_*`). Verbatim Pierre : « openclaw c'est legacy, on travaille que claude et forge ».
+
+**Contexte** : la Forge est saine — `contract.resolve_runtime` passe toujours `caps_path=FORGE_ROLES` (`scripts/forge/contracts/roles.yaml`), ne lit jamais `openclaw/capabilities.yaml` (ce chemin n'est que le défaut de `control_plane/registry.py:15`, consommé par la lane STUDIO gelée). MAIS deux skills VIVANTS pointent encore dans openclaw : `/gate` écrit ses verdicts HumanGate dans `studio/openclaw-workspace/DREAMS.md`, `/audit-daily` lit `studio/openclaw-workspace/MEMORY.md` (figé au 2026-06-29). Vérifié : `DREAMS.md` propre côté git, dernière entrée 2026-07-09.
+
+**Collision à trancher** (report ouvert) : `/gate` enregistre les décisions ratifiées dans une destination legacy, alors que la décision « mémoire » ci-dessous exige que toute décision ratifiée soit versionnée dans le repo. Les deux ne peuvent pas rester vraies : `/gate` doit écrire dans le dépôt, pas dans openclaw.
+
+**Critères de révision** : HumanGate Pierre.
+
+---
+
+## 2026-07-23 — Mémoire : cache local vs représentation versionnée
+
+**Décision** : (1) La mémoire locale de l'agent peut exister comme **cache opérationnel**. (2) Toute **décision ratifiée du projet** doit avoir une représentation **versionnée dans le dépôt**. (3) Une référence dans les documents doit pointer vers une source **réellement accessible et auditée**.
+
+**Contexte** : `CT-4` (2026-07-03) nomme `memory/MEMORY.md` comme référent canonique. Ce chemin **n'a jamais existé dans le dépôt** (`git log --all -- memory/` vide) : les 68 fichiers réels vivent hors projet, sans historique ni sauvegarde. Symétriquement `STUDIO_MEMORY.md` (racine, figé 2026-06-04) EST versionné et CT-4 ne le mentionne pas. Détecté par `node scripts/forge/master_index.mjs` (exit 1) — capteur lancé par aucun hook. `CT-1` du même jour avait pourtant versé `studio_brain/` dans Git contre le bus-factor-1. Cette entrée-ci est la première application du principe à lui-même.
+
+**Alternatives rejetées** : un patch rapide (corriger le chemin dans les docs) ; la construction immédiate d'une synchronisation mémoire↔dépôt. Pierre : « correction d'architecture à faire proprement, pas un patch rapide » et « pas besoin d'ajouter de machinerie tant que les flux existants ne sont pas parfaitement reliés ».
+
+**Critères de révision** : HumanGate Pierre, dans le cadre de la correction d'architecture.
+
+---
+
+## 2026-07-23 — `check_index` symétrisé : `fichiers[]` prouve aussi le référencement d'un dossier (CHECK_INDEX_SYMMETRY_V1)
+
+**Décision** : `check_index` (`scripts/forge/standard_oracles.py`) accepte aujourd'hui `fichiers[]` comme preuve de référencement pour les FICHIERS mais pas pour les DOSSIERS — deux règles de preuve dans un même oracle. À symétriser : un dossier est référencé s'il matche une `address` **OU** s'il contient un fichier cité dans `fichiers[]`. Aligne l'oracle sur sa propre doctrine « indexer dans les deux sens ». Ne rend aveugle sur rien : un `99_STRAY/` non cité reste attrapé par `dossiers_hors_structure` (réactivé le même jour — le driver appelait `check_index` sans `repo_map`, bug objectif corrigé, correction C5).
+
+**Contexte** : premier run STANDARD (Pong) — volet `index` rouge (`dossiers_orphelins = [04_ASSETS, 04_ASSETS/audio, 07_TESTS, 07_TESTS/oracle, 07_TESTS/unit]`) alors que ces racines sont imposées par `repo_map.yaml` et contiennent des fichiers réels, cités et prouvés. L'audit a démontré qu'un pur ré-étiquetage de labels verdissait le rouge sans déplacer un octet ⇒ l'oracle mesurait une propriété de l'étiquette, pas du disque.
+
+**Note liée (contradiction à traiter, pas dans cette décision)** : `repo_map.yaml` déclare « un dossier vide est un FAIL » mais le code fait `if not has_content: continue` (dossier vide ignoré) — le code contredit le principe écrit. À réconcilier séparément.
+
+**Alternatives rejetées** : exempter les racines `repo_map` du contrôle d'orphelins (rend `04_ASSETS`/`07_TESTS` invisibles à la détection) ; ajouter des lignes dédiées au squelette sans toucher l'oracle (théâtre d'oracle — verdit le compteur sans rien améliorer).
+
+**Critères de révision** : HumanGate Pierre. Implémentation prévue dans le chantier « boucle bibliothèque », volet index.
+
+---
+
+## 2026-07-23 — Identité obligatoire des gabarits d'artefacts nommés (REPO_MAP_TEMPLATE_IDENTITY_V1)
+
+**Décision (verbatim Pierre)** : rendre `{id}` obligatoire pour les gabarits qui pointent vers des artefacts nommés (`test.*`, `asset.*`). Le problème n'est pas seulement un bug de `check_placement` : `repo_map` autorise une ambiguïté structurelle où plusieurs lignes revendiquent le même artefact via un motif générique, et l'oracle voit des motifs, pas des identités — il ne peut donc pas détecter une collision.
+
+```yaml
+decision:
+  id: REPO_MAP_TEMPLATE_IDENTITY_V1
+rule:
+  named_artifact_templates:
+    require_id: true
+    require_unique_binding: true
+scope:
+  - test.*
+  - asset.*
+validation:
+  duplicate_claims:
+    same_target_multiple_ids: FAIL
+    same_id_multiple_targets: FAIL
+```
+
+**Règle à inscrire (verbatim Pierre)** : « Un gabarit qui revendique un artefact concret doit porter un identifiant stable permettant une correspondance univoque. Les motifs génériques sont réservés aux catégories, pas aux preuves d'existence. »
+
+**Statut posé par Pierre** : `repo_map` = à renforcer ; `check_placement` = bug de validation ; oracle = fonctionne mais manque une contrainte d'identité. **Rustine explicitement interdite** : pas de « prendre la première correspondance » (cacherait le problème).
+
+**Contexte** : mesuré sur Pong — `07_TESTS/oracle/solvability.mjs` est déclaré « déposé » par **6 lignes différentes**, sans que `check_placement` puisse le voir (gabarits `test.*`/`asset.*` de `repo_map.yaml` sans `{id}`).
+
+**Alternative rejetée par Pierre** : documenter comme limite connue sans corriger (proposition de l'orchestrateur, écartée : « ce serait cacher le problème »).
+
+**Critères de révision** : HumanGate Pierre.
+
+---
+
+## 2026-07-23 — Le dispatch n'est pas une autorisation de spawn (DISPATCH_SPAWN_AUTHORITY_V1)
+
+**Décision (verbatim Pierre)** : séparer explicitement « préparation » et « autorisation de spawn » — la porte actuelle mélange les deux. Flux voulu :
+
+```
+contrat existe → préparation enregistrée → contrôle profil + budget + unicité
+             → autorisation de spawn → spawn enregistré → preuve d'exécution
+```
+
+```yaml
+decision:
+  id: DISPATCH_SPAWN_AUTHORITY_V1
+rules:
+  dispatch_is_not_spawn_authorization: true
+  spawn_requires_profile_ownership: true
+  audit_is_created_at_execution: true
+  spawn_proof_requires_unique_event: true
+```
+
+Les trois corrections posées par Pierre :
+1. **Contrôle d'appartenance profil obligatoire** — un agent ne doit pas pouvoir invoquer un contrat *uniquement parce qu'il existe* ; ajouter `checks: [contract_exists, profile_allowed_for_contract]`.
+2. **L'audit écrit au moment du spawn** — aujourd'hui `prepare()` écrit la ligne d'audit et `spawn()` n'ajoute aucune preuve : on prouve une intention, pas une exécution. Événements immuables `spawn_prepared` / `spawn_authorized` / `spawn_executed` ; la preuve finale vient de `spawn_executed`.
+3. **Le hook vérifie l'unicité** — `count == 1` (0 ligne = pas de preuve ; 2 lignes = ambiguïté / replay potentiel).
+
+**Impact posé par Pierre** : dispatch devient un **routeur**, pas un garde d'accès ; le spawn gate devient l'**autorité** ; l'audit devient une **preuve d'action**, pas une preuve d'intention.
+
+**Priorité (Pierre)** : **plus haute que `CHECK_INDEX_SYMMETRY_V1` et `REPO_MAP_TEMPLATE_IDENTITY_V1`** — ce trou touche directement la gouvernance des agents : le contourner permet de contourner les autres contrats.
+
+**Contexte** : mesuré cette session — `prepare_dispatch`/`load_contract` ne vérifient aucune appartenance à un profil (preuve : `s9-build-godot`, listé « orphelin », réellement dispatché 2× en production) ; une ligne d'audit est écrite à la préparation, pas au spawn (une préparation autorise ensuite des spawns illimités sous le même couple `étape/run_id`) ; le hook ne vérifie que l'existence d'une ligne, pas son unicité.
+
+**Alternative rejetée par Pierre** : documenter honnêtement la portée maintenant et renforcer plus tard (proposition de l'orchestrateur, écartée au profit de la correction structurelle).
+
+**Critères de révision** : HumanGate Pierre.
+
+---
+
 ## Template pour nouvelles entrées
 
 ```

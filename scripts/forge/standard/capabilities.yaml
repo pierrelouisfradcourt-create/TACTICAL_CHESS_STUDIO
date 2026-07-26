@@ -1,0 +1,73 @@
+# REGISTRE DE CAPACITES — vocabulaire FERME.
+#
+# A quoi ca sert : rendre l'audit de collisions ARITHMETIQUE au lieu de semantique.
+# Sans vocabulaire ferme, il faudrait demander a un LLM si « restart » et « rejouer »
+# sont la meme chose — on ne veut aucun juge LLM dans un oracle. Avec ce registre,
+# les deux DOIVENT se declarer sur `game.restart`, et la collision saute toute seule.
+#
+# Ce n'est pas un vocabulaire universel ecrit d'avance : il demarre avec ce dont le
+# premier jeu a besoin et grandit d'un jeu a l'autre. Toute ligne de wiremap declare
+# `provides` / `requires` sur ces identifiants, et rien d'autre.
+#
+# Regles verifiees mecaniquement a la reconciliation :
+#   - deux `provides` de la meme capacite            -> COLLISION
+#   - un `requires` sans aucun fournisseur           -> TROU
+#   - deux `owner: true` sur la meme capacite        -> DOUBLE PROPRIETAIRE
+#   - plusieurs ecrivains d'un meme etat             -> ORDRE OBLIGATOIREMENT DECLARE
+#   - un identifiant absent de ce registre           -> FAIL (pas de nom libre)
+#
+# `single_owner: true` = un seul fournisseur autorise dans un jeu donne. Les
+# consommateurs multiples restent permis et sains : que trois systemes REAGISSENT
+# au score est normal ; que deux systemes le DECIDENT ne l'est pas.
+#
+# Dette remboursee par ce fichier : les wiremaps produites jusqu'ici emploient
+# quatre mots pour l'etat d'une ligne (« fait » 26x, « construit » 39x, « DONE » 13x,
+# « PLANNED » 25x) — trois d'entre eux veulent dire la meme chose. Personne ne s'en
+# est apercu parce que chaque run etait coherent avec lui-meme.
+
+schema_version: 1
+
+capabilities:
+
+  # ---------- exigees par le CORE (tout jeu) ----------
+  - id: game.boot
+    statement: "Amener le jeu de rien a un etat initial jouable."
+    single_owner: true
+  - id: game.loop
+    statement: "Faire avancer l'etat de jeu d'un tick au suivant."
+    single_owner: true
+  - id: game.state
+    statement: "Detenir et exposer l'etat de partie courant."
+    single_owner: true
+  - id: game.end
+    statement: "Decider qu'une partie est terminee, et avec quelle issue."
+    single_owner: true
+  - id: game.restart
+    statement: "Remettre le jeu dans son etat initial pour une nouvelle partie."
+    single_owner: true
+  - id: game.exit
+    statement: "Terminer le processus proprement."
+    single_owner: true
+  - id: input.action
+    statement: "Traduire une entree joueur en action de jeu."
+    single_owner: true
+  - id: render.frame
+    statement: "Produire l'image de l'etat courant."
+    single_owner: true
+  - id: audio.cue
+    statement: "Declencher un retour sonore lie a un evenement de jeu."
+    single_owner: true
+  - id: error.guard
+    statement: "Absorber une entree invalide sans invalider l'etat de jeu."
+    single_owner: true
+
+  # ---------- apportees par PONG (noeud 1) ----------
+  - id: play.paddle
+    statement: "Position et deplacement borne d'une raquette."
+    single_owner: true
+  - id: play.ball
+    statement: "Position, vitesse et rebond de la balle."
+    single_owner: true
+  - id: play.score
+    statement: "Comptage des points et detection du point marque."
+    single_owner: true

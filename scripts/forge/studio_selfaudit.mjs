@@ -19,9 +19,13 @@
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { spawnSync } from 'node:child_process';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const STATUS_FILE = 'docs/forge/STUDIO_STATUS.generated.md';
+const CONTRACT_SYNC_TIMEOUT_MS = 60000;
+const CONTRACT_SYNC_MAX_BUFFER = 20 * 1024 * 1024;
+const CONTRACT_SYNC_ANCESTOR_LEVELS = 5;
 
 /**
  * Charge le manifeste des affirmations des cartes.
@@ -88,9 +92,115 @@ export function auditConnectorDormancy(repoRoot, cfg) {
 }
 
 /**
+ * Ordre de decouverte de l'interpreteur Python pour le capteur contract_sync — voir
+ * FORGE_SYSTEM_CONTRACT.yaml bloc `verification`. Premier existant gagne :
+ *   1. <repoRoot>/.venv312/Scripts/python.exe (Windows) ou .../bin/python (POSIX)
+ *   2. les MEMES deux chemins dans chaque dossier ancetre de repoRoot, jusqu'a 5 niveaux
+ *      (cas worktree : le venv reel vit au depot principal, pas dans le worktree)
+ *   3. dernier recours : 'python' puis 'python3' resolus depuis le PATH.
+ * @param {string} repoRoot
+ * @returns {string[]} candidats a essayer dans l'ordre (un seul si un venv a ete trouve,
+ *   sinon la paire de commandes PATH).
+ */
+export function pythonCandidates(repoRoot) {
+  const venvIn = (root) => [
+    join(root, '.venv312', 'Scripts', 'python.exe'),
+    join(root, '.venv312', 'bin', 'python'),
+  ];
+  let root = resolve(repoRoot);
+  for (const p of venvIn(root)) {
+    if (existsSync(p)) return [p];
+  }
+  for (let level = 0; level < CONTRACT_SYNC_ANCESTOR_LEVELS; level += 1) {
+    const parent = dirname(root);
+    if (parent === root) break; // racine du filesystem atteinte
+    root = parent;
+    for (const p of venvIn(root)) {
+      if (existsSync(p)) return [p];
+    }
+  }
+  return ['python', 'python3'];
+}
+
+/**
+ * Verification C — le capteur `contract_sync` (Python, deterministe, non-LLM) est-il
+ * synchronise avec le fichier de pilotage ? Cf. FORGE_SYSTEM_CONTRACT.yaml `verification`.
+ *
+ * Statuts possibles :
+ *   - 'ok'            : capteur execute, `passed: true` — aucune regle canonique non citee.
+ *   - 'derive'         : capteur execute, `passed: false` — violations remontees telles quelles.
+ *   - 'non_evaluable' : le capteur n'a PAS pu tourner (interpreteur introuvable, spawn en
+ *     erreur, timeout, exit inattendu, stdout non parsable). DISTINCT de 'derive' a dessein :
+ *     ne jamais confondre « le contrat derive » et « je n'ai pas pu verifier » — un controle
+ *     qui ne tourne pas n'apporte aucune garantie, le compter vert serait le mode de panne
+ *     « declare != execute » que ce capteur existe pour attraper.
+ * @param {string} repoRoot
+ * @returns {{status:'ok'|'derive'|'non_evaluable', interpreter:string|null, violations:Array, detail:string}}
+ */
+export function auditContractSync(repoRoot) {
+  const candidates = pythonCandidates(repoRoot);
+  let lastErrorDetail = 'aucun candidat essaye';
+
+  for (const py of candidates) {
+    let r;
+    try {
+      r = spawnSync(py, ['-m', 'forge.contract_sync', repoRoot, '--json'], {
+        cwd: join(repoRoot, 'scripts'),
+        encoding: 'utf-8',
+        timeout: CONTRACT_SYNC_TIMEOUT_MS,
+        maxBuffer: CONTRACT_SYNC_MAX_BUFFER,
+        // `contract_sync.py` garde volontairement l'encodage NATIF de la console pour son
+        // mode prose (cp1252 possible sous Windows — cf. sa docstring `_harden_streams`).
+        // Sans forcer PYTHONIOENCODING ici, un octet accentue (e, a, e...) hors ASCII dans
+        // un nom de regle serait lu comme de l'UTF-8 par Node -> corruption SILENCIEUSE
+        // (remplacement par U+FFFD) au lieu d'un echec franc. On force donc UTF-8 cote
+        // Python UNIQUEMENT pour cet appel machine-a-machine (ne touche pas contract_sync.py).
+        env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+      });
+    } catch (e) {
+      lastErrorDetail = `spawn a leve : ${e && e.message ? e.message : String(e)}`;
+      continue;
+    }
+
+    if (r.error) {
+      lastErrorDetail = `interpreteur « ${py} » injoignable : ${r.error.message}`;
+      continue; // essaie le candidat suivant (utile pour python -> python3)
+    }
+
+    if (r.status === 0 || r.status === 1) {
+      try {
+        const parsed = JSON.parse(r.stdout);
+        if (parsed.passed) {
+          return { status: 'ok', interpreter: py, violations: [],
+            detail: 'contrat synchronise (mecaniquement) — aucune regle canonique non citee' };
+        }
+        return { status: 'derive', interpreter: py, violations: parsed.violations || [],
+          detail: `${(parsed.violations || []).length} violation(s) — voir la liste ci-dessous` };
+      } catch (e) {
+        return { status: 'non_evaluable', interpreter: py, violations: [],
+          detail: `stdout non parsable en JSON (exit ${r.status}) : ${String(e.message || e).slice(0, 300)}` };
+      }
+    }
+
+    // exit 2 (non evaluable cote capteur Python) ou tout autre code inattendu.
+    let raison = null;
+    try { raison = JSON.parse(r.stdout).raison || null; } catch { /* stdout non-JSON, ignore */ }
+    const stderrHead = (r.stderr || '').trim().slice(0, 300);
+    const cause = raison
+      ? `raison rapportee par le capteur : ${raison}`
+      : `stderr : ${stderrHead || '(vide)'}`;
+    return { status: 'non_evaluable', interpreter: py, violations: [],
+      detail: `code de sortie inattendu ${r.status} — ${cause}` };
+  }
+
+  return { status: 'non_evaluable', interpreter: null, violations: [],
+    detail: `aucun interpreteur Python utilisable trouve (candidats essayes : ${candidates.join(', ')}) — ${lastErrorDetail}` };
+}
+
+/**
  * Lance l'audit complet du studio.
  * @param {string} repoRoot
- * @returns {{repoRoot:string, docDrift:Array, dormancy:Array, ok:boolean}}
+ * @returns {{repoRoot:string, docDrift:Array, dormancy:Array, contractSync:object, ok:boolean}}
  */
 export function runSelfAudit(repoRoot) {
   const exp = loadExpectations(repoRoot);
@@ -99,8 +209,11 @@ export function runSelfAudit(repoRoot) {
   // Seuls les vrais signaux comptent pour le verdict : derive doc + connecteurs dormants.
   // Les statuts purement informatifs (jamais_ecrit, reference_absente) ne font pas echouer.
   const hardDormancy = dormancy.filter((d) => d.status === 'dormant');
-  const ok = docDrift.length === 0 && hardDormancy.length === 0;
-  return { repoRoot, docDrift, dormancy, ok };
+  const contractSync = auditContractSync(repoRoot);
+  // non_evaluable fait echouer l'audit au meme titre qu'une derive, mais reste un statut
+  // DISTINCT dans la sortie (contractSync.status) — jamais confondu avec 'derive'.
+  const ok = docDrift.length === 0 && hardDormancy.length === 0 && contractSync.status === 'ok';
+  return { repoRoot, docDrift, dormancy, contractSync, ok };
 }
 
 /**
@@ -172,9 +285,40 @@ export function generateStatusTable(repoRoot) {
   }
   lines.push('');
   const audit = runSelfAudit(repoRoot);
+
+  lines.push('## Contrat de système Forge — règles canoniques citées par le pilotage');
+  lines.push('');
+  lines.push('| Règle | Symboles attendus | Verdict |');
+  lines.push('|---|---|---|');
+  const cs = audit.contractSync;
+  const escapeCell = (s) => String(s).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').slice(0, 400);
+  if (cs.status === 'ok') {
+    lines.push('| *(toutes les règles canoniques)* | — | ✅ synchronisé (mécaniquement) |');
+  } else if (cs.status === 'non_evaluable') {
+    lines.push(`| *(non évaluable)* | — | ⚠ NON ÉVALUABLE — ${escapeCell(cs.detail)} |`);
+  } else {
+    // Deterministe : trie par nom de regle puis par premier symbole attendu — jamais
+    // l'ordre du filesystem ou du processus (contrainte dure : zero bruit git).
+    const sorted = [...cs.violations].sort((a, b) => {
+      const ra = a.regle || '';
+      const rb = b.regle || '';
+      if (ra !== rb) return ra < rb ? -1 : 1;
+      const sa = (a.symboles_attendus && a.symboles_attendus[0]) || '';
+      const sb = (b.symboles_attendus && b.symboles_attendus[0]) || '';
+      return sa < sb ? -1 : sa > sb ? 1 : 0;
+    });
+    for (const v of sorted) {
+      const symbols = (v.symboles_attendus && v.symboles_attendus.length)
+        ? v.symboles_attendus.join(', ') : '—';
+      lines.push(`| ${escapeCell(v.regle || '<sans nom>')} | \`${escapeCell(symbols)}\` | ⚠ ${escapeCell(v.type || 'derive')} |`);
+    }
+  }
+  lines.push('');
+
+  const hardDormantCount = audit.dormancy.filter((d) => d.status === 'dormant').length;
   lines.push(`**Verdict global** : ${audit.ok ? '✅ ALIGNÉ' : '⚠ DÉRIVE DÉTECTÉE'} `
-    + `(dérive doc : ${audit.docDrift.length} · connecteurs dormants : `
-    + `${audit.dormancy.filter((d) => d.status === 'dormant').length})`);
+    + `(dérive doc : ${audit.docDrift.length} · connecteurs dormants : ${hardDormantCount} · `
+    + `contrat de système : ${cs.status})`);
   lines.push('');
   return lines.join('\n');
 }
@@ -192,6 +336,19 @@ function main() {
   for (const f of r.docDrift) console.error(`  ⚠ ${f.drift}\n      source: ${f.source}`);
   console.error(`\nConnecteurs : ${r.dormancy.length} note(s)`);
   for (const d of r.dormancy) console.error(`  ${d.status === 'dormant' ? '⚠' : '·'} ${d.connector} — ${d.detail}`);
+
+  console.error(`\nContrat de système Forge : ${r.contractSync.status.toUpperCase()}`);
+  console.error(`  ${r.contractSync.detail}`);
+  if (r.contractSync.status === 'derive') {
+    for (const v of r.contractSync.violations) {
+      const symbols = (v.symboles_attendus && v.symboles_attendus.length)
+        ? v.symboles_attendus.join(', ') : '(aucun)';
+      console.error(`  - [${v.type}] ${v.regle} — symboles attendus: ${symbols}`);
+    }
+  }
+  // non_evaluable reste un statut DISTINCT de 'derive' : un controle qui n'a pas pu tourner
+  // n'apporte aucune garantie, il ne doit jamais etre confondu avec une derive constatee.
+
   console.error(`\nVERDICT : ${r.ok ? 'STUDIO ALIGNE ✅' : 'DERIVE DETECTEE ⚠ (corriger la carte ou ratifier)'}`);
 
   if (write) {

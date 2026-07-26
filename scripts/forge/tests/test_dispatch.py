@@ -144,11 +144,13 @@ def test_prepare_dispatch_injecte_le_marqueur_forge_dispatch(tmp_path):
     """La porte (prepare_dispatch) connaît etape ET run_id : le prompt qu'elle
     produit doit systématiquement porter le marqueur exact attendu par le hook,
     plus besoin que l'orchestrateur l'appose à la main."""
-    from forge.hook_guard import MARKER
+    from forge.hook_guard import MARKER, marker_key
     audit = tmp_path / "audit.jsonl"
     payload = prepare_dispatch("s4-archi", run_id="run-int-1", audit_path=audit)
     matches = MARKER.findall(payload.prompt)
-    assert matches == [("s4-archi", "run-int-1")]
+    assert len(matches) == 1, f"un seul marqueur attendu, trouvé: {matches}"
+    # Forme 2-champs rendue par la porte => attempt normalisé à 0 par `marker_key`.
+    assert marker_key(payload.prompt) == ("s4-archi", "run-int-1", 0)
 
 
 def test_hook_autorise_un_prompt_rendu_par_la_porte_avec_son_audit(tmp_path):

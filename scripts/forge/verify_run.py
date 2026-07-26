@@ -10,7 +10,9 @@ Avant, `verify_*` n'était appelé que par les tests ; `/gate`/`/verdict` demand
 
 Usage :
     PYTHONPATH=scripts python -m forge.verify_run lab/forge_runs/<projet>/verdict.json
-Exit 0 = verdict authentique et évidence intacte ; 2 = falsification/altération.
+Exit 0 = verdict authentique et évidence intacte ; 2 = falsification/altération ;
+3 = verdict absent ou illisible (rien à vérifier — ni authentique ni falsifié, ce
+sont deux états distincts qu'un instrument de confiance ne doit jamais confondre).
 
 Limite honnête : sur un poste mono-utilisateur, un producteur qui LIT `.forge_key`
 peut re-signer un faux verdict cohérent (fichiers d'évidence fabriqués compris).
@@ -171,8 +173,20 @@ def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        return {"overall": False, "reason": f"verdict illisible: {exc}",
-                "hmac_ok": False, "evidence_ok": False, "git_ok": False}
+        # Absent/illisible n'est PAS falsifié : un fichier qui n'existe pas n'a
+        # jamais été signé, donc rien à casser. On rend un dict de la MÊME forme
+        # que le chemin nominal (toutes les clés que `main()` lit) pour qu'un
+        # accès `res["mutation_ok"]` ne lève jamais KeyError sur ce cas — mais
+        # marqué `unreadable=True` pour que l'affichage reste honnête (ni "OK",
+        # ni "FALSIFIÉ"/"ALTÉRÉE", qui sont des accusations de contenu altéré).
+        return {"overall": False, "unreadable": True,
+                "reason": f"verdict absent ou illisible: {exc}",
+                "hmac_ok": False, "evidence_ok": False, "evidence_problems": [],
+                "mutation_ok": False, "mutation_problems": [],
+                "git_ok": True, "git_stored": "", "git_current": current_git_head(),
+                "knowledge_trace_ok": False, "knowledge_trace_problems": [],
+                "knowledge_trace_warnings": [],
+                "software_verdict": None, "decision": None}
 
     hmac_stored = data.get("hmac", "")
     body = {k: v for k, v in data.items() if k != "hmac"}
@@ -257,6 +271,13 @@ def main(argv: list[str] | None = None) -> int:
         print("usage: python -m forge.verify_run <verdict.json>", file=sys.stderr)
         return 2
     res = verify_run(argv[0])
+    if res.get("unreadable"):
+        # Constat, pas accusation : rien n'a été signé, donc rien n'a pu être
+        # falsifié. Ne PAS réutiliser les mots "FALSIFIÉ"/"ALTÉRÉE" plus bas,
+        # qui affirment qu'un contenu signé a été trafiqué.
+        print(f"verdict          : absent ou illisible ({res.get('reason')})")
+        print("\nVÉRIFICATION : IMPOSSIBLE (aucun verdict.json exploitable à cet emplacement)")
+        return 3
     print(f"verdict          : {res.get('software_verdict')} / {res.get('decision')}")
     print(f"HMAC             : {'OK' if res['hmac_ok'] else 'FALSIFIÉ'}")
     print(f"évidence intacte : {'OK' if res['evidence_ok'] else 'ALTÉRÉE'}")

@@ -13,22 +13,62 @@
 // Usage : node reuse_ratio.mjs <games/nom-du-jeu/>
 // Sortie : reçu JSON sur stdout + résumé lisible sur stderr. Exit 0 toujours (mesure, pas
 // un oracle pass/fail — reuse_ratio bas n'est pas une erreur, c'est un FAIT à rapporter).
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, extname } from 'node:path';
+//
+// Correction 2026-07-23 (boucle bibliothèque, chantier `studio_link.py`/`pending_review.mjs`/
+// `reuse_ratio.mjs`) : deux défauts mesurés rendaient ce script à variance nulle en pratique
+// (0.000 sur 9/9 jeux, y compris shmup_slice qui réutilise RÉELLEMENT une brique) —
+//   (a) `readdirSync` n'était PAS récursif : un fichier de logique en sous-dossier (ex.
+//       `games/shmup_slice/logic/collisions.mjs`, ou tout jeu STANDARD dont la logique vit
+//       sous `05_SYSTEMS/...`) n'était jamais vu ;
+//   (b) `isLogicFile` n'acceptait que `.mjs` : tout jeu Godot (`.gd`) était rejeté d'office.
+// Fixé ici : parcours récursif du dossier de jeu (l'exclusion harnais/tests reste appliquée
+// par NOM DE FICHIER, pas par profondeur) + extension `.gd` acceptée en plus de `.mjs`.
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, extname, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const HARNESS_FILES = new Set(['main.mjs', 'server.mjs', 'e2e.mjs', 'run-oracle.mjs', 'solvability.mjs']);
+const LOGIC_EXTENSIONS = new Set(['.mjs', '.gd']);
+// Dossiers jamais descendus pendant le scan récursif — pas de logique produit à y trouver,
+// seulement du bruit (dépendances, VCS) qui ralentirait/polluerait le parcours.
+const SKIP_DIRS = new Set(['node_modules', '.git']);
 
 /**
  * Un fichier compte-t-il comme « logique produit » pour cette mesure ?
- * @param {string} fileName
+ * @param {string} fileName nom de fichier SEUL (pas le chemin) — l'exclusion harnais/tests
+ *   est par nom, indépendante du sous-dossier où le fichier vit.
  * @returns {boolean}
  */
 function isLogicFile(fileName) {
-  if (extname(fileName) !== '.mjs') return false;
+  if (!LOGIC_EXTENSIONS.has(extname(fileName))) return false;
   if (fileName.endsWith('.test.mjs')) return false;
   if (HARNESS_FILES.has(fileName)) return false;
   return true;
+}
+
+/**
+ * Parcourt récursivement `gameDir` et renvoie les chemins (relatifs à `gameDir`, séparateur
+ * `/` normalisé quel que soit l'OS) des fichiers de logique produit trouvés, en profondeur
+ * quelconque. Tri alphabétique déterministe.
+ * @param {string} gameDir
+ * @returns {string[]}
+ */
+function collectLogicFiles(gameDir) {
+  const out = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        if (SKIP_DIRS.has(entry.name)) continue;
+        walk(join(dir, entry.name));
+        continue;
+      }
+      if (entry.isFile() && isLogicFile(entry.name)) {
+        out.push(relative(gameDir, join(dir, entry.name)).split(sep).join('/'));
+      }
+    }
+  };
+  walk(gameDir);
+  return out.sort();
 }
 
 /**
@@ -64,10 +104,7 @@ function classifySpecifier(specifier) {
  * @returns {{gameDir:string, logicFiles:string[], reusedModules:string[], reuseRatio:number, imports:Array<{file:string, specifier:string, classification:string}>}}
  */
 export function measureReuseRatio(gameDir) {
-  const entries = readdirSync(gameDir).filter((f) => {
-    const full = join(gameDir, f);
-    return statSync(full).isFile() && isLogicFile(f);
-  });
+  const entries = collectLogicFiles(gameDir);
 
   const imports = [];
   const reusedModules = new Set();

@@ -5,11 +5,13 @@ description: Boucle d'ingénierie Forge — enchaîne les étapes-agents, chacun
 
 # /forge <projet-ou-objectif>
 
-Enchaîne la chaîne d'ingénierie Forge. **Invariant central : aucun sous-agent n'est lancé sans passer par son contrat validé.** Le contrat est la porte de contrôle ; il borne le rôle, force le runtime (via le registry local), limite les permissions et impose la règle de restitution.
+Enchaîne la chaîne d'ingénierie Forge. **Invariant central : aucun sous-agent n'est lancé sans passer par son contrat validé.** Le contrat est la porte de contrôle ; il borne le rôle, force le runtime, limite les permissions et impose la règle de restitution.
 
 > Règles absolues (CLAUDE.md + ADR-002) : `claim_verdict: NO_CLAIM_ALLOWED` ; séparer `software_verdict`/`evidence_verdict`/`claim_verdict` ; **HumanGate (Pierre) décide** merge/reject ; zones protégées `tests/**` jamais modifiées. Modèles = full Claude (producteurs) + **Qwen = red-team indépendant** ; oracles = déterministes non-LLM.
 
-> **Orchestrateur = Fable (mode superpowers)** (registry rôle `orchestrator`, décision Pierre 2026-07-10). Fable **démarre et pilote** la chaîne : il ne code aucune étape, il spawn les sous-agents via la porte `prepare_dispatch`, aiguille (A2) et décide l'**escalade de modèle**. Fable n'est pas un tier de build.
+> **Résolution rôle → runtime : source unique `scripts/forge/contracts/roles.yaml`** (lue par `forge.contract`). Ne déduis jamais un modèle d'ici — ce fichier fait foi, y compris pour le rôle `orchestrator` et pour l'échelle d'escalade des builders. Le contrat de système (`scripts/forge/FORGE_SYSTEM_CONTRACT.yaml`) interdit de réécrire cette règle ailleurs ; le capteur `forge.contract_sync` vérifie que ce fichier la CITE au lieu de la redire.
+
+> **Orchestrateur** = rôle `orchestrator` dans `roles.yaml` — Fable (mode superpowers) **ou Opus en effort élevé** quand le coût de Fable est disproportionné à l'enjeu du run (décision Pierre 2026-07-22). Dans les deux cas : il **démarre et pilote**, ne code aucune étape, spawn via la porte `prepare_dispatch`, aiguille (A2) et décide l'escalade. Ce n'est pas un tier de build.
 
 ---
 
@@ -17,10 +19,13 @@ Enchaîne la chaîne d'ingénierie Forge. **Invariant central : aucun sous-agent
 
 `/forge [--patch|--review] <description du projet ou de l'objectif>`. Si l'objectif est flou (pas de périmètre, pas de « produit fini » imaginable), **arrête-toi et pose 2-3 questions de cadrage** avant de lancer la chaîne (c'est ce que fait l'étape 0, ne la court-circuite pas).
 
-**Profils de chaîne** (`forge.dispatch.PROFILES`) — choisis selon l'usage :
-- `full` (défaut) : les 13 étapes, pour un projet greenfield (Prisme → … → WireMap → build → oracles → verdict).
-- `patch` : un fix sur un projet **existant** — `s9-build → s10a-oracle-code → s11-redteam-code → s12-verdict`. Les oracles archi/wiremap n'y sont pas applicables : au verdict, émets pour eux des reçus **`SKIPPED`** signés (jamais un faux OK). C'est le mode quotidien.
-- `review` : `s6-redteam-plan` seul — critique d'un plan, sans verdict signé.
+**Profils de chaîne — la liste fait foi dans `forge.dispatch.PROFILES`, pas ici.** Ne te fie jamais à cette énumération pour savoir ce qui existe : lance le `--dry-run` ci-dessous, qui lit la source. Repères d'usage :
+- `full` (défaut) : projet greenfield complet (Prisme → … → WireMap → build → oracles → verdict).
+- `patch` : un fix sur un projet **existant**. Les oracles archi/wiremap n'y sont pas applicables : au verdict, émets pour eux des reçus **`SKIPPED`** signés (jamais un faux OK). C'est le mode quotidien.
+- `micro` : tâche triviale (fonction pure, one-liner) — proportionnalité, pas de cérémonie 13 étapes.
+- `increment` : incrément sur un projet dont les bibles sont déjà la source de vérité (refait archi/wiremap, contrairement à `patch`).
+- `standard` : **curriculum de jeux sur squelette gelé** — voir la section dédiée plus bas.
+- `review` / `artbible` : une étape isolée, sans verdict signé.
 
 ## Le socle (déjà câblé, à réutiliser — ne pas réimplémenter)
 
@@ -41,8 +46,14 @@ Affiche les étapes du profil et leur runtime résolu (13 en `full`, 4 en `patch
 Lis les erreurs des runs précédents pour que l'étape 0 en tienne compte (le « PILOU ») :
 ```python
 from forge.studio_link import premortem
-rappels = premortem("<projet>")   # dernières erreurs du projet
+rappels = premortem("<projet>", domain="html")   # JEU -> "html" ; tout le reste -> "forge"
 ```
+`domain` est **obligatoire** ici : sans lui, `premortem` reste en mode rétrocompat et ne
+lit QUE les leçons globales/playtest — les leçons DU PROJET restent invisibles en silence
+(comportement du mode domaine de `journal_path=None`, cf. `studio_link.py::premortem`).
+La règle « quel domaine pour quel projet » a une source UNIQUE, ne la redécide pas ici :
+`driver.py::ForgeDriver._domain` — `"html"` pour un JEU (le cas courant de la Forge),
+`"forge"` sinon.
 Injecte `rappels` dans le contexte de l'étape 0 (via son `mandatory_read`).
 
 ## Oracle charter (R7, après l'étape 0 — obligatoire)
@@ -54,6 +65,26 @@ r = check_charter(charter_dict)   # 7 champs requis dont plateforme_cible · ref
 ```
 `passed` faux → re-spawn s0 avec les raisons (jamais un charter incomplet vers l'aval). `reference_jeu`
 vient de PIERRE (design-intent) — un agent ne l'invente jamais : absent = fog HumanGate.
+
+## Profil `standard` — curriculum de jeux sur squelette gelé
+
+Variante pour le curriculum (Pong → …), où le jeu n'est pas décrit en langage libre mais **gelé
+en amont** dans un squelette : chaque exigence y a déjà une adresse, un état attendu et une preuve
+attendue. Le forgeron ne reçoit donc pas « fais un Pong » — il reçoit une carte à remplir, et il
+n'a **pas le droit d'ajouter hors plan**.
+
+Ne redis rien du format ici : la spécification est `scripts/forge/standard/SCHEMA.md`, et les
+tables figées qu'elle utilise sont `scripts/forge/standard/{core_requirements,repo_map,capabilities}.yaml`.
+
+- **Étape de build** : `s9-build-standard` (rôle `game_forger`, résolu par `roles.yaml` — pas un
+  `builder`, cf. son contrat pour la proportionnalité rôle/effort).
+- **Étape d'oracle** : `s10s-oracle-standard`, déterministe, qui exécute `forge.standard_oracles`.
+  C'est là que vit la **loi d'empilement** (`forge.standard_oracles.check_budget` : ce qu'un jeu a
+  le droit de déposer en bibliothèque) — n'en juge jamais toi-même, lis le reçu.
+- `s10a-oracle-code` (mutation / e2e / solvabilité) reste applicable et **n'est pas remplacé**.
+
+Un oracle du standard rouge se traite comme les autres oracles (3. ci-dessous) : il alimente le
+pool puis l'escalade, il ne se contourne pas.
 
 ## Boucle d'orchestration
 
@@ -109,7 +140,9 @@ Pour chaque `etape` dans l'ordre `forge.dispatch.ORDER` :
    d = escalation_decision(payload.model, oracle_ok=oracle_ok, agent_requested=requested,
                            agent_reason=why, escalations_so_far=n)
    ```
-   Si `d.escalate` : **ré-spawne LE MÊME contrat** (marqueur `FORGE_DISPATCH` compris) avec l'outil Agent `model=d.next_model` (haiku→sonnet→opus), incrémente `n`, trace l'escalade (`record_telemetry`). Le verdict signera le **tier réel** qui a produit l'artefact (honnêteté, comme le reviewer). Au sommet (`opus`) avec échec → `d.escalate` est faux et `d.reason` renvoie à HumanGate : **ne boucle pas**, remonte à Pierre. Cap `MAX_ESCALATIONS`.
+   **Avant d'escalader, le pool : re-tentative au MÊME tier.** Un oracle rouge n'est pas une preuve que le tier est trop faible — ça peut être un aléa de tirage. La décision est prise par `forge.pool.pool_decision` (`oracle_ok`, `attempts_at_current_tier`, `pool_size`), **pas par ton jugement** : elle ne s'applique que sur un FAIL d'oracle, jamais sur un `ESCALATE_REQUEST` explicite (l'agent, lui, sait que son tier ne suffit pas). Pool épuisé → seulement alors, escalade de modèle. Ne saute pas cette étape : escalader dès le premier rouge dépense un tier supérieur là où un même-tier aurait suffi.
+
+   Si `d.escalate` : **ré-spawne LE MÊME contrat** (marqueur `FORGE_DISPATCH` compris) avec l'outil Agent `model=d.next_model`, échelle et cap résolus par `forge.escalate` + `roles.yaml`, incrémente `n`, trace l'escalade (`record_telemetry`). Le verdict signera le **tier réel** qui a produit l'artefact (honnêteté, comme le reviewer). Au sommet avec échec → `d.escalate` est faux et `d.reason` renvoie à HumanGate : **ne boucle pas**, remonte à Pierre.
 
    > **Jugement d'agent — lire-d'abord / écrire-si-nouveau (avant toute re-tentative).** L'écriture-sur-échec est DÉJÀ automatique côté driver (`record_error`/`record_fix` câblés dans `_halt_step`/`_finish_step`). Ce bloc-ci n'est PAS une écriture de plus : c'est la RECONNAISSANCE côté agent, avant de re-spawner une étape échouée. Dans l'ordre :
    > 1. **Lis d'abord** le journal du domaine — le pré-mortem l'a déjà surfacé (`premortem("<projet>", domain="<domaine>")` à l'étape 0, entrées « → ✅ RÉPARÉ: … »). Ne re-cherche pas à l'aveugle : la réparation de CE même échec y est peut-être déjà.
@@ -207,7 +240,12 @@ propose_project_record(project, stage, folder)            # PROPOSED
 ```bash
 PYTHONPATH=scripts .venv312/Scripts/python.exe -m forge.verify_run lab/forge_runs/<projet>/verdict.json
 ```
-Exit 0 = authentique (HMAC re-signé + évidence re-lue + git_head comparé) ; exit 2 = falsifié/altéré → **STOP**, remonte à Pierre le rejet. Puis le verdict signé est présenté à **Pierre**. **Tu ne décides jamais** merge/reject/freeze, et tu ne promeus jamais une proposition en mémoire de référence (ledger, projets) sans son go. Si une étape n'a pas d'oracle pour appuyer une affirmation → remonte un besoin HumanGate (fog), pas un claim (RÈGLE DE RESTITUTION).
+Trois issues, trois lectures — ne les confonds jamais :
+- **Exit 0** = authentique (HMAC re-signé + évidence re-lue + git_head comparé) → le verdict signé peut être présenté à **Pierre**.
+- **Exit 2** = falsifié/altéré (un verdict a été signé puis le contenu ou l'évidence a changé) → **STOP**, remonte à Pierre le **rejet**.
+- **Exit 3** = verdict **absent ou illisible** — il n'y a rien à vérifier, donc rien n'a été signé, donc rien à présenter comme preuve. **Ce n'est PAS un rejet et encore moins un succès** : ne dis jamais « le run a réussi » ni « le run a échoué » sur cette seule base — le run n'a simplement produit AUCUN verdict exploitable. **STOP**, ne présente rien à Pierre : remonte-lui que la chaîne s'est arrêtée avant `s12-verdict` (ou que le chemin donné est faux) et qu'il n'existe aucun artefact à ratifier.
+
+Dans tous les cas hors exit 0 : **Tu ne décides jamais** merge/reject/freeze, et tu ne promeus jamais une proposition en mémoire de référence (ledger, projets) sans son go. Si une étape n'a pas d'oracle pour appuyer une affirmation → remonte un besoin HumanGate (fog), pas un claim (RÈGLE DE RESTITUTION).
 
 ## Rapport obligatoire
 
@@ -221,6 +259,8 @@ claim_verdict: NO_CLAIM_ALLOWED
 
 ## Limites v0 (à dire honnêtement, ne pas surjouer)
 
-- **Étapes contractualisées = 13** (s0/s1/s2/s3/s4/s5/s6/s9/s10a/b/c/s11/s12) : chaîne séquentielle complète, chaque étape a une vraie entrée (Prisme→Décompo, World Scan advisory, WireMap isomorphe au blueprint).
+- **Étapes contractualisées** : la chaîne canonique `full` couvre s0→s12 ; les contrats vivent dans `scripts/forge/contracts/`. Compte exact et profils : `--dry-run` (ci-dessus), jamais une liste recopiée ici.
+- **Contrats orphelins connus** (écrits, référencés dans AUCUN profil ni aucun code — vérifié 2026-07-23) : `s10d-oracle-visual`, `s9-build-godot`, `redteam-artdirector`. Ne les invoque pas en croyant qu'ils sont câblés ; leur existence sur disque ne prouve rien (« déclaré ≠ exécuté »).
+- **Synchronisation de ce fichier avec le code** : contrôlée mécaniquement par `forge.contract_sync`, agrégée dans `node scripts/forge/studio_selfaudit.mjs`. Limite déclarée : elle détecte l'ABSENCE de citation d'une règle canonique, **pas** une prose qui cite sa source tout en la contredisant. Ce n'est pas une preuve de non-divergence.
 - **Connecteurs studio branchés** (ADR-002) : télémétrie (3), Kaizen-propose (4), mémoire projet (5), pré-mortem (6) via `forge.studio_link`, tous **propose-only**. **Connecteur 2 (hook dur) ACTIF** depuis 2026-07-10 (MAJ ADR-002 §7) : `pretool_forge_guard` (`PreToolUse`/`Task`, câblé dans `.claude/settings.json`) bloque tout spawn portant le marqueur `FORGE_DISPATCH:<etape>:<run_id>` sans ligne d'audit HMAC valide — **fail-CLOSED en périmètre Forge**, fail-open hors-forge. Portée honnête : contrôle la présence d'un dispatch signé, pas la conformité modèle/outils/prompt. L'enforcement passage-par-contrat combine donc **le hook (technique) + la porte Python** `dispatch.prepare_dispatch` + la discipline de ce skill.
 - Forge **propose**, n'écrit jamais seul dans les mémoires de référence (ledger, projets) : toute écriture durable = HumanGate.

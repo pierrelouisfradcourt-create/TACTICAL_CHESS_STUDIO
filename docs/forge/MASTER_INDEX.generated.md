@@ -14,12 +14,13 @@
 | `lab/forge_runs/<projet>/{state.json,verdict.json,artifacts/}` | driver + oracles | état + verdict signé | ✅ présent | atomique, reprise après kill |
 | `lab/forge_sensors/<jeu>/visual_mechanical.json` | s10d capteur | advisory visuel | ✅ présent | hors promotion |
 | `lab/reports/forge_*.jsonl` | connecteurs 4/5/6 (propose-only) | propositions + journal PILOU | ✅ présent | jamais de mémoire de référence sans HumanGate |
-| `llm-lego/knowledge/<IMP>.json` | world-scan (s2 / /world-scan) | knowledge packet web | ✅ présent | gitignored, non gouverné, advisory-only |
+| `llm-lego/knowledge/<IMP>.json` | world-scan (s2 / /world-scan) | knowledge packet web | ⬜ absent | gitignored, non gouverné, advisory-only |
 | `memory/` | mécanisme auto-mémoire (Claude Code) | faits durables | ⬜ absent | jamais un agent Forge ; jamais dupliqué à la main |
 | `studio_brain/00_CURRENT_CONTEXT.md` | Claude Code / Pierre | handoff inter-sessions | ✅ présent | < 100 lignes, archive dans journal/ |
 | `studio_brain/{doctrine,decisions,...}` | Pierre (ratifié) | doctrine/vision (tier-2) | ✅ présent | décisions = ce que Pierre a ratifié |
 
-**Sources suivies** : 10 · **absentes du disque** : 1 ⚠ (dérive doc↔réalité — corriger la carte ou ratifier)
+**Sources suivies** : 10 · **absentes du disque** : 2 ⚠ (dérive doc↔réalité — corriger la carte ou ratifier)
 
+- ⚠ `llm-lego/knowledge/<IMP>.json` (préfixe testé : `llm-lego/knowledge`) — cité par l'ATLAS §3 mais ABSENT du disque.
 - ⚠ `memory/` (préfixe testé : `memory`) — cité par l'ATLAS §3 mais ABSENT du disque.
 

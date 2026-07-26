@@ -121,13 +121,13 @@ def test_prompt_porte_le_marqueur_forge_dispatch_matchant_la_regex_du_hook(contr
     hook_guard.MARKER était apposé À LA MAIN par l'orchestrateur — build_dispatch_
     payload (donc _render_prompt) ne l'injectait pas. Avec run_id fourni, le prompt
     DOIT contenir exactement un marqueur valide, avec les vraies valeurs."""
-    from forge.hook_guard import MARKER
+    from forge.hook_guard import MARKER, marker_key
     payload = build_dispatch_payload(contract, etape=FIXTURE, run_id="run-42")
     matches = MARKER.findall(payload.prompt)
     assert len(matches) == 1, f"un seul marqueur attendu, trouvé: {matches}"
-    etape, run_id = matches[0]
-    assert etape == FIXTURE
-    assert run_id == "run-42"
+    # Le rendu émet la forme 2-champs ; `marker_key` la normalise en triplet avec
+    # attempt=0 (rétro-compat assumée par hook_guard.MARKER, 3e groupe optionnel).
+    assert marker_key(payload.prompt) == (FIXTURE, "run-42", 0)
 
 
 def test_marqueur_absent_sans_run_id_comportement_inchange(contract):

@@ -66,3 +66,37 @@ def test_wrong_key_rejects(tmp_path):
 def test_missing_verdict_file_is_rejected():
     res = verify_run(Path(tempfile.mkdtemp()) / "absent.json", key_file=KEY)
     assert res["overall"] is False
+
+
+def test_missing_verdict_is_honest_not_accusatory():
+    """Absent != falsifié : le dict a toutes les clés que main() lit (pas de
+    KeyError) et le marqueur `unreadable` distingue « rien à vérifier » d'une
+    falsification détectée sur un contenu réellement signé."""
+    res = verify_run(Path(tempfile.mkdtemp()) / "absent.json", key_file=KEY)
+    assert res.get("unreadable") is True
+    for key in ("mutation_ok", "knowledge_trace_ok", "evidence_ok", "hmac_ok",
+                "git_ok", "evidence_problems", "mutation_problems",
+                "knowledge_trace_problems", "knowledge_trace_warnings",
+                "software_verdict", "decision"):
+        assert key in res, f"clé manquante: {key} (main() y accèderait sans garde)"
+
+
+def test_missing_verdict_cli_exit_code_is_distinct_from_authentic_and_falsified():
+    """Le CLI ne doit ni crasher (ancien KeyError) ni prétendre AUTHENTIQUE (0)
+    ni accuser de falsification (2) sur un fichier absent : code dédié."""
+    import io
+    import sys
+
+    from forge import verify_run as vr
+
+    out = io.StringIO()
+    old_stdout = sys.stdout
+    sys.stdout = out
+    try:
+        code = vr.main([str(Path(tempfile.mkdtemp()) / "absent.json")])
+    finally:
+        sys.stdout = old_stdout
+    assert code not in (0, 2)
+    texte = out.getvalue()
+    assert "FALSIFIÉ" not in texte
+    assert "ALTÉRÉE" not in texte

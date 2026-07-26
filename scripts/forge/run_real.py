@@ -161,6 +161,38 @@ _STEP_TOOLS: dict[str, tuple[str, ...]] = {
     # (art_bible.md, asset_requests.json) — Edit seul ne suffit pas (rien à éditer au
     # départ) — et s'auto-valide via check_artbible.mjs (node, même borne stricte).
     "s2.5-artbible": ("Write", "Read", "Bash(node:*)"),
+    # s9-build-standard (profil dédié `standard`, curriculum de jeux) : SANS cette
+    # entrée, `_STEP_TOOLS.get(etape, ())` rendait un tuple VIDE — donc `--permission-mode
+    # manual` et AUCUN outil : l'agent partait sans Read, sans Write, sans Bash.
+    # Périmètre dérivé du contrat s9-build-standard.yaml §5 (permissions) :
+    #   - Write/Edit/Read : le builder remplit des adresses déclarées par le squelette
+    #     gelé (greenfield => Write) ET les champs de constat de 09_WIREMAP/wiremap.json
+    #     (fichier préexistant => Edit). Les chemins interdits sont fermés par
+    #     _STEP_DISALLOWED (tests/**, contracts/**, .claude/**, lab/chains/**), pas ici.
+    #   - Bash(node:*) : `node --test` (tests unitaires), `node knowledge_base/search.mjs`
+    #     (SEARCH obligatoire du §2bis) et LA CAPTURE GODOT. Le binaire Godot n'est
+    #     JAMAIS invoqué en direct : godot_oracle.mjs / solvability_godot.mjs le
+    #     résolvent via godot_bin.mjs (chemin absolu hors repo, non versionné, donc
+    #     inconnu à l'heure de l'allow-list) et le spawn eux-mêmes. C'est ce qui rend
+    #     un motif `Bash(<godot>:*)` inutile — et évite d'allow-lister un chemin machine.
+    # AUCUN Python accordé, alors que le contrat §5 l'autorise (« les six oracles du
+    # standard, le gate mutation Python ») : mesuré sur ce poste, le SEUL interpréteur
+    # capable d'importer la chaîne (yaml) est C:\...\TACTICAL_CHESS_STUDIO\.venv312 —
+    # il vit dans le repo PRINCIPAL, or ce subprocess tourne cwd=REPO_ROOT=worktree, qui
+    # n'a pas de .venv312 ; le `python` du PATH échoue dès `import yaml`. Un motif
+    # `Bash(python:*)` ne donnerait donc PAS la capacité qu'il promet, seulement une
+    # impasse où l'agent brûle des tours. Et l'y amener par chemin absolu violerait la
+    # règle « chemins relatifs au repo root, jamais absolus ni utilisateur ».
+    # Ce retrait ne coûte rien de réel : les six oracles (s10s) et le gate mutation sont
+    # exécutés par le DRIVER, pas par le builder. Le §5 du contrat est un PLAFOND de ce
+    # qui est permis, pas un plancher de ce qui doit être accordé. Seul le self-check
+    # avant s10s est perdu — le driver le fournit par sa boucle.
+    # LIMITE DÉCLARÉE (ne pas la lire comme fermée) : le matcher borne la commande de
+    # PREMIER NIVEAU, pas ce qu'elle engendre — `node -e` peut spawn n'importe quoi, git
+    # compris. Ce trou n'est PAS introduit ici : il existe déjà à l'identique pour
+    # s9-build et s2.5-artbible via Bash(node:*). La vraie borne est le prompt + le
+    # contrat ; _STEP_DISALLOWED ne ferme que l'appel direct.
+    "s9-build-standard": ("Write", "Edit", "Read", "Bash(node:*)"),
 }
 
 # F1b (red-team, BLOQUANT) : deny-list appliquée à TOUT appel `claude -p` (toutes
@@ -183,7 +215,15 @@ _STEP_TOOLS: dict[str, tuple[str, ...]] = {
 # « micro-commits » (§3/§6) mais cet exécuteur les SUSPEND (aucun commit builder :
 # le verdict signé + HumanGate décident du commit). Le contrat est intouchable
 # sans gate Pierre explicite — la suspension vit ici, pas dans le YAML.
+#
+# BRANCHE DE CONTRÔLE (Pierre, 2026-07-22) : `lab/workflow_lab/**/control/` contient
+# une implémentation de référence produite à la main, gardée pour COMPARER après coup.
+# Un forgeur qui la lirait invaliderait la mesure — le run ne prouverait plus rien sur
+# l'usine. L'interdiction est posée ici en DENY MÉCANIQUE plutôt qu'en consigne de
+# prompt : une consigne se contourne par inattention, un deny non. Aucune étape n'a de
+# besoin légitime de ce dossier, la borne globale ne coûte donc rien.
 _STEP_DISALLOWED: tuple[str, ...] = (
+    "Read(lab/workflow_lab/**/control/**)",
     "Bash(git:*)",
     "PowerShell(git:*)",
     "NotebookEdit",
@@ -519,6 +559,15 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
             premortem_section = ("## PRÉ-MORTEM (erreurs des runs passés)\n"
                                  + "\n".join(f"- {p}" for p in pm))
             parts.append(premortem_section)
+        # s0-contrat mandatory_read (contracts/s0-contrat.yaml l.26) : la Project
+        # Bible du projet, si elle existe (studio_link.project_bible, fournie par
+        # le driver dans le context UNIQUEMENT pour s0-contrat — cf.
+        # forge.driver.ForgeDriver._run_llm). Bible absente => "" => AUCUNE section
+        # injectée (une bible absente est normale, pas une anomalie ; le prompt
+        # reste identique à avant ce câblage, même patron que le pré-mortem ci-dessus).
+        bible = context.get("project_bible") or ""
+        if bible:
+            parts.append("## PROJECT BIBLE (mémoire de décision du projet)\n" + bible)
         parts.append(context["dispatch_marker"])
         prompt = "\n\n".join(parts)
 
@@ -617,7 +666,24 @@ def default_task_by_step(project: str, src_root_rel: str,
             "(blueprint) : code + run-oracle.mjs + solvability + e2e conformément "
             f"au contrat. Tiens la WireMap à jour. {no_commit}"
         )
+    # Profil `standard` : le builder ne reçoit PAS une intention (« fais un Pong »)
+    # mais un SQUELETTE GELÉ. La tâche concrète ne redit donc pas le jeu — elle
+    # désigne la carte à honorer et rappelle les deux gestes interdits (inventer une
+    # ligne, réécrire une promesse). Sans ce défaut, task_by_step.get() rendait ""
+    # et l'agent recevait une section « TÂCHE CONCRÈTE » vide.
+    s9_standard_task = (
+        f"Le squelette gelé du jeu '{project}' est games/{project}/09_WIREMAP/wiremap.json "
+        f"et son budget games/{project}/00_CHARTER/game_contract.yaml. Honore CHAQUE ligne "
+        "à l'`address` qu'elle déclare, jusqu'à ce que sa `expected_proof` soit satisfaite "
+        "par un oracle réellement exécuté, puis passe son `state` à IMPLEMENTED (ou BLOCKED "
+        "motivé). Tu remplis les champs de CONSTAT (`fichiers`, `fonction`, `preuve`, "
+        "`statut`, `state`) et JAMAIS les champs de promesse (`expected_proof`, `address`, "
+        "`provides`/`requires`, budget) : les modifier pour les faire coïncider avec ton "
+        "résultat est une falsification. N'ajoute ni ne retire aucune ligne — ce qui manque "
+        f"se remonte en `fog`, il ne se comble pas. {no_commit}"
+    )
     tasks = {
+        "s9-build-standard": s9_standard_task,
         "s0-contrat": (
             f"Formalise le contrat produit du projet '{project}' (jeu à créer de zéro "
             f"sous {src}) : intention, joueur cible, condition de victoire, périmètre "
@@ -733,8 +799,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Premier run RÉEL du driver Forge (P0.1/P1).")
     parser.add_argument("--project", required=True)
     parser.add_argument("--run-id", required=True)
+    # `standard` (curriculum de jeux) : le profil existait dans PROFILES mais restait
+    # INJOIGNABLE depuis la CLI — même famille de défaut silencieux que l'entrée
+    # _STEP_TOOLS manquante (déclaré ≠ exécuté). Les choix sont dérivés de PROFILES
+    # plutôt que réécrits à la main, pour qu'un futur profil ne puisse plus être
+    # ajouté au dispatch sans être atteignable ici.
     parser.add_argument("--profile", default="patch",
-                        choices=("full", "patch", "review", "micro", "artbible"))
+                        choices=tuple(sorted(PROFILES)))
     parser.add_argument("--src-root", required=True, help="racine du code réel (relatif au repo) — "
                         "pour le profil artbible, un dossier existant quelconque (ex. '.') convient, "
                         "aucun code n'y est écrit")
