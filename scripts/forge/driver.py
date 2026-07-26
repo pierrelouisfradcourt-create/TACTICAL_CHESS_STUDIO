@@ -613,6 +613,7 @@ class ForgeDriver:
         # Écrite APRÈS le branchement, jamais avant (sinon : preuve d'intention à nouveau).
         if etape == "s10a-oracle-code":
             self._run_code_oracle(state, entry)
+            self._record_learning_advisory(entry)
         elif etape == "s10b-oracle-archi":
             blueprint = self._read_json(self.run_dir / "blueprint.json")
             if blueprint is None:
@@ -634,6 +635,32 @@ class ForgeDriver:
             self._finish_step(state, entry, "BLOCKED", {
                 "reason": f"étape déterministe {etape!r} non câblée dans le driver"})
         self._record_spawn_executed(etape, entry["attempts"])
+
+    def _record_learning_advisory(self, entry: dict) -> None:
+        """Instrumentation d'apprentissage (`scripts/forge/learning_metrics.mjs` via
+        `forge.learning_hook`) — plan 4 étapes ratifié Pierre 2026-07-26, étape 1. MESURE
+        advisory, jamais bloquante : appelée après s10a-oracle-code, écrit
+        `subject: {type:'game', id:self.project}` (LEARNING_SUBJECT_MODEL_V1 — un jeu
+        n'est pas une brique, aucune correspondance catalogue n'est exigée). Même patron
+        que le Context Manifest (`dispatch.py::prepare_dispatch`) : import local +
+        try/except large, une exception ici ne doit JAMAIS transformer un run déjà vert
+        en échec."""
+        if entry.get("status") != "OK" or not self.is_game:
+            return
+        try:
+            from forge import learning_hook
+            learning_hook.record_learning_for_subject(
+                project=self.project,
+                game_dir=self.game_dir,
+                is_game=self.is_game,
+                oracle_iterations=entry.get("attempts", 0),
+            )
+        except Exception:
+            logger.warning(
+                "learning_metrics (apprentissage) non enregistré pour run=%s "
+                "étape=s10a-oracle-code (advisory, non bloquant)",
+                self.run_id, exc_info=True,
+            )
 
     def _run_code_oracle(self, state: dict, entry: dict) -> None:
         """s10a. Non-jeu : forge_gate seul (inchangé). JEU (P0.2/P2) : le vert exige

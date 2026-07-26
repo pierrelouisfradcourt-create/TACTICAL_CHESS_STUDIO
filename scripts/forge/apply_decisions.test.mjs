@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import {
   loadDecisions, isActionableDecision, loadProposalLines, matchLines,
   planDecisions, writeChanges, DEFAULT_DECISIONS_FILE,
+  extractFutureScope, extractFutureValidation, extractRisks,
 } from './apply_decisions.mjs';
 
 function fakeRepo() {
@@ -43,6 +44,28 @@ test('loadDecisions: ligne corrompue ignoree, pas de crash', () => {
   const r = loadDecisions(root, DEFAULT_DECISIONS_FILE);
   assert.equal(r.raw.length, 1);
   assert.equal(r.ignored_lines, 1);
+});
+
+test('loadDecisions: fichier vide (0 octet) -> status OK, raw vide, pas fatal', () => {
+  const root = fakeRepo();
+  writeJsonl(root, DEFAULT_DECISIONS_FILE, []);
+  const r = loadDecisions(root, DEFAULT_DECISIONS_FILE);
+  assert.equal(r.status, 'OK');
+  assert.deepEqual(r.raw, []);
+  assert.equal(r.ignored_lines, 0);
+});
+
+test('loadDecisions: BOM UTF-8 en tete de fichier -> ligne 1 ignoree proprement, reste du fichier lu (pas d\'effet domino)', () => {
+  const root = fakeRepo();
+  const full = join(root, DEFAULT_DECISIONS_FILE);
+  const bomLine = '﻿' + JSON.stringify({ queue: 'q', item: 'a', decision: 'ACCEPT' });
+  const secondLine = JSON.stringify({ queue: 'q2', item: 'b', decision: 'REJECT' });
+  writeFileSync(full, bomLine + '\n' + secondLine + '\n', 'utf-8');
+  const r = loadDecisions(root, DEFAULT_DECISIONS_FILE);
+  assert.equal(r.status, 'OK');
+  assert.equal(r.raw.length, 1); // ligne BOM invalide JSON -> ignoree, jamais tout le fichier perdu
+  assert.equal(r.ignored_lines, 1);
+  assert.equal(r.raw[0].item, 'b');
 });
 
 test('isActionableDecision: ligne meta (sans queue/item) -> false', () => {
@@ -249,4 +272,110 @@ test('planDecisions: forge_ledger vs forge_project utilisent des champs candidat
   const plan = planDecisions(root, DEFAULT_DECISIONS_FILE);
   assert.equal(plan.changes.length, 2);
   assert.equal(plan.orphaned.length, 0);
+});
+
+// --- enrichissement optionnel (portee autorisee / validation future / risques) --------------
+// Primitive 2, ratification Pierre 2026-07-26 (studio_brain/decisions/PROPOSED_2026-07-26_ratifications.md).
+// 3 champs ADDITIONNELS et OPTIONNELS sur une decision : allowed_future_patch_scope (liste de
+// chemins/globs), future_validation_required (liste de commandes executables), risks (liste
+// structuree). Retro-compatibilite TOTALE : une ligne a 5 champs (ancienne) reste traitee a
+// l'identique, ces champs ne deviennent JAMAIS obligatoires. Aucun blocage : ce module expose/
+// valide la donnee, il ne fait echouer aucune etape.
+
+test('extractFutureScope/extractFutureValidation/extractRisks: absent/null/malformed -> liste vide, jamais de crash', () => {
+  assert.deepEqual(extractFutureScope({}), []);
+  assert.deepEqual(extractFutureScope({ allowed_future_patch_scope: null }), []);
+  assert.deepEqual(extractFutureScope({ allowed_future_patch_scope: 'pas-une-liste' }), []);
+  assert.deepEqual(extractFutureScope({ allowed_future_patch_scope: ['a/**', 42, 'b.mjs'] }), ['a/**', 'b.mjs']);
+
+  assert.deepEqual(extractFutureValidation({}), []);
+  assert.deepEqual(extractFutureValidation({ future_validation_required: null }), []);
+  assert.deepEqual(extractFutureValidation({ future_validation_required: ['node --test x'] }), ['node --test x']);
+
+  assert.deepEqual(extractRisks({}), []);
+  assert.deepEqual(extractRisks({ risks: null }), []);
+  assert.deepEqual(extractRisks({ risks: ['pas-un-objet'] }), []);
+  assert.deepEqual(extractRisks({ risks: [{ risk_id: 'R1', summary: 's' }] }), [{ risk_id: 'R1', summary: 's' }]);
+});
+
+test('planDecisions: ligne 5 champs (ancienne, sans champs d\'enrichissement) -> AUCUN champ ajoute, retro-compat totale', () => {
+  const root = fakeRepo();
+  writeJsonl(root, 'lab/reports/forge_ledger_proposals.jsonl', [
+    JSON.stringify({ project: 'shmup_slice', run_id: 'shmup_slice-20260714a', ts: 1000, status: 'PROPOSED' }),
+  ]);
+  writeJsonl(root, DEFAULT_DECISIONS_FILE, [
+    JSON.stringify({ ts: '2026-07-20', queue: 'forge_ledger_proposals', item: 'shmup_slice-20260714a', decision: 'ACCEPT', motif: 'ok' }),
+  ]);
+  const plan = planDecisions(root, DEFAULT_DECISIONS_FILE);
+  assert.equal('allowed_future_patch_scope' in plan.changes[0], false);
+  assert.equal('future_validation_required' in plan.changes[0], false);
+  assert.equal('risks' in plan.changes[0], false);
+
+  writeChanges(root, plan.fileState);
+  const after = readJsonl(root, 'lab/reports/forge_ledger_proposals.jsonl');
+  assert.equal('review_allowed_future_patch_scope' in after[0], false);
+  assert.equal('review_future_validation_required' in after[0], false);
+  assert.equal('review_risks' in after[0], false);
+});
+
+test('planDecisions: decision enrichie porte scope/validation/risks sur le changement ET sur la proposition ecrite', () => {
+  const root = fakeRepo();
+  writeJsonl(root, 'lab/reports/forge_ledger_proposals.jsonl', [
+    JSON.stringify({ project: 'card_engine', run_id: 'card_engine-20260720a', ts: 1000 }),
+  ]);
+  writeJsonl(root, DEFAULT_DECISIONS_FILE, [
+    JSON.stringify({
+      ts: '2026-07-20', queue: 'forge_ledger_proposals', item: 'card_engine-20260720a', decision: 'ACCEPT', motif: 'ok',
+      allowed_future_patch_scope: ['games/card_engine/**', 'scripts/forge/oracle.py'],
+      future_validation_required: ['node --test scripts/forge/oracle.test.mjs'],
+      risks: [{ risk_id: 'R1', summary: 'risque test', mitigation: 'mitig' }],
+    }),
+  ]);
+  const plan = planDecisions(root, DEFAULT_DECISIONS_FILE);
+  assert.deepEqual(plan.changes[0].allowed_future_patch_scope, ['games/card_engine/**', 'scripts/forge/oracle.py']);
+  assert.deepEqual(plan.changes[0].future_validation_required, ['node --test scripts/forge/oracle.test.mjs']);
+  assert.deepEqual(plan.changes[0].risks, [{ risk_id: 'R1', summary: 'risque test', mitigation: 'mitig' }]);
+
+  writeChanges(root, plan.fileState);
+  const after = readJsonl(root, 'lab/reports/forge_ledger_proposals.jsonl');
+  assert.deepEqual(after[0].review_allowed_future_patch_scope, ['games/card_engine/**', 'scripts/forge/oracle.py']);
+  assert.deepEqual(after[0].review_future_validation_required, ['node --test scripts/forge/oracle.test.mjs']);
+  assert.deepEqual(after[0].review_risks, [{ risk_id: 'R1', summary: 'risque test', mitigation: 'mitig' }]);
+});
+
+test('planDecisions: champ d\'enrichissement present mais liste vide -> ecrit vide, jamais bloquant', () => {
+  const root = fakeRepo();
+  writeJsonl(root, 'lab/reports/forge_project_proposals.jsonl', [
+    JSON.stringify({ project: 'auto_battler', folder: 'games/auto_battler', ts: 1000 }),
+  ]);
+  writeJsonl(root, DEFAULT_DECISIONS_FILE, [
+    JSON.stringify({
+      ts: '2026-07-20', queue: 'forge_project_proposals', item: 'auto_battler', decision: 'ACCEPT',
+      allowed_future_patch_scope: [], future_validation_required: [], risks: [],
+    }),
+  ]);
+  const plan = planDecisions(root, DEFAULT_DECISIONS_FILE);
+  assert.deepEqual(plan.changes[0].allowed_future_patch_scope, []);
+  writeChanges(root, plan.fileState);
+  const after = readJsonl(root, 'lab/reports/forge_project_proposals.jsonl');
+  assert.deepEqual(after[0].review_allowed_future_patch_scope, []);
+  assert.deepEqual(after[0].review_future_validation_required, []);
+  assert.deepEqual(after[0].review_risks, []);
+});
+
+test('planDecisions: champ d\'enrichissement null -> normalise en liste vide, pas de crash', () => {
+  const root = fakeRepo();
+  writeJsonl(root, 'lab/reports/forge_project_proposals.jsonl', [
+    JSON.stringify({ project: 'auto_battler', folder: 'games/auto_battler', ts: 1000 }),
+  ]);
+  writeJsonl(root, DEFAULT_DECISIONS_FILE, [
+    JSON.stringify({
+      ts: '2026-07-20', queue: 'forge_project_proposals', item: 'auto_battler', decision: 'ACCEPT',
+      allowed_future_patch_scope: null, risks: null,
+    }),
+  ]);
+  const plan = planDecisions(root, DEFAULT_DECISIONS_FILE);
+  assert.deepEqual(plan.changes[0].allowed_future_patch_scope, []);
+  assert.deepEqual(plan.changes[0].risks, []);
+  assert.equal('future_validation_required' in plan.changes[0], false); // cle absente -> pas ajoutee
 });

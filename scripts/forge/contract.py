@@ -59,13 +59,24 @@ IMPORTANT = ("skill", "plugin")
 RECOMMENDED = ("delegation_context",)
 
 # Texte injecté verbatim dans chaque prompt : l'invariant anti-claim.
+# Généralise aux 21 contrats (ratification Pierre 2026-07-26, primitive 1 du
+# salvage Codex) une exigence jusque-là en prose dans un seul contrat
+# (orchestrator.yaml : « ce que je n'ai PAS prouvé »). Mesure d'adoption en
+# regard : forge.skipped_validation.skipped_validation_status (ADVISORY).
 RESTITUTION_RULE = (
     "RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer "
     "l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => "
     "software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: "
     "MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: "
     "NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim "
-    "auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement."
+    "auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. "
+    "En dernier lieu, une section finale SKIPPED_VALIDATION, structurée et "
+    "EXPLICITE : pour chaque validation que tu n'as PAS faite, liste l'item "
+    "de validation (quoi), le périmètre concerné (où), le statut (ex. non "
+    "fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => "
+    "écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un "
+    "silence. Le silence sur cette section est traité comme un oubli, pas "
+    "comme 'rien à signaler'."
 )
 
 

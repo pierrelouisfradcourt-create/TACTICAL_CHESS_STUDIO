@@ -9,8 +9,26 @@
 
 ## learning_curve.jsonl
 
-Une ligne JSON par brique forgée, ajoutée par `scripts/forge/learning_metrics.mjs`
-(`recordLearning`). Chaque ligne porte trois métriques :
+Une ligne JSON par **sujet** forgé, ajoutée par `scripts/forge/learning_metrics.mjs`
+(`recordLearning`). Chaque ligne identifie son sujet et porte trois métriques.
+
+### Le sujet : `subject: {type, id}` (LEARNING_SUBJECT_MODEL_V1, ratifié Pierre 2026-07-26)
+
+`brick_id` (seule unité au lancement de l'instrumentation) est devenu un **sujet typé** :
+`subject: {type, id}` avec `type` ∈ `{brick, game}` — une énumération contrainte, jamais un
+champ libre. Raison : la courbe était indexée par brique (`knowledge_base/systems/`, issues
+du pipeline d'ingestion KB) alors que **tous les runs Forge produisent un jeu**, pas une
+brique — le backfill sur les 7 runs archivés produisait 0 ligne. Un jeu n'est pas une brique
+(une brique est une capacité réutilisable, un jeu est un produit assemblé) : ce module ne
+crée ni ne promeut jamais d'entrée dans `knowledge_base/catalog.json`.
+
+**Rétro-compatibilité** : par **normalisation à la lecture**, jamais en réécrivant une ligne
+existante. La ligne historique (`sys-grid-nav-m01`, ci-dessous) ne porte que `brick_id` —
+elle n'est jamais convertie sur disque. Tout lecteur doit passer par
+`normalizeSubject(record)` (`scripts/forge/learning_metrics.mjs`), qui normalise `{brick_id}`
+en `{type:'brick', id:brick_id}` et valide `{subject:{type,id}}` tel quel. Même patron déjà
+établi dans ce dépôt : `hook_guard.marker_key` (marqueur historique 2-champs -> triplet) et
+`studio_link.premortem` (entrées de journal sans `resolution`/`status`).
 
 - `reuse_ratio` — mesuré par `scripts/forge/reuse_ratio.mjs` (combien de la logique du
   jeu vient de `knowledge_base/` plutôt que d'être écrite de zéro).

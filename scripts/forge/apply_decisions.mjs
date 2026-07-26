@@ -102,6 +102,81 @@ export function isActionableDecision(d) {
     && (d.decision === 'ACCEPT' || d.decision === 'REJECT');
 }
 
+// --- Enrichissement optionnel de decision (primitive 2, ratification Pierre 2026-07-26,
+// studio_brain/decisions/PROPOSED_2026-07-26_ratifications.md) --------------------------------
+// 3 champs ADDITIONNELS et OPTIONNELS sur une ligne de pending_review_decisions.jsonl :
+//   - allowed_future_patch_scope : portee autorisee pour la suite (liste de chemins/globs)
+//   - future_validation_required : commandes de validation qui devront etre vertes (liste
+//     de commandes executables)
+//   - risks : risques identifies (liste structuree, un objet libre par risque)
+// RETRO-COMPATIBILITE TOTALE : ces champs ne deviennent JAMAIS obligatoires. Une ligne a 5
+// champs (ancienne, sans ces cles) continue d'etre traitee a l'identique — aucun de ces champs
+// n'est ajoute au changement ni a la proposition ecrite si la cle est absente de la decision.
+// Aucun blocage : ce module expose/valide la donnee (normalise absent/null/malforme en liste
+// vide), il ne fait jamais echouer une etape ni un run.
+
+/**
+ * Extrait une liste de chaines optionnelle d'un objet decision. Absent, null, ou type non-array
+ * -> liste vide (jamais de crash). Elements non-string a l'interieur -> filtres silencieusement.
+ * @param {object} d
+ * @param {string} key
+ * @returns {string[]}
+ */
+function extractStringList(d, key) {
+  if (!Array.isArray(d[key])) return [];
+  return d[key].filter((x) => typeof x === 'string');
+}
+
+/**
+ * Portee autorisee pour la suite (chemins/globs). Champ optionnel `allowed_future_patch_scope`.
+ * @param {object} d
+ * @returns {string[]}
+ */
+export function extractFutureScope(d) {
+  return extractStringList(d, 'allowed_future_patch_scope');
+}
+
+/**
+ * Commandes de validation qui devront etre vertes. Champ optionnel `future_validation_required`.
+ * @param {object} d
+ * @returns {string[]}
+ */
+export function extractFutureValidation(d) {
+  return extractStringList(d, 'future_validation_required');
+}
+
+/**
+ * Risques identifies (liste structuree, objets libres). Champ optionnel `risks`. Absent, null,
+ * type non-array, ou elements non-objet -> filtres/normalises en liste vide (jamais de crash).
+ * @param {object} d
+ * @returns {object[]}
+ */
+export function extractRisks(d) {
+  if (!Array.isArray(d.risks)) return [];
+  return d.risks.filter((x) => x !== null && typeof x === 'object' && !Array.isArray(x));
+}
+
+/**
+ * Construit les champs d'enrichissement a attacher a un changement/proposition, UNIQUEMENT
+ * pour les cles reellement presentes sur la decision source (retro-compat : une decision sans
+ * ces cles ne genere AUCUN champ, meme vide).
+ * @param {object} d
+ * @returns {object} sous-ensemble de {allowed_future_patch_scope, future_validation_required, risks}
+ */
+export function buildEnrichmentFields(d) {
+  const out = {};
+  if (Object.prototype.hasOwnProperty.call(d, 'allowed_future_patch_scope')) {
+    out.allowed_future_patch_scope = extractFutureScope(d);
+  }
+  if (Object.prototype.hasOwnProperty.call(d, 'future_validation_required')) {
+    out.future_validation_required = extractFutureValidation(d);
+  }
+  if (Object.prototype.hasOwnProperty.call(d, 'risks')) {
+    out.risks = extractRisks(d);
+  }
+  return out;
+}
+
 /**
  * Charge une file JSONL de propositions en conservant les lignes brutes (pour reecriture
  * fidele) ET le parse (pour matching). Ligne corrompue -> conservee telle quelle, jamais touchee.
@@ -200,13 +275,19 @@ export function planDecisions(repoRoot, decisionsFile) {
       const entry = state.lines[i];
       const existing = entry.parsed.review_status;
       if (existing === undefined) {
-        changes.push({ queue: d.queue, item: d.item, path: state.path, line_index: i, requested_status: requestedStatus, decision_ts: d.ts, motif: d.motif || null });
+        const enrichment = buildEnrichmentFields(d);
+        changes.push({ queue: d.queue, item: d.item, path: state.path, line_index: i, requested_status: requestedStatus, decision_ts: d.ts, motif: d.motif || null, ...enrichment });
         // Marque en memoire — reecriture reelle geree par le caller (mode apply).
+        const reviewEnrichment = {};
+        if ('allowed_future_patch_scope' in enrichment) reviewEnrichment.review_allowed_future_patch_scope = enrichment.allowed_future_patch_scope;
+        if ('future_validation_required' in enrichment) reviewEnrichment.review_future_validation_required = enrichment.future_validation_required;
+        if ('risks' in enrichment) reviewEnrichment.review_risks = enrichment.risks;
         entry.parsed = {
           ...entry.parsed,
           review_status: requestedStatus,
           review_ts: d.ts,
           review_source: decisionsFile,
+          ...reviewEnrichment,
         };
         entry.pending_write = true;
       } else if (existing === requestedStatus) {
@@ -276,7 +357,12 @@ function main() {
   console.error(`Fichier decisions : ${decisionsFile} (${plan.decisions_file_status}${plan.decisions_ignored_lines ? `, ${plan.decisions_ignored_lines} ligne(s) ignoree(s)` : ''})`);
   console.error(`Entrees narratives ignorees (skipped_meta) : ${plan.skipped_meta}`);
   console.error(`\n${apply ? 'Appliquees' : 'A appliquer (simulees)'} : ${plan.changes.length}`);
-  for (const c of plan.changes) console.error(`  · ${c.queue} / "${c.item}" -> ${c.requested_status} (${c.path}#${c.line_index})`);
+  for (const c of plan.changes) {
+    console.error(`  · ${c.queue} / "${c.item}" -> ${c.requested_status} (${c.path}#${c.line_index})`);
+    if ('allowed_future_patch_scope' in c) console.error(`      portee future autorisee : ${JSON.stringify(c.allowed_future_patch_scope)}`);
+    if ('future_validation_required' in c) console.error(`      validation future requise : ${JSON.stringify(c.future_validation_required)}`);
+    if ('risks' in c) console.error(`      risques identifies : ${c.risks.length}`);
+  }
   console.error(`\nDeja a jour : ${plan.already_up_to_date.length}`);
   console.error(`\nConflits (non ecrases) : ${plan.conflicts.length}`);
   for (const c of plan.conflicts) console.error(`  ⚠ ${c.queue} / "${c.item}" : statut existant "${c.existing_status}" != demande "${c.requested_status}" (${c.path}#${c.line_index})`);

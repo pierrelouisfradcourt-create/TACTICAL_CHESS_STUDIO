@@ -97,6 +97,34 @@ Vocabulaire de verdict **unique** : `OK` / `FAIL` / `BLOCKED` (jamais PASS/CONCE
 
 ---
 
+## `SKIPPED_VALIDATION[]` (exigence de SORTIE, ratification Pierre 2026-07-26)
+
+> Ce n'est **pas** un 18e champ du contrat d'entrée — il ne s'ajoute ni à Critique, ni à
+> Important, ni à Recommandé, et **ne touche pas** le compte des 17 champs ci-dessus. C'est une
+> exigence sur ce que l'agent **produit** dans son `final_report`, au même titre que le
+> vocabulaire de verdict unique.
+
+Primitive 1 du salvage Codex (`studio_brain/decisions/PROPOSED_2026-07-26_ratifications.md`) :
+généralise aux 21 contrats une pratique déjà présente en prose dans un seul
+(`contracts/orchestrator.yaml` : « ce que je n'ai PAS prouvé »). Injectée verbatim par
+`contract.RESTITUTION_RULE` (donc dans les 21 prompts, sans éditer les 21 YAML) :
+
+- Une section finale `SKIPPED_VALIDATION`, structurée, pour **chaque** validation non faite :
+  l'**item** de validation (quoi), le **périmètre** concerné (où), le **statut** (non fait /
+  partiel / hors délai…) et la **raison** (pourquoi).
+- Rien sauté → sentinelle `aucun` (`SKIPPED_VALIDATION: aucun`) — même logique de « déclaré vide »
+  que les 3 états de champ ci-dessus : une décision assumée, jamais un silence.
+
+**ADVISORY UNIQUEMENT** : ceci ne bloque rien, ne change aucun `software_verdict`, aucun gate.
+Le garde-fou de la ratification (le corpus Codex est mort d'avoir été déclaratif sans lecteur)
+impose que la primitive arrive avec **son point de mesure** : `forge.skipped_validation.
+skipped_validation_status(agent_output)` classe la sortie texte d'un agent en trois états —
+`filled` / `declared_empty` / `absent` — pour mesurer l'adoption réelle, sans jamais lever
+d'exception ni consulter/modifier un verdict. Le passage en gate dur, si l'adoption le justifie,
+est une décision Pierre distincte et ultérieure.
+
+---
+
 ## Application — le principe de la porte unique
 
 L'enforcement ne repose pas sur une consigne « promise ». Il repose sur **une seule porte** :
