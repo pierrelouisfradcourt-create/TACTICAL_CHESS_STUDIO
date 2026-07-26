@@ -86,6 +86,7 @@
       <div class="zone amber"><b>📚 BIBLIOTHÈQUE (trans-runs)</b><span class="p">knowledge_base/ — catalog · search (cible) · proofs</span></div>
       <div class="zone"><b>🎮 PRODUIT</b><span class="p">games/&lt;jeu&gt;/ — moteur · oracle 4 volets</span></div>
       <div class="zone"><b>🧾 PREUVES SIGNÉES</b><span class="p">lab/forge_evidence/ — le fil CITE un reçu HMAC, ne le remplace jamais</span></div>
+      <div class="zone amber"><b>🧊 SQUELETTE GELÉ (cible)</b><span class="p">wiremap indexée — état + preuve attendue + adresse par ligne (Détail G, STUDIO_MASTER_SCHEMA.html) — rien de câblé ici aujourd'hui</span></div>
       <div class="zone amber"><b>★ TABLE DES BILANS (cible)</b><span class="p">lab/reports/bilans/ — dépôts multi-LLM, propose-only</span></div>
       <div class="zone red"><b>🔒 RÉFÉRENCE (Pierre seul)</b><span class="p">ledger · memory/ · studio_brain/</span></div>
     </div>
@@ -99,6 +100,8 @@
 <script>
 "use strict";
 // ---- cartographie d'affichage (miroir de dispatch.ORDER + roles.yaml — affichage seul) ----
+// Vérifié 2026-07-22 sur scripts/forge/dispatch.py (ORDER, ligne ~32) : ces 13 étapes
+// SONT exactement dispatch.ORDER, dans cet ordre — rien n'y manquait, rien n'est retiré.
 const STEPS = [
   ["s0-contrat","Contrat","opus","charter · actions interdites"],
   ["s1-prisme","Prisme (panel)","opus","ce que le joueur voit/fait/ressent"],
@@ -114,6 +117,23 @@ const STEPS = [
   ["s11-redteam-code","Red-team Code","opus","réfute le diff · aveuglé"],
   ["s12-verdict","Verdict signé","nonllm","agrège les reçus · HMAC"],
 ];
+// ---- étapes contractualisées mais HORS dispatch.ORDER (affichage seul, JAMAIS dans
+// le déroulé DÉMO ni dans le seed PENDING de startDemo — voir plus bas) ----
+// s2.5-artbible : contrat scripts/forge/contracts/s2.5-artbible.yaml, capability_role
+//   art_director -> opus (roles.yaml). RÉELLEMENT dispatchable via le profil dédié
+//   `artbible` (dispatch.py PROFILES + run_real.py --profile artbible) — 6 runs réels
+//   documentés (docs/forge/S2_5_ARTBIBLE_*.md). Hors ORDER "full" par décision de
+//   portée explicite (dispatch.py commentaire ligne ~55), pas un oubli.
+// s10d-oracle-visual : contrat scripts/forge/contracts/s10d-oracle-visual.yaml,
+//   capability_role deterministic -> non-llm (roles.yaml). Vérifié 2026-07-22 :
+//   AUCUNE référence dans dispatch.py/run_real.py/driver.py — contrat écrit, NON câblé
+//   dans aucun profil. Affiché ici en CIBLE explicite pour ne pas le confondre avec
+//   les étapes réellement dispatchables ci-dessus (cf. CLAUDE.md « déclaré ≠ exécuté »).
+const ANNEX_STEPS = [
+  ["s2.5-artbible","Art Bible","opus","Art Director — profil dédié « artbible », hors ORDER full (dispatché séparément)"],
+  ["s10d-oracle-visual","Oracle Visuel (annexe)","nonllm","capteur visuel advisory — CIBLE : contrat écrit, non câblé dans dispatch.py"],
+];
+const ALL_STEPS = STEPS.concat(ANNEX_STEPS);
 const MODEL = {opus:["#7aa0ff","Opus"],haiku:["#4fd6c6","Haiku ↑"],qwen:["#ffca6b","Qwen"],nonllm:["#9fb3cf","non-LLM"],fable:["#b79cff","Fable"]};
 const $=id=>document.getElementById(id);
 let timer=null, demoTimer=null, base=null;
@@ -132,8 +152,10 @@ function bubble(step,label,model,desc,st){
 }
 function render(state){
   const steps=state.steps||{};
-  const keys=STEPS.filter(([k])=>k in steps);
-  const extras=Object.keys(steps).filter(k=>!STEPS.some(([s])=>s===k)).map(k=>[k,k,"nonllm",""]);
+  // ALL_STEPS = ORDER + annexes hors chaîne (affichage seul) — la DÉMO plus bas
+  // continue de piloter sa progression sur STEPS (l'ORDER réel) uniquement.
+  const keys=ALL_STEPS.filter(([k])=>k in steps);
+  const extras=Object.keys(steps).filter(k=>!ALL_STEPS.some(([s])=>s===k)).map(k=>[k,k,"nonllm",""]);
   $("thread").innerHTML=[...keys,...extras].map(([k,l,m,d])=>bubble(k,l,m,d,steps[k])).join("");
   const esc=state.escalations?` · escalade ×${state.escalations}${state.model_override?" → "+state.model_override:""}`:"";
   $("status").innerHTML=`run <b style="color:#fff">${state.run_id||"?"}</b> · profil ${state.profile||"?"} · `+

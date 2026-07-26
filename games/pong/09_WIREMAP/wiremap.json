@@ -1,0 +1,177 @@
+{
+  "schema_version": 2,
+  "game_id": "pong",
+  "_comment": "Squelette de Pong AVANT build. Les 10 cases CORE (imposees par la Forge, aucune ne peut etre declaree non applicable) + les 3 lignes propres au jeu, ancrees sur la reference externe. Le Prisme n'est pas allume sur ce noeud : l'intention est triviale, il n'y a rien a decouvrir.",
+
+  "systems": [
+    {"id": "game_loop",    "category": "system",         "allowed_deps": ["game_state"]},
+    {"id": "input",        "category": "system",         "allowed_deps": ["game_state"]},
+    {"id": "game_state",   "category": "system",         "allowed_deps": []},
+    {"id": "presentation", "category": "system.adapter", "allowed_deps": ["game_state"]}
+  ],
+
+  "lines": [
+    {
+      "id": "core.boot", "source": "CORE", "source_role": null, "reference": null,
+      "category": "system", "provides": ["game.boot"], "requires": [], "owner": true,
+      "system_parent": "game_loop",
+      "address": "05_SYSTEMS/game_loop/",
+      "expected_proof": {"kind": "bot_action", "statement": "Lancement -> etat initial atteint sans erreur, sans intervention humaine."},
+      "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "05_SYSTEMS/game_loop/loop.mjs", "category": "system"}, {"path": "05_SYSTEMS/game_state/state.mjs", "category": "system"}, {"path": "07_TESTS/oracle/solvability.mjs", "category": "test.solvability"}],
+      "fonction": "boot(seed) (loop.mjs) -> initialState() (state.mjs) : etat initial observable, deterministe.",
+      "preuve": "node games/pong/07_TESTS/oracle/solvability.mjs -> checks.boot_reaches_initial=true (valid, status PLAYING, score 0-0, ==initialState(1)). Exit 0.",
+      "statut": "IMPLEMENTED"
+    },
+    {
+      "id": "core.main_loop", "source": "CORE", "source_role": null, "reference": null,
+      "category": "system", "provides": ["game.loop"], "requires": ["game.state"], "owner": true,
+      "system_parent": "game_loop",
+      "address": "05_SYSTEMS/game_loop/",
+      "expected_proof": {"kind": "test", "statement": "Meme etat + meme entree + meme seed -> meme etat suivant, sur N ticks."},
+      "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "05_SYSTEMS/game_loop/loop.mjs", "category": "system"}],
+      "fonction": "step(state, action) : tick pur et deterministe (aucun alea, aucune I/O).",
+      "preuve": "node --test loop.test.mjs -> 'core.main_loop : meme etat + meme entree + meme seed -> meme suite sur N ticks' PASS (deepEqual de 2 runs de 300 ticks). Gate mutation loop.mjs : 14/15 tues (93%), unique survivant L114 ge->gt = mutant equivalent documente (games/pong/mutation_triage.json).",
+      "statut": "IMPLEMENTED"
+    },
+    {
+      "id": "core.input", "source": "CORE", "source_role": null, "reference": null,
+      "category": "system", "provides": ["input.action"], "requires": ["game.state"], "owner": true,
+      "system_parent": "input",
+      "address": "05_SYSTEMS/input/",
+      "expected_proof": {"kind": "bot_action", "statement": "Une action emise modifie l'etat de jeu de facon observable."},
+      "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "05_SYSTEMS/input/input.mjs", "category": "system"}, {"path": "07_TESTS/oracle/solvability.mjs", "category": "test.solvability"}],
+      "fonction": "translate(raw) (input.mjs) -> action normalisee {p1,p2} appliquee par step : deplace la raquette.",
+      "preuve": "node solvability.mjs -> checks.input_moves_paddle=true (action 'down' emise : p1.y 48 -> 96, deplacement observable). Exit 0. Gate mutation input.mjs : 15/17 tues (88%), 2 survivants L19/L20 or->and = mutants equivalents documentes (games/pong/mutation_triage.json).",
+      "statut": "IMPLEMENTED"
+    },
+    {
+      "id": "core.game_state", "source": "CORE", "source_role": null, "reference": null,
+      "category": "system", "provides": ["game.state"], "requires": [], "owner": true,
+      "system_parent": "game_state",
+      "address": "05_SYSTEMS/game_state/",
+      "expected_proof": {"kind": "test", "statement": "L'etat est lisible a tout instant et ne prend que des valeurs declarees."},
+      "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "05_SYSTEMS/game_state/state.mjs", "category": "system"}],
+      "fonction": "readStatus/isValidStatus/isValidState : statut ∈ {PLAYING,P1_WIN,P2_WIN}, bornes verifiees.",
+      "preuve": "node --test state.test.mjs -> 'isValidStatus : SEULES les 3 valeurs declarees', 'isValidState : ... bornes', 'readStatus' PASS. Gate mutation state.mjs : 29/29 tues (100%).",
+      "statut": "IMPLEMENTED"
+    },
+    {
+      "id": "core.end_condition", "source": "CORE", "source_role": null, "reference": null,
+      "category": "system", "provides": ["game.end"], "requires": ["game.state", "play.score"], "owner": true,
+      "system_parent": "game_state",
+      "address": "05_SYSTEMS/game_state/",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot atteint une fin de partie ; l'etat final est gagne ou perdu, jamais indefini."},
+      "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "05_SYSTEMS/game_state/state.mjs", "category": "system"}, {"path": "07_TESTS/oracle/solvability.mjs", "category": "test.solvability"}],
+      "fonction": "endStatus(score)/isOver : premier a WIN_SCORE=3 gagne ; issue toujours definie.",
+      "preuve": "node solvability.mjs -> game_finishes=true, winner=p1, status=P1_WIN, end_never_undefined=true (partie complete en 99 ticks, score 3-0). Exit 0. Gate mutation state.mjs (endStatus/isOver) : 29/29 tues (100%).",
+      "statut": "IMPLEMENTED"
+    },
+    {
+      "id": "core.restart", "source": "CORE", "source_role": null, "reference": null,
+      "category": "system", "provides": ["game.restart"], "requires": ["game.state"], "owner": true,
+      "system_parent": "game_state",
+      "address": "05_SYSTEMS/game_state/",
+      "expected_proof": {"kind": "bot_action", "statement": "Apres une fin de partie, relance -> etat identique au premier demarrage (aucun residu)."},
+      "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "05_SYSTEMS/game_state/state.mjs", "category": "system"}, {"path": "07_TESTS/oracle/solvability.mjs", "category": "test.solvability"}],
+      "fonction": "restart(seed) -> initialState(seed) : nouvel etat propre, aucun residu.",
+      "preuve": "node solvability.mjs -> restart.finishedBeforeRestart=true & restart.restartEqualsFirstBoot=true (JSON identique a boot apres partie finie). Exit 0. Gate mutation state.mjs (restart/initialState) : 29/29 tues (100%).",
+      "statut": "IMPLEMENTED"
+    },
+    {
+      "id": "core.exit", "source": "CORE", "source_role": null, "reference": null,
+      "category": "system.adapter", "provides": ["game.exit"], "requires": [], "owner": true,
+      "system_parent": "presentation",
+      "address": "06_RUNTIME/adapters/presentation/",
+      "expected_proof": {"kind": "bot_action", "statement": "Sortie demandee -> processus termine, code de sortie 0, aucune ressource laissee active."},
+      "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "06_RUNTIME/adapters/presentation/exit.mjs", "category": "system.adapter"}],
+      "fonction": "requestExit() : node/godot -> process.exit(0) ; browser -> window.close(). Logique pure sans ressource ouverte.",
+      "preuve": "spawnSync('node exit.mjs') -> status=0, stdout 'sortie propre, code 0'.",
+      "statut": "IMPLEMENTED"
+    },
+    {
+      "id": "core.render", "source": "CORE", "source_role": null, "reference": null,
+      "category": "system.adapter", "provides": ["render.frame"], "requires": ["game.state"], "owner": true,
+      "system_parent": "presentation",
+      "address": "06_RUNTIME/adapters/presentation/",
+      "expected_proof": {"kind": "pixel", "statement": "Deux captures a des etats differents different ; aucune capture n'est monochrome. Verifie sous LES DEUX adaptateurs (navigateur et Godot)."},
+      "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "06_RUNTIME/adapters/presentation/draw.mjs", "category": "system.adapter"}, {"path": "06_RUNTIME/adapters/presentation/raster.mjs", "category": "system.adapter"}, {"path": "06_RUNTIME/adapters/presentation/capture_browser.mjs", "category": "system.adapter"}, {"path": "06_RUNTIME/adapters/presentation/capture_godot.mjs", "category": "system.adapter"}, {"path": "06_RUNTIME/adapters/presentation/browser/main.mjs", "category": "system.adapter"}, {"path": "06_RUNTIME/adapters/presentation/godot/main.gd", "category": "system.adapter"}],
+      "fonction": "drawState() partage ; backend navigateur (canvas/Surface logicielle) + backend Godot (fenetre GPU vulkan). Rendu de l'etat en pixels.",
+      "preuve": "node capture_browser.mjs -> passed (differ=true, colorsA=3, colorsB=4, non monochromes, browser_a.png/browser_b.png) ; node capture_godot.mjs -> passed (Godot vulkan Forward+ RTX5080, differ=true, colors 3/4, err=0, godot_a.png/godot_b.png 800x480). Les DEUX adaptateurs verts.",
+      "statut": "IMPLEMENTED"
+    },
+    {
+      "id": "core.audio", "source": "CORE", "source_role": null, "reference": null,
+      "category": "system.adapter", "provides": ["audio.cue"], "requires": ["game.state"], "owner": true,
+      "system_parent": "presentation",
+      "address": "06_RUNTIME/adapters/presentation/",
+      "expected_proof": {"kind": "artifact", "statement": "Un asset audio CC0 existe dans 04_ASSETS/audio/, est reference par le contrat, et son declenchement au rebond est trace."},
+      "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "06_RUNTIME/adapters/presentation/audio.mjs", "category": "system.adapter"}, {"path": "04_ASSETS/audio/bounce.wav", "category": "asset.audio"}, {"path": "04_ASSETS/audio/manifest.json", "category": "asset.audio"}, {"path": "04_ASSETS/audio/LICENSE.txt", "category": "asset.audio"}],
+      "fonction": "AudioAdapter.onEvents : mappe {type:'bounce'} -> cue 'bounce' (bounce.wav) et TRACE le declenchement. Asset CC0 auto-genere (domaine public).",
+      "preuve": "node audio.mjs -> passed (assetExists=true, 3130 octets, bounceCuesTraced=1, firstTrace cue=bounce asset=bounce.wav). Asset deplace vers 04_ASSETS/audio/ (repo_map: asset.audio) pour honorer check_placement schema_v2. CONSEQUENCE FOG : aucune ligne du squelette n'a d'address sous 04_ASSETS/ -> check_index signale desormais 04_ASSETS et 04_ASSETS/audio en dossiers_orphelins. Conflit standard-niveau (check_placement vs check_index vs squelette), HumanGate requis. Voir fog du rapport.",
+      "statut": "IMPLEMENTED"
+    },
+    {
+      "id": "core.error_handling", "source": "CORE", "source_role": null, "reference": null,
+      "category": "system", "provides": ["error.guard"], "requires": ["input.action"], "owner": true,
+      "system_parent": "input",
+      "address": "05_SYSTEMS/input/",
+      "expected_proof": {"kind": "test", "statement": "Entrees hors domaine (nulle, hors bornes, repetee, simultanee) -> etat de jeu toujours valide."},
+      "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "05_SYSTEMS/input/input.mjs", "category": "system"}],
+      "fonction": "translate() : toute entree brute (null, inconnue, up+down simultane, repetee) -> direction sure ∈ {-1,0,1}.",
+      "preuve": "node --test input.test.mjs -> 'error.guard : rafale d entrees hostiles -> etat TOUJOURS valide' PASS (500 entrees hostiles, isValidState=true a chaque tick). Gate mutation input.mjs : 15/17 tues (88%), 2 survivants L19/L20 or->and = mutants equivalents documentes (games/pong/mutation_triage.json).",
+      "statut": "IMPLEMENTED"
+    },
+
+    {
+      "id": "play.paddle", "source": "EXPECTED", "source_role": "charter",
+      "reference": "Pong (Atari, 1972) : deux raquettes deplacables verticalement, bornees par le haut et le bas de l'aire de jeu.",
+      "category": "system", "provides": ["play.paddle"], "requires": ["input.action"], "owner": true,
+      "system_parent": "game_loop",
+      "address": "05_SYSTEMS/game_loop/",
+      "expected_proof": {"kind": "bot_action", "statement": "La raquette se deplace et ne sort JAMAIS de l'aire de jeu, y compris en maintenant l'entree."},
+      "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "05_SYSTEMS/game_loop/loop.mjs", "category": "system"}, {"path": "07_TESTS/oracle/solvability.mjs", "category": "test.solvability"}],
+      "fonction": "movePaddle(y,dir) : deplace la raquette et clampe [0, FIELD_H-PADDLE_H].",
+      "preuve": "node solvability.mjs -> inputMovesPaddle : moved=true, bounded=true, endedAtMax=true (entree 'down' maintenue 100 ticks : reste bornee). checks.paddle_bounded_when_held=true. Exit 0.",
+      "statut": "IMPLEMENTED"
+    },
+    {
+      "id": "play.ball", "source": "EXPECTED", "source_role": "charter",
+      "reference": "Pong (Atari, 1972) : une balle en mouvement continu, rebondissant sur les bords horizontaux et sur les raquettes.",
+      "category": "system", "provides": ["play.ball"], "requires": ["play.paddle"], "owner": true,
+      "system_parent": "game_loop",
+      "address": "05_SYSTEMS/game_loop/",
+      "expected_proof": {"kind": "test", "statement": "La balle rebondit sur bords et raquettes ; elle ne traverse jamais une raquette, quelle que soit sa vitesse."},
+      "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "05_SYSTEMS/game_loop/loop.mjs", "category": "system"}],
+      "fonction": "stepBall : rebonds bords haut/bas + collision BALAYEE (swept) sur les raquettes (test du franchissement du plan, pas de la position finale) -> anti-tunneling.",
+      "preuve": "node --test loop.test.mjs -> 'play.ball : rebond bord HAUT/BAS', 'rebond sur la raquette', et surtout 'NO-TUNNEL a toute vitesse' PASS (vitesses 10..900 : jamais traversant, aucun point marque). ",
+      "statut": "IMPLEMENTED"
+    },
+    {
+      "id": "play.score", "source": "EXPECTED", "source_role": "charter",
+      "reference": "Pong (Atari, 1972) : un point est marque quand la balle sort du cote adverse ; le score est affiche.",
+      "category": "system", "provides": ["play.score"], "requires": ["play.ball"], "owner": true,
+      "system_parent": "game_loop",
+      "address": "05_SYSTEMS/game_loop/",
+      "expected_proof": {"kind": "bot_action", "statement": "Balle sortie d'un cote -> exactement un point pour le camp oppose, score affiche."},
+      "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "05_SYSTEMS/game_loop/loop.mjs", "category": "system"}, {"path": "07_TESTS/oracle/solvability.mjs", "category": "test.solvability"}],
+      "fonction": "step : sortie a gauche/droite -> +1 pour le camp oppose EXACTEMENT, evenement 'score', balle recentree. Score rendu par drawState (pips).",
+      "preuve": "node solvability.mjs -> checks.score_exactly_one_per_point=true (3 evenements 'score', chacun +1 pour un seul camp) ; node --test loop.test.mjs 'play.score : ... EXACTEMENT un point' PASS ; affichage : pips de score visibles sur godot_b.png/browser_b.png.",
+      "statut": "IMPLEMENTED"
+    }
+  ],
+
+  "discarded": []
+}
