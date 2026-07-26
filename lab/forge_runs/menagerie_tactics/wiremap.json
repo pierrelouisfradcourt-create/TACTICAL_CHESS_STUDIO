@@ -1,0 +1,122 @@
+{
+  "_comment": "WireMap isomorphe (s5) — une feature par Règle R1..R13 (product_snapshot). Le builder DOIT créer EXACTEMENT ces noms de fonction dans ces fichiers. Vérifié par forge.static_oracles.check_wiremap (src_root = racine repo).",
+  "features": [
+    {
+      "feature": "R1 grille et occupation",
+      "module": "game",
+      "fonction": "cellOccupied",
+      "fichiers": ["games/menagerie_tactics/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: cellOccupied(x,y) vrai sur une case avec bête active, faux sur case vide ; jamais deux bêtes sur la même case.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R2 initiative par vitesse",
+      "module": "game",
+      "fonction": "turnOrder",
+      "fichiers": ["games/menagerie_tactics/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: turnOrder() trie les bêtes actives par vitesse décroissante, tie-break par id croissant.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R3 deplacement borne",
+      "module": "game",
+      "fonction": "moveBeast",
+      "fichiers": ["games/menagerie_tactics/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: moveBeast réussit vers une case libre à distance <= move ; échoue (position inchangée) si occupée, mur, ou hors portée.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R4 portee d attaque",
+      "module": "game",
+      "fonction": "canAttack",
+      "fichiers": ["games/menagerie_tactics/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: canAttack vrai ssi cible ennemie active à distance Manhattan <= range ; faux si alliée, KO, ou hors portée.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R5 cycle de types",
+      "module": "game",
+      "fonction": "typeMultiplier",
+      "fichiers": ["games/menagerie_tactics/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: typeMultiplier vaut 1.5 (bat), 0.5 (battu), 1 (neutre) sur le cycle des 6 types.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R6 degats et pv plancher",
+      "module": "game",
+      "fonction": "computeDamage",
+      "fichiers": ["games/menagerie_tactics/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: computeDamage = max(1, floor(atk*mult)) après terrain ; PV cible ne descend jamais sous 0.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R7 ko cicatrice pas mort",
+      "module": "game",
+      "fonction": "knockOut",
+      "fichiers": ["games/menagerie_tactics/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: knockOut met active=false et scarred=true ; la bête reste dans la collection (jamais supprimée).",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R8 terrain defensif",
+      "module": "game",
+      "fonction": "terrainMitigation",
+      "fichiers": ["games/menagerie_tactics/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: terrainMitigation réduit les dégâts de 1 (plancher 1) sur forêt, inchangé sur case normale.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R9 zone de menace",
+      "module": "game",
+      "fonction": "threatenedCells",
+      "fichiers": ["games/menagerie_tactics/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: threatenedCells(side) contient exactement les cases atteignables-et-attaquables (move+range) par une bête active du camp.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R10 capture par encerclement",
+      "module": "game",
+      "fonction": "resolveCapture",
+      "fichiers": ["games/menagerie_tactics/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: resolveCapture capture un ennemi PV<seuil encerclé par >=2 alliés orthogonaux tenu un tour ; pas de capture si un seul allié ou PV>=seuil.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R11 victoire",
+      "module": "game",
+      "fonction": "checkVictory",
+      "fichiers": ["games/menagerie_tactics/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: checkVictory vrai ssi aucune bête ennemie active (toutes KO ou capturées).",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R12 defaite",
+      "module": "game",
+      "fonction": "checkDefeat",
+      "fichiers": ["games/menagerie_tactics/game.mjs"],
+      "version": "v1",
+      "preuve": "logic.test: checkDefeat vrai ssi aucune bête alliée active.",
+      "statut": "a_faire"
+    },
+    {
+      "feature": "R13 generation seedee deterministe",
+      "module": "level",
+      "fonction": "generateBattle",
+      "fichiers": ["games/menagerie_tactics/level.mjs"],
+      "version": "v1",
+      "preuve": "properties.test: generateBattle(n, seed) déterministe (même seed => disposition identique) ; seed=1 solvable et capturable.",
+      "statut": "a_faire"
+    }
+  ]
+}

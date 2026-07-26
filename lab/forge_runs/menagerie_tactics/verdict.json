@@ -1,0 +1,79 @@
+{
+  "project": "menagerie_tactics",
+  "run_id": "menagerie_tactics-20260711-073651",
+  "software_verdict": "OK",
+  "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "decision": "HUMANGATE_READY",
+  "oracles": {
+    "code": {
+      "oracle_id": "code",
+      "run_id": "menagerie_tactics-20260711-073651",
+      "status": "OK",
+      "evidence_sha256": "6fdf6b82d213bb94eaeabada10cc7f20795535395badd134e758950cb783f41e",
+      "detail": {
+        "returncode": 0,
+        "volets": "logic+property+e2e(navigateur reel: victoire+capture au clic)+solvabilite(24/24 seeds win+capture)",
+        "e2e_guard": true,
+        "mutation": {
+          "total": 91,
+          "survivors": 0,
+          "gate": true
+        },
+        "feature_set_frozen": true
+      },
+      "ts": 0.0,
+      "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\.claude\\worktrees\\forge-menagerie-tactics\\lab\\forge_evidence\\oracle_menagerie_tactics.log"
+    },
+    "archi": {
+      "oracle_id": "archi",
+      "run_id": "menagerie_tactics-20260711-073651",
+      "status": "OK",
+      "evidence_sha256": "",
+      "detail": {
+        "passed": true,
+        "deps_interdites_violées": [],
+        "modules_sans_test": [
+          "input",
+          "render"
+        ],
+        "debordements_ownership": {
+          "checked": false,
+          "items": []
+        }
+      },
+      "ts": 0.0,
+      "evidence_path": ""
+    },
+    "wiremap": {
+      "oracle_id": "wiremap",
+      "run_id": "menagerie_tactics-20260711-073651",
+      "status": "OK",
+      "evidence_sha256": "",
+      "detail": {
+        "passed": true,
+        "features_manquantes": [],
+        "fonctions_renommées": [],
+        "obsoletes": [],
+        "preuves_absentes": []
+      },
+      "ts": 0.0,
+      "evidence_path": ""
+    }
+  },
+  "redteam_reviewer": "claude-opus-4-8 (s11 blind-context) + qwen2.5-14b-instruct (s6 plan)",
+  "redteam_ran": true,
+  "provenance_ok": true,
+  "git_head": "87e9ec492178fce28a43914142ab0bef2b966c22",
+  "nonce": "b168ac11e638a4156159dee73574ebdf",
+  "ts": 0.0,
+  "redteam_advisory": [
+    "[MOYENNE #3 red-team s11] Pas de persistance/collection inter-batailles (v0 scope charter): la capture est un avantage tactique intra-bataille; la boucle de collection promise nest pas cablee. Decision de perimetre pour Pierre.",
+    "[BASSE #8 red-team s11] R9 threatenedCells = sur-approximation move+range (ignore obstacles/occupation): R9 volontairement simplifiee, preuve non-refutante. Assume v0.",
+    "[INFO] Red-team plan s6 (Qwen 2.5-14b independant): couplage game/level CORRIGE (game nimporte pas level, setup fourni au constructeur) + integration bete capturee CLARIFIEE (change de camp, reste sur sa case, redevient active).",
+    "[INFO] Findings s11 HAUTE #1/#2/#4 CORRIGES: e2e joue desormais une victoire complete au clic (deplacement+attaque+capture+victoire); solvabilite balayee sur 24 seeds (types varies) toutes win+capture; #5 indicateur capture ajoute; #6 sur-promesse clavier retiree du snapshot; #7 assertion overlay DEFAITE stricte.",
+    "[DISCLOSURE orchestration] Artefacts amont (s0-s5) et build (s9) produits par lorchestrateur (opus) avec boucles doracle serrees, PAS delegues a un sous-agent builder Haiku. Deviation assumee pour fiabilite en job de fond; les oracles deterministes non-LLM valident le code independamment de son auteur. Red-team s6 (Qwen) et s11 (Claude contexte vierge) restent des revues independantes."
+  ],
+  "humangate_flags": [],
+  "hmac": "42ef432bf245bdadf8eb8bd34864a074b7e165b61d74c95dfd476580b1e4e760"
+}

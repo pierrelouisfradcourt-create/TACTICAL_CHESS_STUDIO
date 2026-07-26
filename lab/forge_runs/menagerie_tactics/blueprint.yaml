@@ -1,0 +1,30 @@
+# Blueprint d'architecture — Menagerie Tactics (s4)
+# Lu par forge.static_oracles.check_architecture. Seuls `modules` et `deps_interdites`
+# sont vérifiés mécaniquement ; le reste est documentaire.
+
+modules: [game, level, render, input]
+
+deps_autorisees:            # DOC seulement — non vérifié
+  - [render, game]          # le rendu lit le moteur
+  - [render, level]
+  - [input, game]           # l'entrée produit des intentions pour le moteur
+  - [game, level]           # le moteur consomme la génération de niveau
+
+deps_interdites:            # VÉRIFIÉ mécaniquement : (module_source, cible) interdit
+  - [game, render]          # le moteur pur n'importe JAMAIS le rendu
+  - [game, input]           # ni l'entrée
+  - [level, render]         # la génération pure n'importe JAMAIS le rendu
+  - [level, input]          # ni l'entrée
+
+ownership:                  # DOC (check_architecture renvoie checked:false pour l'ownership)
+  game: builder
+  level: builder
+  render: builder
+  input: builder
+
+invariants_archi:
+  - "game.mjs et level.mjs ne référencent aucune API DOM (document, window, canvas, addEventListener)."
+  - "game.mjs et level.mjs n'importent jamais render ni input."
+  - "Toute la logique de règles (R1..R13) vit dans game.mjs (R1..R12) et level.mjs (R13)."
+  - "render.mjs et input.mjs ne mutent jamais l'état du moteur ; ils lisent view() / produisent des intentions."
+  - "Aucune dépendance runtime externe : node natif (--test) + chromium via NODE_PATH pour l'e2e uniquement."
