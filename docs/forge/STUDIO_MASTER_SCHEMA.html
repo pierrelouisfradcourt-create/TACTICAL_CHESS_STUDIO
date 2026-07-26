@@ -29,7 +29,7 @@
 <div class="bp">
   <div class="cart">
     <div><div class="t">STUDIO FORGE — PLAN D'ARCHITECTURE AGENTIQUE · A / B / C</div>
-      <div class="m">rev. 2026-07-20 · doc figé (source : cartographie mécanique du repo — rien d'inventé, que de la synthèse) · compagnons : STUDIO_ARCHITECTURE.md · STUDIO_AGENT_ATLAS.md</div></div>
+      <div class="m">rev. 2026-07-26 · document d'orientation (source : cartographie mécanique du repo — rien d'inventé, que de la synthèse ; dernier audit d'alignement : 2026-07-26) · compagnons : STUDIO_ARCHITECTURE.md · STUDIO_AGENT_ATLAS.md</div></div>
     <div class="k">
       <span><i class="sq" style="background:#59cbff"></i> EXISTE (câblé/prouvé)</span>
       <span><i class="sq" style="background:#ffb454"></i> CIBLE (à construire/importer)</span>
@@ -43,6 +43,23 @@
     <b>07-20</b> — nouveautés VÉRIFIÉES sur le repo : profil de chaîne <code>increment</code> (<code>scripts/forge/dispatch.py</code>, saute s0/s1/s2 sur un projet existant, refait archi/wiremap) · outils Knowledge Resolver V1 <code>scripts/forge/knowledge_trace.mjs</code> + <code>pending_review.mjs</code> (41 tests, 24+17) · 2<sup>e</sup> jeu forgé de bout en bout <code>card_engine</code> (verdict signé <code>HUMANGATE_READY_WITH_OBJECTION</code>, <code>python -m forge.verify_run</code> confirme HMAC/évidence/mutation authentiques) · ledger triagé en archive vivante (4 OPEN, cf. <code>CLAUDE.md</code>) · chaîne décisionnelle canonique auditée (<code>docs/audit/DECISION_LAYER_AUDIT_2026-07-19.md</code>, PROPOSED) · mission Forge V2 lancée (P1 autopsie / P2 patterns / consolidation, toutes PROPOSED, gate Pierre — voir Détail F ci-dessous).<br>
     Les mentions « (cible) » restantes ci-dessous sont à vérifier au cas par cas. Vérif continue : <code>node scripts/forge/studio_selfaudit.mjs</code> (exit 0 = à jour). État factuel toujours frais (auto-généré) : <code>docs/forge/STUDIO_STATUS.generated.md</code>.<br>
     <b>07-20 (soir)</b> — §4-A câblé+commité (7 commits <code>1143682→8c5ccf0</code>) · Run A <code>card_engine</code> ACCEPTÉ (HumanGate) · capteur dominance advisory EXISTE (<code>lab/forge_sensors/dominance</code>, sondes P1.1 vertes) · <code>pending_review</code> 11/11 disposé · drafts P0 Bibles BAS déposés (gate à venir).
+  </div>
+
+  <div class="note" style="border:1px solid #59cbff;border-radius:6px;padding:8px 11px;margin-bottom:10px">
+    <b style="color:#fff">⚠ MISE À JOUR 2026-07-26 — audit d'alignement (tout est vérifié sur master, commits cités)</b><br>
+    <b>Consolidation git</b> : 7 branches + 5 worktrees → <code>master</code> seul, poussé (<code>87e9ec4..1481d6d</code>) ; Menagerie Tactics et Pong récupérés de worktrees non commités.<br>
+    <b>Boucle d'apprentissage</b> (commit <code>ffd0703</code>) : courbe <code>knowledge_base/learning_curve.jsonl</code> ré-indexée <code>subject{type: brick|game, id}</code> (3 lignes réelles) · hook driver best-effort · mesure d'adoption <code>skipped_validation</code> (filled/declared_empty/absent) · décisions HumanGate enrichies (portée/validations/risques, optionnels).<br>
+    <b>Instruments — table de confiance</b> (protocole §4.2) : <code>forge_telemetry</code> n'écrit que les SUCCÈS et porte le modèle du CONTRAT (pas l'exécuté) · <code>state.json</code> écrase à chaque tentative · <code>builder_runs</code> double-compte 1 invocation · le journal écrit « réparé » quand l'étape FINIT, pas quand l'artefact est bon. <b>Mission M1 (télémétrie d'échec) PRÉPARÉE, non lancée</b> : <code>docs/forge/MISSION_M1_TELEMETRIE_ECHEC.md</code>.<br>
+    <b>Décisions D1→D6 tranchées par Pierre</b> (consignées <code>studio_brain/decisions/PROPOSED_2026-07-26_ratifications.md</code>, promotion decision-log en attente) : échelle 4 crans mécaniques · plafond tokens accepté-valeur-différée · sunset 30 j · <code>/gate</code> migré vers le decision-log versionné (commit <code>954ca38</code>, ex-DREAMS.md legacy) · injection mesurée acceptée-différée · commits 3 lots faits.<br>
+    <b>Nouveaux référentiels du rôle C</b> : protocole Troisième Cerveau (PROPOSED) · <code>studio_brain/decisions/DEFERRED.md</code> (12 différés à condition de réveil) · <code>lab/forge_runs/RUN_INDEX.md</code>. Voir Détails I et J ci-dessous.
+  </div>
+
+  <div class="note" style="border:1px solid #b79cff;border-radius:6px;padding:8px 11px;margin-bottom:10px">
+    <b style="color:#fff">VISION A · B · C DU STUDIO (rev 2026-07-26)</b> — les lettres des schémas ci-dessous (Détail A, Coupe B, Nomenclature C…) restent les vues historiques du plan ; la vision <b>studio</b> est celle-ci :<br>
+    <b style="color:#59cbff">A — PRODUCTION / JEUX</b> : création produit, gameplay, livrables — <code>games/</code>, curriculum (Détail H), jeux forgés vérifiés (card_engine, menagerie_tactics…).<br>
+    <b style="color:#59cbff">B — FORGE</b> : exécution contrôlée — agents sous contrat 17 champs, porte fail-closed, oracles déterministes non-LLM, mesures, verdict signé HMAC re-vérifié — <code>scripts/forge/</code>.<br>
+    <b style="color:#b79cff">C — TROISIÈME CERVEAU / PILOTAGE</b> : mémoire active, décisions, analyse, planification, arbitrage préparatoire (Détail I). <b>C n'est PAS une couche d'exécution supplémentaire : c'est la couche de continuité cognitive du studio.</b><br>
+    <span style="color:#83a6d6">Doctrine ratifiée 2026-07-26 : séparation observation / interprétation / décision · biais anti-création · mémoire avant code · correction avant construction · différé ⇒ condition de réveil · calendrier studio unique (Détail J).</span>
   </div>
 
   <!-- ============================================================ A ============ -->
@@ -256,7 +273,7 @@
       <rect x="640" y="150" width="500" height="80" rx="7" fill="rgba(14,32,68,.7)" stroke="#59cbff"/>
       <text x="654" y="168" fill="#59cbff" font-weight="700">lab/forge_evidence/</text>
       <text x="654" y="186" fill="#d3e6ff">oracle_*.log · forge_telemetry.jsonl · dispatch_audit.jsonl</text>
-      <text x="654" y="202" fill="#83a6d6" font-size="8.5">preuves relues par verify_run (sceau non décoratif)</text>
+      <text x="654" y="202" fill="#83a6d6" font-size="8.5">oracle logs relus par verify_run · ⚠ telemetry : succès seuls + modèle du contrat (M1 corrigera)</text>
       <text x="654" y="218" fill="#59cbff" font-size="8.5">lab/forge_sensors/dominance/ — capteur dominance, advisory (sondes P1.1 vertes)</text>
       <rect x="640" y="234" width="500" height="46" rx="7" fill="rgba(14,32,68,.7)" stroke="#59cbff"/>
       <text x="654" y="252" fill="#59cbff" font-weight="700">llm-lego/knowledge/&lt;IMP&gt;.json</text>
@@ -272,7 +289,7 @@
       <text x="654" y="472" fill="#59cbff" font-weight="700">lab/reports/forge_*.jsonl</text>
       <text x="654" y="486" fill="#83a6d6" font-size="8.5">propose-only : kaizen · projets · journal d'erreurs (PILOU)</text>
       <text x="654" y="502" fill="#59cbff" font-size="8.5">pending_review.mjs (lecteur read-only des files — construit)</text>
-      <text x="654" y="512" fill="#59cbff" font-size="8.5">pending_review_decisions.jsonl — décisions de gate, actes Pierre</text>
+      <text x="654" y="512" fill="#59cbff" font-size="8.5">pending_review_decisions.jsonl — actes Pierre (+portée/validations/risques opt. 07-26)</text>
       <rect x="640" y="516" width="500" height="50" rx="7" fill="rgba(255,180,84,.08)" stroke="#ffb454" stroke-width="1.6" stroke-dasharray="7 3"/>
       <text x="654" y="534" fill="#ffb454" font-weight="700">★ lab/reports/bilans/ — TABLE MULTI-LLM (HYPOTHÈSE)</text>
       <text x="654" y="550" fill="#83a6d6" font-size="8.5">bilans GPT · Gemini · Qwen · Claude — propose-only · nourrit le PILOU</text>
@@ -337,6 +354,13 @@
       · <b>R9</b> solvabilité 5 volets — <code>games/auto_battler/solvability.mjs</code> (falsifié par <code>solvability.falsification.test.mjs</code>, chaque volet forcé à ROUGIR) — <b>LE prioritaire ratifié</b>
     </div>
 
+    <div style="color:#59cbff;font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px"><i class="sq" style="background:#59cbff"></i> État 2026-07-26 — EXISTE, commité (<code>ffd0703</code>), en attente de son premier run réel</div>
+    <div style="font-size:10px;line-height:1.7;color:#d3e6ff">
+      · <b>Courbe d'apprentissage</b> <code>subject{type,id}</code> — 3 lignes réelles (1 brique + 2 runs shmup) ; backfill idempotent ; ligne historique préservée à l'octet<br>
+      · <b>Mesure d'adoption</b> <code>skipped_validation</code> — filled / declared_empty / absent, injectée aux 21 contrats via <code>RESTITUTION_RULE</code> (advisory strict)<br>
+      · <b>Trou PROUVÉ du pré-mortem</b> (<code>studio_link.py:365</code>) : rappel filtré par PROJET — une leçon de card_engine n'atteint jamais breakout. Correctif = jointure <code>(etape)</code>, mission M3, <b>DIFFÉRÉ</b> (après M1, cf. DEFERRED)<br>
+      · <b>Coût des échecs invisible</b> (<code>driver.py</code> : télémétrie écrite après OK seulement, <code>cost_usd</code> jeté) — correctif = <b>mission M1, PRÉPARÉE non lancée</b>
+    </div>
     <div style="color:#ff8098;font-size:9.5px;margin-top:10px">⛔ HOLD ratifié : PAS de Resolver-comme-architecture (déjà tranché, cf. mémoire studio).</div>
   </div>
 
@@ -382,7 +406,7 @@
     <line x1="878" y1="201" x2="930" y2="201" stroke="#59cbff" stroke-width="1.4" marker-end="url(#ec)"/>
     <rect x="932" y="130" width="216" height="142" rx="7" fill="rgba(89,203,255,.10)" stroke="#59cbff"/>
     <text x="944" y="150" fill="#fff" font-size="10.5" font-weight="700">PANEL (récompense)</text>
-    <text x="944" y="168" fill="#d3e6ff" font-size="9">tokens/étape (télémétrie)</text>
+    <text x="944" y="168" fill="#d3e6ff" font-size="9">tokens/étape (télém. ⚠ succès seuls avant M1)</text>
     <text x="944" y="183" fill="#d3e6ff" font-size="9">renvois ↺ · escalades</text>
     <text x="944" y="198" fill="#d3e6ff" font-size="9">rendu visuel (s10d)</text>
     <text x="944" y="213" fill="#d3e6ff" font-size="9">solvabilité + tours bot (durée*)</text>
@@ -536,6 +560,7 @@
       <span style="color:#ffb454">◐ EN COURS</span> (Pong) ·
       <span style="color:#ffb454">◇ CIBLE</span> (tout le reste — rien de codé) ·
       source : note de Pierre 2026-07-22.
+      <br><span style="color:#83a6d6">MàJ 2026-07-26 — réalité vérifiée : le run Pong est <b style="color:#ff8098">HALTED</b> (3 rouges <code>s10s-oracle-standard</code> : placement/budget non conformes, + 1 timeout exécuteur — preuves <code>lab/forge_runs/pong/state.json</code> et <code>salvage_s9-build-standard.json</code>) ; un <code>games/breakout/</code> EXISTE hors standard (run 2026-07-11, gate mutation rouge) — le nœud BREAKOUT reste ◇ cible AU SENS DU STANDARD. Les ◇ restants : aucun code, roadmap.</span>
     </div>
   </div>
   <svg viewBox="0 0 1180 1376" xmlns="http://www.w3.org/2000/svg" font-family="monospace">
@@ -551,6 +576,7 @@
     <rect x="440" y="108" width="300" height="46" rx="7" fill="rgba(255,180,84,.18)" stroke="#ffb454"/>
     <text x="452" y="125" fill="#ffdca6" font-size="10.5" font-weight="700" class="live">PONG</text>
     <text x="452" y="139" fill="#83a6d6" font-size="9">GAME LOOP / TEMPS RÉEL</text>
+    <text x="452" y="151" fill="#ff8098" font-size="7.5">⛔ attend : s10s→driver · M1 · reprise sous standard (run HALTED)</text>
     <text x="730" y="151" fill="#ffb454" font-size="7.5" text-anchor="end">◐ EN COURS</text>
     <rect x="440" y="182" width="300" height="46" rx="7" fill="rgba(255,180,84,.08)" stroke="#ffb454" stroke-dasharray="6 3"/>
     <text x="452" y="199" fill="#ffdca6" font-size="10.5" font-weight="700">SNAKE</text>
@@ -685,6 +711,138 @@
     <path d="M760 1264 C 760 1278 590 1278 590 1292" fill="none" stroke="#ffb454" stroke-width="1.3" marker-end="url(#ha)"/>
   </svg>
   <div class="note">Chaque nœud dépose UNE compétence ; les enfants la <b>réutilisent</b> (jamais de duplication). Les convergences (Hearthstone Mini, Diablo Mini, Genshin Slice) sont des points où <b>plusieurs lignées de compétences se combinent</b> — pas des redites. <code>grid_nav_probe</code> est une preuve de chaîne (tier <code>candidate</code>), pas un jeu au sens du curriculum.</div>
+
+  <!-- ============================================================ H-bis ======== -->
+  <h3>Détail H-bis · LA FILE D'ATTENTE CALIBRÉE — tout ce qui est à construire, indexé sur la production</h3>
+  <div class="note" style="border:1px solid #ffb454;border-radius:6px;padding:10px 12px;margin-bottom:10px">
+    <div style="color:#d3e6ff;font-size:10.5px;margin-bottom:8px">
+      Principe (Pierre, 2026-07-26) : <b>la production des jeux est le rail ; tout ce qui est en attente
+      s'indexe dessus</b> — au jalon où il est REQUIS (bloque la suite) ou RÉVEILLÉ (condition atteinte).
+      Rien ici n'est une nouvelle tâche : chaque item pointe sa source (mission · DR · roadmap V1 §6 ·
+      décision en attente). Statuts : <span style="color:#59cbff">PRÊT</span> ·
+      <span style="color:#ffb454">EN ATTENTE (condition)</span> · <span style="color:#ff8098">DÉCISION PIERRE</span>.
+    </div>
+
+    <div style="font-size:10px;line-height:1.75;color:#d3e6ff">
+      <b style="color:#fff">■ JALON 0 — MAINTENANT (avant le prochain run de jeu)</b><br>
+      · <span style="color:#ff8098">DÉCISION</span> Promotion decision-log des ratifications du 26-07 (= ratification protocole) — <i>bloque : première utilisation de la destination D4</i><br>
+      · <span style="color:#ff8098">DÉCISION</span> Go exécution <b>M1 télémétrie d'échec</b> (mission PRÉPARÉE) — <i>sans elle, le prochain run reste aveugle à ses échecs</i><br>
+      · <span style="color:#ffb454">EN ATTENTE</span> <b>Brancher s10s au driver</b> (roadmap §6.6) — <i>préalable DUR du rail : tout jeu profil STANDARD (Pong→Tetris) tourne sans retry, sans escalade, sans compteur tant que s10s vit hors <code>_run_deterministic</code> (preuve : <code>attempts:0</code>+<code>FAIL</code>)</i><br>
+      · <span style="color:#ff8098">DÉCISION</span> Promotion <b>M01 grid-navigator</b> — tier <code>candidate</code> depuis le 21-07, tautologie R9 corrigée (<code>bb6ea2fa</code>) ; le prédicat <code>is_clean_pass=FALSE</code> → arbitrage Pierre (promouvoir / laisser candidate)<br>
+
+      <b style="color:#fff">■ JALON 1 — PONG repris sous STANDARD (= le 1ᵉʳ run observé)</b><br>
+      · Corriger les 3 rouges <code>s10s</code> (placement <code>05_SYSTEMS/game_loop</code> · budget <code>promis_non_depose</code>) + le timeout exécuteur (FIR-01)<br>
+      · Ce run PRODUIT : la 1ʳᵉ télémétrie d'échec réelle (critères M1 a→c) · la ligne <code>learning_curve</code> du 2ᵉ sujet <code>game</code> (variance <code>reuse_ratio</code> commence à exister)<br>
+      · Ce run RÉVEILLE : <b>DR-01</b> (valeur du plafond D2, enfin sur donnée non biaisée) · <b>DR-07</b> (sonde tier-fixe opus — à décider POUR ce run ou le suivant)<br>
+
+      <b style="color:#fff">■ JALON 2 — INTER-JEUX (entre Pong et Snake)</b><br>
+      · <span style="color:#ffb454">EN ATTENTE (M1)</span> <b>M2</b> — suppression <code>pool_retry</code> même-tier (4/4 échecs, 15,6 % de la dépense ; mesurable proprement seulement après M1)<br>
+      · <span style="color:#ffb454">EN ATTENTE (M1)</span> <b>M3</b> — jointure <code>(etape)</code> du pré-mortem — <i>LE prérequis pour que le curriculum COMPOSE : sans elle, les leçons de Pong n'atteignent jamais Snake (silo par projet prouvé, <code>studio_link.py:365</code>)</i><br>
+      · <span style="color:#ffb454">EN ATTENTE (M1)</span> <b>DR-02</b> — exécution D5 (injection mesurée des <code>mandatory_read</code>) : les contrats de Snake partent mieux nourris<br>
+
+      <b style="color:#fff">■ JALON 3 — SNAKE → BREAKOUT → TETRIS (le rail à n jeux)</b><br>
+      · Chaque jeu dépose sa ligne <code>learning_curve</code> → à n≥3 sujets distincts, la variance de <code>reuse_ratio</code> devient démontrable (règle de variance — roadmap §6, dernier item du plan learning)<br>
+      · Étape 2 du plan learning ratifié : brancher les DEUX sources (KB reuse + production standard) — <i>dépend de s10s (jalon 0)</i><br>
+      · Nœud BREAKOUT : un <code>games/breakout/</code> EXISTE hors standard (run 07-11, mutation rouge) — <span style="color:#ff8098">DÉCISION au nœud</span> : re-passage sous standard ou re-forge<br>
+      · Brique 1 (vue capacités Declared→Referenced→Executed→Verified sur les 38 skills) — indexée ici : c'est la production qui génère les signaux d'usage réels<br>
+
+      <b style="color:#fff">■ JALON 4 — APRÈS n≥3 JEUX (réveils à condition)</b><br>
+      · <b>DR-06</b> <code>learning_event</code> (étape 3) — après l'étape 2 ci-dessus<br>
+      · <b>DR-05</b> registre de claims nommés — si ≥3 claims réels (jouable · solvable · rendu) ont chacun un vérificateur mécanique exécutable par s12<br>
+      · <b>DR-04</b> chantier contrainte↔assertion (anti « oracle vert artefact faux », 840 k tokens de retravail mesurés) — après M1 + compteur append (§6.5) + s10s : <i>jamais avant des instruments qui ne mentent plus</i><br>
+
+      <b style="color:#fff">■ HORS-RAIL (transversal — pas indexé sur un jeu)</b><br>
+      · Échéance groupée <b>2026-08-25</b> : DR-03 (préflight mutation) · DR-05 (revue datée) · DR-08 (worktrees Codex + tag) · DR-10 (lot micro-hygiène)<br>
+      · Par événement : DR-09 (stash + branches distantes → prochaine gate de push) · DR-11 (crible skills → sur signal) · DR-12 / E2-E8 (→ après DR-02)
+    </div>
+    <div style="color:#83a6d6;font-size:9.5px;margin-top:8px">
+      Lecture : <b>le chemin critique du studio passe par le jalon 0</b> — s10s et M1 conditionnent tout le rail
+      (mesure, apprentissage, plafond, chantiers). Sources : <code>MISSION_M1_TELEMETRIE_ECHEC.md</code> ·
+      <code>DEFERRED.md</code> (DR-01→12) · protocole V1 §6 (roadmap 11 items) · <code>RUN_INDEX.md</code>.
+      Cette vue est le calibrage du Détail H : le rail des jeux EST le planning — les items s'y accrochent, ils
+      ne vivent pas dans un plan séparé.
+    </div>
+  </div>
+
+  <!-- ============================================================ I ============ -->
+  <h3>Détail I · LE TROISIÈME CERVEAU — la couche C (continuité cognitive, jamais exécution)</h3>
+  <div class="note" style="border:1px solid #b79cff;border-radius:6px;padding:10px 12px;margin-bottom:10px">
+    <div style="color:#d3e6ff;font-size:10.5px;margin-bottom:8px">
+      <b>Statut par surface (séparation stricte)</b> —
+      <b style="color:#59cbff">RÔLE : EXISTE</b> (architecture ratifiée 2026-07-22, gravée dans l'en-tête de
+      <code>scripts/forge/contracts/orchestrator.yaml</code> : « Pierre → session Claude à contexte propre → agent
+      orchestrateur → workers » ; <code>roles.yaml</code> distingue <code>orchestrator</code> = LA SESSION, résolue par
+      aucun code, de <code>run_orchestrator</code> = l'agent) ·
+      <b style="color:#ffb454">PROTOCOLE : PROPOSED</b> (<code>docs/forge/THIRD_BRAIN_PROTOCOL_V1_PROPOSAL.md</code>
+      P0-P8 + runbook §7 + table de confiance §4.2 ; briques : <code>THIRD_BRAIN_V1_1_BRICKS.md</code> — promotion
+      decision-log = ratification, en attente Pierre) ·
+      <b style="color:#59cbff">OUTILLAGE DU RÔLE : EXISTE, commité</b> (<code>studio_brain/decisions/DEFERRED.md</code>,
+      <code>lab/forge_runs/RUN_INDEX.md</code>, <code>/gate</code>→decision-log — commits <code>954ca38</code>/<code>89da030</code>).
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:10px;line-height:1.65">
+      <div style="flex:1;min-width:250px;border:1px solid #ff8098;border-radius:6px;padding:8px 10px">
+        <b style="color:#ff8098">PIERRE — décide</b><br>
+        ratifie · arbitre · gate merge/reject/freeze · fixe seuils et budgets · promeut au decision-log ·
+        <b>seul écrivain de la référence</b>
+      </div>
+      <div style="flex:1;min-width:250px;border:1px solid #b79cff;border-radius:6px;padding:8px 10px">
+        <b style="color:#b79cff">TROISIÈME CERVEAU — analyse · prépare · rappelle · structure</b><br>
+        observe (fait·source·limite) · vérifie contre les sources primaires (contre-vérification P7 :
+        4 erreurs de rapports attrapées le 26-07) · classe l'état réel (IMPLEMENTED…UNKNOWN) ·
+        patterns sous dénominateur+variance+contre-hypothèse · ROI 8 champs AVANT proposition ·
+        missions AAA (gabarit §3.3) · maintient les différés (DEFERRED) · repose les questions à
+        leur condition de réveil
+      </div>
+      <div style="flex:1;min-width:250px;border:1px solid #59cbff;border-radius:6px;padding:8px 10px">
+        <b style="color:#59cbff">FORGE — exécute · mesure · vérifie mécaniquement</b><br>
+        agents sous contrat validé (porte fail-closed HMAC) · oracles déterministes non-LLM ·
+        retry/escalade EN CODE · télémétrie/journaux · verdict signé re-vérifié
+      </div>
+    </div>
+    <div style="color:#ff8098;font-size:10px;margin-top:8px">
+      <b>⛔ N'EST PAS attribué au troisième cerveau</b> : exécution de code · validation d'oracle ·
+      décision automatique · commit/push (gate Pierre) · remplacement des outils Forge. Il ne code pas
+      les améliorations qu'il détecte : il les propose avec preuve, ROI attendu et critère falsifiable.
+    </div>
+    <div style="color:#83a6d6;font-size:9.5px;margin-top:6px">
+      Flux (protocole) : intention → observation → analyse → ROI → mission AAA → Forge → mesure d'impact
+      (critère posé AVANT le run). Biais par défaut : contre la création — épreuve du 26-07 : 10 événements
+      réels triés, 0 création (§7.5 : ne rien faire &gt; supprimer &gt; mémoire &gt; corriger &gt; améliorer &gt; créer).
+    </div>
+  </div>
+
+  <!-- ============================================================ J ============ -->
+  <h3>Détail J · LE CALENDRIER STUDIO — un seul calendrier, le point de vue opérationnel</h3>
+  <div class="note" style="border:1px solid rgba(130,190,255,.3);border-radius:6px;padding:10px 12px;margin-bottom:10px">
+    <div style="color:#d3e6ff;font-size:10.5px;margin-bottom:6px">
+      <b>Décision d'architecture (Pierre, 2026-07-26)</b> — le calendrier des jeux produits EST le calendrier
+      studio global. Pas de calendrier séparé, pas de nouvel outil : une vue unique qui regroupe production
+      des jeux · jalons Forge · missions AAA · décisions différées · points de réexamen · risques connus ·
+      prochaines validations. <b>« Un élément différé n'est pas abandonné : il possède une condition de
+      réveil »</b> — le rappel est mécanique (lecture de boot, runbook §7.1.4).
+    </div>
+    <div style="font-size:10px;line-height:1.7;color:#d3e6ff">
+      <b style="color:#59cbff">Séquence opérationnelle actuelle</b> (état au 2026-07-26) :<br>
+      1. <b>go Pierre</b> exécution M1 (télémétrie d'échec — <code>MISSION_M1_TELEMETRIE_ECHEC.md</code>, critères posés dans <code>RUN_INDEX.md</code>)<br>
+      2. → <b>1 run Forge réel observé</b> (réveille DR-01 valeur plafond · DR-07 sonde tier-fixe)<br>
+      3. → <b>M2</b> suppression pool_retry (15,6 % de dépense, enfin mesurable) → <b>M3</b> jointure pré-mortem (réveil DR-02 → exécution D5)<br>
+      4. Production jeux : reprise curriculum (Pong à re-passer sous standard — run HALTED) · <b>calibrage détaillé jalon par jalon : Détail H-bis</b><br>
+      <b style="color:#ffb454">Échéance datée unique</b> : <b>2026-08-25</b> — DR-03 (préflight mutation) · DR-05 (registre de claims) ·
+      DR-08 (worktrees Codex + tag) · DR-10 (lot micro-hygiène) remontent ensemble = une conversation, pas quatre.<br>
+      <b style="color:#ffb454">Réveils par événement</b> : DR-04 (chantier contrainte↔assertion — après compteur append + s10s branché) ·
+      DR-06 (learning_event — après étape 2) · DR-09 (stash + branches distantes — à la prochaine gate de push) ·
+      DR-11 (crible skills — sur signal) · DR-12 (E2→E8 — après DR-02).<br>
+      <b style="color:#ff8098">Risques connus portés au calendrier</b> : instruments mentent jusqu'à M1 (aucun chantier lourd avant) ·
+      5 tests Rust rouges pré-existants (prouvé : binaire identique à origin/master du 26-07 matin) ·
+      lane STUDIO gelée · push = validation séparée à chaque fois.
+    </div>
+    <div style="color:#83a6d6;font-size:9.5px;margin-top:6px">
+      Sources (le calendrier RÉFÉRENCE, ne duplique jamais) : runs → <code>lab/forge_runs/RUN_INDEX.md</code> ·
+      décisions ouvertes → <code>studio_brain/decisions/PROPOSED_*.md</code> + <code>pending_review_decisions.jsonl</code> ·
+      différés → <code>studio_brain/decisions/DEFERRED.md</code> · roadmap jeux → Détail H ·
+      état courant → <code>studio_brain/00_CURRENT_CONTEXT.md</code>.
+    </div>
+  </div>
 </div>
 </body>
 </html>
