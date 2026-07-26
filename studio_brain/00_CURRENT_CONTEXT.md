@@ -1,5 +1,43 @@
 # Contexte courant TCS
 
+## Session 2026-07-26 (Fable) — CONSOLIDATION : 7 branches + 5 worktrees → `master` seul
+- **Demande Pierre** : « je veux plus de branche du tout », dépôt « méga dirty » → démêler proprement.
+- **Résultat** : une seule branche locale (`master`, 114 commits d'avance sur origin), worktree
+  **propre (0 fichier sale)**, 5 worktrees TCS démontés. **RIEN N'EST POUSSÉ** (gate Pierre).
+- **Méthode zéro-perte** : 3 commits WIP de sauvegarde AVANT toute fusion (`8bcdf8a` principal —
+  229 fichiers ; `d77fb30` godot-etape0 — Pong ; `b9ec14e` menagerie — le jeu du 11/07 qui
+  n'existait QUE dans un worktree non commité). Aucun `checkout` sur du travail non sauvegardé
+  (leçon `feedback_git_checkout_uncommitted_forge_work`).
+- **5 conflits, TOUS résolus par addition/union — aucune version écartée** : `dispatch.py`
+  (`run_dir` Context Manifest **+** `profile/attempt/allow_unprofiled` D1) · `run_real.py`
+  (`premortem_section` **+** section PROJECT BIBLE) · `00_CURRENT_CONTEXT.md` (journaux fusionnés) ·
+  `oracles.json` (17 **+** menagerie_tactics = 18) · `forge_project_proposals.jsonl` (ligne
+  réinsérée à sa place chronologique).
+- **Conflit SÉMANTIQUE invisible au merge textuel, attrapé par les tests** : `hook_guard.MARKER`
+  était passé à 3 groupes (triplet `etape:run_id:attempt`, 3e optionnel) côté godot pendant que
+  le côté 24/07 ajoutait l'injection automatique du marqueur 2-champs. Comportement fusionné
+  correct (rétro-compat assumée, `attempt=0`) ; 2 tests comparaient des tuples de longueur figée
+  → réécrits via `marker_key()`, intention préservée (unicité + valeurs). **`scripts/forge/tests/`
+  modifié — à ratifier par Pierre.**
+- **Preuves relancées sur master consolidé** : `pytest scripts/forge/tests/` = **810 passed,
+  1 skipped** · `git status` = **0**.
+- **⚠️ 10 commits Codex ORPHELINS trouvés** (audit sécurité 2026-05-28, F-001..F-028 : `search.rs`
+  debug inconditionnel retiré, `ACTIVE_DATASET` UTF-16→UTF-8, `dataset_loader.py`, restructure
+  MASTER_DOCS). Ils n'étaient dans AUCUNE branche → **protégés par le tag
+  `archive/codex-audit-securite-2026-05`** (un tag, pas une branche). **Sort à trancher : Pierre.**
+- **⚠️ Non touché volontairement (décision Pierre)** : les 2 worktrees Codex hors dépôt
+  (`~/.codex/worktrees/db55` 3 fichiers sales · `dbdf` **1154 fichiers sales non examinés**) ·
+  le stash `tcs-session-dirty` (artefacts lane STUDIO gelée, ne s'applique plus tel quel) ·
+  les branches distantes `origin/*` (supprimer = push = gate).
+- **⚠️ Constat non causé par la consolidation** : `cargo test --release` = **244 passed, 5 failed**
+  (`regression_589s`, `s7_removed_italian_not_a1b1`, `s7_removed_mate_in_3_score`,
+  `stalemate_root_returns_none_and_no_mate_score`, `mirror_ordering_real_penalty_...`).
+  **Prouvé pré-existant** : aucun fichier `.rs`/`Cargo.*`/`tests/`/`benches/` ne diffère entre
+  `origin/master` et HEAD ⇒ binaire testé strictement identique.
+- **Défaut repéré au passage** : les tests Forge écrivent des manifests hors de `tmp_path`
+  (`lab/forge_runs/_orphan_context/**` et un `context/` **à la racine du dépôt**), désormais
+  commités. À corriger (fixture) ou à ignorer explicitement.
+
 ## Session 2026-07-25 (Fable, suite) — Context Loop GO implémenté (chemin ratifié Pierre)
 - **Livré, testé, NON commité** : `scripts/forge/context_manifest.py` (2 kinds signés HMAC :
   dispatch = photo sources+contract_sha256+payload_prompt_sha256, execution =
