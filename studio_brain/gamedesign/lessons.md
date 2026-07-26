@@ -8,6 +8,8 @@
 > **Revue 2026-07-12** : aucune promotion cette semaine. Tous les CR-*/RD-* restent `prior`, `evidence_n: 0` — aucun jeu n'a encore été playtesté avec de vrais joueurs ni shippé avec télémétrie. Le [[../decisions/decision-log|pivot produit 2026-07-05/06]] (Rocky gelé → Belote/Tarot) n'invalide aucune règle ici : ces priors sont génériques marché Steam, réutilisables tels quels sur le nouveau Titre 1.
 >
 > **Revue 2026-07-19** : aucune promotion — toujours aucun playtest joueur réel, ni sur Belote (0 activité git depuis 2026-07-06) ni sur `games/auto_battler/` (le travail Forge de la période est du QA/oracle mécanique — build/tests/mutation/red-team — pas un playtest de fun). Un nouveau prior sourcé ajouté ci-dessous (CB-001, pacing combat) suite à une recherche TFT commandée par un HumanGate. Les CR-*/RD-* génériques marché restent valables quel que soit le Titre 1 réel du moment.
+>
+> **Revue 2026-07-26** : aucune promotion — la semaine a produit du QA/oracle mécanique (backend Godot certifié, brique `M01` grid-navigator, consolidation git) et 0 playtest joueur réel. Tous les CR-*/RD-*/CB-001 restent `prior`, `evidence_n: 0`. Un enseignement de mesure hors gamedesign a émergé côté Forge (courbe d'apprentissage indexée sur la mauvaise unité `brick_id` vs `subject{type,id}`) — pertinent pour le compilateur de design (§ Règles du Compilateur), pas encore un prior de gamedesign en soi.
 
 ---
 

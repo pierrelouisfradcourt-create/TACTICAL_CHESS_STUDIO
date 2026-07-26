@@ -1,9 +1,28 @@
 # Contexte courant TCS
 
+## Session 2026-07-26 (Fable, suite) — Troisième Cerveau : décisions D1→D6 + pré-run TERMINÉ
+- **D1→D6 tranchées par Pierre** (détail : `decisions/PROPOSED_2026-07-26_ratifications.md`,
+  entrée THIRD_BRAIN_DECISIONS_V1) : D4 ratifications → decision-log versionné (skill `/gate`
+  migré le jour même, DREAMS.md legacy) · D1 échelle 4 crans mécaniques · D3 sunset 30 j ·
+  D6 commits 3 lots (fait) · D2 plafond ACCEPTÉ-valeur-différée · D5 injection mesurée
+  ACCEPTÉE-exécution-différée. **Push non validé** (gate séparée).
+- **Pré-run exécuté** : suppressions éditoriales appliquées (arbre de triage unique §7.5,
+  roadmap canonique unique V1 §6, cran « optimisé » retiré) · `lab/forge_runs/RUN_INDEX.md`
+  créé (append-only, entrée M1 pré-remplie) · mission AAA complète :
+  `docs/forge/MISSION_M1_TELEMETRIE_ECHEC.md` (PRÉPARÉE, NON LANCÉE).
+- **Docs cadres** : `docs/forge/THIRD_BRAIN_PROTOCOL_V1_PROPOSAL.md` (P0-P8, runbook §7,
+  table de confiance §4.2) + `THIRD_BRAIN_V1_1_BRICKS.md` (5 briques). PROPOSED — la
+  promotion au decision-log par Pierre vaudra ratification.
+- **Prochaine étape** : go Pierre sur l'EXÉCUTION de M1 → puis 1 run réel observé → fixer
+  valeur D2 → M2 (pool_retry) → M3 (jointure premortem) → exécution D5.
+- **État attendu atteint : « pré-run terminé → première mission Forge prête ».**
+
 ## Session 2026-07-26 (Fable) — CONSOLIDATION : 7 branches + 5 worktrees → `master` seul
 - **Demande Pierre** : « je veux plus de branche du tout », dépôt « méga dirty » → démêler proprement.
 - **Résultat** : une seule branche locale (`master`, 114 commits d'avance sur origin), worktree
-  **propre (0 fichier sale)**, 5 worktrees TCS démontés. **RIEN N'EST POUSSÉ** (gate Pierre).
+  **propre (0 fichier sale)**, 5 worktrees TCS démontés. **Poussé le même jour sur go Pierre**
+  (`87e9ec4..1481d6d`) ; le travail POST-consolidation (primitives, learning, THIRD_BRAIN)
+  reste non commité.
 - **Méthode zéro-perte** : 3 commits WIP de sauvegarde AVANT toute fusion (`8bcdf8a` principal —
   229 fichiers ; `d77fb30` godot-etape0 — Pong ; `b9ec14e` menagerie — le jeu du 11/07 qui
   n'existait QUE dans un worktree non commité). Aucun `checkout` sur du travail non sauvegardé
