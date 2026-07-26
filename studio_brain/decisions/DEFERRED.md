@@ -110,6 +110,19 @@ zone ML — vérifier le gel) · archivage `00_CURRENT_CONTEXT.md` (>100 lignes,
 - **Question exacte** : « Ce skill précis : réparer, supprimer, ou laisser ? »
 - **Issues** : traiter le skill signalé · rien (dormant reste dormant).
 
+## DR-13 — Mining de patterns externes (corpus public CLAUDE.md / AGENTS.md / règles agents)
+- **Raison du report** : idée GPT relayée par Pierre 2026-07-26 (« apprendre de milliers de
+  systèmes » : % des architectures matures ayant validation/mémoire/hooks, comparer aux
+  nôtres) — les deux jugent : « plus tard, quand le studio tourne ». Amélioration de
+  recherche, pas une fondation. Réutilisation possible : le skill `/world-scan` EXISTE
+  (recherche web citée, advisory) — ce serait une mission d'analyse, pas un outil neuf.
+- **Condition de reprise** : le studio tourne — premier jeu du rail livré VERT sous
+  standard (jalon 1 franchi).
+- **Rappel** : événement — clôture du jalon 1 (Pong vert).
+- **Question exacte** : « Lancer une mission de mining sur corpus public pour benchmarker
+  nos pratiques (ROI à chiffrer : quelle décision changerait le résultat ?) ? »
+- **Issues** : lancer (mission AAA advisory) · attendre · supprimer.
+
 ## DR-12 — Écarts E2→E8 restants (audit contexte 2026-07-25)
 - **Raison du report** : E1 (injection) = DR-02 ; les autres (prompt non versionné, trace
   de lecture, HMAC ne signant pas le contenu…) attendent leur tour — une variable à la fois.
