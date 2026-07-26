@@ -19,6 +19,14 @@
   rappel date/événement + question exacte) — relu à CHAQUE début de session (runbook §7.1.4) ;
   prochaine échéance datée : **2026-08-25** (DR-03, DR-05, DR-08, DR-10).
 - **État attendu atteint : « pré-run terminé → première mission Forge prête ».**
+- **Schéma maître réaligné** (`d08ddd6` + `ddcc44e`) : vision A·B·C studio, Détail I (troisième
+  cerveau), Détail J (calendrier unique), **Détail H-bis = la vue de pilotage** (une case par
+  élément en attente, accrochée au rail des jeux, code couleur décision/attente/prêt).
+- **CLÔTURE SESSION 2026-07-26** : dépôt propre, master local = origin **+6 commits NON POUSSÉS**
+  (push = validation Pierre, réveillera DR-09). Ouvert pour Pierre au JALON 0 : ① promotion
+  decision-log (= ratification protocole) · ② go exécution M1 · ③ arbitrage M01 candidate ·
+  ④ chantier s10s→driver (mission Forge à contractualiser). Prochaine session = dérouler le
+  JALON 0 puis reprendre Pong sous standard (H-bis).
 
 ## Session 2026-07-26 (Fable) — CONSOLIDATION : 7 branches + 5 worktrees → `master` seul
 - **Demande Pierre** : « je veux plus de branche du tout », dépôt « méga dirty » → démêler proprement.
