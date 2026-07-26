@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Menagerie Tactics</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #14161c; color: #e8ebf2; font-family: system-ui, sans-serif; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin: 4px 0 10px; letter-spacing: 0.5px; }
+  .hud { display: flex; gap: 16px; font-size: 14px; margin-bottom: 8px; flex-wrap: wrap; }
+  .hud b { color: #7fd4e2; }
+  .stage { position: relative; width: 512px; max-width: 100%; }
+  canvas { background: #20232b; border-radius: 8px; width: 512px; height: 512px; max-width: 100%; touch-action: manipulation; }
+  .bar { display: flex; gap: 8px; margin-top: 10px; }
+  button { background: #2b3550; color: #e8ebf2; border: 1px solid #3f4d70; border-radius: 6px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  button:hover { background: #35406090; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 10px; font-size: 12px; color: #c3cad8; }
+  .legend .item { display: flex; align-items: center; gap: 6px; }
+  .legend .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #ffffff22; }
+  .hint { font-size: 12px; color: #9aa3b5; margin-top: 8px; line-height: 1.5; }
+  .objective { margin: 6px 0 10px; font-size: 14px; padding: 8px 12px; background: #1c2130; border: 1px solid #3a445e; border-radius: 8px; }
+  .objective b { color: #ffd24a; }
+  .roster { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .roster .card { background: #222736; border: 1px solid #3a445e; border-radius: 8px; padding: 6px 10px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .roster .card.scar { opacity: 0.5; border-color: #f0c04066; }
+  .roster .g { font-size: 18px; }
+  .composer { position: fixed; inset: 0; background: rgba(8,10,16,0.9); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  .composer.hidden { display: none; }
+  .composer-inner { background: #171b24; border: 1px solid #3a445e; border-radius: 12px; padding: 20px; max-width: 460px; width: 92%; }
+  .composer-inner h3 { margin: 0 0 6px; }
+  .composer-list { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+  .composer-list .row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid #3a445e; border-radius: 8px; cursor: pointer; }
+  .composer-list .row.sel { border-color: #7fd4e2; background: #223; }
+  .composer-list .row.disabled { opacity: 0.4; cursor: not-allowed; }
+  .composer-list .g { font-size: 20px; }
+  #overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+             background: rgba(10,12,18,0.86); border-radius: 8px; gap: 12px; }
+  #overlay.hidden { display: none; }
+  #overlayTitle { font-size: 34px; margin: 0; }
+  .tooltip { position: absolute; pointer-events: none; background: #0b0e16f2; border: 1px solid #4a557a; border-radius: 6px; padding: 6px 8px; font-size: 12px; line-height: 1.4; max-width: 220px; z-index: 5; color: #e8ebf2; }
+  .tooltip.hidden { display: none; }
+  .tooltip .k { color: #7fd4e2; }
+  .tooltip .strong { color: #5fd06a; } .tooltip .weak { color: #ff8f8f; }
+  .journal { list-style: none; margin: 10px 0 0; padding: 8px 10px; background: #14181f; border: 1px solid #2a3040; border-radius: 8px; font-size: 12px; color: #b8c0d0; max-height: 120px; overflow-y: auto; }
+  .journal li { padding: 1px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>MENAGERIE TACTICS</h1>
+  <div class="hud">
+    <span>Tour <b id="turn">1</b></span>
+    <span>Meute <b id="playerCount">0</b></span>
+    <span>Ennemis <b id="enemyCount">0</b></span>
+    <span>Captures <b id="captures">0</b></span>
+  </div>
+  <div id="objective" class="objective"></div>
+  <div class="stage">
+    <canvas id="canvas" width="512" height="512"></canvas>
+    <div id="tooltip" class="tooltip hidden"></div>
+    <div id="overlay" class="hidden">
+      <h2 id="overlayTitle">VICTOIRE</h2>
+      <p>Captures : <b id="finalCaptures">0</b></p>
+      <button id="restart">Rejouer</button>
+    </div>
+  </div>
+  <div class="bar">
+    <button id="endTurn">Fin du tour</button>
+    <button id="composeBtn">Composer ma meute</button>
+  </div>
+  <div id="roster" class="roster"></div>
+  <ul id="journal" class="journal"></ul>
+  <div id="composer" class="composer hidden">
+    <div class="composer-inner">
+      <h3>Composer ma meute (max <span id="kennelMax">3</span>)</h3>
+      <p class="hint">Choisis tes bêtes déployables. Les cicatrisées sont grisées. Les bêtes capturées rejoignent ta collection après la victoire.</p>
+      <div id="composerList" class="composer-list"></div>
+      <div class="bar">
+        <button id="deployBtn">Déployer</button>
+        <button id="composerCancel">Annuler</button>
+      </div>
+    </div>
+  </div>
+  <div id="legend" class="legend"></div>
+  <p class="hint">Clique une bête de ta meute (liseré bleu) pour la sélectionner, puis une case
+    surlignée pour te déplacer, ou un ennemi à portée pour l'attaquer.
+    Affaiblis un ennemi (PV bas) et encercle-le à ≥2 pour le <b>capturer</b>.</p>
+</div>
+
+<script type="module">
+  import { MenagerieBattle } from "./game.mjs";
+  import { generateBattle } from "./level.mjs";
+  import { draw, updateHud, LEGEND, paletteSnapshot } from "./render.mjs";
+  import { attachCanvasInput, attachHover } from "./input.mjs";
+  import { classifyCells, previewAttack, captureEligible } from "./uxmodel.mjs";
+  import { makeFxState, recordDiff, stepFx } from "./fx.mjs";
+  import { glyphOf } from "./bestiaire.mjs";
+  import { DEPLOY_SLOTS } from "./level.mjs";
+  import { loadSave, persistSave } from "./save.mjs";
+  import {
+    completeRegion, makeInstance, gainXp, effectiveStats,
+    deployable, KENNEL_SLOTS,
+  } from "./meta.mjs";
+  import { composableRoster, toggleChoix } from "./compose.mjs";
+  import { createRun, nodeById, isBoss, advanceRun, startEncounter } from "./campaign.mjs";
+  import { evaluateObjective } from "./objectives.mjs";
+
+  const params = new URLSearchParams(location.search);
+  const seedParam = params.get("seed");
+  const initialSeed = seedParam !== null ? Number(seedParam) : (Date.now() >>> 0);
+
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+  const els = {
+    turn: document.getElementById("turn"),
+    playerCount: document.getElementById("playerCount"),
+    enemyCount: document.getElementById("enemyCount"),
+    captures: document.getElementById("captures"),
+    overlay: document.getElementById("overlay"),
+    overlayTitle: document.getElementById("overlayTitle"),
+    finalCaptures: document.getElementById("finalCaptures"),
+  };
+
+  // Légende SOURCE UNIQUE : les pastilles lisent la même palette que le rendu.
+  const legendEl = document.getElementById("legend");
+  for (const it of LEGEND) {
+    const item = document.createElement("span");
+    item.className = "item";
+    const sw = document.createElement("span");
+    sw.className = "sw";
+    sw.style.background = it.color;
+    const lab = document.createElement("span");
+    lab.textContent = it.label;
+    item.appendChild(sw);
+    item.appendChild(lab);
+    legendEl.appendChild(item);
+  }
+  window.__palette = paletteSnapshot(); // exposé pour l'e2e (légende == palette moteur)
+
+  const XP_WIN = 60;
+  let save = loadSave();
+  if (save.roster.length === 0) {
+    // meute de départ : les 3 espèces par défaut deviennent des instances persistantes.
+    const starters = ["embraseur", "ondine", "fulgor"];
+    const roster = [];
+    let uid = save.nextUid;
+    for (const s of starters) { roster.push(makeInstance(s, uid)); uid += 1; }
+    save = { ...save, roster, nextUid: uid };
+    persistSave(save);
+  }
+  let choix = composableRoster(save).slice(0, KENNEL_SLOTS).map((i) => i.uid);
+  let run = createRun(initialSeed);
+  let battle = null;
+  let currentObjective = null;
+  let selectedId = null;
+  let deployMap = {};
+  let nodeResolved = false;
+  const objectiveEl = document.getElementById("objective");
+
+  const fx = makeFxState();
+  let prevView = null;
+  const tooltipEl = document.getElementById("tooltip");
+  const journalEl = document.getElementById("journal");
+
+  function selectedBeast() {
+    if (selectedId === null) { return null; }
+    return battle.beasts.find((b) => b.id === selectedId && b.active) || null;
+  }
+
+  // ui de présentation : cases DISJOINTES (uxmodel) + ennemis encerclés + floats.
+  function buildUi() {
+    const sel = selectedBeast();
+    const buckets = classifyCells(battle, sel);
+    if (sel && sel.moved) { buckets.move = new Set(); } // budget de déplacement épuisé
+    const encircle = new Map();
+    for (const b of battle.beasts) {
+      if (b.active && b.side === "enemy" && b.hp < battle.captureThreshold) {
+        const n = battle.encirclingAllies(b);
+        if (n > 0) { encircle.set(b.id, n); }
+      }
+    }
+    return { id: selectedId, buckets, encircle, floats: fx.floats };
+  }
+
+  function updateJournal() {
+    journalEl.innerHTML = "";
+    for (const line of fx.journal) { const li = document.createElement("li"); li.textContent = line; journalEl.appendChild(li); }
+  }
+
+  const OBJ_LABEL = {
+    rout: "Mettre en déroute — élimine toutes les bêtes ennemies",
+    capture: "Capturer la cible — affaiblis-la et encercle-la à ≥2",
+    survive: "Survivre",
+  };
+  function updateObjectiveBanner(obj) {
+    const node = nodeById(run.position);
+    let txt = OBJ_LABEL[currentObjective.kind] || currentObjective.kind;
+    if (currentObjective.kind === "survive") { txt += ` ${obj.progress.current - 1}/${currentObjective.turns} tours`; }
+    const tag = node.kind === "boss" ? "BOSS" : `Nœud ${run.position}`;
+    objectiveEl.innerHTML = `<b>${tag}</b> — Objectif : ${txt} (${obj.status})`;
+  }
+
+  function render() {
+    const state = battle.view();
+    if (prevView) { recordDiff(fx, prevView, state, performance.now()); } // floats + journal
+    prevView = state;
+    const ui = buildUi();
+    draw(ctx, state, ui);
+    updateHud(state, els);
+    updateJournal();
+    window.__game = state; // ÉTAT exposé à l'oracle e2e (view() PUR, sans les FX)
+    window.__ui = { journal: fx.journal.slice(), encircle: [...ui.encircle.entries()], move: [...ui.buckets.move], attack: [...ui.buckets.attack] };
+    const obj = evaluateObjective(currentObjective, state);
+    window.__objective = obj;
+    window.__run = { position: run.position, complete: run.complete, step: run.step };
+    updateObjectiveBanner(obj);
+    if (!nodeResolved && obj.status !== "active") { nodeResolved = true; resolveNode(obj, state); }
+  }
+
+  // Applique cicatrices (KO déployés) + XP (si objectif gagné) sur les instances.
+  function applyScarsXp(view, won) {
+    const koUids = new Set();
+    for (const b of view.beasts) {
+      if (b.side === "player" && deployMap[b.id] !== undefined && !b.active) { koUids.add(deployMap[b.id]); }
+    }
+    const deployedUids = new Set(Object.values(deployMap));
+    save = { ...save, roster: save.roster.map((inst) => {
+      if (!deployedUids.has(inst.uid)) { return inst; }
+      let next = inst;
+      if (won) { next = gainXp(next, XP_WIN); }
+      if (koUids.has(inst.uid)) { next = { ...next, cicatrices: next.cicatrices + 1 }; }
+      return next;
+    }) };
+  }
+
+  // Captures -> RÉSERVE (anti-snowball : versées au roster seulement à la fin de région).
+  function collectCaptures(view) {
+    const reserve = save.reserve.slice();
+    let nextUid = save.nextUid;
+    for (const b of view.beasts) {
+      if (b.captured === true) { reserve.push(makeInstance(b.speciesId, nextUid)); nextUid += 1; }
+    }
+    save = { ...save, reserve, nextUid };
+  }
+
+  function resolveNode(obj, view) {
+    applyScarsXp(view, obj.status === "won");
+    if (obj.status === "won") {
+      collectCaptures(view);
+      const wasBoss = isBoss(run.position);
+      run = advanceRun(run);
+      if (wasBoss) {
+        save = completeRegion(save); // réserve -> roster (fin de région)
+        persist();
+        showOverlay("RÉGION TERMINÉE", "Nouvelle campagne", () => { run = createRun(Date.now() >>> 0); deployNode(); });
+      } else {
+        persist();
+        showOverlay("OBJECTIF ATTEINT", "Continuer", () => deployNode());
+      }
+    } else {
+      persist();
+      showOverlay("DÉFAITE", "Réessayer la campagne", () => { run = createRun(Date.now() >>> 0); deployNode(); });
+    }
+  }
+
+  function persist() {
+    persistSave(save);
+    publishMeta();
+    window.__run = { position: run.position, complete: run.complete, step: run.step };
+    renderRoster();
+  }
+
+  function showOverlay(title, btnLabel, onClick) {
+    els.overlayTitle.textContent = title;
+    els.finalCaptures.textContent = String(battle.view().captures);
+    const btn = document.getElementById("restart");
+    btn.textContent = btnLabel;
+    btn.onclick = onClick;
+    els.overlay.classList.remove("hidden");
+  }
+
+  function publishMeta() {
+    window.__meta = {
+      roster: save.roster.map((i) => ({ uid: i.uid, species: i.species, cicatrices: i.cicatrices, palier: i.palier, xp: i.xp })),
+      reserve: save.reserve.slice(),
+      regionsDone: save.regionsDone,
+    };
+  }
+
+  function deployInto(encSetup) {
+    const enemies = encSetup.beasts.filter((b) => b.side === "enemy");
+    const players = choix.map((uid, i) => {
+      const inst = save.roster.find((x) => x.uid === uid);
+      const s = effectiveStats(inst);
+      const slot = DEPLOY_SLOTS[i];
+      return { id: i + 1, side: "player", x: slot.x, y: slot.y, speciesId: inst.species, type: s.type, hp: s.hp, maxHp: s.maxHp, atk: s.atk, speed: s.speed, move: s.move, range: s.range, active: true, scarred: false, captured: false };
+    });
+    return { width: encSetup.width, height: encSetup.height, terrain: encSetup.terrain, beasts: players.concat(enemies), captureThreshold: encSetup.captureThreshold, objective: encSetup.objective };
+  }
+
+  function healOneScar() {
+    const scarred = save.roster.find((i) => i.cicatrices > 0);
+    if (scarred) { save = { ...save, roster: save.roster.map((i) => (i === scarred ? { ...i, cicatrices: i.cicatrices - 1 } : i)) }; }
+  }
+
+  // Déploie la meute sur la rencontre du nœud courant (les nœuds repos soignent + passent).
+  function deployNode() {
+    let node = nodeById(run.position);
+    while (node && node.kind === "rest") { healOneScar(); run = advanceRun(run); node = nodeById(run.position); }
+    const encSetup = startEncounter(node.encounterId, run.seed + run.step);
+    const setup = deployInto(encSetup);
+    battle = new MenagerieBattle(setup);
+    currentObjective = setup.objective;
+    deployMap = {};
+    setup.beasts.filter((b) => b.side === "player").forEach((b, i) => { deployMap[b.id] = choix[i]; });
+    selectedId = null;
+    nodeResolved = false;
+    els.overlay.classList.add("hidden");
+    persist();
+    render();
+  }
+
+  function renderRoster() {
+    const el = document.getElementById("roster");
+    el.innerHTML = "";
+    for (const inst of save.roster) {
+      const card = document.createElement("div");
+      card.className = "card" + (deployable(inst) ? "" : " scar");
+      const g = document.createElement("span"); g.className = "g"; g.textContent = glyphOf(inst.species) || "?";
+      const t = document.createElement("span"); t.textContent = `${inst.species} niv.${inst.palier + 1}${inst.cicatrices ? " ·" + inst.cicatrices + "cic" : ""}`;
+      card.appendChild(g); card.appendChild(t);
+      el.appendChild(card);
+    }
+  }
+
+  function onCell(cell) {
+    if (battle.over) { return; }
+    const clicked = battle.beastAt(cell.x, cell.y);
+    if (selectedId === null) {
+      if (clicked && clicked.side === "player") { selectedId = clicked.id; }
+    } else {
+      const sel = battle.beasts.find((b) => b.id === selectedId && b.active);
+      if (!sel) {
+        selectedId = null;
+      } else if (clicked && clicked.side === "enemy") {
+        // 1 action / tour : commitAttack refuse si déjà agi, maîtrisé ou hors portée.
+        if (battle.commitAttack(sel, clicked)) { battle.refreshOutcome(); }
+      } else if (clicked && clicked.side === "player") {
+        selectedId = clicked.id; // reselection
+      } else if (!clicked) {
+        battle.commitMove(sel, cell.x, cell.y); // 1 déplacement / tour
+      }
+    }
+    render();
+  }
+
+  attachCanvasInput(canvas, onCell);
+
+  // SURVOL -> APERÇU (#2) : survoler un ennemi attaquable montre l'issue AVANT de cliquer.
+  function showTooltip(cell, p) {
+    const rel = p.relation === "strong" ? "<span class='strong'>avantage ×1.5</span>"
+      : p.relation === "weak" ? "<span class='weak'>désavantage ×0.5</span>" : "neutre ×1";
+    let html = `<div><span class='k'>Dégâts</span> : ${p.damage} (${rel})</div>`;
+    html += `<div>PV cible → ${p.hpAfter}${p.lethal ? " · K.O." : ""}</div>`;
+    if (p.capturable) { html += `<div class='strong'>Capturable ! (maîtrisée, sans riposte)</div>`; }
+    else if (p.canRetaliate) { html += `<div class='weak'>Riposte encaissée : −${p.riposteDmg}</div>`; }
+    tooltipEl.innerHTML = html;
+    tooltipEl.style.left = (cell.x * 64 + 44) + "px";
+    tooltipEl.style.top = (cell.y * 64) + "px";
+    tooltipEl.classList.remove("hidden");
+  }
+  attachHover(canvas, (cell) => {
+    window.__preview = null;
+    const sel = selectedBeast();
+    if (!cell || battle.over || !sel) { tooltipEl.classList.add("hidden"); return; }
+    const target = battle.beastAt(cell.x, cell.y);
+    if (target && target.side === "enemy" && battle.canAttack(sel, target)) {
+      const p = previewAttack(battle, sel, target);
+      window.__preview = p;
+      showTooltip(cell, p);
+    } else {
+      tooltipEl.classList.add("hidden");
+    }
+  });
+
+  // Boucle rAF : anime la disparition des chiffres flottants (advisory, hors view()).
+  let floatFrames = 0;
+  function fxLoop() {
+    stepFx(fx, performance.now());
+    if (fx.floats.length > 0 || floatFrames > 0) {
+      if (battle) { draw(ctx, battle.view(), buildUi()); }
+      floatFrames = fx.floats.length > 0 ? 2 : floatFrames - 1;
+    }
+    requestAnimationFrame(fxLoop);
+  }
+  requestAnimationFrame(fxLoop);
+
+  document.getElementById("endTurn").addEventListener("click", () => {
+    selectedId = null;
+    battle.endTurn();
+    render();
+  });
+
+  // (le bouton #restart de l'overlay reçoit son action dynamiquement via showOverlay)
+
+  // Écran COMPOSITION : choisir les bêtes déployables (jusqu'à KENNEL_SLOTS).
+  let composerChoix = [];
+  const composerEl = document.getElementById("composer");
+  function openComposer() {
+    composerChoix = choix.slice();
+    document.getElementById("kennelMax").textContent = String(KENNEL_SLOTS);
+    renderComposer();
+    composerEl.classList.remove("hidden");
+  }
+  function renderComposer() {
+    const list = document.getElementById("composerList");
+    list.innerHTML = "";
+    for (const inst of save.roster) {
+      const dep = deployable(inst);
+      const sel = composerChoix.includes(inst.uid);
+      const row = document.createElement("div");
+      row.className = "row" + (sel ? " sel" : "") + (dep ? "" : " disabled");
+      const g = document.createElement("span"); g.className = "g"; g.textContent = glyphOf(inst.species) || "?";
+      const t = document.createElement("span"); t.textContent = `${inst.species} niv.${inst.palier + 1}${inst.cicatrices ? " ·" + inst.cicatrices + "cic" : ""}`;
+      row.appendChild(g); row.appendChild(t);
+      if (dep) { row.addEventListener("click", () => { composerChoix = toggleChoix(composerChoix, inst.uid); renderComposer(); }); }
+      list.appendChild(row);
+    }
+  }
+  document.getElementById("composeBtn").addEventListener("click", openComposer);
+  document.getElementById("composerCancel").addEventListener("click", () => composerEl.classList.add("hidden"));
+  document.getElementById("deployBtn").addEventListener("click", () => {
+    if (composerChoix.length === 0) { return; } // meute vide interdite
+    choix = composerChoix.slice();
+    composerEl.classList.add("hidden");
+    deployNode(); // redéploie le nœud courant avec la nouvelle meute
+  });
+
+  // Hooks debug e2e (contrat de jouabilité) : force une fin sans dépendre du timing.
+  window.__game_debug = {
+    hit() { battle.debugHit(); render(); },
+    reset() { run = createRun(Date.now() >>> 0); deployNode(); },
+  };
+
+  deployNode();
+  console.log("interface prête");
+</script>
+</body>
+</html>
