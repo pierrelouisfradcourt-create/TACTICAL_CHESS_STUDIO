@@ -15,6 +15,9 @@
   promotion au decision-log par Pierre vaudra ratification.
 - **Prochaine étape** : go Pierre sur l'EXÉCUTION de M1 → puis 1 run réel observé → fixer
   valeur D2 → M2 (pool_retry) → M3 (jointure premortem) → exécution D5.
+- **Décisions différées** : `decisions/DEFERRED.md` (12 entrées DR-01→DR-12, chacune avec
+  rappel date/événement + question exacte) — relu à CHAQUE début de session (runbook §7.1.4) ;
+  prochaine échéance datée : **2026-08-25** (DR-03, DR-05, DR-08, DR-10).
 - **État attendu atteint : « pré-run terminé → première mission Forge prête ».**
 
 ## Session 2026-07-26 (Fable) — CONSOLIDATION : 7 branches + 5 worktrees → `master` seul

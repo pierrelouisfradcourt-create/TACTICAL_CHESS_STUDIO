@@ -1,0 +1,119 @@
+# DEFERRED — registre des décisions différées
+
+Créé le 2026-07-26 (demande Pierre). **Principe : une attente est un élément planifié.**
+Une proposition refusée temporairement n'est pas une tâche active, mais elle n'est pas
+oubliée : sans rappel, un « pas maintenant » est une suppression silencieuse — interdite.
+
+**Mécanisme de rappel (minimal, zéro système)** : ce fichier est lu à CHAQUE début de
+session (runbook §7.1). Toute entrée dont la date est atteinte ou l'événement produit →
+la **question exacte** est reposée à Pierre, telle quelle. Issues possibles : **LANCER ·
+CONTINUER À ATTENDRE (nouvelle échéance obligatoire) · SUPPRIMER DÉFINITIVEMENT** (entrée
+close, jamais effacée — append-only, une clôture est une ligne datée).
+
+Format : sujet · raison du report · condition de reprise · rappel (date OU événement) ·
+question exacte · issues.
+
+---
+
+## DR-01 — Valeur du plafond de tokens (D2)
+- **Raison du report** : distribution actuelle biaisée (44 k→1,8 M, succès seulement).
+- **Condition de reprise** : M1 exécutée ET ≥1 run réel avec ≥1 ligne `outcome:HALT`.
+- **Rappel** : événement — premier run post-M1.
+- **Question exacte** : « Quelle valeur de plafond par run, et quelle conséquence exacte
+  (halt + HumanGate) ? »
+- **Issues** : fixer · attendre un 2e run · supprimer le plafond (revient sur D2-principe).
+
+## DR-02 — Exécution D5 (mandatory_read → injection mesurée)
+- **Raison du report** : une variable à la fois (M1 d'abord).
+- **Condition de reprise** : critères M1 (a)→(e) verts.
+- **Rappel** : événement — validation de M1.
+- **Question exacte** : « Lancer la mission injection mesurée via Context Manifest ? »
+- **Issues** : lancer · attendre · supprimer (revient sur D5-direction).
+
+## DR-03 — Préflight « preuve de mutation possible » avant s9-build
+- **Raison du report** : n=2, même journée, runs de patch — peut-être une erreur opérateur.
+- **Condition de reprise** : une 3e occurrence de « fichiers logiques inconnus ».
+- **Rappel** : événement — l'occurrence ; sinon date **2026-08-25**.
+- **Question exacte** : « Le préflight vaut-il maintenant son coût (n≥3, ou zéro
+  récidive en un mois) ? »
+- **Issues** : lancer · attendre 30 j de plus · supprimer.
+
+## DR-04 — Chantier contrainte-contrat ↔ assertion-oracle (anti « oracle vert artefact faux »)
+- **Raison du report** : instruments menteurs, 840 624 tokens non découpables défaut/feature.
+- **Condition de reprise** : roadmap V1 §6 items 5 (compteur append inconditionnel) et
+  6 (s10s branché au driver) livrés.
+- **Rappel** : événement — livraison de ces deux items.
+- **Question exacte** : « Le découpage défaut/feature est-il devenu mesurable, et le
+  chantier vaut-il ses 10-50× ? »
+- **Issues** : lancer · attendre · supprimer.
+
+## DR-05 — Registre de claims nommés (primitive Codex 3)
+- **Raison du report** : condition Pierre — chaque claim doit avoir un vérificateur
+  mécanique exécuté par s12, sinon coût de maintenance > bénéfice.
+- **Condition de reprise** : ≥3 claims réels ayant chacun un vérificateur exécutable.
+- **Rappel** : date **2026-08-25** (et à chaque extension de verify_run/s12).
+- **Question exacte** : « La condition vérificateur-mécanique est-elle remplissable pour
+  ≥3 claims réels (jouable, solvable, rendu vivant) ? »
+- **Issues** : lancer · attendre · supprimer.
+
+## DR-06 — Rapatriement `learning_event` (étape 3 du plan ratifié)
+- **Raison du report** : pas d'anticipation d'étape (ordre ratifié 1→4).
+- **Condition de reprise** : étape 2 faite — les deux sources branchées à la courbe
+  (KB reuse + production Forge, dont s10s).
+- **Rappel** : événement — clôture de l'étape 2.
+- **Question exacte** : « Rapatrier schéma + validateur + fixtures (JAMAIS la mécanique
+  studioV2) maintenant ? »
+- **Issues** : lancer · attendre · supprimer.
+
+## DR-07 — Sonde tier-fixe (opus dès tentative 1)
+- **Raison du report** : coût d'un run réel ; ininterprétable tant que la télémétrie ment.
+- **Condition de reprise** : M1 en place ET un run réel de toute façon planifié.
+- **Rappel** : événement — planification du prochain run réel post-M1.
+- **Question exacte** : « Ce run se lance-t-il en tier fixe opus pour séparer tier et
+  rang de tentative (H3) ? »
+- **Issues** : lancer · attendre · supprimer (H3 restera indécidable).
+
+## DR-08 — Worktrees Codex (db55/dbdf) + tag archive
+- **Raison du report** : suppression jamais explicitement demandée ; contenu prouvé
+  100 % bruit EOL, historique protégé par `archive/codex-audit-securite-2026-05` (local).
+- **Condition de reprise** : décision Pierre.
+- **Rappel** : date **2026-08-25**.
+- **Question exacte** : « Supprimer les 2 worktrees Codex, et pousser ou abandonner le
+  tag archive (aujourd'hui local uniquement — bus-factor-1) ? »
+- **Issues** : supprimer les worktrees + trancher le tag · attendre · garder définitivement.
+
+## DR-09 — Stash `tcs-session-dirty` + branches distantes absorbées
+- **Raison du report** : hors périmètre de la consolidation ; suppression distante = push.
+- **Condition de reprise** : prochaine validation de push par Pierre.
+- **Rappel** : événement — la prochaine gate de push.
+- **Question exacte** : « Jeter ou appliquer le stash (15 fichiers lane STUDIO gelée) ;
+  supprimer `origin/feat/forge-oracle-gate`, `origin/safe/validation`,
+  `origin/worktree-ux-audit-2026-06-29` (toutes absorbées) ? »
+- **Issues** : nettoyer · attendre · garder définitivement.
+
+## DR-10 — Lot micro-hygiène P8
+Doublon `scripts/check_workspace_hygiene.py` (bit-identique, à supprimer) · étiquettes
+« SSOT studio » openclaw dans `roles.yaml:3` + `SCHEMA.md:130` (fausses depuis le
+2026-07-23) · garde `lab_hard_turn_cap` manquante dans `dataset_loader.py` (2 lignes,
+zone ML — vérifier le gel) · archivage `00_CURRENT_CONTEXT.md` (>100 lignes, règle CLAUDE.md).
+- **Raison du report** : micro-fixes, chacun trop petit pour une mission dédiée.
+- **Condition de reprise** : une session d'hygiène groupée.
+- **Rappel** : date **2026-08-25**.
+- **Question exacte** : « Traiter le lot en une session d'hygiène unique, ou en retirer
+  définitivement certains ? »
+- **Issues** : lancer le lot · attendre · élaguer.
+
+## DR-11 — Crible P8 des 20/38 skills hors table de routage
+- **Raison du report** : aucun instrument d'usage — un audit global violerait P4.
+- **Condition de reprise** : un signal réel sur un skill précis (erreur, friction, coût).
+- **Rappel** : événement — le signal (pas de date : dormant assumé).
+- **Question exacte** : « Ce skill précis : réparer, supprimer, ou laisser ? »
+- **Issues** : traiter le skill signalé · rien (dormant reste dormant).
+
+## DR-12 — Écarts E2→E8 restants (audit contexte 2026-07-25)
+- **Raison du report** : E1 (injection) = DR-02 ; les autres (prompt non versionné, trace
+  de lecture, HMAC ne signant pas le contenu…) attendent leur tour — une variable à la fois.
+- **Condition de reprise** : DR-02 exécutée et mesurée.
+- **Rappel** : événement — clôture de DR-02.
+- **Question exacte** : « Quel écart suivant vaut une mission, chiffres à l'appui ? »
+- **Issues** : lancer le suivant · attendre · clore les écarts restants comme acceptés.

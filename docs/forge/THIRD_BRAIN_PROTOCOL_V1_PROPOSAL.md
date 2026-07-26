@@ -308,6 +308,9 @@ sources primaires ciblées, jamais des transcripts bruts.
 1. `memory/MEMORY.md` (auto-chargé) — l'index des faits durables.
 2. `studio_brain/00_CURRENT_CONTEXT.md` — le handoff : où on en était, décisions ouvertes.
 3. La pile non tranchée : `studio_brain/decisions/PROPOSED_*.md` + `lab/reports/pending_review_decisions.jsonl`.
+4. **Le registre des différés** : `studio_brain/decisions/DEFERRED.md` — toute entrée dont
+   la date est atteinte ou l'événement produit → reposer à Pierre la **question exacte**,
+   telle quelle (issues : lancer · attendre avec nouvelle échéance · supprimer définitivement).
 
 **Vérifie (3 capteurs déterministes, quelques secondes) :**
 - `node scripts/forge/studio_selfaudit.mjs` — dérive doc↔réalité + `contract_sync` + connecteurs dormants (exit 0/1).
@@ -363,6 +366,14 @@ proposition → mission est une **décision de Pierre**, jamais automatique.
 **Est rejetée (le rejet est une sortie valide, consignée) :** échoue P4 (« données
 insuffisantes ») · se résout en **procédure humaine** (pas une mission du tout) · « ne vaut pas
 le coût » (nommer, classer, ne rien construire).
+
+**Différé ≠ oublié (ajout Pierre 2026-07-26).** Toute sortie « pas maintenant » crée une
+entrée dans `studio_brain/decisions/DEFERRED.md` : sujet · raison du report · condition de
+reprise · rappel (date OU événement : artefact produit, nouveau run, changement d'instrument,
+changement de priorité) · **question exacte à reposer** · issues (lancer / attendre avec
+nouvelle échéance / supprimer définitivement). Le rappel est mécanique : le registre est lu
+à chaque début de session (§7.1.4). Une attente sans rappel est une suppression silencieuse —
+interdite. Une entrée close ne s'efface pas : elle se clôt par une ligne datée (append-only).
 
 ### 7.5 Règle de priorité — que faire d'un pattern confirmé
 Ordre d'examen, **premier applicable gagne**. Principe : *ne rien faire par défaut · retirer
