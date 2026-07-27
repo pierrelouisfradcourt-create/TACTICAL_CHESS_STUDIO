@@ -441,6 +441,76 @@ def _materialize_artifact(etape: str, output: str, run_dir: Path) -> dict | None
     return None
 
 
+# --- s11 red-team CODE : findings AUDIBLES dans le verdict signé -------------------
+# (n1-findings-redteam-audibles) Diagnostic : la plomberie AVAL existe et est correcte
+# (driver.py lit res["findings"]/res["blocked"] -> entry["detail"]["redteam_findings"]
+# -> _redteam_facts -> verdict.build_aggregate_verdict(redteam_findings=...) ->
+# AggregateVerdict.redteam_advisory) mais AUCUN exécuteur ne renseignait jamais ces
+# clés : `_claude_call_raw` ne rend que {ok, output, tokens, duration_s, cost_usd} —
+# `findings` valait donc toujours [] et `blocked` toujours False, quel que soit le
+# contenu réel du rapport red-team (preuve : pong_r2, rapport_redteam_code.md 14 Ko
+# sur disque avec 6 failles, verdict signé `redteam_advisory: []`).
+#
+# Correctif : même patron que `_materialize_artifact`/`extract_json_payload`
+# (dernier bloc ```json``` fenced, EXTRACTION DÉTERMINISTE, jamais un LLM ne relit
+# le rapport) — le contrat s11-redteam-code.yaml exige désormais que le rapport se
+# termine par {"findings": [{"angle","faille","severite","reproduction"}, ...]}.
+#
+# GARDE-FOU (piège promotion) : ceci alimente UNIQUEMENT `res["findings"]`, qui ne
+# nourrit QUE `redteam_advisory` par la plomberie existante — JAMAIS `extra_advisory`
+# ni `humangate_flags` directement (verdict.py intouché ici). `res["blocked"]`
+# N'EST PAS renseigné par cette fonction : le canal `redteam_blocked` reste
+# exactement ce qu'il était avant ce chantier (jamais posé par l'exécuteur claude
+# réel), donc `decision`/`is_clean_pass` restent inchangés par un run qui ne fait
+# que rendre ses findings audibles (cf. test de non-régression de promotion,
+# forge.tests.test_aggregate_verdict).
+_REDTEAM_FINDING_KEYS = ("angle", "faille", "severite", "reproduction")
+
+
+def extract_redteam_findings(output: str) -> tuple[list[str], str]:
+    """Extraction déterministe des findings du rapport s11-redteam-code.
+
+    Cherche le DERNIER bloc ```json``` fenced (même règle que extract_json_payload
+    : dernier bloc VALIDE, sinon la sortie entière comme JSON) contenant
+    {"findings": [{"angle", "faille", "severite", "reproduction"}, ...]}. Chaque
+    entrée est validée INDIVIDUELLEMENT (4 champs str non vides) — une entrée
+    malformée est rejetée SEULE, les autres restent (jamais tout-ou-rien).
+
+    Retourne (findings_formatés, note) : `findings_formatés` est TOUJOURS une
+    liste (vide si le bloc est absent/malformé/vide — le cas de TOUS les rapports
+    historiques, dont pong_r2), jamais une exception, jamais une entrée inventée.
+    `note` est '' si au moins un finding valide a été extrait, sinon explique
+    POURQUOI la liste est vide (bloc absent, 'findings' absent/vide, ou aucune
+    entrée conforme au schéma) — utile pour SKIPPED_VALIDATION / diagnostic, mais
+    n'entre dans AUCUN calcul de verdict."""
+    data, why = extract_json_payload(output)
+    if data is None:
+        return [], f"aucune section de findings structurée : {why}"
+    raw = data.get("findings")
+    if not isinstance(raw, list):
+        return [], "bloc JSON présent mais 'findings' absent ou n'est pas une liste"
+    if not raw:
+        return [], "'findings' est une liste vide (red-team sans faille à signaler)"
+    findings: list[str] = []
+    rejected = 0
+    for item in raw:
+        if not isinstance(item, dict) or not all(
+                isinstance(item.get(k), str) and item[k].strip()
+                for k in _REDTEAM_FINDING_KEYS):
+            rejected += 1
+            continue
+        sev = item["severite"].strip().upper()
+        findings.append(
+            f"[{sev}] {item['angle'].strip()} — {item['faille'].strip()} "
+            f"(repro: {item['reproduction'].strip()})"
+        )
+    if not findings:
+        return [], (f"'findings' contient {len(raw)} entrée(s) mais AUCUNE ne "
+                    f"respecte le schéma {_REDTEAM_FINDING_KEYS}")
+    note = f"{rejected} entrée(s) rejetée(s) (schéma invalide)" if rejected else ""
+    return findings, note
+
+
 # --- chaînage des artefacts amont (F4 red-team) ------------------------------------
 # Avant : chaque prompt = contrat + tâche + pré-mortem, AUCUNE sortie amont — s5
 # inventait sans voir s3, s9 ne recevait ni blueprint.json ni wiremap.json. Le
@@ -600,6 +670,15 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
                                             Path(context["run_dir"]))
             if failure is not None:
                 return failure
+            if etape == "s11-redteam-code":
+                # (n1) findings AUDIBLES : extraction déterministe, jamais un LLM
+                # ne relit le rapport. `res["blocked"]` volontairement NON posé
+                # ici (garde-fou promotion, cf. commentaire au-dessus de
+                # extract_redteam_findings) : seul `findings` est alimenté.
+                findings, note = extract_redteam_findings(str(res.get("output", "")))
+                res["findings"] = findings
+                if note:
+                    res["findings_note"] = note
         elif res.get("timeout"):
             # (FIR-02) timeout : inspecter le disque AVANT que le driver ne halte —
             # un build vert sur disque n'est pas jeté sec, il est consigné et flaggé.

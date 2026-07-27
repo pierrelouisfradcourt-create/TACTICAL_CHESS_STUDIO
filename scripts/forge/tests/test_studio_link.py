@@ -35,6 +35,52 @@ def test_telemetry_records_and_aggregates(tmp_path):
     assert cost["total_duration_s"] == 5.0
 
 
+# --- M1 — télémétrie d'échec (MISSION_M1_TELEMETRIE_ECHEC.md) ---------------------
+
+def test_telemetry_default_outcome_ok_et_cout_zero_retrocompat(tmp_path):
+    """Design imposé M1 pt.1/2 : un appel qui ne précise ni `outcome` ni `cost_usd`
+    (signature historique — seul appelant réel avant M1, driver.py) reste
+    rétrocompatible : la ligne écrite porte quand même `outcome: "OK"` et
+    `cost_usd: 0.0` par défaut, jamais un champ manquant qui ferait planter un
+    lecteur qui les attend désormais."""
+    t = tmp_path / "tel.jsonl"
+    sl.record_telemetry("run1", "s0-contrat", "claude-opus-4-8", tokens=1200, duration_s=3.0, telemetry_path=t)
+    rows = [json.loads(l) for l in t.read_text(encoding="utf-8").strip().splitlines()]
+    assert rows[0]["outcome"] == "OK"
+    assert rows[0]["cost_usd"] == 0.0
+
+
+def test_telemetry_outcome_halt_et_cout_reel_sont_ecrits(tmp_path):
+    """Un échec d'étape (M1, design imposé pt.1) écrit une ligne avec
+    `outcome="HALT"` et le coût RÉEL mesuré — même à zéro : un halt AVANT tout
+    appel LLM est un ZÉRO MESURÉ, pas une case vide (piège #1 du protocole)."""
+    t = tmp_path / "tel.jsonl"
+    sl.record_telemetry("run1", "s9-build", "opus", tokens=0, duration_s=0.0,
+                        telemetry_path=t, outcome="HALT", cost_usd=0.0)
+    rows = [json.loads(l) for l in t.read_text(encoding="utf-8").strip().splitlines()]
+    assert rows[0]["outcome"] == "HALT"
+    assert rows[0]["cost_usd"] == 0.0
+    assert rows[0]["model"] == "opus"
+
+
+def test_tokens_by_successful_step_ignore_halt_et_normalise_lignes_historiques(tmp_path):
+    """La SEULE métrique dérivée nouvelle autorisée par le design imposé (§4) :
+    tokens par étape RÉUSSIE, par run — lecture seule. Une ligne HISTORIQUE sans
+    `outcome` (toute la télémétrie antérieure à M1) se normalise en "OK" ; une
+    ligne `outcome="HALT"` n'est JAMAIS agrégée dans cette métrique de succès."""
+    t = tmp_path / "tel.jsonl"
+    # ligne historique (pré-M1) : ni `outcome` ni `cost_usd` — format d'avant.
+    with open(t, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"run_id": "run1", "etape": "s0-contrat", "model": "x",
+                              "tokens": 100, "duration_s": 1.0, "ts": 0.0}) + "\n")
+    sl.record_telemetry("run1", "s9-build", "haiku", tokens=50, duration_s=1.0, telemetry_path=t)
+    sl.record_telemetry("run1", "s9-build", "opus", tokens=999, duration_s=1.0,
+                        telemetry_path=t, outcome="HALT", cost_usd=0.02)
+    out = sl.tokens_by_successful_step("run1", telemetry_path=t)
+    assert out["s0-contrat"] == 100     # ligne historique comptée (normalisée OK)
+    assert out["s9-build"] == 50        # SEUL le succès compte, jamais le HALT (999 exclu)
+
+
 def test_error_journal_feeds_premortem(tmp_path):
     j = tmp_path / "err.jsonl"
     sl.record_error("leviathan-1", "s9-build", "oracle rouge : 2 tests échouent", project="leviathan", journal_path=j)

@@ -81,17 +81,46 @@ def record_telemetry(
     tokens: int,
     duration_s: float,
     telemetry_path: Path | None = None,
+    outcome: str = "OK",
+    cost_usd: float = 0.0,
 ) -> None:
-    """Trace le coût d'un appel (tokens/durée/modèle). Local = 0 €, on ne compte que tokens+durée."""
+    """Trace le coût d'un appel (tokens/durée/modèle/coût/issue).
+
+    MISSION_M1_TELEMETRIE_ECHEC.md (design imposé, §pts 1/2) : avant ce
+    correctif, `record_telemetry` n'était appelé QUE sur le chemin succès
+    (driver._run_llm après `entry["status"] = "OK"`) — un échec d'étape
+    (`_halt_step`) ne laissait aucune trace. `outcome` et `cost_usd` rendent
+    ce chemin d'échec observable SANS rien changer au format existant :
+
+    - `outcome` ∈ {"OK", "HALT"} — "OK" par défaut, rétrocompatible avec TOUS
+      les appels historiques (aucun n'existait sur le chemin d'échec avant ce
+      correctif, donc aucun appelant réel ne dépendait d'une valeur différente).
+    - `cost_usd` : coût réel de l'appel, 0.0 par défaut (rétrocompatible). Un
+      0.0 explicite (ex. halte AVANT tout appel LLM) reste un ZÉRO MESURÉ —
+      la ligne existe, ce n'est pas une absence de mesure (cf. la distinction
+      déjà faite au niveau fichier par `ForgeDriver._cost_and_effort`).
+
+    Champs ADDITIONNELS uniquement : les lecteurs existants de
+    `forge_telemetry.jsonl` (dict.get sur des clés connues) ne voient rien
+    casser ; une ligne ÉCRITE AVANT ce correctif n'a simplement pas ces deux
+    clés (normalisées à la lecture, cf. `tokens_by_successful_step`).
+    """
     _append(
         telemetry_path or DEFAULT_TELEMETRY,
         {"run_id": run_id, "etape": etape, "model": model,
-         "tokens": tokens, "duration_s": duration_s, "ts": time.time()},
+         "tokens": tokens, "duration_s": duration_s, "cost_usd": cost_usd,
+         "outcome": outcome, "ts": time.time()},
     )
 
 
 def run_cost(run_id: str, telemetry_path: Path | None = None) -> dict:
-    """Agrège le coût d'un run : nb d'appels, tokens totaux, durée totale."""
+    """Agrège le coût d'un run : nb d'appels, tokens totaux, durée totale.
+
+    INCHANGÉ par M1 (advisory strict — cf. design imposé §4, aucune métrique
+    nouvelle au-delà de `tokens_by_successful_step`) : additionne TOUTES les
+    lignes du run, succès et halt confondus — c'est précisément ce qui permet
+    à `run_cost` de désormais compter aussi les tentatives échouées (avant ce
+    correctif elles n'existaient simplement pas dans le fichier)."""
     rows = [r for r in _read(telemetry_path or DEFAULT_TELEMETRY) if r.get("run_id") == run_id]
     return {
         "run_id": run_id,
@@ -99,6 +128,27 @@ def run_cost(run_id: str, telemetry_path: Path | None = None) -> dict:
         "total_tokens": sum(int(r.get("tokens", 0)) for r in rows),
         "total_duration_s": sum(float(r.get("duration_s", 0.0)) for r in rows),
     }
+
+
+def tokens_by_successful_step(run_id: str, telemetry_path: Path | None = None) -> dict[str, int]:
+    """Dérivée LECTURE SEULE (M1, design imposé §4 — la SEULE métrique nouvelle
+    autorisée par cette mission) : tokens par étape RÉUSSIE, pour un run.
+
+    Normalise les lignes HISTORIQUES sans `outcome` (toute la télémétrie
+    antérieure à M1 ne portait que des succès, jamais écrite sur un halt) en
+    "OK" — rétrocompat, aucune régression sur les analyses déjà en place.
+    N'agrège JAMAIS une ligne `outcome == "HALT"` : ce n'est pas une nouvelle
+    définition du coût, seulement la ventilation par étape de ce qui existait
+    déjà implicitement avant M1 (le fichier ne contenait alors que des OK).
+    """
+    rows = [r for r in _read(telemetry_path or DEFAULT_TELEMETRY) if r.get("run_id") == run_id]
+    out: dict[str, int] = {}
+    for r in rows:
+        if r.get("outcome", "OK") != "OK":
+            continue
+        etape = r.get("etape", "?")
+        out[etape] = out.get(etape, 0) + int(r.get("tokens", 0))
+    return out
 
 
 # --- Tier 2.5 étape 2 : observabilité du pool de builders (extension connecteur 3) --

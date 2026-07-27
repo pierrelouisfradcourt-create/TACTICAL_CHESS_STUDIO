@@ -43,15 +43,116 @@ DEFAULT_TEST_ARGV = ("node", "--test", "logic.test.mjs", "properties.test.mjs")
 TRIAGE_FILENAME = "mutation_triage.json"
 
 
+# --- périmètre du gate mutation PAR CATÉGORIE (décision U-2, ratifiée Pierre
+# 2026-07-27 : « la mutation ne doit pas essayer de juger ce qu'elle ne peut
+# pas atteindre. logique testable -> mutation ; rendu/runtime -> oracle produit.
+# Sinon on fabrique un faux indicateur. ») ---------------------------------------
+
+# Catégorie (table figée `standard/repo_map.yaml`) structurellement hors de
+# portée du gate mutation : présentation/runtime (06_RUNTIME/adapters/{id}/).
+# Preuve mesurée (run pong_r2, évidence signée `mutation_pong_r2.json`) : les 7
+# fichiers `system.adapter` de Pong sont 0/65 tués -- la suite scellée
+# (07_TESTS/unit/*.test.mjs + 07_TESTS/oracle/solvability.mjs) n'importe AUCUN
+# fichier d'adaptateur (vérifié par grep des imports). Les muter mesure un 0%
+# GARANTI par construction, jamais un défaut de test -- ce n'est pas une
+# métrique, c'est un artefact de topologie.
+CATEGORIE_PRESENTATION_RUNTIME = "system.adapter"
+
+MOTIF_EXCLUSION_PRESENTATION_RUNTIME = (
+    "catégorie system.adapter (présentation/runtime, 06_RUNTIME/adapters/) : "
+    "jamais importée par la suite scellée (07_TESTS/unit/*.test.mjs + "
+    "07_TESTS/oracle/solvability.mjs) -- structurellement intuable par mutation "
+    "(mesuré pong_r2 : 0/65 tués) -- à couvrir par l'oracle produit ; le juge "
+    "change, la couche n'est pas abandonnée"
+)
+
+
+def mutation_scope_from_wiremap(wiremap: dict) -> dict:
+    """Périmètre du gate mutation, dérivé de la WireMap -- formule UNIQUE
+    (décision U-2), non dupliquée ailleurs (driver.py normalise la FORME,
+    jamais la règle).
+
+    Sépare les fichiers `.mjs` non-test cités dans `features[*].fichiers` en :
+      - `included`  : jugés par la mutation (catégorie absente -- wiremap
+        LEGACY, formule historique inchangée -- ou toute catégorie autre que
+        `system.adapter` : `system`, `entity*`, `level`, `world.rules`...) ;
+      - `excluded`   : catégorie `system.adapter`, présentation/runtime,
+        DÉCLARÉE avec fichier/catégorie/motif -- jamais silencieuse (garde-fou
+        2 du contrat n2-perimetre-mutation-categorie) ;
+      - `categories` : {fichier inclus: catégorie}, pour les compteurs aval
+        (`categorized_mutation_counts`).
+
+    `test.*` reste filtré EN AMONT (c'est de la PREUVE, jamais du code à
+    muter -- comportement historique inchangé, cf. commentaire déjà présent
+    dans driver.py sur l'échec de l'heuristique de nom en topologie STANDARD).
+    """
+    included: list[str] = []
+    excluded: list[dict] = []
+    categories: dict[str, str] = {}
+    seen: set[str] = set()
+    for feat in (wiremap.get("features", []) if isinstance(wiremap, dict) else []):
+        if not isinstance(feat, dict):
+            continue
+        for f in (feat.get("fichiers") or []):
+            if isinstance(f, dict):
+                path, category = f.get("path"), f.get("category")
+            else:
+                path, category = f, None
+            if not isinstance(path, str):
+                continue
+            if isinstance(category, str) and category.startswith("test."):
+                continue  # preuve, pas du code -- filtre inchangé
+            if not (path.endswith(".mjs") and "test" not in path):
+                continue
+            if path in seen:
+                continue
+            seen.add(path)
+            if category:
+                categories[path] = category
+            if category == CATEGORIE_PRESENTATION_RUNTIME:
+                excluded.append({"fichier": path, "categorie": category,
+                                  "motif": MOTIF_EXCLUSION_PRESENTATION_RUNTIME})
+            else:
+                included.append(path)
+    return {
+        "included": sorted(included),
+        "excluded": sorted(excluded, key=lambda e: e["fichier"]),
+        "categories": categories,
+    }
+
+
+def categorized_mutation_counts(mutation_result: dict, scope: dict) -> dict:
+    """Compteurs de mutation PAR CATÉGORIE (décision U-2) : pour chaque
+    catégorie JUGÉE (fichiers de `scope["included"]`), agrège killed/total
+    depuis `mutation_result["per_file"]` ; pour chaque catégorie EXCLUE
+    (`scope["excluded"]`), ne rapporte QUE le nombre de fichiers -- jamais un
+    killed/total forgé pour une catégorie non jugée (ce serait exactement le
+    faux indicateur que la décision U-2 interdit : une catégorie qu'on n'a
+    pas mesurée n'a pas de score, point).
+    """
+    per_file = mutation_result.get("per_file") or {}
+    categories = scope.get("categories") or {}
+    counts: dict[str, dict] = {}
+    for path in scope.get("included", []):
+        cat = categories.get(path, "sans_categorie")
+        entry = counts.setdefault(
+            cat, {"jugee": True, "fichiers": 0, "killed": 0, "total": 0})
+        entry["fichiers"] += 1
+        pf = per_file.get(path) or {}
+        entry["killed"] += int(pf.get("killed", 0))
+        entry["total"] += int(pf.get("total", 0))
+    for exc in scope.get("excluded", []):
+        cat = exc.get("categorie", "sans_categorie")
+        entry = counts.setdefault(cat, {"jugee": False, "fichiers": 0})
+        entry["fichiers"] += 1
+    return counts
+
+
 def logic_files_from_wiremap(wiremap: dict) -> list[str]:
-    """Fichiers logiques à muter, déclarés par la WireMap (formule skill.md) :
-    les .mjs non-test cités dans features[*].fichiers."""
-    return sorted({
-        f
-        for feat in wiremap.get("features", [])
-        for f in (feat.get("fichiers") or [])
-        if f.endswith(".mjs") and "test" not in f
-    })
+    """Fichiers logiques à muter (rétro-compat : signature historique).
+    Délègue à `mutation_scope_from_wiremap` -- formule UNIQUE, non dupliquée --
+    et ne retourne que les fichiers INCLUS (jugés)."""
+    return mutation_scope_from_wiremap(wiremap)["included"]
 
 
 def fingerprint(game_dir: Path | str, files: list[str]) -> dict[str, str]:
@@ -130,13 +231,23 @@ def emit_mutation_receipt(
     *,
     key_file: Path | None = None,
     evidence_dir: Path | str | None = None,
+    mutation_scope: dict | None = None,
 ) -> SignedReceipt:
     """Juge (check_mutation_gate, inchangé) puis scelle la preuve dans un reçu signé.
 
     Le sceau couvre le code mutable ET les fichiers de tests présents dans la
     commande de test : affaiblir la suite après la preuve invalide la preuve.
+
+    `mutation_scope` (décision U-2, optionnel -- absent pour les appelants
+    historiques qui passent un `logic_files` explicite sans wiremap) : le
+    reçu porte alors les exclusions de catégorie DÉCLARÉES (fichier,
+    catégorie, motif -- jamais silencieuses) et des compteurs par catégorie.
+    Sans scope, la structure reste stable (categories_exclues=[], une seule
+    catégorie "sans_categorie") -- le reçu ne dépend pas du chemin d'appel.
     """
     game_dir = Path(game_dir)
+    scope = mutation_scope or {"included": list(logic_files), "excluded": [],
+                                "categories": {}}
     gate = check_mutation_gate(mutation_result, load_mutation_triage(game_dir))
     # P0.3 : sans baseline verte MESURÉE (True explicite — un résultat sans le
     # champ n'est pas une preuve), le gate ne peut pas être vert.
@@ -165,6 +276,9 @@ def emit_mutation_receipt(
         "code_sha256": fingerprint(game_dir,
                                    list(logic_files) + test_files + harness_files),
         "triage_sha256": sha256_file(game_dir / TRIAGE_FILENAME),
+        # décision U-2 : le périmètre restreint est DÉCLARÉ, jamais silencieux.
+        "categories_exclues": scope.get("excluded", []),
+        "compteurs_par_categorie": categorized_mutation_counts(mutation_result, scope),
     }
     evidence_path = ""
     if evidence_dir is not None:
@@ -193,30 +307,49 @@ def verify_mutation_receipt(
     game_dir: Path | str,
     *,
     key_file: Path | None = None,
+    require_green: bool = True,
 ) -> dict:
     """Vérifie une preuve mutation CONTRE l'état PRÉSENT du jeu.
 
-    Retourne {passed, raisons[]}. Refus si : preuve absente/malformée, signature
-    invalide (provenance), run_id incohérent, statut non OK, empreinte absente,
-    hash code/tests divergent, triage modifié après la preuve, évidence altérée.
+    Retourne {passed, raisons[], status}. `status` (valeur brute de
+    ``receipt.status``, "" quand aucun reçu n'a pu être construit) est TOUJOURS
+    présent : aucun appelant ne doit parser une chaîne française pour connaître
+    le statut (V1, design imposé pt.1).
+
+    Refus si : preuve absente/malformée, signature invalide (provenance), run_id
+    incohérent, empreinte absente, hash code/tests divergent, triage modifié
+    après la preuve, évidence altérée — INCONDITIONNEL, quel que soit
+    `require_green`.
+
+    `require_green` (KEYWORD-ONLY, défaut True = comportement historique
+    inchangé — c'est le gate mutation DUR du driver, driver.py:846, qui ne
+    passe jamais ce paramètre) : quand True, un statut différent de "OK" est
+    AUSSI un refus ("gate mutation non vert"). Quand False (utilisé par
+    `verify_run` pour distinguer authenticité et verdict logiciel, V1), cette
+    seule raison est omise — un reçu mutation FAIL authentique et à jour reste
+    `passed=True` (il ne ment sur rien), seul le statut rapporté (`status`)
+    dit que le gate est rouge.
     """
     if not isinstance(receipt_dict, dict) or not signature:
-        return {"passed": False, "raisons": ["preuve mutation absente ou malformée"]}
+        return {"passed": False, "raisons": ["preuve mutation absente ou malformée"],
+                "status": ""}
     try:
         receipt = OracleReceipt(**receipt_dict)
     except TypeError:
-        return {"passed": False, "raisons": ["reçu mutation malformé (champs inattendus)"]}
+        return {"passed": False, "raisons": ["reçu mutation malformé (champs inattendus)"],
+                "status": ""}
     if not verify_receipt(receipt, signature, key_file):
         # Contenu non fiable : inutile (et trompeur) d'énumérer d'autres raisons.
         return {"passed": False,
-                "raisons": ["provenance rompue: signature du reçu mutation invalide"]}
+                "raisons": ["provenance rompue: signature du reçu mutation invalide"],
+                "status": receipt.status}
 
     raisons: list[str] = []
     if receipt.oracle_id != "mutation":
         raisons.append(f"oracle_id inattendu ({receipt.oracle_id!r} != 'mutation')")
     if receipt.run_id != run_id:
         raisons.append(f"run_id incohérent ({receipt.run_id!r} != {run_id!r})")
-    if receipt.status != "OK":
+    if require_green and receipt.status != "OK":
         raisons.append(f"gate mutation non vert (status={receipt.status})")
 
     detail = receipt.detail or {}
@@ -247,4 +380,4 @@ def verify_mutation_receipt(
     if receipt.evidence_path and sha256_file(receipt.evidence_path) != receipt.evidence_sha256:
         raisons.append(f"évidence mutation altérée/absente ({receipt.evidence_path})")
 
-    return {"passed": not raisons, "raisons": raisons}
+    return {"passed": not raisons, "raisons": raisons, "status": receipt.status}

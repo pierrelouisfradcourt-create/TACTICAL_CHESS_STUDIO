@@ -11,10 +11,12 @@ red-team en un verdict signé HMAC. Invariants vérifiés ici :
   - anti-rejeu : run_id/nonce/ts/git_head signés.
 """
 import tempfile
+from dataclasses import asdict
 from pathlib import Path
 
 from forge.verdict import (
     build_aggregate_verdict,
+    is_clean_pass,
     make_signed_receipt,
     sign_aggregate,
     signed_aggregate_record,
@@ -167,6 +169,40 @@ def test_redteam_blocked_surfaces_objection_in_decision():
 def test_no_objection_decision_when_redteam_clean():
     v = _agg(redteam_blocked=False)
     assert v.decision == "HUMANGATE_READY"
+
+
+def test_redteam_findings_non_vides_sans_blocage_ne_change_ni_decision_ni_clean_pass():
+    """(n1-findings-redteam-audibles) TEST DE NON-RÉGRESSION DE PROMOTION — le
+    piège explicitement désigné par le chantier : rendre les findings AUDIBLES
+    (redteam_advisory non vide) ne doit JAMAIS, à lui seul, faire basculer
+    `decision` ni `is_clean_pass`. Seul `redteam_blocked` (piloté par le
+    red-team lui-même, pas par la présence de findings) est le canal
+    d'objection — cf. verdict.py l.391 `elif redteam_blocked or
+    triage_exception or extra_advisory` : `redteam_findings` seul n'y figure
+    PAS, et la construction des flags (l.413) ne lit QUE `redteam_blocked`,
+    jamais `redteam_findings`.
+
+    Un run réel avec 6 findings advisory (comme pong_r2, cf.
+    rapport_redteam_code.md) et redteam_blocked=False doit rester
+    is_clean_pass()==True — exactement comme un run à 0 finding."""
+    findings_reels = (
+        "[HIGH] collision balayée — point fantôme au mauvais camp (repro: node repro_f1.mjs)",
+        "[MEDIUM] test-coverage — assertion incomplète (repro: lire loop.test.mjs L80-89)",
+        "[MEDIUM] rebond vertical — état hors-domaine possible (repro: isValidState(ns) === false)",
+        "[LOW] interpolation — imprécision non exploitée (repro: aucun contre-exemple construit)",
+        "[LOW] zone morte — serveVx inerte (repro: mutation littérale L114-115)",
+        "[LOW] preuve tautologique — core.exit toujours vrai (repro: process.exit(0) inconditionnel)",
+    )
+    v_avec_findings = _agg(redteam_blocked=False, redteam_findings=findings_reels)
+    v_sans_findings = _agg(redteam_blocked=False, redteam_findings=())
+
+    assert v_avec_findings.redteam_advisory == findings_reels  # les findings SONT audibles
+    assert v_avec_findings.software_verdict == v_sans_findings.software_verdict == "OK"
+    assert v_avec_findings.decision == v_sans_findings.decision == "HUMANGATE_READY"
+    assert v_avec_findings.humangate_flags == v_sans_findings.humangate_flags == ()
+
+    assert is_clean_pass(asdict(v_sans_findings)) is True
+    assert is_clean_pass(asdict(v_avec_findings)) is True  # <- le prédicat protégé
 
 
 # --- extra_advisory (Tier 2.5 étape 3, panel Prisme) : contrôle qualité, jamais juge --

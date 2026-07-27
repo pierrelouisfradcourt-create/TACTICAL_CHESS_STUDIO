@@ -418,14 +418,21 @@ def test_verify_run_solvability_marque_le_verdict_comme_jeu():
         "status": "OK",
         "detail": {"solvability": {"passed": True, "raisons": [], "checked": True}},
     }}}
-    problems = verify_run._check_mutation_proof(data, None)
-    assert problems, "verdict de jeu (marqueur solvability) sans preuve mutation doit être rejeté"
-    assert "preuve mutation" in problems[0]
+    # V1 (séparation intégrité/verdict) : _check_mutation_proof rend désormais
+    # {problems, status, checked} au lieu d'une liste nue — problems[0] devient
+    # result["problems"][0]. Comportement inchangé : sans preuve embarquée, c'est
+    # toujours un refus, quel que soit require_green (absence structurelle).
+    result = verify_run._check_mutation_proof(data, None)
+    assert result["problems"], "verdict de jeu (marqueur solvability) sans preuve mutation doit être rejeté"
+    assert "preuve mutation" in result["problems"][0]
+    assert result["checked"] is False
 
 
 def test_verify_run_non_jeu_reste_exempte_de_mutation():
     data = {"run_id": "r", "oracles": {"code": {"status": "OK", "detail": {}}}}
-    assert verify_run._check_mutation_proof(data, None) == []
+    result = verify_run._check_mutation_proof(data, None)
+    assert result["problems"] == []
+    assert result["checked"] is False
 
 
 # --- F5d : garde run_dir périmé ------------------------------------------------------

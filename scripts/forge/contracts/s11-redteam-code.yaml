@@ -59,8 +59,22 @@ final_report: >-
   HumanGate (fog), pas de claim.
 
 # --- 8. Restitution (Critique) ---
+# n1-findings-redteam-audibles : le rapport prose seul ne suffit plus — sans
+# section machine-lisible, les findings mouraient sur disque (aucun exécuteur ne
+# les remontait au verdict signé). Patron réutilisé du studio (bloc JSON fenced
+# dans un markdown, même famille que l'Art Bible / check_artbible.mjs).
 output_contract: >-
-  rapport_redteam_code.md : {angle, faille, sévérité, reproduction}.
+  rapport_redteam_code.md : {angle, faille, sévérité, reproduction} en prose,
+  PUIS termine ta réponse par UN bloc ```json ... ``` contenant EXACTEMENT un
+  objet de la forme {"findings": [{"angle": "<axe audité>", "faille": "<constat,
+  même contenu que la prose>", "severite": "HIGH|MEDIUM|LOW", "reproduction":
+  "<repro exécutable ou ancre statique déjà citée en prose>"}, ...]} — liste
+  VIDE si aucune faille. Ce bloc est lu par un parseur DÉTERMINISTE
+  (forge.run_real.extract_redteam_findings, JAMAIS un LLM) qui alimente
+  redteam_advisory du verdict signé, jamais humangate_flags/software_verdict
+  directement. Bloc absent ou malformé => AUCUN finding n'atteint le verdict
+  (liste vide + note), mais ton rapport texte reste inchangé — n'invente jamais
+  une entrée JSON qui ne reprend pas un constat déjà développé en prose.
 
 # --- 9. Capacités (Important — `aucun` autorisé, jamais absent) ---
 skill: aucun

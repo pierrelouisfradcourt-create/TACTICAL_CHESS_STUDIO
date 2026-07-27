@@ -91,6 +91,19 @@ models:
       - builder             # étape 9 — build (délégation économique)
       - worldscan           # étape 2 — world scan
 
+  # Missions d'outillage Forge (hors chaîne s0-s12) : Sonnet = bras d'exécution
+  # (répartition ratifiée Pierre 2026-07-19). Ce tier existait déjà dans l'échelle
+  # d'escalade des builders (escalate.py LADDER) mais aucun rôle ne le résolvait.
+  # Ajouté 2026-07-26 pour la mission M1 (télémétrie d'échec) — gate Pierre au commit.
+  - id: anthropic/claude-sonnet-5
+    name: Claude Sonnet 5 — outillage Forge (missions sous contrat hors profil)
+    provider: claude-local
+    reasoning: high
+    roles:
+      - forge_toolsmith     # missions d'outillage sur scripts/forge/** (ex. M1) —
+                            # contrat dédié obligatoire, dispatch allow_unprofiled
+                            # assumé et inscrit dans l'audit signé
+
   # Gate 4 : validation indépendante. Qwen critique les DÉCISIONS, ne remplace pas les oracles.
   - id: lmstudio/qwen2.5-14b-instruct
     name: Qwen2.5 14B — red team / reviewer indépendant

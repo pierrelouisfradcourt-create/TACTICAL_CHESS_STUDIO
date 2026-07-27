@@ -50,11 +50,12 @@ from forge.gate import forge_gate
 from forge.oracle import OracleNotFound, resolve_oracle
 from forge.mutation_proof import (
     emit_mutation_receipt,
-    logic_files_from_wiremap,
+    mutation_scope_from_wiremap,
     run_mutation_for_game,
     verify_mutation_receipt,
 )
 from forge.pool import DEFAULT_POOL_SIZE, pool_decision
+from forge.product_oracle import run_product_oracle
 from forge.runtime import RUNNER_CLAUDE_BLIND, RUNNER_QWEN, route_step, run_qwen_step
 from forge.standard_oracles import (
     check_budget,
@@ -83,6 +84,7 @@ from forge.studio_link import (
     pool_stats,
     premortem,
     project_bible,
+    propose_brick,
     record_builder_run,
     record_error,
     record_fix,
@@ -143,12 +145,14 @@ class ForgeDriver:
         builder_runs_path: Path | str | None = None,
         journal_path: Path | str | None = None,
         journal_index_dir: Path | str | None = None,
+        brick_proposals_path: Path | str | None = None,
         caps_path: Path | str | None = None,
         logic_files: list[str] | None = None,
         mutation_runner=None,
         mutation_test_argv: list[str] | None = None,
         mutation_baseline_runner=None,
         pool_size: int = DEFAULT_POOL_SIZE,
+        product_oracle_runner=None,
     ) -> None:
         self.project = project
         self.run_id = run_id
@@ -182,6 +186,14 @@ class ForgeDriver:
         # seulement pour un run RÉEL — voir _regenerate_journal_index (même discriminant que
         # _journal_target : run_dir hors dépôt = run de test = jamais d'écriture repo réelle).
         self.journal_index_dir = Path(journal_index_dir) if journal_index_dir else None
+        # Le dépositaire (studio_link.propose_brick, ADR-002 §3) : chemin de la file
+        # de propositions de brique. Injectable (tests) comme telemetry_path/
+        # journal_path ; None => défaut PRODUCTION résolu PAR propose_brick lui-même
+        # (lab/reports/forge_brick_proposals.jsonl, DEFAULT_BRICK_PROPOSALS) — même
+        # patron d'injection que les autres connecteurs studio_link ci-dessus.
+        self.brick_proposals_path = (
+            Path(brick_proposals_path) if brick_proposals_path else None
+        )
         self.caps_path = Path(caps_path) if caps_path else None
         # P0.2 — preuve mutation d'un JEU : fichiers logiques explicites (sinon
         # dérivés de la WireMap), runner injectable (défaut = forge.mutation réel).
@@ -189,6 +201,10 @@ class ForgeDriver:
         self.mutation_runner = mutation_runner
         self.mutation_test_argv = list(mutation_test_argv) if mutation_test_argv else None
         self.mutation_baseline_runner = mutation_baseline_runner
+        # n3-oracle-produit-minimal : injectable (même patron que mutation_runner)
+        # pour les tests — par défaut le VRAI forge.product_oracle.run_product_oracle,
+        # jamais une réimplémentation.
+        self.product_oracle_runner = product_oracle_runner or run_product_oracle
         # Tier 2 #5 (Concept A) : best-of-N réactif au même tier avant d'escalader de
         # modèle. pool_size<=1 désactive le pool (chaque FAIL escalade directement).
         self.pool_size = int(pool_size)
@@ -391,6 +407,9 @@ class ForgeDriver:
                 profile=self.profile, attempt=entry["attempts"],
             )
         except ContractIncomplete as exc:
+            # `payload` n'existe pas encore (prepare_dispatch a levé avant de le
+            # rendre) : aucun payload.model connu, la résolution retombe sur le
+            # seul model_override (souvent absent ici aussi) — jamais un crash.
             return self._halt_step(state, entry, f"contrat non activable à {etape}: {exc}",
                                    etape=etape)
 
@@ -411,11 +430,15 @@ class ForgeDriver:
 
         if output is None:
             if self.executor is None:
+                # Halt AVANT tout appel LLM (cas limite du protocole M1) :
+                # tokens=0 est un ZÉRO MESURÉ (aucun appel n'a eu lieu), pas une
+                # case vide — `payload` est déjà connu ici (prepare_dispatch a
+                # réussi), donc `payload.model` résout correctement le champ.
                 return self._halt_step(
                     state, entry,
                     f"aucun exécuteur LLM fourni au driver — étape {etape} "
                     "inexécutable (hypothèse inconnue = BLOCKED)",
-                    etape=etape,
+                    etape=etape, payload=payload,
                 )
             context = {
                 "run_id": self.run_id,
@@ -437,8 +460,13 @@ class ForgeDriver:
             self._record_spawn_executed(etape, entry["attempts"], payload)
             if not isinstance(res, dict) or not res.get("ok"):
                 why = res.get("reason", "sans raison") if isinstance(res, dict) else "retour invalide"
+                # `res` peut porter des tokens/coût/durée RÉELS même en échec
+                # (ex. timeout claude -p, FIR-01 : `duration_s` connu, `tokens`
+                # jamais parsé) — transmis pour que la ligne HALT porte ce qui a
+                # été MESURÉ, jamais un silence total sur un échec coûteux.
                 return self._halt_step(state, entry, f"exécuteur LLM en échec à {etape}: {why}",
-                                       etape=etape)
+                                       etape=etape, payload=payload,
+                                       res=res if isinstance(res, dict) else None)
             output = str(res.get("output", ""))
             blocked = bool(res.get("blocked", False))
             findings = list(res.get("findings", []))
@@ -469,8 +497,17 @@ class ForgeDriver:
         }
         self._save(state)
         try:
-            record_telemetry(self.run_id, etape, reviewer, tokens, duration,
-                             telemetry_path=self.telemetry_path)
+            # M1 (design imposé pt.3) : le champ `model` porte le modèle
+            # RÉELLEMENT exécuté — même résolution que le journal (l.480
+            # `tier_of(state.get("model_override") or payload.model)`), PAS le
+            # seul `reviewer` (identité de revue, pas d'exécution — cf.
+            # forge/runtime.py route_step, `reviewer` == `payload.model` pour
+            # RUNNER_CLAUDE mais reste le modèle du CONTRAT, jamais l'override).
+            record_telemetry(
+                self.run_id, etape, state.get("model_override") or payload.model,
+                tokens, duration, telemetry_path=self.telemetry_path,
+                outcome="OK", cost_usd=cost_usd,
+            )
         except OSError:
             logger.warning("télémétrie non écrite pour %s (non bloquant)", etape)
         # Une étape qui PASSE alors qu'une tentative précédente avait échoué (retry
@@ -573,7 +610,7 @@ class ForgeDriver:
         )
 
     def _halt_step(self, state: dict, entry: dict, reason: str,
-                   etape: str | None = None) -> bool:
+                   etape: str | None = None, payload=None, res: dict | None = None) -> bool:
         entry["status"] = "BLOCKED"
         entry["detail"] = {"reason": reason}
         entry["ts"] = time.time()
@@ -581,7 +618,30 @@ class ForgeDriver:
         state["reason"] = reason
         self._save(state)  # état persisté AVANT le journal : une écriture ratée n'y touche pas
         logger.warning("driver HALTED: %s", reason)
-        self._journal_error(etape or self._etape_of(state, entry), reason)
+        resolved_etape = etape or self._etape_of(state, entry)
+        self._journal_error(resolved_etape, reason)
+        # MISSION_M1_TELEMETRIE_ECHEC.md (design imposé pt.1) : un échec produit
+        # AUSSI une ligne de télémétrie (outcome="HALT"), best-effort comme le
+        # chemin OK (garde-fou #2 : jamais bloquant, y compris sur ce nouveau
+        # chemin). `res` peut porter des tokens/coût/durée RÉELS si l'exécuteur
+        # a tourné avant d'échouer — sinon 0, un ZÉRO MESURÉ (aucun appel n'a
+        # eu lieu), jamais une case vide (cas limite explicite du protocole).
+        # Résolution du modèle IDENTIQUE au chemin succès (pt.3) :
+        # `state.model_override or payload.model` — "" si `payload` est
+        # inconnu (contrat non activable AVANT que prepare_dispatch ne le
+        # rende : rien à résoudre, jamais un crash sur un attribut absent).
+        r = res if isinstance(res, dict) else {}
+        model = state.get("model_override") or getattr(payload, "model", "") or ""
+        try:
+            record_telemetry(
+                self.run_id, resolved_etape, model,
+                int(r.get("tokens", 0)), float(r.get("duration_s", 0.0)),
+                telemetry_path=self.telemetry_path,
+                outcome="HALT", cost_usd=float(r.get("cost_usd", 0.0)),
+            )
+        except OSError:
+            logger.warning("télémétrie non écrite pour halt à %s (non bloquant)",
+                           resolved_etape)
         return False
 
     # --- étapes déterministes (exécutées par le driver, jamais un LLM) --------
@@ -738,6 +798,29 @@ class ForgeDriver:
         # ici. Advisory, comme reuse_ratio_wired : ne gate JAMAIS oracle_ok (chercher
         # et ne rien trouver de pertinent est un résultat légitime, pas un échec).
         detail["search_consulted"] = check_search_consulted(self._driver_start_ts)
+        # n3-oracle-produit-minimal (2026-07-27) : les 3 volets déterministes qui
+        # couvrent les fichiers `system.adapter` sortis du gate mutation (décision
+        # U-2 : « à couvrir par l'oracle produit ; le juge change, la couche n'est
+        # pas abandonnée »). ADVISORY (comme reuse_ratio_wired/search_consulted
+        # ci-dessus) : ne gate JAMAIS `final` dans cette mission — le passage en
+        # gate dur est une décision Pierre distincte, prise au vu des chiffres
+        # portés ici. std_topo seulement : les 3 volets assument la topologie
+        # STANDARD (06_RUNTIME/adapters/presentation/, 05_SYSTEMS/...) — un jeu
+        # LEGACY n'a pas cette structure et n'a rien à y mesurer. Best-effort
+        # (try/except large) : une exception dans ce module ne doit JAMAIS faire
+        # échouer s10a (même garde que _record_learning_advisory).
+        if std_topo:
+            try:
+                detail["product_oracle"] = self.product_oracle_runner(self.game_dir)
+            except Exception:  # noqa: BLE001 — advisory, jamais bloquant
+                logger.warning(
+                    "product_oracle (n3) non mesuré pour run=%s (advisory, non bloquant)",
+                    self.run_id, exc_info=True,
+                )
+                detail["product_oracle"] = {
+                    "measured": False,
+                    "reason": "exception levée pendant la mesure — advisory, non bloquant",
+                }
 
         # C4 — les fichiers à MUTER viennent de la VRAIE wiremap. Le driver ne regardait
         # que `run_dir/wiremap.json` ; en topologie STANDARD la wiremap vit en
@@ -746,6 +829,12 @@ class ForgeDriver:
         # (un jeu à 20% de mutation serait passé en silence). Les deux emplacements sont
         # consultés, celui du STANDARD d'abord quand le profil est `standard`.
         files = list(self.logic_files or [])
+        # Périmètre par catégorie (décision U-2) : quand `files` vient d'un override
+        # explicite (`self.logic_files`), aucune catégorie n'est connue — le scope
+        # par défaut inclut tout, n'exclut rien (comportement historique inchangé,
+        # rien à déclarer sans wiremap). Dès qu'une wiremap est consultée, le scope
+        # RÉEL (inclus/exclus/catégories) la remplace.
+        scope = {"included": files, "excluded": [], "categories": {}}
         sources = [self.run_dir / "wiremap.json"]
         if std_topo:
             sources.insert(0, self.game_dir / "09_WIREMAP" / "wiremap.json")
@@ -755,7 +844,8 @@ class ForgeDriver:
                 break
             wiremap = self._read_json(candidate)
             if wiremap is not None:
-                files = self._logic_files_from_wiremap_any(wiremap)
+                scope = self._mutation_scope_from_wiremap_any(wiremap)
+                files = scope["included"]
                 if files:
                     wiremap_used = str(candidate)
         if wiremap_used:
@@ -786,6 +876,7 @@ class ForgeDriver:
         receipt = emit_mutation_receipt(
             self.run_id, self.src_root, files, result,
             key_file=self.key_file, evidence_dir=self.run_dir / "evidence",
+            mutation_scope=scope,
         )
         detail["mutation"] = {"receipt": asdict(receipt.receipt),
                               "signature": receipt.signature}
@@ -832,38 +923,38 @@ class ForgeDriver:
             return ()
 
     @staticmethod
-    def _logic_files_from_wiremap_any(wiremap: dict) -> list[str]:
-        """Fichiers logiques d'une wiremap LEGACY (`features[]`, `fichiers[]` de chaînes)
-        OU STANDARD (`schema_version: 2` : `lines[]`, `fichiers[]` d'objets
-        {path, category}). La FORMULE (« .mjs non-test ») n'est pas dupliquée : on
-        normalise la forme, puis on appelle `mutation_proof.logic_files_from_wiremap`
-        — une seule implémentation de la règle, comme l'exige FORGE_SYSTEM_CONTRACT."""
+    def _mutation_scope_from_wiremap_any(wiremap: dict) -> dict:
+        """Périmètre mutation (`included`/`excluded`/`categories`) d'une wiremap
+        LEGACY (`features[]`, `fichiers[]` de chaînes) OU STANDARD
+        (`schema_version: 2` : `lines[]`, `fichiers[]` d'objets {path, category}).
+
+        Le driver ne fait QUE normaliser la FORME (fusion features/lines, objets
+        vs chaînes nues) ; la RÈGLE (quelle catégorie est jugée par la mutation,
+        décision U-2) vit dans `mutation_proof.mutation_scope_from_wiremap` —
+        une seule implémentation, jamais dupliquée (comme l'exige
+        FORGE_SYSTEM_CONTRACT ET le garde-fou 5 du contrat
+        n2-perimetre-mutation-categorie). Contrairement à l'ancienne version de
+        cette méthode, la CATÉGORIE de chaque fichier est PRÉSERVÉE jusqu'à la
+        formule — elle ne peut plus juger sans elle (`system.adapter` serait
+        indiscernable d'un `system` une fois réduit à un chemin nu)."""
         if not isinstance(wiremap, dict):
-            return []
+            return {"included": [], "excluded": [], "categories": {}}
         entries = []
         for key in ("features", "lines"):
             for item in (wiremap.get(key) or []):
                 if not isinstance(item, dict):
                     continue
-                paths = []
-                for f in (item.get("fichiers") or []):
-                    if isinstance(f, dict):
-                        # Le format 2 porte la CATÉGORIE (table figée repo_map.yaml) :
-                        # `test.unit` / `test.oracle` / `test.solvability` sont de la
-                        # PREUVE, jamais du code à muter. On lit le champ structuré
-                        # existant au lieu de deviner d'après le nom — l'heuristique de
-                        # nom (« test » dans le chemin) est insensible à la casse du
-                        # STANDARD (« 07_TESTS/ ») et classerait solvability.mjs comme
-                        # code mutable, c.-à-d. muterait sa propre preuve.
-                        if str(f.get("category", "")).startswith("test."):
-                            continue
-                        p = f.get("path")
-                    else:
-                        p = f
-                    if isinstance(p, str):
-                        paths.append(p)
-                entries.append({"fichiers": paths})
-        return logic_files_from_wiremap({"features": entries})
+                fichiers = [f for f in (item.get("fichiers") or [])
+                           if isinstance(f, (dict, str))]
+                entries.append({"fichiers": fichiers})
+        return mutation_scope_from_wiremap({"features": entries})
+
+    @classmethod
+    def _logic_files_from_wiremap_any(cls, wiremap: dict) -> list[str]:
+        """Rétro-compat (liste des fichiers INCLUS/jugés seulement) — voir
+        `_mutation_scope_from_wiremap_any` pour le périmètre complet
+        (inclus + exclusions déclarées par catégorie)."""
+        return cls._mutation_scope_from_wiremap_any(wiremap)["included"]
 
     def _run_wiremap_oracle(self, state: dict, entry: dict) -> None:
         wiremap = self._read_json(self.run_dir / "wiremap.json")
@@ -895,7 +986,24 @@ class ForgeDriver:
         APRÈS BUILD, sur le jeu courant (self.game_dir : games/<project>/). Jamais
         d'exception sur une entrée absente/malformée — reçu BLOCKED motivé, même
         discipline que check_architecture (crash-loop réel évité, cf. son commentaire).
-        FAIL si UN SEUL des six oracles échoue ; le détail de chacun est conservé."""
+        FAIL si UN SEUL des six oracles échoue ; le détail de chacun est conservé.
+
+        Garde d'invariant (mission s10s-branchement-driver, 2026-07-26) : cette
+        méthode ne doit JAMAIS être atteinte hors de `_run_deterministic`, qui
+        incrémente `entry["attempts"]` avant tout branchement (driver.py l.637).
+        `lab/forge_runs/pong/state.json` (archive) porte la preuve qu'un chemin
+        hors-boucle a pu, par le passé, poser `status=FAIL` avec `attempts=0` —
+        ce chemin n'a plus d'appelant dans le code actuel (seul `_run_deterministic`
+        appelle cette méthode), mais rien ne l'empêchait STRUCTURELLEMENT de
+        réapparaître. Lever ici, AVANT toute lecture/écriture, transforme
+        l'invariant en fait du code plutôt qu'en observation sur l'appelant unique
+        d'aujourd'hui — volontairement pas un `assert` (désactivable par -O)."""
+        if entry.get("attempts", 0) < 1:
+            raise RuntimeError(
+                "s10s-oracle-standard: statut refusé hors de la boucle driver "
+                "(attempts=0) — _run_standard_oracle ne doit être appelé qu'après "
+                "l'incrément d'attempts de _run_deterministic (driver.py l.637)."
+            )
         game_contract = self._read_yaml(self.game_dir / "00_CHARTER" / "game_contract.yaml")
         wiremap = self._read_json(self.game_dir / "09_WIREMAP" / "wiremap.json")
         core_requirements = self._read_yaml(_STANDARD_DIR / "core_requirements.yaml")
@@ -1028,21 +1136,20 @@ class ForgeDriver:
         blocking += list(verification.get("knowledge_trace_problems", ()))
         if not verification.get("hmac_ok", False):
             blocking.insert(0, "HMAC du verdict invalide")
-        # Portée déclarée : `verify_mutation_receipt` (forge.mutation_proof) exige
-        # `status == "OK"` sur le reçu mutation embarqué (cf. test_verify_run_
-        # mutation.py) — un reçu mutation LÉGITIMEMENT non-OK (baseline rouge,
-        # survivant non trié...) échoue donc TOUJOURS ce sous-check, sans que ce
-        # soit une falsification : c'est le reflet honnête d'un gate mutation
-        # rouge déjà porté par software_verdict=FAIL. Reproduit en pratique :
-        # câbler `mutation_problems` en gate dur inconditionnel faisait échouer
-        # à tort 2 tests légitimes (baseline rouge, survivant non justifié) — le
-        # verdict FAIL qu'ils produisent est authentique, pas falsifié. On ne
-        # gate donc sur `mutation_problems` QUE quand l'agrégat prétend OK :
-        # c'est le seul cas où HumanGate pourrait ratifier un vert fabriqué.
-        # HMAC/évidence/knowledge_trace restent des gates DURS quel que soit le
-        # statut affiché (falsifier un log reste une falsification, OK ou FAIL).
-        if record["software_verdict"] == "OK":
-            blocking += list(verification.get("mutation_problems", ()))
+        # V1 (2026-07-26, séparation intégrité/verdict — mémoire pong_r2) : la
+        # doctrine « un gate mutation rouge ne bloque QUE si l'agrégat prétend
+        # software_verdict=OK » ne vit plus ICI — elle vit à UN seul endroit,
+        # `forge.verify_run.verify_run` (`coherence_problems`), qui la calcule
+        # exactement de la même façon (comparée par test,
+        # test_verify_run_integrity_separation.py). Un reçu mutation
+        # LÉGITIMEMENT non-OK (baseline rouge, survivant non trié...) ne bloque
+        # donc TOUJOURS pas ce pas quand le verdict affiché est déjà honnêtement
+        # FAIL/BLOCKED (`coherence_problems` reste vide dans ce cas) ; mais un
+        # OK affiché sur un gate mutation rouge (vert fabriqué) reste un GATE
+        # DUR. HMAC/évidence/knowledge_trace restent des gates DURS quel que
+        # soit le statut affiché (falsifier un log reste une falsification, OK
+        # ou FAIL) — inchangés ci-dessus.
+        blocking += list(verification.get("coherence_problems", ()))
         if blocking:
             self._finish_step(state, entry, "BLOCKED", {
                 "verdict_path": str(verdict_path),
@@ -1050,6 +1157,13 @@ class ForgeDriver:
                 "verify_run": verification,
             })
             return
+        # Dépositaire (ADR-002 §3, mission v4-brancher-propose-brick 2026-07-27) :
+        # ferme le maillon mesuré par docs/audit/ANALYSE_DEPOT_GAME_LOOP_2026-07-26.md
+        # (propose_brick existait, testé, exposé CLI, mais AUCUN appelant dans
+        # driver.py — grep vide). Appelé ICI, APRÈS la re-vérification verify_run
+        # (le `record` lu est donc authentifié), best-effort strict : ne peut jamais
+        # changer le statut de cette étape ni du run (cf. _propose_bricks).
+        self._propose_bricks(record)
         # OK = l'agrégation a tourné ET verify_run confirme l'authenticité du
         # reçu signé ; le verdict LOGICIEL (OK/FAIL/BLOCKED) est porté par son
         # contenu, pas par ce statut d'étape.
@@ -1059,6 +1173,81 @@ class ForgeDriver:
             "decision": record["decision"],
             "verify_run": "AUTHENTIQUE",
         })
+
+    def _propose_bricks(self, record: dict) -> None:
+        """Dépose une PROPOSITION de brique (studio_link.propose_brick,
+        PROPOSE-ONLY) pour chaque `brick_id` de `budget.adds` du contrat de jeu
+        — cf. games/pong/00_CHARTER/game_contract.yaml:12 (`adds: [game_loop]`).
+
+        PRÉDICAT DU DÉPÔT (docs/audit/ANALYSE_DEPOT_GAME_LOOP_2026-07-26.md §4a) :
+        UNIQUEMENT si `record["oracles"]["code"]["status"] == "OK"` — jamais sur
+        FAIL/BLOCKED. `record` est le verdict signé APRÈS re-vérification
+        `verify_run` (appelant : `_run_verdict`, sur le chemin où `blocking` est
+        déjà vide) : le statut lu ici est donc authentifié, pas seulement écrit.
+
+        `brick_id` vient EXCLUSIVEMENT de `budget.adds` (jamais dérivé d'un nom
+        de fichier — règle anti-invention, LEARNING_SUBJECT_MODEL_V1). `kind` est
+        fixé à `"system"` : c'est ce que `budget.adds` promet par construction du
+        curriculum (game_contract.yaml commente `adds` comme « UN seul systeme
+        neuf depose en bibliotheque »). `path` vient de la WireMap réelle du jeu
+        (09_WIREMAP/wiremap.json, `lines[].system_parent == brick_id`) quand elle
+        cite une adresse ; sinon replie sur le dossier du jeu — jamais un chemin
+        fabriqué qui n'existe pas sur disque.
+
+        PROPOSE-ONLY strict : écrit UNIQUEMENT sous lab/reports/ (ou
+        `self.brick_proposals_path` en test) — JAMAIS knowledge_base/catalog.json
+        (studio_link.propose_brick ne l'écrit jamais, promotion 100% humaine).
+
+        Best-effort STRICT (même garantie que record_telemetry / _journal_error) :
+        toute exception ici est journalisée et AVALÉE — ne doit jamais changer le
+        statut de cette étape ni celui du run.
+        """
+        try:
+            code_status = ((record.get("oracles") or {}).get("code") or {}).get("status")
+            if code_status != "OK":
+                return
+            game_contract = self._read_yaml(self.game_dir / "00_CHARTER" / "game_contract.yaml")
+            if not isinstance(game_contract, dict):
+                return
+            adds = (game_contract.get("budget") or {}).get("adds")
+            if not isinstance(adds, list):
+                return
+            wiremap = self._read_json(self.game_dir / "09_WIREMAP" / "wiremap.json") or {}
+            lines = wiremap.get("lines") if isinstance(wiremap.get("lines"), list) else []
+            game_dir_rel = self._repo_relative_str(self.game_dir)
+            for brick_id in adds:
+                if not isinstance(brick_id, str) or not brick_id:
+                    continue
+                addresses = sorted({
+                    ln.get("address") for ln in lines
+                    if isinstance(ln, dict) and ln.get("system_parent") == brick_id
+                    and isinstance(ln.get("address"), str) and ln.get("address")
+                })
+                path = f"{game_dir_rel}/{addresses[0]}" if addresses else game_dir_rel
+                propose_brick(
+                    self.run_id, self.project, brick_id, "system",
+                    f"Brique '{brick_id}' promise par budget.adds du contrat de "
+                    f"jeu {self.project} (run {self.run_id}, reçu code OK) — "
+                    "proposition brute déposée automatiquement ; kind/function/path "
+                    "à confirmer par Pierre au moment de la promotion.",
+                    path,
+                    proposals_path=self.brick_proposals_path,
+                )
+        except Exception:
+            logger.warning(
+                "proposition de brique non déposée pour %s (best-effort, non bloquant)",
+                self.run_id, exc_info=True,
+            )
+
+    @staticmethod
+    def _repo_relative_str(path: Path) -> str:
+        """Chemin lisible pour une proposition : relatif au dépôt si `path` y
+        vit (cas réel, `games/<projet>`), sinon la chaîne brute (un `game_dir`
+        de test sous `tmp_path`, hors dépôt) — jamais une exception."""
+        try:
+            return path.resolve().relative_to(_REPO_ROOT).as_posix()
+        except ValueError:
+            return path.as_posix()
 
     def _finish_step(self, state: dict, entry: dict, status: str, detail: dict,
                      etape: str | None = None) -> None:

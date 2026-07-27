@@ -20,7 +20,9 @@
                                      "Bash(git reset --hard*)",
                                      "Bash(git clean -fd*)",
                                      "Read(**\\.env*)",
-                                     "Bash(cat *.env*)"
+                                     "Bash(cat *.env*)",
+                                     "Write(.claude/HUMAN_GIT_OVERRIDE.json)",
+                                     "Edit(.claude/HUMAN_GIT_OVERRIDE.json)"
                                  ]
                     },
     "hooks":  {
@@ -31,6 +33,24 @@
                                                  {
                                                      "type":  "command",
                                                      "command":  "python .claude/hooks/pretool_forge_guard.py"
+                                                 }
+                                             ]
+                               },
+                               {
+                                   "matcher":  "Bash",
+                                   "hooks":  [
+                                                 {
+                                                     "type":  "command",
+                                                     "command":  "python .claude/hooks/pretool_git_guard.py"
+                                                 }
+                                             ]
+                               },
+                               {
+                                   "matcher":  "PowerShell",
+                                   "hooks":  [
+                                                 {
+                                                     "type":  "command",
+                                                     "command":  "python .claude/hooks/pretool_git_guard.py"
                                                  }
                                              ]
                                }

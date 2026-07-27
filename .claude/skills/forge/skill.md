@@ -240,9 +240,9 @@ propose_project_record(project, stage, folder)            # PROPOSED
 ```bash
 PYTHONPATH=scripts .venv312/Scripts/python.exe -m forge.verify_run lab/forge_runs/<projet>/verdict.json
 ```
-Trois issues, trois lectures — ne les confonds jamais :
-- **Exit 0** = authentique (HMAC re-signé + évidence re-lue + git_head comparé) → le verdict signé peut être présenté à **Pierre**.
-- **Exit 2** = falsifié/altéré (un verdict a été signé puis le contenu ou l'évidence a changé) → **STOP**, remonte à Pierre le **rejet**.
+Trois issues, trois lectures — ne les confonds jamais. Depuis V1 (2026-07-26, séparation intégrité/verdict — mémoire pong_r2), le code de sortie répond à UNE seule question, l'**authenticité**, jamais à la couleur du verdict logiciel : la sortie porte deux lignes distinctes, `INTÉGRITÉ : AUTHENTIQUE|REJET` et `VERDICT LOGICIEL : <software_verdict> / <decision>`.
+- **Exit 0** = **intégrité authentique** (HMAC re-signé + évidence re-lue + preuve mutation authentique + git_head comparé), **quel que soit le verdict logiciel affiché** → un FAIL/BLOCKED honnête (gate mutation rouge légitime, ex. pong_r2) sort désormais exit 0 avec `VERDICT LOGICIEL : FAIL / BLOCKED` : ce n'est PAS un succès, c'est un constat authentique à remonter tel quel à **Pierre**. Le seul cas où un gate mutation rouge fait encore échouer l'intégrité (exit 2) est un verdict qui **prétend** `software_verdict=OK` alors que son propre reçu mutation embarqué ne l'est pas (vert non prouvé — gate de cohérence, jamais relâché).
+- **Exit 2** = intégrité **REJET** : falsifié/altéré (HMAC, évidence, preuve mutation périmée) OU incohérent (OK affiché sur un gate mutation rouge) → **STOP**, remonte à Pierre le **rejet**.
 - **Exit 3** = verdict **absent ou illisible** — il n'y a rien à vérifier, donc rien n'a été signé, donc rien à présenter comme preuve. **Ce n'est PAS un rejet et encore moins un succès** : ne dis jamais « le run a réussi » ni « le run a échoué » sur cette seule base — le run n'a simplement produit AUCUN verdict exploitable. **STOP**, ne présente rien à Pierre : remonte-lui que la chaîne s'est arrêtée avant `s12-verdict` (ou que le chemin donné est faux) et qu'il n'existe aucun artefact à ratifier.
 
 Dans tous les cas hors exit 0 : **Tu ne décides jamais** merge/reject/freeze, et tu ne promeus jamais une proposition en mémoire de référence (ledger, projets) sans son go. Si une étape n'a pas d'oracle pour appuyer une affirmation → remonte un besoin HumanGate (fog), pas un claim (RÈGLE DE RESTITUTION).

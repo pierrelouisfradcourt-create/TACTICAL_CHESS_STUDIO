@@ -39,7 +39,8 @@ _KNOWLEDGE_TRACE_SCRIPT = Path(__file__).resolve().parent / "knowledge_trace.mjs
 _KNOWLEDGE_TRACE_TIMEOUT_S = 60
 
 
-def _check_mutation_proof(data: dict, key_file: Path | None) -> list[str]:
+def _check_mutation_proof(data: dict, key_file: Path | None, *,
+                          require_green: bool = True) -> dict:
     """P0.3 — redescend dans le reçu mutation embarqué du reçu code.
 
     Un verdict de JEU (marqueur e2e OU mutation dans le detail du reçu code) doit
@@ -47,10 +48,18 @@ def _check_mutation_proof(data: dict, key_file: Path | None) -> list[str]:
     (signature, run_id, hash code/tests/triage, baseline). La game-ness est
     dérivée AVANT le statut : un verdict de jeu non-OK sans preuve embarquée ne
     doit pas non plus passer overall=True (le court-circuit sur status==OK rendait
-    cette garde inatteignable — finding 2 de la revue P0.3)."""
+    cette garde inatteignable — finding 2 de la revue P0.3).
+
+    V1 (séparation intégrité/verdict) — `require_green` (défaut True, comportement
+    historique) est transmis tel quel à `verify_mutation_receipt`. Retourne
+    {problems, status, checked} : `status` est le statut BRUT du reçu (None si
+    aucun reçu n'a pu être lu — absence structurelle de preuve, jamais assimilé à
+    "vert"), `checked` indique si `verify_mutation_receipt` a bien été appelée
+    (False sur les deux branches structurelles : non-jeu, ou jeu sans preuve
+    embarquée du tout — ces deux cas ne dépendent PAS de `require_green`)."""
     code_r = (data.get("oracles") or {}).get("code")
     if not isinstance(code_r, dict):
-        return []
+        return {"problems": [], "status": None, "checked": False}
     detail = code_r.get("detail") or {}
     mut = detail.get("mutation")
     # Marqueurs de game-ness durables : preuve mutation, garde e2e, garde
@@ -65,16 +74,20 @@ def _check_mutation_proof(data: dict, key_file: Path | None) -> list[str]:
                or detail.get("solvability") is not None
                or "mutation_verification" in detail)
     if not is_game:
-        return []  # non-jeu : la mutation n'est pas exigée
+        return {"problems": [], "status": None, "checked": False}  # non-jeu
     if not isinstance(mut, dict):
         # Reçu de jeu (marqueur e2e/mutation) sans preuve embarquée : non ratifiable,
-        # quel que soit le statut.
-        return ["reçu code de JEU (marqueur e2e/mutation) sans preuve mutation embarquée"]
+        # quel que soit le statut ET quel que soit require_green (absence
+        # structurelle de preuve, pas une question de couleur de gate).
+        return {"problems": ["reçu code de JEU (marqueur e2e/mutation) sans preuve mutation embarquée"],
+                "status": None, "checked": False}
     receipt = mut.get("receipt") or {}
     game_dir = (receipt.get("detail") or {}).get("game_dir", "")
     chk = verify_mutation_receipt(receipt, mut.get("signature", ""),
-                                  data.get("run_id", ""), game_dir, key_file=key_file)
-    return [] if chk["passed"] else list(chk["raisons"])
+                                  data.get("run_id", ""), game_dir, key_file=key_file,
+                                  require_green=require_green)
+    return {"problems": [] if chk["passed"] else list(chk["raisons"]),
+            "status": chk.get("status") or None, "checked": True}
 
 
 def _check_knowledge_trace(run_dir: Path) -> tuple[list[str], list[str]]:
@@ -179,10 +192,12 @@ def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
         # accès `res["mutation_ok"]` ne lève jamais KeyError sur ce cas — mais
         # marqué `unreadable=True` pour que l'affichage reste honnête (ni "OK",
         # ni "FALSIFIÉ"/"ALTÉRÉE", qui sont des accusations de contenu altéré).
-        return {"overall": False, "unreadable": True,
+        return {"overall": False, "integrity_ok": False, "unreadable": True,
                 "reason": f"verdict absent ou illisible: {exc}",
                 "hmac_ok": False, "evidence_ok": False, "evidence_problems": [],
                 "mutation_ok": False, "mutation_problems": [],
+                "mutation_integrity_problems": [], "mutation_gate_green": None,
+                "mutation_status": None, "coherence_problems": [],
                 "git_ok": True, "git_stored": "", "git_current": current_git_head(),
                 "knowledge_trace_ok": False, "knowledge_trace_problems": [],
                 "knowledge_trace_warnings": [],
@@ -209,8 +224,45 @@ def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
     # (2ter) preuve mutation embarquée (P0.3) : échec DUR — contrairement à la
     # dérive git (repo-wide), le sceau mutation est spécifique aux fichiers du
     # jeu jugé ; sa divergence signifie que le verdict ne décrit plus la réalité.
-    mutation_problems = _check_mutation_proof(data, key_file)
-    mutation_ok = not mutation_problems
+    #
+    # V1 (2026-07-26, séparation intégrité/verdict — mémoire pong_r2) : DEUX
+    # registres, calculés séparément, plus jamais confondus :
+    #   - INTÉGRITÉ (`mutation_integrity_*`, require_green=False) : authenticité
+    #     du reçu — signature, run_id, empreintes code/tests, triage, évidence.
+    #     Un reçu mutation FAIL authentique et à jour ne ment sur RIEN : il reste
+    #     `integrity`-clean. C'est ce registre, et lui seul, qui alimente
+    #     `overall`/le code de sortie.
+    #   - VERDICT (`mutation_ok`/`mutation_problems`, LEGACY, require_green=True,
+    #     comportement identique à avant V1) : conservé pour les appelants/tests
+    #     existants, n'entre PLUS dans `overall`.
+    #   - COHÉRENCE (`coherence_problems`) : le SEUL cas où un gate mutation rouge
+    #     doit encore faire échouer l'intégrité — un verdict qui affiche
+    #     software_verdict=OK alors que son propre reçu mutation embarqué n'est
+    #     pas vert prétend un vert non prouvé (mensonge de provenance, pas
+    #     simplement un FAIL honnête). GATE DUR, ne doit jamais régresser.
+    _mutation_strict = _check_mutation_proof(data, key_file, require_green=True)
+    mutation_problems = _mutation_strict["problems"]  # LEGACY (rétro-compat)
+    mutation_ok = not mutation_problems                # LEGACY (rétro-compat)
+
+    _mutation_loose = _check_mutation_proof(data, key_file, require_green=False)
+    mutation_integrity_problems = _mutation_loose["problems"]
+    mutation_integrity_ok = not mutation_integrity_problems
+    mutation_status = _mutation_loose["status"]
+    mutation_gate_green = (
+        None if not _mutation_loose["checked"] else (mutation_status == "OK")
+    )
+
+    software_verdict = data.get("software_verdict")
+    coherence_problems: list[str] = []
+    if software_verdict == "OK" and _mutation_strict["problems"] and _mutation_loose["checked"]:
+        # Le reçu se vérifie (checked=True) mais échoue en mode strict alors que
+        # le verdict affiché prétend OK : soit le gate n'est pas vert, soit une
+        # autre divergence d'intégrité coexiste — dans les deux cas, un OK
+        # affiché ne doit jamais survivre à cette incohérence.
+        coherence_problems = [
+            f"verdict prétend software_verdict=OK alors que le gate mutation "
+            f"embarqué ne le confirme pas: {r}" for r in mutation_problems
+        ]
 
     # (3) dérive git (TOCTOU) : avertissement, pas échec dur.
     git_stored = data.get("git_head", "")
@@ -227,14 +279,25 @@ def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
     # un oracle de vérité logicielle (cf. _check_context_manifest ci-dessus).
     context_manifest_problems, context_manifest_notes = _check_context_manifest(path.parent, key_file)
 
-    overall = hmac_ok and evidence_ok and mutation_ok and knowledge_trace_ok
+    # `integrity_ok` (== `overall`, conservé pour rétro-compat) NE dépend PLUS de
+    # la couleur du gate mutation d'un verdict honnête — seulement de son
+    # authenticité (mutation_integrity_ok) et de sa cohérence interne
+    # (coherence_problems, gate dur décrit ci-dessus).
+    integrity_ok = (hmac_ok and evidence_ok and mutation_integrity_ok
+                    and knowledge_trace_ok and not coherence_problems)
+    overall = integrity_ok
     return {
         "overall": overall,
+        "integrity_ok": integrity_ok,
         "hmac_ok": hmac_ok,
         "evidence_ok": evidence_ok,
         "evidence_problems": evidence_problems,
         "mutation_ok": mutation_ok,
         "mutation_problems": mutation_problems,
+        "mutation_integrity_problems": mutation_integrity_problems,
+        "mutation_gate_green": mutation_gate_green,
+        "mutation_status": mutation_status,
+        "coherence_problems": coherence_problems,
         "git_ok": git_ok,
         "git_stored": git_stored,
         "git_current": git_current,
@@ -278,14 +341,30 @@ def main(argv: list[str] | None = None) -> int:
         print(f"verdict          : absent ou illisible ({res.get('reason')})")
         print("\nVÉRIFICATION : IMPOSSIBLE (aucun verdict.json exploitable à cet emplacement)")
         return 3
-    print(f"verdict          : {res.get('software_verdict')} / {res.get('decision')}")
+    # V1 (séparation intégrité/verdict, design imposé pt.5) : deux lectures
+    # distinctes, JAMAIS fusionnées. « VERDICT LOGICIEL » est un FAIT RAPPORTÉ
+    # (peut être FAIL/BLOCKED sans que ce soit un rejet) ; « INTÉGRITÉ » (en bas)
+    # est LA seule ligne qui décide le code de sortie.
+    print(f"VERDICT LOGICIEL : {res.get('software_verdict')} / {res.get('decision')}")
     print(f"HMAC             : {'OK' if res['hmac_ok'] else 'FALSIFIÉ'}")
     print(f"évidence intacte : {'OK' if res['evidence_ok'] else 'ALTÉRÉE'}")
     for p in res.get("evidence_problems", []):
         print(f"   ✗ {p}")
-    print(f"preuve mutation  : {'OK' if res['mutation_ok'] else 'INVALIDE/PÉRIMÉE'}")
-    for p in res.get("mutation_problems", []):
+    # `mutation_integrity_problems` est la forme V1 ; retombe sur `mutation_problems`
+    # (forme historique) pour des appelants/mocks qui ne rendraient encore que
+    # l'ancienne clé — jamais de KeyError sur un résultat façonné à la main.
+    mutation_integrity_problems = res.get("mutation_integrity_problems")
+    if mutation_integrity_problems is None:
+        mutation_integrity_problems = res.get("mutation_problems", [])
+    print(f"preuve mutation (intégrité) : {'OK' if not mutation_integrity_problems else 'INVALIDE/PÉRIMÉE'}")
+    for p in mutation_integrity_problems:
         print(f"   ✗ {p}")
+    mutation_status = res.get("mutation_status")
+    if mutation_status is not None:
+        vert = "vert" if res.get("mutation_gate_green") else "rouge"
+        print(f"gate mutation (verdict logiciel, non bloquant) : {vert} (status={mutation_status})")
+    for p in res.get("coherence_problems", []):
+        print(f"   ✗ [cohérence] {p}")
     print(f"knowledge_trace  : {'OK' if res.get('knowledge_trace_ok', True) else 'REJET (théâtre/corrompu)'}")
     for p in res.get("knowledge_trace_problems", []):
         print(f"   ✗ {p}")
@@ -293,7 +372,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"   ⚠ {w}")
     if not res["git_ok"]:
         print(f"⚠ dérive git : signé {res['git_stored'][:12]} != courant {res['git_current'][:12]} (TOCTOU)")
-    print(f"\nVÉRIFICATION : {'AUTHENTIQUE' if res['overall'] else 'REJET'}")
+    print(f"\nINTÉGRITÉ : {'AUTHENTIQUE' if res['overall'] else 'REJET'}")
     return 0 if res["overall"] else 2
 
 
