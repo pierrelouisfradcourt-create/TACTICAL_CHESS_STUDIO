@@ -29,6 +29,9 @@ question exacte · issues.
 - **Rappel** : événement — validation de M1.
 - **Question exacte** : « Lancer la mission injection mesurée via Context Manifest ? »
 - **Issues** : lancer · attendre · supprimer (revient sur D5-direction).
+- **2026-07-26 — condition atteinte, question reposée, réponse Pierre : CONTINUER À ATTENDRE.**
+  Nouvelle échéance (obligatoire) : événement — Pong livré VERT sous standard. Raison :
+  « assez travaillé l'infrastructure, il faut la tester » — une variable à la fois.
 
 ## DR-03 — Préflight « preuve de mutation possible » avant s9-build
 - **Raison du report** : n=2, même journée, runs de patch — peut-être une erreur opérateur.
@@ -72,6 +75,12 @@ question exacte · issues.
 - **Question exacte** : « Ce run se lance-t-il en tier fixe opus pour séparer tier et
   rang de tentative (H3) ? »
 - **Issues** : lancer · attendre · supprimer (H3 restera indécidable).
+- **2026-07-26 — condition atteinte (M1 verte + run Pong planifié), question reposée.
+  Réponse Pierre (verbatim)** : « opus c'est que pour les petits agents codeur.
+  l'orchestrateur c est toujours opus ». **Interprétation orchestrateur (à corriger si
+  fausse)** : LANCER — builders du run Pong en tier fixe opus dès la tentative 1
+  (H3 devient décidable), run_orchestrator en Opus comme déjà ratifié 2026-07-23.
+  Entrée CLOSE pour ce run ; H3 sera jugée sur ses données.
 
 ## DR-08 — Worktrees Codex (db55/dbdf) + tag archive
 - **Raison du report** : suppression jamais explicitement demandée ; contenu prouvé

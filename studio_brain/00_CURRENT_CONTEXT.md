@@ -1,5 +1,220 @@
 # Contexte courant TCS
 
+## ÉTAT AU 2026-07-27 fin de session — NIVEAU 1 VALIDÉ, 4 LIVRABLES PRÊTS, ATTENTE PIERRE
+- **Pierre a validé le niveau 1** (« software_verdict OK niveau 1 ») et **renversé la priorité** :
+  le niveau 1 est un **socle de preuve**, pas le chantier principal ; le but est de reconnecter la
+  chaîne de fabrication. **Pas de claim « studio prêt » avant le premier cycle complet.**
+  Ses 4 invariants posés : playtest non lu = sans valeur · `observable_by_player` = contrainte de
+  qualité · `NOT_MEASURED != OK` · l'incident git = défaut de garde, pas de discipline.
+- **Niveau 1 livré et contre-vérifié** : item 0 playtest consigné ET relu par le pré-mortem ·
+  étape 1 findings red-team audibles · étape 2 périmètre mutation par catégorie (46 % vs 95 %
+  séparés) · étape 3 oracle produit 3 volets (1 faux vert intercepté par la contre-vérification).
+  Suite : **945 passed, 1 skipped**. Détail complet : `lab/forge_runs/RUN_INDEX.md`.
+- **4 livrables PRÊTS, en attente de validation** (détail RUN_INDEX, missions P1/P2/P3) :
+  `docs/forge/WIREMAP_PONG_V2_PROPOSITION_FINALE.md` · `GENRE_BIBLE_PONG_V1_PROPOSED.md` ·
+  `GARDE_GIT_MECANIQUE_PROPOSITION.md` (+ `scripts/forge/git_guard.py`, hook, 28 tests) ·
+  `PLAN_COMMITS_PAR_LOTS_2026-07-27.md`.
+- **3 DÉCISIONS QUI BLOQUENT LE PREMIER CYCLE** : (1) le `deny` sur `.claude/HUMAN_GIT_OVERRIDE.json`
+  — sans lui un agent s'écrit son propre override (`settings.json` porte `allow Write(.claude/**)`),
+  le garde ne vaut rien ; (2) `IMPLEMENTED → REQUIRED` sur les 4 lignes requalifiées ; (3) l'ordre
+  des lots — **le lot 2 dépend du lot 1** (17 contrats déclarent `forge_toolsmith`, ajouté par
+  roles.yaml dans le lot 1 ⇒ sinon `RoleUnresolved` sur tout dispatch).
+- **Critère du premier cycle : les 6 preuves de bouclage** (ultraplan §VII.3), PAS un vert global.
+  « Un cycle médiocre mais correctement observé est préférable à un cycle artificiellement vert. »
+- **Niveau 2, ordre ratifié U-4** : 1 résolution ID + source_role · 2 World Scan→Genre Bible ·
+  3 Prisme→Bible + Gameplay Review · 4 Architecte→bibliothèque · 5 Runtime Bible · 6 findings→bibles ·
+  7 s6 (déblocage technique : contrat ouvert à reviewer local/humain/autre modèle — U-8).
+- **83 fichiers non commités** · session Godot parallèle toujours active dans le même arbre.
+
+## Session 2026-07-27 (suite de session, fable→opus→fable) — AUDIT D'ALLÈGEMENT rendu
+- **Playtest Pierre du produit réel** (après lancement navigateur par la session) : quitter
+  inerte · vitesse injouable · pas d'adversaire auto · score/UX non validés · pas de colis
+  Godot. Mission Pierre : audit d'allègement AVANT toute implémentation.
+- **Au passage, 2 bugs de chargement navigateur trouvés et corrigés (NON COMMITÉS)** :
+  audio.mjs (imports node:* statiques) + exit.mjs (process non gardé) — le jeu n'avait
+  JAMAIS booté dans un vrai navigateur ; 51 tests + solvabilité re-vérifiés verts après fix.
+  Serveur de test : python -m http.server + .claude/launch.json (nouveau).
+- **3 audits sous contrat rendus et contre-vérifiés** (A1 chaîne · B1 tests · C1 oracle/colis)
+  → synthèse : **docs/audit/RAPPORT_DECISION_ALLEGEMENT_2026-07-27.md** (5 sorties + fourche
+  colis V1). Diagnostic central : l'usine prouve la MÉCANIQUE, jamais le PRODUIT — cause
+  racine commune des 4 constats = saut e2e du profil standard (ratifié 23-07, driver.py:745)
+  + s10d jamais branché + captures jamais appelées + mutation aveugle sur la présentation.
+- **5 décisions attendues de Pierre (détail §5 du rapport)** : D-A remplacer le saut e2e par
+  un oracle produit (captures existantes + partie auto, PAS Playwright) · D-B périmètre
+  mutation par catégorie (= résout l'arbitrage ③ suspendu) · D-C cible du colis V1
+  (navigateur ~90 % existant vs Godot direct — reco : navigateur V1, Godot V2 via godot_b0) ·
+  D-D go téléchargement export templates Godot · D-E go passe de spécification jouabilité
+  (adversaire, vitesse, quitter, score, écran de fin — AUCUN n'est dans la wiremap).
+- **Faits neufs vérifiés** : godot.config.json créé le 27-07 02:04 par la session parallèle
+  godot_b0 (le fog wiremap l.107 est périmé) · main.gd Pong = renderer d'état FIGÉ (pas un
+  jeu) · aucun export template/preset Godot sur le poste · Playwright absent de la lane.
+- **VOLET D1 (boucle de rétroaction, question Pierre) rendu et contre-vérifié** : verdict
+  PARTIEL→NON pour la chaîne exécutée — le profil standard N'A PAS d'architecte (ni s4 ni s5
+  dans PROFILES, 13/13 lignes wiremap `decider:null`) · boucles fermées récentes = intégrité
+  seulement · red-team avait trouvé F1-vitesse et F6-exit AVANT le playtest, findings morts
+  non pliés · densité mesurée : 8 exécutions pour 13 preuves vs 1 run auto = 12-13/13 ·
+  **5e occurrence connecteur : learning_curve écrite, AUCUN lecteur décisionnel**.
+- **ULTRA-PLAN MÉTHODE DE FABRICATION (PROPOSED — le document de référence du chantier)** :
+  `docs/forge/ULTRAPLAN_METHODE_FABRICATION_V1.md`. Demande Pierre : remonter le niveau — définir
+  la méthode IDÉALE d'abord, comparer au dépôt ensuite. Contenu : 6 postes studio (taxonomie
+  jeux, pas Front/Back) · les 7 étapes RECHERCHE→CONCEPTION→ARCHITECTURE→PLANIFICATION→
+  PRODUCTION→VALIDATION→APPRENTISSAGE avec les 7 réponses chacune (rôle/décision/entrée/sortie/
+  artefact-mémoire/oracle/retour) · boucle de connaissance (créée/perdue/relue/propriétaire) ·
+  Prisme comme ÉTAPE de conception (5 livrables identiques par lentille) · 6 bibles avec
+  créateur/lecteur/moment/MAJ/preuve · 10 reviews (avant/pendant/après) · **matrice de
+  comparaison au réel** · plan à 3 NIVEAUX.
+  **RÉSULTAT CLÉ DE LA MATRICE : sur 13 éléments, UN SEUL est réellement absent** (Gameplay
+  Review) + 1 à créer en minimal (oracle produit) ; **6 existent mais non branchés**, 1 est mal
+  spécifié (s4-archi), 3 fonctionnent. ⇒ **chantier de plomberie et de mesure, pas de
+  construction.**
+  **DÉCOUVERTE ACTIONNABLE (5 min)** : `record_playtest` EXISTE + CLI (`studio_link.py:674`),
+  son docstring dit « avant R2 un retour de playtest était une conversation qui s'évaporait » —
+  et il y a **0 entrée playtest** dans les journaux ⇒ **les 4 constats du playtest Pierre du
+  27-07 s'évaporent en ce moment**. Les consigner contraint mécaniquement le pré-mortem du
+  prochain build. C'est l'item 0 du niveau 1.
+  **NIVEAU 1** (≈3 j + 1 run) = plan run propre + item 0 · **NIVEAU 2** (≈9-11 j, N2-0→N2-8,
+  `source_role` + résolution des ID EN PREMIER) · **NIVEAU 3** = 5 mesures à surveiller, pas des
+  briques à construire (citations résolues, reuse_ratio, retenues par lentille, coût par jeu
+  vert, findings convertis) + ce qui est explicitement différé (réconciliation G, MCTS E).
+  **RÉSERVE ARGUMENTÉE** : l'architecte du dépôt recommandé en ÉTAPE (il doit DÉCIDER new|extend
+  après le merge) plutôt qu'en lentille (qui critique en parallèle et ne décide rien) — arbitrage
+  U-5 laissé à Pierre. 9 décisions U-1→U-9.
+- **FEUILLE DE ROUTE CONSOLIDÉE (PROPOSED)** : `docs/forge/ROADMAP_USINE_APPRENANTE_V1.md` —
+  les 18 points de Pierre (dont la **couche BIBLE**, sa pièce manquante n°1 : « sans bibles,
+  World Scan est une dépense ») regroupés en **6 lots A→F** par dépendance mécanique.
+  **MESURE CLÉ : la couche bible existe à ~60 %** — 10 bibles réelles auto_battler ·
+  filière Art Bible = la plus mûre du studio (contrat s2.5 + check_artbible.mjs 369 l. +
+  8 dispatches + sondes adversariales) = **le patron à répliquer** · écrivain
+  `propose_bible_entry` EXISTE avec CLI mais **0 appelant** ⇒ `forge_bible_proposals.jsonl`
+  jamais créé · lecteur `project_bible` EXISTE et EST BRANCHÉ (driver.py:448 → run_real.py:568)
+  mais **seulement à s0**, absent du profil standard · citation-par-ID = 118 citations mais
+  **l'ID n'est jamais résolu** (présence de nom seule ; l'audit P2 dit « *vivante* surévalue »).
+  Manque réellement : la **bible de GENRE** (les bibles actuelles sont par jeu).
+  **APPORT D'ANALYSE** : le mode de panne dominant est **écrivain sans appelant / lecteur sans
+  données — 6 occurrences prouvées** (learning_metrics · propose_brick · findings red-team ·
+  learning_curve · spawn_authorized · propose_bible_entry) ⇒ **règle de gouvernance du plan** :
+  aucune boucle n'entre sans (a) appelant, (b) lecteur nommé, (c) mesure mécanique qu'elle a
+  tiré — sinon la couche bible sera le 7e orphelin.
+  **Séquence recommandée A→B→C→D→E, pas en parallèle** : A rendre la critique audible (1,5 j,
+  conditionne tout) → B oracle produit (3-5 j, sans lui la valeur de C est inobservable ET Pong
+  reste bloqué) → C profil design (4-4,5 j) → D bibles (4-6 j) → E boucle bibliothèque (1-2 j).
+  **Critère de valeur d'une bible proposé** : citations RÉSOLUES / citations revendiquées
+  (l'équivalent de reuse_ratio pour la connaissance). **Test le moins cher avant tout
+  engagement** : profil design sur la wiremap Pong actuelle — s'il ressort les 4 constats du
+  playtest, la thèse est démontrée sans build. 6 décisions D-α→D-ζ.
+- **DIAGNOSTIC PIERRE 2026-07-27 (le vrai problème)** : « la Forge répond bien à *construis-moi
+  un jeu*, mal à *est-ce qu'on construit le bon jeu ?* » — ce qui manque = des **boucles de
+  review qui font évoluer le design AVANT de payer un build** (Design · World Research ·
+  Gameplay · Architecture), + 2 profils Prisme (Programmeur Gameplay, Programmeur Runtime),
+  + l'Architecte redéfini comme **architecte du DÉPÔT** (briques interchangeables, API
+  réutilisable, « le builder pense au jeu, l'architecte pense au studio »).
+- **MESURE QUI CORRIGE LE DIAGNOSTIC (et le renforce)** : la moitié conception N'EST PAS
+  non-fonctionnelle — elle a tourné puis a été **abandonnée par le choix de profil du 22-07**.
+  Compté sur dispatch_audit (198 lignes, 37 runs, 07-10→07-27) : `s6-redteam-plan` **14
+  dispatches / 8 runs** (jusqu'à card_engine 07-20) — le retour red-team→architecte a
+  RÉELLEMENT tourné, son contrat porte « RE-ENTRÉE de la boucle » · s4-archi 8 · s5-wiremap 8 ·
+  s1-prisme 6 · s2-worldscan 6. ⚠️ PIÈGE D'INSTRUMENT : le champ `event` n'existe que sur les
+  lignes récentes — filtrer dessus efface 30+ runs anciens (erreur commise puis corrigée).
+- **PROPOSITION (PROPOSED)** : `docs/forge/PROPOSAL_PROFIL_DESIGN_V1.md` — profil **`design`**
+  (s2-worldscan · s1-prisme N lentilles · sX-gameplay-review · s4-archi re-spécifié ·
+  s6-redteam-plan) qui **ne produit AUCUN code** : sortie = wiremap V2 + dossier de conception.
+  3 des 4 boucles EXISTENT (re-câblage), 1 seule CRÉATION (Gameplay Review), 1
+  RE-SPÉCIFICATION (s4-archi : son objectif actuel = blueprint modules/deps, **zéro mention**
+  de bibliothèque/brique/API transverse — diagnostic de Pierre confirmé par le contrat).
+  `merge_prisme.mjs` EXISTE déjà (recombinaison mécanique N lentilles, zéro LLM-arbitre, GAP
+  explicites) ⇒ les 2 profils = 2 lentilles à servir, pas un panel à construire. `source_role`
+  toujours pas implémenté (prérequis gratuit, irrécupérable après coup).
+  **Garde-fou anti-théâtre** : wiremap V2 ≠ V1 ET chaque ligne du diff attribuable à une
+  critique nommée. **Test rétroactif le moins cher** : passer le profil design sur la wiremap
+  Pong ACTUELLE — s'il ressort les 4 constats du playtest, la boucle est démontrée sans build.
+  ≈4-4,5 j-session. S1 (plier findings red-team) devient prioritaire, sinon les critiques du
+  profil design mourront comme F1/F6.
+- **COMPARATIF SCHÉMA MAÎTRE ↔ RÉEL (PROPOSED)** : `docs/forge/COMPARATIF_SCHEMA_VS_REEL_2026-07-27.md`.
+  FAIT DE CADRAGE : le profil `standard` (celui du curriculum) = **5 étapes, MOITIÉ ARRIÈRE
+  SEULEMENT** (build+oracles+verdict) — aucune étape ne forme l'exigence (pas de s0/s1/s5),
+  et `_freeze_rules` (driver.py:517) ne se déclenche qu'après s5 ⇒ **le standard n'a même pas
+  d'événement de gel**. Réconciliation (Détail G) toujours non codée — n'existe que dans des
+  commentaires ; ses règles sont vérifiées par s10s APRÈS le build. D'où les 3 « jamais
+  spécifié ». Nous sommes DANS le plan, avec les CIBLES du plan non construites.
+  Ce qui fonctionne (vérifié) : pyramide/retry/pool/escalade · JALON 0 franchi 3/4 ·
+  troisième cerveau ratifié. Angles morts classés 1-6 + **5 solutions graduées S1-S5**
+  (~5-8 j-session au total) ; **correction de ma propre proposition d'hier** : `proof_review`
+  ne peut pas s'accrocher « au gel » (inexistant en standard) ⇒ commande pré-run sur la
+  wiremap écrite à la main. 6 décisions attendues (D-1→D-6, dont mise à jour du schéma).
+- **PROPOSITION DÉPOSÉE (PROPOSED, décision Pierre)** :
+  `docs/forge/PROPOSAL_BOUCLE_PREUVE_V1.md` — brique « REVUE DE PREUVE » : volet
+  `proof_review` déterministe au gel (fidélité/observabilité-joueur/densité/coût, rapport à
+  l'architecte HUMAIN avant build) + « dossier architecte » post-s12 (plieur qui donne enfin
+  un lecteur au red-team et à learning_curve, relu au gel suivant). ~2,5-3,5 j-session,
+  advisory d'abord, aucun LLM-juge. Rien codé.
+
+## Session 2026-07-26 (Fable, 3e) — JALON 0 DÉROULÉ + run Pong pong_r2 LANCÉ
+- **Les 4 décisions du JALON 0 prises par Pierre et exécutées** :
+  ① decision-log : 3 entrées PROMUES (go explicite « fais-le toi-même ») ⇒ **protocole
+  Troisième Cerveau V1/V1.1 RATIFIÉ** ; fichier PROPOSED marqué PROMU.
+  ② **M1 EXÉCUTÉE et contre-vérifiée P7** : agent Sonnet sous contrat
+  (`contracts/m1-telemetrie-echec.yaml`, nouveau rôle `forge_toolsmith`→Sonnet dans
+  roles.yaml, à ratifier au commit). TDD RED→GREEN, 853 passed/1 skipped relancés par
+  l'orchestrateur, advisory strict tenu, rétroactif shmup : la télémétrie aurait dit
+  opus (pas haiku). Échec d'étape ⇒ ligne `outcome:HALT` + coût + modèle réel.
+  ③ M01 : re-mesure post-fix bb6ea2f VERTE (39/39 + R9 50/50, plus de tautologie) MAIS
+  clean pass impossible par mesure seule — 5/6 flags structurels (archi/wiremap SKIPPED
+  étape 0, 2 mutants équivalents prouvés, bande [26,26], duplication générateur).
+  Décision Pierre : « re-mesure propre » — reste `candidate`, mission dédiée à chiffrer.
+  ④ s10s→driver : brouillon RATIFIÉ le jour même (« Ratifier et lancer maintenant »),
+  mission EXÉCUTÉE et contre-vérifiée : 855 passed/1 skipped, garde `driver.py:954`
+  (RuntimeError si attempts<1) + test négatif. Cause du FAIL/attempts:0 : brouillon
+  jamais versionné antérieur à 74f3dd0 — chemin disparu, invariant désormais explicite.
+- **DEFERRED** : DR-07 CLOSE (réponse Pierre : builders opus fixe, orchestrateur opus) ·
+  DR-02 reposée → ATTENDRE, nouvelle échéance = Pong vert · DR-01 attend 1re ligne HALT réelle.
+- **RUN PONG `pong_r2` EN COURS** (profil standard, run_orchestrator Opus sous contrat,
+  step-timeout 3600) : tentative 1 = BLOCKED propre (run_dir dérivé de --project occupé
+  par le state du run halté pong-01) ⇒ levée ZÉRO-CODE : archive `git mv` →
+  `lab/forge_runs/pong-01_halted/` (committée à d77fb30, pièce à conviction sûre).
+  Tentative 2 : state neuf `run_id: pong_r2` dans `lab/forge_runs/pong/`, s9 RUNNING
+  (Opus, tentative 1). RUN_INDEX à jour (entrées M1 + s10s + pong_r2 à la clôture).
+- **RUN pong_r2 TERMINÉ (DONE, 2329 s, verdict signé FAIL/BLOCKED re-vérifié 2×)** :
+  s9 OK×2 opus · s10a FAIL×2 (mutation 58/126, 68 survivants 0 triés) · s10s FAIL×2
+  (budget seul : game_loop promis non déposé — placement RÉGLÉ) · s11 OK · s12 OK.
+  1er coût mesuré par M1 : **13,82 $ / 123 965 tokens**. HALT : 0 (absence d'échantillon
+  ⇒ DR-01 toujours sans donnée). LA CHAÎNE COMPLÈTE A TENU (porte→contrat→driver→
+  retry compté→verdict signé→re-vérif) — l'infrastructure est testée, le jeu ne passe pas.
+- **4 décisions Pierre ouvertes (détail RUN_INDEX pong_r2)** : ① écart verify_run
+  (FAIL honnête ⇒ REJET, gate mutation dur inconditionnel — fix du 24/07 à ratifier) ·
+  ② budget game_loop (déposer la brique ou requalifier la promesse) · ③ 68 survivants
+  mutation (tuer / triager / arbitrer si adaptateurs présentation ∈ logic_files —
+  arbitrage STANDARD) · ④ sort de Pong + archive pong-01_halted.
+- **LES 4 DÉCISIONS POST-RUN TRANCHÉES PAR PIERRE ET TRAITÉES (2026-07-26, session opus-5)** :
+  ① fix `verify_run` RATIFIÉ et LIVRÉ (mission V1) — intégrité (HMAC/évidence/empreintes/
+  knowledge_trace/cohérence) décide seule le code de sortie ; verdict logiciel rapporté.
+  Sur pong_r2 : exit 2/REJET → **exit 0 / « INTÉGRITÉ : AUTHENTIQUE » + « VERDICT LOGICIEL :
+  FAIL »**. Nouveau gate dur : un verdict affichant OK sur gate mutation rouge reste rejeté
+  (formule verify_run.py:286, prédicat l.257, lus par la supervision). Doctrine dédupliquée
+  (driver.py:1105 consomme `coherence_problems`). Gate mutation du driver intact.
+  ② cause du non-dépôt de `game_loop` ÉTABLIE — « implémenté et non branché » :
+  `studio_link.propose_brick` (l.563) sans aucun appelant, alors que `pending_review.mjs`
+  documente cette file comme sa 5e source ⇒ **4e occurrence de « déclaré ≠ exécuté »,
+  forme connecteur : lecteur câblé, écrivain sans appelant**. CORRIGÉ (mission V4,
+  propose-only, dépôt uniquement si reçu code OK). Brique NON déposée : code FAIL.
+  ③ arbitrage mutation SUSPENDU par Pierre en attente d'analyse — analyse LIVRÉE :
+  répartition **binaire** des 68 survivants (3 systèmes 58/61 = 95 % · 7 adaptateurs
+  0/65 = 0 %, intuables car les tests scellés n'importent que 05_SYSTEMS/) ; inclusion des
+  adaptateurs = **effet de bord** de 2 filtres alors que repo_map.yaml:61-63 distingue déjà
+  `system.adapter`. 3 options + voie triage documentées. **DÉCISION PIERRE ATTENDUE.**
+  ④ pong_r2 CONSERVÉ comme référence historique (intact).
+- **CHAÎNE DE DÉPENDANCE — à ne pas re-découvrir** : ③ non arbitré ⇒ gate mutation rouge ⇒
+  reçu code FAIL ⇒ aucune proposition de brique ⇒ volet budget rouge ⇒ **Pong rouge**.
+  ① et ② sont justes mais ne débloquent PAS Pong. `pong_r3` TENU EN ATTENTE (relancer avant
+  ③ = même verdict pour ~14 $ / 40 min). Suite de tests de référence : **869 passed, 1 skipped**.
+- **⚠️ SESSION PARALLÈLE ACTIVE** : `scripts/forge/adapters/godot/` + `fixtures/godot_b0/`
+  créés cette nuit 02:08→02:24 par une autre session (specs `2026-07-26-godot-adapter-b0`).
+  Travail mélangé dans le même arbre ⇒ committer par LOTS, et risque `git checkout` réactivé.
+- **En suspens à la clôture** : 8 commits + tout le travail du jour NON POUSSÉS (gate DR-09) ·
+  archivage 00_CURRENT_CONTEXT >100 lignes = DR-10 (différé, ne pas faire en passant) ·
+  M01 : mission clean-pass à chiffrer si Pierre la veut · désynchronisation signalée non
+  investiguée : `verdict.json` porte `triaged_survivors: []` alors que la liste des non-triés
+  (57) exclut déjà les 3 sites triés.
+
 ## Session 2026-07-26 (Fable, suite) — Troisième Cerveau : décisions D1→D6 + pré-run TERMINÉ
 - **D1→D6 tranchées par Pierre** (détail : `decisions/PROPOSED_2026-07-26_ratifications.md`,
   entrée THIRD_BRAIN_DECISIONS_V1) : D4 ratifications → decision-log versionné (skill `/gate`

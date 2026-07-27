@@ -1,4 +1,9 @@
-# Ratifications Pierre — 2026-07-26 (PROPOSED)
+# Ratifications Pierre — 2026-07-26 (PROMU)
+
+> **PROMU au decision-log le 2026-07-26** (les 3 entrées copiées verbatim dans
+> `decision-log.md`) par la session Troisième Cerveau sur go explicite Pierre — JALON 0
+> décision ①. Cette promotion vaut ratification du protocole V1/V1.1 (destination D4).
+> Ce fichier reste comme trace de rédaction — ne plus le modifier.
 
 > Rédigé au format du `decision-log.md`, **à promouvoir par Pierre lui-même** (le log stipule
 > « Seul Pierre peut ajouter/modifier des entrées »). Source : session de consolidation du
