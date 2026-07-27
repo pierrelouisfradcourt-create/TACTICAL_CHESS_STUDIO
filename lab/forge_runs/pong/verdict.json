@@ -1,38 +1,35 @@
 {
- "catalog_brick_ids_snapshot": [
-  "pat-damage-floor",
-  "pat-full-reachability",
-  "pat-zone-of-control",
-  "sys-damage-floor",
-  "sys-evader-basic",
-  "sys-grid-nav-m01",
-  "sys-guardian-zoc",
-  "sys-pursuer-continuous",
-  "sys-pursuer-mobile",
-  "sys-reachability"
+ "claim_verdict": "NO_CLAIM_ALLOWED",
+ "decision": "BLOCKED",
+ "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+ "git_head": "52842df3282139645f37d1e9e6ace6b88c948dbd",
+ "hmac": "69f720621e335b79bd57c9cc1ab2de3cdfada8ae0f5009bb5de568e339657898",
+ "humangate_flags": [
+  "archi non vérifiée (oracle sauté dans ce profil)",
+  "wiremap non vérifiée (oracle sauté dans ce profil)",
+  "standard rouge: ['budget']",
+  "red-team dégradé: reviewer indépendant n'a pas tourné (fallback)"
  ],
- "created_ts": 1785093166.304924,
- "escalations": 0,
- "humangate_notes": [
-  "escalade refusée: déjà au tier max (opus) — escalade impossible, remonter HumanGate"
- ],
- "is_game": true,
- "model_override": null,
- "pool_attempts": 1,
- "profile": "standard",
- "project": "pong",
- "run_id": "pong_r2",
- "run_status": "DONE",
- "steps": {
-  "s10a-oracle-code": {
-   "attempts": 2,
+ "nonce": "36b80b01e6131f0e393efcda238bb175",
+ "oracles": {
+  "archi": {
+   "detail": {
+    "reason": "non applicable au profil standard"
+   },
+   "evidence_path": "",
+   "evidence_sha256": "",
+   "oracle_id": "archi",
+   "run_id": "pong_r2",
+   "status": "SKIPPED",
+   "ts": 1785095495.3740263
+  },
+  "code": {
    "detail": {
     "e2e": {
      "checked": false,
      "reason": "profil standard : preuve par bot_action/pixel (core_requirements.yaml ne déclare aucune preuve e2e), décision Pierre 2026-07-23",
      "status": "SKIPPED"
     },
-    "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\pong\\evidence\\oracle_pong.log",
     "harness_no_hardcoded_flags": {
      "passed": true,
      "raisons": []
@@ -182,11 +179,14 @@
      "topology": "standard"
     }
    },
+   "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\pong\\evidence\\oracle_pong.log",
+   "evidence_sha256": "864564accbd712f0b2a8437f6c4d8a234ed1e592a7f7c046f26c07c288e9902c",
+   "oracle_id": "code",
+   "run_id": "pong_r2",
    "status": "FAIL",
    "ts": 1785095058.2418373
   },
-  "s10s-oracle-standard": {
-   "attempts": 2,
+  "standard": {
    "detail": {
     "budget": {
      "chevauchement": [],
@@ -248,60 +248,31 @@
      "systeme_categorie_non_mappee": []
     }
    },
+   "evidence_path": "",
+   "evidence_sha256": "",
+   "oracle_id": "standard",
+   "run_id": "pong_r2",
    "status": "FAIL",
    "ts": 1785095058.2868607
   },
-  "s11-redteam-code": {
-   "attempts": 1,
+  "wiremap": {
    "detail": {
-    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\pong\\artifacts\\s11-redteam-code.txt",
-    "artifact_sha256": "e3e5f7e9c1f2c4179bec06758e90274db11791dcff282a782e30515c105a4953",
-    "cost_usd": 1.964158,
-    "duration_s": 437.0176386833191,
-    "model": "claude-opus-4-8",
-    "model_override": null,
-    "output_excerpt": "is traversant, **aucun point marqué** » → **falsifiable et faux**. Repro déterministe fournie : `step(...,{vx:300}).state.score.p2 === 1`.\n\n**F2 — MEDIUM — assertion incomplète.** L'oracle no-tunnel n'assère que `ns.score.p1===0` (message = « aucun point ») et lit `ns.ball.x` recentré. C'est le mécanisme exact qui laisse F1 passer en CI.\n\n**F3 — MEDIUM — rebond vertical non robuste.** Réflexion mono-latérale : à `|vy|` élevé la balle sort du terrain (`ball.y=844`) → `step` renvoie un état que `isValidState` rejette, sans le signaler. Le « à toute vitesse » n'a jamais couvert l'axe vertical.\n\n**F4 — LOW — interpolation faussée** quand rebond mural + franchissement raquette partagent un tick (`yHit` utilise `ny` déjà réfléchi). Pas de contre-exemple propre à vitesse de jeu → remonté sans claim.\n\n**F5 — LOW — calcul mort.** `Math.abs(serveVx(...))` à L114 = constante 3 : la direction de re-service ne dépend jamais du seed/parité, contredisant la doc state.mjs. La triage `ge->gt` est correcte, mais l'équivalence existe *parce que* le code autour est mort.\n\n**F6 — LOW — preuve tautologique.** `requestExit` appelle `process.exit(0)` inconditionnellement ; « aucune ressource laissée active » n'est jamais vérifié.\n\n**Équité (non-failles vérifiées) :** triage `or->and` L19/L20 correcte (`raw[UP]===raw.up`) ; fog Godot déclaré honnêtement ; oracle pixel navigateur faible mais non factice.\n\n## Verdicts\n- **software_verdict: BLOCKED** — `run: aucun`, aucun oracle exécuté par moi. F2/F4/F6 = ancres statiques (factuelles sans exécution) ; F1/F3/F5 = traces à confirmer en aval.\n- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — limité aux ancres statiques.\n- **claim_verdict: NO_CLAIM_ALLOWED.**\n\n**fog → HumanGate :** exécuter la repro F1 — si `score.p2===1`, c'est un FAIL moteur réel **et** une preuve wiremap fausse à trancher. `SKIPPED_VALIDATION` : 7 items listés explicitement (tests/oracle/mutation non ré-exécutés faute de `run`, F4 partiel, Godot hors poste, WAV non validé).",
-    "qwen_ok": false,
-    "redteam_blocked": false,
-    "redteam_findings": [],
-    "reviewer": "claude-opus-4-8",
-    "runner": "claude",
-    "tokens": 29258
+    "reason": "non applicable au profil standard"
    },
-   "status": "OK",
-   "ts": 1785095495.3335247
-  },
-  "s12-verdict": {
-   "attempts": 1,
-   "detail": {
-    "decision": "BLOCKED",
-    "software_verdict": "FAIL",
-    "verdict_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\pong\\verdict.json",
-    "verify_run": "AUTHENTIQUE"
-   },
-   "status": "OK",
-   "ts": 1785095495.4190254
-  },
-  "s9-build-standard": {
-   "attempts": 2,
-   "detail": {
-    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\pong\\artifacts\\s9-build-standard.txt",
-    "artifact_sha256": "220be271f17abaec148eb80e32fdfef984e2d6f262b1072cc77f2b83c6f394a4",
-    "cost_usd": 5.6640365,
-    "duration_s": 883.8025693893433,
-    "model": "claude-opus-4-8",
-    "model_override": null,
-    "output_excerpt": ") — **jamais** par des tests-tués. Résultat : le gate mutation est **structurellement rouge** sur tout jeu STANDARD ayant des adaptateurs de présentation. Le correctif naturel (exclure la catégorie `system.adapter`, comme `test.*` l'est déjà) vit dans `scripts/forge/` → **hors de mon périmètre**. → **Décision HumanGate** : exclure `system.adapter` de la dérivation des fichiers logiques, OU exiger des tests unitaires d'adaptateurs (ce que le squelette n'a pas déclarés — je ne les invente pas).\n\n## SKIPPED_VALIDATION\n- **Item** : re-capture pixel sous l'adaptateur **Godot** (core.render). **Où** : `06_RUNTIME/adapters/presentation/godot/`. **Statut** : non fait (bloqué). **Raison** : aucun binaire Godot configuré sur ce poste ; `capture_godot.mjs` renvoie `blocked:true`. → fog #2.\n- **Item** : volet **budget** de `s10s` (dépôt `game_loop`). **Où** : `knowledge_base/catalog.json`. **Statut** : non fait (hors périmètre). **Raison** : écriture interdite (out_of_scope) + durable/HumanGate. → fog #1.\n- **Item** : gate mutation **`s10a` fidèle-driver au vert**. **Où** : 6 adaptateurs `06_RUNTIME/adapters/presentation/*.mjs`. **Statut** : mesuré rouge (46 %), non corrigé. **Raison** : correctif dans `scripts/forge/` (hors périmètre) ; combler par des tests d'adaptateurs non déclarés violerait garde-fou (c). → fog #3.\n- **Item** : verdict signé HMAC (s12) et red-team (s11). **Où** : chaîne Forge aval. **Statut** : non fait (hors tâche). **Raison** : la tâche `s9-build-standard` s'arrête au build + preuves ; le verdict signé et HumanGate sont des étapes distinctes. Aucun commit effectué (conforme).\n\n## Contrat de sortie\n(a) Aucun code écrit hors adresses déclarées (aucun code neuf du tout). (b) Squelette : constat **vérifié exact**, `state` inchangés (tous IMPLEMENTED, légitimes), **promesses intactes** — aucune édition falsificatrice. (c) Reçus bruts ci-dessus (tests, solvabilité, mutation, captures PNG sur disque). (d) 3 `fog` listés. (e) **Aucun commit / push / `git add`.**",
-    "qwen_ok": false,
-    "redteam_blocked": false,
-    "redteam_findings": [],
-    "reviewer": "claude-opus-4-8",
-    "runner": "claude",
-    "tokens": 44241
-   },
-   "status": "OK",
-   "ts": 1785095045.6277723
+   "evidence_path": "",
+   "evidence_sha256": "",
+   "oracle_id": "wiremap",
+   "run_id": "pong_r2",
+   "status": "SKIPPED",
+   "ts": 1785095495.3740263
   }
  },
- "updated_ts": 1785095495.4210265
+ "project": "pong",
+ "provenance_ok": true,
+ "redteam_advisory": [],
+ "redteam_ran": false,
+ "redteam_reviewer": "claude-opus-4-8",
+ "run_id": "pong_r2",
+ "software_verdict": "FAIL",
+ "ts": 1785095495.3920264
 }

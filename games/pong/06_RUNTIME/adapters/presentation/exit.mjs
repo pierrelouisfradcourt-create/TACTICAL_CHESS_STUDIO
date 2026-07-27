@@ -24,7 +24,12 @@ function detectHost() {
 
 // CLI : `node exit.mjs` -> quitte avec le code 0 (preuve bot_action mecaniquement
 // verifiable : le processus se termine, code de sortie 0).
-if (process.argv[1]?.endsWith('exit.mjs')) {
+// BUG CORRIGE (2026-07-26, test navigateur reel) : `process` non garde ici jetait
+// un ReferenceError AU CHARGEMENT du module en navigateur (process n'existe pas) —
+// meme famille que le defaut corrige dans audio.mjs le meme jour. Un module qui
+// leve a l'evaluation casse tout le graphe d'imports statiques de main.mjs : le
+// jeu ne demarrait jamais (aucune erreur console visible sans probe dediee).
+if (typeof process !== 'undefined' && process.argv[1]?.endsWith('exit.mjs')) {
   process.stdout.write('exit: sortie propre, code 0\n');
   requestExit('node');
 }

@@ -2,17 +2,35 @@
 // evenements de jeu emis par le loop pur en cues sonores et TRACE chaque
 // declenchement. Le retour sonore reel (lecture du WAV) vit dans le backend
 // navigateur ; ici, la partie mecaniquement verifiable = le mapping + la trace.
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+//
+// BUG CORRIGE (2026-07-26, test navigateur reel) : les imports Node (node:fs/
+// node:path/node:url) etaient statiques en tete de fichier, alors que ce module
+// est importe DIRECTEMENT par browser/main.mjs pour cueFor() (pure, zero
+// dependance Node). Un navigateur ne resout pas ces specifiers -> l'import
+// ECHOUE -> tout le graphe de modules du jeu refuse de charger -> le jeu ne
+// demarre JAMAIS en navigateur (aucune erreur console visible, juste un canvas
+// vide). Preuve : network log, 3 requetes node:fs/node:path/node:url en FAILED.
+// Fix : imports Node en dynamic import(), guardes par la meme detection
+// browser/node deja utilisee par exit.mjs (detectHost). Cote Node, rien ne
+// change (traceAudio() et le CLI runner restent synchrones a l'usage).
 import { boot, step } from '../../../05_SYSTEMS/game_loop/loop.mjs';
 import { translate } from '../../../05_SYSTEMS/input/input.mjs';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-// Assets audio deplaces vers 04_ASSETS/audio/ (repo_map: asset.audio). Depuis
-// 06_RUNTIME/adapters/presentation/ : remonter 3 niveaux jusqu'a la racine du jeu.
-export const ASSET_DIR = join(HERE, '..', '..', '..', '04_ASSETS', 'audio');
-export const BOUNCE_ASSET = join(ASSET_DIR, 'bounce.wav');
+const IS_BROWSER = typeof window !== 'undefined' && typeof document !== 'undefined';
+
+let existsSync, readFileSync, ASSET_DIR_VALUE, BOUNCE_ASSET_VALUE;
+if (!IS_BROWSER) {
+  ({ existsSync, readFileSync } = await import('node:fs'));
+  const { dirname, join } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const HERE = dirname(fileURLToPath(import.meta.url));
+  // Assets audio deplaces vers 04_ASSETS/audio/ (repo_map: asset.audio). Depuis
+  // 06_RUNTIME/adapters/presentation/ : remonter 3 niveaux jusqu'a la racine du jeu.
+  ASSET_DIR_VALUE = join(HERE, '..', '..', '..', '04_ASSETS', 'audio');
+  BOUNCE_ASSET_VALUE = join(ASSET_DIR_VALUE, 'bounce.wav');
+}
+export const ASSET_DIR = ASSET_DIR_VALUE;
+export const BOUNCE_ASSET = BOUNCE_ASSET_VALUE;
 
 // Vocabulaire de cue FERME : quel son declenche quel evenement.
 export function cueFor(event) {
@@ -63,7 +81,7 @@ export function traceAudio(seed = 1, maxTicks = 5000) {
   };
 }
 
-if (process.argv[1]?.endsWith('audio.mjs')) {
+if (typeof process !== 'undefined' && process.argv[1]?.endsWith('audio.mjs')) {
   const r = traceAudio(1);
   process.stdout.write(JSON.stringify(r, null, 1) + '\n');
   process.exit(r.passed ? 0 : 1);

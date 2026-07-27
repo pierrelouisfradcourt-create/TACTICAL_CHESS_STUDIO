@@ -1,27 +1,23 @@
-{
-  "_comment": "Mutants SURVIVANTS prouves EQUIVALENTS (aucun test ne peut jamais les distinguer). NE PAS les tuer artificiellement (garde-fou b). Chaque justification est verifiable en lisant la ligne citee.",
-  "game_id": "pong",
-  "equivalents": [
-    {
-      "fichier": "05_SYSTEMS/game_loop/loop.mjs",
-      "ligne": 114,
-      "mutant": "ge->gt",
-      "expression": "towardLoser >= 0 ? Math.abs(...) : -Math.abs(...)",
-      "justification": "A la ligne 111, `const towardLoser = scored === 'p1' ? 1 : -1;` : towardLoser vaut TOUJOURS 1 ou -1, jamais 0. Les predicats `>= 0` et `> 0` ne different qu'a la valeur 0, inatteignable ici. Aucun test ne peut distinguer les deux versions. Mutant equivalent."
-    },
-    {
-      "fichier": "05_SYSTEMS/input/input.mjs",
-      "ligne": 19,
-      "mutant": "or->and",
-      "expression": "const up = raw.up === true || raw[UP] === true;",
-      "justification": "UP === 'up' (ligne 9). raw[UP] est raw['up'], soit exactement raw.up : les deux operandes sont le MEME acces de propriete, donc la meme valeur X. `X || X` et `X && X` valent tous deux X pour toute entree. Mutant equivalent."
-    },
-    {
-      "fichier": "05_SYSTEMS/input/input.mjs",
-      "ligne": 20,
-      "mutant": "or->and",
-      "expression": "const down = raw.down === true || raw[DOWN] === true;",
-      "justification": "DOWN === 'down' (ligne 10). raw[DOWN] est raw['down'] = raw.down : meme acces de propriete, meme valeur X. `X || X` === `X && X` === X pour toute entree. Mutant equivalent."
-    }
-  ]
-}
+[
+  {
+    "name": "ge->gt",
+    "line": 114,
+    "fichier": "05_SYSTEMS/game_loop/loop.mjs",
+    "expression": "vx: towardLoser >= 0 ? Math.abs(serveVx(...)) : -Math.abs(serveVx(...))",
+    "justification": "A la ligne 111, `const towardLoser = scored === 'p1' ? 1 : -1;` : towardLoser vaut TOUJOURS 1 ou -1, jamais 0. Les predicats `>= 0` et `> 0` ne different qu'a la valeur 0, inatteignable ici. Aucun test ne peut distinguer les deux versions. Mutant equivalent."
+  },
+  {
+    "name": "or->and",
+    "line": 19,
+    "fichier": "05_SYSTEMS/input/input.mjs",
+    "expression": "const up = raw.up === true || raw[UP] === true;",
+    "justification": "UP === 'up' (ligne 9). raw[UP] est raw['up'], soit exactement raw.up : les deux operandes sont le MEME acces de propriete, donc la meme valeur X. `X || X` et `X && X` valent tous deux X pour toute entree. Mutant equivalent."
+  },
+  {
+    "name": "or->and",
+    "line": 20,
+    "fichier": "05_SYSTEMS/input/input.mjs",
+    "expression": "const down = raw.down === true || raw[DOWN] === true;",
+    "justification": "DOWN === 'down' (ligne 10). raw[DOWN] est raw['down'] = raw.down : meme acces de propriete, meme valeur X. `X || X` === `X && X` === X pour toute entree. Mutant equivalent."
+  }
+]
