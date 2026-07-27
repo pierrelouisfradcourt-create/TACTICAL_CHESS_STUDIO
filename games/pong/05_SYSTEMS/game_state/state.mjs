@@ -10,7 +10,12 @@ export const PADDLE_H = 24;
 export const PADDLE_W = 4;
 export const PADDLE_SPEED = 4;
 export const BALL_R = 2;
-export const BALL_VX = 3;   // vitesse horizontale de service
+// BALL_VX abaisse de 3 -> 1.25 (play.playable_speed, playtest-2026-07-27) : a 3, la
+// balle traversait le centre->raquette en ~0.52 s (aucun temps de reaction). A 1.25,
+// le temps de traversee de service tombe dans la bande jouable de la Genre Bible
+// (genre.pong.playable_speed_range : 1.0-1.5 s). Verifie MECANIQUEMENT depuis les
+// constantes par ballCrossingTimeSeconds() (game_loop) + 07_TESTS/unit/playable_speed.test.mjs.
+export const BALL_VX = 1.25;  // vitesse horizontale de service (bande jouable)
 export const BALL_VY = 2;   // vitesse verticale de service
 export const P1_X = 6;      // face droite de la raquette gauche (x du plan de collision)
 export const P2_X = FIELD_W - 6; // face gauche de la raquette droite

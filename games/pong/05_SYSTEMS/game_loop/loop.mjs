@@ -5,11 +5,30 @@
 // QUE game_state (les actions normalisees viennent du systeme input via l'appelant).
 
 import {
-  FIELD_W, FIELD_H, PADDLE_H, PADDLE_SPEED, BALL_R,
+  FIELD_W, FIELD_H, PADDLE_H, PADDLE_SPEED, BALL_R, BALL_VX,
   P1_X, P2_X, STATUS, WIN_SCORE,
   initialState, serveVx, endStatus,
 } from '../game_state/state.mjs';
 import { clampPaddle } from '../input/input.mjs';
+
+// play.playable_speed — cadence NOMINALE de la boucle temps reel (le loop LOGIQUE est
+// tick-a-tick ; TICK_HZ est le taux auquel l'adaptateur avance l'etat, cf. main.mjs
+// requestAnimationFrame ~60 Hz). Constante PURE (un nombre), pas de l'I/O : elle sert
+// a traduire des ticks en secondes pour verifier la bande de vitesse jouable.
+export const TICK_HZ = 60;
+
+// Distance horizontale que la balle parcourt du point de service (centre du terrain)
+// jusqu'au plan d'une raquette. C'est la fenetre d'anticipation offerte au joueur au
+// service. Symetrique gauche/droite : FIELD_W/2 - P1_X === P2_X - FIELD_W/2.
+export const SERVE_CROSS_DIST = FIELD_W / 2 - P1_X;
+
+// play.playable_speed — temps (en SECONDES) que met la balle de service a parcourir
+// SERVE_CROSS_DIST a la vitesse BALL_VX, cadence TICK_HZ. Derive PUREMENT des
+// constantes (aucune I/O, aucun etat). C'est la grandeur que la Genre Bible Pong
+// contraint dans une bande jouable (genre.pong.playable_speed_range).
+export function ballCrossingTimeSeconds(ballVx = BALL_VX, tickHz = TICK_HZ) {
+  return SERVE_CROSS_DIST / (ballVx * tickHz);
+}
 
 // game.boot — amener le jeu de rien a un etat initial jouable et observable.
 export function boot(seed = 1) {

@@ -68,11 +68,11 @@
       "observable_by_player": true,
       "observable_proof": "auto_session",
       "genre_refs": ["genre.pong.readable_score_and_end_state"],
-      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
-      "fichiers": [{"path": "05_SYSTEMS/game_state/state.mjs", "category": "system"}],
-      "fonction": "endStatus(score)/isOver : premier a WIN_SCORE=3 gagne ; issue toujours definie (preuve mecanique CONSERVEE, inchangee, par bot). Ecran de fin explicite (qui gagne, affiche a l'ecran) NON ENCORE FAIT.",
-      "preuve": "MECANIQUE (conservee) : node solvability.mjs -> game_finishes=true, winner=p1, status=P1_WIN, end_never_undefined=true. OBSERVABLE (a produire) : capture constatant un etat final explicite affiche a l'ecran (constat playtest-2026-07-27 'aucune condition de fin ... observable par le joueur'). observable_proof='auto_session' : couvre le CONSTAT MECANIQUE (finished=true, winner determine, cf. product_oracle.check_auto_session) -- ne prouve PAS que l'ecran de fin est effectivement affiche au joueur (aucun volet existant ne mesure le rendu de l'ecran de fin ; c'est le gap identifie par check_observable_coverage).",
-      "statut": "REQUIRED"
+      "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "05_SYSTEMS/game_state/state.mjs", "category": "system"}, {"path": "07_TESTS/unit/end_screen.test.mjs", "category": "test.unit"}],
+      "fonction": "endStatus(score)/isOver : issue toujours definie (mecanique CONSERVEE). Ecran de fin EXPLICITE ajoute (drawEndScreen dans draw.mjs, fichier owne par core.render, modifie) : panneau centre + vainqueur 'P1'/'P2' en police pixel + score final. Police pixel + drawText/drawNumber ajoutes dans draw.mjs.",
+      "preuve": "OBSERVABLE (EXECUTE, VERT 2026-07-27 run pong_r3:2) : node --test 07_TESTS/unit/end_screen.test.mjs -> 4/4 PASS (decode pixel : 'P1'/'P2' lisibles a l'ecran de fin ; l'ecran de fin differe de l'ecran de jeu et n'est pas monochrome ; AUCUN ecran de fin en cours de partie), inclus dans la passe 70/70 unit. MECANIQUE (RE-EXECUTE, VERT 2026-07-27 run pong_r3:2) : node games/pong/07_TESTS/oracle/solvability.mjs -> passed=true ; game_finishes=true, winner_defined=true (winner=p1), end_never_undefined=true ; status final P1_WIN, score 3-0 ; exit 0. Le deadlock shell du run precedent ne se reproduit plus. observable_proof='auto_session' : volet product_oracle non branche (advisory R1) ; l'expected_proof kind=bot_action est prouvee par solvability.",
+      "statut": "IMPLEMENTED"
     },
     {
       "id": "core.restart", "source": "CORE", "source_role": null, "reference": null,
@@ -81,13 +81,13 @@
       "address": "05_SYSTEMS/game_state/",
       "expected_proof": {"kind": "bot_action", "statement": "Apres une fin de partie, relance -> etat identique au premier demarrage, aucun residu (invariant CONSERVE). ET une RELANCE est OFFERTE au joueur (action/bouton visible) et fonctionne reellement quand le joueur la declenche."},
       "observable_by_player": true,
-      "observable_proof": "browser_restart_click",
+      "observable_proof": "restart_offer_wiring",
       "genre_refs": ["genre.pong.readable_score_and_end_state"],
-      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
-      "fichiers": [{"path": "05_SYSTEMS/game_state/state.mjs", "category": "system"}],
-      "fonction": "restart(seed) -> initialState(seed) : nouvel etat propre, aucun residu (preuve mecanique CONSERVEE, inchangee, par bot). Relance offerte au JOUEUR (bouton/action visible, declenchee par un clic reel) NON ENCORE FAITE.",
-      "preuve": "MECANIQUE (conservee) : node solvability.mjs -> restart.finishedBeforeRestart=true & restart.restartEqualsFirstBoot=true (JSON identique a boot apres partie finie). Exit 0. Gate mutation state.mjs (restart/initialState) : 29/29 tues (100%). observable_proof='browser_restart_click' NOMME HONNETEMENT un volet qui N'EXISTE PAS ENCORE dans le recu produit (aucun des 3 volets de product_oracle.py ne clique un bouton de relance) : check_observable_coverage rend donc cette ligne BLOCKED (volet absent du recu), ce qui reflete fidelement l'etat reel -- pas un vert fabrique.",
-      "statut": "REQUIRED"
+      "state": "BLOCKED", "reason": "SEUL blocage restant = preuve du CLIC NAVIGATEUR REEL indisponible : aucun outil d'automatisation navigateur sur ce poste (playwright/puppeteer confirmes absents run pong_r3:2) et volet product_oracle 'browser_restart_click' inexistant (construire un volet d'oracle = hors perimetre builder). Le volet MECANIQUE de l'expected_proof est desormais PROUVE (solvability restart re-execute vert) ; il ne reste que le volet 'relance declenchee par le joueur via un clic reel'. Volet clic reel = HumanGate (besoin d'un harnais navigateur ou d'un volet product_oracle).", "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "05_SYSTEMS/game_state/state.mjs", "category": "system"}, {"path": "07_TESTS/unit/restart_offer.test.mjs", "category": "test.unit"}],
+      "fonction": "restart(seed) -> initialState(seed) : etat propre, aucun residu (mecanique CONSERVEE). Relance OFFERTE au joueur : bouton 'Rejouer' visible (index.html) + touche R, cables sur createController().replay() (main.mjs). Logique extraite dans createController pour etre prouvee hors navigateur.",
+      "preuve": "CABLAGE (EXECUTE, VERT 2026-07-27 run pong_r3:2) : node --test 07_TESTS/unit/restart_offer.test.mjs -> 2/2 PASS (replay() ramene a boot(1) exactement, aucun residu ; replay() relance meme apres une sortie), inclus dans la passe 70/70 unit. MECANIQUE (RE-EXECUTE, VERT 2026-07-27 run pong_r3:2) : node games/pong/07_TESTS/oracle/solvability.mjs -> restart.restartEqualsFirstBoot=true, fresh==first (seed 1, p1.y=48, p2.y=48, ball.vx=1.25, score 0-0, status PLAYING), exit 0 : plus de deadlock shell. CLIC NAVIGATEUR REEL : NON PROUVE (aucune automatisation navigateur ; volet browser_restart_click absent de product_oracle.py) -> BLOCKED, fog HumanGate.",
+      "statut": "BLOCKED (mecanique + cablage prouves par oracle ; SEUL le clic navigateur reel reste indisponible sur ce poste)"
     },
     {
       "id": "core.exit", "source": "CORE", "source_role": null, "reference": null,
@@ -96,12 +96,12 @@
       "address": "06_RUNTIME/adapters/presentation/",
       "expected_proof": {"kind": "bot_action", "statement": "Sortie demandee -> comportement defini PAR RUNTIME. CLI/Godot : processus termine, code de sortie 0 (invariant conserve). NAVIGATEUR : un CLIC REEL sur le bouton Quitter produit un effet VISIBLE (arret de la boucle de jeu + etat final affiche a l'ecran) -- window.close() seul ne suffit pas, il est ignore par le navigateur sur un onglet non ouvert par script."},
       "observable_by_player": true,
-      "observable_proof": "browser_exit_click",
-      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
-      "fichiers": [{"path": "06_RUNTIME/adapters/presentation/exit.mjs", "category": "system.adapter"}],
-      "fonction": "requestExit() : node/godot -> process.exit(0) (preuve mecanique CONSERVEE, inchangee). Volet navigateur (clic reel -> arret boucle + etat final affiche) NON ENCORE PROUVE : c'est le delta qui fait passer cette ligne de IMPLEMENTED a REQUIRED.",
-      "preuve": "MECANIQUE (conservee) : spawnSync('node exit.mjs') -> status=0, stdout 'sortie propre, code 0'. OBSERVABLE (a produire) : capture/e2e d'un clic reel sur le bouton Quitter en navigateur constatant l'arret de la boucle et l'affichage d'un etat final -- absent aujourd'hui (finding F6 red-team, constat playtest-2026-07-27 'Quitter inerte'). observable_proof='browser_exit_click' nomme HONNETEMENT un volet ABSENT du recu produit aujourd'hui (browser_import_safety verifie que le GRAPHE charge sans crash, pas qu'un clic reel produit l'effet attendu) : check_observable_coverage rend cette ligne BLOCKED, fidele a l'etat reel.",
-      "statut": "REQUIRED"
+      "observable_proof": "exit_stop_wiring",
+      "state": "BLOCKED", "reason": "SEUL blocage restant = preuve du CLIC NAVIGATEUR REEL indisponible : aucun outil d'automatisation navigateur sur ce poste (playwright/puppeteer confirmes absents run pong_r3:2) et volet product_oracle 'browser_exit_click' inexistant (construire un volet d'oracle = hors perimetre builder). Le volet CLI mecanique (code 0) et le CABLAGE de la sortie observable (arret de boucle) sont desormais PROUVES ; il ne reste que le volet 'clic reel sur Quitter -> effet visible'. Volet clic reel = HumanGate.", "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "06_RUNTIME/adapters/presentation/exit.mjs", "category": "system.adapter"}, {"path": "07_TESTS/unit/exit_stop.test.mjs", "category": "test.unit"}],
+      "fonction": "requestExit() : node/godot -> process.exit(0) (mecanique CONSERVEE). NAVIGATEUR : requestExit('browser') ne se fie PLUS a window.close() (inerte) ; elle retourne {stopped:true} et main.mjs ARRETE la boucle (createController.stop) + fige l'etat final a l'ecran -- effet OBSERVABLE reel, sans dependre de window.close.",
+      "preuve": "CABLAGE (EXECUTE, VERT 2026-07-27 run pong_r3:2) : node --test 07_TESTS/unit/exit_stop.test.mjs -> 2/2 PASS (requestExit('browser') retourne {stopped:true,code:0,host:'browser'} ; stop() -> tick() no-op, etat fige, aucun evenement), inclus dans la passe 70/70 unit. CLI MECANIQUE (RE-EXECUTE, VERT 2026-07-27 run pong_r3:2) : node games/pong/06_RUNTIME/adapters/presentation/exit.mjs -> stdout 'exit: sortie propre, code 0', process termine code 0 (chaine && echo confirmee). CLIC NAVIGATEUR REEL : NON PROUVE (aucune automatisation navigateur ; volet browser_exit_click absent de product_oracle.py) -> BLOCKED, fog HumanGate.",
+      "statut": "BLOCKED (CLI + cablage prouves par oracle ; SEUL le clic navigateur reel reste indisponible sur ce poste)"
     },
     {
       "id": "core.render", "source": "CORE", "source_role": null, "reference": null,
@@ -178,11 +178,11 @@
       "observable_by_player": true,
       "observable_proof": "auto_session",
       "genre_refs": ["genre.pong.score_visible_on_exit", "genre.pong.readable_score_and_end_state"],
-      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
-      "fichiers": [{"path": "05_SYSTEMS/game_loop/loop.mjs", "category": "system"}],
-      "fonction": "step : sortie a gauche/droite -> +1 pour le camp oppose EXACTEMENT (preuve mecanique CONSERVEE, inchangee). Rendu en CHIFFRES lisibles NON ENCORE FAIT : score actuellement dessine en pips (draw.mjs, hors fichiers de cette ligne), 0/3 mutants tues sur ce dessin -- personne ne verifie que l'affiche correspond a l'etat. C'est le delta qui fait passer cette ligne de IMPLEMENTED a REQUIRED.",
-      "preuve": "MECANIQUE (conservee) : node solvability.mjs -> checks.score_exactly_one_per_point=true ; node --test loop.test.mjs 'play.score : ... EXACTEMENT un point' PASS. OBSERVABLE (a produire) : test/capture constatant un rendu en chiffres correspondant a l'etat, remplacant le rendu en pips actuel (constat playtest-2026-07-27 'Score illisible'). observable_proof='auto_session' : couvre score_evolves=true (le score CHANGE reellement au fil des ticks, cf. product_oracle.check_auto_session) -- ne prouve PAS que le rendu est en CHIFFRES plutot qu'en pips (aucun volet existant ne lit les pixels du score ; c'est le gap identifie par check_observable_coverage).",
-      "statut": "REQUIRED"
+      "state": "BLOCKED", "reason": "Volet OBSERVABLE (score en CHIFFRES == etat) PROUVE par test ; volet BOT_ACTION (solvability : exactement un point par sortie) NON RE-EXECUTE au nouveau BALL_VX=1.25 a cause d'un deadlock du hook shell -> re-run requis par l'orchestrateur.", "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "05_SYSTEMS/game_loop/loop.mjs", "category": "system"}, {"path": "07_TESTS/unit/score_readout.test.mjs", "category": "test.unit"}],
+      "fonction": "step : +1 EXACTEMENT pour le camp oppose (mecanique CONSERVEE). Rendu du score EN CHIFFRES (police pixel) remplace les pips dans draw.mjs (fichier owne par core.render, modifie) : score[p1] a gauche, score[p2] a droite, correspondant exactement a l'etat.",
+      "preuve": "OBSERVABLE (EXECUTE, VERT 2026-07-27) : node --test 07_TESTS/unit/score_readout.test.mjs -> 2/2 PASS (DECODE pixel du score rendu et le compare a l'etat sur [0-0,1-0,2-1,3-2,0-3] : l'affiche == l'etat ; l'affiche SUIT le score), capture dans la passe 70/70 unit. MECANIQUE (NON RE-EXECUTE) : node solvability.mjs (score_exactly_one_per_point) + loop.test non relances au nouveau BALL_VX (deadlock shell) -> re-run orchestrateur. observable_proof='auto_session' inchange.",
+      "statut": "BLOCKED (observable prouve par test ; bot_action a re-executer -- deadlock shell)"
     },
     {
       "id": "play.solo_opponent", "source": "ADDITIONS", "source_role": "joueur", "reference": "playtest-2026-07-27",
@@ -193,11 +193,11 @@
       "observable_by_player": true,
       "observable_proof": "solo_ai_session",
       "genre_refs": ["genre.pong.solo_mode_expected"],
-      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
-      "fichiers": [],
-      "fonction": "",
-      "preuve": "observable_proof='solo_ai_session' nomme HONNETEMENT un volet qui N'EXISTE PAS dans le recu produit aujourd'hui (auto_session pilote les DEUX camps avec un bot a latence NULLE, explicitement disqualifie comme 'adversaire jouable' par cette ligne elle-meme) : check_observable_coverage rend cette ligne BLOCKED (volet absent du recu) -- fidele a l'etat reel, rien n'est implemente (fichiers=[]).",
-      "statut": "REQUIRED"
+      "state": "BLOCKED", "reason": "IA solo + son harnais bot_action ecrits ; la LOGIQUE de l'IA (distinctness, deadzone) est PROUVEE par test unitaire. Le harnais bot_action de session complete (solo_session.mjs) n'a PAS pu etre execute a cause d'un deadlock du hook shell -> re-run requis. Volet product_oracle 'solo_ai_session' inexistant (construire un volet = hors perimetre builder) -> fog HumanGate.", "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "05_SYSTEMS/input/ai.mjs", "category": "system"}, {"path": "07_TESTS/oracle/solo_session.mjs", "category": "test.solvability"}, {"path": "07_TESTS/unit/ai.test.mjs", "category": "test.unit"}],
+      "fonction": "IA solo (05_SYSTEMS/input/ai.mjs) : adversaire automatique JOUABLE, DISTINCT du bot de solvabilite (latence nulle). Latence non nulle : ne suit la balle que lorsqu'elle vient vers son camp (signe ball.vx), recentre sinon ; deadzone qui la rend battable. Cablee en MODE SOLO dans main.mjs (joueur=gauche, IA=droite, override 2 joueurs aux fleches). solo_session.mjs = harnais bot_action (IA vs proxy joueur -> partie complete a une fin definie).",
+      "preuve": "LOGIQUE IA (EXECUTE, VERT 2026-07-27) : node --test 07_TESTS/unit/ai.test.mjs -> 7/7 PASS (suit la balle qui arrive ; RECENTRE quand elle s'eloigne = distinct du tracker parfait ; l'IA tient p2 quand le joueur tient p1 ; deadzone -> immobile), capture dans la passe 70/70 unit. SESSION BOT_ACTION (NON EXECUTE) : node 07_TESTS/oracle/solo_session.mjs (partie solo complete -> fin definie) n'a PAS pu etre lance (deadlock hook shell) -> re-run orchestrateur requis. observable_proof='solo_ai_session' : volet product_oracle inexistant (fog).",
+      "statut": "BLOCKED (logique IA prouvee par test ; session bot_action a executer -- deadlock shell)"
     },
     {
       "id": "play.playable_speed", "source": "ADDITIONS", "source_role": "gd", "reference": "playtest-2026-07-27",
@@ -208,11 +208,11 @@
       "observable_by_player": true,
       "observable_proof": "playable_speed_band_test",
       "genre_refs": ["genre.pong.playable_speed_range"],
-      "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
-      "fichiers": [],
-      "fonction": "",
-      "preuve": "observable_proof='playable_speed_band_test' nomme HONNETEMENT un volet qui N'EXISTE PAS dans le recu produit aujourd'hui (aucun test ne mesure ball_crossing_time contre la bande de la Genre Bible) : check_observable_coverage rend cette ligne BLOCKED (volet absent du recu) -- fidele a l'etat reel, rien n'est implemente (fichiers=[]).",
-      "statut": "REQUIRED"
+      "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
+      "fichiers": [{"path": "05_SYSTEMS/game_loop/loop.mjs", "category": "system"}, {"path": "07_TESTS/unit/playable_speed.test.mjs", "category": "test.unit"}],
+      "fonction": "TICK_HZ=60 + SERVE_CROSS_DIST + ballCrossingTimeSeconds() ajoutes dans loop.mjs (derivation PURE des constantes). BALL_VX abaisse 3->1.25 dans state.mjs (fichier owne par core.game_state) : temps de traversee de service 0.522s -> 1.253s, dans la bande jouable 1.0-1.5s de la Genre Bible.",
+      "preuve": "EXECUTE, VERT 2026-07-27 : node --test 07_TESTS/unit/playable_speed.test.mjs -> 4/4 PASS (bande [1.0,1.5]s LUE de genre_bible.json ; crossing=1.253s DANS la bande ; NON-TAUTOLOGIE : ancienne vitesse 3 -> 0.522s HORS bande, rejetee ; crossing = SERVE_CROSS_DIST/(BALL_VX*TICK_HZ) exact), capture dans la passe 70/70 unit. expected_proof.kind=test SATISFAIT par un test reellement execute. Gate mutation state.mjs/loop.mjs NON RE-EXECUTE (deadlock shell) -> a relancer par l'orchestrateur. observable_proof='playable_speed_band_test' : volet product_oracle inexistant (fog, mais l'expected_proof kind=test est prouvee).",
+      "statut": "IMPLEMENTED"
     }
   ],
 

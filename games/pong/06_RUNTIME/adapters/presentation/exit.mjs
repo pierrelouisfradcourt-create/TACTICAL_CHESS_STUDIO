@@ -1,20 +1,24 @@
 // PONG — adaptateur SORTIE (ADAPTATEUR, jamais importe par la logique).
-// game.exit : quitter proprement. Cote node/godot -> code de sortie 0 ; cote
-// navigateur -> window.close() (best-effort). Aucune ressource laissee active :
-// la logique pure ne detient ni timer, ni socket, ni fichier ouvert, il n'y a
-// donc rien a fermer d'autre que le processus/onglet.
+// game.exit : quitter proprement, comportement defini PAR RUNTIME.
+//   - node / godot-embed : process.exit(0) (preuve mecanique CONSERVEE).
+//   - navigateur : window.close() est IGNORE par le navigateur sur un onglet non
+//     ouvert par script (playtest-2026-07-27 : "Quitter inerte" — le clic ne
+//     produisait aucun effet). requestExit ne s'y FIE donc PLUS : elle le tente en
+//     best-effort mais RETOURNE un signal de sortie {stopped:true} que l'appelant
+//     (browser/main.mjs) utilise pour produire l'effet OBSERVABLE reel : arret de la
+//     boucle de jeu + affichage d'un etat final. C'est le delta core.exit du run.
 export function requestExit(host = detectHost()) {
   if (host === 'browser') {
     if (typeof window !== 'undefined' && typeof window.close === 'function') {
-      window.close();
+      try { window.close(); } catch { /* onglet non fermable par script : ignore */ }
     }
-    return 0;
+    return { host: 'browser', stopped: true, code: 0 };
   }
-  // node / godot-embed : sortie propre, code 0.
+  // node / godot-embed : sortie propre, code 0 (ne retourne pas si process.exit existe).
   if (typeof process !== 'undefined' && typeof process.exit === 'function') {
     process.exit(0);
   }
-  return 0;
+  return { host, stopped: true, code: 0 };
 }
 
 function detectHost() {
