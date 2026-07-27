@@ -28,6 +28,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from forge.product_oracle import (  # noqa: E402
     check_auto_session,
     check_browser_import_safety,
+    check_exit_stop_wiring,
+    check_playable_speed_band,
+    check_restart_offer_wiring,
+    check_solo_ai_session,
     check_visual_capture,
     run_product_oracle,
 )
@@ -298,15 +302,204 @@ def test_3c_vert_sur_pong_reel():
 
 
 # ============================================================================
+# 3d — restart_offer_wiring / exit_stop_wiring / playable_speed_band /
+#      solo_ai_session (S1, contrat `s1-brancher-le-lecteur.yaml`, 2026-07-27) —
+#      EXÉCUTEURS des 7 fichiers de preuve neufs du run pong_r3. Même discipline
+#      TDD que 3a/3b/3c : ROUGE sur un cas FABRIQUÉ (fichier absent OU assertion
+#      cassée sur une COPIE sous tmp_path, JAMAIS le dépôt réel), puis VERT sur
+#      games/pong réel.
+# ============================================================================
+
+def _copy_restart_graph(tmp_path: Path) -> Path:
+    game = tmp_path / "pong_copy"
+    pres = "06_RUNTIME/adapters/presentation"
+    for rel in (
+        "07_TESTS/unit/restart_offer.test.mjs",
+        f"{pres}/browser/main.mjs", f"{pres}/draw.mjs", f"{pres}/audio.mjs", f"{pres}/exit.mjs",
+        "05_SYSTEMS/game_loop/loop.mjs", "05_SYSTEMS/game_state/state.mjs",
+        "05_SYSTEMS/input/input.mjs", "05_SYSTEMS/input/ai.mjs",
+    ):
+        _copy(_PONG / rel, game / rel)
+    return game / "07_TESTS/unit/restart_offer.test.mjs"
+
+
+def _copy_exit_graph(tmp_path: Path) -> Path:
+    game = tmp_path / "pong_copy"
+    pres = "06_RUNTIME/adapters/presentation"
+    for rel in (
+        "07_TESTS/unit/exit_stop.test.mjs",
+        f"{pres}/browser/main.mjs", f"{pres}/draw.mjs", f"{pres}/audio.mjs", f"{pres}/exit.mjs",
+        "05_SYSTEMS/game_loop/loop.mjs", "05_SYSTEMS/game_state/state.mjs",
+        "05_SYSTEMS/input/input.mjs", "05_SYSTEMS/input/ai.mjs",
+    ):
+        _copy(_PONG / rel, game / rel)
+    return game / "07_TESTS/unit/exit_stop.test.mjs"
+
+
+def _copy_speed_graph(tmp_path: Path) -> Path:
+    game = tmp_path / "pong_copy"
+    for rel in (
+        "07_TESTS/unit/playable_speed.test.mjs",
+        "05_SYSTEMS/game_loop/loop.mjs", "05_SYSTEMS/game_state/state.mjs",
+        "01_DESIGN/genre_bible.json",
+    ):
+        _copy(_PONG / rel, game / rel)
+    return game / "07_TESTS/unit/playable_speed.test.mjs"
+
+
+def _copy_solo_graph(tmp_path: Path) -> tuple[Path, Path]:
+    game = tmp_path / "pong_copy"
+    for rel in (
+        "07_TESTS/unit/ai.test.mjs", "07_TESTS/oracle/solo_session.mjs",
+        "05_SYSTEMS/game_loop/loop.mjs", "05_SYSTEMS/game_state/state.mjs",
+        "05_SYSTEMS/input/input.mjs", "05_SYSTEMS/input/ai.mjs",
+    ):
+        _copy(_PONG / rel, game / rel)
+    return (game / "07_TESTS/unit/ai.test.mjs", game / "07_TESTS/oracle/solo_session.mjs")
+
+
+# --- restart_offer_wiring -----------------------------------------------------
+
+def test_3d_restart_rouge_fichier_absent():
+    result = check_restart_offer_wiring(Path("nawak/inexistant_restart.test.mjs"))
+    assert result["passed"] is False
+    assert result["checked"] is False
+
+
+def test_3d_restart_rouge_assertion_cassee(tmp_path):
+    test_copy = _copy_restart_graph(tmp_path)
+    original = test_copy.read_text(encoding="utf-8")
+    marker = "assert.deepEqual(c.state, boot(1), 'relance -> etat identique au premier demarrage');"
+    assert marker in original
+    test_copy.write_text(
+        original.replace(marker, "assert.deepEqual(c.state, { fabrique: true }, 'CASSE (test)');", 1),
+        encoding="utf-8",
+    )
+    result = check_restart_offer_wiring(test_copy, timeout_s=30)
+    print("RED 3d (restart, assertion cassée):", json.dumps(result, ensure_ascii=False, indent=1))
+    assert result["passed"] is False
+    assert result["checked"] is True
+    assert result["tests_fail"] == 1
+
+
+def test_3d_restart_vert_sur_pong_reel():
+    result = check_restart_offer_wiring(_PONG / "07_TESTS/unit/restart_offer.test.mjs", timeout_s=30)
+    print("GREEN 3d (restart, Pong réel):", json.dumps(result, ensure_ascii=False, indent=1))
+    assert result["passed"] is True
+    assert result["tests_fail"] == 0
+    assert result["tests_pass"] and result["tests_pass"] > 0
+    assert any("clic navigateur réel" in l for l in result["limites"])
+
+
+# --- exit_stop_wiring ----------------------------------------------------------
+
+def test_3d_exit_rouge_fichier_absent():
+    result = check_exit_stop_wiring(Path("nawak/inexistant_exit.test.mjs"))
+    assert result["passed"] is False
+    assert result["checked"] is False
+
+
+def test_3d_exit_rouge_assertion_cassee(tmp_path):
+    test_copy = _copy_exit_graph(tmp_path)
+    original = test_copy.read_text(encoding="utf-8")
+    assert "assert.equal(r.code, 0);" in original
+    test_copy.write_text(original.replace("assert.equal(r.code, 0);", "assert.equal(r.code, 999);", 1),
+                          encoding="utf-8")
+    result = check_exit_stop_wiring(test_copy, timeout_s=30)
+    print("RED 3d (exit, assertion cassée):", json.dumps(result, ensure_ascii=False, indent=1))
+    assert result["passed"] is False
+    assert result["tests_fail"] == 1
+
+
+def test_3d_exit_vert_sur_pong_reel():
+    result = check_exit_stop_wiring(_PONG / "07_TESTS/unit/exit_stop.test.mjs", timeout_s=30)
+    print("GREEN 3d (exit, Pong réel):", json.dumps(result, ensure_ascii=False, indent=1))
+    assert result["passed"] is True
+    assert result["tests_fail"] == 0
+
+
+# --- playable_speed_band -------------------------------------------------------
+
+def test_3d_speed_rouge_fichier_absent():
+    result = check_playable_speed_band(Path("nawak/inexistant_speed.test.mjs"))
+    assert result["passed"] is False
+    assert result["checked"] is False
+
+
+def test_3d_speed_rouge_vitesse_hors_bande(tmp_path):
+    test_copy = _copy_speed_graph(tmp_path)
+    state_copy = test_copy.parent.parent.parent / "05_SYSTEMS" / "game_state" / "state.mjs"
+    original = state_copy.read_text(encoding="utf-8")
+    assert "export const BALL_VX = 1.25;" in original
+    state_copy.write_text(original.replace("export const BALL_VX = 1.25;", "export const BALL_VX = 3;", 1),
+                           encoding="utf-8")
+    result = check_playable_speed_band(test_copy, timeout_s=30)
+    print("RED 3d (speed, hors bande):", json.dumps(result, ensure_ascii=False, indent=1))
+    assert result["passed"] is False
+    assert result["tests_fail"] >= 1
+
+
+def test_3d_speed_vert_sur_pong_reel():
+    result = check_playable_speed_band(_PONG / "07_TESTS/unit/playable_speed.test.mjs", timeout_s=30)
+    print("GREEN 3d (speed, Pong réel):", json.dumps(result, ensure_ascii=False, indent=1))
+    assert result["passed"] is True
+    assert result["tests_fail"] == 0
+
+
+# --- solo_ai_session ------------------------------------------------------------
+
+def test_3d_solo_rouge_fichier_absent():
+    result = check_solo_ai_session(Path("nawak/a.mjs"), Path("nawak/b.mjs"))
+    assert result["passed"] is False
+    assert result["checked"] is False
+
+
+def test_3d_solo_rouge_session_ne_termine_jamais(tmp_path):
+    ai_test_copy, session_copy = _copy_solo_graph(tmp_path)
+    original = session_copy.read_text(encoding="utf-8")
+    marker = "export function playSoloGame(seed = 1, maxTicks = 200000) {"
+    assert marker in original
+    session_copy.write_text(
+        original.replace(marker, "export function playSoloGame(seed = 1, maxTicks = 0) {", 1),
+        encoding="utf-8",
+    )
+    result = check_solo_ai_session(ai_test_copy, session_copy, timeout_s=20)
+    print("RED 3d (solo, session ne termine jamais):", json.dumps(result, ensure_ascii=False, indent=1))
+    assert result["passed"] is False
+    assert result["session"]["passed"] is False
+    assert result["ai_logic"]["passed"] is True  # l'autre volet reste vert : isole le défaut
+
+
+def test_3d_solo_vert_sur_pong_reel():
+    result = check_solo_ai_session(
+        _PONG / "07_TESTS/unit/ai.test.mjs", _PONG / "07_TESTS/oracle/solo_session.mjs",
+        timeout_s=30,
+    )
+    print("GREEN 3d (solo, Pong réel):", json.dumps(result, ensure_ascii=False, indent=1))
+    assert result["passed"] is True
+    assert result["ai_logic"]["passed"] is True
+    assert result["session"]["passed"] is True
+    assert result["session"]["report"]["checks"]["ai_actually_plays"] is True
+
+
+# ============================================================================
 # Agrégat (utilisé par le driver, s10a)
 # ============================================================================
 
 def test_run_product_oracle_sur_pong_reel():
     result = run_product_oracle(_PONG, auto_session_timeout_s=30, visual_capture_timeout_s=150)
-    assert set(result) == {"browser_import_safety", "auto_session", "visual_capture"}
+    assert set(result) == {
+        "browser_import_safety", "auto_session", "visual_capture",
+        "restart_offer_wiring", "exit_stop_wiring",
+        "playable_speed_band_test", "solo_ai_session",
+    }
     assert result["browser_import_safety"]["passed"] is True
     assert result["auto_session"]["passed"] is True
     assert result["visual_capture"]["status"] in ("OK", "NOT_MEASURED")
+    assert result["restart_offer_wiring"]["passed"] is True
+    assert result["exit_stop_wiring"]["passed"] is True
+    assert result["playable_speed_band_test"]["passed"] is True
+    assert result["solo_ai_session"]["passed"] is True
 
 
 # ============================================================================

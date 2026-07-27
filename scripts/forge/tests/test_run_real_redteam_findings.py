@@ -99,7 +99,10 @@ def test_rapport_pong_r2_reel_historique_liste_vide_sans_crash():
     findings — c'est justement le cas que ce chantier corrige pour l'AVENIR,
     pas en rétro-actif). Preuve terrain que l'extraction ne casse jamais sur du
     texte réel volumineux et ne fabrique aucune entrée par accident."""
-    rapport = REPO_ROOT / "lab" / "forge_runs" / "pong" / "rapport_redteam_code.md"
+    # Run pong_r2 ARCHIVÉ en `pong_r2_ref` le 2026-07-27 (libération du run_dir, dérivé de
+    # --project). On lit la référence figée, jamais le run courant : un test qui pointe un
+    # dossier de run vivant casse au premier archivage.
+    rapport = REPO_ROOT / "lab" / "forge_runs" / "pong_r2_ref" / "rapport_redteam_code.md"
     assert rapport.exists(), "fixture réelle absente — le rapport pong_r2 doit exister"
     output = rapport.read_text(encoding="utf-8")
     findings, note = run_real.extract_redteam_findings(output)

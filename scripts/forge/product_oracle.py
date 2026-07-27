@@ -34,6 +34,17 @@ gate JAMAIS `oracle_ok` dans cette mission — ils voyagent dans le reçu signé
 s10a (comme reuse_ratio_wired/search_consulted), pour une décision de passage en
 gate dur PLUS TARD, par Pierre, au vu des chiffres. Déterministe, non-LLM,
 encoding utf-8. claim_verdict: NO_CLAIM_ALLOWED.
+
+ADDENDUM (contrat `s1-brancher-le-lecteur.yaml`, 2026-07-27) : quatre volets
+supplémentaires — ``check_restart_offer_wiring``, ``check_exit_stop_wiring``,
+``check_playable_speed_band``, ``check_solo_ai_session`` — EXÉCUTENT (jamais ne
+réimplémentent) les 7 fichiers de preuve neufs du run pong_r3 (`ai.test.mjs`,
+`end_screen.test.mjs`, `exit_stop.test.mjs`, `playable_speed.test.mjs`,
+`restart_offer.test.mjs`, `score_readout.test.mjs`, `solo_session.mjs`), pour
+fermer le trou de lecteur mesuré par `check_observable_coverage`
+(`standard_oracles.py`) : ces fichiers passaient, mais aucun oracle ne les
+appelait. Même discipline ADVISORY, même honnêteté sur ce qui n'est PAS prouvé
+(voir la clé `limites` de chaque volet).
 """
 from __future__ import annotations
 
@@ -518,24 +529,247 @@ def check_visual_capture(
 
 
 # ============================================================================
+# 3d — restart_offer_wiring / exit_stop_wiring / playable_speed_band /
+#      solo_ai_session (contrat `s1-brancher-le-lecteur.yaml`, 2026-07-27) —
+#      EXÉCUTEURS honnêtes des fichiers de preuve neufs produits par le run
+#      pong_r3 (07_TESTS/unit/restart_offer.test.mjs, exit_stop.test.mjs,
+#      playable_speed.test.mjs, ai.test.mjs + 07_TESTS/oracle/solo_session.mjs).
+#
+#      Aucun de ces volets n'invente une assertion : chacun lance le fichier de
+#      preuve TEL QUEL (``node --test`` pour les ``*.test.mjs``, ``node`` nu pour
+#      le harnais bot_action ``solo_session.mjs`` qui imprime un reçu JSON comme
+#      ``solvability.mjs``) et relit son verdict. Ces fichiers ne sont jamais
+#      modifiés ni réimplémentés ici (garde-fou 6 du contrat).
+#
+#      RENOMMAGE HONNÊTE (garde-fou 2 du contrat, exigence centrale) : les
+#      wiremap `observable_proof` précédents `browser_restart_click` /
+#      `browser_exit_click` promettaient un CLIC NAVIGATEUR RÉEL qui n'a jamais
+#      lieu ici — aucun outil d'automatisation navigateur (Playwright/Puppeteer)
+#      n'est disponible sur ce poste (confirmé absent, run pong_r3:2). Ces deux
+#      volets prouvent le CÂBLAGE (la relance/la sortie fonctionnent au niveau
+#      du contrôleur), jamais l'effet visuel d'un clic humain — d'où leur nouveau
+#      nom `*_wiring`. `solo_ai_session`/`playable_speed_band_test` gardent leur
+#      nom (déjà honnête : aucune promesse de clic) mais n'existaient pas
+#      encore comme volets exécutables.
+# ============================================================================
+
+_NODE_TEST_SUMMARY = re.compile(r"^[#ℹ]\s+(pass|fail)\s+(\d+)", re.M)
+
+
+def _run_node_test_file(test_file: Path, *, node_bin: str = "node", timeout_s: int = 60) -> dict:
+    """Exécute UN fichier `node:test` existant via `node --test <file>` — jamais
+    réimplémenté, jamais modifié. Relit le résumé TAP émis par le runner natif
+    de Node (`# pass N` / `# fail N`, ou la variante `ℹ pass N` / `ℹ fail N` des
+    versions récentes) pour décider `passed`.
+
+    Retourne {passed, checked, returncode, tests_pass, tests_fail, stdout_tail,
+    stderr_tail} ou, sur cas non mesurable (fichier absent, timeout, exécuteur
+    introuvable), {passed: False, checked: False, reason}. Jamais d'exception."""
+    test_file = Path(test_file)
+    if not test_file.is_file():
+        return {
+            "passed": False, "checked": False,
+            "reason": f"fichier de preuve absent, illisible ou pas un fichier: {test_file}",
+        }
+    try:
+        proc = subprocess.run(
+            [node_bin, "--test", str(test_file)],
+            capture_output=True, text=True, timeout=timeout_s,
+            encoding="utf-8", errors="replace",
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "passed": False, "checked": True,
+            "reason": f"timeout ({timeout_s}s) sur {test_file}",
+        }
+    except OSError as exc:
+        return {
+            "passed": False, "checked": False,
+            "reason": f"exécuteur node introuvable/inexécutable: {exc}",
+        }
+    out = proc.stdout
+    n_pass = n_fail = None
+    for m in _NODE_TEST_SUMMARY.finditer(out):
+        kind, n = m.group(1), int(m.group(2))
+        if kind == "pass":
+            n_pass = n
+        else:
+            n_fail = n
+    passed = proc.returncode == 0 and n_fail == 0 and (n_pass or 0) > 0
+    return {
+        "passed": passed,
+        "checked": True,
+        "returncode": proc.returncode,
+        "tests_pass": n_pass,
+        "tests_fail": n_fail,
+        "stdout_tail": out[-800:],
+        "stderr_tail": proc.stderr[-800:],
+    }
+
+
+def check_restart_offer_wiring(test_file: Path, *, node_bin: str = "node", timeout_s: int = 60) -> dict:
+    """EXÉCUTE `07_TESTS/unit/restart_offer.test.mjs` (jamais réimplémenté) : le
+    contrôleur navigateur (`createController`) ramène l'état à `boot(seed)`
+    exactement après `replay()`, y compris après une sortie. Preuve du CÂBLAGE
+    de la relance offerte au joueur (bouton "Rejouer" / touche R).
+
+    NE PROUVE PAS : un clic réel sur le bouton "Rejouer" (aucun navigateur
+    piloté, aucun Playwright/Puppeteer sur ce poste) ; aucun rendu observé du
+    bouton lui-même — seule la fonction `replay()` du contrôleur est exercée."""
+    result = _run_node_test_file(test_file, node_bin=node_bin, timeout_s=timeout_s)
+    result["limites"] = [
+        "exécute 07_TESTS/unit/restart_offer.test.mjs tel quel (node --test), "
+        "jamais réimplémenté.",
+        "NE PROUVE PAS un clic navigateur réel sur le bouton 'Rejouer' (aucune "
+        "automatisation navigateur disponible sur ce poste).",
+        "NE PROUVE PAS de rendu observé (aucune capture d'écran ici) — seul le "
+        "câblage logique du contrôleur (createController().replay()) est exercé.",
+    ]
+    return result
+
+
+def check_exit_stop_wiring(test_file: Path, *, node_bin: str = "node", timeout_s: int = 60) -> dict:
+    """EXÉCUTE `07_TESTS/unit/exit_stop.test.mjs` (jamais réimplémenté) :
+    `requestExit('browser')` retourne un signal `{stopped:true}` (ne se fie plus
+    à `window.close()`, inerte) et `controller.stop()` arrête réellement la
+    boucle (`tick()` devient un no-op, l'état se fige). Preuve du CÂBLAGE de la
+    sortie observable.
+
+    NE PROUVE PAS : un clic réel sur le bouton "Quitter" (aucun navigateur
+    piloté sur ce poste) ; aucun rendu observé de l'état figé à l'écran — seule
+    la mécanique du contrôleur est exercée."""
+    result = _run_node_test_file(test_file, node_bin=node_bin, timeout_s=timeout_s)
+    result["limites"] = [
+        "exécute 07_TESTS/unit/exit_stop.test.mjs tel quel (node --test), jamais "
+        "réimplémenté.",
+        "NE PROUVE PAS un clic navigateur réel sur le bouton 'Quitter' (aucune "
+        "automatisation navigateur disponible sur ce poste).",
+        "NE PROUVE PAS de rendu observé de l'état figé — seul le câblage logique "
+        "(requestExit/stop/tick no-op) est exercé.",
+    ]
+    return result
+
+
+def check_playable_speed_band(test_file: Path, *, node_bin: str = "node", timeout_s: int = 60) -> dict:
+    """EXÉCUTE `07_TESTS/unit/playable_speed.test.mjs` (jamais réimplémenté) : le
+    temps de traversée de service dérivé des constantes (`ballCrossingTimeSeconds`)
+    tombe dans la bande jouable déclarée par la Genre Bible Pong, ET l'ancienne
+    vitesse (rejetée) reste HORS bande — non-tautologie vérifiée par le fichier
+    de preuve lui-même.
+
+    NE PROUVE PAS : une perception humaine de « jouable » (aucun playtest humain
+    ici) ; aucun rendu observé — c'est une dérivation purement numérique des
+    constantes du moteur."""
+    result = _run_node_test_file(test_file, node_bin=node_bin, timeout_s=timeout_s)
+    result["limites"] = [
+        "exécute 07_TESTS/unit/playable_speed.test.mjs tel quel (node --test), "
+        "jamais réimplémenté.",
+        "NE PROUVE PAS une perception humaine de jouabilité (aucun playtest humain "
+        "ici) — dérivation purement numérique des constantes.",
+        "NE PROUVE PAS de rendu observé (aucun clic, aucune capture d'écran).",
+    ]
+    return result
+
+
+def check_solo_ai_session(
+    ai_test_file: Path, session_file: Path,
+    *, node_bin: str = "node", timeout_s: int = 30,
+) -> dict:
+    """EXÉCUTE deux fichiers de preuve neufs (jamais réimplémentés) :
+    `07_TESTS/unit/ai.test.mjs` (node --test — la LOGIQUE de l'IA solo est
+    distincte du bot de solvabilité à latence nulle, deadzone incluse) ET
+    `07_TESTS/oracle/solo_session.mjs` (harnais bot_action — une partie SOLO
+    complète, joueur-proxy vs IA de jeu, atteint un état de fin défini). PASS
+    ssi les DEUX sont mesurés et verts.
+
+    NE PROUVE PAS : un joueur humain réel derrière le clavier (le camp gauche
+    est un proxy déterministe, outil de test, PAS un humain) ; aucun clic réel
+    ni rendu observé — logique pure, aucune I/O.
+
+    Retourne {passed, checked, ai_logic{}, session{}, limites[]}."""
+    ai_logic = _run_node_test_file(ai_test_file, node_bin=node_bin, timeout_s=timeout_s)
+
+    session_file = Path(session_file)
+    if not session_file.is_file():
+        session: dict = {
+            "passed": False, "checked": False,
+            "reason": f"fichier de preuve absent, illisible ou pas un fichier: {session_file}",
+        }
+    else:
+        try:
+            proc = subprocess.run(
+                [node_bin, str(session_file.resolve())],
+                capture_output=True, text=True, timeout=timeout_s,
+                encoding="utf-8", errors="replace",
+            )
+        except subprocess.TimeoutExpired:
+            session = {"passed": False, "checked": True,
+                       "reason": f"timeout ({timeout_s}s) sur {session_file}"}
+        except OSError as exc:
+            session = {"passed": False, "checked": False,
+                       "reason": f"exécuteur node introuvable/inexécutable: {exc}"}
+        else:
+            try:
+                payload = json.loads(proc.stdout) if proc.stdout.strip() else None
+            except ValueError:
+                payload = None
+            if not isinstance(payload, dict):
+                session = {
+                    "passed": False, "checked": True,
+                    "reason": "sortie JSON illisible depuis solo_session.mjs",
+                    "returncode": proc.returncode,
+                    "stdout_tail": proc.stdout[-500:], "stderr_tail": proc.stderr[-500:],
+                }
+            else:
+                session = {
+                    "passed": proc.returncode == 0 and bool(payload.get("passed")),
+                    "checked": True,
+                    "returncode": proc.returncode,
+                    "report": payload,
+                }
+
+    checked = bool(ai_logic.get("checked")) and bool(session.get("checked"))
+    passed = checked and bool(ai_logic.get("passed")) and bool(session.get("passed"))
+    return {
+        "passed": passed,
+        "checked": checked,
+        "ai_logic": ai_logic,
+        "session": session,
+        "limites": [
+            "exécute 07_TESTS/unit/ai.test.mjs (node --test) et "
+            "07_TESTS/oracle/solo_session.mjs (harnais bot_action) tels quels, "
+            "jamais réimplémentés.",
+            "NE PROUVE PAS qu'un joueur humain réel joue ce mode : le camp gauche "
+            "est un proxy déterministe (outil de test), pas un humain au clavier.",
+            "NE PROUVE PAS de clic réel ni de rendu observé — logique pure, aucune I/O.",
+        ],
+    }
+
+
+# ============================================================================
 # Agrégat — appelé par le driver (s10a), ADVISORY (jamais un gate dur ici)
 # ============================================================================
 
 def run_product_oracle(
     game_dir: Path, *, node_bin: str = "node",
     auto_session_max_ticks: int = 20000, auto_session_timeout_s: int = 30,
-    visual_capture_timeout_s: int = 150,
+    visual_capture_timeout_s: int = 150, node_test_timeout_s: int = 60,
 ) -> dict:
-    """Agrège les 3 volets pour un jeu de topologie STANDARD (`06_RUNTIME/adapters/
-    presentation/`, `05_SYSTEMS/...`). ADVISORY : le driver ne fait QUE porter ce
-    dict dans le reçu signé de s10a — aucun de ces 3 volets ne gate `oracle_ok`
-    dans cette mission (décision de gate dur = HumanGate séparé, sur les chiffres)."""
+    """Agrège les volets pour un jeu de topologie STANDARD (`06_RUNTIME/adapters/
+    presentation/`, `05_SYSTEMS/...`, `07_TESTS/...`). ADVISORY : le driver ne
+    fait QUE porter ce dict dans le reçu signé de s10a — aucun de ces volets ne
+    gate `oracle_ok` dans cette mission (décision de gate dur = HumanGate séparé,
+    sur les chiffres). Les 4 volets `restart_offer_wiring`/`exit_stop_wiring`/
+    `playable_speed_band_test`/`solo_ai_session` (S1, 2026-07-27) EXÉCUTENT les 7
+    fichiers de preuve neufs du run pong_r3 — aucun d'eux n'est réimplémenté."""
     game_dir = Path(game_dir)
     presentation_dir = game_dir / "06_RUNTIME" / "adapters" / "presentation"
     entry = presentation_dir / "browser" / "main.mjs"
     loop_file = game_dir / "05_SYSTEMS" / "game_loop" / "loop.mjs"
     state_file = game_dir / "05_SYSTEMS" / "game_state" / "state.mjs"
     input_file = game_dir / "05_SYSTEMS" / "input" / "input.mjs"
+    unit_dir = game_dir / "07_TESTS" / "unit"
+    oracle_dir = game_dir / "07_TESTS" / "oracle"
 
     return {
         "browser_import_safety": check_browser_import_safety(entry),
@@ -546,5 +780,21 @@ def run_product_oracle(
         ),
         "visual_capture": check_visual_capture(
             presentation_dir, node_bin=node_bin, timeout_s=visual_capture_timeout_s,
+        ),
+        "restart_offer_wiring": check_restart_offer_wiring(
+            unit_dir / "restart_offer.test.mjs",
+            node_bin=node_bin, timeout_s=node_test_timeout_s,
+        ),
+        "exit_stop_wiring": check_exit_stop_wiring(
+            unit_dir / "exit_stop.test.mjs",
+            node_bin=node_bin, timeout_s=node_test_timeout_s,
+        ),
+        "playable_speed_band_test": check_playable_speed_band(
+            unit_dir / "playable_speed.test.mjs",
+            node_bin=node_bin, timeout_s=node_test_timeout_s,
+        ),
+        "solo_ai_session": check_solo_ai_session(
+            unit_dir / "ai.test.mjs", oracle_dir / "solo_session.mjs",
+            node_bin=node_bin, timeout_s=auto_session_timeout_s,
         ),
     }
