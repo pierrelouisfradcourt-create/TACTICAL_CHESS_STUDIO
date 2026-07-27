@@ -1,0 +1,107 @@
+# Contrat d'agent Forge — mission V3 : analyse du périmètre `logic_files` du gate mutation
+# Schéma : scripts/forge/contracts/SCHEMA.md (règle des 3 états — un champ absent = refus)
+# Statut : RATIFIÉ Pierre 2026-07-26 (décision ③ post-run pong_r2 : « je ne tranche pas pour
+# l'instant. Je veux d'abord une analyse documentée du périmètre actuel […] Aucun changement
+# du STANDARD avant cette analyse. »)
+# Dispatch hors profil (allow_unprofiled assumé, inscrit dans l'audit signé).
+
+role: >-
+  Analyste de doctrine d'oracle, posture d'instructeur de décision. Point de vue : tu prépares
+  un arbitrage de STANDARD pour Pierre — ton livrable est une analyse qui rend la décision
+  possible, pas un avis qui la remplace. Tu ne changes rien.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Analyse de conséquences symétrique et honnête : chaque option doit être présentée avec ce
+  qu'elle GAGNE et ce qu'elle PERD, y compris celle que tu recommandes le moins. Séparer le
+  fait mesuré (quels fichiers, combien de mutants, où survivent-ils) de l'argument de doctrine
+  (un adaptateur de présentation porte-t-il de la logique falsifiable ?).
+memoire: >-
+  Sur le run pong_r2 (verdict signé, reçu mutation embarqué dans le reçu code), le gate
+  mutation rend : total 126, killed 58, survived 68, triaged_survivors [] — soit 46 % tués.
+  Les `logic_files` dérivés comptent 10 fichiers : 3 systèmes
+  (05_SYSTEMS/game_loop/loop.mjs, 05_SYSTEMS/game_state/state.mjs, 05_SYSTEMS/input/input.mjs)
+  et 7 adaptateurs de présentation (06_RUNTIME/adapters/presentation/*.mjs : audio, draw,
+  raster, exit, capture_browser, capture_godot, browser/main). Les tests scellés couvrent
+  07_TESTS/unit/ + 07_TESTS/oracle/solvability.mjs. La dérivation des logic_files se fait
+  depuis games/pong/09_WIREMAP/wiremap.json en topologie standard (driver.py ~l.786-824).
+  Doctrine du dépôt à respecter dans l'analyse : le gate mutation existe pour empêcher un
+  « oracle vert sur tests faibles » (leçons re-forge : 67-80 % de mutation = tests faibles),
+  et la règle de variance interdit de requalifier une mesure gênante en la rendant triviale.
+  Précédent utile : sur M01/grid_nav_probe, 2 survivants ont été TRIÉS avec justification
+  d'équivalence prouvée par lecture du garde (games/grid_nav_probe/mutation_triage.json) —
+  le triage est donc une voie existante et outillée, pas une échappatoire.
+mandatory_read:
+  - lab/forge_runs/pong/verdict.json (reçu mutation embarqué : total/killed/survived, logic_files, test_files_scelles)
+  - scripts/forge/driver.py (dérivation des logic_files en topologie standard)
+  - scripts/forge/mutation.py (ce que le mutateur sait muter, et sur quels fichiers)
+  - scripts/forge/standard/repo_map.yaml + scripts/forge/standard/core_requirements.yaml (rôle des catégories, dont la présentation)
+  - games/grid_nav_probe/mutation_triage.json (précédent de triage justifié)
+
+objectif: >-
+  Rendre une ANALYSE DOCUMENTÉE qui permette à Pierre de trancher : (1) POURQUOI les
+  adaptateurs de présentation se retrouvent dans logic_files — la règle de dérivation exacte,
+  fichier:ligne, et si c'est une décision explicite ou un effet de bord ; (2) QUELS fichiers
+  sont concernés et OÙ survivent réellement les 68 mutants (répartition par fichier : combien
+  dans les 3 systèmes, combien dans les 7 adaptateurs) — c'est le chiffre qui décide de
+  l'importance réelle du sujet ; (3) les CONSÉQUENCES de chacune des trois options : tout
+  conserver · exclure les adaptateurs · politiques distinctes par catégorie — chacune avec ce
+  qu'elle protège, ce qu'elle expose, son coût de mise en œuvre et son effet mesuré sur le
+  score du run pong_r2 ; (4) l'existence et le coût de la 4e voie déjà outillée : triager les
+  survivants avec justification d'équivalence.
+in_scope: >-
+  LECTURE de tout le dépôt. ÉCRITURE d'un seul fichier : le rapport d'analyse
+  docs/audit/ANALYSE_PERIMETRE_LOGIC_FILES_2026-07-26.md.
+out_of_scope: >-
+  AUCUN changement du STANDARD (scripts/forge/standard/**), du mutateur, du driver, d'un
+  contrat, d'un oracle, d'un mutation_triage.json ou d'un verdict — interdiction EXPLICITE de
+  Pierre avant son arbitrage. Ne pas relancer le gate mutation (coûteux et inutile : le reçu
+  signé porte les chiffres). Ne pas trancher à la place de Pierre : une recommandation est
+  permise, une décision non.
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT
+  docs/audit/ANALYSE_PERIMETRE_LOGIC_FILES_2026-07-26.md. run: lecture seule — grep/rg, git
+  log/show, python en one-liner de LECTURE (dépouillement du reçu mutation et de son log
+  d'évidence pour la répartition des survivants par fichier). delete: aucun. INTERDIT : git
+  commit, git push, git checkout, exécution du gate mutation, toute écriture hors du rapport.
+gardeFou: >-
+  (1) La répartition des 68 survivants par fichier est le CŒUR de l'analyse : si l'évidence
+  signée ne permet pas de la reconstituer, dis-le explicitement et nomme ce qu'il faudrait
+  instrumenter — n'estime JAMAIS une répartition. (2) Symétrie obligatoire : chaque option
+  porte ses gains ET ses pertes ; l'option « exclure les adaptateurs » doit énoncer
+  franchement ce qu'elle cesse de protéger. (3) Anti-complaisance : la règle de variance du
+  dépôt interdit de rendre une mesure verte en la rendant triviale — si une option revient à
+  cela, écris-le. (4) Ne confonds pas « le mutateur produit peu de mutants pertinents sur ce
+  type de fichier » (fait technique) avec « ces fichiers ne portent pas de logique » (jugement
+  de doctrine). (5) Rapport DATÉ et SOURCÉ. (6) Aucun commit. (7) Doute de périmètre => STOP.
+success_criteria: >-
+  (a) règle de dérivation des logic_files citée fichier:ligne, avec verdict « décision
+  explicite » ou « effet de bord » et sa preuve ; (b) liste exhaustive des fichiers concernés
+  et répartition des 68 survivants par fichier (ou déclaration motivée d'impossibilité +
+  instrumentation manquante) ; (c) les 3 options analysées symétriquement (protège / expose /
+  coût / effet chiffré sur pong_r2) ; (d) la 4e voie (triage justifié) chiffrée en effort ;
+  (e) aucune modification hors le rapport — git status --porcelain le prouve.
+tests_oracles: >-
+  Reçu mutation signé du verdict pong_r2 et son log d'évidence (sources de vérité des
+  chiffres) · recherche d'appelant/dérivation dans driver.py et mutation.py · repo_map.yaml
+  pour la sémantique des catégories. Aucun oracle exécuté : cette mission MESURE et INSTRUIT,
+  elle ne prouve pas un logiciel.
+final_report: >-
+  software/evidence/claim séparés — software_verdict porte sur la COMPLÉTUDE de l'analyse
+  (OK si (a)→(e) adressés, BLOCKED si une source nécessaire est inaccessible), jamais sur la
+  qualité du STANDARD audité. claim_verdict: NO_CLAIM_ALLOWED. Contenu : les chiffres avec
+  leur source · les 3 options + la 4e voie · ce qui reste à décider par Pierre · section
+  skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, derivation: {regle, fichier_ligne, nature: "explicite|effet_de_bord",
+  preuve}, fichiers_concernes: [], repartition_survivants: {par_fichier: {}, source,
+  reconstituable: bool}, options: [{nom, protege, expose, cout, effet_chiffre_pong_r2}],
+  voie_triage: {faisable, effort}, rapport_path, git_status_final, skipped_validation: [],
+  software_verdict, evidence_verdict: MECHANICAL_VALIDATION_ONLY,
+  claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Décision Pierre ③ du 2026-07-26 : arbitrage EXPLICITEMENT SUSPENDU en attente de cette
+  analyse (« aucun changement du STANDARD avant cette analyse »). En amont : gate mutation
+  rouge sur le run authentique pong_r2. En aval : arbitrage Pierre, puis éventuel nouveau run
+  Pong pour mesurer l'impact (pong_r2 conservé comme référence historique).

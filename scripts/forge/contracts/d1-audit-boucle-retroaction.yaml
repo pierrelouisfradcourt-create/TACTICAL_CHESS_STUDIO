@@ -1,0 +1,110 @@
+# Contrat d'agent Forge — mission D1 : audit de la boucle de rétroaction preuve→architecte
+# Schéma : scripts/forge/contracts/SCHEMA.md. Statut : RATIFIÉ Pierre 2026-07-27 (extension
+# de l'audit d'allègement : « la Forge sait-elle transformer une intention produit en une
+# stratégie de preuve efficace avant de produire le jeu ? »). Dispatch hors profil.
+
+role: >-
+  Cartographe de flux d'information, posture d'auditeur de système de contrôle. Point de vue
+  imposé par Pierre : le sujet n'est pas l'état du jeu, c'est de savoir si la chaîne possède
+  une boucle de retour qui détecte les écarts AVANT la livraison — et si l'architecte reçoit
+  assez d'informations pour arbitrer avant build. Tu mesures des arêtes de flux, tu ne
+  proposes PAS la brique manquante (c'est le rôle de la supervision).
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Rigueur de graphe : une « boucle de retour » n'existe que si un ARTEFACT produit en aval
+  est mécaniquement RELU par un consommateur en amont (échelle Declared/Referenced/Executed/
+  Verified — une mention en prose n'est pas une arête). Heuristique du dépôt, prouvée 4× :
+  vérifier l'ÉCRIVAIN ET le LECTEUR de chaque arête, jamais l'un sans l'autre.
+memoire: >-
+  Chaîne déclarée : s0 contrat → s1 prisme → s3 décompo → s4 ARCHI → s5 WIREMAP (gel) →
+  s9 build → s10 oracles → s11 red-team → s12 verdict. ARÊTES DE RETOUR DÉJÀ DOCUMENTÉES
+  (à re-vérifier, pas à croire) : error_journal↔premortem = « seule boucle mémoire fermée »
+  (audit 2026-07-24) — relue par le BUILDER au retry, jamais par l'architecte · s10s FAIL →
+  _maybe_escalate → retry s9 (boucle intra-run, driver.py:1218-1223) · learning_curve
+  (branchée 26-07, subject{type,id}) mesure les RUNS, pas la stratégie de preuve ·
+  pending_review = propositions vers Pierre, pas vers s4 · red-team advisory : findings non
+  pliés dans le verdict (constaté sur pong_r2 : redteam_advisory:[] avec un rapport de 14 Ko
+  sur disque). STRUCTURE DE PREUVE : chaque ligne de wiremap porte un champ expected_proof
+  (4 formes : artifact/test/bot_action/pixel — core_requirements.yaml) ; le volet e2e est
+  SAUTÉ au profil standard (driver.py:745-762). FAITS DU JOUR (audits A1/B1/C1, contre-
+  vérifiés) : les 4 constats playtest = 3 « jamais spécifié » + 1 « spécifié-mais-faux »
+  (preuve tautologique core.exit) ; mutation 58/61 systèmes vs 0/65 présentation ; le champ
+  16 du schéma de contrat (« pourquoi l'agent existe ») a déjà dégénéré une fois en
+  topologie jamais rendue au prompt (WHY_ACTIVATION_PRIMITIVE.md) — précédent direct.
+mandatory_read:
+  - games/pong/09_WIREMAP/wiremap.json (CHAQUE ligne : intention + expected_proof)
+  - scripts/forge/standard/core_requirements.yaml (les 4 formes de preuve et leurs exigences)
+  - scripts/forge/contracts/s4-archi.yaml + s5-wiremap.yaml (ce que l'architecte reçoit en entrée)
+  - docs/audit/AUDIT_ALLEGEMENT_A1_CHAINE_2026-07-27.md + AUDIT_ALLEGEMENT_B1_TESTS_2026-07-27.md (ne pas redécouvrir)
+  - docs/audit/FORGE_AUDIT_BRANCHEMENTS_2026-07-24.md (les boucles déjà cartographiées)
+objectif: >-
+  Rendre TROIS livrables mesurés. (1) TABLE WIREMAP→PREUVE, ligne par ligne pour les 13
+  lignes de Pong : intention de la ligne · expected_proof déclarée · la preuve prouve-t-elle
+  l'INTENTION (ou un substitut plus faible — nommer l'écart) · la preuve est-elle OBSERVABLE
+  PAR UN JOUEUR · combien de lignes un scénario global (partie auto) validerait simultanément.
+  Classer chaque ligne : fonctionnalité-sans-preuve · preuve-sans-fonctionnalité ·
+  oracle-sans-objectif-produit · validé-techniquement-pas-fonctionnellement · preuve-fidèle.
+  (2) DENSITÉ DE PREUVE : pour les preuves actuelles de Pong, coût (lignes de test, temps,
+  exécutions) vs information apportée ; identifier redondances, preuves isolées remplaçables
+  par un scénario global, et CHIFFRER ce qu'un run auto de 10-30 s prouverait d'un coup
+  (lancement/rendu/déplacement/physique/collision/score/stabilité — lesquels exactement, avec
+  quelles assertions). (3) GRAPHE DES ARÊTES DE RETOUR : inventaire exhaustif des flux
+  aval→amont existants (qui écrit, qui relit, échelle D/R/E/V chacun), et pour l'ARCHITECTE
+  spécifiquement : la liste exacte des informations qu'il reçoit aujourd'hui à s4 (mandatory
+  _read + prompt) vs celles qu'il faudrait pour arbitrer une stratégie de preuve avant build
+  (fonctionnalités non prouvées, preuves trop coûteuses, tests inutiles, zones sur/sous-
+  validées). CONCLURE par un verdict factuel à la question de Pierre (la Forge sait-elle
+  transformer une intention produit en stratégie de preuve efficace avant build ?) — verdict
+  MESURÉ, sans proposer de solution (la brique manquante est hors de ton mandat).
+in_scope: >-
+  LECTURE du dépôt entier. ÉCRITURE d'un seul fichier :
+  docs/audit/AUDIT_ALLEGEMENT_D1_BOUCLE_RETROACTION_2026-07-27.md.
+out_of_scope: >-
+  AUCUNE modification de code/contrat/wiremap. AUCUNE proposition de brique nouvelle (tu
+  fournis les faits, la supervision propose, Pierre décide). Ne pas relancer de run. Zones
+  gelées intouchées. Chantiers session Godot parallèle : inventorier sans toucher.
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT
+  docs/audit/AUDIT_ALLEGEMENT_D1_BOUCLE_RETROACTION_2026-07-27.md. run: lecture seule
+  (grep/rg, git log, python/node one-liners de LECTURE). delete: aucun.
+  INTERDIT : git commit/push/checkout.
+gardeFou: >-
+  (1) Une arête de retour se prouve par ÉCRIVAIN+LECTEUR mécaniques (fichier:ligne des
+  deux) — une consigne en prose dans un contrat compte comme Declared, pas comme Executed.
+  (2) « La preuve prouve-t-elle l'intention » se juge contre le TEXTE de la ligne de
+  wiremap, pas contre ce que le test fait bien — précédent core.exit : preuve verte, intention
+  fausse. (3) Pour la densité : chiffres réels (compter les lignes/assertions/exécutions),
+  jamais d'impression. (4) Ne pas dupliquer A1/B1/C1 : citer leurs résultats par référence
+  et n'apporter QUE la dimension flux/boucle. (5) Le verdict final répond à la question de
+  Pierre par OUI/NON/PARTIEL avec les 3 preuves les plus fortes — pas de solution. (6)
+  Rapport DATÉ/SOURCÉ. (7) Doute => STOP et question dans le rapport.
+success_criteria: >-
+  (a) table 13 lignes × 5 colonnes complète, chaque ligne classée ; (b) densité de preuve
+  chiffrée + liste exacte des invariants qu'un run auto prouverait simultanément avec leurs
+  assertions ; (c) graphe des arêtes de retour avec D/R/E/V et fichier:ligne
+  écrivain/lecteur pour chacune ; (d) liste exacte des entrées de l'architecte à s4
+  aujourd'hui vs manquantes ; (e) verdict factuel OUI/NON/PARTIEL à la question principale,
+  3 preuves ; (f) git status ne montre QUE le rapport.
+tests_oracles: >-
+  Sources primaires (wiremap, contrats s4/s5, driver, journaux, rapports d'audit) ·
+  grep/comptage. Mission d'ANALYSE : software_verdict = complétude de l'audit.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED. Corps :
+  verdict à la question principale · table wiremap→preuve · densité · graphe des retours ·
+  entrées de l'architecte · skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, verdict_question_principale: {reponse, preuves: []},
+  table_wiremap_preuve: [{ligne, intention, expected_proof, prouve_intention,
+  observable_joueur, couvert_par_scenario_global, classe}], densite: {redondances: [],
+  remplacables_par_scenario: [], invariants_run_auto: [{invariant, assertion}]},
+  aretes_retour: [{arete, ecrivain, lecteur, etat_DREV}], entrees_architecte:
+  {recues: [], manquantes: []}, rapport_path, git_status_final, skipped_validation: [],
+  software_verdict, evidence_verdict: MECHANICAL_VALIDATION_ONLY,
+  claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Mission Pierre 2026-07-27, extension de l'audit d'allègement (volet boucle de rétroaction).
+  Sœurs rendues : A1/B1/C1 + RAPPORT_DECISION_ALLEGEMENT_2026-07-27.md. En aval : la
+  supervision propose la brique manquante et son emplacement dans la chaîne (préparation de
+  décision), Pierre arbitre.

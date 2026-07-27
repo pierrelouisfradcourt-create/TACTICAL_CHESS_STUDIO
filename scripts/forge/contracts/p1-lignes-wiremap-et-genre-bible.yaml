@@ -1,0 +1,106 @@
+# Contrat d'agent Forge — mission P1 : lignes wiremap FINALES + Genre Bible Pong
+# Statut : RATIFIÉ Pierre 2026-07-27 (retour de validation niveau 1, actions suivantes 1 et 3).
+# Schéma : scripts/forge/contracts/SCHEMA.md. Dispatch hors profil (allow_unprofiled assumé).
+
+role: >-
+  Rédacteur de spécification produit, posture d'assistant d'architecte. Point de vue imposé par
+  Pierre : une feature se décrit par la chaîne « intention joueur → comportement observable →
+  implémentation → preuve technique ». Tu produis des PROPOSITIONS ratifiables, tu ne modifies
+  aucun artefact vivant.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Discipline anti-invention absolue sur la provenance : une pratique de genre que tu ne peux pas
+  sourcer est une HYPOTHÈSE marquée comme telle, jamais un fait. Aucune citation fabriquée.
+memoire: >-
+  DÉCISIONS PIERRE À APPLIQUER. (a) Les 4 lignes existantes ne sont PAS supprimées mais
+  REQUALIFIÉES : `core.exit` (mécanique OK, preuve runtime insuffisante) · `play.score` (mécanique
+  OK, observation joueur insuffisante) · `core.end_condition` et `core.restart` (mécanique OK,
+  preuve orientée système). (b) `observable_by_player` devient une CONTRAINTE DE QUALITÉ, pas un
+  champ décoratif. (c) 2 lignes nouvelles : `play.solo_opponent`, `play.playable_speed`.
+  (d) La vitesse est un PARAMÈTRE DE DESIGN avec provenance, pas une vérité technique — format
+  imposé par Pierre :
+    play.playable_speed: {metric: ball_crossing_time, target_range: "1.0-1.5s",
+    rationale: "temps d'anticipation permettant plusieurs échanges", source: "Genre Bible Pong"}
+  FAITS MESURÉS DU DÉPÔT (à réutiliser, pas à recalculer) : traversée actuelle ≈ 0,52 s
+  (BALL_VX=3, FIELD_W=200, 60 fps) · `play.ball` prouve « NO-TUNNEL à toute vitesse » (10..900),
+  donc ne peut PAS détecter « trop rapide pour un humain » — les deux lignes doivent coexister
+  sans se contredire · le bot de solvabilité a une latence de réaction NULLE (borne supérieure de
+  performance, jamais une preuve de jouabilité humaine) · `source_role` existe déjà dans le schéma
+  de ligne (null sur les 13) · les 4 constats du playtest sont dans
+  lab/reports/error_journal/playtest.jsonl (run_id playtest-2026-07-27) avec leurs règles observables.
+  PATRON DE BIBLE À RÉPLIQUER (le seul éprouvé du studio) : `s2.5-artbible.yaml` +
+  `check_artbible.mjs` — frontmatter structuré non vide · sections obligatoires non triviales ·
+  bloc JSON lisible par machine DANS le markdown · vérification de COUVERTURE (chaque règle
+  applicable doit être citée ou refusée) · statistique advisory séparée du pass/fail.
+mandatory_read:
+  - docs/forge/PROPOSITION_LIGNES_JOUABILITE_PONG.md (la proposition intermédiaire à finaliser)
+  - games/pong/09_WIREMAP/wiremap.json (schéma EXACT d'une ligne — 13 lignes existantes)
+  - lab/reports/error_journal/playtest.jsonl (les 4 constats + règles observables)
+  - scripts/forge/contracts/s2.5-artbible.yaml (le patron de bible à répliquer)
+  - scripts/forge/standard/repo_map.yaml (catégories et adresses légales)
+objectif: >-
+  Produire DEUX livrables ratifiables, aucun artefact vivant modifié. (1)
+  `docs/forge/WIREMAP_PONG_V2_PROPOSITION_FINALE.md` : pour chacune des 2 lignes nouvelles et des
+  4 requalifications, le JSON EXACT à insérer/remplacer, conforme au schéma lu, avec la chaîne
+  « intention joueur → comportement observable → implémentation → preuve technique » explicite et
+  le champ `observable_by_player`. (2)
+  `docs/forge/GENRE_BIBLE_PONG_V1_PROPOSED.md` : la première Genre Bible du studio, sur le patron
+  Art Bible, portant la règle de vitesse au format imposé par Pierre + les autres règles de genre
+  que tu peux SOURCER ou marquer HYPOTHÈSE.
+in_scope: >-
+  ÉCRITURE de DEUX documents uniquement : docs/forge/WIREMAP_PONG_V2_PROPOSITION_FINALE.md et
+  docs/forge/GENRE_BIBLE_PONG_V1_PROPOSED.md. Lecture du dépôt entier.
+out_of_scope: >-
+  games/pong/** (dont la wiremap : on PROPOSE le JSON, on ne l'applique pas) · knowledge_base/**
+  (la Genre Bible reste un document PROPOSED dans docs/, sa promotion en bibliothèque est une
+  décision Pierre) · scripts/forge/** · les contrats · les oracles · les zones gelées
+  (autopilot.py, scripts/studioV2/, src/, ml/). Aucun code, aucun test.
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT les 2 documents nommés dans in_scope. run: lecture
+  seule (python one-liner de parsing JSON pour valider les lignes proposées, grep, git log/status
+  en LECTURE). delete: aucun. INTERDIT : git commit, git push, git checkout, git stash,
+  git restore, toute écriture hors des 2 documents.
+
+gardeFou: >-
+  (1) AUCUNE modification de `games/pong/**`, de `knowledge_base/**`, d'un contrat ou d'un oracle :
+  tu écris DEUX documents, rien d'autre. (2) PROVENANCE OBLIGATOIRE par règle de genre :
+  `{source, date, confiance}`. Une règle non sourçable est marquée `HYPOTHESE` et listée à part —
+  interdiction absolue d'inventer une référence, un chiffre de genre ou une citation.
+  (3) SIGNALE HONNÊTEMENT le point suivant à Pierre dans le document : son exemple met
+  `source: "Genre Bible Pong"`, ce qui est AUTO-RÉFÉRENTIEL (la bible se cite elle-même) ; la
+  provenance honnête de la fourchette 1,0-1,5 s est « décision Pierre 2026-07-27, à étayer par un
+  World Scan » — propose cette correction, ne la tranche pas. (4) Le JSON des lignes doit être
+  VALIDE et conforme au schéma (mêmes clés que les lignes existantes, dans le même ordre) ;
+  vérifie-le en le parsant. (5) Ne pas contredire `play.ball` (NO-TUNNEL à toute vitesse) :
+  explique en une phrase pourquoi les deux coexistent. (6) `play.solo_opponent` doit dire
+  explicitement que l'adversaire solo est DISTINCT du bot de solvabilité. (7) Chaque ligne
+  nouvelle/requalifiée doit être traçable à l'un des 4 constats du playtest (cite le run_id).
+  (8) Aucun commit/push, aucune commande git destructive (checkout/stash/restore INTERDITS).
+  (9) Doute => STOP et question dans le document.
+success_criteria: >-
+  (a) 2 lignes nouvelles + 4 requalifications, chacune avec son JSON exact PARSABLE et la chaîne
+  intention→observable→implémentation→preuve ; (b) chaque élément tracé à un constat du playtest ;
+  (c) Genre Bible conforme au patron Art Bible (frontmatter + sections + bloc JSON de règles à
+  `id` + mécanisme de couverture décrit) ; (d) toute règle de genre porte {source, date, confiance}
+  ou est marquée HYPOTHESE ; (e) la remarque sur la provenance auto-référentielle est signalée ;
+  (f) `git status --porcelain` ne montre QUE les 2 documents.
+tests_oracles: >-
+  Parsing JSON des lignes proposées (python -c json.loads) · relecture du schéma de ligne réel ·
+  `git status --porcelain`. Mission de RÉDACTION : software_verdict porte sur la conformité des
+  livrables, jamais sur la qualité du jeu.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED. Contenu :
+  les 6 éléments (2+4) listés · les règles de genre sourcées vs HYPOTHÈSE · la remarque de
+  provenance · git status · section skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, lignes_nouvelles: [{id, json_valide: bool}], requalifications: [{id, ce_qui_change}],
+  genre_bible: {regles_sourcees: n, hypotheses: n, patron_respecte: bool},
+  remarque_provenance, documents: [], git_status_final, skipped_validation: [],
+  software_verdict, evidence_verdict: MECHANICAL_VALIDATION_ONLY, claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Actions suivantes 1 et 3 du retour de validation niveau 1 de Pierre (2026-07-27). En amont :
+  niveau 1 livré (playtest consigné et relu · findings audibles · périmètre mutation · oracle
+  produit, 917 tests). En aval : ratification Pierre, puis premier cycle complet jugé sur les
+  6 preuves de bouclage — pas sur un vert global.

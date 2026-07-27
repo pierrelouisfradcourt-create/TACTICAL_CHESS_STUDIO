@@ -1,0 +1,120 @@
+# Contrat d'agent Forge — mission V4 : brancher le dépositaire de briques (propose_brick)
+# Schéma : scripts/forge/contracts/SCHEMA.md (règle des 3 états — un champ absent = refus)
+# Statut : RATIFIÉ Pierre 2026-07-26 (décision ② : « Si c'est un problème d'automatisation,
+# il devra être corrigé »). L'analyse V2 a établi que c'en est un :
+# docs/audit/ANALYSE_DEPOT_GAME_LOOP_2026-07-26.md — cause « implémenté et non branché ».
+# Dispatch hors profil (allow_unprofiled assumé, inscrit dans l'audit signé).
+
+role: >-
+  Ingénieur outillage Forge senior, discipline TDD stricte. Point de vue : tu fermes le
+  dernier maillon d'une chaîne dont l'écrivain et le lecteur existent déjà et ne se sont
+  jamais parlé. Tu branches un connecteur, tu n'inventes pas une couche.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Retenue de conception : le mécanisme existe, est testé et exposé en CLI — la tentation
+  de le « améliorer » au passage est le risque principal. Raisonnement sur le MOMENT du
+  dépôt (quel prédicat autorise une proposition) et sur la doctrine propose-only : ce code
+  ne doit jamais écrire dans le catalogue, seulement proposer à la ratification de Pierre.
+memoire: >-
+  Analyse V2 (contre-vérifiée par la supervision) : `studio_link.propose_brick`
+  (studio_link.py:563) est le seul code dont le dépôt de brique est le rôle — testé,
+  exposé en CLI — et `grep -c propose_brick scripts/forge/driver.py` rend **0**.
+  `lab/reports/forge_brick_proposals.jsonl` n'a jamais existé pour aucun run. Pourtant
+  `pending_review.mjs` (l.22, 59, 83) DOCUMENTE cette file comme sa 5e source de
+  propositions : le LECTEUR est branché, l'ÉCRIVAIN n'a pas d'appelant. Conséquence réelle
+  mesurée : la promesse `adds:[game_loop]` du contrat de Pong ne pouvait mécaniquement pas
+  être tenue, et l'oracle de budget (s10s, volet `budget`, `promis_non_depose:["game_loop"]`)
+  avait raison — le défaut était en amont de lui. Doctrine à respecter absolument : le
+  contrat du builder (s9-build-standard.yaml:53) lui INTERDIT d'écrire `catalog.json` —
+  propose-only, ratification Pierre (ADR-002). Le branchement ne doit pas contourner cela.
+  Contexte du jour : le driver a déjà reçu 3 modifications non commitées (M1 télémétrie,
+  garde s10s attempts, V1 séparation intégrité/verdict) — suite de référence 865 passed,
+  1 skipped.
+mandatory_read:
+  - docs/audit/ANALYSE_DEPOT_GAME_LOOP_2026-07-26.md (l'analyse qui mandate ce branchement)
+  - scripts/forge/studio_link.py (propose_brick l.563 et sa signature exacte)
+  - scripts/forge/driver.py (_run_verdict — où le branchement doit vivre)
+  - scripts/forge/pending_review.mjs (le lecteur qui attend cette file — format consommé)
+  - games/pong/00_CHARTER/game_contract.yaml (la promesse `adds:` — source du brick_id)
+
+objectif: >-
+  Un run dont le code final est jugé OK et dont le contrat de jeu promet `adds: [<brique>]`
+  écrit une PROPOSITION de dépôt dans lab/reports/forge_brick_proposals.jsonl, au format
+  déjà consommé par pending_review.mjs — et rien de plus : aucune écriture dans le
+  catalogue, aucune promotion, aucune ratification automatique. Un run dont le code n'est
+  pas OK n'écrit aucune proposition.
+
+gardeFou: >-
+  DESIGN IMPOSÉ. (1) Le branchement vit dans `driver.py::_run_verdict`, appelle
+  `studio_link.propose_brick` avec sa signature EXISTANTE — ne modifie NI la signature NI
+  le comportement de propose_brick (si un paramètre te manque, STOP et remonte-le, ne le
+  change pas). (2) PRÉDICAT DU DÉPÔT : proposition écrite UNIQUEMENT si le reçu de l'oracle
+  code est OK ; jamais sur un FAIL/BLOCKED. Un survivant mutation non trié, une baseline
+  rouge, un oracle sauté ⇒ aucune proposition. (3) BEST-EFFORT STRICT : comme la télémétrie
+  (M1), l'écriture ne doit JAMAIS faire échouer un run ni changer un statut d'étape —
+  exception avalée et journalisée, jamais propagée. (4) PROPOSE-ONLY : interdiction absolue
+  d'écrire dans knowledge_base/ (catalogue, systems/) — la proposition est une ligne dans
+  lab/reports/, ratifiée par Pierre ailleurs. (5) FORMAT : celui que pending_review.mjs lit
+  déjà (clé sujet `brick_id`) — vérifié par lecture du lecteur, jamais deviné ; si le
+  format attendu est ambigu, remonte l'ambiguïté au lieu de l'inventer. (6) La source du
+  `brick_id` est la promesse `adds:` du contrat de jeu, jamais un nom déduit d'un chemin de
+  fichier (règle anti-invention : un agent a déjà REFUSÉ à raison de forcer un nom dans
+  brick_id — cf. LEARNING_SUBJECT_MODEL_V1). (7) TDD strict, RED montré puis GREEN ;
+  tests isolés tmp_path (aucune écriture dans le vrai lab/reports/) ; encoding utf-8.
+  (8) Aucun commit/push. (9) Le working tree porte des chantiers concurrents (adaptateur
+  Godot d'une autre session, missions du jour) — ne touche que ton périmètre, compare tes
+  diffs à l'état trouvé en arrivant. (10) Doute de périmètre => STOP et question.
+
+in_scope: >-
+  scripts/forge/driver.py (le branchement dans _run_verdict) · scripts/forge/tests/.
+  RIEN d'autre.
+out_of_scope: >-
+  studio_link.propose_brick INCHANGÉ (signature et comportement). knowledge_base/** JAMAIS
+  écrit. pending_review.mjs INTOUCHÉ (c'est le lecteur : on s'aligne sur lui, on ne
+  l'adapte pas). verdict.py, gate.py, verify_run.py, standard_oracles.py, les contrats YAML
+  intouchés. Zones gelées intouchées (autopilot.py, scripts/studioV2/, src/, ml/). Ne PAS
+  déposer la brique game_loop de Pong (son code est FAIL — le prédicat l'interdit, et c'est
+  le comportement correct à prouver). Ne PAS traiter la preuve mutation par brique (sujet
+  distinct, suspendu à l'arbitrage Pierre ③).
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT scripts/forge/driver.py et
+  scripts/forge/tests/**. run: pytest (.venv312/Scripts/python.exe -m pytest
+  scripts/forge/tests/ -q), node scripts/forge/pending_review.mjs en LECTURE si utile pour
+  valider le format, git status/diff (lecture). delete: aucun. INTERDIT : git commit, git
+  push, git checkout, toute écriture dans knowledge_base/ ou lab/reports/ hors tmp_path.
+
+success_criteria: >-
+  (a) test POSITIF : un run avec reçu code OK et `adds:[X]` au contrat écrit exactement une
+  ligne de proposition pour X, au format lu par pending_review.mjs — prouvé sur fichier en
+  tmp_path ; (b) test NÉGATIF : un run avec reçu code FAIL (cas réel pong_r2 : survivants
+  mutation non triés) n'écrit AUCUNE proposition ; (c) test de ROBUSTESSE : une exception à
+  l'écriture n'altère ni le statut de l'étape ni le run (best-effort prouvé) ; (d) aucune
+  écriture dans knowledge_base/ — prouvé par git status --porcelain et par l'absence
+  d'écriture dans le code (revue du diff) ; (e) zéro régression — référence 865 passed,
+  1 skipped, nouveaux tests comptés ; (f) `node scripts/forge/studio_selfaudit.mjs` reste
+  STUDIO ALIGNÉ.
+tests_oracles: >-
+  .venv312/Scripts/python.exe -m pytest scripts/forge/tests/ -q (réf. 865 passed,
+  1 skipped) · node scripts/forge/studio_selfaudit.mjs · git status --porcelain ·
+  sorties RED/GREEN réelles collées.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED
+  uniquement. Contenu : RED/GREEN collés · critères (a)→(f) un par un avec preuve · le
+  format de proposition retenu ET la preuve qu'il correspond à ce que pending_review.mjs
+  lit (citation du lecteur) · confirmation explicite qu'aucune écriture durable n'est
+  possible par ce chemin · git status/diff · section skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, red_output, green_output, criteres_a_f: [{critere, preuve}],
+  format_proposition: {champs, preuve_lecteur}, propose_only_confirme: bool,
+  git_status_final, git_diff_stat, fichiers_modifies: [], skipped_validation: [],
+  software_verdict, evidence_verdict: MECHANICAL_VALIDATION_ONLY,
+  claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Décision Pierre ② du 2026-07-26, volet « correction de l'automatisation », mandaté par
+  l'analyse V2. En amont : V2 (cause établie) et V1 (verify_run séparé) livrées le même
+  jour. En aval : le nouveau run Pong (pong_r3) mesurera l'impact — mais la contrainte
+  liante reste l'arbitrage ③ (gate mutation), sans lequel le reçu code de Pong restera
+  FAIL et aucune proposition ne sera donc déposée. pong_r2 est conservé comme référence
+  historique (décision ④).

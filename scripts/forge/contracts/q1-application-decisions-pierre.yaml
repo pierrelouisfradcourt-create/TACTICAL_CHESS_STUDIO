@@ -1,0 +1,108 @@
+# Contrat d'agent Forge — mission Q1 : APPLICATION des décisions Pierre du 2026-07-27
+# Statut : RATIFIÉ Pierre 2026-07-27 (« Prochaine action autorisée : appliquer ces décisions,
+# produire les diffs, puis attendre validation avant lancement du cycle complet »).
+# Schéma : scripts/forge/contracts/SCHEMA.md. Dispatch hors profil (allow_unprofiled assumé).
+
+role: >-
+  Ingénieur d'application, discipline stricte. Point de vue : tu appliques des décisions déjà
+  prises, à la lettre et sans les réinterpréter. Chaque écart entre ce qui est décidé et ce que
+  tu écris est un défaut, même s'il te paraît meilleur.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Prudence maximale sur `.claude/settings.json` : ce fichier gouverne la session EN COURS. Une
+  erreur de syntaxe ou un hook cassé y interrompt le travail de tout le monde. Tester avant
+  d'écrire, vérifier après.
+memoire: >-
+  TROIS APPLICATIONS DEMANDÉES, toutes déjà décidées par Pierre — ne rien redécider.
+  (A) GARDE GIT : appliquer le patch `settings.json` proposé en §7 de
+  docs/forge/GARDE_GIT_MECANIQUE_PROPOSITION.md — les 2 entrées `hooks.PreToolUse` (matchers Bash
+  et PowerShell → .claude/hooks/pretool_git_guard.py) ET les entrées `permissions.deny` sur la
+  sentinelle d'override. **LE DENY EST LE POINT CENTRAL** : aujourd'hui `settings.json` porte
+  `allow: ["Write(.claude/**)", "Edit(.claude/**)"]` sans aucun deny, donc un agent peut s'écrire
+  son propre override — Pierre : « un agent ne doit jamais pouvoir créer lui-même son propre
+  contournement ». Le garde doit rester FAIL-CLOSED et rester actif après tentative de
+  contournement (à tester).
+  (B) WIREMAP PONG : appliquer les 6 objets JSON de
+  docs/forge/WIREMAP_PONG_V2_PROPOSITION_FINALE.md dans games/pong/09_WIREMAP/wiremap.json —
+  2 lignes nouvelles (`play.solo_opponent`, `play.playable_speed`) + 4 requalifications
+  (`core.exit`, `play.score`, `core.end_condition`, `core.restart`) dont le passage
+  **IMPLEMENTED → REQUIRED** VALIDÉ par Pierre. Sémantique qu'il a fixée : `IMPLEMENTED` =
+  comportement interne démontré · `REQUIRED` = expérience joueur exigée. Règle à conserver dans
+  chaque ligne : « conserver l'invariant mécanique existant, ajouter l'observable joueur manquant ».
+  (C) GENRE BIBLE : corriger la provenance dans
+  docs/forge/GENRE_BIBLE_PONG_V1_PROPOSED.md aux DEUX formats EXACTS imposés par Pierre —
+  provenance générale `source: {type: decision, author: Pierre, date: 2026-07-27,
+  status: HYPOTHESE_A_VALIDER, validation: World Scan}` et vitesse
+  `playable_speed_range: {value: "1.0-1.5s", status: HYPOTHESE,
+  provenance: "décision Pierre 2026-07-27", validation_required: "World Scan"}`.
+  Règle : aucune référence de genre inventée ; toute règle non vérifiée reste marquée `HYPOTHESE`.
+mandatory_read:
+  - docs/forge/GARDE_GIT_MECANIQUE_PROPOSITION.md (le patch §7, à appliquer tel quel)
+  - docs/forge/WIREMAP_PONG_V2_PROPOSITION_FINALE.md (les 6 objets JSON, à appliquer tels quels)
+  - docs/forge/GENRE_BIBLE_PONG_V1_PROPOSED.md (le document à corriger)
+  - .claude/settings.json (l'état actuel, avant modification)
+  - games/pong/09_WIREMAP/wiremap.json (l'état actuel, avant modification)
+objectif: >-
+  Appliquer À LA LETTRE les trois décisions (A) garde git — patch settings.json avec ses hooks ET
+  son deny sur la sentinelle d'override, garde vérifié encore actif après application ;
+  (B) wiremap Pong — les 6 objets JSON intégrés, dont les 4 requalifications passées
+  IMPLEMENTED → REQUIRED ; (C) Genre Bible — les deux formats de provenance de Pierre appliqués
+  au caractère près. Aucune décision nouvelle, aucun commit.
+
+in_scope: >-
+  .claude/settings.json (patch du garde UNIQUEMENT) · games/pong/09_WIREMAP/wiremap.json
+  (les 6 objets) · docs/forge/GENRE_BIBLE_PONG_V1_PROPOSED.md (formats de provenance) ·
+  scripts/forge/tests/ si un test de non-régression est nécessaire.
+out_of_scope: >-
+  Toute autre modification. Ne PAS committer, ne PAS pousser (la supervision fait les commits).
+  Ne pas toucher scripts/forge/git_guard.py ni le hook (déjà livrés et testés). Ne pas modifier
+  les autres jeux, contrats, oracles, ni les zones gelées. Ne pas promouvoir la Genre Bible dans
+  knowledge_base/ (écriture durable = décision Pierre séparée). Ne rien redécider.
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT les 4 chemins d'in_scope. run: pytest (.venv312),
+  python/node de vérification, `git status`/`git diff`/`git log`/`git show` en LECTURE.
+  delete: aucun. INTERDIT : git add, git commit, git push, git checkout, git restore, git stash.
+gardeFou: >-
+  (1) **settings.json** : sauvegarder son contenu exact AVANT modification (dans ton rapport),
+  écrire un JSON VALIDE (le re-parser après écriture), et **tester le hook en conditions réelles
+  par stdin** avant de considérer l'application faite. Si le JSON casse, restaure-le depuis la
+  copie de ton rapport (jamais par git). (2) **Test de contournement obligatoire** (exigence
+  Pierre) : après application, vérifier que le garde reste actif — au minimum, que la sentinelle
+  d'override est bien couverte par un `deny` et que le garde refuse toujours les 3 commandes
+  interdites. Rapporte ce que tu ne peux PAS tester (le deny réel ne s'observe qu'à l'exécution
+  d'un outil par un agent). (3) **wiremap** : JSON valide re-parsé après écriture ; les 13 lignes
+  existantes conservées (15 au total après ajout) ; ne modifier QUE les 4 lignes requalifiées et
+  n'ajouter QUE les 2 nouvelles. (4) Appliquer les formats de Pierre AU CARACTÈRE PRÈS — ce sont
+  des décisions, pas des suggestions. (5) Zéro régression : suite de référence **945 passed,
+  1 skipped**. (6) Aucune commande git destructrice. (7) Doute => STOP et question dans le rapport,
+  surtout sur settings.json.
+success_criteria: >-
+  (a) settings.json contient les 2 hooks ET les deny sur la sentinelle, JSON valide re-parsé ;
+  (b) le hook répond correctement à un test stdin (bloque `git checkout ...`, laisse passer
+  `git status`) ; (c) wiremap.json valide, 15 lignes, 2 nouvelles + 4 requalifiées en REQUIRED,
+  les 9 autres inchangées (le prouver par diff) ; (d) la Genre Bible porte les 2 formats de
+  provenance EXACTS de Pierre ; (e) suite = 945 passed, 1 skipped (ou plus si tests ajoutés,
+  jamais moins) ; (f) `git status --porcelain` : uniquement les fichiers d'in_scope en plus de
+  l'existant ; aucun commit.
+tests_oracles: >-
+  Re-parsing JSON de settings.json et wiremap.json · test stdin du hook · pytest (.venv312,
+  réf. 945 passed, 1 skipped) · `git diff` en lecture pour prouver ce qui a changé.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED. Contenu :
+  le contenu AVANT de settings.json (copie de sauvegarde) · les diffs des 3 fichiers · le résultat
+  du test stdin du hook · le test de contournement et ses limites · la preuve que les 9 lignes non
+  concernées sont inchangées · pytest · section skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, settings: {avant_sauvegarde, apres_valide: bool, hooks_ajoutes: [], deny_ajoutes: []},
+  hook_test_stdin: {bloque, laisse_passer}, test_contournement: {resultat, limites},
+  wiremap: {n_lignes, nouvelles: [], requalifiees: [], autres_inchangees: bool},
+  genre_bible: {formats_appliques: bool}, pytest, git_status_final, git_diff_stat,
+  skipped_validation: [], software_verdict, evidence_verdict: MECHANICAL_VALIDATION_ONLY,
+  claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Application des décisions 1 à 4 du retour Pierre du 2026-07-27. La décision 5 (commits en
+  4 lots ordonnés) est exécutée par la SUPERVISION, pas par toi. En aval : diffs présentés à
+  Pierre, puis attente de sa validation avant tout lancement du cycle complet — dont le critère
+  est les 6 preuves de bouclage, pas un vert global.

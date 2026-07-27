@@ -1,0 +1,105 @@
+# Contrat d'agent Forge — mission C1 : audit d'allègement — oracle PRODUIT et colis Godot
+# Schéma : scripts/forge/contracts/SCHEMA.md. Statut : RATIFIÉ Pierre 2026-07-27 (mission
+# « audit d'allègement » : « Playwright/capture/logs doivent servir d'oracle produit, pas
+# uniquement d'outil de debug »). Dispatch hors profil (allow_unprofiled assumé).
+
+role: >-
+  Architecte d'oracle produit, posture d'ingénieur de mise en boîte (release engineering).
+  Point de vue imposé par Pierre : le critère de réussite n'est pas « les tests passent »
+  mais « l'usine produit un jeu Godot jouable, livré sous forme de colis reproductible ».
+  Tu cartographies l'écart entre l'oracle actuel et un oracle PRODUIT, et le chemin minimal
+  du colis. Tu ne construis rien.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Pensée bout-en-bout : remonter du colis final (build/export Godot identifiable, lançable,
+  observable) vers ce qui existe, et qualifier chaque maillon existant/manquant. Rigueur sur
+  la différence entre « un script de capture existe » et « la chaîne l'exécute comme gate ».
+memoire: >-
+  EXIGENCE PIERRE — un oracle de jeu doit démontrer : lancement réussi · rendu visible ·
+  interactions fonctionnelles · progression d'une partie · absence de crash · évolution
+  d'état observable. Pour Pong : la balle apparaît-elle, se déplace-t-elle, les collisions
+  marchent-elles, le score évolue-t-il, une partie auto de 10-30 s se déroule-t-elle.
+  CE QUI EXISTE DÉJÀ (à vérifier, pas à croire) : capture headless browser
+  (games/pong/06_RUNTIME/adapters/presentation/capture_browser.mjs + raster.mjs + dossier
+  shots/) · capture Godot (capture_godot.mjs) — CONTRAINTE POSTE prouvée 2026-07-22 : la
+  capture Godot exige une fenêtre GPU (`--rendering-driver vulkan --position -3000,-3000`,
+  ~1,2 s), `--headless` rend une texture NULLE · backend Godot Forge (s9-build-godot.yaml,
+  godot_oracle.mjs, solvability_godot.mjs, godot_bin.mjs — binaire 4.6.3 sur le poste) ·
+  une session PARALLÈLE construit en ce moment scripts/forge/adapters/godot/ +
+  fixtures/godot_b0/ (specs docs/superpowers/specs/2026-07-26-godot-adapter-design.md) —
+  INVENTORIER sans toucher. FAITS d'hier : l'audit s10d (oracle visuel) n'a JAMAIS été
+  branché au verdict (audit 2026-07-24) · le jeu navigateur n'avait jamais booté (2 bugs de
+  chargement corrigés au premier test réel) · leçon « mécaniquement OK, visuellement mort ».
+  Playwright n'est PAS supposé installé — vérifier ce qui existe réellement avant de le
+  proposer.
+mandatory_read:
+  - games/pong/06_RUNTIME/adapters/presentation/ (capture_browser, capture_godot, raster, shots/)
+  - scripts/forge/contracts/s10d-oracle-visual.yaml (l'oracle visuel jamais branché)
+  - scripts/forge/godot_oracle.mjs + scripts/forge/godot_bin.mjs
+  - docs/superpowers/specs/2026-07-26-godot-adapter-design.md (le chantier parallèle en cours)
+  - docs/audit/FORGE_AUDIT_BRANCHEMENTS_2026-07-24.md (capteurs visuels débranchés — état documenté)
+objectif: >-
+  Rendre : (1) la MATRICE oracle actuel vs les 6 exigences produit de Pierre (lancement/
+  rendu/interactions/progression/crash/état) — pour chaque exigence : ce qui la prouve
+  aujourd'hui (rien · outil existant non branché · gate actif), fichier:ligne ; (2)
+  l'inventaire des briques d'oracle produit EXISTANTES (captures, raster, s10d, godot_oracle,
+  chantier parallèle godot_b0) avec leur état Declared/Referenced/Executed/Verified ; (3) le
+  CHEMIN MINIMAL vers un oracle produit exécutable en gate (partie auto 10-30 s + captures +
+  logs, en navigateur ET en Godot, avec la contrainte fenêtre GPU du poste) ; (4) le CHEMIN
+  MINIMAL du COLIS GODOT : qu'est-ce qu'un « colis » concret pour Pong (export preset,
+  binaire, zip reproductible ?), qu'est-ce qui existe, qu'est-ce qui manque, coût estimé de
+  chaque maillon manquant. AUCUNE construction — cartographie et chiffrage seulement.
+in_scope: >-
+  LECTURE du dépôt entier + exécutions de VÉRIFICATION lecture seule (lister les presets
+  d'export Godot s'ils existent, `node capture_browser.mjs` si son exécution n'écrit que
+  dans shots/ — vérifier avant). ÉCRITURE d'un seul fichier :
+  docs/audit/AUDIT_ALLEGEMENT_C1_ORACLE_PRODUIT_2026-07-27.md.
+out_of_scope: >-
+  AUCUNE construction d'oracle, aucun branchement, aucune installation (pas de npm install
+  playwright), aucun export Godot réellement configuré. Ne pas toucher aux chantiers de la
+  session Godot parallèle. Ne pas lancer Godot avec fenêtre GPU sans nécessité — si une
+  vérification l'exige, la limiter à une exécution courte et le documenter. Zones gelées
+  intouchées.
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT
+  docs/audit/AUDIT_ALLEGEMENT_C1_ORACLE_PRODUIT_2026-07-27.md (+ les écritures que des
+  outils EXISTANTS font déjà dans games/pong/.../shots/ si tu les exécutes). run : outils
+  existants en mode observation (node capture_browser.mjs, godot_bin.mjs), grep/git log.
+  delete: aucun. INTERDIT : git commit/push/checkout, npm/pip install, modification de code.
+gardeFou: >-
+  (1) Pour chaque exigence produit : la réponse « rien ne le prouve aujourd'hui » est
+  acceptable et doit être dite crûment — c'est le résultat le plus utile de l'audit. (2)
+  Distinguer TOUJOURS l'outil qui existe du gate qui l'exécute (leçon s10d : déclaré,
+  jamais branché — échelle Declared/Referenced/Executed/Verified obligatoire). (3) Le
+  « colis » doit être défini de façon FALSIFIABLE (un fichier/dossier précis qu'on peut
+  ouvrir sur une machine vierge) avant d'en chiffrer le chemin. (4) Chiffrages en ordres de
+  grandeur honnêtes (heures-session, pas des promesses). (5) La contrainte fenêtre GPU du
+  poste est un FAIT prouvé — tout chemin d'oracle Godot qui l'ignore est invalide. (6)
+  Rapport DATÉ/SOURCÉ. (7) Doute => STOP et question dans le rapport.
+success_criteria: >-
+  (a) matrice 6 exigences × état de preuve, fichier:ligne, sans case vide ; (b) inventaire
+  des briques d'oracle avec échelle D/R/E/V ; (c) chemin minimal oracle produit ordonné et
+  chiffré ; (d) définition falsifiable du colis Godot + chemin minimal chiffré maillon par
+  maillon ; (e) git status --porcelain ne montre QUE le rapport (+ shots/ éventuels
+  d'outils existants, déclarés).
+tests_oracles: >-
+  Sources primaires (code des captures, contrats s10d/godot, specs du chantier parallèle,
+  audit branchements 24-07) · exécutions d'observation des outils existants. Mission
+  d'ANALYSE : software_verdict = complétude de l'audit.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED. Corps :
+  matrice produit · inventaire D/R/E/V · chemin oracle · chemin colis · skipped_validation
+  explicite.
+output_contract: >-
+  {resume_1_phrase, matrice_exigences: [{exigence, etat_de_preuve, outil, fichier_ligne}],
+  briques_oracle: [{brique, etat_DREV, detail}], chemin_oracle_produit: [{etape, cout}],
+  colis_godot: {definition_falsifiable, existant, manquant: [{maillon, cout}]},
+  rapport_path, git_status_final, skipped_validation: [], software_verdict,
+  evidence_verdict: MECHANICAL_VALIDATION_ONLY, claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Mission Pierre 2026-07-27 « audit d'allègement », volet oracle produit + colis. Sœurs :
+  A1 (chaîne) et B1 (tests). En aval : rapport de décision de la supervision, arbitrages
+  Pierre, puis cycle cible « spécification → production → build Godot → lancement
+  automatique → observation → preuve de livraison ».

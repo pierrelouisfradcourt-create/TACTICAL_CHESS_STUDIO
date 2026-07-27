@@ -1,0 +1,90 @@
+# Contrat d'agent Forge — mission P3 : plan de commits par LOTS (préparation, aucun commit)
+# Statut : RATIFIÉ Pierre 2026-07-27 (retour niveau 1, action suivante 4 : « le plan de commits
+# par lots », puis attendre validation). Doctrine D6 (3 lots séparés, ratifiée 2026-07-26).
+# Schéma : scripts/forge/contracts/SCHEMA.md. Dispatch hors profil (allow_unprofiled assumé).
+
+role: >-
+  Auditeur de dépôt, posture d'archiviste. Point de vue : un commit mélangé est une perte
+  d'information définitive — la seule chose qu'on ne peut pas réparer plus tard. Tu classes chaque
+  fichier, tu n'en commites aucun.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Rigueur d'attribution : ~73 fichiers en attente, produits par PLUSIEURS sessions distinctes dont
+  une session PARALLÈLE encore active. Attribuer à tort un fichier d'une autre session à un de nos
+  lots ferait committer du travail qu'on n'a pas vérifié.
+memoire: >-
+  CONTEXTE D'ATTRIBUTION. Travaux de CETTE session (2026-07-26/27), à committer : instruments
+  Forge (M1 télémétrie d'échec · garde s10s attempts · V1 séparation intégrité/verdict ·
+  V4 propose_brick branché · N1-1 findings red-team · N1-2 périmètre mutation · N1-3 oracle
+  produit) · 17+ contrats d'agent créés · fixes navigateur du jeu Pong (audio.mjs, exit.mjs) ·
+  documents d'audit et de doctrine · mémoire/handoff · RUN_INDEX · journal playtest.
+  **SESSION PARALLÈLE ACTIVE — À NE JAMAIS INCLURE** : `scripts/forge/adapters/godot/` et
+  `fixtures/godot_b0/` (créés le 2026-07-27 entre 02:08 et 02:24 par une autre session, specs
+  `docs/superpowers/{specs,plans}/2026-07-26-godot-adapter-*`). Ces fichiers ne sont pas les
+  nôtres et n'ont pas été vérifiés par nous.
+  ÉLÉMENTS SENSIBLES à traiter explicitement : `games/pong/09_WIREMAP/wiremap.json` et
+  `games/pong/mutation_triage.json` étaient DÉJÀ modifiés à l'ouverture de la session (origine
+  antérieure, à ne pas s'attribuer) · `lab/reports/error_journal/INDEX.generated.md` et
+  `html.jsonl` sont des fichiers GÉNÉRÉS · `knowledge_base/learning_curve.jsonl` doit être à
+  l'état HEAD (pollution de test retirée — vérifie que son diff est vide, et si ce n'est pas le
+  cas, NE le corrige PAS : signale-le) · `.claude/launch.json` est une config de lancement créée
+  pour tester Pong.
+mandatory_read:
+  - lab/forge_runs/RUN_INDEX.md (l'historique de ce qui a été produit et par quelle mission)
+  - studio_brain/00_CURRENT_CONTEXT.md (le handoff : ce que la session a livré)
+objectif: >-
+  Produire `docs/forge/PLAN_COMMITS_PAR_LOTS_2026-07-27.md` : chaque fichier en attente classé dans
+  UN lot, avec son message de commit proposé, l'ordre des lots, et une section explicite
+  « N'APPARTIENT PAS À NOUS » pour les fichiers de la session parallèle et ceux d'origine
+  antérieure. Aucun commit, aucun `git add`.
+in_scope: >-
+  ÉCRITURE d'UN seul document : docs/forge/PLAN_COMMITS_PAR_LOTS_2026-07-27.md.
+  Lecture du dépôt entier et de l'état git.
+out_of_scope: >-
+  L'index git (aucun `git add`) · tout commit ou push · toute modification de fichier autre que le
+  document · la suppression d'un fichier même s'il te paraît non-versionnable (tu le SIGNALES) ·
+  la correction de `knowledge_base/learning_curve.jsonl` s'il diverge de HEAD (tu le signales) ·
+  les fichiers de la session Godot parallèle · les zones gelées.
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT
+  docs/forge/PLAN_COMMITS_PAR_LOTS_2026-07-27.md. run: `git status --porcelain`, `git log`,
+  `git diff` en LECTURE seule ; python one-liners de comptage. delete: aucun.
+  INTERDIT : git add, git commit, git push, git checkout, git stash, git restore.
+
+gardeFou: >-
+  (1) **AUCUN `git add`, `git commit`, `git push`** ni aucune commande git destructrice
+  (checkout/restore/stash INTERDITS). Lecture seule sur git. (2) **EXHAUSTIVITÉ VÉRIFIABLE** : la
+  somme des fichiers de tous les lots + la section « pas à nous » doit égaler exactement le compte
+  de `git status --porcelain`. Donne les deux nombres et leur égalité. (3) Un fichier dont
+  l'attribution est INCERTAINE va dans une section « À TRANCHER PAR PIERRE », jamais dans un lot
+  par défaut. (4) Les messages de commit suivent la convention du dépôt (relire `git log --oneline
+  -15` pour la constater, ne pas l'inventer) et ne revendiquent aucun verdict (`NO_CLAIM_ALLOWED`).
+  (5) Signale tout fichier qui te paraît ne PAS devoir être versionné (artefact, généré, temporaire)
+  sans le supprimer. (6) Doute => STOP et question dans le document.
+success_criteria: >-
+  (a) tous les fichiers de `git status --porcelain` sont classés, somme vérifiée et montrée ;
+  (b) les fichiers de la session Godot parallèle sont isolés dans « pas à nous » ; (c) chaque lot a
+  un message de commit conforme à la convention constatée du dépôt ; (d) l'ordre des lots est
+  justifié (dépendances : un lot qui ne compile/passe pas seul doit être signalé) ; (e) section
+  « à trancher » pour les incertains ; (f) `git status --porcelain` inchangé par la mission, à
+  l'exception du document produit.
+tests_oracles: >-
+  `git status --porcelain` (avant/après, comptes égaux + 1) · `git log --oneline -15` (convention
+  de message) · vérification arithmétique de l'exhaustivité. Mission d'ANALYSE : software_verdict
+  porte sur la complétude du classement.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED. Contenu :
+  le nombre total de fichiers et la preuve d'exhaustivité · les lots avec leurs messages · les
+  fichiers « pas à nous » · les incertains · les non-versionnables signalés · section
+  skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, total_fichiers, somme_verifiee: bool, lots: [{nom, ordre, message, fichiers: []}],
+  pas_a_nous: [], a_trancher: [], non_versionnables_signales: [], document, git_status_final,
+  skipped_validation: [], software_verdict, evidence_verdict: MECHANICAL_VALIDATION_ONLY,
+  claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Action suivante 4 du retour de validation niveau 1 de Pierre (2026-07-27). Doctrine D6 (commits
+  en lots séparés). En aval : Pierre exécute les commits lot par lot, puis le premier cycle
+  complet — dont le critère est les 6 preuves de bouclage, pas un vert global.

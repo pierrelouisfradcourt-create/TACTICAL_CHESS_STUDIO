@@ -1,0 +1,104 @@
+# Contrat d'agent Forge — mission V2 : analyse du dépôt manquant de la brique game_loop
+# Schéma : scripts/forge/contracts/SCHEMA.md (règle des 3 états — un champ absent = refus)
+# Statut : RATIFIÉ Pierre 2026-07-26 (décision ② post-run pong_r2 : « le contrat reste la
+# source de vérité ; analyse de la raison pour laquelle ce dépôt ne s'est pas produit
+# automatiquement : absence de production, absence d'enregistrement, ou défaut du pipeline »).
+# Dispatch hors profil (allow_unprofiled assumé, inscrit dans l'audit signé).
+
+role: >-
+  Auditeur de pipeline Forge, posture d'enquêteur mécanique. Point de vue : une promesse de
+  contrat non tenue a exactement une cause parmi trois (rien produit · produit non enregistré ·
+  pipeline de dépôt défaillant/inexistant) — tu établis LAQUELLE par la preuve, tu n'en
+  supposes aucune. Tu ne répares rien dans cette mission.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Enquête de causalité sur du code et des artefacts : distinguer « le mécanisme n'existe pas »
+  de « le mécanisme existe et n'a pas été appelé » de « le mécanisme a été appelé et a échoué
+  silencieusement » — ce sont trois défauts différents avec trois corrections différentes. La
+  question « quel code aurait DÛ déposer ? » se répond par recherche d'appelant, jamais par
+  intuition.
+memoire: >-
+  games/pong/00_CHARTER/game_contract.yaml:11 déclare `adds: [game_loop]` — « UN seul systeme
+  neuf depose en bibliotheque ». L'oracle s10s du run pong_r2 (verdict signé, volet budget)
+  rend `promis_non_depose: ["game_loop"]`, mesuré par différentiel de catalogue ; c'est LE
+  seul volet rouge de s10s (les 5 autres sont verts, dont placement, réglé sur ce run). Le
+  catalogue de briques vit dans knowledge_base/systems/ (sous-dossiers actuels : adapters, ai,
+  combat, navigation, procgen — AUCUN game_loop). Le code du jeu produit bien
+  05_SYSTEMS/game_loop/loop.mjs (+ loop.test.mjs, solvability.mjs) : du code EXISTE sous ce
+  nom dans le jeu. Contexte de fiabilité : le même run est FAIL sur s10a (gate mutation
+  58/126 tués, 68 survivants NON triés) — donc la question « la brique est-elle PROUVÉE ? »
+  n'est pas rhétorique. Le driver embarque un instantané de catalogue
+  (`catalog_brick_ids_snapshot`, driver.py ~l.329-335) consommé par check_budget.
+mandatory_read:
+  - games/pong/00_CHARTER/game_contract.yaml
+  - scripts/forge/standard_oracles.py (fonction de vérification du budget — volet `budget`)
+  - lab/forge_runs/pong/verdict.json (reçus signés : volets s10s et mutation)
+  - scripts/forge/driver.py (instantané de catalogue et son usage)
+  - knowledge_base/ (structure du catalogue et procédure d'entrée d'une brique)
+
+objectif: >-
+  Rendre une ANALYSE DOCUMENTÉE qui établit par la preuve : (1) la brique game_loop est-elle
+  PROUVÉE par les artefacts signés du run pong_r2 (oui/non, avec les reçus qui l'appuient ou
+  la contredisent — le gate mutation rouge sur les fichiers concernés est un élément à
+  instruire, pas à ignorer) ; (2) laquelle des trois causes explique le dépôt manquant —
+  absence de production · absence d'enregistrement · défaut du pipeline de dépôt — établie
+  par recherche d'appelant réelle : quel code, s'il existe, aurait dû effectuer le dépôt, et
+  a-t-il été appelé ; (3) si aucun mécanisme de dépôt automatique n'existe, le dire
+  explicitement et nommer ce qui devrait le porter ; (4) la correction RECOMMANDÉE, chiffrée
+  en périmètre, SANS l'implémenter.
+in_scope: >-
+  LECTURE de tout le dépôt. ÉCRITURE d'un seul fichier : le rapport d'analyse
+  docs/audit/ANALYSE_DEPOT_GAME_LOOP_2026-07-26.md.
+out_of_scope: >-
+  AUCUNE modification de code, de contrat, d'oracle, du STANDARD, du catalogue
+  knowledge_base/, d'un verdict ou d'un state.json. Le dépôt de la brique lui-même n'est PAS
+  exécuté dans cette mission : Pierre l'a conditionné à la preuve, et un dépôt à la main
+  masquerait précisément le défaut d'automatisation qu'on enquête — si tu conclus que la
+  brique est prouvée et doit être déposée, tu produis la PROCÉDURE exacte et tu la remontes.
+  Ne pas réparer le pipeline dans cette mission (une variable à la fois).
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT
+  docs/audit/ANALYSE_DEPOT_GAME_LOOP_2026-07-26.md. run: lecture seule — git log/show/grep
+  (historique et recherche d'appelant), python en one-liner de LECTURE de JSON/YAML, pytest
+  UNIQUEMENT si un test existant documente le comportement du dépôt. delete: aucun.
+  INTERDIT : git commit, git push, git checkout, toute écriture hors du rapport.
+gardeFou: >-
+  (1) Trois causes, une seule vraie : nomme-la, avec fichier:ligne et preuve d'appel (ou
+  preuve d'absence d'appelant). « Probablement » est interdit — si la preuve manque, dis que
+  la cause reste indéterminée et ce qu'il faudrait mesurer. (2) N'invente aucun mécanisme :
+  si `grep` ne trouve aucun code de dépôt, la conclusion est « le mécanisme n'existe pas »,
+  pas « il a échoué ». (3) La question de la PREUVE de la brique se tranche sur les reçus
+  signés, pas sur l'existence du fichier sur disque : « le fichier existe » n'est jamais
+  « la brique est prouvée » (leçon du dépôt : preuve d'exécution, pas d'existence).
+  (4) Rapport DATÉ et SOURCÉ (chaque affirmation porte son chemin/ligne ou sa commande).
+  (5) Aucun commit. (6) Doute de périmètre => STOP et question dans le rapport.
+success_criteria: >-
+  (a) verdict explicite et sourcé sur « game_loop est-elle prouvée ? » ; (b) UNE cause
+  nommée parmi les trois, avec preuve d'appelant (ou d'absence) fichier:ligne ; (c) si
+  défaut d'automatisation : le composant qui devrait porter le dépôt est nommé, et l'écart
+  est qualifié (jamais implémenté · implémenté et non branché · branché et silencieux) ;
+  (d) correction recommandée avec périmètre chiffré, NON implémentée ; (e) git status
+  --porcelain ne montre QUE le rapport en ajout.
+tests_oracles: >-
+  Recherche d'appelant (grep/rg repo-wide sur les noms candidats de dépôt et sur `adds`),
+  reçus signés du verdict pong_r2, git log -S sur les fonctions candidates, structure réelle
+  de knowledge_base/systems/. Aucun oracle à exécuter : cette mission MESURE, elle ne prouve
+  pas un logiciel.
+final_report: >-
+  software/evidence/claim séparés — pour une mission d'analyse, software_verdict porte sur
+  la COMPLÉTUDE de l'analyse (OK si les 5 critères sont adressés, BLOCKED si une source
+  nécessaire est inaccessible), jamais sur la qualité du pipeline audité.
+  claim_verdict: NO_CLAIM_ALLOWED. Contenu : la cause nommée · les preuves · la
+  recommandation chiffrée · section skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, brique_prouvee: {reponse, preuves: []}, cause: {laquelle,
+  fichier_ligne, preuve}, mecanisme_de_depot: {existe, statut, composant_attendu},
+  correction_recommandee: {perimetre, cout_estime, non_implementee: true},
+  rapport_path, git_status_final, skipped_validation: [], software_verdict,
+  evidence_verdict: MECHANICAL_VALIDATION_ONLY, claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Décision Pierre ② du 2026-07-26 (post-run pong_r2). En amont : oracle s10s volet budget
+  rouge sur un run authentique. En aval : sur la base de cette analyse, Pierre décide le
+  dépôt et/ou la correction du pipeline, puis un nouveau run Pong mesure l'impact.

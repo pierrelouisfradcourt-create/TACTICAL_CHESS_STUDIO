@@ -1,0 +1,115 @@
+# Contrat d'agent Forge — mission N1-2 : périmètre du gate mutation par CATÉGORIE
+# Schéma : scripts/forge/contracts/SCHEMA.md. Statut : RATIFIÉ Pierre 2026-07-27 (décision U-2 :
+# « la mutation ne doit pas essayer de juger ce qu'elle ne peut pas atteindre. logique testable →
+# mutation · rendu/runtime → oracle produit. Sinon on fabrique un faux indicateur »).
+# Dispatch hors profil (allow_unprofiled assumé).
+
+role: >-
+  Ingénieur outillage Forge senior, discipline TDD stricte. Point de vue : un indicateur qui
+  moyenne deux populations incomparables est pire qu'aucun indicateur — il oriente les décisions
+  vers le vide. Tu restreins un périmètre de jugement, et tu rends la restriction VISIBLE.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Discipline anti-complaisance : restreindre un périmètre de gate RESSEMBLE à affaiblir un gate.
+  La différence tient entièrement à deux choses que tu dois garantir — l'exclusion est DÉCLARÉE
+  dans le reçu signé, et un fichier réellement testable ne peut JAMAIS sortir du périmètre.
+memoire: >-
+  CHIFFRES MESURÉS (évidence signée du run pong_r2, re-dépouillée par la supervision) : gate
+  mutation total 126, killed 58, survived 68. Répartition par fichier : les **3 systèmes**
+  (05_SYSTEMS/game_loop/loop.mjs, game_state/state.mjs, input/input.mjs) = **58/61 tués (95 %)** ;
+  les **7 adaptateurs de présentation** (06_RUNTIME/adapters/presentation/*.mjs) = **0/65 (0 %)**.
+  Ce 0 % est STRUCTUREL, pas un manque de zèle : la suite scellée (07_TESTS/unit/*.test.mjs +
+  07_TESTS/oracle/solvability.mjs) n'importe AUCUN fichier d'adaptateur — vérifié par grep des
+  imports. Ces 65 mutants sont mathématiquement intuables par cette suite. Le « 46 % » agrégé est
+  donc la moyenne de deux populations incomparables.
+  LE MÉCANISME EXISTE DÉJÀ À MOITIÉ : `driver.py::_logic_files_from_wiremap_any` (~l.888-910) lit
+  le champ structuré `category` de chaque `fichiers[]` et exclut déjà `test.*`, avec un commentaire
+  qui explique pourquoi l'heuristique de NOM échoue (le STANDARD écrit « 07_TESTS/ », donc un test
+  de casse classerait solvability.mjs comme code mutable — le gate muterait sa propre preuve). La
+  formule unique vit dans `mutation_proof.logic_files_from_wiremap` (~l.46-54), non dupliquée.
+  `scripts/forge/standard/repo_map.yaml:61-63` distingue DÉJÀ `system: 05_SYSTEMS/{id}/` de
+  `system.adapter: 06_RUNTIME/adapters/{id}/`. Catégories réellement présentes dans la wiremap
+  Pong : `system` 10 · `system.adapter` 8 · `asset.audio` 3 · `test.solvability` 1.
+mandatory_read:
+  - scripts/forge/driver.py (_logic_files_from_wiremap_any et son commentaire sur les catégories)
+  - scripts/forge/mutation_proof.py (logic_files_from_wiremap — la formule unique)
+  - scripts/forge/standard/repo_map.yaml (la table figée des catégories)
+  - games/pong/09_WIREMAP/wiremap.json (les catégories réelles, par fichier)
+  - lab/forge_runs/pong/evidence/mutation_pong_r2.json (per_file — la répartition mesurée)
+
+objectif: >-
+  Le gate mutation ne juge plus que les catégories que les tests peuvent atteindre (`system` et
+  assimilés), et l'exclusion des catégories de présentation/runtime (`system.adapter`) est
+  DÉCLARÉE dans le reçu signé avec ses compteurs par catégorie — de sorte qu'un score de mutation
+  ne puisse plus jamais être la moyenne de deux populations incomparables.
+
+gardeFou: >-
+  DESIGN IMPOSÉ. (1) La restriction se fait par **CATÉGORIE STRUCTURÉE** (`category` des entrées
+  `fichiers[]`), **jamais** par heuristique de chemin ou de nom — même raison que celle déjà
+  écrite dans le commentaire du code pour `test.*`. (2) **L'EXCLUSION EST DÉCLARÉE, JAMAIS
+  SILENCIEUSE** : le reçu mutation porte les fichiers exclus, leur catégorie, et le motif — plus
+  des **compteurs par catégorie** (tués/total). Une exclusion muette serait exactement le « faux
+  indicateur » que la décision U-2 interdit. (3) **TEST INVERSE OBLIGATOIRE** : un fichier de
+  catégorie `system` (ou toute catégorie testable) ne peut JAMAIS sortir du périmètre — ce test
+  doit ÉCHOUER si une future modification l'y autorisait. C'est lui qui distingue « restreindre »
+  de « affaiblir ». (4) Les fichiers exclus doivent être NOMMÉS comme « à couvrir par l'oracle
+  produit » dans le reçu — la couche n'est pas abandonnée, elle change de juge (étape 3 du
+  niveau 1 les prendra). (5) La formule reste UNIQUE (`mutation_proof.logic_files_from_wiremap`) —
+  interdiction de dupliquer la règle dans le driver. (6) Le seuil/gate de mutation lui-même n'est
+  PAS touché : on change ce qui est jugé, pas la sévérité du jugement. (7) TDD strict, RED montré
+  puis GREEN ; tests isolés tmp_path ; encoding utf-8. (8) **INTERDICTION EXPRESSE de `git stash`,
+  `git checkout`, `git restore` ou de tout revert temporaire de fichier** : l'arbre porte ~58
+  fichiers non commités de plusieurs chantiers ; pour prouver un RED, écris un test qui échoue
+  contre le code actuel, ou travaille sur une copie hors dépôt. (9) Aucun commit/push. (10) Doute
+  de périmètre => STOP et question dans le rapport.
+
+in_scope: >-
+  scripts/forge/mutation_proof.py (la formule, extension par catégorie) ·
+  scripts/forge/driver.py (normalisation/passage des catégories, SANS dupliquer la formule) ·
+  scripts/forge/tests/. RIEN d'autre.
+out_of_scope: >-
+  Le seuil du gate mutation et sa sévérité (inchangés). verdict.py, gate.py, verify_run.py
+  intouchés. `scripts/forge/standard/repo_map.yaml` INTOUCHÉ (table figée — on la LIT).
+  Aucun `mutation_triage.json` modifié (ce serait trier au lieu de re-cadrer). Zones gelées
+  intouchées. Ne pas réécrire un verdict ou un state existant (pong_r2 = référence conservée).
+  Ne pas relancer le gate mutation réel (coûteux) : les chiffres sont dans l'évidence signée.
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT les chemins d'in_scope. run: pytest
+  (.venv312/Scripts/python.exe -m pytest scripts/forge/tests/ -q), node
+  scripts/forge/studio_selfaudit.mjs, git status/diff (LECTURE seule). delete: aucun.
+  INTERDIT : git commit, git push, git checkout, git stash, git restore.
+
+success_criteria: >-
+  (a) appliquée à la wiremap Pong, la dérivation rend les 3 fichiers `system` et EXCLUT les
+  7 `system.adapter` — prouvé par test ; (b) le reçu porte les exclusions (fichier, catégorie,
+  motif) ET des compteurs par catégorie — prouvé par test sur la structure du reçu ; (c) **test
+  inverse** : un fichier `system` ne peut pas sortir du périmètre (test qui échouerait si on
+  l'autorisait) ; (d) score recalculé sur les données pong_r2 pour la seule population testable =
+  **58/61**, et ce chiffre est explicitement distingué du 58/126 historique — montré dans le
+  rapport ; (e) zéro régression — référence **883 passed, 1 skipped**, nouveaux tests comptés ;
+  (f) selfaudit STUDIO ALIGNÉ ; (g) `git status --porcelain` : rien hors périmètre, aucun stash.
+tests_oracles: >-
+  .venv312/Scripts/python.exe -m pytest scripts/forge/tests/ -q (réf. 883 passed, 1 skipped) ·
+  node scripts/forge/studio_selfaudit.mjs · git status --porcelain · git stash list (doit ne
+  contenir que le `tcs-session-dirty` pré-existant) · sorties RED/GREEN collées.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED uniquement.
+  Contenu : RED/GREEN collés · critères (a)→(g) un par un · **la démonstration que c'est un
+  RE-CADRAGE et non un affaiblissement** (exclusion déclarée + test inverse + fichiers exclus
+  nommés pour l'oracle produit) · les deux scores côte à côte (58/126 agrégé vs 58/61 testable) ·
+  git status/diff + git stash list · section skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, red_output, green_output, criteres_a_g: [{critere, preuve}],
+  perimetre_avant_apres: {inclus: [], exclus: [{fichier, categorie, motif}]},
+  compteurs_par_categorie: {}, scores_cote_a_cote: {agrege_historique, testable_recalcule},
+  preuve_recadrage_pas_affaiblissement, selfaudit_output, git_status_final, git_stash_list,
+  git_diff_stat, fichiers_modifies: [], skipped_validation: [], software_verdict,
+  evidence_verdict: MECHANICAL_VALIDATION_ONLY, claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Étape 2 du niveau 1 « socle de preuve » (docs/forge/ULTRAPLAN_METHODE_FABRICATION_V1.md),
+  décision U-2. En amont : étape 1 livrée et contre-vérifiée (findings red-team audibles, 883
+  tests verts) · item 0 fait (playtest consigné, relu par le pré-mortem). En aval : étape 3
+  (oracle produit minimal) prendra en charge les catégories que cette mission sort du gate
+  mutation — la couche présentation change de juge, elle n'est pas abandonnée.

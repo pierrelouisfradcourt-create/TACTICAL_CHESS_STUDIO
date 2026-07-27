@@ -1,0 +1,105 @@
+# Contrat d'agent Forge — mission N1-1 : rendre les findings red-team AUDIBLES dans le verdict
+# Schéma : scripts/forge/contracts/SCHEMA.md. Statut : RATIFIÉ Pierre 2026-07-27 (décision U-1,
+# item obligatoire du niveau 1 : « findings red-team → verdict »).
+# Dispatch hors profil (allow_unprofiled assumé).
+
+role: >-
+  Ingénieur outillage Forge senior, discipline TDD stricte. Point de vue : une critique produite
+  et jamais entendue coûte plus cher que pas de critique — elle donne l'illusion d'un contrôle.
+  Tu ouvres un canal existant resté muet, sans changer la sévérité de quoi que ce soit.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Prudence sur les prédicats de promotion : le champ que tu remplis touche au voisinage de
+  `is_clean_pass`. Une erreur de conception ici rendrait TOUT run non promouvable. Lire la
+  chaîne complète avant d'écrire une ligne.
+memoire: >-
+  DIAGNOSTIC DÉJÀ ÉTABLI PAR LA SUPERVISION (re-vérifie-le, ne le crois pas) : le canal est mort
+  À SA SOURCE, pas au verdict. La plomberie AVAL EXISTE et est correcte —
+  `driver.py:466` lit `findings = list(res.get("findings", []))` · `driver.py:487` le stocke ·
+  `driver.py:1306` le relit via `_redteam_facts` · `driver.py:1076` le passe à l'agrégation ·
+  `verdict.py:435` fait `redteam_advisory=tuple(redteam_findings)`. MAIS
+  `grep -n "findings\|blocked" scripts/forge/run_real.py` rend **ZÉRO résultat** : l'exécuteur
+  réel (`claude_executor`) ne renvoie JAMAIS ces clés, donc `findings` vaut toujours `[]` et
+  `blocked` toujours `False`. Preuve terrain : sur le run pong_r2, `redteam_advisory: []` dans le
+  verdict signé alors que `lab/forge_runs/pong/rapport_redteam_code.md` fait 14 382 octets sur
+  disque, et que ce rapport contenait F1 (vitesse de balle injouable) et F6 (preuve de sortie
+  tautologique) — c'est-à-dire deux des quatre constats que Pierre a découverts EN JOUANT, après
+  avoir payé le build.
+mandatory_read:
+  - scripts/forge/run_real.py (claude_executor — ce qu'il renvoie réellement)
+  - scripts/forge/driver.py l.410-495 (chemin LLM, lecture de res) et l.1290-1312 (_redteam_facts)
+  - scripts/forge/verdict.py l.260-300 et l.380-440 (agrégation, decision, humangate_flags, is_clean_pass)
+  - scripts/forge/contracts/s11-redteam-code.yaml (ce que le red-team s'engage à produire)
+  - lab/forge_runs/pong/rapport_redteam_code.md (le rapport réel, 14 Ko — la matière à structurer)
+
+objectif: >-
+  Les findings d'un red-team exécuté arrivent dans le verdict signé, structurés, au lieu de mourir
+  dans un rapport sur disque. Deux volets : (1) le contrat s11 EXIGE une section de findings
+  LISIBLE PAR MACHINE (patron déjà éprouvé du studio : le bloc JSON de l'Art Bible dans un
+  markdown) ; (2) l'exécuteur/driver PARSE cette section de façon déterministe et alimente
+  `findings`, qui remplit `redteam_advisory` par la plomberie existante.
+
+gardeFou: >-
+  DESIGN IMPOSÉ — le piège à ne pas déclencher. (1) Les findings alimentent UNIQUEMENT
+  `redteam_advisory` (le champ conçu pour eux, aujourd'hui vide). **INTERDIT de les verser dans
+  `extra_advisory` ou directement dans `humangate_flags`** : `verdict.py:391` fait basculer
+  `decision` en WITH_OBJECTION dès que `extra_advisory` est non vide, et `is_clean_pass` exige
+  ZÉRO `humangate_flag` — un finding anodin rendrait alors TOUT run non promouvable à jamais.
+  La visibilité passe par `redteam_advisory` (présent dans le verdict signé, donc lu par Pierre
+  et par `verify_run`), pas par un gate. (2) La sévérité existante ne change PAS : le canal
+  `redteam_blocked` → WITH_OBJECTION reste le seul chemin d'objection, et il reste piloté par le
+  red-team lui-même. (3) Parsing DÉTERMINISTE, jamais un LLM qui relit un rapport : si la section
+  structurée est absente ou malformée, le résultat est une liste VIDE + une note explicite, jamais
+  une invention ni un crash. (4) Aucune modification de la sémantique de `software_verdict`.
+  (5) TDD strict, RED montré puis GREEN ; tests isolés tmp_path ; encoding utf-8. (6) Le working
+  tree porte de nombreux chantiers non commités (missions du jour, session Godot parallèle) : ne
+  touche que ton périmètre, compare tes diffs à l'état trouvé en arrivant, pas à HEAD. (7) Aucun
+  commit/push. (8) Doute de périmètre => STOP et question dans le rapport.
+
+in_scope: >-
+  scripts/forge/run_real.py (extraction des findings dans ce que renvoie l'exécuteur) ·
+  scripts/forge/contracts/s11-redteam-code.yaml (exiger la section structurée) ·
+  scripts/forge/driver.py SEULEMENT si l'extraction doit y vivre (justifie ce choix) ·
+  scripts/forge/tests/. RIEN d'autre.
+out_of_scope: >-
+  verdict.py INTOUCHÉ (sa plomberie est correcte — le défaut est en amont ; si tu crois devoir le
+  modifier, STOP et remonte-le). gate.py, verify_run.py, standard_oracles.py intouchés. Aucun
+  changement de sévérité, de `decision`, de `is_clean_pass`. Zones gelées intouchées. Ne pas
+  réécrire un verdict ou un state existant (pong_r2 est une référence historique conservée).
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT les chemins d'in_scope. run: pytest
+  (.venv312/Scripts/python.exe -m pytest scripts/forge/tests/ -q), node scripts/forge/studio_selfaudit.mjs,
+  git status/diff (lecture). delete: aucun. INTERDIT : git commit, git push, git checkout.
+
+success_criteria: >-
+  (a) un rapport red-team portant une section de findings structurée produit une liste NON VIDE
+  dans `redteam_advisory` du verdict — prouvé par test sur fixture ; (b) un rapport SANS section
+  structurée (cas de tous les rapports historiques, dont pong_r2) produit une liste vide + une
+  note explicite, sans crash — prouvé par test ; (c) **test de NON-RÉGRESSION DE PROMOTION** :
+  un run avec des findings advisory conserve `decision` et `is_clean_pass` inchangés (c'est LE
+  test qui protège du piège) ; (d) le contrat s11 exige la section structurée, et
+  `studio_selfaudit.mjs` reste STUDIO ALIGNÉ ; (e) zéro régression — référence 869 passed,
+  1 skipped, nouveaux tests comptés ; (f) `git status --porcelain` : rien hors périmètre.
+tests_oracles: >-
+  .venv312/Scripts/python.exe -m pytest scripts/forge/tests/ -q (réf. 869 passed, 1 skipped) ·
+  node scripts/forge/studio_selfaudit.mjs · git status --porcelain · sorties RED/GREEN collées.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED uniquement.
+  Contenu : le diagnostic re-vérifié (l'exécuteur renvoie-t-il vraiment rien ?) · RED/GREEN
+  collés · critères (a)→(f) un par un · **démonstration explicite que `is_clean_pass` et
+  `decision` sont inchangés par un finding advisory** · git status/diff · section
+  skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, diagnostic_reverifie, red_output, green_output, criteres_a_f:
+  [{critere, preuve}], preuve_non_regression_promotion, format_findings_exige,
+  selfaudit_output, git_status_final, git_diff_stat, fichiers_modifies: [],
+  skipped_validation: [], software_verdict, evidence_verdict: MECHANICAL_VALIDATION_ONLY,
+  claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Niveau 1 « socle de preuve » de l'ultra-plan (docs/forge/ULTRAPLAN_METHODE_FABRICATION_V1.md),
+  item obligatoire de la décision U-1. Ferme la 3ᵉ des 6 occurrences du mode de panne
+  « écrivain sans appelant / lecteur sans données ». En amont : item 0 fait (playtest consigné,
+  4 entrées relues par le pré-mortem — vérifié). En aval : périmètre mutation, oracle produit
+  minimal, wiremap corrigée, puis le premier cycle complet de la boucle de fabrication.

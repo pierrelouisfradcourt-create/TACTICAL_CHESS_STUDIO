@@ -1,0 +1,91 @@
+# Contrat d'agent Forge — mission B1 : audit d'allègement — valeur réelle des tests
+# Schéma : scripts/forge/contracts/SCHEMA.md. Statut : RATIFIÉ Pierre 2026-07-27 (mission
+# « audit d'allègement » : « Réduire la quantité de validation inutile tout en augmentant
+# la confiance sur le produit final »). Dispatch hors profil (allow_unprofiled assumé).
+
+role: >-
+  Auditeur de stratégie de test, posture d'ingénieur qualité produit. Point de vue imposé :
+  un test vaut par la régression RÉELLE qu'il empêcherait sur le produit final, pas par son
+  existence. La question de Pierre : « la stratégie actuelle maximise-t-elle réellement la
+  vitesse de production ? » Tu analyses et proposes, tu ne modifies aucun test.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Taxonomie fine des tests : distinguer test comportemental (casse si le COMPORTEMENT
+  produit change), test structurel (casse si un nom/champ change), test d'existence (vérifie
+  qu'une chose est là), test tautologique (vérifie ce que le code affirme par construction).
+  L'échantillonnage doit être honnête : annoncer la méthode avant les chiffres.
+memoire: >-
+  Deux populations distinctes à auditer SÉPARÉMENT. (1) Tests du JEU Pong :
+  games/pong/07_TESTS/ (51 tests unit + 1 oracle solvabilité) — preuve mesurée de leur
+  limite : mutation 58/61 sur les 3 systèmes MAIS 0/65 sur les 7 adaptateurs de
+  présentation, qu'ils n'importent JAMAIS (grep des imports vérifié 2026-07-26) ; et le jeu
+  n'avait jamais booté dans un vrai navigateur (2 bugs de chargement trouvés au premier
+  test réel — aucun des 51 tests ne pouvait les voir). Constats playtest Pierre : bouton
+  quitter non fonctionnel, vitesse de balle injouable, pas d'adversaire auto — AUCUN test ne
+  les a attrapés. (2) Tests du STUDIO : scripts/forge/tests/ (869 passed, 1 skipped —
+  compte 2026-07-26 après M1/s10s/V1/V4). Leçon de re-forge du dépôt : mutation 67-80 % =
+  tests faibles. Précédent : la solvabilité R9 de M01 était une TAUTOLOGIE (générateur
+  consultant la brique testée) — chercher ce patron.
+mandatory_read:
+  - games/pong/07_TESTS/ (les 4 fichiers de tests du jeu — lecture RÉELLE de chaque test)
+  - docs/audit/ANALYSE_PERIMETRE_LOGIC_FILES_2026-07-26.md (limites mesurées de la suite jeu)
+  - scripts/forge/tests/ (échantillonnage structuré — voir gardeFou 3)
+  - lab/forge_runs/RUN_INDEX.md (contexte des missions du 26-07)
+objectif: >-
+  Répondre aux 3 questions de Pierre avec des listes nominatives : (1) quels tests empêchent
+  une VRAIE régression du produit ; (2) quels tests ne vérifient que l'existence d'une
+  structure ; (3) quels tests devraient être REMPLACÉS par un test comportemental — avec,
+  pour chaque remplacement proposé, le comportement produit qu'il couvrirait (ex. « le
+  bouton quitter ferme la partie », « la balle est renvoyable par un humain », « une partie
+  se joue automatiquement jusqu'à un score »). Rendre aussi le DELTA DE CONFIANCE : ce que
+  la suite actuelle prouve sur le COLIS final (jeu jouable) vs ce qu'elle prouve sur la
+  MÉCANIQUE interne — chiffré quand possible.
+in_scope: >-
+  LECTURE du dépôt entier. ÉCRITURE d'un seul fichier :
+  docs/audit/AUDIT_ALLEGEMENT_B1_TESTS_2026-07-27.md.
+out_of_scope: >-
+  AUCUNE modification/suppression de test (zone tests/ = protégée, et même hors zone : tu
+  proposes, Pierre tranche). Ne pas relancer le gate mutation. Zones gelées intouchées.
+  Chantiers de la session Godot parallèle : inventorier, ne pas toucher.
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT docs/audit/AUDIT_ALLEGEMENT_B1_TESTS_2026-07-27.md.
+  run: lecture seule + exécution de suites EXISTANTES si utile (node --test games/pong/07_TESTS,
+  pytest scripts/forge/tests/ -q). delete: aucun. INTERDIT : git commit/push/checkout.
+gardeFou: >-
+  (1) Population jeu : lecture EXHAUSTIVE des 51+1 tests, classement un par un. (2)
+  Population studio (869) : échantillonnage STRUCTURÉ et annoncé (par fichier de test :
+  compter, lire un échantillon représentatif ≥ 15 % par fichier, extrapoler en le disant) —
+  jamais un jugement global sans méthode. (3) Un test « structurel » n'est pas
+  automatiquement inutile : dire ce qu'il protège vraiment (ex. rétro-compat d'un format
+  append-only = protection réelle). (4) Chaque remplacement proposé nomme le comportement
+  PRODUIT couvert et son coût d'écriture estimé. (5) Ne pas confondre « le test n'a pas
+  attrapé le bug X » avec « le test est inutile » — dire quel test AURAIT attrapé X. (6)
+  Rapport DATÉ/SOURCÉ. (7) Doute => STOP et question dans le rapport.
+success_criteria: >-
+  (a) les 52 tests du jeu classés un par un (comportemental/structurel/existence/
+  tautologique) avec justification ; (b) synthèse studio par fichier de test avec méthode
+  d'échantillonnage annoncée ; (c) réponse nominative aux 3 questions de Pierre ; (d) liste
+  des tests comportementaux MANQUANTS rattachés aux constats playtest (quitter, vitesse,
+  adversaire, score, partie auto) avec coût estimé chacun ; (e) git status --porcelain ne
+  montre QUE le rapport.
+tests_oracles: >-
+  Lecture des tests eux-mêmes (source primaire) · chiffres mutation signés de pong_r2 ·
+  exécution des suites existantes pour compter. Mission d'ANALYSE : software_verdict =
+  complétude de l'audit.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED. Corps :
+  réponse aux 3 questions · classement jeu exhaustif · synthèse studio · tests manquants
+  chiffrés · skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, tests_jeu: [{fichier, test, classe, justification}],
+  tests_studio_synthese: [{fichier, n, methode, dominante, remarques}],
+  vraies_regressions_couvertes: [], existence_seulement: [], remplacements_proposes:
+  [{actuel, comportement_produit_couvert, cout}], tests_manquants_playtest: [{constat,
+  test_propose, cout}], rapport_path, git_status_final, skipped_validation: [],
+  software_verdict, evidence_verdict: MECHANICAL_VALIDATION_ONLY,
+  claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Mission Pierre 2026-07-27 « audit d'allègement », volet tests. Sœurs : A1 (chaîne) et C1
+  (oracles produit). En aval : rapport de décision de la supervision, arbitrages Pierre.
