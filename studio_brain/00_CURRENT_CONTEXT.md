@@ -1,5 +1,41 @@
 # Contexte courant TCS
 
+## CLÔTURE SESSION 2026-07-27/28 — CYCLE PONG TERMINÉ, PONG GELÉ COMME TÉMOIN
+- **Ce que le cycle a produit de plus important : 5 RÈGLES D'USINE** (invariants Forge ratifiés
+  Pierre, chacun né d'une panne mesurée — détail : mémoire `forge_invariants_qualite`,
+  schéma maître **Détail K**) :
+  1. une preuve sans lecteur branché n'existe pas dans la chaîne qualité ;
+  2. un état `RUNNING` doit être confirmé par une réalité externe (process/heartbeat/checkpoint) ;
+  3. un test doit vérifier une propriété durable, pas une valeur historique accidentelle ;
+  4. un nom de preuve est la promesse exacte de ce qui est mesuré ;
+  5. une garde de sécurité est indépendante de l'état courant.
+- **PONG EST GELÉ — témoin de régression, ne plus l'enrichir.** État au gel : 11 fichiers de
+  preuve exécutés (72 tests, exit 0) · `observable_coverage` OK 6/6 · `genre_coverage` OK
+  (8 citations résolues) · le jeu boote en navigateur réel (canvas 800×480, mode solo, écran de
+  fin, relance, sortie observable). **Toute amélioration future de Forge devra prouver qu'elle ne
+  casse pas ce témoin.**
+- **Livré et commité cette session** : télémétrie d'échec (M1) · garde attempts s10s ·
+  verify_run séparant intégrité/verdict logiciel · propose_brick branché · findings red-team
+  portés au verdict · gate mutation restreint aux catégories testables · oracle produit 7 volets ·
+  `check_observable_coverage` + `check_genre_coverage` · garde git mécanique (+ deny anti
+  auto-override) · Genre Bible Pong lisible par oracle · 24 contrats d'agent · 12 documents
+  d'audit et de doctrine. **985 tests studio verts, oracle du jeu 72/72.**
+- **PROCHAIN CHAPITRE (nouvelle session) — l'expérience d'apprentissage, sur le JEU SUIVANT,
+  jamais sur Pong.** Question centrale : « l'usine transforme-t-elle son expérience en
+  accélération ? » Conditions posées par Pierre : nouvelle Genre Bible · pré-mortem dès le
+  départ · `observable_by_player` dans le design initial · briques candidates à la réutilisation
+  identifiées AVANT production · mesure de ce qui est importé depuis Pong/Forge.
+- **PIÈGE DE MESURE À NE PAS RÉPÉTER** : ne pas comparer des coûts bruts entre runs de périmètres
+  différents (pong_r2 = 13,82 $ / 123 965 tk avec 0 ligne REQUIRED ; pong_r3 s9 = 14,10 $ /
+  191 773 tk avec 6). On mesure la capacité à absorber un nouveau jeu.
+- **Chantiers proposés, NON faits** (ne pas les rouvrir sans go) : superviseur externe de run
+  (détection de zombie, checkpoints, reprise) · niveau 2 de l'ultra-plan (ordre U-4 ratifié :
+  résolution ID + source_role → World Scan→Genre Bible → Prisme+Gameplay Review → Architecte
+  dépôt → Runtime Bible → findings→bibles → s6) · promotion en gate dur des volets advisory ·
+  mission clean-pass M01.
+- **⚠️ Session Godot parallèle** : `scripts/forge/adapters/godot/`, `fixtures/godot_b0/`,
+  `lab/forge_scenes/`, `missions/` — jamais commités par cette session, ne sont pas à nous.
+
 ## ÉTAT AU 2026-07-27 fin de session — NIVEAU 1 VALIDÉ, 4 LIVRABLES PRÊTS, ATTENTE PIERRE
 - **Pierre a validé le niveau 1** (« software_verdict OK niveau 1 ») et **renversé la priorité** :
   le niveau 1 est un **socle de preuve**, pas le chantier principal ; le but est de reconnecter la

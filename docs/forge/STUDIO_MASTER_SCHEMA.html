@@ -980,5 +980,68 @@
     </div>
   </div>
 </div>
+
+<div class="card">
+  <h3>Détail K · LA BOUCLE DE FABRICATION + LES 5 RÈGLES D'USINE (cycle Pong, 2026-07-27)</h3>
+  <div class="note">
+    <b style="color:#5ac8a0">RÉEL — ratifié Pierre 2026-07-27.</b> Ce détail existe parce que la vision A·B·C et les
+    Détails A/B/C/G décrivaient des <b>agents, du dispatch et de la production</b> — il manquait les <b>grandes flèches</b>
+    qui font qu'un jeu rend le suivant meilleur. Source : cycle Pong complet (runs pong_r2/r3), audits d'allègement
+    A1-D1, <code>docs/forge/ULTRAPLAN_METHODE_FABRICATION_V1.md</code> (chapitre VII).
+  </div>
+
+  <div class="note" style="margin-top:8px">
+    <b style="color:#fff">LES 6 GRANDES FLÈCHES</b> — une boucle n'existe que si chacune a un écrivain, un lecteur nommé,
+    et une mesure qu'elle a tiré (règle née de <b>7 occurrences</b> du mode de panne « écrivain sans appelant ») :<br>
+    <code>connaissance → conception</code> · <code>conception → architecture</code> · <code>architecture → production</code> ·
+    <code>production → preuve</code> · <code>preuve → apprentissage</code> · <code>apprentissage → connaissance</code>
+  </div>
+
+  <div class="note" style="margin-top:8px;border-left:3px solid #5ac8a0;padding-left:10px">
+    <b style="color:#5ac8a0">LES 5 RÈGLES D'USINE</b> (invariants Forge — le vrai produit du cycle Pong, pas le jeu) :<br>
+    <b>1.</b> Une preuve sans lecteur branché <b>n'existe pas</b> dans la chaîne qualité.<br>
+    <b>2.</b> Un état <code>RUNNING</code> doit être confirmé par une <b>réalité externe</b> (process, heartbeat,
+    checkpoint), pas par un fichier d'état.<br>
+    <b>3.</b> Un test doit vérifier une <b>propriété durable</b>, pas une valeur historique accidentelle.<br>
+    <b>4.</b> Un <b>nom de preuve</b> est la promesse exacte de ce qui est mesuré.<br>
+    <b>5.</b> Une <b>garde de sécurité</b> est indépendante de l'état courant.<br>
+    <span style="color:#83a6d6">Chacune vient d'une panne mesurée, jamais d'une précaution théorique — détail et preuves :
+    mémoire <code>forge_invariants_qualite</code>, <code>lab/forge_runs/RUN_INDEX.md</code>.</span>
+  </div>
+
+  <div class="note" style="margin-top:8px">
+    <b style="color:#ffb454">CORRECTIONS D'ÉTIQUETTES</b> (décision U-9 — les vues ci-dessus <b>surestimaient</b> les arêtes actives) :<br>
+    · <b>Détail G (4 sources → RÉCONCILIATION)</b> : toujours <b>NON CODÉE</b> ; « réconciliation » n'existe que dans des
+    <i>commentaires</i> de <code>capabilities.yaml</code>/<code>repo_map.yaml</code>. Les règles qu'elle devait appliquer sont
+    vérifiées par <code>s10s</code>, <b>après le build</b> — donc trop tard pour décider.<br>
+    · <b>Nomenclature C (flux mémoire)</b> : 7 connecteurs orphelins mesurés — <code>learning_curve</code> sans lecteur ·
+    <code>propose_brick</code> (réparé 26-07) · findings red-team non pliés (réparés 27-07) ·
+    <code>propose_bible_entry</code> sans appelant · <code>spawn_authorized</code> jamais écrit ·
+    <code>forge_bible_proposals</code> jamais créé · 7 fichiers de preuve hors oracle (réparés 27-07).<br>
+    · <b>Détail A (Prisme)</b> : <code>s1-prisme</code> est <b>absent du profil <code>standard</code></b> (celui du curriculum) ⇒
+    la moitié conception a tourné 8 fois jusqu'au 20-07 puis a été <b>abandonnée par choix de profil</b> le 22-07.<br>
+    · <b>NOUVEAU, absent des vues précédentes</b> : la <b>couche BIBLE</b> (Genre Bible lisible par oracle,
+    <code>check_genre_coverage</code>) et l'<b>ORACLE PRODUIT</b> (7 volets, <code>check_observable_coverage</code>).
+  </div>
+
+  <div class="note" style="margin-top:8px;border-left:3px solid #ffb454;padding-left:10px">
+    <b style="color:#ffdca6">PONG = TÉMOIN GELÉ</b> (décision Pierre 2026-07-27). Ne plus l'enrichir. État au gel :
+    11 fichiers de preuve exécutés (72 tests, exit 0) · <code>observable_coverage</code> OK 6/6 ·
+    <code>genre_coverage</code> OK (8 citations résolues) · le jeu boote en navigateur réel.
+    <b>Toute amélioration future de Forge devra prouver qu'elle ne casse pas ce témoin.</b>
+  </div>
+
+  <div class="note" style="margin-top:8px">
+    <b style="color:#59cbff">PROCHAIN CHAPITRE — l'expérience d'apprentissage</b>, sur le <b>jeu suivant</b>, jamais sur Pong.
+    Question centrale : <b>« est-ce que l'usine transforme son expérience en accélération ? »</b> — pas « sait-elle refaire Pong ».
+    Conditions posées : nouvelle Genre Bible · pré-mortem dès le départ · <code>observable_by_player</code> dans le design
+    initial · briques candidates à la réutilisation identifiées <b>avant</b> production · mesure de ce qui est importé depuis
+    Pong/Forge.<br>
+    <span style="color:#ff8098"><b>PIÈGE DE MESURE À NE PAS RÉPÉTER</b></span> : ne pas comparer des coûts bruts entre runs de
+    périmètres différents. pong_r2 = 13,82 $ / 123 965 tk (0 ligne REQUIRED) · pong_r3 s9 = 14,10 $ / 191 773 tk
+    (6 lignes REQUIRED). On mesure la capacité à <b>absorber un nouveau jeu</b>, pas le prix d'un ticket différent —
+    sinon on fabrique le faux indicateur que la règle de variance interdit.
+  </div>
+</div>
 </body>
 </html>
