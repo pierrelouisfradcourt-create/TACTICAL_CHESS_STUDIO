@@ -61,8 +61,10 @@ from forge.standard_oracles import (
     check_budget,
     check_collisions,
     check_contract_completeness,
+    check_genre_coverage,
     check_index,
     check_line_states,
+    check_observable_coverage,
     check_placement,
 )
 from forge.static_oracles import (
@@ -1077,6 +1079,23 @@ class ForgeDriver:
             "index": index_r,
             "collisions": collisions_r,
         }
+        # R1 (contrat r1-preuves-boucle-mecaniques.yaml, 2026-07-27) : les 2 volets de
+        # preuve de boucle — observable_by_player consommé par un oracle réel, Genre
+        # Bible lisible et citée. ADVISORY (garde-fou 6 du contrat) : portés au reçu,
+        # JAMAIS dans `_CORE_FACETS` ci-dessous — ne gate jamais le statut du pas s10s,
+        # même patron que `product_oracle` dans `_run_code_oracle` (s10a). Le volet
+        # d'oracle produit (browser_import_safety/auto_session/visual_capture) vit dans
+        # le reçu de s10a (déjà terminé — `_run_standard_oracle` s'exécute après dans
+        # l'ORDER du profil `standard`), lu ici depuis l'état persisté, jamais recalculé.
+        s10a_detail = (state.get("steps") or {}).get("s10a-oracle-code", {}).get("detail", {})
+        product_receipt = s10a_detail.get("product_oracle") if isinstance(s10a_detail, dict) else None
+        detail["observable_coverage"] = check_observable_coverage(
+            wiremap, product_receipt if isinstance(product_receipt, dict) else {}
+        )
+        genre_bible = self._read_json(self.game_dir / "01_DESIGN" / "genre_bible.json")
+        detail["genre_coverage"] = check_genre_coverage(
+            wiremap, genre_bible if isinstance(genre_bible, dict) else {}
+        )
         # Priorité (arbitrage coordinateur) : UNE PREUVE D'ÉCHEC L'EMPORTE SUR UNE
         # ABSENCE DE PREUVE. FAIL = « c'est faux, prouvé » (répare le JEU) ; BLOCKED =
         # « je ne peux pas savoir » (répare l'INSTRUMENT) — les confondre envoie le

@@ -25,13 +25,29 @@ Six oracles, un par facette du standard décrit dans `standard/SCHEMA.md` :
 6. ``check_collisions`` — le registre de capacités : identifiants inconnus, collisions
    `single_owner`, trous, doubles propriétaires, ordre d'écriture implicite.
 
+Deux volets supplémentaires (R1, `contracts/r1-preuves-boucle-mecaniques.yaml`,
+2026-07-27), branchés ADVISORY dans le reçu de `s10s-oracle-standard`
+(`driver.py::_run_standard_oracle` — jamais dans le calcul du statut du pas) :
+
+7. ``check_observable_coverage`` — toute ligne `observable_by_player: true` doit
+   nommer, via `observable_proof`, un volet d'oracle produit qui EXISTE dans le reçu
+   fourni et n'est ni `NOT_MEASURED` ni en échec. Patron Art Bible
+   (`check_artbible.mjs`) : `FAIL` = malformé · `BLOCKED` = bien formé mais non
+   couvert · `OK` = conforme et couvert.
+8. ``check_genre_coverage`` — chaque règle de la Genre Bible (`genre_rules[].id`)
+   doit être citée par une ligne de wiremap (`genre_refs`, résolvant vers un `id`
+   réel) ou refusée explicitement (`wiremap["genre_refusals"]`, raison non vide).
+   Une citation qui ne résout pas -> `FAIL` ; une règle ni citée ni refusée ->
+   `BLOCKED`.
+
 Non-LLM, déterministes, reproductibles. Comme `static_oracles.py` : un oracle ne lève JAMAIS
 sur une entrée malformée — il retourne un ``passed: False`` avec une raison explicite (cf.
 `check_architecture`, commentaire F2b sur le crash-loop réel évité par cette discipline).
 
-Ces oracles PROUVENT (PASS/FAIL) ; ils ne jugent jamais (aucun LLM). Ce module est autonome :
-il n'est branché dans aucun driver/dispatch — ce branchement est une décision HumanGate
-distincte (cf. commande de la session qui l'a produit).
+Ces oracles PROUVENT (PASS/FAIL) ; ils ne jugent jamais (aucun LLM). Les six premiers
+oracles restent autonomes : rien de leur comportement n'a changé, aucun branchement
+driver n'a été ajouté pour eux dans cette révision. Les deux nouveaux (7-8) SONT
+branchés (ADVISORY) — cf. `driver.py::_run_standard_oracle`.
 """
 from __future__ import annotations
 
@@ -1088,4 +1104,248 @@ def check_collisions(wiremap: dict, capabilities: dict) -> dict:
         "trous": trous,
         "doubles_proprietaires": doubles_proprietaires,
         "ordre_implicite": ordre_implicite,
+    }
+
+
+# --------------------------------------------------------------------------------------
+# 7. check_observable_coverage — R1 (contrat r1-preuves-boucle-mecaniques.yaml,
+#    2026-07-27) : toute ligne `observable_by_player: true` doit NOMMER, via un nouveau
+#    champ `observable_proof`, le volet d'oracle produit qui la prouve. Ce volet doit
+#    EXISTER dans le reçu fourni par l'appelant ET son résultat ne doit être ni
+#    NOT_MEASURED ni en échec — sinon la ligne reste NON COUVERTE.
+#
+#    Vocabulaire REPRIS du patron Art Bible (`check_artbible.mjs`, seul patron de
+#    couverture éprouvé du studio) : `FAIL` = entrée malformée (wiremap/reçu du
+#    mauvais type) · `BLOCKED` = bien formé mais au moins une ligne observable non
+#    couverte · `OK` = conforme et intégralement couvert. Ne juge JAMAIS le fond de la
+#    preuve (ce serait un jugement sémantique, hors de portée d'un oracle déterministe) —
+#    seulement sa PRÉSENCE, son EXISTENCE dans le reçu, et son statut mesuré.
+#
+#    ADVISORY (garde-fou 6 du contrat) : ce volet est porté dans le reçu de
+#    `s10s-oracle-standard` (driver.py::_run_standard_oracle) mais ne gate JAMAIS le
+#    statut du pas — sa promotion en gate dur est une décision Pierre distincte.
+# --------------------------------------------------------------------------------------
+
+
+def _volet_status(volet: dict) -> str:
+    """Statut homogène `OK`|`FAIL`|`NOT_MEASURED` d'un volet de reçu produit, quelle que
+    soit sa forme concrète — `product_oracle.py` expose deux formes différentes :
+    `visual_capture` porte un `status` explicite ∈ {OK, FAIL, NOT_MEASURED} ;
+    `browser_import_safety`/`auto_session` portent `checked` (mesuré ou non) + `passed`.
+    Une entrée qui n'est pas un mapping, ou qui ne porte aucun de ces indices connus,
+    retourne `NOT_MEASURED` — absence d'information, jamais un vert par défaut (même
+    discipline que `NOT_MEASURED != OK`, invariant global ratifié Pierre)."""
+    if not isinstance(volet, dict):
+        return "NOT_MEASURED"
+    if "status" in volet:
+        if volet.get("status") == "NOT_MEASURED":
+            return "NOT_MEASURED"
+        return "OK" if volet.get("status") == "OK" and volet.get("passed") is True else "FAIL"
+    if "checked" in volet:
+        if volet.get("checked") is not True:
+            return "NOT_MEASURED"
+        return "OK" if volet.get("passed") is True else "FAIL"
+    if "passed" in volet:
+        return "OK" if volet.get("passed") is True else "FAIL"
+    return "NOT_MEASURED"
+
+
+def check_observable_coverage(wiremap: dict, oracle_receipt: dict) -> dict:
+    """Vérifie que chaque ligne `observable_by_player: true` de `wiremap` nomme, via
+    `observable_proof`, un volet réellement présent et mesuré-vert dans `oracle_receipt`
+    (un mapping plat `{nom_volet: résultat}` — typiquement les volets de
+    `product_oracle.run_product_oracle`, portés au reçu de s10a).
+
+    Trois façons pour une ligne observable de rester NON COUVERTE (jamais un vert) :
+    - `observable_proof` absent, vide, ou pas une chaîne -> ligne sans preuve nommée.
+    - `observable_proof` nommé mais absent de `oracle_receipt` (ou pas un mapping) ->
+      volet inconnu du reçu.
+    - volet présent mais `NOT_MEASURED` (`_volet_status`) -> non mesuré.
+    - volet présent, mesuré, mais en échec (`_volet_status` == "FAIL") -> preuve rouge.
+
+    Retourne {passed, verdict, lignes_sans_preuve[], volets_absents[],
+    volets_non_mesures[], volets_en_echec[], couvertes[]}. Jamais d'exception sur
+    entrée malformée (même discipline que les 6 autres oracles de ce module) :
+    `wiremap` qui n'est pas un mapping -> `FAIL` motivé ; `oracle_receipt` qui n'est
+    pas un mapping est traité comme vide (aucun volet disponible), jamais une
+    exception — un reçu absent est un fait mesurable (BLOCKED), pas une erreur de
+    ce contrôle."""
+    empty = {
+        "lignes_sans_preuve": [],
+        "volets_absents": [],
+        "volets_non_mesures": [],
+        "volets_en_echec": [],
+        "couvertes": [],
+    }
+    if not isinstance(wiremap, dict):
+        return {
+            "passed": False,
+            "verdict": "FAIL",
+            "raison": f"wiremap n'est pas un mapping (reçu {type(wiremap).__name__})",
+            **empty,
+        }
+
+    receipt = oracle_receipt if isinstance(oracle_receipt, dict) else {}
+    lines_raw = wiremap.get("lines")
+    lines = lines_raw if isinstance(lines_raw, list) else []
+
+    lignes_sans_preuve: list[str] = []
+    volets_absents: list[str] = []
+    volets_non_mesures: list[str] = []
+    volets_en_echec: list[str] = []
+    couvertes: list[str] = []
+
+    for line in lines:
+        if not isinstance(line, dict):
+            continue
+        if line.get("observable_by_player") is not True:
+            continue
+        lid = line.get("id") if isinstance(line.get("id"), str) else "<sans-id>"
+        proof_name = line.get("observable_proof")
+        if not (isinstance(proof_name, str) and proof_name.strip()):
+            lignes_sans_preuve.append(lid)
+            continue
+        volet = receipt.get(proof_name)
+        if not isinstance(volet, dict):
+            volets_absents.append(f"{lid}:{proof_name}")
+            continue
+        status = _volet_status(volet)
+        if status == "NOT_MEASURED":
+            volets_non_mesures.append(f"{lid}:{proof_name}")
+        elif status == "FAIL":
+            volets_en_echec.append(f"{lid}:{proof_name}")
+        else:
+            couvertes.append(f"{lid}:{proof_name}")
+
+    non_couvert = bool(
+        lignes_sans_preuve or volets_absents or volets_non_mesures or volets_en_echec
+    )
+    verdict = "BLOCKED" if non_couvert else "OK"
+    return {
+        "passed": verdict == "OK",
+        "verdict": verdict,
+        "lignes_sans_preuve": lignes_sans_preuve,
+        "volets_absents": volets_absents,
+        "volets_non_mesures": volets_non_mesures,
+        "volets_en_echec": volets_en_echec,
+        "couvertes": couvertes,
+    }
+
+
+# --------------------------------------------------------------------------------------
+# 8. check_genre_coverage — R1 : chaque règle de la Genre Bible (`genre_rules[].id`)
+#    doit être soit CITÉE par au moins une ligne de wiremap (champ `genre_refs`, la
+#    citation devant RÉSOUDRE vers un `id` réellement présent dans `genre_rules`), soit
+#    REFUSÉE explicitement (`wiremap["genre_refusals"]`, entrée {rule_id, reason} avec
+#    une raison non vide). Même vocabulaire que `check_observable_coverage`.
+# --------------------------------------------------------------------------------------
+
+
+def check_genre_coverage(wiremap: dict, genre_bible: dict) -> dict:
+    """Vérifie la couverture règle-de-genre <-> ligne-de-wiremap (patron Art Bible,
+    `check_artbible.mjs::checkCoverage`, transposé à la Genre Bible).
+
+    - `genre_bible["genre_rules"]` doit être une liste ; sinon `FAIL` (bible
+      illisible pour ce contrôle). Une liste vide est un cas trivial valide : aucune
+      règle à couvrir, `OK` par vacuité.
+    - chaque règle (entrée `{id: str, ...}`) est couverte si son `id` apparaît dans
+      `genre_refs` d'au moins une ligne du wiremap (`citée`) OU dans
+      `wiremap["genre_refusals"]` avec une `reason` non vide (`refusée`).
+    - une règle applicable ni citée ni refusée -> `regles_non_couvertes` -> `BLOCKED`
+      (bien formé, couverture manquante).
+    - une citation (`genre_refs`) qui ne RÉSOUT vers AUCUN `id` de `genre_rules` ->
+      `citations_non_resolues` -> `FAIL` (une citation cassée est une erreur de
+      contenu, pas une simple absence de preuve — priorité sur `BLOCKED`, même
+      arbitrage que `_run_standard_oracle` : une preuve d'échec l'emporte sur une
+      absence de preuve).
+
+    Retourne {passed, verdict, regles_non_couvertes[], citations_non_resolues[],
+    citees[], refusees[]}. Jamais d'exception sur entrée malformée."""
+    empty = {
+        "regles_non_couvertes": [],
+        "citations_non_resolues": [],
+        "citees": [],
+        "refusees": [],
+    }
+    if not isinstance(wiremap, dict):
+        return {
+            "passed": False,
+            "verdict": "FAIL",
+            "raison": f"wiremap n'est pas un mapping (reçu {type(wiremap).__name__})",
+            **empty,
+        }
+    if not isinstance(genre_bible, dict):
+        return {
+            "passed": False,
+            "verdict": "FAIL",
+            "raison": f"genre_bible n'est pas un mapping (reçu {type(genre_bible).__name__})",
+            **empty,
+        }
+
+    rules_raw = genre_bible.get("genre_rules")
+    if not isinstance(rules_raw, list):
+        return {
+            "passed": False,
+            "verdict": "FAIL",
+            "raison": "genre_bible.genre_rules absent ou n'est pas une liste",
+            **empty,
+        }
+    rule_ids = {
+        r["id"] for r in rules_raw
+        if isinstance(r, dict) and isinstance(r.get("id"), str) and r["id"].strip()
+    }
+
+    lines_raw = wiremap.get("lines")
+    lines = lines_raw if isinstance(lines_raw, list) else []
+
+    citees: list[str] = []
+    citations_non_resolues: list[str] = []
+    cited_ids: set[str] = set()
+    for line in lines:
+        if not isinstance(line, dict):
+            continue
+        lid = line.get("id") if isinstance(line.get("id"), str) else "<sans-id>"
+        refs_raw = line.get("genre_refs")
+        refs = refs_raw if isinstance(refs_raw, list) else []
+        for ref in refs:
+            if not (isinstance(ref, str) and ref.strip()):
+                continue
+            if ref in rule_ids:
+                citees.append(f"{lid}:{ref}")
+                cited_ids.add(ref)
+            else:
+                citations_non_resolues.append(f"{lid}:{ref}")
+
+    refusals_raw = wiremap.get("genre_refusals")
+    refusals = refusals_raw if isinstance(refusals_raw, list) else []
+    refused_ids: set[str] = set()
+    for r in refusals:
+        if not isinstance(r, dict):
+            continue
+        rid = r.get("rule_id")
+        reason = r.get("reason")
+        if (
+            isinstance(rid, str) and rid.strip()
+            and isinstance(reason, str) and reason.strip()
+        ):
+            refused_ids.add(rid)
+
+    regles_non_couvertes = sorted(
+        rid for rid in rule_ids if rid not in cited_ids and rid not in refused_ids
+    )
+
+    if citations_non_resolues:
+        verdict = "FAIL"
+    elif regles_non_couvertes:
+        verdict = "BLOCKED"
+    else:
+        verdict = "OK"
+
+    return {
+        "passed": verdict == "OK",
+        "verdict": verdict,
+        "regles_non_couvertes": regles_non_couvertes,
+        "citations_non_resolues": sorted(citations_non_resolues),
+        "citees": sorted(citees),
+        "refusees": sorted(refused_ids),
     }

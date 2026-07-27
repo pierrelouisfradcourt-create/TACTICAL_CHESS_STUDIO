@@ -1,0 +1,111 @@
+# Contrat d'agent Forge — mission R1 : rendre MÉCANIQUES les 2 preuves de boucle manquantes
+# Statut : RATIFIÉ Pierre 2026-07-27 (« rendre mécaniques les deux preuves manquantes :
+# observable_by_player consommé par un oracle ; Prisme genre intégré au chemin conception.
+# Ne pas élargir le périmètre au-delà de ces deux points. »)
+# Schéma : scripts/forge/contracts/SCHEMA.md. Dispatch hors profil (allow_unprofiled assumé).
+
+role: >-
+  Ingénieur d'oracle déterministe, discipline TDD stricte. Point de vue : un champ que personne
+  ne lit est une intention ; une bible que personne ne cite est une dépense. Tu transformes deux
+  intentions en contrôles mécaniques, et rien d'autre.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Minimalisme sous contrainte explicite : Pierre a interdit d'élargir le périmètre. Chaque ligne
+  écrite hors des deux points est un défaut. Et un contrôle qui ne peut pas ÉCHOUER ne prouve
+  rien — chaque volet doit être montré ROUGE avant d'être accepté.
+memoire: >-
+  ÉTAT MESURÉ. `games/pong/09_WIREMAP/wiremap.json` porte 15 lignes, 6 avec
+  `observable_by_player: true` (core.exit, play.score, core.end_condition, core.restart,
+  play.solo_opponent, play.playable_speed), toutes en state REQUIRED. **Aucun oracle ne lit ce
+  champ aujourd'hui** (confirmé par grep). `scripts/forge/product_oracle.py` expose 3 volets
+  (`browser_import_safety`, `auto_session`, `visual_capture`) portés ADVISORY dans le reçu s10a
+  (`detail["product_oracle"]`), chacun rendant `NOT_MEASURED`/`checked:false` plutôt qu'un faux
+  vert. `scripts/forge/standard_oracles.py` porte les 6 volets du STANDARD exécutés à l'étape
+  s10s (mode « au gel » et mode « après build »). La Genre Bible existe
+  (`docs/forge/GENRE_BIBLE_PONG_V1_PROPOSED.md`, provenance ratifiée par Pierre : hypothèses
+  marquées `HYPOTHESE`, validation par World Scan) mais **rien ne la lit** : le profil `standard`
+  n'a aucune étape de conception (5 étapes : s9-build-standard, s10a, s10s, s11, s12).
+  PATRON À RÉPLIQUER (le seul éprouvé du studio) : la vérification de COUVERTURE de l'Art Bible —
+  chaque besoin `required:true` doit avoir sa requête, sinon `BLOCKED` (bien formé mais non
+  couvert), distinct de `FAIL` (malformé). C'est ce mécanisme qui empêche « un joli document » de
+  passer pour un actif.
+mandatory_read:
+  - scripts/forge/standard_oracles.py (les 6 volets, leurs signatures et la forme de leurs verdicts)
+  - scripts/forge/product_oracle.py (les 3 volets et la forme de leurs retours)
+  - games/pong/09_WIREMAP/wiremap.json (les 15 lignes, dont les 6 observables)
+  - docs/forge/GENRE_BIBLE_PONG_V1_PROPOSED.md (les règles de genre et leurs id)
+  - scripts/forge/driver.py (_run_standard_oracle et le reçu de s10a — les points de branchement)
+
+objectif: >-
+  DEUX volets déterministes non-LLM, ajoutés aux oracles du STANDARD et branchés au driver.
+  **(1) `check_observable_coverage`** : toute ligne portant `observable_by_player: true` doit
+  NOMMER le volet d'oracle produit qui la prouve (nouveau champ `observable_proof` sur la ligne),
+  ce volet doit EXISTER dans le reçu, et son résultat ne doit être ni `NOT_MEASURED` ni en échec.
+  Une ligne observable sans preuve nommée, ou dont le volet nommé n'a pas mesuré, rend `BLOCKED`
+  (bien formé mais non couvert), jamais un vert.
+  **(2) `check_genre_coverage`** : chaque règle de la Genre Bible applicable au jeu courant doit
+  être soit CITÉE par une ligne de wiremap (par son `id`, la citation devant RÉSOUDRE vers une
+  règle réellement présente dans la bible), soit REFUSÉE explicitement avec une raison. Une règle
+  applicable ni citée ni refusée rend `BLOCKED`. Une citation qui ne résout pas rend `FAIL`.
+
+gardeFou: >-
+  (1) **PÉRIMÈTRE FERMÉ PAR PIERRE** : ces deux volets et leur branchement, rien d'autre. Pas de
+  Prisme LLM, pas de nouvelle étape de chaîne, pas de profil modifié, pas de refonte des 6 volets
+  existants. (2) **CHAQUE VOLET MONTRÉ ROUGE** sur un cas fabriqué avant d'être accepté : une
+  ligne observable sans `observable_proof` · un volet nommé absent du reçu · un volet nommé en
+  `NOT_MEASURED` · une règle de genre applicable ni citée ni refusée · une citation vers un id
+  inexistant. Sorties collées. (3) **VOCABULAIRE REPRIS DU PATRON ART BIBLE** : `FAIL` =
+  malformé · `BLOCKED` = bien formé mais non couvert · `OK` = conforme et couvert. Ne jamais
+  confondre les deux premiers. (4) **NOT_MEASURED ≠ OK** (invariant global ratifié par Pierre) :
+  un volet d'oracle produit non mesuré ne peut pas valider une ligne observable. (5) La Genre
+  Bible doit devenir LISIBLE par l'oracle : place-la où la convention du dépôt l'exige (lis
+  `repo_map.yaml` et l'emplacement des artefacts de jeu) et DÉCLARE ton choix ; le document
+  `docs/forge/` reste la source rédigée. (6) Les deux volets sont **ADVISORY d'abord** (portés au
+  reçu, ne bloquent pas le pas) — leur promotion en gate dur est une décision Pierre distincte.
+  (7) TDD strict, tests isolés tmp_path, encoding utf-8. (8) **INTERDIT** : git add/commit/push/
+  checkout/restore/stash (un garde mécanique les bloque désormais — ne tente pas de le
+  contourner). (9) Zéro régression : référence **945 passed, 1 skipped**. (10) Doute => STOP.
+in_scope: >-
+  scripts/forge/standard_oracles.py (les 2 volets) · scripts/forge/driver.py (branchement au reçu
+  s10s) · games/pong/09_WIREMAP/wiremap.json (champ `observable_proof` sur les 6 lignes
+  observables + citations de règles de genre) · l'emplacement lisible de la Genre Bible ·
+  scripts/forge/tests/.
+out_of_scope: >-
+  verdict.py, gate.py, verify_run.py, product_oracle.py, mutation_proof.py INTOUCHÉS. Les 6 volets
+  existants du standard INTOUCHÉS. Aucun profil modifié, aucune étape ajoutée à la chaîne. Pas de
+  Prisme LLM ni d'agent de conception. Les autres jeux, les zones gelées. Aucun commit.
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT les chemins d'in_scope. run: pytest (.venv312),
+  python/node de vérification, git status/diff/log en LECTURE. delete: aucun.
+  INTERDIT : git add, git commit, git push, git checkout, git restore, git stash.
+success_criteria: >-
+  (a) les 2 volets existent, sont déterministes, branchés au reçu, et **chacun montré ROUGE** sur
+  au moins 2 cas fabriqués distincts puis VERT sur Pong ; (b) sur la wiremap Pong réelle, les
+  6 lignes observables nomment leur volet et le contrôle rend un verdict motivé ; (c) au moins une
+  règle de genre est CITÉE par une ligne et la citation RÉSOUT — c'est la preuve n°1 de la boucle
+  (« une connaissance de genre a été lue avant la conception ») ; (d) une citation vers un id
+  inexistant rend FAIL (prouvé) ; (e) zéro régression, référence 945 passed 1 skipped, nouveaux
+  tests comptés ; (f) selfaudit STUDIO ALIGNÉ ; (g) `git status --porcelain` : rien hors périmètre,
+  aucun commit.
+tests_oracles: >-
+  pytest (.venv312, réf. 945 passed, 1 skipped) · exécution des 2 volets sur la wiremap Pong
+  RÉELLE · node scripts/forge/studio_selfaudit.mjs · git status --porcelain · RED/GREEN collés.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED. Contenu :
+  les RED (≥2 par volet) et les GREEN · critères (a)→(g) un par un · le résultat des 2 volets sur
+  Pong réel · l'emplacement retenu pour la Genre Bible et pourquoi · ce que chaque volet NE prouve
+  PAS · git status/diff · section skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, volets: [{nom, red_outputs: [], green_output, ne_prouve_pas}],
+  criteres_a_g: [{critere, preuve}], resultat_sur_pong: {observable_coverage, genre_coverage},
+  emplacement_genre_bible, selfaudit_output, git_status_final, git_diff_stat,
+  fichiers_modifies: [], skipped_validation: [], software_verdict,
+  evidence_verdict: MECHANICAL_VALIDATION_ONLY, claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Go Pierre 2026-07-27 après validation des 4 lots commités. Ces 2 volets ferment les preuves de
+  bouclage n°1 (connaissance de genre lue avant conception) et n°4 (jeu exécuté et observé) de
+  l'ultra-plan §VII.3. En aval : contre-vérification par la supervision, relance des validations,
+  préparation puis LANCEMENT du premier cycle complet — dont le critère reste « preuves de boucle
+  > simple vert technique ».

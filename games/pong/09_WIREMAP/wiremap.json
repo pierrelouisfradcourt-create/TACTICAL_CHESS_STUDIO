@@ -66,10 +66,12 @@
       "address": "05_SYSTEMS/game_state/",
       "expected_proof": {"kind": "bot_action", "statement": "Un bot atteint une fin de partie ; l'etat final est gagne ou perdu, jamais indefini (invariant CONSERVE). ET un ETAT FINAL EXPLICITE est affiche a l'ecran, lisible par un joueur (qui gagne, qui perd)."},
       "observable_by_player": true,
+      "observable_proof": "auto_session",
+      "genre_refs": ["genre.pong.readable_score_and_end_state"],
       "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
       "fichiers": [{"path": "05_SYSTEMS/game_state/state.mjs", "category": "system"}],
       "fonction": "endStatus(score)/isOver : premier a WIN_SCORE=3 gagne ; issue toujours definie (preuve mecanique CONSERVEE, inchangee, par bot). Ecran de fin explicite (qui gagne, affiche a l'ecran) NON ENCORE FAIT.",
-      "preuve": "MECANIQUE (conservee) : node solvability.mjs -> game_finishes=true, winner=p1, status=P1_WIN, end_never_undefined=true. OBSERVABLE (a produire) : capture constatant un etat final explicite affiche a l'ecran (constat playtest-2026-07-27 'aucune condition de fin ... observable par le joueur').",
+      "preuve": "MECANIQUE (conservee) : node solvability.mjs -> game_finishes=true, winner=p1, status=P1_WIN, end_never_undefined=true. OBSERVABLE (a produire) : capture constatant un etat final explicite affiche a l'ecran (constat playtest-2026-07-27 'aucune condition de fin ... observable par le joueur'). observable_proof='auto_session' : couvre le CONSTAT MECANIQUE (finished=true, winner determine, cf. product_oracle.check_auto_session) -- ne prouve PAS que l'ecran de fin est effectivement affiche au joueur (aucun volet existant ne mesure le rendu de l'ecran de fin ; c'est le gap identifie par check_observable_coverage).",
       "statut": "REQUIRED"
     },
     {
@@ -79,10 +81,12 @@
       "address": "05_SYSTEMS/game_state/",
       "expected_proof": {"kind": "bot_action", "statement": "Apres une fin de partie, relance -> etat identique au premier demarrage, aucun residu (invariant CONSERVE). ET une RELANCE est OFFERTE au joueur (action/bouton visible) et fonctionne reellement quand le joueur la declenche."},
       "observable_by_player": true,
+      "observable_proof": "browser_restart_click",
+      "genre_refs": ["genre.pong.readable_score_and_end_state"],
       "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
       "fichiers": [{"path": "05_SYSTEMS/game_state/state.mjs", "category": "system"}],
       "fonction": "restart(seed) -> initialState(seed) : nouvel etat propre, aucun residu (preuve mecanique CONSERVEE, inchangee, par bot). Relance offerte au JOUEUR (bouton/action visible, declenchee par un clic reel) NON ENCORE FAITE.",
-      "preuve": "MECANIQUE (conservee) : node solvability.mjs -> restart.finishedBeforeRestart=true & restart.restartEqualsFirstBoot=true (JSON identique a boot apres partie finie). Exit 0. Gate mutation state.mjs (restart/initialState) : 29/29 tues (100%).",
+      "preuve": "MECANIQUE (conservee) : node solvability.mjs -> restart.finishedBeforeRestart=true & restart.restartEqualsFirstBoot=true (JSON identique a boot apres partie finie). Exit 0. Gate mutation state.mjs (restart/initialState) : 29/29 tues (100%). observable_proof='browser_restart_click' NOMME HONNETEMENT un volet qui N'EXISTE PAS ENCORE dans le recu produit (aucun des 3 volets de product_oracle.py ne clique un bouton de relance) : check_observable_coverage rend donc cette ligne BLOCKED (volet absent du recu), ce qui reflete fidelement l'etat reel -- pas un vert fabrique.",
       "statut": "REQUIRED"
     },
     {
@@ -92,10 +96,11 @@
       "address": "06_RUNTIME/adapters/presentation/",
       "expected_proof": {"kind": "bot_action", "statement": "Sortie demandee -> comportement defini PAR RUNTIME. CLI/Godot : processus termine, code de sortie 0 (invariant conserve). NAVIGATEUR : un CLIC REEL sur le bouton Quitter produit un effet VISIBLE (arret de la boucle de jeu + etat final affiche a l'ecran) -- window.close() seul ne suffit pas, il est ignore par le navigateur sur un onglet non ouvert par script."},
       "observable_by_player": true,
+      "observable_proof": "browser_exit_click",
       "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
       "fichiers": [{"path": "06_RUNTIME/adapters/presentation/exit.mjs", "category": "system.adapter"}],
       "fonction": "requestExit() : node/godot -> process.exit(0) (preuve mecanique CONSERVEE, inchangee). Volet navigateur (clic reel -> arret boucle + etat final affiche) NON ENCORE PROUVE : c'est le delta qui fait passer cette ligne de IMPLEMENTED a REQUIRED.",
-      "preuve": "MECANIQUE (conservee) : spawnSync('node exit.mjs') -> status=0, stdout 'sortie propre, code 0'. OBSERVABLE (a produire) : capture/e2e d'un clic reel sur le bouton Quitter en navigateur constatant l'arret de la boucle et l'affichage d'un etat final -- absent aujourd'hui (finding F6 red-team, constat playtest-2026-07-27 'Quitter inerte').",
+      "preuve": "MECANIQUE (conservee) : spawnSync('node exit.mjs') -> status=0, stdout 'sortie propre, code 0'. OBSERVABLE (a produire) : capture/e2e d'un clic reel sur le bouton Quitter en navigateur constatant l'arret de la boucle et l'affichage d'un etat final -- absent aujourd'hui (finding F6 red-team, constat playtest-2026-07-27 'Quitter inerte'). observable_proof='browser_exit_click' nomme HONNETEMENT un volet ABSENT du recu produit aujourd'hui (browser_import_safety verifie que le GRAPHE charge sans crash, pas qu'un clic reel produit l'effet attendu) : check_observable_coverage rend cette ligne BLOCKED, fidele a l'etat reel.",
       "statut": "REQUIRED"
     },
     {
@@ -142,6 +147,7 @@
       "system_parent": "game_loop",
       "address": "05_SYSTEMS/game_loop/",
       "expected_proof": {"kind": "bot_action", "statement": "La raquette se deplace et ne sort JAMAIS de l'aire de jeu, y compris en maintenant l'entree."},
+      "genre_refs": ["genre.pong.two_paddles_vertical"],
       "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
       "fichiers": [{"path": "05_SYSTEMS/game_loop/loop.mjs", "category": "system"}],
       "fonction": "movePaddle(y,dir) : deplace la raquette et clampe [0, FIELD_H-PADDLE_H]. Solvability.mjs consomme cette ligne en preuve (bot_action), depose par core.boot.",
@@ -155,6 +161,7 @@
       "system_parent": "game_loop",
       "address": "05_SYSTEMS/game_loop/",
       "expected_proof": {"kind": "test", "statement": "La balle rebondit sur bords et raquettes ; elle ne traverse jamais une raquette, quelle que soit sa vitesse."},
+      "genre_refs": ["genre.pong.continuous_ball_rebound"],
       "state": "IMPLEMENTED", "reason": null, "until": null, "decider": null, "write_order": null,
       "fichiers": [{"path": "05_SYSTEMS/game_loop/loop.mjs", "category": "system"}],
       "fonction": "stepBall : rebonds bords haut/bas + collision BALAYEE (swept) sur les raquettes (test du franchissement du plan, pas de la position finale) -> anti-tunneling.",
@@ -169,10 +176,12 @@
       "address": "05_SYSTEMS/game_loop/",
       "expected_proof": {"kind": "bot_action", "statement": "Balle sortie d'un cote -> exactement un point pour le camp oppose (invariant de comptage CONSERVE). ET l'etat decisif est LISIBLE par un joueur : le score est rendu en CHIFFRES (pas en pips seuls), et le score affiche correspond EXACTEMENT au score d'etat interne a chaque tick."},
       "observable_by_player": true,
+      "observable_proof": "auto_session",
+      "genre_refs": ["genre.pong.score_visible_on_exit", "genre.pong.readable_score_and_end_state"],
       "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
       "fichiers": [{"path": "05_SYSTEMS/game_loop/loop.mjs", "category": "system"}],
       "fonction": "step : sortie a gauche/droite -> +1 pour le camp oppose EXACTEMENT (preuve mecanique CONSERVEE, inchangee). Rendu en CHIFFRES lisibles NON ENCORE FAIT : score actuellement dessine en pips (draw.mjs, hors fichiers de cette ligne), 0/3 mutants tues sur ce dessin -- personne ne verifie que l'affiche correspond a l'etat. C'est le delta qui fait passer cette ligne de IMPLEMENTED a REQUIRED.",
-      "preuve": "MECANIQUE (conservee) : node solvability.mjs -> checks.score_exactly_one_per_point=true ; node --test loop.test.mjs 'play.score : ... EXACTEMENT un point' PASS. OBSERVABLE (a produire) : test/capture constatant un rendu en chiffres correspondant a l'etat, remplacant le rendu en pips actuel (constat playtest-2026-07-27 'Score illisible').",
+      "preuve": "MECANIQUE (conservee) : node solvability.mjs -> checks.score_exactly_one_per_point=true ; node --test loop.test.mjs 'play.score : ... EXACTEMENT un point' PASS. OBSERVABLE (a produire) : test/capture constatant un rendu en chiffres correspondant a l'etat, remplacant le rendu en pips actuel (constat playtest-2026-07-27 'Score illisible'). observable_proof='auto_session' : couvre score_evolves=true (le score CHANGE reellement au fil des ticks, cf. product_oracle.check_auto_session) -- ne prouve PAS que le rendu est en CHIFFRES plutot qu'en pips (aucun volet existant ne lit les pixels du score ; c'est le gap identifie par check_observable_coverage).",
       "statut": "REQUIRED"
     },
     {
@@ -182,10 +191,12 @@
       "address": "05_SYSTEMS/input/",
       "expected_proof": {"kind": "bot_action", "statement": "Une partie SOLO complete se joue de bout en bout : le joueur humain controle un seul camp, l'autre camp est pilote par une IA de jeu DISTINCTE du bot de solvabilite (celui-ci a une latence de reaction NULLE et sert uniquement d'outil de test interne, cf. core.boot/play.ball -- jamais un adversaire jouable), et la partie atteint un etat de fin (P1_WIN ou P2_WIN)."},
       "observable_by_player": true,
+      "observable_proof": "solo_ai_session",
+      "genre_refs": ["genre.pong.solo_mode_expected"],
       "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
       "fichiers": [],
       "fonction": "",
-      "preuve": "",
+      "preuve": "observable_proof='solo_ai_session' nomme HONNETEMENT un volet qui N'EXISTE PAS dans le recu produit aujourd'hui (auto_session pilote les DEUX camps avec un bot a latence NULLE, explicitement disqualifie comme 'adversaire jouable' par cette ligne elle-meme) : check_observable_coverage rend cette ligne BLOCKED (volet absent du recu) -- fidele a l'etat reel, rien n'est implemente (fichiers=[]).",
       "statut": "REQUIRED"
     },
     {
@@ -195,13 +206,17 @@
       "address": "05_SYSTEMS/game_loop/",
       "expected_proof": {"kind": "test", "statement": "Le temps de traversee du terrain a la vitesse de service (ball_crossing_time, derive de BALL_VX et FIELD_W) est compris dans la bande jouable declaree par la Genre Bible Pong (docs/forge/GENRE_BIBLE_PONG_V1_PROPOSED.md, regle genre.pong.playable_speed_range) ; une vitesse hors bande FAIT ECHOUER ce test, y compris si play.ball (NO-TUNNEL a toute vitesse) reste vert."},
       "observable_by_player": true,
+      "observable_proof": "playable_speed_band_test",
+      "genre_refs": ["genre.pong.playable_speed_range"],
       "state": "REQUIRED", "reason": null, "until": null, "decider": null, "write_order": null,
       "fichiers": [],
       "fonction": "",
-      "preuve": "",
+      "preuve": "observable_proof='playable_speed_band_test' nomme HONNETEMENT un volet qui N'EXISTE PAS dans le recu produit aujourd'hui (aucun test ne mesure ball_crossing_time contre la bande de la Genre Bible) : check_observable_coverage rend cette ligne BLOCKED (volet absent du recu) -- fidele a l'etat reel, rien n'est implemente (fichiers=[]).",
       "statut": "REQUIRED"
     }
   ],
 
-  "discarded": []
+  "discarded": [],
+
+  "genre_refusals": []
 }
