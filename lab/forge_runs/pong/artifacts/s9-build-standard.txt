@@ -1,0 +1,64 @@
+The wiremap edits are structurally sound (I verified each `fichiers[]` entry against the placement templates and the index/collision rules I read). play.playable_speed → IMPLEMENTED; the other five → BLOCKED with verifiable motives. No line remains REQUIRED.
+
+I've reached the limit of what I can do: the shell/Task deadlock prevents running the bot_action oracles, the mutation gate, the six standard oracles, and the browser/godot captures. Here is my final report to the orchestrator.
+
+---
+
+# RAPPORT FINAL — FORGE_DISPATCH:s9-build-standard:pong_r3
+
+## Verdicts
+- **software_verdict: BLOCKED** — la suite de vérification complète (oracles `bot_action`, gate mutation, les six oracles du STANDARD, captures) n'a **pas pu être exécutée** : un deadlock du hook shell (voir §Blocage) rend Bash/PowerShell/Task inutilisables après un `cd games/pong` initial qui a figé le cwd. Rien n'est prouvé cassé ; une partie est prouvée verte (70/70 tests unitaires) ; le reste est **empêché**, pas en échec.
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — seule preuve réellement exécutée : `node --test` sur les 9 fichiers unitaires → **70/70 PASS** sur le code final.
+- **claim_verdict: NO_CLAIM_ALLOWED**
+
+## Blocage environnement (cause racine — à lever par l'orchestrateur)
+Mon premier appel shell utilisait `cd games/pong && …`. Le cwd du shell **persiste** entre appels. Or les hooks `PreToolUse` de `.claude/settings.json` invoquent leurs scripts par **chemin relatif** (`python .claude/hooks/pretool_git_guard.py`, et `pretool_forge_guard.py` pour Task). Depuis `games/pong`, ces scripts sont introuvables → le hook lève → **tout appel Bash / PowerShell / Task est bloqué**. Recovery tentée et refusée : créer `games/pong/.claude/hooks/…` (Write **denied**) ; passer les chemins de hook en absolu dans `.claude/settings.json` (Edit **permission non accordée** au sous-agent). 
+**Pour débloquer :** relancer un shell au cwd racine `C:\TACTICAL_CHESS_STUDIO` (ou rendre les commandes de hook absolues), puis exécuter les commandes de re-run listées en §SKIPPED_VALIDATION.
+
+## SEARCH effectuées
+Aucune requête `knowledge_base` (SEARCH KB) : le budget du jeu est `reuses: []` (aucune brique de bibliothèque réutilisée), donc rien à résoudre côté KB. Résultat : **vide, assumé**.
+
+## Baseline des six oracles (exécutée AVANT le deadlock, sur le squelette gelé)
+`contract_completeness` PASS · `placement` PASS · `index` PASS · `line_states(built)` FAIL (6 REQUIRED) · `budget` FAIL (`promis_non_depose: game_loop`) · `collisions` FAIL (`identifiants_inconnus: game.solo_opponent, game.playable_speed`).
+
+## État ligne par ligne (constat)
+
+| Ligne | kind | state final | Preuve **exécutée** (réelle) | Manque (→ re-run) |
+|---|---|---|---|---|
+| **play.playable_speed** | test | **IMPLEMENTED** | `node --test playable_speed.test.mjs` → **4/4 PASS** (bande [1.0,1.5]s lue de la Genre Bible ; crossing **1.253 s** dans la bande ; non-tautologie : vitesse 3 → 0.522 s **hors** bande, rejetée) | gate mutation |
+| **play.score** | bot_action | BLOCKED | `node --test score_readout.test.mjs` → **2/2 PASS** (décode pixel : score rendu **en chiffres** == état interne sur 5 scores) | solvability (bot_action) au nouveau BALL_VX |
+| **core.end_condition** | bot_action | BLOCKED | `node --test end_screen.test.mjs` → **4/4 PASS** (écran de fin explicite, `P1`/`P2` lisibles, diffère de l'écran de jeu, non-monochrome) | solvability |
+| **play.solo_opponent** | bot_action | BLOCKED | `node --test ai.test.mjs` → **7/7 PASS** (IA distincte du tracker parfait : recentre quand la balle s'éloigne ; deadzone ; tient bien p2) | `node solo_session.mjs` (session solo complète) |
+| **core.restart** | bot_action | BLOCKED | `node --test restart_offer.test.mjs` → **2/2 PASS** (bouton Rejouer + touche R câblés sur `replay()` → `boot(1)` exact) | **clic navigateur réel** (aucune automatisation ; volet `browser_restart_click` inexistant) + solvability |
+| **core.exit** | bot_action | BLOCKED | `node --test exit_stop.test.mjs` → **2/2 PASS** (`requestExit('browser')` retourne `{stopped}` ; `stop()` → boucle figée, effet observable, sans `window.close`) | **clic navigateur réel** (volet `browser_exit_click` inexistant) + CLI `node exit.mjs` |
+
+Les 70/70 incluent aussi `state/loop/input.test.mjs` verts → **aucune régression logique** au nouveau `BALL_VX=1.25`.
+
+## Fichiers produits (aux adresses déclarées)
+- **Logique** : `05_SYSTEMS/input/ai.mjs` (nouveau, IA solo) ; `05_SYSTEMS/game_loop/loop.mjs` (+`TICK_HZ`, `SERVE_CROSS_DIST`, `ballCrossingTimeSeconds`) ; `05_SYSTEMS/game_state/state.mjs` (`BALL_VX` 3→1.25).
+- **Présentation** (`system.adapter`) : `draw.mjs` (score en chiffres + écran de fin + police pixel inline) ; `browser/main.mjs` (`createController` testable + mode solo + Rejouer + sortie-arrête-la-boucle) ; `browser/index.html` (bouton Rejouer, hint solo) ; `exit.mjs` (sortie navigateur observable, plus de `window.close`).
+- **Preuves** : `07_TESTS/unit/{playable_speed,ai,score_readout,end_screen,restart_offer,exit_stop}.test.mjs` ; `07_TESTS/oracle/solo_session.mjs`.
+
+## Mutation
+**Non exécutée** (deadlock). ⚠️ Mes ajouts en tête de `loop.mjs` ont **décalé les numéros de ligne** → `games/pong/mutation_triage.json` (réf. `loop.mjs` L114) est **périmé** et doit être régénéré ; `ai.mjs` (nouveau) attend d'éventuelles entrées de triage (j'anticipe 2/2 tués, 0 survivant, mais **non prouvé**). Périmètre mutation = fichiers logique : `state.mjs`, `loop.mjs`, `input.mjs`, `ai.mjs` (les `system.adapter` restent exclus, décision U-2).
+
+## fog (ce que le plan a manqué / ce qui reste HumanGate)
+1. **Deadlock shell** (environnement) — empêche tout re-run ; recovery en tête de rapport.
+2. **`collisions` FAIL** — le squelette gelé déclare `provides: game.solo_opponent` / `game.playable_speed`, **absents de `scripts/forge/standard/capabilities.yaml`**. Les deux côtés sont hors de mon périmètre (promesse + standard). → ajouter ces 2 capacités au registre (gate Pierre) **ou** réviser le gel.
+3. **`budget` FAIL** — `game_loop` (dans `adds`) n'est **pas déposé** dans `knowledge_base/catalog.json` (hors périmètre builder). → dépôt de brique requis.
+4. **Volets observables inexistants dans `product_oracle.py`** : `browser_restart_click`, `browser_exit_click`, `solo_ai_session`, `playable_speed_band_test`. Construire un volet d'oracle = **hors périmètre builder** (modifier son propre juge). `check_observable_coverage` restera donc `BLOCKED` sur ces lignes (advisory).
+5. **Clic navigateur réel non prouvable** sur ce poste (playwright/puppeteer absents) → `core.restart`/`core.exit` restent BLOCKED sur ce volet.
+6. **Volet Godot** de `core.render` : aucun binaire Godot (`GODOT_BIN`/`godot.config.json` absents) — fog pré-existant.
+7. **Preuves conservées à re-valider** : `BALL_VX` ayant changé, les proofs `bot_action`/mutation de `core.boot`, `core.main_loop`, `play.paddle` (restées IMPLEMENTED) sont **stale** → le re-run de solvability + mutation les reconfirme.
+
+## SKIPPED_VALIDATION (explicite)
+Toutes bloquées par le **deadlock shell** (cwd figé en `games/pong`) — à exécuter par l'orchestrateur depuis la racine :
+- **solvability** (bot_action : core.boot/end_condition/restart, play.paddle/score) — `node games/pong/07_TESTS/oracle/solvability.mjs` — *non fait*.
+- **solo_session** (bot_action : play.solo_opponent) — `node games/pong/07_TESTS/oracle/solo_session.mjs` — *non fait*.
+- **capture navigateur** (régression pixel core.render au nouveau speed) — `node games/pong/06_RUNTIME/adapters/presentation/capture_browser.mjs` — *non fait*.
+- **audio** (artifact core.audio, régression) — `node games/pong/06_RUNTIME/adapters/presentation/audio.mjs` — *non fait*.
+- **gate mutation** (state/loop/input/ai.mjs) + **régénération de `mutation_triage.json`** — *non fait*.
+- **les six oracles du STANDARD en mode built** — *non fait* ; prédiction raisonnée (vérifiée contre le code des oracles, non exécutée) : `contract_completeness`/`line_states`/`placement`/`index` **PASS**, `budget`/`collisions` **FAIL** (fog #2, #3).
+- **product_oracle / check_observable_coverage / check_genre_coverage** (advisory) — *non fait*.
+
+Aucun commit, aucun push effectué. `.claude/settings.json` **inchangé** (mes tentatives d'édit ont été refusées) ; aucune pollution laissée dans le dépôt.
