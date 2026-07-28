@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forge — chaîne de fabrication &amp; contrats d'agents</title>
+<style>
+:root{
+  --bg:#0c1210;
+  --surface:#131c19;
+  --surface-2:#182722;
+  --line:#233a33;
+  --ink:#e7f0ec;
+  --ink-dim:#8fa89d;
+  --ink-faint:#587067;
+  --accent:#e0a13d;
+  --accent-dim:#3d2f14;
+  --allow:#5fbf7a;
+  --allow-bg:#173a24;
+  --deny:#e0665e;
+  --deny-bg:#3a1c1a;
+  --advisory:#d9a441;
+  --advisory-bg:#3a2f14;
+  --opus:#c98fe0;
+  --opus-bg:#2c1e40;
+  --haiku:#7fc4d9;
+  --haiku-bg:#132f38;
+  --qwen:#e08f6b;
+  --qwen-bg:#3a2216;
+  --deterministic:#8fa5a0;
+  --deterministic-bg:#1c2926;
+  --radius:3px;
+  --mono: ui-monospace, "Cascadia Code", "Segoe UI Mono", Consolas, "SFMono-Regular", monospace;
+  --sans: "Segoe UI Semibold", "Segoe UI", -apple-system, system-ui, sans-serif;
+  --sans-reg: "Segoe UI", -apple-system, system-ui, sans-serif;
+}
+:root[data-theme="light"]{
+  --bg:#f3f1e7;
+  --surface:#fbfaf3;
+  --surface-2:#eeeadb;
+  --line:#dad4bf;
+  --ink:#20281f;
+  --ink-dim:#57634f;
+  --ink-faint:#8a9280;
+  --accent:#93650f;
+  --accent-dim:#f2e2c2;
+  --allow:#1c7a3f;--allow-bg:#e2f2e5;
+  --deny:#ab2f27;--deny-bg:#f7e4e2;
+  --advisory:#8a611a;--advisory-bg:#f5ecd6;
+  --opus:#7440a8;--opus-bg:#ece0f7;
+  --haiku:#1f6f85;--haiku-bg:#dcf0f4;
+  --qwen:#a1521f;--qwen-bg:#f7e6da;
+  --deterministic:#5c6a58;--deterministic-bg:#e6e8e0;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f3f1e7;--surface:#fbfaf3;--surface-2:#eeeadb;--line:#dad4bf;
+    --ink:#20281f;--ink-dim:#57634f;--ink-faint:#8a9280;
+    --accent:#93650f;--accent-dim:#f2e2c2;
+    --allow:#1c7a3f;--allow-bg:#e2f2e5;
+    --deny:#ab2f27;--deny-bg:#f7e4e2;
+    --advisory:#8a611a;--advisory-bg:#f5ecd6;
+    --opus:#7440a8;--opus-bg:#ece0f7;
+    --haiku:#1f6f85;--haiku-bg:#dcf0f4;
+    --qwen:#a1521f;--qwen-bg:#f7e6da;
+    --deterministic:#5c6a58;--deterministic-bg:#e6e8e0;
+  }
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans-reg);line-height:1.5;-webkit-font-smoothing:antialiased;}
+::selection{background:var(--accent-dim);}
+.wrap{max-width:1240px;margin:0 auto;padding:1.5rem 1.75rem 6rem;}
+
+.viewnav{display:flex;gap:8px;margin-bottom:1.6rem;font-family:var(--mono);font-size:11px;}
+.viewnav a, .viewnav span{padding:6px 12px;border-radius:6px;text-decoration:none;}
+.viewnav a{border:1px solid var(--line);background:var(--surface-2);color:var(--ink-dim);}
+.viewnav a:hover{color:var(--accent);border-color:var(--accent);}
+.viewnav span{border:1px solid var(--accent);background:var(--accent-dim);color:var(--ink);font-weight:700;}
+
+header.top{display:flex;justify-content:space-between;align-items:flex-end;gap:2rem;border-bottom:1px solid var(--line);padding-bottom:1.5rem;margin-bottom:1.6rem;flex-wrap:wrap;}
+.eyebrow{font-family:var(--mono);font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent);margin:0 0 0.6rem;}
+h1{font-family:var(--sans);font-weight:700;font-size:1.85rem;letter-spacing:-0.01em;margin:0;text-wrap:balance;}
+.top-meta{font-family:var(--mono);font-size:0.78rem;color:var(--ink-dim);text-align:right;line-height:1.7;}
+.top-meta b{color:var(--ink);font-weight:600;}
+
+nav.jump{display:flex;flex-wrap:wrap;gap:0.4rem 0.9rem;margin-bottom:2.2rem;font-family:var(--mono);font-size:0.76rem;}
+nav.jump a{color:var(--ink-dim);text-decoration:none;padding:0.15rem 0;border-bottom:1px solid transparent;}
+nav.jump a:hover, nav.jump a:focus-visible{color:var(--accent);border-bottom-color:var(--accent);}
+
+.callout{background:var(--surface-2);border-left:3px solid var(--accent);padding:1rem 1.25rem;border-radius:0 var(--radius) var(--radius) 0;margin-bottom:2.2rem;font-size:0.92rem;color:var(--ink-dim);}
+.callout b{color:var(--ink);}
+.callout code{color:var(--accent);}
+
+.gate-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.8rem;margin-bottom:2.6rem;}
+.gate{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:0.9rem 1.05rem;}
+.gate .num{font-family:var(--mono);font-size:0.7rem;color:var(--accent);letter-spacing:0.08em;}
+.gate h3{margin:0.2rem 0 0.35rem;font-size:0.92rem;font-family:var(--sans);}
+.gate p{margin:0;font-size:0.8rem;color:var(--ink-dim);}
+
+section{margin-bottom:3.2rem;scroll-margin-top:1.5rem;}
+section h2{font-family:var(--sans);font-size:1.12rem;font-weight:700;margin:0 0 0.3rem;display:flex;align-items:baseline;gap:0.6rem;flex-wrap:wrap;}
+section h2 .tag{font-family:var(--mono);font-size:0.66rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:999px;border:1px solid var(--line);color:var(--ink-faint);}
+section .sub{color:var(--ink-dim);font-size:0.89rem;margin:0 0 1.05rem;max-width:78ch;}
+section .sub code{font-family:var(--mono);font-size:0.85em;color:var(--accent);}
+
+.tbl-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);}
+table{border-collapse:collapse;width:100%;font-size:0.82rem;min-width:900px;}
+thead th{text-align:left;font-family:var(--mono);font-size:0.66rem;letter-spacing:0.05em;text-transform:uppercase;color:var(--ink-faint);padding:0.6rem 0.8rem;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface-2);position:sticky;top:0;}
+tbody td{padding:0.55rem 0.8rem;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink-dim);}
+tbody tr:last-child td{border-bottom:none;}
+tbody td.name{color:var(--ink);font-weight:600;font-family:var(--sans);white-space:nowrap;}
+tbody td code{font-family:var(--mono);font-size:0.82em;color:var(--ink);background:var(--surface-2);padding:0.05rem 0.35rem;border-radius:2px;}
+tr:hover td{background:var(--surface-2);}
+
+table.mega{min-width:2900px;}
+table.mega td, table.mega th{white-space:normal;vertical-align:top;}
+table.mega td{min-width:190px;max-width:260px;font-size:0.78rem;line-height:1.45;}
+table.mega td.name{min-width:150px;max-width:150px;white-space:normal;position:sticky;left:0;background:var(--surface);box-shadow:2px 0 0 var(--line);}
+table.mega thead th.name{position:sticky;left:0;z-index:2;background:var(--surface-2);box-shadow:2px 0 0 var(--line);}
+table.mega tr:hover td.name{background:var(--surface-2);}
+
+.badge{display:inline-flex;align-items:center;gap:0.35rem;font-family:var(--mono);font-weight:700;font-size:0.74rem;padding:0.12rem 0.45rem;border-radius:3px;white-space:nowrap;}
+.badge.opus{color:var(--opus);background:var(--opus-bg);}
+.badge.haiku{color:var(--haiku);background:var(--haiku-bg);}
+.badge.sonnet{color:var(--accent);background:var(--accent-dim);}
+.badge.qwen{color:var(--qwen);background:var(--qwen-bg);}
+.badge.det{color:var(--deterministic);background:var(--deterministic-bg);}
+.badge.fable{color:var(--advisory);background:var(--advisory-bg);}
+
+.legend{display:flex;flex-wrap:wrap;gap:1rem 1.4rem;font-size:0.78rem;color:var(--ink-dim);margin:1rem 0 1.5rem;}
+.legend span{display:inline-flex;align-items:center;gap:0.4rem;}
+
+.model-roster{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0.85rem;margin-bottom:1rem;}
+.mcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:0.95rem 1.1rem;}
+.mcard h3{margin:0 0 0.4rem;font-size:0.88rem;display:flex;align-items:center;gap:0.5rem;}
+.mcard p{margin:0.15rem 0 0;font-size:0.78rem;color:var(--ink-dim);}
+.mcard .roles{margin-top:0.5rem;font-family:var(--mono);font-size:0.72rem;color:var(--ink-faint);line-height:1.6;}
+
+footer{border-top:1px solid var(--line);padding-top:1.2rem;font-family:var(--mono);font-size:0.74rem;color:var(--ink-faint);}
+footer .verdict{color:var(--deny);font-weight:700;}
+
+@media (max-width:640px){header.top{flex-direction:column;align-items:flex-start;}.top-meta{text-align:left;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="viewnav">
+  <a href="STUDIO_MASTER_SCHEMA.html">← VUE 1 · PLAN D'ARCHITECTURE (A·B·C)</a>
+  <span>VUE 2 · CONTRATS D'AGENTS (ici)</span>
+</div>
+
+<header class="top">
+  <div>
+    <p class="eyebrow">Tactical Chess Studio — lane Forge (/forge)</p>
+    <h1>La chaîne de fabrication : contrats, rôles, autorité</h1>
+  </div>
+  <div class="top-meta">
+    Compilé le <b>2026-07-28</b><br>
+    Source : <code>scripts/forge/contracts/*.yaml</code> (44 fichiers) + <code>SCHEMA.md</code> + <code>roles.yaml</code><br>
+    <b>claim_verdict: NO_CLAIM_ALLOWED</b>
+  </div>
+</header>
+
+<nav class="jump">
+  <a href="#doctrine">Doctrine ADR-002</a>
+  <a href="#models">Résolution des rôles</a>
+  <a href="#chain">Chaîne canonique s0→s12</a>
+  <a href="#missions">Missions hors-chaîne</a>
+</nav>
+
+<div class="callout">
+  <b>Principe unique.</b> Dans la Forge, une « planète » (nœud llm-lego) <b>est</b> le contrat de travail d'un sous-agent — <code>scripts/forge/contracts/&lt;étape&gt;.yaml</code>. Un agent ne se lance <b>jamais</b> sans contrat complet (16 champs, schéma <code>SCHEMA.md</code>) : un champ Critique vide ou absent → <code>CONTRACT_INCOMPLETE</code>, l'agent ne démarre pas. Le contrat ne fixe jamais de modèle en dur — il déclare un <code>capability_role</code> résolu par <code>roles.yaml</code> (registry local). <b>HumanGate (Pierre) décide seul</b> merge/reject/freeze ; aucun agent, aucun oracle, aucun red-team n'a ce pouvoir.
+</div>
+
+<section id="doctrine">
+  <h2>Doctrine ADR-002 <span class="tag">4 portes</span></h2>
+  <p class="sub">Les invariants durs qui gouvernent tout dispatch d'agent Forge.</p>
+  <div class="gate-grid">
+    <div class="gate"><p class="num">GATE 1</p><h3>Résolution du runtime</h3><p>Le contrat déclare <code>capability_role</code>, jamais un modèle. <code>get_model_for_role()</code> résout via <code>roles.yaml</code> (Forge-scopé). Rôle non résolu → <code>RoleUnresolved</code>, sous-classe de <code>ContractIncomplete</code>.</p></div>
+    <div class="gate"><p class="num">GATE 2</p><h3>Gouvernance du dispatch</h3><p>Aucun spawn direct depuis l'agent exécutant : contrat validé → <code>dispatch_bridge.py</code>. Porte unique <code>dispatch(étape)</code> — pas d'autre chemin pour lancer un agent.</p></div>
+    <div class="gate"><p class="num">GATE 3</p><h3>Oracles non-LLM</h3><p>Les preuves (code/archi/wiremap, mutation, solvabilité) viennent d'oracles déterministes, jamais d'un jugement LLM. Verdict signé HMAC-SHA256, re-vérifié par <code>forge.verify_run</code>.</p></div>
+    <div class="gate"><p class="num">GATE 4</p><h3>Red-team indépendant</h3><p>Qwen2.5 14B critique les <b>décisions</b> (plan, contrat), jamais les oracles techniques. Statut <b>advisory</b> uniquement — n'est jamais juge du code.</p></div>
+  </div>
+</section>
+
+<section id="models">
+  <h2>Résolution des rôles → modèles <span class="tag">roles.yaml · policy 2026-07-09</span></h2>
+  <p class="sub"><code>capability_role</code> déclaré dans le contrat → premier modèle qui déclare ce rôle dans <code>roles.yaml</code> l'obtient (ordre de déclaration, <code>registry.py:39</code>). Portée strictement Forge — ne touche pas <code>openclaw/capabilities.yaml</code> (legacy depuis 2026-07-23).</p>
+  <div class="model-roster">
+    <div class="mcard">
+      <h3><span class="badge fable">Fable 5</span></h3>
+      <p>Session qui pilote <code>/forge</code> — descriptive, jamais dispatchée par le registry. C'est Pierre qui choisit ce modèle en ouvrant la session.</p>
+      <div class="roles">rôle : orchestrator</div>
+    </div>
+    <div class="mcard">
+      <h3><span class="badge opus">Opus 4.8</span></h3>
+      <p>Producteur principal — raisonnement soutenu, conception et jugement de plan. Ratifié Pierre 2026-07-23 (« intention ≠ exécution »).</p>
+      <div class="roles">run_orchestrator · contract_author · prisme · art_director · decompose · architect · wiremap · redteam_code · game_forger</div>
+    </div>
+    <div class="mcard">
+      <h3><span class="badge haiku">Haiku 4.5</span></h3>
+      <p>Délégation économique — brique isolée, tâche mécanique bornée. Jamais un jeu complet (incident fondateur cité dans s9-build-standard).</p>
+      <div class="roles">builder · worldscan</div>
+    </div>
+    <div class="mcard">
+      <h3><span class="badge sonnet">Sonnet 5</span></h3>
+      <p>Outillage Forge hors profil — missions sur <code>scripts/forge/**</code> lui-même, contrat dédié obligatoire, dispatch <code>allow_unprofiled</code> assumé et audité.</p>
+      <div class="roles">forge_toolsmith</div>
+    </div>
+    <div class="mcard">
+      <h3><span class="badge qwen">Qwen2.5 14B</span></h3>
+      <p>LM Studio, hors Claude — seul point d'entrée non-Claude de toute la lane. Red-team/reviewer indépendant, critique les décisions.</p>
+      <div class="roles">redteam_reviewer</div>
+    </div>
+    <div class="mcard">
+      <h3><span class="badge det">Oracle déterministe</span></h3>
+      <p>Aucun LLM, aucun modèle — runtime sentinelle (code, archi, wiremap, verdict HMAC).</p>
+      <div class="roles">deterministic</div>
+    </div>
+  </div>
+</section>
+
+<section id="chain">
+  <h2>Chaîne canonique <span class="tag">orchestrator + s0 → s12</span></h2>
+  <p class="sub">Le pipeline principal de fabrication d'un jeu, 22 contrats relus intégralement (pas de résumé de résumé). Constante partout : vocabulaire de verdict unique <code>OK/FAIL/BLOCKED</code>, <code>claim_verdict: NO_CLAIM_ALLOWED</code>, jamais de modèle en dur. Quatre tableaux : identité/mission, mémoire &amp; lecture obligatoire, permissions détaillées, gouvernance &amp; preuve.</p>
+  <div class="legend">
+    <span><span class="badge opus">Opus</span> conception/jugement</span>
+    <span><span class="badge haiku">Haiku</span> exécution bornée</span>
+    <span><span class="badge qwen">Qwen</span> red-team indépendant</span>
+    <span><span class="badge det">Déterministe</span> oracle non-LLM</span>
+  </div>
+
+  <p class="sub">Tableau unique, 22 lignes × les 16 champs du schéma <code>SCHEMA.md</code> (+ modèle résolu). Défilement horizontal — la 1<sup>re</sup> colonne reste fixée.</p>
+  <div class="tbl-scroll">
+  <table class="mega">
+    <thead><tr>
+      <th class="name">Étape</th><th>role (posture)</th><th>capability_role → modèle</th><th>exigences_cognitives</th><th>memoire (advisory)</th><th>mandatory_read (bloque)</th><th>objectif</th><th>in_scope</th><th>out_of_scope</th><th>permissions</th><th>gardeFou</th><th>success_criteria</th><th>tests_oracles</th><th>final_report</th><th>output_contract (sortie attendue)</th><th>skill</th><th>plugin</th><th>delegation_context (pourquoi)</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td class="name">orchestrator</td>
+        <td>Chef de chaîne, jamais producteur ; conduit un run du lancement à un verdict vérifié</td>
+        <td><span class="badge opus">Opus</span> <code>run_orchestrator</code></td>
+        <td>Retenue, pas initiative — NE PAS corriger un rouge (la boucle/pool/escalade sont déjà en code) ; proportionnalité du profil au tier</td>
+        <td>3 faits mesurés : un sous-agent ne peut PAS spawner de sous-agent ; la boucle d'amélioration existe déjà en code (driver/pool/escalate) ; vocabulaire OK/FAIL/BLOCKED unique</td>
+        <td><code>FORGE_SYSTEM_CONTRACT.yaml</code> · <code>.claude/skills/forge/skill.md</code> · <code>contracts/roles.yaml</code> · <code>studio_brain/00_CURRENT_CONTEXT.md</code></td>
+        <td>Choisir le profil, lancer <code>run_real.py</code>, laisser boucler, vérifier mécaniquement, restituer</td>
+        <td>Choix du profil/paramètres, lancement, lecture state.json, vérif verdict via verify_run, restitution coût/effort/pool</td>
+        <td>Écrire/corriger le code d'un jeu ; modifier contrat/oracle/STANDARD/driver/skill ; rejouer une étape à la main ; décider merge/reject/freeze ; ouvrir un 2e run pour contourner un blocage</td>
+        <td>read: dépôt entier. write: AUCUNE directe. exec: run_real.py, dispatch --dry-run, verify_run. INTERDIT: toute commande git</td>
+        <td>La chaîne est la loi · un rouge n'autorise rien · l'état ne se retouche jamais · ne décide rien (Pierre décide) · proportionnalité · un manque se remonte, ne se comble pas · silence interdit sur le non mesuré</td>
+        <td>Statut terminal atteint sans édition manuelle ; verify_run sort 0 (sortie montrée) ; cause nommée si arrêt avant verdict ; rapport porte coût/effort/pool marqués mesuré/non mesuré</td>
+        <td>verify_run (HMAC re-signé, evidence relue, git_head comparé) ; dispatch --dry-run ; studio_selfaudit.mjs si dérive suspectée. Red-team advisory seulement</td>
+        <td>software/evidence/claim séparés ; profil+étapes jouées, statut terminal, verdict+sortie brute, coût/effort/pool marqués, ce qui reste à décider Pierre, puis section « ce que je n'ai PAS prouvé »</td>
+        <td>Dossier de run <code>lab/forge_runs/&lt;run_id&gt;/</code> + state.json ; verdict.json signé + sortie verify_run ; rapport final. Rien d'autre</td>
+        <td><code>forge</code></td>
+        <td>aucun</td>
+        <td>Mandaté par la session de supervision à contexte propre (doctrine : l'indépendance des contextes EST le mécanisme de vérité) — elle confronte le rapport au réel avant d'y croire</td>
+      </tr>
+      <tr>
+        <td class="name">s0 — Contrat</td>
+        <td>Chef de projet qui refuse tout flou</td>
+        <td><span class="badge opus">Opus</span> <code>contract_author</code></td>
+        <td>Raisonnement de cadrage : traque tout champ « à définir » et le remplit, aucun blanc ne survit</td>
+        <td>Point d'entrée de la boucle : prompt utilisateur + pré-mortem PILOU ; doctrine verdict.py/gate.py ; CLAUDE.md + rules/</td>
+        <td><code>SCHEMA.md</code> · le prompt utilisateur · pré-mortem PILOU (<code>lab/reports/error_journal</code>) · Project Bible si elle existe</td>
+        <td>Produire charter.yaml sans aucun champ « à définir »</td>
+        <td>Rédaction du charter à partir du prompt + pré-mortem : objectif, hors-scope, critères succès, actions interdites. Écrit uniquement charter.yaml</td>
+        <td>N'écrit pas de code ; ne décide pas l'architecture (4) ; ne fait pas le world scan (2) ; ne touche pas tests/, src/</td>
+        <td>read: repo entier. write/create: charter.yaml uniquement. run: aucun. delete: aucun</td>
+        <td>Interdit tout champ « à définir »/vide/évasif ; reference_jeu ne se choisit JAMAIS unilatéralement (leçon AutoBattler) — sans source Pierre traçable, fog HumanGate</td>
+        <td>charter.yaml valide, tous champs remplis, reference_jeu porte une source Pierre traçable sinon fog</td>
+        <td>Validateur de schéma déterministe non-LLM (CHARTER) — la provenance Pierre n'est pas mécaniquement vérifiable, fog remonté</td>
+        <td>software/evidence/claim séparés ; cite l'oracle charter ; liste flous résolus vs remontés ; NO_CLAIM_ALLOWED</td>
+        <td>charter.yaml : {objectif, hors_scope[], criteres_succes[], actions_interdites[], plateforme_cible, reference_jeu, criteres_demo[]} tous remplis</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Étape 0, en amont du Prisme Produit (1)</td>
+      </tr>
+      <tr>
+        <td class="name">s1 — Prisme Produit</td>
+        <td>Réalisateur qui décrit le produit FINI tel que le joueur le vit, pas le chemin</td>
+        <td><span class="badge opus">Opus</span> <code>prisme</code></td>
+        <td>Vision produit concrète ; sépare voit/fait/ressent, n'énonce que des règles observables (testables)</td>
+        <td>Consomme le charter (0) + le prompt ; connaît les conventions produit du studio</td>
+        <td><code>SCHEMA.md</code> · <code>charter.yaml</code> (étape 0)</td>
+        <td>Produire product_snapshot.md : produit fini en facettes — voit/fait/ressent + règles observables</td>
+        <td>Capture de la vision produit finie. Écrit product_snapshot.md uniquement</td>
+        <td>Ne décompose pas en features (3) ; ne décide ni archi ni code ; ne fait pas le world scan</td>
+        <td>read: repo + charter. write/create: product_snapshot.md uniquement. run: aucun. delete: aucun</td>
+        <td>Décrit le produit FINI, jamais le chemin ; toute règle DOIT être observable ; aucun « à définir »</td>
+        <td>4 sections remplies, chaque règle observable et cohérente avec le charter</td>
+        <td>Artefact narratif : pas d'oracle code. Ancre = cohérence avec le charter. Sans oracle mécanique → fog HumanGate</td>
+        <td>Cite le charter comme ancre ; sans oracle mécanique → fog ; NO_CLAIM_ALLOWED</td>
+        <td>product_snapshot.md : {ce_que_le_joueur_voit, ce_qu_il_fait, ce_qu_il_ressent, regles_observables[]}</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Étape 1, aval du Contrat (0), amont du World Scan (2) et de la Décompo (3)</td>
+      </tr>
+      <tr>
+        <td class="name">s1 — lentille Game Design</td>
+        <td>Point de vue imposé : produit FINI côté joueur — boucle principale, métagame, rétention, game feel</td>
+        <td><span class="badge opus">Opus</span> <code>prisme</code></td>
+        <td>Vision produit côté joueur ; sépare voit/fait/ressent ; couvre game_design/metagame/game_feel de la checklist</td>
+        <td>Charter + Genre Bible Snake + dossier d'observation ; convention merge_prisme : cite le TAG EXACT (majuscules) du critère charter couvert</td>
+        <td><code>charter.yaml</code> · Genre Bible Snake · <code>progression_map.md</code> · <code>mechanics_analysis.md</code> · <code>design_review_checklist.yaml</code> · <code>FORGE_ARCHITECT_MANUAL_V1.md</code></td>
+        <td>Produire product_snapshot_gamedesign.md : Snake fini vu par un game designer, règles « Rn » citant leur tag charter</td>
+        <td>Vision produit finie côté design (boucles, métagame, rétention, feel). Écrit le fichier unique</td>
+        <td>Ne décompose pas en features ; ne décide ni archi ni code ni stack ; ne modifie ni charter ni Genre Bible ; aucun git commit/push</td>
+        <td>read: repo + artefacts du run. write/create: product_snapshot_gamedesign.md uniquement. run: check_prisme.mjs. delete: aucun</td>
+        <td>Décrit le produit FINI ; règle DOIT citer le tag charter exact ; aucun placeholder ; reste dans sa lentille (pourquoi, pas comment technique)</td>
+        <td>4 sections non triviales, règles « Rn » avec tag charter, check_prisme.mjs exit 0</td>
+        <td>check_prisme.mjs — LANCÉ par l'agent, sortie jointe ; pertinence du contenu = fog</td>
+        <td>Cite le charter + sortie check_prisme ; NO_CLAIM_ALLOWED</td>
+        <td>product_snapshot_gamedesign.md : {voit, fait, ressent, regles_observables[] taguées charter}</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Panel Prisme M-E (3 lentilles). Aval : merge_prisme.mjs puis Gameplay Review, architecte (M-G)</td>
+      </tr>
+      <tr>
+        <td class="name">s1 — lentille Archi-Dépôt</td>
+        <td>« Le builder pense au jeu, l'architecte pense au studio » — briques à importer/étendre/créer, legs à la bibliothèque</td>
+        <td><span class="badge opus">Opus</span> <code>prisme</code></td>
+        <td>Connaissance des briques réelles (games/, knowledge_base/) — chaque affirmation pointe un chemin réel, jamais un souvenir ; couvre architecture/technique_stack ; règle IKEA (5 questions avant NEW)</td>
+        <td>Charter + architecture_guess du World Scan + bibliothèque réelle ; même convention de tag charter que la lentille Game Design</td>
+        <td><code>charter.yaml</code> · <code>architecture_guess.md</code> · Genre Bible Snake · <code>design_review_checklist.yaml</code> · <code>FORGE_ARCHITECT_MANUAL_V1.md</code></td>
+        <td>Produire product_snapshot_archidepot.md : chaque système REUSED_FROM:&lt;chemin réel&gt; ou NEW+justification IKEA</td>
+        <td>Vision produit finie côté briques/réutilisation/legs. Écrit le fichier unique ; VÉRIFIE l'existence réelle de chaque brique citée</td>
+        <td>Ne code rien ; ne modifie ni charter ni bibliothèque ; ne fait pas la wiremap (M-G) ; aucun git commit/push</td>
+        <td>read: repo + artefacts du run. write/create: product_snapshot_archidepot.md uniquement. run: check_prisme.mjs, ls/grep lecture. delete: aucun</td>
+        <td>Brique introuvable = INTROUVABLE explicite, jamais supposée ; règle cite le tag charter exact ; reste dans sa lentille (briques/legs, pas le détail des boucles)</td>
+        <td>4 sections non triviales, règles avec tags, chaque brique vérifiée existante (ou INTROUVABLE), check_prisme.mjs exit 0</td>
+        <td>check_prisme.mjs + ls/grep (cite les chemins) ; pertinence = fog</td>
+        <td>Cite charter + sortie check_prisme + briques vérifiées ; NO_CLAIM_ALLOWED</td>
+        <td>product_snapshot_archidepot.md : {voit, fait, ressent, regles_observables[] avec REUSED_FROM/NEW + tags}</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Panel Prisme M-E. Aval : merge_prisme.mjs puis Gameplay Review puis wiremap (M-G, champ REUSED_FROM)</td>
+      </tr>
+      <tr>
+        <td class="name">s1 — lentille Gameplay Prog</td>
+        <td>Produit FINI sous l'angle de ce qui doit être VRAI à l'exécution — latence, déterminisme du tick, cas limites</td>
+        <td><span class="badge opus">Opus</span> <code>prisme</code></td>
+        <td>Pense en comportements exécutables falsifiables, jamais en implémentation (pas de code/noms de fonction) ; couvre game_feel/technique_api/technique_data</td>
+        <td>Charter + Genre Bible (contraintes chiffrées : vitesse, latence, grille) + ux_flow du World Scan ; même convention de tag charter</td>
+        <td><code>charter.yaml</code> · Genre Bible Snake · <code>ux_flow.md</code> · <code>mechanics_analysis.md</code> · <code>design_review_checklist.yaml</code> · <code>FORGE_ARCHITECT_MANUAL_V1.md</code></td>
+        <td>Produire product_snapshot_gameplayprog.md : invariants d'exécution observables, règles convertibles en assertion d'oracle</td>
+        <td>Comportements d'exécution observables + cas limites + contraintes chiffrées reprises de la Genre Bible. Écrit le fichier unique</td>
+        <td>Aucun code, aucun nom de fichier/fonction, pas d'architecture (lentille archidepot) ni de métagame (lentille gamedesign) ; aucun git commit/push</td>
+        <td>read: repo + artefacts du run. write/create: product_snapshot_gameplayprog.md uniquement. run: check_prisme.mjs. delete: aucun</td>
+        <td>Règle falsifiable (valeur/seuil/comportement binaire) citant le tag charter ; valeur chiffrée reprend la Genre Bible ou « à mesurer », jamais inventée</td>
+        <td>4 sections non triviales, cas limites couverts (demi-tour, collision simultanée, bord, pause), check_prisme.mjs exit 0</td>
+        <td>check_prisme.mjs ; pertinence = fog</td>
+        <td>Cite charter + sortie check_prisme ; NO_CLAIM_ALLOWED</td>
+        <td>product_snapshot_gameplayprog.md : {voit, fait, ressent, regles_observables[] falsifiables + tags}</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Panel Prisme M-E. Aval : merge_prisme.mjs puis Gameplay Review puis s10 (oracles) — invariants candidats directs aux assertions</td>
+      </tr>
+      <tr>
+        <td class="name">s2 — World Scan</td>
+        <td>Caméra d'architecte — observe des jeux comparables, advisory-only, jamais prescriptif ; pas un scraper de texte</td>
+        <td><span class="badge haiku">Haiku</span> <code>worldscan</code></td>
+        <td>Recherche web ciblée (texte/screenshots/vidéos via URLs) + rétro-ingénierie d'archi supposée ; chaque affirmation citée ; reste advisory</td>
+        <td>Consomme product_snapshot (1) ou le charter ; connaît le World Intelligence Layer (advisory-only) et le manuel d'architecte</td>
+        <td><code>SCHEMA.md</code> · <code>FORGE_ARCHITECT_MANUAL_V1.md</code> · <code>product_snapshot.md</code> (ou charter.yaml)</td>
+        <td>Produire un dossier GAME_REFERENCE/ sur ≥2 jeux comparables — mécaniques/progression/économie/UX/archi + manifest cité</td>
+        <td>Observation citée de jeux comparables. Écrit uniquement dans GAME_REFERENCE/</td>
+        <td>N'invente aucune décision ; jamais injecté au council ; ne code rien ; ne télécharge/stocke AUCUN média local ; ne copie pas de contenu protégé</td>
+        <td>read: repo + product_snapshot + knowledge_base. run: WebSearch, WebFetch. write/create: fichiers de GAME_REFERENCE/ uniquement. delete: aucun</td>
+        <td>Chaque affirmation CITÉE (URL + timestamp vidéo) ; média local = échec mécanique ; observer pour comprendre l'assemblage, jamais pour copier</td>
+        <td>5 analyses .md non vides + manifest valide (≥2 jeux, ≥3 sources/jeu, 4 boucles/jeu), zéro média local, check_worldscan.mjs exit 0</td>
+        <td>check_worldscan.mjs (complétude, schéma manifest, citations, interdiction médias) ; pertinence = fog</td>
+        <td>Cite les sources ; advisory ; joint la sortie check_worldscan.mjs ; NO_CLAIM_ALLOWED</td>
+        <td>GAME_REFERENCE/ : {mechanics_analysis.md, progression_map.md, economy_map.md, ux_flow.md, architecture_guess.md, observation_manifest.json}</td>
+        <td><code>world-scan</code></td>
+        <td>aucun</td>
+        <td>Étape 2. Ordre chantier Snake : World Scan → Genre Bible → Prisme → wiremap</td>
+      </tr>
+      <tr>
+        <td class="name">s2.5 — Art Director</td>
+        <td>Directeur artistique qui fixe une identité visuelle COHÉRENTE et actionnable, jamais un générateur d'adjectifs</td>
+        <td><span class="badge opus">Opus</span> <code>art_director</code></td>
+        <td>Synthèse créative bornée par la forme : chaque choix de style se traduit en demande d'asset structurée et vérifiable</td>
+        <td>product_snapshot.md (1) + knowledge packet World Scan si présent ; connaît catalog.json via asset_request.mjs (ne réinvente pas la recherche)</td>
+        <td><code>SCHEMA.md</code> · <code>ASSET_CONTRACT_V0.md</code> · <code>product_snapshot.md</code> · <code>asset_request.mjs</code></td>
+        <td>Produire art_bible.md (BESOINS VISUELS listés) + asset_requests.json (1 requête par entité required), vérifier verdict==OK avant de livrer</td>
+        <td>Style visuel global + traduction en asset_requests. Écrit UNIQUEMENT art_bible.md et asset_requests.json (aucun asset binaire)</td>
+        <td>Ne génère/télécharge aucun asset ; ne modifie jamais catalog.json ; ne décide pas archi/code ; ne juge pas la qualité esthétique d'un asset résolu</td>
+        <td>read: repo entier (dont catalog.json). write/create: art_bible.md + asset_requests.json uniquement. run: asset_request.mjs, check_artbible.mjs. INTERDIT: knowledge_base/** écriture, tests/**</td>
+        <td>Ne prétend jamais qu'un resolved est « le bon style » ; 2 sortes de BLOCKED (resolution vs coverage) à ne pas confondre ; jamais reclasser required:false pour éviter une requête</td>
+        <td>check_artbible.mjs retourne verdict:OK — 3 sections non triviales, chaque required:true a ≥1 request du même entity_role</td>
+        <td>check_artbible.mjs (forme + cohérence + couverture v0.1, délègue validateRequestShape) ; jamais LLM-as-judge sur l'esthétique</td>
+        <td>Cite check_artbible.mjs ; liste asset_requests + statut resolution ; conformité esthétique = fog ; NO_CLAIM_ALLOWED</td>
+        <td>art_bible.md (frontmatter styles[]/mood_keywords[] + 3 sections) + asset_requests.json (AssetRequestV0.1[]) + reçu check_artbible.mjs</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Étape 2.5, aval Prisme(1)/World Scan(2), amont Décompo(3). Profil DÉDIÉ, toujours HORS ORDER/full (décision Pierre)</td>
+      </tr>
+      <tr>
+        <td class="name">s3 — Décomposition</td>
+        <td>Analyste qui énumère les fonctions attendues avant toute archi</td>
+        <td><span class="badge opus">Opus</span> <code>decompose</code></td>
+        <td>Décomposition exhaustive Système→Feature→capacité, chaque feuille traçable à une preuve</td>
+        <td>Consomme le Prisme (1) et le World Scan (2) ; règles observables du Prisme d'où héritent les preuves ; CLAUDE.md + rules/</td>
+        <td><code>SCHEMA.md</code> · <code>product_snapshot.md</code> · <code>knowledge_packet.json</code> (advisory)</td>
+        <td>Produire l'arbre Système→Feature→capacité, chaque feuille porte sa preuve attendue héritée du Prisme</td>
+        <td>Énumération fonctionnelle depuis le Prisme ; définition des preuves attendues. Écrit uniquement la featuremap</td>
+        <td>Ne découpe PAS en modules (c'est l'archi, 4) ; ne code rien ; ne touche pas tests/, src/</td>
+        <td>read: repo entier. write/create: featuremap uniquement. run: aucun. delete: aucun</td>
+        <td>Chaque feuille DOIT avoir une preuve_attendue ; pas de feuille orpheline ; preuve héritée jamais inventée</td>
+        <td>featuremap valide ; chaque feuille = {capacité, preuve_attendue}</td>
+        <td>Vérificateur de complétude déterministe non-LLM (aucune feuille orpheline)</td>
+        <td>Cite l'oracle de complétude ; liste feuilles sans preuve ; NO_CLAIM_ALLOWED</td>
+        <td>featuremap : arbre {Système→Feature→capacité}, chaque feuille = {capacité, preuve_attendue}</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Étape 3, aval World Scan (2), amont Architecture (4)</td>
+      </tr>
+      <tr>
+        <td class="name">s4 — Architecte</td>
+        <td>Architecte logiciel senior qui découpe par responsabilité, pas par confort</td>
+        <td><span class="badge opus">Opus</span> <code>architect</code></td>
+        <td>Raisonnement archi profond, effort élevé — tient le graphe de deps en tête, détecte les cycles avant qu'ils existent</td>
+        <td>Consomme la featuremap (3) ; sur repo existant, connaît le blueprint en place (diff, pas réinvention) ; CLAUDE.md + rules/</td>
+        <td><code>SCHEMA.md</code> · featuremap (3) · <code>blueprint.yaml</code> existant si présent · <code>knowledge_packet.json</code> (advisory)</td>
+        <td>Produire blueprint.yaml gelé : modules+responsabilités, deps autorisées/interdites, ownership, invariants</td>
+        <td>Découpage en modules, graphe de deps, ownership, invariants d'archi. Écrit uniquement blueprint.yaml</td>
+        <td>Aucune écriture de code d'implémentation ; ne crée aucun fichier source ; ne décide pas la WireMap (5) ; ne touche pas tests/, src/</td>
+        <td>read: repo entier. write/create: blueprint.yaml uniquement. run: aucun. delete: aucun</td>
+        <td>Jamais « au feeling » : structure = conséquence du blueprint, justifiée par la featuremap ; tue les god-objects avant qu'ils existent</td>
+        <td>blueprint.yaml valide ; chaque feature mappée à ≥1 module ; aucune dépendance cyclique</td>
+        <td>Oracle ARCHITECTURE déterministe non-LLM : import-linter / vérificateur de graphe de dépendances</td>
+        <td>Cite l'oracle archi ; liste écarts featuremap↔blueprint ; NO_CLAIM_ALLOWED</td>
+        <td>blueprint.yaml : {modules[], deps_autorisees[], deps_interdites[], ownership{module→agent}, invariants_archi[]}</td>
+        <td><code>architecture-review</code></td>
+        <td>graph-coloring anti-collision (_ceo_assign_lanes ressuscité) pour l'ownership</td>
+        <td>Mandaté à l'étape 4, aval Décompo (3), amont WireMap isomorphe (5)</td>
+      </tr>
+      <tr>
+        <td class="name">s5 — WireMap</td>
+        <td>Cartographe qui fait épouser à la carte l'arbre du blueprint — section = module = dossier</td>
+        <td><span class="badge opus">Opus</span> <code>wiremap</code></td>
+        <td>Pensée structurelle : la WireMap est le MÊME arbre que l'architecture, pas une liste plate</td>
+        <td>Consomme le blueprint (4) + la featuremap (3) ; connaît la convention WireMap du studio</td>
+        <td><code>SCHEMA.md</code> · <code>blueprint.yaml</code> (4) · featuremap (3)</td>
+        <td>Produire la WireMap isomorphe au blueprint, chaque feature mappée fichiers/fonctions avec preuve + statut</td>
+        <td>Construction de la WireMap, colonnes complètes par feuille. Écrit la WireMap uniquement</td>
+        <td>Ne code rien ; ne modifie ni blueprint ni featuremap ; ne décide pas l'ownership (c'est l'archi)</td>
+        <td>read: repo + blueprint + featuremap. write/create: WireMap uniquement. run: aucun. delete: aucun</td>
+        <td>Isomorphisme STRICT WireMap↔blueprint, jamais une liste plate ; chaque ligne porte une preuve attendue</td>
+        <td>WireMap isomorphe, 7 colonnes remplies (section, feature, fichiers, fonction, version, preuve, statut)</td>
+        <td>Oracle WIREMAP (étape 10c, AST) vérifie l'isomorphisme WireMap↔code — déterministe</td>
+        <td>Cite l'oracle wiremap comme ancre ; NO_CLAIM_ALLOWED</td>
+        <td>wiremap : {section=module, features[{feature, fichiers[], fonction, version, preuve, statut}]}</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Étape 5, aval Architecture (4), amont Red-team du plan (6)</td>
+      </tr>
+      <tr>
+        <td class="name">s6 — Red-team du PLAN</td>
+        <td>Attaquant indépendant qui cherche les failles du plan (archi + wiremap)</td>
+        <td><span class="badge qwen">Qwen</span> <code>redteam_reviewer</code></td>
+        <td>Pensée adverse : cherche activement où le plan casse ; critique les décisions, ne remplace jamais les oracles techniques</td>
+        <td>Consomme le blueprint gelé (4) et la WireMap (5) ; indépendant du builder ; re-entrée de boucle depuis Mémoire (étape 14)</td>
+        <td><code>SCHEMA.md</code> · <code>blueprint.yaml</code> (4) · WireMap (5)</td>
+        <td>Produire un rapport d'attaque + artefacts (archi/wiremap) ajustés</td>
+        <td>Attaque du PLAN : failles, angles morts, deps fragiles, câblage incohérent. Corrections sur ces seuls artefacts</td>
+        <td>N'attaque JAMAIS les tests/oracles ; ne réécrit pas le code ; ne juge pas à la place des oracles ; ne touche pas tests/, src/</td>
+        <td>read: repo entier. write: rapport_redteam_plan.md + artefacts archi/wiremap ajustés uniquement. run: aucun. create: aucun autre fichier. delete: aucun</td>
+        <td>La critique porte sur le PLAN, jamais sur l'oracle ; indépendant du builder et des oracles techniques</td>
+        <td>Rapport {angle, faille, correction_proposée} par item + verdict GO-si-corrigé</td>
+        <td>Séparation stricte : red-team CRITIQUE (non-oracle), oracles techniques PROUVENT (import-linter, wiremap AST, cargo/pytest)</td>
+        <td>Cite l'oracle/l'ancre par affirmation vérifiable, sinon fog ; NO_CLAIM_ALLOWED</td>
+        <td>rapport_redteam_plan.md : liste {angle, faille, correction_proposée} + verdict GO-si-corrigé</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Étape 6, aval Archi/WireMap, boucle de retour depuis Mémoire (14)</td>
+      </tr>
+      <tr>
+        <td class="name">s9 — Build (générique)</td>
+        <td>Développeur discipliné qui reste dans son module (ownership)</td>
+        <td><span class="badge haiku">Haiku</span> <code>builder</code></td>
+        <td>Exécution bornée, micro-commits, tenue à jour de la WireMap ; discipline de périmètre &gt; vitesse, ne déborde jamais l'ownership</td>
+        <td>Consomme le blueprint (7, ownership) et la WireMap (5) à tenir à jour ; CLAUDE.md + rules/ par lane ; repo créé à l'étape 8</td>
+        <td><code>SCHEMA.md</code> · <code>blueprint.yaml</code> (ownership) · WireMap (5)</td>
+        <td>Produire le code borné à l'ownership, WireMap à jour ; SEARCH knowledge_base AVANT d'écrire une pièce de logique, importer réellement, n'écrire que le delta</td>
+        <td>Implémentation UNIQUEMENT dans l'ownership du blueprint ; mise à jour WireMap</td>
+        <td>Ne sort JAMAIS de son ownership ; ne touche pas tests/** ; ne modifie pas l'architecture (blueprint, deps)</td>
+        <td>read: repo entier. write/create: fichiers de son ownership + WireMap uniquement. run: oracle code (cargo/pytest/vitest). INTERDIT: tests/**</td>
+        <td>Respecte l'ownership ; micro-commits ; ne franchit pas les deps interdites du blueprint</td>
+        <td>Code dans l'ownership, oracle vert, WireMap à jour ; pour un jeu : solvabilité verte (bot gagne) ET e2e vert (click-through réel)</td>
+        <td>Oracle CODE (cargo/pytest/vitest via oracles.json) + pour un jeu : volet solvabilité obligatoire + volet e2e obligatoire + gate mutation (100% tués ou triage justifié)</td>
+        <td>Cite l'oracle code ; fichiers touchés vs ownership ; sortie reuse_ratio.mjs + requêtes SEARCH effectuées ; NO_CLAIM_ALLOWED</td>
+        <td>diff (micro-commits) + WireMap à jour + reçu reuse_ratio.mjs ; pour un jeu : solvability.mjs + e2e.mjs câblés dans run-oracle.mjs</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Étape 9, aval Blueprint Gate(7)/Create Repo(8), amont des Oracles (10)</td>
+      </tr>
+      <tr>
+        <td class="name">s9 — Build STANDARD</td>
+        <td>Développeur qui remplit un plan déjà arrêté, pas concepteur de jeu — ne discute pas le squelette</td>
+        <td><span class="badge opus">Opus</span> <code>game_forger</code></td>
+        <td>Discipline de périmètre &gt; initiative — combat la tentation de « l'utile » (ajouter, renommer) ; déterminisme obsessionnel</td>
+        <td>Le STANDARD (scripts/forge/standard/) : SCHEMA/core_requirements/repo_map/capabilities ; 6 oracles lisibles AVANT d'écrire ; séparation dure logique pure/adaptateurs</td>
+        <td><code>standard/SCHEMA.md</code> · <code>core_requirements.yaml</code> · <code>repo_map.yaml</code> · <code>capabilities.yaml</code> · squelette gelé <code>wiremap.json</code> · <code>game_contract.yaml</code></td>
+        <td>Pour chaque ligne du squelette, produire le code à l'adresse déclarée ; passer REQUIRED→IMPLEMENTED (ou BLOCKED motivé)</td>
+        <td>Écriture UNIQUEMENT sous les adresses du squelette + repo_map (tests, assets). Remplissage des champs de CONSTAT de la wiremap</td>
+        <td>Ne touche PAS au standard ni aux oracles (faute la plus grave) ; ne crée aucun autre jeu ; n'ajoute/retire aucune ligne du squelette</td>
+        <td>read: dépôt entier. write/create: UNIQUEMENT games/&lt;jeu&gt;/** aux adresses déclarées. run: node, node --test, Godot, 6 oracles, gate mutation. INTERDIT: tests/**, standard/**, *oracles*.py, autopilot.py, studioV2/, git commit/push</td>
+        <td>Le squelette est la loi ; remplit le CONSTAT jamais la PROMESSE ; manque → fog jamais comblé ; proportionnalité du rôle délégué (incident fondateur : haiku dispatché pour un jeu complet)</td>
+        <td>6 oracles standard passent après build ; chaque ligne IMPLEMENTED avec preuve exécutée ou BLOCKED motivé ; jeu SOLVABLE (bot joue et gagne)</td>
+        <td>6 oracles du standard + node --test + solvabilité + capture PNG (Godot exige fenêtre GPU réelle) + gate mutation</td>
+        <td>Une ligne par ligne de squelette : fichiers, commande exécutée, sortie réelle ; requêtes SEARCH ; score mutation brut ; liste des fog ; NO_CLAIM_ALLOWED</td>
+        <td>Code aux adresses déclarées + squelette avec CONSTAT rempli + reçus bruts (tests/solvabilité/mutation/PNG) + liste des fog ; aucun commit</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Curriculum de jeux (Pong→Genshin), 1er nœud. Mandaté Pierre 2026-07-22 : « tu n'es pas censé générer le jeu, tu es censé le déléguer »</td>
+      </tr>
+      <tr>
+        <td class="name">s9 — Build GODOT</td>
+        <td>Développeur discipliné qui écrit de la logique pure GDScript, testable headless — ne cherche pas à faire un jeu</td>
+        <td><span class="badge haiku">Haiku</span> <code>builder</code></td>
+        <td>Exécution bornée + déterminisme obsessionnel : randi/randf/randomize/Time.*/OS.* non seedés sont une faute, pas une commodité</td>
+        <td>Le dépôt possède DÉJÀ un harnais Godot headless prouvé vert (chess_tcg/) = patron à calquer, pas réinventer ; binaire Godot résolu via godot_bin.mjs</td>
+        <td><code>SCHEMA.md</code> · <code>chess_tcg/tests/run_tests.gd</code> · <code>chess_tcg/core/moves.gd</code> · <code>fixtures/godot_trial_probe/trial.gd</code> · <code>godot_trial.mjs</code></td>
+        <td>Produire la brique M01 (navigation grille) prouvée bout-en-bout : brick→implémentation→simulation headless→oracle</td>
+        <td>Écriture de grid_nav.gd + arborescence games/grid_nav_probe/</td>
+        <td>Ne touche PAS l'infrastructure de preuve déjà livrée ; ne modifie pas catalog.json au-delà de sa propre entrée ; ne crée aucun autre jeu</td>
+        <td>read: dépôt entier. write/create: UNIQUEMENT knowledge_base/systems/navigation/**, games/grid_nav_probe/**. run: Godot headless, node, gate mutation. INTERDIT: tests/**, autopilot.py, studioV2/, git push</td>
+        <td>Déterminisme obsessionnel ; logique PURE (aucune scène, aucun état global) ; garde anti-faux-vert EXPECTED_ASSERTS du patron chess_tcg</td>
+        <td>Exit 0 headless + assertions = EXPECTED_ASSERTS ; mutation 100% ou triage justifié ; reçu FORGE_TRIAL déterministe ; kb-validate PASS. Solvabilité explicitement DIFFÉRÉE</td>
+        <td>run_tests.gd exécuté headless (jamais LLM-as-judge) ; méta-oracle mutation reconnaissant les opérateurs GDScript ; garde de pureté R10</td>
+        <td>Cite commande+sortie par affirmation ; requêtes SEARCH ; score mutation ; déclare que la solvabilité n'a pas été mesurée ; NO_CLAIM_ALLOWED</td>
+        <td>grid_nav.gd + run_tests.gd (EXPECTED_ASSERTS) + trial.gd (FORGE_TRIAL json) + entrée catalogue tier=candidate + reçu mutation</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Étape 8 du plan Godot étape0, aval infra de preuve, amont contrat de rôle/oracle solvabilité/certification. Gate HumanGate 2026-07-21</td>
+      </tr>
+      <tr>
+        <td class="name">s10a — Oracle CODE</td>
+        <td>Preuve mécanique, aucun jugement</td>
+        <td><span class="badge det">Déterministe</span></td>
+        <td>Aucun raisonnement LLM — exécution déterministe reproductible</td>
+        <td>Consomme l'artefact de Build (9) ; connaît les oracles code déclarés dans oracles.json ; evidence dans lab/forge_evidence</td>
+        <td><code>SCHEMA.md</code> · <code>oracles.json</code></td>
+        <td>Prouver CODE : les tests passent. Émettre PASS/FAIL + evidence</td>
+        <td>Exécuter l'oracle code du projet, capturer l'evidence, émettre PASS/FAIL</td>
+        <td>Aucun jugement LLM, aucune interprétation subjective ; ne modifie pas le code</td>
+        <td>read: repo entier. run: oracle.py + oracles.json. write/create: UNIQUEMENT l'evidence log. delete: aucun</td>
+        <td>JAMAIS de LLM-as-judge</td>
+        <td>Evidence log complet {commande, exit_code, tests_pass, tests_fail, hash} ; verdict PASS/FAIL déterministe</td>
+        <td>oracle.py + oracles.json (cargo/pytest/vitest) — déterministe</td>
+        <td>Cite l'oracle code ; software_verdict OK/FAIL selon PASS/FAIL ; NO_CLAIM_ALLOWED</td>
+        <td>evidence log : {commande, exit_code, tests_pass, tests_fail, hash}. PASS/FAIL</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Étape 10a, oracle aval du Build (9)</td>
+      </tr>
+      <tr>
+        <td class="name">s10b — Oracle ARCHI</td>
+        <td>Vérificateur de graphe de dépendances</td>
+        <td><span class="badge det">Déterministe</span></td>
+        <td>Aucun raisonnement LLM — vérification déterministe des deps</td>
+        <td>Consomme l'artefact de Build (9) et le blueprint.yaml gelé (4) : deps autorisées/interdites + ownership</td>
+        <td><code>SCHEMA.md</code> · <code>blueprint.yaml</code></td>
+        <td>Prouver ARCHI : « domain does not import infrastructure » / « ui imports database »</td>
+        <td>Vérifier le graphe de deps vs blueprint : violations, ownership débordé. Émettre PASS/FAIL</td>
+        <td>Aucun jugement LLM ; ne modifie pas l'archi ni le code</td>
+        <td>read: repo entier. run: vérificateur de graphe de deps. write/create: UNIQUEMENT le rapport archi. delete: aucun</td>
+        <td>JAMAIS de LLM-as-judge</td>
+        <td>Rapport {deps_interdites_violées[], modules_sans_test[], debordements_ownership[]} ; verdict PASS/FAIL</td>
+        <td>import-linter / vérificateur de graphe de dépendances — déterministe</td>
+        <td>Cite l'oracle archi ; software_verdict OK/FAIL ; NO_CLAIM_ALLOWED</td>
+        <td>rapport archi : {deps_interdites_violées[], modules_sans_test[], debordements_ownership[]}. PASS/FAIL</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Étape 10b, oracle aval du Build (9)</td>
+      </tr>
+      <tr>
+        <td class="name">s10c — Oracle WIREMAP</td>
+        <td>Vérificateur d'isomorphisme wiremap↔code</td>
+        <td><span class="badge det">Déterministe</span></td>
+        <td>Aucun raisonnement LLM — vérification AST déterministe</td>
+        <td>Consomme la WireMap (5) et l'artefact de Build (9) ; compare à l'arbre source réel par AST ; evidence dans lab/forge_evidence</td>
+        <td><code>SCHEMA.md</code> · WireMap (5) · arbre source réel</td>
+        <td>Prouver WIREMAP : feature manquante, fonction renommée, wiremap obsolète, preuve absente</td>
+        <td>Comparer la WireMap au code réel (AST), signaler les divergences</td>
+        <td>Aucun jugement LLM ; ne modifie ni la WireMap ni le code</td>
+        <td>read: repo entier. run: oracle wiremap (scripts/forge). write/create: UNIQUEMENT le rapport wiremap. delete: aucun</td>
+        <td>JAMAIS de LLM-as-judge</td>
+        <td>Rapport {features_manquantes[], fonctions_renommées[], obsoletes[], preuves_absentes[]} ; PASS/FAIL</td>
+        <td>Oracle wiremap AST (scripts/forge) — déterministe</td>
+        <td>Cite l'oracle wiremap ; software_verdict OK/FAIL ; NO_CLAIM_ALLOWED</td>
+        <td>rapport wiremap : {features_manquantes[], fonctions_renommées[], obsoletes[], preuves_absentes[]}. PASS/FAIL</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Étape 10c, oracle aval du Build (9)</td>
+      </tr>
+      <tr>
+        <td class="name">s10d — Capteur visuel</td>
+        <td>Mesure mécanique advisory, aucun jugement, aucun verdict de qualité</td>
+        <td><span class="badge det">Déterministe</span></td>
+        <td>Aucun raisonnement LLM — exécution déterministe seedée reproductible</td>
+        <td>Jeu déjà vert P0 (aval 10a-10c) ; doctrine P1_MECHANICAL_CONTRACT ; seuils v0 figés (A1&lt;4.5:1, A2&lt;24px, A3&gt;0.92, A5&gt;0) sur défauts synthétiques Breakout, non généralisés</td>
+        <td><code>SCHEMA.md</code> · <code>P1_MECHANICAL_CONTRACT.md</code> · <code>S10D_CONTRACT_PROPOSAL.md</code></td>
+        <td>Produire visual_mechanical.json (familles A1/A2/A3/A5) — un signal à lire par un humain, jamais une décision machine</td>
+        <td>Lancer collect.mjs (seed enregistrée) ; déposer le rapport sous lab/forge_sensors/&lt;jeu&gt;/</td>
+        <td>Tout verdict/score/agrégat de qualité ; écriture dans verdict.json/ledger/mémoire ; tout retuning de seuil ; toute modif du capteur/driver ; tout LLM</td>
+        <td>read: repo entier. run: quality_sensor/collect.mjs &lt;jeu&gt;. write/create: UNIQUEMENT lab/forge_sensors/&lt;jeu&gt;/. delete: aucun</td>
+        <td>ADVISORY STRICT — ne bloque/dégrade RIEN ; gel auto-contenu (sha256 vérifié, divergence=BLOCKED documenté) ; vocabulaire signal_detected/absent/metric_unavailable</td>
+        <td>Rapport présent avec advisory:true ; run rejouable ; chaque observation porte measured/threshold/justification ; aucune clé de score/agrégat</td>
+        <td>fixtures/p1 : re-collect des 5 sondes + check.mjs exit 0 ; tests cœur pur (19, node --test) verts</td>
+        <td>software_verdict porte sur l'EXÉCUTION du capteur, jamais la qualité du jeu ; evidence_verdict: MECHANICAL_VALIDATION_ONLY ; advisory_only:true</td>
+        <td>lab/forge_sensors/&lt;jeu&gt;/visual_mechanical.json + report.md, format v0 (advisory:true, seed+séquence, zéro agrégat)</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Étape 10d, annexe ADVISORY aval 10a-10c ; absente de dispatch.ORDER et du driver, n'entre jamais dans is_clean_pass</td>
+      </tr>
+      <tr>
+        <td class="name">s10s — Oracle STANDARD</td>
+        <td>Vérificateur d'isomorphisme squelette↔code après build — 6 volets</td>
+        <td><span class="badge det">Déterministe</span></td>
+        <td>Aucun raisonnement LLM — 6 vérifications déterministes (schéma fermé, arithmétique budget, machine à états, table placement, index fichiers, registre capacités)</td>
+        <td>Contrat de jeu + squelette (après build) + 3 fichiers de référence du standard (invariants) ; mode « après build » (frozen="built")</td>
+        <td><code>standard/SCHEMA.md</code> · <code>core_requirements.yaml</code> · <code>repo_map.yaml</code> · <code>capabilities.yaml</code> · <code>game_contract.yaml</code> · squelette après build</td>
+        <td>Exécuter les 6 oracles du standard en mode après build et rendre OK/FAIL agrégé</td>
+        <td>Lire contrat+squelette+3 fichiers référence ; exécuter les 6 fonctions ; agréger les verdicts</td>
+        <td>Aucun jugement LLM ; ne modifie ni contrat, squelette, code, ni standard/**/standard_oracles.py (son propre juge)</td>
+        <td>read: dépôt entier (jeu + standard/**). run: standard_oracles.py (6 fonctions). write/create: UNIQUEMENT le reçu (lab/forge_evidence). delete: aucun</td>
+        <td>JAMAIS de LLM-as-judge ; entrée manquante/malformée = BLOCKED motivé, jamais un crash</td>
+        <td>Les 6 oracles passed:true (contract_completeness, budget, line_states, placement, index, collisions) ; 1 seul FAIL suffit à rendre FAIL</td>
+        <td>standard_oracles.py (6 fonctions), déterministes ; mode après build : check_line_states(frozen="built"), check_index(built=True)</td>
+        <td>Cite les 6 oracles + passed individuel + détail violations ; NO_CLAIM_ALLOWED ; entrée malformée = BLOCKED motivé</td>
+        <td>{passed:bool, contract_completeness, budget, line_states, placement, index, collisions}. OK/FAIL/BLOCKED</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Étape 10s, porte de sortie du Builder STANDARD (s9-build-standard). Amont : s11 (advisory) puis s12 (verdict signé), puis HumanGate</td>
+      </tr>
+      <tr>
+        <td class="name">s11 — Red-team CODE</td>
+        <td>Auditeur à contexte VIERGE qui ne voit pas les justifications du builder</td>
+        <td><span class="badge opus">Opus</span> <code>redteam_code</code></td>
+        <td>Audit adverse non biaisé par le raisonnement du builder ; cherche activement les failles, prouve chacune par reproduction</td>
+        <td>Consomme UNIQUEMENT le diff produit à l'étape 9, SANS les justifications du builder ; advisory, ne remplace pas les oracles</td>
+        <td><code>SCHEMA.md</code> · diff du Builder (9) sans justifications</td>
+        <td>Produire un rapport de failles INDÉPENDANT, non biaisé par le builder</td>
+        <td>Audit du code produit, recherche de failles avec reproduction. Écrit uniquement rapport_redteam_code.md</td>
+        <td>Ne voit pas le raisonnement du builder ; ne corrige pas lui-même ; ne touche pas tests/**</td>
+        <td>read: le diff de l'étape 9 uniquement. write/create: rapport_redteam_code.md uniquement. run: aucun. delete: aucun</td>
+        <td>Contexte vierge (aveuglé) : ne reconstitue pas le raisonnement du builder pour se rassurer ; chaque faille accompagnée d'une reproduction concrète</td>
+        <td>Rapport listant par faille : {angle, faille, sévérité, reproduction}</td>
+        <td>Red-team CRITIQUE, les oracles PROUVENT (séparés) ; la reproduction doit être exécutable par un oracle non-LLM en aval</td>
+        <td>Chaque faille cite sa reproduction ; termine par un bloc JSON <code>findings[]</code> lu par un parseur déterministe → redteam_advisory ; NO_CLAIM_ALLOWED</td>
+        <td>rapport_redteam_code.md {angle, faille, sévérité, reproduction} en prose + bloc JSON fenced findings[]</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Étape 11, aval Build/Oracles, amont Verdict (12)</td>
+      </tr>
+      <tr>
+        <td class="name">s12 — Verdict signé</td>
+        <td>Notaire mécanique, aucune inférence libre</td>
+        <td><span class="badge det">Déterministe</span></td>
+        <td>Aucun raisonnement LLM — agrégation + signature HMAC-SHA256 déterministe</td>
+        <td>Doctrine verdict.py (3 verdicts séparés) ; gate.py bloque sur oracle rouge en aval ; porte de sortie miroir du contrat (porte d'entrée)</td>
+        <td><code>SCHEMA.md</code> · <code>verdict.py</code> · evidence logs (10a/b/c) + red-team (11)</td>
+        <td>Émettre un verdict signé, vérifiable, non falsifiable, pour le HumanGate</td>
+        <td>Agréger les verdicts des oracles + red-team, signer HMAC-SHA256, produire verdict.json. Écrit uniquement verdict.json</td>
+        <td>Aucune inférence libre ; ne décide pas merge/reject (c'est le HumanGate)</td>
+        <td>read: evidence logs (10a/b/c) + red-team (11). run: signature HMAC. write/create: verdict.json UNIQUEMENT. delete: aucun</td>
+        <td>NO_CLAIM_ALLOWED ; sépare software/evidence/claim ; ne décide pas le merge</td>
+        <td>verdict.json signé {software, evidence, claim, decision, hmac} vérifiable</td>
+        <td>verdict.py (HMAC-SHA256) — déterministe, pas d'inférence</td>
+        <td>Le verdict EST la restitution signée : software/evidence/claim séparés, signature vérifiable ; NO_CLAIM_ALLOWED</td>
+        <td>verdict.json signé : {software, evidence, claim, decision, hmac}</td>
+        <td>aucun</td>
+        <td>aucun</td>
+        <td>Étape 12, aval Oracles(10)+Red-team code(11), amont HumanGate (13)</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="missions">
+  <h2>Missions hors-chaîne <span class="tag">audit · outillage · ad hoc</span></h2>
+  <p class="sub">Contrats sur <code>scripts/forge/**</code> lui-même ou audits ponctuels — presque tous en <span class="badge sonnet">Sonnet 5</span> (<code>forge_toolsmith</code>, dispatch <code>allow_unprofiled</code>, contrat dédié obligatoire). Datés du 26 juillet au 28 juillet 2026, chacun avec un compteur de suite de tests croissant comme garde de non-régression.</p>
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th>Mission</th><th>Rôle → Modèle</th><th>Ratification</th><th>Objectif</th><th>Garde-fou clé</th><th>Référence de non-régression</th></tr></thead>
+    <tbody>
+      <tr><td class="name">redteam-artdirector</td><td><span class="badge qwen">Qwen</span></td><td>ponctuelle</td><td>Attaquer le CONTRAT s2.5 + son oracle, pas le code produit</td><td>N'attaque jamais les 5 runs déjà produits</td><td>—</td></tr>
+      <tr><td class="name">m1 — Télémétrie d'échec</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-26</td><td>Un échec Forge produit une ligne de télémétrie (outcome, coût, modèle réel)</td><td>Append-only, best-effort, ne bloque jamais un run</td><td>840 passed</td></tr>
+      <tr><td class="name">v1 — Séparer intégrité/verdict</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-26, post pong_r2</td><td><code>verify_run</code> distingue intégrité (rejet) de verdict logiciel (jamais cause de rejet)</td><td>OK prétendu sur mutation rouge = gate dur</td><td>855 passed</td></tr>
+      <tr><td class="name">v2 — Analyse dépôt game_loop</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-26, décision ②</td><td>Établir pourquoi la brique game_loop n'est pas en bibliothèque (analyse seule)</td><td>Aucune modification, aucun dépôt manuel</td><td>—</td></tr>
+      <tr><td class="name">v3 — Périmètre logic_files</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-26, décision ③, suspendu</td><td>Pourquoi 7 adaptateurs de présentation sont dans logic_files du gate mutation</td><td>Aucun changement avant arbitrage</td><td>—</td></tr>
+      <tr><td class="name">v4 — Brancher propose_brick</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-26, décision ②</td><td>Brancher <code>propose_brick</code> (testé, jamais appelé) dans <code>_run_verdict</code></td><td>Propose-only strict, jamais d'écriture directe en KB</td><td>865 passed</td></tr>
+      <tr><td class="name">a1 — Classification chaîne</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-27, post-playtest</td><td>Classifier chaque élément de la chaîne, tracer chaque constat Pierre à sa cause</td><td>Aucune modification/suppression — Pierre tranche</td><td>—</td></tr>
+      <tr><td class="name">b1 — Valeur réelle des tests</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-27</td><td>Classer 52 tests (comportemental/structurel/existence/tautologique)</td><td>Aucune modification/suppression de test</td><td>—</td></tr>
+      <tr><td class="name">c1 — Oracle produit &amp; colis</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-27</td><td>Matrice oracle actuel vs 6 exigences Pierre, chemin minimal chiffré</td><td>Aucune construction/branchement</td><td>—</td></tr>
+      <tr><td class="name">d1 — Boucle preuve→architecte</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-27</td><td>Table wiremap→preuve, densité de preuve chiffrée, entrées reçues par s4</td><td>Fournit les faits seulement, aucune brique proposée</td><td>—</td></tr>
+      <tr><td class="name">n1 — Findings red-team audibles</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-27, décision U-1</td><td>Brancher l'exécuteur réel → <code>redteam_advisory</code></td><td>Interdit de verser dans humangate_flags ; parsing déterministe</td><td>869 passed</td></tr>
+      <tr><td class="name">n2 — Périmètre mutation par catégorie</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-27, décision U-2</td><td>Gate mutation ne juge que les catégories testables (system)</td><td>Test inverse obligatoire ; interdiction git stash/checkout</td><td>883 passed</td></tr>
+      <tr><td class="name">n3 — Oracle produit minimal</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-27, décision U-1</td><td><code>product_oracle.py</code> — 3 volets déterministes</td><td>Chaque volet montré ROUGE avant acceptation ; NOT_MEASURED ≠ OK</td><td>895 passed</td></tr>
+      <tr><td class="name">p1 — Lignes wiremap + Genre Bible</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-27</td><td>2 lignes wiremap + 4 requalifications, 1ère Genre Bible du studio</td><td>Provenance obligatoire {source, date, confiance} ou HYPOTHESE</td><td>—</td></tr>
+      <tr><td class="name">p2 — Garde git mécanique</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-27, 3 incidents réels</td><td>Préparer (sans activer) un hook bloquant checkout/restore/stash</td><td>L'agent lui-même soumis à l'interdiction pendant la mission</td><td>—</td></tr>
+      <tr><td class="name">p3 — Plan de commits par lots</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-27, doctrine D6</td><td>Classer ~73 fichiers en lots, isoler la session Godot parallèle</td><td>Aucun git add/commit — lecture seule sur git</td><td>—</td></tr>
+      <tr><td class="name">q1 — Application décisions Pierre</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-27</td><td>Appliquer à la lettre 3 décisions déjà prises (hook, wiremap, provenance)</td><td>Prudence maximale sur settings.json (sauvegarde + re-parse + test)</td><td>945 passed</td></tr>
+      <tr><td class="name">r1 — Preuves de boucle mécaniques</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-27, périmètre fermé à 2 pts</td><td><code>check_observable_coverage</code> + <code>check_genre_coverage</code></td><td>Chaque volet montré rouge sur ≥2 cas ; advisory d'abord</td><td>945 passed</td></tr>
+      <tr><td class="name">s1-brancher — Brancher le lecteur</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-27, post pong_r3</td><td>Fermer 2 trous de lecteur (oracles.json, coverage BLOCKED) — aucun code gameplay</td><td>Nommage honnête ; NOT_MEASURED ≠ OK</td><td>973 passed</td></tr>
+      <tr><td class="name">s10s-branchement-driver</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-26, JALON 0 décision ④</td><td>Toute exécution de s10s passe par la boucle driver (attempt++, télémétrie)</td><td>Diagnostic prouvé avant Edit, rejeu sur copie jamais l'archive</td><td>853 passed / 1 skipped</td></tr>
+      <tr><td class="name">gb1 — Genre Bible Snake</td><td><span class="badge sonnet">Sonnet</span></td><td>2026-07-28, mission M-D</td><td>Genre Bible sur patron Art Bible, depuis World Scan Snake</td><td>Provenance obligatoire, sources 403 = confiance dégradée</td><td>—</td></tr>
+      <tr><td class="name">gr1 — Gameplay Review Snake</td><td><span class="badge opus">Opus</span></td><td>2026-07-28, M-E</td><td>Juger le design AVANT build — 23 items checklist, ≥1 rejet</td><td>Silence = échec sur un item</td><td><code>check_gameplay_review.mjs</code></td></tr>
+      <tr><td class="name">wm1 — WireMap Snake v2</td><td><span class="badge opus">Opus</span></td><td>2026-07-28, M-G</td><td>Wiremap v2, Godot-first, CODE/CONCEPT/NEW obligatoire par ligne</td><td>Aucun code, ne tranche pas les valeurs A_EQUILIBRER</td><td>check_line_states / check_genre_coverage</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="sub" style="margin-top:0.9rem;">Les missions du 26–27 juillet forment une chaîne chronologique dense post-incident (runs <code>pong_r2</code>/<code>pong_r3</code>) ; le trio Snake du 28 juillet ouvre un chantier séparé avec ses propres oracles, non encore rencontrés sur Pong.</p>
+</section>
+
+<footer>
+  software_verdict: DOCUMENTATION_SYNTHESIS_ONLY &nbsp;·&nbsp; evidence_verdict: 44 CONTRATS LUS 2026-07-28 &nbsp;·&nbsp; claim_verdict: <span class="verdict">NO_CLAIM_ALLOWED</span>
+</footer>
+
+</div>
+</body>
+</html>
