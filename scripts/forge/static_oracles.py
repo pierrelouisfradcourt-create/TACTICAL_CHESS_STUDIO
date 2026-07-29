@@ -402,24 +402,46 @@ _SOLVABILITY_WIRED = re.compile(r"(?:run|spawn|exec|execFile|fork|import|node)\b
 # n'est pas vide, ET l'exécutant du gate l'invoque réellement.
 _STANDARD_SOLVABILITY_REL = "07_TESTS/oracle/solvability.mjs"
 
+# Racine du dépôt — même convention que driver.py (`_REPO_ROOT`), nécessaire pour
+# résoudre un wrapper cité dans `runner_argv` par un chemin relatif au dépôt
+# (ex. "scripts/forge/godot_oracle.mjs", résolu depuis cwd="." dans oracles.json),
+# distinct du chemin de l'entrée déclarée qui, lui, est relatif à `root` (le jeu).
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+# Extensions de wrapper considérées lisibles pour la recherche de câblage du
+# descripteur (mêmes langages que run-oracle.mjs/godot_oracle.mjs).
+_WRAPPER_EXTS = (".mjs", ".js", ".cjs")
+
 
 def check_solvability_wired(
     root: Path, *, standard_topology: bool = False,
     runner_argv: Sequence[str] = (),
+    proof: dict | None = None,
 ) -> dict:
     """Le jeu a-t-il un harnais de solvabilité, câblé dans ce qui exécute le gate ?
 
     Retourne {passed, raisons[], checked} homogène aux autres gardes (+ `topology`
-    en topologie STANDARD, où le champ est neuf : la forme du reçu LEGACY est
-    inchangée, un test l'assert en égalité stricte).
+    quand elle est nommée : la forme du reçu LEGACY (`proof=None`, hors STANDARD)
+    reste inchangée au champ près — un test l'assert en égalité stricte).
+
     PASS (topologie LEGACY, défaut, comportement INCHANGÉ) = solvability.mjs existe à la
     racine, non vide, ET run-oracle.mjs l'INVOQUE via un verbe d'exécution (commentaires
     JS retirés avant analyse — une mention en commentaire/log ne câble aucun oracle).
-    PASS (topologie STANDARD, `standard_topology=True`) = `07_TESTS/oracle/solvability.mjs`
-    existe, non vide, ET `runner_argv` (la commande d'oracle réellement résolue pour ce
-    projet) l'invoque. checked est toujours True : la garde est purement statique.
+    PASS (topologie STANDARD, `standard_topology=True`, `proof=None`) =
+    `07_TESTS/oracle/solvability.mjs` existe, non vide, ET `runner_argv` (la commande
+    d'oracle réellement résolue pour ce projet) l'invoque.
+    PASS (descripteur, `proof` fourni et non None — CONTRAT_PREUVE_MUTATION_V1.md,
+    `proof.solvability`) = voir `_check_solvability_descriptor` : un jeu qui déclare son
+    entrée de solvabilité (ex. GDScript `solvability.gd`, Snake) n'est plus jugé sur
+    l'hypothèse web-only `07_TESTS/oracle/solvability.mjs`. `proof` a TOUJOURS priorité
+    sur `standard_topology` quand il est fourni (il est plus spécifique : un descripteur
+    de contrat prime sur l'hypothèse de topologie) ; `proof=None` (défaut) laisse le
+    comportement historique STRICTEMENT inchangé, dans les deux topologies.
+    checked est toujours True : la garde est purement statique.
     """
     root = Path(root)
+    if proof is not None:
+        return _check_solvability_descriptor(root, proof, tuple(runner_argv or ()))
     if standard_topology:
         return _check_solvability_standard(root, tuple(runner_argv or ()))
     raisons: list[str] = []
@@ -470,6 +492,91 @@ def _check_solvability_standard(root: Path, runner_argv: tuple) -> dict:
 
     return {"passed": not raisons, "raisons": raisons, "checked": True,
             "topology": "standard"}
+
+
+def _resolve_wrapper_script(root: Path, runner_argv: tuple) -> Path | None:
+    """Localise, parmi les arguments de `runner_argv`, le premier script wrapper
+    existant réellement sur disque (ex. `scripts/forge/godot_oracle.mjs` pour un
+    jeu Godot). `runner_argv` porte des chemins relatifs au dépôt (résolus par
+    `oracles.json`, `cwd` variable selon le projet) — jamais relatifs à `root`
+    (qui est le jeu, pas le dépôt) : deux bases sont donc essayées, dépôt
+    d'abord (cas réel mesuré : Snake, cwd="."), puis `root` en repli pour un
+    futur jeu dont l'oracle serait câblé relativement à lui-même. Ne retourne
+    RIEN (None) si aucun token de `runner_argv` ne désigne un fichier existant
+    d'extension wrapper connue — jamais une devinette.
+    """
+    for token in runner_argv:
+        if not isinstance(token, str) or not token.endswith(_WRAPPER_EXTS):
+            continue
+        token_path = Path(token)
+        candidates = (token_path,) if token_path.is_absolute() else (
+            _REPO_ROOT / token_path, root / token_path)
+        for candidate in candidates:
+            if candidate.exists() and candidate.is_file():
+                return candidate
+    return None
+
+
+def _check_solvability_descriptor(root: Path, proof: dict, runner_argv: tuple) -> dict:
+    """Volet solvabilité quand le contrat de jeu porte un descripteur
+    `proof.solvability` (CONTRAT_PREUVE_MUTATION_V1.md, `entry`) — remplace
+    l'hypothèse web-only figée (`07_TESTS/oracle/solvability.mjs`) par une LECTURE
+    du descripteur pour les runtimes non-web (ex. Godot/GDScript : `solvability.gd`).
+
+    PASS ssi (1) `proof.solvability.entry` est un chemin déclaré, exploitable ;
+    (2) le fichier existe sous `root` (le jeu) et n'est ni vide ni illisible ;
+    (3) le câblage est prouvé : un WRAPPER localisé dans `runner_argv`
+    (`_resolve_wrapper_script`) référence littéralement le NOM (basename) de
+    l'entrée déclarée, commentaires JS retirés avant recherche.
+
+    LIMITE ASSUMÉE, à ne jamais taire (mission 2026-07-29) : une correspondance
+    textuelle sur un nom de fichier n'est pas une trace d'EXÉCUTION — elle pourrait
+    vivre dans une constante jamais utilisée, ou désigner un homonyme sans rapport.
+    C'est le même niveau de garantie que `_SOLVABILITY_WIRED` en topologie LEGACY
+    (qui exige un verbe d'exécution sur la même ligne) : ici, aucun verbe d'exécution
+    n'est exigé, parce que le wrapper mesuré (godot_oracle.mjs) référence l'entrée via
+    une CONSTANTE indirecte (`const SOLVABILITY_SCRIPT = 'res://solvability.gd'`) puis
+    l'utilise plus loin dans l'appel — un `run|spawn|exec` immédiatement adjacent au nom
+    de fichier n'existe pas dans ce style d'écriture. Durcir cette garde (par ex. exiger
+    aussi la variable de la constante soit RÉUTILISÉE dans un appel spawn) est un choix
+    conscient à faire séparément, pas un accident de cette mission.
+
+    `runner_argv` vide, wrapper introuvable, ou wrapper ne référençant pas l'entrée
+    => câblage NON prouvé, jamais un vert par défaut.
+    """
+    raisons: list[str] = []
+    entry = proof.get("entry") if isinstance(proof, dict) else None
+    if not entry or not isinstance(entry, str):
+        raisons.append(
+            "descripteur proof.solvability sans champ 'entry' exploitable "
+            f"(reçu: {entry!r})")
+        return {"passed": False, "raisons": raisons, "checked": True,
+                "topology": "descripteur"}
+
+    entry_path = root / entry
+    if not entry_path.exists():
+        raisons.append(f"entrée déclarée '{entry}' absente sous {root}")
+        return {"passed": False, "raisons": raisons, "checked": True,
+                "topology": "descripteur"}
+
+    if not _read(entry_path).strip():
+        raisons.append(f"entrée déclarée '{entry}' vide ou illisible")
+
+    entry_name = Path(entry).name
+    wrapper = _resolve_wrapper_script(root, runner_argv)
+    if wrapper is None:
+        raisons.append(
+            f"aucun script wrapper localisable dans runner_argv={list(runner_argv)} "
+            "— câblage non prouvé")
+    else:
+        wrapper_text = _strip_js_comments(_read(wrapper))
+        if entry_name not in wrapper_text:
+            raisons.append(
+                f"{wrapper} ne référence pas '{entry_name}' (entrée déclarée) "
+                "— câblage non prouvé")
+
+    return {"passed": not raisons, "raisons": raisons, "checked": True,
+            "topology": "descripteur"}
 
 
 # --- garde structurelle reuse_ratio (Tier 1 #2, renfort 2026-07-13) ---------------

@@ -104,12 +104,23 @@ def test_disallowed_contient_git_powershell_et_zones_protegees(tmp_path, capture
     cmd = capture_cmd[-1]
     denied = cmd[cmd.index("--disallowedTools") + 1].split()
     for pattern in ("Bash(git:*)", "PowerShell(git:*)", "NotebookEdit",
-                    "Write(tests/**)", "Edit(tests/**)",
                     "Write(scripts/forge/contracts/**)",
                     "Edit(scripts/forge/contracts/**)",
                     "Write(lab/chains/**)", "Edit(lab/chains/**)",
                     "Write(.claude/**)", "Edit(.claude/**)"):
         assert pattern in denied, f"pattern manquant dans la deny-list: {pattern}"
+
+    # Zone `tests/` DU STUDIO : on vérifie la PROPRIÉTÉ (elle est protégée en écriture
+    # ET en édition), pas la forme littérale du motif — figer la chaîne exacte a fait
+    # échouer ce test lors de son ancrage à la racine le 2026-07-28 alors que la
+    # protection était intacte (règle d'usine n°3 : un test vérifie une propriété
+    # durable, pas une valeur historique). Formes acceptées : `tests/**` (historique)
+    # ou `./tests/**` (ancrée racine, ratifiée Pierre 2026-07-28 — le motif nu bloquait
+    # aussi `games/<jeu>/tests/`, chemin exigé par godot_oracle.mjs).
+    for verbe in ("Write", "Edit"):
+        assert any(
+            d.startswith(f"{verbe}(") and d.rstrip(")").endswith("tests/**") for d in denied
+        ), f"la zone protegee tests/ n'est plus deniee en {verbe} : {denied}"
 
 
 def test_deny_git_par_classe_aucune_regle_par_commande_orpheline():

@@ -132,6 +132,121 @@ def test_observable_coverage_volet_mesure_en_echec_reste_bloque():
     assert rep["volets_en_echec"] == ["core.end_condition:auto_session"]
 
 
+# --- GARDE DE TYPE (ratifiée Pierre 2026-07-28, faux vert mesuré sur Snake) -----------
+
+
+def test_observable_coverage_booleen_true_legal():
+    wiremap = {"lines": [_observable_line()]}
+    rep = check_observable_coverage(wiremap, _oracle_receipt())
+    assert rep["observable_malformes"] == []
+
+
+def test_observable_coverage_booleen_false_legal():
+    wiremap = {"lines": [{"id": "core.boot", "observable_by_player": False}]}
+    rep = check_observable_coverage(wiremap, {})
+    assert rep["passed"] is True
+    assert rep["observable_malformes"] == []
+
+
+def test_observable_coverage_champ_absent_legal():
+    wiremap = {"lines": [{"id": "core.boot"}]}
+    rep = check_observable_coverage(wiremap, {})
+    assert rep["passed"] is True
+    assert rep["observable_malformes"] == []
+
+
+def test_observable_coverage_red_observable_by_player_chaine_est_malforme():
+    """Une phrase de justification à la place du booléen attendu : le point de la
+    garde 2026-07-28 — avant elle, cette ligne était silencieusement traitée comme
+    `!= True` (donc ignorée, jamais couverte ni signalée)."""
+    wiremap = {"lines": [{
+        "id": "params.bloc_unique",
+        "observable_by_player": "Indirectement mais reellement : ces constantes...",
+        "observable_proof": "Modifier la constante et relancer.",
+    }]}
+    rep = check_observable_coverage(wiremap, {})
+    assert rep["passed"] is False
+    assert rep["verdict"] == "FAIL"
+    assert rep["observable_malformes"] == [{
+        "id": "params.bloc_unique", "champ": "observable_by_player", "type_recu": "str",
+    }]
+
+
+def test_observable_coverage_red_observable_proof_phrase_alors_que_observable():
+    """Ligne réellement observable (`True`) mais `observable_proof` porte une phrase
+    de méthode au lieu d'un nom de volet -> malformé, pas juste "sans preuve"."""
+    wiremap = {"lines": [_observable_line(
+        observable_proof="Bot qui atteint la cible : l'ecran affiche gagnee",
+    )]}
+    rep = check_observable_coverage(wiremap, _oracle_receipt())
+    assert rep["passed"] is False
+    assert rep["verdict"] == "FAIL"
+    assert rep["observable_malformes"] == [{
+        "id": "core.end_condition", "champ": "observable_proof",
+        "type_recu": "str_avec_espaces",
+    }]
+
+
+def test_observable_coverage_carte_malformee_denonce_toutes_les_lignes():
+    """Preuve n°2 du contrat (critère (d)) : une carte dont les lignes portent une
+    PHRASE dans `observable_by_player` doit être dénoncée LIGNE PAR LIGNE — jamais
+    laissée passer par vacuité (le défaut d'origine : `is not True` faisait sauter
+    la ligne en silence, `couvertes: []` et `passed: true`).
+
+    FIXTURE DÉDIÉE (gate Pierre 2026-07-29) : ce test lisait auparavant la VRAIE
+    wiremap de `games/snake` et figeait son état du moment (44 lignes malformées).
+    Corriger les données du jeu — ce qui était l'objectif — le rendait faux : il
+    testait l'état d'un JEU au lieu de la propriété d'un INSTRUMENT (règle d'usine
+    n°3 : un test vérifie une propriété durable, pas une valeur historique).
+    La fixture ci-dessous ne dépend d'aucun jeu et ne peut plus périmer.
+    """
+    lignes = [
+        {"id": f"ligne.{i}",
+         "observable_by_player": f"Le joueur voit la chose {i} — justification en prose.",
+         "observable_proof": "Une phrase de methode, pas un nom de volet."}
+        for i in range(5)
+    ]
+    # Une ligne CORRECTE au milieu : la garde doit discriminer, pas tout rougir.
+    lignes.append({"id": "ligne.correcte", "observable_by_player": True,
+                   "observable_proof": "auto_session"})
+    rep = check_observable_coverage(
+        {"lines": lignes}, {"auto_session": {"checked": True, "passed": True}}
+    )
+    assert rep["passed"] is False
+    assert rep["verdict"] == "FAIL"
+    # TOUTES les malformées sont nommées, aucune n'est sautée en silence.
+    assert len(rep["observable_malformes"]) == 5
+    assert {e["id"] for e in rep["observable_malformes"]} == {f"ligne.{i}" for i in range(5)}
+    for entry in rep["observable_malformes"]:
+        assert entry["champ"] == "observable_by_player"
+        assert entry["type_recu"] == "str"
+    # La ligne bien formée reste couverte : la garde discrimine la FORME, pas le jeu.
+    assert any("ligne.correcte" in str(c) for c in rep["couvertes"])
+
+
+def test_observable_coverage_wiremap_pong_reel_reste_vert():
+    """Non-régression : la VRAIE wiremap Pong (forme correcte, booléens + noms de
+    volet) doit rester OK avec un reçu où les 6 volets nommés sont verts."""
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[3]
+    wiremap = json.loads(
+        (root / "games/pong/09_WIREMAP/wiremap.json").read_text(encoding="utf-8")
+    )
+    receipt = {
+        "auto_session": {"passed": True, "checked": True},
+        "restart_offer_wiring": {"passed": True, "checked": True},
+        "exit_stop_wiring": {"passed": True, "checked": True},
+        "solo_ai_session": {"passed": True, "checked": True},
+        "playable_speed_band_test": {"passed": True, "checked": True},
+    }
+    rep = check_observable_coverage(wiremap, receipt)
+    assert rep["passed"] is True
+    assert rep["verdict"] == "OK"
+    assert rep["observable_malformes"] == []
+
+
 # --- GREEN : conforme et couvert, façonné à l'image de Pong (mêmes ids/volets) -------
 
 
@@ -286,6 +401,44 @@ def test_genre_coverage_green_pong_shape_ok():
         "play.paddle:genre.pong.two_paddles_vertical",
         "play.playable_speed:genre.pong.playable_speed_range",
     }
+
+
+# --- ratio de résolution (taux_resolution, mission N2-0 2026-07-28) -------------------
+
+
+def test_genre_coverage_taux_resolution_aucune_citation_none():
+    """0 citation revendiquée -> None, jamais un 1.0 gratuit sur l'absence de données
+    (règle de variance des métriques, ratifiée Pierre 2026-07-21)."""
+    wiremap = {"lines": [{"id": "core.boot"}]}
+    rep = check_genre_coverage(wiremap, _genre_bible())
+    assert rep["citations_revendiquees"] == 0
+    assert rep["citations_resolues"] == 0
+    assert rep["taux_resolution"] is None
+
+
+def test_genre_coverage_taux_resolution_toutes_resolues_1_0():
+    wiremap = {"lines": [
+        {"id": "play.paddle", "genre_refs": ["genre.pong.two_paddles_vertical"]},
+        {"id": "play.playable_speed", "genre_refs": ["genre.pong.playable_speed_range"]},
+    ]}
+    rep = check_genre_coverage(wiremap, _genre_bible())
+    assert rep["citations_revendiquees"] == 2
+    assert rep["citations_resolues"] == 2
+    assert rep["taux_resolution"] == 1.0
+
+
+def test_genre_coverage_taux_resolution_partiel_0_75():
+    genre_bible = _genre_bible(genre_rules=[
+        {"id": "g.a"}, {"id": "g.b"}, {"id": "g.c"}, {"id": "g.d"},
+    ])
+    wiremap = {"lines": [
+        {"id": "l1", "genre_refs": ["g.a", "g.b", "g.c"]},
+        {"id": "l2", "genre_refs": ["g.fantome"]},
+    ]}
+    rep = check_genre_coverage(wiremap, genre_bible)
+    assert rep["citations_revendiquees"] == 4
+    assert rep["citations_resolues"] == 3
+    assert rep["taux_resolution"] == 0.75
 
 
 # --- preuve n°1 de la boucle (critère (c) du contrat) : lu sur les VRAIS artefacts ----

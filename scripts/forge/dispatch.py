@@ -100,7 +100,17 @@ def is_deterministic_step(etape: str) -> bool:
 # variante STANDARD contrat/repo/wiremap du build et de son oracle — dispatchable
 # UNIQUEMENT via le profil dédié `standard`, jamais mêlée à "full" (le squelette gelé
 # est un mode opératoire distinct du greenfield Prisme->WireMap classique).
-DEDICATED_PROFILE_STEPS = ("s2.5-artbible", "s9-build-standard", "s10s-oracle-standard")
+# `s9-build-godot-standard` (curriculum de jeux, cible Godot ratifiée Pierre 2026-07-28) :
+# jumeau Godot de s9-build-standard — dispatchable UNIQUEMENT via le profil dédié
+# `standard_godot`, jamais mêlée à "full". `s9-build-godot` (étape 0, brique M01, contrat
+# historique du 2026-07-21) reste HORS de tout profil : il n'appartient ni à ORDER, ni à
+# DEDICATED_PROFILE_STEPS — c'est une trace figée, pas un builder de curriculum.
+DEDICATED_PROFILE_STEPS = (
+    "s2.5-artbible",
+    "s9-build-standard",
+    "s10s-oracle-standard",
+    "s9-build-godot-standard",
+)
 
 # Profils de chaîne — sous-ensembles de ORDER (ou de DEDICATED_PROFILE_STEPS ci-dessus)
 # pour des usages plus courts que le greenfield complet. `patch` = un fix sur un projet
@@ -146,6 +156,24 @@ PROFILES = {
     # pour cette variante — décision de portée, ratifiée Pierre 2026-07-22, PAS dans "full".
     "standard": (
         "s9-build-standard",
+        "s10a-oracle-code",
+        "s10s-oracle-standard",
+        "s11-redteam-code",
+        "s12-verdict",
+    ),
+    # standard_godot : jumeau Godot de `standard` (cible Godot ratifiée Pierre 2026-07-28).
+    # CE QUI CHANGE vs `standard` : s9-build-standard (web/JS) est remplacé par son jumeau
+    # s9-build-godot-standard (GDScript, projet Godot, oracle headless) — hors ORDER par la
+    # même décision de portée (cf. DEDICATED_PROFILE_STEPS). CE QUI NE CHANGE PAS : s10a-
+    # oracle-code reste applicable (gate mutation/e2e/solvabilité générique, ici sur du
+    # GDScript) ; s10s-oracle-standard porte toujours les six oracles du squelette gelé
+    # (line_states, placement, collisions, index, contract_completeness, budget), agnostiques
+    # du runtime du builder ; s11-redteam-code reste advisory ; s12-verdict reste
+    # l'agrégation signée. Pas d'archi/wiremap génériques (s10b/s10c), exactement comme
+    # `standard` — c'est s10s qui en tient lieu. `s9-build-godot` (étape 0, brique M01)
+    # n'appartient à AUCUN profil, ni celui-ci ni "full" : trace historique intacte.
+    "standard_godot": (
+        "s9-build-godot-standard",
         "s10a-oracle-code",
         "s10s-oracle-standard",
         "s11-redteam-code",

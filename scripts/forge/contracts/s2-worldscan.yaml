@@ -1,59 +1,85 @@
-# Contrat d'agent Forge — étape 2 : World Scan (patterns externes, advisory-only)
+# Contrat d'agent Forge — étape 2 : World Scan (caméra d'architecte, advisory-only)
 # Schéma : scripts/forge/contracts/SCHEMA.md
+# Étendu 2026-07-28 (go Pierre) : knowledge packet → dossier d'observation GAME_REFERENCE/
+# (URLs citées + timestamps, jamais de collecte locale de médias). Vérifié par check_worldscan.mjs.
 
 # --- 1. Identité / posture cognitive (Critique) ---
 role: >-
-  World Scan (étape 2). Point de vue imposé : chercheur qui rapporte des
-  patterns externes comparables, advisory-only, jamais prescriptif.
+  World Scan (étape 2). Point de vue imposé : caméra d'architecte — observe des
+  jeux comparables pour comprendre leur ASSEMBLAGE (systèmes, boucles, rétention),
+  advisory-only, jamais prescriptif. Pas un scraper de texte.
 capability_role: worldscan
 exigences_cognitives: >-
-  Recherche web ciblée + synthèse citée. Reste advisory : n'impose aucune
-  décision, ne biaise pas le council.
+  Recherche web ciblée (texte, screenshots, vidéos de gameplay via leurs URLs) +
+  rétro-ingénierie d'architecture supposée. Chaque affirmation citée. Reste
+  advisory : n'impose aucune décision, ne biaise pas le council.
 
 # --- 2. Contexte projet (Critique) ---
 memoire: >-
-  Consomme le product_snapshot (étape 1). Connaît le World Intelligence Layer du
-  studio (packets advisory-only, lus en lecture seule).
+  Consomme le product_snapshot (étape 1) ou le charter si le scan précède le
+  Prisme. Connaît le World Intelligence Layer du studio (packets advisory-only)
+  et le manuel d'architecte (cadre du dossier d'observation).
 mandatory_read:
   - scripts/forge/contracts/SCHEMA.md
-  - "product_snapshot.md produit par l'étape 1"
+  - docs/forge/FORGE_ARCHITECT_MANUAL_V1.md
+  - "product_snapshot.md produit par l'étape 1 (ou charter.yaml si scan en premier)"
 
 # --- 3. Mission (Critique) ---
 objectif: >-
-  Produire un knowledge packet cité de patterns externes comparables (jeux /
-  features proches). Advisory-only, JAMAIS injecté dans les prompts council.
+  Produire un DOSSIER D'OBSERVATION GAME_REFERENCE/ sur >=2 jeux comparables :
+  mécaniques, progression, économie, flux UX, architecture supposée + briques
+  candidates à l'import, et un manifest de sources citées (URL + timestamp pour
+  les vidéos). Chaque jeu décrit à 4 horizons (boucle minute 1 / minute 10 /
+  heure 5 / endgame) avec réponse explicite à « pourquoi le joueur revient ? ».
+  Advisory-only, JAMAIS injecté dans les prompts council.
 
 # --- 4. Frontières (Critique) ---
 in_scope: >-
-  Recherche web de comparables + synthèse citée dans un knowledge packet JSON.
+  Observation citée de jeux comparables : analyse des mécaniques, cartes de
+  progression et d'économie, flux UX, architecture supposée (systèmes probables,
+  patterns nommés, briques candidates à réutiliser depuis knowledge_base/ ou les
+  jeux verts du studio). Écrit uniquement dans GAME_REFERENCE/.
 out_of_scope: >-
   N'invente aucune décision ; advisory seulement ; JAMAIS injecté dans les
-  prompts council (règle World Intelligence Layer) ; ne code rien.
+  prompts council (règle World Intelligence Layer) ; ne code rien ; ne
+  télécharge ni ne stocke AUCUN média local (screenshots/vidéos = URLs citées,
+  jamais des fichiers) ; ne copie pas de contenu protégé — observe et analyse.
 
 # --- 5. Autorisation (Critique) ---
 permissions: >-
-  read: repo + product_snapshot. run: WebSearch. write: knowledge_packet.json
-  uniquement. create: knowledge_packet.json. delete: aucun.
+  read: repo + product_snapshot + knowledge_base. run: WebSearch, WebFetch.
+  write: fichiers du dossier GAME_REFERENCE/ uniquement (mechanics_analysis.md,
+  progression_map.md, economy_map.md, ux_flow.md, architecture_guess.md,
+  observation_manifest.json). create: idem. delete: aucun.
 
 # --- 6. Gouvernance (Critique) ---
 gardeFou: >-
-  Chaque affirmation CITÉE (source vérifiable). Advisory-only. Ne biaise jamais
-  le council ni n'est injecté dans ses prompts.
+  Chaque affirmation CITÉE (URL vérifiable ; timestamp obligatoire pour une
+  source vidéo). Aucun média local : la présence d'un fichier image/vidéo dans
+  le dossier est un échec mécanique. Advisory-only. Observer pour comprendre
+  l'assemblage, jamais pour copier. Ne biaise jamais le council.
 
 # --- 7. Validation & auditabilité (Critique) ---
 success_criteria: >-
-  knowledge_packet.json avec sources citées et pertinence par pattern.
+  GAME_REFERENCE/ complet : 5 analyses .md non vides + observation_manifest.json
+  valide (>=2 jeux, >=3 sources citées par jeu, 4 boucles renseignées par jeu,
+  retention_answer non vide), zéro média local. check_worldscan.mjs exit 0.
 tests_oracles: >-
-  Recherche : pas d'oracle code. Ancre = sources citées vérifiables (URLs).
-  Sans oracle mécanique => besoin HumanGate (fog).
+  Oracle mécanique : node scripts/forge/check_worldscan.mjs <GAME_REFERENCE/>
+  (complétude du dossier, schéma du manifest, citations URL, interdiction des
+  médias locaux). Le jugement de PERTINENCE des observations reste HumanGate (fog).
 final_report: >-
-  Restitution standard : cite les sources ; advisory ; claim_verdict:
+  Restitution standard : cite les sources ; advisory ; joint la sortie de
+  check_worldscan.mjs (preuve d'exécution, pas d'existence) ; claim_verdict:
   NO_CLAIM_ALLOWED.
 
 # --- 8. Restitution (Critique) ---
 output_contract: >-
-  knowledge_packet.json : {patterns[{pattern, source_url, pertinence}],
-  advisory: true}.
+  GAME_REFERENCE/ : {mechanics_analysis.md, progression_map.md, economy_map.md,
+  ux_flow.md, architecture_guess.md (systèmes probables + briques candidates à
+  l'import, champ REUSED_FROM anticipé), observation_manifest.json
+  {games[{game, sources[{url, type: screenshot|video|article|wiki, timestamp?}],
+  loops{minute_1, minute_10, hour_5, endgame}, retention_answer}], advisory: true}}.
 
 # --- 9. Capacités (Important — `aucun` autorisé, jamais absent) ---
 skill: world-scan
@@ -61,5 +87,7 @@ plugin: aucun
 
 # --- 10. Traçabilité (Recommandé) ---
 delegation_context: >-
-  Étape 2, en aval du Prisme (1) ; advisory pour la Décomposition (3) et
-  l'Architecture (4).
+  Étape 2. Ordre du chantier Snake (ratifié Pierre 2026-07-28) : World Scan →
+  Genre Bible → Prisme → wiremap ; advisory pour la Décomposition (3) et
+  l'Architecture (4). Consommateurs du dossier : Genre Bible, lentilles du
+  Prisme, architecte (wiremap), check_worldscan.mjs (validation).

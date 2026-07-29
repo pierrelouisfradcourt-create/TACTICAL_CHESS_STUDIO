@@ -7,16 +7,68 @@
 // Le binaire Godot est toujours resolu via resolveGodotBin() (Tache 1) —
 // jamais un chemin en dur.
 import { spawnSync } from 'node:child_process';
-import { resolve, dirname } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { resolve, dirname, basename } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolveGodotBin } from './godot_bin.mjs';
+import {
+  DEFAULT_MAX_TICKS,
+  DEFAULT_TRIAL_TIMEOUT_MS,
+  DEFAULT_SEED_START,
+} from './solvability_godot.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '..', '..');
+const ORACLES_CONFIG = resolve(HERE, 'oracles.json');
 
 const TEST_SCRIPT = 'res://tests/run_tests.gd';
 const SOLVABILITY_SCRIPT = 'res://solvability.gd';
 const SOLVABILITY_TRIALS = 50;
+
+/**
+ * Budget de la solvabilite DECLARE PAR JEU (correction 2026-07-28) : une partie
+ * gagnante peut prendre bien plus que DEFAULT_MAX_TICKS (200) — mesure sur
+ * `snake` : parties gagnantes de 266-417 ticks, faux negatif 0/50 avec le
+ * defaut. Lu depuis l'entree `oracles.json` du jeu (cle = basename(project),
+ * meme convention que forge/oracle.py::resolve_oracle), champ optionnel
+ * `solvability: {max_ticks, trials, trial_timeout_ms}`.
+ *
+ * Absence totale (fichier illisible, entree manquante, champ manquant) ->
+ * REPLI EXACT sur les valeurs historiques (DEFAULT_MAX_TICKS/SOLVABILITY_TRIALS/
+ * DEFAULT_TRIAL_TIMEOUT_MS) : comportement INCHANGE pour tout jeu qui ne
+ * declare rien (ex. grid_nav_probe) — jamais un chemin d'erreur silencieux qui
+ * modifierait un budget par accident.
+ */
+export function resolveSolvabilityConfig(project, configPath = ORACLES_CONFIG) {
+  const key = basename(project);
+  let raw;
+  try {
+    raw = readFileSync(configPath, 'utf8');
+  } catch (e) {
+    console.warn(`[godot_oracle] oracles.json illisible (${e.message}) — budget par defaut`);
+    raw = null;
+  }
+  let entry = null;
+  if (raw !== null) {
+    try {
+      const config = JSON.parse(raw);
+      entry = config && typeof config === 'object' ? config[key] : null;
+    } catch (e) {
+      console.warn(`[godot_oracle] oracles.json invalide (${e.message}) — budget par defaut`);
+      entry = null;
+    }
+  }
+  const solv = entry && typeof entry === 'object' && entry.solvability &&
+    typeof entry.solvability === 'object' ? entry.solvability : {};
+  return {
+    trials: Number.isFinite(solv.trials) ? solv.trials : SOLVABILITY_TRIALS,
+    maxTicks: Number.isFinite(solv.max_ticks) ? solv.max_ticks : DEFAULT_MAX_TICKS,
+    trialTimeoutMs: Number.isFinite(solv.trial_timeout_ms)
+      ? solv.trial_timeout_ms
+      : DEFAULT_TRIAL_TIMEOUT_MS,
+    seedStart: DEFAULT_SEED_START,
+  };
+}
 
 /** Lance run_tests.gd headless sur le projet. true si exit 0. */
 function runMechanicalTests(project) {
@@ -44,9 +96,17 @@ function runMechanicalTests(project) {
 function runSolvabilityGate(project) {
   console.log('[godot_oracle] === solvability_godot.mjs (R9) ===');
   const script = resolve(HERE, 'solvability_godot.mjs');
+  const { trials, maxTicks, trialTimeoutMs, seedStart } = resolveSolvabilityConfig(project);
+  console.log(
+    `[godot_oracle] budget solvabilite : trials=${trials} max_ticks=${maxTicks} ` +
+    `trial_timeout_ms=${trialTimeoutMs} (declare par jeu, defaut si absent)`
+  );
   const res = spawnSync(
     process.execPath,
-    [script, project, SOLVABILITY_SCRIPT, String(SOLVABILITY_TRIALS)],
+    [
+      script, project, SOLVABILITY_SCRIPT,
+      String(trials), String(seedStart), String(maxTicks), String(trialTimeoutMs),
+    ],
     { cwd: REPO_ROOT, stdio: 'inherit' }
   );
   if (res.error) {

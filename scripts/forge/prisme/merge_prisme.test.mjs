@@ -2,7 +2,13 @@
 // mécanique du panel Prisme : union par critère charter cité, zéro LLM-arbitre.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractCharterCriteria, citedTags, extractRulesSection, mergePrisme } from './merge_prisme.mjs';
+import {
+  extractCharterCriteria,
+  citedTags,
+  extractRulesSection,
+  mergePrisme,
+  resolveSourceRole,
+} from './merge_prisme.mjs';
 
 const CHARTER = `objectif: >-
   Forger un jeu.
@@ -72,6 +78,48 @@ test('mergePrisme : un critere hors perimetre du controle n\'est jamais liste (p
     lenses: [{ path: 'lens1.md', content: 'DETERMINISME et PHYSIQUE STRICTE ici aussi.' }],
   });
   assert.deepEqual(controlScopeTags, ['SOLVABILITE PROUVEE']);
+});
+
+// --- resolveSourceRole (mission N2-0 2026-07-28) : mapping mecanique chemin -> role ---
+
+test('resolveSourceRole : product_snapshot_gamedesign.md -> gamedesign', () => {
+  assert.equal(resolveSourceRole('lab/forge_runs/snake/prisme/product_snapshot_gamedesign.md'), 'gamedesign');
+});
+
+test('resolveSourceRole : product_snapshot_archidepot.md -> archidepot', () => {
+  assert.equal(resolveSourceRole('product_snapshot_archidepot.md'), 'archidepot');
+});
+
+test('resolveSourceRole : product_snapshot_gameplayprog.md -> gameplayprog', () => {
+  assert.equal(resolveSourceRole('product_snapshot_gameplayprog.md'), 'gameplayprog');
+});
+
+test('resolveSourceRole : isControl=true -> control, quel que soit le nom', () => {
+  assert.equal(resolveSourceRole('lab/forge_runs/snake/product_snapshot.md', true), 'control');
+});
+
+test('resolveSourceRole : nom inattendu -> basename sans extension, jamais un echec silencieux', () => {
+  assert.equal(resolveSourceRole('quelque/chemin/notes_bizarres.md'), 'notes_bizarres');
+});
+
+// --- mergePrisme : bloc machine-lisible source_role -----------------------------------
+
+test('mergePrisme : bloc json final contient coverage_by_role et roles, parsable', () => {
+  const { output } = mergePrisme({
+    charterText: CHARTER,
+    controlContent: 'Le controle couvre SOLVABILITE PROUVEE et DETERMINISME.',
+    lenses: [
+      { path: 'product_snapshot_gamedesign.md', content: '## 4. RÈGLES OBSERVABLES\n\n- **R1 — solvabilite prouvee ici.**' },
+      { path: 'product_snapshot_archidepot.md', content: '## 4. RÈGLES OBSERVABLES\n\n- **R2 — determinisme assure ici.**' },
+    ],
+  });
+  const match = output.match(/```json\n([\s\S]*?)\n```/);
+  assert.ok(match, 'bloc json absent de la sortie');
+  const parsed = JSON.parse(match[1]);
+  assert.deepEqual(new Set(parsed.roles), new Set(['gamedesign', 'archidepot']));
+  assert.deepEqual(parsed.coverage_by_role['SOLVABILITE PROUVEE'], ['gamedesign']);
+  assert.deepEqual(parsed.coverage_by_role['DETERMINISME'], ['archidepot']);
+  assert.deepEqual(parsed.coverage_by_role['PHYSIQUE STRICTE'], []);
 });
 
 test('mergePrisme : ne fusionne ni ne selectionne jamais un texte "meilleur" entre lenses (union verbatim)', () => {

@@ -16,9 +16,14 @@
 import { pathToFileURL } from 'node:url';
 import { makeGodotRunTrial } from '../../knowledge_base/systems/adapters/godot_trial.mjs';
 
-const DEFAULT_MAX_TICKS = 200;
-const DEFAULT_TRIAL_TIMEOUT_MS = 10000;
-const DEFAULT_SEED_START = 1;
+// Exportes (pas seulement des constantes de module) : godot_oracle.mjs les reuse
+// comme valeurs de repli EXPLICITES quand un jeu ne declare pas de budget de
+// tick dans scripts/forge/oracles.json (`solvability.max_ticks/trials/trial_timeout_ms`)
+// - une seule source de verite pour « le comportement par defaut, si rien n'est
+// declare », jamais deux litteraux dupliques qui pourraient diverger.
+export const DEFAULT_MAX_TICKS = 200;
+export const DEFAULT_TRIAL_TIMEOUT_MS = 10000;
+export const DEFAULT_SEED_START = 1;
 
 /**
  * Fait tourner `trials` essais a partir de `seed_start`, en appelant

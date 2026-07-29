@@ -85,6 +85,18 @@ mapping:
   test.oracle:        "07_TESTS/oracle/{id}"
   test.solvability:   "07_TESTS/oracle/{id}"
 
+  # --- racine de projet moteur : artefacts NOMMES que le moteur ou ses oracles
+  # exigent a la racine du projet (ratification Pierre 2026-07-28, fogs F1/F2).
+  # Motif : `godot_oracle.mjs` charge `res://tests/run_tests.gd` et
+  # `res://solvability.gd` — chemins imposes par le moteur, qu'aucune categorie
+  # n'hebergeait. On corrige la table de verite plutot que de fragiliser l'oracle.
+  # {id} = le NOM du fichier (project.godot, main.tscn, solvability.gd...).
+  godot.project_root: "{id}"
+  # Meme ratification, cas mesure a la cloture : `godot_oracle.mjs:17` charge
+  # `res://tests/run_tests.gd` (sous-dossier), pas la racine — la table epouse
+  # l'oracle, jamais l'inverse.
+  godot.project_tests: "tests/{id}"
+
   # --- gouvernance du jeu ---
   charter:            "00_CHARTER/"
   design.doc:         "01_DESIGN/"

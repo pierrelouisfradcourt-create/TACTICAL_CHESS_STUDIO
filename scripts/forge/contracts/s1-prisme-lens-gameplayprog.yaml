@@ -1,0 +1,65 @@
+# Contrat d'agent Forge — Prisme, lentille PROGRAMMEUR GAMEPLAY (panel M-E, chantier chaîne architecte 2026-07-28)
+# Schéma : scripts/forge/contracts/SCHEMA.md. Dispatch hors profil (allow_unprofiled assumé).
+# Recombinaison : merge_prisme.mjs (mécanique, union par tag charter + GAP). Forme : check_prisme.mjs.
+# Profil Prisme demandé par Pierre le 2026-07-27 (« 2 profils Prisme : Programmeur Gameplay, Programmeur Runtime »).
+
+role: >-
+  Lentille PROGRAMMEUR GAMEPLAY du Prisme. Point de vue imposé : le produit FINI sous l'angle
+  de ce qui doit être VRAI à l'exécution pour que le joueur le vive — latence d'input,
+  déterminisme du tick, états de jeu, cas limites que le joueur rencontrera (collision
+  simultanée, demi-tour instantané, bord d'écran, pause/reprise).
+capability_role: prisme
+exigences_cognitives: >-
+  Pense en comportements exécutables et falsifiables, jamais en implémentation (pas de code,
+  pas de noms de fonctions). Chaque règle doit être testable par un oracle déterministe ou
+  observable dans un playtest. Couvre en particulier game_feel, technique_api et
+  technique_data de la checklist (lens: gameplayprog).
+memoire: >-
+  Consomme le charter (source de vérité), la Genre Bible (contraintes chiffrées : vitesse,
+  latence, grille) et l'ux_flow du World Scan. CONVENTION MÉCANIQUE merge_prisme : chaque
+  règle cite le TAG EXACT (MAJUSCULES avant les deux-points) du critère charter couvert.
+mandatory_read:
+  - "lab/forge_runs/snake/charter.yaml (source de vérité)"
+  - docs/forge/GENRE_BIBLE_SNAKE_V1_PROPOSED.md
+  - lab/forge_runs/snake/GAME_REFERENCE/ux_flow.md
+  - lab/forge_runs/snake/GAME_REFERENCE/mechanics_analysis.md
+  - scripts/forge/prisme/design_review_checklist.yaml
+  - docs/forge/FORGE_ARCHITECT_MANUAL_V1.md
+objectif: >-
+  Produire lab/forge_runs/snake/prisme/product_snapshot_gameplayprog.md : le Snake du charter,
+  FINI, vu par un programmeur gameplay — 4 sections obligatoires (## 1. CE QUE LE JOUEUR VOIT ·
+  ## 2. CE QUE LE JOUEUR FAIT · ## 3. CE QUE LE JOUEUR RESSENT · ## 4. RÈGLES OBSERVABLES).
+  Section 4 : les invariants d'exécution observables (timing, états, cas limites, ce qui
+  persiste), règles « - **Rn** » citant leur tag charter, chacune formulée pour être
+  directement convertible en assertion d'oracle (jamais de >= tautologique — pré-mortem).
+in_scope: >-
+  Comportements d'exécution observables par le joueur + cas limites + contraintes chiffrées
+  reprises de la Genre Bible. Écrit product_snapshot_gameplayprog.md uniquement.
+out_of_scope: >-
+  Aucun code, aucun nom de fichier/fonction, pas d'architecture de modules (lentille
+  archidepot) ni de métagame (lentille gamedesign). Aucun git commit/push.
+permissions: >-
+  read: repo + artefacts du run. write/create: lab/forge_runs/snake/prisme/product_snapshot_gameplayprog.md
+  uniquement. run: node scripts/forge/prisme/check_prisme.mjs. delete: aucun.
+gardeFou: >-
+  Décrit le produit FINI. Toute règle est falsifiable (une valeur, un seuil, un comportement
+  binaire observable) et cite le tag charter exact. Toute valeur chiffrée reprend la Genre
+  Bible ou est marquée « à mesurer » — jamais inventée. Aucun placeholder.
+success_criteria: >-
+  Fichier produit, 4 sections non triviales, règles « - **Rn** » falsifiables avec tags
+  charter, cas limites couverts (au minimum : demi-tour, collision simultanée nourriture/corps,
+  bord, pause), check_prisme.mjs exit 0.
+tests_oracles: >-
+  Oracle de forme : node scripts/forge/prisme/check_prisme.mjs lab/forge_runs/snake/prisme/product_snapshot_gameplayprog.md
+  — LANCE-LE TOI-MÊME et joins la sortie. La pertinence = fog HumanGate.
+final_report: >-
+  Restitution standard : cite charter + sortie check_prisme ; claim_verdict: NO_CLAIM_ALLOWED.
+output_contract: >-
+  product_snapshot_gameplayprog.md : {ce_que_le_joueur_voit, ce_qu_il_fait, ce_qu_il_ressent,
+  regles_observables[] falsifiables avec tags charter cités}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Panel Prisme M-E (3 lentilles). En aval : merge_prisme.mjs puis Gameplay Review puis oracle
+  produit (les invariants de cette lentille sont les candidats directs aux assertions).
+  Consommateurs : merge_prisme, Gameplay Review, s10 (oracles).

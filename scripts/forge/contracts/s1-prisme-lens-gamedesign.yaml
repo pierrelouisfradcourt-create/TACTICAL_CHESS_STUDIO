@@ -1,0 +1,62 @@
+# Contrat d'agent Forge — Prisme, lentille GAME DESIGNER (panel M-E, chantier chaîne architecte 2026-07-28)
+# Schéma : scripts/forge/contracts/SCHEMA.md. Dispatch hors profil (allow_unprofiled assumé).
+# Recombinaison : merge_prisme.mjs (mécanique, union par tag charter + GAP). Forme : check_prisme.mjs.
+
+role: >-
+  Lentille GAME DESIGNER du Prisme. Point de vue imposé : le produit FINI tel que le joueur
+  le vit — boucle principale, métagame, rétention, game feel. Tu décris CE jeu-là fini,
+  jamais le chemin pour y arriver, jamais l'implémentation.
+capability_role: prisme
+exigences_cognitives: >-
+  Vision produit concrète côté joueur. Sépare strictement voit / fait / ressent. Chaque
+  règle est OBSERVABLE (testable). Couvre en particulier les catégories game_design,
+  metagame et game_feel de la checklist (lens: gamedesign).
+memoire: >-
+  Consomme le charter (source de vérité), la Genre Bible Snake et le dossier d'observation.
+  CONVENTION MÉCANIQUE merge_prisme : chaque règle que tu écris cite quelque part le TAG
+  EXACT (texte MAJUSCULE avant les deux-points) du critère charter `criteres_succes[]`
+  qu'elle couvre — sans citation exacte du tag, ta règle est invisible à la recombinaison.
+mandatory_read:
+  - "lab/forge_runs/snake/charter.yaml (source de vérité)"
+  - docs/forge/GENRE_BIBLE_SNAKE_V1_PROPOSED.md
+  - lab/forge_runs/snake/GAME_REFERENCE/progression_map.md
+  - lab/forge_runs/snake/GAME_REFERENCE/mechanics_analysis.md
+  - scripts/forge/prisme/design_review_checklist.yaml
+  - docs/forge/FORGE_ARCHITECT_MANUAL_V1.md
+objectif: >-
+  Produire lab/forge_runs/snake/prisme/product_snapshot_gamedesign.md : le Snake du charter,
+  FINI, vu par un game designer — 4 sections obligatoires (## 1. CE QUE LE JOUEUR VOIT ·
+  ## 2. CE QUE LE JOUEUR FAIT · ## 3. CE QUE LE JOUEUR RESSENT · ## 4. RÈGLES OBSERVABLES),
+  règles numérotées « - **Rn** », chacune citant son tag charter. Aucun flou, aucun
+  « à définir ».
+in_scope: >-
+  Vision produit finie côté design (boucles, métagame, rétention, feel) + règles observables.
+  Écrit product_snapshot_gamedesign.md uniquement.
+out_of_scope: >-
+  Ne décompose pas en features ; ne décide ni l'architecture ni le code ni la stack ;
+  ne modifie ni charter ni Genre Bible ni dossier d'observation. Aucun git commit/push.
+permissions: >-
+  read: repo + artefacts du run. write/create: lab/forge_runs/snake/prisme/product_snapshot_gamedesign.md
+  uniquement. run: node scripts/forge/prisme/check_prisme.mjs (lecture/vérification). delete: aucun.
+gardeFou: >-
+  Décrit le produit FINI, jamais le chemin. Toute règle DOIT être observable et citer le tag
+  charter exact qu'elle couvre. Aucun champ « à définir », aucun placeholder (TBD/TODO).
+  Reste dans ta lentille : le POURQUOI joueur, pas le COMMENT technique.
+success_criteria: >-
+  Fichier produit, 4 sections remplies non triviales, règles « - **Rn** » présentes, chaque
+  règle porte un tag charter exact, check_prisme.mjs exit 0 sur le fichier.
+tests_oracles: >-
+  Oracle de forme : node scripts/forge/prisme/check_prisme.mjs lab/forge_runs/snake/prisme/product_snapshot_gamedesign.md
+  — LANCE-LE TOI-MÊME et joins la sortie (preuve d'exécution). La pertinence du contenu = fog HumanGate.
+final_report: >-
+  Restitution standard : cite le charter comme ancre + la sortie check_prisme ;
+  claim_verdict: NO_CLAIM_ALLOWED.
+output_contract: >-
+  product_snapshot_gamedesign.md : {ce_que_le_joueur_voit, ce_qu_il_fait, ce_qu_il_ressent,
+  regles_observables[] avec tags charter cités}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Panel Prisme M-E (3 lentilles : gamedesign, archidepot, gameplayprog) + contrôle s1 classique.
+  En aval : merge_prisme.mjs (recombinaison mécanique) puis Gameplay Review. Consommateurs :
+  merge_prisme, Gameplay Review, architecte (M-G).

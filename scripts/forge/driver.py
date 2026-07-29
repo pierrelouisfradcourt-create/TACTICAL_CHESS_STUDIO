@@ -49,13 +49,18 @@ from forge.escalate import escalation_decision, parse_agent_escalation, tier_of
 from forge.gate import forge_gate
 from forge.oracle import OracleNotFound, resolve_oracle
 from forge.mutation_proof import (
+    emit_descriptor_mutation_receipt,
     emit_mutation_receipt,
+    evaluate_proof_descriptor,
     mutation_scope_from_wiremap,
     run_mutation_for_game,
+    run_mutation_from_descriptor,
+    verify_descriptor_mutation_receipt,
     verify_mutation_receipt,
 )
 from forge.pool import DEFAULT_POOL_SIZE, pool_decision
 from forge.product_oracle import run_product_oracle
+from forge.product_oracle_godot import has_godot_capacity, run_godot_product_oracle
 from forge.runtime import RUNNER_CLAUDE_BLIND, RUNNER_QWEN, route_step, run_qwen_step
 from forge.standard_oracles import (
     check_budget,
@@ -125,6 +130,14 @@ TERMINAL_STATUSES = frozenset({"OK", "FAIL", "BLOCKED", "SKIPPED"})
 # sont alors terminaux — même point de décision que skill.md, mais en code).
 _POST_ORACLE = ("s11-redteam-code", "s12-verdict")
 
+# Profils qui suivent la topologie STANDARD (squelette figé scripts/forge/standard/ :
+# tests en 07_TESTS/, wiremap en 09_WIREMAP/) — ENSEMBLE NOMMÉ, jamais une égalité de
+# chaîne unique. `standard_godot` (jumeau Godot de `standard`, ratifié Pierre
+# 2026-07-28, scripts/forge/dispatch.py:175) partage exactement la même topologie de
+# dépôt ; l'oublier ici a fait tomber le run snake-s9p dans la branche LEGACY (voir
+# ForgeDriver._standard_topology).
+_STANDARD_TOPOLOGY_PROFILES = frozenset({"standard", "standard_godot"})
+
 class ForgeDriver:
     """Machine à états d'un run Forge. Une instance = un run (run_id figé)."""
 
@@ -155,6 +168,7 @@ class ForgeDriver:
         mutation_baseline_runner=None,
         pool_size: int = DEFAULT_POOL_SIZE,
         product_oracle_runner=None,
+        product_oracle_godot_runner=None,
     ) -> None:
         self.project = project
         self.run_id = run_id
@@ -207,6 +221,12 @@ class ForgeDriver:
         # pour les tests — par défaut le VRAI forge.product_oracle.run_product_oracle,
         # jamais une réimplémentation.
         self.product_oracle_runner = product_oracle_runner or run_product_oracle
+        # Fournisseur GODOT (correction Pierre ①, 2026-07-29) : injectable comme
+        # product_oracle_runner ci-dessus — par défaut le VRAI
+        # forge.product_oracle_godot.run_godot_product_oracle, jamais une
+        # réimplémentation. N'est APPELÉ qu'en présence des DEUX conditions
+        # (contrat de preuve + capacité constatée) — voir _run_code_oracle.
+        self.product_oracle_godot_runner = product_oracle_godot_runner or run_godot_product_oracle
         # Tier 2 #5 (Concept A) : best-of-N réactif au même tier avant d'escalader de
         # modèle. pool_size<=1 désactive le pool (chaque FAIL escalade directement).
         self.pool_size = int(pool_size)
@@ -779,9 +799,20 @@ class ForgeDriver:
         # C3 : en topologie STANDARD la preuve vit en 07_TESTS/oracle/ et le « runner »
         # est la commande d'oracle du projet — la garde reçoit les deux en champs
         # structurés, elle ne devine pas la topologie.
+        # Correction Pierre 2026-07-29 (dernier rouge de Snake) : quand le contrat
+        # de jeu porte un descripteur `proof.solvability` bien formé (contrat V1),
+        # il a priorité sur l'hypothèse web-only `07_TESTS/oracle/solvability.mjs`
+        # — la garde ne devine plus, elle LIT le descripteur. `_solvability_proof_
+        # descriptor()` ne fait que RELIRE `_mutation_regime_for_game()` (déjà
+        # appelé plus loin dans cette méthode pour le routage mutation) : lecture
+        # pure, sans effet de bord, comme les deux autres appels de cette méthode.
+        # Aucun descripteur lisible (contrat absent, régime historique, ou
+        # descripteur illisible/mal formé) => None, comportement STRICTEMENT
+        # inchangé dans les deux topologies (LEGACY et STANDARD via `.mjs`).
         solvability = check_solvability_wired(
             self.src_root, standard_topology=std_topo,
             runner_argv=self._oracle_argv() if std_topo else (),
+            proof=self._solvability_proof_descriptor(),
         )
         detail["solvability"] = solvability
         # R1 (FORGE_V2_CONSOLIDATION.md §4-A) : anti-théâtre des harnais — contribue
@@ -823,6 +854,92 @@ class ForgeDriver:
                     "measured": False,
                     "reason": "exception levée pendant la mesure — advisory, non bloquant",
                 }
+
+        # Fournisseur GODOT (correction Pierre ①, mission 2026-07-29) : la
+        # SÉLECTION du fournisseur est pilotée par le CONTRAT DE PREUVE ET la
+        # CAPACITÉ disponible — jamais `runtime == godot`, jamais une heuristique
+        # sur le nom du jeu ou une extension. Les DEUX conditions, chacune nommée
+        # et tracée dans le reçu :
+        #   (a) le contrat de preuve le PRÉVOIT — le jeu porte un descripteur
+        #       `proof:` bien formé, lu via le régime déjà en place
+        #       (`_mutation_regime_for_game`, régime == "descripteur" ET aucune
+        #       raison de blocage — un descripteur illisible/mal formé ne compte
+        #       PAS comme "prévu", ambiguïté déjà tranchée BLOCKED plus bas) ;
+        #   (b) la CAPACITÉ est constatée — des oracles `FORGE_ORACLE` sont
+        #       réellement présents sur disque pour ce jeu
+        #       (`has_godot_capacity`, lecture statique seule, aucun effet de
+        #       bord).
+        # (a) sans (b) : AUCUN volet Godot posé, raison tracée (jamais un
+        # silence) dans `detail["product_oracle_godot_activation"]`. Le calcul de
+        # `_mutation_regime_for_game()` ici est purement une LECTURE (même
+        # fichier relu sans effet de bord au routage mutation plus bas) — aucun
+        # comportement du régime mutation historique n'est modifié par cet appel
+        # anticipé.
+        _godot_contract, _godot_regime, _godot_blocked_reason = self._mutation_regime_for_game()
+        proof_descriptor_ok = _godot_regime == "descripteur" and _godot_blocked_reason is None
+        godot_capacity_ok = has_godot_capacity(self.game_dir)
+        if proof_descriptor_ok and godot_capacity_ok:
+            try:
+                detail["product_oracle_godot"] = self.product_oracle_godot_runner(self.game_dir)
+            except Exception:  # noqa: BLE001 — advisory, jamais bloquant
+                logger.warning(
+                    "product_oracle_godot non mesuré pour run=%s (advisory, non bloquant)",
+                    self.run_id, exc_info=True,
+                )
+                detail["product_oracle_godot"] = {
+                    "measured": False,
+                    "reason": "exception levée pendant la mesure — advisory, non bloquant",
+                }
+            detail["product_oracle_godot_activation"] = {
+                "active": True,
+                "proof_descriptor_present": True,
+                "godot_capacity_present": True,
+                "reason": "contrat de preuve `proof:` présent ET oracles FORGE_ORACLE "
+                          "trouvés sur disque — fournisseur Godot activé",
+            }
+        else:
+            reasons = []
+            if not proof_descriptor_ok:
+                reasons.append(
+                    "aucun descripteur `proof:` bien formé dans game_contract.yaml"
+                    if _godot_blocked_reason is None
+                    else f"descripteur `proof:` illisible/mal formé : {_godot_blocked_reason}"
+                )
+            if not godot_capacity_ok:
+                reasons.append(
+                    f"aucun oracle FORGE_ORACLE trouvé sous {self.game_dir}/07_TESTS/oracle/")
+            detail["product_oracle_godot_activation"] = {
+                "active": False,
+                "proof_descriptor_present": proof_descriptor_ok,
+                "godot_capacity_present": godot_capacity_ok,
+                "reason": " ; ".join(reasons),
+            }
+
+        # === CONTRAT_PREUVE_MUTATION_V1.md — routage entre les deux régimes de
+        # preuve mutation (§6, §8 : « brancher le driver ← seulement après ② vert »).
+        # CRITÈRE UNIQUE, nommé, lisible en une ligne (driver.py, ci-dessous) :
+        # présence de la clé `proof` dans <game_dir>/00_CHARTER/game_contract.yaml.
+        # Jamais le nom du jeu, une extension de fichier ou une heuristique de
+        # chemin (consigne Pierre, mission 2026-07-28) — Pong (aucune clé `proof`,
+        # §6 décision 6 ferme) reste donc TOUJOURS sur le chemin historique
+        # ci-dessous, INCHANGÉ ligne à ligne.
+        game_contract, regime, regime_blocked_reason = self._mutation_regime_for_game()
+        detail["regime_preuve"] = regime
+        if regime_blocked_reason is not None:
+            # Descripteur potentiellement présent mais illisible/mal formé : le
+            # contrat V1 ne dit pas quoi faire de ce cas (silence, pas une
+            # convention à inventer ici) — BLOCKED nommé, décision Pierre requise
+            # (voir rapport de mission).
+            detail["reason"] = regime_blocked_reason
+            self._finish_step(state, entry, "BLOCKED", detail)
+            return
+        if regime == "descripteur":
+            self._run_mutation_descriptor_regime(
+                state, entry, detail, game_contract, status, e2e_ok, solvability,
+                harness_flags,
+            )
+            return
+        # --- régime historique — INCHANGÉ à partir d'ici (contrat V1 §6, §7 cas 2) ---
 
         # C4 — les fichiers à MUTER viennent de la VRAIE wiremap. Le driver ne regardait
         # que `run_dir/wiremap.json` ; en topologie STANDARD la wiremap vit en
@@ -903,6 +1020,207 @@ class ForgeDriver:
                 final = "BLOCKED"
         self._finish_step(state, entry, final, detail)
 
+    # --- CONTRAT_PREUVE_MUTATION_V1.md — routage + nouveau régime (mission
+    # 2026-07-28, ÉTAPE 2) -----------------------------------------------
+
+    @staticmethod
+    def _merge_observable_volets(
+        product_web: dict | None, product_godot: dict | None,
+    ) -> tuple[dict, dict]:
+        """Construit `observable_volets_effectifs` (correction Pierre ②, mission
+        2026-07-29) : PAS de fusion silencieuse — chaque volet de la vue effective
+        porte un champ `source` (`"web"` | `"godot"`), inerte pour `_volet_status`
+        (qui ne lit que `status`/`checked`/`passed`, jamais `source`).
+
+        Règle de résolution, EXPLICITE et tracée (jamais devinée) : un nom de volet
+        présent des DEUX côtés est résolu vers le fournisseur WEB (comportement
+        historique inchangé — Pong garde EXACTEMENT son chemin actuel tant qu'aucun
+        volet Godot homonyme n'existe, ce qui est le cas aujourd'hui). Les noms en
+        conflit sont listés dans la trace de résolution retournée, jamais absorbés
+        en silence.
+
+        Retourne `(vue_effective, resolution)` : `vue_effective` est le mapping PLAT
+        exact passé à `check_observable_coverage` ; `resolution` est une trace
+        JAMAIS injectée dans `vue_effective` elle-même (pour ne pas polluer
+        l'espace de noms des volets)."""
+        web = product_web if isinstance(product_web, dict) else {}
+        godot = product_godot if isinstance(product_godot, dict) else {}
+
+        view: dict = {}
+        for name, volet in web.items():
+            entry = dict(volet) if isinstance(volet, dict) else {"_valeur_brute": volet}
+            entry["source"] = "web"
+            view[name] = entry
+
+        conflits: list[str] = []
+        for name, volet in godot.items():
+            if name in view:
+                conflits.append(name)
+                continue  # web prioritaire — voir `resolution["regle"]`, jamais un silence
+            entry = dict(volet) if isinstance(volet, dict) else {"_valeur_brute": volet}
+            entry["source"] = "godot"
+            view[name] = entry
+
+        resolution = {
+            "regle": (
+                "un nom de volet présent des DEUX côtés (web ET godot) est résolu "
+                "vers le fournisseur WEB — choix explicite, jamais une fusion "
+                "silencieuse (correction Pierre ②, mission 2026-07-29)."
+            ),
+            "conflits_resolus_vers_web": sorted(conflits),
+        }
+        return view, resolution
+
+    def _mutation_regime_for_game(self) -> tuple[dict | None, str, str | None]:
+        """Lit `<game_dir>/00_CHARTER/game_contract.yaml` et détermine le régime
+        de preuve mutation. Retourne `(game_contract, regime, blocked_reason)` :
+
+          - fichier absent                         -> (None, "historique", None)
+          - fichier présent, illisible/mal formé    -> (None, "descripteur", raison)
+            (on ne peut pas savoir s'il portait une clé `proof` -- le contrat V1
+            est SILENCIEUX sur ce cas -- ambiguïté = BLOCKED, jamais historique
+            par convention).
+          - clé `proof` absente du contrat lisible  -> (contract, "historique", None)
+          - clé `proof` présente mais pas un objet  -> (contract, "descripteur", raison)
+            (descripteur illisible -- même traitement : BLOCKED nommé).
+          - clé `proof` présente et objet           -> (contract, "descripteur", None)
+
+        CRITÈRE UNIQUE : la présence de la clé `proof` dans le contrat lu.
+        Jamais le nom du projet, une extension de fichier, ni une heuristique de
+        chemin (contrainte explicite de la mission)."""
+        path = self.game_dir / "00_CHARTER" / "game_contract.yaml"
+        if not path.exists():
+            return None, "historique", None
+        contract = self._read_yaml(path)
+        if contract is None:
+            return None, "descripteur", (
+                f"{path} existe mais illisible/mal formé -- impossible de savoir "
+                "s'il déclare un descripteur proof: (contrat V1 silencieux sur ce "
+                "cas ; ambiguïté jamais tranchée par convention) -- décision "
+                "Pierre requise")
+        if "proof" not in contract:
+            return contract, "historique", None
+        proof = contract.get("proof")
+        if not isinstance(proof, dict):
+            return contract, "descripteur", (
+                f"{path} porte une clé 'proof' dont la valeur n'est pas un objet "
+                "(descripteur illisible) -- contrat V1 silencieux sur ce cas ; "
+                "ambiguïté jamais tranchée par convention -- décision Pierre "
+                "requise")
+        return contract, "descripteur", None
+
+    def _run_mutation_descriptor_regime(
+        self, state: dict, entry: dict, detail: dict, game_contract: dict,
+        status: str, e2e_ok: bool, solvability: dict, harness_flags: dict,
+    ) -> None:
+        """Nouveau régime (contrat V1 §2-§5) : consulte le moteur PUR EXISTANT
+        `forge.mutation_proof.evaluate_proof_descriptor` -- jamais réimplémenté,
+        jamais modifié (périmètre fermé de cette mission).
+
+        Portée RÉELLE de ce qui est branché ici : l'ÉVALUATION DE FORME
+        (`mutation_result=None`) seulement. Aucun module du dépôt n'exécute
+        aujourd'hui la commande `proof.mutation.command` d'un descripteur
+        (résolution `<bin:name>`, génération/exécution réelle des mutants pour
+        un runtime arbitraire type Godot) -- ce n'est ni cette méthode ni
+        `evaluate_proof_descriptor` (moteur PUR, sans effet de bord, §"COEXISTENCE"
+        de mutation_proof.py) qui l'exécutent, et bâtir cet exécuteur est HORS
+        PÉRIMÈTRE de cette mission (« périmètre fermé et étroit », uniquement
+        `_run_code_oracle` et son routage). Donc : si la forme est rejetée
+        (BLOCKED) ou que la catégorie mutable déclarée est absente de la wiremap
+        (NON_APPLICABLE), le contrat tranche déjà et le driver applique sa
+        décision. Si la forme est correcte ET qu'au moins une mesure réelle
+        resterait à faire (`status == "OK"` provisoire), le contrat ne dit PAS
+        qui exécute cette mesure : AMBIGUÏTÉ NON TRANCHÉE PAR LE CONTRAT =>
+        BLOCKED nommé, jamais une convention -- remonté dans le rapport de
+        mission comme décision à prendre par Pierre (aucun jeu de production
+        n'emprunte ce chemin aujourd'hui : Snake n'est pas migré, §6 hors
+        périmètre)."""
+        proof = game_contract.get("proof") or {}
+        wiremap_path = self.game_dir / "09_WIREMAP" / "wiremap.json"
+        wiremap = self._read_json(wiremap_path)
+        if wiremap is None:
+            detail["reason"] = (
+                f"{wiremap_path} absente/illisible -- une wiremap est requise "
+                "pour évaluer un descripteur proof (contrat V1 §5, catégories) ; "
+                "cas explicitement cité comme ambigu par la mission -- BLOCKED, "
+                "jamais une convention -- décision Pierre requise")
+            self._finish_step(state, entry, "BLOCKED", detail)
+            return
+
+        forme = evaluate_proof_descriptor(
+            proof=proof, game_contract=game_contract, wiremap=wiremap,
+            mutation_result=None,
+        )
+        detail["mutation"] = {"regime": "descripteur", "evaluation_forme": forme}
+
+        if forme["status"] == "BLOCKED":
+            detail["reason"] = (
+                "descripteur proof.mutation rejeté par evaluate_proof_descriptor "
+                "(voir detail.mutation.evaluation_forme.raisons)")
+            self._finish_step(state, entry, "BLOCKED", detail)
+            return
+
+        if forme["status"] == "NON_APPLICABLE":
+            # §5 cas 1 : aucune catégorie mutable déclarée n'est portée par la
+            # wiremap -- rien à exécuter, déclaré ET prouvé par la carte. Le
+            # verdict de mutation lui-même est acquis (passed=True) ; le statut
+            # final combine les autres volets du gate s10a comme dans le régime
+            # historique (e2e/solvabilité/harnais).
+            if status == "BLOCKED":
+                final = "BLOCKED"
+            elif (status == "FAIL" or not e2e_ok or not solvability["passed"]
+                  or not harness_flags["passed"]):
+                final = "FAIL"
+            else:
+                final = "OK"
+            self._finish_step(state, entry, final, detail)
+            return
+
+        # forme["status"] == "OK" (forme correcte ; docstring d'evaluate_proof_
+        # descriptor : « aucune mesure encore disponible ») : au moins une
+        # catégorie mutable déclarée EST présente dans la wiremap -- EXÉCUTER
+        # réellement le descripteur (PHASE ③ ÉTAPE 4, go Pierre 2026-07-28) :
+        # `run_mutation_from_descriptor` (résolveur/runner injectables, même
+        # patron `mutation_runner`/`mutation_baseline_runner` que le régime
+        # historique juste au-dessus) puis `emit_descriptor_mutation_receipt`
+        # (reçu signé compatible s12, `proof_chain` scellée §3). self.src_root --
+        # jamais self.game_dir -- pour rester cohérent avec le point de
+        # vérification déjà branché en s12 (`_receipt`, qui re-vérifie contre
+        # `self.src_root` pour ce même régime).
+        mutation_execution = run_mutation_from_descriptor(
+            self.src_root, proof, wiremap,
+            mutant_runner=self.mutation_runner,
+            baseline_runner=self.mutation_baseline_runner,
+        )
+        receipt = emit_descriptor_mutation_receipt(
+            self.run_id, self.src_root, proof, game_contract, wiremap,
+            mutation_execution,
+            key_file=self.key_file, evidence_dir=self.run_dir / "evidence",
+        )
+        detail["mutation"]["receipt"] = asdict(receipt.receipt)
+        detail["mutation"]["signature"] = receipt.signature
+
+        if status == "BLOCKED":
+            final = "BLOCKED"
+        elif (status == "FAIL" or not e2e_ok or not solvability["passed"]
+              or not harness_flags["passed"] or receipt.receipt.status != "OK"):
+            final = "FAIL"  # rouge mécanique => alimente la boucle d'escalade
+        else:
+            # Auto-contrôle structurel AVANT de poser un OK -- même garde que le
+            # régime historique juste au-dessus : une preuve qui ne se
+            # re-vérifie pas contre l'état PRÉSENT du jeu bloque ICI, pas à s12.
+            check = verify_descriptor_mutation_receipt(
+                asdict(receipt.receipt), receipt.signature,
+                self.run_id, self.src_root, game_contract, wiremap,
+                key_file=self.key_file,
+            )
+            if check["passed"]:
+                final = "OK"
+            else:
+                detail["mutation_verification"] = check
+                final = "BLOCKED"
+        self._finish_step(state, entry, final, detail)
+
     # --- topologie de dépôt (C2/C3/C4) -------------------------------------
     # Deux topologies coexistent et AUCUNE ne remplace l'autre : LEGACY (harnais
     # run-oracle.mjs/e2e.mjs à la racine du jeu — games/collect_runner, shmup_slice…)
@@ -911,8 +1229,17 @@ class ForgeDriver:
     # (state.json/`profile`), jamais un sniff de dossier.
 
     def _standard_topology(self) -> bool:
-        """Le run suit-il la topologie STANDARD (profil dédié `standard`) ?"""
-        return self.profile == "standard"
+        """Le run suit-il une topologie STANDARD (squelette figé, tests en
+        `07_TESTS/`, wiremap en `09_WIREMAP/`) ? Vrai pour tout profil de
+        `_STANDARD_TOPOLOGY_PROFILES` — ensemble NOMMÉ, pas une égalité de
+        chaîne unique ni un `startswith` fragile (correction 2026-07-28 :
+        `standard_godot`, jumeau Godot de `standard`, ratifié Pierre
+        2026-07-28, tombait dans la branche LEGACY faute de correspondance
+        exacte, avec pour conséquence mesurée sur le run snake-s9p : garde e2e
+        rouge « run-oracle.mjs absent », gate mutation BLOCKED « fichiers
+        logiques inconnus », `reuse_ratio_wired` rouge — les trois causés par
+        cette seule égalité stricte)."""
+        return self.profile in _STANDARD_TOPOLOGY_PROFILES
 
     def _oracle_argv(self) -> tuple[str, ...]:
         """Commande d'oracle RÉSOLUE du projet (oracles.json), telle que forge_gate
@@ -923,6 +1250,31 @@ class ForgeDriver:
         except (OracleNotFound, OSError, ValueError, KeyError) as exc:
             logger.warning("oracle non résolu pour %s (%s) — argv inconnu", self.project, exc)
             return ()
+
+    def _solvability_proof_descriptor(self) -> dict | None:
+        """`proof.solvability` du contrat de jeu, si le contrat est lisible ET
+        déclare un descripteur bien formé (régime == "descripteur", aucune
+        raison de blocage) ET que `solvability` y est un objet exploitable.
+
+        None dans tous les autres cas (contrat absent, régime historique,
+        descripteur illisible/mal formé, ou `solvability` absent/mal typé) —
+        `check_solvability_wired` retombe alors sur son comportement historique
+        STRICTEMENT inchangé (contrat V1 silencieux sur ces cas ici : ce n'est
+        PAS cette méthode qui tranche l'ambiguïté de régime — `_run_mutation_
+        descriptor_regime` s'en charge séparément et peut BLOCKED le run pour
+        la même raison ; ici, l'absence se traduit juste par « rien à lire
+        pour la solvabilité », jamais par un crash ni un vert par défaut).
+        Relit `_mutation_regime_for_game()` (déjà appelé ailleurs dans s10a
+        pour le routage mutation/Godot) : lecture pure du même fichier, sans
+        effet de bord, comme les appels existants."""
+        game_contract, regime, blocked_reason = self._mutation_regime_for_game()
+        if regime != "descripteur" or blocked_reason is not None or game_contract is None:
+            return None
+        proof = game_contract.get("proof") or {}
+        if not isinstance(proof, dict):
+            return None
+        solvability = proof.get("solvability")
+        return solvability if isinstance(solvability, dict) else None
 
     @staticmethod
     def _mutation_scope_from_wiremap_any(wiremap: dict) -> dict:
@@ -1089,9 +1441,28 @@ class ForgeDriver:
         # l'ORDER du profil `standard`), lu ici depuis l'état persisté, jamais recalculé.
         s10a_detail = (state.get("steps") or {}).get("s10a-oracle-code", {}).get("detail", {})
         product_receipt = s10a_detail.get("product_oracle") if isinstance(s10a_detail, dict) else None
-        detail["observable_coverage"] = check_observable_coverage(
-            wiremap, product_receipt if isinstance(product_receipt, dict) else {}
-        )
+        godot_receipt = s10a_detail.get("product_oracle_godot") if isinstance(s10a_detail, dict) else None
+        # Correction Pierre ② (mission 2026-07-29) : PAS de fusion silencieuse. Trois
+        # entrées DISTINCTES et lisibles, provenance conservée :
+        #   - `product_oracle` : la sortie du fournisseur WEB, TELLE QUELLE (inchangée,
+        #     c'est ce que Pong a déjà aujourd'hui — même valeur qu'avant cette mission).
+        #   - `product_oracle_godot` : la sortie du fournisseur GODOT, absente de ce
+        #     détail si le fournisseur n'a pas été activé pour ce jeu (s10a ne l'a pas
+        #     posé — cf. `product_oracle_godot_activation`).
+        #   - `observable_volets_effectifs` : LA VUE réellement passée à
+        #     `check_observable_coverage` ci-dessous, où chaque volet porte son champ
+        #     `source` (`"web"` | `"godot"`) — inerte pour `_volet_status`
+        #     (`standard_oracles.py`, NON modifié : il ne lit que `status`/`checked`/
+        #     `passed`). `observable_volets_resolution` (à côté, jamais injecté DANS la
+        #     vue) trace la règle de résolution des conflits : nom présent des DEUX
+        #     côtés => WEB PRIORITAIRE, documenté ici plutôt qu'arbitré en silence.
+        detail["product_oracle"] = product_receipt if isinstance(product_receipt, dict) else {}
+        if isinstance(godot_receipt, dict):
+            detail["product_oracle_godot"] = godot_receipt
+        effective_view, resolution = self._merge_observable_volets(product_receipt, godot_receipt)
+        detail["observable_volets_effectifs"] = effective_view
+        detail["observable_volets_resolution"] = resolution
+        detail["observable_coverage"] = check_observable_coverage(wiremap, effective_view)
         genre_bible = self._read_json(self.game_dir / "01_DESIGN" / "genre_bible.json")
         detail["genre_coverage"] = check_genre_coverage(
             wiremap, genre_bible if isinstance(genre_bible, dict) else {}
@@ -1327,15 +1698,60 @@ class ForgeDriver:
             # mutation RE-vérifiée contre le code PRÉSENT (ferme reprise/falsification
             # de state.json : hash divergent, triage modifié, preuve retirée, ET flip
             # is_game=false — la game-ness est re-dérivée, pas crue depuis le state).
+            #
+            # CONTRAT_PREUVE_MUTATION_V1.md §7/§8, PHASE ③ ÉTAPE 3 — routage sur
+            # `detail["regime_preuve"]`, QUATRE cas distincts et nommés, jamais
+            # confondus (consigne Pierre) :
+            #   1. historique   -> verify_mutation_receipt (INCHANGÉ, même appel
+            #      qu'avant cette mission — bit-identique, cf. tests de coexistence) ;
+            #   2. descripteur, reçu présent -> verify_descriptor_mutation_receipt ;
+            #   3. descripteur, reçu ABSENT  -> BLOCKED nommé (jamais confondu
+            #      avec une preuve invalide, cas 4) ;
+            #   4. descripteur, reçu INVALIDE -> BLOCKED avec les raisons du
+            #      vérificateur dédié.
+            # `regime_preuve` absent (reprise d'un run antérieur à cette mission,
+            # ou appelant qui ne l'a jamais renseigné) => "historique", le seul
+            # régime qui existait avant que ce champ ne soit tracé.
+            regime = detail.get("regime_preuve", "historique")
             if self.src_root is None:
                 check = {"passed": False,
                          "raisons": ["src_root absent à la vérification de la preuve"]}
-            else:
+            elif regime == "historique":
                 mut = detail.get("mutation") or {}
                 check = verify_mutation_receipt(
                     mut.get("receipt"), mut.get("signature", ""),
                     self.run_id, self.src_root, key_file=self.key_file,
                 )
+            elif regime == "descripteur":
+                mut = detail.get("mutation") or {}
+                if not (isinstance(mut, dict) and mut.get("receipt") is not None):
+                    # cas 3 — ABSENCE de preuve : aucun reçu signé n'a été produit
+                    # pour ce run (ex. forme correcte mais aucune exécution
+                    # branchée en amont, ou NON_APPLICABLE sans mesure requise).
+                    check = {
+                        "passed": False,
+                        "raisons": [
+                            "absence de preuve mutation (régime descripteur) — "
+                            "aucun reçu signé produit pour ce run (contrat V1 "
+                            "§7 cas 3, distinct d'une preuve invalide)"],
+                        "status": "",
+                    }
+                else:
+                    game_contract = self._read_yaml(
+                        self.game_dir / "00_CHARTER" / "game_contract.yaml") or {}
+                    wiremap = self._read_json(
+                        self.game_dir / "09_WIREMAP" / "wiremap.json") or {}
+                    # cas 4 (implicite si check["passed"] est False ci-dessous) —
+                    # preuve INVALIDE : le vérificateur dédié porte les raisons.
+                    check = verify_descriptor_mutation_receipt(
+                        mut.get("receipt"), mut.get("signature", ""),
+                        self.run_id, self.src_root, game_contract, wiremap,
+                        key_file=self.key_file,
+                    )
+            else:
+                check = {"passed": False,
+                         "raisons": [f"regime_preuve inconnu ({regime!r}) — "
+                                     "hypothèse inconnue = refus"]}
             if not check["passed"]:
                 status = "BLOCKED"
                 detail["mutation_verification"] = check

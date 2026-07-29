@@ -1321,6 +1321,68 @@ def test_index_hors_structure_only_top_level_not_nested(tmp_path):
 
 
 # ---------------------------------------------------------------------------------------
+# 5bis-mapping. check_index — un dossier hors `roots` mais préfixant un gabarit de
+# `mapping` est légal (correction 2026-07-28, snake : `godot.project_tests: "tests/{id}"`
+# autorise "tests" — check_placement l'acceptait déjà, check_index le rejetait faute de
+# lire le mapping. Règle GÉNÉRALE dérivée du premier segment de chemin de chaque
+# gabarit, pas un `if "tests"` codé en dur).
+# ---------------------------------------------------------------------------------------
+
+
+def _repo_map_with_mapping() -> dict:
+    return {
+        "roots": {"systems": "05_SYSTEMS/", "charter": "00_CHARTER/"},
+        "mapping": {
+            "system": "05_SYSTEMS/{id}/",
+            "godot.project_tests": "tests/{id}",
+            "godot.project_root": "{id}",
+        },
+    }
+
+
+def test_index_dir_matching_mapping_template_prefix_is_legal(tmp_path):
+    _write(tmp_path, "05_SYSTEMS/game_loop/loop.gd", "func tick(): pass\n")
+    _write(tmp_path, "tests/run_tests.gd", "func run(): pass\n")
+    wiremap = {"lines": [
+        {"id": "game_loop", "fichiers": [{"path": "05_SYSTEMS/game_loop/loop.gd",
+                                          "category": "system"}],
+         "address": "05_SYSTEMS/game_loop/"},
+        {"id": "run_tests", "fichiers": [{"path": "tests/run_tests.gd",
+                                          "category": "godot.project_tests"}]},
+    ]}
+    rep = check_index(wiremap, tmp_path, repo_map=_repo_map_with_mapping())
+    assert "tests" not in rep["dossiers_hors_structure"]
+    assert rep["dossiers_hors_structure"] == []
+
+
+def test_index_mapping_template_that_is_bare_id_declares_no_directory(tmp_path):
+    # `godot.project_root: "{id}"` ne préfixe aucun dossier statique (le premier segment
+    # EST le placeholder) : il ne doit légaliser aucun dossier de premier niveau hors
+    # `roots`. Un dossier réellement hors structure reste attrapé.
+    _write(tmp_path, "05_SYSTEMS/game_loop/loop.gd", "func tick(): pass\n")
+    _write(tmp_path, "rogue/rogue.gd", "func r(): pass\n")
+    wiremap = {"lines": [
+        {"id": "game_loop", "fichiers": [{"path": "05_SYSTEMS/game_loop/loop.gd",
+                                          "category": "system"}],
+         "address": "05_SYSTEMS/game_loop/"},
+    ]}
+    rep = check_index(wiremap, tmp_path, repo_map=_repo_map_with_mapping())
+    assert "rogue" in rep["dossiers_hors_structure"]
+
+
+def test_index_mapping_absent_no_crash_backward_compat(tmp_path):
+    # repo_map sans clé "mapping" (forme historique _repo_map_roots()) : comportement
+    # inchangé, aucune régression pour les appelants qui ne déclarent pas ce champ.
+    _write(tmp_path, "05_SYSTEMS/game_loop/loop.mjs", "export function tick() {}\n")
+    wiremap = {"lines": [
+        {"id": "game_loop", "fichiers": ["05_SYSTEMS/game_loop/loop.mjs"],
+         "address": "05_SYSTEMS/game_loop/"},
+    ]}
+    rep = check_index(wiremap, tmp_path, repo_map=_repo_map_roots())
+    assert rep["dossiers_hors_structure"] == []
+
+
+# ---------------------------------------------------------------------------------------
 # 5ter. check_index — `fichiers[]` en objets `{path, category}` (schema_version: 2)
 #
 # Correction demandée après relecture du coordinateur (2026-07-22) : `check_placement`

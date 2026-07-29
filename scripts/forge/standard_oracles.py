@@ -102,6 +102,16 @@ _GAME_CONTRACT_SPEC: _FieldSpec = {
     "runtimes": (_is_str_list, True),
     "budget": (_is_dict, True),
     "assets": (_is_dict, True),
+    # `proof` — descripteur de preuve de mutation multi-runtime, OPTIONNEL.
+    # Gate Pierre 2026-07-28 (option (a)) : le contrat FIGÉ
+    # docs/forge/CONTRAT_PREUVE_MUTATION_V1.md §1 place le descripteur DANS ce fichier
+    # (« la vérité du jeu reste dans le jeu »), or le schéma fermé le rejetait comme
+    # champ inconnu — contradiction découverte en écrivant le premier descripteur réel
+    # (Snake), invisible tant qu'aucun jeu n'en portait.
+    # OPTIONNEL par construction : un jeu sans descripteur reste valide et suit le
+    # régime historique (contrat §6 — c'est le cas de Pong, témoin gelé, et de tout le
+    # parc). Le schéma reste FERMÉ : seul ce champ est ajouté, aucune autre règle touchée.
+    "proof": (_is_dict, False),
 }
 _BUDGET_SPEC: _FieldSpec = {
     "reuses": (_is_str_list, True),
@@ -821,6 +831,29 @@ def _is_governance_path(rel: str) -> bool:
     return top in _GOVERNANCE_DIRS
 
 
+def _is_artefact_outil(rel: str) -> bool:
+    """Artefact REGENERE PAR L'OUTILLAGE, jamais produit ni déclaré par le jeu.
+
+    Cause mesurée (run snake-descripteur-20260729, gate Pierre 2026-07-28) : les 64
+    lancements Godot du gate mutation recréent `games/snake/.godot/` (cache d'import +
+    shader cache, 124 dossiers). `check_index` scannant le DISQUE, il les comptait en
+    `dossiers_orphelins`/`dossiers_hors_structure` — un rouge produit par l'acte de
+    mesurer, pas par le jeu. Le `.gitignore` masque ce cache pour git, jamais pour un
+    scan disque.
+
+    Critère : tout segment de chemin commençant par un point (convention universelle des
+    dossiers d'outillage : `.godot`, `.import`, `.venv`, `.pytest_cache`…). Un jeu ne
+    déclare JAMAIS d'adresse cachée — `repo_map.yaml` n'en contient aucune — donc cette
+    exemption ne peut pas blanchir un fichier légitimement attendu.
+
+    PORTÉE : n'affecte QUE le contrôle d'orphelins/hors-structure. Le sens carte→disque
+    (un fichier déclaré doit exister) est INCHANGÉ : un `.gd` manquant reste une violation.
+    Non-régression Pong vérifiée : son arbre ne contient aucun segment caché, son résultat
+    est identique avant/après.
+    """
+    return any(seg.startswith(".") for seg in rel.split("/") if seg)
+
+
 def check_index(
     wiremap: dict, src_root: Path, built: bool = True, repo_map: dict | None = None
 ) -> dict:
@@ -929,14 +962,14 @@ def check_index(
             if _is_test_file(path):
                 continue
             rel = path.relative_to(root).as_posix()
-            if _is_governance_path(rel):
+            if _is_governance_path(rel) or _is_artefact_outil(rel):
                 continue
             if rel not in cited_files:
                 orphelins.append(rel)
 
         for d in sorted(p for p in root.rglob("*") if p.is_dir()):
             rel = d.relative_to(root).as_posix()
-            if _is_governance_path(rel):
+            if _is_governance_path(rel) or _is_artefact_outil(rel):
                 continue
             files_in_dir = [p for p in d.rglob("*") if p.is_file()]
             if not files_in_dir:
@@ -974,6 +1007,17 @@ def check_index(
     # Dossier de premier niveau hors structure (`repo_map["roots"]`) : SSI repo_map est
     # un dict exploitable — sinon liste vide, comportement inchangé (rétro-compatibilité
     # de signature pour tout appelant existant qui ne passe pas ce paramètre).
+    #
+    # RÈGLE GÉNÉRALE (correction 2026-07-28, snake) : un dossier de premier niveau est
+    # AUSSI légal quand il préfixe un gabarit du `mapping` de repo_map, même hors des
+    # `roots` — ex. `godot.project_tests: "tests/{id}"` autorise "tests" par
+    # construction (check_placement l'accepte déjà via ce même gabarit ; check_index le
+    # rejetait faute de le lire, deux oracles du même standard en contradiction sur un
+    # dossier autorisé). Dérivé du premier segment de chemin de chaque gabarit qui n'est
+    # PAS lui-même `{id}` (un gabarit-artefact-racine comme `godot.project_root: "{id}"`
+    # ne déclare aucun dossier — l'identifiant EST le nom du fichier, à la racine) :
+    # aucune liste de catégories codée en dur, toute future catégorie hors-roots marche
+    # sans toucher ce code.
     dossiers_hors_structure: list[str] = []
     if isinstance(repo_map, dict) and root.exists() and root.is_dir():
         roots_map = repo_map.get("roots")
@@ -982,7 +1026,20 @@ def check_index(
             for v in roots_map.values():
                 if isinstance(v, str) and v.strip():
                     allowed_top.add(v.strip().replace("\\", "/").rstrip("/"))
+        mapping = repo_map.get("mapping")
+        if isinstance(mapping, dict):
+            for tmpl in mapping.values():
+                if not (isinstance(tmpl, str) and tmpl.strip()):
+                    continue
+                first_segment = tmpl.strip().replace("\\", "/").split("/", 1)[0]
+                if first_segment and "{" not in first_segment:
+                    allowed_top.add(first_segment)
         for child in sorted((p for p in root.iterdir() if p.is_dir()), key=lambda p: p.name):
+            # Même exemption que pour les orphelins : un dossier d'outillage régénéré
+            # par la MESURE (`.godot` recréé par chaque lancement Godot du gate mutation)
+            # n'est pas une dérive de structure du jeu. Cf. `_is_artefact_outil`.
+            if _is_artefact_outil(child.name):
+                continue
             if child.name not in allowed_top:
                 dossiers_hors_structure.append(child.name)
 
@@ -1156,21 +1213,42 @@ def check_observable_coverage(wiremap: dict, oracle_receipt: dict) -> dict:
     (un mapping plat `{nom_volet: résultat}` — typiquement les volets de
     `product_oracle.run_product_oracle`, portés au reçu de s10a).
 
-    Trois façons pour une ligne observable de rester NON COUVERTE (jamais un vert) :
+    GARDE DE TYPE (ratifiée Pierre 2026-07-28, faux vert mesuré sur Snake) —
+    `observable_by_player` n'a que 3 valeurs LÉGALES : le booléen `True`, le booléen
+    `False`, ou l'absence du champ (`None`). Toute autre valeur (chaîne, nombre,
+    dict, liste...) est une ligne MALFORMÉE, nommée dans `observable_malformes` —
+    jamais un simple `continue` silencieux : avant cette garde, une phrase de
+    justification à la place du booléen attendu se comportait comme `!= True`, donc
+    ignorée comme "non observable", et un wiremap intégralement malformé (44/44
+    lignes) rendait l'oracle vert par vacuité (rien à vérifier). De même, quand la
+    ligne EST observable (`True`), `observable_proof` doit être une chaîne non vide
+    qui NOMME un volet (identifiant court, sans espace) — pas une phrase de méthode.
+    Critère mécanique retenu : présence d'un caractère d'espace. Tous les noms de
+    volet réels du studio sont en snake_case sans espace (`auto_session`,
+    `restart_offer_wiring`...) ; une phrase française porte presque toujours un
+    espace. Limite documentée : un futur nom de volet légitime à espaces serait à
+    tort rejeté ici — aucun volet actuel n'en a besoin, donc le critère tient tant
+    que cette convention de nommage est respectée.
+
+    Trois façons pour une ligne observable bien typée de rester NON COUVERTE :
     - `observable_proof` absent, vide, ou pas une chaîne -> ligne sans preuve nommée.
     - `observable_proof` nommé mais absent de `oracle_receipt` (ou pas un mapping) ->
       volet inconnu du reçu.
     - volet présent mais `NOT_MEASURED` (`_volet_status`) -> non mesuré.
     - volet présent, mesuré, mais en échec (`_volet_status` == "FAIL") -> preuve rouge.
 
-    Retourne {passed, verdict, lignes_sans_preuve[], volets_absents[],
-    volets_non_mesures[], volets_en_echec[], couvertes[]}. Jamais d'exception sur
-    entrée malformée (même discipline que les 6 autres oracles de ce module) :
-    `wiremap` qui n'est pas un mapping -> `FAIL` motivé ; `oracle_receipt` qui n'est
-    pas un mapping est traité comme vide (aucun volet disponible), jamais une
-    exception — un reçu absent est un fait mesurable (BLOCKED), pas une erreur de
-    ce contrôle."""
+    Retourne {passed, verdict, observable_malformes[], lignes_sans_preuve[],
+    volets_absents[], volets_non_mesures[], volets_en_echec[], couvertes[]}. Jamais
+    d'exception sur entrée malformée (même discipline que les 6 autres oracles de ce
+    module) : `wiremap` qui n'est pas un mapping -> `FAIL` motivé ; `oracle_receipt`
+    qui n'est pas un mapping est traité comme vide (aucun volet disponible), jamais
+    une exception — un reçu absent est un fait mesurable (BLOCKED), pas une erreur
+    de ce contrôle. Un `observable_malformes` non vide rend le verdict `FAIL` (une
+    carte mal typée est un défaut de contenu, priorité sur un simple `BLOCKED` de
+    couverture manquante — même arbitrage que `citations_non_resolues` dans
+    `check_genre_coverage`)."""
     empty = {
+        "observable_malformes": [],
         "lignes_sans_preuve": [],
         "volets_absents": [],
         "volets_non_mesures": [],
@@ -1189,6 +1267,7 @@ def check_observable_coverage(wiremap: dict, oracle_receipt: dict) -> dict:
     lines_raw = wiremap.get("lines")
     lines = lines_raw if isinstance(lines_raw, list) else []
 
+    observable_malformes: list[dict] = []
     lignes_sans_preuve: list[str] = []
     volets_absents: list[str] = []
     volets_non_mesures: list[str] = []
@@ -1198,13 +1277,36 @@ def check_observable_coverage(wiremap: dict, oracle_receipt: dict) -> dict:
     for line in lines:
         if not isinstance(line, dict):
             continue
-        if line.get("observable_by_player") is not True:
-            continue
         lid = line.get("id") if isinstance(line.get("id"), str) else "<sans-id>"
+        obs = line.get("observable_by_player")
+
+        # Garde de type : True, False, absent (None) sont légaux ; tout le reste
+        # (str, int, dict, liste...) est rapporté, jamais sauté en silence.
+        if obs is not None and obs is not True and obs is not False:
+            observable_malformes.append({
+                "id": lid,
+                "champ": "observable_by_player",
+                "type_recu": type(obs).__name__,
+            })
+            continue
+
+        if obs is not True:
+            continue
+
         proof_name = line.get("observable_proof")
         if not (isinstance(proof_name, str) and proof_name.strip()):
             lignes_sans_preuve.append(lid)
             continue
+        proof_name = proof_name.strip()
+
+        if any(ch.isspace() for ch in proof_name):
+            observable_malformes.append({
+                "id": lid,
+                "champ": "observable_proof",
+                "type_recu": "str_avec_espaces",
+            })
+            continue
+
         volet = receipt.get(proof_name)
         if not isinstance(volet, dict):
             volets_absents.append(f"{lid}:{proof_name}")
@@ -1217,13 +1319,20 @@ def check_observable_coverage(wiremap: dict, oracle_receipt: dict) -> dict:
         else:
             couvertes.append(f"{lid}:{proof_name}")
 
+    malforme = bool(observable_malformes)
     non_couvert = bool(
         lignes_sans_preuve or volets_absents or volets_non_mesures or volets_en_echec
     )
-    verdict = "BLOCKED" if non_couvert else "OK"
+    if malforme:
+        verdict = "FAIL"
+    elif non_couvert:
+        verdict = "BLOCKED"
+    else:
+        verdict = "OK"
     return {
         "passed": verdict == "OK",
         "verdict": verdict,
+        "observable_malformes": observable_malformes,
         "lignes_sans_preuve": lignes_sans_preuve,
         "volets_absents": volets_absents,
         "volets_non_mesures": volets_non_mesures,
@@ -1341,6 +1450,14 @@ def check_genre_coverage(wiremap: dict, genre_bible: dict) -> dict:
     else:
         verdict = "OK"
 
+    citations_revendiquees = len(citees) + len(citations_non_resolues)
+    citations_resolues = len(citees)
+    taux_resolution = (
+        round(citations_resolues / citations_revendiquees, 4)
+        if citations_revendiquees > 0
+        else None
+    )
+
     return {
         "passed": verdict == "OK",
         "verdict": verdict,
@@ -1348,4 +1465,7 @@ def check_genre_coverage(wiremap: dict, genre_bible: dict) -> dict:
         "citations_non_resolues": sorted(citations_non_resolues),
         "citees": sorted(citees),
         "refusees": sorted(refused_ids),
+        "citations_revendiquees": citations_revendiquees,
+        "citations_resolues": citations_resolues,
+        "taux_resolution": taux_resolution,
     }

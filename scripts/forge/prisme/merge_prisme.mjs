@@ -71,6 +71,26 @@ export function citedTags(text, allTags) {
 }
 
 /**
+ * Résout mécaniquement le `source_role` d'un chemin de lens — AUCUNE inférence
+ * sémantique, seulement le nom de fichier (mission N2-0 2026-07-28, prérequis gratuit
+ * pour l'expérience « diversité des rôles du Prisme » et la wiremap M-G). Convention
+ * réelle observée : `product_snapshot_<role>.md` -> `<role>`. Le contrôle (2e argument
+ * CLI, `<control.md>`) n'a pas ce préfixe -> rôle fixe `control`. Tout autre nom ->
+ * basename sans extension, jamais un échec silencieux (pas de rôle "unknown" opaque,
+ * le nom réel reste lisible pour investigation).
+ * @param {string} lensPath
+ * @param {boolean} [isControl]
+ * @returns {string}
+ */
+export function resolveSourceRole(lensPath, isControl = false) {
+  if (isControl) return 'control';
+  const base = lensPath.replace(/\\/g, '/').split('/').pop() || lensPath;
+  const stem = base.replace(/\.[^.]+$/, '');
+  const match = stem.match(/^product_snapshot_(.+)$/);
+  return match ? match[1] : stem;
+}
+
+/**
  * Recombine mécaniquement le contrôle + le panel de lenses contre le charter.
  * @param {{charterText:string, controlContent:string, lenses:Array<{path:string, content:string}>}} input
  * @returns {{output:string, controlScopeTags:string[], gaps:string[]}}
@@ -81,6 +101,7 @@ export function mergePrisme({ charterText, controlContent, lenses }) {
 
   const scored = lenses.map(({ path, content }) => ({
     path,
+    role: resolveSourceRole(path),
     tags: citedTags(content, allTags),
     rules: extractRulesSection(content),
   }));
@@ -121,7 +142,11 @@ export function mergePrisme({ charterText, controlContent, lenses }) {
       lines.push(criterionMatch ? criterionMatch[0] : `(texte du critère "${tag}" non retrouvé littéralement)`);
       lines.push('```');
     } else {
-      lines.push(`Couvert par ${citingLenses.length}/${lenses.length} lens : ${citingLenses.map((l) => l.path).join(', ')}.`);
+      lines.push(
+        `Couvert par ${citingLenses.length}/${lenses.length} lens : ` +
+          citingLenses.map((l) => `${l.path} (${l.role})`).join(', ') +
+          '.'
+      );
     }
     lines.push('');
   }
@@ -135,11 +160,28 @@ export function mergePrisme({ charterText, controlContent, lenses }) {
   );
   lines.push('');
   for (const lens of scored) {
-    lines.push(`### Source : ${lens.path}`);
+    lines.push(`### Source : ${lens.path} (source_role: ${lens.role})`);
     lines.push('');
     lines.push(lens.rules || '(section vide ou introuvable)');
     lines.push('');
   }
+
+  // Bloc machine-lisible en fin de sortie — consommé par la wiremap M-G pour peupler
+  // `source_role` et par l'expérience « diversité des rôles » (prérequis gratuit posé
+  // ici, mission N2-0 2026-07-28). AUCUN jugement de qualité, juste une redite
+  // mécanique de la table déjà calculée ci-dessus.
+  const roles = [...new Set(scored.map((l) => l.role))];
+  const coverageByRole = {};
+  for (const tag of allTags) {
+    const citingRoles = scored.filter((l) => l.tags.includes(tag)).map((l) => l.role);
+    coverageByRole[tag] = [...new Set(citingRoles)];
+  }
+  lines.push('## Bloc machine-lisible (source_role)');
+  lines.push('');
+  lines.push('```json');
+  lines.push(JSON.stringify({ coverage_by_role: coverageByRole, roles }, null, 2));
+  lines.push('```');
+  lines.push('');
 
   return { output: lines.join('\n'), controlScopeTags, gaps };
 }

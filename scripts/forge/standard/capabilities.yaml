@@ -71,3 +71,45 @@ capabilities:
   - id: play.score
     statement: "Comptage des points et detection du point marque."
     single_owner: true
+  # Enregistrees le 2026-07-28 (ratification Pierre) : les lignes de jouabilite V2
+  # du 27-07 les employaient sans les declarer — trou de table constate en gelant
+  # Pong (check_collisions: 2 identifiants inconnus). Le jeu n'est pas modifie.
+  - id: game.playable_speed
+    statement: "Vitesse de jeu percue comme jouable par un humain, bande declaree et verifiee."
+    single_owner: true
+  - id: game.solo_opponent
+    statement: "Adversaire automatique permettant une partie solo, distinct du bot de solvabilite."
+    single_owner: true
+
+  # ---------- apportees par SNAKE (noeud 2, ratification Pierre 2026-07-28) ----------
+  # Regle appliquee a cette extension : SEULES les capacites du JEU entrent ici.
+  # Les preoccupations d'usine (execution d'oracles, manifeste de preuve, gate de
+  # mutation, rapports de wiremap, sondes de debug, garde de purete, rejeu de
+  # determinisme) restent des preuves/outils et n'ont AUCUN identifiant de capacite.
+  - id: game.collision
+    statement: "Decider qu'une case occupee met fin a la course (mur ou corps)."
+    single_owner: true
+  - id: game.food_spawn
+    statement: "Placer la prochaine nourriture sur une case libre."
+    single_owner: true
+  - id: game.direction_rules
+    statement: "Accepter ou refuser un changement de direction (dont le demi-tour)."
+    single_owner: true
+  - id: game.growth
+    statement: "Allonger le corps a la consommation d'une nourriture."
+    single_owner: true
+  - id: game.pause
+    statement: "Suspendre et reprendre la partie sans alterer l'etat."
+    single_owner: true
+  - id: game.best_score
+    statement: "Detenir le meilleur score, persistant entre les sessions."
+    single_owner: true
+  - id: game.params
+    statement: "Detenir les parametres de jeu equilibrables, isoles en un seul bloc."
+    single_owner: true
+  - id: game.tick_rate
+    statement: "Determiner la periode du tick courant, acceleration comprise."
+    single_owner: true
+  - id: game.events
+    statement: "Exposer les evenements du tick a un consommateur externe (prise d'extensibilite)."
+    single_owner: true

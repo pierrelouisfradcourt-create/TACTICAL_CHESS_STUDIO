@@ -180,6 +180,72 @@ def test_hook_refuse_un_marqueur_sans_ligne_d_audit_correspondante(tmp_path):
     assert code == 2, reason
 
 
+# --- profil standard_godot (jumeau Godot de `standard`, Pierre 2026-07-28) -----
+
+def test_standard_godot_profile_is_exactly_the_five_expected_steps():
+    assert order_for_profile("standard_godot") == [
+        "s9-build-godot-standard",
+        "s10a-oracle-code",
+        "s10s-oracle-standard",
+        "s11-redteam-code",
+        "s12-verdict",
+    ]
+
+
+def test_standard_profile_is_unchanged_by_the_godot_addition():
+    """Non-régression : le profil `standard` (web/JS) rend toujours exactement ce
+    qu'il rendait avant l'ajout du jumeau Godot."""
+    assert order_for_profile("standard") == [
+        "s9-build-standard",
+        "s10a-oracle-code",
+        "s10s-oracle-standard",
+        "s11-redteam-code",
+        "s12-verdict",
+    ]
+
+
+def test_s9_build_godot_is_historical_and_belongs_to_no_profile():
+    """`s9-build-godot` (étape 0, brique M01, contrat du 2026-07-21) est une trace
+    historique figée : il ne doit apparaître dans AUCUN profil, ni `standard_godot`
+    ni `full` ni aucun autre — sinon un forgeron Snake recevrait par erreur l'ordre
+    de produire grid_nav (cf. commentaire du contrat s9-build-godot-standard.yaml)."""
+    for name, steps in PROFILES.items():
+        assert "s9-build-godot" not in steps, f"s9-build-godot fuite dans le profil {name}"
+    assert "s9-build-godot" not in ORDER
+    assert "s9-build-godot" not in DEDICATED_PROFILE_STEPS
+
+
+def test_plan_chain_standard_godot_profile_resolves_real_runtimes(tmp_path):
+    plan = plan_chain(run_id="sg", profile="standard_godot", audit_path=tmp_path / "a.jsonl")
+    assert [p.etape for p in plan] == order_for_profile("standard_godot")
+    for p in plan:
+        assert p.model
+
+
+def test_prepare_dispatch_resolves_each_standard_godot_step(tmp_path):
+    """Chaque étape du profil est effectivement dispatchable — pas seulement
+    déclarée dans PROFILES (le défaut « profil déclaré, jamais atteignable »
+    déjà rencontré une fois pour `standard`, cf. test_standard_step_wiring.py)."""
+    audit = tmp_path / "audit.jsonl"
+    for etape in order_for_profile("standard_godot"):
+        payload = prepare_dispatch(etape, run_id="t-standard-godot", profile="standard_godot",
+                                   audit_path=audit)
+        assert payload.model
+
+
+def test_s9_build_godot_standard_resolves_the_game_forger_role(tmp_path):
+    """Le builder Godot du curriculum résout bien son rôle `game_forger` via
+    roles.yaml — même capability_role que son jumeau web s9-build-standard."""
+    from forge.contract import load_contract
+
+    contract = load_contract("s9-build-godot-standard")
+    assert contract["capability_role"] == "game_forger"
+    payload = prepare_dispatch("s9-build-godot-standard", run_id="t-godot",
+                               audit_path=tmp_path / "audit.jsonl")
+    assert payload.model
+    assert payload.model != "non-llm"
+
+
 def test_dispatch_module_ne_spawn_pas():
     """Le dispatch gouverné TRACE et prépare — le spawn appartient au skill /forge."""
     source = Path(__file__).resolve().parents[1].joinpath("dispatch.py").read_text(encoding="utf-8")

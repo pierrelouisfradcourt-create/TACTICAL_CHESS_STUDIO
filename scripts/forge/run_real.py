@@ -193,6 +193,20 @@ _STEP_TOOLS: dict[str, tuple[str, ...]] = {
     # s9-build et s2.5-artbible via Bash(node:*). La vraie borne est le prompt + le
     # contrat ; _STEP_DISALLOWED ne ferme que l'appel direct.
     "s9-build-standard": ("Write", "Edit", "Read", "Bash(node:*)"),
+    # s9-build-godot-standard (profil dédié `standard_godot`, jumeau Godot de
+    # s9-build-standard, Pierre 2026-07-28) : même raisonnement à l'identique — sans
+    # cette entrée, `_STEP_TOOLS.get(etape, ())` rendrait un tuple VIDE (défaut
+    # silencieux déjà rencontré une fois pour s9-build-standard le 2026-07-22).
+    # Write/Edit/Read : remplit les adresses du squelette gelé (project.godot, .tscn,
+    # GDScript sous games/<jeu>/) et les champs de constat de wiremap.json (Edit,
+    # fichier préexistant). Bash(node:*) : le contrat §5 autorise « le binaire Godot en
+    # headless, résolu par godot_bin.mjs » — godot_bin.mjs et l'oracle headless sont des
+    # scripts node, le binaire Godot lui-même n'est JAMAIS invoqué en direct (même
+    # raisonnement que s9-build-standard ci-dessus : chemin absolu hors repo, non
+    # versionné, donc inconnu à l'heure de l'allow-list ; un motif dédié serait inutile).
+    # AUCUN Python accordé, même motif que s9-build-standard : le gate mutation et les
+    # six oracles du standard (s10s) sont exécutés par le DRIVER, pas par le builder.
+    "s9-build-godot-standard": ("Write", "Edit", "Read", "Bash(node:*)"),
 }
 
 # F1b (red-team, BLOQUANT) : deny-list appliquée à TOUT appel `claude -p` (toutes
@@ -227,7 +241,25 @@ _STEP_DISALLOWED: tuple[str, ...] = (
     "Bash(git:*)",
     "PowerShell(git:*)",
     "NotebookEdit",
-    "Write(tests/**)", "Edit(tests/**)",
+    # Zone protégée = le `tests/` DU STUDIO, à la racine du dépôt (règle .claude/rules/
+    # tests.md : « aucun agent ne modifie ces fichiers »). Le motif nu `tests/**` matchait
+    # AUSSI le `tests/` interne d'un projet de jeu : mesuré le 2026-07-28 sur le run
+    # snake-s9r — le forgeron n'a pas pu déposer `games/snake/tests/run_tests.gd`, chemin
+    # pourtant EXIGÉ par godot_oracle.mjs (`res://tests/run_tests.gd`) et déclaré légal par
+    # la catégorie `godot.project_tests` de repo_map. Il a remonté la ligne BLOCKED au lieu
+    # de contourner (comportement voulu). Ancrage à la racine (préfixe `./`) : la protection
+    # du studio est INCHANGÉE, le `tests/` interne d'un jeu redevient déposable.
+    # Correction ratifiée Pierre 2026-07-28 : « le garde-fou visait le tests/ du studio, pas
+    # les tests/ internes d'un projet ».
+    # FORME EXACTE — mesurée, pas devinée (doc officielle permissions.md) : une DENY rule
+    # à segment unique (`tests/**`) matche un dossier de ce nom à N'IMPORTE QUELLE
+    # PROFONDEUR — c'est le comportement documenté des deny rules, pas un bug. Seul le
+    # SLASH INITIAL ancre à la racine. `./tests/**` ne convient PAS : il est relatif au
+    # cwd, pas à la racine du projet (première correction, invalidée par l'exécution du
+    # run snake-s9p — le builder est resté dénié).
+    "Write(/tests/**)", "Edit(/tests/**)",
+    # Les jeux sont bornés par leur wiremap (chaque écriture doit être à une `address`
+    # déclarée), pas par ce filtre — d'où l'ancrage plutôt qu'une exception par jeu.
     "Write(scripts/forge/contracts/**)", "Edit(scripts/forge/contracts/**)",
     "Write(lab/chains/**)", "Edit(lab/chains/**)",
     "Write(.claude/**)", "Edit(.claude/**)",

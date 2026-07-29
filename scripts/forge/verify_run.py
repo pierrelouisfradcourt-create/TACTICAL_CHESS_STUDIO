@@ -28,8 +28,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import yaml
+
 from forge.context_manifest import verify_manifest_record
-from forge.mutation_proof import verify_mutation_receipt
+from forge.mutation_proof import verify_descriptor_mutation_receipt, verify_mutation_receipt
 from forge.verdict import _verify_mapping, current_git_head, sha256_file
 
 # R3 (FORGE_V2_CONSOLIDATION.md §4-A, ferme AM1) : script + timeout du recoupement
@@ -37,6 +39,27 @@ from forge.verdict import _verify_mapping, current_git_head, sha256_file
 # dossier que knowledge_trace.mjs).
 _KNOWLEDGE_TRACE_SCRIPT = Path(__file__).resolve().parent / "knowledge_trace.mjs"
 _KNOWLEDGE_TRACE_TIMEOUT_S = 60
+
+
+def _read_yaml_dict(path: Path) -> dict:
+    """Lecture best-effort d'un YAML -- absent/illisible/mal formé => {} (jamais
+    lever ; `verify_run` ne doit jamais planter sur un game_contract.yaml
+    manquant, même discipline que `ForgeDriver._read_yaml`)."""
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _read_json_dict(path: Path) -> dict:
+    """Lecture best-effort d'un JSON -- absent/illisible => {} (même discipline
+    que `_read_yaml_dict` ci-dessus, symétrique de `ForgeDriver._read_json`)."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def _check_mutation_proof(data: dict, key_file: Path | None, *,
@@ -82,10 +105,29 @@ def _check_mutation_proof(data: dict, key_file: Path | None, *,
         return {"problems": ["reçu code de JEU (marqueur e2e/mutation) sans preuve mutation embarquée"],
                 "status": None, "checked": False}
     receipt = mut.get("receipt") or {}
-    game_dir = (receipt.get("detail") or {}).get("game_dir", "")
-    chk = verify_mutation_receipt(receipt, mut.get("signature", ""),
-                                  data.get("run_id", ""), game_dir, key_file=key_file,
-                                  require_green=require_green)
+    receipt_detail = receipt.get("detail") or {}
+    game_dir = receipt_detail.get("game_dir", "")
+    # CONTRAT_PREUVE_MUTATION_V1.md §6/§7, PHASE ③ ÉTAPE 4 (go Pierre 2026-07-28) :
+    # `verify_run` doit suivre le MÊME routage que le driver (`ForgeDriver._receipt`,
+    # driver.py) -- `regime_preuve` du reçu code tranche entre les deux
+    # vérificateurs DÉDIÉS, jamais une fusion. Absent (reçu antérieur à cette
+    # mission, ou tout reçu du régime historique qui n'a jamais porté ce champ)
+    # => "historique", exactement le même appel qu'avant cette mission --
+    # bit-identique (Pong en dépend).
+    regime = receipt_detail.get("regime_preuve", "historique")
+    if regime == "descripteur":
+        game_dir_path = Path(game_dir) if game_dir else Path()
+        game_contract = _read_yaml_dict(game_dir_path / "00_CHARTER" / "game_contract.yaml")
+        wiremap = _read_json_dict(game_dir_path / "09_WIREMAP" / "wiremap.json")
+        chk = verify_descriptor_mutation_receipt(
+            receipt, mut.get("signature", ""),
+            data.get("run_id", ""), game_dir, game_contract, wiremap,
+            key_file=key_file, require_green=require_green,
+        )
+    else:
+        chk = verify_mutation_receipt(receipt, mut.get("signature", ""),
+                                      data.get("run_id", ""), game_dir, key_file=key_file,
+                                      require_green=require_green)
     return {"problems": [] if chk["passed"] else list(chk["raisons"]),
             "status": chk.get("status") or None, "checked": True}
 
