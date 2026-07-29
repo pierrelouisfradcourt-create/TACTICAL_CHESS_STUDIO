@@ -1,0 +1,317 @@
+# Charter Forge — étape 0 (Contrat) — projet : snake
+# run_id       : snake-20260728-091302
+# marqueur     : FORGE_DISPATCH:s0-contrat:snake-20260728-091302
+# schéma       : {objectif, hors_scope[], criteres_succes[], actions_interdites[],
+#                 plateforme_cible, reference_jeu, criteres_demo[]} — 7 champs, tous remplis
+# oracle sortie: forge.static_oracles.check_charter (déterministe, non-LLM)
+#
+# NOTE DE MÉTHODE : aucune décision n'est portée par un commentaire (règle studio
+# 2026-07-23). La provenance de chaque champ de design-intent est un CHAMP STRUCTURÉ
+# (`provenance:`), l'historique de révision est un CHAMP STRUCTURÉ (`revisions:`), et
+# tout paramètre chiffré non arbitré par Pierre est un CHAMP STRUCTURÉ à valeur initiale
+# proposée (`parametres_de_design:`, statut A_EQUILIBRER) — jamais de la prose de marge,
+# jamais un champ laissé en suspens.
+
+version: 2
+
+objectif: >-
+  Forger un jeu de Snake solo, arcade, en temps réel sur grille discrète 20×20, JOUABLE et
+  DÉTERMINISTE (hors position d'apparition de la nourriture), sur MOTEUR GODOT, avec une
+  architecture de jeu RÉUTILISABLE comme livrable de même rang que le jeu lui-même
+  (décision Pierre 2026-07-28). Boucle imposée par le genre (Genre Bible Snake v1,
+  RATIFIÉE Pierre 2026-07-28, docs/forge/GENRE_BIBLE_SNAKE_V1_PROPOSED.md) : le serpent
+  avance en continu par ticks discrets, le joueur ne peut que changer de direction
+  (demi-tour dans le cou refusé), chaque nourriture mangée rallonge le corps d'un segment
+  au tick même de la collision, une collision avec un mur ou avec son propre corps met fin
+  immédiatement à la partie, et la relance est immédiate sans pénalité persistante autre
+  que le meilleur score conservé. La difficulté vient de DEUX sources conjointes : (a)
+  l'occupation croissante de la grille par le corps du joueur, (b) une ACCÉLÉRATION
+  PROGRESSIVE de la cadence de tick, partant d'une vitesse initiale lisible (référence de
+  départ sourcée : ~200 ms par case, Google Snake, HTTP 200) et pilotée par des paramètres
+  ISOLÉS, nommés, testés sur leurs seuils — décision Pierre 2026-07-28 : « la vitesse fixe
+  à 200 ms n'est pas suffisante pour valider la boucle complète ». La V1 n'est PAS une
+  boucle infinie : elle porte un score courant, un meilleur score (conservé entre les
+  parties ET entre les sessions), une condition de fin et une progression mesurable, afin
+  de permettre d'observer le comportement joueur. Ce run a un second objectif, de nature
+  industrielle et explicitement voulu par Pierre pour ce cycle : MESURER la capacité de
+  l'usine à réutiliser — non pas comme dépendance technique au code de Pong (jeu canvas,
+  gelé), mais comme réutilisation de CONCEPTS éprouvés (boucle de tick, entrée, collision,
+  machine à états, séparation logique/rendu) portés sur une architecture Godot propre. Les
+  briques candidates sont nommées AVANT la production, la part réutilisée est mesurée et
+  rapportée, et `observable_by_player` est une contrainte du design initial (wiremap),
+  jamais une finition ajoutée après coup. La logique de jeu PURE (état, tick, collisions,
+  croissance, score, conditions de fin, spawn) est séparée du rendu et de l'entrée : rendu
+  et input consomment l'état, jamais l'inverse. Le jeu doit être prouvé SOLVABLE par un bot
+  qui gagne réellement selon un objectif de victoire déclaré et atteignable, pas seulement
+  testé mécanique par mécanique. Enfin — règle de wiremap posée par Pierre le 2026-07-28 —
+  l'architecture ne doit PAS être optimisée pour livrer uniquement Snake V1 : elle doit
+  pouvoir accueillir les apprentissages suivants (équilibrage de difficulté, télémétrie,
+  progression, réutilisation de briques) sans réécriture de la logique pure.
+
+hors_scope:
+  - "Multijoueur, PvP en arène type slither.io, réseau, matchmaking, serveur de jeu : le curriculum place Snake comme jeu SOLO arcade suivant Pong, et le dossier d'observation lab/forge_runs/snake/GAME_REFERENCE/ documente slither.io comme variante multijoueur observée à titre de référence, pas comme cible. Confirmé hors_scope en révision v2."
+  - "Power-ups, bonus, invincibilité, ralenti, thèmes cosmétiques (observés chez Google Snake) : hors de la tranche verticale de ce run — ce sont des systèmes de contenu, pas des briques fondamentales d'apprentissage (règle Pierre v2 : ne pas ajouter de systèmes AAA inutiles)."
+  - "Classement en ligne, leaderboard global, comptes utilisateurs, backend, base de données, persistance SERVEUR. La persistance LOCALE du seul meilleur score (fichier user:// du moteur) est, elle, DANS le périmètre depuis la révision v2 (décision Pierre D5)."
+  - "Sprites/assets graphiques externes, textures, images téléchargées, polices tierces : rendu par primitives du moteur (nodes de dessin/formes Godot), zéro asset importé."
+  - "Portage navigateur / export HTML5 / réécriture canvas de ce jeu : la cible de ce run est le MOTEUR GODOT (décision Pierre 2026-07-28). Un export web éventuel est un run ultérieur, pas ce charter."
+  - "Réutilisation par COPIE DE CODE des fichiers .mjs de games/pong/ : Pong est un jeu canvas gelé ; ses briques entrent dans ce run comme CONCEPTS réutilisables (boucle, input, collision, état, rendu), pas comme dépendance technique importable (décision Pierre D1)."
+  - "Décision d'architecture détaillée (découpage exact des scènes/nodes/scripts, choix des patterns Godot) : c'est l'étape 4 (s4-archi), pas le charter. Ce charter fixe l'INTENTION d'extensibilité, pas sa réalisation."
+  - "World scan / recherche de références externes : étape 2, DÉJÀ FAITE (lab/forge_runs/snake/GAME_REFERENCE/, oracle vert) — ce charter la consomme, ne la refait pas."
+  - "Promotion de briques ou de règles vers knowledge_base/ et toute écriture durable (ledger, memory/) : propose-only, ratifiée par Pierre, hors de ce run."
+  - "Télémétrie effective, système d'équilibrage automatique, courbe de progression calibrée : la règle de wiremap v2 impose que l'architecture PUISSE les accueillir ; les CONSTRUIRE est hors de cette tranche verticale."
+  - "Toute modification des lanes protégées : src/ (moteur Rust), tests/ (zone protégée), autopilot.py, scripts/studioV2/ (lane STUDIO gelée), lab/chains/IMPROVEMENT_LEDGER.yaml, lab/chains/golden_examples.jsonl."
+  - "Toute modification de games/pong/ : Pong est GELÉ comme témoin de régression (décision Pierre 2026-07-27) — ses briques se LISENT et s'ÉTUDIENT, elles ne se modifient pas."
+
+criteres_succes:
+  - "SOLVABILITE PROUVEE : un bot déterministe pilote le serpent via l'API d'entrée publique et ATTEINT réellement l'objectif de victoire déclaré du jeu (longueur/score cible atteinte sans collision), sur la seed de référence, ACCÉLÉRATION ACTIVE (la solvabilité se prouve dans les conditions réelles de jeu, pas à vitesse initiale gelée). L'oracle de solvabilité sort SOLVABLE (code retour 0) ; sur une version volontairement cassée il doit sortir INJOUABLE (code non nul). Une suite de tests unitaires verts sur un objectif inatteignable ne vaut PAS solvabilité (leçon PILOU collect_runner)."
+  - "LOGIQUE SEPAREE DU RENDU : les scripts de logique pure (état du serpent, tick, collisions, croissance, score, conditions de fin, spawn de nourriture, règle d'accélération) n'héritent d'AUCUN Node Godot, n'appellent AUCUNE API de moteur (get_node, Input, InputEvent, Viewport, CanvasItem, _draw, _process, _physics_process, Timer, OS/Time, randi/randf non seedé) et n'importent ni scène ni script de présentation. Vérifié par l'oracle d'architecture statique déterministe. Toute mutation d'état passe par une fonction de la logique pure."
+  - "DETERMINISME PROUVE PAR REPLAY : à état initial, graine de spawn et séquence d'entrées identiques, deux exécutions produisent un état final strictement identique (aucune horloge moteur ni RNG global non seedé dans la logique). Le replay couvre une partie assez longue pour franchir au moins deux paliers d'accélération. Vérifié par un test de replay comparant l'égalité stricte des états."
+  - "COLLISION EXACTE : zéro faux positif et zéro faux négatif de collision (mur, auto-collision) sur un jeu de fixtures couvrant les cas limites — coin de grille, case du cou immédiat, case de queue qui vient de se libérer au même tick. Chaque cas assère une valeur STRICTE attendue (mort / pas mort), jamais un seuil relâché."
+  - "CROISSANCE ET SCORE AU MEME TICK : sur une fixture tête-sur-nourriture, la longueur du corps ET le score sont mis à jour DANS le tick de la collision (assertion d'égalité stricte sur les deux valeurs post-tick, jamais >=), et une nouvelle nourriture apparaît hors du corps du serpent."
+  - "DEMI-TOUR REFUSE : une commande dans la direction exactement opposée à la direction courante est ignorée et ne peut jamais provoquer une entrée dans le cou (assertion stricte sur la direction retenue au tick suivant). La comparaison porte sur la dernière direction EFFECTUÉE, jamais sur une direction en attente."
+  - "BANDE DE VITESSE JOUABLE DECLAREE ET VERIFIEE : la période de tick INITIALE est une constante nommée, exposée dans le bloc de paramètres isolés, et vaut la valeur de départ déclarée dans parametres_de_design.vitesse_initiale_ms (référence sourcée HTTP 200 : ~200 ms par case, lakersgame.co.uk via GENRE_BIBLE_SNAKE §6.1). La période EFFECTIVE reste bornée entre cette valeur initiale et un plancher nommé, sur toute la durée d'une partie. La conformité est vérifiable mécaniquement depuis les constantes du code. Une période hors bande est un FAIL, pas un réglage (leçon playtest Pong 2026-07-27)."
+  - "ACCELERATION PROGRESSIVE TESTEE : la cadence de tick accélère au fil de la partie selon une règle PURE, déterministe et testée sur ses SEUILS — pour chaque palier déclaré, un test assère la période exacte juste avant le seuil, exactement au seuil et juste après (valeurs strictes, jamais un intervalle), plus la saturation stricte au plancher. L'accélération est monotone non croissante en période, et remise à sa valeur initiale à chaque nouvelle partie (assertion stricte après relance)."
+  - "PARAMETRES DE JEU ISOLES ET NOMMES : tous les paramètres d'équilibrage (dimensions de grille, période initiale, pas et palier d'accélération, plancher de période, longueur initiale, cible de victoire, points par nourriture) vivent dans UN SEUL bloc de constantes nommées de la logique pure, sans valeur en dur dupliquée ailleurs. Vérifié mécaniquement : le nombre de littéraux numériques de gameplay hors de ce bloc est exactement 0. Changer l'équilibrage ne doit toucher aucun script de présentation."
+  - "PAUSE OBSERVABLE ET NEUTRE : une commande de pause met la boucle en suspens, l'état affiché indique explicitement la pause, et la reprise repart EXACTEMENT du même état (égalité stricte et profonde de l'état de partie avant pause / après reprise, hors indicateur de pause). Aucun tick n'est appliqué pendant la pause, et aucun rattrapage de temps n'est effectué à la reprise (nombre de ticks appliqués à la première trame de reprise = exactement 1). La pause est un état de la machine à états, pas un gel d'horloge de présentation."
+  - "MEILLEUR SCORE PERSISTANT ET ETANCHE : le meilleur score est conservé entre les parties ET entre les sessions (sauvegarde locale du moteur), vit HORS de l'état de partie, et n'influence AUCUNE règle de jeu. Étanchéité vérifiée strictement : après relance, tous les champs de l'état de partie (score, longueur, position, direction, période de tick) sont égaux à leurs valeurs initiales, et le meilleur score est le SEUL champ autorisé à survivre — exception NOMMÉE dans l'oracle de non-fuite, jamais implicite. Cas limites couverts : fichier de sauvegarde absent, vide, corrompu ou non inscriptible → le jeu démarre quand même avec un meilleur score de 0, sans exception non gérée."
+  - "CONDITION DE FIN ET PROGRESSION MESURABLE : la partie possède un état terminal GAGNÉ distinct de PERDU (trois statuts mutuellement exclusifs et exhaustifs avec EN COURS), la cible de victoire est une constante nommée AFFICHÉE au joueur, et la progression vers cette cible est lisible en chiffres pendant la partie. Une partie ne peut pas se terminer sans que l'un des deux états terminaux soit atteint (assertion stricte : aucun chemin de sortie de boucle sans statut terminal)."
+  - "ARCHITECTURE EXTENSIBLE PROUVEE : l'architecture est prouvée capable d'accueillir les apprentissages suivants sans toucher la logique pure — la preuve est mécanique, pas déclarative : (a) changer une valeur du bloc de paramètres modifie le comportement observable sans modifier aucun autre fichier ; (b) les événements de tick (nourriture mangée, palier d'accélération franchi, fin de partie) sont émis par la logique pure sous forme de données consommables par un observateur externe, et un observateur de test s'y branche réellement, sans que la logique connaisse son existence ; (c) aucun script de logique pure ne référence une dimension de grille, une touche ou un nom de scène en dur. Un point non prouvé mécaniquement est rapporté comme non prouvé, jamais comme intention."
+  - "CONTRAT DE JOUABILITE RESPECTE : le jeu expose un point d'observation de debug lisible par l'oracle (longueur, score, meilleur score, position tête, position nourriture, période de tick courante, statut en cours/perdu/gagné/en pause), un affichage d'état de fin explicite et une commande de relance — tous atteignables depuis le runtime réel du moteur. Vérifié par le test end-to-end qui lit ces hooks sur une instance réellement lancée."
+  - "PREUVE PAR LECTEUR REEL : chaque critère de démo (criteres_demo) est exercé par une preuve qui passe par le RUNTIME RÉEL du moteur (entrées réelles injectées dans l'instance lancée, lecture de l'état exposé et de l'image rendue), jamais uniquement par un chemin de test hors-moteur. Contrainte de poste connue et à respecter : la capture Godot exige une fenêtre GPU réelle (--rendering-driver vulkan, fenêtre hors écran) — le mode --headless rend une texture nulle et ne produit AUCUNE preuve visuelle (fait mesuré 2026-07-22). Une preuve qu'aucun lecteur n'exécute n'existe pas dans la chaîne qualité (règle d'usine n°1)."
+  - "TESTS A MUTATION FORTS : les tests de la logique pure tuent les mutants sur les invariants critiques (détection de collision, incrément de longueur, incrément de score, condition de fin, refus du demi-tour, seuil et plancher d'accélération, mise à jour du meilleur score) ; tout mutant survivant est trié avec justification nommée, jamais laissé implicite. Le gate porte exclusivement sur la logique pure, où la mutation sait juger."
+  - "REUTILISATION NOMMEE AVANT PRODUCTION : chaque bloc de la wiremap porte REUSED_FROM avec une valeur EXPLICITEMENT TYPÉE — CODE:<chemin> (code réellement importé), CONCEPT:<chemin> (patron de conception repris d'une brique existante, code réécrit pour la cible Godot) ou NEW — et cette wiremap existe AVANT l'écriture du code de production. Le type CONCEPT est ce qui rend la réutilisation mesurable alors que la cible moteur diffère de celle de Pong (décision Pierre D1). Toute brique NEW répond aux 5 questions de la règle IKEA (FORGE_ARCHITECT_MANUAL_V1 §6) dans un champ structuré."
+  - "TAUX DE REUTILISATION MESURE ET RAPPORTE : la part de blocs CODE / CONCEPT / NEW est mesurée mécaniquement sur la wiremap réelle et rapportée avec ses valeurs brutes (numérateur/dénominateur par type), sans être transformée en claim de performance ni en note. Les trois types sont rapportés SÉPARÉMENT : agréger CONCEPT et CODE en un seul chiffre de « réutilisation » serait une promesse plus forte que la mesure."
+  - "OBSERVABLE PAR LE JOUEUR DES LA WIREMAP : chaque bloc de la wiremap déclare OBSERVABLE_BY_PLAYER dès sa rédaction initiale ; un système invisible au joueur justifie son existence dans le même champ. Vérifié par check_observable_coverage."
+  - "PREUVE MECANIQUE FOURNIE : chaque verdict d'étape aval cite un evidence_path (sortie d'exécution de l'oracle correspondant). Un reçu de code sans evidence_path est traité comme BLOCKED, jamais comme OK (leçon PILOU _method_)."
+  - "VARIANCE PROUVEE AVANT USAGE : toute métrique introduite pour classer, générer ou calibrer le jeu (pression spatiale, taux d'occupation, bande de difficulté, courbe d'accélération ressentie…) prouve d'abord qu'elle porte une information variable (≥2 valeurs distinctes non triviales sur échantillon) ou est requalifiée honnêtement sous le nom de ce qu'elle mesure réellement (règle ratifiée Pierre 2026-07-21)."
+  - "CHARTER COMPLET : ce charter.yaml parse en YAML valide et ne contient aucun champ requis vide, absent ni marqueur de placeholder non résolu — vérifié par forge.static_oracles.check_charter (7 champs). Tout paramètre chiffré non arbitré par Pierre porte une valeur initiale, une provenance et un statut d'équilibrage dans parametres_de_design ; aucun champ n'est laissé en suspens."
+
+actions_interdites:
+  - "Certifier le jeu OK sans oracle de SOLVABILITE vert (un bot qui gagne pour de vrai, accélération active) : tests unitaires verts sur objectif inatteignable = jeu injouable certifié = interdit (pré-mortem PILOU ①)."
+  - "Écrire un test tautologique : toute assertion >= / <= / « existe » là où le comportement observable impose une égalité ou une valeur stricte est interdite (pré-mortem PILOU ②). S'applique en particulier aux seuils d'accélération, qui se testent par valeur exacte de part et d'autre du palier, jamais par intervalle."
+  - "Livrer un reçu de code sans evidence_path : reçu tel quel, le résultat est BLOCKED (pré-mortem PILOU ③)."
+  - "Forcer/placer l'état de jeu à la main pour faire passer un test de victoire au lieu de laisser un bot piloter l'entrée publique."
+  - "Mélanger logique et rendu : faire hériter un script de logique pure d'un Node Godot, ou y appeler get_node/Input/InputEvent/Viewport/CanvasItem/_draw/_process/_physics_process/Timer/OS/Time."
+  - "Introduire de l'aléatoire non seedé ou une horloge moteur dans la logique de jeu, le spawn de nourriture ou la règle d'accélération — casse le déterminisme et le replay."
+  - "Disperser des valeurs d'équilibrage en dur dans les scènes, les scripts de présentation ou les tests : tout paramètre de gameplay vit dans le bloc de constantes nommées de la logique pure (critère PARAMETRES DE JEU ISOLES ET NOMMES)."
+  - "Implémenter la pause comme un gel d'horloge de présentation ou un simple arrêt de rendu : la pause est un état de la machine à états, et la reprise doit être prouvée strictement identique à l'état d'avant pause."
+  - "Laisser le meilleur score influencer une règle de jeu, ou le faire vivre dans l'état de partie : il est hors état, et il est la SEULE exception nommée de l'oracle de non-fuite — toute autre survivance d'état entre deux parties est un FAIL."
+  - "Faire échouer le démarrage du jeu à cause de la sauvegarde du meilleur score (fichier absent, vide, corrompu, non inscriptible) : la dégradation est silencieuse côté joueur et journalisée côté debug, jamais une exception non gérée."
+  - "Livrer un bouton, une commande ou un écran dont l'effet n'est pas OBSERVABLE dans le runtime réel (le défaut « Quitter inerte » du playtest Pong 2026-07-27 : cliquable, sans effet visible)."
+  - "Afficher l'état décisif (score, meilleur score, fin de partie) uniquement en pips/formes sans chiffres lisibles, ou livrer une partie sans état final explicite ni possibilité de rejouer (playtest Pong 2026-07-27)."
+  - "Produire une preuve visuelle en mode --headless et la présenter comme preuve de rendu : sur ce poste, --headless rend une texture nulle (fait mesuré 2026-07-22) — la preuve visuelle exige une fenêtre GPU réelle."
+  - "Confondre le bot de solvabilité (outil de test interne, latence zéro) avec l'expérience du joueur : le bot ne remplace jamais une partie réellement jouable par un humain."
+  - "Copier du code .mjs de Pong dans le jeu Godot pour gonfler la mesure de réutilisation : la réutilisation de Pong est de type CONCEPT, déclarée comme telle, jamais maquillée en CODE."
+  - "Introduire une dépendance externe runtime (plugin tiers, addon, asset store, paquet réseau) : la cible est exécutable hors-ligne avec le seul moteur."
+  - "Modifier games/pong/ (témoin de régression gelé) ou toute lane protégée : src/, tests/, autopilot.py, scripts/studioV2/, IMPROVEMENT_LEDGER.yaml, golden_examples.jsonl."
+  - "Écrire dans knowledge_base/, memory/ ou tout registre durable sans ratification Pierre : propose-only."
+  - "git commit / git push sans go explicite de Pierre (HumanGate)."
+  - "Émettre un claim auto-certifié sans oracle : sans preuve mécanique, remonter un besoin HumanGate (fog) — jamais un claim_verdict autre que NO_CLAIM_ALLOWED."
+  - "Déclarer une métrique de difficulté/pression spatiale/courbe d'accélération sans preuve de variance, ou lui donner un nom qui promet plus que ce qu'elle mesure (leçon grid-navigator)."
+  - "Laisser dans un livrable un champ placeholder non résolu, vide ou évasif : un flou non tranché est un défaut bloquant, il se remplit ou remonte en fog, il ne passe jamais. Un paramètre d'équilibrage se livre avec une valeur initiale + provenance + statut, jamais en suspens."
+
+plateforme_cible: >-
+  MOTEUR GODOT (4.x), application de bureau exécutable hors-ligne, entrée clavier, rendu
+  par primitives du moteur sans asset importé. Choix VOLONTAIRE de Pierre, exercé le
+  2026-07-28 (verbatim : « Confirmé : Godot. Le choix est volontaire. […] l'objectif Forge
+  n'est pas de reproduire uniquement des jeux canvas. La cible est une architecture de jeu
+  réutilisable »). Conséquence assumée et tracée : les briques .mjs de games/pong/ ne sont
+  PAS des dépendances importables ici ; elles entrent comme CONCEPTS réutilisables (boucle
+  de tick, entrée, collision, machine à états, séparation logique/rendu), et la wiremap
+  part d'une architecture Godot propre. Contrainte de poste connue, héritée d'une mesure
+  du studio (2026-07-22) : toute preuve visuelle exige une fenêtre GPU réelle
+  (--rendering-driver vulkan, fenêtre positionnée hors écran) — le mode --headless ne
+  produit aucune image. Voir `provenance.plateforme_cible`.
+
+reference_jeu: >-
+  Snake — jeu d'arcade solo sur grille, dans la lignée de Nokia Snake (1997) et Google
+  Snake Doodle (2019), observés au World Scan (lab/forge_runs/snake/GAME_REFERENCE/) et
+  compressés en règles par la Genre Bible Snake v1, RATIFIÉE par Pierre le 2026-07-28
+  (« source de compréhension, pas une limitation artificielle »). Choix du jeu exercé par
+  Pierre le 2026-07-28 (verbatim : « je confirme le choix du jeu : Snake »), jamais par un
+  agent. Voir `provenance.reference_jeu`.
+
+criteres_demo:
+  - "DEMARRAGE VISIBLE : à l'ouverture, le joueur voit la grille, un serpent court et une nourriture, et comprend quoi faire sans explication écrite ; la partie démarre et le serpent avance tout seul."
+  - "DIRECTION REACTIVE : appuyer sur une flèche fait tourner le serpent au tick suivant, de façon perceptible immédiatement ; un demi-tour dans le cou ne tue jamais le joueur par accident."
+  - "CROISSANCE OBSERVABLE : quand la tête atteint la nourriture, le joueur VOIT le corps s'allonger et le score augmenter au même instant, et une nouvelle nourriture apparaît ailleurs."
+  - "SCORE EN CHIFFRES : le score est affiché en chiffres lisibles à l'écran (pas seulement en pips ou en formes), et le chiffre affiché correspond exactement au score interne (playtest Pong 2026-07-27)."
+  - "MORT LISIBLE : la collision avec un mur ou avec le corps arrête visiblement la partie et affiche un état final explicite (issue + score final), sans figer l'application ni continuer en silence."
+  - "REJOUER EN UN GESTE : depuis l'écran de fin, un seul appui relance une partie neuve immédiatement ; aucun état de la partie précédente ne fuite dans la nouvelle, à la seule exception NOMMÉE du meilleur score, qui vit hors de l'état de partie (révision v2, décision Pierre D5)."
+  - "QUITTER OBSERVABLE : la commande de sortie produit un effet visible (arrêt de la boucle + état final affiché) ; aucune commande inerte n'est acceptable (playtest Pong 2026-07-27)."
+  - "VITESSE JOUABLE RESSENTIE : un joueur humain peut jouer une partie complète du début à la mort sans que la vitesse rende la conduite impossible ; la cadence est stable entre deux paliers et son accélération reste conduisible jusqu'au plancher déclaré."
+  - "LISIBILITE DE LA GRILLE : le joueur distingue sans ambiguïté la tête, le corps, la nourriture et les murs, et voit la grille se remplir à mesure que le serpent grandit — la contrainte d'espace est visible, pas seulement calculée."
+  - "PARTIE SOLO COMPLETE SANS OUTIL : une partie entière (démarrage → croissance → mort → écran de fin → rejouer) se joue au clavier par un humain, sans passer par le bot de solvabilité ni par une console de debug (playtest Pong 2026-07-27 : validation solo impossible = défaut)."
+  - "DEMARRAGE IMMEDIAT : entre le lancement de l'application et le premier mouvement jouable du serpent, aucun menu, aucun écran de chargement, aucun appui préalable n'est nécessaire — le nombre de gestes requis avant de pouvoir jouer est exactement 0 (ajout v2, décision Pierre D6)."
+  - "LISIBILITE DU GAMEPLAY : à tout instant, un observateur qui n'a jamais vu le jeu peut dire où va le serpent, ce qu'il doit atteindre et où il en est de sa progression, sans qu'on le lui explique (ajout v2, D6)."
+  - "PAUSE FONCTIONNELLE : le joueur met le jeu en pause, l'écran le dit explicitement, le serpent ne bouge plus du tout, et la reprise repart exactement là où il s'était arrêté — sans saut, sans rattrapage, sans mort surprise (ajout v2, D6 + D5)."
+  - "SAUVEGARDE DU MEILLEUR SCORE : le meilleur score s'affiche à côté du score courant, se met à jour visiblement quand le joueur bat son record, et se retrouve inchangé après avoir fermé puis rouvert l'application (ajout v2, D6 + D5)."
+  - "PROGRESSION VISIBLE DE DIFFICULTE : le joueur PERÇOIT que le jeu s'accélère au fil de la partie, et l'accélération est également lisible dans l'état affiché (indicateur de cadence ou de palier), pas seulement ressentie (ajout v2, D6 + D3)."
+  - "COMPREHENSION DE LA BOUCLE EN QUELQUES SECONDES : un joueur qui découvre le jeu comprend la boucle complète — avancer, manger, grandir, mourir, rejouer, viser mieux — en quelques secondes de jeu, sans lire de texte d'aide (ajout v2, D6)."
+
+# --- Paramètres de design chiffrés : valeur initiale proposée + provenance + statut ---
+# Chaque paramètre est COMPLET (valeur utilisable dès s4/s5). Le statut A_EQUILIBRER
+# signifie « la valeur peut bouger au playtest », jamais « la valeur manque ».
+parametres_de_design:
+  grille:
+    valeur_initiale: "20 x 20 cases"
+    provenance: "SOURCE_PIERRE_DIRECTE — décision D2 du 2026-07-28 : « grille 20x20 confirmée ». Cohérent avec la valeur de travail du contrôle s1 et la mention Google Snake de GENRE_BIBLE_SNAKE §6.2 (elle-même non sourcée HTTP 200, donc non retenue comme justification)."
+    statut: RATIFIE_PIERRE
+  vitesse_initiale_ms:
+    valeur_initiale: "200 ms par case au démarrage de chaque partie"
+    provenance: "Référence sourcée HTTP 200 (lakersgame.co.uk, via GENRE_BIBLE_SNAKE §6.1, Google Snake) retenue par Pierre comme valeur de DÉPART lisible — D3 : « la vitesse fixe à 200 ms n'est pas suffisante pour valider la boucle complète », donc 200 ms reste le point de départ mais cesse d'être la vitesse de toute la partie."
+    statut: A_EQUILIBRER
+  acceleration_palier:
+    valeur_initiale: "1 palier tous les 5 fruits mangés"
+    provenance: "Valeur initiale PROPOSÉE par le rédacteur du contrat : Pierre a ratifié le PRINCIPE de l'accélération progressive (D3) sans chiffrer les paliers. Ordre de grandeur choisi pour qu'une partie jusqu'à la cible de victoire franchisse plusieurs paliers observables (condition du critère PROGRESSION VISIBLE DE DIFFICULTE)."
+    statut: A_EQUILIBRER
+  acceleration_pas:
+    valeur_initiale: "-8 % de la période de tick courante à chaque palier franchi (période multipliée par 0,92)"
+    provenance: "Valeur initiale PROPOSÉE par le rédacteur du contrat, non chiffrée par Pierre (D3 fixe l'exigence « accélération progressive » et « paramètres isolés pour équilibrer facilement »). Aucune source externe ne chiffre ce pas : la source Nokia qui décrit une accélération par palier est en HTTP 403 (GENRE_BIBLE_SNAKE §6.1), sa magnitude n'est donc PAS citée comme justification."
+    statut: A_EQUILIBRER
+  periode_plancher_ms:
+    valeur_initiale: "80 ms par case (borne basse ; la période ne descend jamais en dessous)"
+    provenance: "Valeur initiale PROPOSÉE par le rédacteur du contrat pour rendre la bande de vitesse vérifiable mécaniquement (critère BANDE DE VITESSE JOUABLE DECLAREE ET VERIFIEE) et garantir qu'une partie reste conduisible par un humain (critère de démo VITESSE JOUABLE RESSENTIE). Non chiffré par Pierre."
+    statut: A_EQUILIBRER
+  cible_de_victoire:
+    valeur_initiale: "longueur 25 (soit 22 nourritures mangées depuis une longueur initiale de 3)"
+    provenance: "Valeur de travail issue du contrôle s1 (lab/forge_runs/snake/product_snapshot.md, check_prisme PASS), seul artefact du run qui la déclare ; retenue ici parce que D2 impose une condition de fin et une progression mesurable. Non chiffrée directement par Pierre — reste l'arbitrage nommé en question_ouverte_humangate."
+    statut: A_EQUILIBRER
+  longueur_initiale:
+    valeur_initiale: "3 segments"
+    provenance: "Valeur initiale PROPOSÉE par le rédacteur du contrat, cohérente avec la cible de victoire ci-dessus et avec le refus du demi-tour (une longueur de 1 ou 2 rendrait la règle du cou inobservable)."
+    statut: A_EQUILIBRER
+  points_par_nourriture:
+    valeur_initiale: "1 point par nourriture (score = nombre de nourritures mangées)"
+    provenance: "Valeur initiale PROPOSÉE par le rédacteur du contrat : rapport score/longueur trivialement lisible par le joueur et strictement assertable par l'oracle (critère CROISSANCE ET SCORE AU MEME TICK)."
+    statut: A_EQUILIBRER
+
+# --- Historique de révision (champ structuré, pas un commentaire) ---
+revisions:
+  - version: 1
+    date: "2026-07-28"
+    resume: "Charter initial. Trois flous laissés ouverts en fog HumanGate : plateforme cible (dérivée, pas dictée), critères de démo (dérivés du playtest Pong et de la Genre Bible), stratégie de vitesse (fixe vs accélération)."
+  - version: 2
+    date: "2026-07-28"
+    declencheur: "Décisions Pierre du 2026-07-28 (D1 à D6 + règle de wiremap), transmises en verbatim par l'orchestrateur. Les 3 fogs de la v1 sont TRANCHÉS ; les rejets du Prisme qui contredisaient ces décisions sont révisés."
+    changements:
+      - champ: plateforme_cible
+        avant: "Navigateur web, HTML5 canvas + JS vanilla .mjs (TRACE_INDIRECTE, fog_humangate: true)"
+        apres: "Moteur Godot 4.x, application de bureau hors-ligne (SOURCE_PIERRE_DIRECTE, fog fermé)"
+        pourquoi: "D1 — choix volontaire de Pierre : l'objectif de la Forge n'est pas de reproduire uniquement des jeux canvas, la cible est une architecture de jeu réutilisable. Conséquence tracée : les briques Pong deviennent des CONCEPTS réutilisables (boucle, input, collision, état, rendu), pas une dépendance technique ; la wiremap part d'une architecture Godot propre."
+      - champ: objectif
+        avant: "Cible navigateur implicite ; « la vitesse est fixe » ; réutilisation entendue comme import de code Pong ; aucune mention de score/meilleur score/condition de fin."
+        apres: "Cible Godot ; accélération progressive à paramètres isolés ; réutilisation typée CODE/CONCEPT/NEW ; V1 portant score courant, meilleur score, condition de fin, progression mesurable ; règle d'extensibilité de l'architecture."
+        pourquoi: "D1 + D2 + D3 + règle de wiremap. La phrase « la difficulté ne vient PAS d'une accélération » de la v1 est directement contredite par D3 et a été retirée."
+      - champ: hors_scope
+        avant: "Contenait : « Vitesse croissante par palier de score (stratégie Nokia) : écartée », « Portage moteur (Godot ou autre) : la cible de ce run est le navigateur », « persistance » globalement exclue, rendu « par primitives canvas »."
+        apres: "Ces entrées sont RETIRÉES ou inversées : l'accélération entre dans le périmètre (D3) ; le portage navigateur devient hors_scope à la place du portage moteur (D1) ; la persistance LOCALE du seul meilleur score entre dans le périmètre, la persistance SERVEUR reste exclue (D5) ; la copie de code .mjs de Pong devient explicitement hors_scope. Entrées ajoutées : télémétrie/équilibrage automatique effectifs restent hors tranche (la règle de wiremap exige de POUVOIR les accueillir, pas de les construire)."
+        pourquoi: "D1, D3, D5 et la règle de wiremap. Le multijoueur slither.io reste hors_scope, inchangé."
+      - champ: criteres_succes
+        avant: "16 critères, dont BANDE DE VITESSE JOUABLE fondée sur une période FIXE, et LOGIQUE SEPAREE DU RENDU exprimée en API DOM navigateur."
+        apres: "22 critères. Conservés et adaptés à Godot : LOGIQUE SEPAREE DU RENDU (API moteur au lieu du DOM), CONTRAT DE JOUABILITE RESPECTE (point d'observation moteur au lieu de window.__game), PREUVE PAR LECTEUR REEL (+ contrainte fenêtre GPU), BANDE DE VITESSE (bande initiale + plancher au lieu de période fixe), REUTILISATION NOMMEE et TAUX DE REUTILISATION (typage CODE/CONCEPT/NEW). Ajoutés : ACCELERATION PROGRESSIVE TESTEE, PARAMETRES DE JEU ISOLES ET NOMMES, PAUSE OBSERVABLE ET NEUTRE, MEILLEUR SCORE PERSISTANT ET ETANCHE, CONDITION DE FIN ET PROGRESSION MESURABLE, ARCHITECTURE EXTENSIBLE PROUVEE. Format TAG MAJUSCULE conservé (convention merge_prisme)."
+        pourquoi: "D1, D2, D3, D5, D6 et la règle de wiremap. Chaque ajout est falsifiable mécaniquement ; aucun n'est une intention déclarative."
+      - champ: actions_interdites
+        avant: "15 interdictions, dont l'interdiction de tout aléatoire non seedé et des API DOM."
+        apres: "22 interdictions : les interdictions existantes sont conservées et transposées au moteur ; ajoutées — dispersion de valeurs d'équilibrage en dur, pause implémentée comme gel d'horloge, meilleur score influençant une règle ou vivant dans l'état de partie, échec de démarrage sur sauvegarde corrompue, preuve visuelle produite en --headless, copie de code .mjs de Pong maquillée en réutilisation."
+        pourquoi: "Corollaires directs des nouveaux critères (D3, D5, D6) et de la contrainte de capture GPU mesurée le 2026-07-22."
+      - champ: criteres_demo
+        avant: "10 critères observables."
+        apres: "16 critères : les 10 conservés (REJOUER EN UN GESTE amendé pour nommer l'exception du meilleur score ; VITESSE JOUABLE RESSENTIE amendé pour l'accélération), plus 6 ajouts — DEMARRAGE IMMEDIAT, LISIBILITE DU GAMEPLAY, PAUSE FONCTIONNELLE, SAUVEGARDE DU MEILLEUR SCORE, PROGRESSION VISIBLE DE DIFFICULTE, COMPREHENSION DE LA BOUCLE EN QUELQUES SECONDES."
+        pourquoi: "D6, à la lettre : « conserver les 10 existants ET ajouter »."
+      - champ: parametres_de_design
+        avant: "Champ inexistant en v1 ; les chiffres non tranchés vivaient en fog ou en prose."
+        apres: "Nouveau champ structuré : 8 paramètres, chacun avec valeur initiale utilisable, provenance explicite (ratifiée Pierre ou proposée par le rédacteur) et statut RATIFIE_PIERRE / A_EQUILIBRER."
+        pourquoi: "Consigne de révision : un paramètre non chiffré par Pierre n'est jamais laissé en suspens ; il porte une valeur initiale + une provenance + un statut d'équilibrage. Un chiffre proposé par un agent est marqué comme tel, jamais présenté comme une décision de Pierre."
+      - champ: provenance
+        avant: "5 entrées, dont 3 avec fog_humangate: true (plateforme_cible, criteres_demo, vitesse_fixe)."
+        apres: "9 entrées ; les 3 fogs sont FERMÉS par décision directe de Pierre ; l'entrée vitesse_fixe est remplacée par vitesse_et_acceleration ; entrées ajoutées : genre_bible (D4), grille (D2), pause_et_meilleur_score (D5), regle_wiremap_extensibilite."
+        pourquoi: "D1 à D6 sont des SOURCE_PIERRE_DIRECTE datées du 2026-07-28 ; leur trace remplace les dérivations indirectes de la v1."
+    revisions_du_prisme:
+      - sujet: "État de PAUSE"
+        statut_v1: "REJETÉ par la design review (base citée : genre.snake.continuous_forward_motion, « Stop Ability: No » sur 3/3 jeux observés)"
+        statut_v2: "CONSERVÉ — décision Pierre D5 : « expérience utilisateur complète, prévue dans l'architecture dès le départ ». La base de genre reste vraie pour le MOUVEMENT en partie (le serpent ne s'arrête jamais tant que la partie tourne) ; la pause est une commande de session, pas un frein de gameplay — d'où le critère PAUSE OBSERVABLE ET NEUTRE qui exige une reprise strictement identique. Conséquence : la machine à états porte 4 statuts, pas 3, et gameplayprog R17/R18 redeviennent applicables."
+      - sujet: "Meilleur score de session"
+        statut_v1: "REJETÉ (base citée : criteres_demo REJOUER EN UN GESTE, aucune fuite d'état de la partie précédente)"
+        statut_v2: "CONSERVÉ — décision Pierre D5 : « mémoire minimale de progression ». L'oracle de non-fuite porte désormais UNE exception NOMMÉE (le meilleur score, qui vit hors de l'état de partie) ; toute autre survivance reste un FAIL. Le prix relevé par la review (affaiblissement d'un test strict) est payé explicitement par le critère MEILLEUR SCORE PERSISTANT ET ETANCHE, qui rend l'exception vérifiable au lieu d'implicite."
+      - sujet: "Rétention inter-session"
+        statut_v1: "Fog HumanGate, traitement proposé : accepter l'absence pour cette tranche"
+        statut_v2: "CONSERVÉE AU MINIMUM — décision Pierre D5 : rétention assurée par la sauvegarde du meilleur score. Conséquence sur la checklist du Prisme : meta.retention et gd.boucles ne sont plus répondus « non » par construction ; data.persistance cesse d'être N/A (persistance locale minimale, un seul entier)."
+      - sujet: "Import de knowledge_base/systems/navigation/grid_nav.gd (GDScript)"
+        statut_v1: "REJETÉ pour inapplicabilité (cible navigateur, brique en GDScript)"
+        statut_v2: "REJET LEVÉ PAR LE CHANGEMENT DE CIBLE — la brique est en GDScript et la cible est désormais Godot : elle redevient CANDIDATE à la réutilisation. La review l'avait elle-même écrit (« si le fog plateforme basculait vers Godot, ce rejet tomberait »). L'évaluation réelle de cette brique appartient à l'étape architecture/wiremap, pas à ce charter."
+      - sujet: "Réutilisation de la collision balayée de Pong (stepBall)"
+        statut_v1: "REJETÉ (monde continu vs grille discrète)"
+        statut_v2: "REJET MAINTENU — indépendant de la plateforme : il n'y a aucun franchissement à interpoler entre deux cases adjacentes. La collision reste une brique NEW sur entiers."
+      - sujet: "Capture rasterisée comme preuve d'un critère de démo"
+        statut_v1: "REJETÉE comme preuve, conservée comme artefact de régression advisory"
+        statut_v2: "REJET MAINTENU ET RENFORCÉ — sur cible Godot, la preuve visuelle exige une fenêtre GPU réelle (fait mesuré 2026-07-22 : --headless rend une texture nulle). L'interdiction correspondante est explicite dans actions_interdites."
+    non_change:
+      - "reference_jeu : Snake, choix Pierre du 2026-07-28, inchangé."
+      - "Multijoueur / slither.io : reste hors_scope."
+      - "Invariants d'usine : solvabilité prouvée, déterminisme, mutation, evidence_path, variance des métriques, propose-only, NO_CLAIM_ALLOWED, gel de games/pong/ et des lanes protégées."
+
+# --- Provenance des champs de design-intent (champ structuré, pas un commentaire) ---
+provenance:
+  reference_jeu:
+    valeur: "Snake"
+    source: "Pierre, 2026-07-28, verbatim « je confirme le choix du jeu : Snake » (transmis par l'orchestrateur dans les entrées du run)"
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+  plateforme_cible:
+    valeur: "Moteur Godot 4.x, application de bureau hors-ligne"
+    source: "Pierre, 2026-07-28, décision D1, verbatim : « Confirmé : Godot. Le choix est volontaire. Pong a été un apprentissage de pipeline, mais l'objectif Forge n'est pas de reproduire uniquement des jeux canvas. La cible est une architecture de jeu réutilisable. Les briques Pong doivent être évaluées comme concepts réutilisables (boucle, input, collision, état, rendu), pas comme dépendance technique obligatoire. La wiremap doit donc partir d'une architecture Godot propre. »"
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+    fog_v1_ferme: "Le fog v1 (cible navigateur dérivée de l'objectif de réutilisation de Pong) est CLOS : Pierre a tranché en sens inverse et a explicitement requalifié la réutilisation de Pong en réutilisation de CONCEPTS."
+  grille:
+    valeur: "20 x 20 cases"
+    source: "Pierre, 2026-07-28, décision D2 : « grille 20×20 confirmée »."
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+  condition_de_fin_et_progression:
+    valeur: "Score courant + meilleur score + condition de fin + progression mesurable"
+    source: "Pierre, 2026-07-28, décision D2, verbatim : « Ne pas limiter Snake à une simple boucle infinie. La V1 doit avoir : score courant · meilleur score · condition de fin · progression mesurable. Le but est d'avoir une base permettant d'observer le comportement joueur et la progression. »"
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+  vitesse_et_acceleration:
+    valeur: "Vitesse initiale lisible (référence de départ 200 ms/case) + accélération progressive à paramètres isolés + seuils testés + plancher borné"
+    source: "Pierre, 2026-07-28, décision D3, verbatim : « L'accélération est confirmée. La vitesse fixe à 200 ms n'est pas suffisante pour valider la boucle complète. » Attendus nommés par Pierre : vitesse initiale lisible, accélération progressive, paramètres isolés pour équilibrer facilement, tests sur les seuils d'accélération. La valeur de DÉPART 200 ms reste la référence sourcée HTTP 200 (lakersgame.co.uk via GENRE_BIBLE_SNAKE §6.1) ; les chiffres de palier, de pas et de plancher sont des propositions du rédacteur du contrat, marquées A_EQUILIBRER dans parametres_de_design."
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+    fog_v1_ferme: "Le fog v1 (vitesse fixe Google Snake vs accélération Nokia) est CLOS en faveur de l'accélération, par décision directe et non par arbitrage de source. La source Nokia reste en HTTP 403 : elle n'est donc PAS citée comme justification de la magnitude, seulement la décision de Pierre l'est."
+  pause_et_meilleur_score:
+    valeur: "Pause conservée ; meilleur score conservé ; rétention inter-session assurée au minimum par la sauvegarde du meilleur score"
+    source: "Pierre, 2026-07-28, décision D5 : pause « expérience utilisateur complète, prévue dans l'architecture dès le départ » ; meilleur score « mémoire minimale de progression » ; règle générale : « ne pas ajouter de systèmes AAA inutiles, mais ne pas supprimer les briques fondamentales qui permettent d'apprendre et d'évoluer ». Révise les rejets correspondants de lab/forge_runs/snake/prisme/design_review.md."
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+  criteres_demo:
+    valeur: "16 critères : les 10 de la v1 conservés + 6 ajouts"
+    source: "Pierre, 2026-07-28, décision D6 : « conserver les 10 existants ET ajouter : démarrage immédiat · lisibilité du gameplay · pause fonctionnelle · sauvegarde du meilleur score · progression visible de difficulté · compréhension de la boucle en quelques secondes ». Les 10 d'origine restaient dérivés du playtest Pong (lab/reports/error_journal/playtest.jsonl, run_id playtest-2026-07-27) et de GENRE_BIBLE_SNAKE §3 ; leur conservation est désormais une décision de Pierre, pas une dérivation."
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+    fog_v1_ferme: "Le fog v1 (« ces 10 critères sont-ils bien ce que tu veux voir ? ») est CLOS : réponse « oui, et il en manquait 6 »."
+  genre_bible:
+    valeur: "Genre Bible Snake v1 RATIFIÉE, utilisée comme source de compréhension"
+    source: "Pierre, 2026-07-28, décision D4, verbatim : « Genre Bible Snake RATIFIÉE — source de compréhension, pas une limitation artificielle. Les décisions techniques passent toujours par l'architecture et le Prisme. » Conséquence appliquée : les règles de genre sont citées comme compréhension du genre, et ne peuvent plus servir seules à rejeter une brique voulue par Pierre (cas de la pause, cf. revisions.revisions_du_prisme)."
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+  regle_wiremap_extensibilite:
+    valeur: "Architecture capable d'accueillir équilibrage de difficulté, télémétrie, progression et réutilisation de briques"
+    source: "Pierre, 2026-07-28, règle de wiremap, verbatim : « Ne pas optimiser uniquement pour livrer Snake V1. Construire une architecture capable d'accueillir les apprentissages suivants : équilibrage difficulté · télémétrie · progression · réutilisation de briques. » Traduite en critères falsifiables : ARCHITECTURE EXTENSIBLE PROUVEE et PARAMETRES DE JEU ISOLES ET NOMMES — une intention d'extensibilité non prouvée mécaniquement serait exactement le mode de panne « déclaré ≠ exécuté »."
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+  multijoueur_hors_scope:
+    valeur: "Multijoueur exclu"
+    source: "Curriculum studio (Snake = jeu solo suivant Pong, gelé comme témoin) + lab/forge_runs/snake/GAME_REFERENCE/ qui documente slither.io comme référence multijoueur observée. Confirmé hors_scope par la consigne de révision v2."
+    type: DECISION_DE_CADRAGE_TRACEE
+    fog_humangate: false
+
+# --- Ce que ce charter ne tranche PAS (remonté, pas masqué) ---
+question_ouverte_humangate:
+  - sujet: "Valeur de la cible de victoire"
+    etat: "Valeur initiale utilisable posée (longueur 25 / 22 nourritures, parametres_de_design.cible_de_victoire, statut A_EQUILIBRER) — le charter n'a donc aucun champ en suspens."
+    question_a_pierre: "Ratifies-tu la cible de victoire longueur 25 (22 nourritures) comme valeur de travail, sachant que toute la chaîne de solvabilité en dépend, ou préfères-tu une autre valeur avant l'étape architecture ?"
+  - sujet: "Chiffres d'accélération (palier, pas, plancher)"
+    etat: "Valeurs initiales proposées par le rédacteur du contrat (5 fruits / -8 % / 80 ms), statut A_EQUILIBRER, isolées dans un bloc unique pour être modifiables sans toucher au code."
+    question_a_pierre: "Ces trois valeurs de départ te conviennent-elles pour le premier build, étant entendu qu'elles sont conçues pour être ajustées au playtest sans modifier une ligne de logique ?"

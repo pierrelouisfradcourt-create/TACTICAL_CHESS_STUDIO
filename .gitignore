@@ -172,3 +172,12 @@ scripts/forge/godot.config.json
 # regeneres a chaque run — jamais du contenu a versionner.
 lab/forge_runs/_orphan_context/
 /context/
+
+# --- Bruit de l'editeur Godot (ratifie Pierre 2026-07-28, incident temoin Pong) ---
+# `.godot/` = cache d'import + shader cache Vulkan, regenere a chaque ouverture du
+# projet (90 fichiers / 1,8 Mo mesures sur une seule ouverture). `*.uid` = identifiants
+# generes par Godot 4.4+ pour chaque script. Aucun des deux n'est du contenu a versionner.
+# PORTEE HONNETE : ceci elimine le BRUIT, il ne protege PAS `project.godot` d'un
+# ecrasement par l'editeur (l'incident du 2026-07-28) — c'est une dette distincte.
+.godot/
+*.uid

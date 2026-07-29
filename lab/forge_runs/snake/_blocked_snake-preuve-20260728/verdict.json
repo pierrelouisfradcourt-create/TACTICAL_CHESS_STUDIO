@@ -1,0 +1,313 @@
+{
+ "claim_verdict": "NO_CLAIM_ALLOWED",
+ "decision": "BLOCKED",
+ "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+ "git_head": "5ec42be22b8b71c6cdcbb9c3ae0578b33466ef31",
+ "hmac": "3d95331ef194f65d9ff6064bebb1be82ebf37f38f58e049cad9125cc035ead03",
+ "humangate_flags": [
+  "archi non vérifiée (oracle sauté dans ce profil)",
+  "wiremap non vérifiée (oracle sauté dans ce profil)",
+  "red-team dégradé: reviewer indépendant n'a pas tourné (fallback)"
+ ],
+ "nonce": "aeb223ce39e84748c35bee405c700cdd",
+ "oracles": {
+  "archi": {
+   "detail": {
+    "reason": "non applicable au profil standard_godot"
+   },
+   "evidence_path": "",
+   "evidence_sha256": "",
+   "oracle_id": "archi",
+   "run_id": "snake-preuve-20260728-205046",
+   "status": "SKIPPED",
+   "ts": 1785265836.5325987
+  },
+  "code": {
+   "detail": {
+    "e2e": {
+     "checked": false,
+     "reason": "profil standard : preuve par bot_action/pixel (core_requirements.yaml ne déclare aucune preuve e2e), décision Pierre 2026-07-23",
+     "status": "SKIPPED"
+    },
+    "harness_no_hardcoded_flags": {
+     "passed": true,
+     "raisons": []
+    },
+    "product_oracle": {
+     "auto_session": {
+      "checked": false,
+      "passed": false,
+      "reason": "fichier logique loop absent, illisible ou pas un fichier: C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\05_SYSTEMS\\game_loop\\loop.mjs"
+     },
+     "browser_import_safety": {
+      "checked": false,
+      "entry": "C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\06_RUNTIME\\adapters\\presentation\\browser\\main.mjs",
+      "fichiers_analyses": [],
+      "node_imports_atteignables": [],
+      "passed": false,
+      "process_non_gardes": [],
+      "reason": "entrée navigateur absente, illisible ou pas un fichier: C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\06_RUNTIME\\adapters\\presentation\\browser\\main.mjs"
+     },
+     "exit_stop_wiring": {
+      "checked": false,
+      "limites": [
+       "exécute 07_TESTS/unit/exit_stop.test.mjs tel quel (node --test), jamais réimplémenté.",
+       "NE PROUVE PAS un clic navigateur réel sur le bouton 'Quitter' (aucune automatisation navigateur disponible sur ce poste).",
+       "NE PROUVE PAS de rendu observé de l'état figé — seul le câblage logique (requestExit/stop/tick no-op) est exercé."
+      ],
+      "passed": false,
+      "reason": "fichier de preuve absent, illisible ou pas un fichier: C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\07_TESTS\\unit\\exit_stop.test.mjs"
+     },
+     "playable_speed_band_test": {
+      "checked": false,
+      "limites": [
+       "exécute 07_TESTS/unit/playable_speed.test.mjs tel quel (node --test), jamais réimplémenté.",
+       "NE PROUVE PAS une perception humaine de jouabilité (aucun playtest humain ici) — dérivation purement numérique des constantes.",
+       "NE PROUVE PAS de rendu observé (aucun clic, aucune capture d'écran)."
+      ],
+      "passed": false,
+      "reason": "fichier de preuve absent, illisible ou pas un fichier: C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\07_TESTS\\unit\\playable_speed.test.mjs"
+     },
+     "restart_offer_wiring": {
+      "checked": false,
+      "limites": [
+       "exécute 07_TESTS/unit/restart_offer.test.mjs tel quel (node --test), jamais réimplémenté.",
+       "NE PROUVE PAS un clic navigateur réel sur le bouton 'Rejouer' (aucune automatisation navigateur disponible sur ce poste).",
+       "NE PROUVE PAS de rendu observé (aucune capture d'écran ici) — seul le câblage logique du contrôleur (createController().replay()) est exercé."
+      ],
+      "passed": false,
+      "reason": "fichier de preuve absent, illisible ou pas un fichier: C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\07_TESTS\\unit\\restart_offer.test.mjs"
+     },
+     "solo_ai_session": {
+      "ai_logic": {
+       "checked": false,
+       "passed": false,
+       "reason": "fichier de preuve absent, illisible ou pas un fichier: C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\07_TESTS\\unit\\ai.test.mjs"
+      },
+      "checked": false,
+      "limites": [
+       "exécute 07_TESTS/unit/ai.test.mjs (node --test) et 07_TESTS/oracle/solo_session.mjs (harnais bot_action) tels quels, jamais réimplémentés.",
+       "NE PROUVE PAS qu'un joueur humain réel joue ce mode : le camp gauche est un proxy déterministe (outil de test), pas un humain au clavier.",
+       "NE PROUVE PAS de clic réel ni de rendu observé — logique pure, aucune I/O."
+      ],
+      "passed": false,
+      "session": {
+       "checked": false,
+       "passed": false,
+       "reason": "fichier de preuve absent, illisible ou pas un fichier: C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\07_TESTS\\oracle\\solo_session.mjs"
+      }
+     },
+     "visual_capture": {
+      "browser": {
+       "error": "C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\06_RUNTIME\\adapters\\presentation\\capture_browser.mjs absent",
+       "json": null,
+       "ran": false
+      },
+      "godot": {
+       "error": "C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\06_RUNTIME\\adapters\\presentation\\capture_godot.mjs absent",
+       "json": null,
+       "ran": false
+      },
+      "limites": [
+       "n'appelle QUE les captures existantes (capture_browser.mjs/capture_godot.mjs) — jamais réimplémentées ici.",
+       "le volet Godot exige un binaire configuré ET une fenêtre GPU réelle (--rendering-driver vulkan) ; son absence rend le volet NOT_MEASURED, jamais un vert."
+      ],
+      "not_measured": true,
+      "passed": false,
+      "reason": "C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\06_RUNTIME\\adapters\\presentation\\capture_browser.mjs absent",
+      "status": "NOT_MEASURED"
+     }
+    },
+    "reason": "fichiers logiques inconnus (ni logic_files ni wiremap.json) — preuve mutation impossible ; hypothèse inconnue = BLOCKED",
+    "returncode": 0,
+    "reuse_ratio_wired": {
+     "passed": false,
+     "raisons": [
+      "run-oracle.mjs absent"
+     ]
+    },
+    "search_consulted": {
+     "count": 0,
+     "passed": false,
+     "raisons": [
+      "aucune recherche journalisée depuis 2026-07-28T18:50:46.278Z (contrat s9-build §2bis non respecté, ou aucune brique ne pouvait matcher)"
+     ]
+    },
+    "solvability": {
+     "checked": true,
+     "passed": false,
+     "raisons": [
+      "la commande d'oracle du projet n'invoque pas 07_TESTS/oracle/solvability.mjs (volet solvabilité absent du gate) — argv=['node', 'scripts/forge/godot_oracle.mjs', 'games/snake']",
+      "07_TESTS/oracle/solvability.mjs absent (topologie STANDARD)"
+     ],
+     "topology": "standard"
+    }
+   },
+   "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\snake\\evidence\\oracle_snake.log",
+   "evidence_sha256": "ac2a37b0faba747ca6b79c856546746e3c67666329039444359630addc9a9f76",
+   "oracle_id": "code",
+   "run_id": "snake-preuve-20260728-205046",
+   "status": "BLOCKED",
+   "ts": 1785265214.9942849
+  },
+  "standard": {
+   "detail": {
+    "budget": {
+     "chevauchement": [],
+     "empilement_violee": false,
+     "hors_budget": [],
+     "measured": true,
+     "passed": true,
+     "promis_non_depose": [],
+     "reuses_invalides": []
+    },
+    "collisions": {
+     "collisions": [],
+     "doubles_proprietaires": [],
+     "identifiants_inconnus": [],
+     "ordre_implicite": [],
+     "passed": true,
+     "trous": []
+    },
+    "contract_completeness": {
+     "passed": true,
+     "violations": []
+    },
+    "genre_coverage": {
+     "citations_non_resolues": [],
+     "citations_resolues": 52,
+     "citations_revendiquees": 52,
+     "citees": [
+      "arch.dependency_direction:genre.snake.discrete_tick_loop",
+      "arch.determinism_replay:genre.snake.skill_gated_progression_not_rng",
+      "arch.event_socket:genre.snake.growth_on_food_immediate",
+      "bestscore.persistence:genre.snake.session_loop_four_horizons",
+      "bestscore.pure:genre.snake.zero_penalty_instant_restart",
+      "core.boot:genre.snake.continuous_forward_motion",
+      "core.collision:genre.snake.collision_ends_run",
+      "core.direction_rules:genre.snake.input_latency_buffering",
+      "core.direction_rules:genre.snake.no_reverse_into_self",
+      "core.end_condition:genre.snake.collision_ends_run",
+      "core.error_handling:genre.snake.discrete_tick_loop",
+      "core.error_handling:genre.snake.no_reverse_into_self",
+      "core.exit:genre.snake.zero_penalty_instant_restart",
+      "core.food_spawn:genre.snake.growth_on_food_immediate",
+      "core.food_spawn:genre.snake.space_as_primary_antagonist",
+      "core.game_state:genre.snake.discrete_tick_loop",
+      "core.growth_score:genre.snake.growth_on_food_immediate",
+      "core.input:genre.snake.input_latency_buffering",
+      "core.input:genre.snake.no_reverse_into_self",
+      "core.main_loop:genre.snake.continuous_forward_motion",
+      "core.main_loop:genre.snake.discrete_tick_loop",
+      "core.render:genre.snake.grid_readability",
+      "core.restart:genre.snake.session_loop_four_horizons",
+      "core.restart:genre.snake.zero_penalty_instant_restart",
+      "debug.receipt_line:genre.snake.discrete_tick_loop",
+      "debug.state_projection:genre.snake.discrete_tick_loop",
+      "input.adapter:genre.snake.input_latency_buffering",
+      "meta.metric_variance:genre.snake.space_as_primary_antagonist",
+      "meta.observable_coverage:genre.snake.grid_readability",
+      "meta.reuse_rate_report:genre.snake.discrete_tick_loop",
+      "meta.reuse_typing:genre.snake.discrete_tick_loop",
+      "params.bloc_unique:genre.snake.playable_speed_reference",
+      "pause.state:genre.snake.continuous_forward_motion",
+      "play.solo_full_loop:genre.snake.session_loop_four_horizons",
+      "proof.evidence_path:genre.snake.discrete_tick_loop",
+      "proof.harness:genre.snake.discrete_tick_loop",
+      "proof.mutation_gate:genre.snake.collision_ends_run",
+      "proof.solvability_bot:genre.snake.skill_gated_progression_not_rng",
+      "proof.solvability_bot:genre.snake.space_as_primary_antagonist",
+      "proof.visual_gpu_window:genre.snake.grid_readability",
+      "render.end_screen:genre.snake.collision_ends_run",
+      "render.end_screen:genre.snake.zero_penalty_instant_restart",
+      "render.grid:genre.snake.grid_readability",
+      "render.grid:genre.snake.space_as_primary_antagonist",
+      "render.hud_numbers:genre.snake.grid_readability",
+      "render.hud_numbers:genre.snake.skill_gated_progression_not_rng",
+      "render.pause_panel:genre.snake.continuous_forward_motion",
+      "runtime.boot_immediate:genre.snake.continuous_forward_motion",
+      "runtime.exit_observable:genre.snake.zero_penalty_instant_restart",
+      "runtime.loop_no_catchup:genre.snake.continuous_forward_motion",
+      "speed.band_reporting:genre.snake.playable_speed_reference",
+      "speed.tick_rate_curve:genre.snake.playable_speed_reference"
+     ],
+     "passed": true,
+     "refusees": [],
+     "regles_non_couvertes": [],
+     "taux_resolution": 1.0,
+     "verdict": "OK"
+    },
+    "index": {
+     "dossiers_hors_structure": [],
+     "dossiers_manquants": [],
+     "dossiers_orphelins": [],
+     "fichiers_manquants": [],
+     "orphelins": [],
+     "passed": true
+    },
+    "line_states": {
+     "core_omis": [],
+     "deferred_incomplet": [],
+     "etats_invalides": [],
+     "expected_sans_reference": [],
+     "implemented_au_gel": [],
+     "not_applicable_sans_raison": [],
+     "not_applicable_sur_core": [],
+     "passed": true,
+     "required_apres_build": [],
+     "source_manquante": [],
+     "system_parent_manquant": [],
+     "unknown_au_gel": []
+    },
+    "observable_coverage": {
+     "couvertes": [],
+     "lignes_sans_preuve": [],
+     "passed": true,
+     "verdict": "OK",
+     "volets_absents": [],
+     "volets_en_echec": [],
+     "volets_non_mesures": []
+    },
+    "placement": {
+     "adresse_incoherente": [],
+     "adresse_manquante": [],
+     "categorie_fichier_non_declaree": [],
+     "categorie_fichier_non_mappee": [],
+     "categorie_manquante": [],
+     "categorie_non_mappee": [],
+     "fichier_adresse_incoherente": [],
+     "identite_ambigue": [],
+     "passed": true,
+     "revendications_multiples": [],
+     "system_parent_inconnu": [],
+     "systeme_categorie_non_mappee": []
+    }
+   },
+   "evidence_path": "",
+   "evidence_sha256": "",
+   "oracle_id": "standard",
+   "run_id": "snake-preuve-20260728-205046",
+   "status": "OK",
+   "ts": 1785265215.0470836
+  },
+  "wiremap": {
+   "detail": {
+    "reason": "non applicable au profil standard_godot"
+   },
+   "evidence_path": "",
+   "evidence_sha256": "",
+   "oracle_id": "wiremap",
+   "run_id": "snake-preuve-20260728-205046",
+   "status": "SKIPPED",
+   "ts": 1785265836.5325987
+  }
+ },
+ "project": "snake",
+ "provenance_ok": true,
+ "redteam_advisory": [],
+ "redteam_ran": false,
+ "redteam_reviewer": "claude-opus-4-8",
+ "run_id": "snake-preuve-20260728-205046",
+ "software_verdict": "BLOCKED",
+ "ts": 1785265836.5493093
+}

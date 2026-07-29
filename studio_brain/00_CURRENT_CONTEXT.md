@@ -1,5 +1,53 @@
 # Contexte courant TCS
 
+## Session 2026-07-29 (Sonnet, suite) — Ménage disque (hors Forge, hors dépôt pour l'essentiel)
+- **Demande Pierre** : nettoyer C:\ (2100+ SKILL.md dupliqués, Bureau, Codex GPT, puis `repos/`
+  du dépôt). Aucun chantier Forge touché.
+- **Créé `C:\STUDIO_ARCHIVE\`** (hors dépôt, sibling de `TACTICAL_CHESS_STUDIO`) — destination des
+  éléments gelés/orphelins sortis du repo : `qwen25-7b-hf` (14,2 Go, checkpoint HF sans référence
+  code) · `repos_games/studioV2_MIGRATED_HOLD` + son zip (330 Mo, référencé seulement comme chaîne
+  de test synthétique) · `repos_games/ChessTCG` (380 Ko, zéro référence) · `repos_games/BullshitKiller`
+  (49 Mo, app autonome non câblée).
+- **Vérifié « gelé ≠ mort » avant de rien déplacer** (contre-vérification systématique du code) :
+  `games/collect_runner_legacy` + `games/survival_arena_legacy` (top-level, différent de
+  `repos/games/`) sont câblés en dur dans `scripts/forge/tests/test_e2e_harness.py` — **laissés en
+  place**. `openclaw/` + `studio/openclaw-workspace` + `studio/factory` sont importés par 7 scripts
+  actifs (healthcheck.py, studio_meta.py, sync_memory.py, cockpit_server.py, canvas_gateway.py,
+  council.py, director.py) et par les skills **vivants** `/gate` et `/audit-daily` — **laissés en
+  place** malgré le statut « legacy » en mémoire.
+- **`models/lmstudio` (51 Go, dans le dépôt) confirmé ACTIF** : LM Studio (6 modèles chargés,
+  vérifié via son API port 1234) sert ses GGUF depuis ce dossier, pas depuis son
+  `downloadsFolder` configuré (`~/.lmstudio/models`, vide) — **ne pas déplacer/supprimer**, ferait
+  planter LM Studio.
+- **Codex CLI (OpenAI) entièrement désinstallé** sur demande Pierre : binaire, `.codex/` (profil,
+  auth, sessions), entrée PATH — tout supprimé (corbeille). Sans lien avec Claude Code.
+- **Tests re-vérifiés après chaque déplacement risqué** (jamais pris la parole d'un `grep` seul) :
+  `node scripts/forge/declaration_readers.test.mjs` 29/29 verts après le déplacement de
+  `studioV2_MIGRATED_HOLD`.
+- **Reste identifié, non traité (zone sensible, pas décidé seul)** : `lab/` (14 Go — datasets/runs
+  actifs ML, ACTIVE_DATASET) · `training_runs/` (1,8 Go, 2 runs quasi-identiques 26-27/06) ·
+  `target/` (3 Go Rust, Pierre a choisi de garder).
+- **Prochaine étape** : aucune demandée — session de ménage terminée.
+
+## Session 2026-07-29 (Sonnet) — Infra Qwen local hors Forge (pas un chantier Forge)
+- **Demande Pierre** : connecter Claude à LM Studio (Qwen local, port 1234), avec accès Skills/Playwright.
+  Hors périmètre Forge — infra studio générale, rien commité (tout vit hors dépôt, `~/.claude/**`).
+- **Livré et vérifié fonctionnel** (détail : mémoire `qwen_lmstudio_playwright_infra`) :
+  pont MCP `ask_lm_studio` (Claude appelle Qwen comme outil texte-in/texte-out) · `@playwright/mcp`
+  branché Claude Code + Claude Desktop · **Claude Desktop mode 3P** (Qwen `qwen2.5-coder-14b` comme
+  cerveau, PAS qwen3.6 — bug JSON connu) configuré et confirmé par les logs de l'app, **mutuellement
+  exclusif** avec le compte Anthropic normal (2 profils disque étanches, aucun historique partagé,
+  bascule à l'écran de connexion uniquement) · agent CLI standalone **`qwen-playwright-agent`**
+  (Qwen décide via function-calling, exécute un vrai Playwright en boucle) testé 2× vert
+  (example.com + résumé Wikipédia FR Diablo II correct).
+- **Leçon d'environnement capturée** (mémoire `stophook_wsl_node`, mise à jour) : l'outil Bash de
+  Claude Code = launcher WSL sur ce poste, y compris pour les installs de binaires natifs
+  (`npx playwright install` lancé via Bash a écrit dans un contexte invisible du PowerShell natif
+  de l'utilisateur) — utiliser PowerShell pour tout ce qui doit exister côté Windows natif.
+- **Prochaine étape** : aucune demandée par Pierre pour l'instant — infra prête à l'usage direct
+  (`node index.mjs "<tâche>"` dans `qwen-playwright-agent`) dès qu'un besoin de scraping/test web
+  piloté par Qwen se présente.
+
 ## CLÔTURE SESSION 2026-07-27/28 — CYCLE PONG TERMINÉ, PONG GELÉ COMME TÉMOIN
 - **Ce que le cycle a produit de plus important : 5 RÈGLES D'USINE** (invariants Forge ratifiés
   Pierre, chacun né d'une panne mesurée — détail : mémoire `forge_invariants_qualite`,

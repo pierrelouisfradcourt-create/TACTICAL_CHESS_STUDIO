@@ -1,0 +1,22 @@
+Rapport red-team CODE écrit dans `lab/forge_runs/snake/rapport_redteam_code.md` (contrat s11-redteam-code, dispatch `snake-solv-20260729-151140`). Contexte aveuglé respecté, `run: aucun` respecté (aucun oracle/jeu lancé), seul ce fichier écrit.
+
+## Synthèse
+
+**Angles demandés conclus NÉGATIFS** (falsification échouée, documentée) :
+- Faux-vert entre les deux harnais → l'oracle exécute bien `tests/run_tests.gd` qui **ré-énumère** et exécute les 282 assertions ; il ne délègue que la constante `EXPECTED_ASSERTS`.
+- Solvabilité par construction → `food_spawn` **ne consulte pas** le pathfinder (contrairement au précédent R9) ; `succeeded=false` est atteignable dans le code.
+- Demi-tour même tick, collision food/corps, grille pleine, save corrompue, pureté logique → couverts par des tests à égalité **stricte**.
+
+**5 findings advisory** (aucun ne conteste un reçu d'oracle) :
+
+| # | Sévérité | Cœur |
+|---|---|---|
+| F1 | MEDIUM | Plancher 80 ms **injouable** : victoire à 22 fruits, plancher à 55 → toute la moitié basse de la courbe [143→80] est morte ; bande déclarée [80,200] ≠ bande jouée [~143,200]. |
+| F2 | MEDIUM | Solvabilité 50/50 **triviale** : cible à 6 % de remplissage, le bot glouton n'a jamais à gérer l'espace → un late-game cassé passerait le vert. |
+| F3 | LOW | `runtime_loop.avancer` **jette le reliquat à chaque tick** → cadence réelle < période calibrée. |
+| F4 | LOW | `params_isolation.test` matche les littéraux en **sous-chaîne** (`"25"` ⊂ `125`) → fragile et poreux. |
+| F5 | LOW | Le harnais dit « canonique » n'est **jamais exécuté** par l'oracle ; boucle dupliquée → dérive silencieuse possible. |
+
+F1 et F2 partagent une racine : **`CIBLE_VICTOIRE=25` (paramètre `A_EQUILIBRER`) est réglé si bas que deux propriétés calibrées deviennent creuses** — exactement la classe « promesse trop forte à requalifier » de la règle de variance (CLAUDE.md 2026-07-21). Reproductions fournies exécutables par oracle non-LLM en aval (arithmétique de la courbe, relèvement de la cible + relance solvabilité, assertion `avancer`).
+
+Verdicts : **software_verdict OK** (reçus mécaniques 282/282, mutation 63/64, solvabilité 50/50 non contestés) · **evidence_verdict MECHANICAL_VALIDATION_ONLY** · **claim_verdict NO_CLAIM_ALLOWED** (F1/F2 reposent sur des falsifications non lancées → **fog HumanGate** sur les params de balance). Section `SKIPPED_VALIDATION` explicite dans le rapport. Bloc JSON `findings` conforme en fin de fichier pour le parseur déterministe.

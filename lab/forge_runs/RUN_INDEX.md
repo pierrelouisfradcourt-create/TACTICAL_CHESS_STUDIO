@@ -177,3 +177,50 @@ Pong est **GELÉ comme témoin de régression** (décision Pierre). Ne plus l'en
 Deux erreurs de supervision consignées : mon `git mv` d'archivage a cassé 5 tests lisant un chemin de run vivant (réparé) · j'ai ajouté une assertion appelant `logic_files_from_wiremap` sur une wiremap STANDARD, qui rend `[]` car c'est le driver qui normalise (2e fois que ce piège coûte un faux diagnostic).
 
 **PROCHAIN CHAPITRE — nouvelle session, sur le JEU SUIVANT du curriculum, jamais sur Pong.** Question centrale : « l'usine transforme-t-elle son expérience en accélération ? » Conditions Pierre : nouvelle Genre Bible · pré-mortem dès le départ · `observable_by_player` dans le design initial · briques candidates à la réutilisation identifiées AVANT production · mesure de ce qui est importé depuis Pong/Forge. **Piège de mesure à ne pas répéter** : ne pas comparer des coûts bruts entre runs de périmètres différents (pong_r2 13,82 $ / 123 965 tk à 0 ligne REQUIRED ; pong_r3 s9 14,10 $ / 191 773 tk à 6 lignes).
+
+---
+
+## RUN `snake-20260728-091302` — SNAKE, chaîne conception complète (2026-07-28)
+
+**Jeu ratifié Pierre : Snake.** Premier run à exécuter la moitié CONCEPTION que Pong n'a jamais eue :
+Observation → Compréhension → Compression → Architecture. Aucun code produit ; le build s9 Godot n'est pas lancé.
+
+**Chaîne exécutée (16 dispatches, tous par `prepare_dispatch`, tous re-vérifiés par l'orchestrateur)** :
+World Scan « caméra d'architecte » (contrat s2 étendu : dossier d'observation, URLs citées + timestamps,
+zéro média local — `check_worldscan.mjs` créé, 27 tests) · Genre Bible Snake (RATIFIÉE Pierre, 12 règles /
+5 critères / 3 hypothèses) · charter v1 puis v2 (les 3 fogs v1 fermés par les décisions D1-D6) ·
+Prisme COMPLET : contrôle + 3 lentilles (game designer, architecte du dépôt, programmeur gameplay),
+`merge_prisme` mécanique → FULL_COVERAGE 22/22 · Gameplay Review (l'élément absent de la matrice) :
+`check_gameplay_review.mjs` créé (15 tests), 23/23 items, 23 décisions dont 6 rejets · wiremap v2 44 lignes.
+
+**Décisions Pierre du 2026-07-28** : D1 Godot (briques Pong = CONCEPTS réutilisables, pas dépendance) ·
+D2 grille 20×20 + score/meilleur score/fin/progression · D3 accélération confirmée, paramètres isolés ·
+D4 Genre Bible ratifiée · D5 pause + meilleur score + rétention minimale CONSERVÉS (rejets v1 levés) ·
+D6 six critères démo ajoutés · règle wiremap : architecture capable d'accueillir équilibrage/télémétrie/
+progression/réutilisation, sans construire ces systèmes. Puis : registre de capacités étendu aux vraies
+capacités de jeu uniquement · `repo_map` étendu (`godot.project_root`, `godot.project_tests`) ·
+typage de réutilisation scindé `CODE_COPIE` / `OUTIL_FORGE`.
+
+**État final re-exécuté** : `line_states` True · `placement` True · `collisions` True (0 inconnu) ·
+`genre_coverage` True 52/52 taux 1.0 · types CONCEPT 25 / NEW 14 / OUTIL_FORGE 3 / CODE_COPIE 2 ·
+discarded 6 · 11 fogs (3 résolus avec trace, 8 ouverts). Témoin Pong 72/72 exit 0 · suite studio
+988 passed / 1 skipped · selfaudit ALIGNÉ. Point de ratification : `RATIFICATION_WIREMAP_SNAKE.md`.
+
+**Faits d'usine découverts et corrigés pendant le run (chacun mesuré, aucun sur parole)** :
+① `reuse_ratio` était aveugle aux imports inter-jeux (Pong mesurait 0.000 par construction) → catégorie
+`cross_game` ajoutée ; ② il était AUSSI aveugle aux `preload/load` GDScript (grid_nav_probe : 3 preload
+réels, 0 import vu) → extraction GDScript + résolution `res://` ; lecture honnête : ce sont des COPIES
+locales, pas des imports KB — **en Godot un `res://` ne peut structurellement pas atteindre
+`knowledge_base/`**, donc la réutilisation CODE se prouve par empreinte, pas par import ; ③ le registre
+de capacités avait un trou qui faisait échouer le TÉMOIN Pong (`collisions` FAIL, 2 identifiants jamais
+déclarés depuis le 27-07) — réparé par la table, le jeu intact ; ④ faux vert de wiremap intercepté :
+la tentative 1 validait `check_line_states` contre un référentiel dérivé de sa propre carte
+(tautologie d'oracle, même patron que R9) — 7 lignes CORE canoniques manquaient réellement ;
+⑤ le hook `pretool_forge_guard` a réellement refusé un re-spawn à clé de dispatch dupliquée (anti-replay).
+
+**Coût conception mesuré (M1)** : 16 appels · 2 243 778 tokens · ~2 h 12. À ne PAS comparer aux runs Pong
+(périmètres différents) : l'accélération se juge sur ce que le build importe, puis sur le jeu suivant.
+
+**Prérequis avant s9 Godot** : export templates absents du poste · preuve visuelle = fenêtre GPU
+obligatoire · `s9-build-godot` orphelin de tout profil · tautologie R9 à re-vérifier · sort de la
+session parallèle `scripts/forge/adapters/godot/` à arbitrer.
