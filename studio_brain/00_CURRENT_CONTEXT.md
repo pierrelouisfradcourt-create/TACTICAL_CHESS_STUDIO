@@ -1,5 +1,43 @@
 # Contexte courant TCS
 
+## CLÔTURE 2026-07-28/29 — CYCLE SNAKE TERMINÉ (jeu 2 du curriculum, 1re cible GODOT)
+- **Snake est livré, jouable et prouvé.** `software_verdict: OK / HUMANGATE_READY_WITH_OBJECTION`,
+  `verify_run` INTÉGRITÉ AUTHENTIQUE. Le jeu DÉMARRE (11 ticks, 0 erreur, exit 0) et AFFICHE
+  (oracle pixel `core_render_frame` vert en fenêtre GPU). 282 assertions · mutation 63/64
+  (1 survivant trié équivalent) · solvabilité 50/50 · les 8 volets du standard verts.
+- **Ce que le cycle a vraiment produit : une chaîne de preuve multi-runtime.** Six instruments
+  supposaient une topologie web au lieu de la lire ; chacun est corrigé et prouvé —
+  `oracles.json` sans entrée · permission `tests/**` non ancrée · profil `standard_godot`
+  non reconnu comme topologie STANDARD · budget de ticks calibré pour un autre jeu (faux
+  NÉGATIF 0/50 sur une solvabilité qui marchait) · `check_index` contredisant `repo_map` ·
+  faux vert `observable_coverage` (44 champs en prose ignorés en silence). **Le mode de panne
+  du cycle : un instrument qui SUPPOSE au lieu de LIRE.**
+- **Contrat de preuve V1 FIGÉ** (`docs/forge/CONTRAT_PREUVE_MUTATION_V1.md`) : descripteur
+  `proof:` dans le `game_contract.yaml` du jeu · périmètre de mutation par CATÉGORIE (plus
+  par extension) · commande de mutation DÉDIÉE (mesuré : 17 s contre 14 min via l'oracle
+  complet) · scellement en CHAÎNE (déclaré/exécuté/wrapper/scripts/paramètres/version du
+  runtime/résultat brut) · `<bin:name>` autorise l'indirection de chemin machine, jamais
+  celle de ce qui est exécuté · 4 verdicts distincts, aucun vert silencieux.
+- **DEUX LEÇONS RATIFIÉES PIERRE 2026-07-29** (manuel §6bis, mémoire
+  `proof_never_replaces_product_run`) : ① **la preuve ne remplace jamais l'exécution
+  produit** — Snake satisfaisait TOUT et ne démarrait pas ; la validation doit inclure un
+  chemin d'entrée utilisateur réel (point d'entrée → runtime chargé → rendu observable) ;
+  les index prouvent la cohérence des déclarations, pas l'exhaustivité des besoins.
+  ② **un contrat déclare les éléments structurels OBLIGATOIRES**, pas seulement les fichiers
+  existants — les points d'entrée sont des invariants à vérifier EN ABSENCE comme en présence.
+- **Dette ouverte, nommée** : aucun oracle ne détecte un élément *nécessaire mais non déclaré*
+  (c'est ce qui a laissé Snake passer sans démarrer) · `product_oracle` reste web-only (le
+  fournisseur Godot le complète, il ne le remplace pas) · `core_render_frame` exige une
+  fenêtre GPU · 10 lignes de Snake sont observables sans volet qui les exerce · DR-14 (3
+  failles de la garde git, même cause : elle filtre du TEXTE) · DR-15 (skill `/forge` vs
+  `_STEP_TOOLS`).
+- **3 objections au verdict signé, décision Pierre** : équivalence du survivant non vérifiée
+  mécaniquement · red-team dégradé · archi/wiremap sautés par le profil.
+- **Témoin Pong INTACT** tout du long : 72/72, aucun fichier modifié. Un incident a été
+  détecté et réparé en cours de cycle (l'éditeur Godot avait réécrit son `project.godot`).
+- **6 commits poussés.** Non commité volontairement : 70 suppressions
+  `repos/games/ChessTCG/` (archivage antérieur, hors périmètre de ce cycle).
+
 ## Session 2026-07-29 (Sonnet, suite) — Ménage disque (hors Forge, hors dépôt pour l'essentiel)
 - **Demande Pierre** : nettoyer C:\ (2100+ SKILL.md dupliqués, Bureau, Codex GPT, puis `repos/`
   du dépôt). Aucun chantier Forge touché.

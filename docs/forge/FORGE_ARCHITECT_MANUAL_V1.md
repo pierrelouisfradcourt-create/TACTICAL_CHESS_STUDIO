@@ -183,6 +183,42 @@ un consommateur identifié** — agent, étape du pipeline, ou validation. Un é
 appelant / un lecteur sans données est le mode de panne n°1 du studio (6 occurrences
 prouvées). **Vérifié par :** `studio_selfaudit.mjs` (connecteurs dormants) + review.
 
+## 6 bis. Deux leçons du cycle Snake (ratifiées Pierre 2026-07-29)
+
+Nées d'un cas mesuré : Snake a satisfait **toutes** ses preuves — 282 assertions, 63/64
+mutants tués, bot solvable 50/50, 8 volets d'observabilité, `verify_run` AUTHENTIQUE — et
+**ne démarrait pas**. `project.godot` pointait vers une scène qui n'existait pas ; le projet
+ne contenait aucun `.tscn`.
+
+### Leçon 1 — La preuve ne remplace jamais l'exécution produit
+
+> Un projet peut satisfaire ses tests, ses contrats et ses oracles tout en étant impossible
+> à lancer.
+
+La validation doit inclure un **chemin d'entrée utilisateur réel** : point d'entrée déclaré
+→ scène/runtime chargé → **rendu observable**. Les index prouvent la **cohérence des
+déclarations**, jamais l'**exhaustivité des besoins**.
+
+**Vérifié par :** un lancement réel borné (`--quit-after N`) dont la sortie est jointe, plus
+un oracle de rendu exécuté en fenêtre GPU. Aucune suite de tests unitaires ne remplace ces
+deux-là.
+
+### Leçon 2 — Un contrat déclare les éléments structurels OBLIGATOIRES, pas seulement les fichiers existants
+
+> Une carte qui ne déclare que les fichiers présents ne peut pas détecter un élément absent
+> mais nécessaire.
+
+Les **points d'entrée** (scène principale, bootstrap, entrypoint runtime) sont des
+**invariants explicites du contrat**, et doivent être vérifiés **en absence comme en
+présence**. C'est la différence entre « tout ce qui est déclaré existe » (vérifié
+aujourd'hui) et « tout ce qui est nécessaire est déclaré » (qui ne l'était pas).
+
+**Vérifié par :** rien, à ce jour — `check_index` ne peut pas voir manquer ce que personne
+n'a déclaré. **Dette nommée**, à traiter par un invariant de contrat, pas par un cas
+particulier.
+
+---
+
 ## 7. Rappel des règles d'usine (non négociables, Détail K)
 
 1. Une preuve sans lecteur branché n'existe pas dans la chaîne qualité.
