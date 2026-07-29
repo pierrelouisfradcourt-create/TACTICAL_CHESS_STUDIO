@@ -1,121 +1,91 @@
-All measurements complete by real execution. **No write is warranted** — the only genuinely false state (`observable_coverage`) had already been corrected to BLOCKED by a prior pass; no IMPLEMENTED line lacks real proof. Here is the report.
+`git diff` is denied — not material. I've established HEAD and the working tree agree on all states and types, so the uncommitted modification doesn't change my verdict. I have everything needed. No file was written — the mission found no false-IMPLEMENTED to correct.
 
 ---
 
-# RAPPORT FINAL — snake-solv-20260729-151140 / s9-build-godot-standard (VÉRIFICATION SEULE)
+# RAPPORT FINAL — Vérification Snake (snake-final2-20260729-174101 / s9-build-godot-standard)
 
-**Aucun fichier de jeu écrit, créé ni modifié. Aucune écriture de wiremap effectuée** — voir la justification en fin de rapport.
+**MISSION DE VÉRIFICATION SEULE — aucun fichier de jeu écrit, aucune correction de carte effectuée** (aucun état FAUX de type « IMPLEMENTED sans preuve » n'a été trouvé, seule écriture qui aurait été autorisée).
 
 ## software_verdict: OK
 ## evidence_verdict: MECHANICAL_VALIDATION_ONLY
 ## claim_verdict: NO_CLAIM_ALLOWED
+Vocabulaire : OK / FAIL / BLOCKED.
 
 ---
 
-## 1. Re-mesure par exécution réelle (sorties brutes)
+## 1. Faits re-mesurés par EXÉCUTION RÉELLE
 
-**Oracle maître** — `node scripts/forge/godot_oracle.mjs games/snake` (exécuté via wrapper subprocess pour capter le code de sortie) :
-```
-run_tests.gd (mecanique)  : === RESULT: 282 passed, 0 failed (fichiers: 26) ===   -> OK
-solvabilite (R9)          : {"trials":50,"won":50,"lost":0,"failed_seeds":[],"verdict":"OK"}
-[godot_oracle] ALL CHECKS PASSED
-godot_oracle.mjs EXIT CODE: 0
-```
-→ Critère de réussite (1) **satisfait** : exit 0, 282 assertions == EXPECTED_ASSERTS (282, lu de `07_TESTS/oracle/run_tests.gd:21`), solvabilité 50/50 gagnés.
-
-**Oracles du standard** (câblage identique au driver, `built=True`, `frozen="built"`, entrées = `09_WIREMAP/wiremap.json` + `standard/{core_requirements,repo_map,capabilities}.yaml` + `01_DESIGN/genre_bible.json`) :
-```
-line_states     : passed=True
-placement       : passed=True
-index           : passed=True
-collisions      : passed=True
-genre_coverage  : passed=True
-```
-
-**Disque** : 66 fichiers `.gd`, `project.godot` présent, 0 `.tscn` (scène déclarée dans `project.godot`), 26 fichiers `07_TESTS/unit/*.test.gd` (== « fichiers: 26 » du harnais). Aucun fichier `fichiers[]` manquant sur disque.
-
----
-
-## 2. Cohérence carte ↔ disque — écart avec l'état annoncé par l'orchestrateur
-
-Le décompte réel de `games/snake/09_WIREMAP/wiremap.json` (44 lignes) :
-
-| État | Compté sur disque | Annoncé par l'orchestrateur |
-|---|---|---|
-| IMPLEMENTED | **40** | 41 |
-| DEFERRED | 2 (`core.audio`, `meta.reuse_rate_report`) | 2 |
-| NOT_APPLICABLE | 1 (`meta.charter_complete`) | 1 |
-| **BLOCKED** | **1** (`meta.observable_coverage`) | 0 |
-| REQUIRED | 0 | 0 |
-
-**Explication mécanique de l'écart** (non une contradiction) : le disque `games/` reflète **déjà** une correction antérieure (run `snake-reel-20260729-120236`) qui a fait passer `meta.observable_coverage` de IMPLEMENTED → BLOCKED. Le « 41 » de l'orchestrateur correspond à l'instantané **avant** cette correction. La copie au-gel `lab/forge_runs/snake/wiremap.json` porte, elle, **41 REQUIRED** (schema_version 2) — carte de promesse pré-build, cohérente.
-
-`check_line_states(built)` **passe** avec ce BLOCKED : un BLOCKED motivé est légitime après build (SCHEMA.md §3), contrairement à REQUIRED.
-
----
-
-## 3. Vérification que les lignes IMPLEMENTED portent une preuve réelle
-
-Les 2 seules lignes IMPLEMENTED sans `fichiers[]` (lignes de gouvernance, système `wiremap_governance`, « aucun code de jeu ») ont été vérifiées par exécution :
-
-- **`meta.metric_variance`** — `07_TESTS/oracle/speed_band_report.gd` exécuté headless :
-  ```
-  EXIT CODE: 0
-  FORGE_ORACLE speed_band_report {"bande_bot_mesuree":[143.278592,200.0],"bande_regle_pure":[80.0,200.0],"fails":[],"ok":true,"periodes_distinctes_bot":5}
-  ```
-  → variance réelle (5 périodes distinctes, ≥2). Claim **VRAI**.
-
-- **`meta.reuse_typing`** — vérification mécanique de la wiremap : 44/44 lignes ont `reused_from.type ∈ {CODE_COPIE, OUTIL_FORGE, CONCEPT, NEW}` ; 2 CODE_COPIE avec `copy_sha256` non nul et source réelle. Claim **VRAI**.
-
-Toutes les autres lignes IMPLEMENTED déclarent des `fichiers[]` **présents sur disque**, et le harnais (`tests/run_tests.gd`) charge dynamiquement tout `07_TESTS/unit/*.test.gd` avec **garde anti-faux-vert active** (total ≠ EXPECTED_ASSERTS → échec forcé). Leur preuve agrégée (282 passed) est réellement exécutée.
-
-**Conclusion §3 : aucune ligne ne se déclare IMPLEMENTED sans preuve réelle.**
-
-## 4. Empreintes CODE_COPIE déposées vs `copy_sha256`
-
-| Ligne | Source déclarée | sha source == `copy_sha256` | Copie octet-identique déposée ? |
+| Fait | Commande exécutée | Sortie brute | Verdict |
 |---|---|---|---|
-| `proof.solvability_bot` | `knowledge_base/systems/navigation/grid_nav.gd` (`f064870…`) | **MATCH** | **OUI** — `06_RUNTIME/adapters/solvability_bot/grid_nav.gd` = `f064870…` (identique) |
-| `proof.harness` | `knowledge_base/systems/navigation/run_tests.gd` (`096cd75…`) | **MATCH** | **NON** — aucun des 3 fichiers déposés (`harness.gd`, `07_TESTS/oracle/run_tests.gd`, `tests/run_tests.gd`) n'égale `096cd75…` |
+| Oracle mécanique | `node scripts/forge/godot_oracle.mjs games/snake` | `=== RESULT: 282 passed, 0 failed (fichiers: 26) ===` · `[godot_oracle] OK : run_tests.gd (mecanique)` | OK |
+| Solvabilité (R9) | (même run) | `{"trials":50,"won":50,"lost":0,"failed_seeds":[],"verdict":"OK"}` · `ALL CHECKS PASSED` | OK |
+| Code de retour | `godot_oracle.mjs` → `console.log('ALL CHECKS PASSED'); process.exit(0)` (l.141-142) | exit **0** | OK |
+| Garde anti-faux-vert | lecture `07_TESTS/oracle/run_tests.gd:21` + `tests/run_tests.gd:55-58` | `EXPECTED_ASSERTS := 282` ; le harnais échoue si `total != attendu` ; 282 exécutées == 282 attendues | OK |
+| Fichiers `.gd` | `find games/snake -name '*.gd'` | **67** (l'orchestrateur annonçait 66 ; écart d'1 = `solvability.gd` + harnais inclus) | — |
 
-- `proof.solvability_bot` : la brique copiée est bien byte-identique à sa source → garde-fou (g) **satisfait**.
-- `proof.harness` : la source hashe correctement, mais **aucun fichier déposé n'est la copie octet-identique** annoncée par `reused_from.type: CODE_COPIE`. C'est une **sur-déclaration de typage de réutilisation** (le harnais Snake est une *adaptation*, pas une copie — plus proche de CONCEPT). Cet écart est **déjà documenté et remonté en fog HumanGate** dans le wiremap (`proof.harness.reused_from_note`) ET dans l'en-tête de `tests/run_tests.gd` lui-même. La ligne reste IMPLEMENTED sur une base **fonctionnelle réelle** (le harnais s'exécute, 282 asserts) : ce n'est **pas** un IMPLEMENTED sans preuve, mais un défaut de taxonomie déjà signalé. → **fog, pas une écriture autorisée** (voir §6).
+Note : les 3 `WARNING: best_score vide/corrompu / non inscriptible` de la sortie sont les **tests de mode dégradé** (`best_score_store_degraded.test.gd`) qui exercent volontairement fichier absent/vide/corrompu/non-inscriptible — comportement attendu, pas des échecs.
 
----
+## 2. Gate mutation (reçu brut lu, non ré-exécuté)
 
-## 5. Décision d'écriture : AUCUNE
+`lab/forge_runs/snake/mutation_receipt_s9r.json` : **killed 63 / total 64**, 1 survivant :
+- `05_SYSTEMS/food_spawn/food_spawn.gd:17` — mutant `true->false` sur `occupees[seg] = true`.
+- Trié **équivalent** dans `games/snake/mutation_triage.json` avec justification nommée : `occupees` est un `Dictionary` utilisé uniquement comme ensemble d'appartenance (seule lecture `occupees.has(c)`, ligne 22) ; la valeur associée n'est jamais lue, donc `true`/`false` produisent une liste de cases libres identique.
 
-La seule écriture autorisée par la mission était la correction d'un **état FAUX** (IMPLEMENTED sans preuve réelle). **Aucun tel état n'a été trouvé** :
-- l'unique état faux historique (`observable_coverage`, ancien « check_observable_coverage OK » = faux vert par vacuité) était **déjà corrigé en BLOCKED** avant mon intervention ;
-- les 40 lignes IMPLEMENTED restantes portent toutes une preuve réellement exécutée.
+**Score de mutation BRUT : 63/64 tués, 1 survivant justifié équivalent** → critère (3) satisfait.
 
-Une mission de vérification qui ne produit aucun fichier est un succès légitime ici — **je n'écris rien**.
+## 3. Oracles du standard — re-exécutés indépendamment
 
----
+| Oracle | Ré-exécution (Python, sur la carte réelle) | Résultat |
+|---|---|---|
+| `check_line_states(frozen='built')` | mon runner | `passed: True` (0 violation) — OK pour un artefact bâti (IMPLEMENTED autorisé, REQUIRED interdit) |
+| `check_placement(wiremap, repo_map)` | mon runner | `passed: True` |
+| `check_collisions(wiremap, capabilities)` | mon runner | `passed: True` |
+| `check_observable_coverage(wiremap, {})` | mon runner | `passed: False, verdict: BLOCKED`, 0 malformé, 0 ligne_sans_preuve (voir §5) |
 
-## 6. FOG → HumanGate Pierre (remontés, non corrigés — hors périmètre d'écriture autorisé)
+## 4. Cohérence carte ↔ disque
 
-1. **`proof.harness` — typage CODE_COPIE sur-déclaré** : `reused_from.type: CODE_COPIE` annonce une copie octet-identique de `096cd75…` mais aucun fichier déposé ne correspond (garde-fou g). Déjà noté comme fog dans le wiremap et l'en-tête du fichier. Requalifier honnêtement (CONCEPT/adaptation) est une décision de taxonomie/design, hors « correction d'état IMPLEMENTED faux ».
-2. **`meta.observable_coverage` — motif du BLOCKED périmé** : le `reason` sur disque impute le blocage à « observable_by_player type `str`, 44/44 lignes malformées ». Ma re-mesure `check_observable_coverage(wiremap, {})` donne `passed=False, verdict=BLOCKED` mais **`observable_malformes=0`** — les champs sont désormais des **booléens** sur disque ; le BLOCKED provient maintenant des **volets non mesurés** (reçu produit vide, pas de reçu `product_oracle` GPU). Le BLOCKED reste juste (conservateur, non-faux), mais son texte de motif ne décrit plus la cause réelle. Rafraîchir ce texte n'est ni une correction d'état IMPLEMENTED faux ni clairement autorisé.
+`games/snake/09_WIREMAP/wiremap.json`, **44 lignes** :
+- `state == statut` sur **44/44** lignes (0 divergence).
+- **Tous** les fichiers déclarés existent sur disque (0 manquant).
+- **0** ligne IMPLEMENTED avec `preuve` vide.
+- Répartition disque : **40 IMPLEMENTED · 2 DEFERRED · 1 BLOCKED · 1 NOT_APPLICABLE**.
 
----
+**⚠ Écart avec le snapshot de l'orchestrateur** (annoncé : *41 IMPLEMENTED · 2 DEFERRED · 1 NOT_APPLICABLE · 0 BLOCKED*). Le disque — **HEAD committé ET working tree, vérifiés identiques** (`git show HEAD:…` → mêmes 40/2/1/1, `meta.observable_coverage=BLOCKED`, `observable_by_player` de type `bool`) — porte **40 IMPLEMENTED / 1 BLOCKED**. Le chiffre « 41 IMPLEMENTED / 0 BLOCKED » de l'orchestrateur est **inexact** ; le disque fait foi. Aucune ligne n'est en REQUIRED (conforme).
 
-## 7. Fichiers touchés confrontés à l'ownership de la carte
-**Aucun fichier du dépôt touché.** Fichiers créés hors dépôt (scratchpad de session, jetables) : `verify_snake.py`, `verify2.py`, `verify3.py`, `run_speedband.py`, `run_oracle_rc.py` — instruments de re-mesure, aucune écriture dans `games/`, `lab/`, `scripts/`, `tests/`.
+Réutilisation (comptée à la main, sans re-adjudication) : `NEW 14 · CONCEPT 25 · OUTIL_FORGE 3 · CODE_COPIE 2`.
 
-## 8. Score de mutation
-**Non ré-exécuté dans cette passe** (mission = vérification seule, pas s9-build). Reçus de mutation existants présents dans `lab/forge_runs/snake/evidence/` (non ré-audités ici). Voir SKIPPED_VALIDATION.
+## 5. Lignes non-IMPLEMENTED — état confronté au réel
 
----
+- **`core.audio` (DEFERRED)** : ligne CORE en conflit CORE↔design-review sur le retour sonore, `decider: pierre`. Aucun fichier, aucune promesse. État honnête. **Correct.**
+- **`meta.reuse_rate_report` (DEFERRED)** : lecteur mécanique du taux non branché ; taux compté à la main ; `decider: pierre`. **Correct.**
+- **`meta.charter_complete` (NOT_APPLICABLE)** : critère portant sur le charter, vérifié en amont par `check_charter`, aucune ligne de code ne le satisfait/falsifie. **Correct** (NA légal : `source != CORE`).
+- **`meta.observable_coverage` (BLOCKED)** — voir finding ci-dessous.
+
+## 6. FINDINGS à remonter (advisory — je n'ai RIEN écrit)
+
+**F1 — `meta.observable_coverage` : état BLOCKED défendable, mais justification STALE.**
+Le champ `reason`/`preuve` affirme « *44/44 lignes observable_malformes (observable_by_player type str), verdict=FAIL* ». **Sur disque, les 44 `observable_by_player` sont des booléens** (34 `False`, 10 `True`) — la carte a été convertie depuis l'écriture de cette justification. Ma ré-exécution réelle : `check_observable_coverage(wiremap, {})` → `verdict=BLOCKED` (et **non** FAIL), **0 malformé**, 0 ligne_sans_preuve ; le BLOCKED provient uniquement du **reçu vide** (10 lignes `observable=True` nomment des volets `core_boot/core_input_action/core_exit/speed_band_report/replay_determinism/solo_session` absents d'un reçu `{}`). Par ailleurs l'`expected_proof` **propre** de la ligne (`kind: wiremap_check` = « 0 ligne sans `observable_by_player` ») est **satisfait** sur disque. → Question authentique de HumanGate (`decider: pierre`) : la ligne devrait-elle passer IMPLEMENTED (avec un reçu s10a réel des 6 volets) ou rester BLOCKED. **Je ne l'ai pas retournée** : ce n'est pas un « IMPLEMENTED sans preuve » (seul cas que j'étais autorisé à corriger), et fabriquer un vert sur une ligne dont le décideur est Pierre serait un dépassement de garde-fou.
+
+**F2 — `proof.harness` : attestation CODE_COPIE non tenue octet-pour-octet.** `reused_from.type=CODE_COPIE`, `copy_sha256=096cd75…` = empreinte de la source `knowledge_base/systems/navigation/run_tests.gd` (source vérifiée : hash **MATCH**). Mais **aucun** fichier déposé ne reproduit ce hash — le harnais a été **adapté** (`EXPECTED_ASSERTS=282`, +7 fichiers d'adaptateurs, +2 assertions bornes-Y ; adaptation documentée dans l'en-tête du fichier). Une brique CODE_COPIE dont l'empreinte ne se reproduit pas sur disque relève, par garde-fou (g), du **mislabel** : elle est en réalité un CONCEPT (variante), pas une copie. Advisory ; alimente la mesure de réutilisation déjà DEFERRED (`meta.reuse_rate_report`). N'invalide PAS l'état IMPLEMENTED (le harnais exécute réellement 282 assertions).
+
+**F2-contraste — `proof.solvability_bot` : CODE_COPIE PROPRE.** Source `grid_nav.gd` hash MATCH `copy_sha256`, et la copie déposée `06_RUNTIME/adapters/solvability_bot/grid_nav.gd` **byte-matche** `f064870f…`. (Les autres fichiers de la ligne — `bot_policy.gd`, `solvability.gd` — sont des fichiers additionnels de la ligne, non couverts par cette empreinte.)
+
+## Empreintes CODE_COPIE déposées vs `copy_sha256`
+| Ligne | Source (hash source) | Copie déposée | Verdict |
+|---|---|---|---|
+| `proof.solvability_bot` | grid_nav.gd `f064870f…` (MATCH) | `…/solvability_bot/grid_nav.gd` = `f064870f…` | **conforme** |
+| `proof.harness` | run_tests.gd `096cd754…` (MATCH) | harness.gd `51d892e…` / oracle/run_tests.gd `c89bd169…` / tests/run_tests.gd `a3020d36…` | **non-reproduit** (adaptation, F2) |
+
+## Fichiers touchés confrontés à l'ownership de la carte
+**Aucun fichier du jeu, de la carte ou d'ailleurs n'a été écrit/modifié/créé.** Seuls des scripts de mesure temporaires dans le scratchpad de session. Aucune écriture dans `games/pong/**`, `tests/**`, `autopilot.py`, `scripts/studioV2/`. Éditeur Godot jamais ouvert (oracle en headless uniquement). Aucun `git commit/push/checkout/stash/restore`.
 
 ## SKIPPED_VALIDATION
+- **check_index** — non ré-exécuté indépendamment. Où : oracles du standard. Statut : non fait. Raison : nécessite un `library_index` que je n'ai pas assemblé ; l'orchestrateur l'annonce `True` et il ne pèse pas sur la décision de correction.
+- **check_genre_coverage (52/52)** — non ré-exécuté. Où : oracles du standard. Statut : non fait. Raison : requiert un dict de Genre Bible parsé depuis un `.md` ; annoncé `True` par l'orchestrateur, structurel, sans effet sur mon mandat.
+- **Gate mutation** — non ré-exécuté en direct. Où : logique pure. Statut : partiel (reçu `mutation_receipt_s9r.json` + `mutation_triage.json` LUS, pas régénérés). Raison : mission de vérification ; le reçu est cohérent (même total 64 / même survivant food_spawn:17).
+- **Preuve visuelle GPU (core.render, pixel)** — non exécutée. Où : `render.*`. Statut : non fait. Raison : exige une fenêtre GPU réelle (`--rendering-driver vulkan`), hors d'une passe de vérification headless ; non re-demandée par la tâche.
+- **Mapping ligne-à-ligne des 40 `preuve` vers une assertion précise** — non fait exhaustivement. Où : 40 lignes IMPLEMENTED. Statut : partiel. Raison : vérifié collectivement via l'oracle-parapluie (282 asserts + garde EXPECTED_ASSERTS + 50/50 solvabilité) ; présence fichiers + preuve non vide vérifiée sur 44/44.
+- **Validation individuelle des 25 réutilisations CONCEPT** — non faite. Où : lignes `reused_from.type=CONCEPT`. Statut : non fait. Raison : hors périmètre d'une passe de constat ; la mesure de taux est déjà DEFERRED à Pierre.
 
-| Item (quoi) | Périmètre (où) | Statut | Raison (pourquoi) |
-|---|---|---|---|
-| Gate mutation (score brut, survivants) | logique pure `05_SYSTEMS/` | **non fait** | Mission explicitement « vérification seule, n'écris aucun fichier » ; le gate mutation appartient à s9-build, non re-demandé. Reçus antérieurs non ré-audités. |
-| `check_observable_coverage` avec reçu réel | `09_WIREMAP` + reçu `product_oracle_godot` | **partiel** | Re-exécuté avec reçu **vide** `{}` (→ BLOCKED, 0 malformé). Le reçu GPU réel (s10a, fenêtre Vulkan) n'a pas été produit : hors périmètre d'écriture et non requis pour une passe de constat. |
-| Preuve visuelle / capture GPU (`core.render` pixel) | `06_RUNTIME/adapters/presentation` | **non fait** | Exige une fenêtre GPU réelle (`--rendering-driver vulkan`) ; invocation directe du binaire Godot refusée par la garde de permission de ce contexte sous-agent (seuls node/python auto-approuvés). Le volet mécanique (headless) est, lui, mesuré et vert. |
-| Re-exécution du gate mutation sur `proof.harness` typage | `tests/`, `06_RUNTIME` | **non fait** | Correction du typage CODE_COPIE hors périmètre autorisé (décision de taxonomie → HumanGate). |
-| Déterminisme par replay, collision fixtures, etc. (critères charter individuels) | `07_TESTS/unit` | **couvert indirectement** | Non ré-asserté ligne par ligne ; couverts par les 282 assertions du harnais réellement exécuté (exit 0) et la solvabilité 50/50. |
-
-**Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement. claim_verdict: NO_CLAIM_ALLOWED.**
+## Conclusion
+Snake est **cohérent avec le disque** et **prouvé par exécution réelle** : oracle mécanique 282/0, solvabilité 50/50, exit 0, garde anti-faux-vert active, gate mutation 63/64 (1 survivant équivalent justifié). La carte est **honnête** — `state==statut` partout, aucun fichier déclaré manquant, aucune ligne sur-revendiquée. **Aucun état FAUX de type « IMPLEMENTED sans preuve » n'existe → aucune écriture effectuée.** Deux points remontés à Pierre (F1 justification stale sur une ligne BLOCKED correctement conservatrice ; F2 CODE_COPIE `proof.harness` en réalité adapté) sont **advisory** et relèvent du HumanGate, pas d'une correction d'agent. Le seul écart réel est côté **snapshot de l'orchestrateur** (41/0 annoncé vs 40/1 sur disque) : le disque fait foi.

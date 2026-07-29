@@ -1570,16 +1570,28 @@
    "write_order": null,
    "fichiers": [
     {
+     "path": "06_RUNTIME/adapters/runtime_loop/scene.gd",
+     "category": "system.adapter"
+    },
+    {
      "path": "06_RUNTIME/adapters/runtime_loop/boot.gd",
      "category": "system.adapter"
     },
     {
      "path": "07_TESTS/unit/boot_zero_gesture.test.gd",
      "category": "test.unit"
+    },
+    {
+     "path": "main.tscn",
+     "category": "godot.project_root"
     }
    ],
-   "fonction": "Point d'entree de la scene principale : instancie directement la partie, charge le meilleur score, demarre la boucle.",
-   "preuve": "07_TESTS/oracle/run_tests.gd headless exit 0 : 282 passed / 0 failed (26 fichiers) (boot_zero_gesture.test.gd : 0 geste)",
+   "scene_asset": {
+    "path": "06_RUNTIME/main.tscn",
+    "note": "Scene principale declaree par project.godot (run/main_scene). Node2D portant scene.gd. NON declaree dans fichiers[] : (1) `.tscn` n'est pas une extension source de check_index -> jamais orpheline ; (2) aucune categorie de repo_map.yaml ne resout vers 06_RUNTIME/main.tscn (godot.project_root exige la RACINE du projet ; system.adapter exige adapters/{id}/). Placement impose par project.godot, conserve tel quel (runtime-only, editeur jamais ouvert)."
+   },
+   "fonction": "scene.gd = pilote Node2D de main.tscn (run/main_scene). Il ASSEMBLE les briques deja prouvees dans un arbre de scene vivant : boot.etat_initial (etat sans geste), best_score_store.charger (record), runtime_loop.avancer (cadenceur 1 tick/trame sans rattrapage), loop.step (tick pur), input_adapter (touche->action) + pause/restart/exit, grid_view/hud/end_screen/pause_panel (rendu par primitives), best_score.mettre_a_jour + best_score_store.enregistrer (record etanche), debug_state/debug_probe (recu d'observation public). boot.gd reste l'amorce pure d'etat initial. Aucune regle de jeu, aucun litteral de gameplay (garde-fous c/d).",
+   "preuve": "godot_oracle.mjs : run_tests.gd headless exit 0 = 282 passed / 0 failed (26 fichiers) ; solvabilite R9 verdict OK (50/50, failed_seeds []). LANCEMENT REEL (charge main.tscn, pas --script) borne par --quit-after 200 : (a) headless `--path games/snake --quit-after 200` -> scene_load_error=false, 7 recus SNAKE_TRIAL, tete [10,10]->[16,10] (serpent avance sans aucun geste), EXIT=0 ; (b) fenetre GPU reelle `--rendering-driver vulkan --position -3000,-3000 --quit-after 200` -> Vulkan RTX 5080, scene chargee, tete [10,10]->[19,10] puis collision mur -> statut 0->2 (TERMINE_PERDU), EXIT=0. Aucune erreur `Cannot open file` / `Failed loading scene`.",
    "statut": "IMPLEMENTED"
   },
   {

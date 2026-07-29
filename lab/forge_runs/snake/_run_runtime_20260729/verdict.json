@@ -3,14 +3,14 @@
  "decision": "HUMANGATE_READY_WITH_OBJECTION",
  "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
  "git_head": "3ead86e237eace621ea2c7c1d2be6923022e5b18",
- "hmac": "79b39ea3a051e37aae09c4057435403541de8a8e871a5e4bee7493bc23973e8d",
+ "hmac": "865ec43a91f187dd14376ca11b80dea04afd0f0fe96a534a4d2579beac03b1c8",
  "humangate_flags": [
   "archi non vérifiée (oracle sauté dans ce profil)",
   "wiremap non vérifiée (oracle sauté dans ce profil)",
   "mutation: 1 survivant(s) trié(s) par le producteur (true->false@L17) — équivalence NON vérifiée mécaniquement, ratification HumanGate obligatoire avant tout claim positif",
   "red-team dégradé: reviewer indépendant n'a pas tourné (fallback)"
  ],
- "nonce": "b6fbc6bb0ebab3f30b3610468c3e8f8e",
+ "nonce": "837d2bbb464e26192125e39b011ae1a3",
  "oracles": {
   "archi": {
    "detail": {
@@ -19,9 +19,9 @@
    "evidence_path": "",
    "evidence_sha256": "",
    "oracle_id": "archi",
-   "run_id": "snake-final2-20260729-174101",
+   "run_id": "snake-runtime-20260729-163539",
    "status": "SKIPPED",
-   "ts": 1785341264.103015
+   "ts": 1785337795.851824
   },
   "code": {
    "detail": {
@@ -217,7 +217,7 @@
          "timeout_per_mutant_s": 30,
          "total_timeout_s": 900
         },
-        "resultat_brut_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\snake\\evidence\\mutation_snake-final2-20260729-174101.raw.json",
+        "resultat_brut_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\snake\\evidence\\mutation_snake-runtime-20260729-163539.raw.json",
         "resultat_brut_sha256": "9fba807c808249fe0159063a262b3f16ff88a1ec7645f35ab3781d226f22ae14",
         "runtime_declare": "godot",
         "schema_version": 1,
@@ -239,15 +239,15 @@
         "true->false@L17"
        ]
       },
-      "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\snake\\evidence\\mutation_snake-final2-20260729-174101.raw.json",
+      "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\snake\\evidence\\mutation_snake-runtime-20260729-163539.raw.json",
       "evidence_sha256": "9fba807c808249fe0159063a262b3f16ff88a1ec7645f35ab3781d226f22ae14",
       "oracle_id": "mutation",
-      "run_id": "snake-final2-20260729-174101",
+      "run_id": "snake-runtime-20260729-163539",
       "status": "OK",
-      "ts": 1785340541.3037972
+      "ts": 1785337205.6218204
      },
      "regime": "descripteur",
-     "signature": "7485a5c4249e1c73c07119921aa49ec1582a8d53e552752a786c8d7b543da8fb"
+     "signature": "05d4904af4c050bd3686135f6082a8b0c13d66557f62b0a2df617b3bd29433a1"
     },
     "product_oracle": {
      "auto_session": {
@@ -495,7 +495,7 @@
      "count": 0,
      "passed": false,
      "raisons": [
-      "aucune recherche journalisée depuis 2026-07-29T15:41:01.334Z (contrat s9-build §2bis non respecté, ou aucune brique ne pouvait matcher)"
+      "aucune recherche journalisée depuis 2026-07-29T14:35:39.317Z (contrat s9-build §2bis non respecté, ou aucune brique ne pouvait matcher)"
      ]
     },
     "solvability": {
@@ -508,9 +508,9 @@
    "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\snake\\evidence\\oracle_snake.log",
    "evidence_sha256": "ac2a37b0faba747ca6b79c856546746e3c67666329039444359630addc9a9f76",
    "oracle_id": "code",
-   "run_id": "snake-final2-20260729-174101",
+   "run_id": "snake-runtime-20260729-163539",
    "status": "OK",
-   "ts": 1785340541.304801
+   "ts": 1785337205.623821
   },
   "standard": {
    "detail": {
@@ -1134,9 +1134,9 @@
    "evidence_path": "",
    "evidence_sha256": "",
    "oracle_id": "standard",
-   "run_id": "snake-final2-20260729-174101",
+   "run_id": "snake-runtime-20260729-163539",
    "status": "OK",
-   "ts": 1785340541.429441
+   "ts": 1785337205.749106
   },
   "wiremap": {
    "detail": {
@@ -1145,22 +1145,17 @@
    "evidence_path": "",
    "evidence_sha256": "",
    "oracle_id": "wiremap",
-   "run_id": "snake-final2-20260729-174101",
+   "run_id": "snake-runtime-20260729-163539",
    "status": "SKIPPED",
-   "ts": 1785341264.103015
+   "ts": 1785337795.851824
   }
  },
  "project": "snake",
  "provenance_ok": true,
- "redteam_advisory": [
-  "[MEDIUM] littéral de gameplay hors du bloc params + déclaré≠exécuté — La preuve d'isolation des paramètres (wiremap params.bloc_unique, expected_proof static_oracle « EXACTEMENT 0 littéraux gameplay hors params.gd, tests compris ») délègue la vérification exhaustive à un analyseur forge.static_oracles/s10s qui n'existe pas ; le test GDScript params_isolation ne scanne que 05_SYSTEMS+06_RUNTIME (jamais 07_TESTS) avec 4 sous-chaînes. Résultat : tick_rate_thresholds.test.gd:13 contient le littéral 200.0 == params.VITESSE_INITIALE_MS, hors params.gd, non attrapé. (repro: grep -rniE 'def .*(isolation|litteraux|literal)|VITESSE_INITIALE' scripts/forge/*.py -> 0 fonction ; params_isolation.test.gd:67-68 scanne 05_SYSTEMS+06_RUNTIME seulement ; grep -n '200\\.0' games/snake/07_TESTS/unit/tick_rate_thresholds.test.gd -> :13 ; params/params.gd:13 VITESSE_INITIALE_MS=200.0)",
-  "[LOW] solvabilité par construction / variance de métrique (R9) — solvability.gd émet succeeded=(statut==TERMINE_GAGNE) ; sur 50 graines succeeded est constamment true (cible 25 sur 400 cases, triviale pour un bot glouton BFS). La branche succeeded=false n'est jamais exercée et aucune sonde-contrôle ne prouve qu'elle est vivante — signal à variance nulle. Pas un défaut de construction (la chaîne graine->food_spawn->Loop.step ne consulte pas le vérificateur de victoire) mais preuve méthodologiquement incomplète. (repro: godot --headless --path games/snake --script res://solvability.gd -- --seed=1 --max_ticks=1 DOIT imprimer FORGE_TRIAL {\"succeeded\": false, \"ticks\": null} (solvability.gd:30,36) ; si succeeded:true la branche est figée. A ajouter comme sonde-contrôle permanente.)",
-  "[LOW] cas limite queue-en-croissance dans le bot de solvabilité — bot_policy.gd:26-27 retire inconditionnellement la queue des murs (walls.erase(segments[last])) alors que son commentaire ligne 25 dit « sauf croissance » ; sur un tick de croissance la queue est conservée par loop.gd:40-44. Divergence latente entre le modèle du bot et la logique. Effet actuellement masqué (nourriture jamais sur le corps, donc case-cible != queue) et ne peut produire qu'un faux négatif, jamais un faux vert. (repro: bot_policy.gd:26-27 (erase inconditionnel) vs commentaire :25 ; comparer loop.gd:41-43 (if not mange: corps_a_verifier.pop_back()))",
-  "[LOW] test qui fige une valeur historique — Les deux harnais gatent sur total==EXPECTED_ASSERTS (oracle/run_tests.gd:21 :=282, littéral maintenu à la main ; le harnais racine le lit via OracleTests.EXPECTED_ASSERTS donc cohérent). Aucun recoupement indépendant ne dérive 282 autrement : supprimer des assertions ET abaisser le littéral d'autant garde les deux harnais verts avec moins d'assertions réelles. Faiblesse inhérente aux gardes par comptage, partiellement mitigée par la chute de total si un core ne compile pas. (repro: oracle/run_tests.gd:21 const EXPECTED_ASSERTS := 282 ; grep 'EXPECTED_ASSERTS' games/snake -> 1 déclaration + 1 lecture (tests/run_tests.gd:55), aucun calcul croisé indépendant)"
- ],
+ "redteam_advisory": [],
  "redteam_ran": false,
  "redteam_reviewer": "claude-opus-4-8",
- "run_id": "snake-final2-20260729-174101",
+ "run_id": "snake-runtime-20260729-163539",
  "software_verdict": "OK",
- "ts": 1785341264.1200147
+ "ts": 1785337795.8708227
 }
