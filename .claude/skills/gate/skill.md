@@ -75,6 +75,28 @@ sign-off Pierre (Phase 2) est la précondition absolue de toute écriture.
 
 Encodage `utf-8` explicite. Écriture en append : ne **jamais** écraser une entrée existante.
 
+### Cas particulier — objet issu d'une queue Forge (pending_review)
+
+*(Câblage CV-16, mandat exécution Pierre 2026-07-30 — referme le trou « décisions enregistrées jamais appliquées » de l'audit de couche décisionnelle.)*
+
+Si l'objet de cette gate correspond à un item lu via `node scripts/forge/pending_review.mjs`
+(queue ∈ `forge_ledger_proposals` | `forge_project_proposals` | `error_proposals`) :
+
+1. Après l'append dans le decision-log (ci-dessus), ajouter la même décision en une ligne
+   JSONL à `lab/reports/pending_review_decisions.jsonl` :
+   `{"ts":"<date>","queue":"<queue>","item":"<item>","decision":"ACCEPT|REJECT","motif":"<raison Pierre>"}`
+2. Lancer d'abord en dry-run : `node scripts/forge/apply_decisions.mjs`
+   — relire le JSON stdout (`changes`, `conflicts`, `orphaned`) avant d'appliquer.
+3. Si `changes` contient bien l'item attendu et que `conflicts`/`orphaned` sont vides pour
+   cet item : `node scripts/forge/apply_decisions.mjs --apply`, puis rapporter à Pierre le
+   `written_files` retourné.
+4. Échec ou orphelin : signaler à Pierre, ne rien forcer — le script ne devine jamais
+   (règle « jamais inventée », `apply_decisions.mjs`).
+
+Les queues `forge_bible_proposals`/`forge_brick_proposals` ne sont **pas** câblées dans
+`apply_decisions` (limite connue) : une décision les visant tombe en `orphaned` — la
+rapporter, pas la forcer.
+
 ---
 
 ## Sortie

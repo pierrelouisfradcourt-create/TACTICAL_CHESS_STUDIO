@@ -11,7 +11,10 @@ Enchaîne la chaîne d'ingénierie Forge. **Invariant central : aucun sous-agent
 
 > **Résolution rôle → runtime : source unique `scripts/forge/contracts/roles.yaml`** (lue par `forge.contract`). Ne déduis jamais un modèle d'ici — ce fichier fait foi, y compris pour le rôle `orchestrator` et pour l'échelle d'escalade des builders. Le contrat de système (`scripts/forge/FORGE_SYSTEM_CONTRACT.yaml`) interdit de réécrire cette règle ailleurs ; le capteur `forge.contract_sync` vérifie que ce fichier la CITE au lieu de la redire.
 
-> **Orchestrateur** = rôle `orchestrator` dans `roles.yaml` — Fable (mode superpowers) **ou Opus en effort élevé** quand le coût de Fable est disproportionné à l'enjeu du run (décision Pierre 2026-07-22). Dans les deux cas : il **démarre et pilote**, ne code aucune étape, spawn via la porte `prepare_dispatch`, aiguille (A2) et décide l'escalade. Ce n'est pas un tier de build.
+> **Deux rôles distincts, ne jamais les confondre** (séparation ratifiée Pierre 2026-07-23, source : `roles.yaml`) :
+> **`orchestrator`** = la SESSION qui pilote /forge (Fable, mode superpowers) — entrée purement DESCRIPTIVE de `roles.yaml`, jamais résolue par le code : c'est Pierre qui choisit son modèle en ouvrant la session.
+> **`run_orchestrator`** = l'AGENT SPAWNÉ sous contrat (`contracts/orchestrator.yaml`, résolu par le registry → Opus) qui conduit UN run de bout en bout. C'est lui qui a un coût réel et une trace de dispatch.
+> Dans les deux cas : démarrer et piloter, ne coder aucune étape, spawn via la porte `prepare_dispatch`, aiguiller (A2), décider l'escalade. Aucun des deux n'est un tier de build.
 
 ---
 
