@@ -206,6 +206,66 @@ def test_lookup_model_window_is_tolerant_to_provider_prefix():
     assert cm.lookup_model_window("modele-inconnu") is None
 
 
+# --- model_executed (0.5.d : le modèle réellement exécuté dans la provenance) ---
+
+def test_dispatch_line_model_executed_defaults_to_declared_model(tmp_path):
+    """Sans override connu (cas nominal, aucune escalade), `model_executed` est
+    présent et ÉGAL à `model` — jamais None, jamais ambigu."""
+    contract = load_contract("s4-archi")
+    payload = _payload("s4-archi")
+    rec = cm.append_dispatch_manifest("s4-archi", "test-run", payload, contract,
+                                      run_dir=tmp_path, key_file=KEY)
+    assert rec["model_executed"] == rec["model"] == payload.model
+
+
+def test_dispatch_line_model_executed_differs_after_escalation(tmp_path):
+    """NÉGATIF (ce que la correction 0.5.d referme) : si `model_executed` n'était
+    JAMAIS distinct de `model`, cette assertion échouerait — c'est exactement le
+    défaut D-3 du charter (« la ligne signée enregistre le modèle du contrat,
+    jamais celui exécuté après escalade »)."""
+    contract = load_contract("s9-build")
+    payload = _payload("s9-build")
+    assert payload.model != "claude-opus-4-8"  # s9-build résout un tier de base, pas opus
+    rec = cm.append_dispatch_manifest("s9-build", "test-run", payload, contract,
+                                      run_dir=tmp_path, key_file=KEY,
+                                      model_executed="claude-opus-4-8")
+    assert rec["model"] == payload.model            # déclaré (contrat) — inchangé
+    assert rec["model_executed"] == "claude-opus-4-8"  # réellement exécuté (escalade)
+    assert rec["model"] != rec["model_executed"]
+    assert cm.verify_manifest_record(rec, key_file=KEY) is True
+
+
+def test_dispatch_line_model_executed_field_is_signed():
+    """Falsifier `model_executed` après coup invalide le HMAC, exactement comme
+    `model` (test_tampered_dispatch_line_fails_verification, symétrique)."""
+    body = {
+        "schema": cm.SCHEMA, "kind": "dispatch", "run_id": "r", "etape": "s9-build",
+        "activation": 1, "ts": 0.0, "git_head": None, "model": "claude-haiku-4-5-20251001",
+        "model_executed": "claude-opus-4-8", "provider": "", "contract_sha256": "x",
+        "payload_prompt_sha256": "y", "sources": [], "claim_verdict": "NO_CLAIM_ALLOWED",
+    }
+    body["hmac"] = cm._sign(body, KEY)
+    assert cm.verify_manifest_record(body, key_file=KEY) is True
+    tampered = dict(body)
+    tampered["model_executed"] = "modele-falsifie"
+    assert cm.verify_manifest_record(tampered, key_file=KEY) is False
+
+
+def test_dispatch_line_without_model_executed_field_still_verifies():
+    """Rétro-compat (ligne écrite avant ce chantier, sans le champ) : une ligne
+    signée qui ne porte PAS `model_executed` reste vérifiable telle quelle — le
+    champ est additif, jamais requis par la vérification HMAC."""
+    body = {
+        "schema": cm.SCHEMA, "kind": "dispatch", "run_id": "r", "etape": "s9-build",
+        "activation": 1, "ts": 0.0, "git_head": None, "model": "claude-haiku-4-5-20251001",
+        "provider": "", "contract_sha256": "x", "payload_prompt_sha256": "y",
+        "sources": [], "claim_verdict": "NO_CLAIM_ALLOWED",
+    }
+    body["hmac"] = cm._sign(body, KEY)
+    assert "model_executed" not in body
+    assert cm.verify_manifest_record(body, key_file=KEY) is True
+
+
 # --- HMAC / falsification -------------------------------------------------------
 
 def test_tampered_dispatch_line_fails_verification(tmp_path):

@@ -210,6 +210,7 @@ def prepare_dispatch(
     profile: str | None = None,
     attempt: int = 0,
     allow_unprofiled: bool = False,
+    model_executed: str | None = None,
 ) -> DispatchPayload:
     """Valide le contrat de l'étape, fabrique le payload borné, trace l'audit.
 
@@ -219,6 +220,13 @@ def prepare_dispatch(
     optionnel — dérivé depuis ``run_id`` via ``context_manifest.default_run_dir``
     si non fourni. N'affecte QUE l'emplacement de la mesure advisory ; le dispatch
     lui-même n'en dépend pas.
+
+    ``model_executed`` (0.5.d) : optionnel — le modèle RÉELLEMENT exécutant cette
+    tentative quand il diffère du modèle résolu par le contrat (ex. l'override
+    d'escalade côté driver). N'affecte QUE le champ additif ``model_executed`` de
+    la ligne Context Manifest ``kind: dispatch`` (voir
+    ``context_manifest.build_dispatch_manifest_record``) — jamais le ``model`` du
+    contrat, jamais la ligne d'audit (`DispatchRecord`), jamais le dispatch lui-même.
 
     Appartenance profil (D1) : si `profile` est fourni ET que `etape` n'en fait pas
     partie ET que `allow_unprofiled` est faux => `ContractIncomplete` (contrat non
@@ -266,11 +274,54 @@ def prepare_dispatch(
         effective_run_dir = run_dir if run_dir is not None else context_manifest.default_run_dir(run_id)
         context_manifest.append_dispatch_manifest(
             etape, run_id, payload, contract, run_dir=effective_run_dir,
-            caps_path=caps_path,
+            caps_path=caps_path, model_executed=model_executed,
         )
     except Exception:
         logger.warning(
             "context manifest (dispatch) non écrit pour run=%s étape=%s (advisory, non bloquant)",
+            run_id, etape, exc_info=True,
+        )
+
+    # Tool Observability (étape 4, charter V2 — docs/fvl/FVL_PHASE_0_5_CHARTER.md
+    # §4) : mesure ADDITIVE des maillons 1 (déclaration typée skill/plugin) et 2
+    # (chargement réel via forge.run_real._STEP_TOOLS), dans SON PROPRE fichier
+    # (jamais context_manifest, jamais audit.py, jamais payload.allowed_tools).
+    # Même garantie best-effort que ci-dessus : observer, jamais gêner un
+    # dispatch déjà validé. Bloc SÉPARÉ du précédent (pas de dépendance à sa
+    # réussite) : re-dérive son propre `effective_run_dir` au besoin, pour que
+    # cette trace-ci existe même si le Context Manifest a échoué juste avant.
+    try:
+        from forge import context_manifest as _cm
+        from forge import tool_observability as _tool_obs
+        tool_obs_run_dir = run_dir if run_dir is not None else _cm.default_run_dir(run_id)
+        _tool_obs.append_tool_observability_record(
+            etape, run_id, contract, run_dir=tool_obs_run_dir,
+        )
+    except Exception:
+        logger.warning(
+            "tool observability non écrite pour run=%s étape=%s (advisory, non bloquant)",
+            run_id, etape, exc_info=True,
+        )
+
+    # Reasoning Observability (étape 5, charter V2 — docs/fvl/FVL_PHASE_0_5_CHARTER.md
+    # §4, ligne « 5. RAISONNEMENT ») : mesure ADDITIVE du maillon 1 SEUL (déclaré —
+    # `reasoning` du modèle résolu pour le `capability_role` de cette étape), dans
+    # SON PROPRE fichier (jamais context_manifest, jamais audit.py, jamais
+    # payload.allowed_tools/model). Les maillons 2/3/4 sont des mesures repo-wide ou
+    # nécessitant un appel réel : ils vivent dans leurs propres CLI/fixtures
+    # (forge.reasoning_observability scan-readers / tests), pas dans ce bloc par-run.
+    # Même garantie best-effort que les deux blocs ci-dessus : observer, jamais gêner
+    # un dispatch déjà validé.
+    try:
+        from forge import context_manifest as _cm2
+        from forge import reasoning_observability as _reasoning_obs
+        reasoning_run_dir = run_dir if run_dir is not None else _cm2.default_run_dir(run_id)
+        _reasoning_obs.append_reasoning_observability_record(
+            etape, run_id, contract, run_dir=reasoning_run_dir,
+        )
+    except Exception:
+        logger.warning(
+            "reasoning observability non écrite pour run=%s étape=%s (advisory, non bloquant)",
             run_id, etape, exc_info=True,
         )
 

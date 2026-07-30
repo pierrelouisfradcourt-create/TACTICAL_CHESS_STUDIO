@@ -56,6 +56,30 @@ def get_provider_for_role(role: str, caps_path: Optional[Path] = None) -> Option
     return None
 
 
+def get_reasoning_for_model(model_short_name: str, caps_path: Optional[Path] = None) -> object:
+    """Return the RAW `reasoning` field declared for the model whose id's last
+    path component equals `model_short_name` (the same short form
+    `get_model_for_role` already returns), or None if no model matches.
+
+    Companion function, MODEL-keyed rather than role-keyed : `get_model_for_role`
+    / `get_provider_for_role` resolve role -> attribute of the model a role's
+    contract declares. This one resolves the model a caller is ABOUT TO INVOKE
+    -> that model's OWN declared `reasoning`. The distinction matters after an
+    escalade (scripts/forge/escalate.py) : the model actually executing a call
+    can differ from the model the originating role declares, and it is the
+    EXECUTING model's own declaration that should ever apply — never the
+    original role's. Raw passthrough (str | False | None, exactly as written in
+    the YAML) : classification (CLI-compatible / not_applicable / unknown /
+    absent) is left to the caller (see
+    scripts/forge/reasoning_observability.classify_declared_reasoning) — this
+    function only looks up, it never interprets or guesses.
+    """
+    for model in load_capabilities(caps_path).get("models", []):
+        if model.get("id", "").split("/")[-1] == model_short_name:
+            return model.get("reasoning")
+    return None
+
+
 def get_provider_status(provider_id: str, prov_path: Optional[Path] = None) -> str:
     """Return the static status field from providers.yaml, or 'UNKNOWN'."""
     for p in load_providers(prov_path).get("providers", []):

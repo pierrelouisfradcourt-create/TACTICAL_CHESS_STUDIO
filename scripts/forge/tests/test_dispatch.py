@@ -138,6 +138,45 @@ def test_unknown_step_raises(tmp_path):
         prepare_dispatch("s99-inexistant", run_id="x", audit_path=tmp_path / "a.jsonl")
 
 
+# --- model_executed (0.5.d) : passe-plat vers le Context Manifest, jamais l'audit --
+
+def test_prepare_dispatch_threads_model_executed_into_context_manifest(tmp_path):
+    """`model_executed` n'affecte QUE la ligne Context Manifest `kind: dispatch` —
+    jamais la ligne d'audit (`DispatchRecord`, INTERDIT de toucher par la mission),
+    jamais `payload.model`."""
+    from forge import context_manifest as cm
+    audit = tmp_path / "audit.jsonl"
+    run_dir = tmp_path / "run"
+    payload = prepare_dispatch(
+        "s9-build", run_id="esc-run", audit_path=audit, run_dir=run_dir,
+        model_executed="claude-opus-4-8",
+    )
+    assert payload.model != "claude-opus-4-8"  # le contrat, inchangé
+
+    audit_rec = json.loads(audit.read_text(encoding="utf-8").strip())
+    assert audit_rec["model"] == payload.model  # ligne d'audit : STRICTEMENT inchangée
+
+    manifest_path = cm.manifest_path(run_dir, "s9-build")
+    manifest_rec = json.loads(manifest_path.read_text(encoding="utf-8").strip())
+    assert manifest_rec["model"] == payload.model
+    assert manifest_rec["model_executed"] == "claude-opus-4-8"
+
+
+def test_prepare_dispatch_without_model_executed_leaves_manifest_unambiguous(tmp_path):
+    """NÉGATIF : sans override, `model_executed` doit égaler `model` — si le champ
+    restait absent ou None par défaut, un lecteur ne pourrait pas trancher entre
+    'pas mesuré' et 'pas d'escalade' ; cette assertion échouerait si le repli
+    `model_executed or payload.model` disparaissait."""
+    from forge import context_manifest as cm
+    audit = tmp_path / "audit.jsonl"
+    run_dir = tmp_path / "run"
+    payload = prepare_dispatch("s4-archi", run_id="no-esc-run", audit_path=audit, run_dir=run_dir)
+    manifest_rec = json.loads(
+        cm.manifest_path(run_dir, "s4-archi").read_text(encoding="utf-8").strip()
+    )
+    assert manifest_rec["model_executed"] == manifest_rec["model"] == payload.model
+
+
 # --- R2 (audit branchements 2026-07-24) : marqueur injecté par la porte -----------
 
 def test_prepare_dispatch_injecte_le_marqueur_forge_dispatch(tmp_path):

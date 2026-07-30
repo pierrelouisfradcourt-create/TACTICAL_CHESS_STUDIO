@@ -235,9 +235,19 @@ def build_dispatch_manifest_record(
     etape: str, run_id: str, payload, contract: dict, *,
     run_dir: Path | None = None, caps_path: Path | None = None,
     ts: float | None = None, activation: int = 1,
+    model_executed: str | None = None,
 ) -> dict:
     """Corps NON SIGNÉ de la ligne 'dispatch' (utile aux tests qui veulent
-    inspecter le contenu avant signature)."""
+    inspecter le contenu avant signature).
+
+    ``model`` reste — INCHANGÉ — le modèle résolu par le contrat/registry
+    (``payload.model``, "déclaré"). ``model_executed`` (0.5.d, additif) porte
+    le modèle qui exécute RÉELLEMENT cette tentative : ``model_executed`` si
+    l'appelant en connaît un (ex. ``state["model_override"]`` après escalade
+    côté driver), sinon replié sur ``payload.model`` — jamais None, jamais
+    ambigu avec ``model`` (les deux sont toujours renseignés, égaux hors
+    escalade). Une ligne écrite avant ce chantier n'a simplement pas ce champ
+    — les lecteurs existants (``model``) restent valides tels quels."""
     sources = resolve_dispatch_sources(etape, contract, run_dir=run_dir, caps_path=caps_path)
     return {
         "schema": SCHEMA,
@@ -248,6 +258,7 @@ def build_dispatch_manifest_record(
         "ts": ts if ts is not None else time.time(),
         "git_head": current_git_head() or None,
         "model": payload.model,
+        "model_executed": model_executed or payload.model,
         "provider": payload.provider,
         "contract_sha256": _sha256_file(CONTRACTS_DIR / f"{etape}.yaml"),
         "payload_prompt_sha256": _sha256_text(payload.prompt),
@@ -260,15 +271,18 @@ def append_dispatch_manifest(
     etape: str, run_id: str, payload, contract: dict, *,
     run_dir: Path | str, caps_path: Path | None = None,
     key_file: Path | None = None, ts: float | None = None,
+    model_executed: str | None = None,
 ) -> dict:
     """Construit, signe et APPEND la ligne 'dispatch' du Context Manifest de
     cette étape. ``run_dir`` est requis ici (l'appelant — ``dispatch.py`` —
-    le dérive via ``default_run_dir`` si non fourni)."""
+    le dérive via ``default_run_dir`` si non fourni). ``model_executed`` :
+    voir ``build_dispatch_manifest_record``."""
     path = manifest_path(run_dir, etape)
     activation = _next_activation(path)
     record = build_dispatch_manifest_record(
         etape, run_id, payload, contract, run_dir=run_dir,
         caps_path=caps_path, ts=ts, activation=activation,
+        model_executed=model_executed,
     )
     record["hmac"] = _sign(record, key_file)
     _append_line(path, record)

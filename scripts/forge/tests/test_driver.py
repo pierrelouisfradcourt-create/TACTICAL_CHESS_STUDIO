@@ -423,6 +423,117 @@ def test_pool_size_un_desactive_le_pool_escalade_directe(tmp_path, offline):
     assert report["software_verdict"] == "FAIL"
 
 
+# --- 0.5.a : run_dir transmis à la porte (LLM ET déterministe) -------------------
+
+def test_run_dir_est_transmis_a_la_porte_pour_les_deux_types_d_etape(tmp_path, offline):
+    """CORRECTION 0.5.a — les DEUX points d'appel de `prepare_dispatch` (LLM à
+    `_run_llm`, déterministe à `_run_deterministic`) doivent passer
+    `run_dir=self.run_dir`. Preuve en vivo avec `run_id="proj-1"` — INDÉCIDABLE
+    pour `context_manifest.derive_project_from_run_id` (un seul chiffre après le
+    tiret, pas 8) : sans le fix, `prepare_dispatch` serait retombé sur
+    `default_run_dir("proj-1")` -> `lab/forge_runs/_orphan_context/proj-1` DANS LE
+    DÉPÔT RÉEL, jamais sous `run_dir` (qui vit sous `tmp_path`, hors dépôt).
+    NÉGATIF : si un seul des deux appels perdait `run_dir=self.run_dir`, l'un des
+    deux `assert .exists()` ci-dessous échouerait.
+
+    `_orphan_context/proj-1` est une trace HISTORIQUE réelle du dépôt (69
+    dossiers ratifiés « indexer sans déplacer ni supprimer ») — ce test ne
+    l'efface ni ne la déplace, il vérifie seulement qu'AUCUNE ligne nouvelle
+    n'y a été ajoutée par CE run (snapshot avant/après, lecture seule)."""
+    from forge import context_manifest as cm
+    orphan_manifest = cm.manifest_path(
+        cm.REPO_ROOT / "lab" / "forge_runs" / "_orphan_context" / "proj-1", "s9-build")
+    before = orphan_manifest.read_text(encoding="utf-8") if orphan_manifest.exists() else None
+
+    run_dir = tmp_path / "run"
+    ex = StubExecutor(run_dir=run_dir)
+    ForgeDriver("proj", "proj-1", profile="micro", executor=ex,
+               **_kwargs(tmp_path, run_dir)).run()
+
+    llm_manifest = cm.manifest_path(run_dir, "s9-build")
+    det_manifest = cm.manifest_path(run_dir, "s10a-oracle-code")
+    assert llm_manifest.exists(), (
+        "ligne dispatch LLM absente de run_dir/context — run_dir non transmis à _run_llm")
+    assert det_manifest.exists(), (
+        "ligne dispatch déterministe absente de run_dir/context — "
+        "run_dir non transmis à _run_deterministic")
+    llm_rec = json.loads(llm_manifest.read_text(encoding="utf-8").strip())
+    assert llm_rec["run_id"] == "proj-1"
+
+    # La dérivation par défaut (orpheline) n'a jamais été sollicitée pour CE run :
+    # le fichier historique n'a reçu aucune ligne supplémentaire.
+    after = orphan_manifest.read_text(encoding="utf-8") if orphan_manifest.exists() else None
+    assert after == before, (
+        "le dossier orphelin historique _orphan_context/proj-1 a reçu une "
+        "nouvelle ligne : run_dir n'a pas été honoré par la porte")
+
+
+def test_run_id_type_snake_final2_ne_part_plus_dans_orphan_context(tmp_path, offline):
+    """Reprend LITTÉRALEMENT l'exemple du charter (D-2) :
+    'snake-final2-20260729-174101' -> None -> _orphan_context/… avant le fix.
+    Preuve que ce run_id précis atterrit bien sous run_dir désormais — même
+    principe snapshot avant/après que le test précédent (dossier historique
+    réel, jamais déplacé ni supprimé par ce test)."""
+    from forge import context_manifest as cm
+    assert cm.derive_project_from_run_id("snake-final2-20260729-174101") is None  # toujours indécidable
+    orphan_manifest = cm.manifest_path(
+        cm.REPO_ROOT / "lab" / "forge_runs" / "_orphan_context" / "snake-final2-20260729-174101",
+        "s9-build",
+    )
+    before = orphan_manifest.read_text(encoding="utf-8") if orphan_manifest.exists() else None
+
+    run_dir = tmp_path / "run"
+    ex = StubExecutor(run_dir=run_dir)
+    ForgeDriver("proj", "snake-final2-20260729-174101", profile="micro", executor=ex,
+               **_kwargs(tmp_path, run_dir)).run()
+
+    manifest = cm.manifest_path(run_dir, "s9-build")
+    assert manifest.exists()
+    rec = json.loads(manifest.read_text(encoding="utf-8").strip())
+    assert rec["run_id"] == "snake-final2-20260729-174101"
+
+    after = orphan_manifest.read_text(encoding="utf-8") if orphan_manifest.exists() else None
+    assert after == before, (
+        "le dossier orphelin historique _orphan_context/snake-final2-20260729-174101 "
+        "a reçu une nouvelle ligne : run_dir n'a pas été honoré par la porte")
+
+
+# --- 0.5.d : model_executed distingue déclaré (contrat) et exécuté (escalade) ----
+
+def test_context_manifest_model_executed_reflects_escalation_model_stays_declared(tmp_path, offline):
+    """CORRECTION 0.5.d — sur un run avec escalade (pool_size=1 : chaque FAIL
+    escalade directement, cf. test_pool_size_un_desactive_le_pool_escalade_directe),
+    la ligne signée `kind:dispatch` de s9-build doit porter à CHAQUE tentative le
+    modèle RÉELLEMENT exécuté (`model_executed`), pendant que `model` (déclaré
+    par le contrat) reste constant. NÉGATIF : avant la correction, `model_executed`
+    était absent et le seul champ disponible (`model`) valait TOUJOURS le tier de
+    base, y compris après escalade — `executed_tiers[1] == "sonnet"` et
+    `executed_tiers[2] == "opus"` auraient été impossibles à établir depuis la
+    ligne de provenance."""
+    run_dir = tmp_path / "run"
+    ex = StubExecutor(run_dir=run_dir)
+    report = ForgeDriver("proj", "proj-1", profile="micro", executor=ex, pool_size=1,
+                         **_kwargs(tmp_path, run_dir, exit_code=1)).run()
+    assert report["software_verdict"] == "FAIL"  # même run que test_pool_size_un_desactive...
+
+    from forge import context_manifest as cm
+    manifest_path = cm.manifest_path(run_dir, "s9-build")
+    lines = [json.loads(l) for l in
+             manifest_path.read_text(encoding="utf-8").strip().splitlines()]
+    assert [l["activation"] for l in lines] == [1, 2, 3]
+
+    declared = {l["model"] for l in lines}
+    assert len(declared) == 1, "le contrat déclare toujours le même tier de base"
+    base_model = declared.pop()
+
+    executed_tiers = [l["model_executed"] for l in lines]
+    assert executed_tiers == [base_model, "sonnet", "opus"]
+    # Le champ déclaré n'a JAMAIS bougé, contrairement à l'exécuté :
+    assert all(l["model"] == base_model for l in lines)
+    assert lines[1]["model"] != lines[1]["model_executed"]
+    assert lines[2]["model"] != lines[2]["model_executed"]
+
+
 # --- doctrine : le driver orchestre, il ne pense pas et ne spawn pas ---------------
 
 def test_driver_ne_spawn_pas_directement():

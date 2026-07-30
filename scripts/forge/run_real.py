@@ -28,10 +28,22 @@ import subprocess
 import time
 from pathlib import Path
 
+from forge.contract import FORGE_ROLES
 from forge.dispatch import DEDICATED_PROFILE_STEPS, DETERMINISTIC, ORDER, PROFILES
 from forge.driver import ForgeDriver
 from forge.panel import panel_prisme_executor
 from forge.pool import DEFAULT_POOL_SIZE
+# Chantier RAISONNEMENT (5e étape du charter V2, docs/fvl/FVL_PHASE_0_5_CHARTER.md
+# §4) : le socle d'observation (forge.reasoning_observability) a déjà PROUVÉ (a) que
+# `claude -p` documente `--effort <level>` et (b) que ce module ne le construisait
+# PAS encore — cf. son propre docstring, « aucun --effort n'est ajouté... fichier
+# non modifié ». Ce chantier-ci rend le mécanisme EFFECTIF, à valeur déclarée
+# INCHANGÉE : aucun champ de roles.yaml n'est touché, seule la classification déjà
+# établie (EFFORT_CLI_VALUES) décide si un flag part ou non.
+from forge.reasoning_observability import DECLARED_KIND_CLI_COMPATIBLE, classify_declared_reasoning
+# Chantier CAPTURE (stream-json) : réutilise l'extracteur déjà PROUVÉ sur capture
+# réelle (docstring du module — jamais réimplémenté ici).
+from forge.tool_observability import extract_final_result
 # F3 (red-team) : réutilisation du durcissement console de verify_run (cp1252 :
 # un print(json.dumps(report)) portant du texte LLM — humangate_flags Prisme,
 # stderr claude — crashait en UnicodeEncodeError APRÈS un run pourtant terminé).
@@ -310,6 +322,36 @@ def extract_json_payload(text: str) -> tuple[dict | None, str]:
     return data, ""
 
 
+def _effort_flag_for_model(model: str) -> str | None:
+    """Résout le réglage `--effort` pour `model` (le nom RÉELLEMENT passé à cet
+    appel — `payload.model`, ou `model_override` après une escalade) via le
+    `reasoning` déclaré dans `roles.yaml` (`control_plane.registry`,
+    résolution PAR MODÈLE plutôt que par rôle : c'est le modèle qui exécute CET
+    appel qui doit porter son propre réglage, jamais celui du rôle d'origine
+    avant une éventuelle escalade — cf. `forge.escalate`).
+
+    Retourne None (AUCUN flag) pour :
+      - une valeur déclarée non CLI-compatible (`False`/absente/inconnue —
+        c'est précisément le cas des rôles Qwen et déterministe, qui de toute
+        façon n'atteignent jamais `_claude_call_raw`, appelé UNIQUEMENT pour
+        `decision.runner in {claude, claude-blind}` — cf. docstring du module) ;
+      - un `model` qui ne correspond à AUCUN id de `roles.yaml` — notamment un
+        alias de palier NU post-escalade (`forge.escalate.LADDER` n'écrit que
+        'haiku'/'sonnet'/'opus', jamais l'id complet) : limite déclarée, voir
+        SKIPPED_VALIDATION du rapport de mission — jamais une valeur devinée.
+
+    Ne modifie ni ne lit `roles.yaml` autrement qu'en lecture : aucune valeur
+    choisie ici, seule la classification déjà établie par
+    `forge.reasoning_observability.classify_declared_reasoning` décide.
+    """
+    from control_plane.registry import get_reasoning_for_model
+
+    raw = get_reasoning_for_model(model, caps_path=FORGE_ROLES)
+    if classify_declared_reasoning(raw) != DECLARED_KIND_CLI_COMPATIBLE:
+        return None
+    return str(raw).strip().lower()
+
+
 def _claude_call_raw(prompt: str, model: str, *, add_dir: Path,
                      tools: tuple[str, ...] = (),
                      timeout_s: float = DEFAULT_STEP_TIMEOUT_S):
@@ -325,7 +367,22 @@ def _claude_call_raw(prompt: str, model: str, *, add_dir: Path,
     cmd = [
         _CLAUDE_CMD, "-p",
         "--model", model,
-        "--output-format", "json",
+        # Chantier CAPTURE (docs/fvl/FVL_PHASE_0_5_CHARTER.md §4, ligne « 4. SKILLS
+        # OBSERVABLES ») : stream-json --verbose au lieu de json seul, SEULEMENT
+        # après preuve de neutralité sur les 3 volets exigés (contenu final,
+        # chemins durcis, coût/tokens/durée) — 4 appels réels contrôlés (2026-07-30,
+        # coût divulgué au rapport de mission), diff mécanique des lignes finales
+        # `type: result` : ensembles de clés IDENTIQUES entre les deux formats sur
+        # le cas réussi/sans-outil (21/21 clés partagées, texte `result` identique
+        # au caractère près), coût/tokens dans la même bande (écart <0.2%,
+        # attribuable à la variance normale de génération, pas au format), et le
+        # cas outil/échec confirme que l'absence du champ `result` sur `is_error`
+        # n'est PAS un artefact du streaming (déjà `.get('result', '')` avant ce
+        # chantier). `--output-format json` rendait déjà LA MÊME forme d'objet
+        # `type: result` — seule sa position change (dernière ligne d'un flux
+        # plutôt qu'unique sortie).
+        "--output-format", "stream-json",
+        "--verbose",
         "--add-dir", str(add_dir),
         # R2 (red-team de clôture) : isolation MCP — flag vérifié dans
         # `claude --help` local (« Only use MCP servers from --mcp-config,
@@ -334,6 +391,12 @@ def _claude_call_raw(prompt: str, model: str, *, add_dir: Path,
         # serveurs MCP projet/utilisateur (studio-brain, computer-use, etc.).
         "--strict-mcp-config",
     ]
+    # Chantier RAISONNEMENT : --effort <level>, transmis UNIQUEMENT quand le
+    # modèle réellement exécutant déclare une valeur CLI-compatible (jamais
+    # deviné, jamais pour un provider non-CLI — cf. _effort_flag_for_model).
+    effort = _effort_flag_for_model(model)
+    if effort:
+        cmd += ["--effort", effort]
     if tools:
         cmd += ["--allowedTools", " ".join(tools), "--permission-mode", "acceptEdits"]
     else:
@@ -363,10 +426,16 @@ def _claude_call_raw(prompt: str, model: str, *, add_dir: Path,
             "ok": False,
             "reason": f"claude -p returncode={returncode}: {stderr[-2000:]}",
         }
-    try:
-        data = json.loads(stdout)
-    except ValueError:
-        return {"ok": False, "reason": f"sortie claude -p non-JSON: {stdout[-2000:]}"}
+    # Chantier CAPTURE : extraction déterministe (aucun LLM) de la DERNIÈRE ligne
+    # `type: result` du flux JSONL — même fonction, déjà PROUVÉE sur capture réelle
+    # (forge.tool_observability.extract_final_result, jamais réimplémentée ici).
+    # Ne lève jamais : un flux vide/corrompu/sans ligne 'result' rend None, jamais
+    # une exception — traité ci-dessous comme le `except ValueError` d'avant ce
+    # chantier (même message générique, même {ok: False}).
+    data = extract_final_result(stdout)
+    if data is None:
+        return {"ok": False, "reason": f"sortie claude -p (stream-json) sans ligne "
+                                       f"'result' exploitable: {stdout[-2000:]}"}
     if data.get("is_error"):
         return {"ok": False, "reason": f"claude -p is_error: {data.get('result', '')[:2000]}"}
 

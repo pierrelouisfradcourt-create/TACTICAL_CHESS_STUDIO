@@ -47,6 +47,7 @@ from forge.dispatch import (
 )
 from forge.escalate import escalation_decision, parse_agent_escalation, tier_of
 from forge.gate import forge_gate
+from forge.learning_memory import load_current_generation, premortem_lessons
 from forge.oracle import OracleNotFound, resolve_oracle
 from forge.mutation_proof import (
     emit_descriptor_mutation_receipt,
@@ -169,6 +170,10 @@ class ForgeDriver:
         pool_size: int = DEFAULT_POOL_SIZE,
         product_oracle_runner=None,
         product_oracle_godot_runner=None,
+        reference_guard_config_path: Path | str | None = None,
+        reference_guard_baseline_path: Path | str | None = None,
+        reference_guard_derogation_path: Path | str | None = None,
+        lessons_path: Path | str | None = None,
     ) -> None:
         self.project = project
         self.run_id = run_id
@@ -242,6 +247,25 @@ class ForgeDriver:
             self.is_game = True
             logger.info("is_game auto-détecté (harnais de jeu présent dans %s)",
                         self.src_root)
+        # FVL Phase 0.5, chantier reference_protected (docs/fvl/FVL_PHASE_0_5_CHARTER.md
+        # §7 point 1) : chemins injectables comme telemetry_path/journal_path ci-dessus ;
+        # None => défauts PRODUCTION résolus par `forge.reference_guard` lui-même (source
+        # unique de ces chemins, jamais dupliqués ici). Voir `_reference_guard_check`.
+        self.reference_guard_config_path = (
+            Path(reference_guard_config_path) if reference_guard_config_path else None
+        )
+        self.reference_guard_baseline_path = (
+            Path(reference_guard_baseline_path) if reference_guard_baseline_path else None
+        )
+        self.reference_guard_derogation_path = (
+            Path(reference_guard_derogation_path) if reference_guard_derogation_path else None
+        )
+        # FVL Phase 0.5, étape 3 (mémoire d'apprentissage, forge.learning_memory) :
+        # même patron injectable que journal_path juste au-dessus. None => cible
+        # déduite par `_lessons_target` (défauts PRODUCTION réels de learning_memory
+        # pour un run DANS le repo ; fichier local isolé sinon, jamais le corpus
+        # partagé — voir sa docstring).
+        self.lessons_path = Path(lessons_path) if lessons_path else None
         self.state_path = self.run_dir / "state.json"
         self._premortem_cache: list[str] | None = None
         # s0-contrat mandatory_read (contracts/s0-contrat.yaml l.26) : "la Project
@@ -255,6 +279,7 @@ class ForgeDriver:
     def run(self) -> dict:
         """Exécute (ou REPREND) le run jusqu'au verdict signé, ou HALTED honnête."""
         self.run_dir.mkdir(parents=True, exist_ok=True)
+        self._reference_guard_check("open")
         state, refus = self._load_state()
         if state is None:
             return self._halted_report(refus, state_known=False)
@@ -312,6 +337,47 @@ class ForgeDriver:
         except OSError:
             logger.warning("index des journaux non régénéré pour %s (non bloquant)",
                            self.run_id)
+
+    def _reference_guard_check(self, phase: str) -> None:
+        """Câblage ADVISORY (FVL Phase 0.5, chantier `reference_protected` —
+        docs/fvl/FVL_PHASE_0_5_CHARTER.md §7 point 1, docs/forge/FORGE_EVOLUTION_DOCTRINE_V0.md
+        §1.1/§1.2) : vérifie l'empreinte des arbres protégés (games/pong/**, tests/**)
+        à l'OUVERTURE (`run()`, avant `_load_state`) et à la CLÔTURE (`_final_report`,
+        les deux chemins DONE — idempotent et fraîchement terminé) d'un run.
+
+        `phase` ∈ {"open", "close"} — consigné tel quel, jamais interprété ici.
+
+        AUCUN gate, AUCUN verdict modifié : le résultat est seulement APPENDÉ à
+        `<run_dir>/reference_guard.jsonl` (même patron JSONL append-only que la
+        télémétrie). Best-effort STRICT : `reference_guard.advisory_check` ne lève
+        déjà jamais (même garantie que `learning_hook.record_learning_for_subject`),
+        et cet appel est ENVELOPPÉ ICI EN PLUS par défense en profondeur (même patron
+        que `_record_learning_advisory`) — une exception dans l'écriture du fichier
+        consigné (disque plein, permission...) ne doit JAMAIS faire échouer un run,
+        y compris un run déjà terminé côté oracle/verdict.
+
+        Un run de TEST (`run_dir` hors dépôt, ex. `tmp_path` pytest) écrit son propre
+        `reference_guard.jsonl` sous `run_dir` — jamais dans le dépôt réel, puisque
+        `run_dir` lui-même est déjà l'isolation (aucun discriminant supplémentaire requis
+        ici, à la différence de `_regenerate_journal_index`)."""
+        try:
+            from forge import reference_guard
+            report = reference_guard.advisory_check(
+                phase,
+                config_path=self.reference_guard_config_path,
+                baseline_path=self.reference_guard_baseline_path,
+                derogation_path=self.reference_guard_derogation_path,
+            )
+            report["run_id"] = self.run_id
+            path = self.run_dir / "reference_guard.jsonl"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "a", encoding="utf-8") as fh:
+                fh.write(json.dumps(report, ensure_ascii=False, sort_keys=True) + "\n")
+        except Exception:
+            logger.warning(
+                "reference_guard (%s) non consigné pour run=%s (advisory, non bloquant)",
+                phase, self.run_id, exc_info=True,
+            )
 
     # --- état persistant ----------------------------------------------------
 
@@ -424,9 +490,20 @@ class ForgeDriver:
         self._save(state)  # persisté AVANT l'appel : un crash laisse RUNNING (reprise)
 
         try:
+            # run_dir=self.run_dir (0.5.a, routage explicite ratifié) : le driver
+            # CONNAÎT son run_dir, il n'a plus à laisser prepare_dispatch retomber
+            # sur context_manifest.default_run_dir(run_id) — dérivation qui échoue
+            # (None -> _orphan_context/) dès qu'un run_id dépasse <projet>-<date>.
+            # model_executed=state.get("model_override") (0.5.d) : None hors
+            # escalade (la ligne 'dispatch' du Context Manifest reste alors
+            # model_executed == model, aucune ambiguïté) ; le modèle d'escalade
+            # sinon — même résolution que le journal/la télémétrie plus bas
+            # (`state.get("model_override") or payload.model`), appliquée ici au
+            # niveau de la porte puisque c'est elle qui écrit la ligne signée.
             payload = prepare_dispatch(
                 etape, self.run_id, caps_path=self.caps_path, audit_path=self.audit_path,
-                profile=self.profile, attempt=entry["attempts"],
+                run_dir=self.run_dir, profile=self.profile, attempt=entry["attempts"],
+                model_executed=state.get("model_override"),
             )
         except ContractIncomplete as exc:
             # `payload` n'existe pas encore (prepare_dispatch a levé avant de le
@@ -589,16 +666,70 @@ class ForgeDriver:
         except Exception:  # noqa: BLE001 — best-effort, jamais bloquant
             logger.warning("réparation non écrite au journal pour %s (non bloquant)", etape)
 
+    def _lessons_target(self) -> Path | None:
+        """Cible de `forge.learning_memory` pour CE run — MÊME patron que
+        `_journal_target` (connecteur 6) : chemin explicite injecté (tests,
+        orchestrateur) => ce fichier exact ; sinon run_dir DANS le repo (run
+        studio réel) => None (learning_memory retombe sur ses propres défauts
+        PRODUCTION réels — `lab/reports/lessons.jsonl` + corpus legacy réel) ;
+        sinon (run_dir HORS repo — tmp de test non injecté) => fichier LOCAL au
+        run_dir, jamais le corpus réel ni le corpus partagé d'un autre test."""
+        if self.lessons_path is not None:
+            return self.lessons_path
+        try:
+            self.run_dir.resolve().relative_to(_REPO_ROOT)
+            return None
+        except ValueError:
+            return self.run_dir / "lessons.jsonl"
+
+    def _legacy_lessons_targets(self) -> tuple[Path | None, Path | None]:
+        """(legacy_domain_path, legacy_monolith_path) pour `premortem_lessons` —
+        MÊME logique que `_lessons_target` : un run isolé (hors repo, ou chemin de
+        leçons explicite) ne doit JAMAIS lire le corpus legacy RÉEL (les 3 leçons
+        de méthode du dépôt), sous peine de polluer un test isolé qui n'a rien
+        écrit lui-même (précédent : `test_le_retry_relit_le_journal_a_jour`
+        attend `== []` au premier essai)."""
+        if self.lessons_path is not None:
+            base = self.lessons_path.parent
+            return base / "legacy_domain.jsonl", base / "legacy_monolith.jsonl"
+        try:
+            self.run_dir.resolve().relative_to(_REPO_ROOT)
+            return None, None
+        except ValueError:
+            return (self.run_dir / "legacy_domain.jsonl",
+                    self.run_dir / "legacy_monolith.jsonl")
+
+    def _premortem_lessons(self) -> list[str]:
+        """FVL Phase 0.5 étape 3 (forge.learning_memory) : leçons à statut +
+        génération, filtrées DÉTERMINISTE (rejected omise, génération différente/
+        deprecated marquées) — le SEUL changement de lecture exigé par le minimum
+        de la doctrine (§2.3). Best-effort strict, même garantie que le reste de
+        cette classe : une lecture qui lève ne casse jamais le run."""
+        try:
+            legacy_domain, legacy_monolith = self._legacy_lessons_targets()
+            return premortem_lessons(
+                current_generation=load_current_generation(),
+                lessons_path=self._lessons_target(),
+                legacy_domain_path=legacy_domain,
+                legacy_monolith_path=legacy_monolith,
+            )
+        except Exception:  # noqa: BLE001 — lecture best-effort
+            return []
+
     def _premortem(self) -> list[str]:
         # Lit le MÊME journal que celui où l'on écrit (même cible, même domaine) : une
         # nouvelle tentative voit ainsi l'échec qu'on vient de consigner. Best-effort.
         if self._premortem_cache is None:
             try:
-                self._premortem_cache = premortem(
+                base = premortem(
                     self.project, domain=self._domain(),
                     journal_path=self._journal_target())
             except Exception:  # noqa: BLE001 — lecture best-effort
-                self._premortem_cache = []
+                base = []
+            # Concaténation ADDITIVE : le journal d'erreurs existant (connecteur 6)
+            # reste inchangé en tête, les leçons à statut/génération (learning_memory)
+            # s'ajoutent à la suite — aucun texte existant n'est retiré ni réordonné.
+            self._premortem_cache = base + self._premortem_lessons()
         return self._premortem_cache
 
     def _project_bible(self) -> str:
@@ -678,9 +809,15 @@ class ForgeDriver:
         self._save(state)
 
         try:
+            # run_dir=self.run_dir (0.5.a, cf. _run_llm ci-dessus, même correction,
+            # même raison — les DEUX points d'appel de la porte doivent le passer).
+            # Pas de model_executed ici : une étape déterministe n'a pas
+            # d'exécutant LLM (oracle in-process) — state["model_override"] ne
+            # décrit qu'une escalade de BUILDER, la propager ici suggérerait
+            # à tort qu'un modèle a exécuté cette étape.
             prepare_dispatch(
                 etape, self.run_id, caps_path=self.caps_path, audit_path=self.audit_path,
-                profile=self.profile, attempt=entry["attempts"],
+                run_dir=self.run_dir, profile=self.profile, attempt=entry["attempts"],
             )
         except ContractIncomplete as exc:
             self._finish_step(state, entry, "BLOCKED",
@@ -2012,6 +2149,7 @@ class ForgeDriver:
         }
 
     def _final_report(self, state: dict) -> dict:
+        self._reference_guard_check("close")
         base = {
             "run_id": self.run_id,
             "project": self.project,
