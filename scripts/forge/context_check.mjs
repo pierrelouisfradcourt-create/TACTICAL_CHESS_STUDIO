@@ -281,7 +281,11 @@ export function computeScore({ sourceDiffs, signals }) {
 // --- budget ------------------------------------------------------------------------------------
 
 function extractBudget(execution) {
-  const budget = execution?.context_budget;
+  // P7 (lot dégel 2) : le nom courant est `prompt_budget` (il ne mesure que le
+  // prompt contractuel, ~8 % du contexte réel — l'ancien nom promettait plus).
+  // `context_budget` n'est accepté qu'en LECTURE LEGACY, pour les manifestes
+  // écrits avant 2026-07-31 — jamais réécrits (artefacts de runs passés).
+  const budget = execution?.prompt_budget ?? execution?.context_budget;
   if (!execution || !budget) return { status: 'NO_EXECUTION_RECORD' };
   return {
     status: budget.status || 'UNKNOWN_WINDOW',

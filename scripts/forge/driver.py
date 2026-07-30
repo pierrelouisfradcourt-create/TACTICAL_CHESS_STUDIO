@@ -174,6 +174,7 @@ class ForgeDriver:
         reference_guard_baseline_path: Path | str | None = None,
         reference_guard_derogation_path: Path | str | None = None,
         lessons_path: Path | str | None = None,
+        failure_events_path: Path | str | None = None,
     ) -> None:
         self.project = project
         self.run_id = run_id
@@ -266,6 +267,13 @@ class ForgeDriver:
         # pour un run DANS le repo ; fichier local isolé sinon, jamais le corpus
         # partagé — voir sa docstring).
         self.lessons_path = Path(lessons_path) if lessons_path else None
+        # CV-14 (lot de dégel 1, 2026-07-30) : producteur automatique de
+        # FailureEvent (couche 1->2 de la doctrine Run->FailureEvent->Lesson->
+        # Doctrine). Même patron injectable que `lessons_path` juste au-dessus —
+        # None => cible déduite par `_failure_events_target` (défauts PRODUCTION
+        # réels de `forge.learning_memory` pour un run DANS le repo ; fichier
+        # local isolé sinon, jamais le corpus partagé).
+        self.failure_events_path = Path(failure_events_path) if failure_events_path else None
         self.state_path = self.run_dir / "state.json"
         self._premortem_cache: list[str] | None = None
         # s0-contrat mandatory_read (contracts/s0-contrat.yaml l.26) : "la Project
@@ -280,34 +288,96 @@ class ForgeDriver:
         """Exécute (ou REPREND) le run jusqu'au verdict signé, ou HALTED honnête."""
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self._reference_guard_check("open")
-        state, refus = self._load_state()
-        if state is None:
-            return self._halted_report(refus, state_known=False)
-        if state.get("run_status") == "DONE":
-            self._regenerate_journal_index()
-            return self._final_report(state)  # idempotent : rien à rejouer
+        # P3 (lot dégel 2) : persiste les logs de CE run sur disque (<run_dir>/
+        # run.log) — best-effort strict, jamais bloquant (voir la docstring de
+        # `_attach_run_log_handler`). `try/finally` couvre TOUS les points de
+        # retour ci-dessous (idempotent DONE, HALTED précoce, HALTED en boucle,
+        # DONE final) : le handler est toujours détaché, jamais laissé ouvert.
+        log_handler, log_previous_level = self._attach_run_log_handler()
+        try:
+            state, refus = self._load_state()
+            if state is None:
+                return self._halted_report(refus, state_known=False)
+            if state.get("run_status") == "DONE":
+                self._regenerate_journal_index()
+                return self._final_report(state)  # idempotent : rien à rejouer
 
-        state["run_status"] = "RUNNING"
-        state.pop("reason", None)
-        first_post = next((e for e in self.order if e in _POST_ORACLE), None)
-        while True:
-            etape = next(
-                (e for e in self.order
-                 if state["steps"][e]["status"] not in TERMINAL_STATUSES),
-                None,
-            )
-            if etape is None:
-                break
-            if etape == first_post and self._maybe_escalate(state):
-                continue  # s9 + oracles remis à PENDING — la boucle les rejoue
-            if is_deterministic_step(etape):
-                self._run_deterministic(state, etape)
-            elif not self._run_llm(state, etape):
-                return self._halted_report(state.get("reason", ""))
-        state["run_status"] = "DONE"
-        self._save(state)
-        self._regenerate_journal_index()
-        return self._final_report(state)
+            state["run_status"] = "RUNNING"
+            state.pop("reason", None)
+            first_post = next((e for e in self.order if e in _POST_ORACLE), None)
+            while True:
+                etape = next(
+                    (e for e in self.order
+                     if state["steps"][e]["status"] not in TERMINAL_STATUSES),
+                    None,
+                )
+                if etape is None:
+                    break
+                if etape == first_post and self._maybe_escalate(state):
+                    continue  # s9 + oracles remis à PENDING — la boucle les rejoue
+                if is_deterministic_step(etape):
+                    self._run_deterministic(state, etape)
+                elif not self._run_llm(state, etape):
+                    return self._halted_report(state.get("reason", ""))
+            state["run_status"] = "DONE"
+            self._save(state)
+            self._regenerate_journal_index()
+            return self._final_report(state)
+        finally:
+            self._detach_run_log_handler(log_handler, log_previous_level)
+
+    def _attach_run_log_handler(self):
+        """P3 (lot dégel 2) : le WHY d'une escalade (et tout le reste loggé par la
+        chaîne `forge.*`) ne portait QUE sur `logger.info`/`logger.warning` —
+        AUCUN `FileHandler` n'existait, donc rien ne survivait à la disparition
+        du process (console non capturée, ou perdue). Attache un `FileHandler`
+        best-effort vers `<run_dir>/run.log` (encodage utf-8 explicite) au
+        logger racine du paquet `forge` (parent de `forge.driver`/
+        `forge.dispatch`/... — chaque module fait `logging.getLogger(__name__)`,
+        donc `forge.<module>` propage vers `forge`) : capture donc AUSSI ce qui
+        est déjà loggé ailleurs (ex. `dispatch.prepare_dispatch`), sans dupliquer
+        de code de log. Mode append par défaut de `FileHandler` : un run REPRIS
+        (même run_dir) continue le même fichier, jamais un écrasement.
+
+        JAMAIS bloquant : une exception à l'ouverture (disque plein, permission,
+        chemin invalide) est tracée puis avalée — le run démarre quand même,
+        seule la persistance fichier des logs est perdue (comportement identique
+        à avant ce lot). Retourne ``(handler, niveau_precedent)`` — ``(None, None)``
+        si l'ouverture a échoué, à repasser tel quel à `_detach_run_log_handler`.
+        """
+        try:
+            handler = logging.FileHandler(self.run_dir / "run.log", encoding="utf-8")
+            handler.setLevel(logging.INFO)
+            handler.setFormatter(logging.Formatter(
+                "%(asctime)s %(levelname)s %(name)s: %(message)s"))
+            forge_logger = logging.getLogger("forge")
+            previous_level = forge_logger.level
+            if previous_level == logging.NOTSET or previous_level > logging.INFO:
+                forge_logger.setLevel(logging.INFO)
+            forge_logger.addHandler(handler)
+            logger.info("run.log ouvert pour run=%s -> %s", self.run_id, handler.baseFilename)
+            return handler, previous_level
+        except OSError:
+            logger.warning("run.log non attaché pour run=%s (non bloquant)",
+                           self.run_id, exc_info=True)
+            return None, None
+
+    def _detach_run_log_handler(self, handler, previous_level) -> None:
+        """Symétrique de `_attach_run_log_handler` : retire le handler et restaure
+        le niveau précédent du logger `forge` — jamais bloquant, même à la
+        fermeture (un disque qui devient indisponible entre l'ouverture et la
+        fermeture ne doit pas faire échouer un run déjà terminé)."""
+        if handler is None:
+            return
+        try:
+            forge_logger = logging.getLogger("forge")
+            forge_logger.removeHandler(handler)
+            if previous_level is not None:
+                forge_logger.setLevel(previous_level)
+            handler.close()
+        except Exception:  # noqa: BLE001 — jamais bloquant, même à la fermeture
+            logger.warning("run.log non détaché proprement pour run=%s (non bloquant)",
+                           self.run_id, exc_info=True)
 
     def _regenerate_journal_index(self) -> None:
         """Connecteur 6 (suite) : régénère lab/reports/error_journal/INDEX.generated.md
@@ -504,6 +574,11 @@ class ForgeDriver:
                 etape, self.run_id, caps_path=self.caps_path, audit_path=self.audit_path,
                 run_dir=self.run_dir, profile=self.profile, attempt=entry["attempts"],
                 model_executed=state.get("model_override"),
+                # P5 (lot dégel 2) : le driver enchaîne STRICTEMENT le profil
+                # (`order_for_profile`, aucun agent ne choisit l'étape suivante) —
+                # aucune autre source de WHY dynamique dans ce lot, donc le même
+                # motif littéral aux deux points d'appel (voir _run_deterministic).
+                reason="ordre de profil",
             )
         except ContractIncomplete as exc:
             # `payload` n'existe pas encore (prepare_dispatch a levé avant de le
@@ -517,6 +592,10 @@ class ForgeDriver:
         output: str | None = None
         blocked, findings = False, []
         tokens, duration, cost_usd = 0, 0.0, 0.0
+        # CV-8 : zéro par défaut (Qwen n'expose pas de cache Claude — un ZÉRO
+        # MESURÉ, pas une case vide), écrasé plus bas seulement sur le chemin
+        # exécuteur réel (`res` porte les champs quand `_claude_call_raw` a tourné).
+        cache_creation_tokens, cache_read_tokens = 0, 0
 
         if decision.runner == RUNNER_QWEN:
             res = run_qwen_step(payload)
@@ -572,6 +651,12 @@ class ForgeDriver:
             tokens = int(res.get("tokens", 0))
             duration = float(res.get("duration_s", 0.0))
             cost_usd = float(res.get("cost_usd", 0.0))
+            # CV-8 (lot de dégel 1, 2026-07-30) : champs frères de `tokens`/`cost_usd`,
+            # même seam — `run_real._claude_call_raw` les porte désormais dans `res`
+            # (0 par défaut sur un exécuteur injecté qui ne les rend pas, jamais None).
+            cache_creation_tokens = int(res.get("cache_creation_tokens", 0) or 0)
+            cache_read_tokens = int(res.get("cache_read_tokens", 0) or 0)
+
 
         artifact = self.run_dir / "artifacts" / f"{etape}.txt"
         artifact.parent.mkdir(parents=True, exist_ok=True)
@@ -593,6 +678,8 @@ class ForgeDriver:
             "tokens": tokens,
             "duration_s": duration,
             "cost_usd": cost_usd,
+            "cache_creation_tokens": cache_creation_tokens,
+            "cache_read_tokens": cache_read_tokens,
         }
         self._save(state)
         try:
@@ -682,6 +769,44 @@ class ForgeDriver:
         except ValueError:
             return self.run_dir / "lessons.jsonl"
 
+    def _failure_events_target(self) -> Path | None:
+        """CV-14 : cible de `forge.learning_memory.record_failure_event` pour CE
+        run — MÊME patron que `_lessons_target`/`_journal_target` : chemin explicite
+        injecté (tests) => ce fichier exact ; sinon run_dir DANS le repo (run studio
+        réel) => None (retombe sur le défaut PRODUCTION réel,
+        `lab/reports/failure_events.jsonl`) ; sinon (run_dir HORS repo, tmp de test
+        non injecté) => fichier LOCAL au run_dir, jamais le corpus réel."""
+        if self.failure_events_path is not None:
+            return self.failure_events_path
+        try:
+            self.run_dir.resolve().relative_to(_REPO_ROOT)
+            return None
+        except ValueError:
+            return self.run_dir / "failure_events.jsonl"
+
+    def _record_failure_event(self, etape: str, reason: str) -> None:
+        """CV-14 : producteur AUTOMATIQUE de FailureEvent (couche 1->2 de la
+        doctrine Run->FailureEvent->Lesson->Doctrine, écriture JAMAIS ascendante —
+        aucune Lesson n'est créée ici, la curation 2->3 reste humaine/CLI, un choix
+        de conception, pas un oubli). Best-effort STRICT (même patron que
+        `_journal_error`/`_journal_fix` juste au-dessus) : une exception du
+        recorder ne casse JAMAIS le run. `etape_detection` SEULEMENT — jamais de
+        `causes_suspectees` auto (le lieu de détection n'est jamais la cause,
+        règle ratifiée §2.1 de la doctrine)."""
+        try:
+            from forge.learning_memory import make_failure_id, record_failure_event
+            erreur = str(reason)[:2000]
+            failure_id = make_failure_id(self.project, etape, erreur)
+            record_failure_event(
+                failure_id, self.run_id, self.project,
+                erreur_observee=erreur, etape_detection=etape,
+                path=self._failure_events_target(),
+            )
+        except Exception:  # noqa: BLE001 — best-effort, jamais bloquant
+            logger.warning(
+                "failure_event non écrit pour %s (non bloquant)", etape, exc_info=True,
+            )
+
     def _legacy_lessons_targets(self) -> tuple[Path | None, Path | None]:
         """(legacy_domain_path, legacy_monolith_path) pour `premortem_lessons` —
         MÊME logique que `_lessons_target` : un run isolé (hors repo, ou chemin de
@@ -726,10 +851,27 @@ class ForgeDriver:
                     journal_path=self._journal_target())
             except Exception:  # noqa: BLE001 — lecture best-effort
                 base = []
+            # P2 (lot dégel 2) : un run JEU lit AUSSI le journal `playtest`
+            # (studio_link.PLAYTEST_DOMAIN) — ADDITIF pur, ne touche pas
+            # `_domain()` (l'écriture reste routée exactement comme avant, "html"
+            # pour un jeu) ni `studio_link.py`. `_domain()` d'un jeu rend "html"
+            # (figé d'avant Godot) : quand `journal_path` est explicite (mode
+            # RETROCOMPAT de `studio_link.premortem`, qui ignore `domain`), les
+            # leçons playtest résolues (ex. « bande de vitesse jouable ») restent
+            # invisibles sans cet ajout. Best-effort strict, même garantie que la
+            # lecture juste au-dessus : une exception rend une liste vide, jamais
+            # une propagation.
+            playtest_lines: list[str] = []
+            if self.is_game:
+                try:
+                    playtest_lines = premortem(self.project, domain="playtest")
+                except Exception:  # noqa: BLE001 — lecture best-effort
+                    playtest_lines = []
             # Concaténation ADDITIVE : le journal d'erreurs existant (connecteur 6)
-            # reste inchangé en tête, les leçons à statut/génération (learning_memory)
-            # s'ajoutent à la suite — aucun texte existant n'est retiré ni réordonné.
-            self._premortem_cache = base + self._premortem_lessons()
+            # reste inchangé en tête, les leçons playtest puis les leçons à statut/
+            # génération (learning_memory) s'ajoutent à la suite — aucun texte
+            # existant n'est retiré ni réordonné.
+            self._premortem_cache = base + playtest_lines + self._premortem_lessons()
         return self._premortem_cache
 
     def _project_bible(self) -> str:
@@ -773,6 +915,13 @@ class ForgeDriver:
         logger.warning("driver HALTED: %s", reason)
         resolved_etape = etape or self._etape_of(state, entry)
         self._journal_error(resolved_etape, reason)
+        # CV-14 (lot de dégel 1, 2026-07-30) : « le premier arrêt d'étape réel »
+        # est le déclencheur nommé de la boucle Lessons — `_halt_step` est LE point
+        # de convergence de tous les chemins d'échec d'étape LLM (contrat non
+        # activable, exécuteur absent, exécuteur en échec), donc le SEUL endroit à
+        # câbler pour couvrir « le driver arrête une étape » sans dupliquer l'appel.
+        # Best-effort strict (même garde que `_journal_error` juste au-dessus).
+        self._record_failure_event(resolved_etape, reason)
         # MISSION_M1_TELEMETRIE_ECHEC.md (design imposé pt.1) : un échec produit
         # AUSSI une ligne de télémétrie (outcome="HALT"), best-effort comme le
         # chemin OK (garde-fou #2 : jamais bloquant, y compris sur ce nouveau
@@ -818,6 +967,11 @@ class ForgeDriver:
             prepare_dispatch(
                 etape, self.run_id, caps_path=self.caps_path, audit_path=self.audit_path,
                 run_dir=self.run_dir, profile=self.profile, attempt=entry["attempts"],
+                # P5 (lot dégel 2) : même motif littéral que le point d'appel LLM
+                # ci-dessus (_run_llm) — le driver n'a qu'une seule source de WHY
+                # dans ce lot (l'ordre FIFO du profil), jamais une escalade ici
+                # (une étape déterministe n'a pas d'exécutant LLM à escalader).
+                reason="ordre de profil",
             )
         except ContractIncomplete as exc:
             self._finish_step(state, entry, "BLOCKED",
@@ -881,11 +1035,32 @@ class ForgeDriver:
                 self.run_id, exc_info=True,
             )
 
+    def _check_wiremap_frozen_presence(self, state: dict) -> None:
+        """Garde d'absence ADVISORY (CV-3, jamais un gate) : au moment où le driver
+        exécute les oracles, une wiremap présente sans son gel (`wiremap_frozen.json`)
+        est une trace manquante — remontée au HumanGate, elle ne touche JAMAIS
+        `software_verdict`. Distincte du STOP dur déjà posé dans `_run_wiremap_oracle`
+        (`check_feature_set_frozen` non `checked` => BLOCKED) : cette garde-ci ne
+        BLOQUE rien, elle avertit tôt, y compris pour des étapes qui n'appellent
+        jamais `_run_wiremap_oracle` (ex. profils sans s10b). Même patron de
+        dédoublonnage que les autres notes advisory de cette classe (`escalade
+        refusée`, ligne ~2046)."""
+        wiremap_path = self.run_dir / "wiremap.json"
+        frozen_path = self.run_dir / "wiremap_frozen.json"
+        if not wiremap_path.exists() or frozen_path.exists():
+            return
+        note = "gel des règles absent (wiremap présent non gelé)"
+        notes = state.setdefault("humangate_notes", [])
+        if note not in notes:
+            notes.append(note)
+            self._save(state)
+
     def _run_code_oracle(self, state: dict, entry: dict) -> None:
         """s10a. Non-jeu : forge_gate seul (inchangé). JEU (P0.2/P2) : le vert exige
         oracle code vert ET garde e2e verte ET garde solvabilité verte ET reçu
         mutation signé vert — FAIL alimente l'escalade ; preuve impossible =
         BLOCKED (hypothèse inconnue)."""
+        self._check_wiremap_frozen_presence(state)
         res = forge_gate(
             self.project,
             config_path=self.oracle_config,
@@ -2054,6 +2229,16 @@ class ForgeDriver:
         for e in self._steps_to_replay():
             state["steps"][e]["status"] = "PENDING"
         self._premortem_cache = None  # le re-build au tier +fort relit le journal À JOUR
+        # P3 (lot dégel 2) : le WHY d'une escalade RÉUSSIE ne survivait qu'au
+        # `logger.info` ci-dessous (aucun FileHandler n'existait avant ce lot,
+        # cf. `_attach_run_log_handler`) — perdu dès que le process disparaît.
+        # Même patron que l'escalade REFUSÉE juste au-dessus (`humangate_notes`,
+        # dédupliquée) : le motif d'une escalade honorée devient, lui aussi,
+        # durable dans `state.json`.
+        note = f"escalade #{state['escalations']}: {d.reason}"
+        notes = state.setdefault("humangate_notes", [])
+        if note not in notes:
+            notes.append(note)
         logger.info("escalade #%s: %s", state["escalations"], d.reason)
         self._save(state)
         return True

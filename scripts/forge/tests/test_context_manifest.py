@@ -162,8 +162,8 @@ def test_execution_line_ok_status(tmp_path):
     assert rec["final_prompt_chars"] == len("petit prompt")
     assert rec["final_prompt_sha256"]
     assert rec["premortem_sha256"] is None
-    assert rec["context_budget"]["status"] == "OK"
-    assert rec["context_budget"]["model_window_tokens"] == 200000
+    assert rec["prompt_budget"]["status"] == "OK"
+    assert rec["prompt_budget"]["model_window_tokens"] == 200000
     assert cm.verify_manifest_record(rec, key_file=KEY) is True
 
 
@@ -172,8 +172,8 @@ def test_execution_line_unknown_window(tmp_path):
         "test-run", "s9-build", tmp_path, "prompt", model="some-unlisted-model",
         key_file=KEY,
     )
-    assert rec["context_budget"]["status"] == "UNKNOWN_WINDOW"
-    assert rec["context_budget"]["model_window_tokens"] is None
+    assert rec["prompt_budget"]["status"] == "UNKNOWN_WINDOW"
+    assert rec["prompt_budget"]["model_window_tokens"] is None
 
 
 def test_execution_line_overflow_risk(tmp_path):
@@ -182,8 +182,8 @@ def test_execution_line_overflow_risk(tmp_path):
         "test-run", "s9-build", tmp_path, huge_prompt, model="claude-sonnet-5",
         key_file=KEY,
     )
-    assert rec["context_budget"]["status"] == "OVERFLOW_RISK"
-    assert rec["context_budget"]["estimated_tokens"] > 0.9 * 200000
+    assert rec["prompt_budget"]["status"] == "OVERFLOW_RISK"
+    assert rec["prompt_budget"]["estimated_tokens"] > 0.9 * 200000
 
 
 def test_execution_line_premortem_hash_present_when_section_given(tmp_path):

@@ -54,6 +54,17 @@ mandatory_read:
   - "la wiremap gelée du jeu courant (lab/forge_runs/<jeu>/wiremap.json)"
   - "le charter du jeu courant (lab/forge_runs/<jeu>/charter.yaml)"
 
+# --- 2bis. SEARCH d'abord ---
+# AVANT d'écrire une pièce de logique GDScript, interroger la bibliothèque en langage
+# libre : `node knowledge_base/search.mjs "<intention>" --runtime godot` (le filtre
+# `--runtime` cible les briques Godot ; élargir sans lui si rien ne matche). Un résultat
+# pertinent (tier=validated) est IMPORTÉ RÉELLEMENT, jamais recopié à l'œil : quand la
+# ligne du squelette le déclare `reused_from.type: CODE_COPIE`, le fichier copié doit
+# correspondre à l'empreinte `copy_sha256` de sa source (cf. §4/§6-g) ; le forgeron
+# n'écrit alors que le DELTA. La requête est OBLIGATOIRE même quand on la pense vaine,
+# et son résultat — y compris vide — doit être RAPPORTÉ dans le final_report. Le forgeron
+# ne modifie jamais catalog.json (propose-only).
+
 # --- 3. Mission (Critique) ---
 objectif: >-
   Produire, pour CHAQUE ligne du squelette gelé, le code GDScript à l'adresse qu'elle
@@ -83,7 +94,12 @@ permissions: >-
   read: dépôt entier. write/create: UNIQUEMENT sous games/<jeu>/** aux adresses déclarées
   par la wiremap, plus les champs de constat de lab/forge_runs/<jeu>/wiremap.json.
   run: le binaire Godot en headless (résolu par godot_bin.mjs), node, le gate mutation
-  Python. delete: aucun. INTERDIT : git commit, git push, git checkout, git stash,
+  Python — DIVERGENCE EXÉCUTEUR CONNUE (P6, lot dégel 2) : `run_real._STEP_TOOLS`
+  n'accorde PAS Python à cette étape (Bash(node:*) seul ; mesuré, l'interpréteur
+  capable d'importer yaml vit hors du worktree du subprocess) — le gate mutation
+  Python est exécuté PAR LE DRIVER, jamais par le forgeron ; cette ligne décrit le
+  plafond d'intention, pas le plancher d'exécution.
+  delete: aucun. INTERDIT : git commit, git push, git checkout, git stash,
   git restore, `git add -A`, toute écriture dans games/pong/**, tests/**, autopilot.py,
   scripts/studioV2/.
 

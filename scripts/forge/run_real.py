@@ -444,9 +444,19 @@ def _claude_call_raw(prompt: str, model: str, *, add_dir: Path,
     # Tier 2.5 étape 2 : coût RÉEL (pas estimé) — `claude -p --output-format json`
     # rend déjà `total_cost_usd` calculé par l'API, aucune table de prix à maintenir.
     cost_usd = float(data.get("total_cost_usd", 0.0))
+    # CV-8 (lot de dégel 1, 2026-07-30) : `usage` porte aussi
+    # `cache_creation_input_tokens`/`cache_read_input_tokens` (constaté sur capture
+    # RÉELLE, fixtures/tool_observability/probe_bash_echo_real_capture.jsonl) —
+    # jusqu'ici jetés, rendant impossible de séparer coût contexte (cache) et coût
+    # raisonnement. ADDITIF pur : deux champs frères de `tokens`/`cost_usd`, jamais
+    # None (0 par défaut, un ZÉRO MESURÉ quand la clé est absente/non numérique).
+    cache_creation_tokens = int(usage.get("cache_creation_input_tokens", 0) or 0)
+    cache_read_tokens = int(usage.get("cache_read_input_tokens", 0) or 0)
     return {
         "ok": True, "output": str(data.get("result", "")),
         "tokens": tokens, "duration_s": duration, "cost_usd": cost_usd,
+        "cache_creation_tokens": cache_creation_tokens,
+        "cache_read_tokens": cache_read_tokens,
     }
 
 
@@ -747,9 +757,15 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
         # docs/forge/CONTEXT_LOOP_V1_1_FRESHNESS.md §7).
         try:
             from forge import context_manifest
+            # P4 (lot dégel 2) : plancher RÉEL d'outils accordés à CET exécuteur
+            # (_STEP_TOOLS ci-dessus), pas le plafond skill/plugin du contrat
+            # (payload.allowed_tools, souvent vide par construction — voir la
+            # ligne d'audit signée de dispatch.py, INTOUCHÉE par ce lot).
             context_manifest.append_execution_manifest(
                 context["run_id"], etape, Path(context["run_dir"]), prompt,
                 model=payload.model, premortem_section=premortem_section,
+                tools_effective=_STEP_TOOLS.get(etape, ()),
+                tools_disallowed_count=len(_STEP_DISALLOWED),
             )
         except Exception:
             logger.warning(

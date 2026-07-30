@@ -322,13 +322,36 @@ test('checkEtape: ligne execution fournit le budget context', () => {
       schema: 'forge.context_manifest.v1', kind: 'execution', run_id: 'proj-1', etape: 's6-context',
       ts: dispatchTs + 5, final_prompt_sha256: 'z', final_prompt_chars: 12000,
       premortem_sha256: 'p',
-      context_budget: { model_window_tokens: 200000, estimated_tokens: 3000, status: 'OK' },
+      prompt_budget: { model_window_tokens: 200000, estimated_tokens: 3000, status: 'OK' },
       claim_verdict: 'NO_CLAIM_ALLOWED', hmac: 'deadbeef',
     },
   ]);
   const r = checkEtape(root, 'proj', 's6-context');
   assert.equal(r.budget.status, 'OK');
   assert.equal(r.budget.estimated_tokens, 3000);
+});
+
+test('extractBudget accepte le nom LEGACY context_budget (manifestes historiques, jamais réécrits)', () => {
+  const root = fakeRepo();
+  const dispatchTs = nowSeconds() - 60;
+  writeManifest(root, 'proj', 's6-context', [
+    {
+      schema: 'forge.context_manifest.v1', kind: 'dispatch', run_id: 'proj-legacy', etape: 's6-context',
+      activation: 1, ts: dispatchTs, git_head: null, model: 'sonnet', provider: 'anthropic',
+      contract_sha256: 'x', payload_prompt_sha256: 'y', sources: [],
+      claim_verdict: 'NO_CLAIM_ALLOWED', hmac: 'deadbeef',
+    },
+    {
+      schema: 'forge.context_manifest.v1', kind: 'execution', run_id: 'proj-legacy', etape: 's6-context',
+      ts: dispatchTs + 5, final_prompt_sha256: 'z', final_prompt_chars: 12000,
+      premortem_sha256: 'p',
+      context_budget: { model_window_tokens: 200000, estimated_tokens: 2600, status: 'OK' },
+      claim_verdict: 'NO_CLAIM_ALLOWED', hmac: 'deadbeef',
+    },
+  ]);
+  const r = checkEtape(root, 'proj', 's6-context');
+  assert.equal(r.budget.status, 'OK');
+  assert.equal(r.budget.estimated_tokens, 2600);
 });
 
 test('checkEtape: aucune ligne execution -> budget NO_EXECUTION_RECORD', () => {

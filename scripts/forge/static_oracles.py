@@ -726,7 +726,22 @@ def check_search_consulted(since_iso: str, log_path: Path | None = None) -> dict
 # (renommage), jamais SUPPRIMER/AJOUTER une règle — sinon la traçabilité devient
 # une carte-tampon (une règle disparue re-verdirait la carte). ---
 def frozen_features_from_wiremap(wiremap: dict) -> list[str]:
-    """Liste ordonnée des noms de features (l'identité d'une règle) d'une WireMap."""
+    """Liste ordonnée des identités de règle d'une WireMap.
+
+    Deux schémas coexistent (dérive constatée sur Snake, CV-3) :
+    - v1 (legacy, 17 wiremaps historiques) : `features[].feature` — comportement
+      STRICTEMENT INCHANGÉ, c'est la branche par défaut.
+    - v2 (`schema_version: 2`, STANDARD) : pas de clé `features` — l'identité
+      d'une règle est `lines[].id`. Un wiremap v2 dont `lines` est vide/absent
+      rend `[]`, un résultat légitime (jeu à zéro règle), PAS une régression
+      silencieuse vers v1 (avant ce correctif, lire `features` sur un wiremap v2
+      rendait toujours `[]`, quel que soit le nombre réel de règles — gel
+      systématiquement vide en silence)."""
+    if wiremap.get("schema_version") == 2:
+        return [
+            line.get("id", "") for line in (wiremap.get("lines") or [])
+            if isinstance(line, dict)
+        ]
     return [f.get("feature", "") for f in wiremap.get("features", [])]
 
 

@@ -236,6 +236,7 @@ def build_dispatch_manifest_record(
     run_dir: Path | None = None, caps_path: Path | None = None,
     ts: float | None = None, activation: int = 1,
     model_executed: str | None = None,
+    reason: str = "",
 ) -> dict:
     """Corps NON SIGNÉ de la ligne 'dispatch' (utile aux tests qui veulent
     inspecter le contenu avant signature).
@@ -247,7 +248,14 @@ def build_dispatch_manifest_record(
     côté driver), sinon replié sur ``payload.model`` — jamais None, jamais
     ambigu avec ``model`` (les deux sont toujours renseignés, égaux hors
     escalade). Une ligne écrite avant ce chantier n'a simplement pas ce champ
-    — les lecteurs existants (``model``) restent valides tels quels."""
+    — les lecteurs existants (``model``) restent valides tels quels.
+
+    ``reason`` (P5, lot dégel 2, additif) : pourquoi CETTE étape démarre
+    maintenant — "" par défaut (aucune décision n'affecte le dispatch : ni la
+    porte C1/C2, ni le hook, ni le gate — c'est un champ PUREMENT informatif).
+    Le driver, seul appelant réel en production, passe toujours une valeur
+    explicite (voir ``forge.driver``) ; un appel direct de la porte (tests,
+    dry-run) sans ``reason`` produit une ligne "" — jamais une valeur devinée."""
     sources = resolve_dispatch_sources(etape, contract, run_dir=run_dir, caps_path=caps_path)
     return {
         "schema": SCHEMA,
@@ -263,6 +271,7 @@ def build_dispatch_manifest_record(
         "contract_sha256": _sha256_file(CONTRACTS_DIR / f"{etape}.yaml"),
         "payload_prompt_sha256": _sha256_text(payload.prompt),
         "sources": sources,
+        "reason": reason,
         "claim_verdict": CLAIM_VERDICT,
     }
 
@@ -272,17 +281,18 @@ def append_dispatch_manifest(
     run_dir: Path | str, caps_path: Path | None = None,
     key_file: Path | None = None, ts: float | None = None,
     model_executed: str | None = None,
+    reason: str = "",
 ) -> dict:
     """Construit, signe et APPEND la ligne 'dispatch' du Context Manifest de
     cette étape. ``run_dir`` est requis ici (l'appelant — ``dispatch.py`` —
     le dérive via ``default_run_dir`` si non fourni). ``model_executed`` :
-    voir ``build_dispatch_manifest_record``."""
+    voir ``build_dispatch_manifest_record``. ``reason`` : idem (P5)."""
     path = manifest_path(run_dir, etape)
     activation = _next_activation(path)
     record = build_dispatch_manifest_record(
         etape, run_id, payload, contract, run_dir=run_dir,
         caps_path=caps_path, ts=ts, activation=activation,
-        model_executed=model_executed,
+        model_executed=model_executed, reason=reason,
     )
     record["hmac"] = _sign(record, key_file)
     _append_line(path, record)
@@ -343,8 +353,11 @@ def build_execution_manifest_record(
     run_id: str, etape: str, final_prompt: str, *, model: str,
     premortem_section: str | None = None, ts: float | None = None,
     model_windows_path: Path | None = None,
+    tools_effective: tuple[str, ...] = (),
+    tools_disallowed_count: int = 0,
 ) -> dict:
     """Corps NON SIGNÉ de la ligne 'execution'."""
+    budget = _context_budget(len(final_prompt), model, model_windows_path)
     return {
         "schema": SCHEMA,
         "kind": "execution",
@@ -354,7 +367,41 @@ def build_execution_manifest_record(
         "final_prompt_sha256": _sha256_text(final_prompt),
         "final_prompt_chars": len(final_prompt),
         "premortem_sha256": _sha256_text(premortem_section) if premortem_section else None,
-        "context_budget": _context_budget(len(final_prompt), model, model_windows_path),
+        # P7 (lot dégel 2, docs/forge/FORGE_CONTEXT_COMPACT_V1.md §05.6) :
+        # `context_budget` ne mesurait QUE le prompt contractuel (~8 % du
+        # contexte réellement reçu, ~2,6-3k tk) — un nom qui promettait plus
+        # qu'il ne mesurait. Requalifié honnêtement en `prompt_budget` (MÊME
+        # calcul, `_context_budget` inchangée : seul le nom change). Le champ
+        # informatif `ambient_context_note` rend visible ce qui n'est PAS
+        # mesuré ici — la constante ambiante (~32 775 tk/appel : hook
+        # SessionStart + CLAUDE.md + .claude/rules + settings.local, non
+        # défalquée de cette mesure).
+        # UN SEUL nom émis : `prompt_budget`. L'ancien nom `context_budget`
+        # n'est PLUS écrit (deux noms pour la même donnée = le motif « deux
+        # vérités » que ce lot éradique). Les manifestes HISTORIQUES sur disque
+        # portent l'ancien nom : c'est le LECTEUR (`context_check.mjs
+        # extractBudget`) qui accepte les deux, avec priorité au nouveau —
+        # on ne réécrit jamais les artefacts de runs passés (même principe
+        # que les 17 wiremaps v1 conservées telles quelles).
+        "prompt_budget": budget,
+        "ambient_context_note": {
+            "measured": False,
+            "estimate_tokens": 32775,
+            "note": ("constante ambiante non mesurée ici (hooks SessionStart + "
+                     "CLAUDE.md + .claude/rules + settings.local) — voir "
+                     "docs/forge/FORGE_CONTEXT_COMPACT_V1.md §02"),
+        },
+        # P4 (lot dégel 2, docs/forge/FORGE_CONTEXT_COMPACT_V1.md §05.1) : le
+        # plancher RÉEL d'outils accordés à l'exécuteur (`run_real._STEP_TOOLS`),
+        # jamais la ligne d'audit signée de dispatch.py (`allowed_tools=()`,
+        # INTOUCHÉE par ce lot) — la preuve d'exécution porte enfin ce que
+        # l'agent a VRAIMENT pu utiliser, pas seulement le plafond skill/plugin
+        # du contrat (souvent vide par construction). Champ TOUJOURS présent
+        # (tuple vide si l'étape n'a pas d'entrée dans `_STEP_TOOLS`), jamais
+        # absent — un lecteur ne doit jamais avoir à distinguer "non mesuré" de
+        # "zéro outil accordé" ici : les deux se lisent `[]`.
+        "tools_effective": list(tools_effective),
+        "tools_disallowed_count": tools_disallowed_count,
         "claim_verdict": CLAIM_VERDICT,
     }
 
@@ -363,12 +410,15 @@ def append_execution_manifest(
     run_id: str, etape: str, run_dir: Path | str, final_prompt: str, *, model: str,
     premortem_section: str | None = None, key_file: Path | None = None,
     ts: float | None = None, model_windows_path: Path | None = None,
+    tools_effective: tuple[str, ...] = (),
+    tools_disallowed_count: int = 0,
 ) -> dict:
     """Construit, signe et APPEND la ligne 'execution' du Context Manifest de
     cette étape."""
     record = build_execution_manifest_record(
         run_id, etape, final_prompt, model=model, premortem_section=premortem_section,
         ts=ts, model_windows_path=model_windows_path,
+        tools_effective=tools_effective, tools_disallowed_count=tools_disallowed_count,
     )
     record["hmac"] = _sign(record, key_file)
     _append_line(manifest_path(run_dir, etape), record)

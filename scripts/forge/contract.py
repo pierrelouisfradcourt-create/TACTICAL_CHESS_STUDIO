@@ -172,8 +172,21 @@ def _render_prompt(contract: dict, etape: str = "", run_id: str = "") -> str:
     sans run_id (tests C1/C2 unitaires, dry-run sans run réel) omet le marqueur :
     comportement strictement inchangé pour ces usages.
     """
-    sections = [
-        ("RÔLE", contract["role"]),
+    sections = [("RÔLE", contract["role"])]
+    # P1 (lot dégel 2, docs/forge/FORGE_CONTEXT_COMPACT_V1.md §05.2) : `exigences_
+    # cognitives` et `memoire` sont CRITIQUES (contrat REFUSÉ si vides, cf. CRITICAL
+    # ci-dessus) mais n'atteignaient jamais le prompt rendu — validés puis jetés.
+    # Rendus ici, dans l'ORDRE de CRITICAL (juste après `role`, avant `objectif`).
+    # Règle des 3 états : seul `filled` produit une section ; une valeur `aucun`
+    # (declared_empty — décision assumée, pas un oubli, cf. `validate_contract`
+    # qui l'accepte pour ces deux champs CRITIQUES seulement s'ils sont `filled`
+    # en pratique, ce garde-fou couvre aussi un appel direct de `_render_prompt`
+    # sur un contrat non validé) n'apparaît PAS comme section.
+    if field_state(contract.get("exigences_cognitives")) == "filled":
+        sections.append(("EXIGENCES COGNITIVES", contract["exigences_cognitives"]))
+    if field_state(contract.get("memoire")) == "filled":
+        sections.append(("MÉMOIRE DE TRAVAIL", contract["memoire"]))
+    sections += [
         ("OBJECTIF", contract["objectif"]),
         ("DANS LE PÉRIMÈTRE (in_scope)", contract["in_scope"]),
         ("HORS PÉRIMÈTRE (out_of_scope)", contract["out_of_scope"]),

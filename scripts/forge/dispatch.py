@@ -211,6 +211,7 @@ def prepare_dispatch(
     attempt: int = 0,
     allow_unprofiled: bool = False,
     model_executed: str | None = None,
+    reason: str = "",
 ) -> DispatchPayload:
     """Valide le contrat de l'étape, fabrique le payload borné, trace l'audit.
 
@@ -227,6 +228,16 @@ def prepare_dispatch(
     la ligne Context Manifest ``kind: dispatch`` (voir
     ``context_manifest.build_dispatch_manifest_record``) — jamais le ``model`` du
     contrat, jamais la ligne d'audit (`DispatchRecord`), jamais le dispatch lui-même.
+
+    ``reason`` (P5, lot dégel 2) : optionnel, "" par défaut — pourquoi CETTE étape
+    démarre maintenant (WHY d'activation, cf. docs/forge/FORGE_CONTEXT_COMPACT_V1.md
+    §03 RC5 : jusqu'ici, seule l'escalade construisait un WHY). N'affecte QUE le
+    champ additif ``reason`` de la ligne Context Manifest ``kind: dispatch`` — jamais
+    la ligne d'audit signée, jamais la validation C1/C2, jamais le hook. Le driver
+    (seul appelant réel en production, `forge.driver`) passe systématiquement
+    ``"ordre de profil"`` à ses deux points d'appel (aucune autre source de WHY
+    dynamique dans ce lot) ; un appel direct de la porte sans ``reason`` (tests,
+    dry-run) produit une ligne "" — jamais une valeur devinée.
 
     Appartenance profil (D1) : si `profile` est fourni ET que `etape` n'en fait pas
     partie ET que `allow_unprofiled` est faux => `ContractIncomplete` (contrat non
@@ -274,7 +285,7 @@ def prepare_dispatch(
         effective_run_dir = run_dir if run_dir is not None else context_manifest.default_run_dir(run_id)
         context_manifest.append_dispatch_manifest(
             etape, run_id, payload, contract, run_dir=effective_run_dir,
-            caps_path=caps_path, model_executed=model_executed,
+            caps_path=caps_path, model_executed=model_executed, reason=reason,
         )
     except Exception:
         logger.warning(
