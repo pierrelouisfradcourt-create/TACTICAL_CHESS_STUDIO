@@ -29,10 +29,14 @@
 <div class="bp">
   <div class="cart">
     <div><div class="t">STUDIO FORGE — PLAN D'ARCHITECTURE AGENTIQUE · A / B / C</div>
-      <div class="m">rev. 2026-07-26 · document d'orientation (source : cartographie mécanique du repo — rien d'inventé, que de la synthèse ; dernier audit d'alignement : 2026-07-26) · compagnons : STUDIO_ARCHITECTURE.md · STUDIO_AGENT_ATLAS.md</div></div>
+      <div class="m">rev. 2026-07-31 · document d'orientation (source : cartographie mécanique du repo — rien d'inventé, que de la synthèse) · historique des révisions : STUDIO_MASTER_SCHEMA_HISTORY.md · état V2 courant : VUE 3 · compagnons : STUDIO_ARCHITECTURE.md · STUDIO_AGENT_ATLAS.md</div></div>
     <div class="k">
-      <span><i class="sq" style="background:#59cbff"></i> EXISTE (câblé/prouvé)</span>
-      <span><i class="sq" style="background:#ffb454"></i> CIBLE (à construire/importer)</span>
+      <span><i class="sq" style="background:#59cbff"></i> IMPLEMENTED</span>
+      <span><i class="sq" style="background:#5fd39a"></i> TESTED</span>
+      <span><i class="sq" style="background:#a98cff"></i> PASSIVE</span>
+      <span><i class="sq" style="background:#ff8098"></i> BLOCKED</span>
+      <span><i class="sq" style="background:#ffb454"></i> DOCUMENTED_ONLY</span>
+      <span><i class="sq" style="background:#7d8fa8"></i> UNKNOWN</span>
       <span>— plein = écrit · pointillé = lit · <span style="color:#ffb454">↺ renvoi</span> · <span style="color:#ff8098">⛔ stop</span></span>
     </div>
   </div>
@@ -40,23 +44,7 @@
   <div style="display:flex;gap:8px;margin-bottom:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px">
     <span style="padding:6px 12px;border-radius:6px;border:1px solid #59cbff;background:rgba(89,203,255,.14);color:#fff;font-weight:700">VUE 1 · PLAN D'ARCHITECTURE (ici)</span>
     <a href="FORGE_AGENTS_CONTRACTS.html" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(130,190,255,.35);background:var(--panel2);color:#83a6d6;text-decoration:none">VUE 2 · CONTRATS D'AGENTS (détail des 44 contrats) →</a>
-  </div>
-
-  <div class="note" style="border:1px solid #ffb454;border-radius:6px;padding:8px 11px;margin-bottom:10px;color:#ffdca6">
-    <b>⚠ MISE À JOUR 2026-07-20</b> — cet instantané date du 12-07, cumul des vérifications depuis :<br>
-    <b>07-15</b> — auto-audit <code>scripts/forge/studio_selfaudit.mjs</code> : <b>6 cases marquées « cible » existaient déjà</b> (search.mjs · role_sim.mjs · reuse_ratio.mjs · pool.py · s2.5-artbible.yaml · roles/pursuer-mobile.yaml).<br>
-    <b>07-20</b> — nouveautés VÉRIFIÉES sur le repo : profil de chaîne <code>increment</code> (<code>scripts/forge/dispatch.py</code>, saute s0/s1/s2 sur un projet existant, refait archi/wiremap) · outils Knowledge Resolver V1 <code>scripts/forge/knowledge_trace.mjs</code> + <code>pending_review.mjs</code> (41 tests, 24+17) · 2<sup>e</sup> jeu forgé de bout en bout <code>card_engine</code> (verdict signé <code>HUMANGATE_READY_WITH_OBJECTION</code>, <code>python -m forge.verify_run</code> confirme HMAC/évidence/mutation authentiques) · ledger triagé en archive vivante (4 OPEN, cf. <code>CLAUDE.md</code>) · chaîne décisionnelle canonique auditée (<code>docs/audit/DECISION_LAYER_AUDIT_2026-07-19.md</code>, PROPOSED) · mission Forge V2 lancée (P1 autopsie / P2 patterns / consolidation, toutes PROPOSED, gate Pierre — voir Détail F ci-dessous).<br>
-    Les mentions « (cible) » restantes ci-dessous sont à vérifier au cas par cas. Vérif continue : <code>node scripts/forge/studio_selfaudit.mjs</code> (exit 0 = à jour). État factuel toujours frais (auto-généré) : <code>docs/forge/STUDIO_STATUS.generated.md</code>.<br>
-    <b>07-20 (soir)</b> — §4-A câblé+commité (7 commits <code>1143682→8c5ccf0</code>) · Run A <code>card_engine</code> ACCEPTÉ (HumanGate) · capteur dominance advisory EXISTE (<code>lab/forge_sensors/dominance</code>, sondes P1.1 vertes) · <code>pending_review</code> 11/11 disposé · drafts P0 Bibles BAS déposés (gate à venir).
-  </div>
-
-  <div class="note" style="border:1px solid #59cbff;border-radius:6px;padding:8px 11px;margin-bottom:10px">
-    <b style="color:#fff">⚠ MISE À JOUR 2026-07-26 — audit d'alignement (tout est vérifié sur master, commits cités)</b><br>
-    <b>Consolidation git</b> : 7 branches + 5 worktrees → <code>master</code> seul, poussé (<code>87e9ec4..1481d6d</code>) ; Menagerie Tactics et Pong récupérés de worktrees non commités.<br>
-    <b>Boucle d'apprentissage</b> (commit <code>ffd0703</code>) : courbe <code>knowledge_base/learning_curve.jsonl</code> ré-indexée <code>subject{type: brick|game, id}</code> (3 lignes réelles) · hook driver best-effort · mesure d'adoption <code>skipped_validation</code> (filled/declared_empty/absent) · décisions HumanGate enrichies (portée/validations/risques, optionnels).<br>
-    <b>Instruments — table de confiance</b> (protocole §4.2) : <code>forge_telemetry</code> n'écrit que les SUCCÈS et porte le modèle du CONTRAT (pas l'exécuté) · <code>state.json</code> écrase à chaque tentative · <code>builder_runs</code> double-compte 1 invocation · le journal écrit « réparé » quand l'étape FINIT, pas quand l'artefact est bon. <b>Mission M1 (télémétrie d'échec) PRÉPARÉE, non lancée</b> : <code>docs/forge/MISSION_M1_TELEMETRIE_ECHEC.md</code>.<br>
-    <b>Décisions D1→D6 tranchées par Pierre</b> (consignées <code>studio_brain/decisions/PROPOSED_2026-07-26_ratifications.md</code>, promotion decision-log en attente) : échelle 4 crans mécaniques · plafond tokens accepté-valeur-différée · sunset 30 j · <code>/gate</code> migré vers le decision-log versionné (commit <code>954ca38</code>, ex-DREAMS.md legacy) · injection mesurée acceptée-différée · commits 3 lots faits.<br>
-    <b>Nouveaux référentiels du rôle C</b> : protocole Troisième Cerveau (PROPOSED) · <code>studio_brain/decisions/DEFERRED.md</code> (12 différés à condition de réveil) · <code>lab/forge_runs/RUN_INDEX.md</code>. Voir Détails I et J ci-dessous.
+    <a href="FORGE_V2_COGNITIVE_RUNTIME.html" style="padding:6px 12px;border-radius:6px;border:1px solid rgba(130,190,255,.35);background:var(--panel2);color:#83a6d6;text-decoration:none">VUE 3 · FORGE V2 / COGNITIVE RUNTIME →</a>
   </div>
 
   <div class="note" style="border:1px solid #b79cff;border-radius:6px;padding:8px 11px;margin-bottom:10px">
@@ -68,7 +56,7 @@
   </div>
 
   <!-- ============================================================ A ============ -->
-  <h3>Détail A · Le PRISME — 2 des 4 sources d'exigence (EXPECTED, ADDITIONS) vers la RÉCONCILIATION</h3>
+  <h3>Détail A · Le PRISME — 2 des 4 sources d'exigence (EXPECTED, ADDITIONS) vers la RÉCONCILIATION D'EXIGENCES</h3>
   <svg viewBox="0 0 900 400" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#59cbff"/></marker>
@@ -110,7 +98,7 @@
     <text x="658" y="45" fill="#83a6d6" font-size="8" font-family="monospace">fixe · non refusable</text>
     <line x1="724" y1="58" x2="724" y2="140" stroke="#ffb454" stroke-width="1.3" marker-end="url(#aa)"/>
     <rect x="646" y="142" width="156" height="54" rx="7" fill="rgba(255,180,84,.10)" stroke="#ffb454" stroke-width="1.6" stroke-dasharray="6 3"/>
-    <text x="724" y="161" fill="#ffdca6" font-size="10" text-anchor="middle" font-family="monospace" font-weight="700">RÉCONCILIATION</text>
+    <text x="724" y="161" fill="#ffdca6" font-size="8.5" text-anchor="middle" font-family="monospace" font-weight="700">RÉCONCILIATION D'EXIGENCES</text>
     <text x="724" y="175" fill="#83a6d6" font-size="8" text-anchor="middle" font-family="monospace">4 sources → squelette</text>
     <text x="724" y="189" fill="#ffb454" font-size="8" text-anchor="middle" font-family="monospace">▷ Détail G (cible)</text>
     <rect x="646" y="340" width="156" height="42" rx="6" fill="rgba(255,180,84,.08)" stroke="#ffb454" stroke-dasharray="6 3"/>
@@ -126,7 +114,7 @@
     <line x1="724" y1="310" x2="724" y2="330" stroke="#59cbff" stroke-width="1.6" marker-end="url(#a)"/>
     <text x="724" y="345" fill="#83a6d6" font-size="9.5" text-anchor="middle" font-family="monospace">→ BUILD (s9)</text>
   </svg>
-  <div class="note">L'INTENTION (charter s0) traverse le PRISME (s1) — un <b>protocole scopé à la taille du jeu</b> (un rôle convoqué sans matière invente ; pas une équipe permanente qui se partage le travail), aujourd'hui <b>1 agent Opus</b>. Les 5 lectures (CEO/GD/Front/Back/Joueur, ambre = cible) servent la <b>convergence</b> — un item cité par 4-5 rôles est un signal fort, par 1 seul un flag à arbitrer — et ne produisent que 2 des 4 sources d'exigence : <b>EXPECTED</b> (ancrée sur des références externes nommées, dont celles citées par le <b>WORLD SCAN</b> s2) et <b>ADDITIONS</b> (payées par le budget d'empilement). <b>CORE</b> (imposé par la Forge, non refusable) et <b>DERIVED</b> (calculé depuis les contrats des briques réutilisées, grandit seul) arrivent à la RÉCONCILIATION sans passer par le Prisme. Les 4 sources convergent dans la <b>RÉCONCILIATION</b> (ambre pointillé = cible, non codée — détail complet en Détail G), qui seule produit la <b>WIREMAP</b> (s5, réelle) et gèle le jeu de règles. Le Prisme énonce des <b>exigences de preuve</b> (en amont), jamais des <b>reçus</b> (en aval, s10) — les confondre lui ferait noter sa propre copie.</div>
+  <div class="note">L'INTENTION (charter s0) traverse le PRISME (s1) — un <b>protocole scopé à la taille du jeu</b> (un rôle convoqué sans matière invente ; pas une équipe permanente qui se partage le travail), aujourd'hui <b>1 agent Opus</b>. Les 5 lectures (CEO/GD/Front/Back/Joueur, ambre = cible) servent la <b>convergence</b> — un item cité par 4-5 rôles est un signal fort, par 1 seul un flag à arbitrer — et ne produisent que 2 des 4 sources d'exigence : <b>EXPECTED</b> (ancrée sur des références externes nommées, dont celles citées par le <b>WORLD SCAN</b> s2) et <b>ADDITIONS</b> (payées par le budget d'empilement). <b>CORE</b> (imposé par la Forge, non refusable) et <b>DERIVED</b> (calculé depuis les contrats des briques réutilisées, grandit seul) arrivent à la RÉCONCILIATION D'EXIGENCES sans passer par le Prisme. Les 4 sources convergent dans la <b>RÉCONCILIATION D'EXIGENCES</b> (ambre pointillé = cible, non codée — détail complet en Détail G), qui seule produit la <b>WIREMAP</b> (s5, réelle) et gèle le jeu de règles. <span style="color:#83a6d6">Homonyme distinct de la réconciliation du régime STANDARD (<code>repo_map.yaml</code>) — elle, déjà implémentée (<code>check_placement</code>).</span> Le Prisme énonce des <b>exigences de preuve</b> (en amont), jamais des <b>reçus</b> (en aval, s10) — les confondre lui ferait noter sa propre copie. <span style="color:#83a6d6">Note 2026-07-30 : les 3 contrats de lentille (le fichier n'est ni CEO ni Joueur) <b>existent</b> mais ne sont dispatchés dans aucun profil actif ; critère de sélection retenu s'ils le sont un jour : <b>Inter &gt; Intra</b> — détail : <a href="FORGE_V2_COGNITIVE_RUNTIME.html" style="color:#83a6d6">VUE 3</a>.</span></div>
 
   <!-- ============================================================ B ============ -->
   <h3>Coupe B · La pyramide — flux, revues, renvois (fouille → web → pool de builders)</h3>
@@ -151,7 +139,7 @@
     <text x="70" y="169" fill="#d3e6ff" font-size="10.5" font-weight="700">s0 CONTRAT</text><text x="56" y="190" fill="#83a6d6" font-size="9">charter · actions interdites</text>
     <line x1="248" y1="176" x2="268" y2="176" stroke="#59cbff" stroke-width="1.4" marker-end="url(#bc)"/>
     <rect x="270" y="152" width="250" height="48" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-dasharray="6 3"/><rect x="278" y="160" width="8" height="8" rx="2" fill="#7aa0ff"/>
-    <text x="292" y="169" fill="#ffdca6" font-size="10.5" font-weight="700">s1 PRISME — PANEL ▷ Détail A</text><text x="278" y="190" fill="#83a6d6" font-size="9">CEO · GD · Front · Back · Joueur</text>
+    <text x="292" y="164" fill="#ffdca6" font-size="9.5" font-weight="700">s1 PRISME (1 agent) ▷ Détail A</text><text x="278" y="177" fill="#ffb454" font-size="8">panel ×5 = code présent, non contractualisé</text><text x="278" y="189" fill="#83a6d6" font-size="7.5">CEO · GD · Front · Back · Joueur</text>
     <line x1="520" y1="176" x2="540" y2="176" stroke="#59cbff" stroke-width="1.4" marker-end="url(#bc)"/>
     <rect x="542" y="152" width="230" height="48" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><rect x="550" y="160" width="8" height="8" rx="2" fill="#4fd6c6"/>
     <text x="564" y="169" fill="#d3e6ff" font-size="10.5" font-weight="700">s2 WORLD SCAN (web)</text><text x="550" y="190" fill="#83a6d6" font-size="9">patterns cités · advisory</text>
@@ -182,6 +170,7 @@
     <text x="60" y="412" fill="#ffdca6" font-size="10.5" font-weight="700">① FOUILLE BIBLIOTHÈQUE</text>
     <text x="60" y="428" fill="#83a6d6" font-size="9">search.mjs — filtres déterministes</text>
     <text x="60" y="442" fill="#83a6d6" font-size="9">knowledge_base/catalog.json</text>
+    <text x="60" y="454" fill="#5fd39a" font-size="7.5">instruit JS+Godot (§2bis) · advisory, jamais encore exercé ▷ VUE 3</text>
     <line x1="298" y1="426" x2="328" y2="426" stroke="#ffb454" stroke-width="1.4" marker-end="url(#ba)"/>
     <text x="313" y="418" fill="#ffb454" font-size="9" text-anchor="middle">manque ?</text>
     <rect x="330" y="394" width="250" height="64" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-dasharray="6 3"/>
@@ -196,18 +185,20 @@
     <rect x="832" y="410" width="96" height="32" rx="5" fill="rgba(79,214,198,.12)" stroke="#4fd6c6"/><text x="880" y="424" text-anchor="middle" fill="#d3e6ff" font-size="9">UI/render</text><text x="880" y="436" text-anchor="middle" fill="#83a6d6" font-size="8">haiku ↑</text>
     <text x="624" y="462" fill="#83a6d6" font-size="9">borné par l'OWNERSHIP du blueprint (sharding naturel)</text>
     <text x="624" y="476" fill="#59cbff" font-size="9">pool.py construit (best-of-N même tier) — 2026-07-13</text>
+    <text x="624" y="487" fill="#ff8098" font-size="7">jamais déclenché — condition jamais vraie ▷ VUE 3</text>
     <line x1="942" y1="426" x2="972" y2="426" stroke="#ffb454" stroke-width="1.4" marker-end="url(#ba)"/>
     <rect x="974" y="394" width="160" height="64" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-dasharray="6 3"/>
     <text x="986" y="414" fill="#ffdca6" font-size="10.5" font-weight="700">④ s8 HABILLAGE</text>
     <text x="986" y="430" fill="#83a6d6" font-size="9">assets · agent aveugle</text>
     <text x="986" y="444" fill="#83a6d6" font-size="9">peau sur ancres math</text>
+    <text x="986" y="456" fill="#ff8098" font-size="7.5">◇ aucun contrat, hors ORDER</text>
     <path d="M173 458 L173 508 L660 508 L660 492" fill="none" stroke="#ffb454" stroke-width="1.2" marker-end="url(#ba)"/>
     <text x="330" y="522" fill="#ffb454" font-size="9">pièces trouvées → IMPORT RÉEL (jamais de copie) → seuls les deltas se codent</text>
 
     <line x1="590" y1="618" x2="590" y2="634" stroke="#59cbff" stroke-width="1.6" marker-end="url(#bc)"/>
 
     <rect x="30" y="636" width="1120" height="116" rx="8" fill="rgba(11,26,56,.55)" stroke="rgba(130,190,255,.28)"/>
-    <text x="44" y="654" fill="#59cbff" font-size="10" letter-spacing="2">ÉTAGE 3 · PROVE — oracles déterministes · red-team advisory</text>
+    <text x="44" y="654" fill="#59cbff" font-size="10" letter-spacing="2">ÉTAGE 3 · PROVE — oracles déterministes · red-team advisory ▷ VUE 3 (profil réel)</text>
     <rect x="48" y="662" width="205" height="50" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><text x="60" y="680" fill="#d3e6ff" font-size="10" font-weight="700">s10a ORACLE CODE</text><text x="60" y="700" fill="#83a6d6" font-size="8.5">tests·e2e·mutation·solva</text>
     <line x1="253" y1="687" x2="268" y2="687" stroke="#59cbff" stroke-width="1.3" marker-end="url(#bc)"/>
     <rect x="270" y="662" width="205" height="50" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><text x="282" y="680" fill="#d3e6ff" font-size="10" font-weight="700">s10b ORACLE ARCHI</text><text x="282" y="700" fill="#83a6d6" font-size="8.5">deps AST · rouge = ⛔</text>
@@ -219,7 +210,7 @@
     <rect x="936" y="662" width="198" height="50" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff" stroke-width="2"/><text x="948" y="680" fill="#fff" font-size="10" font-weight="700">s12 VERDICT SIGNÉ</text><text x="948" y="700" fill="#83a6d6" font-size="8.5">HMAC · is_clean_pass</text>
     <text x="48" y="742" fill="#83a6d6" font-size="9">annexe : s10d capteur visuel (advisory) · cible <tspan fill="#ffb454">Role-Sim (bande de difficulté)</tspan></text>
     <path d="M150 662 L150 545 L660 545 L660 528" fill="none" stroke="#ffb454" stroke-width="1.3" stroke-dasharray="6 3" marker-end="url(#ba)"/>
-    <text x="330" y="540" fill="#ffb454" font-size="9">↺ oracle rouge → RE-BUILD · escalade ×2 max (haiku→sonnet→opus) puis remontée Pierre</text>
+    <text x="330" y="540" fill="#ffb454" font-size="9">↺ oracle rouge → RE-BUILD · escalade ×2 max (haiku→sonnet→opus) puis remontée Pierre (builders uniquement — ▷ VUE 3)</text>
 
     <!-- ★ TABLE DES BILANS (case spéciale, cible) -->
     <rect x="30" y="772" width="430" height="70" rx="7" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-width="1.8" stroke-dasharray="7 3"/>
@@ -253,7 +244,7 @@
     <g font-size="10">
       <rect x="40" y="26" width="240" height="38" rx="6" fill="rgba(183,156,255,.16)" stroke="#b79cff"/><text x="52" y="43" fill="#fff" font-weight="700">FABLE</text><text x="52" y="56" fill="#83a6d6" font-size="8.5">orchestre · audite</text>
       <rect x="40" y="84" width="240" height="38" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><text x="52" y="101" fill="#d3e6ff" font-weight="700">s0 CONTRAT</text><text x="52" y="114" fill="#83a6d6" font-size="8.5">lit le PILOU (pré-mortem)</text>
-      <rect x="40" y="142" width="240" height="38" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-dasharray="5 3"/><text x="52" y="159" fill="#ffdca6" font-weight="700">s1 PRISME (panel ×5)</text><text x="52" y="172" fill="#83a6d6" font-size="8.5">CEO·GD·Front·Back·Joueur</text>
+      <rect x="40" y="142" width="240" height="38" rx="6" fill="rgba(255,180,84,.12)" stroke="#ffb454" stroke-dasharray="5 3"/><text x="52" y="159" fill="#ffdca6" font-weight="700">s1 PRISME (panel ×5 : PASSIVE)</text><text x="52" y="172" fill="#83a6d6" font-size="8.5">CEO·GD·Front·Back·Joueur</text>
       <rect x="40" y="200" width="240" height="38" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><text x="52" y="217" fill="#d3e6ff" font-weight="700">s2 WORLD SCAN</text><text x="52" y="230" fill="#83a6d6" font-size="8.5">web cité · advisory</text>
       <rect x="40" y="258" width="240" height="38" rx="6" fill="rgba(89,203,255,.10)" stroke="#59cbff"/><text x="52" y="275" fill="#d3e6ff" font-weight="700">s3·s4·s5 DESIGN→WIREMAP</text><text x="52" y="288" fill="#83a6d6" font-size="8.5">featuremap·blueprint·gel</text>
       <rect x="40" y="316" width="240" height="38" rx="6" fill="rgba(89,203,255,.10)" stroke="#ffca6b"/><text x="52" y="333" fill="#d3e6ff" font-weight="700">s6 RED-TEAM PLAN (Qwen)</text><text x="52" y="346" fill="#83a6d6" font-size="8.5">revue indépendante</text>
@@ -436,7 +427,7 @@
   <b style="color:#d3e6ff">Mission Forge V2</b> — <code>docs/audit/FORGE_V2_{P1_AUTOPSIE,P2_PATTERNS,CONSOLIDATION}.md</code> : PROPOSED, gate Pierre.</div>
 
   <!-- ============================================================ G ============ -->
-  <h3>Détail G · LE STANDARD — 4 sources d'exigence → réconciliation → squelette gelé</h3>
+  <h3>Détail G · LE STANDARD — 4 sources d'exigence → réconciliation d'exigences → squelette gelé</h3>
   <div class="note" style="border:1px solid #ff8098;border-radius:6px;padding:8px 11px;margin-bottom:8px;color:#ffdca6">
     <b style="color:#fff">◇ CIBLE / EN CONSTRUCTION — 2026-07-22</b> — rien de ce schéma n'est codé aujourd'hui. Source : décisions de session Pierre×Opus 2026-07-22 (pas une cartographie du repo, comme A/B/C/E/F ci-dessus).
   </div>
@@ -502,7 +493,7 @@
 
     <!-- réconciliation -->
     <rect x="90" y="210" width="1000" height="264" rx="8" fill="rgba(255,180,84,.06)" stroke="#ffb454" stroke-width="1.6" stroke-dasharray="7 3"/>
-    <text x="590" y="230" text-anchor="middle" fill="#fff" font-size="11.5" font-weight="700">RÉCONCILIATION</text>
+    <text x="590" y="230" text-anchor="middle" fill="#fff" font-size="11.5" font-weight="700">RÉCONCILIATION D'EXIGENCES</text>
     <g font-size="9" fill="#d3e6ff">
       <text x="110" y="250">(a) dédoublonner EN GARDANT LA PROVENANCE</text>
       <text x="110" y="266">(b) détecter les CONFLITS au lieu de les fondre — brique exigeant un système absent du budget = <tspan fill="#ff8098" font-weight="700">FAIL</tspan></text>
@@ -565,7 +556,7 @@
       <span style="color:#ffb454">◐ EN COURS</span> (Pong) ·
       <span style="color:#ffb454">◇ CIBLE</span> (tout le reste — rien de codé) ·
       source : note de Pierre 2026-07-22.
-      <br><span style="color:#83a6d6">MàJ 2026-07-26 — réalité vérifiée : le run Pong est <b style="color:#ff8098">HALTED</b> (3 rouges <code>s10s-oracle-standard</code> : placement/budget non conformes, + 1 timeout exécuteur — preuves <code>lab/forge_runs/pong/state.json</code> et <code>salvage_s9-build-standard.json</code>) ; un <code>games/breakout/</code> EXISTE hors standard (run 2026-07-11, gate mutation rouge) — le nœud BREAKOUT reste ◇ cible AU SENS DU STANDARD. Les ◇ restants : aucun code, roadmap.</span>
+      <br><span style="color:#83a6d6">État de run du 07-26 (dépassé le 07-27, cf. note ci-dessous) : le run Pong était alors <b style="color:#ff8098">HALTED</b> (3 rouges <code>s10s-oracle-standard</code> : placement/budget non conformes, + 1 timeout exécuteur — preuves <code>lab/forge_runs/pong/state.json</code> et <code>salvage_s9-build-standard.json</code>) ; un <code>games/breakout/</code> EXISTE hors standard (run 2026-07-11, gate mutation rouge) — le nœud BREAKOUT reste ◇ cible AU SENS DU STANDARD. Les ◇ restants : aucun code, roadmap.</span>
     </div>
   </div>
   <svg viewBox="0 0 1180 1376" xmlns="http://www.w3.org/2000/svg" font-family="monospace">
@@ -581,7 +572,7 @@
     <rect x="440" y="108" width="300" height="46" rx="7" fill="rgba(255,180,84,.18)" stroke="#ffb454"/>
     <text x="452" y="125" fill="#ffdca6" font-size="10.5" font-weight="700" class="live">PONG</text>
     <text x="452" y="139" fill="#83a6d6" font-size="9">GAME LOOP / TEMPS RÉEL</text>
-    <text x="452" y="151" fill="#ff8098" font-size="7.5">⛔ attend : s10s→driver · M1 · reprise sous standard (run HALTED)</text>
+    <text x="452" y="151" fill="#ff8098" font-size="7.5">⛔ attendait (07-26) : s10s→driver · M1 · run HALTED — GELÉ depuis (72/72 verts)</text>
     <text x="730" y="151" fill="#ffb454" font-size="7.5" text-anchor="end">◐ EN COURS</text>
     <rect x="440" y="182" width="300" height="46" rx="7" fill="rgba(255,180,84,.08)" stroke="#ffb454" stroke-dasharray="6 3"/>
     <text x="452" y="199" fill="#ffdca6" font-size="10.5" font-weight="700">SNAKE</text>
@@ -772,8 +763,8 @@
     <!-- ===== RAIL : PONG ===== -->
     <rect x="60" y="240" width="280" height="66" rx="7" fill="rgba(255,180,84,.18)" stroke="#ffb454" stroke-width="2"/>
     <text x="74" y="260" fill="#ffdca6" font-size="11" font-weight="700" class="live">PONG</text>
-    <text x="74" y="275" fill="#83a6d6" font-size="8.5">reprise sous STANDARD (run HALTED)</text>
-    <text x="74" y="289" fill="#ff8098" font-size="8">à corriger : 3 rouges s10s + timeout FIR-01</text>
+    <text x="74" y="275" fill="#83a6d6" font-size="8.5">état du 07-26 (run HALTED) — GELÉ depuis le 07-27</text>
+    <text x="74" y="289" fill="#ff8098" font-size="8">alors à corriger : 3 rouges s10s + timeout FIR-01</text>
     <text x="326" y="258" fill="#ffb454" font-size="8" text-anchor="end">◐</text>
 
     <line x1="340" y1="262" x2="592" y2="262" stroke="#59cbff" stroke-width="1.4" marker-end="url(#qc)"/>
@@ -1016,9 +1007,10 @@
 
   <div class="note" style="margin-top:8px">
     <b style="color:#ffb454">CORRECTIONS D'ÉTIQUETTES</b> (décision U-9 — les vues ci-dessus <b>surestimaient</b> les arêtes actives) :<br>
-    · <b>Détail G (4 sources → RÉCONCILIATION)</b> : toujours <b>NON CODÉE</b> ; « réconciliation » n'existe que dans des
-    <i>commentaires</i> de <code>capabilities.yaml</code>/<code>repo_map.yaml</code>. Les règles qu'elle devait appliquer sont
-    vérifiées par <code>s10s</code>, <b>après le build</b> — donc trop tard pour décider.<br>
+    · <b>Détail G (4 sources → RÉCONCILIATION D'EXIGENCES)</b> : le sens 4-sources reste <b>NON CODÉ</b> ; le sens
+    STANDARD (homonyme distinct — <code>repo_map.yaml</code>) est, lui, appliqué mécaniquement par
+    <code>check_placement</code> — <b>deux homonymes, un seul cible</b>. Les règles que la réconciliation 4-sources
+    devait appliquer sont vérifiées par <code>s10s</code>, <b>après le build</b> — donc trop tard pour décider.<br>
     · <b>Nomenclature C (flux mémoire)</b> : 7 connecteurs orphelins mesurés — <code>learning_curve</code> sans lecteur ·
     <code>propose_brick</code> (réparé 26-07) · findings red-team non pliés (réparés 27-07) ·
     <code>propose_bible_entry</code> sans appelant · <code>spawn_authorized</code> jamais écrit ·
@@ -1047,6 +1039,7 @@
     (6 lignes REQUIRED). On mesure la capacité à <b>absorber un nouveau jeu</b>, pas le prix d'un ticket différent —
     sinon on fabrique le faux indicateur que la règle de variance interdit.
   </div>
+
 </div>
 </body>
 </html>
