@@ -1,0 +1,19 @@
+Red-team CODE terminé — rapport écrit dans `lab/forge_runs/breakout_v2/rapport_redteam_code.md`. Aucun fichier de `games/breakout_v2/**` modifié.
+
+## Synthèse (advisory)
+
+Le code de run 2 est **discipliné**. Vérifiés sains, sans finding : le déplacement de `main.gd` (lit l'état, delta arrêté à l'adaptateur, aucune recompute en `_draw`), les tests d'end-condition (stricts, réciproques `==0`), le contrôle négatif de solvabilité (bot interception `>` bots naïfs, gagne 7/7), le replay-déterminisme (rejoue via la boucle **pure**), et la déflexion raquette (propriétés indépendantes : `vx'==0` au centre, distinctness, `vy<0`).
+
+**3 findings**, tous falsifiables avec ancre statique + repro exécutable par oracle aval :
+
+| # | Angle | Sévérité | Cœur |
+|---|---|---|---|
+| F1 | Comptabilité de preuve | **MEDIUM** | `EXPECTED_ASSERTS=299` **est** le total mesuré (274→299 en run 2 pour coïncider), et la wiremap:2671 le vend comme preuve « anti-faux-vert ». Attrape un fichier manquant/non-compilable, mais **zéro** protection contre suppression d'assertion + décrément coordonnés → reste vert. C'est le motif « compteur ajusté après coup » du pré-mortem. |
+| F2 | `>=` non strict | LOW | `purity_guard.test.gd:55` `h.ok(fichiers.size() >= 15)` — l'anti-pattern `>=` explicitement proscrit ; accepte 15..∞. |
+| F3 | Accumulateur pas-fixe | LOW (fog) | `runtime_loop.gd:26` remet `accumulateur:0.0` → jette le reste sous-tick (ralenti systématique, dépendant du framerate), et `no_time_catchup.test.gd:18,23` **fige** cette perte. **Réserve** : comportement **déclaré au charter**, sans effet sur le déterminisme pur → remonté en **fog HumanGate, pas en défaut**. |
+
+**Verdicts séparés** : software_verdict **non prononcé** (je n'exécute rien — `run: aucun`, godot indisponible) ; evidence_verdict `MECHANICAL_VALIDATION_ONLY` sur les seules ancres fichier:ligne ; **claim_verdict: NO_CLAIM_ALLOWED**.
+
+**Fog remontés** : le `snappedf` de `demo_rebound_variability` peut gonfler la variance près des frontières de bucket (non prouvé pour ce jeu → pas classé finding) ; les oracles `07_TESTS/oracle/*.gd` ne sont **pas** énumérés par `run_tests.gd` — leur exécution dépend du driver Forge (hors périmètre code). `SKIPPED_VALIDATION` détaillée dans le rapport (aucune suite exécutée par cet agent).
+
+Le bloc JSON final reprend exactement les 3 findings de la prose pour le parseur déterministe `extract_redteam_findings`.

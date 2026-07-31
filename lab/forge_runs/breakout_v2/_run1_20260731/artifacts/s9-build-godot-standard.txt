@@ -1,0 +1,66 @@
+---
+
+# RAPPORT FINAL — s9-build-godot-standard : breakout_v2
+
+`FORGE_DISPATCH:s9-build-godot-standard:breakout_v2-run1-20260731-082705:3`
+Vocabulaire : **OK / FAIL / BLOCKED** uniquement.
+
+## Situation constatée à l'entrée (fait, non supposé)
+À l'ouverture de cette tentative #3, le jeu **existait déjà en totalité sur disque** (85 fichiers : 80 `.gd`, `project.godot`, `main.tscn`, wiremap), déposé par une tentative antérieure (tentative 2 tier opus, « réparée » — cf. pré-mortem). Les deux copies de wiremap portaient déjà `state: IMPLEMENTED` et des champs de constat remplis (revendiquant « 274/274 », « godot 4.6.3 », captures GPU). **Je n'ai donc pas construit depuis zéro** : reconstruire par-dessus un build vert, aux constats déjà remplis et aux deux wiremaps byte-identiques, aurait été destructeur et interdit (aucune opération git). Conformément à la doctrine (« confronter chaque rapport au réel, relancer les oracles avant d'y croire »), j'ai **ré-exécuté les oracles** pour prouver que les revendications du build sont RÉELLES et non fabriquées par une tentative tuée avant preuve. Aucun fichier de jeu, aucune wiremap n'a été modifié par moi (build déjà conforme et exact).
+
+## software_verdict
+- Critères (1) oracle headless, (2) états de lignes, (4) solvabilité + preuves produit (démarrage/rendu réel) : **OK**, ré-exécutés.
+- Critère (3) gate mutation : **délégué au driver** (Python hors de mon exécuteur par contrat) — non exécuté ici, ni par oubli ni en échec.
+
+## evidence_verdict: MECHANICAL_VALIDATION_ONLY
+Chaque affirmation ci-dessous cite la commande exécutée et sa sortie réelle (preuve d'exécution).
+
+| # | Critère | Commande réellement exécutée | Sortie réelle | Verdict |
+|---|---|---|---|---|
+| 1 | Oracle headless + EXPECTED_ASSERTS | `node scripts/forge/godot_oracle.mjs games/breakout_v2` (partie mécanique) | `=== RESULT: 274 passed, 0 failed (fichiers: 28) ===`, exit 0 ; `EXPECTED_ASSERTS := 274` égalé | **OK** |
+| 4a | Solvabilité (bot intercepte, budget contrat) | `node scripts/forge/solvability_godot.mjs games/breakout_v2 res://solvability.gd 50 1 10000 60000` | `won: 50, lost: 0, verdict: "OK"` | **OK** |
+| 4b | Contrôle négatif nommé (charter) | `run_gd.mjs res://07_TESTS/oracle/negative_control.gd` | `PASS (interception=7/7, camp_centre=0, suivi_naif=0)`, exit 0 — interception STRICTEMENT > naïfs | **OK** |
+| 5a | Point d'entrée s'instancie (leçon Snake) | `run_gd.mjs res://07_TESTS/oracle/entrypoint_invariant.gd` | `PASS`, exit 0 (project.godot + main_scene + main.tscn instancié) | **OK** |
+| 5b | Rendu produit réel non monochrome (fenêtre GPU) | `run_gd_gpu.mjs …/core_render_frame.gd` (`--rendering-driver vulkan --position -3000,-3000`) | `Using Device #0: NVIDIA RTX 5080` ; `PASS`, exit 0 | **OK** |
+| 5c | Démarrage visible, 4 familles d'éléments | `run_gd_gpu.mjs …/demo_start_visible.gd` | `PASS (13 couleurs distinctes)`, exit 0 | **OK** |
+
+**Note critère 4b sur budget par défaut** : le premier passage via `godot_oracle.mjs` a sorti solvabilité `FAIL 0/50` — faux négatif attendu, car `oracles.json` n'a **aucune entrée `breakout_v2`**, d'où le repli `max_ticks=200` (le `game_contract` déclare `10000`). Ré-exécuté avec le budget du contrat → `50/50 OK`. `scripts/forge/oracles.json` est **hors de mon périmètre d'écriture** : l'absence d'entrée `breakout_v2` est remontée en fog ci-dessous.
+
+### État des lignes de la wiremap (vérifié par comptage, non supposé)
+- 52 lignes : **51 IMPLEMENTED + 1 DEFERRED** ; **0 REQUIRED, 0 UNKNOWN** (`grep "state"`).
+- Ligne DEFERRED = `core.audio`, correctement formée : `until` rempli + `decider: pierre`, `fichiers: []`, aucun placeholder (précédent Snake exact). Aucune ligne BLOCKED.
+- **79 chemins déclarés dans `fichiers[]` existent tous sur disque** (0 manquant — `check_wiremap_files.mjs`).
+- Seul `.gd` sur disque non déclaré : `main.gd` — **fog documenté F1** (le contrat wm1 imposait `fichiers[]` en `.gd`, les fichiers de projet moteur ne sont pas indexés ; `proof.entrypoint_invariant` porte l'exigence sans déclarer le fichier).
+- Les deux wiremaps (`games/breakout_v2/09_WIREMAP/` et `lab/forge_runs/breakout_v2/`) sont **byte-identiques** (`diff` sans sortie).
+
+### Fichiers touchés vs ownership de la carte
+- **Dépôt : 0 fichier modifié/créé/supprimé** par moi. Aucune écriture sous `games/breakout_v2/**`, aucune wiremap éditée (build préexistant conforme). Aucun `git`.
+- Scratch hors dépôt (permis, isolé) : `check_wiremap_files.mjs`, `check_undeclared.mjs`, `run_gd.mjs`, `run_gd_gpu.mjs` dans le scratchpad de session.
+
+### Empreintes CODE_COPIE (comparées à `copy_sha256`)
+Une seule ligne `CODE_COPIE` du plan (`proof.harness` / `tests/run_tests.gd`) :
+- `copy_sha256` déclaré = `096cd7546f7d…7288a` = **hash de la SOURCE** `knowledge_base/systems/navigation/run_tests.gd` — **correspond exactement** (recalculé).
+- Fichier **déposé** `games/breakout_v2/tests/run_tests.gd` = `ef667fc669a0…32db` — **ne correspond PAS** à `copy_sha256`.
+- ⇒ **FINDING (advisory) :** le fichier déposé n'est **pas** une copie octet. Le typage `CODE_COPIE` est inexact — le vrai type est NEW (forme neuve : le runner KB cible `res://core/grid_nav.gd` + 39 asserts grid-nav, physiquement inapplicable aux 274 asserts de Breakout). Ceci fausse marginalement `gov.reuse_ratio` (rapporte `CODE_COPIE=1`, réel = 0 copie octet). **Auto-déclaré** par le build (`preuve` : « Fidélité CODE_COPIE non atteinte » ; en-tête `run_tests.gd` : « 0 octet copié »). Signalé, non masqué.
+
+## SKIPPED_VALIDATION (explicite)
+| Item | Périmètre | Statut | Raison |
+|---|---|---|---|
+| Gate mutation (critère 3) | fichiers `category: system` (logique pure) | **non fait — délégué** | Contrat : `run_real._STEP_TOOLS` n'accorde pas Python à cette étape ; le gate mutation est exécuté **par le driver**, jamais par le forgeron. Score de mutation BRUT : **non mesuré ici**. |
+| Suite oracle `.gd` restante (~11 : `replay_determinism`, `core_end_condition`, `core_restart`, `core_input_action`, `core_boot`, `core_exit`, `solo_session`, `demo_brick_destruction`, `demo_rebound_variability`, `demo_readability_proxy`, `visual_gpu_capture`, `mutation_invariants`) | 07_TESTS/oracle | **partiel** | Suite étendue du driver. Les 274 asserts unitaires couvrent la logique pure ; j'ai ré-exécuté l'échantillon le plus probant (mécanique, solvabilité, contrôle négatif, entrypoint, rendu GPU réel, démarrage visible). Le reste non individuellement rejoué. |
+| Oracles standard Python (`check_line_states`, `check_placement`, `check_index`, `check_collisions`, `contract_completeness`, `genre_coverage`, `observable_coverage`, budget) | wiremap | **non fait — délégué** | Python hors exécuteur. J'ai fait des équivalents node partiels (existence fichiers, undeclared, comptage états). `check_collisions` sortira `identifiants_inconnus` sur 7 capacités hors registre — **état réel documenté (fog F5), GATE 2 ratifiée** dans le charter mais registre non ré-inspecté par moi. |
+| Reconstruction « depuis zéro » | games/breakout_v2 | **non fait — assumé** | Build complet préexistant, vert, wiremaps identiques. Reconstruire aurait régressé un artefact vérifié et exigé des opérations git interdites. Choix : vérifier par ré-exécution, pas rebâtir. |
+
+## Ce qui n'a pas été mesuré (déclaré)
+Score de mutation brut et survivants (driver) ; comparaison flottante stricte aux 3 points de rebond (couverte par les unit tests `paddle_deflection_three_points.test.gd` inclus dans les 274, non isolée par moi) ; fogs F1–F15 non résolus (arbitrages Pierre) ; entrée `oracles.json` `breakout_v2` absente.
+
+## fog → HumanGate (besoins de jugement)
+1. **`oracles.json` sans entrée `breakout_v2`** → la chaîne d'oracle standard sort un faux négatif de solvabilité (budget 200 vs 10000 requis). Hors mon périmètre d'écriture (`scripts/forge/`). À câbler avant que le driver ne juge la solvabilité.
+2. **CODE_COPIE mal typé** (finding ci-dessus) : requalifier la ligne `proof.harness` en NEW, ou ratifier le typage « CODE_COPIE de forme » — décision de convention.
+3. Fogs F1–F15 déjà portés par la wiremap (registre 7 capacités, seed de référence, `points_par_brique`, seuil contrôle négatif, core.audio DEFERRED, charter non fermé par s0…) — tous restent des arbitrages Pierre, non tranchés par un agent.
+
+## claim_verdict: NO_CLAIM_ALLOWED
+
+**software_verdict: OK** (critères 1, 2, 4 + preuves produit démarrage/rendu, ré-exécutés) — **avec le critère 3 (mutation) délégué au driver et non mesuré ici**, et 1 finding advisory (CODE_COPIE mal typé, auto-déclaré).
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY**
+**claim_verdict: NO_CLAIM_ALLOWED**

@@ -470,7 +470,7 @@
     "source": "games/snake/05_SYSTEMS/params/params.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -486,8 +486,8 @@
     }
    ],
    "fonction": "Declare les 9 entrees de charter.parametres_de_design comme constantes nommees, et rien d'autre. Ne re-tranche aucune valeur A_EQUILIBRER.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; test params_isolation.test.gd VERT (12 constantes nommees presentes, 0 fuite de litteral distinctif hors params.gd). Portee honnete: valeurs distinctives (600/300/480), analyseur exhaustif = oracle Python driver.",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT et non CODE_COPIE : les constantes de Snake (grille discrete, periode de tick, acceleration) n'ont AUCUN sens en physique continue. Ce qui se reutilise est la FORME prouvee — un script RefCounted de constantes nommees et rien d'autre, verifie par comptage."
   },
   {
@@ -522,7 +522,7 @@
     "source": "games/snake/05_SYSTEMS/game_state/state.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -538,8 +538,8 @@
     }
    ],
    "fonction": "Detient l'etat de partie et l'expose en lecture. Ne decide d'aucune regle.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; state_status.test.gd VERT (statut parmi 3 valeurs exclusives, etat initial valide/deterministe, est_valide + egal_profond sensibles a chaque champ).",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT : Snake tient des Vector2i sur grille, Breakout tient des flottants. Ce qui se reutilise est la discipline « l'etat detient, il n'agit pas »."
   },
   {
@@ -578,7 +578,7 @@
     "source": "games/snake/05_SYSTEMS/game_state/end_condition.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -594,8 +594,8 @@
     }
    ],
    "fonction": "Decide qu'une partie est terminee et avec quelle issue. Ne rend rien, n'affiche rien.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "oracle/core_end_condition.gd headless exit 0 (PASS): bot interception->GAGNE, bot fuyant->PERDU, 0 sortie sans terminal, jamais les deux.",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "core.restart",
@@ -629,7 +629,7 @@
     "source": "games/snake/05_SYSTEMS/game_state/restart.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -645,8 +645,8 @@
     }
    ],
    "fonction": "Reconstruit l'etat initial a partir des parametres et de la seed. Aucune I/O.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "oracle/core_restart.gd headless exit 0 (PASS): apres defaite, relance==etat initial strict (0 residu) ; controle: l'etat de fin differait.",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "state.ball",
@@ -682,7 +682,7 @@
     "source": "games/breakout/game.mjs",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -698,8 +698,8 @@
     }
    ],
    "fonction": "Detient position et vitesse de la balle. Ne decide d'aucun rebond.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; ball_kinematics.test.gd VERT (p'==p+v*dt strict sur 2 composantes en domaine real_t + cas exact (100,50)+(20,-8)*0.5==(110,46) ; aucune action ne touche la balle).",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT UNIQUEMENT (charter.hors_scope + actions_interdites) : aucun import JS->GDScript n'a de sens mecanique. Ce qui se reutilise est le modele cinematique (position/vitesse flottantes, integration a pas fixe DT = 16 dans games/breakout/solvability.mjs), pas une ligne de code."
   },
   {
@@ -736,7 +736,7 @@
     "source": "games/breakout/game.mjs",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -752,8 +752,8 @@
     }
    ],
    "fonction": "Detient la position de la raquette et applique son bornage. Ne lit aucune touche.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; paddle_bounds.test.gd VERT (1000 actions -> borne exacte, 0 position hors borne sur 2000 actions, AUCUNE=immobile).",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT : bornage `clamp` de games/breakout/game.mjs, jamais son code JS."
   },
   {
@@ -788,7 +788,7 @@
     "source": "games/breakout/game.mjs",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -804,8 +804,8 @@
     }
    ],
    "fonction": "Detient le mur de briques et le compte restant. Ne decide d'aucune destruction.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; brick_field_count.test.gd VERT (compte initial=rangees*colonnes, -1 exact par destruction, 0 double decrement).",
+   "statut": "IMPLEMENTED",
    "capacite_hors_registre": {
     "id": "game.brick_field",
     "statement_propose": "Detenir le mur de briques et le compte de briques cassables restantes.",
@@ -846,7 +846,7 @@
     "source": "games/pong/06_RUNTIME/adapters/presentation/draw.mjs",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -862,8 +862,8 @@
     }
    ],
    "fonction": "Detient le score et le derive du nombre de briques detruites. Aucun affichage.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; score_per_brick.test.gd VERT (score=detruites*points_par_brique, fonction du compte reel, 0 increment aveugle).",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT : la capacite play.score est DEJA au registre ferme (apportee par Pong). Meme nom de capacite, implementation Godot neuve — reutilisation autorisee par charter.criteres_succes `REUTILISATION NOMMEE AVANT PRODUCTION`."
   },
   {
@@ -900,7 +900,7 @@
     "source": null,
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -912,8 +912,8 @@
     }
    ],
    "fonction": "N'ajoute AUCUN module : durcit par assertions strictes la regle de fin deja portee par core.end_condition. Depose son test, pas un systeme.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; end_conditions_strict.test.gd VERT (GAGNE ssi 0 brique, PERDU ssi 0 vie, victoire prime, exactement 1 statut par etat sur echantillon).",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "NEW : Snake terminait sur collision ou cible de longueur, Pong sur un score gagnant. Le couple « zero brique / zero vie » n'a aucun precedent dans le depot."
   },
   {
@@ -948,7 +948,7 @@
     "source": null,
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -964,8 +964,8 @@
     }
    ],
    "fonction": "Expose le pas de temps fixe et l'unique fonction d'avancement de la simulation. N'interroge aucune horloge.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; fixed_step_pure.test.gd VERT (dt()==params.dt_s()==TICK_DT_FIXED_MS/1000, stable, positif ; aucune horloge).",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "NEW : Snake avance par ticks discrets a periode variable (acceleration) ; le concept de pas fixe existe en JS dans games/breakout/solvability.mjs (DT = 16) mais y sert le bot, pas la logique de jeu.",
    "capacite_hors_registre": {
     "id": "game.fixed_timestep",
@@ -1007,7 +1007,7 @@
     "source": "games/breakout/game.mjs",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1023,8 +1023,8 @@
     }
    ],
    "fonction": "Integre la position de la balle sur un pas fixe. Ne resout aucune collision.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; integration_exact.test.gd VERT (un pas et n pas fermes == p+v*(dt*n), valeurs exactes dt=0.5/0.25).",
+   "statut": "IMPLEMENTED",
    "source_note": "DERIVED : cette ligne n'a pas de proposeur distinct — elle est la consequence arithmetique de deux exigences deja posees. Elle n'invente aucune exigence."
   },
   {
@@ -1061,7 +1061,7 @@
     "source": "games/breakout/game.mjs",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1077,8 +1077,8 @@
     }
    ],
    "fonction": "Fonction pure (position, vitesse, terrain) -> vitesse'. Aucun etat propre.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; wall_reflection_strict.test.gd VERT (detection de face + inversion stricte composante perpendiculaire ; limite basse jamais un mur).",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT (reflexion de bord), jamais CODE : aucun import JS->GDScript.",
    "capacite_hors_registre": {
     "id": "game.wall_reflection",
@@ -1124,7 +1124,7 @@
     "source": "games/breakout/game.mjs",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1140,8 +1140,8 @@
     }
    ],
    "fonction": "Fonction pure (offset_relatif, vitesse_entrante) -> vitesse_sortante. Aucun etat, aucune horloge, aucun alea.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; paddle_deflection_three_points.test.gd VERT (centre vx'==0.0 strict ; bords == (|v|sin(+/-max),-|v|cos(+/-max)) construits sur angle_rebond_max_rad(), AUCUN epsilon ; 3 vx' distincts).",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT : games/breakout/game.mjs porte la deflexion par point d'impact en JS. COPIE INTERDITE par charter.actions_interdites (« Copier du code .mjs de games/breakout/ dans le jeu Godot pour gonfler la mesure de reutilisation ») — et sans objet mecaniquement (JS != GDScript). 0 octet copie.",
    "capacite_hors_registre": {
     "id": "game.paddle_deflection",
@@ -1186,7 +1186,7 @@
     "source": "games/breakout/game.mjs",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1202,8 +1202,8 @@
     }
    ],
    "fonction": "Fonction pure (balle, champ de briques) -> {brique detruite ?, vitesse'}. Ne detient rien.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; brick_collision_strict.test.gd VERT (face horizontale->vy inverse, verticale->vx inverse, strict ; aucun hit->vitesse inchangee ; brique detruite non retouchee).",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT : `faceTouched` / `circleAabbCollide` de games/breakout/game.mjs donnent la METHODE (determiner la face touchee avant d'inverser la bonne composante), pas le code.",
    "capacite_hors_registre": {
     "id": "game.brick_collision",
@@ -1246,7 +1246,7 @@
     "source": "games/breakout/level.mjs",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1262,8 +1262,8 @@
     }
    ],
    "fonction": "Fonction pure (seed, index) -> disposition de briques. Aucune horloge, aucun alea global.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; level_seed_determinism.test.gd VERT (meme seed->disposition identique ; 7 offsets seedes distincts=VARIANCE ; compte constant).",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT : signature `generateLevel(seed, levelIndex)` de games/breakout/level.mjs. 0 octet copie.",
    "capacite_hors_registre": {
     "id": "game.level_generation",
@@ -1309,7 +1309,7 @@
     "source": "games/breakout/game.mjs",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1325,8 +1325,8 @@
     }
    ],
    "fonction": "Decide la perte de vie et la remise en jeu. Ne dessine rien, ne lit aucune touche.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; life_loss_serve.test.gd VERT (sortie basse -> -1 exact + re-service si vies>0 ; aucune remise a 0 vie).",
+   "statut": "IMPLEMENTED",
    "capacite_hors_registre": {
     "id": "game.lives",
     "statement_propose": "Detenir les vies restantes, les decrementer a la perte d'une balle et remettre une balle en jeu s'il en reste.",
@@ -1369,7 +1369,7 @@
     "source": "games/snake/05_SYSTEMS/input_rules/direction_rules.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1385,8 +1385,8 @@
     }
    ],
    "fonction": "Traduit une action normalisee en deplacement borne de la raquette. Aucune I/O.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; input_vocabulary_closed.test.gd VERT (vocabulaire=3 actions exactes, appartenance stricte, appliquer delegue au bornage raquette).",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT : le vocabulaire ferme de Snake porte 4 directions et un refus de demi-tour, sans equivalent ici. Ce qui se reutilise est la regle « la logique pure ne connait ni touche ni InputEvent », prouvee par comptage."
   },
   {
@@ -1421,7 +1421,7 @@
     "source": "games/snake/07_TESTS/unit/error_guard_invalid_input.test.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1437,8 +1437,8 @@
     }
    ],
    "fonction": "Absorbe les entrees hors domaine avant qu'elles n'atteignent l'etat. Aucune I/O.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; error_guard_invalid_input.test.gd VERT (actions hors domaine absorbees en AUCUNE, etat reste valide/immobile sous action invalide).",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "core.main_loop",
@@ -1473,7 +1473,7 @@
     "source": "games/snake/05_SYSTEMS/game_loop/loop.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1489,8 +1489,8 @@
     }
    ],
    "fonction": "Compose les systemes purs en un tick unique. N'affiche rien, ne lit aucune horloge.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; tick_pure.test.gd VERT (step ne mute pas l'entree, deterministe, +1 tick, inerte sur etat terminal).",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT : la SIGNATURE prouvee de Snake (tick pur renvoyant etat + evenements) se transporte ; son contenu (grille, croissance, nourriture) non."
   },
   {
@@ -1525,7 +1525,7 @@
     "source": "games/snake/05_SYSTEMS/game_loop/events.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1541,8 +1541,8 @@
     }
    ],
    "fonction": "Expose les evenements du tick. N'en consomme aucun, n'en stocke aucun historique.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; event_observer.test.gd VERT (5 types, constructeurs corrects, BRIQUE_DETRUITE emis reellement quand une brique casse).",
+   "statut": "IMPLEMENTED",
    "source_note": "DERIVED et non ADDITIONS : aucun role amont ne l'a proposee — il n'existe ni design review ni Prisme pour ce run. C'est UNE PRISE (evenements consommables), pas un systeme de telemetrie : tout module d'exploitation de ces evenements est hors perimetre (charter.hors_scope)."
   },
   {
@@ -1577,7 +1577,7 @@
     "source": "games/snake/05_SYSTEMS/debug_state/debug_state.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1593,8 +1593,8 @@
     }
    ],
    "fonction": "Projette l'etat vers le dictionnaire d'observation. Ne detient aucune donnee propre.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; debug_state_fields.test.gd VERT (exactement 6 champs nommes, valeurs fideles, sans effet de bord).",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "core.render",
@@ -1628,7 +1628,7 @@
     "source": "games/snake/06_RUNTIME/adapters/presentation/grid_view.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1640,8 +1640,8 @@
     }
    ],
    "fonction": "Point de controle CORE de l'affichage. Ne cree AUCUN module : il compare deux captures a deux etats differents et refuse une image morte ou monochrome.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "oracle/core_render_frame.gd fenetre GPU vulkan (RTX 5080, --position hors ecran) exit 0 (PASS): la scene principale rend une image NON monochrome (640x480). Leçon Snake: demarrage+affichage prouves hors chaine mecanique.",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT : la grille discrete de Snake ne se transporte pas ; ce qui se reutilise est la discipline « l'adaptateur LIT l'etat, ne decide de rien » et la forme de sa preuve pixel."
   },
   {
@@ -1717,7 +1717,7 @@
     "source": "games/snake/06_RUNTIME/adapters/presentation/grid_view.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1733,8 +1733,8 @@
     }
    ],
    "fonction": "Dessine terrain, raquette, balle et briques a partir de l'etat. Ne decide de rien.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "oracle/demo_start_visible.gd fenetre GPU vulkan (RTX 5080, --position hors ecran) exit 0 (PASS): 13 couleurs distinctes au demarrage (terrain+briques+raquette+balle visibles). Run 3 : protocole de sortie mis en conformite (emet FORGE_ORACLE demo_start_visible, decouvert par product_oracle_godot) ; logique inchangee. En headless (sans fenetre GPU) la sonde emet le marqueur et sort en ECHEC motive (texture nulle) — la preuve verte exige la fenetre GPU vulkan, comme run 1/2.",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "render.brick_destruction",
@@ -1768,7 +1768,7 @@
     "source": null,
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1784,8 +1784,8 @@
     }
    ],
    "fonction": "Dessine l'etat du mur de briques. Ne decide d'aucune destruction.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "oracle/demo_brick_destruction.gd fenetre GPU vulkan (RTX 5080, --position hors ecran) exit 0 (PASS): 1197 pixels de la zone briques changent quand les briques sont detruites -> disparition observable. Run 3 : protocole de sortie mis en conformite (emet FORGE_ORACLE demo_brick_destruction) ; logique inchangee. Headless = ECHEC motive (texture nulle), preuve verte exige la fenetre GPU vulkan.",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "NEW : ni Pong ni Snake n'a d'element de decor destructible ; games/breakout/ n'a de preuve visuelle que par captures de navigateur (e2e-shots), inutilisable sur moteur Godot."
   },
   {
@@ -1821,7 +1821,7 @@
     "source": "games/snake/06_RUNTIME/adapters/presentation/hud.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1834,11 +1834,15 @@
     {
      "path": "07_TESTS/unit/hud_readout.test.gd",
      "category": "test.unit"
+    },
+    {
+     "path": "07_TESTS/oracle/demo_lives_score.gd",
+     "category": "test.oracle"
     }
    ],
    "fonction": "Affiche vies et score lus dans l'etat. Aucune ecriture.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 305/305 assertions ; hud_readout.test.gd VERT (round-trip strict texte<->valeur pour vies et score). Run 3 : sonde demo_lives_score.gd creee (enveloppe l'unitaire), oracle/demo_lives_score.gd headless exit 0, marqueur FORGE_ORACLE demo_lives_score {ok:true, passed:10}.",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "render.end_screen",
@@ -1873,7 +1877,7 @@
     "source": "games/snake/06_RUNTIME/adapters/presentation/end_screen.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1886,11 +1890,15 @@
     {
      "path": "07_TESTS/unit/end_screen.test.gd",
      "category": "test.unit"
+    },
+    {
+     "path": "07_TESTS/oracle/demo_end_screen.gd",
+     "category": "test.oracle"
     }
    ],
    "fonction": "Affiche l'ecran de fin selon l'issue lue dans l'etat. Ne decide d'aucune fin.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 305/305 assertions ; end_screen.test.gd VERT (actif seulement en fin, message distinct gagne/perdu, vide hors terminal). Run 3 : sonde demo_end_screen.gd creee, oracle headless exit 0, marqueur FORGE_ORACLE demo_end_screen {ok:true, passed:7}.",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "render.rebound_variability",
@@ -1925,7 +1933,7 @@
     "source": null,
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1937,8 +1945,8 @@
     }
    ],
    "fonction": "N'ajoute AUCUN module : exerce la deflexion depuis le runtime reel et compte les trajectoires distinctes. Depose sa preuve, pas un systeme.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "oracle/demo_rebound_variability.gd headless exit 0 (PASS): 26 offsets distincts et 26 vx post-rebond distincts sur une partie -> angle fonction du point d'impact. Run 3 : protocole de sortie mis en conformite (emet FORGE_ORACLE demo_rebound_variability {ok:true, offsets_distincts:26, vx_distincts:26}) ; logique inchangee.",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "render.gameplay_readability",
@@ -1969,7 +1977,7 @@
     "source": null,
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -1981,8 +1989,8 @@
     }
    ],
    "fonction": "Mesure la distinguabilite visuelle des familles d'elements. N'emet aucun jugement de gout.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "oracle/demo_readability_proxy.gd fenetre GPU vulkan (RTX 5080, --position hors ecran) exit 0 (PASS): 16 couleurs distinctes (proxy de lisibilite: rangees + fond/raquette/balle). Run 3 : protocole de sortie mis en conformite (emet FORGE_ORACLE demo_readability_proxy) ; logique inchangee. Headless = ECHEC motive (texture nulle), preuve verte exige la fenetre GPU vulkan.",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "proof.visual_gpu_window",
@@ -2013,7 +2021,7 @@
     "source": "scripts/forge/godot_oracle.mjs",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2029,8 +2037,8 @@
     }
    ],
    "fonction": "Produit les captures en fenetre GPU reelle. Ne juge aucune image lui-meme.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "oracle/visual_gpu_capture.gd fenetre GPU vulkan (RTX 5080, --position hors ecran) exit 0 (PASS, image 640x480 non monochrome). Confirme la contrainte de poste: --headless rend nul, la preuve visuelle exige la fenetre GPU.",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "OUTIL_FORGE : l'outil existe et est branche ; ce run l'exerce sur une nouvelle cible, il ne le reecrit pas. Patron de capture cote jeu : games/snake/06_RUNTIME/adapters/presentation/capture.gd (CONCEPT)."
   },
   {
@@ -2067,7 +2075,7 @@
     "source": "games/snake/06_RUNTIME/adapters/input_adapter/input_adapter.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2083,8 +2091,8 @@
     }
    ],
    "fonction": "Traduit un InputEvent en action du vocabulaire ferme. N'applique aucune regle.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "oracle/core_input_action.gd headless exit 0 (PASS): KEY_RIGHT->DROITE, action via canal public deplace la raquette le meme tick, gauche!=droite, AUCUNE immobile.",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT : Snake traduit 4 directions, Breakout 3 actions horizontales. Ce qui se reutilise est le canal unique clavier+bot, deja prouve."
   },
   {
@@ -2119,7 +2127,7 @@
     "source": "games/snake/07_TESTS/unit/input_adapter_burst.test.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2128,11 +2136,15 @@
     {
      "path": "07_TESTS/unit/paddle_latency.test.gd",
      "category": "test.unit"
+    },
+    {
+     "path": "07_TESTS/oracle/demo_paddle_responsive.gd",
+     "category": "test.oracle"
     }
    ],
    "fonction": "N'ajoute AUCUN module : mesure la latence et la perte d'actions. Depose sa preuve.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 305/305 assertions ; paddle_latency.test.gd VERT (input deplace la raquette DES le meme tick=latence 0, gauche/droite distincts, AUCUNE immobile). Run 3 : sonde demo_paddle_responsive.gd creee, oracle headless exit 0, marqueur FORGE_ORACLE demo_paddle_responsive {ok:true, passed:5}.",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "core.boot",
@@ -2169,7 +2181,7 @@
     "source": "games/snake/06_RUNTIME/adapters/runtime_loop/boot.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2185,8 +2197,8 @@
     }
    ],
    "fonction": "Amene le jeu de rien a l'etat initial jouable. Aucune regle de jeu ici.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "oracle/core_boot.gd headless exit 0 (PASS): 0 geste/ecran, boot EN_COURS valide, balle en mouvement.",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "core.exit",
@@ -2219,7 +2231,7 @@
     "source": "games/snake/06_RUNTIME/adapters/runtime_loop/exit.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2235,8 +2247,8 @@
     }
    ],
    "fonction": "Termine le processus proprement et LIT son code de retour. Ne cree aucun module.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "oracle/core_exit.gd headless exit 0 (PASS): code 0, sortie reconnue, chaque commande a un effet observable.",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT : ce qui se reutilise est la LECON du defaut mesure sur Pong au playtest du 2026-07-27 (commande de sortie inerte) et la forme de sa preuve."
   },
   {
@@ -2262,14 +2274,14 @@
    "observable_note": "Invisible ; sa violation se verrait comme un jeu non reproductible.",
    "expected_proof": {
     "kind": "test",
-    "statement": "La boucle Node accumule le temps reel et n'appelle le tick pur QU'AVEC le pas fixe : le nombre d'appels au tick avec une valeur differente de la constante nommee est EXACTEMENT 0. Aucun rattrapage : apres une trame artificiellement longue, le nombre de ticks executes dans la trame suivante est EXACTEMENT 1 (le retard est absorbe, jamais rejoue en rafale). Le nombre de valeurs de delta du moteur transmises a 05_SYSTEMS/** est EXACTEMENT 0."
+    "statement": "La boucle Node accumule le temps reel et n'appelle le tick pur QU'AVEC le pas fixe : le nombre d'appels au tick avec une valeur differente de la constante nommee est EXACTEMENT 0. Le reste de l'accumulateur est CONSERVE entre trames (acc -= pas par tick consomme, jamais de remise a zero) ; rattrapage BORNE a MAX_TICKS_PAR_FRAME ticks par trame (constante nommee de params.gd) ; au-dela du plafond, l'excedent est ecrete (anti-spirale, ecart dit en commentaire). Propriete durable : N trames de duree cumulee T produisent floor(T/pas) ticks tant que le plafond n'est pas atteint, quel que soit le decoupage des trames. Le nombre de valeurs de delta du moteur transmises a 05_SYSTEMS/** est EXACTEMENT 0."
    },
    "reused_from": {
     "type": "CONCEPT",
     "source": "games/snake/07_TESTS/unit/no_time_catchup.test.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2280,13 +2292,17 @@
      "category": "system.adapter"
     },
     {
+     "path": "06_RUNTIME/adapters/runtime_loop/main.gd",
+     "category": "system.adapter"
+    },
+    {
      "path": "07_TESTS/unit/no_time_catchup.test.gd",
      "category": "test.unit"
     }
    ],
-   "fonction": "Boucle Node : accumule le temps reel, appelle le tick pur au pas fixe, transmet l'etat au rendu. Ne decide d'aucune regle.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "fonction": "Boucle Node : accumule le temps reel, appelle le tick pur au pas fixe, transmet l'etat au rendu. Ne decide d'aucune regle. main.gd (pilote de scene Node2D) vit sous cette meme adresse : il appelle l'accumulateur avec le delta reel du moteur.",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 305/305 assertions ; no_time_catchup.test.gd VERT et INVERSE au run 3 (F1) : l'accumulateur RETRANCHE un pas par tick et CONSERVE le reste -> N trames de duree cumulee T produisent floor(T/pas) ticks quel que soit le decoupage (propriete durable, independante du framerate) ; rattrapage BORNE par params.MAX_TICKS_PAR_FRAME (surplus au-dela du plafond jete), gel en fin de partie. runtime_loop.gd::avancer corrige (acc -= pas au lieu de reset 0.0), main.gd applique r[ticks] ticks en boucle (Loop.step inerte sur etat terminal). CONSTAT run 2 : main.gd (pilote de scene) relocalise de la racine du projet (orphelin d'index check_index run 1) vers cette adresse couverte 06_RUNTIME/adapters/runtime_loop/ ; main.tscn repointe vers res://06_RUNTIME/adapters/runtime_loop/main.gd ; project.godot garde main_scene=res://main.tscn ; entrypoint_invariant.gd headless PASS (scene charge+instancie) ; node godot_oracle.mjs ALL CHECKS PASSED (305/305 mecanique + solvabilite 50/50).",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT : Snake a deja paye ce probleme (no_time_catchup) sur une periode variable. Le patron de preuve se transporte ; son code non.",
    "source_note": "DERIVED : consequence mecanique d'une exigence deja posee, pas une exigence nouvelle. C'est LE point de fuite du point dur (document de campagne §3) : la logique pure peut etre irreprochable et le determinisme casser ici."
   },
@@ -2319,7 +2335,7 @@
     "source": "games/snake/07_TESTS/unit/boot_zero_gesture.test.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2328,11 +2344,15 @@
     {
      "path": "07_TESTS/unit/boot_zero_gesture.test.gd",
      "category": "test.unit"
+    },
+    {
+     "path": "07_TESTS/oracle/demo_immediate_start.gd",
+     "category": "test.oracle"
     }
    ],
    "fonction": "N'ajoute AUCUN module : compte les interpositions au demarrage. Depose sa preuve.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 305/305 assertions ; boot_zero_gesture.test.gd VERT (0 geste/0 ecran, boot EN_COURS valide, balle deja en mouvement). Run 3 : sonde demo_immediate_start.gd creee, oracle headless exit 0, marqueur FORGE_ORACLE demo_immediate_start {ok:true, passed:6}.",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "runtime.restart_one_gesture",
@@ -2364,7 +2384,7 @@
     "source": "games/snake/07_TESTS/unit/restart_no_leak.test.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2373,11 +2393,15 @@
     {
      "path": "07_TESTS/unit/restart_no_leak.test.gd",
      "category": "test.unit"
+    },
+    {
+     "path": "07_TESTS/oracle/demo_restart_one_gesture.gd",
+     "category": "test.oracle"
     }
    ],
    "fonction": "N'ajoute AUCUN module : exerce le geste de relance et compte les residus.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 305/305 assertions ; restart_no_leak.test.gd VERT (relance==etat initial strict, 0 residu). Run 3 : sonde demo_restart_one_gesture.gd creee, oracle headless exit 0, marqueur FORGE_ORACLE demo_restart_one_gesture {ok:true, passed:8}.",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "runtime.exit_observable",
@@ -2408,7 +2432,7 @@
     "source": "games/snake/07_TESTS/unit/exit_stop.test.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2417,11 +2441,15 @@
     {
      "path": "07_TESTS/unit/exit_stop.test.gd",
      "category": "test.unit"
+    },
+    {
+     "path": "07_TESTS/oracle/demo_exit_observable.gd",
+     "category": "test.oracle"
     }
    ],
    "fonction": "N'ajoute AUCUN module : mesure l'effet visible de la sortie. Depose sa preuve.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 305/305 assertions ; exit_stop.test.gd VERT (code 0, chaque commande a un effet lisible non vide). Run 3 : sonde demo_exit_observable.gd creee, oracle headless exit 0, marqueur FORGE_ORACLE demo_exit_observable {ok:true, passed:8}.",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "runtime.solo_session",
@@ -2455,7 +2483,7 @@
     "source": "games/snake/07_TESTS/oracle/solo_session.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2464,11 +2492,15 @@
     {
      "path": "07_TESTS/oracle/solo_session.gd",
      "category": "test.oracle"
+    },
+    {
+     "path": "07_TESTS/oracle/demo_solo_session.gd",
+     "category": "test.oracle"
     }
    ],
    "fonction": "N'ajoute AUCUN module : rejoue une session humaine complete par le canal clavier.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "Run 3 : sonde demo_solo_session.gd creee (le volet observable etait nomme demo_solo_session mais aucun fichier de ce nom n'existait ; solo_session.gd portait un autre nom et l'ancien protocole). oracle/demo_solo_session.gd headless exit 0, marqueur FORGE_ORACLE demo_solo_session {ok:true, briques_cassees:60, rebonds:51, ticks:7903}. Meme logique que solo_session.gd (boot->VICTOIRE->relance==boot neuf, etat valide a chaque tick).",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "proof.debug_probe",
@@ -2500,7 +2532,7 @@
     "source": "games/snake/06_RUNTIME/adapters/debug_probe/debug_probe.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2516,8 +2548,8 @@
     }
    ],
    "fonction": "Emet le recu d'observation sur stdout. Ne calcule rien.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; debug_receipt.test.gd VERT (Vector2->[x,y], prefixe, round-trip parse, ligne mal formee->null).",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "proof.solvability_interception",
@@ -2549,7 +2581,7 @@
     "source": "scripts/forge/solvability_godot.mjs",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2565,8 +2597,8 @@
     }
    ],
    "fonction": "Pilote la raquette par le canal d'entree public selon une strategie de controle declaree. N'ecrit jamais dans l'etat.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "solvability.gd via scripts/forge/solvability_godot.mjs: 7/7 seeds (1..7, les 7 offsets distincts) GAGNE, verdict OK (interception reelle, ex. seed1=7903 ticks<10000). Full 50 trials=budget driver.",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "OUTIL_FORGE pour le HARNAIS (deja branche, exerce sur une nouvelle cible). La STRATEGIE de controle est NEUVE : le bot de Snake resout une recherche de chemin sur grille (sys-grid-nav-m01), inapplicable a une interception continue — constat repris de game_contract.yaml (budget reuses: [])."
   },
   {
@@ -2600,7 +2632,7 @@
     "source": "games/breakout/solvability.mjs",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2616,8 +2648,8 @@
     }
    ],
    "fonction": "Fait tourner les deux bots naifs nommes et compare leur taux de victoire a celui du bot d'interception. Ne modifie aucun jeu.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "oracle/negative_control.gd headless exit 0 (PASS): interception 7/7 STRICTEMENT > camp_centre 0/7 et suivi_naif 0/7 -> controles negatifs prouves insuffisants.",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT : games/breakout/solvability.mjs porte deja une strategie `follow` avec tolerance — exactement le suiveur naif a utiliser comme controle negatif. Aucune ligne de JS n'est copiee."
   },
   {
@@ -2648,7 +2680,7 @@
     "source": "knowledge_base/systems/navigation/run_tests.gd",
     "copy_sha256": "096cd7546f7d701832cb7c13872add001a9e4e96e3581fef2548f28f36a7288a"
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2664,8 +2696,8 @@
     }
    ],
    "fonction": "Execute les tests GDScript en headless (legitime pour la mecanique, interdit pour l'image).",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; garde anti-faux-vert EXPECTED_ASSERTS=299 (mesure reelle) egale le total execute (28 fichiers). Fidelite CODE_COPIE non atteinte -> voir SKIPPED_VALIDATION/fog.",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CODE_COPIE assume et VERIFIE : sha256 de la SOURCE calcule le 2026-07-31 sur knowledge_base/systems/navigation/run_tests.gd (fichier present, 1 seul CODE_COPIE de tout ce plan). Le RUNNER est copie tel quel ; 06_RUNTIME/adapters/proof_harness/harness.gd est de la glue NEUVE (assertions propres a la physique continue) declaree dans la meme ligne — la nuance est ecrite ici plutot que de gonfler le compte CODE_COPIE.",
    "source_note": "DERIVED : outil de preuve exige par deux criteres, sans proposeur amont distinct. Son adresse n'est pas un choix de gout — elle est imposee par l'oracle et par le contrat de jeu."
   },
@@ -2699,7 +2731,7 @@
     "source": "games/snake/07_TESTS/oracle/replay_determinism.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2711,8 +2743,8 @@
     }
    ],
    "fonction": "Rejoue deux fois la meme partie pure et compare pas a pas. Ne construit aucun systeme.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "oracle/replay_determinism.gd headless exit 0 (PASS): sequence d'entrees rejouee -> etats finaux egal_profond (16 rebonds, 22 briques sur la sequence).",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT : Snake compare des entiers sur grille, ou l'egalite stricte est triviale. Le patron se transporte, la difficulte (flottants) est neuve — c'est le point dur du charter."
   },
   {
@@ -2742,7 +2774,7 @@
     "source": "games/snake/07_TESTS/unit/purity_guard.test.gd",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2754,8 +2786,8 @@
     }
    ],
    "fonction": "Compte les violations de purete. N'emet aucun jugement d'intention.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "run_tests.gd headless (godot 4.6.3, --script) exit 0, 299/299 assertions ; purity_guard.test.gd VERT (scan 05_SYSTEMS: 0 API moteur, tout RefCounted, 0 import presentation/scene). Analyseur exhaustif=oracle Python driver.",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "proof.mutation_gate",
@@ -2784,7 +2816,7 @@
     "source": "scripts/forge/mutation.py",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2796,8 +2828,8 @@
     }
    ],
    "fonction": "Expose les invariants a muter. Ne decide pas du verdict de mutation.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "oracle/mutation_invariants.gd headless exit 0 (PASS): re-assertion des invariants critiques. Le gate a MUTATION reel (forge.mutation.run_mutation_test sur categorie system) est execute par le DRIVER ; reçu officiel = celui du driver. CONSTAT run 2 (self-verification, forge.mutation sur les 4 fichiers system durcis) : loop.gd 11/11, brick_collision.gd 8/8, state.gd 34/34, wall_reflection.gd 6/6 => 59/59 mutants tues, 100%, 0 survivant (run 1 : 14 survivants sur ces 4 fichiers). Aucun mutant equivalent a trier.",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "OUTIL_FORGE : le moteur de mutation existe et est branche ; ce run l'exerce sur une nouvelle cible. Patron cote jeu : games/snake/07_TESTS/oracle/mutation_invariants.gd (CONCEPT)."
   },
   {
@@ -2830,7 +2862,7 @@
     "source": null,
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
@@ -2842,8 +2874,8 @@
     }
    ],
    "fonction": "Verifie que le jeu demarre, et que le test echoue si le point d'entree disparait.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "oracle/entrypoint_invariant.gd headless exit 0 (PASS): project.godot present, run/main_scene declaree, PackedScene main.tscn charge et s'instancie.",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "NEW : c'est precisement la preuve qui MANQUAIT a Snake — le defaut qui a produit la lecon de cloture. Aucun precedent a reutiliser, par construction."
   },
   {
@@ -2873,15 +2905,15 @@
     "source": "scripts/forge/reuse_ratio.mjs",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
    "write_order": null,
    "fichiers": [],
    "fonction": "Exigence portant sur cette wiremap. Aucun code de jeu.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "STRUCTUREL: reused_from.type present et type (CODE_COPIE/CONCEPT/NEW) sur toutes les lignes (verifie par comptage node). Oracle standard Python canonique = driver. [52/52 typees]",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "gov.reuse_ratio",
@@ -2910,15 +2942,15 @@
     "source": "scripts/forge/reuse_ratio.mjs",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
    "write_order": null,
    "fichiers": [],
    "fonction": "Exigence de mesure portant sur cette wiremap. Aucun code de jeu.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "MESURE (node): repartition par type. Rapporte separement, jamais agrege. reuse_ratio.mjs canonique = driver. [CODE_COPIE=1, CONCEPT=38, NEW=6]",
+   "statut": "IMPLEMENTED"
   },
   {
    "id": "gov.observable_coverage",
@@ -2947,15 +2979,15 @@
     "source": "scripts/forge/standard_oracles.py",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
    "write_order": null,
    "fichiers": [],
    "fonction": "Exigence portant sur cette wiremap. Aucun code de jeu.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "STRUCTUREL: observable_by_player present sur toutes les lignes (verifie par comptage node). check_observable_coverage canonique = driver. [52/52 declarees]",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "OUTIL_FORGE : fonction check_observable_coverage, existante et branchee en s10s."
   },
   {
@@ -2985,15 +3017,15 @@
     "source": "games/snake/09_WIREMAP/wiremap.json",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
    "write_order": null,
    "fichiers": [],
    "fonction": "Exigence de methode portant sur cette wiremap. Aucun code de jeu.",
-   "preuve": "",
-   "statut": "REQUIRED",
+   "preuve": "MESURE: variance prouvee sur les 2 metriques du jeu -> level offsets 7 valeurs distinctes (level_seed_determinism.test.gd) ; angle de rebond 26 offsets distincts (demo_rebound_variability.gd). >=2 valeurs non triviales.",
+   "statut": "IMPLEMENTED",
    "reused_from_note": "CONCEPT : patron de separation « grandeur declaree vs grandeur jouee » ecarte puis nomme dans le discarded[] de Snake (bande_declaree_comme_bande_jouee)."
   },
   {
@@ -3023,15 +3055,15 @@
     "source": "scripts/forge/verdict.py",
     "copy_sha256": null
    },
-   "state": "REQUIRED",
+   "state": "IMPLEMENTED",
    "reason": null,
    "until": null,
    "decider": null,
    "write_order": null,
    "fichiers": [],
    "fonction": "Exigence portant sur les recus de ce run. Aucun code de jeu.",
-   "preuve": "",
-   "statut": "REQUIRED"
+   "preuve": "FOURNI: chaque ligne cite un evidence_path (fichier oracle + verdict PASS/exit0). Recus: run_tests.gd (299/299), 16 oracles 07_TESTS/oracle/*.gd, solvability_godot.mjs (7/7).",
+   "statut": "IMPLEMENTED"
   }
  ],
  "discarded": [
@@ -3220,6 +3252,14 @@
    "consequence_dans_ce_plan": "0 ADDITIONS signifie qu'aucun point de vue tiers n'a propose quoi que ce soit sur ce jeu : tout ce que porte cette carte vient du charter, du CORE ou d'une derivation mecanique. C'est la mesure la plus directe de l'ecart de profondeur de conception entre Snake et ce run.",
    "arbitrage_demande": "Pierre : accepter ce run comme test de pipeline a conception minimale (coherent avec le double objectif du charter), ou inserer une etape Prisme avant le build. Le choix a un cout mesurable et il n'appartient pas a l'agent.",
    "bloquant_pour": "rien mecaniquement — c'est un fait de couverture, remonte plutot que lisse"
+  },
+  {
+   "id": "F17",
+   "sujet": "expected_proof de runtime.fixed_step_accumulator AMENDE post-build (ARBITRAGE_ORCHESTRATEUR_2026-07-31_RATIFICATION_GATE_EN_ATTENTE)",
+   "fait": "La promesse initiale wm1 (« Aucun rattrapage : ... EXACTEMENT 1 tick ... le retard est absorbe ») etait un CONCEPT herite de Snake (no_time_catchup.test.gd, jeu a grille discrete) mal transpose sur une physique temps reel continue : sous ~62,5 fps elle impose un jeu au ralenti, en contradiction avec charter.criteres_succes DETERMINISME SUR PAS DE TEMPS FIXE (charter ratifie revision 3). Le red-team run 1 (F1 MEDIUM) a prouve la perte de reste ; la mission run 3 a corrige le code (reste conserve + rattrapage borne) ; le red-team run 3 (F-A HIGH) a alors releve la contradiction promesse gelee <-> code livre, en demandant la remontee a Pierre.",
+   "consequence_dans_ce_plan": "expected_proof.statement de la ligne runtime.fixed_step_accumulator amende par l'orchestrateur (invariants EXACTEMENT-0 conserves ; clause « aucun rattrapage » remplacee par : reste conserve, rattrapage borne MAX_TICKS_PAR_FRAME, ecretage anti-spirale, floor(T/pas) sous plafond). La copie wm1 de lab/forge_runs/breakout_v2/wiremap.json reste INTACTE (provenance historique).",
+   "arbitrage_demande": "Pierre ratifie ou inverse l'amendement a la gate de campagne. Si inversion : revenir au cadenceur « absorbe » ET requalifier honnetement la promesse temps-reel du charter (un jeu au ralenti sous 60 fps ne tient pas DETERMINISME SUR PAS DE TEMPS FIXE cote produit).",
+   "bloquant_pour": "verdict de gate de campagne (le verdict signe du run 3 reste valide : l'amendement est POSTERIEUR et hors perimetre du build)"
   }
  ]
 }

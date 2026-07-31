@@ -1,0 +1,100 @@
+git is denied this session (as in run 2) — I'll note that in SKIPPED_VALIDATION and rely on filesystem/JSON validation. Everything is verified. Here is the final report.
+
+---
+
+# RAPPORT FINAL — s9-build-godot-standard : breakout_v2-run3-20260731-111149
+
+`FORGE_DISPATCH:s9-build-godot-standard:breakout_v2-run3-20260731-111149`
+
+Mission corrective bornée (2 corrections + auto-vérif). Aucune réécriture du existant vert. **Aucun commit.**
+
+## software_verdict: OK
+## evidence_verdict: MECHANICAL_VALIDATION_ONLY
+## claim_verdict: NO_CLAIM_ALLOWED
+
+Chaque affirmation ci-dessous est adossée à une **commande réellement exécutée** et à sa **sortie réelle** (preuve d'exécution, jamais d'existence). Binaire Godot résolu par `godot_bin.mjs` → `Godot_v4.6.3-stable_win64_console.exe` (4.6.3.stable, mesuré).
+
+---
+
+### CORRECTION 1 — F1 : accumulateur à pas fixe (rattrapage borné)  → OK
+
+**Ce que j'ai déposé** (tous sous des `address` déclarées par la carte, catégorie `system.adapter`/`system`) :
+- `05_SYSTEMS/params/params.gd` : ajout de la constante nommée `MAX_TICKS_PAR_FRAME = 5` (plafond de rattrapage). Aucune valeur de gameplay dispersée ; c'est un paramètre de **cadence runtime**, pas un des 10 paramètres du charter — déclaré comme tel.
+- `06_RUNTIME/adapters/runtime_loop/runtime_loop.gd::avancer` : `acc -= pas` par tick consommé (au lieu du `reset 0.0`), **reste fractionnaire conservé**, boucle plafonnée à `MAX_TICKS_PAR_FRAME` ; au-delà du plafond le surplus est **jeté** (`fmod`) — commenté.
+- `06_RUNTIME/adapters/runtime_loop/main.gd` : applique `r["ticks"]` ticks en boucle (`Loop.step` inerte sur état terminal), au lieu de `if ticks == 1`.
+- `07_TESTS/unit/no_time_catchup.test.gd` : **test INVERSÉ** — l'ancienne assertion figeait la perte (« au plus 1 tick, reste jeté »). La nouvelle prouve la propriété **durable** : `2.5 pas → 2 ticks + reste 0.5 pas conservé` ; **indépendance au découpage** (`3 pas en 1 trame == 3 pas en 6 fragments de 0.5 pas == 3 ticks`) ; rattrapage **borné** (`delta énorme → exactement MAX_TICKS_PAR_FRAME ticks, surplus < un pas`) ; gel inchangé. 8 → 14 assertions.
+- `tests/run_tests.gd` : `EXPECTED_ASSERTS` 299 → **305** (+6, garde anti-faux-vert).
+
+**Preuve** — `node scripts/forge/godot_oracle.mjs games/breakout_v2` :
+```
+=== RESULT: 305 passed, 0 failed (fichiers: 28) ===
+[godot_oracle] OK : run_tests.gd (mecanique)
+```
+La simulation pure (05_SYSTEMS physics/game_loop/game_state/collisions) est **inchangée** ; le seul fichier 05_SYSTEMS touché est le leaf `params.gd` (ajout d'une constante consommée uniquement par l'adaptateur — aucun changement de comportement de la simulation).
+
+**Incident traité en cours de route (preuve d'exécution, pas masqué)** : premier run → 3 rouges. `purity_guard.test.gd:84` scanne le texte **brut** (commentaires compris) de 05_SYSTEMS pour `06_RUNTIME`/`.tscn`. Mon commentaire dans `params.gd` citait le chemin `06_RUNTIME/adapters/...` → faux positif (+1 assertion). Sortie mesurée avant correction : `304 passed, 3 failed … META: 306/305`. Commentaire reformulé (sans `06_RUNTIME`) → 305/305, 0 rouge. Le décompte +6 était correct ; le 306 était l'artefact du garde.
+
+---
+
+### CORRECTION 2 — volets observables muets au protocole  → OK
+
+Fournisseur `product_oracle_godot.py` : découvre par présence littérale de `FORGE_ORACLE`, clé = **stem du fichier**, lit `ok` + exit code. J'ai mis les **11 volets** de `observable_by_player` en conformité (nom émis = nom déclaré, exact).
+
+**4 sondes existantes converties** (logique inchangée, protocole seul) : `demo_start_visible`, `demo_brick_destruction`, `demo_rebound_variability`, `demo_readability_proxy`.
+**7 sondes manquantes créées** (sur le modèle Snake) : `demo_immediate_start`, `demo_paddle_responsive`, `demo_lives_score`, `demo_end_screen`, `demo_restart_one_gesture`, `demo_exit_observable`, `demo_solo_session`. Les 6 premières **enveloppent le test unitaire déjà déclaré par la wiremap** pour la ligne (réutilisation fidèle : `T.new().run(h)`) ; `demo_solo_session` reprend la logique de `solo_session.gd` (le volet était nommé `demo_solo_session` mais aucun fichier de ce nom n'existait).
+
+**Preuve** — exécution headless de chaque sonde (spawn Godot via node, mirroir de `_default_runner`) :
+```
+[demo_immediate_start]      exit=0  FORGE_ORACLE demo_immediate_start {ok:true, passed:6}
+[demo_paddle_responsive]    exit=0  FORGE_ORACLE demo_paddle_responsive {ok:true, passed:5}
+[demo_lives_score]          exit=0  FORGE_ORACLE demo_lives_score {ok:true, passed:10}
+[demo_end_screen]           exit=0  FORGE_ORACLE demo_end_screen {ok:true, passed:7}
+[demo_restart_one_gesture]  exit=0  FORGE_ORACLE demo_restart_one_gesture {ok:true, passed:8}
+[demo_exit_observable]      exit=0  FORGE_ORACLE demo_exit_observable {ok:true, passed:8}
+[demo_solo_session]         exit=0  FORGE_ORACLE demo_solo_session {ok:true, briques:60, rebonds:51, ticks:7903}
+[demo_rebound_variability]  exit=0  FORGE_ORACLE demo_rebound_variability {ok:true, offsets:26, vx:26}
+[demo_start_visible]        exit=1  FORGE_ORACLE demo_start_visible {ok:false} — fenetre GPU requise (headless=texture nulle)
+[demo_brick_destruction]    exit=1  FORGE_ORACLE demo_brick_destruction {ok:false} — idem GPU
+[demo_readability_proxy]    exit=1  FORGE_ORACLE demo_readability_proxy {ok:false} — idem GPU
+```
+Les **11 émettent le marqueur avec le nom exact**. Les 8 bot_action/logique sont **verts headless**. Les **3 pixel** émettent bien le marqueur (protocole conforme) mais échouent en headless car `--headless` rend une texture nulle (fait de poste mesuré 2026-07-22) — elles étaient **vertes en fenêtre GPU vulkan aux runs 1/2** (RTX 5080), constat conservé dans la wiremap.
+
+---
+
+### CORRECTION 3 — auto-vérification  → OK
+
+`node scripts/forge/godot_oracle.mjs games/breakout_v2` :
+```
+=== RESULT: 305 passed, 0 failed (fichiers: 28) ===
+[godot_oracle] OK : run_tests.gd (mecanique)
+[godot_oracle] === solvability_godot.mjs (R9) ===  {"trials":50,"won":50,"lost":0,"verdict":"OK"}
+[godot_oracle] OK : solvabilite (R9)
+[godot_oracle] ALL CHECKS PASSED
+```
+
+**Constats wiremap mis à jour** (20 remplacements ciblés, format préservé, JSON re-validé) sur `lab/forge_runs/breakout_v2/wiremap.json` **ET** `games/breakout_v2/09_WIREMAP/wiremap.json` (byte-identiques avant/après). Lignes touchées : `runtime.fixed_step_accumulator` (preuve corrigée — l'ancienne « au plus 1 tick, surplus jeté » était devenue fausse) + les 11 lignes observables (`fichiers` enrichis des sondes créées, `preuve` notant le marqueur FORGE_ORACLE). Toutes restent `IMPLEMENTED`.
+
+---
+
+### Fichiers touchés confrontés à l'ownership de la carte
+Tous sous `games/breakout_v2/**` (adresses déclarées) et `lab/forge_runs/breakout_v2/wiremap.json` (champs de constat). **Modifiés** : `05_SYSTEMS/params/params.gd`, `06_RUNTIME/adapters/runtime_loop/{runtime_loop,main}.gd`, `07_TESTS/unit/no_time_catchup.test.gd`, `tests/run_tests.gd`, 4 sondes `07_TESTS/oracle/demo_{start_visible,brick_destruction,rebound_variability,readability_proxy}.gd`, les 2 wiremaps. **Créés** : 7 sondes `07_TESTS/oracle/demo_*.gd`. **Aucun** fichier hors carte, **aucune** ligne ajoutée/retirée. `games/pong/**`, `tests/**` (racine), `autopilot.py`, `scripts/studioV2/` : **non touchés**.
+
+### Score de mutation (BRUT)
+**NON mesuré par moi** — le gate mutation Python est exécuté **par le driver** (divergence exécuteur connue : Python non accordé à cette étape). Analyse d'impact : `runtime_loop.gd` et `main.gd` sont `system.adapter`, `07_TESTS/**` sont `test.*` → **exclus** de la mutation (`game_contract.proof.mutation.categories_exclues`). `params.gd` (`system`, mutable) n'a reçu qu'une **constante entière** (aucun opérateur → aucun mutant nouveau). Les 4 fichiers `system` durcis au run 2 (loop/brick/state/wall) sont **inchangés** → le 73/73 du run 2 devrait tenir. À rejouer par le driver.
+
+### Lignes BLOCKED
+**Aucune.** Toutes les lignes visées restent `IMPLEMENTED`.
+
+### Empreintes CODE_COPIE
+**Aucune** brique `reused_from.type: CODE_COPIE` déposée ce run. Les lignes touchées sont typées `CONCEPT`/`NEW`/`DERIVED` — aucun `copy_sha256` à confronter.
+
+---
+
+## SKIPPED_VALIDATION
+- **Gate mutation officiel** — *quoi* : reçu signé de mutation ; *où* : fichiers `system` de la carte ; *statut* : **non fait** ; *raison* : réservé au driver (Python non accordé à cette étape). Impact borné analysé ci-dessus (surfaces modifiées exclues de la mutation).
+- **Couverture observable en fenêtre GPU** — *quoi* : `check_observable_coverage` vert sur les 3 volets pixel (`demo_start_visible`, `demo_brick_destruction`, `demo_readability_proxy`) ; *où* : chaîne s10s + `product_oracle_godot.py` ; *statut* : **partiel** ; *raison* : en headless ces 3 volets émettent le marqueur mais sortent en ÉCHEC motivé (texture nulle). `product_oracle_godot.py` ne GPU-gate QUE `core_render_frame`, pas ces 3 volets pixel → **fog HumanGate** : sans fenêtre GPU vulkan côté collecteur (comme runs 1/2), la couverture de ces 3 lignes sortira BLOCKED. Hors périmètre d'écriture (modifier `scripts/forge/` interdit). Preuve verte de ces lignes = fenêtre GPU, non rejouée ici.
+- **Chaîne s10s complète** (`check_index/placement/collisions/genre/observable/contract/budget`) — *statut* : **non exécuté par moi** ; *raison* : rejouée par le driver ; mes éditions ne touchent aucun champ de promesse (`expected_proof`, `address`, `provides`/`requires`, budget).
+- **Preuve visuelle GPU réelle** (`core.render` / `proof.visual_gpu_window`) — *statut* : **non rejouée** ; *raison* : exige une fenêtre GPU (headless = texture nulle) ; établie aux runs 1/2, non requise par cette mission corrective.
+- **Confirmation par git** (`git status`/diff du périmètre) — *statut* : **méthode alternée** ; *raison* : commandes git refusées par la politique de session ; jeu de changements confirmé par exécution des oracles + validation JSON + `cmp` des wiremaps.
+
+**claim_verdict: NO_CLAIM_ALLOWED** — logiciel adossé aux oracles non-LLM (run_tests 305/305, solvabilité 50/50, 11 marqueurs FORGE_ORACLE) ; jugements résiduels (GPU des 3 volets pixel) remontés en fog HumanGate.

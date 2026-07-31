@@ -1,6 +1,31 @@
 # Contexte courant TCS
 *(Handoff. Historique complet : `studio_brain/journal/2026-07-30_00_CURRENT_CONTEXT_archive.md`.)*
 
+## Session courante : 2026-07-31 (Fable orchestrateur) — clôture V2 commitée + campagne Breakout V2 LANCÉE
+- **5 commits de clôture** (319e9a2→ddc4194) : lots dégel 1+2, verrous deny, canon refondu,
+  10 décisions ratifiées APPLIQUÉES (apply_decisions --apply : card_engine ACCEPTED, briques
+  promues), calibration N=3 archivée. Baseline référence ré-armée (verify CLEAN).
+- **GATES VALIDÉES Pierre (verbatim) 2026-07-31** → commit 2b38702 : GATE 1 charter Breakout
+  révision 3 (F13 décompte→10 params, F3 points_par_brique ajouté, F2 flottants stricts
+  légitimés par le pas fixe, core.audio DEFERRED + mono-niveau ratifiés, node: 3) ; GATE 2
+  registre +7 capacités DÉRIVÉES des provides wiremap. Preuves : check_charter,
+  check_contract_completeness, check_collisions tous passed.
+- **Wiremap wm1** : 52 lignes / 18 systèmes, 4 oracles verts, posée en topologie STANDARD.
+  Dispatch wm1 = 1re utilisation production du lot dégel 2 (P1 sections cognitives, P4 manifests).
+- **CAMPAGNE JOUÉE EN ENTIER — 3 runs, verdict final OK / HUMANGATE_READY** (dossier de gate :
+  `docs/forge/BREAKOUT_V2_CAMPAIGN_REPORT_2026-07-31.md`). Run 1 : timeout s9 (1800 s trop court
+  pour greenfield) + oracle non enregistré + orphelin main.gd + mutation 59/73 → verdict BLOCKED
+  honnête. Run 2 : correctif → chaîne verte 1er coup, **mutation 73/73**. Run 3 : fix F1
+  (accumulateur pas fixe) + protocole FORGE_ORACLE des sondes → **verdict signé OK, verify_run
+  overall=True**. Solvabilité 50/50, 305 assertions, jeu DÉMARRE et se joue à l'écran (captures
+  GPU `lab/forge_runs/breakout_v2/playtest/`). Boucle apprentissage exercée en prod : pool retry,
+  reprise pilotée ×3, failure_event CV-14, pré-mortem inter-tentatives.
+- **OUVERT POUR LA GATE** : amendement F-A/F17 (promesse `fixed_step_accumulator` héritée d'un
+  CONCEPT Snake faux en temps réel — amendé, RATIFICATION_GATE_EN_ATTENTE) · playtest ressenti ·
+  leçons L1-L5 proposées (rapport §6) · 2 dégels ciblés proposés (exemption GPU par marqueur,
+  garde oracles.json au lancement). Gel wiremap_frozen jamais posé (profil sans s5, garde F5d) —
+  régime Snake, connu.
+
 ## Dernière session : 2026-07-30 (journée Opus + soirée Fable) — calibration close, convergence V2 planifiée
 
 ### Acquis mesurés du jour
