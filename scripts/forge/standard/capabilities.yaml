@@ -113,3 +113,31 @@ capabilities:
   - id: game.events
     statement: "Exposer les evenements du tick a un consommateur externe (prise d'extensibilite)."
     single_owner: true
+
+  # ---------- apportees par BREAKOUT_V2 (noeud 3, GATES VALIDEES Pierre 2026-07-31) ----------
+  # Regle identique a l'extension Snake : SEULES les capacites du JEU entrent ici.
+  # Les 7 ids ci-dessous sont DERIVES des `provides` declares par la wiremap wm1
+  # (lab/forge_runs/breakout_v2/wiremap.json, 52 lignes) — check_collisions les avait
+  # listes en identifiants_inconnus SANS masquage (comportement contractualise) ;
+  # aucun id invente, extension = ratification du besoin declare.
+  - id: game.brick_field
+    statement: "Maintenir le champ de briques : etat initial seede, retrait a l'impact, comptage des cassables restantes."
+    single_owner: true
+  - id: game.brick_collision
+    statement: "Detecter et resoudre la collision balle-brique (retrait de la brique + rebond de la balle)."
+    single_owner: true
+  - id: game.lives
+    statement: "Compter les vies : perte a la sortie basse de la balle, defaite stricte a zero vie."
+    single_owner: true
+  - id: game.paddle_deflection
+    statement: "Calculer l'angle de rebond en fonction du point d'impact sur la raquette (3 points d'echantillon a valeurs strictes)."
+    single_owner: true
+  - id: game.wall_reflection
+    statement: "Reflechir la balle sur les murs lateraux et superieur (reflexion speculaire, energie conservee)."
+    single_owner: true
+  - id: game.level_generation
+    statement: "Generer la disposition des briques depuis une seed (meme seed + meme index => meme disposition)."
+    single_owner: true
+  - id: game.fixed_timestep
+    statement: "Avancer la simulation a pas de temps FIXE nomme (tick_dt_fixed_ms), jamais le delta-time du moteur."
+    single_owner: true
