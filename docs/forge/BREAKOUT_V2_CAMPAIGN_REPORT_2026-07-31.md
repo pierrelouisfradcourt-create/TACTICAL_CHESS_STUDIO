@@ -98,7 +98,13 @@ journal à jour entre tentatives (P2).
   sait depuis shmup que « software_verdict OK ≠ vivant à jouer ».
   Lancer : `<godot> --path games/breakout_v2 --rendering-driver vulkan`
 
-## 6. Leçons PROPOSÉES (portées ici, PAS écrites dans les stores — writes never ascend)
+## 6. Leçons — VALIDÉES 2026-07-31 (voir `BREAKOUT_V2_LESSONS_VALIDATION_2026-07-31.md`)
+
+*Les 5 lessons ci-dessous, proposées à la clôture de campagne, ont été validées par Pierre
+le 2026-07-31 et écrites dans `lab/reports/lessons.jsonl` (schéma `forge.lesson.v1`,
+statut `validated`, génération 2) — première écriture réelle de ce mécanisme. Aucune
+implémentation de leur destination (standard/schema/wiremap) n'a été exécutée : chantier
+futur distinct.*
 
 - **L1 (harnais)** : un s9 greenfield Godot ≥ 50 lignes de carte dépasse le step-timeout
   par défaut (1800 s) ; 5400 s a suffi (40 min réels). Candidat : défaut par profil.

@@ -2,7 +2,17 @@
 *(Handoff. Historique complet : `studio_brain/journal/2026-07-31_00_CURRENT_CONTEXT_archive.md`
 → `2026-07-30_00_CURRENT_CONTEXT_archive.md`.)*
 
-## Session courante : 2026-07-31 (Fable orchestrateur) — clôture V2 commitée + campagne Breakout V2 JOUÉE EN ENTIER
+## Session courante : 2026-07-31 (Fable→Sonnet orchestrateur) — Breakout V2 validée Pierre + lessons L1-L5 entrées en mémoire
+- **Breakout V2 validée Pierre** : « jeu volontairement simple, mais il remplit son rôle ». Pas
+  de suite ouverte cette session ; prochain jeu = autre session, propre contexte/campagne.
+- **Lessons L1-L5 validées et écrites dans `lab/reports/lessons.jsonl`** (1re écriture réelle du
+  mécanisme `forge.learning_memory`, jamais exercé avant) : 5/5 ACCEPTER, statut `validated`,
+  génération 2, chacune citant sa preuve (`fail-59097e0c915c4646` pour L1, expériences run 1/3
+  pour L2-L5). Détail : `docs/forge/BREAKOUT_V2_LESSONS_VALIDATION_2026-07-31.md`. DESTINATION =
+  tag de routage (standard/schema/wiremap) pour un chantier futur, AUCUNE mutation de surface
+  exécutée cette session (L1/L2/L5→standard/, L3→wiremap/, L4→schema/).
+
+## Session précédente : 2026-07-31 matin (Fable orchestrateur) — clôture V2 commitée + campagne Breakout V2 JOUÉE EN ENTIER
 - **5 commits de clôture** (319e9a2→ddc4194) : lots dégel 1+2, verrous deny, canon refondu,
   10 décisions ratifiées APPLIQUÉES (apply_decisions --apply : card_engine ACCEPTED, briques
   promues), calibration N=3 archivée. Baseline référence ré-armée (verify CLEAN).
@@ -26,35 +36,27 @@
   le commentaire documenté — aucune clé fonctionnelle touchée, corrigé sans commit).
 
 ## ⚠️ URGENT / GESTES PIERRE EN ATTENTE (rien d'autre ne bloque techniquement)
-1. **Gate de campagne Breakout** (4 points, détail `BREAKOUT_V2_CAMPAIGN_REPORT_2026-07-31.md` §8) :
-   - **Amendement F-A/F17** : la promesse gelée `fixed_step_accumulator` héritée en CONCEPT de
-     Snake (« aucun rattrapage, EXACTEMENT 1 tick ») était FAUSSE en physique temps réel (impose
-     un jeu au ralenti sous 60 fps) — l'orchestrateur l'a amendée (reste conservé, rattrapage
-     borné) et documentée en fog F17, `RATIFICATION_GATE_EN_ATTENTE`. **À ratifier ou inverser.**
-   - Playtest **ressenti** (le mécanique/visuel est fait et prouvé par capture GPU — le feel reste
-     un geste Pierre). Lancer : `<godot> --path games/breakout_v2 --rendering-driver vulkan`.
-   - Sort des leçons L1-L5 proposées et de 2 dégels ciblés (exemption GPU par marqueur render,
-     garde `oracles.json` au lancement de campagne).
-   - Merge/reject/freeze de la campagne (verdict signé = HUMANGATE_READY, pas décidé).
-2. **NON COMMITÉ, HORS PÉRIMÈTRE ORCHESTRATEUR** : `scripts/observer/`, `docs/observer/`,
+1. **NON COMMITÉ, HORS PÉRIMÈTRE ORCHESTRATEUR** : `scripts/observer/`, `docs/observer/`,
    `lab/reports/observer/breakout_v2/` — une « Forge Observer V1.5 » (console lecture-seule,
    serveur stdlib port 8771, `python scripts/observer/live.py --project breakout_v2 --port 8771`)
-   est apparue pendant cette session (fichiers datés 14:37→17:06, un autre process/session, PAS
-   produite par cet orchestrateur). Son propre rapport dit `software_verdict: OK` (10 activations
-   LLM vérifiées, 9 MATCH/0 MISMATCH/1 NO_DECLARATION sur l'empreinte de prompt). **Jamais examiné
-   ni touché ici — geste Pierre : décider de le committer/réviser séparément.**
+   est apparue pendant la session du matin (fichiers datés 14:37→17:06, un autre process/session,
+   PAS produite par cet orchestrateur). Son propre rapport dit `software_verdict: OK`. **Jamais
+   examiné ni touché ici — geste Pierre : décider de le committer/réviser séparément.**
+2. **5 chantiers futurs routés par les lessons validées** (aucun n'est urgent, aucun n'est ouvert) :
+   L1/L2/L5→`standard/` (timeout par profil, pré-vol oracles.json, doc convention FORGE_ORACLE),
+   L3→`wiremap/` (justification CONCEPT inter-genres), L4→`schema/` (FAIL vs NOT_MEASURED par
+   marqueur). Détail : `docs/forge/BREAKOUT_V2_LESSONS_VALIDATION_2026-07-31.md`.
 3. **D-b** clore la calibration Snake (N=3 fait, dépasse le seuil 20% → règle prescrit N=5).
 4. **CV-9** : deny posées (auto-verrouillantes), ratification toujours en attente.
 5. **D-e/f/g/i/j** (Prisme dans standard_godot · lentille marché · déclassements Opus→Sonnet ·
    learning_curve lecteur/journal-only · catalogue provides/requires) — non urgents, non bloquants.
+6. Amendement F-A/F17 (charter Breakout, `fixed_step_accumulator`) — RATIFICATION_GATE_EN_ATTENTE,
+   non re-soulevé cette session (Breakout close pour l'instant), reste en archive si Breakout rouvre.
 
 ## Ce qui reste à faire (pas de gate, juste du travail futur)
-- Requalifier honnêtement le critère produit « déterminisme sur pas fixe » du charter Breakout si
-  Pierre inverse l'amendement F-A/F17 (implique un jeu au ralenti assumé, ou refaire le cadenceur).
-- Si dégel ciblé ratifié : exemption GPU par marqueur (pas par nom codé en dur) dans
-  `product_oracle_godot.py` ; garde de pré-vol `oracles.json` dans `run_real.py`.
-- Prochaine campagne Forge (après gate Breakout) : arbitrer cible vierge vs jeu du curriculum
-  (Détail H vs CURRICULUM_JEUX_v1, toujours non arbitrés).
+- Prochaine campagne Forge : nouveau jeu déjà prévu au planning, sera traité dans une AUTRE
+  session avec son propre contexte/campagne — ne pas anticiper ici.
+- Les 5 chantiers routés (point 2 ci-dessus) attendent d'être ouverts individuellement.
 
 ## Impasses connues (ne pas re-buter dessus)
 - Aucun mécanisme d'exclusion de lecture pour un builder (`read: dépôt entier`). · Confinement
