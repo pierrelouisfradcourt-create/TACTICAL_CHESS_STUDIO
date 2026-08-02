@@ -74,6 +74,37 @@ def _read(path: Path) -> list[dict]:
 
 # --- Connecteur 3 : télémétrie -------------------------------------------------
 
+# G1-G2 (vérité métrique minimale, ratifié Pierre — session_id · task_id ·
+# modèle utilisé · tokens réels) : l'exécuteur réel (forge.run_real) MESURE ces
+# valeurs dans le flux stream-json, mais la ligne télémétrie est écrite par le
+# DRIVER (record_telemetry ci-dessous, appelé driver.py:692 succès / :938 halt),
+# qui ne les connaît pas et dont le fichier est HORS PÉRIMÈTRE de ce chantier.
+# Ce dépôt en mémoire de process fait le pont SANS toucher au driver : l'exécuteur
+# dépose (stage_telemetry_extra), la PROCHAINE écriture télémétrie du même
+# (run_id, etape) consomme (pop) — les deux appels ont lieu dans le même process,
+# séquentiellement, immédiatement après le retour de l'exécuteur. ADDITIF pur :
+# les clés existantes de la ligne (model/tokens DÉCLARÉS) restent intactes — la
+# comparaison déclaré/mesuré est précisément le but ; une ligne sans dépôt
+# (étape déterministe, runner non-claude, vieux appelant) est INCHANGÉE.
+TELEMETRY_MEASURED_FIELDS = ("session_id", "task_id", "model_used", "tokens_measured")
+_pending_telemetry_extra: dict[tuple[str, str], dict] = {}
+
+
+def stage_telemetry_extra(run_id: str, etape: str, extra: dict) -> None:
+    """Dépose les champs MESURÉS (TELEMETRY_MEASURED_FIELDS) pour la prochaine
+    ligne télémétrie de (run_id, etape). Best-effort strict : seules les clés
+    du contrat G1-G2 sont retenues (jamais un champ arbitraire injecté dans la
+    ligne), une clé absente vaut None (échec de capture = champ à null, jamais
+    une ligne cassée), et AUCUNE exception ne sort (capteur, jamais juge)."""
+    try:
+        _pending_telemetry_extra[(str(run_id), str(etape))] = {
+            k: extra.get(k) for k in TELEMETRY_MEASURED_FIELDS
+        }
+    except Exception:
+        logger.warning("stage_telemetry_extra: dépôt impossible pour (%s, %s) "
+                       "(advisory, non bloquant)", run_id, etape, exc_info=True)
+
+
 def record_telemetry(
     run_id: str,
     etape: str,
@@ -105,12 +136,19 @@ def record_telemetry(
     casser ; une ligne ÉCRITE AVANT ce correctif n'a simplement pas ces deux
     clés (normalisées à la lecture, cf. `tokens_by_successful_step`).
     """
-    _append(
-        telemetry_path or DEFAULT_TELEMETRY,
-        {"run_id": run_id, "etape": etape, "model": model,
-         "tokens": tokens, "duration_s": duration_s, "cost_usd": cost_usd,
-         "outcome": outcome, "ts": time.time()},
-    )
+    record = {"run_id": run_id, "etape": etape, "model": model,
+              "tokens": tokens, "duration_s": duration_s, "cost_usd": cost_usd,
+              "outcome": outcome, "ts": time.time()}
+    # G1-G2 : fusion des champs MESURÉS déposés par l'exécuteur (voir
+    # stage_telemetry_extra ci-dessus). pop = consommé une seule fois, jamais
+    # rejoué sur une tentative suivante ; setdefault = un champ existant de la
+    # ligne (les DÉCLARÉS) n'est JAMAIS écrasé par le dépôt. Aucun dépôt =>
+    # ligne strictement identique à avant ce chantier.
+    extra = _pending_telemetry_extra.pop((str(run_id), str(etape)), None)
+    if extra:
+        for key, value in extra.items():
+            record.setdefault(key, value)
+    _append(telemetry_path or DEFAULT_TELEMETRY, record)
 
 
 def run_cost(run_id: str, telemetry_path: Path | None = None) -> dict:

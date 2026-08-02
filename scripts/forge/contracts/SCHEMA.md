@@ -40,28 +40,64 @@ Chaque champ a **trois** états possibles — jamais deux :
 
 ## Le schéma (16 champs · 10 catégories)
 
-| # | Catégorie | Champ | Rôle | Niveau |
-|---|---|---|---|---|
-| 1 | Identité / posture cognitive | `role` | Point de vue imposé : reviewer senior, architecte, expert IA, CEO, backend, auditeur sécurité… (injecté dans le prompt) | **Critique** |
-| 2a | Identité / posture cognitive | `capability_role` | **Clé de résolution runtime** — jamais un modèle en dur. Résolu par le registry local (ADR-002 gate 1) | **Critique** |
-| 2b | Identité / posture cognitive | `exigences_cognitives` | Exigences de raisonnement/effort/capacité attendues (lisible humain) | **Critique** |
-| 3 | Contexte projet | `memoire` | Navigation projet, architecture, conventions, historique, sources de vérité (*advisory*) | **Critique** |
-| 4 | Contexte projet | `mandatory_read` | Sources **obligatoires** à lire avant toute action (*précondition dure*) | **Critique** |
-| 5 | Mission | `objectif` | But précis de l'intervention | **Critique** |
-| 6 | Frontières | `in_scope` | Zone d'action autorisée | **Critique** |
-| 7 | Frontières | `out_of_scope` | Limites explicites (≠ garde-fou : frontière de périmètre) | **Critique** |
-| 8 | Autorisation | `permissions` | Droits techniques réels : read / write / run / create / delete + dossiers autorisés/interdits | **Critique** |
-| 9 | Gouvernance | `gardeFou` | Règles, interdictions, contraintes d'architecture (≠ hors-scope : frontière comportementale) | **Critique** |
-| 10 | Validation & auditabilité | `success_criteria` | Conditions **objectives** de réussite | **Critique** |
-| 11 | Validation & auditabilité | `tests_oracles` | Tests, métriques, preuves, oracles/ancres non-LLM utilisés | **Critique** |
-| 12 | Validation & auditabilité | `final_report` | Rapport structuré : preuves, claims, écarts, risques (voir Règle de restitution) | **Critique** |
-| 13 | Restitution | `output_contract` | Structure obligatoire de la réponse/livrable | **Critique** |
-| 14 | Capacités | `skill` | Compétences spécialisées | Important |
-| 15 | Capacités | `plugin` | Outils externes | Important |
-| 16 | Traçabilité | `parent_agent` / `delegation_context` | Pourquoi l'agent existe, qui l'a mandaté | Recommandé |
+| # | Catégorie | Champ | Rôle | Niveau | Couche |
+|---|---|---|---|---|---|
+| 1 | Identité / posture cognitive | `role` | Point de vue imposé : reviewer senior, architecte, expert IA, CEO, backend, auditeur sécurité… (injecté dans le prompt) | **Critique** | `prompt` |
+| 2a | Identité / posture cognitive | `capability_role` | **Clé de résolution runtime** — jamais un modèle en dur. Résolu par le registry local (ADR-002 gate 1) | **Critique** | `dispatch` |
+| 2b | Identité / posture cognitive | `exigences_cognitives` | Exigences de raisonnement/effort/capacité attendues (lisible humain) | **Critique** | `prompt` |
+| 3 | Contexte projet | `memoire` | Navigation projet, architecture, conventions, historique, sources de vérité (*advisory*) | **Critique** | `prompt` |
+| 4 | Contexte projet | `mandatory_read` | Sources **obligatoires** à lire avant toute action (*précondition dure*) | **Critique** | `prompt` |
+| 5 | Mission | `objectif` | But précis de l'intervention | **Critique** | `prompt` |
+| 6 | Frontières | `in_scope` | Zone d'action autorisée | **Critique** | `prompt` |
+| 7 | Frontières | `out_of_scope` | Limites explicites (≠ garde-fou : frontière de périmètre) | **Critique** | `prompt` |
+| 8 | Autorisation | `permissions` | Droits techniques réels : read / write / run / create / delete + dossiers autorisés/interdits | **Critique** | `prompt` |
+| 9 | Gouvernance | `gardeFou` | Règles, interdictions, contraintes d'architecture (≠ hors-scope : frontière comportementale) | **Critique** | `prompt` |
+| 10 | Validation & auditabilité | `success_criteria` | Conditions **objectives** de réussite | **Critique** | `prompt` |
+| 11 | Validation & auditabilité | `tests_oracles` | Tests, métriques, preuves, oracles/ancres non-LLM utilisés | **Critique** | `prompt` |
+| 12 | Validation & auditabilité | `final_report` | Rapport structuré : preuves, claims, écarts, risques (voir Règle de restitution) | **Critique** | `prompt` |
+| 13 | Restitution | `output_contract` | Structure obligatoire de la réponse/livrable | **Critique** | `prompt` |
+| 14 | Capacités | `skill` | Compétences spécialisées | Important | `dispatch` |
+| 15 | Capacités | `plugin` | Outils externes | Important | `dispatch` |
+| 16 | Traçabilité | `parent_agent` / `delegation_context` | Pourquoi l'agent existe, qui l'a mandaté | Recommandé | `documentation` |
 
 **Règle d'activation** : un champ **Critique** vide ou absent → **l'agent n'est pas activable**.
-Un champ **Important**/**Recommandé** peut être `aucun` **mais jamais absent**.
+Un champ **Important**/**Recommandé** peut être `aucun` **mais jamais absent** — à l'exception de
+`delegation_context`, dont la présence n'est plus exigée (voir amendement layer ci-dessous).
+
+### Couche par champ — table complète (consommateur nommé)
+
+Un champ peut être **valide** (rempli, au bon niveau) sans jamais **agir** sur quoi que ce soit :
+la couche dit PAR QUEL CANAL le champ produit un effet, pour ne plus présenter un champ validé
+comme une capacité injectée par défaut.
+
+| Couche | Définition | Champs | Consommateur réel |
+|---|---|---|---|
+| `prompt` | Rendu comme section de texte dans le prompt de l'agent | `role`, `exigences_cognitives`, `memoire`, `mandatory_read`, `objectif`, `in_scope`, `out_of_scope`, `permissions`, `gardeFou`, `success_criteria`, `tests_oracles`, `output_contract`, `final_report` | `contract.py::_render_prompt` (une section par champ rempli) |
+| `dispatch` | Consommé pour construire le payload de dispatch (modèle, provider, outils), **jamais** rendu comme texte | `capability_role`, `skill`, `plugin` | `capability_role` → `contract.py::resolve_runtime` (modèle/provider) ; `skill`/`plugin` → `contract.py::_declared_tools` → `payload.allowed_tools`. **Note honnête** : consommateur faible sur `skill`/`plugin` — la majorité des contrats les déclarent `aucun`, l'audit outillage signe alors `allowed_tools=()` ; sous-déclaration connue, à ne pas blanchir |
+| `documentation` | Traçabilité humaine — pourquoi l'agent existe, qui l'a mandaté | `delegation_context`, `parent_agent` | **Aucun consommateur d'exécution.** Lu par un humain (ou par Observer, en lecture seule, pour affichage). `parent_agent` n'a de plus jamais été observé rempli dans un contrat réel — c'est un repli théorique de `observer.system_agents._delegation_value_and_field` |
+
+### Amendement layer — ratifié Pierre 2026-08-02
+
+> « Un champ sans consommateur déclaré ne doit pas être présenté comme une capacité injectée.
+> `delegation_context` devient explicitement documentaire tant qu'aucun consommateur réel
+> n'existe. Objectif : corriger la vérité du modèle, pas créer une nouvelle mécanique. »
+
+Conséquences mécaniques de cet amendement (implémentées le même jour, mêmes fichiers) :
+
+- `contract.py` : `delegation_context` sort de l'exigence de présence (n'est plus exigé "rempli
+  ou `aucun`, jamais absent") — un champ **documentation** ne peut pas bloquer le dispatch. S'il
+  est présent, il reste type-vérifié (`str`/liste), jamais silencieusement toléré malformé. En
+  contrepartie, `contract.py` gagne une garde mécanique NEUVE sur la couche `prompt` : un champ
+  `prompt` **rempli** dont le texte n'apparaît pas dans le prompt réellement rendu par
+  `_render_prompt` lève `ContractIncomplete` — l'invariant « tout champ prompt rempli est
+  rendu », qui existait par construction mais n'était vérifié par personne, est désormais vérifié.
+- `system_agents.py` (Observer, lecture seule) : la matrice Declare/Injecte/Consomme/Prouve ne
+  classe plus `skill`/`plugin`/`delegation_context` non retrouvés dans le texte du prompt comme
+  `DECLARED_NOT_INJECTED` (le drift « contrat sans effet réel », réservé aux vrais champs
+  `prompt` manquants) — ils reçoivent leur propre statut FERMÉ : `CONFORME_DISPATCH` pour
+  `skill`/`plugin` (preuve = attestation dispatch, allowed_tools/audit) et
+  `CONFORME_DOCUMENTAIRE` pour `delegation_context`/`parent_agent` (hors matrice d'exécution par
+  construction). Aucun statut historique n'est supprimé.
 
 ---
 

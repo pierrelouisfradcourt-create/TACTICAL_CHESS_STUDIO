@@ -1,0 +1,61 @@
+# Registre de planning du studio — schema §06 (ratifie Pierre 2026-08-02)
+# Source de ratification : message Pierre 2026-08-02 « phase reparation de la
+# Forge », priorites P0-P5 et « ordre reel » verbatim. Toute tache sans raison
+# ou sans preuve de fin est rejetee par le validateur de la vue Planning.
+# Ecriture : Pierre (ou proposition Observer ratifiee). Jamais d'ecriture agent
+# directe hors de ce commit de creation, lui-meme ordonne par Pierre (etape 1
+# de l'ordre reel).
+
+- id: P1-planning-ratifie
+  objectif: "Creer le cerveau executif : studio_brain/planning/planning.yaml lu par la piece Planning et l'Accueil"
+  raison: "Directive Pierre 2026-08-02 (P1) — « le cockpit a montre que le futur est vide » ; ecart M1 identifie par Observer (registre NOT_OBSERVABLE)"
+  priorite: 1
+  etat: TERMINE
+  depends_on: []
+  decision_attendue: "aucune — ratifie par le message du 2026-08-02, ce fichier EST l'execution"
+  preuve_de_fin: "la vue Planning affiche le registre (plus NOT_OBSERVABLE) et l'Accueil affiche la premiere tache EN_ATTENTE non bloquee comme PROCHAINE ACTION"
+
+- id: P0-boucle-lessons-kb
+  objectif: "Creer le chemin Lessons -> proposition KB -> validation Pierre -> mise a jour catalogue : la connaissance collective doit evoluer"
+  raison: "Plus gros defaut decouvert (Pierre P0) ; prouve par Observer : bloc retour KB NOT_OBSERVABLE, drift lecon_routee_sans_consommateur x5, 0 entree breakout dans knowledge_base malgre 5 lecons validees"
+  priorite: 1
+  etat: EN_COURS
+  depends_on: [P1-planning-ratifie]
+  decision_attendue: "ratification par Pierre de chaque proposition KB generee (propose-only : aucune ecriture automatique du catalogue)"
+  preuve_de_fin: "le bloc retour KB passe ACTIF dans Observer : une lecon validee produit une proposition KB datee, et apres ratification une entree catalogue reliee au projet ; le drift lecon_routee_sans_consommateur tombe a 0"
+
+- id: P2-verrou-contrat-prompt
+  objectif: "Verrouiller la chaine CONTRAT -> PROMPT -> AGENT : tout champ obligatoire doit etre declare, injecte, consomme, prouve — sinon drift « contrat sans effet reel »"
+  raison: "Directive Pierre P2 ; prouve par la vue Injection : 3 champs (skill, plugin, delegation_context) valides par la porte de contrat mais jamais rendus dans le prompt, sur 10/10 activations"
+  priorite: 2
+  etat: EN_ATTENTE
+  depends_on: [P1-planning-ratifie]
+  decision_attendue: "gate Pierre sur le mecanisme (regle de rendu dans contract.py OU requalification explicite des 3 champs comme hors-prompt) — les deux issues sont legitimes, l'ecart silencieux ne l'est pas"
+  preuve_de_fin: "vue Injection sur une nouvelle campagne : 0 maillon DECLARE_NON_RETROUVE, ou champs requalifies avec statut explicite dans SCHEMA.md"
+
+- id: P3-personnel-de-studio
+  objectif: "Fiche agent = collaborateur : Mission / Recoit / Produit / Travaille avec / Danger — derives mecaniquement, plus d'identifiants bruts au premier ecran"
+  raison: "Directive Pierre P3 ; la vue existe (47 fiches), les liens Recoit/Produit existent dans le graphe pedagogique — il manque la synthese pilotable"
+  priorite: 3
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: "aucune (cote Observer uniquement, aucune ecriture)"
+  preuve_de_fin: "chaque fiche affiche les 5 rubriques, chacune sourcee ; « Danger » uniquement si derivable d'une garde ou d'un drift reel, sinon NOT_OBSERVABLE"
+
+- id: P4-doctrine-vs-realite
+  objectif: "Resorber les contradictions doctrine/realite majeures : chaque drift documentation aboutit a une decision — mettre a jour la doctrine OU corriger la realite"
+  raison: "Directive Pierre P4 (« le Master Schema n'est pas mauvais, il est vieux ») ; prouve : grid_nav_probe FAIT sans traces, PONG en desaccord entre les deux docs, 5 projets traces absents du curriculum, VUE 4 ignorant lessons.jsonl"
+  priorite: 3
+  etat: EN_ATTENTE
+  depends_on: [P1-planning-ratifie]
+  decision_attendue: "arbitrage Pierre par drift (7 drifts roadmap + 5 documentation) : maj doctrine ou correction realite"
+  preuve_de_fin: "la famille documentation de la vue Drift diminue apres chaque arbitrage applique ; zero drift documentation non traite vieux de plus de 14 jours"
+
+- id: P5-jeu-test-apprentissage
+  objectif: "Lancer un nouveau jeu test complet et MESURER si la Forge apprend : le prochain jeu doit beneficier des erreurs du precedent"
+  raison: "Test ultime (Pierre) : « si oui, la Forge devient un systeme apprenant ; si non, elle reste un excellent observateur »"
+  priorite: 4
+  etat: BLOQUE
+  depends_on: [P0-boucle-lessons-kb, P2-verrou-contrat-prompt, P4-doctrine-vs-realite]
+  decision_attendue: "choix du jeu + go campagne (gate Pierre)"
+  preuve_de_fin: "mesurable par Observer sur la nouvelle campagne : (a) le run consomme au moins 1 entree KB issue des lecons Breakout (search_log + catalog traces), (b) aucune failure signature deja lecionnee (timeout greenfield L1, oracle non enregistre L2) ne se reproduit, (c) le pre-mortem cite les lecons et le build ne les viole pas"

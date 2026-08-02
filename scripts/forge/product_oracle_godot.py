@@ -11,12 +11,16 @@ jeu — `games/snake/07_TESTS/oracle/*.gd` (10 fichiers, 2026-07-29) sont des sc
 exécute, et rend un mapping plat `{nom_volet: résultat}` — exactement la forme que
 `check_observable_coverage` attend (même contrat que `product_oracle.run_product_oracle`).
 
-Un seul volet exige une FENÊTRE GPU RÉELLE : ``core_render_frame`` (mesuré
-2026-07-22, cf. mémoire `godot_capture_requires_gpu_window` : `--headless` rend une
-texture NULLE, driver dummy — aucune preuve pixel possible en headless). Ce module ne
-le lance JAMAIS en headless en espérant un vert : il est TOUJOURS `NOT_MEASURED`,
-motivé, tant qu'aucune fenêtre GPU n'est explicitement demandée (hors périmètre de
-cette mission — aucun `runner`/`binary_resolver` de test n'a de fenêtre GPU réelle).
+Exemption GPU par MARQUEUR (R3, remplace l'exemption par nom en dur) : un volet dont
+le payload FORGE_ORACLE déclare `"requires_gpu_window": true` (clé
+`_GPU_WINDOW_MARKER_KEY`) est TOUJOURS rendu `NOT_MEASURED`, motivé (raison citant la
+leçon `forge.oracle_fail_vs_not_measured_marker`), même si son `ok` vaut `false` —
+cette déclaration fait AUTORITÉ. `GPU_WINDOW_REQUIRED_VOLETS` (aujourd'hui
+`{"core_render_frame"}`, mesuré 2026-07-22, cf. mémoire
+`godot_capture_requires_gpu_window`) reste un FILET de repli, nommé en dur, pour les
+volets `.gd` existants qui ne portent pas encore la clé (INTERDIT de les modifier) :
+pour ceux-là ce module ne lance JAMAIS le runner en espérant un vert, `NOT_MEASURED`
+motivé sans exécution — comportement historique préservé à l'identique.
 
 Discipline `NOT_MEASURED != OK` (invariant global ratifié Pierre, même que
 `product_oracle.py`) partout : binaire Godot introuvable, sortie illisible, JSON
@@ -49,9 +53,12 @@ _FORGE_ORACLE_LINE = re.compile(r"^FORGE_ORACLE\s+(\S+)\s+(\{.*\})\s*$")
 _ORACLE_MARKER = "FORGE_ORACLE"
 
 # Nom du volet qui exige une fenêtre GPU réelle (`--headless` = texture nulle, cf.
-# mémoire `godot_capture_requires_gpu_window`, 2026-07-22). Nommé en dur ICI (pas une
-# heuristique de contenu) : c'est un fait mesuré une fois pour ce fichier précis, pas
-# une propriété déductible du texte du script.
+# mémoire `godot_capture_requires_gpu_window`, 2026-07-22). Nommé en dur ICI : c'est
+# un FILET de repli, pas l'autorité — cf. `_GPU_WINDOW_MARKER_KEY` ci-dessous. Ce
+# filet reste nécessaire pour les `.gd` existants qui ne portent pas encore la clé
+# (INTERDIT de les modifier) : pour eux, on ne lance JAMAIS le runner (comme avant
+# R3), donc leur payload FORGE_ORACLE n'est jamais lu — le nom en dur est le seul
+# signal disponible.
 GPU_WINDOW_REQUIRED_VOLETS = frozenset({"core_render_frame"})
 
 _GPU_WINDOW_REASON = (
@@ -60,6 +67,36 @@ _GPU_WINDOW_REASON = (
     "(mesuré 2026-07-22, cf. mémoire godot_capture_requires_gpu_window). Ce "
     "collecteur ne lance jamais ce volet en headless en espérant un vert."
 )
+
+# Clé optionnelle que le PAYLOAD JSON d'un volet (la partie `{...}` de la ligne
+# `FORGE_ORACLE <nom> {...}`, cf. `_FORGE_ORACLE_LINE`) peut porter pour déclarer
+# LUI-MÊME qu'il n'a pas pu être mesuré faute de fenêtre GPU réelle — routage R3
+# (remplace l'exemption par nom en dur par une exemption par MARQUEUR). Un volet qui
+# déclare `"requires_gpu_window": true` dans son payload fait AUTORITÉ sur
+# `GPU_WINDOW_REQUIRED_VOLETS` : même si son `ok` vaut `false`, le résultat est
+# `NOT_MEASURED`, jamais `FAIL` — cf. leçon `forge.oracle_fail_vs_not_measured_marker`
+# (« un oracle qui rend FAIL sur ce qu'il ne peut pas mesurer envoie réparer la
+# mauvaise chose »). `GPU_WINDOW_REQUIRED_VOLETS` reste le FILET pour les volets qui
+# ne déclarent rien (repli, comportement historique préservé) — cf. commentaire
+# ci-dessus sur pourquoi ces volets-là ne sont jamais exécutés.
+_GPU_WINDOW_MARKER_KEY = "requires_gpu_window"
+
+
+def _marker_gpu_window_reason(fichier: str) -> str:
+    """Raison NOT_MEASURED pour un volet qui s'est auto-déclaré `requires_gpu_window`
+    dans son payload FORGE_ORACLE (routage par marqueur, pas par nom en dur). Le nom
+    de la leçon `oracle_fail_vs_not_measured_marker` DOIT apparaître littéralement
+    dans cette raison : c'est le fil de traçabilité qu'Observer peut constater depuis
+    la sortie produite par une exécution réelle."""
+    return (
+        f"{fichier} déclare '{_GPU_WINDOW_MARKER_KEY}: true' dans son payload "
+        "FORGE_ORACLE — fenêtre GPU réelle requise, aucune preuve pixel possible en "
+        "headless. NOT_MEASURED (pas FAIL), conformément à la leçon "
+        "forge.oracle_fail_vs_not_measured_marker : un oracle qui rend FAIL sur ce "
+        "qu'il ne peut pas mesurer envoie réparer la mauvaise chose. Ce volet fait "
+        "AUTORITÉ sur GPU_WINDOW_REQUIRED_VOLETS (déclaration par marqueur, pas par "
+        "nom en dur)."
+    )
 
 
 def _not_measured(reason: str, **extra) -> dict:
@@ -198,10 +235,15 @@ def run_godot_product_oracle(
     - `runner(binary, game_dir, script_res_path, *, timeout_s) -> dict` (par défaut
       `_default_runner`) exécute UN oracle et renvoie `{returncode, stdout, stderr}`
       (ou `{ok: None, timeout: True, ...}` / `{ok: None, error: ..., ...}` sur échec
-      de spawn) — jamais appelé sur `core_render_frame` (fenêtre GPU requise, cf.
-      `GPU_WINDOW_REQUIRED_VOLETS`).
-    - `core_render_frame` est TOUJOURS `NOT_MEASURED`, motivé, tant qu'aucune fenêtre
-      GPU réelle n'est demandée — jamais lancé en headless en espérant un vert.
+      de spawn) — jamais appelé sur les volets du FILET `GPU_WINDOW_REQUIRED_VOLETS`
+      (repli nom en dur, comportement historique).
+    - Exemption GPU par MARQUEUR (autorité) : un volet EXÉCUTÉ dont le payload
+      FORGE_ORACLE déclare `"requires_gpu_window": true` est rendu `NOT_MEASURED`,
+      raison citant la leçon `forge.oracle_fail_vs_not_measured_marker`, MÊME SI
+      `ok` vaut `false` — jamais un FAIL fabriqué sur ce qui n'a pas pu être mesuré.
+      Les volets du FILET `GPU_WINDOW_REQUIRED_VOLETS` restent TOUJOURS
+      `NOT_MEASURED` sans jamais être exécutés (repli, pour les `.gd` existants qui
+      ne portent pas encore la clé).
     - Robustesse : sortie illisible, JSON invalide, oracle absent, timeout du process
       => `NOT_MEASURED` motivé, JAMAIS d'exception qui remonte à l'appelant.
     """
@@ -266,6 +308,16 @@ def run_godot_product_oracle(
             continue
 
         payload = parsed["payload"]
+
+        if payload.get(_GPU_WINDOW_MARKER_KEY) is True:
+            # Autorité par marqueur (R3) : le volet s'est lui-même déclaré
+            # dépendant d'une fenêtre GPU réelle dans son payload — prime sur
+            # GPU_WINDOW_REQUIRED_VOLETS, jamais un FAIL fabriqué sur ce qui n'a
+            # pas pu être mesuré.
+            result[volet_name] = _not_measured(
+                _marker_gpu_window_reason(path.name), fichier=str(path), payload=payload)
+            continue
+
         ok = payload.get("ok")
         if not isinstance(ok, bool):
             result[volet_name] = _not_measured(

@@ -46,6 +46,28 @@ const ORIGINAL_MARKER = "ORIGINAL — aucune inspiration externe citee";
 
 const HEX64 = /^[0-9a-f]{64}$/;
 const URL_RE = /^https?:\/\/.+/;
+
+// v4 (2026-08-02) — amendement R3 RATIFIE PIERRE (option 1 de
+// knowledge_base/proposals/_TAXONOMY_AMENDMENT_PROPOSAL.md) : la KB accepte la
+// connaissance PRODUITE par la Forge (lecon validee) en plus de la connaissance
+// importee. Schema FERME de la provenance interne — toute cle inconnue = REJET,
+// meme regime que le reste du validateur. La validation humaine reste
+// obligatoire (validation.status === "validated" exige, decideur nomme).
+function isProvenanceInternal(v) {
+  if (v === null || typeof v !== "object" || Array.isArray(v)) return false;
+  const keys = Object.keys(v).sort();
+  if (keys.join(",") !== "lesson_id,lessons_source,supporting_runs,validation") return false;
+  if (!isStr(v.lessons_source) || !isStr(v.lesson_id)) return false;
+  if (!Array.isArray(v.supporting_runs) || v.supporting_runs.length === 0
+      || !v.supporting_runs.every((r) => typeof r === "string" && r.length > 0)) return false;
+  const val = v.validation;
+  if (val === null || typeof val !== "object" || Array.isArray(val)) return false;
+  const vkeys = Object.keys(val).sort();
+  if (vkeys.join(",") !== "status,validated_at,validated_by") return false;
+  if (val.status !== "validated") return false;
+  if (!isStr(val.validated_by) || !isStr(val.validated_at)) return false;
+  return true;
+}
 const ID_PREFIX = { asset: "asset-", system: "sys-", pattern: "pat-", template: "tpl-", role: "role-" };
 // Sous-dossier attendu par type (confinement — R7/§5).
 const SUBDIR = { asset: "knowledge_base/assets/", system: "knowledge_base/systems/",
@@ -279,6 +301,10 @@ const BRICK_SPEC = {
   kind: (v) => ["system", "pattern", "template"].includes(v),
   function: isStr, source: isStr,
   provenance_url: (v) => v === null || isStr(v),
+  // v4 : provenance INTERNE (lecon Forge validee) — cle OPTIONNELLE pour que
+  // les entrees historiques restent valides sans retouche (historique intact,
+  // regle de ratification). Si presente : schema ferme isProvenanceInternal.
+  provenance_internal: optional((v) => v === null || isProvenanceInternal(v)),
   license: isStr,
   runtime: (v) => ["agnostic", "html", "godot"].includes(v),
   dependencies: isStrArr, parameters: isPlainObj,
@@ -442,7 +468,17 @@ function validateBrick(e, root, err, brickIds) {
   if (e.kind === "pattern") {
     if (KNOWN_SPDX.includes(e.license) && !PATTERN_LICENSES.includes(e.license)) err(id, "R5", `licence non autorisee pour un pattern: ${e.license}`);
     if (e.advisory_only !== true) err(id, "R5", "un pattern est advisory_only: true (cite, jamais injecte)");
-    if (e.provenance_url === null) err(id, "R3", "provenance_url obligatoire pour un pattern (citation verifiable)");
+    // v4 ratifie : un pattern porte EXACTEMENT UNE provenance — externe
+    // (provenance_url, connaissance importee) OU interne (provenance_internal,
+    // lecon Forge validee par un humain). Jamais les deux, jamais aucune.
+    const hasExterne = e.provenance_url !== null;
+    const hasInterne = e.provenance_internal !== undefined && e.provenance_internal !== null;
+    if (hasExterne && hasInterne) {
+      err(id, "R3", "exactement une provenance : provenance_url ET provenance_internal presentes — jamais les deux");
+    }
+    if (!hasExterne && !hasInterne) {
+      err(id, "R3", "exactement une provenance : provenance_url (citation externe) OU provenance_internal (lecon Forge validee)");
+    }
     if (e.path !== null && !e.path.endsWith(".md")) err(id, "R5", "le path d'un pattern est une fiche .md, jamais un module de code");
   }
   if (e.provenance_url !== null && !URL_RE.test(e.provenance_url)) err(id, "R3", "provenance_url doit etre http(s)");

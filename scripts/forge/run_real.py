@@ -25,6 +25,7 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -33,6 +34,11 @@ from forge.dispatch import DEDICATED_PROFILE_STEPS, DETERMINISTIC, ORDER, PROFIL
 from forge.driver import ForgeDriver
 from forge.panel import panel_prisme_executor
 from forge.pool import DEFAULT_POOL_SIZE
+# CHANTIER 2 (consommateur mecanique de la lecon pat-forge-preflight_oracle_registration) :
+# le pre-vol doit s'executer AVANT toute construction d'executor/driver, pour que le refus
+# d'une campagne non enregistree ne depense JAMAIS une activation LLM (cf. main() ci-dessous,
+# l'appel est place avant task_by_step/executor/ForgeDriver).
+from forge.preflight import preflight_campagne
 # Chantier RAISONNEMENT (5e étape du charter V2, docs/fvl/FVL_PHASE_0_5_CHARTER.md
 # §4) : le socle d'observation (forge.reasoning_observability) a déjà PROUVÉ (a) que
 # `claude -p` documente `--effort <level>` et (b) que ce module ne le construisait
@@ -48,6 +54,11 @@ from forge.tool_observability import extract_final_result
 # un print(json.dumps(report)) portant du texte LLM — humangate_flags Prisme,
 # stderr claude — crashait en UnicodeEncodeError APRÈS un run pourtant terminé).
 from forge.verify_run import _harden_streams
+# G1-G2 (capteurs, ratifié Pierre) : la ligne télémétrie est écrite par le DRIVER
+# (studio_link.record_telemetry) — hors périmètre de ce chantier. Le pont additif
+# est le dépôt stage_telemetry_extra (même module que le writer) : l'exécuteur
+# dépose les champs MESURÉS, la prochaine écriture télémétrie les consomme.
+from forge import studio_link
 
 logger = logging.getLogger(__name__)
 
@@ -322,6 +333,116 @@ def extract_json_payload(text: str) -> tuple[dict | None, str]:
     return data, ""
 
 
+# --- G1-G2 : vérité métrique minimale (ratifié Pierre, verbatim : « Commencer
+# uniquement G1-G2. Priorité : 1. session_id 2. task_id 3. modèle utilisé
+# 4. tokens réels. ») ---------------------------------------------------------
+# Écarts mesurés que ces capteurs comblent : corrélation transcript<->run par
+# inférence seulement (session_id absent de la télémétrie) · wm1 opus-4-8
+# signé/opus-5 exécuté (le modèle MESURÉ n'était capturé nulle part) · télémétrie
+# tokens fausse ×6,7-12,3 et cache ignoré (seul le `usage` de la ligne finale
+# `result` était lu — jamais le cumul dédupliqué des tours assistant).
+# Capteur, jamais juge : AUCUNE exception ne sort de ce bloc, un échec de capture
+# rend des champs à None (+ warning log) et le run continue à l'identique.
+
+_STREAM_METRIC_KEYS = ("session_id", "model_used", "tokens_measured")
+
+
+def _usage_int(usage: dict, key: str) -> int:
+    """int(usage[key]) défensif : absent/None/non-numérique -> 0 (zéro mesuré)."""
+    try:
+        return int(usage.get(key) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def parse_stream_metrics(stdout_text: str) -> dict:
+    """Fonction PURE : extrait du flux `--output-format stream-json --verbose`
+    DÉJÀ REÇU (aucun appel, aucune I/O) les métriques MESURÉES.
+
+    Retourne toujours un dict à 3 clés :
+      - session_id      : str | None — première valeur `session_id` (message
+                          init/system du CLI) ou `sessionId` (forme portée par
+                          les transcripts .claude/projects, même donnée) vue
+                          dans le flux.
+      - model_used      : list[str] | None — ensemble ORDONNÉ des valeurs
+                          DISTINCTES de message.model des tours assistant :
+                          le modèle réellement EXÉCUTÉ, jamais le déclaré.
+      - tokens_measured : dict | None — {input, output, cache_read,
+                          cache_creation} : cumul des `usage` des tours
+                          assistant DÉDUPLIQUÉS par message.id. Un même message
+                          apparaît sur PLUSIEURS lignes du flux (une par content
+                          block) avec le MÊME usage — sommer sans dédupliquer
+                          recrée l'écart ×6,7-12,3 déjà mesuré. Dernière
+                          occurrence par id retenue (usage identique observé,
+                          mais « dernière » = la plus complète si jamais le CLI
+                          raffinait en cours de message).
+
+    Robustesse (le capteur ne casse JAMAIS l'exécuteur) : lignes vides/non-JSON
+    ignorées, objets non-dict ignorés, champs absents ou mal typés ignorés ;
+    aucun assistant vu -> model_used/tokens_measured None ; aucune exception.
+    """
+    session_id: str | None = None
+    models: list[str] = []
+    usage_by_id: dict[str, dict] = {}
+    anon = 0
+    for line in (stdout_text or "").splitlines():
+        line = line.strip()
+        if not line or not line.startswith("{"):
+            continue
+        try:
+            obj = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        if session_id is None:
+            sid = obj.get("session_id") or obj.get("sessionId")
+            if isinstance(sid, str) and sid.strip():
+                session_id = sid.strip()
+        if obj.get("type") != "assistant":
+            continue
+        msg = obj.get("message")
+        if not isinstance(msg, dict):
+            continue
+        model = msg.get("model")
+        if isinstance(model, str) and model.strip() and model.strip() not in models:
+            models.append(model.strip())
+        usage = msg.get("usage")
+        if isinstance(usage, dict):
+            mid = msg.get("id")
+            if isinstance(mid, str) and mid.strip():
+                usage_by_id[mid] = usage  # dédup : même id = même appel API
+            else:
+                anon += 1
+                usage_by_id[f"_sans_id_{anon}"] = usage
+    tokens_measured: dict | None = None
+    if usage_by_id:
+        tokens_measured = {"input": 0, "output": 0, "cache_read": 0, "cache_creation": 0}
+        for usage in usage_by_id.values():
+            tokens_measured["input"] += _usage_int(usage, "input_tokens")
+            tokens_measured["output"] += _usage_int(usage, "output_tokens")
+            tokens_measured["cache_read"] += _usage_int(usage, "cache_read_input_tokens")
+            tokens_measured["cache_creation"] += _usage_int(usage, "cache_creation_input_tokens")
+    return {
+        "session_id": session_id,
+        "model_used": models or None,
+        "tokens_measured": tokens_measured,
+    }
+
+
+def _capture_stream_metrics(stdout_text: str) -> dict:
+    """Ceinture-bretelles autour de parse_stream_metrics : la fonction pure ne
+    lève pas par construction, mais le contrat du capteur est ABSOLU (jamais
+    faire échouer un run) — échec imprévu => champs à None + warning log."""
+    try:
+        return parse_stream_metrics(stdout_text)
+    except Exception:
+        logger.warning(
+            "capture des métriques stream-json échouée (capteur advisory, "
+            "non bloquant) — champs mesurés à None", exc_info=True)
+        return {k: None for k in _STREAM_METRIC_KEYS}
+
+
 def _effort_flag_for_model(model: str) -> str | None:
     """Résout le réglage `--effort` pour `model` (le nom RÉELLEMENT passé à cet
     appel — `payload.model`, ou `model_override` après une escalade) via le
@@ -411,6 +532,12 @@ def _claude_call_raw(prompt: str, model: str, *, add_dir: Path,
     )
     duration = time.time() - started
 
+    # G1-G2 : métriques MESURÉES du flux déjà reçu — capturées sur TOUS les
+    # chemins de retour (timeout/erreur compris : un flux partiel porte déjà
+    # l'init session_id et des tours assistant). Additif pur : aucune clé
+    # existante du dict de retour n'est modifiée.
+    stream_metrics = _capture_stream_metrics(stdout)
+
     if timed_out:
         # FIR-01 : l'arbre de process a été tué (coût borné) — le flag `timeout`
         # laisse l'aval (executor) inspecter le disque avant de conclure (FIR-02).
@@ -420,11 +547,13 @@ def _claude_call_raw(prompt: str, model: str, *, add_dir: Path,
             "duration_s": duration,
             "reason": f"claude -p timeout ({timeout_s:.0f}s) — arbre de process tué "
                       "(FIR-01), coût borné",
+            **stream_metrics,
         }
     if returncode != 0:
         return {
             "ok": False,
             "reason": f"claude -p returncode={returncode}: {stderr[-2000:]}",
+            **stream_metrics,
         }
     # Chantier CAPTURE : extraction déterministe (aucun LLM) de la DERNIÈRE ligne
     # `type: result` du flux JSONL — même fonction, déjà PROUVÉE sur capture réelle
@@ -435,9 +564,11 @@ def _claude_call_raw(prompt: str, model: str, *, add_dir: Path,
     data = extract_final_result(stdout)
     if data is None:
         return {"ok": False, "reason": f"sortie claude -p (stream-json) sans ligne "
-                                       f"'result' exploitable: {stdout[-2000:]}"}
+                                       f"'result' exploitable: {stdout[-2000:]}",
+                **stream_metrics}
     if data.get("is_error"):
-        return {"ok": False, "reason": f"claude -p is_error: {data.get('result', '')[:2000]}"}
+        return {"ok": False, "reason": f"claude -p is_error: {data.get('result', '')[:2000]}",
+                **stream_metrics}
 
     usage = data.get("usage") or {}
     tokens = int(usage.get("input_tokens", 0)) + int(usage.get("output_tokens", 0))
@@ -457,6 +588,10 @@ def _claude_call_raw(prompt: str, model: str, *, add_dir: Path,
         "tokens": tokens, "duration_s": duration, "cost_usd": cost_usd,
         "cache_creation_tokens": cache_creation_tokens,
         "cache_read_tokens": cache_read_tokens,
+        # G1-G2 : champs MESURÉS additifs — les champs déclarés ci-dessus
+        # (tokens/cost_usd, issus de la seule ligne `result`) restent INTACTS :
+        # la comparaison déclaré/mesuré est précisément le but.
+        **stream_metrics,
     }
 
 
@@ -781,6 +916,27 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
             prompt, model, add_dir=add_dir,
             tools=_STEP_TOOLS.get(etape, ()), timeout_s=step_timeout,
         )
+        # G1-G2 (ratifié) : task_id unifié `run_id:etape:activation` — calculé ICI,
+        # le seul point d'appel où les 3 valeurs existent ensemble (context["attempt"]
+        # = compteur d'activation du driver, cf. driver.py l.627 : le MÊME entier que
+        # porte déjà le dispatch_marker FORGE_DISPATCH:etape:run_id:attempts). Puis
+        # dépôt des champs MESURÉS pour la ligne télémétrie que le driver écrira
+        # (studio_link.record_telemetry — succès COMME halt, les deux chemins du
+        # driver passent après ce retour, dans le même process). Capteur advisory :
+        # jamais une exception d'ici ne fait échouer le run.
+        try:
+            task_id = f"{context['run_id']}:{etape}:{context.get('attempt')}"
+            res["task_id"] = task_id  # additif : visible aussi dans le détail d'étape
+            studio_link.stage_telemetry_extra(context["run_id"], etape, {
+                "session_id": res.get("session_id"),
+                "task_id": task_id,
+                "model_used": res.get("model_used"),
+                "tokens_measured": res.get("tokens_measured"),
+            })
+        except Exception:
+            logger.warning(
+                "capteur G1-G2 non déposé pour étape=%s (advisory, non bloquant)",
+                etape, exc_info=True)
         if res.get("ok"):
             # (b) matérialisation déterministe par l'EXÉCUTEUR (jamais l'agent).
             failure = _materialize_artifact(etape, str(res.get("output", "")),
@@ -1066,6 +1222,28 @@ def main(argv: list[str] | None = None) -> None:
     stale = stale_run_dir_reason(run_dir)
     if stale:
         build_parser().error(stale)
+
+    # Chantier « consommateur mécanique » de la leçon KB ratifiée
+    # pat-forge-preflight_oracle_registration : le projet doit être résoluble dans
+    # la config d'oracle AVANT toute dépense LLM — sinon un builder entier peut
+    # tourner pour rien (visible seulement à s10a, après coup). Placé ICI, avant
+    # task_by_step/executor/ForgeDriver : un pré-vol raté ne construit RIEN de ce
+    # qui mène à un appel `claude -p`, donc n'en dépense aucun.
+    oracle_config_arg = (REPO_ROOT / args.oracle_config) if args.oracle_config else None
+    preflight = preflight_campagne(
+        args.project, oracle_config_path=oracle_config_arg, repo_root=REPO_ROOT,
+    )
+    if not preflight["ok"]:
+        # ASCII pur (pas d'accent) : évite le piège console cp1252 déjà connu
+        # (P3, forge.verify_run._harden_streams) sur un message tout neuf.
+        print(
+            "PRE-VOL ECHOUE -- campagne NON lancee (aucune activation LLM depensee).\n"
+            f"projet : {preflight['project']}\n"
+            f"raison : {preflight['raison_echec']}\n"
+            f"lecon citee ({preflight['justification_source']}) : {preflight['justification']}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     # (f) tâches : défauts non vides (toutes les étapes LLM du profil full) <- CLI
     # (non vide seulement) <- tasks-file (par-dessus tout).

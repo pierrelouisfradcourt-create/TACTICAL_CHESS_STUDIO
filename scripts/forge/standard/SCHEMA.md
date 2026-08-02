@@ -255,6 +255,123 @@ build on connaît la livraison, et la soustraction est mécanique.
 l'exécution des oracles, en aval. Les confondre ferait noter sa propre copie à celui qui
 planifie — c'est la séparation qui rend `UNKNOWN` et `IMPLEMENTED` distincts.
 
+### `lifecycle` — étage 1 ratifié Pierre 2026-08-02
+
+Bloc **OPTIONNEL** par ligne de wiremap v2. Une ligne **sans** `lifecycle` reste valide
+telle quelle — toutes les wiremaps existantes passent inchangées (« Ne pas casser
+l'existant. »). `"lifecycle": null` vaut absence, comme les autres champs optionnels
+d'une ligne (`reason`, `until`, …).
+
+```jsonc
+"lifecycle": {
+  "state": "tested",                      // required | implemented | tested — enum FERMÉ
+  "evidence": [                           // des REÇUS, jamais des déclarations d'agent
+    {"kind": "oracle",                    // file_write | oracle | mutation | visual
+     "ref": "lab/forge_runs/<run>/verdict.json",
+     "sha256": "…"}                       // optionnel
+  ],
+  "last_verified": "2026-08-02T00:00:00+00:00",          // ISO8601 parsable
+  "verified_by": "s10s-oracle-standard:breakout_v2-…"    // <oracle_id|run_id> — un reçu
+}
+```
+
+**Invariants (verbatim, ratifiés Pierre 2026-08-02) :**
+
+- « **implemented sans evidence = invalide** » — idem `tested`. Un état revendiqué sans
+  reçu est exactement l'omission que ce bloc existe pour fermer.
+- « **Le stampage reste oracle uniquement** » — `verified_by` n'est **jamais un agent
+  LLM** : c'est un reçu (identifiant d'oracle ou de run). Un builder ne se déclare pas
+  lui-même construit.
+- « **L'overlay Observer reste obligatoire comme contre-pouvoir** » —
+  `scripts/observer/wiremap_living.py` continue de confronter la carte aux transcripts
+  et aux reçus, stampage ou pas ; la vue dérivée n'est pas remplacée par ce bloc.
+- « **Ne pas casser l'existant.** »
+
+**Règles mécaniques** (portées par `check_line_states`, `scripts/forge/standard_oracles.py`) :
+
+- schéma **FERMÉ** : toute clé inconnue dans `lifecycle` (ou dans une entrée
+  d'`evidence`) = `FAIL` — régime du studio, aucun champ toléré en silence ;
+- `state` ∈ {`required`, `implemented`, `tested`}, obligatoire ;
+- `evidence[]` : chaque entrée est un objet `{kind, ref, sha256?}` — `kind` ∈
+  {`file_write`, `oracle`, `mutation`, `visual`}, `ref` non vide, `sha256` optionnel ;
+- `implemented` ou `tested` **sans `evidence` non vide** = `FAIL` ;
+- `tested` exige **au moins un** `evidence.kind` ∈ {`oracle`, `mutation`} — un fichier
+  écrit ou une capture ne prouvent pas un test ;
+- `implemented`/`tested` : `last_verified` (ISO8601 parsable) et `verified_by`
+  (non vide) **obligatoires** ; en `required`, ces deux champs sont optionnels — rien
+  n'a encore été vérifié, exiger un reçu forcerait à en fabriquer un — mais s'ils sont
+  présents ils sont validés (jamais un contenu invalide accepté en silence).
+
+**Étage 2 NON ratifié** : le **producteur** de ce bloc (stampage par l'oracle s10s en
+passe post-verdict) n'est **pas** ratifié — conditionné **P1-G4** (capteurs fichiers).
+À ce jour, PERSONNE n'écrit `lifecycle` : le schéma l'accepte, le validateur le vérifie,
+aucun writer n'existe. C'est l'étage 1 tel que ratifié — un « validateur sans
+producteur » assumé et daté (cf. règle ratifiée 2026-07-30), pas un oubli.
+
+### `FORGE_ORACLE` — convention de sortie stdout des oracles Godot (ratifié Pierre 2026-08-02)
+
+Section posée en réponse à la leçon `forge.forge_oracle_convention_undocumented` :
+« la convention FORGE_ORACLE ne vit que dans le code Snake et le runner — aucun
+document du standard ne la déclare ». Ce qui suit est relevé du code (le parseur et un
+oracle réel), pas inventé.
+
+**Forme littérale** — un oracle `.gd` (`SceneTree` autonome sous
+`<jeu>/07_TESTS/oracle/*.gd`) émet sur stdout UNE ligne :
+
+```
+FORGE_ORACLE <nom_volet> {"ok": <bool>, "fails": [...], ...}
+```
+
+Regex de référence côté collecteur Forge : `product_oracle_godot.py:43`
+(`_FORGE_ORACLE_LINE = re.compile(r"^FORGE_ORACLE\s+(\S+)\s+(\{.*\})\s*$")`). Exemple
+réel : `games/breakout_v2/07_TESTS/oracle/demo_brick_destruction.gd:47`
+(`print("FORGE_ORACLE demo_brick_destruction " + JSON.stringify({"ok": ok, "fails":
+fails, "data": {...}}))`).
+
+**Découverte** — `discover_oracle_files` (`product_oracle_godot.py:73-92`) liste, triés
+(ordre déterministe), les `.gd` sous `<game_dir>/07_TESTS/oracle/` dont le texte
+contient le marqueur `FORGE_ORACLE` (`_ORACLE_MARKER`, `product_oracle_godot.py:49`) —
+lecture statique du fichier, jamais une exécution.
+
+**Champs du JSON réellement consommés** (`product_oracle_godot.py:268-283`) :
+- `ok` (bool, obligatoire) — absent ou non booléen ⇒ `NOT_MEASURED` motivé
+  (`product_oracle_godot.py:270-274`), jamais un `FAIL` fabriqué ;
+- `fails` (liste, `payload.get("fails", [])`) — défaut `[]` si absent.
+
+Les autres champs observés côté jeu (`data`, `code`, …) sont conservés tels quels dans
+`payload` (le dict JSON entier, réattaché au résultat — `product_oracle_godot.py:283`)
+mais **non interprétés individuellement** par le collecteur ; s'ils portent un contrat
+au-delà de ça, ce n'est pas déterminé par ce module.
+
+**Dernière ligne conforme retenue** — `_parse_forge_oracle_line`
+(`product_oracle_godot.py:159-176`) relit toute la sortie stdout et garde la DERNIÈRE
+ligne qui matche la regex (des logs avant elle sont tolérés, le contrat ne les exclut
+pas).
+
+**Code de sortie** — convention observée côté jeu : `quit(0 if ok else 1)`
+(`games/breakout_v2/07_TESTS/oracle/demo_brick_destruction.gd:48`). Le collecteur ne
+s'en sert PAS pour trancher `OK`/`FAIL` : `returncode` n'est lu que pour motiver un
+`NOT_MEASURED` (sortie illisible, timeout, erreur de spawn —
+`product_oracle_godot.py:243-266`) ; la décision `OK`/`FAIL` vient uniquement du champ
+`ok` du JSON.
+
+**Discipline `NOT_MEASURED != OK`** — invariant déjà énoncé en tête du module
+(`product_oracle_godot.py:21-24`) : binaire Godot introuvable, sortie illisible, JSON
+invalide, oracle absent, timeout ⇒ `NOT_MEASURED` motivé, jamais une exception, jamais
+un vert ni un rouge fabriqué. S'applique aussi au volet `core_render_frame`
+(`GPU_WINDOW_REQUIRED_VOLETS`, `product_oracle_godot.py:55`) : toujours `NOT_MEASURED`
+tant qu'aucune fenêtre GPU réelle n'est explicitement demandée (`--headless` rend une
+texture nulle).
+
+**Ce que le runner en fait** — `run_godot_product_oracle`
+(`product_oracle_godot.py:179-285`) rend un mapping plat `{nom_volet: {"status":
+"OK"|"FAIL"|"NOT_MEASURED", "passed": bool, "checked": bool, "fails": [...],
+"fichier": ..., "payload": ...}}`, même contrat que `product_oracle.run_product_oracle`
+— consommé par `check_observable_coverage`/`_volet_status` (`standard_oracles.py`, non
+modifiés par ce module). Activation côté driver conditionnée par deux constats tracés,
+jamais une heuristique de nom de jeu : descripteur `proof:` bien formé ET au moins un
+fichier `FORGE_ORACLE` présent sur disque (`driver.py:1180-1222`).
+
 ---
 
 ## 4. Réconciliation — ce qui transforme les 4 sources en squelette gelé

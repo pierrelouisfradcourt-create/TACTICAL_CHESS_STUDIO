@@ -58,6 +58,27 @@ CRITICAL = (
 IMPORTANT = ("skill", "plugin")
 RECOMMENDED = ("delegation_context",)
 
+# Couche par champ (SCHEMA.md, "Amendement layer — ratifié Pierre 2026-08-02") :
+#   prompt        champ rendu comme section de texte par `_render_prompt`.
+#   dispatch      champ consommé pour construire le payload (modèle/provider/outils),
+#                 jamais rendu comme section de texte.
+#   documentation champ de traçabilité humaine, aucun consommateur d'exécution.
+# Un champ sans consommateur déclaré ne doit pas être présenté comme une capacité
+# injectée (invariant Pierre, verbatim dans SCHEMA.md). `LAYER_PROMPT` est la liste
+# EXACTE des champs que `_render_prompt` rend en section — `_verify_prompt_layer_
+# rendered` en dépend pour figer l'invariant « tout champ prompt rempli est rendu ».
+LAYER_PROMPT = (
+    "role", "exigences_cognitives", "memoire", "mandatory_read", "objectif",
+    "in_scope", "out_of_scope", "permissions", "gardeFou", "success_criteria",
+    "tests_oracles", "output_contract", "final_report",
+)
+LAYER_DISPATCH = ("capability_role", "skill", "plugin")
+LAYER_DOCUMENTATION = ("delegation_context",)
+# `parent_agent` (SCHEMA.md #16) n'est PAS un champ canonique de ce module : il n'a
+# jamais figuré dans CRITICAL/IMPORTANT/RECOMMENDED et n'est validé/rendu nulle part
+# ici — inchangé par cet amendement. Son repli existe uniquement côté Observer
+# (`observer.system_agents._delegation_value_and_field`, lecture seule).
+
 # Texte injecté verbatim dans chaque prompt : l'invariant anti-claim.
 # Généralise aux 21 contrats (ratification Pierre 2026-07-26, primitive 1 du
 # salvage Codex) une exigence jusque-là en prose dans un seul contrat
@@ -135,10 +156,23 @@ def validate_contract(contract: dict) -> None:
         state = field_state(contract.get(field))
         if state != "filled":
             problems.append(f"Critique {field!r} = {state} (exige 'filled')")
-    for field in IMPORTANT + RECOMMENDED:
+    for field in IMPORTANT:
         state = field_state(contract.get(field))
         if state == "absent":
             problems.append(f"{field!r} absent (doit être rempli ou 'aucun', jamais absent)")
+    # RECOMMENDED (delegation_context) : levée d'obligation — SCHEMA.md "Amendement
+    # layer" (ratifié Pierre 2026-08-02). Champ de couche `documentation`, aucun
+    # consommateur d'exécution : son absence ne peut plus bloquer le dispatch. S'il
+    # EST présent (rempli ou `aucun`), il reste type-vérifié : une décision assumée
+    # n'a jamais le droit d'être malformée. Un contrat futur sans ce champ passe
+    # désormais ; un contrat qui le porte avec un type invalide est toujours refusé.
+    for field in RECOMMENDED:
+        value = contract.get(field)
+        if value is not None and not isinstance(value, (str, list, tuple)):
+            problems.append(
+                f"{field!r} présent mais de type invalide ({type(value).__name__}, "
+                "attendu str/list)"
+            )
     if problems:
         raise ContractIncomplete("; ".join(problems))
 
@@ -208,6 +242,34 @@ def _render_prompt(contract: dict, etape: str = "", run_id: str = "") -> str:
     return prompt
 
 
+def _verify_prompt_layer_rendered(contract: dict, prompt: str) -> None:
+    """Garde mécanique de la couche `prompt` (SCHEMA.md, amendement layer ratifié
+    Pierre 2026-08-02) : tout champ de `LAYER_PROMPT` REMPLI doit apparaître comme
+    texte dans le prompt déjà produit par `_render_prompt`. Fige un invariant qui
+    existait par construction (chaque champ de `LAYER_PROMPT` a sa section codée
+    en dur dans `_render_prompt`) mais qu'aucun test/garde ne vérifiait — protège
+    contre une dérive future (un champ ajouté à `LAYER_PROMPT` sans sa section de
+    rendu redeviendrait une capacité "validée" mais jamais injectée).
+
+    Lecture seule : ne modifie ni le contrat, ni le prompt. N'ajoute aucune section.
+    """
+    missing: list[str] = []
+    for field in LAYER_PROMPT:
+        value = contract.get(field)
+        if field_state(value) != "filled":
+            continue
+        if isinstance(value, (list, tuple)):
+            if not all(str(item) in prompt for item in value):
+                missing.append(field)
+        elif str(value) not in prompt:
+            missing.append(field)
+    if missing:
+        raise ContractIncomplete(
+            "couche prompt (SCHEMA.md) déclarée mais jamais rendue par _render_prompt : "
+            + ", ".join(missing)
+        )
+
+
 def _declared_tools(contract: dict) -> tuple[str, ...]:
     """Seuls les skill/plugin réellement remplis sont autorisés."""
     tools = []
@@ -246,11 +308,13 @@ def build_dispatch_payload(
     validate_contract(contract)  # C1 : la porte bloque d'abord
     model = resolve_runtime(contract, caps_path=caps_path)  # registry force le runtime
     provider = get_provider_for_role(contract["capability_role"], caps_path=caps_path or FORGE_ROLES) or ""
+    prompt = _render_prompt(contract, etape=etape, run_id=run_id)
+    _verify_prompt_layer_rendered(contract, prompt)  # garde couche prompt (SCHEMA.md)
     payload = DispatchPayload(
         etape=etape,
         role=contract["role"],
         model=model,
-        prompt=_render_prompt(contract, etape=etape, run_id=run_id),
+        prompt=prompt,
         allowed_tools=_declared_tools(contract),
         mandatory_read=tuple(contract["mandatory_read"]),
         provider=provider,

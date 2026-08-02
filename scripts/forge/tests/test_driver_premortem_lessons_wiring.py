@@ -121,13 +121,46 @@ def test_determinisme_bout_en_bout_deux_productions_successives(tmp_path):
 def test_wiring_reaches_real_default_paths_read_only():
     """Un run_dir SOUS le repo (production réelle, jamais .run() ici -> aucune
     écriture) fait retomber `_lessons_target`/`_legacy_lessons_targets` sur les
-    défauts RÉELS de learning_memory : les 3 leçons legacy du corpus réel du
-    dépôt apparaissent, marquées à réexaminer (generation legacy = None)."""
+    défauts RÉELS de learning_memory.
+
+    PROPRIÉTÉ DURABLE, pas un état de corpus (règle ratifiée : « un test qui fige
+    une implémentation devient un faux signal »). La version initiale assertait
+    `all(MARKER in l)` — vrai seulement tant que le corpus réel ne contenait QUE
+    des leçons legacy (`generation=None`). L'assertion est devenue fausse dès que
+    des leçons de la génération courante y ont été consignées (5 leçons Breakout V2,
+    `generation=2`, commit bcde5cb) ALORS QUE le mécanisme de marquage, lui,
+    fonctionnait correctement.
+
+    Ce qui est vérifié désormais : le câblage retombe bien sur les défauts
+    production (None/None), le corpus réel produit un pré-mortem non vide, et la
+    correspondance marqueur <-> génération est exacte LIGNE PAR LIGNE, dans les
+    DEUX sens, contre la source relue depuis ces mêmes défauts — quel que soit le
+    contenu du corpus au moment du run."""
     run_dir = _REPO_ROOT / "lab" / "forge_runs" / "_wiring_proof_read_only"
     driver = ForgeDriver("proj", "proj-1", profile="micro", run_dir=run_dir,
                          journal_path=run_dir / "journal_isolated.jsonl")
     assert driver._lessons_target() is None
     assert driver._legacy_lessons_targets() == (None, None)
     lines = driver._premortem_lessons()
-    assert lines, "le corpus legacy réel doit apparaître pour un run 'production'"
-    assert all(lm.MARKER_GENERATION_MISMATCH in l for l in lines)
+    assert lines, "le corpus réel doit produire un pré-mortem non vide pour un run 'production'"
+
+    current = lm.load_current_generation()
+    # Source relue depuis les défauts PRODUCTION (aucun chemin en dur ici) : c'est
+    # exactement ce que le driver vient d'atteindre en retombant sur None/None.
+    source = {lid: r.get("generation") for lid, r in lm.fold_lessons(None).items()}
+    source.update({l["lesson_id"]: l.get("generation") for l in lm.legacy_global_lessons()})
+    assert source, "les défauts production doivent exposer un corpus non vide"
+
+    # Échantillon élargi : les lignes réellement rendues au driver (tronquées à
+    # `limit=5`) ET le corpus complet non tronqué — sans quoi le sens « marqué » de
+    # la règle cesserait d'être exercé sur le corpus réel dès que la fenêtre de
+    # troncature ne contient qu'une seule classe de génération.
+    sample = list(lines) + lm.premortem_lessons(current_generation=current, limit=0)
+    for line in sample:
+        lesson_id = line.split("]", 1)[0].lstrip("[")
+        assert lesson_id in source, f"ligne rendue hors corpus source : {line!r}"
+        gen = source[lesson_id]
+        mismatch = gen is None or current is None or gen != current
+        assert (lm.MARKER_GENERATION_MISMATCH in line) is mismatch, (
+            f"marquage incohérent pour {lesson_id} (generation={gen!r}, "
+            f"courante={current!r}) : {line!r}")

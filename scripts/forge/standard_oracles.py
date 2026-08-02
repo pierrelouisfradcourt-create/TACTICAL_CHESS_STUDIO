@@ -10,7 +10,10 @@ Six oracles, un par facette du standard décrit dans `standard/SCHEMA.md` :
 3. ``check_line_states`` — les 6 états d'une ligne de wiremap v2 et leurs contraintes
    (NOT_APPLICABLE/DEFERRED/UNKNOWN/REQUIRED/EXPECTED), l'exigence de champ `system_parent`,
    + omission silencieuse d'une exigence CORE. Distingue deux moments (`frozen`) : au gel
-   (UNKNOWN et IMPLEMENTED interdits) vs après build (REQUIRED interdit).
+   (UNKNOWN et IMPLEMENTED interdits) vs après build (REQUIRED interdit). Depuis l'étage 1
+   `lifecycle` (ratifié Pierre 2026-08-02, SCHEMA.md §3) : vérifie aussi le bloc OPTIONNEL
+   `lifecycle` d'une ligne quand il est présent (schéma fermé, evidence exigée sur
+   implemented/tested) — une ligne sans `lifecycle` reste jugée exactement comme avant.
 4. ``check_placement`` — l'adresse d'une ligne est cohérente avec sa catégorie via `repo_map.yaml`,
    dérivée de `category` + `system_parent` (jamais de l'id de la ligne) ; `system_parent` doit
    désigner une entrée de `wiremap["systems"]`. En `schema_version: 2`, chaque entrée de
@@ -51,6 +54,7 @@ branchés (ADVISORY) — cf. `driver.py::_run_standard_oracle`.
 """
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
@@ -316,6 +320,114 @@ def _normalize_moment(frozen) -> str:
     return _MOMENT_FROZEN if frozen else _MOMENT_DRAFT
 
 
+# --- `lifecycle` — étage 1 ratifié Pierre 2026-08-02 (SCHEMA.md §3, section datée) ---
+# Bloc OPTIONNEL par ligne : une ligne SANS `lifecycle` (ou `lifecycle: null`) reste
+# valide telle quelle — zéro régression sur les cartes existantes (« Ne pas casser
+# l'existant. »). PERSONNE n'écrit encore ce bloc (étage 2 — stampage par l'oracle —
+# NON ratifié, conditionné P1-G4) : le schéma l'accepte, ce validateur le vérifie.
+# Invariants verbatim : « implemented sans evidence = invalide » · « Le stampage reste
+# oracle uniquement » (`verified_by` = jamais un agent LLM, un reçu <oracle_id|run_id>) ·
+# « L'overlay Observer reste obligatoire comme contre-pouvoir ».
+_LIFECYCLE_STATES = {"required", "implemented", "tested"}
+_LIFECYCLE_KEYS = {"state", "evidence", "last_verified", "verified_by"}
+_LIFECYCLE_EVIDENCE_KINDS = {"file_write", "oracle", "mutation", "visual"}
+_LIFECYCLE_EVIDENCE_KEYS = {"kind", "ref", "sha256"}
+_LIFECYCLE_TESTED_KINDS = {"oracle", "mutation"}
+# États dont la revendication exige un reçu complet (evidence + last_verified + verified_by).
+_LIFECYCLE_VERIFIED_STATES = {"implemented", "tested"}
+
+
+def _is_iso8601(v: Any) -> bool:
+    """ISO8601 parsable (datetime.fromisoformat, suffixe 'Z' accepté). Jamais d'exception."""
+    if not isinstance(v, str) or not v.strip():
+        return False
+    s = v.strip()
+    if s.endswith(("Z", "z")):
+        s = s[:-1] + "+00:00"
+    try:
+        datetime.fromisoformat(s)
+    except ValueError:
+        return False
+    return True
+
+
+def _lifecycle_violations(lifecycle: Any, lid: str) -> list[str]:
+    """Violations du bloc `lifecycle` d'UNE ligne (SCHEMA.md §3, étage 1 2026-08-02).
+
+    Schéma FERMÉ (régime du studio) : clé inconnue = violation, dans le bloc comme dans
+    chaque entrée d'`evidence`. Retourne des chaînes `"<line_id>: raison"`, liste vide si
+    le bloc est conforme. Jamais d'exception sur entrée malformée."""
+    if not isinstance(lifecycle, dict):
+        return [f"{lid}: lifecycle n'est pas un mapping (reçu {type(lifecycle).__name__})"]
+
+    v: list[str] = []
+    for key in lifecycle.keys():
+        if key not in _LIFECYCLE_KEYS:
+            v.append(f"{lid}: clé inconnue dans lifecycle (schéma fermé) '{key}'")
+
+    state = lifecycle.get("state")
+    if state not in _LIFECYCLE_STATES:
+        v.append(f"{lid}: lifecycle.state hors enum fermé (reçu {state!r})")
+
+    # evidence[] : liste d'objets {kind, ref, sha256?}. On compte les entrées BIEN FORMÉES
+    # (une entrée malformée est une violation, jamais un reçu).
+    evidence = lifecycle.get("evidence")
+    valid_entries: list[dict] = []
+    if evidence is not None:
+        if not isinstance(evidence, list):
+            v.append(f"{lid}: lifecycle.evidence n'est pas une liste "
+                     f"(reçu {type(evidence).__name__})")
+        else:
+            for i, entry in enumerate(evidence):
+                if not isinstance(entry, dict):
+                    v.append(f"{lid}: lifecycle.evidence[{i}] n'est pas un mapping")
+                    continue
+                entry_ok = True
+                for key in entry.keys():
+                    if key not in _LIFECYCLE_EVIDENCE_KEYS:
+                        v.append(f"{lid}: clé inconnue dans lifecycle.evidence[{i}] "
+                                 f"(schéma fermé) '{key}'")
+                        entry_ok = False
+                if entry.get("kind") not in _LIFECYCLE_EVIDENCE_KINDS:
+                    v.append(f"{lid}: lifecycle.evidence[{i}].kind hors enum "
+                             f"(reçu {entry.get('kind')!r})")
+                    entry_ok = False
+                if not _is_nonempty_str(entry.get("ref")):
+                    v.append(f"{lid}: lifecycle.evidence[{i}].ref vide ou absent")
+                    entry_ok = False
+                if "sha256" in entry and not _is_nonempty_str(entry.get("sha256")):
+                    v.append(f"{lid}: lifecycle.evidence[{i}].sha256 présent mais vide/mal typé")
+                    entry_ok = False
+                if entry_ok:
+                    valid_entries.append(entry)
+
+    claimed = state in _LIFECYCLE_VERIFIED_STATES
+    if claimed and not valid_entries:
+        # Invariant verbatim : « implemented sans evidence = invalide » (idem tested).
+        v.append(f"{lid}: lifecycle.state={state} sans evidence non-vide — invalide")
+    if state == "tested" and valid_entries and not any(
+        e.get("kind") in _LIFECYCLE_TESTED_KINDS for e in valid_entries
+    ):
+        v.append(f"{lid}: lifecycle.state=tested sans reçu evidence.kind ∈ "
+                 "{oracle, mutation}")
+
+    # last_verified / verified_by : OBLIGATOIRES quand l'état revendique une vérification
+    # (implemented/tested) ; en `required`, optionnels mais JAMAIS acceptés invalides.
+    last_verified = lifecycle.get("last_verified")
+    if claimed or last_verified is not None:
+        if not _is_iso8601(last_verified):
+            v.append(f"{lid}: lifecycle.last_verified non parsable ISO8601 "
+                     f"(reçu {last_verified!r})")
+    verified_by = lifecycle.get("verified_by")
+    if claimed or verified_by is not None:
+        if not _is_nonempty_str(verified_by):
+            # « Le stampage reste oracle uniquement » : verified_by est un reçu
+            # <oracle_id|run_id>, jamais un agent LLM — et jamais vide.
+            v.append(f"{lid}: lifecycle.verified_by vide ou absent (reçu attendu : "
+                     f"<oracle_id|run_id>)")
+    return v
+
+
 def check_line_states(wiremap: dict, core_requirements: dict, frozen: bool | str = True) -> dict:
     """Vérifie les contraintes des 6 états d'une ligne de wiremap v2 (`standard/SCHEMA.md` §3).
 
@@ -334,11 +446,26 @@ def check_line_states(wiremap: dict, core_requirements: dict, frozen: bool | str
     - chaque ligne doit porter un `system_parent` non vide (SCHEMA.md §3, `system_parent`) :
       absence ou chaîne vide -> violation. C'est l'exigence de champ ; sa VALIDITÉ (désigne-t-il
       un système réel) est vérifiée par `check_placement`, pas ici.
+    - bloc `lifecycle` OPTIONNEL (étage 1 ratifié Pierre 2026-08-02, SCHEMA.md §3) :
+      une ligne SANS `lifecycle` (ou `lifecycle: null`) n'est soumise à AUCUNE règle
+      nouvelle — zéro régression. Une ligne AVEC `lifecycle` est vérifiée par
+      `_lifecycle_violations` (schéma fermé, enum d'états, evidence exigée sur
+      implemented/tested, reçu oracle/mutation exigé sur tested, last_verified ISO8601,
+      verified_by non vide) -> bucket `lifecycle_invalide[]`.
+    - `reused_from` ADVISORY (R2, 2026-08-03, leçon `forge.wiremap_concept_reuse_requalification`) :
+      une ligne dont `reused_from.type == "CONCEPT"` ET dont `reused_from.source` pointe un
+      AUTRE jeu (`games/<autre-id>/...`) que `wiremap.game_id` DOIT porter une requalification
+      explicite non vide dans un champ EXISTANT (`reused_from_note`, à défaut `reason`).
+      Absence -> bucket `reused_concept_non_requalifie[]`. Ce bucket est REMONTÉ mais ne fait
+      PAS basculer `passed` (même prudence que `lifecycle` étage 1 : on mesure avant de durcir ;
+      la wiremap réelle breakout_v2 a 52 lignes CONCEPT, une règle stricte la ferait échouer
+      d'un coup sur une campagne déjà archivée).
 
     Retourne un dict `{passed, etats_invalides[], not_applicable_sur_core[],
     not_applicable_sans_raison[], deferred_incomplet[], unknown_au_gel[], implemented_au_gel[],
     required_apres_build[], core_omis[], expected_sans_reference[], source_manquante[],
-    system_parent_manquant[]}`. Jamais d'exception.
+    system_parent_manquant[], lifecycle_invalide[], reused_concept_non_requalifie[]}`.
+    Jamais d'exception.
     """
     empty = {
         "etats_invalides": [],
@@ -352,6 +479,8 @@ def check_line_states(wiremap: dict, core_requirements: dict, frozen: bool | str
         "expected_sans_reference": [],
         "source_manquante": [],
         "system_parent_manquant": [],
+        "lifecycle_invalide": [],
+        "reused_concept_non_requalifie": [],
     }
     if not isinstance(wiremap, dict):
         return {
@@ -363,6 +492,7 @@ def check_line_states(wiremap: dict, core_requirements: dict, frozen: bool | str
     lines_raw = wiremap.get("lines")
     lines = lines_raw if isinstance(lines_raw, list) else []
     moment = _normalize_moment(frozen)
+    game_id = wiremap.get("game_id") if isinstance(wiremap.get("game_id"), str) else None
 
     etats_invalides: list[str] = []
     not_applicable_sur_core: list[str] = []
@@ -374,6 +504,8 @@ def check_line_states(wiremap: dict, core_requirements: dict, frozen: bool | str
     expected_sans_reference: list[str] = []
     source_manquante: list[str] = []
     system_parent_manquant: list[str] = []
+    lifecycle_invalide: list[str] = []
+    reused_concept_non_requalifie: list[str] = []
     seen_ids: list[str] = []
 
     for line in lines:
@@ -421,6 +553,35 @@ def check_line_states(wiremap: dict, core_requirements: dict, frozen: bool | str
         if not (isinstance(system_parent, str) and system_parent.strip()):
             system_parent_manquant.append(lid)
 
+        # `lifecycle` — étage 1 (2026-08-02) : absent ou null = ligne valide telle quelle
+        # (zéro régression, « Ne pas casser l'existant. ») ; présent = vérifié, fermé.
+        lifecycle = line.get("lifecycle")
+        if lifecycle is not None:
+            lifecycle_invalide.extend(_lifecycle_violations(lifecycle, lid))
+
+        # `reused_from` — R2 (2026-08-03), leçon forge.wiremap_concept_reuse_requalification :
+        # ADVISORY only (voir docstring), n'entre pas dans `passed`.
+        reused_from = line.get("reused_from")
+        if isinstance(reused_from, dict) and reused_from.get("type") == "CONCEPT":
+            rf_source = reused_from.get("source")
+            other_project = False
+            if isinstance(rf_source, str) and isinstance(game_id, str) and game_id:
+                parts = rf_source.split("/")
+                if len(parts) >= 2 and parts[0] == "games" and parts[1] != game_id:
+                    other_project = True
+            if other_project:
+                note = line.get("reused_from_note")
+                reason = line.get("reason")
+                requalifie = (isinstance(note, str) and note.strip()) or (
+                    isinstance(reason, str) and reason.strip()
+                )
+                if not requalifie:
+                    reused_concept_non_requalifie.append(
+                        f"{lid}: reused_from.type=CONCEPT source={rf_source!r} sans "
+                        "requalification (reused_from_note/reason vide) "
+                        "[forge.wiremap_concept_reuse_requalification]"
+                    )
+
     core_omis: list[str] = []
     if isinstance(core_requirements, dict):
         reqs = core_requirements.get("requirements")
@@ -443,6 +604,7 @@ def check_line_states(wiremap: dict, core_requirements: dict, frozen: bool | str
         or expected_sans_reference
         or source_manquante
         or system_parent_manquant
+        or lifecycle_invalide
     )
     return {
         "passed": passed,
@@ -457,6 +619,8 @@ def check_line_states(wiremap: dict, core_requirements: dict, frozen: bool | str
         "expected_sans_reference": expected_sans_reference,
         "source_manquante": source_manquante,
         "system_parent_manquant": system_parent_manquant,
+        "lifecycle_invalide": lifecycle_invalide,
+        "reused_concept_non_requalifie": reused_concept_non_requalifie,
     }
 
 
