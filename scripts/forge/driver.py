@@ -303,6 +303,13 @@ class ForgeDriver:
             if state.get("run_status") == "DONE":
                 self._regenerate_journal_index()
                 return self._final_report(state)  # idempotent : rien à rejouer
+            if state.get("run_status") == "FROZEN_HUMAN":
+                # Gel explicite (décision Pierre 2026-08-03) : un run FROZEN_HUMAN
+                # n'est ni DONE ni HALTED — arrêté par décision humaine, pas par le
+                # code. Le driver REFUSE de le reprendre automatiquement (pas de
+                # replay, pas de compte comme échec) tant qu'un dégel explicite
+                # (retrait de run_status=FROZEN_HUMAN du state.json) n'a pas eu lieu.
+                return self._frozen_report(state)
 
             state["run_status"] = "RUNNING"
             state.pop("reason", None)
@@ -2482,6 +2489,28 @@ class ForgeDriver:
             "verdict_path": "",
             "reason": "chaîne terminée sans verdict signé exploitable "
                       "(profil sans s12, ou agrégation non aboutie)",
+        }
+
+    def _frozen_report(self, state: dict) -> dict:
+        """FROZEN_HUMAN : gel explicite par décision humaine (ni DONE ni HALTED,
+        ni un échec). N'exécute rien, ne mute pas le state — se contente de
+        rapporter la trace qui/quand/pourquoi posée dans state['frozen']."""
+        frozen = state.get("frozen") or {}
+        reason = frozen.get("reason") or "run gelé par décision humaine (run_status=FROZEN_HUMAN, détail absent de state['frozen'])"
+        return {
+            "run_id": self.run_id,
+            "project": self.project,
+            "profile": self.profile,
+            "status": "FROZEN_HUMAN",
+            "software_verdict": "BLOCKED",
+            "evidence_verdict": EVIDENCE_VERDICT,
+            "claim_verdict": CLAIM_VERDICT,
+            "decision": "BLOCKED",
+            "humangate_flags": [reason],
+            "verdict_path": "",
+            "state_path": str(self.state_path),
+            "reason": reason,
+            "frozen": frozen,
         }
 
     def _halted_report(self, reason: str, state_known: bool = True) -> dict:
