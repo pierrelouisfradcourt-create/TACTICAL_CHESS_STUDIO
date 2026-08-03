@@ -687,6 +687,42 @@ Breakout V2. HumanGate Pierre.
 
 ---
 
+## 2026-08-03 — Pong gelé par décision humaine, run jamais terminé (PONG_FROZEN_HUMAN_V1)
+
+**Décision (Pierre)** : Pong passe en **`FROZEN_HUMAN`** — arrêté par décision humaine, **ni réussi
+ni échoué** — jusqu'à décision contraire. Verbatim : « on ne transforme pas un état RUNNING en
+clôture arbitraire ».
+
+**Pourquoi cette entrée existe séparément** : le gel de Pong comme témoin de régression datait du
+2026-07-27 mais n'existait que par convention documentée en mémoire. Vérification du 2026-08-03 :
+Pong était le seul des quatre projets à n'alimenter **aucun** canal de décision, alors que sa
+campagne est arrêtée. Une campagne arrêtée sans décision enregistrée est une boucle cassée.
+
+**État réel mesuré** : `lab/forge_runs/pong/state.json` portait `run_status: RUNNING` alors
+qu'aucun processus ne tournait depuis le 2026-07-27. Quatre étapes restent `PENDING` —
+`s10a-oracle-code`, `s10s-oracle-standard`, `s11-redteam-code`, `s12-verdict`. **Aucun verdict
+signé, aucun `software_verdict: OK` n'existe pour Pong** ; `pong_r2_ref` porte `FAIL / BLOCKED`.
+Le run n'a jamais abouti, et ce fait doit rester visible : les étapes `PENDING` ne sont pas
+réécrites.
+
+**Ce qui a été posé dans les données** : `run_status: FROZEN_HUMAN` + bloc `frozen{at, by, reason,
+source}`. Le driver refuse désormais de reprendre un run gelé, rend `software_verdict: BLOCKED` et
+ne le compte **jamais** comme un échec. L'Observer l'affiche `FrozenHuman`, plus « Running ».
+
+**Ce que Pong a quand même produit** (la campagne n'est pas perdue) : 5 leçons récupérées
+rétroactivement le 2026-08-03 et promues au catalogue KB, dont `forge.run_status_not_liveness_proof`
+— née précisément de ce défaut : un `state.json` peut afficher RUNNING pendant 1 h 45 sans qu'aucun
+processus ne vive. Plus 15 entrées au journal d'erreurs.
+
+**Alternative rejetée** : clore Pong en `FAILED` pour « faire propre » → rejetée par Pierre. Un run
+arrêté par choix humain n'est pas un échec technique ; les confondre fausserait toute statistique
+d'échec ultérieure.
+
+**Critères de révision** : Pong reste témoin de régression gelé. Toute modification de
+`games/pong/` exige une gate Pierre distincte. Sortie de `FROZEN_HUMAN` = décision Pierre explicite.
+
+---
+
 ## Template pour nouvelles entrées
 
 ```

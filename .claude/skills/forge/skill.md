@@ -305,6 +305,32 @@ l'humain :
 Seul **E** remonte. Annonce la classe quand tu rends compte — « (C) construit mais non câblé,
 branché » vaut mieux qu'un paragraphe.
 
+### Ce que l'autonomie ne peut JAMAIS fabriquer (ratifié Pierre 2026-08-03)
+
+L'autonomie **peut** : détecter · analyser · proposer · réparer des boucles cassées · apprendre.
+
+Elle ne peut **jamais fabriquer** :
+- une **validation humaine** ;
+- une **ratification** ;
+- une **décision attribuée à une personne**.
+
+Concrètement : ne remplis jamais un champ du type `ratifie_par` / `validated_by` / `approved_by`
+avec le nom d'un humain qui n'a pas explicitement approuvé **ce contenu précis**. Autoriser un
+mécanisme n'est pas ratifier ce qu'il produira. Quand une écriture automatique a besoin d'une
+provenance, écris la provenance **réelle** : la décision qui autorise, le `run_id`, l'oracle, la
+preuve — et dis explicitement ce qui n'a PAS été relu par un humain.
+
+Incident fondateur (2026-08-03, faute de l'orchestrateur) : 8 leçons récupérées de Pong et Snake ont
+été ingérées avec `validated_by: "Pierre"` parce que le prompt de mission disait
+`--ratifie-par "Pierre"`. Pierre avait autorisé la **récupération rétroactive** et l'ingestion
+automatique sous validation mécanique ; il n'avait jamais lu ces 8 leçons. Une autorisation
+fabriquée est persistante : toutes les sessions suivantes l'auraient tenue pour un fait validé.
+Corrigé le jour même. Même famille que la file de revue peuplée d'un `run_id` synthétique, écartée
+quelques heures plus tôt.
+
+Règle de contrôle : avant toute écriture durable, demande-toi **quel acte humain cette trace
+prétend-elle enregistrer**, et si cet acte a réellement eu lieu.
+
 ### Où est la vérité système
 
 **La vérité système vient de l'exécution observable, pas de la lecture du code.** Le Master Schéma
