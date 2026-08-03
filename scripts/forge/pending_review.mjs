@@ -62,6 +62,16 @@ export const QUEUE_FILES = [
   // briques distinctes et ne doivent pas être comptées comme « le même sujet ». Même champ
   // d'horodatage epoch secondes ("ts"). Un fichier absent reste ABSENT, jamais une erreur.
   { id: 'forge_brick_proposals', path: 'lab/reports/forge_brick_proposals.jsonl', subject_field: 'brick_id', ts_field: 'ts' },
+  // 6e file (studio_link.propose_capability_gap — mission repair-boucle-cassee
+  // 2026-08-03, FORGE_AUTONOMY_V1). Clé sujet "capability_id" (PAS "project" ni
+  // "brick_id") : le sujet examiné par Pierre est LA CAPACITÉ candidate au registre
+  // fermé `scripts/forge/standard/capabilities.yaml` — deux runs différents (ou le
+  // même run rejoué) peuvent redéclarer le même `capability_id` manquant, qui doit
+  // compter comme UN SEUL sujet récurrent, pas deux sujets distincts. Même champ
+  // d'horodatage epoch secondes ("ts"). Un fichier absent reste ABSENT, jamais une
+  // erreur — ferme le cul-de-sac `identifiants_inconnus` (check_collisions) qui
+  // n'avait aucun consommateur avant ce correctif.
+  { id: 'forge_capability_gap_proposals', path: 'lab/reports/forge_capability_gap_proposals.jsonl', subject_field: 'capability_id', ts_field: 'ts' },
 ];
 
 const KEY_FALLBACK_PREFIX = '__no_subject_field__:';
@@ -86,6 +96,12 @@ const PASSTHROUGH_FIELDS = [
   // 'path' est la preuve que le code existe déjà sur disque (pas une intention), 'function'
   // la description courte que Pierre relit pour décider de la promotion.
   'brick_id', 'function', 'path',
+  // forge_capability_gap_proposals (studio_link.propose_capability_gap) : 'status'
+  // déjà couvert ci-dessus ; 'capability_id'/'source_line_id'/'note' sont spécifiques —
+  // 'source_line_id' trace la ligne de wiremap qui a déclaré l'identifiant, 'note'
+  // porte le contexte lisible (registre + run) que Pierre relit pour rédiger le
+  // `statement` au moment de la promotion.
+  'capability_id', 'source_line_id', 'note',
 ];
 
 export const OUT_OF_SCOPE = [

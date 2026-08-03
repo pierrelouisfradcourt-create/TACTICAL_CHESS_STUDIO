@@ -93,6 +93,7 @@ from forge.studio_link import (
     premortem,
     project_bible,
     propose_brick,
+    propose_capability_gap,
     record_builder_run,
     record_error,
     record_fix,
@@ -1743,6 +1744,14 @@ class ForgeDriver:
             "index": index_r,
             "collisions": collisions_r,
         }
+        # Connecteur 7 (mission repair-boucle-cassee 2026-08-03) : `identifiants_
+        # inconnus` était un cul-de-sac (check_collisions le CALCULE, aucun
+        # appelant ne le rendait consommable — grep vide avant ce correctif, cf.
+        # docstring de propose_capability_gap/DEFAULT_CAPABILITY_GAP_PROPOSALS).
+        # Dépose ICI, au moment où le manque est DÉTECTÉ (pas seulement quand le
+        # pas complet réussit) — best-effort strict, comme `_propose_bricks` :
+        # ne doit JAMAIS changer le statut de ce pas ni du run.
+        self._propose_capability_gaps(collisions_r)
         # R1 (contrat r1-preuves-boucle-mecaniques.yaml, 2026-07-27) : les 2 volets de
         # preuve de boucle — observable_by_player consommé par un oracle réel, Genre
         # Bible lisible et citée. ADVISORY (garde-fou 6 du contrat) : portés au reçu,
@@ -1799,6 +1808,47 @@ class ForgeDriver:
         else:
             status = "OK"
         self._finish_step(state, entry, status, detail)
+
+    def _propose_capability_gaps(self, collisions_r: dict) -> None:
+        """Dépose une proposition d'extension de registre (studio_link.
+        propose_capability_gap, PROPOSE-ONLY) pour chaque `identifiants_inconnus`
+        de `collisions_r` (check_collisions).
+
+        Ferme le maillon mesuré par la mission repair-boucle-cassee 2026-08-03
+        (audit des 15 boucles du Master Schéma, run tetris-fullgodot-20260803-084719 :
+        14 identifiants_inconnus, zéro conséquence). `capabilities.yaml` documente
+        lui-même qu'il grandit « d'un jeu à l'autre » — un identifiant inconnu est
+        une capacité CANDIDATE à ajouter au registre, jamais une donnée à fabriquer
+        ici (le `statement` humain reste à la charge de Pierre à la promotion,
+        même limite honnête que `kb_proposal._lesson_to_pattern_entry` pose sur
+        `provenance_url`).
+
+        Format de `identifiants_inconnus[i]` (check_collisions) : "<line_id>:<capability_id>"
+        — split sur le PREMIER ':' seulement (un capability_id ne contient jamais
+        ':', un line_id non plus dans les wiremaps existantes, mais l'inverse
+        n'est pas garanti par construction : ne pas supposer, juste être robuste
+        à une absence de ':' — entrée alors ignorée, jamais une exception).
+
+        Best-effort STRICT (même garantie que _propose_bricks/record_telemetry) :
+        toute exception ici est journalisée et AVALÉE — ne doit jamais changer le
+        statut de ce pas ni du run.
+        """
+        try:
+            unknowns = collisions_r.get("identifiants_inconnus")
+            if not isinstance(unknowns, list) or not unknowns:
+                return
+            for entry_id in unknowns:
+                if not isinstance(entry_id, str) or ":" not in entry_id:
+                    continue
+                source_line_id, capability_id = entry_id.split(":", 1)
+                if not capability_id:
+                    continue
+                propose_capability_gap(self.run_id, self.project, capability_id, source_line_id)
+        except Exception:  # noqa: BLE001 — advisory, jamais bloquant
+            logger.warning(
+                "_propose_capability_gaps: dépôt impossible pour run=%s (advisory, "
+                "non bloquant)", self.run_id, exc_info=True,
+            )
 
     def _run_verdict(self, state: dict, entry: dict) -> None:
         code_r = self._receipt(state, "code", "s10a-oracle-code")

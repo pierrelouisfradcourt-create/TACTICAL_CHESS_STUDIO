@@ -46,6 +46,19 @@ DEFAULT_BIBLE_PROPOSALS = FORGE_REPORTS / "forge_bible_proposals.jsonl"
 # Le dépositaire (boucle bibliothèque, ratification Pierre 2026-07-23 : « réciprocité dure +
 # construire le dépositaire ») : un jeu forgé PROPOSE un dépôt de brique ici ; Pierre PROMEUT
 # manuellement dans knowledge_base/catalog.json (voir propose_brick ci-dessous).
+# Connecteur 7 (mission repair-boucle-cassee 2026-08-03, FORGE_AUTONOMY_V1) : la
+# flèche « manque ? -> world-scan ciblé du manquant -> pool de builders » (Coupe B,
+# STUDIO_MASTER_SCHEMA.html) était un cul-de-sac pour la moitié « capacité inconnue »
+# du registre `capabilities.yaml` — `check_collisions` (standard_oracles.py) calcule
+# `identifiants_inconnus` mais AUCUN appelant ne les rendait consommables (grep vide
+# avant ce correctif). `capabilities.yaml` grandit délibérément « d'un jeu à l'autre »
+# (son propre en-tête) : un identifiant inconnu N'EST PAS une erreur de jeu à corriger,
+# c'est une capacité candidate à AJOUTER au registre fermé — mais le registre est une
+# mémoire de référence versionnée (même statut que catalog.json ou le ledger d'IMPs)
+# et un `statement` (phrase humaine décrivant la capacité) ne peut pas être fabriqué
+# mécaniquement sans inventer du sens. PROPOSE-ONLY, patron IDENTIQUE à propose_brick
+# ci-dessus : dépose une proposition nommée, Pierre promeut dans capabilities.yaml.
+DEFAULT_CAPABILITY_GAP_PROPOSALS = FORGE_REPORTS / "forge_capability_gap_proposals.jsonl"
 DEFAULT_BRICK_PROPOSALS = FORGE_REPORTS / "forge_brick_proposals.jsonl"
 # Tier 2.5 étape 2 : observabilité dédiée du pool de builders (Tier 2 #5) — sans ça,
 # le pool reste une boîte noire. Un enregistrement par TENTATIVE s9-build (pas un
@@ -637,6 +650,56 @@ def propose_brick(
     return record
 
 
+# --- Connecteur 7 : proposition d'extension du registre de capacités -----------
+# (PROPOSE-ONLY, jamais d'auto-write de capabilities.yaml — cf. commentaire de
+# DEFAULT_CAPABILITY_GAP_PROPOSALS ci-dessus)
+
+def propose_capability_gap(
+    run_id: str,
+    project: str,
+    capability_id: str,
+    source_line_id: str,
+    proposals_path: Path | None = None,
+) -> dict:
+    """Propose l'ajout d'une capacité au registre fermé `capabilities.yaml`. PROPOSE-ONLY.
+
+    N'écrit JAMAIS `scripts/forge/standard/capabilities.yaml` : dépose une proposition
+    que Pierre promeut (HumanGate) — un `statement` (phrase humaine décrivant ce que la
+    capacité FAIT) ne peut pas être inventé mécaniquement, exactement la même limite
+    honnête que `kb_proposal._lesson_to_pattern_entry` pose sur `provenance_url`.
+
+    - `capability_id` : l'identifiant absent du registre (ex. "game.gravity"),
+      extrait de `identifiants_inconnus[i]` (format "<line_id>:<capability_id>",
+      cf. `check_collisions`).
+    - `source_line_id` : la ligne de wiremap qui a déclaré cet identifiant (le
+      "<line_id>" du même couple) — trace la provenance réelle, jamais fabriquée.
+
+    Idempotent par construction du lecteur (pending_review.mjs agrège par
+    `capability_id` + `ts` comme les autres files) : rejouer un run qui referait
+    surface le même manque redépose une ligne, jamais une perte silencieuse — la
+    dernière proposition PROPOSED pour un `capability_id` donné est celle qui compte.
+    """
+    record = {
+        "type": "capability_gap",
+        "capability_id": capability_id,
+        "source_line_id": source_line_id,
+        "run_id": run_id,
+        "project": project,
+        "status": "PROPOSED",
+        "ts": time.time(),
+        "note": (
+            f"identifiant '{capability_id}' absent de scripts/forge/standard/"
+            f"capabilities.yaml, déclaré par la ligne wiremap '{source_line_id}' "
+            f"(check_collisions, run {run_id}) — registre conçu pour grandir "
+            "d'un jeu à l'autre (en-tête capabilities.yaml) ; statement à "
+            "rédiger par Pierre au moment de la promotion."
+        ),
+    }
+    _append(proposals_path or DEFAULT_CAPABILITY_GAP_PROPOSALS, record)
+    logger.info("proposition d'extension de capacité déposée (%s) pour %s", capability_id, project)
+    return record
+
+
 # --- Connecteur 4 : proposition ledger (AUDIT_REQUIRED, jamais d'auto-write) ----
 
 def propose_ledger_entry(
@@ -747,6 +810,19 @@ def _build_parser() -> argparse.ArgumentParser:
     p_brick.add_argument("--proposals-path", type=Path, default=None,
                          help="défaut: lab/reports/forge_brick_proposals.jsonl")
 
+    p_capgap = sub.add_parser(
+        "capability-gap",
+        help="propose l'ajout d'une capacité au registre (propose_capability_gap -> "
+             "forge_capability_gap_proposals.jsonl, PROPOSE-ONLY)")
+    p_capgap.add_argument("--project", required=True, help="projet forgé concerné")
+    p_capgap.add_argument("--run-id", required=True, help="run qui a détecté le manque")
+    p_capgap.add_argument("--capability-id", required=True, dest="capability_id",
+                          help="identifiant absent du registre (ex. game.gravity)")
+    p_capgap.add_argument("--source-line-id", required=True, dest="source_line_id",
+                          help="ligne de wiremap qui a déclaré cet identifiant")
+    p_capgap.add_argument("--proposals-path", type=Path, default=None,
+                          help="défaut: lab/reports/forge_capability_gap_proposals.jsonl")
+
     return parser
 
 
@@ -803,6 +879,13 @@ def main(argv: list[str] | None = None) -> int:
         propose_brick(args.run_id, args.project, args.brick_id, args.kind, args.function, args.path,
                       proposals_path=args.proposals_path)
         print(f"proposition de brique déposée -> {path}")
+        return 0
+
+    if args.cmd == "capability-gap":
+        path = args.proposals_path or DEFAULT_CAPABILITY_GAP_PROPOSALS
+        propose_capability_gap(args.run_id, args.project, args.capability_id, args.source_line_id,
+                               proposals_path=args.proposals_path)
+        print(f"proposition d'extension de capacité déposée -> {path}")
         return 0
 
     # Comportement PRÉ-EXISTANT, strictement inchangé (aucune sous-commande donnée).
