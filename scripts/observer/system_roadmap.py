@@ -657,6 +657,33 @@ DRIFT_TYPE_CABLAGE = "architecture_declaree_vs_realite_mesuree"
 # par recherche de nom de fichier (cf. `_mesure_construit`).
 CONNECTOR_ARTIFACTS: dict[str, Optional[tuple[str, ...]]] = {
     "learning_curve": ("knowledge_base", "learning_curve.jsonl"),
+    # Chemins EXACTS, ouverts a Observer depuis l'elargissement declare nº4
+    # (sources.py, 2026-08-03 — deux fichiers exacts, jamais le dossier
+    # lab/reports). Sans eux ces noeuds retombaient sur la recherche par nom
+    # dans knowledge_base/ + lab/forge_evidence/, qui ne les contiennent pas :
+    # d'ou un FAUX NON, et surtout deux lignes de la meme vue (le noeud
+    # artefact et le noeud writer propose_bible_entry) jugeant le MEME fichier
+    # differemment. Verifie par falsification : artefact absent -> NON,
+    # artefact present -> OUI.
+    "forge_bible_proposals": ("lab", "reports", "forge_bible_proposals.jsonl"),
+    "forge_brick_proposals": ("lab", "reports", "forge_brick_proposals.jsonl"),
+}
+
+# Pour les connecteurs "writer" (cf. `CONNECTOR_KIND` ci-dessous) : le nom de
+# l'artefact de SORTIE que la fonction est censee produire (declare par
+# l'architecture — Detail K + studio_link.py DEFAULT_*_PROPOSALS), PAS le nom
+# de la fonction elle-meme (aucun fichier ne s'appellera jamais
+# "propose_brick.*"). Le chemin complet declare (lab/reports/forge_*_proposals.jsonl)
+# vit hors des racines actuellement ouvertes a Observer (ALLOWED_ROOTS n'ouvre
+# que lab/reports/error_journal/ et lab/reports/lessons.jsonl) : on ne peut
+# donc pas le lire directement sans elargir ALLOWED_ROOTS (hors perimetre de
+# cette correction). Seul le NOM de fichier sert de repere de recherche, dans
+# les memes racines que tout autre connecteur "artefact" (knowledge_base/,
+# lab/forge_evidence/) — meme mecanisme que `_search_filename`, aucune
+# nouvelle racine de lecture.
+CONNECTOR_OUTPUT_ARTIFACT_NAME: dict[str, str] = {
+    "propose_brick": "forge_brick_proposals",
+    "propose_bible_entry": "forge_bible_proposals",
 }
 
 # Nature du connecteur : "artefact" (fichier attendu — une recherche de nom de
@@ -828,24 +855,96 @@ def _six_axes_artefact(
 
     if CONNECTOR_KIND.get(nom, "artefact") == "writer":
         # Fonction/mecanisme nomme par la doctrine : son CODE vit dans
-        # scripts/forge/*.py, hors des racines lisibles d'Observer. Une
-        # recherche de FICHIER portant ce nom ne prouverait rien (une fonction
-        # n'est pas un fichier) — NOT_OBSERVABLE honnete plutot qu'un faux NON.
-        why = (
-            f"'{nom}' est une fonction/mecanisme nomme par la doctrine, pas un "
-            "fichier : son code vit dans scripts/forge/*.py, hors des racines "
-            "lisibles d'Observer (seul scripts/forge/contracts/ y est ouvert) "
-            "— la construction ne peut pas etre confirmee ni infirmee ici"
+        # scripts/forge/*.py, hors des racines lisibles d'Observer — mais
+        # l'ABSENCE de son code ici n'est pas l'absence de la FONCTION. Regle
+        # (directive Pierre 2026-08-03) : `construit` est juge par ce que
+        # l'architecture DECLARE (Detail K la nomme explicitement), pas par
+        # une lecture de fichier impossible ici. Un axe non mesurable ne doit
+        # jamais faire retomber TOUTE la ligne en NOT_OBSERVABLE : cable/actif/
+        # consomme sont mesures via la trace d'execution observable — la
+        # presence ou l'absence de l'artefact de SORTIE declare, cherche par
+        # NOM DE FICHIER exact dans les racines de cablage deja ouvertes.
+        construit = _cell("OUI", doctrine_src)
+        construit["proof"] = SELF_DECLARED
+        construit["note"] = (
+            f"'{nom}' est une fonction nommee et declaree par l'architecture "
+            "(Detail K, Nomenclature C) — son code vit dans scripts/forge/*.py, "
+            "hors des racines lisibles d'Observer, mais l'absence du code "
+            "source ici n'est pas l'absence de la fonction : jugee construite "
+            "par declaration, jamais par lecture de fichier"
         )
-        not_obs = _cell(NOT_OBSERVABLE, why=why)
+
+        artefact_name = CONNECTOR_OUTPUT_ARTIFACT_NAME.get(nom)
+        if artefact_name is None:
+            why = (
+                f"aucun nom d'artefact de sortie connu pour '{nom}' — rien a "
+                "chercher sans deviner"
+            )
+            cable = _cell(NOT_OBSERVABLE, why=why)
+            actif = _cell(NOT_OBSERVABLE, why="axe precedent (cable) non observable")
+            consomme = _cell(NOT_OBSERVABLE, why="axe precedent (actif) non observable")
+        else:
+            # Chemin EXACT declare par l'architecture. Ouvert a Observer depuis
+            # l'elargissement declare nº4 (sources.py, 2026-08-03) : deux fichiers
+            # exacts, jamais le dossier lab/reports. Ce sont des artefacts
+            # d'EXECUTION (files de propositions ecrites par un run), pas du code
+            # source — la cecite sur scripts/forge/*.py et sur docs/ est intacte.
+            # Avant cet elargissement, la recherche se faisait par nom de fichier
+            # dans knowledge_base/ + lab/forge_evidence/, qui ne contiennent PAS
+            # ces artefacts : la reponse etait juste par coincidence (ils
+            # n'existaient nulle part) et serait devenue un FAUX NON des qu'un run
+            # reel en aurait ecrit un.
+            exact = ctx.repo_root / "lab" / "reports" / f"{artefact_name}.jsonl"
+            hit = ({"path": ctx.rel(exact)} if ctx.exists(exact)
+                   else _search_filename(ctx, artefact_name))
+            if hit is None:
+                cable = _cell("NON")
+                cable["note"] = (
+                    f"jamais peuple par un run reel : {ctx.rel(exact)} absent du "
+                    "disque (chemin exact declare par l'architecture, verifie "
+                    "directement), et aucun fichier de ce nom dans knowledge_base/ "
+                    "ni lab/forge_evidence/ — absence mesuree, pas une supposition"
+                )
+                actif = _cell("NON")
+                actif["note"] = "axe precedent (cable) negatif : jamais peuple par un run reel"
+                consomme = _cell("NON")
+                consomme["note"] = "axe precedent (actif) negatif : rien a consommer"
+            else:
+                cable = _cell("OUI", hit)
+                artefact_path = ctx.repo_root.joinpath(*hit["path"].split("/"))
+                if artefact_path.suffix == ".jsonl":
+                    n_lignes = sum(1 for _ in ctx.read_jsonl(artefact_path))
+                    if n_lignes >= 1:
+                        actif = _cell("OUI", hit)
+                        actif["note"] = f"{n_lignes} entree(s) reelle(s) dans l'artefact"
+                    else:
+                        actif = _cell("NON")
+                        actif["note"] = "artefact trouve mais vide — jamais peuple par un run reel"
+                else:
+                    actif = _cell(NOT_OBSERVABLE, why=(
+                        "artefact present, non-jsonl : aucune mesure de contenu "
+                        "implementee ici"
+                    ))
+
+                if actif["v"] == "OUI":
+                    consomme = _cell(NOT_OBSERVABLE, why=(
+                        f"aucun lecteur distinct de '{artefact_name}' trouve dans "
+                        "les racines de cablage (knowledge_base/, "
+                        "lab/forge_evidence/, scripts/forge/contracts/) au-dela "
+                        "de sa propre presence"
+                    ))
+                else:
+                    consomme = _cell("NON")
+                    consomme["note"] = "axe precedent (actif) non confirme"
+
         return {
             "connecteur": _cell(nom),
             "prevu": _cell("OUI", doctrine_src),
             "doctrine": doctrine_cell,
-            "construit": not_obs,
-            "cable": _cell(NOT_OBSERVABLE, why="axe precedent (construit) non observable"),
-            "actif": _cell(NOT_OBSERVABLE, why="axe precedent (cable) non observable"),
-            "consomme": _cell(NOT_OBSERVABLE, why="axe precedent (actif) non observable"),
+            "construit": construit,
+            "cable": cable,
+            "actif": actif,
+            "consomme": consomme,
             "preuve_disponible": _cell(NOT_OBSERVABLE, why=(
                 "aucun recu d'oracle ne couvre le cablage de ce connecteur specifiquement"
             )),

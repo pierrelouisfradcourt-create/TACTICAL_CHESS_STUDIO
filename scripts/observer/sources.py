@@ -162,6 +162,25 @@ class ObserverContext:
             # dans lab/reports/observer/ (sortie propre d'Observer), et c'est
             # Pierre qui promeut vers studio_brain/planning/.
             repo_root / "studio_brain" / "planning",
+            # --- Elargissement DECLARE nº4 (2026-08-03, doctrine FORGE_AUTONOMY_V2) —
+            # DEUX FICHIERS EXACTS, pas le dossier lab/reports : meme patron que
+            # lessons.jsonl ci-dessus.
+            # POURQUOI : Pierre exige que la chaine prevu -> construit -> cable ->
+            # actif -> consomme reste capable de nommer « appele mais jamais
+            # consomme ». Les connecteurs-ecrivains (propose_brick,
+            # propose_bible_entry) vivent dans scripts/forge/*.py, structurellement
+            # ILLISIBLE et qui doit le rester — la verite systeme vient de
+            # l'execution, pas du code. On les juge donc par l'ARTEFACT qu'ils
+            # produisent. Sans ces deux chemins, la vue cablage cherchait ces
+            # fichiers dans des racines qui ne les contiennent pas : reponse juste
+            # aujourd'hui par coincidence (ils n'existent nulle part), mais FAUX
+            # NON garanti des qu'un run reel en ecrit un.
+            # CE QUE CELA N'AFFAIBLIT PAS : ce sont des artefacts d'EXECUTION
+            # (files de propositions ecrites par un run), jamais du code source.
+            # La cecite de reconstruction porte sur le code et sur les rapports
+            # humains de campagne (docs/) — inchangee.
+            repo_root / "lab" / "reports" / "forge_brick_proposals.jsonl",
+            repo_root / "lab" / "reports" / "forge_bible_proposals.jsonl",
         ]
         return ctx
 
