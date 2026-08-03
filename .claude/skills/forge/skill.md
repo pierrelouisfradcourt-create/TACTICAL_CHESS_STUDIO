@@ -297,13 +297,31 @@ l'humain :
 | classe | situation | action |
 |---|---|---|
 | **A** | boucle cassée | **réparer directement** |
-| **B** | composant prévu mais non construit | **planifier la construction** |
+| **B** | composant prévu mais non construit | **planifier la construction** — jamais traiter comme un bug |
 | **C** | composant construit mais non câblé | **brancher** |
 | **D** | composant mal câblé | **corriger** |
+| **D'** | composant **bloqué** (appelé, prédicat/condition jamais vraie) | **rendre l'état observable** avec sa raison ; ne desserrer le prédicat que sur décision |
+| **D''** | **erreur d'utilisation** (l'outil marche, on s'en sert mal) | **corriger l'usage**, pas l'outil |
 | **E** | vraie décision d'architecture ou produit | **HumanGate** |
 
 Seul **E** remonte. Annonce la classe quand tu rends compte — « (C) construit mais non câblé,
 branché » vaut mieux qu'un paragraphe.
+
+**Un symptôme cherche toujours sa boucle responsable** (ratifié Pierre 2026-08-03) :
+
+```
+Symptôme → chercher la boucle PRÉVUE au Master Schéma → classer
+        → réparer si cause connue + solution connue + risque maîtrisé
+        → sinon escalade, en nommant le choix restant
+```
+
+Ne remonte jamais un constat simple. « Le standard ne connaît pas ce jeu » n'est pas un fait à
+rapporter, c'est la trace d'une boucle d'acquisition qui ne s'est pas déclenchée.
+
+**État de référence** : `docs/forge/FORGE_STATE_V2_0.md` — snapshot canonique du 2026-08-03,
+séparant strictement *réparé* / *construit non exploité* / *non construit*. Consulte-le avant de
+déclarer qu'une capacité manque : elle y est peut-être listée comme volontairement non exploitée ou
+comme chantier futur.
 
 ### Ce que l'autonomie ne peut JAMAIS fabriquer (ratifié Pierre 2026-08-03)
 
