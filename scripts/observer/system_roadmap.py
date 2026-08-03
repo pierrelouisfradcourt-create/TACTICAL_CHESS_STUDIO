@@ -694,12 +694,12 @@ def build_roadmap_views(ctx: Any, result: dict[str, Any], events: list[dict[str,
 if __name__ == "__main__":
     import json
 
-    from observer.sources import ObserverContext  # noqa: E402
+    from observer.sources import ObserverContext, default_repo_root, default_transcripts_root  # noqa: E402
 
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
 
-    _repo_root = Path(r"C:\TACTICAL_CHESS_STUDIO")
-    _transcripts_root = Path(r"C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO")
+    _repo_root = default_repo_root()
+    _transcripts_root = default_transcripts_root(_repo_root)
     _project = "breakout_v2"
     _ctx = ObserverContext.build(_repo_root, _project, _transcripts_root)
 

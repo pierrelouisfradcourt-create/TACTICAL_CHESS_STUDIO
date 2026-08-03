@@ -34,20 +34,23 @@ if str(_HERE.parent) not in sys.path:  # rend `import observer` possible sans in
 
 from observer.adapters import load_adapters  # noqa: E402
 from observer.events import KINDS, Event  # noqa: E402
-from observer.sources import BlindnessViolation, ObserverContext  # noqa: E402
+from observer.sources import (  # noqa: E402
+    BlindnessViolation,
+    ObserverContext,
+    default_repo_root,
+    default_transcripts_root,
+)
 
 LOG = logging.getLogger("observer.selftest")
 
 SCHEMA_VERSION = "observer.selftest.v0"
 
-DEFAULT_REPO = Path(r"C:\TACTICAL_CHESS_STUDIO")
-DEFAULT_TRANSCRIPTS = Path(
-    r"C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO"
-)
-DEFAULT_OUT = Path(
-    r"C:\Users\STUDIO~2\AppData\Local\Temp\claude\C--TACTICAL-CHESS-STUDIO"
-    r"\6d18bd3b-3bf3-49e3-aaf2-e963aae0b778\scratchpad\observer_selftest"
-)
+# Defauts derives (source unique : observer.sources). L'ancien DEFAULT_OUT
+# pointait vers un scratchpad de session Claude Code deja expire — repare vers
+# une sortie stable sous le depot.
+DEFAULT_REPO = default_repo_root()
+DEFAULT_TRANSCRIPTS = default_transcripts_root(DEFAULT_REPO)
+DEFAULT_OUT = DEFAULT_REPO / "lab" / "reports" / "observer" / "_selftest"
 
 _TOP_NOTES_LIMIT = 15
 _DUPLICATE_EXAMPLES_LIMIT = 3

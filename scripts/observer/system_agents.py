@@ -56,7 +56,11 @@ if str(_HERE.parent) not in sys.path:  # rend `import observer` possible sans in
 
 from observer.fleet import human_name_etape, human_name_session  # noqa: E402
 from observer.prompt import _LIRE_RE, _MEMOIRE_RE, _find_section, collect_prompts  # noqa: E402
-from observer.sources import ObserverContext  # noqa: E402
+from observer.sources import (  # noqa: E402
+    ObserverContext,
+    default_repo_root,
+    default_transcripts_root,
+)
 
 LOG = logging.getLogger("observer.system_agents")
 
@@ -1266,11 +1270,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         description="Vues SYSTEME (AGENTS/INJECTION/PROMPT) de Forge Observer V0 (lecture seule)"
     )
     parser.add_argument("--project", default="breakout_v2")
-    parser.add_argument("--repo", type=Path, default=Path(r"C:\TACTICAL_CHESS_STUDIO"))
+    parser.add_argument("--repo", type=Path, default=default_repo_root())
     parser.add_argument(
         "--transcripts",
         type=Path,
-        default=Path(r"C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO"),
+        default=default_transcripts_root(),
     )
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args(argv)

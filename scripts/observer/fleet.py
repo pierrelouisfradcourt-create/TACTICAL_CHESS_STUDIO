@@ -449,8 +449,10 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
 
-    _repo_root = Path(r"C:\TACTICAL_CHESS_STUDIO")
-    _transcripts_root = Path(r"C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO")
+    from observer.sources import default_repo_root, default_transcripts_root  # noqa: E402
+
+    _repo_root = default_repo_root()
+    _transcripts_root = default_transcripts_root(_repo_root)
     _current_project = "breakout_v2"
     _current_result_path = (
         _repo_root / "lab" / "reports" / "observer" / _current_project / "observer_run.json"

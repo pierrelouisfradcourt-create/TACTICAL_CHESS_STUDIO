@@ -1014,12 +1014,12 @@ def view_evidence(ctx: Any, result: dict[str, Any], events: list[dict[str, Any]]
 # --------------------------------------------------------------------------- #
 
 if __name__ == "__main__":
-    from observer.sources import ObserverContext  # noqa: E402
+    from observer.sources import ObserverContext, default_repo_root, default_transcripts_root  # noqa: E402
 
     logging.basicConfig(level=logging.WARNING)
 
-    repo_root = Path(r"C:\TACTICAL_CHESS_STUDIO")
-    transcripts_root = Path(r"C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO")
+    repo_root = default_repo_root()
+    transcripts_root = default_transcripts_root(repo_root)
     ctx = ObserverContext.build(repo_root, "breakout_v2", transcripts_root)
 
     report_dir = repo_root / "lab" / "reports" / "observer" / "breakout_v2"

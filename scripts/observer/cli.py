@@ -27,14 +27,20 @@ from observer.correlate import prompt_drift, reconstruct  # noqa: E402
 from observer.events import Event  # noqa: E402
 from observer.facts import build_facts, summarize  # noqa: E402
 from observer.views import build_views  # noqa: E402
-from observer.sources import BlindnessViolation, ObserverContext  # noqa: E402
+from observer.sources import (  # noqa: E402
+    BlindnessViolation,
+    ObserverContext,
+    default_repo_root,
+    default_transcripts_root,
+)
 
 LOG = logging.getLogger("observer.cli")
 
-DEFAULT_REPO = Path(r"C:\TACTICAL_CHESS_STUDIO")
-DEFAULT_TRANSCRIPTS = Path(
-    r"C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO"
-)
+# Defauts derives (source unique : observer.sources). Conserves comme noms de
+# module pour compatibilite (`live.py` les importe), mais plus aucun chemin
+# litteral n'est redeclare ici.
+DEFAULT_REPO = default_repo_root()
+DEFAULT_TRANSCRIPTS = default_transcripts_root(DEFAULT_REPO)
 
 
 def collect_all(ctx: ObserverContext) -> tuple[list[Event], dict[str, Any]]:
@@ -178,7 +184,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=DEFAULT_REPO)
     parser.add_argument("--transcripts", type=Path, default=DEFAULT_TRANSCRIPTS)
     parser.add_argument("--out", type=Path, default=None)
-    parser.add_argument("--events", action="store_true", help="ecrit aussi events.jsonl")
+    parser.add_argument(
+        "--no-events",
+        dest="events",
+        action="store_false",
+        help="n'ecrit PAS events.jsonl (par defaut, il est ecrit)",
+    )
+    parser.add_argument(
+        "--events",
+        dest="events",
+        action="store_true",
+        help="ecrit events.jsonl (comportement par defaut — flag conserve pour compatibilite)",
+    )
+    parser.set_defaults(events=True)
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args(argv)
 

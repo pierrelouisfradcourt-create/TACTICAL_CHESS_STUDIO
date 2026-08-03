@@ -52,7 +52,12 @@ _HERE = Path(__file__).resolve().parent
 if str(_HERE.parent) not in sys.path:  # rend `import observer` possible sans install
     sys.path.insert(0, str(_HERE.parent))
 
-from observer.sources import BlindnessViolation, ObserverContext  # noqa: E402
+from observer.sources import (  # noqa: E402
+    BlindnessViolation,
+    ObserverContext,
+    default_repo_root,
+    default_transcripts_root,
+)
 
 LOG = logging.getLogger("observer.prompt")
 
@@ -514,11 +519,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         description="Vue 'prompt reel' de Forge Observer V0 (lecture seule)"
     )
     parser.add_argument("--project", default="breakout_v2")
-    parser.add_argument("--repo", type=Path, default=Path(r"C:\TACTICAL_CHESS_STUDIO"))
+    parser.add_argument("--repo", type=Path, default=default_repo_root())
     parser.add_argument(
         "--transcripts",
         type=Path,
-        default=Path(r"C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO"),
+        default=default_transcripts_root(),
     )
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args(argv)

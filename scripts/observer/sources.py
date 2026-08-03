@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -31,6 +33,56 @@ LOG = logging.getLogger("observer.sources")
 # Encodage unique pour tout le projet. `utf-8-sig` decode aussi bien l'UTF-8 nu
 # que l'UTF-8 avec BOM (cas reel : playtest_capture_report.json).
 ENCODING = "utf-8-sig"
+
+# ---------------------------------------------------------------------- #
+# Resolution de chemins — SOURCE UNIQUE pour tout Observer.
+#
+# Avant : 13 modules redeclaraient chacun `C:\TACTICAL_CHESS_STUDIO` et
+# `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO` en dur.
+# Resultat : l'outil ne tournait que sur un seul poste. Ici, TOUT module qui a
+# besoin d'une racine par defaut doit appeler `default_repo_root()` /
+# `default_transcripts_root()` — jamais recopier un chemin litteral.
+#
+# Ordre de resolution (le premier qui répond gagne) :
+#   1. argument explicite (flag CLI --repo/--transcripts, deja gere par les
+#      appelants — ces fonctions ne fournissent QUE le defaut)
+#   2. variable d'environnement (TCS_OBSERVER_REPO_ROOT / _TRANSCRIPTS_ROOT)
+#   3. deduction : repo = dossier parent de scripts/observer/ ; transcripts =
+#      <home>/.claude/projects/<slug(repo_root)>, ou <slug> reproduit la
+#      convention Claude Code (tout caractere non alphanumerique -> "-").
+# ---------------------------------------------------------------------- #
+
+ENV_REPO_ROOT = "TCS_OBSERVER_REPO_ROOT"
+ENV_TRANSCRIPTS_ROOT = "TCS_OBSERVER_TRANSCRIPTS_ROOT"
+
+
+def _claude_project_slug(path: Path) -> str:
+    """Reproduit la convention de nommage de `~/.claude/projects/<slug>`.
+
+    Claude Code remplace chaque caractere non alphanumerique du chemin absolu
+    par un tiret. Verifie empiriquement : `C:\\TACTICAL_CHESS_STUDIO` ->
+    `C--TACTICAL-CHESS-STUDIO` (dossier reellement present sur ce poste).
+    """
+    return re.sub(r"[^A-Za-z0-9]", "-", str(path))
+
+
+def default_repo_root() -> Path:
+    """Racine du depot : deduite de l'emplacement de ce fichier, sauf surcharge."""
+    override = os.environ.get(ENV_REPO_ROOT)
+    if override:
+        return Path(override).resolve()
+    # sources.py vit dans <repo>/scripts/observer/sources.py
+    return Path(__file__).resolve().parents[2]
+
+
+def default_transcripts_root(repo_root: Optional[Path] = None) -> Path:
+    """Dossier des transcripts Claude Code pour ce depot, sauf surcharge."""
+    override = os.environ.get(ENV_TRANSCRIPTS_ROOT)
+    if override:
+        return Path(override)
+    root = (repo_root or default_repo_root()).resolve()
+    slug = _claude_project_slug(root)
+    return Path.home() / ".claude" / "projects" / slug
 
 
 class BlindnessViolation(RuntimeError):

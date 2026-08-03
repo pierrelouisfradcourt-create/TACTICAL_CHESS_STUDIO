@@ -326,10 +326,17 @@ def _kind_for(metric: str) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    import sys
+
+    _here = Path(__file__).resolve().parent
+    if str(_here.parent) not in sys.path:  # rend `import observer` possible sans install
+        sys.path.insert(0, str(_here.parent))
+    from observer.sources import default_repo_root  # noqa: E402
+
     parser = argparse.ArgumentParser(description="Etalonnage Observer (lecture seule)")
     parser.add_argument(
         "--observer-dir", type=Path,
-        default=Path(r"C:\TACTICAL_CHESS_STUDIO\lab\reports\observer\breakout_v2"))
+        default=default_repo_root() / "lab" / "reports" / "observer" / "breakout_v2")
     args = parser.parse_args(argv)
 
     result = run_bench(args.observer_dir)

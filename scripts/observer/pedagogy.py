@@ -1132,12 +1132,12 @@ def build_home_views(ctx: Any, result: dict[str, Any], events: list[dict[str, An
 if __name__ == "__main__":
     import json
 
-    from observer.sources import ObserverContext  # noqa: E402
+    from observer.sources import ObserverContext, default_repo_root, default_transcripts_root  # noqa: E402
 
     logging.basicConfig(level=logging.WARNING)
 
-    repo_root = Path(r"C:\TACTICAL_CHESS_STUDIO")
-    transcripts_root = Path(r"C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO")
+    repo_root = default_repo_root()
+    transcripts_root = default_transcripts_root(repo_root)
     project = "breakout_v2"
     ctx = ObserverContext.build(repo_root, project, transcripts_root)
 

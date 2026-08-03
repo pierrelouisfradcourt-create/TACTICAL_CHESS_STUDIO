@@ -550,12 +550,19 @@ def render(results: list[dict[str, Any]], rec: Reconstruction, report_path: Path
 
 
 def main(argv: list[str] | None = None) -> int:
+    import sys
+
+    _here = Path(__file__).resolve().parent
+    if str(_here.parent) not in sys.path:  # rend `import observer` possible sans install
+        sys.path.insert(0, str(_here.parent))
+    from observer.sources import default_repo_root  # noqa: E402
+
     parser = argparse.ArgumentParser(description="Comparaison rapport humain / Observer")
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument(
         "--observer-dir",
         type=Path,
-        default=Path(r"C:\TACTICAL_CHESS_STUDIO\lab\reports\observer\breakout_v2"),
+        default=default_repo_root() / "lab" / "reports" / "observer" / "breakout_v2",
     )
     args = parser.parse_args(argv)
 
