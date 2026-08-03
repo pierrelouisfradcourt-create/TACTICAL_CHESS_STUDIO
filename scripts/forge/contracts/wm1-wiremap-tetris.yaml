@@ -103,6 +103,14 @@ success_criteria: >-
   - Zéro ligne `reused_from.type=CONCEPT` sans requalification non vide.
   - Les 10 règles de la Genre Bible §1 sont chacune couvertes par au moins une ligne
     (`genre_refs`), et aucune règle rejetée en §2 n'a produit de ligne.
+  - Les 10 exigences CORE de `scripts/forge/standard/core_requirements.yaml` sont CHACUNE
+    couvertes par exactement une ligne dont l'`id` reproduit littéralement l'`id` du
+    registre CORE (ex. `core.boot`, `core.main_loop`, `core.input`, `core.end_condition`,
+    `core.restart`, `core.exit`, `core.render`, `core.audio`, `core.error_handling`, en plus
+    de `core.game_state` déjà couvert) — sinon `check_line_states.core_omis` échoue
+    silencieusement en aval (leçon `forge.validator_without_producer`, réparation
+    2026-08-03 : le bootstrap non gelé de Tetris omettait ces 9 lignes, comme le jumeau
+    Breakout l'exige explicitement à sa ligne 108-109 et que ce contrat omettait).
 
 tests_oracles:
   - node scripts/forge/check_worldscan.mjs games/tetris/GAME_REFERENCE

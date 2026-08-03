@@ -481,6 +481,65 @@ Breakout, est le seul motif de réouverture. HumanGate Pierre.
 
 ---
 
+## 2026-08-03 — La Forge répare les boucles, l'humain tranche les choix (FORGE_AUTONOMY_V1)
+
+**Décision (prononcée par Pierre en session, deux volets)** :
+
+**Volet 1 — boucle cassée = réparation, pas observation.** Quand une boucle est cassée, que la
+cause racine est identifiée et que la solution est connue, la Forge **répare** : diagnostic → cause
+→ correction → test → preuve, exactement comme pour un bug. Un diagnostic n'est pas une fin de
+workflow. La sortie attendue est `PROBLEM / CAUSE / ACTION / VALIDATION / ESCALADE-si-choix-restant`,
+jamais `PROBLEM / CAUSE / QUESTION`. On répare le **mécanisme générique**, jamais le cas particulier
+en exception. Grille obligatoire avant toute escalade : est-ce prévu au Master Schéma ? déjà
+contracté ? la cause est-elle identifiée ? la solution déterminée ? le risque acceptable ? Cinq oui
+⇒ réparer, tester, documenter. Corollaire posé par Pierre : une escalade a un coût réel
+(interruption, contexte, temps, dilution) ; elle doit être justifiée par une **nécessité de
+décision**, jamais par une incapacité à appliquer une solution déjà trouvée.
+
+**Volet 2 — la HumanGate KB évolue vers une autonomie contrôlée.** Le blocage humain sur
+l'ingestion KB était une **sécurité de phase de construction**, destinée à éviter de polluer la
+connaissance avant que les mécanismes de preuve existent. Cette phase est passée : la KB est câblée,
+les validations mécaniques existent (`kb-validate.mjs`), les propositions sont structurées, les
+preuves sont produites, et les jeux servent de boucle d'apprentissage. Nouveau régime — recherche
+automatique : OK · extraction de connaissance : OK · proposition structurée : OK · validation
+mécanique : OK · **ingestion automatique : possible sous conditions de preuve et de validation**.
+La sécurité anti-dérive reste obligatoire mais passe désormais par des **contrôles mécaniques**, pas
+par un blocage humain permanent. Motif : « la Forge ne doit pas rester dépendante d'une intervention
+humaine pour chaque apprentissage, sinon elle ne devient jamais autonome ».
+
+Boucle cible ratifiée :
+`Erreur détectée → Cause racine → Correction → Nouvelle connaissance → Validation → KB → Projet suivant`
+
+**Contexte** : audit des 15 boucles déclarées par `docs/forge/STUDIO_MASTER_SCHEMA.html` confronté
+au code, déclenché par le run `tetris-fullgodot-20260803-084719`. Trois boucles seulement sont
+câblées et fonctionnelles (oracle→re-build, oracle→lessons, verify_run→knowledge_trace). La flèche
+centrale de la Coupe B, « manque ? → world-scan ciblé », n'existe pas en code ;
+`identifiants_inconnus` est un cul-de-sac ; `_UPSTREAM_BY_STEP` ne porte aucune clé `s2-worldscan`
+(le Prisme saute le World Scan) ; `check_e2e_harness` n'observe pas le moteur. Déclencheur du volet
+1 : quatre symptômes remontés à Pierre comme constats alors que trois avaient une cause et une
+solution établies.
+
+**Ce que cette décision NE change PAS** (invariants ADR-002 intacts) : aucun sous-agent sans contrat
+validé · oracles déterministes non-LLM · `software_verdict` issu des seuls reçus vérifiés · red-team
+advisory · `claim_verdict: NO_CLAIM_ALLOWED` · **HumanGate Pierre décide merge/reject/freeze**.
+L'autonomie porte sur la RÉPARATION et l'APPRENTISSAGE, pas sur le jugement de livraison.
+
+**Alternative rejetée** : maintenir la gate humaine sur l'ingestion KB « par prudence » → rejetée
+explicitement par Pierre : la prudence doit être portée par des contrôles mécaniques, sinon elle
+plafonne définitivement la montée en compétence de la Forge.
+
+**Traçabilité** : 7 leçons `validated` écrites dans `lab/reports/lessons.jsonl` et promues au
+catalogue KB (42 entrées, `kb-validate` PASS, 0 violation) —
+`forge.broken_loop_repair_not_report` · `forge.kb_humangate_to_controlled_autonomy` ·
+`forge.architecture_check_before_human_escalation` · `forge.diagnosis_is_not_workflow_end` ·
+`forge.escalation_costs_avoid_default_route` (+ les 2 déjà promues ce jour).
+
+**Critères de révision** : si une ingestion automatique introduit une connaissance fausse en KB, ce
+n'est pas la gate humaine qu'on restaure — c'est le contrôle mécanique manquant qu'on identifie et
+qu'on ajoute. Retour au blocage humain = HumanGate Pierre explicite.
+
+---
+
 ## Template pour nouvelles entrées
 
 ```

@@ -8,6 +8,13 @@
 //
 // v0.1 (2026-07-28) — patron : scripts/forge/check_artbible.mjs (CLI, vocabulaire de
 // verdict, style de rapport, framework de test node:test).
+// v0.2 (2026-08-03) — réparation boucle cassée : le manifest ne portait AUCUN champ
+// décrivant victoire/défaite/objectif joueur (cause racine du blocage HumanGate sur
+// le run tetris — solvabilité indéfinissable). Ajout de `games[].objectives[]`
+// {mode, has_win_state, victory_condition, has_defeat_state, defeat_condition,
+// player_goal} : un genre SANS état gagné (marathon/score-attack) DOIT le déclarer
+// explicitement (`has_win_state:false` + `victory_condition:null`), jamais par
+// absence de champ. Générique — aucune règle spécifique à un jeu.
 //
 // Usage :
 //   node check_worldscan.mjs <dossier_GAME_REFERENCE> [--json]
@@ -30,6 +37,9 @@ export const SOURCE_TYPES = ['screenshot', 'video', 'article', 'wiki'];
 export const LOOP_KEYS = ['minute_1', 'minute_10', 'hour_5', 'endgame'];
 export const MIN_GAMES = 2;
 export const MIN_SOURCES_PER_GAME = 3;
+// Un jeu decrit toujours >=1 mode (solo). Plusieurs modes (solo/versus/coop...) peuvent
+// coexister avec des conditions differentes : chacun est une entree distincte.
+export const MIN_OBJECTIVES_PER_GAME = 1;
 
 // Extensions média INTERDITES dans le dossier — règle ratifiée « URLs citées, pas de
 // collecte locale » : le World Scan ne rapatrie jamais de fichier binaire, il cite ses
@@ -142,8 +152,69 @@ export function validateLoops(loops, gameIdx) {
 }
 
 /**
+ * Valide une paire {has_<x>_state, <x>_condition} d'une entrée `objectives[i]`. Règle
+ * ratifiée : un genre SANS cet état (ex. marathon sans victoire) doit le représenter
+ * EXPLICITEMENT — `has_*_state: false` ET `*_condition: null` — jamais par un champ
+ * absent ni par une chaîne vide. C'est la différence entre "non renseigné" (invalide)
+ * et "déclaré absent" (valide).
+ * @param {object} objective
+ * @param {string} loc préfixe de localisation déjà formé (ex. games[0].objectives[0])
+ * @param {'has_win_state'|'has_defeat_state'} hasKey
+ * @param {'victory_condition'|'defeat_condition'} condKey
+ * @returns {string[]}
+ */
+export function validateConditionState(objective, loc, hasKey, condKey) {
+  const findings = [];
+  const hasValue = objective[hasKey];
+  if (typeof hasValue !== 'boolean') {
+    findings.push(`${loc}.${hasKey}: doit etre un booleen explicite (true ou false), jamais absent ou d'un autre type`);
+    return findings;
+  }
+  const hasCondKey = condKey in objective;
+  const condValue = objective[condKey];
+  if (hasValue === true) {
+    if (typeof condValue !== 'string' || condValue.trim().length === 0) {
+      findings.push(`${loc}.${condKey}: requis et non vide quand ${hasKey}=true`);
+    }
+  } else if (!hasCondKey) {
+    findings.push(`${loc}.${condKey}: doit etre present et valoir null quand ${hasKey}=false (etat absent = representation explicite, jamais un champ omis)`);
+  } else if (condValue !== null) {
+    findings.push(`${loc}.${condKey}: doit valoir exactement null quand ${hasKey}=false (pas une chaine vide, pas une autre valeur)`);
+  }
+  return findings;
+}
+
+/**
+ * Valide une entrée `objectives[i]` : {mode, has_win_state, victory_condition,
+ * has_defeat_state, defeat_condition, player_goal}. Un jeu peut déclarer plusieurs
+ * modes (ex. solo marathon vs versus) avec des conditions différentes — chaque mode
+ * est une entrée séparée du tableau `objectives`.
+ * @param {object} objective
+ * @param {number} gameIdx
+ * @param {number} objIdx
+ * @returns {string[]}
+ */
+export function validateObjective(objective, gameIdx, objIdx) {
+  const loc = `games[${gameIdx}].objectives[${objIdx}]`;
+  if (objective === null || typeof objective !== 'object' || Array.isArray(objective)) {
+    return [`${loc}: doit etre un objet {mode, has_win_state, victory_condition, has_defeat_state, defeat_condition, player_goal}`];
+  }
+  const findings = [];
+  if (typeof objective.mode !== 'string' || objective.mode.trim().length === 0) {
+    findings.push(`${loc}.mode: absent ou vide`);
+  }
+  findings.push(...validateConditionState(objective, loc, 'has_win_state', 'victory_condition'));
+  findings.push(...validateConditionState(objective, loc, 'has_defeat_state', 'defeat_condition'));
+  if (typeof objective.player_goal !== 'string' || objective.player_goal.trim().length === 0) {
+    findings.push(`${loc}.player_goal: absent ou vide`);
+  }
+  return findings;
+}
+
+/**
  * Valide une entrée `games[i]` complète : game (nom), sources (>=3, URLs valides,
- * video->timestamp), loops (4 clés non vides), retention_answer (chaîne non vide).
+ * video->timestamp), loops (4 clés non vides), objectives (>=1 mode, victoire/défaite
+ * explicites), retention_answer (chaîne non vide).
  * @param {object} entry
  * @param {number} idx
  * @returns {string[]}
@@ -165,6 +236,14 @@ export function validateGameEntry(entry, idx) {
     entry.sources.forEach((s, i) => findings.push(...validateSource(s, idx, i)));
   }
   findings.push(...validateLoops(entry.loops, idx));
+  if (!Array.isArray(entry.objectives)) {
+    findings.push(`games[${idx}].objectives: doit etre un tableau`);
+  } else {
+    if (entry.objectives.length < MIN_OBJECTIVES_PER_GAME) {
+      findings.push(`games[${idx}].objectives: ${entry.objectives.length} mode(s) decrit(s), minimum ${MIN_OBJECTIVES_PER_GAME} requis`);
+    }
+    entry.objectives.forEach((o, i) => findings.push(...validateObjective(o, idx, i)));
+  }
   if (typeof entry.retention_answer !== 'string' || entry.retention_answer.trim().length === 0) {
     findings.push(`games[${idx}].retention_answer: absent ou vide`);
   }
@@ -217,7 +296,7 @@ export async function checkRequiredFilePresentAndNonEmpty(dir, filename) {
   return [];
 }
 
-const EMPTY_STATS = { games: 0, sources_total: 0, files_checked: 0, media_files_found: 0 };
+const EMPTY_STATS = { games: 0, sources_total: 0, objectives_total: 0, files_checked: 0, media_files_found: 0 };
 
 /**
  * Point d'entrée complet : vérifie la présence/non-vacuité des 6 fichiers requis,
@@ -268,6 +347,7 @@ export async function checkWorldScan(dirPath) {
   // remonté par l'étape 1 comme "absent ou illisible" ou par un JSON.parse dédié).
   let gamesCount = 0;
   let sourcesTotal = 0;
+  let objectivesTotal = 0;
   const manifestPath = join(dirPath, 'observation_manifest.json');
   let manifestRaw = null;
   try {
@@ -288,6 +368,7 @@ export async function checkWorldScan(dirPath) {
       if (Array.isArray(doc.games)) {
         gamesCount = doc.games.length;
         sourcesTotal = doc.games.reduce((acc, g) => acc + (Array.isArray(g.sources) ? g.sources.length : 0), 0);
+        objectivesTotal = doc.games.reduce((acc, g) => acc + (Array.isArray(g.objectives) ? g.objectives.length : 0), 0);
       }
     }
   }
@@ -295,6 +376,7 @@ export async function checkWorldScan(dirPath) {
   const stats = {
     games: gamesCount,
     sources_total: sourcesTotal,
+    objectives_total: objectivesTotal,
     files_checked: filesChecked,
     media_files_found: mediaFiles.length,
   };
@@ -323,7 +405,7 @@ if (isMain) {
     // dossier illisible produit le même format de sortie qu'un dossier invalide.
     console.log(`VERDICT WORLDSCAN: ${result.verdict}`);
     result.problems.forEach((p) => console.error(`  FAIL: ${p}`));
-    console.error(`  stats: ${result.stats.games} jeu(x) / ${result.stats.sources_total} source(s) / ${result.stats.files_checked} fichier(s) requis verifies / ${result.stats.media_files_found} media(s) local(aux) trouve(s)`);
+    console.error(`  stats: ${result.stats.games} jeu(x) / ${result.stats.sources_total} source(s) / ${result.stats.objectives_total} objectif(s)/mode(s) / ${result.stats.files_checked} fichier(s) requis verifies / ${result.stats.media_files_found} media(s) local(aux) trouve(s)`);
     console.log(JSON.stringify({ ok: result.ok, problems: result.problems, stats: result.stats }, null, 2));
     process.exit(result.ok ? 0 : 1);
   })();

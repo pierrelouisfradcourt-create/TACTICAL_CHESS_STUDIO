@@ -2,6 +2,11 @@
 # Schéma : scripts/forge/contracts/SCHEMA.md
 # Étendu 2026-07-28 (go Pierre) : knowledge packet → dossier d'observation GAME_REFERENCE/
 # (URLs citées + timestamps, jamais de collecte locale de médias). Vérifié par check_worldscan.mjs.
+# Réparé 2026-08-03 : le manifest captait COMMENT on joue (loops) jamais CE QU'ON CHERCHE
+# À FAIRE — la solvabilité du run tetris a dû remonter en décision humaine faute de champ
+# victoire/défaite/objectif. Ajout de `games[].objectives[]` (>=1 mode par jeu, has_win_state/
+# has_defeat_state explicites — un genre sans état gagné le déclare, il ne l'omet jamais).
+# Vérifié par check_worldscan.mjs (validateObjective/validateConditionState).
 
 # --- 1. Identité / posture cognitive (Critique) ---
 role: >-
@@ -31,7 +36,12 @@ objectif: >-
   candidates à l'import, et un manifest de sources citées (URL + timestamp pour
   les vidéos). Chaque jeu décrit à 4 horizons (boucle minute 1 / minute 10 /
   heure 5 / endgame) avec réponse explicite à « pourquoi le joueur revient ? ».
-  Advisory-only, JAMAIS injecté dans les prompts council.
+  Chaque jeu décrit AUSSI >=1 mode dans `objectives[]` : condition de victoire,
+  condition de défaite, objectif du joueur — un genre sans état gagné (marathon,
+  score-attack) le déclare EXPLICITEMENT (has_win_state:false +
+  victory_condition:null), jamais par un champ omis ; plusieurs modes (solo,
+  versus, coop) coexistent avec des conditions différentes. Advisory-only,
+  JAMAIS injecté dans les prompts council.
 
 # --- 4. Frontières (Critique) ---
 in_scope: >-
@@ -63,11 +73,15 @@ gardeFou: >-
 success_criteria: >-
   GAME_REFERENCE/ complet : 5 analyses .md non vides + observation_manifest.json
   valide (>=2 jeux, >=3 sources citées par jeu, 4 boucles renseignées par jeu,
-  retention_answer non vide), zéro média local. check_worldscan.mjs exit 0.
+  >=1 mode dans objectives[] par jeu avec victoire/défaite/objectif joueur
+  explicites — état gagné absent déclaré, jamais omis —, retention_answer non
+  vide), zéro média local. check_worldscan.mjs exit 0.
 tests_oracles: >-
   Oracle mécanique : node scripts/forge/check_worldscan.mjs <GAME_REFERENCE/>
   (complétude du dossier, schéma du manifest, citations URL, interdiction des
-  médias locaux). Le jugement de PERTINENCE des observations reste HumanGate (fog).
+  médias locaux, bloc objectives[] par jeu — victoire/défaite/objectif
+  explicites, absence d'état gagné déclarée pas omise). Le jugement de
+  PERTINENCE des observations reste HumanGate (fog).
 final_report: >-
   Restitution standard : cite les sources ; advisory ; joint la sortie de
   check_worldscan.mjs (preuve d'exécution, pas d'existence) ; claim_verdict:
@@ -79,7 +93,12 @@ output_contract: >-
   ux_flow.md, architecture_guess.md (systèmes probables + briques candidates à
   l'import, champ REUSED_FROM anticipé), observation_manifest.json
   {games[{game, sources[{url, type: screenshot|video|article|wiki, timestamp?}],
-  loops{minute_1, minute_10, hour_5, endgame}, retention_answer}], advisory: true}}.
+  loops{minute_1, minute_10, hour_5, endgame},
+  objectives[{mode, has_win_state: bool, victory_condition: string|null (null
+  ssi has_win_state=false), has_defeat_state: bool, defeat_condition:
+  string|null (null ssi has_defeat_state=false), player_goal}] (>=1 entrée ;
+  plusieurs modes solo/versus/coop possibles), retention_answer}],
+  advisory: true}}.
 
 # --- 9. Capacités (Important — `aucun` autorisé, jamais absent) ---
 skill: world-scan

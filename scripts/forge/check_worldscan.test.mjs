@@ -10,6 +10,8 @@ import {
   isValidHttpUrl,
   validateSource,
   validateLoops,
+  validateConditionState,
+  validateObjective,
   validateGameEntry,
   validateManifest,
   checkNoLocalMedia,
@@ -31,6 +33,32 @@ function goodLoops(overrides = {}) {
   };
 }
 
+function goodObjective(overrides = {}) {
+  return {
+    mode: 'solo',
+    has_win_state: true,
+    victory_condition: 'eliminer toutes les unites ennemies avant la fin du tour limite',
+    has_defeat_state: true,
+    defeat_condition: 'toutes les unites du joueur sont detruites ou le batiment central tombe',
+    player_goal: 'proteger le maximum de batiments civils sur la carte',
+    ...overrides,
+  };
+}
+
+function marathonObjective(overrides = {}) {
+  // Genre sans etat gagne (marathon/score-attack) : l'absence doit etre EXPLICITE,
+  // jamais une simple omission de champ.
+  return {
+    mode: 'solo_marathon',
+    has_win_state: false,
+    victory_condition: null,
+    has_defeat_state: true,
+    defeat_condition: 'la pile depasse la zone de spawn (topout)',
+    player_goal: 'faire le meilleur score possible avant le topout',
+    ...overrides,
+  };
+}
+
 function goodGame(overrides = {}) {
   return {
     game: 'Into the Breach',
@@ -40,6 +68,7 @@ function goodGame(overrides = {}) {
       goodSource({ url: 'https://example.test/c', type: 'video', timestamp: '00:12:34' }),
     ],
     loops: goodLoops(),
+    objectives: [goodObjective()],
     retention_answer: 'le joueur revient pour battre son propre score sur une seed connue',
     ...overrides,
   };
@@ -112,6 +141,61 @@ test('validateLoops : objet absent => finding', () => {
   assert.ok(findings.length > 0);
 });
 
+test('validateConditionState : has_win_state=true + victory_condition non vide => aucun finding', () => {
+  const obj = { has_win_state: true, victory_condition: 'atteindre le boss final' };
+  assert.deepEqual(validateConditionState(obj, 'games[0].objectives[0]', 'has_win_state', 'victory_condition'), []);
+});
+
+test('validateConditionState : has_win_state=true + victory_condition absente => finding', () => {
+  const obj = { has_win_state: true };
+  const findings = validateConditionState(obj, 'games[0].objectives[0]', 'has_win_state', 'victory_condition');
+  assert.ok(findings.some((f) => f.includes('victory_condition') && f.includes('requis')));
+});
+
+test('validateConditionState : has_win_state=false + victory_condition=null explicite => aucun finding', () => {
+  const obj = { has_win_state: false, victory_condition: null };
+  assert.deepEqual(validateConditionState(obj, 'games[0].objectives[0]', 'has_win_state', 'victory_condition'), []);
+});
+
+test('validateConditionState : has_win_state=false + victory_condition absente (champ omis) => finding', () => {
+  const obj = { has_win_state: false };
+  const findings = validateConditionState(obj, 'games[0].objectives[0]', 'has_win_state', 'victory_condition');
+  assert.ok(findings.some((f) => f.includes('champ omis')));
+});
+
+test('validateConditionState : has_win_state=false + victory_condition="" (chaine vide, pas null) => finding', () => {
+  const obj = { has_win_state: false, victory_condition: '' };
+  const findings = validateConditionState(obj, 'games[0].objectives[0]', 'has_win_state', 'victory_condition');
+  assert.ok(findings.some((f) => f.includes('exactement null')));
+});
+
+test('validateConditionState : has_win_state absent (pas un booleen) => finding, jamais de silence', () => {
+  const findings = validateConditionState({}, 'games[0].objectives[0]', 'has_win_state', 'victory_condition');
+  assert.ok(findings.some((f) => f.includes('booleen explicite')));
+});
+
+test('validateObjective : mode marathon sans victoire mais declaree explicitement => aucun finding', () => {
+  assert.deepEqual(validateObjective(marathonObjective(), 0, 0), []);
+});
+
+test('validateObjective : mode versus bien forme => aucun finding', () => {
+  assert.deepEqual(validateObjective(goodObjective({ mode: 'versus' }), 0, 0), []);
+});
+
+test('validateObjective : player_goal vide => finding', () => {
+  const findings = validateObjective(goodObjective({ player_goal: '' }), 0, 0);
+  assert.ok(findings.some((f) => f.includes('player_goal')));
+});
+
+test('validateObjective : mode absent => finding', () => {
+  const findings = validateObjective(goodObjective({ mode: '' }), 0, 0);
+  assert.ok(findings.some((f) => f.includes('mode')));
+});
+
+test('validateObjective : objet absent => finding', () => {
+  assert.ok(validateObjective(null, 0, 0).length > 0);
+});
+
 test('validateGameEntry : jeu bien forme => aucun finding', () => {
   assert.deepEqual(validateGameEntry(goodGame(), 0), []);
 });
@@ -119,6 +203,24 @@ test('validateGameEntry : jeu bien forme => aucun finding', () => {
 test('validateGameEntry : moins de 3 sources => finding', () => {
   const findings = validateGameEntry(goodGame({ sources: [goodSource()] }), 0);
   assert.ok(findings.some((f) => f.includes('sources')));
+});
+
+test('validateGameEntry : objectives absent => finding', () => {
+  const { objectives, ...withoutObjectives } = goodGame();
+  const findings = validateGameEntry(withoutObjectives, 0);
+  assert.ok(findings.some((f) => f.includes('objectives') && f.includes('tableau')));
+});
+
+test('validateGameEntry : objectives tableau vide => finding minimum', () => {
+  const findings = validateGameEntry(goodGame({ objectives: [] }), 0);
+  assert.ok(findings.some((f) => f.includes('objectives') && f.includes('minimum 1')));
+});
+
+test('validateGameEntry : plusieurs modes coexistent (solo + versus) => aucun finding', () => {
+  const findings = validateGameEntry(goodGame({
+    objectives: [goodObjective({ mode: 'solo' }), goodObjective({ mode: 'versus', victory_condition: 'eliminer le camp adverse' })],
+  }), 0);
+  assert.deepEqual(findings, []);
 });
 
 test('validateGameEntry : retention_answer vide => finding', () => {
@@ -160,6 +262,7 @@ test('checkWorldScan : dossier complet et valide => OK, exit implicite 0', async
     assert.deepEqual(result.problems, []);
     assert.equal(result.stats.games, 2);
     assert.equal(result.stats.sources_total, 6);
+    assert.equal(result.stats.objectives_total, 2);
     assert.equal(result.stats.files_checked, REQUIRED_FILES.length);
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -255,6 +358,68 @@ test('checkWorldScan : loops vide => FAIL', async () => {
     const result = await checkWorldScan(dir);
     assert.equal(result.verdict, 'FAIL');
     assert.ok(result.problems.some((p) => p.includes('loops') && p.includes('minute_1')));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('checkWorldScan : jeu marathon sans etat gagne declare explicitement (has_win_state:false + victory_condition:null) => OK', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'worldscan_marathon_ok_'));
+  try {
+    await makeValidFolder(dir);
+    const marathonGame = goodGame({ game: 'Tetris', objectives: [marathonObjective()] });
+    await writeFile(join(dir, 'observation_manifest.json'), JSON.stringify(goodManifest({ games: [marathonGame, goodGame({ game: 'FTL' })] })), 'utf-8');
+    const result = await checkWorldScan(dir);
+    assert.equal(result.verdict, 'OK');
+    assert.equal(result.stats.objectives_total, 2);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('checkWorldScan : plusieurs modes (solo + versus) avec conditions differentes => OK', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'worldscan_multimode_'));
+  try {
+    await makeValidFolder(dir);
+    const versusGame = goodGame({
+      objectives: [
+        goodObjective({ mode: 'solo' }),
+        goodObjective({ mode: 'versus', victory_condition: 'detruire la base adverse avant le joueur' }),
+      ],
+    });
+    await writeFile(join(dir, 'observation_manifest.json'), JSON.stringify(goodManifest({ games: [versusGame, goodGame({ game: 'FTL' })] })), 'utf-8');
+    const result = await checkWorldScan(dir);
+    assert.equal(result.verdict, 'OK');
+    assert.equal(result.stats.objectives_total, 3);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('checkWorldScan : bloc objectives absent du manifest => FAIL (validateur sans producteur interdit)', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'worldscan_noobjectives_'));
+  try {
+    await makeValidFolder(dir);
+    const { objectives, ...gameWithoutObjectives } = goodGame();
+    await writeFile(join(dir, 'observation_manifest.json'), JSON.stringify(goodManifest({ games: [gameWithoutObjectives, goodGame({ game: 'FTL' })] })), 'utf-8');
+    const result = await checkWorldScan(dir);
+    assert.equal(result.verdict, 'FAIL');
+    assert.ok(result.problems.some((p) => p.includes('objectives') && p.includes('tableau')));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('checkWorldScan : genre sans etat gagne MAL declare (champ absent au lieu de has_win_state:false) => FAIL', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'worldscan_badmarathon_'));
+  try {
+    await makeValidFolder(dir);
+    const { has_win_state, victory_condition, ...badMarathon } = marathonObjective();
+    const badGame = goodGame({ objectives: [badMarathon] });
+    await writeFile(join(dir, 'observation_manifest.json'), JSON.stringify(goodManifest({ games: [badGame, goodGame({ game: 'FTL' })] })), 'utf-8');
+    const result = await checkWorldScan(dir);
+    assert.equal(result.verdict, 'FAIL');
+    assert.ok(result.problems.some((p) => p.includes('has_win_state') && p.includes('booleen explicite')));
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

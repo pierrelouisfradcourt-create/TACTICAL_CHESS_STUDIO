@@ -314,7 +314,19 @@ def check_wiremap(wiremap: dict, src_root: Path) -> dict:
 # e2e.mjs (une simple mention dans un log/commentaire ne câble aucun oracle).
 # Limite connue (résiduelle, non fermée ici) : un token présent dans une chaîne
 # littérale d'exécution (`console.log("__game")`) reste comptable — acceptable
-# car les builders forge ne sont pas adversariaux et HumanGate reste terminal. ---
+# car les builders forge ne sont pas adversariaux et HumanGate reste terminal.
+#
+# CORRECTION 2026-08-03 (mission « boucle cassée ») : cette garde ne cherchait
+# QUE run-oracle.mjs/e2e.mjs, des artefacts Node/web, quel que soit le projet —
+# sur un projet Godot (aucune raison d'avoir ces fichiers) elle échouait
+# STRUCTURELLEMENT. L'aiguillage historique (`ForgeDriver._standard_topology`,
+# sur le NOM DU PROFIL) ne généralisait pas : un nouveau nom de profil Godot
+# (ex. `full_godot`) retombe dans la même panne que celle déjà rustinée une
+# fois pour `standard_godot` (driver.py, run snake-s9p). Cette garde observe
+# maintenant directement le PROJET (`_detect_engine`, présence de
+# `project.godot`) au lieu de dépendre d'un nom de profil en amont — la cause
+# racine, pas le symptôme. Comportement WEB strictement inchangé (aucun
+# `project.godot` => branche historique, testée par test_e2e_harness.py). ---
 _E2E_MIN_ASSERTIONS = 3
 _E2E_BROWSER = re.compile(r"\b(chromium|playwright|firefox|webkit)\b")
 _E2E_INPUT = re.compile(r"keyboard\.(?:down|up|press|type|insertText)|\.click\(|\.tap\(")
@@ -333,14 +345,118 @@ def _strip_js_comments(text: str) -> str:
     return _JS_LINE_COMMENT.sub(" ", _JS_BLOCK_COMMENT.sub(" ", text))
 
 
-def check_e2e_harness(src_root: Path) -> dict:
-    """Le jeu a-t-il un e2e RÉEL, câblé dans son run-oracle ?
+# Marqueur d'engine observé au lieu d'un nom de profil (cause racine de la mission
+# 2026-08-03). `project.godot` à la racine du jeu => moteur Godot ; son absence =>
+# moteur web (comportement historique, inchangé). Lecture seule, jamais un effet
+# de bord — même esprit que les autres gardes de ce module.
+_GODOT_PROJECT_MARKER = "project.godot"
 
-    Retourne {passed, raisons[]}. PASS = run-oracle.mjs invoque un e2e.mjs qui
-    lance un vrai navigateur, envoie de vraies entrées, et observe au moins
-    _E2E_MIN_ASSERTIONS fois l'état du jeu (window.__game / #overlay / #restart).
+
+def _detect_engine(src_root: Path) -> str:
+    """Détecte le moteur du projet par OBSERVATION du dépôt — jamais par nom de
+    profil (c'était la cause racine du bug : `ForgeDriver._standard_topology`
+    aiguillait sur `self.profile`, qui ne généralise à aucun nouveau nom de
+    profil Godot). Retourne 'godot' si `project.godot` existe à la racine du
+    jeu, 'web' sinon (défaut, comportement historique STRICTEMENT inchangé)."""
+    return "godot" if (Path(src_root) / _GODOT_PROJECT_MARKER).is_file() else "web"
+
+
+# --- équivalent Godot de la garde e2e ------------------------------------------
+# Il n'existe PAS de harnais click-through navigateur côté Godot (ni raison d'en
+# créer un : mission 2026-08-03, « ne pas copier les noms de fichiers web »). Le
+# harnais RÉELLEMENT utilisé pour prouver la ligne mécanique d'un projet Godot de
+# ce dépôt (lu avant d'écrire quoi que ce soit : `godot_oracle.mjs`,
+# `games/breakout_v2`, `games/snake/07_TESTS/oracle`, `scripts/forge/standard/
+# repo_map.yaml`) est `tests/run_tests.gd` : un SceneTree headless qui énumère
+# RÉELLEMENT les fichiers de test du jeu depuis le disque (jamais un pass en dur)
+# et porte une garde anti-faux-vert (`EXPECTED_ASSERTS` : un total d'assertions
+# non atteint force l'échec, motif mesuré identique sur breakout_v2/snake/
+# tetris). Ce chemin est RATIFIÉ (repo_map.yaml `godot.project_tests:
+# "tests/{id}"`, décision Pierre 2026-07-28) précisément parce que
+# `godot_oracle.mjs` (le SEUL wrapper que `oracles.json` résout pour tout projet
+# Godot du dépôt — snake/breakout_v2/tetris/grid_nav_probe) charge
+# `res://tests/run_tests.gd` en dur : câblage studio-wide, pas par-projet,
+# vérifié ici en lisant ce wrapper plutôt qu'en le supposant.
+#
+# La preuve « un bot joue et gagne réellement » (R9) est une garde SÉPARÉE
+# (`check_solvability_wired`) — volontairement PAS dupliquée ici.
+_GODOT_SCENETREE = re.compile(r"\bextends\s+SceneTree\b")
+_GODOT_TEST_DISCOVERY = re.compile(r"DirAccess\.open\(")
+_GODOT_ANTI_FAKE_GREEN = re.compile(r"\bEXPECTED_ASSERTS\b")
+_GODOT_TEST_HARNESS_REL = "tests/run_tests.gd"
+_GODOT_ORACLE_WRAPPER_REL = "scripts/forge/godot_oracle.mjs"
+
+# GDScript n'a pas de commentaire de bloc — seulement `#` jusqu'à fin de ligne.
+# Même discipline anti-gaming que `_strip_js_comments` : un token en commentaire
+# ne prouve rien.
+_GD_LINE_COMMENT = re.compile(r"#[^\n]*")
+
+
+def _strip_gd_comments(text: str) -> str:
+    return _GD_LINE_COMMENT.sub(" ", text)
+
+
+def _check_e2e_harness_godot(src_root: Path) -> dict:
+    """Équivalent Godot de `check_e2e_harness` (cf. bloc de commentaire ci-dessus
+    pour la justification complète). Retourne {passed, raisons[]}, même forme que
+    la branche web — les appelants ne distinguent pas les deux."""
+    raisons: list[str] = []
+
+    # `_REPO_ROOT` est défini plus bas dans ce module (réutilisé par
+    # `_resolve_wrapper_script`) — résolu au moment de l'appel, pas de la
+    # définition : aucun souci d'ordre en Python.
+    wrapper = _REPO_ROOT / _GODOT_ORACLE_WRAPPER_REL
+    if not wrapper.exists():
+        raisons.append(f"{_GODOT_ORACLE_WRAPPER_REL} absent (câblage studio Godot manquant)")
+    elif _GODOT_TEST_HARNESS_REL not in _strip_js_comments(_read(wrapper)):
+        raisons.append(
+            f"{_GODOT_ORACLE_WRAPPER_REL} n'invoque pas {_GODOT_TEST_HARNESS_REL} "
+            "(volet mécanique absent du gate)")
+
+    harness = Path(src_root) / _GODOT_TEST_HARNESS_REL
+    if not harness.exists():
+        raisons.append(f"{_GODOT_TEST_HARNESS_REL} absent")
+        return {"passed": False, "raisons": raisons}
+
+    text = _strip_gd_comments(_read(harness))
+    if not text.strip():
+        raisons.append(f"{_GODOT_TEST_HARNESS_REL} vide ou illisible")
+        return {"passed": False, "raisons": raisons}
+
+    if not _GODOT_SCENETREE.search(text):
+        raisons.append(
+            f"{_GODOT_TEST_HARNESS_REL} n'est pas un vrai script Godot "
+            "(`extends SceneTree` absent)")
+    if not _GODOT_TEST_DISCOVERY.search(text):
+        raisons.append(
+            f"{_GODOT_TEST_HARNESS_REL} n'énumère aucun fichier de test réel "
+            "(DirAccess.open absent) — coquille probable")
+    if not _GODOT_ANTI_FAKE_GREEN.search(text):
+        raisons.append(
+            f"{_GODOT_TEST_HARNESS_REL} n'a pas de garde anti-faux-vert "
+            "(EXPECTED_ASSERTS absent)")
+
+    return {"passed": not raisons, "raisons": raisons}
+
+
+def check_e2e_harness(src_root: Path) -> dict:
+    """Le jeu a-t-il un e2e RÉEL, câblé dans le harnais que son moteur utilise
+    réellement ?
+
+    Retourne {passed, raisons[]}. Le moteur est DÉTECTÉ par observation du projet
+    (`_detect_engine`), jamais par nom de profil.
+
+    Branche WEB (défaut, comportement historique INCHANGÉ) : PASS = run-oracle.mjs
+    invoque un e2e.mjs qui lance un vrai navigateur, envoie de vraies entrées, et
+    observe au moins _E2E_MIN_ASSERTIONS fois l'état du jeu (window.__game /
+    #overlay / #restart).
+
+    Branche GODOT (`project.godot` détecté) : voir `_check_e2e_harness_godot`.
     """
     src_root = Path(src_root)
+    if _detect_engine(src_root) == "godot":
+        return _check_e2e_harness_godot(src_root)
+
     raisons: list[str] = []
 
     runner = src_root / "run-oracle.mjs"
