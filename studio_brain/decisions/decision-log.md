@@ -723,6 +723,97 @@ d'échec ultérieure.
 
 ---
 
+## 2026-08-03 — Le Prisme transforme la connaissance externe en exigences internes (FORGE_PRISME_V2)
+
+**Énoncé fondateur (Pierre, verbatim)** : « Le Prisme n'est pas une étape d'avis. Le Prisme est le
+mécanisme qui transforme la connaissance externe en exigences internes. »
+
+Et l'objectif produit qui l'encadre : « La Forge ne doit pas empêcher les jeux simples. Elle doit
+empêcher les jeux simples de devenir **involontairement** incomplets. Un prototype peut être
+minimal, mais il doit savoir qu'il est minimal. »
+
+### Constat à l'origine — et sa preuve mécanique
+
+Revue produit de Tetris : ni menu, ni pause, ni audio, ni réglage de volume, ni aperçu de la pièce
+suivante à l'écran, ni high score, ni mode deux joueurs. **Le builder n'a pas échoué : il a
+construit ce qui était demandé. La Forge n'a pas demandé assez.**
+
+Mesuré le 2026-08-03, et c'est la cause racine :
+- `s2-worldscan` ne contient **0 occurrence** de `next`, `preview`, `aperçu`, `hold`, `pause`,
+  `audio` — alors que sa consigne citait explicitement l'aperçu next et le hold comme faits
+  documentés du Tetris Guideline.
+- `s1-prisme` ne contient **0 occurrence** de menu, pause, audio, onboarding, commandes.
+- **Le Prisme s'exécute en position 2/14, AVANT le World Scan (position 3).** Son `mandatory_read`
+  ne porte que `charter.yaml`. `_UPSTREAM_BY_STEP` n'a **aucune entrée** pour `s1-prisme` ni pour
+  `s2-worldscan`.
+
+Le Prisme est donc **structurellement aveugle** : il raisonne avant toute connaissance externe et
+n'en reçoit aucune. Son silence n'est pas une faute d'agent, c'est une conséquence de sa position.
+
+### Décisions
+
+**1. Nouvel ordre du pipeline amont** :
+`S0 Charter → S1 World Scan global → S2 Prismes spécialisés → requirements indexés → WireMap
+complète → Architecture → Production`. Le World Scan passe AVANT le Prisme.
+
+**2. Le World Scan élargit ses angles** : références gameplay · standards du genre · attentes
+joueur · conventions UI/UX · fonctionnalités attendues · risques connus. Ce n'est plus une
+recherche web générale.
+
+**3. Le Prisme devient trois directeurs spécialisés**, chacun capable de **chercher et interpréter
+ses propres informations** — il ne reçoit plus un World Scan global indifférencié :
+- **Creative Director** (simule Game Designer · Art Director · Narrative Director · Audio Director ·
+  Level Designer) — pourquoi le jeu est amusant, quelles boucles, quelles références, quelles
+  sensations.
+- **Experience Director** (simule UX · Player Experience · Onboarding · Accessibilité · Frustration)
+  — un nouveau joueur comprend-il, peut-il démarrer sans explication externe, sait-il quoi faire,
+  peut-il interrompre et reprendre, quelles frustrations sont évitables.
+- **Product Director** (vision produit · marché · complétude · attentes minimales) — prototype
+  technique ou produit, quelles fonctions attendues manquent, ce qui distingue un prototype d'un
+  jeu fini.
+
+**4. Le Prisme produit des CONTRAINTES INDEXÉES SUR LA WIREMAP**, pas des avis. Chaque rayon
+alimente : CORE requirements · genre requirements · player experience requirements · product
+requirements.
+
+**5. La WireMap gagne des couches.** Elle couvre aujourd'hui moteur, règles, architecture,
+dépendances. Elle doit aussi porter :
+- **PLAYER EXPERIENCE** — `core.menu`, `core.pause`, `core.onboarding`, `core.controls_display`,
+  `core.feedback`
+- **AUDIO** — `core.audio`, `audio.feedback`, `audio.settings`
+- **GENRE** — ex. `genre.tetris.next_preview`, `genre.tetris.hold`,
+  `genre.tetris.line_clear_feedback`
+
+**6. L'absence doit être une décision explicite.** Sur le patron déjà en production depuis ce jour
+(`has_win_state: false` + `victory_condition: null`) : la réponse peut être NON, mais l'omission est
+interdite. **Une absence silencieuse est un défaut de conception.**
+
+**7. Découpage des exigences, pour ne pas bloquer les jeux simples** :
+- **CORE universel** — ce qui concerne presque tous les jeux : démarrage · sortie · feedback
+  minimum · compréhension minimale.
+- **FORGE Product Experience** — ce qui dépend du niveau produit : menu complet · pause ·
+  onboarding · options audio · progression · sauvegarde.
+La Forge **pose la question à chaque projet**. La réponse peut être NON. La question doit exister.
+Menu, pause et onboarding ne deviennent donc PAS immédiatement obligatoires pour tous les jeux.
+
+### Arbitrages confirmés sur le rapport Tetris
+
+- **Pas de pattern KB `AUDIO_SYSTEM`** — confirmé par Pierre. L'audio existait déjà en exigence CORE
+  (`core.audio` dans `core_requirements.yaml`). Preuve : la wiremap gelée porte **9 CORE sur 10**,
+  la seule manquante étant exactement `core.audio`. Le problème n'est pas une connaissance
+  manquante, c'est que la chaîne `World Scan → Prisme → WireMap` **n'a pas transporté l'exigence**.
+- Même diagnostic pour menu, pause, onboarding, commandes et aperçu next.
+
+**Ce que cette décision NE change PAS** : invariants ADR-002 intacts — contrat = porte de spawn ·
+oracles déterministes non-LLM · `software_verdict` issu des seuls reçus vérifiés · red-team
+advisory · `claim_verdict: NO_CLAIM_ALLOWED` · HumanGate Pierre sur merge/reject/freeze.
+
+**Critères de révision** : si la Forge se met à bloquer des prototypes légitimes, la correction
+n'est pas de retirer les questions — c'est de vérifier que le découpage CORE universel / Product
+Experience est au bon endroit. HumanGate Pierre.
+
+---
+
 ## Template pour nouvelles entrées
 
 ```
