@@ -44,7 +44,7 @@ Le mécanisme est prouvé de bout en bout sur **une** leçon. Le critère exige 
 | `forge.wiremap_concept_reuse_requalification` | VALIDATOR_RULE | règle sur `reused_from.type=CONCEPT` | **oui, câblé R2 2026-08-02** — bucket advisory `reused_concept_non_requalifie` dans `check_line_states`, citant le slug | validateur exécuté à chaque run (`driver.py:1730`) → reçu `oracles.standard` ; 19/38 lignes CONCEPT remontées sur la wiremap réelle | **CABLE_SANS_EXECUTION** — sortira du drift au prochain run réel |
 | `forge.oracle_fail_vs_not_measured_marker` | ORACLE_RULE | exemption GPU par marqueur | **oui, câblé R3 2026-08-02** — clé `requires_gpu_window` dans le payload `FORGE_ORACLE` fait autorité sur le filet nommé | **aucune** : 0 fichier `.gd` ne déclare la clé (grep vérifié) → la règle est câblée mais **dormante** | **CABLE_DORMANT** |
 | `forge.forge_oracle_convention_undocumented` | CONTRACT_SCHEMA | section dans le standard | **oui, câblé R4 2026-08-02** — section datée citant la leçon, 117 ajouts / 0 suppression | `standard/SCHEMA.md` est `mandatory_read` de 5 contrats, donc lu à l'exécution — mais un événement de lecture **ne porte pas le slug** | **CABLE_HORS_PORTEE_DETECTEUR** |
-| `forge.timeout_greenfield_by_profile` | DISPATCH_POLICY | timeout dérivé du profil | **non** — `PROFILES` (`dispatch.py:123`) ne porte que des séquences ; `run_real.py:69` constante unique 1800.0 | `forge_telemetry.jsonl` (`duration_s`, `outcome=HALT`) | **CAPABILITY_MISSING** |
+| `forge.timeout_greenfield_by_profile` | DISPATCH_POLICY | timeout dérivé du profil | **oui, câblé 2026-08-03** — `dispatch.PROFILE_STEP_TIMEOUTS_S` (structure profil→paramètres, créée pour cette leçon) + `run_real._timeout_effectif` ; l'intention opérateur prime | aucune — la résolution est journalisée dans `<run_dir>/run.log` en nommant la leçon, donc visible au prochain run `standard_godot` | **CABLE_SANS_EXECUTION** |
 
 Aucune ligne n'emploie « consommé » sans trace : les 4 slugs sont à **0 occurrence** dans
 `search_log.jsonl` (seul canal reconnu aujourd'hui par `command.py::_find_mechanical_consumer`).
@@ -66,16 +66,18 @@ d'autres leçons · application des 4 propositions KB restantes (décision Pierr
 
 ## 05_BLOCKED_ITEMS
 
-- `forge.timeout_greenfield_by_profile` — **CAPABILITY_MISSING**. Exige une structure
-  profil→paramètres qui n'existe nulle part. Contenu faible : `evidence_count: 1`,
-  un seul run, un seul point de mesure (1800 s insuffisant / 5400 s suffisant).
-  **Conséquence dure : tant que cette leçon n'a pas de consommateur, le critère
-  `lecon_routee_sans_consommateur == 0` est hors d'atteinte.**
-  **Correction 2026-08-02 (chiffre précédent « au mieux 4 → 1 » erroné)** : après R1-R4,
-  le meilleur cas atteignable par une nouvelle campagne est **4 → 3**, pas 4 → 1. Seule
-  la leçon R2 produit sa citation dans un artefact d'exécution. R3 est dormante (aucun
-  `.gd` ne déclare le marqueur), R4 vit dans un document que la lecture n'estampille pas,
-  et `timeout_greenfield_by_profile` reste sans capacité.
+- **RÉSOLU le 2026-08-03** (commit `988c423`) — `forge.timeout_greenfield_by_profile`
+  n'est plus CAPABILITY_MISSING : `dispatch.PROFILE_STEP_TIMEOUTS_S` est la structure
+  profil→paramètres qui manquait. Table étroite d'UNE entrée, le couple réellement
+  mesuré (`standard_godot` / `s9-build-godot-standard` → 5400 s) ; `evidence_count: 1`
+  interdit d'extrapoler, donc les autres greenfields gardent le défaut et l'absence de
+  mesure reste nommée.
+- **État du blocage P0 : plus technique, seulement administratif.** Les 5 leçons ont
+  désormais un consommateur mécanique. Le critère exige une preuve d'EXÉCUTION, donc
+  une campagne. Meilleur cas d'une campagne `standard_godot` complète : 2 leçons sur 4
+  sortiraient du drift (R2 via le reçu d'oracle, timeout via `run.log`) → **4 → 2**.
+  R3 reste dormante tant qu'aucun `.gd` ne déclare `requires_gpu_window` ; R4 vit dans
+  un document que l'événement de lecture n'estampille pas.
 - Wiremap étage 2 (stampage natif) — conditionné au capteur P1-G4 (fichiers touchés).
 - Test `test_driver_premortem_lessons_wiring.py` en échec **préexistant** (fige un état
   de corpus, pas une propriété) — `tests/` est zone protégée, gate Pierre requise.
