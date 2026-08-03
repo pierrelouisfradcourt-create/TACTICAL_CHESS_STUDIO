@@ -30,7 +30,9 @@ import time
 from pathlib import Path
 
 from forge.contract import FORGE_ROLES
-from forge.dispatch import DEDICATED_PROFILE_STEPS, DETERMINISTIC, ORDER, PROFILES
+from forge.dispatch import (
+    DEDICATED_PROFILE_STEPS, DETERMINISTIC, ORDER, PROFILES, step_timeout_for,
+)
 from forge.driver import ForgeDriver
 from forge.panel import panel_prisme_executor
 from forge.pool import DEFAULT_POOL_SIZE
@@ -849,12 +851,30 @@ def _salvage_on_timeout(etape: str, add_dir: Path, run_dir: Path,
     return salvage
 
 
+def _timeout_effectif(profile: str, etape: str, step_timeout: float) -> float:
+    """Timeout réellement appliqué à `etape`, avec la table par profil de dispatch.
+
+    Règle d'arbitrage, volontairement simple : **l'intention de l'opérateur gagne**.
+    La table (`dispatch.PROFILE_STEP_TIMEOUTS_S`, leçon
+    `forge.timeout_greenfield_by_profile`) n'est consultée que si `--step-timeout`
+    est resté au défaut. Un opérateur qui borne délibérément le coût d'un run n'est
+    jamais contredit par une table.
+    """
+    if step_timeout != DEFAULT_STEP_TIMEOUT_S:
+        return step_timeout
+    return step_timeout_for(profile, etape, DEFAULT_STEP_TIMEOUT_S)
+
+
 def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
-                    step_timeout: float = DEFAULT_STEP_TIMEOUT_S):
+                    step_timeout: float = DEFAULT_STEP_TIMEOUT_S,
+                    profile: str = "full"):
     """Fabrique un executor(payload, decision, context) -> dict pour ForgeDriver.
 
     Un seul canal réel (`claude -p`) pour claude et claude-blind : les deux sont
     déjà des spawns Claude en contexte vierge de session (pas de -c/--continue).
+
+    `profile` sert UNIQUEMENT à résoudre le timeout par étape (cf.
+    `_timeout_effectif`) : il ne change ni le prompt, ni le modèle, ni les outils.
     """
 
     def executor(payload, decision, context) -> dict:
@@ -912,9 +932,20 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
         # chaque escalade (forge.driver._maybe_escalate) — l'ignorer rendrait
         # l'escalade no-op (même modèle rejoué à chaque tier).
         model = context.get("model_override") or payload.model
+        timeout_s = _timeout_effectif(profile, etape, step_timeout)
+        if timeout_s != step_timeout:
+            # Journalisé dans <run_dir>/run.log (handler attaché par le driver) :
+            # l'opérateur doit pouvoir lire POURQUOI cette étape a eu plus de temps,
+            # et la leçon qui l'a décidé doit être nommée là où elle agit.
+            logger.info(
+                "timeout d'étape porté à %.0fs (défaut %.0fs) pour profil=%s étape=%s "
+                "— leçon forge.timeout_greenfield_by_profile : le défaut est calibré "
+                "pour du correctif, pas pour un greenfield",
+                timeout_s, step_timeout, profile, etape,
+            )
         res = _claude_call_raw(
             prompt, model, add_dir=add_dir,
-            tools=_STEP_TOOLS.get(etape, ()), timeout_s=step_timeout,
+            tools=_STEP_TOOLS.get(etape, ()), timeout_s=timeout_s,
         )
         # G1-G2 (ratifié) : task_id unifié `run_id:etape:activation` — calculé ICI,
         # le seul point d'appel où les 3 valeurs existent ensemble (context["attempt"]
@@ -1265,6 +1296,7 @@ def main(argv: list[str] | None = None) -> None:
 
     simple_executor = claude_executor(
         add_dir=src_root, task_by_step=task_by_step, step_timeout=args.step_timeout,
+        profile=args.profile,
     )
 
     if args.charter:

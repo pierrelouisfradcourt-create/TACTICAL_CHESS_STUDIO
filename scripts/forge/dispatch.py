@@ -182,6 +182,37 @@ PROFILES = {
 }
 
 
+# Paramètres d'exécution attachés à un couple (profil, étape) — la structure
+# profil->paramètres qui n'existait pas : `PROFILES` ci-dessus ne porte que des
+# SÉQUENCES d'étapes, aucun réglage.
+#
+# Posée en réponse à la leçon `forge.timeout_greenfield_by_profile` (validée
+# 2026-08-02, run `breakout_v2-run1-20260731-082705`) : « un step-timeout de
+# dispatch (défaut 1800 s) est insuffisant pour un s9 greenfield Godot construit
+# depuis zéro sur un squelette de wiremap de taille standard (~50 lignes) ; 5400 s
+# a suffi pour un build complet réel (~40 min). Le défaut actuel est calibré pour
+# du correctif, pas pour un greenfield. »
+#
+# Table EXPLICITE et étroite, jamais une formule : `evidence_count: 1`, UN SEUL
+# point de mesure. On n'extrapole donc PAS au greenfield web (`s9-build-standard`)
+# ni au greenfield générique (`s9-build` du profil `full`) — ces couples n'ont pas
+# été mesurés, et un chiffre inventé serait exactement la « promesse trop forte »
+# que ce studio refuse. Ajouter une entrée ici = une mesure, pas une intuition.
+PROFILE_STEP_TIMEOUTS_S: dict[tuple[str, str], float] = {
+    ("standard_godot", "s9-build-godot-standard"): 5400.0,
+}
+
+
+def step_timeout_for(profile: str, etape: str, default_s: float) -> float:
+    """Timeout d'UNE étape pour ce profil, en secondes.
+
+    Rend `default_s` si le couple (profil, étape) n'a pas été mesuré — c'est le
+    cas de la très grande majorité, et c'est voulu : l'absence de mesure se nomme,
+    elle ne se comble pas par extrapolation.
+    """
+    return PROFILE_STEP_TIMEOUTS_S.get((profile, etape), default_s)
+
+
 def order_for_profile(profile: str = "full") -> list[str]:
     """Étapes d'un profil, dans l'ordre. Profil inconnu => ValueError (fail-fast)."""
     try:

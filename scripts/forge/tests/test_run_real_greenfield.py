@@ -174,6 +174,37 @@ def test_timeout_par_defaut_1800s():
     assert run_real.DEFAULT_STEP_TIMEOUT_S == 1800.0
 
 
+# --- timeout par profil (leçon forge.timeout_greenfield_by_profile) -----------------
+# Propriété vérifiée : le couple MESURÉ reçoit sa valeur mesurée, les couples NON
+# mesurés gardent le défaut, et l'intention explicite de l'opérateur gagne toujours.
+# On n'assert PAS le contenu complet de la table : y ajouter une mesure future ne
+# doit pas casser ce test (un test qui fige un état devient un faux signal).
+
+def test_timeout_greenfield_godot_porte_a_5400s(tmp_path, capture_calls):
+    calls, _ = capture_calls
+    ex = run_real.claude_executor(add_dir=tmp_path, task_by_step={},
+                                  profile="standard_godot")
+    ex(FakePayload("s9-build-godot-standard"), None, _context(tmp_path / "run"))
+    assert calls[-1]["timeout_s"] == 5400.0
+
+
+def test_timeout_couple_non_mesure_garde_le_defaut(tmp_path, capture_calls):
+    calls, _ = capture_calls
+    ex = run_real.claude_executor(add_dir=tmp_path, task_by_step={},
+                                  profile="standard_godot")
+    ex(FakePayload("s12-verdict"), None, _context(tmp_path / "run"))
+    assert calls[-1]["timeout_s"] == run_real.DEFAULT_STEP_TIMEOUT_S
+
+
+def test_intention_explicite_de_l_operateur_gagne_sur_la_table(tmp_path, capture_calls):
+    """Un opérateur qui borne délibérément le coût n'est jamais contredit."""
+    calls, _ = capture_calls
+    ex = run_real.claude_executor(add_dir=tmp_path, task_by_step={},
+                                  step_timeout=600.0, profile="standard_godot")
+    ex(FakePayload("s9-build-godot-standard"), None, _context(tmp_path / "run"))
+    assert calls[-1]["timeout_s"] == 600.0
+
+
 # --- (g) pré-mortem injecté dans le prompt -----------------------------------------
 
 def test_premortem_injecte_sous_le_titre_attendu(tmp_path, capture_calls):
