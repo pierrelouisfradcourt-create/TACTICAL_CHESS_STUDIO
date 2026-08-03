@@ -431,6 +431,56 @@ encore DREAMS.md). Suppressions éditoriales appliquées le jour même : arbre d
 
 ---
 
+## 2026-08-03 — Clôture et gel de Breakout V2 comme baseline (BREAKOUT_V2_FREEZE_V1)
+
+**Décision (ratifiée explicitement par Pierre en session, verbatim : « Je ratifie les trois points Breakout »)** :
+
+1. **Breakout V2 est clos.** Le verdict signé `lab/forge_runs/breakout_v2/verdict.json`
+   (`software_verdict: OK`, `decision: HUMANGATE_READY`, `evidence_verdict:
+   MECHANICAL_VALIDATION_ONLY`, `claim_verdict: NO_CLAIM_ALLOWED`) est accepté comme verdict final.
+   Re-vérifié le jour même par `python -m forge.verify_run` : HMAC OK, évidence intacte, preuve de
+   mutation intacte, **INTÉGRITÉ : AUTHENTIQUE**, exit 0.
+2. **Les 3 `humangate_flags` du verdict sont acceptés en l'état**, verbatim du champ :
+   `"archi non vérifiée (oracle sauté dans ce profil)"` · `"wiremap non vérifiée (oracle sauté dans
+   ce profil)"` · `"red-team dégradé: reviewer indépendant n'a pas tourné (fallback)"`.
+   Les deux premiers sont des oracles **jamais lancés par construction du profil**
+   `standard_godot` (`scripts/forge/dispatch.py:118,129`), pas des oracles en échec ; le troisième
+   est un oracle exécuté en mode dégradé.
+3. **L'amendement F-A/F17 (`fixed_step_accumulator`) est ratifié**, levant le marqueur
+   `RATIFICATION_GATE_EN_ATTENTE` porté par `studio_brain/00_CURRENT_CONTEXT.md`.
+
+**Actions exécutées le jour même sous cette ratification** :
+- Promotion des 5 leçons Breakout validées vers la KB via `python -m forge.kb_proposal --apply
+  <lesson_id> --ratifie-par "Pierre"` — 5/5 désormais `APPLIQUEE`, catalogue à **37 entrées**,
+  `kb-validate.mjs` PASS, 0 violation. Ferme le drift `lecon_routee_sans_consommateur` (×5).
+- Breakout V2 rejoint Pong comme **témoin de régression gelé** : toute modification ultérieure de
+  `games/breakout_v2/` (comme de `games/pong/`) exige une gate Pierre distincte.
+
+**Ce qui reste ouvert et pourquoi ce n'est pas bloquant** : le **gel de la wiremap n'existe pas**
+pour ce run (`state.json` → `humangate_notes: "gel des règles absent (wiremap présent non gelé)"`).
+Cause structurelle et non spécifique à Breakout : `driver.py:889 _freeze_rules` ne s'exécute qu'après
+l'étape `s5-wiremap`, absente de la topologie `standard_godot` (`driver.py:140`) — cf.
+`docs/forge/COMPARATIF_SCHEMA_VS_REEL_2026-07-27.md:30-32` : « le profil standard n'a même pas
+d'événement de gel ». C'est le **même trou** que les flags 1 et 2 déjà acceptés ci-dessus, et il
+appartient au profil, pas au jeu. Il est donc reporté sur Tetris, qui possède une wiremap et son
+contrat dédié (`scripts/forge/contracts/wm1-wiremap-tetris.yaml`).
+
+**Alternatives rejetées** :
+- *Relancer les oracles archi/wiremap sur Breakout avant de clore* → ces oracles sont déclarés non
+  applicables au profil `standard_godot` ; les forcer produirait un résultat sans autorité (théâtre
+  d'oracle) au lieu de corriger le profil.
+- *Créer un tag git de baseline* → **aucune convention outillée n'existe** dans la Forge
+  (`grep "git tag" scripts/forge/ docs/forge/` → 0 résultat ; « baseline » n'y désigne que la
+  baseline de mutation). Aucun mécanisme n'a donc été inventé pour l'occasion : le gel de Pong
+  (précédent du 2026-07-27) est lui aussi une convention décisionnelle, pas un champ machine.
+  Le présent enregistrement **est** l'état de référence.
+
+**Critères de révision** : Breakout V2 ne se rouvre que sur **preuve issue d'un projet ultérieur**
+(consigne Pierre). Une régression constatée sur Tetris ou au-delà, imputable à une brique venue de
+Breakout, est le seul motif de réouverture. HumanGate Pierre.
+
+---
+
 ## Template pour nouvelles entrées
 
 ```

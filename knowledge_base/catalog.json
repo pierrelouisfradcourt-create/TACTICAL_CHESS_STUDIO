@@ -853,6 +853,158 @@
       "tests": null,
       "advisory_only": true,
       "affordances": {}
+    },
+    {
+      "entry_type": "brick",
+      "brick_id": "pat-forge-timeout_greenfield_by_profile",
+      "kind": "pattern",
+      "function": "Un step-timeout de dispatch (defaut 1800s) est insuffisant pour un s9 greenfield Godot construit depuis zero sur un squelette de wiremap de taille standard (~50 lignes) ; 5400s a suffi pour un build complet reel (~40 min). Le defaut actuel est calibre pour du correctif, pas pour un greenfield.",
+      "source": "Forge lesson 'forge.timeout_greenfield_by_profile' (lab/reports/lessons.jsonl, forge.learning_memory)",
+      "provenance_url": null,
+      "provenance_internal": {
+        "lessons_source": "lab/reports/lessons.jsonl",
+        "lesson_id": "forge.timeout_greenfield_by_profile",
+        "supporting_runs": [
+          "breakout_v2-run1-20260731-082705"
+        ],
+        "validation": {
+          "status": "validated",
+          "validated_by": "Pierre",
+          "validated_at": "2026-08-01T14:55:15.809290+00:00"
+        }
+      },
+      "license": "CC0-1.0",
+      "runtime": "agnostic",
+      "dependencies": [],
+      "parameters": {},
+      "genre_compatible": [
+        "forge_process",
+        "breakout_v2"
+      ],
+      "invariants": [
+        "Un step-timeout de dispatch (defaut 1800s) est insuffisant pour un s9 greenfield Godot construit depuis zero sur un squelette de wiremap de taille standard (~50 lignes) ; 5400s a suffi pour un build complet reel (~40 min). Le defaut actuel est calibre pour du correctif, pas pour un greenfield."
+      ],
+      "proof_of_use": null,
+      "tier": "candidate",
+      "path": null,
+      "sha256": null,
+      "tests": null,
+      "advisory_only": true,
+      "affordances": {}
+    },
+    {
+      "entry_type": "brick",
+      "brick_id": "pat-forge-wiremap_concept_reuse_requalification",
+      "kind": "pattern",
+      "function": "Une ligne de wiremap reused_from.type=CONCEPT transposee d'un jeu a un autre peut porter une promesse (expected_proof) fausse dans le nouveau contexte si le genre change de nature (ex. grille discrete -> physique continue temps reel) ; la provenance seule ne prouve pas la transposabilite, une justification explicite de compatibilite de genre devrait etre exigee.",
+      "source": "Forge lesson 'forge.wiremap_concept_reuse_requalification' (lab/reports/lessons.jsonl, forge.learning_memory)",
+      "provenance_url": null,
+      "provenance_internal": {
+        "lessons_source": "lab/reports/lessons.jsonl",
+        "lesson_id": "forge.wiremap_concept_reuse_requalification",
+        "supporting_runs": [
+          "breakout_v2-run3-20260731-111149"
+        ],
+        "validation": {
+          "status": "validated",
+          "validated_by": "Pierre",
+          "validated_at": "2026-08-01T14:55:15.828330+00:00"
+        }
+      },
+      "license": "CC0-1.0",
+      "runtime": "agnostic",
+      "dependencies": [],
+      "parameters": {},
+      "genre_compatible": [
+        "forge_process",
+        "breakout_v2"
+      ],
+      "invariants": [
+        "Une ligne de wiremap reused_from.type=CONCEPT transposee d'un jeu a un autre peut porter une promesse (expected_proof) fausse dans le nouveau contexte si le genre change de nature (ex. grille discrete -> physique continue temps reel) ; la provenance seule ne prouve pas la transposabilite, une justification explicite de compatibilite de genre devrait etre exigee."
+      ],
+      "proof_of_use": null,
+      "tier": "candidate",
+      "path": null,
+      "sha256": null,
+      "tests": null,
+      "advisory_only": true,
+      "affordances": {}
+    },
+    {
+      "entry_type": "brick",
+      "brick_id": "pat-forge-oracle_fail_vs_not_measured_marker",
+      "kind": "pattern",
+      "function": "Un volet d'oracle produit qui ne peut etre mesure dans le mode d'execution courant (ex. rendu pixel en headless) doit rendre NOT_MEASURED, jamais FAIL -- product_oracle_godot.py n'exempte aujourd'hui qu'un seul nom de volet code en dur (core_render_frame) au lieu d'une regle generique par marqueur, ce qui a fait rendre FAIL a 3 volets render de Breakout reellement verts (confirmes par capture GPU).",
+      "source": "Forge lesson 'forge.oracle_fail_vs_not_measured_marker' (lab/reports/lessons.jsonl, forge.learning_memory)",
+      "provenance_url": null,
+      "provenance_internal": {
+        "lessons_source": "lab/reports/lessons.jsonl",
+        "lesson_id": "forge.oracle_fail_vs_not_measured_marker",
+        "supporting_runs": [
+          "breakout_v2-run3-20260731-111149"
+        ],
+        "validation": {
+          "status": "validated",
+          "validated_by": "Pierre",
+          "validated_at": "2026-08-01T14:55:15.838330+00:00"
+        }
+      },
+      "license": "CC0-1.0",
+      "runtime": "agnostic",
+      "dependencies": [],
+      "parameters": {},
+      "genre_compatible": [
+        "forge_process",
+        "breakout_v2"
+      ],
+      "invariants": [
+        "Un volet d'oracle produit qui ne peut etre mesure dans le mode d'execution courant (ex. rendu pixel en headless) doit rendre NOT_MEASURED, jamais FAIL -- product_oracle_godot.py n'exempte aujourd'hui qu'un seul nom de volet code en dur (core_render_frame) au lieu d'une regle generique par marqueur, ce qui a fait rendre FAIL a 3 volets render de Breakout reellement verts (confirmes par capture GPU)."
+      ],
+      "proof_of_use": null,
+      "tier": "candidate",
+      "path": null,
+      "sha256": null,
+      "tests": null,
+      "advisory_only": true,
+      "affordances": {}
+    },
+    {
+      "entry_type": "brick",
+      "brick_id": "pat-forge-forge_oracle_convention_undocumented",
+      "kind": "pattern",
+      "function": "La convention de sonde observable FORGE_ORACLE (marqueur litteral, format de sortie stdout 'FORGE_ORACLE <volet> {json}', decouverte par grep du code) n'existe que dans le code executant (product_oracle_godot.py) et par precedent (games/snake/07_TESTS/oracle/), jamais declaree dans scripts/forge/standard/SCHEMA.md -- un builder ne peut la decouvrir que par un exemple donne explicitement dans sa tache.",
+      "source": "Forge lesson 'forge.forge_oracle_convention_undocumented' (lab/reports/lessons.jsonl, forge.learning_memory)",
+      "provenance_url": null,
+      "provenance_internal": {
+        "lessons_source": "lab/reports/lessons.jsonl",
+        "lesson_id": "forge.forge_oracle_convention_undocumented",
+        "supporting_runs": [
+          "breakout_v2-run3-20260731-111149"
+        ],
+        "validation": {
+          "status": "validated",
+          "validated_by": "Pierre",
+          "validated_at": "2026-08-01T14:55:15.847914+00:00"
+        }
+      },
+      "license": "CC0-1.0",
+      "runtime": "agnostic",
+      "dependencies": [],
+      "parameters": {},
+      "genre_compatible": [
+        "forge_process",
+        "breakout_v2"
+      ],
+      "invariants": [
+        "La convention de sonde observable FORGE_ORACLE (marqueur litteral, format de sortie stdout 'FORGE_ORACLE <volet> {json}', decouverte par grep du code) n'existe que dans le code executant (product_oracle_godot.py) et par precedent (games/snake/07_TESTS/oracle/), jamais declaree dans scripts/forge/standard/SCHEMA.md -- un builder ne peut la decouvrir que par un exemple donne explicitement dans sa tache."
+      ],
+      "proof_of_use": null,
+      "tier": "candidate",
+      "path": null,
+      "sha256": null,
+      "tests": null,
+      "advisory_only": true,
+      "affordances": {}
     }
   ]
 }

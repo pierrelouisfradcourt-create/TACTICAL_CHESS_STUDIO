@@ -2,7 +2,31 @@
 *(Handoff. Historique complet : `studio_brain/journal/2026-07-31_00_CURRENT_CONTEXT_archive.md`
 → `2026-07-30_00_CURRENT_CONTEXT_archive.md`.)*
 
-## Session courante : 2026-07-31 (Fable→Sonnet orchestrateur) — Breakout V2 validée Pierre + lessons L1-L5 entrées en mémoire
+## Session courante : 2026-08-03 (Fable poste de commande) — BREAKOUT V2 CLOS ET GELÉ · cap Tetris
+- **Ratification Pierre (verbatim : « Je ratifie les trois points Breakout »)** → entrée
+  `BREAKOUT_V2_FREEZE_V1` au `studio_brain/decisions/decision-log.md` (la validation du 2026-07-31
+  ne vivait que dans ce handoff et dans un message de commit — trou fermé).
+- **Verdict re-vérifié** par `python -m forge.verify_run lab/forge_runs/breakout_v2/verdict.json` :
+  HMAC OK · évidence intacte · mutation intacte · **INTÉGRITÉ AUTHENTIQUE**, exit 0. Seule réserve
+  attendue : dérive git TOCTOU (signé `2b38702`, courant `c078a87`).
+- **5/5 lessons promues à la KB** via `forge.kb_proposal --apply --ratifie-par "Pierre"` :
+  catalogue **37 entrées**, `kb-validate.mjs` PASS 0 violation. Ferme le drift
+  `lecon_routee_sans_consommateur` (×5). Le point 2 de la liste de gestes ci-dessous est donc clos.
+- **Breakout V2 = témoin de régression gelé**, comme Pong. Ne se rouvre que sur preuve issue d'un
+  projet ultérieur (consigne Pierre). Aucun tag git : **la Forge n'outille aucune convention de
+  baseline** (`grep "git tag" scripts/forge/ docs/forge/` → 0) — le decision-log EST l'état de référence.
+- **Observer examiné** (le point 1 ci-dessous n'est plus une inconnue) : 30 modules Python réels,
+  4 493 événements / 32 types sur le run Breakout, `proof: MECHANICAL`. Capture bien tokens
+  (`llm.usage` ×1136), lectures de fichiers (`file.read` ×275, chemin + `tool_use_id`), écritures,
+  outils, contexte et contrat injectés. **Manquent vraiment** : prompt système réel du sous-agent
+  (0 occurrence de `system_prompt`) et skills chargés. Post-hoc uniquement — aucun hook
+  `.claude/settings.json` ne l'appelle, aucun skill ne le lance, et **aucun de ses artefacts n'a de
+  lecteur hors `scripts/observer/`**. C'est là qu'est le chantier, pas dans la capture.
+- **Drifts** : le chiffre « 57 » n'existe nulle part dans le dépôt. Comptes réels — breakout_v2 :
+  55 occurrences brutes / 56 lignes de vue / **34 `drift_id` uniques** ; p5_gridnav : 17 uniques ;
+  union 38. `docs/observer/OBSERVER_V1_5.md:76,107` affirme 43 : chiffre périmé, lui-même un drift.
+
+## Session précédente : 2026-07-31 (Fable→Sonnet orchestrateur) — Breakout V2 validée Pierre + lessons L1-L5 entrées en mémoire
 - **Breakout V2 validée Pierre** : « jeu volontairement simple, mais il remplit son rôle ». Pas
   de suite ouverte cette session ; prochain jeu = autre session, propre contexte/campagne.
 - **Lessons L1-L5 validées et écrites dans `lab/reports/lessons.jsonl`** (1re écriture réelle du
@@ -12,7 +36,7 @@
   tag de routage (standard/schema/wiremap) pour un chantier futur, AUCUNE mutation de surface
   exécutée cette session (L1/L2/L5→standard/, L3→wiremap/, L4→schema/).
 
-## Session précédente : 2026-07-31 matin (Fable orchestrateur) — clôture V2 commitée + campagne Breakout V2 JOUÉE EN ENTIER
+## Session antérieure : 2026-07-31 matin (Fable orchestrateur) — clôture V2 commitée + campagne Breakout V2 JOUÉE EN ENTIER
 - **5 commits de clôture** (319e9a2→ddc4194) : lots dégel 1+2, verrous deny, canon refondu,
   10 décisions ratifiées APPLIQUÉES (apply_decisions --apply : card_engine ACCEPTED, briques
   promues), calibration N=3 archivée. Baseline référence ré-armée (verify CLEAN).
@@ -36,27 +60,36 @@
   le commentaire documenté — aucune clé fonctionnelle touchée, corrigé sans commit).
 
 ## ⚠️ URGENT / GESTES PIERRE EN ATTENTE (rien d'autre ne bloque techniquement)
-1. **NON COMMITÉ, HORS PÉRIMÈTRE ORCHESTRATEUR** : `scripts/observer/`, `docs/observer/`,
-   `lab/reports/observer/breakout_v2/` — une « Forge Observer V1.5 » (console lecture-seule,
-   serveur stdlib port 8771, `python scripts/observer/live.py --project breakout_v2 --port 8771`)
-   est apparue pendant la session du matin (fichiers datés 14:37→17:06, un autre process/session,
-   PAS produite par cet orchestrateur). Son propre rapport dit `software_verdict: OK`. **Jamais
-   examiné ni touché ici — geste Pierre : décider de le committer/réviser séparément.**
-2. **5 chantiers futurs routés par les lessons validées** (aucun n'est urgent, aucun n'est ouvert) :
-   L1/L2/L5→`standard/` (timeout par profil, pré-vol oracles.json, doc convention FORGE_ORACLE),
-   L3→`wiremap/` (justification CONCEPT inter-genres), L4→`schema/` (FAIL vs NOT_MEASURED par
-   marqueur). Détail : `docs/forge/BREAKOUT_V2_LESSONS_VALIDATION_2026-07-31.md`.
+1. **Observer : examiné le 2026-08-03** (voir session courante). Reste un geste Pierre : décider du
+   commit de `scripts/observer/` + `docs/observer/` + `lab/reports/observer/`. Chantier identifié —
+   porte d'entrée (aucun skill ne le lance), consommateur (aucun artefact n'est lu), capture du
+   prompt système et des skills. Le temps réel via hook vient APRÈS : le post-hoc suffit pour Tetris.
+2. ~~5 chantiers routés par les lessons~~ **CLOS le 2026-08-03** : les 5 propositions sont
+   `APPLIQUEE` au catalogue KB (37 entrées, kb-validate PASS). Les chantiers de surface
+   (standard/ · wiremap/ · schema/) restent à ouvrir individuellement, mais la leçon a désormais
+   un consommateur.
 3. **D-b** clore la calibration Snake (N=3 fait, dépasse le seuil 20% → règle prescrit N=5).
 4. **CV-9** : deny posées (auto-verrouillantes), ratification toujours en attente.
 5. **D-e/f/g/i/j** (Prisme dans standard_godot · lentille marché · déclassements Opus→Sonnet ·
    learning_curve lecteur/journal-only · catalogue provides/requires) — non urgents, non bloquants.
-6. Amendement F-A/F17 (charter Breakout, `fixed_step_accumulator`) — RATIFICATION_GATE_EN_ATTENTE,
-   non re-soulevé cette session (Breakout close pour l'instant), reste en archive si Breakout rouvre.
+6. ~~Amendement F-A/F17 (`fixed_step_accumulator`)~~ **RATIFIÉ Pierre le 2026-08-03**, consigné au
+   decision-log (`BREAKOUT_V2_FREEZE_V1`).
 
 ## Ce qui reste à faire (pas de gate, juste du travail futur)
-- Prochaine campagne Forge : nouveau jeu déjà prévu au planning, sera traité dans une AUTRE
-  session avec son propre contexte/campagne — ne pas anticiper ici.
-- Les 5 chantiers routés (point 2 ci-dessus) attendent d'être ouverts individuellement.
+- **Campagne Tetris (nœud 4) — OUVERTE le 2026-08-03** sur go Pierre : workflow standard
+  World Scan → Genre Bible → Charter → Wiremap → Production. Tous les contrats d'étape existent
+  déjà (génériques + `scripts/forge/contracts/wm1-wiremap-tetris.yaml`).
+  Trois points à traiter en entrée de campagne : (a) 4 décisions de genre non tranchées
+  (wall kick · hold · aperçu next · fin haute) — ce sont des faits documentés du Tetris Guideline,
+  à résoudre par World Scan, PAS à remonter à Pierre ; (b) **la solvabilité n'a pas de définition**
+  (marathon sans état gagné → l'oracle « un bot gagne » ne s'applique pas, il faut un critère de
+  survie) — seul vrai arbitrage Pierre de la campagne ; (c) valeurs `A_CALIBRER` du charter
+  (budget mutation, max_ticks) recopiées de Breakout, non ratifiées.
+- **Gel wiremap** : le profil `standard_godot` n'émet aucun événement de gel (`driver.py:889
+  _freeze_rules` ne suit que `s5-wiremap`, absente de la topologie `driver.py:140`). Accepté comme
+  non bloquant pour Breakout ; Tetris possède une wiremap et son contrat dédié, c'est là que le
+  trou doit se fermer.
+- Les chantiers de surface routés par les lessons attendent d'être ouverts individuellement.
 
 ## Impasses connues (ne pas re-buter dessus)
 - Aucun mécanisme d'exclusion de lecture pour un builder (`read: dépôt entier`). · Confinement
