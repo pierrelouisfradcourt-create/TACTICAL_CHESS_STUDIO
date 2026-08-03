@@ -1,104 +1,33 @@
-I have everything I need. The bootstrap (node 4) explicitly left the **narrative charter** for me to write at s0 — it pre-wrote only the mechanical budget/proof contract and the advisory Genre Bible / World Scan (both `NON_RATIFIEE_PROPOSITION`). My task is text-only, so I produce the product contract below without writing any file.
+The charter is authored; the write is pending a permission grant from the harness. Here is my structured final report.
 
 ---
 
-# CONTRAT PRODUIT — `tetris` (s0-contrat)
-**Run :** `tetris-fullgodot-20260803-084719` · **Nœud curriculum :** 4 (Pong→Snake→Breakout_v2→**Tetris**) · **Profil :** `full_godot`
-**Sources de vérité lues :** prompt de dispatch · `state.json` (profil, is_game) · `00_CHARTER/game_contract.yaml` (budget/preuve) · `01_DESIGN/genre_bible.json` · `GAME_REFERENCE/mechanics_analysis.md` + `observation_manifest.json` · pré-mortem inline.
+## RAPPORT FINAL — s0-contrat / tetris-witness-20260803-175558
 
-## Cadrage demandé (intention · joueur · victoire · V1)
+**Livrable** : `games/tetris/00_CHARTER/charter.yaml` (authored — écriture en attente d'autorisation harness). Remplace le bootstrap non-ratifié `game_contract.yaml` par un charter narratif ; aucune valeur de Breakout reprise.
 
-**Intention.** Construire de zéro, sous `games/tetris/`, un Tetris **jouable** dont le noyau de règles est pur et testable en headless, livré comme projet **Godot 4**. C'est le nœud 4 du curriculum mécanique : la nouveauté à prouver par rapport à Breakout_v2 est **l'empilement irréversible sur grille discrète** et **le nettoyage de ligne avec compactage** — la dette spatiale, pas un nouveau moteur physique.
+### Verdicts (séparés)
+- **software_verdict: BLOCKED** — je n'ai **pas pu exécuter** l'oracle CHARTER (permissions `run: aucun`) ; le charter est écrit conforme au schéma mais sa validation mécanique reste à faire par un appelant qui a le droit d'exécution.
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — ne s'applique qu'aux faits documentés cités (règles de genre `genre_bible.json`, faits mécaniques du world scan `observation_manifest.json`, `node:4` de `game_contract.yaml`).
+- **claim_verdict: NO_CLAIM_ALLOWED**.
 
-**Joueur cible.** Joueur **solo** familier du genre falling-block (aucune courbe d'apprentissage à concevoir : les règles sont universellement connues). Consommateur réel de ce nœud = le **playtest Pierre** (ressenti) + le **bot de solvabilité** (oracle). Toute persona/marché plus riche n'a pas de source → **FOG-2**.
+### Oracle / ancre citée
+- **Oracle CHARTER** (déterministe non-LLM) : validateur de schéma qui échoue si un champ requis est vide/absent/« à définir ». **Non exécuté ici** → voir SKIPPED_VALIDATION.
+- Ancres documentaires non-LLM du contenu : `01_DESIGN/genre_bible.json` (10 règles de genre), `GAME_REFERENCE/observation_manifest.json` (world scan advisory), `games/tetris/00_CHARTER/game_contract.yaml` (`node:4`, `runtimes:[rules,godot]`).
 
-**Condition de victoire — point d'honnêteté central.** Il **n'existe pas d'état gagné** (`genre.tetris.no_victory_in_marathon`, invariant constitutif). La condition **terminale** est la **défaite par blocage** : une pièce entrante ne peut pas apparaître légalement (`genre.tetris.loss_by_blocking`). Conséquence directe, déjà pressentie dans `game_contract.yaml` : **la solvabilité ne peut PAS être « un bot gagne »** — elle se définit comme « un bot **survit** N pièces **et** nettoie ≥1 ligne sans blocage prématuré ».
+### Champs remplis (aucun vide, aucun « à définir »)
+`intention_produit · objectif · objectif_joueur · plateforme_cible · reference_jeu · contraintes[] · criteres_succes[] · criteres_echec[] · criteres_demo[] · actions_interdites[] · hors_scope[] · hypotheses[] · risques[] · fog_humangate[]`. Valeurs non mesurées écrites `A_CALIBRER` (N_SURVIE, M_LIGNES, barème, budget mutation, spawn/buffer, profondeur next) — **jamais** un chiffre inventé.
 
-**Périmètre V1 minimal jouable.** Le **noyau constitutif** du genre (points 1-5 du World Scan, ratifiés « constitutifs » et distingués des variantes), rien de plus : rotation contrainte **refus-sur-collision sans wall-kick**, aperçu 1 pièce, score = compteur de lignes. Les 4 écarts identifiés par le World Scan (SRS/wall-kick, hold, aperçu multiple, maxout) sont des **variantes**, pas des invariants → hors V1.
+### Flous résolus (comblés dans le charter)
+1. **Solvabilité sans état gagné** → redéfinie en **critère de SURVIE** (`bot survit ≥ N pièces / clear ≥ M lignes sans top-out`, N/M = `A_CALIBRER`), avec **preuve de variance** obligatoire (règle Pierre 2026-07-21) et **critère d'échec** anti-`>=`-tautologique.
+2. **Plateforme** → Godot 4 + noyau règles pures headless, tracé à `runtimes:[rules,godot]` + décision curriculum C+A (2026-07-22).
+3. **reference_jeu (le jeu)** → `"Tetris"`, tracé à Pierre via curriculum nœud 4 + `game_contract node:4` + invocation `/forge tetris`.
 
----
-
-## Les 7 champs du charter (aucun « à définir », aucun vide)
-
-### 1 — `objectif`
-Produire sous `games/tetris/` un Tetris jouable de bout en bout jusqu'au game-over, à deux runtimes : **noyau de règles pur** (GDScript testable `godot --headless`) + **présentation Godot 4** livrable. Le noyau implémente les 5 invariants constitutifs du genre ; le build passe l'oracle de solvabilité (survie + nettoyage, pas victoire) et l'oracle de mutation. Rendu par primitives du moteur (`assets.plan: cc0`).
-
-### 2 — `hors_scope[]`
-- SRS / wall-kicks / T-spins (variante de rotation — cf. **FOG-1**).
-- Réserve (hold) et aperçu multi-pièces (>1) — variantes.
-- Courbe de score superlinéaire calibrée, progression de niveau, accélération de gravité par niveau, maxout/plafond NES — **équilibrage**, soumis à la règle de variance (cf. **FOG-3**).
-- Ghost piece, hard-drop garanti (soft-drop seul est constitutif ; hard-drop = **FOG-4**).
-- Menus au-delà de start/game-over, options, persistance de high-score, audio/musique.
-- Multijoueur, lignes de garbage, versus.
-- 3D, assets externes.
-- Toute modification hors `games/tetris/` (voir `actions_interdites`).
-
-### 3 — `criteres_succes[]` (objectifs, oracle-ables — non-LLM)
-1. **Sac de 7** : le générateur émet exactement {I,O,T,S,Z,J,L}, chacune une fois par sac de 7, aucune autre forme.
-2. **Gravité discrète** : sans input, la pièce active descend d'**exactement 1 case** par tick de gravité.
-3. **Empilement irréversible** : une pièce figée est immuable — aucun input ne la déplace/retire (assert état inchangé).
-4. **Nettoyage + compactage STRICT** : une rangée pleine disparaît et tout ce qui est au-dessus descend d'**exactement** le nombre de rangées nettoyées — assertion **stricte**, jamais `>=` (pré-mortem : pas de `>=` tautologique).
-5. **Rotation contrainte** : une rotation qui collisionne est **refusée**, la pièce garde son orientation/position, le terrain n'est jamais déformé.
-6. **Input sur pièce active seule** : translation/rotation/soft-drop n'affectent que la pièce active, jamais la pile.
-7. **Fin par blocage** : quand une pièce entrante ne peut pas apparaître légalement, l'état devient terminal (game-over).
-8. **Solvabilité honnête** (obligatoire s9) : un bot scripté survit ≥ N pièces **et** nettoie ≥1 ligne sans game-over prématuré — N à calibrer (solvability = `A_CALIBRER` dans `game_contract.yaml`). Pas « un bot gagne ».
-9. **Livrable Godot** : le projet se lance (fenêtre GPU, cf. contrainte capture) et une partie complète se joue jusqu'au game-over sans crash.
-
-### 4 — `actions_interdites[]`
-1. Ne jamais toucher `src/` (moteur Rust), `tests/` (zone protégée), `autopilot.py`, `scripts/studioV2/`, ni la lane STUDIO gelée. Périmètre d'écriture = `games/tetris/`.
-2. Ne pas implémenter en V1 une **variante** (wall-kick/SRS, hold, courbe de score) sans ratification Pierre du modèle de référence — éviter l'erreur AutoBattler (modèle choisi unilatéralement).
-3. Aucun asset externe, aucun 3D — rendu par primitives (`assets.plan: cc0`).
-4. Aucun `git commit`/`push` (HumanGate Pierre).
-5. Aucun claim « jouable / fun » sans reçu d'oracle **exécuté** avec `evidence_path` (pré-mortem s12 : reçu sans evidence_path ⇒ BLOCKED). Preuve d'exécution, pas d'existence.
-6. Ne pas définir la solvabilité comme « un bot gagne » (le genre n'a pas de victoire).
-7. Aucune assertion `>=` tautologique dans les tests — comportement strict.
-8. Aucun champ de charter laissé « à définir » : rempli ou remonté en fog.
-
-### 5 — `plateforme_cible`
-**Godot 4** (livrable jouable) **+ noyau de règles pur GDScript** testable `godot --headless`.
-*Source Pierre traçable :* profil `full_godot` (`state.json`), ratifié par Pierre — commit `336e5d1` « profil full_godot — chaîne canonique complète à livrable Godot » ; `runtimes: [rules, godot]` dans `game_contract.yaml`. **Non-fog.**
-
-### 6 — `reference_jeu`
-**Tetris** — puzzle falling-block canonique, dans son **noyau constitutif** (chute sous gravité discrète · empilement irréversible · ligne pleine → disparition + compactage · rotation contrainte par le terrain · fin par blocage).
-*Source Pierre traçable :* le prompt/dispatch et le curriculum nomment le projet **`tetris`** (nœud 4) — le nom EST la référence, choix Pierre. **Non-fog pour le noyau.**
-*Réserve explicite :* le **sous-modèle** (Guideline 2001+ SRS/hold/aperçu multiple **vs** NES-classic sans kick/1-aperçu/maxout) n'a **aucune source Pierre** → **FOG-1**. V1 = noyau constitutif uniquement ; le choix de variante ne s'invente pas.
-
-### 7 — `criteres_demo[]` (OBSERVABLES à l'écran)
-1. Une pièce (tétromino) **descend visiblement** case par case à l'écran.
-2. Le joueur **déplace et fait tourner visiblement** la pièce active.
-3. Une rangée complétée **disparaît visiblement** et les blocs au-dessus **retombent visiblement** (compactage).
-4. La pièce suivante est **visible en aperçu** en permanence (information complète, un seul écran).
-5. Le compteur de lignes **augmente visiblement** au nettoyage.
-6. Quand la pile atteint le haut, un **écran de game-over visible** apparaît.
-*Ancrage :* règles de rendu constitutives (`render.playfield` information complète · `core.line_clear` compactage · `core.game_state` fin par blocage) + doctrine « critères observables » (leçon barre de démo auto_battler). Le **feel/lisibilité/satisfaction** n'est pas oracle-able — ressenti = playtest Pierre, jamais claim.
-
----
-
-## FOG → HumanGate (jugement Pierre, non oracle-able)
-- **FOG-1 — variante de référence** : Guideline (SRS/hold/aperçu multiple) vs NES-classic. V1 par défaut = noyau constitutif sans variante. Le modèle cible pour l'après-V1 est une décision design Pierre. *(gardeFou reference_jeu — non inventé.)*
-- **FOG-2 — profondeur joueur cible** : au-delà de « solo, connaît le genre » + playtest/oracle, aucune persona sourcée.
-- **FOG-3 — score & gravité** : récompense superlinéaire multi-lignes + courbe de niveau/gravité = équilibrage soumis à la **règle de variance** (prouver ≥2 valeurs distinctes avant de classer/calibrer). Hors V1 ; intention de courbe = Pierre.
-- **FOG-4 — hard-drop** : soft-drop est constitutif (inclus V1) ; hard-drop est QoL variante — inclure ou non = choix Pierre.
-- **Ratification Genre Bible / World Scan** : statut `NON_RATIFIEE_PROPOSITION`. Je les ai utilisés **advisory**. Leur ratification est un gate Pierre distinct.
-
-## Flous du prompt : résolus vs remontés
-- **Résolus (par source traçable) :** plateforme_cible (profil full_godot) · reference_jeu = Tetris noyau (nom du projet) · condition de victoire (= aucune ; fin par blocage, invariant de genre) · périmètre V1 (noyau constitutif, variantes exclues) · cadre solvabilité (survie+nettoyage, pas victoire).
-- **Remontés en fog :** FOG-1 à FOG-4 + ratification des propositions bootstrap.
-
-## Handoff aval (advisory — hors s0, pour ne pas échouer tard ; pré-mortem)
-- **Preflight** : enregistrer `tetris` dans `scripts/forge/oracles.json` **avant** s10a (`oracles.json` apparaît modifié dans le git status — **à vérifier** qu'il couvre bien tetris).
-- **s9** : step-timeout ≥ **5400 s** (le défaut 1800 s est calibré correctif, insuffisant pour greenfield Godot).
-- **s3/s4** : si réutilisation de `sys-grid-nav-m01`, **justifier la compatibilité de genre** (placement de tétromino qui tombe ≠ navigation sur grille) — la provenance ne prouve pas la transposabilité.
-- **s10a** : donner explicitement au builder la convention **FORGE_ORACLE** (non documentée dans le SCHEMA) ; volets de rendu en headless → **NOT_MEASURED**, jamais FAIL ; capture visuelle = **fenêtre GPU vulkan** obligatoire (headless rend une texture nulle).
-
----
-
-## RAPPORT FINAL
-- **software_verdict : N/A** — aucun oracle exécuté à s0. Livrable = **texte** (tâche « aucun fichier écrit ») et permission `run: aucun`. Le validateur de schéma CHARTER (parse + refus de tout champ vide/absent/« à définir ») s'applique au **moment de l'écriture de `charter.yaml`**, pas à ce texte — il n'a donc pas tourné.
-- **evidence_verdict : N/A** — aucune validation mécanique effectuée à cette étape (par construction : texte + run:aucun).
-- **claim_verdict : NO_CLAIM_ALLOWED.** Je ne certifie pas « charter valide » sans oracle exécuté. Les 7 champs sont **remplis, non vides, sans « à définir »** ; leur conformité de schéma reste à prouver mécaniquement à l'écriture. Design-intent : `plateforme_cible` et `reference_jeu`(noyau) portent une source Pierre traçable ; le sous-modèle et les paramètres d'équilibrage remontent en **fog**, non inventés.
+### Flous REMONTÉS (fog HumanGate — non inventés)
+- **`fog.tetris.variante`** — Guideline moderne (2001+) **vs** NES 1989. Elles divergent sur hold/next/wall-kicks/barème/condition-de-fin. **Aucune source Pierre ne tranche** ⇒ `variante_choisie: A_CALIBRER`, remonté à Pierre (leçon AutoBattler : Battlegrounds choisi sans Pierre). C'est la raison pour laquelle je **n'affirme pas** la conformité de la variante — je la remonte.
+- **`fog.tetris.genre_bible_ratification`** — les 10 règles de genre sont `NON_RATIFIEE_PROPOSITION` ; leur ratification est une décision humaine.
 
 ### SKIPPED_VALIDATION
-- **Oracle de schéma CHARTER** — *où :* ce livrable texte — *statut :* non fait — *raison :* tâche explicitement « texte seul, aucun fichier écrit » + `run: aucun` ; validation déférée à l'étape d'écriture de `charter.yaml`.
-- **Vérification provenance-Pierre de `reference_jeu` (variante)** — *où :* champ reference_jeu — *statut :* partiel — *raison :* le noyau « Tetris » est sourcé (nom du projet) ; le sous-modèle (Guideline vs NES) n'est pas mécaniquement vérifiable (fait de gate, pas de schéma) → escaladé **FOG-1**.
-- **Ratification Genre Bible / World Scan** — *où :* `01_DESIGN/genre_bible.json`, `GAME_REFERENCE/` — *statut :* non fait — *raison :* statut `NON_RATIFIEE_PROPOSITION` ; utilisés advisory ; ratification = gate Pierre distinct.
+- **item** : exécution de l'oracle CHARTER (validateur de schéma) · **périmètre** : `games/tetris/00_CHARTER/charter.yaml` · **statut** : non fait · **raison** : permissions du contrat `run: aucun` — je n'ai pas le droit d'exécuter ; à lancer par l'appelant Forge.
+- **item** : provenance Pierre de `reference_jeu.variante` · **périmètre** : champ `reference_jeu` · **statut** : non vérifiable mécaniquement (fait de gate, pas de schéma) · **raison** : remonté en fog HumanGate au lieu d'un claim de conformité.
+- **item** : écriture disque de `charter.yaml` · **périmètre** : filesystem · **statut** : en attente · **raison** : autorisation harness non encore accordée sur le chemin.

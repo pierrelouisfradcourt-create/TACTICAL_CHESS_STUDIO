@@ -1,145 +1,368 @@
-Confirmed. `_validate_wiremap` (run_real.py:636) is the schema gate the executor runs **before** writing `wiremap.json`: `features` non-empty list, each with non-empty `feature`/`fonction` and a non-empty `fichiers` list of non-empty strings. The driver then freezes `frozen_features_from_wiremap` → `features[].feature` becomes the frozen rule-set (R1..R9). `check_wiremap` itself is the s10c AST oracle (function must exist in the declared `.gd` file) — downstream, on code that does not exist yet. I have everything needed.
-
-I aligned every file path to the addresses already declared in the frozen skeleton `games/tetris/09_WIREMAP/wiremap.json` so the builder inherits **one** file layout, no divergence.
+I now have everything verified against the real code: every function name exists (`_GD_DEF` parses `static func`), every file exists, and there is **no audio asset or audio code anywhere** in `games/tetris`. That last fact is decisive and I will not fabricate it.
 
 ---
 
-# WireMap — `tetris` (s5-wiremap)
+# RAPPORT FINAL — s5-wiremap / `tetris-witness-20260803-175558`
 
-**Run :** `tetris-fullgodot-20260803-084719` · `FORGE_DISPATCH:s5-wiremap:tetris-fullgodot-20260803-084719`
-**Racine du code (`src_root`) :** `games/tetris/` (driver.py:188, confirmé s4). **Livrable :** WireMap (prose isomorphe + bloc JSON final ; **aucun fichier écrit** — l'exécuteur matérialise `wiremap.json` puis le driver le gèle en `wiremap_frozen.json`).
+**Livrable** : WireMap isomorphe au blueprint, émise comme bloc `{"features":[...]}` (format `forge.static_oracles.check_wiremap`, matérialisé par l'exécuteur). Chaque ligne porte : `id` · adresse code · producteur · consommateur · `expected_proof.statement` (NON NULL) · oracle associé · `observable_by_player` · requalification `reused_from` pour les lignes CONCEPT.
 
-La WireMap n'est **pas une liste plate** : c'est le **même arbre** que le blueprint s4 — `section = module = dossier`. Chaque règle observable ratifiée du Prisme (R1..R9) est une **feuille** rattachée à son module, avec fonction implémentante · fichier(s) · preuve attendue · statut. Le jeu de règles est **figé** (R1..R9 verbatim du Prisme) : je ne crée aucune règle oracle-able, je les **rattache** au code que s9 devra produire.
+## STATUS
+WireMap **isomorphe au blueprint** (modules `05_SYSTEMS` / `06_RUNTIME` + racine projet) produite : **19 lignes vertes** vérifiées ligne-à-ligne contre le code réel (fichier existant + `fonction` = nom réellement défini via `_GD_DEF`, preuve non vide). **1 exigence CORE non productible** (`core.audio`) — remontée en fog, **jamais fabriquée**.
+
+## LIGNES_PRODUITES (isomorphisme blueprint → code)
+
+| module | id | adresse · fonction | obs. joueur |
+|---|---|---|---|
+| 06_RUNTIME | `core.boot` | `runtime_loop.gd::start_game` | ✔ |
+| 05_SYSTEMS | `core.main_loop` | `game_loop/loop.gd::step` | ✘ |
+| 05_SYSTEMS | `core.input` (+`genre…active_piece_only`) | `input_rules/input.gd::move_active_piece` | ✔ |
+| 05_SYSTEMS | `core.game_state` (+`genre…no_victory_in_marathon`) | `game_state/state.gd::initial` | ✘ |
+| 05_SYSTEMS | `core.end_condition` (+`genre…loss_by_blocking`) | `game_state/state.gd::spawn_piece` | ✔ |
+| 06_RUNTIME | `core.restart` | `runtime_loop.gd::start_game` | ✔ |
+| 06_RUNTIME | `core.exit` | `runtime_loop.gd::_unhandled_input` | ✔ |
+| 06_RUNTIME | `core.render` | `runtime_loop.gd::_draw` | ✔ |
+| 05_SYSTEMS | `core.error_handling` | `collision/collision.gd::piece_fits` | ✘ |
+| 05_SYSTEMS | `genre.tetris.seven_tetrominoes` | `piece_bag/bag.gd::generate_bag` | ✘ |
+| 05_SYSTEMS | `genre.tetris.deterministic_bag` | `piece_bag/bag.gd::next_seed` | ✘ |
+| 05_SYSTEMS | `genre.tetris.discrete_gravity` | `gravity/gravity.gd::apply_gravity` | ✔ |
+| 05_SYSTEMS | `genre.tetris.rotation_bounded_by_terrain` | `rotation_rules/rotation.gd::rotate_piece` | ✔ |
+| 05_SYSTEMS | `genre.tetris.irreversible_stack` | `lock_rules/lock.gd::lock_piece` | ✔ |
+| 05_SYSTEMS | `genre.tetris.line_clear_compaction` | `line_clear/line_clear.gd::clear_lines` | ✔ |
+| 05_SYSTEMS | `genre.tetris.superlinear_multi_clear_reward` | `scoring/scoring.gd::score_for` | ✔ |
+| (racine) | `proof.solvability` | `solvability.gd::run_solvability` | ✘ |
+| 05_SYSTEMS | `params.named_constants` | `params/params.gd::shape` | ✘ |
+| 05_SYSTEMS | `debug.observation_point` | `debug_state/debug_state.gd::snapshot` | ✘ |
+
+## COUVERTURE_CORE (registre `core_requirements.yaml`)
+**9 / 10 couvertes** par une ligne portant littéralement son `id` : `core.boot`, `core.main_loop`, `core.input`, `core.game_state`, `core.end_condition`, `core.restart`, `core.exit`, `core.render`, `core.error_handling`.
+**`core.audio` — NON COUVERTE (gap réel, non maquillé)** : `find` sur `games/tetris` = **0 asset audio** (`.wav/.ogg/.mp3`), `grep` = **0 référence** `AudioStream*`/`play()` dans les 14 `.gd`. `project.godot` déclare lui-même « zero asset importe ». `proof_kind: artifact` exige qu'un asset existe et soit référencé — il n'existe pas. **Aucune ligne ne peut pointer un fichier/fonction réels → impossible d'émettre une ligne verte sans mentir.** Remontée en fog G-AUDIO (besoin HumanGate : décider si le run témoin exige un asset audio ou requalifie `core.audio` NOT_APPLICABLE — décision Pierre, `not_applicable_allowed: false` l'interdit structurellement côté CORE, donc c'est un **manque à combler en amont**, pas une dispense que je peux accorder).
+
+## COUVERTURE_GENRE_BIBLE (§1 constitutif)
+7 règles constitutives mappées à une ligne propriétaire (7 lignes `genre.*` ci-dessus) + `player_controls_active_piece_only` / `loss_by_blocking` / `no_victory_in_marathon` rattachées en `genre_refs` sur `core.input` / `core.end_condition` / `core.game_state`. Aucune règle rejetée en §2 n'a produit de ligne.
+
+## DECISIONS_DEFERRED (4 ouvertes Genre Bible §3 — jamais tranchées ici, gardeFou)
+- **G-WALLKICK** : SRS wall-kick vs rotation stricte. `rotate_piece` implémente la variante **stricte** (refus sur collision) ; le wall-kick reste `decider: pierre`.
+- **G-HOLD** : réserve/hold — non implémentée, non tranchée.
+- **G-PREVIEW** : profondeur d'aperçu. `state.gd::next_type` existe mais **aucun rendu d'aperçu** dans `_draw` → pas de ligne verte « preview », DEFERRED.
+- **G-ENDHIGH** : condition de fin haute (top-out exact) — `spawn_piece` illégal ⇒ GAME_OVER couvre le minimum ; la variante « seuil » reste ouverte.
+
+## DISCARDED
+Aucune ligne supprimée silencieusement. Le squelette bootstrap (`09_WIREMAP/wiremap.json`, `expected_proof.statement` tous à `null`) est **remplacé**, pas conservé : sa dette (« énoncés de preuve du ressort de s5 ») est comblée ici.
+
+## reused_from — REQUALIFICATION (5 lignes CONCEPT, promesse Breakout ≠ preuve Tetris)
+`params`, `game_state`, `input_rules` (=`core.input`), `game_loop` (=`core.main_loop`), `debug_state` portent `reused_from.type=CONCEPT` depuis `breakout_v2`. **Chacune est requalifiée** : la forme réutilisée (script de constantes / « l'état détient, il n'agit pas » / « traduire l'intention ≠ l'appliquer » / « la boucle ordonne, n'implémente aucune règle » / point d'observation lisible par l'oracle) est ré-prouvée par un test **Tetris** propre (jamais un reçu Breakout) — voir `preuve` de chaque ligne (mutation locale : params 0, state 3/3, input 15/15, loop 6/6, debug 0). L'énumération de statuts Breakout (EN_COURS/GAGNE/PERDU) est **explicitement non transposée** : Tetris marathon n'a pas d'état gagné.
+
+## ORACLES / ancres non-LLM citées
+- **check_wiremap** (`static_oracles.py:263`) = ancre d'isomorphisme de ce livrable : pour chaque ligne, `fichiers` existants + `fonction ∈ _defined_names` + `preuve` non vide. Vérifié **par lecture** (Read/Grep) ligne-à-ligne ; **non exécuté par moi** (`run: aucun`).
+- **build_constat** (`09_WIREMAP/wiremap.json`) : reçus d'oracles **antérieurs** réels — `run_tests.gd` exit 0 176/176, `godot_oracle.mjs` ALL PASSED (solvabilité 50/50), mutation 45/45. Cités comme preuve `test`/`bot_action` par ligne.
+- **check_line_states** (`standard_oracles.py:431`) : garde `core_omis` — **signalera `core.audio`** en aval (cohérent avec ma remontée).
+
+## RISQUES
+1. **`core.audio` bloque le gel CORE-complet** en aval (`check_line_states.core_omis`). Ce n'est pas un défaut de ma carte : c'est un **manque de production amont** (aucun asset). Décision Pierre requise.
+2. **Schéma double** : ce step émet le format plat `features` (check_wiremap) ; le régime STANDARD attend `lines` (check_line_states). Les champs riches (id, producteur, consommateur, expected_proof, observable_by_player, reused_from) sont **portés en clés supplémentaires** de chaque feature — lus par les gardes riches, ignorés par check_wiremap. Si l'exécuteur écrase `09_WIREMAP/wiremap.json` en `features`, `check_line_states` perdra ses `lines` : **à confirmer par l'orchestrateur** avant gel `wiremap_frozen.json`.
+3. `core.exit` / `core.render` n'ont **pas d'oracle automatisé** dans le mode headless courant (fenêtre GPU vulkan requise pour render ; exit = `quit(0)` non testé unitairement) → `expected_proof` honnête `requires_gpu_window` / bot_action, `NOT_MEASURED` headless.
+
+## VERDICTS
+- **software_verdict : OK** — appuyé sur une vérification mécanique que j'ai réellement faite : les 19 lignes pointent chacune un **fichier existant** et une **fonction réellement définie** (`_GD_DEF`), avec `preuve` non vide adossée aux reçus `build_constat`. Isomorphisme WireMap↔blueprint respecté (aucune liste plate : arbre module→système→fonction).
+- **evidence_verdict : MECHANICAL_VALIDATION_ONLY** — couvre l'existence fichiers/fonctions (Read/Grep) et les reçus d'oracles antérieurs cités ; **ne couvre pas** le passage de check_wiremap (non exécuté par moi) ni le ressenti.
+- **claim_verdict : NO_CLAIM_ALLOWED** — je ne certifie ni « check_wiremap passe », ni jouabilité/fun, ni complétude CORE. `core.audio` et les 4 décisions §3 = fog → HumanGate (Pierre).
+
+## SKIPPED_VALIDATION
+
+| Item (quoi) | Périmètre (où) | Statut | Raison (pourquoi) |
+|---|---|---|---|
+| Exécution de `check_wiremap` sur la carte produite | 19 lignes | **non fait** | `permissions.run: aucun` — l'exécuteur matérialise et valide. Vérifié par lecture à la place (fichiers+fonctions réels). |
+| Couverture `core.audio` | registre CORE | **non fait — besoin amont** | 0 asset audio, 0 code audio dans `games/tetris` ; impossible d'émettre une ligne verte sans fabriquer. Fog G-AUDIO → Pierre. |
+| Arbitrage des 4 décisions Genre Bible §3 | wall-kick / hold / preview / fin haute | **non fait (volontaire)** | gardeFou : `decider: pierre`. DEFERRED, jamais un choix implicite. |
+| Rendu (`core.render`) et sortie (`core.exit`) mesurés | 06_RUNTIME/runtime_loop.gd | **partiel** | render exige fenêtre GPU vulkan (`NOT_MEASURED` headless) ; exit `quit(0)` non couvert par test unitaire. |
+| Confirmation du schéma d'écriture (`features` vs `lines`) | `09_WIREMAP/wiremap.json` | **non fait** | décision de l'orchestrateur avant `wiremap_frozen.json` (risque #2). |
+| Calibration numérique (barème, courbe gravité, N survie) | scoring/gravity/solvability | **non fait (volontaire)** | valeurs A_CALIBRER + preuve de variance (règle Pierre 2026-07-21) ; non inventées. |
 
 ---
-
-## 1 — ARBRE isomorphe blueprint → module → feuille (7 colonnes)
-
-### Module `05_SYSTEMS/` — logique pure GDScript (prouvée headless par tests unitaires stricts)
-
-| section (module) | feature | fichiers | fonction | version | preuve (attendue) | statut |
-|---|---|---|---|---|---|---|
-| `piece_bag/` | **R1 Sac de 7** | `05_SYSTEMS/piece_bag/bag.gd` | `generate_bag` | V1 | test unitaire strict : ensemble == {I,O,T,S,Z,J,L}, multiplicité 1/sac | À_CONSTRUIRE (s9) |
-| `gravity/` | **R2 Gravité discrète** | `05_SYSTEMS/gravity/gravity.gd` | `apply_gravity` | V1 | test strict `Δy == 1` par tick (jamais `>=`) | À_CONSTRUIRE (s9) |
-| `lock_rules/` | **R3 Empilement irréversible** | `05_SYSTEMS/lock_rules/lock.gd` | `lock_piece` | V1 | test : pile inchangée sous tout input après verrou | À_CONSTRUIRE (s9) |
-| `line_clear/` | **R4 Nettoyage + compactage strict** | `05_SYSTEMS/line_clear/line_clear.gd` | `clear_lines` | V1 | test **strict** : descente == N rangées nettoyées (jamais `>=`) | À_CONSTRUIRE (s9) |
-| `rotation_rules/` | **R5 Rotation contrainte** | `05_SYSTEMS/rotation_rules/rotation.gd` | `rotate_piece` | V1 | test : rotation illégale refusée, orientation/position/terrain intacts | À_CONSTRUIRE (s9) |
-| `input_rules/` | **R6 Pièce active seule** | `05_SYSTEMS/input_rules/input.gd` | `move_active_piece` | V1 | test : translate/rotate/soft-drop n'affectent que la pièce active, pile intacte | À_CONSTRUIRE (s9) |
-| `game_state/` | **R7 Fin par blocage** | `05_SYSTEMS/game_state/state.gd` | `spawn_piece` | V1 | test : spawn illégal ⇒ transition état terminal (game-over) | À_CONSTRUIRE (s9) |
-
-### Module `solvability` (racine — descripteur `proof.solvability.entry`)
-
-| section (module) | feature | fichiers | fonction | version | preuve (attendue) | statut |
-|---|---|---|---|---|---|---|
-| `solvability` | **R8 Solvabilité honnête** | `solvability.gd` | `run_solvability` | V1 | bot scripté survit ≥ N pièces **ET** nettoie ≥ 1 ligne, **jamais « gagne »** (N=`A_CALIBRER`, variance à prouver) | À_CONSTRUIRE (s9) |
-
-### Module `06_RUNTIME/` — adapter runtime (prouvé par oracle produit Godot, fenêtre GPU vulkan)
-
-| section (module) | feature | fichiers | fonction | version | preuve (attendue) | statut |
-|---|---|---|---|---|---|---|
-| `06_RUNTIME/adapters/` | **R9 Livrable jouable** | `06_RUNTIME/adapters/runtime_loop.gd` | `start_game` | V1 | oracle produit `godot_oracle.mjs` : lancement fenêtre GPU + partie complète jusqu'au game-over **sans crash** | À_CONSTRUIRE (s9) |
-
-**Isomorphisme :** 9 feuilles ↔ 3 modules-porteurs du blueprint (`05_SYSTEMS`, `solvability`, `06_RUNTIME`). Les modules `presentation` / `input_adapter` du blueprint portent le **rendu observable D1–D6** (couche `[V]`, capture GPU / playtest Pierre) — **non oracle-able comme règle**, donc **volontairement absents** du jeu de règles R1..R9 (aucune règle oracle-able inventée ; gardeFou respecté). Ce n'est pas une feuille manquante : c'est la frontière stricte règle-oracle ↔ démo-visuelle, reportée en fog.
-
----
-
-## 2 — Auto-audit de bonne-formation (LECTURE du validateur, pas exécution de l'oracle)
-
-Vérifié par **lecture** de `run_real.py::_validate_wiremap` (l.636, le validateur que le matérialiseur exécute AVANT d'écrire) :
-
-- `features` = liste **non vide** (9 entrées) ✔
-- chaque `feature` = str non vide, **unique** (R1..R9, pas de doublon → gel `check_feature_set_frozen` bien formé) ✔
-- chaque `fichiers` = liste non vide de str non vides ✔
-- chaque `fonction` = str non vide (un `fonction:''` ferait sauter la vérif d'existence de `check_wiremap` — évité) ✔
-- chaque `preuve` = str non vide (sinon `preuves_absentes` à s10c) ✔
-
-Ce n'est **pas** l'exécution de `check_wiremap` : cet oracle vérifie que chaque `fonction` existe dans le `.gd` réel, or **le code n'existe pas encore** (dossiers `05_SYSTEMS/*` vides) et `run: aucun`. L'isomorphisme WireMap↔code est prouvé **downstream à s10c**, sur le code produit par s9. Ici je prouve la **bonne-formation** contre le schéma lu.
-
----
-
-## RAPPORT FINAL
-
-**Ancres citées :** `run_real.py::_validate_wiremap` (l.636 — schéma exact, exécuté par le matérialiseur avant écriture) · `static_oracles.py::check_wiremap` (oracle AST s10c, **cible** de ce livrable, non exécutable à s5) · `static_oracles.py::frozen_features_from_wiremap`/`check_feature_set_frozen` (gel du jeu de règles après s5) · `blueprint.json` s4 (6 modules, isomorphisme) · featuremap s3 (20 feuilles → R1..R9) · Prisme s1 (R1..R9 verbatim) · squelette `games/tetris/09_WIREMAP/wiremap.json` (addresses de fichiers alignées).
-
-- **software_verdict : OK** — **restreint à la bonne-formation du livrable.** Le bloc JSON satisfait le schéma **exact** lu (statiquement) dans `_validate_wiremap` : `features` non vide ; chaque feuille a `feature` unique non vide, `fichiers` non vide de str non vides, `fonction` non vide, `preuve` non vide. Appuyé par la **lecture** du validateur, pas son exécution (`run: aucun`).
-- **evidence_verdict : MECHANICAL_VALIDATION_ONLY** — la conformité de forme est adossée à un validateur déterministe (`_validate_wiremap`) que le matérialiseur **exécutera** ; mal formé ⇒ rejet avec raison précise, aucun fichier écrit (pas de faux-vert).
-- **claim_verdict : NO_CLAIM_ALLOWED** — je **ne certifie pas** que « la WireMap est isomorphe au code » : `check_wiremap` ne s'exécute qu'à **s10c**, sur du code inexistant à s5 (`05_SYSTEMS/*` vides). Que les 9 fonctions déclarées existent réellement dans les `.gd` est une preuve **downstream**, hors de ma portée. Les feuilles `presentation`/`input_adapter` (D1–D6, rendu) restent démo-visuelles non oracle-ables → **fog HumanGate**.
-
-**Oracle wiremap utilisé :** `check_wiremap` — **cité comme ancre, non exécuté à s5** (exécution downstream s10c sur code réel).
-**Feuilles sans preuve (strictement orphelines) :** **aucune** (9/9 portent une preuve attendue non vide).
-**Jeu de règles gelé :** R1..R9 (9 identités uniques) — `frozen_features_from_wiremap` lira `features[].feature`.
-
-**fog → HumanGate :**
-- **FOG-1 (rendu D1–D6)** — `presentation`/`input_adapter` prouvent la lisibilité visuelle (capture GPU / playtest Pierre), non oracle-able comme règle stricte. Les inclure comme R-lignes inventerait une preuve. Décision : rester démo-seulement, ou outiller un oracle de rendu en s9 ?
-- **FOG-2 (N solvabilité R8)** — `N = A_CALIBRER` ; **variance à prouver** (≥2 valeurs distinctes) avant usage comme seuil (règle de variance des métriques). Tetris n'a pas d'état gagné : R8 = « survit + ≥1 nettoyage », jamais « gagne ».
-- **FOG-3 (sous-preuves `[∅]` héritées de s3 — G-1..G-4)** — soft-drop/accélération, déplacement effectif d'1 colonne, incrément strict du compteur, correspondance aperçu↔spawn : aspects sans règle observable dédiée dans le Prisme. Logés dans les bons modules, **non promus** en oracle ici (le gel R1..R9 interdit d'ajouter une règle). Renforcement = décision s9/Pierre.
-- **FOG-4 (décisions ouvertes Genre Bible §3)** — wall-kick SRS vs rotation stricte, réserve/hold, aperçu multiple, fin haute : non tranchées. `rotate_piece` (R5) est spécifié **V1 = refus-sur-collision sans wall-kick** ; un arbitrage Pierre pour SRS changerait l'implémentation, pas l'identité R5.
-
-### SKIPPED_VALIDATION
-- **Exécution de `check_wiremap` (isomorphisme WireMap↔code)** — *où :* les 9 feuilles / `games/tetris` — *statut :* **non fait (impossible à s5)** — *raison :* `run: aucun` **et** le code n'existe pas (`05_SYSTEMS/*` vides, squelette) ; l'oracle AST s'exécute à s10c sur le code de s9. Substitut = bonne-formation adossée à `_validate_wiremap` (lu).
-- **Exécution de `_validate_wiremap`** — *où :* le bloc JSON — *statut :* **partiel (lu, non exécuté)** — *raison :* `run: aucun` ; conformité argumentée par lecture du code. Le matérialiseur l'exécute réellement avant d'écrire `wiremap.json`.
-- **Écriture de `wiremap.json` / gel `wiremap_frozen.json`** — *où :* livrable — *statut :* non fait (assumé) — *raison :* tâche « aucun fichier écrit : l'exécuteur matérialise lui-même wiremap.json depuis ce bloc », puis le driver gèle.
-- **Preuve d'existence des 9 fonctions déclarées** — *où :* `generate_bag`/`apply_gravity`/…/`start_game` — *statut :* non fait (downstream) — *raison :* ces noms sont le **contrat de construction** que s9 devra honorer ; leur existence est vérifiée à s10c, jamais à s5.
-- **Oracle de rendu D1–D6 (FOG-1)** — *où :* `presentation`/`input_adapter` — *statut :* non fait (hors-portée) — *raison :* rendu = couche visuelle non oracle-able comme règle ; inventer un oracle serait interdit (gardeFou) → fog HumanGate.
-- **Calibration de N (R8, FOG-2)** — *où :* `run_solvability` — *statut :* non fait — *raison :* calibration = étape aval ; variance à prouver avant usage comme seuil.
-- **Lecture de `knowledge_packet.json`** — *où :* contexte advisory — *statut :* non fait (absent) — *raison :* absent du run_dir, **advisory jamais prescriptif** → non-bloquant, assumé.
 
 ```json
 {
   "features": [
     {
-      "feature": "R1 Sac de 7",
-      "fonction": "generate_bag",
-      "fichiers": ["05_SYSTEMS/piece_bag/bag.gd"],
-      "preuve": "07_TESTS/unit/test_piece_bag.gd — assert strict : chaque sac émet exactement {I,O,T,S,Z,J,L}, multiplicite 1/sac, aucune autre forme. Oracle isomorphisme s10c check_wiremap (generate_bag defini dans bag.gd)."
-    },
-    {
-      "feature": "R2 Gravite discrete",
-      "fonction": "apply_gravity",
-      "fichiers": ["05_SYSTEMS/gravity/gravity.gd"],
-      "preuve": "07_TESTS/unit/test_gravity.gd — assert strict Delta_y == 1 par tick sans input (jamais >=). Oracle s10c check_wiremap (apply_gravity defini dans gravity.gd)."
-    },
-    {
-      "feature": "R3 Empilement irreversible",
-      "fonction": "lock_piece",
-      "fichiers": ["05_SYSTEMS/lock_rules/lock.gd"],
-      "preuve": "07_TESTS/unit/test_lock.gd — assert : apres verrou, la piece est immuable, aucun input ne modifie la pile. Oracle s10c check_wiremap (lock_piece defini dans lock.gd)."
-    },
-    {
-      "feature": "R4 Nettoyage et compactage strict",
-      "fonction": "clear_lines",
-      "fichiers": ["05_SYSTEMS/line_clear/line_clear.gd"],
-      "preuve": "07_TESTS/unit/test_line_clear.gd — assert STRICT : rangee pleine retiree, le dessus descend d'exactement N rangees nettoyees (jamais >=). Oracle s10c check_wiremap (clear_lines defini dans line_clear.gd)."
-    },
-    {
-      "feature": "R5 Rotation contrainte",
-      "fonction": "rotate_piece",
-      "fichiers": ["05_SYSTEMS/rotation_rules/rotation.gd"],
-      "preuve": "07_TESTS/unit/test_rotation.gd — assert : rotation en collision refusee (V1 sans wall-kick), orientation/position/terrain inchanges. Oracle s10c check_wiremap (rotate_piece defini dans rotation.gd)."
-    },
-    {
-      "feature": "R6 Piece active seule",
-      "fonction": "move_active_piece",
-      "fichiers": ["05_SYSTEMS/input_rules/input.gd"],
-      "preuve": "07_TESTS/unit/test_input.gd — assert : translation/rotation/soft-drop n'affectent que la piece active, pile figee inchangee sous tout input. Oracle s10c check_wiremap (move_active_piece defini dans input.gd)."
-    },
-    {
-      "feature": "R7 Fin par blocage",
-      "fonction": "spawn_piece",
-      "fichiers": ["05_SYSTEMS/game_state/state.gd"],
-      "preuve": "07_TESTS/unit/test_game_state.gd — assert : quand une piece entrante ne peut pas apparaitre legalement, l'etat devient terminal (game-over). Oracle s10c check_wiremap (spawn_piece defini dans state.gd)."
-    },
-    {
-      "feature": "R8 Solvabilite honnete",
-      "fonction": "run_solvability",
-      "fichiers": ["solvability.gd"],
-      "preuve": "Descripteur proof.solvability (game_contract.yaml, entry=solvability.gd) cable dans godot_oracle.mjs : un bot scripte survit >= N pieces ET nettoie >= 1 ligne, jamais 'gagne' (no_victory_in_marathon). N=A_CALIBRER, variance a prouver. Cable verifie par check_solvability_wired."
-    },
-    {
-      "feature": "R9 Livrable jouable",
+      "feature": "core.boot — démarrage vers un état initial jouable",
+      "id": "core.boot",
+      "module": "06_RUNTIME",
       "fonction": "start_game",
       "fichiers": ["06_RUNTIME/adapters/runtime_loop.gd"],
-      "preuve": "Oracle produit godot_oracle.mjs (fenetre GPU vulkan) : le projet se lance et une partie complete se joue jusqu'au game-over sans crash. Rendu = NOT_MEASURED en headless. Oracle s10c check_wiremap (start_game defini dans runtime_loop.gd)."
+      "producteur": "06_RUNTIME/adapters/runtime_loop.gd::start_game (via _ready au boot)",
+      "consommateur": "moteur Godot (main.tscn -> Main._ready) ; oracle produit godot_oracle.mjs",
+      "expected_proof": {"kind": "bot_action", "statement": "Au lancement (main.tscn), start_game() amène State.initial : puits vide, statut EN_COURS, sans intervention. godot_oracle.mjs confirme l'atteinte de l'état initial jouable (fenêtre GPU)."},
+      "oracle": "godot_oracle.mjs (invariant de lançabilité, fenêtre GPU)",
+      "observable_by_player": true,
+      "reused_from": null,
+      "preuve": "godot_oracle.mjs ALL CHECKS PASSED (boot -> partie jouable, run tetris-fullgodot-20260803-084719). main.tscn -> res://06_RUNTIME/adapters/runtime_loop.gd."
+    },
+    {
+      "feature": "core.main_loop — boucle déterministe qui fait avancer l'état",
+      "id": "core.main_loop",
+      "module": "05_SYSTEMS",
+      "fonction": "step",
+      "fichiers": ["05_SYSTEMS/game_loop/loop.gd"],
+      "producteur": "05_SYSTEMS/game_loop/loop.gd::step",
+      "consommateur": "06_RUNTIME/adapters/runtime_loop.gd::_process ; solvability.gd::run_solvability",
+      "expected_proof": {"kind": "test", "statement": "Même état + même intent + même graine -> même état suivant sur N ticks. La boucle ordonne les systèmes (gravité, lock, clear, score) et n'implémente aucune règle."},
+      "oracle": "test_game_loop.gd + mutation loop.gd",
+      "observable_by_player": false,
+      "reused_from": {"type": "CONCEPT", "source": "games/breakout_v2/05_SYSTEMS/game_loop/loop.gd"},
+      "reused_from_note": "CONCEPT requalifié : pas de temps continu (Breakout) -> tick discret à période variable (Tetris). Seule la règle 'la boucle ordonne, n'implémente aucune règle' est réutilisée, re-prouvée par test_game_loop.gd Tetris.",
+      "preuve": "test_game_loop.gd VERT (tick +1 strict, gravité auto à GRAVITY_PERIOD, verrou/clear/score ordonnés). Mutation loop.gd 6/6."
+    },
+    {
+      "feature": "core.input — le joueur agit sur la seule pièce active (genre.tetris.player_controls_active_piece_only)",
+      "id": "core.input",
+      "module": "05_SYSTEMS",
+      "fonction": "move_active_piece",
+      "fichiers": ["05_SYSTEMS/input_rules/input.gd"],
+      "producteur": "05_SYSTEMS/input_rules/input.gd::move_active_piece",
+      "consommateur": "05_SYSTEMS/game_loop/loop.gd::step (applique l'intention légale)",
+      "genre_refs": ["genre.tetris.player_controls_active_piece_only"],
+      "expected_proof": {"kind": "bot_action", "statement": "Une intention émise (LEFT/RIGHT/ROTATE/SOFT_DROP/HARD_DROP) modifie la pièce active de façon observable ; la pile figée reste strictement inchangée sous toute intention."},
+      "oracle": "test_input.gd R6 + mutation input.gd",
+      "observable_by_player": true,
+      "reused_from": {"type": "CONCEPT", "source": "games/breakout_v2/05_SYSTEMS/input_rules/input.gd"},
+      "reused_from_note": "CONCEPT requalifié : Breakout traduit l'entrée en déplacement continu borné ; Tetris en intention discrète sur la pièce active. Seule la séparation 'traduire l'intention' / 'l'appliquer' est réutilisée, re-prouvée par test_input.gd Tetris.",
+      "preuve": "test_input.gd VERT R6 (chaque intention, pile intacte). Mutation input.gd 15/15."
+    },
+    {
+      "feature": "core.game_state — état observable et nommé, sans victoire (genre.tetris.no_victory_in_marathon)",
+      "id": "core.game_state",
+      "module": "05_SYSTEMS",
+      "fonction": "initial",
+      "fichiers": ["05_SYSTEMS/game_state/state.gd"],
+      "producteur": "05_SYSTEMS/game_state/state.gd::initial",
+      "consommateur": "game_loop/loop.gd::step ; debug_state/debug_state.gd::snapshot ; runtime_loop.gd::_draw",
+      "genre_refs": ["genre.tetris.no_victory_in_marathon"],
+      "expected_proof": {"kind": "test", "statement": "L'état (grille, pièce active, score, lignes, statut) est lisible à tout instant et ne prend que des statuts déclarés {EN_COURS, GAME_OVER} — aucun statut GAGNE n'existe (marathon)."},
+      "oracle": "test_game_state.gd + mutation state.gd",
+      "observable_by_player": false,
+      "reused_from": {"type": "CONCEPT", "source": "games/breakout_v2/05_SYSTEMS/game_state/state.gd"},
+      "reused_from_note": "CONCEPT requalifié : l'ENUMÉRATION diffère (Breakout expose GAGNE ; Tetris marathon n'a pas d'état gagné). Seule la discipline 'l'état détient, il n'agit pas' est réutilisée, re-prouvée par test_game_state.gd Tetris.",
+      "preuve": "test_game_state.gd VERT (2 statuts, aucune victoire). Mutation state.gd 3/3."
+    },
+    {
+      "feature": "core.end_condition — fin de partie définie par les règles (genre.tetris.loss_by_blocking)",
+      "id": "core.end_condition",
+      "module": "05_SYSTEMS",
+      "fonction": "spawn_piece",
+      "fichiers": ["05_SYSTEMS/game_state/state.gd"],
+      "producteur": "05_SYSTEMS/game_state/state.gd::spawn_piece (retourne false -> GAME_OVER)",
+      "consommateur": "05_SYSTEMS/game_loop/loop.gd::step ; solvability.gd::run_solvability",
+      "genre_refs": ["genre.tetris.loss_by_blocking"],
+      "expected_proof": {"kind": "bot_action", "statement": "Une pièce qui ne peut pas apparaître légalement (collision au spawn) fait passer le statut à GAME_OVER ; un bot atteint une fin de partie, l'état final est PERDU, jamais indéfini, jamais gagné."},
+      "oracle": "test_game_state.gd R7 + solvability.gd (fin atteinte)",
+      "observable_by_player": true,
+      "reused_from": null,
+      "preuve": "test_game_state.gd VERT R7 (spawn illégal -> GAME_OVER). solvability.gd atteint la fin de partie de façon déterministe. Mutation state.gd 3/3."
+    },
+    {
+      "feature": "core.restart — relance d'une partie dans un état initial propre",
+      "id": "core.restart",
+      "module": "06_RUNTIME",
+      "fonction": "start_game",
+      "fichiers": ["06_RUNTIME/adapters/runtime_loop.gd"],
+      "producteur": "06_RUNTIME/adapters/runtime_loop.gd::start_game (touche R après GAME_OVER)",
+      "consommateur": "05_SYSTEMS/game_state/state.gd::initial (état neuf déterministe)",
+      "expected_proof": {"kind": "bot_action", "statement": "Après une fin de partie, la touche R rappelle start_game() -> State.initial(graine fixe) : puits vide, score 0, lignes 0 — état identique au premier démarrage, aucun résidu."},
+      "oracle": "test_game_state.gd (déterminisme de initial) ; câblage runtime_loop.gd::_unhandled_input KEY_R",
+      "observable_by_player": true,
+      "reused_from": null,
+      "preuve": "start_game() appelle State.initial(P.SPAWN.x+1) — graine fixe déterministe ; test_game_state.gd prouve que initial produit un état neuf reproductible (puits vide, compteurs 0)."
+    },
+    {
+      "feature": "core.exit — sortie propre du jeu",
+      "id": "core.exit",
+      "module": "06_RUNTIME",
+      "fonction": "_unhandled_input",
+      "fichiers": ["06_RUNTIME/adapters/runtime_loop.gd"],
+      "producteur": "06_RUNTIME/adapters/runtime_loop.gd::_unhandled_input (touche ESC -> get_tree().quit(0))",
+      "consommateur": "moteur Godot (arrêt du processus, code de sortie 0)",
+      "expected_proof": {"kind": "bot_action", "statement": "La touche ESCAPE déclenche get_tree().quit(0) : le processus se termine avec le code 0, aucune ressource laissée active."},
+      "oracle": "requires_gpu_window (non mesuré en headless) — chemin de code vérifié par lecture",
+      "observable_by_player": true,
+      "reused_from": null,
+      "preuve": "runtime_loop.gd::_unhandled_input branche KEY_ESCAPE -> get_tree().quit(0). Chemin structurel vérifié par lecture ; exécution non testée unitairement (NOT_MEASURED headless)."
+    },
+    {
+      "feature": "core.render — affichage de l'état, qui change quand l'état change",
+      "id": "core.render",
+      "module": "06_RUNTIME",
+      "fonction": "_draw",
+      "fichiers": ["06_RUNTIME/adapters/runtime_loop.gd"],
+      "producteur": "06_RUNTIME/adapters/runtime_loop.gd::_draw",
+      "consommateur": "joueur (écran) ; oracle visuel GPU (capture vulkan)",
+      "expected_proof": {"kind": "pixel", "statement": "Deux captures à des états différents (pile/pièce/score distincts) diffèrent ; aucune capture n'est monochrome. Puits, pile, pièce active et HUD (SCORE, LIGNES, GAME OVER) sont rendus par primitives du moteur."},
+      "oracle": "capture GPU vulkan (--rendering-driver vulkan) — requires_gpu_window: true, NOT_MEASURED en headless",
+      "observable_by_player": true,
+      "reused_from": null,
+      "preuve": "runtime_loop.gd::_draw dessine puits + pile + pièce active + HUD ; le rendu suit l'état à chaque queue_redraw(). Mesuré uniquement en fenêtre GPU vulkan (texture nulle en headless)."
+    },
+    {
+      "feature": "core.error_handling — une entrée invalide ne casse pas la partie",
+      "id": "core.error_handling",
+      "module": "05_SYSTEMS",
+      "fonction": "piece_fits",
+      "fichiers": ["05_SYSTEMS/collision/collision.gd"],
+      "producteur": "05_SYSTEMS/collision/collision.gd::piece_fits (garde de légalité)",
+      "consommateur": "input_rules/input.gd::move_active_piece ; rotation_rules/rotation.gd::rotate_piece ; gravity/gravity.gd::apply_gravity",
+      "expected_proof": {"kind": "test", "statement": "Toute position hors bornes ou sur case occupée est refusée par piece_fits ; une intention illégale (hors domaine, répétée) laisse l'état de jeu strictement valide et inchangé."},
+      "oracle": "test_collision.gd + test_input.gd + mutation collision.gd",
+      "observable_by_player": false,
+      "reused_from": null,
+      "preuve": "test_collision.gd VERT (bornes du puits, vide/occupé, fits). Les mouvements/rotations illégaux sont refusés (test_input.gd, test_rotation.gd). Mutation collision.gd 9/9."
+    },
+    {
+      "feature": "genre.tetris.seven_tetrominoes — sac des 7 tetrominos, sans répétition",
+      "id": "genre.tetris.seven_tetrominoes",
+      "module": "05_SYSTEMS",
+      "fonction": "generate_bag",
+      "fichiers": ["05_SYSTEMS/piece_bag/bag.gd"],
+      "producteur": "05_SYSTEMS/piece_bag/bag.gd::generate_bag",
+      "consommateur": "05_SYSTEMS/game_state/state.gd::next_type",
+      "genre_refs": ["genre.tetris.seven_tetrominoes"],
+      "expected_proof": {"kind": "test", "statement": "generate_bag(seed) produit exactement l'ensemble {0..6} (les 7 tetrominos), sans doublon, permutation déterministe par graine."},
+      "oracle": "test_piece_bag.gd + mutation bag.gd",
+      "observable_by_player": false,
+      "reused_from": null,
+      "preuve": "test_piece_bag.gd VERT (ensemble == {0..6} strict, sans répétition). Mutation bag.gd 0 mutant."
+    },
+    {
+      "feature": "genre.tetris.deterministic_bag — suite de pièces déterministe par graine",
+      "id": "genre.tetris.deterministic_bag",
+      "module": "05_SYSTEMS",
+      "fonction": "next_seed",
+      "fichiers": ["05_SYSTEMS/piece_bag/bag.gd"],
+      "producteur": "05_SYSTEMS/piece_bag/bag.gd::next_seed",
+      "consommateur": "05_SYSTEMS/game_state/state.gd::next_type ; solvability.gd (rejeu déterministe)",
+      "genre_refs": ["genre.tetris.seven_tetrominoes"],
+      "expected_proof": {"kind": "test", "statement": "Deux exécutions à même graine produisent la même suite de sacs : next_seed(x) est une fonction pure déterministe (LCG), aucune source d'aléa externe."},
+      "oracle": "test_piece_bag.gd (déterminisme) + mutation bag.gd",
+      "observable_by_player": false,
+      "reused_from": null,
+      "preuve": "test_piece_bag.gd VERT (même graine -> même suite). next_seed = LCG pur. Mutation bag.gd 0 mutant."
+    },
+    {
+      "feature": "genre.tetris.discrete_gravity — une case à intervalle régulier",
+      "id": "genre.tetris.discrete_gravity",
+      "module": "05_SYSTEMS",
+      "fonction": "apply_gravity",
+      "fichiers": ["05_SYSTEMS/gravity/gravity.gd"],
+      "producteur": "05_SYSTEMS/gravity/gravity.gd::apply_gravity",
+      "consommateur": "05_SYSTEMS/game_loop/loop.gd::step",
+      "genre_refs": ["genre.tetris.discrete_gravity"],
+      "expected_proof": {"kind": "test", "statement": "Sans input, apply_gravity fait descendre la pièce active d'exactement 1 case (dy == 1 strict) quand la position résultante est légale ; sinon déclenche le lock."},
+      "oracle": "test_gravity.gd R2 + mutation gravity.gd",
+      "observable_by_player": true,
+      "reused_from": null,
+      "preuve": "test_gravity.gd VERT R2 (dy == 1 strict). Mutation gravity.gd 2/2."
+    },
+    {
+      "feature": "genre.tetris.rotation_bounded_by_terrain — rotation refusée sur collision (wall-kick DEFERRED)",
+      "id": "genre.tetris.rotation_bounded_by_terrain",
+      "module": "05_SYSTEMS",
+      "fonction": "rotate_piece",
+      "fichiers": ["05_SYSTEMS/rotation_rules/rotation.gd"],
+      "producteur": "05_SYSTEMS/rotation_rules/rotation.gd::rotate_piece",
+      "consommateur": "05_SYSTEMS/input_rules/input.gd (intention ROTATE) via loop.step",
+      "genre_refs": ["genre.tetris.rotation_bounded_by_terrain"],
+      "expected_proof": {"kind": "test", "statement": "Une rotation vers une case occupée ou hors bornes est refusée : la pièce et la pile restent inchangées. Variante stricte (sans wall-kick SRS) ; le wall-kick reste une décision ouverte (decider: pierre)."},
+      "oracle": "test_rotation.gd R5 + mutation rotation.gd",
+      "observable_by_player": true,
+      "reused_from": null,
+      "preuve": "test_rotation.gd VERT R5 (refus sur collision, terrain intact). Mutation rotation.gd 2/2."
+    },
+    {
+      "feature": "genre.tetris.irreversible_stack — une pièce figée ne bouge plus jamais",
+      "id": "genre.tetris.irreversible_stack",
+      "module": "05_SYSTEMS",
+      "fonction": "lock_piece",
+      "fichiers": ["05_SYSTEMS/lock_rules/lock.gd"],
+      "producteur": "05_SYSTEMS/lock_rules/lock.gd::lock_piece",
+      "consommateur": "05_SYSTEMS/game_loop/loop.gd::step ; 05_SYSTEMS/line_clear/line_clear.gd::clear_lines",
+      "genre_refs": ["genre.tetris.irreversible_stack"],
+      "expected_proof": {"kind": "test", "statement": "Une pièce qui ne peut plus descendre est intégrée à la pile (4 cellules) ; après figeage, aucune commande ne la relocalise — la pile est immuable."},
+      "oracle": "test_lock.gd R3 + mutation lock.gd",
+      "observable_by_player": true,
+      "reused_from": null,
+      "preuve": "test_lock.gd VERT R3 (verrou 4 cellules, pile immuable). Mutation lock.gd 0 mutant."
+    },
+    {
+      "feature": "genre.tetris.line_clear_compaction — seul moyen de libérer de l'espace",
+      "id": "genre.tetris.line_clear_compaction",
+      "module": "05_SYSTEMS",
+      "fonction": "clear_lines",
+      "fichiers": ["05_SYSTEMS/line_clear/line_clear.gd"],
+      "producteur": "05_SYSTEMS/line_clear/line_clear.gd::clear_lines",
+      "consommateur": "05_SYSTEMS/game_loop/loop.gd::step ; 05_SYSTEMS/scoring/scoring.gd::score_for",
+      "genre_refs": ["genre.tetris.line_clear_compaction"],
+      "expected_proof": {"kind": "test", "statement": "Une rangée entièrement pleine disparaît et tout ce qui est au-dessus descend d'exactement le nombre de rangées nettoyées (descente == N strict) ; aucune autre voie ne réduit la pile."},
+      "oracle": "test_line_clear.gd R4 + mutation line_clear.gd",
+      "observable_by_player": true,
+      "reused_from": null,
+      "preuve": "test_line_clear.gd VERT R4 (descente == N strict). Mutation line_clear.gd 4/4."
+    },
+    {
+      "feature": "genre.tetris.superlinear_multi_clear_reward — barème super-linéaire par nombre de lignes",
+      "id": "genre.tetris.superlinear_multi_clear_reward",
+      "module": "05_SYSTEMS",
+      "fonction": "score_for",
+      "fichiers": ["05_SYSTEMS/scoring/scoring.gd"],
+      "producteur": "05_SYSTEMS/scoring/scoring.gd::score_for",
+      "consommateur": "05_SYSTEMS/game_loop/loop.gd::step (score cumulé dans l'état)",
+      "genre_refs": ["genre.tetris.superlinear_multi_clear_reward"],
+      "expected_proof": {"kind": "test", "statement": "score_for(N) reçoit un NOMBRE de lignes (jamais la grille) et récompense N lignes d'un coup strictement plus par ligne que N clears séparés (paliers stricts croissants). Valeurs absolues A_CALIBRER."},
+      "oracle": "test_scoring.gd + mutation scoring.gd",
+      "observable_by_player": true,
+      "reused_from": null,
+      "preuve": "test_scoring.gd VERT (barème super-linéaire, paliers stricts). Mutation scoring.gd 4/4."
+    },
+    {
+      "feature": "proof.solvability — le bot survit et nettoie (pas de victoire en marathon)",
+      "id": "proof.solvability",
+      "module": "racine_projet",
+      "fonction": "run_solvability",
+      "fichiers": ["solvability.gd"],
+      "producteur": "solvability.gd::run_solvability (bot déterministe, mêmes intentions que le clavier)",
+      "consommateur": "scripts/forge/solvability_godot.mjs (oracle produit R8)",
+      "expected_proof": {"kind": "bot_action", "statement": "Un bot scripté déterministe joue via le canal public (Loop.step) et SURVIT >= 8 pièces ET nettoie >= 1 ligne — preuve de jouabilité, jamais 'le bot gagne' (Tetris marathon n'a pas d'état gagné). N_SURVIVE non calibré en bande de difficulté (fog variance)."},
+      "oracle": "solvability_godot.mjs (FORGE_TRIAL succeeded) — 50/50 au build_constat",
+      "observable_by_player": false,
+      "reused_from": null,
+      "preuve": "godot_oracle.mjs ALL CHECKS PASSED, solvabilité 50/50 (run tetris-fullgodot-20260803-084719). run_solvability émet FORGE_TRIAL {succeeded, ticks, pieces, lines}."
+    },
+    {
+      "feature": "params.named_constants — paramètres de jeu comme constantes nommées, et rien d'autre",
+      "id": "params.named_constants",
+      "module": "05_SYSTEMS",
+      "fonction": "shape",
+      "fichiers": ["05_SYSTEMS/params/params.gd"],
+      "producteur": "05_SYSTEMS/params/params.gd (COLS, ROWS, SPAWN, GRAVITY_PERIOD, shape())",
+      "consommateur": "tous les systèmes 05_SYSTEMS + 06_RUNTIME/adapters/runtime_loop.gd",
+      "expected_proof": {"kind": "static_oracle", "statement": "params.gd ne déclare que des constantes nommées et les formes des tetrominos (shape) ; aucun littéral de gameplay dispersé ailleurs (mutation 0 mutant)."},
+      "oracle": "test_params.gd + mutation params.gd",
+      "observable_by_player": false,
+      "reused_from": {"type": "CONCEPT", "source": "games/breakout_v2/05_SYSTEMS/params/params.gd"},
+      "reused_from_note": "CONCEPT requalifié : les constantes de Breakout (physique continue, angles de rebond) n'ont aucun sens sur grille discrète. Seule la FORME 'un script de constantes nommées et rien d'autre' est réutilisée, re-prouvée par comptage de littéraux (mutation 0).",
+      "preuve": "test_params.gd VERT (176/176 avec la suite). Mutation params.gd 0 mutant (constantes nommées + Vector2i)."
+    },
+    {
+      "feature": "debug.observation_point — état exposé, lisible par l'oracle, sans effet de bord",
+      "id": "debug.observation_point",
+      "module": "05_SYSTEMS",
+      "fonction": "snapshot",
+      "fichiers": ["05_SYSTEMS/debug_state/debug_state.gd"],
+      "producteur": "05_SYSTEMS/debug_state/debug_state.gd::snapshot",
+      "consommateur": "oracles Forge (godot_oracle.mjs / solvability) — jamais le joueur",
+      "expected_proof": {"kind": "static_oracle", "statement": "snapshot(state) rend une copie profonde fidèle de l'état (grille, pièce active, statut) sans aucun effet de bord sur l'état source."},
+      "oracle": "test_debug_state.gd + mutation debug_state.gd",
+      "observable_by_player": false,
+      "reused_from": {"type": "CONCEPT", "source": "games/breakout_v2/05_SYSTEMS/debug_state/debug_state.gd"},
+      "reused_from_note": "CONCEPT requalifié : la FORME d'un point d'observation lisible par l'oracle est réutilisée ; le CONTENU est propre à Tetris (grille, pièce active, statut), re-prouvé par test_debug_state.gd.",
+      "preuve": "test_debug_state.gd VERT (instantané fidèle, copie profonde sans effet de bord). Mutation debug_state.gd 0 mutant."
     }
   ]
 }

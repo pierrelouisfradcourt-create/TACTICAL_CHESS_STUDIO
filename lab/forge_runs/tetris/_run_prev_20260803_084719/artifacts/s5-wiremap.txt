@@ -1,0 +1,146 @@
+Confirmed. `_validate_wiremap` (run_real.py:636) is the schema gate the executor runs **before** writing `wiremap.json`: `features` non-empty list, each with non-empty `feature`/`fonction` and a non-empty `fichiers` list of non-empty strings. The driver then freezes `frozen_features_from_wiremap` → `features[].feature` becomes the frozen rule-set (R1..R9). `check_wiremap` itself is the s10c AST oracle (function must exist in the declared `.gd` file) — downstream, on code that does not exist yet. I have everything needed.
+
+I aligned every file path to the addresses already declared in the frozen skeleton `games/tetris/09_WIREMAP/wiremap.json` so the builder inherits **one** file layout, no divergence.
+
+---
+
+# WireMap — `tetris` (s5-wiremap)
+
+**Run :** `tetris-fullgodot-20260803-084719` · `FORGE_DISPATCH:s5-wiremap:tetris-fullgodot-20260803-084719`
+**Racine du code (`src_root`) :** `games/tetris/` (driver.py:188, confirmé s4). **Livrable :** WireMap (prose isomorphe + bloc JSON final ; **aucun fichier écrit** — l'exécuteur matérialise `wiremap.json` puis le driver le gèle en `wiremap_frozen.json`).
+
+La WireMap n'est **pas une liste plate** : c'est le **même arbre** que le blueprint s4 — `section = module = dossier`. Chaque règle observable ratifiée du Prisme (R1..R9) est une **feuille** rattachée à son module, avec fonction implémentante · fichier(s) · preuve attendue · statut. Le jeu de règles est **figé** (R1..R9 verbatim du Prisme) : je ne crée aucune règle oracle-able, je les **rattache** au code que s9 devra produire.
+
+---
+
+## 1 — ARBRE isomorphe blueprint → module → feuille (7 colonnes)
+
+### Module `05_SYSTEMS/` — logique pure GDScript (prouvée headless par tests unitaires stricts)
+
+| section (module) | feature | fichiers | fonction | version | preuve (attendue) | statut |
+|---|---|---|---|---|---|---|
+| `piece_bag/` | **R1 Sac de 7** | `05_SYSTEMS/piece_bag/bag.gd` | `generate_bag` | V1 | test unitaire strict : ensemble == {I,O,T,S,Z,J,L}, multiplicité 1/sac | À_CONSTRUIRE (s9) |
+| `gravity/` | **R2 Gravité discrète** | `05_SYSTEMS/gravity/gravity.gd` | `apply_gravity` | V1 | test strict `Δy == 1` par tick (jamais `>=`) | À_CONSTRUIRE (s9) |
+| `lock_rules/` | **R3 Empilement irréversible** | `05_SYSTEMS/lock_rules/lock.gd` | `lock_piece` | V1 | test : pile inchangée sous tout input après verrou | À_CONSTRUIRE (s9) |
+| `line_clear/` | **R4 Nettoyage + compactage strict** | `05_SYSTEMS/line_clear/line_clear.gd` | `clear_lines` | V1 | test **strict** : descente == N rangées nettoyées (jamais `>=`) | À_CONSTRUIRE (s9) |
+| `rotation_rules/` | **R5 Rotation contrainte** | `05_SYSTEMS/rotation_rules/rotation.gd` | `rotate_piece` | V1 | test : rotation illégale refusée, orientation/position/terrain intacts | À_CONSTRUIRE (s9) |
+| `input_rules/` | **R6 Pièce active seule** | `05_SYSTEMS/input_rules/input.gd` | `move_active_piece` | V1 | test : translate/rotate/soft-drop n'affectent que la pièce active, pile intacte | À_CONSTRUIRE (s9) |
+| `game_state/` | **R7 Fin par blocage** | `05_SYSTEMS/game_state/state.gd` | `spawn_piece` | V1 | test : spawn illégal ⇒ transition état terminal (game-over) | À_CONSTRUIRE (s9) |
+
+### Module `solvability` (racine — descripteur `proof.solvability.entry`)
+
+| section (module) | feature | fichiers | fonction | version | preuve (attendue) | statut |
+|---|---|---|---|---|---|---|
+| `solvability` | **R8 Solvabilité honnête** | `solvability.gd` | `run_solvability` | V1 | bot scripté survit ≥ N pièces **ET** nettoie ≥ 1 ligne, **jamais « gagne »** (N=`A_CALIBRER`, variance à prouver) | À_CONSTRUIRE (s9) |
+
+### Module `06_RUNTIME/` — adapter runtime (prouvé par oracle produit Godot, fenêtre GPU vulkan)
+
+| section (module) | feature | fichiers | fonction | version | preuve (attendue) | statut |
+|---|---|---|---|---|---|---|
+| `06_RUNTIME/adapters/` | **R9 Livrable jouable** | `06_RUNTIME/adapters/runtime_loop.gd` | `start_game` | V1 | oracle produit `godot_oracle.mjs` : lancement fenêtre GPU + partie complète jusqu'au game-over **sans crash** | À_CONSTRUIRE (s9) |
+
+**Isomorphisme :** 9 feuilles ↔ 3 modules-porteurs du blueprint (`05_SYSTEMS`, `solvability`, `06_RUNTIME`). Les modules `presentation` / `input_adapter` du blueprint portent le **rendu observable D1–D6** (couche `[V]`, capture GPU / playtest Pierre) — **non oracle-able comme règle**, donc **volontairement absents** du jeu de règles R1..R9 (aucune règle oracle-able inventée ; gardeFou respecté). Ce n'est pas une feuille manquante : c'est la frontière stricte règle-oracle ↔ démo-visuelle, reportée en fog.
+
+---
+
+## 2 — Auto-audit de bonne-formation (LECTURE du validateur, pas exécution de l'oracle)
+
+Vérifié par **lecture** de `run_real.py::_validate_wiremap` (l.636, le validateur que le matérialiseur exécute AVANT d'écrire) :
+
+- `features` = liste **non vide** (9 entrées) ✔
+- chaque `feature` = str non vide, **unique** (R1..R9, pas de doublon → gel `check_feature_set_frozen` bien formé) ✔
+- chaque `fichiers` = liste non vide de str non vides ✔
+- chaque `fonction` = str non vide (un `fonction:''` ferait sauter la vérif d'existence de `check_wiremap` — évité) ✔
+- chaque `preuve` = str non vide (sinon `preuves_absentes` à s10c) ✔
+
+Ce n'est **pas** l'exécution de `check_wiremap` : cet oracle vérifie que chaque `fonction` existe dans le `.gd` réel, or **le code n'existe pas encore** (dossiers `05_SYSTEMS/*` vides) et `run: aucun`. L'isomorphisme WireMap↔code est prouvé **downstream à s10c**, sur le code produit par s9. Ici je prouve la **bonne-formation** contre le schéma lu.
+
+---
+
+## RAPPORT FINAL
+
+**Ancres citées :** `run_real.py::_validate_wiremap` (l.636 — schéma exact, exécuté par le matérialiseur avant écriture) · `static_oracles.py::check_wiremap` (oracle AST s10c, **cible** de ce livrable, non exécutable à s5) · `static_oracles.py::frozen_features_from_wiremap`/`check_feature_set_frozen` (gel du jeu de règles après s5) · `blueprint.json` s4 (6 modules, isomorphisme) · featuremap s3 (20 feuilles → R1..R9) · Prisme s1 (R1..R9 verbatim) · squelette `games/tetris/09_WIREMAP/wiremap.json` (addresses de fichiers alignées).
+
+- **software_verdict : OK** — **restreint à la bonne-formation du livrable.** Le bloc JSON satisfait le schéma **exact** lu (statiquement) dans `_validate_wiremap` : `features` non vide ; chaque feuille a `feature` unique non vide, `fichiers` non vide de str non vides, `fonction` non vide, `preuve` non vide. Appuyé par la **lecture** du validateur, pas son exécution (`run: aucun`).
+- **evidence_verdict : MECHANICAL_VALIDATION_ONLY** — la conformité de forme est adossée à un validateur déterministe (`_validate_wiremap`) que le matérialiseur **exécutera** ; mal formé ⇒ rejet avec raison précise, aucun fichier écrit (pas de faux-vert).
+- **claim_verdict : NO_CLAIM_ALLOWED** — je **ne certifie pas** que « la WireMap est isomorphe au code » : `check_wiremap` ne s'exécute qu'à **s10c**, sur du code inexistant à s5 (`05_SYSTEMS/*` vides). Que les 9 fonctions déclarées existent réellement dans les `.gd` est une preuve **downstream**, hors de ma portée. Les feuilles `presentation`/`input_adapter` (D1–D6, rendu) restent démo-visuelles non oracle-ables → **fog HumanGate**.
+
+**Oracle wiremap utilisé :** `check_wiremap` — **cité comme ancre, non exécuté à s5** (exécution downstream s10c sur code réel).
+**Feuilles sans preuve (strictement orphelines) :** **aucune** (9/9 portent une preuve attendue non vide).
+**Jeu de règles gelé :** R1..R9 (9 identités uniques) — `frozen_features_from_wiremap` lira `features[].feature`.
+
+**fog → HumanGate :**
+- **FOG-1 (rendu D1–D6)** — `presentation`/`input_adapter` prouvent la lisibilité visuelle (capture GPU / playtest Pierre), non oracle-able comme règle stricte. Les inclure comme R-lignes inventerait une preuve. Décision : rester démo-seulement, ou outiller un oracle de rendu en s9 ?
+- **FOG-2 (N solvabilité R8)** — `N = A_CALIBRER` ; **variance à prouver** (≥2 valeurs distinctes) avant usage comme seuil (règle de variance des métriques). Tetris n'a pas d'état gagné : R8 = « survit + ≥1 nettoyage », jamais « gagne ».
+- **FOG-3 (sous-preuves `[∅]` héritées de s3 — G-1..G-4)** — soft-drop/accélération, déplacement effectif d'1 colonne, incrément strict du compteur, correspondance aperçu↔spawn : aspects sans règle observable dédiée dans le Prisme. Logés dans les bons modules, **non promus** en oracle ici (le gel R1..R9 interdit d'ajouter une règle). Renforcement = décision s9/Pierre.
+- **FOG-4 (décisions ouvertes Genre Bible §3)** — wall-kick SRS vs rotation stricte, réserve/hold, aperçu multiple, fin haute : non tranchées. `rotate_piece` (R5) est spécifié **V1 = refus-sur-collision sans wall-kick** ; un arbitrage Pierre pour SRS changerait l'implémentation, pas l'identité R5.
+
+### SKIPPED_VALIDATION
+- **Exécution de `check_wiremap` (isomorphisme WireMap↔code)** — *où :* les 9 feuilles / `games/tetris` — *statut :* **non fait (impossible à s5)** — *raison :* `run: aucun` **et** le code n'existe pas (`05_SYSTEMS/*` vides, squelette) ; l'oracle AST s'exécute à s10c sur le code de s9. Substitut = bonne-formation adossée à `_validate_wiremap` (lu).
+- **Exécution de `_validate_wiremap`** — *où :* le bloc JSON — *statut :* **partiel (lu, non exécuté)** — *raison :* `run: aucun` ; conformité argumentée par lecture du code. Le matérialiseur l'exécute réellement avant d'écrire `wiremap.json`.
+- **Écriture de `wiremap.json` / gel `wiremap_frozen.json`** — *où :* livrable — *statut :* non fait (assumé) — *raison :* tâche « aucun fichier écrit : l'exécuteur matérialise lui-même wiremap.json depuis ce bloc », puis le driver gèle.
+- **Preuve d'existence des 9 fonctions déclarées** — *où :* `generate_bag`/`apply_gravity`/…/`start_game` — *statut :* non fait (downstream) — *raison :* ces noms sont le **contrat de construction** que s9 devra honorer ; leur existence est vérifiée à s10c, jamais à s5.
+- **Oracle de rendu D1–D6 (FOG-1)** — *où :* `presentation`/`input_adapter` — *statut :* non fait (hors-portée) — *raison :* rendu = couche visuelle non oracle-able comme règle ; inventer un oracle serait interdit (gardeFou) → fog HumanGate.
+- **Calibration de N (R8, FOG-2)** — *où :* `run_solvability` — *statut :* non fait — *raison :* calibration = étape aval ; variance à prouver avant usage comme seuil.
+- **Lecture de `knowledge_packet.json`** — *où :* contexte advisory — *statut :* non fait (absent) — *raison :* absent du run_dir, **advisory jamais prescriptif** → non-bloquant, assumé.
+
+```json
+{
+  "features": [
+    {
+      "feature": "R1 Sac de 7",
+      "fonction": "generate_bag",
+      "fichiers": ["05_SYSTEMS/piece_bag/bag.gd"],
+      "preuve": "07_TESTS/unit/test_piece_bag.gd — assert strict : chaque sac émet exactement {I,O,T,S,Z,J,L}, multiplicite 1/sac, aucune autre forme. Oracle isomorphisme s10c check_wiremap (generate_bag defini dans bag.gd)."
+    },
+    {
+      "feature": "R2 Gravite discrete",
+      "fonction": "apply_gravity",
+      "fichiers": ["05_SYSTEMS/gravity/gravity.gd"],
+      "preuve": "07_TESTS/unit/test_gravity.gd — assert strict Delta_y == 1 par tick sans input (jamais >=). Oracle s10c check_wiremap (apply_gravity defini dans gravity.gd)."
+    },
+    {
+      "feature": "R3 Empilement irreversible",
+      "fonction": "lock_piece",
+      "fichiers": ["05_SYSTEMS/lock_rules/lock.gd"],
+      "preuve": "07_TESTS/unit/test_lock.gd — assert : apres verrou, la piece est immuable, aucun input ne modifie la pile. Oracle s10c check_wiremap (lock_piece defini dans lock.gd)."
+    },
+    {
+      "feature": "R4 Nettoyage et compactage strict",
+      "fonction": "clear_lines",
+      "fichiers": ["05_SYSTEMS/line_clear/line_clear.gd"],
+      "preuve": "07_TESTS/unit/test_line_clear.gd — assert STRICT : rangee pleine retiree, le dessus descend d'exactement N rangees nettoyees (jamais >=). Oracle s10c check_wiremap (clear_lines defini dans line_clear.gd)."
+    },
+    {
+      "feature": "R5 Rotation contrainte",
+      "fonction": "rotate_piece",
+      "fichiers": ["05_SYSTEMS/rotation_rules/rotation.gd"],
+      "preuve": "07_TESTS/unit/test_rotation.gd — assert : rotation en collision refusee (V1 sans wall-kick), orientation/position/terrain inchanges. Oracle s10c check_wiremap (rotate_piece defini dans rotation.gd)."
+    },
+    {
+      "feature": "R6 Piece active seule",
+      "fonction": "move_active_piece",
+      "fichiers": ["05_SYSTEMS/input_rules/input.gd"],
+      "preuve": "07_TESTS/unit/test_input.gd — assert : translation/rotation/soft-drop n'affectent que la piece active, pile figee inchangee sous tout input. Oracle s10c check_wiremap (move_active_piece defini dans input.gd)."
+    },
+    {
+      "feature": "R7 Fin par blocage",
+      "fonction": "spawn_piece",
+      "fichiers": ["05_SYSTEMS/game_state/state.gd"],
+      "preuve": "07_TESTS/unit/test_game_state.gd — assert : quand une piece entrante ne peut pas apparaitre legalement, l'etat devient terminal (game-over). Oracle s10c check_wiremap (spawn_piece defini dans state.gd)."
+    },
+    {
+      "feature": "R8 Solvabilite honnete",
+      "fonction": "run_solvability",
+      "fichiers": ["solvability.gd"],
+      "preuve": "Descripteur proof.solvability (game_contract.yaml, entry=solvability.gd) cable dans godot_oracle.mjs : un bot scripte survit >= N pieces ET nettoie >= 1 ligne, jamais 'gagne' (no_victory_in_marathon). N=A_CALIBRER, variance a prouver. Cable verifie par check_solvability_wired."
+    },
+    {
+      "feature": "R9 Livrable jouable",
+      "fonction": "start_game",
+      "fichiers": ["06_RUNTIME/adapters/runtime_loop.gd"],
+      "preuve": "Oracle produit godot_oracle.mjs (fenetre GPU vulkan) : le projet se lance et une partie complete se joue jusqu'au game-over sans crash. Rendu = NOT_MEASURED en headless. Oracle s10c check_wiremap (start_game defini dans runtime_loop.gd)."
+    }
+  ]
+}
+```

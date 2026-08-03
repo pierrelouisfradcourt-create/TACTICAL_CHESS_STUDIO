@@ -1,0 +1,682 @@
+{
+ "catalog_brick_ids_snapshot": [
+  "pat-damage-floor",
+  "pat-forge-forge_oracle_convention_undocumented",
+  "pat-forge-oracle_fail_vs_not_measured_marker",
+  "pat-forge-preflight_oracle_registration",
+  "pat-forge-timeout_greenfield_by_profile",
+  "pat-forge-wiremap_concept_reuse_requalification",
+  "pat-full-reachability",
+  "pat-zone-of-control",
+  "sys-damage-floor",
+  "sys-evader-basic",
+  "sys-grid-nav-m01",
+  "sys-guardian-zoc",
+  "sys-pursuer-continuous",
+  "sys-pursuer-mobile",
+  "sys-reachability"
+ ],
+ "created_ts": 1785739640.115894,
+ "escalations": 0,
+ "humangate_notes": [
+  "escalade refusée: déjà au tier max (opus) — escalade impossible, remonter HumanGate"
+ ],
+ "is_game": true,
+ "model_override": null,
+ "pool_attempts": 1,
+ "profile": "full_godot",
+ "project": "tetris",
+ "run_id": "tetris-fullgodot-20260803-084719",
+ "run_status": "DONE",
+ "steps": {
+  "s0-contrat": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\tetris\\artifacts\\s0-contrat.txt",
+    "artifact_sha256": "e03731e414a165ca93874ee8d988221215897aea76182a3455bded14b633a675",
+    "cache_creation_tokens": 51624,
+    "cache_read_tokens": 218968,
+    "cost_usd": 1.064214,
+    "duration_s": 268.1195960044861,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "e ≠ navigation sur grille) — la provenance ne prouve pas la transposabilité.\n- **s10a** : donner explicitement au builder la convention **FORGE_ORACLE** (non documentée dans le SCHEMA) ; volets de rendu en headless → **NOT_MEASURED**, jamais FAIL ; capture visuelle = **fenêtre GPU vulkan** obligatoire (headless rend une texture nulle).\n\n---\n\n## RAPPORT FINAL\n- **software_verdict : N/A** — aucun oracle exécuté à s0. Livrable = **texte** (tâche « aucun fichier écrit ») et permission `run: aucun`. Le validateur de schéma CHARTER (parse + refus de tout champ vide/absent/« à définir ») s'applique au **moment de l'écriture de `charter.yaml`**, pas à ce texte — il n'a donc pas tourné.\n- **evidence_verdict : N/A** — aucune validation mécanique effectuée à cette étape (par construction : texte + run:aucun).\n- **claim_verdict : NO_CLAIM_ALLOWED.** Je ne certifie pas « charter valide » sans oracle exécuté. Les 7 champs sont **remplis, non vides, sans « à définir »** ; leur conformité de schéma reste à prouver mécaniquement à l'écriture. Design-intent : `plateforme_cible` et `reference_jeu`(noyau) portent une source Pierre traçable ; le sous-modèle et les paramètres d'équilibrage remontent en **fog**, non inventés.\n\n### SKIPPED_VALIDATION\n- **Oracle de schéma CHARTER** — *où :* ce livrable texte — *statut :* non fait — *raison :* tâche explicitement « texte seul, aucun fichier écrit » + `run: aucun` ; validation déférée à l'étape d'écriture de `charter.yaml`.\n- **Vérification provenance-Pierre de `reference_jeu` (variante)** — *où :* champ reference_jeu — *statut :* partiel — *raison :* le noyau « Tetris » est sourcé (nom du projet) ; le sous-modèle (Guideline vs NES) n'est pas mécaniquement vérifiable (fait de gate, pas de schéma) → escaladé **FOG-1**.\n- **Ratification Genre Bible / World Scan** — *où :* `01_DESIGN/genre_bible.json`, `GAME_REFERENCE/` — *statut :* non fait — *raison :* statut `NON_RATIFIEE_PROPOSITION` ; utilisés advisory ; ratification = gate Pierre distinct.",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 17546
+   },
+   "status": "OK",
+   "ts": 1785739908.3194642
+  },
+  "s1-prisme": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\tetris\\artifacts\\s1-prisme.txt",
+    "artifact_sha256": "c2fec1fa6e3c374150d33d91269750c203f120af7b9d5f371c65c722f889f196",
+    "cache_creation_tokens": 51147,
+    "cache_read_tokens": 212422,
+    "cost_usd": 0.813291,
+    "duration_s": 126.05731582641602,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "contrat.txt`), Genre Bible (`01_DESIGN/genre_bible.json`, advisory), `game_contract.yaml`, World Scan (`mechanics_analysis.md`). Cohérence vérifiée : les 4 sections et R1–R9 ne contredisent aucun champ du charter et ne débordent pas le périmètre V1 (aucune variante décrite comme acquise).\n\n- **software_verdict : N/A** — artefact narratif, aucun oracle exécuté (`run: aucun`, tâche « aucun fichier écrit »). Aucun oracle mécanique n'existe pour un snapshot produit.\n- **evidence_verdict : N/A** — aucune validation mécanique à cette étape (par construction).\n- **claim_verdict : NO_CLAIM_ALLOWED** — je ne certifie ni « produit jouable » ni « fun » ni « ressenti X ». Le §3 (ressenti) et les risques sont émis comme **fog → HumanGate**, non comme claims. Les §1, §2, §4 sont des dérivations directes de règles/critères ancrés au charter ; leur conformité de schéma reste à prouver mécaniquement à l'écriture éventuelle d'un `product_snapshot.md` (non faite ici, tâche texte-seul).\n\n### SKIPPED_VALIDATION\n- **Écriture de `product_snapshot.md`** — *où :* livrable — *statut :* non fait (assumé) — *raison :* la TÂCHE CONCRÈTE impose « artefact narratif, aucun fichier écrit » et la permission est `run: aucun` ; livré en texte dans ce rapport, structure `{voit, fait, ressent, regles_observables[]}` respectée.\n- **Oracle mécanique du snapshot** — *où :* §1–§4 — *statut :* non fait — *raison :* aucun oracle non-LLM n'existe pour un artefact narratif ; ancre = cohérence avec le charter s0 (vérifiée manuellement, non mécaniquement) → NO_CLAIM_ALLOWED.\n- **Ratification Genre Bible / World Scan** — *où :* `01_DESIGN/genre_bible.json`, `GAME_REFERENCE/` — *statut :* non fait — *raison :* statut `NON_RATIFIEE_PROPOSITION` ; utilisés advisory ; ratification = gate Pierre distinct (FOG-D).\n- **Validation du ressenti (§3)** — *où :* §3 + angle « ressenti joueur » — *statut :* non fait (par construction) — *raison :* le feel n'est pas oracle-able ; escaladé en FOG-A, à trancher au playtest Pierre.",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 7830
+   },
+   "status": "OK",
+   "ts": 1785740034.463054
+  },
+  "s10a-oracle-code": {
+   "attempts": 2,
+   "detail": {
+    "e2e": {
+     "passed": false,
+     "raisons": [
+      "run-oracle.mjs absent",
+      "e2e.mjs absent"
+     ]
+    },
+    "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\tetris\\evidence\\oracle_tetris.log",
+    "harness_no_hardcoded_flags": {
+     "passed": true,
+     "raisons": []
+    },
+    "mutation": {
+     "evaluation_forme": {
+      "categories_non_applicables": [],
+      "passed": true,
+      "raisons": [
+       "évaluation de forme seule -- aucun mutation_result fourni"
+      ],
+      "status": "OK"
+     },
+     "receipt": {
+      "detail": {
+       "baseline_ok": true,
+       "budget_exceeded": false,
+       "code_sha256": {
+        "05_SYSTEMS/collision/collision.gd": "098cfc71c08c4b3fec0680381a5535bba042e2bbc624a679b61c1e65dc49ad30",
+        "05_SYSTEMS/debug_state/debug_state.gd": "050522e9fc88aab04c6737e3e981c4c6c1524fd2034db8527f9dba6344da136a",
+        "05_SYSTEMS/game_loop/loop.gd": "421cb8d33dec1d90277f92308e97befe7da32fd851641c97542010772f7cb222",
+        "05_SYSTEMS/game_state/state.gd": "1c5a3b67a7762b61ebfc256ff180b63712f5217a61f8bc61ae45da6d1ff04017",
+        "05_SYSTEMS/gravity/gravity.gd": "6edad01fb48a694d6070c06b08a1467df9617abc35d18e26551ea0c613d9c919",
+        "05_SYSTEMS/input_rules/input.gd": "949a8b3a0ac8e298aa0bbb8c886a88ae2b27c89f4471c6f4d61c7e09fe2e64b2",
+        "05_SYSTEMS/line_clear/line_clear.gd": "37d34c06c2e9e3eef657a117da9115d1b5b91406c6b8a35e4d88b072266aa3bd",
+        "05_SYSTEMS/lock_rules/lock.gd": "754baa2202dbbfeae2fb69ddd3815ca02993aa944683cc7ef3c01c20b553b41f",
+        "05_SYSTEMS/params/params.gd": "a65912e1d2c6ef3648d2eb542e8e87588ca504759a2ede92620b3640695a1d3c",
+        "05_SYSTEMS/piece_bag/bag.gd": "3d85b35b7cc08306e52cf34fd93031c7ffc5905324adea4cb3a6fbc3b6681eae",
+        "05_SYSTEMS/rotation_rules/rotation.gd": "a69f150b0d892abeed67cd922a837b1d54c3bdcd0407100d8b6d1ac9eb45aac5",
+        "05_SYSTEMS/scoring/scoring.gd": "ee6fbe78c0e41790c93711cb445b83d28befa93e9e784d5c56680320b4b0c1be",
+        "tests/run_tests.gd": "f1892e3b3b43f255db75821753d0249af8e6a62ef4c4196b97264f03f27e08d5"
+       },
+       "declaration_conforme": true,
+       "evaluation_forme": {
+        "categories_non_applicables": [],
+        "declaration_conforme": true,
+        "passed": true,
+        "raisons": [],
+        "status": "OK"
+       },
+       "fichiers_sans_mutant": [
+        "05_SYSTEMS/debug_state/debug_state.gd",
+        "05_SYSTEMS/lock_rules/lock.gd",
+        "05_SYSTEMS/params/params.gd",
+        "05_SYSTEMS/piece_bag/bag.gd"
+       ],
+       "files": [
+        "05_SYSTEMS/collision/collision.gd",
+        "05_SYSTEMS/debug_state/debug_state.gd",
+        "05_SYSTEMS/game_loop/loop.gd",
+        "05_SYSTEMS/game_state/state.gd",
+        "05_SYSTEMS/gravity/gravity.gd",
+        "05_SYSTEMS/input_rules/input.gd",
+        "05_SYSTEMS/line_clear/line_clear.gd",
+        "05_SYSTEMS/lock_rules/lock.gd",
+        "05_SYSTEMS/params/params.gd",
+        "05_SYSTEMS/piece_bag/bag.gd",
+        "05_SYSTEMS/rotation_rules/rotation.gd",
+        "05_SYSTEMS/scoring/scoring.gd"
+       ],
+       "game_dir": "C:\\TACTICAL_CHESS_STUDIO\\games\\tetris",
+       "gate_checked": true,
+       "killed": 45,
+       "mutants_executes": 45,
+       "mutants_generes": 45,
+       "mutation_exception": false,
+       "per_file": {
+        "05_SYSTEMS/collision/collision.gd": {
+         "killed": 9,
+         "mutants_executes": 9,
+         "mutants_generes": 9,
+         "total": 9
+        },
+        "05_SYSTEMS/debug_state/debug_state.gd": {
+         "killed": 0,
+         "mutants_executes": 0,
+         "mutants_generes": 0,
+         "total": 0
+        },
+        "05_SYSTEMS/game_loop/loop.gd": {
+         "killed": 6,
+         "mutants_executes": 6,
+         "mutants_generes": 6,
+         "total": 6
+        },
+        "05_SYSTEMS/game_state/state.gd": {
+         "killed": 3,
+         "mutants_executes": 3,
+         "mutants_generes": 3,
+         "total": 3
+        },
+        "05_SYSTEMS/gravity/gravity.gd": {
+         "killed": 2,
+         "mutants_executes": 2,
+         "mutants_generes": 2,
+         "total": 2
+        },
+        "05_SYSTEMS/input_rules/input.gd": {
+         "killed": 15,
+         "mutants_executes": 15,
+         "mutants_generes": 15,
+         "total": 15
+        },
+        "05_SYSTEMS/line_clear/line_clear.gd": {
+         "killed": 4,
+         "mutants_executes": 4,
+         "mutants_generes": 4,
+         "total": 4
+        },
+        "05_SYSTEMS/lock_rules/lock.gd": {
+         "killed": 0,
+         "mutants_executes": 0,
+         "mutants_generes": 0,
+         "total": 0
+        },
+        "05_SYSTEMS/params/params.gd": {
+         "killed": 0,
+         "mutants_executes": 0,
+         "mutants_generes": 0,
+         "total": 0
+        },
+        "05_SYSTEMS/piece_bag/bag.gd": {
+         "killed": 0,
+         "mutants_executes": 0,
+         "mutants_generes": 0,
+         "total": 0
+        },
+        "05_SYSTEMS/rotation_rules/rotation.gd": {
+         "killed": 2,
+         "mutants_executes": 2,
+         "mutants_generes": 2,
+         "total": 2
+        },
+        "05_SYSTEMS/scoring/scoring.gd": {
+         "killed": 4,
+         "mutants_executes": 4,
+         "mutants_generes": 4,
+         "total": 4
+        }
+       },
+       "proof_chain": {
+        "binaire": {
+         "path": "C:\\Users\\Studio-Dev\\Desktop\\Godot_v4.6.3-stable_win64.exe\\Godot_v4.6.3-stable_win64_console.exe",
+         "version": "4.6.3.stable.official.7d41c59c4"
+        },
+        "command_declaree": [
+         "<bin:godot>",
+         "--headless",
+         "--path",
+         ".",
+         "--script",
+         "res://tests/run_tests.gd"
+        ],
+        "command_executee": [
+         "C:\\Users\\Studio-Dev\\Desktop\\Godot_v4.6.3-stable_win64.exe\\Godot_v4.6.3-stable_win64_console.exe",
+         "--headless",
+         "--path",
+         ".",
+         "--script",
+         "res://tests/run_tests.gd"
+        ],
+        "cwd_execute": "games/tetris",
+        "declaration_conforme": true,
+        "parametres": {
+         "cost_class": "engine",
+         "max_mutants": 200,
+         "timeout_per_mutant_s": 30,
+         "total_timeout_s": 900
+        },
+        "resultat_brut_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\tetris\\evidence\\mutation_tetris-fullgodot-20260803-084719.raw.json",
+        "resultat_brut_sha256": "8d5a58e9f411423c092ee83f2eca241dcd805e9cb7712b9b9e637c8d4068fcd4",
+        "runtime_declare": "godot",
+        "schema_version": 1,
+        "test_scripts_sha256": {
+         "tests/run_tests.gd": "f1892e3b3b43f255db75821753d0249af8e6a62ef4c4196b97264f03f27e08d5"
+        },
+        "wrapper_sha256": {}
+       },
+       "regime_preuve": "descripteur",
+       "runtime": "godot",
+       "survivants_non_tries": [],
+       "survived": 0,
+       "test_files_scelles": [
+        "tests/run_tests.gd"
+       ],
+       "total": 45,
+       "triage_sha256": "",
+       "triaged_survivors": []
+      },
+      "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\tetris\\evidence\\mutation_tetris-fullgodot-20260803-084719.raw.json",
+      "evidence_sha256": "8d5a58e9f411423c092ee83f2eca241dcd805e9cb7712b9b9e637c8d4068fcd4",
+      "oracle_id": "mutation",
+      "run_id": "tetris-fullgodot-20260803-084719",
+      "status": "OK",
+      "ts": 1785744797.0891156
+     },
+     "regime": "descripteur",
+     "signature": "dca3fe07dac99f1f8e96d1ba4c6e5bbaf730415bbbde59a77f741519de9eedab"
+    },
+    "product_oracle_godot_activation": {
+     "active": false,
+     "godot_capacity_present": false,
+     "proof_descriptor_present": true,
+     "reason": "aucun oracle FORGE_ORACLE trouvé sous C:\\TACTICAL_CHESS_STUDIO\\games\\tetris/07_TESTS/oracle/"
+    },
+    "regime_preuve": "descripteur",
+    "returncode": 0,
+    "reuse_ratio_wired": {
+     "passed": false,
+     "raisons": [
+      "run-oracle.mjs absent"
+     ]
+    },
+    "search_consulted": {
+     "count": 0,
+     "passed": false,
+     "raisons": [
+      "aucune recherche journalisée depuis 2026-08-03T06:47:19.799Z (contrat s9-build §2bis non respecté, ou aucune brique ne pouvait matcher)"
+     ]
+    },
+    "solvability": {
+     "checked": true,
+     "passed": false,
+     "raisons": [
+      "aucun script wrapper localisable dans runner_argv=[] — câblage non prouvé"
+     ],
+     "topology": "descripteur"
+    }
+   },
+   "status": "FAIL",
+   "ts": 1785744797.0891156
+  },
+  "s10b-oracle-archi": {
+   "attempts": 2,
+   "detail": {
+    "debordements_ownership": {
+     "checked": false,
+     "items": []
+    },
+    "deps_interdites_violées": [],
+    "modules_sans_test": [
+     "06_RUNTIME",
+     "solvability"
+    ],
+    "passed": true
+   },
+   "status": "OK",
+   "ts": 1785744797.1616604
+  },
+  "s10c-oracle-wiremap": {
+   "attempts": 2,
+   "detail": {
+    "features_manquantes": [],
+    "fonctions_renommées": [],
+    "obsoletes": [],
+    "passed": true,
+    "preuves_absentes": []
+   },
+   "status": "OK",
+   "ts": 1785744797.2245903
+  },
+  "s10s-oracle-standard": {
+   "attempts": 2,
+   "detail": {
+    "budget": {
+     "chevauchement": [],
+     "empilement_violee": false,
+     "hors_budget": [],
+     "measured": true,
+     "passed": true,
+     "promis_non_depose": [],
+     "reuses_invalides": []
+    },
+    "collisions": {
+     "collisions": [],
+     "doubles_proprietaires": [],
+     "identifiants_inconnus": [
+      "core.game_loop:game.gravity",
+      "core.game_loop:game.input",
+      "core.game_loop:game.line_clear",
+      "core.game_loop:game.lock",
+      "core.game_loop:game.piece_source",
+      "core.game_loop:game.score",
+      "core.gravity:game.gravity",
+      "core.input_rules:game.input",
+      "core.line_clear:game.line_clear",
+      "core.lock_rules:game.lock",
+      "core.piece_bag:game.piece_source",
+      "core.rotation_rules:game.rotation",
+      "core.scoring:game.score",
+      "debug.observation_point:game.debug_state"
+     ],
+     "ordre_implicite": [],
+     "passed": false,
+     "trous": []
+    },
+    "contract_completeness": {
+     "passed": true,
+     "violations": []
+    },
+    "genre_coverage": {
+     "citations_non_resolues": [],
+     "citations_resolues": 9,
+     "citations_revendiquees": 9,
+     "citees": [
+      "core.game_state:genre.tetris.loss_by_blocking",
+      "core.game_state:genre.tetris.no_victory_in_marathon",
+      "core.gravity:genre.tetris.discrete_gravity",
+      "core.input_rules:genre.tetris.player_controls_active_piece_only",
+      "core.line_clear:genre.tetris.line_clear_compaction",
+      "core.lock_rules:genre.tetris.irreversible_stack",
+      "core.piece_bag:genre.tetris.seven_tetrominoes",
+      "core.rotation_rules:genre.tetris.rotation_bounded_by_terrain",
+      "core.scoring:genre.tetris.superlinear_multi_clear_reward"
+     ],
+     "passed": false,
+     "refusees": [],
+     "regles_non_couvertes": [
+      "genre.tetris.full_information_single_screen"
+     ],
+     "taux_resolution": 1.0,
+     "verdict": "BLOCKED"
+    },
+    "index": {
+     "dossiers_hors_structure": [
+      "GAME_REFERENCE"
+     ],
+     "dossiers_manquants": [],
+     "dossiers_orphelins": [
+      "06_RUNTIME",
+      "06_RUNTIME/adapters",
+      "07_TESTS",
+      "07_TESTS/oracle",
+      "07_TESTS/unit",
+      "GAME_REFERENCE",
+      "tests"
+     ],
+     "fichiers_manquants": [],
+     "orphelins": [
+      "solvability.gd",
+      "06_RUNTIME/adapters/runtime_loop.gd"
+     ],
+     "passed": false
+    },
+    "line_states": {
+     "core_omis": [
+      "core.boot",
+      "core.main_loop",
+      "core.input",
+      "core.end_condition",
+      "core.restart",
+      "core.exit",
+      "core.render",
+      "core.audio",
+      "core.error_handling"
+     ],
+     "deferred_incomplet": [],
+     "etats_invalides": [],
+     "expected_sans_reference": [],
+     "implemented_au_gel": [],
+     "lifecycle_invalide": [],
+     "not_applicable_sans_raison": [],
+     "not_applicable_sur_core": [],
+     "passed": false,
+     "required_apres_build": [],
+     "reused_concept_non_requalifie": [],
+     "source_manquante": [],
+     "system_parent_manquant": [],
+     "unknown_au_gel": []
+    },
+    "observable_coverage": {
+     "couvertes": [],
+     "lignes_sans_preuve": [
+      "core.rotation_rules",
+      "core.gravity",
+      "core.lock_rules",
+      "core.line_clear",
+      "core.scoring",
+      "core.input_rules"
+     ],
+     "observable_malformes": [],
+     "passed": false,
+     "verdict": "BLOCKED",
+     "volets_absents": [],
+     "volets_en_echec": [],
+     "volets_non_mesures": []
+    },
+    "observable_volets_effectifs": {},
+    "observable_volets_resolution": {
+     "conflits_resolus_vers_web": [],
+     "regle": "un nom de volet présent des DEUX côtés (web ET godot) est résolu vers le fournisseur WEB — choix explicite, jamais une fusion silencieuse (correction Pierre ②, mission 2026-07-29)."
+    },
+    "placement": {
+     "adresse_incoherente": [],
+     "adresse_manquante": [],
+     "categorie_fichier_non_declaree": [],
+     "categorie_fichier_non_mappee": [],
+     "categorie_manquante": [],
+     "categorie_non_mappee": [],
+     "fichier_adresse_incoherente": [],
+     "identite_ambigue": [],
+     "passed": false,
+     "revendications_multiples": [],
+     "system_parent_inconnu": [
+      "params.bloc_unique:params",
+      "core.game_state:game_state",
+      "core.piece_bag:piece_bag",
+      "core.collision:collision",
+      "core.rotation_rules:rotation_rules",
+      "core.gravity:gravity",
+      "core.lock_rules:lock_rules",
+      "core.line_clear:line_clear",
+      "core.scoring:scoring",
+      "core.input_rules:input_rules",
+      "core.game_loop:game_loop",
+      "debug.observation_point:debug_state"
+     ],
+     "systeme_categorie_non_mappee": []
+    },
+    "product_oracle": {}
+   },
+   "status": "FAIL",
+   "ts": 1785744797.3100574
+  },
+  "s11-redteam-code": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\tetris\\artifacts\\s11-redteam-code.txt",
+    "artifact_sha256": "cc4f0b408c5ebd3eac2d22265a0ed98b5f1acbb53b7430ad5c398cddca824d2f",
+    "cache_creation_tokens": 134945,
+    "cache_read_tokens": 1665574,
+    "cost_usd": 3.048042,
+    "duration_s": 583.5496282577515,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "s=10000. Le budget contractuel est inerte ; tetris est le seul jeu Godot du fichier reste sur le defaut, contrairement a snake (5000) et breakout_v2 (10000).\", \"severite\": \"MEDIUM\", \"reproduction\": \"node --input-type=module -e \\\"import {resolveSolvabilityConfig} from './scripts/forge/godot_oracle.mjs'; console.log(resolveSolvabilityConfig('games/tetris'))\\\" -> {trials:50,maxTicks:200,trialTimeoutMs:10000,seedStart:1}, contredit games/tetris/00_CHARTER/game_contract.yaml:82-84 ; ancre statique scripts/forge/oracles.json:179-186 sans cle solvability vs snake 153-165 et breakout_v2 166-178.\"}, {\"angle\": \"zone morte — consommateur declare inexistant\", \"faille\": \"debug_state est declare 'point d'observation consomme par l'oracle produit' (wiremap.json:486) mais l'oracle produit (solvability.gd) lit les champs d'etat en direct (solvability.gd:49-50) et n'appelle jamais DebugState.snapshot ; le seul appelant de snapshot dans le projet est son propre test unitaire (test_debug_state.gd:11). La preuve verte valide un composant mort en production.\", \"severite\": \"MEDIUM\", \"reproduction\": \"grep -rn \\\"snapshot|DebugState|debug_state\\\" games/tetris -> uniquement 05_SYSTEMS/debug_state/debug_state.gd (definition) et 07_TESTS/unit/test_debug_state.gd (son test) ; zero consommateur dans 06_RUNTIME/ ou solvability.gd/tests/run_tests.gd.\"}, {\"angle\": \"ecart contrat/code — libelle de preuve plus faible que le test\", \"faille\": \"wiremap.json:479 (preuve de core.game_loop) annonce 'gravite auto a GRAVITY_PERIOD borne >=', alors que le test reel test_game_loop.gd:28-32 utilise eq STRICT (aucune descente avant la periode, +1 exact a la periode, compteur remis a 0). Pas une preuve factice (le code est plus fort que le libelle) mais une discordance de documentation qui affirme une borne >= mou inexistante.\", \"severite\": \"LOW\", \"reproduction\": \"comparer statiquement wiremap.json:479 (texte 'borne >=') a test_game_loop.gd:28-31 (appels h.eq, egalite stricte des deux cotes de la periode).\"}]}\n```",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [
+     "[MEDIUM] ecart contrat/code — budget de preuve declare mais non consomme — game_contract.yaml declare proof.solvability.max_ticks=20000 / trial_timeout_ms=60000, mais godot_oracle.mjs::resolveSolvabilityConfig lit le budget uniquement dans scripts/forge/oracles.json, dont l'entree tetris (lignes 179-186) n'a aucun bloc solvability -> repli silencieux sur les defauts max_ticks=200 / trial_timeout_ms=10000. Le budget contractuel est inerte ; tetris est le seul jeu Godot du fichier reste sur le defaut, contrairement a snake (5000) et breakout_v2 (10000). (repro: node --input-type=module -e \"import {resolveSolvabilityConfig} from './scripts/forge/godot_oracle.mjs'; console.log(resolveSolvabilityConfig('games/tetris'))\" -> {trials:50,maxTicks:200,trialTimeoutMs:10000,seedStart:1}, contredit games/tetris/00_CHARTER/game_contract.yaml:82-84 ; ancre statique scripts/forge/oracles.json:179-186 sans cle solvability vs snake 153-165 et breakout_v2 166-178.)",
+     "[MEDIUM] zone morte — consommateur declare inexistant — debug_state est declare 'point d'observation consomme par l'oracle produit' (wiremap.json:486) mais l'oracle produit (solvability.gd) lit les champs d'etat en direct (solvability.gd:49-50) et n'appelle jamais DebugState.snapshot ; le seul appelant de snapshot dans le projet est son propre test unitaire (test_debug_state.gd:11). La preuve verte valide un composant mort en production. (repro: grep -rn \"snapshot|DebugState|debug_state\" games/tetris -> uniquement 05_SYSTEMS/debug_state/debug_state.gd (definition) et 07_TESTS/unit/test_debug_state.gd (son test) ; zero consommateur dans 06_RUNTIME/ ou solvability.gd/tests/run_tests.gd.)",
+     "[LOW] ecart contrat/code — libelle de preuve plus faible que le test — wiremap.json:479 (preuve de core.game_loop) annonce 'gravite auto a GRAVITY_PERIOD borne >=', alors que le test reel test_game_loop.gd:28-32 utilise eq STRICT (aucune descente avant la periode, +1 exact a la periode, compteur remis a 0). Pas une preuve factice (le code est plus fort que le libelle) mais une discordance de documentation qui affirme une borne >= mou inexistante. (repro: comparer statiquement wiremap.json:479 (texte 'borne >=') a test_game_loop.gd:28-31 (appels h.eq, egalite stricte des deux cotes de la periode).)"
+    ],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 34749
+   },
+   "status": "OK",
+   "ts": 1785745380.9342566
+  },
+  "s12-verdict": {
+   "attempts": 1,
+   "detail": {
+    "decision": "BLOCKED",
+    "software_verdict": "FAIL",
+    "verdict_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\tetris\\verdict.json",
+    "verify_run": "AUTHENTIQUE"
+   },
+   "status": "OK",
+   "ts": 1785745381.062426
+  },
+  "s2-worldscan": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\tetris\\artifacts\\s2-worldscan.txt",
+    "artifact_sha256": "01b36beb0079f493fbe465c27ddc68da6c62a23f9bcb3911ba5a0c134a5b4434",
+    "cache_creation_tokens": 108909,
+    "cache_read_tokens": 3956886,
+    "cost_usd": 1.0781545999999997,
+    "duration_s": 881.2648849487305,
+    "model": "claude-haiku-4-5-20251001",
+    "model_override": null,
+    "output_excerpt": "**software_verdict: OK**  \n  Oracle mécanique (check_worldscan.mjs) a exécuté, rendu PASS (3 jeux citées, 9 sources valides, 0 médias locaux, structure complète). GAME_REFERENCE/ livrée, fichiers présents et valides par schéma.\n\n- **evidence_verdict: MECHANICAL_VALIDATION_ONLY**  \n  Seul oracle disponible: validateur déterministe (grep URL, count sources, list files). Pas de jugement LLM sur pertinence / qualité observations.\n\n- **claim_verdict: NO_CLAIM_ALLOWED**  \n  Observations sont **advisory-only** (World Intelligence Layer rule: jamais injectées conseil). Observations elles-mêmes (patterns architecture, boucles rétention, briques candidates) portent pas de claim — c'est du rétro-ingénierie citée, pas de spéculation. Pertinence = jugement Pierre (fog).\n\n### SKIPPED_VALIDATION\n\n- **Pertinence observations pour Tetris V1** — *où:* mechanics_analysis.md, architecture_guess.md — *statut:* non fait — *raison:* observations sont advisory-only (par conception contrat); pertinence est jugement designer (Pierre), pas oracle LLM. Escaladée **FOG→HumanGate**.\n\n- **Concordance observations ↔ charter s0/s1** — *où:* tous fichiers .md — *statut:* partiel (manuel spot-check, non mécanique) — *raison:* pas d'oracle automatique pour valider que patterns conseillés reflètent charter Tetris V1; vérification manuelle uniquement.\n\n- **Variance métriques observées** — *où:* progression_map.md, economy_map.md — *statut:* non fait — *raison:* métriques (chain depth, gravity multiplier, score formula) sont décrites mais pas quantifiées sur jeu réel (ex: distribution chain length sur 1000 runs); leçon pré-mortem stockée (règle variance des métriques).\n\n---\n\n**Observation complétée sans injections clause HumanGate.** GAME_REFERENCE prêt pour usage s3 (Genre Bible ratification) et s4–s5 (Architecture + Wiremap).\n\nSources: Tous les URL sont **live** (tetris.wiki, harddrop.com, puyonexus.com, famiwiki, howtotetris) et consultables. Pas d'archive locale. Advisory-only, jamais conseil direct.",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-haiku-4-5-20251001",
+    "runner": "claude",
+    "tokens": 57220
+   },
+   "status": "OK",
+   "ts": 1785740915.806301
+  },
+  "s3-decompo": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\tetris\\artifacts\\s3-decompo.txt",
+    "artifact_sha256": "b71dc17ebc1bdc5f655736140e9f4e9bda15706b87164f248cf1a4512f86bc7e",
+    "cache_creation_tokens": 58906,
+    "cache_read_tokens": 384281,
+    "cost_usd": 1.1999055,
+    "duration_s": 245.25107502937317,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "-audit §3 est **manuel**, pas un oracle.\n- **claim_verdict : NO_CLAIM_ALLOWED** — je ne certifie ni « featuremap complète » ni « chaque feuille prouvable ». Les preuves attendues sont **héritées** (R1–R9 / D1–D6), pas inventées ; les 6 gaps (G-1…G-6) sont **remontés en fog → HumanGate**, non résolus unilatéralement.\n\n**Oracle de complétude utilisé :** **aucun (indisponible)** — remonté en **G-6**.\n**Feuilles sans preuve_attendue (strictement orphelines) :** **aucune** (20/20 portent au moins une preuve héritée).\n**Feuilles à sous-preuve manquante `[∅]` :** 4 (`grav.softdrop`, `ctrl.translate`, `score.line_counter`, `preview.next1`) → fog G-1…G-4.\n\n### SKIPPED_VALIDATION\n- **Oracle de complétude featuremap** — *où :* §3 / tout le livrable — *statut :* **non fait** (impossible) — *raison :* `run: aucun` **et** aucun exécutable de complétude n'existe dans `scripts/forge/` (vérifié par recherche) → escaladé **G-6 fog**. Substitut = auto-audit **manuel** (non mécanique).\n- **Écriture du fichier featuremap** — *où :* livrable — *statut :* non fait (assumé) — *raison :* tâche « texte seul, aucun fichier écrit » ; arbre livré en texte, structure `{Système→Feature→feuille{capacité,preuve_attendue}}` respectée.\n- **Lecture de `knowledge_packet.json`** — *où :* `mandatory_read` #3 — *statut :* **non fait (fichier absent)** — *raison :* le fichier n'existe pas dans `lab/forge_runs/tetris/` ; il est **ADVISORY jamais prescriptif** par mon contrat → non-bloquant, décision assumée.\n- **Renforcement des preuves [∅] (G-1…G-4)** — *où :* soft-drop, translation, compteur, aperçu — *statut :* non fait (par conception) — *raison :* le Prisme ne fournit pas de règle observable dédiée ; inventer un oracle serait interdit (gardeFou « jamais inventée ») → escaladé fog pour décision s5/s9/Pierre.\n- **Calibration de `N` (solvabilité, G-5)** — *où :* `solv.bot_survives` — *statut :* non fait — *raison :* hors périmètre s3 (calibration = étape aval) ; variance à prouver avant usage comme seuil.",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 16757
+   },
+   "status": "OK",
+   "ts": 1785741161.1321108
+  },
+  "s4-archi": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\tetris\\artifacts\\s4-archi.txt",
+    "artifact_sha256": "b049338ace18f8f99542e630f853d263fbb0b322288f4792f7b8f7b8d00c331c",
+    "cache_creation_tokens": 86599,
+    "cache_read_tokens": 475120,
+    "cost_usd": 1.6394199999999999,
+    "duration_s": 291.868182182312,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "ller un oracle intra-module en s9 ?\n- **G-B** — invariants **sémantiques** (rendu lecture-seule INV-2, sens de l'intent INV-3) : un oracle de graphe prouve la *présence/absence d'arête*, pas la *direction du flux de données*. Non oraclables en l'état.\n\n### SKIPPED_VALIDATION\n- **Exécution de `check_architecture`** — *où :* tout le blueprint / `games/tetris` — *statut :* **non fait (impossible à s4)** — *raison :* `run: aucun` **et** le code n'existe pas encore (squelette `.gitkeep`) ; l'oracle s'exécute à s10b sur le code réel. Substitut : conception adossée au schéma du validateur + à la table repo_map.\n- **Exécution de `_validate_blueprint`** — *où :* mon bloc JSON — *statut :* **partiel (lu, non exécuté)** — *raison :* `run: aucun` ; conformité argumentée par lecture du code du validateur. Le matérialiseur l'exécute réellement avant d'écrire `blueprint.json`.\n- **Écriture de `blueprint.json`** — *où :* livrable — *statut :* non fait (assumé) — *raison :* tâche « tu n'écris AUCUN fichier : l'exécuteur matérialise `blueprint.json` depuis le bloc JSON ».\n- **Preuve des invariants sémantiques INV-2/INV-3/INV-6** — *où :* rendu / input / intra-05_SYSTEMS — *statut :* non fait (hors-portée oracle) — *raison :* un oracle de graphe de dépendances ne juge pas la direction du flux ni les arêtes intra-module → fog G-A/G-B, décision Pierre/s9.\n- **Lecture de `knowledge_packet.json`** — *où :* `mandatory_read` — *statut :* non fait (fichier absent) — *raison :* absent de `lab/forge_runs/tetris/` ; **ADVISORY jamais prescriptif** par contrat → non-bloquant, assumé.\n\n```json\n{\n  \"modules\": [\n    \"05_SYSTEMS\",\n    \"06_RUNTIME\",\n    \"07_TESTS\",\n    \"presentation\",\n    \"input_adapter\",\n    \"solvability\"\n  ],\n  \"deps_interdites\": [\n    [\"05_SYSTEMS\", \"06_RUNTIME\"],\n    [\"05_SYSTEMS\", \"presentation\"],\n    [\"05_SYSTEMS\", \"input_adapter\"],\n    [\"05_SYSTEMS\", \"07_TESTS\"],\n    [\"06_RUNTIME\", \"07_TESTS\"],\n    [\"solvability\", \"presentation\"],\n    [\"solvability\", \"input_adapter\"]\n  ]\n}\n```",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 26862
+   },
+   "status": "OK",
+   "ts": 1785741453.0783474
+  },
+  "s5-wiremap": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\tetris\\artifacts\\s5-wiremap.txt",
+    "artifact_sha256": "c23b2ce307984ff8e13f96266ae4ed191d589ba6fb6d72c21ffeca86d443a232",
+    "cache_creation_tokens": 103997,
+    "cache_read_tokens": 295169,
+    "cost_usd": 1.6204645,
+    "duration_s": 241.13137483596802,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "eck_wiremap (clear_lines defini dans line_clear.gd).\"\n    },\n    {\n      \"feature\": \"R5 Rotation contrainte\",\n      \"fonction\": \"rotate_piece\",\n      \"fichiers\": [\"05_SYSTEMS/rotation_rules/rotation.gd\"],\n      \"preuve\": \"07_TESTS/unit/test_rotation.gd — assert : rotation en collision refusee (V1 sans wall-kick), orientation/position/terrain inchanges. Oracle s10c check_wiremap (rotate_piece defini dans rotation.gd).\"\n    },\n    {\n      \"feature\": \"R6 Piece active seule\",\n      \"fonction\": \"move_active_piece\",\n      \"fichiers\": [\"05_SYSTEMS/input_rules/input.gd\"],\n      \"preuve\": \"07_TESTS/unit/test_input.gd — assert : translation/rotation/soft-drop n'affectent que la piece active, pile figee inchangee sous tout input. Oracle s10c check_wiremap (move_active_piece defini dans input.gd).\"\n    },\n    {\n      \"feature\": \"R7 Fin par blocage\",\n      \"fonction\": \"spawn_piece\",\n      \"fichiers\": [\"05_SYSTEMS/game_state/state.gd\"],\n      \"preuve\": \"07_TESTS/unit/test_game_state.gd — assert : quand une piece entrante ne peut pas apparaitre legalement, l'etat devient terminal (game-over). Oracle s10c check_wiremap (spawn_piece defini dans state.gd).\"\n    },\n    {\n      \"feature\": \"R8 Solvabilite honnete\",\n      \"fonction\": \"run_solvability\",\n      \"fichiers\": [\"solvability.gd\"],\n      \"preuve\": \"Descripteur proof.solvability (game_contract.yaml, entry=solvability.gd) cable dans godot_oracle.mjs : un bot scripte survit >= N pieces ET nettoie >= 1 ligne, jamais 'gagne' (no_victory_in_marathon). N=A_CALIBRER, variance a prouver. Cable verifie par check_solvability_wired.\"\n    },\n    {\n      \"feature\": \"R9 Livrable jouable\",\n      \"fonction\": \"start_game\",\n      \"fichiers\": [\"06_RUNTIME/adapters/runtime_loop.gd\"],\n      \"preuve\": \"Oracle produit godot_oracle.mjs (fenetre GPU vulkan) : le projet se lance et une partie complete se joue jusqu'au game-over sans crash. Rendu = NOT_MEASURED en headless. Oracle s10c check_wiremap (start_game defini dans runtime_loop.gd).\"\n    }\n  ]\n}\n```",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 17322
+   },
+   "status": "OK",
+   "ts": 1785741694.297109
+  },
+  "s6-redteam-plan": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\tetris\\artifacts\\s6-redteam-plan.txt",
+    "artifact_sha256": "9c43740c1fb909bc9ca804b201f5446c7b0288107fc0727a40666f49a2190579",
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "cost_usd": 0.0,
+    "duration_s": 0.0,
+    "model": "qwen2.5-14b-instruct",
+    "model_override": null,
+    "output_excerpt": "le a une responsabilité claire et minimale.  \n**Verdict si corrigé :** OK\n\n### 2. Câblage des dépendances\n**Angle :** Câblage des dépendances  \n**Faille :** Certaines dépendances sont trop complexes ou redondantes.  \n**Correction proposée :** Simplifier le câblage en éliminant les dépendances inutiles et en favorisant la modularité.  \n**Verdict si corrigé :** OK\n\n### 3. Sécurité des communications\n**Angle :** Sécurité des communications  \n**Faille :** Manque de sécurisation des canaux de communication entre modules.  \n**Correction proposée :** Ajouter une couche de chiffrement ou d'authentification pour les communications critiques.  \n**Verdict si corrigé :** OK\n\n### 4. Redondance et tolérance aux pannes\n**Angle :** Redondance et tolérance aux pannes  \n**Faille :** Absence de mécanismes de redondance ou de failover.  \n**Correction proposée :** Implémenter des systèmes de backup et de reprise après panne pour les composants critiques.  \n**Verdict si corrigé :** OK\n\n## Conclusion\nLe plan présente plusieurs points faibles qui peuvent être exploités par un attaquant indépendant. Les corrections proposées devraient améliorer significativement la robustesse et la sécurité du système.\n\n```\n\n### Étape 4 : Ajustements des artefacts\nJe vais ensuite ajuster les artefacts d'architecture (diagrammes) et de câblage (WireMap) en fonction des corrections proposées. Ces ajustements seront documentés dans le rapport pour assurer une cohérence entre la critique et les modifications.\n\n### Étape 5 : Validation et remise\nUne fois le rapport et les artefacts ajustés terminés, je vais valider chaque affirmation avec l'oracle technique approprié (import-linter, oracle wiremap AST) avant de soumettre le tout. Si une validation n'est pas possible, j'informerai clairement dans la section `SKIPPED_VALIDATION`.\n\n### Étape 6 : Remise finale\nLe rapport final sera remis sous forme de fichier `rapport_redteam_plan.md` contenant les informations demandées et respectant strictement le format spécifié.",
+    "qwen_ok": true,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "qwen2.5-14b-instruct",
+    "runner": "qwen",
+    "tokens": 0
+   },
+   "status": "OK",
+   "ts": 1785741713.8092911
+  },
+  "s9-build-godot-standard": {
+   "attempts": 2,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\tetris\\artifacts\\s9-build-godot-standard.txt",
+    "artifact_sha256": "466fdb4a1708caf76af0888da1f41832dbc10b7457d28bfb3be6453ef5159a88",
+    "cache_creation_tokens": 140761,
+    "cache_read_tokens": 1755096,
+    "cost_usd": 2.9993679999999996,
+    "duration_s": 480.7202045917511,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "D\nAucune affirmation auto-certifiée. Chaque OK ci-dessus est adossé à un reçu d'oracle déterministe non-LLM réellement exécuté ; chaque zone sans oracle est remontée en fog.\n\n## SKIPPED_VALIDATION\n- **Oracle STANDARD s10s (line_states/placement/collisions/index/genre_coverage/observable_coverage)** — *où :* `games/tetris/09_WIREMAP/wiremap.json` — *statut :* **non corrigé (BLOCKED)** — *raison :* déficiences structurelles d'un gel s5 incomplet + registre de capacités ; correction hors périmètre forgeron (autorité s5 + tables du standard). Mesuré rouge, remonté HumanGate.\n- **Ré-exécution du gate mutation Python par moi-même** — *où :* logique pure — *statut :* non fait — *raison :* mon exécuteur n'accorde pas Python (divergence connue P6 : gate mutation exécuté PAR LE DRIVER) ; je m'appuie sur le reçu **signé** (`8d5a58e9…`) présent sur disque.\n- **e2e click-through navigateur** — *où :* runtime — *statut :* **sans objet (décision assumée)** — *raison :* projet Godot, aucun navigateur (`runtimes: [rules, godot]`) ; remplacé par oracle headless + solvabilité (contrat). Le `s10a.e2e.passed:false` (run-oracle.mjs/e2e.mjs absents) mesure des artefacts navigateur inapplicables.\n- **Détecteur de câblage solvabilité du driver (s10a)** — *où :* `s10a.solvability` — *statut :* rouge chez le driver (`runner_argv=[]`, « câblage non prouvé ») **contredit par ma mesure directe** (50/50 OK) — *raison :* lacune du détecteur s10a pour la topologie descripteur Godot ; **pas** un échec de solvabilité. Remonté fog.\n- **Preuve visuelle GPU** — *où :* rendu — *statut :* NOT_MEASURED — *raison :* headless rend une texture nulle ; exige fenêtre GPU vulkan (hors de cette étape).\n\n---\n**Verdict de synthèse :** mécanique du jeu **OK** (176/176, mutation 45/45, solvabilité 50/50, chaîne verte, tous exécutés à l'instant) ; oracle **STANDARD s10s = BLOCKED** sur un squelette wiremap gelé incomplet en amont — **HumanGate décide** (re-jouer s5 puis s10s / merge / freeze). La Forge ne tranche pas.",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 31686
+   },
+   "status": "OK",
+   "ts": 1785744738.0772846
+  }
+ },
+ "updated_ts": 1785745381.0644298
+}
