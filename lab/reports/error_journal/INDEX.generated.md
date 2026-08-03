@@ -3,7 +3,7 @@
 | domaine | entries | existe | chemin |
 |---|---:|:---:|---|
 | _global_ | 0 | non | C:\TACTICAL_CHESS_STUDIO\lab\reports\error_journal\_global_.jsonl |
-| forge | 4 | oui | C:\TACTICAL_CHESS_STUDIO\lab\reports\error_journal\forge.jsonl |
+| forge | 10 | oui | C:\TACTICAL_CHESS_STUDIO\lab\reports\error_journal\forge.jsonl |
 | godot | 0 | non | C:\TACTICAL_CHESS_STUDIO\lab\reports\error_journal\godot.jsonl |
 | html | 66 | oui | C:\TACTICAL_CHESS_STUDIO\lab\reports\error_journal\html.jsonl |
 | playtest | 4 | oui | C:\TACTICAL_CHESS_STUDIO\lab\reports\error_journal\playtest.jsonl |
