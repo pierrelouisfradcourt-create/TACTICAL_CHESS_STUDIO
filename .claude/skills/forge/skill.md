@@ -250,6 +250,45 @@ Trois issues, trois lectures — ne les confonds jamais. Depuis V1 (2026-07-26, 
 
 Dans tous les cas hors exit 0 : **Tu ne décides jamais** merge/reject/freeze, et tu ne promeus jamais une proposition en mémoire de référence (ledger, projets) sans son go. Si une étape n'a pas d'oracle pour appuyer une affirmation → remonte un besoin HumanGate (fog), pas un claim (RÈGLE DE RESTITUTION).
 
+## Avant TOUTE escalade humaine — vérifier l'architecture d'abord
+
+Ratifié Pierre 2026-08-03 (`FORGE_AUTONOMY_V1`, decision-log). Leçons KB :
+`forge.architecture_check_before_human_escalation` · `forge.broken_loop_repair_not_report` ·
+`forge.diagnosis_is_not_workflow_end` · `forge.escalation_costs_avoid_default_route`.
+
+**Règle : avant toute escalade humaine, vérifier dans le Master Schéma
+(`docs/forge/STUDIO_MASTER_SCHEMA.html`) si la solution existe déjà mais n'est pas câblée.**
+
+Ordre obligatoire, ne saute aucune marche :
+
+```
+Blocage détecté
+   ↓ la boucle est-elle PRÉVUE au Master Schéma ?
+   ↓ diagnostic : composant non buildé ? construit mais non câblé ? mal câblé ?
+     consommateur absent ? contrat incomplet ?
+   ↓ cause racine identifiée + solution déterminée + risque acceptable ?
+   ↓ OUI aux trois → RÉPARER · TESTER · PROUVER · DOCUMENTER
+   ↓ NON → escalade, en nommant le CHOIX qui reste à faire
+```
+
+**Première hypothèse obligatoire** : la capacité existe déjà dans l'architecture mais n'est pas
+branchée. Ne remonte jamais un « manque de capacité » sans avoir cherché l'écart entre le design et
+l'implémentation. Cas typiques déjà rencontrés : KB inconnue → vérifier la boucle fouille → web → KB
+→ builder *avant* de déclarer une limite de connaissance · oracle incorrect → vérifier l'aiguillage
+moteur *avant* de modifier l'oracle · validation sans producteur → créer ou reconnecter le
+producteur *avant* de discuter du validateur · artefact sans lecteur → chercher le consommateur
+prévu par l'architecture.
+
+Un diagnostic n'est PAS une fin de workflow. La sortie attendue est
+`PROBLEM / CAUSE / ACTION / VALIDATION / ESCALADE-si-choix-restant`, jamais `PROBLEM / CAUSE /
+QUESTION`. Une escalade coûte (interruption, contexte, temps, dilution) : elle doit être justifiée
+par une **nécessité de décision** — décision de conception, changement d'invariant, choix produit,
+ou plusieurs solutions valides — jamais par une incapacité à appliquer une solution déjà trouvée.
+**L'humain tranche les choix ; la Forge exécute les corrections connues.**
+
+Ce qui reste HumanGate malgré tout (invariants ADR-002, inchangés) : merge/reject/freeze · toute
+décision de conception ouverte · tout changement d'invariant.
+
 ## Rapport obligatoire
 
 ```
