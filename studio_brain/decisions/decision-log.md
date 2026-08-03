@@ -540,6 +540,72 @@ qu'on ajoute. Retour au blocage humain = HumanGate Pierre explicite.
 
 ---
 
+## 2026-08-03 — Le 3e cerveau consomme l'Observer ; la Forge corrige ses propres écarts (FORGE_AUTONOMY_V2)
+
+**Décision (Pierre, six volets — étend `FORGE_AUTONOMY_V1` du même jour)** :
+
+**1. Boucle cassée + cause + solution connue ⇒ réparation directe, sans escalade.** Cycle attendu :
+`Erreur → Cause racine → Solution connue → Réparation → Test → Preuve → Lesson/KB`.
+L'escalade humaine est réservée à **quatre cas et quatre seulement** : changement d'invariant ·
+choix produit · changement d'intention · décision d'architecture non prévue.
+
+**2. Le 3e cerveau (session Claude orchestratrice) EST le consommateur principal de l'Observer.**
+Conséquence directe et immédiate : **ne plus fabriquer de consommateur artificiel** pour un artefact
+dont l'information est destinée à l'orchestrateur. Ferme deux « décisions nécessaires » ouvertes le
+jour même — le lecteur manquant de `learning_curve.jsonl` et celui des 9 artefacts Observer ne sont
+plus des trous à combler par du code : le lecteur existe, c'est la session. Chaîne cible :
+`Master Schéma (architecture attendue) + Observer (réalité mesurée) → différence → 3e cerveau →
+réparation ou délégation`.
+
+**3. L'Observer doit être renforcé pour comparer Master Schéma ↔ réalité** sur six axes :
+prévu/construit · câblé/non câblé · actif/passif · consommé/non consommé · preuve disponible/absente
+· HumanGate en attente. Produire la liste des écarts, puis **réparer les écarts mécaniques**.
+
+**4. Autonomie KB.** La KB est une **boucle d'apprentissage de la Forge**, plus un dépôt à protéger.
+Quand une connaissance manque : `KB insuffisante → recherche ciblée → validation → proposition KB →
+intégration selon règles`. Une capacité inconnue n'est **plus une exception à signaler** mais une
+entrée dans la boucle d'acquisition.
+
+**5. World Scan — informations gameplay obligatoires** : objectif joueur · condition de victoire ·
+condition de défaite · conditions de survie · conditions d'échec. Critère de réussite énoncé par
+Pierre : pour Tetris, la Forge doit pouvoir **déduire seule** que le solo consiste à survivre et
+maximiser le score, et que le versus se perd au premier top-out.
+
+**6. Réparations autorisées sans demande préalable** : câblage des consommateurs déjà prévus ·
+boucles non branchées · composants construits mais non utilisés · mise à jour Master Schéma /
+Observer pour refléter la réalité. **Interdiction explicite : ne pas créer de nouvelle couche.**
+Format imposé avant chaque réparation : `PROBLEM / CAUSE / ACTION / VALIDATION`.
+
+**Intention générale (verbatim)** : « faire évoluer la Forge vers un système qui détecte ses propres
+écarts et les corrige, pas vers un système qui remonte les mêmes anomalies à l'humain ».
+
+**Contexte** : double audit structurel du 2026-08-03. Master Schéma — 21 composants déclarés,
+18 construits, 13 câblés, 9 actifs avec preuve datée, **6 seulement consommés** : le goulot n'est pas
+la construction, c'est la consommation. Observer — 2 048 événements sur 28 types pour le run tetris,
+4 493 sur 32 pour breakout_v2, majoritairement `MECHANICAL`, mais **système clos** : aucun des
+9 artefacts n'a de lecteur hors `scripts/observer/`. Deux défauts en miroir mesurés le même jour :
+`learning_curve.jsonl` = écrivain sans lecteur ; `propose_bible_entry` = lecteur sans écrivain.
+
+**Vérifications de l'orchestrateur ayant corrigé les rapports d'agents** (traçabilité de la méthode) :
+`core_requirements.yaml` déclaré introuvable par un audit **existe bien** (4 410 o, lu par
+`driver.py`, `standard_oracles.py` et 8 contrats) ; les chemins codés en dur concernent **13 modules
+sur 23**, pas 17 sur 30. Aucune de ces erreurs n'a été relayée comme fait.
+
+**Écart imputable à l'orchestrateur, consigné** : le run `tetris-fullgodot-20260803-084719` a été
+lancé sans `--charter` ni `--tasks-file`, d'où **0 `run.task_prompt` et 0 `run.charter`** observables
+là où breakout_v2 en porte. Le run de référence est donc moins traçable que celui qu'il remplace —
+à corriger avant tout benchmark de modèles, sous peine de comparer des prompts illisibles.
+
+**Ce que cette décision NE change PAS** : invariants ADR-002 intacts — contrat = porte de spawn ·
+oracles déterministes non-LLM · `software_verdict` issu des seuls reçus vérifiés · red-team advisory
+· `claim_verdict: NO_CLAIM_ALLOWED` · **HumanGate Pierre sur merge/reject/freeze**.
+
+**Critères de révision** : si la Forge répare de travers sous ce régime, la correction n'est pas de
+restaurer l'escalade par défaut — c'est d'identifier le contrôle mécanique manquant. Retour à
+l'escalade systématique = HumanGate Pierre explicite.
+
+---
+
 ## Template pour nouvelles entrées
 
 ```
