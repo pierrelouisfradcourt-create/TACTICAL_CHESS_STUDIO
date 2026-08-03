@@ -606,6 +606,87 @@ l'escalade systématique = HumanGate Pierre explicite.
 
 ---
 
+## 2026-08-03 — Verdict OK ≠ clôture studio ; capitalisation avant construction (FORGE_CAPITALISATION_V1)
+
+**Diagnostic Pierre, à l'origine de tout ce qui suit (verbatim)** : « La Forge n'a pas un problème de
+construction, elle a un problème de **boucles de capitalisation** et de **vérité** entre Master
+Schéma, Observer et réalité. »
+
+Établi par double audit du jour. Sur 9 composants : 4 `IMPLEMENTED` (Prisme, World Scan, Art Bible,
+Promotion KB) · 1 `MAL_CONNECTED` (étage 2) · 1 `BLOCKED` (propose_brick) · 1 `BUILT_NOT_CONNECTED`
+(s10d) · 1 `NOT_FOUND` (réconciliation 4 sources) · 1 `PASSIVE` (Observer). **La chaîne de
+conception fonctionne ; c'est la réutilisation qui ne fonctionne pas.**
+
+### Décisions
+
+**1. `verdict OK ≠ clôture studio` — RÈGLE GÉNÉRALE.** Un verdict technique, même vert et signé, ne
+clôt pas un projet. La clôture est un acte enregistré au `decision-log.md`. La règle appliquée à
+Breakout le matin même devient la règle de tous les projets.
+
+**2. Vocabulaire de statut de run — quatre valeurs**, parce qu'« on ne transforme pas un état
+RUNNING en clôture arbitraire » : `RUNNING` · `FROZEN_HUMAN` · `CLOSED` · `FAILED`.
+`FROZEN_HUMAN` = arrêté par décision humaine, ni réussi ni échoué ; ne se relance pas
+automatiquement et ne se compte pas comme un échec.
+
+**3. Pong devient `FROZEN_HUMAN`**, jusqu'à décision contraire. État mesuré : `run_status: RUNNING`
+avec 4 étapes encore `PENDING` (`s10a`, `s10s`, `s11`, `s12`), aucun verdict signé, aucun
+`software_verdict: OK`. Le gel de 2026-07-27 (témoin de régression) n'existait que par convention
+documentée hors registre. **Les étapes restent `PENDING` : le run n'a jamais fini, cela doit rester
+visible.**
+
+**4. Une capacité ne doit jamais disparaître silencieusement.** `propose_brick` est appelé en
+production (`driver.py:1984`) mais bloqué par son prédicat (`driver.py:2023` :
+`if code_status != "OK": return`). L'Observer le classait « non câblé » — faux négatif dans l'outil
+censé détecter les faux négatifs. **Le prédicat n'est PAS desserré** ; c'est l'observabilité qui est
+corrigée : `BUILT → CONNECTED → BLOCKED(reason)`, jamais une absence. L'Observer doit distinguer
+quatre situations aujourd'hui amalgamées : `ABSENT` · `JAMAIS_APPELE` · `APPELE_SANS_SORTIE` ·
+`BLOQUE(raison)`.
+
+**5. Modèle de vérité unique, sept axes**, partagé par le Master Schéma ET l'Observer :
+`prévu · construit · câblé · actif · bloqué · consommé · preuve`. L'axe `bloqué` est nouveau.
+
+**6. Récupération rétroactive des leçons de Pong et Snake.** Mesuré : 0 leçon pour ces deux
+campagnes, contre 5 pour breakout_v2 et 5 pour tetris. Motif Pierre : « le coût est déjà engagé, il
+faut récupérer la connaissance ».
+
+**7. Ordre de priorité imposé** — A) capitalisation jeux (Pong/Snake → lessons → KB → Observer) ·
+B) correction de l'Observer (les 4 distinctions) · C) s10d : branché dans un profil réel **ou**
+retiré du Master Schéma · D) réconciliation 4 sources, **en dernier car c'est une capacité
+nouvelle**. « Avant toute nouvelle construction », le Master Schéma et l'Observer doivent porter le
+modèle de vérité à 7 axes. Objectif énoncé : « le but n'est plus d'ajouter des briques, c'est que la
+Forge sache exactement quelles briques existent réellement ».
+
+---
+
+## 2026-08-03 — Clôture de Snake enregistrée (remontée au registre canonique)
+
+**Décision** : la campagne **Snake** (jeu Godot, `games/snake/`) est enregistrée comme **close**,
+avec objection. Application immédiate de la règle `verdict OK ≠ clôture studio` ci-dessus.
+
+**Pourquoi cette entrée existe** : la clôture avait réellement eu lieu les 2026-07-28/29, mais
+n'était consignée que dans `studio_brain/journal/2026-07-30_00_CURRENT_CONTEXT_archive.md`
+(section « CLÔTURE 2026-07-28/29 — CYCLE SNAKE TERMINÉ ») — un journal archivé, pas le registre
+canonique. Conséquence mesurée : le Master Schéma affiche encore Snake en `◇` (non atteint) alors
+que le projet est clos. **Même trou que Breakout, un cran plus loin.** À ne pas confondre avec les
+entrées de juin 2026 « Snake: Survivor RPG — Genesis », qui concernent un **projet différent**
+(survivor-like), lui-même `SUPERSEDED`.
+
+**Preuve technique** : 10 runs sous `lab/forge_runs/snake/_run_*` — **5 portent
+`software_verdict: OK` / `decision: HUMANGATE_READY_WITH_OBJECTION`** (`_run_final2_20260729`,
+`_run_runtime_20260729`, `_run_solv_20260729`, `_run_cal1/2/3_20260730`), 4 en `FAIL / BLOCKED`.
+Démarrage et rendu prouvés selon le journal (11 ticks, 0 erreur, exit 0, oracle pixel vert en
+fenêtre GPU).
+
+**Objection consignée, non résolue** : aucun `wiremap_frozen.json` pour Snake, et
+`RATIFICATION_WIREMAP_SNAKE.md` porte toujours `Statut: PROPOSED — attend la ratification de
+Pierre`. La clôture est donc enregistrée **WITH_OBJECTION**, comme le disent les verdicts eux-mêmes
+— elle ne prétend pas que tout était vert.
+
+**Critères de révision** : réouverture sur preuve issue d'un projet ultérieur, même régime que
+Breakout V2. HumanGate Pierre.
+
+---
+
 ## Template pour nouvelles entrées
 
 ```
