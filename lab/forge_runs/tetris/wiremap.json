@@ -1,0 +1,94 @@
+{
+ "features": [
+  {
+   "feature": "R1 Sac de 7",
+   "fonction": "generate_bag",
+   "fichiers": [
+    "05_SYSTEMS/piece_bag/bag.gd"
+   ],
+   "preuve": "07_TESTS/unit/test_piece_bag.gd — assert strict : chaque sac émet exactement {I,O,T,S,Z,J,L}, multiplicite 1/sac, aucune autre forme. Oracle isomorphisme s10c check_wiremap (generate_bag defini dans bag.gd).",
+   "statut": "IMPLEMENTED",
+   "constat": "IMPLEMENTED — generate_bag @05_SYSTEMS/piece_bag/bag.gd. test_piece_bag.gd (ensemble=={0..6} strict, mult 1/sac, deterministe par graine) VERT dans run_tests.gd (176/176, exit 0). Mutation bag.gd: 0 mutant (for-loop + LCG, aucun operateur mutable)."
+  },
+  {
+   "feature": "R2 Gravite discrete",
+   "fonction": "apply_gravity",
+   "fichiers": [
+    "05_SYSTEMS/gravity/gravity.gd"
+   ],
+   "preuve": "07_TESTS/unit/test_gravity.gd — assert strict Delta_y == 1 par tick sans input (jamais >=). Oracle s10c check_wiremap (apply_gravity defini dans gravity.gd).",
+   "statut": "IMPLEMENTED",
+   "constat": "IMPLEMENTED — apply_gravity @05_SYSTEMS/gravity/gravity.gd. test_gravity.gd (dy==1 STRICT par pas, blocage->landed/dy0) VERT. Mutation gravity.gd: 2/2 tues."
+  },
+  {
+   "feature": "R3 Empilement irreversible",
+   "fonction": "lock_piece",
+   "fichiers": [
+    "05_SYSTEMS/lock_rules/lock.gd"
+   ],
+   "preuve": "07_TESTS/unit/test_lock.gd — assert : apres verrou, la piece est immuable, aucun input ne modifie la pile. Oracle s10c check_wiremap (lock_piece defini dans lock.gd).",
+   "statut": "IMPLEMENTED",
+   "constat": "IMPLEMENTED — lock_piece @05_SYSTEMS/lock_rules/lock.gd. test_lock.gd (verrou exact 4 cellules, pile immuable sous tout input via Loop.step) VERT. Mutation lock.gd: 0 mutant."
+  },
+  {
+   "feature": "R4 Nettoyage et compactage strict",
+   "fonction": "clear_lines",
+   "fichiers": [
+    "05_SYSTEMS/line_clear/line_clear.gd"
+   ],
+   "preuve": "07_TESTS/unit/test_line_clear.gd — assert STRICT : rangee pleine retiree, le dessus descend d'exactement N rangees nettoyees (jamais >=). Oracle s10c check_wiremap (clear_lines defini dans line_clear.gd).",
+   "statut": "IMPLEMENTED",
+   "constat": "IMPLEMENTED — clear_lines @05_SYSTEMS/line_clear/line_clear.gd. test_line_clear.gd (descente == N STRICT, rangee partielle jamais nettoyee) VERT. Mutation line_clear.gd: 4/4 tues."
+  },
+  {
+   "feature": "R5 Rotation contrainte",
+   "fonction": "rotate_piece",
+   "fichiers": [
+    "05_SYSTEMS/rotation_rules/rotation.gd"
+   ],
+   "preuve": "07_TESTS/unit/test_rotation.gd — assert : rotation en collision refusee (V1 sans wall-kick), orientation/position/terrain inchanges. Oracle s10c check_wiremap (rotate_piece defini dans rotation.gd).",
+   "statut": "IMPLEMENTED",
+   "constat": "IMPLEMENTED — rotate_piece @05_SYSTEMS/rotation_rules/rotation.gd. test_rotation.gd (rotation en collision refusee V1 sans wall-kick, orientation/position/terrain intacts) VERT. Mutation rotation.gd: 2/2 tues."
+  },
+  {
+   "feature": "R6 Piece active seule",
+   "fonction": "move_active_piece",
+   "fichiers": [
+    "05_SYSTEMS/input_rules/input.gd"
+   ],
+   "preuve": "07_TESTS/unit/test_input.gd — assert : translation/rotation/soft-drop n'affectent que la piece active, pile figee inchangee sous tout input. Oracle s10c check_wiremap (move_active_piece defini dans input.gd).",
+   "statut": "IMPLEMENTED",
+   "constat": "IMPLEMENTED — move_active_piece @05_SYSTEMS/input_rules/input.gd. test_input.gd (chaque intention n'affecte que la piece active, pile inchangee) VERT. Mutation input.gd: 15/15 tues."
+  },
+  {
+   "feature": "R7 Fin par blocage",
+   "fonction": "spawn_piece",
+   "fichiers": [
+    "05_SYSTEMS/game_state/state.gd"
+   ],
+   "preuve": "07_TESTS/unit/test_game_state.gd — assert : quand une piece entrante ne peut pas apparaitre legalement, l'etat devient terminal (game-over). Oracle s10c check_wiremap (spawn_piece defini dans state.gd).",
+   "statut": "IMPLEMENTED",
+   "constat": "IMPLEMENTED — spawn_piece @05_SYSTEMS/game_state/state.gd. test_game_state.gd (spawn illegal -> statut GAME_OVER) VERT. Mutation state.gd: 3/3 tues."
+  },
+  {
+   "feature": "R8 Solvabilite honnete",
+   "fonction": "run_solvability",
+   "fichiers": [
+    "solvability.gd"
+   ],
+   "preuve": "Descripteur proof.solvability (game_contract.yaml, entry=solvability.gd) cable dans godot_oracle.mjs : un bot scripte survit >= N pieces ET nettoie >= 1 ligne, jamais 'gagne' (no_victory_in_marathon). N=A_CALIBRER, variance a prouver. Cable verifie par check_solvability_wired.",
+   "statut": "IMPLEMENTED",
+   "constat": "IMPLEMENTED — run_solvability @solvability.gd. solvability_godot.mjs 50/50 OK (seeds 1..50, max_ticks=200) : bot deterministe SURVIT 42-51 pieces ET nettoie 11-19 lignes, jamais 'gagne' (no_victory_in_marathon). Variance reelle (>=2 valeurs distinctes)."
+  },
+  {
+   "feature": "R9 Livrable jouable",
+   "fonction": "start_game",
+   "fichiers": [
+    "06_RUNTIME/adapters/runtime_loop.gd"
+   ],
+   "preuve": "Oracle produit godot_oracle.mjs (fenetre GPU vulkan) : le projet se lance et une partie complete se joue jusqu'au game-over sans crash. Rendu = NOT_MEASURED en headless. Oracle s10c check_wiremap (start_game defini dans runtime_loop.gd).",
+   "statut": "IMPLEMENTED",
+   "constat": "IMPLEMENTED — start_game @06_RUNTIME/adapters/runtime_loop.gd. godot_oracle.mjs 'ALL CHECKS PASSED' (run_tests headless + solvabilite). Le projet se lance (main.tscn). Rendu = NOT_MEASURED en headless (texture nulle, legitime)."
+  }
+ ]
+}

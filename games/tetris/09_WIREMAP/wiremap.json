@@ -1,16 +1,25 @@
 {
   "schema_version": 2,
   "game_id": "tetris",
-  "statut_artefact": "SQUELETTE_BOOTSTRAP_NON_GELE",
+  "statut_artefact": "CONSTAT_S9_BUILD_REMPLI (etats de ligne mis a jour par s9-build ; expected_proof.statement reste du ressort de s5, inchange)",
   "_note": "Wiremap MINIMALE de bootstrap, produite le 2026-08-03 hors de l'etape s5. Elle declare les SYSTEMES et leurs dependances, pas leurs preuves : chaque ligne porte expected_proof.statement = null, ce qui est un TROU ASSUME et NOMME, pas un oubli. L'etape s5-wiremap sous son contrat reste la seule autorite pour geler cette wiremap : elle doit remplir les enonces de preuve, rattacher les charter_tags au charter narratif produit par s0, et statuer observable_by_player ligne par ligne. Ne pas presenter ce fichier comme une wiremap gelee.",
   "genre_bible": "games/tetris/01_DESIGN/genre_bible.json",
   "reference_amont": "games/tetris/GAME_REFERENCE/architecture_guess.md",
   "claim_verdict": "NO_CLAIM_ALLOWED",
   "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
   "systems": [
-    "params", "game_state", "piece_bag", "rotation_rules", "collision",
-    "gravity", "lock_rules", "line_clear", "scoring", "game_loop",
-    "input_rules", "debug_state"
+    "params",
+    "game_state",
+    "piece_bag",
+    "rotation_rules",
+    "collision",
+    "gravity",
+    "lock_rules",
+    "line_clear",
+    "scoring",
+    "game_loop",
+    "input_rules",
+    "debug_state"
   ],
   "lines": [
     {
@@ -20,7 +29,9 @@
       "reference": "GAME_REFERENCE/architecture_guess.md — « params : toutes les constantes nommees, aucune regle ». Le charter narratif n'existe pas encore : charter_tags a remplir par s5.",
       "charter_tags": [],
       "category": "system",
-      "provides": ["game.params"],
+      "provides": [
+        "game.params"
+      ],
       "requires": [],
       "owner": true,
       "system_parent": "params",
@@ -29,18 +40,27 @@
       "observable_by_player": false,
       "observable_proof": null,
       "observable_note": "Indirectement : ces constantes SONT la difficulte ressentie (dimensions du terrain, periode de gravite, barème). Observees via les lignes de rendu.",
-      "expected_proof": { "kind": "static_oracle", "statement": null },
+      "expected_proof": {
+        "kind": "static_oracle",
+        "statement": null
+      },
       "reused_from": {
         "type": "CONCEPT",
         "source": "games/breakout_v2/05_SYSTEMS/params/params.gd",
         "copy_sha256": null
       },
       "reused_from_note": "CONCEPT et non CODE_COPIE : les constantes de Breakout (physique continue, angles de rebond) n'ont aucun sens sur une grille discrete. Ce qui se reutilise est la FORME prouvee — un script de constantes nommees et rien d'autre, verifiee par comptage de litteraux hors du bloc.",
-      "state": "REQUIRED",
+      "state": "IMPLEMENTED",
       "reason": null,
-      "fichiers": [{ "path": "05_SYSTEMS/params/params.gd", "category": "system" }],
+      "fichiers": [
+        {
+          "path": "05_SYSTEMS/params/params.gd",
+          "category": "system"
+        }
+      ],
       "fonction": "Declare les parametres de jeu comme constantes nommees, et rien d'autre.",
-      "preuve": ""
+      "preuve": "test_params.gd VERT (176/176, exit 0). Mutation params.gd: 0 mutant (constantes nommees + Vector2i, aucun litteral de gameplay disperse).",
+      "statut": "IMPLEMENTED"
     },
     {
       "id": "core.game_state",
@@ -49,27 +69,43 @@
       "reference": "scripts/forge/standard/core_requirements.yaml -> core.game_state (capability game.state). Regles de genre genre.tetris.loss_by_blocking et genre.tetris.no_victory_in_marathon.",
       "charter_tags": [],
       "category": "system",
-      "provides": ["game.state"],
-      "requires": ["game.params"],
+      "provides": [
+        "game.state"
+      ],
+      "requires": [
+        "game.params"
+      ],
       "owner": true,
       "system_parent": "game_state",
       "address": "05_SYSTEMS/game_state/",
-      "genre_refs": ["genre.tetris.loss_by_blocking", "genre.tetris.no_victory_in_marathon"],
+      "genre_refs": [
+        "genre.tetris.loss_by_blocking",
+        "genre.tetris.no_victory_in_marathon"
+      ],
       "observable_by_player": false,
       "observable_proof": null,
       "observable_note": "L'etat est vu indirectement partout ; sa lisibilite reelle est portee par les lignes de rendu.",
-      "expected_proof": { "kind": "test", "statement": null },
+      "expected_proof": {
+        "kind": "test",
+        "statement": null
+      },
       "reused_from": {
         "type": "CONCEPT",
         "source": "games/breakout_v2/05_SYSTEMS/game_state/state.gd",
         "copy_sha256": null
       },
       "reused_from_note": "CONCEPT : ATTENTION, l'ensemble des statuts DIFFERE. Breakout expose EN_COURS/GAGNE/PERDU ; Tetris en marathon n'a PAS d'etat gagne (genre.tetris.no_victory_in_marathon). Reutiliser la discipline « l'etat detient, il n'agit pas » sans reutiliser l'enumeration.",
-      "state": "REQUIRED",
+      "state": "IMPLEMENTED",
       "reason": null,
-      "fichiers": [{ "path": "05_SYSTEMS/game_state/state.gd", "category": "system" }],
+      "fichiers": [
+        {
+          "path": "05_SYSTEMS/game_state/state.gd",
+          "category": "system"
+        }
+      ],
       "fonction": "Detient la grille, la piece active, le score et le statut. Ne decide d'aucune regle.",
-      "preuve": ""
+      "preuve": "test_game_state.gd R7 (spawn illegal -> GAME_OVER ; 2 statuts, aucune victoire). Mutation state.gd 3/3.",
+      "statut": "IMPLEMENTED"
     },
     {
       "id": "core.piece_bag",
@@ -78,23 +114,38 @@
       "reference": "genre.tetris.seven_tetrominoes — exactement les 7 tetrominos, sac sans repetition.",
       "charter_tags": [],
       "category": "system",
-      "provides": ["game.piece_source"],
-      "requires": ["game.params"],
+      "provides": [
+        "game.piece_source"
+      ],
+      "requires": [
+        "game.params"
+      ],
       "owner": true,
       "system_parent": "piece_bag",
       "address": "05_SYSTEMS/piece_bag/",
-      "genre_refs": ["genre.tetris.seven_tetrominoes"],
+      "genre_refs": [
+        "genre.tetris.seven_tetrominoes"
+      ],
       "observable_by_player": false,
       "observable_proof": null,
       "observable_note": "Le joueur observe la SUITE des pieces, pas le generateur. L'equite du sac est ressentie sur la duree, jamais lisible sur un tick.",
-      "expected_proof": { "kind": "test", "statement": null },
+      "expected_proof": {
+        "kind": "test",
+        "statement": null
+      },
       "reused_from": null,
       "reused_from_note": null,
-      "state": "REQUIRED",
+      "state": "IMPLEMENTED",
       "reason": null,
-      "fichiers": [{ "path": "05_SYSTEMS/piece_bag/bag.gd", "category": "system" }],
+      "fichiers": [
+        {
+          "path": "05_SYSTEMS/piece_bag/bag.gd",
+          "category": "system"
+        }
+      ],
       "fonction": "Produit la suite des pieces, deterministe par graine. Ne connait ni la grille ni les collisions.",
-      "preuve": ""
+      "preuve": "test_piece_bag.gd R1 (ensemble=={0..6} strict, deterministe). Mutation bag.gd 0 mutant.",
+      "statut": "IMPLEMENTED"
     },
     {
       "id": "core.collision",
@@ -103,8 +154,12 @@
       "reference": "GAME_REFERENCE/architecture_guess.md — « collision : une position est-elle legale ? ne deplace pas ».",
       "charter_tags": [],
       "category": "system",
-      "provides": ["game.collision"],
-      "requires": ["game.state"],
+      "provides": [
+        "game.collision"
+      ],
+      "requires": [
+        "game.state"
+      ],
       "owner": true,
       "system_parent": "collision",
       "address": "05_SYSTEMS/collision/",
@@ -112,14 +167,23 @@
       "observable_by_player": false,
       "observable_proof": null,
       "observable_note": "Observee par ses consequences : une piece qui refuse de bouger ou de tourner.",
-      "expected_proof": { "kind": "test", "statement": null },
+      "expected_proof": {
+        "kind": "test",
+        "statement": null
+      },
       "reused_from": null,
       "reused_from_note": null,
-      "state": "REQUIRED",
+      "state": "IMPLEMENTED",
       "reason": null,
-      "fichiers": [{ "path": "05_SYSTEMS/collision/collision.gd", "category": "system" }],
+      "fichiers": [
+        {
+          "path": "05_SYSTEMS/collision/collision.gd",
+          "category": "system"
+        }
+      ],
       "fonction": "Repond a « cette position est-elle legale ». Ne modifie jamais l'etat.",
-      "preuve": ""
+      "preuve": "test_collision.gd (bornes du puits, vide/occupe, fits). Mutation collision.gd 9/9.",
+      "statut": "IMPLEMENTED"
     },
     {
       "id": "core.rotation_rules",
@@ -128,23 +192,38 @@
       "reference": "genre.tetris.rotation_bounded_by_terrain. DECISION OUVERTE (Genre Bible §3) : wall kick SRS ou rotation stricte — non tranchee.",
       "charter_tags": [],
       "category": "system",
-      "provides": ["game.rotation"],
-      "requires": ["game.collision"],
+      "provides": [
+        "game.rotation"
+      ],
+      "requires": [
+        "game.collision"
+      ],
       "owner": true,
       "system_parent": "rotation_rules",
       "address": "05_SYSTEMS/rotation_rules/",
-      "genre_refs": ["genre.tetris.rotation_bounded_by_terrain"],
+      "genre_refs": [
+        "genre.tetris.rotation_bounded_by_terrain"
+      ],
       "observable_by_player": true,
       "observable_proof": null,
       "observable_note": "Le joueur voit la piece tourner, ou refuser de tourner. C'est un des rares faits directement observables.",
-      "expected_proof": { "kind": "test", "statement": null },
+      "expected_proof": {
+        "kind": "test",
+        "statement": null
+      },
       "reused_from": null,
       "reused_from_note": null,
-      "state": "REQUIRED",
+      "state": "IMPLEMENTED",
       "reason": null,
-      "fichiers": [{ "path": "05_SYSTEMS/rotation_rules/rotation.gd", "category": "system" }],
+      "fichiers": [
+        {
+          "path": "05_SYSTEMS/rotation_rules/rotation.gd",
+          "category": "system"
+        }
+      ],
       "fonction": "Applique une rotation si la position resultante est legale. Ne dessine rien.",
-      "preuve": ""
+      "preuve": "test_rotation.gd R5 (refus sur collision, terrain intact). Mutation rotation.gd 2/2.",
+      "statut": "IMPLEMENTED"
     },
     {
       "id": "core.gravity",
@@ -153,23 +232,39 @@
       "reference": "genre.tetris.discrete_gravity — une case a intervalle regulier.",
       "charter_tags": [],
       "category": "system",
-      "provides": ["game.gravity"],
-      "requires": ["game.params", "game.collision"],
+      "provides": [
+        "game.gravity"
+      ],
+      "requires": [
+        "game.params",
+        "game.collision"
+      ],
       "owner": true,
       "system_parent": "gravity",
       "address": "05_SYSTEMS/gravity/",
-      "genre_refs": ["genre.tetris.discrete_gravity"],
+      "genre_refs": [
+        "genre.tetris.discrete_gravity"
+      ],
       "observable_by_player": true,
       "observable_proof": null,
       "observable_note": "La chute est le fait le plus continument visible du jeu.",
-      "expected_proof": { "kind": "test", "statement": null },
+      "expected_proof": {
+        "kind": "test",
+        "statement": null
+      },
       "reused_from": null,
       "reused_from_note": null,
-      "state": "REQUIRED",
+      "state": "IMPLEMENTED",
       "reason": null,
-      "fichiers": [{ "path": "05_SYSTEMS/gravity/gravity.gd", "category": "system" }],
+      "fichiers": [
+        {
+          "path": "05_SYSTEMS/gravity/gravity.gd",
+          "category": "system"
+        }
+      ],
       "fonction": "Decide QUAND la piece descend d'une case. Ne teste pas la collision lui-meme.",
-      "preuve": ""
+      "preuve": "test_gravity.gd R2 (dy==1 strict). Mutation gravity.gd 2/2.",
+      "statut": "IMPLEMENTED"
     },
     {
       "id": "core.lock_rules",
@@ -178,23 +273,39 @@
       "reference": "genre.tetris.irreversible_stack — une piece figee ne bouge plus jamais.",
       "charter_tags": [],
       "category": "system",
-      "provides": ["game.lock"],
-      "requires": ["game.collision", "game.state"],
+      "provides": [
+        "game.lock"
+      ],
+      "requires": [
+        "game.collision",
+        "game.state"
+      ],
       "owner": true,
       "system_parent": "lock_rules",
       "address": "05_SYSTEMS/lock_rules/",
-      "genre_refs": ["genre.tetris.irreversible_stack"],
+      "genre_refs": [
+        "genre.tetris.irreversible_stack"
+      ],
       "observable_by_player": true,
       "observable_proof": null,
       "observable_note": "Le joueur voit la piece cesser d'etre controlable et rejoindre la pile.",
-      "expected_proof": { "kind": "test", "statement": null },
+      "expected_proof": {
+        "kind": "test",
+        "statement": null
+      },
       "reused_from": null,
       "reused_from_note": null,
-      "state": "REQUIRED",
+      "state": "IMPLEMENTED",
       "reason": null,
-      "fichiers": [{ "path": "05_SYSTEMS/lock_rules/lock.gd", "category": "system" }],
+      "fichiers": [
+        {
+          "path": "05_SYSTEMS/lock_rules/lock.gd",
+          "category": "system"
+        }
+      ],
       "fonction": "Decide quand une piece se fige et l'integre a la pile. Ne nettoie aucune ligne.",
-      "preuve": ""
+      "preuve": "test_lock.gd R3 (verrou 4 cellules, pile immuable). Mutation lock.gd 0 mutant.",
+      "statut": "IMPLEMENTED"
     },
     {
       "id": "core.line_clear",
@@ -203,23 +314,38 @@
       "reference": "genre.tetris.line_clear_compaction — seul moyen de liberer de l'espace.",
       "charter_tags": [],
       "category": "system",
-      "provides": ["game.line_clear"],
-      "requires": ["game.state"],
+      "provides": [
+        "game.line_clear"
+      ],
+      "requires": [
+        "game.state"
+      ],
       "owner": true,
       "system_parent": "line_clear",
       "address": "05_SYSTEMS/line_clear/",
-      "genre_refs": ["genre.tetris.line_clear_compaction"],
+      "genre_refs": [
+        "genre.tetris.line_clear_compaction"
+      ],
       "observable_by_player": true,
       "observable_proof": null,
       "observable_note": "LE moment de recompense du genre : la ligne disparait et la pile descend.",
-      "expected_proof": { "kind": "test", "statement": null },
+      "expected_proof": {
+        "kind": "test",
+        "statement": null
+      },
       "reused_from": null,
       "reused_from_note": null,
-      "state": "REQUIRED",
+      "state": "IMPLEMENTED",
       "reason": null,
-      "fichiers": [{ "path": "05_SYSTEMS/line_clear/line_clear.gd", "category": "system" }],
+      "fichiers": [
+        {
+          "path": "05_SYSTEMS/line_clear/line_clear.gd",
+          "category": "system"
+        }
+      ],
       "fonction": "Detecte les rangees pleines, les retire, compacte. Ne calcule aucun score.",
-      "preuve": ""
+      "preuve": "test_line_clear.gd R4 (descente == N strict). Mutation line_clear.gd 4/4.",
+      "statut": "IMPLEMENTED"
     },
     {
       "id": "core.scoring",
@@ -228,23 +354,38 @@
       "reference": "genre.tetris.superlinear_multi_clear_reward. Contrainte d'architecture (architecture_guess.md) : le scoring recoit un NOMBRE de lignes, jamais la grille.",
       "charter_tags": [],
       "category": "system",
-      "provides": ["game.score"],
-      "requires": ["game.params"],
+      "provides": [
+        "game.score"
+      ],
+      "requires": [
+        "game.params"
+      ],
       "owner": true,
       "system_parent": "scoring",
       "address": "05_SYSTEMS/scoring/",
-      "genre_refs": ["genre.tetris.superlinear_multi_clear_reward"],
+      "genre_refs": [
+        "genre.tetris.superlinear_multi_clear_reward"
+      ],
       "observable_by_player": true,
       "observable_proof": null,
       "observable_note": "Le score monte a l'ecran ; l'ampleur du saut est ce qui recompense le quadruple.",
-      "expected_proof": { "kind": "test", "statement": null },
+      "expected_proof": {
+        "kind": "test",
+        "statement": null
+      },
       "reused_from": null,
       "reused_from_note": null,
-      "state": "REQUIRED",
+      "state": "IMPLEMENTED",
       "reason": null,
-      "fichiers": [{ "path": "05_SYSTEMS/scoring/scoring.gd", "category": "system" }],
+      "fichiers": [
+        {
+          "path": "05_SYSTEMS/scoring/scoring.gd",
+          "category": "system"
+        }
+      ],
       "fonction": "Convertit un nombre de lignes simultanees en points. Ne connait pas la grille.",
-      "preuve": ""
+      "preuve": "test_scoring.gd (bareme superlineaire, paliers stricts). Mutation scoring.gd 4/4.",
+      "statut": "IMPLEMENTED"
     },
     {
       "id": "core.input_rules",
@@ -253,27 +394,42 @@
       "reference": "genre.tetris.player_controls_active_piece_only — le joueur n'agit que sur la piece active.",
       "charter_tags": [],
       "category": "system",
-      "provides": ["game.input"],
-      "requires": ["game.collision"],
+      "provides": [
+        "game.input"
+      ],
+      "requires": [
+        "game.collision"
+      ],
       "owner": true,
       "system_parent": "input_rules",
       "address": "05_SYSTEMS/input_rules/",
-      "genre_refs": ["genre.tetris.player_controls_active_piece_only"],
+      "genre_refs": [
+        "genre.tetris.player_controls_active_piece_only"
+      ],
       "observable_by_player": true,
       "observable_proof": null,
       "observable_note": "Chaque entree produit un effet immediat et sans ambiguite, ou un refus visible.",
-      "expected_proof": { "kind": "test", "statement": null },
+      "expected_proof": {
+        "kind": "test",
+        "statement": null
+      },
       "reused_from": {
         "type": "CONCEPT",
         "source": "games/breakout_v2/05_SYSTEMS/input_rules/input.gd",
         "copy_sha256": null
       },
       "reused_from_note": "CONCEPT : Breakout traduit une entree en deplacement continu borne, Tetris en intention discrete sur la piece active. Ce qui se reutilise est la separation « traduire l'intention » / « l'appliquer ».",
-      "state": "REQUIRED",
+      "state": "IMPLEMENTED",
       "reason": null,
-      "fichiers": [{ "path": "05_SYSTEMS/input_rules/input.gd", "category": "system" }],
+      "fichiers": [
+        {
+          "path": "05_SYSTEMS/input_rules/input.gd",
+          "category": "system"
+        }
+      ],
       "fonction": "Traduit une entree brute en intention legale. N'applique rien lui-meme.",
-      "preuve": ""
+      "preuve": "test_input.gd R6 (chaque intention, pile intacte). Mutation input.gd 15/15.",
+      "statut": "IMPLEMENTED"
     },
     {
       "id": "core.game_loop",
@@ -282,8 +438,18 @@
       "reference": "scripts/forge/standard/core_requirements.yaml -> boucle de jeu. Ordonne les systemes sur un tick.",
       "charter_tags": [],
       "category": "system",
-      "provides": ["game.loop"],
-      "requires": ["game.state", "game.gravity", "game.lock", "game.line_clear", "game.score", "game.input", "game.piece_source"],
+      "provides": [
+        "game.loop"
+      ],
+      "requires": [
+        "game.state",
+        "game.gravity",
+        "game.lock",
+        "game.line_clear",
+        "game.score",
+        "game.input",
+        "game.piece_source"
+      ],
       "owner": true,
       "system_parent": "game_loop",
       "address": "05_SYSTEMS/game_loop/",
@@ -291,18 +457,27 @@
       "observable_by_player": false,
       "observable_proof": null,
       "observable_note": "La boucle n'est jamais vue directement ; elle est l'ordre dans lequel tout le reste se voit.",
-      "expected_proof": { "kind": "test", "statement": null },
+      "expected_proof": {
+        "kind": "test",
+        "statement": null
+      },
       "reused_from": {
         "type": "CONCEPT",
         "source": "games/breakout_v2/05_SYSTEMS/game_loop/loop.gd",
         "copy_sha256": null
       },
       "reused_from_note": "CONCEPT : le pas de temps de Breakout est continu, celui de Tetris est un tick discret dont la periode varie avec le niveau. Ce qui se reutilise est la regle « la boucle ordonne, elle n'implemente aucune regle ».",
-      "state": "REQUIRED",
+      "state": "IMPLEMENTED",
       "reason": null,
-      "fichiers": [{ "path": "05_SYSTEMS/game_loop/loop.gd", "category": "system" }],
+      "fichiers": [
+        {
+          "path": "05_SYSTEMS/game_loop/loop.gd",
+          "category": "system"
+        }
+      ],
       "fonction": "Ordonne les systemes sur un tick. N'implemente aucune regle.",
-      "preuve": ""
+      "preuve": "test_game_loop.gd (tick +1 strict, gravite auto a GRAVITY_PERIOD borne >=, verrou/clear/score). Mutation loop.gd 6/6.",
+      "statut": "IMPLEMENTED"
     },
     {
       "id": "debug.observation_point",
@@ -311,8 +486,12 @@
       "reference": "scripts/forge/standard/core_requirements.yaml -> point d'observation, consomme par l'oracle produit.",
       "charter_tags": [],
       "category": "system",
-      "provides": ["game.debug_state"],
-      "requires": ["game.state"],
+      "provides": [
+        "game.debug_state"
+      ],
+      "requires": [
+        "game.state"
+      ],
       "owner": true,
       "system_parent": "debug_state",
       "address": "05_SYSTEMS/debug_state/",
@@ -320,18 +499,27 @@
       "observable_by_player": false,
       "observable_proof": null,
       "observable_note": "Point d'observation de l'oracle, jamais du joueur.",
-      "expected_proof": { "kind": "static_oracle", "statement": null },
+      "expected_proof": {
+        "kind": "static_oracle",
+        "statement": null
+      },
       "reused_from": {
         "type": "CONCEPT",
         "source": "games/breakout_v2/05_SYSTEMS/debug_state/debug_state.gd",
         "copy_sha256": null
       },
       "reused_from_note": "CONCEPT : la forme d'un point d'observation lisible par l'oracle se reutilise ; son contenu est propre a Tetris (grille, piece active, statut).",
-      "state": "REQUIRED",
+      "state": "IMPLEMENTED",
       "reason": null,
-      "fichiers": [{ "path": "05_SYSTEMS/debug_state/debug_state.gd", "category": "system" }],
+      "fichiers": [
+        {
+          "path": "05_SYSTEMS/debug_state/debug_state.gd",
+          "category": "system"
+        }
+      ],
       "fonction": "Expose l'etat sous forme lisible par l'oracle. Aucun effet de bord.",
-      "preuve": ""
+      "preuve": "test_debug_state.gd (instantane fidele, copie profonde sans effet de bord). Mutation debug_state.gd 0 mutant.",
+      "statut": "IMPLEMENTED"
     }
   ],
   "discarded": [],
@@ -340,5 +528,11 @@
     "charter_tags vides : le charter narratif (criteres de succes) n'existe pas encore, il est produit par s0-contrat.",
     "Les 4 decisions ouvertes de la Genre Bible §3 (wall kick, reserve, apercu, fin haute) ne sont PAS tranchees ici — rotation_rules et game_state changeront selon l'arbitrage de Pierre.",
     "La solvabilite reste a definir : Tetris n'a pas d'etat gagne, donc « un bot gagne » ne peut pas etre le critere."
-  ]
+  ],
+  "build_constat": {
+    "run_id": "tetris-fullgodot-20260803-084719",
+    "oracle_headless": "godot --headless --path games/tetris --script res://tests/run_tests.gd -> exit 0, 176/176 assertions (== EXPECTED_ASSERTS).",
+    "oracle_produit_R9": "node scripts/forge/godot_oracle.mjs games/tetris -> ALL CHECKS PASSED (run_tests + solvabilite 50/50).",
+    "mutation_brut": "scripts/forge/mutation.py sur les 12 fichiers systeme : total=45, tues=45, survivants=0 (100%). 4 fichiers a 0 mutant (aucun operateur mutable)."
+  }
 }

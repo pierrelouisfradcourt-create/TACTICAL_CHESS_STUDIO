@@ -1,0 +1,173 @@
+I now have every anchor locked. Confirmed facts:
+
+- **`src_root = games/tetris`** (driver.py:188 — "par défaut games/`<project>`"). So the oracle sees a file's module as its **first path segment** under `games/tetris` → the numbered folders `05_SYSTEMS`, `06_RUNTIME`, `07_TESTS` are the source-module granularity; sub-folder names (`presentation`, `input_adapter`) and root files (`solvability`) are matchable only as **import targets** via `.gd` `preload/load()` path segments.
+- **The materializer runs `_validate_blueprint` on my JSON before writing** (run_real.py:607): `modules` = non-empty list of non-empty str; `deps_interdites` = mandatory, non-empty, list of `[str,str]` pairs. A pair fires in `check_architecture` only if **both** endpoints are in `modules`.
+- **`check_architecture` is the designated deterministic non-LLM oracle** — but it runs downstream at s10b against real code, which doesn't exist yet (`games/tetris` holds only `.gitkeep`). I cannot execute it now (`run: aucun`).
+- Snake is the working precedent (same standard topology, no blueprint.json) — the tetris skeleton already carries the exact `05_SYSTEMS/*` subsystem folders I'll map to.
+
+Here is the blueprint.
+
+---
+
+# blueprint — `tetris` (s4-archi)
+
+**Run:** `tetris-fullgodot-20260803-084719` · `FORGE_DISPATCH:s4-archi:tetris-fullgodot-20260803-084719`
+**Racine du code:** `games/tetris/` (= `src_root` confirmé driver.py:188) · **Topologie:** STANDARD Godot (repo_map.yaml, identique à `games/snake`) · **Livrable:** blueprint (prose + bloc JSON final ; aucun fichier écrit — l'exécuteur matérialise `blueprint.json`).
+
+L'architecture n'est **pas inventée** : elle épouse la table figée `scripts/forge/standard/repo_map.yaml` et le squelette déjà matérialisé de `games/tetris/`. Le découpage par responsabilité **est** la séparation `05_SYSTEMS` (logique pure, scène-indépendante, testable headless) ↔ `06_RUNTIME` (adapters : rendu, input, boucle, persistance) — c'est le fondement mécanique des règles R1–R9 (headless) vs D1–D6 (capture GPU) de la featuremap.
+
+---
+
+## 1 — Modules et responsabilités (chaque feuille s3 → ≥1 module)
+
+### Couche LOGIQUE — `05_SYSTEMS/` (GDScript pur, sans nœud de scène, prouvé par R1–R9 headless)
+
+| Sous-module | Responsabilité (une seule) | Feuilles featuremap couvertes |
+|---|---|---|
+| `piece_bag/` | Générateur sac-de-7 + file d'aperçu (état de la file `next`) | `gen.bag7` (R1), `preview.next1` (source de vérité) |
+| `gravity/` | Descente discrète 1 case/tick + soft-drop (périmètre pièce active) | `grav.discrete` (R2), `grav.softdrop` (R6/G-1) |
+| `rotation_rules/` | Rotation contrainte, refus sur collision, V1 sans wall-kick | `ctrl.rotate` (R5) |
+| `input_rules/` | Sémantique des **intentions** (translate/rotate/soft-drop légales) — lit des intents, **jamais** le clavier | `ctrl.translate` (R6/G-2) |
+| `collision/` | Prédicat de collision pièce↔pile↔murs (service partagé, sans état) | support de `translate`/`rotate`/`lock` |
+| `lock_rules/` | Verrouillage d'une pièce qui ne descend plus + immuabilité | `stack.lock` (R3), `stack.immutable` (R3/R6) |
+| `line_clear/` | Détection rangée pleine + compactage **strict** (descente == N) | `clear.detect`, `clear.compact` (R4) |
+| `scoring/` | Compteur de lignes (linéaire V1, pas de courbe superlinéaire) | `score.line_counter` (D5/G-3) |
+| `game_state/` | Machine d'état : défaite par blocage, invariant `no_victory` | `state.loss_by_blocking` (R7), `state.no_victory` (R8) |
+| `game_loop/` | Séquenceur de tick pur (spawn→gravité→lock→clear→state), orchestration des sous-systèmes | ordre canonique de la partie |
+| `params/` | Constantes gelées : puits 10×20, tick rate, seuils (nommées, pas de magic number) | grille, cadence |
+| `debug_state/` | Snapshot d'état pur (TCS_DEBUG-like) pour observabilité des oracles | support preuve headless |
+
+### Couche RUNTIME — `06_RUNTIME/adapters/` (nœuds Godot, rendu/input/boucle ; prouvé par D1–D6 capture GPU)
+
+| Sous-module | Responsabilité | Feuilles couvertes |
+|---|---|---|
+| `presentation/` | **Rendu** : puits, pièce active qui tombe, aperçu, compteur, écran game-over | `render.playfield/active_fall/move/clear/counter/gameover` (D1–D6) |
+| `input_adapter/` | **Input physique** : clavier → intents (pousse vers `input_rules`) | pont D2 → `ctrl.translate` |
+| `runtime_loop/` | Boot / scène / exit : pilote les ticks du `game_loop`, câble la fenêtre GPU vulkan | `deliv.launch_playthrough` (R9) |
+| `solvability_bot/` | Politique de bot scripté qui **survit ≥ N pièces & nettoie ≥ 1 ligne** (jamais « gagne ») | `solv.bot_survives` (R8) |
+| `proof_harness/` | Adapter d'exécution des oracles (evidence manifest) | ancrage preuve |
+| `debug_probe/` | Exposition runtime du `debug_state` pour la capture | support D-layer |
+
+### Couche PREUVE — `07_TESTS/` · Racine moteur
+
+| Module | Responsabilité |
+|---|---|
+| `07_TESTS/oracle/` | Oracles déterministes (core_boot, render_frame, mutation_invariants, replay_determinism, solvability wiring) |
+| `07_TESTS/unit/` | Tests unitaires purs des sous-systèmes 05_SYSTEMS (R1–R8, assertions **strictes**, jamais `>=`) |
+| `solvability.gd` (racine) | Entrée de solvabilité chargée par l'oracle Godot (descripteur `proof.solvability`, cf. snake) |
+| `main.tscn`, `project.godot` (racine) | Point d'entrée moteur — invariant de lançabilité (R9) |
+| `tests/run_tests.gd` (racine) | Runner de tests chargé par `godot_oracle.mjs` (`res://tests/run_tests.gd`) |
+
+**Chaque feuille de la s3-featuremap (20/20) est mappée à ≥ 1 module** — critère de réussite satisfait par construction (tableau ci-dessus + mapping render).
+
+---
+
+## 2 — Graphe de dépendances
+
+### Autorisées (DAG, une seule direction)
+```
+07_TESTS ─────────────▶ 05_SYSTEMS   (tests exercent la logique pure)
+07_TESTS ─────────────▶ 06_RUNTIME   (tests exercent les adapters)   [exempts d'oracle: _is_test_file]
+06_RUNTIME ───────────▶ 05_SYSTEMS   (les adapters PILOTENT la logique : rendu lit l'état, input pousse des intents)
+solvability (racine) ─▶ 05_SYSTEMS   (le bot exerce la LOGIQUE headless)
+runtime_loop ─────────▶ game_loop    (la boucle runtime tick la logique)
+input_adapter ────────▶ input_rules  (clavier → intent → validation pure)
+presentation ─────────▶ game_state / piece_bag / scoring  (rendu = lecture seule de l'état)
+```
+`05_SYSTEMS` n'a **aucune** dépendance sortante hors de lui-même : la logique est le cœur pur. Le graphe est **acyclique** (aucune arête retour).
+
+### Interdites (déclarées explicitement — le cœur du garde-fou)
+
+| # | Arête interdite | Justification architecturale |
+|---|---|---|
+| 1 | `05_SYSTEMS → 06_RUNTIME` | **La logique ne connaît jamais la couche runtime.** Superset qui attrape rendu + input + persistance. Sans lui, R1–R9 ne seraient plus testables headless. |
+| 2 | `05_SYSTEMS → presentation` | **logique → rendu INTERDIT** (mandat explicite). La logique ne dessine rien ; le rendu lit l'état, jamais l'inverse. Tue le god-object « système qui s'affiche ». |
+| 3 | `05_SYSTEMS → input_adapter` | **logique → input INTERDIT** (mandat explicite). La logique lit des **intents** (`input_rules`), jamais le clavier physique. C'est ce qui rend R6 prouvable sans périphérique. |
+| 4 | `05_SYSTEMS → 07_TESTS` | Le code de production ne dépend jamais du code de test (sinon inversion de la preuve). |
+| 5 | `06_RUNTIME → 07_TESTS` | Un adapter runtime ne dépend jamais des tests. |
+| 6 | `solvability → presentation` | Le bot de solvabilité prouve la **jouabilité de la logique** en headless — il ne doit pas dépendre du rendu (sinon la preuve de solvabilité devient une preuve d'affichage). |
+| 7 | `solvability → input_adapter` | Le bot **génère ses propres coups** ; dépendre de l'input humain invaliderait la preuve « un bot joue seul ». |
+
+> **Note d'honnêteté sur la granularité de l'oracle** : `check_architecture` voit un fichier-source par son **premier segment** sous `games/tetris` (`_module_of`). Les arêtes #2/#3/#6/#7 utilisent des noms de **sous-dossier/fichier** (`presentation`, `input_adapter`, `solvability`) qui ne matchent que côté **cible d'import** (segments de chemin `preload/load`). Elles sont donc mécaniquement vérifiables sur la cible, avec la source au grain top-level. Les deux endpoints de chaque paire figurent dans `modules` (condition nécessaire pour que l'intersection `imported & modules` laisse l'arête se déclencher).
+
+> **Limite assumée (non masquée)** : les dépendances **intra-`05_SYSTEMS`** (ex. « `piece_bag` ne doit pas importer `line_clear` ») ne sont **pas** exprimables comme arêtes interdites avec cet oracle (tout fichier de 05_SYSTEMS a `src_mod == 05_SYSTEMS`, donc une paire `["05_SYSTEMS","line_clear"]` frapperait aussi les imports légitimes). Elles sont déclarées comme **invariants d'architecture** ci-dessous, pas comme oracle — c'est un fait de conception, remonté honnêtement, pas un oubli. → **fog G-A** (voir §6).
+
+---
+
+## 3 — Ownership (module → agent, couche prose du blueprint)
+
+| Module | Propriétaire (capability_role) |
+|---|---|
+| `05_SYSTEMS/*` (logique pure) | builder logique (GDScript pur, TDD, oracle = tests unitaires stricts) |
+| `06_RUNTIME/adapters/presentation` | builder rendu (capture GPU vulkan, D1–D6) |
+| `06_RUNTIME/adapters/{input_adapter,runtime_loop}` | builder runtime (boot/scène/input) |
+| `06_RUNTIME/adapters/solvability_bot` + `solvability.gd` | builder solvabilité (bot scripté, R8) |
+| `07_TESTS/*` + `tests/run_tests.gd` | zone d'oracle (assertions strictes, jamais `>=`) |
+
+*(L'ownership est porté par la prose ; le bloc JSON final ne transporte que `modules` + `deps_interdites` comme l'exige la tâche — `ownership` reste optionnel côté `_validate_blueprint`.)*
+
+---
+
+## 4 — Invariants d'architecture (déclarés ; certains hors-portée de l'oracle actuel → fog)
+
+1. **INV-1 — Pureté de `05_SYSTEMS`** : aucun `preload/load` d'un nœud de scène, du rendu, de l'input physique, ni de la couche test. *(mécaniquement couvert par deps #1–#4)*
+2. **INV-2 — Le rendu est en lecture seule** : `presentation` lit l'état, ne le mute jamais. *(hors-portée oracle → fog G-B)*
+3. **INV-3 — La logique lit des intents, pas des touches** : frontière `input_adapter → input_rules` à sens unique. *(cible couverte par dep #3 ; le sens de l'intent est un invariant → fog G-B)*
+4. **INV-4 — Solvabilité headless** : le bot exerce la logique sans rendu ni input humain. *(mécaniquement couvert par deps #6–#7)*
+5. **INV-5 — Acyclicité** : `07_TESTS → 06_RUNTIME → 05_SYSTEMS`, `solvability → 05_SYSTEMS` ; aucune arête retour. *(vérifiable par inspection du graphe ci-dessus)*
+6. **INV-6 — Un sous-système = une responsabilité** : pas d'import croisé arbitraire intra-`05_SYSTEMS` ; le `game_loop` est le seul orchestrateur (il importe les autres, eux ne l'importent pas). *(hors-portée oracle → fog G-A)*
+
+---
+
+## 5 — Écarts featuremap ↔ blueprint
+
+- **Aucun écart de couverture** : les 20 feuilles s3 sont toutes logées (§1). Aucune feuille orpheline, aucun module sans feuille.
+- **Précision apportée (pas un écart)** : la featuremap `ctrl.translate` mélange *intention* et *déplacement physique* ; le blueprint les **sépare** en `input_rules` (05_SYSTEMS, pur) et `input_adapter` (06_RUNTIME, clavier). C'est la réponse architecturale au mandat « logique→input interdit » et au garde-fou anti-god-object.
+- **Les fogs s3 (G-1…G-6) ne sont pas résolus ici** : ce sont des trous d'**oracle de comportement** (soft-drop, correspondance aperçu, incrément strict…), pas d'architecture. Le blueprint les **loge** dans les bons modules ; leur renforcement en oracle reste une décision s5/s9/Pierre.
+
+---
+
+## RAPPORT FINAL
+
+**Ancres citées :** `scripts/forge/static_oracles.py::check_architecture` (oracle archi déterministe non-LLM, la cible de mon livrable) · `scripts/forge/run_real.py::_validate_blueprint` (schéma exact, exécuté par le matérialiseur AVANT écriture) · `scripts/forge/standard/repo_map.yaml` (table figée des dossiers) · `driver.py:188` (`src_root = games/tetris`) · squelette réel `games/tetris/` + précédent `games/snake/` · featuremap s3 (`artifacts/s3-decompo.txt`, 20 feuilles).
+
+- **software_verdict : OK** — **restreint à la bonne-formation du livrable**. Mon bloc JSON conforme au schéma **exact** lu (statiquement) de `_validate_blueprint` : `modules` = liste non vide de str non vides ; `deps_interdites` = 7 paires `[str,str]` non vide ; chaque endpoint de chaque paire ∈ `modules` (condition de déclenchement de `check_architecture`). Il n'est **pas** vacuement vert (≥1 paire, prouvé par la règle R3 du validateur). Ceci est appuyé par la **lecture** du code du validateur, pas par son exécution (je n'ai pas de `run`).
+- **evidence_verdict : MECHANICAL_VALIDATION_ONLY** — la conformité de forme est adossée à un validateur mécanique déterministe (`_validate_blueprint`) que le matérialiseur **exécutera** ; s'il est mal formé, il rejette avec raison précise et n'écrit rien (pas de faux-vert possible).
+- **claim_verdict : NO_CLAIM_ALLOWED** — je **ne certifie pas** que « l'architecture est correcte » : `check_architecture` ne peut s'exécuter qu'à **s10b**, sur du code qui **n'existe pas encore** (`games/tetris` = `.gitkeep`). La preuve que les imports réels respectent les 7 arêtes interdites est **downstream**, hors de ma portée (`run: aucun`). Les invariants INV-2/3/6 (sens de l'intent, lecture-seule du rendu, discipline intra-05) sont **hors-portée de l'oracle actuel** → remontés en fog, jamais claimés.
+
+**Oracle archi utilisé :** `check_architecture` (cité comme cible ; **non exécuté** à s4 — exécution downstream s10b). Validateur de forme `_validate_blueprint` : **cité et lu**, exécuté par le matérialiseur.
+**Cycle de dépendances :** **aucun** (graphe DAG §2, INV-5).
+**deps_interdites listées explicitement :** **oui**, 7 arêtes (dont les 2 imposées logique→rendu et logique→input).
+
+**fog → HumanGate :**
+- **G-A** — dépendances **intra-`05_SYSTEMS`** non exprimables par `check_architecture` (grain top-level côté source). Déclarées invariant INV-6. Décision : accepter l'invariant en prose, ou outiller un oracle intra-module en s9 ?
+- **G-B** — invariants **sémantiques** (rendu lecture-seule INV-2, sens de l'intent INV-3) : un oracle de graphe prouve la *présence/absence d'arête*, pas la *direction du flux de données*. Non oraclables en l'état.
+
+### SKIPPED_VALIDATION
+- **Exécution de `check_architecture`** — *où :* tout le blueprint / `games/tetris` — *statut :* **non fait (impossible à s4)** — *raison :* `run: aucun` **et** le code n'existe pas encore (squelette `.gitkeep`) ; l'oracle s'exécute à s10b sur le code réel. Substitut : conception adossée au schéma du validateur + à la table repo_map.
+- **Exécution de `_validate_blueprint`** — *où :* mon bloc JSON — *statut :* **partiel (lu, non exécuté)** — *raison :* `run: aucun` ; conformité argumentée par lecture du code du validateur. Le matérialiseur l'exécute réellement avant d'écrire `blueprint.json`.
+- **Écriture de `blueprint.json`** — *où :* livrable — *statut :* non fait (assumé) — *raison :* tâche « tu n'écris AUCUN fichier : l'exécuteur matérialise `blueprint.json` depuis le bloc JSON ».
+- **Preuve des invariants sémantiques INV-2/INV-3/INV-6** — *où :* rendu / input / intra-05_SYSTEMS — *statut :* non fait (hors-portée oracle) — *raison :* un oracle de graphe de dépendances ne juge pas la direction du flux ni les arêtes intra-module → fog G-A/G-B, décision Pierre/s9.
+- **Lecture de `knowledge_packet.json`** — *où :* `mandatory_read` — *statut :* non fait (fichier absent) — *raison :* absent de `lab/forge_runs/tetris/` ; **ADVISORY jamais prescriptif** par contrat → non-bloquant, assumé.
+
+```json
+{
+  "modules": [
+    "05_SYSTEMS",
+    "06_RUNTIME",
+    "07_TESTS",
+    "presentation",
+    "input_adapter",
+    "solvability"
+  ],
+  "deps_interdites": [
+    ["05_SYSTEMS", "06_RUNTIME"],
+    ["05_SYSTEMS", "presentation"],
+    ["05_SYSTEMS", "input_adapter"],
+    ["05_SYSTEMS", "07_TESTS"],
+    ["06_RUNTIME", "07_TESTS"],
+    ["solvability", "presentation"],
+    ["solvability", "input_adapter"]
+  ]
+}
+```

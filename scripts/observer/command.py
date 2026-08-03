@@ -525,15 +525,32 @@ def view_docloop(ctx: Any, result: dict[str, Any], events: list[dict[str, Any]])
         destination = _extract_destination(statement, obj)
         consumer = consumers.get(lid)
         if consumer:
-            statut = _cell(
-                "CONSOMME — trace mecanique dans search_log.jsonl",
-                consumer["source"],
-            )
-            consommateur_cell = _cell(
-                f"query={consumer['query']!r} matchCount={consumer['matchCount']} "
-                f"ts={consumer['ts']}",
-                consumer["source"],
-            )
+            # Deux canaux (cf. _find_mechanical_consumer), deux FORMES de dict :
+            # `search_log` porte query/matchCount/ts ; `artefact_execution` porte
+            # citation. Rendre l'un avec les clés de l'autre lève un KeyError — c'est
+            # ce qui est arrivé au run `tetris-fullgodot-20260803-084719`, premier run
+            # a declencher le canal nº2 (les 5 lecons Breakout venaient d'etre promues
+            # le matin meme, donc citees dans des artefacts). On branche sur le canal
+            # declare, jamais sur un .get() permissif qui masquerait la provenance.
+            if consumer.get("canal") == "artefact_execution":
+                statut = _cell(
+                    "CONSOMME — citation dans un artefact d'execution",
+                    consumer["source"],
+                )
+                consommateur_cell = _cell(
+                    str(consumer.get("citation") or NOT_OBSERVABLE),
+                    consumer["source"],
+                )
+            else:
+                statut = _cell(
+                    "CONSOMME — trace mecanique dans search_log.jsonl",
+                    consumer["source"],
+                )
+                consommateur_cell = _cell(
+                    f"query={consumer['query']!r} matchCount={consumer['matchCount']} "
+                    f"ts={consumer['ts']}",
+                    consumer["source"],
+                )
         else:
             statut = _cell("PROPOSE — aucun consommateur mecanique")
             consommateur_cell = _cell(
