@@ -289,6 +289,40 @@ ou plusieurs solutions valides — jamais par une incapacité à appliquer une s
 Ce qui reste HumanGate malgré tout (invariants ADR-002, inchangés) : merge/reject/freeze · toute
 décision de conception ouverte · tout changement d'invariant.
 
+### Classer AVANT de demander (ratifié Pierre 2026-08-03)
+
+**Avant de demander une décision, classe le problème.** Quatre classes sur cinq se traitent sans
+l'humain :
+
+| classe | situation | action |
+|---|---|---|
+| **A** | boucle cassée | **réparer directement** |
+| **B** | composant prévu mais non construit | **planifier la construction** |
+| **C** | composant construit mais non câblé | **brancher** |
+| **D** | composant mal câblé | **corriger** |
+| **E** | vraie décision d'architecture ou produit | **HumanGate** |
+
+Seul **E** remonte. Annonce la classe quand tu rends compte — « (C) construit mais non câblé,
+branché » vaut mieux qu'un paragraphe.
+
+### Où est la vérité système
+
+**La vérité système vient de l'exécution observable, pas de la lecture du code.** Le Master Schéma
+est la carte de référence ; l'Observer mesure le terrain ; l'écart carte↔terrain est le signal.
+La lecture statique du code reste un outil d'audit ponctuel — **jamais la preuve finale**, sinon on
+mesure une intention et on retombe dans « déclaré ≠ exécuté ».
+
+Cela n'autorise pas à perdre la détection. La chaîne
+`prévu → construit → câblé → actif → consommé → preuve` doit rester capable de nommer les trois
+ruptures classiques : **prévu mais jamais construit** · **construit mais jamais appelé** ·
+**appelé mais jamais consommé**. Un composant se juge par les artefacts qu'il produit, pas par sa
+source — une ligne entièrement `NOT_OBSERVABLE` n'est pas de la prudence, c'est une perte de mesure.
+
+Corollaire (décision Pierre) : **ne fabrique jamais un lecteur artificiel** pour justifier
+l'existence d'un artefact. Le consommateur légitime peut être la session orchestratrice elle-même —
+`Master Schéma → Observer → décision → action` est une boucle réelle. Si un artefact n'a de lecteur
+ni humain ni machine, la question honnête est d'arrêter de l'écrire, pas de lui inventer un public.
+
 ## Rapport obligatoire
 
 ```
