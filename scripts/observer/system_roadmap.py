@@ -628,12 +628,18 @@ def _build_infra_section(docs: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Section 4 — CABLAGE 6 AXES (decision Pierre FORGE_AUTONOMY_V2 n°3)
+# Section 4 — CABLAGE 7 AXES (decision Pierre FORGE_AUTONOMY_V2 n°3, axe
+# `bloque` ajoute le 2026-08-03 — cf. correction ci-dessous)
 #
 # Confronte, pour chaque connecteur nomme par la doctrine (Detail K « Nomenclature
 # C (flux memoire) » + case POOL DE BUILDERS), l'ARCHITECTURE ATTENDUE a la
-# REALITE MESUREE sur 6 axes : `construit` / `cable` / `actif` / `consomme` /
-# `preuve_disponible`, plus le drapeau `humangate_en_attente`. Etend le meme
+# REALITE MESUREE sur 7 axes : `prevu` / `construit` / `cable` / `actif` /
+# `bloque` / `consomme` / `preuve_disponible`, plus le drapeau
+# `humangate_en_attente`. `bloque` distingue explicitement une capacite
+# BLOQUEE (appelee, predicat de depot connu et non rempli, raison portee) d'une
+# capacite simplement absente ou jamais appelee — cf. `CONNECTOR_PROBES`
+# ci-dessous : c'est le correctif du faux negatif `propose_brick` cable=NON
+# (mission de reparation 2026-08-03, Pierre). Etend le meme
 # mecanisme de drift que la section 1 (jeux) et 2 (chantiers Forge) ci-dessus —
 # meme `_cell`, meme `_drift`, meme fusion dans `result["drift"]` par
 # `views.py`. Aucun nouveau format de sortie, aucun nouveau pipeline.
@@ -843,13 +849,231 @@ def _humangate_en_attente(ctx: Any, nom: str) -> dict[str, Any]:
     return _cell("NON")
 
 
+# --------------------------------------------------------------------------- #
+# Axe BLOQUE (decision Pierre 2026-08-03) — un connecteur "writer" dont le CODE
+# vit hors des racines lisibles d'Observer (scripts/forge/*.py) peut neanmoins
+# etre juge APPELE (le pas driver qui le contient a tourne, cf. `state.json`)
+# et son PREDICAT DE DEPOT peut etre mesure depuis des artefacts d'EXECUTION
+# deja lisibles (verdict.json signe, wiremap fige du run) — jamais en lisant le
+# code. Distingue 4 situations au lieu d'ecraser tout en NON/NOT_OBSERVABLE :
+#
+#   JAMAIS_APPELE       — le pas driver qui contient l'appel n'a pas ete
+#                          atteint (absent de state.json) OU un retour anticipe
+#                          DOCUMENTE precede l'appel dans ce meme pas.
+#   BLOQUE              — le pas a ete atteint ET l'appel a bien ete traverse,
+#                          mais son PREDICAT DE DEPOT (condition connue et
+#                          documentee dans driver.py) n'est pas rempli — la
+#                          raison est portee, jamais une supposition.
+#   PREDICAT_SATISFAIT  — le predicat est rempli : un artefact est attendu. Si
+#                          `_search_filename`/le chemin exact ne le trouve pas
+#                          malgre tout, c'est alors APPELE_SANS_SORTIE (cf.
+#                          `_six_axes_artefact`), pas BLOQUE.
+#
+# Piege evite : NE JAMAIS confondre "aucun artefact trouve" avec "jamais
+# appele" — c'est exactement le faux negatif corrige ici (propose_brick,
+# cf. driver.py:1984 `self._propose_bricks(record)` + driver.py:2023-2026
+# `if code_status != "OK": return`).
+# --------------------------------------------------------------------------- #
+
+ETAT_JAMAIS_APPELE = "JAMAIS_APPELE"
+ETAT_BLOQUE = "BLOQUE"
+ETAT_PREDICAT_SATISFAIT = "PREDICAT_SATISFAIT"
+
+
+def _read_run_state(ctx: Any) -> Optional[dict[str, Any]]:
+    """`lab/forge_runs/<project>/state.json` — deja dans les racines lisibles
+    d'Observer (`run_dir`), aucune racine nouvelle."""
+    return ctx.read_json(ctx.run_dir / "state.json")
+
+
+def _read_run_verdict(ctx: Any) -> Optional[dict[str, Any]]:
+    """`lab/forge_runs/<project>/verdict.json` — le reçu SIGNÉ (deja dans
+    `run_dir`), pas le code qui l'a produit. Porte `oracles.code.status`,
+    authentique par construction (ecrit par `_run_verdict` puis re-verifie par
+    `verify_run` AVANT l'appel a `propose_brick` — cf. driver.py:1943-1991)."""
+    return ctx.read_json(ctx.run_dir / "verdict.json")
+
+
+def _read_run_wiremap(ctx: Any) -> Optional[dict[str, Any]]:
+    """Wiremap du run — prefere l'instantane fige sous `run_dir` (ecrit par le
+    meme pas qui appelle `propose_bible_entry`), replie sur la copie vivante
+    sous `games/<project>/09_WIREMAP/` (deja dans `allowed_roots`, cf.
+    `ctx.game_dir`) si l'instantane n'existe pas."""
+    doc = ctx.read_json(ctx.run_dir / "wiremap.json")
+    if isinstance(doc, dict):
+        return doc
+    return ctx.read_json(ctx.game_dir / "09_WIREMAP" / "wiremap.json")
+
+
+def _probe_propose_brick(ctx: Any) -> dict[str, Any]:
+    """Etat d'execution de `studio_link.propose_brick`, appele par
+    `driver.py._propose_bricks` UNIQUEMENT depuis `_run_verdict`, apres
+    l'ecriture + re-verification (`verify_run`) du verdict signe (driver.py
+    l.1943-1991) — le pas `s12-verdict` ne finit `status="OK"` qu'APRES cet
+    appel (un `verify_run` bloquant renvoie `BLOCKED` et sort AVANT l'appel,
+    driver.py l.1978-1984). PREDICAT DE DEPOT (driver.py l.2023-2026) :
+    `record["oracles"]["code"]["status"] == "OK"`."""
+    state = _read_run_state(ctx)
+    steps = (state or {}).get("steps") if isinstance(state, dict) else None
+    step = steps.get("s12-verdict") if isinstance(steps, dict) else None
+    state_src = {"path": ctx.rel(ctx.run_dir / "state.json"), "field": "steps.s12-verdict"}
+
+    if not isinstance(step, dict) or "status" not in step:
+        return {
+            "etat": ETAT_JAMAIS_APPELE,
+            "raison": "aucune entree 's12-verdict' dans state.json de ce run — "
+                      "le pas qui contient l'appel n'a jamais tourne",
+            "src": state_src,
+        }
+
+    status = step.get("status")
+    if status != "OK":
+        detail = step.get("detail") if isinstance(step.get("detail"), dict) else {}
+        motif = detail.get("reason")
+        return {
+            "etat": ETAT_JAMAIS_APPELE,
+            "raison": (
+                f"pas 's12-verdict' termine status={status!r} : le seul chemin de "
+                "driver.py._run_verdict qui appelle propose_brick est celui qui "
+                "finit status=='OK' (un verify_run bloquant renvoie BLOCKED et "
+                "retourne AVANT l'appel, driver.py l.1978-1984)"
+                + (f" ; motif du pas : {motif}" if motif else "")
+            ),
+            "src": state_src,
+        }
+
+    verdict = _read_run_verdict(ctx)
+    verdict_src = {"path": ctx.rel(ctx.run_dir / "verdict.json"), "field": "oracles.code.status"}
+    if not isinstance(verdict, dict):
+        return {
+            "etat": NOT_OBSERVABLE,
+            "raison": "pas 's12-verdict' status=='OK' (l'appel a donc eu lieu) mais "
+                      "verdict.json est illisible ou absent — predicat de depot non "
+                      "mesurable depuis ce fichier",
+            "src": state_src,
+        }
+    code_status = ((verdict.get("oracles") or {}).get("code") or {}).get("status")
+    if code_status != "OK":
+        return {
+            "etat": ETAT_BLOQUE,
+            "raison": (
+                f"predicat de depot (driver.py._propose_bricks, l.2024-2026) exige "
+                f"oracles.code.status=='OK' ; mesure sur ce run = {code_status!r}"
+            ),
+            "src": verdict_src,
+        }
+    return {
+        "etat": ETAT_PREDICAT_SATISFAIT,
+        "raison": f"oracles.code.status=='OK' mesure sur ce run : le predicat de depot est rempli",
+        "src": verdict_src,
+    }
+
+
+def _probe_propose_bible_entry(ctx: Any) -> dict[str, Any]:
+    """Etat d'execution de `studio_link.propose_bible_entry`, appele par
+    `driver.py._propose_bible_entries` depuis `_run_standard_oracle`
+    (pas `s10s-oracle-standard`), INCONDITIONNELLEMENT sauf si une entree
+    requise (contrat/wiremap/standard) est absente — auquel cas le pas finit
+    `BLOCKED` avec un detail `missing` AVANT d'atteindre l'appel (driver.py
+    l.1688-1703, appel l.1759). PREDICAT DE DEPOT (driver.py l.1893-1912) :
+    au moins un item de `wiremap["discarded"]` avec un `discard_reason` texte
+    non vide."""
+    state = _read_run_state(ctx)
+    steps = (state or {}).get("steps") if isinstance(state, dict) else None
+    step = steps.get("s10s-oracle-standard") if isinstance(steps, dict) else None
+    state_src = {"path": ctx.rel(ctx.run_dir / "state.json"), "field": "steps.s10s-oracle-standard"}
+
+    if not isinstance(step, dict) or "status" not in step:
+        return {
+            "etat": ETAT_JAMAIS_APPELE,
+            "raison": "aucune entree 's10s-oracle-standard' dans state.json de ce "
+                      "run — le pas qui contient l'appel n'a jamais tourne",
+            "src": state_src,
+        }
+
+    detail = step.get("detail") if isinstance(step.get("detail"), dict) else {}
+    if "missing" in detail:
+        return {
+            "etat": ETAT_JAMAIS_APPELE,
+            "raison": (
+                "pas 's10s-oracle-standard' bloque AVANT l'appel : entree(s) "
+                f"requise(s) absente(s) ({detail.get('missing')}) — driver.py "
+                "l.1688-1703 retourne BLOCKED avant d'atteindre "
+                "_propose_bible_entries (l.1759)"
+            ),
+            "src": state_src,
+        }
+
+    wiremap = _read_run_wiremap(ctx)
+    wiremap_src = {
+        "path": ctx.rel(ctx.run_dir / "wiremap.json") if ctx.exists(ctx.run_dir / "wiremap.json")
+        else ctx.rel(ctx.game_dir / "09_WIREMAP" / "wiremap.json"),
+        "field": "discarded",
+    }
+    if not isinstance(wiremap, dict):
+        return {
+            "etat": NOT_OBSERVABLE,
+            "raison": "pas 's10s-oracle-standard' atteint (l'appel a donc eu lieu) "
+                      "mais aucun wiremap lisible pour ce run — predicat de depot "
+                      "non mesurable",
+            "src": state_src,
+        }
+    discarded = wiremap.get("discarded")
+    valides = [
+        item for item in discarded
+        if isinstance(item, dict) and isinstance(item.get("discard_reason"), str)
+        and item.get("discard_reason").strip()
+    ] if isinstance(discarded, list) else []
+    if not valides:
+        return {
+            "etat": ETAT_BLOQUE,
+            "raison": (
+                "predicat de depot (driver.py._propose_bible_entries, l.1893-1904) "
+                "exige au moins un item de wiremap['discarded'] avec discard_reason "
+                "non vide ; mesure sur ce run = "
+                + ("absent" if discarded is None else f"present mais 0/{len(discarded)} valide(s)")
+            ),
+            "src": wiremap_src,
+        }
+    return {
+        "etat": ETAT_PREDICAT_SATISFAIT,
+        "raison": f"{len(valides)} item(s) discarded valide(s) (discard_reason non vide) mesure(s)",
+        "src": wiremap_src,
+    }
+
+
+CONNECTOR_PROBES: dict[str, Any] = {
+    "propose_brick": _probe_propose_brick,
+    "propose_bible_entry": _probe_propose_bible_entry,
+}
+
+
+def _bloque_cell(probe: Optional[dict[str, Any]]) -> dict[str, Any]:
+    """Cellule de l'axe `bloque` (7e axe, decision Pierre 2026-08-03) — jamais
+    devinee : `NOT_OBSERVABLE` explicite quand aucune sonde n'existe pour ce
+    connecteur, `OUI` avec sa raison quand la sonde mesure un predicat non
+    rempli, `NON` sinon (jamais appele, predicat rempli, ou artefact deja la)."""
+    if probe is None:
+        return _cell(NOT_OBSERVABLE, why=(
+            "aucune sonde de predicat connue pour ce connecteur — cf. "
+            "CONNECTOR_PROBES ; ne pas deviner un blocage"
+        ))
+    if probe["etat"] == ETAT_BLOQUE:
+        cell = _cell("OUI", probe.get("src"))
+        cell["note"] = probe["raison"]
+        return cell
+    cell = _cell("NON", probe.get("src"))
+    cell["note"] = probe["raison"]
+    return cell
+
+
 def _six_axes_artefact(
     ctx: Any, nom: str, doctrine_status: str, doctrine_src: dict[str, Any],
 ) -> dict[str, Any]:
-    """Calcule les 6 axes pour un connecteur mesurable par existence de fichier
-    (construit) puis par recherche d'identifiant exact (cable/actif/consomme).
-    Monotone : un axe negatif ou NOT_OBSERVABLE en amont ne produit jamais un
-    OUI en aval."""
+    """Calcule les 7 axes (prevu/construit/cable/actif/bloque/consomme/preuve)
+    pour un connecteur mesurable par existence de fichier (construit) puis par
+    recherche d'identifiant exact (cable/actif/consomme). Monotone : un axe
+    negatif ou NOT_OBSERVABLE en amont ne produit jamais un OUI en aval."""
     doctrine_cell = _cell(doctrine_status, doctrine_src)
     doctrine_cell["proof"] = SELF_DECLARED
 
@@ -897,18 +1121,59 @@ def _six_axes_artefact(
             exact = ctx.repo_root / "lab" / "reports" / f"{artefact_name}.jsonl"
             hit = ({"path": ctx.rel(exact)} if ctx.exists(exact)
                    else _search_filename(ctx, artefact_name))
+            probe = CONNECTOR_PROBES.get(nom, lambda _ctx: None)(ctx)
             if hit is None:
-                cable = _cell("NON")
-                cable["note"] = (
-                    f"jamais peuple par un run reel : {ctx.rel(exact)} absent du "
-                    "disque (chemin exact declare par l'architecture, verifie "
-                    "directement), et aucun fichier de ce nom dans knowledge_base/ "
-                    "ni lab/forge_evidence/ — absence mesuree, pas une supposition"
-                )
-                actif = _cell("NON")
-                actif["note"] = "axe precedent (cable) negatif : jamais peuple par un run reel"
-                consomme = _cell("NON")
-                consomme["note"] = "axe precedent (actif) negatif : rien a consommer"
+                # AVANT : "aucun artefact => cable=NON", que la capacite ait ete
+                # appelee ou non — le faux negatif corrige ici (propose_brick
+                # bloque par son predicat de depot ressortait identique a un
+                # connecteur jamais appele). La sonde d'execution (state.json +
+                # verdict.json/wiremap du run, jamais scripts/forge/*.py)
+                # distingue les 3 etats reels : JAMAIS_APPELE / BLOQUE /
+                # PREDICAT_SATISFAIT-mais-artefact-absent (anomalie honnete).
+                etat = probe["etat"] if probe else None
+                if etat == ETAT_BLOQUE:
+                    cable = _cell(ETAT_BLOQUE, probe.get("src"))
+                    cable["note"] = probe["raison"]
+                    actif = _cell(ETAT_BLOQUE, probe.get("src"))
+                    actif["note"] = "axe precedent (cable) BLOQUE : " + probe["raison"]
+                    consomme = _cell("NON")
+                    consomme["note"] = "axe precedent (actif) BLOQUE : rien a consommer"
+                elif etat == ETAT_PREDICAT_SATISFAIT:
+                    cable = _cell("APPELE_SANS_SORTIE", probe.get("src"))
+                    cable["note"] = (
+                        "anomalie mesuree : le predicat de depot est rempli "
+                        f"({probe['raison']}) mais {ctx.rel(exact)} reste absent du "
+                        "disque et aucun fichier de ce nom n'existe dans "
+                        "knowledge_base/ ni lab/forge_evidence/ — appele, predicat "
+                        "rempli, aucune sortie produite"
+                    )
+                    actif = _cell("NON")
+                    actif["note"] = "axe precedent (cable) APPELE_SANS_SORTIE : aucun artefact a activer"
+                    consomme = _cell("NON")
+                    consomme["note"] = "axe precedent (actif) negatif : rien a consommer"
+                elif etat == ETAT_JAMAIS_APPELE:
+                    cable = _cell(ETAT_JAMAIS_APPELE, probe.get("src"))
+                    cable["note"] = probe["raison"]
+                    actif = _cell(ETAT_JAMAIS_APPELE, probe.get("src"))
+                    actif["note"] = "axe precedent (cable) JAMAIS_APPELE : " + probe["raison"]
+                    consomme = _cell("NON")
+                    consomme["note"] = "axe precedent (actif) JAMAIS_APPELE : rien a consommer"
+                else:
+                    # Aucune sonde connue pour ce connecteur (ou sonde
+                    # NOT_OBSERVABLE) : comportement inchange, jamais devine.
+                    cable = _cell("NON")
+                    cable["note"] = (
+                        f"jamais peuple par un run reel : {ctx.rel(exact)} absent du "
+                        "disque (chemin exact declare par l'architecture, verifie "
+                        "directement), et aucun fichier de ce nom dans knowledge_base/ "
+                        "ni lab/forge_evidence/ — absence mesuree, pas une supposition"
+                    )
+                    if probe is not None:
+                        cable["note"] += f" ; sonde d'execution : {probe['raison']}"
+                    actif = _cell("NON")
+                    actif["note"] = "axe precedent (cable) negatif : jamais peuple par un run reel"
+                    consomme = _cell("NON")
+                    consomme["note"] = "axe precedent (actif) negatif : rien a consommer"
             else:
                 cable = _cell("OUI", hit)
                 artefact_path = ctx.repo_root.joinpath(*hit["path"].split("/"))
@@ -944,6 +1209,7 @@ def _six_axes_artefact(
             "construit": construit,
             "cable": cable,
             "actif": actif,
+            "bloque": _bloque_cell(probe if artefact_name is not None else None),
             "consomme": consomme,
             "preuve_disponible": _cell(NOT_OBSERVABLE, why=(
                 "aucun recu d'oracle ne couvre le cablage de ce connecteur specifiquement"
@@ -1037,6 +1303,11 @@ def _six_axes_artefact(
         "construit": construit,
         "cable": cable,
         "actif": actif,
+        "bloque": _cell(NOT_OBSERVABLE, why=(
+            "aucune sonde de predicat de depot connue pour ce connecteur de type "
+            "'artefact' (CONNECTOR_PROBES ne couvre que les connecteurs 'writer' "
+            "propose_brick/propose_bible_entry) — ne pas deviner un blocage"
+        )),
         "consomme": consomme,
         "preuve_disponible": preuve,
         "humangate_en_attente": _humangate_en_attente(ctx, nom),
@@ -1078,6 +1349,18 @@ def _six_axes_pool(ctx: Any, pool_doc: dict[str, Any]) -> dict[str, Any]:
         if actif["v"] == "NON" else _cell(NOT_OBSERVABLE, why="axe precedent (actif) non confirme")
     preuve = _cell(NOT_OBSERVABLE, why="aucun recu d'oracle ne couvre le cablage de pool.py")
 
+    # `bloque` (7e axe) : la doctrine ELLE-MEME nomme une condition de blocage
+    # ("jamais declenche — condition jamais vraie", pool_doc["actif_doctrine"])
+    # quand `actif_ligne` a ete trouve a proximite du marqueur "pool.py
+    # construit" — SELF_DECLARED, jamais mesure mecaniquement (meme limite que
+    # `construit`/`actif` ci-dessus, code hors des racines lisibles d'Observer).
+    if pool_doc["actif_ligne"] is not None:
+        bloque = _cell("OUI", {"path": pool_doc["src_path"], "line": pool_doc["actif_ligne"]})
+        bloque["proof"] = SELF_DECLARED
+        bloque["note"] = f"doctrine : {pool_doc['actif_doctrine']!r}"
+    else:
+        bloque = _cell(NOT_OBSERVABLE, why="aucune annotation de blocage trouvee a proximite dans la doctrine")
+
     return {
         "connecteur": _cell("pool.py"),
         "prevu": _cell("OUI", {"path": pool_doc["src_path"], "line": pool_doc["construit_ligne"]}),
@@ -1085,6 +1368,7 @@ def _six_axes_pool(ctx: Any, pool_doc: dict[str, Any]) -> dict[str, Any]:
         "construit": construit,
         "cable": cable,
         "actif": actif,
+        "bloque": bloque,
         "consomme": consomme,
         "preuve_disponible": preuve,
         "humangate_en_attente": _humangate_en_attente(ctx, "pool.py"),
@@ -1094,7 +1378,7 @@ def _six_axes_pool(ctx: Any, pool_doc: dict[str, Any]) -> dict[str, Any]:
 def _build_cablage_section(
     ctx: Any, schema_doc: Optional[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Section 4 : `s2_roadmap.cablage` — 6 axes par connecteur declare par
+    """Section 4 : `s2_roadmap.cablage` — 7 axes par connecteur declare par
     Detail K. Retourne {"lignes": [...], "drift_items": [...]}."""
     if schema_doc is None:
         return {
@@ -1121,7 +1405,13 @@ def _build_cablage_section(
         ligne = _six_axes_artefact(ctx, node["nom"], node["statut_doctrine"], src)
         lignes.append(ligne)
         axes = ("construit", "cable", "actif", "consomme")
-        non_axes = [a for a in axes if ligne[a]["v"] == "NON"]
+        # Etats negatifs : "NON" (mesure directe) et les 3 valeurs de l'axe
+        # BLOQUE/JAMAIS_APPELE/APPELE_SANS_SORTIE (cf. CONNECTOR_PROBES) —
+        # toutes signalent une capacite qui NE PRODUIT PAS ce qu'elle promet,
+        # meme quand ce n'est plus le litteral "NON" depuis la correction du
+        # faux negatif propose_brick (2026-08-03).
+        _AXE_NEGATIF = {"NON", ETAT_BLOQUE, ETAT_JAMAIS_APPELE, "APPELE_SANS_SORTIE"}
+        non_axes = [a for a in axes if ligne[a]["v"] in _AXE_NEGATIF]
         if non_axes:
             drift_items.append(_drift_cablage(
                 f"connecteur '{node['nom']}' (doctrine : {node['statut_doctrine']!r}, "
@@ -1209,9 +1499,10 @@ def view_roadmap(ctx: Any, result: dict[str, Any], events: list[dict[str, Any]])
         "cablage": {
             "lignes": cablage["lignes"],
             "note": "architecture attendue (Detail K, Nomenclature C + POOL DE BUILDERS) "
-                    "vs realite mesuree, 6 axes : construit/cable/actif/consomme/"
-                    "preuve_disponible + humangate_en_attente (decision Pierre "
-                    "FORGE_AUTONOMY_V2 n°3)",
+                    "vs realite mesuree, 7 axes : prevu/construit/cable/actif/bloque/"
+                    "consomme/preuve_disponible + humangate_en_attente (decision Pierre "
+                    "FORGE_AUTONOMY_V2 n°3 ; axe bloque ajoute 2026-08-03, correction "
+                    "du faux negatif propose_brick cable=NON)",
         },
         "drift_items": drift_items,
         "fraicheur_doctrine": _fraicheur_doctrine(schema_doc, pilotage_doc),

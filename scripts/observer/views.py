@@ -43,6 +43,9 @@ STATE_RETRY = "Retry"
 STATE_RUNNING = "Running"
 STATE_WAITING = "Waiting"
 STATE_HUMANGATE = "HumanGate"
+# Gel par decision humaine — ni en cours, ni reussi, ni echoue. Distinct de
+# STATE_BLOCKED (bloque par un oracle) et de STATE_WAITING (attend une entree).
+STATE_FROZEN = "FrozenHuman"
 
 
 def cite(ev: dict[str, Any], field: str | None = None) -> dict[str, Any]:
@@ -486,14 +489,26 @@ def _state_of(statut: str | None, incidents: int, prepared: int, executed: int) 
 
 
 def _run_state(run: dict[str, Any]) -> str:
+    status = (run.get("run_status") or "").upper()
+    # FROZEN_HUMAN AVANT tout le reste : c'est un etat de DECISION, pas
+    # d'execution. Il prime sur `decision` et sur le statut d'execution — un run
+    # gele par Pierre n'est ni en cours, ni reussi, ni echoue. Sans cette branche,
+    # la chaine `if status: return STATE_RUNNING` ci-dessous affichait Pong comme
+    # « Running » alors que plus aucun processus ne tourne depuis le 2026-07-27 :
+    # on aurait retire le mensonge des donnees (state.json) en le laissant dans
+    # l'affichage. Vocabulaire ratifie Pierre 2026-08-03 (FORGE_CAPITALISATION_V1) :
+    # RUNNING / FROZEN_HUMAN / CLOSED / FAILED.
+    if status == "FROZEN_HUMAN":
+        return STATE_FROZEN
     decision = (run.get("decision") or "").upper()
     if "HUMANGATE" in decision:
         return STATE_HUMANGATE
     if "BLOCK" in decision:
         return STATE_BLOCKED
-    status = (run.get("run_status") or "").upper()
-    if status == "DONE":
+    if status in ("DONE", "CLOSED"):
         return STATE_SUCCESS
+    if status == "FAILED":
+        return STATE_FAILED
     if status:
         return STATE_RUNNING
     return NOT_OBSERVABLE
