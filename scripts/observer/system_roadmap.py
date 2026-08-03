@@ -628,6 +628,434 @@ def _build_infra_section(docs: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
+# Section 4 — CABLAGE 6 AXES (decision Pierre FORGE_AUTONOMY_V2 n°3)
+#
+# Confronte, pour chaque connecteur nomme par la doctrine (Detail K « Nomenclature
+# C (flux memoire) » + case POOL DE BUILDERS), l'ARCHITECTURE ATTENDUE a la
+# REALITE MESUREE sur 6 axes : `construit` / `cable` / `actif` / `consomme` /
+# `preuve_disponible`, plus le drapeau `humangate_en_attente`. Etend le meme
+# mecanisme de drift que la section 1 (jeux) et 2 (chantiers Forge) ci-dessus —
+# meme `_cell`, meme `_drift`, meme fusion dans `result["drift"]` par
+# `views.py`. Aucun nouveau format de sortie, aucun nouveau pipeline.
+#
+# Regle stricte (identique a la consigne Pierre) : un axe ne vaut OUI que si
+# les axes precedents valent OUI. Un axe non mesurable ici (code source hors
+# des racines lisibles d'Observer, ex. scripts/forge/*.py) porte NOT_OBSERVABLE
+# et sa raison — jamais devine, jamais force a NON par defaut. Piege connu et
+# evite ici : NE JAMAIS confondre un identifiant proche par coincidence
+# lexicale (ex. le champ `strategy: "pool_retry"` de l'escalade de builders,
+# observe dans forge_builder_runs.jsonl, N'EST PAS une preuve d'activite de
+# `scripts/forge/pool.py` — recherche par IDENTIFIANT EXACT, jamais par
+# sous-chaine large).
+# --------------------------------------------------------------------------- #
+
+DRIFT_TYPE_CABLAGE = "architecture_declaree_vs_realite_mesuree"
+
+# Chemins d'artefact CONNUS (dans les racines lisibles d'Observer) pour les
+# connecteurs qui en ont un. `None` = aucune correspondance de fichier connue
+# depuis ce module -> l'axe `construit` restera NOT_OBSERVABLE ou sera mesure
+# par recherche de nom de fichier (cf. `_mesure_construit`).
+CONNECTOR_ARTIFACTS: dict[str, Optional[tuple[str, ...]]] = {
+    "learning_curve": ("knowledge_base", "learning_curve.jsonl"),
+}
+
+# Nature du connecteur : "artefact" (fichier attendu — une recherche de nom de
+# fichier absent EST une mesure valide de NON) vs "writer" (fonction/mecanisme
+# nomme par la doctrine, dont le CODE vit dans scripts/forge/*.py — hors des
+# racines lisibles d'Observer. Confondre les deux surclasse un "je ne sais pas"
+# en faux NON : `propose_brick` et `propose_bible_entry` sont des fonctions,
+# pas des fichiers ; chercher un FICHIER nomme ainsi et ne pas en trouver ne
+# prouve RIEN sur leur existence en tant que code. Par defaut (absent de ce
+# dict) : "artefact", le regime le plus proche de ce que Detail K decrit
+# (fichiers de flux memoire).
+CONNECTOR_KIND: dict[str, str] = {
+    "propose_brick": "writer",
+    "propose_bible_entry": "writer",
+}
+
+# Racines de recherche pour cable/actif/consomme — jamais les documents
+# doctrine eux-memes (ce serait circulaire), jamais tests/ (hors racines
+# lisibles d'Observer par construction : cf. sources.py ALLOWED_ROOTS).
+_CABLAGE_SEARCH_ROOTS: tuple[tuple[str, ...], ...] = (
+    ("knowledge_base",),
+    ("lab", "forge_evidence"),
+    ("scripts", "forge", "contracts"),
+)
+_CABLAGE_SEARCH_SUFFIXES = frozenset({".json", ".jsonl", ".yaml", ".yml", ".md", ".txt"})
+
+
+def _drift_cablage(detail: str, source: Any, severity: str = "medium") -> dict[str, Any]:
+    """Item de drift architecture-declaree-vs-mesuree — meme forme que `_drift`
+    (fusionne par `views.py` dans la vue Drift unique, famille documentation,
+    proprietaire DOCTRINE, action CORRIGER)."""
+    return {
+        "type": DRIFT_TYPE_CABLAGE,
+        "severity": severity,
+        "famille": "documentation",
+        "owner": "DOCTRINE",
+        "action": "CORRIGER",
+        "detail": detail,
+        "source": source,
+    }
+
+
+def _extract_nomenclature_c(doc: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extrait les connecteurs nommes <code>...</code> de la bulle « Nomenclature C
+    (flux memoire) » de Detail K, avec leur statut doctrine textuel (best-effort :
+    decoupage sur le <code> suivant, jamais un format stable)."""
+    text = doc["text"]
+    start = text.find("Nomenclature C (flux")
+    if start == -1:
+        return []
+    end = text.find("<br>", start)
+    if end == -1:
+        end = min(len(text), start + 900)
+    block = text[start:end]
+    base_line = text.count("\n", 0, start)
+
+    items: list[dict[str, Any]] = []
+    matches = list(_CODE_RE.finditer(block))
+    for i, m in enumerate(matches):
+        name = m.group(1).strip()
+        seg_end = matches[i + 1].start() if i + 1 < len(matches) else len(block)
+        segment = block[m.end():seg_end]
+        segment = segment.strip().strip("·").strip()
+        statut = _strip_tags(segment).strip() or NOT_OBSERVABLE
+        lineno = base_line + block.count("\n", 0, m.start()) + 1
+        items.append({"nom": name, "statut_doctrine": statut, "ligne": lineno})
+    return items
+
+
+_CODE_RE = re.compile(r"<code>([^<]+)</code>")
+
+
+def _extract_pool_doctrine(doc: dict[str, Any]) -> Optional[dict[str, Any]]:
+    """Extrait les deux annotations doctrine de la case « POOL DE BUILDERS »
+    (Detail F) : 'pool.py construit (...)' et, si presente a proximite,
+    'jamais declenche — condition jamais vraie'. Best-effort, meme regime que
+    le reste de ce module : decoupage de <text>...</text> SVG, pas un format
+    stable."""
+    text = doc["text"]
+    idx = text.find("pool.py construit")
+    if idx == -1:
+        return None
+
+    def _enclosing_text(pos: int) -> tuple[str, int]:
+        line_start = text.rfind("<text", 0, pos)
+        if line_start == -1:
+            return NOT_OBSERVABLE, text.count("\n", 0, pos) + 1
+        m = _TEXT_CONTENT_RE.match(text, line_start)
+        content = _strip_tags(m.group(1)) if m else NOT_OBSERVABLE
+        return content, text.count("\n", 0, line_start) + 1
+
+    construit_texte, construit_ligne = _enclosing_text(idx)
+
+    idx2 = text.find("jamais déclenché", idx)
+    actif_texte, actif_ligne = NOT_OBSERVABLE, None
+    if idx2 != -1 and idx2 - idx < 500:
+        actif_texte, actif_ligne = _enclosing_text(idx2)
+
+    return {
+        "nom": "pool.py",
+        "construit_doctrine": construit_texte,
+        "construit_ligne": construit_ligne,
+        "actif_doctrine": actif_texte,
+        "actif_ligne": actif_ligne,
+    }
+
+
+def _search_identifier(ctx: Any, nom: str) -> Optional[dict[str, Any]]:
+    """Recherche un identifiant EXACT (frontieres de mot) dans les racines de
+    cablage, hors documents doctrine et hors tests/ (structurellement hors des
+    racines lisibles d'Observer). Retourne la 1re citation trouvee ou None —
+    jamais une correlation devinee."""
+    pattern = re.compile(r"\b" + re.escape(nom) + r"\b")
+    for parts in _CABLAGE_SEARCH_ROOTS:
+        root = ctx.repo_root.joinpath(*parts)
+        for path in ctx.iter_files(root, "*"):
+            if not path.is_file() or path.suffix.lower() not in _CABLAGE_SEARCH_SUFFIXES:
+                continue
+            text = ctx.read_text(path)
+            if not text or not pattern.search(text):
+                continue
+            lineno = next(
+                (n for n, l in enumerate(text.splitlines(), 1) if pattern.search(l)),
+                None,
+            )
+            return {"path": ctx.rel(path), "line": lineno}
+    return None
+
+
+def _search_filename(ctx: Any, nom: str) -> Optional[dict[str, Any]]:
+    """Cherche un FICHIER dont le nom contient l'identifiant, dans knowledge_base/
+    et lab/forge_evidence/ (racines lisibles). Sert a mesurer `construit` pour un
+    connecteur dont on ne connait pas le chemin exact a l'avance."""
+    for parts in (("knowledge_base",), ("lab", "forge_evidence")):
+        root = ctx.repo_root.joinpath(*parts)
+        for path in ctx.iter_files(root, "*"):
+            if path.is_file() and nom.lower() in path.name.lower():
+                return {"path": ctx.rel(path)}
+    return None
+
+
+def _humangate_en_attente(ctx: Any, nom: str) -> dict[str, Any]:
+    """`humangate_en_attente` : l'identifiant est-il mentionne dans le registre
+    de decisions (studio_brain/decisions/decision-log.md ou DEFERRED.md) —
+    racines deja declarees dans sources.py. Absence de mention = NON mesure
+    (pas NOT_OBSERVABLE : le registre EST lisible, l'absence est une mesure)."""
+    for rel in (("studio_brain", "decisions", "decision-log.md"),
+                ("studio_brain", "decisions", "DEFERRED.md")):
+        path = ctx.repo_root.joinpath(*rel)
+        text = ctx.read_text(path)
+        if text is None:
+            continue
+        idx = text.find(nom)
+        if idx != -1:
+            lineno = text.count("\n", 0, idx) + 1
+            return _cell("OUI", {"path": ctx.rel(path), "line": lineno})
+    return _cell("NON")
+
+
+def _six_axes_artefact(
+    ctx: Any, nom: str, doctrine_status: str, doctrine_src: dict[str, Any],
+) -> dict[str, Any]:
+    """Calcule les 6 axes pour un connecteur mesurable par existence de fichier
+    (construit) puis par recherche d'identifiant exact (cable/actif/consomme).
+    Monotone : un axe negatif ou NOT_OBSERVABLE en amont ne produit jamais un
+    OUI en aval."""
+    doctrine_cell = _cell(doctrine_status, doctrine_src)
+    doctrine_cell["proof"] = SELF_DECLARED
+
+    if CONNECTOR_KIND.get(nom, "artefact") == "writer":
+        # Fonction/mecanisme nomme par la doctrine : son CODE vit dans
+        # scripts/forge/*.py, hors des racines lisibles d'Observer. Une
+        # recherche de FICHIER portant ce nom ne prouverait rien (une fonction
+        # n'est pas un fichier) — NOT_OBSERVABLE honnete plutot qu'un faux NON.
+        why = (
+            f"'{nom}' est une fonction/mecanisme nomme par la doctrine, pas un "
+            "fichier : son code vit dans scripts/forge/*.py, hors des racines "
+            "lisibles d'Observer (seul scripts/forge/contracts/ y est ouvert) "
+            "— la construction ne peut pas etre confirmee ni infirmee ici"
+        )
+        not_obs = _cell(NOT_OBSERVABLE, why=why)
+        return {
+            "connecteur": _cell(nom),
+            "prevu": _cell("OUI", doctrine_src),
+            "doctrine": doctrine_cell,
+            "construit": not_obs,
+            "cable": _cell(NOT_OBSERVABLE, why="axe precedent (construit) non observable"),
+            "actif": _cell(NOT_OBSERVABLE, why="axe precedent (cable) non observable"),
+            "consomme": _cell(NOT_OBSERVABLE, why="axe precedent (actif) non observable"),
+            "preuve_disponible": _cell(NOT_OBSERVABLE, why=(
+                "aucun recu d'oracle ne couvre le cablage de ce connecteur specifiquement"
+            )),
+            "humangate_en_attente": _humangate_en_attente(ctx, nom),
+        }
+
+    fixed_path = CONNECTOR_ARTIFACTS.get(nom)
+    if fixed_path is not None:
+        path = ctx.repo_root.joinpath(*fixed_path)
+        if ctx.exists(path):
+            construit = _cell("OUI", {"path": ctx.rel(path)})
+        else:
+            construit = _cell("NON", {"path": ctx.rel(path)})
+    else:
+        hit = _search_filename(ctx, nom)
+        if hit:
+            construit = _cell("OUI", hit)
+        else:
+            construit = _cell(
+                "NON", {"path": "knowledge_base/, lab/forge_evidence/"},
+            )
+            construit["note"] = (
+                f"aucun fichier dont le nom contient '{nom}' dans knowledge_base/ "
+                "ni lab/forge_evidence/ (racines lisibles) — absence mesuree, "
+                "pas une supposition"
+            )
+
+    if construit["v"] != "OUI":
+        cable = _cell("NON", why=(
+            "axe precedent (construit) negatif : aucun appel ne peut produire "
+            "un artefact absent"
+        ))
+        actif = _cell("NON", why="axe precedent (cable) negatif")
+        consomme = _cell("NON", why="axe precedent (actif) negatif : rien a consommer")
+    else:
+        hit = _search_identifier(ctx, nom)
+        if hit:
+            cable = _cell("OUI", hit)
+        else:
+            cable = _cell(NOT_OBSERVABLE, why=(
+                f"identifiant '{nom}' introuvable (hors documents doctrine) dans "
+                "knowledge_base/, lab/forge_evidence/, scripts/forge/contracts/ "
+                "— le code appelant (scripts/forge/*.py) est hors des racines "
+                "lisibles d'Observer"
+            ))
+
+        if fixed_path is not None:
+            path = ctx.repo_root.joinpath(*fixed_path)
+            n_lignes = sum(1 for _ in ctx.read_jsonl(path)) if path.suffix == ".jsonl" else None
+            if n_lignes is not None and n_lignes >= 2:
+                actif = _cell("OUI", {"path": ctx.rel(path)}, )
+                actif["note"] = f"{n_lignes} entrees reelles horodatees dans l'artefact"
+            elif n_lignes is not None:
+                actif = _cell(NOT_OBSERVABLE, why=(
+                    f"artefact present mais {n_lignes} entree(s) seulement — "
+                    "insuffisant pour distinguer un usage reel repete d'un seed manuel"
+                ))
+            else:
+                actif = _cell(NOT_OBSERVABLE, why="artefact present, non-jsonl : "
+                              "aucune mesure de repetition d'usage implementee ici")
+        else:
+            actif = _cell(NOT_OBSERVABLE, why=(
+                "artefact trouve par nom mais aucune mesure de repetition "
+                "d'usage implementee pour ce connecteur"
+            ))
+
+        if actif["v"] == "OUI":
+            # `cable` a deja consomme la 1re occurrence (le producteur lui-meme,
+            # generalement le README/doctrine du connecteur) : un lecteur DISTINCT
+            # exigerait une 2e citation dans un fichier different. On ne pretend
+            # pas ici distinguer producteur/consommateur au-dela de cette
+            # premiere citation — limite dite explicitement.
+            consomme = _cell(NOT_OBSERVABLE, why=(
+                f"aucun lecteur distinct de '{nom}' trouve dans les racines de "
+                "cablage (knowledge_base/, lab/forge_evidence/, "
+                "scripts/forge/contracts/) au-dela de sa propre documentation"
+            ))
+        else:
+            consomme = _cell("NON", why="axe precedent (actif) non confirme")
+
+    preuve = _cell(NOT_OBSERVABLE, why=(
+        "aucun recu d'oracle (test.result/mutation.result/verdict.signed) ne "
+        "couvre le cablage de ce connecteur specifiquement"
+    ))
+
+    return {
+        "connecteur": _cell(nom),
+        "prevu": _cell("OUI", doctrine_src),
+        "doctrine": doctrine_cell,
+        "construit": construit,
+        "cable": cable,
+        "actif": actif,
+        "consomme": consomme,
+        "preuve_disponible": preuve,
+        "humangate_en_attente": _humangate_en_attente(ctx, nom),
+    }
+
+
+def _six_axes_pool(ctx: Any, pool_doc: dict[str, Any]) -> dict[str, Any]:
+    """Cas particulier `pool.py` : code source hors des racines lisibles
+    d'Observer (scripts/forge/ n'est ouvert qu'a contracts/) — `construit` et
+    `actif` sont donc rendus tels que la doctrine elle-meme les DECLARE
+    (SELF_DECLARED, cites), jamais mesures mecaniquement. Piege evite : ne
+    JAMAIS chercher 'pool_retry' comme preuve d'activite — c'est le nom de la
+    strategie d'ESCALADE de builders (`forge_builder_runs.jsonl`), un
+    homonyme sans rapport avec `scripts/forge/pool.py`."""
+    construit = _cell("OUI", {
+        "path": pool_doc["src_path"], "line": pool_doc["construit_ligne"],
+    })
+    construit["proof"] = SELF_DECLARED
+    construit["note"] = (
+        f"doctrine uniquement ({pool_doc['construit_doctrine']!r}) — "
+        "scripts/forge/pool.py hors des racines lisibles d'Observer : "
+        "l'existence du fichier n'est pas verifiee mecaniquement ici"
+    )
+
+    if pool_doc["actif_ligne"] is not None:
+        actif = _cell("NON", {"path": pool_doc["src_path"], "line": pool_doc["actif_ligne"]})
+        actif["proof"] = SELF_DECLARED
+        actif["note"] = f"doctrine : {pool_doc['actif_doctrine']!r}"
+    else:
+        actif = _cell(NOT_OBSERVABLE, why="aucune annotation d'activite trouvee a proximite dans la doctrine")
+
+    cable = _cell(NOT_OBSERVABLE, why=(
+        "le code appelant (scripts/forge/driver.py ou equivalent) est hors des "
+        "racines lisibles d'Observer ; aucune mention distincte du cablage de "
+        "pool.py, separee de son activation, n'existe dans les deux documents "
+        "doctrine"
+    ))
+    consomme = _cell("NON", why="axe precedent (actif) negatif : rien a consommer") \
+        if actif["v"] == "NON" else _cell(NOT_OBSERVABLE, why="axe precedent (actif) non confirme")
+    preuve = _cell(NOT_OBSERVABLE, why="aucun recu d'oracle ne couvre le cablage de pool.py")
+
+    return {
+        "connecteur": _cell("pool.py"),
+        "prevu": _cell("OUI", {"path": pool_doc["src_path"], "line": pool_doc["construit_ligne"]}),
+        "doctrine": _cell(pool_doc["construit_doctrine"] + " / " + str(pool_doc["actif_doctrine"])),
+        "construit": construit,
+        "cable": cable,
+        "actif": actif,
+        "consomme": consomme,
+        "preuve_disponible": preuve,
+        "humangate_en_attente": _humangate_en_attente(ctx, "pool.py"),
+    }
+
+
+def _build_cablage_section(
+    ctx: Any, schema_doc: Optional[dict[str, Any]],
+) -> dict[str, Any]:
+    """Section 4 : `s2_roadmap.cablage` — 6 axes par connecteur declare par
+    Detail K. Retourne {"lignes": [...], "drift_items": [...]}."""
+    if schema_doc is None:
+        return {
+            "lignes": [{
+                "connecteur": _cell(NOT_OBSERVABLE, why="STUDIO_MASTER_SCHEMA.html illisible ou absent"),
+            }],
+            "drift_items": [],
+        }
+
+    lignes: list[dict[str, Any]] = []
+    drift_items: list[dict[str, Any]] = []
+
+    nomenclature = _extract_nomenclature_c(schema_doc)
+    if not nomenclature:
+        drift_items.append(_drift_cablage(
+            "le marqueur 'Nomenclature C (flux memoire)' est introuvable dans "
+            "STUDIO_MASTER_SCHEMA.html : la section a peut-etre ete renommee ou deplacee",
+            {"path": schema_doc["path"]},
+            severity="high",
+        ))
+
+    for node in nomenclature:
+        src = {"path": schema_doc["path"], "line": node["ligne"]}
+        ligne = _six_axes_artefact(ctx, node["nom"], node["statut_doctrine"], src)
+        lignes.append(ligne)
+        axes = ("construit", "cable", "actif", "consomme")
+        non_axes = [a for a in axes if ligne[a]["v"] == "NON"]
+        if non_axes:
+            drift_items.append(_drift_cablage(
+                f"connecteur '{node['nom']}' (doctrine : {node['statut_doctrine']!r}, "
+                f"Detail K) — axes negatifs mesures : {', '.join(non_axes)}",
+                src,
+                severity="high" if len(non_axes) >= 3 else "medium",
+            ))
+
+    pool_doc = _extract_pool_doctrine(schema_doc)
+    if pool_doc is not None:
+        pool_doc["src_path"] = schema_doc["path"]
+        ligne = _six_axes_pool(ctx, pool_doc)
+        lignes.append(ligne)
+        if ligne["actif"]["v"] == "NON":
+            drift_items.append(_drift_cablage(
+                "connecteur 'pool.py' declare construit (doctrine, Detail F) mais "
+                f"jamais actif : {pool_doc['actif_doctrine']!r}",
+                {"path": schema_doc["path"], "line": pool_doc["construit_ligne"]},
+                severity="medium",
+            ))
+    else:
+        drift_items.append(_drift_cablage(
+            "le marqueur 'pool.py construit' est introuvable dans "
+            "STUDIO_MASTER_SCHEMA.html : la case POOL DE BUILDERS a peut-etre "
+            "ete renommee ou deplacee",
+            {"path": schema_doc["path"]},
+            severity="high",
+        ))
+
+    return {"lignes": lignes, "drift_items": drift_items}
+
+
+# --------------------------------------------------------------------------- #
 # Fraicheur doctrine
 # --------------------------------------------------------------------------- #
 
@@ -671,13 +1099,21 @@ def view_roadmap(ctx: Any, result: dict[str, Any], events: list[dict[str, Any]])
     jeux = _build_games_section(fleet, schema_doc, pilotage_doc)
     forge = _build_forge_section(ctx, result, events, docs)
     infra = _build_infra_section(docs)
+    cablage = _build_cablage_section(ctx, schema_doc)
 
-    drift_items = [*jeux["drift_items"], *forge["drift_items"]]
+    drift_items = [*jeux["drift_items"], *forge["drift_items"], *cablage["drift_items"]]
 
     return {
         "jeux": {"lignes": jeux["lignes"]},
         "forge": {"lignes": forge["lignes"]},
         "infrastructure": {"lignes": infra["lignes"]},
+        "cablage": {
+            "lignes": cablage["lignes"],
+            "note": "architecture attendue (Detail K, Nomenclature C + POOL DE BUILDERS) "
+                    "vs realite mesuree, 6 axes : construit/cable/actif/consomme/"
+                    "preuve_disponible + humangate_en_attente (decision Pierre "
+                    "FORGE_AUTONOMY_V2 n°3)",
+        },
         "drift_items": drift_items,
         "fraicheur_doctrine": _fraicheur_doctrine(schema_doc, pilotage_doc),
     }
