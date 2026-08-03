@@ -179,6 +179,52 @@ PROFILES = {
         "s11-redteam-code",
         "s12-verdict",
     ),
+    # full_godot : la chaîne CANONIQUE COMPLÈTE avec livrable Godot (mission Pierre
+    # 2026-08-03, run de référence Tetris). Comble le trou mesuré ce jour-là : aucun
+    # profil ne permettait « World Scan -> Genre Bible -> Charter -> Wiremap -> Archi ->
+    # Production Godot -> Oracles -> Red Team -> Verdict ». `full` a bien la conception
+    # amont (s0..s6) et le gel du jeu de règles, mais son s9-build produit du web/JS ;
+    # `standard_godot` livre bien du Godot mais saute s0..s6, donc n'émet AUCUN événement
+    # de gel (driver.py::_freeze_rules ne suit que s5-wiremap) — cause structurelle des
+    # 2 humangate_flags acceptés sur breakout_v2 (« archi non vérifiée », « wiremap non
+    # vérifiée ») et de son `humangate_notes: gel des règles absent`.
+    #
+    # COMPOSITION = amont canonique de `full` (s0..s6, tous membres de ORDER)
+    #             + build Godot de `standard_godot` (s9-build-godot-standard, dédié)
+    #             + LES DEUX familles d'oracles :
+    #                 * s10a-oracle-code    (mutation / e2e / solvabilité, générique)
+    #                 * s10b/s10c            (archi + wiremap génériques ; s10c est ce qui
+    #                                         RELIT wiremap_frozen.json et rend le gel
+    #                                         opposable — c'est le point de la manœuvre)
+    #                 * s10s-oracle-standard (les six oracles du squelette gelé, dédié :
+    #                                         line_states, placement, collisions, index,
+    #                                         contract_completeness, budget/loi d'empilement)
+    #             + s11-redteam-code (advisory) + s12-verdict (agrégation signée).
+    #
+    # Ce profil est le SEUL à cumuler s10s ET s10b/s10c. Ce n'est pas une redondance :
+    # s10s vérifie la conformité au squelette (« as-tu rempli la carte, et as-tu le droit
+    # de déposer ça en bibliothèque ? »), s10b/s10c vérifient l'isomorphisme carte<->code
+    # et l'intégrité du jeu de règles gelé (« la carte décrit-elle le code réel, et les
+    # règles sont-elles restées les mêmes ? »). Portées disjointes, contrats distincts.
+    #
+    # Mélange ORDER + DEDICATED_PROFILE_STEPS : déjà le régime de `standard`/`standard_godot`,
+    # pas une nouveauté introduite ici.
+    "full_godot": (
+        "s0-contrat",
+        "s1-prisme",
+        "s2-worldscan",
+        "s3-decompo",
+        "s4-archi",
+        "s5-wiremap",
+        "s6-redteam-plan",
+        "s9-build-godot-standard",
+        "s10a-oracle-code",
+        "s10b-oracle-archi",
+        "s10c-oracle-wiremap",
+        "s10s-oracle-standard",
+        "s11-redteam-code",
+        "s12-verdict",
+    ),
 }
 
 
@@ -200,6 +246,15 @@ PROFILES = {
 # que ce studio refuse. Ajouter une entrée ici = une mesure, pas une intuition.
 PROFILE_STEP_TIMEOUTS_S: dict[tuple[str, str], float] = {
     ("standard_godot", "s9-build-godot-standard"): 5400.0,
+    # full_godot : MÊME étape, MÊME contrat, MÊME builder greenfield Godot que la ligne
+    # au-dessus — seule la chaîne amont change, et elle ne change pas ce que s9 a à faire.
+    # Ce n'est donc PAS l'extrapolation que le commentaire ci-dessus interdit (celle-là
+    # viserait un AUTRE builder : s9-build-standard web, ou s9-build générique, jamais
+    # mesurés). Le point de mesure reste le même et unique : run
+    # `breakout_v2-run1-20260731-082705`. Si un jour s9-build-godot-standard est mesuré
+    # sous full_godot, cette valeur doit être remplacée par la mesure réelle, pas confirmée
+    # par l'absence d'incident.
+    ("full_godot", "s9-build-godot-standard"): 5400.0,
 }
 
 
