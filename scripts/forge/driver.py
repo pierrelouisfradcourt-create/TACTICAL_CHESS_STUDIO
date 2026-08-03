@@ -92,6 +92,7 @@ from forge.studio_link import (
     pool_stats,
     premortem,
     project_bible,
+    propose_bible_entry,
     propose_brick,
     propose_capability_gap,
     record_builder_run,
@@ -1752,6 +1753,10 @@ class ForgeDriver:
         # pas complet réussit) — best-effort strict, comme `_propose_bricks` :
         # ne doit JAMAIS changer le statut de ce pas ni du run.
         self._propose_capability_gaps(collisions_r)
+        # Connecteur repair-boucle-cassee (mission 2026-08-03, propose_bible_entry) :
+        # même discipline — dépôt best-effort au moment où le wiremap (déjà lu
+        # ci-dessus) est disponible, ne dépend PAS du statut de ce pas.
+        self._propose_bible_entries(wiremap)
         # R1 (contrat r1-preuves-boucle-mecaniques.yaml, 2026-07-27) : les 2 volets de
         # preuve de boucle — observable_by_player consommé par un oracle réel, Genre
         # Bible lisible et citée. ADVISORY (garde-fou 6 du contrat) : portés au reçu,
@@ -1847,6 +1852,67 @@ class ForgeDriver:
         except Exception:  # noqa: BLE001 — advisory, jamais bloquant
             logger.warning(
                 "_propose_capability_gaps: dépôt impossible pour run=%s (advisory, "
+                "non bloquant)", self.run_id, exc_info=True,
+            )
+
+    def _propose_bible_entries(self, wiremap: dict) -> None:
+        """Dépose une PROPOSITION de Project Bible (studio_link.propose_bible_entry,
+        PROPOSE-ONLY) pour chaque décision d'abandon RÉELLE déjà portée par le
+        wiremap du jeu — son tableau `discarded` (voir p.ex. games/breakout_v2/
+        09_WIREMAP/wiremap.json ou games/snake/09_WIREMAP/wiremap.json :
+        {id, source_role, proposal, discard_reason, ended_up_in_game}).
+
+        Ferme le maillon mesuré par l'audit du 2026-08-03 : `propose_bible_entry`
+        existait (studio_link.py:574 — signature/champs inchangés ici), et
+        `pending_review.mjs` lui réservait déjà sa 4e file
+        (`forge_bible_proposals`, l.17/58/88), mais AUCUN appelant ne
+        l'invoquait dans driver.py (grep exhaustif : 0 occurrence avant ce
+        correctif) — un lecteur sans écrivain.
+
+        PRÉDICAT DU DÉPÔT : `kind="abandoned"` UNIQUEMENT, une entrée par item
+        de `wiremap["discarded"]` dont `discard_reason` est un texte non vide.
+        C'est LA seule information de bible que ce point du run possède
+        réellement : une voie écartée + sa raison — « la mémoire la plus
+        précieuse » selon la docstring de `propose_bible_entry`. Rien n'est
+        proposé en `kind="validated"` : le wiremap ne porte, à cet endroit,
+        aucune décision de ce type distincte de l'implémentation mécanique déjà
+        couverte par line_states/placement/index/collisions ci-dessus — en
+        fabriquer une ici serait déposer une entrée vide, contraire à la règle
+        anti-invention.
+
+        `decision`/`rationale` embarquent la provenance réelle (run_id, id de
+        l'entrée `discarded`, chemin du wiremap) en texte : le record écrit par
+        `propose_bible_entry` n'a pas de champ `run_id` structuré (contrairement
+        à `propose_capability_gap`) — sa signature n'est pas modifiée par cette
+        réparation, hors périmètre de la mission.
+
+        Best-effort STRICT (même garantie que _propose_bricks/
+        _propose_capability_gaps) : toute exception ici est journalisée et
+        AVALÉE — ne doit jamais changer le statut de ce pas ni du run.
+        """
+        try:
+            discarded = wiremap.get("discarded") if isinstance(wiremap, dict) else None
+            if not isinstance(discarded, list) or not discarded:
+                return
+            game_dir_rel = self._repo_relative_str(self.game_dir)
+            wiremap_rel = f"{game_dir_rel}/09_WIREMAP/wiremap.json"
+            for item in discarded:
+                if not isinstance(item, dict):
+                    continue
+                reason = item.get("discard_reason")
+                if not isinstance(reason, str) or not reason.strip():
+                    continue
+                entry_id = item.get("id") if isinstance(item.get("id"), str) and item.get("id") else "?"
+                proposal = item.get("proposal") if isinstance(item.get("proposal"), str) else ""
+                decision = f"[abandoned] {entry_id}: {proposal}".strip()
+                rationale = (
+                    f"{reason} (source_role={item.get('source_role')!r}, "
+                    f"run_id={self.run_id}, wiremap={wiremap_rel})"
+                )
+                propose_bible_entry(self.project, "abandoned", decision, rationale)
+        except Exception:  # noqa: BLE001 — advisory, jamais bloquant
+            logger.warning(
+                "_propose_bible_entries: dépôt impossible pour run=%s (advisory, "
                 "non bloquant)", self.run_id, exc_info=True,
             )
 

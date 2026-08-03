@@ -23,7 +23,7 @@
 |---|---|
 | `lab/reports/forge_ledger_proposals.jsonl` | ✅ frais |
 | `lab/reports/forge_project_proposals.jsonl` | ✅ frais |
-| `lab/reports/forge_bible_proposals.jsonl` | ✅ frais |
+| `lab/reports/forge_bible_proposals.jsonl` | · jamais écrit (informatif) |
 
 ## Contrat de système Forge — règles canoniques citées par le pilotage
 
