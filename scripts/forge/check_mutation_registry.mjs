@@ -23,7 +23,9 @@
 import { access } from 'node:fs/promises';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadRegistry, loadMutation, CHEMIN_REGISTRE } from './mutation_registry.mjs';
+import {
+  loadRegistry, loadMutation, loadLayers, CHEMIN_REGISTRE,
+} from './mutation_registry.mjs';
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -119,8 +121,23 @@ export async function checkRegistry(registre) {
   let accepted = 0;
   let versioned = 0;
 
+  // 0. VOCABULAIRE DES LAYERS — le champ `layer` est desormais VALIDE, pas decoratif.
+  // Avant le 2026-08-04, l enum vivait en double dans deux .schema.json que AUCUN code
+  // ne lisait : un champ declare, jamais verifie. Le vocabulaire a une source unique
+  // (layers.json) et cette boucle est son premier lecteur mecanique.
+  const layers = await loadLayers();
+  if (layers.size === 0) {
+    problems.push('layers.json illisible ou vide — le vocabulaire des layers est la source '
+      + 'unique, son absence rend `layer` invalidable');
+  }
+
   for (const m of mutations) {
     const loc = `[${m.id}]`;
+
+    if (m.layer !== undefined && layers.size > 0 && !layers.has(m.layer)) {
+      problems.push(`${loc} layer '${m.layer}' hors vocabulaire — valeurs connues : `
+        + `${[...layers.keys()].join(', ')}`);
+    }
 
     // 5 & 6 — compteurs
     if (m.confidence !== 'AUTO') {

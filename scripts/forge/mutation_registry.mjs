@@ -101,6 +101,31 @@ export function findByLayer(registre, layer) {
   return loadMutation(registre).filter((m) => m.layer === layer);
 }
 
+/** Chemin du vocabulaire des layers — SOURCE UNIQUE, lue par le checker et le sélecteur. */
+export const CHEMIN_LAYERS = join(
+  dirname(fileURLToPath(import.meta.url)), 'layers.json',
+);
+
+/**
+ * Vocabulaire des layers : `Map<id, {chain, broken_loop, …}>`.
+ *
+ * Une layer est une ZONE OÙ UNE BOUCLE PEUT CASSER — jamais un agent, un rôle, un
+ * fichier ni une capacité. Le vocabulaire vit dans UN fichier ; les deux schémas
+ * (`mutation_registry.schema.json`, `root_problem.schema.json`) en portent une copie
+ * pour rester lisibles seuls, et un test vérifie qu'elles ne divergent pas.
+ *
+ * @param {string} [chemin]
+ * @returns {Promise<Map<string, object>>} vide si le fichier est illisible — jamais d'exception
+ */
+export async function loadLayers(chemin = CHEMIN_LAYERS) {
+  try {
+    const doc = JSON.parse(await readFile(chemin, 'utf-8'));
+    return new Map((doc.layers || []).map((l) => [l.id, l]));
+  } catch {
+    return new Map();
+  }
+}
+
 /**
  * @param {object} registre
  * @param {string} worker

@@ -397,3 +397,124 @@ test('EXECUTE : n ecrit AUCUN registre et ne touche pas production_ready', () =>
     assert.ok(!code.includes(i), `la Factory ne doit pas contenir « ${i} »`);
   }
 });
+
+// --- ADVERSARIAL : la colonne vertebrale tient-elle sous attaque ? -----------------
+//
+// Ces tests ne verifient pas que la chaine marche (c'est deja fait). Ils verifient
+// qu'elle REFUSE quand on essaie de la contourner.
+
+test('ADVERSARIAL 1 : ecriture hors du perimetre declare -> MISMATCH', async () => {
+  const r = await racine();
+  await mkdir(join(r, 'declare'), { recursive: true });
+  // Le plan annonce deux dossiers ; le runtime en touche un troisieme, non annonce.
+  const res = await executerPlan(PLAN_EXEC(), OPTS_EXEC({
+    racine: r,
+    scope: ['declare', 'ailleurs'],           // les DEUX sont observes
+    executer: async () => {
+      await mkdir(join(r, 'ailleurs'), { recursive: true });
+      await writeFile(join(r, 'ailleurs', 'intrus.json'), 'x', 'utf-8');
+      return EXEC_OK();
+    },
+  }));
+  // observe ET dans le scope -> conforme. On force l ecart en retirant 'ailleurs' du
+  // perimetre APRES coup : le meme fait devient un ecart.
+  const proof = await import('./execution_proof.mjs');
+  const v = proof.comparer(PLAN_EXEC(), {
+    ...res.execution.trace,
+    runtime_called: res.execution.trace.runtime_called,
+    output_keys: ['after', 'before'],
+    output: {},
+    files: { created: ['ailleurs/intrus.json'], modified: [], deleted: [] },
+  }, { scope: ['declare'], requeteFournie: { artifact_ref: 'a.json' } });
+  assert.equal(v.match_status, 'MISMATCH');
+  assert.equal(v.mismatches[0].mismatch, 'fichier inattendu');
+  assert.match(v.mismatches[0].detail, /intrus\.json/);
+});
+
+test('ADVERSARIAL 2 : runtime declare != runtime execute -> MISMATCH', async () => {
+  const proof = await import('./execution_proof.mjs');
+  const plan = PLAN_EXEC();
+  const v = proof.comparer(plan, {
+    runtime_called: { module: 'scripts/forge/un_autre_module.mjs' },
+    exit_code: 0, output_keys: ['after', 'before'], output: {},
+    files: { created: [], modified: [], deleted: [] },
+  }, { scope: ['scope'], requeteFournie: { artifact_ref: 'a.json' } });
+  assert.equal(v.match_status, 'MISMATCH');
+  assert.equal(v.mismatches[0].mismatch, 'mauvais runtime');
+  assert.match(v.mismatches[0].detail, /n est pas declare dans le plan/);
+});
+
+test('ADVERSARIAL 3 : evidence falsifiee (empreinte qui ne correspond pas) -> MISMATCH', async () => {
+  const proof = await import('./execution_proof.mjs');
+  const d = await racine();
+  await writeFile(join(d, 'repris.json'), 'contenu REEL', 'utf-8');
+  const vrai = proof.verifierMaillonRepris('repris.json', null, d);
+  // on declare une empreinte qui n est pas celle du fichier : falsification
+  const faux = proof.verifierMaillonRepris('repris.json', '0000000000000000', d);
+  assert.equal(vrai.verified, true);
+  assert.equal(faux.verified, false);
+  assert.match(faux.motif, /sha/);
+
+  const plan = { ...PLAN_EXEC(), mutation_id: 'M-compo',
+    capability_chain: [{ capability: 'cap_a', evidence: 'M-x' }, { capability: 'cap_b', evidence: 'M-y' }],
+    runtime_chain: [{ runtime_role: 'r1', callable: null },
+      { runtime_role: 'repair_runtime', callable: 'faux_runtime.mjs' }] };
+  const v = proof.comparer(plan, {
+    runtime_called: { module: 'faux_runtime.mjs' }, exit_code: 0,
+    output_keys: ['after', 'before'], output: {},
+    files: { created: [], modified: [], deleted: [] },
+  }, { scope: ['scope'], requeteFournie: { artifact_ref: 'a.json' },
+    resumedLegs: [{ capability: 'cap_a', ...faux }] });
+  assert.equal(v.match_status, 'MISMATCH');
+  assert.ok(v.mismatches.some((m) => /maillon de composition non justifie/.test(m.mismatch)));
+});
+
+test('ADVERSARIAL 4 : MATCH mecanique NE VAUT PAS qualite prouvee', async () => {
+  const r = await executerPlan(PLAN_EXEC(), OPTS_EXEC({ racine: await racine() }));
+  assert.equal(r.execution.verdict.match_status, 'MATCH');
+  // Le verdict ne contient AUCUNE affirmation de qualite, et n en fabrique aucune.
+  const brut = JSON.stringify(r.execution).toLowerCase();
+  for (const i of ['"quality_ok', '"quality_proven', '"production_ready":true', '"good', '"score']) {
+    assert.ok(!brut.includes(i), `un MATCH ne doit jamais porter « ${i} »`);
+  }
+  // et la seule mention de qualite dans la chaine reste la negation
+  const recettes = JSON.parse(readFileSync('scripts/forge/agent_recipes.json', 'utf-8'));
+  const cible = recettes.recipes.find((x) => x.id === 'world_scan_repair_v1');
+  assert.equal(cible.quality_not_proven, true);
+  assert.equal(cible.production_ready, false);
+});
+
+test('ADVERSARIAL 5 : apres MISMATCH, exactement UNE invocation', async () => {
+  let appels = 0;
+  const r = await executerPlan(PLAN_EXEC({ outputs: ['jamais_produit'] }), OPTS_EXEC({
+    racine: await racine(),
+    executer: async () => { appels += 1; return EXEC_OK(); },
+  }));
+  assert.equal(r.execution.verdict.match_status, 'MISMATCH');
+  assert.equal(appels, 1, 'aucun retry, aucun second essai, aucune reprise');
+  // et la trace du MISMATCH est rendue TELLE QUELLE, sans correction
+  assert.ok(r.execution.trace.mismatches.length > 0);
+  assert.equal(r.execution.trace.match_status, 'MISMATCH');
+});
+
+test('ADVERSARIAL 6 : la colonne vertebrale reste la seule voie', () => {
+  const src = readFileSync(fileURLToPath(new URL('./agent_factory.mjs', import.meta.url)), 'utf-8');
+  const code = src.split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
+
+  // La Factory ne doit appeler AUCUNE fonction de selection : c est le critere qui
+  // compte, pas l absence d import. (Elle importe bien `CHEMIN_ROLES` depuis
+  // candidate_selector — une CONSTANTE DE CHEMIN, pas une decision. Couplage connu,
+  // verrouille par l assertion suivante.)
+  for (const f of ['selectionner(', 'selectionnerExecutable(', 'ordonner(', 'preuveAttendue(']) {
+    assert.ok(!code.includes(f), `la Factory ne doit pas appeler « ${f} » — elle ne choisit pas`);
+  }
+  assert.ok(!code.includes('mcts_selector'), 'aucun lien vers le selecteur MCTS');
+  const importsSelector = [...code.matchAll(/import \{([^}]*)\} from '\.\/candidate_selector\.mjs'/g)]
+    .flatMap((m) => m[1].split(',').map((x) => x.trim()));
+  assert.deepEqual(importsSelector, ['CHEMIN_ROLES'],
+    'le SEUL emprunt au selecteur est une constante de chemin');
+
+  // mais elle DOIT passer par le binding et par la preuve
+  assert.ok(code.includes('execution_binding.mjs'), 'l executabilite est recalculee par le binding');
+  assert.ok(code.includes('execution_proof.mjs'), 'l execution passe par la couche de preuve');
+});

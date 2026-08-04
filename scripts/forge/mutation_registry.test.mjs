@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   loadRegistry, loadMutation, findMutation, findAccepted, findProductionReady,
-  findRejected, findByLayer, findByWorker, findByTarget, findByClass,
+  findRejected, findByLayer, findByWorker, findByTarget, findByClass, loadLayers,
 } from './mutation_registry.mjs';
 import { checkRegistry, deriverConfidence, referencesFichiers, ECHANTILLON_DE_REFERENCE } from './check_mutation_registry.mjs';
 
@@ -252,5 +252,75 @@ test("READINESS: une mutation ordonnable porte la metrique OBJECTIF de son contr
     if (obj in m.measured_metrics) {
       assert.equal(typeof m.measured_metrics[obj], "number", `${m.id}.${obj}`);
     }
+  }
+});
+
+// --- VOCABULAIRE DES LAYERS (2026-08-04) ------------------------------------------
+// Une layer est une ZONE OU UNE BOUCLE PEUT CASSER. Le vocabulaire a UNE source
+// (layers.json) et elle est LUE par du code — plus jamais un enum decoratif.
+
+test('layers.json : 13 zones, chacune avec la boucle qui casse', async () => {
+  const layers = await loadLayers();
+  assert.equal(layers.size, 13);
+  for (const [id, l] of layers) {
+    assert.ok(l.broken_loop && l.broken_loop.length > 10,
+      `${id} : une layer sans boucle nommee n est pas une layer`);
+    assert.ok(['amont', 'aval', 'transverse'].includes(l.chain), `${id} : chain inconnue`);
+  }
+  // les 5 ajouts du 2026-08-04 portent la ou les lecons qui les ont fait apparaitre
+  for (const id of ['preflight', 'build', 'oracle-produit', 'knowledge', 'feedback-loop']) {
+    assert.ok((layers.get(id).introduced_by || []).length > 0,
+      `${id} : ajoutee sans lecon justificative`);
+  }
+});
+
+test('layers.json : aucune valeur qui soit un role, un fichier ou une capacite', async () => {
+  const layers = await loadLayers();
+  const roles = ['orchestrator', 'run_orchestrator', 'builder', 'architect', 'worldscan',
+    'repair_runtime', 'deterministic', 'prisme', 'wiremap'];
+  for (const id of layers.keys()) {
+    assert.ok(!roles.includes(id), `« ${id} » est un ROLE de roles.yaml, pas une zone`);
+    assert.ok(!id.includes('.mjs') && !id.includes('.py'), `« ${id} » est un fichier`);
+  }
+  // le piege evite : la layer du retour diagnostic->correction ne porte PAS un nom de role
+  assert.ok(layers.has('feedback-loop'));
+  assert.ok(!layers.has('orchestration'));
+});
+
+test('le vocabulaire est LU : une layer inconnue est un probleme du registre', async () => {
+  const layers = await loadLayers();
+  const faux = {
+    schema_version: 2,
+    mutations: [{ ...ECHANTILLON_DE_REFERENCE, layer: 'zone_inventee' }],
+  };
+  const r = await checkRegistry(faux);
+  assert.ok(r.problems.some((p) => /layer 'zone_inventee' hors vocabulaire/.test(p)),
+    'un enum non lu ne protege rien — celui-ci est lu');
+  assert.ok([...layers.keys()].every((k) => typeof k === 'string'));
+});
+
+test('les deux schemas portent la MEME enum que la source — aucune divergence', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const { dirname, join } = await import('node:path');
+  const ici = dirname(fileURLToPath(import.meta.url));
+  const source = [...(await loadLayers()).keys()];
+  for (const [f, cle] of [['mutation_registry.schema.json', 'mutation'],
+    ['root_problem.schema.json', 'root_problem']]) {
+    const d = JSON.parse(await readFile(join(ici, f), 'utf-8'));
+    assert.deepEqual(d.definitions[cle].properties.layer.enum, source,
+      `${f} a diverge de layers.json`);
+  }
+});
+
+test('DEPOT REEL : toutes les layers employees sont dans le vocabulaire', async () => {
+  const { registre } = await loadRegistry();
+  const layers = await loadLayers();
+  const employees = new Set(loadMutation(registre).map((m) => m.layer).filter(Boolean));
+  for (const l of employees) assert.ok(layers.has(l), `layer employee hors vocabulaire : ${l}`);
+  const rp = JSON.parse(await (await import('node:fs/promises'))
+    .readFile(new URL('./root_problems.json', import.meta.url), 'utf-8'));
+  for (const p of rp.root_problems) {
+    assert.ok(layers.has(p.layer), `root_problem ${p.id} : layer ${p.layer} hors vocabulaire`);
   }
 });
