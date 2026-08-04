@@ -1,0 +1,534 @@
+[
+ {
+  "nom": "worldscan",
+  "doc": {
+   "advisory": true,
+   "games": [
+    {
+     "game": "Cookie Clicker",
+     "sources": [
+      {
+       "url": "https://cookieclicker.fandom.com/wiki/Building",
+       "type": "wiki"
+      },
+      {
+       "url": "https://www.gamedeveloper.com/design/the-cow-clicker-story",
+       "type": "article"
+      },
+      {
+       "url": "https://www.youtube.com/watch?v=exemple-clicker",
+       "type": "video",
+       "timestamp": "00:04:12"
+      }
+     ],
+     "loops": {
+      "minute_1": "Le joueur clique le cookie et voit le compteur monter.",
+      "minute_10": "Le joueur achete son premier batiment producteur.",
+      "hour_5": "La production passive depasse largement le clic manuel.",
+      "endgame": "Le joueur optimise des paliers de production de plus en plus grands."
+     },
+     "objectives": [
+      {
+       "mode": "solo",
+       "has_win_state": false,
+       "victory_condition": null,
+       "has_defeat_state": false,
+       "defeat_condition": null,
+       "player_goal": "Maximiser la production cumulee, sans etat gagne ni perdu."
+      }
+     ],
+     "retention_answer": "La courbe de production exponentielle et les paliers d achat relancent en permanence un objectif proche."
+    },
+    {
+     "game": "Adventure Capitalist",
+     "sources": [
+      {
+       "url": "https://adventurecapitalist.fandom.com/wiki/Businesses",
+       "type": "wiki"
+      },
+      {
+       "url": "https://www.pocketgamer.com/adventure-capitalist/review/",
+       "type": "article"
+      },
+      {
+       "url": "https://www.youtube.com/watch?v=exemple-adcap",
+       "type": "video",
+       "timestamp": "00:01:30"
+      }
+     ],
+     "loops": {
+      "minute_1": "Le joueur lance manuellement une premiere activite.",
+      "minute_10": "Le joueur achete un manager qui automatise l activite.",
+      "hour_5": "Toutes les activites tournent seules, le joueur arbitre les investissements.",
+      "endgame": "Le joueur relance une partie pour un multiplicateur permanent."
+     },
+     "objectives": [
+      {
+       "mode": "solo",
+       "has_win_state": false,
+       "victory_condition": null,
+       "has_defeat_state": false,
+       "defeat_condition": null,
+       "player_goal": "Automatiser toute production puis relancer pour un bonus permanent."
+      }
+     ],
+     "retention_answer": "L automatisation transforme l effort en revenu passif, ce qui rend chaque retour au jeu payant."
+    }
+   ]
+  }
+ },
+ {
+  "nom": "prisme",
+  "doc": {
+   "schema_version": 1,
+   "game_id": "cookie_clicker",
+   "exigences": [
+    {
+     "id": "ex.clic",
+     "source": "EXPECTED",
+     "source_role": "joueur",
+     "reference": "https://cookieclicker.fandom.com/wiki/Building",
+     "observation": "Dans les clickers observes, le clic manuel incremente un compteur visible immediatement.",
+     "claim": "Le clic manuel est la seule source de progression accessible a la premiere seconde de jeu.",
+     "enonce": "Un clic sur le cookie incremente le compteur de production d une unite au moins.",
+     "expected_proof": {
+      "kind": "bot_action",
+      "statement": "Un bot clique une fois : le compteur affiche vaut exactement la valeur precedente + gain_par_clic."
+     },
+     "destination": "s3-decompo"
+    },
+    {
+     "id": "ex.production",
+     "source": "EXPECTED",
+     "source_role": "game_designer",
+     "reference": "https://www.youtube.com/watch?v=exemple-clicker",
+     "observation": "La production passive continue quand le joueur ne clique pas.",
+     "claim": "La progression doit exister en l absence totale d entree joueur.",
+     "enonce": "La production passive s applique a intervalle fixe, independamment du clic.",
+     "expected_proof": {
+      "kind": "oracle",
+      "statement": "Sans aucune entree pendant N ticks, le compteur croit de N * production_par_tick."
+     },
+     "destination": "s3-decompo"
+    },
+    {
+     "id": "ex.achat",
+     "source": "EXPECTED",
+     "source_role": "back",
+     "reference": "https://www.gamedeveloper.com/design/the-cow-clicker-story",
+     "observation": "L achat d un batiment consomme la monnaie et augmente la production.",
+     "claim": "L achat est un echange : il retire une ressource et modifie un taux.",
+     "enonce": "Un achat n est possible que si le solde couvre le prix, et il augmente la production passive.",
+     "expected_proof": {
+      "kind": "bot_action",
+      "statement": "Achat avec solde insuffisant refuse et solde inchange ; achat avec solde suffisant debite et augmente production_par_tick."
+     },
+     "destination": "s3-decompo"
+    },
+    {
+     "id": "ex.progression",
+     "source": "ADDITIONS",
+     "source_role": "front",
+     "reference": null,
+     "observation": "Aucune source observee ne montre le compteur pendant une pause de jeu.",
+     "claim": "La lisibilite permanente de l etat n est attestee par aucune source : c est une proposition, pas une observation.",
+     "enonce": "Le compteur reste lisible a l ecran a tout instant, y compris pendant un achat.",
+     "expected_proof": {
+      "kind": "visual",
+      "statement": "Capture pendant un achat : la zone du compteur est non vide et affiche la valeur courante."
+     },
+     "destination": "s5-wiremap"
+    }
+   ]
+  }
+ },
+ {
+  "nom": "featuremap",
+  "doc": {
+   "schema_version": 1,
+   "game_id": "cookie_clicker",
+   "systemes": [
+    {
+     "id": "game_state",
+     "features": [
+      {
+       "id": "feat.cookie",
+       "capacites": [
+        {
+         "id": "cap.clic.increment",
+         "capacite": "Incrementer le compteur au clic selon gain_par_clic.",
+         "source_ref": "ex.clic",
+         "expected_proof": {
+          "kind": "bot_action",
+          "statement": "Un clic : compteur += gain_par_clic, aucune autre variable modifiee."
+         }
+        },
+        {
+         "id": "cap.production.tick",
+         "capacite": "Appliquer la production passive a chaque tick fixe.",
+         "source_ref": "ex.production",
+         "expected_proof": {
+          "kind": "oracle",
+          "statement": "N ticks sans entree : compteur += N * production_par_tick."
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "interaction",
+     "features": [
+      {
+       "id": "feat.batiments",
+       "capacites": [
+        {
+         "id": "cap.achat.batiment",
+         "capacite": "Acheter un batiment si le solde couvre le prix, puis augmenter la production.",
+         "source_ref": "ex.achat",
+         "expected_proof": {
+          "kind": "bot_action",
+          "statement": "Solde insuffisant : refus, etat inchange. Solde suffisant : debit + production_par_tick augmentee."
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "presentation",
+     "features": [
+      {
+       "id": "feat.hud",
+       "capacites": [
+        {
+         "id": "cap.hud.compteur",
+         "capacite": "Afficher en permanence la valeur courante du compteur.",
+         "source_ref": "ex.progression",
+         "expected_proof": {
+          "kind": "visual",
+          "statement": "Capture a tout instant : zone compteur non vide, valeur egale a l etat."
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "nom": "blueprint",
+  "doc": {
+   "modules": [
+    "game_state",
+    "interaction",
+    "presentation"
+   ],
+   "deps_interdites": [
+    [
+     "presentation",
+     "interaction"
+    ],
+    [
+     "game_state",
+     "presentation"
+    ]
+   ],
+   "responsabilites": [
+    {
+     "module": "game_state",
+     "responsabilite": "Detient le compteur, le gain par clic et la production par tick. Seul ecrivain de l etat.",
+     "couvre": [
+      "feat.cookie"
+     ],
+     "dependances": [],
+     "preuve_attendue": {
+      "kind": "oracle",
+      "statement": "Toute mutation du compteur passe par une fonction de game_state (aucun autre module ne l ecrit)."
+     }
+    },
+    {
+     "module": "interaction",
+     "responsabilite": "Traduit les entrees joueur (clic, achat) en transitions demandees a game_state.",
+     "couvre": [
+      "feat.batiments"
+     ],
+     "dependances": [
+      "game_state"
+     ],
+     "preuve_attendue": {
+      "kind": "bot_action",
+      "statement": "Un achat refuse ne laisse aucune trace dans l etat."
+     }
+    },
+    {
+     "module": "presentation",
+     "responsabilite": "Lit l etat et le rend a l ecran. N ecrit jamais l etat.",
+     "couvre": [
+      "feat.hud"
+     ],
+     "dependances": [
+      "game_state"
+     ],
+     "preuve_attendue": {
+      "kind": "visual",
+      "statement": "Capture : la valeur affichee egale la valeur de l etat au meme instant."
+     }
+    }
+   ]
+  }
+ },
+ {
+  "nom": "wiremap",
+  "doc": {
+   "schema_version": 2,
+   "game_id": "cookie_clicker",
+   "systems": [
+    {
+     "id": "game_state",
+     "category": "system",
+     "allowed_deps": []
+    },
+    {
+     "id": "interaction",
+     "category": "system",
+     "allowed_deps": [
+      "game_state"
+     ]
+    },
+    {
+     "id": "presentation",
+     "category": "system.adapter",
+     "allowed_deps": [
+      "game_state"
+     ]
+    }
+   ],
+   "lines": [
+    {
+     "id": "core.clic",
+     "source": "EXPECTED",
+     "source_role": "joueur",
+     "reference": "https://cookieclicker.fandom.com/wiki/Building",
+     "couvre": [
+      "cap.clic.increment"
+     ],
+     "system_parent": "game_state",
+     "state": "REQUIRED",
+     "expected_proof": {
+      "kind": "bot_action",
+      "statement": "Un clic incremente le compteur de gain_par_clic."
+     }
+    },
+    {
+     "id": "core.tick",
+     "source": "EXPECTED",
+     "source_role": "game_designer",
+     "reference": "https://www.youtube.com/watch?v=exemple-clicker",
+     "couvre": [
+      "cap.production.tick"
+     ],
+     "system_parent": "game_state",
+     "state": "REQUIRED",
+     "expected_proof": {
+      "kind": "oracle",
+      "statement": "N ticks sans entree incrementent de N * production_par_tick."
+     }
+    },
+    {
+     "id": "core.achat",
+     "source": "EXPECTED",
+     "source_role": "back",
+     "reference": "https://www.gamedeveloper.com/design/the-cow-clicker-story",
+     "couvre": [
+      "cap.achat.batiment"
+     ],
+     "system_parent": "interaction",
+     "state": "REQUIRED",
+     "expected_proof": {
+      "kind": "bot_action",
+      "statement": "Achat refuse si solde insuffisant, etat inchange."
+     }
+    },
+    {
+     "id": "core.hud",
+     "source": "ADDITIONS",
+     "source_role": "front",
+     "reference": null,
+     "couvre": [
+      "cap.hud.compteur"
+     ],
+     "system_parent": "presentation",
+     "state": "REQUIRED",
+     "expected_proof": {
+      "kind": "visual",
+      "statement": "Zone compteur non vide a tout instant."
+     }
+    }
+   ]
+  }
+ },
+ {
+  "nom": "M-ws5",
+  "doc": {
+   "games": [
+    {
+     "game": "Cookie Clicker",
+     "sources": [
+      {
+       "url": "https://cookieclicker.github.io/",
+       "type": "wiki",
+       "timestamp": ""
+      },
+      {
+       "url": "https://www.youtube.com/watch?v=JZb2vz1oQ4w",
+       "type": "video",
+       "timestamp": "2023-09-15T12:00:00Z"
+      },
+      {
+       "url": "https://cookieclicker.fandom.com/wiki/Cookie_Clicker_Wiki",
+       "type": "wiki",
+       "timestamp": ""
+      }
+     ],
+     "loops": {
+      "minute_1": "Clic sur le cookie pour gagner des cookies, achetez des ameliorations.",
+      "minute_10": "Acheter de nouvelles structures et upgrades pour augmenter la production automatique de cookies.",
+      "hour_5": "Investir dans des grands buildings pour maximiser les revenus de cookies.",
+      "endgame": "Obtenir le titre 'OMNIPOTENT' en atteignant un certain nombre de cookies."
+     },
+     "objectives": [
+      {
+       "mode": "clicker",
+       "has_win_state": false,
+       "victory_condition": null,
+       "has_defeat_state": false,
+       "defeat_condition": null,
+       "player_goal": "Maximiser la production et l'accumulation de cookies"
+      }
+     ]
+    },
+    {
+     "game": "Idle Game Maker",
+     "sources": [
+      {
+       "url": "https://idle-game-maker.com/",
+       "type": "wiki",
+       "timestamp": ""
+      },
+      {
+       "url": "https://www.youtube.com/watch?v=KJf8pZ7zr6M",
+       "type": "video",
+       "timestamp": "2023-09-15T14:00:00Z"
+      },
+      {
+       "url": "https://idle-game-maker.fandom.com/wiki/Idle_Game_Maker_Wiki",
+       "type": "wiki",
+       "timestamp": ""
+      }
+     ],
+     "loops": {
+      "minute_1": "Clic sur le bouton pour gagner des points.",
+      "minute_10": "Acheter des ameliorations pour augmenter la production automatique de points.",
+      "hour_5": "Investir dans des grands buildings pour maximiser les revenus de points.",
+      "endgame": "Obtenir le titre 'OMNIPOTENT' en atteignant un certain nombre de points."
+     },
+     "objectives": [
+      {
+       "mode": "idle",
+       "has_win_state": false,
+       "victory_condition": null,
+       "has_defeat_state": false,
+       "defeat_condition": null,
+       "player_goal": "Maximiser la production et l'accumulation de points"
+      }
+     ]
+    }
+   ],
+   "advisory": true
+  }
+ },
+ {
+  "nom": "M-ws6",
+  "doc": {
+   "games": [
+    {
+     "game": "Cookie Clicker",
+     "sources": [
+      {
+       "url": "https://cookieclicker.github.io/",
+       "type": "wiki",
+       "timestamp": ""
+      },
+      {
+       "url": "https://www.youtube.com/watch?v=JZb2vz1oQ4w",
+       "type": "video",
+       "timestamp": "2023-09-15T12:00:00Z"
+      },
+      {
+       "url": "https://cookieclicker.fandom.com/wiki/Cookie_Clicker_Wiki",
+       "type": "wiki",
+       "timestamp": ""
+      }
+     ],
+     "loops": {
+      "minute_1": "Clic sur le cookie pour gagner des cookies, achetez des ameliorations.",
+      "minute_10": "Acheter de nouvelles structures et upgrades pour augmenter la production automatique de cookies.",
+      "hour_5": "Investir dans des grands buildings pour maximiser les revenus de cookies.",
+      "endgame": "Obtenir le titre 'OMNIPOTENT' en atteignant un certain nombre de cookies."
+     },
+     "objectives": [
+      {
+       "mode": "clicker",
+       "has_win_state": false,
+       "victory_condition": null,
+       "has_defeat_state": false,
+       "defeat_condition": null,
+       "player_goal": "Maximiser la production et l'accumulation de cookies"
+      }
+     ],
+     "retention_answer": "I have enjoyed playing Cookie Clicker and found it to be a delightful experience."
+    },
+    {
+     "game": "Idle Game Maker",
+     "sources": [
+      {
+       "url": "https://idle-game-maker.com/",
+       "type": "wiki",
+       "timestamp": ""
+      },
+      {
+       "url": "https://www.youtube.com/watch?v=KJf8pZ7zr6M",
+       "type": "video",
+       "timestamp": "2023-09-15T14:00:00Z"
+      },
+      {
+       "url": "https://idle-game-maker.fandom.com/wiki/Idle_Game_Maker_Wiki",
+       "type": "wiki",
+       "timestamp": ""
+      }
+     ],
+     "loops": {
+      "minute_1": "Clic sur le bouton pour gagner des points.",
+      "minute_10": "Acheter des ameliorations pour augmenter la production automatique de points.",
+      "hour_5": "Investir dans des grands buildings pour maximiser les revenus de points.",
+      "endgame": "Obtenir le titre 'OMNIPOTENT' en atteignant un certain nombre de points."
+     },
+     "objectives": [
+      {
+       "mode": "idle",
+       "has_win_state": false,
+       "victory_condition": null,
+       "has_defeat_state": false,
+       "defeat_condition": null,
+       "player_goal": "Maximiser la production et l'accumulation de points"
+      }
+     ],
+     "retention_answer": "I have learned valuable lessons from this game."
+    }
+   ],
+   "advisory": true
+  }
+ }
+]

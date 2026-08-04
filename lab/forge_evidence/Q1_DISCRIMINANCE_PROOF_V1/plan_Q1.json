@@ -1,0 +1,79 @@
+{
+ "execution_id": "exec-f8dc0875a246dd23",
+ "root_problem_id": "ORACLE_FALSE_NEGATIVE",
+ "mutation_id": "Q1-DISCRIMINANCE",
+ "selected_recipe": "duplicate_content_gate_v1",
+ "runtime_to_call": {
+  "runtime_role": "deterministic",
+  "contract_ref": "roles.yaml#runtime_contracts.deterministic",
+  "contract_kind": "runtime_contract",
+  "entrypoints": [
+   "scripts/forge/oracle_quality.mjs",
+   "scripts/forge/cross_field_quality.mjs",
+   "scripts/forge/check_worldscan.mjs"
+  ],
+  "adapter": null,
+  "callable": "scripts/forge/oracle_quality.mjs",
+  "callable_level": "entrypoint",
+  "model": "aucun",
+  "kill_switch": null,
+  "invocation": "positional_artifact",
+  "required_inputs": [
+   "artifact_ref"
+  ],
+  "expected_outputs": [
+   "verdict",
+   "signaux",
+   "compte"
+  ]
+ },
+ "capability_chain": [
+  {
+   "capability": "duplicate_content_detection",
+   "evidence": "Q1-DISCRIMINANCE",
+   "runtime_role": "deterministic"
+  }
+ ],
+ "runtime_chain": [
+  {
+   "runtime_role": "deterministic",
+   "contract_ref": "roles.yaml#runtime_contracts.deterministic",
+   "contract_kind": "runtime_contract",
+   "entrypoints": [
+    "scripts/forge/oracle_quality.mjs",
+    "scripts/forge/cross_field_quality.mjs",
+    "scripts/forge/check_worldscan.mjs"
+   ],
+   "adapter": null,
+   "callable": "scripts/forge/oracle_quality.mjs",
+   "callable_level": "entrypoint",
+   "model": "aucun",
+   "kill_switch": null,
+   "invocation": "positional_artifact",
+   "required_inputs": [
+    "artifact_ref"
+   ],
+   "expected_outputs": [
+    "verdict",
+    "signaux",
+    "compte"
+   ]
+  }
+ ],
+ "required_inputs": [
+  "artifact_ref"
+ ],
+ "expected_outputs": [
+  "verdict",
+  "signaux",
+  "compte"
+ ],
+ "evidence_targets": [
+  "lab/forge_evidence/CAPABILITY_MEASUREMENT_V1/measured_metrics.json",
+  "lab/forge_evidence/CAPABILITY_MEASUREMENT_V1/positifs.json",
+  "lab/forge_evidence/CAPABILITY_MEASUREMENT_V1/negatifs.json"
+ ],
+ "blockers": [],
+ "executable": true,
+ "execution_mode": "PLAN_ONLY"
+}

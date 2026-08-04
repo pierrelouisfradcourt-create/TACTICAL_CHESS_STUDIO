@@ -1,0 +1,54 @@
+{
+ "replay": "REPAIR_RUNTIME_V1",
+ "recipe": "world_scan_repair_v1",
+ "chaine": [
+  {
+   "capability": "instance_separation",
+   "mode": "REPRIS_DE_LA_PREUVE_VERSIONNEE",
+   "source": "lab/forge_evidence/PROMPT_FIELD_OMISSION/M-ws5/after.json",
+   "sha256_16": "0f7865ebd9a8a751",
+   "completion": {
+    "remplis": 16,
+    "attendus": 18,
+    "ratio": 0.889
+   },
+   "oracle_pass": false
+  },
+  {
+   "capability": "targeted_field_repair",
+   "mode": "REJOUE_EN_VRAI_VIA_ADAPTATEUR",
+   "runtime": "repair_runtime_adapter.mjs -> repair_step.mjs -> repair_loop.mjs",
+   "contract_status": "CONFORME",
+   "mutation_used": "REPAIR-LOOP-V1",
+   "fields_changed": [
+    "games[0].retention_answer",
+    "games[1].retention_answer"
+   ],
+   "completion": {
+    "remplis": 18,
+    "attendus": 18,
+    "ratio": 1
+   },
+   "oracle_pass": true,
+   "completion_tokens": 151,
+   "cycles": 1,
+   "regression_count": 0,
+   "duree_ms": 6153
+  }
+ ],
+ "attendu_versionne": {
+  "avant": "0.889 / FAIL",
+  "apres": "1.0 / OK",
+  "source": "M-ws5 -> M-ws6"
+ },
+ "reproduit": true,
+ "quality_not_proven": true,
+ "quality_note": "La chaine ferme le defaut MESURE (2 champs vides -> oracle vert). Elle ne prouve PAS la justesse des valeurs ecrites : aucune mesure de qualite n intervient ici. « oracle OK » ne se lit jamais « qualite OK ».",
+ "evaluation_context": {
+  "dataset": "lab/forge_evidence/PROMPT_FIELD_OMISSION/input.json",
+  "dataset_sha256": "d1da5019951363e1",
+  "worker_model": "qwen2.5-14b-instruct",
+  "temperature": 0,
+  "oracle_version": "check_worldscan.mjs v0.3"
+ }
+}

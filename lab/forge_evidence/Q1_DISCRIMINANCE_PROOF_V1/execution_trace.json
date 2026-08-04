@@ -1,0 +1,75 @@
+{
+ "schema": "forge.execution_proof.v0",
+ "plan_id": "exec-f8dc0875a246dd23",
+ "root_problem_id": "ORACLE_FALSE_NEGATIVE",
+ "capability_chain": [
+  "duplicate_content_detection"
+ ],
+ "runtime_called": {
+  "module": "scripts/forge/oracle_quality.mjs",
+  "niveau": "entrypoint",
+  "cmd": "node",
+  "args": [
+   "scripts/forge/oracle_quality.mjs",
+   "lab/forge_evidence/Q1_DISCRIMINANCE_PROOF_V1/run/artefact.json",
+   "--json"
+  ]
+ },
+ "runtime_role": "deterministic",
+ "callable_level": "entrypoint",
+ "invocation": "positional_artifact",
+ "stdout_parse_mode": "trailing_json",
+ "files_changed": {
+  "created": [],
+  "modified": [],
+  "deleted": []
+ },
+ "outputs_created": [
+  "compte",
+  "signaux",
+  "verdict"
+ ],
+ "evidence_created": [],
+ "mutation_used": null,
+ "match_status": "MATCH",
+ "resumed_legs": [],
+ "mismatches": [],
+ "checks": [
+  {
+   "check": "runtime_called",
+   "ok": true,
+   "detail": "appele=scripts/forge/oracle_quality.mjs · declares=scripts/forge/oracle_quality.mjs, scripts/forge/cross_field_quality.mjs, scripts/forge/check_worldscan.mjs"
+  },
+  {
+   "check": "files_in_scope",
+   "ok": true,
+   "detail": "0 fichier(s) touche(s)"
+  },
+  {
+   "check": "expected_outputs",
+   "ok": true,
+   "detail": "attendues=3 · observees=3"
+  },
+  {
+   "check": "evidence_targets",
+   "ok": true,
+   "detail": "3 cible(s)"
+  },
+  {
+   "check": "root_problem_stable",
+   "ok": true,
+   "detail": "plan=ORACLE_FALSE_NEGATIVE · observe=null"
+  },
+  {
+   "check": "mutation_used",
+   "ok": true,
+   "detail": "plan=Q1-DISCRIMINANCE · observe=null · acceptables=Q1-DISCRIMINANCE"
+  },
+  {
+   "check": "required_inputs",
+   "ok": true,
+   "detail": "1 fournie(s) / 1 declaree(s)"
+  }
+ ],
+ "exit_code": 0
+}

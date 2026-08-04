@@ -159,7 +159,20 @@ node_modules/
 llm-lego/hygiene_report.json
 
 scripts/forge/.forge_key
-lab/forge_evidence/
+
+# lab/forge_evidence/ — POLITIQUE OPTION C, ratifiee Pierre 2026-08-04.
+# Mesure qui l'a motivee : 57 references depuis des fichiers VERSIONNES
+# (mutation_registry, capabilities, agent_recipes, root_problems) pointaient vers des
+# fichiers ignores. Consequence mesuree sur un clone frais : 0 mutation sur 13
+# executable, 13 x evidence_missing. Un registre versionne qui cite un fichier ignore
+# cree une reference que le depot ne peut pas honorer.
+#
+# REGLE : les BUNDLES DE PREUVE (un dossier par experience, contenu fige une fois
+# l'experience close) sont versionnes. Les FLUX D'EXPLOITATION de la racine
+# (append-only, sans fin : dispatch_audit, telemetry, repair_results, runtime_drift,
+# oracle_*.log) restent ignores.
+lab/forge_evidence/*
+!lab/forge_evidence/*/
 
 # Backups temporaires du mutation testing (forge.mutation) — jamais commités
 *.mutbak

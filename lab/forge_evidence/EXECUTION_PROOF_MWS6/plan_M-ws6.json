@@ -1,0 +1,122 @@
+{
+ "execution_id": "exec-de34daff3e6fa461",
+ "root_problem_id": "PROMPT_FIELD_OMISSION",
+ "mutation_id": "M-ws6",
+ "selected_recipe": "world_scan_repair_v1",
+ "runtime_to_call": {
+  "runtime_role": "repair_runtime",
+  "contract_ref": "roles.yaml#runtime_contracts.repair_runtime",
+  "contract_kind": "runtime_contract",
+  "entrypoints": [
+   "scripts/forge/repair_step.mjs"
+  ],
+  "adapter": "scripts/forge/repair_runtime_adapter.mjs",
+  "callable": "scripts/forge/repair_runtime_adapter.mjs",
+  "callable_level": "adapter",
+  "model": "lmstudio/qwen2.5-14b-instruct",
+  "kill_switch": "FORGE_REPAIR=0",
+  "invocation": "request_file",
+  "required_inputs": [
+   "finding_id",
+   "root_problem_id",
+   "artifact_ref",
+   "evidence_ref",
+   "allowed_fields",
+   "forbidden_fields"
+  ],
+  "expected_outputs": [
+   "before",
+   "after",
+   "patch",
+   "oracle_before",
+   "oracle_after",
+   "evidence_created",
+   "mutation_used"
+  ]
+ },
+ "capability_chain": [
+  {
+   "capability": "instance_separation",
+   "evidence": "M-ws5",
+   "runtime_role": "worldscan"
+  },
+  {
+   "capability": "targeted_field_repair",
+   "evidence": "REPAIR-LOOP-V1",
+   "runtime_role": "repair_runtime"
+  }
+ ],
+ "runtime_chain": [
+  {
+   "runtime_role": "worldscan",
+   "contract_ref": "contracts/s2-worldscan.yaml",
+   "contract_kind": "step_contract",
+   "entrypoints": [],
+   "adapter": null,
+   "callable": null,
+   "callable_level": null,
+   "model": null,
+   "kill_switch": null,
+   "invocation": null,
+   "required_inputs": [],
+   "expected_outputs": []
+  },
+  {
+   "runtime_role": "repair_runtime",
+   "contract_ref": "roles.yaml#runtime_contracts.repair_runtime",
+   "contract_kind": "runtime_contract",
+   "entrypoints": [
+    "scripts/forge/repair_step.mjs"
+   ],
+   "adapter": "scripts/forge/repair_runtime_adapter.mjs",
+   "callable": "scripts/forge/repair_runtime_adapter.mjs",
+   "callable_level": "adapter",
+   "model": "lmstudio/qwen2.5-14b-instruct",
+   "kill_switch": "FORGE_REPAIR=0",
+   "invocation": "request_file",
+   "required_inputs": [
+    "finding_id",
+    "root_problem_id",
+    "artifact_ref",
+    "evidence_ref",
+    "allowed_fields",
+    "forbidden_fields"
+   ],
+   "expected_outputs": [
+    "before",
+    "after",
+    "patch",
+    "oracle_before",
+    "oracle_after",
+    "evidence_created",
+    "mutation_used"
+   ]
+  }
+ ],
+ "required_inputs": [
+  "finding_id",
+  "root_problem_id",
+  "artifact_ref",
+  "evidence_ref",
+  "allowed_fields",
+  "forbidden_fields"
+ ],
+ "expected_outputs": [
+  "before",
+  "after",
+  "patch",
+  "oracle_before",
+  "oracle_after",
+  "evidence_created",
+  "mutation_used"
+ ],
+ "evidence_targets": [
+  "lab/forge_evidence/PROMPT_FIELD_OMISSION/M-ws6/measured_metrics.json",
+  "lab/forge_evidence/PROMPT_FIELD_OMISSION/M-ws5/measured_metrics.json",
+  "lab/forge_evidence/REPAIR-LOOP-V1/measured_metrics.json",
+  "lab/forge_evidence/REPAIR_RUNTIME_V1/replay_metrics.json"
+ ],
+ "blockers": [],
+ "executable": true,
+ "execution_mode": "PLAN_ONLY"
+}

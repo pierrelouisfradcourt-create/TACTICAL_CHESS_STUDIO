@@ -1,0 +1,25 @@
+## MISSION
+Produis le manifeste d'observation pour le genre du jeu `cookie_clicker` (clicker / idle).
+
+## CONTRAT DE SORTIE (aucune liberte de format)
+Un unique bloc ```json``` :
+{"games": [{"game": "", "sources": [{"url": "", "type": "wiki"|"article"|"video", "timestamp": ""}], "loops": {"minute_1": "", "minute_10": "", "hour_5": "", "endgame": ""}, "objectives": [{"mode": "", "has_win_state": true|false, "victory_condition": <string ou null>, "has_defeat_state": true|false, "defeat_condition": <string ou null>, "player_goal": ""}], "retention_answer": ""}], "advisory": true}
+
+## H1 — DEUX TACHES SEPAREES, PAS UNE
+Traite le jeu 1 puis le jeu 2 comme deux observations INDEPENDANTES. Une fois le jeu 1
+redige, tu ne dois REUTILISER AUCUNE de ses formulations pour le jeu 2 : ces deux jeux se
+ressemblent, c'est justement pour cela qu'il faut dire ce qui les DISTINGUE.
+
+## CHAMPS OBLIGATOIREMENT NON VIDES (pour CHACUN des 2 jeux)
+1. `game`  2. `sources[].url` (>= 3)  3. `loops.minute_1`  4. `loops.minute_10`
+5. `loops.hour_5`  6. `loops.endgame`  7. `objectives[].mode`  8. `objectives[].player_goal`
+9. `retention_answer`
+Si une notion n'existe pas pour ce genre, ECRIS-LE en toutes lettres, avec tes propres mots
+adaptes a CE jeu. Une chaine vide n'est jamais une reponse.
+
+## AUTRES REGLES DURES
+- EXACTEMENT 2 jeux de reference du genre, reels et connus.
+- `type: "video"` EXIGE un `timestamp` non vide.
+- `advisory` vaut exactement true.
+
+Rien d'autre que le bloc ```json```.

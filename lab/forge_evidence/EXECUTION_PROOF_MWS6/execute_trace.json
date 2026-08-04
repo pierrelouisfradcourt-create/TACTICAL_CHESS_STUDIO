@@ -1,0 +1,101 @@
+{
+ "schema": "forge.execution_proof.v0",
+ "plan_id": "exec-de34daff3e6fa461",
+ "root_problem_id": "PROMPT_FIELD_OMISSION",
+ "capability_chain": [
+  "instance_separation",
+  "targeted_field_repair"
+ ],
+ "runtime_called": {
+  "module": "scripts/forge/repair_runtime_adapter.mjs",
+  "niveau": "adapter",
+  "cmd": "node",
+  "args": [
+   "scripts/forge/repair_runtime_adapter.mjs",
+   "lab/forge_evidence/EXECUTION_PROOF_MWS6/runtime_request.json",
+   "--json"
+  ]
+ },
+ "runtime_role": "repair_runtime",
+ "callable_level": "adapter",
+ "invocation": "request_file",
+ "stdout_parse_mode": "strict",
+ "files_changed": {
+  "created": [],
+  "modified": [
+   "lab/forge_evidence/EXECUTION_PROOF_MWS6/run/worldscan.json"
+  ],
+  "deleted": []
+ },
+ "outputs_created": [
+  "after",
+  "before",
+  "contract_detail",
+  "contract_status",
+  "evidence_created",
+  "finding_id",
+  "measure",
+  "mutation_used",
+  "oracle_after",
+  "oracle_before",
+  "patch",
+  "quality_not_proven",
+  "root_problem_id",
+  "step"
+ ],
+ "evidence_created": [
+  "lab/forge_evidence/EXECUTION_PROOF_MWS6/evidence/before.json",
+  "lab/forge_evidence/EXECUTION_PROOF_MWS6/evidence/after.json",
+  "lab/forge_evidence/EXECUTION_PROOF_MWS6/evidence/oracle_before.json",
+  "lab/forge_evidence/EXECUTION_PROOF_MWS6/evidence/oracle_after.json",
+  "lab/forge_evidence/EXECUTION_PROOF_MWS6/evidence/patch.json",
+  "lab/forge_evidence/EXECUTION_PROOF_MWS6/evidence/measured_metrics.json"
+ ],
+ "mutation_used": "REPAIR-LOOP-V1",
+ "match_status": "MATCH",
+ "resumed_legs": [],
+ "mismatches": [],
+ "checks": [
+  {
+   "check": "runtime_called",
+   "ok": true,
+   "detail": "appele=scripts/forge/repair_runtime_adapter.mjs · declares=scripts/forge/repair_step.mjs, scripts/forge/repair_runtime_adapter.mjs, scripts/forge/repair_runtime_adapter.mjs"
+  },
+  {
+   "check": "files_in_scope",
+   "ok": true,
+   "detail": "1 fichier(s) touche(s)"
+  },
+  {
+   "check": "expected_outputs",
+   "ok": true,
+   "detail": "attendues=7 · observees=14"
+  },
+  {
+   "check": "evidence_targets",
+   "ok": true,
+   "detail": "4 cible(s)"
+  },
+  {
+   "check": "root_problem_stable",
+   "ok": true,
+   "detail": "plan=PROMPT_FIELD_OMISSION · observe=PROMPT_FIELD_OMISSION"
+  },
+  {
+   "check": "mutation_used",
+   "ok": true,
+   "detail": "plan=M-ws6 · observe=REPAIR-LOOP-V1 · acceptables=M-ws6, REPAIR-LOOP-V1"
+  },
+  {
+   "check": "required_inputs",
+   "ok": true,
+   "detail": "6 fournie(s) / 6 declaree(s)"
+  },
+  {
+   "check": "composition_legs",
+   "ok": true,
+   "detail": "2 maillon(s), 1 repris sous empreinte"
+  }
+ ],
+ "exit_code": 0
+}
