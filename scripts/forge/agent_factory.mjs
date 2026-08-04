@@ -366,6 +366,64 @@ export function instancier(requete, ctx, racine = RACINE) {
   return plan;
 }
 
+/**
+ * EXÉCUTION CONTRÔLÉE — ouverte le 2026-08-04 après trois MATCH sur trois familles.
+ *
+ * Ce n'est **pas un nouveau chemin d'exécution** : c'est celui de la preuve, avec la
+ * trace conservée. Elle appelle `execution_proof.executerSousObservation` puis
+ * `execution_proof.comparer` — les mêmes fonctions, les mêmes vérifications. Si elle
+ * exécutait autrement que la preuve, la preuve ne prouverait plus rien.
+ *
+ * LES CINQ CONDITIONS, appliquées ici et vérifiées par les tests :
+ *   1. HumanGate PAR EXÉCUTION — `confirm: true` obligatoire, jamais mémorisé ;
+ *   2. périmètre déclaré obligatoire — `scope` non vide ;
+ *   3. MISMATCH = arrêt — aucun retry, aucune réparation, aucun second essai ;
+ *   4. aucune boucle — un appel, une exécution ;
+ *   5. aucun pouvoir de dispatch — un maillon sans `callable` n'est pas exécuté ici.
+ *
+ * Elle n'écrit AUCUN registre et ne touche PAS `production_ready`.
+ *
+ * @returns {Promise<object>} {plan, execution: {trace, verdict} | null, refus}
+ */
+export async function executerPlan(plan, opts = {}) {
+  const refus = [];
+  if (opts.confirm !== true) {
+    refus.push('HUMANGATE_ABSENT : --confirm est exige a CHAQUE execution, jamais memorise');
+  }
+  if (!Array.isArray(opts.scope) || opts.scope.length === 0) {
+    refus.push('SCOPE_ABSENT : le perimetre doit etre declare avant toute ecriture');
+  }
+  if (!opts.runtimeRequest) {
+    refus.push('RUNTIME_REQUEST_ABSENTE : la Factory ne fabrique pas les VALEURS des entrees');
+  }
+  // Un plan non validé ne s'exécute jamais — c'est la première des conditions.
+  if (!plan || plan.executable !== true) {
+    refus.push(`PLAN_NON_EXECUTABLE : ${(plan?.blockers || []).map((b) => b.blocker).join(', ') || 'plan absent'}`);
+  }
+  if (refus.length) return { plan, execution: null, refus };
+
+  const proof = await import('./execution_proof.mjs');
+  const obs = await proof.executerSousObservation(plan, {
+    requeteRuntime: opts.runtimeRequest,
+    scope: opts.scope,
+    declaredInputs: opts.declaredInputs,
+    racine: opts.racine,
+    executer: opts.executer,   // injection de TEST uniquement — jamais fournie par la CLI
+  });
+  const verdict = proof.comparer(plan, obs, {
+    scope: opts.scope,
+    requeteFournie: opts.declaredInputs,
+    resumedLegs: opts.resumedLegs,
+    racine: opts.racine,
+  });
+  // MISMATCH = arrêt. On rend la trace telle quelle : aucune correction, aucun retry.
+  return {
+    plan,
+    execution: { trace: proof.construireTrace(plan, obs, verdict), verdict },
+    refus: [],
+  };
+}
+
 export async function chargerContexteFactory(chemins = {}) {
   const ctx = await chargerContexteExecution(chemins);
   const texte = await readFile(chemins.roles || CHEMIN_ROLES, 'utf-8');
@@ -402,12 +460,7 @@ export function requeteDepuisMutation(mutationId, ctx, racine = RACINE) {
 const estMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (estMain) {
   const argv = process.argv.slice(2);
-  if (argv.includes('--execute')) {
-    console.error('--execute n existe pas en V0. Condition non remplie : il faut d abord '
-      + 'prouver que « plan genere == plan execute ». Executer sur la foi d un plan que '
-      + 'personne n a verifie est exactement ce que cette couche doit empecher.');
-    process.exitCode = 2;
-  } else {
+  {
     const iMut = argv.indexOf('--mutation');
     const ctx = await chargerContexteFactory();
     let requete;
@@ -424,7 +477,43 @@ if (estMain) {
     }
     if (requete) {
       const plan = instancier(requete, ctx);
-      if (argv.includes('--json')) {
+      const opt = (nom) => { const i = argv.indexOf(nom); return i >= 0 ? argv[i + 1] : null; };
+      if (argv.includes('--execute')) {
+        const scope = (opt('--scope') || '').split(',').filter(Boolean);
+        const fichierEntrees = opt('--runtime-request');
+        const entrees = fichierEntrees ? JSON.parse(await readFile(fichierEntrees, 'utf-8')) : null;
+        const repris = [];
+        const proof = await import('./execution_proof.mjs');
+        for (let i = 0; i < argv.length; i += 1) {
+          if (argv[i] !== '--resume') continue;
+          const [cap, reste] = argv[i + 1].split('=');
+          const [source, sha] = reste.split('@');
+          repris.push({ capability: cap, ...proof.verifierMaillonRepris(source, sha) });
+        }
+        const r = await executerPlan(plan, {
+          confirm: argv.includes('--confirm'),
+          scope,
+          runtimeRequest: fichierEntrees,
+          declaredInputs: entrees,
+          resumedLegs: repris,
+        });
+        if (r.refus.length) {
+          for (const x of r.refus) console.error(`REFUS ${x}`);
+          console.error('\nusage: node agent_factory.mjs --mutation <id> --execute --confirm '
+            + '--scope <dir,dir> --runtime-request <fichier.json> [--resume cap=fichier@sha]');
+          process.exitCode = 2;
+        } else {
+          const { trace, verdict } = r.execution;
+          console.log(JSON.stringify(trace, null, 1));
+          console.error(`\n${trace.match_status}  (${verdict.mismatches.length} ecart(s))`);
+          for (const c of verdict.checks) console.error(`  ${c.ok ? 'OK  ' : 'FAIL'} ${c.check} : ${c.detail}`);
+          for (const m of verdict.mismatches) console.error(`  ECART ${m.mismatch} : ${m.detail}`);
+          if (verdict.match_status !== 'MATCH') {
+            console.error('\nMISMATCH = ARRET. Aucune reprise, aucune correction, aucun retry.');
+          }
+          process.exitCode = verdict.match_status === 'MATCH' ? 0 : 1;
+        }
+      } else if (argv.includes('--json')) {
         console.log(JSON.stringify(plan, null, 1));
       } else {
         console.log(`# ${plan.execution_id ?? '(aucun plan)'} — executable=${plan.executable}`

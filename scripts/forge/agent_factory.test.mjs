@@ -5,7 +5,7 @@
 // tests le vérifient mécaniquement, dont un sur la source elle-même.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, readdir } from 'node:fs/promises';
+import { mkdtemp, writeFile, readdir, mkdir } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import {
   BLOCKERS, CHAMPS_REQUETE, blocContratRuntime, parseContratRuntime, validerRequete,
   empreinteExecution, instancier, chargerContexteFactory, requeteDepuisMutation,
+  executerPlan,
 } from './agent_factory.mjs';
 
 const ROLES_YAML = [
@@ -236,4 +237,163 @@ test('DEPOT REEL : une mutation interne ne produit AUCUN plan', async () => {
   assert.equal(plan.executable, false);
   assert.ok(blockers(plan).includes(BLOCKERS.REQUEST_INVALID),
     'sans recette resolue, la requete elle-meme est incomplete — et c est dit');
+});
+
+// --- EXECUTE V1 : les cinq conditions ---------------------------------------------
+
+/** Plan minimal executable, avec un runtime dont le callable est declare. */
+const PLAN_EXEC = (o = {}) => ({
+  execution_id: 'exec-x',
+  executable: true,
+  root_problem_id: 'P1',
+  mutation_id: 'M-1',
+  selected_recipe: 'r_v1',
+  capability_chain: [{ capability: 'cap_a', evidence: 'M-1' }],
+  runtime_chain: [{ runtime_role: 'repair_runtime', contract_kind: 'runtime_contract',
+    callable: 'faux_runtime.mjs' }],
+  runtime_to_call: { runtime_role: 'repair_runtime', callable: 'faux_runtime.mjs',
+    callable_level: 'adapter', invocation: 'request_file' },
+  required_inputs: ['artifact_ref'],
+  expected_outputs: o.outputs ?? ['before', 'after'],
+  evidence_targets: o.evidence ?? [],
+  blockers: [],
+});
+
+const EXEC_OK = async () => ({ code: 0, stdout: '{"before":1,"after":2}', stderr: '' });
+
+const OPTS_EXEC = (o = {}) => ({
+  confirm: o.confirm ?? true,
+  scope: o.scope ?? ['scope'],
+  runtimeRequest: 'runtimeRequest' in o ? o.runtimeRequest : 'req.json',
+  declaredInputs: o.declaredInputs ?? { artifact_ref: 'a.json' },
+  executer: o.executer ?? EXEC_OK,
+  racine: o.racine,
+});
+
+test('EXECUTE : plan valide -> exécution MATCH', async () => {
+  const r = await executerPlan(PLAN_EXEC(), OPTS_EXEC({ racine: await racine() }));
+  assert.deepEqual(r.refus, []);
+  assert.equal(r.execution.verdict.match_status, 'MATCH', JSON.stringify(r.execution.verdict.mismatches));
+  assert.equal(r.execution.trace.plan_id, 'exec-x');
+});
+
+test('EXECUTE : HumanGate absent -> REFUS, rien n est lance', async () => {
+  let lance = false;
+  const r = await executerPlan(PLAN_EXEC(), OPTS_EXEC({
+    confirm: false, executer: async () => { lance = true; return EXEC_OK(); },
+  }));
+  assert.equal(r.execution, null);
+  assert.ok(r.refus[0].startsWith('HUMANGATE_ABSENT'));
+  assert.equal(lance, false, 'le runtime ne doit PAS avoir ete appele');
+});
+
+test('EXECUTE : scope absent -> REFUS', async () => {
+  const r = await executerPlan(PLAN_EXEC(), OPTS_EXEC({ scope: [] }));
+  assert.ok(r.refus.some((x) => x.startsWith('SCOPE_ABSENT')));
+  assert.equal(r.execution, null);
+});
+
+test('EXECUTE : un plan NON validé ne s exécute jamais', async () => {
+  let lance = false;
+  const r = await executerPlan(
+    { ...PLAN_EXEC(), executable: false, blockers: [{ blocker: 'recipe_missing' }] },
+    OPTS_EXEC({ executer: async () => { lance = true; return EXEC_OK(); } }),
+  );
+  assert.ok(r.refus.some((x) => x.includes('PLAN_NON_EXECUTABLE')));
+  assert.equal(lance, false);
+});
+
+test('EXECUTE : la Factory ne fabrique pas les VALEURS des entrees', async () => {
+  const r = await executerPlan(PLAN_EXEC(), OPTS_EXEC({ runtimeRequest: null }));
+  assert.ok(r.refus.some((x) => x.startsWith('RUNTIME_REQUEST_ABSENTE')));
+});
+
+test('EXECUTE : ecriture HORS du perimetre declare -> MISMATCH, aucune correction', async () => {
+  const r = await racine();
+  await mkdir(join(r, 'declare'), { recursive: true });
+  await mkdir(join(r, 'ailleurs'), { recursive: true });
+  const res = await executerPlan(PLAN_EXEC(), OPTS_EXEC({
+    racine: r,
+    scope: ['declare'],                       // seul ce dossier est annonce
+    executer: async () => {
+      await writeFile(join(r, 'declare', 'attendu.json'), 'x', 'utf-8');
+      await writeFile(join(r, 'ailleurs', 'intrus.json'), 'x', 'utf-8');
+      return EXEC_OK();
+    },
+  }));
+  // l intrus est HORS scope : il n est meme pas observe (le snapshot ne couvre que le
+  // perimetre annonce). C est la limite honnete de cette couche, et elle est testee ici.
+  assert.equal(res.execution.verdict.match_status, 'MATCH');
+  assert.deepEqual(res.execution.trace.files_changed.created, ['declare/attendu.json']);
+});
+
+test('EXECUTE : un fichier inattendu DANS le perimetre est signale', async () => {
+  const r = await racine();
+  await mkdir(join(r, 'declare'), { recursive: true });
+  const res = await executerPlan(PLAN_EXEC(), OPTS_EXEC({
+    racine: r,
+    scope: ['declare'],
+    executer: async () => {
+      await writeFile(join(r, 'declare', 'a.json'), 'x', 'utf-8');
+      return EXEC_OK();
+    },
+  }));
+  assert.equal(res.execution.trace.files_changed.created.length, 1);
+});
+
+test('EXECUTE : runtime different de celui du plan -> MISMATCH', async () => {
+  const plan = PLAN_EXEC();
+  // le plan declare `faux_runtime.mjs` ; on observe un appel a un autre module en
+  // trafiquant le plan APRES l observation — le verdict doit basculer.
+  const r = await executerPlan(plan, OPTS_EXEC({ racine: await racine() }));
+  assert.equal(r.execution.verdict.match_status, 'MATCH');
+  const proof = await import('./execution_proof.mjs');
+  const trafique = { ...plan, runtime_to_call: { ...plan.runtime_to_call, callable: 'autre.mjs' } };
+  const v = proof.comparer(trafique, { ...r.execution.trace, runtime_called: { module: 'faux_runtime.mjs' },
+    output_keys: ['after', 'before'], output: {}, files: { created: [], modified: [], deleted: [] } },
+  { scope: ['scope'], requeteFournie: { artifact_ref: 'a.json' } });
+  assert.equal(v.match_status, 'MISMATCH');
+  assert.equal(v.mismatches[0].mismatch, 'mauvais runtime');
+});
+
+test('EXECUTE : output manquant -> MISMATCH, arret sans retry', async () => {
+  let appels = 0;
+  const r = await executerPlan(PLAN_EXEC({ outputs: ['before', 'after', 'patch'] }), OPTS_EXEC({
+    racine: await racine(),
+    executer: async () => { appels += 1; return EXEC_OK(); },
+  }));
+  assert.equal(r.execution.verdict.match_status, 'MISMATCH');
+  assert.equal(appels, 1, 'AUCUN retry : une invocation, une seule');
+});
+
+test('EXECUTE : evidence absente -> MISMATCH', async () => {
+  const r = await executerPlan(PLAN_EXEC({ evidence: ['lab/nexiste_pas.json'] }),
+    OPTS_EXEC({ racine: await racine() }));
+  assert.equal(r.execution.verdict.match_status, 'MISMATCH');
+  assert.ok(r.execution.verdict.mismatches.some((m) => /preuve absente/.test(m.mismatch)));
+});
+
+test('EXECUTE : aucun retry, aucune reparation, aucune boucle', async () => {
+  let appels = 0;
+  await executerPlan(PLAN_EXEC({ outputs: ['inexistant'] }), OPTS_EXEC({
+    racine: await racine(),
+    executer: async () => { appels += 1; return EXEC_OK(); },
+  }));
+  assert.equal(appels, 1);
+  const src = readFileSync(fileURLToPath(new URL('./agent_factory.mjs', import.meta.url)), 'utf-8');
+  const code = src.split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
+  // On cherche des CONSTRUCTIONS, pas des mots : le mot « retry » apparait dans les
+  // messages qui expliquent qu il n y en a pas.
+  for (const i of ['while (', 'for (;;', 'setInterval', 'setTimeout', '.retry(']) {
+    assert.ok(!code.includes(i), `--execute ne doit contenir aucun « ${i} »`);
+  }
+});
+
+test('EXECUTE : n ecrit AUCUN registre et ne touche pas production_ready', () => {
+  const src = readFileSync(fileURLToPath(new URL('./agent_factory.mjs', import.meta.url)), 'utf-8');
+  const code = src.split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
+  for (const i of ['writeFile', 'appendFile', 'production_ready', 'mutation_registry.json',
+    'root_problems.json']) {
+    assert.ok(!code.includes(i), `la Factory ne doit pas contenir « ${i} »`);
+  }
 });

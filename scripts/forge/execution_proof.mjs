@@ -254,7 +254,9 @@ export function comparer(plan, obs, opts = {}) {
 
   // 1. le runtime appelé correspond au plan
   const rt = plan.runtime_to_call || {};
-  const declares = [...(rt.entrypoints || []), rt.adapter].filter(Boolean);
+  // `callable` fait partie des modules déclarés : depuis qu'il tranche l'ambiguïté
+  // entrypoint/adapter, l'omettre rendrait « mauvais runtime » tout appel conforme.
+  const declares = [...(rt.entrypoints || []), rt.adapter, rt.callable].filter(Boolean);
   const appele = obs.runtime_called?.module ?? null;
   if (!noter('runtime_called', declares.includes(appele),
     `appele=${appele} · declares=${declares.join(', ') || '(aucun)'}`)) {
