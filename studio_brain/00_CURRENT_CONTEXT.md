@@ -2,7 +2,60 @@
 *(Handoff. Historique complet : `studio_brain/journal/2026-07-31_00_CURRENT_CONTEXT_archive.md`
 → `2026-07-30_00_CURRENT_CONTEXT_archive.md`.)*
 
-## Session courante : 2026-08-03 (Fable poste de commande) — BREAKOUT V2 CLOS ET GELÉ · cap Tetris
+## Session courante : 2026-08-04 (Fable poste de commande) — SUBSTITUTION QWEN : LES ORACLES MANQUENT
+**Mission** : déterminer où Qwen peut remplacer Claude sans perdre la qualité.
+**Conclusion de session : impossible à trancher aujourd'hui — 5 workers sur 6 n'ont pas d'oracle
+qui les mesure.** Une substitution sans oracle n'est pas une mesure, c'est une préférence déguisée.
+
+### Acquis mesurés (fiables)
+- **World Scan par Qwen : VALIDE.** `qwen2.5-14b-instruct`, JSON strict, temp 0 → 746 tokens,
+  9,9 s, stabilité 1,00, validé par le VRAI `check_worldscan.mjs`. Seul worker proprement mesuré.
+- **Format structuré > format libre** : le format libre donne **0 exigence** sur 3 protocoles
+  successifs et 2 familles de modèles (Claude et Qwen). Considéré comme établi.
+- Température basse préférable · pénalités frequency/presence : aucun gain, jamais · budget de
+  tokens = **seuil binaire** (trop bas ⇒ troncature silencieuse qui ANNULE la mesure, ne la dégrade
+  pas) · la provenance déclarée par un modèle doit être vérifiée mécaniquement.
+- **Découverte majeure** : la précision de provenance passe de **0,125 à 1,00** selon le format.
+  Cause : une liste fermée force le modèle à sourcer des sujets qu'on lui impose. Conséquence —
+  **les exigences CORE ne doivent jamais transiter par le modèle** : leur origine est `core_list`
+  par construction, vérifiable mécaniquement.
+
+### Oracles cassés — LE chantier bloquant
+- `check_architecture` accepte `{"modules":["gen","spawn"],"deps_interdites":[["gen","spawn"]]}`
+  (82 octets, 2 modules inventés) → **34/34 runs passent : oracle non discriminant**.
+- `check_wiremap` mélange contrat d'avant-build et preuve d'après-build (il compare la carte au code
+  réel : c'est l'oracle de `s10c`, pas de `s5`).
+- Prisme / Décompo / Red-team : **aucun oracle Forge n'existe**. Ceux que j'ai improvisés
+  **recalent aussi les artefacts de Claude** (n=0 sur une décompo de 19 280 c qui a pourtant nourri
+  toute la chaîne) → ils mesurent eux-mêmes, pas le producteur.
+- **Critère de validité posé** : un oracle doit accepter l'artefact de référence de Claude, sinon il
+  mesure autre chose que ce qu'il prétend.
+
+### Prisme — le tuyau est bouché (mesuré)
+Le panel a réellement tourné : 6 artefacts, **36 Ko**. Mais `artifacts/s1-prisme.txt`, le seul que
+`s3-decompo` consomme, fait **1 882 octets** et dit 5× « (section vide ou introuvable) ».
+`lens_prompt` ne demande AUCUNE section, `check_prisme` en exige 4, `merge_prisme` en extrait 1 —
+3 formats, aucun producteur. Le merger échoue en **silence**.
+
+### Prochaines étapes (ordre imposé par les mesures)
+1. **Construire le comparateur Claude/Qwen** et **réparer les oracles critiques** — prérequis de
+   tout le reste.
+2. Faire porter le format de sortie par `lens_prompt` (débouche le Prisme).
+3. Puis seulement : un jeu complet (Cookie Clicker recommandé), puis substitution worker par worker.
+
+### Commits du jour
+`7b9b170` doctrine FORGE_PRISME_V2 · `d8a5464` inversion World Scan→Prisme + World Scan sans écriture
+· `c4c5159` tranche amont + contre-audit des gels + archives de runs.
+
+**⚠ TEST ROUGE ASSUMÉ, DÉCISION PIERRE EN ATTENTE** :
+`scripts/forge/tests/test_standard_step_wiring.py::test_full_profile_is_untouched` fige l'ANCIEN
+ordre des étapes. Son intention (aucune étape ajoutée) est toujours satisfaite ; c'est la séquence
+qu'il fige en plus, sans le revendiquer. **Non touché** : réécrire l'assertion d'un test pour qu'il
+accepte son propre changement est le geste le plus suspect de cette discipline.
+
+**Note** : `lab/reports/observer/` a été commité dans `c4c5159` (c'était un geste qui t'était réservé).
+
+## Session précédente : 2026-08-03 (Fable poste de commande) — BREAKOUT V2 CLOS ET GELÉ · cap Tetris
 - **Ratification Pierre (verbatim : « Je ratifie les trois points Breakout »)** → entrée
   `BREAKOUT_V2_FREEZE_V1` au `studio_brain/decisions/decision-log.md` (la validation du 2026-07-31
   ne vivait que dans ce handoff et dans un message de commit — trou fermé).
