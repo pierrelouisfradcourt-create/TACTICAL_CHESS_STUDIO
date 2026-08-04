@@ -59,7 +59,17 @@ OVERFLOW_RATIO = 0.9
 # STRICTE contre `forge.run_real._UPSTREAM_BY_STEP` — toute divergence future
 # entre les deux copies casse ce test, jamais un oubli silencieux.
 _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
-    "s3-decompo": ("artifacts/s1-prisme.txt",),
+    # FORGE_PRISME_V2 (Pierre, 2026-08-03) — le Prisme REÇOIT le World Scan.
+    # Avant : aucune entrée pour s1-prisme, et s2-worldscan n'avait AUCUN
+    # consommateur mécanique. Le Prisme raisonnait sur le seul charter, ce qui
+    # rendait son silence sur menu/pause/audio/onboarding structurel et non
+    # accidentel. « Le Prisme est le mécanisme qui transforme la connaissance
+    # externe en exigences internes » — encore faut-il qu'il la reçoive.
+    "s1-prisme": ("artifacts/s2-worldscan.txt",),
+    # s3-decompo reçoit désormais les DEUX : le Prisme (exigences) et le World
+    # Scan (connaissance qui les fonde). Sans cette 2e source, la décompo perdait
+    # les standards du genre dès qu'ils n'étaient pas repris mot pour mot.
+    "s3-decompo": ("artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt"),
     "s4-archi": ("artifacts/s3-decompo.txt",),
     "s5-wiremap": ("artifacts/s3-decompo.txt", "blueprint.json"),
     "s6-redteam-plan": ("artifacts/s3-decompo.txt", "artifacts/s4-archi.txt",

@@ -17,6 +17,7 @@ import {
   checkNoLocalMedia,
   listFilesRecursive,
   checkWorldScan,
+  checkWorldScanFile,
 } from './check_worldscan.mjs';
 
 function goodSource(overrides = {}) {
@@ -444,6 +445,128 @@ test('checkWorldScan : dossier inexistant => FAIL, jamais une exception', async 
   assert.equal(result.verdict, 'FAIL');
   assert.equal(result.ok, false);
   assert.ok(result.problems[0].includes('illisible'));
+});
+
+// --- mode fichier (v0.3, 2026-08-03) : worldscan.json matérialisé par l'exécuteur,
+// l'agent s2-worldscan n'a plus le droit d'écrire (invariant « un agent de
+// connaissance ne doit jamais posséder l'état qu'il décrit »). checkWorldScan()
+// doit dispatcher sur le TYPE du chemin (fichier vs dossier), aucun flag séparé.
+
+test('checkWorldScan (mode fichier) : manifeste JSON valide seul => OK, dispatch automatique sur checkWorldScanFile', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'worldscan_file_valid_'));
+  try {
+    const filePath = join(dir, 'worldscan.json');
+    await writeFile(filePath, JSON.stringify(goodManifest(), null, 2), 'utf-8');
+    const result = await checkWorldScan(filePath);
+    assert.equal(result.verdict, 'OK');
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.problems, []);
+    assert.equal(result.stats.games, 2);
+    assert.equal(result.stats.sources_total, 6);
+    assert.equal(result.stats.objectives_total, 2);
+    assert.equal(result.stats.files_checked, 1);
+    assert.equal(result.stats.media_files_found, 0);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('checkWorldScanFile : appel direct, meme resultat que via checkWorldScan', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'worldscan_file_direct_'));
+  try {
+    const filePath = join(dir, 'worldscan.json');
+    await writeFile(filePath, JSON.stringify(goodManifest()), 'utf-8');
+    const result = await checkWorldScanFile(filePath);
+    assert.equal(result.verdict, 'OK');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('checkWorldScan (mode fichier) : moins de 2 jeux => FAIL, meme regle que le mode dossier', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'worldscan_file_onegame_'));
+  try {
+    const filePath = join(dir, 'worldscan.json');
+    await writeFile(filePath, JSON.stringify(goodManifest({ games: [goodGame()] })), 'utf-8');
+    const result = await checkWorldScan(filePath);
+    assert.equal(result.verdict, 'FAIL');
+    assert.ok(result.problems.some((p) => p.includes('minimum 2')));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('checkWorldScan (mode fichier) : objectives absent => FAIL, meme regle que le mode dossier', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'worldscan_file_noobjectives_'));
+  try {
+    const filePath = join(dir, 'worldscan.json');
+    const { objectives, ...gameWithoutObjectives } = goodGame();
+    await writeFile(filePath, JSON.stringify(goodManifest({ games: [gameWithoutObjectives, goodGame({ game: 'FTL' })] })), 'utf-8');
+    const result = await checkWorldScan(filePath);
+    assert.equal(result.verdict, 'FAIL');
+    assert.ok(result.problems.some((p) => p.includes('objectives') && p.includes('tableau')));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('checkWorldScan (mode fichier) : genre sans etat gagne MAL declare => FAIL, meme regle que le mode dossier', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'worldscan_file_badmarathon_'));
+  try {
+    const filePath = join(dir, 'worldscan.json');
+    const { has_win_state, victory_condition, ...badMarathon } = marathonObjective();
+    const badGame = goodGame({ objectives: [badMarathon] });
+    await writeFile(filePath, JSON.stringify(goodManifest({ games: [badGame, goodGame({ game: 'FTL' })] })), 'utf-8');
+    const result = await checkWorldScan(filePath);
+    assert.equal(result.verdict, 'FAIL');
+    assert.ok(result.problems.some((p) => p.includes('has_win_state') && p.includes('booleen explicite')));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('checkWorldScan (mode fichier) : JSON invalide => FAIL', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'worldscan_file_badjson_'));
+  try {
+    const filePath = join(dir, 'worldscan.json');
+    await writeFile(filePath, '{ceci n\'est pas du json}', 'utf-8');
+    const result = await checkWorldScan(filePath);
+    assert.equal(result.verdict, 'FAIL');
+    assert.ok(result.problems.some((p) => p.includes('JSON invalide')));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('checkWorldScan (mode fichier) : fichier vide => FAIL', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'worldscan_file_empty_'));
+  try {
+    const filePath = join(dir, 'worldscan.json');
+    await writeFile(filePath, '   \n  ', 'utf-8');
+    const result = await checkWorldScan(filePath);
+    assert.equal(result.verdict, 'FAIL');
+    assert.ok(result.problems.some((p) => p.includes('vide')));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('checkWorldScan (mode fichier) : fichier inexistant => FAIL, jamais une exception', async () => {
+  const result = await checkWorldScan(join(tmpdir(), 'worldscan_file_does_not_exist_xyz.json'));
+  assert.equal(result.verdict, 'FAIL');
+  assert.equal(result.ok, false);
+});
+
+test('checkWorldScan (mode dossier) : toujours fonctionnel apres l ajout du mode fichier, verdict OK inchange', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'worldscan_dirmode_unaffected_'));
+  try {
+    await makeValidFolder(dir);
+    const result = await checkWorldScan(dir);
+    assert.equal(result.verdict, 'OK');
+    assert.equal(result.stats.files_checked, REQUIRED_FILES.length);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test('listFilesRecursive : liste les fichiers en sous-dossiers', async () => {

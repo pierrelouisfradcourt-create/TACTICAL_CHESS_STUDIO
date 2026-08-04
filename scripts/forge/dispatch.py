@@ -50,10 +50,25 @@ from forge.audit import (  # noqa: F401 — ré-exports d'API historique, usage 
 logger = logging.getLogger(__name__)
 
 # Ordre logique de la chaîne (les 13 étapes-agents qui ont un contrat).
+#
+# ⚠ L'ORDRE NE SUIT PLUS LA NUMÉROTATION : s2-worldscan s'exécute AVANT s1-prisme
+# (FORGE_PRISME_V2, ratifié Pierre 2026-08-03). Les NOMS d'étape sont conservés
+# volontairement : ils apparaissent dans les contrats, les tâches par défaut, les
+# state.json archivés et les traces Observer — les renommer rendrait tout
+# l'historique des runs illisible. Un nom qui ne reflète plus sa position est un
+# désagrément ; un historique qu'on ne peut plus relire est une perte.
+#
+# POURQUOI l'inversion (cause racine mesurée le 2026-08-03) : le Prisme tournait
+# en position 2/14, AVANT toute connaissance externe, avec pour seul
+# `mandatory_read` le charter — donc structurellement aveugle. Mesure : 0
+# occurrence de menu/pause/audio/onboarding dans son artefact sur le run témoin
+# Tetris. Son silence n'était pas une faute d'agent, c'était une conséquence de sa
+# position. Le Prisme ne peut transformer la connaissance externe en exigences
+# internes que s'il la reçoit d'abord.
 ORDER = [
     "s0-contrat",
-    "s1-prisme",
     "s2-worldscan",
+    "s1-prisme",
     "s3-decompo",
     "s4-archi",
     "s5-wiremap",
@@ -209,10 +224,19 @@ PROFILES = {
     #
     # Mélange ORDER + DEDICATED_PROFILE_STEPS : déjà le régime de `standard`/`standard_godot`,
     # pas une nouveauté introduite ici.
+    # amont_only : les DEUX étapes de conception amont, rien d'autre. Sert à
+    # mesurer l'effet de l'inversion World Scan -> Prisme (FORGE_PRISME_V2) sans
+    # repayer une chaîne complète. Même esprit que `review` (s6 seul) et
+    # `artbible` (s2.5 seul) : une tranche isolée, PAS de verdict signé — donc
+    # jamais une baseline, jamais un témoin.
+    "amont_only": (
+        "s2-worldscan",
+        "s1-prisme",
+    ),
     "full_godot": (
         "s0-contrat",
-        "s1-prisme",
         "s2-worldscan",
+        "s1-prisme",
         "s3-decompo",
         "s4-archi",
         "s5-wiremap",

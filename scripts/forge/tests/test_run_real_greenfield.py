@@ -348,6 +348,27 @@ def test_full_greenfield_offline_verdict_ok(tmp_path, offline, monkeypatch):
     blueprint = {"modules": ["main"], "deps_interdites": [["logique", "rendu"]]}
     wiremap = {"features": [{"feature": "R1 boot", "fonction": "boot",
                              "fichiers": ["main.py"], "preuve": "test_boot"}]}
+    # s2-worldscan (réparation 2026-08-03, invariant « un agent de connaissance ne
+    # doit jamais posséder l'état qu'il décrit ») : plus de droit d'écriture, un
+    # bloc ```json``` terminal est désormais matérialisé par l'exécuteur en
+    # worldscan.json (_ARTIFACT_BY_STEP) — le mock doit le rendre comme s4/s5.
+    worldscan = {
+        "games": [
+            {"game": "Jeu A", "sources": [{"url": "https://example.test/a", "type": "wiki"}] * 3,
+             "loops": {"minute_1": "x", "minute_10": "x", "hour_5": "x", "endgame": "x"},
+             "objectives": [{"mode": "solo", "has_win_state": True, "victory_condition": "gagner",
+                              "has_defeat_state": True, "defeat_condition": "perdre",
+                              "player_goal": "avancer"}],
+             "retention_answer": "rejouabilite"},
+            {"game": "Jeu B", "sources": [{"url": "https://example.test/b", "type": "wiki"}] * 3,
+             "loops": {"minute_1": "x", "minute_10": "x", "hour_5": "x", "endgame": "x"},
+             "objectives": [{"mode": "solo", "has_win_state": True, "victory_condition": "gagner",
+                              "has_defeat_state": True, "defeat_condition": "perdre",
+                              "player_goal": "avancer"}],
+             "retention_answer": "rejouabilite"},
+        ],
+        "advisory": True,
+    }
 
     def fake(prompt, model, **kwargs):
         # La sortie dépend de l'étape, identifiée par le dispatch_marker du prompt.
@@ -355,6 +376,8 @@ def test_full_greenfield_offline_verdict_ok(tmp_path, offline, monkeypatch):
             out = f"archi\n```json\n{json.dumps(blueprint)}\n```"
         elif "FORGE_DISPATCH:s5-wiremap:" in prompt:
             out = f"wiremap\n```json\n{json.dumps(wiremap)}\n```"
+        elif "FORGE_DISPATCH:s2-worldscan:" in prompt:
+            out = f"worldscan\n```json\n{json.dumps(worldscan)}\n```"
         else:
             out = "artefact texte"
         return {"ok": True, "output": out, "tokens": 1, "duration_s": 0.1, "cost_usd": 0.0}

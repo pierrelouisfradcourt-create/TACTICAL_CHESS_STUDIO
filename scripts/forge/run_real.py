@@ -300,6 +300,7 @@ _STEP_DISALLOWED: tuple[str, ...] = (
 # driver fige le jeu de règles (wiremap_frozen.json) immédiatement après s5 — le
 # fichier doit donc exister AVANT le retour de l'executor.
 _ARTIFACT_BY_STEP: dict[str, str] = {
+    "s2-worldscan": "worldscan.json",
     "s4-archi": "blueprint.json",
     "s5-wiremap": "wiremap.json",
 }
@@ -660,7 +661,34 @@ def _validate_wiremap(data: dict) -> str:
     return ""
 
 
+def _validate_worldscan(data: dict) -> str:
+    """'' si le manifeste a le format que check_worldscan.mjs consomme (mode
+    fichier), sinon la raison précise du rejet. Garde-fou MINIMAL avant écriture
+    (même esprit que _validate_blueprint/_validate_wiremap) — check_worldscan.mjs
+    reste l'oracle de vérité pour le détail (sources, loops, URLs) ; ceci empêche
+    seulement un artefact structurellement inexploitable (games[] absent/vide,
+    objectives[] absent/vide) d'atteindre le disque."""
+    games = data.get("games")
+    if not isinstance(games, list) or not games:
+        return ("'games' doit être une liste NON VIDE (un manifeste sans jeu "
+                "rend check_worldscan.mjs trivialement invalide)")
+    for i, game in enumerate(games):
+        if not isinstance(game, dict):
+            return f"games[{i}] n'est pas un objet (dict attendu)"
+        objectives = game.get("objectives")
+        if not isinstance(objectives, list) or not objectives:
+            return (f"games[{i}].objectives doit être une liste NON VIDE (>=1 "
+                    "mode avec victoire/défaite/objectif joueur explicites) — "
+                    "un manifeste sans objectives[] a déjà coûté un run entier "
+                    "(solvabilité tetris remontée en décision humaine faute de "
+                    "ce champ, cf. contrat s2-worldscan)")
+    if data.get("advisory") is not True:
+        return "'advisory' doit valoir exactement true"
+    return ""
+
+
 _ARTIFACT_VALIDATORS = {
+    "worldscan.json": _validate_worldscan,
     "blueprint.json": _validate_blueprint,
     "wiremap.json": _validate_wiremap,
 }
@@ -767,7 +795,11 @@ def extract_redteam_findings(output: str) -> tuple[list[str], str]:
 # à la racine du run_dir : cette table (etape -> artefacts amont, chemins relatifs
 # au run_dir) injecte ces contenus dans le prompt de l'étape aval.
 _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
-    "s3-decompo": ("artifacts/s1-prisme.txt",),
+    # FORGE_PRISME_V2 (Pierre, 2026-08-03) — le Prisme REÇOIT le World Scan.
+    # Copie STRICTEMENT identique à context_manifest._UPSTREAM_BY_STEP (test
+    # d'égalité dans scripts/forge/tests/test_context_manifest.py).
+    "s1-prisme": ("artifacts/s2-worldscan.txt",),
+    "s3-decompo": ("artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt"),
     "s4-archi": ("artifacts/s3-decompo.txt",),
     "s5-wiremap": ("artifacts/s3-decompo.txt", "blueprint.json"),
     "s6-redteam-plan": ("artifacts/s3-decompo.txt", "artifacts/s4-archi.txt",
@@ -1020,10 +1052,10 @@ def make_panel_claude_call(add_dir: Path, *, step_timeout: float = DEFAULT_STEP_
 def default_task_by_step(project: str, src_root_rel: str,
                          profile: str = "full") -> dict[str, str]:
     """Tâches par défaut NON VIDES pour chaque étape LLM du profil `full`
-    (+ s2.5-artbible, profil dédié). Les défauts de s4/s5 exigent le bloc JSON
-    fenced au format exact lu par forge.static_oracles.check_architecture /
-    check_wiremap — c'est l'exécuteur qui l'écrira dans run_dir (item b), l'agent
-    n'écrit AUCUN fichier à ces étapes.
+    (+ s2.5-artbible, profil dédié). Les défauts de s2/s4/s5 exigent le bloc JSON
+    fenced au format exact lu par forge.check_worldscan / forge.static_oracles
+    .check_architecture / check_wiremap — c'est l'exécuteur qui l'écrira dans
+    run_dir (item b), l'agent n'écrit AUCUN fichier à ces étapes.
 
     F5b (red-team) : les défauts sont PROFILE-AWARE — le défaut greenfield de s9
     (« Implémente le projet... ») ne s'applique qu'au profil `full` ; `patch` et
@@ -1078,7 +1110,21 @@ def default_task_by_step(project: str, src_root_rel: str,
         ),
         "s2-worldscan": (
             f"Recense les patterns externes comparables au projet '{project}' (mécaniques "
-            "éprouvées du genre, pièges connus). Advisory uniquement, aucun fichier écrit."
+            "éprouvées du genre, boucles minute_1/minute_10/heure_5/endgame, pièges connus, "
+            ">=2 jeux comparables, >=3 sources citées par jeu). Advisory uniquement. Termine "
+            'ta réponse par UN bloc ```json ... ``` contenant EXACTEMENT un objet de la forme '
+            '{"games": [{"game": "<nom>", "sources": [{"url": "<https://...>", "type": '
+            '"screenshot|video|article|wiki", "timestamp": "<obligatoire si type=video>"}, '
+            '...>=3], "loops": {"minute_1": "...", "minute_10": "...", "hour_5": "...", '
+            '"endgame": "..."}, "objectives": [{"mode": "<solo|versus|coop|...>", '
+            '"has_win_state": true|false, "victory_condition": "<string ou null ssi '
+            'has_win_state=false>", "has_defeat_state": true|false, "defeat_condition": '
+            '"<string ou null ssi has_defeat_state=false>", "player_goal": "..."}, ...>=1], '
+            '"retention_answer": "..."}, ...>=2], "advisory": true} — format lu par '
+            "forge.check_worldscan.mjs. Un genre sans état gagné (marathon, score-attack) "
+            "déclare has_win_state:false + victory_condition:null EXPLICITEMENT, jamais par "
+            "un champ omis. Tu n'écris AUCUN fichier : l'exécuteur matérialise lui-même "
+            "worldscan.json depuis ce bloc."
         ),
         "s3-decompo": (
             f"Décompose le projet '{project}' en features numérotées R1..Rn (une ligne "

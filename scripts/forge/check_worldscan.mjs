@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// check_worldscan.mjs — oracle de COMPLÉTUDE STRUCTURELLE non-LLM pour un dossier
-// d'observation World Scan (GAME_REFERENCE/). Même famille que check_artbible.mjs :
-// ne juge JAMAIS "est-ce une bonne analyse" — vérifie la FORME (fichiers requis
-// présents/non-vides + observation_manifest.json structurellement valide) et fait
-// respecter la règle ratifiée « URLs citées, pas de collecte locale » (aucun média
-// binaire dans le dossier : le World Scan cite ses sources, il ne les rapatrie pas).
+// check_worldscan.mjs — oracle de COMPLÉTUDE STRUCTURELLE non-LLM pour une
+// observation World Scan. Même famille que check_artbible.mjs : ne juge JAMAIS
+// "est-ce une bonne analyse" — vérifie la FORME (fichiers requis présents/non-vides
+// + observation_manifest.json structurellement valide en mode dossier, OU le
+// manifeste JSON structurellement valide en mode fichier) et fait respecter la
+// règle ratifiée « URLs citées, pas de collecte locale » (aucun média binaire : le
+// World Scan cite ses sources, il ne les rapatrie pas).
 //
 // v0.1 (2026-07-28) — patron : scripts/forge/check_artbible.mjs (CLI, vocabulaire de
 // verdict, style de rapport, framework de test node:test).
@@ -15,11 +16,21 @@
 // player_goal} : un genre SANS état gagné (marathon/score-attack) DOIT le déclarer
 // explicitement (`has_win_state:false` + `victory_condition:null`), jamais par
 // absence de champ. Générique — aucune règle spécifique à un jeu.
+// v0.3 (2026-08-03) — invariant « un agent de connaissance ne doit jamais posséder
+// l'état qu'il décrit » : s2-worldscan n'a plus de droit d'écriture (contrat
+// s2-worldscan.yaml réparé), il rend son manifeste en bloc ```json``` terminal que
+// l'exécuteur matérialise en worldscan.json (run_real.py::_materialize_artifact,
+// même patron que blueprint.json/wiremap.json). AJOUT d'un second MODE D'ENTRÉE —
+// le mode dossier existant (GAME_REFERENCE/, 5 .md + observation_manifest.json)
+// N'EST PAS retiré ni affaibli, aucune règle de validation n'est retirée : un
+// fichier JSON en entrée est désormais accepté et validé comme le manifeste lui-même
+// (mêmes fonctions validateManifest/validateGameEntry/validateObjective, mêmes
+// seuils MIN_GAMES/MIN_SOURCES_PER_GAME/MIN_OBJECTIVES_PER_GAME).
 //
 // Usage :
-//   node check_worldscan.mjs <dossier_GAME_REFERENCE> [--json]
-// Exit 0 = OK · 1 = FAIL (dossier illisible, fichier manquant/vide, manifest invalide,
-// couverture insuffisante, ou média local détecté).
+//   node check_worldscan.mjs <dossier_GAME_REFERENCE|worldscan.json> [--json]
+// Exit 0 = OK · 1 = FAIL (chemin illisible, fichier manquant/vide, manifest invalide,
+// couverture insuffisante, ou média local détecté [mode dossier uniquement]).
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { resolve, join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -299,18 +310,79 @@ export async function checkRequiredFilePresentAndNonEmpty(dir, filename) {
 const EMPTY_STATS = { games: 0, sources_total: 0, objectives_total: 0, files_checked: 0, media_files_found: 0 };
 
 /**
- * Point d'entrée complet : vérifie la présence/non-vacuité des 6 fichiers requis,
- * l'absence de tout média local, et la validité structurelle de
- * observation_manifest.json (>=2 jeux, >=3 sources/jeu, URLs http(s), video->timestamp,
- * loops 4 clés non vides, retention_answer non vide, advisory:true).
+ * Calcule les stats agrégées (games/sources_total/objectives_total) d'un manifeste
+ * déjà parsé, quel que soit le mode (dossier ou fichier) — factorisé pour ne pas
+ * dupliquer le comptage entre les deux chemins d'entrée.
+ * @param {object} doc
+ * @returns {{games: number, sources_total: number, objectives_total: number}}
+ */
+function manifestCounts(doc) {
+  if (!doc || !Array.isArray(doc.games)) {
+    return { games: 0, sources_total: 0, objectives_total: 0 };
+  }
+  return {
+    games: doc.games.length,
+    sources_total: doc.games.reduce((acc, g) => acc + (Array.isArray(g.sources) ? g.sources.length : 0), 0),
+    objectives_total: doc.games.reduce((acc, g) => acc + (Array.isArray(g.objectives) ? g.objectives.length : 0), 0),
+  };
+}
+
+/**
+ * MODE FICHIER (v0.3, 2026-08-03) : valide un manifeste JSON matérialisé tel quel
+ * (worldscan.json produit par run_real.py::_materialize_artifact depuis le bloc
+ * ```json``` terminal de l'agent s2-worldscan — l'agent lui-même n'a plus le droit
+ * d'écrire). Le fichier EST le manifeste (même schéma exact que
+ * observation_manifest.json en mode dossier) : mêmes validateurs, mêmes seuils,
+ * AUCUNE règle assouplie. N'a pas de notion de "fichiers .md requis" ni de scan de
+ * médias locaux au sens fichiers-sur-disque : un manifeste JSON seul ne peut pas
+ * contenir de média binaire, donc `media_files_found` reste 0 par construction (pas
+ * un skip silencieux — il n'y a rien à trouver dans ce mode).
+ * @param {string} filePath
+ * @returns {Promise<{ok: boolean, verdict: 'OK'|'FAIL', problems: string[], stats: object}>}
+ */
+export async function checkWorldScanFile(filePath) {
+  let raw;
+  try {
+    raw = await readFile(filePath, 'utf-8');
+  } catch (err) {
+    return { ok: false, verdict: 'FAIL', problems: [`${filePath}: absent ou illisible (${err.message})`], stats: EMPTY_STATS };
+  }
+  if (raw.trim().length === 0) {
+    return { ok: false, verdict: 'FAIL', problems: [`${filePath}: present mais vide`], stats: EMPTY_STATS };
+  }
+  let doc;
+  try {
+    doc = JSON.parse(raw);
+  } catch (err) {
+    return { ok: false, verdict: 'FAIL', problems: [`${filePath}: JSON invalide (${err.message})`], stats: EMPTY_STATS };
+  }
+  const problems = validateManifest(doc);
+  const counts = manifestCounts(doc);
+  const stats = { ...counts, files_checked: 1, media_files_found: 0 };
+  if (problems.length > 0) {
+    return { ok: false, verdict: 'FAIL', problems, stats };
+  }
+  return { ok: true, verdict: 'OK', problems: [], stats };
+}
+
+/**
+ * Point d'entrée complet. Deux modes d'entrée, choisis d'après le type du chemin
+ * (jamais un flag séparé — un dossier reste un dossier, un fichier reste un fichier) :
+ *
+ * - MODE DOSSIER (historique, INCHANGÉ) : vérifie la présence/non-vacuité des 6
+ *   fichiers requis, l'absence de tout média local, et la validité structurelle de
+ *   observation_manifest.json.
+ * - MODE FICHIER (v0.3) : le chemin pointe directement le manifeste JSON matérialisé
+ *   par l'exécuteur (worldscan.json) — mêmes règles de validation du manifeste,
+ *   sans les 5 fichiers .md ni le scan de médias sur disque (cf. checkWorldScanFile).
  *
  * Vocabulaire de verdict unique du studio (jamais PASS/CONCERNS) :
- * - `FAIL` : dossier illisible, fichier requis manquant/vide, manifest invalide,
+ * - `FAIL` : chemin illisible, fichier requis manquant/vide, manifest invalide,
  *   couverture insuffisante (<2 jeux, <3 sources), ou média local détecté.
- * - `OK`   : dossier complet et manifest structurellement valide.
+ * - `OK`   : entrée complète et manifest structurellement valide.
  * `ok` (booléen) = `verdict === 'OK'`.
  *
- * @param {string} dirPath
+ * @param {string} dirPath dossier GAME_REFERENCE/ ou fichier worldscan.json
  * @returns {Promise<{ok: boolean, verdict: 'OK'|'FAIL', problems: string[], stats: object}>}
  */
 export async function checkWorldScan(dirPath) {
@@ -320,8 +392,11 @@ export async function checkWorldScan(dirPath) {
   } catch (err) {
     return { ok: false, verdict: 'FAIL', problems: [`dossier illisible : ${err.message}`], stats: EMPTY_STATS };
   }
+  if (dirStats.isFile()) {
+    return checkWorldScanFile(dirPath);
+  }
   if (!dirStats.isDirectory()) {
-    return { ok: false, verdict: 'FAIL', problems: [`chemin fourni n'est pas un dossier : ${dirPath}`], stats: EMPTY_STATS };
+    return { ok: false, verdict: 'FAIL', problems: [`chemin fourni n'est ni un dossier ni un fichier : ${dirPath}`], stats: EMPTY_STATS };
   }
 
   const problems = [];
@@ -394,7 +469,7 @@ if (isMain) {
   const positional = argv.filter((a) => !a.startsWith('--'));
 
   if (positional.length < 1) {
-    console.error('usage: node check_worldscan.mjs <dossier_GAME_REFERENCE> [--json]');
+    console.error('usage: node check_worldscan.mjs <dossier_GAME_REFERENCE|worldscan.json> [--json]');
     process.exit(1);
   }
 
