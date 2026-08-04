@@ -27,7 +27,9 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadRegistry, loadMutation, CHEMIN_REGISTRE } from './mutation_registry.mjs';
+import {
+  loadRegistry, loadMutation, loadLayers, CHEMIN_REGISTRE,
+} from './mutation_registry.mjs';
 import { parseRoleNames } from './agent_context_map.mjs';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
@@ -164,6 +166,35 @@ export function contraintesRespectees(mesures, contraintes) {
   return violations;
 }
 
+/**
+ * ZONE DE LA DÉCISION — premier consommateur de décision du champ `layer`.
+ *
+ * Le problème racine déclare la zone où sa boucle casse (`root_problem.layer`). Une
+ * mutation déclare la zone qu'elle touche (`mutation.layer`). Une mutation qui agit
+ * **ailleurs** que là où la boucle casse peut être juste — mais elle ne répare pas ce
+ * problème-là, et le sélecteur doit le DIRE plutôt que de la classer comme les autres.
+ *
+ * Ce n'est PAS un filtre : une telle mutation reste candidate (elle a pu être mesurée
+ * sur ce problème). C'est une **information portée par la sortie**, et une priorité de
+ * départage : à mérite égal, celle qui agit dans la zone du problème passe devant.
+ *
+ * @param {object} mutation
+ * @param {object} probleme
+ * @param {Map<string,object>} layers vocabulaire (source unique layers.json)
+ * @returns {{layer, problem_layer, same_layer, known, broken_loop}}
+ */
+export function zoneDeLaDecision(mutation, probleme, layers) {
+  const l = mutation.layer ?? null;
+  const pl = probleme.layer ?? null;
+  return {
+    layer: l,
+    problem_layer: pl,
+    same_layer: l !== null && pl !== null && l === pl,
+    known: l !== null && layers.has(l),
+    broken_loop: pl !== null ? (layers.get(pl)?.broken_loop ?? null) : null,
+  };
+}
+
 /** Signal de régression. Deux sources possibles, dans cet ordre — déclaré, pas deviné. */
 export function regressionDe(mutation) {
   const mm = mutation.measured_metrics || {};
@@ -189,6 +220,13 @@ export function regressionDe(mutation) {
  *    ceux qui ont une valeur — mais entre eux, tous ex aequo)
  * P2 absence de regression
  * P3 cout le plus faible (measured_cost.token_cost)
+ * P4 ZONE : a merite egal, celle qui agit dans la zone ou la boucle casse passe devant
+ *    (ajoutee le 2026-08-04 — premier consommateur de DECISION du champ `layer`)
+ *
+ * P4 est en DERNIER a dessein : la zone ne doit jamais primer sur une mesure. Une
+ * mutation mieux mesuree gagne meme si elle agit ailleurs. La zone ne departage que ce
+ * que la mesure laisse ex aequo — et elle reduit donc le nombre de choix arbitraires
+ * sans jamais en fabriquer un.
  */
 export function ordonner(candidats, analyse, currentMetrics = {}) {
   const clef = (c) => {
@@ -209,6 +247,8 @@ export function ordonner(candidats, analyse, currentMetrics = {}) {
       gain,
       regression: typeof reg === 'number' ? reg : Number.POSITIVE_INFINITY,
       cout: typeof cout === 'number' ? cout : Number.POSITIVE_INFINITY,
+      // P4 : 0 = agit dans la zone du probleme, 1 = agit ailleurs (ou zone inconnue).
+      hors_zone: c.zone?.same_layer === true ? 0 : 1,
     };
   };
 
@@ -217,7 +257,8 @@ export function ordonner(candidats, analyse, currentMetrics = {}) {
     if (a._k.objectif_mesure !== b._k.objectif_mesure) return a._k.objectif_mesure ? -1 : 1;
     if (a._k.objectif_mesure && a._k.gain !== b._k.gain) return b._k.gain - a._k.gain;
     if (a._k.regression !== b._k.regression) return a._k.regression - b._k.regression;
-    return a._k.cout - b._k.cout;
+    if (a._k.cout !== b._k.cout) return a._k.cout - b._k.cout;
+    return a._k.hors_zone - b._k.hors_zone;
   };
   avecClef.sort(cmp);
 
@@ -274,6 +315,7 @@ export async function chargerContexte(chemins = {}) {
     capacites: await lire(chemins.capacites || CHEMIN_CAPACITES),
     recettes: await lire(chemins.recettes || CHEMIN_RECETTES),
     roles: parseRoleNames(chemins.roles || CHEMIN_ROLES),
+    layers: await loadLayers(chemins.layers),
   };
 }
 
@@ -293,6 +335,7 @@ export function selectionner(requete, ctx, racine = RACINE) {
     };
   }
 
+  const layers = ctx.layers ?? new Map();
   const analyse = analyserRewardContract(probleme.reward_contract, probleme);
   const contraintes = [...analyse.constraints, ...(requete.available_constraints || [])];
 
@@ -320,7 +363,7 @@ export function selectionner(requete, ctx, racine = RACINE) {
       rejetes.push({ id: m.id, motif: MOTIFS.CONTRAINTE_VIOLEE, detail: violations.join(' | ') });
       continue;
     }
-    retenus.push({ id: m.id, mutation: m });
+    retenus.push({ id: m.id, mutation: m, zone: zoneDeLaDecision(m, probleme, layers) });
   }
 
   const groupes = ordonner(retenus, analyse, requete.current_metrics || {});
@@ -341,6 +384,17 @@ export function selectionner(requete, ctx, racine = RACINE) {
     reasoning.push(`${meilleur.length} candidats EX AEQUO : les trois priorites ne les `
       + 'departagent pas. Aucun choix arbitraire — tous rendus.');
   }
+  if (layers.size === 0) {
+    reasoning.push('vocabulaire des layers illisible — la zone de decision n a pas pu etre lue');
+  } else if (probleme.layer) {
+    const dedans = meilleur.filter((c) => c.zone.same_layer).length;
+    reasoning.push(`zone du probleme : ${probleme.layer} — `
+      + `${layers.get(probleme.layer)?.broken_loop ?? 'boucle non decrite'}`);
+    if (dedans < meilleur.length) {
+      reasoning.push(`${meilleur.length - dedans} candidat(s) retenu(s) agissent HORS de cette `
+        + 'zone : mesures sur ce probleme, mais ils ne touchent pas la ou la boucle casse.');
+    }
+  }
   if (meilleur.length && !meilleur[0]._k.objectif_mesure) {
     reasoning.push('aucun candidat ne mesure la metrique objectif : le classement s est '
       + 'fait sur la regression puis le cout, jamais sur l objectif.');
@@ -352,6 +406,7 @@ export function selectionner(requete, ctx, racine = RACINE) {
       objective_value: analyse.objective
         ? (c.mutation.measured_metrics || {})[analyse.objective.metric] ?? null : null,
       regression: regressionDe(c.mutation),
+      zone: c.zone,
       token_cost: c.mutation.measured_cost?.token_cost ?? null,
       evidence_status: c.mutation.evidence_status ?? null,
       execution: resoudreExecution(c.id, ctx),
@@ -366,7 +421,10 @@ export function selectionner(requete, ctx, racine = RACINE) {
       penalties_exploitable: analyse.penalties,
       non_exploitable_fields: analyse.non_exploitable,
       forbidden_aggregation: probleme.forbidden_aggregation || [],
-      priority_order: ['objective_improvement', 'no_regression', 'lowest_token_cost'],
+      priority_order: ['objective_improvement', 'no_regression', 'lowest_token_cost',
+        'same_layer_as_problem'],
+      problem_layer: probleme.layer ?? null,
+      layer_vocabulary_size: layers.size,
       tie_policy: 'ex_aequo_returned_in_full',
       candidates_examined: retenus.length + rejetes.length,
       groups: groupes.length,
@@ -399,7 +457,8 @@ if (estMain) {
         + `${res.rejected_candidates.length} rejete(s)`);
       for (const c of res.selected_candidates) {
         console.log(`  RETENU  ${c.mutation_id}  objectif=${c.objective_value} `
-          + `regression=${c.regression.valeur} cout=${c.token_cost}`);
+          + `regression=${c.regression.valeur} cout=${c.token_cost} `
+          + `zone=${c.zone.layer ?? '-'}${c.zone.same_layer ? ' (zone du probleme)' : ' [HORS ZONE]'}`);
         if (c.execution.length === 0) {
           console.log('          -> AUCUNE recette ne reference cette mutation : '
             + 'selectionnable, pas executable en l etat');

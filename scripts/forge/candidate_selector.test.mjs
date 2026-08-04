@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import {
   MOTIFS, analyserRewardContract, memeContexte, preuvesPresentes, contraintesRespectees,
   regressionDe, ordonner, resoudreExecution, selectionner, chargerContexte,
+  zoneDeLaDecision,
 } from './candidate_selector.mjs';
 
 const CTX = { dataset_sha256: 'aaa', worker_model: 'qwen2.5-14b-instruct' };
@@ -33,6 +34,7 @@ const PROBLEME = {
 function mutation(id, o = {}) {
   return {
     id,
+    ...(o.layer ? { layer: o.layer } : {}),
     root_problem_id: o.probleme ?? 'P1',
     accepted: o.accepted ?? true,
     evaluation_context: o.contexte ?? CTX,
@@ -229,7 +231,7 @@ test('AUCUN score : ni dans la sortie, ni dans le vocabulaire', async () => {
     assert.ok(!brut.includes(interdit), `champ interdit : ${interdit}`);
   }
   assert.deepEqual(res.selection_basis.priority_order,
-    ['objective_improvement', 'no_regression', 'lowest_token_cost']);
+    ['objective_improvement', 'no_regression', 'lowest_token_cost', 'same_layer_as_problem']);
 });
 
 test('AUCUN LLM, AUCUN runtime, AUCUNE ecriture : verifie sur la source', () => {
@@ -267,10 +269,13 @@ test('DEPOT REEL : PROMPT_FIELD_OMISSION rend M-ws6 et motive les 5 rejets', asy
   assert.ok(champs.includes('penalties'), 'cost_tokens n est pas une metrique declaree');
 });
 
-test('DEPOT REEL : ORACLE_FALSE_NEGATIVE rend 4 ex aequo — la METHODE est definie, pas la MESURE', async () => {
+test('DEPOT REEL : ORACLE_FALSE_NEGATIVE — la METHODE est definie, pas la MESURE', async () => {
   const ctx = await chargerContexte();
   const res = selectionner({ root_problem_id: 'ORACLE_FALSE_NEGATIVE' }, ctx);
-  assert.equal(res.selected_candidates.length, 4);
+  // 4 ex aequo AVANT le cablage de la zone (2026-08-04), 3 depuis : la 4e
+  // (M-workflow-oracle-moment, layer=driver) agit hors de la zone `quality` ou la
+  // boucle casse. La zone n a rien filtre — elle a departage.
+  assert.equal(res.selected_candidates.length, 3);
   assert.ok(res.selected_candidates.every((c) => c.objective_value === null));
   assert.ok(res.reasoning.some((l) => /EX AEQUO/.test(l)));
   // Corrige le 2026-08-04 : `measurement_method` decrit desormais la mesure REELLE
@@ -281,4 +286,88 @@ test('DEPOT REEL : ORACLE_FALSE_NEGATIVE rend 4 ex aequo — la METHODE est defi
   // measured_metrics : la campagne a mesure la CAPACITE, pas chaque mutation. Le
   // classement reste donc impossible sur l objectif — et c est dit.
   assert.ok(res.reasoning.some((l) => /aucun candidat ne mesure la metrique objectif/.test(l)));
+});
+
+// --- ZONE DE LA DECISION : le champ `layer` a un consommateur (2026-08-04) ---------
+
+const ZONE_LAYERS = new Map([
+  ['quality', { id: 'quality', chain: 'transverse', broken_loop: 'le signal ne detecte pas' }],
+  ['driver', { id: 'driver', chain: 'transverse', broken_loop: 'l execution de la chaine' }],
+]);
+
+const PROBLEME_ZONE = { ...PROBLEME, layer: 'quality' };
+const ctxZone = (mutations) => ({
+  ...contexte(mutations),
+  problemes: { root_problems: [PROBLEME_ZONE] },
+  layers: ZONE_LAYERS,
+});
+
+test('zoneDeLaDecision compare la zone de la mutation a celle du probleme', () => {
+  const dedans = zoneDeLaDecision({ layer: 'quality' }, PROBLEME_ZONE, ZONE_LAYERS);
+  assert.equal(dedans.same_layer, true);
+  assert.equal(dedans.known, true);
+  assert.equal(dedans.broken_loop, 'le signal ne detecte pas');
+
+  const dehors = zoneDeLaDecision({ layer: 'driver' }, PROBLEME_ZONE, ZONE_LAYERS);
+  assert.equal(dehors.same_layer, false);
+
+  const inconnue = zoneDeLaDecision({ layer: 'jamais_vue' }, PROBLEME_ZONE, ZONE_LAYERS);
+  assert.equal(inconnue.known, false, 'une zone hors vocabulaire est SIGNALEE');
+  assert.equal(inconnue.same_layer, false);
+
+  const sans = zoneDeLaDecision({}, PROBLEME_ZONE, ZONE_LAYERS);
+  assert.equal(sans.layer, null);
+  assert.equal(sans.same_layer, false, 'absence de zone n est pas « meme zone »');
+});
+
+test('P4 DEPARTAGE un ex aequo : la zone du probleme passe devant', async () => {
+  const r = await racine();
+  const res = selectionner({ root_problem_id: 'P1' }, ctxZone([
+    mutation('AILLEURS', { layer: 'driver' }),
+    mutation('DANS_LA_ZONE', { layer: 'quality' }),
+  ]), r);
+  assert.deepEqual(res.selected_candidates.map((c) => c.mutation_id), ['DANS_LA_ZONE'],
+    'a merite strictement egal, la zone tranche — et le choix cesse d etre arbitraire');
+  assert.equal(res.selection_basis.groups, 2);
+});
+
+test('P4 ne PRIME JAMAIS sur une mesure : mieux mesure gagne meme hors zone', async () => {
+  const r = await racine();
+  const res = selectionner({ root_problem_id: 'P1' }, ctxZone([
+    mutation('MIEUX_MESUREE_AILLEURS', { layer: 'driver', mesures: { completion: 1, defauts: 0 } }),
+    mutation('MOINS_BONNE_DANS_ZONE', { layer: 'quality', mesures: { completion: 0.5, defauts: 0 } }),
+  ]), r);
+  assert.deepEqual(res.selected_candidates.map((c) => c.mutation_id), ['MIEUX_MESUREE_AILLEURS'],
+    'la zone est la DERNIERE priorite : elle ne renverse aucune mesure');
+});
+
+test('la sortie PORTE la zone, et le raisonnement le dit', async () => {
+  const r = await racine();
+  const res = selectionner({ root_problem_id: 'P1' }, ctxZone([
+    mutation('A', { layer: 'quality' }), mutation('B', { layer: 'driver' }),
+  ]), r);
+  assert.equal(res.selected_candidates[0].zone.same_layer, true);
+  assert.equal(res.selection_basis.problem_layer, 'quality');
+  assert.equal(res.selection_basis.layer_vocabulary_size, 2);
+  assert.ok(res.selection_basis.priority_order.includes('same_layer_as_problem'));
+  assert.ok(res.reasoning.some((l) => /zone du probleme : quality/.test(l)));
+});
+
+test('vocabulaire illisible : SIGNALE, jamais un silence', async () => {
+  const r = await racine();
+  const res = selectionner({ root_problem_id: 'P1' },
+    { ...ctxZone([mutation('A', { layer: 'quality' })]), layers: new Map() }, r);
+  assert.ok(res.reasoning.some((l) => /vocabulaire des layers illisible/.test(l)));
+  assert.equal(res.selected_candidates.length, 1, 'la selection continue — la zone est advisory');
+});
+
+test('DEPOT REEL : la zone a REDUIT les ex aequo de ORACLE_FALSE_NEGATIVE', async () => {
+  const ctx = await chargerContexte();
+  assert.ok(ctx.layers.size >= 13, 'le vocabulaire reel est charge par chargerContexte');
+  const res = selectionner({ root_problem_id: 'ORACLE_FALSE_NEGATIVE' }, ctx);
+  // avant le cablage : 4 ex aequo (Q1, Q2, Q3 + M-workflow-oracle-moment, layer=driver)
+  assert.deepEqual(res.selected_candidates.map((c) => c.mutation_id).sort(),
+    ['Q1-DISCRIMINANCE', 'Q2-LANGUE', 'Q3-RECOPIE']);
+  assert.ok(res.selected_candidates.every((c) => c.zone.same_layer));
+  assert.equal(res.selection_basis.problem_layer, 'quality');
 });
