@@ -1,0 +1,340 @@
+# PROPOSITION generee par Observer (scripts/observer/system_planning.py).
+# propose-only : la promotion vers studio_brain/planning/planning.yaml est un
+# geste Pierre, jamais automatique.
+# Projet source des donnees : tetris.
+# Schema attendu (§06) : id, objectif, raison, priorite, etat, depends_on,
+# decision_attendue, preuve_de_fin. Valeurs 'A_DEFINIR_A_LA_RATIFICATION' =
+# NOT_OBSERVABLE mecaniquement, jamais devinees par Observer.
+taches:
+- id: drift:lecon_routee_sans_consommateur
+  objectif: Relier chaque lecon validee a un consommateur mecanique reel.
+  raison: 'lecon_routee_sans_consommateur observe 13 fois : lecon ''forge.architecture_check_before_human_escalation''
+    validee sans consommateur mecanique connu dans les racines lisibles d''Observer
+    / lecon ''forge.broken_loop_repair_not_report'' validee sans consommateur mecanique
+    connu dans les racines lisibles d''Observer (provenance : lab/reports/lessons.jsonl)'
+  priorite: 2
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: le detecteur Observer ne remonte plus ce type d'ecart
+  owner: DOCTRINE
+  source: drift
+- id: drift:token_accounting_below_measured
+  objectif: Aligner la comptabilite de tokens de la Forge sur les tokens reellement
+    mesures dans les transcripts.
+  raison: 'token_accounting_below_measured observe 1 fois : la telemetrie de la Forge
+    declare nettement moins de tokens que les transcripts n''en mesurent — la lecture
+    de cache n''est meme pas comptee (provenance : non tracee dans les evenements)'
+  priorite: 1
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: le detecteur Observer ne remonte plus ce type d'ecart
+  owner: HARNAIS
+  source: drift
+- id: drift:tool_observability_not_measured
+  objectif: Corriger le statut de mesure des outils quand des appels sont observables
+    dans les transcripts.
+  raison: 'tool_observability_not_measured observe 6 fois : tool_observability declare
+    loaded.status=NOT_MEASURED alors que des appels d''outils sont observables dans
+    les transcripts (provenance : non tracee dans les evenements)'
+  priorite: 2
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: le detecteur Observer ne remonte plus ce type d'ecart
+  owner: HARNAIS
+  source: drift
+- id: drift:tools_used_beyond_declared
+  objectif: Mettre a jour la liste d'outils declaree pour couvrir les outils reellement
+    utilises par l'agent.
+  raison: 'tools_used_beyond_declared observe 2 fois : des outils observes dans le
+    transcript ne figurent pas dans tools_effective declare par la Forge (provenance
+    : non tracee dans les evenements)'
+  priorite: 1
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: le detecteur Observer ne remonte plus ce type d'ecart
+  owner: HARNAIS
+  source: drift
+- id: drift:tools_used_without_declaration
+  objectif: Exiger une declaration d'outils pour toute activation dispatchee.
+  raison: 'tools_used_without_declaration observe 6 fois : l''agent a utilise des
+    outils alors qu''aucune liste d''outils n''est declaree dans la trace de dispatch
+    (provenance : non tracee dans les evenements)'
+  priorite: 1
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: le detecteur Observer ne remonte plus ce type d'ecart
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: drift
+- id: lesson:forge.architecture_check_before_human_escalation
+  objectif: 'Avant toute escalade humaine sur un blocage, la Forge doit verifier le
+    Master Schema et les contrats associes, dans cet ordre : blocage -> recherche
+    de la boucle PREVUE par l''architecture -> verificat…'
+  raison: 'lecon validee ''forge.architecture_check_before_human_escalation'' : Avant
+    toute escalade humaine sur un blocage, la Forge doit verifier le Master Schema
+    et les contrats associes, dans cet ordre : blocage -> recherche de la boucl… (supporting_runs:
+    [''tetris-fullgodot-20260803-084719''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.broken_loop_repair_not_report
+  objectif: Une boucle cassee dont la cause racine est identifiee et la solution connue
+    doit etre REPAREE immediatement, pas remontee comme observation. Le role de la
+    Forge n'est pas de signaler les ecarts mais d…
+  raison: 'lecon validee ''forge.broken_loop_repair_not_report'' : Une boucle cassee
+    dont la cause racine est identifiee et la solution connue doit etre REPAREE immediatement,
+    pas remontee comme observation. Le role de la Forge… (supporting_runs: [''tetris-fullgodot-20260803-084719''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.diagnosis_is_not_workflow_end
+  objectif: Un diagnostic n'est PAS une fin de workflow. Quand la Forge identifie
+    la cause racine, le composant responsable et la correction evidente, elle applique
+    la correction AVANT de demander une validation…
+  raison: 'lecon validee ''forge.diagnosis_is_not_workflow_end'' : Un diagnostic n''est
+    PAS une fin de workflow. Quand la Forge identifie la cause racine, le composant
+    responsable et la correction evidente, elle applique la corr… (supporting_runs:
+    [''tetris-fullgodot-20260803-084719''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.entrypoint_is_undeclared_invariant
+  objectif: 'Un projet peut satisfaire toutes ses preuves Forge (assertions, mutation,
+    solvabilite, verify_run AUTHENTIQUE) et etre impossible a lancer : les index et
+    cartes de projet prouvent la coherence de ce q…'
+  raison: 'lecon validee ''forge.entrypoint_is_undeclared_invariant'' : Un projet
+    peut satisfaire toutes ses preuves Forge (assertions, mutation, solvabilite, verify_run
+    AUTHENTIQUE) et etre impossible a lancer : les index et cartes… (supporting_runs:
+    [''snake-_run_reel_20260729''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.escalation_costs_avoid_default_route
+  objectif: 'Une escalade humaine a un cout reel : interruption du flux, consommation
+    de contexte, perte de temps, dilution de la mission. L''humain n''est pas la route
+    par defaut quand une correction est determinee…'
+  raison: 'lecon validee ''forge.escalation_costs_avoid_default_route'' : Une escalade
+    humaine a un cout reel : interruption du flux, consommation de contexte, perte
+    de temps, dilution de la mission. L''humain n''est pas la route par de… (supporting_runs:
+    [''tetris-fullgodot-20260803-084719''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.forge_oracle_convention_undocumented
+  objectif: La convention de sonde observable FORGE_ORACLE (marqueur litteral, format
+    de sortie stdout 'FORGE_ORACLE <volet> {json}', decouverte par grep du code) n'existe
+    que dans le code executant (product_orac…
+  raison: 'lecon validee ''forge.forge_oracle_convention_undocumented'' : La convention
+    de sonde observable FORGE_ORACLE (marqueur litteral, format de sortie stdout ''FORGE_ORACLE
+    <volet> {json}'', decouverte par grep du code) n''existe… (supporting_runs: [''breakout_v2-run3-20260731-111149''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.hardcoded_expected_state_breaks_on_growth
+  objectif: Un test qui code en dur une liste d'etat attendu (noms de fichiers, chemin
+    de dossier de run) au lieu de la deriver d'une source declarative rougit pour
+    des raisons qui ne sont pas des defauts du prod…
+  raison: 'lecon validee ''forge.hardcoded_expected_state_breaks_on_growth'' : Un
+    test qui code en dur une liste d''etat attendu (noms de fichiers, chemin de dossier
+    de run) au lieu de la deriver d''une source declarative rougit pour des rai… (supporting_runs:
+    [''pong_r2'', ''pong_r2_ref''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.instrument_assumes_instead_of_reads
+  objectif: 'Le mode de panne dominant d''une premiere campagne sur un nouveau runtime
+    (ici : premiere cible Godot apres un regime uniquement web/JS) n''est pas un bug
+    isole mais une famille : un instrument de la ch…'
+  raison: 'lecon validee ''forge.instrument_assumes_instead_of_reads'' : Le mode de
+    panne dominant d''une premiere campagne sur un nouveau runtime (ici : premiere
+    cible Godot apres un regime uniquement web/JS) n''est pas un bug isole m… (supporting_runs:
+    [''snake-_run_reel_20260729'', ''snake-_run_runtime_20260729''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.kb_humangate_to_controlled_autonomy
+  objectif: La HumanGate sur l'ingestion KB etait une securite de PHASE DE CONSTRUCTION,
+    destinee a eviter de polluer la connaissance avant que les mecanismes de preuve
+    existent. Une fois la KB cablee, les valida…
+  raison: 'lecon validee ''forge.kb_humangate_to_controlled_autonomy'' : La HumanGate
+    sur l''ingestion KB etait une securite de PHASE DE CONSTRUCTION, destinee a eviter
+    de polluer la connaissance avant que les mecanismes de preuve exi… (supporting_runs:
+    [''tetris-fullgodot-20260803-084719''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.mutation_survivor_equivalence_requires_mechanical_proof
+  objectif: Quand un producteur (builder) trie lui-meme un mutant survivant comme
+    'equivalent' (le mutant ne change pas le comportement observable), cette affirmation
+    n'est PAS une preuve mecanique tant qu'aucun…
+  raison: 'lecon validee ''forge.mutation_survivor_equivalence_requires_mechanical_proof''
+    : Quand un producteur (builder) trie lui-meme un mutant survivant comme ''equivalent''
+    (le mutant ne change pas le comportement observable), cette affirmation n''est…
+    (supporting_runs: [''snake-_run_obs_20260729'', ''snake-_run_reel_20260729''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.new_proof_needs_declared_executor
+  objectif: Un test ecrit pendant un run n'existe dans la chaine qualite que si la
+    commande d'oracle du projet le liste explicitement. Un builder peut produire de
+    nouveaux fichiers de preuve, tous verts a la main…
+  raison: 'lecon validee ''forge.new_proof_needs_declared_executor'' : Un test ecrit
+    pendant un run n''existe dans la chaine qualite que si la commande d''oracle du
+    projet le liste explicitement. Un builder peut produire de nouveaux… (supporting_runs:
+    [''pong_r3''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.oracle_fail_vs_not_measured_marker
+  objectif: Un volet d'oracle produit qui ne peut etre mesure dans le mode d'execution
+    courant (ex. rendu pixel en headless) doit rendre NOT_MEASURED, jamais FAIL --
+    product_oracle_godot.py n'exempte aujourd'hui…
+  raison: 'lecon validee ''forge.oracle_fail_vs_not_measured_marker'' : Un volet d''oracle
+    produit qui ne peut etre mesure dans le mode d''execution courant (ex. rendu pixel
+    en headless) doit rendre NOT_MEASURED, jamais FAIL -- produc… (supporting_runs:
+    [''breakout_v2-run3-20260731-111149''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.preflight_oracle_registration
+  objectif: 'L''enregistrement du projet dans scripts/forge/oracles.json est un prerequis
+    mecaniquement verifiable AVANT le premier dispatch LLM d''une campagne, mais rien
+    ne le verifie au lancement : son absence n''…'
+  raison: 'lecon validee ''forge.preflight_oracle_registration'' : L''enregistrement
+    du projet dans scripts/forge/oracles.json est un prerequis mecaniquement verifiable
+    AVANT le premier dispatch LLM d''une campagne, mais rien ne… (supporting_runs:
+    [''breakout_v2-run1-20260731-082705''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.reuse_tracking_oracle_dead_since_inception
+  objectif: Deux volets d'oracle destines a mesurer la reutilisation de briques du
+    catalogue (search_consulted, reuse_ratio_wired) ne sont jamais passes verts sur
+    AUCUN run de la Forge observe, depuis le premier…
+  raison: 'lecon validee ''forge.reuse_tracking_oracle_dead_since_inception'' : Deux
+    volets d''oracle destines a mesurer la reutilisation de briques du catalogue (search_consulted,
+    reuse_ratio_wired) ne sont jamais passes verts sur AUCUN run… (supporting_runs:
+    [''pong_r2'', ''snake-_run_reel_20260729'', ''snake-_run_cal1_20260730'', ''breakout_v2''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.run_status_not_liveness_proof
+  objectif: 'Un champ run_status: RUNNING dans un state.json n''est pas une preuve
+    de vie du run : quand un run long est lance depuis le shell d''un sous-agent orchestrateur
+    plutot que depuis la session de supervisi…'
+  raison: 'lecon validee ''forge.run_status_not_liveness_proof'' : Un champ run_status:
+    RUNNING dans un state.json n''est pas une preuve de vie du run : quand un run
+    long est lance depuis le shell d''un sous-agent orchestrateur p… (supporting_runs:
+    [''pong_r3''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.test_green_via_wrong_causal_path
+  objectif: Un test peut rester vert non pas parce que la propriete testee est vraie,
+    mais parce que ses assertions sont satisfaites par un chemin de code different
+    de celui qu'il pretend verifier. Un test de non…
+  raison: 'lecon validee ''forge.test_green_via_wrong_causal_path'' : Un test peut
+    rester vert non pas parce que la propriete testee est vraie, mais parce que ses
+    assertions sont satisfaites par un chemin de code different de celu… (supporting_runs:
+    [''pong_r2''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.timeout_greenfield_by_profile
+  objectif: Un step-timeout de dispatch (defaut 1800s) est insuffisant pour un s9
+    greenfield Godot construit depuis zero sur un squelette de wiremap de taille standard
+    (~50 lignes) ; 5400s a suffi pour un build c…
+  raison: 'lecon validee ''forge.timeout_greenfield_by_profile'' : Un step-timeout
+    de dispatch (defaut 1800s) est insuffisant pour un s9 greenfield Godot construit
+    depuis zero sur un squelette de wiremap de taille standard (~50… (supporting_runs:
+    [''breakout_v2-run1-20260731-082705''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.wiremap_concept_reuse_requalification
+  objectif: Une ligne de wiremap reused_from.type=CONCEPT transposee d'un jeu a un
+    autre peut porter une promesse (expected_proof) fausse dans le nouveau contexte
+    si le genre change de nature (ex. grille discrete…
+  raison: 'lecon validee ''forge.wiremap_concept_reuse_requalification'' : Une ligne
+    de wiremap reused_from.type=CONCEPT transposee d''un jeu a un autre peut porter
+    une promesse (expected_proof) fausse dans le nouveau contexte si le gen… (supporting_runs:
+    [''breakout_v2-run3-20260731-111149''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson

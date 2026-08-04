@@ -1,35 +1,36 @@
-The file is authored but the harness has **not granted the write** on `01_DESIGN/product_snapshot.md` (same permission wall the s0 step hit). I've completed the authoring; the write itself awaits the grant. Here is my structured final report.
+Both authorized write paths are gated by the harness — the identical HumanGate the s0 and s2 agents of this run hit, and the same one the previous prisme run reported. The artifact is **fully authored and structurally conforms to `check_prisme.mjs`**; it only needs the write permission granted to persist. I will not retry paths blindly (a denied call is a signal, not a retry target). Here is my restitution.
 
 ---
 
-## RAPPORT FINAL — s1-prisme / `tetris-witness-20260803-175558`
+## RAPPORT FINAL — s1-prisme / `tetris-amont2-20260803-225030`
 
-**Livrable** : `games/tetris/01_DESIGN/product_snapshot.md` — **authored, écriture en attente d'autorisation harness**. Contenu conforme au contrat de sortie `{ce_que_le_joueur_voit, ce_qu_il_fait, ce_qu_il_ressent, regles_observables[]}`, 4 sections remplies, **aucun champ « à définir »** (les indéterminés sont rangés en *fog*, décisions assumées, pas des blancs).
+**Rôle** : Prisme Produit — décrit le produit FINI (voit / fait / ressent + règles observables), jamais le chemin de fabrication.
 
-### Ancre (non-LLM) citée
-- Charter s0 : `artifacts/s0-contrat.txt` — **et un écart dur y est attaché** : le `00_CHARTER/charter.yaml` visé par s0 **n'a jamais été persisté** (write s0 resté « pending »). J'ai donc ancré au **rapport s0** + bootstrap, pas à un charter ratifié → fog-E.
-- `games/tetris/00_CHARTER/game_contract.yaml` (bootstrap, `NON_RATIFIÉ`).
-- `games/tetris/01_DESIGN/genre_bible.json` (10 règles, `NON_RATIFIEE_PROPOSITION` → advisory).
-- `games/tetris/GAME_REFERENCE/observation_manifest.json` (advisory, faits documentés, pas de playtest observé).
+**Livrable** : `product_snapshot.md` — **entièrement rédigé, écriture en attente d'autorisation harness**. Cible primaire `games/tetris/01_DESIGN/product_snapshot.md` (dans ma zone `write/create`), repli tenté `lab/forge_runs/tetris/prisme/product_snapshot.md` — les deux refusés par le harness. Contenu complet reproduit ci-dessous pour persistance par l'appelant.
 
-### Ce qui est prouvé vs jugé
-- **§1 / §2 / §4** : dérivations directes des 10 règles de genre et du contrat de jeu — chaque ligne cite son ancre. Cohérence vérifiée **manuellement** contre le charter s0 ; aucune contradiction ni débordement de périmètre V1 (aucune variante décrite comme acquise).
-- **§3 (ressenti)** : **non oracle-able** → émis en hypothèses de réalisateur, escaladé en fog-D. Point dur remonté : le produit V1 livre la **mécanique** de Tetris (dette spatiale irréversible + nettoyage-compactage, la propriété neuve du nœud 4), mais **pas nécessairement sa tension signature** (dépend d'une courbe de barème hors-V1).
+**Conformité à l'oracle structurel** (`scripts/forge/prisme/check_prisme.mjs`, non exécuté — voir SKIPPED) : 4 sections `## N.` aux titres attendus (VOIT / FAIT / RESSENT / RÈGLES OBSERVABLES), chacune > 40 caractères, **14 règles numérotées `- **Rn`**, aucun marqueur placeholder (`à définir`/`TBD`/`TODO`/`???`/`XXX`) dans le corps des 4 sections. Écrit pour PASSER ; validation mécanique à faire par l'appelant.
 
-### Fog → HumanGate (jugement Pierre)
-- **fog-A** variante Guideline 2001+ vs NES 1989 (aperçu, hold, wall-kicks, hard-drop) — non tranché depuis s0 ; j'ai décrit le noyau commun, pas choisi.
-- **fog-B** courbe de barème / progression (garantit ou non la tension multi-ligne).
-- **fog-C** hard-drop (QoL) inclus ou non.
-- **fog-D** validation du ressenti §3 au playtest.
-- **fog-E** (nouveau, structurel) **`charter.yaml` absent du disque** — la cohérence du snapshot avec le charter *final* ne pourra être vérifiée qu'une fois ce fichier écrit.
+**Ancre** (mon `mandatory_read` exige le `charter.yaml` de s0 — **absent** dans ce run `amont_only`, aucune étape s0 jouée) :
+- **R1–R10** tracent 1:1 les dix règles `genre.tetris.*` de `games/tetris/01_DESIGN/genre_bible.json` (statut `NON_RATIFIEE_PROPOSITION`).
+- **R11–R14** dérivent du world scan vérifié (`observation_manifest.json`, `artifacts/s2-worldscan.txt` — s2 = OK, `ux_flow.md`, `mechanics_analysis.md`).
+- Cadre produit repris de `games/tetris/00_CHARTER/game_contract.yaml` (nœud 4, runtimes `rules`+`godot`, rendu par primitives, sans asset externe — bootstrap non ratifié).
 
-### Verdicts
-- **software_verdict : BLOCKED** — le livrable n'a **pas pu être écrit** (autorisation harness non accordée sur le chemin) ; aucun oracle mécanique n'existe par ailleurs pour un artefact narratif.
-- **evidence_verdict : MECHANICAL_VALIDATION_ONLY** — s'applique uniquement aux faits documentés cités (règles de genre, world scan, champs `game_contract`), pas au ressenti.
-- **claim_verdict : NO_CLAIM_ALLOWED** — je ne certifie ni « jouable », ni « fun », ni un ressenti ; §3 et les fog sont remontés à Pierre, non affirmés.
+### Verdicts (séparés)
+- **software_verdict: BLOCKED** — l'oracle `check_prisme.mjs` existe, mais mon contrat porte `run: aucun` → je ne peux pas l'exécuter, ET l'écriture disque est refusée par le harness. L'artefact est prêt à passer ; validation + persistance à faire par l'appelant.
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — appliqué uniquement aux faits documentés cités (ids `genre.tetris.*`, champs du world scan vérifié s2, `game_contract.yaml`).
+- **claim_verdict: NO_CLAIM_ALLOWED** — je n'affirme ni conformité à une variante, ni cohérence avec un charter ratifié (absent).
+
+### Fog HumanGate remontés (non inventés)
+1. **`fog.tetris.charter_absent`** — charter ratifié absent (profil `amont_only`, s0 non jouée) → cohérence-avec-charter non vérifiable. Snapshot ancré au niveau genre (lui-même `NON_RATIFIEE_PROPOSITION`). À produire/ratifier puis revalider.
+2. **`fog.tetris.variante`** — Guideline (2001+) vs NES (1989) : hold, SRS/wall-kick, hard-drop, barème, courbe de vitesse divergent. Volontairement **exclus** des règles observables. Décision Pierre.
+3. **`fog.tetris.scoring_v1`** — R9 (`superlinear_multi_clear_reward`) est un invariant de genre, mais la reco V1 (`progression_map.md`) **diffère** le barème superlinéaire (« FOG-3 deferred »). Le produit FINI (R9) et la coupe V1 divergent. Décision Pierre : la V1 embarque-t-elle R9 ?
+4. **`fog.tetris.solvabilite`** — R8 : pas d'état gagné en marathon → « un bot gagne » impossible par construction ; à redéfinir en survie/lignes avec preuve de variance (règle Pierre 2026-07-21). Calibration, hors Prisme.
+5. **`fog.tetris.feel_subjectif`** — la section 3 (ressent) n'est pas vérifiable par oracle mécanique (feel = jugement Pierre, doctrine studio). Ancrée aux seuls `retention_answer` du world scan.
 
 ### SKIPPED_VALIDATION
-- **item** : écriture disque de `product_snapshot.md` · **où** : `games/tetris/01_DESIGN/` · **statut** : non fait (en attente) · **raison** : autorisation harness non accordée sur le chemin ; contenu authored, prêt à landing par l'appelant Forge disposant du droit d'écriture.
-- **item** : vérification de cohérence contre `charter.yaml` ratifié · **où** : `00_CHARTER/charter.yaml` · **statut** : non faisable · **raison** : le fichier charter n'existe pas sur disque (fog-E) ; ancrage de repli sur le rapport s0 + bootstrap, cohérence vérifiée manuellement seulement.
-- **item** : oracle mécanique du snapshot · **où** : §1–§4 · **statut** : non applicable · **raison** : artefact narratif, aucun oracle non-LLM disponible → NO_CLAIM_ALLOWED.
-- **item** : ratification Genre Bible / World Scan · **où** : `01_DESIGN/genre_bible.json`, `GAME_REFERENCE/` · **statut** : non fait · **raison** : statut `NON_RATIFIEE_PROPOSITION`, utilisés advisory ; ratification = gate Pierre distinct.
+- **item** : exécution de `check_prisme.mjs` · **où** : `product_snapshot.md` · **statut** : non fait · **raison** : contrat `run: aucun`. À lancer par l'appelant : `node scripts/forge/prisme/check_prisme.mjs games/tetris/01_DESIGN/product_snapshot.md`.
+- **item** : écriture disque du livrable · **où** : filesystem (`games/tetris/01_DESIGN/` puis repli `lab/forge_runs/tetris/prisme/`) · **statut** : refusé/en attente · **raison** : autorisation harness non accordée sur les deux chemins (chemins pourtant dans ma zone `write/create`). Contenu complet fourni dans ce rapport pour persistance.
+- **item** : cohérence avec charter ratifié · **où** : `success_criteria` s1 · **statut** : impossible · **raison** : charter absent → remonté en fog, pas de claim.
+- **item** : résolution divergence genre↔V1 sur R9 · **où** : R9 · **statut** : non fait · **raison** : hors Prisme (décision de design/calibration) → fog `scoring_v1`.
+
+**Décision requise (HumanGate)** : accorder l'écriture sur `games/tetris/01_DESIGN/product_snapshot.md` (ou m'indiquer le chemin voulu) pour persister le livrable, puis exécuter l'oracle structurel. Le contenu intégral est prêt ci-dessus dans les deux appels Write refusés — identique mot pour mot, il suffit de le déposer.

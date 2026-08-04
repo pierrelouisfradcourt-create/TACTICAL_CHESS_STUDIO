@@ -1,0 +1,155 @@
+{
+ "games": [
+  {
+   "game": "Tetris (Official Guideline)",
+   "sources": [
+    {
+     "url": "https://tetris.wiki/Tetris_Guideline",
+     "type": "article"
+    },
+    {
+     "url": "https://harddrop.com/wiki/SRS",
+     "type": "article"
+    },
+    {
+     "url": "https://dinogame.gg/blog/how-tetris-randomizers-work/",
+     "type": "article"
+    }
+   ],
+   "loops": {
+    "minute_1": "Player spawns piece, rotates using SRS (Super Rotation System with wall kicks), positions I/O/T tetrominoes, clears first line by filling horizontal space. Learn hold mechanic to save piece for later.",
+    "minute_10": "5–8 lines cleared, player experienced basic stacking. Speed increases per level progression. Height management becomes critical. Preview (next queue of 5 pieces) used for planning. Soft drop and hard drop mechanics learned.",
+    "hour_5": "Intermediate skill: 100K+ score, executing T-spin doubles, back-to-back Tetrises. Parity management (planning well depth). Speedrun techniques for competitive lines-per-minute. 7-bag randomizer guarantees piece distribution (max 12-piece drought for any single tetromino).",
+    "endgame": "Top-out: piece spawns and immediately collides (grid height ≥ spawn zone). Game ends. In marathon, score peaks. In sprint (40 lines), timer records final time. Defeat state strictly defined: top-out."
+   },
+   "objectives": [
+    {
+     "mode": "Marathon",
+     "has_win_state": false,
+     "victory_condition": null,
+     "has_defeat_state": true,
+     "defeat_condition": "Grid filled to spawn zone (top-out), piece cannot spawn",
+     "player_goal": "Survive as long as possible, maximize score through line clears"
+    },
+    {
+     "mode": "Sprint (40 Lines)",
+     "has_win_state": true,
+     "victory_condition": "Clear 40 lines",
+     "has_defeat_state": false,
+     "defeat_condition": null,
+     "player_goal": "Clear all 40 lines as fast as possible (speedrun metric: lines-per-minute)"
+    }
+   ],
+   "retention_answer": "Progressive difficulty curve via speed escalation per level creates skill-gated challenge progression. Accessible tutorial (stacking/downstacking fundamentals) enables beginner entry; advanced techniques (T-spin combos, 4-wide perfect-clears) reward mastery (classic two-skill curve). High-score chasing and competitive speedrun leaderboards (lines-per-minute metric) drive repeated attempts. Satisfying feedback loop: line clear triggers visual+audio+score+speed effects → player reinforcement. Fair piece distribution (7-bag randomizer) eliminates perceived RNG frustration and enables strategic piece prediction."
+  },
+  {
+   "game": "Puyo Puyo",
+   "sources": [
+    {
+     "url": "https://puyonexus.com/wiki/Puyo_Puyo_(rule)",
+     "type": "article"
+    },
+    {
+     "url": "https://arleandcarbuncle.fandom.com/wiki/List_of_Puyo_Game_Modes",
+     "type": "article"
+    },
+    {
+     "url": "https://tvtropes.org/pmwiki/pmwiki.php/VideoGame/PuyoPuyo",
+     "type": "article"
+    }
+   ],
+   "loops": {
+    "minute_1": "Player places first Puyo pair (2 connected colored blobs). Learn basic matching: 4+ same-color puyos adjacent clear. Chain mechanic: new puyos fall after clear, stacking enables cascade. First small chain sends garbage (nuisance puyos) to opponent's board.",
+    "minute_10": "Opponent's garbage arrives from above. Player learns offsetting: counter-chain neutralizes incoming garbage (damage mitigation). Fever mode gauge builds (1 point per chain made). First significant 3-chain attempt. Managing board height vs fall speed under pressure.",
+    "hour_5": "Mid-game chaos: executing 4–5 chain sequences, timing clears to avoid garbage avalanche. Margin time window (countdown before garbage drops). Reading opponent's board state to anticipate incoming attack. Fever mode activation (continuous chain state, all chains auto-offset garbage). Character-specific powerups affect speed/combo damage multiplier.",
+    "endgame": "Opponent top-out (stack filled to spawn line) = player victory. OR player achieves All Clear (zero puyos remaining) = 30-line garbage instantly sent to opponent (comeback mechanic). Game reset for next round or story progresses."
+   },
+   "objectives": [
+    {
+     "mode": "Versus (Puyo vs Puyo)",
+     "has_win_state": true,
+     "victory_condition": "Opponent grid top-out OR player All Clear (zero remaining puyos)",
+     "has_defeat_state": true,
+     "defeat_condition": "Player's grid filled to top (top-out)",
+     "player_goal": "Build chain combinations larger than opponent to fill their board faster, or achieve all clear for immediate comeback pressure"
+    },
+    {
+     "mode": "Story Mode",
+     "has_win_state": true,
+     "victory_condition": "Defeat all 20-stage enemy encounter sequence; progress unlocks new playable characters/allies",
+     "has_defeat_state": true,
+     "defeat_condition": "Player loses a battle; permadeath rule: if defeated while playing non-main character, that ally is permanently locked for rest of playthrough",
+     "player_goal": "Progress through narrative encounters, recruit powerful allies, defeat final boss stage"
+    },
+    {
+     "mode": "Endless",
+     "has_win_state": false,
+     "victory_condition": null,
+     "has_defeat_state": true,
+     "defeat_condition": "Grid topped-out (stack reaches spawn line with no matches to clear)",
+     "player_goal": "Survive indefinitely, chain continuously for highest score before inevitable top-out"
+    }
+   ],
+   "retention_answer": "Asymmetric versus competition: garbage offense (attacker chains) vs garbage defense (defender offsets) creates opposing strategic mindsets. Chaotic risk/reward: small opponent chain can completely disrupt player's setup if mistimed. Story mode permadeath stakes (ally lost permanently if defeated) create emotional investment and tactical roster management (benching weak characters). Fever mode euphoria (continuous chain state, ~8 second window, all chains auto-offset, sensory overload + power fantasy). Chain prediction/foresight required (non-obvious cascade paths) creates learning depth and mastery curve. Visual combo explosions and garbage counter-cascade provide intense kinetic feedback."
+  },
+  {
+   "game": "Panel de Pon",
+   "sources": [
+    {
+     "url": "https://panepon.fandom.com/wiki/Game_Modes",
+     "type": "article"
+    },
+    {
+     "url": "https://tvtropes.org/pmwiki/pmwiki.php/VideoGame/PanelDePon1995",
+     "type": "article"
+    },
+    {
+     "url": "https://gamia-archive.fandom.com/wiki/Panel_de_Pon",
+     "type": "article"
+    }
+   ],
+   "loops": {
+    "minute_1": "Cursor controls two adjacent panels. Player swaps panels horizontally/vertically to form 3+ match (rows or columns of same color). First match clears, gravity applies, panels above fall. Potential cascade (chain reaction from falling panels automatically forming new matches).",
+    "minute_10": "Stack rising from bottom at fixed speed. Player chains combos (5+ cascades). Opponent sends garbage panels (gray blocks, must clear by matching adjacent color). Player learns garbage-clearing: place a match next to garbage (converts to normal block, then clears). Mid-combo height management critical.",
+    "hour_5": "Large combo chains (7+ cascades). Stack rising faster. Character-specific abilities active (speed modifiers, garbage rate changes, combo multipliers). Player managing garbage pressure while building offensive chains. Ally swaps mid-battle available (character rotation for tactical advantage).",
+    "endgame": "Opponent stack reaches top (top-out, no room for new falling pair) = player victory. OR player stack tops-out = defeat. In story: move to next encounter. In endless mode: end game."
+   },
+   "objectives": [
+    {
+     "mode": "Story Mode",
+     "has_win_state": true,
+     "victory_condition": "Defeat all sequential story enemies (20+ chapters), recruit all playable characters, defeat final boss stage",
+     "has_defeat_state": true,
+     "defeat_condition": "Player loses a story battle; permadeath rule (non-main character defeats = ally permanently unavailable for rest of playthrough)",
+     "player_goal": "Progress through narrative story, build strong ally roster, overcome increasingly difficult encounters"
+    },
+    {
+     "mode": "Endless Mode",
+     "has_win_state": false,
+     "victory_condition": null,
+     "has_defeat_state": true,
+     "defeat_condition": "Stack reaches top (top-out), no room for new falling panel pair",
+     "player_goal": "Chain continuously for highest score until inevitable top-out"
+    },
+    {
+     "mode": "Timed Mode (2 minutes)",
+     "has_win_state": true,
+     "victory_condition": "Accumulate highest score within 2-minute time limit",
+     "has_defeat_state": false,
+     "defeat_condition": null,
+     "player_goal": "Maximize chain score in time window (timer decides win, no top-out penalty)"
+    },
+    {
+     "mode": "Puzzle Mode",
+     "has_win_state": true,
+     "victory_condition": "Clear specified target block configuration within set move limit",
+     "has_defeat_state": true,
+     "defeat_condition": "Run out of moves (move counter reaches zero) without clearing target",
+     "player_goal": "Solve spatial block-matching puzzle optimally (think-ahead mode, not speed-based)"
+    }
+   ],
+   "retention_answer": "Character-driven story narrative with permadeath mechanics (ally loss is permanent, creates emotional consequence, encourages strategic roster benching). Multiple game mode variety (story/endless/timed/puzzle) accommodates different play session lengths and player mindsets. Cascade/combo visual spectacle (chain-reaction explosions with screen shake, particle effects, color flashes) provides intense kinetic satisfaction. Difficulty escalation per story encounter (enemy speed increases, garbage rates intensify, new abilities unlock). Character ability variety (speed, damage multiplier, garbage counter) enables tactical team composition and customizable strategic depth per ally selection."
+  }
+ ],
+ "advisory": true
+}

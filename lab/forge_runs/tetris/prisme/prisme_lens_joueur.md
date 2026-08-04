@@ -1,37 +1,38 @@
-The write to `prisme_lens_player.md` is pending a harness permission grant (same situation s0 encountered). The artifact is **authored and ready**; the disk write awaits authorization. Here is my structured final report to the orchestrator.
+The write to `product_snapshot.md` is pending a permission grant — the tool has surfaced the prompt twice. I'll stop retrying (a denied/ungranted call shouldn't be hammered) and deliver my final report. The full artifact is authored and will land at `lab/forge_runs/tetris/product_snapshot.md` the moment the write is approved.
 
 ---
 
-## RAPPORT FINAL — s1-prisme / lens=JOUEUR / tetris-witness-20260803-175558
+# RAPPORT FINAL — s1-prisme (lens : joueur réel) · tetris
 
-**Livrable** : `lab/forge_runs/tetris/prisme/prisme_lens_player.md` (authored — **écriture en attente d'autorisation harness**). Contenu conforme au contrat de sortie `{ce_que_le_joueur_voit, ce_qu_il_fait, ce_qu_il_ressent, regles_observables[]}`, du point de vue du joueur réel.
+**Marqueur** : `FORGE_DISPATCH:s1-prisme:tetris-amont2-20260803-225030`
+**Ancre unique validée** : `games/tetris/00_CHARTER/game_contract.yaml` — lu on-disk, **identique** au charter injecté. C'est un **BOOTSTRAP explicitement NON RATIFIÉ** : il fixe `runtimes` (rules+godot), `assets` (cc0/primitives), `budget` (reuses/adds vides) et `proof` — dont le fait de genre `genre.tetris.no_victory_in_marathon`. Il ne contient **aucun paramètre de design** ni **aucun `criteres_succes[]`/`criteres_demo[]`**.
 
-**Ancre (unique)** : le charter étape 0 (`s0-contrat.txt` — `charter.yaml` authored, non écrit sur disque), et ses sources documentaires non-LLM : `01_DESIGN/genre_bible.json` (10 règles de genre, statut `NON_RATIFIEE_PROPOSITION`), `00_CHARTER/game_contract.yaml` (`node:4`, `no_victory_in_marathon`), `GAME_REFERENCE/*` (world scan advisory).
+## Livrable
+`product_snapshot.md` — 4 sections obligatoires remplies (VOIT / FAIT / RESSENT / RÈGLES OBSERVABLES), 38 règles observables et falsifiables sur le runtime Godot réel. **Écriture en attente de grant de permission** (chemin `lab/forge_runs/tetris/product_snapshot.md`).
 
-### Verdicts (séparés)
-- **software_verdict : BLOCKED** — artefact **narratif**, aucun oracle code applicable (`run: aucun`). L'ancre est la cohérence charter, pas une exécution mécanique. Je ne peux pas émettre OK.
-- **evidence_verdict : MECHANICAL_VALIDATION_ONLY** — s'applique **uniquement** aux faits documentés cités (les 10 règles de genre), pas au ressenti ni au produit dans son ensemble.
-- **claim_verdict : NO_CLAIM_ALLOWED** — je n'auto-certifie ni le fun, ni le feel, ni la variante.
+## Ce que j'affirme, et sur quelle ancre (règle de restitution)
+- **Appuyé sur oracle/ancre non-LLM** : conformité de FORME. L'oracle `scripts/forge/prisme/check_prisme.mjs` exige exactement les 4 titres `## N. TITRE` canoniques, ≥40 caractères par section, ≥1 règle `- **Rn`, et **zéro marqueur placeholder** (`à définir`/`TBD`/`TODO`/`XXX`/`???`) dans le corps des 4 sections. J'ai construit l'artefact **contre cette forme** (titres exacts, provenance renvoyée en préambule/rapport pour garder les sections sans placeholder). ⚠️ **Je n'ai PAS exécuté cet oracle** (`run: aucun` dans mes permissions) → conformité **visée par construction, non prouvée mécaniquement**. Sans exécution : pas de `software_verdict`.
+- **Cohérence au charter (ancre)** : chaque règle cite sa provenance réelle — `[charter]` (fixé par le bootstrap), `[genre]` (fait universel Tetris, source FAITS admise wiki/presse), `[réalisateur]` (choix de produit que je pose). En particulier `genre.tetris.no_victory_in_marathon` est honoré partout : **aucun état « gagné »**, fin = débordement seul (R17/R19), et solvabilité redéfinie en **survie/lignes nettoyées, pas victoire** (R30) — exactement ce que le commentaire `proof.solvability` du charter impose.
 
-### Ce que j'ai produit (4 sections, aucun « à définir »)
-- **VOIT / FAIT** : ancrés sur les invariants du genre (écran unique full-information, 7 pièces, gravité discrète, contrôle de la seule pièce active, line-clear comme seul dégagement).
-- **RESSENT** : hypothèse de vécu joueur **explicitement non prouvée** (non mesurable par oracle → fog), centrée sur l'irréversibilité comme source jumelle de tension et de frustration, et sur les frustrations « injustes » à surveiller en playtest.
-- **RÈGLES OBSERVABLES R1–R10** : chacune testable, ancrée à une règle de genre / au charter, marquée INVARIANT ou **[FOG]**.
+## FOG → HumanGate (Pierre) — ce qui relève du jugement, pas d'un fait ratifié
+La couche `[réalisateur]` de la vision est **concrète mais NON ratifiée**. Le charter étant un bootstrap sans paramètres de design, les valeurs suivantes sont **ma proposition de réalisateur**, à trancher/corriger par le **charter narratif s0** puis par toi :
+1. **Dimensions du puits** 10×20.
+2. **Table de score** (bonus croissant 1→4 lignes) et **seuil de montée de niveau**.
+3. **Courbe de gravité par niveau** + cadence plancher.
+4. **Délai de verrouillage** (lock delay) et **schéma de rotation** (refus simple, pas de wall-kick SRS dans le cœur).
+5. **Pièce fantôme** (projection au sol), **encart pièce suivante** (profondeur 1).
+6. **Meilleur score persistant** entre sessions (convention reprise de Snake).
+7. **Hold / file de preview >1 / SRS** : volontairement **écartés du cœur**, signalés comme candidats s0 — décision à toi.
 
-### Discipline anti-invention (garde-fou respecté)
-Je n'ai **pas figé** ce que le charter a laissé en fog : variante (hard-drop, hold, wall-kick, profondeur d'aperçu, barème), courbe de gravité, seuils de survie N/M — tous `A_CALIBRER`. Les décrire comme vécu certain aurait inventé une décision non prise.
+## `claim_verdict: NO_CLAIM_ALLOWED`
+Artefact narratif, aucun oracle de contenu (pas de LLM-as-judge, cf. `check_prisme.mjs` ne juge que la forme). Je n'auto-certifie rien : la justesse de cette vision produit est un **fog** remonté à Pierre + charter s0.
 
-### Besoins HumanGate (fog) — remontés, jamais inventés
-1. `fog.tetris.variante` *(hérité s0)* — impacte directement les §FAIT/RESSENT variant-dépendants.
-2. `fog.tetris.superlinear_reward_v1` **(nouveau, soulevé par cette lens)** — **contradiction advisory** : `genre_bible` promet la gratification supérieure du multi-lignes (satisfaction-clé du genre) mais `progression_map` diffère le barème superlinéaire (FOG-3) pour V1. Décision de design → Pierre.
-3. `fog.tetris.feel_juice` *(nouveau)* — flash/ghost/juice non figés par le charter.
-4. `fog.tetris.genre_bible_ratification` *(hérité s0)* — R1–R10 dépendent de 10 règles `NON_RATIFIEE_PROPOSITION`.
-5. `fog.prisme.output_filename` *(procédural)* — contrat = `product_snapshot.md`, mais ce run est un **panel** : le collecteur lit `prisme/prisme_lens_<lens>.md` et l'artefact fusionné `s1-prisme.txt` est produit par l'étape de contrôle. J'ai visé `prisme_lens_player.md` pour ne pas écrire un fichier que personne ne lit. **À confirmer côté orchestrateur.**
+**software_verdict** : —  (aucun oracle exécuté par cet agent)
+**evidence_verdict** : —  (aucune validation mécanique exécutée)
+**claim_verdict** : `NO_CLAIM_ALLOWED`
 
-### SKIPPED_VALIDATION
-- **item** : oracle mécanique sur l'artefact · **où** : `prisme_lens_player.md` · **statut** : non fait (non applicable) · **raison** : étape narrative, aucun oracle code ; `run: aucun`.
-- **item** : validation mécanique du charter-ancre · **où** : `00_CHARTER/charter.yaml` · **statut** : non fait en amont (hérité : s0 BLOCKED, charter non écrit sur disque) · **raison** : hors périmètre/permissions ; je m'appuie sur le charter *authored* faute de fichier validé — signalé, pas masqué.
-- **item** : écriture disque de l'artefact · **où** : filesystem · **statut** : en attente · **raison** : autorisation harness non accordée sur le chemin.
-- **item** : arbitrage variante/barème · **où** : R10 + actions/ressenti variant-dépendants · **statut** : non fait (volontaire) · **raison** : décision HumanGate, remontée en fog.
-
-**Action requise de l'appelant** : (a) accorder l'écriture sur `lab/forge_runs/tetris/prisme/prisme_lens_player.md` (ou confirmer le nom/chemin attendu si le collecteur veut `product_snapshot.md`), (b) porter les 5 fog à Pierre.
+## SKIPPED_VALIDATION
+- **Item** : exécution de l'oracle de forme `check_prisme.mjs` sur `product_snapshot.md` — **Où** : `lab/forge_runs/tetris/product_snapshot.md` — **Statut** : non fait — **Raison** : permissions `run: aucun` ; l'exécution revient à la porte de sortie / au driver.
+- **Item** : persistance du livrable (écriture du fichier) — **Où** : même chemin — **Statut** : non fait / en attente — **Raison** : grant de permission d'écriture non accordé au moment du rapport ; contenu prêt, ré-émission possible sur go.
+- **Item** : cross-check des faits de genre contre `games/tetris/01_DESIGN/genre_bible.json` — **Où** : artefact amont — **Statut** : non fait (délibéré) — **Raison** : consigne de contexte vierge (ne pas reconstituer le travail des autres lenses / amont) ; je me suis appuyé sur le charter + faits universels Tetris. À confirmer par le contrôle/merge si divergence.
+- **Item** : ratification des valeurs `[réalisateur]` — **Où** : section 4 + préambule — **Statut** : hors périmètre — **Raison** : relève de s0 (charter narratif) et de HumanGate, pas de l'étape s1.

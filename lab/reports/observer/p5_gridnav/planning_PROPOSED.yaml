@@ -1,0 +1,127 @@
+# PROPOSITION generee par Observer (scripts/observer/system_planning.py).
+# propose-only : la promotion vers studio_brain/planning/planning.yaml est un
+# geste Pierre, jamais automatique.
+# Projet source des donnees : p5_gridnav.
+# Schema attendu (§06) : id, objectif, raison, priorite, etat, depends_on,
+# decision_attendue, preuve_de_fin. Valeurs 'A_DEFINIR_A_LA_RATIFICATION' =
+# NOT_OBSERVABLE mecaniquement, jamais devinees par Observer.
+taches:
+- id: drift:lecon_routee_sans_consommateur
+  objectif: Relier chaque lecon validee a un consommateur mecanique reel.
+  raison: 'lecon_routee_sans_consommateur observe 4 fois : lecon ''forge.forge_oracle_convention_undocumented''
+    validee sans consommateur mecanique connu dans les racines lisibles d''Observer
+    / lecon ''forge.oracle_fail_vs_not_measured_marker'' validee sans consommateur
+    mecanique connu dans les racines lisibles d''Observer (provenance : lab/reports/lessons.jsonl)'
+  priorite: 2
+  etat: EN_ATTENTE
+  depends_on:
+  - lesson:forge.forge_oracle_convention_undocumented
+  - lesson:forge.oracle_fail_vs_not_measured_marker
+  - lesson:forge.preflight_oracle_registration
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: le detecteur Observer ne remonte plus ce type d'ecart
+  owner: DOCTRINE
+  source: drift
+- id: drift:token_accounting_below_measured
+  objectif: Aligner la comptabilite de tokens de la Forge sur les tokens reellement
+    mesures dans les transcripts.
+  raison: 'token_accounting_below_measured observe 1 fois : la telemetrie de la Forge
+    declare nettement moins de tokens que les transcripts n''en mesurent — la lecture
+    de cache n''est meme pas comptee (provenance : non tracee dans les evenements)'
+  priorite: 1
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: le detecteur Observer ne remonte plus ce type d'ecart
+  owner: HARNAIS
+  source: drift
+- id: drift:tools_used_beyond_declared
+  objectif: Mettre a jour la liste d'outils declaree pour couvrir les outils reellement
+    utilises par l'agent.
+  raison: 'tools_used_beyond_declared observe 1 fois : des outils observes dans le
+    transcript ne figurent pas dans tools_effective declare par la Forge (provenance
+    : non tracee dans les evenements)'
+  priorite: 1
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: le detecteur Observer ne remonte plus ce type d'ecart
+  owner: HARNAIS
+  source: drift
+- id: lesson:forge.forge_oracle_convention_undocumented
+  objectif: La convention de sonde observable FORGE_ORACLE (marqueur litteral, format
+    de sortie stdout 'FORGE_ORACLE <volet> {json}', decouverte par grep du code) n'existe
+    que dans le code executant (product_orac…
+  raison: 'lecon validee ''forge.forge_oracle_convention_undocumented'' : La convention
+    de sonde observable FORGE_ORACLE (marqueur litteral, format de sortie stdout ''FORGE_ORACLE
+    <volet> {json}'', decouverte par grep du code) n''existe… (supporting_runs: [''breakout_v2-run3-20260731-111149''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on:
+  - drift:lecon_routee_sans_consommateur
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.oracle_fail_vs_not_measured_marker
+  objectif: Un volet d'oracle produit qui ne peut etre mesure dans le mode d'execution
+    courant (ex. rendu pixel en headless) doit rendre NOT_MEASURED, jamais FAIL --
+    product_oracle_godot.py n'exempte aujourd'hui…
+  raison: 'lecon validee ''forge.oracle_fail_vs_not_measured_marker'' : Un volet d''oracle
+    produit qui ne peut etre mesure dans le mode d''execution courant (ex. rendu pixel
+    en headless) doit rendre NOT_MEASURED, jamais FAIL -- produc… (supporting_runs:
+    [''breakout_v2-run3-20260731-111149''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on:
+  - drift:lecon_routee_sans_consommateur
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.preflight_oracle_registration
+  objectif: 'L''enregistrement du projet dans scripts/forge/oracles.json est un prerequis
+    mecaniquement verifiable AVANT le premier dispatch LLM d''une campagne, mais rien
+    ne le verifie au lancement : son absence n''…'
+  raison: 'lecon validee ''forge.preflight_oracle_registration'' : L''enregistrement
+    du projet dans scripts/forge/oracles.json est un prerequis mecaniquement verifiable
+    AVANT le premier dispatch LLM d''une campagne, mais rien ne… (supporting_runs:
+    [''breakout_v2-run1-20260731-082705''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on:
+  - drift:lecon_routee_sans_consommateur
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.timeout_greenfield_by_profile
+  objectif: Un step-timeout de dispatch (defaut 1800s) est insuffisant pour un s9
+    greenfield Godot construit depuis zero sur un squelette de wiremap de taille standard
+    (~50 lignes) ; 5400s a suffi pour un build c…
+  raison: 'lecon validee ''forge.timeout_greenfield_by_profile'' : Un step-timeout
+    de dispatch (defaut 1800s) est insuffisant pour un s9 greenfield Godot construit
+    depuis zero sur un squelette de wiremap de taille standard (~50… (supporting_runs:
+    [''breakout_v2-run1-20260731-082705''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
+- id: lesson:forge.wiremap_concept_reuse_requalification
+  objectif: Une ligne de wiremap reused_from.type=CONCEPT transposee d'un jeu a un
+    autre peut porter une promesse (expected_proof) fausse dans le nouveau contexte
+    si le genre change de nature (ex. grille discrete…
+  raison: 'lecon validee ''forge.wiremap_concept_reuse_requalification'' : Une ligne
+    de wiremap reused_from.type=CONCEPT transposee d''un jeu a un autre peut porter
+    une promesse (expected_proof) fausse dans le nouveau contexte si le gen… (supporting_runs:
+    [''breakout_v2-run3-20260731-111149''])'
+  priorite: A_DEFINIR_A_LA_RATIFICATION
+  etat: EN_ATTENTE
+  depends_on: []
+  decision_attendue: A_DEFINIR_A_LA_RATIFICATION
+  preuve_de_fin: A_DEFINIR_A_LA_RATIFICATION
+  owner: A_DEFINIR_A_LA_RATIFICATION
+  source: lesson
