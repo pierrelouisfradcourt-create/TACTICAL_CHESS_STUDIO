@@ -370,6 +370,34 @@ def test_full_greenfield_offline_verdict_ok(tmp_path, offline, monkeypatch):
         "advisory": True,
     }
 
+    # s1-prisme / s3-decompo (2026-08-04, couche d'évaluation) : mêmes entrées dans
+    # _ARTIFACT_BY_STEP que s2/s4/s5 — sans artefact structuré, aucun oracle ne peut
+    # juger ces deux étapes et aucune substitution de worker n'est décidable sur
+    # preuve. Le mock doit donc les rendre comme s4/s5, exactement comme s2-worldscan
+    # a dû l'être le 2026-08-03.
+    prisme = {
+        "game_id": "proj",
+        "exigences": [{
+            "id": "ex.boot",
+            "source": "EXPECTED",
+            "source_role": "back",
+            "reference": "https://example.test/a",
+            "observation": "Le jeu demarre.",
+            "enonce": "Le boot initialise l etat sans erreur.",
+            "expected_proof": {"kind": "oracle", "statement": "boot() retourne sans lever."},
+            "destination": "s3-decompo",
+        }],
+    }
+    featuremap = {
+        "game_id": "proj",
+        "systemes": [{"id": "main", "features": [{"id": "feat.boot", "capacites": [{
+            "id": "cap.boot",
+            "capacite": "Initialiser l etat au demarrage.",
+            "source_ref": "ex.boot",
+            "expected_proof": {"kind": "oracle", "statement": "boot() retourne sans lever."},
+        }]}]}],
+    }
+
     def fake(prompt, model, **kwargs):
         # La sortie dépend de l'étape, identifiée par le dispatch_marker du prompt.
         if "FORGE_DISPATCH:s4-archi:" in prompt:
@@ -378,6 +406,10 @@ def test_full_greenfield_offline_verdict_ok(tmp_path, offline, monkeypatch):
             out = f"wiremap\n```json\n{json.dumps(wiremap)}\n```"
         elif "FORGE_DISPATCH:s2-worldscan:" in prompt:
             out = f"worldscan\n```json\n{json.dumps(worldscan)}\n```"
+        elif "FORGE_DISPATCH:s1-prisme:" in prompt:
+            out = f"prisme\n```json\n{json.dumps(prisme)}\n```"
+        elif "FORGE_DISPATCH:s3-decompo:" in prompt:
+            out = f"decompo\n```json\n{json.dumps(featuremap)}\n```"
         else:
             out = "artefact texte"
         return {"ok": True, "output": out, "tokens": 1, "duration_s": 0.1, "cost_usd": 0.0}
@@ -410,6 +442,8 @@ def test_full_greenfield_offline_verdict_ok(tmp_path, offline, monkeypatch):
     # les artefacts matérialisés par l'exécuteur ont bien nourri les oracles
     assert (run_dir / "blueprint.json").exists()
     assert (run_dir / "wiremap.json").exists()
+    assert (run_dir / "prisme.json").exists()
+    assert (run_dir / "featuremap.json").exists()
     # et le driver a figé le jeu de règles depuis la wiremap matérialisée (s5)
     frozen = json.loads((run_dir / "wiremap_frozen.json").read_text(encoding="utf-8"))
     assert frozen["features"] == ["R1 boot"]

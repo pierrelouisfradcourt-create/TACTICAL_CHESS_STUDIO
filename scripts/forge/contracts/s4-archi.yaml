@@ -51,20 +51,39 @@ gardeFou: >-
 
 # --- 7. Validation & auditabilité (Critique) ---
 success_criteria: >-
-  blueprint.yaml valide ; chaque feature de la featuremap mappée à ≥1 module ;
-  aucune dépendance cyclique ; deps_interdites listées explicitement.
+  blueprint valide ; chaque feature de la featuremap couverte par ≥1 module ;
+  chaque module porte une responsabilité et une preuve attendue ; aucune
+  dépendance cyclique ; aucune dépendance déclarée qui soit elle-même interdite ;
+  deps_interdites listées explicitement et non vides.
 tests_oracles: >-
-  Oracle ARCHITECTURE déterministe non-LLM : import-linter / vérificateur de
-  graphe de dépendances sur le blueprint. Jamais de LLM-as-judge.
+  DEUX ORACLES, DEUX MOMENTS — ne pas les confondre.
+  AVANT build (ici) : `node scripts/forge/check_blueprint_contract.mjs
+  <run_dir>/blueprint.json --featuremap <run_dir>/featuremap.json` répond « cette
+  architecture couvre-t-elle le besoin ? » (couverture, responsabilités, cycles,
+  contradictions, preuves).
+  APRÈS build (étape s10b) : `forge.static_oracles.check_architecture` répond « le
+  code respecte-t-il l'architecture ? ». Appelé en amont sur un src vide, il ne
+  trouve aucun import et serait vacuement vert : ce n'est pas ton oracle.
+  Jamais de LLM-as-judge.
 final_report: >-
-  software/evidence/claim séparés ; cite l'oracle archi utilisé ; liste les
-  écarts featuremap↔blueprint ; claim_verdict: NO_CLAIM_ALLOWED. Sans oracle
-  disponible => remonte un besoin HumanGate (fog), pas de claim.
+  software/evidence/claim séparés ; cite le reçu de check_blueprint_contract ;
+  liste les features non couvertes et les couvertures fantômes ;
+  claim_verdict: NO_CLAIM_ALLOWED.
 
 # --- 8. Restitution (Critique) ---
 output_contract: >-
-  blueprint.yaml : {modules[], deps_autorisees[], deps_interdites[],
-  ownership{module→agent}, invariants_archi[]}.
+  Un bloc ```json``` TERMINAL, matérialisé en blueprint.json par l'exécuteur (tu
+  n'écris JAMAIS ce fichier toi-même) : {"modules": ["<id>", ...],
+  "deps_interdites": [["source", "cible"], ...], "ownership": {...},
+  "responsabilites": [{"module", "responsabilite", "couvre": ["<id de feature>"],
+  "dependances": ["<module>"], "preuve_attendue": {"kind", "statement"}}]}.
+  `modules` reste une liste de CHAÎNES (forme consommée telle quelle par
+  check_architecture après build — ne jamais la transformer en objets).
+  RÈGLES DURES : `couvre` cite l'`id` EXACT d'une feature de featuremap.json — une
+  feature que nul module ne couvre signifie que l'architecture ne répond pas au
+  besoin. `dependances` est OBLIGATOIRE et peut être vide (module feuille), jamais
+  absent ; les consommateurs en sont DÉRIVÉS mécaniquement, ne les saisis pas.
+  Ne déclare jamais une dépendance que tu inscris toi-même dans deps_interdites.
 
 # --- 9. Capacités (Important — `aucun` autorisé, jamais absent) ---
 skill: architecture-review

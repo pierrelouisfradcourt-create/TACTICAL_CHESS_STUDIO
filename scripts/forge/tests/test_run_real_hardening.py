@@ -368,10 +368,18 @@ def test_troncature_effective_a_la_borne_declaree(tmp_path, capture_calls):
 
 
 def test_etape_sans_amont_disponible_omet_la_section(tmp_path, capture_calls):
-    """1re exécution : run_dir vide — la section est omise, jamais une erreur."""
+    """1re exécution : run_dir vide — la section est omise, jamais une erreur.
+
+    L'étape porteuse est un DÉCOR : la section amont est construite depuis le
+    contenu de run_dir, identiquement pour toutes les étapes. `s6-redteam-plan` est
+    choisie parce qu'elle ne matérialise aucun artefact déterministe — avec
+    `s3-decompo` (entrée dans _ARTIFACT_BY_STEP depuis le 2026-08-04), la sortie
+    factice « artefact texte » échouerait à la matérialisation, ce qui ferait
+    échouer ce test pour une raison qui n'a rien à voir avec ce qu'il vérifie.
+    """
     calls, _ = capture_calls
     ex = run_real.claude_executor(add_dir=tmp_path, task_by_step={})
-    res = ex(FakePayload("s3-decompo"), None, _context(tmp_path / "vide"))
+    res = ex(FakePayload("s6-redteam-plan"), None, _context(tmp_path / "vide"))
     assert res["ok"] is True
     assert "ARTEFACTS AMONT" not in calls[-1]["prompt"]
 

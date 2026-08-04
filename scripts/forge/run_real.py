@@ -60,6 +60,7 @@ from forge.verify_run import _harden_streams
 # (studio_link.record_telemetry) — hors périmètre de ce chantier. Le pont additif
 # est le dépôt stage_telemetry_extra (même module que le writer) : l'exécuteur
 # dépose les champs MESURÉS, la prochaine écriture télémétrie les consomme.
+from forge import repair_dispatch
 from forge import studio_link
 
 logger = logging.getLogger(__name__)
@@ -299,10 +300,25 @@ _STEP_DISALLOWED: tuple[str, ...] = (
 # les oracles s10b/s10c les lisent dans run_dir (forge.driver._read_json), et le
 # driver fige le jeu de règles (wiremap_frozen.json) immédiatement après s5 — le
 # fichier doit donc exister AVANT le retour de l'executor.
+# Étapes dont l'EXÉCUTEUR (jamais l'agent) matérialise un artefact déterministe.
+# C'est le SEUL mécanisme qui rend un worker mesurable : sans entrée ici, l'étape
+# ne produit que du texte libre, aucun oracle ne peut la juger et aucune
+# substitution de worker ne peut être décidée sur preuve (constat 2026-08-03 :
+# 5 workers sur 6 non mesurables, tous absents de cette table).
+#
+# LIMITE CONNUE, NON FERMÉE ICI : `s1-prisme` n'est matérialisée que sur le chemin
+# de l'exécuteur standard (`claude_executor`). Le chemin PANEL
+# (`forge.panel.panel_prisme_executor`, 5 lentilles + contrôle) appelle `claude_call`
+# directement et ne passe pas par `_materialize_artifact` : lancée par le panel,
+# l'étape n'écrit toujours pas de prisme.json. Déboucher le panel est un chantier
+# distinct (le merger échoue en silence, cf. handoff 2026-08-03) — pas une rustine
+# à poser au passage ici.
 _ARTIFACT_BY_STEP: dict[str, str] = {
     "s2-worldscan": "worldscan.json",
     "s4-archi": "blueprint.json",
     "s5-wiremap": "wiremap.json",
+    "s1-prisme": "prisme.json",
+    "s3-decompo": "featuremap.json",
 }
 
 # Bloc JSON fenced (```json ... ```) — extraction déterministe, aucun LLM.
@@ -687,11 +703,170 @@ def _validate_worldscan(data: dict) -> str:
     return ""
 
 
+def _validate_prisme(data: dict) -> str:
+    """'' si prisme.json est structurellement exploitable, sinon la raison du rejet.
+
+    Garde-fou MINIMAL avant écriture, même régime que `_validate_worldscan` :
+    l'oracle de vérité pour le détail (chaîne Observation → Exigence → Preuve
+    attendue → Destination, ancrage des références, actionnabilité) est
+    `scripts/forge/check_prisme_manifest.mjs`. Ici on empêche seulement un artefact
+    inexploitable d'atteindre le disque.
+
+    La règle de PROVENANCE est vérifiée dès ici, et pas seulement dans l'oracle,
+    parce qu'elle est structurelle : une sortie de modèle ne peut pas revendiquer
+    `CORE`. L'origine d'une exigence CORE est `core_list` PAR CONSTRUCTION (mesuré
+    le 2026-08-03 : la précision de provenance passe de 0,125 à 1,00 selon le seul
+    format). Laisser un CORE s'écrire, c'est laisser un modèle se déclarer source
+    de vérité — le fichier ne doit pas exister.
+    """
+    exigences = data.get("exigences")
+    if not isinstance(exigences, list) or not exigences:
+        return ("'exigences' doit être une liste NON VIDE (un Prisme qui n'exige "
+                "rien ne transforme aucune connaissance en contrainte)")
+    for i, ex in enumerate(exigences):
+        if not isinstance(ex, dict):
+            return f"exigences[{i}] n'est pas un objet (dict attendu)"
+        if not isinstance(ex.get("id"), str) or not ex["id"].strip():
+            return f"exigences[{i}].id doit être une str non vide"
+        source = ex.get("source")
+        if source not in ("EXPECTED", "ADDITIONS"):
+            return (f"exigences[{i}].source doit valoir EXPECTED ou ADDITIONS "
+                    f"(reçu {source!r}) — CORE ne transite JAMAIS par un modèle, "
+                    "son origine est core_list par construction")
+    return ""
+
+
+def _validate_featuremap(data: dict) -> str:
+    """'' si featuremap.json est structurellement exploitable, sinon la raison.
+
+    Garde-fou MINIMAL (l'oracle de vérité est `scripts/forge/check_decompo.mjs`,
+    qui seul voit le Prisme et peut donc juger couverture et non-invention). Ce
+    qu'on refuse ici : un arbre sans système, sans feature, ou sans AUCUNE feuille —
+    c'est-à-dire un artefact dont la seule lecture possible serait « rien à
+    couvrir », qui rendrait vacuement verts les deux oracles d'aval (blueprint et
+    wiremap mesurent leur couverture PAR RAPPORT à cet arbre).
+    """
+    systemes = data.get("systemes")
+    if not isinstance(systemes, list) or not systemes:
+        return "'systemes' doit être une liste NON VIDE"
+    feuilles = 0
+    for i, sys in enumerate(systemes):
+        if not isinstance(sys, dict):
+            return f"systemes[{i}] n'est pas un objet (dict attendu)"
+        features = sys.get("features")
+        if not isinstance(features, list) or not features:
+            return (f"systemes[{i}].features doit être une liste NON VIDE — un "
+                    "système sans feature ne décompose rien")
+        for j, feat in enumerate(features):
+            if not isinstance(feat, dict):
+                return f"systemes[{i}].features[{j}] n'est pas un objet (dict attendu)"
+            capacites = feat.get("capacites")
+            if not isinstance(capacites, list) or not capacites:
+                return (f"systemes[{i}].features[{j}].capacites doit être une liste "
+                        "NON VIDE — une feature sans feuille ne porte aucune preuve")
+            feuilles += len(capacites)
+    if feuilles == 0:
+        return ("aucune feuille dans l'arbre — les oracles d'aval (blueprint, "
+                "wiremap) mesurent leur couverture PAR RAPPORT à ces feuilles : "
+                "sans elles, ils seraient vacuement verts")
+    return ""
+
+
 _ARTIFACT_VALIDATORS = {
     "worldscan.json": _validate_worldscan,
     "blueprint.json": _validate_blueprint,
     "wiremap.json": _validate_wiremap,
+    "prisme.json": _validate_prisme,
+    "featuremap.json": _validate_featuremap,
 }
+
+
+# --- boucle de réparation (REPAIR_LOOP_V1) -----------------------------------------
+# Correspondance étape du driver -> étape de `repair_step.mjs`. Les deux noms diffèrent
+# pour s4/s5 À DESSEIN : l'oracle branché ici est celui d'AVANT build (contrat), pas
+# `check_architecture`/`check_wiremap` qui jugent le code après build. Un nom identique
+# aurait fini par faire confondre les deux, ce qui est exactement l'erreur qu'on a mis
+# une session à diagnostiquer.
+_REPAIR_STEP_BY_STEP: dict[str, str] = {
+    "s2-worldscan": "s2-worldscan",
+    "s1-prisme": "s1-prisme",
+    "s3-decompo": "s3-decompo",
+    "s4-archi": "s4-archi-contract",
+    "s5-wiremap": "s5-wiremap-contract",
+}
+
+_REPAIR_SCRIPT = Path(__file__).resolve().parent / "repair_step.mjs"
+_REPAIR_TIMEOUT_S = 180.0
+
+
+def run_repair_step(etape: str, run_dir: Path, timeout_s: float = _REPAIR_TIMEOUT_S,
+                    run_id: str = "", attempt: int = 0) -> dict | None:
+    """Lance oracle -> réparation ciblée -> oracle sur l'artefact amont d'une étape.
+
+    Retourne le bloc de mesure (dict) ou None si l'étape n'a pas d'oracle amont / si
+    la boucle n'a pas pu tourner.
+
+    CAPTEUR, PAS JUGE (dans cet incrément) : la réparation modifie RÉELLEMENT
+    l'artefact sur disque — c'est la self-correction demandée — mais le verdict
+    ok/fail de l'étape n'est PAS modifié ici. Changer la sémantique d'un verdict est
+    une décision HumanGate, pas un effet de bord d'un branchement.
+
+    Ne lève JAMAIS : réparateur injoignable, node absent, sortie illisible => None, et
+    l'étape se comporte exactement comme avant le branchement. Un mécanisme
+    d'amélioration qui peut faire tomber la chaîne qu'il améliore est un mauvais marché.
+    """
+    cible = _REPAIR_STEP_BY_STEP.get(etape)
+    if cible is None:
+        return None
+    if os.environ.get("FORGE_REPAIR", "1") == "0":
+        logger.info("boucle de réparation désactivée (FORGE_REPAIR=0) — étape=%s", etape)
+        return None
+    # PASSAGE PAR LA PORTE (2026-08-04). Le réparateur tournait hors de tout reçu
+    # signé : déclaré dans roles.yaml, invisible à l'Observer. On émet le MÊME reçu
+    # que la porte de dispatch, avant et après — jamais un système d'événements
+    # parallèle. Empreinte de l'artefact prise ici, seul endroit où « avant » existe
+    # encore. Best-effort strict : aucune de ces lignes ne peut faire tomber la
+    # réparation qu'elle observe.
+    artefact_path = run_dir / _ARTIFACT_BY_STEP.get(etape, "")
+    input_hash = repair_dispatch.file_sha256(artefact_path)
+    repair_dispatch.announce(etape, run_id, attempt=attempt)
+    try:
+        proc = subprocess.run(
+            ["node", str(_REPAIR_SCRIPT), cible, str(run_dir)],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=timeout_s,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("boucle de réparation non exécutée (étape=%s) : %s", etape, exc)
+        return None
+    try:
+        mesure = json.loads(proc.stdout)
+    except (json.JSONDecodeError, TypeError):
+        logger.warning("boucle de réparation : sortie illisible (étape=%s, rc=%s)",
+                       etape, proc.returncode)
+        return None
+    if not isinstance(mesure, dict):
+        return None
+    logger.info(
+        "réparation %s : %s (%s -> %s problème(s), %s token(s), %s champ(s))",
+        cible, mesure.get("STATUS"), mesure.get("PROBLEMS_BEFORE"),
+        mesure.get("PROBLEMS_AFTER"), mesure.get("TOKENS"),
+        len(mesure.get("FIELDS_CHANGED") or []),
+    )
+    # Reçu d'exécution + trace `repair.result`. L'empreinte de sortie est prise APRÈS
+    # l'écriture réelle sur disque : c'est l'artefact jugé par l'oracle, pas un état
+    # intermédiaire. `evidence_ref` pointe le run — la preuve versionnée, quand elle
+    # existe, est produite par l'adaptateur de contrat, pas ici.
+    trace = repair_dispatch.record(
+        etape, run_id, mesure, attempt=attempt,
+        input_hash=input_hash, output_hash=repair_dispatch.file_sha256(artefact_path),
+        evidence_ref=repair_dispatch.repo_relative(run_dir),
+    )
+    if trace is not None:
+        mesure["TRACE"] = {"runtime_id": trace["runtime_id"],
+                           "input_hash": trace["input_hash"],
+                           "output_hash": trace["output_hash"]}
+    return mesure
 
 
 def _materialize_artifact(etape: str, output: str, run_dir: Path) -> dict | None:
@@ -1006,6 +1181,17 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
                                             Path(context["run_dir"]))
             if failure is not None:
                 return failure
+            # (c) oracle amont + réparation ciblée, immédiatement après l'écriture de
+            # l'artefact. C'est le seul instant où l'artefact existe, est frais, et où
+            # personne n'a encore construit dessus : réparer plus tard reviendrait à
+            # corriger une fondation sous un mur déjà monté.
+            mesure = run_repair_step(
+                etape, Path(context["run_dir"]),
+                run_id=str(context.get("run_id") or ""),
+                attempt=int(context.get("attempt") or 0),
+            )
+            if mesure is not None:
+                res["repair"] = mesure
             if etape == "s11-redteam-code":
                 # (n1) findings AUDIBLES : extraction déterministe, jamais un LLM
                 # ne relit le rapport. `res["blocked"]` volontairement NON posé

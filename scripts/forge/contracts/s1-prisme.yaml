@@ -45,18 +45,44 @@ gardeFou: >-
 # --- 7. Validation & auditabilité (Critique) ---
 success_criteria: >-
   product_snapshot.md valide, 4 sections remplies, chaque règle observable et
-  cohérente avec le charter.
+  cohérente avec le charter. ET bloc ```json``` terminal valide : chaque exigence
+  porte la chaîne complète observation -> claim -> enonce -> expected_proof ->
+  destination (les trois premiers maillons DIFFÉRENTS),
+  avec sa provenance (source/source_role/reference).
 tests_oracles: >-
-  Artefact narratif : pas d'oracle code. Ancre = cohérence avec le charter
-  (étape 0). Sans oracle mécanique disponible => besoin HumanGate (fog).
+  Oracle déterministe non-LLM : `node scripts/forge/check_prisme_manifest.mjs
+  <run_dir>/prisme.json --worldscan <run_dir>/worldscan.json`. Vérifie la chaîne
+  Observation -> Claim -> Exigence -> Preuve attendue -> Destination, la provenance, et
+  l'ancrage des références dans le World Scan. Ne juge JAMAIS la qualité du texte.
+  Une exigence sans preuve attendue exploitable est CLASSÉE non actionnable (fait
+  mesuré), elle ne fait échouer l'étape que si AUCUNE exigence ne l'est.
+  (La conformité markdown du panel reste `scripts/forge/prisme/check_prisme.mjs`.)
 final_report: >-
-  Restitution standard : cite le charter comme ancre ; sans oracle mécanique =>
-  remonte un besoin HumanGate (fog) ; claim_verdict: NO_CLAIM_ALLOWED.
+  Restitution standard : cite le charter comme ancre ET le reçu de
+  check_prisme_manifest ; liste les exigences classées non actionnables et les
+  références non ancrées ; claim_verdict: NO_CLAIM_ALLOWED.
 
 # --- 8. Restitution (Critique) ---
 output_contract: >-
-  product_snapshot.md : {ce_que_le_joueur_voit, ce_qu_il_fait, ce_qu_il_ressent,
-  regles_observables[]}.
+  DEUX sorties, les deux obligatoires. (1) product_snapshot.md :
+  {ce_que_le_joueur_voit, ce_qu_il_fait, ce_qu_il_ressent, regles_observables[]}.
+  (2) Un bloc ```json``` TERMINAL, matérialisé en prisme.json par l'exécuteur (tu
+  n'écris JAMAIS ce fichier toi-même) :
+  {"game_id": "<id>", "exigences": [{"id", "source": "EXPECTED"|"ADDITIONS",
+  "source_role", "reference", "observation", "claim", "enonce",
+  "expected_proof": {"kind": "bot_action"|"oracle"|"mutation"|"visual"|"file_write",
+  "statement"}, "destination": "s3-decompo"|"s4-archi"|"s5-wiremap"|"s9-build"}]}.
+  CHAÎNE DE FALSIFIABILITÉ, trois maillons qui doivent DIFFÉRER : `observation` (ce
+  que la source montre) -> `claim` (ce que tu en déduis, et qui peut être faux
+  indépendamment de l'observation) -> `enonce` (ce que le jeu doit alors garantir).
+  Recopier l'un dans l'autre satisfait le schéma sans rien déduire, et rend
+  indécidable le lieu d'une panne : donnée fausse, ou déduction fausse ?
+  RÈGLES DURES : `source` vaut EXPECTED (vu dans le World Scan -> `reference` = la
+  source citée, non vide) ou ADDITIONS (ta proposition -> `reference` vaut
+  EXPLICITEMENT null, jamais un champ omis). `CORE` t'est INTERDIT : l'origine
+  d'une exigence CORE est `core_list` par construction, elle ne transite jamais par
+  un modèle. Le champ vocabulaire est celui de la ligne de wiremap v2
+  (standard/SCHEMA.md §3) : tes exigences sont des lignes candidates.
 
 # --- 9. Capacités (Important — `aucun` autorisé, jamais absent) ---
 skill: aucun

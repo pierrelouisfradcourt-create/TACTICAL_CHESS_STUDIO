@@ -97,6 +97,9 @@ KINDS: frozenset[str] = frozenset(
         "oracle.result",
         "mutation.result",
         "solvability.result",
+        # reparation ciblee (runtime `repair_runtime`, roles.yaml). Source :
+        # lab/forge_evidence/repair_results.jsonl, ecrite par forge.repair_dispatch.
+        "repair.result",
         "test.result",
         "guard.reference",
         "capture.visual",

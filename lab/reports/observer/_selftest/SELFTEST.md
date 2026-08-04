@@ -1,7 +1,7 @@
 # Banc de test des adaptateurs Observer — breakout_v2
 
 - schema : `observer.selftest.v0`
-- genere : 2026-08-03T12:52:00.433384+00:00
+- genere : 2026-08-04T18:20:35.175013+00:00
 
 ## Adaptateur `forge_run`
 
@@ -272,19 +272,21 @@ Aucune source lue pour rien.
 ## Adaptateur `forge_evidence`
 
 - statut : OK
-- evenements produits : **70**
+- evenements produits : **77**
 
 ### Sources lues
 
 | fichier | octets | evenements issus |
 |---|---:|---:|
-| `lab/forge_evidence/dispatch_audit.jsonl` | 168474 | 42 |
-| `lab/forge_evidence/dispatch_dryrun.jsonl` | 81044 | 0 |
+| `lab/forge_evidence/dispatch_audit.jsonl` | 203180 | 42 |
+| `lab/forge_evidence/dispatch_dryrun.jsonl` | 86288 | 0 |
 | `lab/forge_evidence/dispatch_dryrun_wm1_wiremap_breakout.jsonl` | 675 | 2 |
-| `lab/forge_evidence/forge_telemetry.jsonl` | 29699 | 9 |
-| `lab/forge_evidence/forge_builder_runs.jsonl` | 13053 | 5 |
+| `lab/forge_evidence/forge_telemetry.jsonl` | 35636 | 9 |
+| `lab/forge_evidence/repair_results.jsonl` | 19883 | 0 |
+| `lab/forge_evidence/runtime_drift.jsonl` | 3388 | 7 |
+| `lab/forge_evidence/forge_builder_runs.jsonl` | 13636 | 5 |
 | `lab/reports/error_journal/forge.jsonl` | 3711 | 0 |
-| `lab/reports/error_journal/html.jsonl` | 18791 | 9 |
+| `lab/reports/error_journal/html.jsonl` | 20672 | 9 |
 | `lab/reports/error_journal/playtest.jsonl` | 2329 | 0 |
 
 Sources d'evenements NON tracees par `ctx.read_paths` (ex : commandes git) :
@@ -317,6 +319,17 @@ Sources d'evenements NON tracees par `ctx.read_paths` (ex : commandes git) :
   - `outcome` : 9/9
   - `model` : 9/9
   - `is_dryrun` : 9/9
+- `drift.detected` (7 evenements) :
+  - `drift_kind` : 7/7
+  - `severity` : 7/7
+  - `subject` : 7/7
+  - `observation_window` : 7/7
+  - `requires_observation_window` : 7/7
+  - `status` : 4/7
+  - `declared_at` : 4/7
+  - `events_total` : 4/7
+  - `imported_by` : 3/7
+  - `level` : 3/7
 - `builder.attempt` (5 evenements) :
   - `task_id` : 5/5
   - `builder_id` : 5/5
@@ -343,14 +356,15 @@ Sources d'evenements NON tracees par `ctx.read_paths` (ex : commandes git) :
 
 ### Provenance (numero de ligne)
 
-- avec ligne : 67 · sans ligne : 3
-- par kind : {'dispatch.prepared': {'with_line': 23, 'without_line': 0}, 'dispatch.executed': {'with_line': 21, 'without_line': 0}, 'telemetry.step': {'with_line': 9, 'without_line': 0}, 'builder.attempt': {'with_line': 5, 'without_line': 0}, 'failure.event': {'with_line': 9, 'without_line': 0}, 'git.commit': {'with_line': 0, 'without_line': 3}}
-- par format : {'jsonl': {'with_line': 67, 'without_line': 0}, 'git': {'with_line': 0, 'without_line': 3}}
+- avec ligne : 74 · sans ligne : 3
+- par kind : {'dispatch.prepared': {'with_line': 23, 'without_line': 0}, 'dispatch.executed': {'with_line': 21, 'without_line': 0}, 'telemetry.step': {'with_line': 9, 'without_line': 0}, 'drift.detected': {'with_line': 7, 'without_line': 0}, 'builder.attempt': {'with_line': 5, 'without_line': 0}, 'failure.event': {'with_line': 9, 'without_line': 0}, 'git.commit': {'with_line': 0, 'without_line': 3}}
+- par format : {'jsonl': {'with_line': 74, 'without_line': 0}, 'git': {'with_line': 0, 'without_line': 3}}
 
 ### Pertes d'information
 
 Sources lues dont AUCUN evenement n'est issu :
 - `lab/forge_evidence/dispatch_dryrun.jsonl`
+- `lab/forge_evidence/repair_results.jsonl`
 - `lab/reports/error_journal/forge.jsonl`
 - `lab/reports/error_journal/playtest.jsonl`
 
@@ -358,21 +372,23 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 
 | fichier | lignes disponibles | evenements | ratio |
 |---|---:|---:|---:|
-| `lab/forge_evidence/dispatch_audit.jsonl` | 541 | 42 | 0.08 |
-| `lab/forge_evidence/dispatch_dryrun.jsonl` | 293 | 0 | 0.00 |
-| `lab/forge_evidence/forge_telemetry.jsonl` | 137 | 9 | 0.07 |
-| `lab/forge_evidence/forge_builder_runs.jsonl` | 46 | 5 | 0.11 |
+| `lab/forge_evidence/dispatch_audit.jsonl` | 645 | 42 | 0.07 |
+| `lab/forge_evidence/dispatch_dryrun.jsonl` | 309 | 0 | 0.00 |
+| `lab/forge_evidence/forge_telemetry.jsonl` | 152 | 9 | 0.06 |
+| `lab/forge_evidence/repair_results.jsonl` | 24 | 0 | 0.00 |
+| `lab/forge_evidence/forge_builder_runs.jsonl` | 48 | 5 | 0.10 |
 | `lab/reports/error_journal/forge.jsonl` | 10 | 0 | 0.00 |
-| `lab/reports/error_journal/html.jsonl` | 71 | 9 | 0.13 |
+| `lab/reports/error_journal/html.jsonl` | 78 | 9 | 0.12 |
 | `lab/reports/error_journal/playtest.jsonl` | 4 | 0 | 0.00 |
 
 ### Ambiguites
 
-- repartition `link` : {'DIRECT': 67, 'UNLINKED': 3} (non-DIRECT : 3)
+- repartition `link` : {'DIRECT': 67, 'UNLINKED': 10} (non-DIRECT : 10)
 - evenements sans date (`ts is None`) : 1
 - formats de temps sans fuseau : {}
-- valeurs distinctes de `attempt_field` : {'attempt': 44, '(absent)': 21, 'retry_number': 5}
-- notes les plus frequentes (sur 10 distinctes) :
+- valeurs distinctes de `attempt_field` : {'attempt': 44, '(absent)': 28, 'retry_number': 5}
+- notes les plus frequentes (sur 11 distinctes) :
+  - (7x) derive repo-wide : n'appartient a aucun run
   - (5x) run_id normalise depuis 'task_id' (ce fichier n'a pas de champ run_id) ; actor.model normalise depuis 'builder_id' — vocabulaire propre a forge_builder_runs.jsonl, distinct des champs run_id/model utilises par les autres sources.
   - (1x) 'ts' (1785481026.0389304) et 'date' ('2026-07-31T08:57:06') divergent de 7200.0s
   - (1x) 'ts' (1785483649.9804866) et 'date' ('2026-07-31T09:40:49') divergent de 7199.0s
@@ -389,6 +405,7 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 - `dispatch.prepared` : {'lab/forge_evidence/dispatch_audit.jsonl': 21, 'lab/forge_evidence/dispatch_dryrun_wm1_wiremap_breakout.jsonl': 2}
 - `dispatch.executed` : {'lab/forge_evidence/dispatch_audit.jsonl': 21}
 - `telemetry.step` : {'lab/forge_evidence/forge_telemetry.jsonl': 9}
+- `drift.detected` : {'lab/forge_evidence/runtime_drift.jsonl': 7}
 - `builder.attempt` : {'lab/forge_evidence/forge_builder_runs.jsonl': 5}
 - `failure.event` : {'lab/reports/error_journal/html.jsonl': 9}
 - `git.commit` : {'git:log:e2cc91364db1': 1, 'git:log:2b38702d2814': 1, 'git:rev-parse:HEAD': 1}
@@ -487,6 +504,7 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\061844a1-d609-4e1e-a7f6-c2af5ca09ca0.jsonl` | 4649307 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\08566522-b9c5-463d-bb21-3910ee942652.jsonl` | 556593 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\08749e3a-c7eb-4acc-a88f-631dab6b8941.jsonl` | 368145 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\094164a6-57a2-4fb5-a9a7-1bfdfef0207f.jsonl` | 543015 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0952921c-f17e-4c7c-bb3e-3d9feffadb5a\subagents\agent-a14835958a17b27a1.jsonl` | 280899 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0952921c-f17e-4c7c-bb3e-3d9feffadb5a\subagents\agent-a73263bf3fffc8bf3.jsonl` | 399776 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0952921c-f17e-4c7c-bb3e-3d9feffadb5a\subagents\agent-a7b9fb37f9214799b.jsonl` | 292089 | 0 |
@@ -506,8 +524,8 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0e252bed-529f-461f-a9e8-205f284ec4a7\subagents\agent-adc5725618cac56d5.jsonl` | 306916 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0e252bed-529f-461f-a9e8-205f284ec4a7\subagents\agent-ae33fc67baf10d04d.jsonl` | 683518 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0e252bed-529f-461f-a9e8-205f284ec4a7.jsonl` | 7018915 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0f06d2c4-4554-45e9-89ef-2b8cb067954e.jsonl` | 256037 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1075384a-084a-4b3b-bc59-b86239d994ca.jsonl` | 37776 | 0 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\11457f47-1005-4a09-8a53-7c1a6bebcc81.jsonl` | 2572948 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\156963dc-a5cb-43bd-87e4-307e9660657a.jsonl` | 56235 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1620c77b-78b8-46ee-af42-193002c9b00e.jsonl` | 309588 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\166498e6-38ba-4be5-a5d4-c936a1eeca72\subagents\agent-a15853990a80465a0.jsonl` | 193926 | 0 |
@@ -521,6 +539,8 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\166498e6-38ba-4be5-a5d4-c936a1eeca72\subagents\agent-ade3afa34353a759f.jsonl` | 164584 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\166498e6-38ba-4be5-a5d4-c936a1eeca72.jsonl` | 2160081 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\16904fb3-5d6c-4ee3-b951-c14ca1673504.jsonl` | 577215 | 340 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\16f132bc-1191-440e-9e89-177b8822491d.jsonl` | 362735 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\179f0719-c234-4393-8479-53805a9f609f.jsonl` | 302026 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\17a5951c-e38c-4a59-8752-8d4bdbd107b2\subagents\agent-a1b988e3ac5e58072.jsonl` | 134383 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\17a5951c-e38c-4a59-8752-8d4bdbd107b2\subagents\agent-a505c11a8561c0bc9.jsonl` | 123987 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\17a5951c-e38c-4a59-8752-8d4bdbd107b2\subagents\agent-a7b22eeefba417947.jsonl` | 135928 | 0 |
@@ -548,25 +568,44 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1c33b140-7627-455e-81fc-1bfd9954acf5\subagents\agent-ab183e06e8e51bcde.jsonl` | 98913 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1c33b140-7627-455e-81fc-1bfd9954acf5\subagents\agent-af90148fcb87630d5.jsonl` | 218382 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1c33b140-7627-455e-81fc-1bfd9954acf5.jsonl` | 1526158 | 0 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a045ee8cadd5a1dfc.jsonl` | 300525 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1eeef224-8021-4b38-9c96-c8af8dea9c6e.jsonl` | 450989 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a045ee8cadd5a1dfc.jsonl` | 324155 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a0654e7e799bef1ff.jsonl` | 83388 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a0f42d904949358ba.jsonl` | 75905 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a1d2e2be09cb5c116.jsonl` | 675788 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a257b565b4464af86.jsonl` | 136632 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a367c04e0b078298c.jsonl` | 249440 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a3fe11655bab70671.jsonl` | 219398 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a49bf6f9a9a13ed90.jsonl` | 72666 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a502dda5101851221.jsonl` | 82803 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a50c778a9856dc1c8.jsonl` | 420923 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a5ad0ec862b616671.jsonl` | 654964 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a5c813f4bbde68044.jsonl` | 441553 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a5ff8eecc71121c34.jsonl` | 214106 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a61fdb3d229be2137.jsonl` | 184394 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a61fff92967a42868.jsonl` | 525956 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a6215d6704fd1c289.jsonl` | 224265 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a647a140e0fcb685c.jsonl` | 231971 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a670857a89afad169.jsonl` | 463515 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a6f6da6f608627ce7.jsonl` | 81120 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a8fc257f85f4ca9bd.jsonl` | 140160 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a9aaf4cc6db7781f1.jsonl` | 185008 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aa2212bbb397c33ee.jsonl` | 172620 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aa27bd3874e568f19.jsonl` | 365488 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aa2c149e72c426f20.jsonl` | 48010 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aa641db47c050e41f.jsonl` | 328519 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aa86882813685a1b8.jsonl` | 180041 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-abb1020afb636d52c.jsonl` | 182511 | 0 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-abdea5f7c087da215.jsonl` | 344198 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-abdea5f7c087da215.jsonl` | 369017 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-ac85e034c92e845fc.jsonl` | 170057 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-ad04adaf9112442cc.jsonl` | 221743 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-addb1662b3119bdb4.jsonl` | 384272 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-ae6c9c8a568b0c643.jsonl` | 73982 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aedf834f1769ab5cc.jsonl` | 256798 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-afa0318a6562ddf0c.jsonl` | 294414 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-afba4f3f88d117396.jsonl` | 315001 | 0 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb.jsonl` | 1688697 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb.jsonl` | 4576018 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\22ea9d7e-3d16-4b75-8cdf-5825ac2ec2ee.jsonl` | 229848 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5\subagents\agent-a0068a71287daaae1.jsonl` | 521142 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5\subagents\agent-a2146a34120aed1de.jsonl` | 265557 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5\subagents\agent-a36853ea8075cafea.jsonl` | 49952 | 0 |
@@ -575,6 +614,7 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5\subagents\agent-aebb97008c6c1dd6e.jsonl` | 61828 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5\subagents\agent-af4d14a49e518dead.jsonl` | 776106 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5.jsonl` | 3013397 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\24059a6e-40ce-43f9-8a9e-c4b987669658.jsonl` | 311546 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\2478fc31-8a67-41ed-964a-b235def5ab75.jsonl` | 220111 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\25854ba4-a0ff-4e51-9cf8-3f937aae8e6c\subagents\agent-a0cf42e7853fbce2d.jsonl` | 107291 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\25854ba4-a0ff-4e51-9cf8-3f937aae8e6c.jsonl` | 148796 | 0 |
@@ -609,6 +649,8 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\31bd5bf4-f2ad-42dd-adc3-37da65bc4896.jsonl` | 531299 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\3212a4b2-e19c-47d7-a5b3-cdaf5a3187a2.jsonl` | 668534 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\32dcba96-1a00-40b5-a757-c077ec988072.jsonl` | 2159062 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\345dad31-ab27-4c28-8fbc-f6dff930b558.jsonl` | 571190 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\3569696e-c031-4c21-b936-e0b78e5dab66.jsonl` | 300074 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\35da1969-3c13-4250-9017-55cf27560716\subagents\agent-a09dc2c88b3d9e64e.jsonl` | 421932 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\35da1969-3c13-4250-9017-55cf27560716\subagents\agent-a12b36a15319b3572.jsonl` | 838101 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\35da1969-3c13-4250-9017-55cf27560716\subagents\agent-a16f90e064390d2d1.jsonl` | 472066 | 0 |
@@ -731,6 +773,8 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\473b8552-72d6-45f4-b80d-1d6ede941418\subagents\agent-af5597e5e29fcc0b4.jsonl` | 128401 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\473b8552-72d6-45f4-b80d-1d6ede941418\subagents\agent-af6cd6eff5981e353.jsonl` | 257777 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\473b8552-72d6-45f4-b80d-1d6ede941418.jsonl` | 3535065 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\477c34e0-055d-4cd1-99c0-fd4c320790e1.jsonl` | 393195 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\484e5b09-8ed9-43d5-8682-46ba613489b0.jsonl` | 381556 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4960c433-5ddb-4fc0-8cac-32fa37e1cae8\subagents\agent-a314bed6ba1a7befc.jsonl` | 511809 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4960c433-5ddb-4fc0-8cac-32fa37e1cae8\subagents\agent-a3a6d0f4d70809a89.jsonl` | 192531 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4960c433-5ddb-4fc0-8cac-32fa37e1cae8\subagents\agent-a4168a11657b4ba55.jsonl` | 171576 | 0 |
@@ -741,6 +785,7 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4960c433-5ddb-4fc0-8cac-32fa37e1cae8\subagents\agent-ab60efa9b88805a84.jsonl` | 381190 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4960c433-5ddb-4fc0-8cac-32fa37e1cae8.jsonl` | 4720265 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4993b206-b896-475a-b584-622a0155cdda.jsonl` | 459824 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4c08380f-e3c2-472b-9f8c-cc8e15d266c3.jsonl` | 301091 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4c44dc72-1866-43ac-af6c-f6b27e7259a2.jsonl` | 31246 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4ca6bc20-f2e4-414e-9890-33eecec6819f\subagents\agent-a1bc7223b51dfcf89.jsonl` | 864741 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4ca6bc20-f2e4-414e-9890-33eecec6819f\subagents\agent-a1cbcb2206b783f69.jsonl` | 897598 | 0 |
@@ -915,7 +960,6 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5a38debb-73c7-44fb-ad8b-384311f9031e.jsonl` | 9912677 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5aeafcd6-d89b-475c-8ca9-32ab5f359200.jsonl` | 1059991 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5b20f063-c4e0-479a-b279-d2c3beed0c8f.jsonl` | 601705 | 0 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5f6523f7-b17c-4591-8499-57c5080b5e03.jsonl` | 292 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5f8b7add-df80-41c2-bd9f-2f62100e1af6\subagents\agent-abe90028406f28023.jsonl` | 166150 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5f8b7add-df80-41c2-bd9f-2f62100e1af6.jsonl` | 433649 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\606439e6-15fb-42b2-b6d4-d5f42dc84d65\subagents\agent-a74892cb667763c27.jsonl` | 643884 | 0 |
@@ -950,8 +994,10 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\60c61b08-5a2c-4a80-beca-2b7b1016273d.jsonl` | 610970 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\61561436-b8ce-47cd-9812-724573010a44.jsonl` | 701381 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\616ac55a-84a9-49b8-929c-3861feb5299c.jsonl` | 432702 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\627b9fa1-a357-4906-8609-ce9a84043bbc.jsonl` | 305503 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\62e0fd71-a375-451c-8be6-032c14e2086c.jsonl` | 256556 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\636f940b-f095-4d0d-907a-519c4bf0f5e4.jsonl` | 69704 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\6a3db8c7-00b3-4f83-a8b9-5008b2b74cb7.jsonl` | 361069 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\6a7abbfb-835b-4ddf-ac37-db39afb09c21.jsonl` | 180232 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\6c6f4b6c-37dc-404f-aa5c-a58b4bbd1f6c.jsonl` | 3098595 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\6d18bd3b-3bf3-49e3-aaf2-e963aae0b778\subagents\agent-a0eb493187b43ce8b.jsonl` | 626666 | 0 |
@@ -1010,6 +1056,8 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\70f478ef-0c80-4c64-86a0-5190e36ea6ef.jsonl` | 3514319 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\738bc4e4-46ee-4edf-860a-89ebd6068323\subagents\agent-a8995af6a1a494dc4.jsonl` | 499418 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\738bc4e4-46ee-4edf-860a-89ebd6068323.jsonl` | 4931409 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\77c0040a-084c-40e7-99b1-3dcf21c7e256.jsonl` | 171374 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\7814305b-a5d9-4504-8092-6e4f141846a1.jsonl` | 255664 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\783415c4-f843-4165-8c55-091b3bf58832.jsonl` | 136439 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\79752799-92c2-4e2a-9953-cc2ecd5df279.jsonl` | 592384 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\79acb873-7f61-493a-a562-51d0d2568565.jsonl` | 764460 | 0 |
@@ -1030,8 +1078,9 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8ca10da7-2a30-411b-bd2c-d034b19909ea.jsonl` | 37369 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8ca16c5b-5fe6-4b61-84f4-65b2b638028a.jsonl` | 486156 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8ce1babf-f8f8-45a7-a89c-633d68abf348.jsonl` | 547741 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8d65f337-ce9e-40e4-85ae-a42009821746.jsonl` | 194794 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8e933fea-3a5d-4184-9718-e0ba34eb827c.jsonl` | 185738 | 0 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\901c6914-c6e0-4c30-84a7-dd79465bf974.jsonl` | 5390267 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8efc7d4f-4cd9-4f23-8b6c-b17012b0d22f.jsonl` | 566552 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\90de3032-5a0c-405b-9a4c-9c732f922a15.jsonl` | 31529 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\910542fa-0488-47c2-a660-014bafe5520b.jsonl` | 587169 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\91ca5605-a190-462b-bdba-4b48f21b73c2.jsonl` | 718760 | 0 |
@@ -1058,10 +1107,11 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\96968ed6-4212-4f68-9d98-03a2ece97714.jsonl` | 55413 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9a5dff15-b6eb-4457-9677-e25098a4124a\subagents\agent-a624daba995e11cba.jsonl` | 435568 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9a5dff15-b6eb-4457-9677-e25098a4124a.jsonl` | 3134361 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9ac75a4c-f9e6-4a54-8f01-a2d2c7b1ccb7.jsonl` | 261909 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9bb8bf32-081c-425d-b505-2c6b54d2aeef.jsonl` | 460826 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9d60c74e-b727-43a1-85d4-1f798abcd6df.jsonl` | 6390910 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9e815f76-7acd-45f0-97fb-f01a4fba36d5.jsonl` | 28399 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9ec49b6e-98e4-4ad1-9ca7-4af221b6e73b.jsonl` | 617212 | 0 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9f596c98-2dbf-4d75-81d2-e86b57d36ba4.jsonl` | 256 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a0239956-6003-461d-a672-22a25bb4c4c7\subagents\agent-a44500176da02281b.jsonl` | 363229 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a0239956-6003-461d-a672-22a25bb4c4c7\subagents\agent-a4b68fde3b9896241.jsonl` | 353077 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a0239956-6003-461d-a672-22a25bb4c4c7\subagents\agent-a563e2758bc267eda.jsonl` | 857146 | 320 |
@@ -1089,7 +1139,9 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a6819cac-b590-48b9-b403-2f5d67f19670.jsonl` | 1508977 | 789 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a6cfacea-eeec-48c7-a10b-028eb8b1e162.jsonl` | 465460 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a78c41ad-26a1-4df1-9b34-e796b0635162.jsonl` | 1429137 | 570 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a9325771-3427-4846-b4ae-da7e2ea9fe45.jsonl` | 459826 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a9c0b247-0a46-46fb-bc6b-852f4332bbe8.jsonl` | 77389 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\aa1e90af-5209-472c-8314-b60544e1fb11.jsonl` | 244260 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ab25f1c3-f473-4c0f-ab2f-96c88d87b696\subagents\agent-a0d4b3073d3ef98ab.jsonl` | 387918 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ab25f1c3-f473-4c0f-ab2f-96c88d87b696\subagents\agent-a17c26298a650bf70.jsonl` | 441677 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ab25f1c3-f473-4c0f-ab2f-96c88d87b696\subagents\agent-a1cc2927784819701.jsonl` | 508166 | 0 |
@@ -1173,16 +1225,20 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\b7e7739c-1256-49a7-949e-83eea3d5616b\subagents\agent-afbdabf0c660c189b.jsonl` | 135089 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\b7e7739c-1256-49a7-949e-83eea3d5616b.jsonl` | 508308 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\b93256c8-c54f-4ee2-9f76-4619ed263c0d.jsonl` | 4178247 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ba1ab14d-b9a6-41d1-9619-af19fb8da874.jsonl` | 185127 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\bea3da0e-38a7-4f17-8b33-7f82c7254d33.jsonl` | 221417 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\beff28cb-3d87-405d-9f2f-6f7cbb1fde6a.jsonl` | 1848539 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\bfa576df-74b0-4141-978e-63b39b148063.jsonl` | 38079 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c026f192-ee5c-48ac-8c66-38cf885e3579.jsonl` | 366813 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c02a01c1-680b-4363-a27d-defb8f01f032.jsonl` | 6813891 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c0555ec3-0b80-4e60-83f5-a321a3328994.jsonl` | 3001028 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c0edb363-fc34-44c6-89d3-4ecced3cfa71.jsonl` | 168248 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c2540d4d-c723-4a21-94f1-b2fc6dd3a3c5.jsonl` | 224121 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c2a22cc1-f3a2-4e0d-906c-bf11c557e3bb.jsonl` | 673521 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c2e10cc2-8d7b-4ceb-b701-2aa9b603b5fa\subagents\agent-a21b587afe4973f35.jsonl` | 329319 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c2e10cc2-8d7b-4ceb-b701-2aa9b603b5fa\subagents\agent-ac4f1ce2fc6b31d29.jsonl` | 402915 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c2e10cc2-8d7b-4ceb-b701-2aa9b603b5fa.jsonl` | 3642857 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c302e06e-66dc-41d2-803d-1ebc48147858.jsonl` | 228661 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c7f163e9-596c-4a6e-9c20-cb30a9b84295.jsonl` | 556851 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c8403fbf-96bb-42bb-ac0b-b60d4c7f3ee1.jsonl` | 674392 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\cb33bdee-5f73-4d22-8108-e2962dfe32cb.jsonl` | 324857 | 0 |
@@ -1201,6 +1257,7 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d5ff3277-87cf-46dd-883b-1d536516265d.jsonl` | 240875 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d620d22c-8d98-4269-bb82-e1a39aae7e5c.jsonl` | 620863 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d67a5301-59c5-42ab-8ad3-034dd71141a1.jsonl` | 430495 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d6dd405a-9054-44ec-8f6f-6aba622275c9.jsonl` | 266052 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d725b28b-ae2b-4cdc-8424-8d23de730abe.jsonl` | 834554 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d7ff3bfb-4df2-4111-8d91-c247205c4c97.jsonl` | 642168 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d83d3ab9-60d0-409b-9bff-1878b52b0b85.jsonl` | 1446206 | 688 |
@@ -1209,7 +1266,7 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\dc892433-1bad-468b-9632-4a608ce9be0a.jsonl` | 1884649 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\de48cc5b-bdc9-493e-9062-20dc89eb0292.jsonl` | 35177 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\df5fdec9-5322-418d-bb35-144a4bbb99e8.jsonl` | 241820 | 0 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\dff60c54-b3d3-4ad1-b88c-296019dcbf4f.jsonl` | 5832628 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\df7757cb-cc16-480a-8582-a55405e51214.jsonl` | 232933 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\e04b507a-53a9-470a-9ea6-4507042ccb42.jsonl` | 912509 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\e05700ec-934d-42b0-a368-dab3054956f7.jsonl` | 1821086 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\e3401daf-cc1b-4a67-b5fd-749e101254b1\subagents\agent-a60b62b2e930622db.jsonl` | 153170 | 0 |
@@ -1223,6 +1280,7 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\e6adc09e-6b4b-4491-99a8-df6ab377bc7a.jsonl` | 757800 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\e6ebbf26-b026-4bce-8afe-5320fb7d4861.jsonl` | 210754 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\eb289133-a2de-44cb-aa3a-3b1fb64666fd.jsonl` | 198362 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ec29952f-43c5-4f4d-87be-25765a26c9ff.jsonl` | 368915 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ec6ecc0c-2979-4140-8825-40d9fce694bf.jsonl` | 4704501 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ee9af040-d077-4d0d-b4d3-0ce2de319462.jsonl` | 1131290 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\f13ed528-a022-4c9d-88c5-e1541c0349a2.jsonl` | 281938 | 0 |
@@ -1232,7 +1290,9 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\f60d9ea1-3b1a-49ce-85ea-6e2a50cd3e8d.jsonl` | 1600645 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\f6d3708b-a1dd-4ae4-86ac-2d24a749ae54\subagents\agent-acae3ab28cc3370bf.jsonl` | 29760 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\f6d3708b-a1dd-4ae4-86ac-2d24a749ae54.jsonl` | 4565736 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\f9087242-b386-4fd9-bb08-2e4da5aac2ec.jsonl` | 295783 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\fc0f2f3f-e328-4aa5-9a72-40be4d6bd55f.jsonl` | 367866 | 0 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\fc5f6feb-5e12-4e7d-a8da-cae4953ea77a.jsonl` | 599420 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\fdaa4771-bc9a-4d6c-b622-be0609124c95.jsonl` | 48779 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\fdff4655-cc37-4650-9b29-3ba9ccce3b19\subagents\agent-a491ede730b779adb.jsonl` | 158414 | 0 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\fdff4655-cc37-4650-9b29-3ba9ccce3b19\subagents\agent-a4e9f7eef6ca527ad.jsonl` | 144211 | 0 |
@@ -1396,6 +1456,7 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\061844a1-d609-4e1e-a7f6-c2af5ca09ca0.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\08566522-b9c5-463d-bb21-3910ee942652.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\08749e3a-c7eb-4acc-a88f-631dab6b8941.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\094164a6-57a2-4fb5-a9a7-1bfdfef0207f.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0952921c-f17e-4c7c-bb3e-3d9feffadb5a\subagents\agent-a14835958a17b27a1.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0952921c-f17e-4c7c-bb3e-3d9feffadb5a\subagents\agent-a73263bf3fffc8bf3.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0952921c-f17e-4c7c-bb3e-3d9feffadb5a\subagents\agent-a7b9fb37f9214799b.jsonl`
@@ -1415,8 +1476,8 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0e252bed-529f-461f-a9e8-205f284ec4a7\subagents\agent-adc5725618cac56d5.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0e252bed-529f-461f-a9e8-205f284ec4a7\subagents\agent-ae33fc67baf10d04d.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0e252bed-529f-461f-a9e8-205f284ec4a7.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0f06d2c4-4554-45e9-89ef-2b8cb067954e.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1075384a-084a-4b3b-bc59-b86239d994ca.jsonl`
-- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\11457f47-1005-4a09-8a53-7c1a6bebcc81.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\156963dc-a5cb-43bd-87e4-307e9660657a.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1620c77b-78b8-46ee-af42-193002c9b00e.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\166498e6-38ba-4be5-a5d4-c936a1eeca72\subagents\agent-a15853990a80465a0.jsonl`
@@ -1429,6 +1490,8 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\166498e6-38ba-4be5-a5d4-c936a1eeca72\subagents\agent-ada683bedf1a0057b.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\166498e6-38ba-4be5-a5d4-c936a1eeca72\subagents\agent-ade3afa34353a759f.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\166498e6-38ba-4be5-a5d4-c936a1eeca72.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\16f132bc-1191-440e-9e89-177b8822491d.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\179f0719-c234-4393-8479-53805a9f609f.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\17a5951c-e38c-4a59-8752-8d4bdbd107b2\subagents\agent-a1b988e3ac5e58072.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\17a5951c-e38c-4a59-8752-8d4bdbd107b2\subagents\agent-a505c11a8561c0bc9.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\17a5951c-e38c-4a59-8752-8d4bdbd107b2\subagents\agent-a7b22eeefba417947.jsonl`
@@ -1456,25 +1519,44 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1c33b140-7627-455e-81fc-1bfd9954acf5\subagents\agent-ab183e06e8e51bcde.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1c33b140-7627-455e-81fc-1bfd9954acf5\subagents\agent-af90148fcb87630d5.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1c33b140-7627-455e-81fc-1bfd9954acf5.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1eeef224-8021-4b38-9c96-c8af8dea9c6e.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a045ee8cadd5a1dfc.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a0654e7e799bef1ff.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a0f42d904949358ba.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a1d2e2be09cb5c116.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a257b565b4464af86.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a367c04e0b078298c.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a3fe11655bab70671.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a49bf6f9a9a13ed90.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a502dda5101851221.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a50c778a9856dc1c8.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a5ad0ec862b616671.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a5c813f4bbde68044.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a5ff8eecc71121c34.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a61fdb3d229be2137.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a61fff92967a42868.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a6215d6704fd1c289.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a647a140e0fcb685c.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a670857a89afad169.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a6f6da6f608627ce7.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a8fc257f85f4ca9bd.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a9aaf4cc6db7781f1.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aa2212bbb397c33ee.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aa27bd3874e568f19.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aa2c149e72c426f20.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aa641db47c050e41f.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aa86882813685a1b8.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-abb1020afb636d52c.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-abdea5f7c087da215.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-ac85e034c92e845fc.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-ad04adaf9112442cc.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-addb1662b3119bdb4.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-ae6c9c8a568b0c643.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aedf834f1769ab5cc.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-afa0318a6562ddf0c.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-afba4f3f88d117396.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\22ea9d7e-3d16-4b75-8cdf-5825ac2ec2ee.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5\subagents\agent-a0068a71287daaae1.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5\subagents\agent-a2146a34120aed1de.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5\subagents\agent-a36853ea8075cafea.jsonl`
@@ -1483,6 +1565,7 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5\subagents\agent-aebb97008c6c1dd6e.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5\subagents\agent-af4d14a49e518dead.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\24059a6e-40ce-43f9-8a9e-c4b987669658.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\2478fc31-8a67-41ed-964a-b235def5ab75.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\25854ba4-a0ff-4e51-9cf8-3f937aae8e6c\subagents\agent-a0cf42e7853fbce2d.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\25854ba4-a0ff-4e51-9cf8-3f937aae8e6c.jsonl`
@@ -1517,6 +1600,8 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\31bd5bf4-f2ad-42dd-adc3-37da65bc4896.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\3212a4b2-e19c-47d7-a5b3-cdaf5a3187a2.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\32dcba96-1a00-40b5-a757-c077ec988072.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\345dad31-ab27-4c28-8fbc-f6dff930b558.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\3569696e-c031-4c21-b936-e0b78e5dab66.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\35da1969-3c13-4250-9017-55cf27560716\subagents\agent-a09dc2c88b3d9e64e.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\35da1969-3c13-4250-9017-55cf27560716\subagents\agent-a12b36a15319b3572.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\35da1969-3c13-4250-9017-55cf27560716\subagents\agent-a16f90e064390d2d1.jsonl`
@@ -1636,6 +1721,8 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\473b8552-72d6-45f4-b80d-1d6ede941418\subagents\agent-af5597e5e29fcc0b4.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\473b8552-72d6-45f4-b80d-1d6ede941418\subagents\agent-af6cd6eff5981e353.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\473b8552-72d6-45f4-b80d-1d6ede941418.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\477c34e0-055d-4cd1-99c0-fd4c320790e1.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\484e5b09-8ed9-43d5-8682-46ba613489b0.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4960c433-5ddb-4fc0-8cac-32fa37e1cae8\subagents\agent-a314bed6ba1a7befc.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4960c433-5ddb-4fc0-8cac-32fa37e1cae8\subagents\agent-a3a6d0f4d70809a89.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4960c433-5ddb-4fc0-8cac-32fa37e1cae8\subagents\agent-a4168a11657b4ba55.jsonl`
@@ -1646,6 +1733,7 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4960c433-5ddb-4fc0-8cac-32fa37e1cae8\subagents\agent-ab60efa9b88805a84.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4960c433-5ddb-4fc0-8cac-32fa37e1cae8.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4993b206-b896-475a-b584-622a0155cdda.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4c08380f-e3c2-472b-9f8c-cc8e15d266c3.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4c44dc72-1866-43ac-af6c-f6b27e7259a2.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4ca6bc20-f2e4-414e-9890-33eecec6819f\subagents\agent-a1bc7223b51dfcf89.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4ca6bc20-f2e4-414e-9890-33eecec6819f\subagents\agent-a1cbcb2206b783f69.jsonl`
@@ -1819,7 +1907,6 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5a38debb-73c7-44fb-ad8b-384311f9031e.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5aeafcd6-d89b-475c-8ca9-32ab5f359200.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5b20f063-c4e0-479a-b279-d2c3beed0c8f.jsonl`
-- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5f6523f7-b17c-4591-8499-57c5080b5e03.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5f8b7add-df80-41c2-bd9f-2f62100e1af6\subagents\agent-abe90028406f28023.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5f8b7add-df80-41c2-bd9f-2f62100e1af6.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\606439e6-15fb-42b2-b6d4-d5f42dc84d65\subagents\agent-a74892cb667763c27.jsonl`
@@ -1854,8 +1941,10 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\60c61b08-5a2c-4a80-beca-2b7b1016273d.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\61561436-b8ce-47cd-9812-724573010a44.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\616ac55a-84a9-49b8-929c-3861feb5299c.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\627b9fa1-a357-4906-8609-ce9a84043bbc.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\62e0fd71-a375-451c-8be6-032c14e2086c.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\636f940b-f095-4d0d-907a-519c4bf0f5e4.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\6a3db8c7-00b3-4f83-a8b9-5008b2b74cb7.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\6a7abbfb-835b-4ddf-ac37-db39afb09c21.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\6c6f4b6c-37dc-404f-aa5c-a58b4bbd1f6c.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\6d18bd3b-3bf3-49e3-aaf2-e963aae0b778\subagents\agent-a0eb493187b43ce8b.jsonl`
@@ -1913,6 +2002,8 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\70f478ef-0c80-4c64-86a0-5190e36ea6ef.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\738bc4e4-46ee-4edf-860a-89ebd6068323\subagents\agent-a8995af6a1a494dc4.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\738bc4e4-46ee-4edf-860a-89ebd6068323.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\77c0040a-084c-40e7-99b1-3dcf21c7e256.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\7814305b-a5d9-4504-8092-6e4f141846a1.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\783415c4-f843-4165-8c55-091b3bf58832.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\79752799-92c2-4e2a-9953-cc2ecd5df279.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\79acb873-7f61-493a-a562-51d0d2568565.jsonl`
@@ -1933,8 +2024,9 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8ca10da7-2a30-411b-bd2c-d034b19909ea.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8ca16c5b-5fe6-4b61-84f4-65b2b638028a.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8ce1babf-f8f8-45a7-a89c-633d68abf348.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8d65f337-ce9e-40e4-85ae-a42009821746.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8e933fea-3a5d-4184-9718-e0ba34eb827c.jsonl`
-- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\901c6914-c6e0-4c30-84a7-dd79465bf974.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8efc7d4f-4cd9-4f23-8b6c-b17012b0d22f.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\90de3032-5a0c-405b-9a4c-9c732f922a15.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\910542fa-0488-47c2-a660-014bafe5520b.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\91ca5605-a190-462b-bdba-4b48f21b73c2.jsonl`
@@ -1961,10 +2053,11 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\96968ed6-4212-4f68-9d98-03a2ece97714.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9a5dff15-b6eb-4457-9677-e25098a4124a\subagents\agent-a624daba995e11cba.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9a5dff15-b6eb-4457-9677-e25098a4124a.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9ac75a4c-f9e6-4a54-8f01-a2d2c7b1ccb7.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9bb8bf32-081c-425d-b505-2c6b54d2aeef.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9d60c74e-b727-43a1-85d4-1f798abcd6df.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9e815f76-7acd-45f0-97fb-f01a4fba36d5.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9ec49b6e-98e4-4ad1-9ca7-4af221b6e73b.jsonl`
-- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9f596c98-2dbf-4d75-81d2-e86b57d36ba4.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a0239956-6003-461d-a672-22a25bb4c4c7\subagents\agent-a44500176da02281b.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a0239956-6003-461d-a672-22a25bb4c4c7\subagents\agent-a4b68fde3b9896241.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a0239956-6003-461d-a672-22a25bb4c4c7\subagents\agent-a563e2758bc267eda.meta.json`
@@ -1989,7 +2082,9 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a4ba8516-4c2c-49b0-96c0-9bcbdecc360b.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a548c7bf-a76c-47f8-8707-00ab58cbf56b.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a6cfacea-eeec-48c7-a10b-028eb8b1e162.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a9325771-3427-4846-b4ae-da7e2ea9fe45.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a9c0b247-0a46-46fb-bc6b-852f4332bbe8.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\aa1e90af-5209-472c-8314-b60544e1fb11.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ab25f1c3-f473-4c0f-ab2f-96c88d87b696\subagents\agent-a0d4b3073d3ef98ab.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ab25f1c3-f473-4c0f-ab2f-96c88d87b696\subagents\agent-a17c26298a650bf70.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ab25f1c3-f473-4c0f-ab2f-96c88d87b696\subagents\agent-a1cc2927784819701.jsonl`
@@ -2073,16 +2168,20 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\b7e7739c-1256-49a7-949e-83eea3d5616b\subagents\agent-afbdabf0c660c189b.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\b7e7739c-1256-49a7-949e-83eea3d5616b.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\b93256c8-c54f-4ee2-9f76-4619ed263c0d.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ba1ab14d-b9a6-41d1-9619-af19fb8da874.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\bea3da0e-38a7-4f17-8b33-7f82c7254d33.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\beff28cb-3d87-405d-9f2f-6f7cbb1fde6a.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\bfa576df-74b0-4141-978e-63b39b148063.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c026f192-ee5c-48ac-8c66-38cf885e3579.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c02a01c1-680b-4363-a27d-defb8f01f032.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c0555ec3-0b80-4e60-83f5-a321a3328994.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c0edb363-fc34-44c6-89d3-4ecced3cfa71.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c2540d4d-c723-4a21-94f1-b2fc6dd3a3c5.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c2a22cc1-f3a2-4e0d-906c-bf11c557e3bb.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c2e10cc2-8d7b-4ceb-b701-2aa9b603b5fa\subagents\agent-a21b587afe4973f35.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c2e10cc2-8d7b-4ceb-b701-2aa9b603b5fa\subagents\agent-ac4f1ce2fc6b31d29.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c2e10cc2-8d7b-4ceb-b701-2aa9b603b5fa.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c302e06e-66dc-41d2-803d-1ebc48147858.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c7f163e9-596c-4a6e-9c20-cb30a9b84295.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c8403fbf-96bb-42bb-ac0b-b60d4c7f3ee1.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\cb33bdee-5f73-4d22-8108-e2962dfe32cb.jsonl`
@@ -2101,6 +2200,7 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d5ff3277-87cf-46dd-883b-1d536516265d.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d620d22c-8d98-4269-bb82-e1a39aae7e5c.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d67a5301-59c5-42ab-8ad3-034dd71141a1.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d6dd405a-9054-44ec-8f6f-6aba622275c9.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d725b28b-ae2b-4cdc-8424-8d23de730abe.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d7ff3bfb-4df2-4111-8d91-c247205c4c97.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d9861e74-afbf-4448-8d54-bfd60459c544.jsonl`
@@ -2108,7 +2208,7 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\dc892433-1bad-468b-9632-4a608ce9be0a.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\de48cc5b-bdc9-493e-9062-20dc89eb0292.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\df5fdec9-5322-418d-bb35-144a4bbb99e8.jsonl`
-- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\dff60c54-b3d3-4ad1-b88c-296019dcbf4f.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\df7757cb-cc16-480a-8582-a55405e51214.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\e04b507a-53a9-470a-9ea6-4507042ccb42.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\e05700ec-934d-42b0-a368-dab3054956f7.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\e3401daf-cc1b-4a67-b5fd-749e101254b1\subagents\agent-a60b62b2e930622db.jsonl`
@@ -2122,6 +2222,7 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\e6adc09e-6b4b-4491-99a8-df6ab377bc7a.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\e6ebbf26-b026-4bce-8afe-5320fb7d4861.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\eb289133-a2de-44cb-aa3a-3b1fb64666fd.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ec29952f-43c5-4f4d-87be-25765a26c9ff.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ec6ecc0c-2979-4140-8825-40d9fce694bf.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ee9af040-d077-4d0d-b4d3-0ce2de319462.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\f13ed528-a022-4c9d-88c5-e1541c0349a2.jsonl`
@@ -2131,7 +2232,9 @@ Sources lues dont AUCUN evenement n'est issu :
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\f60d9ea1-3b1a-49ce-85ea-6e2a50cd3e8d.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\f6d3708b-a1dd-4ae4-86ac-2d24a749ae54\subagents\agent-acae3ab28cc3370bf.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\f6d3708b-a1dd-4ae4-86ac-2d24a749ae54.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\f9087242-b386-4fd9-bb08-2e4da5aac2ec.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\fc0f2f3f-e328-4aa5-9a72-40be4d6bd55f.jsonl`
+- `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\fc5f6feb-5e12-4e7d-a8da-cae4953ea77a.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\fdaa4771-bc9a-4d6c-b622-be0609124c95.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\fdff4655-cc37-4650-9b29-3ba9ccce3b19\subagents\agent-a491ede730b779adb.jsonl`
 - `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\fdff4655-cc37-4650-9b29-3ba9ccce3b19\subagents\agent-a4e9f7eef6ca527ad.jsonl`
@@ -2225,6 +2328,7 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\061844a1-d609-4e1e-a7f6-c2af5ca09ca0.jsonl` | 1366 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\08566522-b9c5-463d-bb21-3910ee942652.jsonl` | 144 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\08749e3a-c7eb-4acc-a88f-631dab6b8941.jsonl` | 90 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\094164a6-57a2-4fb5-a9a7-1bfdfef0207f.jsonl` | 107 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0952921c-f17e-4c7c-bb3e-3d9feffadb5a\subagents\agent-a14835958a17b27a1.jsonl` | 87 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0952921c-f17e-4c7c-bb3e-3d9feffadb5a\subagents\agent-a73263bf3fffc8bf3.jsonl` | 55 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0952921c-f17e-4c7c-bb3e-3d9feffadb5a\subagents\agent-a7b9fb37f9214799b.jsonl` | 84 | 0 | 0.00 |
@@ -2244,8 +2348,8 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0e252bed-529f-461f-a9e8-205f284ec4a7\subagents\agent-adc5725618cac56d5.jsonl` | 93 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0e252bed-529f-461f-a9e8-205f284ec4a7\subagents\agent-ae33fc67baf10d04d.jsonl` | 206 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0e252bed-529f-461f-a9e8-205f284ec4a7.jsonl` | 2303 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\0f06d2c4-4554-45e9-89ef-2b8cb067954e.jsonl` | 49 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1075384a-084a-4b3b-bc59-b86239d994ca.jsonl` | 12 | 0 | 0.00 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\11457f47-1005-4a09-8a53-7c1a6bebcc81.jsonl` | 494 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\156963dc-a5cb-43bd-87e4-307e9660657a.jsonl` | 10 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1620c77b-78b8-46ee-af42-193002c9b00e.jsonl` | 66 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\166498e6-38ba-4be5-a5d4-c936a1eeca72\subagents\agent-a15853990a80465a0.jsonl` | 62 | 0 | 0.00 |
@@ -2258,6 +2362,8 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\166498e6-38ba-4be5-a5d4-c936a1eeca72\subagents\agent-ada683bedf1a0057b.jsonl` | 59 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\166498e6-38ba-4be5-a5d4-c936a1eeca72\subagents\agent-ade3afa34353a759f.jsonl` | 85 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\166498e6-38ba-4be5-a5d4-c936a1eeca72.jsonl` | 797 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\16f132bc-1191-440e-9e89-177b8822491d.jsonl` | 76 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\179f0719-c234-4393-8479-53805a9f609f.jsonl` | 69 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\17a5951c-e38c-4a59-8752-8d4bdbd107b2\subagents\agent-a1b988e3ac5e58072.jsonl` | 9 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\17a5951c-e38c-4a59-8752-8d4bdbd107b2\subagents\agent-a505c11a8561c0bc9.jsonl` | 9 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\17a5951c-e38c-4a59-8752-8d4bdbd107b2\subagents\agent-a7b22eeefba417947.jsonl` | 9 | 0 | 0.00 |
@@ -2285,25 +2391,44 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1c33b140-7627-455e-81fc-1bfd9954acf5\subagents\agent-ab183e06e8e51bcde.jsonl` | 34 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1c33b140-7627-455e-81fc-1bfd9954acf5\subagents\agent-af90148fcb87630d5.jsonl` | 108 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1c33b140-7627-455e-81fc-1bfd9954acf5.jsonl` | 417 | 0 | 0.00 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a045ee8cadd5a1dfc.jsonl` | 154 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\1eeef224-8021-4b38-9c96-c8af8dea9c6e.jsonl` | 79 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a045ee8cadd5a1dfc.jsonl` | 168 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a0654e7e799bef1ff.jsonl` | 16 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a0f42d904949358ba.jsonl` | 16 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a1d2e2be09cb5c116.jsonl` | 265 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a257b565b4464af86.jsonl` | 30 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a367c04e0b078298c.jsonl` | 93 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a3fe11655bab70671.jsonl` | 79 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a49bf6f9a9a13ed90.jsonl` | 16 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a502dda5101851221.jsonl` | 16 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a50c778a9856dc1c8.jsonl` | 147 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a5ad0ec862b616671.jsonl` | 134 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a5c813f4bbde68044.jsonl` | 180 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a5ff8eecc71121c34.jsonl` | 82 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a61fdb3d229be2137.jsonl` | 64 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a61fff92967a42868.jsonl` | 172 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a6215d6704fd1c289.jsonl` | 27 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a647a140e0fcb685c.jsonl` | 72 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a670857a89afad169.jsonl` | 176 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a6f6da6f608627ce7.jsonl` | 16 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a8fc257f85f4ca9bd.jsonl` | 51 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-a9aaf4cc6db7781f1.jsonl` | 52 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aa2212bbb397c33ee.jsonl` | 71 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aa27bd3874e568f19.jsonl` | 109 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aa2c149e72c426f20.jsonl` | 8 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aa641db47c050e41f.jsonl` | 92 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aa86882813685a1b8.jsonl` | 73 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-abb1020afb636d52c.jsonl` | 61 | 0 | 0.00 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-abdea5f7c087da215.jsonl` | 120 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-abdea5f7c087da215.jsonl` | 135 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-ac85e034c92e845fc.jsonl` | 73 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-ad04adaf9112442cc.jsonl` | 89 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-addb1662b3119bdb4.jsonl` | 107 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-ae6c9c8a568b0c643.jsonl` | 16 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-aedf834f1769ab5cc.jsonl` | 110 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-afa0318a6562ddf0c.jsonl` | 102 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb\subagents\agent-afba4f3f88d117396.jsonl` | 121 | 0 | 0.00 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb.jsonl` | 574 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\226b4ded-a89f-43e9-b6cb-8fc2eeeec6bb.jsonl` | 1616 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\22ea9d7e-3d16-4b75-8cdf-5825ac2ec2ee.jsonl` | 42 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5\subagents\agent-a0068a71287daaae1.jsonl` | 214 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5\subagents\agent-a2146a34120aed1de.jsonl` | 61 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5\subagents\agent-a36853ea8075cafea.jsonl` | 6 | 0 | 0.00 |
@@ -2312,6 +2437,7 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5\subagents\agent-aebb97008c6c1dd6e.jsonl` | 6 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5\subagents\agent-af4d14a49e518dead.jsonl` | 298 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\232a9744-7431-44e2-8d46-62509e861ef5.jsonl` | 1027 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\24059a6e-40ce-43f9-8a9e-c4b987669658.jsonl` | 90 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\2478fc31-8a67-41ed-964a-b235def5ab75.jsonl` | 59 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\25854ba4-a0ff-4e51-9cf8-3f937aae8e6c\subagents\agent-a0cf42e7853fbce2d.jsonl` | 45 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\25854ba4-a0ff-4e51-9cf8-3f937aae8e6c.jsonl` | 32 | 0 | 0.00 |
@@ -2346,6 +2472,8 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\31bd5bf4-f2ad-42dd-adc3-37da65bc4896.jsonl` | 119 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\3212a4b2-e19c-47d7-a5b3-cdaf5a3187a2.jsonl` | 191 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\32dcba96-1a00-40b5-a757-c077ec988072.jsonl` | 527 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\345dad31-ab27-4c28-8fbc-f6dff930b558.jsonl` | 152 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\3569696e-c031-4c21-b936-e0b78e5dab66.jsonl` | 57 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\35da1969-3c13-4250-9017-55cf27560716\subagents\agent-a09dc2c88b3d9e64e.jsonl` | 86 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\35da1969-3c13-4250-9017-55cf27560716\subagents\agent-a12b36a15319b3572.jsonl` | 173 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\35da1969-3c13-4250-9017-55cf27560716\subagents\agent-a16f90e064390d2d1.jsonl` | 118 | 0 | 0.00 |
@@ -2465,6 +2593,8 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\473b8552-72d6-45f4-b80d-1d6ede941418\subagents\agent-af5597e5e29fcc0b4.jsonl` | 14 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\473b8552-72d6-45f4-b80d-1d6ede941418\subagents\agent-af6cd6eff5981e353.jsonl` | 76 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\473b8552-72d6-45f4-b80d-1d6ede941418.jsonl` | 1152 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\477c34e0-055d-4cd1-99c0-fd4c320790e1.jsonl` | 67 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\484e5b09-8ed9-43d5-8682-46ba613489b0.jsonl` | 105 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4960c433-5ddb-4fc0-8cac-32fa37e1cae8\subagents\agent-a314bed6ba1a7befc.jsonl` | 150 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4960c433-5ddb-4fc0-8cac-32fa37e1cae8\subagents\agent-a3a6d0f4d70809a89.jsonl` | 74 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4960c433-5ddb-4fc0-8cac-32fa37e1cae8\subagents\agent-a4168a11657b4ba55.jsonl` | 69 | 0 | 0.00 |
@@ -2475,6 +2605,7 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4960c433-5ddb-4fc0-8cac-32fa37e1cae8\subagents\agent-ab60efa9b88805a84.jsonl` | 92 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4960c433-5ddb-4fc0-8cac-32fa37e1cae8.jsonl` | 1039 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4993b206-b896-475a-b584-622a0155cdda.jsonl` | 154 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4c08380f-e3c2-472b-9f8c-cc8e15d266c3.jsonl` | 69 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4c44dc72-1866-43ac-af6c-f6b27e7259a2.jsonl` | 11 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4ca6bc20-f2e4-414e-9890-33eecec6819f\subagents\agent-a1bc7223b51dfcf89.jsonl` | 185 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\4ca6bc20-f2e4-414e-9890-33eecec6819f\subagents\agent-a1cbcb2206b783f69.jsonl` | 182 | 0 | 0.00 |
@@ -2648,7 +2779,6 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5a38debb-73c7-44fb-ad8b-384311f9031e.jsonl` | 2179 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5aeafcd6-d89b-475c-8ca9-32ab5f359200.jsonl` | 342 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5b20f063-c4e0-479a-b279-d2c3beed0c8f.jsonl` | 103 | 0 | 0.00 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5f6523f7-b17c-4591-8499-57c5080b5e03.jsonl` | 2 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5f8b7add-df80-41c2-bd9f-2f62100e1af6\subagents\agent-abe90028406f28023.jsonl` | 34 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\5f8b7add-df80-41c2-bd9f-2f62100e1af6.jsonl` | 128 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\606439e6-15fb-42b2-b6d4-d5f42dc84d65\subagents\agent-a74892cb667763c27.jsonl` | 34 | 0 | 0.00 |
@@ -2683,8 +2813,10 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\60c61b08-5a2c-4a80-beca-2b7b1016273d.jsonl` | 135 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\61561436-b8ce-47cd-9812-724573010a44.jsonl` | 178 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\616ac55a-84a9-49b8-929c-3861feb5299c.jsonl` | 147 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\627b9fa1-a357-4906-8609-ce9a84043bbc.jsonl` | 69 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\62e0fd71-a375-451c-8be6-032c14e2086c.jsonl` | 57 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\636f940b-f095-4d0d-907a-519c4bf0f5e4.jsonl` | 16 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\6a3db8c7-00b3-4f83-a8b9-5008b2b74cb7.jsonl` | 66 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\6a7abbfb-835b-4ddf-ac37-db39afb09c21.jsonl` | 41 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\6c6f4b6c-37dc-404f-aa5c-a58b4bbd1f6c.jsonl` | 1000 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\6d18bd3b-3bf3-49e3-aaf2-e963aae0b778\subagents\agent-a0eb493187b43ce8b.jsonl` | 135 | 0 | 0.00 |
@@ -2742,6 +2874,8 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\70f478ef-0c80-4c64-86a0-5190e36ea6ef.jsonl` | 1233 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\738bc4e4-46ee-4edf-860a-89ebd6068323\subagents\agent-a8995af6a1a494dc4.jsonl` | 126 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\738bc4e4-46ee-4edf-860a-89ebd6068323.jsonl` | 885 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\77c0040a-084c-40e7-99b1-3dcf21c7e256.jsonl` | 42 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\7814305b-a5d9-4504-8092-6e4f141846a1.jsonl` | 61 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\783415c4-f843-4165-8c55-091b3bf58832.jsonl` | 67 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\79752799-92c2-4e2a-9953-cc2ecd5df279.jsonl` | 148 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\79acb873-7f61-493a-a562-51d0d2568565.jsonl` | 181 | 0 | 0.00 |
@@ -2762,8 +2896,9 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8ca10da7-2a30-411b-bd2c-d034b19909ea.jsonl` | 12 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8ca16c5b-5fe6-4b61-84f4-65b2b638028a.jsonl` | 146 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8ce1babf-f8f8-45a7-a89c-633d68abf348.jsonl` | 213 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8d65f337-ce9e-40e4-85ae-a42009821746.jsonl` | 39 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8e933fea-3a5d-4184-9718-e0ba34eb827c.jsonl` | 43 | 0 | 0.00 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\901c6914-c6e0-4c30-84a7-dd79465bf974.jsonl` | 709 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8efc7d4f-4cd9-4f23-8b6c-b17012b0d22f.jsonl` | 103 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\90de3032-5a0c-405b-9a4c-9c732f922a15.jsonl` | 11 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\910542fa-0488-47c2-a660-014bafe5520b.jsonl` | 172 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\91ca5605-a190-462b-bdba-4b48f21b73c2.jsonl` | 167 | 0 | 0.00 |
@@ -2790,10 +2925,11 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\96968ed6-4212-4f68-9d98-03a2ece97714.jsonl` | 12 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9a5dff15-b6eb-4457-9677-e25098a4124a\subagents\agent-a624daba995e11cba.jsonl` | 196 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9a5dff15-b6eb-4457-9677-e25098a4124a.jsonl` | 797 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9ac75a4c-f9e6-4a54-8f01-a2d2c7b1ccb7.jsonl` | 44 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9bb8bf32-081c-425d-b505-2c6b54d2aeef.jsonl` | 110 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9d60c74e-b727-43a1-85d4-1f798abcd6df.jsonl` | 2080 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9e815f76-7acd-45f0-97fb-f01a4fba36d5.jsonl` | 12 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9ec49b6e-98e4-4ad1-9ca7-4af221b6e73b.jsonl` | 194 | 0 | 0.00 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\9f596c98-2dbf-4d75-81d2-e86b57d36ba4.jsonl` | 2 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a0239956-6003-461d-a672-22a25bb4c4c7\subagents\agent-a44500176da02281b.jsonl` | 102 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a0239956-6003-461d-a672-22a25bb4c4c7\subagents\agent-a4b68fde3b9896241.jsonl` | 85 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a0239956-6003-461d-a672-22a25bb4c4c7\subagents\agent-a66811a1f666d2875.jsonl` | 31 | 0 | 0.00 |
@@ -2817,7 +2953,9 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a4ba8516-4c2c-49b0-96c0-9bcbdecc360b.jsonl` | 188 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a548c7bf-a76c-47f8-8707-00ab58cbf56b.jsonl` | 42 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a6cfacea-eeec-48c7-a10b-028eb8b1e162.jsonl` | 149 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a9325771-3427-4846-b4ae-da7e2ea9fe45.jsonl` | 74 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\a9c0b247-0a46-46fb-bc6b-852f4332bbe8.jsonl` | 18 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\aa1e90af-5209-472c-8314-b60544e1fb11.jsonl` | 54 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ab25f1c3-f473-4c0f-ab2f-96c88d87b696\subagents\agent-a0d4b3073d3ef98ab.jsonl` | 122 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ab25f1c3-f473-4c0f-ab2f-96c88d87b696\subagents\agent-a17c26298a650bf70.jsonl` | 134 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ab25f1c3-f473-4c0f-ab2f-96c88d87b696\subagents\agent-a1cc2927784819701.jsonl` | 151 | 0 | 0.00 |
@@ -2901,16 +3039,20 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\b7e7739c-1256-49a7-949e-83eea3d5616b\subagents\agent-afbdabf0c660c189b.jsonl` | 65 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\b7e7739c-1256-49a7-949e-83eea3d5616b.jsonl` | 148 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\b93256c8-c54f-4ee2-9f76-4619ed263c0d.jsonl` | 1533 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ba1ab14d-b9a6-41d1-9619-af19fb8da874.jsonl` | 27 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\bea3da0e-38a7-4f17-8b33-7f82c7254d33.jsonl` | 38 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\beff28cb-3d87-405d-9f2f-6f7cbb1fde6a.jsonl` | 541 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\bfa576df-74b0-4141-978e-63b39b148063.jsonl` | 10 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c026f192-ee5c-48ac-8c66-38cf885e3579.jsonl` | 68 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c02a01c1-680b-4363-a27d-defb8f01f032.jsonl` | 836 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c0555ec3-0b80-4e60-83f5-a321a3328994.jsonl` | 907 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c0edb363-fc34-44c6-89d3-4ecced3cfa71.jsonl` | 38 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c2540d4d-c723-4a21-94f1-b2fc6dd3a3c5.jsonl` | 58 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c2a22cc1-f3a2-4e0d-906c-bf11c557e3bb.jsonl` | 176 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c2e10cc2-8d7b-4ceb-b701-2aa9b603b5fa\subagents\agent-a21b587afe4973f35.jsonl` | 80 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c2e10cc2-8d7b-4ceb-b701-2aa9b603b5fa\subagents\agent-ac4f1ce2fc6b31d29.jsonl` | 134 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c2e10cc2-8d7b-4ceb-b701-2aa9b603b5fa.jsonl` | 1243 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c302e06e-66dc-41d2-803d-1ebc48147858.jsonl` | 46 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c7f163e9-596c-4a6e-9c20-cb30a9b84295.jsonl` | 125 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\c8403fbf-96bb-42bb-ac0b-b60d4c7f3ee1.jsonl` | 159 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\cb33bdee-5f73-4d22-8108-e2962dfe32cb.jsonl` | 134 | 0 | 0.00 |
@@ -2929,6 +3071,7 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d5ff3277-87cf-46dd-883b-1d536516265d.jsonl` | 50 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d620d22c-8d98-4269-bb82-e1a39aae7e5c.jsonl` | 160 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d67a5301-59c5-42ab-8ad3-034dd71141a1.jsonl` | 40 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d6dd405a-9054-44ec-8f6f-6aba622275c9.jsonl` | 56 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d725b28b-ae2b-4cdc-8424-8d23de730abe.jsonl` | 187 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d7ff3bfb-4df2-4111-8d91-c247205c4c97.jsonl` | 169 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\d9861e74-afbf-4448-8d54-bfd60459c544.jsonl` | 17 | 0 | 0.00 |
@@ -2936,7 +3079,7 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\dc892433-1bad-468b-9632-4a608ce9be0a.jsonl` | 190 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\de48cc5b-bdc9-493e-9062-20dc89eb0292.jsonl` | 13 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\df5fdec9-5322-418d-bb35-144a4bbb99e8.jsonl` | 54 | 0 | 0.00 |
-| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\dff60c54-b3d3-4ad1-b88c-296019dcbf4f.jsonl` | 1678 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\df7757cb-cc16-480a-8582-a55405e51214.jsonl` | 59 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\e04b507a-53a9-470a-9ea6-4507042ccb42.jsonl` | 295 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\e05700ec-934d-42b0-a368-dab3054956f7.jsonl` | 499 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\e3401daf-cc1b-4a67-b5fd-749e101254b1\subagents\agent-a60b62b2e930622db.jsonl` | 43 | 0 | 0.00 |
@@ -2950,6 +3093,7 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\e6adc09e-6b4b-4491-99a8-df6ab377bc7a.jsonl` | 222 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\e6ebbf26-b026-4bce-8afe-5320fb7d4861.jsonl` | 47 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\eb289133-a2de-44cb-aa3a-3b1fb64666fd.jsonl` | 33 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ec29952f-43c5-4f4d-87be-25765a26c9ff.jsonl` | 103 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ec6ecc0c-2979-4140-8825-40d9fce694bf.jsonl` | 811 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\ee9af040-d077-4d0d-b4d3-0ce2de319462.jsonl` | 293 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\f13ed528-a022-4c9d-88c5-e1541c0349a2.jsonl` | 102 | 0 | 0.00 |
@@ -2959,7 +3103,9 @@ Sources `.jsonl` dont le ratio evenements/lignes est < 1 (des lignes ignorees) :
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\f60d9ea1-3b1a-49ce-85ea-6e2a50cd3e8d.jsonl` | 274 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\f6d3708b-a1dd-4ae4-86ac-2d24a749ae54\subagents\agent-acae3ab28cc3370bf.jsonl` | 6 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\f6d3708b-a1dd-4ae4-86ac-2d24a749ae54.jsonl` | 766 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\f9087242-b386-4fd9-bb08-2e4da5aac2ec.jsonl` | 81 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\fc0f2f3f-e328-4aa5-9a72-40be4d6bd55f.jsonl` | 48 | 0 | 0.00 |
+| `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\fc5f6feb-5e12-4e7d-a8da-cae4953ea77a.jsonl` | 176 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\fdaa4771-bc9a-4d6c-b622-be0609124c95.jsonl` | 12 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\fdff4655-cc37-4650-9b29-3ba9ccce3b19\subagents\agent-a491ede730b779adb.jsonl` | 28 | 0 | 0.00 |
 | `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\fdff4655-cc37-4650-9b29-3ba9ccce3b19\subagents\agent-a4e9f7eef6ca527ad.jsonl` | 25 | 0 | 0.00 |

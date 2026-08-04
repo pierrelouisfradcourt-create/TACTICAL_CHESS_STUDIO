@@ -111,6 +111,12 @@ models:
     reasoning: false
     roles:
       - redteam_reviewer    # étape 6 — red-team du plan (archi + wiremap)
+      - repair_runtime      # réparation ciblée d'un défaut DÉJÀ identifié par un oracle
+                            # amont. Accepté SOUS CONDITION par Pierre le 2026-08-04 :
+                            # ni production_ready, ni garantie de qualité. Ce rôle
+                            # DÉCLARE du code qui tournait déjà (run_real.py:1164) hors
+                            # de tout registre — voir `runtime_contracts` en fin de
+                            # fichier pour son contrat d'entrée/sortie.
 
   # Étapes déterministes (oracles + verdict) : PAS de LLM. Runtime sentinelle non-llm.
   - id: deterministic/non-llm
@@ -119,3 +125,103 @@ models:
     reasoning: false
     roles:
       - deterministic       # étapes 10a/10b/10c (oracles) + 12 (verdict signé)
+
+# ===================================================================================
+# CONTRATS DE RUNTIME
+# ===================================================================================
+# `models` ci-dessus répond à « QUI exécute ce rôle ». Cette section répond à « QUOI,
+# avec quelles entrées, quelles sorties et quelles limites ». Les deux sont séparées
+# parce qu'un rôle peut changer de modèle sans changer de contrat, et l'inverse.
+#
+# Lecture : informative pour `control_plane/registry.py` (il ne lit que `models`), mais
+# NORMATIVE pour la Forge — `repair_runtime_adapter.mjs` refuse toute requête qui ne
+# porte pas exactement les entrées listées ici.
+#
+# Un seul rôle y figure aujourd'hui, à dessein : on déclare ce qu'on a mesuré, pas ce
+# qu'on aimerait avoir.
+
+runtime_contracts:
+
+  repair_runtime:
+    mission: >-
+      Réparer un défaut DÉJÀ IDENTIFIÉ par un oracle amont, et rien d'autre. Ne découvre
+      pas les défauts, ne modifie pas les métriques, ne modifie pas les règles
+      d'acceptation, ne supprime pas un finding, n'écrit pas hors des champs autorisés.
+    # Chaîne d'exécution RÉELLE — aucune abstraction. Chacun de ces fichiers existe et
+    # tournait déjà avant cette déclaration.
+    implementation:
+      called_by:  scripts/forge/run_real.py:1164 (run_repair_step, 5 étapes amont)
+      adapter:    scripts/forge/repair_runtime_adapter.mjs
+      entrypoint: scripts/forge/repair_step.mjs
+      logic:      scripts/forge/repair_loop.mjs
+      model:      lmstudio/qwen2.5-14b-instruct
+      temperature: 0
+      max_tokens: 400        # valeur RÉELLE du code (repair_step.mjs:93)
+      kill_switch: FORGE_REPAIR=0
+    # `request_file` : le callable lit un JSON portant les entrées NOMMÉES ci-dessous.
+    invocation: request_file
+    inputs:  [finding_id, root_problem_id, artifact_ref, evidence_ref, allowed_fields, forbidden_fields]
+    outputs: [before, after, patch, oracle_before, oracle_after, evidence_created, mutation_used]
+    constraints:
+      oracle_unchanged:  l'oracle est rejoué par l'appelant, jamais fourni par le runtime
+      metrics_unchanged: aucune écriture dans capabilities.json, mutation_registry.json,
+                         root_problems.json, le ledger ou memory/
+      scope_limited:     toute écriture hors `allowed_fields` annule la réparation entière
+                         et restaure l'artefact
+      no_verdict:        capteur, pas juge — le runtime ne fixe jamais ok/fail
+    # LIMITES DÉCLARÉES — elles font partie du contrat, pas d'une note de bas de page.
+    limits:
+      quality_not_proven: true
+      production_ready: false
+      why: >-
+        L'oracle valide la FERMETURE DU DÉFAUT MESURÉ. Il ne valide ni la qualité
+        rédactionnelle, ni la valeur gameplay, ni l'expérience joueur. Mesuré : une
+        réparation acceptée par l'oracle a écrit « J'ai apprécié de jouer à Cookie
+        Clicker » dans un champ censé expliquer la rétention. « oracle OK » ne se lit
+        jamais « qualité OK ».
+      cost: 70 à 151 tokens de complétion mesurés sur 3 exécutions versionnées
+      evidence: lab/forge_evidence/REPAIR_RUNTIME_V1/ · lab/forge_evidence/REPAIR-LOOP-V1/
+      accepted_by: Pierre (HumanGate) le 2026-08-04 — SOUS CONDITION
+
+  # DÉCLARATION DE L'EXISTANT, 2026-08-04. Ce runtime tourne depuis toujours (oracles
+  # 10a/10b/10c, verdict signé, et depuis peu les deux détecteurs de qualité). Il
+  # n'avait simplement pas de contrat — comme 15 des 16 rôles. Rien de nouveau ici :
+  # aucune ligne de code n'a changé, on écrit ce que le code fait déjà.
+  deterministic:
+    mission: >-
+      Mesurer un artefact et rendre des compteurs. Aucun modèle n'intervient : même
+      entrée, même sortie, toujours. Ne génère rien, ne répare rien, ne décide d'aucun
+      verdict d'étape — il produit la mesure sur laquelle un verdict s'appuie.
+    implementation:
+      entrypoints:
+        - scripts/forge/oracle_quality.mjs        # signaux DISCRIMINANCE · LANGUE · RECOPIE
+        - scripts/forge/cross_field_quality.mjs   # déplacements inter-champs
+        - scripts/forge/check_worldscan.mjs       # + les 5 autres check_*.mjs
+      invoked_from:
+        - scripts/forge/repair_step.mjs (phaseQualite)   # embarqué
+        - CLI directe (node <entrypoint> <artefact.json>)  # autonome
+      model: aucun
+      provider: forge
+    # `positional_artifact` : le callable reçoit le CHEMIN de l'artefact en argument
+    # positionnel — pas d'enveloppe JSON. Convention réelle des CLI d'oracle
+    # (`node oracle_quality.mjs <artefact.json> [--json]`), déclarée le 2026-08-04.
+    invocation: positional_artifact
+    inputs:  [artifact_ref]
+    # Noms RÉELS des clés rendues par `mesurerSignalSemantique` (oracle_quality.mjs:247).
+    # Corrigé le 2026-08-04 : le contrat déclarait « compteurs », le code rend « compte ».
+    # Un contrat qui invente le nom de sa propre sortie ne peut vérifier personne.
+    outputs: [verdict, signaux, compte]
+    constraints:
+      no_model:      aucun appel de complétion, aucun réseau
+      no_write:      ne modifie jamais l'artefact mesuré
+      no_verdict:    advisory — la mesure ne fait basculer aucun verdict d'étape
+      deterministic: deux exécutions sur la même entrée rendent la même sortie
+    limits:
+      quality_not_proven: false   # ces capacités MESURENT la qualité, elles ne l'écrivent pas
+      production_ready: false
+      why: >-
+        La détection est mesurée sur des défauts INJECTÉS, donc connus d'avance
+        (detection_rate 1,0 · false_positive_rate 0 · n=12 et n=10). Un défaut d'un type
+        non injecté reste invisible : la mesure borne ce qu'on a testé, pas ce qui existe.
+      evidence: lab/forge_evidence/CAPABILITY_MEASUREMENT_V1/
+      declared_by: déclaration de l'existant — aucun runtime ajouté

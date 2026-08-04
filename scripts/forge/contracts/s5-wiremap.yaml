@@ -47,16 +47,28 @@ success_criteria: >-
   WireMap isomorphe au blueprint ; 7 colonnes remplies (section, feature,
   fichiers, fonction, version, preuve, statut) ; chaque feature de la featuremap présente.
 tests_oracles: >-
-  Oracle WIREMAP (étape 10c, AST) vérifie l'isomorphisme WireMap↔code —
-  déterministe, non-LLM. Jamais de LLM-as-judge.
+  DEUX ORACLES, DEUX MOMENTS — ne pas les confondre.
+  AVANT build (ici) : `node scripts/forge/check_wiremap_contract.mjs
+  <run_dir>/wiremap.json --featuremap <run_dir>/featuremap.json` répond « la carte
+  couvre-t-elle le plan ? » (toute capacité portée par ≥1 ligne, aucun `couvre`
+  fantôme).
+  APRÈS build (étape s10c) : `forge.static_oracles.check_wiremap` répond « la carte
+  correspond-elle au code ? » (fichiers existants, fonctions définies). En amont
+  aucun fichier n'est écrit : ce n'est pas ton oracle.
+  Les règles d'ÉTAT de ligne restent à `forge.standard_oracles.check_line_states`,
+  le placement à `check_placement`. Jamais de LLM-as-judge.
 final_report: >-
-  Restitution standard : cite l'oracle wiremap comme ancre ; claim_verdict:
-  NO_CLAIM_ALLOWED.
+  Restitution standard : cite le reçu de check_wiremap_contract ; liste les
+  capacités non couvertes ; claim_verdict: NO_CLAIM_ALLOWED.
 
 # --- 8. Restitution (Critique) ---
 output_contract: >-
   wiremap : {section=module, features[{feature, fichiers[], fonction, version,
-  preuve, statut}]}.
+  preuve, statut}]} — ou le schéma v2 {systems[], lines[]} (standard/SCHEMA.md §3).
+  DANS LES DEUX CAS, chaque ligne porte en plus `couvre: ["<id de capacité>"]`,
+  NON VIDE, citant l'`id` EXACT d'une capacité (feuille) de featuremap.json. Sans
+  ce champ, le delta attendu-vs-réel n'est calculable par personne : une carte qui
+  ne dit pas ce qu'elle réalise ne se confronte à aucun plan.
 
 # --- 9. Capacités (Important — `aucun` autorisé, jamais absent) ---
 skill: aucun

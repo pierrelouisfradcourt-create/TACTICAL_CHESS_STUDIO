@@ -193,7 +193,12 @@ def test_executor_autres_etapes_ne_recoivent_jamais_findings(tmp_path, monkeypat
 
     monkeypatch.setattr(run_real, "_claude_call_raw", fake_call_raw)
     ex = run_real.claude_executor(add_dir=tmp_path, task_by_step={})
-    res = ex(FakePayload("s1-prisme"), None, _context(tmp_path / "run"))
+    # `s6-redteam-plan` plutôt que `s1-prisme` : l'étape est un DÉCOR (n'importe
+    # laquelle sauf s11), et depuis le 2026-08-04 s1-prisme matérialise prisme.json —
+    # la sortie factice, de forme red-team, y échouerait à la matérialisation et ce
+    # test échouerait pour une raison étrangère à ce qu'il vérifie. Le décor choisi
+    # est même plus probant : une étape red-team ADJACENTE ne reçoit pas de findings.
+    res = ex(FakePayload("s6-redteam-plan"), None, _context(tmp_path / "run"))
     assert res["ok"] is True
     assert "findings" not in res
 

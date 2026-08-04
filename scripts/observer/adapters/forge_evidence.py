@@ -7,6 +7,8 @@ qui sont **partages entre tous les projets du studio** :
     lab/forge_evidence/dispatch_audit.jsonl
     lab/forge_evidence/dispatch_dryrun*.jsonl
     lab/forge_evidence/forge_telemetry.jsonl
+    lab/forge_evidence/repair_results.jsonl
+    lab/forge_evidence/runtime_drift.jsonl
     lab/forge_evidence/forge_builder_runs.jsonl
     lab/reports/error_journal/*.jsonl
     (+ historique git de games/<projet> et lab/forge_runs/<projet>)
@@ -66,6 +68,8 @@ def collect(ctx: ObserverContext) -> list[Event]:
         events.extend(_collect_dispatch(ctx, path))
 
     events.extend(_collect_telemetry(ctx))
+    events.extend(_collect_repair_results(ctx))
+    events.extend(_collect_runtime_drift(ctx))
     events.extend(_collect_builder_runs(ctx))
     events.extend(_collect_error_journal(ctx))
     events.extend(_collect_git_commits(ctx))
@@ -214,6 +218,138 @@ def _collect_telemetry(ctx: ObserverContext) -> list[Event]:
                 attempt_field=attempt_field,
                 actor=Actor(kind=_actor_kind_for_model(model), model=model),
                 payload=payload,
+            )
+        )
+    return events
+
+
+# --------------------------------------------------------------------------- #
+# repair_results.jsonl — runtime `repair_runtime`
+# --------------------------------------------------------------------------- #
+
+
+def _collect_repair_results(ctx: ObserverContext) -> list[Event]:
+    """Reconstruit les evenements `repair.result` du runtime de reparation ciblee.
+
+    Ecrit par `forge.repair_dispatch.record()` juste apres l'execution reelle de
+    `repair_step.mjs`. MECHANICAL et non SIGNED : la ligne n'est pas signee (le recu
+    signe correspondant est le `spawn_executed` de `dispatch_audit.jsonl`, deja
+    collecte par `_collect_dispatch`). Elle porte en revanche des EMPREINTES de
+    l'artefact avant/apres, donc elle est verifiable a la main.
+
+    Aucune note globale n'est calculee ici, et aucune n'est lisible dans la source :
+    la trace dit ce qui a ete autorise, ce qui a ete ecrit, et ce que l'oracle a dit.
+    """
+    events: list[Event] = []
+    path = ctx.evidence_dir / "repair_results.jsonl"
+    for lineno, obj in ctx.read_jsonl(path):
+        run_id = obj.get("run_id")
+        if not _belongs_to_project(ctx, run_id):
+            continue
+
+        ts, ts_raw, ts_format = normalize_ts(obj.get("ts"))
+        model = obj.get("model_id") or None
+
+        payload = _drop_none(
+            {
+                "runtime_id": obj.get("runtime_id"),
+                "capability_id": obj.get("capability_id"),
+                "root_problem_id": obj.get("root_problem_id"),
+                "mutation_id": obj.get("mutation_id"),
+                "entrypoint": obj.get("entrypoint"),
+                "input_hash": obj.get("input_hash"),
+                "output_hash": obj.get("output_hash"),
+                "allowed_fields": obj.get("allowed_fields"),
+                "written_fields": obj.get("written_fields"),
+                "oracle": obj.get("oracle"),
+                "oracle_before": obj.get("oracle_before"),
+                "oracle_after": obj.get("oracle_after"),
+                "problems_before": obj.get("problems_before"),
+                "problems_after": obj.get("problems_after"),
+                "regression_count": obj.get("regression_count"),
+                "completion_tokens": obj.get("completion_tokens"),
+                "status": obj.get("status"),
+                "evidence_ref": obj.get("evidence_ref"),
+                "quality_not_proven": obj.get("quality_not_proven"),
+                "is_dryrun": _is_dryrun(run_id),
+            }
+        )
+
+        events.append(
+            Event(
+                kind="repair.result",
+                source=Source(path=ctx.rel(path), fmt="jsonl", line=lineno),
+                proof=PROOF_MECHANICAL,
+                link=LINK_DIRECT,
+                ts=ts,
+                ts_raw=ts_raw,
+                ts_format=ts_format,
+                run_id=run_id,
+                project=ctx.project,
+                etape=obj.get("etape"),
+                actor=Actor(
+                    kind=_actor_kind_for_model(model),
+                    model=model,
+                    capability_role=obj.get("runtime_id"),
+                ),
+                payload=payload,
+            )
+        )
+    return events
+
+
+# --------------------------------------------------------------------------- #
+# runtime_drift.jsonl — ecart declare / observe / code
+# --------------------------------------------------------------------------- #
+
+
+def _collect_runtime_drift(ctx: ObserverContext) -> list[Event]:
+    """Reconstruit les evenements `drift.detected` du Runtime Inventory Oracle.
+
+    Ecrit par `forge.runtime_inventory_oracle.emit_drift()` — comparaison mecanique de
+    trois sources de fichiers, d'ou PROOF_MECHANICAL.
+
+    PAS DE FILTRE PROJET : une derive de declaration est REPO-WIDE (roles.yaml est
+    partage). Filtrer sur `ctx.project` la ferait disparaitre de tous les rapports, ce
+    qui est exactement l'inverse du but. Le `run_id` reste None : cette derive
+    n'appartient a aucun run.
+
+    Les trois cas restent SEPARES par `drift_kind` et `severity` — jamais agreges, et
+    jamais de note globale : un role rare n'est pas un role mort.
+    """
+    events: list[Event] = []
+    path = ctx.evidence_dir / "runtime_drift.jsonl"
+    for lineno, obj in ctx.read_jsonl(path):
+        ts, ts_raw, ts_format = normalize_ts(obj.get("ts"))
+        detail = obj.get("detail") or {}
+        payload = _drop_none(
+            {
+                "drift_kind": obj.get("drift_kind"),
+                "severity": obj.get("severity"),
+                "subject": obj.get("subject"),
+                "observation_window": obj.get("observation_window"),
+                "status": detail.get("status"),
+                "declared_at": detail.get("declared_at"),
+                "events_total": detail.get("events_total"),
+                "imported_by": detail.get("imported_by"),
+                "level": detail.get("level"),
+                "requires_observation_window": obj.get("observation_window") is not None,
+            }
+        )
+        events.append(
+            Event(
+                kind="drift.detected",
+                source=Source(path=ctx.rel(path), fmt="jsonl", line=lineno),
+                proof=PROOF_MECHANICAL,
+                link=LINK_NONE,
+                ts=ts,
+                ts_raw=ts_raw,
+                ts_format=ts_format,
+                run_id=None,
+                project=ctx.project,
+                actor=Actor(kind="non_llm", capability_role=detail.get("capability_role")),
+                payload=payload,
+                note="derive repo-wide : n'appartient a aucun run",
             )
         )
     return events
