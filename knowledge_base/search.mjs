@@ -31,6 +31,15 @@ const DEFAULT_MIN_SCORE = 1;
 // lab/events.jsonl (cf. .gitignore racine), PAS une preuve à committer.
 const DEFAULT_SEARCH_LOG_PATH = resolve(__dirname, 'search_log.jsonl');
 
+/** Valeur d'un `caller` non déclaré. C'est une VALEUR, pas une absence : le journal
+ *  doit pouvoir dire « personne ne s'est nommé » sans qu'on ait à le deviner. */
+export const CALLER_UNDECLARED = 'undeclared';
+
+/** Liste FERMÉE des appelants (SEARCH_USAGE_CONTRACT_V1). Une valeur hors liste
+ *  retombe sur `undeclared` — jamais enregistrée telle quelle, sinon la liste ne
+ *  ferme rien. */
+export const CALLERS = new Set(['preflight', 's9-build', 'cli', 'test', CALLER_UNDECLARED]);
+
 // Mots vides FR/EN courts — retirés de la requête pour éviter les faux matches triviaux
 // ("de", "un", "qui"...) qui gonfleraient le score sans rien dire de l'intention.
 const STOPWORDS = new Set([
@@ -273,10 +282,39 @@ export function findFulfilling(roleId, catalog) {
  * @param {string} [logPath]
  * @returns {void}
  */
-export function logSearchInvocation(query, matchCount, logPath = DEFAULT_SEARCH_LOG_PATH) {
+export function logSearchInvocation(query, resultats, options = {}) {
   try {
+    // `options` accepte encore une CHAÎNE (l'ancien 3e argument `logPath`) : 29 entrées
+    // du journal ont été écrites avec cette signature, et un appelant oublié ne doit
+    // pas cesser de journaliser en silence.
+    const opts = typeof options === 'string' ? { logPath: options } : options;
+    const logPath = opts.logPath || DEFAULT_SEARCH_LOG_PATH;
+
+    // matchCount seul (legacy) OU la liste des résultats. Enregistrer les IDENTITÉS
+    // est ce qui rend la consommation vérifiable plus tard : sans elles, « telle brique
+    // a été réutilisée » ne peut pas être rapproché de « telle brique avait été
+    // proposée ». Aucun score n'est enregistré — l'ordre est celui que `search` rend.
+    const estListe = Array.isArray(resultats);
+    // `search()` rend {entry, score, matchedTokens} ; l'identité est dans `entry`.
+    // Le SCORE n'est pas enregistré — seulement l'identité et l'ordre rendu.
+    const matchedIds = estListe
+      ? resultats
+        .map((r) => r?.entry?.brick_id ?? r?.entry?.asset_id ?? r?.brick_id ?? r?.asset_id)
+        .filter(Boolean)
+      : null;
+
+    const record = {
+      kind: 'search',
+      // CALLER DÉCLARÉ, jamais deviné. `undeclared` est une valeur, pas un trou : un
+      // appel non attribué doit être visible, sinon on relit le journal en devinant
+      // (c'est ce qui a produit une conclusion fausse le 2026-08-04).
+      caller: CALLERS.has(opts.caller) ? opts.caller : CALLER_UNDECLARED,
+      query,
+      matchCount: estListe ? resultats.length : resultats,
+      ...(matchedIds ? { matched_ids: matchedIds } : {}),
+      ts: new Date().toISOString(),
+    };
     mkdirSync(dirname(logPath), { recursive: true });
-    const record = { query, matchCount, ts: new Date().toISOString() };
     appendFileSync(logPath, JSON.stringify(record) + '\n', 'utf-8');
   } catch {
     // Best-effort, intentionnel : un log qui échoue ne doit jamais empêcher la recherche
@@ -389,7 +427,7 @@ function main() {
   }
 
   const results = search(query, catalog, options);
-  logSearchInvocation(query, results.length, options.logPath);
+  logSearchInvocation(query, results, { logPath: options.logPath, caller: options.caller });
 
   if (options.json) {
     console.log(JSON.stringify({ query, count: results.length, results }, null, 2));

@@ -9,7 +9,9 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { logSearchInvocation, searchLogSince } from './search.mjs';
+import {
+  logSearchInvocation, searchLogSince, CALLERS, CALLER_UNDECLARED,
+} from './search.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SEARCH_MJS = resolve(__dirname, 'search.mjs');
@@ -106,4 +108,56 @@ test('appel CLI réel de search.mjs journalise bien une ligne dans le log', () =
   assert.equal(record.query, 'zone de controle qui bloque un deplacement');
   assert.ok(typeof record.matchCount === 'number');
   rmSync(dir, { recursive: true, force: true });
+});
+
+// --- SEARCH_USAGE_CONTRACT_V1 : caller + matched_ids (2026-08-04) -------------------
+
+test('logSearchInvocation enregistre le CALLER DECLARE et les IDENTITES proposees', async () => {
+  const d = mkdtempSync(join(tmpdir(), 'log-'));
+  const p = join(d, 'search_log.jsonl');
+  logSearchInvocation('ma requete', [
+    { entry: { brick_id: 'sys-a' } }, { entry: { brick_id: 'sys-b' } },
+  ], { logPath: p, caller: 'preflight' });
+  const e = JSON.parse(readFileSync(p, 'utf-8').trim());
+  assert.equal(e.kind, 'search');
+  assert.equal(e.caller, 'preflight');
+  assert.equal(e.matchCount, 2);
+  assert.deepEqual(e.matched_ids, ['sys-a', 'sys-b'], 'les identites, dans l ordre rendu');
+  assert.ok(!('score' in e), 'aucun score enregistre');
+});
+
+test('un caller HORS liste fermee retombe sur `undeclared`', async () => {
+  const d = mkdtempSync(join(tmpdir(), 'log-'));
+  const p = join(d, 'search_log.jsonl');
+  logSearchInvocation('q', [], { logPath: p, caller: 'agent_mystere' });
+  assert.equal(JSON.parse(readFileSync(p, 'utf-8').trim()).caller, CALLER_UNDECLARED,
+    'une liste fermee qui accepte tout ne ferme rien');
+  assert.ok(CALLERS.has('preflight') && CALLERS.has('s9-build') && CALLERS.has('cli'));
+});
+
+test('aucun caller declare -> `undeclared`, jamais devine depuis le contexte', async () => {
+  const d = mkdtempSync(join(tmpdir(), 'log-'));
+  const p = join(d, 'search_log.jsonl');
+  logSearchInvocation('q', [{ entry: { brick_id: 'x' } }], { logPath: p });
+  assert.equal(JSON.parse(readFileSync(p, 'utf-8').trim()).caller, CALLER_UNDECLARED);
+});
+
+test('COMPATIBILITE : l ancienne signature (matchCount, logPath) journalise toujours', async () => {
+  const d = mkdtempSync(join(tmpdir(), 'log-'));
+  const p = join(d, 'search_log.jsonl');
+  logSearchInvocation('q', 7, p);            // 3e argument = chaine, comme avant
+  const e = JSON.parse(readFileSync(p, 'utf-8').trim());
+  assert.equal(e.matchCount, 7);
+  assert.ok(!('matched_ids' in e), 'aucune identite inventee quand on n en a pas');
+  assert.equal(e.caller, CALLER_UNDECLARED);
+});
+
+test('un resultat sans identite ne pollue pas matched_ids', async () => {
+  const d = mkdtempSync(join(tmpdir(), 'log-'));
+  const p = join(d, 'search_log.jsonl');
+  logSearchInvocation('q', [{ entry: {} }, { entry: { asset_id: 'ast-1' } }],
+    { logPath: p, caller: 'cli' });
+  const e = JSON.parse(readFileSync(p, 'utf-8').trim());
+  assert.deepEqual(e.matched_ids, ['ast-1']);
+  assert.equal(e.matchCount, 2, 'le compte reste celui des resultats, pas des identites');
 });
