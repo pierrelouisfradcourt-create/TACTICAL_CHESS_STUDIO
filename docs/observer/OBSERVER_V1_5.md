@@ -141,6 +141,53 @@ trouvé à l'intégration (le serveur ne collectait pas les prompts) puis corrig
 - La comptabilité de tokens face aux transcripts — facteur 6,7 à 12,3 d'écart.
 - Les fichiers réellement écrits par chaque agent, avec l'horodatage.
 
+---
+
+## 8. Deux types d'événement ajoutés le 2026-08-04 (Forge V2)
+
+La taxonomie de `observer/events.py` passe de 32 à **34 types**. Aucun nouveau système
+d'événements : deux sources de plus, lues par l'adaptateur `forge_evidence` existant.
+
+### `repair.result` — le runtime de réparation devient visible
+
+Produit par `forge.repair_dispatch.record()` dans
+`lab/forge_evidence/repair_results.jsonl`, `proof: MECHANICAL`, `link: DIRECT`.
+
+Avant : `repair_step.mjs` réparait des artefacts sur 5 étapes du driver **hors de tout
+registre de rôles**, sans reçu signé — donc invisible ici. Mesuré alors :
+**0 événement citant « repair » sur 7 645**. Le rôle `repair_runtime` a été déclaré, la
+réparation passe désormais par la même porte de dispatch (reçus `spawn_prepared` /
+`spawn_executed` signés HMAC), et l'événement porte : `runtime_id`, `capability_id`,
+`root_problem_id`, `mutation_id`, `input_hash`/`output_hash`, `allowed_fields`,
+`written_fields`, `oracle_before`/`oracle_after`, et `embedded_capabilities` (les deux
+détecteurs de qualité, qui tournaient sans laisser d'empreinte).
+
+`quality_not_proven: true` y est **constant** : aucune exécution ne peut le faire tomber.
+
+### `drift.detected` — un type déclaré depuis l'origine, jamais émis
+
+`events.py` le déclarait ; occurrences réelles avant le 2026-08-04 : **0 sur 7 645**.
+Il est maintenant alimenté par `forge.runtime_inventory_oracle` via
+`lab/forge_evidence/runtime_drift.jsonl`, avec trois cas **séparés, jamais agrégés** :
+
+| `drift_kind` | `severity` |
+|---|---|
+| `declared_not_observed` | `INFORMATION` — un rôle rare n'est pas un rôle mort |
+| `observed_not_declared_event` | `ALERTE` |
+| `observed_code_not_declared` | `ALERTE_CODE` |
+
+Portée **repo-wide** : `run_id` est `null`, aucun filtre projet — une dérive de
+déclaration n'appartient à aucun run.
+
+### Limite à connaître
+
+`_actor_kind_for_model` (`adapters/forge_evidence.py:93`) ne rend `llm_agent` que si le
+nom du modèle contient « claude ». **Tout modèle local (Qwen) est classé `unknown`**, y
+compris dans les reçus signés. Non corrigé : le changer reclasserait rétroactivement des
+événements historiques de tous les projets. Conséquence pratique — ne jamais s'appuyer
+sur `actor.kind` pour repérer un runtime LLM ; utiliser `actor.model` et
+`actor.capability_role`.
+
 ```
 claim_verdict: NO_CLAIM_ALLOWED
 ```

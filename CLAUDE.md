@@ -72,6 +72,7 @@ le mécanisme de vérité.
 * Rôle : GÉNÈRE DES JEUX (pas des IMP — le ledger/kaizen est la lane STUDIO, distincte).
 * Skill : `/forge` · orchestrateur = Fable (mode superpowers), spawn via la porte uniquement.
 * Code : scripts/forge/ (dispatch.py, driver.py, oracle.py, gate.py, verdict.py, static\_oracles.py, studio\_link.py).
+* **Plan de décision V2** (2026-08-04/05, déterministe, sans LLM) : `candidate_selector.mjs` → `execution_binding.mjs` → `mcts_selector.mjs` → `agent_factory.mjs` (PLAN\_ONLY ; `--execute` sous 5 conditions) → `execution_proof.mjs` (MATCH/MISMATCH). Registres lus : `root_problems.json`, `mutation_registry.json`, `capabilities.json`, `agent_recipes.json`, `layers.json` (vocabulaire des zones, source unique). Consommation de connaissance : `search_usage.mjs` (`proof_of_consumption` ∈ MEASURED | NOT\_WIRED | NOT\_MEASURED). Détail : `docs/forge/STUDIO_MASTER_SCHEMA.html` Détail L.
 * Contrats d'agent : scripts/forge/contracts/<etape>.yaml (schéma SCHEMA.md, 17 champs).
 * Jeux produits : games/<jeu>/ · bibliothèque : knowledge\_base/ · preuves/état : lab/forge\_runs/ + lab/forge\_evidence/.
 * **Invariants durs (ADR-002)** — non négociables :

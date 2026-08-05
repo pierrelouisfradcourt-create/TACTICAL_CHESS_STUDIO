@@ -29,7 +29,7 @@
 <div class="bp">
   <div class="cart">
     <div><div class="t">STUDIO FORGE — PLAN D'ARCHITECTURE AGENTIQUE · A / B / C</div>
-      <div class="m">rev. 2026-07-31 · document d'orientation (source : cartographie mécanique du repo — rien d'inventé, que de la synthèse) · historique des révisions : STUDIO_MASTER_SCHEMA_HISTORY.md · état V2 courant : VUE 3 · compagnons : STUDIO_ARCHITECTURE.md · STUDIO_AGENT_ATLAS.md</div></div>
+      <div class="m">rev. 2026-08-05 (Détail L — plan de décision Forge V2 / Knowledge Runtime V1) · document d'orientation (source : cartographie mécanique du repo — rien d'inventé, que de la synthèse) · historique des révisions : STUDIO_MASTER_SCHEMA_HISTORY.md · état V2 courant : VUE 3 · compagnons : STUDIO_ARCHITECTURE.md · STUDIO_AGENT_ATLAS.md</div></div>
     <div class="k">
       <span><i class="sq" style="background:#59cbff"></i> IMPLEMENTED</span>
       <span><i class="sq" style="background:#5fd39a"></i> TESTED</span>
@@ -1047,6 +1047,60 @@
     périmètres différents. pong_r2 = 13,82 $ / 123 965 tk (0 ligne REQUIRED) · pong_r3 s9 = 14,10 $ / 191 773 tk
     (6 lignes REQUIRED). On mesure la capacité à <b>absorber un nouveau jeu</b>, pas le prix d'un ticket différent —
     sinon on fabrique le faux indicateur que la règle de variance interdit.
+  </div>
+
+  <h3>Détail L · LE PLAN DE DÉCISION (Forge V2 / Knowledge Runtime V1 — 2026-08-04/05)</h3>
+  <div class="note">
+    <b style="color:#59cbff">La chaîne, telle qu'elle est réellement câblée.</b> Chaque flèche est un
+    appel de code, pas une intention. Statuts avec le vocabulaire de la légende.
+    <pre style="color:#d3e6ff;font-size:10.5px;line-height:1.55;margin:8px 0">
+root_problem ─┐
+              ├─→ <b style="color:#5fd39a">candidate_selector</b>  lit reward_contract · classe SANS score global · rend les ex aequo
+mutation_reg ─┘        │                    P1 objectif · P2 régression · P3 coût · P4 <b>zone (layer)</b>
+                       ↓
+              <b style="color:#5fd39a">execution_binding</b>   8 règles → executable=true/false + blocker NOMMÉ
+                       ↓
+              <b style="color:#5fd39a">mcts_selector</b>       ne garde que l'exécutable · branching_factor MESURÉ (=1) → <b>aucune exploration</b>
+                       ↓
+              <b style="color:#5fd39a">agent_factory</b>       PLAN_ONLY par défaut · <code>--execute</code> sous 5 conditions
+                       ↓
+              <b style="color:#5fd39a">execution_proof</b>     plan annoncé vs runtime observé → <b>MATCH / MISMATCH</b>
+                       ↓
+              trace versionnée (lab/forge_evidence/)
+    </pre>
+    <b style="color:#5fd39a">TESTED</b> — 3 MATCH sur 3 familles d'exécution distinctes :
+    <code>repair_runtime</code>/adapter/request_file · composition <code>M-ws6</code> (2 maillons, 1 repris
+    sous empreinte vérifiée) · <code>deterministic</code>/entrypoint/positional_artifact.
+    <br><b style="color:#59cbff">Runtimes déclarés</b> : <code>roles.yaml → runtime_contracts</code> porte
+    désormais <code>repair_runtime</code> (accepté SOUS CONDITION, HumanGate 2026-08-04) et
+    <code>deterministic</code> — déclaration de l'existant, aucun runtime ajouté. 14 des 16 rôles n'ont
+    toujours pas de <code>runtime_contract</code> : leur contrat est celui de leur étape.
+    <br><b style="color:#59cbff">Vocabulaire des layers</b> : <code>scripts/forge/layers.json</code>, source
+    unique, 13 zones (<i>« une zone où une boucle peut casser »</i>), LUE par
+    <code>check_mutation_registry</code> (refuse une zone inconnue) et par
+    <code>candidate_selector</code> (P4). <b style="color:#a98cff">8 zones sur 13 ne sont employées par aucune mutation</b> : les 5 ajoutées
+    (<code>preflight</code>, <code>build</code>, <code>oracle-produit</code>, <code>knowledge</code>,
+    <code>feedback-loop</code>) <b>et 3 qui l'étaient déjà avant cette phase</b>
+    (<code>s3-decompo</code>, <code>s4-archi-contract</code>, <code>s5-wiremap-contract</code>).
+    Seules 5 sont employées. <span style="color:#83a6d6">Correction du 2026-08-05 : j'avais écrit
+    « les 5 ajoutées sont PASSIVE » — le vide est plus ancien et plus large que ma phase.</span>
+    <br><b style="color:#59cbff">Knowledge Runtime V1</b> : la boucle
+    <code>question → recherche → résultat → consommation → preuve</code> est fermée.
+    <code>search.mjs</code> journalise <code>caller</code> (liste fermée) et <code>matched_ids</code> ;
+    <code>search_usage.mjs</code> croise les identités proposées avec les modules réellement réutilisés
+    (jointure par le <b>catalogue</b>, jamais par ressemblance) et rend
+    <code>proof_of_consumption</code> ∈ {MEASURED, NOT_WIRED, NOT_MEASURED}.
+    Mesuré : <code>games/kb_tactics</code> = MEASURED, <code>consumed_refs=["sys-reachability"]</code>.
+    <br><span style="color:#ff8098">⛔ NOT_WIRED connu</span> : <b>2 des 14</b>
+    <code>run-oracle.mjs</code> de projet invoquent <code>reuse_ratio.mjs</code> (<code>kb_tactics</code>,
+    <code>shmup_slice</code> — tous deux MEASURED) ; <b>12 ne le font pas</b>. La chaîne qualité de ces
+    12 projets ne mesure pas d'elle-même sa réutilisation. Gabarit de projet, hors périmètre.
+    <span style="color:#83a6d6">Correction du 2026-08-05 : j'avais écrit « aucun des 14 » — faux,
+    mesuré à la clôture.</span>
+    <br><span style="color:#ffb454">↺ Renvoi au Détail E</span> : le MCTS reste
+    <b style="color:#ffb454">DOCUMENTED_ONLY</b> comme arbre. Le sélecteur V0 mesure son facteur de
+    branchement et le trouve à 1 sur les 4 problèmes racines — <b>il n'y a rien à explorer</b>, et
+    prétendre le contraire serait une cérémonie.
   </div>
 
 </div>
