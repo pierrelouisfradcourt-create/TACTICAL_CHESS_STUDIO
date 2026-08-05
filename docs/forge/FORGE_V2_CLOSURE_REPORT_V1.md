@@ -136,6 +136,84 @@ d'origine de l'Observer.
 4. **`lesson` → `root_problem`** : le champ existe des deux côtés, le lien est vide, et
    trois critères fondés sur la preuve disent qu'il **doit** le rester en l'état.
 
+## 8-bis. Backlog contrôlé — propriétaire · raison · condition de réveil
+
+*Une dette sans condition de réveil est un oubli qui attend. Chaque ligne ci-dessous en a
+une, vérifiable. Le propriétaire est celui qui peut trancher, pas celui qui exécutera.*
+
+```yaml
+- item: reuse_ratio runners
+  status: NOT_WIRED
+  scope: 12 des 14 run-oracle.mjs (kb_tactics et shmup_slice sont MEASURED)
+  owner: Pierre (gabarit de projet)
+  reason: >-
+    le gabarit de run-oracle.mjs ne l'inclut pas ; deux projets l'ont ajoute a la main.
+    Aucune decision ecrite ne dit que c'est volontaire (hypothese H1).
+  wake_condition: prochaine mise a jour du gabarit de projet (Pac-Man)
+
+- item: layers aval non exercees
+  status: PASSIVE
+  scope: build · oracle-produit · preflight · knowledge · feedback-loop
+  owner: Pierre (aucune action)
+  reason: toutes les mutations du registre sont amont — aucune matiere aval n'existe encore
+  wake_condition: premiere mutation dont le `layer` est aval (viendra d'un run de jeu reel)
+
+- item: layers amont non exercees
+  status: PASSIVE
+  scope: s3-decompo · s4-archi-contract · s5-wiremap-contract
+  owner: Pierre (aucune action)
+  reason: anterieur a cette phase — aucune experience n'a encore porte sur ces etapes
+  wake_condition: premiere experience sur une de ces trois etapes
+
+- item: lesson -> root_problem
+  status: NOT_WIRED (intentionnel)
+  owner: Pierre (ROOT_PROBLEM_LINK_PROPOSAL_V1, case non cochee)
+  reason: >-
+    trois criteres fondes sur la preuve donnent zero association. Les lecons viennent de
+    runs de JEU, les problemes racines d'experiences WORKER : deux univers disjoints.
+  wake_condition: >-
+    une lecon dont un supporting_run cite une preuve d'un root_problem, OU adoption d'un
+    champ `layer` sur les lecons (LESSON_LAYER_PROPOSAL_V1)
+
+- item: drift.detected sans consommateur aval
+  status: NOT_WIRED
+  owner: Pierre
+  reason: le signal est emis et affiche ; aucune decision ne le lit
+  wake_condition: >-
+    une premiere alerte ALERTE_CODE sur un runtime REELLEMENT non declare (les 2 actuels
+    sont hors Forge et connus)
+
+- item: mutation_graph.json · capability_graph.schema.json
+  status: PASSIVE (zero lecteur de code)
+  owner: Pierre
+  reason: schemas et donnees produits en prevision d'un MCTS qui n'a pas lieu d'etre
+  wake_condition: branching_factor > 1 sur au moins un probleme racine
+
+- item: agent_genome.mjs
+  status: PASSIVE (validateur sans donnee)
+  owner: Pierre
+  reason: le schema precede la fabrique ; aucun genome n'a jamais ete produit
+  wake_condition: premiere Agent Factory qui instancie autre chose qu'un chemin fige
+
+- item: agent_factory --execute
+  status: IMPLEMENTED, jamais utilise en campagne
+  owner: Pierre (AGENT_FACTORY_EXECUTE_V1_CONTRACT, case non cochee)
+  reason: ouvert apres 3 MATCH ; aucune campagne ne l'a encore appele
+  wake_condition: premiere campagne de production qui a besoin d'une reparation tracee
+
+- item: caller non declare par les builders
+  status: NOT_WIRED
+  owner: Pierre (contrats s9-build-*.yaml)
+  reason: la consigne de recherche vit en prompt ; aucun contrat ne passe --caller s9-build
+  wake_condition: prochaine revision des contrats de build
+
+- item: rapport Runtime Inventory sans lecteur machine
+  status: PASSIVE
+  owner: Pierre
+  reason: sortie JSON sur stdout, lue par un humain
+  wake_condition: un oracle de derive qui consomme le rapport au lieu de l'afficher
+```
+
 ## 9. Améliorations possibles — *ce ne sont pas des défauts*
 
 - **Un `layer` sur les leçons** (`LESSON_LAYER_PROPOSAL_V1`) rendrait le lien
@@ -235,6 +313,13 @@ champ.
 
 Le studio a passé cette phase à construire **de quoi mesurer**. Il lui manque
 maintenant **de la matière à mesurer**.
+
+> **Mise en garde à porter dans la prochaine session.** Plus de mécanismes ne veut pas
+> dire plus intelligent. Cette phase a amélioré la **capacité d'auto-diagnostic** de la
+> Forge — elle sait désormais dire ce qu'elle sait, ce qu'elle exécute, et où les deux ne
+> coïncident pas. Elle n'a **rien amélioré de ce qu'elle produit**. Un studio qui
+> confondrait les deux ajouterait des couches en croyant progresser : c'est exactement ce
+> que ce rapport dit de ne pas faire.
 
 Si un chantier d'infrastructure est préféré, le plus rentable est le plus petit :
 **câbler `reuse_ratio` dans les 12 `run-oracle.mjs` restants**. Rien à écrire — deux

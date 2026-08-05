@@ -29,7 +29,7 @@
 <div class="bp">
   <div class="cart">
     <div><div class="t">STUDIO FORGE — PLAN D'ARCHITECTURE AGENTIQUE · A / B / C</div>
-      <div class="m">rev. 2026-08-05 (Détail L — plan de décision Forge V2 / Knowledge Runtime V1) · document d'orientation (source : cartographie mécanique du repo — rien d'inventé, que de la synthèse) · historique des révisions : STUDIO_MASTER_SCHEMA_HISTORY.md · état V2 courant : VUE 3 · compagnons : STUDIO_ARCHITECTURE.md · STUDIO_AGENT_ATLAS.md</div></div>
+      <div class="m">rev. 2026-08-05 (Détail L — Execution Plane + Knowledge Runtime, deux couches distinctes des rôles) · document d'orientation (source : cartographie mécanique du repo — rien d'inventé, que de la synthèse) · historique des révisions : STUDIO_MASTER_SCHEMA_HISTORY.md · état V2 courant : VUE 3 · compagnons : STUDIO_ARCHITECTURE.md · STUDIO_AGENT_ATLAS.md</div></div>
     <div class="k">
       <span><i class="sq" style="background:#59cbff"></i> IMPLEMENTED</span>
       <span><i class="sq" style="background:#5fd39a"></i> TESTED</span>
@@ -1049,10 +1049,30 @@
     sinon on fabrique le faux indicateur que la règle de variance interdit.
   </div>
 
-  <h3>Détail L · LE PLAN DE DÉCISION (Forge V2 / Knowledge Runtime V1 — 2026-08-04/05)</h3>
+  <h3>Détail L · DEUX COUCHES DISTINCTES — Execution Plane · Knowledge Runtime (2026-08-04/05)</h3>
   <div class="note">
-    <b style="color:#59cbff">La chaîne, telle qu'elle est réellement câblée.</b> Chaque flèche est un
-    appel de code, pas une intention. Statuts avec le vocabulaire de la légende.
+    <b style="color:#ff8098">⛔ Ne jamais mélanger ces nœuds avec les rôles, les skills ou les agents.</b>
+    Un <b>rôle</b> (<code>roles.yaml</code>, 16) dit <i>qui exécute</i>. Une <b>couche</b> dit <i>où une
+    boucle peut casser</i>. Un <b>module</b> ci-dessous est du code qui lit ou décide. La confusion
+    rôle↔couche est le risque nommé au rapport de clôture (§C2) — elle a failli produire une layer
+    nommée <code>orchestration</code>, homonyme d'un rôle existant ; elle s'appelle
+    <code>feedback-loop</code> pour cette seule raison.
+    <pre style="color:#d3e6ff;font-size:10.5px;line-height:1.6;margin:8px 0">
+<b style="color:#59cbff">EXECUTION PLANE</b> — decide, lie, execute, prouve.  <span style="color:#83a6d6">Ne connait AUCUN role.</span>
+ ├── <b style="color:#5fd39a">execution_binding</b>   8 regles -> executable true/false + blocker NOMME
+ ├── <b style="color:#5fd39a">agent_factory</b>       PLAN_ONLY par defaut · --execute sous 5 conditions
+ └── <b style="color:#5fd39a">execution_proof</b>     plan annonce vs runtime observe -> MATCH / MISMATCH
+     <span style="color:#83a6d6">amont (selection, hors couche) : candidate_selector -> mcts_selector</span>
+
+<b style="color:#59cbff">KNOWLEDGE RUNTIME</b> — mesure ce qui est SU et ce qui est UTILISE.  <span style="color:#83a6d6">Ne decide rien.</span>
+ ├── <b style="color:#5fd39a">layers.json</b>            vocabulaire des ZONES (13) — source unique, jamais un role
+ ├── <b style="color:#5fd39a">search_usage</b>           croise propose x reutilise, jointure par le CATALOGUE
+ ├── <b style="color:#5fd39a">consumed_refs</b>          intersection EXACTE — aucune similarite, aucun score
+ ├── <b style="color:#5fd39a">proof_of_consumption</b>   MEASURED | NOT_WIRED | NOT_MEASURED (3 etats, geles)
+ └── <b style="color:#5fd39a">reuse_ratio</b>            mecanisme PREEXISTANT, importe tel quel, jamais recalcule
+</pre>
+    <b style="color:#59cbff">La chaîne de décision, telle qu'elle est réellement câblée.</b> Chaque flèche
+    est un appel de code, pas une intention.
     <pre style="color:#d3e6ff;font-size:10.5px;line-height:1.55;margin:8px 0">
 root_problem ─┐
               ├─→ <b style="color:#5fd39a">candidate_selector</b>  lit reward_contract · classe SANS score global · rend les ex aequo

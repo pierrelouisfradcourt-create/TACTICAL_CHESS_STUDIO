@@ -179,6 +179,29 @@ Il est maintenant alimenté par `forge.runtime_inventory_oracle` via
 Portée **repo-wide** : `run_id` est `null`, aucun filtre projet — une dérive de
 déclaration n'appartient à aucun run.
 
+### Les autres signaux du vocabulaire — et où ils vivent RÉELLEMENT
+
+Quatre termes reviennent dans les rapports de cette phase. **Aucun n'est un type
+d'événement Observer**, et les confondre avec `repair.result` / `drift.detected` ferait
+croire à une instrumentation qui n'existe pas.
+
+| signal | ce que c'est | où il vit | visible dans l'Observer ? |
+|---|---|---|---|
+| `evidence_missing` | **blocker** de `execution_binding` | sortie du binding, jamais journalisée | **non** |
+| `NOT_WIRED` | état de `proof_of_consumption` | `search_usage.mjs`, sortie CLI/JSON | **non** |
+| `NOT_MEASURED` | idem | idem | **non** |
+| `PASSIVE` | **statut de documentation** (légende du Master Schéma) | docs, pas le code | **non** |
+
+`NOT_WIRED` apparaît en revanche *indirectement* : `drift.detected` porte
+`drift_kind: observed_code_not_declared`, qui est le cas voisin — du code qui appelle un
+modèle sans runtime déclaré. Ce n'est pas la même chose : `NOT_WIRED` parle d'un
+**mécanisme non invoqué**, `observed_code_not_declared` d'un **runtime non déclaré**.
+
+**Rien n'a été ajouté au-delà.** Pas de `knowledge_quality`, pas de `causal_memory`, pas
+d'`autonomous_learning` : aucune de ces trois grandeurs n'est mesurée aujourd'hui, et un
+type d'événement déclaré sans producteur est exactement ce que `drift.detected` a passé
+sept mois à être.
+
 ### Limite à connaître
 
 `_actor_kind_for_model` (`adapters/forge_evidence.py:93`) ne rend `llm_agent` que si le

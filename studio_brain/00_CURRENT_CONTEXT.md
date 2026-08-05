@@ -2,7 +2,7 @@
 *(Handoff. Historique : `studio_brain/journal/context-archive-2026-08-04-forge-v2-sessions.md`
 → `2026-07-31_00_CURRENT_CONTEXT_archive.md` → `2026-07-30_...`.)*
 
-## Phase CLOSE : Forge V2 / Knowledge Runtime V1 (2026-08-04 → 2026-08-05)
+## Etat de la phase — Forge V2 / Knowledge Runtime V1 (2026-08-04 -> 2026-08-05)
 
 **Ce que la Forge sait faire maintenant, mécaniquement et sans LLM :**
 
@@ -57,6 +57,39 @@ Deux rouges **pré-existants**, vérifiés sur l arbre commité avant la phase :
 Fermer le `NOT_WIRED` des projets (`reuse_ratio` dans `run-oracle.mjs`) OU rouvrir la
 production de jeux, qui alimenterait enfin les 5 layers aval vides. Dette complète :
 `docs/forge/FORGE_V2_CLOSURE_REPORT_V1.md`.
+
+## PHASE CLOSED — Forge V2 / Knowledge Runtime V1 (2026-08-05)
+
+```
+Completed:
+- Evidence policy (Option C — bundles versionnes, flux append-only ignores)
+- Layer vocabulary (layers.json, source unique, 13 zones)
+- Layer consumer (candidate_selector P4 — effet mesure : 4 ex aequo -> 3)
+- Search usage contract (caller · matched_ids · consumed_refs · proof_of_consumption)
+- Knowledge Runtime measurement path (kb_tactics = MEASURED)
+
+Next production priority:
+- produce game runtime data
+- fill downstream layers
+- validate learning loops on real games
+```
+
+## KNOWN_LIMITATIONS
+
+*Ce sont des etats CONNUS et ASSUMES, pas des oublis. Chacun a une condition de reveil
+dans `docs/forge/FORGE_V2_CLOSURE_REPORT_V1.md` §7-8.*
+
+```
+- layer vocabulary exists but several zones unexercised   (8 sur 13)
+- lesson -> root_problem causal link intentionally empty  (0 association prouvee)
+- MCTS disabled: branching_factor insufficient            (= 1 sur les 4 problemes)
+- Agent Factory V1 validated mechanically, not production-used
+- reuse_ratio partially wired                             (2 runners sur 14)
+```
+
+**Mise en garde pour la prochaine session** — plus de mecanismes ne veut pas dire plus
+intelligent. Cette phase a ameliore la capacite d'AUTO-DIAGNOSTIC de la Forge ; elle n'a
+pas ameliore ce qu'elle produit. Il lui manque de la MATIERE a mesurer, pas des mesures.
 
 ## Impasses connues (ne pas re-buter dessus)
 - Aucun mécanisme d'exclusion de lecture pour un builder (`read: dépôt entier`). · Confinement
