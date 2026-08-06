@@ -974,10 +974,10 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # Copie STRICTEMENT identique à context_manifest._UPSTREAM_BY_STEP (test
     # d'égalité dans scripts/forge/tests/test_context_manifest.py).
     "s1-prisme": ("artifacts/s2-worldscan.txt",),
-    "s3-decompo": ("artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt"),
-    "s4-archi": ("artifacts/s3-decompo.txt",),
-    "s5-wiremap": ("artifacts/s3-decompo.txt", "blueprint.json"),
-    "s6-redteam-plan": ("artifacts/s3-decompo.txt", "artifacts/s4-archi.txt",
+    "s3-decompo": ("charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt"),
+    "s4-archi": ("charter.yaml", "artifacts/s3-decompo.txt",),
+    "s5-wiremap": ("charter.yaml", "artifacts/s3-decompo.txt", "blueprint.json"),
+    "s6-redteam-plan": ("charter.yaml", "artifacts/s3-decompo.txt", "artifacts/s4-archi.txt",
                         "artifacts/s5-wiremap.txt"),
     "s9-build": ("blueprint.json", "wiremap.json"),
     "s11-redteam-code": ("wiremap.json",),

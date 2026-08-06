@@ -19,10 +19,13 @@ memoire: >-
   Consomme la featuremap (étape 3) ; sur repo existant, connaît le blueprint en
   place (diff d'archi, pas réinvention). Conventions : CLAUDE.md + rules/.
 mandatory_read:
+  - scripts/forge/standard/repo_map.yaml
   - scripts/forge/contracts/SCHEMA.md
   - "l'artefact featuremap produit par l'étape 3 (Décompo fonctionnelle)"
   - "le blueprint.yaml existant si le repo est déjà structuré"
   - "lab/forge_runs/<projet>/knowledge_packet.json — patterns externes cités, ADVISORY jamais prescriptif"
+  - "lab/forge_runs/<projet>/charter.yaml — INTENT LINEAGE : intention humaine, invariants, hors_scope, et le bloc `provenance` (source Pierre, fog_humangate). HERITE, jamais reecrit : l'etape verifie que sa decision la respecte, ou remonte le conflit."
+  - "scripts/forge/standard/repo_map.yaml — TABLE FIGEE des racines et des gabarits d'adresse. Realite verifiable, pas une intention : toute adresse decidee ici y est confrontee (defaut mesure 2026-08-05 : racine 04_CONTENT inventee, 232 019 tokens de reprise)."
 
 # --- 3. Mission (Critique) ---
 objectif: >-
@@ -69,7 +72,22 @@ final_report: >-
   software/evidence/claim séparés ; cite le reçu de check_blueprint_contract ;
   liste les features non couvertes et les couvertures fantômes ;
   claim_verdict: NO_CLAIM_ALLOWED.
-
+  RETURN LINEAGE (doctrine FORGE_CAUSAL_LINEAGE_V2 §3, ratifiee Pierre 2026-08-06) —
+  aucun worker ne meurt seul : le retour porte la CAUSALITE, pas seulement le resultat.
+  Termine TOUJOURS par ce bloc, succes comme echec :
+  `why_task_existed:` {`problem:` le probleme mesure qui a active cette tache ·
+  `oracle:` l'oracle ou la mesure qui l'a detecte, ou "aucun" si l'activation vient
+  d'une decision humaine · `root_cause:` la cause racine identifiee, ou "non etablie" ·
+  `action_reason:` pourquoi CETTE action y repond} · `result:` l'etat reellement
+  obtenu · `proof:` la commande executee et sa sortie · `learning:` ce que tu as
+  appris et qui resservira, ou "aucun" · `next_reason:` pourquoi le niveau superieur
+  doit agir OU pourquoi la chaine causale est FERMEE et se termine ici.
+  Regles : ces champs sont HERITES ou CONSTATES, jamais inventes — si tu n'as pas recu
+  le `why`, ecris "non transmis" plutot que de le deviner (une cause fabriquee est la
+  meme faute qu'un `validated_by` fabrique). En ECHEC, `result` porte ce que tu as
+  essaye et ce qui a echoue. `next_reason` ne vaut escalade que si une cause non
+  resolue persiste, une preuve manque ou contredit l'etat attendu, ou une correction
+  reste possible — sinon la lignee se termine proprement, sans action supplementaire.
 # --- 8. Restitution (Critique) ---
 output_contract: >-
   Un bloc ```json``` TERMINAL, matérialisé en blueprint.json par l'exécuteur (tu

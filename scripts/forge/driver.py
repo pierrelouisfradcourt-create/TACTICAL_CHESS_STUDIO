@@ -558,6 +558,36 @@ class ForgeDriver:
             audit_path=self.audit_path,
         )
 
+
+    # --- Activation Lineage (P2, doctrine FORGE_CAUSAL_LINEAGE_V2 §2) ---------
+    def _activation_reason(self, state: dict, entry: dict, etape: str) -> dict:
+        """Cause d'activation de CETTE etape, au format cause de la doctrine.
+
+        Regle absolue : ne JAMAIS inventer. Quand aucune cause n'est mesuree —
+        cas de la premiere activation, ou le driver enchaine simplement l'ordre
+        du profil — on emet `status: NOT_TRANSMITTED` plutot qu'une cause
+        fabriquee. Une cause inventee est une violation de causalite, meme
+        famille qu'un `validated_by` fabrique (incident du 2026-08-03).
+
+        Point de perte que ceci repare (mesure 2026-08-06) : l'escalade CONNAIT
+        sa cause (oracle rouge, ESCALATE_REQUEST de l'agent) puis re-dispatche
+        par ce meme chemin, qui ecrasait tout avec le litteral "ordre de profil".
+        41 dispatches mesures, 31 portaient ce litteral, 1 seule cause reelle.
+        """
+        attempts = int(entry.get("attempts", 1) or 1)
+        override = state.get("model_override")
+        if attempts <= 1 and not override:
+            # Enchainement mecanique du profil : aucun probleme mesure ne l'a
+            # declenche. On le DIT, on ne le maquille pas en cause.
+            return {"status": "NOT_TRANSMITTED", "action": etape}
+        return {
+            "problem": f"echec de la tentative {attempts - 1} a {etape}",
+            "oracle": entry.get("last_oracle"),
+            "root_cause": entry.get("last_root_cause"),
+            "action": etape,
+            "expected_proof": entry.get("expected_proof"),
+        }
+
     # --- étapes LLM (déléguées à l'exécuteur) --------------------------------
 
     def _run_llm(self, state: dict, etape: str) -> bool:
@@ -587,7 +617,7 @@ class ForgeDriver:
                 # (`order_for_profile`, aucun agent ne choisit l'étape suivante) —
                 # aucune autre source de WHY dynamique dans ce lot, donc le même
                 # motif littéral aux deux points d'appel (voir _run_deterministic).
-                reason="ordre de profil",
+                reason=self._activation_reason(state, entry, etape),
             )
         except ContractIncomplete as exc:
             # `payload` n'existe pas encore (prepare_dispatch a levé avant de le
@@ -980,7 +1010,7 @@ class ForgeDriver:
                 # ci-dessus (_run_llm) — le driver n'a qu'une seule source de WHY
                 # dans ce lot (l'ordre FIFO du profil), jamais une escalade ici
                 # (une étape déterministe n'a pas d'exécutant LLM à escalader).
-                reason="ordre de profil",
+                reason=self._activation_reason(state, entry, etape),
             )
         except ContractIncomplete as exc:
             self._finish_step(state, entry, "BLOCKED",

@@ -27,6 +27,8 @@
     "name": "false->true",
     "line": 23,
     "file": "engine/inputs.mjs",
-    "justification": "validateInput's second guard `typeof input.kind !== 'string'` is DEAD CODE: the first guard (line 18, `!isInput(input)`) already requires `typeof input.kind === 'string'` per isInput's definition (types.mjs: typeof x==='object' && x!==null && typeof x.kind==='string'). By line 22, input.kind is guaranteed a string, so the line-22 condition can never be true and its consequent is unreachable — the false->true mutation on that dead branch is unobservable. Verified empirically: branch stays unreachable after explicit ok:false/ok:true coverage for all 7 known kinds + missing-kind/null/non-object cases (R15)."
+    "justification": "validateInput's second guard `typeof input.kind !== 'string'` is DEAD CODE: the first guard (line 18, `!isInput(input)`) already requires `typeof input.kind === 'string'` per isInput's definition (types.mjs: typeof x==='object' && x!==null && typeof x.kind==='string'). By line 22, input.kind is guaranteed a string, so the line-22 condition can never be true and its consequent is unreachable — the false->true mutation on that dead branch is unobservable. Verified empirically: branch stays unreachable after explicit ok:false/ok:true coverage for all 7 known kinds + missing-kind/null/non-object cases (R15).",
+    "expression": "return { ok: false, reason: 'Input kind must be a string' };",
+    "_expression_backfill": "2026-08-06 P4 — releve verbatim a la ligne ancree, verifie par jeton + unicite"
   }
 ]

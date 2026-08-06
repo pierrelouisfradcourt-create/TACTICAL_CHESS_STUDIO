@@ -3,66 +3,88 @@
     "file": "adapters/belote/scoring.mjs",
     "name": "neq->eq",
     "line": 45,
-    "justification": "Mutant is entirely inside a STRING LITERAL (the error message text), not executable code: `throw new Error(\\`Base invariant violated: ${base[0]} + ${base[1]} !== 162\\`);` — the token `!==` mutated here is the literal text \"!== 162\" printed in the thrown message, not the `if (base[0] + base[1] !== 162)` comparison on the line above (that real comparison is a SEPARATE, already-killed mutant). Flipping the string to \"=== 162\" only changes what the error message SAYS if this line is ever reached; it never changes whether it throws, when it throws, or any other observable program behavior. This is the mutation tool's own documented limitation (scripts/forge/mutation.py docstring: \"les mutations dans un commentaire/chaine peuvent gonfler les survivants\") — confirmed by direct code inspection, not by tuning a test to it."
+    "justification": "Mutant is entirely inside a STRING LITERAL (the error message text), not executable code: `throw new Error(\\`Base invariant violated: ${base[0]} + ${base[1]} !== 162\\`);` — the token `!==` mutated here is the literal text \"!== 162\" printed in the thrown message, not the `if (base[0] + base[1] !== 162)` comparison on the line above (that real comparison is a SEPARATE, already-killed mutant). Flipping the string to \"=== 162\" only changes what the error message SAYS if this line is ever reached; it never changes whether it throws, when it throws, or any other observable program behavior. This is the mutation tool's own documented limitation (scripts/forge/mutation.py docstring: \"les mutations dans un commentaire/chaine peuvent gonfler les survivants\") — confirmed by direct code inspection, not by tuning a test to it.",
+    "expression": "throw new Error(`Base invariant violated: ${base[0]} + ${base[1]} !== 162`);",
+    "_expression_backfill": "2026-08-06 P4 — releve verbatim a la ligne ancree, verifie par jeton + unicite"
   },
   {
     "file": "adapters/belote/scoring.mjs",
     "name": "false->true",
     "line": 57,
-    "justification": "`let contractMet = false;` is a dead initializer: ALL THREE reachable branches of scoreDeal explicitly reassign `contractMet` before it is ever read or returned — the capot branch (`contractMet = capotTeam === takerTeam;`), the contract-success branch (`contractMet = true;`), and the dedans branch (`contractMet = false;`). There is no code path between this declaration and the function's `return` that reads `contractMet` before one of those three assignments runs. Verified by direct control-flow inspection of the function body (adapters/belote/scoring.mjs:54-93) and empirically: manually mutating this line to `true` and running the full oracle (including the dedicated 82/81-boundary and capot tests in logic.test.mjs) produces bit-identical output and exit 0 — the mutant's initial value is provably unobservable."
+    "justification": "`let contractMet = false;` is a dead initializer: ALL THREE reachable branches of scoreDeal explicitly reassign `contractMet` before it is ever read or returned — the capot branch (`contractMet = capotTeam === takerTeam;`), the contract-success branch (`contractMet = true;`), and the dedans branch (`contractMet = false;`). There is no code path between this declaration and the function's `return` that reads `contractMet` before one of those three assignments runs. Verified by direct control-flow inspection of the function body (adapters/belote/scoring.mjs:54-93) and empirically: manually mutating this line to `true` and running the full oracle (including the dedicated 82/81-boundary and capot tests in logic.test.mjs) produces bit-identical output and exit 0 — the mutant's initial value is provably unobservable.",
+    "expression": "let contractMet = false;",
+    "_expression_backfill": "2026-08-06 P4 — releve verbatim a la ligne ancree, verifie par jeton + unicite"
   },
   {
     "file": "adapters/belote/game.mjs",
     "name": "true->false",
     "line": 70,
-    "justification": "Duplicate survivor entry for the SAME line, distinguishing two separate occurrences of the token \"true\" on `const score = scoreDeal(scoringTricks, contract, bTeam, true); // true = belote declared by bot`. The first \"true\" (the real 4th argument) is REAL code and is killed by the dedicated test `game.playDeal: belote (K+Q of trump) bonus IS applied` (logic.test.mjs) which searches for a real deal with a K+Q-of-trump holder and asserts the +20 bonus is applied. The SECOND \"true\" survivor is inside the trailing `// true = belote declared by bot` comment — textually inert (comments do not execute); the mutation tool's comment-skip heuristic only detects lines that START with `//`/`*`/`/*`, not inline trailing comments on a code line, which is exactly this tool's documented string/comment limitation applying a second time on the same line."
+    "justification": "Duplicate survivor entry for the SAME line, distinguishing two separate occurrences of the token \"true\" on `const score = scoreDeal(scoringTricks, contract, bTeam, true); // true = belote declared by bot`. The first \"true\" (the real 4th argument) is REAL code and is killed by the dedicated test `game.playDeal: belote (K+Q of trump) bonus IS applied` (logic.test.mjs) which searches for a real deal with a K+Q-of-trump holder and asserts the +20 bonus is applied. The SECOND \"true\" survivor is inside the trailing `// true = belote declared by bot` comment — textually inert (comments do not execute); the mutation tool's comment-skip heuristic only detects lines that START with `//`/`*`/`/*`, not inline trailing comments on a code line, which is exactly this tool's documented string/comment limitation applying a second time on the same line.",
+    "expression": "const score = scoreDeal(scoringTricks, contract, bTeam, true); // true = belote declared by bot",
+    "_expression_backfill": "2026-08-06 P4 — releve verbatim a la ligne ancree, verifie par jeton + unicite"
   },
   {
     "file": "core/rules_interface.mjs",
     "name": "ge->gt",
     "line": 53,
-    "justification": "Mutant is entirely inside a STRING LITERAL: `throw new Error(\\`Adapter.seatCount must be a number >= 2, got ${adapter.seatCount}\\`);` — the \">= 2\" mutated here is message text, not the `adapter.seatCount < 2` comparison on line 52 (that real comparison is covered by the dedicated test `rules_interface.assertRulesAdapter: guard OR — a valid-typed but too-small seatCount alone must throw`, which is itself a separate, already-killed mutant). Same documented tool limitation as the two scoring.mjs/rules.mjs string-literal cases above."
+    "justification": "Mutant is entirely inside a STRING LITERAL: `throw new Error(\\`Adapter.seatCount must be a number >= 2, got ${adapter.seatCount}\\`);` — the \">= 2\" mutated here is message text, not the `adapter.seatCount < 2` comparison on line 52 (that real comparison is covered by the dedicated test `rules_interface.assertRulesAdapter: guard OR — a valid-typed but too-small seatCount alone must throw`, which is itself a separate, already-killed mutant). Same documented tool limitation as the two scoring.mjs/rules.mjs string-literal cases above.",
+    "expression": "throw new Error(`Adapter.seatCount must be a number >= 2, got ${adapter.seatCount}`);",
+    "_expression_backfill": "2026-08-06 P4 — releve verbatim a la ligne ancree, verifie par jeton + unicite"
   },
   {
     "file": "adapters/stub/minimal.mjs",
     "name": "eq->neq",
     "line": 61,
-    "justification": "Block triage for all 6 stub/minimal.mjs survivors (lines 61, 102, 112, 120, 121, 122), authorized explicitly by the coordinator's s9 mutation-gate message (\"stub/minimal (artefact de preuve de chargement R15 — 6 mutants justifiables en bloc)\"). This file's SOLE purpose is the wiremap feature `stub_minimal_non_belote_adapter`: an R15 EXTENSIBILITY PROOF that a non-Belote adapter (different topology: 2 seats, 1 trick, standard 52-card deck vs Belote's 4 seats/8 tricks/32 cards) can satisfy `assertRulesAdapter`/`assertScoreAdapter` and load without any Belote constant. That proof is exercised by `createStubAdapter()` itself (which calls both asserters internally) and by the dedicated test `stub.createStubAdapter: loads, different topology, satisfies both core contracts` in logic.test.mjs. The internal gameplay logic mutated here (legalMoves entame check, compareInTrick comparator, cardValue lookup, scoreDeal's trivial point-counting) is DECORATIVE reference material: it is never invoked by any product path (no game or oracle in this repo actually PLAYS through the stub — Belote is the only playable adapter). Hardening it to kill every mutant would mean writing and maintaining a second, fully independent card game (rules, scoring, a solvability oracle for it) whose only purpose would be to satisfy the mutation scorer, not to prove anything about the actual product — explicitly out of scope for an R15 proof-of-concept adapter."
+    "justification": "Block triage for all 6 stub/minimal.mjs survivors (lines 61, 102, 112, 120, 121, 122), authorized explicitly by the coordinator's s9 mutation-gate message (\"stub/minimal (artefact de preuve de chargement R15 — 6 mutants justifiables en bloc)\"). This file's SOLE purpose is the wiremap feature `stub_minimal_non_belote_adapter`: an R15 EXTENSIBILITY PROOF that a non-Belote adapter (different topology: 2 seats, 1 trick, standard 52-card deck vs Belote's 4 seats/8 tricks/32 cards) can satisfy `assertRulesAdapter`/`assertScoreAdapter` and load without any Belote constant. That proof is exercised by `createStubAdapter()` itself (which calls both asserters internally) and by the dedicated test `stub.createStubAdapter: loads, different topology, satisfies both core contracts` in logic.test.mjs. The internal gameplay logic mutated here (legalMoves entame check, compareInTrick comparator, cardValue lookup, scoreDeal's trivial point-counting) is DECORATIVE reference material: it is never invoked by any product path (no game or oracle in this repo actually PLAYS through the stub — Belote is the only playable adapter). Hardening it to kill every mutant would mean writing and maintaining a second, fully independent card game (rules, scoring, a solvability oracle for it) whose only purpose would be to satisfy the mutation scorer, not to prove anything about the actual product — explicitly out of scope for an R15 proof-of-concept adapter.",
+    "expression": "if (trick.length === 0) return hand.slice();",
+    "_expression_backfill": "2026-08-06 P4 — releve verbatim a la ligne ancree, verifie par jeton + unicite"
   },
   {
     "file": "adapters/stub/minimal.mjs",
     "name": "or->and",
     "line": 102,
-    "justification": "Part of the same block triage as line 61 above — cardValue lookup table access, decorative/unexercised gameplay logic, see justification on line 61."
+    "justification": "Part of the same block triage as line 61 above — cardValue lookup table access, decorative/unexercised gameplay logic, see justification on line 61.",
+    "expression": "return values[card.rank] || 0;",
+    "_expression_backfill": "2026-08-06 P4 — releve verbatim a la ligne ancree, verifie par jeton + unicite"
   },
   {
     "file": "adapters/stub/minimal.mjs",
     "name": "pluseq->minuseq",
     "line": 112,
-    "justification": "Part of the same block triage as line 61 above — scoreDeal's trivial point accumulation, decorative/unexercised gameplay logic, see justification on line 61."
+    "justification": "Part of the same block triage as line 61 above — scoreDeal's trivial point accumulation, decorative/unexercised gameplay logic, see justification on line 61.",
+    "expression": "pointsByTeam[team] += val;",
+    "_expression_backfill": "2026-08-06 P4 — releve verbatim a la ligne ancree, verifie par jeton + unicite"
   },
   {
     "file": "adapters/stub/minimal.mjs",
     "name": "true->false",
     "line": 120,
-    "justification": "Part of the same block triage as line 61 above — scoreDeal's hardcoded contractMet/capot/dedans result shape, decorative/unexercised gameplay logic, see justification on line 61."
+    "justification": "Part of the same block triage as line 61 above — scoreDeal's hardcoded contractMet/capot/dedans result shape, decorative/unexercised gameplay logic, see justification on line 61.",
+    "expression": "contractMet: true,",
+    "_expression_backfill": "2026-08-06 P4 — releve verbatim a la ligne ancree, verifie par jeton + unicite"
   },
   {
     "file": "adapters/stub/minimal.mjs",
     "name": "false->true",
     "line": 121,
-    "justification": "Part of the same block triage as line 61 above — scoreDeal's hardcoded contractMet/capot/dedans result shape, decorative/unexercised gameplay logic, see justification on line 61."
+    "justification": "Part of the same block triage as line 61 above — scoreDeal's hardcoded contractMet/capot/dedans result shape, decorative/unexercised gameplay logic, see justification on line 61.",
+    "expression": "capot: false,",
+    "_expression_backfill": "2026-08-06 P4 — releve verbatim a la ligne ancree, verifie par jeton + unicite"
   },
   {
     "file": "adapters/stub/minimal.mjs",
     "name": "false->true",
     "line": 122,
-    "justification": "Part of the same block triage as line 61 above — scoreDeal's hardcoded contractMet/capot/dedans result shape, decorative/unexercised gameplay logic, see justification on line 61."
+    "justification": "Part of the same block triage as line 61 above — scoreDeal's hardcoded contractMet/capot/dedans result shape, decorative/unexercised gameplay logic, see justification on line 61.",
+    "expression": "dedans: false,",
+    "_expression_backfill": "2026-08-06 P4 — releve verbatim a la ligne ancree, verifie par jeton + unicite"
   },
   {
     "file": "harness/solver.mjs",
     "name": "neq->eq",
     "line": 168,
-    "justification": "Mutant is entirely inside a STRING LITERAL (the error message text), not executable code: `throw new Error(\\`Base invariant violated in deal ${dealCount}: \\` + \\`${d.score.base[0]} + ${d.score.base[1]} !== 162\\`);` — the token `!==` mutated here is the literal text \"!== 162\" printed in the thrown message, not the real `if (d.score.base[0] + d.score.base[1] !== 162)` comparison on line 165 (that real comparison is a separate, already-killed mutant). Same documented tool limitation (string/comment mutations) as the analogous scoring.mjs:45 and rules_interface.mjs:53 entries above."
+    "justification": "Mutant is entirely inside a STRING LITERAL (the error message text), not executable code: `throw new Error(\\`Base invariant violated in deal ${dealCount}: \\` + \\`${d.score.base[0]} + ${d.score.base[1]} !== 162\\`);` — the token `!==` mutated here is the literal text \"!== 162\" printed in the thrown message, not the real `if (d.score.base[0] + d.score.base[1] !== 162)` comparison on line 165 (that real comparison is a separate, already-killed mutant). Same documented tool limitation (string/comment mutations) as the analogous scoring.mjs:45 and rules_interface.mjs:53 entries above.",
+    "expression": "`${d.score.base[0]} + ${d.score.base[1]} !== 162`",
+    "_expression_backfill": "2026-08-06 P4 — releve verbatim a la ligne ancree, verifie par jeton + unicite"
   }
 ]

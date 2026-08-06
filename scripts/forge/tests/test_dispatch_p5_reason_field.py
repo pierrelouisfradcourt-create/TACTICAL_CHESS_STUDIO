@@ -81,8 +81,25 @@ def offline(monkeypatch):
 
 def test_driver_passe_ordre_de_profil_sur_ses_deux_points_dappel(tmp_path, offline):
     """`_run_llm` (étape LLM, s9-build) ET `_run_deterministic` (étape non-LLM,
-    s10a-oracle-code) doivent tous les deux porter `reason == "ordre de
-    profil"` — les deux points d'appel de la porte, aucun oublié."""
+    s10a-oracle-code) doivent tous les deux porter une CAUSE STRUCTURÉE — les
+    deux points d'appel de la porte, aucun oublié.
+
+    ÉVOLUTION 2026-08-06 (gate Pierre) — Activation Lineage, doctrine
+    `docs/forge/FORGE_CAUSAL_LINEAGE_V2.md` §2. Cette assertion portait le
+    littéral `"ordre de profil"`. Le lot P5 l'avait choisi *faute de mieux* —
+    sa propre docstring le dit : « aucune autre source de WHY dynamique dans ce
+    lot ». La doctrine fournit désormais cette source, donc le littéral est
+    REMPLACÉ, pas contredit.
+
+    Ce que cette version protège EN PLUS de l'ancienne :
+      - les deux points d'appel émettent toujours (invariant P5 conservé) ;
+      - la cause est STRUCTURÉE, donc relisible par un consommateur ;
+      - et surtout : quand aucune cause n'est mesurée — c'est le cas ici, le
+        driver enchaîne mécaniquement l'ordre du profil — le champ vaut
+        `NOT_TRANSMITTED` et JAMAIS une cause fabriquée. Une cause inventée est
+        une violation de causalité, même famille qu'un `validated_by` fabriqué
+        (incident du 2026-08-03). L'ancien littéral ne testait pas ce point.
+    """
     run_dir = tmp_path / "run"
     ForgeDriver("proj", "proj-1", profile="micro", executor=StubExecutor(),
                run_dir=run_dir, oracle_config=_oracle_config(tmp_path, "proj"),
@@ -93,8 +110,25 @@ def test_driver_passe_ordre_de_profil_sur_ses_deux_points_dappel(tmp_path, offli
 
     llm_rec = _manifest_reason(tmp_path, run_dir, "s9-build", "proj-1")
     det_rec = _manifest_reason(tmp_path, run_dir, "s10a-oracle-code", "proj-1")
-    assert llm_rec["reason"] == "ordre de profil"
-    assert det_rec["reason"] == "ordre de profil"
+
+    for rec, etape in ((llm_rec, "s9-build"), (det_rec, "s10a-oracle-code")):
+        cause = rec["reason"]
+        # 1. les deux points d'appel émettent (invariant P5, conservé)
+        assert cause, f"{etape}: aucune cause émise — un point d'appel oublié"
+        # 2. la cause est structurée, donc consommable
+        assert isinstance(cause, dict), f"{etape}: cause structurée attendue, reçu {type(cause)}"
+        # 3. elle nomme l'action qu'elle active
+        assert cause.get("action") == etape
+        # 4. AUCUNE cause n'est mesurée ici (enchaînement mécanique du profil) :
+        #    le driver doit le DÉCLARER, jamais fabriquer un problème ou un oracle.
+        assert cause.get("status") == "NOT_TRANSMITTED", (
+            f"{etape}: sans cause mesurée, le driver doit déclarer NOT_TRANSMITTED"
+        )
+        for invente in ("problem", "oracle", "root_cause"):
+            assert invente not in cause, (
+                f"{etape}: champ {invente!r} présent alors qu'aucune cause n'est mesurée "
+                "— une cause fabriquée est une violation de causalité"
+            )
 
 
 # --- non-régression : la porte accepte/refuse exactement comme avant -------------

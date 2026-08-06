@@ -85,15 +85,38 @@ def test_dispatch_sources_include_contract_mandatory_read_and_registry(tmp_path)
 
 
 def test_dispatch_sources_ignore_narrative_mandatory_read_entries(tmp_path):
-    """s4-archi.yaml mandatory_read a 1 entrée-chemin (SCHEMA.md) + 3 entrées
-    narratives (phrases avec espaces) — seule l'entrée-chemin doit apparaître."""
+    """Les entrées NARRATIVES de mandatory_read (phrases à plusieurs mots) ne
+    deviennent jamais des sources ; les entrées-CHEMIN le deviennent toutes.
+
+    ÉVOLUTION 2026-08-06 (gate Pierre) — cette assertion figeait `len == 1`,
+    nombre qui décrivait l'état de s4-archi.yaml au moment de son écriture. Un
+    contrat qui gagne légitimement une entrée-chemin (ici `repo_map.yaml`, pour
+    que la table figée des adresses soit PROUVÉE par sha256 et pas seulement
+    transmise au prompt) la faisait rougir sans qu'aucun défaut n'existe.
+
+    La version ci-dessous dérive l'attendu DU CONTRAT LUI-MÊME au lieu de le
+    figer. Elle protège strictement plus : elle attrape l'inclusion d'un
+    narratif (défaut visé à l'origine) ET l'oubli d'une entrée-chemin, sur
+    n'importe quel contenu de contrat, présent ou futur.
+    """
     contract = load_contract("s4-archi")
     payload = _payload("s4-archi")
     rec = cm.append_dispatch_manifest("s4-archi", "test-run", payload, contract,
                                       run_dir=tmp_path, key_file=KEY)
     mandatory = [s for s in rec["sources"] if s["role"] == "mandatory_read"]
-    assert len(mandatory) == 1
-    assert mandatory[0]["path"] == "scripts/forge/contracts/SCHEMA.md"
+
+    attendus = [e.strip() for e in contract["mandatory_read"] if cm._looks_like_path(e)]
+    narratifs = [e for e in contract["mandatory_read"] if not cm._looks_like_path(e)]
+    assert narratifs, "fixture caduque : s4-archi doit porter au moins une entrée narrative"
+
+    # 1. aucune source retenue ne porte d'espace — c'est CE trait qui distingue
+    #    une entrée-chemin d'une phrase, et donc le défaut réellement protégé.
+    for s in mandatory:
+        assert " " not in s["path"], f"entrée narrative devenue une source : {s['path']!r}"
+    # 2. toutes les entrées-chemin sont là, aucune oubliée, aucune en trop.
+    assert [s["path"] for s in mandatory] == attendus
+    # 3. le contrat de base reste présent (ancrage historique de ce test).
+    assert "scripts/forge/contracts/SCHEMA.md" in attendus
 
 
 def test_missing_source_never_raises_and_reports_exists_false(tmp_path):

@@ -321,7 +321,7 @@ def prepare_dispatch(
     attempt: int = 0,
     allow_unprofiled: bool = False,
     model_executed: str | None = None,
-    reason: str = "",
+    reason: 'str | dict' = "",
 ) -> DispatchPayload:
     """Valide le contrat de l'étape, fabrique le payload borné, trace l'audit.
 

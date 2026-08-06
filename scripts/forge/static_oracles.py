@@ -907,8 +907,57 @@ def check_feature_set_frozen(wiremap: dict, frozen_features: list[str] | None) -
 # --- gate mutation (C1/C2, axe 3) : le mutation testing d'un JEU passe ssi tous
 # les mutants sont tués OU chaque survivant est explicitement trié comme équivalent
 # (justification non vide). total==0 (aucun mutant) => échec : rien n'a été prouvé. ---
+def _reancrer_entree(entry: dict, game_dir: Path) -> dict:
+    """Ré-ancre UNE entrée de triage sur son `expression`, si elle en porte une.
+
+    P4 — Persistence Lineage (doctrine FORGE_CAUSAL_LINEAGE_V2 §4, gate Pierre
+    2026-08-06). Défaut mesuré le 2026-08-06 sur games/pacman : deux
+    justifications de triage PARFAITEMENT VALIDES sont devenues `triage_perimes`
+    parce qu'un refactor sans rapport avec elles avait décalé leurs lignes de 6
+    (122->128, 129->135). Le texte survivait ; le lien vers ce qu'il désignait,
+    non. « Persistance + identité stable = lignée exploitable. »
+
+    RÈGLE : `expression` est la CLÉ DE VÉRITÉ, `line` n'est qu'un INDEX DE
+    RECHERCHE. On relit la ligne enregistrée ; si elle ne porte plus
+    l'expression, on cherche l'unique ligne du fichier qui la porte.
+
+    Prudence délibérée — on ne ré-ancre QUE sur une correspondance UNIQUE :
+      * 0 occurrence  -> on ne touche à rien (l'entrée deviendra `triage_perime`,
+        ce qui est le signal honnête : la cible a disparu, pas seulement bougé) ;
+      * >1 occurrence -> on ne touche à rien (désambiguïser demanderait l'index
+        d'occurrence, correctif amont identifié dans `check_mutation_gate`).
+    Aucune écriture disque : la ré-ancrage est en mémoire, pour le temps du gate.
+    Réécrire l'artefact de preuve en silence serait une falsification.
+    """
+    expr = str(entry.get("expression") or "").strip()
+    fichier = str(entry.get("fichier") or "").strip()
+    ligne = entry.get("line")
+    if not expr or not fichier or not isinstance(ligne, int):
+        return entry                      # legacy sans `expression` : inchangé
+    src = Path(game_dir) / fichier
+    try:
+        lignes = src.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return entry
+    if 1 <= ligne <= len(lignes) and expr in lignes[ligne - 1]:
+        return entry                      # ancre encore juste
+    trouvees = [i + 1 for i, l in enumerate(lignes) if expr in l]
+    if len(trouvees) != 1:
+        return entry                      # 0 ou ambigu : on ne devine pas
+    reancre = dict(entry)
+    reancre["line"] = trouvees[0]
+    reancre["_reancre_depuis"] = ligne     # trace, jamais silencieux
+    return reancre
+
+
 def load_mutation_triage(game_dir) -> list[dict] | None:
-    """Lit <game_dir>/mutation_triage.json ; None si absent/illisible/non-liste."""
+    """Lit <game_dir>/mutation_triage.json ; None si absent/illisible/non-liste.
+
+    Depuis P4 (2026-08-06) : chaque entrée portant `expression` est RÉ-ANCRÉE en
+    mémoire sur la ligne qui porte réellement cette expression (cf.
+    `_reancrer_entree`). Une entrée sans `expression` garde le comportement
+    historique, strictement inchangé.
+    """
     path = Path(game_dir) / "mutation_triage.json"
     if not path.exists():
         return None
@@ -916,7 +965,9 @@ def load_mutation_triage(game_dir) -> list[dict] | None:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    return data if isinstance(data, list) else None
+    if not isinstance(data, list):
+        return None
+    return [_reancrer_entree(e, Path(game_dir)) if isinstance(e, dict) else e for e in data]
 
 
 def check_mutation_gate(mutation_result: dict, triage_entries: list[dict] | None) -> dict:

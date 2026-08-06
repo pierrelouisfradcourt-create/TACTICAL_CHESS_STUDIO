@@ -69,10 +69,10 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # s3-decompo reçoit désormais les DEUX : le Prisme (exigences) et le World
     # Scan (connaissance qui les fonde). Sans cette 2e source, la décompo perdait
     # les standards du genre dès qu'ils n'étaient pas repris mot pour mot.
-    "s3-decompo": ("artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt"),
-    "s4-archi": ("artifacts/s3-decompo.txt",),
-    "s5-wiremap": ("artifacts/s3-decompo.txt", "blueprint.json"),
-    "s6-redteam-plan": ("artifacts/s3-decompo.txt", "artifacts/s4-archi.txt",
+    "s3-decompo": ("charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt"),
+    "s4-archi": ("charter.yaml", "artifacts/s3-decompo.txt",),
+    "s5-wiremap": ("charter.yaml", "artifacts/s3-decompo.txt", "blueprint.json"),
+    "s6-redteam-plan": ("charter.yaml", "artifacts/s3-decompo.txt", "artifacts/s4-archi.txt",
                         "artifacts/s5-wiremap.txt"),
     "s9-build": ("blueprint.json", "wiremap.json"),
     "s11-redteam-code": ("wiremap.json",),
@@ -246,7 +246,7 @@ def build_dispatch_manifest_record(
     run_dir: Path | None = None, caps_path: Path | None = None,
     ts: float | None = None, activation: int = 1,
     model_executed: str | None = None,
-    reason: str = "",
+    reason: 'str | dict' = "",
 ) -> dict:
     """Corps NON SIGNÉ de la ligne 'dispatch' (utile aux tests qui veulent
     inspecter le contenu avant signature).
@@ -291,7 +291,7 @@ def append_dispatch_manifest(
     run_dir: Path | str, caps_path: Path | None = None,
     key_file: Path | None = None, ts: float | None = None,
     model_executed: str | None = None,
-    reason: str = "",
+    reason: 'str | dict' = "",
 ) -> dict:
     """Construit, signe et APPEND la ligne 'dispatch' du Context Manifest de
     cette étape. ``run_dir`` est requis ici (l'appelant — ``dispatch.py`` —
