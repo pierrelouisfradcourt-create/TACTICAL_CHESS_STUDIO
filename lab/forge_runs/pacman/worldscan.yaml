@@ -1,0 +1,372 @@
+# World Scan: Pac-Man Arcade Genre Analysis
+# run_id: pacman-20260805-r1
+# step: s2-worldscan
+# date: 2026-08-05
+# role: Architecture camera — observe assembly, source facts, remain advisory-only
+
+# ============================================================================
+# MANDATORY FIELDS (exigence Pierre 2026-08-05)
+# ============================================================================
+
+player_objectives:
+  - "Navigate a 2D maze grid and consume all pellets (dots + power pellets) to clear the level"
+  - "Avoid contact with four pursuing ghosts except when temporarily invulnerable after eating power pellets"
+  - "Maximize score through pellet consumption and ghost captures during vulnerability windows"
+  - "Survive and progress to higher difficulty levels (up to 256 levels in the original arcade)"
+
+victory_conditions:
+  - "CONDITION_PRIMARY: Player consumes EVERY pellet and power pellet in the maze (240 dots + 4 power pellets = 244 total collectibles)"
+  - "VERIFICATION_STRICT: Game counts consumed pellets; level advance triggers only when consumed_count == total_pellet_count (equality, not >=)"
+  - "LEVEL_PROGRESSION: After clearing one level, maze layout advances; same victory condition applies"
+  - "SCALING: Difficulty escalates through 256 levels before a known kill screen (level 256 is unplayable, referenced in source)"
+
+defeat_conditions:
+  - "CONDITION_CONTACT: Pac-Man loses one life when a ghost (Blinky, Pinky, Inky, or Clyde) occupies the same tile in a non-frightened state"
+  - "CONDITION_EXHAUSTION: Game ends (GAME_LOST state) when the player's life counter reaches 0 after losing the final life"
+  - "LIVES_STARTING: Original arcade starts with 3 lives; first contact with hostile ghost decrements to 2, then 1, then 0 (game over)"
+  - "GHOST_STATE_EXCEPTION: Contact during ghost Frightened mode (post-power-pellet) does not end a life; instead, ghost respawns at ghost house for bonus points (200/400/800/1600 depending on consecutive captures)"
+  - "VERIFICATION_STRICT: Defeat state is mutually exclusive with in-progress and victory states; no ambiguous terminal conditions"
+
+# ============================================================================
+# RETENTION & ENGAGEMENT LOOPS (sourced across timescales)
+# ============================================================================
+
+loops:
+  minute_1:
+    description: "Core loop: read maze, move via arrow keys, consume pellet, avoid ghost, repeat"
+    actions:
+      - "Player presses arrow key (immediate input)"
+      - "Pac-Man moves one tile in requested direction (if legal); otherwise continues current direction"
+      - "Ghost AI pathfinds toward Pac-Man (one tile per cycle)"
+      - "Check collision: Pac-Man tile == any ghost tile? If yes and ghost not Frightened → lose life"
+      - "Check pellet consumption: Pac-Man tile contains pellet? If yes → score, decrement pellet count, check victory"
+      - "Render maze state and score (visual feedback < 150ms typical arcade frame)"
+    retention_mechanism: "Immediate feedback loop with clear input→action mapping; player quickly understands goal (eat pellets, avoid ghosts); maze structure provides spatial puzzle micro-decisions at each intersection"
+    source: "https://www.gamedeveloper.com/design/the-pac-man-dossier"
+
+  minute_10:
+    description: "Skill escalation and ghost personality discovery"
+    actions:
+      - "Player encounters power pellets (4 in corners), discovers temporary invulnerability"
+      - "Ghosts shift between Chase and Scatter modes (player observes behavior change and direction reversal)"
+      - "Player begins learning ghost targeting patterns: Blinky aggressive, Pinky ambush-ahead, Inky unpredictable, Clyde conditional"
+      - "First ghost captures earn bonus points; chains of multi-ghost captures reward risk-taking"
+      - "Player attempts to beat own pattern-play or memorization strategy"
+    retention_mechanism: "Ghosts reveal distinct 'personalities' through behavior; Scatter mode creates safe zones; power pellet risk-reward creates tactical moments; variable ghost AI prevents pure memorization"
+    source: "https://www.gamedeveloper.com/design/the-pac-man-dossier, https://mentalfloss.com/article/90874/"
+
+  hour_5:
+    description: "INAPPLICABLE TO ORIGINAL ARCADE (1980)"
+    rationale: "Pac-Man is a coin-operated arcade game with no explicit 5-hour sessions. Retention loop operates on PROGRESSION ACROSS REPLAYS (256 levels of difficulty escalation) and PERSONAL BEST SCORE CHASING, not extended single-session engagement. Each level clears in 3-5 minutes; session length is player-determined (limited by quarters/coins in arcade context). The arcade design philosophy targets SHORT intense sessions with high replay value, not sustained 5+ hour sessions. A 5+ hour loop would be: accumulate points across lives → publish high score to cabinet leaderboard → return to arcade next day to beat it."
+    loops_that_apply:
+      - "Level N → Level N+1 progression (each level adds 1-2 seconds to ghost speed, reduces power pellet duration, etc.)"
+      - "Across-session progression: beat level 5 today, return tomorrow to beat level 10"
+      - "Personal best score chase: replay early easy levels trying to maximize score on familiar mazes"
+    source: "https://designoriented.net/blog/2015/06/30/2015630pac-man-design-variables-of-difficulty/ (arcade progression design philosophy), https://www.gamespot.com/reviews/pac-man-1980/ (3-5 minute typical level duration)"
+
+# ============================================================================
+# GAME SYSTEMS & MECHANICAL ASSEMBLIES
+# ============================================================================
+
+systems:
+  - name: "Discrete Grid Navigation"
+    role: "Foundation for collision, path-finding, and visual alignment"
+    assembly: "28 tiles wide × 36 tiles tall (224×288 pixel arcade resolution ÷ 8-pixel tile size); each tile is a unit cell for movement, pellet placement, ghost pathfinding; ghosts and Pac-Man occupy one tile at a time"
+    source: "https://www.pacmangameusa.com/pacman-maze/ (28×36 documented), https://www.technologyuk.net/computing/computer-gaming/gaming-landmarks-1960-1985/pac-man.shtml (arcade resolution)"
+
+  - name: "Maze Topology"
+    role: "Environmental constraint and strategic depth"
+    assembly: "Fixed symmetrical maze with blue walls; two side tunnels (wrap-around horizontally); ghost house in center; 240 pellets distributed in corridors (one per tile center); 4 power pellets in corners"
+    collision_rule: "Mutable per-level: walls are infranchisable; tunnel tiles allow wrap-around (exit right → enter left, exit left → enter right)"
+    source: "https://www.pacmangameusa.com/pacman-maze/, https://strategywiki.org/wiki/Pac-Man/Gameplay"
+
+  - name: "Pellet System"
+    role: "Primary win condition and score accumulation"
+    assembly: "240 small pellets (10 points each) + 4 large power pellets (50 points each); consumption is tracked by global counter (consumed_count, total=244); power pellets trigger Frightened mode on all ghosts"
+    state_mutation: "Pellet tile becomes empty; consumed_count increments; check victory (consumed_count == 244?)"
+    source: "https://pacman.fandom.com/wiki/Power_Pellet, search results on original arcade"
+
+  - name: "Frightened Mode (Power Pellets)"
+    role: "Temporary power-reversal and risk-reward mechanism"
+    assembly: "Eating a power pellet triggers global timer: all 4 ghosts turn blue/vulnerable for duration (level-dependent: early levels 6-7 seconds, later levels 2-3 seconds, level 19+ ghosts flash but don't become eatable)"
+    effects_on_ghosts: "Pathing switches to pseudo-random; speed reduces to ~60-70% normal; consecutive captures award escalating points (200/400/800/1600)"
+    effects_on_pellets: "Pellets not consumed during Frightened mode; power pellet duration independent of gameplay state (not paused)"
+    expiration_rules: "Timer expires automatically OR when all ghosts consumed (restarts Frightened timer to 0); ghost respawns at ghost house when eaten"
+    source: "https://www.gamedeveloper.com/design/the-pac-man-dossier (duration tuning per level), https://pacman.fandom.com/wiki/Power_Pellet"
+
+  - name: "Ghost State Machine (Chase/Scatter/Frightened)"
+    role: "Primary challenge escalation and behavioral variation"
+    assembly: "Global timer dictates mode for all ghosts simultaneously; three exclusive states per ghost"
+    state_details: "See ghost_states section below"
+    source: "https://www.gamedeveloper.com/design/the-pac-man-dossier"
+
+  - name: "Difficulty Escalation"
+    role: "Sustains engagement across 256 levels via parameter tuning"
+    assembly: "Per-level modifications: Pac-Man speed increases slightly; ghost speeds increase; power pellet duration decreases; ghost spawn frequency increases; scatter mode durations compress"
+    mechanical_expression: "All speed changes expressed as ticks-per-tile or tiles-per-frame (deterministic, seedable); no RNG in core movement"
+    progression_ceiling: "Level 21+ scatters last 1/60th second; level 256 has unplayable ghost placement (kill screen)"
+    source: "https://designoriented.net/blog/2015/06/30/2015630pac-man-design-variables-of-difficulty/"
+
+  - name: "Scoring & Persistence"
+    role: "Feedback mechanism and arcade cabinet leaderboard data"
+    assembly: "Running score displayed in UI; updated on pellet consumption (10 pts), power pellet (50 pts), ghost capture (+200/400/800/1600 depending on consecutive count)"
+    persistence_arcade: "Score written to high-score table on cabinet EEPROM; survives power-off"
+    source: "Original arcade documentation, https://en.wikipedia.org/wiki/Pac-Man"
+
+# ============================================================================
+# GHOST STATE MACHINE & INDIVIDUAL TARGETING
+# ============================================================================
+
+ghost_states:
+  total_ghosts: 4
+  state_machine_type: "Global timer controls all ghosts simultaneously; each ghost follows its own targeting within the active mode"
+
+  states:
+    - name: "Chase Mode"
+      description: "Ghosts pursue Pac-Man using individual targeting algorithms (see ghost_targeting below)"
+      behavior: "Each ghost pathfinds toward its calculated target tile using Manhattan distance + directional preference"
+
+    - name: "Scatter Mode"
+      description: "Ghosts abandon Pac-Man and head toward fixed corner targets in corners of the maze"
+      behavior: "Blinky → top-right corner; Pinky → top-left corner; Inky → bottom-right corner; Clyde → bottom-left corner"
+      outcome: "Creates safe zones where player can traverse unmolested; ghosts loop trying to reach unreachable corners"
+
+    - name: "Frightened Mode"
+      description: "Triggered by power pellet consumption; ghosts become vulnerable and move pseudo-randomly"
+      behavior: "Pseudo-random pathfinding at reduced speed; any ghost can be captured by Pac-Man"
+      duration_level_dependent: "Levels 1-4: ~6 seconds; Levels 5-18: ~5 seconds; Levels 19+: ~3 seconds (flashing, not eatable)"
+
+  mode_timing_levels_1_4:
+    sequence:
+      - "Chase: 20 seconds"
+      - "Scatter: 7 seconds"
+      - "Chase: 20 seconds"
+      - "Scatter: 7 seconds"
+      - "Chase: 20 seconds"
+      - "Scatter: 5 seconds"
+      - "Chase: 1,033 seconds (17+ minutes, effectively permanent for a single level)"
+    note: "After the third scatter, ghosts enter indefinite chase mode until level end or game over"
+    source: "https://www.gamedeveloper.com/design/the-pac-man-dossier"
+
+  mode_timing_levels_5_plus:
+    sequence:
+      - "Chase: 20 seconds"
+      - "Scatter: 5 seconds (reduced from 7)"
+      - "Chase: 20 seconds"
+      - "Scatter: 5 seconds"
+      - "Chase: 20 seconds"
+      - "Scatter: 5 seconds"
+      - "Chase: 1,033 seconds (permanent for level)"
+    source: "https://www.gamedeveloper.com/design/the-pac-man-dossier"
+
+  spawn_behavior:
+    sequence: "Ghosts enter from ghost house (center) at start of level; Blinky enters first, others follow with delays based on pellet consumption; once a ghost exits, it never re-enters unless captured and respawned during Frightened mode"
+    source: "StrategyWiki Pac-Man Gameplay guide"
+
+ghost_targeting:
+  description: "Each ghost uses a deterministic targeting algorithm that calculates a target tile, then pathfinds toward it using Manhattan distance. Targeting is PURE and DETERMINISTIC: same ghost, same Pac-Man position, same Blinky position → same target tile."
+  pathfinding_rule: "At each intersection, ghost evaluates available exits (up/left/down/right, excluding backward); calculates Manhattan distance from each exit to target tile; chooses closest exit; ties broken by preference order (up > left > down > right)"
+
+  blinky_red:
+    name: "Blinky (Red)"
+    targeting_mode_chase: "Direct pursuit: target = Pac-Man's current tile"
+    targeting_mode_scatter: "Retreat to top-right corner of maze"
+    special_behavior: "Becomes 'Cruise Elroy' (accelerates and ignores scatter mode) when pellet count drops below thresholds: at 20 pellets remaining in levels 1-4, at 10 pellets in levels 5-20, etc. When Cruise Elroy, Blinky targets Pac-Man's tile even during declared scatter periods."
+    personality: "Relentless, most aggressive; only ghost that breaks scatter protocol"
+    source: "https://www.gamedeveloper.com/design/the-pac-man-dossier, https://funfactz.com/technology/pac-man-ghosts"
+
+  pinky_pink:
+    name: "Pinky (Pink)"
+    targeting_mode_chase: "Ambush ahead: target = 4 tiles ahead of Pac-Man in his current facing direction (if facing right and at (10, 10), target = (14, 10))"
+    targeting_mode_scatter: "Retreat to top-left corner"
+    tactical_vulnerability: "Predictable and exploitable: player can bait Pinky by changing direction sharply; if Pac-Man turns left, Pinky's 4-tile-ahead target suddenly wraps to the opposite side, creating openings"
+    personality: "Ambusher, cut-off specialist; named 'Inky' in early designs but renamed for clarity"
+    source: "https://www.gamedeveloper.com/design/the-pac-man-dossier, https://mentalfloss.com/article/90874/"
+
+  inky_cyan:
+    name: "Inky (Light Blue)"
+    targeting_mode_chase: "Complex formula involving Blinky's position and Pac-Man's position: (a) calculate vector from Blinky to Pac-Man; (b) identify a tile 2 units ahead of Pac-Man in facing direction; (c) draw a line from Blinky through that tile, extend it the same distance again; (d) target that endpoint"
+    targeting_mode_scatter: "Retreat to bottom-right corner"
+    behavior_consequence: "Creates erratic, hard-to-predict behavior; if Blinky is far from Pac-Man, Inky tends chaotic; if Blinky is close, Inky creates a pincer movement. Most unpredictable of the four."
+    personality: "Fickle, uses collective strategy (depends on Blinky's position); the 'wildcard'"
+    source: "https://www.gamedeveloper.com/design/the-pac-man-dossier, https://funfactz.com/technology/pac-man-ghosts"
+
+  clyde_orange:
+    name: "Clyde (Orange)"
+    targeting_mode_chase: "Conditional pursuit: if distance(Clyde, Pac-Man) > 8 tiles, target = Pac-Man's tile (like Blinky); if distance ≤ 8 tiles, target = Clyde's scatter corner (bottom-left)"
+    targeting_mode_scatter: "Retreat to bottom-left corner"
+    behavior_consequence: "Creates a 'foolish' or 'bashful' behavior; Clyde chases directly until very close, then retreats, causing him to orbit Pac-Man if Pac-Man stays still or moves slowly"
+    personality: "Bashful, proximity-triggered retreat; lowest threat at close range (paradoxically safe to approach him)"
+    source: "https://www.gamedeveloper.com/design/the-pac-man-dossier, https://mentalfloss.com/article/90874/"
+
+  targeting_variance_proof:
+    statement: "Each ghost's targeting algorithm produces DISTINCTLY DIFFERENT tile targets from the same Pac-Man position (with same Blinky position for Inky). This is proven by the fact that Pinky targets 4 tiles ahead, Inky uses Blinky's position, Clyde uses a distance threshold, and Blinky targets directly. The variance is intentional design (Toru Iwatani, 1980): 'Each ghost thinks differently,' creating unpredictability and depth."
+    verification_rule: "On identical initial state (Pac-Man at X, all ghosts at Y, Blinky at B), run one tick: Blinky moves toward X, Pinky toward (X+4direction), Inky toward (complex), Clyde toward (conditional). Four distinct paths emerge. Measured by trajectory divergence (distance between ghost positions after 10 ticks from identical start)."
+    source: "https://www.gamedeveloper.com/design/the-pac-man-dossier"
+
+# ============================================================================
+# MAZE ARCHITECTURE
+# ============================================================================
+
+maze:
+  dimensions: "28 tiles wide × 36 tiles tall"
+  pixel_resolution: "224 × 288 pixels (3:4 aspect ratio, original arcade 1980)"
+  tile_size: "8 × 8 pixels per tile"
+
+  structure:
+    walls: "Blue walls forming symmetrical maze; corners and intersections create decision points for player and ghosts"
+    corridors: "Single-width passages (1 tile wide) alternate with wider areas; asymmetries allow for differentiated ghost strategies"
+
+  key_features:
+    ghost_house: "Enclosed room in center of maze; ghosts spawn here at level start and after capture"
+    tunnels: "Two side tunnels (horizontal wrap-around): exit right edge → enter left edge, vice versa; unique feature that allows escape routes and breaks maze symmetry"
+    power_pellet_positions: "4 power pellets placed in the 4 corners of the maze (strategic locations far from ghost house, encouraging risky traversal)"
+
+  pellet_count_total: "240 regular pellets (10 points each) + 4 power pellets (50 points each) = 244 total collectibles"
+  pellet_distribution: "Every passable tile in corridors contains exactly one pellet at tile center; no tile without a pellet in walkable areas; walls contain no pellets"
+
+  source: "https://www.pacmangameusa.com/pacman-maze/, https://strategywiki.org/wiki/Pac-Man/Gameplay"
+
+# ============================================================================
+# COMPARABLE GAMES & GENRE CONTEXT
+# ============================================================================
+
+comparable_games:
+  - game_name: "Ms. Pac-Man (1981)"
+    publisher: "Namco / Midway"
+    key_differences:
+      - "Multiple distinct maze layouts across levels (vs. single repeating maze in original Pac-Man)"
+      - "Randomized ghost movement patterns (harder to memorize and pattern-play against)"
+      - "Power pellet effect shorter-duration and reduces with level progression"
+      - "Fruit bonuses appear dynamically in maze (vs. static positioning)"
+      - "Ghost targeting still uses chase/scatter, but implementation details differ"
+    mechanics_source: "https://strategywiki.org/wiki/Ms._Pac-Man/Gameplay, https://pacman.fandom.com/wiki/Ms._Pac-Man_(game)"
+
+  - game_name: "Dig Dug (1982)"
+    publisher: "Namco"
+    genre_crossover: "Arcade maze-based action (similar era, similar difficulty escalation)"
+    mechanics:
+      - "Player controls 2D grid-based character (Dig Dug the miner)"
+      - "Victory via defeating all enemies per level (Pookas and Fygars, not ghosts)"
+      - "Defense tool: air pump to inflate and burst enemies (vs. power pellets to stun)"
+      - "Rock physics: pushing boulders to crush enemies (vs. maze structure containment)"
+      - "15 unique layouts; cycles after round 15; kill screen at round 256"
+      - "Fruit bonus items appear after progressing in round (similar progression reward)"
+    retention: "High replayability through varied level layouts and skill-based mechanics"
+    mechanics_source: "https://en.wikipedia.org/wiki/Dig_Dug, https://www.arcade-history.com/?n=dig-dug&page=detail&id=637"
+
+# ============================================================================
+# SOURCES & CITATIONS
+# ============================================================================
+
+sources:
+  - url: "https://www.gamedeveloper.com/design/the-pac-man-dossier"
+    type: "article"
+    author: "Game Developer (GDC Archive)"
+    content: "Definitive technical analysis of ghost AI, state machine timing, and targeting algorithms. Primary source for mode sequences and ghost behavior specifics."
+
+  - url: "https://www.designoriented.net/blog/2015/06/30/2015630pac-man-design-variables-of-difficulty/"
+    type: "article"
+    content: "Arcade game design principles and difficulty escalation variables. Explains why Pac-Man is endlessly replayable despite deterministic behavior."
+
+  - url: "https://strategywiki.org/wiki/Pac-Man/Gameplay"
+    type: "wiki"
+    content: "Strategy guide covering game mechanics, ghost behaviors, maze layout, scoring, and level progression."
+
+  - url: "https://www.pacmangameusa.com/pacman-maze/"
+    type: "game_database"
+    content: "Authoritative source on maze structure, tile count, pellet distribution, and spatial layout."
+
+  - url: "https://www.pacmangameusa.com/pac-man-ghost/"
+    type: "game_database"
+    content: "Detailed documentation of each ghost's personality, targeting algorithm, and behavioral patterns."
+
+  - url: "https://mentalfloss.com/article/90874/"
+    type: "article"
+    title: "Up Your Pac-Man Game by Learning the Different Strategies of Each Ghost"
+    content: "Accessible explanation of individual ghost AI differences and player-exploitable behavior patterns."
+
+  - url: "https://www.technologyuk.net/computing/computer-gaming/gaming-landmarks-1960-1985/pac-man.shtml"
+    type: "article"
+    content: "Technical specifications of original arcade: resolution, tile sizes, scoring, and gameplay mechanics."
+
+  - url: "https://funfactz.com/technology/pac-man-ghosts"
+    type: "article"
+    title: "Pac-Man Ghosts: Unpacking Their Unique AI"
+    content: "Overview of ghost naming, personalities, and how each ghost's targeting differs from the others."
+
+  - url: "https://thetechylife.com/how-do-the-pac-man-ghosts-work/"
+    type: "article"
+    content: "Explanation of ghost behavior modes and state transitions."
+
+  - url: "https://pacman.fandom.com/wiki/Power_Pellet"
+    type: "wiki"
+    content: "Detailed mechanics of power pellet effects, duration scaling per level, and ghost vulnerability."
+
+  - url: "https://meliorgames.com/game-development/game-mechanics-that-drive-player-retention/"
+    type: "article"
+    content: "Modern game design theory on retention loops and progression mechanics."
+
+  - url: "https://game-ace.com/blog/arcade-game-design/"
+    type: "article"
+    content: "Arcade game design philosophy: immediate feedback, escalating difficulty, and replayability."
+
+  - url: "https://en.wikipedia.org/wiki/Pac-Man"
+    type: "encyclopedia"
+    content: "Overview of Pac-Man game history, mechanics, and cultural impact."
+
+  - url: "https://en.wikipedia.org/wiki/Dig_Dug"
+    type: "encyclopedia"
+    content: "Comparable arcade game: similar era, similar progression model, different core mechanics."
+
+# ============================================================================
+# INCERTITUDES: FACTS NOT FULLY SOURCED (declared, not invented)
+# ============================================================================
+
+incertitudes:
+  - item: "Exact millisecond tick rate of the original 1980 arcade cabinet"
+    reason: "Sources mention 'deterministic timing' and 'one tile per cycle' but do not specify whether the arcade ran at 60 Hz, 50 Hz, or a bespoke rate. Different regions (NTSC vs. PAL) likely differ."
+    impact: "For implementation: assume standard arcade 60 Hz or derive from observing recorded gameplay footage and counting frames between state changes."
+
+  - item: "Precise speed ratios between Pac-Man and ghosts (e.g., tiles per second)"
+    reason: "Sources state ghosts are 95% of Pac-Man's speed and that Pac-Man is faster when not eating than eating, but do not give exact frame data or tile/ms values."
+    impact: "For implementation: initial guess of 150 ms per tile for Pac-Man (charter proposal) would make ghosts ~158 ms per tile; this requires playtest validation against recorded original gameplay."
+
+  - item: "Exact warp tunnel positioning and behavior rules"
+    reason: "Maze sources confirm two side tunnels and wrap-around, but do not specify which exact tiles are tunnel entries/exits or whether ghosts use tunnels."
+    impact: "For implementation: tunnel observation from original game sprites or arcade PCB analysis required."
+
+  - item: "Ghost spawn timing and ghost house exit sequencing under pellet consumption thresholds"
+    reason: "Sources mention pellet-based thresholds for Blinky's Cruise Elroy mode but do not enumerate exact count thresholds per level for initial ghost spawning."
+    impact: "For implementation: may require empirical observation or reference to Pac-Man emulator source code (MAME)."
+
+  - item: "Power pellet effect duration exact end conditions (timer expiry vs. all ghosts eaten)"
+    reason: "Sources state effect expires 'after time or when all ghosts eaten' but do not clarify which event takes precedence if both could occur within a frame."
+    impact: "For implementation: assume timer expires OR ghosts consumed, whichever happens first (redundant exit condition)."
+
+  - item: "Fruits and bonus items in original Pac-Man level 1"
+    reason: "Wikipedia mentions 'eating fruit earns points' and sources reference Dig Dug and Ms. Pac-Man fruit mechanics, but original Pac-Man appears to use fixed fruit placement. Exact positioning and point values not sourced."
+    impact: "For implementation: original Pac-Man may not have fruits on level 1; defer to World Scan clarification or gameplay video observation. Charter does NOT require fruits, so this may be out-of-scope for this run."
+
+  - item: "Level 256 kill screen exact state (ghost placement, why unplayable)"
+    reason: "Sources mention 'level 256 is unplayable' and 'Pooka placed on player start' (from Dig Dug), but Pac-Man level 256 specifics not fully sourced. May be related to sprite corruption or game engine limits."
+    impact: "For implementation: original 256-level ceiling is a known system limit; our run ends before this so defer."
+
+# ============================================================================
+# ADVISORY NOTES
+# ============================================================================
+
+advisory:
+  - "This scan observes Pac-Man and comparable arcade games to understand their ASSEMBLIES (systems, states, loops, retention). The analysis is ARCHITECTURAL, not PRESCRIPTIVE. The choice of which mechanics to retain, which to adapt, and which to invent remains with the council and architecture step (s4)."
+
+  - "Pac-Man is a DETERMINISTIC game with PROCEDURALLY ESCALATED DIFFICULTY (no RNG except Frightened mode pseudo-random pathfinding). This is unlike modern roguelike or procedural-generation games and affects what 'replayability' means: players return to beat personal scores, not to discover new content."
+
+  - "The 'hour 5' retention loop does not apply to 1980 arcade games in the same sense as modern games. Arcade design optimized for QUARTER-FED SESSIONS (3-5 minutes each) with HIGH SKILL CEILING, not for sustained 5+ hour sessions. Cross-session progression (levels 1→256) and leaderboards (cabinet high-score tables) were the retention mechanisms."
+
+  - "Ghost targeting is PURE and DETERMINISTIC. A bot that knows the ghost algorithms can exploit them (pattern-play). The design mitigates this by giving each ghost a different algorithm, creating emergent complexity. This is NOT a weakness; it is elegant AI design."
+
+  - "The Victory Condition is STRICTLY COUNTING: eat EVERY pellet, no exceptions. A design that allows 'good enough' (e.g., 239/240 pellets and time-out to next level) would be a different game and breaks the demo criteria 'Part Complete Without Tools.'"
+
+# ============================================================================
+# END OF WORLD SCAN
+# ============================================================================

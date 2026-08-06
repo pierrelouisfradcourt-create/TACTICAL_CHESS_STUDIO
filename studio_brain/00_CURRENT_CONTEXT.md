@@ -2,100 +2,91 @@
 *(Handoff. Historique : `studio_brain/journal/context-archive-2026-08-04-forge-v2-sessions.md`
 → `2026-07-31_00_CURRENT_CONTEXT_archive.md` → `2026-07-30_...`.)*
 
-## Etat de la phase — Forge V2 / Knowledge Runtime V1 (2026-08-04 -> 2026-08-05)
+## Dernière session — 2026-08-05/06 : PAC-MAN V1 puis V2
+*(V1 archivé : `studio_brain/journal/2026-08-05_pacman_v1_run.md` — jeu Godot produit,
+oracle vert, plateforme corrigée par Pierre en cours de run. V2 ci-dessous.)*
 
-**Ce que la Forge sait faire maintenant, mécaniquement et sans LLM :**
+### V2 — le produit devient extensible
 
+Run `pacman-v2-20260805`, profil `full_godot`, s2 sauté (faits de genre inchangés).
+Incrément sur le jeu V1, **sans le casser** : les 1012 assertions V1 sont conservées.
+
+**Preuve mécanique** (chaque chiffre re-executé par l'orchestrateur) :
 ```
-root_problem → candidate_selector → execution_binding → mcts_selector
-             → agent_factory (PLAN_ONLY | --execute) → execution_proof → MATCH/MISMATCH
-```
-
-- **3 MATCH** sur 3 familles d exécution : `repair_runtime`/adapter · composition `M-ws6`
-  (2 maillons, 1 repris sous empreinte vérifiée) · `deterministic`/entrypoint.
-- `--execute` ouvert sous **5 conditions** : HumanGate par exécution · scope obligatoire ·
-  MISMATCH = arrêt (aucun retry) · aucune boucle · aucun pouvoir de dispatch ajouté.
-- **Vocabulaire des layers** : `scripts/forge/layers.json`, source unique, 13 zones, LUE par
-  `check_mutation_registry` (validation) et `candidate_selector` (4e priorité de départage).
-  Effet mesuré : ORACLE_FALSE_NEGATIVE passe de 4 ex aequo à 3.
-- **Knowledge Runtime V1** : `caller` + `matched_ids` + `consumed_refs` +
-  `proof_of_consumption` ∈ {MEASURED, NOT_WIRED, NOT_MEASURED}. Mesuré réel :
-  `games/kb_tactics` = MEASURED, `consumed_refs=["sys-reachability"]`.
-- **Politique de preuve (Option C)** : les bundles `lab/forge_evidence/*/` sont versionnés
-  (122 fichiers), les flux append-only restent ignorés. Avant : 0/13 mutation exécutable sur
-  un clone frais ; après : 4/13, `evidence_missing` 13 → 0.
-
-**Commits** : `d37f51b` (V2, tag `forge-v2`) · `d90ffc0` (--execute) · `d8f8143` (Option C) ·
-`901d1b5` (layers) · `8812a0c` (zone de décision) · `74f726e` (SEARCH_USAGE).
-
-**Tests** : forge 717 (716 pass) · knowledge_base 150 (149 pass) · pytest 1404 pass.
-Deux rouges **pré-existants**, vérifiés sur l arbre commité avant la phase :
-`studio_selfaudit.test.mjs:177` (PATH Python) · `search.test.mjs` (mots vides).
-
-### Ce qui reste faux, et n est pas maquillé
-- `quality_not_proven: true` et `production_ready: false` **partout**. L oracle atteste la
-  fermeture du défaut MESURÉ, jamais la qualité de ce qui est écrit.
-- `root_problem.lesson_ids` **vide sur les 4 problèmes** : trois critères fondés sur la preuve
-  donnent zéro association (les 18 leçons viennent de runs de JEU, les problèmes racines
-  d expériences WORKER — deux univers de preuve disjoints). Le vide est l information.
-- **2 des 14** `run-oracle.mjs` invoquent `reuse_ratio.mjs` (`kb_tactics`, `shmup_slice`, tous
-  deux MEASURED) ; **12 ne le font pas**. *(Corrigé le 2026-08-05 : j avais écrit « aucun ».)*
-- **8 layers sur 13** employées par aucune mutation : les 5 ajoutées **et 3 antérieures**
-  (`s3-decompo`, `s4-archi-contract`, `s5-wiremap-contract`). *(Corrigé le 2026-08-05.)*
-- `branching_factor = 1` sur les 4 problèmes racines → **aucune exploration MCTS justifiable**.
-
-### Décisions en attente de Pierre
-- `ROLE_REPAIR_RUNTIME_V2` : `repair_runtime` accepté SOUS CONDITION — conditions inscrites
-  dans les 3 fichiers, mais la case « accepter/refuser/restreindre » de
-  `AGENT_FACTORY_EXECUTE_V1_CONTRACT` reste ouverte.
-- `ROOT_PROBLEM_LINK_PROPOSAL_V1` : laisser `lesson_ids` vide (recommandé) ou retenir des
-  rapprochements de jugement.
-- `SEARCH_LOG_POLICY_PROPOSAL_V1` : statu quo recommandé ; chantier « politique des 239
-  `.jsonl` suivis (95,5 Mo) » non ouvert.
-
-### Prochain chantier — recommandation
-Fermer le `NOT_WIRED` des projets (`reuse_ratio` dans `run-oracle.mjs`) OU rouvrir la
-production de jeux, qui alimenterait enfin les 5 layers aval vides. Dette complète :
-`docs/forge/FORGE_V2_CLOSURE_REPORT_V1.md`.
-
-## PHASE CLOSED — Forge V2 / Knowledge Runtime V1 (2026-08-05)
-
-```
-Completed:
-- Evidence policy (Option C — bundles versionnes, flux append-only ignores)
-- Layer vocabulary (layers.json, source unique, 13 zones)
-- Layer consumer (candidate_selector P4 — effet mesure : 4 ex aequo -> 3)
-- Search usage contract (caller · matched_ids · consumed_refs · proof_of_consumption)
-- Knowledge Runtime measurement path (kb_tactics = MEASURED)
-
-Next production priority:
-- produce game runtime data
-- fill downstream layers
-- validate learning loops on real games
+godot_oracle       -> exit 0 | 2212 assertions | solvabilite 50/50 sur 2 CARTES (25/25)
+gate mutation      -> 263 mutants, 5 survivants, TOUS tries EQUIVALENT justifies
+check_mutation_gate-> passed (0 non trie, 0 perime)
+check_wiremap V2   -> passed   ·   check_wiremap V1 -> passed (0 regression de carte)
+gel V2             -> 85 regles intactes  ·  85/85 lignes IMPLEMENTED
+verify_run         -> INTEGRITE : AUTHENTIQUE, exit 0
+verdict : OK / MECHANICAL_VALIDATION_ONLY / NO_CLAIM_ALLOWED
+          decision HUMANGATE_READY_WITH_OBJECTION · redteam_ran TRUE (qwen)
 ```
 
-## KNOWN_LIMITATIONS
+**Les 2 metriques d'architecture de Pierre — ATTEINTES** :
+- ajouter une carte : **4 fichiers `05_SYSTEMS` -> 0** (prouve : 3e carte reellement ajoutee,
+  17x24, 97 collectibles, solvable, puis retiree ; diff = 1 descripteur + 1 entree catalogue)
+- changer l'identite : **0 fichier `05_SYSTEMS`** (non-regression tenue)
+Aucun fichier de `05_SYSTEMS/` ne nomme une carte. L'etat de partie PORTE sa carte.
 
-*Ce sont des etats CONNUS et ASSUMES, pas des oublis. Chacun a une condition de reveil
-dans `docs/forge/FORGE_V2_CLOSURE_REPORT_V1.md` §7-8.*
+**Cout** : V2 = 1 639 920 tokens / 7 appels / 3,1 h — soit **63 % de V1** (2 598 728 / 13 / 3,5 h)
+pour un perimetre plus large (menu, pause, input abstrait, audio genere, dash, 2 cartes).
+RESERVE : V2 est un INCREMENT, pas un second jeu. « Jeu 2 moins cher que jeu 1 » reste OUVERT.
 
-```
-- layer vocabulary exists but several zones unexercised   (8 sur 13)
-- lesson -> root_problem causal link intentionally empty  (0 association prouvee)
-- MCTS disabled: branching_factor insufficient            (= 1 sur les 4 problemes)
-- Agent Factory V1 validated mechanically, not production-used
-- reuse_ratio partially wired                             (2 runners sur 14)
-```
+### Ce que la production a revele (mesure, non corrige)
+1. **La boucle d'apprentissage a 3 plafonds empiles** : le canal est dilue (21/27 entrees avec
+   `resolution` sont de la comptabilite d'escalade du driver) · cloisonne par projet ·
+   **plafonne a 5** (`premortem` `limit=5`, `proj[-5:]`, par recence). Mesure : 7 lecons
+   `pacman` ecrites, 5 remontees. Les 2 evincees sont celles qui se sont verifiees le plus
+   souvent (dispatch/format commise 3x ; `===` GDScript re-confirmee en V2).
+2. **Le triage de mutants est ancre par `name@line`** : un refactor qui decale des lignes
+   invalide silencieusement une justification correcte (mesure : 122->128, 129->135).
+   Meme defaut que l'ambiguite par collision (`check_mutation_gate` refuse une cle partagee).
+   Proposition du forgeron, NON implementee : `expression` = cle de verite, `line` = index.
+3. **GDScript rend certaines gardes infalsifiables par mutation** (coercition tolerante :
+   la valeur de refus coincide avec la degradation du chemin non garde). 3 instances mesurees.
+4. **Le red-team independant n'a produit aucune valeur** : qwen2.5-14b (LM Studio UP grace au
+   preflight) rend 5 findings, **0 falsifiable**, dont 1 contredit par le materiel fourni.
+   V1, avec un fallback claude-blind NON independant, avait rendu 2 BLOQUANTS reels et verifies.
 
-**Mise en garde pour la prochaine session** — plus de mecanismes ne veut pas dire plus
-intelligent. Cette phase a ameliore la capacite d'AUTO-DIAGNOSTIC de la Forge ; elle n'a
-pas ameliore ce qu'elle produit. Il lui manque de la MATIERE a mesurer, pas des mesures.
+### Nouveaux artefacts
+- `scripts/forge/check_prerun.py` — oracle amont du PRE_RUN_REPORT (8 champs), confronte les
+  adresses proposees a `repo_map.yaml`. **Prouve sur le cas reel** : le pre-run `04_CONTENT`
+  (qui a coute 232 019 tokens de reprise) sort FAIL et **nomme le gabarit correct** ;
+  le pre-run corrige sort OK.
+- `docs/forge/MCTS_RECALIBRATION_ENGINE_V1.md` — doctrine Pierre + confrontation mesuree.
+- `lab/forge_runs/pacman/distillation/` — pilote de distillation s3 (3 configs Qwen).
+
+### En attente de HumanGate
+- **Distillation bloquee** : `check_decompo` n'est pas DISCRIMINANT. Les 3 configs Qwen passent
+  exit 0 a ~60x moins cher et **aucune n'est equivalente** (1 seul `kind` de preuve sur 22
+  capacites contre 5 sur 55 chez Opus). Un critere `Score_Qwen >= Score_Opus x seuil` sur les
+  oracles actuels declencherait un remplacement injustifie. Test de discriminance a lancer.
+- Ancrage du triage (`expression` comme cle) — touche `static_oracles.py`.
+- Nouvelle echelle d'escalade par CAPACITE (+skill/+memoire/+critique) — touche `escalate.py`
+  et `roles.yaml`, qui declare que « Qwen ne s'escalade pas ».
+- `scripts/forge/oracles.json` : entree `pacman` hors perimetre declare au charter.
+- 6 exigences a juge humain (R41, R42, R60-R63) : `PROOF_KINDS` n'a pas de valeur `human`.
+- Playtest humain : jamais fait. Preuve pixel : NOT_MEASURED (headless rend une texture nulle).
+- Merge/reject de `games/pacman/` : **rien n'est commite**, tout est propose-only.
 
 ## Impasses connues (ne pas re-buter dessus)
-- Aucun mécanisme d'exclusion de lecture pour un builder (`read: dépôt entier`). · Confinement
-  outils en défaut de format (`Bash(node:*)` vs `Bash`). · `run_real` n'a pas de coupe-circuit
-  budget intra-run (contrôle entre runs uniquement). · qwen3.6 INTERDIT pour le JSON (thinking
-  vide le content). · Godot headless ne rend pas de pixels (fenêtre GPU obligatoire — confirmé
-  à nouveau sur Breakout, 3 volets render FAIL en headless, verts en capture GPU réelle). · Gel
-  wiremap_frozen jamais posé pour Snake NI Breakout (profil standard_godot sans s5, garde F5d
-  advisory seulement) — régime connu, non bloquant.
+Godot `--headless` rend une texture NULLE (fenêtre GPU obligatoire) · qwen3.6 INTERDIT pour le JSON ·
+LM Studio :1234 était DOWN en **V1** (red-team en fallback `claude-blind`, `redteam_ran: false`) mais
+**UP en V2** grâce au préflight (`redteam_ran: true`, qwen réellement indépendant) — le préflight
+d'environnement AVANT le run est la différence, pas la chance · `run_real` sans coupe-circuit budget
+intra-run · aucun mécanisme d'exclusion de lecture pour un builder.
+
+## Deux chaînes distinctes — correction de modèle Pierre, 2026-08-06
+`docs/forge/WHY_LINEAGE_PROPOSAL_V1.md`. **Intent Lineage** (cohérence PROJET, « pourquoi ce projet
+existe », non vérifiable par hash, garde contre la dérive d'identité) et **Activation Lineage**
+(cohérence TÂCHE, « pourquoi cette tâche démarre maintenant », problème→oracle→cause→action→preuve).
+Ne jamais confondre WHY = sens et CONTRAINTE = réalité vérifiable : `repo_map` n'est pas une
+intention, c'est une représentation du monde. **Mesuré** : Intent Lineage exigé par `s0-contrat.yaml`
+SEUL (1 contrat sur 13, aucune propagation aval) ; Activation Lineage = champ `reason`, 9 dispatches,
+9 vides. Les deux naissent une fois et meurent sur place. Le cas `04_CONTENT` n'était PAS une perte
+d'intention (le charter la portait, mais « couche » y désignait un étage de la Forge, et le charter
+déléguait la structure à s4) — c'était une **perte de réalité nécessaire à la décision** :
+`repo_map.yaml` n'est pas dans le `mandatory_read` de s4-archi ni de s5-wiremap, alors qu'il l'est
+dans celui de s9-build-godot-standard. L'étape qui DÉCIDE les adresses ne reçoit pas la table ;
+celle qui APPLIQUE la reçoit.

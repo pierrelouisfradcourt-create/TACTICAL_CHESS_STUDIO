@@ -1,0 +1,248 @@
+# Charter Forge — étape 0 (Contrat) — projet : pacman
+# run_id       : pacman-20260805-r1
+# marqueur     : FORGE_DISPATCH:s0-contrat:pacman-20260805-r1
+# schéma       : {objectif, hors_scope[], criteres_succes[], actions_interdites[],
+#                 plateforme_cible, reference_jeu, criteres_demo[]} — 7 champs, tous remplis
+# oracle sortie: forge.static_oracles.check_charter (déterministe, non-LLM)
+#
+# NOTE DE MÉTHODE : aucune décision n'est portée par un commentaire (règle studio
+# ratifiée 2026-07-23). La provenance de chaque champ de design-intent est un CHAMP
+# STRUCTURÉ (`provenance:`), tout paramètre chiffré non arbitré par Pierre est un CHAMP
+# STRUCTURÉ à valeur initiale proposée (`parametres_de_design:`, statut A_EQUILIBRER), et
+# ce que ce charter ne tranche PAS est un CHAMP STRUCTURÉ (`question_ouverte_humangate:`).
+
+version: 1
+
+objectif: >-
+  Forger un vrai jeu de Pac-Man SOLO, arcade, en temps réel, JOUABLE par un humain au
+  clavier, en passant par la chaîne Forge EXISTANTE et sans la contourner (World Scan → KB
+  → Game Bible → Architecture minimale → Wiremap → Production → Oracle → Lessons). Le
+  livrable de cette session est LE JEU, pas une Forge plus grande : toute énergie dépensée
+  à agrandir l'outillage au lieu de produire le jeu est un échec de cadrage, pas un bonus.
+  Périmètre gameplay imposé par Pierre, dans cet ordre de priorité : (1) boucle temps réel
+  qui tourne toute seule ; (2) navigation sur grille de labyrinthe, murs infranchissables ;
+  (3) déplacement du joueur au clavier, borné par la grille ; (4) fantômes qui se déplacent
+  et poursuivent ; (5) états de poursuite explicites (machine à états, pas des vitesses
+  bricolées) ; (6) conditions de victoire ET de défaite déclarées et atteignables ; (7)
+  boucle jouable de bout en bout — démarrer, jouer, gagner ou perdre, rejouer. Le World
+  Scan (étape 2, PAS ce charter) doit produire ou confirmer : objectifs joueur, conditions
+  de victoire, conditions de défaite, et les boucles minute 1 / minute 10 / heure 5 si
+  elles s'appliquent à ce genre. La logique de jeu PURE (état de la grille, tick,
+  déplacement, collisions, pastilles, machine à états des fantômes, score, vies,
+  conditions de fin) est séparée du rendu et de l'entrée : le rendu et l'input consomment
+  l'état, jamais l'inverse. Le jeu doit être prouvé SOLVABLE par un bot qui GAGNE
+  réellement selon l'objectif de victoire déclaré, pas seulement testé mécanique par
+  mécanique. La consommation de connaissance de la Forge est MESURÉE, avec la commande
+  imposée par Pierre, et rapportée telle quelle — jamais convertie en affirmation de
+  réutilisation.
+
+hors_scope:
+  - "Construire un MCTS, un sélecteur de recherche arborescente ou toute machinerie de décision supplémentaire : INTERDICTION EXPLICITE de Pierre pour cette session (« cette session n'a pas pour objectif de construire une Forge plus grande »)."
+  - "Ajouter du RAG, un index sémantique, des embeddings, ou tout mécanisme de recherche vectorielle : INTERDICTION EXPLICITE de Pierre. La recherche de connaissance existante (knowledge_base/search.mjs + search_usage.mjs) se CONSOMME telle quelle, elle ne se réinvente pas."
+  - "Créer une Agent Factory V2 ou faire évoluer agent_factory.mjs : INTERDICTION EXPLICITE de Pierre."
+  - "Créer un nouveau registre (au sens des registres de décision V2 : root_problems.json, mutation_registry.json, capabilities.json, agent_recipes.json, layers.json) ou en ajouter un huitième de quelque nature : INTERDICTION EXPLICITE de Pierre."
+  - "Ajouter une nouvelle couche à l'architecture de la Forge (nouvel étage entre sélection, binding, fabrique et preuve) : INTERDICTION EXPLICITE de Pierre."
+  - "Créer un nouveau contrat d'agent dans scripts/forge/contracts/ sans nécessité DÉMONTRÉE (démontrée = une étape de la chaîne existante échoue mécaniquement faute de ce contrat, preuve d'exécution à l'appui) : INTERDICTION EXPLICITE de Pierre."
+  - "Remplir root_problem.lesson_ids artificiellement, ou par des identifiants dont le lien avec ce run n'est pas établi : INTERDICTION EXPLICITE de Pierre. Un champ de traçabilité rempli pour faire nombre est une fausse preuve."
+  - "Créer une taxonomie, une nomenclature ou une catégorisation nouvelle parce qu'un cas particulier de Pac-Man apparaît : INTERDICTION EXPLICITE de Pierre. Un cas particulier se traite comme un cas particulier."
+  - "Multijoueur, réseau, matchmaking, comptes, backend, base de données, leaderboard en ligne : Pac-Man est ici un jeu SOLO arcade local."
+  - "Niveaux multiples, progression de campagne, cinématiques inter-niveaux, fruits bonus additionnels, écrans d'attract mode : la tranche est UN labyrinthe jouable de bout en bout ; l'extension multi-niveaux est un run ultérieur."
+  - "Reproduction fidèle des algorithmes de ciblage historiques du Pac-Man de 1980 (personnalités individuelles de chaque fantôme, patterns de tours déterministes de l'arcade) au-delà de ce que le World Scan sourcera et que l'architecture retiendra : ce charter exige des fantômes qui poursuivent et des états de poursuite, pas une réimplémentation archéologique."
+  - "Sprites, assets graphiques externes, textures, images téléchargées, polices tierces, son : rendu par primitives de la plateforme cible, zéro asset importé, zéro dépendance runtime externe."
+  - "Décision d'architecture détaillée (découpage exact des modules, choix des structures de données, format de la carte du labyrinthe) : c'est l'étape 4 (architecture minimale), pas ce charter."
+  - "World scan / recherche de références externes : c'est l'étape 2. Ce charter la CADRE et déclare ses sorties attendues, il ne la fait pas."
+  - "Promotion de briques vers knowledge_base/, écriture dans memory/, écriture dans lab/chains/IMPROVEMENT_LEDGER.yaml : propose-only, ratifié par Pierre, hors de ce run."
+  - "Toute modification des lanes protégées : tests/ (zone protégée), src/ (moteur Rust), autopilot.py et scripts/studioV2/ (lane STUDIO GELÉE), lab/chains/golden_examples.jsonl."
+
+criteres_succes:
+  - "SOLVABILITE PROUVEE : un bot déterministe pilote Pac-Man UNIQUEMENT via l'API d'entrée publique du jeu (les mêmes commandes que le joueur) et ATTEINT réellement la condition de victoire déclarée sur la carte et la seed de référence. L'oracle de solvabilité sort SOLVABLE avec code de retour 0 ; sur une version volontairement cassée (une pastille rendue inatteignable) il DOIT sortir INJOUABLE avec un code non nul. Une suite de tests unitaires verts sur un objectif inatteignable ne vaut PAS solvabilité (pré-mortem PILOU, leçon collect_runner)."
+  - "VICTOIRE STRICTEMENT COMPTEE : la partie passe à l'état GAGNÉ quand le nombre de pastilles consommées est EXACTEMENT égal au nombre de pastilles posées sur la carte, ni avant ni après. Assertion d'égalité stricte sur le compteur (jamais >=, jamais « au moins »), et assertion stricte que l'état reste EN COURS à consommées == total - 1 (pré-mortem PILOU : un >= masque une mécanique morte)."
+  - "DEFAITE STRICTEMENT DECLENCHEE : le contact entre Pac-Man et un fantôme dans un état hostile déclenche exactement une perte de vie, et la partie passe à l'état PERDU exactement quand le compteur de vies atteint 0 — assertions d'égalité stricte sur le nombre de vies avant/après contact et sur le statut, sur des fixtures couvrant le contact frontal, le croisement en sens inverse sur la même arête et le contact au tick d'entrée dans une intersection."
+  - "TROIS STATUTS TERMINAUX MUTUELLEMENT EXCLUSIFS ET EXHAUSTIFS : EN COURS / GAGNÉ / PERDU. Aucun chemin de sortie de la boucle ne laisse la partie sans statut terminal — vérifié par un test qui énumère les sorties de boucle, pas par relecture."
+  - "MURS INFRANCHISSABLES SANS FAUX POSITIF NI FAUX NEGATIF : sur un jeu de fixtures couvrant les coins du labyrinthe, les culs-de-sac, les intersections et le tunnel de bouclage s'il existe, aucune entité (joueur ou fantôme) n'occupe jamais une case de mur, et aucun déplacement légal n'est refusé à tort. Chaque cas assère une position STRICTE attendue, jamais un seuil relâché."
+  - "DEPLACEMENT JOUEUR BORNE ET REACTIF : une commande de direction est prise en compte au premier tick où le déplacement correspondant est légal, et ignorée sans effet de bord quand il ne l'est pas (Pac-Man continue alors sa direction courante). Assertion stricte sur la direction EFFECTUÉE au tick suivant, jamais sur une direction en attente."
+  - "FANTOMES ACTIFS ET NON DEGENERES : chaque fantôme se déplace à chaque tick selon une règle de ciblage PURE et déterministe, et la preuve de VARIANCE est faite avant d'appeler cela une poursuite — à partir d'un même état initial, au moins deux fantômes produisent des trajectoires DISTINCTES sur un horizon déclaré, et la distance joueur-fantôme décroît strictement sur une fenêtre déclarée en état de poursuite. Une règle de ciblage à variance nulle (tous les fantômes superposés, ou distance constante) valide le moteur mais ne mesure pas ce que son nom promet — requalification honnête obligatoire (règle de variance ratifiée Pierre 2026-07-21)."
+  - "ETATS DE POURSUITE TESTES SUR LEURS SEUILS : la machine à états des fantômes déclare des états mutuellement exclusifs et exhaustifs, et pour CHAQUE transition temporisée un test assère l'état exact juste avant le seuil, exactement au seuil et juste après (valeurs strictes, jamais un intervalle). L'état courant est une donnée de la logique pure, lisible par l'oracle, jamais une conséquence implicite d'une vitesse de rendu."
+  - "BOUCLE TEMPS REEL DETERMINISTE PAR REPLAY : à état initial, graine et séquence d'entrées identiques, deux exécutions produisent un état final strictement identique. Aucune horloge de plateforme ni RNG global non seedé dans la logique pure. Le replay couvre une partie assez longue pour franchir au moins deux transitions d'états de poursuite."
+  - "LOGIQUE SEPAREE DU RENDU, VERIFIE STATIQUEMENT : les modules de logique pure n'importent ni n'appellent aucune API de présentation ni de plateforme (document, window, canvas, requestAnimationFrame, addEventListener, Date.now, performance.now, Math.random). Vérifié par l'oracle d'architecture statique déterministe, pas par relecture. Toute mutation d'état passe par une fonction de la logique pure."
+  - "PREUVE PAR RUNTIME REEL (e2e) : un test de bout en bout pilote une instance RÉELLEMENT LANCÉE du jeu, injecte de vraies entrées clavier, et lit l'état exposé (score, pastilles restantes, vies, statut, position du joueur, positions et états des fantômes) ainsi que le rendu. Une preuve qu'aucun lecteur n'exécute n'existe pas dans la chaîne qualité (règle d'usine)."
+  - "GATE DE MUTATION SUR LA LOGIQUE PURE : les tests tuent les mutants sur les invariants critiques — collision avec un mur, collision avec un fantôme, décrément de vie, incrément de pastilles, condition de victoire, condition de défaite, transitions d'états de poursuite. Tout mutant survivant est trié avec une justification NOMMÉE, jamais laissé implicite."
+  - "PARAMETRES DE JEU ISOLES ET NOMMES : tous les paramètres d'équilibrage (dimensions de la grille, période de tick, vitesse relative des fantômes, durées des états de poursuite, nombre de vies, points par pastille, nombre de fantômes) vivent dans UN SEUL bloc de constantes nommées de la logique pure. Vérifié mécaniquement : le nombre de littéraux numériques de gameplay hors de ce bloc est exactement 0."
+  - "ORACLE UNIQUE ET REEXECUTABLE : le jeu porte un point d'entrée d'oracle unique, sur le modèle imposé par Pierre (games/kb_tactics/run-oracle.mjs), qui enchaîne les volets déterministes et ne sort 0 QUE si tous les volets gatants passent. La commande et son code de retour sont rapportés dans le verdict."
+  - "CONSOMMATION DE CONNAISSANCE MESUREE ET RAPPORTEE TELLE QUELLE : la commande imposée par Pierre — node scripts/forge/search_usage.mjs games/pacman --caller s9-build — est exécutée, et la valeur de proof_of_consumption est rapportée VERBATIM parmi MEASURED, NOT_WIRED, NOT_MEASURED. NOT_WIRED et NOT_MEASURED sont des résultats de mesure recevables ; les présenter comme une réutilisation de connaissance, ou les taire, ne l'est pas."
+  - "PREUVE MECANIQUE FOURNIE : chaque verdict d'étape aval cite un evidence_path (sortie d'exécution de l'oracle correspondant). Un reçu de code sans evidence_path est traité comme BLOCKED, jamais comme OK (pré-mortem PILOU s12-verdict)."
+  - "PERIMETRE D ECRITURE BORNE, VERIFIE MECANIQUEMENT : à la fin du run, les fichiers créés ou modifiés se limitent à games/pacman/ et lab/forge_runs/pacman/ (plus lab/forge_evidence/ pour les preuves). Aucun fichier nouveau dans scripts/forge/ (aucun registre, aucune couche, aucun contrat), aucune modification de tests/, src/, autopilot.py, scripts/studioV2/, lab/chains/. Vérifié par la liste des fichiers touchés (git status / git diff --name-only), pas par déclaration."
+  - "VOCABULAIRE DE CLAIM ABSENT DES LIVRABLES : les mots ready, autonome, intelligent, production_ready n'apparaissent dans aucun livrable du run comme qualification du résultat, sauf adossés à une preuve dédiée nommée dans le même document. Vérifiable par une recherche textuelle sur games/pacman/ et lab/forge_runs/pacman/ (interdiction explicite de Pierre)."
+  - "CHARTER COMPLET : ce charter.yaml parse en YAML valide et ne contient aucun champ requis vide, absent ni marqueur de placeholder non résolu — vérifié par forge.static_oracles.check_charter (7 champs). Tout paramètre chiffré non arbitré par Pierre porte une valeur initiale, une provenance et un statut dans parametres_de_design ; aucun champ n'est laissé en suspens."
+
+actions_interdites:
+  - "Toucher à tests/ sous quelque forme que ce soit : ZONE PROTÉGÉE (.claude/rules/tests.md) — aucun agent ne modifie ces fichiers, toute modification passe par une gate Pierre explicite."
+  - "Toucher à autopilot.py ou à scripts/studioV2/ (ainsi que start_studio.ps1 / stop_studio.ps1) : lane STUDIO GELÉE, ratifiée Pierre 2026-07-19. Lire est autorisé, écrire ne l'est pas — pas de correction, pas d'extension, pas d'amélioration en passant."
+  - "Exécuter git commit ou git push : gate Pierre explicite dans la conversation, jamais une initiative d'agent."
+  - "Écrire ready, autonome, intelligent ou production_ready pour qualifier le jeu ou la Forge sans une preuve dédiée nommée dans le même document : interdiction explicite de Pierre pour cette session."
+  - "Certifier le jeu OK sans oracle de SOLVABILITE vert (un bot qui GAGNE pour de vrai) : des tests unitaires verts sur un objectif inatteignable produisent un jeu injouable certifié (pré-mortem PILOU s10a)."
+  - "Écrire un test tautologique : toute assertion >= / <= / « existe » là où le comportement observable impose une égalité ou une valeur stricte est interdite — en particulier sur le compte de pastilles, le compte de vies et les seuils de transition d'états (pré-mortem PILOU s10a)."
+  - "Livrer un reçu de code sans evidence_path : reçu tel quel, le résultat est BLOCKED (pré-mortem PILOU s12)."
+  - "Forcer ou placer l'état de jeu à la main pour faire passer un test de victoire, au lieu de laisser un bot piloter l'entrée publique."
+  - "Mélanger logique et rendu : appeler document, window, canvas, requestAnimationFrame, addEventListener, Date.now, performance.now ou Math.random depuis un module de logique pure."
+  - "Introduire de l'aléatoire non seedé ou une horloge de plateforme dans la logique de jeu, le ciblage des fantômes ou les transitions d'états — casse le déterminisme et le replay."
+  - "Disperser des valeurs d'équilibrage en dur dans le rendu, l'input, les tests ou la carte : tout paramètre de gameplay vit dans le bloc de constantes nommées de la logique pure."
+  - "Construire, en cours de route, l'un des éléments interdits par Pierre pour cette session — MCTS, RAG, embeddings, Agent Factory V2, nouveau registre, nouvelle couche, nouveau contrat sans nécessité démontrée, nouvelle taxonomie — au motif que le jeu en aurait besoin. Si la nécessité est réelle, elle remonte en fog HumanGate AVANT d'être construite."
+  - "Remplir root_problem.lesson_ids avec des identifiants dont le lien avec ce run n'est pas établi, ou pour satisfaire un champ : un champ de traçabilité rempli pour faire nombre est une fausse preuve."
+  - "Contourner une étape de la chaîne Forge (World Scan, KB, Game Bible, Architecture, Wiremap, Production, Oracle, Lessons) au motif qu'elle ralentit la production du jeu : Pierre impose explicitement de ne pas contourner la chaîne."
+  - "Déclarer une métrique de difficulté, de poursuite ou de fun sans preuve de variance, ou lui donner un nom qui promet plus que ce qu'elle mesure (règle ratifiée Pierre 2026-07-21, leçon grid-navigator)."
+  - "Livrer une commande, un bouton ou un écran dont l'effet n'est pas OBSERVABLE dans le runtime réel (défaut « Quitter inerte » du playtest Pong 2026-07-27)."
+  - "Afficher l'état décisif (score, pastilles restantes, vies, fin de partie) uniquement en formes ou en pips sans chiffres lisibles, ou livrer une partie sans état final explicite ni possibilité de rejouer."
+  - "Introduire une dépendance runtime externe (paquet réseau, CDN, asset store, police tierce) : la cible est exécutable hors-ligne."
+  - "Écrire dans knowledge_base/, memory/, lab/chains/IMPROVEMENT_LEDGER.yaml ou tout registre durable sans ratification Pierre : propose-only."
+  - "Émettre un claim auto-certifié sans oracle : sans preuve mécanique, remonter un besoin HumanGate (fog) — jamais un claim_verdict autre que NO_CLAIM_ALLOWED."
+  - "Laisser dans un livrable un champ placeholder non résolu, vide ou évasif : un flou non tranché est un défaut bloquant, il se remplit ou remonte en fog, il ne passe jamais."
+
+plateforme_cible: >-
+  [SUPPLANTE LE 2026-08-05 — VOIR lab/forge_runs/pacman/platform_correction.yaml]
+  VALEUR EN VIGUEUR : projet GODOT 4.6.3, GDScript, main.tscn + project.godot,
+  preuves runtime par tests/run_tests.gd via scripts/forge/godot_oracle.mjs
+  (references studio : games/snake, games/breakout_v2). Correction explicite de
+  Pierre en cours de run, avant s4-archi : platform_assumption = corrected,
+  previous_inference = invalidated. Le texte qui suit est l'inference INITIALE et
+  ERRONEE de l'orchestrateur ; il est CONSERVE tel quel comme divergence detectee,
+  conformement a la consigne « ne pas supprimer les observations precedentes ».
+  --- INFERENCE INVALIDEE, CONSERVEE POUR TRACE ---
+  Jeu web HTML5 : rendu Canvas 2D, logique et modules en JavaScript ESM (fichiers .mjs),
+  servi par un serveur Node local pour le test, exécuté hors-ligne, entrée clavier, aucun
+  asset importé, aucune dépendance runtime externe. Oracle de bout en bout Playwright sur
+  une instance réellement lancée, sur le modèle du point d'entrée unique
+  games/kb_tactics/run-oracle.mjs. PROVENANCE — ceci est DÉDUIT DES ARTEFACTS IMPOSÉS PAR
+  PIERRE (dossier games/pacman ; commande de mesure node scripts/forge/search_usage.mjs
+  games/pacman --caller s9-build ; modèle de runner d'oracle games/kb_tactics/run-oracle.mjs,
+  qui est la lane HTML/JS : Node ESM + Playwright e2e + solvability.mjs ; étape de chaîne
+  s9-build, la variante HTML et non s9-build-godot-standard), et NON d'un choix de l'agent.
+  La déduction est SOLIDE mais INDIRECTE : Pierre n'a écrit nulle part le mot « web » ni
+  « HTML ». À ce titre elle est remontée en fog HumanGate (voir provenance.plateforme_cible
+  et question_ouverte_humangate) et attend une confirmation explicite, exactement comme le
+  charter Snake v1 avait remonté sa cible dérivée avant que Pierre ne tranche en sens
+  inverse (Godot). Ce champ est REMPLI, il n'est pas certifié conforme.
+
+reference_jeu: >-
+  Pac-Man — jeu d'arcade solo de labyrinthe : le joueur parcourt un labyrinthe en grille,
+  consomme des pastilles, est poursuivi par des fantômes dotés d'états de poursuite, gagne
+  en vidant le labyrinthe et perd en se faisant attraper. CHOIX EXERCÉ PAR PIERRE, source
+  directe et explicite : titre de session « Production Pac-Man / Forge V2 Close » et
+  consignes verbatim « Produire un vrai jeu Pac-Man avec la Forge existante », « Forger
+  Pac-Man via la chaîne existante ». Ce n'est PAS une invention d'agent (leçon AutoBattler :
+  modèle choisi sans Pierre). Voir provenance.reference_jeu.
+
+criteres_demo:
+  - "DEMARRAGE VISIBLE : à l'ouverture, le joueur voit le labyrinthe, Pac-Man, les pastilles et les fantômes, comprend quoi faire sans explication écrite, et la partie tourne d'elle-même."
+  - "DEPLACEMENT AU CLAVIER : appuyer sur une flèche fait changer de direction Pac-Man de façon perceptible immédiatement ; il ne traverse jamais un mur, et une direction impossible ne le fige pas ni ne le téléporte."
+  - "PASTILLES QUI DISPARAISSENT : quand Pac-Man passe sur une pastille, le joueur la VOIT disparaître et le score augmenter au même instant."
+  - "SCORE ET VIES EN CHIFFRES : le score, le nombre de pastilles restantes et le nombre de vies sont affichés en chiffres lisibles à l'écran, et correspondent exactement à l'état interne."
+  - "FANTOMES QUI POURSUIVENT VISIBLEMENT : les fantômes se déplacent en continu et, en état de poursuite, un observateur voit qu'ils convergent vers Pac-Man — ils ne restent pas sur place et ne se superposent pas tous sur la même trajectoire."
+  - "CHANGEMENT D ETAT DE POURSUITE PERCEPTIBLE : quand les fantômes changent d'état, le joueur le PERÇOIT à l'écran (comportement visiblement différent, indication d'état lisible), pas seulement dans les données internes."
+  - "MORT LISIBLE : se faire attraper produit un effet visible immédiat, décrémente visiblement les vies, et la perte de la dernière vie affiche un état final explicite (issue + score final) sans figer l'application."
+  - "VICTOIRE LISIBLE : consommer la dernière pastille termine visiblement la partie sur un état GAGNÉ explicite, distinct de l'écran de défaite."
+  - "REJOUER EN UN GESTE : depuis l'écran de fin, un seul appui relance une partie neuve immédiatement, sans qu'aucun état de la partie précédente ne fuite (score, vies, pastilles, positions repartent de leurs valeurs initiales)."
+  - "PARTIE COMPLETE SANS OUTIL : une partie entière (démarrage, parcours du labyrinthe, poursuite, victoire ou défaite, écran de fin, rejouer) se joue au clavier par un humain, sans passer par le bot de solvabilité ni par une console de debug (leçon playtest Pong 2026-07-27 : validation solo impossible = défaut)."
+  - "LISIBILITE DU LABYRINTHE : le joueur distingue sans ambiguïté les murs, les couloirs, les pastilles, Pac-Man et chaque fantôme ; il voit le labyrinthe se vider à mesure qu'il progresse."
+  - "COMPREHENSION DE LA BOUCLE EN QUELQUES SECONDES : un joueur qui découvre le jeu comprend la boucle complète — avancer, manger, éviter, finir le labyrinthe ou perdre, rejouer — en quelques secondes, sans lire de texte d'aide."
+
+# --- Paramètres de design chiffrés : valeur initiale proposée + provenance + statut ------
+# Chaque paramètre est COMPLET (valeur utilisable dès l'architecture). Le statut
+# A_EQUILIBRER signifie « la valeur peut bouger au playtest », jamais « la valeur manque ».
+# Aucun de ces chiffres n'a été donné par Pierre : ils sont marqués comme propositions.
+parametres_de_design:
+  grille_labyrinthe:
+    valeur_initiale: "Un labyrinthe unique en grille discrète, 21 colonnes x 21 lignes, murs sur les bords, au moins deux boucles internes"
+    provenance: "PROPOSÉ par le rédacteur du contrat. Pierre a imposé « grille/navigation » sans chiffrer. Dimensions impaires choisies pour qu'un labyrinthe à couloirs de 1 case et murs de 1 case soit exprimable sans case orpheline ; les boucles internes sont exigées par le critère FANTOMES ACTIFS ET NON DEGENERES (sans boucle, la poursuite dégénère en couloir)."
+    statut: A_EQUILIBRER
+  nombre_de_fantomes:
+    valeur_initiale: "3 fantômes"
+    provenance: "PROPOSÉ par le rédacteur du contrat. Pierre a imposé « fantômes » au pluriel sans nombre. 3 est le minimum permettant de PROUVER la variance de trajectoire exigée par le critère FANTOMES ACTIFS ET NON DEGENERES tout en restant testable exhaustivement. Le World Scan (étape 2) peut sourcer un autre nombre : il primera sur cette proposition."
+    statut: A_EQUILIBRER
+  periode_de_tick_ms:
+    valeur_initiale: "150 ms par case pour le joueur"
+    provenance: "PROPOSÉ par le rédacteur du contrat, aucune source externe citée (le World Scan est l'étape habilitée à sourcer une cadence de référence). Ordre de grandeur choisi pour que la conduite reste possible au clavier sur une grille de 21 cases."
+    statut: A_EQUILIBRER
+  vitesse_relative_fantomes:
+    valeur_initiale: "95 % de la vitesse du joueur en état de poursuite (le joueur peut distancer, jamais sans effort)"
+    provenance: "PROPOSÉ par le rédacteur du contrat. Non chiffré par Pierre. Contrainte structurelle : une vitesse strictement supérieure à celle du joueur rendrait la solvabilité impossible à prouver sur certaines cartes, ce qui casserait le critère SOLVABILITE PROUVEE."
+    statut: A_EQUILIBRER
+  durees_etats_de_poursuite:
+    valeur_initiale: "Alternance temporisée : 7 s d'état de dispersion, puis 20 s d'état de poursuite, en cycle"
+    provenance: "PROPOSÉ par le rédacteur du contrat. Pierre a imposé l'existence d'« états de poursuite » sans en fixer ni le nombre ni les durées. Ces valeurs existent pour rendre les transitions TESTABLES sur leurs seuils (critère ETATS DE POURSUITE TESTES SUR LEURS SEUILS) ; le World Scan (étape 2) peut sourcer d'autres états et d'autres durées, qui primeront."
+    statut: A_EQUILIBRER
+  nombre_de_vies:
+    valeur_initiale: "3 vies"
+    provenance: "PROPOSÉ par le rédacteur du contrat. Pierre a imposé « conditions de défaite » sans chiffrer. Une valeur strictement supérieure à 1 est nécessaire pour que le critère DEFAITE STRICTEMENT DECLENCHEE distingue la perte d'une vie de la fin de partie."
+    statut: A_EQUILIBRER
+  points_par_pastille:
+    valeur_initiale: "10 points par pastille"
+    provenance: "PROPOSÉ par le rédacteur du contrat : rapport score/progression trivialement lisible par le joueur et strictement assertable par l'oracle."
+    statut: A_EQUILIBRER
+
+# --- Provenance des champs de design-intent (champ structuré, pas un commentaire) --------
+provenance:
+  reference_jeu:
+    valeur: "Pac-Man"
+    source: "Pierre, session du 2026-08-05, titre de session « Production Pac-Man / Forge V2 Close » et consignes verbatim : « Produire un vrai jeu Pac-Man avec la Forge existante » ; « OBJECTIF PRINCIPAL : Forger Pac-Man via la chaîne existante »."
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+  plateforme_cible:
+    valeur: "Jeu web HTML5 Canvas, JavaScript ESM (.mjs), serveur Node local, oracle e2e Playwright"
+    source: "DÉDUIT des artefacts imposés par Pierre dans la même session : (a) le dossier de jeu imposé games/pacman ; (b) la commande de mesure imposée node scripts/forge/search_usage.mjs games/pacman --caller s9-build, dont le caller s9-build est l'étape de build de la lane HTML (la lane moteur est s9-build-godot-standard) ; (c) le modèle de runner d'oracle imposé games/kb_tactics/run-oracle.mjs, qui est un runner Node ESM enchaînant node --test, e2e Playwright et solvability.mjs. Aucune de ces trois traces n'emploie les mots « web » ou « HTML » : la cible technique est INFÉRÉE, non dictée."
+    type: TRACE_INDIRECTE_ARTEFACTS_IMPOSES_PIERRE
+    fog_humangate: true
+    consequence_si_infirme: "Si Pierre voulait Godot (comme pour Snake, décision D1 du 2026-07-28), l'inférence tombe : la chaîne bascule sur s9-build-godot-standard, l'oracle e2e Playwright est remplacé par le harnais moteur avec fenêtre GPU réelle (--headless rend une texture nulle, fait mesuré 2026-07-22), et les critères de succès qui nomment des API de navigateur sont transposés. Aucun autre champ du charter n'est invalidé : l'objectif, le hors-scope, les interdictions et les critères de démo sont indépendants de la plateforme."
+  criteres_demo:
+    valeur: "12 critères observables"
+    source: "Pierre, session du 2026-08-05, deux listes verbatim : les priorités gameplay (« boucle temps réel ; grille/navigation ; déplacement joueur ; fantômes ; états de poursuite ; conditions victoire/défaite ; boucle jouable ») et les sorties exigées du World Scan (« objectifs joueur ; conditions de victoire ; conditions de défaite »). Chaque critère de démo traduit un item de ces listes en fait OBSERVABLE à l'écran. Les items non dictés par Pierre — lisibilité du labyrinthe, compréhension de la boucle en quelques secondes, partie complète sans outil — sont hérités du playtest Pong du 2026-07-27 (lab/reports/error_journal/playtest.jsonl), pas inventés."
+    type: SOURCE_PIERRE_DIRECTE_TRADUITE_EN_OBSERVABLE
+    fog_humangate: false
+  hors_scope_interdictions:
+    valeur: "MCTS, RAG, embeddings, Agent Factory V2, nouveau registre, nouvelle couche, nouveau contrat sans nécessité démontrée, remplissage artificiel de root_problem.lesson_ids, nouvelle taxonomie"
+    source: "Pierre, session du 2026-08-05, rubrique « INTERDICTIONS ABSOLUES », transmise verbatim par l'orchestrateur. Cadrée ici comme hors-scope de CETTE session, conformément à la consigne de dispatch."
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+  chaine_non_contournee:
+    valeur: "World Scan → KB → Game Bible → Architecture minimale → Wiremap → Production → Oracle → Lessons"
+    source: "Pierre, session du 2026-08-05, verbatim : « Forger Pac-Man via la chaîne existante : World Scan → KB → Game Bible → Architecture minimale → Wiremap → Production → Oracle → Lessons. Ne pas contourner la chaîne. »"
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+  commande_de_mesure:
+    valeur: "node scripts/forge/search_usage.mjs games/pacman --caller s9-build"
+    source: "Pierre, session du 2026-08-05, commande imposée. Le module existe (scripts/forge/search_usage.mjs, SEARCH_USAGE_CONTRACT_V1) et déclare exactement trois états de proof_of_consumption : MEASURED, NOT_WIRED, NOT_MEASURED."
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+  modele_de_runner_oracle:
+    valeur: "games/kb_tactics/run-oracle.mjs"
+    source: "Pierre, session du 2026-08-05, cité comme modèle de référence. Lu au moment de rédiger ce charter : point d'entrée unique enchaînant (a) tests de logique, (b) tests de propriété, (c) e2e Playwright, (d) solvabilité — exit 0 seulement si les quatre volets gatants passent — plus (e) reuse_ratio en mesure non gatante."
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+  vocabulaire_interdit:
+    valeur: "ready, autonome, intelligent, production_ready"
+    source: "Pierre, session du 2026-08-05 : interdiction d'écrire ces mots sans preuve dédiée. Traduit en critère falsifiable (recherche textuelle sur les livrables) plutôt qu'en intention."
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+  lanes_protegees:
+    valeur: "tests/, src/, autopilot.py, scripts/studioV2/, lab/chains/"
+    source: "CLAUDE.md et .claude/rules/tests.md (zone protégée ; lane STUDIO gelée ratifiée Pierre 2026-07-19). Règle permanente du studio, pas une décision de ce run."
+    type: REGLE_STUDIO_RATIFIEE
+    fog_humangate: false
+
+# --- Ce que ce charter ne tranche PAS (remonté, pas masqué) -----------------------------
+question_ouverte_humangate:
+  - sujet: "Plateforme cible — inférence indirecte"
+    etat: "Champ REMPLI avec une valeur utilisable (web HTML5 Canvas + JS ESM + serveur Node local + e2e Playwright), déduite de trois artefacts imposés par Pierre (games/pacman, --caller s9-build, modèle kb_tactics/run-oracle.mjs). Aucun verbatim de Pierre ne nomme la plateforme."
+    question_a_pierre: "Confirmes-tu la cible WEB (HTML5 Canvas / JS ESM / Playwright), ou veux-tu Godot comme pour Snake ? La chaîne bifurque dès l'étape architecture : s9-build (web) contre s9-build-godot-standard (moteur), et l'oracle visuel change de nature."
+  - sujet: "Nombre de fantômes, durées des états de poursuite, cadence"
+    etat: "Valeurs initiales proposées par le rédacteur du contrat (3 fantômes, 7 s / 20 s, 150 ms par case, 95 % de vitesse relative), statut A_EQUILIBRER, isolées dans un bloc unique. Le charter n'a donc aucun champ en suspens."
+    question_a_pierre: "Laisses-tu ces valeurs de départ au World Scan (étape 2), qui peut les sourcer et les remplacer, ou veux-tu les fixer toi-même avant l'architecture ?"
+  - sujet: "Portée du modèle Pac-Man"
+    etat: "Le charter exige des fantômes qui poursuivent et des états de poursuite ; il exclut la reproduction archéologique des personnalités individuelles de l'arcade de 1980 au-delà de ce que le World Scan sourcera."
+    question_a_pierre: "Un vrai Pac-Man, pour toi, exige-t-il des comportements de fantômes INDIVIDUELLEMENT distincts (poursuite directe, embuscade, patrouille), ou une poursuite crédible et variée suffit-elle pour cette tranche ?"
+
+# --- Historique de révision (champ structuré, pas un commentaire) ------------------------
+revisions:
+  - version: 1
+    date: "2026-08-05"
+    resume: "Charter initial du run pacman-20260805-r1. reference_jeu tracé à une source Pierre DIRECTE (titre de session + consignes verbatim). plateforme_cible REMPLIE mais tracée comme inférence indirecte à partir des artefacts imposés par Pierre, et remontée en fog HumanGate. Les 8 interdictions absolues de Pierre sont portées en hors_scope de cette session ; les lanes protégées, la gate de commit et le vocabulaire interdit sont portés en actions_interdites. Les 3 rappels du pré-mortem PILOU (solvabilité, pas de >= tautologique, evidence_path obligatoire) sont chacun traduits en critère de succès ET en interdiction."

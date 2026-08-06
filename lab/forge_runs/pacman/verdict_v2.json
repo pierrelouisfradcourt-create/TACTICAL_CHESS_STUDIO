@@ -1,0 +1,100 @@
+{
+ "project": "pacman",
+ "run_id": "pacman-v2-20260805",
+ "software_verdict": "OK",
+ "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+ "claim_verdict": "NO_CLAIM_ALLOWED",
+ "decision": "HUMANGATE_READY_WITH_OBJECTION",
+ "oracles": {
+  "code": {
+   "oracle_id": "code",
+   "run_id": "pacman-v2-20260805",
+   "status": "OK",
+   "evidence_sha256": "458818a13135eebd8217143dd2e8e3b020f5ed053a95873f87face78b8d6aeb9",
+   "detail": {
+    "returncode": 0,
+    "assertions": 2212,
+    "solvabilite": "50/50 sur 2 cartes",
+    "mutation_gate": {
+     "passed": true,
+     "total": 263,
+     "survivants_non_tries": [],
+     "triaged": [
+      "ge->gt@L77",
+      "le->lt@L56",
+      "or->and@L144",
+      "true->false@L128",
+      "true->false@L135"
+     ]
+    }
+   },
+   "ts": 0.0,
+   "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_evidence\\oracle_pacman.log"
+  },
+  "archi": {
+   "oracle_id": "archi",
+   "run_id": "pacman-v2-20260805",
+   "status": "OK",
+   "evidence_sha256": "",
+   "detail": {
+    "blueprint_sous_modules": {
+     "passed": true,
+     "lecture": "NON PROBANT — _module_of rend le 1er dossier sous src_root ; une paire entre sous-modules est invisible"
+    },
+    "couches": {
+     "passed": true,
+     "lecture": "PROBANT — 05_SYSTEMS n importe ni 06_RUNTIME ni 03_WORLD (purete + invariant logique-ne-depend-pas-du-contenu)"
+    },
+    "controle_positif": {
+     "passed": false,
+     "violations": [
+      [
+       "06_RUNTIME",
+       "05_SYSTEMS"
+      ]
+     ],
+     "lecture": "passed=False ATTENDU : prouve que l oracle VOIT les imports du jeu"
+    }
+   },
+   "ts": 0.0,
+   "evidence_path": ""
+  },
+  "wiremap": {
+   "oracle_id": "wiremap",
+   "run_id": "pacman-v2-20260805",
+   "status": "OK",
+   "evidence_sha256": "",
+   "detail": {
+    "passed": true,
+    "features_manquantes": [],
+    "fonctions_renommées": [],
+    "obsoletes": [],
+    "preuves_absentes": [],
+    "wiremap_v1_non_regression": true
+   },
+   "ts": 0.0,
+   "evidence_path": ""
+  }
+ },
+ "redteam_reviewer": "qwen2.5-14b-instruct",
+ "redteam_ran": true,
+ "provenance_ok": true,
+ "git_head": "feaf0dfa771ba6f067d5b8487d9c275aa3a088af",
+ "nonce": "3a2ca3ea185a7cfbee181d3b38d1f38c",
+ "ts": 0.0,
+ "redteam_advisory": [
+  "qwen F1..F5 : 5 findings rendus, AUCUN falsifiable (tous de la forme \"le plan ne precise pas comment gerer X\")",
+  "qwen F4 classe BLOQUANT affirme que le plan ne dit pas comment traiter les cartes cassees — CONTREDIT par le materiel fourni, qui l enonce en A5"
+ ],
+ "humangate_flags": [
+  "redteam INDEPENDANT cette fois (LM Studio UP, preflight execute AVANT le run) — mais valeur des trouvailles NULLE : 0 finding falsifiable. V1 avec un fallback claude-blind NON independant avait rendu 2 BLOQUANTS reels et verifies.",
+  "metrique 1 ATTEINTE : ajouter une carte = 0 fichier 05_SYSTEMS (baseline V1 : 4)",
+  "metrique 2 tenue : changer l identite = 0 fichier 05_SYSTEMS (non-regression)",
+  "preuve VISUELLE (pixel) toujours NOT_MEASURED : --headless rend une texture nulle",
+  "jouabilite humaine non evaluee : 4 exigences a juge humain (R60-R63) + R41/R42 = 6 exigences qu aucun oracle ne tranche (PROOF_KINDS n a pas de valeur \"human\")",
+  "total mutants 267 -> 263 : la reecriture de la garde menu_model en forme positive a supprime 4 sites de mutation, en corrigeant un bug reel d index negatif GDScript",
+  "gate mutation : params.gd exclu (400 faux mutants === en bannieres de commentaire)",
+  "cout V2 = 63 % de V1 (1 639 920 vs 2 598 728 tokens) pour un perimetre plus large — mais V2 est un INCREMENT, pas un second jeu : la question \"jeu 2 moins cher que jeu 1\" reste OUVERTE"
+ ],
+ "hmac": "dd7cbfe00634cdf8cc0239343737f04f1abc792d5bc3d720de697b8a321bd2a0"
+}

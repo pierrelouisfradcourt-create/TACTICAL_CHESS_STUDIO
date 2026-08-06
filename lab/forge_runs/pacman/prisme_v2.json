@@ -1,0 +1,313 @@
+{
+  "game_id": "pacman",
+  "exigences": [
+    {
+      "id": "R43",
+      "observation": "Le brief V2 de Pierre exige un ecran titre AVANT toute partie et interdit nommement le lancement direct dans le gameplay ; le jeu deja produit demarre par games/pacman/06_RUNTIME/adapters/runtime_loop/boot.gd, qui entre dans la boucle de jeu des l'ouverture de l'application.",
+      "claim": "L'exigence ne porte donc pas sur la PRESENCE d'un titre mais sur l'ABSENCE de simulation avant le choix du joueur : un titre affiche par-dessus une partie qui tourne deja satisfait l'oeil et viole la demande, et seule la valeur du compteur de ticks au moment de l'affichage separe les deux cas.",
+      "enonce": "Au lancement, le joueur arrive sur un ecran titre et aucune partie n'a commence : rien ne bouge derriere le menu tant qu'il n'a pas choisi Jouer.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Etat releve au moment ou l'ecran titre est affiche : le compteur de ticks de partie vaut exactement 0 et le statut de partie n'est pas EN COURS ; apres activation de Jouer, le statut vaut EN COURS et le compteur de ticks progresse strictement."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 1 (menu produit : ecran titre AVANT toute partie, pas de lancement direct dans le gameplay) — porte en objectif et en actions_interdites de lab/forge_runs/pacman/charter_v2.yaml"
+    },
+    {
+      "id": "R44",
+      "observation": "Le brief V2 enumere quatre entrees du menu produit — Jouer, Controles, Options, Quitter — et le playtest Pong du 2026-08-05 conserve dans lab/reports/error_journal/playtest.jsonl a produit le defaut « Quitter inerte » : un bouton present, activable, sans aucun effet.",
+      "claim": "La presence d'une entree et son effet sont deux proprietes independantes : un controle qui verifie l'existence des quatre libelles passe integralement sur un menu dont aucune entree ne fait quoi que ce soit, ce qui est exactement le defaut deja constate une fois dans ce studio.",
+      "enonce": "Chacune des quatre entrees du menu produit change quelque chose d'observable : Jouer lance une partie, Controles et Options ouvrent chacun un ecran different, Quitter ferme l'application.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Activation successive des quatre entrees : Jouer donne le statut EN COURS ; Controles donne un ecran affiche different de l'ecran titre ; Options donne un ecran different des deux precedents ; Quitter termine l'application avec un code de sortie nul. Le nombre d'entrees sans effet observable vaut exactement 0."
+      },
+      "destination": "s9-build",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 1 (quatre entrees Jouer / Controles / Options / Quitter) — croise avec lab/forge_runs/pacman/charter_v2.yaml#actions_interdites[entree de menu dont l'effet n'est pas OBSERVABLE]"
+    },
+    {
+      "id": "R45",
+      "observation": "Le brief V2 exige que le menu pause s'ouvre par Echap au clavier, par Start/Menu a la manette et par un bouton visible au toucher, soit trois chemins d'entree vers un meme ecran.",
+      "claim": "Trois chemins vers un meme etat sont trois points de panne independants, et le mot pause cache une seconde propriete que ces trois chemins ne prouvent pas : que le temps de jeu s'ARRETE reellement. Un menu affiche par-dessus une partie qui continue est une superposition, pas une pause, et seule une egalite d'etat dans la duree les distingue.",
+      "enonce": "Le joueur ouvre le meme menu pause depuis Echap, depuis Start/Menu de la manette ou depuis le bouton visible a l'ecran, et pendant la pause l'etat de la partie ne bouge plus du tout.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Pour chacun des trois chemins d'entree : le menu pause est actif apres l'entree ; et l'etat de jeu releve a l'ouverture est EGAL champ par champ (positions, score, vies, pastilles restantes, phase de l'horloge des etats de poursuite) a l'etat releve N ticks plus tard, pause maintenue."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 2 (menu pause : Echap clavier, Start/Menu manette, bouton visible tactile) — porte en criteres_succes de lab/forge_runs/pacman/charter_v2.yaml"
+    },
+    {
+      "id": "R46",
+      "observation": "Le brief V2 enumere cinq entrees du menu pause : Reprendre, Recommencer, Controles, Options et Menu principal.",
+      "claim": "Reprendre est la seule des cinq dont l'effet correct est de NE RIEN CHANGER a l'etat de la partie : elle echappe donc au controle d'effet observable applique aux quatre autres et exige sa propre assertion, l'egalite stricte avec l'etat gele au moment de la mise en pause.",
+      "enonce": "Depuis la pause, le joueur obtient cinq resultats differents : reprendre exactement ou il en etait, recommencer une partie neuve, consulter les controles, consulter les options, ou revenir a l'ecran titre.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Reprendre : etat apres reprise strictement egal a l'etat gele, puis la partie progresse de nouveau. Recommencer : etat egal a l'etat de depart d'une partie neuve. Controles, Options et Menu principal : trois ecrans affiches deux a deux differents, et Menu principal ramene a un statut hors partie."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 2 (Reprendre / Recommencer / Controles / Options / Menu principal) — porte en criteres_succes de lab/forge_runs/pacman/charter_v2.yaml"
+    },
+    {
+      "id": "R47",
+      "observation": "Le brief V2 pose que le gameplay ne connait pas le peripherique ; le jeu deja produit tient l'invariant symetrique pour le rendu, prouve au run V1 par l'oracle d'architecture au niveau des couches (05_SYSTEMS n'importe jamais 06_RUNTIME, lecture PROBANT du verdict signe).",
+      "claim": "L'invariant d'entree se verifie au meme endroit et par le meme moyen que l'invariant de rendu deja prouve : un comptage statique de references dans la logique. Toute autre formulation — l'entree est bien separee, la couche est propre — ne se falsifie pas et laisserait passer une lecture directe de touche enfouie dans un module de logique.",
+      "enonce": "Aucun fichier de la logique de jeu ne sait ce qu'est une touche, une manette ou un doigt : la logique recoit des intentions — une direction, une demande de dash, une demande de pause — et rien d'autre.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Comptage statique sur games/pacman/05_SYSTEMS/ des references aux API d'entree de la plateforme (Input, InputEvent, InputMap, KEY_, JOY_, evenements tactiles, actions de projet) : le resultat vaut exactement 0 fichier. Controle positif obligatoire : les memes references SONT trouvees dans games/pacman/06_RUNTIME/, faute de quoi le comptage ne prouve rien."
+      },
+      "destination": "s4-archi",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 3 (couche input abstraite : le gameplay ne connait pas le peripherique) — porte en criteres_succes de lab/forge_runs/pacman/charter_v2.yaml"
+    },
+    {
+      "id": "R48",
+      "observation": "Le brief V2 designe la manette comme la REFERENCE de conception, le clavier venant a cote, et n'annonce aucune fonction reservee a l'un des deux peripheriques.",
+      "claim": "Cette designation a une consequence mesurable et une seule : l'ensemble des intentions atteignables a la manette doit contenir celui des intentions atteignables au clavier, et les deux doivent produire le meme etat de jeu. Une intention jouable au clavier seulement contredit la reference sans faire echouer le moindre test de clavier.",
+      "enonce": "Tout ce qui se joue au clavier se joue aussi a la manette, et produit exactement la meme chose dans le jeu : naviguer dans les menus, se deplacer, dasher, mettre en pause, revenir au menu.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Pour chaque intention de jeu, deux executions comparees tick par tick sur une fenetre declaree — l'une pilotee par les entrees clavier, l'autre par les entrees manette : les traces d'etat sont strictement egales, et le nombre d'intentions injouables a la manette vaut exactement 0."
+      },
+      "destination": "s5-wiremap",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 3 (clavier + manette, la manette est la reference) — porte en criteres_succes de lab/forge_runs/pacman/charter_v2.yaml"
+    },
+    {
+      "id": "R49",
+      "observation": "Le brief V2 demande une preparation tactile Android, tandis que le charter V2 place en hors_scope le build Android, le portage et la signature d'application.",
+      "claim": "Entre prepare et livre, la frontiere doit etre posee par ce qui est OBSERVABLE, sinon le mot prepare recouvre aussi bien une couche d'entree reellement branchee qu'une simple intention. La surface tactile minimale que le brief nomme lui-meme, le bouton de pause visible, est la preuve la moins ambigue de la premiere.",
+      "enonce": "Le joueur peut toucher le bouton de pause a l'ecran et le menu s'ouvre, ce qui montre que le tactile est branche jusque dans le jeu ; le reste du portage mobile n'est pas livre.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Un evenement tactile emis sur la surface du bouton de pause ouvre le menu pause ; et le comptage des chemins commencant par games/pacman/05_SYSTEMS/ dans le patch qui ajoute le tactile vaut exactement 0."
+      },
+      "destination": "s4-archi",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 3 (preparation tactile Android) — frontiere prepare/livre posee dans lab/forge_runs/pacman/charter_v2.yaml#hors_scope[Portage Android livre]"
+    },
+    {
+      "id": "R50",
+      "observation": "Le brief V2 demande un mode dash d'accessibilite avec un mode normal et un mode test, une entree dediee pour le dash, sa visibilite et la possibilite de le desactiver.",
+      "claim": "Quatre proprietes se cachent dans cette phrase et trois se falsifient sans regarder l'ecran : l'exclusivite des deux modes, le mode actif au premier lancement, et l'inertie complete du dash une fois desactive. Sans la troisieme, un dash desactive qui laisserait malgre tout une trace dans l'etat passerait pour conforme.",
+      "enonce": "Le jeu est toujours dans exactement un mode, normal ou test ; il demarre en mode normal ; le dash a sa propre commande, distincte des directions ; une fois desactive, l'appui sur cette commande ne change plus rien dans le jeu.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le mode expose appartient a l'ensemble des deux valeurs a chaque releve, jamais vide ni double ; au premier lancement il vaut exactement mode normal ; dash desactive, la trace d'etat obtenue avec des appuis sur la commande de dash est strictement egale a la trace obtenue sans aucun appui."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 4 (mode dash : mode normal vs mode test, input dedie, visible, desactivable) — porte en criteres_succes de lab/forge_runs/pacman/charter_v2.yaml"
+    },
+    {
+      "id": "R51",
+      "observation": "Le brief V2 demande que l'impact du dash soit documente sur la vitesse, le cooldown, les collisions et les fantomes ; la regle de variance ratifiee par Pierre le 2026-07-21 impose qu'une grandeur servant a calibrer un jeu prouve d'abord qu'elle porte une information variable.",
+      "claim": "Documenter n'est pas mesurer : une note affirmant que le dash accelere le joueur n'est refutable que si les deux vitesses sont relevees. Et une grandeur annoncee comme modifiee mais mesuree identique n'est pas un defaut d'implementation, c'est une promesse trop forte a requalifier honnetement.",
+      "enonce": "Chacune des quatre grandeurs touchees par le dash — vitesse du joueur, delai avant le dash suivant, comportement face aux murs, comportement face aux fantomes — est mesuree avec et sans dash, et ce qui ne change pas est declare comme inchange par conception.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Les quatre grandeurs sont relevees dans les deux conditions ; chaque grandeur declaree modifiee presente deux valeurs distinctes, chaque grandeur declaree inchangee presente deux valeurs egales, et le nombre de grandeurs sans releve vaut exactement 0."
+      },
+      "destination": "s5-wiremap",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 4 (impact documente : vitesse, cooldown, collisions, fantomes) — croise avec la regle de variance ratifiee Pierre 2026-07-21, portee en actions_interdites de lab/forge_runs/pacman/charter_v2.yaml"
+    },
+    {
+      "id": "R52",
+      "observation": "Le brief V2 exige que le dash soit VISIBLE, et le charter V2 interdit toute commande dont l'effet n'est pas observable dans le runtime reel, en citant le defaut de bouton inerte du playtest Pong.",
+      "claim": "La visibilite du dash a deux moments distincts dont un seul est evident : l'instant du declenchement, et la periode ou le dash est indisponible. Sans le second, le joueur appuie dans le vide sans savoir pourquoi — le defaut de commande inerte, deplace du bouton vers le temps de recharge.",
+      "enonce": "Le joueur voit a l'ecran quand il dashe, et il voit quand le dash n'est pas encore disponible : il n'appuie jamais sans comprendre ce qui se passe.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "Captures a trois instants — avant le dash, au tick du dash, pendant le delai de recharge : les trois images different deux a deux, et l'indication de disponibilite du dash est lisible sur la troisieme."
+      },
+      "destination": "s9-build",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 4 (le dash est visible) — croise avec lab/forge_runs/pacman/charter_v2.yaml#actions_interdites[commande dont l'effet n'est pas OBSERVABLE]"
+    },
+    {
+      "id": "R53",
+      "observation": "L'exigence core.audio de scripts/forge/standard/core_requirements.yaml demande au moins un retour sonore declenche par une action de jeu et porte not_applicable_allowed: false ; le jeu deja produit asserte par ailleurs un inventaire sans aucun asset importe, et le verdict signe du run V1 a laisse ce conflit ouvert sous l'etiquette core.audio DEFERRED.",
+      "claim": "Les deux contraintes ne sont conciliables que d'une seule facon : un son SYNTHETISE au moment de sa lecture. Toute autre voie oblige a lever l'une des deux, ce qui n'est pas dans le pouvoir d'un run de production — c'est une decision de gate humain.",
+      "enonce": "Le jeu produit du son sans embarquer le moindre fichier sonore : les sons sont fabriques a l'execution, au moment ou ils sont joues.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Inventaire des fichiers de games/pacman/ : le nombre de fichiers d'extension audio (.wav, .ogg, .mp3, .m4a, .flac) vaut exactement 0 ; et au moins une action de jeu declenche un flux audio genere a l'execution, trace au tick de son declenchement."
+      },
+      "destination": "s4-archi",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 5 (audio) + scripts/forge/standard/core_requirements.yaml#core.audio (not_applicable_allowed: false) + lab/forge_runs/pacman/verdict.json#humangate_flags[core.audio DEFERRED] — forme tranchee dans charter_v2.yaml#ratification_v2.retraits_du_hors_scope[son]"
+    },
+    {
+      "id": "R54",
+      "observation": "Le brief V2 enumere six moments sonores : le deplacement, la collecte, l'entree en etat Frightened, la mort, la victoire, et l'ouverture d'une pause ou d'un menu.",
+      "claim": "Compter six declenchements ne prouve pas six sons : six evenements branches sur un meme descripteur de synthese satisfont le comptage tout en rendant le retour sonore inutile pour le joueur, qui ne peut alors plus distinguer une collecte d'une mort a l'oreille.",
+      "enonce": "Le joueur entend six retours sonores differents selon ce qui se passe : avancer, collecter, rendre les fantomes vulnerables, mourir, gagner, ouvrir un menu.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Les six evenements declenchent chacun un son ; les six descripteurs de synthese sont compares deux a deux et chaque paire differe par au moins un parametre — le nombre de paires identiques vaut exactement 0."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 5 (sons : deplacement, collecte, Frightened, mort, victoire, pause/menu) — porte en criteres_succes de lab/forge_runs/pacman/charter_v2.yaml"
+    },
+    {
+      "id": "R55",
+      "observation": "Le jeu deja produit tient la separation logique / presentation, prouvee au run V1 par l'oracle d'architecture au niveau des couches ; l'audio ajoute au run V2 est un canal de sortie supplementaire de la meme nature que le rendu.",
+      "claim": "Un son joue directement depuis la logique casserait en une seule ligne l'invariant de purete deja prouve, et il le casserait de facon invisible pour un joueur puisque le jeu sonnerait pareil. Seul un comptage statique, accompagne de son controle positif, le voit.",
+      "enonce": "La logique de jeu ne joue aucun son : elle signale ce qui vient d'arriver, et c'est la couche de presentation qui le fait entendre.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Comptage statique sur games/pacman/05_SYSTEMS/ des references aux API audio de la plateforme (AudioStream, AudioStreamGenerator, AudioStreamPlayer, AudioServer) : le resultat vaut exactement 0 fichier. Controle positif obligatoire : ces memes references SONT trouvees dans games/pacman/06_RUNTIME/, faute de quoi le comptage ne prouve rien."
+      },
+      "destination": "s4-archi",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 5 (audio genere a l'execution) — croise avec lab/forge_runs/pacman/verdict.json#oracles.archi.detail.couches (lecture PROBANT de l'invariant de purete du run V1)"
+    },
+    {
+      "id": "R56",
+      "observation": "Le brief V2 pose que le contenu ne doit pas exiger de modifier la logique principale ; la mesure faite le 2026-08-05 sur le jeu existant donne 4 fichiers de 05_SYSTEMS a modifier pour ajouter une carte : maze.gd porte le plan litteral, params.gd les dimensions, game_state.gd et end_conditions.gd les positions de depart.",
+      "claim": "L'ecart entre 4 et 0 n'est pas une question de proprete du code mais de NATURE de la carte : tant que le plan est une constante compilee dans la logique, chaque carte coute une modification de la logique. La carte doit devenir une donnee lue a l'execution, sans quoi la cible est structurellement inatteignable.",
+      "enonce": "Le jeu embarque au moins deux cartes jouables, et en ajouter une troisieme ne demande de toucher a aucun fichier de la logique de jeu — seulement d'ajouter une donnee.",
+      "expected_proof": {
+        "kind": "file_write",
+        "statement": "Sur le patch qui ajoute une carte supplementaire, la liste des fichiers touches ne contient aucun chemin commencant par games/pacman/05_SYSTEMS/ : le compte vaut exactement 0, contre les 4 mesures sur le jeu du run V1. Chaque carte embarquee est en outre prouvee solvable par le bot pilotant l'entree publique."
+      },
+      "destination": "s4-archi",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 6 (plusieurs cartes ; le contenu ne doit pas exiger de modifier la logique principale) — baseline chiffree dans lab/forge_runs/pacman/charter_v2.yaml#baseline_architecture_v1.metrique_carte"
+    },
+    {
+      "id": "R57",
+      "observation": "Le brief V2 demande un changement de niveau ; le charter V1 exigeait deja qu'aucun etat d'une partie precedente ne fuite lors d'une relance, en nommant score, vies, pastilles et positions, et l'exigence R37 du prisme V1 avait ajoute a cette liste l'horloge des etats de poursuite et le rang de capture.",
+      "claim": "Le passage au niveau suivant est l'inverse exact d'une relance : certaines grandeurs doivent SURVIVRE a la bascule (score, vies) et toutes les autres doivent repartir de leur valeur initiale. Confondre les deux listes produit soit un joueur qui perd son score en changeant de carte, soit une carte neuve heritant de l'horloge de la precedente.",
+      "enonce": "Le joueur qui termine une carte enchaine sur la suivante sans relancer l'application : il garde son score et ses vies, et retrouve une carte pleine, des positions de depart et une horloge de poursuite au debut de son cycle.",
+      "expected_proof": {
+        "kind": "mutation",
+        "statement": "Invariant de bascule de niveau soumis au gate de mutation : un mutant qui remet le score ou les vies a leur valeur initiale a la bascule, ou qui conserve les pastilles restantes, les positions, la phase de l'horloge des etats ou le rang de capture de la carte precedente, doit etre tue par des assertions d'egalite stricte relevees de part et d'autre de la bascule, sans relance de l'application entre les deux."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 6 (changement de niveau) — croise avec lab/forge_runs/pacman/prisme.json#R37 (liste des etats qui ne doivent pas fuir d'une partie a l'autre)"
+    },
+    {
+      "id": "R58",
+      "observation": "Le brief V2 demande une progression simple ; la regle ratifiee par Pierre le 2026-07-21 impose que toute metrique qui classe, genere ou calibre un jeu prouve d'abord qu'elle porte une information variable, avec au moins deux valeurs distinctes non triviales.",
+      "claim": "Une progression est exactement ce type de grandeur, puisqu'elle calibre la difficulte. Un jeu qui affiche niveau 2 sans qu'aucun parametre ne change offre une progression de facade, que ni un controle de bascule de niveau ni un affichage de numero ne detecte.",
+      "enonce": "Passer au niveau suivant change vraiment quelque chose dans le jeu : au moins un parametre nomme prend une valeur differente d'un niveau a l'autre, et le joueur lit le numero du niveau en cours.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Releve du parametre de progression declare sur tous les niveaux embarques : la distribution porte au moins deux valeurs distinctes ; et le numero de niveau affiche a l'ecran est egal au niveau courant de l'etat au meme tick."
+      },
+      "destination": "s5-wiremap",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 6 (progression simple) — croise avec la regle de variance des metriques ratifiee Pierre 2026-07-21, portee en actions_interdites de lab/forge_runs/pacman/charter_v2.yaml"
+    },
+    {
+      "id": "R59",
+      "observation": "Le brief V2 demande une palette coherente et un habillage lisible ; la mesure du 2026-08-05 trouve des litteraux de couleur dans exactement deux fichiers, tous deux sous games/pacman/06_RUNTIME/adapters/presentation/ (maze_view.gd et state_banner.gd), et aucun dans 05_SYSTEMS.",
+      "claim": "La purete est donc deja acquise, mais la coherence ne l'est pas : deux fichiers portant chacun ses propres couleurs peuvent diverger sans qu'aucun oracle ne s'en apercoive, et les ecrans neufs du run V2 — titre, pause, options — multiplieraient les sources. Ce qui rend l'identite mesurable, c'est l'unicite du lieu ou vivent les couleurs.",
+      "enonce": "Toutes les couleurs du jeu viennent d'un seul endroit declare : changer ce seul endroit change l'apparence de tous les ecrans a la fois, du titre a l'ecran de fin.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Comptage des litteraux de couleur situes hors du descripteur de palette declare : le resultat vaut exactement 0 ; et le comptage des fichiers de games/pacman/05_SYSTEMS/ portant un litteral de couleur vaut exactement 0, comme sur le jeu du run V1."
+      },
+      "destination": "s4-archi",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 7 (identite : palette coherente, habillage lisible) — baseline chiffree dans lab/forge_runs/pacman/charter_v2.yaml#baseline_architecture_v1.metrique_identite"
+    },
+    {
+      "id": "R60",
+      "observation": "Le brief V2 exige un habillage lisible SANS EXPLICATION ORALE ; le run V1 a deja rencontre ce type d'exigence avec R41 et R42 du prisme.json, rangees en kind visual avec la mention « constat humain, jamais une assertion machine » ecrite en texte libre dans leur enonce de preuve.",
+      "claim": "Aucune valeur du vocabulaire ferme des preuves attendues ne designe un jugement humain : visual designe une capture, que la machine sait produire mais pas interpreter. L'exigence est donc ecrite avec la valeur la moins mensongere disponible, et son juge est nomme en tete de l'enonce de preuve plutot que dissimule dans une etiquette machine.",
+      "enonce": "Une personne qui regarde les ecrans du jeu sans qu'on lui explique rien comprend ce qu'elle voit : ce qui est un mur, un couloir, un objet a manger, un ennemi, un menu.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "JUGE HUMAIN — AUCUN ORACLE NE TRANCHE CETTE EXIGENCE. Passation a une personne sans consigne ecrite ni orale ; captures des ecrans jointes en trace. Le vocabulaire ferme expected_proof.kind n'offre aucune valeur pour une preuve jugee par une personne : visual est retenu comme la moins mensongere parce qu'une capture accompagne le constat, mais aucun code du depot ne lit le present enonce — besoin remonte en fog HumanGate."
+      },
+      "destination": "s9-build",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, points 7 et 8 (identite lisible sans explication orale ; validation humaine) — defaut de vocabulaire remonte dans lab/forge_runs/pacman/charter_v2.yaml#question_ouverte_humangate[Preuve a juge humain]"
+    },
+    {
+      "id": "R61",
+      "observation": "Le brief V2 range parmi les exigences de validation humaine le fait qu'une personne COMPRENNE LES CONTROLES, et designe par ailleurs la manette comme la reference de conception.",
+      "claim": "Comprendre les controles se decompose en gestes verifiables un a un — se deplacer, dasher, mettre en pause, revenir en arriere — ce qui transforme un avis global en un constat repartissable, et permet de dire LEQUEL des gestes n'a pas ete trouve au lieu de conclure que le jeu est confus.",
+      "enonce": "Une personne qui prend la manette sans consigne trouve seule comment se deplacer, comment dasher, comment mettre en pause et comment revenir au menu.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "JUGE HUMAIN — AUCUN ORACLE NE TRANCHE CETTE EXIGENCE. Passation manette en main, sans aucune consigne : la personne execute les quatre gestes et l'on note lequel n'a pas ete trouve. visual est la valeur la moins mensongere du vocabulaire ferme, faute d'une valeur designant un jugement humain — besoin remonte en fog HumanGate."
+      },
+      "destination": "s9-build",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, points 3 et 8 (la manette est la reference ; une personne comprend les controles) — defaut de vocabulaire remonte dans lab/forge_runs/pacman/charter_v2.yaml#question_ouverte_humangate[Preuve a juge humain]"
+    },
+    {
+      "id": "R62",
+      "observation": "Le brief V2 range parmi les exigences de validation humaine le fait qu'une personne COMPRENNE L'OBJECTIF du jeu ; l'exigence R42 du prisme V1 posait deja la meme question, sur quatre points nommes, pour un jeu a une seule carte.",
+      "claim": "L'objectif d'un Pac-Man etendu ne se limite plus a vider un labyrinthe puisqu'il inclut desormais l'enchainement des cartes : la question posee a la personne doit donc porter sur ce qui a change au run V2, sinon elle re-mesure R42 a l'identique et n'apprend rien de neuf.",
+      "enonce": "Une personne qui decouvre le jeu dit, sans aide, ce qu'elle doit manger, ce qu'elle doit eviter, ce qui se passe quand elle vide une carte, et comment la partie se termine.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "JUGE HUMAIN — AUCUN ORACLE NE TRANCHE CETTE EXIGENCE. Passation sans consigne ecrite ni orale : la personne nomme les quatre elements, et l'on note ceux qui manquent. visual est retenu par defaut, le vocabulaire ferme n'ayant aucune valeur pour un jugement humain — besoin remonte en fog HumanGate."
+      },
+      "destination": "s9-build",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, point 8 (validation humaine : comprend l'objectif) — croise avec lab/forge_runs/pacman/prisme.json#R42 (meme question posee au run V1, sur un jeu a une seule carte)"
+    },
+    {
+      "id": "R63",
+      "observation": "Le brief V2 demande que la BOUCLE soit comprehensible pour une personne ; au run V2 cette boucle ne commence plus a la partie mais a l'ecran titre, et se poursuit par la pause, le changement de niveau, la fin et la relance.",
+      "claim": "Ce qui est neuf au run V2 n'est pas la boucle de jeu, deja soumise au jugement humain au run V1, mais la boucle PRODUIT qui l'entoure. Une personne peut parfaitement comprendre comment manger des pastilles et rester bloquee dans un menu : les deux se constatent separement, et confondre les deux masquerait la seconde.",
+      "enonce": "Une personne parcourt seule tout le chemin du produit : elle trouve l'ecran titre, lance une partie, met en pause, reprend, passe au niveau suivant, arrive a la fin et relance, sans qu'on lui explique rien.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "JUGE HUMAIN — AUCUN ORACLE NE TRANCHE CETTE EXIGENCE. Session observee de bout en bout sans aucune consigne, captures jointes en trace ; l'on note l'etape a laquelle la personne s'arrete, s'il y en a une. visual est la valeur la moins mensongere disponible dans le vocabulaire ferme — besoin remonte en fog HumanGate."
+      },
+      "destination": "s9-build",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, points 1, 2, 6 et 8 (menu produit, menu pause, changement de niveau, validation humaine de la boucle) — defaut de vocabulaire remonte dans lab/forge_runs/pacman/charter_v2.yaml#question_ouverte_humangate[Preuve a juge humain]"
+    },
+    {
+      "id": "R64",
+      "observation": "Le jeu games/pacman est deja valide mecaniquement : verdict signe pacman-20260805-r1, oracle code OK avec returncode 0, gate de mutation sur 150 mutants sans survivant non trie, et une contre-epreuve de solvabilite (le bot gagne sur la carte nominale, la carte cassee est declaree injouable).",
+      "claim": "Un run d'extension est precisement le moment ou une base validee se degrade en silence : les exigences neuves occupent l'attention et plus rien ne surveille les anciennes. Le seul releve qui le detecte est une comparaison AVANT/APRES sur la meme commande, faite a l'interieur du meme run.",
+      "enonce": "Apres les ajouts du run V2, tout ce que le jeu prouvait deja continue de se prouver : aucune assertion ne tombe, et le bot gagne toujours sur la carte de reference.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Deux executions de la commande d'oracle du jeu, l'une AVANT toute modification V2 et l'autre APRES : le nombre d'assertions en echec vaut exactement 0 dans les deux, le nombre d'assertions passantes ne diminue pas, et la contre-epreuve de solvabilite conserve son resultat. Les deux sorties sont jointes en evidence_path — un recu sans evidence_path vaut BLOCKED."
+      },
+      "destination": "s9-build",
+      "source": "EXPECTED",
+      "source_role": "pierre:brief-v2",
+      "reference": "Brief Pierre V2 du 2026-08-05, cadrage d'entree (le jeu existant est mecaniquement valide, ne rien proposer qui le casse) — porte en criteres_succes et en actions_interdites de lab/forge_runs/pacman/charter_v2.yaml ; etat de depart dans lab/forge_runs/pacman/verdict.json"
+    }
+  ]
+}

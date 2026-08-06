@@ -1,0 +1,357 @@
+# Charter Forge V2 — etape 0 (Contrat) — projet : pacman
+# run_id       : pacman-v2-20260805
+# marqueur     : FORGE_DISPATCH:s0-contrat:pacman-v2-20260805
+# schema       : {objectif, hors_scope[], criteres_succes[], actions_interdites[],
+#                 plateforme_cible, reference_jeu, criteres_demo[]} — 7 champs, tous remplis
+# oracle sortie: forge.static_oracles.check_charter (deterministe, non-LLM)
+#
+# CE FICHIER EST UN DELTA, PAS UNE REECRITURE. Les artefacts sceles du run V1
+# (charter.yaml, prisme.json, wiremap.json, wiremap_frozen.json) ne sont PAS touches.
+# Ce qui change par rapport a V1 est porte par des CHAMPS STRUCTURES lisibles
+# (`ratification_v2`, `baseline_architecture_v1`, `provenance`,
+# `question_ouverte_humangate`) — aucune decision ne vit dans un commentaire
+# (regle studio ratifiee 2026-07-23).
+
+version: 2
+supplante: lab/forge_runs/pacman/charter.yaml
+statut_v1: "CONSERVE, NON MODIFIE — artefact scele du run pacman-20260805-r1"
+
+objectif: >-
+  Amender le perimetre du jeu Pac-Man DEJA PRODUIT et DEJA VALIDE MECANIQUEMENT
+  (games/pacman/, projet Godot, verdict signe pacman-20260805-r1), pour lui ajouter la
+  couche PRODUIT que le run V1 avait explicitement mise hors perimetre. Le jeu existant
+  est le point de depart : ce run V2 est une EXTENSION, jamais une refonte, et toute
+  modification qui ferait regresser l'oracle du run V1 est un echec, pas un compromis.
+  Perimetre V2 impose par Pierre, dans l'ordre de sa demande : (1) un menu produit —
+  ecran titre AVANT toute partie, avec Jouer / Controles / Options / Quitter, aucun
+  lancement direct dans le gameplay ; (2) un menu pause atteignable au clavier (Echap),
+  a la manette (Start/Menu) et au toucher (bouton visible), offrant Reprendre /
+  Recommencer / Controles / Options / Menu principal ; (3) une couche d'entree abstraite
+  ou la logique de jeu ne connait AUCUN peripherique — clavier et manette branches, tactile
+  Android prepare, la manette etant la reference de conception ; (4) un mode dash
+  d'accessibilite, avec un mode normal et un mode test distincts, une entree dediee, un
+  retour visible et la possibilite de le desactiver, son impact chiffre sur la vitesse, le
+  cooldown, les collisions et les fantomes ; (5) de l'audio ENTIEREMENT GENERE a
+  l'execution, sans aucun fichier son importe ; (6) plusieurs cartes, un changement de
+  niveau et une progression simple, sans que l'ajout de contenu n'oblige a modifier la
+  logique principale ; (7) une identite visuelle coherente et un habillage lisible sans
+  explication orale ; (8) des exigences dont le juge est une PERSONNE, declarees comme
+  telles et non deguisees en mesure machine. La contrainte d'architecture qui commande tout
+  le reste est chiffree et falsifiable : ajouter du contenu ou changer l'habillage ne doit
+  toucher AUCUN fichier de games/pacman/05_SYSTEMS/.
+
+hors_scope:
+  - "Construire un MCTS, un selecteur de recherche arborescente ou toute machinerie de decision supplementaire : INTERDICTION EXPLICITE de Pierre, maintenue depuis le charter V1."
+  - "Ajouter du RAG, un index semantique, des embeddings, ou tout mecanisme de recherche vectorielle : INTERDICTION EXPLICITE de Pierre, maintenue depuis le charter V1. La recherche de connaissance existante se consomme telle quelle."
+  - "Creer une Agent Factory V2 ou faire evoluer agent_factory.mjs : INTERDICTION EXPLICITE de Pierre, maintenue depuis le charter V1."
+  - "Creer un nouveau registre au sens des registres de decision V2 (root_problems.json, mutation_registry.json, capabilities.json, agent_recipes.json, layers.json) ou en ajouter un huitieme de quelque nature : INTERDICTION EXPLICITE de Pierre, maintenue depuis le charter V1."
+  - "Ajouter une nouvelle couche a l'architecture de la Forge (nouvel etage entre selection, binding, fabrique et preuve) : INTERDICTION EXPLICITE de Pierre, maintenue depuis le charter V1."
+  - "Creer un nouveau contrat d'agent dans scripts/forge/contracts/ sans necessite DEMONTREE (demontree = une etape de la chaine existante echoue mecaniquement faute de ce contrat, preuve d'execution a l'appui) : INTERDICTION EXPLICITE de Pierre, maintenue depuis le charter V1."
+  - "Creer une taxonomie, une nomenclature ou une categorisation nouvelle parce qu'un cas particulier de Pac-Man apparait : INTERDICTION EXPLICITE de Pierre, maintenue depuis le charter V1. Un cas particulier se traite comme un cas particulier."
+  - "Remplir root_problem.lesson_ids artificiellement, ou par des identifiants dont le lien avec ce run n'est pas etabli : INTERDICTION EXPLICITE de Pierre, maintenue depuis le charter V1."
+  - "Multijoueur, reseau, matchmaking, comptes, backend, base de donnees, leaderboard en ligne, sauvegarde distante : le jeu reste SOLO, local, executable hors-ligne. Maintenu depuis le charter V1."
+  - "Campagne complete, scenario, cinematiques inter-niveaux, arbre de progression persistant entre sessions, deblocages, meta-progression : le perimetre V2 est PLUSIEURS CARTES et une progression SIMPLE d'un niveau au suivant, pas une campagne."
+  - "Assets graphiques externes, sprites, textures, images telechargees, polices tierces, et TOUT FICHIER AUDIO IMPORTE : le rendu reste en primitives de la plateforme, et le son est GENERE a l'execution. L'invariant « zero asset » du run V1 est CONSERVE et etendu au son."
+  - "Portage Android livre, signature d'APK, publication sur un magasin d'applications : le tactile est PREPARE dans la couche d'entree (le gameplay ne connait pas le peripherique), il n'est pas livre comme build mobile."
+  - "Reproduction fidele des algorithmes de ciblage historiques du Pac-Man de 1980 au-dela de ce que le World Scan V1 a source et que l'architecture a retenu : inchange depuis le charter V1."
+  - "Decision d'architecture detaillee (decoupage exact des modules, format de la carte, format du descripteur de palette, protocole exact de la couche d'entree) : c'est l'etape s4-archi, pas ce charter."
+  - "Promotion de briques vers knowledge_base/, ecriture dans memory/, ecriture dans lab/chains/IMPROVEMENT_LEDGER.yaml : propose-only, ratifie par Pierre, hors de ce run."
+  - "Toute modification des lanes protegees : tests/ (zone protegee), src/ (moteur Rust), autopilot.py et scripts/studioV2/ (lane STUDIO GELEE), lab/chains/golden_examples.jsonl."
+  - "Toute modification des artefacts sceles du run V1 : lab/forge_runs/pacman/charter.yaml, prisme.json, wiremap.json, wiremap_frozen.json."
+
+criteres_succes:
+  - "EXTENSION DE CONTENU SANS TOUCHER LA LOGIQUE — CARTES : ajouter une carte supplementaire au jeu modifie EXACTEMENT 0 fichier de games/pacman/05_SYSTEMS/. Mesure mecanique : sur le patch qui ajoute la carte, `git diff --name-only` puis comptage des chemins commencant par `games/pacman/05_SYSTEMS/` ; le compte attendu est exactement 0, jamais « peu ». BASELINE V1 MESUREE LE 2026-08-05 : 4 fichiers (05_SYSTEMS/maze/maze.gd porte la constante PLAN, le plan litteral du labyrinthe ; 05_SYSTEMS/params/params.gd porte LARGEUR_GRILLE=28, HAUTEUR_GRILLE=36, LIGNE_TUNNEL=17 ; 05_SYSTEMS/game_state/game_state.gd lit Maze.DEPART_PACMAN et Maze.DEPART_DIRECTION a l'initialisation ; 05_SYSTEMS/end_conditions/end_conditions.gd lit Maze.DEPART_PACMAN au respawn). La cible V2 est 0, la mesure de depart est 4 : l'ecart est le travail."
+  - "EXTENSION D'IDENTITE SANS TOUCHER LA LOGIQUE — HABILLAGE : changer la palette ou l'habillage visuel modifie EXACTEMENT 0 fichier de games/pacman/05_SYSTEMS/. Mesure mecanique identique (comptage des chemins 05_SYSTEMS/ dans le patch d'habillage) ET controle statique : le nombre de fichiers de 05_SYSTEMS/ contenant un litteral de couleur vaut exactement 0. BASELINE V1 MESUREE LE 2026-08-05 : 2 fichiers portent une couleur, tous deux dans 06_RUNTIME (06_RUNTIME/adapters/presentation/maze_view.gd et 06_RUNTIME/adapters/presentation/state_banner.gd), 0 dans 05_SYSTEMS. Cette propriete est DEJA CONFORME : le critere V2 est une NON-REGRESSION, et la seule facon de le rater est d'introduire une couleur dans la logique en ajoutant l'identite."
+  - "NON-REGRESSION DE L'ORACLE V1 : l'oracle du jeu (`node scripts/forge/godot_oracle.mjs pacman`) est execute AVANT toute modification V2 et APRES ; le nombre d'assertions passantes apres est superieur ou egal a celui d'avant, le nombre d'assertions en echec vaut exactement 0 apres, et la contre-epreuve de solvabilite conserve son resultat de reference (bot gagnant sur la carte nominale, verdict injouable sur la carte cassee). Les deux releves sont joints en evidence_path. CHIFFRES DE REFERENCE TRANSMIS PAR L'ORCHESTRATEUR (1012 assertions, solvabilite 50/50) : ils ne sont PAS re-mesures par cette etape s0 — voir provenance.chiffres_oracle_v1, ce sont les valeurs a re-relever au premier releve AVANT, pas des valeurs certifiees ici."
+  - "MENU PRODUIT AVANT TOUTE PARTIE : au lancement, aucun tick de gameplay ne s'est produit avant que le joueur n'ait choisi Jouer. Assertion stricte : au moment ou l'ecran titre est affiche, le compteur de ticks de la partie vaut exactement 0 et le statut de partie n'est pas EN COURS ; il passe a EN COURS au premier tick suivant l'activation de Jouer, jamais avant. Les quatre entrees Jouer / Controles / Options / Quitter sont presentes et chacune produit un effet OBSERVABLE distinct (defaut « Quitter inerte » du playtest Pong du 2026-07-27 : une entree sans effet observable est un echec, pas un detail)."
+  - "MENU PAUSE ATTEIGNABLE PAR TROIS PERIPHERIQUES ET GELANT : la pause s'ouvre depuis Echap au clavier, depuis Start/Menu a la manette, et depuis un bouton VISIBLE a l'ecran pour le tactile — les trois chemins menent au meme etat de pause. Preuve de gel par egalite stricte : l'etat de jeu releve a l'ouverture de la pause et l'etat releve N ticks plus tard, pause maintenue, sont EGAUX champ par champ (positions, score, vies, pastilles restantes, horloge des etats de poursuite). Les cinq entrees Reprendre / Recommencer / Controles / Options / Menu principal sont presentes et produisent cinq effets observables deux a deux differents ; Reprendre restitue EXACTEMENT l'etat gele."
+  - "LE GAMEPLAY NE CONNAIT AUCUN PERIPHERIQUE, VERIFIE STATIQUEMENT : le nombre de fichiers de games/pacman/05_SYSTEMS/ referencant une API d'entree de la plateforme (Input, InputEvent, InputMap, KEY_, JOY_, touch, action de projet) vaut EXACTEMENT 0. La logique consomme une intention abstraite (une direction, une demande de dash, une demande de pause), jamais une touche. Verifie par l'oracle statique deterministe, jamais par relecture."
+  - "PARITE CLAVIER / MANETTE PROUVEE PAR EGALITE D'ETAT : pour chaque intention de jeu, la sequence d'entrees clavier et la sequence d'entrees manette correspondantes produisent des etats de jeu STRICTEMENT EGAUX tick par tick sur une fenetre declaree. La manette est la reference de conception : toute intention jouable au clavier l'est aussi a la manette, et le compte des intentions non couvertes par la manette vaut exactement 0."
+  - "TACTILE PREPARE SANS DETTE CACHEE : la couche d'entree declare le peripherique tactile comme source supplementaire et expose au moins une surface tactile atteignable (le bouton de pause visible), sans qu'aucun fichier de 05_SYSTEMS/ ne soit modifie pour cela — comptage des chemins 05_SYSTEMS/ dans le patch tactile : exactement 0. Ce qui n'est PAS livre (build Android, portage, signature) est nomme en hors_scope, jamais laisse entendre comme livre."
+  - "MODE DASH EXPLICITE, EXCLUSIF ET DESACTIVABLE : le jeu expose deux modes mutuellement exclusifs et exhaustifs, mode normal et mode test ; le mode par defaut est le mode normal, assere par egalite stricte au premier lancement ; le dash possede une entree DEDIEE, distincte des directions ; il se desactive, et desactive il n'a aucun effet observable sur l'etat (egalite stricte des traces d'etat avec et sans appui, dash desactive)."
+  - "IMPACT DU DASH CHIFFRE ET FALSIFIABLE : l'effet du dash est declare en valeurs nommees pour QUATRE grandeurs — vitesse du joueur, cooldown entre deux dashs, comportement de collision avec les murs, comportement de collision avec les fantomes — et chaque grandeur est MESUREE avec et sans dash. Toute grandeur dont la mesure est identique dans les deux cas est declaree explicitement INCHANGEE PAR CONCEPTION ; une grandeur annoncee comme modifiee et mesuree identique est un echec (regle de variance ratifiee Pierre 2026-07-21 : une metrique a variance nulle ne mesure pas ce que son nom promet)."
+  - "AUDIO GENERE A L'EXECUTION, ZERO FICHIER SON : au moins un retour sonore est declenche par une action de jeu (exigence core.audio, `not_applicable_allowed: false` — elle ne peut pas etre declaree non applicable), et l'inventaire des fichiers du jeu contient EXACTEMENT 0 fichier audio importe (extensions .wav, .ogg, .mp3, .m4a, .flac). Le son est synthetise a l'execution via AudioStreamGenerator ; c'est la seule voie qui satisfait a la fois core.audio et l'invariant « zero asset » que le jeu asserte deja par son harnais asset_inventory."
+  - "SIX EVENEMENTS SONORES DISTINGUABLES : six evenements de jeu declenchent un son — deplacement, collecte, entree en etat Frightened, mort, victoire, ouverture de pause ou de menu. Les six descripteurs de synthese sont deux a deux DIFFERENTS (au moins un parametre de synthese differe pour chaque paire) ; six descripteurs identiques satisferaient le comptage sans produire six sons, et c'est exactement ce que ce critere refuse."
+  - "L'AUDIO NE VIT PAS DANS LA LOGIQUE : le nombre de fichiers de games/pacman/05_SYSTEMS/ referencant une API audio de la plateforme (AudioStream, AudioStreamGenerator, AudioStreamPlayer, AudioServer) vaut EXACTEMENT 0. La logique pure emet des EVENEMENTS de jeu ; la couche 06_RUNTIME les sonorise. Meme invariant de purete que celui deja prouve en V1 pour le rendu."
+  - "PLUSIEURS CARTES, LA CARTE EST UNE DONNEE : le jeu embarque au moins deux cartes jouables ; chaque carte est chargee comme une DONNEE lue a l'execution, et le comptage des chemins 05_SYSTEMS/ dans le patch d'ajout de la deuxieme carte vaut exactement 0. Chaque carte embarquee est prouvee SOLVABLE par le meme bot que la carte de reference (un bot qui GAGNE reellement), et une carte volontairement cassee reste declaree injouable — la contre-epreuve mesure l'oracle, pas seulement le jeu."
+  - "CHANGEMENT DE NIVEAU SANS REDEMARRAGE : finir une carte enchaine sur la carte suivante dans la meme execution de l'application, sans relance. Assertions strictes a la bascule : le score est CONSERVE, le nombre de vies est CONSERVE, et l'etat de partie est REINITIALISE (pastilles au total de la nouvelle carte, positions de depart de la nouvelle carte, horloge des etats de poursuite a sa phase initiale, rang de capture remis a sa premiere valeur). Le dernier niveau termine mene a un etat final explicite, jamais a un blocage."
+  - "PROGRESSION SIMPLE A VARIANCE PROUVEE : au moins un parametre de jeu evolue avec le numero de niveau, sa valeur est nommee et declaree par niveau, et sa distribution sur les niveaux embarques porte au moins DEUX valeurs distinctes non triviales. Un parametre annonce comme progressif dont toutes les valeurs sont egales est une promesse trop forte a requalifier honnetement, pas un bug (regle de variance ratifiee Pierre 2026-07-21)."
+  - "PALETTE UNIQUE ET DECLAREE : toutes les couleurs rendues proviennent d'un descripteur de palette UNIQUE, hors de 05_SYSTEMS ; le nombre de litteraux de couleur situes en dehors de ce descripteur vaut EXACTEMENT 0. Changer ce seul descripteur change l'identite visuelle de tout le jeu, ce qui rend le critere d'identite mesurable au lieu d'etre une appreciation."
+  - "PERIMETRE D'ECRITURE BORNE, VERIFIE MECANIQUEMENT : a la fin du run V2, les fichiers crees ou modifies se limitent a games/pacman/ et lab/forge_runs/pacman/ (plus lab/forge_evidence/ pour les preuves). Aucun fichier nouveau dans scripts/forge/, aucune modification de tests/, src/, autopilot.py, scripts/studioV2/, lab/chains/, ni des artefacts sceles du run V1 (charter.yaml, prisme.json, wiremap.json, wiremap_frozen.json). Verifie par `git status` / `git diff --name-only`, pas par declaration."
+  - "PREUVE MECANIQUE FOURNIE : chaque verdict d'etape aval cite un evidence_path (sortie d'execution de l'oracle correspondant). Un recu de code sans evidence_path est traite comme BLOCKED, jamais comme OK (pre-mortem PILOU s12-verdict)."
+  - "VOCABULAIRE DE CLAIM ABSENT DES LIVRABLES : les mots interdits par Pierre n'apparaissent dans aucun livrable du run V2 comme qualification du resultat. Verifiable par une recherche textuelle sur games/pacman/ et lab/forge_runs/pacman/."
+  - "CHARTER V2 COMPLET : ce charter_v2.yaml parse en YAML valide, ne contient aucun champ requis vide ni absent, ni marqueur de remplissage non resolu — verifie par forge.static_oracles.check_charter (7 champs). Ce que ce charter ne tranche PAS est porte par question_ouverte_humangate, jamais laisse en blanc."
+  - "EXIGENCES A JUGE HUMAIN DECLAREES COMME TELLES : les exigences dont le juge est une PERSONNE (comprehension des controles, comprehension de l'objectif, coherence de l'identite, lisibilite de la boucle produit) sont ecrites en disant EXPLICITEMENT qu'aucun oracle ne les tranche, et remontees en fog HumanGate. Une exigence a juge humain rangee sous une etiquette machine sans le dire est un defaut de restitution, mesure au run V1 sur R41 et R42."
+
+actions_interdites:
+  - "Toucher a tests/ sous quelque forme que ce soit : ZONE PROTEGEE (.claude/rules/tests.md) — aucun agent ne modifie ces fichiers, toute modification passe par une gate Pierre explicite."
+  - "Toucher a autopilot.py ou a scripts/studioV2/ (ainsi que start_studio.ps1 / stop_studio.ps1) : lane STUDIO GELEE, ratifiee Pierre 2026-07-19. Lire est autorise, ecrire ne l'est pas."
+  - "Executer git commit ou git push : gate Pierre explicite dans la conversation, jamais une initiative d'agent."
+  - "Ecrire les mots interdits par Pierre pour qualifier le jeu ou la Forge sans une preuve dediee nommee dans le meme document : les quatre termes prohibes sont enumeres dans provenance.vocabulaire_interdit."
+  - "FAIRE REGRESSER L'ORACLE DU RUN V1 : toute modification V2 qui reduit le nombre d'assertions passantes, en fait echouer une, ou fait perdre la solvabilite (bot qui gagne sur la carte nominale, verdict injouable sur la carte cassee) est un echec bloquant. Le jeu existant est mecaniquement valide : l'extension se prouve PAR RAPPORT a ce point de depart, releve avant et apres, jamais sur parole."
+  - "Certifier une carte OK sans oracle de SOLVABILITE vert sur CETTE carte : une deuxieme carte non prouvee solvable est un jeu injouable certifie (pre-mortem PILOU s10a, lecon collect_runner)."
+  - "Ecrire un test tautologique : toute assertion >= / <= / « existe » la ou le comportement observable impose une egalite ou une valeur stricte est interdite — en particulier sur le gel de la pause, la parite clavier/manette, le compte de fichiers touches et les valeurs de progression par niveau (pre-mortem PILOU s10a)."
+  - "Livrer un recu de code sans evidence_path : recu tel quel, le resultat est BLOCKED (pre-mortem PILOU s12)."
+  - "Referencer une API d'entree, une API audio ou un litteral de couleur depuis un fichier de games/pacman/05_SYSTEMS/ : c'est exactement la regression que les deux metriques d'architecture de ce charter mesurent."
+  - "Importer un fichier audio, un sprite, une texture ou une police dans le jeu : le son est GENERE a l'execution, le rendu reste en primitives. L'invariant « zero asset » du run V1 est conserve."
+  - "Coder une carte en dur dans la logique : une carte est une DONNEE lue a l'execution. Un plan litteral supplementaire dans 05_SYSTEMS/ fait echouer le premier critere de succes de ce charter."
+  - "Livrer une entree de menu, un bouton ou un ecran dont l'effet n'est pas OBSERVABLE dans le runtime reel (defaut « Quitter inerte » du playtest Pong 2026-07-27) — vaut pour les quatre entrees du menu produit et les cinq du menu pause."
+  - "Lancer directement le gameplay au demarrage : Pierre exige un ecran titre AVANT toute partie. Un jeu qui tourne pendant que le menu s'affiche viole la premiere demande du brief V2."
+  - "Introduire de l'aleatoire non seede ou une horloge de plateforme dans la logique de jeu, la selection de carte, la progression de niveau ou la synthese sonore pilotee par la logique — casse le determinisme et le replay deja prouves en V1."
+  - "Construire, en cours de route, l'un des elements interdits par Pierre — MCTS, RAG, embeddings, Agent Factory V2, nouveau registre, nouvelle couche, nouveau contrat sans necessite demontree, nouvelle taxonomie — au motif que le produit en aurait besoin. Si la necessite est reelle, elle remonte en fog HumanGate AVANT d'etre construite."
+  - "Modifier un artefact scele du run V1 (charter.yaml, prisme.json, wiremap.json, wiremap_frozen.json) : le run V2 ecrit ses propres artefacts, il ne reecrit pas l'histoire du run V1."
+  - "Presenter une exigence dont le juge est une PERSONNE comme validee par un oracle : le vocabulaire ferme des preuves attendues n'a aucune valeur pour un jugement humain, et l'y ranger sans le dire est le defaut mesure au run V1 (R41, R42)."
+  - "Declarer une metrique de progression, de difficulte, de dash ou de fun sans preuve de variance, ou lui donner un nom qui promet plus que ce qu'elle mesure (regle ratifiee Pierre 2026-07-21, lecon grid-navigator)."
+  - "Ecrire dans knowledge_base/, memory/, lab/chains/IMPROVEMENT_LEDGER.yaml ou tout registre durable sans ratification Pierre : propose-only."
+  - "Emettre un claim auto-certifie sans oracle : sans preuve mecanique, remonter un besoin HumanGate (fog) — jamais un claim_verdict autre que NO_CLAIM_ALLOWED."
+  - "Laisser dans un livrable un champ de remplissage non resolu, vide ou evasif : un flou non tranche est un defaut bloquant, il se remplit ou remonte en fog, il ne passe jamais."
+
+plateforme_cible: >-
+  GODOT 4.6.3, GDScript. Le jeu existe deja sous cette forme dans games/pacman/ : marqueur
+  moteur project.godot a la racine du jeu, scene principale main.tscn, logique pure en
+  GDScript sous 05_SYSTEMS/, adaptateurs de rendu, d'entree, de preuve et de bot sous
+  06_RUNTIME/adapters/, tests sous 07_TESTS/, harnais tests/run_tests.gd (`extends
+  SceneTree`) pilote par scripts/forge/godot_oracle.mjs. Projets de reference du studio :
+  games/snake/ et games/breakout_v2/. AUTORITE DE CE CHAMP : ce n'est ni une deduction ni
+  une preference d'agent, c'est la valeur corrigee par Pierre en cours de run V1 et
+  consignee dans lab/forge_runs/pacman/platform_correction.yaml (platform_assumption =
+  corrected, previous_inference = invalidated, enonce verbatim de Pierre : la plateforme
+  cible est GODOT uniquement, l'inference Web/JS etait incorrecte, run-oracle.mjs est un
+  outil d'orchestration et de preuve, Playwright/Chromium sont des outils de validation
+  eventuels, et cela ne definit pas le runtime du jeu). L'inference WEB/HTML5 du charter V1
+  n'est PAS reprise ici : elle reste conservee dans charter.yaml comme divergence detectee
+  (identifiant PLATFORM_INFERENCE_FROM_TOOLING), elle n'a aucune valeur pour ce run V2. Les
+  ajouts V2 se font DANS ce projet Godot : la manette passe par le systeme d'entree du
+  moteur, le tactile par ses evenements d'ecran, et l'audio par AudioStreamGenerator, sans
+  aucun fichier son importe.
+
+reference_jeu: >-
+  Pac-Man, etendu a un PRODUIT jouable : au jeu d'arcade solo de labyrinthe deja produit et
+  valide mecaniquement (parcours du labyrinthe, pastilles, fantomes a etats de poursuite,
+  victoire par labyrinthe vide, defaite par epuisement des vies) s'ajoute l'enveloppe
+  produit standard d'un jeu d'arcade : ecran titre, menu pause, controles multi-peripherique
+  avec la manette comme reference, option d'accessibilite, retour sonore, plusieurs cartes
+  enchainees et une identite visuelle coherente. CHOIX EXERCE PAR PIERRE, deux sources
+  directes : le charter V1 (reference_jeu = Pac-Man, tracee au titre de session et aux
+  consignes verbatim du 2026-08-05) pour le jeu, et le brief V2 de Pierre du 2026-08-05, en
+  dix points, pour l'enveloppe produit. Aucune des deux n'est une invention d'agent.
+
+criteres_demo:
+  - "ECRAN TITRE AU LANCEMENT : au demarrage, le joueur voit un ecran titre, pas une partie deja commencee. Il lit le nom du jeu et quatre choix : Jouer, Controles, Options, Quitter."
+  - "CHAQUE ENTREE DE MENU FAIT QUELQUE CHOSE : le joueur active tour a tour Jouer, Controles, Options et Quitter, et voit a chaque fois l'ecran changer ou l'application se fermer. Aucune entree ne reste sans effet visible."
+  - "PAUSE AU CLAVIER, A LA MANETTE ET AU DOIGT : en pleine partie, appuyer sur Echap, presser Start/Menu sur la manette, ou toucher le bouton visible a l'ecran ouvre le meme menu pause, et le jeu se FIGE visiblement — plus rien ne bouge tant que la pause dure."
+  - "REPRENDRE REPREND OU ON EN ETAIT : depuis la pause, Reprendre relance la partie exactement dans la situation quittee, sans deplacement ni perte de point pendant l'arret."
+  - "CINQ CHOIX EN PAUSE, CINQ EFFETS : Reprendre, Recommencer, Controles, Options et Menu principal produisent cinq resultats visiblement differents."
+  - "MANETTE JOUABLE DE BOUT EN BOUT : une partie entiere se joue a la manette — naviguer dans le menu, lancer, se deplacer, dasher, mettre en pause, revenir au menu principal — sans jamais toucher le clavier."
+  - "DASH VISIBLE ET DEBRAYABLE : le joueur voit quand il dashe (l'effet est perceptible a l'ecran), il voit quand le dash est indisponible, et il peut le desactiver dans les options — desactive, l'appui ne produit plus rien."
+  - "LE SON REPOND AU JEU : le joueur entend un retour sonore quand il se deplace, quand il collecte, quand les fantomes deviennent vulnerables, quand il meurt, quand il gagne, et quand il ouvre un menu. Les sons se distinguent les uns des autres a l'oreille."
+  - "DEUXIEME CARTE ATTEINTE EN JOUANT : en finissant la premiere carte, le joueur enchaine sur une carte VISIBLEMENT DIFFERENTE sans relancer l'application, en conservant son score et ses vies."
+  - "PROGRESSION PERCEPTIBLE : en passant au niveau suivant, le joueur PERCOIT que quelque chose a change dans la difficulte ou le rythme, et le jeu le lui indique lisiblement (numero de niveau affiche en chiffres)."
+  - "IDENTITE COHERENTE : l'ensemble des ecrans — titre, jeu, pause, fin de partie — partage la meme palette et le meme habillage ; un observateur voit que c'est le meme jeu d'un ecran a l'autre."
+  - "COMPRIS SANS EXPLICATION ORALE : une personne qui decouvre le jeu, sans qu'on lui dise un mot, trouve l'ecran titre, lance une partie, comprend ce qu'elle controle, ce qu'elle doit manger, ce qu'elle doit eviter et comment la partie se termine."
+  - "CONTROLES TROUVES SANS AIDE : la meme personne trouve seule comment mettre en pause et comment consulter l'ecran Controles, a la manette comme au clavier."
+  - "PARTIE COMPLETE SANS OUTIL : une partie entiere — ecran titre, jeu, pause, reprise, changement de niveau, fin de partie, retour au menu, relance — se joue par un humain sans console de debug et sans lancer le bot de solvabilite (lecon playtest Pong 2026-07-27 : validation solo impossible = defaut)."
+
+# --- Ratification V2 : ce qui SORT du hors_scope, avec la valeur V1 conservee -----------
+# Champ STRUCTURE, jamais un commentaire (regle studio ratifiee 2026-07-23) : la valeur V1
+# n'est pas effacee, elle est conservee ici comme trace de ce qui a change et pourquoi.
+ratification_v2:
+  date: "2026-08-05"
+  auteur: Pierre
+  nature: "Changement de perimetre ratifie. La demande de Pierre EST la ratification : elle exige nommement deux elements que le charter V1 avait mis en hors_scope."
+  moment: "apres cloture mecanique du run V1 (verdict signe pacman-20260805-r1 ; la decision est consignee dans lab/forge_runs/pacman/verdict.json#decision, avec objection)"
+  retraits_du_hors_scope:
+    - sujet: son
+      valeur_v1_conservee: >-
+        charter.yaml#hors_scope : « Sprites, assets graphiques externes, textures, images
+        telechargees, polices tierces, son : rendu par primitives de la plateforme cible,
+        zero asset importe, zero dependance runtime externe. »
+      statut_v1: "le SON etait explicitement hors perimetre, dans la meme clause que les assets graphiques"
+      valeur_v2: >-
+        Le SON entre dans le perimetre. Il est ENTIEREMENT GENERE a l'execution
+        (AudioStreamGenerator), avec ZERO fichier audio importe. Les assets graphiques,
+        eux, RESTENT hors perimetre.
+      decision_orchestrateur: >-
+        L'orchestrateur a tranche la forme (audio genere, jamais importe). Motif nomme :
+        c'est la seule voie qui satisfait a la fois core.audio de
+        scripts/forge/standard/core_requirements.yaml (`not_applicable_allowed: false` —
+        cette exigence ne peut pas etre declaree non applicable) et l'invariant « zero
+        asset » que le jeu asserte deja par son harnais asset_inventory.
+      trace_du_conflit_v1: >-
+        lab/forge_runs/pacman/verdict.json#humangate_flags : « core.audio DEFERRED :
+        conflit core_requirements (not_applicable_allowed:false) vs charter (son
+        hors_scope) ». Le present retrait REGLE ce conflit ouvert du run V1.
+    - sujet: niveaux_multiples
+      valeur_v1_conservee: >-
+        charter.yaml#hors_scope : « Niveaux multiples, progression de campagne,
+        cinematiques inter-niveaux, fruits bonus additionnels, ecrans d'attract mode : la
+        tranche est UN labyrinthe jouable de bout en bout ; l'extension multi-niveaux est
+        un run ulterieur. »
+      statut_v1: "les niveaux multiples etaient explicitement differes a un RUN ULTERIEUR — ce run V2 EST ce run ulterieur"
+      valeur_v2: >-
+        PLUSIEURS CARTES, un CHANGEMENT DE NIVEAU et une PROGRESSION SIMPLE entrent dans
+        le perimetre, sous la contrainte d'architecture chiffree : ajouter une carte
+        modifie 0 fichier de 05_SYSTEMS/.
+      reste_hors_perimetre: >-
+        Campagne complete, cinematiques inter-niveaux, meta-progression persistante entre
+        sessions, ecrans d'attract mode : ces elements de la clause V1 RESTENT en
+        hors_scope V2 (voir hors_scope, clause « Campagne complete »).
+  maintenus_en_hors_scope:
+    - MCTS et machinerie de decision supplementaire
+    - RAG, index semantique, embeddings
+    - Agent Factory V2
+    - nouveau registre de decision
+    - nouvelle couche d'architecture Forge
+    - nouveau contrat d'agent sans necessite demontree
+    - nouvelle taxonomie
+    - campagne complete
+    - backend, reseau, leaderboard, comptes, sauvegarde distante
+
+# --- Baseline d'architecture MESUREE le 2026-08-05 sur games/pacman ----------------------
+# Ces chiffres sont le point de depart des deux metriques d'architecture de Pierre. Ils ont
+# ete releves par lecture directe des fichiers du jeu, pas estimes.
+baseline_architecture_v1:
+  metrique_carte:
+    enonce: "Nombre de fichiers de games/pacman/05_SYSTEMS/ qu'il faudrait modifier aujourd'hui pour ajouter une carte supplementaire"
+    valeur_mesuree: 4
+    cible_v2: 0
+    fichiers:
+      - chemin: games/pacman/05_SYSTEMS/maze/maze.gd
+        motif: "porte la constante PLAN, plan litteral du labyrinthe, ainsi que DEPART_PACMAN, DEPART_DIRECTION, MAISON_CENTRE, SORTIE_MAISON, PLACES_MAISON et COINS"
+      - chemin: games/pacman/05_SYSTEMS/params/params.gd
+        motif: "porte LARGEUR_GRILLE=28, HAUTEUR_GRILLE=36, LIGNE_TUNNEL=17, LABY_PREMIERE_LIGNE, LABY_DERNIERE_LIGNE"
+      - chemin: games/pacman/05_SYSTEMS/game_state/game_state.gd
+        motif: "lit Maze.DEPART_PACMAN et Maze.DEPART_DIRECTION a l'initialisation de partie"
+      - chemin: games/pacman/05_SYSTEMS/end_conditions/end_conditions.gd
+        motif: "lit Maze.DEPART_PACMAN au repositionnement apres perte de vie"
+    methode_de_mesure: "lecture des declarations const et des references Maze.* dans games/pacman/05_SYSTEMS/ le 2026-08-05"
+  metrique_identite:
+    enonce: "Nombre de fichiers de games/pacman/05_SYSTEMS/ qu'il faudrait modifier pour changer l'identite visuelle"
+    valeur_mesuree: 0
+    cible_v2: 0
+    lecture: "DEJA CONFORME — le critere V2 est une NON-REGRESSION, pas un travail a faire"
+    fichiers_porteurs_de_couleur:
+      - chemin: games/pacman/06_RUNTIME/adapters/presentation/maze_view.gd
+        couche: "06_RUNTIME (presentation)"
+      - chemin: games/pacman/06_RUNTIME/adapters/presentation/state_banner.gd
+        couche: "06_RUNTIME (presentation)"
+    methode_de_mesure: "recherche du jeton Color sur games/pacman/05_SYSTEMS/ et games/pacman/06_RUNTIME/ le 2026-08-05 : 2 fichiers touches, 0 dans 05_SYSTEMS"
+
+# --- Provenance des champs de design-intent (champ structure, pas un commentaire) --------
+provenance:
+  plateforme_cible:
+    valeur: "Godot 4.6.3 / GDScript"
+    source: "lab/forge_runs/pacman/platform_correction.yaml — correction explicite de Pierre en cours de run V1, AUTORITATIVE, qui supplante le champ plateforme_cible du charter V1. Confirmee par l'observation du depot : games/pacman/project.godot, main.tscn, 05_SYSTEMS/*.gd, tests/run_tests.gd."
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+  reference_jeu:
+    valeur: "Pac-Man etendu a un produit jouable (menus, entrees multi-peripherique, audio, cartes multiples, identite)"
+    source: "charter V1 (choix Pierre trace) pour le jeu ; brief Pierre V2 du 2026-08-05, en dix points, pour l'enveloppe produit."
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+  criteres_demo:
+    valeur: "14 criteres observables"
+    source: "Traduction en faits OBSERVABLES des dix points du brief Pierre V2. Les criteres qui relevent d'une PERSONNE (compris sans explication orale, controles trouves sans aide, identite coherente) sont declares comme tels et remontes en fog HumanGate."
+    type: SOURCE_PIERRE_DIRECTE_TRADUITE_EN_OBSERVABLE
+    fog_humangate: true
+  metriques_architecture:
+    valeur: "0 fichier de 05_SYSTEMS touche pour ajouter une carte ; 0 fichier de 05_SYSTEMS touche pour changer l'identite"
+    source: "Brief Pierre V2 du 2026-08-05 : « le contenu ne doit pas exiger de modifier la logique principale ». Les baselines chiffrees (4 et 0) sont une MESURE faite par cette etape s0 sur games/pacman, pas un chiffre donne par Pierre."
+    type: SOURCE_PIERRE_DIRECTE_CHIFFREE_PAR_MESURE
+    fog_humangate: false
+  decision_audio:
+    valeur: "Audio INCLUS, entierement GENERE a l'execution (AudioStreamGenerator), zero fichier importe"
+    source: "Decision de l'ORCHESTRATEUR, pas de Pierre. Pierre a demande de l'audio sans en fixer la forme. Motif de la forme retenue : seule voie compatible a la fois avec core.audio (scripts/forge/standard/core_requirements.yaml, not_applicable_allowed: false) et avec l'invariant zero asset assert par le jeu."
+    type: DECISION_ORCHESTRATEUR_MOTIVEE
+    fog_humangate: true
+  chiffres_oracle_v1:
+    valeur: "1012 assertions, solvabilite 50/50"
+    source: "Chiffres TRANSMIS par l'orchestrateur dans le dispatch de cette etape. Cette etape s0 ne les a PAS re-mesures : elle n'execute aucun oracle de jeu. Le verdict signe du run V1 (lab/forge_runs/pacman/verdict.json) atteste un oracle code OK avec returncode 0 et un gate de mutation 150 mutants sans survivant non trie, mais ne porte NI le nombre d'assertions NI le 50/50."
+    type: TRANSMIS_NON_REMESURE
+    fog_humangate: true
+  vocabulaire_interdit:
+    valeur: "les quatre termes prohibes par Pierre pour qualifier un resultat sans preuve dediee"
+    source: "Interdiction Pierre reprise du charter V1 et du dispatch V2. Traduite en critere falsifiable (recherche textuelle sur les livrables) plutot qu'en intention."
+    type: SOURCE_PIERRE_DIRECTE
+    fog_humangate: false
+  lanes_protegees:
+    valeur: "tests/, src/, autopilot.py, scripts/studioV2/, lab/chains/, artefacts sceles du run V1"
+    source: "CLAUDE.md et .claude/rules/tests.md (zone protegee ; lane STUDIO gelee ratifiee Pierre 2026-07-19), plus la consigne de dispatch V2 sur les artefacts V1."
+    type: REGLE_STUDIO_RATIFIEE
+    fog_humangate: false
+
+# --- Ce que ce charter ne tranche PAS (remonte, pas masque) -----------------------------
+question_ouverte_humangate:
+  - sujet: "Preuve a juge humain — le vocabulaire ferme n'a pas de case pour elle"
+    etat: >-
+      Le vocabulaire ferme expected_proof.kind (bot_action | oracle | mutation | visual |
+      file_write) ne contient AUCUNE valeur designant une preuve dont le juge est une
+      PERSONNE. Defaut deja MESURE au run V1 : R41 et R42 du prisme.json ont ete rangees en
+      `visual` avec la verite (« constat humain, jamais une assertion machine ») ecrite en
+      texte libre dans le statement, que nul oracle ne lit. Le run V2 ajoute quatre
+      exigences de cette nature. Cette etape n'a PAS le droit d'ajouter une valeur au
+      vocabulaire et ne l'a pas fait.
+    question_a_pierre: >-
+      Veux-tu ouvrir le vocabulaire des preuves attendues a une valeur explicite de
+      jugement humain (ce qui rendrait ces exigences comptables au lieu de silencieuses),
+      ou preferes-tu qu'elles restent rangees en `visual` avec la reserve en texte libre,
+      en sachant qu'aucune mesure ne les distingue aujourd'hui d'une preuve machine ?
+  - sujet: "Forme de l'audio — decision d'orchestrateur, pas de Pierre"
+    etat: >-
+      Pierre a demande du son sans en fixer la forme. L'orchestrateur a tranche : audio
+      entierement GENERE a l'execution, zero fichier importe. C'est la seule forme qui
+      satisfait a la fois core.audio (qui ne peut pas etre declaree non applicable) et
+      l'invariant zero asset du jeu. Consequence assumee : un son synthetise sonne
+      autrement qu'un son enregistre, et la qualite percue releve de ton jugement.
+    question_a_pierre: >-
+      Confirmes-tu l'audio genere a l'execution sans aucun fichier importe, ou acceptes-tu
+      de lever l'invariant « zero asset » pour du son enregistre ? Les deux sont
+      defendables ; ils ne se prouvent pas de la meme facon.
+  - sujet: "Chiffres de non-regression de l'oracle V1"
+    etat: >-
+      Les valeurs 1012 assertions et solvabilite 50/50 ont ete transmises a cette etape par
+      l'orchestrateur. Cette etape ne les a pas re-mesurees (elle n'execute aucun oracle de
+      jeu) et le verdict signe du run V1 ne les porte pas. Le critere de non-regression est
+      donc ecrit comme une comparaison AVANT/APRES a relever soi-meme, pas comme une
+      constante gravee.
+    question_a_pierre: >-
+      Le premier releve du run V2 (execution de l'oracle AVANT toute modification) fait-il
+      foi comme baseline officielle, meme s'il donne un chiffre different de 1012 ?
+  - sujet: "Profondeur de la progression entre niveaux"
+    etat: >-
+      Le charter exige au moins deux cartes, un enchainement sans redemarrage et au moins
+      un parametre qui evolue avec le niveau, avec preuve de variance. Il ne fixe NI le
+      nombre de cartes NI le parametre qui progresse (vitesse des fantomes, duree de
+      l'etat Frightened, nombre de pastilles, autre) : c'est une decision de conception,
+      etape s4-archi.
+    question_a_pierre: >-
+      Combien de cartes veux-tu embarquer, et quelle grandeur veux-tu voir progresser d'un
+      niveau au suivant ? Sans reponse, l'architecture choisira le minimum prouvable (deux
+      cartes, un parametre) et le declarera comme tel.
+  - sujet: "Tactile Android — prepare jusqu'ou"
+    etat: >-
+      Le charter exige que la couche d'entree declare le tactile comme source et expose au
+      moins une surface tactile (le bouton de pause visible). Il met en hors_scope le build
+      Android, le portage et la signature.
+    question_a_pierre: >-
+      Le tactile « prepare » signifie-t-il pour toi une couche d'entree qui l'accepte (ce
+      qui est ecrit ici), ou une partie reellement jouable au doigt sur un ecran, avec des
+      commandes directionnelles tactiles ?
+
+# --- Historique de revision (champ structure, pas un commentaire) ------------------------
+revisions:
+  - version: 2
+    date: "2026-08-05"
+    base: "lab/forge_runs/pacman/charter.yaml (version 1, run pacman-20260805-r1) — CONSERVE, NON MODIFIE"
+    resume: >-
+      Charter V2 du run pacman-v2-20260805. DELTA sur un jeu deja produit et mecaniquement
+      valide, jamais une reecriture. plateforme_cible prend la valeur corrigee par Pierre
+      (Godot 4.6.3 / GDScript, autorite platform_correction.yaml), sans reprendre
+      l'inference web erronee de V1. Deux elements SORTENT du hors_scope sur ratification
+      Pierre du 2026-08-05 — le son et les niveaux multiples — avec la valeur V1 conservee
+      en trace dans ratification_v2 ; neuf familles d'interdictions y sont MAINTENUES. Les
+      deux metriques d'architecture de Pierre sont chiffrees a partir d'une mesure reelle
+      du depot (4 fichiers pour la carte, 0 pour l'identite) et portees en criteres de
+      succes falsifiables. La non-regression de l'oracle V1 est portee a la fois en critere
+      de succes et en action interdite. Le defaut de vocabulaire sur les preuves a juge
+      humain est remonte en fog HumanGate au lieu d'etre contourne par l'ajout d'une valeur.

@@ -1,0 +1,86 @@
+{
+  "game": "pacman",
+  "note": "HUMAN_PERCEPTION_PROOF — retours de playtest de Pierre sur les runs V2/V3/V4, capturés rétroactivement le 2026-08-06. AUCUN de ces 10 écarts n'a été détecté par un oracle mécanique : godot_oracle était vert à 1012, puis 2212, puis 2389 assertions. Les formulations `actual` sont les mots de Pierre quand ils existent, sinon le constat mesuré à l'audit. Ce fichier est propose-only : il n'a été ratifié par personne.",
+  "entries": [
+    {
+      "symptom": "Aucun son ne sort du jeu, musique comme bruitages",
+      "observed_by": "pierre",
+      "expected": "Une musique de fond et les 6 bruitages déclarés sont audibles pendant la partie",
+      "actual": "La musique j'ai rien — audit : synthèse journalisée, aucun push_frame, aucun AudioStreamPlayer dans le runtime",
+      "confidence": "CERTAIN",
+      "category": "AUDIO_PERCEPTION"
+    },
+    {
+      "symptom": "L'écran de fin se superpose au labyrinthe et devient illisible",
+      "observed_by": "pierre",
+      "expected": "Une couche modale opaque au-dessus du monde, avec résultat, score et choix lisibles",
+      "actual": "Le menu de fin se mélange avec la map et on voit rien",
+      "confidence": "CERTAIN",
+      "category": "UX"
+    },
+    {
+      "symptom": "Les menus affichent des identifiants numériques bruts au lieu des noms de touches",
+      "observed_by": "pierre",
+      "expected": "Dash : Shift — Déplacement : WASD — Pause : Échap",
+      "actual": "Dash : 4194325",
+      "confidence": "CERTAIN",
+      "category": "UX"
+    },
+    {
+      "symptom": "La seconde carte est rendue plus petite que la première",
+      "observed_by": "pierre",
+      "expected": "Toutes les cartes occupent la même enveloppe visuelle",
+      "actual": "La map 2 n'a pas la même enveloppe que la map 1 — audit : COTE_CASE constante à 20",
+      "confidence": "CERTAIN",
+      "category": "VISUAL_DIRECTION"
+    },
+    {
+      "symptom": "Après la victoire sur la dernière carte, aucune sortie possible",
+      "observed_by": "pierre",
+      "expected": "L'écran de fin permet de rejouer ou de revenir au menu principal",
+      "actual": "Impossible de rejouer ou de retourner au menu après la victoire map 2",
+      "confidence": "CERTAIN",
+      "category": "UX"
+    },
+    {
+      "symptom": "Le joueur ne comprend pas comment se comportent les quatre fantômes",
+      "observed_by": "pierre",
+      "expected": "Le jeu transmet les quatre règles de poursuite réellement implémentées",
+      "actual": "Il manque une info sur le comportement des fantômes",
+      "confidence": "PROBABLE",
+      "category": "CONFUSION_PLAYER"
+    },
+    {
+      "symptom": "Le joueur ignore combien de cartes composent la progression",
+      "observed_by": "pierre",
+      "expected": "Le HUD indique la carte courante, le total, et l'objectif de sortie",
+      "actual": "J'arrive pas à finir le lvl 2, je sais pas combien il y a de maps",
+      "confidence": "CERTAIN",
+      "category": "CONFUSION_PLAYER"
+    },
+    {
+      "symptom": "Les éléments du jeu ressemblent à des placeholders sans identité",
+      "observed_by": "pierre",
+      "expected": "Une direction artistique cohérente : palette, silhouettes, animation, lumière",
+      "actual": "Ronds colorés, absence d'identité visuelle et de cohérence graphique",
+      "confidence": "CERTAIN",
+      "category": "VISUAL_DIRECTION"
+    },
+    {
+      "symptom": "Aucun réglage de volume n'est accessible au joueur",
+      "observed_by": "pierre",
+      "expected": "Un menu options avec volume musique, volume effets et coupe-son, persistés",
+      "actual": "Aucun réglage de volume — audit : volume déclaré par son, aucun global",
+      "confidence": "CERTAIN",
+      "category": "UX"
+    },
+    {
+      "symptom": "Le guide des fantômes vit sur l'écran Contrôles, peut-être pas là où il est attendu",
+      "observed_by": "orchestrateur",
+      "expected": "L'information sur les fantômes atteint le joueur au moment où il en a besoin",
+      "actual": "Les quatre lignes sont exactes et affichées, mais sur l'écran CONTRÔLES uniquement",
+      "confidence": "IMPRESSION",
+      "category": "CONFUSION_PLAYER"
+    }
+  ]
+}

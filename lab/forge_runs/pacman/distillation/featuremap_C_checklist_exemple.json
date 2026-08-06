@@ -1,0 +1,381 @@
+{
+ "game_id": "pacman",
+ "systemes": [
+  {
+   "id": "sys_v2_coquille_produit",
+   "features": [
+    {
+     "id": "feat_v2_machine_a_etats_application",
+     "capacites": [
+      {
+       "id": "F63",
+       "capacite": "tenir un etat d'APPLICATION dans un vocabulaire ferme, exclusif et exhaustif (ecran titre, partie en cours, pause, consultation des controles, consultation des options, fin de partie), distinct du statut de PARTIE deja tenu par le jeu — a tout instant l'application est dans exactement un de ces etats, et le statut de partie n'en est pas un",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Etat releve au moment ou l'ecran titre est affiche : le statut de partie n'est pas EN COURS, et l'etat d'application expose appartient au vocabulaire ferme, jamais vide ni double."
+       },
+       "source_ref": "R43"
+      },
+      {
+       "id": "F64",
+       "capacite": "n'executer AUCUN tick de gameplay tant que l'application n'est pas dans l'etat partie en cours : a l'ecran titre le compteur de ticks de partie ne progresse pas, parce qu'aucune partie n'est construite ni avancee, pas parce qu'un rendu la masque",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Etat releve au moment ou l'ecran titre est affiche : le compteur de ticks de partie vaut exactement 0 et le statut de partie n'est pas EN COURS."
+       },
+       "source_ref": "R43"
+      },
+      {
+       "id": "F65",
+       "capacite": "construire une partie neuve et faire progresser le temps de jeu SEULEMENT a l'activation de Jouer : c'est cette activation, et elle seule, qui fait passer l'application de l'ecran titre a la partie en cours",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Apres activation de Jouer, le statut de partie vaut EN COURS et le compteur de ticks progresse strictement."
+       },
+       "source_ref": "R43"
+      }
+     ]
+    },
+    {
+     "id": "feat_v2_menu_titre",
+     "capacites": [
+      {
+       "id": "F66",
+       "capacite": "presenter les quatre entrees du menu produit — Jouer, Controles, Options, Quitter — comme quatre entrees selectionnables et activables, chacune identifiee, aucune n'etant une autre chose que ce qu'elle dit etre",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Les quatre entrees du menu titre sont presents et actives."
+       },
+       "source_ref": "R44"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_v2_menu_pause",
+   "features": [
+    {
+     "id": "feat_v2_ouverture_menu_pause",
+     "capacites": [
+      {
+       "id": "F67",
+       "capacite": "le joueur ouvre le meme menu pause depuis Echap, depuis Start/Menu de la manette ou depuis le bouton visible a l'ecran, et pendant la pause l'etat de la partie ne bouge plus du tout",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu s'arrête lorsqu'un des trois moyens d'accès au menu est utilisé."
+       },
+       "source_ref": "R45"
+      }
+     ]
+    },
+    {
+     "id": "feat_v2_options_menu_pause",
+     "capacites": [
+      {
+       "id": "F68",
+       "capacite": "depuis la pause, le joueur obtient cinq resultats differents : reprendre exactement ou il en etait, recommencer une partie neuve, consulter les controles, consulter les options, ou revenir a l'ecran titre",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Les cinq actions sont disponibles depuis le menu de pause."
+       },
+       "source_ref": "R46"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_v2_controle_joueur",
+   "features": [
+    {
+     "id": "feat_v2_intentions_joueur",
+     "capacites": [
+      {
+       "id": "F69",
+       "capacite": "aucun fichier de la logique de jeu ne sait ce qu'est une touche, une manette ou un doigt : la logique recoit des intentions — une direction, une demande de dash, une demande de pause — et rien d'autre",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "La logique ne reçoit que les intentions du joueur."
+       },
+       "source_ref": "R47"
+      }
+     ]
+    },
+    {
+     "id": "feat_v2_compatibilite_controle",
+     "capacites": [
+      {
+       "id": "F70",
+       "capacite": "tout ce qui se joue au clavier se joue aussi a la manette, et produit exactement la meme chose dans le jeu : naviguer dans les menus, se deplacer, dasher, mettre en pause, revenir au menu",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Les contrôles sont identiques entre clavier et manette."
+       },
+       "source_ref": "R48"
+      }
+     ]
+    },
+    {
+     "id": "feat_v2_tactile_integration",
+     "capacites": [
+      {
+       "id": "F71",
+       "capacite": "le joueur peut toucher le bouton de pause a l'ecran et le menu s'ouvre, ce qui montre que le tactile est branche jusque dans le jeu ; le reste du portage mobile n'est pas livre",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le menu de pause peut être ouvert via un bouton tactile."
+       },
+       "source_ref": "R49"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_v2_mode_jeu",
+   "features": [
+    {
+     "id": "feat_v2_modes_jeu",
+     "capacites": [
+      {
+       "id": "F72",
+       "capacite": "le jeu est toujours dans exactement un mode, normal ou test ; il demarre en mode normal ; le dash a sa propre commande, distincte des directions ; une fois desactive, l'appui sur cette commande ne change rien",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu est toujours dans un seul mode et la commande de dash n'affecte pas le jeu en mode test."
+       },
+       "source_ref": "R50"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_v2_dash_joueur",
+   "features": [
+    {
+     "id": "feat_v2_mesure_dash",
+     "capacites": [
+      {
+       "id": "F73",
+       "capacite": "chacune des quatre grandeurs touchees par le dash — vitesse du joueur, delai avant le dash suivant, comportement face aux murs, comportement face aux fantomes — est mesuree avec et sans dash, et ce qui se passe est clair",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Les effets du dash sont mesurés et documentés."
+       },
+       "source_ref": "R51"
+      }
+     ]
+    },
+    {
+     "id": "feat_v2_visibilite_dash",
+     "capacites": [
+      {
+       "id": "F74",
+       "capacite": "le joueur voit a l'ecran quand il dashe, et il voit quand le dash n'est pas encore disponible : il n'appuie jamais sans comprendre ce qui se passe",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu indique clairement si le dash est possible ou non."
+       },
+       "source_ref": "R52"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_v2_sonorisation_jeu",
+   "features": [
+    {
+     "id": "feat_v2_creation_sons",
+     "capacites": [
+      {
+       "id": "F75",
+       "capacite": "le jeu produit du son sans embarquer le moindre fichier sonore : les sons sont fabriques a l'execution, au moment ou ils sont joues",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Les sons ne sont pas préchargés."
+       },
+       "source_ref": "R53"
+      }
+     ]
+    },
+    {
+     "id": "feat_v2_retours_sonores",
+     "capacites": [
+      {
+       "id": "F76",
+       "capacite": "le joueur entend six retours sonores differents selon ce qui se passe : avancer, collecter, rendre les fantomes vulnerables, mourir, gagner, ouvrir un menu",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Les six types de sons sont clairement distincts."
+       },
+       "source_ref": "R54"
+      }
+     ]
+    },
+    {
+     "id": "feat_v2_separation_sonore",
+     "capacites": [
+      {
+       "id": "F77",
+       "capacite": "la logique de jeu ne joue aucun son : elle signale ce qui vient d'arriver, et c'est la couche de presentation qui le fait entendre",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "La logique de jeu n'émet pas de sons."
+       },
+       "source_ref": "R55"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_v2_cartes_jeu",
+   "features": [
+    {
+     "id": "feat_v2_gestion_cartes",
+     "capacites": [
+      {
+       "id": "F78",
+       "capacite": "le jeu embarque au moins deux cartes jouables, et en ajouter une troisieme ne demande de toucher a aucun fichier de la logique de jeu — seulement d'ajouter une donnee",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Ajout d'une nouvelle carte n'affecte pas les fichiers de logique."
+       },
+       "source_ref": "R56"
+      }
+     ]
+    },
+    {
+     "id": "feat_v2_transition_cartes",
+     "capacites": [
+      {
+       "id": "F79",
+       "capacite": "le joueur qui termine une carte enchaine sur la suivante sans relancer l'application : il garde son score et ses vies, et retrouve une carte pleine, des positions de depart et une horloge de poursuite",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le joueur passe à la prochaine carte sans quitter le jeu."
+       },
+       "source_ref": "R57"
+      }
+     ]
+    },
+    {
+     "id": "feat_v2_parametres_niveaux",
+     "capacites": [
+      {
+       "id": "F80",
+       "capacite": "passer au niveau suivant change vraiment quelque chose dans le jeu : au moins un parametre nomme prend une valeur differente d'un niveau a l'autre, et le joueur lit le numero du niveau en cours",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le changement de niveau modifie des paramètres."
+       },
+       "source_ref": "R58"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_v2_design_graphique",
+   "features": [
+    {
+     "id": "feat_v2_couleurs_jeu",
+     "capacites": [
+      {
+       "id": "F81",
+       "capacite": "toutes les couleurs du jeu viennent d'un seul endroit declare : changer ce seul endroit change l'apparence de tous les ecrans a la fois, du titre a l'ecran de fin",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "La modification des couleurs affecte tous les écrans."
+       },
+       "source_ref": "R59"
+      }
+     ]
+    },
+    {
+     "id": "feat_v2_clarte_graphique",
+     "capacites": [
+      {
+       "id": "F82",
+       "capacite": "une personne qui regarde les ecrans du jeu sans qu'on lui explique rien comprend ce qu'elle voit : ce qui est un mur, un couloir, un objet a manger, un ennemi, un menu",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Les éléments graphiques sont clairement identifiés."
+       },
+       "source_ref": "R60"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_v2_experience_joueur",
+   "features": [
+    {
+     "id": "feat_v2_discovery_jeu",
+     "capacites": [
+      {
+       "id": "F83",
+       "capacite": "une personne qui prend la manette sans consigne trouve seule comment se deplacer, comment dasher, comment mettre en pause et comment revenir au menu",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu est intuitif pour les nouveaux joueurs."
+       },
+       "source_ref": "R61"
+      }
+     ]
+    },
+    {
+     "id": "feat_v2_comprehension_jeu",
+     "capacites": [
+      {
+       "id": "F84",
+       "capacite": "une personne qui decouvre le jeu dit, sans aide, ce qu'elle doit manger, ce qu'elle doit eviter, ce qui se passe quand elle vide une carte, et comment la partie se termine",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu est compréhensible sans explications."
+       },
+       "source_ref": "R62"
+      }
+     ]
+    },
+    {
+     "id": "feat_v2_experience_complet",
+     "capacites": [
+      {
+       "id": "F85",
+       "capacite": "une personne parcourt seule tout le chemin du produit : elle trouve l'ecran titre, lance une partie, met en pause, reprend, passe au niveau suivant, arrive a la fin et relance, sans qu'on lui explique",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu est jouable de bout en bout."
+       },
+       "source_ref": "R63"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_v2_compatibilite_tests",
+   "features": [
+    {
+     "id": "feat_v2_continuite_tests",
+     "capacites": [
+      {
+       "id": "F86",
+       "capacite": "apres les ajouts du run V2, tout ce que le jeu prouvait deja continue de se prouver : aucune assertion ne tombe, et le bot gagne toujours sur la carte de reference",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Les tests précédents continuent de passer."
+       },
+       "source_ref": "R64"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

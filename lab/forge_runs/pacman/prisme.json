@@ -1,0 +1,593 @@
+{
+  "game_id": "pacman",
+  "exigences": [
+    {
+      "id": "R1",
+      "observation": "Le charter enonce comme critere de demo DEMARRAGE VISIBLE que le joueur doit comprendre quoi faire sans explication ecrite, et le World Scan mesure l'ecran d'arcade a 224 x 288 pixels, soit un rapport 3:4 en portrait pour une grille de 28 x 36 cases.",
+      "claim": "Un joueur ne peut se reperer sans explication que si la totalite de l'aire de jeu lui est presentee d'un coup ; des lors qu'aucune fraction du labyrinthe n'est hors champ, aucun defilement n'est necessaire, et le cadrage portrait est le seul qui contienne une grille plus haute que large.",
+      "enonce": "A l'ouverture, le joueur voit d'un seul coup d'oeil le labyrinthe entier, Pac-Man, les pastilles et les quatre fantomes, sans avoir a faire defiler l'image.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "Capture d'ecran au premier tick : le contour du labyrinthe est entierement contenu dans la fenetre (aucune ligne ni colonne coupee par un bord), on denombre un Pac-Man, quatre fantomes et au moins une pastille."
+      },
+      "destination": "s9-build",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_demo[DEMARRAGE VISIBLE] + lab/forge_runs/pacman/worldscan.yaml#maze.pixel_resolution (224x288, rapport 3:4)"
+    },
+    {
+      "id": "R2",
+      "observation": "Le charter exige au critere LISIBILITE DU LABYRINTHE que le joueur distingue sans ambiguite murs, couloirs, pastilles, Pac-Man et chaque fantome ; le World Scan denombre quatre fantomes nommes par leur couleur (rouge, rose, cyan, orange) et quatre super-pastilles distinctes des 240 pastilles ordinaires.",
+      "claim": "La distinction exigee porte donc sur cinq categories et non sur trois : confondre une super-pastille avec une pastille ordinaire, ou deux fantomes entre eux, prive le joueur de l'information dont depend sa decision au prochain croisement.",
+      "enonce": "Le joueur distingue sans ambiguite cinq categories a l'ecran : les murs, les couloirs vides, les pastilles ordinaires, les super-pastilles, et chacun des quatre fantomes, chacun different des trois autres et de Pac-Man.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "Capture d'ecran : les murs portent une apparence constante differente du couloir vide ; les quatre fantomes portent quatre couleurs deux a deux differentes ; une super-pastille est visiblement plus grande qu'une pastille ordinaire."
+      },
+      "destination": "s9-build",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_demo[LISIBILITE DU LABYRINTHE] + lab/forge_runs/pacman/worldscan.yaml#ghost_states.total_ghosts et #maze.key_features.power_pellet_positions"
+    },
+    {
+      "id": "R3",
+      "observation": "Pierre a place en priorite numero 1 du charter une « boucle temps reel qui tourne toute seule », et le World Scan decrit une boucle minute 1 ou Pac-Man avance a chaque cycle meme sans nouvelle commande.",
+      "claim": "Le temps reel se falsifie donc par l'ABSENCE d'entree, pas par sa presence : si rien ne bouge quand personne n'appuie, il n'y a pas de boucle, seulement une reaction a l'evenement clavier.",
+      "enonce": "Le joueur qui ne touche pas au clavier voit quand meme la partie avancer : Pac-Man poursuit sa direction courante et les fantomes se deplacent.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Deux relevés d'etat separes par une fenetre declarée de ticks, sans injecter aucune entree : la position de Pac-Man a change et celle d'au moins un fantome a change."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#objectif priorite (1) + lab/forge_runs/pacman/worldscan.yaml#loops.minute_1"
+    },
+    {
+      "id": "R4",
+      "observation": "Le charter exclut en hors_scope les sprites, assets externes, textures, images telechargees, polices tierces et le son, et interdit en actions_interdites toute dependance runtime externe (paquet reseau, CDN, asset store).",
+      "claim": "Ces deux clauses ont un effet observable unique et testable : le jeu doit demarrer et se jouer avec le reseau coupe, et son inventaire de fichiers ne doit contenir aucun media importe.",
+      "enonce": "Le joueur lance le jeu sans connexion reseau et voit un rendu compose uniquement de formes pleines et de texte : aucune image, aucune police ni aucun son exterieur au jeu n'est charge.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Lancement reseau coupe : le jeu s'ouvre et une partie se joue ; l'inventaire des fichiers du jeu ne contient aucun fichier d'image, de police ni de son importe."
+      },
+      "destination": "s4-archi",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#hors_scope[Sprites, assets graphiques externes] et #actions_interdites[Introduire une dependance runtime externe]"
+    },
+    {
+      "id": "R5",
+      "observation": "Le charter demande en critere de demo que le score, les pastilles restantes et les vies soient affiches en chiffres lisibles et correspondent exactement a l'etat interne, et interdit en actions_interdites d'afficher l'etat decisif uniquement en formes ou en pips.",
+      "claim": "L'affichage est donc soumis a deux exigences separables : un FORMAT (des chiffres) et une FIDELITE (l'egalite avec l'etat a chaque tick). Un HUD juste au demarrage mais decale d'un tick apres un evenement satisfait le format et viole la fidelite.",
+      "enonce": "Le joueur lit en permanence, en chiffres, son score, le nombre de pastilles restantes et son nombre de vies, et ces trois chiffres disent exactement la meme chose que l'etat interne du jeu.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "Capture d'ecran et etat expose relevés au meme tick apres chaque evenement (pastille mangee, vie perdue, fantome capture) : les trois nombres lus a l'ecran sont egaux aux trois valeurs de l'etat."
+      },
+      "destination": "s9-build",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_demo[SCORE ET VIES EN CHIFFRES] et #actions_interdites[Afficher l'etat decisif uniquement en formes ou en pips]"
+    },
+    {
+      "id": "R6",
+      "observation": "Le World Scan source le labyrinthe a 28 cases de large sur 36 de haut, avec des couloirs d'une case et des intersections qui creent des points de decision ; le charter exige de son cote au moins deux boucles internes.",
+      "claim": "Une grille aux bonnes dimensions ne suffit pas : un labyrinthe sans circuit ferme reduit toute poursuite a un couloir ou le joueur finit acculé. Les deux proprietes — dimensions et existence de boucles — doivent etre verifiees separement.",
+      "enonce": "Le joueur parcourt un labyrinthe unique de 28 cases de large sur 36 cases de haut, qui comporte au moins deux boucles internes : il peut faire un tour complet et revenir a son point de depart sans jamais faire demi-tour.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Les dimensions exposees valent exactement 28 x 36 ; un parcours en circuit ferme declaré est trouve et parcouru sans qu'aucun pas n'inverse la direction du pas precedent."
+      },
+      "destination": "s4-archi",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#maze.dimensions (source citee : https://www.pacmangameusa.com/pacman-maze/) + charter.yaml#parametres_de_design.grille_labyrinthe"
+    },
+    {
+      "id": "R7",
+      "observation": "Le World Scan decrit une navigation sur grille discrete ou Pac-Man et les fantomes occupent une case a la fois, et le charter exige des murs infranchissables sans faux positif ni faux negatif.",
+      "claim": "L'invariant qui rassemble ces deux faits est unique et verifiable a chaque tick pour toutes les entites a la fois : le TYPE DE LA CASE OCCUPEE. Le tester uniquement par des cas de deplacement laisserait passer une entite arrivee dans un mur par un autre chemin (repositionnement, tunnel, reapparition).",
+      "enonce": "Le joueur ne voit jamais Pac-Man ni un fantome a l'interieur d'un mur : chaque entite occupe toujours une case de couloir, une seule a la fois.",
+      "expected_proof": {
+        "kind": "mutation",
+        "statement": "Invariant de collision murale soumis au gate de mutation : un mutant qui autorise une entite a occuper une case de mur doit etre tue par les tests."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#systems[Discrete Grid Navigation] + charter.yaml#criteres_succes[MURS INFRANCHISSABLES SANS FAUX POSITIF NI FAUX NEGATIF]"
+    },
+    {
+      "id": "R8",
+      "observation": "Le charter precise qu'une commande impossible est ignoree sans effet de bord et que Pac-Man continue alors sa direction courante ; il n'a donc pas prevu le cas ou la direction COURANTE devient elle-meme impossible.",
+      "claim": "Dans un cul-de-sac, les deux seules issues coherentes sont l'arret ou un virage decide par le jeu ; un virage decide par le jeu serait une invention de comportement non demandee, donc l'arret sur la derniere case de couloir est la seule option qui n'ajoute aucune regle.",
+      "enonce": "Le joueur qui laisse Pac-Man foncer dans un cul-de-sac le voit s'arreter net contre le mur, sur la derniere case de couloir, et y rester tant qu'aucune direction praticable n'est demandee.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Etat avant et apres le tick de butee : la position reste sur la derniere case de couloir, ne franchit pas la case de mur, ne saute vers aucune case non adjacente ; aux ticks suivants sans entree, la position ne change plus."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_succes[MURS INFRANCHISSABLES] et [DEPLACEMENT JOUEUR BORNE ET REACTIF]"
+    },
+    {
+      "id": "R9",
+      "observation": "Le World Scan documente deux tunnels lateraux a bouclage horizontal (sortie a droite, entree a gauche et reciproquement), tout en declarant en incertitude que les cases exactes de tunnel ne sont pas sourcees.",
+      "claim": "La regle de bouclage est donc un fait acquis alors que sa localisation ne l'est pas : l'exigence doit porter sur l'invariant de continuite (meme ligne, aucune pause, aucune vie perdue) et rester indifferente aux coordonnees retenues.",
+      "enonce": "Le joueur qui sort du labyrinthe par le tunnel lateral droit voit Pac-Man reapparaitre aussitot par le tunnel lateral gauche, sur la meme ligne, sans s'arreter et sans perdre de vie — et reciproquement dans l'autre sens.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Etat sur deux ticks consecutifs : la colonne passe de l'extremite droite a l'extremite gauche (ou l'inverse), la ligne est inchangee, le compteur de vies est inchange, le statut reste EN COURS."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#maze.key_features.tunnels + #incertitudes[Exact warp tunnel positioning and behavior rules]"
+    },
+    {
+      "id": "R10",
+      "observation": "Le World Scan declare explicitement en incertitude qu'il ne sait pas si les fantomes empruntent les tunnels ; aucune source citee ne tranche ce point.",
+      "claim": "Faute de source, le choix se decide par ses consequences : si les fantomes ne passent pas, le couloir de tunnel devient une zone de securite absolue ou le joueur peut attendre indefiniment, ce que le critere FANTOMES ACTIFS ET NON DEGENERES du charter interdit.",
+      "enonce": "Le joueur voit les fantomes emprunter le tunnel comme lui : le tunnel est un raccourci, pas un refuge ou Pac-Man serait definitivement hors d'atteinte.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Sur une fenetre declarée ou Pac-Man reste dans le couloir de tunnel, au moins un fantome en etat de poursuite y entre et en ressort par l'autre extremite."
+      },
+      "destination": "s3-decompo",
+      "source": "ADDITIONS",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": null
+    },
+    {
+      "id": "R11",
+      "observation": "Le charter exige que la commande de direction soit prise en compte au premier tick ou le deplacement correspondant est legal, et impose d'asserter la direction EFFECTUEE, jamais une direction en attente.",
+      "claim": "Le cas ou le virage est immediatement possible est donc separable du cas ou il faut attendre : le premier se falsifie au tick suivant l'appui, sans aucune notion de memoire, et doit etre teste seul pour qu'un echec designe l'entree et non le tampon.",
+      "enonce": "Le joueur qui appuie sur une fleche voit Pac-Man tourner dans cette direction des le tick suivant, si la case visee est un couloir.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Etat au tick qui suit l'appui : la direction effectuee est exactement la direction demandee, et la position a avance d'une case dans cette direction."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_succes[DEPLACEMENT JOUEUR BORNE ET REACTIF] + worldscan.yaml#loops.minute_1.actions"
+    },
+    {
+      "id": "R12",
+      "observation": "Le charter enonce qu'une direction impossible est ignoree sans effet de bord, avec la glose « Pac-Man continue alors sa direction courante ».",
+      "claim": "Le mot « ignoree » a trois contre-exemples distincts qu'un seul test ne couvre pas : se figer, reculer, ou etre deplace ailleurs. L'exigence doit nommer les trois, sinon une implementation qui immobilise Pac-Man passera pour conforme.",
+      "enonce": "Le joueur qui demande une direction barree par un mur voit Pac-Man poursuivre sa direction courante : il ne se fige pas, ne recule pas et n'est pas deplace ailleurs.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Etat au tick qui suit l'appui impossible : la direction effectuee est egale a la direction effectuee au tick precedent, et la position a avance d'une case dans cette direction."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_succes[DEPLACEMENT JOUEUR BORNE ET REACTIF]"
+    },
+    {
+      "id": "R13",
+      "observation": "La formule du charter « au premier tick ou le deplacement correspondant est legal » decrit un instant qui peut etre posterieur a l'appui, ce qui suppose que la demande survit entre les deux.",
+      "claim": "Le jeu doit donc retenir la derniere direction demandee jusqu'a ce qu'elle devienne praticable ou qu'une autre la remplace ; sans cette memoire, le joueur devrait appuyer exactement au tick de l'intersection, ce qui rend le critere du charter inatteignable en pratique.",
+      "enonce": "Le joueur qui anticipe un virage en appuyant juste avant une intersection voit Pac-Man tourner tout seul en arrivant a cette intersection, sans avoir a reappuyer.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Une seule pression a un tick ou le virage est impossible ; sans aucune autre entree, la direction effectuee au premier tick ou ce virage devient praticable est exactement la direction demandee."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_succes[DEPLACEMENT JOUEUR BORNE ET REACTIF]"
+    },
+    {
+      "id": "R14",
+      "observation": "Le World Scan compte 240 pastilles ordinaires plus 4 super-pastilles, soit 244 collectibles, et fait de l'egalite consommes == 244 la condition de victoire.",
+      "claim": "Le nombre POSE sur la carte et le nombre AFFICHE sont deux grandeurs distinctes qui peuvent diverger : une carte qui porte 243 pastilles avec un compteur initialise a 244 rend la victoire inatteignable sans qu'aucun test de mecanique ne le revele.",
+      "enonce": "Au demarrage, le joueur a devant lui exactement 244 choses a manger : 240 pastilles ordinaires et 4 super-pastilles, et le compteur affiche annonce 244.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Comptage des collectibles poses sur la carte au tick 0 : 240 pastilles ordinaires plus 4 super-pastilles, total exactement 244 ; le compteur affiche a l'ecran vaut 244."
+      },
+      "destination": "s4-archi",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#maze.pellet_count_total et #victory_conditions[CONDITION_PRIMARY]"
+    },
+    {
+      "id": "R15",
+      "observation": "Le World Scan attribue 10 points a une pastille ordinaire et decrit la mutation d'etat comme « la case devient vide, le compteur s'incremente » ; le charter exige au critere de demo que la disparition et l'augmentation du score soient percues au meme instant.",
+      "claim": "Trois effets doivent donc etre simultanes et lies — disparition rendue, score, compteur de restantes — et l'idempotence est un quatrieme effet qu'aucune source ne nomme : une case videe qui redonne des points a un second passage casserait le compte de victoire sans casser aucun des trois premiers.",
+      "enonce": "Le joueur qui passe sur une pastille la voit disparaitre au meme instant que son score augmente de 10 et que le compteur de pastilles restantes baisse de 1 ; repasser sur la case ne rapporte plus rien.",
+      "expected_proof": {
+        "kind": "mutation",
+        "statement": "Invariant d'incrementation des pastilles soumis au gate de mutation : un mutant qui n'efface pas la case, ou qui recompte une case deja videe, doit etre tue par les tests."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#systems[Pellet System] + charter.yaml#criteres_demo[PASTILLES QUI DISPARAISSENT]"
+    },
+    {
+      "id": "R16",
+      "observation": "Le World Scan place les quatre super-pastilles dans les quatre coins du labyrinthe, a des emplacements strategiques eloignes de la maison des fantomes, ce qu'il presente comme un encouragement a la traversee risquee.",
+      "claim": "L'intention de design est portee par la DISTANCE, pas par la coordonnee exacte : une super-pastille proche du centre annulerait le risque sans changer ni leur nombre ni leurs points. L'exigence doit donc contraindre une relation spatiale, pas une case.",
+      "enonce": "Le joueur voit les quatre super-pastilles placees une par region d'angle du labyrinthe, loin de la maison centrale des fantomes : les atteindre demande de traverser le labyrinthe.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Positions des quatre super-pastilles : une et une seule par quadrant de la grille, et chacune strictement plus proche de son coin de labyrinthe que de la maison centrale."
+      },
+      "destination": "s4-archi",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#maze.key_features.power_pellet_positions"
+    },
+    {
+      "id": "R17",
+      "observation": "Le World Scan attribue 50 points a une super-pastille et la compte parmi les 244 collectibles dont la consommation integrale declenche la victoire.",
+      "claim": "La super-pastille joue donc deux roles simultanes qu'il est tentant de separer a l'implementation : un declencheur d'etat et un collectible ordinaire du point de vue du compte. L'oublier dans le compteur de restantes rendrait la victoire a 244 inatteignable.",
+      "enonce": "Le joueur qui mange une super-pastille voit son score augmenter de 50, cinq fois plus que pour une pastille ordinaire, et le compteur de restantes baisser de 1 comme pour n'importe quel autre collectible.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Etat au tick de consommation : le score a augmente d'exactement 50 et les restantes ont baisse d'exactement 1."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#systems[Pellet System] et #victory_conditions[CONDITION_PRIMARY]"
+    },
+    {
+      "id": "R18",
+      "observation": "Le World Scan denombre quatre fantomes qui se deplacent d'une case par cycle, et le charter exige des fantomes actifs et non degeneres, en avertissant qu'une regle de ciblage a variance nulle valide le moteur sans mesurer ce que son nom promet.",
+      "claim": "La premiere degenerescence a exclure n'est pas la ressemblance des trajectoires mais l'IMMOBILITE : un fantome bloque contre un mur ou en attente indefinie satisfait toutes les regles de ciblage sans jamais poursuivre quoi que ce soit.",
+      "enonce": "Le joueur voit quatre fantomes de couleurs distinctes se deplacer en continu : aucun ne reste plante sur place.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Sur une fenetre declarée de ticks, chacun des quatre fantomes sortis de la maison a change de position au moins une fois par cycle de deplacement."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_succes[FANTOMES ACTIFS ET NON DEGENERES] + worldscan.yaml#ghost_states.total_ghosts"
+    },
+    {
+      "id": "R19",
+      "observation": "Le World Scan enonce une regle de verification de la variance : depuis un etat initial identique, les quatre fantomes doivent produire quatre chemins distincts, mesures par la divergence des trajectoires apres une dizaine de ticks.",
+      "claim": "Comparer les POSITIONS a un instant donne ne suffit pas — deux fantomes peuvent se croiser sur une meme case sans suivre la meme route. La grandeur qui porte l'information est la SEQUENCE de positions sur l'horizon, comparee paire a paire.",
+      "enonce": "Le joueur voit les quatre fantomes prendre des chemins differents : ils ne se superposent pas et ne suivent pas la meme trajectoire.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "A partir d'un etat initial identique et sur un horizon declaré, les quatre sequences de positions de fantomes sont deux a deux differentes (il existe pour chaque paire au moins un tick ou les positions different)."
+      },
+      "destination": "s5-wiremap",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#ghost_targeting.targeting_variance_proof.verification_rule"
+    },
+    {
+      "id": "R20",
+      "observation": "Le World Scan detaille quatre algorithmes de ciblage sources : le rouge vise la case de Pac-Man ; le rose vise quatre cases devant lui ; le cyan prolonge le segment allant du rouge jusqu'a deux cases devant Pac-Man ; l'orange vise Pac-Man au-dela de huit cases et son coin en deca.",
+      "claim": "Ces formules ne sont observables que si la case-cible est EXPOSEE : deduire le ciblage du seul deplacement rend le test dependant du cheminement, si bien qu'une erreur de ciblage et une erreur de pathfinding deviennent indiscernables l'une de l'autre.",
+      "enonce": "Le joueur apprend que les quatre fantomes ne pensent pas pareil : le rouge fonce droit sur lui ; le rose vise quatre cases devant lui, dans la direction ou il regarde ; le cyan vise un point calcule a partir de la position du rouge ; l'orange fonce tant qu'il est loin et se detourne vers son coin des qu'il approche a huit cases ou moins.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Case-cible exposee par l'etat pour chaque fantome en poursuite, comparee aux quatre formules ; la cible de l'orange est assertee a une distance de 9, de 8 et de 7 pour verifier la bascule exacte au seuil."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#ghost_targeting.blinky_red / pinky_pink / inky_cyan / clyde_orange (source citee : https://www.gamedeveloper.com/design/the-pac-man-dossier)"
+    },
+    {
+      "id": "R21",
+      "observation": "Le charter exige que la distance joueur-fantome decroisse strictement sur une fenetre declarée en etat de poursuite, et le World Scan decrit le rouge comme une poursuite directe vers la case de Pac-Man.",
+      "claim": "La decroissance stricte n'est mesurable que sur un joueur qui NE FUIT PAS : si Pac-Man bouge, la distance depend autant de sa trajectoire que du ciblage, et un fantome parfaitement poursuivant peut voir la distance croitre. Le protocole doit donc immobiliser Pac-Man contre un mur.",
+      "enonce": "Le joueur immobilise contre un mur voit le fantome rouge se rapprocher de lui sans relache pendant l'etat de poursuite.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Pac-Man arrete contre un mur, aucune entree, etat de poursuite actif : la distance Pac-Man / fantome rouge decroit strictement a chacun de ses deplacements sur une fenetre declarée."
+      },
+      "destination": "s5-wiremap",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_succes[FANTOMES ACTIFS ET NON DEGENERES] + worldscan.yaml#ghost_targeting.blinky_red"
+    },
+    {
+      "id": "R22",
+      "observation": "Le World Scan rapporte en incertitude que les fantomes se deplacent a environ 95 % de la vitesse de Pac-Man, sans fournir de donnee de frame exacte ; le charter avertit qu'une vitesse superieure a celle du joueur rendrait la solvabilite impossible a prouver sur certaines cartes.",
+      "claim": "Le chiffre exact est donc secondaire, mais son SIGNE est structurant : tant que le rapport reste strictement inferieur a 1, la fuite en ligne droite creuse l'ecart et un bot peut gagner. L'exigence doit porter sur cette inegalite observable, pas sur la valeur 95 %.",
+      "enonce": "Le joueur qui fuit en ligne droite dans un long couloir creuse l'ecart avec le fantome qui le poursuit : il peut le distancer, mais jamais sans effort.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Sur un couloir droit declaré, Pac-Man fuyant en s'eloignant : la distance Pac-Man / poursuivant est strictement plus grande a la fin de la fenetre qu'a son debut."
+      },
+      "destination": "s5-wiremap",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#incertitudes[Precise speed ratios between Pac-Man and ghosts] + charter.yaml#parametres_de_design.vitesse_relative_fantomes"
+    },
+    {
+      "id": "R23",
+      "observation": "Le World Scan indique que les fantomes partent de la maison centrale, le rouge en premier, les autres suivant avec des delais ; il declare en incertitude que les seuils exacts de sortie ne sont pas enumeres.",
+      "claim": "L'ordre est donc un fait, les delais n'en sont pas un. L'exigence doit asserter l'ordre et l'echelonnement — proprietes observables et sourcees — et traiter les valeurs des delais comme des constantes declarées, jamais comme une reproduction de l'arcade.",
+      "enonce": "Le joueur voit les fantomes sortir de la maison centrale l'un apres l'autre au debut de la partie, le rouge en premier : il n'est pas encercle des la premiere seconde.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Etat au tick 0 : exactement un fantome est hors de la maison et c'est le rouge ; les trois autres en sortent a des ticks strictement croissants et declarés ; au terme du dernier delai, les quatre sont dehors."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#ghost_states.spawn_behavior + #incertitudes[Ghost spawn timing and ghost house exit sequencing]"
+    },
+    {
+      "id": "R24",
+      "observation": "Le World Scan decrit trois etats exclusifs par fantome (Chase, Scatter, Frightened) pilotes par une horloge globale ; le charter exige que l'etat courant soit une donnee de la logique lisible par l'oracle et jamais une consequence implicite d'une vitesse de rendu.",
+      "claim": "L'exclusivite et l'exhaustivite sont deux proprietes distinctes, toutes deux falsifiables au meme endroit : la valeur exposee. Un etat vide pendant une transition viole l'exhaustivite sans violer l'exclusivite, et resterait invisible a un test qui ne verifie que l'absence de combinaison.",
+      "enonce": "A tout instant, le jeu montre pour chaque fantome exactement un etat parmi trois — Dispersion, Poursuite, Effraye — jamais deux a la fois, jamais aucun.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "A chaque tick d'une partie complete, l'etat expose de chacun des quatre fantomes appartient a l'ensemble des trois valeurs, sans valeur vide ni combinaison."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#ghost_states.states + charter.yaml#criteres_succes[ETATS DE POURSUITE TESTES SUR LEURS SEUILS]"
+    },
+    {
+      "id": "R25",
+      "observation": "Le World Scan source pour les niveaux 1 a 4 la sequence 20 s de poursuite, 7 s de dispersion, 20 s, 7 s, 20 s, 5 s, puis 1 033 s de poursuite — un cycle FINI de six seuils et non une alternance perpetuelle ; le charter exige d'asserter l'etat juste avant, exactement au, et juste apres chaque seuil.",
+      "claim": "Le dernier segment de 1 033 secondes depasse de tres loin la duree d'un labyrinthe unique : dans cette tranche il est indistinguable d'une poursuite permanente, et un septieme seuil qui ramenerait la dispersion serait une invention pure.",
+      "enonce": "Le joueur vit une partie rythmee par une horloge declarée : 20 s de poursuite, 7 s de dispersion, 20 s de poursuite, 7 s de dispersion, 20 s de poursuite, 5 s de dispersion, puis poursuite jusqu'a la fin de la partie.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Pour chacun des six seuils, l'etat expose est relevé juste avant le seuil, exactement au seuil et juste apres : les trois valeurs correspondent a la sequence declarée, et aucun retour en dispersion ne survient apres le sixieme seuil."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#ghost_states.mode_timing_levels_1_4.sequence (source citee : https://www.gamedeveloper.com/design/the-pac-man-dossier)"
+    },
+    {
+      "id": "R26",
+      "observation": "Le World Scan note dans la boucle minute 10 que le joueur observe le changement de comportement ET une inversion de direction lors des bascules de mode ; le charter exige que le changement d'etat soit PERCU a l'ecran et pas seulement dans les donnees.",
+      "claim": "L'inversion de direction est le signal qui rend la bascule visible sans lecture de donnee ; un indicateur d'etat seul serait un affichage de variable, et une inversion seule serait ambigue avec un demi-tour de cheminement ordinaire. Les deux ensemble sont falsifiables par deux captures.",
+      "enonce": "Quand les fantomes changent d'etat, le joueur le PERCOIT a l'ecran sans lire aucune donnee : les fantomes font demi-tour au moment de la bascule, et l'indication d'etat affichee change au meme instant.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "Captures au tick precedant le seuil et au tick du seuil : la direction rendue de chaque fantome hors maison s'est inversee, et l'indication d'etat lisible a l'ecran differe entre les deux captures."
+      },
+      "destination": "s9-build",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#loops.minute_10.actions + charter.yaml#criteres_demo[CHANGEMENT D ETAT DE POURSUITE PERCEPTIBLE]"
+    },
+    {
+      "id": "R27",
+      "observation": "Le World Scan decrit qu'avaler une super-pastille declenche un minuteur global qui rend les quatre fantomes vulnerables et visuellement differents, pour une duree d'environ six secondes aux niveaux 1 a 4.",
+      "claim": "L'effet est global et simultane, ce qui donne trois points de falsification independants : l'instant de declenchement (les quatre au meme tick), le rendu (une apparence differente) et l'expiration (un retour effectif). Un etat Frightened qui ne se termine jamais satisfait les deux premiers.",
+      "enonce": "Le joueur qui mange une super-pastille voit les quatre fantomes changer d'apparence au meme instant et devenir vulnerables pour une duree declarée, puis revenir a leur comportement hostile a l'expiration.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "Etat au tick de consommation : les quatre fantomes sont en etat Effraye ; capture : leur couleur rendue differe de leur couleur habituelle ; etat au tick d'expiration declaré : aucun fantome n'est plus en Effraye."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#systems[Frightened Mode (Power Pellets)] et #ghost_states.states[Frightened Mode].duration_level_dependent"
+    },
+    {
+      "id": "R28",
+      "observation": "Le World Scan attribue a l'etat Frightened un cheminement pseudo-aleatoire et une vitesse reduite a environ 60-70 % de la normale.",
+      "claim": "Le nom de l'etat ne prouve rien : un fantome etiquete Effraye qui continue de converger a pleine vitesse annule la recompense de la super-pastille sans faire echouer aucun test d'etat. Ce sont deux grandeurs — cases parcourues et evolution de la distance — qui distinguent l'etat reel de son etiquette.",
+      "enonce": "Pendant l'etat Effraye, le joueur voit les fantomes ralentir et cesser de converger vers lui : c'est sa fenetre pour aller chercher les pastilles qu'il n'osait pas prendre.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Sur une fenetre declarée en etat Effraye : le nombre de cases parcourues par chaque fantome est strictement inferieur a celui parcouru par Pac-Man, et la distance Pac-Man / fantome ne decroit pas strictement a chaque deplacement."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#systems[Frightened Mode (Power Pellets)].effects_on_ghosts"
+    },
+    {
+      "id": "R29",
+      "observation": "Le World Scan enonce que le contact pendant Frightened ne coute pas de vie : le fantome retourne a la maison et rapporte 200, 400, 800 puis 1 600 points selon les captures consecutives.",
+      "claim": "La progression des points est indexee sur un RANG qui doit se remettre a zero a chaque nouvelle super-pastille, sans quoi une seconde super-pastille commencerait a 1 600 ; ce compteur de rang est un etat cache dont l'oubli ne se voit ni sur les vies ni sur les positions.",
+      "enonce": "Le joueur qui touche un fantome Effraye le voit disparaitre du couloir et reapparaitre dans la maison centrale, sans perdre de vie, et son score augmente de 200 puis 400 puis 800 puis 1600 pour les captures successives issues d'une meme super-pastille.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Etat au tick du contact : compteur de vies inchange, position du fantome dans la maison centrale, gain de score egal a 200, 400, 800 ou 1600 selon le rang ; a la super-pastille suivante, le rang repart de la premiere valeur."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#defeat_conditions[GHOST_STATE_EXCEPTION]"
+    },
+    {
+      "id": "R30",
+      "observation": "Le World Scan enonce que Pac-Man perd une vie quand un fantome non effraye occupe la meme case ; le charter exige en outre un effet visible immediat et une decrementation visible des vies.",
+      "claim": "Le contact produit donc deux effets a verifier separement : un effet d'ETAT (exactement une vie de moins, jamais zero ni deux) et un effet d'ECRAN. Un contact qui retire deux vies sur deux ticks consecutifs satisferait un test d'inegalite tout en violant la regle.",
+      "enonce": "Le joueur touche par un fantome hostile voit immediatement quelque chose se passer a l'ecran, et son compteur de vies baisse d'exactement un.",
+      "expected_proof": {
+        "kind": "mutation",
+        "statement": "Invariant de decrement de vie soumis au gate de mutation : un mutant qui retire zero vie, deux vies, ou qui ne repositionne pas les entites au contact, doit etre tue par les tests."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#defeat_conditions[CONDITION_CONTACT] + charter.yaml#criteres_demo[MORT LISIBLE]"
+    },
+    {
+      "id": "R31",
+      "observation": "Le World Scan indique un depart a 3 vies qui decroit a 2, puis 1, puis 0 (game over), et exige que l'etat de defaite soit mutuellement exclusif des etats en cours et de victoire.",
+      "claim": "La frontiere est donc a zero et non a un : un jeu qui termine la partie quand il reste une vie prive le joueur d'une vie entiere sans qu'aucun compteur ne soit faux. Seule une assertion d'egalite stricte des deux cotes du seuil le detecte.",
+      "enonce": "Le joueur perd la partie exactement au moment ou son compteur de vies atteint zero — pas avant : avec une vie restante, la partie continue.",
+      "expected_proof": {
+        "kind": "mutation",
+        "statement": "Invariant de condition de defaite soumis au gate de mutation : un mutant qui bascule a PERDU alors que vies vaut 1, ou qui laisse EN COURS alors que vies vaut 0, doit etre tue."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#defeat_conditions[CONDITION_EXHAUSTION] et [LIVES_STARTING]"
+    },
+    {
+      "id": "R32",
+      "observation": "Le charter impose des fixtures de defaite couvrant le contact frontal, le croisement en sens inverse sur la meme arete, et le contact au tick d'entree dans une intersection.",
+      "claim": "Le croisement est precisement le cas que la formulation du World Scan — « occupe la meme case » — laisse passer : deux entites qui echangent leurs cases dans le meme tick ne partagent jamais une case en fin de tick, et se traversent donc sans consequence si la collision n'est testee qu'apres deplacement.",
+      "enonce": "Le joueur qui croise un fantome de face dans un couloir etroit perd une vie, meme lorsque les deux se sont echanges leurs cases sans jamais finir un tick sur la meme case.",
+      "expected_proof": {
+        "kind": "mutation",
+        "statement": "Invariant de collision avec un fantome soumis au gate de mutation : un mutant qui ne detecte pas l'echange de cases sur une meme arete doit etre tue par la fixture de croisement en sens inverse."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_succes[DEFAITE STRICTEMENT DECLENCHEE]"
+    },
+    {
+      "id": "R33",
+      "observation": "Le World Scan exige que la victoire se declenche sur une EGALITE consommes == total et souligne explicitement « equality, not >= » ; le charter reprend l'interdiction du >= tautologique.",
+      "claim": "Une egalite ne se prouve pas par un seul point : tester uniquement consommes == 244 laisse passer une implementation en >= qui aurait deja gagne a 243. Le controle discriminant est l'assertion que la partie est ENCORE en cours a 243.",
+      "enonce": "Le joueur gagne exactement au moment ou il avale le 244e collectible, jamais avant : a 243 avales, avec un dernier objet encore sur la carte, la partie est toujours en cours.",
+      "expected_proof": {
+        "kind": "mutation",
+        "statement": "Invariant de condition de victoire soumis au gate de mutation : un mutant qui remplace l'egalite par >= doit etre tue par l'assertion EN COURS a 243 consommes."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/worldscan.yaml#victory_conditions[VERIFICATION_STRICT] + charter.yaml#criteres_succes[VICTOIRE STRICTEMENT COMPTEE]"
+    },
+    {
+      "id": "R34",
+      "observation": "Le charter exige trois statuts terminaux mutuellement exclusifs ET exhaustifs, verifies par un test qui enumere les sorties de boucle plutot que par relecture du code.",
+      "claim": "Le risque ne porte pas sur le chemin nominal mais sur les sorties non nominales : une boucle qui s'interrompt sans passer par victoire ni defaite laisserait un statut vide qu'aucune partie jouee normalement ne revele.",
+      "enonce": "A tout instant, le jeu montre exactement un statut parmi EN COURS, GAGNE et PERDU — jamais deux, jamais aucun, y compris apres la sortie de la boucle de jeu.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le statut expose appartient a l'ensemble des trois valeurs a chaque tick et apres la derniere iteration de la boucle, sur les trois issues enumerees (victoire, defaite, sortie de boucle)."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_succes[TROIS STATUTS TERMINAUX MUTUELLEMENT EXCLUSIFS ET EXHAUSTIFS]"
+    },
+    {
+      "id": "R35",
+      "observation": "Le charter demande deux ecrans de fin distincts affichant l'issue et le score final, et interdit en actions_interdites de livrer une partie sans etat final explicite ou dont un ecran serait inerte (defaut « Quitter inerte » du playtest Pong du 2026-07-27).",
+      "claim": "Trois proprietes independantes en decoulent : les deux ecrans different, le score final affiche egale le score d'etat, et l'application repond encore au clavier apres l'affichage. Une fin correcte mais figee satisfait les deux premieres et echoue a la troisieme.",
+      "enonce": "Le joueur qui finit une partie voit un ecran de fin qui nomme l'issue et affiche son score final en chiffres ; l'ecran de victoire est visiblement different de l'ecran de defaite, et l'application ne se fige ni ne se ferme.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "Deux captures — une partie gagnee, une partie perdue : les textes d'issue different, le score final affiche est egal au score d'etat, et dans les deux cas une pression au clavier est encore prise en compte apres l'affichage."
+      },
+      "destination": "s9-build",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_demo[VICTOIRE LISIBLE] et [MORT LISIBLE] + #actions_interdites[Livrer une commande, un bouton ou un ecran dont l'effet n'est pas OBSERVABLE]"
+    },
+    {
+      "id": "R36",
+      "observation": "Le charter exige au critere de demo REJOUER EN UN GESTE qu'un seul appui depuis l'ecran de fin relance immediatement une partie neuve.",
+      "claim": "Le COMPTAGE DES GESTES est la mesure : un menu intermediaire, une confirmation, ou une relance de l'application transforment un geste en trois, sans qu'aucun test fonctionnel de relance n'echoue pour autant.",
+      "enonce": "Depuis l'ecran de fin, le joueur relance une partie neuve d'un seul appui, sans passer par un menu ni relancer l'application.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Une seule pression de touche depuis l'ecran de fin : au tick suivant, le statut expose vaut EN COURS et le labyrinthe rendu est de nouveau rempli de pastilles."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_demo[REJOUER EN UN GESTE]"
+    },
+    {
+      "id": "R37",
+      "observation": "Le charter exige qu'aucun etat de la partie precedente ne fuite lors d'une relance, en nommant score, vies, pastilles et positions ; le World Scan fixe le depart a 3 vies et 244 collectibles.",
+      "claim": "La liste nommee par le charter est INCOMPLETE au regard de la machine a etats retenue : l'horloge des etats de poursuite et le rang de capture des fantomes sont aussi des etats de partie, et ce sont les plus faciles a oublier car ils n'ont aucun affichage propre.",
+      "enonce": "Le joueur qui rejoue repart exactement de zero : score a 0, trois vies, 244 collectibles sur la carte, Pac-Man et les quatre fantomes a leurs positions de depart, horloge des etats de poursuite remise a son debut.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Comparaison champ par champ de l'etat au tick 0 de la partie relancee avec l'etat au tick 0 de la toute premiere partie : tous les champs sont egaux, y compris la phase de l'horloge des etats et le rang de capture."
+      },
+      "destination": "s3-decompo",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_demo[REJOUER EN UN GESTE] + worldscan.yaml#defeat_conditions[LIVES_STARTING]"
+    },
+    {
+      "id": "R38",
+      "observation": "Le charter exige deux executions strictement identiques a meme etat initial, graine et sequence d'entrees, et interdit tout aleatoire non seede ; le World Scan decrit pourtant le cheminement en Frightened comme pseudo-aleatoire.",
+      "claim": "Les deux contraintes ne sont conciliables que d'une seule facon : le pseudo-aleatoire de l'etat Effraye doit etre derive de la graine de partie. C'est l'unique source d'indeterminisme du jeu, donc le seul endroit ou le replay peut casser.",
+      "enonce": "Deux parties jouees avec le meme etat de depart, la meme graine et la meme suite d'appuis se deroulent a l'identique : memes positions tick par tick, meme score, meme statut final.",
+      "expected_proof": {
+        "kind": "oracle",
+        "statement": "Deux executions comparees champ par champ : trace des positions, score et statut final strictement identiques, sur une fenetre rejouee qui franchit au moins deux seuils de la sequence d'etats de poursuite."
+      },
+      "destination": "s5-wiremap",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_succes[BOUCLE TEMPS REEL DETERMINISTE PAR REPLAY] + worldscan.yaml#ghost_states.states[Frightened Mode]"
+    },
+    {
+      "id": "R39",
+      "observation": "Le charter exige qu'un bot deterministe pilote Pac-Man UNIQUEMENT par l'API d'entree publique et atteigne reellement la condition de victoire, et rappelle qu'une suite de tests verts sur un objectif inatteignable ne vaut pas solvabilite (lecon collect_runner).",
+      "claim": "La contrainte discriminante est le CANAL, pas le resultat : un bot qui ecrirait l'etat directement gagnerait sur un jeu injouable au clavier. Passer par les memes touches que le joueur est ce qui fait de la victoire du bot une preuve valable pour l'humain.",
+      "enonce": "Un bot qui pilote le jeu avec exactement les memes touches que le joueur termine le labyrinthe : il atteint l'etat GAGNE sur la carte de reference.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Execution du bot sur la carte et la graine de reference : statut final GAGNE, consommes egal 244, restantes egal 0, dans le budget de ticks declaré ; code de retour 0."
+      },
+      "destination": "s5-wiremap",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_succes[SOLVABILITE PROUVEE] + #actions_interdites[Forcer ou placer l'etat de jeu a la main]"
+    },
+    {
+      "id": "R40",
+      "observation": "Le charter exige que sur une version volontairement cassee — une pastille rendue inatteignable — l'oracle sorte INJOUABLE avec un code de retour non nul.",
+      "claim": "Cette contre-epreuve mesure L'ORACLE et non le jeu : sans elle, un oracle qui repondrait SOLVABLE en toutes circonstances serait indistinguable d'un oracle correct sur la carte nominale.",
+      "enonce": "Sur une version volontairement cassee du labyrinthe, ou une pastille est rendue inatteignable, le meme bot ne gagne pas et le resultat le declare injouable.",
+      "expected_proof": {
+        "kind": "bot_action",
+        "statement": "Execution du bot sur la carte cassee : statut final different de GAGNE, sortie INJOUABLE, code de retour non nul."
+      },
+      "destination": "s5-wiremap",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_succes[SOLVABILITE PROUVEE]"
+    },
+    {
+      "id": "R41",
+      "observation": "Le charter exige qu'une partie entiere se joue au clavier par un humain sans passer par le bot de solvabilite ni par une console de debug, en citant la lecon du playtest Pong du 2026-07-27 : validation solo impossible = defaut.",
+      "claim": "Les oracles machine peuvent tous passer sur un produit qu'aucun humain ne parvient a demarrer : preuve mecanique et preuve d'usage mesurent des choses differentes, et seule la seconde constate que le produit existe pour un joueur.",
+      "enonce": "Un humain joue une partie entiere au clavier, du demarrage a l'ecran de fin puis a la relance, en passant par au moins une poursuite et une super-pastille, sans ouvrir de console et sans lancer le bot.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "Session de jeu observee et capturee : demarrage, deplacement, pastille mangee, super-pastille mangee, changement d'etat percu, fin de partie et relance sont tous atteints par des appuis clavier dans la fenetre du jeu. Constat humain sur la session, jamais une assertion machine."
+      },
+      "destination": "s9-build",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_demo[PARTIE COMPLETE SANS OUTIL]"
+    },
+    {
+      "id": "R42",
+      "observation": "Le charter demande qu'un joueur decouvrant le jeu comprenne la boucle complete en quelques secondes sans lire de texte d'aide, et le World Scan attribue la retention de la minute 1 a une cartographie entree-action immediatement lisible.",
+      "claim": "La comprehension se decompose en quatre questions repondables separement — ce que je controle, ce que je mange, ce que j'evite, comment ca finit — ce qui la rend constatable par passation plutot que par avis, et permet de dire LAQUELLE des quatre manque.",
+      "enonce": "Un joueur qui decouvre le jeu nomme, en quelques secondes et sans aucun texte d'aide, ce qu'il controle, ce qu'il doit manger, ce qu'il doit eviter, et comment la partie se termine.",
+      "expected_proof": {
+        "kind": "visual",
+        "statement": "Passation a un joueur neuf sans aucune consigne ecrite ni orale : il nomme les quatre elements apres quelques secondes d'observation et d'essai. Constat humain, jamais une assertion machine."
+      },
+      "destination": "s9-build",
+      "source": "EXPECTED",
+      "source_role": "s1-prisme:realisateur-produit",
+      "reference": "lab/forge_runs/pacman/charter.yaml#criteres_demo[COMPREHENSION DE LA BOUCLE EN QUELQUES SECONDES] + worldscan.yaml#loops.minute_1.retention_mechanism"
+    }
+  ]
+}

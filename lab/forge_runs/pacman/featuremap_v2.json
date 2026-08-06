@@ -1,0 +1,655 @@
+{
+  "game_id": "pacman",
+  "systemes": [
+    {
+      "id": "sys_v2_coquille_produit",
+      "features": [
+        {
+          "id": "feat_v2_machine_a_etats_application",
+          "capacites": [
+            {
+              "id": "F63",
+              "capacite": "tenir un etat d'APPLICATION dans un vocabulaire ferme, exclusif et exhaustif (ecran titre, partie en cours, pause, consultation des controles, consultation des options, fin de partie), distinct du statut de PARTIE deja tenu par le jeu — a tout instant l'application est dans exactement un de ces etats, et le statut de partie n'en est pas un",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Etat releve au moment ou l'ecran titre est affiche : le statut de partie n'est pas EN COURS, et l'etat d'application expose appartient au vocabulaire ferme, jamais vide ni double."
+              },
+              "source_ref": "R43"
+            },
+            {
+              "id": "F64",
+              "capacite": "n'executer AUCUN tick de gameplay tant que l'application n'est pas dans l'etat partie en cours : a l'ecran titre le compteur de ticks de partie ne progresse pas, parce qu'aucune partie n'est construite ni avancee, pas parce qu'un rendu la masque",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Etat releve au moment ou l'ecran titre est affiche : le compteur de ticks de partie vaut exactement 0 et le statut de partie n'est pas EN COURS."
+              },
+              "source_ref": "R43"
+            },
+            {
+              "id": "F65",
+              "capacite": "construire une partie neuve et faire progresser le temps de jeu SEULEMENT a l'activation de Jouer : c'est cette activation, et elle seule, qui fait passer l'application de l'ecran titre a la partie en cours",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Apres activation de Jouer, le statut de partie vaut EN COURS et le compteur de ticks progresse strictement."
+              },
+              "source_ref": "R43"
+            }
+          ]
+        },
+        {
+          "id": "feat_v2_menu_titre",
+          "capacites": [
+            {
+              "id": "F66",
+              "capacite": "presenter les quatre entrees du menu produit — Jouer, Controles, Options, Quitter — comme quatre entrees selectionnables et activables, chacune identifiee, aucune n'etant un libelle decoratif",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Activation successive des quatre entrees : le nombre d'entrees sans effet observable vaut exactement 0."
+              },
+              "source_ref": "R44"
+            },
+            {
+              "id": "F67",
+              "capacite": "produire, pour chacune des quatre entrees, un effet OBSERVABLE distinct des trois autres : Jouer met la partie en cours, Controles et Options amenent chacun a un ecran different, Quitter termine l'application",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Jouer donne le statut EN COURS ; Controles donne un ecran affiche different de l'ecran titre ; Options donne un ecran different des deux precedents ; Quitter termine l'application avec un code de sortie nul."
+              },
+              "source_ref": "R44"
+            }
+          ]
+        },
+        {
+          "id": "feat_v2_ecrans_de_consultation",
+          "capacites": [
+            {
+              "id": "F68",
+              "capacite": "afficher un ecran de consultation des CONTROLES qui enumere, pour chaque intention de jeu, les liaisons qui la declenchent sur chaque peripherique declare, et qui rend a l'ecran d'ou il a ete ouvert (titre ou pause)",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Controles donne un ecran affiche different de l'ecran titre ; le nombre d'entrees sans effet observable vaut exactement 0."
+              },
+              "source_ref": "R44"
+            },
+            {
+              "id": "F69",
+              "capacite": "afficher un ecran d'OPTIONS qui expose les reglages modifiables du jeu et repercute leur changement dans l'etat expose, et qui rend a l'ecran d'ou il a ete ouvert (titre ou pause)",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Options donne un ecran different des deux precedents ; le nombre d'entrees sans effet observable vaut exactement 0."
+              },
+              "source_ref": "R44"
+            }
+          ]
+        },
+        {
+          "id": "feat_v2_menu_pause",
+          "capacites": [
+            {
+              "id": "F70",
+              "capacite": "ouvrir le menu pause sur reception de l'intention de pause, quelle que soit la source qui l'a produite (clavier, manette, surface tactile) : les trois chemins convergent vers un seul et meme etat d'application, pas vers trois ecrans paralleles",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Pour chacun des trois chemins d'entree : le menu pause est actif apres l'entree."
+              },
+              "source_ref": "R45"
+            },
+            {
+              "id": "F71",
+              "capacite": "GELER le temps de jeu pendant la pause : aucun tick de partie n'est execute tant que la pause dure, de sorte que l'etat releve a l'ouverture et l'etat releve plus tard sont le meme etat, et non deux etats voisins",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "L'etat de jeu releve a l'ouverture est EGAL champ par champ (positions, score, vies, pastilles restantes, phase de l'horloge des etats de poursuite) a l'etat releve N ticks plus tard, pause maintenue."
+              },
+              "source_ref": "R45"
+            },
+            {
+              "id": "F72",
+              "capacite": "presenter les cinq entrees du menu pause — Reprendre, Recommencer, Controles, Options, Menu principal — et produire cinq resultats deux a deux differents",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Controles, Options et Menu principal : trois ecrans affiches deux a deux differents, et Menu principal ramene a un statut hors partie."
+              },
+              "source_ref": "R46"
+            },
+            {
+              "id": "F73",
+              "capacite": "reprendre la partie a l'identique : l'entree Reprendre restitue l'etat gele sans le modifier — son effet correct est de NE RIEN CHANGER a l'etat, puis de laisser le temps de jeu repartir",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Reprendre : etat apres reprise strictement egal a l'etat gele, puis la partie progresse de nouveau."
+              },
+              "source_ref": "R46"
+            },
+            {
+              "id": "F74",
+              "capacite": "recommencer une partie neuve depuis la pause (etat de depart complet, aucune valeur de la partie interrompue ne survit) et revenir a l'ecran titre par Menu principal (l'application quitte l'etat partie en cours)",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Recommencer : etat egal a l'etat de depart d'une partie neuve. Menu principal ramene a un statut hors partie."
+              },
+              "source_ref": "R46"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_v2_entree_abstraite",
+      "features": [
+        {
+          "id": "feat_v2_vocabulaire_d_intentions",
+          "capacites": [
+            {
+              "id": "F75",
+              "capacite": "definir et consommer un vocabulaire ferme d'INTENTIONS de jeu — une direction, une demande de dash, une demande de pause, une validation, un retour, un deplacement de selection — comme unique entree de la logique de jeu : la logique recoit une intention deja formee et rien d'autre",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Comptage statique sur games/pacman/05_SYSTEMS/ des references aux API d'entree de la plateforme (Input, InputEvent, InputMap, KEY_, JOY_, evenements tactiles, actions de projet) : le resultat vaut exactement 0 fichier."
+              },
+              "source_ref": "R47"
+            },
+            {
+              "id": "F76",
+              "capacite": "traduire les evenements du peripherique en intention HORS de la logique de jeu : la reconnaissance d'une touche, d'un bouton de manette ou d'un contact tactile n'existe que du cote runtime, ce qui rend le comptage statique falsifiable dans les deux sens",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Controle positif obligatoire : les memes references aux API d'entree SONT trouvees dans games/pacman/06_RUNTIME/, faute de quoi le comptage ne prouve rien."
+              },
+              "source_ref": "R47"
+            }
+          ]
+        },
+        {
+          "id": "feat_v2_liaisons_multi_peripheriques",
+          "capacites": [
+            {
+              "id": "F77",
+              "capacite": "declarer une table de LIAISONS ou une meme intention est atteignable par plusieurs entrees physiques (clavier, manette, surface tactile) : la liaison est une donnee enumerable, pas une suite de conditions eparpillees",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Pour chaque intention de jeu, deux executions comparees tick par tick sur une fenetre declaree — l'une pilotee par les entrees clavier, l'autre par les entrees manette : les traces d'etat sont strictement egales."
+              },
+              "source_ref": "R48"
+            },
+            {
+              "id": "F78",
+              "capacite": "garantir la COUVERTURE MANETTE de reference : toute intention atteignable au clavier possede au moins une liaison manette — naviguer dans les menus, se deplacer, dasher, mettre en pause, revenir au menu",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Le nombre d'intentions injouables a la manette vaut exactement 0."
+              },
+              "source_ref": "R48"
+            }
+          ]
+        },
+        {
+          "id": "feat_v2_source_tactile",
+          "capacites": [
+            {
+              "id": "F79",
+              "capacite": "exposer une surface tactile atteignable — le bouton de pause visible a l'ecran — dont le contact produit l'intention de pause par le meme chemin que le clavier et la manette",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Un evenement tactile emis sur la surface du bouton de pause ouvre le menu pause."
+              },
+              "source_ref": "R49"
+            },
+            {
+              "id": "F80",
+              "capacite": "ajouter la source tactile SANS toucher la logique de jeu : le tactile est une source d'intentions de plus dans la couche d'entree, il n'ajoute aucune notion de doigt ni d'ecran dans la logique",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Le comptage des chemins commencant par games/pacman/05_SYSTEMS/ dans le patch qui ajoute le tactile vaut exactement 0."
+              },
+              "source_ref": "R49"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_v2_mode_dash_accessibilite",
+      "features": [
+        {
+          "id": "feat_v2_modes_de_jeu",
+          "capacites": [
+            {
+              "id": "F81",
+              "capacite": "tenir un MODE de jeu dans un vocabulaire de deux valeurs mutuellement exclusives et exhaustives — mode normal et mode test — expose dans le releve observable a chaque tick",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Le mode expose appartient a l'ensemble des deux valeurs a chaque releve, jamais vide ni double."
+              },
+              "source_ref": "R50"
+            },
+            {
+              "id": "F82",
+              "capacite": "demarrer en mode normal : la valeur du mode au premier lancement est le mode normal, sans reglage prealable ni etat persistant herite",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Au premier lancement le mode vaut exactement mode normal."
+              },
+              "source_ref": "R50"
+            }
+          ]
+        },
+        {
+          "id": "feat_v2_commande_de_dash",
+          "capacites": [
+            {
+              "id": "F83",
+              "capacite": "declencher le dash sur une intention DEDIEE, distincte des quatre intentions de direction : aucune direction ne dashe, aucun dash ne deplace par le canal des directions",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Le mode expose appartient a l'ensemble des deux valeurs a chaque releve ; dash desactive, la trace d'etat obtenue avec des appuis sur la commande de dash est strictement egale a la trace obtenue sans aucun appui."
+              },
+              "source_ref": "R50"
+            },
+            {
+              "id": "F84",
+              "capacite": "desactiver le dash et le rendre alors totalement INERTE : la commande continue d'exister mais ne laisse plus aucune trace dans l'etat de partie, ni deplacement, ni compteur de recharge, ni marqueur",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Dash desactive, la trace d'etat obtenue avec des appuis sur la commande de dash est strictement egale a la trace obtenue sans aucun appui."
+              },
+              "source_ref": "R50"
+            }
+          ]
+        },
+        {
+          "id": "feat_v2_effet_chiffre_du_dash",
+          "capacites": [
+            {
+              "id": "F85",
+              "capacite": "relever les QUATRE grandeurs touchees par le dash — vitesse du joueur, delai avant le dash suivant, comportement face aux murs, comportement face aux fantomes — dans les deux conditions, avec dash et sans dash",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Les quatre grandeurs sont relevees dans les deux conditions ; le nombre de grandeurs sans releve vaut exactement 0."
+              },
+              "source_ref": "R51"
+            },
+            {
+              "id": "F86",
+              "capacite": "declarer, grandeur par grandeur, si elle est MODIFIEE par le dash ou INCHANGEE PAR CONCEPTION, et faire correspondre la declaration a la mesure — une grandeur annoncee modifiee et mesuree identique est requalifiee, jamais laissee telle quelle",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Chaque grandeur declaree modifiee presente deux valeurs distinctes, chaque grandeur declaree inchangee presente deux valeurs egales."
+              },
+              "source_ref": "R51"
+            }
+          ]
+        },
+        {
+          "id": "feat_v2_lisibilite_du_dash",
+          "capacites": [
+            {
+              "id": "F87",
+              "capacite": "rendre le dash VISIBLE a ses deux moments : l'instant du declenchement, et la periode pendant laquelle il n'est pas encore disponible — l'indication de disponibilite est portee a l'ecran, pas seulement dans l'etat",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Captures a trois instants — avant le dash, au tick du dash, pendant le delai de recharge : les trois images different deux a deux, et l'indication de disponibilite du dash est lisible sur la troisieme."
+              },
+              "source_ref": "R52"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_v2_audio_genere",
+      "features": [
+        {
+          "id": "feat_v2_evenements_sonores_de_la_logique",
+          "capacites": [
+            {
+              "id": "F88",
+              "capacite": "emettre depuis la logique de jeu des EVENEMENTS nommes pour les six moments sonores — avancee, collecte, entree en etat Effraye, mort, victoire, ouverture de pause ou de menu — sans jouer aucun son : la logique signale ce qui vient d'arriver",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Comptage statique sur games/pacman/05_SYSTEMS/ des references aux API audio de la plateforme (AudioStream, AudioStreamGenerator, AudioStreamPlayer, AudioServer) : le resultat vaut exactement 0 fichier."
+              },
+              "source_ref": "R55"
+            },
+            {
+              "id": "F89",
+              "capacite": "sonoriser ces evenements DANS la couche de presentation, seule a connaitre une API audio, ce qui donne au comptage statique son controle positif",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Controle positif obligatoire : ces memes references audio SONT trouvees dans games/pacman/06_RUNTIME/, faute de quoi le comptage ne prouve rien."
+              },
+              "source_ref": "R55"
+            }
+          ]
+        },
+        {
+          "id": "feat_v2_synthese_a_l_execution",
+          "capacites": [
+            {
+              "id": "F90",
+              "capacite": "fabriquer le son A L'EXECUTION, au moment ou il est joue, a partir d'un descripteur de synthese (forme d'onde, hauteur, duree, enveloppe) : aucun echantillon n'est lu depuis un fichier",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Au moins une action de jeu declenche un flux audio genere a l'execution, trace au tick de son declenchement."
+              },
+              "source_ref": "R53"
+            },
+            {
+              "id": "F91",
+              "capacite": "conserver l'inventaire ZERO ASSET du jeu apres l'ajout du son : aucun fichier audio n'entre dans le depot du jeu",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Inventaire des fichiers de games/pacman/ : le nombre de fichiers d'extension audio (.wav, .ogg, .mp3, .m4a, .flac) vaut exactement 0."
+              },
+              "source_ref": "R53"
+            }
+          ]
+        },
+        {
+          "id": "feat_v2_distinction_des_six_sons",
+          "capacites": [
+            {
+              "id": "F92",
+              "capacite": "associer a chacun des six evenements sonores son PROPRE descripteur de synthese : six evenements branches sur un descripteur commun sont refuses, parce qu'ils rendent le retour sonore inutile a l'oreille",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Les six descripteurs de synthese sont compares deux a deux et chaque paire differe par au moins un parametre — le nombre de paires identiques vaut exactement 0."
+              },
+              "source_ref": "R54"
+            },
+            {
+              "id": "F93",
+              "capacite": "declencher effectivement un son a chacun des six moments de jeu, aucun des six ne restant muet",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Les six evenements declenchent chacun un son."
+              },
+              "source_ref": "R54"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_v2_contenu_en_donnees",
+      "features": [
+        {
+          "id": "feat_v2_carte_comme_donnee",
+          "capacites": [
+            {
+              "id": "F94",
+              "capacite": "decrire une carte comme une DONNEE complete et autoportante : plan de cases, legende fermee des symboles, position et direction de depart du joueur, centre / sortie / places de la maison centrale, ligne de bouclage, bornes de la zone jouable, coins de reference — tout ce que la logique lit aujourd'hui dans des constantes est porte par le descripteur",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "Sur le patch qui ajoute une carte supplementaire, la liste des fichiers touches ne contient aucun chemin commencant par games/pacman/05_SYSTEMS/ : le compte vaut exactement 0, contre les 4 mesures sur le jeu du run V1."
+              },
+              "source_ref": "R56"
+            },
+            {
+              "id": "F95",
+              "capacite": "CHARGER un descripteur de carte a l'execution et en construire la topologie utilisable — type de chaque case, praticabilite, voisins dans l'ordre fixe, bouclage — par lecture de la donnee et non par une constante compilee dans la logique",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "Sur le patch qui ajoute une carte supplementaire, le compte des chemins commencant par games/pacman/05_SYSTEMS/ vaut exactement 0."
+              },
+              "source_ref": "R56"
+            },
+            {
+              "id": "F96",
+              "capacite": "DERIVER du descripteur les grandeurs aujourd'hui figees en constantes de la logique — largeur, hauteur, ligne de bouclage, premiere et derniere ligne jouables — de sorte qu'une carte de dimensions differentes ne demande aucune modification de la logique",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "Sur le patch qui ajoute une carte supplementaire, le compte des chemins commencant par games/pacman/05_SYSTEMS/ vaut exactement 0, contre les 4 mesures sur le jeu du run V1."
+              },
+              "source_ref": "R56"
+            },
+            {
+              "id": "F97",
+              "capacite": "VALIDER un descripteur avant de le jouer : legende respectee, plan rectangulaire, depart praticable, maison presente et coherente, ligne de bouclage praticable de bout en bout, collectibles tous atteignables depuis le depart — une carte invalide est declaree telle, elle n'est pas jouee a moitie",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "Chaque carte embarquee est prouvee solvable par le bot pilotant l'entree publique."
+              },
+              "source_ref": "R56"
+            },
+            {
+              "id": "F98",
+              "capacite": "POSER les collectibles et PRODUIRE le total qui definit la victoire a partir du descripteur fourni, par comptage de ce qui a ete pose — le total reste une valeur produite, jamais un litteral recopie par carte",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "Sur le patch qui ajoute une carte supplementaire, le compte des chemins commencant par games/pacman/05_SYSTEMS/ vaut exactement 0."
+              },
+              "source_ref": "R56"
+            }
+          ]
+        },
+        {
+          "id": "feat_v2_etat_porteur_de_la_carte",
+          "capacites": [
+            {
+              "id": "F99",
+              "capacite": "construire l'etat initial de partie A PARTIR d'une carte passee en entree, l'etat portant desormais la carte courante : aucune fonction de la logique ne va chercher une carte globale",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "Sur le patch qui ajoute une carte supplementaire, le compte des chemins commencant par games/pacman/05_SYSTEMS/ vaut exactement 0, contre les 4 mesures sur le jeu du run V1."
+              },
+              "source_ref": "R56"
+            },
+            {
+              "id": "F100",
+              "capacite": "repositionner les entites apres une perte de vie en lisant les positions de depart de la CARTE PORTEE PAR L'ETAT, et non des constantes de la logique",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "Sur le patch qui ajoute une carte supplementaire, la liste des fichiers touches ne contient aucun chemin commencant par games/pacman/05_SYSTEMS/."
+              },
+              "source_ref": "R56"
+            }
+          ]
+        },
+        {
+          "id": "feat_v2_catalogue_de_cartes",
+          "capacites": [
+            {
+              "id": "F101",
+              "capacite": "declarer un CATALOGUE ordonne d'au moins deux cartes jouables, lui-meme une donnee : l'ordre des cartes et leur nombre se lisent, ils ne se codent pas",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "Chaque carte embarquee est prouvee solvable par le bot pilotant l'entree publique."
+              },
+              "source_ref": "R56"
+            },
+            {
+              "id": "F102",
+              "capacite": "rendre l'ajout d'une TROISIEME carte purement additif : ajouter une donnee au catalogue suffit, aucun fichier de logique n'est touche — c'est l'ecart mesure entre les 4 fichiers du run V1 et la cible 0",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "Sur le patch qui ajoute une carte supplementaire, la liste des fichiers touches ne contient aucun chemin commencant par games/pacman/05_SYSTEMS/ : le compte vaut exactement 0, contre les 4 mesures sur le jeu du run V1."
+              },
+              "source_ref": "R56"
+            },
+            {
+              "id": "F103",
+              "capacite": "prouver la SOLVABILITE de chaque carte embarquee par le bot pilotant l'entree publique, et conserver la contre-epreuve de la carte volontairement cassee, declaree injouable",
+              "expected_proof": {
+                "kind": "file_write",
+                "statement": "Chaque carte embarquee est en outre prouvee solvable par le bot pilotant l'entree publique."
+              },
+              "source_ref": "R56"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_v2_progression_de_niveau",
+      "features": [
+        {
+          "id": "feat_v2_bascule_de_niveau",
+          "capacites": [
+            {
+              "id": "F104",
+              "capacite": "enchainer sur la carte suivante du catalogue lorsqu'une carte est videe, DANS LA MEME execution de l'application, sans relance ni retour force a l'ecran titre",
+              "expected_proof": {
+                "kind": "mutation",
+                "statement": "Invariant de bascule de niveau soumis au gate de mutation : les assertions d'egalite stricte sont relevees de part et d'autre de la bascule, sans relance de l'application entre les deux."
+              },
+              "source_ref": "R57"
+            },
+            {
+              "id": "F105",
+              "capacite": "CONSERVER a la bascule les grandeurs qui doivent survivre — le score et le nombre de vies — dont l'egalite stricte de part et d'autre est la propriete a tuer un mutant",
+              "expected_proof": {
+                "kind": "mutation",
+                "statement": "Un mutant qui remet le score ou les vies a leur valeur initiale a la bascule doit etre tue par des assertions d'egalite stricte relevees de part et d'autre de la bascule."
+              },
+              "source_ref": "R57"
+            },
+            {
+              "id": "F106",
+              "capacite": "REINITIALISER a la bascule tout le reste de l'etat sur la nouvelle carte : collectibles au total de la carte suivante, positions de depart de la carte suivante, horloge des etats de poursuite a sa phase initiale, rang de capture a sa premiere valeur",
+              "expected_proof": {
+                "kind": "mutation",
+                "statement": "Un mutant qui conserve les pastilles restantes, les positions, la phase de l'horloge des etats ou le rang de capture de la carte precedente doit etre tue par des assertions d'egalite stricte relevees de part et d'autre de la bascule."
+              },
+              "source_ref": "R57"
+            },
+            {
+              "id": "F107",
+              "capacite": "mener a un etat FINAL explicite lorsque la derniere carte du catalogue est terminee, plutot qu'a une bascule vers une carte inexistante ou a un blocage",
+              "expected_proof": {
+                "kind": "mutation",
+                "statement": "Invariant de bascule de niveau soumis au gate de mutation : les assertions d'egalite stricte sont relevees de part et d'autre de la bascule, sans relance de l'application entre les deux."
+              },
+              "source_ref": "R57"
+            }
+          ]
+        },
+        {
+          "id": "feat_v2_parametre_progressif",
+          "capacites": [
+            {
+              "id": "F108",
+              "capacite": "faire varier au moins un PARAMETRE NOMME de jeu avec le numero de niveau, sa valeur etant declaree niveau par niveau dans la donnee de progression — un parametre dont toutes les valeurs seraient egales est une progression de facade",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Releve du parametre de progression declare sur tous les niveaux embarques : la distribution porte au moins deux valeurs distinctes."
+              },
+              "source_ref": "R58"
+            },
+            {
+              "id": "F109",
+              "capacite": "exposer le NUMERO DE NIVEAU courant dans le releve observable et l'afficher en chiffres a l'ecran, les deux etant lus de la meme source au meme tick",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Le numero de niveau affiche a l'ecran est egal au niveau courant de l'etat au meme tick."
+              },
+              "source_ref": "R58"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_v2_identite_visuelle",
+      "features": [
+        {
+          "id": "feat_v2_palette_unique",
+          "capacites": [
+            {
+              "id": "F110",
+              "capacite": "faire venir TOUTES les couleurs rendues d'un descripteur de palette UNIQUE et declare, consomme par tous les ecrans du jeu — titre, partie, pause, controles, options, fin — de sorte que changer ce seul descripteur change l'apparence de tous les ecrans a la fois",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Comptage des litteraux de couleur situes hors du descripteur de palette declare : le resultat vaut exactement 0."
+              },
+              "source_ref": "R59"
+            },
+            {
+              "id": "F111",
+              "capacite": "NE PAS FAIRE REMONTER de couleur dans la logique de jeu en ajoutant l'identite : la propriete est deja acquise au run V1 et le travail consiste a ne pas la casser",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Le comptage des fichiers de games/pacman/05_SYSTEMS/ portant un litteral de couleur vaut exactement 0, comme sur le jeu du run V1."
+              },
+              "source_ref": "R59"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_v2_passation_a_juge_humain",
+      "features": [
+        {
+          "id": "feat_v2_provenance_pour_le_juge_humain",
+          "capacites": [
+            {
+              "id": "F112",
+              "capacite": "PROVENANCE, PAS PREUVE — produire les ecrans et leurs captures qui rendent la passation possible : une image de chaque ecran du jeu, jointe en trace, sur laquelle une personne pourra dire ce qu'elle voit. Cette capacite fournit le materiau du constat ; elle ne le remplace pas et ne le prejuge pas",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "JUGE HUMAIN — AUCUN ORACLE NE TRANCHE CETTE EXIGENCE. Passation a une personne sans consigne ecrite ni orale ; captures des ecrans jointes en trace. Le vocabulaire ferme expected_proof.kind n'offre aucune valeur pour une preuve jugee par une personne : visual est retenu comme la moins mensongere parce qu'une capture accompagne le constat, mais aucun code du depot ne lit le present enonce — besoin remonte en fog HumanGate."
+              },
+              "source_ref": "R60"
+            },
+            {
+              "id": "F113",
+              "capacite": "PROVENANCE, PAS PREUVE — rendre les quatre gestes decouvrables : chaque intention (se deplacer, dasher, mettre en pause, revenir au menu) possede une liaison manette declaree et lisible sur l'ecran Controles, ce qui donne a la personne de quoi trouver seule. Le fait qu'elle les trouve reste un constat humain",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "JUGE HUMAIN — AUCUN ORACLE NE TRANCHE CETTE EXIGENCE. Passation manette en main, sans aucune consigne : la personne execute les quatre gestes et l'on note lequel n'a pas ete trouve. visual est la valeur la moins mensongere du vocabulaire ferme, faute d'une valeur designant un jugement humain — besoin remonte en fog HumanGate."
+              },
+              "source_ref": "R61"
+            },
+            {
+              "id": "F114",
+              "capacite": "PROVENANCE, PAS PREUVE — rendre visibles a l'ecran les quatre elements sur lesquels la personne sera interrogee : ce qui se mange, ce qui se fuit, ce qui arrive quand une carte est videe, et comment la partie se termine. La capacite fournit l'affichage ; elle ne prouve pas la comprehension",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "JUGE HUMAIN — AUCUN ORACLE NE TRANCHE CETTE EXIGENCE. Passation sans consigne ecrite ni orale : la personne nomme les quatre elements, et l'on note ceux qui manquent. visual est retenu par defaut, le vocabulaire ferme n'ayant aucune valeur pour un jugement humain — besoin remonte en fog HumanGate."
+              },
+              "source_ref": "R62"
+            },
+            {
+              "id": "F115",
+              "capacite": "PROVENANCE, PAS PREUVE — rendre le chemin produit complet parcourable sans outil : ecran titre, lancement, pause, reprise, passage au niveau suivant, fin de partie et relance sont tous atteignables a la main, sans console de debug ni bot. La capacite ouvre le chemin ; qu'une personne le parcoure seule est un constat humain",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "JUGE HUMAIN — AUCUN ORACLE NE TRANCHE CETTE EXIGENCE. Session observee de bout en bout sans aucune consigne, captures jointes en trace ; l'on note l'etape a laquelle la personne s'arrete, s'il y en a une. visual est la valeur la moins mensongere disponible dans le vocabulaire ferme — besoin remonte en fog HumanGate."
+              },
+              "source_ref": "R63"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_v2_non_regression_du_run_v1",
+      "features": [
+        {
+          "id": "feat_v2_releve_avant_apres",
+          "capacites": [
+            {
+              "id": "F116",
+              "capacite": "relever l'oracle du jeu AVANT toute modification V2 et joindre sa sortie en evidence_path : c'est ce releve, et non un chiffre transmis, qui fait office de point de depart",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Deux executions de la commande d'oracle du jeu, l'une AVANT toute modification V2 et l'autre APRES ; les deux sorties sont jointes en evidence_path — un recu sans evidence_path vaut BLOCKED."
+              },
+              "source_ref": "R64"
+            },
+            {
+              "id": "F117",
+              "capacite": "relever le meme oracle APRES les ajouts V2 et comparer : aucune assertion ne tombe, le nombre d'assertions passantes ne diminue pas, et la contre-epreuve de solvabilite conserve son resultat",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Le nombre d'assertions en echec vaut exactement 0 dans les deux, le nombre d'assertions passantes ne diminue pas, et la contre-epreuve de solvabilite conserve son resultat."
+              },
+              "source_ref": "R64"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
