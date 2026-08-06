@@ -86,6 +86,12 @@ function isRaster(buf) {
   return RASTER_MAGICS.some((sig) => sig.every((b, i) => buf[i] === b));
 }
 
+// GLB binaire : entete 12 octets, magic "glTF" + version (spec glTF 2.0 §4.4.1).
+// Meme garde d'octets que isRaster cote 2D : un fichier renomme .glb ne passe pas.
+function isGLB(buf) {
+  return buf.length >= 12 && buf.slice(0, 4).toString("latin1") === "glTF";
+}
+
 // R10 — motifs d'impureté. Deux passes distinctes (limite intrinsèque de l'analyse textuelle,
 // cf. §7 : l'AST est le vrai correctif d'un futur incrément) :
 //  - RAW : les motifs qui dépendent d'un LITTÉRAL de chaîne (spécificateur d'import,
@@ -284,8 +290,29 @@ function guardedPath(root, p, { subdir, mustBeFile = true }) {
   return { abs };
 }
 
+// v4 (2026-08-06, Asset Library V1) — taxonomie de bibliothèque. Enumération FERMÉE :
+// une catégorie hors liste est un rejet, pas une étiquette libre (sans quoi la
+// bibliothèque redevient un sac de fichiers non navigable).
+const ASSET_CATEGORIES = [
+  // RPG médiéval
+  "character", "monster", "weapon", "armor", "building", "tree", "rock", "prop",
+  // Cyberpunk
+  "robot", "cyborg", "drone", "vehicle", "machine", "neon",
+  // Générique gameplay
+  "door", "chest", "button", "platform", "trap", "decoration",
+  // Expérimental
+  "creature", "animal", "absurd",
+];
+// Statut géométrique = verdict de scripts/forge/asset_geometry/oracle.py, recopié ici.
+// "NOT_MEASURED" est explicite : un asset non mesuré ne se fait jamais passer pour valide.
+const GEOMETRY_STATUS = ["OK", "BLOCKED", "FAIL", "NOT_MEASURED"];
+
 const ASSET_SPEC = {
-  asset_id: isStr, source: isStr, license: isStr, provenance_url: isStr, style: isStr,
+  asset_id: isStr, source: isStr, license: isStr,
+  // null autorise UNIQUEMENT pour un asset declare ORIGINAL — la garde est portee par
+  // R3 dans validateAsset, pas par ce type (qui ne sait rien de `source`).
+  provenance_url: (v) => v === null || isStr(v),
+  style: isStr,
   genre: isNonEmptyStrArr, biome: (v) => v === null || isStr(v),
   format: (v) => v === "2D" || v === "3D",
   size_kb: (v) => v === null || (typeof v === "number" && v > 0),
@@ -295,6 +322,12 @@ const ASSET_SPEC = {
   path: (v) => v === null || isStr(v),
   usage_examples: isStrArr,
   tier: (v) => v === "candidate" || v === "validated",
+  // --- v4, tous OPTIONNELS : les 19 entrées existantes restent valides sans les porter.
+  category: optional((v) => ASSET_CATEGORIES.includes(v)),
+  geometry_status: optional((v) => GEOMETRY_STATUS.includes(v)),
+  geometry_manifest: optional((v) => v === null || isStr(v)),
+  consumer: optional(isStrArr),
+  variants: optional(isStrArr),
 };
 const BRICK_SPEC = {
   brick_id: isStr,
@@ -415,11 +448,52 @@ function validateAsset(e, root, err) {
   if (!id.startsWith(ID_PREFIX.asset)) err(id, "R1", `asset_id doit commencer par '${ID_PREFIX.asset}'`);
   if (!KNOWN_SPDX.includes(e.license)) err(id, "R2", `licence hors liste fermee SPDX: ${e.license}`);
   else if (!ASSET_LICENSES.includes(e.license)) err(id, "R4", `licence non autorisee pour un asset: ${e.license}`);
-  if (!URL_RE.test(e.provenance_url)) err(id, "R3", "provenance_url doit etre http(s)");
+  // R3 v4 — un asset PRODUIT par le studio n'a pas d'URL de provenance externe. Meme
+  // convention que le code original (cf. ORIGINAL_MARKER cote brick) : la provenance
+  // est alors la declaration explicite d'originalite, pas un champ laisse vide.
+  const assetOriginal = typeof e.source === "string" && e.source.startsWith(ORIGINAL_MARKER);
+  if (assetOriginal) {
+    if (e.provenance_url !== null) err(id, "R3", `asset declare ORIGINAL : provenance_url doit etre null (recu: ${e.provenance_url})`);
+  } else if (!URL_RE.test(e.provenance_url)) {
+    err(id, "R3", `asset sans provenance : exige provenance_url http(s) OU source commencant par "${ORIGINAL_MARKER}"`);
+  }
 
   const is3D = e.runtime === "godot" || e.format === "3D";
-  if (is3D && (e.ingested === true || e.path !== null)) {
-    err(id, "R6", "godot/3D = manifest-only : ingested doit etre false et path null");
+
+  // R6 v4 (2026-08-06) — l'ingestion 3D cesse d'etre interdite, mais elle est
+  // CONDITIONNEE A UNE PREUVE. Avant : « godot/3D = manifest-only » interdisait
+  // structurellement toute bibliotheque 3D. Desserrer sans contrepartie aurait laisse
+  // entrer n'importe quel .glb ; la contrepartie est le verdict de l'Asset Geometry
+  // Oracle (docs/forge/ASSET_GEOMETRY_ORACLE_V1_DESIGN.md), recopie dans l'entree et
+  // adosse a un manifeste de recensement. Un .glb present n'est JAMAIS une preuve.
+  if (is3D && e.ingested === true) {
+    if (e.geometry_status === undefined) {
+      err(id, "R6", "3D ingere exige geometry_status (verdict de l'asset geometry oracle) — un .glb present n'est pas une preuve");
+      return;
+    }
+    if (e.geometry_status !== "OK") {
+      err(id, "R6", `3D ingere exige geometry_status="OK", declare: ${e.geometry_status}`);
+      return;
+    }
+    if (!Array.isArray(e.consumer) || e.consumer.length === 0) {
+      err(id, "R6", "3D ingere exige au moins un consumer — pas d'asset sans consommateur");
+      return;
+    }
+    // Le manifeste de recensement n'est exige QUE si l'asset porte des variantes :
+    // un prop propre a mesh unique n'a rien a expliquer, et l'exiger quand meme
+    // rendrait BLOCKED a vie tout asset genere sain (meme raison que
+    // `manifest_present` cote oracle — les deux regles doivent rester coherentes).
+    const aDesVariantes = Array.isArray(e.variants) && e.variants.length > 0;
+    if (aDesVariantes && !e.geometry_manifest) {
+      err(id, "R6", "3D ingere AVEC variantes exige geometry_manifest (sidecar <asset>.glb.geometry.json) — une variante exclusive doit etre declaree");
+      return;
+    }
+    if (e.geometry_manifest) {
+      const gm = guardedPath(root, e.geometry_manifest, { subdir: SUBDIR.asset, mustBeFile: true });
+      if (gm.err) err(id, "R6", `geometry_manifest: ${gm.err}`);
+    }
+  } else if (is3D && e.path !== null) {
+    err(id, "R6", "godot/3D non ingere = manifest-only : path doit etre null");
     return;
   }
 
@@ -430,7 +504,8 @@ function validateAsset(e, root, err) {
       let buf = null;
       try { buf = readFileSync(abs); } catch { /* déjà géré par la garde */ }
       if (buf) {
-        if (!isRaster(buf)) err(id, "R6", "octets ne correspondent pas a un raster 2D connu (PNG/JPEG/GIF/BMP/WEBP) — 3D declare 2D ?");
+        if (is3D && !isGLB(buf)) err(id, "R6", "octets ne correspondent pas a un GLB (magic 'glTF') — 3D declare mais fichier autre");
+        else if (!is3D && !isRaster(buf)) err(id, "R6", "octets ne correspondent pas a un raster 2D connu (PNG/JPEG/GIF/BMP/WEBP) — 3D declare 2D ?");
         if (e.size_kb === null) err(id, "R7", "size_kb manquant pour un asset ingere");
         else {
           const realKb = Math.max(1, Math.round(buf.length / 1024));

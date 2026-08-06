@@ -117,6 +117,11 @@ models:
                             # DÉCLARE du code qui tournait déjà (run_real.py:1164) hors
                             # de tout registre — voir `runtime_contracts` en fin de
                             # fichier pour son contrat d'entrée/sortie.
+      - asset_spec_author   # traduit une demande gameplay en spec d'asset paramétrée
+                            # (Asset Library V1, 2026-08-06). TRANSFORMATION, pas rappel —
+                            # le registre où ce modèle est mesuré fiable. Il n'écrit
+                            # aucune géométrie et ne juge rien : sa sortie passe par des
+                            # énumérations fermées avant d'atteindre Blender.
 
   # Étapes déterministes (oracles + verdict) : PAS de LLM. Runtime sentinelle non-llm.
   - id: deterministic/non-llm
@@ -224,4 +229,95 @@ runtime_contracts:
         (detection_rate 1,0 · false_positive_rate 0 · n=12 et n=10). Un défaut d'un type
         non injecté reste invisible : la mesure borne ce qu'on a testé, pas ce qui existe.
       evidence: lab/forge_evidence/CAPABILITY_MEASUREMENT_V1/
+      declared_by: déclaration de l'existant — aucun runtime ajouté
+
+  # DÉCLARATION DE L'EXISTANT, 2026-08-06 (Asset Library V1). Ce runtime a réellement
+  # produit 6 assets avant d'être déclaré ici — on écrit ce que le code fait déjà,
+  # aucune ligne de code n'a changé pour cette entrée.
+  asset_producer:
+    mission: >-
+      Fabriquer un asset 3D à partir d'une spec paramétrée, et RIEN d'autre. Ne juge
+      jamais sa propre production, ne mesure pas pour preuve, n'écrit jamais le
+      manifeste de recensement ni le catalogue. Le verdict appartient à un mesureur
+      indépendant qui n'a pas produit le fichier.
+    implementation:
+      entrypoint: scripts/forge/asset_producer/build_asset.py
+      executor:   blender 5.1.1 --background (WSL2 Ubuntu-24.04)
+      binary:     /home/studio-dev/3d-pipeline/blender/blender-5.1.1-linux-x64/blender
+      proposer:   scripts/forge/asset_producer/propose_asset.py   # dépose une kb.proposal.v1
+      skill:      .claude/skills/asset-generator/SKILL.md
+      # Sentinelle lisible par machine — l'explication vit dans ce commentaire, pas
+      # dans la valeur : la géométrie est procédurale et paramétrée, aucun modèle de
+      # complétion n'intervient. Un test vérifie qu'un runtime déclarant un vrai
+      # modèle se résout bien dans le registry (test_roles_registry_integrity.py).
+      model:      aucun
+      provider:   blender
+    # `spec_file` : le callable reçoit le CHEMIN d'une spec JSON en argument positionnel,
+    # puis le répertoire de destination. Convention réelle du CLI
+    # (`blender -b --python build_asset.py -- <spec.json> <dest_dir>`).
+    invocation: spec_file
+    inputs:  [asset_id, archetype, category, size, color, variants, consumer]
+    outputs: [glb, metadata_json, generation_report_json]
+    constraints:
+      no_self_judgement:  ne produit aucun verdict ; l'oracle est rejoué par l'appelant
+      no_manifest:        n'écrit JAMAIS <asset>.glb.geometry.json (parole du HumanGate)
+      no_catalog_write:   n'écrit JAMAIS catalog.json (propose-only, via propose_asset.py)
+      consumer_required:  refuse une spec sans `consumer` — pas d'asset sans consommateur
+      closed_archetypes:  archétype hors liste = erreur explicite, jamais un cube par défaut
+      grounded_by_design: géométrie bâtie en Z>=0 côté Blender (=> Y>=0 en glTF)
+    limits:
+      quality_not_proven: true
+      production_ready: false
+      why: >-
+        Les 7 archétypes sont des PRIMITIVES paramétrées (boîtes, cylindres). Ils prouvent
+        la chaîne de production et d'ancrage, pas la qualité artistique : aucun asset
+        produit ne ressemble à un asset de production. « oracle OK » ne se lit jamais
+        « asset beau ». Aucun modèle génératif (Hunyuan3D) n'est branché sur ce runtime.
+      variants_depend_on_honesty: >-
+        La garde sur les variantes exclusives repose sur la franchise du producteur :
+        un producteur qui n'annonce pas ses `variants` dans metadata.json retombe sur
+        le seuil de part de sommets, qui peut les classer MAIN automatiquement.
+      evidence: knowledge_base/assets/props3d/ (6 assets, 6 generation_report.json)
+      declared_by: déclaration de l'existant — aucun runtime ajouté
+
+  # DÉCLARATION DE L'EXISTANT, 2026-08-06. Ce runtime a réellement produit une spec
+  # valide au premier essai (`gen_pedestal`, temp 0) avant d'être déclaré ici.
+  asset_spec_author:
+    mission: >-
+      Traduire une demande de gameplay en langage naturel en spécification d'asset
+      paramétrée, et RIEN d'autre. Ne fabrique aucune géométrie, ne mesure rien, ne juge
+      rien, n'écrit aucun fichier du dépôt. Sa sortie est une PROPOSITION de paramètres
+      qui doit franchir des énumérations fermées avant d'atteindre le producteur.
+    implementation:
+      entrypoint: scripts/forge/asset_producer/qwen_spec.py
+      transport:  HTTP OpenAI-compatible, http://localhost:1234/v1/chat/completions
+      model:      lmstudio/qwen2.5-14b-instruct
+      temperature: 0
+      max_tokens: 600
+      provider:   lmstudio
+    # `natural_language` : le callable reçoit une phrase, pas un artefact.
+    invocation: natural_language
+    inputs:  [demande_gameplay]
+    outputs: [spec, trace]
+    constraints:
+      closed_enums:      archetype et category hors liste = REJET, jamais un repli silencieux
+      consumer_required: "champ `consumer` vide = rejet — pas d'asset sans consommateur"
+      bounded_dims:      "dimensions hors [0.05, 20.0] m rejetées (échelle aberrante)"
+      no_file_write:     n'écrit aucun fichier du dépôt
+      no_judgement:      ne produit aucun verdict ; l'oracle est rejoué en aval
+      one_repair_only:   une réparation ciblée sur les champs fautifs, puis échec explicite
+    limits:
+      quality_not_proven: true
+      production_ready: false
+      why: >-
+        Le modèle est mesuré fiable en TRANSFORMATION, pas en RAPPEL (mémoire studio,
+        2026-08-04 : ses citations dérivent même à température 0). Ici il ne cite rien, il
+        convertit une intention en paramètres — mais rien ne garantit que les paramètres
+        choisis produisent un asset *utile*. Les énumérations fermées bornent le dégât,
+        elles ne rendent pas la proposition pertinente.
+      no_semantic_check: >-
+        Aucun mécanisme ne vérifie que l'archétype choisi correspond vraiment à la demande.
+        Mesuré : « piédestal » a produit `archetype: platform` — plausible, mais c'est un
+        jugement humain, pas une correspondance vérifiée.
+      evidence: reçus signés `asset_spec_author` dans lab/forge_evidence/dispatch_audit.jsonl
       declared_by: déclaration de l'existant — aucun runtime ajouté

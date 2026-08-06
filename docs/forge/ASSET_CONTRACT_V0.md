@@ -1,12 +1,97 @@
 # Asset Contract V0 — schéma de demande d'asset
 
-> **Date** : 2026-07-13 (v0) · **mise à jour 2026-07-14 (v0.1)**
+> **Date** : 2026-07-13 (v0) · **mises à jour 2026-07-14 (v0.1)** · **2026-08-06 (v0.2)**
 > **Statut** : DESIGN + IMPLEMENTED (résolveur `scripts/forge/asset_request.mjs` +
 > oracle `scripts/forge/check_artbible.mjs`, testés).
 > **Périmètre** : Tier 3 #7. v0 = étape 1 (schéma + résolveur). v0.1 = durcissement
-> post-gate-4 (couverture besoin<->requête, cf. §"Changelog v0.1" ci-dessous).
+> post-gate-4 (couverture besoin<->requête). v0.2 = politique géométrique (cf. §"Changelog
+> v0.2" ci-dessous).
 > `claim_verdict: NO_CLAIM_ALLOWED` — ce document décrit un mécanisme et ses limites, il ne
 > certifie pas qu'il couvre tous les besoins d'asset futurs du studio.
+
+## Changelog v0.2 (2026-08-06) — politique géométrique
+
+**Pourquoi** : le contrat v0/v0.1 vérifie la licence, le style (tag), le format/runtime et la
+couverture besoin↔requête. Il est **entièrement aveugle à la géométrie** : une requête peut
+résoudre `OK` sur un asset enterré de moitié sous le sol. Mesuré sur le corpus réel — la
+sortie générative brute du pipeline `~/3d-pipeline` a `min_y = −0.9993` (normalisée dans un
+cube unité centré sur l'origine, donc à moitié sous le plan zéro), et rien dans le contrat ne
+pouvait le voir. Détail complet : `docs/forge/ASSET_GEOMETRY_ORACLE_V1_DESIGN.md`.
+
+**Ajout additif** (v0 et v0.1 restent valides, rien n'est supprimé, les runs existants
+continuent de passer) — bloc `geometry` **optionnel** sur `asset_request` :
+
+```yaml
+asset_request:
+  geometry:                        # bloc OPTIONNEL (absent = politique par défaut du studio)
+    origin_rule:                   # base_center | centroid | declared — convention de pivot
+    ground_rule:                   # {plane: 0.0, float_tolerance: 0.01, buried_tolerance: 0.01}
+    allowed_negative_y: false      # la géométrie peut-elle descendre sous le plan ?
+    secondary_mesh_policy:         # declaration_required | allow_undeclared
+    declaration_required: true     # une géométrie UNKNOWN bloque-t-elle le run ?
+  # ... + les champs v0 et v0.1 inchangés
+```
+
+**Séparation d'autorité — le point important.** Ce bloc porte la **politique du run**
+(qu'est-ce qui est acceptable ici), **jamais le recensement** (quelle géométrie existe dans
+l'asset). Le recensement est une propriété de l'**offre**, pas de la **demande** — même
+séparation que celle déjà ratifiée §"Ancrage architectural". Il vit donc en sidecar permanent
+à côté de l'asset :
+
+```
+Knight.glb
+Knight.glb.geometry.json     ← recensement : {sha256, up_axis, origin_rule, meshes:[{name, role}]}
+```
+
+Le `sha256` lie le manifeste à l'octet près : un `.glb` modifié invalide son manifeste
+(`manifest_stale`) plutôt que de laisser une déclaration périmée faire autorité.
+
+**Chaîne des seuils, sans ambiguïté** :
+`scripts/forge/asset_geometry/rules.yaml` (défaut du studio) ← `asset_request.geometry`
+(override explicite du run). Aucun seuil n'est implicite ; chaque check du rapport cite sa
+`threshold_source`. Le manifeste de l'asset ne porte **jamais** de tolérance : il déclare ce
+qui existe, pas ce qui est acceptable.
+
+**Axe vertical** : glTF est **Y-up** par spécification, comme Godot. Blender affiche du Z-up
+parce que son importeur convertit. Toute règle géométrique de ce contrat est exprimée en **Y**.
+
+**Consommateur** : `scripts/forge/asset_geometry/oracle.py` (checks `ground_contact`,
+`no_buried_geometry`, `pivot_at_base`, `scale_within_band`, `all_meshes_declared`,
+`declaration_mismatch`, `manifest_stale`, `producer_environment`). Tests :
+`scripts/forge/tests/test_asset_geometry.py`.
+
+**Non couvert par v0.2, avec raison nommée** : `collision_alignment`. Aucun asset du corpus ne
+contient de collision et aucune scène n'en déclare une — un check sans source de vérité serait
+un check décoratif.
+
+### Amendements du 2026-08-06 (même version v0.2)
+
+**L'asymétrie de la déclaration.** Le sidecar `<asset>.glb.metadata.json` est écrit par le
+producteur et reste une `DECLARATION`. Elle est désormais *utilisée*, sous une règle stricte :
+
+> une déclaration peut seulement rendre l'oracle **plus strict**, jamais plus permissif.
+
+Concrètement, annoncer des `variants` **retire** à ces meshes le droit d'être classés `MAIN`
+automatiquement — ils devront être déclarés au manifeste. Un producteur ne peut donc jamais
+s'auto-absoudre par sa propre déclaration ; il ne peut que s'auto-contraindre.
+
+**Le HumanGate écrit le recensement, jamais le producteur.** `<asset>.glb.geometry.json`
+n'est produit ni par Blender ni par un agent : si le producteur l'écrivait, il déclarerait sa
+propre géométrie légitime et l'oracle serait contourné. La règle est portée par le code
+(`build_asset.py` inscrit `manifest_written: false` dans son rapport) et par le contrat de
+runtime (`roles.yaml#runtime_contracts.asset_producer`, contrainte `no_manifest`).
+
+**Une variante déclarée doit exister géométriquement.** Depuis le 2026-08-06, le check
+`variants_match_geometry` exige que chaque nom de `variants` corresponde à un nœud mesh
+réel. Déclarer des variantes reste un durcissement — mais on ne peut plus durcir « en
+l'air » : une déclaration verbale sans géométrie correspondante est un `FAIL`. Trouvé sur
+une sortie réelle du worker Qwen (variantes annoncées pour un asset à mesh unique).
+
+**L'entrée au catalogue est propose-only.** Un asset validé n'est pas ingéré : il est
+**proposé** (`scripts/forge/asset_producer/propose_asset.py` → `knowledge_base/proposals/`,
+schéma `kb.proposal.v1`), puis promu par un geste humain explicite
+(`kb_proposal.py --apply <id> --ratifie-par "<humain>"`). Le proposeur refuse tout asset dont
+l'oracle ne rend pas `OK`. Détail : `ASSET_GEOMETRY_PIPELINE_BOUNDARY_V1.md` §5 bis.
 
 ## Changelog v0.1 (2026-07-14) — couverture besoin<->requête
 
