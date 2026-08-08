@@ -38,6 +38,7 @@ import yaml
 
 from forge.contract import ContractIncomplete
 from forge.dispatch import (
+    EVENT_AUTHORIZED,
     EVENT_EXECUTED,
     append_spawn_event,
     is_deterministic_step,
@@ -47,7 +48,11 @@ from forge.dispatch import (
 )
 from forge.escalate import escalation_decision, parse_agent_escalation, tier_of
 from forge.gate import forge_gate
-from forge.learning_memory import load_current_generation, premortem_lessons
+from forge.learning_memory import (
+    load_current_generation,
+    premortem_lessons,
+    promote_manifest_lessons,
+)
 from forge.oracle import OracleNotFound, resolve_oracle
 from forge.mutation_proof import (
     emit_descriptor_mutation_receipt,
@@ -331,6 +336,7 @@ class ForgeDriver:
             state["run_status"] = "DONE"
             self._save(state)
             self._regenerate_journal_index()
+            self._promote_manifest_lessons_best_effort()
             return self._final_report(state)
         finally:
             self._detach_run_log_handler(log_handler, log_previous_level)
@@ -416,6 +422,44 @@ class ForgeDriver:
         except OSError:
             logger.warning("index des journaux non régénéré pour %s (non bloquant)",
                            self.run_id)
+
+    def _promote_manifest_lessons_best_effort(self) -> None:
+        """Pont manifest -> lesson (post-mortem pacman 2026-08-07, lot A réparation 2,
+        `forge.learning_memory.promote_manifest_lessons`) : lit `self.run_dir/context/
+        *.manifest.jsonl` et promeut chaque `reason.problem`/`reason.root_cause`
+        distinct en leçon CANDIDATE — fermeture du maillon mesuré CASSÉ (0 promotion
+        pour les 15 causes racines P1-P6 des lots V3-V6 pacman, alors que le Context
+        Manifest les portait déjà, signées HMAC).
+
+        Cible : `self._lessons_target()`, MÊME discriminant que `_premortem_lessons`/
+        `_journal_error` (None => défaut PRODUCTION résolu par `learning_memory` pour
+        un run réel sous le dépôt ; fichier local isolé pour un run de test hors
+        dépôt) — jamais un chemin inventé ici.
+
+        Appelée UNE SEULE fois, en fin de run réussi (jamais en boucle, jamais sur la
+        relecture idempotente d'un run déjà DONE) : `promote_manifest_lessons` est
+        elle-même idempotente (lesson_id dérivé du contenu), un second appel
+        n'ajoute donc jamais de doublon même si cette méthode était rappelée.
+
+        BEST-EFFORT **NON SILENCIEUX** (exigence explicite du lot, distincte du
+        best-effort silencieux du reste de cette classe) : un échec est journalisé en
+        `logger.warning` avec la trace complète (`exc_info=True`), jamais avalé sans
+        trace — une promotion manquée est un défaut de la boucle d'apprentissage,
+        elle doit rester VISIBLE dans les logs même si elle ne bloque jamais le run.
+        """
+        try:
+            written = promote_manifest_lessons(self.run_dir, lessons_path=self._lessons_target())
+            if written:
+                logger.info(
+                    "run=%s : %d leçon(s) promue(s) depuis les manifests -> %s",
+                    self.run_id, len(written), [w["lesson_id"] for w in written],
+                )
+        except Exception:  # noqa: BLE001 — best-effort NON SILENCIEUX : journalisé, jamais bloquant
+            logger.warning(
+                "run=%s : promotion manifest->lesson en échec (non bloquant, "
+                "boucle d'apprentissage dégradée pour ce run)",
+                self.run_id, exc_info=True,
+            )
 
     def _reference_guard_check(self, phase: str) -> None:
         """Câblage ADVISORY (FVL Phase 0.5, chantier `reference_protected` —
@@ -534,13 +578,23 @@ class ForgeDriver:
     # --- preuve d'exécution (DISPATCH_SPAWN_AUTHORITY_V1) ---------------------
 
     def _record_spawn_executed(self, etape: str, attempt: int, payload=None) -> None:
-        """Écrit `spawn_executed` — CHEMIN B (headless / driver).
+        """Écrit `spawn_authorized` PUIS `spawn_executed` — CHEMIN B (headless / driver).
 
         Le hook PostToolUse ne voit que les spawns passés par l'outil `Task` (chemin A,
         orchestrateur interactif). Un run headless (`run_real.py` -> `claude -p`, ou
-        tout exécuteur injecté) n'est PAS un appel d'outil Task : aucun hook ne se
-        déclenche. Sans cet appel en code, la preuve d'exécution n'existerait que sur
-        la moitié des runs.
+        tout exécuteur injecté) n'est PAS un appel d'outil Task : aucun hook PreToolUse/
+        PostToolUse ne se déclenche. Sans cet appel en code, la preuve d'AUTORISATION
+        n'existerait que sur le chemin A — exactement le trou mesuré (post-mortem pacman
+        2026-08-07, lot A réparation 3) : `spawn_authorized` 0/1418 tous chemins confondus.
+
+        RÉPARATION : ce chemin (B) EST sa propre autorité d'autorisation — il n'existe
+        aucun garde PreToolUse distinct à côté de lui qui pourrait l'écrire séparément
+        (contrairement au chemin A, où `.claude/hooks/pretool_forge_guard.py` autorise
+        puis un hook PostToolUse distinct exécute). `append_spawn_event(EVENT_AUTHORIZED)`
+        est donc écrit ICI, juste avant `EVENT_EXECUTED`, dans le MÊME appel — l'invariant
+        `executed ⇒ authorized` (forge.audit.check_spawn_invariant) reste vrai par
+        construction : aucune ligne `spawn_executed` de ce chemin n'est jamais écrite sans
+        que la ligne `spawn_authorized` correspondante précède dans le fichier.
 
         Appelée UNIQUEMENT après le RETOUR RÉEL de l'exécution (jamais avant) : c'est
         ce qui la distingue de `spawn_prepared`. Best-effort (`append_spawn_event` ne
@@ -550,13 +604,14 @@ class ForgeDriver:
         PAS `self.key_file` (clé de VERDICT, distincte) — signer l'audit avec une autre
         clé rendrait la ligne invérifiable par le garde et par `spawn_proof`.
         """
-        append_spawn_event(
-            EVENT_EXECUTED, etape, self.run_id, attempt,
+        common = dict(
             model=getattr(payload, "model", "") or "",
             provider=getattr(payload, "provider", "") or "",
             allowed_tools=tuple(getattr(payload, "allowed_tools", ()) or ()),
             audit_path=self.audit_path,
         )
+        append_spawn_event(EVENT_AUTHORIZED, etape, self.run_id, attempt, **common)
+        append_spawn_event(EVENT_EXECUTED, etape, self.run_id, attempt, **common)
 
 
     # --- Activation Lineage (P2, doctrine FORGE_CAUSAL_LINEAGE_V2 §2) ---------
@@ -752,9 +807,28 @@ class ForgeDriver:
     def _domain(self) -> str:
         """Domaine du journal d'erreurs de CE run (route l'écriture et la lecture du
         pré-mortem quand la cible est déduite par domaine). Un JEU écrit/lit ses leçons
-        html (fixtures HTML/2D réelles) ; tout le reste relève de la plomberie `forge`.
-        Simple et extensible."""
-        return "html" if self.is_game else "forge"
+        dans le domaine de son RUNTIME DE PRODUCTION ; tout le reste relève de la
+        plomberie `forge`.
+
+        RÉPARATION (post-mortem pacman 2026-08-07) : avant ce correctif, TOUT jeu
+        routait vers "html" — y compris un jeu Godot (pacman, profils `full_godot`/
+        `standard_godot`), qui n'écrit ni ne lit jamais dans `godot.jsonl` (domaine
+        déclaré dans `KNOWN_DOMAINS`, cf. studio_link.py, mais resté vide en pratique).
+
+        Critère retenu — LE PLUS FACTUEL DISPONIBLE : `self.order` (la séquence
+        d'étapes RÉELLEMENT résolue par `order_for_profile(self.profile)` pour CE
+        run) contient une étape de build Godot (`s9-build-godot-standard`, seul
+        builder Godot dispatchable — cf. `dispatch.DEDICATED_PROFILE_STEPS`). C'est
+        plus factuel qu'un test sur le NOM du profil (qui pourrait changer) : ça lit
+        directement l'étape que ce run va réellement exécuter pour produire le jeu.
+        Un jeu qui ne passe par aucune étape Godot reste routé "html" (web/JS,
+        comportement historique inchangé pour pong/snake/breakout/...).
+        """
+        if not self.is_game:
+            return "forge"
+        if any("godot" in etape for etape in self.order):
+            return "godot"
+        return "html"
 
     def _journal_target(self) -> Path | None:
         """Cible du journal d'erreurs, ou None pour un routage par domaine (studio_link
@@ -892,14 +966,14 @@ class ForgeDriver:
                 base = []
             # P2 (lot dégel 2) : un run JEU lit AUSSI le journal `playtest`
             # (studio_link.PLAYTEST_DOMAIN) — ADDITIF pur, ne touche pas
-            # `_domain()` (l'écriture reste routée exactement comme avant, "html"
-            # pour un jeu) ni `studio_link.py`. `_domain()` d'un jeu rend "html"
-            # (figé d'avant Godot) : quand `journal_path` est explicite (mode
-            # RETROCOMPAT de `studio_link.premortem`, qui ignore `domain`), les
-            # leçons playtest résolues (ex. « bande de vitesse jouable ») restent
-            # invisibles sans cet ajout. Best-effort strict, même garantie que la
-            # lecture juste au-dessus : une exception rend une liste vide, jamais
-            # une propagation.
+            # `_domain()` (l'écriture reste routée exactement comme avant) ni
+            # `studio_link.py`. `_domain()` d'un jeu rend "html" ou "godot" selon
+            # l'étape de build réellement résolue pour ce run (lot A, réparation 1,
+            # 2026-08-07) : quand `journal_path` est explicite (mode RETROCOMPAT de
+            # `studio_link.premortem`, qui ignore `domain`), les leçons playtest
+            # résolues (ex. « bande de vitesse jouable ») restent invisibles sans cet
+            # ajout. Best-effort strict, même garantie que la lecture juste
+            # au-dessus : une exception rend une liste vide, jamais une propagation.
             playtest_lines: list[str] = []
             if self.is_game:
                 try:
@@ -2223,9 +2297,15 @@ class ForgeDriver:
                 logger.warning("reçu code dégradé en BLOCKED (preuve mutation): %s",
                                "; ".join(check["raisons"]))
         evidence_path = detail.pop("evidence_path", "")
+        # RÉPARATION (post-mortem pacman 2026-08-07, lot A réparation 4) : un pas
+        # sans "ts" enregistré (étape jamais terminée -> statut dégradé BLOCKED
+        # ci-dessus, `st.get("detail", {})` reste vide) obtenait 0.0 (epoch 1970) au
+        # lieu de l'heure RÉELLE de construction du reçu. `or time.time()` ne change
+        # rien quand "ts" est présent et non-nul (cas normal, écrit par
+        # `_finish_step`/etc.) — seul le cas manquant/0.0 est couvert.
         return make_signed_receipt(
             oracle_id, self.run_id, status, detail,
-            evidence_path=evidence_path, ts=float(st.get("ts", 0.0)),
+            evidence_path=evidence_path, ts=float(st.get("ts") or time.time()),
             key_file=self.key_file,
         )
 

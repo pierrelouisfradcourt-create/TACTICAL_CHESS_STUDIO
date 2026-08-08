@@ -254,3 +254,62 @@ def spawn_proof(run_id: str, audit_path: Path | None = None,
         seen.add((etape, attempt))
         out["unproven"].append({"etape": etape, "attempt": attempt})
     return out
+
+
+def check_spawn_invariant(run_id: str | None = None, audit_path: Path | None = None,
+                          key_file: Path | None = None) -> dict:
+    """Vérité en LECTURE SEULE de l'invariant ``executed ⇒ authorized`` : toute ligne
+    `spawn_executed` doit avoir une ligne `spawn_authorized` correspondante pour le
+    MÊME triplet (run_id, etape, attempt).
+
+    N'écrit rien, ne décide rien — un lecteur de cohérence (post-mortem pacman
+    2026-08-07, lot A réparation 3 : `spawn_authorized` mesuré à 0/1418 alors que
+    `spawn_executed` l'était pour 561 dispatches — l'invariant était violé en silence
+    parce que rien ne le vérifiait). Sert de garde de non-régression (tests) et
+    d'outil d'audit ponctuel — PAS branché dans un gate de run : casser l'invariant
+    dégrade la preuve, ça ne doit jamais bloquer un run déjà exécuté.
+
+    `run_id=None` vérifie TOUT le fichier d'audit (tous runs confondus) ; un `run_id`
+    fourni restreint la vérification à ce run. Même RÈGLE DURE que `spawn_proof` : un
+    fichier d'audit ABSENT ou VIDE rend `measured: False` — jamais un « 0 violation »
+    silencieux qui affirmerait faussement que l'invariant tient.
+    """
+    path = _resolve_audit_path(audit_path)
+    out = {"run_id": run_id, "measured": False, "executed": 0, "authorized": 0,
+           "violations": []}
+    try:
+        measured = path.exists() and path.stat().st_size > 0
+    except OSError:
+        measured = False
+    if not measured:
+        out["reason"] = f"{path} absent ou vide — invariant NON MESURÉ (pas un zéro réel)"
+        return out
+
+    authorized: set[tuple[str, str, int]] = set()
+    executed: list[tuple[str, str, int]] = []
+    try:
+        for rec in _iter_audit_records(path, key_file):
+            rid = str(rec.get("run_id") or "")
+            if run_id is not None and rid != run_id:
+                continue
+            event = rec.get("event") or EVENT_PREPARED
+            key = (rid, str(rec.get("etape") or ""), int(rec.get("attempt") or 0))
+            if event == EVENT_AUTHORIZED:
+                authorized.add(key)
+            elif event == EVENT_EXECUTED:
+                executed.append(key)
+    except OSError:
+        out["reason"] = f"{path} illisible — invariant NON MESURÉ"
+        return out
+
+    out["measured"] = True
+    out["executed"] = len(executed)
+    out["authorized"] = len(authorized)
+    seen: set[tuple[str, str, int]] = set()
+    for key in executed:
+        if key in seen or key in authorized:
+            continue
+        seen.add(key)
+        rid, etape, attempt = key
+        out["violations"].append({"run_id": rid, "etape": etape, "attempt": attempt})
+    return out

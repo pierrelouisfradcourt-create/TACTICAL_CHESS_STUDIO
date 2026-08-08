@@ -12,6 +12,7 @@ import hmac
 import json
 import logging
 import os
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Sequence
@@ -133,7 +134,7 @@ def verify_receipt(receipt: OracleReceipt, signature: str, key_file: Path | None
 
 def make_signed_receipt(
     oracle_id: str, run_id: str, status: str, detail: dict,
-    *, evidence_sha256: str = "", evidence_path: str = "", ts: float = 0.0,
+    *, evidence_sha256: str = "", evidence_path: str = "", ts: float | None = None,
     key_file: Path | None = None,
 ) -> SignedReceipt:
     """Construit + signe un reçu d'oracle. Signé par le processus qui a EXÉCUTÉ
@@ -142,11 +143,23 @@ def make_signed_receipt(
     `evidence_path` permet à l'agrégat (et à `verify_run`) de RE-LIRE le fichier
     et de confronter `evidence_sha256` à son contenu réel — le scellé n'est plus
     décoratif. Si `evidence_path` est fourni sans `evidence_sha256`, on le calcule.
+
+    RÉPARATION (post-mortem pacman 2026-08-07, lot A réparation 4) : `ts` défaut à
+    `None`, jamais à un epoch fixe — un appelant qui omet `ts` obtient l'heure
+    RÉELLE de signature (`time.time()`), jamais `0.0` (qui se relit comme 1970 et
+    casse toute fenêtre temporelle calculée en aval, ex. Observer). Un appelant qui
+    PASSE explicitement `ts=0.0` (aucun cas de production connu, seulement des
+    fixtures) obtient toujours `0.0` — ce correctif ne touche que l'OMISSION,
+    jamais une valeur explicite. Rétro-compat : un reçu déjà signé avec `ts=0.0`
+    reste vérifiable tel quel (`verify_receipt` relit le `ts` stocké, ne le
+    recalcule jamais).
     """
     if status not in RECEIPT_STATUSES:
         raise ValueError(f"status de reçu invalide: {status!r}")
     if evidence_path and not evidence_sha256:
         evidence_sha256 = sha256_file(evidence_path)
+    if ts is None:
+        ts = time.time()
     receipt = OracleReceipt(
         oracle_id=oracle_id, run_id=run_id, status=status,
         evidence_sha256=evidence_sha256, detail=dict(detail or {}), ts=ts,
@@ -285,10 +298,21 @@ def build_aggregate_verdict(
     standard: SignedReceipt | None = None,
     git_head: str = "",
     nonce: str = "",
-    ts: float = 0.0,
+    ts: float | None = None,
     key_file: Path | None = None,
 ) -> AggregateVerdict:
     """Plie les REÇUS D'ORACLE SIGNÉS + le red-team en un verdict signable.
+
+    RÉPARATION (post-mortem pacman 2026-08-07, lot A réparation 4) : `ts` défaut à
+    `None` — un appelant qui l'omet obtient `time.time()` au moment de l'agrégation,
+    jamais `0.0` (voir `make_signed_receipt` pour la même garantie côté reçu). Mesuré
+    sur `lab/forge_runs/pacman/verdict.json` : `ts: 0.0` au sommet ET sur les trois
+    reçus — un chemin d'écriture (hors `ForgeDriver`, jamais localisé avec certitude,
+    cf. rapport) a construit ce verdict sans passer `ts`. Ce correctif ferme le trou
+    à la source plutôt qu'au seul appelant connu (`ForgeDriver._run_verdict`, qui
+    passait déjà `ts=time.time()` explicitement). Rétro-compat : `verify_aggregate`
+    relit le `ts` stocké dans le JSON, ne le recalcule jamais — un verdict historique
+    à `ts=0.0` reste vérifiable tel quel.
 
     Ne CROIT plus des faits passés en argument : chaque reçu est re-vérifié
     (signature HMAC + run_id concordant). Un reçu absent/altéré/discordant =>
@@ -313,6 +337,8 @@ def build_aggregate_verdict(
     JAMAIS dans ``software_verdict``, pousse ``decision`` vers WITH_OBJECTION s'il y a
     quelque chose à signaler, toujours visible dans ``humangate_flags`` — jamais tu.
     """
+    if ts is None:
+        ts = time.time()
     flags: list[str] = []
     receipts = {"code": code, "archi": archi, "wiremap": wiremap}
     if standard is not None:

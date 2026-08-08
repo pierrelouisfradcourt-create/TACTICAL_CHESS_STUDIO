@@ -430,6 +430,101 @@ def fold_lessons(path: Path | None = None) -> dict[str, dict]:
     return out
 
 
+# =====================================================================================
+# D. promote_manifest_lessons — pont Context Manifest -> lesson (lot A réparation 2,
+#    post-mortem pacman 2026-08-07, studio_brain/journal/2026-08-07_postmortem_pacman_
+#    forge.md §1/§2/§6.2). MESURÉ : les manifests des lots V3-V6 pacman portent
+#    `reason.problem`/`reason.root_cause` (root causes signées HMAC dans le Context
+#    Manifest de dispatch de `s9-build-godot-standard`) jamais relues par
+#    `premortem_lessons()` — la boucle Run -> FailureEvent -> Lesson -> Doctrine
+#    s'arrêtait au 2e maillon (0 promotion, registres intacts).
+# =====================================================================================
+
+def _iter_manifest_reason_records(run_dir: Path):
+    """Itère les enregistrements de `run_dir/context/*.manifest.jsonl` dont `reason`
+    porte un `problem` OU un `root_cause` non vide — les SEULS candidats à la
+    promotion (la grande majorité des lignes de Context Manifest, ex.
+    `reason: {"status": "NOT_TRANSMITTED", ...}`, n'en portent aucun et sont
+    silencieusement ignorées, PAS une erreur).
+
+    Tolérant aux lignes/fichiers corrompus ou absents (même patron `_read_jsonl` que
+    le reste de ce module) : un manifest partiel ne fait jamais lever cette fonction.
+    Générateur PUR EN LECTURE — n'écrit jamais rien.
+    """
+    context_dir = Path(run_dir) / "context"
+    if not context_dir.is_dir():
+        return
+    for manifest_path in sorted(context_dir.glob("*.manifest.jsonl")):
+        for row in _read_jsonl(manifest_path):
+            reason = row.get("reason")
+            if not isinstance(reason, dict):
+                continue
+            problem = str(reason.get("problem") or "").strip()
+            root_cause = str(reason.get("root_cause") or "").strip()
+            if not problem and not root_cause:
+                continue
+            yield manifest_path, row, problem, root_cause
+
+
+def make_manifest_lesson_id(etape: str, problem: str, root_cause: str) -> str:
+    """ID stable dérivé du CONTENU (étape + problem + root_cause) — même patron que
+    `make_failure_id` : deux manifests INDÉPENDANTS (deux runs séparés, ou deux
+    exécutions du pont sur le même run) qui portent le MÊME couple problem/root_cause
+    convergent sur le MÊME `lesson_id` sans coordination explicite — c'est ce qui
+    rend `promote_manifest_lessons` idempotent."""
+    digest = hashlib.sha256(f"{etape}|{problem}|{root_cause}".encode("utf-8")).hexdigest()
+    return f"manifest-{digest[:16]}"
+
+
+def promote_manifest_lessons(
+    run_dir: Path, lessons_path: Path | None = None, *, ts: float | None = None,
+) -> list[dict]:
+    """Pont Context Manifest -> lesson : lit `run_dir/context/*.manifest.jsonl`,
+    promeut chaque `reason.problem`/`reason.root_cause` distinct en leçon
+    `forge.lesson.v1` CANDIDATE (jamais un statut plus fort — voir doctrine §2.2, une
+    leçon se gagne par PREUVE, jamais par ce pont mécanique).
+
+    Garanties tenues :
+      - AUCUNE reformulation, AUCUNE synthèse, AUCUN scoring : `statement` concatène
+        `problem` et `root_cause` VERBATIM (séparateur fixe) — jamais réécrits,
+        jamais résumés, jamais jugés pertinents ou non par ce code.
+      - IDEMPOTENTE : `lesson_id` est dérivé du CONTENU (`make_manifest_lesson_id`).
+        Une leçon déjà présente dans `lessons_path` (même `lesson_id`) n'est PAS
+        ré-écrite — 0 doublon à la ré-exécution, prouvé par test, pas par convention.
+        (`record_lesson_event` refuserait de toute façon une 2e création `candidate`
+        du même id — ALLOWED_TRANSITIONS ne permet pas candidate->candidate — mais ce
+        pont évite même l'appel superflu en vérifiant `fold_lessons` d'abord.)
+      - `add_supporting_run` porte le `run_id` du manifest (ou, à défaut, le nom du
+        dossier de run) — jamais un `project` inventé : le schéma `forge.lesson.v1`
+        n'a pas de champ projet (leçons cross-projet par construction, doctrine §2.2).
+      - Écrit UNIQUEMENT dans `lessons_path` (ou le défaut PRODUCTION de
+        `record_lesson_event` si `None` — même convention que tout le reste de ce
+        module) : ne touche JAMAIS `run_dir/context/` (lecture seule).
+
+    Retourne la liste des enregistrements de leçon RÉELLEMENT écrits par CET appel —
+    une leçon déjà connue est absente de ce retour (c'est la preuve d'idempotence
+    lisible par l'appelant, sans avoir à relire le fichier).
+    """
+    written: list[dict] = []
+    existing = fold_lessons(lessons_path)
+    for manifest_path, row, problem, root_cause in _iter_manifest_reason_records(run_dir):
+        etape = row.get("etape") or manifest_path.name.removesuffix(".manifest.jsonl")
+        run_id = row.get("run_id") or Path(run_dir).name
+        lesson_id = make_manifest_lesson_id(etape, problem, root_cause)
+        if lesson_id in existing:
+            continue  # déjà promue par un appel précédent (idempotence)
+        statement = " — cause: ".join(part for part in (problem, root_cause) if part)
+        record = record_lesson_event(
+            lesson_id, status=LESSON_STATUS_CANDIDATE, statement=statement,
+            add_supporting_run=str(run_id),
+            caused_by_experience=f"{etape} ({manifest_path.name})",
+            path=lessons_path, ts=ts,
+        )
+        existing[lesson_id] = record
+        written.append(record)
+    return written
+
+
 # --- Compatibilité : anciennes leçons de méthode (pré-schéma) ----------------------
 
 def legacy_global_lessons(
@@ -621,6 +716,17 @@ def _build_parser() -> argparse.ArgumentParser:
     p_lesson.add_argument("--caused-by-failure-id", default="")
     p_lesson.add_argument("--caused-by-experience", default="")
 
+    # promote-manifest : DISTINCT des deux sous-commandes ci-dessus — pas un jugement
+    # humain/agent, un pont MÉCANIQUE déterministe (promote_manifest_lessons) qui lit
+    # `reason.problem`/`reason.root_cause` déjà écrits (signés HMAC) dans le Context
+    # Manifest d'un run et les promeut en leçons CANDIDATE, verbatim, idempotent.
+    p_promote = sub.add_parser(
+        "promote-manifest",
+        help="promeut reason.problem/root_cause des manifests d'un run en leçons "
+             "CANDIDATE (promote_manifest_lessons, idempotent, aucune reformulation)")
+    p_promote.add_argument("--run-dir", required=True)
+    p_promote.add_argument("--lessons-path", default=None)
+
     return parser
 
 
@@ -663,6 +769,15 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(f"lesson consignée -> {DEFAULT_LESSONS_PATH} "
               f"(lesson_id={record['lesson_id']}, status={record['status']})")
+        return 0
+
+    if args.cmd == "promote-manifest":
+        lessons_path = Path(args.lessons_path) if args.lessons_path else None
+        written = promote_manifest_lessons(Path(args.run_dir), lessons_path=lessons_path)
+        target = lessons_path or DEFAULT_LESSONS_PATH
+        print(f"{len(written)} leçon(s) nouvellement promue(s) -> {target}")
+        for w in written:
+            print(f"  - {w['lesson_id']}: {w['statement'][:100]}")
         return 0
 
     parser.print_usage(sys.stderr)

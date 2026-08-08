@@ -211,6 +211,7 @@ def _collect_attempt_dir(ctx: ObserverContext, base: Path) -> list[Event]:
     _collect_context(ctx, base, events)
     _collect_reference_guard(ctx, base, dir_run_id, events)
     _collect_mutation_evidence(ctx, base, dir_run_id, events)
+    _collect_mutation_receipt(ctx, base, dir_run_id, events)
     _collect_oracle_log(ctx, base, dir_run_id, events)
     _collect_playtest(ctx, base, dir_run_id, events)
     _collect_artifacts(ctx, base, dir_run_id, events)
@@ -330,7 +331,20 @@ def _collect_state(
 def _collect_verdict(
     ctx: ObserverContext, base: Path, dir_run_id: Optional[str], events: list[Event]
 ) -> None:
-    path = base / "verdict.json"
+    """Traite tous les `verdict*.json` a la racine du dossier de tentative.
+
+    Un projet peut porter plusieurs verdicts versionnes cote a cote (mesure
+    sur pacman : `verdict.json` et `verdict_v2.json`, memes champs, memes
+    oracles, deux run_id distincts). Chacun est un recu SIGNE independant :
+    on les traite tous, jamais un seul au hasard du nom de fichier.
+    """
+    for path in _direct_children(ctx, base, "verdict*.json"):
+        _collect_one_verdict(ctx, path, dir_run_id, events)
+
+
+def _collect_one_verdict(
+    ctx: ObserverContext, path: Path, dir_run_id: Optional[str], events: list[Event]
+) -> None:
     verdict = ctx.read_json(path)
     if not isinstance(verdict, dict):
         return
@@ -396,6 +410,84 @@ def _collect_verdict(
                 project=verdict.get("project"),
                 payload=payload_o,
                 note=o_note,
+            )
+        )
+
+        detail = odata.get("detail")
+        if isinstance(detail, dict):
+            _emit_verdict_detail_metrics(
+                detail=detail,
+                oracle_id=oracle_id,
+                rel=rel,
+                run_id=o_run_id or v_run_id or dir_run_id,
+                project=verdict.get("project"),
+                ts=ts_o,
+                ts_raw=ts_raw_o,
+                ts_fmt=fmt_o,
+                events=events,
+            )
+
+
+def _emit_verdict_detail_metrics(
+    detail: dict[str, Any],
+    oracle_id: str,
+    rel: str,
+    run_id: Optional[str],
+    project: Optional[str],
+    ts: Optional[float],
+    ts_raw: Optional[str],
+    ts_fmt: str,
+    events: list[Event],
+) -> None:
+    """Extrait `tests_executes`/`solvabilite` quand ils sont ecrits en clair
+    dans le `detail` signe d'un oracle de verdict*.json, plutot que dans
+    `evidence/oracle_*.log` (deja couvert par `_collect_oracle_log`).
+
+    Mesure sur pacman (`verdict.json`/`verdict_v2.json`, oracle `code`) :
+    `detail.assertions` (entier) et `detail.solvabilite` (chaine libre,
+    ex. "50/50 sur 2 cartes") existent alors qu'aucun `evidence/oracle_*.log`
+    n'accompagne ce run. Purement additif : ne remplace jamais un evenement
+    deja produit par `_collect_oracle_log`, n'invente aucun champ absent.
+    """
+    assertions = detail.get("assertions")
+    if isinstance(assertions, int) and not isinstance(assertions, bool):
+        events.append(
+            Event(
+                kind="test.result",
+                source=Source(
+                    path=rel, fmt="json", field=f"oracles.{oracle_id}.detail.assertions"
+                ),
+                proof=PROOF_SIGNED,
+                link=LINK_DIRECT if run_id else LINK_PATH,
+                ts=ts,
+                ts_raw=ts_raw,
+                ts_format=ts_fmt,
+                run_id=run_id,
+                project=project,
+                payload={
+                    "oracle_id": oracle_id,
+                    "assertions": assertions,
+                    "returncode": detail.get("returncode"),
+                },
+            )
+        )
+
+    solvabilite = detail.get("solvabilite")
+    if isinstance(solvabilite, str) and solvabilite.strip():
+        events.append(
+            Event(
+                kind="solvability.result",
+                source=Source(
+                    path=rel, fmt="json", field=f"oracles.{oracle_id}.detail.solvabilite"
+                ),
+                proof=PROOF_SIGNED,
+                link=LINK_DIRECT if run_id else LINK_PATH,
+                ts=ts,
+                ts_raw=ts_raw,
+                ts_format=ts_fmt,
+                run_id=run_id,
+                project=project,
+                payload={"oracle_id": oracle_id, "solvabilite": solvabilite},
             )
         )
 
@@ -589,6 +681,47 @@ def _collect_mutation_evidence(
                 note=note,
             )
         )
+
+
+# --------------------------------------------------------------------------- #
+# mutation_receipt.json — a la racine du dossier de run, PAS sous evidence/
+# --------------------------------------------------------------------------- #
+
+
+def _collect_mutation_receipt(
+    ctx: ObserverContext, base: Path, dir_run_id: Optional[str], events: list[Event]
+) -> None:
+    """Recu de mutation au format vu sur pacman : `mutation_receipt.json` a la
+    racine du dossier de run (`{total, survivors, detail, duree_s}`), distinct
+    du format `evidence/mutation_*.raw.json` couvert par
+    `_collect_mutation_evidence`. Les deux sources sont additives, jamais
+    fusionnees — un projet peut n'avoir que l'une des deux, ou aucune."""
+    path = base / "mutation_receipt.json"
+    obj = ctx.read_json(path)
+    if not isinstance(obj, dict) or "total" not in obj:
+        return
+    survivors = obj.get("survivors")
+    survivors_count = len(survivors) if isinstance(survivors, list) else None
+    payload = {
+        k: v
+        for k, v in {
+            "total": obj.get("total"),
+            "survivors_count": survivors_count,
+            "survivors": survivors if isinstance(survivors, list) else None,
+            "duree_s": obj.get("duree_s"),
+        }.items()
+        if v is not None
+    }
+    events.append(
+        Event(
+            kind="mutation.result",
+            source=Source(path=ctx.rel(path), fmt="json"),
+            proof=PROOF_MECHANICAL,
+            link=LINK_PATH,
+            run_id=dir_run_id,
+            payload=payload,
+        )
+    )
 
 
 # --------------------------------------------------------------------------- #

@@ -34,7 +34,7 @@ def main() -> int:
     try:
         repo_root = Path(__file__).resolve().parents[2]
         sys.path.insert(0, str(repo_root / "scripts"))
-        from forge.hook_guard import hook_decision
+        from forge.hook_guard import hook_decision, record_authorization
 
         code, reason = hook_decision(tool, prompt)
     except Exception as exc:
@@ -48,6 +48,20 @@ def main() -> int:
         print(f"[forge-gate] spawn refusé : {reason}. "
               f"Passe par forge.dispatch.prepare_dispatch (contrat validé) avant de spawner.",
               file=sys.stderr)
+    elif forge_scope:
+        # RÉPARATION (post-mortem pacman 2026-08-07, lot A réparation 3) : le hook
+        # AUTORISE ce spawn (code == 0, marqueur FORGE_DISPATCH présent) -> trace
+        # `spawn_authorized` AVANT de rendre la main. `record_authorization` était
+        # implémentée et testée (forge.hook_guard) mais jamais appelée ici — c'est
+        # le seul appelant légitime documenté dans sa propre docstring, d'où
+        # `spawn_authorized` mesuré à 0/1418. Best-effort strict (jamais lever) :
+        # une trace non écrite dégrade la preuve, elle ne doit JAMAIS transformer
+        # un spawn déjà autorisé en refus — le hook a déjà rendu sa décision au
+        # moment où cet appel a lieu, il ne peut plus la changer.
+        try:
+            record_authorization(prompt)
+        except Exception:  # noqa: BLE001 — best-effort, jamais bloquant
+            pass
     return code
 
 

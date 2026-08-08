@@ -38,6 +38,20 @@ SCHEMA_VERSION = "observer.run.v0"
 
 _ATTEMPT_RE = re.compile(r"-run(\d+)-")
 
+# En-dessous de ce seuil, un `ts` decode n'est pas un instant plausible du
+# studio (epoch 0.0 = 1970-01-01, observe sur des recus signes de la Forge —
+# voir studio_brain/journal/2026-08-07_postmortem_pacman_forge.md). Un ts
+# declare sous ce seuil est traite comme ABSENT pour les fenetres temporelles :
+# l'evenement reste compte, mais ne peut plus dater ni allonger un run. La
+# regle du studio : une valeur declaree se compare au reel, elle ne s'invente
+# jamais — donc on ne la corrige pas non plus, on l'ecarte et on la signale
+# (cf. `detect_drift`, type `ts_declare_invalide`).
+_MIN_PLAUSIBLE_TS = 1577836800.0  # 2020-01-01T00:00:00Z
+
+
+def _is_plausible_ts(ts: Optional[float]) -> bool:
+    return ts is not None and ts >= _MIN_PLAUSIBLE_TS
+
 # Ordre de la chaine canonique : sert a ranger les evenements d'une etape.
 CHAIN_ORDER: dict[str, int] = {
     "run.declared": 0,
@@ -129,16 +143,38 @@ def attempt_index(run_id: str) -> Optional[int]:
 
 
 def _window(events: Iterable[Event]) -> dict[str, Any]:
-    stamps = [e.ts for e in events if e.ts is not None]
+    stamps: list[float] = []
+    invalid = 0
+    for e in events:
+        if e.ts is None:
+            continue
+        if not _is_plausible_ts(e.ts):
+            invalid += 1
+            continue
+        stamps.append(e.ts)
     if not stamps:
-        return {"start": None, "end": None, "duration_s": None, "dated_events": 0}
+        result: dict[str, Any] = {
+            "start": None,
+            "end": None,
+            "duration_s": None,
+            "dated_events": 0,
+        }
+        if invalid:
+            result["ts_invalides"] = invalid
+        return result
     start, end = min(stamps), max(stamps)
-    return {
+    result = {
         "start": iso(start),
         "end": iso(end),
         "duration_s": round(end - start, 3),
         "dated_events": len(stamps),
     }
+    if invalid:
+        # Des evenements portent un ts hors plage (ecarte du calcul ci-dessus,
+        # jamais silencieusement) : `dated_events` ne compte que les valides,
+        # `ts_invalides` rend le reste visible plutot que de le faire disparaitre.
+        result["ts_invalides"] = invalid
+    return result
 
 
 def _actor_summary(events: Iterable[Event]) -> dict[str, Any]:
@@ -606,6 +642,33 @@ def detect_drift(events: list[Event], runs: list[dict[str, Any]]) -> list[dict[s
                                   "une fenetre de session rattachee a ce run",
                     }
                 )
+
+    # 6. Horodatage declare invalide (epoch <= 0 ou avant 2020). Regroupe par
+    # (run_id, kind, fichier source) pour ne pas noyer le rapport quand la
+    # meme source signe systematiquement ts=0.0 (cas mesure : oracle.result et
+    # verdict.signed d'un run pacman entier). L'evenement lui-meme reste compte
+    # ailleurs — seule la fenetre temporelle l'ignore (cf. `_window`).
+    invalid_groups: dict[tuple, list[Event]] = defaultdict(list)
+    for ev in events:
+        if ev.ts is not None and not _is_plausible_ts(ev.ts):
+            invalid_groups[(ev.run_id, ev.kind, ev.source.path)].append(ev)
+    for (run_id, kind, _path), evs in invalid_groups.items():
+        raw_examples = sorted({e.ts_raw for e in evs if e.ts_raw is not None})[:5]
+        drift.append(
+            {
+                "type": "ts_declare_invalide",
+                "severity": "medium",
+                "run_id": run_id,
+                "kind": kind,
+                "detail": "horodatage declare hors plage plausible (<=0 ou avant "
+                          "2020-01-01) — traite comme absent pour le calcul des "
+                          "fenetres de run ; l'evenement reste compte ailleurs, "
+                          "seule sa date est ecartee",
+                "count": len(evs),
+                "ts_raw_examples": raw_examples,
+                "source": evs[0].source.to_dict(),
+            }
+        )
 
     return drift
 
