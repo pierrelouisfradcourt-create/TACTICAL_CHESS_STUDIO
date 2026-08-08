@@ -35,12 +35,31 @@ SCHEMA_VERSION = "observer.event.v0"
 # Niveaux de preuve
 # --------------------------------------------------------------------------- #
 
-PROOF_SIGNED = "SIGNED"                # trace mecanique + HMAC verifiable
+PROOF_SIGNED = "SIGNED"                # HMAC PRESENT ET VERIFIE CRYPTOGRAPHIQUEMENT
+                                        # (P4 INV-2, 2026-08-07) : Observer a relu la cle
+                                        # scripts/forge/.forge_key et confronte le HMAC au
+                                        # corps de l'enregistrement — pas seulement constate
+                                        # la presence du champ. Voir observer.signature.
+PROOF_SIGNED_UNVERIFIABLE = "SIGNED_UNVERIFIABLE"  # hmac present, cle de signature absente
+                                        # ou illisible depuis ce contexte -> Observer ne PEUT
+                                        # PAS trancher. Distinct de SIGNED : ne compte jamais
+                                        # comme preuve dure.
+PROOF_SIGNED_INVALID = "SIGNED_INVALID"  # hmac present, cle lisible, signature qui NE
+                                        # correspond PAS au corps -> falsification probable
+                                        # ou corruption. Produit toujours un drift.detected
+                                        # severite haute cote adaptateur.
 PROOF_MECHANICAL = "MECHANICAL"        # produite par du code, non falsifiable par l'agent
 PROOF_SELF_DECLARED = "SELF_DECLARED"  # prose ecrite par l'agent sur son propre travail
 PROOF_INFERRED = "INFERRED"            # deduit par Observer, pas lu tel quel
 
-PROOF_LEVELS = (PROOF_SIGNED, PROOF_MECHANICAL, PROOF_SELF_DECLARED, PROOF_INFERRED)
+PROOF_LEVELS = (
+    PROOF_SIGNED,
+    PROOF_SIGNED_UNVERIFIABLE,
+    PROOF_SIGNED_INVALID,
+    PROOF_MECHANICAL,
+    PROOF_SELF_DECLARED,
+    PROOF_INFERRED,
+)
 
 # --------------------------------------------------------------------------- #
 # Niveaux de rattachement a un run
@@ -112,6 +131,11 @@ KINDS: frozenset[str] = frozenset(
         "wiremap.line",
         # depot
         "git.commit",
+        # presence generique — fichier du run_dir qu'aucun collecteur specifique
+        # n'a reclame (P2 routage, 2026-08-08). Ne remplace jamais un evenement
+        # deja produit par un collecteur specifique : n'existe QUE pour les
+        # fichiers restes orphelins apres le passage de tous les autres.
+        "run.artifact_present",
     }
 )
 

@@ -43,15 +43,32 @@ from observer.events import (
     LINK_NONE,
     PROOF_MECHANICAL,
     PROOF_SIGNED,
+    PROOF_SIGNED_INVALID,
+    PROOF_SIGNED_UNVERIFIABLE,
     Actor,
     Event,
     Source,
     extract_attempt,
     normalize_ts,
 )
+from observer.signature import INVALID as _SIG_INVALID
+from observer.signature import UNVERIFIABLE as _SIG_UNVERIFIABLE
+from observer.signature import VERIFIED as _SIG_VERIFIED
+from observer.signature import verify_envelope
 from observer.sources import ObserverContext
 
 NAME = "forge_evidence"
+
+# P4 INV-2 : meme table de traduction que forge_run.py (statut de verification
+# HMAC -> proof d'evenement). Duplique ICI plutot qu'importe entre adaptateurs
+# freres (pas de dependance croisee entre adaptateurs, chacun est autonome par
+# construction du module `adapters`) ; la regle DE VERIFICATION elle-meme
+# reste UN SEUL point d'appel (`observer.signature.verify_envelope`).
+_PROOF_BY_SIG_STATUS = {
+    _SIG_VERIFIED: PROOF_SIGNED,
+    _SIG_INVALID: PROOF_SIGNED_INVALID,
+    _SIG_UNVERIFIABLE: PROOF_SIGNED_UNVERIFIABLE,
+}
 
 LOG = logging.getLogger("observer.adapters.forge_evidence")
 
@@ -148,11 +165,39 @@ def _collect_dispatch(ctx: ObserverContext, path: Path) -> list[Event]:
             }
         )
 
+        # P4 INV-2 : `proof=SIGNED` n'est plus accorde a la simple presence du
+        # champ `hmac` — la signature est REVERIFIEE via forge.audit.verify_audit_line
+        # (meme convention d'enveloppe, appelee ici par `observer.signature`).
+        rel = ctx.rel(path)
+        sig_status = verify_envelope(obj)
+        proof = _PROOF_BY_SIG_STATUS.get(sig_status, PROOF_SIGNED_UNVERIFIABLE)
+        if sig_status == _SIG_INVALID:
+            events.append(
+                Event(
+                    kind="drift.detected",
+                    source=Source(path=rel, fmt="jsonl", line=lineno),
+                    proof=PROOF_MECHANICAL,
+                    link=LINK_NONE,
+                    run_id=run_id,
+                    project=ctx.project,
+                    payload={
+                        "drift_kind": "signature_invalid",
+                        "severity": "high",
+                        "subject": kind,
+                        "detail": f"{rel}:{lineno} : hmac present, cle lisible, "
+                                  "signature invalide sur cette ligne d'audit de spawn",
+                    },
+                    note="signature HMAC presente mais NE correspond PAS au corps de "
+                         "l'enregistrement (cle lisible) — falsification ou corruption "
+                         "probable",
+                )
+            )
+
         events.append(
             Event(
                 kind=kind,
-                source=Source(path=ctx.rel(path), fmt="jsonl", line=lineno),
-                proof=PROOF_SIGNED,
+                source=Source(path=rel, fmt="jsonl", line=lineno),
+                proof=proof,
                 link=LINK_DIRECT,
                 ts=ts,
                 ts_raw=ts_raw,

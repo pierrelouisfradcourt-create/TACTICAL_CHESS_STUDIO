@@ -26,6 +26,7 @@ from observer.adapters import load_adapters  # noqa: E402
 from observer.correlate import prompt_drift, reconstruct  # noqa: E402
 from observer.events import Event  # noqa: E402
 from observer.facts import build_facts, summarize  # noqa: E402
+from observer.session_transition import build as build_session_transition  # noqa: E402
 from observer.views import build_views  # noqa: E402
 from observer.sources import (  # noqa: E402
     BlindnessViolation,
@@ -237,6 +238,12 @@ def main(argv: list[str] | None = None) -> int:
     # rendraient l'outil invérifiable.
     result["views"] = build_views(result, event_dicts, prompts=prompts, ctx=ctx)
 
+    # Routage P2 (2026-08-08) : classement des artefacts du run_dir selon la
+    # loi de routage verrouillee (donnee explicite -> regle citant son champ ->
+    # destination ; sinon REVIEW_REQUIRED). Ecrit UNIQUEMENT dans ce meme
+    # observer_run.json, jamais un fichier separe.
+    result["session_transition"] = build_session_transition(result, event_dicts, ctx)
+
     out_dir = args.out or (args.repo / "lab" / "reports" / "observer" / args.project)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -267,6 +274,11 @@ def main(argv: list[str] | None = None) -> int:
     print(f"sans preuve  : {len(summary['faits_sans_provenance'])}")
     print(f"drift        : {len(result['drift'])}")
     print(f"sources lues : {len(result['sources_read'])}")
+    st = result["session_transition"]
+    st_dest_counts: Counter = Counter()
+    for run_entry in st["by_run"].values():
+        st_dest_counts.update(run_entry["routing_coverage"]["by_destination"])
+    print(f"routage      : {sum(st_dest_counts.values())} fichier(s) {dict(st_dest_counts)}")
     print(f"sortie       : {json_path}")
     print(f"               {md_path}")
     return 0

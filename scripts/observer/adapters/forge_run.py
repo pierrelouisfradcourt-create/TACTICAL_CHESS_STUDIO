@@ -44,19 +44,67 @@ from observer.events import (
     Event,
     LINK_DIRECT,
     LINK_FILENAME,
+    LINK_NONE,
     LINK_PATH,
     PROOF_MECHANICAL,
     PROOF_SELF_DECLARED,
     PROOF_SIGNED,
+    PROOF_SIGNED_INVALID,
+    PROOF_SIGNED_UNVERIFIABLE,
     Source,
     extract_attempt,
     normalize_ts,
 )
+from observer.signature import INVALID as _SIG_INVALID
+from observer.signature import UNVERIFIABLE as _SIG_UNVERIFIABLE
+from observer.signature import VERIFIED as _SIG_VERIFIED
+from observer.signature import verify_envelope
 from observer.sources import ObserverContext
 
 LOG = logging.getLogger("observer.forge_run")
 
 NAME = "forge_run"
+
+# P4 INV-2 : SIGNED = signature HMAC verifiee, pas seulement presente. Cette
+# table traduit le verdict de `observer.signature.verify_envelope` en `proof`
+# d'evenement — vocabulaire d'events.py, jamais un vocabulaire parallele.
+_PROOF_BY_SIG_STATUS = {
+    _SIG_VERIFIED: PROOF_SIGNED,
+    _SIG_INVALID: PROOF_SIGNED_INVALID,
+    _SIG_UNVERIFIABLE: PROOF_SIGNED_UNVERIFIABLE,
+}
+
+
+def _signed_proof(envelope: dict, key_file: Path | None = None) -> tuple[str, str]:
+    """Verifie l'enveloppe et retourne (proof, sig_status). ABSENT (pas de champ
+    hmac) degrade en PROOF_SIGNED_UNVERIFIABLE : la source PRETEND etre une
+    trace signee (elle passait deja par ce chemin de collecte) mais n'a rien a
+    verifier — jamais assimile silencieusement a un SIGNED verifie."""
+    status = verify_envelope(envelope, key_file)
+    return _PROOF_BY_SIG_STATUS.get(status, PROOF_SIGNED_UNVERIFIABLE), status
+
+
+def _drift_invalid_signature(
+    *, kind_verifie: str, rel: str, run_id: Optional[str], project: Optional[str], detail: str
+) -> Event:
+    """Reçu à signature INVALIDE : DRIFT sévérité haute, jamais une exception levée
+    (l'agrégat reste lisible ; c'est Pierre/HumanGate qui doit voir le signal)."""
+    return Event(
+        kind="drift.detected",
+        source=Source(path=rel, fmt="json"),
+        proof=PROOF_MECHANICAL,
+        link=LINK_NONE,
+        run_id=run_id,
+        project=project,
+        payload={
+            "drift_kind": "signature_invalid",
+            "severity": "high",
+            "subject": kind_verifie,
+            "detail": detail,
+        },
+        note="signature HMAC presente mais NE correspond PAS au corps de l'enregistrement "
+             "(cle lisible) — falsification ou corruption probable",
+    )
 
 # --------------------------------------------------------------------------- #
 # Motifs
@@ -71,6 +119,21 @@ _TASKS_FILENAME_RE = re.compile(r"^tasks_run(\d+)\.json$")
 _RESULT_LINE_RE = re.compile(
     r"===\s*RESULT:\s*(\d+)\s*passed,\s*(\d+)\s*failed\s*\(fichiers:\s*(\d+)\)\s*==="
 )
+
+# Format `node --test` (P2 routage, 2026-08-08) : jusqu'ici `evidence/oracle_*.log`
+# n'etait parse que pour le format Godot ci-dessus (`=== RESULT: ... ===`) ; un run
+# oracle `node --test` (profil patch, mesure sur driver_smoke_v3/v4) produisait donc
+# ZERO evenement bien que le fichier soit lu. Diagnostic verifie sur driver_smoke_v4
+# avant d'ecrire ces regex : le fichier commence par `$ node --test <fichier>` puis
+# `(cwd=<chemin absolu>)`, et le resume `node:test` porte `tests N` / `pass N` /
+# `fail N` sur des lignes separees (prefixees d'un symbole qui arrive corrompu dans
+# le fichier source lui-meme — double encodage UTF-8 en amont, non corrige ici :
+# les chiffres restent ASCII et le motif matche independamment du prefixe).
+_NODE_TEST_CMD_RE = re.compile(r"^\$\s*(?P<cmd>.+)$", re.MULTILINE)
+_NODE_TEST_CWD_RE = re.compile(r"\(cwd=(?P<cwd>[^)]+)\)")
+_NODE_TEST_TESTS_RE = re.compile(r"\btests\s+(\d+)\b")
+_NODE_TEST_PASS_RE = re.compile(r"\bpass\s+(\d+)\b")
+_NODE_TEST_FAIL_RE = re.compile(r"\bfail\s+(\d+)\b")
 
 # Ligne de run.log : "2026-07-31 11:11:49,660 INFO forge.driver: message"
 _DRIVER_LOG_TS_RE = re.compile(
@@ -106,6 +169,7 @@ _CONTEXT_MANIFEST_FIELDS = (
 _REASONING_FIELDS = ("capability_role", "declared", "declared_status", "git_head", "hmac")
 _TOOLS_FIELDS = ("declared", "loaded", "git_head", "hmac")
 _GUARD_FIELDS = (
+    "schema",
     "phase",
     "status",
     "baseline_combined_sha256",
@@ -220,8 +284,74 @@ def _collect_attempt_dir(ctx: ObserverContext, base: Path) -> list[Event]:
     _collect_wiremap(ctx, base, dir_run_id, events)
     _collect_salvage(ctx, base, dir_run_id, events)
     _collect_driver_logs(ctx, base, dir_run_id, events)
+    _collect_generic_presence(ctx, base, dir_run_id, events)
 
     return events
+
+
+# --------------------------------------------------------------------------- #
+# Marche generique — presence de tout fichier qu'aucun collecteur specifique
+# n'a reclame (P2 routage, 2026-08-08)
+# --------------------------------------------------------------------------- #
+
+
+def _collect_generic_presence(
+    ctx: ObserverContext, base: Path, dir_run_id: Optional[str], events: list[Event]
+) -> None:
+    """Emet `run.artifact_present` pour tout fichier du dossier de tentative
+    qu'aucun `_collect_*` ci-dessus n'a deja transforme en evenement.
+
+    S'execute EN DERNIER, apres tous les collecteurs specifiques : `covered` est
+    calcule sur les evenements deja produits par CE dossier de tentative, jamais
+    sur une liste codee en dur de noms de fichiers. Objectif mesure (mission P2) :
+    100% des fichiers du run_dir recoivent un evenement, meme les orphelins
+    connus (`oracles_override.json`, `rapport_redteam_code.md`, `run.log`) —
+    ceux-la restent volontairement REVIEW_REQUIRED au routage, ce module ne fait
+    que les rendre VISIBLES, jamais ne les classe.
+
+    Purement additif : un fichier deja source d'un evenement n'en recoit jamais
+    un second par ce chemin (pas de double-comptage), et un dossier de tentative
+    archive (sous-dossier de `base`, ex. `_run2_...`) est traite separement par
+    son propre appel a `_collect_attempt_dir` — seuls les fichiers DIRECTEMENT
+    sous `base` sont concernes ici (les sous-dossiers de tentative archivee ne
+    sont pas des fichiers de CETTE tentative).
+    """
+    if not ctx.exists(base):
+        return
+    covered = {e.source.path for e in events}
+    for path in ctx.iter_files(base, "*"):
+        if not path.is_file():
+            continue
+        # Un sous-dossier de tentative archivee (`_run*`, `_blocked*`, `_halted*`)
+        # est une tentative a part entiere, deja parcourue par son propre appel :
+        # ses fichiers ne sont pas comptes ici, pour ne jamais les attribuer au
+        # mauvais run_id.
+        try:
+            relative_to_base = path.relative_to(base)
+        except ValueError:
+            continue
+        if len(relative_to_base.parts) > 1 and _ATTEMPT_DIR_RE.match(relative_to_base.parts[0]):
+            continue
+        rel = ctx.rel(path)
+        if rel in covered:
+            continue
+        size = ctx.stat_size(path)
+        sha256 = ctx.sha256_of(path)
+        payload: dict[str, Any] = {"size_bytes": size}
+        if sha256 is not None:
+            payload["sha256"] = sha256
+        events.append(
+            Event(
+                kind="run.artifact_present",
+                source=Source(path=rel, fmt=path.suffix.lstrip(".") or "bin"),
+                proof=PROOF_MECHANICAL,
+                link=LINK_PATH,
+                run_id=dir_run_id,
+                payload=payload,
+                note="fichier du run_dir sans collecteur specifique — presence "
+                     "constatee par la marche generique, jamais classee ici",
+            )
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -358,13 +488,31 @@ def _collect_one_verdict(
             f"state.json du meme dossier ({dir_run_id})"
         )
 
+    # P4 INV-2 : la signature couvre TOUT le dict `verdict` (asdict(AggregateVerdict)
+    # + hmac, cf. forge.verdict.signed_aggregate_record) — `oracles` est INCLUS dans
+    # le corps signe. Un seul calcul ici ; le statut se propage a `verdict.signed`,
+    # `oracle.result` et aux metriques de detail issues du MEME fichier : verifier
+    # deux fois la meme enveloppe n'apprendrait rien de plus.
+    verdict_proof, verdict_sig_status = _signed_proof(verdict)
+    if verdict_sig_status == _SIG_INVALID:
+        events.append(
+            _drift_invalid_signature(
+                kind_verifie="verdict.signed",
+                rel=rel,
+                run_id=v_run_id or dir_run_id,
+                project=verdict.get("project"),
+                detail=f"verdict.json ({rel}) : hmac present, cle lisible, signature "
+                       "invalide sur le corps de l'agregat",
+            )
+        )
+
     ts_v, ts_raw_v, fmt_v = normalize_ts(verdict.get("ts"))
     payload_v = {k: verdict.get(k) for k in _VERDICT_FIELDS if k in verdict}
     events.append(
         Event(
             kind="verdict.signed",
             source=Source(path=rel, fmt="json"),
-            proof=PROOF_SIGNED,
+            proof=verdict_proof,
             link=LINK_DIRECT if v_run_id else LINK_PATH,
             ts=ts_v,
             ts_raw=ts_raw_v,
@@ -401,7 +549,7 @@ def _collect_one_verdict(
             Event(
                 kind="oracle.result",
                 source=Source(path=rel, fmt="json", field=f"oracles.{oracle_id}"),
-                proof=PROOF_SIGNED,
+                proof=verdict_proof,
                 link=LINK_DIRECT if o_run_id else LINK_PATH,
                 ts=ts_o,
                 ts_raw=ts_raw_o,
@@ -424,6 +572,7 @@ def _collect_one_verdict(
                 ts=ts_o,
                 ts_raw=ts_raw_o,
                 ts_fmt=fmt_o,
+                proof=verdict_proof,
                 events=events,
             )
 
@@ -438,6 +587,7 @@ def _emit_verdict_detail_metrics(
     ts_raw: Optional[str],
     ts_fmt: str,
     events: list[Event],
+    proof: str = PROOF_SIGNED,
 ) -> None:
     """Extrait `tests_executes`/`solvabilite` quand ils sont ecrits en clair
     dans le `detail` signe d'un oracle de verdict*.json, plutot que dans
@@ -457,7 +607,7 @@ def _emit_verdict_detail_metrics(
                 source=Source(
                     path=rel, fmt="json", field=f"oracles.{oracle_id}.detail.assertions"
                 ),
-                proof=PROOF_SIGNED,
+                proof=proof,
                 link=LINK_DIRECT if run_id else LINK_PATH,
                 ts=ts,
                 ts_raw=ts_raw,
@@ -480,7 +630,7 @@ def _emit_verdict_detail_metrics(
                 source=Source(
                     path=rel, fmt="json", field=f"oracles.{oracle_id}.detail.solvabilite"
                 ),
-                proof=PROOF_SIGNED,
+                proof=proof,
                 link=LINK_DIRECT if run_id else LINK_PATH,
                 ts=ts,
                 ts_raw=ts_raw,
@@ -531,11 +681,24 @@ def _emit_context_manifest(
     payload = {f: obj[f] for f in _CONTEXT_MANIFEST_FIELDS if f in obj}
     extra, note = _model_divergence(obj)
     payload.update(extra)
+    rel = ctx.rel(path)
+    proof, sig_status = _signed_proof(obj)
+    if sig_status == _SIG_INVALID:
+        events.append(
+            _drift_invalid_signature(
+                kind_verifie="dispatch.context_manifest",
+                rel=rel,
+                run_id=run_id,
+                project=None,
+                detail=f"{rel}:{lineno} : hmac present, cle lisible, signature "
+                       "invalide sur ce manifeste de contexte",
+            )
+        )
     events.append(
         Event(
             kind="dispatch.context_manifest",
-            source=Source(path=ctx.rel(path), fmt="jsonl", line=lineno),
-            proof=PROOF_SIGNED,
+            source=Source(path=rel, fmt="jsonl", line=lineno),
+            proof=proof,
             link=LINK_DIRECT if run_id else LINK_PATH,
             ts=ts,
             ts_raw=ts_raw,
@@ -564,11 +727,24 @@ def _emit_reasoning(
     attempt, attempt_field = extract_attempt(obj)
     ts, ts_raw, ts_fmt = normalize_ts(obj.get("ts"))
     payload = {f: obj[f] for f in _REASONING_FIELDS if f in obj}
+    rel = ctx.rel(path)
+    proof, sig_status = _signed_proof(obj)
+    if sig_status == _SIG_INVALID:
+        events.append(
+            _drift_invalid_signature(
+                kind_verifie="dispatch.reasoning",
+                rel=rel,
+                run_id=run_id,
+                project=None,
+                detail=f"{rel}:{lineno} : hmac present, cle lisible, signature "
+                       "invalide sur cet enregistrement de reasoning_observability",
+            )
+        )
     events.append(
         Event(
             kind="dispatch.reasoning",
-            source=Source(path=ctx.rel(path), fmt="jsonl", line=lineno),
-            proof=PROOF_SIGNED,
+            source=Source(path=rel, fmt="jsonl", line=lineno),
+            proof=proof,
             link=LINK_DIRECT if run_id else LINK_PATH,
             ts=ts,
             ts_raw=ts_raw,
@@ -596,11 +772,24 @@ def _emit_tools(
     attempt, attempt_field = extract_attempt(obj)
     ts, ts_raw, ts_fmt = normalize_ts(obj.get("ts"))
     payload = {f: obj[f] for f in _TOOLS_FIELDS if f in obj}
+    rel = ctx.rel(path)
+    proof, sig_status = _signed_proof(obj)
+    if sig_status == _SIG_INVALID:
+        events.append(
+            _drift_invalid_signature(
+                kind_verifie="dispatch.tools",
+                rel=rel,
+                run_id=run_id,
+                project=None,
+                detail=f"{rel}:{lineno} : hmac present, cle lisible, signature "
+                       "invalide sur cet enregistrement de tool_observability",
+            )
+        )
     events.append(
         Event(
             kind="dispatch.tools",
-            source=Source(path=ctx.rel(path), fmt="jsonl", line=lineno),
-            proof=PROOF_SIGNED,
+            source=Source(path=rel, fmt="jsonl", line=lineno),
+            proof=proof,
             link=LINK_DIRECT if run_id else LINK_PATH,
             ts=ts,
             ts_raw=ts_raw,
@@ -770,6 +959,46 @@ def _collect_oracle_log(
                     payload=solv_payload,
                 )
             )
+
+        node_payload = _find_node_test_summary(ctx, text)
+        if node_payload is not None:
+            events.append(
+                Event(
+                    kind="test.result",
+                    source=Source(path=rel, fmt="log"),
+                    proof=PROOF_MECHANICAL,
+                    link=LINK_PATH,
+                    run_id=dir_run_id,
+                    payload=node_payload,
+                )
+            )
+
+
+def _find_node_test_summary(ctx: ObserverContext, text: str) -> Optional[dict[str, Any]]:
+    """Resume `node --test` : `tests N` / `pass N` / `fail N`, plus `cwd`/`command`
+    quand l'en-tete `$ <commande>` / `(cwd=<chemin>)` est present. Tolerant : si le
+    resume est absent, retourne None sans deviner (meme discipline que les autres
+    extracteurs de ce fichier)."""
+    tests_m = _NODE_TEST_TESTS_RE.search(text)
+    pass_m = _NODE_TEST_PASS_RE.search(text)
+    fail_m = _NODE_TEST_FAIL_RE.search(text)
+    if not (tests_m and pass_m and fail_m):
+        return None
+    payload: dict[str, Any] = {
+        "tests": int(tests_m.group(1)),
+        "pass": int(pass_m.group(1)),
+        "fail": int(fail_m.group(1)),
+        "format": "node_test",
+    }
+    cwd_m = _NODE_TEST_CWD_RE.search(text)
+    if cwd_m:
+        raw_cwd = cwd_m.group("cwd").strip()
+        payload["cwd_raw"] = raw_cwd
+        payload["cwd"] = ctx.rel(Path(raw_cwd))
+    cmd_m = _NODE_TEST_CMD_RE.search(text)
+    if cmd_m:
+        payload["command"] = cmd_m.group("cmd").strip()
+    return payload
 
 
 def _find_solvability_block(text: str) -> Optional[dict[str, Any]]:

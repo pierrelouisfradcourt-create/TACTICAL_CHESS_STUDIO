@@ -296,6 +296,26 @@ class ObserverContext:
         resolved = self._check(path)
         return resolved.stat().st_size if resolved.is_file() else None
 
+    def sha256_of(self, path: Path, max_bytes: int = 5_000_000) -> Optional[str]:
+        """Empreinte SHA-256 du fichier, en octets bruts (pas de decodage texte —
+        certains fichiers du run_dir sont binaires). None si absent, trop gros
+        (`max_bytes`), ou illisible : Observer ne fabrique jamais une empreinte
+        qu'il n'a pas pu calculer."""
+        import hashlib
+
+        resolved = self._check(path)
+        if not resolved.is_file():
+            return None
+        try:
+            if resolved.stat().st_size > max_bytes:
+                return None
+            data = resolved.read_bytes()
+        except OSError as exc:
+            LOG.warning("lecture binaire impossible %s: %s", self.rel(path), exc)
+            return None
+        self.read_paths.append(self.rel(resolved))
+        return hashlib.sha256(data).hexdigest()
+
     # ------------------------------------------------------------------ #
     # Depot git — trace, pas fichier
     # ------------------------------------------------------------------ #
