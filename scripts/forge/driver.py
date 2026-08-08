@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -53,7 +54,7 @@ from forge.learning_memory import (
     premortem_lessons,
     promote_manifest_lessons,
 )
-from forge.oracle import OracleNotFound, resolve_oracle
+from forge.oracle import OracleNotFound, OracleSpec, resolve_oracle, run_oracle
 from forge.mutation_proof import (
     emit_descriptor_mutation_receipt,
     emit_mutation_receipt,
@@ -111,6 +112,7 @@ from forge.verify_run import verify_run
 from forge.verdict import (
     CLAIM_VERDICT,
     EVIDENCE_VERDICT,
+    _verify_mapping,
     build_aggregate_verdict,
     current_git_head,
     make_signed_receipt,
@@ -182,6 +184,7 @@ class ForgeDriver:
         reference_guard_derogation_path: Path | str | None = None,
         lessons_path: Path | str | None = None,
         failure_events_path: Path | str | None = None,
+        observer_runner=None,
     ) -> None:
         self.project = project
         self.run_id = run_id
@@ -281,6 +284,13 @@ class ForgeDriver:
         # réels de `forge.learning_memory` pour un run DANS le repo ; fichier
         # local isolé sinon, jamais le corpus partagé).
         self.failure_events_path = Path(failure_events_path) if failure_events_path else None
+        # P1 (Observer auto-déclenché en fin de run, post-mortem pacman 2026-08-07) :
+        # injectable comme lessons_path/failure_events_path ci-dessus — un test
+        # fournit un runner factice (aucun vrai sous-processus) pour couvrir
+        # succès/échec/timeout sans jamais appeler le CLI Observer réel. None =>
+        # comportement de PRODUCTION (`_default_observer_runner`, sous-processus
+        # réel `scripts/observer/cli.py --project <projet>`).
+        self.observer_runner = observer_runner or self._default_observer_runner
         self.state_path = self.run_dir / "state.json"
         self._premortem_cache: list[str] | None = None
         # s0-contrat mandatory_read (contracts/s0-contrat.yaml l.26) : "la Project
@@ -337,6 +347,7 @@ class ForgeDriver:
             self._save(state)
             self._regenerate_journal_index()
             self._promote_manifest_lessons_best_effort()
+            self._trigger_observer_best_effort(state)
             return self._final_report(state)
         finally:
             self._detach_run_log_handler(log_handler, log_previous_level)
@@ -460,6 +471,80 @@ class ForgeDriver:
                 "boucle d'apprentissage dégradée pour ce run)",
                 self.run_id, exc_info=True,
             )
+
+    def _default_observer_runner(self, project: str):
+        """Comportement de PRODUCTION de `observer_runner` : `scripts/observer/
+        cli.py --project <projet>`, exécuté depuis la racine du dépôt (chemins
+        relatifs de l'Observer), avec `sys.executable` (jamais un chemin de
+        python en dur — le venv actif peut différer d'une machine à l'autre).
+        `timeout=300` s : l'Observer sur un gros projet tourne ~2 min, 300s
+        laisse de la marge sans bloquer indéfiniment un run déjà terminé.
+
+        Délègue le lancement à `forge.oracle.run_oracle` — même mécanisme déjà
+        utilisé par l'étape déterministe s10a — plutôt que de lancer un process
+        ici : `test_driver_ne_spawn_pas_directement` (test EXISTANT, zone
+        protégée, jamais touché par ce lot) impose que `driver.py` reste une
+        machine à états pure, offline-capable ; le spawn de process appartient
+        à `oracle.py`, jamais au driver lui-même. `run_oracle` ne lève déjà
+        jamais sur timeout (retourne `returncode=-2`), donc le comportement
+        best-effort de `_trigger_observer_best_effort` ci-dessous reste valable
+        tel quel avec cette délégation."""
+        spec = OracleSpec(
+            project=f"observer-{project}",
+            cwd=_REPO_ROOT,
+            command=[sys.executable, "scripts/observer/cli.py", "--project", project],
+        )
+        return run_oracle(spec, evidence_dir=self.run_dir / "evidence", timeout=300)
+
+    def _trigger_observer_best_effort(self, state: dict) -> None:
+        """P1 (post-mortem pacman 2026-08-07) : déclenche l'Observer automatiquement
+        en fin de run réussi, juste après `_promote_manifest_lessons_best_effort`
+        (même point de fin de run). Le verdict signé (`s12-verdict`) est déjà écrit
+        quand cette méthode tourne : elle ne doit JAMAIS invalider un run — best
+        effort STRICT vis-à-vis de `run_status`/`software_verdict`, jamais de
+        `raise` qui remonte à `run()`.
+
+        MAIS l'échec n'est jamais silencieux (exigence distincte du best-effort
+        habituel de cette classe, même patron que `_promote_manifest_lessons_best_effort`) :
+        - `logger.warning(..., exc_info=True)` dans `run.log` (visible, tracé) ;
+        - `state["transition"]` persisté dans state.json via `self._save` : "OK" en
+          succès, "INCOMPLETE: <raison courte>" en échec (returncode non nul,
+          timeout, ou toute autre exception) — un opérateur qui relit state.json
+          voit l'incomplétude sans avoir à parser run.log.
+
+        `self.observer_runner` est injectable (constructeur, même patron que
+        `lessons_path`/`failure_events_path`) : les tests fournissent un runner
+        factice, aucun vrai sous-processus Observer n'est jamais lancé par la
+        suite de tests."""
+        logger.info(
+            "Observer: déclenchement project=%s run=%s", self.project, self.run_id,
+        )
+        start = time.monotonic()
+        try:
+            result = self.observer_runner(self.project)
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"observer cli.py returncode={result.returncode}"
+                )
+            duration = time.monotonic() - start
+            logger.info(
+                "Observer: terminé project=%s run=%s en %.2fs (returncode=0)",
+                self.project, self.run_id, duration,
+            )
+            state["transition"] = "OK"
+        except Exception as exc:  # noqa: BLE001 — best-effort NON SILENCIEUX : jamais bloquant, toujours journalisé
+            # Capture TOUTE exception (returncode non nul levé juste au-dessus en
+            # RuntimeError, timeout d'un runner injecté par un test, ou toute
+            # autre panne d'un `observer_runner` custom) — un seul chemin de
+            # sortie, jamais de raise qui remonte à `run()`.
+            duration = time.monotonic() - start
+            logger.warning(
+                "Observer: échec pour project=%s run=%s en %.2fs (non bloquant, "
+                "verdict déjà signé — jamais invalidé) : %s",
+                self.project, self.run_id, duration, exc, exc_info=True,
+            )
+            state["transition"] = f"INCOMPLETE: {exc}"
+        self._save(state)
 
     def _reference_guard_check(self, phase: str) -> None:
         """Câblage ADVISORY (FVL Phase 0.5, chantier `reference_protected` —
@@ -954,6 +1039,137 @@ class ForgeDriver:
         except Exception:  # noqa: BLE001 — lecture best-effort
             return []
 
+    def _open_humangate_flags(self) -> list[str]:
+        """P3-B (élargissement PROJET, lot dégel) : les `humangate_flags` du
+        DERNIER verdict SIGNÉ et VÉRIFIABLE du MÊME projet, cherché dans TOUS
+        les run_dir frères sous `self.run_dir.parent` — pas seulement
+        `self.run_dir` (cas réel qui a motivé ce lot : les lots pacman V3→V6
+        avaient chacun leur propre run_dir, tous vides ; les verdicts vivaient
+        dans `lab/forge_runs/pacman/`). `self.run_dir.parent` == la racine des
+        runs (`lab/forge_runs`, cf. `context_manifest.default_run_dir` :
+        `lab/forge_runs/<projet>` — même racine, aucun chemin codé en dur ici).
+
+        Règle ratifiée Pierre, à ne pas élargir : SEULS les flags du verdict
+        le plus récent comptent — aucun cumul de verdicts antérieurs, aucun
+        registre de résolution, aucune résolution manuelle ; un flag absent du
+        dernier verdict est réputé résolu.
+
+        GARDE-FOUS (chacun testé, `test_premortem_open_flags.py`) :
+          1. Le run COURANT n'est jamais lu, même si un `verdict*.json` existe
+             déjà dans son propre `run_dir` — identifié par `run_id`
+             (l'identifiant unique d'un run), PAS par répertoire : un
+             `run_dir` peut être partagé par plusieurs runs successifs (cas
+             réel `lab/forge_runs/pacman/` : `verdict.json` et
+             `verdict_v2.json` portent deux `run_id` différents dans le même
+             dossier). `_run_verdict` est le pas tardif s12 ; au moment du
+             pré-mortem le run courant n'a normalement pas encore écrit le
+             sien, mais on se protège explicitement de tout cas où il
+             existerait déjà (re-tentative, dossier réutilisé).
+          2. SCOPE PROJET par le champ SIGNÉ `project` du verdict lui-même —
+             jamais par une correspondance de NOM de dossier. Un nom de
+             dossier voisin (ex. `pacman_v2_autre` à côté de `pacman`) ne
+             peut donc jamais contaminer un autre projet : c'est le contenu
+             *authentifié* qui décide de l'appartenance, pas une heuristique
+             de préfixe/séparateur qu'un nom de dossier ambigu pourrait
+             tromper dans les deux sens.
+          3. SIGNATURE : seul un verdict portant un `hmac` valide (même
+             patron que `verify_run`/`audit.py`/`context_manifest.py` —
+             `_verify_mapping` sur le corps moins `hmac`) est éligible. Un
+             verdict sans `hmac`, illisible, corrompu ou dont la signature ne
+             correspond pas est ignoré avec un `logger.warning`, jamais une
+             exception.
+          4. ORDRE : tri par `ts` (epoch réel depuis 284df4c). Les verdicts
+             HISTORIQUES portent `ts: 0.0` au sommet (jamais retouchés, cf.
+             `test_verdict_timestamp_repair.py`) — dans ce cas on départage
+             par mtime du fichier (best-effort), puis par le chemin complet
+             (déterministe même à mtime égal entre deux dossiers différents).
+          5. Zéro verdict valide (aucun candidat, ou tous rejetés par 1-3) =>
+             liste vide — un `[]` ici documente « aucun point ouvert trouvé
+             pour CE run », jamais « je n'ai pas pu chercher » : une
+             recherche qui échoue à la RACINE (dossier illisible) rend aussi
+             `[]` mais journalise le pourquoi (cf. `except OSError` ci-
+             dessous) — la distinction vit dans les logs, pas dans la valeur
+             de retour (même discipline que le reste de cette classe : best-
+             effort, jamais d'état "inconnu" typé séparément).
+
+        Aucun plafond n'est appliqué à la liste rendue ici (contrairement à
+        `format_premortem_lessons`, `limit=5`) : la règle métier ne prévoit ni
+        éviction ni troncature des flags d'un même verdict.
+
+        Best-effort strict, même garantie que le reste de cette classe : une
+        recherche qui échoue ne casse jamais le run (retourne `[]`, jamais une
+        exception propagée) — additif pur, `_premortem` continue de
+        fonctionner exactement comme avant si tout échoue ici."""
+        try:
+            forge_runs_root = self.run_dir.parent
+            paths = sorted(forge_runs_root.glob("*/verdict*.json"))
+        except OSError:
+            return []
+        if not paths:
+            return []
+        scored: list[tuple[float, str, dict]] = []
+        for path in paths:
+            data = self._read_json(path)
+            if data is None:
+                logger.warning(
+                    "_open_humangate_flags: verdict illisible ignoré (%s)", path,
+                )
+                continue
+            # Garde 1 : jamais le verdict du run COURANT, identifié par run_id
+            # (pas par répertoire, cf. docstring).
+            if data.get("run_id") == self.run_id:
+                continue
+            # Garde 2 : scope PROJET strict sur le champ signé, pas le nom du
+            # dossier — un projet voisin au nom proche n'est jamais aspiré.
+            if data.get("project") != self.project:
+                continue
+            # Garde 3 : seul un verdict SIGNÉ et VÉRIFIABLE compte.
+            signature = data.get("hmac")
+            if not isinstance(signature, str) or not signature:
+                logger.warning(
+                    "_open_humangate_flags: verdict non signé ignoré (%s)", path,
+                )
+                continue
+            body = {k: v for k, v in data.items() if k != "hmac"}
+            try:
+                signature_ok = _verify_mapping(body, signature, self.key_file)
+            except Exception:  # noqa: BLE001 — vérification best-effort
+                signature_ok = False
+            if not signature_ok:
+                logger.warning(
+                    "_open_humangate_flags: signature HMAC invalide, verdict "
+                    "ignoré (%s)", path,
+                )
+                continue
+            ts = data.get("ts")
+            if not isinstance(ts, (int, float)) or ts <= 0:
+                try:
+                    ts = path.stat().st_mtime
+                except OSError:
+                    ts = 0.0
+            scored.append((float(ts), path.as_posix(), data))
+        if not scored:
+            return []
+        # Tri déterministe : `ts` (ou mtime de repli) croissant, puis chemin
+        # complet en départage final (deux `ts`/mtime identiques, y compris
+        # entre deux run_dir différents) — le DERNIER élément est le verdict
+        # retenu comme "le plus récent".
+        scored.sort(key=lambda item: (item[0], item[1]))
+        _, latest_path_str, latest_data = scored[-1]
+        flags = latest_data.get("humangate_flags")
+        if not isinstance(flags, list):
+            return []
+        lines = [
+            f"[OUVERT run précédent] {f}"
+            for f in flags if isinstance(f, str) and f.strip()
+        ]
+        if lines:
+            logger.info(
+                "_open_humangate_flags: %d flag(s) transmis depuis %s (run "
+                "précédent %s)", len(lines), latest_path_str, latest_data.get("run_id"),
+            )
+        return lines
+
     def _premortem(self) -> list[str]:
         # Lit le MÊME journal que celui où l'on écrit (même cible, même domaine) : une
         # nouvelle tentative voit ainsi l'échec qu'on vient de consigner. Best-effort.
@@ -983,8 +1199,13 @@ class ForgeDriver:
             # Concaténation ADDITIVE : le journal d'erreurs existant (connecteur 6)
             # reste inchangé en tête, les leçons playtest puis les leçons à statut/
             # génération (learning_memory) s'ajoutent à la suite — aucun texte
-            # existant n'est retiré ni réordonné.
-            self._premortem_cache = base + playtest_lines + self._premortem_lessons()
+            # existant n'est retiré ni réordonné. P3 (lot dégel) : les flags
+            # `humangate_flags` OUVERTS du dernier verdict signé du même projet
+            # s'ajoutent en dernier, même discipline additive.
+            self._premortem_cache = (
+                base + playtest_lines + self._premortem_lessons()
+                + self._open_humangate_flags()
+            )
         return self._premortem_cache
 
     def _project_bible(self) -> str:
