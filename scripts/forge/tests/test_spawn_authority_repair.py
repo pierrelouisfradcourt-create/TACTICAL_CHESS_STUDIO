@@ -160,10 +160,38 @@ def isolated_audit(tmp_path, monkeypatch):
 
 
 def _run_hook(monkeypatch, tool: str, prompt: str) -> int:
-    payload = {"tool_name": tool, "tool_input": {"prompt": prompt}}
-    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(payload)))
-    mod = _load_hook_module()
-    return mod.main()
+    """Payload conforme au contrat RÉEL du hook, mesuré par sonde le 2026-08-09 :
+    {session_id, transcript_path, cwd, prompt_id, permission_mode, effort,
+    hook_event_name, tool_name, tool_input, tool_use_id}.
+
+    L'ancien payload à deux champs décrivait une entrée QUI N'EXISTE PAS en
+    production. La couche 2 du hook (héritage d'autorité, ajoutée le 2026-08-09)
+    exige `transcript_path` pour résoudre le parent : son absence produisait
+    PARENT_NOT_FOUND ⇒ DENY dès que le témoin d'activation était armé. Le défaut
+    était dans la FIXTURE, pas dans le hook — un test qui construit lui-même son
+    entrée peut mesurer une fiction sans que rien ne le signale.
+
+    Aucune assertion n'est modifiée : seule l'entrée cesse d'être fictive. La
+    lignée est un parent `general-purpose` de profondeur 1 sous tmp jetable —
+    jamais un transcript réel."""
+    with tempfile.TemporaryDirectory(prefix="fx_lineage_") as tmp:
+        sub = Path(tmp) / "sess" / "subagents"
+        sub.mkdir(parents=True)
+        pid = "a" * 17
+        (sub / f"agent-{pid}.jsonl").write_text("{}\n", encoding="utf-8")
+        (sub / f"agent-{pid}.meta.json").write_text(
+            json.dumps({"agentType": "general-purpose",
+                        "toolUseId": "toolu_FX", "spawnDepth": 1}),
+            encoding="utf-8")
+        payload = {
+            "tool_name": tool,
+            "transcript_path": str(sub / f"agent-{pid}.jsonl"),
+            "tool_use_id": "toolu_FX",
+            "tool_input": {"prompt": prompt, "subagent_type": "Explore"},
+        }
+        monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(payload)))
+        mod = _load_hook_module()
+        return mod.main()
 
 
 def test_hook_authorizes_and_writes_spawn_authorized(tmp_path, monkeypatch, isolated_audit):
