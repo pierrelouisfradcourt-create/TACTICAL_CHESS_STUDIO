@@ -224,3 +224,6 @@ la tentative 1 validait `check_line_states` contre un référentiel dérivé de 
 **Prérequis avant s9 Godot** : export templates absents du poste · preuve visuelle = fenêtre GPU
 obligatoire · `s9-build-godot` orphelin de tout profil · tautologie R9 à re-vérifier · sort de la
 session parallèle `scripts/forge/adapters/godot/` à arbitrer.
+
+## driver_smoke_v6_20260808-run1 — 2026-08-08
+résultat         : projet=driver_smoke_v6_20260808 · statut=DONE · verdict=OK · ts=2026-08-08T20:40:02Z

@@ -185,6 +185,7 @@ class ForgeDriver:
         lessons_path: Path | str | None = None,
         failure_events_path: Path | str | None = None,
         observer_runner=None,
+        run_index_path: Path | str | None = None,
     ) -> None:
         self.project = project
         self.run_id = run_id
@@ -291,6 +292,13 @@ class ForgeDriver:
         # comportement de PRODUCTION (`_default_observer_runner`, sous-processus
         # réel `scripts/observer/cli.py --project <projet>`).
         self.observer_runner = observer_runner or self._default_observer_runner
+        # P4 (ranimer RUN_INDEX en fin de run, 2026-08-08) : chemin injectable
+        # comme lessons_path/failure_events_path ci-dessus. À LA DIFFÉRENCE de
+        # ces derniers, RUN_INDEX.md est un fichier CANONIQUE UNIQUE du dépôt
+        # (pas de routage par domaine, pas d'isolation implicite pour un
+        # run_dir hors dépôt) — voir `_run_index_target` : sans injection
+        # explicite, le défaut PRODUCTION est toujours le même fichier réel.
+        self.run_index_path = Path(run_index_path) if run_index_path else None
         self.state_path = self.run_dir / "state.json"
         self._premortem_cache: list[str] | None = None
         # s0-contrat mandatory_read (contracts/s0-contrat.yaml l.26) : "la Project
@@ -348,7 +356,9 @@ class ForgeDriver:
             self._regenerate_journal_index()
             self._promote_manifest_lessons_best_effort()
             self._trigger_observer_best_effort(state)
-            return self._final_report(state)
+            report = self._final_report(state)
+            self._append_run_index_best_effort(report)
+            return report
         finally:
             self._detach_run_log_handler(log_handler, log_previous_level)
 
@@ -545,6 +555,107 @@ class ForgeDriver:
             )
             state["transition"] = f"INCOMPLETE: {exc}"
         self._save(state)
+
+    def _run_index_target(self) -> Path:
+        """P4 (ranimer RUN_INDEX en fin de run, 2026-08-08) : cible de
+        `lab/forge_runs/RUN_INDEX.md` pour CET appel — MÊME patron d'injection
+        que `_lessons_target`/`_journal_target` (chemin explicite injecté au
+        constructeur => ce fichier exact, jamais le vrai).
+
+        À LA DIFFÉRENCE de ces deux-là : RUN_INDEX.md est un fichier CANONIQUE
+        UNIQUE du dépôt (déclaré append-only dans son propre en-tête depuis le
+        2026-07-26), pas un journal routé par domaine — il n'existe donc AUCUNE
+        isolation implicite pour un `run_dir` hors dépôt (contrairement à
+        `_journal_target`/`_lessons_target`, qui retombent sur un fichier LOCAL
+        au run_dir dans ce cas). Sans `run_index_path` injecté, le défaut est
+        TOUJOURS le fichier réel du dépôt — c'est pourquoi les tests de ce lot
+        DOIVENT injecter une copie, jamais compter sur une isolation
+        automatique par run_dir hors dépôt.
+
+        GARDE PYTEST (incident P4 précédent, revert Pierre) : si aucun
+        `run_index_path` n'est injecté ET que `PYTEST_CURRENT_TEST` est
+        présent (positionné par pytest lui-même pendant l'exécution d'un
+        test), refuse EXPLICITEMENT plutôt que de retomber silencieusement
+        sur le vrai fichier — c'est exactement le défaut mesuré (3 lignes
+        polluantes écrites dans le registre de production par les fixtures
+        du lot précédent, dont un run_id RÉEL de snake réétiqueté). La levée
+        est capturée par l'appelant best-effort (`_append_run_index_best_effort`)
+        qui la journalise en `logger.warning(..., exc_info=True)` — jamais une
+        redirection silencieuse, jamais une exception qui remonte au run. Un
+        run RÉEL (hors pytest, `PYTEST_CURRENT_TEST` absent) n'est jamais
+        concerné par cette garde."""
+        if self.run_index_path is not None:
+            return self.run_index_path
+        if os.environ.get("PYTEST_CURRENT_TEST"):
+            raise RuntimeError(
+                "run_index_path non injecté sous pytest "
+                f"(PYTEST_CURRENT_TEST={os.environ['PYTEST_CURRENT_TEST']!r}) — "
+                "refus d'écrire dans le registre réel lab/forge_runs/RUN_INDEX.md "
+                "(garde P4, incident du lot précédent : jamais de redirection "
+                "silencieuse)"
+            )
+        return _REPO_ROOT / "lab" / "forge_runs" / "RUN_INDEX.md"
+
+    def _append_run_index_best_effort(self, report: dict) -> None:
+        """P4 (ranimer RUN_INDEX en fin de run, post-mortem pacman 2026-08-07) :
+        `lab/forge_runs/RUN_INDEX.md` s'est déclaré append-only le 2026-07-26
+        (« une entrée par run, jamais réécrite ») puis s'est arrêté le
+        2026-07-28 (dernière entrée `snake-20260728-091302`, ~41 runs
+        postérieurs absents). Appelée juste après `_trigger_observer_best_effort`
+        (même point de fin de run — même patron), sur le REPORT déjà calculé par
+        `_final_report` (verdict déjà signé, jamais recalculé ici).
+
+        Réutilise EXACTEMENT le format d'en-tête existant du fichier (§« Format
+        d'une entrée », lignes 10-23 : `## <run_id> — <date>`) — n'invente
+        aucune mise en page nouvelle. Périmètre verrouillé par Pierre, RIEN
+        D'AUTRE que : run_id (dans l'en-tête), timestamp RÉEL, projet, statut,
+        verdict — pas les champs narratifs (mission/objectif/décisions
+        liées/instruments/critères AVANT/erreurs/apprentissages/actions
+        suivantes) du gabarit humain : ces champs restent l'écriture d'un
+        agent/humain sur un run analysé, pas un ajout mécanique en fin de run.
+
+        Best-effort **NON SILENCIEUX** (même exigence que
+        `_promote_manifest_lessons_best_effort`/`_trigger_observer_best_effort`
+        juste au-dessus) : une exception (fichier verrouillé, chemin invalide,
+        permission, disque plein) est journalisée en
+        `logger.warning(..., exc_info=True)`, JAMAIS levée — le verdict est
+        déjà signé quand cette méthode tourne, elle ne doit jamais l'invalider.
+        Décision explicite (contrairement à `_trigger_observer_best_effort`) :
+        AUCUN état n'est persisté dans `state.json` en cas d'échec — cet index
+        est un confort de lecture humaine, pas une transition inter-run ; son
+        échec est tracé en log, pas dans l'état du run.
+
+        Idempotent sur `run_id` — jamais sur un numéro de ligne (le studio a
+        déjà mesuré deux fois, cf. mémoire studio, qu'une identité fondée sur
+        la position est invalidée par tout décalage) : recherche l'en-tête
+        exact `## {run_id} —` dans le fichier AVANT d'écrire ; s'il est déjà
+        présent, ne rajoute rien (rejouer le même run n'ajoute jamais de
+        doublon)."""
+        try:
+            path = self._run_index_target()
+            header_prefix = f"## {self.run_id} —"
+            existing = path.read_text(encoding="utf-8") if path.exists() else ""
+            if any(line.startswith(header_prefix) for line in existing.splitlines()):
+                return  # déjà présent — idempotent sur run_id, jamais un doublon
+            now = time.time()
+            date = time.strftime("%Y-%m-%d", time.gmtime(now))
+            ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now))
+            statut = report.get("status", "")
+            verdict = report.get("software_verdict", "")
+            entry = (
+                f"\n## {self.run_id} — {date}\n"
+                f"résultat         : projet={self.project} · statut={statut} · "
+                f"verdict={verdict} · ts={ts}\n"
+            )
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "a", encoding="utf-8") as fh:
+                fh.write(entry)
+        except Exception:  # noqa: BLE001 — best-effort NON SILENCIEUX : journalisé, jamais bloquant
+            logger.warning(
+                "run=%s : entrée RUN_INDEX non écrite (non bloquant, index de "
+                "confort humain dégradé pour ce run)",
+                self.run_id, exc_info=True,
+            )
 
     def _reference_guard_check(self, phase: str) -> None:
         """Câblage ADVISORY (FVL Phase 0.5, chantier `reference_protected` —
