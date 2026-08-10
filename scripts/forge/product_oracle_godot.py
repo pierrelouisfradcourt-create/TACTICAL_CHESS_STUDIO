@@ -38,6 +38,7 @@ import json
 import logging
 import re
 import subprocess
+import time
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -331,6 +332,288 @@ def run_godot_product_oracle(
             "checked": True,
             "fails": payload.get("fails", []),
             "fichier": str(path),
+            "payload": payload,
+        }
+
+    return result
+
+
+# =====================================================================================
+# ORACLE DE DIVERGENCE PRODUIT (P6, invariant INV-4 : tout paramètre déclaré doit
+# produire un effet runtime mesurable).
+#
+# ┌───────────────────────────────────────────────────────────────────────────────────┐
+# │ STATUT : PASSIVE / NOT_WIRED — ce sous-système n'est PAS une capacité active.      │
+# └───────────────────────────────────────────────────────────────────────────────────┘
+# Audit de réalité du 2026-08-10 (déclaration → producteur → consommateur → runtime →
+# preuve). Ce qui est VRAI : le code existe, il est testé (17 tests verts dans
+# `tests/test_product_oracle_godot_divergence.py`), et la convention d'emplacement est
+# réelle — `07_TESTS/oracle/` existe déjà dans 5 jeux (breakout_v2, pacman, pong, snake,
+# tetris). Ce qui MANQUE, mesuré :
+#
+#   · CONSOMMATEUR : aucun. `driver.py:70` n'importe que `has_godot_capacity` et
+#     `run_godot_product_oracle`. `run_divergence_oracle`, `has_divergence_capacity` et
+#     `discover_divergence_manifest` ne sont importés par personne hors leurs tests.
+#   · DONNÉE D'ENTRÉE : aucune. AUCUN jeu du dépôt ne porte de `divergence_manifest.json`.
+#     Même branché, ce mécanisme n'aurait rien à mesurer aujourd'hui.
+#   · PRODUCTEUR DE MANIFESTE : aucun, et aucun n'est déclaré — ni contrat d'étape, ni
+#     `standard/`, ni documentation. La prochaine étape n'est pas inscrite dans le dépôt.
+#
+# Pourquoi c'est écrit ici plutôt que corrigé : `IMPLEMENTED + TESTED + 0 consommateur
+# + 0 donnée d'entrée = PASSIVE`, jamais une capacité opérationnelle. Des tests verts ne
+# sont pas un critère de fin — c'est précisément le défaut architectural que la
+# réparation de la boucle de revue (commit 314fe19) vient d'éliminer ailleurs, et le
+# studio compte déjà plusieurs capteurs dans cette situation. Marquer le statut est la
+# règle « déclaré ≠ exécuté » : un sous-système inerte doit se déclarer inerte, sinon la
+# carte ment en silence.
+#
+# POUR L'ACTIVER, dans cet ordre : (1) décider qui produit `divergence_manifest.json` et
+# l'inscrire dans un contrat d'étape ; (2) brancher `run_divergence_oracle` au point
+# `s10a` de `driver.py`, où `run_godot_product_oracle` est déjà câblé ; (3) prouver sur
+# un jeu réel. Tant que (1) n'est pas tranché par HumanGate, (2) et (3) sont prématurés.
+#
+# GÉNÉRALISATION du test différentiel écrit À LA MAIN une seule fois pour Pac-Man
+# (`games/pacman/07_TESTS/oracle/v6_p1_mode_governs_lives.gd`, lot V6, 2026-08-06) : le
+# défaut mesuré alors — un mode de jeu déclaré, `godot_oracle` VERT à 2612 assertions,
+# 0 divergence d'état sur 200 tics entre les deux modes — n'avait été trouvé par AUCUN
+# oracle de la chaîne, seulement par une mesure différentielle ad hoc. Ce module la rend
+# RÉUTILISABLE : un paramètre par entrée de manifeste, une sonde Godot générique
+# (`godot_probes/divergence_probe.gd`, hors games/**), deux campagnes par paramètre
+# (CONTRÔLE + RÉEL), jamais réécrites à la main pour le prochain jeu.
+#
+# CONVENTION DE DÉCOUVERTE (nouvelle, lecture seule, même discipline que
+# `discover_oracle_files` ci-dessus) : `<game_dir>/07_TESTS/oracle/divergence_manifest.json`
+#   {"params": [{"id": "mode", "adapter": "res://.../adapter.gd" | "chemin/disque",
+#                "values": [v_a, v_b], "seed": 7, "ticks": 200,
+#                "ignore_keys": ["mode_jeu"]}, ...]}
+# Absence de manifeste (jeu non retrofit, ex. games/pacman — produit gelé, jamais
+# modifié par ce module) => mapping VIDE, jamais une erreur : exactement le même
+# comportement que `run_godot_product_oracle` sur un jeu sans oracle `.gd`.
+#
+# L'ADAPTATEUR (contrat documenté en tête de `divergence_probe.gd`) porte la
+# connaissance PROPRE AU JEU (comment construire un état, l'avancer, le projeter) ; ce
+# module et la sonde ne connaissent RIEN d'un jeu particulier — c'est ce qui rend la
+# capacité réutilisable d'un jeu à l'autre sans dupliquer l'instrument de mesure.
+#
+# `adapter` peut être un chemin `res://` (adaptateur livré DANS le projet du jeu, comme
+# les autres oracles `.gd`) ou un chemin DISQUE (relatif au repo racine, ou absolu) —
+# utile pour les preuves reconstituées hors du jeu (`lab/forge_evidence/...`), sans
+# jamais écrire sous `games/**`. Vérifié 2026-08-07 : `load()` résout un chemin disque
+# même sous un `--path` de projet différent.
+#
+# Discipline NOT_MEASURED != OK identique au reste du module : binaire absent, sortie
+# illisible, timeout, déclaration incomplète => `NOT_MEASURED` motivé, jamais un vert ni
+# un rouge fabriqué.
+
+DIVERGENCE_PROBE_PATH = Path(__file__).resolve().parent / "godot_probes" / "divergence_probe.gd"
+_DIVERGENCE_MANIFEST_REL = Path("07_TESTS") / "oracle" / "divergence_manifest.json"
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+
+# Budget par défaut si l'entrée du manifeste ne le déclare pas.
+DEFAULT_DIVERGENCE_SEED = 7
+DEFAULT_DIVERGENCE_TICKS = 200
+
+
+def discover_divergence_manifest(game_dir: Path) -> dict | None:
+    """Lit `<game_dir>/07_TESTS/oracle/divergence_manifest.json` (lecture seule).
+    `None` si le fichier est absent, illisible, JSON invalide, de forme non-dict, ou
+    sans clé `params` de type liste — JAMAIS une exception. L'absence de manifeste
+    signifie « ce jeu n'a pas encore été retrofit sur cette capacité », pas une erreur :
+    c'est la mesure de CAPACITÉ, symétrique de `discover_oracle_files`."""
+    path = Path(game_dir) / _DIVERGENCE_MANIFEST_REL
+    if not path.is_file():
+        return None
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        logger.warning("product_oracle_godot: manifeste de divergence illisible (%s)", exc)
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    params = parsed.get("params")
+    if not isinstance(params, list):
+        return None
+    return parsed
+
+
+def has_divergence_capacity(game_dir: Path) -> bool:
+    """CAPACITÉ constatée : au moins un paramètre déclaré dans le manifeste de
+    divergence de ce jeu."""
+    manifest = discover_divergence_manifest(game_dir)
+    return bool(manifest and manifest.get("params"))
+
+
+def _resolve_adapter_path(adapter: str) -> str:
+    """`res://...` est laissé tel quel (résolu par Godot via `--path <game_dir>`).
+    Toute autre valeur est traitée comme un chemin DISQUE : absolu tel quel, sinon
+    résolu relativement à la racine du dépôt (convention des chemins de preuve sous
+    `lab/forge_evidence/...`)."""
+    if adapter.startswith("res://"):
+        return adapter
+    candidate = Path(adapter)
+    if not candidate.is_absolute():
+        candidate = (_REPO_ROOT / candidate)
+    return str(candidate).replace("\\", "/")
+
+
+def _default_divergence_runner(
+    binary: str, game_dir: Path, probe_script: Path, user_args: list[str], *, timeout_s: int
+) -> dict:
+    """Exécute réellement `godot --headless --path <game_dir> --script
+    <divergence_probe.gd absolu> -- <user_args>`. Jamais utilisé par les tests de ce
+    module (`runner` injecté à la place)."""
+    try:
+        proc = subprocess.run(
+            [binary, "--headless", "--path", str(game_dir), "--script", str(probe_script),
+             "--", *user_args],
+            capture_output=True, text=True, timeout=timeout_s,
+            encoding="utf-8", errors="replace",
+        )
+    except subprocess.TimeoutExpired:
+        return {"ok": None, "timeout": True, "returncode": None, "stdout": "", "stderr": ""}
+    except OSError as exc:
+        return {"ok": None, "error": str(exc), "returncode": None, "stdout": "", "stderr": ""}
+    return {
+        "returncode": proc.returncode,
+        "stdout": proc.stdout,
+        "stderr": proc.stderr,
+    }
+
+
+def run_divergence_oracle(
+    game_dir: Path,
+    *,
+    binary_resolver=None,
+    runner=None,
+    timeout_s: int = 60,
+    probe_script: Path | None = None,
+) -> dict:
+    """Découvre le manifeste de divergence du jeu, exécute la sonde générique
+    `divergence_probe.gd` une fois PAR PARAMÈTRE déclaré (un process par paramètre), et
+    rend un mapping PLAT `{"divergence_<id>": {...}}` — même contrat que
+    `run_godot_product_oracle`, consommable par `check_observable_coverage`.
+
+    Chaque volet résultat porte :
+      - `status` : OK (contrôle à 0 ET réel > 0) | FAIL (contrôle bruité OU paramètre
+        inerte) | NOT_MEASURED (binaire absent, déclaration incomplète, exécution
+        illisible/timeout) ;
+      - `fails` : raisons NOMMÉES (le paramètre, les clés d'état comparées) — jamais un
+        simple booléen ;
+      - `controle`/`reel` : `{ticks, ticks_divergents, cles}` des deux campagnes ;
+      - `cout_ms` : durée mesurée côté sonde (Godot) ; `host_duration_ms` : durée
+        mesurée côté appelant (inclut le lancement du process) — le COÛT PAR PARAMÈTRE
+        que ce capteur devra payer à chaque lot, tel que demandé par la mission.
+    """
+    game_dir = Path(game_dir)
+    binary_resolver = binary_resolver or _default_binary_resolver
+    runner = runner or _default_divergence_runner
+    probe_script = probe_script or DIVERGENCE_PROBE_PATH
+
+    manifest = discover_divergence_manifest(game_dir)
+    params = (manifest or {}).get("params") or []
+    if not params:
+        return {}
+
+    try:
+        binary = binary_resolver()
+    except Exception as exc:  # noqa: BLE001 — absence de mesure, jamais une exception
+        reason = f"binaire Godot introuvable/non configuré : {exc}"
+        logger.warning("product_oracle_godot: %s", reason)
+        return {
+            f"divergence_{p.get('id') if isinstance(p, dict) else i}": _not_measured(reason)
+            for i, p in enumerate(params)
+        }
+
+    result: dict = {}
+    for i, raw in enumerate(params):
+        if not isinstance(raw, dict):
+            result[f"divergence_{i}"] = _not_measured(
+                f"entrée #{i} du manifeste de divergence n'est pas un objet")
+            continue
+
+        param_id = str(raw.get("id") or f"param_{i}")
+        volet_name = f"divergence_{param_id}"
+
+        adapter = raw.get("adapter")
+        values = raw.get("values")
+        if not isinstance(adapter, str) or not adapter:
+            result[volet_name] = _not_measured(
+                f"paramètre '{param_id}' : champ 'adapter' manquant/invalide dans le manifeste")
+            continue
+        if not isinstance(values, list) or len(values) < 2:
+            result[volet_name] = _not_measured(
+                f"paramètre '{param_id}' : 'values' doit lister au moins 2 valeurs "
+                f"(reçu {values!r}) — il faut au moins une valeur A et une valeur B à comparer")
+            continue
+
+        seed = raw.get("seed", DEFAULT_DIVERGENCE_SEED)
+        ticks = raw.get("ticks", DEFAULT_DIVERGENCE_TICKS)
+        ignore_keys = raw.get("ignore_keys") or []
+        value_a, value_b = values[0], values[1]
+
+        user_args = [
+            f"--adapter={_resolve_adapter_path(adapter)}",
+            f"--param={param_id}",
+            f"--seed={int(seed)}",
+            f"--ticks={int(ticks)}",
+            f"--value_a={value_a}",
+            f"--value_b={value_b}",
+        ]
+        if ignore_keys:
+            user_args.append(f"--ignore={','.join(str(k) for k in ignore_keys)}")
+
+        t0 = time.monotonic()
+        try:
+            run_out = runner(binary, game_dir, probe_script, user_args, timeout_s=timeout_s)
+        except Exception as exc:  # noqa: BLE001 — best-effort, jamais bloquant
+            logger.warning(
+                "product_oracle_godot: exécution de la sonde de divergence échouée pour "
+                "'%s' (%s)", param_id, exc)
+            result[volet_name] = _not_measured(
+                f"exception levée en exécutant la sonde de divergence pour '{param_id}' : {exc}")
+            continue
+        host_duration_ms = int((time.monotonic() - t0) * 1000)
+
+        if not isinstance(run_out, dict):
+            result[volet_name] = _not_measured(
+                f"runner a renvoyé une valeur non exploitable pour '{param_id}'")
+            continue
+        if run_out.get("timeout"):
+            result[volet_name] = _not_measured(
+                f"timeout ({timeout_s}s) sur la sonde de divergence pour '{param_id}'")
+            continue
+        if run_out.get("error"):
+            result[volet_name] = _not_measured(
+                f"exécuteur Godot introuvable/inexécutable pour '{param_id}' : {run_out['error']}")
+            continue
+
+        stdout = run_out.get("stdout") or ""
+        parsed = _parse_forge_oracle_line(stdout)
+        if parsed is None:
+            result[volet_name] = _not_measured(
+                f"sortie FORGE_ORACLE illisible/absente pour la sonde de divergence de "
+                f"'{param_id}'", returncode=run_out.get("returncode"),
+                stdout_tail=stdout[-500:], stderr_tail=(run_out.get("stderr") or "")[-500:])
+            continue
+
+        payload = parsed["payload"]
+        ok = payload.get("ok")
+        if not isinstance(ok, bool):
+            result[volet_name] = _not_measured(
+                f"champ 'ok' absent/non booléen dans la sortie de la sonde de divergence "
+                f"pour '{param_id}'", payload=payload)
+            continue
+
+        result[volet_name] = {
+            "status": "OK" if ok else "FAIL",
+            "passed": ok,
+            "checked": True,
+            "fails": payload.get("fails", []),
+            "param": param_id,
+            "controle": payload.get("controle"),
+            "reel": payload.get("reel"),
+            "cout_ms": payload.get("cout_ms"),
+            "host_duration_ms": host_duration_ms,
             "payload": payload,
         }
 
