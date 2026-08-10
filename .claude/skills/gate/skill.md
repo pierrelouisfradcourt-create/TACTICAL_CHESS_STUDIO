@@ -80,22 +80,40 @@ Encodage `utf-8` explicite. Écriture en append : ne **jamais** écraser une ent
 *(Câblage CV-16, mandat exécution Pierre 2026-07-30 — referme le trou « décisions enregistrées jamais appliquées » de l'audit de couche décisionnelle.)*
 
 Si l'objet de cette gate correspond à un item lu via `node scripts/forge/pending_review.mjs`
-(queue ∈ `forge_ledger_proposals` | `forge_project_proposals` | `error_proposals`) :
+— **les 6 queues de `QUEUE_FILES` sont désormais décidables** (réparation boucle de revue
+2026-08-10 : `MATCH_FIELDS` dérive de `QUEUE_FILES`, plus aucune queue sans règle de
+rapprochement) :
 
 1. Après l'append dans le decision-log (ci-dessus), ajouter la même décision en une ligne
    JSONL à `lab/reports/pending_review_decisions.jsonl` :
    `{"ts":"<date>","queue":"<queue>","item":"<item>","decision":"ACCEPT|REJECT","motif":"<raison Pierre>"}`
+   - **`<item>` = la colonne `item (à recopier en décision)` de la table**, jamais le sujet ni
+     le libellé. C'est le champ `decision_item` du JSON stdout. Recopier une autre colonne
+     produit une orpheline garantie — c'était le piège avant le 2026-08-10, où l'écran
+     affichait `run_id` pour une queue rapprochée sur `capability_id`.
+   - Un item affiché `(AUCUNE CLÉ)` n'est **pas** décidable en l'état : le record ne porte
+     aucun champ de rapprochement. Le signaler à Pierre, ne rien inventer.
+   - `decision` n'accepte QUE `ACCEPT` ou `REJECT`. Tout autre verbe (`POSTPONE`, `Accept`
+     en casse mixte…) est désormais rapporté en `invalid` — il n'est plus silencieusement
+     absorbé, mais il n'est pas appliqué pour autant.
 2. Lancer d'abord en dry-run : `node scripts/forge/apply_decisions.mjs`
-   — relire le JSON stdout (`changes`, `conflicts`, `orphaned`) avant d'appliquer.
-3. Si `changes` contient bien l'item attendu et que `conflicts`/`orphaned` sont vides pour
-   cet item : `node scripts/forge/apply_decisions.mjs --apply`, puis rapporter à Pierre le
+   — relire le JSON stdout (`changes`, `conflicts`, `orphaned`, `invalid`) avant d'appliquer.
+3. Si `changes` contient bien l'item attendu et que `conflicts`/`orphaned`/`invalid` sont vides
+   pour cet item : `node scripts/forge/apply_decisions.mjs --apply`, puis rapporter à Pierre le
    `written_files` retourné.
-4. Échec ou orphelin : signaler à Pierre, ne rien forcer — le script ne devine jamais
+4. Échec, orphelin ou invalide : signaler à Pierre, ne rien forcer — le script ne devine jamais
    (règle « jamais inventée », `apply_decisions.mjs`).
+5. Vérifier l'effet : relancer `node scripts/forge/pending_review.mjs` — l'item tranché doit
+   avoir **quitté** la file (`reviewed_items` incrémenté, `pending_items` décrémenté). C'est
+   l'accusé de réception de la décision ; son absence signale une boucle rompue.
 
-Les queues `forge_bible_proposals`/`forge_brick_proposals` ne sont **pas** câblées dans
-`apply_decisions` (limite connue) : une décision les visant tombe en `orphaned` — la
-rapporter, pas la forcer.
+**Le fichier de décisions n'a aucun écrivain en code — c'est volontaire (HumanGate).** La ligne
+JSONL est ajoutée à la main, en append, par l'agent `/gate` sous dictée de Pierre. Aucun script
+ne décide à sa place ; `apply_decisions` ne fait qu'apposer la trace d'une décision déjà prise.
+
+Limite subsistante : `forge_bible_proposals` se rapproche sur `project` seul (son record ne
+porte aucun identifiant de ligne) — une décision y marque **toutes** les entrées du projet.
+Ces deux queues n'existent d'ailleurs pas encore sur disque : règle non vérifiée par données.
 
 ---
 

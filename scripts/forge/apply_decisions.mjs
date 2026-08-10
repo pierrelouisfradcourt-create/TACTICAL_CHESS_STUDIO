@@ -59,11 +59,18 @@ import { QUEUE_FILES } from './pending_review.mjs';
 export const DEFAULT_DECISIONS_FILE = 'lab/reports/pending_review_decisions.jsonl';
 
 // Champs candidats essayes dans l'ordre, egalite stricte uniquement, PAR queue id.
-export const MATCH_FIELDS = {
-  forge_ledger_proposals: ['run_id', 'project'],
-  forge_project_proposals: ['project', 'folder'],
-  error_proposals: ['error_signature', 'proposal_id', 'title'],
-};
+//
+// DERIVE de QUEUE_FILES depuis le 2026-08-10 — plus jamais une liste parallele. Avant cette
+// date cette table etait ecrite EN DUR ici avec 3 entrees pour 6 queues : toute decision visant
+// forge_bible_proposals / forge_brick_proposals / forge_capability_gap_proposals tombait en
+// `orphaned` par le garde-fou de planDecisions, quel que soit son contenu, meme parfaitement
+// formee. Les 42 items de capability_gap etaient donc STRUCTURELLEMENT indecidables — et
+// c'etaient justement les seuls que l'ecran affichait sous son plafond. Deux listes qui ne se
+// connaissent pas : c'est exactement le defaut repare ici, il ne doit pas etre recree.
+export const MATCH_FIELDS = Object.fromEntries(
+  QUEUE_FILES.filter((q) => Array.isArray(q.match_fields) && q.match_fields.length > 0)
+    .map((q) => [q.id, q.match_fields]),
+);
 
 const DECISION_TO_STATUS = { ACCEPT: 'ACCEPTED', REJECT: 'REJECTED' };
 
@@ -100,6 +107,41 @@ export function isActionableDecision(d) {
   return typeof d.queue === 'string' && d.queue.trim() !== ''
     && typeof d.item === 'string' && d.item.trim() !== ''
     && (d.decision === 'ACCEPT' || d.decision === 'REJECT');
+}
+
+/** Verbes de decision acceptes. Toute autre valeur est INVALIDE, jamais narrative. */
+export const VALID_DECISIONS = ['ACCEPT', 'REJECT'];
+
+/**
+ * Classe une ligne du fichier de decisions en `actionable` | `narrative` | `invalid`.
+ *
+ * REPARATION 2026-08-10 : avant, TOUT ce qui n'etait pas actionnable etait compte dans un
+ * unique compteur `skipped_meta`, sans etre ni liste ni distingue. Consequence mesuree : une
+ * ligne {"decision":"POSTPONE"} (verbe propose par la table de pending_review mais absent de
+ * DECISION_TO_STATUS), un "Accept" en minuscules, ou une faute de frappe sur `queue`
+ * disparaissaient EXACTEMENT comme les 2 lignes narratives legitimes du 2026-07-20. C'etait le
+ * mode de defaillance le plus probable de la procedure /gate, et il etait muet.
+ *
+ * Distinction retenue : une ligne qui ne porte AUCUNE des 3 cles de decision est une note de
+ * session (narrative, legitime). Une ligne qui en porte au moins une mais echoue la validation
+ * est une decision RATEE — elle est desormais rapportee avec son motif exact.
+ * @param {object} d
+ * @returns {{kind:'actionable'|'narrative'|'invalid', reason:string|null}}
+ */
+export function classifyDecision(d) {
+  if (isActionableDecision(d)) return { kind: 'actionable', reason: null };
+
+  const hasAnyDecisionKey = ['queue', 'item', 'decision']
+    .some((k) => Object.prototype.hasOwnProperty.call(d, k));
+  if (!hasAnyDecisionKey) return { kind: 'narrative', reason: null };
+
+  const problems = [];
+  if (typeof d.queue !== 'string' || d.queue.trim() === '') problems.push('champ "queue" absent ou vide');
+  if (typeof d.item !== 'string' || d.item.trim() === '') problems.push('champ "item" absent ou vide');
+  if (!VALID_DECISIONS.includes(d.decision)) {
+    problems.push(`verbe de decision "${d.decision}" non reconnu (attendu : ${VALID_DECISIONS.join(' | ')})`);
+  }
+  return { kind: 'invalid', reason: problems.join(' ; ') };
 }
 
 // --- Enrichissement optionnel de decision (primitive 2, ratification Pierre 2026-07-26,
@@ -238,10 +280,16 @@ export function planDecisions(repoRoot, decisionsFile) {
   const already_up_to_date = [];
   const conflicts = [];
   const orphaned = [];
+  const invalid = [];
   let skipped_meta = 0;
 
   for (const d of decisionsLoad.raw) {
-    if (!isActionableDecision(d)) { skipped_meta += 1; continue; }
+    const cls = classifyDecision(d);
+    if (cls.kind === 'invalid') {
+      invalid.push({ queue: d.queue ?? null, item: d.item ?? null, decision: d.decision ?? null, reason: cls.reason });
+      continue;
+    }
+    if (cls.kind === 'narrative') { skipped_meta += 1; continue; }
 
     const queueCfg = queueById.get(d.queue);
     if (!queueCfg) {
@@ -306,6 +354,7 @@ export function planDecisions(repoRoot, decisionsFile) {
     already_up_to_date,
     conflicts,
     orphaned,
+    invalid,
     skipped_meta,
   };
 }
@@ -355,7 +404,11 @@ function main() {
 
   console.error(`=== apply_decisions — ${apply ? 'APPLY (ecriture reelle)' : 'DRY-RUN (aucune ecriture)'} ===\n`);
   console.error(`Fichier decisions : ${decisionsFile} (${plan.decisions_file_status}${plan.decisions_ignored_lines ? `, ${plan.decisions_ignored_lines} ligne(s) ignoree(s)` : ''})`);
-  console.error(`Entrees narratives ignorees (skipped_meta) : ${plan.skipped_meta}`);
+  console.error(`Entrees narratives ignorees (aucune cle de decision — skipped_meta) : ${plan.skipped_meta}`);
+  console.error(`\nDecisions INVALIDES (portent une cle de decision mais echouent la validation) : ${plan.invalid.length}`);
+  for (const iv of plan.invalid) {
+    console.error(`  ⚠ queue=${JSON.stringify(iv.queue)} item=${JSON.stringify(iv.item)} decision=${JSON.stringify(iv.decision)} — ${iv.reason}`);
+  }
   console.error(`\n${apply ? 'Appliquees' : 'A appliquer (simulees)'} : ${plan.changes.length}`);
   for (const c of plan.changes) {
     console.error(`  · ${c.queue} / "${c.item}" -> ${c.requested_status} (${c.path}#${c.line_index})`);
@@ -380,6 +433,7 @@ function main() {
     decisions_file: decisionsFile,
     decisions_file_status: plan.decisions_file_status,
     skipped_meta: plan.skipped_meta,
+    invalid: plan.invalid,
     changes: plan.changes,
     already_up_to_date: plan.already_up_to_date,
     conflicts: plan.conflicts,
