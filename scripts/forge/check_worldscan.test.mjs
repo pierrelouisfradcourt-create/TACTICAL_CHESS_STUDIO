@@ -2,9 +2,10 @@
 // (GAME_REFERENCE/). Patron : scripts/forge/check_artbible.test.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   REQUIRED_FILES,
   isValidHttpUrl,
@@ -18,7 +19,17 @@ import {
   listFilesRecursive,
   checkWorldScan,
   checkWorldScanFile,
+  checkFactConsistency,
+  checkSourceUrlStability,
 } from './check_worldscan.mjs';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolveRepoRoot(__dirname);
+
+function resolveRepoRoot(startDir) {
+  // scripts/forge/check_worldscan.test.mjs -> repo root est deux niveaux au-dessus.
+  return join(startDir, '..', '..');
+}
 
 function goodSource(overrides = {}) {
   return { url: 'https://example.test/article', type: 'article', ...overrides };
@@ -580,4 +591,187 @@ test('listFilesRecursive : liste les fichiers en sous-dossiers', async () => {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+// --- P5 (v0.4) : checkFactConsistency — juge de CONTENU, contradiction interne
+// has_win_state=false vs vocabulaire de complétion dans le meme document. Patron de
+// preuve : lab/forge_evidence/MCTS_WORLDSCAN_QWEN/qwen_gen1_worldscan.json (Pac-Man,
+// has_win_state:false + loops.endgame = "Le but ultime est d'atteindre la fin du
+// jeu en accumulant le plus de points possible.").
+
+test('checkFactConsistency : has_win_state=false + loops.endgame encadre "atteindre la fin" comme un but => finding', () => {
+  const doc = goodManifest({
+    games: [
+      goodGame({
+        objectives: [goodObjective({ has_win_state: false, victory_condition: null })],
+        loops: goodLoops({ endgame: "Le but ultime est d'atteindre la fin du jeu en accumulant le plus de points possible." }),
+      }),
+      goodGame({ game: 'FTL' }),
+    ],
+  });
+  const findings = checkFactConsistency(doc);
+  assert.ok(findings.some((f) => f.includes('games[0].objectives[0]') && f.includes('has_win_state=false')));
+});
+
+test('checkFactConsistency : has_win_state=false + "reach the end" (EN) dans player_goal => finding', () => {
+  const doc = goodManifest({
+    games: [
+      goodGame({
+        objectives: [goodObjective({
+          has_win_state: false,
+          victory_condition: null,
+          player_goal: 'The ultimate goal is reaching the end of the run before the timer expires.',
+        })],
+      }),
+      goodGame({ game: 'FTL' }),
+    ],
+  });
+  const findings = checkFactConsistency(doc);
+  assert.ok(findings.length > 0);
+});
+
+test('checkFactConsistency : has_win_state=false sans vocabulaire de completion (marathon legitime) => aucun finding', () => {
+  const doc = goodManifest({
+    games: [
+      goodGame({ objectives: [marathonObjective()] }),
+      goodGame({ game: 'FTL' }),
+    ],
+  });
+  assert.deepEqual(checkFactConsistency(doc), []);
+});
+
+test('checkFactConsistency : has_win_state=true (mode normal) meme avec vocabulaire "but ultime" => aucun finding (rien a contredire)', () => {
+  const doc = goodManifest({
+    games: [
+      goodGame({
+        objectives: [goodObjective({ has_win_state: true })],
+        loops: goodLoops({ endgame: 'Le but ultime est de vider le labyrinthe.' }),
+      }),
+      goodGame({ game: 'FTL' }),
+    ],
+  });
+  assert.deepEqual(checkFactConsistency(doc), []);
+});
+
+test('checkFactConsistency : doc sans games (deja invalide structurellement) => aucun finding, ne jette pas', () => {
+  assert.deepEqual(checkFactConsistency({}), []);
+  assert.deepEqual(checkFactConsistency(null), []);
+});
+
+test('checkWorldScan (mode fichier) : has_win_state=false + vocabulaire de completion contradictoire => FAIL via le juge de contenu', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'worldscan_factcheck_'));
+  try {
+    const filePath = join(dir, 'worldscan.json');
+    const badGame = goodGame({
+      objectives: [goodObjective({ has_win_state: false, victory_condition: null })],
+      loops: goodLoops({ endgame: "Le but ultime est d'atteindre la fin du jeu." }),
+    });
+    await writeFile(filePath, JSON.stringify(goodManifest({ games: [badGame, goodGame({ game: 'FTL' })] })), 'utf-8');
+    const result = await checkWorldScan(filePath);
+    assert.equal(result.verdict, 'FAIL');
+    assert.ok(result.problems.some((p) => p.includes('has_win_state=false')));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('checkWorldScan (mode dossier) : has_win_state=false + vocabulaire de completion contradictoire => FAIL via le juge de contenu', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'worldscan_factcheck_dir_'));
+  try {
+    await makeValidFolder(dir);
+    const badGame = goodGame({
+      objectives: [goodObjective({ has_win_state: false, victory_condition: null })],
+      loops: goodLoops({ endgame: "Le but ultime est d'atteindre la fin du jeu." }),
+    });
+    await writeFile(join(dir, 'observation_manifest.json'), JSON.stringify(goodManifest({ games: [badGame, goodGame({ game: 'FTL' })] })), 'utf-8');
+    const result = await checkWorldScan(dir);
+    assert.equal(result.verdict, 'FAIL');
+    assert.ok(result.problems.some((p) => p.includes('has_win_state=false')));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// --- P5 (v0.4) : checkSourceUrlStability — advisory multi-generations, non branchee
+// sur le verdict OK/FAIL de la CLI. Preuve : les 3 generations Qwen (gen1/gen2/gen3)
+// citent 2 IDs YouTube differents pour la meme source "Pac-Man Gameplay" alors que
+// l'URL Wikipedia du meme jeu reste identique dans les 3.
+
+test('checkSourceUrlStability : moins de 2 documents fournis => aucun finding', () => {
+  assert.deepEqual(checkSourceUrlStability([]), []);
+  assert.deepEqual(checkSourceUrlStability([goodManifest()]), []);
+});
+
+test('checkSourceUrlStability : meme jeu, meme type, URL identique sur toutes les generations => aucun finding', () => {
+  const docA = goodManifest({ games: [goodGame({ sources: [goodSource({ url: 'https://en.wikipedia.org/wiki/X', type: 'wiki' })] })] });
+  const docB = goodManifest({ games: [goodGame({ sources: [goodSource({ url: 'https://en.wikipedia.org/wiki/X', type: 'wiki' })] })] });
+  assert.deepEqual(checkSourceUrlStability([docA, docB]), []);
+});
+
+test('checkSourceUrlStability : meme jeu, meme type, URL qui derive entre generations => finding', () => {
+  const docA = goodManifest({ games: [goodGame({ sources: [goodSource({ url: 'https://www.youtube.com/watch?v=04sJGfVZKdA', type: 'video', timestamp: '00:00' })] })] });
+  const docB = goodManifest({ games: [goodGame({ sources: [goodSource({ url: 'https://www.youtube.com/watch?v=04aW5nXrjgk', type: 'video', timestamp: '00:00' })] })] });
+  const findings = checkSourceUrlStability([docA, docB]);
+  assert.ok(findings.some((f) => f.includes('Into the Breach') && f.includes('type=video')));
+});
+
+test('checkSourceUrlStability : jeux differents dans chaque doc => pas de faux positif (groupement par nom de jeu)', () => {
+  const docA = goodManifest({ games: [goodGame({ game: 'Pac-Man', sources: [goodSource({ url: 'https://a.test/1' })] })] });
+  const docB = goodManifest({ games: [goodGame({ game: 'Tetris', sources: [goodSource({ url: 'https://b.test/2' })] })] });
+  assert.deepEqual(checkSourceUrlStability([docA, docB]), []);
+});
+
+// --- Integration : les 4 artefacts REELS de lab/forge_evidence/MCTS_WORLDSCAN_QWEN/
+// et la reference lab/forge_runs/pacman/worldscan.json. Garde-fou du studio :
+// "un oracle qui recale le producteur connu-bon se mesure lui-meme" — la reference
+// Claude DOIT passer, gen1 (has_win_state=false errone) DOIT echouer.
+
+test('integration reelle : reference Claude lab/forge_runs/pacman/worldscan.json => OK (l oracle n accepte pas de recaler le producteur connu-bon)', async () => {
+  const refPath = join(REPO_ROOT, 'lab', 'forge_runs', 'pacman', 'worldscan.json');
+  const raw = await readFile(refPath, 'utf-8');
+  const doc = JSON.parse(raw);
+  assert.deepEqual(checkFactConsistency(doc), []);
+  const result = await checkWorldScan(refPath);
+  assert.equal(result.verdict, 'OK', `reference devrait passer, problems: ${JSON.stringify(result.problems)}`);
+});
+
+test('integration reelle : qwen_gen1_worldscan.json (has_win_state=false errone pour Pac-Man) => FAIL via checkFactConsistency', async () => {
+  const gen1Path = join(REPO_ROOT, 'lab', 'forge_evidence', 'MCTS_WORLDSCAN_QWEN', 'qwen_gen1_worldscan.json');
+  const raw = await readFile(gen1Path, 'utf-8');
+  const doc = JSON.parse(raw);
+  const findings = checkFactConsistency(doc);
+  assert.ok(findings.length > 0, 'gen1 devrait produire au moins une contradiction interne detectee');
+  const result = await checkWorldScan(gen1Path);
+  assert.equal(result.verdict, 'FAIL');
+  assert.ok(result.problems.some((p) => p.includes('has_win_state=false')));
+});
+
+test('integration reelle : qwen_gen2_worldscan.json (has_win_state=true, coherent) => checkFactConsistency ne trouve rien (rule directionnelle, pas de faux positif)', async () => {
+  const gen2Path = join(REPO_ROOT, 'lab', 'forge_evidence', 'MCTS_WORLDSCAN_QWEN', 'qwen_gen2_worldscan.json');
+  const raw = await readFile(gen2Path, 'utf-8');
+  const doc = JSON.parse(raw);
+  assert.deepEqual(checkFactConsistency(doc), []);
+});
+
+test('integration reelle : qwen_gen3_worldscan.json (has_win_state=true, coherent) => checkFactConsistency ne trouve rien (rule directionnelle, pas de faux positif)', async () => {
+  const gen3Path = join(REPO_ROOT, 'lab', 'forge_evidence', 'MCTS_WORLDSCAN_QWEN', 'qwen_gen3_worldscan.json');
+  const raw = await readFile(gen3Path, 'utf-8');
+  const doc = JSON.parse(raw);
+  assert.deepEqual(checkFactConsistency(doc), []);
+});
+
+test('integration reelle : checkSourceUrlStability detecte la derive video Pac-Man entre gen1/gen2/gen3 (advisory, pas branche sur le verdict CLI)', async () => {
+  const base = join(REPO_ROOT, 'lab', 'forge_evidence', 'MCTS_WORLDSCAN_QWEN');
+  const [gen1, gen2, gen3] = await Promise.all(
+    ['qwen_gen1_worldscan.json', 'qwen_gen2_worldscan.json', 'qwen_gen3_worldscan.json'].map(
+      (f) => readFile(join(base, f), 'utf-8').then(JSON.parse)
+    )
+  );
+  const findings = checkSourceUrlStability([gen1, gen2, gen3]);
+  assert.ok(findings.some((f) => f.includes('Pac-Man') && f.includes('type=video')), `attendu une derive video Pac-Man, obtenu: ${JSON.stringify(findings)}`);
+  // Les 3 generations passent quand meme le verdict de FORME sur chacune isolement
+  // (checkSourceUrlStability n'est pas branchee sur checkWorldScan) : verifie ici
+  // que gen2 seul (isole) n'echoue PAS a cause de cette regle multi-gen.
+  const result2 = await checkWorldScan(join(base, 'qwen_gen2_worldscan.json'));
+  assert.equal(result2.verdict, 'OK');
 });

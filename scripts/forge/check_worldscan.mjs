@@ -26,6 +26,34 @@
 // fichier JSON en entrée est désormais accepté et validé comme le manifeste lui-même
 // (mêmes fonctions validateManifest/validateGameEntry/validateObjective, mêmes
 // seuils MIN_GAMES/MIN_SOURCES_PER_GAME/MIN_OBJECTIVES_PER_GAME).
+// v0.4 (2026-08-07) — P5 : juge de CONTENU en plus du juge de FORME. Preuve mesurée
+// (lab/forge_evidence/MCTS_WORLDSCAN_QWEN/, joute Qwen sur s2-worldscan) : 3/3
+// générations passaient le juge de forme (verdict OK) alors qu'une génération
+// (gen1) déclarait `has_win_state:false` pour Pac-Man — structurellement valide
+// (validateConditionState accepte `false` + `victory_condition:null`) mais
+// contredit le propre texte du document : `loops.endgame` de la même entrée décrit
+// « atteindre la fin du jeu » comme « le but ultime » (`objectif final`), un
+// vocabulaire de complétion/victoire incompatible avec l'absence déclarée d'état de
+// victoire. `checkFactConsistency(doc)` détecte cette contradiction INTERNE
+// (aucune connaissance du jeu Pac-Man requise — seulement le document lui-même) :
+// pour tout `objectives[i]` avec `has_win_state === false`, on scanne le texte de
+// `loops.*`, `objectives[i].player_goal` et `retention_answer` de la MÊME entrée
+// `games[j]` à la recherche d'un vocabulaire qui encadre « atteindre la fin » comme
+// un objectif/but — jamais un jugement sur le contenu factuel du jeu, seulement sur
+// la cohérence du document avec lui-même. 
+//
+// `checkSourceUrlStability(docs)` — statut PASSIVE : AUCUN CHEMIN D'INVOCATION.
+// Mesuré le 2026-08-10 : la fonction est exportée et testée, mais elle n'est appelée
+// nulle part — ni dans ce fichier, ni ailleurs dans le dépôt — et la CLI n'expose
+// aucun drapeau permettant de l'activer (seul `--json` existe). Ce n'est donc PAS un
+// « rôle advisory non branché sur le verdict par défaut », formulation qui laissait
+// croire à un mode secondaire : il n'y a pas de chemin alternatif, il n'y a pas de
+// chemin du tout. Rendre ce statut explicite est la règle du studio — une preuve
+// sans lecteur n'existe pas dans la chaîne qualité.
+// Ce qu'elle mesurerait si elle était appelée — même preuve,
+// comparaison MULTI-générations (une même source revendiquée, même jeu, même type,
+// dont l'URL dérive d'une génération à l'autre alors que d'autres types restent
+// stables = signature de confabulation mesurée sur gen1/gen2/gen3).
 //
 // Usage :
 //   node check_worldscan.mjs <dossier_GAME_REFERENCE|worldscan.json> [--json]
@@ -285,6 +313,133 @@ export function validateManifest(doc) {
   return findings;
 }
 
+// Vocabulaire qui encadre « atteindre la fin » comme UN OBJECTIF/BUT (pas une simple
+// mention de fin de partie/session) — chaque motif est ancré sur les preuves réelles
+// (gen1 Qwen : « Le but ultime est d'atteindre la fin du jeu »). Générique : ne
+// nomme aucun jeu, ne dépend d'aucune connaissance externe — seulement un patron
+// linguistique « fin encadrée comme but ». FR + EN car le manifeste peut être rédigé
+// dans l'une ou l'autre langue (contrat s2-worldscan n'impose pas la langue).
+export const COMPLETION_FRAMED_AS_GOAL_PATTERNS = [
+  /\bbut ultime\b/i,
+  /\bobjectif final\b/i,
+  /\bultimate goal\b/i,
+  /\bfinal goal\b/i,
+  /\batteindre la fin (du|de la|des)\b/i,
+  /\breach(?:ing)? the end\b/i,
+  /\bfinir le jeu\b/i,
+  /\bcompl[eé]ter le jeu\b/i,
+  /\bcomplete the game\b/i,
+  /\bbeat the game\b/i,
+  /\bfinish(?:ing)? the game\b/i,
+];
+
+/**
+ * Concatène les champs texte d'une entrée `games[i]` qui portent la narration libre
+ * (hors champs déjà structurellement validés comme `mode` ou les conditions
+ * elles-mêmes) : les 4 clés de `loops`, `player_goal` de l'objectif courant, et
+ * `retention_answer` du jeu. Sert de surface de scan pour la détection de
+ * vocabulaire de complétion contradictoire.
+ * @param {object} game entrée games[i] déjà connue non-null/objet
+ * @param {object} objective entrée objectives[j] de ce même jeu
+ * @returns {string}
+ */
+function narrativeTextSurface(game, objective) {
+  const parts = [];
+  if (game.loops && typeof game.loops === 'object') {
+    for (const key of LOOP_KEYS) {
+      if (typeof game.loops[key] === 'string') parts.push(game.loops[key]);
+    }
+  }
+  if (objective && typeof objective.player_goal === 'string') parts.push(objective.player_goal);
+  if (typeof game.retention_answer === 'string') parts.push(game.retention_answer);
+  return parts.join(' \n ');
+}
+
+/**
+ * Règle de COHÉRENCE INTERNE (P5, v0.4) : un `objectives[i]` qui déclare
+ * `has_win_state: false` (donc, par construction, aucune condition de victoire) ne
+ * doit pas cohabiter, dans la MÊME entrée `games[j]`, avec un texte narratif
+ * (`loops`, `player_goal`, `retention_answer`) qui encadre « atteindre la fin » comme
+ * le but/objectif du joueur — c'est une contradiction du document avec lui-même,
+ * détectée sans aucune connaissance du jeu décrit (cf. `COMPLETION_FRAMED_AS_GOAL_PATTERNS`).
+ * Ne se déclenche JAMAIS quand `has_win_state === true` (rien à contredire) : un
+ * genre marathon/score-attack qui mentionne juste « gagner des points » (au sens
+ * « engranger ») sans jamais encadrer « la fin » comme un but reste valide — c'est
+ * précisément le cas déjà couvert par le fixture `marathonObjective` existant.
+ * @param {object} doc manifeste déjà validé structurellement (games[], advisory)
+ * @returns {string[]} findings (vide = aucune contradiction détectée)
+ */
+export function checkFactConsistency(doc) {
+  const findings = [];
+  if (doc === null || typeof doc !== 'object' || !Array.isArray(doc.games)) return findings;
+  doc.games.forEach((game, gameIdx) => {
+    if (game === null || typeof game !== 'object' || !Array.isArray(game.objectives)) return;
+    game.objectives.forEach((objective, objIdx) => {
+      if (objective === null || typeof objective !== 'object') return;
+      if (objective.has_win_state !== false) return; // rien a contredire
+      const surface = narrativeTextSurface(game, objective);
+      const hit = COMPLETION_FRAMED_AS_GOAL_PATTERNS.find((re) => re.test(surface));
+      if (hit) {
+        findings.push(
+          `games[${gameIdx}].objectives[${objIdx}]: has_win_state=false mais le texte du document ` +
+          `(loops/player_goal/retention_answer) encadre "atteindre la fin" comme un but ` +
+          `(motif detecte: ${hit}) — contradiction interne, has_win_state=false devrait signifier ` +
+          `qu'aucun etat de victoire/fin n'est un objectif`
+        );
+      }
+    });
+  });
+  return findings;
+}
+
+/**
+ * Règle de COHÉRENCE INTERNE — comparaison MULTI-générations (advisory, P5 v0.4) :
+ * pour une même source revendiquée (identifiée par `game` + `type`, seule clé
+ * disponible dans ce schéma — il n'y a pas de champ `title`/`label` par source),
+ * une URL qui DÉRIVE d'une génération à l'autre alors que d'autres types de source
+ * du même jeu restent identiques est la signature de confabulation mesurée
+ * (lab/forge_evidence/MCTS_WORLDSCAN_QWEN/ : URL video "Pac-Man Gameplay" à 2 IDs
+ * YouTube différents sur 3 tirages temp=0, alors que l'URL Wikipedia du même jeu est
+ * identique dans les 3). N'est PAS branchée sur le verdict OK/FAIL de la CLI (une
+ * seule génération ne peut pas exhiber une dérive — il en faut au moins 2 à comparer)
+ * — exportée pour un appelant qui dispose de plusieurs générations du même run
+ * (ex. le pipeline MCTS qui produit gen1/gen2/gen3).
+ * @param {object[]} docs au moins 2 manifestes structurellement valides du MÊME run
+ * @returns {string[]} findings (vide = aucune derive detectee, ou <2 docs fournis)
+ */
+export function checkSourceUrlStability(docs) {
+  const findings = [];
+  if (!Array.isArray(docs) || docs.length < 2) return findings;
+  // groupe[gameName][type] = Set des urls vues a travers les generations fournies
+  const groups = new Map();
+  docs.forEach((doc) => {
+    if (doc === null || typeof doc !== 'object' || !Array.isArray(doc.games)) return;
+    doc.games.forEach((game) => {
+      if (game === null || typeof game !== 'object' || typeof game.game !== 'string') return;
+      if (!Array.isArray(game.sources)) return;
+      if (!groups.has(game.game)) groups.set(game.game, new Map());
+      const byType = groups.get(game.game);
+      game.sources.forEach((source) => {
+        if (source === null || typeof source !== 'object') return;
+        const type = typeof source.type === 'string' ? source.type : 'inconnu';
+        if (!byType.has(type)) byType.set(type, new Set());
+        if (isValidHttpUrl(source.url)) byType.get(type).add(source.url);
+      });
+    });
+  });
+  for (const [gameName, byType] of groups.entries()) {
+    for (const [type, urls] of byType.entries()) {
+      if (urls.size > 1) {
+        findings.push(
+          `${gameName} / source type=${type}: ${urls.size} URL(s) distinctes revendiquees a travers les ` +
+          `generations fournies pour la meme source (${[...urls].join(' | ')}) — derive suspecte`
+        );
+      }
+    }
+  }
+  return findings;
+}
+
 /**
  * Vérifie qu'un fichier requis existe et n'est pas vide (contenu trim non nul). Ne
  * fait jamais la différence entre "absent" et "illisible" pour l'appelant — les deux
@@ -357,6 +512,12 @@ export async function checkWorldScanFile(filePath) {
     return { ok: false, verdict: 'FAIL', problems: [`${filePath}: JSON invalide (${err.message})`], stats: EMPTY_STATS };
   }
   const problems = validateManifest(doc);
+  // Juge de FORME d'abord (deja fait) ; juge de CONTENU (P5 v0.4) seulement si la
+  // forme est deja valide pour ce document — inutile de chercher une contradiction
+  // narrative dans un manifeste structurellement invalide.
+  if (problems.length === 0) {
+    problems.push(...checkFactConsistency(doc));
+  }
   const counts = manifestCounts(doc);
   const stats = { ...counts, files_checked: 1, media_files_found: 0 };
   if (problems.length > 0) {
@@ -439,7 +600,13 @@ export async function checkWorldScan(dirPath) {
       doc = null;
     }
     if (doc !== null) {
-      problems.push(...validateManifest(doc));
+      const formProblems = validateManifest(doc);
+      problems.push(...formProblems);
+      // Juge de CONTENU (P5 v0.4) : seulement si la forme est valide, meme regle
+      // qu'en mode fichier.
+      if (formProblems.length === 0) {
+        problems.push(...checkFactConsistency(doc));
+      }
       if (Array.isArray(doc.games)) {
         gamesCount = doc.games.length;
         sourcesTotal = doc.games.reduce((acc, g) => acc + (Array.isArray(g.sources) ? g.sources.length : 0), 0);
