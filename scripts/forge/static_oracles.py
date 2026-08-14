@@ -1094,3 +1094,120 @@ def check_charter(charter: dict) -> dict:
                 raisons.append(f"'{field}[{i}]' contient un « à définir » résiduel : {item!r}")
 
     return {"passed": not raisons, "raisons": raisons}
+
+
+# --- §7.2 · s2.7-gm-worldscan (GO Pierre 2026-08-14) --------------------------------
+# Les 8 dimensions de calibration que `s2-worldscan` ne structure PAS. Les 3 autres
+# (modes/joueurs, solvabilité, boucles) vivent déjà dans worldscan.json et ne sont
+# JAMAIS redites ici — voir docs/forge/FORGE_PIPELINE_TARGET_V1.md §1.1.
+GM_WORLDSCAN_DIMENSIONS = (
+    "combat", "progression", "economy", "rng",
+    "rarity", "bonus", "metagame", "construction",
+)
+
+# Détecteur de placeholder LOCAL à cette station, volontairement plus large que
+# `_is_todo_placeholder` (qui ne reconnaît que « à définir » et sert `check_charter`,
+# oracle ratifié : on ne le modifie pas depuis §7.2). Vocabulaire repris À L'IDENTIQUE
+# de `scripts/forge/prisme/check_prisme.mjs::PLACEHOLDER_MARKERS` — un précédent du
+# dépôt, pas une invention. Mesuré : sans cet ajout, une variable `value: "TBD"`
+# passait l'oracle, alors que la docstring promettait de la refuser.
+_GM_PLACEHOLDERS = ("tbd", "todo", "xxx", "???")
+
+
+def _gm_is_placeholder(value: str) -> bool:
+    if _is_todo_placeholder(value):
+        return True
+    bas = _normalize_accents_casse(value)
+    return any(marqueur in bas for marqueur in _GM_PLACEHOLDERS)
+
+
+def check_gm_worldscan(data: dict) -> dict:
+    """gm_worldscan.json porte-t-il les 8 dimensions, chacune tracée ou honnêtement
+    déclarée non mesurée ?
+
+    Retourne {passed, raisons[]}. Jamais d'exception sur entrée malformée — FAIL
+    honnête avec raison explicite, même doctrine que `check_charter`/`check_architecture`.
+
+    Ce que cet oracle vérifie — FORME et TRAÇABILITÉ, jamais la pertinence :
+      - les 8 `id` de GM_WORLDSCAN_DIMENSIONS présents, une fois chacun ;
+      - `status` ∈ {MEASURED, NOT_MEASURED} ;
+      - MEASURED     => ≥1 variable, chacune avec name/value/unit/source non vides ;
+      - NOT_MEASURED => `reason` non vide (une absence assumée, jamais un silence) ;
+      - ≥2 jeux observés ;
+      - aucun placeholder résiduel dans une valeur ou une source.
+
+    Ce qu'il NE vérifie PAS, et ne prétend pas vérifier : qu'une valeur soit JUSTE, ni
+    qu'une source dise ce qu'on lui fait dire. Un oracle de forme ne remplace pas une
+    lecture humaine — c'est la même limite que `check_charter` sur la provenance de
+    `reference_jeu`, assumée et non masquée. Une valeur fausse mais bien formée passe
+    ici et devra être attrapée en aval (matrices, GM Validation Scan).
+    """
+    if not isinstance(data, dict):
+        return {"passed": False,
+                "raisons": [f"gm_worldscan n'est pas un mapping (reçu {type(data).__name__})"]}
+
+    raisons: list[str] = []
+
+    games = data.get("games_observed")
+    if not isinstance(games, list) or len([g for g in games if isinstance(g, str) and g.strip()]) < 2:
+        raisons.append("'games_observed' doit lister >=2 jeux réels non vides "
+                       "(une comparaison de genre exige au moins deux points)")
+
+    dims = data.get("dimensions")
+    if not isinstance(dims, list):
+        return {"passed": False,
+                "raisons": raisons + ["'dimensions' absent ou n'est pas une liste"]}
+
+    vus: dict[str, int] = {}
+    for i, d in enumerate(dims):
+        if not isinstance(d, dict):
+            raisons.append(f"dimensions[{i}] n'est pas un mapping")
+            continue
+        did = d.get("id")
+        if did not in GM_WORLDSCAN_DIMENSIONS:
+            raisons.append(f"dimensions[{i}] : id {did!r} hors du vocabulaire figé "
+                           f"{list(GM_WORLDSCAN_DIMENSIONS)}")
+            continue
+        vus[did] = vus.get(did, 0) + 1
+
+        status = d.get("status")
+        if status not in ("MEASURED", "NOT_MEASURED"):
+            raisons.append(f"'{did}' : status {status!r} invalide "
+                           "(MEASURED | NOT_MEASURED)")
+            continue
+
+        if status == "NOT_MEASURED":
+            reason = d.get("reason")
+            if not isinstance(reason, str) or not reason.strip():
+                raisons.append(f"'{did}' NOT_MEASURED sans 'reason' — une absence "
+                               "se motive, elle ne se tait pas")
+            elif _gm_is_placeholder(reason):
+                raisons.append(f"'{did}' : 'reason' est un placeholder ({reason!r})")
+            continue
+
+        variables = d.get("variables")
+        if not isinstance(variables, list) or not variables:
+            raisons.append(f"'{did}' MEASURED sans variable — un statut mesuré exige "
+                           "au moins une grandeur")
+            continue
+        for j, v in enumerate(variables):
+            if not isinstance(v, dict):
+                raisons.append(f"'{did}'.variables[{j}] n'est pas un mapping")
+                continue
+            for champ in ("name", "value", "unit", "source"):
+                val = v.get(champ)
+                if val is None or (isinstance(val, str) and not val.strip()):
+                    raisons.append(f"'{did}'.variables[{j}] : '{champ}' absent ou vide")
+                elif isinstance(val, str) and _gm_is_placeholder(val):
+                    raisons.append(f"'{did}'.variables[{j}] : '{champ}' est un "
+                                   f"placeholder ({val!r})")
+
+    for dim in GM_WORLDSCAN_DIMENSIONS:
+        n = vus.get(dim, 0)
+        if n == 0:
+            raisons.append(f"dimension '{dim}' absente — les 8 sont obligatoires, "
+                           "une dimension non traitée se déclare NOT_MEASURED")
+        elif n > 1:
+            raisons.append(f"dimension '{dim}' présente {n} fois (une seule attendue)")
+
+    return {"passed": not raisons, "raisons": raisons}

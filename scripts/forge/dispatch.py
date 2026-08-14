@@ -125,6 +125,15 @@ DEDICATED_PROFILE_STEPS = (
     "s9-build-standard",
     "s10s-oracle-standard",
     "s9-build-godot-standard",
+    # §7.2 · s2.7-gm-worldscan (GO Pierre 2026-08-14) — World Scan du GAME MASTER :
+    # mesure comparative du GENRE, distincte du World Scan artistique (s2-worldscan,
+    # « quel monde ? »). Produit les 8 dimensions de calibration que le schéma de s2
+    # ne structure PAS (combat, progression, economy, rng, rarity, bonus, metagame,
+    # construction) ; les 3 autres — modes, solvabilité, boucles — vivent déjà dans
+    # worldscan.json et ne sont jamais redites. Cf. FORGE_PIPELINE_TARGET_V1.md §1.1.
+    # HORS de ORDER, comme les quatre ci-dessus : jamais mêlée silencieusement à
+    # `full`, dispatchable uniquement par son profil dédié.
+    "s2.7-gm-worldscan",
 )
 
 # Profils de chaîne — sous-ensembles de ORDER (ou de DEDICATED_PROFILE_STEPS ci-dessus)
@@ -144,6 +153,37 @@ PROFILES = {
     # 13 étapes sur 78 lignes (finding red-team chesscolor). archi/wiremap = SKIPPED.
     "micro": ("s9-build", "s10a-oracle-code", "s12-verdict"),
     "artbible": ("s2.5-artbible",),
+    # gm_worldscan : s2.7 SEULE, même forme que `artbible` (s2.5 seule) et `review`
+    # (s6 seule) — une tranche isolée, pas de verdict signé (s12 n'y est pas : une
+    # mesure de genre n'est ni un build ni une preuve de produit).
+    #
+    # CONSOMMATION AVAL : PASSIVE, déclarée et non masquée (GO Pierre 2026-08-14).
+    # `gm_worldscan.json` est produit et validé par son oracle, mais AUCUNE étape ne
+    # le lit — les stations aval (matrices de design, Grey Block) n'existent pas
+    # encore. Aucun faux consommateur n'a été créé pour fermer la boucle
+    # artificiellement : ce serait exactement le motif « producteur sans
+    # consommateur » que §7.2 doit corriger, pas reproduire. Le câblage aval se fera
+    # avec la première station consommatrice réelle.
+    "gm_worldscan": ("s2.7-gm-worldscan",),
+    # oracle_only : s10s SEUL, sur un jeu DEJA CONSTRUIT (ratifie Pierre 2026-08-10).
+    #
+    # Cause mesuree : pacman V5 est VALIDATED mais n'est jamais passe par le driver
+    # (aucun state.json dans ses 6 repertoires de run) — donc ses 53 identifiants de
+    # capacite absents du registre n'ont JAMAIS ete proposes, la ou tetris en a propose
+    # 42. Le producteur (`driver.py::_propose_capability_gaps`, l.2198) est correctement
+    # cable ; c'est le JEU DE REFERENCE qui l'a contourne. Sans ce profil, capitaliser
+    # le vocabulaire d'un jeu validé imposait de lui repasser un profil commencant par
+    # `s9-build-*` — c'est-a-dire de RECONSTRUIRE par-dessus la seule reference validee
+    # du studio pour la mesurer. Un jeu valide doit pouvoir devenir une source de
+    # connaissance sans etre reconstruit.
+    #
+    # PORTEE STRICTEMENT LIMITEE (condition de la ratification) : une seule etape, aucun
+    # build, aucune variante de pipeline. s10s ne fait que LIRE games/<projet>/ et deposer
+    # ses propositions (best-effort, cf. _propose_capability_gaps/_propose_bible_entries).
+    # Meme forme que `review` (s6 seul) et `artbible` (s2.5 seul) : une tranche isolee.
+    # PAS de verdict signe — s12 n'y est pas : une mesure de capitalisation n'est ni une
+    # baseline ni un temoin, exactement la reserve deja posee sur `amont_only`.
+    "oracle_only": ("s10s-oracle-standard",),
     # increment : un incrément sur un projet existant dont le corpus de design (bibles)
     # est déjà la source de vérité — saute s0/s1/s2 (charter/prisme/world scan, déjà
     # couverts) mais REFAIT archi/wiremap contrairement à `patch`, parce qu'un moteur

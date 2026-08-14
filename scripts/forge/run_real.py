@@ -446,6 +446,11 @@ _ARTIFACT_BY_STEP: dict[str, str] = {
     "s5-wiremap": "wiremap.json",
     "s1-prisme": "prisme.json",
     "s3-decompo": "featuremap.json",
+    # §7.2 · s2.7-gm-worldscan (GO Pierre 2026-08-14) — l'entrée qui rend la station
+    # MESURABLE : sans elle, l'exécuteur ne matérialiserait aucun fichier et l'oracle
+    # n'aurait rien à juger (cf. mémoire studio « ce qui rend un worker Forge
+    # mesurable »).
+    "s2.7-gm-worldscan": "gm_worldscan.json",
 }
 
 # Bloc JSON fenced (```json ... ```) — extraction déterministe, aucun LLM.
@@ -943,8 +948,26 @@ def _validate_featuremap(data: dict) -> str:
     return ""
 
 
+def _validate_gm_worldscan(data: dict) -> str:
+    """§7.2 · s2.7 — '' si l'artefact est structurellement exploitable, sinon la raison
+    du rejet. Garde-fou MINIMAL avant écriture, même esprit que `_validate_worldscan` :
+    `forge.static_oracles.check_gm_worldscan` reste l'oracle de vérité (les 8
+    dimensions, statuts, sources, placeholders) ; ceci empêche seulement qu'un artefact
+    trivialement inexploitable atteigne le disque."""
+    dims = data.get("dimensions")
+    if not isinstance(dims, list) or not dims:
+        return ("'dimensions' doit être une liste NON VIDE (un scan de genre sans "
+                "dimension ne porte aucune variable de calibration)")
+    games = data.get("games_observed")
+    if not isinstance(games, list) or len(games) < 2:
+        return ("'games_observed' doit lister >=2 jeux (une comparaison de genre "
+                "exige au moins deux points d'observation)")
+    return ""
+
+
 _ARTIFACT_VALIDATORS = {
     "worldscan.json": _validate_worldscan,
+    "gm_worldscan.json": _validate_gm_worldscan,
     "blueprint.json": _validate_blueprint,
     "wiremap.json": _validate_wiremap,
     "prisme.json": _validate_prisme,
@@ -1208,6 +1231,12 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # Copie STRICTEMENT identique à context_manifest._UPSTREAM_BY_STEP (test
     # d'égalité dans scripts/forge/tests/test_context_manifest.py).
     "s1-prisme": ("artifacts/s2-worldscan.txt",),
+    # §7.2 · s2.7 REÇOIT le World Scan artistique — c'est ce qui lui permet de ne PAS
+    # redire les 3 dimensions déjà structurées (modes, solvabilité, boucles) et de
+    # produire uniquement les 8 manquantes. Cette table décrit ce qu'une étape REÇOIT ;
+    # l'absence de CONSOMMATEUR de gm_worldscan.json se lit donc ailleurs — aucune
+    # étape ne le cite, PASSIVE assumée (cf. PROFILES["gm_worldscan"]).
+    "s2.7-gm-worldscan": ("artifacts/s2-worldscan.txt",),
     "s3-decompo": ("charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt"),
     "s4-archi": ("charter.yaml", "artifacts/s3-decompo.txt",),
     "s5-wiremap": ("charter.yaml", "artifacts/s3-decompo.txt", "blueprint.json"),
@@ -1611,6 +1640,18 @@ def default_task_by_step(project: str, src_root_rel: str,
         "s2.5-artbible": (
             f"Lis lab/forge_runs/{project}/product_snapshot.md et livre art_bible.md + "
             f"asset_requests.json dans lab/forge_runs/{project}/ (procédure v0.1)."
+        ),
+        # §7.2 · s2.7 — MESURE du genre, pas conception. La tâche par défaut nomme le
+        # projet ; le GENRE réel se passe par --tasks-file quand il diffère du nom.
+        "s2.7-gm-worldscan": (
+            f"World Scan du GAME MASTER pour le projet '{project}' : mesure "
+            "comparative du GENRE sur >=2 jeux réels et documentés. Produis les 8 "
+            "dimensions de calibration (combat, progression, economy, rng, rarity, "
+            "bonus, metagame, construction) CHIFFRÉES et SOURCÉES. Ne redis AUCUNE "
+            "des 3 dimensions déjà structurées par le World Scan artistique injecté "
+            "en amont (modes/joueurs, conditions de victoire-défaite, boucles). Une "
+            "dimension non observable se déclare status NOT_MEASURED AVEC sa raison — "
+            "jamais une valeur inventée."
         ),
     }
     # Garde-fou : toute étape LLM du profil full DOIT avoir une tâche non vide —

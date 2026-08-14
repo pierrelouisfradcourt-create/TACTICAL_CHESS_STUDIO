@@ -66,6 +66,9 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # accidentel. « Le Prisme est le mécanisme qui transforme la connaissance
     # externe en exigences internes » — encore faut-il qu'il la reçoive.
     "s1-prisme": ("artifacts/s2-worldscan.txt",),
+    # §7.2 · s2.7 — copie STRICTEMENT identique à run_real._UPSTREAM_BY_STEP (test
+    # d'égalité dans test_context_manifest.py) : toute divergence casse ce test.
+    "s2.7-gm-worldscan": ("artifacts/s2-worldscan.txt",),
     # s3-decompo reçoit désormais les DEUX : le Prisme (exigences) et le World
     # Scan (connaissance qui les fonde). Sans cette 2e source, la décompo perdait
     # les standards du genre dès qu'ils n'étaient pas repris mot pour mot.
