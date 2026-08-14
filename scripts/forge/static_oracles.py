@@ -1211,3 +1211,121 @@ def check_gm_worldscan(data: dict) -> dict:
             raisons.append(f"dimension '{dim}' présente {n} fois (une seule attendue)")
 
     return {"passed": not raisons, "raisons": raisons}
+
+
+# --- §7.2 · s2.6-story-bible (GO Pierre 2026-08-14) ---------------------------------
+# Les 8 sections narratives de la Story Bible (cible §Story Bible : contexte, univers,
+# chronologie, enjeux, factions, personnages, relations, événements, cohérence —
+# consolidées en 8 identifiants). GROUNDED/NOT_GROUNDED est l'équivalent contractuel
+# de MEASURED/NOT_MEASURED pour un artefact narratif : ancré dans une entrée citée, ou
+# honnêtement absent — jamais du remplissage.
+STORY_BIBLE_SECTIONS = (
+    "context", "chronology", "stakes", "factions",
+    "characters", "relations", "events", "coherence_rules",
+)
+
+_STORY_BIBLE_SOURCES = ("worldscan", "charter")
+
+
+def check_story_bible(data: dict) -> dict:
+    """story_bible.json est-il intégralement ANCRÉ — chaque élément cite sa source,
+    chaque section non ancrable se déclare, aucune invention ?
+
+    Retourne {passed, raisons[]}. Jamais d'exception sur entrée malformée — FAIL
+    honnête, même doctrine que `check_charter`/`check_gm_worldscan`.
+
+    Ce que cet oracle vérifie — FORME et TRAÇABILITÉ, jamais la qualité narrative :
+      - `inputs_recus` présent avec les deux booléens (worldscan, charter) ;
+      - les 8 id de STORY_BIBLE_SECTIONS présents, une fois chacun ;
+      - `status` ∈ {GROUNDED, NOT_GROUNDED} ;
+      - GROUNDED     => ≥1 élément, chacun avec statement/source/ref non vides et
+                        `inferred` booléen ;
+      - `source` ∈ {worldscan, charter} STRICTEMENT — toute autre valeur est un
+        ancrage hors entrées, donc une invention déguisée, refusée ;
+      - NOT_GROUNDED => `reason` non vide ;
+      - aucun placeholder (même détecteur local que check_gm_worldscan).
+
+    Ce qu'il NE vérifie PAS : que `ref` cite fidèlement la source (un oracle de forme
+    ne lit pas le worldscan), ni qu'une déduction `inferred` soit raisonnable. Limite
+    assumée, rattrapage en aval (GM, red-team).
+    """
+    if not isinstance(data, dict):
+        return {"passed": False,
+                "raisons": [f"story_bible n'est pas un mapping (reçu {type(data).__name__})"]}
+
+    raisons: list[str] = []
+
+    inputs = data.get("inputs_recus")
+    if not isinstance(inputs, dict):
+        raisons.append("'inputs_recus' absent ou n'est pas un mapping — la bible doit "
+                       "déclarer ce que son contexte portait réellement")
+    else:
+        for k in ("worldscan", "charter"):
+            if not isinstance(inputs.get(k), bool):
+                raisons.append(f"'inputs_recus.{k}' doit être un booléen explicite")
+
+    sections = data.get("sections")
+    if not isinstance(sections, list):
+        return {"passed": False,
+                "raisons": raisons + ["'sections' absent ou n'est pas une liste"]}
+
+    vus: dict[str, int] = {}
+    for i, s in enumerate(sections):
+        if not isinstance(s, dict):
+            raisons.append(f"sections[{i}] n'est pas un mapping")
+            continue
+        sid = s.get("id")
+        if sid not in STORY_BIBLE_SECTIONS:
+            raisons.append(f"sections[{i}] : id {sid!r} hors du vocabulaire figé "
+                           f"{list(STORY_BIBLE_SECTIONS)}")
+            continue
+        vus[sid] = vus.get(sid, 0) + 1
+
+        status = s.get("status")
+        if status not in ("GROUNDED", "NOT_GROUNDED"):
+            raisons.append(f"'{sid}' : status {status!r} invalide (GROUNDED | NOT_GROUNDED)")
+            continue
+
+        if status == "NOT_GROUNDED":
+            reason = s.get("reason")
+            if not isinstance(reason, str) or not reason.strip():
+                raisons.append(f"'{sid}' NOT_GROUNDED sans 'reason' — une absence se "
+                               "motive, elle ne se tait pas")
+            elif _gm_is_placeholder(reason):
+                raisons.append(f"'{sid}' : 'reason' est un placeholder ({reason!r})")
+            continue
+
+        elements = s.get("elements")
+        if not isinstance(elements, list) or not elements:
+            raisons.append(f"'{sid}' GROUNDED sans élément — un ancrage revendiqué "
+                           "exige au moins un élément cité")
+            continue
+        for j, e in enumerate(elements):
+            if not isinstance(e, dict):
+                raisons.append(f"'{sid}'.elements[{j}] n'est pas un mapping")
+                continue
+            for champ in ("statement", "ref"):
+                val = e.get(champ)
+                if not isinstance(val, str) or not val.strip():
+                    raisons.append(f"'{sid}'.elements[{j}] : '{champ}' absent ou vide")
+                elif _gm_is_placeholder(val):
+                    raisons.append(f"'{sid}'.elements[{j}] : '{champ}' est un "
+                                   f"placeholder ({val!r})")
+            src = e.get("source")
+            if src not in _STORY_BIBLE_SOURCES:
+                raisons.append(f"'{sid}'.elements[{j}] : source {src!r} hors entrées "
+                               f"({list(_STORY_BIBLE_SOURCES)}) — un ancrage hors "
+                               "worldscan/charter est une invention déguisée")
+            if not isinstance(e.get("inferred"), bool):
+                raisons.append(f"'{sid}'.elements[{j}] : 'inferred' doit être un "
+                               "booléen explicite (dit par la source, ou déduit)")
+
+    for sec in STORY_BIBLE_SECTIONS:
+        n = vus.get(sec, 0)
+        if n == 0:
+            raisons.append(f"section '{sec}' absente — les 8 sont obligatoires, une "
+                           "section non ancrable se déclare NOT_GROUNDED")
+        elif n > 1:
+            raisons.append(f"section '{sec}' présente {n} fois (une seule attendue)")
+
+    return {"passed": not raisons, "raisons": raisons}

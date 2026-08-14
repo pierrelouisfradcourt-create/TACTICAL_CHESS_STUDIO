@@ -451,6 +451,8 @@ _ARTIFACT_BY_STEP: dict[str, str] = {
     # n'aurait rien à juger (cf. mémoire studio « ce qui rend un worker Forge
     # mesurable »).
     "s2.7-gm-worldscan": "gm_worldscan.json",
+    # §7.2 · s2.6-story-bible — meme motif : l'entree qui rend la station mesurable.
+    "s2.6-story-bible": "story_bible.json",
 }
 
 # Bloc JSON fenced (```json ... ```) — extraction déterministe, aucun LLM.
@@ -985,9 +987,22 @@ def _validate_gm_worldscan(data: dict) -> str:
     return ""
 
 
+def _validate_story_bible(data: dict) -> str:
+    """§7.2 · s2.6 — garde-fou MINIMAL avant écriture ; check_story_bible reste
+    l'oracle de vérité (8 sections, ancrage, placeholders)."""
+    sections = data.get("sections")
+    if not isinstance(sections, list) or not sections:
+        return ("'sections' doit être une liste NON VIDE (une bible sans section ne "
+                "porte aucune matière narrative)")
+    if not isinstance(data.get("inputs_recus"), dict):
+        return "'inputs_recus' doit déclarer ce que le contexte portait réellement"
+    return ""
+
+
 _ARTIFACT_VALIDATORS = {
     "worldscan.json": _validate_worldscan,
     "gm_worldscan.json": _validate_gm_worldscan,
+    "story_bible.json": _validate_story_bible,
     "blueprint.json": _validate_blueprint,
     "wiremap.json": _validate_wiremap,
     "prisme.json": _validate_prisme,
@@ -1257,6 +1272,10 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # l'absence de CONSOMMATEUR de gm_worldscan.json se lit donc ailleurs — aucune
     # étape ne le cite, PASSIVE assumée (cf. PROFILES["gm_worldscan"]).
     "s2.7-gm-worldscan": ("artifacts/s2-worldscan.txt",),
+    # §7.2 · s2.6 — la Story Bible reçoit ses DEUX seules sources d'ancrage. Le
+    # charter est un fichier de run (comme pour s3) ; absent => section amont réduite,
+    # et le worker le déclare dans inputs_recus au lieu de compenser.
+    "s2.6-story-bible": ("charter.yaml", "artifacts/s2-worldscan.txt"),
     "s3-decompo": ("charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt"),
     "s4-archi": ("charter.yaml", "artifacts/s3-decompo.txt",),
     "s5-wiremap": ("charter.yaml", "artifacts/s3-decompo.txt", "blueprint.json"),
@@ -1660,6 +1679,15 @@ def default_task_by_step(project: str, src_root_rel: str,
         "s2.5-artbible": (
             f"Lis lab/forge_runs/{project}/product_snapshot.md et livre art_bible.md + "
             f"asset_requests.json dans lab/forge_runs/{project}/ (procédure v0.1)."
+        ),
+        # §7.2 · s2.6 — ANCRAGE, pas invention.
+        "s2.6-story-bible": (
+            f"Story Bible du projet '{project}' : établis la matière narrative ANCRÉE "
+            "dans les DEUX seules sources injectées en amont (worldscan.json, charter). "
+            "Chaque élément cite sa source et son passage ; une section que les entrées "
+            "ne permettent pas d'ancrer se déclare NOT_GROUNDED avec sa raison. AUCUN "
+            "remplissage narratif : une bible presque vide mais honnête vaut mieux "
+            "qu'une bible riche et fabriquée. Déclare sincèrement inputs_recus."
         ),
         # §7.2 · s2.7 — MESURE du genre, pas conception. La tâche par défaut nomme le
         # projet ; le GENRE réel se passe par --tasks-file quand il diffère du nom.

@@ -134,6 +134,12 @@ DEDICATED_PROFILE_STEPS = (
     # HORS de ORDER, comme les quatre ci-dessus : jamais mêlée silencieusement à
     # `full`, dispatchable uniquement par son profil dédié.
     "s2.7-gm-worldscan",
+    # §7.2 · s2.6-story-bible (GO Pierre 2026-08-14, strictement cette station) —
+    # Story Bible de l'AGENT ARTISTIQUE, ancree dans worldscan.json + charter, role
+    # art_director. La regle qui la definit : elle n'INVENTE pas — chaque element cite
+    # sa source, une section non ancrable se declare NOT_GROUNDED motivee. Hors ORDER
+    # comme les cinq ci-dessus.
+    "s2.6-story-bible",
 )
 
 # Profils de chaîne — sous-ensembles de ORDER (ou de DEDICATED_PROFILE_STEPS ci-dessus)
@@ -165,6 +171,10 @@ PROFILES = {
     # consommateur » que §7.2 doit corriger, pas reproduire. Le câblage aval se fera
     # avec la première station consommatrice réelle.
     "gm_worldscan": ("s2.7-gm-worldscan",),
+    # story_bible : s2.6 SEULE, meme forme que gm_worldscan/artbible/review. Pas de
+    # verdict signe. CONSOMMATION AVAL : PASSIVE attendue — le consommateur
+    # architectural (le GM) n'existe pas encore ; aucun faux consommateur.
+    "story_bible": ("s2.6-story-bible",),
     # oracle_only : s10s SEUL, sur un jeu DEJA CONSTRUIT (ratifie Pierre 2026-08-10).
     #
     # Cause mesuree : pacman V5 est VALIDATED mais n'est jamais passe par le driver
