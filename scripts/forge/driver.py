@@ -1006,6 +1006,18 @@ class ForgeDriver:
         markdown_check = res.get("markdown_check") if isinstance(res, dict) else None
         if markdown_check is not None:
             entry["detail"]["markdown_check"] = markdown_check
+        # M4' (GO Pierre 2026-08-14) — JUMEAU STRICT du report ci-dessus, pour le reçu
+        # du matérialiseur YAML (`run_real._materialize_yaml` -> res["yaml_check"]).
+        # Défaut mesuré sur le run charte-20260814 : charter.yaml PRODUIT (4660 octets,
+        # check_charter PASS) et son reçu ABSENT de state.json — j'avais corrigé ce
+        # même défaut pour markdown_check en M3'a quelques heures plus tôt, puis
+        # introduit son jumeau dans le lot suivant en oubliant le report. Troisième
+        # occurrence du motif « producteur sans consommateur », la seule entièrement
+        # de mon fait, et postérieure à la leçon qui la nommait.
+        # Même forme conditionnelle : une étape sans artefact YAML ne gagne aucune clé.
+        yaml_check = res.get("yaml_check") if isinstance(res, dict) else None
+        if yaml_check is not None:
+            entry["detail"]["yaml_check"] = yaml_check
         self._save(state)
         try:
             # M1 (design imposé pt.3) : le champ `model` porte le modèle
