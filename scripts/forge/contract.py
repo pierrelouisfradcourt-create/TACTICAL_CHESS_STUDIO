@@ -97,7 +97,25 @@ RESTITUTION_RULE = (
     "fait / partiel / hors délai) et la raison (pourquoi). Rien sauté => "
     "écris `SKIPPED_VALIDATION: aucun` — une décision assumée, jamais un "
     "silence. Le silence sur cette section est traité comme un oubli, pas "
-    "comme 'rien à signaler'."
+    "comme 'rien à signaler'. "
+    # R1' (GO Pierre 2026-08-13) — lignée Return : le WHY DÉCOUVERT doit survivre au
+    # worker sous forme structurée, sinon `promote_manifest_lessons` n'a aucun
+    # producteur (mesuré : 4 reasons promotables sur 108 lignes de manifeste, tous
+    # d'origine humaine). Règle anti-faux-WHY de la ratification : NOT_DISCOVERED est
+    # une réponse HONNÊTE et attendue au premier essai sans anomalie — n'inventer un
+    # DISCOVERED sous aucun prétexte. L'exécuteur (run_real) extrait ce marqueur vers
+    # le Context Manifest ; un marqueur ABSENT est enregistré NOT_TRANSMITTED —
+    # distinct de NOT_DISCOVERED : l'un mesure l'absence de découverte, l'autre le
+    # non-respect du contrat de restitution.
+    "TOUTE DERNIÈRE LIGNE DU RAPPORT, OBLIGATOIRE — lignée Return : une ligne "
+    "unique `RETURN_REASON: {\"status\": \"NOT_DISCOVERED\"}` si tu n'as découvert "
+    "AUCUN problème pendant ce travail. Si (et SEULEMENT si) tu as réellement "
+    "découvert un problème — défaut rencontré, cause d'un échec, écart mesuré — "
+    "écris à la place `RETURN_REASON: {\"status\": \"DISCOVERED\", \"problem\": "
+    "\"<le problème, factuel>\", \"root_cause\": \"<la cause racine si connue, "
+    "sinon omets ce champ>\"}`. JSON valide sur UNE seule ligne, aucun texte "
+    "après. N'invente JAMAIS un problème pour remplir ce champ : un "
+    "NOT_DISCOVERED honnête vaut mieux qu'un DISCOVERED de complaisance."
 )
 
 

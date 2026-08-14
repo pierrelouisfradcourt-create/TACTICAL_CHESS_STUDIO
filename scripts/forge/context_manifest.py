@@ -366,7 +366,10 @@ def build_execution_manifest_record(
     tools_effective: tuple[str, ...] = (),
     tools_disallowed_count: int = 0,
 ) -> dict:
-    """Corps NON SIGNÉ de la ligne 'execution'."""
+    """Corps NON SIGNÉ de la ligne 'execution'.
+
+    R1' : la lignée RETURN ne vit PAS ici — cette ligne est écrite AVANT l'appel LLM.
+    Voir `append_return_manifest` (kind 'return'), écrit après la réponse."""
     budget = _context_budget(len(final_prompt), model, model_windows_path)
     return {
         "schema": SCHEMA,
@@ -432,4 +435,46 @@ def append_execution_manifest(
     )
     record["hmac"] = _sign(record, key_file)
     _append_line(manifest_path(run_dir, etape), record)
+    return record
+
+
+def return_manifest_path(run_dir: Path | str, etape: str) -> Path:
+    """Fichier jumeau de la lignée Return — voir `append_return_manifest`."""
+    return Path(run_dir) / "context" / f"{etape}.return.manifest.jsonl"
+
+
+def append_return_manifest(
+    run_id: str, etape: str, run_dir: Path | str, reason: dict, *,
+    key_file: Path | None = None, ts: float | None = None,
+) -> dict:
+    """R1' (GO Pierre 2026-08-13) — ligne 'return' du Context Manifest : la lignée
+    RETURN du worker, écrite APRÈS sa réponse (l'enregistrement 'execution' est écrit
+    AVANT l'appel LLM et ne peut donc pas la porter — mesuré, pas supposé).
+
+    `reason` (voir `build_execution_manifest_record`) : DISCOVERED {problem,
+    root_cause} => candidat mécanique à `promote_manifest_lessons` (le pont lit TOUT
+    enregistrement du manifeste dont reason.problem/root_cause est non vide — aucun
+    câblage supplémentaire) · NOT_DISCOVERED => honnête, ignoré par le pont ·
+    NOT_TRANSMITTED => le worker n'a pas honoré la règle de restitution (défaut
+    mesurable, jamais assimilé à « rien à signaler »).
+
+    Même signature HMAC et même répertoire que dispatch/execution, dans un fichier
+    JUMEAU `<etape>.return.manifest.jsonl` : les consommateurs par glob
+    (`promote_manifest_lessons`, `verify_run` — `*.manifest.jsonl`) le découvrent
+    sans câblage, et le fichier `<etape>.manifest.jsonl` garde EXACTEMENT sa
+    structure d'avant R1' (des lecteurs existants supposent que sa dernière ligne
+    est l'enregistrement 'execution' — mesuré sur les tests de garde P4/P7, pas
+    supposé)."""
+    record = {
+        "schema": SCHEMA,
+        "kind": "return",
+        "run_id": run_id,
+        "etape": etape,
+        "reason": reason,
+        "ts": ts if ts is not None else time.time(),
+        "git_head": current_git_head(),
+        "claim_verdict": CLAIM_VERDICT,
+    }
+    record["hmac"] = _sign(record, key_file)
+    _append_line(return_manifest_path(run_dir, etape), record)
     return record

@@ -181,6 +181,16 @@ _STEP_TOOLS: dict[str, tuple[str, ...]] = {
     # (run-oracle.mjs), donc Bash(node:*) STRICT, jamais Bash nu (F1a red-team :
     # le subprocess hérite de .claude/settings.local.json qui ALLOW-liste
     # Bash(git add/commit/push...) — un Bash nu ouvrait le commit de l'arbre sale).
+    # P1.2 (2026-08-13) — TENTATIVE RETIRÉE, consignée parce qu'elle a été falsifiée par
+    # le dépôt lui-même : j'avais ajouté `Glob`/`Grep` ici, au motif que ces étapes en
+    # disposaient DE FAIT (mesuré) et que le deny-par-complément les leur retirerait.
+    # Sept tests l'ont refusée — `test_s9_build_a_les_outils_du_contrat_ratifie`,
+    # `test_s9_build_standard_allowlist_matches_what_was_measured`,
+    # `test_s2_5_artbible_outils_bornes`, entre autres. Ces gardes encodent des jeux
+    # d'outils RATIFIÉS ; élargir une allow-list ratifiée demande une gate Pierre, pas
+    # une hypothèse d'exécutant. La capacité observée historiquement N'EST PAS une
+    # preuve d'usage actuel (niveau 3 : NOT_MEASURED). Table laissée INCHANGÉE : le
+    # complément borne donc exactement le jeu ratifié, ce qui est le comportement voulu.
     "s9-build": ("Write", "Edit", "Read", "Bash(node:*)"),
     "s11-redteam-code": ("Read",),
     # s2.5-artbible (profil dédié `artbible`, Tier 3 #7) : crée 2 fichiers neufs
@@ -290,6 +300,123 @@ _STEP_DISALLOWED: tuple[str, ...] = (
     "Write(lab/chains/**)", "Edit(lab/chains/**)",
     "Write(.claude/**)", "Edit(.claude/**)",
 )
+
+# --- P1.2 — BORNE POSITIVE DE CAPACITÉ (GO Pierre 2026-08-13) ---------------------
+# Mesure fondatrice (3 essais `claude -p` haiku, 2026-08-13, cf.
+# docs/forge/FORGE_PIPELINE_TARGET_V1.md §6.3) :
+#   1. `_STEP_TOOLS[etape]` VIDE + `--permission-mode manual` => l'agent lit le dépôt
+#      (jeton sentinelle rendu à l'identique) et le parcourt (Glob : compte de fichiers
+#      EXACT). Une déclaration « aucun outil » ne bornait donc RIEN.
+#   2. Refuser `Read`/`Glob`/`Grep` ne ferme pas : `Bash` reste un passe-partout
+#      (`ls`/`cat`/`grep`) et n'était refusé que sur `Bash(git:*)`. Loi du déplacement.
+#   3. Refuser l'ENSEMBLE {Read, Glob, Grep, Bash, PowerShell, ToolSearch, Task, Agent}
+#      ferme réellement (`READ=NO_READ`, `SEARCH=NO_SEARCH`).
+# Mesure décisive pour la FORME : `--allowedTools Write` seul (sans Read/Glob/Bash) laisse
+# TOUJOURS lire et parcourir. => **une allow-list PRÉ-APPROUVE, elle ne RESTREINT pas.**
+# Le seul organe d'application est `--disallowedTools`.
+#
+# Conséquence de conception : la borne est POSITIVE en DÉCLARATION (chaque étape énumère
+# exhaustivement ce qu'elle peut utiliser, via `_STEP_TOOLS`) et son application est
+# DÉRIVÉE — le déni est le COMPLÉMENT de la déclaration sur `_TOOL_UNIVERSE`. Ajouter une
+# étape sans entrée `_STEP_TOOLS` la rend désormais TOTALEMENT bornée (fail-safe), au lieu
+# de totalement ouverte (fail-open) comme avant ce correctif.
+#
+# LIMITE DÉCLARÉE, non refermable ici : `_TOOL_UNIVERSE` est une énumération. Un outil
+# futur du harnais (ou un serveur MCP) absent de cette liste rouvrirait la frontière sans
+# qu'aucun test ne le voie. `--strict-mcp-config` (déjà posé) ferme le vecteur MCP ; le
+# vecteur « nouvel outil natif » reste ouvert et demande un capteur de dérive du
+# vocabulaire d'outil — le même capteur manquant que pour `Task` -> `Agent`.
+_TOOL_UNIVERSE: tuple[str, ...] = (
+    "Read", "Write", "Edit", "NotebookEdit", "Glob", "Grep",
+    "Bash", "PowerShell", "Task", "Agent", "ToolSearch",
+    "WebFetch", "WebSearch",
+)
+
+
+def _tool_base(spec: str) -> str:
+    """Nom d'outil nu d'un spécificateur : `Bash(node:*)` -> `Bash`."""
+    return spec.split("(", 1)[0].strip()
+
+
+# --- M1 (GO Pierre 2026-08-13) — contract.permissions SOURCE de la déclaration --------
+# Audit CAPABILITY_AUDIT_P13_20260813 : le champ `permissions` des contrats déclare les
+# capacités requises (grammaire verbale régulière 24/24 : `read:` `write:` `create:`
+# `run:` `delete:`) et n'était consommé par AUCUN code — deux tables indépendantes,
+# divergentes 7/7 sur les étapes de conception. M1 fait du contrat la source pour toute
+# étape SANS entrée ratifiée dans `_STEP_TOOLS`.
+#
+# Priorité : `_STEP_TOOLS[etape]` (jeux d'outils RATIFIÉS, gardés par 7 tests de la zone
+# protégée) PRIME sur la dérivation. La dérivation ne s'applique qu'aux étapes sans
+# ratification — celles qui, depuis P1.2, étaient totalement bornées par le complément.
+#
+# Politique de dérivation — UNIQUEMENT ce qui est mécaniquement non ambigu :
+#   - `read:` != aucun  -> Read. (Ni Glob ni Grep : aucun contrat ne déclare la
+#     recherche ; leçon du retrait Glob/Grep — capacité observée != capacité due.)
+#   - `run:` -> les NOMS D'OUTILS de `_TOOL_UNIVERSE` cités littéralement (ex. s2 :
+#     `run: WebSearch, WebFetch`). Une prose (« l'oracle code ») ne dérive RIEN.
+#   - `write:`/`create:` -> JAMAIS dérivés. Le patron réel des étapes de conception est
+#     « bloc JSON terminal -> l'exécuteur matérialise » (documenté dans s2-worldscan.yaml
+#     §permissions) : accorder Write sur la foi d'une prose de portée (« charter.yaml
+#     uniquement ») donnerait un Write NON borné à cette portée. Un Write agent réel
+#     reste une ratification (`_STEP_TOOLS`).
+#   - `Edit` -> jamais dérivé (aucun contrat ne le distingue).
+# Fail-safe : contrat absent/illisible/sans champ -> () — l'étape reste totalement
+# bornée, jamais un fail-open silencieux.
+_PERMISSIONS_VERB = re.compile(
+    r"(read|write|create|run|delete)\s*:\s*(.*?)(?=(?:read|write|create|run|delete)\s*:|\Z)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _tools_from_permissions(permissions_text: str) -> tuple[str, ...]:
+    """Dérivation déterministe permissions -> outils. Voir politique ci-dessus."""
+    tools: list[str] = []
+    verbs = {m.group(1).lower(): m.group(2).strip()
+             for m in _PERMISSIONS_VERB.finditer(permissions_text or "")}
+    read_val = verbs.get("read", "")
+    if read_val and not read_val.lower().startswith("aucun"):
+        tools.append("Read")
+    run_val = verbs.get("run", "")
+    if run_val and not run_val.lower().startswith("aucun"):
+        for name in _TOOL_UNIVERSE:
+            if re.search(rf"\b{re.escape(name)}\b", run_val) and name not in tools:
+                tools.append(name)
+    return tuple(tools)
+
+
+def _effective_step_tools(etape: str) -> tuple[str, ...]:
+    """Outils effectifs d'une étape : ratification (`_STEP_TOOLS`) d'abord, sinon
+    dérivation du contrat (`permissions`), sinon () — fail-safe."""
+    if etape in _STEP_TOOLS:
+        return _STEP_TOOLS[etape]
+    contract_path = REPO_ROOT / "scripts" / "forge" / "contracts" / f"{etape}.yaml"
+    try:
+        import yaml  # déjà dépendance de forge.contract
+        data = yaml.safe_load(contract_path.read_text(encoding="utf-8")) or {}
+        return _tools_from_permissions(str(data.get("permissions") or ""))
+    except Exception:  # noqa: BLE001 — fail-safe : borne totale, jamais fail-open
+        logger.warning("M1: permissions du contrat illisibles pour %s -> ()", etape)
+        return ()
+
+
+def _derive_disallowed(allowed: tuple[str, ...]) -> tuple[str, ...]:
+    """Deny effectif = dénis de chemin existants + COMPLÉMENT de la déclaration.
+
+    Une étape qui déclare `Bash(node:*)` garde `Bash` (le déni porte sur le nom nu, et
+    le refuser tuerait le spécificateur autorisé) ; tout outil de `_TOOL_UNIVERSE` dont
+    le nom nu n'apparaît dans AUCUNE entrée déclarée est refusé.
+    """
+    granted = {_tool_base(t) for t in allowed}
+    complement = tuple(t for t in _TOOL_UNIVERSE if t not in granted)
+    # Dédoublonnage en préservant l'ordre : `NotebookEdit` figure déjà nu dans
+    # `_STEP_DISALLOWED` et serait ré-émis par le complément.
+    seen: set[str] = set()
+    out: list[str] = []
+    for spec in _STEP_DISALLOWED + complement:
+        if spec not in seen:
+            seen.add(spec)
+            out.append(spec)
+    return tuple(out)
 # Limite déclarée (F1d, non corrigée ici) : l'audit HMAC du dispatch
 # (forge.dispatch) signe allowed_tools=() — le payload contrat, vide par
 # construction — alors que l'exécuteur borne réellement via _STEP_TOOLS :
@@ -323,6 +450,46 @@ _ARTIFACT_BY_STEP: dict[str, str] = {
 
 # Bloc JSON fenced (```json ... ```) — extraction déterministe, aucun LLM.
 _FENCED_JSON = re.compile(r"```json\s*(.*?)```", re.S)
+
+# R1' — marqueur de lignée Return (RESTITUTION_RULE, contract.py). Ligne unique,
+# JSON inline : PAS un bloc fenced, pour ne JAMAIS entrer en collision avec
+# l'artefact d'étape (extract_json_payload prend le DERNIER bloc ```json``` — un
+# RETURN_REASON fenced en fin de rapport volerait la place de l'artefact).
+_RETURN_REASON = re.compile(r"^RETURN_REASON:\s*(\{.*\})\s*$", re.MULTILINE)
+
+
+def _extract_return_reason(output: str) -> dict:
+    """Extraction déterministe du marqueur `RETURN_REASON:` (dernière occurrence).
+
+    Retours possibles — jamais d'exception :
+      {"status": "DISCOVERED", "problem": ..., "root_cause": ...} — validé : status
+        reconnu ET problem non vide (un DISCOVERED sans problem est requalifié
+        NOT_TRANSMITTED : le contrat exigeait le champ) ;
+      {"status": "NOT_DISCOVERED"} — honnête, ignoré par promote_manifest_lessons ;
+      {"status": "NOT_TRANSMITTED"} — marqueur absent, illisible ou non conforme.
+    """
+    matches = _RETURN_REASON.findall(output or "")
+    if not matches:
+        return {"status": "NOT_TRANSMITTED"}
+    try:
+        data = json.loads(matches[-1])
+    except ValueError:
+        return {"status": "NOT_TRANSMITTED"}
+    if not isinstance(data, dict):
+        return {"status": "NOT_TRANSMITTED"}
+    status = str(data.get("status") or "").strip().upper()
+    if status == "NOT_DISCOVERED":
+        return {"status": "NOT_DISCOVERED"}
+    if status == "DISCOVERED":
+        problem = str(data.get("problem") or "").strip()
+        if not problem:
+            return {"status": "NOT_TRANSMITTED"}
+        reason: dict = {"status": "DISCOVERED", "problem": problem}
+        root_cause = str(data.get("root_cause") or "").strip()
+        if root_cause:
+            reason["root_cause"] = root_cause
+        return reason
+    return {"status": "NOT_TRANSMITTED"}
 
 
 def extract_json_payload(text: str) -> tuple[dict | None, str]:
@@ -543,7 +710,11 @@ def _claude_call_raw(prompt: str, model: str, *, add_dir: Path,
         cmd += ["--permission-mode", "manual"]
     # F1b : deny-list TOUJOURS posée (même sans tools : le panel Prisme passe ici
     # aussi) — le deny prime sur l'allow hérité de .claude/settings.local.json.
-    cmd += ["--disallowedTools", " ".join(_STEP_DISALLOWED)]
+    # P1.2 (2026-08-13) : le deny n'est plus la liste fixe mais le COMPLÉMENT de la
+    # déclaration `tools` sur `_TOOL_UNIVERSE` — c'est ce qui donne à `--allowedTools`
+    # une force de BORNE et non de simple pré-approbation (mesuré : une allow-list
+    # seule ne restreint rien). `tools=()` devient donc totalement borné, fail-safe.
+    cmd += ["--disallowedTools", " ".join(_derive_disallowed(tools))]
 
     started = time.time()
     returncode, stdout, stderr, timed_out = _run_subprocess_tree(
@@ -869,6 +1040,69 @@ def run_repair_step(etape: str, run_dir: Path, timeout_s: float = _REPAIR_TIMEOU
     return mesure
 
 
+# --- GO-1 / M3 (GO Pierre 2026-08-13) — matérialiseur TEXTE ---------------------------
+# `product_snapshot.md` avait un validateur (`check_prisme.mjs`), deux consommateurs
+# déclarés (s2.5-artbible, s3-decompo) et AUCUN producteur : le contrat s1-prisme
+# attend une écriture agent (« write: product_snapshot.md uniquement ») jamais accordée
+# par l'exécuteur, et `_ARTIFACT_BY_STEP` est une chaîne strictement JSON (une entrée
+# par étape, déjà prise par prisme.json). Mécanisme JUMEAU décidé avec Pierre :
+# artefact TEXTE = la réponse du worker MOINS ses blocs ```json``` (l'artefact
+# structuré) et MOINS la ligne RETURN_REASON (lignée Return, déjà captée au manifeste).
+# Preuve : check_prisme.mjs exécuté sur le fichier écrit, reçu JOINT au retour
+# d'exécuteur (`res["markdown_check"]`) — advisory : le reçu dit la conformité, il ne
+# gate pas le statut du pas (gater exigerait une ratification distincte).
+_MARKDOWN_BY_STEP: dict[str, str] = {
+    "s1-prisme": "product_snapshot.md",
+}
+
+# Validateur par artefact markdown — même esprit que _ARTIFACT_VALIDATORS, mais en
+# processus externe (node) et advisory.
+_MARKDOWN_CHECKERS: dict[str, tuple[str, ...]] = {
+    "product_snapshot.md": ("node", "scripts/forge/prisme/check_prisme.mjs"),
+}
+
+
+def _materialize_markdown(etape: str, output: str, run_dir: Path) -> dict | None:
+    """Écrit l'artefact TEXTE de l'étape (ex. product_snapshot.md pour s1-prisme)
+    et exécute son validateur. Retourne le reçu {written, path, check: {...}} ou
+    None si l'étape n'a pas d'artefact texte. Best-effort strict : ne lève jamais,
+    ne modifie jamais le statut du pas — un échec ici est un reçu honnête, pas un
+    crash de chaîne."""
+    artefact = _MARKDOWN_BY_STEP.get(etape)
+    if artefact is None:
+        return None
+    try:
+        text = _FENCED_JSON.sub("", output or "")
+        text = _RETURN_REASON.sub("", text).strip() + "\n"
+        if not text.strip():
+            return {"written": False, "reason": "sortie vide après retrait du bloc "
+                    "JSON et du marqueur RETURN_REASON — aucun fichier écrit"}
+        run_dir.mkdir(parents=True, exist_ok=True)
+        path = run_dir / artefact
+        path.write_text(text, encoding="utf-8")
+        receipt: dict = {"written": True, "path": str(path), "chars": len(text)}
+        checker = _MARKDOWN_CHECKERS.get(artefact)
+        if checker:
+            try:
+                proc = _REAL_SUBPROCESS_RUN(
+                    [*checker, str(path)], capture_output=True, text=True,
+                    encoding="utf-8", errors="replace", timeout=60, cwd=str(REPO_ROOT),
+                )
+                receipt["check"] = {
+                    "command": " ".join(checker),
+                    "returncode": proc.returncode,
+                    "verdict": "PASS" if proc.returncode == 0 else "FAIL",
+                    "tail": (proc.stdout or "").strip().splitlines()[-2:],
+                }
+            except (OSError, subprocess.SubprocessError) as exc:
+                receipt["check"] = {"verdict": "NOT_MEASURED", "reason": str(exc)[:200]}
+        return receipt
+    except Exception:  # noqa: BLE001 — advisory, jamais bloquant
+        logger.warning("matérialiseur markdown en échec pour étape=%s (advisory)",
+                       etape, exc_info=True)
+        return {"written": False, "reason": "exception du matérialiseur (voir run.log)"}
+
+
 def _materialize_artifact(etape: str, output: str, run_dir: Path) -> dict | None:
     """Écrit l'artefact déterministe de l'étape (blueprint.json / wiremap.json)
     depuis la sortie texte, APRÈS validation de schéma (F2a). Retourne None si
@@ -1126,7 +1360,7 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
             context_manifest.append_execution_manifest(
                 context["run_id"], etape, Path(context["run_dir"]), prompt,
                 model=payload.model, premortem_section=premortem_section,
-                tools_effective=_STEP_TOOLS.get(etape, ()),
+                tools_effective=_effective_step_tools(etape),
                 tools_disallowed_count=len(_STEP_DISALLOWED),
             )
         except Exception:
@@ -1152,7 +1386,7 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
             )
         res = _claude_call_raw(
             prompt, model, add_dir=add_dir,
-            tools=_STEP_TOOLS.get(etape, ()), timeout_s=timeout_s,
+            tools=_effective_step_tools(etape), timeout_s=timeout_s,
         )
         # G1-G2 (ratifié) : task_id unifié `run_id:etape:activation` — calculé ICI,
         # le seul point d'appel où les 3 valeurs existent ensemble (context["attempt"]
@@ -1175,12 +1409,34 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
             logger.warning(
                 "capteur G1-G2 non déposé pour étape=%s (advisory, non bloquant)",
                 etape, exc_info=True)
+        # R1' (GO Pierre 2026-08-13) — lignée RETURN : extraction déterministe du
+        # marqueur `RETURN_REASON:` de la réponse, écrite au Context Manifest en
+        # kind 'return' (l'enregistrement 'execution' est écrit AVANT l'appel LLM).
+        # Marqueur absent => NOT_TRANSMITTED : mesure le non-respect de la règle de
+        # restitution, jamais assimilé à « rien à signaler ». Best-effort strict.
+        if res.get("ok"):
+            try:
+                from forge import context_manifest
+                context_manifest.append_return_manifest(
+                    context["run_id"], etape, Path(context["run_dir"]),
+                    _extract_return_reason(str(res.get("output", ""))),
+                )
+            except Exception:
+                logger.warning(
+                    "manifest 'return' non écrit pour étape=%s (advisory, non "
+                    "bloquant)", etape, exc_info=True)
         if res.get("ok"):
             # (b) matérialisation déterministe par l'EXÉCUTEUR (jamais l'agent).
             failure = _materialize_artifact(etape, str(res.get("output", "")),
                                             Path(context["run_dir"]))
             if failure is not None:
                 return failure
+            # GO-1/M3 : artefact TEXTE (product_snapshot.md pour s1-prisme) + reçu
+            # check_prisme — advisory, jamais un échec de pas (voir docstring).
+            md_receipt = _materialize_markdown(etape, str(res.get("output", "")),
+                                               Path(context["run_dir"]))
+            if md_receipt is not None:
+                res["markdown_check"] = md_receipt
             # (c) oracle amont + réparation ciblée, immédiatement après l'écriture de
             # l'artefact. C'est le seul instant où l'artefact existe, est frais, et où
             # personne n'a encore construit dessus : réparer plus tard reviendrait à

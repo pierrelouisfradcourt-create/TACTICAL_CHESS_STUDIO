@@ -350,6 +350,15 @@ class ForgeDriver:
                 if is_deterministic_step(etape):
                     self._run_deterministic(state, etape)
                 elif not self._run_llm(state, etape):
+                    # R1'' (GO Pierre 2026-08-13) : la promotion des lessons tourne
+                    # AUSSI sur le chemin HALTED — prouvé nécessaire en vivo (run
+                    # p2a-return-snapshot : premier `return.reason.DISCOVERED` réel
+                    # du dépôt, signé au manifeste et jamais promu parce que la
+                    # promotion ne vivait que sur le chemin DONE, l.~407). Les
+                    # leçons des échecs sont précisément les plus précieuses.
+                    # Même appel best-effort strict que le chemin DONE, aucune
+                    # modification de `promote_manifest_lessons` ni de ses critères.
+                    self._promote_manifest_lessons_best_effort()
                     return self._halted_report(state.get("reason", ""))
             state["run_status"] = "DONE"
             self._save(state)
