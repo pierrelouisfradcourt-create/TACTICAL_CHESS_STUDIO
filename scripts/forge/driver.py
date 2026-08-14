@@ -994,6 +994,18 @@ class ForgeDriver:
             "cache_creation_tokens": cache_creation_tokens,
             "cache_read_tokens": cache_read_tokens,
         }
+        # M3'a (GO Pierre 2026-08-14) : le reçu du matérialiseur TEXTE
+        # (`run_real._materialize_markdown` -> res["markdown_check"]) atteint enfin
+        # `state.json`. `entry["detail"]` est un littéral de clés FIXES : il ne
+        # recopie aucune clé arbitraire du retour d'exécuteur — le reçu était donc
+        # produit puis PERDU (mesuré sur le run p2a-return-snapshot : product_snapshot.md
+        # écrit, 8516 octets, et aucune trace de sa validation dans l'état).
+        # Un producteur sans consommateur de plus, du même motif que ceux que cette
+        # session a fermés. Ajout CONDITIONNEL : une étape sans artefact texte ne
+        # gagne aucune clé, l'enregistrement des autres étapes est inchangé.
+        markdown_check = res.get("markdown_check") if isinstance(res, dict) else None
+        if markdown_check is not None:
+            entry["detail"]["markdown_check"] = markdown_check
         self._save(state)
         try:
             # M1 (design imposé pt.3) : le champ `model` porte le modèle

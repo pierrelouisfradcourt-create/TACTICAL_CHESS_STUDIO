@@ -81,6 +81,21 @@ final_report: >-
 output_contract: >-
   DEUX sorties, les deux obligatoires. (1) product_snapshot.md :
   {ce_que_le_joueur_voit, ce_qu_il_fait, ce_qu_il_ressent, regles_observables[]}.
+  M3'b (GO Pierre 2026-08-14) — COMMENT tu le livres : tu n'écris AUCUN fichier.
+  TOUT LE TEXTE de ta réponse SITUÉ HORS du bloc ```json``` terminal EST
+  product_snapshot.md — l'exécuteur le matérialise tel quel (il retire le bloc JSON
+  et la ligne RETURN_REASON, rien d'autre). Ta réponse doit donc ÊTRE ce document,
+  pas un rapport qui le décrit. FORMAT EXIGÉ par l'oracle check_prisme.mjs, à
+  respecter au caractère près : quatre en-têtes `## <n>. <TITRE>` dont les titres
+  contiennent `CE QUE LE JOUEUR VOIT`, `CE QUE LE JOUEUR FAIT`, `CE QUE LE JOUEUR
+  RESSENT` et `RÈGLES OBSERVABLES` ; chaque section ≥ 40 caractères de contenu réel ;
+  au moins une règle numérotée en début de ligne sous la forme `- **R1` (puis R2,
+  R3…) ; aucun placeholder (`à définir`, `TBD`, `???`, `TODO`, `XXX`).
+  Mesuré le 2026-08-13 (run p2a-return-snapshot) : le fichier a bien été matérialisé
+  (8516 octets, propre) mais check_prisme l'a REFUSÉ — « aucune règle numérotée
+  "- **Rn" » — parce que la réponse était rédigée comme un rapport, l'agent ignorant
+  que sa prose DEVIENDRAIT cet artefact. Le défaut était dans le contrat, pas dans
+  la rédaction.
   (2) Un bloc ```json``` TERMINAL, matérialisé en prisme.json par l'exécuteur (tu
   n'écris JAMAIS ce fichier toi-même) :
   {"game_id": "<id>", "exigences": [{"id", "source": "EXPECTED"|"ADDITIONS",
