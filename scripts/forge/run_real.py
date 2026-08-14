@@ -460,7 +460,27 @@ _FENCED_JSON = re.compile(r"```json\s*(.*?)```", re.S)
 # JSON inline : PAS un bloc fenced, pour ne JAMAIS entrer en collision avec
 # l'artefact d'étape (extract_json_payload prend le DERNIER bloc ```json``` — un
 # RETURN_REASON fenced en fin de rapport volerait la place de l'artefact).
-_RETURN_REASON = re.compile(r"^RETURN_REASON:\s*(\{.*\})\s*$", re.MULTILINE)
+# TOLERANCE DE MISE EN FORME (2026-08-14) — corrige un FAUX NEGATIF mesuré, pas une
+# hypothèse : le run `gmws-probe-20260814` (haiku) a rendu
+#   **RETURN_REASON: {"status": "NOT_DISCOVERED"}**
+# soit la ligne EN GRAS markdown — décoration que la consigne n'interdit pas. Les ancres
+# `^…$` de la version d'origine cassaient sur les astérisques, et l'extracteur rendait
+# `NOT_TRANSMITTED`, dont la sémantique est « le contrat de restitution n'a PAS été
+# honoré ». Il l'avait été : le capteur accusait le worker d'un défaut qui était le sien.
+# Mesure du 2026-08-14 sur 9 variations plausibles : **7 échouaient**, dont l'item de
+# liste, l'indentation, le titre, l'espace avant les deux-points. Le cas haiku n'était
+# pas une exception, c'était le premier symptôme.
+#
+# Ce que la tolérance accepte : un préfixe de MISE EN FORME devant le mot-clé
+# (`**`, `-`, `*`, `#`, `>`, espaces) et un suffixe de fermeture après l'accolade
+# (`**`, `*`, `` ` ``, `.`). Ce qu'elle n'accepte PAS, et qui est vérifié par des
+# contre-épreuves : une mention du mot-clé EN PROSE au milieu d'une phrase, ou un exemple
+# cité entre backticks — `(?m)^` reste exigé, seule la décoration de début de ligne est
+# tolérée. Élargir au-delà rendrait le capteur bavard, ce qui est un défaut symétrique.
+_RETURN_REASON = re.compile(
+    r"^[\s>#\-*`]*RETURN_REASON\s*:\s*\**\s*(\{.*?\})[\s*`.]*$",
+    re.MULTILINE,
+)
 
 
 def _extract_return_reason(output: str) -> dict:
