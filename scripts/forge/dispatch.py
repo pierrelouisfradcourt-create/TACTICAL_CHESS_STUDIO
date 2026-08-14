@@ -175,6 +175,24 @@ PROFILES = {
     # verdict signe. CONSOMMATION AVAL : PASSIVE attendue — le consommateur
     # architectural (le GM) n'existe pas encore ; aucun faux consommateur.
     "story_bible": ("s2.6-story-bible",),
+    # amont_narratif (GO Pierre 2026-08-14) — profil de COMPOSITION, seule mutation du
+    # lot : aucun contrat, aucun oracle, aucune station neuve.
+    #
+    # POURQUOI : `s2.7` et `s2.6` étaient tous deux TESTED, mais leur surface
+    # « injection amont avec fichiers PRÉSENTS » restait NOT_MEASURED — les deux runs
+    # de preuve tournaient sur sondes neuves, sans worldscan ni charter. On avait donc
+    # prouvé deux fois que les stations se comportent bien SANS entrées, et zéro fois
+    # qu'elles savent en exploiter. Et le trou ne se referme pas seul : les profils
+    # sont mono-station, et relancer un second profil sur le même projet ne produit
+    # rien — `run()` court-circuite sur `run_status == DONE` (driver.py) et rend un
+    # rapport idempotent. Il fallait donc une CHAÎNE, pas une reprise.
+    #
+    # Ce que ce profil doit démontrer, et qui n'est PAS « les deux étapes finissent
+    # OK » : que l'information produite par s2-worldscan a réellement traversé la
+    # frontière et MODIFIÉ la sortie de s2.6 — sections GROUNDED, `source`/`ref`
+    # réels, `inferred` distingué. Une Story Bible encore vide malgré un worldscan
+    # présent signerait une rupture de transmission, et ce serait le résultat.
+    "amont_narratif": ("s2-worldscan", "s2.6-story-bible"),
     # oracle_only : s10s SEUL, sur un jeu DEJA CONSTRUIT (ratifie Pierre 2026-08-10).
     #
     # Cause mesuree : pacman V5 est VALIDATED mais n'est jamais passe par le driver
