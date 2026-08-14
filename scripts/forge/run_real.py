@@ -1120,6 +1120,92 @@ _MARKDOWN_CHECKERS: dict[str, tuple[str, ...]] = {
 }
 
 
+# --- M4 (GO Pierre 2026-08-14) — matérialiseur YAML : charter.yaml ------------------
+# JUMEAU de `_materialize_markdown` (M3), même famille, artefact différent.
+#
+# Défaut mesuré : `charter.yaml` n'avait AUCUN producteur dans le code. Le contrat
+# s0-contrat promet « write: charter.yaml uniquement. create: charter.yaml », mais
+# l'exécuteur n'accorde pas Write (M1 dérive ('Read',) — et ne dérive JAMAIS Write,
+# décision ratifiée qui reste bonne), aucune entrée n'existait dans _ARTIFACT_BY_STEP
+# ni _MARKDOWN_BY_STEP, et `--charter` ne fait que passer un chemin au panel Prisme
+# sans rien copier dans le run_dir. Les 9 charter.yaml presents dans lab/forge_runs
+# datent TOUS du 26 juillet : artefacts historiques, comme product_snapshot.md avant
+# M3. Pendant ce temps CINQ étapes le déclarent en amont — s2.6, s3, s4, s5, s6.
+# Consommateurs sans producteur, exactement le motif que M3 a fermé.
+#
+# CE QUE CE PATCH NE FAIT PAS : donner Write à s0-contrat, ni toucher M1. Le principe
+# ratifié est intact — le contrat DÉCLARE la capacité, M1 la DÉRIVE, l'exécuteur
+# MATÉRIALISE selon le contrat. Le défaut n'était pas un manque de pouvoir de l'agent,
+# c'était le passage manquant entre sa sortie et l'artefact déclaré.
+#
+# Bloc ```yaml``` fencé, DERNIER valide — même règle déterministe que
+# `extract_json_payload`. Un charter est CONSOMMÉ par cinq étapes : un fichier
+# illisible les empoisonnerait toutes. La garde de parse BLOQUE donc l'écriture
+# (même doctrine que `_materialize_artifact` : « aucun fichier écrit » si le schéma
+# échoue), tandis que `check_charter` — l'oracle de vérité sur les 7 champs — est
+# joint en REÇU sans gater : un charter parsable mais incomplet est un fait mesuré à
+# remonter, pas une raison de ne rien écrire.
+_YAML_BY_STEP: dict[str, str] = {
+    "s0-contrat": "charter.yaml",
+}
+
+_FENCED_YAML = re.compile(r"```ya?ml\s*(.*?)```", re.S)
+
+
+def _materialize_yaml(etape: str, output: str, run_dir: Path) -> dict | None:
+    """Écrit l'artefact YAML de l'étape (charter.yaml pour s0-contrat) et joint le
+    reçu de son oracle. Retourne None si l'étape n'a pas d'artefact YAML, sinon un
+    reçu {written, ...}. Ne lève jamais — un échec est un reçu honnête, jamais un
+    crash de chaîne."""
+    artefact = _YAML_BY_STEP.get(etape)
+    if artefact is None:
+        return None
+    try:
+        blocs = _FENCED_YAML.findall(output or "")
+        if not blocs:
+            return {"written": False,
+                    "reason": f"{artefact} non matérialisable — aucun bloc ```yaml``` "
+                              "dans la réponse (0 bloc inspecté)"}
+        import yaml as _yaml
+        data = None
+        why = ""
+        for brut in reversed(blocs):  # DERNIER bloc valide, règle déterministe
+            try:
+                candidat = _yaml.safe_load(brut)
+            except Exception as exc:  # noqa: BLE001 — YAML illisible : on continue
+                why = f"YAML illisible ({str(exc)[:120]})"
+                continue
+            if isinstance(candidat, dict):
+                data = candidat
+                break
+            why = f"le bloc YAML n'est pas un mapping (reçu {type(candidat).__name__})"
+        if data is None:
+            return {"written": False,
+                    "reason": f"{artefact} non matérialisable — {why or 'aucun bloc '
+                              'YAML exploitable'} (aucun fichier écrit)"}
+        run_dir.mkdir(parents=True, exist_ok=True)
+        path = run_dir / artefact
+        path.write_text(
+            _yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
+        )
+        recu: dict = {"written": True, "path": str(path), "champs": sorted(data)}
+        # Oracle de vérité, ADVISORY : lu sur le fichier RÉELLEMENT écrit.
+        try:
+            from forge.static_oracles import check_charter
+            r = check_charter(data)
+            recu["check"] = {"oracle": "check_charter",
+                             "verdict": "PASS" if r.get("passed") else "FAIL",
+                             "raisons": list(r.get("raisons") or [])[:5]}
+        except Exception as exc:  # noqa: BLE001
+            recu["check"] = {"verdict": "NOT_MEASURED", "reason": str(exc)[:200]}
+        return recu
+    except Exception:  # noqa: BLE001 — advisory, jamais bloquant
+        logger.warning("matérialiseur YAML en échec pour étape=%s (advisory)",
+                       etape, exc_info=True)
+        return {"written": False, "reason": "exception du matérialiseur (voir run.log)"}
+
+
 def _materialize_markdown(etape: str, output: str, run_dir: Path) -> dict | None:
     """Écrit l'artefact TEXTE de l'étape (ex. product_snapshot.md pour s1-prisme)
     et exécute son validateur. Retourne le reçu {written, path, check: {...}} ou
@@ -1505,6 +1591,11 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
                                                Path(context["run_dir"]))
             if md_receipt is not None:
                 res["markdown_check"] = md_receipt
+            # M4 : artefact YAML (charter.yaml pour s0-contrat) + reçu check_charter.
+            yaml_receipt = _materialize_yaml(etape, str(res.get("output", "")),
+                                             Path(context["run_dir"]))
+            if yaml_receipt is not None:
+                res["yaml_check"] = yaml_receipt
             # (c) oracle amont + réparation ciblée, immédiatement après l'écriture de
             # l'artefact. C'est le seul instant où l'artefact existe, est frais, et où
             # personne n'a encore construit dessus : réparer plus tard reviendrait à
