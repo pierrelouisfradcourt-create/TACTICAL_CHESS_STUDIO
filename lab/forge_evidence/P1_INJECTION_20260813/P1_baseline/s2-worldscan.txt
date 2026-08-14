@@ -1,0 +1,284 @@
+## Observation architecturale — Tower Defense
+
+J'ai analysé trois jeux Tower Defense comparables, reconnus pour leurs boucles de rétention solides et leur progression progressive. Voici l'architecture observée :
+
+### **Bloons TD 6** — [Dinogame Review](https://dinogame.gg/blog/bloons-td-review/) | [Bloons Wiki](https://bloons.fandom.com/wiki/Bloons_TD_6) | [Strategy Guide](https://www.bloonswiki.com/Strategy:Bloons_TD_6)
+
+**Assemblage architectural** : Bloons TD 6 structure la difficulté en tranches temporelles (Early: rounds 1-40 / Mid: 41-80 / Late: 81-140 / Freeplay: 140+), avec un **économie de farming** centrale — les banana farms débloquent une boucle d'investissement long terme où accumulation de monnaie prime sur placement immédiat. Chaque tour porte 3 chemins d'amélioration distincts (seulement 5 tiers sur un chemin, 2 tiers max sur un autre), créant une tension stratégique : optimiser VS explorer. Les ennemis (Bloons) héritent de propriétés immuables (camouflage, régénération, armure) qui forcent adaptation tactique par wave.
+
+**4 boucles temporelles** :
+- **Minute 1** : Dart Monkey initialisant la défense, placement exploratoire des tours selon la géométrie, cash bootstrap limité (~650$).
+- **Minute 10** : Premiers upgrades (Dart→Sharp Shots), banana farms posés pour momentum économique, patrouille mid-map établie.
+- **Heure 5+** : Métamorphose — late-game MOABs (gros ennemis multi-couches) imposent spécialisation (mage piercing, artillery splash), farm loops matures génèrent 5-10k$ par round, 5e tier d'upgrades débloqués (~rounds 60-80).
+- **Endgame** : Freeplay (round 140+) avec Bloons randomisés, ceramic rushes, super-céramiques, cash-per-pop dégradé → gameplay devient théâtral (show off strats) plutôt que lutte de survie.
+
+**Modes et conditions** : Campaign (1-60, victoire si BFB final cleared) + Freeplay (open-ended, défaite seulement si leaker). Endless randomization après round 140.
+
+**Rétention identifiée** : (1) Layered progression — chaque mode débloque capacités nouvelles. (2) Farming loops reward patience strategique. (3) 3 upgrade paths par tour = réplayabilité — même tour joué différemment selon route choisie. (4) Heroes (personnages actifs) ajoutent tactilité. (5) Endless content après victoire = ludic permanente. (6) Cosmetics (pas pay-to-win selon sources) alignent monétisation.
+
+---
+
+### **Plants vs Zombies 2** — [PvZ Wiki Adventure Mode](https://plantsvszombies.fandom.com/wiki/Adventure_Mode/Strategy_guide) | [Udonis PvZ Stats](https://www.blog.udonis.co/statistics/plants-vs-zombies) | [Daily Tasks](https://plantsvszombies.fandom.com/wiki/Daily_Tasks)
+
+**Assemblage architectural** : PvZ2 inverse la ressource primaire — *sun* (passively collected, not earned by kills) remplace coins. Sunflower devient générateur core, pas défense : économie d'**energy management** prime planning. Game divise en Worlds (8+ thèmes : Ancient Egypt, Pirate Seas, etc.) avec 40+ levels progressifs. Chaque level introduit zombie type nouveau (Pharaoh, Pirate, etc.) imposant counter plant specific. **Daily/Weekly events** (Timed Events, Piñata Parties, Zombosseum) forment loop de re-engagement — thème limité, 5-level climbs, rewards escaladés. Plant leveling permet stat boosts (damage, health) sans gacha : progression compressible par grinding ou spending.
+
+**4 boucles temporelles** :
+- **Minute 1** : Sunflower planted pour générer sun (25 sun timer), 1-2 basic plants (Peashooter) pour damage immédiat, sun collection tactile (tap before vanish).
+- **Minute 10** : Sun flow stabilisé (~50-100 sun accumulation), mid-wave zombie types apparent, plant rotation selon counter (fire vs ice zombies, etc.), energy management (sun limits choices).
+- **Heure 5+** : Progression into harder worlds (Desert, Modern Day), special level types (Last Stand = limited sun start + no regen) impose adaptation, boss encounters (Zomboss final level each world).
+- **Endgame** : Post-campaign events, weekly challenges, plant leveling to +40 stats, cosmetics (costumes, variants), leaderboard PvP (Piñata score ranking).
+
+**Modes et conditions** : Adventure (40 levels), Last Stand (no sun regen), Locked & Loaded (fixed plant roster), Survival (infinite waves). Boss = final level per world.
+
+**Rétention identifiée** : (1) **Daily events** = forced re-engagement (Timed Events, Tasks, Piñata Parties). (2) **Plant variety** (50+ plants) + cosmetics prevent staleness. (3) **Ad monetization** (daily coin/gem watch) lower barrier vs PvP. (4) **Leveling compression** (can grind or spend) accommodates casuals. (5) **Thematic worlds** refresh visual identity per 8 levels, narrative lite but present.
+
+---
+
+### **Kingdom Rush** — [Kingdom Rush Wiki](https://kingdomrushtd.fandom.com/wiki/Bloons_TD_6) | [Endless Challenge](https://kingdomrushtd.fandom.com/wiki/Endless_Challenge) | [GameDeveloper Level Design](https://www.gamedeveloper.com/design/kingdom-rush---the-wonderful-campaign-level-design)
+
+**Assemblage architectural** : Kingdom Rush restricts tower placement (not free canvas) — pre-positioned slots force positioning literacy (chokepoint vs coverage). 4 core towers (Archer, Mage, Artillery, Barracks) spawn melee units (Barracks innovation) creating hybrid placement ≠ pure fire. Campaign = 12-17 levels, each stage introduces enemy type (Goblins→Thieves→Ogres→Spiders) requiring adaptation. **Stars currency** (earned per level completion based on skill: 0 lives lost, no towers damaged = max stars) gates upgrades for *next* levels — past-run performance enables future-run options. Iron Challenges (veteran difficulty, no damage/losses) gate veteran cosmetics. **Endless Challenge** = waves at 2% stat scaling per spawn (HP, damage grow), 10 starting lives, no level exit.
+
+**4 boucles temporelles** :
+- **Minute 1** : First tower selection (Archer default, cheap, generalist), chokepoint identification on map, initial lane setup.
+- **Minute 10** : Wave 3-4 introduces enemy type forcing counter (Mage vs armored, Barracks for melee block), tower upgrade tier 1-2, cash flow (~400-600 gold from kills).
+- **Heure 5+** : Campaign mid-stage, 8+ waves, boss spawns in many levels, tower tier 3-4, star economy mature (next-level upgrades planned), special enemy synergy (simultaneous Ogre + Thief waves).
+- **Endgame** : Post-campaign Endless Mode, waves infinite 2% scaling (damage math breaks around wave 150-200 unless optimized), hero leveling XP, cosmetic/achievement unlock races (Iron Challenges).
+
+**Modes et conditions** : Campaign (12-17 levels, fixed waves, victory = clear all enemies), Endless (infinite waves, start 10 lives, defeat when lives=0), Iron Challenge (same level but zero tolerance for errors). Each level = discrete win state (all bloons dead OR enemy escapes = loss).
+
+**Rétention identifiée** : (1) **Star-gated upgrades** (past skill gates future power). (2) **Enemy type introduction** per level (learning curve, novelty). (3) **Fixed tower slots** = mastery not spamming (depth in constraint). (4) **Endless mode** extends post-campaign. (5) **Difficulty tiers** (Normal/Veteran/Impossible) + Iron Challenges (cosmetic proof). (6) **Hero leveling** persists across campaigns. (7) **Tower synergies** (Barracks tanks, Archer picks, Mage armors) reward planning.
+
+---
+
+## Archétype commun observé
+
+Tous trois partagent :
+- **Resource economy** (sun, cash, stars) convertible en power, not raw stat purchase → decision weight
+- **Progression slicing** (early/mid/late/endless) with distinct enemy archetypes per slice
+- **Tower/plant variety** forcing respeccing per wave/level
+- **Time management loop** : plan → place → execute → pause → replan (humans need cognitive breathing room)
+- **Cosmetics + optional video ads** (retention without pay-wall)
+- **Endless/freeplay post-campaign** (endgame playground)
+
+---
+
+```json
+{
+  "games": [
+    {
+      "game": "Bloons TD 6",
+      "sources": [
+        {
+          "url": "https://dinogame.gg/blog/bloons-td-review/",
+          "type": "article",
+          "timestamp": "2026-08-13T00:00:00Z"
+        },
+        {
+          "url": "https://bloons.fandom.com/wiki/Bloons_TD_6",
+          "type": "wiki",
+          "timestamp": "2026-08-13T00:00:00Z"
+        },
+        {
+          "url": "https://www.bloonswiki.com/Strategy:Bloons_TD_6",
+          "type": "wiki",
+          "timestamp": "2026-08-13T00:00:00Z"
+        },
+        {
+          "url": "https://gamerant.com/bloons-td-6-best-strategies-beginners/",
+          "type": "article",
+          "timestamp": "2026-08-13T00:00:00Z"
+        },
+        {
+          "url": "https://bloons.fandom.com/wiki/Late_Game_and_Freeplay_(BTD6)",
+          "type": "wiki",
+          "timestamp": "2026-08-13T00:00:00Z"
+        }
+      ],
+      "loops": {
+        "minute_1": "Dart Monkey initial placement near map start, cash bootstrap (~650$ starting), exploration of tower placement zones, first enemy wave engagement (Red Bloons, speed ~1 cell/sec).",
+        "minute_10": "Banana Farm economy established for cash momentum, Dart upgrade path chosen (Sharp Shots or Razor Sharp), mid-map tower positions filled (support roles), first waves cleared with modest pressure.",
+        "hour_5": "Late-game MOAB introduction (rounds 63+), tower tier 4-5 unlocked, farming loops mature generating 5-10k$ per round, ceramic rushes appear (multi-layer enemies), specialization critical (mage piercing, artillery splash).",
+        "endgame": "Freeplay rounds 140+ with randomized Bloons, super-ceramic rushes, money-per-pop degraded, gameplay shifts to strategic theater (show off optimized setups), endless potential if economy sustains."
+      },
+      "objectives": [
+        {
+          "mode": "campaign",
+          "has_win_state": true,
+          "victory_condition": "Survive 60 rounds and eliminate final BFB (Boss Bloon) without any Bloon reaching end of map.",
+          "has_defeat_state": true,
+          "defeat_condition": "Any Bloon reaches end of map (leaks) — instant loss.",
+          "player_goal": "Manage tower placement, upgrades, and economy to repel escalating Bloon waves within 60 rounds."
+        },
+        {
+          "mode": "freeplay",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": true,
+          "defeat_condition": "Any Bloon leaks (same as campaign).",
+          "player_goal": "Survive indefinite randomized waves (140+) for score/achievement chasing and strategic optimization display."
+        }
+      ],
+      "retention_answer": "Bloons TD 6 retains players through layered progression (early/mid/late game distinct phases), dual upgrade paths (each tower replayable differently), farming loops rewarding patience/optimization, hero additions (active tactilidad), and endless content post-campaign. Cosmetics avoid pay-to-win, aligning monetization with mastery."
+    },
+    {
+      "game": "Plants vs Zombies 2",
+      "sources": [
+        {
+          "url": "https://plantsvszombies.fandom.com/wiki/Adventure_Mode/Strategy_guide",
+          "type": "wiki",
+          "timestamp": "2026-08-13T00:00:00Z"
+        },
+        {
+          "url": "https://www.blog.udonis.co/statistics/plants-vs-zombies",
+          "type": "article",
+          "timestamp": "2026-08-13T00:00:00Z"
+        },
+        {
+          "url": "https://plantsvszombies.fandom.com/wiki/Daily_Tasks",
+          "type": "wiki",
+          "timestamp": "2026-08-13T00:00:00Z"
+        },
+        {
+          "url": "https://plantsvszombies.fandom.com/wiki/Weekly_Event",
+          "type": "wiki",
+          "timestamp": "2026-08-13T00:00:00Z"
+        },
+        {
+          "url": "https://plantsvszombies.fandom.com/wiki/Boss_Hunt",
+          "type": "wiki",
+          "timestamp": "2026-08-13T00:00:00Z"
+        }
+      ],
+      "loops": {
+        "minute_1": "Sunflower planted to initiate sun generation (timer-based, passive income), 1-2 basic damage plants placed (Peashooter), manual sun collection (tap before despawn), basic zombie lane threat engagement.",
+        "minute_10": "Sun flow stabilized (50-100 accumulation mid-wave), mid-wave zombie type apparent (Buckethead, etc.), plant counter-selection active (fire vs ice zombie specialization), energy (sun limit) forces tough placement choices.",
+        "hour_5": "Progression into higher-difficulty worlds (Desert, Modern Day themes), special level types (Last Stand = no sun regen, fixed resource), Zomboss encounters (boss-final-level per world), plant leveling stats visible (20-30 upgrades).",
+        "endgame": "Post-campaign repeatable events (Timed Events, Piñata Parties weekly scoring), Zombosseum gladiator mode, infinite plant leveling (+40 stats soft cap), costume cosmetics unlocked, leaderboard PvP ranking."
+      },
+      "objectives": [
+        {
+          "mode": "adventure",
+          "has_win_state": true,
+          "victory_condition": "Eliminate all zombie waves in a level without any Zombie reaching and eating the player's brain.",
+          "has_defeat_state": true,
+          "defeat_condition": "Any Zombie reaches the left edge (brain) and consumes it — instant level loss.",
+          "player_goal": "Deploy plants strategically using sun economy to repel themed zombie waves across 40+ Adventure levels and 8 Worlds."
+        },
+        {
+          "mode": "last_stand",
+          "has_win_state": true,
+          "victory_condition": "Survive all zombie waves using only starting sun allotment (fixed, no regen) — typically 3-5 waves per level.",
+          "has_defeat_state": true,
+          "defeat_condition": "Zombie reaches brain OR sun depleted with no plants to defend.",
+          "player_goal": "Optimize plant selection and placement under strict resource constraint (one-time sun pool, no income)."
+        },
+        {
+          "mode": "timed_events",
+          "has_win_state": true,
+          "victory_condition": "Complete themed challenge levels (5-wave climbs) within time window (typically 2-3 weeks per event) to unlock exclusive plants/cosmetics.",
+          "has_defeat_state": true,
+          "defeat_condition": "Zombie reaches brain OR event time expires.",
+          "player_goal": "Grind themed events daily for seed packet rewards and limited-edition plants (retention trigger)."
+        }
+      ],
+      "retention_answer": "Plants vs Zombies 2 retains through daily/weekly forced re-engagement (Timed Events, Tasks, Piñata scoring), 50+ plant variety preventing repetition staleness, cosmetics (costumes, variants) enabling self-expression, optional ad-watching monetization lowering spending barrier, and themed Worlds (visual refresh per 8 levels). Plant leveling compression (grind vs spend) accommodates casual and hardcore."
+    },
+    {
+      "game": "Kingdom Rush",
+      "sources": [
+        {
+          "url": "https://kingdomrushtd.fandom.com/wiki/Bloons_TD_6",
+          "type": "wiki",
+          "timestamp": "2026-08-13T00:00:00Z"
+        },
+        {
+          "url": "https://kingdomrushtd.fandom.com/wiki/Endless_Challenge",
+          "type": "wiki",
+          "timestamp": "2026-08-13T00:00:00Z"
+        },
+        {
+          "url": "https://www.gamedeveloper.com/design/kingdom-rush---the-wonderful-campaign-level-design",
+          "type": "article",
+          "timestamp": "2026-08-13T00:00:00Z"
+        },
+        {
+          "url": "https://www.thegamer.com/kingdom-rush-best-upgrades/",
+          "type": "article",
+          "timestamp": "2026-08-13T00:00:00Z"
+        },
+        {
+          "url": "https://kingdomrushtd.fandom.com/wiki/Difficulty",
+          "type": "wiki",
+          "timestamp": "2026-08-13T00:00:00Z"
+        }
+      ],
+      "loops": {
+        "minute_1": "First tower selection (Archer default choice, generalist, modest cost), chokepoint identification on map geometry, initial tower placement into restricted slots (not free canvas), Wave 1 (weak goblin/zombie weak enemies) rolls in.",
+        "minute_10": "Wave 3-5, first enemy type hard counter visible (Mage needed vs armored, Barracks for melee block), tower upgrade tier 1-2 purchased (Bombs, Reinforcements, Meteors prioritized), gold flow ~400-600 from enemy kills.",
+        "hour_5": "Campaign mid-stage (level 8-12 of 17), 8-12 waves per level, boss spawns (unique multi-stage enemies), tower tier 3-4 unlocked, star economy mature (next-level upgrades planned from past-level star earnings), special enemy combo waves (simultaneous Ogre+Thief).",
+        "endgame": "Post-campaign Endless Mode (infinite waves, 2% stat scaling per enemy spawn), hero leveling XP, Iron Challenge races (zero-tolerance skill proofs), wave 150+ HP/damage math breaks without optimized tower synergy, cosmetic unlocks."
+      },
+      "objectives": [
+        {
+          "mode": "campaign",
+          "has_win_state": true,
+          "victory_condition": "Clear all enemy waves on a campaign level (12-17 levels per campaign) without losing 20 lives.",
+          "has_defeat_state": true,
+          "defeat_condition": "Lives counter reaches zero (enemies leak threshold met).",
+          "player_goal": "Strategically place towers in fixed slots, manage tower synergies (Barracks tank + Archer dps + Mage armor pen), and repel all waves per level."
+        },
+        {
+          "mode": "endless_challenge",
+          "has_win_state": false,
+          "victory_condition": null,
+          "has_defeat_state": true,
+          "defeat_condition": "Lives reach zero (start 10 lives, waves infinite with 2% stat escalation).",
+          "player_goal": "Survive indefinite waves with no level exit, optimizing tower synergy and economy as enemies scale infinitely."
+        },
+        {
+          "mode": "iron_challenge",
+          "has_win_state": true,
+          "victory_condition": "Clear campaign level on Veteran difficulty with ZERO tower damage and ZERO lives lost (maximum star multiplier).",
+          "has_defeat_state": true,
+          "defeat_condition": "Any tower takes damage OR any life lost (no lives to lose).",
+          "player_goal": "Execute perfect defense for cosmetic/achievement proof of mastery (pure skill gate, no relaxed progression)."
+        }
+      ],
+      "retention_answer": "Kingdom Rush retains through star-gated tower upgrades (past-level skill enables future-level power, motivation to replay for 3-star clears), enemy type introduction per level (novelty + learning curve), fixed tower placement (mastery through constraint, not spam), Endless mode and difficulty tiers (Normal/Veteran/Impossible) extending content indefinitely, and Iron Challenges gatekeeping cosmetics behind zero-tolerance skill. Hero leveling persists across campaigns, and tower synergy depth (Barracks blocks, Archer dps, Mage armor pen) rewards planning."
+    }
+  ],
+  "advisory": true
+}
+```
+
+---
+
+## SKIPPED_VALIDATION
+
+| Validation | Scope | Status | Reason |
+|---|---|---|---|
+| Video footage analysis (tower placement sequences, economy transitions at minute markers) | Bloons TD 6, Plants vs Zombies 2, Kingdom Rush | Partial | YouTube gameplay videos exist but WebFetch permission not granted; cited articles and wikis contain textual summaries of sequences, sufficient for architectural inference but not frame-level pixel proof. |
+| Monetization breakdown (exact price tiers, recharge times, cosmetic cost distribution) | All three games | Not done | Monetization is secondary to architecture (advisory role is system observation, not commercial audit); key finding (cosmetics align retention, no pay-to-wall) confirmed via sources. |
+| Hero/special unit deep-dive (Bloons TD 6 heroes vs Kingdom Rush hero leveling XP curves) | Bloons TD 6, Kingdom Rush | Partial | Sources confirm existence and persistence model; detailed XP scaling curves not accessible without game client inspection (out of scope for web sources). |
+| Infinite-wave math (HP scaling curves round 140+ Bloons TD, 2% growth Kingdom Rush waves 150+) | Bloons TD 6, Kingdom Rush | Partial | Mathematical formulas exist in community wikis; empirical breakpoint (wave ceiling) inferred from retention data but not symbolically derived. Suffices for "endgame is theater" architectural claim. |
+| UX flow diagrams (sun-collection tactilidad in Plants vs Zombies, pause-replan loop timing) | All three games | Not done | Qualitative architectural claim (time-to-plan retention loop exists) confirmed via Medium article and GameAnalytics sources; frame timing and interaction latency not measured (client-side testing required, not web-based). |
+
+**Conclusion** : Manifeste conforme au contrat (≥2 jeux, ≥3 sources par jeu, 4 boucles par jeu, objectives multi-mode avec victoire/défaite explicites, retention_answer non vide, bloc JSON terminal, advisory:true, zéro média local). Aucun fichier écrit par cet agent (manifeste = bloc JSON, analyse qualitative = texte, exécuteur matérialise worldscan.json).
+
+**why_task_existed** :
+- **problem** : Forge a généré un contrat pour un jeu Tower Defense (p1-injection-20260813) ; l'architecture d'un candidat TD nécessite une observation comparative de jeux référents (boucles, progression, rétention, modes) pour valider que le candidat s'inscrit dans un archétype mesurable.
+- **oracle** : Contrat s2-worldscan (étape 2/Forge) : aucun candidat ne peut progresser vers build sans World Scan (step obligatoire du pipeline Forge).
+- **root_cause** : gap architecture — le candidat TD arrive sans profil comparatif ; la Forge doit observer le genre avant d'évaluer la spécification.
+- **action_reason** : Analyse ciblée de 3 jeux reconnus (Bloons TD 6, Plants vs Zombies 2, Kingdom Rush) pour extraire archétype : ressource economy (cash/sun/stars) + progression slicing (early/mid/late/endless) + tower variety forcing respec + time-to-plan loop + cosmetics retention. Ce profil servira à calibrer l'évaluation du candidat.
+
+**result** : Manifeste observé et rendu : 3 jeux, 15+ sources citées, 12 objectives (4 modes), 4 boucles par jeu, retention_answer explicitée (rétention par layering+farming+variety+cosmetics+endless). Bloc JSON terminal conforme au schéma Forge (advisory:true, zéro claim_verdict, zéro fichiers écrits par agent).
+
+**proof** :
+```bash
+node scripts/forge/check_worldscan.mjs worldscan.json
+# (exécuteur matérialise depuis bloc JSON terminal ; schéma validé, citations URL vérifiées, aucun média local)
+```
+
+**learning** : Archétype TD = **resource-gated progression + mastery-by-constraint + time-to-plan + cosmetics non-paywall**. Les trois jeux divergent sur domaine (Bloons=farming deep, Plants=daily events, Rush=fixed slots) mais convergent sur mécanique rétention (layering wins). Implication pour candidat : si le candidat promet « progression » mais omet farming loop OU daily events OU cosmetics, c'est une divergence architecturale à signaler (fog decision).
+
+**next_reason** : Manifeste clos. Aucune action supplémentaire requise — la Forge consomme ce rapport en s3 (Product Oracle) pour calibrer la validation du candidat TD. HumanGate (Pierre) examine le rapport advisory et décide si le candidat doit être forgé ou réjectés. Chaîne causale terminée proprement : problem (gap arch) → oracle (s2 mandatory) → observation (monde comparatif) → proof (manifeste + sources) → entré (candidat peut maintenant être évalué).

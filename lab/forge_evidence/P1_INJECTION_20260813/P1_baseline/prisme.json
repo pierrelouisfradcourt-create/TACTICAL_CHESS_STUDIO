@@ -1,0 +1,75 @@
+{
+ "game_id": "p1_worldscan_injection",
+ "exigences": [
+  {
+   "id": "s1-r1-path-lisibilite",
+   "source": "EXPECTED",
+   "source_role": "worldscan",
+   "reference": "https://bloons.fandom.com/wiki/Bloons_TD_6",
+   "observation": "Dans les 3 jeux scannes, une seule fuite d'ennemi jusqu'au bord fait perdre (Bloons: any Bloon leaks; Rush: lives to 0).",
+   "claim": "Le joueur ne tolere cette punition binaire que si la trajectoire ennemie et le point de fuite sont lisibles AVANT l'impact.",
+   "enonce": "Le produit fini affiche en permanence le chemin complet des ennemis et un compteur de vies/fuites visible sans interaction.",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Capture d'un frame de jeu ou le chemin ennemi est trace de bout en bout et le compteur de vies est present a l'ecran."
+   },
+   "destination": "s5-wiremap"
+  },
+  {
+   "id": "s1-r2-monnaie-par-kill",
+   "source": "EXPECTED",
+   "source_role": "worldscan",
+   "reference": "https://www.thegamer.com/kingdom-rush-best-upgrades/",
+   "observation": "Kingdom Rush: gold flow ~400-600 gagne par kills; la monnaie provient des ennemis detruits.",
+   "claim": "La boucle de decision d'achat n'a de tension que si la monnaie est strictement gagnee par l'action de defense, pas octroyee passivement.",
+   "enonce": "Chaque ennemi detruit credite une monnaie strictement superieure a 0, et le solde n'augmente jamais sans kill hors farm explicite.",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "Test deterministe: solde_apres_kill == solde_avant + reward avec reward>0; et solde constant sur un tick sans kill."
+   },
+   "destination": "s3-decompo"
+  },
+  {
+   "id": "s1-r3-pression-variance",
+   "source": "EXPECTED",
+   "source_role": "worldscan",
+   "reference": "https://www.gamedeveloper.com/design/kingdom-rush---the-wonderful-campaign-level-design",
+   "observation": "Les 3 jeux decoupent la difficulte en tranches (early/mid/late/endless) avec archetypes ennemis distincts par tranche.",
+   "claim": "Sans escalade mesurable de la pression entre tranches, le joueur ne ressent pas de progression et decroche.",
+   "enonce": "La pression (ennemis par vague multipliee par HP) croit de facon monotone et mesurable entre vagues, avec au moins 2 valeurs distinctes non triviales.",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "Mesure de la distribution de pression sur N vagues: suite strictement croissante et variance > 0 (regle de variance des metriques Forge)."
+   },
+   "destination": "s3-decompo"
+  },
+  {
+   "id": "s1-r4-solvabilite",
+   "source": "EXPECTED",
+   "source_role": "worldscan",
+   "reference": "https://bloons.fandom.com/wiki/Bloons_TD_6",
+   "observation": "Chaque niveau a un etat de victoire discret: Bloons campaign = survivre 60 rounds et tuer le BFB final.",
+   "claim": "Un niveau n'est un vrai defi que s'il est a la fois gagnable et perdable; un objectif inatteignable passe tous les tests unitaires sans etre jouable.",
+   "enonce": "Il existe au moins une strategie de placement qui remporte le niveau et le run passif (ne rien placer) le perd.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot atteint l'etat de victoire du niveau; un run passif atteint l'etat de defaite du meme niveau."
+   },
+   "destination": "s9-build"
+  },
+  {
+   "id": "s1-r5-retention-hook",
+   "source": "ADDITIONS",
+   "source_role": "prisme",
+   "reference": null,
+   "observation": "Aucun charter d'intention produit (etape 0) n'existe dans ce run; le concept se reduit a l'archetype moyen scanne, sans crochet de retention propre.",
+   "claim": "Un prototype sans second-session hook (endless/daily/cosmetics, dont les 3 jeux dependent) n'a aucune preuve de retention et ne mesure donc pas ce que 'TD' promet.",
+   "enonce": "Le produit fini expose au moins un etat post-victoire jouable (mode endless ou rejouabilite mesurable) atteignable depuis l'ecran de victoire.",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Depuis l'ecran de victoire, une action du bot mene a un contenu jouable additionnel (vague endless ou replay du niveau)."
+   },
+   "destination": "s3-decompo"
+  }
+ ]
+}

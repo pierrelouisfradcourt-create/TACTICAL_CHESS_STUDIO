@@ -87,8 +87,15 @@ def test_execution_manifest_carries_effective_tools_for_s11_redteam_code(
 
 def test_execution_manifest_step_absent_from_table_gets_empty_tuple_field_present(
         tmp_path, capture_calls):
-    """Une étape sans entrée dans `_STEP_TOOLS` (ex. s6-redteam-plan) rend un
-    tuple VIDE — le champ reste TOUJOURS présent, jamais absent."""
+    """Une étape sans entrée dans `_STEP_TOOLS` (ex. s6-redteam-plan) rend les outils
+    DÉRIVÉS DE SON CONTRAT (M1, GO Pierre 2026-08-13 ; amendement de l'attendu ratifié
+    par gate Pierre le même jour) — le champ reste TOUJOURS présent, jamais absent.
+
+    Sémantique d'origine (P4/P7) : absente de la table -> tuple vide. Sémantique M1 :
+    absente de la table -> `_effective_step_tools` dérive du champ `permissions` du
+    contrat (s6-redteam-plan.yaml : `read: repo entier` -> ['Read'] ; write/run: rien
+    de dérivable). L'invariant conservé ici est celui qui comptait déjà : le champ est
+    présent même sans entrée ratifiée, et il reflète la borne réellement appliquée."""
     run_dir = tmp_path / "run"
     assert "s6-redteam-plan" not in run_real._STEP_TOOLS
     ex = run_real.claude_executor(add_dir=tmp_path, task_by_step={})
@@ -96,7 +103,10 @@ def test_execution_manifest_step_absent_from_table_gets_empty_tuple_field_presen
 
     rec = _last_execution_record(run_dir, "s6-redteam-plan")
     assert "tools_effective" in rec
-    assert rec["tools_effective"] == []
+    assert rec["tools_effective"] == ["Read"]
+    # Cohérence avec la source M1 : le manifeste porte exactement la dérivation.
+    assert rec["tools_effective"] == list(
+        run_real._effective_step_tools("s6-redteam-plan"))
 
 
 def test_build_execution_manifest_record_direct_defaults_are_additive():
