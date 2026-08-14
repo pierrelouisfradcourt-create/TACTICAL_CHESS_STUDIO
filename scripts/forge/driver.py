@@ -359,7 +359,21 @@ class ForgeDriver:
                     # Même appel best-effort strict que le chemin DONE, aucune
                     # modification de `promote_manifest_lessons` ni de ses critères.
                     self._promote_manifest_lessons_best_effort()
-                    return self._halted_report(state.get("reason", ""))
+                    # R1''' (GO Pierre 2026-08-14) : RUN_INDEX reçoit AUSSI les runs
+                    # HALTED. Même motif que R1'' et même patron : `_append_run_index_
+                    # best_effort` n'avait qu'UN appelant, sur le chemin DONE (l.~419)
+                    # — le registre des runs ne connaissait donc que les succès.
+                    # Mesuré : `p1_3_exclusivity` (le run qui a RÉVÉLÉ la panne
+                    # s2-worldscan) a un state.json sur disque et AUCUNE entrée à
+                    # l'index. Portée volontairement limitée à CE point de sortie :
+                    # les trois autres (state absent, reprise idempotente d'un DONE,
+                    # FROZEN_HUMAN) ne sont pas des runs neufs et restent inchangés.
+                    # Idempotence déjà portée par le writer (recherche de l'en-tête
+                    # `## <run_id> —` avant écriture) : reprendre un run HALTED puis
+                    # le mener à DONE n'ajoute jamais de seconde entrée.
+                    report = self._halted_report(state.get("reason", ""))
+                    self._append_run_index_best_effort(report)
+                    return report
             state["run_status"] = "DONE"
             self._save(state)
             self._regenerate_journal_index()

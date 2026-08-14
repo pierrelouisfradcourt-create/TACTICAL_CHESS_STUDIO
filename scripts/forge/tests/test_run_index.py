@@ -103,18 +103,33 @@ def test_run_done_ecrit_une_entree_run_index_avec_les_5_champs(tmp_path, offline
 def test_run_halted_ecrit_aussi_une_entree_avec_statut_et_verdict_reels(tmp_path, offline):
     """Le périmètre ne restreint pas aux runs DONE : le report existe (verdict
     BLOCKED) dès qu'un run se termine (idempotent DONE ou HALTED) — l'entrée
-    porte le statut/verdict RÉELLEMENT produits, jamais un succès inventé."""
+    porte le statut/verdict RÉELLEMENT produits, jamais un succès inventé.
+
+    R1''' (GO Pierre 2026-08-14 ; amendement de zone protégée sous gate explicite
+    le même jour) : ce test documentait jusqu'ici l'ABSENCE d'entrée sur le chemin
+    HALTED — son corps affirmait `not run_index.exists()` alors que son NOM promet
+    l'inverse. `_append_run_index_best_effort` n'avait qu'un appelant, sur le chemin
+    DONE : le registre des runs ne connaissait que les succès. Mesure qui a motivé
+    la réparation : `p1_3_exclusivity` — le run qui a RÉVÉLÉ la panne s2-worldscan —
+    portait un state.json sur disque et aucune entrée à l'index. Le driver appelle
+    désormais le writer sur le point de sortie HALTED de sa boucle (même patron que
+    R1'' pour la promotion des lessons). Le nom du test devient donc exact."""
     run_dir = tmp_path / "run"
     kw = _kwargs(tmp_path, run_dir, project="proj")
     report = ForgeDriver("proj", "proj-run-b", profile="micro", executor=None, **kw).run()
     assert report["status"] == "HALTED"
 
     run_index = kw["run_index_path"]
-    # HALTED n'est PAS le chemin de fin de run instrumenté (halted_report, pas
-    # final_report) — documente honnêtement l'absence d'entrée sur ce chemin :
-    # seul le point d'accroche _promote_manifest_lessons/_trigger_observer,
-    # placé juste avant `return report` du chemin DONE, est câblé.
-    assert not run_index.exists()
+    assert run_index.exists()
+    text = run_index.read_text(encoding="utf-8")
+    # Mêmes 5 champs verrouillés que le chemin DONE — statut/verdict RÉELS,
+    # jamais un succès inventé : un run arrêté s'inscrit comme arrêté.
+    assert "## proj-run-b —" in text
+    assert "projet=proj" in text
+    assert "statut=HALTED" in text
+    assert "verdict=BLOCKED" in text
+    import re
+    assert re.search(r"ts=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", text)
 
 
 # --- (b) rejeu du même run_id => aucun doublon --------------------------------------

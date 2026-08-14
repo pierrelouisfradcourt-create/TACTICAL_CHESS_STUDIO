@@ -21,8 +21,8 @@
 
 | Connecteur | État |
 |---|---|
-| `lab/reports/forge_ledger_proposals.jsonl` | ⚠ dormant (retard 7.9 j) |
-| `lab/reports/forge_project_proposals.jsonl` | ⚠ dormant (retard 7.9 j) |
+| `lab/reports/forge_ledger_proposals.jsonl` | ⚠ dormant (retard 8.3 j) |
+| `lab/reports/forge_project_proposals.jsonl` | ⚠ dormant (retard 8.3 j) |
 | `lab/reports/forge_bible_proposals.jsonl` | · jamais écrit (informatif) |
 
 ## Contrat de système Forge — règles canoniques citées par le pilotage
