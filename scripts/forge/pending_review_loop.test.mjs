@@ -180,8 +180,12 @@ test('selectDisplayed: plafond >= volume -> tout est rendu, aucun item perdu', (
 
 // --- (2bis) MATCH_FIELDS derive ----------------------------------------------------------
 
-test('MATCH_FIELDS couvre les 6 queues et derive de QUEUE_FILES (source unique)', () => {
-  assert.equal(QUEUE_FILES.length, 6);
+test('MATCH_FIELDS couvre les 7 queues et derive de QUEUE_FILES (source unique)', () => {
+  // Compteur-CANARI : il ne mesure rien en soi, il force a repasser par ce test quand une
+  // file est ajoutee. 6 -> 7 le 2026-08-10 : file USINE (forge_factory_capability_gap_
+  // proposals), routage produit/usine ratifie Pierre. La garde substantielle est la BOUCLE
+  // ci-dessous, qui est independante du compte.
+  assert.equal(QUEUE_FILES.length, 7);
   for (const q of QUEUE_FILES) {
     assert.ok(Array.isArray(MATCH_FIELDS[q.id]) && MATCH_FIELDS[q.id].length > 0,
       `queue ${q.id} sans regle de rapprochement -> decisions structurellement orphelines`);

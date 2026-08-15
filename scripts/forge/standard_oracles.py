@@ -1230,11 +1230,25 @@ def check_index(
 # --------------------------------------------------------------------------------------
 
 
-def check_collisions(wiremap: dict, capabilities: dict) -> dict:
-    """Vérifie le registre de capacités (`capabilities.yaml`) contre la wiremap.
+def check_collisions(
+    wiremap: dict, capabilities: dict, factory_capabilities: dict | None = None
+) -> dict:
+    """Vérifie les registres de capacités contre la wiremap.
 
-    - tout identifiant de `provides`/`requires` doit exister dans le registre (pas de
-      nom libre) -> sinon `identifiants_inconnus`.
+    DEUX REGISTRES, UN SEUL VOCABULAIRE (ratifié Pierre 2026-08-10) :
+    `capabilities.yaml` porte les capacités du JEU, `factory_capabilities.yaml` les
+    préoccupations d'USINE (sondes, harnais de preuve, bot de solvabilité). La
+    séparation est de GOUVERNANCE, jamais de sévérité : les règles structurelles
+    ci-dessous s'appliquent à l'union des deux, et un identifiant absent des deux
+    reste `identifiants_inconnus`. `factory_capabilities` est optionnel — un appelant
+    qui ne le passe pas retrouve exactement le comportement d'avant (rétro-compatible).
+
+    Un même id présent dans les deux registres est un défaut de gouvernance (on ne
+    saurait plus qui le ratifie) : signalé en `identifiants_ambigus`, jamais résolu
+    silencieusement par une priorité arbitraire.
+
+    - tout identifiant de `provides`/`requires` doit exister dans l'un des registres
+      (pas de nom libre) -> sinon `identifiants_inconnus`.
     - deux lignes avec le même `provides` sur une capacité `single_owner: true` -> collision.
     - un `requires` sans aucun fournisseur -> trou.
     - deux lignes `owner: true` sur la même capacité -> double propriétaire.
@@ -1247,6 +1261,8 @@ def check_collisions(wiremap: dict, capabilities: dict) -> dict:
     """
     empty = {
         "identifiants_inconnus": [],
+        "identifiants_ambigus": [],
+        "capacites_usine_utilisees": [],
         "collisions": [],
         "trous": [],
         "doubles_proprietaires": [],
@@ -1262,12 +1278,27 @@ def check_collisions(wiremap: dict, capabilities: dict) -> dict:
     lines_raw = wiremap.get("lines")
     lines = lines_raw if isinstance(lines_raw, list) else []
 
-    cap_defs: dict[str, dict] = {}
-    if isinstance(capabilities, dict) and isinstance(capabilities.get("capabilities"), list):
-        for c in capabilities["capabilities"]:
-            if isinstance(c, dict) and isinstance(c.get("id"), str):
-                cap_defs[c["id"]] = c
+    def _collect(reg: object, key: str) -> dict[str, dict]:
+        """Entrées `{id: def}` d'un registre. Entrée malformée = registre vide, jamais
+        une exception (même discipline que le reste du module)."""
+        out: dict[str, dict] = {}
+        if isinstance(reg, dict) and isinstance(reg.get(key), list):
+            for c in reg[key]:
+                if isinstance(c, dict) and isinstance(c.get("id"), str):
+                    out[c["id"]] = c
+        return out
+
+    game_defs = _collect(capabilities, "capabilities")
+    factory_defs = _collect(factory_capabilities, "factory_capabilities")
+
+    # Un id déclaré des deux côtés : personne ne sait plus qui le ratifie. Signalé,
+    # jamais arbitré en silence — il reste connu (donc pas « inconnu »), mais le pas
+    # échoue tant que la gouvernance n'est pas tranchée.
+    identifiants_ambigus = sorted(set(game_defs) & set(factory_defs))
+
+    cap_defs: dict[str, dict] = {**factory_defs, **game_defs}
     cap_ids = set(cap_defs.keys())
+    factory_ids = set(factory_defs)
     single_owner_ids = {cid for cid, c in cap_defs.items() if c.get("single_owner") is True}
 
     identifiants_inconnus: list[str] = []
@@ -1315,12 +1346,25 @@ def check_collisions(wiremap: dict, capabilities: dict) -> dict:
         if len(provs) > 1 and not all(write_orders.get(cap, []))
     )
 
+    # Visibilité : quelles capacités d'USINE ce jeu emploie réellement. Informatif —
+    # n'entre PAS dans `passed` (une sonde déclarée n'est pas un défaut, c'est le point).
+    capacites_usine_utilisees = sorted(
+        (set(providers) | set(requirers)) & factory_ids
+    )
+
     passed = not (
-        identifiants_inconnus or collisions or trous or doubles_proprietaires or ordre_implicite
+        identifiants_inconnus
+        or identifiants_ambigus
+        or collisions
+        or trous
+        or doubles_proprietaires
+        or ordre_implicite
     )
     return {
         "passed": passed,
         "identifiants_inconnus": sorted(set(identifiants_inconnus)),
+        "identifiants_ambigus": identifiants_ambigus,
+        "capacites_usine_utilisees": capacites_usine_utilisees,
         "collisions": collisions,
         "trous": trous,
         "doubles_proprietaires": doubles_proprietaires,

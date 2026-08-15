@@ -92,7 +92,28 @@ export const QUEUE_FILES = [
   // ses occurrences, c'est l'intention), `source_line_id` permet un rapprochement plus fin sur
   // UNE ligne de wiremap precise. Les deux sont ecrits par le producteur (studio_link.py:684-685).
   // VERIFIE PAR DONNEES : 42 lignes reelles au 2026-08-10, 6 capability_id distincts.
-  { id: 'forge_capability_gap_proposals', path: 'lab/reports/forge_capability_gap_proposals.jsonl', subject_field: 'capability_id', ts_field: 'ts', match_fields: ['capability_id', 'source_line_id'] },
+  // `registry` (2026-08-10) : le registre que la RATIFICATION de ce sujet alimente. Sert
+  // UNIQUEMENT a la reconciliation d'apply_decisions (`reconcileRegistries`) — jamais a
+  // ecrire le registre, qui reste un acte humain (un `statement` ne se fabrique pas).
+  // Porte ICI, sur la queue, pour la meme raison que `match_fields` : une table parallele
+  // finit toujours par diverger (defaut MATCH_FIELDS repare le 2026-08-10).
+  // Une queue SANS `registry` est simplement hors reconciliation, jamais une erreur.
+  { id: 'forge_capability_gap_proposals', path: 'lab/reports/forge_capability_gap_proposals.jsonl', subject_field: 'capability_id', ts_field: 'ts', match_fields: ['capability_id', 'source_line_id'], registry: { path: 'scripts/forge/standard/capabilities.yaml', key: 'capabilities' } },
+  // 7e file (studio_link.propose_capability_gap, branche USINE — decision Pierre
+  // 2026-08-10, option b). JUMELLE EXACTE de la 6e : meme producteur, meme schema de
+  // record, memes cles. Ce qui change est la DESTINATION, decidee par l'espace de noms
+  // de l'identifiant (`namespaces` de scripts/forge/standard/factory_capabilities.yaml).
+  //
+  // Pourquoi deux files et pas un champ `namespace` dans une seule : Pierre arbitre des
+  // capacites de JEU dans la file produit, et le plafond d'affichage est un tour de role
+  // ENTRE FILES. Une file distincte garantit qu'un identifiant d'usine ne prend jamais la
+  // place d'un identifiant de jeu a l'ecran — mesure pacman v2 : 8 d'usine pour 67 de jeu,
+  // soit 11 % des sujets qui auraient squatte la rotation.
+  //
+  // NON VERIFIE PAR DONNEES : ce fichier n'existe pas sur disque au 2026-08-10 (aucun run
+  // n'a encore emis d'identifiant d'usine). Un fichier absent reste ABSENT, jamais une
+  // erreur — meme regime que forge_bible_proposals / forge_brick_proposals.
+  { id: 'forge_factory_capability_gap_proposals', path: 'lab/reports/forge_factory_capability_gap_proposals.jsonl', subject_field: 'capability_id', ts_field: 'ts', match_fields: ['capability_id', 'source_line_id'], registry: { path: 'scripts/forge/standard/factory_capabilities.yaml', key: 'factory_capabilities' } },
 ];
 
 const KEY_FALLBACK_PREFIX = '__no_subject_field__:';

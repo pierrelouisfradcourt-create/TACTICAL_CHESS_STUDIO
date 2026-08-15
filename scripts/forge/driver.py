@@ -2167,6 +2167,13 @@ class ForgeDriver:
         core_requirements = self._read_yaml(_STANDARD_DIR / "core_requirements.yaml")
         repo_map = self._read_yaml(_STANDARD_DIR / "repo_map.yaml")
         capabilities = self._read_yaml(_STANDARD_DIR / "capabilities.yaml")
+        # Registre USINE (ratifié Pierre 2026-08-10) — jumeau de capabilities.yaml pour
+        # les préoccupations d'usine (sondes, harnais de preuve, solvabilité). Absent =
+        # None, et `check_collisions` retrouve alors son comportement d'avant : ce
+        # fichier ne peut pas rendre un run BLOCKED en disparaissant, contrairement aux
+        # cinq entrées requises ci-dessous. Volontaire — c'est une extension de
+        # vocabulaire, pas une dépendance de l'oracle.
+        factory_capabilities = self._read_yaml(_STANDARD_DIR / "factory_capabilities.yaml")
 
         missing: list[str] = []
         if game_contract is None:
@@ -2225,7 +2232,7 @@ class ForgeDriver:
         # `dossiers_hors_structure` (« la fermeture côté disque » du standard,
         # SCHEMA.md §3) — il était testé mais n'avait jamais tourné sur un jeu réel.
         index_r = check_index(wiremap, self.game_dir, built=True, repo_map=repo_map)
-        collisions_r = check_collisions(wiremap, capabilities)
+        collisions_r = check_collisions(wiremap, capabilities, factory_capabilities)
 
         detail = {
             "contract_completeness": contract_r,
@@ -2242,7 +2249,7 @@ class ForgeDriver:
         # Dépose ICI, au moment où le manque est DÉTECTÉ (pas seulement quand le
         # pas complet réussit) — best-effort strict, comme `_propose_bricks` :
         # ne doit JAMAIS changer le statut de ce pas ni du run.
-        self._propose_capability_gaps(collisions_r)
+        self._propose_capability_gaps(collisions_r, factory_capabilities)
         # Connecteur repair-boucle-cassee (mission 2026-08-03, propose_bible_entry) :
         # même discipline — dépôt best-effort au moment où le wiremap (déjà lu
         # ci-dessus) est disponible, ne dépend PAS du statut de ce pas.
@@ -2304,7 +2311,9 @@ class ForgeDriver:
             status = "OK"
         self._finish_step(state, entry, status, detail)
 
-    def _propose_capability_gaps(self, collisions_r: dict) -> None:
+    def _propose_capability_gaps(
+        self, collisions_r: dict, factory_capabilities: dict | None = None
+    ) -> None:
         """Dépose une proposition d'extension de registre (studio_link.
         propose_capability_gap, PROPOSE-ONLY) pour chaque `identifiants_inconnus`
         de `collisions_r` (check_collisions).
@@ -2332,13 +2341,24 @@ class ForgeDriver:
             unknowns = collisions_r.get("identifiants_inconnus")
             if not isinstance(unknowns, list) or not unknowns:
                 return
+            # Préfixes d'usine : champ STRUCTURÉ du registre, jamais une liste en dur
+            # ici (décision Pierre 2026-08-10 — routage produit/usine). Registre absent
+            # ou malformé => aucun routage, tout part en produit : le comportement
+            # d'avant, jamais une perte silencieuse.
+            ns_raw = (factory_capabilities or {}).get("namespaces")
+            factory_ns = tuple(
+                p for p in ns_raw if isinstance(p, str) and p.strip()
+            ) if isinstance(ns_raw, list) else ()
             for entry_id in unknowns:
                 if not isinstance(entry_id, str) or ":" not in entry_id:
                     continue
                 source_line_id, capability_id = entry_id.split(":", 1)
                 if not capability_id:
                     continue
-                propose_capability_gap(self.run_id, self.project, capability_id, source_line_id)
+                propose_capability_gap(
+                    self.run_id, self.project, capability_id, source_line_id,
+                    factory_namespaces=factory_ns,
+                )
         except Exception:  # noqa: BLE001 — advisory, jamais bloquant
             logger.warning(
                 "_propose_capability_gaps: dépôt impossible pour run=%s (advisory, "

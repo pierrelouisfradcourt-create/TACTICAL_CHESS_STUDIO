@@ -74,6 +74,96 @@ export const MATCH_FIELDS = Object.fromEntries(
 
 const DECISION_TO_STATUS = { ACCEPT: 'ACCEPTED', REJECT: 'REJECTED' };
 
+// --- reconciliation registre <-> etat de proposition (2026-08-10) ---------------------
+//
+// DEFAUT MESURE ce jour-la : 7 capacites Tetris etaient PRESENTES dans capabilities.yaml
+// (ratifiees par Pierre) alors que leurs 39 occurrences de proposition portaient toujours
+// PROPOSED, et remontaient donc dans pending_review comme « a trancher ». Cause racine : la
+// ratification a DEUX points d'entree independants pour un SEUL acte humain — ecrire le
+// registre, ou ecrire une ligne de decision — et RIEN ne verifiait qu'ils s'accordent.
+//
+// Ce que ce volet fait : il RAPPORTE la divergence. Ce qu'il ne fait PAS, et ne doit jamais
+// faire : apposer review_status parce qu'une capacite est au registre. Ce serait une
+// ratification automatique — exactement l'inverse de la doctrine (`propose_capability_gap` :
+// « depose une proposition que Pierre promeut »). Un capteur, pas un juge.
+//
+// Limite honnete, meme precedent qu'agent_context_map.mjs : aucun parseur YAML n'existe dans
+// ce depot. On n'en ecrit pas un — extraction line-based des seuls `- id: <valeur>` sous la
+// cle de liste attendue. Suffisant pour ces deux registres (liste plate d'objets a `id`),
+// ne gere pas le YAML arbitraire. Registre absent ou illisible => aucune divergence
+// rapportee, jamais une exception : un capteur muet vaut mieux qu'un faux positif.
+
+/**
+ * Identifiants d'un registre de capacites. Extraction line-based volontairement etroite.
+ * @param {string} repoRoot
+ * @param {{path:string, key:string}} registryCfg
+ * @returns {{status:'OK'|'ABSENT', ids:Set<string>}}
+ */
+export function readRegistryIds(repoRoot, registryCfg) {
+  const abs = join(repoRoot, registryCfg.path);
+  if (!existsSync(abs)) return { status: 'ABSENT', ids: new Set() };
+  let text;
+  try {
+    text = readFileSync(abs, 'utf-8');
+  } catch {
+    return { status: 'ABSENT', ids: new Set() };
+  }
+  const ids = new Set();
+  let inList = false;
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.replace(/\t/g, '  ');
+    if (/^\s*#/.test(line) || line.trim() === '') continue;
+    // Entree dans la liste voulue : cle a la colonne 0, ex. "capabilities:".
+    if (new RegExp(`^${registryCfg.key}\\s*:`).test(line)) { inList = true; continue; }
+    // Toute autre cle de premier niveau termine la liste (ex. "namespaces:").
+    if (/^[A-Za-z_][\w.-]*\s*:/.test(line)) { inList = false; continue; }
+    if (!inList) continue;
+    const m = line.match(/^\s*-\s*id\s*:\s*(.+?)\s*$/);
+    if (m) ids.add(m[1].replace(/^["']|["']$/g, ''));
+  }
+  return { status: 'OK', ids };
+}
+
+/**
+ * Propositions dont le sujet est DEJA au registre mais dont l'etat reste non tranche.
+ * Pur rapport : aucune ecriture, aucune decision deduite.
+ * @param {string} repoRoot
+ * @returns {{divergences:Array<object>, registries:Array<object>}}
+ */
+export function reconcileRegistries(repoRoot) {
+  const divergences = [];
+  const registries = [];
+  for (const q of QUEUE_FILES) {
+    if (!q.registry || !q.subject_field) continue;
+    const reg = readRegistryIds(repoRoot, q.registry);
+    const loaded = loadProposalLines(repoRoot, q.path);
+    registries.push({
+      queue: q.id, registry: q.registry.path, registry_status: reg.status,
+      registry_ids: reg.ids.size, proposals_status: loaded.status,
+    });
+    if (reg.status !== 'OK' || loaded.status === 'ABSENT') continue;
+    const bySubject = new Map();
+    loaded.lines.forEach((l) => {
+      if (!l.parsed) return;
+      const subject = l.parsed[q.subject_field];
+      if (typeof subject !== 'string' || !reg.ids.has(subject)) return;
+      if (l.parsed.review_status !== undefined) return; // deja tranchee : coherent
+      bySubject.set(subject, (bySubject.get(subject) || 0) + 1);
+    });
+    for (const [subject, occurrences] of [...bySubject].sort()) {
+      divergences.push({
+        queue: q.id,
+        subject,
+        occurrences,
+        registry: q.registry.path,
+        reason: 'present au registre mais aucune decision appliquee (review_status absent)',
+        required_action: `ligne de decision Pierre : {"queue":"${q.id}","item":"${subject}","decision":"ACCEPT"}`,
+      });
+    }
+  }
+  return { divergences, registries };
+}
+
 /**
  * Charge et parse pending_review_decisions.jsonl. Lignes corrompues -> ignorees, jamais fatal.
  * @param {string} repoRoot
@@ -346,6 +436,11 @@ export function planDecisions(repoRoot, decisionsFile) {
     }
   }
 
+  // Reconciliation registre<->proposition : calculee sur l'etat DISQUE, independamment des
+  // decisions de ce run. Une divergence n'est ni un changement ni une orpheline — c'est un
+  // ecart de gouvernance a trancher par Pierre, rapporte sans etre agi.
+  const { divergences, registries } = reconcileRegistries(repoRoot);
+
   return {
     decisions_file_status: decisionsLoad.status,
     decisions_ignored_lines: decisionsLoad.ignored_lines,
@@ -356,6 +451,8 @@ export function planDecisions(repoRoot, decisionsFile) {
     orphaned,
     invalid,
     skipped_meta,
+    registry_divergences: divergences,
+    registries,
   };
 }
 
@@ -400,6 +497,15 @@ function main() {
   let written = [];
   if (apply) {
     written = writeChanges(repoRoot, plan.fileState);
+    // Le rapport de divergence est calcule DANS planDecisions, donc AVANT l'ecriture.
+    // En mode --apply il serait perime : il annoncerait encore les divergences que
+    // l'ecriture vient precisement de fermer (mesure du 2026-08-10 : 7 divergences
+    // affichees alors que les 39 occurrences venaient de passer a ACCEPTED). Un rapport
+    // qui decrit l'etat d'avant l'action qu'il rapporte est un rapport qui ment.
+    // On le RECALCULE sur le disque reecrit — jamais on ne le corrige a la main.
+    const after = reconcileRegistries(repoRoot);
+    plan.registry_divergences = after.divergences;
+    plan.registries = after.registries;
   }
 
   console.error(`=== apply_decisions — ${apply ? 'APPLY (ecriture reelle)' : 'DRY-RUN (aucune ecriture)'} ===\n`);
@@ -421,6 +527,19 @@ function main() {
   for (const c of plan.conflicts) console.error(`  ⚠ ${c.queue} / "${c.item}" : statut existant "${c.existing_status}" != demande "${c.requested_status}" (${c.path}#${c.line_index})`);
   console.error(`\nOrphelines (aucune proposition correspondante — jamais inventee) : ${plan.orphaned.length}`);
   for (const o of plan.orphaned) console.error(`  ⚠ ${o.queue} / "${o.item}" — ${o.reason}`);
+  console.error(`\nDivergences registre<->proposition (RAPPORT, jamais applique) : ${plan.registry_divergences.length}`);
+  for (const r of plan.registries) {
+    console.error(`  registre ${r.registry} (${r.registry_status}, ${r.registry_ids} id) <- ${r.queue} (${r.proposals_status})`);
+  }
+  for (const d of plan.registry_divergences) {
+    console.error(`  ⚠ "${d.subject}" x${d.occurrences} — ${d.reason}`);
+    console.error(`      action : ${d.required_action}`);
+  }
+  if (plan.registry_divergences.length) {
+    console.error(`  -> une capacite au registre dont la proposition n'est pas tranchee reste`);
+    console.error(`     affichee comme « a trancher ». AUCUN statut n'est appose ici : ratifier`);
+    console.error(`     est un acte humain, ce volet ne fait que le rendre visible.`);
+  }
   if (apply) {
     console.error(`\nFichiers reecrits (backup .bak cree avant) : ${written.length ? written.join(', ') : '(aucun)'}`);
   } else {
@@ -438,6 +557,8 @@ function main() {
     already_up_to_date: plan.already_up_to_date,
     conflicts: plan.conflicts,
     orphaned: plan.orphaned,
+    registry_divergences: plan.registry_divergences,
+    registries: plan.registries,
     written_files: written,
     claim_verdict: 'NO_CLAIM_ALLOWED',
   };

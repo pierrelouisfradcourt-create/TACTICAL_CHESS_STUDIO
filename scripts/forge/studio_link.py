@@ -59,6 +59,13 @@ DEFAULT_BIBLE_PROPOSALS = FORGE_REPORTS / "forge_bible_proposals.jsonl"
 # mécaniquement sans inventer du sens. PROPOSE-ONLY, patron IDENTIQUE à propose_brick
 # ci-dessus : dépose une proposition nommée, Pierre promeut dans capabilities.yaml.
 DEFAULT_CAPABILITY_GAP_PROPOSALS = FORGE_REPORTS / "forge_capability_gap_proposals.jsonl"
+# File USINE, jumelle de la precedente (decision Pierre 2026-08-10, option b). Une
+# capacite de PREUVE (sonde, harnais, bot de solvabilite) ne doit pas remonter dans la
+# file PRODUIT : Pierre y arbitre des capacites de JEU, et 8 identifiants d'usine
+# mesures sur pacman s'y melangeraient a 67 identifiants de jeu.
+DEFAULT_FACTORY_CAPABILITY_GAP_PROPOSALS = (
+    FORGE_REPORTS / "forge_factory_capability_gap_proposals.jsonl"
+)
 DEFAULT_BRICK_PROPOSALS = FORGE_REPORTS / "forge_brick_proposals.jsonl"
 # Tier 2.5 étape 2 : observabilité dédiée du pool de builders (Tier 2 #5) — sans ça,
 # le pool reste une boîte noire. Un enregistrement par TENTATIVE s9-build (pas un
@@ -660,8 +667,29 @@ def propose_capability_gap(
     capability_id: str,
     source_line_id: str,
     proposals_path: Path | None = None,
+    factory_namespaces: tuple[str, ...] | list[str] | None = None,
+    factory_proposals_path: Path | None = None,
 ) -> dict:
     """Propose l'ajout d'une capacité au registre fermé `capabilities.yaml`. PROPOSE-ONLY.
+
+    ROUTAGE PRODUIT / USINE (décision Pierre 2026-08-10, option b). Un identifiant
+    dont l'espace de noms figure dans `factory_namespaces` part dans la file USINE
+    (`forge_factory_capability_gap_proposals.jsonl`), jamais dans la file PRODUIT :
+    Pierre arbitre des capacités de JEU dans celle-ci, et mélanger les deux la rend
+    illisible (mesuré sur pacman : 8 identifiants d'usine pour 67 de jeu).
+
+    Les préfixes ne sont PAS codés en dur ici : ils viennent du champ structuré
+    `namespaces` de `factory_capabilities.yaml` (règle « aucune décision dans un
+    commentaire », ratifiée 2026-07-23). `factory_namespaces` absent => aucun
+    routage, tout part en produit — comportement d'avant, strictement.
+
+    LIMITE ASSUMÉE : le routage se fait sur le NOM. Une préoccupation d'usine mal
+    nommée (`game.debug_state` de Tetris, avant son renommage) part en produit. Le
+    tri final reste humain, à la promotion — ce mécanisme réduit le bruit, il ne
+    remplace pas l'arbitrage.
+
+    Le `record` déposé est IDENTIQUE dans les deux files (même schéma, même `type`) :
+    seule la destination change. Un lecteur n'a donc rien de spécial à apprendre.
 
     N'écrit JAMAIS `scripts/forge/standard/capabilities.yaml` : dépose une proposition
     que Pierre promeut (HumanGate) — un `statement` (phrase humaine décrivant ce que la
@@ -695,8 +723,19 @@ def propose_capability_gap(
             "rédiger par Pierre au moment de la promotion."
         ),
     }
-    _append(proposals_path or DEFAULT_CAPABILITY_GAP_PROPOSALS, record)
-    logger.info("proposition d'extension de capacité déposée (%s) pour %s", capability_id, project)
+    prefixes = tuple(
+        p for p in (factory_namespaces or ()) if isinstance(p, str) and p.strip()
+    )
+    is_factory = bool(prefixes) and capability_id.startswith(prefixes)
+    if is_factory:
+        target = factory_proposals_path or DEFAULT_FACTORY_CAPABILITY_GAP_PROPOSALS
+    else:
+        target = proposals_path or DEFAULT_CAPABILITY_GAP_PROPOSALS
+    _append(target, record)
+    logger.info(
+        "proposition d'extension de capacité déposée (%s, file %s) pour %s",
+        capability_id, "USINE" if is_factory else "PRODUIT", project,
+    )
     return record
 
 
