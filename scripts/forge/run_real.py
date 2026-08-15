@@ -568,6 +568,49 @@ def _usage_int(usage: dict, key: str) -> int:
         return 0
 
 
+# --- Instrumentation du PROCESSUS (GO Pierre 2026-08-14) ---------------------------
+# Un `returncode=1` a stderr VIDE etait une boite noire : mesure sur l'experience C,
+# 14 appels consecutifs echouent sans un octet d'explication, et rien ne permettait de
+# dire si le modele avait ete atteint. Consequence directe : impossible de savoir si un
+# echec appartient au dossier causal de s2-worldscan (« le worker n'a pas tente ») ou a
+# l'environnement (« le worker n'a jamais existe »). Les deux n'appellent pas le meme
+# niveau de mutation.
+#
+# ETABLI SUR LES SIGNAUX DU FLUX, JAMAIS DEVINE DEPUIS LE RETURNCODE (invariant Pierre) :
+#   MODEL_REACHED       `model_used` non vide -> au moins un tour `assistant` a ete
+#                       observe dans le flux. Preuve POSITIVE, independante du
+#                       returncode : un run peut atteindre le modele PUIS echouer.
+#   MODEL_NOT_REACHED   pas de tour assistant MAIS `session_id` present -> le CLI a
+#                       demarre et emis son message d'init ; le flux etait donc
+#                       lisible, et l'absence de tour assistant est une MESURE, pas
+#                       une lacune de capture.
+#   PROCESS_EXIT_NONZERO ni tour assistant ni session_id, et returncode non nul -> le
+#                       processus a echoue sans qu'on puisse dire ou. C'est un CONSTAT
+#                       d'echec, pas un diagnostic de portee.
+#   UNKNOWN             aucun des cas ci-dessus n'est etablissable. Jamais devine.
+#
+# PROCESS_START_FAILED n'est PAS produit ici : `subprocess.Popen` LEVE quand le binaire
+# ne demarre pas, et cette exception se propage hors de `_claude_call_raw` — aucun
+# appelant ne la voit comme un retour. La capturer changerait le comportement des
+# appels existants, ce que le perimetre du GO interdit explicitement. Etat declare
+# NON OBSERVABLE en l'etat, remonte en gate plutot que simule.
+_PROCESS_STATES = ("MODEL_REACHED", "MODEL_NOT_REACHED", "PROCESS_EXIT_NONZERO", "UNKNOWN")
+
+
+def classify_process_state(returncode, stream_metrics: dict) -> str:
+    """Etat du processus etabli sur les signaux DEJA captures du flux. Fonction PURE.
+    Voir le bloc ci-dessus pour la regle de chaque etat et pour la raison de l'absence
+    de PROCESS_START_FAILED."""
+    sm = stream_metrics if isinstance(stream_metrics, dict) else {}
+    if sm.get("model_used"):
+        return "MODEL_REACHED"
+    if sm.get("session_id"):
+        return "MODEL_NOT_REACHED"
+    if returncode not in (0, None):
+        return "PROCESS_EXIT_NONZERO"
+    return "UNKNOWN"
+
+
 def parse_stream_metrics(stdout_text: str) -> dict:
     """Fonction PURE : extrait du flux `--output-format stream-json --verbose`
     DÉJÀ REÇU (aucun appel, aucune I/O) les métriques MESURÉES.
@@ -788,6 +831,15 @@ def _claude_call_raw(prompt: str, model: str, *, add_dir: Path,
     # l'init session_id et des tours assistant). Additif pur : aucune clé
     # existante du dict de retour n'est modifiée.
     stream_metrics = _capture_stream_metrics(stdout)
+    # Diagnostic de PROCESSUS, additif pur : aucune cle existante n'est modifiee, et
+    # `stderr_tail` est explicitement DISTINCT de la sortie modele (`output`) — un
+    # stderr n'est jamais du contenu produit par le modele. Borne 2000 car., meme
+    # convention que les messages `reason` existants.
+    diag = {
+        "returncode": returncode,
+        "stderr_tail": (stderr or "")[-2000:],
+        "process_state": classify_process_state(returncode, stream_metrics),
+    }
 
     if timed_out:
         # FIR-01 : l'arbre de process a été tué (coût borné) — le flag `timeout`
@@ -798,13 +850,13 @@ def _claude_call_raw(prompt: str, model: str, *, add_dir: Path,
             "duration_s": duration,
             "reason": f"claude -p timeout ({timeout_s:.0f}s) — arbre de process tué "
                       "(FIR-01), coût borné",
-            **stream_metrics,
+            **stream_metrics, **diag,
         }
     if returncode != 0:
         return {
             "ok": False,
             "reason": f"claude -p returncode={returncode}: {stderr[-2000:]}",
-            **stream_metrics,
+            **stream_metrics, **diag,
         }
     # Chantier CAPTURE : extraction déterministe (aucun LLM) de la DERNIÈRE ligne
     # `type: result` du flux JSONL — même fonction, déjà PROUVÉE sur capture réelle
@@ -816,10 +868,10 @@ def _claude_call_raw(prompt: str, model: str, *, add_dir: Path,
     if data is None:
         return {"ok": False, "reason": f"sortie claude -p (stream-json) sans ligne "
                                        f"'result' exploitable: {stdout[-2000:]}",
-                **stream_metrics}
+                **stream_metrics, **diag}
     if data.get("is_error"):
         return {"ok": False, "reason": f"claude -p is_error: {data.get('result', '')[:2000]}",
-                **stream_metrics}
+                **stream_metrics, **diag}
 
     usage = data.get("usage") or {}
     tokens = int(usage.get("input_tokens", 0)) + int(usage.get("output_tokens", 0))
@@ -842,7 +894,7 @@ def _claude_call_raw(prompt: str, model: str, *, add_dir: Path,
         # G1-G2 : champs MESURÉS additifs — les champs déclarés ci-dessus
         # (tokens/cost_usd, issus de la seule ligne `result`) restent INTACTS :
         # la comparaison déclaré/mesuré est précisément le but.
-        **stream_metrics,
+        **stream_metrics, **diag,
     }
 
 
