@@ -377,6 +377,7 @@ class ForgeDriver:
             state["run_status"] = "DONE"
             self._save(state)
             self._regenerate_journal_index()
+            self._write_partial_verdict(state)  # P2 : profils sans s12 (no-op sinon)
             self._promote_manifest_lessons_best_effort()
             self._trigger_observer_best_effort(state)
             report = self._final_report(state)
@@ -2965,6 +2966,53 @@ class ForgeDriver:
             },
         }
 
+    def _write_partial_verdict(self, state: dict) -> None:
+        """P2 (2026-08-15) — un profil SANS s12-verdict terminait DONE sans AUCUN
+        agrégat signé (`_final_report` : « chaîne terminée sans verdict signé
+        exploitable ») : mesuré sur les runs réels, plus un seul verdict signé
+        produit depuis driver_smoke_v6 (2026-08-09) — probes, oracle_only et
+        profils amont sortaient tous BLOCKED sans preuve agrégée. Écrit
+        `verdict.partial.json` : MÊME schéma, MÊME signature
+        (`signed_aggregate_record`), MÊME re-vérification (`verify_run`) que la
+        chaîne s12 — PAS un deuxième système de signature. Distinction dure :
+        `scope=PARTIAL` (jamais HUMANGATE_READY, jamais `is_clean_pass`, garde de
+        cohérence dans verify_run) + nom de fichier distinct de `verdict.json`.
+        Best-effort STRICT : un échec est consigné dans humangate_notes + stderr,
+        jamais silencieux, jamais fatal pour un run DONE."""
+        if "s12-verdict" in self.order:
+            return  # chaîne complète : le verdict FULL est écrit par _run_verdict
+        out = self.run_dir / "verdict.partial.json"
+        if out.exists():
+            return  # idempotence reprise : jamais réécrit (même patron que le gel)
+        try:
+            code_r = self._receipt(state, "code", "s10a-oracle-code")
+            archi_r = self._receipt(state, "archi", "s10b-oracle-archi")
+            wire_r = self._receipt(state, "wiremap", "s10c-oracle-wiremap")
+            std_r = self._receipt(state, "standard", "s10s-oracle-standard")
+            reviewer, ran, blocked, findings = self._redteam_facts(state)
+            agg = build_aggregate_verdict(
+                self.project, self.run_id, code_r, archi_r, wire_r, reviewer,
+                redteam_ran=ran, redteam_findings=findings, redteam_blocked=blocked,
+                extra_advisory=self._prisme_facts(state), standard=std_r,
+                git_head=current_git_head(), nonce=new_nonce(), ts=time.time(),
+                key_file=self.key_file, scope="PARTIAL",
+            )
+            record = signed_aggregate_record(agg, key_file=self.key_file)
+            out.write_text(
+                json.dumps(record, ensure_ascii=False, sort_keys=True, indent=1),
+                encoding="utf-8",
+            )
+            verification = verify_run(out, key_file=self.key_file)
+            if not verification.get("hmac_ok", False):
+                state.setdefault("humangate_notes", []).append(
+                    "verdict.partial.json écrit mais verify_run refuse son HMAC")
+                self._save(state)
+        except Exception as exc:  # noqa: BLE001 — consigné, jamais un DONE cassé
+            state.setdefault("humangate_notes", []).append(
+                f"verdict partiel non écrit: {exc}")
+            self._save(state)
+            print(f"[driver] verdict partiel non écrit: {exc}", file=sys.stderr)
+
     def _final_report(self, state: dict) -> dict:
         self._reference_guard_check("close")
         base = {
@@ -2989,6 +3037,22 @@ class ForgeDriver:
                 "humangate_flags": list(record.get("humangate_flags", ())),
                 "verdict_path": verdict_path,
                 "reason": "",
+            }
+        # P2 : profil sans s12 — le verdict PARTIEL signé (écrit au passage DONE)
+        # devient la preuve rapportée, explicitement scopée, jamais confondue
+        # avec un run complet (fichier distinct + scope + decision plafonnée).
+        partial = self.run_dir / "verdict.partial.json"
+        if "s12-verdict" not in self.order and partial.exists():
+            record = json.loads(partial.read_text(encoding="utf-8"))
+            return {
+                **base,
+                "software_verdict": record["software_verdict"],
+                "decision": record["decision"],
+                "scope": record.get("scope", "PARTIAL"),
+                "humangate_flags": list(record.get("humangate_flags", ())),
+                "verdict_path": str(partial),
+                "reason": "verdict signé sur périmètre PARTIEL (profil sans s12) — "
+                          "ne prouve rien hors des oracles exécutés dans ce profil",
             }
         return {
             **base,

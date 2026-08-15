@@ -228,6 +228,9 @@ def is_clean_pass(verdict: dict) -> bool:
         verdict.get("software_verdict") == "OK"
         and verdict.get("decision") == DECISION_READY   # strict, jamais startswith/in
         and not verdict.get("humangate_flags")
+        # P2 : un verdict de périmètre PARTIEL n'est JAMAIS un passage propre —
+        # défaut "FULL" pour les verdicts historiques (champ absent = chaîne s12).
+        and verdict.get("scope", "FULL") == "FULL"
     )
 
 
@@ -281,6 +284,12 @@ class AggregateVerdict:
     ts: float = 0.0
     redteam_advisory: tuple = ()     # findings red-team (advisory — n'affectent pas software_verdict)
     humangate_flags: tuple = ()      # points à signaler à Pierre (fog)
+    # P2 (2026-08-15) : périmètre de l'agrégat. FULL = chaîne s12 complète
+    # (comportement historique, défaut — les verdicts antérieurs, sans ce champ,
+    # restent vérifiables tels quels : le HMAC re-signe le mapping STOCKÉ).
+    # PARTIAL = profil sans s12 (probes, oracle_only…) : le verdict ne couvre QUE
+    # les oracles réellement exécutés ; jamais HUMANGATE_READY, jamais clean pass.
+    scope: str = "FULL"
 
 
 def build_aggregate_verdict(
@@ -300,6 +309,7 @@ def build_aggregate_verdict(
     nonce: str = "",
     ts: float | None = None,
     key_file: Path | None = None,
+    scope: str = "FULL",
 ) -> AggregateVerdict:
     """Plie les REÇUS D'ORACLE SIGNÉS + le red-team en un verdict signable.
 
@@ -337,6 +347,8 @@ def build_aggregate_verdict(
     JAMAIS dans ``software_verdict``, pousse ``decision`` vers WITH_OBJECTION s'il y a
     quelque chose à signaler, toujours visible dans ``humangate_flags`` — jamais tu.
     """
+    if scope not in ("FULL", "PARTIAL"):
+        raise ValueError(f"scope invalide: {scope!r} (attendu FULL ou PARTIAL)")
     if ts is None:
         ts = time.time()
     flags: list[str] = []
@@ -389,6 +401,23 @@ def build_aggregate_verdict(
     #    pas, mais l'oracle CODE doit être OK (sinon rien de substantiel n'est prouvé).
     if not provenance_ok:
         software = "BLOCKED"     # aucune narration ne remplace un reçu signé
+    elif scope == "PARTIAL":
+        # P2 : un profil partiel est jugé sur les oracles qu'il a RÉELLEMENT
+        # exécutés — SKIPPED (hors profil) ne compte pas, et « code sauté »
+        # n'est pas une faute ici : c'est la définition même du périmètre.
+        # Aucun oracle exécuté => BLOCKED honnête (rien de prouvé côté logiciel).
+        actifs = [n for n in receipts if verified[n].status != "SKIPPED"]
+        if not actifs:
+            software = "BLOCKED"
+            flags.append(
+                "scope PARTIAL: aucun oracle exécuté dans ce périmètre — "
+                "l'agrégat prouve la provenance des reçus, pas le logiciel")
+        elif any(verified[n].status == "BLOCKED" for n in actifs):
+            software = "BLOCKED"
+        elif any(verified[n].status == "FAIL" for n in actifs):
+            software = "FAIL"
+        else:
+            software = "OK"
     else:
         # Tous les reçus FOURNIS comptent (dont `standard` quand il est là) — pas une
         # liste en dur : ajouter un oracle sans l'agréger reviendrait à le mesurer pour rien.
@@ -414,7 +443,9 @@ def build_aggregate_verdict(
     # Idem une exception de triage : oracles verts MAIS équivalence non prouvée.
     if software != "OK":
         decision = DECISION_BLOCKED
-    elif redteam_blocked or triage_exception or extra_advisory:
+    elif redteam_blocked or triage_exception or extra_advisory or scope == "PARTIAL":
+        # P2 : un PARTIAL ne peut JAMAIS produire HUMANGATE_READY — un périmètre
+        # incomplet est structurellement une objection, pas un prêt-à-revue.
         decision = DECISION_READY_OBJECTION
     else:
         decision = DECISION_READY
@@ -460,6 +491,7 @@ def build_aggregate_verdict(
         ts=ts,
         redteam_advisory=tuple(redteam_findings),
         humangate_flags=tuple(flags),
+        scope=scope,
     )
 
 

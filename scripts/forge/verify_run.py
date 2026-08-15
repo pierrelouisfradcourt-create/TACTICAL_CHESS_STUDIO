@@ -243,7 +243,7 @@ def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
                 "git_ok": True, "git_stored": "", "git_current": current_git_head(),
                 "knowledge_trace_ok": False, "knowledge_trace_problems": [],
                 "knowledge_trace_warnings": [],
-                "software_verdict": None, "decision": None}
+                "software_verdict": None, "decision": None, "scope": None}
 
     hmac_stored = data.get("hmac", "")
     body = {k: v for k, v in data.items() if k != "hmac"}
@@ -296,12 +296,23 @@ def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
 
     software_verdict = data.get("software_verdict")
     coherence_problems: list[str] = []
+    # P2 (2026-08-15) : un verdict de périmètre PARTIEL ne peut pas se présenter
+    # comme prêt-à-revue — `build_aggregate_verdict` plafonne déjà la décision à
+    # WITH_OBJECTION ; cette garde attrape un producteur bogué/complaisant qui
+    # signerait quand même un PARTIAL+HUMANGATE_READY (défense en profondeur,
+    # même patron que la cohérence mutation ci-dessous). Champ absent = FULL
+    # (verdicts historiques, comportement inchangé).
+    scope = data.get("scope", "FULL")
+    if scope == "PARTIAL" and data.get("decision") == "HUMANGATE_READY":
+        coherence_problems.append(
+            "verdict de scope PARTIAL avec decision HUMANGATE_READY — un périmètre "
+            "incomplet ne peut jamais être présenté comme un run complet prêt à revue")
     if software_verdict == "OK" and _mutation_strict["problems"] and _mutation_loose["checked"]:
         # Le reçu se vérifie (checked=True) mais échoue en mode strict alors que
         # le verdict affiché prétend OK : soit le gate n'est pas vert, soit une
         # autre divergence d'intégrité coexiste — dans les deux cas, un OK
         # affiché ne doit jamais survivre à cette incohérence.
-        coherence_problems = [
+        coherence_problems += [
             f"verdict prétend software_verdict=OK alors que le gate mutation "
             f"embarqué ne le confirme pas: {r}" for r in mutation_problems
         ]
@@ -350,6 +361,7 @@ def verify_run(verdict_path: Path | str, key_file: Path | None = None) -> dict:
         "context_manifest_notes": context_manifest_notes,
         "software_verdict": data.get("software_verdict"),
         "decision": data.get("decision"),
+        "scope": scope,
     }
 
 
