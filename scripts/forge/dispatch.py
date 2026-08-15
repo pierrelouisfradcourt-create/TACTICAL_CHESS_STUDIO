@@ -193,6 +193,26 @@ PROFILES = {
     # réels, `inferred` distingué. Une Story Bible encore vide malgré un worldscan
     # présent signerait une rupture de transmission, et ce serait le résultat.
     "amont_narratif": ("s2-worldscan", "s2.6-story-bible"),
+    # amont_narratif_charte (GO Pierre 2026-08-14) — extension AMONT d'un cran, seule
+    # mutation du lot. Le run amont_narratif a mesuré 2/8 GROUNDED et ses 6 refus
+    # nommaient tous la même cause : le World Scan fonde des RÈGLES DE GENRE, pas un
+    # monde de projet — « aucune faction DE CE PROJET n'est ancrée », « les seuls
+    # protagonistes des entrées sont ceux des jeux observés ». Ce qui fonde un monde,
+    # c'est l'INTENTION DE PROJET, portée par le charter.
+    #
+    # Prérequis leve par M4 (91f3a12) : avant lui, charter.yaml n'avait aucun
+    # producteur — s0 aurait tourné, produit du YAML dans son texte, et rien sur le
+    # disque ; s2.6 aurait reçu charter:false une troisième fois et l'expérience aurait
+    # perdu sa variable.
+    #
+    # Expérience contrôlée, une variable structurelle ajoutée — MESURÉE :
+    #   charter absent      ->  0/8 GROUNDED,  0 élément (story-probe-20260814)
+    #   worldscan seul      ->  2/8 GROUNDED,  4 éléments (amont-narratif-20260814)
+    #   charter + worldscan ->  7/8 GROUNDED, 26 éléments (charte2-20260814)
+    # Marqueur décisif : 24 des 26 éléments citent `source: charter` — la seconde
+    # source n'est pas seulement transmise, elle est EXPLOITÉE. Seul refus résiduel :
+    # `chronology`, et il est juste — aucune temporalité n'était portée par l'entrée.
+    "amont_narratif_charte": ("s0-contrat", "s2-worldscan", "s2.6-story-bible"),
     # oracle_only : s10s SEUL, sur un jeu DEJA CONSTRUIT (ratifie Pierre 2026-08-10).
     #
     # Cause mesuree : pacman V5 est VALIDATED mais n'est jamais passe par le driver
