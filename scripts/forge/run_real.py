@@ -557,7 +557,7 @@ def extract_json_payload(text: str) -> tuple[dict | None, str]:
 # Capteur, jamais juge : AUCUNE exception ne sort de ce bloc, un échec de capture
 # rend des champs à None (+ warning log) et le run continue à l'identique.
 
-_STREAM_METRIC_KEYS = ("session_id", "model_used", "tokens_measured")
+_STREAM_METRIC_KEYS = ("session_id", "model_used", "tokens_measured", "tools_used")
 
 
 def _usage_int(usage: dict, key: str) -> int:
@@ -598,6 +598,8 @@ def parse_stream_metrics(stdout_text: str) -> dict:
     models: list[str] = []
     usage_by_id: dict[str, dict] = {}
     anon = 0
+    tool_uses_by_id: dict[str, str] = {}   # id de bloc tool_use -> nom d'outil
+    anon_tool = 0
     for line in (stdout_text or "").splitlines():
         line = line.strip()
         if not line or not line.startswith("{"):
@@ -628,6 +630,32 @@ def parse_stream_metrics(stdout_text: str) -> dict:
             else:
                 anon += 1
                 usage_by_id[f"_sans_id_{anon}"] = usage
+        # Expérience C (GO Pierre 2026-08-14) — INSTRUMENTATION SEULE : compter les
+        # INVOCATIONS d'outil. Rend observable le maillon manquant de la chaîne
+        # « outil disponible ≠ outil UTILISÉ ≠ données obtenues ≠ sortie conforme »,
+        # sans lequel un échec d'acquisition (mesuré : nb_games=0 ET nb_sources=0,
+        # binaire, 4 fois sur 16 en expérience B) ne peut pas se départager entre
+        # « le worker n'a pas tenté » et « il a tenté sans acquérir ».
+        # Dédup par l'ID DU BLOC tool_use, jamais par message.id : un même message
+        # apparaît sur PLUSIEURS lignes du flux (une par content block) — compter sans
+        # dédupliquer recréerait le même gonflement que celui déjà mesuré sur `usage`.
+        # `tool_result` est porté par les messages `user`, jamais `assistant` : il est
+        # donc hors de cette branche par construction, et ne peut pas créer une
+        # invocation fantôme (vérifié par falsification, pas supposé).
+        content = msg.get("content")
+        if isinstance(content, list):
+            for bloc in content:
+                if not isinstance(bloc, dict) or bloc.get("type") != "tool_use":
+                    continue
+                nom = bloc.get("name")
+                if not isinstance(nom, str) or not nom.strip():
+                    continue
+                bid = bloc.get("id")
+                cle = bid.strip() if isinstance(bid, str) and bid.strip() else None
+                if cle is None:
+                    anon_tool += 1
+                    cle = f"_sans_id_{anon_tool}"
+                tool_uses_by_id[cle] = nom.strip()
     tokens_measured: dict | None = None
     if usage_by_id:
         tokens_measured = {"input": 0, "output": 0, "cache_read": 0, "cache_creation": 0}
@@ -636,10 +664,16 @@ def parse_stream_metrics(stdout_text: str) -> dict:
             tokens_measured["output"] += _usage_int(usage, "output_tokens")
             tokens_measured["cache_read"] += _usage_int(usage, "cache_read_input_tokens")
             tokens_measured["cache_creation"] += _usage_int(usage, "cache_creation_input_tokens")
+    tools_used: dict[str, int] = {}
+    for nom in tool_uses_by_id.values():
+        tools_used[nom] = tools_used.get(nom, 0) + 1
     return {
         "session_id": session_id,
         "model_used": models or None,
         "tokens_measured": tokens_measured,
+        # Expérience C : {} quand aucun outil n'a été invoqué — un dict VIDE est une
+        # mesure (« zéro invocation »), distincte de None (« non mesuré »).
+        "tools_used": tools_used,
     }
 
 
