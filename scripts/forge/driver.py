@@ -903,9 +903,32 @@ class ForgeDriver:
         attempts = int(entry.get("attempts", 1) or 1)
         override = state.get("model_override")
         if attempts <= 1 and not override:
-            # Enchainement mecanique du profil : aucun probleme mesure ne l'a
-            # declenche. On le DIT, on ne le maquille pas en cause.
-            return {"status": "NOT_TRANSMITTED", "action": etape}
+            # Enchainement mecanique du profil : aucun PROBLEME mesure ne l'a
+            # declenche — `status: NOT_TRANSMITTED` reste (ratifie 2026-08-06,
+            # test_dispatch_p5_reason_field fige ce point : jamais de problem/
+            # oracle/root_cause fabriques ici).
+            # P4 (2026-08-15) : le DECLENCHEUR mecanique, lui, est CONNU du
+            # driver (profil, position, predecesseur termine) — le transmettre
+            # n'invente rien, ce sont des faits d'ordonnancement mesures. Champs
+            # ADDITIFS uniquement ; renommer le status exigerait une gate Pierre
+            # sur le test protege.
+            cause: dict = {"status": "NOT_TRANSMITTED", "action": etape}
+            if etape in self.order:
+                idx = self.order.index(etape)
+                cause["declencheur"] = {
+                    "cause": "ordre_de_profil",
+                    "profile": self.profile,
+                    "position": idx + 1,
+                }
+                if idx > 0:
+                    prev = self.order[idx - 1]
+                    cause["declencheur"]["predecesseur"] = {
+                        "etape": prev,
+                        "status": state["steps"].get(prev, {}).get("status", ""),
+                    }
+                else:
+                    cause["declencheur"]["predecesseur"] = "demarrage_du_run"
+            return cause
         return {
             "problem": f"echec de la tentative {attempts - 1} a {etape}",
             "oracle": entry.get("last_oracle"),
