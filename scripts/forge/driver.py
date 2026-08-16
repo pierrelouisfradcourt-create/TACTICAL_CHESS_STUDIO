@@ -2440,7 +2440,8 @@ class ForgeDriver:
         agg = build_aggregate_verdict(
             self.project, self.run_id, code_r, archi_r, wire_r, reviewer,
             redteam_ran=ran, redteam_findings=findings, redteam_blocked=blocked,
-            extra_advisory=self._prisme_facts(state), standard=std_r,
+            extra_advisory=self._prisme_facts(state) + self._observable_facts(state),
+            standard=std_r,
             git_head=current_git_head(), nonce=new_nonce(), ts=time.time(),
             key_file=self.key_file,
         )
@@ -2745,6 +2746,31 @@ class ForgeDriver:
             for f in d.get("redteam_findings", ())
         )
 
+    def _observable_facts(self, state: dict) -> tuple[str, ...]:
+        """Lot 1 ADR-003 (P0-3) : `observable_coverage` cesse d'être calculé puis
+        JETÉ. Mesuré sur breakout_v2 : verdict de couverture BLOCKED, 3 volets
+        pixel en échec, et pourtant s10s=OK (hors `_CORE_FACETS`, choix assumé)
+        et verdict signé HUMANGATE_READY — un rouge produit sortait en silence.
+
+        Même architecture que `_prisme_facts`/le red-team : OBJECTION SIGNÉE via
+        `extra_advisory` — visible dans `humangate_flags`, pousse `decision` vers
+        HUMANGATE_READY_WITH_OBJECTION, n'entre JAMAIS dans `software_verdict`.
+        La promotion en gate dur (entrée dans `_CORE_FACETS`) reste une décision
+        E explicitement NON prise ici : tant que le routage GPU des volets pixel
+        peut fabriquer des rouges (P0-4), un gate dur bloquerait sur de faux
+        négatifs."""
+        d = state.get("steps", {}).get("s10s-oracle-standard", {}).get("detail", {})
+        cov = d.get("observable_coverage")
+        if not isinstance(cov, dict) or cov.get("passed", True):
+            return ()
+        volets = cov.get("volets_en_echec") or ()
+        cites = ", ".join(str(v) for v in volets) if volets else "non cités par le reçu"
+        return (
+            f"observable_coverage {cov.get('verdict', 'FAIL')}: volets en échec "
+            f"[{cites}] — preuve produit non démontrée (advisory, jamais un juge "
+            "du code ; gate dur = décision HumanGate non prise, lot 1 ADR-003)",
+        )
+
     # --- escalade (boucle fermée EN CODE, mêmes bornes que forge.escalate) ----
 
     def _builder_step(self) -> str | None:
@@ -2993,7 +3019,8 @@ class ForgeDriver:
             agg = build_aggregate_verdict(
                 self.project, self.run_id, code_r, archi_r, wire_r, reviewer,
                 redteam_ran=ran, redteam_findings=findings, redteam_blocked=blocked,
-                extra_advisory=self._prisme_facts(state), standard=std_r,
+                extra_advisory=self._prisme_facts(state) + self._observable_facts(state),
+                standard=std_r,
                 git_head=current_git_head(), nonce=new_nonce(), ts=time.time(),
                 key_file=self.key_file, scope="PARTIAL",
             )
