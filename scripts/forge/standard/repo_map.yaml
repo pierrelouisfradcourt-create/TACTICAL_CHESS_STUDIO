@@ -79,6 +79,15 @@ mapping:
   asset.sprite:       "04_ASSETS/sprites/{id}"
   asset.audio:        "04_ASSETS/audio/{id}"
   asset.font:         "04_ASSETS/fonts/{id}"
+  # asset.mesh — ajoute sur decision humaine D3 (Pierre, 2026-08-11). Motif mesure, pas
+  # suppose : la taxonomie d'assets etait 2D (sprite/audio/font) alors que le parc produit
+  # desormais de la 3D. Deux jeux portent deja des `.glb` — `bomberman_3d` (3, consommes par
+  # `arena_view_3d.gd`) et `chess_tcg` (8) — sans qu'aucune categorie ne permette de les
+  # declarer ; `check_index` les classait `dossiers_orphelins`.
+  # IMPACT MESURE AVANT ECRITURE : les 6 wiremaps du parc n'utilisent AUCUNE categorie
+  # `asset.*`. Cette branche du standard etait donc DOCUMENTED_ONLY, et l'ajout d'une cle de
+  # mapping ne peut qu'AUTORISER une declaration de plus — il n'en invalide aucune.
+  asset.mesh:         "04_ASSETS/meshes/{id}"
 
   # --- preuve : artefacts NOMMES (idem) ---
   test.unit:          "07_TESTS/unit/{id}"

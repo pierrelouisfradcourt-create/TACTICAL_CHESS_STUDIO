@@ -836,11 +836,20 @@ def _wiremap_named(lines: list) -> dict:
 def test_repo_map_reel_tous_les_gabarits_test_et_asset_portent_un_id():
     """INVARIANT DE TABLE (`require_id: true`, `scope: [test.*, asset.*]`) : la règle
     ne peut pas s'appliquer si la table retombe sur un motif générique. C'est ici qu'on
-    empêche la régression silencieuse de `repo_map.yaml`."""
+    empêche la régression silencieuse de `repo_map.yaml`.
+
+    MISE À JOUR RATIFIÉE (GO Pierre 2026-08-16) : le compte passe de 6 à 7 avec
+    `asset.mesh` (décision D3, Pierre 2026-08-11 — la taxonomie d'assets était 2D
+    alors que le parc produit de la 3D). Le compte en dur est VOLONTAIRE : il oblige
+    toute catégorie neuve à passer par une ratification plutôt que d'entrer en
+    silence. C'est le compte qui est mis à jour, PAS l'invariant — la boucle
+    ci-dessous, qui exige `{id}` et refuse un gabarit de dossier, est inchangée et
+    couvre `asset.mesh` comme les six autres."""
     data = yaml.safe_load(STANDARD_DIR.joinpath("repo_map.yaml").read_text(encoding="utf-8"))
     mapping = data["mapping"]
     en_scope = [c for c in mapping if c.startswith(("test.", "asset."))]
-    assert len(en_scope) == 6, en_scope
+    assert len(en_scope) == 7, en_scope
+    assert "asset.mesh" in en_scope, "asset.mesh doit etre dans le scope de la regle d'identite"
     for cat in en_scope:
         gabarit = mapping[cat]
         assert "{id}" in gabarit, f"{cat} : gabarit sans identité ({gabarit!r})"
