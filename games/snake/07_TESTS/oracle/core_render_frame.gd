@@ -2,6 +2,17 @@
 # --headless : le driver dummy rend une texture nulle). Rend DEUX etats distincts (positions
 # de tete differentes) via le meme grid_view que le produit et asserte que les deux images
 # DIFFERENT et ne sont pas monochromes. Sortie : "FORGE_ORACLE core_render_frame {json}".
+#
+# forge:run_mode = gpu_window
+#
+# La ligne ci-dessus est la DIRECTIVE STATIQUE lue par le collecteur
+# (scripts/forge/product_oracle_godot.py) AVANT toute execution : elle route ce volet
+# vers un lancement en fenetre GPU hors ecran au lieu de --headless. Elle est statique
+# par necessite mesuree (2026-08-10, meme binaire, meme volet) :
+#     fenetre GPU -> {"ok": true,  "fails": []}                       exit 0
+#     --headless  -> {"ok": false, "fails": ["capture nulle (...)"]}  exit 1
+# Lire le mode APRES execution reviendrait a le lire apres avoir deja fabrique le rouge.
+# Aucun comportement de ce volet n'est modifie par cette ligne.
 extends SceneTree
 
 const GV = preload("res://06_RUNTIME/adapters/presentation/grid_view.gd")
