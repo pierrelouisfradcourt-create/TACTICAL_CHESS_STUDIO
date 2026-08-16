@@ -2,25 +2,31 @@
 pendant du fournisseur WEB (`forge.product_oracle`, NON modifié, couvert par
 `test_product_oracle.py`). Ces tests n'invoquent JAMAIS un vrai binaire Godot :
 `binary_resolver`/`runner` sont injectés (même patron que
-`test_driver_product_oracle.py` pour `mutation_runner`) — le binaire est
-actuellement ABSENT de ce poste (`godot.config.json` pointe un chemin qui
-n'existe plus, 2026-07-29).
+`test_driver_product_oracle.py` pour `mutation_runner`). NOTE DE FRAÎCHEUR : la
+rédaction précédente affirmait ici que le binaire était « ABSENT de ce poste
+(`godot.config.json` pointe un chemin qui n'existe plus, 2026-07-29) » — FAUX
+depuis, vérifié le 2026-08-10 en exécutant le binaire déclaré. Ces tests
+restent volontairement sans binaire réel : la preuve d'exécution GPU se fait
+hors suite (lot L0b), la suite ne prouve que le ROUTAGE.
 """
 import json
 
 from forge.product_oracle_godot import (
-    GPU_WINDOW_REQUIRED_VOLETS,
+    GPU_WINDOW_FLAGS,
     discover_oracle_files,
     has_godot_capacity,
     run_godot_product_oracle,
 )
 
 
-def _oracle_gd(root, name, *, marker=True):
-    """Dépose un faux fichier `.gd` d'oracle sous `<root>/07_TESTS/oracle/`."""
+def _oracle_gd(root, name, *, marker=True, gpu_directive=False):
+    """Dépose un faux fichier `.gd` d'oracle sous `<root>/07_TESTS/oracle/`.
+    `gpu_directive` ajoute la DIRECTIVE STATIQUE de mode d'exécution."""
     oracle_dir = root / "07_TESTS" / "oracle"
     oracle_dir.mkdir(parents=True, exist_ok=True)
     body = f'# Sortie : "FORGE_ORACLE {name} {{json}}"\nextends SceneTree\n' if marker else "extends SceneTree\n"
+    if gpu_directive:
+        body = "# forge:run_mode = gpu_window\n" + body
     (oracle_dir / f"{name}.gd").write_text(body, encoding="utf-8")
     return oracle_dir / f"{name}.gd"
 
@@ -83,23 +89,122 @@ def test_aucun_oracle_decouvert_rend_mapping_vide_sans_appeler_le_resolver(tmp_p
     assert calls == []  # pas d'oracle => jamais besoin de résoudre le binaire
 
 
-# --- core_render_frame : TOUJOURS NOT_MEASURED en l'absence de fenêtre GPU ----------
+# --- L0b : routage du mode d'exécution par DIRECTIVE STATIQUE, jamais par nom --------
 
 
-def test_core_render_frame_toujours_not_measured_meme_binaire_present(tmp_path):
-    _oracle_gd(tmp_path, "core_render_frame")
+def test_volet_avec_directive_gpu_est_route_vers_le_runner_gpu(tmp_path):
+    """La directive `forge:run_mode = gpu_window` route vers `gpu_runner`, et le volet
+    est RÉELLEMENT EXÉCUTÉ (l'ancien comportement le sautait sans jamais le lancer)."""
+    _oracle_gd(tmp_path, "core_render_frame", gpu_directive=True)
+    headless_calls, gpu_calls = [], []
+
+    def headless(binary, game_dir, script, *, timeout_s):
+        headless_calls.append(script)
+        return {"returncode": 1, "stdout": _stdout_for("core_render_frame", False), "stderr": ""}
+
+    def gpu(binary, game_dir, script, *, timeout_s):
+        gpu_calls.append(script)
+        return {"returncode": 0, "stdout": _stdout_for("core_render_frame", True), "stderr": ""}
+
+    out = run_godot_product_oracle(
+        tmp_path, binary_resolver=lambda: "fake_bin", runner=headless, gpu_runner=gpu)
+    assert gpu_calls and not headless_calls
+    assert out["core_render_frame"]["status"] == "OK"
+    assert out["core_render_frame"]["passed"] is True
+    assert out["core_render_frame"]["mode_execution"] == "gpu_window"
+
+
+def test_sans_directive_le_volet_reste_en_headless(tmp_path):
+    _oracle_gd(tmp_path, "core_boot")
+    headless_calls, gpu_calls = [], []
+
+    def headless(binary, game_dir, script, *, timeout_s):
+        headless_calls.append(script)
+        return {"returncode": 0, "stdout": _stdout_for("core_boot", True), "stderr": ""}
+
+    def gpu(binary, game_dir, script, *, timeout_s):
+        gpu_calls.append(script)
+        return {"returncode": 0, "stdout": _stdout_for("core_boot", True), "stderr": ""}
+
+    out = run_godot_product_oracle(
+        tmp_path, binary_resolver=lambda: "fake_bin", runner=headless, gpu_runner=gpu)
+    assert headless_calls and not gpu_calls
+    assert out["core_boot"]["mode_execution"] == "headless"
+
+
+def test_le_nom_du_volet_ne_decide_plus_du_mode(tmp_path):
+    """RÉGRESSION INVERSE du comportement retiré : un volet nommé `core_render_frame`
+    SANS directive n'est plus exempté d'exécution. Le nom ne décide de rien."""
+    _oracle_gd(tmp_path, "core_render_frame")  # même nom qu'avant, aucune directive
     calls = []
 
     def runner(binary, game_dir, script, *, timeout_s):
         calls.append(script)
-        return {"returncode": 0, "stdout": "", "stderr": ""}
+        return {"returncode": 0, "stdout": _stdout_for("core_render_frame", True), "stderr": ""}
 
     out = run_godot_product_oracle(
         tmp_path, binary_resolver=lambda: "fake_bin", runner=runner)
-    assert out["core_render_frame"]["status"] == "NOT_MEASURED"
-    assert "GPU" in out["core_render_frame"]["reason"]
-    assert calls == []  # jamais lancé en headless en espérant un vert
-    assert "core_render_frame" in GPU_WINDOW_REQUIRED_VOLETS
+    assert calls, "le volet doit être exécuté : plus aucun nom n'est codé en dur"
+    assert out["core_render_frame"]["mode_execution"] == "headless"
+
+
+def test_marqueur_de_payload_rend_not_measured_meme_en_mode_gpu(tmp_path):
+    """Le marqueur d'EXÉCUTION reste autorité sur le verdict DANS LES DEUX MODES :
+    un volet lancé en fenêtre GPU qui déclare n'avoir rien mesuré n'est jamais un FAIL
+    fabriqué (leçon forge.oracle_fail_vs_not_measured_marker)."""
+    _oracle_gd(tmp_path, "core_render", gpu_directive=True)
+
+    def gpu(binary, game_dir, script, *, timeout_s):
+        payload = {"ok": False, "requires_gpu_window": True, "fails": ["rien à capturer"]}
+        return {"returncode": 0,
+                "stdout": f"FORGE_ORACLE core_render {json.dumps(payload)}", "stderr": ""}
+
+    out = run_godot_product_oracle(
+        tmp_path, binary_resolver=lambda: "fake_bin", runner=gpu, gpu_runner=gpu)
+    assert out["core_render"]["status"] == "NOT_MEASURED"
+    assert out["core_render"]["passed"] is False
+    assert out["core_render"]["mode_execution"] == "gpu_window"
+    assert "oracle_fail_vs_not_measured_marker" in out["core_render"]["reason"]
+
+
+def test_marqueur_de_payload_rend_not_measured_en_headless(tmp_path):
+    """Comportement Tetris INCHANGÉ par L0b : `core_render.gd` s'exécute en headless,
+    déclare `requires_gpu_window`, et reste NOT_MEASURED — jamais FAIL."""
+    _oracle_gd(tmp_path, "core_render")
+
+    def runner(binary, game_dir, script, *, timeout_s):
+        payload = {"ok": False, "requires_gpu_window": True, "fails": ["headless"]}
+        return {"returncode": 0,
+                "stdout": f"FORGE_ORACLE core_render {json.dumps(payload)}", "stderr": ""}
+
+    out = run_godot_product_oracle(
+        tmp_path, binary_resolver=lambda: "fake_bin", runner=runner)
+    assert out["core_render"]["status"] == "NOT_MEASURED"
+    assert out["core_render"]["mode_execution"] == "headless"
+
+
+def test_gpu_runner_retombe_sur_le_runner_injecte(tmp_path):
+    """Un test qui n'injecte QU'UN runner n'ouvre jamais une vraie fenêtre Godot."""
+    _oracle_gd(tmp_path, "core_render_frame", gpu_directive=True)
+    calls = []
+
+    def runner(binary, game_dir, script, *, timeout_s):
+        calls.append(script)
+        return {"returncode": 0, "stdout": _stdout_for("core_render_frame", True), "stderr": ""}
+
+    out = run_godot_product_oracle(
+        tmp_path, binary_resolver=lambda: "fake_bin", runner=runner)
+    assert calls
+    assert out["core_render_frame"]["status"] == "OK"
+    assert out["core_render_frame"]["mode_execution"] == "gpu_window"
+
+
+def test_les_drapeaux_gpu_sont_ceux_mesures_et_jamais_headless(tmp_path):
+    """Garde de non-régression sur la commande GPU : le mode GPU ne doit JAMAIS
+    embarquer `--headless` (driver dummy = texture nulle, la preuve pixel disparaît)."""
+    assert "--headless" not in GPU_WINDOW_FLAGS
+    assert "vulkan" in GPU_WINDOW_FLAGS
+    assert "--position" in GPU_WINDOW_FLAGS
 
 
 # --- oracle vert / rouge (parsing de la ligne FORGE_ORACLE) -------------------------

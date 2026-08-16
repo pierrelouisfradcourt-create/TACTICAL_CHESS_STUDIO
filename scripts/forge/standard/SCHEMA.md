@@ -358,10 +358,25 @@ s'en sert PAS pour trancher `OK`/`FAIL` : `returncode` n'est lu que pour motiver
 **Discipline `NOT_MEASURED != OK`** — invariant déjà énoncé en tête du module
 (`product_oracle_godot.py:21-24`) : binaire Godot introuvable, sortie illisible, JSON
 invalide, oracle absent, timeout ⇒ `NOT_MEASURED` motivé, jamais une exception, jamais
-un vert ni un rouge fabriqué. S'applique aussi au volet `core_render_frame`
-(`GPU_WINDOW_REQUIRED_VOLETS`, `product_oracle_godot.py:55`) : toujours `NOT_MEASURED`
-tant qu'aucune fenêtre GPU réelle n'est explicitement demandée (`--headless` rend une
-texture nulle).
+un vert ni un rouge fabriqué.
+
+**Mode d'exécution (MAJ lot L0b, 2026-08-10)** — la liste de noms de volets en dur
+`GPU_WINDOW_REQUIRED_VOLETS` (qui rendait `core_render_frame` *toujours* `NOT_MEASURED`,
+sans jamais l'exécuter) a été **retirée**. Le mode est désormais décidé par une
+**directive statique** portée par la source du volet :
+
+```gdscript
+# forge:run_mode = gpu_window
+```
+
+Le collecteur la lit AVANT exécution et lance alors Godot en fenêtre GPU hors écran
+(`GPU_WINDOW_FLAGS`) au lieu de `--headless`. Chaque volet exécuté porte
+`mode_execution` ∈ {`gpu_window`, `headless`} dans son résultat. Le marqueur de payload
+`requires_gpu_window: true` reste, lui, une déclaration d'EXÉCUTION (« je n'ai rien pu
+mesurer ») et rend `NOT_MEASURED` dans les deux modes — il ne décide jamais du mode,
+puisqu'il n'est lisible qu'après coup. Dépendance de poste inchangée et assumée :
+`--headless` rend une texture nulle, la preuve pixel Godot est liée à une machine
+équipée.
 
 **Ce que le runner en fait** — `run_godot_product_oracle`
 (`product_oracle_godot.py:179-285`) rend un mapping plat `{nom_volet: {"status":
