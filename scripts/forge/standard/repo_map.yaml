@@ -106,6 +106,22 @@ mapping:
   # l'oracle, jamais l'inverse.
   godot.project_tests: "tests/{id}"
 
+  # --- observation amont : le dossier de reference produit AVANT le jeu (World Scan /
+  # GAME_REFERENCE). Categorie ajoutee sur gate Pierre 2026-08-10.
+  #
+  # Motif mesure : `games/tetris/GAME_REFERENCE/` remontait en `dossiers_hors_structure`
+  # (check_index) faute d'identite architecturale. La reparation par deplacement a ete
+  # ECARTEE apres verification : son contenu DIFFERE de `lab/forge_runs/tetris/
+  # GAME_REFERENCE/` (6 fichiers sur 6), ce n'est donc pas un doublon — deplacer « pour
+  # faire passer l'oracle » aurait detruit de l'information. On donne a l'emplacement une
+  # identite explicite plutot que de le faire disparaitre.
+  #
+  # Gabarit de DOSSIER FIXE, sans `{id}` : meme forme que `charter`/`design.doc`/
+  # `telemetry` ci-dessous (l'obligation `{id}` a pour portee `test.*` et `asset.*`
+  # uniquement). Suffit a rendre le dossier legal : check_index derive `allowed_top` du
+  # premier segment de chaque gabarit du mapping, sans liste codee en dur.
+  reference.observation: "GAME_REFERENCE/"
+
   # --- gouvernance du jeu ---
   charter:            "00_CHARTER/"
   design.doc:         "01_DESIGN/"
