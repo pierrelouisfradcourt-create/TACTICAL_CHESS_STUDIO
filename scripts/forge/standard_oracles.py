@@ -494,6 +494,37 @@ def check_line_states(wiremap: dict, core_requirements: dict, frozen: bool | str
     moment = _normalize_moment(frozen)
     game_id = wiremap.get("game_id") if isinstance(wiremap.get("game_id"), str) else None
 
+    # P5 (2026-08-15) — garde de NON-VACUITÉ (code review : une wiremap
+    # `lines: []` passait ce volet et 4 autres par vacuité — zéro contrainte
+    # vérifiée, PASS affiché ; seuls `core_omis` — si core_requirements fourni —
+    # et le scan disque de check_index compensaient). Une carte vide n'est pas
+    # une carte conforme : FAIL, SAUF waiver EXPLICITE `no_lines_waiver` au
+    # sommet de la wiremap — même convention de traçabilité que DEFERRED :
+    # `reason` ET `decider` non vides. Le waiver n'excuse QUE la vacuité : les
+    # exigences `core_requirements` omises restent des violations (`core_omis`),
+    # et le waiver est TOUJOURS remonté dans le rapport, jamais silencieux.
+    # PÉRIMÈTRE DÉCLARÉ (gate ouverte) : la garde couvre `lines` ABSENT ou LISTE
+    # VIDE. Le cas `lines` d'un MAUVAIS TYPE conserve son comportement historique
+    # (passed True, « aucune ligne exploitable ») figé par
+    # test_line_states_lines_not_a_list_no_crash — le durcir exige un arbitrage
+    # Pierre sur ce test ; résidu de vacuité DÉCLARÉ, pas silencieux.
+    no_lines_waiver = None
+    if lines_raw is None or lines_raw == []:
+        waiver = wiremap.get("no_lines_waiver")
+        if (isinstance(waiver, dict)
+                and str(waiver.get("reason") or "").strip()
+                and str(waiver.get("decider") or "").strip()):
+            no_lines_waiver = waiver
+        else:
+            return {
+                "passed": False,
+                "raison": ("wiremap sans ligne (`lines` vide ou absent) : vacuité "
+                           "— rien n'est vérifié, un PASS serait fabriqué. Fournir "
+                           "des lignes, ou un `no_lines_waiver` {reason, decider} "
+                           "explicite au sommet de la wiremap"),
+                **empty,
+            }
+
     etats_invalides: list[str] = []
     not_applicable_sur_core: list[str] = []
     not_applicable_sans_raison: list[str] = []
@@ -606,8 +637,13 @@ def check_line_states(wiremap: dict, core_requirements: dict, frozen: bool | str
         or system_parent_manquant
         or lifecycle_invalide
     )
+    result_extra = {}
+    if no_lines_waiver is not None:
+        # traçabilité P5 : le waiver accepté apparaît dans le reçu signé du volet.
+        result_extra["no_lines_waiver"] = no_lines_waiver
     return {
         "passed": passed,
+        **result_extra,
         "etats_invalides": etats_invalides,
         "not_applicable_sur_core": not_applicable_sur_core,
         "not_applicable_sans_raison": not_applicable_sans_raison,
