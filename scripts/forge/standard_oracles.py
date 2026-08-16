@@ -1677,3 +1677,73 @@ def check_genre_coverage(wiremap: dict, genre_bible: dict) -> dict:
         "citations_resolues": citations_resolues,
         "taux_resolution": taux_resolution,
     }
+
+
+def check_gpu_window_directive(oracle_dir: Path | str) -> dict:
+    """Oracle 9 (lot 1 ADR-003, P0-4) — la directive de mode GPU est un CHAMP
+    VÉRIFIÉ, plus jamais une prose de commentaire.
+
+    Contexte mesuré (breakout_v2, 2026-08-15) : le routage d'exécution des volets
+    pixel repose sur la DIRECTIVE STATIQUE ``forge:run_mode = gpu_window``
+    (`product_oracle_godot._gpu_window_declared`, seule autorité de routage) ;
+    or les `.gd` de breakout_v2 déclaraient l'exigence GPU en PROSE seule
+    (« Fenetre GPU reelle exigee (charter) », core_render_frame.gd:4) — le volet
+    partait en `--headless` et rendait un ROUGE FABRIQUÉ (« --headless rend une
+    texture nulle »). Cas d'école « aucune décision dans un commentaire »
+    (ratifié Pierre 2026-07-23) : toute donnée qui influence un comportement doit
+    avoir un champ structuré validé.
+
+    Règle : un `.gd` du répertoire d'oracles dont un COMMENTAIRE évoque
+    l'exigence de fenêtre GPU (« fenêtre GPU », « rendering-driver »,
+    « gpu window/gpu_window ») sans porter la directive structurée est EN DÉFAUT.
+    Verdict ``BLOCKED``, jamais ``FAIL`` : c'est l'INSTRUMENT (la déclaration)
+    qu'il faut réparer, pas le jeu — les confondre enverrait le builder réparer
+    la mauvaise chose (doctrine FAIL vs BLOCKED du driver).
+
+    Ne lève jamais : répertoire absent => OK (rien à vérifier, on ne fabrique pas
+    une exigence) ; fichier illisible => listé `illisibles`, jamais un défaut.
+    """
+    import re as _re
+
+    # SOURCE UNIQUE de la directive : la regex du routeur lui-même — si le format
+    # évolue là-bas, ce contrôle suit, jamais une seconde vérité locale.
+    from forge.product_oracle_godot import _GPU_WINDOW_DIRECTIVE
+
+    prose_hint = _re.compile(
+        r"fen[eê]tre\s+gpu|rendering[-_\s]driver|gpu[\s_]window", _re.IGNORECASE)
+
+    base = Path(oracle_dir)
+    result: dict[str, Any] = {
+        "passed": True, "verdict": "OK", "fichiers_examines": 0,
+        "fichiers_avec_directive": 0, "fichiers_en_defaut": [], "illisibles": [],
+        "raisons": [],
+    }
+    if not base.is_dir():
+        result["raisons"].append(f"répertoire d'oracles absent ({base}) — rien à vérifier")
+        return result
+
+    for path in sorted(base.glob("*.gd")):
+        result["fichiers_examines"] += 1
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            result["illisibles"].append(path.name)
+            continue
+        if _GPU_WINDOW_DIRECTIVE.search(text):
+            result["fichiers_avec_directive"] += 1
+            continue
+        commentaires = "\n".join(
+            line for line in text.splitlines() if line.lstrip().startswith("#"))
+        if prose_hint.search(commentaires):
+            result["fichiers_en_defaut"].append(path.name)
+
+    if result["fichiers_en_defaut"]:
+        result["passed"] = False
+        result["verdict"] = "BLOCKED"
+        result["raisons"].append(
+            "exigence GPU déclarée en prose de commentaire sans directive "
+            "structurée 'forge:run_mode = gpu_window' — le volet serait routé "
+            "--headless et rendrait un rouge fabriqué : "
+            + ", ".join(result["fichiers_en_defaut"])
+        )
+    return result
