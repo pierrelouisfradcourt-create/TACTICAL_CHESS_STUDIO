@@ -15,6 +15,7 @@ Schéma canonique : scripts/forge/contracts/SCHEMA.md.
 """
 from __future__ import annotations
 
+import json
 import logging
 import sys
 from dataclasses import dataclass
@@ -211,7 +212,210 @@ class DispatchPayload:
     provider: str = ""
 
 
-def _render_prompt(contract: dict, etape: str = "", run_id: str = "") -> str:
+# =====================================================================================
+# RECONNEXION KB — les fiches de connaissance CITÉES par le contrat
+#
+# RECONNEXION KB RATIFIÉE PAR GO EXPLICITE DE PIERRE, 2026-08-13. Ne vaut pas
+# autorisation générale de modifier scripts/forge/**.
+#
+# CE N'EST PAS UNE NOUVELLE CAPACITÉ — aucun module, dossier, schéma ni oracle neuf.
+# Le canal existait déjà de bout en bout :
+#     `memoire` (champ CRITIQUE, couche `prompt`, SCHEMA.md #3, « oriente : carte des
+#     conventions ») -> `_render_prompt` -> `payload.prompt` -> `run_real.claude_executor`
+# Ce qui manquait : un contrat peut CITER l'identité d'une fiche ratifiée sans que
+# personne ne la résolve. `contracts/wm1-wiremap-tetris.yaml` en cite trois sous
+# « Leçons validées du curriculum, à ne pas répéter » ; l'agent recevait la PARAPHRASE
+# recopiée à la main dans le contrat, jamais le texte de référence.
+#
+# Défaut MESURÉ le 2026-08-13, pas supposé : sur `forge.forge_oracle_convention_
+# undocumented`, la paraphrase du contrat affirme que la convention FORGE_ORACLE
+# « est désormais déclarée dans scripts/forge/standard/SCHEMA.md », là où la fiche
+# ratifiée dit qu'elle n'y est « jamais déclarée ». Les deux textes se contredisent.
+# Une paraphrase figée dans un contrat ne peut pas être requalifiée par une
+# ratification ultérieure — c'est la variante « côté lecture » de la règle du studio
+# `forge.proof_text_must_be_derived`. Ici on n'EFFACE pas la paraphrase (le contrat
+# reste rendu verbatim, cf. `_verify_prompt_layer_rendered`) : on SERT le texte de
+# référence à côté, et la divergence devient visible pour l'agent au lieu d'être
+# silencieusement tranchée en faveur du plus ancien des deux.
+#
+# PERTINENCE DÉCLARÉE, JAMAIS DEVINÉE. Une fiche n'est servie que si le contrat NOMME
+# son identité dans son PROPRE champ `memoire`. Aucun score, aucun seuil, aucune
+# similarité, aucune recherche lexicale (`knowledge_base/search.mjs` reste hors de ce
+# chemin) : appariement de sous-chaîne EXACTE contre les identités RÉELLEMENT présentes
+# dans le catalogue. Corollaire dur : un contrat qui ne cite rien ne reçoit RIEN de neuf
+# — son prompt est inchangé octet pour octet. Zéro faux positif par construction, pas
+# par réglage.
+#
+# SOURCE UNIQUE = `knowledge_base/catalog.json`, le magasin RATIFIÉ (une fiche n'y entre
+# que par `kb_proposal --apply --ratifie-par <humain>`, ADR-002 propose-only). Une
+# proposition encore sous `knowledge_base/proposals/` n'est PAS servie : seules son
+# identité et son état « non ratifiée » sont signalés. Servir son CONTENU
+# court-circuiterait le HumanGate — ce qui ferait de ce branchement exactement la
+# faute qu'il répare.
+#
+# CE QUE CECI PROUVE / NE PROUVE PAS : l'EXPOSITION (le texte de la fiche est dans le
+# prompt réellement rendu, mesurée et signée HMAC par `forge.context_manifest.
+# append_execution_manifest`), JAMAIS la CONSOMMATION. Le lecteur de consommation
+# existe déjà et est câblé (`knowledge_trace.mjs --verify`, appelé par
+# `forge.verify_run`) ; lui donner un producteur est un lot SÉPARÉ, et une décision
+# Pierre — `verify_run` traite les problèmes de knowledge_trace comme BLOQUANTS.
+# =====================================================================================
+
+KB_CATALOG = REPO_ROOT / "knowledge_base" / "catalog.json"
+KB_PROPOSALS_DIR = REPO_ROOT / "knowledge_base" / "proposals"
+KB_SECTION_TITLE = "FICHES DE CONNAISSANCE CITÉES (texte de référence, non paraphrasé)"
+
+
+def _kb_catalog_index(catalog_path: Path | None = None) -> dict[str, dict] | None:
+    """`{identité citable -> entrée de catalogue}`, lu dans le catalogue RATIFIÉ.
+
+    Une même entrée est indexée sous TOUTES les identités sous lesquelles un contrat
+    peut légitimement la citer : `brick_id` / `asset_id` / `role_id` (l'identité du
+    catalogue) et `provenance_internal.lesson_id` (l'identité de la leçon d'origine,
+    `forge.<slug>` — c'est CELLE que les contrats écrivent en pratique). C'est le
+    catalogue lui-même qui déclare l'équivalence des deux, jamais une ressemblance de
+    nom — même principe de jointure que `search_usage.tableCheminVersBrique`.
+
+    Rend `None` quand le catalogue est ABSENT OU ILLISIBLE — distinct d'un `{}` (lu,
+    mais sans entrée). La distinction n'est pas cosmétique : sans elle, un catalogue
+    injoignable ferait dire « cette fiche n'est pas ratifiée » d'une fiche qui l'est.
+    C'est exactement la faute que décrit `forge.oracle_fail_vs_not_measured_marker`
+    (« non mesurable » ne se maquille ni en échec ni en succès) — défaut RÉEL trouvé
+    par la falsification de ce branchement le 2026-08-13, pas une précaution théorique.
+    """
+    path = Path(catalog_path) if catalog_path else KB_CATALOG
+    index: dict[str, dict] = {}
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    for entry in doc.get("entries") or []:
+        if not isinstance(entry, dict):
+            continue
+        for key in ("brick_id", "asset_id", "role_id"):
+            ident = entry.get(key)
+            if ident:
+                index[str(ident)] = entry
+        provenance = entry.get("provenance_internal")
+        if isinstance(provenance, dict) and provenance.get("lesson_id"):
+            index[str(provenance["lesson_id"])] = entry
+    return index
+
+
+def _kb_pending_ids(proposals_dir: Path | None = None) -> set[str]:
+    """Identités des propositions NON ENCORE ratifiées, lues comme `kb_proposal.py` les
+    écrit : le nom de fichier EST l'identité (`_proposal_path` => `<lesson_id>.yaml`).
+
+    Volontairement AUCUN parsing du contenu : 4 des 36 fiches présentes le 2026-08-13
+    ne sont pas du YAML valide (rédigées à la main, hors `--generate`). Une identité
+    n'a pas à dépendre de la validité du corps du document — et rien de leur CONTENU
+    n'est servi de toute façon.
+    """
+    directory = Path(proposals_dir) if proposals_dir else KB_PROPOSALS_DIR
+    try:
+        return {p.stem for p in directory.glob("*.yaml")}
+    except OSError:
+        return set()
+
+
+def _cited_identities(texte: str, identities: set[str]) -> list[str]:
+    """Identités RÉELLES citées dans `texte`, par sous-chaîne exacte.
+
+    On n'essaie JAMAIS de deviner à quoi ressemble un identifiant (aucune regex de
+    forme) : on part des identités qui existent vraiment et on demande si le texte les
+    contient. Une identité strictement contenue dans une autre identité trouvée est
+    écartée — sinon citer `pat-forge-x` servirait aussi une hypothétique `forge-x`.
+    """
+    found = [i for i in identities if i in texte]
+    return sorted(i for i in found if not any(i != j and i in j for j in found))
+
+
+def kb_fiches_citees(
+    memoire: object,
+    *,
+    catalog_path: Path | None = None,
+    proposals_dir: Path | None = None,
+) -> dict:
+    """Fiches de connaissance qu'un contrat CITE dans son champ `memoire`.
+
+    Rend `{"servies": [...], "en_attente_de_ratification": [...]}` :
+      - `servies` : fiche présente dans le catalogue ratifié — son énoncé de référence
+        (`function`) est servi tel quel, jamais reformulé.
+      - `en_attente_de_ratification` : identité citée qui existe sous
+        `knowledge_base/proposals/` mais PAS dans le catalogue. Seule l'identité est
+        rapportée ; le contenu reste derrière le HumanGate.
+    Une identité citée qui n'existe ni dans l'un ni dans l'autre n'est pas rapportée :
+    on ne sait pas si c'est une faute de frappe ou une connaissance qui vit ailleurs
+    (mémoire studio, doctrine), et inventer ce diagnostic serait une devinette.
+
+    Catalogue injoignable => les DEUX listes sont vides et rien n'est rendu : on ne
+    peut alors ni servir un texte de référence, ni affirmer qu'une fiche attend sa
+    ratification. Ne rien dire est le seul état honnête (cf. `_kb_catalog_index`).
+    """
+    if isinstance(memoire, (list, tuple)):
+        texte = "\n".join(str(item) for item in memoire)
+    else:
+        texte = str(memoire or "")
+    if not texte.strip():
+        return {"servies": [], "en_attente_de_ratification": []}
+
+    index = _kb_catalog_index(catalog_path)
+    if index is None:  # non mesurable : ni servir, ni qualifier
+        return {"servies": [], "en_attente_de_ratification": []}
+    pending = _kb_pending_ids(proposals_dir)
+
+    servies: list[dict] = []
+    attente: list[str] = []
+    vues: set[str] = set()
+    for ident in _cited_identities(texte, set(index) | pending):
+        entry = index.get(ident)
+        if entry is None:
+            attente.append(ident)
+            continue
+        canonique = str(
+            entry.get("brick_id") or entry.get("asset_id") or entry.get("role_id") or ident
+        )
+        if canonique in vues:  # `forge.x` ET `pat-forge-x` cités : une seule fiche
+            continue
+        vues.add(canonique)
+        servies.append({
+            "cite": ident,
+            "id": canonique,
+            "tier": str(entry.get("tier") or "?"),
+            "enonce": str(entry.get("function") or "").strip(),
+        })
+    return {"servies": servies, "en_attente_de_ratification": attente}
+
+
+def _render_kb_section(fiches: dict) -> str | None:
+    """CORPS de la section de prompt pour les fiches citées (le titre est ajouté par
+    `_render_prompt`, comme pour toute autre section), ou None si le contrat n'en cite
+    aucune — cas de 47 des 48 contrats : prompt strictement inchangé."""
+    servies = fiches.get("servies") or []
+    attente = fiches.get("en_attente_de_ratification") or []
+    if not servies and not attente:
+        return None
+    lignes = [
+        "Ton champ `memoire` ci-dessus NOMME ces fiches. Voici leur texte de RÉFÉRENCE,",
+        "résolu mécaniquement depuis knowledge_base/catalog.json (magasin ratifié par",
+        "HumanGate). Si ce texte contredit le résumé du contrat, c'est la FICHE qui fait",
+        "foi et la divergence doit être signalée dans ton rapport — jamais tranchée en",
+        "silence.",
+        "",
+    ]
+    for fiche in servies:
+        lignes.append(f"- `{fiche['id']}` (cité `{fiche['cite']}`, tier={fiche['tier']})")
+        lignes.append(f"  {fiche['enonce']}")
+    for ident in attente:
+        lignes.append(
+            f"- `{ident}` : fiche PROPOSÉE, non ratifiée — contenu volontairement NON servi "
+            "(HumanGate Pierre en attente)."
+        )
+    return "\n".join(lignes)
+
+
+def _render_prompt(contract: dict, etape: str = "", run_id: str = "",
+                   attempt: int = 0) -> str:
     """Assemble le prompt borné à partir des champs du contrat.
 
     R2 (audit branchements 2026-07-24) : quand `etape` ET `run_id` sont connus
@@ -238,6 +442,19 @@ def _render_prompt(contract: dict, etape: str = "", run_id: str = "") -> str:
         sections.append(("EXIGENCES COGNITIVES", contract["exigences_cognitives"]))
     if field_state(contract.get("memoire")) == "filled":
         sections.append(("MÉMOIRE DE TRAVAIL", contract["memoire"]))
+        # RECONNEXION KB RATIFIÉE PAR GO EXPLICITE DE PIERRE, 2026-08-13. Ne vaut
+        # pas autorisation générale de modifier scripts/forge/**.
+        # Adossée à `memoire` (jamais rendue sans elle) : la citation vit dans ce
+        # champ, la résolution le suit immédiatement. Best-effort strict, même
+        # discipline que le pré-mortem côté driver — une KB illisible ne doit
+        # JAMAIS transformer un dispatch valide en refus, elle ne sert rien.
+        try:
+            kb_section = _render_kb_section(kb_fiches_citees(contract["memoire"]))
+        except Exception:  # noqa: BLE001 — lecture best-effort, jamais bloquante
+            logger.warning("fiches KB citées non résolues (non bloquant)", exc_info=True)
+            kb_section = None
+        if kb_section:
+            sections.append((KB_SECTION_TITLE, kb_section))
     sections += [
         ("OBJECTIF", contract["objectif"]),
         ("DANS LE PÉRIMÈTRE (in_scope)", contract["in_scope"]),
