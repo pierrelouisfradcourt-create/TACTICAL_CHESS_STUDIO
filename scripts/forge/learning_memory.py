@@ -634,10 +634,19 @@ def apply_injection_policy(lessons: list[dict], current_generation: int | None) 
 
 
 def format_premortem_lessons(annotated: list[dict], limit: int = 5) -> list[str]:
-    """AFFICHE : rendu texte déterministe. Tri par `lesson_id` (un critère
-    STRUCTUREL — identité — jamais une priorisation par contenu), puis troncature
-    aux `limit` premières. Aucune reformulation du `statement` : affiché tel quel."""
-    ordered = sorted(annotated, key=lambda l: l.get("lesson_id") or "")
+    """AFFICHE : rendu texte déterministe. Tri par RÉCENCE décroissante (`ts`,
+    un champ ÉCRIT avec la leçon — jamais une horloge de lecture, le déterminisme
+    est conservé) puis par `lesson_id` (départage stable), puis troncature aux
+    `limit` premières. Aucune reformulation du `statement` : affiché tel quel.
+
+    Lot 1 ADR-003 (P0-5) — avant : tri par `lesson_id` alphabétique SEUL + limit=5.
+    Mesuré le 2026-08-15 : les 6 leçons `manifest-*` de la réparation post-mortem
+    pacman (les plus récentes du corpus) arrivaient aux index 21-26 sur 27 — AUCUN
+    run ne pouvait jamais les voir. Une boucle d'apprentissage qui écrit ce que
+    son consommateur ne relit jamais n'apprend rien : la récence est un critère
+    STRUCTUREL (quand la leçon a été écrite), pas un jugement de contenu."""
+    ordered = sorted(annotated,
+                     key=lambda l: (-(l.get("ts") or 0), l.get("lesson_id") or ""))
     if limit:
         ordered = ordered[:limit]
     lines = []

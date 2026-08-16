@@ -370,23 +370,32 @@ def test_premortem_lessons_is_deterministic(tmp_path):
 
 
 def test_premortem_lessons_sort_is_structural_not_read_order(tmp_path):
-    """Le tri (par lesson_id) est un critère STRUCTUREL : peu importe l'ordre
-    d'écriture, la sortie reste la même pour le même ENSEMBLE de leçons."""
+    """Le tri est un critère STRUCTUREL : peu importe l'ordre d'ÉCRITURE, la
+    sortie reste la même pour le même ENSEMBLE de leçons (mêmes champs écrits).
+
+    MAJ lot 1 ADR-003 (P0-5, GO Pierre 2026-08-15) : le tri est passé de
+    `lesson_id` seul à (récence `ts` décroissante, puis `lesson_id`). `ts` est un
+    champ ÉCRIT avec la leçon — il fait donc partie de la structure : ce test
+    fixe désormais des `ts` explicites IDENTIQUES entre les deux corpus pour
+    continuer de prouver la même propriété (l'ordre d'écriture/lecture ne décide
+    rien, seuls les champs écrits décident)."""
     path_a = tmp_path / "order_a.jsonl"
     lm.record_lesson_event("lesson-bb", status=lm.LESSON_STATUS_CANDIDATE,
-                            statement="BB", generation=1, path=path_a)
+                            statement="BB", generation=1, path=path_a, ts=100.0)
     lm.record_lesson_event("lesson-aa", status=lm.LESSON_STATUS_CANDIDATE,
-                            statement="AA", generation=1, path=path_a)
+                            statement="AA", generation=1, path=path_a, ts=200.0)
 
     path_b = tmp_path / "order_b.jsonl"
     lm.record_lesson_event("lesson-aa", status=lm.LESSON_STATUS_CANDIDATE,
-                            statement="AA", generation=1, path=path_b)
+                            statement="AA", generation=1, path=path_b, ts=200.0)
     lm.record_lesson_event("lesson-bb", status=lm.LESSON_STATUS_CANDIDATE,
-                            statement="BB", generation=1, path=path_b)
+                            statement="BB", generation=1, path=path_b, ts=100.0)
 
     out_a = lm.premortem_lessons(current_generation=1, lessons_path=path_a, include_legacy=False)
     out_b = lm.premortem_lessons(current_generation=1, lessons_path=path_b, include_legacy=False)
     assert out_a == out_b
+    # La plus récente (ts=200) passe en tête — le nouveau critère, prouvé ici aussi.
+    assert out_a[0].startswith("[lesson-aa]")
 
 
 def test_premortem_lessons_limit_excludes_rejected_from_budget(tmp_path):
