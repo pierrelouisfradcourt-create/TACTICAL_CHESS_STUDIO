@@ -2444,6 +2444,9 @@ class ForgeDriver:
             standard=std_r,
             git_head=current_git_head(), nonce=new_nonce(), ts=time.time(),
             key_file=self.key_file,
+            # Lot 1 ADR-003 (P0-2) : game-ness DÉCLARÉE et signée — verify_run ne
+            # dépend plus des seules clés facultatives du detail du reçu code.
+            is_game=self.is_game,
         )
         record = signed_aggregate_record(agg, key_file=self.key_file)
         verdict_path = self.run_dir / "verdict.json"
@@ -3023,6 +3026,7 @@ class ForgeDriver:
                 standard=std_r,
                 git_head=current_git_head(), nonce=new_nonce(), ts=time.time(),
                 key_file=self.key_file, scope="PARTIAL",
+                is_game=self.is_game,  # lot 1 ADR-003 (P0-2), même fait qu'en s12
             )
             record = signed_aggregate_record(agg, key_file=self.key_file)
             out.write_text(
