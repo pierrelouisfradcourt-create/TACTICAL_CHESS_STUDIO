@@ -290,6 +290,16 @@ class AggregateVerdict:
     # PARTIAL = profil sans s12 (probes, oracle_only…) : le verdict ne couvre QUE
     # les oracles réellement exécutés ; jamais HUMANGATE_READY, jamais clean pass.
     scope: str = "FULL"
+    # Lot 1 ADR-003 (P0-2, 2026-08-15) : la « game-ness » devient un fait DÉCLARÉ
+    # et SIGNÉ par le producteur du verdict (le driver passe self.is_game), au lieu
+    # d'être uniquement INFÉRÉE par verify_run depuis des clés FACULTATIVES du
+    # detail du reçu code (e2e/mutation/solvability) — inférence qu'une recette de
+    # verdict minimale ({"returncode": ...}) désarmait silencieusement : le jeu
+    # passait AUTHENTIQUE sans preuve mutation, en se faisant classer « non-jeu ».
+    # None = verdict historique / producteur qui ne déclare pas (rétro-compat :
+    # verify_run garde l'inférence en filet). verify_run traite is_game=True sans
+    # preuve mutation embarquée comme un REJET, plus jamais comme un non-jeu.
+    is_game: bool | None = None
 
 
 def build_aggregate_verdict(
@@ -310,6 +320,7 @@ def build_aggregate_verdict(
     ts: float | None = None,
     key_file: Path | None = None,
     scope: str = "FULL",
+    is_game: bool | None = None,
 ) -> AggregateVerdict:
     """Plie les REÇUS D'ORACLE SIGNÉS + le red-team en un verdict signable.
 
@@ -346,6 +357,12 @@ def build_aggregate_verdict(
     de forme remontées par check_prisme.mjs). Même statut que le red-team : n'entre
     JAMAIS dans ``software_verdict``, pousse ``decision`` vers WITH_OBJECTION s'il y a
     quelque chose à signaler, toujours visible dans ``humangate_flags`` — jamais tu.
+
+    ``is_game`` (lot 1 ADR-003, P0-2) : déclaration STRUCTURÉE de la game-ness,
+    signée avec le verdict (cf. AggregateVerdict.is_game). Ne change AUCUN calcul
+    ici (software_verdict/decision inchangés) : c'est un fait de provenance que
+    ``verify_run`` confronte au reçu code — un ``is_game=True`` sans preuve
+    mutation embarquée y devient un rejet, plus jamais un « non-jeu » par défaut.
     """
     if scope not in ("FULL", "PARTIAL"):
         raise ValueError(f"scope invalide: {scope!r} (attendu FULL ou PARTIAL)")
@@ -492,6 +509,7 @@ def build_aggregate_verdict(
         redteam_advisory=tuple(redteam_findings),
         humangate_flags=tuple(flags),
         scope=scope,
+        is_game=is_game,
     )
 
 

@@ -93,16 +93,28 @@ def _check_mutation_proof(data: dict, key_file: Path | None, *,
     # cette dernière survit au retrait de e2e/mutation dans un state.json falsifié
     # (finding 1 : le verdict BLOCKED reste détecté comme jeu, donc jamais
     # overall=True sans preuve).
-    is_game = (isinstance(mut, dict) or detail.get("e2e") is not None
-               or detail.get("solvability") is not None
-               or "mutation_verification" in detail)
+    inferred_game = (isinstance(mut, dict) or detail.get("e2e") is not None
+                     or detail.get("solvability") is not None
+                     or "mutation_verification" in detail)
+    # Lot 1 ADR-003 (P0-2) : la game-ness est d'abord le champ SIGNÉ `is_game` du
+    # verdict (déclaré par le producteur, cf. verdict.AggregateVerdict.is_game).
+    # L'inférence par clés facultatives du detail reste en FILET (verdicts
+    # historiques sans le champ, producteur qui omet la déclaration) et ne peut
+    # JAMAIS être désarmée par un `is_game` déclaré False/absent : OR strict —
+    # sinon déclarer non-jeu redeviendrait le contournement exact que ce champ
+    # ferme (recette minimale {"returncode": ...} classée non-jeu => AUTHENTIQUE
+    # sans preuve mutation).
+    declared_game = data.get("is_game")
+    is_game = bool(declared_game) or inferred_game
     if not is_game:
         return {"problems": [], "status": None, "checked": False}  # non-jeu
     if not isinstance(mut, dict):
-        # Reçu de jeu (marqueur e2e/mutation) sans preuve embarquée : non ratifiable,
-        # quel que soit le statut ET quel que soit require_green (absence
-        # structurelle de preuve, pas une question de couleur de gate).
-        return {"problems": ["reçu code de JEU (marqueur e2e/mutation) sans preuve mutation embarquée"],
+        # Reçu de jeu (déclaré is_game=True et/ou marqueur e2e/mutation) sans preuve
+        # embarquée : non ratifiable, quel que soit le statut ET quel que soit
+        # require_green (absence structurelle de preuve, pas une couleur de gate).
+        why = ("déclaré is_game=True dans le verdict signé" if declared_game
+               else "marqueur e2e/mutation")
+        return {"problems": [f"reçu code de JEU ({why}) sans preuve mutation embarquée"],
                 "status": None, "checked": False}
     receipt = mut.get("receipt") or {}
     receipt_detail = receipt.get("detail") or {}
