@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sys
 import time
 from dataclasses import asdict
@@ -148,6 +149,55 @@ _POST_ORACLE = ("s11-redteam-code", "s12-verdict")
 # dépôt ; l'oublier ici a fait tomber le run snake-s9p dans la branche LEGACY (voir
 # ForgeDriver._standard_topology).
 _STANDARD_TOPOLOGY_PROFILES = frozenset({"standard", "standard_godot"})
+
+# ---------------------------------------------------------------------------
+# RECONNEXION RATIFIÉE PAR GO EXPLICITE DE PIERRE, 2026-08-12 — canal de
+# causalité. Ne vaut pas autorisation générale de modifier scripts/forge/**.
+# ---------------------------------------------------------------------------
+# NIVEAU RESPONSABLE d'un oracle rouge. L'information EXISTAIT déjà (quel oracle
+# a rougi ⇒ quel étage est en cause) mais n'était jamais MATÉRIALISÉE : l'état ne
+# portait qu'un statut. Le vocabulaire est EMPRUNTÉ à `scripts/forge/layers.json`
+# (source unique des zones où une boucle peut casser, ratifiée 2026-08-04) — on ne
+# crée aucune taxonomie neuve, on nomme avec celle qui existe.
+#
+# Règle de dérivation, factuelle : le niveau nommé est celui qui PRODUIT
+# l'artefact que l'oracle JUGE.
+#   s10a-oracle-code     juge le code produit par le builder        -> build
+#   s10b-oracle-archi    juge blueprint.json (produit par s4)       -> s4-archi-contract
+#   s10c-oracle-wiremap  juge wiremap.json (produit par s5)         -> s5-wiremap-contract
+#   s10s-oracle-standard juge le dépôt CONSTRUIT contre le standard -> build
+#                        (le prédicat d'escalade traite DÉJÀ son FAIL par un
+#                         re-build : ce champ ne fait que DIRE ce que le code fait,
+#                         il ne décide rien de neuf)
+#   s12-verdict          agrège des reçus : c'est la chaîne elle-même -> driver
+# Étape absente de la table => `_LEVEL_UNKNOWN` : jamais un niveau deviné.
+_RESPONSIBLE_LEVEL_BY_ORACLE = {
+    "s10a-oracle-code": "build",
+    "s10b-oracle-archi": "s4-archi-contract",
+    "s10c-oracle-wiremap": "s5-wiremap-contract",
+    "s10s-oracle-standard": "build",
+    "s12-verdict": "driver",
+}
+_LEVEL_UNKNOWN = "non_etabli"
+
+# Oracles dont le rouge peut déclencher un rejeu (ordre de lecture de la cause).
+# MÊME ensemble que le prédicat `oracle_fail` de `_maybe_escalate` — nommé ici pour
+# que les deux ne puissent pas diverger en silence.
+_ESCALATION_ORACLES = (
+    "s10a-oracle-code", "s10b-oracle-archi",
+    "s10c-oracle-wiremap", "s10s-oracle-standard",
+)
+
+# `next_reason:` tel que 34 lignes de contrat l'EXIGENT et que 0 ligne de code le
+# lisait. Le motif couvre les trois formes RÉELLEMENT observées dans le corpus
+# (sorties d'agent authentiques, lab/forge_runs/driver_smoke_v3/v5/v6) :
+#     next_reason: "…"          — même ligne, guillemets
+#     **next_reason:**\n…       — gras markdown, valeur ligne suivante
+#     next_reason:\n  "…"       — bloc indenté
+# Décoration optionnelle AUTOUR de la clé, valeur sur la même ligne OU en dessous :
+# on lit ce que les agents écrivent déjà, on ne leur impose pas un format neuf.
+_NEXT_REASON_KEY = re.compile(r"(?i)^[ \t>*`_#-]*next_reason[ \t*`_]*:[ \t]*(.*)$")
+
 
 class ForgeDriver:
     """Machine à états d'un run Forge. Une instance = un run (run_id figé)."""
@@ -1020,6 +1070,22 @@ class ForgeDriver:
         yaml_check = res.get("yaml_check") if isinstance(res, dict) else None
         if yaml_check is not None:
             entry["detail"]["yaml_check"] = yaml_check
+        # RECONNEXION RATIFIÉE PAR GO EXPLICITE DE PIERRE, 2026-08-12 — canal de
+        # causalité. Ne vaut pas autorisation générale de modifier scripts/forge/**.
+        #
+        # BRANCHEMENT 3 — `next_reason` obtient enfin un CONSOMMATEUR. Deux contrats
+        # au moins l'exigent (s10a-oracle-code §64, s12-verdict §65) : « pourquoi le
+        # niveau supérieur doit agir OU pourquoi la chaîne causale est FERMÉE ». 34
+        # lignes de contrat le demandaient, 0 ligne de code le lisait — le seul
+        # champ de la doctrine de lignée qui n'avait aucun destinataire.
+        # Lu sur la sortie COMPLÈTE, pas sur `output_excerpt` (tronqué à 2000 car.,
+        # et le bloc de lignée est en FIN de rapport : le lire là serait fragile).
+        # AUCUN moteur de décision : on transporte et on rend visible, rien de plus.
+        next_reason = self._parse_next_reason(output)
+        if next_reason:
+            entry["next_reason"] = next_reason          # visible dans l'état
+            entry["detail"]["next_reason"] = next_reason  # et dans le reçu de l'étape
+            logger.info("next_reason (%s): %s", etape, next_reason)
         self._save(state)
         try:
             # M1 (design imposé pt.3) : le champ `model` porte le modèle
@@ -2602,13 +2668,47 @@ class ForgeDriver:
         entry["status"] = status
         entry["detail"] = detail
         entry["ts"] = time.time()
+        # L'étape est dérivée du state si non passée (les helpers d'oracle appellent
+        # _finish_step sans la répéter). Résolue UNE fois, réutilisée ci-dessous.
+        resolved = etape or self._etape_of(state, entry)
+
+        # RECONNEXION RATIFIÉE PAR GO EXPLICITE DE PIERRE, 2026-08-12 — canal de
+        # causalité. Ne vaut pas autorisation générale de modifier scripts/forge/**.
+        #
+        # BRANCHEMENTS 1 & 2 — LE PRODUCTEUR MANQUANT. `last_oracle` et
+        # `last_root_cause` avaient DEUX lecteurs (`_activation_reason`, qui les
+        # verse dans le `reason` du dispatch, lui-même relu par la promotion de
+        # leçons du Context Manifest) et ZÉRO écrivain : la cause d'un échec
+        # mourait donc dans le reçu. Elle est écrite ICI, à l'instant EXACT où le
+        # reçu est enregistré, RECOPIÉE de ce que le reçu porte déjà — et le
+        # niveau responsable, jusqu'ici seulement déductible, est MATÉRIALISÉ.
+        if status in ("FAIL", "BLOCKED"):
+            entry["last_oracle"] = resolved
+            entry["last_root_cause"] = self._receipt_root_cause(detail, status)
+            entry["responsible_level"] = self._responsible_level(resolved)
+
+        # BRANCHEMENT 4 — `NOT_MEASURED` cesse d'être muet. Le prédicat d'escalade
+        # ne connaît que `FAIL` : une preuve ABSENTE ne déclenchait donc RIEN,
+        # alors que `NOT_MEASURED != OK` est un invariant ratifié. Rendue visible
+        # dans l'état ET journalisée comme un écart DISTINCT d'un OK.
+        # PÉRIMÈTRE VOLONTAIRE : elle n'entre PAS dans `oracle_fail` — re-builder
+        # sur une absence de mesure réparerait le JEU alors que c'est l'INSTRUMENT
+        # qui n'a rien mesuré (même raison que l'exclusion de BLOCKED). Elle se
+        # voit et se consigne ; ce qu'on en fait reste une décision de Pierre.
+        not_measured = self._not_measured_paths(detail)
+        if not_measured:
+            entry["not_measured"] = list(not_measured)
+
         self._save(state)  # état persisté AVANT le journal (best-effort, non bloquant)
         # Étape déterministe rouge (oracle FAIL, artefact d'entrée absent...) : consigne
-        # le motif au journal. L'étape est dérivée du state si non passée (les helpers
-        # d'oracle appellent _finish_step sans la répéter).
+        # le motif au journal.
         if status in ("FAIL", "BLOCKED"):
-            self._journal_error(etape or self._etape_of(state, entry),
-                                self._failure_reason(detail, status))
+            self._journal_error(resolved, self._failure_reason(detail, status))
+        if not_measured:
+            self._journal_error(
+                resolved,
+                f"NOT_MEASURED — preuve absente, DISTINCT d'un OK (statut du pas: "
+                f"{status}) : {', '.join(not_measured[:12])}")
 
     @staticmethod
     def _etape_of(state: dict, entry: dict) -> str:
@@ -2637,6 +2737,115 @@ class ForgeDriver:
             if rc.get("status") and rc.get("status") != "OK":
                 bits.append(f"mutation={rc.get('status')}")
         return "; ".join(bits) or status
+
+    # --- canal de causalité --------------------------------------------------
+    # RECONNEXION RATIFIÉE PAR GO EXPLICITE DE PIERRE, 2026-08-12 — canal de
+    # causalité. Ne vaut pas autorisation générale de modifier scripts/forge/**.
+    #
+    # Quatre fonctions PURES (aucun effet de bord, aucune I/O) : elles ne
+    # produisent aucune information neuve, elles RENDENT LISIBLE une information
+    # que les reçus et les sorties d'agent portaient déjà sans destinataire.
+
+    @staticmethod
+    def _responsible_level(etape: str) -> str:
+        """Étage responsable d'un oracle rouge — DÉRIVÉ de l'oracle, jamais deviné."""
+        return _RESPONSIBLE_LEVEL_BY_ORACLE.get(etape, _LEVEL_UNKNOWN)
+
+    @staticmethod
+    def _red_checks(detail: dict) -> tuple[str, ...]:
+        """Noms des volets ROUGES tels que le reçu les porte — RECOPIE stricte.
+
+        Un volet est rouge quand le reçu le DIT (`passed: False`, ou `status`
+        FAIL/BLOCKED) — aucune interprétation, aucun seuil, aucune heuristique."""
+        red = [
+            k for k, v in (detail or {}).items()
+            if isinstance(v, dict) and (v.get("passed") is False
+                                        or v.get("status") in ("FAIL", "BLOCKED"))
+        ]
+        return tuple(sorted(red))
+
+    @staticmethod
+    def _receipt_root_cause(detail: dict, status: str) -> str:
+        """Cause racine TELLE QUE LE REÇU LA FORMULE.
+
+        RÈGLE DURE (même famille que `_activation_reason` : une cause fabriquée est
+        une violation de causalité) : on recopie le motif que le reçu porte déjà
+        (`_failure_reason` — l'extracteur EXISTANT, inchangé) et les noms des volets
+        rouges. Quand le reçu ne porte AUCUNE cause exploitable, on écrit
+        explicitement qu'il n'y en a pas ; on n'en invente jamais une."""
+        detail = detail or {}
+        motif = ForgeDriver._failure_reason(detail, status)
+        red = ForgeDriver._red_checks(detail)
+        if motif and motif != status:
+            return f"{motif} (volets rouges: {', '.join(red)})" if red else motif
+        if red:
+            return f"volets rouges du reçu: {', '.join(red)}"
+        return ("non etablie — le reçu de cette étape ne porte aucune cause "
+                f"exploitable (status={status})")
+
+    @staticmethod
+    def _not_measured_paths(detail, _prefix: str = "", _depth: int = 0) -> tuple[str, ...]:
+        """Chemins des volets qui se déclarent `NOT_MEASURED` dans un reçu.
+
+        `NOT_MEASURED != OK` est un invariant ratifié : une preuve ABSENTE n'est pas
+        une preuve VERTE. Or un volet non mesuré voyageait MUET à l'intérieur du
+        détail d'un pas VERT (mesuré : `breakout_v2` termine s10a ET s10s à OK en
+        portant `visual_capture: NOT_MEASURED`). Descente bornée en profondeur,
+        recopie des CHEMINS, jamais d'interprétation."""
+        if _depth > 6:
+            return ()
+        found: list[str] = []
+        if isinstance(detail, dict):
+            if detail.get("status") == "NOT_MEASURED" or detail.get("not_measured") is True:
+                found.append(_prefix or "(reçu)")
+            for k, v in detail.items():
+                if isinstance(v, (dict, list)):
+                    found.extend(ForgeDriver._not_measured_paths(
+                        v, f"{_prefix}.{k}" if _prefix else str(k), _depth + 1))
+        elif isinstance(detail, list):
+            for i, v in enumerate(detail):
+                if isinstance(v, (dict, list)):
+                    found.extend(ForgeDriver._not_measured_paths(
+                        v, f"{_prefix}[{i}]", _depth + 1))
+        return tuple(dict.fromkeys(found))
+
+    @staticmethod
+    def _clean_next_reason(value: str) -> str:
+        """Retire la décoration markdown d'une valeur lue. Une valeur sans aucun
+        caractère alphanumérique (`**`, `---`, une clôture de bloc) n'est PAS une
+        raison : elle est rendue vide, jamais transportée comme si c'en était une."""
+        value = (value or "").strip().strip("`").strip()
+        value = value.strip('"').strip("'").strip()
+        value = value.strip("*_ ").strip()
+        if not any(ch.isalnum() for ch in value):
+            return ""
+        return value[:400]
+
+    @staticmethod
+    def _parse_next_reason(output: str) -> str:
+        """Lit `next_reason` dans la sortie d'un agent — TRANSPORT, jamais décision.
+
+        Les contrats l'exigent (« pourquoi le niveau supérieur doit agir OU pourquoi
+        la chaîne causale est FERMÉE ») ; aucune ligne de code ne le lisait. Ici on
+        le LIT, un point c'est tout : rien n'en est déduit, aucun comportement n'en
+        dépend. L'exploiter est un geste ultérieur, après mesure."""
+        if not output:
+            return ""
+        lines = output.splitlines()
+        for i, line in enumerate(lines):
+            m = _NEXT_REASON_KEY.match(line)
+            if m is None:
+                continue
+            value = ForgeDriver._clean_next_reason(m.group(1))
+            if not value:
+                # forme « clé seule » (gras markdown, bloc indenté) : la valeur est
+                # sur l'une des lignes suivantes — bornée, jamais une remontée libre.
+                for suite in lines[i + 1:i + 6]:
+                    value = ForgeDriver._clean_next_reason(suite)
+                    if value:
+                        break
+            return value
+        return ""
 
     def _receipt(self, state: dict, oracle_id: str, etape: str):
         """Reçu signé depuis l'état persisté — reconstructible après reprise."""
@@ -2820,6 +3029,54 @@ class ForgeDriver:
             if e.startswith("s9-build") or e.startswith("s10")
         )
 
+    # RECONNEXION RATIFIÉE PAR GO EXPLICITE DE PIERRE, 2026-08-12 — canal de
+    # causalité. Ne vaut pas autorisation générale de modifier scripts/forge/**.
+
+    def _measured_cause(self, state: dict, requested: bool, why: str) -> dict:
+        """La cause qui déclenche CE rejeu, RECOPIÉE de sa source, jamais construite.
+
+        Priorité au rouge d'oracle (preuve mécanique) ; à défaut, la demande
+        explicite de l'agent, dont le motif est lui aussi RECOPIÉ. Aucune des deux
+        sources n'est disponible => dict vide, et rien n'est estampillé : mieux vaut
+        un silence honnête qu'une cause plausible."""
+        for e in _ESCALATION_ORACLES:
+            st = state["steps"].get(e) or {}
+            if st.get("status") != "FAIL":
+                continue
+            return {
+                "oracle": st.get("last_oracle") or e,
+                # `_finish_step` l'a normalement déjà écrit ; le recalcul couvre la
+                # reprise d'un state.json antérieur à ce lot (aucun champ à inventer).
+                "root_cause": (st.get("last_root_cause")
+                               or self._receipt_root_cause(st.get("detail") or {}, "FAIL")),
+                "level": st.get("responsible_level") or self._responsible_level(e),
+            }
+        if requested:
+            return {
+                "oracle": "aucun — demande explicite de l'agent",
+                "root_cause": why or "escalade demandée sans motif transmis",
+                "level": _LEVEL_UNKNOWN,
+            }
+        return {}
+
+    def _stamp_cause_on_replayed(self, state: dict, etapes, cause: dict) -> None:
+        """Porte la cause mesurée sur les étapes remises à PENDING.
+
+        C'EST LE GESTE QUI FERME LE CANAL : `_activation_reason` lit
+        `entry["last_oracle"]` / `entry["last_root_cause"]` sur l'entrée de l'étape
+        QU'ELLE RÉACTIVE. Écrire la cause sur le seul reçu de l'oracle ne l'aurait
+        donc jamais rendue lisible par le réparateur — il faut la porter là où le
+        lecteur regarde."""
+        if not cause:
+            return
+        for e in etapes:
+            entry = state["steps"].get(e)
+            if entry is None:
+                continue
+            entry["last_oracle"] = cause["oracle"]
+            entry["last_root_cause"] = cause["root_cause"]
+            entry["responsible_level"] = cause["level"]
+
     def _maybe_escalate(self, state: dict) -> bool:
         """Évaluée quand la boucle atteint la 1re étape post-oracles. True =
         s9 + oracles remis à PENDING (re-build au tier supérieur)."""
@@ -2834,11 +3091,45 @@ class ForgeDriver:
         # s10b-archi reste volontairement HORS du prédicat, exactement comme avant,
         # et pour `full` (où s10s n'est pas dans l'ordre) le prédicat est inchangé.
         std_st = state["steps"].get("s10s-oracle-standard", {}).get("status")
+        archi_st = state["steps"].get("s10b-oracle-archi", {}).get("status")
         # FAIL uniquement : BLOCKED = infra/hypothèse inconnue, ré-escalader le
         # builder n'y changerait rien (et le gel violé est un STOP dur).
-        oracle_fail = code_st == "FAIL" or wire_st == "FAIL" or std_st == "FAIL"
+        #
+        # RECONNEXION RATIFIÉE PAR GO EXPLICITE DE PIERRE, 2026-08-12 — canal de
+        # causalité. Ne vaut pas autorisation générale de modifier scripts/forge/**.
+        # BRANCHEMENT 2 : `s10b-oracle-archi` était CALCULÉ, STOCKÉ, et EXCLU de ce
+        # prédicat par un commentaire délibéré. Un oracle dont le rouge ne déclenche
+        # rien constate sans jamais corriger — il mesure pour l'archive. Il entre
+        # donc dans `oracle_fail` au même titre que code/wiremap/standard. BLOCKED
+        # reste exclu pour TOUS, inchangé (l'archi BLOQUE quand blueprint.json ou
+        # src_root manquent : un re-build n'y change rien).
+        # CONSÉQUENCE CONNUE, NON MASQUÉE : le test de non-régression
+        # `scripts/forge/tests/test_standard_step_wiring.py::
+        # test_s10b_archi_fail_still_does_not_trigger_escalation` encode exactement
+        # le comportement INVERSE et devient rouge. Aucun test n'a été modifié
+        # (interdit par la commande de fabrication) : l'arbitrage revient à Pierre.
+        oracle_fail = (code_st == "FAIL" or wire_st == "FAIL" or std_st == "FAIL"
+                       or archi_st == "FAIL")
         s9_detail = state["steps"][builder].get("detail", {})
         requested, why = parse_agent_escalation(s9_detail.get("output_excerpt", ""))
+
+        # BRANCHEMENT 3 (le consommateur) : l'escalade LIT le `next_reason` du
+        # builder et le rend DURABLE dans `state.json` — même patron dédupliqué que
+        # le WHY d'une escalade (P3). Elle ne s'en sert PAS pour décider : elle le
+        # montre à l'endroit exact où quelqu'un décide.
+        builder_next = state["steps"][builder].get("next_reason")
+        if builder_next:
+            note = f"next_reason de {builder}: {builder_next}"
+            notes = state.setdefault("humangate_notes", [])
+            if note not in notes:
+                notes.append(note)
+
+        # BRANCHEMENT 1 — la cause est LUE ICI, avant TOUTE mutation de statut.
+        # Défaut mesuré par la sonde de ce lot et corrigé : évaluée plus bas, elle
+        # arrivait APRÈS que les rejeux aient repassé l'oracle rouge à PENDING —
+        # elle ne trouvait donc plus aucun FAIL et le canal restait muet alors que
+        # tout le reste était branché. La cause se lit sur l'état QUI L'A PROUVÉE.
+        cause = self._measured_cause(state, requested, why)
 
         # Tier 2.5 étape 2 : un builder_run par TENTATIVE s9, succès inclus (sinon
         # "quels builders réussissent toujours" resterait invisible). Best-effort.
@@ -2877,8 +3168,13 @@ class ForgeDriver:
             )
             if pool.retry_same_tier:
                 state["pool_attempts"] = int(state.get("pool_attempts", 0)) + 1
-                for e in self._steps_to_replay():
+                replay = self._steps_to_replay()
+                for e in replay:
                     state["steps"][e]["status"] = "PENDING"
+                # BRANCHEMENT 1 : la cause voyage AVEC le rejeu (voir
+                # `_stamp_cause_on_replayed`). `_steps_to_replay()` est INCHANGÉ —
+                # on n'élargit pas ce qui est rejoué, on dit POURQUOI ça l'est.
+                self._stamp_cause_on_replayed(state, replay, cause)
                 self._premortem_cache = None  # la re-tentative relit le journal À JOUR
                 logger.info("pool: %s", pool.reason)
                 self._save(state)
@@ -2903,8 +3199,13 @@ class ForgeDriver:
         state["model_override"] = d.next_model
         state["escalations"] = int(state.get("escalations", 0)) + 1
         state["pool_attempts"] = 0  # nouveau tier -> budget de pool reinitialise
-        for e in self._steps_to_replay():
+        replay = self._steps_to_replay()
+        for e in replay:
             state["steps"][e]["status"] = "PENDING"
+        # BRANCHEMENT 1 (2e point de rejeu) : une escalade de modèle transporte la
+        # cause exactement comme une re-tentative de pool — sinon le tier supérieur
+        # recommencerait sans jamais savoir CE QUI a échoué.
+        self._stamp_cause_on_replayed(state, replay, cause)
         self._premortem_cache = None  # le re-build au tier +fort relit le journal À JOUR
         # P3 (lot dégel 2) : le WHY d'une escalade RÉUSSIE ne survivait qu'au
         # `logger.info` ci-dessous (aucun FileHandler n'existait avant ce lot,
