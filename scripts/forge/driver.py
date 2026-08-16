@@ -74,6 +74,7 @@ from forge.standard_oracles import (
     check_collisions,
     check_contract_completeness,
     check_genre_coverage,
+    check_gpu_window_directive,
     check_index,
     check_line_states,
     check_observable_coverage,
@@ -2291,6 +2292,15 @@ class ForgeDriver:
         detail["genre_coverage"] = check_genre_coverage(
             wiremap, genre_bible if isinstance(genre_bible, dict) else {}
         )
+        # Lot 1 ADR-003 (P0-4) : la directive de mode GPU devient un CHAMP VÉRIFIÉ.
+        # Un `.gd` d'oracle qui exige la fenêtre GPU en PROSE seule serait routé
+        # --headless par product_oracle_godot et rendrait un ROUGE FABRIQUÉ
+        # (mesuré sur breakout_v2). Contrairement aux volets R1 advisory ci-dessus,
+        # ce contrôle ENTRE dans le statut du pas — en BLOCKED (réparer
+        # l'INSTRUMENT/la déclaration), jamais en FAIL (rien ne prouve que le JEU
+        # est faux), cf. la doctrine FAIL vs BLOCKED du bloc de priorité ci-dessous.
+        detail["gpu_window_directive"] = check_gpu_window_directive(
+            self.game_dir / "07_TESTS" / "oracle")
         # Priorité (arbitrage coordinateur) : UNE PREUVE D'ÉCHEC L'EMPORTE SUR UNE
         # ABSENCE DE PREUVE. FAIL = « c'est faux, prouvé » (répare le JEU) ; BLOCKED =
         # « je ne peux pas savoir » (répare l'INSTRUMENT) — les confondre envoie le
@@ -2307,6 +2317,11 @@ class ForgeDriver:
         if other_violation or budget_violation:
             status = "FAIL"
         elif not budget_measured:
+            status = "BLOCKED"
+        elif not bool(detail["gpu_window_directive"].get("passed")):
+            # P0-4 : déclaration GPU en prose sans directive structurée — la preuve
+            # pixel n'est pas mesurable honnêtement (rouge fabriqué garanti) =>
+            # BLOCKED (instrument), jamais FAIL, et jamais OK par défaut.
             status = "BLOCKED"
         else:
             status = "OK"
