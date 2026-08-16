@@ -20,6 +20,12 @@ import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
+// P6 (2026-08-15) : la reconciliation registre<->decisions (`reconcileRegistries`,
+// « rapporte, n'agit jamais ») n'avait AUCUN lecteur mecanique — divergences
+// visibles uniquement si Pierre lancait apply_decisions a la main. Le self-audit
+// (lu a chaque session, cf. CLAUDE.md lane FORGE) devient son abonne. Import sans
+// effet de bord (CLI garde par import.meta dans apply_decisions.mjs).
+import { reconcileRegistries } from './apply_decisions.mjs';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const STATUS_FILE = 'docs/forge/STUDIO_STATUS.generated.md';
@@ -210,10 +216,23 @@ export function runSelfAudit(repoRoot) {
   // Les statuts purement informatifs (jamais_ecrit, reference_absente) ne font pas echouer.
   const hardDormancy = dormancy.filter((d) => d.status === 'dormant');
   const contractSync = auditContractSync(repoRoot);
+  // P6 (2026-08-15) : divergences registre<->decisions, RAPPORTEES ici (l'abonne
+  // manquant). Best-effort strict : un queue-file illisible ne casse jamais
+  // l'audit — statut 'non_evaluable' a la place. N'entre PAS dans `ok` : la
+  // reconciliation « rapporte, ne ratifie jamais » (doctrine 2026-08-10) — la
+  // promotion en gate dur serait une decision Pierre, pas un cablage.
+  let registryDivergences;
+  try {
+    const rec = reconcileRegistries(repoRoot);
+    registryDivergences = { status: 'ok', divergences: rec.divergences || [] };
+  } catch (err) {
+    registryDivergences = { status: 'non_evaluable', divergences: [],
+                            detail: String(err && err.message || err) };
+  }
   // non_evaluable fait echouer l'audit au meme titre qu'une derive, mais reste un statut
   // DISTINCT dans la sortie (contractSync.status) — jamais confondu avec 'derive'.
   const ok = docDrift.length === 0 && hardDormancy.length === 0 && contractSync.status === 'ok';
-  return { repoRoot, docDrift, dormancy, contractSync, ok };
+  return { repoRoot, docDrift, dormancy, contractSync, registryDivergences, ok };
 }
 
 /**
@@ -336,6 +355,11 @@ function main() {
   for (const f of r.docDrift) console.error(`  ⚠ ${f.drift}\n      source: ${f.source}`);
   console.error(`\nConnecteurs : ${r.dormancy.length} note(s)`);
   for (const d of r.dormancy) console.error(`  ${d.status === 'dormant' ? '⚠' : '·'} ${d.connector} — ${d.detail}`);
+
+  const rd = r.registryDivergences || { status: 'non_evaluable', divergences: [] };
+  console.error(`\nRegistres <-> décisions : ${rd.divergences.length} divergence(s)`
+    + (rd.status !== 'ok' ? ` (${rd.status})` : ''));
+  for (const d of rd.divergences) console.error(`  ⚠ ${JSON.stringify(d)}`);
 
   console.error(`\nContrat de système Forge : ${r.contractSync.status.toUpperCase()}`);
   console.error(`  ${r.contractSync.detail}`);
