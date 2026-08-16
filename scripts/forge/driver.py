@@ -1070,6 +1070,20 @@ class ForgeDriver:
         yaml_check = res.get("yaml_check") if isinstance(res, dict) else None
         if yaml_check is not None:
             entry["detail"]["yaml_check"] = yaml_check
+        # P3 (2026-08-15) — même motif, 4e et 5e occurrences fermées ensemble :
+        # `tools_used` (Expérience C : usage RÉEL d'outils par le worker, {} = zéro
+        # invocation mesuré) et `findings_note` (note d'honnêteté de l'extraction
+        # red-team) étaient produits par run_real puis PERDUS au littéral detail.
+        # tools_used : persistance state.json + télémétrie (TELEMETRY_MEASURED_FIELDS)
+        # — consommateur décisionnel = capteur M5, gate ouverte, PASSIVE DÉCLARÉ.
+        # findings_note : consommé par `_redteam_facts` -> humangate_flags du
+        # verdict signé (la note d'extraction devient visible à HumanGate).
+        tools_used = res.get("tools_used") if isinstance(res, dict) else None
+        if tools_used is not None:
+            entry["detail"]["tools_used"] = tools_used
+        findings_note = res.get("findings_note") if isinstance(res, dict) else None
+        if findings_note:
+            entry["detail"]["findings_note"] = findings_note
         # RECONNEXION RATIFIÉE PAR GO EXPLICITE DE PIERRE, 2026-08-12 — canal de
         # causalité. Ne vaut pas autorisation générale de modifier scripts/forge/**.
         #
@@ -2944,11 +2958,17 @@ class ForgeDriver:
                 st = state["steps"].get(etape, {})
                 d = st.get("detail", {})
                 if st.get("status") == "OK":
+                    # P3 : la note d'extraction (`findings_note`, ex. « aucun bloc
+                    # FINDINGS lisible ») rejoint les findings advisory — elle
+                    # qualifie leur fiabilité, la taire fausserait leur lecture.
+                    findings = list(d.get("redteam_findings", []))
+                    if d.get("findings_note"):
+                        findings.append(f"note d'extraction: {d['findings_note']}")
                     return (
                         d.get("reviewer", "inconnu"),
                         bool(d.get("qwen_ok")),
                         bool(d.get("redteam_blocked")),
-                        tuple(d.get("redteam_findings", [])),
+                        tuple(findings),
                     )
                 return ("red-team non exécuté", False, False, ())
         return ("aucun (profil sans red-team)", False, False, ())

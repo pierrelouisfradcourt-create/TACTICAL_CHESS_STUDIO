@@ -1644,6 +1644,8 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
                 "task_id": task_id,
                 "model_used": res.get("model_used"),
                 "tokens_measured": res.get("tokens_measured"),
+                # P3 : {} = « zéro invocation » (mesuré), None = « non mesuré ».
+                "tools_used": res.get("tools_used"),
             })
         except Exception:
             logger.warning(

@@ -106,7 +106,15 @@ def _read(path: Path) -> list[dict]:
 # les clés existantes de la ligne (model/tokens DÉCLARÉS) restent intactes — la
 # comparaison déclaré/mesuré est précisément le but ; une ligne sans dépôt
 # (étape déterministe, runner non-claude, vieux appelant) est INCHANGÉE.
-TELEMETRY_MEASURED_FIELDS = ("session_id", "task_id", "model_used", "tokens_measured")
+# P3 (2026-08-15) : + "tools_used" (Expérience C) — produit par parse_stream_metrics
+# depuis 2026-08-12 puis PERDU (absent de ce tuple ET du littéral detail du driver) :
+# une mesure d'usage réel d'outils sans persistance, quatrième occurrence du motif
+# « mesuré → perdu » (après markdown_check/M3'a, yaml_check/M4', findings_note).
+# Consommateur décisionnel : AUCUN à ce jour — PASSIVE DÉCLARÉ. Le consommateur
+# prévu est le capteur M5 « outil UTILISÉ vs outil ACCORDÉ » (gate Pierre ouverte,
+# 00_CURRENT_CONTEXT §gates) : ce champ en est la moitié « UTILISÉ », déjà mesurée.
+TELEMETRY_MEASURED_FIELDS = ("session_id", "task_id", "model_used", "tokens_measured",
+                             "tools_used")
 _pending_telemetry_extra: dict[tuple[str, str], dict] = {}
 
 
