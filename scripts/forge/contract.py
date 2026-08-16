@@ -420,13 +420,22 @@ def _render_prompt(contract: dict, etape: str = "", run_id: str = "",
 
     R2 (audit branchements 2026-07-24) : quand `etape` ET `run_id` sont connus
     (la porte réelle — `dispatch.prepare_dispatch` — les fournit toujours), le
-    prompt PORTE systématiquement le marqueur ``FORGE_DISPATCH:<etape>:<run_id>``
-    attendu par `forge.hook_guard.MARKER` / `.claude/hooks/pretool_forge_guard.py`.
+    prompt PORTE systématiquement le marqueur
+    ``FORGE_DISPATCH:<etape>:<run_id>:<attempt>`` attendu par
+    `forge.hook_guard.MARKER` / `.claude/hooks/pretool_forge_guard.py`.
     AVANT ce correctif, ce marqueur était apposé À LA MAIN par l'orchestrateur
     (cf. `scripts/forge/run_real.py::claude_executor`, `context['dispatch_marker']`) —
     un oubli à ce niveau désarmait silencieusement le hook dur. Un appel direct
     sans run_id (tests C1/C2 unitaires, dry-run sans run réel) omet le marqueur :
     comportement strictement inchangé pour ces usages.
+
+    `attempt` (lot 1 ADR-003, P0-1) : le marqueur porte le triplet complet, sinon
+    l'unicité D4 du hook retombe sur le couple (etape, run_id) et REFUSE toute
+    re-tentative dès la 2e ligne `spawn_prepared` (ambiguïté/replay) — le marqueur
+    2 champs rendu ici masquait (première occurrence gagne, `MARKER.search`) le
+    marqueur 3 champs correct que le driver appose plus loin dans le prompt.
+    Même convention que `DispatchRecord.attempt` et `hook_guard.marker_key`
+    (défaut 0) : la corrélation audit↔marqueur reste exacte.
     """
     sections = [("RÔLE", contract["role"])]
     # P1 (lot dégel 2, docs/forge/FORGE_CONTEXT_COMPACT_V1.md §05.2) : `exigences_
@@ -473,7 +482,8 @@ def _render_prompt(contract: dict, etape: str = "", run_id: str = "",
         f"## {RESTITUTION_RULE}"
     )
     if etape and run_id:
-        prompt += f"\n\n## MARQUEUR DE DISPATCH (ne pas modifier)\nFORGE_DISPATCH:{etape}:{run_id}"
+        prompt += (f"\n\n## MARQUEUR DE DISPATCH (ne pas modifier)\n"
+                   f"FORGE_DISPATCH:{etape}:{run_id}:{attempt}")
     return prompt
 
 
@@ -528,7 +538,8 @@ def resolve_runtime(contract: dict, caps_path: Path | None = None) -> str:
 
 
 def build_dispatch_payload(
-    contract: dict, etape: str = "", caps_path: Path | None = None, run_id: str = ""
+    contract: dict, etape: str = "", caps_path: Path | None = None, run_id: str = "",
+    attempt: int = 0,
 ) -> DispatchPayload:
     """C1+C2 — refuse si le contrat est incomplet, sinon fabrique le payload borné.
 
@@ -537,13 +548,16 @@ def build_dispatch_payload(
 
     R2 : `run_id`, quand fourni (toujours le cas via la porte réelle
     `dispatch.prepare_dispatch`), fait porter au prompt le marqueur
-    ``FORGE_DISPATCH:<etape>:<run_id>`` attendu par le hook dur — plus besoin que
-    l'orchestrateur l'appose à la main. Omis (défaut "") : comportement inchangé.
+    ``FORGE_DISPATCH:<etape>:<run_id>:<attempt>`` attendu par le hook dur — plus
+    besoin que l'orchestrateur l'appose à la main. Omis (défaut "") : comportement
+    inchangé. `attempt` (lot 1 ADR-003, P0-1) : transmis par la porte pour que le
+    marqueur porte le même triplet que la ligne d'audit signée (unicité D4 par
+    tentative — les re-tentatives d'une même étape redeviennent spawnables).
     """
     validate_contract(contract)  # C1 : la porte bloque d'abord
     model = resolve_runtime(contract, caps_path=caps_path)  # registry force le runtime
     provider = get_provider_for_role(contract["capability_role"], caps_path=caps_path or FORGE_ROLES) or ""
-    prompt = _render_prompt(contract, etape=etape, run_id=run_id)
+    prompt = _render_prompt(contract, etape=etape, run_id=run_id, attempt=attempt)
     _verify_prompt_layer_rendered(contract, prompt)  # garde couche prompt (SCHEMA.md)
     payload = DispatchPayload(
         etape=etape,

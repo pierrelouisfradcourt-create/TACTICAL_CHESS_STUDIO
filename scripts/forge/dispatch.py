@@ -447,8 +447,12 @@ def prepare_dispatch(
     contract = load_contract(etape)
     # R2 (audit branchements 2026-07-24) : run_id transite jusqu'à _render_prompt
     # pour que le prompt porte SYSTÉMATIQUEMENT son marqueur FORGE_DISPATCH — la
-    # porte n'a plus besoin que l'orchestrateur l'appose à la main.
-    payload = build_dispatch_payload(contract, etape=etape, caps_path=caps_path, run_id=run_id)
+    # porte n'a plus besoin que l'orchestrateur l'appose à la main. `attempt`
+    # transite aussi (lot 1 ADR-003, P0-1) : marqueur et ligne d'audit signée
+    # portent le MÊME triplet (etape, run_id, attempt), sinon le hook D4 refuse
+    # toute re-tentative (le marqueur 2 champs matchait toutes les tentatives).
+    payload = build_dispatch_payload(contract, etape=etape, caps_path=caps_path,
+                                     run_id=run_id, attempt=attempt)
     unprofiled = False
     if profile is not None and not profile_allowed_for_contract(etape, profile):
         if not allow_unprofiled:
