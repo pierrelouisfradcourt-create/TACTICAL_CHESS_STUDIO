@@ -1462,6 +1462,34 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
 UPSTREAM_MAX_CHARS = 15000
 
 
+def _truncate_preserve_terminal_json(content: str) -> str:
+    """Coupe un artefact amont > UPSTREAM_MAX_CHARS en préservant le DERNIER bloc
+    ```json``` VALIDE (même convention que extract_json_payload). La coupe
+    tête-seule détruisait exactement ce que les tâches exigent en FIN de réponse
+    (« Termine ta réponse par UN bloc ```json``` ») — mesuré 2026-08-15 : 5+
+    artefacts réels > 15k (s2-worldscan.txt jusqu'à 27 742 car.), bloc terminal
+    perdu à l'injection pour tous les consommateurs de _UPSTREAM_BY_STEP.
+    Borne conservée : tête narrative réduite d'autant ; si le bloc dépasse à lui
+    seul la borne, il est gardé entier (la sortie reste bornée par sa taille)."""
+    matches = list(_FENCED_JSON.finditer(content))
+    kept = None
+    for m in reversed(matches):
+        try:
+            json.loads(m.group(1))
+        except (json.JSONDecodeError, ValueError):
+            continue
+        kept = m
+        break
+    if kept is None and matches:
+        kept = matches[-1]  # aucun bloc valide : préserver quand même le dernier
+    if kept is None or kept.end() <= UPSTREAM_MAX_CHARS:
+        # pas de bloc, ou bloc déjà entier dans la tête : comportement historique
+        return content[:UPSTREAM_MAX_CHARS] + "\n[tronqué]"
+    block = content[kept.start():kept.end()]
+    head = content[:min(max(0, UPSTREAM_MAX_CHARS - len(block)), kept.start())]
+    return head + "\n[tronqué]\n" + block
+
+
 def upstream_artifacts_section(etape: str, run_dir: Path) -> str:
     """Section '## ARTEFACTS AMONT (run_dir)' pour le prompt de l'étape, construite
     depuis les artefacts amont réellement présents dans run_dir. Étape sans amont
@@ -1474,7 +1502,7 @@ def upstream_artifacts_section(etape: str, run_dir: Path) -> str:
         except (OSError, UnicodeDecodeError):
             continue  # absent/illisible : omis (jamais bloquant à ce niveau)
         if len(content) > UPSTREAM_MAX_CHARS:
-            content = content[:UPSTREAM_MAX_CHARS] + "\n[tronqué]"
+            content = _truncate_preserve_terminal_json(content)
         blocks.append(f"### {rel} (chemin réel : {path})\n{content}")
     if not blocks:
         return ""
