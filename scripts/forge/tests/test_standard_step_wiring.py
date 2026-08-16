@@ -206,9 +206,25 @@ def test_s10s_fail_actually_triggers_a_rebuild_instead_of_being_ignored(tmp_path
     assert state["steps"]["s10s-oracle-standard"]["status"] == "PENDING"
 
 
-def test_s10b_archi_fail_still_does_not_trigger_escalation(tmp_path):
-    """Non-régression du PRÉDICAT : l'ajout de s10s est additif — s10b-archi reste
-    volontairement HORS des causes d'escalade, exactement comme avant le correctif."""
+def test_s10b_archi_fail_declenche_desormais_l_escalade(tmp_path):
+    """PRÉDICAT D'ESCALADE — s10b-archi EST une cause d'escalade depuis le 2026-08-12.
+
+    MISE À JOUR RATIFIÉE PAR GO EXPLICITE DE PIERRE, 2026-08-12 (reconnexion du canal de
+    causalité). Ce test encodait le comportement INVERSE, et son ancien nom l'affirmait :
+    `..._still_does_not_trigger_escalation`. L'exclusion de s10b était délibérée ; elle ne
+    l'est plus. Un test dont le NOM affirme le contraire de la règle en vigueur est pire
+    qu'un test rouge — il a donc été renommé, pas seulement retourné.
+
+    MOTIF MESURÉ : `s10b-oracle-archi` était calculé et stocké, puis exclu du prédicat par
+    commentaire. Une faute d'architecture était donc VUE et SANS EFFET — l'un des points où
+    l'audit d'autonomie a montré que la causalité se perdait.
+
+    PORTÉE DE LA RATIFICATION : ce test seul, dans le cadre des quatre branchements du canal
+    de causalité. Elle ne vaut pas autorisation générale de modifier `scripts/forge/tests/**`.
+
+    CE QUI N'EST PAS TOUCHÉ, et reste vérifié ailleurs : `BLOCKED` demeure hors du prédicat
+    (infra/hypothèse inconnue, re-builder n'y changerait rien), et `_steps_to_replay()` est
+    inchangé — son test bit-à-bit reste vert."""
     driver = ForgeDriver(
         "p", "r1", run_dir=tmp_path / "run", profile="full",
         audit_path=tmp_path / "audit.jsonl", key_file=tmp_path / "k.key",
@@ -221,8 +237,9 @@ def test_s10b_archi_fail_still_does_not_trigger_escalation(tmp_path):
     state["steps"]["s10b-oracle-archi"]["status"] = "FAIL"
     state["steps"]["s9-build"]["detail"] = {"model": "claude-haiku-4-5-20251001"}
 
-    assert driver._maybe_escalate(state) is False
-    assert state["steps"]["s9-build"]["status"] == "OK"  # rien rejoué
+    assert driver._maybe_escalate(state) is True, "une faute d'architecture reste sans effet"
+    assert state["steps"]["s9-build"]["status"] == "PENDING"
+    assert state["steps"]["s10b-oracle-archi"]["status"] == "PENDING"
 
 
 def test_prepare_dispatch_resolves_a_non_llm_runtime_for_s10s(tmp_path):
