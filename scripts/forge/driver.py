@@ -1739,13 +1739,13 @@ class ForgeDriver:
         # Advisory (Tier 1 #2) : ne gate jamais oracle_ok — reuse_ratio mesure,
         # il ne prouve rien. L'absence de câblage reste visible dans le reçu signé
         # (verdict.json), au lieu de dépendre de la seule citation du builder.
-        detail["reuse_ratio_wired"] = check_reuse_ratio_wired(self.src_root)
+        detail["reuse_ratio_wired"] = self._volet_reuse_ratio_wired()
         # Phase 1b (bibliothèque de code) : le contrat s9-build DIT au builder de
         # chercher avant d'écrire (§2bis) — c'était une consigne espérée, jamais
         # prouvée. search.mjs s'auto-journalise depuis Phase 1a ; on lit cette trace
         # ici. Advisory, comme reuse_ratio_wired : ne gate JAMAIS oracle_ok (chercher
         # et ne rien trouver de pertinent est un résultat légitime, pas un échec).
-        detail["search_consulted"] = check_search_consulted(self._driver_start_ts)
+        detail["search_consulted"] = self._volet_search_consulted()
         # n3-oracle-produit-minimal (2026-07-27) : les 3 volets déterministes qui
         # couvrent les fichiers `system.adapter` sortis du gate mutation (décision
         # U-2 : « à couvrir par l'oracle produit ; le juge change, la couche n'est
@@ -2155,6 +2155,55 @@ class ForgeDriver:
         logiques inconnus », `reuse_ratio_wired` rouge — les trois causés par
         cette seule égalité stricte)."""
         return self.profile in _STANDARD_TOPOLOGY_PROFILES
+
+    def _profile_has_builder(self) -> bool:
+        """Ce run CONSTRUIT-il ? AUCUNE autorité nouvelle : délègue à `_builder_step()`,
+        qui dérive déjà le nom du builder de `self.order` par préfixe `s9-build`. Réutiliser
+        cette source unique plutôt qu'en créer une seconde — deux listes de builders
+        divergeraient au premier profil neuf, exactement le défaut que `_builder_step` et
+        `_STANDARD_TOPOLOGY_PROFILES` ont chacun documenté à leurs dépens."""
+        return self._builder_step() is not None
+
+    # --- applicabilité des volets au CONTEXTE d'exécution (règle ratifiée 2026-08-17) ---
+    # « Avant d'interpréter un verdict, vérifier que le contexte d'exécution possède les
+    # producteurs nécessaires pour produire la preuve demandée. » Un oracle qui juge au-delà
+    # de ce que son contexte peut produire ne mesure pas le produit : il mesure le contexte,
+    # et rend un rouge FABRIQUÉ. Forme reprise TELLE QUELLE de `e2e` (`_step` s10a, plus bas) :
+    # `status` SKIPPED + `checked: False` + motif — « SKIPPED motivé, JAMAIS un faux OK,
+    # JAMAIS un silence ». AUCUNE clé `passed` : un `True` serait un faux vert, un `False` un
+    # faux rouge ; l'absence de booléen est la seule forme honnête sans jugement rendu
+    # (vérifié avant écriture : aucun consommateur ne lit `passed` sur ces deux volets).
+
+    def _volet_reuse_ratio_wired(self) -> dict:
+        """Applicabilité par TOPOLOGIE. `check_reuse_ratio_wired` exige `run-oracle.mjs` à
+        la racine — or le commentaire de la garde e2e (2026-07-23) l'écrit déjà : c'est une
+        « topologie que le STANDARD n'utilise pas ». MÊME FICHIER, MÊME CAUSE que e2e, qui
+        fut sauté pour cela ; ce volet-ci avait été oublié. Mesuré le 2026-08-17 : `run-oracle
+        .mjs` est absent des QUATRE jeux Godot, y compris ceux dont s10a est OK — rouge
+        structurel permanent, jamais un défaut produit."""
+        if self._standard_topology():
+            return {
+                "status": "SKIPPED",
+                "checked": False,
+                "reason": "topologie standard : `run-oracle.mjs` à la racine n'y existe pas "
+                          "(même motif que la garde e2e, décision Pierre 2026-07-23) — "
+                          "producteur absent, donc rien à mesurer",
+            }
+        return check_reuse_ratio_wired(self.src_root)
+
+    def _volet_search_consulted(self) -> dict:
+        """Applicabilité par PRÉSENCE D'UN BUILDER. Ce volet mesure le respect du contrat
+        `s9-build §2bis` (« chercher avant d'écrire ») : c'est une obligation de BUILDER.
+        Un profil qui n'en contient aucun ne peut structurellement pas la satisfaire —
+        l'oracle ne rendrait que rouge, en mesurant le profil et non le produit."""
+        if not self._profile_has_builder():
+            return {
+                "status": "SKIPPED",
+                "checked": False,
+                "reason": f"profil {self.profile!r} sans étape de build : l'obligation de "
+                          "recherche du contrat s9-build §2bis n'a pas de producteur ici",
+            }
+        return check_search_consulted(self._driver_start_ts)
 
     def _oracle_argv(self) -> tuple[str, ...]:
         """Commande d'oracle RÉSOLUE du projet (oracles.json), telle que forge_gate
