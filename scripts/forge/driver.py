@@ -156,6 +156,31 @@ _POST_ORACLE = ("s11-redteam-code", "s12-verdict")
 # `_standard_topology`, run snake-s9p).
 _STANDARD_TOPOLOGY_PROFILES = frozenset({"standard", "standard_godot", "proof_only"})
 
+# CE QUE `detail["solvability"]["passed"]` MESURE — et surtout ce qu'il NE mesure PAS.
+# Le booléen vient de `check_solvability_wired` : il dit que le harnais est CÂBLÉ (l'entrée
+# déclarée existe, le wrapper la référence), jamais que le jeu est solvable. Mesuré le
+# 2026-08-17 : le reçu de `tetris` porte `solvability.passed = true` alors que l'exécution
+# réelle rend `won: 0, lost: 50`. Les deux sont vrais ; l'homonymie fait le reste.
+#
+# Le CODE ne s'y trompe pas (3 consommateurs, tous alignant ce booléen sur `e2e_ok` et
+# `harness_flags`, deux mesures d'outillage) — c'est le LECTEUR HUMAIN qui est induit en
+# erreur. D'où une clé SŒUR plutôt qu'un renommage : `solvability` est déjà dans 33
+# `state.json` commités ; renommer créerait deux vocabulaires selon la date du run sans
+# réécrire le passé. Même forme que `timed_out` ajouté SANS retirer `returncode = -2`.
+#
+# `resultat_reel` avoue une limite mesurée : `won`/`trials` sont imprimés par
+# `solvability_godot.mjs` sur stdout, capturés dans un `.log` exclu par `.gitignore:81`, et
+# AUCUN parseur ne les lit. Le driver ne garde de l'oracle que `returncode` et
+# `evidence_path`. Ce champ dit donc ce que le booléen ne dit pas ; il ne peut pas dire ce
+# qu'il en est — et il vaut mieux nommer ce trou que le laisser deviner.
+SOLVABILITY_MESURE = {
+    "mesure": "cablage_du_harnais",
+    "ne_mesure_pas": "la solvabilite du jeu (won/trials) — un `passed: true` ne prouve "
+                     "AUCUNE partie gagnee",
+    "resultat_reel": "non remonte au recu : voir evidence/oracle_<jeu>.log, NON versionne "
+                     "(.gitignore:81)",
+}
+
 # ---------------------------------------------------------------------------
 # RECONNEXION RATIFIÉE PAR GO EXPLICITE DE PIERRE, 2026-08-12 — canal de
 # causalité. Ne vaut pas autorisation générale de modifier scripts/forge/**.
@@ -1730,6 +1755,10 @@ class ForgeDriver:
             proof=self._solvability_proof_descriptor(),
         )
         detail["solvability"] = solvability
+        # Clé SŒUR : dit ce que le booléen ci-dessus mesure (le câblage) et ce qu'il ne
+        # mesure pas (la solvabilité du jeu). Le reçu cesse de se prêter à une lecture
+        # inverse de ce qu'il prouve.
+        self._poser_mesure_solvabilite(detail)
         # R1 (FORGE_V2_CONSOLIDATION.md §4-A) : anti-théâtre des harnais — contribue
         # au gate AU MÊME TITRE que e2e/solvabilité (pas advisory) : un flag de
         # succès écrit en dur (`passed: true`) rougit ICI, pas dix étapes plus tard
@@ -2173,6 +2202,19 @@ class ForgeDriver:
     # JAMAIS un silence ». AUCUNE clé `passed` : un `True` serait un faux vert, un `False` un
     # faux rouge ; l'absence de booléen est la seule forme honnête sans jugement rendu
     # (vérifié avant écriture : aucun consommateur ne lit `passed` sur ces deux volets).
+
+    @staticmethod
+    def _poser_mesure_solvabilite(detail: dict) -> None:
+        """Pose la clé SŒUR `solvability_mesure` À CÔTÉ de `solvability`, jamais DEDANS.
+
+        Deux tests figent `detail["solvability"]` en ÉGALITÉ STRICTE
+        (`test_driver_solvability.py:177`, `test_solvability_wired_descriptor.py:146`) : y
+        ajouter un champ casserait la forme du reçu d'oracle. Ils assertent sur la VALEUR de
+        cette clé, pas sur l'ensemble des clés de `detail` — une sœur passe donc sans les
+        toucher. Et `solvability_mesure` suit immédiatement `solvability` dans un JSON trié :
+        le lecteur du reçu la voit sans la chercher. Le nom n'est pas un hasard.
+        """
+        detail["solvability_mesure"] = dict(SOLVABILITY_MESURE)
 
     def _volet_reuse_ratio_wired(self) -> dict:
         """Applicabilité par TOPOLOGIE. `check_reuse_ratio_wired` exige `run-oracle.mjs` à
