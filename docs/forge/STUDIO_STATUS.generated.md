@@ -23,8 +23,8 @@
 |---|---|
 | `lab/reports/forge_ledger_proposals.jsonl` | ⚠ dormant (retard 9.0 j) |
 | `lab/reports/forge_project_proposals.jsonl` | ⚠ dormant (retard 9.0 j) |
-| `lab/reports/forge_bible_proposals.jsonl` | · jamais écrit (informatif) |
-| `knowledge_base/learning_curve.jsonl` | ⚠ dormant (retard 14.6 j) |
+| `lab/reports/forge_bible_proposals.jsonl` | ✅ frais |
+| `knowledge_base/learning_curve.jsonl` | ✅ frais |
 
 ## Contrat de système Forge — règles canoniques citées par le pilotage
 
@@ -32,5 +32,5 @@
 |---|---|---|
 | *(toutes les règles canoniques)* | — | ✅ synchronisé (mécaniquement) |
 
-**Verdict global** : ⚠ DÉRIVE DÉTECTÉE (dérive doc : 0 · connecteurs dormants : 3 · contrat de système : ok)
+**Verdict global** : ⚠ DÉRIVE DÉTECTÉE (dérive doc : 0 · connecteurs dormants : 2 · contrat de système : ok)
 
