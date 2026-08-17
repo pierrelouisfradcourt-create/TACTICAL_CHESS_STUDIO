@@ -204,6 +204,59 @@ export function auditContractSync(repoRoot) {
 }
 
 /**
+ * Contradiction contrat <-> `oracles.json` sur le BUDGET de solvabilite (2026-08-17).
+ *
+ * Le budget EFFECTIF est lu par `resolveSolvabilityConfig` (ci-dessus) dans `oracles.json`.
+ * Le bloc `proof.solvability` du contrat de jeu n'est lu, lui, QUE pour son champ `entry`
+ * (cablage). Ses trois champs de budget n'ont AUCUN lecteur : `tetris` declare
+ * `max_ticks: 20000` et tourne a `200`, la valeur par defaut, sans qu'un signal l'indique.
+ *
+ * MEME PONT que `auditContractSync` : aucun parseur YAML n'existe cote Node dans ce depot,
+ * la lecture des contrats se fait donc en Python et le resultat voyage en JSON.
+ *
+ * N'entre PAS dans `ok` : rapporte, ne ratifie jamais — meme discipline que
+ * `registryDivergences`. La promotion en gate dur serait une decision Pierre.
+ * @param {string} repoRoot
+ */
+export function auditSolvabilityBudget(repoRoot) {
+  const candidates = pythonCandidates(repoRoot);
+  let lastErrorDetail = 'aucun candidat essaye';
+  for (const py of candidates) {
+    let r;
+    try {
+      r = spawnSync(py, ['-m', 'forge.solvability_budget_audit', repoRoot, '--json'], {
+        cwd: join(repoRoot, 'scripts'),
+        encoding: 'utf-8',
+        timeout: CONTRACT_SYNC_TIMEOUT_MS,
+        maxBuffer: CONTRACT_SYNC_MAX_BUFFER,
+        env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+      });
+    } catch (e) {
+      lastErrorDetail = `spawn a leve : ${e && e.message ? e.message : String(e)}`;
+      continue;
+    }
+    if (r.error) {
+      lastErrorDetail = `interpreteur « ${py} » injoignable : ${r.error.message}`;
+      continue;
+    }
+    if (r.status === 0) {
+      try {
+        const parsed = JSON.parse(r.stdout);
+        const anomalies = parsed.anomalies || [];
+        return { status: 'ok', interpreter: py, anomalies };
+      } catch (e) {
+        return { status: 'non_evaluable', interpreter: py, anomalies: [],
+          detail: `stdout non parsable en JSON : ${String(e.message || e).slice(0, 300)}` };
+      }
+    }
+    return { status: 'non_evaluable', interpreter: py, anomalies: [],
+      detail: `code de sortie inattendu ${r.status} — stderr : ${(r.stderr || '').trim().slice(0, 300) || '(vide)'}` };
+  }
+  return { status: 'non_evaluable', interpreter: null, anomalies: [],
+    detail: `aucun interpreteur Python utilisable (candidats : ${candidates.join(', ')}) — ${lastErrorDetail}` };
+}
+
+/**
  * Lance l'audit complet du studio.
  * @param {string} repoRoot
  * @returns {{repoRoot:string, docDrift:Array, dormancy:Array, contractSync:object, ok:boolean}}
@@ -231,8 +284,13 @@ export function runSelfAudit(repoRoot) {
   }
   // non_evaluable fait echouer l'audit au meme titre qu'une derive, mais reste un statut
   // DISTINCT dans la sortie (contractSync.status) — jamais confondu avec 'derive'.
+  // Budget de solvabilite : contrat de jeu <-> `oracles.json`. RAPPORTE, jamais dans `ok`
+  // (meme regime que `registryDivergences` juste au-dessus) : signaler une contradiction de
+  // declaration n'est pas la trancher, et `oracles.json` fait autorite en attendant.
+  const solvabilityBudget = auditSolvabilityBudget(repoRoot);
   const ok = docDrift.length === 0 && hardDormancy.length === 0 && contractSync.status === 'ok';
-  return { repoRoot, docDrift, dormancy, contractSync, registryDivergences, ok };
+  return { repoRoot, docDrift, dormancy, contractSync, registryDivergences,
+           solvabilityBudget, ok };
 }
 
 /**
