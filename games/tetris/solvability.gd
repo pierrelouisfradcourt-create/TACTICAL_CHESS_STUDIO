@@ -17,9 +17,26 @@ const Lock = preload("res://05_SYSTEMS/lock_rules/lock.gd")
 const LineClear = preload("res://05_SYSTEMS/line_clear/line_clear.gd")
 const InputRules = preload("res://05_SYSTEMS/input_rules/input.gd")
 
-# Plancher de survie exige (floor honnete, NON calibre en bande de difficulte — cf. fog variance).
-const N_SURVIVE: int = 8
-const MAX_TICKS_DEFAUT: int = 200
+# Plancher de survie exige. CALIBRE PAR MESURE le 2026-08-10, ratifie Pierre.
+# Preuve : lab/forge_evidence/TETRIS_SOLVABILITY_N_20260810/ (18 graines, Godot v4.6.3
+# headless, harnais inchange). Ce qui a ete mesure, et qui a decide ces deux valeurs :
+#   - a max_ticks=20000 : 6 graines sur 18 meurent naturellement, la plus courte survie
+#     observee est 702 pieces. N=100 est donc 7x sous le minimum d'un systeme SAIN —
+#     marge voulue contre le faux negatif (lecon Snake : max_ticks=200 rendait 0/50).
+#   - cadence mesuree : 4,448 ticks/piece (ecart-type 0,016). 100 pieces exigent ~445
+#     ticks, d'ou max_ticks=500.
+#   - verification a max_ticks=500 sur les 18 graines : 109 a 119 pieces atteintes,
+#     41 a 46 lignes. Aucune graine sous le plancher ; marge de la PIRE graine = 9 %.
+#
+# LES DEUX CONSTANTES SONT COUPLEES : a 4,448 ticks/piece, max_ticks borne mecaniquement
+# le nombre de pieces atteignables (200 ticks -> ~45 pieces). Relever N sans relever
+# max_ticks fabrique un faux negatif certain. Ne jamais toucher l'une seule.
+#
+# CE QUI N'EST PAS PROUVE : aucun controle negatif. On a mesure ce que fait un systeme
+# sain, jamais ce qu'un systeme casse produirait. N=100 est une BORNE SURE, pas un seuil
+# dont le pouvoir discriminant a ete demontre.
+const N_SURVIVE: int = 100
+const MAX_TICKS_DEFAUT: int = 500
 const ACTIONS_CAP: int = 24            # garde anti-blocage : force le hard-drop apres N actions
 
 var _plan: Dictionary = {}
