@@ -66,6 +66,10 @@ export function resolveSolvabilityConfig(project, configPath = ORACLES_CONFIG) {
     trialTimeoutMs: Number.isFinite(solv.trial_timeout_ms)
       ? solv.trial_timeout_ms
       : DEFAULT_TRIAL_TIMEOUT_MS,
+    // BUDGET TOTAL, optionnel et SANS defaut : `null` quand le jeu n'en declare pas, jamais
+    // une valeur inventee. Un plafond par defaut borner ait des runs qui passent aujourd'hui
+    // — le champ n'agit que si un jeu le demande explicitement.
+    totalTimeoutS: Number.isFinite(solv.total_timeout_s) ? solv.total_timeout_s : null,
     seedStart: DEFAULT_SEED_START,
   };
 }
@@ -138,21 +142,45 @@ function runMechanicalTests(project) {
   return res.status === 0;
 }
 
+/**
+ * Extremite AMONT du pont CLI : configuration -> argv. EXPORTEE pour etre testable.
+ *
+ * Le budget voyage entre deux processus par une ligne de commande POSITIONNELLE : un champ
+ * remonte par le resolveur mais jamais passe ici serait INERTE en production alors que ses
+ * tests unitaires passent. Defaut mesure le 2026-08-17 : `totalTimeoutS` etait bien resolu
+ * depuis `oracles.json` et n'etait NI destructure NI transmis — le mecanisme d'arret motive
+ * ne pouvait pas s'armer. Les deux extremites sont donc PURES, et un test d'aller-retour
+ * prouve qu'elles s'accordent (`solvability_total_timeout.test.mjs`).
+ *
+ * `total_timeout_s` en 7e position, OPTIONNELLE : omise quand le jeu n'en declare pas —
+ * l'aval retombe alors sur `undefined` et le comportement reste strictement inchange.
+ */
+export function buildSolvabilityArgv(script, project, cfg) {
+  const argv = [
+    script, project, SOLVABILITY_SCRIPT,
+    String(cfg.trials), String(cfg.seedStart), String(cfg.maxTicks),
+    String(cfg.trialTimeoutMs),
+  ];
+  if (cfg.totalTimeoutS !== null && cfg.totalTimeoutS !== undefined) {
+    argv.push(String(cfg.totalTimeoutS));
+  }
+  return argv;
+}
+
 /** Lance l oracle de solvabilite (sous-processus node) sur le projet. true si exit 0. */
 function runSolvabilityGate(project) {
   console.log('[godot_oracle] === solvability_godot.mjs (R9) ===');
   const script = resolve(HERE, 'solvability_godot.mjs');
-  const { trials, maxTicks, trialTimeoutMs, seedStart } = resolveSolvabilityConfig(project);
+  const cfg = resolveSolvabilityConfig(project);
   console.log(
-    `[godot_oracle] budget solvabilite : trials=${trials} max_ticks=${maxTicks} ` +
-    `trial_timeout_ms=${trialTimeoutMs} (declare par jeu, defaut si absent)`
+    `[godot_oracle] budget solvabilite : trials=${cfg.trials} max_ticks=${cfg.maxTicks} ` +
+    `trial_timeout_ms=${cfg.trialTimeoutMs}` +
+    (cfg.totalTimeoutS !== null ? ` total_timeout_s=${cfg.totalTimeoutS}` : '') +
+    ' (declare par jeu, defaut si absent)'
   );
   const res = spawnSync(
     process.execPath,
-    [
-      script, project, SOLVABILITY_SCRIPT,
-      String(trials), String(seedStart), String(maxTicks), String(trialTimeoutMs),
-    ],
+    buildSolvabilityArgv(script, project, cfg),
     { cwd: REPO_ROOT, stdio: 'inherit' }
   );
   if (res.error) {
