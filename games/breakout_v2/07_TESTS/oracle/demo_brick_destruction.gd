@@ -2,6 +2,14 @@
 # la brique DISPARAIT visiblement : on capture la zone des briques, on detruit des briques dans
 # l'etat, et la meme zone du rendu CHANGE (des pixels de brique deviennent fond). La zone
 # echantillonnee (haut du terrain) exclut la balle (qui part vers le bas). Fenetre GPU exigee.
+#
+# forge:run_mode = gpu_window
+#
+# DIRECTIVE STATIQUE lue par le collecteur (scripts/forge/product_oracle_godot.py) AVANT
+# execution : ce volet CAPTURE des pixels (viewport/get_image), il doit donc etre lance en
+# fenetre GPU hors ecran et non en --headless, qui rend une texture NULLE et fabriquerait
+# un rouge. L exigence etait deja ecrite ci-dessus EN PROSE ; la prose ne route rien.
+# Aucun comportement de ce volet n est modifie par cette ligne.
 extends SceneTree
 
 const P = preload("res://05_SYSTEMS/params/params.gd")

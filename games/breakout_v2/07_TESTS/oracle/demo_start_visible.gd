@@ -1,6 +1,14 @@
 # demo_start_visible.gd — oracle (pixel) de la ligne render.field_visible. Au demarrage, le
 # joueur VOIT le terrain, la raquette, la balle et les briques : l'image porte plusieurs
 # couleurs distinctes (>= 4), pas un ecran uni. Fenetre GPU reelle exigee (charter).
+#
+# forge:run_mode = gpu_window
+#
+# DIRECTIVE STATIQUE lue par le collecteur (scripts/forge/product_oracle_godot.py) AVANT
+# execution : ce volet CAPTURE des pixels (viewport/get_image), il doit donc etre lance en
+# fenetre GPU hors ecran et non en --headless, qui rend une texture NULLE et fabriquerait
+# un rouge. L exigence etait deja ecrite ci-dessus EN PROSE ; la prose ne route rien.
+# Aucun comportement de ce volet n est modifie par cette ligne.
 extends SceneTree
 
 func _couleurs_distinctes(img: Image) -> int:

@@ -10,6 +10,14 @@
 # la capture d'image ne peut donc PAS y etre obtenue. Ce test asserte que le module
 # REFUSE explicitement de produire une image morte — il ne pretend pas avoir capture.
 # Voir la section SKIPPED_VALIDATION du rapport d'etape.
+#
+# forge:run_mode = gpu_window
+#
+# DIRECTIVE STATIQUE lue par le collecteur (scripts/forge/product_oracle_godot.py) AVANT
+# execution : ce volet CAPTURE des pixels (viewport/get_image), il doit donc etre lance en
+# fenetre GPU hors ecran et non en --headless, qui rend une texture NULLE et fabriquerait
+# un rouge. L exigence etait deja ecrite ci-dessus EN PROSE ; la prose ne route rien.
+# Aucun comportement de ce volet n est modifie par cette ligne.
 extends RefCounted
 
 const Capture = preload("res://06_RUNTIME/adapters/presentation/capture.gd")

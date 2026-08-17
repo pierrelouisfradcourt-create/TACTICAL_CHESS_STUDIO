@@ -2,6 +2,14 @@
 # MECANIQUE de lisibilite : un rendu lisible distingue plusieurs elements (fond, rangees de
 # briques colorees, raquette, balle) -> l'image porte un nombre eleve de couleurs distinctes
 # (>= 6, l'ordre de grandeur des 6 rangees de briques + fond/raquette/balle). Fenetre GPU exigee.
+#
+# forge:run_mode = gpu_window
+#
+# DIRECTIVE STATIQUE lue par le collecteur (scripts/forge/product_oracle_godot.py) AVANT
+# execution : ce volet CAPTURE des pixels (viewport/get_image), il doit donc etre lance en
+# fenetre GPU hors ecran et non en --headless, qui rend une texture NULLE et fabriquerait
+# un rouge. L exigence etait deja ecrite ci-dessus EN PROSE ; la prose ne route rien.
+# Aucun comportement de ce volet n est modifie par cette ligne.
 extends SceneTree
 
 func _couleurs_distinctes(img: Image) -> int:

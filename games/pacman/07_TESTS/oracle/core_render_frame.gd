@@ -16,6 +16,14 @@
 # n'est pas constant, ce qui est la propriete que le volet pixel cherche a etablir ;
 # (3) la palette n'est pas monochrome. Sans (2) et (3), un jeu peut passer la mutation
 # et rester mort a l'ecran (incident shmup_slice).
+#
+# forge:run_mode = gpu_window
+#
+# DIRECTIVE STATIQUE lue par le collecteur (scripts/forge/product_oracle_godot.py) AVANT
+# execution : ce volet CAPTURE des pixels (viewport/get_image), il doit donc etre lance en
+# fenetre GPU hors ecran et non en --headless, qui rend une texture NULLE et fabriquerait
+# un rouge. L exigence etait deja ecrite ci-dessus EN PROSE ; la prose ne route rien.
+# Aucun comportement de ce volet n est modifie par cette ligne.
 extends RefCounted
 
 const Capture = preload("res://06_RUNTIME/adapters/presentation/capture.gd")
