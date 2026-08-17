@@ -158,6 +158,27 @@ PROFILES = {
     # de red-team ni de design — build -> oracle code -> verdict. Évite la cérémonie
     # 13 étapes sur 78 lignes (finding red-team chesscolor). archi/wiremap = SKIPPED.
     "micro": ("s9-build", "s10a-oracle-code", "s12-verdict"),
+    # proof_only : REMESURER SANS RECONSTRUIRE (GO Pierre 2026-08-17). Rafraichir un reçu
+    # de preuve produit exigeait jusqu'ici `standard`/`standard_godot`/`full_godot`, tous
+    # porteurs d'un BUILDER et d'une RED-TEAM : on reconstruisait le jeu — et on reecrivait
+    # `games/**` — pour remplacer un certificat. Ce profil decoupe les deux SEULES etapes
+    # deterministes non-LLM de la chaine de preuve. Il n'invente aucune etape : c'est un
+    # sous-ensemble strict de `standard`.
+    #
+    # LE COUPLE EST INDIVISIBLE. `s10s` ne PRODUIT pas le reçu produit, il le LIT dans le
+    # detail de `s10a`. Le profil `oracle_only` (s10s seule) recalculerait donc
+    # `observable_coverage` sur un reçu PERIME — un fichier date d'aujourd'hui derive de
+    # mesures de juillet, exactement la fausse continuite ecartee par Pierre.
+    #
+    # PAS DE `s12-verdict` : ce profil REMESURE, il ne juge pas. Un `software_verdict` vient
+    # UNIQUEMENT de reçus d'oracle verifies (CLAUDE.md:81) ; ce que produit `proof_only` est
+    # une mesure contemporaine coherente, pas une preuve signee. Meme forme que `review`,
+    # `artbible`, `gm_worldscan` : une tranche isolee sans verdict.
+    #
+    # TOPOLOGIE : `proof_only` est AUSSI inscrit dans `driver._STANDARD_TOPOLOGY_PROFILES`.
+    # Sans cela il tomberait en branche LEGACY, dont l'effet est mesure (run snake-s9p,
+    # 2026-07-28) : trois rouges d'INSTRUMENTATION — sur un profil fait pour en supprimer.
+    "proof_only": ("s10a-oracle-code", "s10s-oracle-standard"),
     "artbible": ("s2.5-artbible",),
     # gm_worldscan : s2.7 SEULE, même forme que `artbible` (s2.5 seule) et `review`
     # (s6 seule) — une tranche isolée, pas de verdict signé (s12 n'y est pas : une

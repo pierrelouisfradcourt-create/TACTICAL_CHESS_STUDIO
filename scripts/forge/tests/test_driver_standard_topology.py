@@ -35,7 +35,15 @@ def test_profile_micro_is_not_standard_topology(tmp_path):
     assert _driver(tmp_path, "micro")._standard_topology() is False
 
 
-def test_standard_topology_profiles_is_exactly_the_two_expected():
+def test_standard_topology_profiles_is_exactly_the_three_expected():
     # Verrou explicite de l'ensemble : toute extension future passe par ce test,
     # jamais par une modification silencieuse ailleurs.
-    assert _STANDARD_TOPOLOGY_PROFILES == frozenset({"standard", "standard_godot"})
+    #
+    # EXTENSION 2026-08-17 (GO Pierre) : `proof_only` entre ici, et c'est PAR CE TEST que
+    # l'extension passe — exactement ce que ce verrou exige. Motif : `proof_only` remesure
+    # un projet DEJA construit en topologie standard sans le reconstruire ; hors de cet
+    # ensemble il tomberait en branche LEGACY et fabriquerait les trois rouges
+    # d'instrumentation mesures sur snake-s9p. Le verrou n'est pas affaibli : il compte
+    # toujours exactement, et le nom du test dit combien.
+    assert _STANDARD_TOPOLOGY_PROFILES == frozenset(
+        {"standard", "standard_godot", "proof_only"})

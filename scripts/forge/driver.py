@@ -148,7 +148,13 @@ _POST_ORACLE = ("s11-redteam-code", "s12-verdict")
 # 2026-07-28, scripts/forge/dispatch.py:175) partage exactement la même topologie de
 # dépôt ; l'oublier ici a fait tomber le run snake-s9p dans la branche LEGACY (voir
 # ForgeDriver._standard_topology).
-_STANDARD_TOPOLOGY_PROFILES = frozenset({"standard", "standard_godot"})
+# `proof_only` (2026-08-17) y figure DES SA CREATION, jamais en rattrapage : il opere sur un
+# projet DEJA construit en topologie standard (`07_TESTS/`, `09_WIREMAP/`) et se contente de
+# remesurer sa preuve. La topologie decrit la FORME du projet sur disque, pas l'acte de
+# construire — un profil sans builder peut donc legitimement la declarer. L'omettre le ferait
+# tomber en branche LEGACY, defaut deja subi une fois par `standard_godot` (cf. docstring de
+# `_standard_topology`, run snake-s9p).
+_STANDARD_TOPOLOGY_PROFILES = frozenset({"standard", "standard_godot", "proof_only"})
 
 # ---------------------------------------------------------------------------
 # RECONNEXION RATIFIÉE PAR GO EXPLICITE DE PIERRE, 2026-08-12 — canal de
