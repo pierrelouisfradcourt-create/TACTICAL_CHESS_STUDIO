@@ -60,6 +60,14 @@ class OracleResult:
     passed: bool
     returncode: int
     evidence_path: Path
+    # Le processus a-t-il été TUÉ avant de conclure ? `passed=False` recouvrait deux
+    # situations OPPOSÉES — « l'oracle a jugé et condamné » et « l'oracle est mort sans
+    # juger » — et seul `returncode == -2`, un nombre magique, les distinguait. Rien
+    # n'obligeait l'aval à l'interpréter, et il ne l'interprétait pas : `verdict.py`
+    # rendait FAIL dans les deux cas. Le fait devient un champ NOMMÉ (règle studio
+    # « aucune décision dans un commentaire », et pas davantage dans un code magique).
+    # `OracleResult` n'est PAS signé : l'ajouter ici est sans effet sur les signatures.
+    timed_out: bool = False
 
 
 def run_oracle(
@@ -95,6 +103,7 @@ def run_oracle(
         logger.warning("oracle %s timed out after %ss", spec.project, timeout)
         return OracleResult(
             spec=spec,
+            timed_out=True,   # le fait est POSÉ ici, là où il est connu — jamais deviné en aval
             passed=False,
             returncode=-2,
             evidence_path=evidence_path,

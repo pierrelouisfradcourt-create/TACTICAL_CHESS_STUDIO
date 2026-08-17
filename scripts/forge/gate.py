@@ -61,6 +61,10 @@ def forge_gate(
         logger.warning("oracle for %s could not run (%s) -> BLOCKED", project, exc)
         return _blocked(project, key_file)
 
-    verdict = build_verdict(project, result.passed, result.returncode, result.evidence_path)
+    # `timed_out` propagé TEL QUEL depuis le reçu d'exécution : le gate ne le devine pas,
+    # il le transmet. Même esprit que le `_blocked(...)` sur OSError juste au-dessus —
+    # quand l'oracle n'a pas pu conclure, le verdict le dit au lieu de condamner le produit.
+    verdict = build_verdict(project, result.passed, result.returncode, result.evidence_path,
+                            timed_out=result.timed_out)
     signature = sign_verdict(verdict, key_file)
     return GateResult(verdict=verdict, signature=signature, ok=result.passed)

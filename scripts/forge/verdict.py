@@ -36,10 +36,29 @@ class Verdict:
     evidence_path: str
 
 
-def build_verdict(project: str, passed: bool, returncode: int, evidence_path: Path) -> Verdict:
+def build_verdict(project: str, passed: bool, returncode: int, evidence_path: Path,
+                  timed_out: bool = False) -> Verdict:
+    """Verdict d'un oracle — TROIS états, plus deux.
+
+    `"OK" if passed else "FAIL"` répondait avec un booléen à deux états alors que
+    `oracle.run_oracle` produit `passed=False` dans deux situations de nature OPPOSÉE :
+    l'oracle a JUGÉ et condamné (FAIL légitime), ou il est MORT avant de juger — auquel cas
+    rien n'est prouvé, et c'est `BLOCKED`. Quatrième question de la règle ratifiée
+    2026-08-17 : « le processus a-t-il rendu un verdict valide ? ».
+
+    Cas réel : bomberman_3d, run `proof3` (c19add3) — TIMEOUT à 300 s, alors que la seule
+    mesure ABOUTIE était verte (691 assertions, 0 échec). Le processus est mort pendant la
+    solvabilité, dont le budget déclaré (20 essais × 60 s) dépasse structurellement la
+    limite. Un `FAIL` y désignait le produit pour une panne de l'instrument.
+
+    `timed_out` est un PARAMÈTRE, jamais un champ de `Verdict` : `sign_verdict` signe
+    `asdict(verdict)`, donc tout champ nouveau invaliderait les signatures DÉJÀ ÉMISES. Il
+    n'influence que la VALEUR de `software_verdict`. Défaut `False` : un appelant qui
+    l'ignore garde exactement l'ancien comportement.
+    """
     return Verdict(
         project=project,
-        software_verdict="OK" if passed else "FAIL",
+        software_verdict="BLOCKED" if timed_out else ("OK" if passed else "FAIL"),
         evidence_verdict=EVIDENCE_VERDICT,
         claim_verdict=CLAIM_VERDICT,
         returncode=returncode,
