@@ -66,6 +66,30 @@ Si WSL ou Blender est absent : **arrete-toi** et rapporte
 `BLOCKED · BLENDER_EXECUTOR_UNAVAILABLE`. Ne produis jamais un asset « approximatif »
 par un autre moyen.
 
+### WSL / Git-Bash
+
+Blender is executed from WSL.
+
+PowerShell can invoke the documented command directly.
+
+When invoking `wsl.exe` from Git-Bash/MSYS, MSYS path conversion can corrupt Linux paths
+such as `/home/...` and can produce a false "Blender unavailable" diagnostic.
+
+Use:
+
+```
+MSYS_NO_PATHCONV=1
+```
+
+When running from Git-Bash, use literal Linux paths and avoid relying on shell variables
+for WSL paths when invoking the Blender executor.
+
+Canonical Blender path:
+
+```
+/home/studio-dev/3d-pipeline/blender/blender-5.1.1-linux-x64/blender
+```
+
 ## Etape 3 — faire juger (jamais par toi)
 
 ```bash
