@@ -53,6 +53,13 @@ proof:
       - test.oracle
       - godot.project_root
       - godot.project_tests
+      # Ajoutees le 2026-08-17 (GO Pierre). Regression mesuree : la taxonomie s'est enrichie
+      # cote Forge (d623334, 2788ab4), les wiremaps ont adopte les nouvelles categories, mais
+      # AUCUN contrat de jeu ne les classait -> `evaluate_proof_descriptor` rejetait le
+      # descripteur (contrat §2 regle 4 : une categorie non classee est une decision non prise).
+      # EXCLUES, meme critere que `level`/`world.rules` chez bomberman_3d : ce n'est pas du code.
+      - reference.observation # GAME_REFERENCE/*.md + observation_manifest.json : documentation
+      - asset.mesh            # 04_ASSETS/meshes/*.glb + *.import : binaires, rien a muter
 
     command: ["<bin:godot>", "--headless", "--path", ".", "--script", "res://tests/run_tests.gd"]
     cwd: "games/tetris"

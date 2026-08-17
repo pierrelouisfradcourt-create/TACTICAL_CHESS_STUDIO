@@ -66,6 +66,13 @@ proof:
       - test.oracle
       - godot.project_root
       - godot.project_tests
+      # Ajoutees le 2026-08-17 (GO Pierre). PREVENTIF ici : la wiremap de breakout_v2
+      # n'emploie encore NI l'une NI l'autre, donc son run passe aujourd'hui. Mais la meme
+      # omission a bloque tetris et bomberman_3d des que leur wiremap a adopte ces categories
+      # — la regression etait ARMEE ici aussi, en attente d'une carte enrichie.
+      # EXCLUES : ce n'est pas du code (meme critere que les lignes ci-dessus).
+      - reference.observation # GAME_REFERENCE/*.md + observation_manifest.json : documentation
+      - asset.mesh            # 04_ASSETS/meshes/*.glb + *.import : binaires, rien a muter
 
     command: ["<bin:godot>", "--headless", "--path", ".", "--script", "res://tests/run_tests.gd"]
     cwd: "games/breakout_v2"

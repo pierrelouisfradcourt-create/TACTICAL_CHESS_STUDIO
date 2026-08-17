@@ -56,6 +56,13 @@ proof:
       - test.oracle         # idem
       - godot.project_root  # project.godot / solvability.gd : preuve et configuration
       - godot.project_tests # tests/run_tests.gd : LE harnais, muter serait muter la preuve
+      # Ajoutees le 2026-08-17 (GO Pierre). PREVENTIF ici : la wiremap de Snake n'emploie
+      # encore NI l'une NI l'autre, donc son run passe aujourd'hui. Mais la meme omission a
+      # bloque tetris et bomberman_3d des que leur wiremap a adopte ces categories — la
+      # regression etait ARMEE chez Snake aussi, en attente d'une carte enrichie.
+      # EXCLUES : ce n'est pas du code (meme critere que les lignes ci-dessus).
+      - reference.observation # GAME_REFERENCE/*.md + observation_manifest.json : documentation
+      - asset.mesh            # 04_ASSETS/meshes/*.glb + *.import : binaires, rien a muter
 
     # COMMANDE DEDIEE A LA MUTATION — jamais la commande d'oracle (contrat §0).
     # Mesure du 2026-07-28 : run_tests.gd seul = 0,27 s ; l'oracle complet (mecanique +
