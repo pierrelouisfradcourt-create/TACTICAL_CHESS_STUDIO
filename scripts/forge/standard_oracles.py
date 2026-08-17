@@ -1732,6 +1732,24 @@ def check_gpu_window_directive(oracle_dir: Path | str) -> dict:
     Règle : un `.gd` du répertoire d'oracles dont un COMMENTAIRE évoque
     l'exigence de fenêtre GPU (« fenêtre GPU », « rendering-driver »,
     « gpu window/gpu_window ») sans porter la directive structurée est EN DÉFAUT.
+
+    RAFFINEMENT 2026-08-16 (GO Pierre) — TROIS états, plus deux. Un oracle doit
+    discriminer FAIL, PASS et NOT_MEASURED quand ces états ont une signification
+    opérationnelle différente :
+
+        preuve GPU requise
+            -> directive `forge:run_mode = gpu_window`   => routé en fenêtre : OK
+            -> marqueur `requires_gpu_window` (payload)  => NOT_MEASURED motivé : OK
+            -> ni l'un ni l'autre, prose seule           => DÉFAUT (BLOCKED)
+
+    La version d'origine confondait les deux derniers : elle attrapait « exigence non
+    satisfaite » ET « preuve volontairement non mesurée, avec raison structurée ».
+    Défaut MESURÉ le 2026-08-16 : `games/tetris/07_TESTS/oracle/core_render.gd` —
+    SEUL volet du dépôt à porter le marqueur, avec une justification exemplaire — était
+    signalé en défaut. Faux positif de l'oracle, pas défaut du produit. Motif
+    `forge.oracle_fail_vs_not_measured_marker` : « non mesurable » ne se maquille ni en
+    échec ni en succès. AUCUNE clé n'est inventée ici : `_GPU_WINDOW_MARKER_KEY` est
+    déjà la clé par laquelle le collecteur rend NOT_MEASURED.
     Verdict ``BLOCKED``, jamais ``FAIL`` : c'est l'INSTRUMENT (la déclaration)
     qu'il faut réparer, pas le jeu — les confondre enverrait le builder réparer
     la mauvaise chose (doctrine FAIL vs BLOCKED du driver).
@@ -1743,16 +1761,23 @@ def check_gpu_window_directive(oracle_dir: Path | str) -> dict:
 
     # SOURCE UNIQUE de la directive : la regex du routeur lui-même — si le format
     # évolue là-bas, ce contrôle suit, jamais une seconde vérité locale.
-    from forge.product_oracle_godot import _GPU_WINDOW_DIRECTIVE
+    from forge.product_oracle_godot import _GPU_WINDOW_DIRECTIVE, _GPU_WINDOW_MARKER_KEY
 
     prose_hint = _re.compile(
         r"fen[eê]tre\s+gpu|rendering[-_\s]driver|gpu[\s_]window", _re.IGNORECASE)
+    # RENONCEMENT STRUCTURÉ (2026-08-16) : `requires_gpu_window` est la clé de marqueur
+    # PAR LAQUELLE UN VOLET DÉCLARE LUI-MÊME n'avoir pas pu être mesuré — le collecteur
+    # rend alors NOT_MEASURED motivé (product_oracle_godot._GPU_WINDOW_MARKER_KEY).
+    # Cherchée dans la SOURCE, comme la directive : le volet l'écrit dans le payload
+    # qu'il émet, donc la chaîne est présente dans son texte. Même autorité que le
+    # routeur, aucune clé inventée ici.
+    renoncement = _re.compile(_re.escape(_GPU_WINDOW_MARKER_KEY), _re.IGNORECASE)
 
     base = Path(oracle_dir)
     result: dict[str, Any] = {
         "passed": True, "verdict": "OK", "fichiers_examines": 0,
-        "fichiers_avec_directive": 0, "fichiers_en_defaut": [], "illisibles": [],
-        "raisons": [],
+        "fichiers_avec_directive": 0, "fichiers_not_measured": [],
+        "fichiers_en_defaut": [], "illisibles": [], "raisons": [],
     }
     if not base.is_dir():
         result["raisons"].append(f"répertoire d'oracles absent ({base}) — rien à vérifier")
@@ -1767,6 +1792,17 @@ def check_gpu_window_directive(oracle_dir: Path | str) -> dict:
             continue
         if _GPU_WINDOW_DIRECTIVE.search(text):
             result["fichiers_avec_directive"] += 1
+            continue
+        if renoncement.search(text):
+            # Le volet DÉCLARE, en champ structuré, qu'il ne mesure pas la preuve pixel.
+            # Ce n'est ni un défaut ni une réussite : c'est NOT_MEASURED motivé, un état
+            # opérationnel DISTINCT des deux autres. Le confondre avec une exigence non
+            # satisfaite recalerait le volet le plus rigoureux du dépôt
+            # (games/tetris/07_TESTS/oracle/core_render.gd, seul émetteur mesuré le
+            # 2026-08-16) et pousserait à lui poser une directive qui CASSERAIT son
+            # contrat — cf. pacman/v2_core_render, dont une assertion exige
+            # explicitement « aucune capture mesurée sans fenêtre GPU ».
+            result["fichiers_not_measured"].append(path.name)
             continue
         commentaires = "\n".join(
             line for line in text.splitlines() if line.lstrip().startswith("#"))
