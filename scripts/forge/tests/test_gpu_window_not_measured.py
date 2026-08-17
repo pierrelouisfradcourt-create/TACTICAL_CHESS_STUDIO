@@ -20,18 +20,29 @@ from pathlib import Path
 
 import pytest
 
-from forge.product_oracle_godot import _GPU_WINDOW_MARKER_KEY
+from forge.product_oracle_godot import _GPU_WINDOW_MARKER_KEY, _ORACLE_MARKER
 from forge.standard_oracles import check_gpu_window_directive
 
 REPO = Path(__file__).resolve().parents[3]
 
 PROSE = "# Ce volet exige une fenetre GPU reelle pour prouver le rendu.\n"
 
+# FIXTURES RENDUES FIDELES (2026-08-16, restriction de perimetre). Ces fixtures
+# ecrivaient des `.gd` SANS le marqueur `FORGE_ORACLE` tout en se nommant « volet » et en
+# asserttant des regles qui ne valent QUE pour un volet lance. Elles passaient parce que
+# l'oracle partageait leur erreur de perimetre : il jugeait des fichiers que le collecteur
+# ne lance pas. Le referent reel de ces cas — `games/tetris/07_TESTS/oracle/core_render.gd`
+# — porte bien le marqueur (mesure : 2 occurrences). La fixture est donc alignee sur son
+# referent, pas l'inverse : on ne relache aucune assertion, on cesse de mentir sur l'objet.
+_EMISSION = f'\nfunc run():\n\tprint("{_ORACLE_MARKER} nom " + "{{}}")\n'
+
 
 def _volet(dossier: Path, nom: str, corps: str) -> Path:
+    """Un volet REELLEMENT lance : le marqueur d'emission est ajoute a chaque fixture,
+    car c'est lui — et lui seul — qui fait qu'un `.gd` est collecte."""
     dossier.mkdir(parents=True, exist_ok=True)
     p = dossier / nom
-    p.write_text(corps, encoding="utf-8")
+    p.write_text(corps + _EMISSION, encoding="utf-8")
     return p
 
 

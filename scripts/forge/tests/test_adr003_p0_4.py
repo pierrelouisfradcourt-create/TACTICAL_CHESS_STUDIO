@@ -17,12 +17,42 @@ from pathlib import Path
 
 from forge.standard_oracles import check_gpu_window_directive
 
+# RÉFÉRENT REPOINTÉ (2026-08-16, GO Pierre — restriction de périmètre de l'oracle).
+#
+# Ces deux fixtures citaient `games/breakout_v2/07_TESTS/oracle/core_render_frame.gd`
+# comme « cas réel ». Mesure : ce fichier ne porte PAS le marqueur `FORGE_ORACLE`, donc le
+# collecteur ne le LANCE jamais (`product_oracle_godot.discover_oracle_files`). Il n'est
+# pas un volet ; les règles testées ici ne valaient pas pour lui. Les tests passaient parce
+# que l'oracle partageait l'erreur de périmètre — il jugeait des fichiers non routés.
+#
+# La croyance d'origine est traçable et elle était fausse : la docstring du collecteur
+# (product_oracle_godot.py:70-76) affirme que le marqueur est « observé dans TOUS les
+# oracles .gd du studio (core_render_frame.gd ligne 1…) ». Ce nom existe dans QUATRE jeux ;
+# snake et bomberman_3d le portent, breakout_v2 et pacman non. L'exemple cité par la
+# docstring pour justifier la règle est précisément un des deux qui l'enfreignent.
+#
+# NOUVEAU RÉFÉRENT : `games/snake/07_TESTS/oracle/core_render_frame.gd` — volet RÉEL et
+# lancé (marqueur l.4 et l.80, directive l.6). Aucune assertion n'est relâchée : les deux
+# tests gardent leurs verdicts, leurs listes et leur exigence de motif.
+from forge.product_oracle_godot import _ORACLE_MARKER
+
+# En-tête DÉRIVÉ du référent réel (snake, l.1-6), condensé. Le marqueur y figure comme dans
+# l'original : dans la ligne « Sortie : » de l'en-tête.
+_SNAKE_ENTETE = (
+    "# core_render_frame.gd — oracle de la ligne core.render. FENETRE GPU REELLE (jamais\n"
+    "# --headless : le driver dummy rend une texture nulle).\n"
+    f'# Sortie : "{_ORACLE_MARKER} core_render_frame {{json}}".\n')
+_SNAKE_DIRECTIVE = "#\n# forge:run_mode = gpu_window\n"
+_SNAKE_CORPS = "extends SceneTree\n"
+
 
 def test_p0_4_prose_sans_directive_est_bloquee(tmp_path: Path):
-    # En-tête copié du cas réel : games/breakout_v2/07_TESTS/oracle/core_render_frame.gd:4
+    """Cas NÉGATIF CONSTRUIT, et c'est dit : snake porte sa directive depuis toujours (il
+    ne figure pas dans les 7 volets de e02b010), donc aucun état réel « snake sans
+    directive » n'existe. On retire donc la directive du référent réel — c'est exactement
+    le défaut que l'oracle doit attraper, sur un fichier qui EST un volet lancé."""
     (tmp_path / "core_render_frame.gd").write_text(
-        "extends SceneTree\n# Fenetre GPU reelle exigee (charter)\n# demo pixel\n",
-        encoding="utf-8")
+        _SNAKE_ENTETE + _SNAKE_CORPS, encoding="utf-8")
     r = check_gpu_window_directive(tmp_path)
     assert r["passed"] is False
     assert r["verdict"] == "BLOCKED", "instrument à réparer — jamais FAIL, jamais OK"
@@ -31,9 +61,9 @@ def test_p0_4_prose_sans_directive_est_bloquee(tmp_path: Path):
 
 
 def test_p0_4_directive_structuree_passe(tmp_path: Path):
+    """Cas POSITIF fidèle : c'est l'état réel du volet snake au dépôt."""
     (tmp_path / "core_render_frame.gd").write_text(
-        "# forge:run_mode = gpu_window\n# Fenetre GPU reelle exigee (charter)\n",
-        encoding="utf-8")
+        _SNAKE_ENTETE + _SNAKE_DIRECTIVE + _SNAKE_CORPS, encoding="utf-8")
     r = check_gpu_window_directive(tmp_path)
     assert r["passed"] is True and r["verdict"] == "OK"
     assert r["fichiers_avec_directive"] == 1

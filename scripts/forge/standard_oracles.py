@@ -1761,7 +1761,8 @@ def check_gpu_window_directive(oracle_dir: Path | str) -> dict:
 
     # SOURCE UNIQUE de la directive : la regex du routeur lui-même — si le format
     # évolue là-bas, ce contrôle suit, jamais une seconde vérité locale.
-    from forge.product_oracle_godot import _GPU_WINDOW_DIRECTIVE, _GPU_WINDOW_MARKER_KEY
+    from forge.product_oracle_godot import (
+        _GPU_WINDOW_DIRECTIVE, _GPU_WINDOW_MARKER_KEY, _ORACLE_MARKER)
 
     prose_hint = _re.compile(
         r"fen[eê]tre\s+gpu|rendering[-_\s]driver|gpu[\s_]window", _re.IGNORECASE)
@@ -1777,6 +1778,7 @@ def check_gpu_window_directive(oracle_dir: Path | str) -> dict:
     result: dict[str, Any] = {
         "passed": True, "verdict": "OK", "fichiers_examines": 0,
         "fichiers_avec_directive": 0, "fichiers_not_measured": [],
+        "sous_modules_ignores": [],
         "fichiers_en_defaut": [], "illisibles": [], "raisons": [],
     }
     if not base.is_dir():
@@ -1784,12 +1786,24 @@ def check_gpu_window_directive(oracle_dir: Path | str) -> dict:
         return result
 
     for path in sorted(base.glob("*.gd")):
-        result["fichiers_examines"] += 1
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             result["illisibles"].append(path.name)
             continue
+        # PÉRIMÈTRE (2026-08-16) : SEULS les fichiers que le collecteur LANCE. Sa
+        # condition de découverte est la présence du marqueur `FORGE_ORACLE`
+        # (product_oracle_godot.discover_oracle_files) ; un `.gd` sans ce marqueur est un
+        # SOUS-MODULE (`extends RefCounted`, aucun payload émis), jamais routé — lui
+        # imposer une directive de routage n'a aucune réalité d'exécution.
+        # Défaut MESURÉ le 2026-08-16 : pacman portait 6 « défauts » sur 104 fichiers dont
+        # ZÉRO n'est un volet réel, et 4 des 7 directives posées en e02b010 sont inertes
+        # pour la même raison. Même autorité que le routeur, encore : on ne réimplémente
+        # pas la règle de découverte, on l'importe.
+        if _ORACLE_MARKER not in text:
+            result["sous_modules_ignores"].append(path.name)
+            continue
+        result["fichiers_examines"] += 1
         if _GPU_WINDOW_DIRECTIVE.search(text):
             result["fichiers_avec_directive"] += 1
             continue
