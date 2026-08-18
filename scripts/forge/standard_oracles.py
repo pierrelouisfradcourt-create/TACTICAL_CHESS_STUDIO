@@ -1573,8 +1573,27 @@ def check_observable_coverage(wiremap: dict, oracle_receipt: dict) -> dict:
         verdict = "BLOCKED"
     else:
         verdict = "OK"
+    # TROIS ETATS DISTINCTS (2026-08-17). Le `non_couvert` ci-dessus reunit par un OU quatre
+    # categories que cette fonction a pourtant pris soin de SEPARER : un volet honnetement NON
+    # MESURE produisait le meme `passed: False` qu'un volet EN ECHEC, et tout consommateur qui
+    # ne lit que `passed` heritait de la confusion. Cas reel : `tetris` (recu c19add3) est
+    # BLOCKED avec les TROIS listes d'echec VIDES — seul `core.render` est non mesure, via le
+    # marqueur `requires_gpu_window` qu'il porte LUI-MEME.
+    #
+    # PATRON REPRIS de la facette `budget` (`driver.py`, meme fonction de gate) : elle distingue
+    # deja `measured` de `passed`, avec la regle « un volet demontre en violation rend le pas
+    # FAIL MEME si une autre part n'a pas pu etre mesuree ; BLOCKED seulement si rien n'est
+    # demontre ET qu'une part est non mesurable ». Rien d'invente ici, le patron est etendu.
+    #
+    # `passed` et `verdict` sont INCHANGES : ce lot AJOUTE de quoi decider, il ne redefinit
+    # rien. Cabler ces champs dans `_CORE_FACETS` est une decision DISTINCTE (E), non prise ici.
+    violation = bool(malforme or lignes_sans_preuve or volets_absents or volets_en_echec)
     return {
         "passed": verdict == "OK",
+        # Une part de la couverture a-t-elle ete IMPOSSIBLE a mesurer ? (preuve impossible)
+        "measured": not bool(volets_non_mesures),
+        # Un defaut a-t-il ete DEMONTRE ? (preuve negative) — jamais confondu avec le precedent.
+        "violation": violation,
         "verdict": verdict,
         "observable_malformes": observable_malformes,
         "lignes_sans_preuve": lignes_sans_preuve,
