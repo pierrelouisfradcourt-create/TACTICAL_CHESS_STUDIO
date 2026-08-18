@@ -125,10 +125,19 @@ def test_oracles_json_ABSENT_ne_casse_PAS_l_audit(tmp_path):
     assert _etats(res) == {"t": "NON_EVALUABLE"}
 
 
-def test_sur_le_depot_REEL_tetris_est_le_SEUL_contrat_ignore():
-    """Cas REEL, pas une fixture. Mesure du 2026-08-17 : un seul jeu du parc est concerne.
-    Si ce test devient rouge, c'est que le parc a change — pas que l'audit s'est casse."""
+def test_sur_le_depot_REEL_le_parc_est_SANS_anomalie():
+    """Cas REEL, pas une fixture.
+
+    HISTORIQUE, et le test a fait ce qu'il annoncait. Redige le 2026-08-17, il assertait
+    `ignores == ["tetris"]` — le seul jeu du parc dont le contrat declarait un budget que
+    `oracles.json` ignorait. Sa docstring prevenait : « si ce test devient rouge, c'est que
+    le parc a change, pas que l'audit s'est casse ». Il est devenu rouge le 2026-08-18,
+    exactement pour cette raison : le budget de tetris a ete INSCRIT (`max_ticks: 500`, la
+    valeur mesuree et ratifiee du 2026-08-10) et le contrat de jeu ALIGNE sur elle.
+
+    Il garde desormais l'etat ATTEINT plutot que l'anomalie d'alors : aucun contrat ignore,
+    aucune divergence. Un nouveau jeu qui declarerait un budget sans entree dans
+    `oracles.json` le ferait rougir — c'est le meme service, rendu depuis l'autre bord."""
     res = audit_solvability_budgets(REPO)
-    ignores = sorted(e["jeu"] for e in res if e["etat"] == "CONTRAT_IGNORE")
-    assert ignores == ["tetris"], f"parc modifie : {res}"
-    assert [e for e in res if e["etat"] == "DIVERGENT"] == []
+    assert [e["jeu"] for e in res if e["etat"] == "CONTRAT_IGNORE"] == [], res
+    assert [e["jeu"] for e in res if e["etat"] == "DIVERGENT"] == [], res

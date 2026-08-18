@@ -81,11 +81,30 @@ proof:
 
   solvability:
     entry: "solvability.gd"
-    # max_ticks : AUCUNE mesure Tetris. Attention — Tetris n'a PAS d'état gagné en
-    # marathon (règle de genre genre.tetris.no_victory_in_marathon). La solvabilité ne
-    # peut donc PAS se définir comme « un bot gagne » : il faudra la définir comme
-    # « un bot survit N pièces sans blocage » ou « un bot nettoie N lignes ». C'est une
-    # DÉCISION OUVERTE à trancher avant s9, pas un paramètre à copier de Breakout.
-    max_ticks: 20000            # A_CALIBRER — marge large volontaire
-    trials: 50                  # repris par cohérence de méthode, pas par mesure
-    trial_timeout_ms: 60000
+    # HONNÊTETÉ DE GENRE — décision PRISE, plus ouverte. `genre.tetris.no_victory_in_marathon`
+    # interdit un état gagné : `solvability.gd` définit donc `succeeded` comme « survit
+    # >= N_SURVIVE pièces ET nettoie >= 1 ligne » (l.66-67), une preuve que le système est
+    # JOUABLE et que l'objectif est ATTEIGNABLE — jamais un « le bot gagne ». Le `won: 50/50`
+    # que rend l'oracle doit se lire ainsi, sans quoi il promettrait plus qu'il ne mesure.
+    # CALIBRÉ le 2026-08-18 (GO Pierre) — l'ancienne valeur `20000` était marquée
+    # A_CALIBRER, marge large volontaire, et n'avait JAMAIS été consommée : `oracles.json`
+    # ne portait aucune entrée `solvability` pour tetris, le jeu tournait donc sur les
+    # DÉFAUTS (`max_ticks: 200`), et rendait `won: 0/50` — un faux négatif, pas un défaut
+    # du jeu. Il manquait 300 ticks.
+    #
+    # 500 N'EST PAS UN NOUVEAU CALIBRAGE : c'est la valeur DÉJÀ MESURÉE ET RATIFIÉE le
+    # 2026-08-10 et inscrite dans `solvability.gd` (l.20-33, 18 graines, preuve sous
+    # `lab/forge_evidence/TETRIS_SOLVABILITY_N_20260810/`) — cadence 4,448 ticks/pièce ×
+    # plancher `N_SURVIVE = 100` ⇒ ~445 ticks nécessaires. Le balayage du 2026-08-18 l'a
+    # retrouvée indépendamment : bascule entre 400 (0/10) et 500 (10/10).
+    #
+    # LES DEUX CONSTANTES SONT COUPLÉES (avertissement de `solvability.gd`) : à 4,448
+    # ticks/pièce, `max_ticks` borne mécaniquement le nombre de pièces atteignables.
+    # Relever `N_SURVIVE` sans relever `max_ticks` fabrique un faux négatif certain.
+    max_ticks: 500
+    trials: 50
+    # Coût mesuré ~0,5 s/essai à 500 ticks ⇒ marge ×20. Les trois autres jeux déclarent
+    # 60000 : ce serait une CONVENTION DE PARC, pas un calibrage. Inscrit même s'il égale
+    # `DEFAULT_TRIAL_TIMEOUT_MS`, pour ne pas dépendre silencieusement d'un défaut — le
+    # défaut même que ce lot ferme.
+    trial_timeout_ms: 10000
