@@ -186,6 +186,17 @@ test('runSelfAudit : studio aligne -> ok=true', () => {
       threshold_days: 3,
     },
   });
-  const r = runSelfAudit(root);
+  // PONT PYTHON INJECTE (2026-08-17). Ce test etait ROUGE depuis 25 jours : ecrit le
+  // 2026-07-15 (d415c9b) contre `ok = docDrift ∧ dormancy`, il a vu 74f3dd0 ajouter
+  // `contractSync.status === 'ok'` a la formule le 2026-07-23 — condition que son montage ne
+  // peut PAS satisfaire, `tmpRepo()` creant un depot NU (ni `scripts/`, ni `.venv312`) ou le
+  // pont ne resout aucun interpreteur et rend `non_evaluable`. `ok` tombait donc pour une
+  // raison d'ENVIRONNEMENT, jamais de studio.
+  // On INJECTE plutot que de sauter : le chemin nominal redevient reellement teste, et
+  // `studio_selfaudit_injection.test.mjs` verifie a cote que le pont reste DISCRIMINANT
+  // (derive et non_evaluable font toujours tomber `ok`).
+  const pontVert = { status: 'ok', interpreter: 'stub', violations: [], anomalies: [] };
+  const r = runSelfAudit(root, { contractSync: () => pontVert,
+                                 solvabilityBudget: () => pontVert });
   assert.equal(r.ok, true);
 });

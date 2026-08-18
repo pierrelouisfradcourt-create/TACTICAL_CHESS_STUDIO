@@ -261,14 +261,27 @@ export function auditSolvabilityBudget(repoRoot) {
  * @param {string} repoRoot
  * @returns {{repoRoot:string, docDrift:Array, dormancy:Array, contractSync:object, ok:boolean}}
  */
-export function runSelfAudit(repoRoot) {
+export function runSelfAudit(repoRoot, deps = {}) {
+  // PONTS PYTHON INJECTABLES (2026-08-17). `auditContractSync` et `auditSolvabilityBudget`
+  // spawnent un interpreteur resolu par `pythonCandidates` : dans un depot TEMPORAIRE nu (ni
+  // `scripts/`, ni `.venv312`) ils rendent `non_evaluable`, et `ok` tombe pour une raison
+  // d'ENVIRONNEMENT, jamais de studio. Le test « studio aligne -> ok=true » etait rouge depuis
+  // 25 jours pour cela : ecrit le 2026-07-15 (d415c9b) contre `ok = docDrift ∧ dormancy`, il a
+  // vu 74f3dd0 ajouter `contractSync` a la formule le 2026-07-23 sans que son montage puisse
+  // le satisfaire.
+  //
+  // Injecter plutot que rendre le test conditionnel : le chemin NOMINAL redevient testable
+  // sans dependre d'un poste. Defaut = les vraies fonctions, champ par champ — les 3 appels
+  // de production n'ont pas de 2e argument et sont STRICTEMENT inchanges.
+  const pontContractSync = deps.contractSync || auditContractSync;
+  const pontSolvabilityBudget = deps.solvabilityBudget || auditSolvabilityBudget;
   const exp = loadExpectations(repoRoot);
   const docDrift = auditDocClaims(repoRoot, exp.doc_claims || []);
   const dormancy = auditConnectorDormancy(repoRoot, exp.connectors || { watched: [] });
   // Seuls les vrais signaux comptent pour le verdict : derive doc + connecteurs dormants.
   // Les statuts purement informatifs (jamais_ecrit, reference_absente) ne font pas echouer.
   const hardDormancy = dormancy.filter((d) => d.status === 'dormant');
-  const contractSync = auditContractSync(repoRoot);
+  const contractSync = pontContractSync(repoRoot);
   // P6 (2026-08-15) : divergences registre<->decisions, RAPPORTEES ici (l'abonne
   // manquant). Best-effort strict : un queue-file illisible ne casse jamais
   // l'audit — statut 'non_evaluable' a la place. N'entre PAS dans `ok` : la
@@ -287,7 +300,7 @@ export function runSelfAudit(repoRoot) {
   // Budget de solvabilite : contrat de jeu <-> `oracles.json`. RAPPORTE, jamais dans `ok`
   // (meme regime que `registryDivergences` juste au-dessus) : signaler une contradiction de
   // declaration n'est pas la trancher, et `oracles.json` fait autorite en attendant.
-  const solvabilityBudget = auditSolvabilityBudget(repoRoot);
+  const solvabilityBudget = pontSolvabilityBudget(repoRoot);
   const ok = docDrift.length === 0 && hardDormancy.length === 0 && contractSync.status === 'ok';
   return { repoRoot, docDrift, dormancy, contractSync, registryDivergences,
            solvabilityBudget, ok };
