@@ -2514,7 +2514,23 @@ class ForgeDriver:
         other_violation = any(not bool(detail[k].get("passed")) for k in _CORE_FACETS)
         budget_measured = bool(budget_r.get("measured"))
         budget_violation = budget_measured and not bool(budget_r.get("passed"))
-        if other_violation or budget_violation:
+        # DÉCISION E, variante A (Pierre, 2026-08-18). `observable_coverage` cesse d'être
+        # purement advisory : une VIOLATION DÉMONTRÉE gate le pas. Traitement SPÉCIALISÉ,
+        # jamais une entrée de `_CORE_FACETS` — cette liste est lue uniformément par
+        # `not passed`, et ses cinq facettes n'ont aucun champ `violation` ; y ajouter la
+        # couverture puis lire `violation` casserait les cinq autres. Même forme que le
+        # `budget` deux lignes plus haut, qui distingue déjà mesure et verdict.
+        #
+        # SEUL `violation` ENTRE ICI, jamais `measured`. Un volet non mesurable ne prouve
+        # rien de faux : il continue de remonter par l'objection signée (`_observable_facts`,
+        # P0-3), régime advisory inchangé. Suivre le patron `budget` À L'IDENTIQUE aurait
+        # ajouté `elif not coverage_measured: BLOCKED` — mesuré le 2026-08-18 sur les reçus
+        # `proof5` : cela ferait passer TETRIS de OK à BLOCKED, son `core.render` déclarant
+        # lui-même ne pas pouvoir mesurer la preuve pixel. Variante B écartée par Pierre.
+        #
+        # `genre_coverage` reste ADVISORY : la politique de ce volet n'a pas été révoquée.
+        coverage_violation = bool((detail.get("observable_coverage") or {}).get("violation"))
+        if other_violation or budget_violation or coverage_violation:
             status = "FAIL"
         elif not budget_measured:
             status = "BLOCKED"

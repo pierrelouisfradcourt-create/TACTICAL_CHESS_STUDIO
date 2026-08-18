@@ -101,57 +101,95 @@ def test_product_oracle_absent_rend_observable_coverage_bloque_sans_crash(tmp_pa
     assert cov["volets_absents"] == ["core.boot:auto_session"]
 
 
-# --- ADVISORY : un volet ROUGE ne fait JAMAIS échouer s10s à lui seul ----------------
+# --- POLITIQUE DE GATE : REVOQUEE pour `observable_coverage`, MAINTENUE pour `genre` ---
+#
+# REVOCATION (decision E variante A, GO Pierre 2026-08-18). Ce fichier assertait que NI
+# `observable_coverage` NI `genre_coverage` ne font varier le statut du pas. C'est desormais
+# FAUX pour le premier : une violation DEMONTREE de la couverture observable gate. La preuve
+# differentielle vit dans `test_gate_coverage_violation.py` (4 experiences, colonne HEAD
+# incluse) ; ici on conserve la moitie qui reste vraie.
+#
+# SQUELETTE BASCULE SUR `games/snake`, et c'est le coeur du changement. Les tests precedents
+# s'appuyaient sur `_standard_game`, dont la mesure du 2026-08-18 montre qu'il echoue sur
+# `line_states` (core_omis), `placement` (adresse incoherente) et `budget` (28 briques hors
+# budget faute d'instantane) : `s10s` y vaut FAIL DES DEUX COTES. Leur assertion
+# `entry_ok["status"] == entry_red["status"]` etait donc satisfaite par un `FAIL == FAIL`
+# INDEPENDANT de ce qu'elle pretendait mesurer — un faux vert, qui aurait survecu a la
+# revocation sans rien prouver. `snake` est le seul squelette CONSTATE ou les six facettes
+# CORE sont vertes ET le budget mesure ET passe.
+#
+# PRIX ASSUME : ces deux tests dependent desormais d'un jeu du depot. Ils SAUTENT, avec motif
+# nomme, s'il est absent — un test qui depend d'un artefact absent mesure un poste, pas un
+# depot. Les six tests de CABLAGE ci-dessus gardent `_standard_game` : ils n'ont besoin
+# d'aucune facette verte, et les migrer aurait deplace le piege d'une couche.
+import shutil
+import tempfile
+from pathlib import Path
+
+import pytest
+
+REPO = Path(__file__).resolve().parents[3]
+SNAKE = REPO / "games" / "snake"
+RECU_PROOF5 = REPO / "lab/forge_runs/snake_proof5_20260818/state.json"
+
+_SNAKE_DISPO = SNAKE.is_dir() and RECU_PROOF5.is_file()
+_MOTIF_SAUT = ("squelette REEL indisponible (games/snake ou son recu proof5 absent) — "
+               "un test qui depend d'un artefact absent ne mesure pas le depot")
 
 
-def test_observable_coverage_rouge_ne_gate_pas_le_pas(tmp_path):
-    game = _standard_game(tmp_path / "game", observable_proof="volet_absent")
-    entry = _run_standard_step(tmp_path, game, product_oracle_detail={
-        "auto_session": {"passed": True, "checked": True},
-    })
-    assert entry["detail"]["observable_coverage"]["verdict"] == "BLOCKED"
-    # les 6 volets CORE (contract/line_states/placement/index/collisions/budget)
-    # décident seuls du statut — observable_coverage/genre_coverage n'y entrent pas.
-    assert entry["status"] in ("OK", "FAIL", "BLOCKED")  # jamais une exception
-    core_facets_all_green = all(
-        entry["detail"][k].get("passed") for k in
-        ("contract_completeness", "line_states", "placement", "index", "collisions")
-    )
-    if core_facets_all_green and entry["detail"]["budget"].get("measured"):
-        assert entry["status"] == (
-            "OK" if entry["detail"]["budget"].get("passed") else "FAIL")
+def _canaux_snake():
+    d = json.loads(RECU_PROOF5.read_text(encoding="utf-8"))
+    s10a = d["steps"]["s10a-oracle-code"]["detail"]
+    return s10a.get("product_oracle") or {}, s10a.get("product_oracle_godot") or {}
 
 
-def test_genre_coverage_rouge_ne_gate_pas_le_pas(tmp_path):
-    game = _standard_game(tmp_path / "game", genre_refs=["genre.g.autre_regle_non_dans_la_bible"])
-    entry = _run_standard_step(tmp_path, game, product_oracle_detail={
-        "auto_session": {"passed": True, "checked": True},
-    })
-    # citation vers un id absent de la bible -> FAIL du volet genre_coverage lui-même
+def _copie_snake():
+    t = Path(tempfile.mkdtemp()) / "snake"
+    shutil.copytree(SNAKE, t,
+                    ignore=shutil.ignore_patterns(".godot", "*.import", "04_ASSETS"))
+    return t
+
+
+def _s10s_snake(jeu, *, godot=None):
+    web, godot_reel = _canaux_snake()
+    t = Path(tempfile.mkdtemp())
+    d = ForgeDriver("snake", "r", run_dir=t / "run", profile="standard", game_dir=jeu,
+                    key_file=t / "k.key", audit_path=t / "a.jsonl")
+    state = {"steps": {e: {"status": "PENDING", "attempts": 0, "detail": {}}
+                       for e in d.order},
+             # Instantane DIFFERENTIEL pris depuis le driver, jamais recopie d'un recu :
+             # un `[]` signifierait « catalogue vide au depart » et ferait echouer le budget.
+             "catalog_brick_ids_snapshot": d._catalog_brick_ids_snapshot()}
+    state["steps"]["s10a-oracle-code"]["detail"] = {
+        "product_oracle": web, "product_oracle_godot": godot or godot_reel}
+    d._run_deterministic(state, "s10s-oracle-standard")
+    return state["steps"]["s10s-oracle-standard"]
+
+
+@pytest.mark.skipif(not _SNAKE_DISPO, reason=_MOTIF_SAUT)
+def test_genre_coverage_rouge_ne_gate_TOUJOURS_pas_le_pas(tmp_path):
+    """MOITIE CONSERVEE du gardien historique. La politique de `genre_coverage` n'a PAS ete
+    revoquee : il reste ADVISORY. Sur un squelette DEMONSTRATIF (statut OK a l'etat sain),
+    le degrader ne doit rien changer — ce que l'ancien squelette ne pouvait pas montrer."""
+    jeu = _copie_snake()
+    bible = jeu / "01_DESIGN" / "genre_bible.json"
+    g = json.loads(bible.read_text(encoding="utf-8"))
+    g["genre_rules"][0]["id"] = "genre.inexistante.jamais_citee"
+    bible.write_text(json.dumps(g), encoding="utf-8")
+
+    entry = _s10s_snake(jeu)
     assert entry["detail"]["genre_coverage"]["verdict"] == "FAIL"
-    # mais le pas ne crashe jamais et son statut reste dérivé des 6 volets CORE seuls
-    assert entry["status"] in ("OK", "FAIL", "BLOCKED")
+    assert entry["detail"]["observable_coverage"]["violation"] is False, "isolement"
+    assert entry["status"] == "OK", "genre_coverage ne gate pas — politique inchangee"
 
 
-def test_statut_du_pas_identique_que_les_2_volets_soient_verts_ou_rouges(tmp_path):
-    """Non-régression du câblage historique C1..C6 (`test_standard_wiring_corrections.py`) :
-    le statut du pas (`entry["status"]`) ne varie PAS selon que `observable_coverage`/
-    `genre_coverage` soient verts ou rouges — seuls les 6 volets CORE existants (via
-    `_CORE_FACETS`) et le budget mesuré en décident, exactement comme avant l'ajout
-    des 2 volets R1."""
-    game_ok = _standard_game(tmp_path / "game_ok")
-    entry_ok = _run_standard_step(tmp_path, game_ok, product_oracle_detail={
-        "auto_session": {"passed": True, "checked": True},
-    })
-    game_red = _standard_game(tmp_path / "game_red", observable_proof="volet_absent",
-                              genre_refs=["genre.g.id_inexistant"])
-    entry_red = _run_standard_step(tmp_path, game_red, product_oracle_detail={
-        "auto_session": {"passed": True, "checked": True},
-    })
-    assert entry_ok["detail"]["observable_coverage"]["verdict"] == "OK"
-    assert entry_ok["detail"]["genre_coverage"]["verdict"] == "OK"
-    assert entry_red["detail"]["observable_coverage"]["verdict"] == "BLOCKED"
-    assert entry_red["detail"]["genre_coverage"]["verdict"] == "FAIL"
-    # même 6 volets CORE (squelette identique par ailleurs) -> même statut de pas,
-    # quel que soit le rouge/vert des 2 volets ADVISORY R1.
-    assert entry_ok["status"] == entry_red["status"]
+@pytest.mark.skipif(not _SNAKE_DISPO, reason=_MOTIF_SAUT)
+def test_le_squelette_snake_est_DEMONSTRATIF(tmp_path):
+    """PRECONDITION du test ci-dessus. Sans elle, un `status == OK` pourrait venir d'ailleurs
+    — et sans elle, l'ancien gardien passait sur un `FAIL == FAIL` qui ne prouvait rien."""
+    entry = _s10s_snake(_copie_snake())
+    for k in ("contract_completeness", "line_states", "placement", "index", "collisions"):
+        assert entry["detail"][k].get("passed") is True, k
+    assert entry["detail"]["budget"].get("measured") is True
+    assert entry["detail"]["budget"].get("passed") is True
+    assert entry["status"] == "OK"
