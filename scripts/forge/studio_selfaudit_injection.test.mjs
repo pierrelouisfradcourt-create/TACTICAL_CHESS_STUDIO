@@ -20,7 +20,7 @@
 // (saut nomme, ou venv dans le tmp) ne permettait.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -98,4 +98,54 @@ test('une injection PARTIELLE laisse l autre pont reel', () => {
   const r = runSelfAudit(tmpRepoAligne(), { contractSync: () => PONT_OK });
   assert.equal(r.contractSync.status, 'ok');
   assert.ok(r.solvabilityBudget, 'le pont non injecte doit avoir tourne pour de vrai');
+});
+
+// --- SENSIBILITE DE `ok` AUX SIGNAUX DURS -------------------------------------------
+//
+// Le lot precedent (74d49cf) a rendu le pont injectable ; ces deux tests prouvent ce que
+// l'injection RESTAURE : `ok` redevient sensible aux deux signaux durs. Sans pont vert,
+// `ok` valait `false` DANS LES DEUX CAS — mesure du 2026-08-17 — et l'assertion
+// `ok === false` du test jumeau etait garantie par l'environnement.
+
+/** Depot temporaire porteur d'une derive doc ET d'un connecteur dormant. */
+function tmpRepoDerivant() {
+  const root = mkdtempSync(join(tmpdir(), 'sa-der-'));
+  const ecrire = (rel, ageJours) => {
+    const f = join(root, rel);
+    mkdirSync(join(f, '..'), { recursive: true });
+    writeFileSync(f, '');
+    if (ageJours) {
+      const t = (Date.now() - ageJours * 86400000) / 1000;
+      utimesSync(f, t, t);
+    }
+  };
+  ecrire('knowledge_base/search.mjs');                    // existe mais declare CIBLE -> derive
+  ecrire('lab/forge_evidence/forge_telemetry.jsonl');
+  ecrire('lab/reports/forge_ledger_proposals.jsonl', 10); // dormant
+  const p = join(root, 'scripts/forge/studio_expectations.json');
+  mkdirSync(join(p, '..'), { recursive: true });
+  writeFileSync(p, JSON.stringify({
+    doc_claims: [{ path: 'knowledge_base/search.mjs', claimed: 'target', source: 'carte' }],
+    connectors: { reference: 'lab/forge_evidence/forge_telemetry.jsonl',
+                  watched: ['lab/reports/forge_ledger_proposals.jsonl'], threshold_days: 3 },
+  }));
+  return root;
+}
+
+test('pont vert + derive REELLE => ok=false, et pour la BONNE raison', () => {
+  const r = runSelfAudit(tmpRepoDerivant(),
+                         { contractSync: () => PONT_OK, solvabilityBudget: () => PONT_OK });
+  assert.equal(r.contractSync.status, 'ok', 'le pont ne doit PAS etre la cause du false');
+  assert.equal(r.ok, false);
+  assert.equal(r.docDrift.length, 1);
+  assert.equal(r.dormancy.filter((d) => d.status === 'dormant').length, 1);
+});
+
+test('LA PAIRE QUI PROUVE LA SENSIBILITE : meme pont vert, sans derive => ok=true', () => {
+  // Sans ce second cas, `ok === false` resterait indistinguable d'un `false` structurel.
+  // C'est la COMPARAISON des deux qui etablit que `ok` depend bien des signaux durs.
+  const r = runSelfAudit(tmpRepoAligne(),
+                         { contractSync: () => PONT_OK, solvabilityBudget: () => PONT_OK });
+  assert.equal(r.ok, true);
+  assert.equal(r.docDrift.length, 0);
 });

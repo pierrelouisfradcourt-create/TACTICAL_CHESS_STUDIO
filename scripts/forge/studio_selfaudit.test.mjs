@@ -128,7 +128,16 @@ test('runSelfAudit : integration bout-en-bout, derive -> ok=false', () => {
       threshold_days: 3,
     },
   });
-  const r = runSelfAudit(root);
+  // PONT INJECTE (2026-08-17), meme motif que son jumeau `ok=true` plus bas. MESURE avant
+  // correction : sans injection, `ok` valait `false` MEME sur un studio aligne — le pont
+  // `contractSync` rend `non_evaluable` dans un depot temporaire nu, ce qui suffit a faire
+  // tomber `ok`. L'assertion `ok === false` etait donc SURNUMERAIRE : garantie par
+  // l'environnement, elle ne prouvait rien de la contribution de la derive a l'agregation.
+  // (Les DEUX autres assertions, elles, discriminaient deja : `docDrift` et `dormant`
+  // tombent a 0 sur un studio aligne. Ce test n'etait pas inerte, il surestimait sa portee.)
+  const pontVert = { status: 'ok', interpreter: 'stub', violations: [], anomalies: [] };
+  const r = runSelfAudit(root, { contractSync: () => pontVert,
+                                 solvabilityBudget: () => pontVert });
   assert.equal(r.ok, false);
   assert.equal(r.docDrift.length, 1);
   assert.equal(r.dormancy.filter((d) => d.status === 'dormant').length, 1);
