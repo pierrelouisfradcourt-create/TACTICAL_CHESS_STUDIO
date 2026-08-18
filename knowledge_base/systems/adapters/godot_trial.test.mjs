@@ -6,7 +6,10 @@ const CFG = { godot_project: 'fixtures/godot_trial_probe', godot_script: 'res://
 
 test('parseReceipt extrait la ligne prefixee au milieu du bruit', () => {
   const out = 'Godot Engine v4.6.3\nblabla\nFORGE_TRIAL {"succeeded":true,"ticks":9}\nautre bruit\n';
-  assert.deepEqual(parseReceipt(out), { succeeded: true, ticks: 9 });
+  // `diag: null` depuis 2026-08-18 : le recu porte desormais le canal de DIAGNOSTIC
+  // optionnel (`FORGE_DIAG`). `null` et non `{}` — un objet vide laisserait croire a un
+  // diagnostic vierge la ou il n'y en a PAS. Cette sortie n'en emet aucun.
+  assert.deepEqual(parseReceipt(out), { succeeded: true, ticks: 9, diag: null });
 });
 
 test('parseReceipt rejette une sortie sans recu', () => {
@@ -34,7 +37,7 @@ test('runTrial passe le seed a Godot et rend le recu', () => {
   };
   const runTrial = makeGodotRunTrial(spawnFn, () => 'FAKE_GODOT');
   const res = runTrial(42, CFG);
-  assert.deepEqual(res, { succeeded: true, ticks: 5 });
+  assert.deepEqual(res, { succeeded: true, ticks: 5, diag: null });
   assert.equal(calls[0].bin, 'FAKE_GODOT');
   assert.ok(calls[0].args.includes('--headless'));
   assert.ok(calls[0].args.includes('--seed=42'));

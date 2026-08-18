@@ -12,12 +12,24 @@ import { resolveGodotBin } from '../../../scripts/forge/godot_bin.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const PREFIX = 'FORGE_TRIAL ';
+// Canal de DIAGNOSTIC, distinct du recu (2026-08-18). `bomberman_3d/solvability.gd`
+// l'emet a cote du verdict pour qu'« un essai perdu puisse etre DIAGNOSTIQUE » — mais
+// `parseReceipt` filtrait sur le seul prefixe du recu, et TOUT le reste partait avec le
+// stdout. L'intention du producteur etait annulee par le consommateur : producteur sans
+// consommateur, sur la seule information qui dirait POURQUOI un essai echoue.
+const PREFIX_DIAG = 'FORGE_DIAG ';
 const REQUIRED_CFG = ['godot_project', 'godot_script', 'trial_timeout_ms'];
 
 /**
- * Extrait le recu JSON d une sortie Godot bruitee (banniere moteur, warnings…).
+ * Extrait le recu JSON d une sortie Godot bruitee (banniere moteur, warnings…), et le
+ * diagnostic optionnel qui l accompagne.
+ *
+ * `diag` est un CONFORT, jamais une condition : un diagnostic absent, illisible ou en
+ * double ne fait JAMAIS perdre un verdict valide (best-effort strict). Le RECU, lui, reste
+ * STRICT — absent, illisible ou en double = erreur. Elargir ce que l adaptateur RETIENT ne
+ * relache pas ce qu il VALIDE.
  * @param {string} stdout
- * @returns {{succeeded: boolean, ticks: (number|null)}}
+ * @returns {{succeeded: boolean, ticks: (number|null), diag: (object|null)}}
  */
 export function parseReceipt(stdout) {
   const lines = String(stdout).split(/\r?\n/).filter((l) => l.startsWith(PREFIX));
@@ -34,7 +46,18 @@ export function parseReceipt(stdout) {
   }
   if (typeof parsed.succeeded !== 'boolean') throw new Error('champ succeeded absent ou non booleen');
   if (parsed.ticks !== null && typeof parsed.ticks !== 'number') throw new Error('champ ticks doit etre number ou null');
-  return { succeeded: parsed.succeeded, ticks: parsed.ticks };
+  // Diagnostic : PREMIER trouve, ordre indifferent (le producteur ecrit DIAG puis TRIAL,
+  // mais rien ne l impose). Un JSON casse ici est IGNORE — `null`, jamais un objet vide qui
+  // laisserait croire a un diagnostic vierge.
+  let diag = null;
+  const ligneDiag = String(stdout).split(/\r?\n/).find((l) => l.startsWith(PREFIX_DIAG));
+  if (ligneDiag !== undefined) {
+    try {
+      const d = JSON.parse(ligneDiag.slice(PREFIX_DIAG.length));
+      if (d !== null && typeof d === 'object' && !Array.isArray(d)) diag = d;
+    } catch { /* diagnostic illisible : ignore, le verdict prime */ }
+  }
+  return { succeeded: parsed.succeeded, ticks: parsed.ticks, diag };
 }
 
 /**
