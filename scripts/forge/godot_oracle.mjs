@@ -78,6 +78,66 @@ export function resolveSolvabilityConfig(project, configPath = ORACLES_CONFIG) {
  * Chemin sur disque de res://solvability.gd pour un projet donne (constante
  * SOLVABILITY_SCRIPT, ancree au projet comme dans runSolvabilityGate).
  */
+/** Prefixe de la ligne de resume machine, meme convention que `FORGE_ORACLE`/`FORGE_TRIAL`/
+ * `FORGE_DIAG` : un prefixe, un JSON, UNE ligne — extractible d un flux bruite sans le
+ * parser entier. */
+export const SUMMARY_PREFIX = 'FORGE_ORACLE_SUMMARY ';
+
+/**
+ * Extrait le recu de solvabilite d une sortie BRUITEE (banniere moteur, lignes
+ * `[godot_oracle] ...`, warnings). BEST-EFFORT STRICT : `null` en cas d absence ou
+ * d illisibilite, JAMAIS une exception — le recu structure est un GAIN, jamais une
+ * condition ; un oracle qui tourne sans emettre de JSON ne doit pas devenir un echec de
+ * parsing.
+ *
+ * DISCRIMINE ce qui est un recu : sans cela, n importe quel objet imprime par le moteur
+ * passerait pour tel, et le driver conserverait du bruit dans un detail signe. Le DERNIER
+ * recu gagne — un run peut relancer la solvabilite, c est l etat final qui fait foi.
+ * @param {string} stdout
+ * @returns {object|null}
+ */
+export function parseSolvabilityReceipt(stdout) {
+  const texte = typeof stdout === 'string' ? stdout : '';
+  if (!texte) return null;
+  let trouve = null;
+  // Le recu est imprime par `solvability_godot.mjs` avec `JSON.stringify(x, null, 2)` :
+  // il s etale sur plusieurs lignes. On balaie donc les debuts d objet et on tente de
+  // parser des blocs croissants — couteux mais borne, et sans dependance a un formatage.
+  const lignes = texte.split(/\r?\n/);
+  for (let i = 0; i < lignes.length; i += 1) {
+    if (!lignes[i].trimStart().startsWith('{')) continue;
+    for (let j = i; j < lignes.length; j += 1) {
+      let obj;
+      try {
+        obj = JSON.parse(lignes.slice(i, j + 1).join('\n'));
+      } catch { continue; }
+      if (estUnRecuDeSolvabilite(obj)) trouve = obj;
+      break;
+    }
+  }
+  return trouve;
+}
+
+/** Un recu de solvabilite porte AU MOINS un verdict et un compte d essais gagnes. */
+function estUnRecuDeSolvabilite(o) {
+  return o !== null && typeof o === 'object' && !Array.isArray(o)
+    && typeof o.verdict === 'string' && typeof o.won === 'number';
+}
+
+/**
+ * Ligne de resume destinee au consommateur (Python, `oracle.run_oracle`). EMISE MEME quand
+ * la solvabilite n a produit aucun recu : `solvabilite: null` est une INFORMATION, alors
+ * qu une ligne absente serait indistinguable d un oracle qui n aurait pas tourne — meme
+ * discipline que `NOT_MEASURED != OK`, appliquee au transport.
+ * @param {{mecanique: boolean, solvabilite: (object|null)}} resume
+ */
+export function buildSummaryLine(resume) {
+  return SUMMARY_PREFIX + JSON.stringify({
+    mecanique: resume.mecanique === true,
+    solvabilite: resume.solvabilite ?? null,
+  });
+}
+
 function solvabilityScriptPath(project) {
   return resolve(REPO_ROOT, project, 'solvability.gd');
 }
@@ -178,16 +238,23 @@ function runSolvabilityGate(project) {
     (cfg.totalTimeoutS !== null ? ` total_timeout_s=${cfg.totalTimeoutS}` : '') +
     ' (declare par jeu, defaut si absent)'
   );
+  // CAPTURE au lieu d HERITER (2026-08-18) : avec `stdio: 'inherit'`, le JSON du recu
+  // allait DIRECTEMENT sur la sortie du parent et `godot_oracle` ne voyait que
+  // `res.status` — le recu n existait que dans un journal exclu par .gitignore. PRIX
+  // ASSUME (GO Pierre) : la sortie de l enfant n apparait plus EN CONTINU mais a la fin.
+  // On la RE-IMPRIME integralement — un operateur qui lisait ce flux continue de le lire.
   const res = spawnSync(
     process.execPath,
     buildSolvabilityArgv(script, project, cfg),
-    { cwd: REPO_ROOT, stdio: 'inherit' }
+    { cwd: REPO_ROOT, encoding: 'utf-8', maxBuffer: 20 * 1024 * 1024 }
   );
+  if (res.stdout) process.stdout.write(res.stdout);
+  if (res.stderr) process.stderr.write(res.stderr);
   if (res.error) {
     console.error(`[godot_oracle] spawn node solvability_godot.mjs impossible : ${res.error.message}`);
-    return false;
+    return { ok: false, recu: null };
   }
-  return res.status === 0;
+  return { ok: res.status === 0, recu: parseSolvabilityReceipt(res.stdout) };
 }
 
 function main(argv) {
@@ -200,11 +267,15 @@ function main(argv) {
 
   if (!runMechanicalTests(project)) {
     console.error('[godot_oracle] FAIL : run_tests.gd (mecanique)');
+    // Resume EMIS meme en echec : un consommateur doit pouvoir distinguer « la mecanique a
+    // echoue » de « l oracle n a pas tourne ». Une ligne absente ne dit ni l un ni l autre.
+    console.log(buildSummaryLine({ mecanique: false, solvabilite: null }));
     process.exit(1);
     return;
   }
   console.log('[godot_oracle] OK : run_tests.gd (mecanique)');
 
+  let solvabiliteRecu = null;
   const scriptExists = existsSync(solvabilityScriptPath(project));
   if (!scriptExists) {
     if (hasMainScene(project)) {
@@ -225,13 +296,21 @@ function main(argv) {
       '(project.godot sans run/main_scene), solvability.gd absent, aucun bot ' +
       'de solvabilite requis.'
     );
-  } else if (!runSolvabilityGate(project)) {
-    console.error('[godot_oracle] FAIL : solvabilite (R9)');
-    process.exit(1);
-    return;
   } else {
+    // `runSolvabilityGate` rend desormais `{ok, recu}` : lire `.ok` EXPLICITEMENT. Tester
+    // `!runSolvabilityGate(...)` sur un OBJET serait toujours faux — le gate ne pourrait
+    // plus jamais echouer. Piege introduit puis corrige le 2026-08-18.
+    const r = runSolvabilityGate(project);
+    solvabiliteRecu = r.recu;
+    if (!r.ok) {
+      console.error('[godot_oracle] FAIL : solvabilite (R9)');
+      console.log(buildSummaryLine({ mecanique: true, solvabilite: solvabiliteRecu }));
+      process.exit(1);
+      return;
+    }
     console.log('[godot_oracle] OK : solvabilite (R9)');
   }
+  console.log(buildSummaryLine({ mecanique: true, solvabilite: solvabiliteRecu }));
 
   console.log('[godot_oracle] ALL CHECKS PASSED');
   process.exit(0);

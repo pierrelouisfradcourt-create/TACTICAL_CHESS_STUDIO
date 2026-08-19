@@ -99,5 +99,32 @@ proof:
     # DETTE CONNUE : cette valeur est declaree DEUX FOIS (ici et dans scripts/forge/oracles.json)
     # et c'est oracles.json qui est REELLEMENT lu par godot_oracle.mjs. Les deux sont tenues
     # coherentes a la main, aucun oracle ne le verifie.
-    trials: 20
+    #   -> DETTE FERMEE le 2026-08-17 : `solvability_budget_audit` (commit 5190859) compare
+    #      desormais les deux declarations et signale CONTRAT_IGNORE / DIVERGENT. C'est lui
+    #      qui a impose d'aligner CE fichier en meme temps qu'oracles.json.
+    #
+    # SECONDE REDUCTION 20 -> 14, ratifiee Pierre 2026-08-18. LA PREMISSE DE 2026-08-11 A
+    # CHANGE : elle reposait sur ~12 s/essai (« 20 x ~12 s ≈ 240 s »). MESURE DU 2026-08-18,
+    # par invocation directe : ~19 s/essai — identique a 12000, 30000 et 60000 ticks, la
+    # partie se terminant naturellement bien avant le plafond. Le cout a donc AUGMENTE, et
+    # 20 essais demandent ~380 s : au-dela des 300 s de oracle.py. La reduction de 2026-08-11
+    # etait juste dans sa METHODE et perimee dans sa DONNEE.
+    #
+    # 14 x 19 = 266 s, + 1 s de mecanique (T_mecanique MESURE isolement : 691 assertions en
+    # 1 s — l'hypothese « 45 s » etait fausse d'un facteur 45) = 267 s < 300 s.
+    #
+    # POURQUOI REDUIRE PLUTOT QUE SE CONTENTER DU FILET : avec `total_timeout_s` SEUL,
+    # bomberman_3d ne pourrait JAMAIS rendre autre chose que BLOCKED — 20 essais sont hors de
+    # portee, donc la preuve serait definitivement « incomplete » : honnete, mais jamais
+    # concluante. 14 essais rendent un VERDICT REEL possible. Arbitrage Pierre entre
+    # « ne jamais conclure » et « conclure sur moins d'essais ».
+    trials: 14
+    # FILET DE SECURITE, pas dimensionnement — role DIFFERENT de `trials`. En regime mesure
+    # il ne se declenche PAS (13 x 19 = 247 s < 250, le 14e demarre et termine la boucle) :
+    # il n'agit que si un essai deborde son regime. Verifie AVANT chaque essai, jamais
+    # pendant — un essai commence va a son terme, d'ou la borne `300 - 1 - 19 = 280 s`.
+    # EXPERIENCE DU 2026-08-18, budget instrumental de 200 s : arret a 209 s, 11/20 essais,
+    # won 3 / lost 8 CONSERVES, BLOCKED motive. Exactement la prediction arithmetique.
+    # Sans lui, le processus etait TUE a 300 s sans rien rendre (runs proof4/proof5).
+    total_timeout_s: 250
     trial_timeout_ms: 60000
