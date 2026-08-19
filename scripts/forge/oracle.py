@@ -54,6 +54,32 @@ def resolve_oracle(project: str, config_path: Path | None = None) -> OracleSpec:
     )
 
 
+_SUMMARY_PREFIX = "FORGE_ORACLE_SUMMARY "
+
+
+def extract_summary(stdout: object) -> dict | None:
+    """Résumé structuré émis par `godot_oracle.mjs`, extrait d'un flux BRUITÉ.
+
+    BEST-EFFORT STRICT : `None` si absent, illisible, ou si ce n'est pas un mapping — jamais
+    une exception. Un oracle qui n'émet pas de résumé (jeu non-Godot, version antérieure)
+    ne doit pas devenir un échec de parsing. Le DERNIER résumé gagne : un run peut relancer
+    une étape, c'est l'état final qui fait foi.
+    """
+    if not isinstance(stdout, str) or _SUMMARY_PREFIX not in stdout:
+        return None
+    trouve = None
+    for ligne in stdout.splitlines():
+        if not ligne.startswith(_SUMMARY_PREFIX):
+            continue
+        try:
+            obj = json.loads(ligne[len(_SUMMARY_PREFIX):])
+        except ValueError:
+            continue
+        if isinstance(obj, dict):
+            trouve = obj
+    return trouve
+
+
 @dataclass(frozen=True)
 class OracleResult:
     spec: OracleSpec
@@ -68,6 +94,14 @@ class OracleResult:
     # « aucune décision dans un commentaire », et pas davantage dans un code magique).
     # `OracleResult` n'est PAS signé : l'ajouter ici est sans effet sur les signatures.
     timed_out: bool = False
+    # RÉSUMÉ STRUCTURÉ de l'oracle (frontière 2, 2026-08-18). La mesure existait déjà —
+    # `FORGE_ORACLE_SUMMARY` depuis abd0504 — mais elle mourait dans `evidence/*.log`,
+    # exclu par `.gitignore:81`, et le driver ne gardait que `returncode` +
+    # `evidence_path`. Le studio conservait des verdicts SANS les mesures qui les
+    # fondent, donc ne pouvait pas ré-instruire ses propres décisions.
+    # On ne recopie JAMAIS le stdout brut : c'est le résumé STRUCTURÉ qui voyage, sinon
+    # bannière moteur et warnings entreraient dans un `detail` SIGNÉ.
+    summary: dict | None = None
 
 
 def run_oracle(
@@ -107,6 +141,10 @@ def run_oracle(
             passed=False,
             returncode=-2,
             evidence_path=evidence_path,
+            # Meme sur TIMEOUT : la sortie partielle peut deja porter un resume (la
+            # mecanique a pu conclure avant que la solvabilite ne soit tuee). Le jeter
+            # perdrait la seule information exploitable d'un run interrompu.
+            summary=extract_summary(exc.stdout),
         )
     with open(evidence_path, "w", encoding="utf-8") as fh:
         fh.write(f"$ {' '.join(spec.command)}\n(cwd={spec.cwd})\n\n")
@@ -120,4 +158,5 @@ def run_oracle(
         passed=completed.returncode == 0,
         returncode=completed.returncode,
         evidence_path=evidence_path,
+        summary=extract_summary(completed.stdout),
     )

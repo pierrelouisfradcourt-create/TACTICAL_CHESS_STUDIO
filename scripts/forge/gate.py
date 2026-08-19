@@ -29,6 +29,9 @@ class GateResult:
     verdict: Verdict
     signature: str
     ok: bool
+    # Maillon que le DRIVER voit reellement : sans lui la mesure s'arreterait au gate.
+    # NON signe — la charge HMAC ne porte que `Verdict` (lecon e48801c).
+    summary: dict | None = None
 
 
 def _blocked(project: str, key_file: Path | None) -> GateResult:
@@ -67,4 +70,5 @@ def forge_gate(
     verdict = build_verdict(project, result.passed, result.returncode, result.evidence_path,
                             timed_out=result.timed_out)
     signature = sign_verdict(verdict, key_file)
-    return GateResult(verdict=verdict, signature=signature, ok=result.passed)
+    return GateResult(verdict=verdict, signature=signature, ok=result.passed,
+                      summary=result.summary)

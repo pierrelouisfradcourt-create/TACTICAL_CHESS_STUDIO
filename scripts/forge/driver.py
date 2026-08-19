@@ -1699,6 +1699,19 @@ class ForgeDriver:
             "returncode": res.verdict.returncode,
             "evidence_path": res.verdict.evidence_path,
         }
+        # QUATRE RÔLES DISTINCTS, jamais fondus (doctrine de lignée causale) :
+        #   verdict -> `software_verdict`  ce que le GATE décide
+        #   mesure  -> `oracle_measures`   ce qui s'est RÉELLEMENT produit    <- ce lot
+        #   preuve  -> `evidence_path`     OÙ cela se vérifie
+        #   reason  -> porté par la mesure POURQUOI le verdict existe
+        # Avant ce lot, seuls verdict et preuve survivaient : le studio conservait des
+        # verdicts sans les mesures qui les fondent, donc ne pouvait pas RÉ-INSTRUIRE ses
+        # propres décisions. `won: 5/14` et les graines perdantes de bomberman_3d
+        # n'existaient que dans un journal exclu par `.gitignore:81`.
+        # Posé seulement s'il existe : un oracle non-Godot n'émet pas de résumé, et une clé
+        # `None` laisserait croire à une mesure vide là où il n'y a PAS de mesure.
+        if res.summary is not None:
+            detail["oracle_measures"] = res.summary
         status = res.verdict.software_verdict
         if not self.is_game:
             self._finish_step(state, entry, status, detail)
