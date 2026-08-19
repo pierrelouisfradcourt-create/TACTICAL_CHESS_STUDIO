@@ -4,9 +4,15 @@ Run de vérité du **2026-08-19**. `HEAD = 751d8be` · master · 118 commits d'a
 index **vide** · arbre de travail 126 entrées (35 M, 91 ??), **intégralement préservées**.
 
 > Ce document décrit **le système qui existe**, pas celui que nous pensions avoir.
-> Il ne remplace pas `STUDIO_MASTER_SCHEMA.html` : il en mesure les écarts (§12).
-> **Statut : `DOCUMENTED_ONLY`, non ratifié.** Aucune décision ne doit s'y adosser tant que
-> Pierre ne l'a pas ratifié.
+>
+> **RÉFÉRENCE CANONIQUE — ratifié Pierre 2026-08-19.** C'est de cette version qu'il faut
+> repartir ; `STUDIO_MASTER_SCHEMA.html` n'est plus corrigé, il est conservé comme historique
+> et ses écarts sont inventoriés en §16.
+>
+> Ratifier ce document ne ratifie **aucune** de ses cases : chaque statut reste une mesure
+> datée, avec sa portée. Un `UNKNOWN` demeure « non mesuré », jamais « probablement bon », et
+> ne devient `TESTED` que par une exécution. Une section corrigée porte sa correction en
+> clair plutôt que de la faire disparaître — voir §06_07 et C7.
 
 ## Discipline appliquée
 
@@ -154,21 +160,51 @@ généralisée. **STATUS : `TESTED` sur 2 jeux, `NOT_FOUND` sur 12.**
 
 ## 06_RUNTIME · 07_ORACLES
 
-| Jeu | Point d'entrée | Mesurable par `search_usage.mjs` ? |
-|---|---|---|
-| tetris, snake, breakout_v2, bomberman_3d | `godot_oracle.mjs` | **NON** |
-| 14 autres | `run-oracle.mjs` | oui |
+> **CORRIGÉ LE 2026-08-19 — la première rédaction de cette section était FAUSSE.** Elle
+> annonçait un « faux négatif structurel Godot » et proposait d'introduire `NOT_APPLICABLE`.
+> Le cadrage de ce P0 a falsifié les deux affirmations. Le diagnostic erroné est retiré ;
+> ce qui suit est ce que la mesure dit.
 
-**Faux négatif structurel confirmé.** `search_usage.mjs` cherche `run-oracle.mjs`, convention
-**web**, absente par construction d'un projet Godot. Son vocabulaire est
-`MEASURED / NOT_MEASURED / NOT_WIRED` — **0 occurrence** de `NOT_APPLICABLE` ni de `godot`.
-Il rend donc `NOT_WIRED` là où la réponse honnête est « preuve impossible dans ce contexte ».
+**Le verdict `NOT_WIRED` sur les jeux Godot est HONNÊTE.** `reuse_ratio.mjs` est pleinement
+conscient de Godot — `LOGIC_EXTENSIONS = {'.mjs', '.gd'}`, détection de `project.godot`,
+résolution des chemins `res://`, lecture de `preload()`/`load()`. Ses lignes 23-25 documentent
+ce défaut **déjà corrigé** en son temps : « `isLogicFile` n'acceptait que `.mjs` : tout jeu
+Godot était rejeté d'office ».
 
-C'est la doctrine ratifiée le 2026-08-17 (*un oracle doit avoir les producteurs de ce qu'il
-mesure* · *preuve impossible ≠ FAIL*), **non appliquée ici**.
+Mesure directe : **`games/tetris` → 36 fichiers de logique**, `reuseRatio = 0`. La mesure a donc
+bien eu lieu. Le projet n'invoque simplement pas `reuse_ratio` — ce que `NOT_WIRED` signifie
+exactement : « le mécanisme existe, personne ne l'invoque dans le projet ».
 
-**STATUS : `UNKNOWN / vocabulaire à décider`** — `NOT_APPLICABLE` n'existe pas dans ce module ;
-l'introduire est une décision, pas une correction. **Aucune valeur n'a été inventée pendant ce run.**
+**`NOT_APPLICABLE` ne sera PAS introduit** (ratifié Pierre 2026-08-19). Le module refuse déjà ce
+quatrième état par écrit : *« États AUTORISÉS … **exactement trois**. Un quatrième état serait
+une façon de ne pas trancher. »* — et cite la leçon `oracle_fail_vs_not_measured_marker`, payée
+pour la distinction `NOT_WIRED` / `NOT_MEASURED`. `CLAUDE.md:75` fige d'ailleurs les trois
+valeurs par écrit.
+
+### Le défaut réel : la DÉTECTABILITÉ, pas le vocabulaire
+
+```
+jeux WEB     games/<jeu>/run-oracle.mjs        kb_tactics 4 occurrences, shmup_slice 3
+jeux GODOT   scripts/forge/godot_oracle.mjs    0 occurrence — runner PARTAGE, pas par jeu
+reuseRatioCable  n'observe QUE join(gameDir, 'run-oracle.mjs')
+```
+
+Le câblage d'un jeu web vit **dans le jeu**. Celui d'un jeu Godot ne pourrait vivre que dans le
+runner **partagé du studio**, déclaré par `oracles.json`
+(`node scripts/forge/godot_oracle.mjs games/<jeu>`). Or `reuseRatioCable` ne regarde que le
+fichier par jeu.
+
+**Conséquence : si `godot_oracle.mjs` câblait `reuse_ratio` demain, l'oracle continuerait de
+répondre « `run-oracle.mjs` absent / NOT_WIRED ».** Ce n'est pas un verdict faux aujourd'hui —
+c'est un verdict **qui ne peut pas changer demain**.
+
+**STATUS : `NOT_FOUND`** — la détection du câblage sur runner partagé n'existe pas. Le statut
+rendu reste correct ; c'est son évolutivité qui manque.
+
+Piste minimale (non exécutée) : faire partir la détection du runner **déclaré** dans
+`oracles.json` au lieu d'un nom de fichier supposé — aucun vocabulaire nouveau, trois états
+conservés, registre existant réutilisé. **Limite connue et à mesurer d'abord** : `oracles.json`
+porte 23 clés pour 26 répertoires dans `games/`.
 
 ---
 
@@ -318,9 +354,10 @@ Observer → Décision · validation du nom de projet Observer.
 | C1 | schéma V1 : fouille « jamais encore exercée » | `STUDIO_MASTER_SCHEMA.html` étage 2 ① | `search_log.jsonl` 66 recherches, 9 depuis `s9-build` | le schéma sous-estime le système | **corrigé ici** |
 | C2 | `search.mjs` situé dans `scripts/forge/` | schéma V1 | vit dans `knowledge_base/` | référence non résolvable | **corrigé ici** |
 | C3 | `capability_gap` et `lesson` : **0 occurrence** au schéma V1 | grep | 237 propositions, 29 leçons | deux mécanismes ont poussé HORS du schéma | **ajoutés ici** |
-| C4 | `NOT_WIRED` sur 4 jeux Godot | `search_usage.mjs` | cherche `run-oracle.mjs`, convention web | fait passer la boucle pour morte | `UNKNOWN / vocabulaire` |
+| C4 | détection du câblage sur runner **partagé** | `reuseRatioCable` | n'observe que `games/<jeu>/run-oracle.mjs` ; Godot passe par `godot_oracle.mjs` déclaré dans `oracles.json` | un câblage Godot futur resterait **invisible** | `NOT_FOUND` |
 | C5 | sources `STUDIO_*_V0` | §1 du run | 1 seul consommateur : `studioV2/studioctl.py`, **lane gelée** | politique non appliquée en lane Forge | `DOCUMENTED_ONLY` |
 | C6 | contrats `s1`/`s2` : prose « étape 1 / étape 2 » | `contracts/*.yaml` | ordre réel inversé depuis `d8a5464` | numérotation trompeuse | dette documentaire |
+| C7 | *(auto-correction)* « faux négatif structurel Godot » | rédaction initiale de ce document | `reuse_ratio.mjs` gère `.gd`, `project.godot`, `res://` ; tetris = **36** fichiers de logique mesurés | le diagnostic accusait l'oracle au lieu du câblage | **retiré 2026-08-19** |
 
 ---
 
@@ -337,7 +374,8 @@ Observer → Décision · validation du nom de projet Observer.
 | Lessons → Builder | `IMPLEMENTED` |
 | KB → Builder (2 jeux) | `TESTED` |
 | KB → Builder (12 jeux) | `NOT_FOUND` |
-| Oracles Godot vs `search_usage` | `UNKNOWN / vocabulaire à décider` |
+| `proof_of_consumption` sur jeux Godot | `IMPLEMENTED` — verdict `NOT_WIRED` **honnête** |
+| Détection du câblage sur runner partagé | `NOT_FOUND` |
 | Isolation de la preuve | `TESTED` |
 | Classe « émetteur injectable non exposé » | `BLOCKED` (confinement seul) |
 | Observer (reconstruction) | `IMPLEMENTED` |
@@ -352,7 +390,27 @@ Observer → Décision · validation du nom de projet Observer.
 | `NATURE` | `UNKNOWN` |
 | Sources `STUDIO_*_V0` (lane Forge) | `DOCUMENTED_ONLY` |
 | Master Schema V1 | `DOCUMENTED_ONLY`, périmé sur C1-C3 |
-| **Ce document** | `DOCUMENTED_ONLY`, **non ratifié** |
+| **Ce document** | **référence canonique**, ratifié Pierre 2026-08-19 |
+
+---
+
+## 18_EXECUTION_BACKLOG
+
+Classé, **non exécuté**. Aucune de ces lignes n'autorise une action : elles attendent chacune
+leur propre cadrage lecture seule.
+
+| | Chantier | Pourquoi ce rang | Préalable mesuré |
+|---|---|---|---|
+| **P0** | **Détectabilité du câblage Godot** — faire partir `reuseRatioCable` du runner **déclaré** dans `oracles.json` au lieu d'un nom de fichier supposé | c'est le seul défaut où un câblage futur resterait invisible : la correction débloque la mesure elle-même | `oracles.json` porte **23 clés pour 26** répertoires `games/` — la couverture doit être mesurée AVANT de considérer la piste suffisante |
+| **P1** | Étage ② du schéma V1 : **retour web ciblé du manquant** | seul maillon absent de la boucle, et il **est déjà au schéma** — le brancher n'ajoute pas de couche | la fouille tourne déjà (66 recherches, 9 depuis `s9-build`) |
+| **P1** | Un run `full` pour **observer enfin la lignée causale** | dernier run avec étapes LLM : 2026-08-14 ; câblage : 2026-08-16 | rien à coder — il faut **exécuter**, pas implémenter |
+| **P2** | `reuse_ratio` dans les **12 runners** qui ne l'invoquent pas | généralise une boucle déjà prouvée 2 fois | refs nommées obtenues sur `kb_tactics`, `shmup_slice` |
+| **P2** | `agent_factory.mjs` — 24 010 octets, **0 appelant** | la chaîne de décision V2 casse à cet étage précis | vérifié tous canaux : les 15 correspondances sont docs et artefacts |
+| **P3** | Dette documentaire « étape 1 / étape 2 » dans les contrats `s1`/`s2` | numérotation trompeuse depuis `d8a5464` | les **noms** restent inchangés (traces Observer, `state.json` archivés) |
+
+**Retiré du backlog le 2026-08-19** : « ajouter `NOT_APPLICABLE` à `search_usage.mjs` ».
+Falsifié par son propre cadrage — le module refuse ce quatrième état par écrit, et le verdict
+Godot n'était pas faux. Voir C7.
 
 ```
 software_verdict:  par surface uniquement — voir le tableau ci-dessus
