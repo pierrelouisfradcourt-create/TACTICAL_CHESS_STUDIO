@@ -52,15 +52,68 @@ function sansCommentaires(src) {
   return String(src).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
 }
 
+/** Runner PARTAGÉ des projets Godot. Un jeu Godot n'a pas de runner propre : son oracle
+ *  est ce script du studio, déclaré dans `oracles.json`
+ *  (`node scripts/forge/godot_oracle.mjs games/<jeu>`). C'est donc LÀ, et nulle part
+ *  ailleurs, qu'un câblage `reuse_ratio` pourrait vivre pour ces projets. */
+const RUNNER_GODOT_PARTAGE = join(ICI, 'godot_oracle.mjs');
+
+/** Cherche le câblage dans un fichier donné. Extrait pour que les deux topologies —
+ *  runner propre au jeu, runner partagé du studio — soient jugées par le MÊME motif :
+ *  seul le fichier où l'on cherche diffère, jamais ce qu'on y cherche. */
+function cableDans(fichier) {
+  return REUSE_RATIO_WIRED.test(sansCommentaires(readFileSync(fichier, 'utf-8')));
+}
+
 /**
- * Le projet invoque-t-il réellement `reuse_ratio.mjs` dans son `run-oracle.mjs` ?
+ * Le projet invoque-t-il réellement `reuse_ratio.mjs` dans SON runner ?
+ *
+ * DEUX TOPOLOGIES, une seule définition du « câblé » :
+ *
+ *   web    `games/<jeu>/run-oracle.mjs`        le câblage vit DANS le jeu
+ *   Godot  `scripts/forge/godot_oracle.mjs`    le jeu n'a pas de runner propre ;
+ *                                              son oracle est PARTAGÉ par le studio
+ *
+ * DÉFAUT FERMÉ (2026-08-19). Seul le fichier du jeu était observé. Pour un projet Godot,
+ * la réponse était donc figée à « run-oracle.mjs absent » — et le serait RESTÉE même si
+ * `godot_oracle.mjs` câblait `reuse_ratio` : un verdict qui ne pouvait pas changer. Le
+ * verdict lui-même n'était pas faux (mesuré : 0 occurrence dans le runner partagé), c'est
+ * son évolutivité qui manquait, et la raison qui désignait un fichier étranger au projet.
+ *
+ * Discriminant : `project.godot`, déjà utilisé par `reuse_ratio.mjs`
+ * (`findGodotProjectRoot`). PAS `oracles.json` — mesuré : SIX jeux ont un `run-oracle.mjs`
+ * sans y figurer, et fonder la détection dessus leur ferait perdre la leur.
+ *
+ * Le runner PROPRE reste prioritaire : plus spécifique que le partagé, il gagne toujours.
+ *
+ * `PROOF_STATES` est INCHANGÉ — l'inapplicabilité n'est pas un quatrième état, c'est une
+ * question qu'il fallait poser au bon fichier.
+ *
+ * @param {string} gameDir
+ * @param {{runnerPartage?: string}} [opts] injection du runner partagé (tests)
  * @returns {{wired:boolean, raison:string|null}}
  */
-export function reuseRatioCable(gameDir) {
-  const runner = join(gameDir, 'run-oracle.mjs');
-  if (!existsSync(runner)) return { wired: false, raison: 'run-oracle.mjs absent' };
-  if (!REUSE_RATIO_WIRED.test(sansCommentaires(readFileSync(runner, 'utf-8')))) {
-    return { wired: false, raison: "run-oracle.mjs n'invoque pas reuse_ratio.mjs" };
+export function reuseRatioCable(gameDir, opts = {}) {
+  const propre = join(gameDir, 'run-oracle.mjs');
+  if (existsSync(propre)) {
+    if (!cableDans(propre)) {
+      return { wired: false, raison: "run-oracle.mjs n'invoque pas reuse_ratio.mjs" };
+    }
+    return { wired: true, raison: null };
+  }
+  // Pas de runner propre. Topologie Godot, ou projet réellement dépourvu d'oracle ?
+  if (!existsSync(join(gameDir, 'project.godot'))) {
+    return { wired: false, raison: 'run-oracle.mjs absent' };
+  }
+  const partage = opts.runnerPartage || RUNNER_GODOT_PARTAGE;
+  if (!existsSync(partage)) {
+    return { wired: false, raison: `runner partagé introuvable : ${partage}` };
+  }
+  if (!cableDans(partage)) {
+    return {
+      wired: false,
+      raison: "projet Godot : le runner partagé godot_oracle.mjs n'invoque pas reuse_ratio.mjs",
+    };
   }
   return { wired: true, raison: null };
 }
