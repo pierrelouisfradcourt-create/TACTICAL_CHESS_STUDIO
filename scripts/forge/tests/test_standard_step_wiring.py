@@ -38,11 +38,22 @@ def test_full_profile_is_untouched_by_the_standard_addition():
     """LE danger principal de cette tâche : PROFILES["full"] = tuple(ORDER) — ajouter
     une étape à ORDER changerait TOUS les runs existants. Comparaison étape par étape
     avec la liste attendue, écrite en dur (pas dérivée de ORDER, pour détecter une
-    régression même si ORDER lui-même était altéré par erreur)."""
+    régression même si ORDER lui-même était altéré par erreur).
+
+    CE TEST FIGE AUSSI LA SÉQUENCE, et il le revendique désormais (2026-08-19). Il ne
+    le disait pas : sa prose ne parlait que d'étapes AJOUTÉES, alors que sa liste en dur
+    contraint l'ORDRE. Un réordonnancement accidentel change tous les runs autant qu'un
+    ajout — la protection est utile, elle manquait seulement de mandat écrit.
+
+    L'ordre attendu a été MIS À JOUR une fois, le 2026-08-19, pour `s2-worldscan` avant
+    `s1-prisme` (cf. `test_le_world_scan_precede_le_prisme_DELIBEREMENT`). Ce n'est pas
+    une assertion pliée à un changement : c'était le rouge assumé de `d8a5464`, laissé
+    ouvert quinze jours en attente d'une décision humaine explicite (GO Pierre).
+    """
     assert order_for_profile("full") == [
         "s0-contrat",
+        "s2-worldscan",   # AVANT le Prisme depuis d8a5464 — voir le test dédié ci-dessous
         "s1-prisme",
-        "s2-worldscan",
         "s3-decompo",
         "s4-archi",
         "s5-wiremap",
@@ -57,6 +68,42 @@ def test_full_profile_is_untouched_by_the_standard_addition():
     assert len(ORDER) == 13  # inchangé (régression du test_dispatch.py existant)
     assert "s9-build-standard" not in order_for_profile("full")
     assert "s10s-oracle-standard" not in order_for_profile("full")
+
+
+def test_le_world_scan_precede_le_prisme_DELIBEREMENT():
+    """POURQUOI `s2-worldscan` s'exécute AVANT `s1-prisme`, alors que leurs noms disent
+    l'inverse. Sans ce test, la prochaine lecture prendra l'ordre pour une coquille et
+    le « corrigera » — les noms d'étape sont le seul indice visible, et ils mentent.
+
+    DÉCISION : application de `FORGE_PRISME_V2` (ratifié Pierre 2026-08-03), livrée par
+    `d8a5464`, ordre ratifié le 2026-08-19.
+
+    CAUSE MESURÉE : le Prisme tournait en position 2, avec le seul `charter.yaml` pour
+    `mandatory_read` — structurellement aveugle au monde. Run témoin : **0 occurrence**
+    de menu / pause / audio / onboarding dans son artefact.
+
+    LE DÉFAUT NE PLANTAIT PAS, IL DÉGRADAIT EN SILENCE — c'est pourquoi il a survécu.
+    `_UPSTREAM_BY_STEP` n'est pas contraignant : `run_real.py` fait
+    `continue  # absent/illisible : omis (jamais bloquant à ce niveau)`. Dans l'ancien
+    ordre, l'artefact amont manquant était simplement OMIS du prompt du Prisme. Aucune
+    erreur, aucun rouge : seulement une production plus pauvre.
+
+    LES NOMS RESTENT `s1` / `s2`, VOLONTAIREMENT : ils vivent dans les contrats, les
+    `state.json` archivés et les traces Observer. Les renommer rendrait l'historique
+    illisible — on paie une numérotation trompeuse pour garder la traçabilité.
+    """
+    ordre = order_for_profile("full")
+    assert ordre.index("s2-worldscan") < ordre.index("s1-prisme"), \
+        "le Prisme redeviendrait aveugle au monde (0 occurrence mesurée avant d8a5464)"
+
+    # Le POURQUOI mécanique : le Prisme CONSOMME l'artefact du World Scan. C'est cette
+    # dépendance de données — pas les noms — qui impose l'ordre. Les deux copies de la
+    # table sont vérifiées : une seule mise à jour laisserait l'autre imposer l'inverse.
+    from forge.context_manifest import _UPSTREAM_BY_STEP as AMONT_MANIFESTE
+    from forge.run_real import _UPSTREAM_BY_STEP as AMONT_EXECUTEUR
+    for table in (AMONT_MANIFESTE, AMONT_EXECUTEUR):
+        assert "artifacts/s2-worldscan.txt" in table["s1-prisme"], \
+            "sans cette entrée, l'inversion ne sert plus à rien : le Prisme ne reçoit rien"
 
 
 def test_standard_profile_is_exactly_the_five_expected_steps():
