@@ -8,6 +8,64 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from forge import learning_hook  # noqa: E402 — après sys.path.insert, volontairement
 
+# `forge.dispatch` est importé ICI, volontairement, et pas seulement patché s'il est déjà
+# chargé : `audit._resolve_audit_path` lit `sys.modules.get("forge.dispatch")` À CHAQUE
+# APPEL. Un module chargé APRÈS la fixture réintroduirait son ré-export NON patché (le vrai
+# chemin), qui reprendrait la main sur la redirection. Sans effet sur
+# `test_hook_guard_stdlib_only` : ce test mesure `sys.modules` dans un SOUS-PROCESSUS frais.
+import forge.audit as _audit  # noqa: E402
+import forge.dispatch as _dispatch  # noqa: E402
+import forge.repair_dispatch as _repair_dispatch  # noqa: E402
+from forge.asset_producer import asset_dispatch as _asset_dispatch  # noqa: E402
+
+
+#: Modules AUTORISÉS à observer les artefacts de preuve RÉELS — l'isolation ci-dessous ne
+#: s'y applique pas. Un seul aujourd'hui, et c'est une condition de VALIDITÉ, pas une
+#: commodité : `test_evidence_isolation` prouve qu'un appel INJECTÉ n'atteint pas la
+#: production. Sous isolation, ce test resterait vert même si la transmission d'`audit_path`
+#: était retirée — la garde masquerait exactement la régression qu'il existe pour détecter.
+MODULES_OBSERVANT_LA_PREUVE_REELLE = frozenset({"test_evidence_isolation"})
+
+
+# --- garde générique : aucune écriture de test dans un artefact de preuve RÉEL (2026-08-19) ---
+# MESURE qui a motivé cette garde — suite COMPLÈTE, deltas d'octets sur `lab/forge_evidence/` :
+# `dispatch_audit.jsonl` +4524, `repair_results.jsonl` +8590. Tout le résidu vient de 9 modules
+# qui pilotent `run_real` DE BOUT EN BOUT : ils passent par le site d'appel INTERNE (dans
+# l'exécuteur), qui n'a aucune destination à transmettre — et qui NE DOIT PAS en avoir, car en
+# production ces écritures doivent atteindre le vrai fichier. Exposer `audit_path` plus haut
+# (2d418b3) ne pouvait donc pas les atteindre : c'est un CONFINEMENT, pas une guérison.
+#
+# PIÈGE PROUVÉ PAR EXÉCUTION — patcher `forge.audit.DEFAULT_AUDIT` SEUL est DÉFAIT :
+# `_resolve_audit_path` privilégie la surcharge `forge.dispatch` SI ELLE DIFFÈRE, et le
+# ré-export la fait différer. Les DEUX sont donc posées à la MÊME valeur : la branche
+# `override != DEFAULT_AUDIT` devient fausse et le résolveur retombe sur la valeur redirigée,
+# que `forge.dispatch` soit chargé ou non.
+#
+# Les deux `RESULTS_PATH` sont relues à chaque appel (`path = results_path or RESULTS_PATH`),
+# donc substituables de la même façon. `studio_link.DEFAULT_TELEMETRY` est VOLONTAIREMENT
+# absente : son delta mesuré est ZÉRO — l'ajouter « par symétrie » élargirait la garde sur une
+# hypothèse au lieu d'une mesure (test_evidence_isolation_fixture verrouille ce périmètre).
+@pytest.fixture(autouse=True)
+def _isolate_evidence_writes(request, tmp_path_factory, monkeypatch):
+    """Redirige les destinations de preuve par défaut vers un dossier jetable, pour tout
+    test de scripts/forge/tests/ — même ceux qui ignorent qu'ils écrivent.
+
+    `tmp_path_factory`, PAS `tmp_path` : la destination doit être un FRÈRE du répertoire de
+    travail du test, jamais un enfant. Première version mesurée — un `tmp_path/_isolated_
+    evidence` faisait rougir 4 tests de `test_standard_oracles` qui SCANNENT leur propre
+    `tmp_path` et exigent qu'il soit vide. Une garde qui pollue l'espace qu'elle protège
+    déplace le défaut au lieu de le contenir.
+    """
+    if request.module.__name__.rsplit(".", 1)[-1] in MODULES_OBSERVANT_LA_PREUVE_REELLE:
+        return
+    cible = tmp_path_factory.mktemp("preuve_isolee")
+    audit = cible / "dispatch_audit.jsonl"
+    monkeypatch.setattr(_audit, "DEFAULT_AUDIT", audit)
+    monkeypatch.setattr(_dispatch, "DEFAULT_AUDIT", audit)  # MÊME valeur, cf. piège ci-dessus
+    monkeypatch.setattr(_repair_dispatch, "RESULTS_PATH", cible / "repair_results.jsonl")
+    monkeypatch.setattr(_asset_dispatch, "RESULTS_PATH", cible / "asset_results.jsonl")
+
+
 
 # --- garde générique : aucune écriture durable sur learning_curve.jsonl (2026-07-26) ---
 # Régression détectée par vérification indépendante : driver.py (_record_learning_advisory)
