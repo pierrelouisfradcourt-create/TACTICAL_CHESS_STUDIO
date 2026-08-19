@@ -10,6 +10,15 @@ Ce que ces tests protègent :
 
     PYTHONPATH=scripts .venv312/Scripts/python.exe -m pytest \
         scripts/forge/tests/test_run_real_repair_wiring.py -v
+
+ISOLATION DE LA PREUVE (2026-08-19) — chaque appel redirige `audit_path` / `results_path`
+vers `tmp_path`. CE N'EST PAS DECORATIF : mesure avant correction, un simple `pytest` de
+CE fichier ajoutait 12 lignes a `lab/forge_evidence/dispatch_audit.jsonl` et 4 a
+`repair_results.jsonl` — les VRAIS artefacts de preuve. `announce()` etant emis AVANT le
+sous-processus, meme les cas qui rendent None ecrivaient. Cumul historique : 1048 des 3462
+lignes de `dispatch_audit.jsonl`, toutes sans `run_id` (un test n'en fournit pas), reparties
+s2-worldscan 696 / s4-archi 176 / s5-wiremap 176 — soit exactement les appels ci-dessous.
+Ne JAMAIS ajouter un appel sans ces deux destinations : `test_evidence_isolation.py` echoue.
 """
 import json
 import subprocess
@@ -38,7 +47,8 @@ def test_aucune_etape_post_build_ne_declenche_la_boucle(etape, tmp_path, monkeyp
     def jamais(*a, **k):
         raise AssertionError("aucun sous-processus ne doit être lancé pour cette étape")
     monkeypatch.setattr(subprocess, "run", jamais)
-    assert run_real.run_repair_step(etape, tmp_path) is None
+    assert run_real.run_repair_step(etape, tmp_path, audit_path=tmp_path / "audit.jsonl",
+                                results_path=tmp_path / "res.jsonl") is None
 
 
 def test_s4_et_s5_visent_l_oracle_de_CONTRAT_pas_celui_d_apres_build(tmp_path, monkeypatch):
@@ -49,8 +59,10 @@ def test_s4_et_s5_visent_l_oracle_de_CONTRAT_pas_celui_d_apres_build(tmp_path, m
         return subprocess.CompletedProcess(cmd, 0, stdout=json.dumps({"STATUS": "OK_SANS_REPARATION"}), stderr="")
 
     monkeypatch.setattr(subprocess, "run", faux_run)
-    run_real.run_repair_step("s4-archi", tmp_path)
-    run_real.run_repair_step("s5-wiremap", tmp_path)
+    run_real.run_repair_step("s4-archi", tmp_path, audit_path=tmp_path / "audit.jsonl",
+                                results_path=tmp_path / "res.jsonl")
+    run_real.run_repair_step("s5-wiremap", tmp_path, audit_path=tmp_path / "audit.jsonl",
+                                results_path=tmp_path / "res.jsonl")
     assert "s4-archi-contract" in vues[0]
     assert "s5-wiremap-contract" in vues[1]
 
@@ -61,26 +73,30 @@ def test_node_absent_rend_None_sans_lever(tmp_path, monkeypatch):
     def boom(*a, **k):
         raise FileNotFoundError("node introuvable")
     monkeypatch.setattr(subprocess, "run", boom)
-    assert run_real.run_repair_step("s2-worldscan", tmp_path) is None
+    assert run_real.run_repair_step("s2-worldscan", tmp_path, audit_path=tmp_path / "audit.jsonl",
+                                results_path=tmp_path / "res.jsonl") is None
 
 
 def test_timeout_rend_None_sans_lever(tmp_path, monkeypatch):
     def boom(*a, **k):
         raise subprocess.TimeoutExpired(cmd="node", timeout=1)
     monkeypatch.setattr(subprocess, "run", boom)
-    assert run_real.run_repair_step("s2-worldscan", tmp_path) is None
+    assert run_real.run_repair_step("s2-worldscan", tmp_path, audit_path=tmp_path / "audit.jsonl",
+                                results_path=tmp_path / "res.jsonl") is None
 
 
 def test_sortie_illisible_rend_None_sans_lever(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", lambda cmd, **k: subprocess.CompletedProcess(
         cmd, 1, stdout="pas du json", stderr=""))
-    assert run_real.run_repair_step("s2-worldscan", tmp_path) is None
+    assert run_real.run_repair_step("s2-worldscan", tmp_path, audit_path=tmp_path / "audit.jsonl",
+                                results_path=tmp_path / "res.jsonl") is None
 
 
 def test_sortie_json_non_dict_rend_None(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", lambda cmd, **k: subprocess.CompletedProcess(
         cmd, 0, stdout="[1, 2, 3]", stderr=""))
-    assert run_real.run_repair_step("s2-worldscan", tmp_path) is None
+    assert run_real.run_repair_step("s2-worldscan", tmp_path, audit_path=tmp_path / "audit.jsonl",
+                                results_path=tmp_path / "res.jsonl") is None
 
 
 def test_un_echec_de_reparation_reste_une_mesure_pas_une_exception(tmp_path, monkeypatch):
@@ -89,7 +105,8 @@ def test_un_echec_de_reparation_reste_une_mesure_pas_une_exception(tmp_path, mon
               "TOKENS": 40, "FIELDS_CHANGED": [], "REGRESSION": []}
     monkeypatch.setattr(subprocess, "run", lambda cmd, **k: subprocess.CompletedProcess(
         cmd, 1, stdout=json.dumps(mesure), stderr=""))
-    r = run_real.run_repair_step("s2-worldscan", tmp_path)
+    r = run_real.run_repair_step("s2-worldscan", tmp_path, audit_path=tmp_path / "audit.jsonl",
+                                results_path=tmp_path / "res.jsonl")
     assert r["STATUS"] == "ESCALADE"
     assert r["PROBLEMS_AFTER"] == 2
 
@@ -101,14 +118,16 @@ def test_forge_repair_0_desactive_la_boucle(tmp_path, monkeypatch):
         raise AssertionError("la boucle doit être désactivée")
     monkeypatch.setenv("FORGE_REPAIR", "0")
     monkeypatch.setattr(subprocess, "run", jamais)
-    assert run_real.run_repair_step("s2-worldscan", tmp_path) is None
+    assert run_real.run_repair_step("s2-worldscan", tmp_path, audit_path=tmp_path / "audit.jsonl",
+                                results_path=tmp_path / "res.jsonl") is None
 
 
 def test_active_par_defaut(tmp_path, monkeypatch):
     monkeypatch.delenv("FORGE_REPAIR", raising=False)
     monkeypatch.setattr(subprocess, "run", lambda cmd, **k: subprocess.CompletedProcess(
         cmd, 0, stdout=json.dumps({"STATUS": "OK_SANS_REPARATION"}), stderr=""))
-    assert run_real.run_repair_step("s2-worldscan", tmp_path) is not None
+    assert run_real.run_repair_step("s2-worldscan", tmp_path, audit_path=tmp_path / "audit.jsonl",
+                                results_path=tmp_path / "res.jsonl") is not None
 
 
 # --- le script existe et déclare bien les 5 étapes ---------------------------------

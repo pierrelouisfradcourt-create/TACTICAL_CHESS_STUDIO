@@ -199,7 +199,13 @@ def test_le_dispatch_bloque_avant_blender_si_la_spec_viole(tmp_path, lecons_jeta
     dest = tmp_path / "out"
     dest.mkdir()
 
-    code, enreg = AD.dispatch(spec, dest, run_id="test-bloque", propose=False)
+    # ISOLATION DE LA PREUVE (2026-08-19) : sans ces destinations, ce seul test
+    # ajoutait 2 lignes a `lab/forge_evidence/dispatch_audit.jsonl` et 1 a
+    # `asset_results.jsonl` — les VRAIS artefacts. `dispatch` compte SIX points
+    # d emission ; un oubli sur un seul suffit a contaminer.
+    code, enreg = AD.dispatch(spec, dest, run_id="test-bloque", propose=False,
+                              audit_path=tmp_path / "audit.jsonl",
+                              results_path=tmp_path / "res.jsonl")
     assert code == 1
     assert enreg["reason"] == "SPEC_VIOLATES_BATCH_CONSTRAINT"
     assert enreg["produced"] is False

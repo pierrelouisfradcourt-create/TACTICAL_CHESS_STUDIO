@@ -321,8 +321,16 @@ def check_batch_constraints(spec: dict) -> str:
 # --------------------------------------------------------------------- chaine
 
 def dispatch(spec_path: str | Path, dest: str | Path, *, run_id: str,
-             propose: bool = True) -> tuple[int, dict[str, Any]]:
-    """Task -> Dispatcher -> Worker -> Blender -> Oracle -> Proposal. Chaine reelle."""
+             propose: bool = True, audit_path: Path | None = None,
+             results_path: Path | None = None) -> tuple[int, dict[str, Any]]:
+    """Task -> Dispatcher -> Worker -> Blender -> Oracle -> Proposal. Chaine reelle.
+
+    `audit_path` / `results_path` — ISOLATION DE LA PREUVE (2026-08-19). `announce` et
+    `record` acceptaient deja ces destinations ; `dispatch` ne les exposait pas, donc les
+    SIX points d'emission retombaient sur `forge.audit.DEFAULT_AUDIT` — le vrai fichier.
+    Mesure : `pytest test_asset_loop.py` ajoutait 2 lignes a `dispatch_audit.jsonl` et 1 a
+    `asset_results.jsonl`. `None` conserve le comportement de production.
+    """
     sys.path.insert(0, str(REPO_ROOT / "scripts"))
     from forge.asset_geometry import oracle as O
 
@@ -335,22 +343,22 @@ def dispatch(spec_path: str | Path, dest: str | Path, *, run_id: str,
     # gate, `analyze_batch` n'ecrirait que des fichiers que personne ne lit.
     viol = check_batch_constraints(spec)
     if viol:
-        announce(run_id)
+        announce(run_id, audit_path=audit_path)
         enreg = {"run_id": run_id, "etape": ETAPE, "runtime_id": RUNTIME_ID,
                  "status": "BLOCKED", "reason": "SPEC_VIOLATES_BATCH_CONSTRAINT",
                  "detail": viol, "asset_id": spec.get("asset_id", ""),
                  "archetype": spec.get("archetype", ""),
                  "catalog_written": False, "produced": False, "ts": time.time()}
-        record(run_id, enreg)
+        record(run_id, enreg, audit_path=audit_path, results_path=results_path)
         return 1, enreg
 
     dispo, detail = producer_available()
-    announce(run_id)
+    announce(run_id, audit_path=audit_path)
     if not dispo:
         enreg = {"run_id": run_id, "etape": ETAPE, "runtime_id": RUNTIME_ID,
                  "status": "BLOCKED", "reason": "BLENDER_EXECUTOR_UNAVAILABLE",
                  "detail": detail, "catalog_written": False, "ts": time.time()}
-        record(run_id, enreg)
+        record(run_id, enreg, audit_path=audit_path, results_path=results_path)
         return 3, enreg
 
     ok, out = run_producer(spec_path, dest)
@@ -359,7 +367,7 @@ def dispatch(spec_path: str | Path, dest: str | Path, *, run_id: str,
         enreg = {"run_id": run_id, "etape": ETAPE, "runtime_id": RUNTIME_ID,
                  "status": "FAIL", "reason": "PRODUCER_FAILED",
                  "detail": out[-400:], "catalog_written": False, "ts": time.time()}
-        record(run_id, enreg)
+        record(run_id, enreg, audit_path=audit_path, results_path=results_path)
         return 3, enreg
 
     # L'oracle est REJOUE par le dispatcher : le producteur ne fournit jamais son verdict.
@@ -373,7 +381,7 @@ def dispatch(spec_path: str | Path, dest: str | Path, *, run_id: str,
 
     enreg = build_result(run_id, spec=spec, asset_path=asset_path, report=report,
                          proposal_id=proposal_id, input_hash=input_hash, producer_out=out)
-    record(run_id, enreg)
+    record(run_id, enreg, audit_path=audit_path, results_path=results_path)
     return {"OK": 0, "BLOCKED": 1, "FAIL": 2}.get(report.verdict, 2), enreg
 
 

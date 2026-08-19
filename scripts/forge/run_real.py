@@ -1115,7 +1115,9 @@ _REPAIR_TIMEOUT_S = 180.0
 
 
 def run_repair_step(etape: str, run_dir: Path, timeout_s: float = _REPAIR_TIMEOUT_S,
-                    run_id: str = "", attempt: int = 0) -> dict | None:
+                    run_id: str = "", attempt: int = 0,
+                    audit_path: Path | None = None,
+                    results_path: Path | None = None) -> dict | None:
     """Lance oracle -> réparation ciblée -> oracle sur l'artefact amont d'une étape.
 
     Retourne le bloc de mesure (dict) ou None si l'étape n'a pas d'oracle amont / si
@@ -1129,6 +1131,15 @@ def run_repair_step(etape: str, run_dir: Path, timeout_s: float = _REPAIR_TIMEOU
     Ne lève JAMAIS : réparateur injoignable, node absent, sortie illisible => None, et
     l'étape se comporte exactement comme avant le branchement. Un mécanisme
     d'amélioration qui peut faire tomber la chaîne qu'il améliore est un mauvais marché.
+
+    `audit_path` / `results_path` — ISOLATION DE LA PREUVE (2026-08-19). `repair_dispatch`
+    accepte ces destinations depuis toujours ; cette fonction ne les exposait pas, donc
+    tout appelant retombait sur `forge.audit.DEFAULT_AUDIT`, c'est-à-dire le VRAI fichier.
+    Conséquence MESURÉE : 1048 des 3462 lignes de `dispatch_audit.jsonl` viennent de la
+    suite de tests, toutes sans `run_id` (un test n'en fournit pas), toutes en
+    `capability_role="repair_runtime"`, réparties s2-worldscan 696 / s4-archi 176 /
+    s5-wiremap 176 — soit exactement les appels de `test_run_real_repair_wiring.py`.
+    `None` conserve le comportement de production ; seuls les tests redirigent.
     """
     cible = _REPAIR_STEP_BY_STEP.get(etape)
     if cible is None:
@@ -1144,7 +1155,7 @@ def run_repair_step(etape: str, run_dir: Path, timeout_s: float = _REPAIR_TIMEOU
     # réparation qu'elle observe.
     artefact_path = run_dir / _ARTIFACT_BY_STEP.get(etape, "")
     input_hash = repair_dispatch.file_sha256(artefact_path)
-    repair_dispatch.announce(etape, run_id, attempt=attempt)
+    repair_dispatch.announce(etape, run_id, attempt=attempt, audit_path=audit_path)
     try:
         proc = subprocess.run(
             ["node", str(_REPAIR_SCRIPT), cible, str(run_dir)],
@@ -1176,6 +1187,7 @@ def run_repair_step(etape: str, run_dir: Path, timeout_s: float = _REPAIR_TIMEOU
         etape, run_id, mesure, attempt=attempt,
         input_hash=input_hash, output_hash=repair_dispatch.file_sha256(artefact_path),
         evidence_ref=repair_dispatch.repo_relative(run_dir),
+        audit_path=audit_path, results_path=results_path,
     )
     if trace is not None:
         mesure["TRACE"] = {"runtime_id": trace["runtime_id"],
