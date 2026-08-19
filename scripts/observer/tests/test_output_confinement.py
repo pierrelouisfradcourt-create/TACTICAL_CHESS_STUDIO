@@ -26,11 +26,32 @@ du run. Ce n'est pas un defaut theorique d'usage manuel.
 PERIMETRE STRICT — ce que ce lot ne fait PAS :
   · il ne confine PAS `--out`. Une destination donnee EXPLICITEMENT est une declaration de
     l'operateur, pas une surprise ; `selftest.py:14` s'en sert delibrement hors depot.
-  · il ne FERME PAS F1. Les six repertoires fantomes (`jeu`, `nr`, `p`, `proj`, `rouge`,
-    `vert`) sont des noms simples : ils passent ce controle et DOIVENT continuer a le passer.
-    Les distinguer d'une sonde legitime (`probe2`, `story_probe`) demande la semantique de
-    `--project`, qui est BLOCKED (T4). Deux tests ci-dessous verrouillent cette frontiere pour
-    qu'aucune lecture future ne croie T10 plus large qu'il n'est.
+  · il ne FERME PAS F1. Les noms non-projets sont des noms de repertoire ordinaires : ils
+    passent ce controle et DOIVENT continuer a le passer. Les distinguer d'une sonde legitime
+    (`story_probe`, `gmws_probe`) demande la semantique de `--project`, qui est BLOCKED (T4).
+    Deux tests ci-dessous verrouillent cette frontiere pour qu'aucune lecture future ne croie
+    T10 plus large qu'il n'est.
+
+CORRIGE LE 2026-08-19 — ce fichier affirmait « six repertoires fantomes (`jeu`, `nr`, `p`,
+`proj`, `rouge`, `vert`) », et donnait `probe2` pour une sonde legitime. MESURE :
+
+    discriminant       adapters.forge_run.events == 0     (aucune liste blanche)
+    isole              7 entrees sur 28 ; les 21 autres ont toutes >= 3
+
+    jeu nr p rouge vert   forge_run=0, pas de run_dir  -> parasites, CINQ
+    probe2                forge_run=0, pas de run_dir  -> parasite, jamais repere
+    repair_runtime_v1     forge_run=0, run_dir PRESENT -> cas limite (pas de state.json)
+    proj                  1328 evenements REELS        -> espace de noms de FIXTURES
+
+`run_id = "proj-1"` est le 2e identifiant le plus frequent de tout le flux de preuve (1320
+enregistrements dans `lab/forge_evidence/*.jsonl`). `_belongs_to_project` l'a correctement
+rattache par prefixe : l'Observer a fait son travail, c'est le FLUX qui melange fixtures et
+runs reels. L'erreur d'origine jugeait sur la FORME DU NOM — exactement le raisonnement que
+ce fichier pretend interdire.
+
+La liste parametree ci-dessous est INCHANGEE : `proj` passe le controle de confinement et doit
+continuer a le passer, au meme titre que les cinq parasites. Seule sa JUSTIFICATION etait
+fausse. Y ajouter `probe2` serait un changement de comportement, distinct de cette correction.
 """
 from __future__ import annotations
 
@@ -118,17 +139,21 @@ def test_le_message_de_refus_NOMME_le_chemin_et_la_racine(tmp_path):
 # --- la frontiere avec T4/F1, verrouillee -------------------------------------------------
 
 
-@pytest.mark.parametrize("fantome", ["jeu", "nr", "p", "proj", "rouge", "vert"])
-def test_les_SIX_FANTOMES_passent_encore_ce_controle(tmp_path, fantome):
+@pytest.mark.parametrize("non_projet", ["jeu", "nr", "p", "proj", "rouge", "vert"])
+def test_les_NOMS_NON_PROJETS_passent_encore_ce_controle(tmp_path, non_projet):
     """T10 ne ferme PAS F1, et ce test existe pour l'empecher de le PRETENDRE.
 
-    Ces six noms sont des fragments d'arguments CLI qui ont produit de l'etat parasite
-    (1328 evenements pour `proj`). Ils sont neanmoins des noms de repertoire parfaitement
-    confines. Les refuser ici demanderait une liste blanche — mesure : les deux sources
-    candidates rejettent 21 des 28 projets reels, dont l'auto-test de l'Observer. C'est
-    BLOCKED (T4), et ce lot ne doit pas le contourner par un durcissement opportuniste.
+    Ces six noms ne designent aucun projet, mais ils ne sont PAS de meme nature — cinq sont
+    des fragments d'arguments CLI, `proj` est un espace de noms de fixtures portant 1328
+    evenements REELS (voir la docstring du module). C'est precisement ce qui fait la valeur
+    du test : le confinement ne peut pas, et ne doit pas, les distinguer. Tous sont des noms
+    de repertoire parfaitement confines.
+
+    Les refuser ici demanderait une liste blanche — mesure : les deux sources candidates
+    rejettent 21 des 28 projets reels, dont l'auto-test de l'Observer. C'est BLOCKED (T4), et
+    ce lot ne doit pas le contourner par un durcissement opportuniste.
     """
-    resolve_output_dir(_racine(tmp_path), fantome)  # ne leve pas
+    resolve_output_dir(_racine(tmp_path), non_projet)  # ne leve pas
 
 
 @pytest.mark.parametrize("legitime", ["_selftest", "driver_smoke_v6_20260808", "pacman-v6",
