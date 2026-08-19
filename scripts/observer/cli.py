@@ -31,8 +31,10 @@ from observer.views import build_views  # noqa: E402
 from observer.sources import (  # noqa: E402
     BlindnessViolation,
     ObserverContext,
+    OutputScopeViolation,
     default_repo_root,
     default_transcripts_root,
+    resolve_output_dir,
 )
 
 LOG = logging.getLogger("observer.cli")
@@ -206,6 +208,17 @@ def main(argv: list[str] | None = None) -> int:
         format="%(levelname)s %(name)s: %(message)s",
     )
 
+    # Destination resolue AVANT toute reconstruction. Le controle vivait implicitement a
+    # la fin, au moment du `mkdir` : un nom invalide faisait donc l'integralite du travail
+    # puis ecrivait au mauvais endroit. Refuser ici coute une comparaison de chemin et rend
+    # le refus lisible. `--out` donne explicitement reste libre : c'est une destination
+    # DECLAREE par l'operateur, pas un nom qui devient silencieusement un chemin.
+    try:
+        out_dir = args.out or resolve_output_dir(args.repo, args.project)
+    except OutputScopeViolation as exc:
+        LOG.error("%s", exc)
+        return 2
+
     ctx = ObserverContext.build(args.repo, args.project, args.transcripts)
     events, adapters = collect_all(ctx)
     result = reconstruct(events, args.project, ctx.read_paths)
@@ -244,7 +257,6 @@ def main(argv: list[str] | None = None) -> int:
     # observer_run.json, jamais un fichier separe.
     result["session_transition"] = build_session_transition(result, event_dicts, ctx)
 
-    out_dir = args.out or (args.repo / "lab" / "reports" / "observer" / args.project)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     json_path = out_dir / "observer_run.json"

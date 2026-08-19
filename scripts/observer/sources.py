@@ -94,6 +94,79 @@ class BlindnessViolation(RuntimeError):
     """
 
 
+class OutputScopeViolation(RuntimeError):
+    """Levee quand le nom de projet ferait ECRIRE hors du repertoire d'observation.
+
+    Symetrique de `BlindnessViolation` : meme invariant de confinement, applique a
+    l'autre sens. L'Observer gardait ce qu'il LIT (`ObserverContext._check`) sans
+    garder ce qu'il ECRIT, alors que `cli.py` promet en docstring « Il n'ecrit
+    jamais ailleurs ». Le code contredisait sa propre documentation.
+    """
+
+
+# `lab/reports/observer/` — seul endroit ou l'Observer depose son rapport quand la
+# destination n'est pas donnee explicitement. Tuple plutot que chaine : le separateur
+# ne s'ecrit alors nulle part, et la valeur reste la meme sous Windows et POSIX.
+_OUTPUT_SUBPATH = ("lab", "reports", "observer")
+
+
+def observer_output_root(repo_root: Path) -> Path:
+    """Racine d'ecriture de l'Observer, resolue."""
+    return Path(repo_root).resolve().joinpath(*_OUTPUT_SUBPATH)
+
+
+def resolve_output_dir(repo_root: Path, project: str) -> Path:
+    """Chemin de sortie pour `project`, GARANTI sous la racine d'observation.
+
+    RESOUT ET JUGE — n'ecrit rien, ne cree rien. La decision d'ecrire appartient a
+    l'appelant ; melanger les deux ferait qu'un nom refuse laisserait quand meme une
+    trace sur le disque.
+
+    Le controle porte sur le chemin RESOLU, jamais sur la forme du texte : une liste
+    de motifs interdits (`..`, `/`, `\\`) se contourne, une comparaison apres
+    resolution ne se contourne pas. C'est exactement la methode de `_check`.
+
+    Ce controle ne connait AUCUN nom de projet valide et ne doit jamais en connaitre.
+    Les 28 projets reellement observes couvrent quatre natures (jeu, campagne, sonde,
+    auto-test) qu'aucune source canonique du depot ne recouvre — decider laquelle fait
+    foi est une question ouverte, distincte de celle-ci.
+    """
+    root = observer_output_root(repo_root)
+    nom = str(project)
+    if nom and not nom.strip():
+        # MESURE : sous Windows, `"   "` ne se replie PAS sur la racine — `resolve()` le
+        # conserve tel quel et l'Observer creerait un repertoire nomme par trois espaces,
+        # invisible a la lecture et impraticable en ligne de commande. Ce n'est donc pas
+        # un cas de confinement (il EST confine), mais un nom degenere : regle distincte,
+        # enoncee separement plutot que noyee dans le controle de racine.
+        raise OutputScopeViolation(
+            f"nom de projet refuse: uniquement des blancs, ce n'est pas un nom\n"
+            f"  projet   : {nom!r}\n"
+            f"  racine   : {root}"
+        )
+    # Un absolu a DROITE d'un `/` annule tout ce qui precede : `root / "C:/ailleurs"`
+    # vaut `C:/ailleurs`. Sans resolution prealable, la base entiere disparaitrait.
+    candidat = (root / nom).resolve()
+    try:
+        relatif = candidat.relative_to(root)
+    except ValueError:
+        raise OutputScopeViolation(
+            f"nom de projet refuse: ecrirait hors du repertoire d'observation\n"
+            f"  projet   : {nom!r}\n"
+            f"  resolu   : {candidat}\n"
+            f"  racine   : {root}"
+        ) from None
+    if not relatif.parts:
+        # Vide, `.`, ou blancs : resolvent vers la racine ELLE-MEME. Le rapport serait
+        # ecrit a la racine commune de tous les projets, en collision avec chacun.
+        raise OutputScopeViolation(
+            f"nom de projet refuse: designe la racine d'observation elle-meme\n"
+            f"  projet   : {nom!r}\n"
+            f"  racine   : {root}"
+        )
+    return candidat
+
+
 @dataclass
 class ObserverContext:
     """Racines et helpers de lecture pour une reconstruction de projet."""
