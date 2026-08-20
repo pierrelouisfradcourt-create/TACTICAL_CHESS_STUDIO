@@ -15,7 +15,7 @@ C'est normal, ce n'est pas une perte.
 
 ## Session 2026-08-19/20 — publication, puis reparation du snapshot
 ```
-publish local    9a2c485   3 commits orphelins — NON POUSSE (origin/publish : 7b06eba)
+publish local    9a2c485   3 commits orphelins — POUSSE (origin/publish : 9a2c485)
 origin/master    bcde5cb   INCHANGE — `master` ne sera PAS pousse (voir plus bas)
 master local     d9b8a5b   135 commits, non pousses, archive intacte
 ```
