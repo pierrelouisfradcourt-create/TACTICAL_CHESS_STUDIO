@@ -128,7 +128,10 @@ def recu_a_chemin_relatif(tmp_path):
     signe = emit_mutation_receipt(
         "sonde-cablage", jeu, ["main.py"],
         {"total": 2, "killed": 2, "survivors": []}, evidence_dir=jeu / "evidence")
-    relatif = Path(signe.receipt.evidence_path).relative_to(REPO_ROOT).as_posix()
+    # ROBUSTE AUX DEUX FORMES : depuis le temps 2 le producteur ecrit deja du relatif ;
+    # avant, il ecrivait de l absolu. La fixture veut un chemin RELATIF, quelle que soit
+    # la forme rendue — l ancrer sur une seule l aurait cassee au lot suivant.
+    relatif = canonical_evidence_path(signe.receipt.evidence_path)
     recu = replace(signe.receipt, evidence_path=relatif)
     yield recu, sign_receipt(recu), jeu
     for f in sorted(jeu.rglob("*"), reverse=True):
@@ -180,3 +183,69 @@ def test_CABLAGE_AGREGAT_la_provenance_resout_depuis_un_autre_repertoire(evidenc
     assert not rompues, (
         "l'agregat juge la provenance rompue depuis un autre repertoire : "
         f"le controle ne passe pas par le resolveur -> {rompues}")
+
+# --- TEMPS 2 : la forme STOCKEE devient CANONIQUE -----------------------------------------
+#
+# Le temps 1 a rendu le LECTEUR capable des deux formes. Ces tests portent sur ce que le
+# PRODUCTEUR ecrit desormais. Les 63 recus existants ne sont PAS reecrits : leur forme
+# absolue reste lisible, et c est ce qui rend ce lot sur.
+from forge.verdict import canonical_evidence_path  # noqa: E402
+
+
+def test_CANONIQUE_un_chemin_sous_la_racine_devient_RELATIF(evidence):
+    can = canonical_evidence_path(evidence)
+    assert not Path(can).is_absolute(), "la forme stockee reste absolue"
+    assert can == _relatif(evidence)
+    assert chr(92) not in can, "separateurs Windows : la forme stockee doit etre POSIX"
+
+
+def test_CANONIQUE_un_chemin_HORS_du_depot_est_rendu_TEL_QUEL(tmp_path):
+    """Inventer une forme relative pour un chemin hors depot masquerait qu il est ailleurs."""
+    dehors = tmp_path / "ailleurs.json"
+    assert canonical_evidence_path(dehors) == str(dehors)
+
+
+def test_CANONIQUE_et_RESOLVE_sont_SYMETRIQUES(evidence):
+    """L invariant du couple : ce qu on stocke doit se relire sur le MEME fichier."""
+    assert resolve_evidence_path(canonical_evidence_path(evidence)) == evidence.resolve()
+
+
+def test_CABLAGE_le_PRODUCTEUR_REEL_ecrit_desormais_du_RELATIF():
+    """Preuve de CABLAGE : ce n est pas la fonction qu on teste, c est ce que le vrai
+    emetteur de recu inscrit dans `evidence_path`."""
+    jeu = REPO_ROOT / "lab" / "reports" / "_sonde_t2"
+    (jeu / "evidence").mkdir(parents=True, exist_ok=True)
+    (jeu / "main.py").write_bytes(b"x = 1\n")
+    (jeu / TRIAGE_FILENAME).write_bytes(b"{}")
+    try:
+        signe = emit_mutation_receipt(
+            "sonde-t2", jeu, ["main.py"],
+            {"total": 2, "killed": 2, "survivors": []}, evidence_dir=jeu / "evidence")
+        stocke = signe.receipt.evidence_path
+        assert not Path(stocke).is_absolute(), (
+            f"le producteur ecrit encore un chemin absolu : {stocke}")
+        assert stocke.startswith("lab/reports/_sonde_t2/")
+        # et le sceau porte bien le fichier DESIGNE
+        assert sha256_evidence(stocke) == signe.receipt.evidence_sha256
+    finally:
+        for f in sorted(jeu.rglob("*"), reverse=True):
+            f.unlink() if f.is_file() else f.rmdir()
+        jeu.rmdir()
+
+def test_CABLAGE_make_signed_receipt_ecrit_lui_aussi_du_RELATIF(evidence):
+    """DERNIER producteur non garde, trouve en falsifiant — pas en relisant.
+
+    `test_CABLAGE_le_PRODUCTEUR_REEL...` passe par `mutation_proof` : remettre les
+    producteurs de `verdict.py` a `str()` laissait la suite VERTE. Et `test_provenance.py`
+    ne peut pas les attraper non plus : il ecrit dans `tmp_path`, donc HORS du depot, ou la
+    forme canonique EST le chemin absolu.
+
+    Il faut donc une evidence SOUS LA RACINE pour que la difference existe.
+    """
+    sr = make_signed_receipt("code", "sonde-vp", "OK", {"returncode": 0},
+                             evidence_path=str(evidence))
+    assert not Path(sr.receipt.evidence_path).is_absolute(), (
+        f"`make_signed_receipt` ecrit encore un chemin absolu : {sr.receipt.evidence_path}")
+    assert sr.receipt.evidence_path == _relatif(evidence)
+    # le sceau doit toujours designer le bon fichier
+    assert sr.receipt.evidence_sha256 == sha256_file(evidence)

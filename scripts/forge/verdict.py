@@ -62,7 +62,7 @@ def build_verdict(project: str, passed: bool, returncode: int, evidence_path: Pa
         evidence_verdict=EVIDENCE_VERDICT,
         claim_verdict=CLAIM_VERDICT,
         returncode=returncode,
-        evidence_path=str(evidence_path),
+        evidence_path=canonical_evidence_path(evidence_path),
     )
 
 
@@ -184,7 +184,7 @@ def make_signed_receipt(
     receipt = OracleReceipt(
         oracle_id=oracle_id, run_id=run_id, status=status,
         evidence_sha256=evidence_sha256, detail=dict(detail or {}), ts=ts,
-        evidence_path=str(evidence_path),
+        evidence_path=canonical_evidence_path(evidence_path),
     )
     return SignedReceipt(receipt=receipt, signature=sign_receipt(receipt, key_file))
 
@@ -212,6 +212,31 @@ def resolve_evidence_path(chemin: Path | str) -> Path:
     """
     p = Path(chemin)
     return p if p.is_absolute() else (REPO_ROOT / p)
+
+
+def canonical_evidence_path(chemin: Path | str) -> str:
+    """Forme CANONIQUE d'un chemin d'evidence : RELATIF a la racine du depot.
+
+    Symetrique de `resolve_evidence_path`. Un chemin absolu sous la racine est ramene a sa
+    forme relative POSIX ; un chemin HORS du depot est rendu tel quel — il n'a pas de forme
+    relative qui ait un sens, et l'inventer masquerait le fait qu'il est ailleurs.
+
+    POURQUOI STOCKER DU RELATIF. Un chemin absolu porte le nom de compte du poste (63 des 90
+    recus mesures), n'a aucun sens sur une autre machine, et contredit la regle du depot
+    (« chemins relatifs au repo root, jamais absolus »). Le sceau, lui, ne change pas : il
+    porte les OCTETS du fichier, pas son chemin.
+
+    ANCIENS RECUS INTACTS : ce lot ne reecrit AUCUN recu existant. Ils gardent leur forme
+    absolue, et `resolve_evidence_path` (temps 1) continue de la lire. C'est precisement ce
+    qui rend ce changement sur.
+    """
+    if not chemin:
+        return ""
+    p = Path(chemin)
+    try:
+        return p.resolve().relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return str(chemin)
 
 
 def sha256_evidence(chemin: Path | str) -> str:
