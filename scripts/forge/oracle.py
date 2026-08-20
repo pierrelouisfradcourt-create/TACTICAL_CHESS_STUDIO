@@ -127,7 +127,9 @@ def run_oracle(
             timeout=timeout,
         )
     except subprocess.TimeoutExpired as exc:
-        with open(evidence_path, "w", encoding="utf-8") as fh:
+        # `newline=""` : voir `mutation_proof` — le CRLF de Windows casserait le sceau
+        # `evidence_sha256` des le commit, sans qu'aucune donnee soit alteree.
+        with open(evidence_path, "w", encoding="utf-8", newline="") as fh:
             fh.write(f"$ {' '.join(spec.command)}\n(cwd={spec.cwd})\n\n")
             fh.write(f"--- TIMEOUT after {timeout}s ---\n")
             fh.write("--- stdout (partial) ---\n")
@@ -146,7 +148,7 @@ def run_oracle(
             # perdrait la seule information exploitable d'un run interrompu.
             summary=extract_summary(exc.stdout),
         )
-    with open(evidence_path, "w", encoding="utf-8") as fh:
+    with open(evidence_path, "w", encoding="utf-8", newline="") as fh:
         fh.write(f"$ {' '.join(spec.command)}\n(cwd={spec.cwd})\n\n")
         fh.write("--- stdout ---\n")
         fh.write(completed.stdout)

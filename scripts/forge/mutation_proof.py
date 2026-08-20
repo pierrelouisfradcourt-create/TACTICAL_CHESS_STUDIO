@@ -285,11 +285,14 @@ def emit_mutation_receipt(
         evidence_dir = Path(evidence_dir)
         evidence_dir.mkdir(parents=True, exist_ok=True)
         evidence = evidence_dir / f"mutation_{run_id}.json"
+        # `newline=""` : sans lui, le mode TEXTE ecrit du CRLF sous Windows, que git
+        # renormalise en LF au commit — et `evidence_sha256` hache les OCTETS. Le sceau
+        # serait donc INVALIDE des le commit, sans qu'aucune donnee soit alteree.
         evidence.write_text(
             json.dumps({"mutation_result": mutation_result, "gate": gate,
                         "detail": detail},
                        ensure_ascii=False, sort_keys=True, indent=1),
-            encoding="utf-8",
+            encoding="utf-8", newline="",
         )
         evidence_path = str(evidence)
     logger.info("reçu mutation %s: %s (%s/%s tués)", run_id, status,
@@ -891,10 +894,13 @@ def emit_descriptor_mutation_receipt(
         evidence_dir = Path(evidence_dir)
         evidence_dir.mkdir(parents=True, exist_ok=True)
         raw_path = evidence_dir / f"mutation_{run_id}.raw.json"
+        # `newline=""` : sans lui, le mode TEXTE ecrit du CRLF sous Windows, que git
+        # renormalise en LF au commit — et `evidence_sha256` hache les OCTETS. Le sceau
+        # serait donc INVALIDE des le commit, sans qu'aucune donnee soit alteree.
         raw_path.write_text(
             json.dumps({"mutation_execution": mutation_execution, "forme": forme,
                        "gate": gate}, ensure_ascii=False, sort_keys=True, indent=1),
-            encoding="utf-8",
+            encoding="utf-8", newline="",
         )
         raw_sha = sha256_file(raw_path)
         proof_chain["resultat_brut_sha256"] = raw_sha
