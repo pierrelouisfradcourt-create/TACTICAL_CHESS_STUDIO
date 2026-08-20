@@ -17,7 +17,7 @@ C'est normal, ce n'est pas une perte.
 ```
 origin/publish   7b06eba   POUSSE — 2 commits, orphelin (0 ancetre), ~5251 fichiers
 origin/master    bcde5cb   INCHANGE
-master local     7d34070   124 commits, TOUJOURS NON POUSSES, archive intacte
+master local     09210af   128 commits, TOUJOURS NON POUSSES, archive intacte
 ```
 
 ### Ce qui a été publié, et pourquoi ainsi
@@ -46,10 +46,8 @@ octet pour octet identiques**.
 ### Conservé délibérément, avec justification
 - `knowledge_base/proofs/grid_nav_probe_verdict.json` — **preuve signée** (`hmac` +
   `mutation.signature`) : le rédiger détruirait sa vérifiabilité.
-- clé HMAC par défaut `"studio-dev"` — **valeur nécessaire au code**, documentée non
-  secrète, surchargeable, déjà consignée **RT-192-3 (MEDIUM)**. L'effacer masquerait une
-  faiblesse connue.
-- email dans `.github/CODEOWNERS` — référence fonctionnelle au propriétaire.
+- clé HMAC par défaut — **nécessaire au code**, non secrète, surchargeable, déjà consignée
+  **RT-192-3 (MEDIUM)** : l'effacer masquerait une faiblesse connue. Idem email CODEOWNERS.
 
 ### Le piège central, rencontré trois fois
 1. Nettoyer le sommet ne nettoie pas l'historique.
@@ -63,12 +61,21 @@ octet pour octet identiques**.
    Corrigé par `7b06eba`. Le préflight mesurait l'**exposition** de l'index, jamais son
    **exécutabilité** — trouvé seulement parce que le préflight de `master` l'a mesurée.
 
-### Deux rattrapages du préflight
-- La consigne « exclure les artefacts `lab/` » aurait supprimé **`IMPROVEMENT_LEDGER.yaml`
-  (270 IMPs, canonique)** : `lab/` compte 1695 fichiers suivis. → **exclusion par fichier
-  nommé, jamais par répertoire.** Ledger rédigé, 270 IMPs vérifiés intacts.
-- « 6 fichiers » en étaient **53**, puis 2 de plus au motif élargi — dont un document de
-  sécurité qui **nommait le compte** qu'il recommandait de protéger.
+### Deux règles nées du préflight
+**Exclure par fichier nommé, jamais par répertoire** — « exclure `lab/` » aurait supprimé
+`IMPROVEMENT_LEDGER.yaml` (270 IMPs, canonique) parmi 1695 fichiers suivis. Et **un
+périmètre annoncé se mesure** : « 6 fichiers » en étaient 53.
+
+### Rapatriement `publish` → `master` — FAIT (la lignée était inversée)
+La correction du chemin Blender ne vivait que dans la branche **publiée** ; `master`, le
+canon, portait encore le chemin. **Un futur snapshot depuis `master` l'aurait perdue en
+silence** — la garde qui l'aurait détectée étant justement ce qui disparaissait.
+- **lot A** `d679218` — 10 fichiers (code + garde). Ferme les 4 `/home/<compte>` réels.
+- **lot B** `09210af` — 18 fichiers (rédactions), 39 marqueurs retirés, 5 fixtures en
+  **zone protégée** sous GO Pierre. Validé par les **108 tests qui les consomment**,
+  exécutés sur l'**état commité** (extraction), pas sur l'arbre de travail.
+- **Hors lot, délibérément** : 27 fichiers restants = données régénérées, `wiremap.json`
+  (2124 lignes de diff, **zéro** changement sémantique), et 3 où `master` est en avance.
 
 ### Autres livrables de la session (sur `master`, non poussés)
 `RUN_IDENTITY_V1` (`104819c`, `NOT_WIRED` délibéré) · isolation de la preuve
@@ -78,14 +85,12 @@ octet pour octet identiques**.
 ### Ouvert, non décidé
 - `publish` comme branche **par défaut** GitHub → décision manuelle, non faite.
 - Publication de `master` → **BLOCKED, et la mesure est faite** : 66 fichiers ont porté un
-  chemin de poste dans les 124 commits, dont **3 qui ne vivent plus que dans l'historique**.
-  Aucun `rm` ne les atteint. Seule une réécriture le pourrait — exclue par Pierre.
-- **Chemin Blender : 2 autorités unifiées sur 5.** `contracts/roles.yaml`,
-  `.claude/skills/asset-generator/SKILL.md` et le doc de design sont **rédigés** (aucune
-  fuite) mais portent toujours le fait en double. Non traité, pas oublié.
-- **À ratifier** : durcissement de `scripts/forge/tests/test_blender_bin.py` (**zone
-  protégée**) — garde ancrée sur un compte nommé → motif générique `/home/[\w.-]+/`,
-  plus fort et sans nom de compte. Falsifié sur un **autre** compte (13 → 1 rouge).
+  chemin de poste dans son historique, dont **3 qui ne vivent plus QUE là**. Aucun `rm` ne
+  les atteint ; seule une réécriture, exclue par Pierre. Au sommet, **52 `Studio-Dev`
+  subsistent — 49 dans des artefacts que la publication a EXCLUS au lieu de rédiger.**
+  Le rapatriement rend le **code** du canon correct, **pas son arbre publiable**.
+- **Chemin Blender : 2 autorités unifiées sur 5.** Les 3 autres sont **rédigées**
+  (aucune fuite) mais portent toujours le fait en double. Non traité, pas oublié.
 - ~~2 rouges Node périmés~~ → **FERMÉS** (`1ce25f9`) : un test de **pont** ancré sur l'état
   du **parc**. **Suite node : 821 / 821. Suite forge python : 1910 / 1911, 0 rouge.**
 - Clé HMAC par défaut → vrai sujet **sécurité**, hors hygiène de publication.
