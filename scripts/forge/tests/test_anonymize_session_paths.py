@@ -34,7 +34,17 @@ from forge.anonymize_session_paths import (
     CLAUDE_HOME_PLACEHOLDER, anonymize_obj, anonymize_session_file_value,
 )
 
-REEL = r"C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8a434257-94b6.jsonl"
+# COMPTES SYNTHETIQUES, jamais celui du poste. Le motif ne connait aucun nom : un compte
+# invente prouve donc EXACTEMENT la meme chose, et ce fichier cesse d'appartenir a la
+# population qu'il sert a nettoyer. Meme regle que `test_blender_bin.py` (ratifiee 2026-08-20).
+# `POSTET~1` est la FORME 8.3 (nom court Windows) : c'est elle qui est testee, pas un poste.
+_COMPTE_LONG = "Poste-Test"
+_COMPTE_COURT = "POSTET~1"
+
+# Chemin REALISTE DE FORME — pas le chemin d'un poste reel.
+REEL = ("C:" + chr(92) + "Users" + chr(92) + _COMPTE_LONG + chr(92) + ".claude" + chr(92)
+        + "projects" + chr(92) + "C--TACTICAL-CHESS-STUDIO" + chr(92) + "8a434257-94b6.jsonl")
+GODOT = "C:" + chr(92) + "Users" + chr(92) + _COMPTE_LONG + chr(92) + "Desktop" + chr(92) + "Godot.exe"
 
 
 # --- la valeur ---------------------------------------------------------------------------
@@ -42,7 +52,7 @@ REEL = r"C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\8a434257-
 
 def test_le_prefixe_personnel_disparait():
     out = anonymize_session_file_value(REEL)
-    assert "Studio-Dev" not in out
+    assert _COMPTE_LONG not in out
     assert "Users" not in out
     assert out.startswith(CLAUDE_HOME_PLACEHOLDER)
 
@@ -56,8 +66,8 @@ def test_le_projet_et_la_session_SURVIVENT():
 
 def test_la_forme_POSIX_est_traitee_aussi():
     out = anonymize_session_file_value(
-        "C:/Users/Studio-Dev/.claude/projects/P/abc.jsonl")
-    assert "Studio-Dev" not in out and "P/abc.jsonl" in out
+        "C:/Users/" + _COMPTE_LONG + "/.claude/projects/P/abc.jsonl")
+    assert _COMPTE_LONG not in out and "P/abc.jsonl" in out
 
 
 def test_une_valeur_DEJA_anonyme_est_INCHANGEE():
@@ -77,7 +87,7 @@ def test_une_valeur_SANS_chemin_personnel_est_INCHANGEE():
 def test_seule_la_cle_session_file_est_modifiee():
     obj = {"payload": {"session_file": REEL, "path": REEL}, "source": {"path": REEL}}
     out = anonymize_obj(obj)
-    assert "Studio-Dev" not in out["payload"]["session_file"]
+    assert _COMPTE_LONG not in out["payload"]["session_file"]
     assert out["payload"]["path"] == REEL, "`payload.path` est HORS perimetre"
     assert out["source"]["path"] == REEL, "`source.path` est HORS perimetre"
 
@@ -87,18 +97,18 @@ def test_la_CHAINE_DE_PREUVE_est_INTOUCHEE():
     mesure — tracabilite probante, arbitree conservee par Pierre. L'anonymiser detruirait
     une preuve pour un gain de confidentialite nul."""
     obj = {"payload": {"session_file": REEL, "detail": {"mutation": {"receipt": {"detail": {
-        "proof_chain": {"binaire": {"path": r"C:\Users\Studio-Dev\Desktop\Godot.exe"},
-                        "command_executee": [r"C:\Users\Studio-Dev\Desktop\Godot.exe", "--x"]}}}}}}}
+        "proof_chain": {"binaire": {"path": GODOT},
+                        "command_executee": [GODOT, "--x"]}}}}}}}
     out = anonymize_obj(obj)
     pc = out["payload"]["detail"]["mutation"]["receipt"]["detail"]["proof_chain"]
-    assert pc["binaire"]["path"] == r"C:\Users\Studio-Dev\Desktop\Godot.exe"
-    assert pc["command_executee"][0] == r"C:\Users\Studio-Dev\Desktop\Godot.exe"
-    assert "Studio-Dev" not in out["payload"]["session_file"]
+    assert pc["binaire"]["path"] == GODOT
+    assert pc["command_executee"][0] == GODOT
+    assert _COMPTE_LONG not in out["payload"]["session_file"]
 
 
 def test_session_file_IMBRIQUE_profond_est_atteint():
     obj = {"a": [{"b": {"session_file": REEL}}]}
-    assert "Studio-Dev" not in anonymize_obj(obj)["a"][0]["b"]["session_file"]
+    assert _COMPTE_LONG not in anonymize_obj(obj)["a"][0]["b"]["session_file"]
 
 
 def test_l_objet_d_origine_n_est_PAS_mute():
@@ -121,7 +131,7 @@ def test_une_ligne_JSONL_REELLE_reste_du_JSON_valide():
     out = json.dumps(anonymize_obj(json.loads(ligne)))
     r = json.loads(out)
     assert r["payload"]["hmac"] == "deadbeef", "une signature voisine reste intacte"
-    assert "Studio-Dev" not in out
+    assert _COMPTE_LONG not in out
 
 # --- EXTENSION : du CHAMP au PREFIXE (GO Pierre 2026-08-20) -------------------------------
 #
@@ -146,8 +156,6 @@ from forge.anonymize_session_paths import (  # noqa: E402
 # invente prouve donc EXACTEMENT la meme chose, et ce fichier cesse d'appartenir a la
 # population qu'il sert a nettoyer. Meme regle que `test_blender_bin.py` (ratifiee 2026-08-20).
 # `POSTET~1` est la FORME 8.3 (nom court Windows) : c'est elle qui est testee, pas un poste.
-_COMPTE_LONG = "Poste-Test"
-_COMPTE_COURT = "POSTET~1"
 _SLUG = "C--TACTICAL-CHESS-STUDIO"
 _SESSION = "8a434257-94b6-44b0-a268-002e436f219e.jsonl"
 
