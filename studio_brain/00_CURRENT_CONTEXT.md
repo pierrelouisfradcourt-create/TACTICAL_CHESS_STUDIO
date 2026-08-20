@@ -13,11 +13,11 @@ Sur `publish`, **86 artefacts de run apparaissent comme non suivis** (ils sont e
 cette branche, présents sur disque). Ils redeviennent suivis au retour sur `master`.
 C'est normal, ce n'est pas une perte.
 
-## Session 2026-08-19 — checkpoint de publication
+## Session 2026-08-19/20 — publication, puis reparation du snapshot
 ```
-origin/publish   4314dba   POUSSE — 1 commit, 5248 fichiers, orphelin (0 ancetre)
+origin/publish   7b06eba   POUSSE — 2 commits, orphelin (0 ancetre), ~5251 fichiers
 origin/master    bcde5cb   INCHANGE
-master local     7b10ee7   121 commits, TOUJOURS NON POUSSES, archive intacte
+master local     7d34070   124 commits, TOUJOURS NON POUSSES, archive intacte
 ```
 
 ### Ce qui a été publié, et pourquoi ainsi
@@ -57,6 +57,11 @@ octet pour octet identiques**.
 3. **`git checkout --orphan` reconstitue l'index depuis `HEAD`** — les corrections de
    l'arbre de travail n'y étaient pas. Seul un **préflight sur l'INDEX** (`git grep
    --cached`) l'a vu ; un scan de l'arbre de travail aurait été vert à tort.
+4. **Le snapshot publié importait un module qu'il ne contenait pas.** `add -u` ne met à
+   jour que le **déjà-suivi** : la *correction* est passée, le *module neuf* non
+   (`ModuleNotFoundError`, prouvé en **exécutant** le contenu publié, pas en le lisant).
+   Corrigé par `7b06eba`. Le préflight mesurait l'**exposition** de l'index, jamais son
+   **exécutabilité** — trouvé seulement parce que le préflight de `master` l'a mesurée.
 
 ### Deux rattrapages du préflight
 - La consigne « exclure les artefacts `lab/` » aurait supprimé **`IMPROVEMENT_LEDGER.yaml`
@@ -72,12 +77,17 @@ octet pour octet identiques**.
 
 ### Ouvert, non décidé
 - `publish` comme branche **par défaut** GitHub → décision manuelle, non faite.
-- Publication de `master` → toujours **BLOCKED**.
-- ~~2 rouges Node périmés~~ → **FERMÉS** (`1ce25f9`). `studio_selfaudit_solvability_budget`
-  liait un test de **pont** à l'état du **parc** : il exigeait une anomalie tetris, fermée
-  par `1c0eb95`. Assertion inversée (« aucune divergence » est l'état ratifié) + un test
-  qui **injecte une anomalie synthétique** au lieu d'en attendre une du parc.
-  **Suite node : 821 / 821 vertes, 0 rouge.**
+- Publication de `master` → **BLOCKED, et la mesure est faite** : 66 fichiers ont porté un
+  chemin de poste dans les 124 commits, dont **3 qui ne vivent plus que dans l'historique**.
+  Aucun `rm` ne les atteint. Seule une réécriture le pourrait — exclue par Pierre.
+- **Chemin Blender : 2 autorités unifiées sur 5.** `contracts/roles.yaml`,
+  `.claude/skills/asset-generator/SKILL.md` et le doc de design sont **rédigés** (aucune
+  fuite) mais portent toujours le fait en double. Non traité, pas oublié.
+- **À ratifier** : durcissement de `scripts/forge/tests/test_blender_bin.py` (**zone
+  protégée**) — garde ancrée sur un compte nommé → motif générique `/home/[\w.-]+/`,
+  plus fort et sans nom de compte. Falsifié sur un **autre** compte (13 → 1 rouge).
+- ~~2 rouges Node périmés~~ → **FERMÉS** (`1ce25f9`) : un test de **pont** ancré sur l'état
+  du **parc**. **Suite node : 821 / 821. Suite forge python : 1910 / 1911, 0 rouge.**
 - Clé HMAC par défaut → vrai sujet **sécurité**, hors hygiène de publication.
 - Backlog `§18` du Master Schéma V2 : P0 détectabilité, P1 étage ② + un run `full` pour
   observer enfin la lignée causale, P2 `reuse_ratio` ×12 et `agent_factory` sans appelant.
