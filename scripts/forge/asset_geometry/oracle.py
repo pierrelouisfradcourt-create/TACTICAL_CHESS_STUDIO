@@ -166,17 +166,22 @@ def probe_producer_environment() -> tuple[bool, str]:
     if not shutil.which("wsl.exe") and not shutil.which("wsl"):
         return False, "wsl introuvable sur ce poste"
     exe = shutil.which("wsl.exe") or shutil.which("wsl")
+    # Chemin RESOLU, plus recopie. Il etait ici en LITTERAL, dupliquant celui
+    # d'`asset_dispatch` : deux autorites pour un meme fait, qui pouvaient deja diverger.
+    from forge.blender_bin import BlenderNonConfigure, resolve_blender
+    try:
+        blender = resolve_blender()
+    except BlenderNonConfigure as exc:
+        return False, f"Blender non configure sur ce poste: {exc}"
     try:
         r = subprocess.run(
-            [exe, "-d", "Ubuntu-24.04", "--",
-             "test", "-x",
-             "/home/studio-dev/3d-pipeline/blender/blender-5.1.1-linux-x64/blender"],
+            [exe, "-d", blender.distro, "--", "test", "-x", blender.binaire],
             capture_output=True, timeout=120,
         )
     except Exception as exc:  # noqa: BLE001
         return False, f"appel wsl impossible: {exc}"
     if r.returncode != 0:
-        return False, "binaire Blender absent dans Ubuntu-24.04"
+        return False, f"binaire Blender absent dans {blender.distro}"
     return True, "Blender 5.1.1 joignable"
 
 

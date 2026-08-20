@@ -11,12 +11,23 @@ Produit :
 """
 
 import csv
+import os
 import json
 import sys
 import pathlib
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
-ZST_SOURCE = pathlib.Path(r"C:\Users\Studio-Dev\Desktop\lichess_db_puzzle.csv.zst")
+
+# Archive Lichess : RESOLUE, jamais codee en dur. Le chemin contenait le nom
+# d'utilisateur du poste (`Desktop/`) — fuite au depot ET enfermement du script sur
+# une seule machine. Meme regle que `forge/blender_bin.py` et `observer/sources.py` :
+# « jamais recopier un chemin litteral ». Ordre : env `LICHESS_ZST` -> defaut sous
+# `lab/puzzles/`, ou le fichier peut etre depose sans configuration.
+# Le script VERIFIE deja l'existence plus bas et sort proprement si l'archive manque :
+# aucun besoin d'inventer un chemin de bureau.
+ZST_SOURCE = pathlib.Path(
+    os.environ.get("LICHESS_ZST") or (REPO_ROOT / "lab" / "puzzles" / "lichess_db_puzzle.csv.zst")
+)
 CSV_PATH   = REPO_ROOT / "lab" / "puzzles" / "lichess_db_puzzle.csv"
 OUTPUT_DIR = REPO_ROOT / "lab" / "puzzles"
 

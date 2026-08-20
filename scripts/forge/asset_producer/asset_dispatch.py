@@ -52,6 +52,8 @@ RESULTS_PATH = REPO_ROOT / "lab" / "forge_evidence" / "asset_results.jsonl"
 
 RUNTIME_ID = "asset_producer"
 ENTRYPOINT = "scripts/forge/asset_producer/build_asset.py"
+from forge.blender_bin import BlenderNonConfigure, resolve_blender
+
 ETAPE = "s-asset-produce"
 
 # Runtime AMONT, distinct : il traduit une demande gameplay en spec. Deux runtimes,
@@ -59,8 +61,12 @@ ETAPE = "s-asset-produce"
 SPEC_RUNTIME_ID = "asset_spec_author"
 ETAPE_SPEC = "s-asset-spec"
 
-WSL_DISTRO = "Ubuntu-24.04"
-BLENDER_WSL = "/home/studio-dev/3d-pipeline/blender/blender-5.1.1-linux-x64/blender"
+# Binaire Blender : RESOLU, jamais code en dur. Le chemin contient le nom d'utilisateur
+# du poste — il partait au depot public (preflight de publication 2026-08-19) et enfermait
+# le code sur une seule machine. Meme chaine que `godot_bin.mjs` :
+# env `BLENDER_BIN` -> `scripts/forge/blender.config.json` -> erreur explicite.
+# Resolution PARESSEUSE (dans les fonctions, pas ici) : un poste non configure doit encore
+# pouvoir IMPORTER ce module — sinon toute la suite de tests tomberait a l'import.
 
 
 # --------------------------------------------------------------------- utilitaires
@@ -203,19 +209,25 @@ def producer_available() -> tuple[bool, str]:
     if not exe:
         return False, "wsl introuvable sur ce poste"
     try:
-        r = subprocess.run([exe, "-d", WSL_DISTRO, "--", "test", "-x", BLENDER_WSL],
+        blender = resolve_blender()
+    except BlenderNonConfigure as exc:
+        # Configuration absente => producteur INJOIGNABLE, pas produit defaillant.
+        return False, f"Blender non configure sur ce poste: {exc}"
+    try:
+        r = subprocess.run([exe, "-d", blender.distro, "--", "test", "-x", blender.binaire],
                            capture_output=True, timeout=120)
     except Exception as exc:  # noqa: BLE001
         return False, f"appel wsl impossible: {exc}"
     if r.returncode != 0:
-        return False, f"binaire Blender absent dans {WSL_DISTRO}"
+        return False, f"binaire Blender absent dans {blender.distro}"
     return True, "Blender 5.1.1 joignable"
 
 
 def run_producer(spec_path: Path, dest: Path) -> tuple[bool, str]:
     """Invoque le VRAI producteur. Retourne (ok, sortie brute)."""
     exe = shutil.which("wsl.exe") or shutil.which("wsl")
-    cmd = [exe, "-d", WSL_DISTRO, "--", BLENDER_WSL, "-b", "--python",
+    blender = resolve_blender()
+    cmd = [exe, "-d", blender.distro, "--", blender.binaire, "-b", "--python",
            _to_wsl(REPO_ROOT / ENTRYPOINT), "--", _to_wsl(spec_path), _to_wsl(dest)]
     r = subprocess.run(cmd, capture_output=True, text=True,
                        encoding="utf-8", errors="replace", timeout=900)

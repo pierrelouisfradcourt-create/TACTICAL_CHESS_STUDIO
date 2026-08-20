@@ -56,7 +56,7 @@ Ecris un `spec.json` dans le scratchpad. Champs obligatoires (absent = refus du 
 ## Etape 2 — produire (Blender, WSL)
 
 ```bash
-wsl.exe -d Ubuntu-24.04 -- bash -lc "/home/studio-dev/3d-pipeline/blender/blender-5.1.1-linux-x64/blender -b --python /mnt/c/TACTICAL_CHESS_STUDIO/scripts/forge/asset_producer/build_asset.py -- <spec.json> <dest_dir>"
+wsl.exe -d $WSL_DISTRO -- bash -lc "$BLENDER_BIN -b --python /mnt/c/TACTICAL_CHESS_STUDIO/scripts/forge/asset_producer/build_asset.py -- <spec.json> <dest_dir>"
 ```
 
 Sortie : `<asset_id>.glb`, `<asset_id>.glb.metadata.json` (DECLARATION),
@@ -87,7 +87,7 @@ for WSL paths when invoking the Blender executor.
 Canonical Blender path:
 
 ```
-/home/studio-dev/3d-pipeline/blender/blender-5.1.1-linux-x64/blender
+$BLENDER_BIN
 ```
 
 ## Etape 3 — faire juger (jamais par toi)

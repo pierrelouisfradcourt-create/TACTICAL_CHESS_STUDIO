@@ -38,7 +38,7 @@ ENCODING = "utf-8-sig"
 # Resolution de chemins — SOURCE UNIQUE pour tout Observer.
 #
 # Avant : 13 modules redeclaraient chacun `C:\TACTICAL_CHESS_STUDIO` et
-# `C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO` en dur.
+# `<home>\.claude\projects\<slug-du-depot>` en dur.
 # Resultat : l'outil ne tournait que sur un seul poste. Ici, TOUT module qui a
 # besoin d'une racine par defaut doit appeler `default_repo_root()` /
 # `default_transcripts_root()` — jamais recopier un chemin litteral.
