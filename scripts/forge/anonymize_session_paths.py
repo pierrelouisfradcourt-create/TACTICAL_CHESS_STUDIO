@@ -107,7 +107,7 @@ def anonymize_deep(obj: Any) -> Any:
         return {k: anonymize_deep(v) for k, v in obj.items()}
     if isinstance(obj, list):
         return [anonymize_deep(v) for v in obj]
-    return anonymize_session_file_value(obj)
+    return anonymize_poste(obj)
 
 
 def anonymize_text(texte: Any) -> Any:
@@ -118,4 +118,61 @@ def anonymize_text(texte: Any) -> Any:
     ce point d'entrée, l'extension laisserait passer la moitié du problème en silence.
     Même motif, même placeholder : une seule autorité pour ce qu'est un chemin personnel.
     """
-    return anonymize_session_file_value(texte)
+    return anonymize_poste(texte)
+
+# --- EXTENSION 2 (GO Pierre 2026-08-20) : temporaire + colonne `ls -l` ---------------------
+#
+# INSTRUCTION DU RESIDU. Apres l'extension 1, il restait 801 occurrences du compte dans les
+# 21 artefacts Observer. Instruites : ~301 chemins de repertoire TEMPORAIRE, ~59 colonnes
+# PROPRIETAIRE d'une sortie `ls -l` capturee, ~7 divers — et 107-116 `Desktop\\Godot_...exe`,
+# PROBANTS, qui restent hors d'atteinte de ces motifs (aucun ne les decrit).
+#
+# MESURE QUI AUTORISE LA REDACTION : sur 440 lignes portant une enveloppe `hmac` dans le
+# corpus Observer, ZERO ne porte le compte. Rediger ces residus ne detruit donc aucune preuve
+# verifiable — contrairement a `proof_chain.binaire.path`, dont la redaction fait passer
+# `verify_receipt` de True a False.
+#
+# AUCUN MOTIF NE NOMME LE COMPTE. Une garde qui s'ancre sur l'instance qu'elle protege ne
+# protege que ce poste, et publie le nom qu'elle interdit (lecon ratifiee le 2026-08-20).
+# On decrit donc la FORME : l'emplacement standard des temporaires, et le bloc de permissions
+# qui ouvre une ligne de `ls -l`.
+
+TEMP_PLACEHOLDER = "<TEMP>"
+USER_PLACEHOLDER = "<user>"
+
+# `<disque>:\Users\<compte>\AppData\Local\Temp` — separateurs meles tolérés, comme
+# `_PREFIXE`. Le SUFFIXE survit (projet, session, `scratchpad`, fichier) : c'est lui qui rend
+# les clefs `id` et `vers` utilisables comme clefs de correlation. Deux sessions distinctes
+# restent distinctes apres deracinement — verifie par test, pas suppose.
+_PREFIXE_TEMP = re.compile(
+    "[A-Za-z]:[" + _B + "/]+Users[" + _B + "/]+[^" + _B + "/]+[" + _B + "/]+"
+    + "AppData[" + _B + "/]+Local[" + _B + "/]+Temp", re.IGNORECASE)
+
+# Ligne de `ls -l` : `drwxr-xr-x 1 <compte> 197121 0 Aug  3 08:47 .`
+# On s'ancre sur le BLOC DE PERMISSIONS (10 caracteres d'un alphabet tres restreint) suivi du
+# compteur de liens — pas sur un nom. Ce qui est remplace est la SEULE colonne proprietaire ;
+# permissions, taille, date et nom de fichier survivent, donc l'observation reste lisible.
+# Pas d'ancrage `^` : ces sorties vivent DANS des chaines JSON ou les retours a la ligne sont
+# echappes, un `^` ne matcherait donc jamais sur le texte brut du fichier.
+_LISTING = re.compile(
+    r"(?P<av>[-dlbcps][-rwxsStT]{9}[+.@]?\s+\d+\s+)"
+    r"(?P<user>[^\s\\\"]+)"
+    # Le `\s+` FINAL a ete RETIRE : ces sorties sont capturees en EXTRAITS tronques a une
+    # longueur fixe, la ligne peut donc se terminer juste apres le groupe proprietaire.
+    # Exiger une espace derriere laissait passer les lignes coupees — defaut trouve sur le
+    # corpus REEL (`-rw-r--r-- 1 <compte> 197"}`), pas en theorie.
+    r"(?P<ap>\s+\d+)")
+
+
+def anonymize_poste(value: Any) -> Any:
+    """Toutes les traces de POSTE en une passe : `.claude`, temporaires, colonne `ls -l`.
+
+    PURE et IDEMPOTENTE. Aucun placeholder ne correspond a un motif : rejouer ne reabime rien.
+    Ce qui n'est PAS decrit ici n'est jamais touche — en particulier `Desktop\\Godot_...exe`,
+    dont la conservation est une CONTRAINTE de signature et non un arbitrage.
+    """
+    if not isinstance(value, str):
+        return value
+    v = _PREFIXE.sub(CLAUDE_HOME_PLACEHOLDER, value)
+    v = _PREFIXE_TEMP.sub(TEMP_PLACEHOLDER, v)
+    return _LISTING.sub(lambda m: m.group("av") + USER_PLACEHOLDER + m.group("ap"), v)
