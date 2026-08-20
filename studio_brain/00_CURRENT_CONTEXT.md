@@ -17,7 +17,7 @@ C'est normal, ce n'est pas une perte.
 ```
 publish local    9a2c485   3 commits orphelins — POUSSE (origin/publish : 9a2c485)
 origin/master    bcde5cb   INCHANGE — `master` ne sera PAS pousse (voir plus bas)
-master local     d9b8a5b   135 commits, non pousses, archive intacte
+master local     4bbd052   139 commits, non pousses, archive intacte
 ```
 
 ### Décision du 2026-08-20 — les artefacts porteurs restent internes
@@ -60,10 +60,22 @@ le piège central rencontré **quatre fois**, rapatriement `publish` → `master
   (aucune fuite) mais portent toujours le fait en double. Non traité, pas oublié.
 - ~~2 rouges Node périmés~~ → **FERMÉS** (`1ce25f9`) : un test de **pont** ancré sur l'état
   du **parc**. **Suite node : 821 / 821. Suite forge python : 1910 / 1911, 0 rouge.**
-- **`evidence_sha256` — lot SÉPARÉ, diagnostic fait, correction non engagée** : **1 sceau
-  valide sur 90**. Cause identifiée : git **normalise CRLF→LF** au commit, le sceau porte les
-  octets (181 CRLF sur disque, 0 dans le blob). Plus 46 évidences absentes et **63/90
-  `evidence_path` absolus**. Ne pas mêler ce défaut à la décision sur les `forge_runs`.
+- **`evidence_sha256` — DEUX états distincts, à ne jamais confondre :**
+  - **naissance des sceaux : CORRIGÉE** (`4bbd052`). Cause : le producteur écrivait du CRLF,
+    `.gitattributes` (`*.json text eol=lf`) renormalisait au commit, et le sceau porte les
+    **octets**. 4 sites corrigés, falsifiés des deux côtés, 403 tests verts. Une évidence
+    naît désormais avec un sceau qui survit à son commit.
+  - **90 sceaux historiques : IRRÉPARABLES, et NON MASQUÉS.** Les octets scellés n'existent
+    plus. Les recalculer et re-signer **fabriquerait** une preuve. Statut définitif.
+  - `4bbd052` ne veut donc PAS dire « `evidence_sha256` est réparé ».
+- **Trois lots ADJACENTS, séparés, non entamés** — issus de la même mesure :
+  - **63/90 `evidence_path` absolus** (contre la règle « relatif au repo root ») : couple
+    producteur ET vérificateur, à corriger ensemble. **Prochain lot technique.**
+  - **37 reçus scellent un `oracle_<jeu>.log` NON VERSIONNÉ** : un reçu ne peut pas être
+    vérifiable si l'artefact qu'il scelle est volontairement hors dépôt. Défaut de
+    **contrat**, pas de fins de ligne. Ne pas « réparer » par automatisme.
+  - **30 évidences `.json` absentes** du dépôt et du disque : instruire l'origine de la
+    perte, **ne pas régénérer ni re-signer**.
 - Clé HMAC par défaut → vrai sujet **sécurité**, hors hygiène de publication.
 - Backlog `§18` du Master Schéma V2 : P0 détectabilité, P1 étage ② + un run `full` pour
   observer enfin la lignée causale, P2 `reuse_ratio` ×12 et `agent_factory` sans appelant.
