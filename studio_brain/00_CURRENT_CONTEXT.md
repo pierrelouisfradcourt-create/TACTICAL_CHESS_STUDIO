@@ -17,7 +17,7 @@ C'est normal, ce n'est pas une perte.
 ```
 publish local    9a2c485   3 commits orphelins — POUSSE (origin/publish : 9a2c485)
 origin/master    bcde5cb   INCHANGE — `master` ne sera PAS pousse (voir plus bas)
-master local     4bbd052   139 commits, non pousses, archive intacte
+master local     0650b21   142 commits, non pousses, archive intacte
 ```
 
 ### Décision du 2026-08-20 — les artefacts porteurs restent internes
@@ -68,14 +68,23 @@ le piège central rencontré **quatre fois**, rapatriement `publish` → `master
   - **90 sceaux historiques : IRRÉPARABLES, et NON MASQUÉS.** Les octets scellés n'existent
     plus. Les recalculer et re-signer **fabriquerait** une preuve. Statut définitif.
   - `4bbd052` ne veut donc PAS dire « `evidence_sha256` est réparé ».
-- **Trois lots ADJACENTS, séparés, non entamés** — issus de la même mesure :
-  - **63/90 `evidence_path` absolus** (contre la règle « relatif au repo root ») : couple
-    producteur ET vérificateur, à corriger ensemble. **Prochain lot technique.**
-  - **37 reçus scellent un `oracle_<jeu>.log` NON VERSIONNÉ** : un reçu ne peut pas être
-    vérifiable si l'artefact qu'il scelle est volontairement hors dépôt. Défaut de
-    **contrat**, pas de fins de ligne. Ne pas « réparer » par automatisme.
-  - **30 évidences `.json` absentes** du dépôt et du disque : instruire l'origine de la
-    perte, **ne pas régénérer ni re-signer**.
+- **`evidence_path` — CORRIGÉ** (`883b016` lecture, `0650b21` écriture). `verdict.py` est
+  l'**autorité unique** pour la forme d'un chemin d'évidence, dans les deux sens ; chaque
+  branchement est **falsifié** (le retirer fait rougir) ; régressions **2003** puis **2008**
+  tests verts. Le défaut réel n'était pas « des chemins absolus » mais : *la validité d'une
+  preuve dépendait du répertoire d'où on la vérifiait*. Les 63 reçus absolus ne sont **pas
+  réécrits** — ils restent lisibles.
+  Périmètre réel **inférieur** au cadrage : 2 producteurs et non 4 (2 sites de
+  `mutation_proof` étaient **morts**, révélés par falsification), et **0 test** à modifier.
+- **Deux lots ADJACENTS, séparés, NON entamés** (le 3ᵉ — les 90 sceaux — est énoncé
+  ci-dessus : le répéter ici ferait deux endroits à tenir à jour pour un même fait) :
+  - **37 reçus scellent un `oracle_<jeu>.log` NON VERSIONNÉ** → **BLOCKED, décision de
+    CONTRAT requise. Pas de correction automatique** : déterminer d'abord si le contrat
+    exige que ces logs deviennent des artefacts versionnés, ou si leur statut de preuve
+    interne non versionnée est **intentionnel**. Un reçu ne peut pas être vérifiable si
+    l'artefact qu'il scelle est volontairement hors dépôt. **Prochain lot autorisé.**
+  - **30 évidences `.json` absentes** du dépôt et du disque → **PERTE À INSTRUIRE.**
+    Ne **pas** régénérer ni re-signer.
 - Clé HMAC par défaut → vrai sujet **sécurité**, hors hygiène de publication.
 - Backlog `§18` du Master Schéma V2 : P0 détectabilité, P1 étage ② + un run `full` pour
   observer enfin la lignée causale, P2 `reuse_ratio` ×12 et `agent_factory` sans appelant.
