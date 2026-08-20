@@ -176,7 +176,9 @@ def make_signed_receipt(
     if status not in RECEIPT_STATUSES:
         raise ValueError(f"status de reçu invalide: {status!r}")
     if evidence_path and not evidence_sha256:
-        evidence_sha256 = sha256_file(evidence_path)
+        # MEME autorite qu a la verification : si la creation resolvait contre le cwd et
+        # la verification contre la racine, les deux ne parleraient pas du meme fichier.
+        evidence_sha256 = sha256_evidence(evidence_path)
     if ts is None:
         ts = time.time()
     receipt = OracleReceipt(
@@ -190,6 +192,36 @@ def make_signed_receipt(
 def status_from_passed(passed: bool) -> str:
     """Traduit le booléen d'un oracle statique en statut de reçu."""
     return "OK" if passed else "FAIL"
+
+
+def resolve_evidence_path(chemin: Path | str) -> Path:
+    """Resout un chemin d'evidence CONTRE LA RACINE DU DEPOT, jamais contre le `cwd`.
+
+    DEFAUT MESURE le 2026-08-20 : `sha256_file(receipt.evidence_path)` resolvait un chemin
+    RELATIF contre le repertoire courant. Meme recu, meme fichier, deux `cwd` :
+
+        cwd = racine du depot  ->  RESOUT
+        cwd = ailleurs         ->  VIDE  (donc « evidence alteree/absente »)
+
+    La validite d'une preuve dependait donc de l'ENDROIT d'ou on la verifiait. Ce n'est pas
+    une propriete acceptable pour une preuve.
+
+    Les chemins ABSOLUS sont rendus tels quels : 63 des 90 recus existants en portent un, et
+    ce lot ne doit en casser aucun. C'est le TEMPS 1 (lecture) ; rendre la forme STOCKEE
+    canonique est le temps 2, avec son rayon d'impact propre.
+    """
+    p = Path(chemin)
+    return p if p.is_absolute() else (REPO_ROOT / p)
+
+
+def sha256_evidence(chemin: Path | str) -> str:
+    """Sceau d'une evidence DESIGNEE PAR UN RECU — resolution comprise.
+
+    Une seule autorite pour « ou vit une evidence ». Les 3 sites de verification passent par
+    ici ; en dupliquer la regle les ferait diverger, defaut deja rencontre plusieurs fois
+    dans ce depot.
+    """
+    return sha256_file(resolve_evidence_path(chemin))
 
 
 def sha256_file(path: Path | str) -> str:
@@ -423,7 +455,7 @@ def build_aggregate_verdict(
         # on RE-LIT son contenu et on confronte le hash signé au réel. Discordance
         # (log absent/altéré) => provenance rompue. Sauter (SKIPPED) n'a pas d'évidence.
         if sr.receipt.status != "SKIPPED" and sr.receipt.evidence_path:
-            actual = sha256_file(sr.receipt.evidence_path)
+            actual = sha256_evidence(sr.receipt.evidence_path)
             if actual != sr.receipt.evidence_sha256:
                 provenance_ok = False
                 flags.append(

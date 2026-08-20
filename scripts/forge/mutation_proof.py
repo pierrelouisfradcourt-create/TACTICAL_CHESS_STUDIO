@@ -32,6 +32,7 @@ from forge.verdict import (
     make_signed_receipt,
     sha256_file,
     verify_receipt,
+    sha256_evidence,
 )
 
 logger = logging.getLogger(__name__)
@@ -380,7 +381,7 @@ def verify_mutation_receipt(
     if sha256_file(game_dir / TRIAGE_FILENAME) != detail.get("triage_sha256", ""):
         raisons.append(
             "triage modifié après la preuve mutation (mutation_triage.json divergent)")
-    if receipt.evidence_path and sha256_file(receipt.evidence_path) != receipt.evidence_sha256:
+    if receipt.evidence_path and sha256_evidence(receipt.evidence_path) != receipt.evidence_sha256:
         raisons.append(f"évidence mutation altérée/absente ({receipt.evidence_path})")
 
     return {"passed": not raisons, "raisons": raisons, "status": receipt.status}
@@ -991,7 +992,7 @@ def verify_descriptor_mutation_receipt(
     if sha256_file(game_dir / TRIAGE_FILENAME) != detail.get("triage_sha256", ""):
         raisons.append(
             "triage modifié après la preuve mutation (mutation_triage.json divergent)")
-    if receipt.evidence_path and sha256_file(receipt.evidence_path) != receipt.evidence_sha256:
+    if receipt.evidence_path and sha256_evidence(receipt.evidence_path) != receipt.evidence_sha256:
         raisons.append(f"évidence mutation altérée/absente ({receipt.evidence_path})")
 
     proof_chain = detail.get("proof_chain") or {}
