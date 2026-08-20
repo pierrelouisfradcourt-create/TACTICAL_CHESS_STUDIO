@@ -133,7 +133,7 @@ def test_une_ligne_JSONL_REELLE_reste_du_JSON_valide():
 #     DOMINANTE des artefacts Observer (11 414 occurrences) ET celle de
 #     `proof_chain.binaire.path`. La surete ne peut donc PAS venir du nom de clef.
 #
-# Le nom court `STUDIO~2` est teste explicitement : c'est une SECONDE graphie du meme compte,
+# Le NOM COURT 8.3 est teste explicitement : c'est une SECONDE graphie du meme compte,
 # invisible a un grep sur la forme longue. Une premiere mesure d'exposition de cette session
 # ne connaissait qu'une graphie — le chiffre tenait par chance, pas par methode.
 from forge.anonymize_session_paths import (  # noqa: E402
@@ -142,8 +142,12 @@ from forge.anonymize_session_paths import (  # noqa: E402
     anonymize_text,
 )
 
-_COMPTE_LONG = "Studio" + "-Dev"
-_COMPTE_COURT = "STUDIO~2"
+# COMPTES SYNTHETIQUES, jamais celui du poste. Le motif ne connait aucun nom : un compte
+# invente prouve donc EXACTEMENT la meme chose, et ce fichier cesse d'appartenir a la
+# population qu'il sert a nettoyer. Meme regle que `test_blender_bin.py` (ratifiee 2026-08-20).
+# `POSTET~1` est la FORME 8.3 (nom court Windows) : c'est elle qui est testee, pas un poste.
+_COMPTE_LONG = "Poste-Test"
+_COMPTE_COURT = "POSTET~1"
 _SLUG = "C--TACTICAL-CHESS-STUDIO"
 _SESSION = "8a434257-94b6-44b0-a268-002e436f219e.jsonl"
 
