@@ -1026,6 +1026,55 @@ chemin `/home/...` légitime (aucun observé : 1910/1911 sur la suite forge comp
 
 ---
 
+## 2026-08-20 — Le HMAC n'est pas une preuve publique : les artefacts porteurs restent internes
+
+**Décision (Pierre, 2026-08-20)** — les 28 (sur 64) fichiers de `lab/forge_runs/` porteurs
+d'un chemin de poste sont **exclus du corpus public**. Ils restent intacts dans `master`
+local et l'archive historique. Aucune modification supplémentaire.
+
+> `nécessaire pour la preuve` ≠ `autorisé à être publié`.
+
+**Ce qui l'a tranché, mesuré et non supposé.** La question n'était pas « peut-on les
+nettoyer » — la rédaction est **impossible** : elle invalide le reçu signé
+(`verify_receipt` : `True` → `False`, prouvé sur `bomberman_3d-proof3-20260817`). La
+question était « cette traçabilité doit-elle être publique ». La mesure y répond :
+
+| | signatures | vérifiables par un tiers |
+|---|---|---|
+| corpus publié (`publish`) | 33 valides / 34 | **0** |
+| corpus interne (`master`) | 97 valides / 98 | **0** |
+
+Les signatures sont **HMAC — symétriques**. La clé (`scripts/forge/.forge_key`, gitignorée)
+n'est dans aucun arbre, et le rester est correct : la publier donnerait le pouvoir de
+**forger** n'importe quel verdict. **Publier ces artefacts n'apporterait donc aucune
+vérifiabilité publique** — seulement une exposition de données de poste. Bénéfice mesuré
+nul contre coût non nul.
+
+**La séparation public/interne est déjà démontrée** : `publish` porte 636 fichiers de run et
+45 verdicts signés **sans aucun** des 64 fichiers porteurs du compte. Ce n'est pas une
+conception à faire, c'est un état livré.
+
+**Corollaire, et il contraint le futur** : un artefact public vérifiable **ne peut pas se
+construire sur HMAC**. Il exigerait une primitive **asymétrique** — évolution des contrats,
+pas schéma de rédaction. À n'ouvrir que si le produit exige réellement une vérification
+tierce.
+
+**Alternatives rejetées** :
+- Rédiger les chemins pour publier les artefacts — détruit la signature, donc la preuve.
+- Publier la clé HMAC pour permettre la vérification — donnerait le pouvoir de forger.
+- Rendre `master` publiable par des commits de nettoyage — son historique porte encore les
+  occurrences ; nettoyer le sommet ne nettoie pas 134 commits.
+
+**Lot resté SÉPARÉ, et qui doit le rester** : `evidence_sha256` ne vérifie nulle part
+(**1 sceau valide sur 90**, cause identifiée — normalisation CRLF→LF au commit ; 46 évidences
+absentes ; 63/90 `evidence_path` absolus). Ce défaut **ne justifie pas** l'exclusion des
+`forge_runs`, ni l'inverse. Diagnostic fait, correction non engagée.
+
+**Critères de révision** : à rouvrir si le produit exige une vérification tierce — auquel cas
+c'est la primitive de signature qu'on spécifie, pas la publication de ces fichiers.
+
+---
+
 ## Template pour nouvelles entrées
 
 ```
