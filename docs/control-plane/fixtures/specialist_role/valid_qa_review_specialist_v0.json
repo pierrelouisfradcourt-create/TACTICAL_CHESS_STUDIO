@@ -1,0 +1,67 @@
+{
+  "schema_version": "studiopilot.specialist_role_charter.v0",
+  "specialist_id": "specialist.qa_review.v0",
+  "specialist_type": "QA_REVIEW_SPECIALIST",
+  "display_name": "QA Review Specialist V0",
+  "director_owner": "QUALITY_DIRECTOR",
+  "mission": "Provide bounded QA review findings, validation risks, and test-coverage notes.",
+  "inputs": [
+    "Validation output summary",
+    "Changed-path classification"
+  ],
+  "outputs": [
+    "QA findings",
+    "Risk and gap summary"
+  ],
+  "allowed_actions": [
+    "review_validation_artifacts",
+    "identify_risks",
+    "recommend_holds"
+  ],
+  "forbidden_actions": [
+    "auto_merge",
+    "auto_ready",
+    "claim_escalation",
+    "benchmark_as_proof",
+    "training_without_scope",
+    "runtime_change_without_scope"
+  ],
+  "authority_level": "REVIEW_ONLY",
+  "escalation_path": [
+    "QUALITY_DIRECTOR",
+    "CEO_OFFICE"
+  ],
+  "freeze_conditions": [
+    "scope_unclear",
+    "human_gate_missing",
+    "claim_boundary_unclear"
+  ],
+  "required_evidence": [
+    "Validation command output summary",
+    "Risk classification note"
+  ],
+  "permitted_surfaces": {
+    "workflows": false,
+    "runtime": false,
+    "search": false,
+    "neural": false,
+    "ml_training": false,
+    "benchmark": false,
+    "schemas": true,
+    "docs": true,
+    "control_plane_tooling": true
+  },
+  "forbidden_surfaces": [
+    "src/",
+    "ml/",
+    ".github/workflows/"
+  ],
+  "human_gate_required": true,
+  "active_agent_allowed": false,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": false,
+  "auto_training_allowed": false,
+  "auto_rule_mutation_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "status": "READY_FOR_HUMAN_REVIEW"
+}

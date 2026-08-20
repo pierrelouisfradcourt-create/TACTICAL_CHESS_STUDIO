@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evidence_schema.pr02.json",
+  "title": "PR-02 Evidence Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "run_intent_id",
+    "protocol_lock_created_at",
+    "first_command_started_at",
+    "protocol_time_order_valid",
+    "commands",
+    "artifacts",
+    "critical_reads",
+    "critical_writes",
+    "undeclared_critical_reads",
+    "undeclared_writes",
+    "secrets_scan",
+    "redaction",
+    "surface_usage",
+    "claim_scope"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "pattern": "^RUN_"
+    },
+    "run_intent_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "protocol_lock_created_at": {
+      "type": "string"
+    },
+    "first_command_started_at": {
+      "type": "string"
+    },
+    "protocol_time_order_valid": {
+      "type": "boolean",
+      "description": "Must represent protocol_lock_created_at < first_command_started_at. If false, evidence_verdict=INVALID and claim_verdict=NO_CLAIM_ALLOWED."
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "critical_reads": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "critical_writes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "undeclared_critical_reads": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "undeclared_writes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "secrets_scan": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "surface_usage": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "claim_scope": {
+      "type": "string"
+    },
+    "invalid_time_order_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "evidence_verdict": {
+          "const": "INVALID"
+        },
+        "claim_verdict": {
+          "const": "NO_CLAIM_ALLOWED"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,111 @@
+# Contrat d'agent Forge — mission S1 : BRANCHER LE LECTEUR (chaque preuve a son exécuteur)
+# Statut : RATIFIÉ Pierre 2026-07-27 (« corriger le lecteur avant de continuer : intégrer les
+# nouveaux tests dans oracles.json ; ajouter les volets d'observabilité manquants ; s'assurer que
+# chaque preuve écrite possède bien un exécuteur. Ne pas refaire de code gameplay tant que la
+# preuve n'est pas verte. »)
+# Schéma : scripts/forge/contracts/SCHEMA.md. Dispatch hors profil (allow_unprofiled assumé).
+
+role: >-
+  Ingénieur de chaîne qualité, discipline TDD stricte. Point de vue imposé par Pierre : « un test
+  qui n'est pas appelé par un oracle n'existe pas dans la chaîne qualité ». Tu ne produis AUCUN
+  code de gameplay — tu branches des exécuteurs sur des preuves qui existent déjà.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Honnêteté de nommage : un volet doit porter le nom de ce qu'il PROUVE réellement, pas de ce
+  qu'on aimerait qu'il prouve. Nommer `browser_exit_click` un contrôle qui ne clique rien serait
+  un mensonge mécanisé — pire qu'une absence de volet.
+memoire: >-
+  ÉTAT MESURÉ (run pong_r3, interrompu — le builder a produit puis le process est mort avec son
+  agent parent). Le code gameplay EXISTE et ses tests PASSENT : 20 tests neufs verts
+  (`ai.test.mjs`, `end_screen.test.mjs`, `exit_stop.test.mjs`, `playable_speed.test.mjs`,
+  `restart_offer.test.mjs`, `score_readout.test.mjs`) + l'oracle `07_TESTS/oracle/solo_session.mjs`
+  vert + les 51 tests historiques + solvabilité. Le jeu BOOTE en vrai navigateur (canvas 800×480,
+  `ai.mjs` chargé, zéro import échoué) et l'UI porte le mode solo, Rejouer et Quitter.
+  **DEUX TROUS DE LECTEUR, mesurés** : (1) la commande d'oracle du projet
+  (`scripts/forge/oracles.json`, clé `pong`) ne liste que 4 fichiers — les **7 fichiers de preuve
+  neufs ne sont exécutés par AUCUN oracle** ; (2) `check_observable_coverage` rend **BLOCKED** :
+  4 lignes de wiremap sur 6 nomment un volet d'oracle produit qui n'existe pas
+  (`browser_exit_click`, `browser_restart_click`, `solo_ai_session`, `playable_speed_band_test`).
+  Les 2 lignes couvertes le sont par `auto_session`.
+  CONTRAINTE DE POSTE : **Playwright n'est pas disponible** dans cette lane et n'est pas requis ;
+  aucun clic réel de navigateur n'est possible aujourd'hui. Les volets manquants doivent donc être
+  des EXÉCUTEURS des fichiers de preuve existants, nommés en conséquence.
+mandatory_read:
+  - scripts/forge/oracles.json (la clé `pong` et sa commande)
+  - scripts/forge/product_oracle.py (les 3 volets existants et la forme de leurs retours)
+  - games/pong/07_TESTS/ (les 7 fichiers de preuve neufs — lis-les pour savoir ce qu'ils prouvent)
+  - games/pong/09_WIREMAP/wiremap.json (le champ `observable_proof` des 6 lignes observables)
+  - scripts/forge/standard_oracles.py (check_observable_coverage — le consommateur des noms)
+
+objectif: >-
+  Fermer les deux trous de lecteur, sans écrire une ligne de gameplay.
+  (A) `scripts/forge/oracles.json` clé `pong` : la commande exécute TOUS les fichiers de preuve du
+  jeu, y compris les 7 neufs. (B) `scripts/forge/product_oracle.py` gagne les volets manquants,
+  chacun EXÉCUTANT le ou les fichiers de preuve correspondants et rendant OK / FAIL /
+  NOT_MEASURED motivé. (C) `games/pong/09_WIREMAP/wiremap.json` : les `observable_proof` des
+  4 lignes non couvertes pointent vers les volets RÉELLEMENT créés. Résultat attendu et
+  vérifiable : `check_observable_coverage` passe de BLOCKED à OK sur les artefacts réels.
+
+gardeFou: >-
+  (1) **AUCUN CODE DE GAMEPLAY** — décision Pierre : « ne pas refaire de code gameplay tant que la
+  preuve n'est pas verte ». Tu ne touches ni `05_SYSTEMS/**` ni `06_RUNTIME/**`. Si un test
+  échoue, tu le RAPPORTES, tu ne corriges pas le jeu. (2) **NOMMAGE HONNÊTE, exigence centrale** :
+  les noms actuels (`browser_exit_click`, `browser_restart_click`) promettent un clic de
+  navigateur qui n'aura PAS lieu. Renomme les volets d'après ce qu'ils prouvent réellement (par
+  ex. « la sortie arrête la boucle et rend un état final », « une relance est offerte et
+  fonctionne ») et mets la wiremap en cohérence. Chaque volet DÉCLARE dans son retour ce qu'il ne
+  prouve pas — au minimum : aucun clic réel, aucun rendu observé. (3) **NOT_MEASURED ≠ OK**
+  (invariant ratifié) : fichier de preuve absent ou illisible ⇒ NOT_MEASURED motivé, jamais un
+  vert. (4) Les volets restent **ADVISORY** dans le reçu ; leur promotion en gate dur est une
+  décision Pierre distincte. (5) TDD : chaque volet montré ROUGE sur un cas fabriqué (fichier de
+  preuve absent, test qui échoue) puis VERT sur Pong. (6) Ne pas modifier les 7 fichiers de preuve
+  du jeu — ils sont l'objet exécuté, pas le sujet. (7) **INTERDIT** : git add/commit/push/checkout/
+  restore/stash (un garde mécanique les bloque). (8) Zéro régression : référence **973 passed,
+  1 skipped**. (9) Doute => STOP et question dans le rapport.
+
+in_scope: >-
+  scripts/forge/oracles.json (clé `pong` uniquement) · scripts/forge/product_oracle.py (volets
+  manquants) · games/pong/09_WIREMAP/wiremap.json (champ `observable_proof` des lignes concernées,
+  RIEN d'autre dans ce fichier) · scripts/forge/tests/.
+out_of_scope: >-
+  games/pong/05_SYSTEMS/** et games/pong/06_RUNTIME/** INTOUCHÉS (aucun code de gameplay).
+  Les 7 fichiers de preuve de games/pong/07_TESTS/** INTOUCHÉS (on les EXÉCUTE). Les autres clés
+  de oracles.json. standard_oracles.py, verdict.py, gate.py, verify_run.py, driver.py intouchés.
+  Aucune installation (pas de Playwright). Les zones gelées. Aucun commit.
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT les chemins d'in_scope. run: pytest (.venv312),
+  node sur les fichiers de preuve du jeu, python de vérification, git status/diff/log en LECTURE.
+  delete: aucun. INTERDIT : git add, git commit, git push, git checkout, git restore, git stash,
+  npm install.
+
+success_criteria: >-
+  (a) la commande d'oracle `pong` exécute les 11 fichiers de preuve (4 historiques + 7 neufs) et
+  sort 0 sur le code actuel — sortie collée ; (b) les volets manquants existent, chacun montré
+  ROUGE sur un cas fabriqué puis VERT sur Pong ; (c) **`check_observable_coverage` rend OK** sur
+  les artefacts réels — c'est LE critère de la mission, montre la sortie ; (d) chaque volet
+  déclare ce qu'il ne prouve pas (aucun clic réel, aucun rendu observé) ; (e) aucun fichier de
+  `05_SYSTEMS/` ni `06_RUNTIME/` modifié — prouvé par `git status` ; (f) zéro régression,
+  référence 973 passed 1 skipped, nouveaux tests comptés ; (g) selfaudit STUDIO ALIGNÉ.
+tests_oracles: >-
+  La commande d'oracle du projet elle-même (node --test) · pytest (.venv312, réf. 973 passed,
+  1 skipped) · exécution de `check_observable_coverage` sur les artefacts réels ·
+  node scripts/forge/studio_selfaudit.mjs · git status --porcelain · RED/GREEN collés.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED. Contenu :
+  la commande d'oracle avant/après · les volets créés avec leur nom JUSTIFIÉ et leur RED/GREEN ·
+  la sortie de `check_observable_coverage` avant/après · ce que chaque volet ne prouve pas ·
+  la preuve qu'aucun code de gameplay n'a bougé · git status/diff · skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, oracle_command: {avant, apres, sortie}, volets_crees: [{nom, justification_nom,
+  fichiers_executes: [], red_output, green_output, ne_prouve_pas}], observable_coverage:
+  {avant, apres}, gameplay_intouche: bool, pytest, selfaudit_output, git_status_final,
+  git_diff_stat, fichiers_modifies: [], skipped_validation: [], software_verdict,
+  evidence_verdict: MECHANICAL_VALIDATION_ONLY, claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Priorité 1 de Pierre après l'analyse du run pong_r3 interrompu. Enseignement qu'il a formulé et
+  que cette mission applique : « un test qui n'est pas appelé par un oracle n'existe pas dans la
+  chaîne qualité ». En aval : relance des validations complètes, puis décision de Pierre sur la
+  nécessité de relancer pong_r3 — le but n'est pas de produire plus de code, mais de fermer la
+  boucle production → preuve → décision.

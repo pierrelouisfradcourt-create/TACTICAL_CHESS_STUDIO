@@ -1,0 +1,32 @@
+### Rapport_redteam_plan.md
+
+#### 1. Angle : Dépendances cycliques potentielles
+- **Faille** : Bien que le blueprint.yaml interdise les dépendances cycliques directes, il n'est pas clair si des dépendances indirectes (par exemple, via l'engine) ne pourraient pas introduire des cycles cachés. Par exemple, la dépendance de `shop.mjs` sur `pool.mjs`, et celle de `preparation.mjs` sur `shop.mjs` pourrait potentiellement créer un cycle indirect si `pool.mjs` avait une dépendance implicite vers l'engine qui est utilisé par `shop.mjs`.
+- **Correction proposée** : Ajouter des contrôles supplémentaires pour détecter les cycles cachés dans le graphe de dépendances, en vérifiant non seulement la direction directe mais aussi indirecte via l'engine.
+
+#### 2. Angle : Incohérences entre WireMap et Blueprint
+- **Faille** : La WireMap mentionne des fonctionnalités comme `merge_resolve_creation_order` qui n'apparaissent pas explicitement dans le blueprint.yaml, ce qui peut indiquer une incohérence ou un manque de documentation.
+- **Correction proposée** : Ajouter les détails manquants du merge.resolve dans le blueprint.yaml pour maintenir la cohérence entre WireMap et Blueprint.
+
+#### 3. Angle : Fragilité des dépendances
+- **Faille** : La dépendance de `preparation.mjs` sur tous les autres modules (pool, shop, bench, merge, gold) peut rendre le système très fragile à une modification dans n'importe quel module.
+- **Correction proposée** : Considérer la possibilité d'une architecture plus modulaire où chaque module pourrait fonctionner indépendamment avec des interfaces clairement définies pour minimiser les dépendances directes.
+
+#### 4. Angle : Invariants non vérifiés
+- **Faille** : Bien que le blueprint.yaml mentionne plusieurs invariants, il n'est pas clair comment ces invariants sont vérifiés dans la WireMap.
+- **Correction proposée** : Ajouter des tests spécifiques pour chaque invariant mentionné dans le blueprint.yaml afin de s'assurer qu'ils sont bien respectés.
+
+#### 7. Angle : God-object potentiel
+- **Faille** : Bien que `preparation.mjs` soit censé être une couche de composition pure, il est possible que des règles ou logiques soient dupliquées dans cette module sans l'intention de le faire.
+- **Correction proposée** : Effectuer un audit pour s'assurer que toutes les règles et logiques sont bien déléguées aux modules appropriés.
+
+### Verdict
+Le rapport identifie plusieurs problèmes mineurs mais importants qui, une fois corrigés, permettraient d'améliorer la robustesse et la clarté du plan. Le verdict est **GO-si-corrige** pour chaque problème mentionné ci-dessus.
+
+---
+
+### Format final
+
+- **software_verdict**: OK
+- **evidence_verdict**: MECHANICAL_VALIDATION_ONLY
+- **claim_verdict**: NO_CLAIM_ALLOWED

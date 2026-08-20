@@ -1,0 +1,25 @@
+# crontab.director — Launcher autonome Director (IMP-183) — WSL/Linux uniquement
+#
+# Démarre le Director v1 en mode scheduler daemon au boot de WSL, sans session
+# humaine. Le daemon boucle toutes les 10 min (run_daemon, --schedule) et
+# régénère director_status.json / director_report.md / director_schedule.json.
+# Reste READ-ONLY sur le ledger : il RECOMMANDE, il n'exécute aucune action.
+#
+# Convention de chemin alignée sur infrastructure/supervisord.conf : /mnt/c/...
+#
+# Install (WSL) :
+#   crontab infrastructure/crontab.director
+# Vérifier :
+#   crontab -l
+# Désinstaller :
+#   crontab -r
+#
+# Prérequis : le service cron tourne dans WSL.
+#   sudo service cron start          # démarrage manuel
+#   (Ubuntu/WSL : activer au boot via /etc/wsl.conf [boot] command=service cron start)
+#
+# Note : cron fournit un PATH minimal — on cd dans le repo et on appelle python3
+# explicitement (system python WSL ; le .venv312 du repo est un venv Windows,
+# non exécutable côté Linux — cf. CLAUDE.md).
+
+@reboot cd /mnt/c/TACTICAL_CHESS_STUDIO && python3 scripts/director.py --schedule >> lab/logs/director_cron.log 2>&1

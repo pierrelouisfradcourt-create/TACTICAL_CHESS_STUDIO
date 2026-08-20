@@ -1,0 +1,72 @@
+{
+ "catalog_brick_ids_snapshot": [
+  "pat-damage-floor",
+  "pat-forge-preflight_oracle_registration",
+  "pat-full-reachability",
+  "pat-zone-of-control",
+  "sys-damage-floor",
+  "sys-evader-basic",
+  "sys-grid-nav-m01",
+  "sys-guardian-zoc",
+  "sys-pursuer-continuous",
+  "sys-pursuer-mobile",
+  "sys-reachability"
+ ],
+ "created_ts": 1785693423.496252,
+ "escalations": 1,
+ "humangate_notes": [
+  "escalade #1: haiku -> sonnet (oracle FAIL)"
+ ],
+ "is_game": false,
+ "model_override": "sonnet",
+ "pool_attempts": 1,
+ "profile": "micro",
+ "project": "p5_gridnav",
+ "run_id": "p5_gridnav-run1-20260802-195703",
+ "run_status": "DONE",
+ "steps": {
+  "s10a-oracle-code": {
+   "attempts": 4,
+   "detail": {
+    "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\p5_gridnav\\evidence\\oracle_p5_gridnav.log",
+    "returncode": 0
+   },
+   "status": "OK",
+   "ts": 1785694706.3287687
+  },
+  "s12-verdict": {
+   "attempts": 1,
+   "detail": {
+    "decision": "HUMANGATE_READY",
+    "software_verdict": "OK",
+    "verdict_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\p5_gridnav\\verdict.json",
+    "verify_run": "AUTHENTIQUE"
+   },
+   "status": "OK",
+   "ts": 1785694706.440075
+  },
+  "s9-build": {
+   "attempts": 4,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\p5_gridnav\\artifacts\\s9-build.txt",
+    "artifact_sha256": "dbac111648169960f17ba71416245dd70907cd09b5ff4e1f5c2c434b3078a208",
+    "cache_creation_tokens": 91651,
+    "cache_read_tokens": 3487698,
+    "cost_usd": 1.9388874,
+    "duration_s": 396.98895263671875,
+    "model": "claude-haiku-4-5-20251001",
+    "model_override": "sonnet",
+    "output_excerpt": "av/`: a deterministic bot using `Patrol.next_step` to cross a seeded 16×16 grid, with the maze carved **unconditionally** from the seed alone (never consulting `Patrol.path_length`, to avoid the tautology bug this codebase already hit once in `grid_nav_probe`).\n\n**Verification**: `node scripts/forge/godot_oracle.mjs games/p5_gridnav` → `run_tests.gd`: 13 passed/0 failed. `solvability_godot.mjs` (R9, 50 trials): 50 won/0 lost, `verdict: OK`. Exit 0, all checks passed. `reuse_ratio.mjs games/p5_gridnav` → 0/(3+0) — legitimate: `res://` is sandboxed to the project, and the KB match `sys-grid-nav-m01` uses an incompatible signature (Dictionary walls + `(from,to,walls)` vs the task-mandated `Array[Array[bool]]` + `(grille,depart,cible)`), so literal import is mechanically impossible; this mirrors the same documented precedent in `grid_nav_probe`.\n\nsoftware_verdict: OK\nevidence_verdict: MECHANICAL_VALIDATION_ONLY\nclaim_verdict: NO_CLAIM_ALLOWED\n\nFiles touched vs ownership: `games/p5_gridnav/solvability.gd` (new, in-scope). `core/patrol.gd` and `tests/run_tests.gd` left as found. Nothing outside `games/p5_gridnav/` touched (no `oracles.json`, no catalog, no other game).\n\nSKIPPED_VALIDATION:\n- Mutation gate (`forge.mutation.run_mutation_test` / `game.mjs`) — not fait — this contract clause targets JS games via `run-oracle.mjs`; `godot_oracle.mjs` (the only oracle wired for this Godot/GDScript project) chains only mechanics + R9 solvability, no mutation step exists for GDScript in this repo.\n- e2e/click-through browser (`PLAYABLE_CONTRACT.md`) — non applicable — `p5_gridnav` is a headless GDScript module with no scene/UI, same category as `grid_nav_probe` which also has no `e2e.mjs`.\n- WireMap update — non fait — no WireMap file/path exists or was referenced for this run (`micro` profile, `is_game: false` in `state.json`); no sibling micro-probe project (`grid_nav_probe`) has one either.\n- Committing/pushing — none done, per builder gate (Pierre decides merge/reject/freeze).",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-haiku-4-5-20251001",
+    "runner": "claude",
+    "tokens": 22904
+   },
+   "status": "OK",
+   "ts": 1785694697.590751
+  }
+ },
+ "updated_ts": 1785694706.441072
+}

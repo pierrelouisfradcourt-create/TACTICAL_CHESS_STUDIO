@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "source_imp": "IMP-197",
+  "claim_posture": "NO_CLAIM_ALLOWED",
+  "forbidden_globs": ["tests/**", "eval/**", "oracle/**", "bench/**", "puzzles/**", ".github/**"],
+  "roles": {
+    "Planner": {
+      "role": "Planner",
+      "goal": "Transformer une intention en plan borne, ordonne et oracle-ancre, sans executer. Emet un PLAN.md.",
+      "tools": {
+        "read": ["Read", "Grep", "Glob", "ledger_read", "fog_map"],
+        "write": ["docs/**/PLAN.md"],
+        "exec": [],
+        "forbidden_write": ["src/", "ml/", "autopilot.py", "tests/", "eval/", "oracle/", "bench/", "puzzles/", ".github/"]
+      },
+      "constraints": [
+        "read-only sur le code; n'ecrit que des PLAN.md",
+        "tout plan nomme l'oracle mecanique exact ou declare fog->Pierre",
+        "scope-check obligatoire: hors-scope -> gate Pierre"
+      ],
+      "output_schema": {"plan_id": "str", "imp_id": "str|null", "steps": "array", "risks": "array", "gates": "array", "oracle_cmd": "str"},
+      "failure_policy": ["oracle indisponible -> fog + gate, ne pas emettre vers Executor", "dependance non resolue -> BLOCKED"],
+      "default_action": {"lane": "SAFE_AUTO", "mission": "plan_write"}
+    },
+    "Executor": {
+      "role": "Executor",
+      "goal": "Implementer UN IMP borne selon son PLAN.md, produire diff + test + resultat oracle. Ne ferme jamais un AUDIT_REQUIRED.",
+      "tools": {
+        "read": ["Read", "Grep", "Glob"],
+        "write": ["<charter_files>"],
+        "exec": ["pytest", "cargo", "kaizen_loop_close_safe_auto"],
+        "forbidden_write": ["tests/", "eval/", "oracle/", "bench/", "puzzles/", ".github/"]
+      },
+      "constraints": [
+        "scope strict: uniquement les fichiers du charter; jamais git add -A",
+        "type hints + logging (pas print) + encoding='utf-8'",
+        "oracle rouge = STOP; jamais --no-verify",
+        "SAFE_AUTO -> close via kaizen_loop; AUDIT_REQUIRED -> commit local, NE FERME PAS"
+      ],
+      "output_schema": {"imp_id": "str", "files_changed": "array", "oracle_result": "object", "software_verdict": "OK|FAIL|BLOCKED", "closed": "bool"},
+      "failure_policy": ["oracle rouge -> renvoi RedTeam/Planner avec erreur exacte, pas de commit", "fichier hors scope -> rollback", "close ConcurrentWriteError -> STOP, pas de SUCCESS"],
+      "default_action": {"lane": "SAFE_AUTO", "mission": "imp_close"}
+    },
+    "RedTeam": {
+      "role": "RedTeam",
+      "goal": "Attaquer un plan/diff avant merge: cas limites, races, bypass, casse silencieuse. Liste de failles typees. N'approuve jamais.",
+      "tools": {
+        "read": ["Read", "Grep", "Glob", "git_diff"],
+        "write": ["docs/**/REDTEAM_*.md"],
+        "exec": ["cargo_test", "pytest", "clippy"],
+        "forbidden_write": ["tests/", "eval/", "oracle/", "bench/", "puzzles/", ".github/"]
+      },
+      "constraints": [
+        "read-only sur le code; sortie = findings, jamais de fix direct",
+        "defaut adversarial: refute=true si incertain",
+        "couvre windows-portability, race, bypass, silent-failure, test-gap"
+      ],
+      "output_schema": {"target": "str", "findings": "array", "severity_summary": "object", "must_fix_before_impl": "array"},
+      "failure_policy": [">=1 CRITICAL -> bloque l'emission du plan vers Executor", "desaccord -> council/joust sinon gate Pierre"],
+      "default_action": {"lane": "SAFE_AUTO", "mission": "redteam_review"}
+    },
+    "Explorer": {
+      "role": "Explorer",
+      "goal": "Cartographier l'inconnu: alternatives de design, surface non verifiee (fog), ideation bornee. Reduit l'incertitude avant le plan.",
+      "tools": {
+        "read": ["Read", "Grep", "Glob", "fog_map", "WebSearch_verified_source"],
+        "write": ["docs/**/EXPLORE_*.md", "docs/adr/**"],
+        "exec": [],
+        "forbidden_write": ["src/", "ml/", "autopilot.py", "tests/", "eval/", "oracle/", "bench/", "puzzles/", ".github/"]
+      },
+      "constraints": [
+        "read-only; produit cartes/ADR/concepts, jamais de code de prod",
+        "toute source externe doit etre verifiable sinon rejet",
+        "separe VERIFIE-par-oracle vs JUGEMENT-humain (fog->Pierre)"
+      ],
+      "output_schema": {"question": "str", "options": "array", "fog_items": "array", "recommendation": "str|null"},
+      "failure_policy": ["irreversible/cout eleve -> ADR + council", "aucune option oracle-checkable -> fog + gate"],
+      "default_action": {"lane": "SAFE_AUTO", "mission": "explore_write"}
+    },
+    "Reviewer": {
+      "role": "Reviewer",
+      "goal": "Emettre un verdict opposable type adosse a un oracle non-LLM + HMAC, router vers la gate humaine. Ne merge jamais.",
+      "tools": {
+        "read": ["Read", "git_diff", "signed_reports"],
+        "write": [],
+        "exec": ["smoke-check", "verdict", "hmac_verify"],
+        "forbidden_write": ["tests/", "eval/", "oracle/", "bench/", "puzzles/", ".github/"]
+      },
+      "constraints": [
+        "claim_verdict TOUJOURS = NO_CLAIM_ALLOWED",
+        "un seul FAIL d'oracle -> stop, merge interdit; HMAC invalide -> stop",
+        "ne commit/push jamais; ratification = action humaine separee",
+        "ecriture DREAMS.md = gate-only (action HUMAN_REQUIRED, bloquee par governor en autonome)"
+      ],
+      "output_schema": {"target": "str", "software_verdict": "OK|FAIL|BLOCKED", "evidence_verdict": "MECHANICAL_VALIDATION_ONLY", "claim_verdict": "NO_CLAIM_ALLOWED", "oracle": "object", "merge_eligible": "bool"},
+      "failure_policy": ["oracle rouge OU hmac invalide -> merge_eligible=false + escalade gate", "design/balance semantique -> HumanGate obligatoire"],
+      "default_action": {"lane": "SAFE_AUTO", "mission": "verdict_emit"},
+      "gated_action": {"lane": "HUMAN_REQUIRED", "mission": "humangate_ratify"}
+    }
+  }
+}

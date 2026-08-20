@@ -1,0 +1,481 @@
+{
+  "schema": "standard_move_vocab_cross_fixture_v1",
+  "description": "Bounded standard UCI fixture for Rust action_key / Python move_vocab compatibility.",
+  "metadata": {
+    "move_vocab_size": 4164,
+    "move_vocab_fingerprint": "690ce94afd536cba509442f7c184da0e9c6a765a226d6350d259f4a88e54f18c",
+    "legal_action_version": "legal_action_v0",
+    "action_mask_version": "action_mask_v0_skeleton",
+    "scope": "representative_standard_sample_only",
+    "rust_python_actionmask_authority": "BLOCKED",
+    "dataset_label_readiness": "BLOCKED",
+    "training_readiness": "BLOCKED",
+    "chess960": "EXCLUDED_BLOCKED"
+  },
+  "rust_generated_standard_samples": [
+    {
+      "label": "starting position legal moves",
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "player": 1,
+      "category": "start",
+      "source": "tests/engine_legal_action_adapter.rs legal_actions_from_engine",
+      "representative_not_exhaustive": true,
+      "expected_keys": [
+        {
+          "uci": "a2a3",
+          "policy_index": 525
+        },
+        {
+          "uci": "a2a4",
+          "policy_index": 533
+        },
+        {
+          "uci": "b1c3",
+          "policy_index": 80
+        },
+        {
+          "uci": "g1f3",
+          "policy_index": 398
+        },
+        {
+          "uci": "e2e4",
+          "policy_index": 825
+        }
+      ]
+    },
+    {
+      "label": "capture position",
+      "fen": "7k/8/8/8/8/3p4/4P3/4K2K w - - 17 5",
+      "player": 1,
+      "category": "capture",
+      "source": "tests/engine_legal_action_adapter.rs legal_actions_from_engine",
+      "representative_not_exhaustive": true,
+      "expected_keys": [
+        {
+          "uci": "e2d3",
+          "policy_index": 816,
+          "is_capture_sample": true
+        }
+      ]
+    },
+    {
+      "label": "promotion position",
+      "fen": "1k6/P7/8/8/8/8/4P3/4K3 w - - 0 1",
+      "player": 1,
+      "category": "promotion",
+      "source": "tests/engine_legal_action_adapter.rs legal_actions_from_engine",
+      "representative_not_exhaustive": true,
+      "expected_keys": [
+        {
+          "uci": "a7a8q",
+          "policy_index": 3145,
+          "requires_promotion_suffix": true
+        },
+        {
+          "uci": "a7a8r",
+          "policy_index": 3146,
+          "requires_promotion_suffix": true
+        },
+        {
+          "uci": "a7a8b",
+          "policy_index": 3147,
+          "requires_promotion_suffix": true
+        },
+        {
+          "uci": "a7a8n",
+          "policy_index": 3148,
+          "requires_promotion_suffix": true
+        }
+      ]
+    },
+    {
+      "label": "classical castling position",
+      "fen": "4k3/8/8/8/8/8/8/R3K2R w KQ - 7 4",
+      "player": 1,
+      "category": "castling",
+      "source": "tests/engine_legal_action_adapter.rs legal_actions_from_engine",
+      "representative_not_exhaustive": true,
+      "expected_keys": [
+        {
+          "uci": "e1g1",
+          "policy_index": 257,
+          "requires_king_destination_uci": true
+        },
+        {
+          "uci": "e1c1",
+          "policy_index": 254,
+          "requires_king_destination_uci": true
+        }
+      ]
+    },
+    {
+      "label": "en passant position",
+      "fen": "7k/8/8/3pP3/8/8/8/4K3 w - d6 12 31",
+      "player": 1,
+      "category": "en_passant",
+      "source": "tests/engine_legal_action_adapter.rs legal_actions_from_engine",
+      "representative_not_exhaustive": true,
+      "expected_keys": [
+        {
+          "uci": "e5d6",
+          "policy_index": 2376,
+          "is_en_passant_sample": true
+        }
+      ]
+    },
+    {
+      "label": "black classical castling position",
+      "fen": "r3k2r/8/8/8/8/8/8/4K3 b kq - 0 1",
+      "player": 2,
+      "category": "black_castling",
+      "source": "tests/engine_legal_action_adapter.rs legal_actions_from_engine",
+      "representative_not_exhaustive": true,
+      "expected_keys": [
+        {
+          "uci": "e8g8",
+          "policy_index": 3973,
+          "requires_king_destination_uci": true
+        },
+        {
+          "uci": "e8c8",
+          "policy_index": 3970,
+          "requires_king_destination_uci": true
+        }
+      ]
+    },
+    {
+      "label": "black promotion position",
+      "fen": "4k3/8/8/8/8/8/7p/4K3 b - - 0 1",
+      "player": 2,
+      "category": "black_promotion",
+      "source": "tests/engine_legal_action_adapter.rs legal_actions_from_engine",
+      "representative_not_exhaustive": true,
+      "expected_keys": [
+        {
+          "uci": "h2h1q",
+          "policy_index": 1015,
+          "requires_promotion_suffix": true
+        },
+        {
+          "uci": "h2h1r",
+          "policy_index": 1016,
+          "requires_promotion_suffix": true
+        },
+        {
+          "uci": "h2h1b",
+          "policy_index": 1017,
+          "requires_promotion_suffix": true
+        },
+        {
+          "uci": "h2h1n",
+          "policy_index": 1018,
+          "requires_promotion_suffix": true
+        }
+      ]
+    },
+    {
+      "label": "black promotion capture position",
+      "fen": "4k3/8/8/8/8/8/6p1/4K2R b - - 0 1",
+      "player": 2,
+      "category": "promotion_capture",
+      "source": "tests/engine_legal_action_adapter.rs legal_actions_from_engine",
+      "representative_not_exhaustive": true,
+      "expected_keys": [
+        {
+          "uci": "g2h1q",
+          "policy_index": 946,
+          "requires_promotion_suffix": true,
+          "is_capture_sample": true
+        },
+        {
+          "uci": "g2h1r",
+          "policy_index": 947,
+          "requires_promotion_suffix": true,
+          "is_capture_sample": true
+        },
+        {
+          "uci": "g2h1b",
+          "policy_index": 948,
+          "requires_promotion_suffix": true,
+          "is_capture_sample": true
+        },
+        {
+          "uci": "g2h1n",
+          "policy_index": 949,
+          "requires_promotion_suffix": true,
+          "is_capture_sample": true
+        }
+      ]
+    },
+    {
+      "label": "pinned piece position",
+      "fen": "4r1k1/8/8/8/8/8/4R3/4K3 w - - 0 1",
+      "player": 1,
+      "category": "pin",
+      "source": "tests/engine_legal_action_adapter.rs legal_actions_from_engine",
+      "representative_not_exhaustive": true,
+      "expected_keys": [
+        {
+          "uci": "e2e3",
+          "policy_index": 817
+        }
+      ],
+      "expected_absent_keys": [
+        {
+          "uci": "e2d2",
+          "reason": "pinned_piece_must_not_expose_king"
+        }
+      ]
+    },
+    {
+      "label": "king safety position",
+      "fen": "4k3/8/8/8/8/8/5r2/4K3 w - - 0 1",
+      "player": 1,
+      "category": "king_safety",
+      "source": "tests/engine_legal_action_adapter.rs legal_actions_from_engine",
+      "representative_not_exhaustive": true,
+      "expected_keys": [
+        {
+          "uci": "e1d1",
+          "policy_index": 255
+        },
+        {
+          "uci": "e1f2",
+          "policy_index": 264
+        }
+      ],
+      "expected_absent_keys": [
+        {
+          "uci": "e1f1",
+          "reason": "king_must_not_move_into_check"
+        }
+      ]
+    },
+    {
+      "label": "check evasion block position",
+      "fen": "4r1k1/8/8/8/8/8/3B4/4K3 w - - 0 1",
+      "player": 1,
+      "category": "check_evasion_block",
+      "source": "tests/engine_legal_action_adapter.rs legal_actions_from_engine",
+      "representative_not_exhaustive": true,
+      "expected_keys": [
+        {
+          "uci": "d2e3",
+          "policy_index": 745,
+          "is_check_evasion_block_sample": true
+        }
+      ],
+      "expected_absent_keys": [
+        {
+          "uci": "e1e2",
+          "reason": "king_must_not_remain_on_checked_file"
+        }
+      ]
+    },
+    {
+      "label": "check evasion capture position",
+      "fen": "4r1k1/2N5/8/8/8/8/8/4K3 w - - 0 1",
+      "player": 1,
+      "category": "check_evasion_capture",
+      "source": "tests/engine_legal_action_adapter.rs legal_actions_from_engine",
+      "representative_not_exhaustive": true,
+      "expected_keys": [
+        {
+          "uci": "c7e8",
+          "policy_index": 3299,
+          "is_check_evasion_capture_sample": true
+        }
+      ],
+      "expected_absent_keys": [
+        {
+          "uci": "c7d5",
+          "reason": "non_evasion_move_must_remain_absent_while_in_check"
+        }
+      ]
+    },
+    {
+      "label": "check evasion position",
+      "fen": "4r1k1/8/8/8/8/8/8/4K3 w - - 0 1",
+      "player": 1,
+      "category": "check_evasion",
+      "source": "tests/engine_legal_action_adapter.rs legal_actions_from_engine",
+      "representative_not_exhaustive": true,
+      "expected_keys": [
+        {
+          "uci": "e1d1",
+          "policy_index": 255
+        },
+        {
+          "uci": "e1f1",
+          "policy_index": 256
+        },
+        {
+          "uci": "e1d2",
+          "policy_index": 262
+        },
+        {
+          "uci": "e1f2",
+          "policy_index": 264
+        }
+      ]
+    }
+  ],
+  "valid_moves": [
+    {
+      "label": "normal quiet move",
+      "uci": "e2e4",
+      "policy_index": 825
+    },
+    {
+      "label": "normal capture",
+      "uci": "e2d3",
+      "policy_index": 816
+    },
+    {
+      "label": "standard en passant",
+      "uci": "e5d6",
+      "policy_index": 2376
+    },
+    {
+      "label": "white kingside castling",
+      "uci": "e1g1",
+      "policy_index": 257,
+      "requires_king_destination_uci": true
+    },
+    {
+      "label": "white queenside castling",
+      "uci": "e1c1",
+      "policy_index": 254,
+      "requires_king_destination_uci": true
+    },
+    {
+      "label": "black kingside castling",
+      "uci": "e8g8",
+      "policy_index": 3973,
+      "requires_king_destination_uci": true
+    },
+    {
+      "label": "black queenside castling",
+      "uci": "e8c8",
+      "policy_index": 3970,
+      "requires_king_destination_uci": true
+    },
+    {
+      "label": "white promotion to queen",
+      "uci": "a7a8q",
+      "policy_index": 3145,
+      "requires_promotion_suffix": true
+    },
+    {
+      "label": "white promotion to rook",
+      "uci": "a7a8r",
+      "policy_index": 3146,
+      "requires_promotion_suffix": true
+    },
+    {
+      "label": "white promotion to bishop",
+      "uci": "a7a8b",
+      "policy_index": 3147,
+      "requires_promotion_suffix": true
+    },
+    {
+      "label": "white promotion to knight",
+      "uci": "a7a8n",
+      "policy_index": 3148,
+      "requires_promotion_suffix": true
+    },
+    {
+      "label": "black promotion to queen",
+      "uci": "h2h1q",
+      "policy_index": 1015,
+      "requires_promotion_suffix": true
+    },
+    {
+      "label": "black promotion to rook",
+      "uci": "h2h1r",
+      "policy_index": 1016,
+      "requires_promotion_suffix": true
+    },
+    {
+      "label": "black promotion to bishop",
+      "uci": "h2h1b",
+      "policy_index": 1017,
+      "requires_promotion_suffix": true
+    },
+    {
+      "label": "black promotion to knight",
+      "uci": "h2h1n",
+      "policy_index": 1018,
+      "requires_promotion_suffix": true
+    },
+    {
+      "label": "black promotion capture to queen",
+      "uci": "g2h1q",
+      "policy_index": 946,
+      "requires_promotion_suffix": true
+    },
+    {
+      "label": "black promotion capture to knight",
+      "uci": "g2h1n",
+      "policy_index": 949,
+      "requires_promotion_suffix": true
+    },
+    {
+      "label": "pinned piece legal file move",
+      "uci": "e2e3",
+      "policy_index": 817
+    },
+    {
+      "label": "check evasion block",
+      "uci": "d2e3",
+      "policy_index": 745
+    },
+    {
+      "label": "check evasion capture",
+      "uci": "c7e8",
+      "policy_index": 3299
+    }
+  ],
+  "rejected_moves": [
+    {
+      "label": "internal debug action_key rejected",
+      "uci": "~Move { unit_id: 1, target: e4 }",
+      "reason": "internal_debug_key"
+    },
+    {
+      "label": "SAN kingside castling rejected",
+      "uci": "O-O",
+      "reason": "san_castling"
+    },
+    {
+      "label": "zero kingside castling rejected",
+      "uci": "0-0",
+      "reason": "alternate_castling"
+    },
+    {
+      "label": "SAN queenside castling rejected",
+      "uci": "O-O-O",
+      "reason": "san_castling"
+    },
+    {
+      "label": "promotion missing suffix rejected",
+      "uci": "a7a8",
+      "reason": "promotion_suffix_required",
+      "normalizes_but_missing_from_vocab": true
+    },
+    {
+      "label": "missing move_vocab entry rejected",
+      "uci": "a1a8q",
+      "reason": "missing_vocab_entry",
+      "normalizes_but_missing_from_vocab": true
+    }
+  ],
+  "invalid_fixture_rows": [
+    {
+      "label": "policy_index -1 rejected in positive fixture context",
+      "uci": "e2e4",
+      "policy_index": -1,
+      "reason": "policy_index_minus_one"
+    }
+  ]
+}

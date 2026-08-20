@@ -1,0 +1,658 @@
+Oui — voici la **MAJ propre de la Formula Bible** et du **Guide Master** avec l’état réel du prototype labo.
+
+Je les formule pour qu’une autre IA ou une équipe puisse reprendre directement.
+
+Le cadre canonique reste inchangé : Tactical Chess doit rester un jeu d’échecs tactiques d’attrition et de siège, centré sur la **traversée**, le **BRAWL** et la **pression progressive du roi**. Le plateau doit rester la vérité principale du jeu. 
+
+---
+
+# Tactical Chess — Formula Bible (MAJ)
+
+## 0. Statut de cette version
+
+Cette Formula Bible ne décrit pas encore tout le jeu final.
+Elle décrit la **version labo du noyau actuellement testée**, utilisée pour :
+
+* équilibrer le cœur du système
+* comparer des réglages
+* produire des simulations stables
+* réduire les biais du premier joueur
+
+Elle couvre donc :
+
+* dégâts directs
+* riposte
+* traversée
+* BRAWL
+* pression du roi
+* fatigue de pression
+* adjudication de timeout
+* objectifs métriques du proto
+
+---
+
+## 1. Modèle de dégâts direct
+
+Formule canonique du prototype :
+
+```text
+directDamage = max(1, attackerATK - defenderARM)
+```
+
+Conséquences :
+
+* les attaques infligent toujours au moins 1 dégât
+* l’ARM amortit sans annuler complètement le combat
+* le système reste lisible et simulation-friendly
+
+---
+
+## 2. Modèle de riposte
+
+Si la cible survit et que la situation autorise la riposte :
+
+```text
+retaliationDamage = max(1, defenderATK - attackerARM)
+```
+
+Version labo actuelle :
+
+* la riposte est simple
+* elle ne dépend pas encore d’une matrice avancée de statuts
+* elle sert surtout à éviter les trades “gratuits”
+
+---
+
+## 3. Modèle de traversée
+
+La traversée est un système central du jeu et non un ajout. Une pièce non-knight subit des contre-attaques sur les cases traversées contrôlées. Si elle meurt, le mouvement s’arrête immédiatement. 
+
+Forme proto :
+
+```text
+traversalDamage = max(1, controllerATK - moverARM)
+```
+
+Règles actives dans le labo :
+
+* résolution case par case
+* arrêt immédiat en cas de mort
+* le knight reste l’exception structurelle
+* le pion double move doit rester résolu étape par étape quand activé
+
+KPI proto utile :
+
+```text
+mean_traversal_deaths
+```
+
+Baseline labo observée :
+
+```text
+≈ 4.68 morts de traversée en moyenne / partie
+```
+
+---
+
+## 4. Modèle BRAWL
+
+Le BRAWL ne remplace pas le combat ; il accélère les positions mauvaises. Il se résout après l’action explicite et avant la recomputation finale de la pression du roi. 
+
+Forme proto :
+
+```text
+brawlDamage = max(1, attackerATK - defenderARM)
+```
+
+Version labo actuelle :
+
+* snapshot global des engagements adjacents
+* application interne simplifiée
+* sert de moteur d’attrition locale
+
+KPI proto utile :
+
+```text
+mean_brawl_damage
+```
+
+Baseline labo observée :
+
+```text
+≈ 57.8 dégâts BRAWL moyens / partie
+```
+
+Interprétation :
+
+* le BRAWL reste une part importante du système
+* il ne doit pas devenir la seule source de résolution
+* il doit continuer à punir les positions sur-exposées
+
+---
+
+## 5. Modèle de pression du roi
+
+La pression du roi est une condition de victoire secondaire mais active. Elle doit rester explicable et décomposable. 
+
+Version labo simplifiée :
+
+```text
+kingPressure =
+directThreat
++ floor(supportingAttackers / support_divisor)
++ floor(blockedEscapes / blocked_escape_divisor)
++ brawlPressureContribution
+```
+
+où :
+
+```text
+brawlPressureContribution =
+brawl_pressure_value si le BRAWL local contre le roi est pertinent
+sinon 0
+```
+
+### Paramètres baseline labo actuels
+
+```text
+support_divisor = 4
+blocked_escape_divisor = 3
+brawl_pressure_value = 1
+```
+
+---
+
+## 6. Seuil de collapse du roi
+
+Formule active :
+
+```text
+collapse if kingPressure >= kingHP + pressure_threshold_bonus - fatigueReduction
+```
+
+### Baseline labo actuelle
+
+```text
+pressure_threshold_bonus = 2
+```
+
+Interprétation :
+
+* bonus 2 = pression agressive, efficace pour le labo
+* bonus 3 = pression plus modérée, plus mixte avec les kills directs
+
+Comparaison utile :
+
+* `bonus = 2` → moins de draws, plus de victoires par pression
+* `bonus = 3` → plus de mix pression / kill, mais parties un peu plus longues
+
+---
+
+## 7. Fatigue de pression
+
+La fatigue est un outil labo pour éviter les endgames trop mous et les parties qui ne convergent jamais.
+
+Formule :
+
+```text
+fatigueReduction starts at fatigue_start_turn
+then increases by 1 every fatigue_step turns
+capped at fatigue_max_reduction
+```
+
+### Baseline labo
+
+```text
+fatigue_start_turn = 48
+fatigue_step = 18
+fatigue_max_reduction = 2
+```
+
+Effet :
+
+* le collapse devient progressivement plus accessible en fin de partie
+* le système réduit les longues stagnations
+
+---
+
+## 8. Timeout adjudication
+
+En mode labo, on ne veut pas que trop de parties finissent en draw “bête”.
+
+Règle :
+
+```text
+if turnCount >= max_turns:
+    if evalDelta >= timeout_eval_margin:
+        leader wins
+    else:
+        draw
+```
+
+### Baseline labo
+
+```text
+max_turns = 100
+timeout_eval_margin = 3.0
+adjudicate_on_timeout = true
+```
+
+Interprétation :
+
+* c’est un outil de labo
+* ce n’est pas nécessairement une règle produit finale
+* il sert à accélérer l’évaluation de balance
+
+---
+
+## 9. Fonction d’évaluation IA (niveau labo)
+
+La fonction d’évaluation n’est pas une vérité design du jeu final ; elle est un outil de test.
+
+Version conceptuelle :
+
+```text
+evalScore =
+materialScore
++ kingPressureDelta * W1
++ kingSafetyDelta * W2
++ exposurePenalty * W3
++ mobilityScore * W4
++ localAdvantageScore * W5
++ noiseTerm
+```
+
+où :
+
+* `materialScore` mesure HP + ATK + ARM restants
+* `kingPressureDelta` compare les menaces sur les deux rois
+* `exposurePenalty` punit les pièces avancées mal soutenues
+* `noiseTerm` sert à casser les lignes trop déterministes
+
+### Baseline labo
+
+```text
+noise_weight = 0.04
+ai_depth = 2
+opening_random_plies = 4
+top_move_margin = 0.2
+root_branch_limit = 8
+search_branch_limit = 5
+```
+
+---
+
+## 10. KPI labo à suivre
+
+Les métriques importantes à suivre sont :
+
+```text
+p1_winrate
+p2_winrate
+draw_rate
+mean_turns
+pressure_victories
+king_kill_victories
+timeout_adjudications
+p1_start_winrate
+p2_start_winrate
+mean_brawl_damage
+mean_traversal_deaths
+```
+
+Les métriques à considérer comme secondaires / encore brutes :
+
+```text
+mean_pressure_peak_p1
+mean_pressure_peak_p2
+```
+
+---
+
+## 11. Baseline labo actuelle recommandée
+
+La meilleure baseline actuelle pour continuer le travail est :
+
+```text
+pressure_threshold_bonus = 2
+blocked_escape_divisor = 3
+support_divisor = 4
+brawl_pressure_value = 1
+max_turns = 100
+ai_depth = 2
+opening_random_plies = 4
+top_move_margin = 0.2
+root_branch_limit = 8
+search_branch_limit = 5
+fatigue_start_turn = 48
+fatigue_step = 18
+fatigue_max_reduction = 2
+adjudicate_on_timeout = true
+timeout_eval_margin = 3.0
+noise_weight = 0.04
+```
+
+Résultat associé :
+
+```json
+{
+  "games": 50,
+  "p1_wins": 23,
+  "p2_wins": 26,
+  "draws": 1,
+  "p1_winrate": 0.46,
+  "p2_winrate": 0.52,
+  "draw_rate": 0.02,
+  "mean_turns": 65.14,
+  "pressure_victories": 37,
+  "king_kill_victories": 8,
+  "timeout_adjudications": 4,
+  "p1_start_winrate": 0.36,
+  "p2_start_winrate": 0.44
+}
+```
+
+Lecture :
+
+* excellente stabilité
+* biais starter faible
+* très peu de draws
+* pression dominante mais fonctionnelle
+* temps moyen encore un peu long
+
+---
+
+## 12. Configuration alternative à conserver
+
+Baseline alternative plus mixte :
+
+```text
+pressure_threshold_bonus = 3
+blocked_escape_divisor = 3
+support_divisor = 4
+brawl_pressure_value = 1
+max_turns = 100
+opening_random_plies = 4
+top_move_margin = 0.2
+timeout_eval_margin = 3.0
+noise_weight = 0.04
+```
+
+Résultat associé :
+
+```json
+{
+  "games": 50,
+  "p1_wins": 24,
+  "p2_wins": 24,
+  "draws": 2,
+  "p1_winrate": 0.48,
+  "p2_winrate": 0.48,
+  "draw_rate": 0.04,
+  "mean_turns": 69.88,
+  "pressure_victories": 27,
+  "king_kill_victories": 16,
+  "timeout_adjudications": 5,
+  "p1_start_winrate": 0.36,
+  "p2_start_winrate": 0.36
+}
+```
+
+Lecture :
+
+* plus naturel dans la répartition des fins
+* pression moins dominante
+* parties légèrement plus longues
+
+---
+
+# Tactical Chess — Guide Master (MAJ)
+
+## 1. Position actuelle du projet
+
+Tactical Chess n’est plus seulement un concept ni un simple proto exploratoire.
+Le projet possède maintenant :
+
+* une vision design consolidée
+* un moteur labo jouable
+* un système de balance par simulation
+* une baseline stable de test
+* une IA suffisante pour comparer des configurations
+
+Le jeu final complet n’est pas encore entièrement implémenté, mais le **noyau tactique** est déjà exploitable.
+
+---
+
+## 2. Identité du jeu
+
+Tactical Chess doit rester :
+
+```text
+un jeu d’échecs tactiques d’attrition et de siège
+```
+
+Sa formule opérationnelle reste :
+
+```text
+lisibilité structurelle des échecs
++ attrition locale
++ pression spatiale
++ siège progressif du roi
+```
+
+Et il ne doit pas dériver vers :
+
+* une variante gadget d’échecs
+* un TCG décoré d’un échiquier
+* un jeu à effets opaques où le plateau cesse d’être la vérité principale. 
+
+---
+
+## 3. Noyau canonique du proto labo
+
+Le proto labo actuel doit être pensé comme un **labo d’équilibrage du noyau**.
+
+### Règles présentes
+
+* board 8×8
+* pièces de base
+* HP / ATK / ARM
+* déplacement
+* traversée
+* attaque directe
+* riposte
+* BRAWL
+* pression du roi
+* collapse du roi
+* victoire par mort du roi
+* fatigue de pression
+* adjudication sur timeout
+* IA minimax depth 1/2
+* randomisation contrôlée de l’ouverture
+
+### Règles absentes ou minimisées
+
+* factions complètes
+* sets RNG complets
+* arbres d’abilities riches
+* terrain riche
+* structures avancées
+* magic
+* alien
+* systèmes UX avancés
+* économie complète des statuts finaux
+
+---
+
+## 4. Pipeline runtime du prototype
+
+Le pipeline canonique à préserver est :
+
+```text
+select action
+→ legality check
+→ path build
+→ traversal
+→ arrival
+→ direct attack
+→ retaliation
+→ cleanup dead
+→ BRAWL
+→ cleanup dead
+→ pressure recompute
+→ victory check
+→ timeout adjudication if needed
+```
+
+Ce pipeline est cohérent avec le document de consolidation, qui impose :
+
+* traversée avant l’arrivée
+* BRAWL après résolution de l’action
+* pression du roi après stabilisation du board. 
+
+---
+
+## 5. Baseline officielle de travail
+
+La baseline recommandée pour poursuivre les tests est :
+
+```text
+pressure_threshold_bonus = 2
+blocked_escape_divisor = 3
+support_divisor = 4
+brawl_pressure_value = 1
+max_turns = 100
+ai_depth = 2
+opening_random_plies = 4
+top_move_margin = 0.2
+root_branch_limit = 8
+search_branch_limit = 5
+fatigue_start_turn = 48
+fatigue_step = 18
+fatigue_max_reduction = 2
+adjudicate_on_timeout = true
+timeout_eval_margin = 3.0
+noise_weight = 0.04
+```
+
+Pourquoi cette baseline :
+
+* quasi absence de draws
+* bon équilibre p1/p2
+* starter bias faible
+* bonne convergence des parties
+* pression activée de manière fiable
+
+---
+
+## 6. Baseline secondaire à conserver
+
+La baseline secondaire, utile pour garder un noyau plus mixte entre pression et kill, est :
+
+```text
+pressure_threshold_bonus = 3
+blocked_escape_divisor = 3
+support_divisor = 4
+brawl_pressure_value = 1
+max_turns = 100
+opening_random_plies = 4
+top_move_margin = 0.2
+timeout_eval_margin = 3.0
+noise_weight = 0.04
+```
+
+Rôle :
+
+* comparer la domination de la pression
+* garder une option plus “classique” si la baseline officielle devient trop collapsée
+
+---
+
+## 7. Ce qu’une autre IA doit considérer comme acquis
+
+Les éléments à traiter comme **déjà validés dans le noyau** sont :
+
+* la traversée comme système central
+* le BRAWL comme accélérateur d’attrition
+* la pression du roi comme condition de victoire réelle
+* la nécessité de garder le plateau lisible
+* le besoin d’un moteur déterministe batchable
+* la nécessité d’un faible starter bias
+* l’usage d’une IA avec bruit contrôlé pour éviter les lignes trop figées
+
+---
+
+## 8. Ce qu’une autre IA doit considérer comme encore ouvert
+
+Les éléments encore ouverts sont :
+
+* réduction de `mean_turns`
+* réduction des `timeout_adjudications`
+* part exacte des victoires par pression
+* calibration fine du mix pression / kill
+* réintroduction progressive des couches avancées
+* validation plus large sur 200+ parties par baseline
+
+---
+
+## 9. Priorités immédiates
+
+L’ordre de travail recommandé est :
+
+### Priorité 1
+
+Stabiliser la baseline labo sur plus gros batch :
+
+* 200 parties
+* 500 parties
+* vérifier que l’équilibre tient
+
+### Priorité 2
+
+Réduire légèrement la durée moyenne :
+
+* viser `50–65 tours`
+* sans faire remonter fortement draws ou starter bias
+
+### Priorité 3
+
+Décider si la baseline officielle doit rester :
+
+* `bonus 2` (labo agressif)
+  ou
+* `bonus 3` (mix plus naturel)
+
+---
+
+## 10. Règle de reprise pour une autre IA
+
+Si une autre IA reprend le projet, elle doit considérer :
+
+```text
+Le prototype labo v7 est la base réelle de travail.
+Le système est stable.
+La baseline actuelle est exploitable.
+Le travail n’est plus de prouver le noyau,
+mais d’affiner sa vitesse de convergence et la part exacte de la pression du roi.
+```
+
+---
+
+## 11. Handoff court
+
+Résumé compact :
+
+```text
+Tactical Chess possède maintenant un proto labo stable du noyau :
+traversée + attaque/riposte + BRAWL + pression du roi + timeout adjudication.
+La baseline officielle actuelle est :
+bonus 2 / support 4 / blocked 3 / brawlPressure 1 / maxTurns 100 / aiDepth 2 / openingRandomPlies 4 / topMoveMargin 0.2 / timeoutEvalMargin 3.0 / noise 0.04.
+Elle donne :
+23-26, 1 draw, 65.14 tours, 37 victoires par pression, 8 par kill, 4 adjudications, starter bias faible.
+La baseline secondaire bonus 3 est plus mixte mais un peu plus lente.
+Le prochain travail consiste à réduire légèrement les tours moyens et les adjudications sans casser l’équilibre.
+```
+
+---
+
+Si tu veux, je peux maintenant te faire la **version “document propre” en un seul bloc**, prête à coller dans ta bible centrale.

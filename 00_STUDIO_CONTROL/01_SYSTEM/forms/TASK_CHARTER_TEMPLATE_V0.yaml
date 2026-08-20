@@ -1,0 +1,310 @@
+schema_version: "STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0"
+record_type: "task_charter_input"
+contract_version: "V0"
+language: "English"
+owner_authority:
+  owner: "HumanGate"
+  registry_authority: "00_STUDIO_CONTROL/03_REGISTRIES/FILE_REGISTRY.yaml"
+  notes: "FILE_REGISTRY is the route, owner, consumer, status, and evidence authority for registered control-room files when local metadata is incomplete."
+
+task_id: ""
+created_at: ""
+created_by: ""
+
+codex_runtime:
+  requested_model: "gpt-5.5"
+  requested_reasoning_effort: "medium"
+  task_class: "docs_workflow"
+  fallback_policy:
+    if_requested_model_unavailable: "STOP_AND_REPORT"
+    if_actual_model_identifier_hidden: "actual_runtime: UNKNOWN"
+    unknown_runtime_status: "BLOCKED"
+  actual_runtime: "UNKNOWN"
+  actual_runtime_evidence: ""
+  runtime_status: "BLOCKED"
+  runtime_claim_rule: "Do not claim the exact runtime model unless Codex exposes it explicitly."
+
+operator_goal:
+  summary: ""
+  purpose: ""
+  success_condition: ""
+  claim_posture: "NO_CLAIM_ALLOWED"
+  human_gate_required: true
+
+uxpilote_chain:
+  chain_id: ""
+  chain_type: "hygiene|truth|upgrade"
+  zone: "engine|rocky|routage|evidence|studio_control"
+  subzone: ""
+  action_mode: "inspect|compare|diagnose|validate_evidence|prepare_patch"
+  authority_level: "read_only|docs_only|patch_proposal|runtime_locked"
+  qui:
+    actor: "human|codex|local_llm|tool|rocky|future_agent"
+    role: "planner|inspector|verifier|executor|reviewer"
+    authority: "read_only|docs_only|patch_proposal|runtime_locked"
+  quoi:
+    target_object: ""
+    task_intent: "inspect|diagnose|validate|prepare_patch|execute_bounded"
+    expected_output: "none|summary|evidence_packet|patch_plan|task_charter"
+  quand:
+    duration_limit: "5m|15m|30m|1h"
+    loop_limit: 1
+    retry_limit: 0
+    stop_condition: ""
+    cost_guard: "low|medium|high|blocked"
+  comment:
+    allowed_actions: []
+    blocked_actions: []
+    validation_mode: "readback|targeted_check|test|none"
+    mutation_policy: "forbidden|proposal_only|humangate_required"
+  ou:
+    zone: "engine|rocky|routage|evidence|studio_control"
+    subzone: ""
+    target_path: ""
+    output_route: ""
+  pourquoi:
+    reason: ""
+    implementation_rule: ""
+    success_condition: ""
+    human_gate_required: true
+  chain_pipeline_required: true
+  pipeline:
+    - "Cartographer"
+    - "HygieneAgent"
+    - "TruthAgent"
+    - "FusionAuditor"
+    - "CartographerRedTeam"
+    - "HumanGate"
+
+task_type:
+  primary_surface: "canonical_docs"
+  allowed_surfaces:
+    - "active_runtime_code"
+    - "tests"
+    - "artifacts_runtime_outputs"
+    - "canonical_docs"
+    - "roadmap_docs_only"
+    - "inference"
+  expected_status: "DOCUMENTED_ONLY"
+  notes: ""
+
+target_project:
+  name: ""
+  repo_path: ""
+  branch: ""
+  head: ""
+  worktree_status: "UNKNOWN"
+  reference_only: true
+
+target_surface:
+  in_scope:
+    - "canonical_docs"
+  out_of_scope:
+    - "active_runtime_code"
+    - "tests"
+    - "artifacts_runtime_outputs"
+    - "roadmap_docs_only"
+    - "inference"
+
+output_routing:
+  produced_file_type: ""
+  intended_surface: ""
+  canonical_destination: ""
+  temporary_destination: ""
+  forbidden_destinations:
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/08_MIGRATION/SNAPSHOTS"
+    - "**/copied_sources/**"
+    - "**/SOURCE_IMPORTS/**"
+    - "**/BACKUPS/**"
+    - "**/LOCAL_ARCHIVE/**"
+  registration_required: false
+  project_source_upload_required: false
+  retention_policy: ""
+  promotion_gate: "HumanGate"
+  duplicate_prevention:
+    required: true
+    active_source_search_required: true
+    name_collision_check_required: true
+    hash_collision_check_required: true
+    forbidden_destination_check_required: true
+    block_on_unresolved_collision: true
+
+source_read_route:
+  extension_field_only: true
+  replaces_output_routing: false
+  does_not_override_source_anchoring: true
+  required_source_anchors: []
+  reference_only_paths: []
+  loaded_state_required: "UNKNOWN"
+  notes: ""
+
+expected_scope:
+  status: "UNKNOWN"
+  summary: ""
+  target_files: []
+  reference_only_paths: []
+  allowed_directories: []
+  forbidden_directories: []
+
+expected_files:
+  create_or_update: []
+  read_only: []
+  must_not_touch: []
+
+explicit_non_goals:
+  runtime_implementation: "BLOCKED"
+  gameplay_design: "BLOCKED"
+  agent_activation: "BLOCKED"
+  training: "BLOCKED"
+  benchmark: "BLOCKED"
+  dataset_generation: "BLOCKED"
+  dataset_reset: "BLOCKED"
+  latest_manifest_creation: "BLOCKED"
+  run_folder_creation: "BLOCKED"
+  model_or_checkpoint_creation: "BLOCKED"
+  model_promotion: "BLOCKED"
+  chess960_activation: "BLOCKED"
+  decision_controller_activation: "BLOCKED"
+  commit: "BLOCKED"
+  push: "BLOCKED"
+  branch_creation: "BLOCKED"
+  pull_request_creation: "BLOCKED"
+
+current_known_state:
+  reference_repo:
+    path: ""
+    branch: ""
+    head: ""
+    worktree_status: "UNKNOWN"
+    pre_existing_changes: []
+  target_files:
+    status: "UNKNOWN"
+    files: []
+  known_document_drift:
+    status: "UNKNOWN"
+    items: []
+
+allowed_actions:
+  - "Read the reference contract."
+  - "Create or update only the target control template files."
+  - "Run docs-only validation and readback commands."
+  - "Inspect reference repository status only."
+
+blocked_actions:
+  runtime_code_changes: "BLOCKED"
+  test_changes: "BLOCKED"
+  repo_doc_changes: "BLOCKED"
+  runtime_execution: "BLOCKED"
+  training: "BLOCKED"
+  benchmark: "BLOCKED"
+  dataset_generation: "BLOCKED"
+  dataset_reset: "BLOCKED"
+  latest_json_creation: "BLOCKED"
+  lab_run_creation: "BLOCKED"
+  model_or_checkpoint_creation: "BLOCKED"
+  model_promotion: "BLOCKED"
+  agent_activation: "BLOCKED"
+  chess960_activation: "BLOCKED"
+  decision_controller_activation: "BLOCKED"
+  tool_installation: "BLOCKED"
+  commit: "BLOCKED"
+  push: "BLOCKED"
+  branch_creation: "BLOCKED"
+  pull_request_creation: "BLOCKED"
+
+validation_plan:
+  expected_level: "DOCUMENTED_ONLY"
+  commands:
+    - command: "Test-Path .\\STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md"
+      surface: "canonical_docs"
+      expected_status: "DOCUMENTED_ONLY"
+    - command: "Test-Path .\\TASK_CHARTER_TEMPLATE_V0.yaml"
+      surface: "canonical_docs"
+      expected_status: "DOCUMENTED_ONLY"
+    - command: "Test-Path .\\EXECUTOR_REPORT_TEMPLATE_V0.yaml"
+      surface: "canonical_docs"
+      expected_status: "DOCUMENTED_ONLY"
+    - command: "Test-Path .\\ANALYSIS_AGENT_RECORD_TEMPLATE_V0.yaml"
+      surface: "canonical_docs"
+      expected_status: "DOCUMENTED_ONLY"
+    - command: "Get-Content .\\TASK_CHARTER_TEMPLATE_V0.yaml"
+      surface: "canonical_docs"
+      expected_status: "DOCUMENTED_ONLY"
+    - command: "Get-Content .\\EXECUTOR_REPORT_TEMPLATE_V0.yaml"
+      surface: "canonical_docs"
+      expected_status: "DOCUMENTED_ONLY"
+    - command: "Get-Content .\\ANALYSIS_AGENT_RECORD_TEMPLATE_V0.yaml"
+      surface: "canonical_docs"
+      expected_status: "DOCUMENTED_ONLY"
+    - command: "Select-String -Path .\\TASK_CHARTER_TEMPLATE_V0.yaml -Pattern \"task_charter_input\""
+      surface: "canonical_docs"
+      expected_status: "DOCUMENTED_ONLY"
+    - command: "Select-String -Path .\\EXECUTOR_REPORT_TEMPLATE_V0.yaml -Pattern \"executor_report_output\""
+      surface: "canonical_docs"
+      expected_status: "DOCUMENTED_ONLY"
+    - command: "Select-String -Path .\\ANALYSIS_AGENT_RECORD_TEMPLATE_V0.yaml -Pattern \"analysis_agent_record\""
+      surface: "canonical_docs"
+      expected_status: "DOCUMENTED_ONLY"
+    - command: "Select-String -Path .\\*.yaml -Pattern \"IMPLEMENTED|TESTED|DOCUMENTED_ONLY|PASSIVE|BLOCKED|NOT_FOUND|UNKNOWN\""
+      surface: "canonical_docs"
+      expected_status: "DOCUMENTED_ONLY"
+  reference_repo_status_only:
+    - command: "git status --short --branch"
+      surface: "canonical_docs"
+      expected_status: "DOCUMENTED_ONLY"
+    - command: "git rev-parse HEAD"
+      surface: "canonical_docs"
+      expected_status: "DOCUMENTED_ONLY"
+  readback_required: true
+
+output_contract:
+  required_report_type: "executor_report_output"
+  preflight_required: true
+  source_state_required: true
+  files_written_required: true
+  output_routing_required_for_file_producing_tasks: true
+  route_check_required: true
+  output_routing_result_required: true
+  duplicate_prevention_result_required: true
+  scope_check_required: true
+  coverage_check_required: true
+  files_changed_required: true
+  commands_run_required: true
+  skipped_validation_required: true
+  risks_required: true
+  status_by_surface_required: true
+  software_verdict_required: true
+  evidence_verdict_required: true
+  claim_verdict_required: true
+  no_global_ready_verdict: true
+
+risk_controls:
+  preserve_human_authority: true
+  no_global_ready_verdict: true
+  no_unbounded_claims: true
+  no_reference_repo_mutation: true
+  no_runtime_activation: true
+  no_training_or_benchmark: true
+  no_dataset_or_model_outputs: true
+
+required_status_by_surface:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "PASSIVE"
+
+final_verdicts_required:
+  software_verdict: true
+  evidence_verdict: true
+  claim_verdict: true
+  allowed_status_values:
+    - "IMPLEMENTED"
+    - "TESTED"
+    - "DOCUMENTED_ONLY"
+    - "PASSIVE"
+    - "BLOCKED"
+    - "NOT_FOUND"
+    - "UNKNOWN"

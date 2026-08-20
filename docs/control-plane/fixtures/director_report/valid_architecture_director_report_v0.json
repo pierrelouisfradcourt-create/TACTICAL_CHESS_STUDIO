@@ -1,0 +1,81 @@
+{
+  "schema_version": "studiopilot.director_report.v0",
+  "report_id": "director_architecture_v0_001",
+  "director_type": "ARCHITECTURE_DIRECTOR",
+  "source_objective": "Deliver Director Report V0 control-plane patchpack with safe layering and runtime boundaries",
+  "source_project_breakdown_ref": "pbr_v0_scalable_ai_org_001",
+  "reviewed_scope": {
+    "allowed_paths": [
+      "schemas/studiopilot_director_report.schema.json",
+      "scripts/control_plane/validate_director_reports.py",
+      "scripts/control_plane/smoke_director_report.py",
+      "docs/control-plane/fixtures/director_report/",
+      "docs/control-plane/DIRECTOR_LAYER_V0.md",
+      "docs/control-plane/DIRECTOR_REPORT_V0.md",
+      "docs/control-plane/DIRECTOR_REVIEW_POLICY_V0.md"
+    ],
+    "forbidden_paths": [
+      ".github/workflows/",
+      "src/",
+      "ml/"
+    ],
+    "scope_summary": "Architecture review keeps control-plane layering strict and blocks any runtime/search/neural or training mutation."
+  },
+  "reviewed_pr_candidates": [
+    {
+      "pr_candidate_id": "pr.runtime_boundary_guard",
+      "title": "Runtime boundary guard review",
+      "pr_type": "RUNTIME",
+      "risk_level": "HIGH",
+      "director_decision": "HOLD",
+      "reasons": [
+        "Runtime class candidates require explicit architecture review",
+        "No runtime implementation is allowed in this patchpack"
+      ]
+    },
+    {
+      "pr_candidate_id": "pr.ml_pipeline_contract_guard",
+      "title": "ML contract boundary review",
+      "pr_type": "ML",
+      "risk_level": "HIGH",
+      "director_decision": "HOLD",
+      "reasons": [
+        "ML candidates require architecture plus quality review",
+        "No ML runtime or training edits are in-scope"
+      ]
+    }
+  ],
+  "risk_level": "HIGH",
+  "director_verdict": "HOLD",
+  "required_conditions": [
+    "Architecture layering remains control-plane-only with no runtime file edits",
+    "Runtime boundary checks stay declarative and documentation-first",
+    "Control-plane architecture review must precede any future runtime touch"
+  ],
+  "blocked_reasons": [
+    "Runtime and ML categories remain hold-only without subsequent architecture-approved execution packet"
+  ],
+  "escalation_required": true,
+  "escalation_targets": [
+    "CEO_OFFICE",
+    "PROJECT_BREAKDOWN"
+  ],
+  "touched_surfaces": {
+    "workflows": false,
+    "runtime": false,
+    "search": false,
+    "neural": false,
+    "ml_training": false,
+    "benchmark": false,
+    "schemas": true,
+    "docs": true,
+    "control_plane_tooling": true
+  },
+  "forbidden_surface_touched": false,
+  "human_gate_required": true,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "evidence_verdict": "Architecture review documents boundaries only and does not prove runtime behavior.",
+  "status": "READY_FOR_HUMAN_REVIEW"
+}

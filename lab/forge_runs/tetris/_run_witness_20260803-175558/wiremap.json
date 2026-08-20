@@ -1,0 +1,415 @@
+{
+ "features": [
+  {
+   "feature": "core.boot — démarrage vers un état initial jouable",
+   "id": "core.boot",
+   "module": "06_RUNTIME",
+   "fonction": "start_game",
+   "fichiers": [
+    "06_RUNTIME/adapters/runtime_loop.gd"
+   ],
+   "producteur": "06_RUNTIME/adapters/runtime_loop.gd::start_game (via _ready au boot)",
+   "consommateur": "moteur Godot (main.tscn -> Main._ready) ; oracle produit godot_oracle.mjs",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Au lancement (main.tscn), start_game() amène State.initial : puits vide, statut EN_COURS, sans intervention. godot_oracle.mjs confirme l'atteinte de l'état initial jouable (fenêtre GPU)."
+   },
+   "oracle": "godot_oracle.mjs (invariant de lançabilité, fenêtre GPU)",
+   "observable_by_player": true,
+   "reused_from": null,
+   "preuve": "godot_oracle.mjs ALL CHECKS PASSED (boot -> partie jouable). main.tscn -> res://06_RUNTIME/adapters/runtime_loop.gd. RE-CONFIRME run temoin tetris-witness-20260803-175558 : node scripts/forge/godot_oracle.mjs games/tetris -> ALL CHECKS PASSED (run_tests 176/0 + solvabilite 50/50)."
+  },
+  {
+   "feature": "core.main_loop — boucle déterministe qui fait avancer l'état",
+   "id": "core.main_loop",
+   "module": "05_SYSTEMS",
+   "fonction": "step",
+   "fichiers": [
+    "05_SYSTEMS/game_loop/loop.gd"
+   ],
+   "producteur": "05_SYSTEMS/game_loop/loop.gd::step",
+   "consommateur": "06_RUNTIME/adapters/runtime_loop.gd::_process ; solvability.gd::run_solvability",
+   "expected_proof": {
+    "kind": "test",
+    "statement": "Même état + même intent + même graine -> même état suivant sur N ticks. La boucle ordonne les systèmes (gravité, lock, clear, score) et n'implémente aucune règle."
+   },
+   "oracle": "test_game_loop.gd + mutation loop.gd",
+   "observable_by_player": false,
+   "reused_from": {
+    "type": "CONCEPT",
+    "source": "games/breakout_v2/05_SYSTEMS/game_loop/loop.gd"
+   },
+   "reused_from_note": "CONCEPT requalifié : pas de temps continu (Breakout) -> tick discret à période variable (Tetris). Seule la règle 'la boucle ordonne, n'implémente aucune règle' est réutilisée, re-prouvée par test_game_loop.gd Tetris.",
+   "preuve": "test_game_loop.gd VERT (tick +1 strict, gravité auto à GRAVITY_PERIOD, verrou/clear/score ordonnés). Mutation loop.gd 6/6."
+  },
+  {
+   "feature": "core.input — le joueur agit sur la seule pièce active (genre.tetris.player_controls_active_piece_only)",
+   "id": "core.input",
+   "module": "05_SYSTEMS",
+   "fonction": "move_active_piece",
+   "fichiers": [
+    "05_SYSTEMS/input_rules/input.gd"
+   ],
+   "producteur": "05_SYSTEMS/input_rules/input.gd::move_active_piece",
+   "consommateur": "05_SYSTEMS/game_loop/loop.gd::step (applique l'intention légale)",
+   "genre_refs": [
+    "genre.tetris.player_controls_active_piece_only"
+   ],
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Une intention émise (LEFT/RIGHT/ROTATE/SOFT_DROP/HARD_DROP) modifie la pièce active de façon observable ; la pile figée reste strictement inchangée sous toute intention."
+   },
+   "oracle": "test_input.gd R6 + mutation input.gd",
+   "observable_by_player": true,
+   "reused_from": {
+    "type": "CONCEPT",
+    "source": "games/breakout_v2/05_SYSTEMS/input_rules/input.gd"
+   },
+   "reused_from_note": "CONCEPT requalifié : Breakout traduit l'entrée en déplacement continu borné ; Tetris en intention discrète sur la pièce active. Seule la séparation 'traduire l'intention' / 'l'appliquer' est réutilisée, re-prouvée par test_input.gd Tetris.",
+   "preuve": "test_input.gd VERT R6 (chaque intention, pile intacte). Mutation input.gd 15/15."
+  },
+  {
+   "feature": "core.game_state — état observable et nommé, sans victoire (genre.tetris.no_victory_in_marathon)",
+   "id": "core.game_state",
+   "module": "05_SYSTEMS",
+   "fonction": "initial",
+   "fichiers": [
+    "05_SYSTEMS/game_state/state.gd"
+   ],
+   "producteur": "05_SYSTEMS/game_state/state.gd::initial",
+   "consommateur": "game_loop/loop.gd::step ; debug_state/debug_state.gd::snapshot ; runtime_loop.gd::_draw",
+   "genre_refs": [
+    "genre.tetris.no_victory_in_marathon"
+   ],
+   "expected_proof": {
+    "kind": "test",
+    "statement": "L'état (grille, pièce active, score, lignes, statut) est lisible à tout instant et ne prend que des statuts déclarés {EN_COURS, GAME_OVER} — aucun statut GAGNE n'existe (marathon)."
+   },
+   "oracle": "test_game_state.gd + mutation state.gd",
+   "observable_by_player": false,
+   "reused_from": {
+    "type": "CONCEPT",
+    "source": "games/breakout_v2/05_SYSTEMS/game_state/state.gd"
+   },
+   "reused_from_note": "CONCEPT requalifié : l'ENUMÉRATION diffère (Breakout expose GAGNE ; Tetris marathon n'a pas d'état gagné). Seule la discipline 'l'état détient, il n'agit pas' est réutilisée, re-prouvée par test_game_state.gd Tetris.",
+   "preuve": "test_game_state.gd VERT (2 statuts, aucune victoire). Mutation state.gd 3/3."
+  },
+  {
+   "feature": "core.end_condition — fin de partie définie par les règles (genre.tetris.loss_by_blocking)",
+   "id": "core.end_condition",
+   "module": "05_SYSTEMS",
+   "fonction": "spawn_piece",
+   "fichiers": [
+    "05_SYSTEMS/game_state/state.gd"
+   ],
+   "producteur": "05_SYSTEMS/game_state/state.gd::spawn_piece (retourne false -> GAME_OVER)",
+   "consommateur": "05_SYSTEMS/game_loop/loop.gd::step ; solvability.gd::run_solvability",
+   "genre_refs": [
+    "genre.tetris.loss_by_blocking"
+   ],
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Une pièce qui ne peut pas apparaître légalement (collision au spawn) fait passer le statut à GAME_OVER ; un bot atteint une fin de partie, l'état final est PERDU, jamais indéfini, jamais gagné."
+   },
+   "oracle": "test_game_state.gd R7 + solvability.gd (fin atteinte)",
+   "observable_by_player": true,
+   "reused_from": null,
+   "preuve": "test_game_state.gd VERT R7 (spawn illégal -> GAME_OVER). solvability.gd atteint la fin de partie de façon déterministe. Mutation state.gd 3/3."
+  },
+  {
+   "feature": "core.restart — relance d'une partie dans un état initial propre",
+   "id": "core.restart",
+   "module": "06_RUNTIME",
+   "fonction": "start_game",
+   "fichiers": [
+    "06_RUNTIME/adapters/runtime_loop.gd"
+   ],
+   "producteur": "06_RUNTIME/adapters/runtime_loop.gd::start_game (touche R après GAME_OVER)",
+   "consommateur": "05_SYSTEMS/game_state/state.gd::initial (état neuf déterministe)",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Après une fin de partie, la touche R rappelle start_game() -> State.initial(graine fixe) : puits vide, score 0, lignes 0 — état identique au premier démarrage, aucun résidu."
+   },
+   "oracle": "test_game_state.gd (déterminisme de initial) ; câblage runtime_loop.gd::_unhandled_input KEY_R",
+   "observable_by_player": true,
+   "reused_from": null,
+   "preuve": "start_game() appelle State.initial(P.SPAWN.x+1) — graine fixe déterministe ; test_game_state.gd prouve que initial produit un état neuf reproductible (puits vide, compteurs 0)."
+  },
+  {
+   "feature": "core.exit — sortie propre du jeu",
+   "id": "core.exit",
+   "module": "06_RUNTIME",
+   "fonction": "_unhandled_input",
+   "fichiers": [
+    "06_RUNTIME/adapters/runtime_loop.gd"
+   ],
+   "producteur": "06_RUNTIME/adapters/runtime_loop.gd::_unhandled_input (touche ESC -> get_tree().quit(0))",
+   "consommateur": "moteur Godot (arrêt du processus, code de sortie 0)",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "La touche ESCAPE déclenche get_tree().quit(0) : le processus se termine avec le code 0, aucune ressource laissée active."
+   },
+   "oracle": "requires_gpu_window (non mesuré en headless) — chemin de code vérifié par lecture",
+   "observable_by_player": true,
+   "reused_from": null,
+   "preuve": "runtime_loop.gd::_unhandled_input branche KEY_ESCAPE -> get_tree().quit(0). Chemin structurel vérifié par lecture ; exécution non testée unitairement (NOT_MEASURED headless)."
+  },
+  {
+   "feature": "core.render — affichage de l'état, qui change quand l'état change",
+   "id": "core.render",
+   "module": "06_RUNTIME",
+   "fonction": "_draw",
+   "fichiers": [
+    "06_RUNTIME/adapters/runtime_loop.gd"
+   ],
+   "producteur": "06_RUNTIME/adapters/runtime_loop.gd::_draw",
+   "consommateur": "joueur (écran) ; oracle visuel GPU (capture vulkan)",
+   "expected_proof": {
+    "kind": "pixel",
+    "statement": "Deux captures à des états différents (pile/pièce/score distincts) diffèrent ; aucune capture n'est monochrome. Puits, pile, pièce active et HUD (SCORE, LIGNES, GAME OVER) sont rendus par primitives du moteur."
+   },
+   "oracle": "capture GPU vulkan (--rendering-driver vulkan) — requires_gpu_window: true, NOT_MEASURED en headless",
+   "observable_by_player": true,
+   "reused_from": null,
+   "preuve": "runtime_loop.gd::_draw dessine puits + pile + pièce active + HUD ; le rendu suit l'état à chaque queue_redraw(). Mesuré uniquement en fenêtre GPU vulkan (texture nulle en headless)."
+  },
+  {
+   "feature": "core.error_handling — une entrée invalide ne casse pas la partie",
+   "id": "core.error_handling",
+   "module": "05_SYSTEMS",
+   "fonction": "piece_fits",
+   "fichiers": [
+    "05_SYSTEMS/collision/collision.gd"
+   ],
+   "producteur": "05_SYSTEMS/collision/collision.gd::piece_fits (garde de légalité)",
+   "consommateur": "input_rules/input.gd::move_active_piece ; rotation_rules/rotation.gd::rotate_piece ; gravity/gravity.gd::apply_gravity",
+   "expected_proof": {
+    "kind": "test",
+    "statement": "Toute position hors bornes ou sur case occupée est refusée par piece_fits ; une intention illégale (hors domaine, répétée) laisse l'état de jeu strictement valide et inchangé."
+   },
+   "oracle": "test_collision.gd + test_input.gd + mutation collision.gd",
+   "observable_by_player": false,
+   "reused_from": null,
+   "preuve": "test_collision.gd VERT (bornes du puits, vide/occupé, fits). Les mouvements/rotations illégaux sont refusés (test_input.gd, test_rotation.gd). Mutation collision.gd 9/9."
+  },
+  {
+   "feature": "genre.tetris.seven_tetrominoes — sac des 7 tetrominos, sans répétition",
+   "id": "genre.tetris.seven_tetrominoes",
+   "module": "05_SYSTEMS",
+   "fonction": "generate_bag",
+   "fichiers": [
+    "05_SYSTEMS/piece_bag/bag.gd"
+   ],
+   "producteur": "05_SYSTEMS/piece_bag/bag.gd::generate_bag",
+   "consommateur": "05_SYSTEMS/game_state/state.gd::next_type",
+   "genre_refs": [
+    "genre.tetris.seven_tetrominoes"
+   ],
+   "expected_proof": {
+    "kind": "test",
+    "statement": "generate_bag(seed) produit exactement l'ensemble {0..6} (les 7 tetrominos), sans doublon, permutation déterministe par graine."
+   },
+   "oracle": "test_piece_bag.gd + mutation bag.gd",
+   "observable_by_player": false,
+   "reused_from": null,
+   "preuve": "test_piece_bag.gd VERT (ensemble == {0..6} strict, sans répétition). Mutation bag.gd 0 mutant."
+  },
+  {
+   "feature": "genre.tetris.deterministic_bag — suite de pièces déterministe par graine",
+   "id": "genre.tetris.deterministic_bag",
+   "module": "05_SYSTEMS",
+   "fonction": "next_seed",
+   "fichiers": [
+    "05_SYSTEMS/piece_bag/bag.gd"
+   ],
+   "producteur": "05_SYSTEMS/piece_bag/bag.gd::next_seed",
+   "consommateur": "05_SYSTEMS/game_state/state.gd::next_type ; solvability.gd (rejeu déterministe)",
+   "genre_refs": [
+    "genre.tetris.seven_tetrominoes"
+   ],
+   "expected_proof": {
+    "kind": "test",
+    "statement": "Deux exécutions à même graine produisent la même suite de sacs : next_seed(x) est une fonction pure déterministe (LCG), aucune source d'aléa externe."
+   },
+   "oracle": "test_piece_bag.gd (déterminisme) + mutation bag.gd",
+   "observable_by_player": false,
+   "reused_from": null,
+   "preuve": "test_piece_bag.gd VERT (même graine -> même suite). next_seed = LCG pur. Mutation bag.gd 0 mutant."
+  },
+  {
+   "feature": "genre.tetris.discrete_gravity — une case à intervalle régulier",
+   "id": "genre.tetris.discrete_gravity",
+   "module": "05_SYSTEMS",
+   "fonction": "apply_gravity",
+   "fichiers": [
+    "05_SYSTEMS/gravity/gravity.gd"
+   ],
+   "producteur": "05_SYSTEMS/gravity/gravity.gd::apply_gravity",
+   "consommateur": "05_SYSTEMS/game_loop/loop.gd::step",
+   "genre_refs": [
+    "genre.tetris.discrete_gravity"
+   ],
+   "expected_proof": {
+    "kind": "test",
+    "statement": "Sans input, apply_gravity fait descendre la pièce active d'exactement 1 case (dy == 1 strict) quand la position résultante est légale ; sinon déclenche le lock."
+   },
+   "oracle": "test_gravity.gd R2 + mutation gravity.gd",
+   "observable_by_player": true,
+   "reused_from": null,
+   "preuve": "test_gravity.gd VERT R2 (dy == 1 strict). Mutation gravity.gd 2/2."
+  },
+  {
+   "feature": "genre.tetris.rotation_bounded_by_terrain — rotation refusée sur collision (wall-kick DEFERRED)",
+   "id": "genre.tetris.rotation_bounded_by_terrain",
+   "module": "05_SYSTEMS",
+   "fonction": "rotate_piece",
+   "fichiers": [
+    "05_SYSTEMS/rotation_rules/rotation.gd"
+   ],
+   "producteur": "05_SYSTEMS/rotation_rules/rotation.gd::rotate_piece",
+   "consommateur": "05_SYSTEMS/input_rules/input.gd (intention ROTATE) via loop.step",
+   "genre_refs": [
+    "genre.tetris.rotation_bounded_by_terrain"
+   ],
+   "expected_proof": {
+    "kind": "test",
+    "statement": "Une rotation vers une case occupée ou hors bornes est refusée : la pièce et la pile restent inchangées. Variante stricte (sans wall-kick SRS) ; le wall-kick reste une décision ouverte (decider: pierre)."
+   },
+   "oracle": "test_rotation.gd R5 + mutation rotation.gd",
+   "observable_by_player": true,
+   "reused_from": null,
+   "preuve": "test_rotation.gd VERT R5 (refus sur collision, terrain intact). Mutation rotation.gd 2/2."
+  },
+  {
+   "feature": "genre.tetris.irreversible_stack — une pièce figée ne bouge plus jamais",
+   "id": "genre.tetris.irreversible_stack",
+   "module": "05_SYSTEMS",
+   "fonction": "lock_piece",
+   "fichiers": [
+    "05_SYSTEMS/lock_rules/lock.gd"
+   ],
+   "producteur": "05_SYSTEMS/lock_rules/lock.gd::lock_piece",
+   "consommateur": "05_SYSTEMS/game_loop/loop.gd::step ; 05_SYSTEMS/line_clear/line_clear.gd::clear_lines",
+   "genre_refs": [
+    "genre.tetris.irreversible_stack"
+   ],
+   "expected_proof": {
+    "kind": "test",
+    "statement": "Une pièce qui ne peut plus descendre est intégrée à la pile (4 cellules) ; après figeage, aucune commande ne la relocalise — la pile est immuable."
+   },
+   "oracle": "test_lock.gd R3 + mutation lock.gd",
+   "observable_by_player": true,
+   "reused_from": null,
+   "preuve": "test_lock.gd VERT R3 (verrou 4 cellules, pile immuable). Mutation lock.gd 0 mutant."
+  },
+  {
+   "feature": "genre.tetris.line_clear_compaction — seul moyen de libérer de l'espace",
+   "id": "genre.tetris.line_clear_compaction",
+   "module": "05_SYSTEMS",
+   "fonction": "clear_lines",
+   "fichiers": [
+    "05_SYSTEMS/line_clear/line_clear.gd"
+   ],
+   "producteur": "05_SYSTEMS/line_clear/line_clear.gd::clear_lines",
+   "consommateur": "05_SYSTEMS/game_loop/loop.gd::step ; 05_SYSTEMS/scoring/scoring.gd::score_for",
+   "genre_refs": [
+    "genre.tetris.line_clear_compaction"
+   ],
+   "expected_proof": {
+    "kind": "test",
+    "statement": "Une rangée entièrement pleine disparaît et tout ce qui est au-dessus descend d'exactement le nombre de rangées nettoyées (descente == N strict) ; aucune autre voie ne réduit la pile."
+   },
+   "oracle": "test_line_clear.gd R4 + mutation line_clear.gd",
+   "observable_by_player": true,
+   "reused_from": null,
+   "preuve": "test_line_clear.gd VERT R4 (descente == N strict). Mutation line_clear.gd 4/4."
+  },
+  {
+   "feature": "genre.tetris.superlinear_multi_clear_reward — barème super-linéaire par nombre de lignes",
+   "id": "genre.tetris.superlinear_multi_clear_reward",
+   "module": "05_SYSTEMS",
+   "fonction": "score_for",
+   "fichiers": [
+    "05_SYSTEMS/scoring/scoring.gd"
+   ],
+   "producteur": "05_SYSTEMS/scoring/scoring.gd::score_for",
+   "consommateur": "05_SYSTEMS/game_loop/loop.gd::step (score cumulé dans l'état)",
+   "genre_refs": [
+    "genre.tetris.superlinear_multi_clear_reward"
+   ],
+   "expected_proof": {
+    "kind": "test",
+    "statement": "score_for(N) reçoit un NOMBRE de lignes (jamais la grille) et récompense N lignes d'un coup strictement plus par ligne que N clears séparés (paliers stricts croissants). Valeurs absolues A_CALIBRER."
+   },
+   "oracle": "test_scoring.gd + mutation scoring.gd",
+   "observable_by_player": true,
+   "reused_from": null,
+   "preuve": "test_scoring.gd VERT (barème super-linéaire, paliers stricts). Mutation scoring.gd 4/4."
+  },
+  {
+   "feature": "proof.solvability — le bot survit et nettoie (pas de victoire en marathon)",
+   "id": "proof.solvability",
+   "module": "racine_projet",
+   "fonction": "run_solvability",
+   "fichiers": [
+    "solvability.gd"
+   ],
+   "producteur": "solvability.gd::run_solvability (bot déterministe, mêmes intentions que le clavier)",
+   "consommateur": "scripts/forge/solvability_godot.mjs (oracle produit R8)",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot scripté déterministe joue via le canal public (Loop.step) et SURVIT >= 8 pièces ET nettoie >= 1 ligne — preuve de jouabilité, jamais 'le bot gagne' (Tetris marathon n'a pas d'état gagné). N_SURVIVE non calibré en bande de difficulté (fog variance)."
+   },
+   "oracle": "solvability_godot.mjs (FORGE_TRIAL succeeded) — 50/50 au build_constat",
+   "observable_by_player": false,
+   "reused_from": null,
+   "preuve": "run_solvability émet FORGE_TRIAL {succeeded, ticks, pieces, lines}. RE-CONFIRME run temoin tetris-witness-20260803-175558 : solvability_godot.mjs -> won=50 lost=0 verdict=OK (trials=50, max_ticks=200, N_SURVIVE>=8 ET lines>=1 par essai)."
+  },
+  {
+   "feature": "params.named_constants — paramètres de jeu comme constantes nommées, et rien d'autre",
+   "id": "params.named_constants",
+   "module": "05_SYSTEMS",
+   "fonction": "shape",
+   "fichiers": [
+    "05_SYSTEMS/params/params.gd"
+   ],
+   "producteur": "05_SYSTEMS/params/params.gd (COLS, ROWS, SPAWN, GRAVITY_PERIOD, shape())",
+   "consommateur": "tous les systèmes 05_SYSTEMS + 06_RUNTIME/adapters/runtime_loop.gd",
+   "expected_proof": {
+    "kind": "static_oracle",
+    "statement": "params.gd ne déclare que des constantes nommées et les formes des tetrominos (shape) ; aucun littéral de gameplay dispersé ailleurs (mutation 0 mutant)."
+   },
+   "oracle": "test_params.gd + mutation params.gd",
+   "observable_by_player": false,
+   "reused_from": {
+    "type": "CONCEPT",
+    "source": "games/breakout_v2/05_SYSTEMS/params/params.gd"
+   },
+   "reused_from_note": "CONCEPT requalifié : les constantes de Breakout (physique continue, angles de rebond) n'ont aucun sens sur grille discrète. Seule la FORME 'un script de constantes nommées et rien d'autre' est réutilisée, re-prouvée par comptage de littéraux (mutation 0).",
+   "preuve": "test_params.gd VERT (176/176 avec la suite). Mutation params.gd 0 mutant (constantes nommées + Vector2i)."
+  },
+  {
+   "feature": "debug.observation_point — état exposé, lisible par l'oracle, sans effet de bord",
+   "id": "debug.observation_point",
+   "module": "05_SYSTEMS",
+   "fonction": "snapshot",
+   "fichiers": [
+    "05_SYSTEMS/debug_state/debug_state.gd"
+   ],
+   "producteur": "05_SYSTEMS/debug_state/debug_state.gd::snapshot",
+   "consommateur": "oracles Forge (godot_oracle.mjs / solvability) — jamais le joueur",
+   "expected_proof": {
+    "kind": "static_oracle",
+    "statement": "snapshot(state) rend une copie profonde fidèle de l'état (grille, pièce active, statut) sans aucun effet de bord sur l'état source."
+   },
+   "oracle": "test_debug_state.gd + mutation debug_state.gd",
+   "observable_by_player": false,
+   "reused_from": {
+    "type": "CONCEPT",
+    "source": "games/breakout_v2/05_SYSTEMS/debug_state/debug_state.gd"
+   },
+   "reused_from_note": "CONCEPT requalifié : la FORME d'un point d'observation lisible par l'oracle est réutilisée ; le CONTENU est propre à Tetris (grille, pièce active, statut), re-prouvé par test_debug_state.gd.",
+   "preuve": "test_debug_state.gd VERT (instantané fidèle, copie profonde sans effet de bord). Mutation debug_state.gd 0 mutant."
+  }
+ ]
+}

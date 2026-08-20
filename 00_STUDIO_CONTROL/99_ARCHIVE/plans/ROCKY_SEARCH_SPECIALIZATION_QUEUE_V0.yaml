@@ -1,0 +1,388 @@
+schema_version: "ROCKY_SEARCH_SPECIALIZATION_QUEUE_V0"
+record_type: "rocky_search_specialization_queue"
+contract_version: "V0"
+language: "English"
+status: "DOCUMENTED_ONLY"
+claim_posture: "NO_CLAIM_ALLOWED"
+human_gate_required: true
+
+codex_runtime:
+  requested_model: "gpt-5.5"
+  requested_reasoning_effort: "medium"
+  task_class: "docs_workflow"
+  fallback_policy:
+    if_requested_model_unavailable: "STOP_AND_REPORT"
+    if_actual_model_identifier_hidden: "actual_runtime: UNKNOWN"
+    unknown_runtime_status: "BLOCKED"
+  actual_runtime: "UNKNOWN"
+  actual_runtime_evidence: ""
+  runtime_status: "BLOCKED"
+  runtime_claim_rule: "Do not claim the exact runtime model unless Codex exposes it explicitly."
+
+repo_reference:
+  path: "C:/TACTICAL_CHESS_STUDIO"
+  git_root: "C:/TACTICAL_CHESS_STUDIO"
+  branch: "master"
+  head: "5e48ed310a5047eb21bd4825da858e3a08e0c950"
+  worktree_status_before: "PASSIVE"
+  pre_existing_changes:
+    status: "PASSIVE"
+    summary: "Existing untracked Studio Control and scripts/uxpilote files were present before this task. No staged files were reported."
+
+source_state:
+  created: "DOCUMENTED_ONLY"
+  registered: "UNKNOWN"
+  loaded: "DOCUMENTED_ONLY"
+  enforced: "DOCUMENTED_ONLY"
+  evidenced: "UNKNOWN"
+  source_anchoring_rule: "created != registered != loaded != enforced != evidenced"
+  sources_read:
+    - "C:/TACTICAL_CHESS_STUDIO/AGENTS.md"
+    - "C:/TACTICAL_CHESS_STUDIO/docs/gpt-navigator/GPT_NAVIGATOR_CODEX_PROMPT_GATE_V0.md"
+    - "C:/TACTICAL_CHESS_STUDIO/docs/gpt-navigator/GPT_NAVIGATOR_REPO_NOTICE_V0.md"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/ROCKY_RUNTIME_TARGET_FILE_AUDIT_V0.yaml"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_BOUNDARY_GUARD_QUEUE_V0.yaml"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_REALTIME_HYBRID_PLAYER_QUEUE_V0.yaml"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_PLAYER_QUEUE_POPULATION_V0.yaml"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_OBSERVABILITY_EVIDENCE_QUEUE_V0.yaml"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_CHARTER_TEMPLATE_V0.yaml"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/EXECUTOR_REPORT_TEMPLATE_V0.yaml"
+
+route_check:
+  status: "DOCUMENTED_ONLY"
+  output_routing_required: true
+  output_routing_present: true
+  destination_allowed: "DOCUMENTED_ONLY"
+  forbidden_destination_absent: "DOCUMENTED_ONLY"
+  target_directory_exists: "DOCUMENTED_ONLY"
+  target_file_preexisting: "NOT_FOUND"
+  name_collision_check_run: "DOCUMENTED_ONLY"
+  unresolved_collision_detected: "NOT_FOUND"
+  evidence: "Routed to 00_STUDIO_CONTROL/10_ROADMAP as roadmap_docs_only. Duplicate name scan found no existing ROCKY_SEARCH_SPECIALIZATION_QUEUE_V0.yaml."
+
+output_routing:
+  produced_file_type: "rocky_search_specialization_roadmap_yaml"
+  intended_surface: "roadmap_docs_only"
+  canonical_destination: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_SEARCH_SPECIALIZATION_QUEUE_V0.yaml"
+  temporary_destination: ""
+  actual_destination: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_SEARCH_SPECIALIZATION_QUEUE_V0.yaml"
+  registration_required: false
+  project_source_upload_required: false
+  retention_policy: "roadmap_only_pending_humangate"
+  promotion_gate: "HumanGate"
+
+queue:
+  id: "ROCKY_SEARCH_SPECIALIZATION_QUEUE_V0"
+  parent_population: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_PLAYER_QUEUE_POPULATION_V0.yaml"
+  runtime_target_audit: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/ROCKY_RUNTIME_TARGET_FILE_AUDIT_V0.yaml"
+  intended_surface: "roadmap_docs_only"
+  status: "DOCUMENTED_ONLY"
+  purpose: "Define future Search specialization micro-patch planning without changing runtime code, tests, artifacts, datasets, models, or Git state."
+  runtime_authority: "NONE"
+  mutation_authority: "HumanGate"
+  activation_authority: "HumanGate"
+  claim_authority: "HumanGate"
+
+search_authority_rule:
+  final_gameplay_authority: "Search"
+  search_final_tactical_authority:
+    status: "DOCUMENTED_ONLY"
+    rule: "Future Search specialization candidates must preserve Search as the final gameplay decision authority."
+  neural_final_authority: "BLOCKED"
+  critic_final_authority: "BLOCKED"
+  llm_final_move_authority: "BLOCKED"
+  decision_controller_activation: "BLOCKED"
+  benchmark_or_elo_claim: "BLOCKED"
+
+candidate_file_references_from_audit:
+  move_ordering:
+    candidate_runtime_files:
+      - path: "src/chess/search_root_ordering.rs"
+        confidence: "HIGH"
+        source_task: "SEARCH-001-MOVE-ORDERING-CANDIDATE"
+        audit_evidence: "Defines order_root_moves, apply_root_ordering_scores, and root_ordering_score."
+      - path: "src/chess/search.rs"
+        confidence: "HIGH"
+        source_task: "SEARCH-001-MOVE-ORDERING-CANDIDATE"
+        audit_evidence: "Uses order_root_moves inside search_root_in_place and contains mirror ordering tests."
+      - path: "src/chess/search_mirror_ordering.rs"
+        confidence: "MEDIUM"
+        source_task: "SEARCH-001-MOVE-ORDERING-CANDIDATE"
+        audit_evidence: "Imported by search_root_ordering and search tests for mirror ordering penalties."
+      - path: "src/chess/root_decision.rs"
+        confidence: "MEDIUM"
+        source_task: "SEARCH-001-MOVE-ORDERING-CANDIDATE"
+        audit_evidence: "Ranks root candidates using search_score and practical/policy weights."
+    candidate_test_files:
+      - path: "tests/search_backend_boundary.rs"
+        confidence: "MEDIUM"
+        audit_evidence: "Tracked Search backend boundary test exists."
+      - path: "tests/search_backend_passive_adapter.rs"
+        confidence: "MEDIUM"
+        audit_evidence: "Delegates to current root search behavior and checks selected action IDs."
+  bounded_budget:
+    candidate_runtime_files:
+      - path: "src/chess/search.rs"
+        confidence: "HIGH"
+        source_task: "SEARCH-002-BOUNDED-BUDGET-CANDIDATE"
+        audit_evidence: "Defines adaptive_depth, max-depth constants, search_root, completed_depth, and node diagnostics."
+      - path: "src/ai/search_backend.rs"
+        confidence: "HIGH"
+        source_task: "SEARCH-002-BOUNDED-BUDGET-CANDIDATE"
+        audit_evidence: "Defines SearchBudget, SearchRequest, SearchResult, and SearchBackend trait."
+      - path: "src/chess/search_backend_adapter.rs"
+        confidence: "HIGH"
+        source_task: "SEARCH-002-BOUNDED-BUDGET-CANDIDATE"
+        audit_evidence: "Maps root search output to SearchResult with searched_nodes and reached_depth."
+      - path: "src/chess/search_diagnostics_accumulators.rs"
+        confidence: "MEDIUM"
+        source_task: "SEARCH-002-BOUNDED-BUDGET-CANDIDATE"
+        audit_evidence: "Tracked diagnostics accumulator file records search runtime measurements."
+    candidate_test_files:
+      - path: "tests/search_backend_passive_adapter.rs"
+        confidence: "HIGH"
+        audit_evidence: "Checks SearchBudget request shape, searched_nodes, and reached_depth behavior."
+      - path: "tests/search_backend_boundary.rs"
+        confidence: "MEDIUM"
+        audit_evidence: "Tracked boundary test name matches Search backend."
+  authority_trace:
+    candidate_runtime_files:
+      - path: "src/chess/decision.rs"
+        confidence: "HIGH"
+        source_task: "BOUND-001-SEARCH-FINAL-AUTHORITY-CHECK"
+        audit_evidence: "DecisionMode variants route through search_authority_trace; helper sets SelectionAuthority::Search and used_search true."
+      - path: "src/chess/search_backend_adapter.rs"
+        confidence: "HIGH"
+        source_task: "BOUND-001-SEARCH-FINAL-AUTHORITY-CHECK"
+        audit_evidence: "PassiveSearchBackendAdapter delegates to search_root_with_context and returns selected_action_id plus searched_nodes."
+      - path: "src/chess/decision_trace.rs"
+        confidence: "HIGH"
+        source_task: "OBS-001-DECISION-EVIDENCE-PACKET"
+        audit_evidence: "DecisionTrace carries used_search, used_neural, neural_latency_ms, search_nodes, and search_depth."
+    candidate_test_files:
+      - path: "tests/decision_authority_boundary_current.rs"
+        confidence: "HIGH"
+        audit_evidence: "Checks Search authority helper, SelectionAuthority::Search, and that active decision route does not invoke DecisionController."
+      - path: "tests/search_backend_passive_adapter.rs"
+        confidence: "HIGH"
+        audit_evidence: "Checks adapter-backed boundary and SelectionAuthority::Search in traces."
+
+specialization_task_cards:
+  - task_id: "SEARCH-001-MOVE-ORDERING-SCOPE"
+    priority: "P1"
+    roi: "HIGH"
+    risk: "MEDIUM"
+    purpose: "Prepare a future scoped move-ordering micro-patch candidate."
+    candidate_runtime_files_from_audit:
+      - "src/chess/search_root_ordering.rs"
+      - "src/chess/search.rs"
+      - "src/chess/search_mirror_ordering.rs"
+      - "src/chess/root_decision.rs"
+    candidate_test_files_from_audit:
+      - "tests/search_backend_boundary.rs"
+      - "tests/search_backend_passive_adapter.rs"
+    dependencies:
+      - "ROCKY_RUNTIME_TARGET_FILE_AUDIT_V0"
+      - "ROCKY_BOUNDARY_GUARD_QUEUE_V0"
+      - "SEARCH-003-AUTHORITY-TRACE-SCOPE"
+    authority_boundary:
+      search_final_authority: "PRESERVED"
+      neural_final_authority: "BLOCKED"
+      critic_final_authority: "BLOCKED"
+    future_validation: "targeted search move-ordering tests in later authorized task"
+    current_patch_status: "BLOCKED"
+    human_gate: true
+
+  - task_id: "SEARCH-002-BOUNDED-BUDGET-SCOPE"
+    priority: "P2"
+    roi: "MEDIUM_HIGH"
+    risk: "MEDIUM"
+    purpose: "Prepare a future bounded search budget micro-patch candidate."
+    candidate_runtime_files_from_audit:
+      - "src/chess/search.rs"
+      - "src/ai/search_backend.rs"
+      - "src/chess/search_backend_adapter.rs"
+      - "src/chess/search_diagnostics_accumulators.rs"
+    candidate_test_files_from_audit:
+      - "tests/search_backend_passive_adapter.rs"
+      - "tests/search_backend_boundary.rs"
+    dependencies:
+      - "SEARCH-003-AUTHORITY-TRACE-SCOPE"
+      - "SEARCH-001-MOVE-ORDERING-SCOPE"
+    authority_boundary:
+      search_final_authority: "PRESERVED"
+      benchmark_claim: "BLOCKED"
+      runtime_execution: "BLOCKED"
+    future_validation: "targeted budget behavior tests in later authorized task"
+    current_patch_status: "BLOCKED"
+    human_gate: true
+
+  - task_id: "SEARCH-003-AUTHORITY-TRACE-SCOPE"
+    priority: "P1"
+    roi: "HIGH"
+    risk: "LOW"
+    purpose: "Prepare a future Search authority trace check or trace field."
+    candidate_runtime_files_from_audit:
+      - "src/chess/decision.rs"
+      - "src/chess/search_backend_adapter.rs"
+      - "src/chess/decision_trace.rs"
+      - "src/chess/decision_trace_bridge.rs"
+    candidate_test_files_from_audit:
+      - "tests/decision_authority_boundary_current.rs"
+      - "tests/search_backend_passive_adapter.rs"
+      - "tests/decision_trace_bridge.rs"
+    dependencies:
+      - "ROCKY_RUNTIME_TARGET_FILE_AUDIT_V0"
+      - "ROCKY_BOUNDARY_GUARD_QUEUE_V0"
+    authority_boundary:
+      final_gameplay_authority: "Search"
+      selection_authority_required: "SelectionAuthority::Search"
+      decision_controller_activation: "BLOCKED"
+    future_validation: "boundary trace validation in later authorized task"
+    current_patch_status: "BLOCKED"
+    human_gate: true
+
+  - task_id: "SEARCH-004-EVIDENCE-PACKET-INTEGRATION-SCOPE"
+    priority: "P3"
+    roi: "MEDIUM"
+    risk: "MEDIUM"
+    purpose: "Prepare future integration between Search decision and evidence packet schema."
+    candidate_runtime_files_from_audit:
+      - "src/chess/decision_trace.rs"
+      - "src/chess/decision_trace_bridge.rs"
+      - "src/chess/search_diagnostics.rs"
+      - "src/chess/cost_search_observability.rs"
+    candidate_test_files_from_audit:
+      - "tests/decision_trace_bridge.rs"
+      - "tests/cost_search_observability.rs"
+      - "tests/search_backend_passive_adapter.rs"
+    dependencies:
+      - "ROCKY_OBSERVABILITY_EVIDENCE_QUEUE_V0"
+      - "SEARCH-003-AUTHORITY-TRACE-SCOPE"
+    authority_boundary:
+      observation_is_not_proof: true
+      latest_json_creation: "BLOCKED"
+      lab_run_creation: "BLOCKED"
+    future_validation: "evidence packet schema validation in later authorized task"
+    current_patch_status: "BLOCKED"
+    human_gate: true
+
+recommended_order:
+  - "SEARCH-003-AUTHORITY-TRACE-SCOPE"
+  - "SEARCH-001-MOVE-ORDERING-SCOPE"
+  - "SEARCH-002-BOUNDED-BUDGET-SCOPE"
+  - "SEARCH-004-EVIDENCE-PACKET-INTEGRATION-SCOPE"
+
+compatibility:
+  boundary_guard_queue:
+    status: "DOCUMENTED_ONLY"
+    reason: "Search specialization must inherit Search-final, Neural-helper-only, Critic-helper-only, and DecisionController-blocked rules."
+  realtime_hybrid_player_queue:
+    status: "DOCUMENTED_ONLY"
+    reason: "Realtime hybrid planning may consume Search specialization candidates only after exact HumanGate scope and targeted validation are defined."
+  observability_evidence_queue:
+    status: "DOCUMENTED_ONLY"
+    reason: "Observability may define future evidence packets, but cannot promote Search changes to benchmark or strength claims."
+  blocked_with:
+    - "Neural final authority"
+    - "Critic final authority"
+    - "LLM final move authority"
+    - "DecisionController activation"
+    - "runtime implementation"
+    - "runtime execution"
+    - "benchmark"
+    - "training"
+    - "dataset generation"
+    - "model promotion"
+    - "commit/push/branch/PR"
+
+blocked_claims:
+  benchmark_proof: "BLOCKED"
+  elo_claim: "BLOCKED"
+  runtime_strength_claim: "BLOCKED"
+  scientific_proof: "BLOCKED"
+  model_quality_claim: "BLOCKED"
+  readiness_claim: "BLOCKED"
+  promotion_claim: "BLOCKED"
+
+blocked_actions:
+  runtime_implementation: "BLOCKED"
+  runtime_file_edit: "BLOCKED"
+  runtime_code_changes: "BLOCKED"
+  test_changes: "BLOCKED"
+  runtime_execution: "BLOCKED"
+  test_execution: "BLOCKED"
+  cargo_test: "BLOCKED"
+  pytest: "BLOCKED"
+  benchmark: "BLOCKED"
+  training: "BLOCKED"
+  dataset_generation: "BLOCKED"
+  dataset_reset: "BLOCKED"
+  latest_json_creation: "BLOCKED"
+  lab_run_creation: "BLOCKED"
+  model_or_checkpoint_creation: "BLOCKED"
+  model_promotion: "BLOCKED"
+  chess960_activation: "BLOCKED"
+  decision_controller_activation: "BLOCKED"
+  neural_final_authority: "BLOCKED"
+  critic_final_authority: "BLOCKED"
+  llm_final_move_authority: "BLOCKED"
+  commit: "BLOCKED"
+  push: "BLOCKED"
+  branch_creation: "BLOCKED"
+  pull_request_creation: "BLOCKED"
+
+validation:
+  expected_level: "DOCUMENTED_ONLY"
+  docs_only_checks:
+    - "Test-Path target file"
+    - "Get-Content target file"
+    - "Select-String required patterns"
+    - "git diff --check"
+    - "git diff --name-only"
+    - "git diff --cached --name-only"
+    - "git status --short --branch"
+  blocked_validation:
+    runtime_execution: "BLOCKED"
+    tests: "BLOCKED"
+    benchmark: "BLOCKED"
+    training: "BLOCKED"
+    dataset_model_actions: "BLOCKED"
+
+status_by_surface:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "PASSIVE"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+
+software_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "PASSIVE"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+
+evidence_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "PASSIVE"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+
+claim_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "PASSIVE"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+  default_claim_posture: "NO_CLAIM_ALLOWED"
+
+no_global_ready_verdict: true

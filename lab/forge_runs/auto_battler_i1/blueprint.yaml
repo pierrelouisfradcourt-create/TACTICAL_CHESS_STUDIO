@@ -1,0 +1,161 @@
+# blueprint.yaml — auto_battler_i1 (noyau moteur headless, content-agnostic P11)
+# GELÉ — racine code : games/auto_battler/engine/ · Node ESM (.mjs) · aucun renderer, aucun contenu.
+modules:
+  - nom: games/auto_battler/engine/types.mjs
+    responsabilite: >-
+      Vocabulaire P11 content-agnostic — SEULE surface publique de types :
+      EntityId, PlayerId, Input, Event, State (constructeurs/gardes de forme).
+      Feuille pure : aucune règle de gameplay, aucun import d'un autre module engine. [systeme 7]
+    depend_de: []
+  - nom: games/auto_battler/engine/rng.mjs
+    responsabilite: >-
+      PRNG déterministe pur opérant sur rng_state : seedRng(seed)->rng_state,
+      nextRng(rng_state)->{rng_state', value}. Aucun Math.random, aucune horloge.
+      Unique source d'aléa du moteur (déterminisme, semence unique portée par l'état). [systeme 6]
+    depend_de:
+      - games/auto_battler/engine/types.mjs
+  - nom: games/auto_battler/engine/registry.mjs
+    responsabilite: >-
+      Registres FERMÉS et gelés : EVENT_KINDS (19) + INPUT_KINDS (7), plus
+      membership()/assertKnown() fail-hard. Source unique de vérité des ensembles clos
+      consommée par eventlog et inputs. [backing systemes 3 & 4]
+    depend_de:
+      - games/auto_battler/engine/types.mjs
+  - nom: games/auto_battler/engine/serialize.mjs
+    responsabilite: >-
+      Sérialisation canonique déterministe d'un State (ordre de clés stable) et
+      statesEqual(a,b) — l'égalité d'état est définie UNIQUEMENT par cette sérialisation.
+      Support de l'égalité de 2 replays. Opère sur des objets d'état nus (n'importe pas state). [systeme 1]
+    depend_de:
+      - games/auto_battler/engine/types.mjs
+  - nom: games/auto_battler/engine/state.mjs
+    responsabilite: >-
+      Structure GameState NEUVE + fabrique/validation. rng_state est un CHAMP du GameState
+      (seedé via rng). Construction validée contre les registres clos. Données immuables :
+      aucune mutation en place. [systeme 1]
+    depend_de:
+      - games/auto_battler/engine/types.mjs
+      - games/auto_battler/engine/rng.mjs
+      - games/auto_battler/engine/registry.mjs
+  - nom: games/auto_battler/engine/inputs.mjs
+    responsabilite: >-
+      Alphabet FERMÉ de 7 Inputs (Buy, Sell, Reroll, Lock, LevelUp, Place, ConfirmPreparation) :
+      constructeurs + validation/rejet de tout Input malformé ou hors alphabet (via registry). [systeme 4]
+    depend_de:
+      - games/auto_battler/engine/types.mjs
+      - games/auto_battler/engine/registry.mjs
+  - nom: games/auto_battler/engine/eventlog.mjs
+    responsabilite: >-
+      Journal append-only d'Events ; n'accepte QUE les 19 Events du registre fermé,
+      fail-hard hors registre. Seule voie de sortie du moteur (INV-5). [systeme 3]
+    depend_de:
+      - games/auto_battler/engine/types.mjs
+      - games/auto_battler/engine/registry.mjs
+  - nom: games/auto_battler/engine/transition.mjs
+    responsabilite: >-
+      Reducer PUR transition(state, inputs) -> nextState : état neuf non-mutant,
+      isolation des sorties, validation/rejet des Inputs, émission des Events dans un
+      EventLog append-only, avancée du rng_state via rng. [systeme 2]
+    depend_de:
+      - games/auto_battler/engine/state.mjs
+      - games/auto_battler/engine/inputs.mjs
+      - games/auto_battler/engine/eventlog.mjs
+      - games/auto_battler/engine/rng.mjs
+  - nom: games/auto_battler/engine/replay.mjs
+    responsabilite: >-
+      replay(initialState, inputLog) -> (finalState, EventLog) : ré-exécution déterministe
+      de la transition sur le log. Deux replays du même couple sont égaux (via serialize/statesEqual). [systeme 5]
+    depend_de:
+      - games/auto_battler/engine/transition.mjs
+      - games/auto_battler/engine/state.mjs
+  - nom: games/auto_battler/engine/match.mjs
+    responsabilite: >-
+      Orchestrateur : déroule un Match complet (seed -> état initial -> séquence d'Inputs
+      jusqu'à ConfirmPreparation -> EventLog) via replay. Tourne à JEU DE RÈGLES VIDE
+      sans crash. Ne contient AUCUNE règle de gameplay. [systeme 8]
+    depend_de:
+      - games/auto_battler/engine/replay.mjs
+      - games/auto_battler/engine/state.mjs
+      - games/auto_battler/engine/inputs.mjs
+      - games/auto_battler/engine/eventlog.mjs
+
+deps_autorisees:
+  - "games/auto_battler/engine/rng.mjs -> games/auto_battler/engine/types.mjs"
+  - "games/auto_battler/engine/registry.mjs -> games/auto_battler/engine/types.mjs"
+  - "games/auto_battler/engine/serialize.mjs -> games/auto_battler/engine/types.mjs"
+  - "games/auto_battler/engine/state.mjs -> games/auto_battler/engine/types.mjs"
+  - "games/auto_battler/engine/state.mjs -> games/auto_battler/engine/rng.mjs"
+  - "games/auto_battler/engine/state.mjs -> games/auto_battler/engine/registry.mjs"
+  - "games/auto_battler/engine/inputs.mjs -> games/auto_battler/engine/types.mjs"
+  - "games/auto_battler/engine/inputs.mjs -> games/auto_battler/engine/registry.mjs"
+  - "games/auto_battler/engine/eventlog.mjs -> games/auto_battler/engine/types.mjs"
+  - "games/auto_battler/engine/eventlog.mjs -> games/auto_battler/engine/registry.mjs"
+  - "games/auto_battler/engine/transition.mjs -> games/auto_battler/engine/state.mjs"
+  - "games/auto_battler/engine/transition.mjs -> games/auto_battler/engine/inputs.mjs"
+  - "games/auto_battler/engine/transition.mjs -> games/auto_battler/engine/eventlog.mjs"
+  - "games/auto_battler/engine/transition.mjs -> games/auto_battler/engine/rng.mjs"
+  - "games/auto_battler/engine/replay.mjs -> games/auto_battler/engine/transition.mjs"
+  - "games/auto_battler/engine/replay.mjs -> games/auto_battler/engine/state.mjs"
+  - "games/auto_battler/engine/match.mjs -> games/auto_battler/engine/replay.mjs"
+  - "games/auto_battler/engine/match.mjs -> games/auto_battler/engine/state.mjs"
+  - "games/auto_battler/engine/match.mjs -> games/auto_battler/engine/inputs.mjs"
+  - "games/auto_battler/engine/match.mjs -> games/auto_battler/engine/eventlog.mjs"
+
+deps_interdites:
+  # --- INV-5 : moteur headless, l'EventLog est la SEULE sortie ; aucun renderer/UI/DOM ---
+  - "games/auto_battler/engine/** -> games/auto_battler/renderer/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/ui/**"
+  - "games/auto_battler/engine/** -> **/render*"
+  - "games/auto_battler/engine/** -> canvas"
+  # --- P11 : noyau content-agnostic ; aucun contenu ni règle de gameplay (dossiers inexistants, gardés d'avance) ---
+  - "games/auto_battler/engine/** -> games/auto_battler/combat/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/economy/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/shop/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/pool/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/bench/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/mana/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/meta/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/balance/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/dsl/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/pairing/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/content/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/units/**"
+  # --- INV-19/INV-5 : moteur PUR, aucune I/O, réseau, horloge, timer ---
+  - "games/auto_battler/engine/** -> node:fs"
+  - "games/auto_battler/engine/** -> node:fs/promises"
+  - "games/auto_battler/engine/** -> node:net"
+  - "games/auto_battler/engine/** -> node:http"
+  - "games/auto_battler/engine/** -> node:https"
+  - "games/auto_battler/engine/** -> node:timers"
+  - "games/auto_battler/engine/** -> node:timers/promises"
+  - "games/auto_battler/engine/** -> node:child_process"
+  - "games/auto_battler/engine/** -> node:worker_threads"
+  # --- types.mjs = feuille pure : n'importe AUCUN autre module engine ---
+  - "games/auto_battler/engine/types.mjs -> games/auto_battler/engine/**"
+
+ownership:
+  games/auto_battler/engine/types.mjs: builder
+  games/auto_battler/engine/rng.mjs: builder
+  games/auto_battler/engine/registry.mjs: builder
+  games/auto_battler/engine/serialize.mjs: builder
+  games/auto_battler/engine/state.mjs: builder
+  games/auto_battler/engine/inputs.mjs: builder
+  games/auto_battler/engine/eventlog.mjs: builder
+  games/auto_battler/engine/transition.mjs: builder
+  games/auto_battler/engine/replay.mjs: builder
+  games/auto_battler/engine/match.mjs: builder
+
+invariants_archi:
+  - "Graphe de dépendances ACYCLIQUE : ordre topologique types < {rng,registry,serialize} < {state,inputs,eventlog} < transition < replay < match ; aucune arête de retour."
+  - "types.mjs est une FEUILLE : n'importe aucun autre module engine (vérifiable : deps_interdites types.mjs -> engine/**)."
+  - "engine/** -> renderer|ui|**/render*|canvas = INTERDIT (INV-5 : l'EventLog append-only est la seule sortie ; aucun Renderer dans le périmètre)."
+  - "engine/** -> contenu/gameplay (combat, economy, shop, pool, bench, mana, meta, balance, dsl, pairing, content, units) = INTERDIT (P11 : noyau content-agnostic)."
+  - "engine/** n'importe ni node:fs/net/http(s), ni node:timers, ni horloge : moteur pur headless (INV-19/INV-5)."
+  - "engine/** n'utilise AUCUN global non-déterministe : Date.now, new Date(), performance.now, Math.random, setTimeout, setInterval, queueMicrotask = INTERDITS (déterminisme, systeme 6)."
+  - "Unique RNG = rng.mjs, semé par rng_state qui est un CHAMP de GameState (semence unique portée par l'état, pas d'état implicite)."
+  - "transition est un reducer PUR : ne mute jamais son argument state ; toute sortie passe par un nouvel état + EventLog append-only (isolation des sorties)."
+  - "Surface publique de types limitée à EntityId, PlayerId, Input, Event, State (content-agnostic P11)."
+  - "eventlog n'accepte que les 19 Events du registre fermé (registry) ; Event hors registre = fail-hard."
+  - "inputs n'accepte que l'alphabet fermé de 7 (Buy, Sell, Reroll, Lock, LevelUp, Place, ConfirmPreparation) ; Input hors alphabet = rejet."
+  - "Égalité d'états définie UNIQUEMENT par sérialisation canonique (serialize.statesEqual) ; pas d'égalité référentielle ni ad hoc ; égalité de 2 replays reposant dessus."
+  - "match déroule un Match à jeu de règles VIDE sans crash ; il ne contient aucune règle de gameplay."

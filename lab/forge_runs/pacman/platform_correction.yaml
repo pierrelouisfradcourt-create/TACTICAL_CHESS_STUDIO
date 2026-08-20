@@ -1,0 +1,83 @@
+# PLATFORM CORRECTION — run pacman-20260805-r1
+# Ecrit par l'orchestrateur apres correction explicite de Pierre, en cours de run,
+# avant l'etape s4-archi. Ce fichier est AUTORITATIF sur la plateforme cible et
+# SUPPLANTE le champ `plateforme_cible` de charter.yaml (etape s0).
+#
+# Regle appliquee (consigne Pierre) : « Ne pas supprimer les observations
+# precedentes : elles deviennent une divergence detectee. » Rien n'est efface.
+
+platform_assumption: corrected
+previous_inference: invalidated
+
+correction:
+  date: "2026-08-05"
+  auteur: Pierre
+  moment: "en cours de run, apres s0/s2, AVANT s4-archi"
+  enonce_verbatim: >-
+    « La plateforme cible est confirmee : GODOT uniquement. L'inference Web/JS etait
+    incorrecte. run-oracle.mjs = outil d'orchestration/preuve. Playwright/Chromium =
+    outils de validation eventuels. Cela ne definit pas le runtime du jeu. »
+
+plateforme_cible_corrigee: >-
+  Projet GODOT 4.6.3. Logique et runtime en GDScript (.gd). Scene principale main.tscn,
+  marqueur moteur project.godot a la racine du jeu. Jeu jouable au clavier dans le
+  runtime Godot. Preuves runtime produites par le harnais Godot
+  (tests/run_tests.gd, `extends SceneTree`), pilote par scripts/forge/godot_oracle.mjs.
+  Projets de reference du studio : games/snake/ et games/breakout_v2/.
+
+inference_invalidee:
+  valeur_erronee: "Jeu web HTML5 Canvas, JavaScript ESM (.mjs), serveur Node local, e2e Playwright"
+  auteur_de_l_erreur: "orchestrateur (moi), pas l'agent s0 — l'agent s0 avait REMONTE le doute"
+  ou_elle_est_conservee: "charter.yaml champs `plateforme_cible` et `provenance.plateforme_cible` (non effaces)"
+  raisonnement_errone: >-
+    J'ai lu trois artefacts imposes par Pierre (dossier games/pacman ; la commande
+    `node scripts/forge/search_usage.mjs games/pacman --caller s9-build` ; le modele
+    `games/kb_tactics/run-oracle.mjs`) comme designant le RUNTIME du jeu. Ils ne
+    designent que l'OUTILLAGE d'orchestration et de preuve. Un runner .mjs qui pilote
+    la preuve ne dit rien du langage du jeu qu'il mesure : games/snake est un projet
+    Godot dont la preuve est pilotee par scripts/forge/godot_oracle.mjs, un fichier .mjs.
+  ce_qui_aurait_du_alerter: >-
+    L'agent s0 avait explicitement pose `fog_humangate: true` sur ce champ et cite le
+    precedent Snake (« le charter Snake v1 avait derive web de la meme maniere, et
+    Pierre a tranche en sens inverse : Godot »). Le precedent exact etait nomme dans
+    l'artefact que j'ai valide, et j'ai quand meme poursuivi sur l'inference.
+
+impact_sur_la_chaine:
+  artefacts_conserves:
+    - chemin: lab/forge_runs/pacman/charter.yaml
+      etape: s0-contrat
+      statut: CONSERVE
+      reserve: "champ `plateforme_cible` SUPPLANTE par ce fichier ; tous les autres champs restent valides (objectif, hors_scope, criteres_succes, actions_interdites, reference_jeu, criteres_demo sont independants de la plateforme)"
+    - chemin: lab/forge_runs/pacman/worldscan.yaml
+      etape: s2-worldscan
+      statut: CONSERVE
+      reserve: "aucune — les faits de regles de Pac-Man (maze, pastilles, etats fantomes, ciblage) sont independants du moteur"
+  etapes_a_refaire:
+    - s1-prisme        # jamais produit (echec outil), sera produit directement en cadrage Godot
+    - s3-decompo       # jamais produit
+    - s4-archi         # decision dependante de la plateforme
+    - s5-wiremap       # decision dependante de la plateforme
+    - production       # s9-build-godot-standard, PAS s9-build
+  profil_de_chaine:
+    avant: full
+    apres: full_godot
+    etape_de_build:
+      avant: s9-build
+      apres: s9-build-godot-standard
+  rien_a_defaire: >-
+    Aucun code HTML n'a ete produit : games/pacman/ n'existait pas au moment de la
+    correction (l'etape de build n'avait pas ete atteinte). Le cout de la correction
+    est nul en code, il porte uniquement sur des decisions non encore prises.
+
+# --- Divergence detectee, conservee comme observation (consigne Pierre) -----------
+divergence_detectee:
+  id: PLATFORM_INFERENCE_FROM_TOOLING
+  enonce: >-
+    L'outillage de preuve d'un projet (runner, harnais e2e, script de mesure) a ete
+    pris pour une declaration de son runtime. Les deux sont independants dans ce
+    studio : la preuve est pilotee en .mjs pour TOUS les jeux, y compris les jeux Godot.
+  preuve_de_la_confusion:
+    - "games/snake/project.godot existe (jeu Godot) ET sa preuve est pilotee par scripts/forge/godot_oracle.mjs (fichier .mjs)"
+    - "forge.static_oracles._detect_engine detecte le moteur par OBSERVATION de project.godot, jamais par le nom du profil ni par l'extension du runner"
+  portee: "orchestrateur — pas un defaut de code, un defaut de lecture"
+  statut: OBSERVEE_NON_CORRIGEE_EN_CODE

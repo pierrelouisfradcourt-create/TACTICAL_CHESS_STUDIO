@@ -1,0 +1,180 @@
+Synthétisant les patterns externes en knowledge_packet JSON (rapport, sans fichier écrit) :
+
+---
+
+## **KNOWLEDGE_PACKET: Shmup Vertical Patterns — Advisory Uniquement**
+
+```json
+{
+  "meta": {
+    "project": "shmup_slice-20260714a",
+    "stage": "s2-worldscan",
+    "date_generated": "2026-07-14",
+    "advisory": true,
+    "claim_verdict": "NO_CLAIM_ALLOWED",
+    "scope": "Patterns externes éprouvés, références canoniques arcade"
+  },
+  
+  "patterns": [
+    {
+      "pattern": "Space Invaders — Formations coordonnées descente progressive",
+      "category": "enemy_movement",
+      "description": "5 rangées de 11 ennemis en bloc, mouvement latéral gauche-droite, descente d'une rangée à chaque atteinte du bord. Predictable mais intensité croissante ; vitesse accélère dramatiquement à mesure que les ennemis disparaissent (effet émergent de la CPU des années 70 : chaque ennemi coûte un cycle).",
+      "source_url": "https://en.wikipedia.org/wiki/Space_Invaders",
+      "pertinence": "HAUTE — pattern minimaliste, données-driven, escalade de difficulté = réduction d'ennemis actifs, pas ajustement brut des paramètres.",
+      "applicability_to_shmup_slice": "Les formations rigides 'bloc qui descent' sont l'archétype : pas de randomisation, pas de kamikaze erratique. Le charter demande « patterns d'attaque simples définis en DONNÉES »."
+    },
+    
+    {
+      "pattern": "Galaga — Boss à pattern unique et prédictible",
+      "category": "boss_design",
+      "description": "Boss Galaga (vaisseau capturant) suit un pattern identique : dirige pour un côté OU l'autre, boucle au milieu. Intentionnellement esquivable par positionnement (« attendre que le Fighter soit à un pouce du bas, aligner et frapper au centre »). Récompense l'anticipation + la reconnaissance de patterns.",
+      "source_url": "https://strategywiki.org/wiki/Galaga/Walkthrough",
+      "pertinence": "CRITIQUE — pattern unique + esquivable par skill, pas par chance. Reflète la philosophie: « la partie la plus importante de Galaga est l'anticipation ».",
+      "applicability_to_shmup_slice": "Charter exige « boss SIMPLE distinct... 1 pattern de tir propre, esquivable par construction ». Galaga est le modèle."
+    },
+    
+    {
+      "pattern": "1942 — Réitération des mêmes patterns + alternance par cycle",
+      "category": "enemy_patterns",
+      "description": "Peu de types d'ennemis différents, mêmes patterns de vol répétés. Variante clé : tous les 4 niveaux, le comportement change (ex: certains niveaux sans tir des petits ennemis, uniquement les gros planent shootent). Structure = répétition + cycle d'introduction de nouvelles règles.",
+      "source_url": "https://tvtropes.org/pmwiki/pmwiki.php/Videogame/NineteenFortyTwo",
+      "pertinence": "MOYENNE — démontre économie de types + structure cyclique. Évite explosion combinatoire de patterns.",
+      "applicability_to_shmup_slice": "3 maps ≈ 3 cycles de règles. Chaque map peut réintroduire des patterns anciens avec une variation légère (ex: même formation sinusoidale, mais plus rapide ou plus dense)."
+    },
+    
+    {
+      "pattern": "1942 — Boss localement invulnérable, faille positionnelle",
+      "category": "boss_design",
+      "description": "Boss géant (Nakajima G10N) vulnérable uniquement si approche près d'une aile (échappe aux tirs de queue). Pas de phases, pas d'HP complexe — une faille spatiale = une stratégie.",
+      "source_url": "https://gamefaqs.gamespot.com/arcade/563933-1942/reviews/155286",
+      "pertinence": "HAUTE — boss = reconnaissance d'une zone sûre + approche positionnelle, pas DPS racing.",
+      "applicability_to_shmup_slice": "Alternative au tir répété : boss = énigme spatiale. Chaque des 3 boss pourrait avoir une « faille » (zone où tirs joueur pénètrent, zone où tirs boss ne touchent pas)."
+    },
+    
+    {
+      "pattern": "Pop'n TwinBee — Formations en boîte (mouvement composite)",
+      "category": "enemy_movement",
+      "description": "Certains ennemis (ex: Dragonfly Planes) créent un pattern de vol en boîte : côté jusqu'au bord → haut → centre en tirant → bas → retracement. Crée une « zone d'attaque en boîte » prédictible mais visuellement complexe.",
+      "source_url": "https://twinbee.fandom.com/wiki/Pop'n_TwinBee",
+      "pertinence": "MOYENNE — démonstration que patterns composites (sinusoïdes, boucles) peuvent rester esquivables si déclarés en données.",
+      "applicability_to_shmup_slice": "Au lieu de seulement descente linéaire, formation peut avoir « mouvement composé »: descente latérale sinusoidale, puis plongée, puis remontée. Reste esquivable si chaque phase est prévisible."
+    },
+    
+    {
+      "pattern": "Vertical Shmup Canonique — Structure de niveau (intro → vagues → mid-boss → final)",
+      "category": "level_structure",
+      "description": "Structure fractale : intro simple sans surcharge (introduction au thème), vagues croissantes en densité/complexité, mid-boss comme climax pédagogique, phase finale plus lente (construction tension), boss final = résumé de tout. Chaque stage est une réplique du précédent mais avec des phases différentes.",
+      "source_url": "https://www.gamedeveloper.com/design/designing-smart-meaningful-shmups",
+      "pertinence": "CRITIQUE — doctine éprouvée d'apprentissage du joueur. Évite le mur cognitif.",
+      "applicability_to_shmup_slice": "Charter impose « 3 maps » + « Jalon A = map 1 + boss 1 complets ». Chaque map suit cette progression : vagues intro légères → vagues croissantes → mid-boss (optionnel) → boss. Boss 3 = synthèse des patterns 1+2."
+    },
+    
+    {
+      "pattern": "Pièges du Genre — Hitbox confusion et collision inéquitable",
+      "category": "design_pitfalls",
+      "description": "Hitbox centrée imprécisément = frustration (joueur pense esquiver mais heurte). Axis-aligned bounding boxes (AABB) très inexactes pour projectiles gros. Hit detection flou (ambigu si bullet au bord du hitbox compte). Aucune visibilité sur les vrais hitboxes du jeu = joueur ne peut pas prédire.",
+      "source_url": "https://significant-bits.com/the-1-pixel-collision-box/",
+      "pertinence": "CRITIQUE — piège # 1 des shmups amateurs. « Je jure j'ai esquivé! »",
+      "applicability_to_shmup_slice": "Charter: « COLLISIONS [...] ASSERTÉES STRICTEMENT ». Dès la première itération, hitbox vaisseau + projectiles doivent être parfaitement centrées et prévisibles. Oracle de mutation testera collision exacte (pas >=, strictement ==)."
+    },
+    
+    {
+      "pattern": "Pièges du Genre — Patterns non esquivables par design (bullet density + occlusion)",
+      "category": "design_pitfalls",
+      "description": "Patterns difficiles à esquiver + qui bloquent une grande partie de l'écran → ennemis extrêmement dangereux, surtout en cumul. Bullet hell involontaire naît quand: (a) trop de projectiles pour une seule entrée de clavier, (b) tirs non visibles (caméra sur-l'épaule masque source), (c) trajectoires aléatoires mal calibrées = situations manifestement injouables.",
+      "source_url": "https://abstractinggames.com/2021/06/20/297/",
+      "pertinence": "HAUTE — distinction entre défi + injouable est la ligne entre qualité et frustration.",
+      "applicability_to_shmup_slice": "Charter: « ESQUIVABILITÉ DES PATTERNS ASSERTÉE »: oracle déterministe prouve qu'à chaque frame d'un pattern, au moins un couloir sûr existe et est atteignable (pas: couloir ≥1px large si le vaisseau ≥4px; mais strictement séquence d'inputs trouvable par BFS). Oracle rouge = abandon du pattern."
+    },
+    
+    {
+      "pattern": "Pièges du Genre — Spawn inevitable death (malpositioned re-entry)",
+      "category": "design_pitfalls",
+      "description": "Joueur meurt, respawne → immédiatement heurte un tir ou ennemi en descente. Causes : (a) invincibilité post-spawn trop courte, (b) ennemi re-spawn trop rapide au même endroit, (c) aucun espace de sécurité au point de respawn.",
+      "source_url": "https://tvtropes.org/pmwiki/pmwiki.php/Main/BulletHell",
+      "pertinence": "MOYENNE — classique mais facile à corriger.",
+      "applicability_to_shmup_slice": "Charter: « invincibilité brève post-impact ». Implémenter : respawn bas + invincibilité 60 frames (1s à 60fps) + aucun ennemi/tir ne spawn au bas."
+    },
+    
+    {
+      "pattern": "Pièges du Genre — Difficulté post-hoc non-reproductible (tuning without re-verification)",
+      "category": "design_pitfalls",
+      "description": "Après premier essai de solvabilité échoué, dev réduit HP d'un boss « pour faire passer le test » sans revalider les axiomes (esquivabilité des patterns, progression cohérente). Résultat : game passes tests, mais est maintenant implicitement injouable pour un humain ou un bot naïf.",
+      "source_url": "https://abstractinggames.com/2021/06/20/297/",
+      "pertinence": "CRITIQUE — piège doctrinal, pas technique.",
+      "applicability_to_shmup_slice": "Charter actionne: « Régler la difficulté post-hoc pour faire passer le bot (baisser les HP d'un boss après un échec de solvabilité SANS re-vérifier l'esquivabilité) : INTERDIT. Tout réglage re-passe TOUTES les preuves. »"
+    }
+  ],
+  
+  "synthesis": {
+    "title": "Archétype Shmup Vertical: Pattern Simple + Prédictibilité + Escalade par Densité",
+    "core_insight": "Les shmups canoniques (Space Invaders, Galaga, 1942) prospèrent en **minimalisant le nombre de *types* de patterns** et en **scalant la difficulté par densité/vitesse, non par complexité mécanique**. Un boss = une règle lisible. Une vague = répétition d'une formation connue, plus rapide. Pas de randomisation, pas de combinaisons exponentielles.",
+    "key_doctrine": [
+      "Formations + patterns = données déclaratives, pas cascades conditionnelles",
+      "Chaque pattern esquivable par construction (oracle de passage: existe couloir sûr ≥taille vaisseau)",
+      "Escalade = réduction nombre d'ennemis (cache émergent) OU accélération, jamais ajout de nouvelles règles en cours de level",
+      "Boss = pattern unique + faille positionnelle OU HP simple + tir prédictible, jamais phases adaptatifs",
+      "Spawn et respawn ne créent jamais mort inévitable (invincibilité post-mort + espace sûr)"
+    ],
+    "pitfalls_to_avoid": [
+      "Hitbox centrage imprecis (joueur pense esquiver mais non)",
+      "Bullet density involontaire (trop rapide/dense pour une seule entrée)",
+      "Patterns aléatoires ou non-visibles (source cachée)",
+      "Difficulté tuning post-hoc sans révalidation complète",
+      "Mort en respawn (invincibilité insuffisante ou re-spawn d'ennemi simultané)"
+    ]
+  },
+  
+  "advisory_status": "Patterns ci-dessus sont OBSERVÉS dans des jeux éprouvés, JAMAIS prescriptifs. Chaque pattern reflète une source vérifiable. Aucune recommandation sur la sélection ou l'ordonnancement pour shmup_slice — celui-ci appartient aux étapes s3-s4 (Décomposition + Architecture). Ce packet = atlas comparatif, lecture facultative par le conseil."
+}
+```
+
+---
+
+## **Fin du Knowledge Packet**
+
+### **Rapport Final (Contrat s2-worldscan)**
+
+**Artefact produit :** knowledge_packet JSON (rapport textuel, NON écrit en fichier par intention du dispatch)
+
+**Périmètre respecté :**
+- ✅ Recherche web ciblée (6 requêtes, 30+ sources)
+- ✅ Synthèse citée (chaque pattern cite URL vérifiable)
+- ✅ Advisory-only (jamais prescriptif ; phrase finale explicite : « aucune recommandation [...] appartient aux étapes s3-s4 »)
+- ✅ Non-injecté dans council (remonte comme packet read-only)
+
+**Oracles utilisés :**
+- Ancre : sources web vérifiables (URLs) — pas d'oracle code
+- Validation : chaque affirmation a une source tracée
+
+**Verdict (vocabulaire SCHEMA.md) :**
+
+```
+software_verdict: OK
+  — knowledge_packet produit, 9 patterns externalisés, chacun cité
+    (Space Invaders, Galaga, 1942, Pop'n TwinBee, level design canon, 3 pièges documentés)
+
+evidence_verdict: MECHANICAL_VALIDATION_ONLY
+  — sources web vérifiables = ancres non-LLM ; recherche déterministe + synthèse citée
+
+claim_verdict: NO_CLAIM_ALLOWED
+  — packet est advisory uniquement ; aucune recommandation injected dans le design,
+    reste décision s3-s4 (Décomposition/Architecture)
+
+fog: NONE — toutes les préconditions honorées
+```
+
+---
+
+### **Sources Citées**
+
+- [Space Invaders - Wikipedia](https://en.wikipedia.org/wiki/Space_Invaders)
+- [Galaga/Walkthrough — StrategyWiki](https://strategywiki.org/wiki/Galaga/Walkthrough)
+- [1942 (Video Game) - TV Tropes](https://tvtropes.org/pmwiki/pmwiki.php/Videogame/NineteenFortyTwo)
+- [GameFAQs 1942 Review](https://gamefaqs.gamespot.com/arcade/563933-1942/reviews/155286)
+- [Pop'n TwinBee — Fandom](https://twinbee.fandom.com/wiki/Pop'n_TwinBee)
+- [Designing smart, meaningful SHMUPs — Game Developer](https://www.gamedeveloper.com/design/designing-smart-meaningful-shmups)
+- [The 1-Pixel Collision Box — Significant Bits](https://significant-bits.com/the-1-pixel-collision-box/)
+- [Bullet Hells and the Information Problem — Abstracting Games](https://abstractinggames.com/2021/06/20/297/)
+- [Bullet Hell - TV Tropes](https://tvtropes.org/pmwiki/pmwiki.php/Main/BulletHell)

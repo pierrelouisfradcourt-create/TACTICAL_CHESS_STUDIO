@@ -1,0 +1,62 @@
+{
+  "schema_version": "input_boundary_contract.pr04",
+  "gate_entrypoint": "scripts/check_input_boundary.py",
+  "reads_contract_surface": "lab/run_contracts/",
+  "reads_future_run_surfaces": [
+    "evidence.json",
+    "environment.json",
+    "git_context.json",
+    "artifact_hashes.json",
+    "machine_verdict.json",
+    "human_decision.json",
+    "claim_decision.json",
+    "commands/*.json",
+    "artifacts/**"
+  ],
+  "mechanical_checks": [
+    "protocol_lock_created_at_before_first_command_started_at",
+    "latest_json_rejected_as_evidence",
+    "relative_contained_paths_only",
+    "path_traversal_blocked",
+    "symlink_escape_blocked_or_uncertain_warning",
+    "undeclared_critical_reads_blocked",
+    "undeclared_writes_blocked",
+    "command_record_completeness_required",
+    "dirty_state_required",
+    "dirty_state_unknown_warning",
+    "sha256_only",
+    "command_stdio_sha256_required",
+    "diff_patch_sha256_required_when_present",
+    "artifact_hash_match",
+    "artifact_size_match",
+    "all_bundle_files_declared_except_artifact_hashes",
+    "command_stdio_declared_and_hash_checked",
+    "canonical_bundle_hash_checked",
+    "human_decision_mutation_blocked_when_detectable",
+    "discarded_run_requires_reason",
+    "obvious_secret_markers_blocked",
+    "holdout_exposure_markers_blocked",
+    "holdout_set_id_allowed"
+  ],
+  "emits": [
+    "software_verdict",
+    "evidence_verdict",
+    "claim_verdict",
+    "gate_verdict",
+    "blocking_issues",
+    "warnings"
+  ],
+  "expected_pr04_verdict": {
+    "software_verdict": "GATE_ADDED",
+    "evidence_verdict": "MECHANICAL_GATE_ONLY",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  },
+  "gate_pass_only_means_configured_mechanical_boundary_checks_passed": true,
+  "no_scientific_claim_authority": true,
+  "not_scientific_proof": true,
+  "gate_pass_does_not_imply_engine_improvement": true,
+  "gate_pass_does_not_imply_benchmark_validity": true,
+  "gate_pass_does_not_imply_promotion_readiness": true,
+  "no_merge_authority": true,
+  "no_promotion_authority": true
+}

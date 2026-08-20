@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/autonomy_levels.schema.json",
+  "title": "AutonomyLevels",
+  "description": "Allowed autonomy levels. None grants merge or claim authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "policy_version",
+    "levels",
+    "global_denials",
+    "promotion_contract"
+  ],
+  "properties": {
+    "policy_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "levels": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "level",
+          "name",
+          "description",
+          "can_merge",
+          "can_decide_claim_authority",
+          "can_edit_branch_protection",
+          "can_edit_own_policy"
+        ],
+        "properties": {
+          "level": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+          },
+          "name": {
+            "type": "string",
+            "enum": [
+              "READ_ONLY",
+              "DOCS_ONLY",
+              "CONTROL_PLANE_ONLY",
+              "PATCH_PROPOSAL_ONLY",
+              "HUMAN_APPROVED_WRITE_ONLY"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "can_merge": {
+            "type": "boolean",
+            "const": false
+          },
+          "can_decide_claim_authority": {
+            "type": "boolean",
+            "const": false
+          },
+          "can_edit_branch_protection": {
+            "type": "boolean",
+            "const": false
+          },
+          "can_edit_own_policy": {
+            "type": "boolean",
+            "const": false
+          }
+        }
+      }
+    },
+    "global_denials": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "any_level_can_merge",
+        "any_level_can_decide_claim_authority",
+        "any_level_can_edit_branch_protection",
+        "any_level_can_edit_own_policy"
+      ],
+      "properties": {
+        "any_level_can_merge": {
+          "type": "boolean",
+          "const": false
+        },
+        "any_level_can_decide_claim_authority": {
+          "type": "boolean",
+          "const": false
+        },
+        "any_level_can_edit_branch_protection": {
+          "type": "boolean",
+          "const": false
+        },
+        "any_level_can_edit_own_policy": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "promotion_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level_up_requires_human_review",
+        "level_up_requires_human_reviewer_identity",
+        "level_up_requires_decision_record",
+        "level_up_requires_clean_scorecards",
+        "agent_cannot_promote_itself"
+      ],
+      "properties": {
+        "level_up_requires_human_review": {
+          "type": "boolean",
+          "const": true
+        },
+        "level_up_requires_human_reviewer_identity": {
+          "type": "boolean",
+          "const": true
+        },
+        "level_up_requires_decision_record": {
+          "type": "boolean",
+          "const": true
+        },
+        "level_up_requires_clean_scorecards": {
+          "type": "boolean",
+          "const": true
+        },
+        "agent_cannot_promote_itself": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    }
+  }
+}

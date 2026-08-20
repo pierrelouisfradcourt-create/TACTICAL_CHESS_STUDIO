@@ -1,0 +1,33 @@
+The charter is authored; the write is pending a permission grant from the harness. Here is my structured final report.
+
+---
+
+## RAPPORT FINAL — s0-contrat / tetris-witness-20260803-175558
+
+**Livrable** : `games/tetris/00_CHARTER/charter.yaml` (authored — écriture en attente d'autorisation harness). Remplace le bootstrap non-ratifié `game_contract.yaml` par un charter narratif ; aucune valeur de Breakout reprise.
+
+### Verdicts (séparés)
+- **software_verdict: BLOCKED** — je n'ai **pas pu exécuter** l'oracle CHARTER (permissions `run: aucun`) ; le charter est écrit conforme au schéma mais sa validation mécanique reste à faire par un appelant qui a le droit d'exécution.
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** — ne s'applique qu'aux faits documentés cités (règles de genre `genre_bible.json`, faits mécaniques du world scan `observation_manifest.json`, `node:4` de `game_contract.yaml`).
+- **claim_verdict: NO_CLAIM_ALLOWED**.
+
+### Oracle / ancre citée
+- **Oracle CHARTER** (déterministe non-LLM) : validateur de schéma qui échoue si un champ requis est vide/absent/« à définir ». **Non exécuté ici** → voir SKIPPED_VALIDATION.
+- Ancres documentaires non-LLM du contenu : `01_DESIGN/genre_bible.json` (10 règles de genre), `GAME_REFERENCE/observation_manifest.json` (world scan advisory), `games/tetris/00_CHARTER/game_contract.yaml` (`node:4`, `runtimes:[rules,godot]`).
+
+### Champs remplis (aucun vide, aucun « à définir »)
+`intention_produit · objectif · objectif_joueur · plateforme_cible · reference_jeu · contraintes[] · criteres_succes[] · criteres_echec[] · criteres_demo[] · actions_interdites[] · hors_scope[] · hypotheses[] · risques[] · fog_humangate[]`. Valeurs non mesurées écrites `A_CALIBRER` (N_SURVIE, M_LIGNES, barème, budget mutation, spawn/buffer, profondeur next) — **jamais** un chiffre inventé.
+
+### Flous résolus (comblés dans le charter)
+1. **Solvabilité sans état gagné** → redéfinie en **critère de SURVIE** (`bot survit ≥ N pièces / clear ≥ M lignes sans top-out`, N/M = `A_CALIBRER`), avec **preuve de variance** obligatoire (règle Pierre 2026-07-21) et **critère d'échec** anti-`>=`-tautologique.
+2. **Plateforme** → Godot 4 + noyau règles pures headless, tracé à `runtimes:[rules,godot]` + décision curriculum C+A (2026-07-22).
+3. **reference_jeu (le jeu)** → `"Tetris"`, tracé à Pierre via curriculum nœud 4 + `game_contract node:4` + invocation `/forge tetris`.
+
+### Flous REMONTÉS (fog HumanGate — non inventés)
+- **`fog.tetris.variante`** — Guideline moderne (2001+) **vs** NES 1989. Elles divergent sur hold/next/wall-kicks/barème/condition-de-fin. **Aucune source Pierre ne tranche** ⇒ `variante_choisie: A_CALIBRER`, remonté à Pierre (leçon AutoBattler : Battlegrounds choisi sans Pierre). C'est la raison pour laquelle je **n'affirme pas** la conformité de la variante — je la remonte.
+- **`fog.tetris.genre_bible_ratification`** — les 10 règles de genre sont `NON_RATIFIEE_PROPOSITION` ; leur ratification est une décision humaine.
+
+### SKIPPED_VALIDATION
+- **item** : exécution de l'oracle CHARTER (validateur de schéma) · **périmètre** : `games/tetris/00_CHARTER/charter.yaml` · **statut** : non fait · **raison** : permissions du contrat `run: aucun` — je n'ai pas le droit d'exécuter ; à lancer par l'appelant Forge.
+- **item** : provenance Pierre de `reference_jeu.variante` · **périmètre** : champ `reference_jeu` · **statut** : non vérifiable mécaniquement (fait de gate, pas de schéma) · **raison** : remonté en fog HumanGate au lieu d'un claim de conformité.
+- **item** : écriture disque de `charter.yaml` · **périmètre** : filesystem · **statut** : en attente · **raison** : autorisation harness non encore accordée sur le chemin.

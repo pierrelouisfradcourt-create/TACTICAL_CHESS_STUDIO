@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Belote — preview cartes (candidat SVG-cards, à ~60 px)</title>
+<style>
+  body { background: #0c4a37; margin: 0; font-family: system-ui, sans-serif; color: #eef3ec; }
+  h1 { font-size: 15px; padding: 12px 12px 0; }
+  p.note { font-size: 11px; color: #a9c4b6; padding: 0 12px; margin: 4px 0 8px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px; }
+  .card { width: 60px; }              /* taille MAIN mobile — critère de lisibilité §4.5 */
+  .card svg { width: 60px; height: auto; background: #fff; border-radius: 6px; display: block; }
+  .lbl { font-size: 10px; text-align: center; margin-top: 2px; }
+  .red { color: #ff8a7a; }
+</style>
+</head>
+<body>
+  <h1>Cartes candidates (SVG-cards, LGPL) — rendu à 60 px (main mobile)</h1>
+  <p class="note">Critère §4.5 : lisibilité des coins valeur+enseigne à 50–70 px. NB : index de coin
+    ANGLAIS (K/Q/J), pas R/D/V — décision d'adoption = Pierre (§8-Q8).</p>
+  <div class="grid" id="g"></div>
+  <script>
+    const SUIT_ID = { pique: "spade", coeur: "heart", carreau: "diamond", trefle: "club" };
+    const SUIT_SYM = { pique: "♠", coeur: "♥", carreau: "♦", trefle: "♣" };
+    const RANK_ID = { A: "1", R: "king", D: "queen", V: "jack", "10": "10", "9": "9", "8": "8", "7": "7" };
+    const g = document.getElementById("g");
+    for (const s of Object.keys(SUIT_ID)) {
+      for (const r of ["7", "8", "9", "10", "V", "D", "R", "A"]) {
+        const id = SUIT_ID[s] + "_" + RANK_ID[r];
+        const red = s === "coeur" || s === "carreau" ? " red" : "";
+        g.insertAdjacentHTML("beforeend",
+          `<div><div class="card"><svg viewBox="0 0 169.075 244.640"><use href="svg-cards.svg#${id}"></use></svg></div>` +
+          `<div class="lbl${red}">${r}${SUIT_SYM[s]}</div></div>`);
+      }
+    }
+    window.__cardCount = g.querySelectorAll(".card svg").length;
+  </script>
+</body>
+</html>

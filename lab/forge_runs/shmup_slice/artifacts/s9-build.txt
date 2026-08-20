@@ -1,0 +1,42 @@
+Git operations are denied for me (consistent with the builder gate — no commits). I've confirmed everything else directly. The WireMap JSON is valid. Here is my final report.
+
+---
+
+## Rapport final — s9-build shmup_slice (re-dispatch)
+
+### Diagnostic
+Le jeu était déjà entièrement implémenté et les 4 volets de `run-oracle.mjs` (logic / properties / solvabilité / e2e) étaient **verts**. La boucle de re-dispatch venait du **gate mutation** : `mutation=FAIL`. J'ai reproduit le run réel (`forge.mutation_proof.run_mutation_for_game`, wiremap-derived, commande scellée `node --test logic.test.mjs properties.test.mjs`) : **112 mutants, 79 tués, 33 survivants** — dont **32 non triés**, tous dans `bot/solver.mjs` (0/14) et `main.mjs` (0/18).
+
+**Cause-racine de la boucle** : la tentative précédente a correctement diagnostiqué ces 32 survivants puis a **punté en HumanGate**, croyant `logic.test.mjs`/`properties.test.mjs` intouchables (« scellés »). C'était une erreur : le « sceau » mutation est une **empreinte de fraîcheur calculée au moment de la preuve** (anti-affaiblissement post-hoc), pas un verrou d'écriture. La zone protégée `tests/**` est le dossier `tests/` **à la racine du repo** (tests Rocky/ML du studio) — pas les tests propres du jeu sous `games/shmup_slice/`, qui sont des livrables builder (la WireMap les cite comme preuve de presque chaque feature). Triager les 32 survivants comme « équivalents » aurait été **mensonger** (ces mutations changent réellement le comportement). La résolution honnête et dans le périmètre : **étendre la suite du jeu avec de vrais tests comportementaux**.
+
+### Correctif (dans l'ownership)
+- **`bot/solver.mjs`** : `export` ajouté à `computeBotInputs` (aucune ligne de logique modifiée).
+- **`logic.test.mjs`** (test propre du jeu) : +2 imports, **+15 tests** tuant chacun un mutant nommé :
+  - Bot : `computeBotInputs` testé en isolation (esquive→`findSafeX`, poursuite boss AND-pas-OR, centre-boss `x+width/2`, inputs au repos) + `runBot(1)` comme run complet gagnant (boucle, `won`, `corridorAlwaysSafe`).
+  - Main : environnement navigateur **simulé** (`window`/`rAF`/`canvas` stubs, sans navigateur réel) pour piloter `initializeGame` en headless — garde `window`, détection `over`, bornes `setLevel`/`spawnBoss`, accumulateur à pas fixe (16 ms ⇒ 1 pas exact, exploitant la limite `>=`), source d'entrée clavier, garde de `start()`.
+
+### Preuves (oracles déterministes non-LLM, re-exécutés ce tour)
+- **`run-oracle.mjs`** : logic **65/65** · properties **7/7** · solvabilité **5/5 seeds PASS** · e2e Playwright **PASS** → `VERDICT ORACLE: PASS`.
+- **Gate mutation** (`run_mutation_for_game` + `check_mutation_gate` + triage) : baseline verte, **112 mutants, 111 tués, 1 survivant** = `dodge le->lt@L55` (déjà trié **équivalent-prouvé**, justification rigoureuse, non ajoutée par moi). `GATE passed: True`, `survivants_non_tries: []`, `triage_perimes: []`. Focus : `bot/solver.mjs` **14/14**, `main.mjs` **18/18**.
+- **Architecture** : aucun import inter-module interdit dans `logic/`/`data/`/`bot/` ; test R25 in-suite PASS. Mon seul changement de source est un `export` — deps identiques.
+- **`reuse_ratio`** = 0.000 (advisory, non-gating ; `evidence_path` = sortie `run-oracle.mjs` volet (e)). **Aucune requête `knowledge_base/search.mjs`** : le delta de ce dispatch est de la **couverture de test** sur du code existant — aucune nouvelle logique de jeu réutilisable écrite, donc §2bis non déclenché.
+
+### Exception mutation (doctrine P0.3 — à porter au verdict/HumanGate)
+Le gate passe **avec exception** : `mutation_exception=True`, `triaged_survivors=['le->lt@L55']`. Par doctrine ratifiée (survivant trié ⇒ **jamais un OK propre**, WITH_OBJECTION), le reçu propage cette objection au verdict s12 : ce n'est **pas** un 100 % pristine, la ratification `merge/reject/freeze` revient à Pierre (HumanGate).
+
+### Fichiers touchés vs ownership
+| Fichier | Ownership | Statut |
+|---|---|---|
+| `games/shmup_slice/bot/solver.mjs` | module `bot` ✓ | `export` ajouté |
+| `games/shmup_slice/logic.test.mjs` | oracle-code du jeu (≠ `tests/**` protégé) ✓ | +2 imports, +15 tests |
+| `lab/forge_runs/shmup_slice/wiremap.json` | scope de MAJ WireMap ✓ | `_comment`, preuves R22/R26 corrigées (note « hors mutation » caduque) |
+
+Non touchés : toute logique de jeu (`logic/`, `data/`, `render.mjs`, `input.mjs`, `main.mjs`), `run-oracle.mjs`, `solvability.mjs`, `e2e.mjs`, `mutation_triage.json`, le harnais `scripts/forge/*`. Scripts de repro temporaires supprimés. **Aucun commit** (git refusé côté builder — conforme à la gate).
+
+```
+software_verdict: OK        (jeu : run-oracle.mjs 4 volets PASS + gate mutation FERMÉ 111/112, avec 1 exception triée-équivalente propagée au verdict ; architecture propre ; WireMap conforme au code)
+evidence_verdict: MECHANICAL_VALIDATION_ONLY
+claim_verdict: NO_CLAIM_ALLOWED
+```
+
+FORGE_DISPATCH:s9-build:shmup_slice-20260714a — OK (gate mutation fermé, WITH_OBJECTION dodge L55) / MECHANICAL_VALIDATION_ONLY / NO_CLAIM_ALLOWED

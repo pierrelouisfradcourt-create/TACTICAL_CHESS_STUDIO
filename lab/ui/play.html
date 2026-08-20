@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Rocky — Tactical Chess Studio</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0d;--surface:#161616;--border:#2a2a2a;
+  --text:#e8e4d9;--muted:#666;
+  --accent:#c8a96e;--accent-dim:#8a7048;
+  --sq-light:#d4b483;--sq-dark:#8b6349;
+  --sel:rgba(200,169,110,0.55);--hint:rgba(0,0,0,0.22);
+  --last:rgba(200,169,110,0.32);--check:#c0392b;
+}
+body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:1.5rem 1rem;gap:1rem;}
+h1{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--accent);letter-spacing:-0.02em;}
+.sub{font-size:.7rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:.2rem;}
+.status{display:flex;align-items:center;gap:.5rem;font-size:.72rem;color:var(--muted);}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:background .3s;}
+.dot.ok{background:#27ae60}.dot.thinking{background:var(--accent);animation:pulse 1s infinite}.dot.err{background:var(--check)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.game{display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap;justify-content:center;}
+.col-board{display:flex;flex-direction:column;gap:.4rem;}
+.ptag{display:flex;align-items:center;gap:.6rem;padding:.4rem .7rem;
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:.72rem;}
+.ptag .ico{font-size:1.2rem}.ptag .nm{font-weight:700}.ptag .rl{color:var(--muted);font-size:.62rem;margin-left:auto;}
+.ptag.active{border-color:var(--accent)}
+.board-wrap{display:flex;gap:4px;}
+.coords-v{display:flex;flex-direction:column;justify-content:space-around;height:480px;}
+.coords-h{display:flex;justify-content:space-around;width:480px;padding:3px 0;}
+.coord{font-size:.6rem;color:var(--muted);text-align:center;width:60px;}
+.board{display:grid;grid-template-columns:repeat(8,60px);grid-template-rows:repeat(8,60px);
+  border:2px solid var(--border);border-radius:3px;overflow:hidden;cursor:pointer;}
+.sq{position:relative;display:flex;align-items:center;justify-content:center;width:60px;height:60px;}
+.sq.light{background:var(--sq-light)}.sq.dark{background:var(--sq-dark)}
+.sq.sel{background:var(--sel)!important}
+.sq.last{background:var(--last)!important}
+.sq.hint::after{content:'';position:absolute;width:34%;height:34%;border-radius:50%;background:var(--hint);pointer-events:none;}
+.sq.hint.occ::after{width:100%;height:100%;border-radius:0;background:none;border:4px solid var(--hint);}
+.sq.incheck .glyph{filter:drop-shadow(0 0 8px var(--check));}
+.glyph{font-size:2.5rem;line-height:1;pointer-events:none;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5));}
+.panel{width:220px;display:flex;flex-direction:column;gap:.8rem;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.9rem;}
+.card h3{font-size:.62rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;
+  margin-bottom:.6rem;border-bottom:1px solid var(--border);padding-bottom:.4rem;}
+.says{font-size:.7rem;color:var(--muted);line-height:1.6;min-height:56px;font-style:italic;}
+.says.thinking{color:var(--accent-dim)}.says em{color:var(--accent);font-style:normal;}
+.moves{font-size:.68rem;max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:1px;}
+.pair{display:grid;grid-template-columns:22px 1fr 1fr;gap:3px;align-items:center;}
+.mn{color:var(--border)}.mw,.mb{padding:1px 3px;border-radius:3px;}
+.mw:hover,.mb:hover{background:var(--border)}.ml{color:var(--accent)}
+.fen{font-size:.52rem;color:var(--muted);word-break:break-all;opacity:.6;}
+.btn{width:100%;padding:.55rem;background:none;border:1px solid var(--border);
+  color:var(--text);font-family:'Space Mono',monospace;font-size:.68rem;
+  letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-radius:6px;transition:all .15s;}
+.btn:hover{border-color:var(--accent);color:var(--accent)}.btn:active{transform:scale(.98)}
+.btn.primary{border-color:var(--accent);color:var(--accent)}
+.promo-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;
+  align-items:center;justify-content:center;}
+.promo-overlay.show{display:flex;}
+.promo-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:1.5rem;display:flex;flex-direction:column;align-items:center;gap:1rem;}
+.promo-box h4{font-family:'Syne',sans-serif;color:var(--accent);font-size:1rem;}
+.promo-row{display:flex;gap:.8rem;}
+.pbtn{font-size:2.8rem;background:none;border:1px solid var(--border);
+  border-radius:8px;padding:.4rem .9rem;cursor:pointer;transition:all .15s;}
+.pbtn:hover{border-color:var(--accent);transform:scale(1.1);}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+<div style="text-align:center"><h1>ROCKY</h1><p class="sub">Tactical Chess Studio — Neural Player v0</p></div>
+
+<div class="status"><div class="dot" id="dot"></div><span id="stxt">Connexion...</span></div>
+
+<div class="game">
+  <div class="col-board">
+    <div class="ptag" id="ptag-b">
+      <span class="ico">♟</span><span class="nm">Rocky</span><span class="rl">Neural Engine — Noirs</span>
+    </div>
+    <div class="board-wrap">
+      <div class="coords-v" id="cv"></div>
+      <div><div class="board" id="board"></div>
+      <div class="coords-h" id="ch"></div></div>
+    </div>
+    <div class="ptag" id="ptag-w">
+      <span class="ico">♙</span><span class="nm">Pierre</span><span class="rl">Humain — Blancs</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="card">
+      <h3>Rocky dit</h3>
+      <div class="says" id="says">À toi de jouer...</div>
+    </div>
+    <div class="card">
+      <h3>Historique</h3>
+      <div class="moves" id="moves"></div>
+    </div>
+    <div class="card">
+      <h3>FEN</h3>
+      <div class="fen" id="fen">—</div>
+    </div>
+    <button class="btn primary" onclick="newGame()">↺ Nouvelle partie</button>
+    <button class="btn" onclick="flip()">⇅ Retourner</button>
+  </div>
+</div>
+
+<div class="promo-overlay" id="promo">
+  <div class="promo-box">
+    <h4>Promotion</h4>
+    <div class="promo-row">
+      <button class="pbtn" onclick="doPromo('q')">♕</button>
+      <button class="pbtn" onclick="doPromo('r')">♖</button>
+      <button class="pbtn" onclick="doPromo('b')">♗</button>
+      <button class="pbtn" onclick="doPromo('n')">♘</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SERVER = 'http://localhost:5000';
+const GLYPHS = {
+  wK:'♔',wQ:'♕',wR:'♖',wB:'♗',wN:'♘',wP:'♙',
+  bK:'♚',bQ:'♛',bR:'♜',bB:'♝',bN:'♞',bP:'♟'
+};
+
+let chess = new Chess();
+let selected = null;
+let legalDests = [];
+let flipped = false;
+let thinking = false;
+let pendingPromo = null;
+let lastFrom = null, lastTo = null;
+
+function render() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  const files = 'abcdefgh';
+  const ranks = flipped ? [1,2,3,4,5,6,7,8] : [8,7,6,5,4,3,2,1];
+  const fileOrder = flipped ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
+
+  ranks.forEach(r => {
+    fileOrder.forEach(fi => {
+      const f = files[fi];
+      const sq = f + r;
+      const isLight = (fi + r) % 2 !== 0;
+      const div = document.createElement('div');
+      div.className = 'sq ' + (isLight ? 'light' : 'dark');
+      div.dataset.sq = sq;
+
+      if (sq === selected) div.classList.add('sel');
+      if (sq === lastFrom || sq === lastTo) div.classList.add('last');
+
+      const piece = chess.get(sq);
+      if (legalDests.includes(sq)) {
+        div.classList.add('hint');
+        if (piece) div.classList.add('occ');
+      }
+
+      if (piece) {
+        const key = (piece.color === 'w' ? 'w' : 'b') + piece.type.toUpperCase();
+        const span = document.createElement('span');
+        span.className = 'glyph';
+        span.textContent = GLYPHS[key] || '?';
+
+        const inCheck = chess.in_check() && piece.type === 'k' && piece.color === chess.turn();
+        if (inCheck) div.classList.add('incheck');
+        div.appendChild(span);
+      }
+
+      div.addEventListener('click', () => handleClick(sq));
+      board.appendChild(div);
+    });
+  });
+
+  document.getElementById('fen').textContent = chess.fen();
+
+  const isWhiteTurn = chess.turn() === 'w';
+  document.getElementById('ptag-w').className = 'ptag' + (isWhiteTurn ? ' active' : '');
+  document.getElementById('ptag-b').className = 'ptag' + (!isWhiteTurn ? ' active' : '');
+
+  buildCoords();
+  updateMoves();
+}
+
+function buildCoords() {
+  const cv = document.getElementById('cv');
+  const ch = document.getElementById('ch');
+  cv.innerHTML = '';
+  ch.innerHTML = '';
+  const ranks = flipped ? [1,2,3,4,5,6,7,8] : [8,7,6,5,4,3,2,1];
+  const files = flipped ? 'hgfedcba' : 'abcdefgh';
+  ranks.forEach(r => {
+    const s = document.createElement('span');
+    s.className = 'coord'; s.textContent = r; cv.appendChild(s);
+  });
+  files.split('').forEach(f => {
+    const s = document.createElement('span');
+    s.className = 'coord'; s.textContent = f; ch.appendChild(s);
+  });
+}
+
+function handleClick(sq) {
+  if (thinking || chess.turn() !== 'w' || chess.game_over()) return;
+
+  if (selected) {
+    if (legalDests.includes(sq)) {
+      tryMove(selected, sq);
+      return;
+    }
+    const p = chess.get(sq);
+    if (p && p.color === 'w') {
+      selected = sq;
+      legalDests = chess.moves({ square: sq, verbose: true }).map(m => m.to);
+      render();
+      return;
+    }
+    selected = null; legalDests = [];
+    render();
+    return;
+  }
+
+  const piece = chess.get(sq);
+  if (piece && piece.color === 'w') {
+    selected = sq;
+    legalDests = chess.moves({ square: sq, verbose: true }).map(m => m.to);
+    render();
+  }
+}
+
+function tryMove(from, to) {
+  const moves = chess.moves({ square: from, verbose: true }).filter(m => m.to === to);
+  if (!moves.length) return;
+
+  if (moves[0].flags.includes('p')) {
+    pendingPromo = { from, to };
+    document.getElementById('promo').classList.add('show');
+    return;
+  }
+
+  applyMove(from, to, null);
+}
+
+function doPromo(piece) {
+  document.getElementById('promo').classList.remove('show');
+  if (pendingPromo) {
+    const { from, to } = pendingPromo;
+    pendingPromo = null;
+    applyMove(from, to, piece);
+  }
+}
+
+function applyMove(from, to, promo) {
+  const move = chess.move({ from, to, promotion: promo || 'q' });
+  if (!move) return;
+  lastFrom = from; lastTo = to;
+  selected = null; legalDests = [];
+  render();
+
+  if (chess.game_over()) {
+    handleGameOver();
+    return;
+  }
+
+  if (chess.turn() === 'b') {
+    setTimeout(askRocky, 300);
+  }
+}
+
+async function askRocky() {
+  thinking = true;
+  setSays('Je calcule...', true);
+  const dot = document.getElementById('dot');
+  dot.className = 'dot thinking';
+
+  try {
+    const res = await fetch(`${SERVER}/move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', moves: chess.history({verbose:true}).map(m=>m.from+m.to+(m.promotion||'')).join(' ') })
+    });
+    const data = await res.json();
+
+    if (data.move) {
+      const from = data.move.slice(0, 2);
+      const to = data.move.slice(2, 4);
+      const promo = data.move[4] || null;
+
+      const move = chess.move({ from, to, promotion: promo || 'q' });
+      if (move) {
+        lastFrom = from; lastTo = to;
+        const score = data.score !== undefined ? ` (score: ${data.score})` : '';
+        setSays(`<em>${from}→${to}</em>${score}. Profondeur ${data.depth||4}.`, false);
+        thinking = false;
+        dot.className = 'dot ok';
+        render();
+        if (chess.game_over()) handleGameOver();
+      } else {
+        setSays(`Coup illégal reçu : ${data.move}`, false);
+        thinking = false;
+        dot.className = 'dot ok';
+      }
+    } else {
+      setSays('Erreur : ' + (data.error || '?'), false);
+      thinking = false;
+      dot.className = 'dot err';
+    }
+  } catch (e) {
+    setSays('Serveur inaccessible. Lance rocky_server.py.', false);
+    thinking = false;
+    dot.className = 'dot err';
+  }
+}
+
+function handleGameOver() {
+  if (chess.in_checkmate()) {
+    const winner = chess.turn() === 'w' ? 'Rocky gagne ! ♟' : 'Tu gagnes ! ♙';
+    setSays(winner, false);
+  } else if (chess.in_draw()) {
+    setSays('Nulle.', false);
+  } else {
+    setSays('Partie terminée.', false);
+  }
+}
+
+function setSays(msg, isThinking) {
+  const el = document.getElementById('says');
+  el.innerHTML = msg;
+  el.className = 'says' + (isThinking ? ' thinking' : '');
+}
+
+function updateMoves() {
+  const el = document.getElementById('moves');
+  el.innerHTML = '';
+  const hist = chess.history();
+  for (let i = 0; i < hist.length; i += 2) {
+    const div = document.createElement('div');
+    div.className = 'pair';
+    const n = Math.floor(i / 2) + 1;
+    const w = hist[i] || '';
+    const b = hist[i + 1] || '';
+    const wl = !b && i === hist.length - 1 ? ' ml' : '';
+    const bl = b && i + 1 === hist.length - 1 ? ' ml' : '';
+    div.innerHTML = `<span class="mn">${n}.</span><span class="mw${wl}">${w}</span><span class="mb${bl}">${b}</span>`;
+    el.appendChild(div);
+  }
+  el.scrollTop = el.scrollHeight;
+}
+
+function newGame() {
+  chess = new Chess();
+  selected = null; legalDests = []; thinking = false;
+  lastFrom = null; lastTo = null; pendingPromo = null;
+  setSays('Nouvelle partie. À toi de jouer.', false);
+  render();
+}
+
+function flip() { flipped = !flipped; render(); }
+
+async function checkServer() {
+  const dot = document.getElementById('dot');
+  const txt = document.getElementById('stxt');
+  try {
+    const r = await fetch(`${SERVER}/status`, { signal: AbortSignal.timeout(3000) });
+    const d = await r.json();
+    if (d.ready) {
+      dot.className = 'dot ok';
+      txt.textContent = 'Rocky connecté et prêt';
+    } else {
+      dot.className = 'dot thinking';
+      txt.textContent = 'Rocky démarre...';
+      setTimeout(checkServer, 2000);
+    }
+  } catch(e) {
+    dot.className = 'dot err';
+    txt.textContent = 'Serveur hors ligne — lance rocky_server.py';
+    setTimeout(checkServer, 3000);
+  }
+}
+
+checkServer();
+render();
+</script>
+</body>
+</html>

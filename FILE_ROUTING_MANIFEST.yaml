@@ -1,0 +1,683 @@
+# FILE_ROUTING_MANIFEST.yaml
+# SSOT du contrat de fichiers — Tactical Chess Studio
+# Autorité : HumanGate (Pierre)
+# Mis à jour : 2026-06-02
+#
+# Note technique Python 3.12 :
+#   PurePosixPath.match() — "**" requiert un composant intermédiaire.
+#   Pour fichiers directs dans un dossier : utiliser "dossier/*.ext"
+#   Pour sous-dossiers : utiliser "dossier/**/*.ext"
+#   La chaîne doc_hygiene_chain.py applique les deux en séquence.
+#
+# Statuts autorisés :
+#   IMPLEMENTED | DOCUMENTED_ONLY | PASSIVE | BLOCKED | SANDBOX | LOCAL | ORPHANED | DECISION_PENDING
+# Lanes autorisées :
+#   SAFE_AUTO | AUDIT_REQUIRED | HUMAN_REQUIRED | FORBIDDEN | NA
+
+routing:
+
+  # ============================================================
+  # TRACKED — Fichiers intentionnellement dans git
+  # ============================================================
+  tracked:
+
+    # --- Runtime Rust ---
+    - pattern: "src/*.rs"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Runtime Rust root level"
+
+    - pattern: "src/**/*.rs"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Runtime Rust code — active source truth. Search = autorité finale."
+
+    - pattern: "Cargo.toml"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Rust manifest"
+
+    - pattern: "Cargo.lock"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Rust lockfile"
+
+    # --- ML Python ---
+    - pattern: "ml/*.py"
+      status: varies
+      lane: AUDIT_REQUIRED
+      description: "ML pipeline Python — inference, training, dataset. train.py = FORBIDDEN sans gate."
+
+    - pattern: "ml/**/*.py"
+      status: varies
+      lane: AUDIT_REQUIRED
+      description: "ML pipeline Python sous-dossiers"
+
+    - pattern: "ml/move_vocab.py"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Standard move vocab helper — fingerprint stable 690ce94a"
+
+    - pattern: "ml/infer_policy.py"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Inference Python — value head actuellement jetée (issue #NEW-04)"
+
+    - pattern: "ml/train.py"
+      status: PASSIVE
+      lane: FORBIDDEN
+      description: "Training pipeline — FORBIDDEN sans gate HumanGate explicite"
+
+    - pattern: "ml/lora_config.yaml"
+      status: PASSIVE
+      lane: AUDIT_REQUIRED
+      description: "Config LoRA Devstral PENDING — 19/50 exemples, HumanGate requis avant tout lancement"
+
+    - pattern: "ml/lichess_importer.py"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Importeur CSV Lichess -> JSONL"
+
+    - pattern: "ml/lora_train_devstral.py"
+      status: PASSIVE
+      lane: AUDIT_REQUIRED
+      description: "Script entraînement LoRA Devstral — PASSIVE, ne pas lancer sans HumanGate explicite"
+
+    # --- Moteurs de référence (Sunfish / Stockfish) ---
+    - pattern: "lab/sunfish.py"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Moteur Sunfish Python — moteur de référence léger, même famille que SF"
+
+    - pattern: "lab/sunfish_vs_rocky.py"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Tournoi Sunfish vs Rocky — comparaison moteur de référence"
+
+    - pattern: "ml/rebuild_levels.py"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Reconstruction niveaux puzzles L2/L3"
+
+    # --- Scripts ---
+    - pattern: "scripts/*.py"
+      status: IMPLEMENTED
+      lane: HUMAN_REQUIRED
+      description: "Scripts CI/automation — HUMAN_REQUIRED systématiquement"
+
+    - pattern: "scripts/*.ps1"
+      status: IMPLEMENTED
+      lane: HUMAN_REQUIRED
+      description: "Scripts PowerShell — HUMAN_REQUIRED"
+
+    - pattern: "scripts/auto_merge_guard.py"
+      status: IMPLEMENTED
+      lane: HUMAN_REQUIRED
+      description: "Seule autorité de merge automatique — ne jamais toucher en automation"
+
+    # --- Tests racine ---
+    - pattern: "tests/*.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Tests Python racine — dataset, workspace hygiene, train fail-closed, etc."
+
+    # --- Lab chains (pipeline de développement) ---
+    - pattern: "lab/chains/*.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Chaînes de développement — orchestrateurs LLM local"
+
+    - pattern: "lab/chains/doc_hygiene_chain.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Chaîne d'hygiène documentaire — créée 2026-05-31, 60 tests verts"
+
+    - pattern: "lab/chains/test_doc_hygiene.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Tests pytest doc_hygiene_chain — 60 passed"
+
+    - pattern: "lab/chains/chain_executor.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Executor Devstral — dry-run par défaut"
+
+    - pattern: "lab/chains/validate_packet.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Validateur Truth Packet fail-closed"
+
+    - pattern: "lab/chains/chain_log.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Logger historique chaînes"
+
+    - pattern: "lab/chains/roadmap_to_ledger.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Sync roadmap → improvement ledger — script de synchronisation kaizen"
+
+    - pattern: "lab/chains/golden_examples.jsonl"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Exemples gold pour chaînes LLM — référence qualité outputs"
+
+    - pattern: "lab/chains/run_chain.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Orchestrateur principal v4 (Mistral + Ingénieur + Red Team)"
+
+    - pattern: "lab/chains/IMPROVEMENT_LEDGER.yaml"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Kaizen Loop ledger — SSOT des improvements. Mis a jour par kaizen_loop.py."
+
+    - pattern: "lab/chains/KAIZEN_PROTOCOL.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Protocole boucle d amelioration continue. Doctrine operationnelle."
+
+    - pattern: "lab/chains/*.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Docs audit et protocoles à la racine lab/chains/ — chess_fantasy_audit, etc."
+
+    - pattern: "lab/chains/*.yaml"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "YAML chaînes (HUMANGATE_DECISION_LOG, KAIZEN_METRICS, etc.)"
+
+    - pattern: "lab/chains/charters/*.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Charters IMP-* — archives décisions kaizen (IMP-007 à IMP-036+)"
+
+    - pattern: "lab/chains/reports/*.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Rapports IMP racine — artefacts kaizen session"
+
+    - pattern: "lab/chains/reports/processed/*.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Rapports IMP traités — déplacés par pipeline après processing"
+
+    - pattern: "lab/chains/reports/processed/**"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Sous-dossiers processed rapports IMP — artefacts kaizen"
+
+    - pattern: ".gitignore"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Gitignore repo — configuration standard."
+
+    # --- Docs racine ---
+    - pattern: "STUDIO_FULL_MAP.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Carte complète du studio — doc racine non-trackée"
+
+    - pattern: "SYSTEM_MAP.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Carte système — doc racine non-trackée"
+
+    - pattern: "BRAIN_REPORT_*.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Rapport cerveau studio généré en session — synthèse état + recommandations"
+
+    - pattern: "AUDIT_REPORT.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Rapport d'audit studio — doc racine"
+
+    - pattern: "KAIZEN_LOG.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Log kaizen racine — miroir de 00_STUDIO_CONTROL/05_AUDIT/KAIZEN_LOG.md"
+
+    - pattern: "STUDIO_BRAIN_AUDIT.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Audit cerveau studio — doc racine"
+
+    - pattern: "STUDIO_CONTEXT_LIVE.md"
+      status: PASSIVE
+      lane: SAFE_AUTO
+      description: "Contexte live généré par autopilot.py — mise à jour à chaque appel Devstral"
+
+    # --- Scripts de debug racine (outils réutilisables) ---
+    - pattern: "audit_moves_length.py"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Outil audit longueur moves — réutilisable pour debug dataset"
+
+    - pattern: "audit_rocky.py"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Outil audit Rocky — diagnostic agent"
+
+    - pattern: "fix_hanging.py"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Fix filtrage puzzles hanging_piece 1-coup (Moves.len()==2)"
+
+    - pattern: "state_updater.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Updater état studio racine — mise à jour state machine autopilot"
+
+    # --- Docs maîtres ---
+    - pattern: "00_STUDIO_CONTROL/00_MASTER_DOCS/*.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Master docs canoniques — 00_VISION à 11_REPRISE_PROMPT"
+
+    - pattern: "00_STUDIO_CONTROL/00_MASTER_DOCS/00_NAVIGATION_INDEX.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Index de navigation master docs — à committer"
+
+    - pattern: "00_STUDIO_CONTROL/05_AUDIT"
+      status: DOCUMENTED_ONLY
+      lane: HUMAN_REQUIRED
+      description: "Dossier audits studio — match git untracked directory"
+
+    - pattern: "00_STUDIO_CONTROL/05_AUDIT/**"
+      status: DOCUMENTED_ONLY
+      lane: HUMAN_REQUIRED
+      description: "Dossier audits studio — HUMAN_REQUIRED (sous 00_STUDIO_CONTROL)"
+
+    - pattern: "00_STUDIO_CONTROL/99_ARCHIVE/**/*.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Archive docs historiques — DOCUMENTED_ONLY"
+
+    - pattern: "00_STUDIO_CONTROL/99_ARCHIVE/records/DATASET_LEGACY_CHAMPION_TEACHER_INVENTORY_V0.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Inventaire legacy dataset champion teacher — à committer comme archive"
+
+    - pattern: "docs/control-plane/**/*.md"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Control-plane docs governance"
+
+    # --- Lab chess_fantasy (module moteur léger) ---
+    - pattern: "lab/chess_fantasy/*.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Module chess_fantasy — engine.py, rules.py"
+
+    - pattern: "lab/chess_fantasy/**/*.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Tests chess_fantasy — test_rules.py, test_engine.py"
+
+    # --- Lab tests (tests d'intégration lab) ---
+    - pattern: "lab/tests/*.py"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Tests lab — test_state_updater.py, test_autopilot_state_wire.py"
+
+    # --- Lab data (opening book, données brutes) ---
+    - pattern: "lab/data"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Dossier données brutes lab — match git untracked directory"
+
+    - pattern: "lab/data/*.jsonl"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Données brutes lab — opening_book.jsonl et autres"
+
+    - pattern: "lab/data/**"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Dossier données brutes lab — sous-dossiers inclus"
+
+    # --- Lab puzzles ---
+    - pattern: "lab/puzzles/level1.jsonl"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "2081 puzzles Lichess L1 (mate_in_1, hanging_piece 1-coup)"
+
+    - pattern: "lab/puzzles/level2.jsonl"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "2000 puzzles Lichess L2 (fork, pin, mateIn2)"
+
+    - pattern: "lab/puzzles/level3.jsonl"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "2000 puzzles Lichess L3 (anastasiasMate, rookEndgame)"
+
+    - pattern: "lab/puzzles/level_all.jsonl"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Concat L1+L2+L3 — tous puzzles confondus"
+
+    - pattern: "lab/puzzles/holdout_level1.jsonl"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Holdout puzzles L1 — set de validation séparé"
+
+    - pattern: "lab/puzzles/holdout_level2.jsonl"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Holdout puzzles L2 — set de validation séparé"
+
+    - pattern: "lab/puzzles/holdout_level3.jsonl"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Holdout puzzles L3 — set de validation séparé"
+
+    # --- Lab reports (baseline traçable) ---
+    - pattern: "lab/reports/eval_smoke_baseline.json"
+      status: IMPLEMENTED
+      lane: DOCUMENTED_ONLY
+      description: "Première baseline EvalRunResult — commit c0ebf62, 2026-05-30"
+
+    - pattern: "lab/reports/learning_progress.json"
+      status: IMPLEMENTED
+      lane: DOCUMENTED_ONLY
+      description: "Learning progress schema v2 — 2026-05-30"
+
+    - pattern: "lab/reports/conversion_suite_v1_latest.json"
+      status: IMPLEMENTED
+      lane: DOCUMENTED_ONLY
+      description: "Conversion suite — targeted metric only, NOT Elo evidence"
+
+    - pattern: "lab/reports/bench_rocky_p4_puzzles.json"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Benchmark Rocky puzzles P4 — artefact de mesure, NOT strength claim"
+
+    - pattern: "lab/reports/bench_rocky_p4_holdout.json"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Benchmark Rocky puzzles P4 holdout — artefact de mesure, NOT strength claim"
+
+    - pattern: "lab/reports/bench_rocky_p4_holdout_v2.json"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Benchmark Rocky P4 holdout v2 — overall 29.5% (L1:36% L2:30% L3:23%), NOT strength claim"
+
+    - pattern: "lab/reports/bench_rocky_p4_train_v2.json"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      description: "Benchmark Rocky P4 train v2 — artefact de mesure, NOT strength claim"
+
+    # --- Lab datasets (trackés avec précaution) ---
+    - pattern: "lab/datasets/teacher_samples.jsonl"
+      status: BLOCKED
+      lane: FORBIDDEN
+      description: "Teacher dataset CORROMPU — 553 samples, 0pct neural, result=draw. Issue #NEW-03. Ne pas utiliser."
+
+    - pattern: "lab/datasets/linked_pedagogy/*.pgn"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Sources PGN champions du monde — Ding vs Gukesh, World Cup 2023"
+
+    - pattern: "lab/datasets/linked_pedagogy/*.csv"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "CSV candidates pedagogy triage"
+
+    - pattern: "lab/pedagogy_db/*.pgn"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "PGN pedagogiques — endgames, tactics, conversion"
+
+    - pattern: "lab/ACTIVE_DATASET.txt"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "Pointer dataset actif — pointe vers lab/dataset/"
+
+    # --- Evaluation system ---
+    - pattern: "src/evaluation/*.rs"
+      status: IMPLEMENTED
+      lane: AUDIT_REQUIRED
+      description: "EvalRunResult, RegressionGuard, GuardVerdict — 13 tests verts"
+
+    # --- Schemas ---
+    - pattern: "schemas/*.json"
+      status: PASSIVE
+      lane: SAFE_AUTO
+      description: "Schemas JSON — contrainte de forme uniquement"
+
+    - pattern: "schemas/*.schema.json"
+      status: PASSIVE
+      lane: SAFE_AUTO
+      description: "JSON schemas formels"
+
+    # --- CI ---
+    - pattern: ".github/**/*.yml"
+      status: IMPLEMENTED
+      lane: HUMAN_REQUIRED
+      description: "GitHub Actions CI — HUMAN_REQUIRED systématiquement"
+
+    # --- Manifest lui-même ---
+    - pattern: "FILE_ROUTING_MANIFEST.yaml"
+      status: IMPLEMENTED
+      lane: SAFE_AUTO
+      description: "Ce fichier — SSOT du contrat de fichiers. Mis à jour par doc_hygiene_chain."
+
+  # ============================================================
+  # GITIGNORED — Fichiers intentionnellement exclus de git
+  # ============================================================
+  gitignored:
+
+    - pattern: "**/__pycache__/**"
+      status: LOCAL
+      lane: NA
+      description: "Cache Python compilé — jamais committer, généré automatiquement"
+
+    - pattern: ".venv312/**"
+      status: LOCAL
+      lane: NA
+      description: "Python venv local — jamais committer"
+
+    - pattern: ".venv312"
+      status: LOCAL
+      lane: NA
+      description: "Python venv local root"
+
+    - pattern: "*.log"
+      status: LOCAL
+      lane: NA
+      description: "Tous les logs — ne jamais committer"
+
+    - pattern: "rocky_debug.log"
+      status: LOCAL
+      lane: NA
+      description: "Log debug Rocky — LOCAL, ne pas committer"
+
+    # Sandbox lab
+    - pattern: "lab/hygiene/**"
+      status: SANDBOX
+      lane: NA
+      description: "Rapports doc_hygiene_chain — sandbox local"
+
+    - pattern: "lab/hygiene/*.md"
+      status: SANDBOX
+      lane: NA
+      description: "Rapports hygiène markdown locaux"
+
+    - pattern: "lab/chains/claude_prompts/**"
+      status: SANDBOX
+      lane: NA
+      description: "Prompts générés par run_chain — sandbox local (décision: gitignore)"
+
+    - pattern: "lab/chains/claude_prompts"
+      status: SANDBOX
+      lane: NA
+      description: "Dossier prompts Claude Code générés"
+
+    - pattern: "lab/chains/traces/**"
+      status: SANDBOX
+      lane: NA
+      description: "Traces d'exécution chaînes — sandbox local"
+
+    - pattern: "lab/chains/CHAIN_HISTORY.jsonl"
+      status: LOCAL
+      lane: NA
+      description: "Historique inter-sessions — état opérationnel local"
+
+    - pattern: "lab/experiments/**"
+      status: SANDBOX
+      lane: NA
+      description: "Expériences lab — sandbox. exp_003_aggressive inclus."
+
+    - pattern: "lab/puzzles/lichess_db_puzzle.csv"
+      status: LOCAL
+      lane: NA
+      description: "CSV Lichess source brut — 4GB+, ne pas committer. Régénérer depuis lichess.org"
+
+    - pattern: "lab/reports/*.tmp"
+      status: LOCAL
+      lane: NA
+      description: "Fichiers tmp rapports — transitoires"
+
+    - pattern: "lab/reports/*.txt"
+      status: LOCAL
+      lane: NA
+      description: "Fichiers txt diagnostics locaux"
+
+    - pattern: "lab/reports/eval_l2_run.tmp"
+      status: LOCAL
+      lane: NA
+      description: "Artefact run eval L2 temporaire"
+
+    - pattern: "lab/reports/smoke_diag.txt"
+      status: LOCAL
+      lane: NA
+      description: "Diagnostic smoke local"
+
+    - pattern: "lab/reports/latest_*.json"
+      status: LOCAL
+      lane: NA
+      description: "Latest benchmark summary — bruit tracké connu, ne pas committer"
+
+    - pattern: "lab/reverse_dataset/**"
+      status: LOCAL
+      lane: NA
+      description: "Reverse dataset et weakness_log — état opérationnel local"
+
+    - pattern: "lab/reverse_dataset/weakness_log.jsonl"
+      status: LOCAL
+      lane: NA
+      description: "Log faiblesses Rocky — état opérationnel, ne pas committer"
+
+    - pattern: ".studio_state/**"
+      status: LOCAL
+      lane: NA
+      description: "Studio operational state — local only"
+
+    - pattern: "lab/gameplay_observation/sandbox_outputs/**"
+      status: SANDBOX
+      lane: NA
+      description: "Sandbox outputs observation — non-canonical"
+
+    - pattern: "LOCAL_ARCHIVE/**"
+      status: LOCAL
+      lane: NA
+      description: "Archive AM stack locale — passive, BLOCKED publication"
+
+    - pattern: "lab/runs/**"
+      status: FORBIDDEN
+      lane: FORBIDDEN
+      description: "RUN_* bundles — FORBIDDEN en automation. Ne jamais créer."
+
+  # ============================================================
+  # UNROUTED — Décisions en attente ou DELETE
+  # ============================================================
+  unrouted:
+
+    - pattern: "ml/auto_coach.py"
+      status: ORPHANED
+      lane: AUDIT_REQUIRED
+      created_by: "session inconnue (erreur)"
+      recommendation: "DELETE — créé par erreur, pas de valeur documentée"
+      decision_deadline: "prochaine session"
+
+    - pattern: "scripts/uxpilote/**"
+      status: DECISION_PENDING
+      lane: HUMAN_REQUIRED
+      created_by: "session UxPilote prototype"
+      recommendation: "HUMAN_REQUIRED — scripts/ = review manuelle obligatoire. Décider: TRACKED ou DELETE."
+      note: "uxpilote_readonly.py existe non tracké depuis 04_STUDIO.md"
+      decision_deadline: "Phase 1 UxPilote"
+
+    - pattern: "scripts/uxpilote"
+      status: DECISION_PENDING
+      lane: HUMAN_REQUIRED
+      created_by: "session UxPilote prototype"
+      recommendation: "HUMAN_REQUIRED — voir pattern ci-dessus"
+      decision_deadline: "Phase 1 UxPilote"
+
+    - pattern: "lab/tmp_imp036_diag.py"
+      status: ORPHANED
+      lane: AUDIT_REQUIRED
+      created_by: "session 2026-06-02"
+      recommendation: "DELETE — fichier temporaire diagnostic IMP-036, sans valeur durable."
+      decision_deadline: "prochaine session"
+
+    - pattern: "lab/tmp_imp042_summarize.py"
+      status: DOCUMENTED_ONLY
+      lane: SAFE_AUTO
+      created_by: "session 2026-06-04"
+      description: "Script temporaire summarize IMP-042 — lecture seule, aucun side-effect."
+
+    - pattern: "wr.py"
+      status: ORPHANED
+      lane: AUDIT_REQUIRED
+      created_by: "session 2026-06-06"
+      recommendation: "DELETE — supprimé 2026-06-06 par HumanGate."
+      decision_deadline: "DONE"
+
+# ============================================================
+# RÈGLES D'AUDIT (lues par doc_hygiene_chain.py)
+# ============================================================
+audit_rules:
+
+  - rule: "Tout fichier créé doit être routé"
+    enforcement: "BLOCK si fichier présent en worktree et absent de tracked/gitignored/unrouted"
+    action: "Afficher orphelins + recommandation + bloquer PR"
+
+  - rule: "Sandbox outputs dans lab/hygiene/ ou lab/chains/traces/ uniquement"
+    enforcement: "WARN si fichier sandbox détecté ailleurs"
+    action: "Proposer déplacement ou gitignore"
+
+  - rule: "DECISION_PENDING résolu dans 3 cycles de chaîne"
+    enforcement: "WARN après 3 exécutions sans résolution"
+    action: "Escalader à HumanGate"
+
+  - rule: "ml/auto_coach.py doit être supprimé"
+    enforcement: "WARN à chaque exécution tant que présent"
+    action: "Rappeler recommendation DELETE"
+
+  - rule: "lab/datasets/teacher_samples.jsonl ne doit pas être modifié"
+    enforcement: "BLOCK si détecté dans changed_files"
+    action: "Issue #NEW-03 ouverte — dataset rebuild requis via HumanGate"
+
+  - rule: "claim_verdict est toujours NO_CLAIM_ALLOWED"
+    enforcement: "Constante — jamais overridable par automation"
+    action: "N/A"
+
+# ============================================================
+# MÉTADONNÉES
+# ============================================================
+metadata:
+  version: "1.1"
+  created: "2026-05-31"
+  authority: "HumanGate"
+  last_updated_by: "audit merle 2026-06-06 — processed/ reports routés, wr.py unrouted, 54→60 tests, dédupliqué tmp036"
+  python_312_note: >
+    PurePosixPath.match() en Python 3.12 requiert un composant intermédiaire
+    pour '**'. Fichiers directs : utiliser 'dossier/*.ext'.
+    Sous-dossiers : utiliser 'dossier/**/*.ext'.
+    doc_hygiene_chain.py applique les deux patterns en séquence.
+  next_review: "Après décision scripts/uxpilote/ et suppression ml/auto_coach.py"

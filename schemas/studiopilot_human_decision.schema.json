@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/studiopilot_human_decision.schema.json",
+  "title": "StudioPilot HumanDecision V0",
+  "description": "Final human gate record. merge_decision, claim_decision, and promotion_decision are separate decision axes and must not be conflated.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "decision_id",
+    "subject",
+    "approver",
+    "merge_decision",
+    "claim_decision",
+    "promotion_decision",
+    "rationale",
+    "evidence_refs",
+    "rollback_plan",
+    "timestamp"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "subject": {
+      "type": "string",
+      "minLength": 1
+    },
+    "approver": {
+      "type": "string",
+      "minLength": 1
+    },
+    "merge_decision": {
+      "type": "string",
+      "enum": [
+        "MERGE",
+        "REJECT",
+        "HOLD",
+        "REQUEST_CHANGES"
+      ]
+    },
+    "claim_decision": {
+      "type": "string",
+      "enum": [
+        "NO_CLAIM",
+        "HEALTH_ONLY",
+        "EVIDENCE_ONLY"
+      ]
+    },
+    "promotion_decision": {
+      "type": "string",
+      "enum": [
+        "NO_PROMOTION",
+        "CANDIDATE",
+        "PROMOTE"
+      ]
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "rollback_plan": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

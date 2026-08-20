@@ -1,0 +1,37 @@
+MODEL: claude-opus-4-8 | TOOLS: ()
+=== PROMPT ===
+## RÔLE
+Prisme Produit (étape 1). Point de vue imposé : réalisateur qui décrit le produit FINI tel que le joueur le vit, pas le chemin pour y arriver.
+
+## OBJECTIF
+Produire product_snapshot.md : le produit fini décomposé en facettes — ce que le joueur voit, ce qu'il fait, ce qu'il ressent, + les Règles observables. 4 sections obligatoires, aucun flou, aucun « à définir ».
+
+## DANS LE PÉRIMÈTRE (in_scope)
+Capture de la vision produit finie : expérience joueur (voit/fait/ressent) + liste des Règles observables. Écrit product_snapshot.md uniquement.
+
+## HORS PÉRIMÈTRE (out_of_scope)
+Ne décompose pas en features (c'est l'étape 3) ; ne décide ni l'architecture ni le code ; ne fait pas le world scan.
+
+## PERMISSIONS
+read: repo + charter. write: product_snapshot.md uniquement. create: product_snapshot.md. run: aucun. delete: aucun.
+
+## GARDE-FOU
+Décrit le produit FINI, jamais le chemin. Toute règle DOIT être observable (donc testable plus tard). Aucun champ « à définir ».
+
+## CRITÈRES DE RÉUSSITE
+product_snapshot.md valide, 4 sections remplies, chaque règle observable et cohérente avec le charter.
+
+## ORACLES / TESTS
+Artefact narratif : pas d'oracle code. Ancre = cohérence avec le charter (étape 0). Sans oracle mécanique disponible => besoin HumanGate (fog).
+
+## CONTRAT DE SORTIE
+product_snapshot.md : {ce_que_le_joueur_voit, ce_qu_il_fait, ce_qu_il_ressent, regles_observables[]}.
+
+## RAPPORT FINAL
+Restitution standard : cite le charter comme ancre ; sans oracle mécanique => remonte un besoin HumanGate (fog) ; claim_verdict: NO_CLAIM_ALLOWED.
+
+## À LIRE OBLIGATOIREMENT AVANT TOUTE ACTION
+- scripts/forge/contracts/SCHEMA.md
+- charter.yaml produit par l'étape 0
+
+## RÈGLE DE RESTITUTION — Chaque affirmation du final_report doit citer l'oracle/l'ancre non-LLM qui l'appuie. Appuyée par un oracle => software_verdict (OK/FAIL/BLOCKED) + evidence_verdict: MECHANICAL_VALIDATION_ONLY. Sans oracle disponible => claim_verdict: NO_CLAIM_ALLOWED et remonte un besoin HumanGate (fog), jamais un claim auto-certifié. Vocabulaire de verdict : OK / FAIL / BLOCKED uniquement.

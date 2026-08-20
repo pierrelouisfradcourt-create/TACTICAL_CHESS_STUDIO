@@ -1,0 +1,39 @@
+Oracle returns `verdict: OK` (exit 0). All 18 `required:true` visual requirements are mechanically covered; the one `required:false` cosmetic entity (`vr-hud-frame`) correctly needs no request. Resolution against the catalog is `0 OK / 18 BLOCKED` — advisory, legitimate, and expected. Delivering.
+
+---
+
+## RAPPORT FINAL — s2.5-artbible · shmup_slice_art-20260718a
+
+**Livrables écrits** (périmètre respecté — uniquement ces deux fichiers + reçu) :
+- `lab/forge_runs/shmup_slice/art_bible.md` — frontmatter `styles[4]` + `mood_keywords[11]`, sections 1 IDENTITÉ VISUELLE / 2 RATIONALE / 3 BESOINS VISUELS (bloc JSON `visual_requirements`, 19 entités).
+- `lab/forge_runs/shmup_slice/asset_requests.json` — 18 `asset_request` distinctes, `no_assets_needed:false`.
+- `evidence_path` : `lab/forge_runs/shmup_slice/evidence/check_artbible_shmup_slice_art-20260718a.json`.
+
+### software_verdict: OK
+**Oracle** : `node scripts/forge/check_artbible.mjs art_bible.md asset_requests.json` → `verdict: "OK"`, `pass: true`, exit 0.
+- **Forme** : `findings: []` (frontmatter + 3 sections non triviales + 18 requêtes passent `validateRequestShape`, chaque `style` ∈ frontmatter).
+- **Couverture besoin↔requête** (`checkCoverage`) : `coverage.missing: []`, **18/18** `required:true` satisfaites par au moins une requête de même `entity_role` (`player`, `effect`, `enemy`, `boss`, `environment`, `ui`). Une entité `required:false` (`vr-hud-frame`, panneau HUD cosmétique) sans requête — décision assumée, pas un manque.
+
+### evidence_verdict: MECHANICAL_VALIDATION_ONLY
+
+**Requêtes produites + statut de resolution** (advisory, jamais jugé — `resolution_stats: 0 OK / 18 BLOCKED`) :
+
+| entité | entity_role | style | resolution |
+|---|---|---|---|
+| ship-player | player | kawaii-chibi | BLOCKED |
+| shot-player, shot-enemy, shot-boss, vfx-explosion | effect | pop-vfx | BLOCKED |
+| enemy-invaders, enemy-sine | enemy | kawaii-chibi | BLOCKED |
+| boss-1, boss-2, boss-3 | boss | kawaii-chibi | BLOCKED |
+| bg-map1, bg-map2, bg-map3 | environment | candy-pop | BLOCKED |
+| hud-life, hud-bosshp, screen-victory, screen-defeat, btn-restart | ui | chunky-hud | BLOCKED |
+
+Les 18 `BLOCKED` de resolution sont **légitimes et attendus** : le catalogue réel ne contient que les styles `flat-top-down / lowpoly / photoscan-pbr` — **aucun** tag `kawaii-chibi / candy-pop / pop-vfx / chunky-hud`. Le `BLOCKED` de resolution (catalogue incomplet) est distinct du `MISSING_ASSET_COVERAGE` (oubli) — ce dernier est vide. **Aucune contrainte n'a été relâchée** pour forcer un OK de resolution (pas de gaming de l'oracle) ; je n'ai pas trahi la direction kawaii imposée par Pierre en déclarant `flat-top-down`.
+
+### claim_verdict: NO_CLAIM_ALLOWED
+
+**Fog → HumanGate (jugement Pierre, hors oracle)** :
+1. **Conformité esthétique non évaluée** — `style_tag_match` compare des tags de métadonnées, pas des pixels. Rien ici ne certifie que ces sprites seront « jolis » ou « dans le bon esprit Pop'n TwinBee ». Décision Pierre.
+2. **Sourcing des 18 assets** — les 18 requêtes sont `BLOCKED` faute d'assets kawaii au catalogue. Décision Pierre : ingérer de nouveaux assets (gate ingestion explicite, `knowledge_base/README.md`), commander une génération, ou trancher que le style demandé n'existe pas encore. **Aucun octet réseau, aucune écriture `catalog.json`** effectués.
+3. **Adéquation viewpoint non vérifiée** (limite v0.1 connue) — le contrat ne détecte pas si un style top-down serait réutilisé à tort pour ce vertical scroller.
+
+**Pré-mortem respecté** : reçu d'oracle avec `evidence_path` ré-exécutable fourni (sinon BLOCKED). Aucun commit / push (gate Pierre).

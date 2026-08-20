@@ -1,0 +1,29 @@
+Red-team CODE terminé pour `shmup_slice_patch2-20260718a` (s11-redteam-code). Rapport écrit : `lab/forge_runs/shmup_slice_patch2/rapport_redteam_code.md` (seul fichier écrit ; lecture seule ailleurs ; `run=aucun` respecté — aucun script/jeu exécuté, greps read-only comme ancres).
+
+## Point saillant : le rapport antérieur était STALE
+Le `rapport_redteam_code.md` présent auditait un **état plus ancien** du run. Je l'ai confronté au code courant avant de reporter quoi que ce soit. **3 failles antérieures sont désormais PÉRIMÉES** (je les retire explicitement) :
+- **Prior F2 (gate mutation BLOCKED / s9 surclaime OK)** → **résolu par ce build même** : la mutation a été rejouée (`evidence/mutation_…json` : 110/112, `passed=true`, 2 survivants triés), le `wiremap.json` liste les `logic_files`, et le `s9-build.txt` courant ne surclaime pas (refuse l'OK propre, route HumanGate).
+- **Prior F3 (`Date.now()` render.mjs:314)** → **résolu** : grep = 0 occurrence, fond réécrit en dur.
+- **Prior F5 (`size` mort dans `drawEnemy`)** → **résolu** : réécrit.
+
+## Ce qui tient (ancres non-LLM vérifiées par moi)
+| # | faille | sévérité | ancre |
+|---|--------|----------|-------|
+| **T1/T2** | Les 2 mutants triés « équivalents » (`and->or@L24` solver, `le->lt@L55` dodge) — **équivalence CONFIRMÉE** par ré-analyse indépendante des sites d'écriture / sémantique d'union | OK (pas un surclaim) | reçu mutation + analyse de chemin |
+| **D1/D2/D3** | Zones mortes : `validateEsquivability` importé jamais appelé ; `createBot()` exporté jamais appelé ; statut `'BOSS'` déclaré+branché 6× mais **jamais assigné** (dérive de contrat `state.mjs:25`) | LOW–MED | grep |
+| **R-F1** | Feature juice cassée : explosions sur **tout ennemi ayant bougé** (clé de match `x,y,hp` vs positions mutées chaque pas) | **HIGH** | inter-fichiers `render.mjs:546` vs `enemies.mjs` |
+| **R-F2** | Barre HP boss `maxHp=25` codé en dur → boss_1(15)/boss_2(20) à 60 %/80 % | MEDIUM | `render.mjs:508` vs `data/bosses.mjs` |
+| **R-F3/R-F4** | `drawBoss` ignore `boss.width` ; distinction tir boss/ennemi par distance ±100px | LOW | statique |
+| **L1/L2** | fog : `computeBotInputs` couvert par snapshot borné-par-seed (pas isolation) ; `main.mjs` L42 tué par **timeout** pas assertion (fragile vu l'histoire timeout Windows) | fog/advisory | reçu + test |
+
+## Verdicts (séparés)
+- **software_verdict: FAIL** (scopé au livrable **rendu** : R-F1 HIGH + R-F2 MEDIUM, mécaniquement ancrés inter-fichiers). **Le delta réellement audité — durcissement tests + gate mutation — est OK** : reçus mutation/oracle verts, 2 survivants ré-confirmés équivalents, aucune violation d'ownership, aucun test tautologique.
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY**
+- **claim_verdict: NO_CLAIM_ALLOWED** + fog HumanGate : (1) magnitude runtime de R-F1 (aucun oracle de rendu headless dans le dépôt), (2) acceptabilité couverture snapshot L1, (3) conformité artistique.
+
+## Besoins HumanGate remontés à Pierre
+1. **Oracle de rendu headless manquant** — sans lui R-F1 reste non mécaniquement prouvé (levier durable lane Forge « visuel »).
+2. **Zones mortes D1/D2/D3** — nettoyer ou ratifier comme dette (D3 corrige aussi un commentaire d'état faux).
+3. **Merge/reject/freeze = HumanGate** : gate franchi avec survivants triés (`exception=True`, jamais OK propre) **+** FAIL du livrable rendu.
+
+Note de confiance pour l'orchestrateur : à re-vérifier au réel avant de me croire — `evidence/mutation_…json` (110/112, passed), `grep -rn "status = 'BOSS'"` (=0), `grep -nE "Date\.now|Math\.random" render.mjs` (=0), et `render.mjs:508`/`546` toujours présents.

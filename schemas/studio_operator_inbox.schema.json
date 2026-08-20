@@ -1,0 +1,255 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/studio_operator_inbox.schema.json",
+  "title": "StudioOperatorInbox V0",
+  "description": "Stdout-only operator inbox dry-run compiled from local StudioCurrentState. This schema does not authorize persistence, Codex execution, activation, training, benchmark, model promotion, release automation, or public claims.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_type",
+    "contract_version",
+    "generated_at",
+    "source_current_state_id",
+    "top_decision",
+    "top_decision_type",
+    "next_action_summary",
+    "next_mission_candidate",
+    "humangate_required_items",
+    "open_blockers",
+    "open_risks",
+    "decision_debt",
+    "forbidden_work",
+    "allowed_operator_actions",
+    "blocked_actions",
+    "claim_posture",
+    "no_global_ready_verdict"
+  ],
+  "properties": {
+    "record_type": {
+      "const": "studio_operator_inbox"
+    },
+    "contract_version": {
+      "const": "V0"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_current_state_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "top_decision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "top_decision_type": {
+      "type": "string",
+      "enum": [
+        "BLOCKER_REVIEW",
+        "HUMANGATE_REQUIRED",
+        "NEXT_MISSION",
+        "PASSIVE_REVIEW"
+      ]
+    },
+    "next_action_summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "next_mission_candidate": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/mission_candidate"
+        }
+      ]
+    },
+    "humangate_required_items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/state_item"
+      }
+    },
+    "open_blockers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/state_item"
+      }
+    },
+    "open_risks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/state_item"
+      }
+    },
+    "decision_debt": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/state_item"
+      }
+    },
+    "forbidden_work": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "allowed_operator_actions": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "string",
+        "enum": [
+          "approve_next_mission_candidate",
+          "reject_next_mission_candidate",
+          "request_read_only_audit",
+          "defer"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "blocked_actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "allOf": [
+        {
+          "contains": {
+            "const": "runtime_activation"
+          }
+        },
+        {
+          "contains": {
+            "const": "dataset_generation"
+          }
+        },
+        {
+          "contains": {
+            "const": "training"
+          }
+        },
+        {
+          "contains": {
+            "const": "benchmark"
+          }
+        },
+        {
+          "contains": {
+            "const": "model_promotion"
+          }
+        },
+        {
+          "contains": {
+            "const": "public_claim"
+          }
+        },
+        {
+          "contains": {
+            "const": "push"
+          }
+        },
+        {
+          "contains": {
+            "const": "branch"
+          }
+        },
+        {
+          "contains": {
+            "const": "pr"
+          }
+        }
+      ]
+    },
+    "claim_posture": {
+      "const": "NO_CLAIM_ALLOWED"
+    },
+    "no_global_ready_verdict": {
+      "const": true
+    }
+  },
+  "$defs": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "IMPLEMENTED",
+        "TESTED",
+        "DOCUMENTED_ONLY",
+        "PASSIVE",
+        "BLOCKED",
+        "NOT_FOUND",
+        "UNKNOWN"
+      ]
+    },
+    "state_item": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "summary",
+        "status"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        }
+      }
+    },
+    "mission_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_class",
+        "goal",
+        "reason",
+        "target_files",
+        "validation_plan",
+        "source"
+      ],
+      "properties": {
+        "task_class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "goal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "validation_plan": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

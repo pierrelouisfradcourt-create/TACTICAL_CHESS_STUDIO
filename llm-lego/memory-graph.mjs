@@ -1,0 +1,48 @@
+// memory-graph.mjs — brique 3a : graphe mémoire (nœuds=notes, arêtes=wikilinks).
+import { listNotes, readNote } from "./memory-store.mjs";
+
+const SEP = "\n"; // séparateur de clé d'arête — jamais présent dans un relpath
+
+function resolveWikilink(w, srcRoot, nodeKeys, basenameIndex) {
+  const clean = String(w).replace(/\.md$/i, "").replace(/^\.\//, "").replace(/^(\.\.\/)+/, "");
+  const relKey = `${srcRoot}/${clean}`;                 // (a) relpath exact, même racine
+  if (nodeKeys.has(relKey)) return { key: relKey };
+  const base = clean.split("/").pop();                  // (b) basename, cross-racine
+  const matches = basenameIndex.get(base) || [];
+  if (matches.length === 1) return { key: matches[0] };
+  if (matches.length > 1) return { ambiguous: true };
+  return { dropped: true };
+}
+
+export function buildGraph(roots) {
+  const { notes } = listNotes(roots);
+  const full = notes.map((n) => readNote(roots, n.root, n.id));
+  const keyOf = (n) => `${n.root}/${n.id}`;
+  const nodeKeys = new Set(full.map(keyOf));
+  const basenameIndex = new Map();
+  for (const n of full) {
+    const base = String(n.id).split("/").pop();
+    const arr = basenameIndex.get(base) || []; arr.push(keyOf(n)); basenameIndex.set(base, arr);
+  }
+  const edgeSet = new Set();
+  let dropped = 0, ambiguous = 0;
+  for (const n of full) {
+    const srcKey = keyOf(n);
+    for (const w of n.wikilinks || []) {
+      const r = resolveWikilink(w, n.root, nodeKeys, basenameIndex);
+      if (r.ambiguous) { ambiguous++; continue; }
+      if (r.dropped) { dropped++; continue; }
+      if (r.key === srcKey) continue;                   // A3 self-link
+      edgeSet.add(`${srcKey}${SEP}${r.key}`);           // A3 dédup
+    }
+  }
+  const degree = new Map();
+  const edges = [...edgeSet].map((s) => {
+    const [source, target] = s.split(SEP);
+    degree.set(source, (degree.get(source) || 0) + 1);
+    degree.set(target, (degree.get(target) || 0) + 1);
+    return { source, target };
+  });
+  const nodes = full.map((n) => ({ id: keyOf(n), root: n.root, title: n.title, tags: n.tags, degree: degree.get(keyOf(n)) || 0 }));
+  return { nodes, edges, dropped, ambiguous };
+}

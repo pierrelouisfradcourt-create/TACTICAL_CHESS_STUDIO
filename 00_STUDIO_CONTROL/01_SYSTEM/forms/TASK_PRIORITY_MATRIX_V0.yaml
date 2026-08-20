@@ -1,0 +1,144 @@
+schema_version: "LOCAL_LOGISTIC_AGENT_TASK_PRIORITY_MATRIX_V0"
+matrix_id: ""
+created_at_utc: ""
+created_by: "Local Logistic Agent Mistral/Devstral"
+authority: "proposal_only"
+analysis_mode: "PASSIVE"
+mutation: "BLOCKED"
+language: "English"
+no_global_ready_verdict: true
+
+allowed_status_values:
+  - "IMPLEMENTED"
+  - "TESTED"
+  - "DOCUMENTED_ONLY"
+  - "PASSIVE"
+  - "BLOCKED"
+  - "NOT_FOUND"
+  - "UNKNOWN"
+
+allowed_score_values:
+  - "EXTREME"
+  - "VERY_HIGH"
+  - "HIGH"
+  - "MEDIUM"
+  - "LOW"
+
+allowed_task_classes:
+  - "logistics_only"
+  - "docs_workflow"
+  - "audit_repo"
+  - "patch_runtime"
+  - "report_analysis"
+
+scoring_rules:
+  EXTREME: "Highest priority or impact, severe blocking cost, severe risk, or essential HumanGate value. Requires explicit justification."
+  VERY_HIGH: "Strong priority signal with clear repo value, high unblock potential, or major collision/risk concern."
+  HIGH: "Useful bounded work with clear value, manageable cost, or meaningful dependency reduction."
+  MEDIUM: "Moderate value, cost, risk, or dependency impact. Safe to defer behind higher-priority bounded tasks."
+  LOW: "Low urgency, low value, low risk, low dependency impact, or suitable only after stronger candidates are resolved."
+
+recommended_batches:
+  logistics_only:
+    description: "Queue ordering, task slicing, report parsing, route checks, and passive planning records."
+    default_authority_level: "proposal_only"
+    mutation_allowed_by_local_logistic_agent: false
+  docs_workflow:
+    description: "Canonical docs, forms, reports, source-registration candidates, and docs-only workflow updates."
+    default_authority_level: "proposal_only"
+    mutation_allowed_by_local_logistic_agent: false
+  audit_repo:
+    description: "Passive repository inspection, source/readback audit, collision audit, and status-by-surface mapping."
+    default_authority_level: "proposal_only"
+    mutation_allowed_by_local_logistic_agent: false
+  patch_runtime:
+    description: "Bounded runtime-code change candidate requiring HumanGate authorization and Codex execution."
+    default_authority_level: "humangate_required"
+    mutation_allowed_by_local_logistic_agent: false
+  report_analysis:
+    description: "Executor report parsing and evidence-matrix candidate updates without promotion or claim validation."
+    default_authority_level: "proposal_only"
+    mutation_allowed_by_local_logistic_agent: false
+
+anti_chaos_rules:
+  no_overlapping_patch_runtime_on_same_files:
+    status: "DOCUMENTED_ONLY"
+    rule: "Do not recommend concurrent patch_runtime tasks that target the same files or closely coupled runtime surfaces."
+  no_hidden_activation:
+    status: "DOCUMENTED_ONLY"
+    rule: "Do not recommend work that activates agents, runtime behavior, Chess960, DecisionController, models, or routing by implication."
+  no_benchmark_as_proof:
+    status: "DOCUMENTED_ONLY"
+    rule: "Do not treat performance runs, benchmarks, or timing output as proof of strength, readiness, promotion, or scientific validity."
+  no_roadmap_only_promotion_to_runtime_truth:
+    status: "DOCUMENTED_ONLY"
+    rule: "Do not promote roadmap/docs-only material to active runtime truth without registration, loading, enforcement, evidence, and HumanGate decision."
+
+source_state_rule:
+  created: "DOCUMENTED_ONLY"
+  registered: "UNKNOWN"
+  loaded: "UNKNOWN"
+  enforced: "UNKNOWN"
+  evidenced: "UNKNOWN"
+  rule: "created != registered != loaded != enforced != evidenced"
+
+tasks:
+  - task_id: ""
+    task_class: ""
+    primary_surface: ""
+    current_status: "UNKNOWN"
+    roi_score: "MEDIUM"
+    cost_score: "MEDIUM"
+    risk_score: "MEDIUM"
+    dependency_score: "MEDIUM"
+    human_value_score: "MEDIUM"
+    parallelizable: false
+    blocked_by: []
+    route_ready: "UNKNOWN"
+    source_ready: "UNKNOWN"
+    validation_ready: "UNKNOWN"
+    humangate_ready: "UNKNOWN"
+    recommended_order: 0
+    recommended_batch: "logistics_only"
+    expected_output: ""
+    expected_status: "UNKNOWN"
+    estimated_runtime_cost: "LOW"
+    authority_level: "proposal_only"
+    mutation_required: false
+    codex_required: false
+    local_llm_only: true
+    notes: ""
+
+status_by_surface:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "PASSIVE"
+
+software_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "PASSIVE"
+
+evidence_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "PASSIVE"
+
+claim_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "PASSIVE"
+
+claim_posture: "NO_CLAIM_ALLOWED"

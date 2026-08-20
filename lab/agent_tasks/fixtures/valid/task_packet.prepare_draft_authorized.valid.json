@@ -1,0 +1,44 @@
+{
+  "task_id": "PR197_PREPARE_DRAFT_AUTHORIZED_VALID",
+  "agent_id": "code",
+  "objective": "Valid fixture: prepare-draft-pr authorization gates fully enabled for commit/push/create-pr.",
+  "allowed_files": [
+    "scripts/agent_pr_operator.py",
+    "schemas/task_packet.schema.json",
+    "lab/agent_tasks/fixtures/**",
+    "docs/control-plane/**"
+  ],
+  "forbidden_files": [
+    "src/**",
+    "tests/**",
+    ".github/**",
+    "lab/runs/**",
+    "latest.json",
+    "holdout/**"
+  ],
+  "required_checks": [
+    "python -m py_compile scripts/agent_pr_operator.py",
+    "python scripts/validate_control_plane_json.py --pretty"
+  ],
+  "expected_verdicts": {
+    "software_verdict": "CONTROL_PLANE_TOOLING_ONLY",
+    "evidence_verdict": "LOCAL_OPERATOR_HYGIENE_VALIDATION_ONLY",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  },
+  "human_review_required": true,
+  "control_plane_exception": true,
+  "exception_reason": "PR197 fixture validates explicit prepare-draft-pr authorization gating under human review.",
+  "authorization": {
+    "human_authorized": true,
+    "allow_commit": true,
+    "allow_push": true,
+    "allow_create_pr": true,
+    "allow_ready": false,
+    "allow_merge": false
+  },
+  "authorize_commit": true,
+  "authorize_push": true,
+  "authorize_create_pr": true,
+  "authorize_ready_pr": false,
+  "authorize_merge_pr": false
+}

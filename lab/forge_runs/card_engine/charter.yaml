@@ -1,0 +1,84 @@
+# charter.yaml — FORGE run card_engine-20260720a — étape 0 (Contrat)
+# Profil: full · Run A · Rédigé sans aucun champ « à définir ».
+
+projet: card_engine
+run_id: card_engine-20260720a
+etape: 0-contrat
+emplacement: games/card_engine/
+
+objectif: >
+  Livrer CardEngine V0 : un moteur de jeux de cartes à plis, headless, en simulation
+  pure déterministe seed-first, sans aucune dépendance externe, testé avec node:test,
+  avec replay déterministe (tradition maison auto_battler). V0 comprend le NOYAU COMMUN
+  (Card, Deck, Hand, Trick, une Rules Interface et une Score Interface) PLUS un unique
+  adaptateur concret : BeloteRules. La correction de BeloteRules est prouvée par PARITÉ
+  de comportement contre l'implémentation déjà publiée
+  llm-lego/experiments/belote-claude/ : les goldens sont DÉRIVÉS de ses tests et de ses
+  comportements observés, et le code publié n'est JAMAIS modifié. Les interfaces du core
+  sont conçues pour ANTICIPER un futur TarotRules (paramétrable) sans l'implémenter dans
+  ce run.
+
+hors_scope:
+  - "TarotRules et tout ce qui touche au Tarot (78 cartes, bouts, excuse, chien, contrat,
+     garde/sans/garde contre, 3/4/5 joueurs, score complexe) : c'est le Run B, profil
+     increment, hors de ce run."
+  - "Toute UI, rendu visuel, page HTML jouable ou serveur : ce run est headless uniquement."
+  - "Tout second adaptateur de règles au-delà de BeloteRules (ex. jeux sans atout, jeux de
+     levée non-Belote)."
+  - "Toute modification, micropatch ou refactor de llm-lego/experiments/belote-claude/ :
+     produit publié, lecture seule pour dériver les goldens."
+  - "La décision d'architecture détaillée (signatures finales des interfaces Rules/Score,
+     découpage modulaire) : elle relève de l'étape 4, pas du contrat."
+  - "Le world scan / recherche de patterns externes : c'est l'étape 2."
+  - "Toute persistance, réseau, multithread, IA d'adversaire sophistiquée : le bot d'oracle
+     est un joueur déterministe minimal, pas une IA de niveau compétitif."
+  - "Tout commit ou push : décision réservée à la HumanGate Pierre."
+
+criteres_succes:
+  - "Le core expose Card, Deck, Hand, Trick, une Rules Interface et une Score Interface,
+     tous headless, déterministes et sans dépendance externe (package sans node_modules
+     tiers)."
+  - "Une seed fixée produit un déroulement de partie identique bit-à-bit sur deux exécutions
+     (replay déterministe vérifié par un test)."
+  - "BeloteRules implémente la Rules Interface et la Score Interface : distribution, atout,
+     ordre/valeur des cartes belote (avec/sans atout), obligation de suivre/couper, belote-
+     rebelote, comptage des plis et du score de manche."
+  - "PARITÉ prouvée : sur un corpus de goldens dérivés des tests et comportements de
+     belote-claude, CardEngine BeloteRules produit les mêmes résultats (cartes légales,
+     gagnant de pli, score de manche) ; chaque golden cite sa source côté belote-claude."
+  - "ORACLE DE SOLVABILITÉ (pré-mortem 1) : un bot déterministe joue des parties complètes
+     de Belote de bout en bout, seed-first, sans état illégal, jusqu'à un score de manche
+     cohérent — la mécanique est prouvée EN PARTIE JOUÉE, pas seulement en unités isolées."
+  - "Chaque test asserte le comportement STRICT (pré-mortem 2) : aucune assertion
+     tautologique de type `>=` là où une égalité exacte est attendue ; les invariants
+     (nombre de cartes conservé, un seul gagnant par pli, somme des points = total attendu)
+     sont vérifiés par égalité."
+  - "Toute preuve d'exécution est rattachée à un evidence_path réel (pré-mortem 3) : la
+     sortie des tests/oracle est capturée sous lab/forge_runs/card_engine/ ; un reçu sans
+     evidence_path est traité comme BLOCKED."
+  - "Les interfaces du core sont paramétrables pour anticiper le Tarot SANS l'implémenter :
+     taille de paquet, cartes spéciales, phase d'enchères et nombre de joueurs variable /
+     équipes asymétriques sont exprimables par l'interface, démontré par au moins un point
+     d'extension documenté ou un stub d'interface non-Belote qui compile/charge sans code
+     Tarot."
+  - "Vocabulaire de verdict OK / FAIL / BLOCKED respecté ; le rapport final sépare
+     software_verdict / evidence_verdict / claim_verdict avec claim_verdict:
+     NO_CLAIM_ALLOWED."
+
+actions_interdites:
+  - "Écrire, patcher ou modifier quoi que ce soit dans llm-lego/experiments/belote-claude/
+     (produit publié — lecture seule pour dériver les goldens)."
+  - "Écrire dans tests/** (zone protégée), lab/chains/ (ledger), ou toute lane gelée :
+     autopilot.py, scripts/studioV2/, src/."
+  - "Introduire une dépendance externe : le moteur reste zéro-dépendance, node:test
+     uniquement."
+  - "Écrire hors des deux surfaces autorisées : games/card_engine/ (code+tests du moteur)
+     et lab/forge_runs/card_engine/ (preuves/état/goldens capturés)."
+  - "Commiter ou pousser : gate Pierre explicite requis avant tout git write."
+  - "Implémenter le Tarot ou tout second adaptateur dans ce run (garde le scope V0)."
+  - "Utiliser une assertion `>=` tautologique ou tout test qui passe sans discriminer le
+     comportement correct du comportement faux."
+  - "Émettre un reçu de code sans evidence_path (exécution non prouvable ⇒ BLOCKED)."
+  - "Émettre un software_verdict: OK sur preuve d'existence : seule une preuve d'exécution
+     (sortie de tests/oracle capturée) autorise OK."
+  - "Utiliser une API LLM/Anthropic externe, ou créer des fichiers tmp qui subsistent."

@@ -1,0 +1,137 @@
+schema_version: "CONTROL_ROOM_AGENT_REGISTRY_V0"
+status: "DOCUMENTED_ONLY"
+owner: "HumanGate"
+last_checked: "2026-05-20"
+agents:
+  - agent_id: "local_llm_student"
+    role: "Candidate cartographer and student first pass."
+    status: "DOCUMENTED_ONLY"
+    reads:
+      - "00_STUDIO_CONTROL/00_INDEX/CONTROL_INDEX.md"
+      - "00_STUDIO_CONTROL/01_MAPS/STUDIO_MAP.md"
+      - "00_STUDIO_CONTROL/03_REGISTRIES/FILE_REGISTRY.yaml"
+      - "00_STUDIO_CONTROL/03_REGISTRIES/AGENT_REGISTRY.yaml"
+      - "00_STUDIO_CONTROL/03_REGISTRIES/LOOP_REGISTRY.yaml"
+      - "00_STUDIO_CONTROL/07_FORMS/LOCAL_LLM_STUDENT_PASS_TEMPLATE.yaml"
+    writes:
+      - "candidate report outside repo unless HumanGate routes it"
+    forbidden:
+      - "truth_claim"
+      - "runtime_activation"
+      - "file_mutation_without_route"
+      - "training"
+      - "dataset_promotion"
+      - "autonomous_agent_activation"
+    must_read_before_launch:
+      - "00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md"
+      - "00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md"
+      - "00_STUDIO_CONTROL/06_CODEX/LLM_CODEX_LOOP_V0.md"
+    blocked_if:
+      - "output_route_unknown"
+      - "required_sources_not_loaded"
+      - "candidate_claim_treated_as_truth"
+      - "HumanGate_not_present_for_final_authority"
+    evidence:
+      - "Registered for documentation loop only; candidate-only authority."
+  - agent_id: "codex_teacher"
+    role: "Evidence-bound teacher and verifier of local LLM candidate output."
+    status: "DOCUMENTED_ONLY"
+    reads:
+      - "required workflow sources"
+      - "local LLM candidate output"
+      - "00_STUDIO_CONTROL/07_FORMS/CODEX_TEACHER_CORRECTION_TEMPLATE.yaml"
+      - "00_STUDIO_CONTROL/04_BOUNDARIES/CLAIMS_LEDGER.yaml"
+    writes:
+      - "teacher correction record only when routed"
+    forbidden:
+      - "unsupported_final_truth"
+      - "runtime_code_edits"
+      - "test_edits"
+      - "CI_edits"
+      - "training"
+      - "LoRA_creation"
+      - "dataset_creation_or_promotion"
+      - "global_ready_verdict"
+    must_read_before_launch:
+      - "00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md"
+      - "00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md"
+      - "00_STUDIO_CONTROL/07_FORMS/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md"
+    blocked_if:
+      - "evidence_missing"
+      - "commands_run_not_reported"
+      - "source_state_unknown_for_effectful_action"
+      - "claim_without_evidence"
+    evidence:
+      - "Corrections must cite evidence and commands run."
+  - agent_id: "local_llm_retry"
+    role: "Revised candidate cartographer after Codex teacher feedback."
+    status: "DOCUMENTED_ONLY"
+    reads:
+      - "Codex teacher correction"
+      - "00_STUDIO_CONTROL/07_FORMS/LOCAL_LLM_RETRY_PASS_TEMPLATE.yaml"
+    writes:
+      - "revised candidate report outside repo unless HumanGate routes it"
+    forbidden:
+      - "truth_claim"
+      - "silently_drop_teacher_corrections"
+      - "file_mutation_without_route"
+      - "runtime_activation"
+      - "training"
+    must_read_before_launch:
+      - "teacher correction with evidence"
+      - "00_STUDIO_CONTROL/06_CODEX/LLM_CODEX_LOOP_V0.md"
+    blocked_if:
+      - "teacher_correction_missing"
+      - "corrections_not_ingested"
+      - "unknown_action_with_effect"
+    evidence:
+      - "Retry output remains revised candidate-only."
+  - agent_id: "codex_final_validation"
+    role: "Evidence-bound final validation pass before HumanGate."
+    status: "DOCUMENTED_ONLY"
+    reads:
+      - "local LLM retry output"
+      - "all registries"
+      - "claims ledger"
+      - "truth snapshot"
+      - "00_STUDIO_CONTROL/07_FORMS/CODEX_FINAL_VALIDATION_TEMPLATE.yaml"
+    writes:
+      - "final validation record only when routed"
+    forbidden:
+      - "HumanGate_substitution"
+      - "runtime_activation"
+      - "runtime_code_edits"
+      - "test_edits"
+      - "CI_edits"
+      - "model_or_dataset_outputs"
+      - "global_ready_verdict"
+    must_read_before_launch:
+      - "00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md"
+      - "00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md"
+      - "00_STUDIO_CONTROL/03_REGISTRIES/LOOP_REGISTRY.yaml"
+    blocked_if:
+      - "yaml_validation_not_run_when_parser_available"
+      - "status_taxonomy_violation"
+      - "floating_items_unreported"
+      - "noise_gate_failure"
+    evidence:
+      - "Final validation is evidence-bound and still not HumanGate."
+  - agent_id: "HumanGate"
+    role: "Final authority for approve, block, or request revision."
+    status: "DOCUMENTED_ONLY"
+    reads:
+      - "all control-room outputs"
+      - "teacher corrections"
+      - "final validation"
+    writes:
+      - "human decision record when separately routed"
+    forbidden:
+      - "none inside legal and safety limits"
+    must_read_before_launch:
+      - "evidence package"
+      - "risks"
+      - "blocked actions"
+    blocked_if:
+      - "evidence_package_missing"
+    evidence:
+      - "Existing AGENT_REGISTRY.md lists HumanGate as final authority."

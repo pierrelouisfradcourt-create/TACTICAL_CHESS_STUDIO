@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "command_record_schema.pr02.json",
+  "title": "PR-02 Command Record Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "command_id",
+    "name",
+    "cmd",
+    "started_at",
+    "ended_at",
+    "duration_sec",
+    "exit_code",
+    "stdout_path",
+    "stderr_path",
+    "stdout_sha256",
+    "stderr_sha256",
+    "working_directory",
+    "environment_snapshot_ref",
+    "allowed_failure"
+  ],
+  "properties": {
+    "command_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cmd": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "started_at": {
+      "type": "string"
+    },
+    "ended_at": {
+      "type": "string"
+    },
+    "duration_sec": {
+      "type": "number",
+      "minimum": 0
+    },
+    "exit_code": {
+      "type": "integer",
+      "description": "Command mentioned without exit_code = EVIDENCE_INCOMPLETE."
+    },
+    "stdout_path": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Command mentioned without stdout = EVIDENCE_INCOMPLETE."
+    },
+    "stderr_path": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Command mentioned without stderr = EVIDENCE_INCOMPLETE."
+    },
+    "stdout_sha256": {
+      "type": "string",
+      "pattern": "^[A-Fa-f0-9]{64}$"
+    },
+    "stderr_sha256": {
+      "type": "string",
+      "pattern": "^[A-Fa-f0-9]{64}$"
+    },
+    "working_directory": {
+      "type": "string"
+    },
+    "environment_snapshot_ref": {
+      "type": "string"
+    },
+    "allowed_failure": {
+      "type": "boolean"
+    }
+  }
+}

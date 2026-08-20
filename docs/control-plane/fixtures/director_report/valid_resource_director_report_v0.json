@@ -1,0 +1,76 @@
+{
+  "schema_version": "studiopilot.director_report.v0",
+  "report_id": "director_resource_v0_001",
+  "director_type": "RESOURCE_DIRECTOR",
+  "source_objective": "Deliver Director Report V0 control-plane patchpack with bounded risk and explicit human gates",
+  "source_project_breakdown_ref": "pbr_v0_scalable_ai_org_001",
+  "reviewed_scope": {
+    "allowed_paths": [
+      "schemas/studiopilot_director_report.schema.json",
+      "scripts/control_plane/validate_director_reports.py",
+      "scripts/control_plane/smoke_director_report.py",
+      "docs/control-plane/fixtures/director_report/",
+      "docs/control-plane/DIRECTOR_LAYER_V0.md",
+      "docs/control-plane/DIRECTOR_REPORT_V0.md",
+      "docs/control-plane/DIRECTOR_REVIEW_POLICY_V0.md"
+    ],
+    "forbidden_paths": [
+      ".github/workflows/",
+      "src/",
+      "ml/"
+    ],
+    "scope_summary": "Resource review confirms this is control-plane only and excludes runtime, ML, and workflow mutation."
+  },
+  "reviewed_pr_candidates": [
+    {
+      "pr_candidate_id": "pr.director_report_schema_pack",
+      "title": "Director report schema and local validators",
+      "pr_type": "SCHEMA_FIXTURE",
+      "risk_level": "MEDIUM",
+      "director_decision": "GO",
+      "reasons": [
+        "Scope stays in schemas/docs/control-plane tooling",
+        "Local validation cost is bounded"
+      ]
+    },
+    {
+      "pr_candidate_id": "pr.director_report_docs_policy",
+      "title": "Director layer and policy docs",
+      "pr_type": "DOCS_ONLY",
+      "risk_level": "LOW",
+      "director_decision": "GO",
+      "reasons": [
+        "No runtime cost activation",
+        "No cloud spend activation"
+      ]
+    }
+  ],
+  "risk_level": "MEDIUM",
+  "director_verdict": "GO",
+  "required_conditions": [
+    "Resource budget remains local-only with no cloud spend activation",
+    "Scope remains bounded to schemas, docs, and control-plane tooling",
+    "CI cost guard must remain lightweight and deterministic"
+  ],
+  "blocked_reasons": [],
+  "escalation_required": false,
+  "escalation_targets": [],
+  "touched_surfaces": {
+    "workflows": false,
+    "runtime": false,
+    "search": false,
+    "neural": false,
+    "ml_training": false,
+    "benchmark": false,
+    "schemas": true,
+    "docs": true,
+    "control_plane_tooling": true
+  },
+  "forbidden_surface_touched": false,
+  "human_gate_required": true,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "evidence_verdict": "Local planning structure only; no performance or strength evidence is produced.",
+  "status": "READY_FOR_HUMAN_REVIEW"
+}

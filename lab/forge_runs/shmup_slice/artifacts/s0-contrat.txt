@@ -1,0 +1,87 @@
+I have everything required: SCHEMA.md, the existing charter, both pre-mortem journals, and the preprod report. I also confirmed there is **no wired non-LLM charter-validator binary** in `scripts/forge/` (only the schema spec and the contract). Per my contract (`run: aucun`, text-only), I apply the deterministic completeness predicate by inspection and remount the missing-oracle gap as a fog. Here is the s0 verdict.
+
+---
+
+# RAPPORT FINAL — s0-contrat / shmup_slice-20260714a
+
+**Rôle** : Rédacteur du Contrat. Sortie = validation/amendement du charter existant `lab/forge_runs/shmup_slice/charter.yaml`. **Aucun fichier écrit** (conforme au task « Texte seul »).
+
+## 1. Oracle CHARTER utilisé (cité)
+
+**Prédicat de complétude déterministe non-LLM** — appliqué au fichier `lab/forge_runs/shmup_slice/charter.yaml` :
+
+> Échoue si l'un des 4 champs requis `{objectif, hors_scope[], criteres_succes[], actions_interdites[]}` est **absent**, **vide**, ou **contient « à définir »** (ou tout placeholder équivalent : TBD/TODO/à préciser).
+
+Résultat de l'application (re-vérifiable par `parse YAML + assert` ou `grep`) :
+
+| Champ requis | État | Contenu |
+|---|---|---|
+| `objectif` | **rempli** | bloc scalaire non vide, couvre l'intégralité du scope figé |
+| `hors_scope[]` | **rempli** | 11 items non vides |
+| `criteres_succes[]` | **rempli** | 14 items non vides |
+| `actions_interdites[]` | **rempli** | 13 items non vides |
+| occurrence « à définir » / TBD / TODO dans un champ requis | **0** | — |
+
+→ **Complétude de schéma : PASS.** Fait mécanique, re-vérifiable, zéro jugement LLM.
+
+## 2. Fidélité au scope figé (brief Pierre 2026-07-14)
+
+Contrôle item-par-item du scope figé contre le charter. **Couverture = 12/12, aucune extension, aucun rétrécissement silencieux** :
+
+vaisseau clavier borné + tir haut ✓ · ennemis en formations, patterns simples **en données** (les 4 nommés : descente invaders, sinusoïde, kamikaze, tir périodique) ✓ · collisions complètes (tir→ennemi/boss, tir ennemi→joueur, contact) ✓ · score ✓ · 3 vies + invincibilité brève ✓ · **3 maps distinctes en données (« PAS trois variations paramétriques »)** ✓ · 3 boss distincts (HP + 1 pattern esquivable) ✓ · écrans victoire/défaite ✓ · build jouable (node server.mjs + canvas + README 2 lignes) ✓ · progression score/vies conservés, boss→map suivante, défaite→restart complet ✓ · logique pure `step(DT=16ms,inputs)` seedée séparée du rendu ✓ · solvabilité bot déterministe finit 3 maps + bat 3 boss, esquivabilité vérifiée, e2e multi-niveaux via `__game/__game_debug`, gate mutation 100%-ou-triage ✓.
+
+**Note d'extension contrôlée (non bloquante)** : le charter ajoute le **jalonnage A/B** (map1+boss1 puis 3×3) et un critère **perf advisory non-gating**, tous deux hérités du rapport pré-prod. Ni l'un ni l'autre n'altère le scope livré : `criteres_succes[1]` + `actions_interdites[1]` **exigent la solvabilité de bout en bout des 3 maps + 3 boss pour un OK** — le Jalon A ne peut donc pas devenir un rétrécissement de scope déguisé. Décision d'orchestrateur, ratifiable au gate final.
+
+## 3. Encodage du pré-mortem PILOU (vérifié)
+
+| Leçon PILOU | Encodée dans le charter |
+|---|---|
+| Oracle de **solvabilité** — un bot doit **GAGNER**, pas juste des mécaniques en isolation | `criteres_succes[1]` (bot finit 3 maps + 3 boss ; sonde cassée → INJOUABLE exit≠0) + `actions_interdites[1]` |
+| Jamais de `>=` **tautologique**, asserter le comportement STRICT | `criteres_succes[6]` (« aucune assertion tautologique ») + `actions_interdites[4]` |
+| Code sans `evidence_path` ⇒ **BLOCKED** | `criteres_succes[13]` (« code sans preuve = BLOCKED ») |
+
+→ Les 3 leçons du journal sont explicitement contractualisées. **Encodage pré-mortem : PASS.**
+
+## 4. Flous du prompt — RÉSOLUS vs REMONTÉS
+
+**Résolus par le charter (je confirme la résolution, non-LLM sur le texte) :**
+- « patterns simples » → les **4 patterns nommés, déclarés en données** (pas cascade de branches).
+- « 3 maps » → **conçues en données**, chacune = déclaration vagues/formations/fond, explicitement « pas un générateur ».
+- « build jouable » → `node server.mjs` + canvas + README 2 lignes.
+- « défaite → restart complet » → restart map 1, score 0, vies 3.
+- « solvabilité » → bot joue l'**API d'entrée publique** (interdit de forcer l'état), avec **sonde-contrôle falsifiante** (jeu cassé → INJOUABLE).
+
+**Remontés en fog HumanGate (je ne les édulcore pas — ils dépassent le pouvoir de s0) :**
+
+- **F1 — Exécutabilité harnais (dominant).** Le charter est bien formé mais **le run n'est pas exécutable en l'état** : `run_real.py` s9-build est Edit-only (ne crée pas de fichier), `blueprint.json`/`wiremap.json` non matérialisés, `model_override` no-op, timeout 600s < 888s mesuré (préprod §1, P1). *Contrat OK ≠ run lançable.*
+- **F2 — Oracle de solvabilité NON câblé.** `criteres_succes[1]` exige la solvabilité, mais aucune garde `check_solvability_wired` n'existe (grep `solvab` dans `static_oracles.py` = 0, préprod §3). C'est **exactement** la faille PILOU (2 jeux injouables mais verts). La prose contractuelle est **non enforcée** tant que P2 n'est pas fait.
+- **F3 — Répertoire de patterns non gelé (amendement recommandé).** `criteres_succes[3]` gèle **maps et boss** comme features WireMap, mais **pas** le répertoire de patterns ennemis. Un builder pourrait livrer 1 pattern trivial partout en restant vert. *Recommandation d'amendement à s5-wiremap : chaque pattern nommé (ou ≥ N patterns distincts) = feature WireMap gelée avec preuve d'esquivabilité propre.*
+- **F4 — Risque de capacité.** Premier run `full` réel ; patterns shmup **NOT_FOUND** dans tout le repo ; 3 boss temps-réel jamais produits par la chaîne (préprod §2, §5). Non retirable par un contrat — gate Pierre.
+- **F5 — Écart esthétique.** 0 asset, canvas-only (décision d'orchestrateur réversible) ; écart vs Pop'n TwinBee assumé → HumanGate. Le charter cadre correctement les assets en hors-scope (primitives canvas ; ingestion = gate).
+- **F6 — Aucun validateur CHARTER câblé.** Le prédicat §1 a été appliqué **par inspection**, pas par un binaire ré-exécutable avec `evidence_path` (aucun script charter-lint dans `scripts/forge/`, et mon contrat impose `run: aucun`). *Recommandation : câbler un charter-lint déterministe (trivial) pour auto-gater les runs futurs.* Détail de durcissement : un token gabarit `run_id: shmup_slice-<horodatage>` subsiste en **commentaire** (hors champ requis, rempli au lancement) — un validateur robuste doit parser les champs structurés et ignorer les commentaires.
+
+## 5. Verdict (vocabulaire OK/FAIL/BLOCKED)
+
+**Artefact charter (mon périmètre s0) :**
+```
+software_verdict: OK        (4 champs requis remplis, non vides, zéro « à définir » ;
+                             scope 12/12 fidèle au brief figé ; 3 leçons PILOU encodées)
+evidence_verdict: MECHANICAL_VALIDATION_ONLY
+                            (prédicat de complétude de schéma appliqué à
+                             lab/forge_runs/shmup_slice/charter.yaml — re-vérifiable
+                             par parse YAML + assert de présence/non-vacuité/absence
+                             de « à définir »)
+claim_verdict:    NO_CLAIM_ALLOWED
+```
+
+**Exécutabilité du RUN (hors périmètre s0, remonté sans édulcoration) :**
+```
+software_verdict: BLOCKED   (harnais non greenfield P1 ; oracle solvabilité non câblé
+                             P2 — cf. préprod §9). Le contrat est prêt ; la chaîne ne
+                             l'est pas. À trancher/débloquer à HumanGate avant s9-build.
+claim_verdict:    NO_CLAIM_ALLOWED — fogs F1..F6 remontés à Pierre.
+```
+
+**Synthèse** : le charter est **VALIDÉ tel quel** (complet, fidèle au scope figé, aligné pré-mortem) avec **une recommandation d'amendement non bloquante** (F3, à traiter en s5) et **cinq fogs remontés** (F1, F2, F4, F5, F6) qui appartiennent à HumanGate / aux préparations harnais P1–P3, pas au rédacteur du contrat. Aucun point du scope n'a été rétréci silencieusement ; les tensions de faisabilité sont remontées, pas absorbées.
+
+FORGE_DISPATCH:s0-contrat:shmup_slice-20260714a — OK (charter) / BLOCKED (run) / NO_CLAIM_ALLOWED

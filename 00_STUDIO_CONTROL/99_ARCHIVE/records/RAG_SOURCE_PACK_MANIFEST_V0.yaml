@@ -1,0 +1,284 @@
+schema_version: "studio_rag_source_pack_manifest.v0"
+status: "DOCUMENTED_ONLY"
+mode: "MANIFEST_ONLY"
+task_id: "RAG-SOURCE-PACK-MANIFEST-WRITE-049"
+created_by: "Codex bounded docs workflow"
+write_scope: "this YAML only"
+surface: "canonical_docs"
+owner: "HumanGate"
+HumanGate_required: true
+claim_posture: "NO_CLAIM_ALLOWED"
+no_global_ready_verdict: true
+
+codex_runtime:
+  requested_model: "gpt-5.5"
+  requested_reasoning_effort: "medium"
+  task_class: "docs_workflow"
+  actual_runtime: "UNKNOWN"
+  runtime_status: "BLOCKED"
+  runtime_claim_rule: "Do not claim exact runtime model unless Codex exposes it explicitly."
+  unknown_runtime_means: "BLOCKED"
+
+authority_boundary:
+  manifest_only: true
+  runtime_authority: "NONE"
+  source_promotion: "BLOCKED"
+  rag_indexing: "BLOCKED"
+  embedding_generation: "BLOCKED"
+  vector_database_creation: "BLOCKED"
+  llm_model_call: "BLOCKED"
+  training: "BLOCKED"
+  benchmark: "BLOCKED"
+  dataset_generation: "BLOCKED"
+  dataset_reset: "BLOCKED"
+  model_or_checkpoint_creation: "BLOCKED"
+  model_promotion: "BLOCKED"
+  agent_activation: "BLOCKED"
+  chess960_activation: "BLOCKED"
+  decision_controller_activation: "BLOCKED"
+  latest_json_creation: "BLOCKED"
+  lab_run_creation: "BLOCKED"
+  cleanup: "BLOCKED"
+  archive_creation: "BLOCKED"
+  staging: "BLOCKED"
+  commit: "BLOCKED"
+  push: "BLOCKED"
+
+decision_basis:
+  source_decision_record: "00_STUDIO_CONTROL/05_STATUS/RAG_MANIFEST_CONDITIONAL_SOURCE_DECISION_V0.md"
+  first_manifest_policy: "minimal stable source pack"
+  include_buckets:
+    - "stable_core"
+    - "studio_control_canonical"
+    - "registered_tracked_candidates"
+  defer_conditional_sources: true
+
+include_sources:
+  stable_core:
+    - path: "AGENTS.md"
+      surface: "canonical_docs"
+      source_state:
+        created: "DOCUMENTED_ONLY"
+        registered: "DOCUMENTED_ONLY"
+        loaded: "DOCUMENTED_ONLY"
+        enforced: "DOCUMENTED_ONLY"
+        evidenced: "DOCUMENTED_ONLY"
+      authority_boundary: "repository doctrine only; no runtime/model/artifact authority"
+      rag_role: "source-state and claim-boundary anchor"
+      inclusion_status: "include"
+      reason: "Stable repository agent doctrine and verdict boundary."
+    - path: "docs/gpt-navigator/GPT_NAVIGATOR_CODEX_PROMPT_GATE_V0.md"
+      surface: "canonical_docs"
+      source_state: &included_source_state
+        created: "DOCUMENTED_ONLY"
+        registered: "DOCUMENTED_ONLY"
+        loaded: "DOCUMENTED_ONLY"
+        enforced: "DOCUMENTED_ONLY"
+        evidenced: "DOCUMENTED_ONLY"
+      authority_boundary: "prompt gate only; no runtime/model/artifact authority"
+      rag_role: "Codex prompt gate and non-authorization anchor"
+      inclusion_status: "include"
+      reason: "Stable source-backed prompt gate."
+    - path: "docs/gpt-navigator/GPT_NAVIGATOR_REPO_NOTICE_V0.md"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "repo notice only; no runtime/model/artifact authority"
+      rag_role: "repo navigation and source-separation anchor"
+      inclusion_status: "include"
+      reason: "Stable Navigator repo notice."
+    - path: "docs/gpt-navigator/GPT_NAVIGATOR_SOURCE_INDEX_V0.md"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "source index only; no runtime/model/artifact authority"
+      rag_role: "source classification anchor"
+      inclusion_status: "include"
+      reason: "Stable source-index registration context."
+    - path: "docs/gpt-navigator/GPT_NAVIGATOR_UPLOAD_CHECKLIST_V0.md"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "upload checklist only; upload does not imply active truth"
+      rag_role: "loaded-source and upload-guardrail anchor"
+      inclusion_status: "include"
+      reason: "Stable upload checklist and loaded-state guard."
+    - path: "MASTER_DOCS/DOCS_STATUS.md"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "docs classification only; no runtime/model/artifact authority"
+      rag_role: "docs-status classification anchor"
+      inclusion_status: "include"
+      reason: "Stable docs status and no-claim boundary."
+    - path: "docs/studioV2/STUDIOCTL_USAGE_V0.md"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "usage documentation only; does not execute studioctl"
+      rag_role: "read-only tooling boundary anchor"
+      inclusion_status: "include"
+      reason: "Stable studioctl usage and non-authorization boundary."
+
+  studio_control_canonical:
+    - path: "00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "source-state policy only; no runtime/model/artifact authority"
+      rag_role: "source-state policy anchor"
+      inclusion_status: "include"
+      reason: "Canonical source-state separation policy."
+    - path: "00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "routing policy only; no runtime/model/artifact authority"
+      rag_role: "output-routing and surface-separation anchor"
+      inclusion_status: "include"
+      reason: "Canonical routing and destination policy."
+    - path: "00_STUDIO_CONTROL/07_FORMS/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "I/O contract only; no runtime/model/artifact authority"
+      rag_role: "controlled vocabulary and report-contract anchor"
+      inclusion_status: "include"
+      reason: "Canonical AutoDev task/report contract."
+    - path: "00_STUDIO_CONTROL/03_REGISTRIES/FILE_REGISTRY.yaml"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "registry reference only; this manifest does not mutate registry"
+      rag_role: "registered-control-file context"
+      inclusion_status: "include"
+      reason: "Canonical file registry context."
+    - path: "00_STUDIO_CONTROL/05_STATUS/STUDIO_MASTER_TASK_MATRIX_V0.yaml"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "passive task matrix only; no task execution authority"
+      rag_role: "passive task matrix context"
+      inclusion_status: "include"
+      reason: "Registered stable status evidence candidate."
+    - path: "00_STUDIO_CONTROL/05_STATUS/REPORT_PARSER_TASK_MATRIX_CLOSURE_STATUS_V0.md"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "closure status only; no parser execution authority"
+      rag_role: "report-parser closure boundary context"
+      inclusion_status: "include"
+      reason: "Registered closure status context."
+    - path: "00_STUDIO_CONTROL/05_STATUS/CONTROL_PLANE_PACKET_FREEZE_V0.md"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "freeze record only; no cleanup, Git, runtime, or source-promotion authority"
+      rag_role: "packet freeze and exclusion context"
+      inclusion_status: "include"
+      reason: "Canonical freeze boundary for current packet."
+
+  registered_tracked_candidates:
+    - path: "00_STUDIO_CONTROL/01_MAPS/UXPILOTE_READONLY_DATA_CONTRACT_V0.md"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "reference/status evidence only; no runtime or agent authority"
+      rag_role: "read-only UxPilote data-contract boundary"
+      inclusion_status: "include"
+      reason: "Registered stable candidate accepted by first-manifest policy."
+    - path: "00_STUDIO_CONTROL/01_MAPS/UXPILOTE_AUDIT_CHAIN_CATALOG_V0.md"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "reference/status evidence only; no audit execution authority"
+      rag_role: "UxPilote audit-chain catalog boundary"
+      inclusion_status: "include"
+      reason: "Registered stable candidate accepted by first-manifest policy."
+    - path: "00_STUDIO_CONTROL/01_MAPS/UXPILOTE_HUMANGATE_QUEUE_SPEC_V0.md"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "reference/status evidence only; no approval or execution authority"
+      rag_role: "HumanGate queue display boundary"
+      inclusion_status: "include"
+      reason: "Registered stable candidate accepted by first-manifest policy."
+    - path: "00_STUDIO_CONTROL/05_STATUS/STUDIO_SOURCE_REGISTRATION_PLAN_V0.yaml"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "source-registration plan only; no bulk registration authority"
+      rag_role: "source-registration planning context"
+      inclusion_status: "include"
+      reason: "Registered stable candidate accepted by first-manifest policy."
+    - path: "00_STUDIO_CONTROL/05_STATUS/UXPILOTE_LOCAL_FREEZE_V0.md"
+      surface: "canonical_docs"
+      source_state: *included_source_state
+      authority_boundary: "status evidence only; scripts/uxpilote remains local-only and not source truth"
+      rag_role: "UxPilote local-only freeze boundary"
+      inclusion_status: "include"
+      reason: "Registered stable candidate accepted by first-manifest policy."
+
+deferred_conditional_sources:
+  reason: "Registered/readable but still untracked residual files; excluded from first stable manifest."
+  inclusion_status: "deferred"
+  paths:
+    - "00_STUDIO_CONTROL/01_MAPS/SCRIPTS_ROUTE_ALIGNMENT_CHARTER_V0.md"
+    - "00_STUDIO_CONTROL/01_MAPS/UXPILOTE_3D_WORLD_GRAPH_MODEL_V0.md"
+    - "00_STUDIO_CONTROL/01_MAPS/UXPILOTE_FUSION_MATRIX_VISUAL_SPEC_V0.md"
+    - "00_STUDIO_CONTROL/05_STATUS/STUDIO_TASK_DASHBOARD_INDEX_V0.yaml"
+
+excluded_paths:
+  local_environment:
+    - ".venv312/"
+  local_only_tooling:
+    - "scripts/uxpilote/"
+  roadmap_only_material:
+    - "00_STUDIO_CONTROL/10_ROADMAP/"
+  passive_reports:
+    - "00_STUDIO_CONTROL/05_STATUS/AUDIT_*.md"
+    - "00_STUDIO_CONTROL/05_STATUS/*REPORT*.md"
+    - "00_STUDIO_CONTROL/05_STATUS/*AUDIT*.md"
+  generated_artifacts:
+    - "00_STUDIO_CONTROL/05_STATUS/*.html"
+    - "00_STUDIO_CONTROL/10_ROADMAP/UXPILOTE_GODOT_GARDEN_CANDIDATE_ONLY/.godot/"
+  runtime_or_model_outputs:
+    - "latest.json"
+    - "lab/runs/RUN_*"
+    - "dataset directories"
+    - "model/checkpoint directories"
+
+source_state_policy:
+  rule: "created != registered != loaded != enforced != evidenced"
+  note: "This manifest does not load sources into any RAG system and does not evidence future RAG correctness."
+  manifest_source_state:
+    created: "DOCUMENTED_ONLY"
+    registered: "UNKNOWN"
+    loaded: "DOCUMENTED_ONLY by readback in the creating task"
+    enforced: "DOCUMENTED_ONLY by the bounded task scope"
+    evidenced: "DOCUMENTED_ONLY by readback, git diff check, and final report"
+
+validation_policy:
+  current_task: "docs-only readback and diff check"
+  tests_allowed: false
+  runtime_execution_allowed: false
+  future_indexing: "BLOCKED until separate HumanGate task"
+  future_embedding_generation: "BLOCKED until separate HumanGate task"
+  future_vector_database_creation: "BLOCKED until separate HumanGate task"
+  future_llm_model_call: "BLOCKED until separate HumanGate task"
+
+status_by_surface:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "PASSIVE"
+
+software_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "PASSIVE"
+
+evidence_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "PASSIVE"
+
+claim_verdict:
+  active_runtime_code: "NO_CLAIM_ALLOWED"
+  tests: "NO_CLAIM_ALLOWED"
+  artifacts_runtime_outputs: "NO_CLAIM_ALLOWED"
+  canonical_docs: "NO_CLAIM_ALLOWED"
+  roadmap_docs_only: "NO_CLAIM_ALLOWED"
+  inference: "NO_CLAIM_ALLOWED"

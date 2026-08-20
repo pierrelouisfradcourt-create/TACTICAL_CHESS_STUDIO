@@ -1,0 +1,48 @@
+{
+  "allowed_paths": [
+    "scripts/control_plane/build_next_taskpacket_from_pr_queue.py",
+    "scripts/control_plane/summarize_campaign_decision.py",
+    "scripts/control_plane/smoke_campaign_local_loop.py",
+    "docs/control-plane/fixtures/campaign_loop/",
+    "docs/control-plane/CAMPAIGN_LOCAL_LOOP_V0.md"
+  ],
+  "claim_scope": "NO_CLAIM_ALLOWED",
+  "codex_handoff_ready": true,
+  "execution_mode": "LOCAL_FIRST_DRY_RUN",
+  "expected_outputs": [
+    "TaskPacket-like dry-run handoff JSON",
+    "GO/HOLD/BLOCKED campaign decision summary",
+    "Deterministic local campaign loop smoke"
+  ],
+  "forbidden_paths": [
+    ".github/workflows/",
+    "src/",
+    "engine/",
+    "search/",
+    "neural/",
+    "ml/",
+    "benchmarks/"
+  ],
+  "human_gate_required": true,
+  "merge_allowed": false,
+  "pr_type": "CONTROL_PLANE",
+  "schema_version": "studiopilot.next_taskpacket_draft.v0",
+  "selected_pr_candidate_id": "prc.campaign_local_loop_tooling",
+  "source_campaign_id": "campaign.campaign_local_loop_v0",
+  "source_queue_id": "queue.campaign_local_loop_v0",
+  "stop_conditions": [
+    "failed_checks",
+    "scope_violation",
+    "claim_escalation",
+    "forbidden_path_touched",
+    "benchmark_attempted",
+    "runtime_touched_without_scope",
+    "ml_training_attempted"
+  ],
+  "title": "Add campaign local loop tooling",
+  "validation_commands": [
+    ".\\.venv312\\Scripts\\python.exe scripts\\control_plane\\smoke_campaign_local_loop.py --pretty",
+    ".\\.venv312\\Scripts\\python.exe scripts\\control_plane\\validate_patchpack_plan.py --pretty",
+    ".\\.venv312\\Scripts\\python.exe scripts\\operator\\validate_json_artifacts.py"
+  ]
+}

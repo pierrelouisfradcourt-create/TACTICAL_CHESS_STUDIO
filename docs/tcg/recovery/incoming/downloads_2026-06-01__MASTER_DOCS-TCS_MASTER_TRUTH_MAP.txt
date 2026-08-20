@@ -1,0 +1,337 @@
+# PROJECT IDENTITY
+
+Tactical Chess Studio is an **AI Game Discovery Laboratory**. Its documented long-term purpose is to discover new tactical board games through a modular pipeline that goes from rules and validation to simulation, telemetry, evaluation, evolution, and discovery. The official architecture requires a deterministic core engine separated from simulation, validation, agents, telemetry, and discovery systems.
+
+# REAL CURRENT MILESTONE
+
+The real current milestone is:
+
+```text
+PURE CHESS AI TRAINING LAB
+```
+
+Not yet “game discovery machine.”
+
+Reason: the active branch focus is PureLab, meant to stabilize a real chess research environment before reconnecting broader discovery systems. The documented path is incremental complexity, and the user’s validated loop has already reached: Rust engine build, Stockfish teacher, `teacher_uci`, dataset example generation, PyTorch training, checkpoint generation, and a neural tournament framework command. That places the project past generic engine prototyping, but before real neural match play and before integrated discovery.
+
+# ACTIVE SOURCE TREE
+
+## active modules
+
+Most likely active in `TacticalChessPureLab/src`:
+
+```text
+agents/
+chess/
+engine/
+simulation/
+tool/
+ml/        (Python-side project folder, not necessarily under src)
+```
+
+This matches both the repeatedly referenced PureLab structure from the memory reports and the project’s documented separation of engine, agents, simulation, tooling, and ML-oriented workflow. The larger project tree also clearly shows `src`, `lab`, `datasets`, `telemetry`, `integration`, `orchestrator`, and patch-related directories coexisting in the repository.
+
+Commonly referenced active Rust files:
+
+```text
+src/main.rs
+src/tool/cli.rs
+src/chess/fen.rs
+src/chess/uci.rs
+src/chess/search.rs
+src/engine/engine.rs
+src/simulation/simulation_runner.rs
+src/simulation/teacher_uci_runner.rs
+src/agents/uci_agent.rs
+```
+
+These align with the active chess lab storyline and the teacher/training workflow described in the recent handoff context. 
+
+## likely scaffold modules
+
+These appear real but not fully trusted as integrated into the active PureLab runtime:
+
+```text
+src/agents/neural_agent.rs
+src/simulation/neural_tournament_runner.rs
+src/tournament/*            (if present in packs)
+ml/infer_policy.py
+ml/move_vocab.py
+telemetry/*
+orchestrator/*
+integration/*
+prototype/*
+rules/*
+```
+
+Why scaffold: the memory reports consistently say the neural tournament currently proves CLI/module/report wiring, but not yet real neural move choice in live matches; dataset persistence from `teacher_uci` is also still uncertain in the live branch. The docs also describe telemetry, orchestrator, compiler, validation, and discovery as major layers, but the older handoff explicitly called several of them unused or incomplete in the Rust system at that time.
+
+## archive / non-active modules
+
+The repository tree shows a very large amount of historical and non-active material:
+
+```text
+01_MASTER_BIBLE/
+02_SYSTEM_DATABASE/
+04_SIMULATION_SYSTEM/
+05_AI_SYSTEM/
+07_PROTOTYPES/
+08_UPDATES_HISTORY/
+09_ARCHIVE/
+patch_backups/
+arch_patch_v6/
+auto_patch_launcher/
+TacticalChessV1/
+```
+
+This means the repo contains many design assets, previous patch systems, prototypes, archives, SQL/DB layers, experiments, and historical documentation that should not automatically be assumed to be wired into the active branch. 
+
+# WORKING PIPELINE
+
+## confirmed real pipeline
+
+The best-supported real pipeline today is:
+
+```text
+Rust engine
+→ teacher_uci / Stockfish oracle
+→ dataset example generation
+→ PyTorch training
+→ model checkpoints
+→ neural_tournament framework command
+```
+
+The first half of that pipeline is strongly grounded in the current project state described in the recent memory extraction and in the broader “incremental lab first, discovery later” architecture. The second half must be qualified: `neural_tournament` runs, but is still best treated as a framework-level tournament/reporting skeleton until real neural move inference inside matches is verified in source.
+
+# ACTIVE MODULES
+
+These are the modules I would currently classify as genuinely active.
+
+```text
+deterministic chess engine
+basic/working chess helpers (FEN, UCI bridge support)
+simulation runner
+teacher UCI path
+Stockfish integration
+CLI command surface
+PyTorch training pipeline
+checkpoint generation
+neural tournament framework command
+```
+
+This is consistent with the PureLab purpose in the handoff and with the project owner’s recent validated milestone. The engine/simulation/agent/telemetry/discovery layering is documented, but only the earlier layers are presently active as part of the training lab.
+
+# PARTIAL MODULES
+
+These exist conceptually or in code packs, but are not yet fully validated end-to-end in the active branch.
+
+```text
+teacher_uci durable dataset persistence
+full chess rule completeness
+neural agent inference bridge
+neural move selection in real matches
+real tournament runner based on live match outcomes
+ELO reporting
+selfplay_nn
+telemetry expansion beyond basic metrics
+validation system for mutated rulesets
+```
+
+This matches the project’s documented separation between current stable lab goals and later discovery/analysis capabilities. The final architecture expects advanced telemetry and validation, while the recent operational status says the chess training loop is working but the neural player is not fully integrated into actual match decision loops yet.
+
+# MISSING MODULES
+
+These remain missing at the integrated system level for the active branch.
+
+```text
+real neural-vs-random / heuristic / teacher gameplay
+robust Elo from actual match outcomes
+automatic teacher dataset persistence guaranteed in active branch
+selfplay_nn mode
+ruleset generator integrated into PureLab
+ruleset validator integrated into PureLab
+behavior characterization
+strategy clustering
+novelty search
+MAP-Elites / QD archive
+evolutionary campaign loop
+archive manager
+distributed simulation worker architecture
+```
+
+These are directly aligned with the final architecture and root manual, but they are long-term systems, not current lab reality.
+
+# TECHNICAL UNCERTAINTIES
+
+These are the exact items that still need source verification.
+
+```text
+1. Whether teacher_uci currently writes real JSONL/CSV rows to disk in the live TacticalChessPureLab branch
+2. Whether neural_tournament uses actual match-time neural inference or only placeholder/skeleton reporting
+3. Whether src/agents/neural_agent.rs is fully callable from current match loops or only scaffolded
+4. Which file is the true active self-play owner in the current branch (selfplay.rs, selfplay_manager.rs, or equivalent)
+5. What exact move vocabulary / move-index mapping is shared between dataset, train.py, inference, and legal move filtering
+6. Which generated patch packs are already merged into the live source tree versus only stored as zip artifacts
+7. How complete current chess termination logic is in the active branch for checkmate, stalemate, repetition, and move-rule draws
+```
+
+These are the only remaining high-value unknowns; the broader architectural picture is already clear. The size and mixed nature of the repository shown in `project_tree.txt` is exactly why this verification is necessary.
+
+# ARCHITECTURE RISKS
+
+The main risks are structural, not conceptual.
+
+First, **repo ambiguity**: the repository contains active code, historical prototypes, patch archives, backups, and documentation bibles together. That makes it easy for future AIs or developers to mistake scaffold code for integrated runtime code. 
+
+Second, **cross-layer leakage**: the final architecture explicitly says the core engine must remain deterministic and must not absorb telemetry, discovery, or mutation logic. Any rushed evolution could violate that boundary. 
+
+Third, **false confidence from framework commands**: a command compiling and printing a report does not prove full neural gameplay or valid Elo. That is especially important for `neural_tournament`, which appears ahead at the command level but still behind at the gameplay-inference level.
+
+Fourth, **move encoding risk**: if teacher dataset labels, training targets, inference outputs, and legal move filtering do not use the same move vocabulary, the neural agent cannot become a real player even if training succeeds.
+
+Fifth, **premature discovery work**: the project docs are explicit that chess is the initial environment and that assistants should focus on missing or broken components without unnecessary redesign. Jumping to mutation/QD now would increase fragility before the AI lab is stable.
+
+# NEXT SAFE ENGINEERING MILESTONE
+
+The next safe milestone is:
+
+```text
+REAL NEURAL MATCH LAB
+```
+
+Meaning:
+
+```text
+checkpoint
+→ real inference
+→ legal move filtering
+→ real match loop
+→ real tournament outcomes
+→ real Elo
+```
+
+This is the cleanest next step because it extends the existing supervised training lab into a benchmarkable AI lab without violating the documented architecture and without prematurely introducing discovery complexity. It also fits the project philosophy of incremental complexity from stable engine to agents to self-play to later discovery.
+
+# NEXT COHERENT PATCH
+
+## purpose
+
+```text
+INTEGRATED NEURAL MATCH LAB PATCH
+```
+
+Purpose:
+
+Make the trained model actually choose legal moves inside real matches, then use those real outcomes for tournament reporting and Elo.
+
+## files likely involved
+
+Most likely file set:
+
+```text
+src/agents/neural_agent.rs
+src/simulation/simulation_runner.rs
+src/simulation/neural_tournament_runner.rs
+src/simulation/teacher_uci_runner.rs
+src/tool/cli.rs
+src/main.rs
+ml/infer_policy.py
+ml/move_vocab.py
+ml/dataset_loader.py
+```
+
+Possibly also:
+
+```text
+src/agents/mod.rs
+src/chess/fen.rs
+src/chess/uci.rs
+src/tournament/elo.rs        (if new)
+```
+
+## why this patch should come next
+
+Because it is the smallest coherent patch that converts the current system from:
+
+```text
+training pipeline + tournament skeleton
+```
+
+into:
+
+```text
+real AI evaluation lab
+```
+
+It respects the documented architecture, keeps the engine deterministic, stays beginner-safe, and directly resolves the biggest current gap between “model exists” and “AI agent exists.” It also sets up the correct base for the following patch, which should then be `selfplay_nn`.
+
+# FINAL VERDICT
+
+## what the project really is today
+
+Today, Tactical Chess Studio is **not yet the discovery machine described in the long-term architecture**. In real operational terms, it is:
+
+```text
+a stable Pure Chess AI training laboratory
+```
+
+with:
+
+```text
+deterministic Rust engine
+Stockfish teacher path
+teacher_uci workflow
+PyTorch training
+checkpoint generation
+neural tournament framework
+```
+
+That is already a major milestone and is fully consistent with the documented incremental philosophy.
+
+## what it becomes after the next patch
+
+After the next coherent patch, it becomes:
+
+```text
+a real neural chess evaluation lab
+```
+
+with:
+
+```text
+real neural move selection
+real neural-vs-baseline matches
+real tournament outcomes
+real Elo tracking
+clear path to selfplay_nn
+```
+
+That is the correct bridge from Pure Chess Lab to the later AI Game Discovery Laboratory. Once that layer is stable, the project can safely progress toward self-play, richer telemetry, behavior characterization, and eventually ruleset mutation and MAP-Elites discovery.
+
+
+=== CRITICAL SYSTEM CONTRACT ===
+
+SHARED MOVE VOCABULARY
+
+move_vocab.py is a system-wide source of truth.
+
+All components MUST use the same mapping:
+
+UCI move string
+→ move index
+→ dataset policy target
+→ training target
+→ inference logits
+→ legal move masking
+
+Any change to move representation must remain compatible across:
+
+- teacher_uci_runner.rs
+- dataset_loader.py
+- train.py
+- infer_policy.py
+- neural_agent.rs
+
+Violation of this contract will silently corrupt learning.
+
+This is a critical integrity constraint.

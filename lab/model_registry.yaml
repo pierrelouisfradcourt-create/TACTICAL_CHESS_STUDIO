@@ -1,0 +1,164 @@
+schema_version: "1"
+generated_at: "2026-06-26"
+elo_source: "lab/reports/elo_match_latest.json — 100 parties, 2026-06-25"
+elo_target: "hybrid >= heuristic + 20"
+
+# CORRECTION 2026-06-27 (HumanGate Pierre, option a)
+# latest.pt RÉEL sur disque = run_20260626_182133/best.pt (sha e4f03806, size 35918247, best_loss=0.2748).
+# L'ancien header disait run_20260527_205249/epoch_020 (sha 1bce1262) — PÉRIMÉ, corrigé.
+# Backup ancien latest.pt (run_20260601, loss=0.7885) → models/latest_run_20260601_backup.pt
+recommended_next: null
+
+# ELO (statut 2026-06-27)
+# teacher_uci : 1439.78
+# heuristic   : 1175.73
+# hybrid      : 1195.05  (delta=+19.3 vs heuristic — FAIL)
+# neural      : 1035  baseline CONTEMPT (IMP-176) — asserté HumanGate, non ré-mesuré sur sha e4f03806
+# neural(923) : candidat IMP-175 (run_20260627_132050) — RÉGRESSION, REJETÉ → IMP-175 FAIL
+#
+# NOTE: value head toujours incohérente avec le backbone (post-IMP-174).
+# Suite: IMP-179 (filtrer les nulles du dataset avant re-training value head).
+
+# ---------------------------------------------------------------------------
+# Modèles canoniques (production)
+# ---------------------------------------------------------------------------
+canonical:
+  - id: latest
+    path: models/latest.pt
+    sha256: e4f0380670f98acff350095b984e92f3598b6b436b3ed3b5ace6455db3a688d5
+    size_bytes: 35918247
+    elo: 1035
+    elo_measured_at: "2026-06-27"
+    elo_pending: false
+    elo_bench: "baseline CONTEMPT (HumanGate Pierre 2026-06-27). ELO non ré-exécuté sur ce sha exact."
+    source_run: run_20260626_182133
+    best_loss: 0.27477277851104737
+    restored_at: "2026-06-26"
+    corrected_at: "2026-06-27"
+    notes: "CORRECTION 2026-06-27 (HumanGate Pierre, option a) : le registry pointait à tort vers sha 1bce1262 (run_20260527_205249) ; le latest.pt RÉEL sur disque est run_20260626_182133/best.pt (sha e4f03806, size 35918247, best_loss=0.2748). ELO 1035 = baseline CONTEMPT asserté par Pierre, PAS ré-mesuré sur ce sha. Le bench 2026-06-27 neural=923 correspond au candidat IMP-175 (run_20260627_132050, REJETÉ, promote_to_latest=false) — voir IMP-175 FAIL. Value head incohérente avec backbone → suite IMP-179 (filtrer les nulles)."
+
+  - id: latest_run_20260601_backup
+    path: models/latest_run_20260601_backup.pt
+    sha256: 688ef18618a60dd7b7bdc3ea6454f1b6a065a4a938c427d822b2e9d244c46de7
+    size_bytes: 35914173
+    elo: 989.44
+    elo_measured_at: "2026-06-25"
+    source_run: run_20260601_173953
+    best_loss: 0.7885056835200105
+    notes: "Backup de l'ancien latest.pt (régression loss vs run_20260527_205249)"
+
+  - id: best
+    path: models/best.pt
+    sha256: 8d6b5d1d608e79233b89303dc11e9b035525df5b1b3d4881e8886d1521c63731
+    size_bytes: 35914017
+    elo: null
+    source_run: null
+    notes: "Meilleure loss historique toutes runs — non évalué ELO séparément"
+
+# ---------------------------------------------------------------------------
+# Checkpoints par run (epoch final = epoch_020 dans tous les runs complétés)
+# Tous les runs : exploratory_only, dataset_fitness=reject_for_ab
+# ---------------------------------------------------------------------------
+runs:
+  - run_id: run_20260527_203322
+    date: "2026-05-27"
+    epochs: 20
+    best_loss: 0.6879712806807624
+    lr: 0.0003
+    batch_size: 64
+    value_weight: 0.4
+    dataset_rows: 553
+    dataset_sha256: 145431a05af659c6bed748260bfa54404a96ec0be9d79faea3876861a37b707f
+    admission: reject_for_ab
+    reject_reasons: [no_white_wins, hard_cap_draw_ratio_too_high]
+    checkpoints:
+      - epoch: 20
+        path: lab/runs/run_20260527_203322/epoch_020.pt
+        sha256: c2b3b1483aa78653b3f22ea379c020dacc0ea7e5a6b4ee951402e0970eb90929
+        size_bytes: 35918183
+        elo: null
+
+  - run_id: run_20260527_205249
+    date: "2026-05-27"
+    epochs: 20
+    best_loss: 0.6727566793560982
+    lr: 0.0003
+    batch_size: 64
+    value_weight: 0.4
+    dataset_rows: 553
+    dataset_sha256: 145431a05af659c6bed748260bfa54404a96ec0be9d79faea3876861a37b707f
+    admission: reject_for_ab
+    reject_reasons: [too_few_loaded_samples, no_white_wins, hard_cap_draw_ratio_too_high]
+    notes: "Meilleure best_loss de toutes les runs"
+    checkpoints:
+      - epoch: 20
+        path: lab/runs/run_20260527_205249/epoch_020.pt
+        sha256: 1bce12628eb75ab79ffec48cc413e85f10638bc42c2936818de0fa1aa5aebc02
+        size_bytes: 35918183
+        elo: null
+
+  - run_id: run_20260527_215807
+    date: "2026-05-27"
+    epochs: 20
+    best_loss: 0.7301579984751615
+    lr: 0.0003
+    batch_size: 64
+    value_weight: 0.4
+    dataset_rows: 1449
+    dataset_sha256: f0b319a2ef2c4686dbc653754b6b076aef663a81e341594ef5c3ded69e9aafac
+    admission: reject_for_ab
+    reject_reasons: [hard_cap_draw_ratio_too_high]
+    checkpoints:
+      - epoch: 20
+        path: lab/runs/run_20260527_215807/epoch_020.pt
+        sha256: e0b2971fe89259a0ef571d899ee5a6b6b629e29300703c59efa9576c830e1ef9
+        size_bytes: 35918183
+        elo: null
+
+  - run_id: run_20260528_111109
+    date: "2026-05-28"
+    epochs: 20
+    best_loss: 0.7301579984751615
+    lr: 0.0003
+    batch_size: 64
+    value_weight: 0.4
+    dataset_rows: 1449
+    dataset_sha256: f0b319a2ef2c4686dbc653754b6b076aef663a81e341594ef5c3ded69e9aafac
+    admission: reject_for_ab
+    reject_reasons: [hard_cap_draw_ratio_too_high]
+    notes: "Même dataset et loss que run_20260527_215807 — epoch_020 identique (sha256 idem)"
+    checkpoints:
+      - epoch: 20
+        path: lab/runs/run_20260528_111109/epoch_020.pt
+        sha256: e0b2971fe89259a0ef571d899ee5a6b6b629e29300703c59efa9576c830e1ef9
+        size_bytes: 35918183
+        elo: null
+
+  - run_id: run_20260601_173953
+    date: "2026-06-01"
+    epochs: 20
+    best_loss: 0.7885056835200105
+    lr: 0.0003
+    batch_size: 64
+    value_weight: 0.4
+    dataset_rows: 7422
+    dataset_sha256: 82cd0115fc7ccbdfe5fb7bc301c88bbd4b0e171b13a4c3c116cb21c0c55f5aac
+    admission: reject_for_ab
+    reject_reasons: [hard_cap_draw_ratio_too_high]
+    notes: "Run la plus récente — source de models/latest.pt (sha256 diffère car sauvegarde intermédiaire)"
+    checkpoints:
+      - epoch: 20
+        path: lab/runs/run_20260601_173953/epoch_020.pt
+        sha256: f4e1958e703b4f57e7f14bf07f990f2fd5936906e1ead7092011edc2f1c5dd9d
+        size_bytes: 35918183
+        elo: null
+
+# ---------------------------------------------------------------------------
+# Adapters LoRA (format safetensors — non inclus dans les checkpoints .pt)
+# ---------------------------------------------------------------------------
+lora_adapters:
+  - id: lora_devstral_tcs_v1
+    path: lab/runs/lora_devstral_tcs_v1/adapter_model.safetensors
+    format: safetensors
+    size_bytes: 10107280
+    notes: "Adapter LoRA Devstral — évaluation séparée de l'ELO non effectuée"

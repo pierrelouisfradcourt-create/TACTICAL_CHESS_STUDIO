@@ -1,0 +1,310 @@
+{
+  "generated_at": "2026-06-05",
+  "version": "1.1",
+  "source": "audit IMP-087 + fixes IMP-089 appliqués",
+  "chain": [
+    {
+      "step": 1,
+      "name": "roadmap",
+      "model": "qwen2.5-14b-instruct",
+      "model_route": "task_type=call → LM_MODEL (Director)",
+      "role_current": "architecte solo-dev contraint (post-IMP-089)",
+      "role_pre_imp089": "architecte générique — pas de contrainte solo-dev",
+      "role_target": "architecte solo-dev — casquette OK, température à affiner",
+      "temperature_current": 0.4,
+      "temperature_target": 0.3,
+      "max_tokens_current": 500,
+      "max_tokens_pre_imp089": 600,
+      "max_tokens_target": 400,
+      "context_received": ["04_STUDIO.md[:2000] via build_system_prompt", "idea_title", "idea_desc[:200]"],
+      "context_missing": ["ledger_open_imps", "known_issues", "codebase_structure"],
+      "prompt_current": "Tu es architecte solo-dev du Tactical Chess Studio (1 seul développeur, pas d'équipe).\nIDÉE HUMAINE : {idea_title}\nDétails : {idea_desc}\n\nCONTRAINTES : max 3 étapes. Chaque étape = 1 fichier Rust/Python précis.\nINTERDIT : formation, support, déploiement, gestion d'équipe.\nFormat : liste numérotée, chaque ligne = 'Modifier fichier X : action Y'.\n[+ needs_human guard]",
+      "prompt_pre_imp089": "Tu es architecte du Tactical Chess Studio.\nGénère une roadmap en 3-5 étapes pour implémenter : {idea_title}\nDétails : {idea_content}\nFormat : liste numérotée d'étapes concrètes.",
+      "prompt_target": "identique à current — calibrer température + injecter ledger_open si pertinent",
+      "output_format": "text_libre — liste numérotée",
+      "persisted": false,
+      "persisted_in_proposals": true,
+      "persisted_field": "reasoning_roadmap dans ROADMAP_PROPOSALS.yaml (post-IMP-089)",
+      "blind_spots": [
+        "ne voit pas les IMPs OPEN du ledger",
+        "pas accès au code source (codebase)",
+        "température globale 0.4 — pas de contrôle par step"
+      ],
+      "blind_spots_adresses_imp089": [
+        "ancre humaine idea_title injectée",
+        "interdictions solo-dev dans le prompt"
+      ],
+      "garde_fou": "needs_human circuit-breaker actif (IMP-089)",
+      "value_rating": "haute",
+      "status": "actif — calibration température recommandée"
+    },
+    {
+      "step": 2,
+      "name": "redteam",
+      "model": "qwen2.5-14b-instruct",
+      "model_route": "task_type=call → LM_MODEL (Director)",
+      "role_current": "avocat du diable technique solo-dev (post-IMP-089)",
+      "role_pre_imp089": "red team générique — ne voyait pas idea_title ni idea_content",
+      "role_target": "avocat du diable — ajouter accès code source",
+      "temperature_current": 0.4,
+      "temperature_target": 0.5,
+      "max_tokens_current": 350,
+      "max_tokens_pre_imp089": 400,
+      "max_tokens_target": 300,
+      "context_received": ["04_STUDIO.md[:2000]", "idea_title (IMP-089)", "roadmap (step 1)"],
+      "context_missing": ["idea_content — seul idea_title est passé", "code source des fichiers cibles", "stack_constraints"],
+      "prompt_current": "Tu es l'avocat du diable d'un studio solo-dev (1 dev, pas d'équipe).\nIDÉE HUMAINE : {idea_title}\nRoadmap proposée : {roadmap}\n\nIdentifie max 3 risques TECHNIQUES concrets (complexité, dépendances, fichiers Rust/Python).\nINTERDIT : critiques organisationnelles, formation, support, déploiement.\nFormat : 3 critiques max, chacune = 'Risque: X | Fichier: Y'.\n[+ needs_human guard]",
+      "prompt_pre_imp089": "Tu es Red Team du studio. Identifie les risques,\nangles morts et problèmes dans cette roadmap : {roadmap}\nFormat : liste de 3-5 critiques concrètes.",
+      "prompt_target": "ajouter idea_content + accès résumé des fichiers cibles",
+      "output_format": "text_libre — 3 critiques max",
+      "persisted": false,
+      "persisted_in_proposals": true,
+      "persisted_field": "reasoning_critique dans ROADMAP_PROPOSALS.yaml (post-IMP-089)",
+      "blind_spots": [
+        "ne voit pas idea_content (seulement idea_title)",
+        "pas accès au code source — critique abstraite",
+        "ne sait pas si les fichiers cibles existent"
+      ],
+      "blind_spots_adresses_imp089": [
+        "idea_title injectée",
+        "interdictions organisationnelles explicites"
+      ],
+      "garde_fou": "needs_human circuit-breaker actif (IMP-089)",
+      "value_rating": "moyenne — mieux avec idea_title mais toujours aveugle au code",
+      "status": "actif — passer idea_content en plus recommandé"
+    },
+    {
+      "step": 3,
+      "name": "fusion",
+      "model": "qwen2.5-14b-instruct",
+      "model_route": "task_type=fusion (non fusion_deep) → LM_MODEL (Director)",
+      "role_current": "arbitre technique solo-dev — gardien de l'intention humaine (post-IMP-089)",
+      "role_pre_imp089": "AUCUN — appel creux, résumé de résumés sans rôle",
+      "role_target": "arbitre + réducteur de scope — peut être fusionné avec redteam",
+      "temperature_current": 0.4,
+      "temperature_target": 0.35,
+      "max_tokens_current": 500,
+      "max_tokens_pre_imp089": 600,
+      "max_tokens_target": 400,
+      "context_received": ["04_STUDIO.md[:2000]", "idea_title (IMP-089)", "roadmap", "redteam"],
+      "context_missing": ["idea_content (seulement idea_title)", "open_imps — ne sait pas ce qui existe déjà"],
+      "prompt_current": "Tu es arbitre technique solo-dev. Ta mission : réaliser L'IDÉE HUMAINE\nen intégrant les critiques — pas fusionner deux textes machine.\nIDÉE HUMAINE : {idea_title}\nRoadmap : {roadmap}\nCritiques : {redteam}\n\nRÈGLES : max 3 étapes dans le plan final. Chaque étape = fichier précis + action.\nSupprimer toute étape hors-scope solo-dev.\nFormat : liste numérotée d'étapes bornées.\n[+ needs_human guard]",
+      "prompt_pre_imp089": "Fusionne cette roadmap et ces critiques en un plan\namélioré : Roadmap: {roadmap} Critiques: {redteam}\nFormat : 3-5 étapes révisées.",
+      "prompt_target": "rôle OK — envisager fusion avec redteam pour 3 steps au lieu de 4",
+      "output_format": "text_libre — liste numérotée",
+      "persisted": false,
+      "persisted_in_proposals": true,
+      "persisted_field": "reasoning_fusion dans ROADMAP_PROPOSALS.yaml (post-IMP-089)",
+      "blind_spots": [
+        "idea_content non injecté (seulement idea_title)",
+        "ne voit pas open_imps — peut proposer doublon",
+        "task_type=fusion → reste Qwen2.5, pas Qwen3.6"
+      ],
+      "blind_spots_adresses_imp089": [
+        "casquette ajoutée — mission explicite réaliser l'idée humaine",
+        "ancre humaine idea_title injectée",
+        "max 3 étapes forcé"
+      ],
+      "garde_fou": "needs_human circuit-breaker actif (IMP-089)",
+      "value_rating": "faible-moyenne — utile comme filtre, redondant comme synthèse",
+      "refactor_option": "fusionner redteam+fusion en 1 étape pour économiser 1 appel LM",
+      "status": "actif — candidat à consolidation avec redteam"
+    },
+    {
+      "step": 4,
+      "name": "extract",
+      "model": "qwen3.6-27b",
+      "model_route": "model=LM_MODEL_CEO explicite (fixé IMP-089, était Qwen2.5 malgré docstring)",
+      "role_current": "décomposeur IMP solo-dev avec interdictions (post-IMP-089)",
+      "role_pre_imp089": "décomposeur sans garde-fous — produisait formation/support/déploiement",
+      "role_target": "juge-décomposeur — rôle OK, à affiner si Qwen3.6 sur-découpe",
+      "temperature_current": 0.4,
+      "temperature_target": 0.2,
+      "max_tokens_current": 900,
+      "max_tokens_pre_imp089": 1100,
+      "max_tokens_target": 900,
+      "context_received": ["04_STUDIO.md[:2000]", "idea_title (IMP-089)", "open_imps[:15]", "fusion (plan)"],
+      "context_missing": ["idea_content", "fichiers existants dans le repo"],
+      "prompt_current": "Tu es décomposeur IMP d'un studio SOLO-DEV (1 seul développeur, pas d'équipe).\nIDÉE HUMAINE À RÉALISER : {idea_title}\n\nIMPs déjà OPEN dans le ledger (éviter doublons, calculer blocked_by) :\n{open_imps_ctx}\n\nINTERDICTIONS ABSOLUES — rejeter tout IMP contenant :\n  formation, tutoriel, support utilisateur, déploiement, DevOps,\n  packaging, release, gestion d'équipe, chef de projet.\n\nRÈGLES DE GRANULARITÉ :\n  - MAX 4 IMPs (pas plus)\n  - 1 IMP = 1 fichier précis + 1 fonction précise\n  - title : verbe + objet + fichier\n\nCONTRAINTES STACK :\n  - Pas d'API Claude externe — LM Studio local uniquement\n  - Pas de cron (autoloop existe déjà)\n  - Stack : Rust (moteur) + Python (ML/studio) + LM Studio\n\n[+ domaines + JSON schema + needs_human guard + claim_verdict]",
+      "prompt_pre_imp089": "IMPs déjà OPEN dans le ledger (éviter les doublons, calculer blocked_by) :\n{open_imps_ctx}\n\nRÈGLE DE GRANULARITÉ : chaque IMP = 1 tâche bornée (max 1-2 sessions).\n[...sans interdictions solo-dev, sans ancre humaine, modèle Qwen2.5 malgré docstring Qwen3.6]",
+      "prompt_target": "identique — affiner température vers 0.2 pour sortie JSON déterministe",
+      "output_format": "JSON array — max 4 objets IMP",
+      "persisted": true,
+      "persisted_where": "ROADMAP_PROPOSALS.yaml (humangate_verdict: null)",
+      "blind_spots": [
+        "idea_content non injecté (seulement idea_title)",
+        "fichiers repo non vérifiés — peut citer fichiers inexistants"
+      ],
+      "blind_spots_adresses_imp089": [
+        "idea_title injectée",
+        "interdictions solo-dev complètes",
+        "MAX 4 IMPs forcé",
+        "modèle corrigé : Qwen3.6 (CEO Brain)",
+        "reasoning_trace persisté via _stage_proposals"
+      ],
+      "garde_fou": "needs_human circuit-breaker actif (IMP-089) + fallback bouton Claude",
+      "value_rating": "haute — seule étape qui produit l'artefact final",
+      "status": "actif — calibré IMP-089"
+    },
+    {
+      "step": 5,
+      "name": "stage",
+      "model": "python_pur",
+      "model_route": "pas d'appel LM — _stage_proposals()",
+      "role_current": "écriture ROADMAP_PROPOSALS.yaml",
+      "role_target": "identique",
+      "temperature_current": null,
+      "temperature_target": null,
+      "max_tokens_current": null,
+      "max_tokens_target": null,
+      "context_received": ["imps_staged list", "idea_id", "idea_title", "idea_desc", "roadmap", "redteam", "fusion (post-IMP-089)"],
+      "context_missing": [],
+      "prompt_current": "Python pur — _stage_proposals() écrit YAML avec human_anchor + reasoning_trace",
+      "prompt_target": "identique",
+      "output_format": "ROADMAP_PROPOSALS.yaml — PROP-NNN avec humangate_verdict: null",
+      "persisted": true,
+      "persisted_where": "lab/chains/ROADMAP_PROPOSALS.yaml",
+      "blind_spots": [],
+      "blind_spots_adresses_imp089": [
+        "human_anchor_title, human_anchor_desc ajoutés",
+        "reasoning_roadmap, reasoning_critique, reasoning_fusion ajoutés"
+      ],
+      "garde_fou": "pas d'appel LM — pas de circuit-breaker nécessaire",
+      "value_rating": "haute — persistence HumanGate",
+      "status": "actif — complet post-IMP-089"
+    }
+  ],
+  "zones_ombre": [
+    "REDTEAM ne voit pas idea_content — seulement idea_title",
+    "Aucune étape n'a accès au code source (codebase) pour valider les fichiers cités",
+    "Température 0.4 globale — pas de contrôle per-step dans lm_call",
+    "FUSION redondante avec REDTEAM — candidat à consolidation (-1 appel LM)",
+    "FUSION_LOG.jsonl non connecté au pipeline idée→IMP (endpoint /api/fusion séparé)",
+    "idea_content perdu après step 1 — steps 2-4 ne voient que idea_title",
+    "Fichiers cités par EXTRACT non vérifiés contre le repo réel"
+  ],
+  "zones_ombre_adressees_imp089": [
+    "idea_title injectée dans tous les steps (était absent steps 2-3-4)",
+    "Interdictions solo-dev complètes dans EXTRACT",
+    "MAX 4 IMPs forcé (était illimité)",
+    "reasoning_trace persisté dans ROADMAP_PROPOSALS.yaml",
+    "Garde-fou needs_human dans tous les steps",
+    "Bouton Ouvrir dans Claude si 0 IMPs ou needs_human",
+    "model=LM_MODEL_CEO (Qwen3.6) sur EXTRACT (était Qwen2.5 malgré docstring)"
+  ],
+  "system_prompt": {
+    "fichier": "00_STUDIO_CONTROL/00_MASTER_DOCS/04_STUDIO.md",
+    "taille": "2000 chars max ([:2000])",
+    "inject_via": "build_system_prompt() — cherche studio_context.md puis STUDIO_CONTEXT.md puis 04_STUDIO.md",
+    "contenu_injecte": "vision studio + stack technique + pipeline de dev + architecture agentique",
+    "limite": "dump brut non tailorisé par step — même contexte pour roadmap et extract"
+  },
+  "prompt_extract_cible": "Tu es décomposeur IMP d'un studio SOLO-DEV (1 seul développeur, pas d'équipe).\nIDÉE HUMAINE À RÉALISER : {idea_title}\n\nIMPs déjà OPEN dans le ledger (éviter doublons, calculer blocked_by) :\n{open_imps_ctx}\n\nINTERDICTIONS ABSOLUES — rejeter tout IMP contenant :\n  formation, tutoriel, support utilisateur, déploiement, DevOps,\n  packaging, release, gestion d'équipe, chef de projet.\n\nRÈGLES DE GRANULARITÉ :\n  - MAX 4 IMPs (pas plus)\n  - 1 IMP = 1 fichier précis + 1 fonction précise\n  - title : verbe + objet + fichier (ex: 'Ajouter fn X dans fichier Y.py')\n\nCONTRAINTES STACK :\n  - Pas d'API Claude externe — LM Studio local uniquement\n  - Pas de cron (autoloop existe déjà)\n  - Stack : Rust (moteur) + Python (ML/studio) + LM Studio\n\nDomaines :\n  rocky_moteur: moteur Rust, eval, search, ELO, benchmark\n  ia_apprentissage: LoRA, dataset, training, neural, Qwen\n  jeux: Chess Fantasy, Snake, Belote, TCG, variantes\n  studio: autopilot, pipeline, kaizen, docs, UI, workflow\n\nSi l'idée est trop vague pour décomposer en IMPs concrets, retourne UNIQUEMENT :\n{\"needs_human\": true, \"reason\": \"explication\"}\n\nSinon, retourne UNIQUEMENT un JSON array valide, max 4 éléments :\n[\n  {\n    \"title\": \"Ajouter fn X dans fichier Y.py\",\n    \"lane\": \"SAFE_AUTO\",\n    \"impact\": \"HIGH\",\n    \"effort\": \"SMALL\",\n    \"domain\": \"studio\",\n    \"files\": [\"chemin/exact/fichier.py\"],\n    \"acceptance\": \"critère mesurable en 1 ligne\",\n    \"blocked_by\": []\n  }\n]\n\nPlan à décomposer :\n{fusion}\n\nclaim_verdict: NO_CLAIM_ALLOWED",
+  "top3_recommandations": [
+    "Flux humain constant : idea_title+desc dans chaque step — FAIT IMP-089",
+    "Interdictions solo-dev dans EXTRACT (formation/support/déploiement) — FAIT IMP-089",
+    "Persister roadmap+redteam+fusion pour HumanGate dans ROADMAP_PROPOSALS.yaml — FAIT IMP-089"
+  ],
+  "top3_recommandations_restantes": [
+    "Injecter idea_content (pas seulement idea_title) dans steps 2-3",
+    "Consolider REDTEAM+FUSION en 1 étape pour économiser 1 appel LM",
+    "Température per-step dans lm_call (paramètre temp optionnel)"
+  ],
+  "architecture_ideale": [
+    {
+      "step": 1,
+      "name": "contraindre",
+      "role": "filtre solo-dev — expurge l'idée des composantes hors-scope",
+      "model": "qwen2.5-14b-instruct",
+      "max_tokens": 300,
+      "temperature": 0.2,
+      "note": "optionnel si ROADMAP est déjà bien contraint"
+    },
+    {
+      "step": 2,
+      "name": "decomposer",
+      "role": "architecte-décomposeur — roadmap + critique intégrées en 1 step",
+      "model": "qwen2.5-14b-instruct",
+      "max_tokens": 500,
+      "temperature": 0.3,
+      "note": "fusionne roles actuels roadmap + redteam + fusion"
+    },
+    {
+      "step": 3,
+      "name": "extraire",
+      "role": "juge-IMP — JSON structuré, MAX 4, interdictions strictes",
+      "model": "qwen3.6-27b",
+      "max_tokens": 900,
+      "temperature": 0.2,
+      "note": "identique au step 4 actuel — déjà calibré IMP-089"
+    }
+  ],
+  "agents_a_creer": [
+    {
+      "id": "agent-roadmap",
+      "name": "Architecte solo-dev",
+      "role": "architecte fonctionnel contraint — max 3 étapes, 1 fichier par étape",
+      "model": "qwen2.5-14b-instruct",
+      "chaine": "roadmap",
+      "statut": "actif",
+      "a_calibrer": true,
+      "calibration": "température 0.4→0.3 + injecter idea_content complet"
+    },
+    {
+      "id": "agent-redteam",
+      "name": "Avocat du diable",
+      "role": "critique technique contextuel — risques fichiers Rust/Python",
+      "model": "qwen2.5-14b-instruct",
+      "chaine": "redteam",
+      "statut": "actif",
+      "a_calibrer": true,
+      "calibration": "ajouter idea_content + température 0.4→0.5"
+    },
+    {
+      "id": "agent-fusion",
+      "name": "Gardien intention humaine",
+      "role": "préserve l'intention humaine + intègre critique — arbitre technique",
+      "model": "qwen2.5-14b-instruct",
+      "chaine": "fusion",
+      "statut": "actif — candidat à fusion avec redteam",
+      "a_calibrer": true,
+      "calibration": "température 0.4→0.35 — ou supprimer et fusionner avec redteam"
+    },
+    {
+      "id": "agent-extract",
+      "name": "Juge-décomposeur IMP",
+      "role": "découpe en IMPs nets, MAX 4, 1 fichier/fonction, interdictions strictes",
+      "model": "qwen3.6-27b",
+      "chaine": "extract",
+      "statut": "actif — calibré IMP-089",
+      "a_calibrer": false,
+      "calibration": "température 0.4→0.2 recommandée pour JSON déterministe"
+    },
+    {
+      "id": "agent-ceo",
+      "name": "CEO Director",
+      "role": "CEO Brief, analyse stratégique 3 lanes, décisions profonds",
+      "model": "qwen3.6-27b",
+      "chaine": "ceo_brief",
+      "statut": "actif",
+      "a_calibrer": false
+    },
+    {
+      "id": "agent-worker",
+      "name": "Worker Claude Code",
+      "role": "exécution des charters bornés — lecture code + édition fichiers",
+      "model": "claude-sonnet-4-6",
+      "chaine": "workflow_imp",
+      "statut": "actif",
+      "a_calibrer": false
+    }
+  ],
+  "lm_config": {
+    "LM_MODEL": "qwen2.5-14b-instruct",
+    "LM_MODEL_CEO": "qwen3.6-27b",
+    "temperature_global": 0.4,
+    "temperature_per_step": false,
+    "routing": "_infer_task_type() → ceo_brief/fusion_deep → Qwen3.6, sinon Qwen2.5",
+    "system_prompt_builder": "build_system_prompt() — 04_STUDIO.md[:2000] préfixé"
+  }
+}

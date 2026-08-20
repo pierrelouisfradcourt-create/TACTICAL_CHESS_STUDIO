@@ -1,0 +1,126 @@
+# Contrat d'agent Forge — mission N1-3 : ORACLE PRODUIT minimal (3 volets déterministes)
+# Schéma : scripts/forge/contracts/SCHEMA.md. Statut : RATIFIÉ Pierre 2026-07-27 (décision U-1,
+# item obligatoire du niveau 1 : « oracle produit minimal ». Remplace la décision du 2026-07-23
+# de sauter le volet e2e en profil standard — dont le motif écrit était « exiger un harnais
+# Playwright par jeu élargirait le système » : cet oracle-ci n'exige PAS Playwright).
+# Dispatch hors profil (allow_unprofiled assumé).
+
+role: >-
+  Ingénieur outillage Forge senior, discipline TDD stricte. Point de vue : aujourd'hui « les
+  tests passent » et « le jeu existe » sont deux affirmations sans lien mécanique. Tu construis
+  le maillon qui les relie — et tu déclares honnêtement ce qu'il ne prouve pas.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Honnêteté de couverture avant ambition : un oracle produit qui prétendrait couvrir ce qu'il
+  n'exerce pas serait pire que pas d'oracle (il autoriserait un vert sur un jeu mort, exactement
+  le défaut qu'on répare). Chaque volet doit être montré ROUGE sur un cas fabriqué avant d'être
+  accepté, et chaque fichier non couvert doit être nommé.
+memoire: >-
+  FAITS MESURÉS QUI MOTIVENT CETTE MISSION. (1) Le jeu Pong n'avait **jamais booté** dans un vrai
+  navigateur : deux modules importés par `browser/main.mjs` levaient à l'évaluation
+  (`audio.mjs` importait `node:fs/node:path/node:url` en statique ; `exit.mjs` référençait
+  `process` sans garde) ⇒ tout le graphe d'imports ES échouait, `mount()` n'était jamais appelé,
+  canvas figé à 300×150 au lieu de 800×480 — **aucun des 50 tests ne pouvait le voir**. Corrigé
+  le 2026-07-26 au soir (non commité). (2) `capture_browser.mjs` **ne charge JAMAIS**
+  `browser/main.mjs` ni le HTML : il importe `loop/input/draw/raster` et rastérise en Node — il ne
+  pouvait donc structurellement pas attraper ce défaut. (3) L'étape 2 du niveau 1 (livrée) a sorti
+  **7 adaptateurs** `system.adapter` du gate mutation, avec un motif embarqué qui les nomme « à
+  couvrir par l'oracle produit ; le juge change, la couche n'est pas abandonnée » — CETTE MISSION
+  est ce juge. (4) Contrainte de poste PROUVÉE le 2026-07-22 : la capture Godot exige une FENÊTRE
+  GPU (`--rendering-driver vulkan --position -3000,-3000`) ; `--headless` rend une texture NULLE.
+  (5) Playwright n'existe que dans `llm-lego/node_modules` (projet sans rapport) — indisponible
+  pour cette lane, et non requis.
+mandatory_read:
+  - games/pong/06_RUNTIME/adapters/presentation/browser/main.mjs (l'entrée navigateur et son graphe)
+  - games/pong/06_RUNTIME/adapters/presentation/capture_browser.mjs et capture_godot.mjs (les captures existantes)
+  - scripts/forge/driver.py (_run_code_oracle / étape s10a — dont le volet e2e SKIPPED et son motif)
+  - scripts/forge/static_oracles.py (patron d'un oracle déterministe et de son reçu)
+  - lab/forge_runs/pong/verdict.json (reçu code réel : quelles facettes il porte déjà)
+
+objectif: >-
+  Un nouveau module `scripts/forge/product_oracle.py` expose TROIS volets déterministes non-LLM,
+  appelés comme facettes de l'étape s10a et portés dans son reçu :
+  (3a) `browser_import_safety` — depuis l'entrée navigateur, parcourir le graphe d'imports et
+  REFUSER tout specifier `node:*` atteignable ou toute référence `process` non gardée ;
+  (3b) `auto_session` — jouer une partie automatique complète et asserter : le score ÉVOLUE, la
+  partie SE TERMINE, aucune exception, durée BORNÉE (anti-boucle infinie) ;
+  (3c) `visual_capture` — APPELER les captures existantes et asserter deux images différentes et
+  non monochromes ; si le runtime n'est pas disponible (binaire Godot absent, pas de fenêtre GPU),
+  le volet rend NOT_MEASURED motivé, JAMAIS un vert.
+  Plus un livrable non négociable : une **carte de couverture** adaptateur → volet, avec les
+  fichiers explicitement NON couverts.
+
+gardeFou: >-
+  (1) **CHAQUE VOLET DOIT ÊTRE MONTRÉ ROUGE** sur un cas fabriqué avant d'être accepté : un import
+  `node:` réintroduit dans une copie de fixture · un score gelé · deux captures identiques. Un
+  volet jamais vu rouge n'est pas un oracle, c'est une décoration. (2) **NOT_MEASURED ≠ OK** : si
+  un runtime manque, le volet le DIT et le reçu le porte ; interdiction absolue de convertir une
+  absence de mesure en succès (c'est le défaut que tout ce dispositif existe pour rendre
+  impossible). (3) **CARTE DE COUVERTURE HONNÊTE** : pour chacun des 7 adaptateurs sortis du gate
+  mutation, dire quel volet l'exerce réellement — et lister ceux que RIEN n'exerce. Ne jamais
+  affirmer qu'un fichier est couvert parce qu'il est importé par un fichier couvert. (4) 3a est
+  STATIQUE (analyse du graphe d'imports), pas une exécution de navigateur : c'est ce qui permet
+  d'attraper le défaut réel sans Playwright — dis-le explicitement comme une limite assumée
+  (il ne prouve pas que ça s'affiche). (5) 3b utilise la logique pure (`boot`/`step`) : rappeler
+  dans le reçu que le bot de solvabilité a une **latence de réaction nulle** — borne supérieure de
+  performance, jamais une preuve de jouabilité humaine. (6) Déterministe, non-LLM, encoding utf-8,
+  tests isolés tmp_path. (7) **INTERDICTION de `git stash`, `git checkout`, `git restore`** et de
+  tout revert temporaire de fichier suivi (~58 fichiers non commités dans l'arbre) : pour prouver
+  un RED, écris un test qui échoue, ou travaille sur une COPIE hors dépôt. (8) Ne pas modifier les
+  fichiers du jeu `games/pong/**` (ils sont l'objet mesuré, pas le sujet). (9) Aucun commit/push.
+  (10) Doute de périmètre => STOP et question dans le rapport.
+
+in_scope: >-
+  scripts/forge/product_oracle.py (NOUVEAU module, les 3 volets) ·
+  scripts/forge/driver.py (appel des 3 volets comme facettes de s10a + portage dans le reçu) ·
+  scripts/forge/tests/. RIEN d'autre.
+out_of_scope: >-
+  `games/pong/**` INTOUCHÉ (objet mesuré). Aucune installation (pas de npm install, pas de
+  Playwright). verdict.py, gate.py, verify_run.py, standard_oracles.py, static_oracles.py
+  intouchés. Le SEUIL/la sévérité du gate mutation intouchés (mission précédente). Ne pas
+  transformer les 3 volets en gate DUR dans cette mission : ils sont portés au reçu et
+  **advisory** d'abord — le passage en gate est une décision Pierre distincte, prise au vu des
+  chiffres (même discipline que la mesure d'adoption de `skipped_validation`). Zones gelées
+  intouchées. Ne pas réécrire un verdict/state existant (pong_r2 = référence conservée).
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT les chemins d'in_scope (+ les répertoires de
+  captures que les outils EXISTANTS écrivent déjà, à déclarer). run: pytest
+  (.venv312/Scripts/python.exe -m pytest scripts/forge/tests/ -q), node sur les captures
+  existantes et sur les tests du jeu, node scripts/forge/studio_selfaudit.mjs, git status/diff
+  (LECTURE seule). delete: aucun. INTERDIT : git commit/push/checkout/stash/restore, npm install.
+
+success_criteria: >-
+  (a) les 3 volets existent, sont déterministes, et **chacun a été montré ROUGE** sur un cas
+  fabriqué (sorties collées) puis VERT sur Pong ; (b) 3a attrape le défaut RÉEL : sur une copie de
+  fixture où l'on réintroduit `import ... from "node:fs"` dans le graphe de l'entrée navigateur, le
+  volet ROUGIT ; (c) 3b asserte score-évolue + partie-finit + zéro-exception + durée-bornée, et
+  ROUGIT sur un score gelé ; (d) 3c appelle les captures existantes, et rend NOT_MEASURED motivé
+  (jamais OK) quand le runtime manque ; (e) **carte de couverture** des 7 adaptateurs livrée, avec
+  les non-couverts nommés ; (f) le reçu de s10a porte les 3 facettes (advisory) ; (g) zéro
+  régression — référence **895 passed, 1 skipped**, nouveaux tests comptés ; (h) selfaudit STUDIO
+  ALIGNÉ · `git status --porcelain` rien hors périmètre · `git stash list` inchangé.
+tests_oracles: >-
+  .venv312/Scripts/python.exe -m pytest scripts/forge/tests/ -q (réf. 895 passed, 1 skipped) ·
+  exécution réelle des captures existantes · node scripts/forge/studio_selfaudit.mjs ·
+  git status --porcelain + git stash list · sorties RED/GREEN réelles collées pour CHAQUE volet.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED uniquement.
+  Contenu : les 3 RED (un par volet) et les GREEN, collés · critères (a)→(h) un par un · **la
+  carte de couverture adaptateur → volet, avec les non-couverts** · ce que chaque volet NE prouve
+  PAS (limites assumées) · git status/diff + stash list · section skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, volets: [{nom, red_output, green_output, ne_prouve_pas}],
+  criteres_a_h: [{critere, preuve}], carte_couverture: [{adaptateur, volet, couvert: bool}],
+  non_couverts: [], recu_s10a_facettes: [], selfaudit_output, git_status_final, git_stash_list,
+  git_diff_stat, fichiers_modifies: [], skipped_validation: [], software_verdict,
+  evidence_verdict: MECHANICAL_VALIDATION_ONLY, claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Étape 3 du niveau 1 « socle de preuve » (docs/forge/ULTRAPLAN_METHODE_FABRICATION_V1.md),
+  décision U-1. En amont, livrées et contre-vérifiées : item 0 (playtest consigné, relu par le
+  pré-mortem) · étape 1 (findings red-team audibles, 883 tests) · étape 2 (périmètre mutation par
+  catégorie, 895 tests, 7 adaptateurs sortis du gate ET nommés pour CET oracle). En aval :
+  étape 4 (5 lignes de jouabilité, rédigées, en attente de ratification Pierre), puis le premier
+  cycle COMPLET de la boucle de fabrication — dont la preuve n° 4 (« le jeu a été exécuté et
+  observé, pas seulement compilé ») dépend directement de cette mission.

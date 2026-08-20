@@ -1,0 +1,993 @@
+# Decomposition fonctionnelle V2 — etape s3-decompo — projet : pacman
+# run_id   : pacman-v2-20260805
+# marqueur : FORGE_DISPATCH:s3-decompo:pacman-v2-20260805
+# date     : 2026-08-05
+# encodage : utf-8
+#
+# CE FICHIER EST UN DELTA. Les fonctions F1..F62 du run V1 (decompo.yaml, featuremap.json)
+# ne sont NI recopiees, NI renumerotees, NI re-decomposees. Ce document enumere UNIQUEMENT
+# les fonctions que le perimetre V2 ajoute, numerotees F63..F117 — memes ids que
+# lab/forge_runs/pacman/featuremap_v2.json, un pour un.
+#
+# ROLE TENU : analyste. Ce document ENUMERE des fonctions. Il ne decide NI le decoupage en
+# fichiers, NI le graphe de dependances, NI les noms de noeuds : c'est l'etape s4-archi.
+# Aucun nom de fichier neuf, aucun nom de noeud moteur n'y figure. Aucun code n'est ecrit.
+#
+# PLATEFORME : GODOT 4.6.3 / GDScript (charter_v2.yaml#plateforme_cible, autorite
+# platform_correction.yaml). Le jeu EXISTE et est mecaniquement valide : verdict signe
+# pacman-20260805-r1. Rien ici ne propose de le refaire.
+#
+# AMONT CONSOMME :
+#   - lab/forge_runs/pacman/charter_v2.yaml   (AUTORITAIRE — perimetre, baselines chiffrees)
+#   - lab/forge_runs/pacman/prisme_v2.json    (22 exigences R43..R64 — source unique des preuves)
+#   - lab/forge_runs/pacman/featuremap.json   (V1, F1..F62 — LU, non modifie)
+#   - lab/forge_runs/pacman/decompo.yaml      (V1 — LU pour la forme et le vocabulaire)
+#   - games/pacman/05_SYSTEMS/, games/pacman/06_RUNTIME/adapters/ (le code reel, LU)
+#
+# --- Legende des champs -----------------------------------------------------------------
+# nom               : verbe + objet. Ce que la fonction FAIT, pas ou elle vit.
+# nature            : logique_pure | adaptateur_runtime | preuve
+# entrees / sorties : grandeurs, pas signatures. Aucun type moteur.
+# deterministe      : true = meme entree -> meme sortie, sans horloge ni alea non seede.
+#                     false = declare POURQUOI, et comment la non-determination est bornee.
+# couvre_exigences  : ids EXACTS de prisme_v2.json. Aucune fonction sans au moins un id.
+# juge              : present UNIQUEMENT quand le juge n'est PAS un oracle. Sa valeur
+#                     `humain` signifie : aucun code du depot ne tranche cette fonction.
+#
+# CONTRAINTE DE PURETE (inchangee depuis V1, elle s'applique a tout ce qui suit) : une
+# fonction `logique_pure` n'utilise ni Time.*, ni OS.*, ni randi()/randf()/randomize(), ni
+# aucun noeud Godot. Le tick reste son unite de temps.
+
+version: 2
+game_id: pacman
+etape: s3-decompo
+delta_sur: "lab/forge_runs/pacman/decompo.yaml (V1, F1..F62) — conserve, non modifie"
+plage_ids: "F63..F117 (55 fonctions)"
+
+fonctions:
+
+  # ========================================================================================
+  # BLOC A — COQUILLE PRODUIT : machine a etats d'APPLICATION, distincte de celle du JEU
+  # ========================================================================================
+  # Le jeu tient deja une machine a etats de PARTIE (EN_COURS / GAGNE / PERDU, F4 du run V1).
+  # Ce bloc en ajoute une SECONDE, d'un autre ordre : celle de l'APPLICATION. Les deux ne se
+  # confondent pas — une partie GAGNEE peut coexister avec une application a l'ecran de fin,
+  # et une application a l'ecran titre n'a AUCUNE partie. C'est cette absence de partie, et
+  # non un rendu par-dessus, qui satisfait la premiere demande du brief V2.
+
+  - id: F63
+    nom: "tenir l'etat d'application dans un vocabulaire ferme"
+    description: >-
+      Expose a tout instant EXACTEMENT une valeur parmi ecran titre, partie en cours, pause,
+      consultation des controles, consultation des options, fin de partie — jamais deux,
+      jamais aucune. Le statut de partie n'est PAS une valeur de ce vocabulaire : les deux
+      machines sont lisibles separement, ce qui rend decidable la question « une partie
+      tourne-t-elle derriere ce menu ? ».
+    nature: logique_pure
+    entrees: [etat_application_courant, intention_recue]
+    sorties: [etat_application_suivant]
+    deterministe: true
+    couvre_exigences: [R43]
+
+  - id: F64
+    nom: "n'executer aucun tick de gameplay hors de l'etat partie en cours"
+    description: >-
+      Invariant de la coquille : tant que l'application n'est pas dans l'etat partie en
+      cours, aucun tick de partie n'est demande. A l'ecran titre, le compteur de ticks vaut
+      0 parce qu'aucune partie n'existe — pas parce qu'un rendu la recouvre. Un titre
+      affiche par-dessus une partie qui tourne satisfait l'oeil et viole la demande : seule
+      la valeur du compteur separe les deux cas.
+    nature: logique_pure
+    entrees: [etat_application, etat_de_partie_eventuel]
+    sorties: [autorisation_de_tick]
+    deterministe: true
+    couvre_exigences: [R43]
+
+  - id: F65
+    nom: "construire une partie neuve a l'activation de Jouer"
+    description: >-
+      Seule transition qui fait naitre une partie : elle construit un etat initial complet
+      (fonction F1 du run V1, desormais alimentee par une carte, cf. F99) et fait passer
+      l'application a l'etat partie en cours. Rien d'autre dans le produit ne cree de partie.
+    nature: logique_pure
+    entrees: [graine, carte_courante]
+    sorties: [etat_de_partie_neuf, etat_application_partie_en_cours]
+    deterministe: true
+    couvre_exigences: [R43]
+
+  - id: F66
+    nom: "enumerer et activer les quatre entrees du menu produit"
+    description: >-
+      Tient la liste ordonnee Jouer / Controles / Options / Quitter, la position de
+      selection courante, et traduit une activation en transition d'etat d'application.
+      Une entree est une DONNEE de la liste, pas un libelle dessine : c'est ce qui permet de
+      compter les entrees sans effet.
+    nature: logique_pure
+    entrees: [liste_des_entrees, selection_courante, intention_recue]
+    sorties: [selection_suivante, transition_demandee]
+    deterministe: true
+    couvre_exigences: [R44]
+
+  - id: F67
+    nom: "produire l'effet observable de chaque entree du menu produit"
+    description: >-
+      Realise les quatre effets, deux a deux distincts : mise en partie, ouverture de
+      l'ecran des controles, ouverture de l'ecran des options, terminaison de l'application.
+      Defaut vise nommement : « Quitter inerte » du playtest Pong du 2026-07-27, une entree
+      presente et activable sans aucun effet.
+    nature: adaptateur_runtime
+    entrees: [transition_demandee]
+    sorties: [ecran_affiche, ou_terminaison_de_l_application]
+    deterministe: false
+    non_determinisme_borne: >-
+      La terminaison et l'ouverture de fenetre appartiennent au moteur et au systeme. AUCUNE
+      valeur de gameplay ne transite ici : la transition vient de F66, l'etat de partie de F65.
+    couvre_exigences: [R44]
+
+  - id: F68
+    nom: "afficher l'ecran de consultation des controles"
+    description: >-
+      Rend, pour chaque intention de jeu, les liaisons declarees sur chaque peripherique
+      (F77), et rend la main a l'ecran d'ou il a ete ouvert — titre ou pause. Lit la table de
+      liaisons, ne la redecrit pas : un ecran qui recopierait les touches pourrait mentir
+      sans qu'aucune mesure ne le voie.
+    nature: adaptateur_runtime
+    entrees: [table_de_liaisons, ecran_appelant]
+    sorties: [ecran_controles_affiche]
+    deterministe: false
+    non_determinisme_borne: "Rendu moteur. Aucune valeur produite : lecture de la table de liaisons."
+    couvre_exigences: [R44]
+
+  - id: F69
+    nom: "afficher l'ecran des options et repercuter les reglages"
+    description: >-
+      Rend les reglages modifiables (dont l'activation du dash et le mode de jeu, cf. F81 et
+      F84) et repercute leur changement dans l'etat expose, puis rend la main a l'ecran
+      appelant. Un reglage qui ne changerait rien dans l'etat est le meme defaut que
+      « Quitter inerte », deplace dans les options.
+    nature: adaptateur_runtime
+    entrees: [reglages_courants, intention_recue, ecran_appelant]
+    sorties: [ecran_options_affiche, reglages_mis_a_jour]
+    deterministe: false
+    non_determinisme_borne: "Rendu moteur et saisie humaine. Les reglages produits sont des valeurs declarees, pas des mesures."
+    couvre_exigences: [R44]
+
+  - id: F70
+    nom: "ouvrir le menu pause sur l'intention de pause"
+    description: >-
+      Une seule fonction repond a l'intention de pause, d'ou qu'elle vienne — clavier,
+      manette ou surface tactile. Les trois chemins convergent vers un unique etat
+      d'application : il n'existe pas trois ecrans de pause paralleles, donc pas trois points
+      de panne independants a maintenir.
+    nature: logique_pure
+    entrees: [etat_application, intention_pause]
+    sorties: [etat_application_pause]
+    deterministe: true
+    couvre_exigences: [R45]
+
+  - id: F71
+    nom: "geler le temps de jeu pendant la pause"
+    description: >-
+      Pendant la pause, aucun tick de partie n'est execute : l'etat releve a l'ouverture et
+      l'etat releve N ticks plus tard sont LE MEME etat, champ par champ (positions, score,
+      vies, pastilles restantes, phase de l'horloge des etats). Un menu affiche par-dessus
+      une partie qui continue est une superposition, pas une pause.
+    nature: logique_pure
+    entrees: [etat_application, etat_de_partie]
+    sorties: [autorisation_de_tick]
+    deterministe: true
+    couvre_exigences: [R45]
+
+  - id: F72
+    nom: "enumerer et activer les cinq entrees du menu pause"
+    description: >-
+      Tient la liste Reprendre / Recommencer / Controles / Options / Menu principal et
+      traduit une activation en transition. Les cinq resultats sont deux a deux differents ;
+      Menu principal ramene a un statut hors partie.
+    nature: logique_pure
+    entrees: [liste_des_entrees_de_pause, selection_courante, intention_recue]
+    sorties: [selection_suivante, transition_demandee]
+    deterministe: true
+    couvre_exigences: [R46]
+
+  - id: F73
+    nom: "reprendre la partie a l'identique"
+    description: >-
+      Reprendre est la seule des cinq entrees dont l'effet CORRECT est de ne rien changer a
+      l'etat de partie : elle echappe au controle d'effet observable applique aux quatre
+      autres et exige sa propre assertion — egalite stricte avec l'etat gele, puis reprise de
+      la progression.
+    nature: logique_pure
+    entrees: [etat_de_partie_gele]
+    sorties: [etat_de_partie_identique, etat_application_partie_en_cours]
+    deterministe: true
+    couvre_exigences: [R46]
+
+  - id: F74
+    nom: "recommencer une partie neuve ou revenir a l'ecran titre depuis la pause"
+    description: >-
+      Recommencer reconstruit un etat de depart complet sur la carte courante : aucune
+      valeur de la partie interrompue ne survit, parce que l'etat est reconstruit et non
+      nettoye (meme principe que F41 du run V1). Menu principal fait quitter l'etat partie en
+      cours et retourne a l'ecran titre.
+    nature: logique_pure
+    entrees: [graine, carte_courante, transition_demandee]
+    sorties: [etat_de_partie_neuf, ou_etat_application_titre]
+    deterministe: true
+    couvre_exigences: [R46]
+
+  # ========================================================================================
+  # BLOC B — COUCHE D'ENTREE ABSTRAITE : le gameplay ne connait pas le peripherique
+  # ========================================================================================
+  # Le jeu V1 possede deja un canal d'entree public unique (F43), mais ce canal PARLE
+  # CLAVIER : il tient une table de codes de touches. Le perimetre V2 coupe cette phrase en
+  # deux — un vocabulaire d'INTENTIONS que la logique consomme, et une traduction
+  # peripherique -> intention qui vit entierement du cote runtime.
+
+  - id: F75
+    nom: "definir le vocabulaire ferme des intentions de jeu"
+    description: >-
+      Une direction, une demande de dash, une demande de pause, une validation, un retour, un
+      deplacement de selection. C'est la SEULE entree de la logique de jeu. Formule ainsi,
+      l'invariant se verifie la ou celui du rendu est deja prouve : par comptage statique de
+      references. Toute autre formulation — « l'entree est bien separee » — ne se falsifie
+      pas et laisserait passer une lecture de touche enfouie dans un module de logique.
+    nature: logique_pure
+    entrees: [intention]
+    sorties: [effet_sur_l_etat]
+    deterministe: true
+    couvre_exigences: [R47]
+
+  - id: F76
+    nom: "traduire les evenements du peripherique en intention"
+    description: >-
+      Reconnait une touche, un bouton de manette ou un contact tactile et produit une
+      intention du vocabulaire ferme, ou « aucune ». Vit entierement hors de la logique :
+      c'est cette fonction qui porte le CONTROLE POSITIF du comptage statique — si aucune
+      reference d'entree n'existait dans le runtime, le comptage a 0 dans la logique ne
+      prouverait rien.
+    nature: adaptateur_runtime
+    entrees: [evenements_du_peripherique, table_de_liaisons]
+    sorties: [intention_du_tick]
+    deterministe: false
+    non_determinisme_borne: >-
+      Depend de l'humain. En mode preuve, la source est une SUITE ENREGISTREE d'evenements,
+      ce qui rend la sequence reproductible sans changer le canal (meme dispositif qu'en V1).
+    couvre_exigences: [R47]
+
+  - id: F77
+    nom: "declarer la table de liaisons intention -> entrees physiques"
+    description: >-
+      Une intention, PLUSIEURS liaisons : clavier, manette, surface tactile. La table est une
+      donnee enumerable, ce qui rend comptable la question « quelles intentions n'ont aucune
+      liaison manette ? » — question qu'une suite de conditions eparpillees ne permet pas de
+      poser.
+    nature: adaptateur_runtime
+    entrees: [declaration_des_liaisons]
+    sorties: [table_de_liaisons]
+    deterministe: true
+    couvre_exigences: [R48]
+
+  - id: F78
+    nom: "garantir la couverture manette de reference"
+    description: >-
+      La manette est la REFERENCE de conception : l'ensemble des intentions atteignables a la
+      manette contient celui des intentions atteignables au clavier, et les deux produisent
+      le meme etat de jeu. Une intention jouable au clavier seulement contredit la reference
+      sans faire echouer le moindre test de clavier — d'ou une mesure dediee.
+    nature: preuve
+    entrees: [table_de_liaisons, deux_sequences_d_entrees_equivalentes]
+    sorties: [nombre_d_intentions_sans_liaison_manette, comparaison_des_traces_d_etat]
+    deterministe: true
+    couvre_exigences: [R48]
+
+  - id: F79
+    nom: "produire l'intention de pause depuis une surface tactile"
+    description: >-
+      Le bouton de pause visible a l'ecran est la surface tactile minimale que le brief nomme
+      lui-meme. Son contact passe par le MEME chemin que le clavier et la manette : il produit
+      une intention, pas un appel direct au menu.
+    nature: adaptateur_runtime
+    entrees: [evenement_tactile, surface_declaree_du_bouton]
+    sorties: [intention_pause]
+    deterministe: false
+    non_determinisme_borne: >-
+      Depend d'un evenement d'ecran du moteur. En preuve, l'evenement est emis sur la surface
+      declaree du bouton, donc reproductible.
+    couvre_exigences: [R49]
+
+  - id: F80
+    nom: "ajouter la source tactile sans toucher la logique"
+    description: >-
+      Le tactile est une source d'intentions de plus dans la couche d'entree. Ce qui n'est PAS
+      livre — build Android, portage, signature — est nomme en hors_scope, jamais laisse
+      entendre comme livre : entre « prepare » et « livre », la frontiere est posee par ce qui
+      est observable.
+    nature: preuve
+    entrees: [patch_ajoutant_le_tactile]
+    sorties: [nombre_de_chemins_05_systems_touches]
+    deterministe: true
+    couvre_exigences: [R49]
+
+  # ========================================================================================
+  # BLOC C — MODE DASH D'ACCESSIBILITE
+  # ========================================================================================
+
+  - id: F81
+    nom: "tenir le mode de jeu dans un vocabulaire de deux valeurs"
+    description: >-
+      Mode normal et mode test, mutuellement exclusifs et exhaustifs, exposes dans le releve
+      observable a chaque tick. Le mode est un CHAMP de l'etat expose, pas un drapeau interne :
+      sans exposition, l'exclusivite n'est pas mesurable.
+    nature: logique_pure
+    entrees: [etat_de_partie, reglage_de_mode]
+    sorties: [mode_expose]
+    deterministe: true
+    couvre_exigences: [R50]
+
+  - id: F82
+    nom: "demarrer en mode normal"
+    description: >-
+      Au premier lancement la valeur est le mode normal, sans reglage prealable ni etat
+      persistant herite d'une session precedente.
+    nature: logique_pure
+    entrees: [premier_lancement]
+    sorties: [mode_initial]
+    deterministe: true
+    couvre_exigences: [R50]
+
+  - id: F83
+    nom: "declencher le dash sur une intention dediee"
+    description: >-
+      Le dash a sa PROPRE intention, distincte des quatre directions : aucune direction ne
+      dashe, et le dash ne se deplace pas par le canal des directions. C'est ce qui rend
+      possible la mesure « appuis de dash sans effet » de F84.
+    nature: logique_pure
+    entrees: [etat_de_partie, intention_dash, activation_du_dash]
+    sorties: [etat_de_partie_suivant]
+    deterministe: true
+    couvre_exigences: [R50]
+
+  - id: F84
+    nom: "desactiver le dash et le rendre totalement inerte"
+    description: >-
+      Desactive, l'intention de dash ne laisse AUCUNE trace dans l'etat : ni deplacement, ni
+      compteur de recharge, ni marqueur. Sans cette troisieme propriete, un dash desactive qui
+      laisserait malgre tout une trace passerait pour conforme.
+    nature: logique_pure
+    entrees: [etat_de_partie, intention_dash, activation_du_dash_a_faux]
+    sorties: [etat_de_partie_inchange]
+    deterministe: true
+    couvre_exigences: [R50]
+
+  - id: F85
+    nom: "relever les quatre grandeurs touchees par le dash, avec et sans"
+    description: >-
+      Vitesse du joueur, delai avant le dash suivant, comportement face aux murs, comportement
+      face aux fantomes — les quatre sont MESUREES dans les deux conditions. Documenter n'est
+      pas mesurer : une note affirmant que le dash accelere n'est refutable que si les deux
+      vitesses sont relevees.
+    nature: preuve
+    entrees: [deux_executions_declarees_avec_et_sans_dash]
+    sorties: [quatre_couples_de_valeurs]
+    deterministe: true
+    couvre_exigences: [R51]
+
+  - id: F86
+    nom: "declarer chaque grandeur modifiee ou inchangee par conception"
+    description: >-
+      Chaque grandeur declaree modifiee presente deux valeurs distinctes ; chaque grandeur
+      declaree inchangee presente deux valeurs egales. Une grandeur annoncee comme modifiee et
+      mesuree identique n'est pas un defaut d'implementation : c'est une promesse trop forte, a
+      requalifier honnetement (regle de variance ratifiee Pierre 2026-07-21).
+    nature: preuve
+    entrees: [quatre_couples_de_valeurs, declaration_par_grandeur]
+    sorties: [conformite_declaration_mesure]
+    deterministe: true
+    couvre_exigences: [R51]
+
+  - id: F87
+    nom: "rendre le dash visible a ses deux moments"
+    description: >-
+      L'instant du declenchement ET la periode d'indisponibilite. Sans le second, le joueur
+      appuie dans le vide sans savoir pourquoi — le defaut de commande inerte, deplace du
+      bouton vers le temps de recharge.
+    nature: adaptateur_runtime
+    entrees: [releve_observable]
+    sorties: [indication_de_dash_et_de_disponibilite]
+    deterministe: false
+    non_determinisme_borne: "Rendu moteur. Recopie du releve observable, aucune valeur de jeu produite."
+    couvre_exigences: [R52]
+
+  # ========================================================================================
+  # BLOC D — AUDIO GENERE A L'EXECUTION (zero fichier son)
+  # ========================================================================================
+  # Meme invariant de purete que le rendu, deja prouve en V1 : la logique SIGNALE, la
+  # presentation FAIT ENTENDRE. Un son joue depuis la logique casserait l'invariant en une
+  # ligne, et le casserait de facon invisible pour un joueur — le jeu sonnerait pareil.
+
+  - id: F88
+    nom: "emettre depuis la logique les evenements des six moments sonores"
+    description: >-
+      Avancee, collecte, entree en etat Effraye, mort, victoire, ouverture de pause ou de
+      menu : six evenements NOMMES, produits par la logique a partir de la comparaison entre
+      l'etat avant et l'etat apres (meme dispositif que F40 du run V1). La logique ne joue
+      aucun son et ne connait aucune API audio.
+    nature: logique_pure
+    entrees: [etat_avant, etat_apres, transition_d_application]
+    sorties: [liste_d_evenements_sonores]
+    deterministe: true
+    couvre_exigences: [R55]
+
+  - id: F89
+    nom: "sonoriser les evenements dans la couche de presentation"
+    description: >-
+      Seule couche a connaitre une API audio. C'est elle qui porte le CONTROLE POSITIF du
+      comptage statique : sans reference audio dans le runtime, un 0 dans la logique ne
+      prouverait rien.
+    nature: adaptateur_runtime
+    entrees: [liste_d_evenements_sonores, descripteurs_de_synthese]
+    sorties: [sons_joues]
+    deterministe: false
+    non_determinisme_borne: >-
+      Depend du peripherique audio et de la cadence de remplissage du tampon. N'ecrit rien
+      dans l'etat de partie : aucune decision de jeu ne transite par cette fonction.
+    couvre_exigences: [R55]
+
+  - id: F90
+    nom: "fabriquer le son a l'execution a partir d'un descripteur de synthese"
+    description: >-
+      Forme d'onde, hauteur, duree, enveloppe : les echantillons sont CALCULES au moment ou
+      ils sont joues. Aucun fichier n'est lu. C'est la seule voie conciliant core.audio
+      (`not_applicable_allowed: false`) et l'invariant « zero asset » que le jeu asserte deja
+      par son harnais d'inventaire.
+    nature: adaptateur_runtime
+    entrees: [descripteur_de_synthese, tick_de_declenchement]
+    sorties: [flux_audio_genere]
+    deterministe: false
+    non_determinisme_borne: >-
+      Le remplissage du tampon depend du peripherique. Le DESCRIPTEUR, lui, est une donnee
+      declaree : c'est lui qui est compare, pas le signal restitue.
+    couvre_exigences: [R53]
+
+  - id: F91
+    nom: "conserver l'inventaire zero asset apres l'ajout du son"
+    description: >-
+      L'inventaire des fichiers du jeu ne contient aucun fichier audio (.wav, .ogg, .mp3,
+      .m4a, .flac). Le harnais d'inventaire existe deja au run V1 : il n'est pas invente ici,
+      il est etendu au son.
+    nature: preuve
+    entrees: [inventaire_des_fichiers_du_jeu]
+    sorties: [nombre_de_fichiers_audio]
+    deterministe: true
+    couvre_exigences: [R53]
+
+  - id: F92
+    nom: "associer a chacun des six evenements son propre descripteur"
+    description: >-
+      Six evenements branches sur un meme descripteur satisferaient un comptage de
+      declenchements tout en rendant le retour sonore inutile : le joueur ne distinguerait
+      plus une collecte d'une mort a l'oreille. Les six descripteurs different deux a deux par
+      au moins un parametre de synthese.
+    nature: adaptateur_runtime
+    entrees: [declaration_des_six_descripteurs]
+    sorties: [table_evenement_vers_descripteur]
+    deterministe: true
+    couvre_exigences: [R54]
+
+  - id: F93
+    nom: "declencher effectivement un son a chacun des six moments"
+    description: >-
+      Aucun des six evenements ne reste muet. Le declenchement est trace au tick, ce qui le
+      rend constatable autrement qu'a l'oreille.
+    nature: adaptateur_runtime
+    entrees: [liste_d_evenements_sonores]
+    sorties: [declenchements_traces]
+    deterministe: false
+    non_determinisme_borne: "Restitution audio moteur. La TRACE de declenchement, elle, est deterministe : elle suit les evenements de F88."
+    couvre_exigences: [R54]
+
+  # ========================================================================================
+  # BLOC E — LA CARTE DEVIENT UNE DONNEE  (le coeur du run V2)
+  # ========================================================================================
+  # BASELINE MESUREE (charter_v2#baseline_architecture_v1.metrique_carte) : ajouter une carte
+  # coute aujourd'hui 4 fichiers de 05_SYSTEMS — le plan litteral et les positions de depart
+  # (maze), les dimensions et la ligne de tunnel (params), la lecture des departs a
+  # l'initialisation (game_state) et au respawn (end_conditions). L'ecart entre 4 et 0 n'est
+  # pas une question de proprete : c'est la NATURE de la carte qui doit changer. Tant que le
+  # plan est une constante compilee dans la logique, chaque carte coute une modification de la
+  # logique. Les huit fonctions ci-dessous sont l'enumeration de ce changement de nature :
+  # la logique cesse de PORTER la carte, elle la RECOIT, la valide et en derive tout le reste.
+
+  - id: F94
+    nom: "decrire une carte comme une donnee complete et autoportante"
+    description: >-
+      Le descripteur porte TOUT ce que la logique lit aujourd'hui dans des constantes : plan
+      de cases, legende fermee des symboles, position et direction de depart du joueur, centre
+      / sortie / places de la maison centrale, ligne de bouclage, bornes de la zone jouable,
+      coins de reference. Rien de ce que la logique doit savoir d'une carte ne reste hors du
+      descripteur — sinon la carte suivante ramene une modification de logique par la porte
+      derobee.
+    nature: logique_pure
+    entrees: [descripteur_de_carte]
+    sorties: [carte_utilisable]
+    deterministe: true
+    remarque: >-
+      La CONVENTION de lecture (quels champs, quelle legende) est tenue par la logique ; les
+      INSTANCES de carte sont des donnees qui vivent hors de 05_SYSTEMS. Ou exactement, et
+      sous quel format de fichier : decision de l'etape s4-archi, pas de celle-ci.
+    couvre_exigences: [R56]
+
+  - id: F95
+    nom: "charger un descripteur a l'execution et en construire la topologie"
+    description: >-
+      Type de chaque case, praticabilite, voisins dans l'ordre fixe declare, bouclage : tout
+      se construit par LECTURE du descripteur recu, jamais depuis une constante compilee. La
+      table de types pre-calculee du run V1 reste possible — elle devient une lecture de la
+      donnee chargee au lieu d'une lecture d'un litteral.
+    nature: logique_pure
+    entrees: [descripteur_de_carte]
+    sorties: [topologie_de_carte]
+    deterministe: true
+    couvre_exigences: [R56]
+
+  - id: F96
+    nom: "deriver du descripteur les grandeurs aujourd'hui figees en constantes"
+    description: >-
+      Largeur, hauteur, ligne de bouclage, premiere et derniere ligne jouables : ces valeurs
+      DECOULENT du descripteur au lieu d'etre declarees dans le bloc de parametres. Une carte
+      de dimensions differentes cesse alors d'etre une modification de la logique. Le bloc de
+      parametres conserve ce qui reste vrai pour TOUTES les cartes (baremes, cadences, delais) :
+      la separation passe entre « propriete de la carte » et « regle du jeu ».
+    nature: logique_pure
+    entrees: [descripteur_de_carte]
+    sorties: [dimensions, ligne_de_bouclage, bornes_de_la_zone_jouable]
+    deterministe: true
+    couvre_exigences: [R56]
+
+  - id: F97
+    nom: "valider un descripteur avant de le jouer"
+    description: >-
+      Legende respectee (aucun symbole hors du vocabulaire ferme), plan rectangulaire, depart
+      praticable, maison presente et coherente, ligne de bouclage praticable de bout en bout,
+      collectibles TOUS atteignables depuis le depart. Une carte invalide est declaree telle,
+      elle n'est pas jouee a moitie. C'est cette fonction qui rend la carte volontairement
+      cassee DETECTABLE : sans elle, une carte cassee serait seulement perdue, ce qui ne
+      discrimine rien (lecon deja tiree en V1 sur F10).
+    nature: logique_pure
+    entrees: [descripteur_de_carte]
+    sorties: [verdict_de_validite, motif_du_refus]
+    deterministe: true
+    couvre_exigences: [R56]
+
+  - id: F98
+    nom: "poser les collectibles et produire le total depuis le descripteur fourni"
+    description: >-
+      La pose lit la legende du descripteur recu ; le TOTAL qui definit la victoire reste
+      PRODUIT par comptage de ce qui a ete pose, jamais un litteral recopie carte par carte.
+      Une carte a 198 collectibles se gagne alors sans qu'aucune constante ne bouge.
+    nature: logique_pure
+    entrees: [descripteur_de_carte]
+    sorties: [grille_de_collectibles, total_pose]
+    deterministe: true
+    couvre_exigences: [R56]
+
+  - id: F99
+    nom: "construire l'etat initial a partir d'une carte passee en entree"
+    description: >-
+      L'etat de partie PORTE desormais sa carte courante. Aucune fonction de la logique ne va
+      chercher une carte globale : c'est ce qui supprime les deux dernieres references de la
+      baseline (initialisation et respawn) sans deplacer le probleme ailleurs.
+    nature: logique_pure
+    entrees: [graine, carte_courante]
+    sorties: [etat_de_partie_complet_portant_sa_carte]
+    deterministe: true
+    couvre_exigences: [R56]
+
+  - id: F100
+    nom: "repositionner apres une perte de vie depuis la carte portee par l'etat"
+    description: >-
+      Le replacement du joueur et des fantomes lit les positions de depart de la CARTE
+      COURANTE. Meme regle qu'en V1 pour le reste (une vie retiree, horloge revenue a son
+      premier segment, collectibles consommes non restitues) : seule la SOURCE des positions
+      change.
+    nature: logique_pure
+    entrees: [etat_de_partie_portant_sa_carte]
+    sorties: [etat_de_partie_repositionne]
+    deterministe: true
+    couvre_exigences: [R56]
+
+  - id: F101
+    nom: "declarer un catalogue ordonne d'au moins deux cartes"
+    description: >-
+      L'ordre des cartes et leur nombre sont des DONNEES lues, jamais une suite de cas codes.
+      C'est ce qui rend la bascule de niveau (F104) independante du nombre de cartes.
+    nature: logique_pure
+    entrees: [catalogue_declare]
+    sorties: [suite_ordonnee_de_cartes]
+    deterministe: true
+    remarque: "Le nombre exact de cartes est une question ouverte du charter (question_ouverte_humangate) : cette etape exige au moins deux, elle n'en fixe pas le compte."
+    couvre_exigences: [R56]
+
+  - id: F102
+    nom: "rendre l'ajout d'une carte purement additif"
+    description: >-
+      Ajouter une donnee au catalogue suffit : le patch qui ajoute une troisieme carte ne
+      touche AUCUN fichier de la logique. C'est la mesure qui referme l'ecart entre les 4
+      fichiers du run V1 et la cible 0 — et la seule facon de savoir si les fonctions F94 a
+      F101 ont vraiment change la nature de la carte, ou seulement deplace le probleme.
+    nature: preuve
+    entrees: [patch_ajoutant_une_carte]
+    sorties: [nombre_de_chemins_05_systems_touches]
+    deterministe: true
+    couvre_exigences: [R56]
+
+  - id: F103
+    nom: "prouver la solvabilite de chaque carte embarquee"
+    description: >-
+      Le bot pilotant l'ENTREE PUBLIQUE gagne sur chaque carte du catalogue, et la carte
+      volontairement cassee reste declaree injouable. Une deuxieme carte non prouvee solvable
+      serait un jeu injouable certifie (lecon collect_runner, portee en actions_interdites du
+      charter V2). La contre-epreuve mesure l'oracle, pas seulement le jeu.
+    nature: preuve
+    entrees: [catalogue_de_cartes, bot_de_solvabilite]
+    sorties: [verdict_par_carte, verdict_de_la_carte_cassee]
+    deterministe: true
+    couvre_exigences: [R56]
+
+  # ========================================================================================
+  # BLOC F — CHANGEMENT DE NIVEAU ET PROGRESSION
+  # ========================================================================================
+  # Le passage au niveau suivant est l'INVERSE EXACT d'une relance : certaines grandeurs
+  # doivent SURVIVRE (score, vies) et toutes les autres repartir de leur valeur initiale.
+  # Confondre les deux listes produit soit un joueur qui perd son score en changeant de
+  # carte, soit une carte neuve heritant de l'horloge de la precedente.
+
+  - id: F104
+    nom: "enchainer sur la carte suivante sans relance de l'application"
+    description: >-
+      Quand une carte est videe, la suivante du catalogue est chargee DANS LA MEME execution :
+      pas de retour force a l'ecran titre, pas de redemarrage.
+    nature: logique_pure
+    entrees: [etat_de_partie, catalogue_de_cartes]
+    sorties: [etat_de_partie_sur_la_carte_suivante]
+    deterministe: true
+    couvre_exigences: [R57]
+
+  - id: F105
+    nom: "conserver le score et les vies a la bascule"
+    description: >-
+      Les deux grandeurs qui doivent SURVIVRE. L'egalite stricte de part et d'autre de la
+      bascule est la propriete qui tue un mutant remettant l'une des deux a sa valeur
+      initiale.
+    nature: logique_pure
+    entrees: [etat_avant_bascule]
+    sorties: [score_conserve, vies_conservees]
+    deterministe: true
+    couvre_exigences: [R57]
+
+  - id: F106
+    nom: "reinitialiser tout le reste de l'etat sur la nouvelle carte"
+    description: >-
+      Collectibles au total de la nouvelle carte, positions de depart de la nouvelle carte,
+      horloge des etats de poursuite a sa phase initiale, rang de capture a sa premiere
+      valeur. La liste est celle de R37 (prisme V1) moins score et vies : elle n'est pas
+      reinventee ici, elle est reprise et amputee des deux survivants.
+    nature: logique_pure
+    entrees: [etat_avant_bascule, carte_suivante]
+    sorties: [etat_reinitialise_sur_la_carte_suivante]
+    deterministe: true
+    couvre_exigences: [R57]
+
+  - id: F107
+    nom: "mener a un etat final explicite apres la derniere carte"
+    description: >-
+      La derniere carte terminee mene a une fin declaree, jamais a une bascule vers une carte
+      inexistante ni a un blocage. Le nombre de cartes venant d'une donnee (F101), cette
+      fonction ne connait pas de compte code en dur.
+    nature: logique_pure
+    entrees: [etat_de_partie, catalogue_de_cartes]
+    sorties: [etat_final_declare]
+    deterministe: true
+    couvre_exigences: [R57]
+
+  - id: F108
+    nom: "faire varier un parametre nomme avec le numero de niveau"
+    description: >-
+      Au moins un parametre de jeu prend une valeur declaree PAR NIVEAU, et sa distribution
+      sur les niveaux embarques porte au moins deux valeurs distinctes. Une progression est
+      exactement le type de grandeur vise par la regle de variance : un jeu qui affiche
+      « niveau 2 » sans qu'aucun parametre ne change offre une progression de facade, que ni
+      un controle de bascule ni un affichage de numero ne detecte.
+    nature: logique_pure
+    entrees: [numero_de_niveau, table_de_progression_declaree]
+    sorties: [valeur_du_parametre_pour_ce_niveau]
+    deterministe: true
+    remarque: "QUEL parametre progresse (vitesse des fantomes, duree de l'etat Effraye, autre) est une question ouverte du charter, tranchee a l'etape s4-archi — pas ici."
+    couvre_exigences: [R58]
+
+  - id: F109
+    nom: "exposer et afficher le numero de niveau courant"
+    description: >-
+      Le numero est un champ du releve observable, et l'affichage le RECOPIE au meme tick — la
+      meme discipline que le score et les vies en V1, qui rend impossible un ecart d'un tick
+      entre l'ecran et l'etat.
+    nature: adaptateur_runtime
+    entrees: [releve_observable]
+    sorties: [numero_de_niveau_affiche]
+    deterministe: false
+    non_determinisme_borne: "Rendu moteur. Aucune valeur produite : recopie du releve observable."
+    couvre_exigences: [R58]
+
+  # ========================================================================================
+  # BLOC G — IDENTITE VISUELLE  (non-regression, pas travail neuf)
+  # ========================================================================================
+  # BASELINE MESUREE : 0 fichier de 05_SYSTEMS porte une couleur ; deux fichiers de
+  # presentation en portent. La purete est DEJA acquise — la seule facon de rater ce critere
+  # est d'introduire une couleur dans la logique en ajoutant l'identite. Ce qui n'est PAS
+  # acquis, c'est la coherence : deux fichiers portant chacun ses couleurs peuvent diverger
+  # sans qu'aucun oracle ne s'en apercoive, et les ecrans neufs du run V2 (titre, pause,
+  # options, controles) multiplieraient les sources.
+
+  - id: F110
+    nom: "faire venir toutes les couleurs d'un descripteur de palette unique"
+    description: >-
+      Un seul endroit declare les couleurs ; tous les ecrans le consomment — titre, partie,
+      pause, controles, options, fin. Changer ce seul descripteur change l'apparence de tous
+      les ecrans a la fois : c'est cette unicite du LIEU qui rend l'identite mesurable au lieu
+      d'etre une appreciation.
+    nature: adaptateur_runtime
+    entrees: [descripteur_de_palette]
+    sorties: [couleurs_de_tous_les_ecrans]
+    deterministe: true
+    couvre_exigences: [R59]
+
+  - id: F111
+    nom: "ne pas faire remonter de couleur dans la logique"
+    description: >-
+      Non-regression explicite : le nombre de fichiers de la logique portant un litteral de
+      couleur reste exactement 0, comme sur le jeu du run V1.
+    nature: preuve
+    entrees: [arborescence_du_jeu]
+    sorties: [nombre_de_litteraux_hors_palette, nombre_de_fichiers_logique_colores]
+    deterministe: true
+    couvre_exigences: [R59]
+
+  # ========================================================================================
+  # BLOC H — PASSATION A JUGE HUMAIN  (PROVENANCE, PAS PREUVE)
+  # ========================================================================================
+  # AVERTISSEMENT STRUCTURANT, a ne pas lire de travers : les quatre fonctions de ce bloc ne
+  # PROUVENT RIEN. Les exigences R60 a R63 ont pour juge une PERSONNE, et le vocabulaire ferme
+  # des preuves attendues n'offre aucune valeur pour un jugement humain — `visual` designe une
+  # capture, que la machine sait produire mais pas interpreter. Ce que ces fonctions
+  # fournissent, c'est ce qui rend la passation POSSIBLE : les ecrans, les liaisons lisibles,
+  # les elements affiches, le chemin parcourable a la main. Le constat, lui, appartient a
+  # Pierre. Le champ `juge: humain` est ecrit pour qu'aucune lecture rapide ne les compte
+  # comme des preuves mecaniques.
+
+  - id: F112
+    nom: "produire les ecrans et leurs captures pour la passation"
+    description: >-
+      Une image de chaque ecran du jeu, jointe en trace, sur laquelle une personne pourra dire
+      ce qu'elle voit : ce qui est un mur, un couloir, un objet a manger, un ennemi, un menu.
+      Fournit le materiau du constat ; ne le remplace pas et ne le prejuge pas.
+    nature: preuve
+    juge: humain
+    entrees: [ecrans_du_jeu]
+    sorties: [captures_jointes_en_trace]
+    deterministe: false
+    non_determinisme_borne: >-
+      La capture depend du moteur de rendu. Surtout : le VERDICT ne depend d'aucun code — il
+      est rendu par une personne, hors du depot. Besoin remonte en fog HumanGate.
+    couvre_exigences: [R60]
+
+  - id: F113
+    nom: "rendre les quatre gestes decouvrables a la manette"
+    description: >-
+      Se deplacer, dasher, mettre en pause, revenir au menu : chaque intention possede une
+      liaison manette declaree (F77) et lisible sur l'ecran des controles (F68). La personne a
+      donc de quoi trouver seule. Qu'elle trouve, et lequel des quatre gestes lui echappe,
+      reste un constat humain.
+    nature: adaptateur_runtime
+    juge: humain
+    entrees: [table_de_liaisons, ecran_controles]
+    sorties: [gestes_decouvrables]
+    deterministe: false
+    non_determinisme_borne: "Aucun code du depot ne tranche cette fonction : la passation se fait manette en main, sans consigne. Besoin remonte en fog HumanGate."
+    couvre_exigences: [R61]
+
+  - id: F114
+    nom: "rendre visibles les quatre elements de l'objectif"
+    description: >-
+      Ce qui se mange, ce qui se fuit, ce qui arrive quand une carte est videe, comment la
+      partie se termine. L'objectif d'un Pac-Man ETENDU ne se limite plus a vider un
+      labyrinthe : l'enchainement des cartes en fait partie, et c'est ce qui a change au run
+      V2. Fournit l'affichage ; ne prouve pas la comprehension.
+    nature: adaptateur_runtime
+    juge: humain
+    entrees: [ecrans_du_jeu, evenement_de_bascule_de_niveau, ecran_de_fin]
+    sorties: [elements_d_objectif_affiches]
+    deterministe: false
+    non_determinisme_borne: "Aucun code du depot ne tranche cette fonction : la personne nomme les quatre elements, ou ne les nomme pas. Besoin remonte en fog HumanGate."
+    couvre_exigences: [R62]
+
+  - id: F115
+    nom: "rendre le chemin produit complet parcourable sans outil"
+    description: >-
+      Ecran titre, lancement, pause, reprise, passage au niveau suivant, fin de partie,
+      relance : tous atteignables a la main, sans console de debug et sans lancer le bot
+      (lecon playtest Pong du 2026-07-27 : validation solo impossible = defaut). Une personne
+      peut parfaitement comprendre comment manger des pastilles et rester bloquee dans un
+      menu — les deux se constatent separement.
+    nature: adaptateur_runtime
+    juge: humain
+    entrees: [coquille_produit_complete]
+    sorties: [chemin_parcourable_de_bout_en_bout]
+    deterministe: false
+    non_determinisme_borne: "Aucun code du depot ne tranche cette fonction : on note l'etape a laquelle la personne s'arrete, s'il y en a une. Besoin remonte en fog HumanGate."
+    couvre_exigences: [R63]
+
+  # ========================================================================================
+  # BLOC I — NON-REGRESSION DU RUN V1
+  # ========================================================================================
+  # Un run d'extension est precisement le moment ou une base validee se degrade en silence :
+  # les exigences neuves occupent l'attention et plus rien ne surveille les anciennes.
+
+  - id: F116
+    nom: "relever l'oracle du jeu AVANT toute modification V2"
+    description: >-
+      Premier releve, joint en evidence_path. C'est LUI qui fait office de point de depart —
+      pas les chiffres transmis par l'orchestrateur (1012 assertions, solvabilite 50/50), que
+      le charter V2 declare TRANSMIS_NON_REMESURE et remonte en question ouverte.
+    nature: preuve
+    entrees: [jeu_avant_modification]
+    sorties: [releve_avant, evidence_path]
+    deterministe: true
+    couvre_exigences: [R64]
+
+  - id: F117
+    nom: "relever le meme oracle APRES et comparer"
+    description: >-
+      Aucune assertion ne tombe, le nombre d'assertions passantes ne diminue pas, la
+      contre-epreuve de solvabilite conserve son resultat. Un recu sans evidence_path vaut
+      BLOCKED, jamais OK.
+    nature: preuve
+    entrees: [jeu_apres_modification, releve_avant]
+    sorties: [releve_apres, comparaison, evidence_path]
+    deterministe: true
+    couvre_exigences: [R64]
+
+# ==========================================================================================
+# ARBITRAGES DE CETTE ETAPE — ce qui a ete tranche, et pourquoi
+# ==========================================================================================
+
+arbitrages:
+
+  - id: T1
+    sujet: "Deux machines a etats, jamais une seule"
+    tranche: >-
+      La machine a etats d'APPLICATION (F63) est declaree DISTINCTE de la machine a etats de
+      PARTIE deja existante (F4 du run V1, EN_COURS / GAGNE / PERDU). Aucune valeur n'est
+      ajoutee au vocabulaire de partie.
+    pourquoi: >-
+      Fusionner les deux rendrait indecidable la question centrale du brief : « une partie
+      tourne-t-elle derriere ce menu ? ». Avec deux machines, la reponse est un releve
+      (ticks = 0, statut hors EN_COURS) ; avec une seule, elle redevient une appreciation.
+
+  - id: T2
+    sujet: "La carte cesse d'etre une constante et devient une entree"
+    tranche: >-
+      Les huit fonctions F94..F101 posent la carte comme une DONNEE recue : la logique la
+      valide, en derive ses dimensions, et l'etat de partie la PORTE. Le bloc de parametres
+      conserve ce qui reste vrai pour toutes les cartes (baremes, cadences, delais, vies).
+    pourquoi: >-
+      La baseline mesuree (4 fichiers) se decompose exactement en quatre causes : plan
+      litteral et positions de depart, dimensions et ligne de tunnel, lecture des departs a
+      l'initialisation, lecture des departs au respawn. F94..F96 suppriment les deux
+      premieres, F99 et F100 les deux dernieres. Sans F96, une carte de dimensions
+      differentes ramenerait la modification par la porte derobee ; sans F99/F100, les deux
+      references de lecture resteraient. La cible 0 n'est atteinte que si les quatre causes
+      tombent — d'ou l'enumeration complete plutot qu'une fonction « charger une carte ».
+
+  - id: T3
+    sujet: "La frontiere passe entre propriete de la carte et regle du jeu"
+    tranche: >-
+      Ce qui decrit une carte (plan, departs, maison, tunnel, bornes, coins, dimensions) va au
+      descripteur. Ce qui decrit le JEU (points par pastille, valeurs de capture, cadence des
+      fantomes, durees de l'horloge, vies initiales) reste un parametre partage.
+    pourquoi: >-
+      Sans cette ligne, « tout mettre dans la carte » dupliquerait les baremes a chaque carte
+      et ferait diverger les regles d'un niveau a l'autre sans qu'aucun oracle ne le voie.
+      C'est le meme defaut que la palette dispersee (R59), transpose au gameplay.
+
+  - id: T4
+    sujet: "Le total de collectibles reste PRODUIT, jamais declare par carte"
+    tranche: "F98 conserve la regle V1 : le total qui definit la victoire vient d'un comptage de ce qui a ete pose."
+    pourquoi: >-
+      Un total declare dans le descripteur serait une seconde source de verite : une carte
+      dont le compte declare differe du compte reel se gagnerait trop tot ou jamais, et
+      l'ecart serait invisible. La victoire par egalite stricte (F38 du run V1) n'a de sens que
+      si le total est produit par la meme lecture que la pose.
+
+  - id: T5
+    sujet: "Les quatre exigences a juge humain sont portees, mais declarees non prouvantes"
+    tranche: >-
+      F112..F115 sont ecrites comme des fonctions de PROVENANCE (ce qui rend la passation
+      possible) et portent le champ `juge: humain`. Leurs preuves attendues sont reprises
+      VERBATIM du prisme, avec la phrase « JUGE HUMAIN — AUCUN ORACLE NE TRANCHE » en tete.
+    pourquoi: >-
+      L'oracle de l'etape exige que TOUTE exigence du prisme fourni soit portee par au moins
+      une feuille. Deux issues seulement : laisser quatre exigences non couvertes (rouge
+      d'omission), ou fabriquer des feuilles qui pretendraient les prouver mecaniquement
+      (mensonge silencieux). Cette etape prend une troisieme voie et la DIT : elle porte la
+      provenance et refuse le claim. Le defaut de vocabulaire est deja remonte en
+      question_ouverte_humangate du charter V2 ; cette etape n'ajoute aucune valeur au
+      vocabulaire ferme et n'en a pas le droit.
+
+  - id: T6
+    sujet: "Le mode dash est un MODE de l'etat, pas un reglage d'affichage"
+    tranche: "F81 expose le mode dans le releve observable, au meme titre que le score."
+    pourquoi: >-
+      L'exclusivite (exactement une valeur), le defaut au premier lancement et l'inertie
+      complete une fois desactive sont trois proprietes qui ne se falsifient QUE si le mode
+      est lisible dans l'etat. Un drapeau interne au runtime les rendrait toutes les trois
+      invisibles a la mesure.
+
+# ==========================================================================================
+# REMONTE PLUTOT QU'INVENTE — ce que cette etape n'a PAS decide
+# ==========================================================================================
+
+remonte_plutot_qu_invente:
+
+  - sujet: "Format et emplacement du descripteur de carte"
+    etat: "charter_v2#hors_scope range explicitement « format de la carte » et « format du descripteur de palette » a l'etape s4-archi."
+    ce_que_cette_etape_a_fait: >-
+      Elle a enumere ce que le descripteur doit PORTER (F94) et ce que la logique doit en
+      DERIVER (F95..F98). Elle n'a choisi ni format de fichier, ni emplacement, ni mecanisme
+      de chargement : ce sont des decisions d'architecture.
+
+  - sujet: "Nombre de cartes embarquees et grandeur qui progresse"
+    etat: >-
+      charter_v2#question_ouverte_humangate[Profondeur de la progression entre niveaux] :
+      aucune reponse de Pierre enregistree. Sans reponse, l'architecture prendra le minimum
+      prouvable (deux cartes, un parametre) et le declarera comme tel.
+    ce_que_cette_etape_a_fait: >-
+      F101 exige AU MOINS deux cartes sans en fixer le compte ; F108 exige AU MOINS un
+      parametre nomme a variance prouvee sans dire lequel. Les deux fonctions restent vraies
+      quelle que soit la reponse de Pierre.
+
+  - sujet: "Profondeur du tactile prepare"
+    etat: >-
+      charter_v2#question_ouverte_humangate[Tactile Android — prepare jusqu'ou] : Pierre n'a
+      pas tranche entre « une couche d'entree qui l'accepte » et « une partie reellement
+      jouable au doigt ».
+    ce_que_cette_etape_a_fait: >-
+      F79 et F80 portent la lecture ECRITE du charter (une surface tactile atteignable, le
+      bouton de pause, sans modification de la logique). Si Pierre tranche pour des commandes
+      directionnelles tactiles, F79 se decline sans qu'aucune autre fonction ne tombe : c'est
+      une liaison de plus dans la table de F77.
+
+  - sujet: "Valeurs chiffrees de l'effet du dash"
+    etat: "Le charter exige que l'effet soit chiffre et mesure ; il ne fixe aucune valeur."
+    ce_que_cette_etape_a_fait: >-
+      F85 et F86 exigent le RELEVE et la conformite declaration/mesure, pas un chiffre. Aucune
+      valeur n'est posee ici : un changement de reglage au playtest ne reecrit aucune fonction.
+
+  - sujet: "Chiffres de non-regression de l'oracle V1 (1012 assertions, solvabilite 50/50)"
+    etat: "charter_v2#provenance.chiffres_oracle_v1 les declare TRANSMIS_NON_REMESURE ; le verdict signe du run V1 ne les porte pas."
+    ce_que_cette_etape_a_fait: >-
+      F116 fait du premier releve AVANT la baseline effective, et F117 compare a ce releve —
+      pas a une constante gravee. Cette etape n'a execute aucun oracle de jeu et n'a pas
+      re-mesure ces chiffres.
+
+  - sujet: "Artefacts amont declares en mandatory_read mais absents du depot"
+    etat: >-
+      Le contrat s3-decompo exige de lire `product_snapshot.md` (etape 1) et
+      `lab/forge_runs/pacman/knowledge_packet.json`. Ni l'un ni l'autre n'existe pour ce
+      projet : lab/forge_runs/pacman/ contient prisme.json / prisme.yaml (etape 1 du run V1),
+      worldscan.json / worldscan.yaml (etape 2), et aucun knowledge packet.
+    ce_que_cette_etape_a_fait: >-
+      Elle a consomme les artefacts REELS equivalents (prisme_v2.json pour le perimetre V2,
+      charter_v2.yaml pour l'autorite, worldscan du run V1 pour les faits sources) et remonte
+      l'ecart au lieu de le taire. Aucun contenu n'a ete suppose a la place des fichiers
+      absents.

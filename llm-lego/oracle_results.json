@@ -1,0 +1,22 @@
+{
+  "T1 Linear (analyzer -> search)": {
+    "verdict": "PASS",
+    "reasoning": "Les deux noeuds node-analyzer et node-search ont été exécutés dans l'ordre attendu, conformément aux attentes du test."
+  },
+  "T2 Conditional routing": {
+    "verdict": "PASS",
+    "reasoning": "Le trace montre que le node-router a pris la décision avec 'exact-match' et la branche node-search a été prise comme prévu."
+  },
+  "T3 Cycle safety (as-given a<->b)": {
+    "verdict": "PASS",
+    "reasoning": "L'erreur 'Graph must have exactly one start node (0 incoming edges); found 0: [].' correspond exactement à ce qui était prévu dans le contexte d'exécution, indiquant que le test a correctement détecté l'absence de noeud de départ."
+  },
+  "T3b Cycle safety (entry-cycle)": {
+    "verdict": "PASS",
+    "reasoning": "La trace montre que le dernier élément contient l'erreur 'max steps exceeded', conforme à l'attendu."
+  },
+  "T4 Invalid graph (orphan edge)": {
+    "verdict": "PASS",
+    "reasoning": "Le test a correctement détecté une erreur due à un edge orphelin vers un noeud inexistant, conforme aux attentes."
+  }
+}

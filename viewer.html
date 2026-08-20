@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>TacticalChessPureLab Viewer</title>
+
+<style>
+body{
+margin:0;
+padding:20px;
+background:#111;
+color:white;
+font-family:Arial,sans-serif;
+text-align:center;
+}
+
+h1{
+margin-bottom:20px;
+font-size:40px;
+}
+
+#board{
+width:640px;
+height:640px;
+margin:auto;
+display:grid;
+grid-template-columns:repeat(8,80px);
+grid-template-rows:repeat(8,80px);
+border:8px solid #333;
+box-shadow:0 0 25px rgba(0,0,0,.6);
+}
+
+.square{
+width:80px;
+height:80px;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:54px;
+}
+
+.light{ background:#f0d9b5; }
+.dark{ background:#b58863; }
+
+.whitePiece{
+color:#fff;
+text-shadow:
+0 0 2px #000,
+0 0 4px #000,
+0 0 8px #000;
+}
+
+.blackPiece{
+color:#000;
+text-shadow:
+0 0 2px #fff,
+0 0 4px #fff;
+}
+
+button{
+padding:12px 20px;
+font-size:18px;
+margin:10px 5px;
+border:none;
+border-radius:8px;
+cursor:pointer;
+background:#2d6cdf;
+color:white;
+}
+
+button:hover{
+background:#4a82eb;
+}
+
+#info{
+margin:15px;
+font-size:24px;
+}
+
+textarea{
+width:760px;
+height:130px;
+font-size:16px;
+padding:10px;
+border-radius:8px;
+border:none;
+margin-top:10px;
+}
+</style>
+</head>
+<body>
+
+<h1>TacticalChessPureLab Selfplay</h1>
+
+<div id="board"></div>
+
+<div>
+<button onclick="nextMove()">Next</button>
+<button onclick="autoPlay()">Auto</button>
+<button onclick="resetBoard()">Reset</button>
+</div>
+
+<div id="info">Move 0</div>
+
+<textarea id="moves">run_id,game_id,ply,player,phase,selected_move,legal_move_count,profile_used,capture_flag,promotion_flag,repetition_flag,no_progress_flag,no_capture_flag,no_capture_streak,material_diff,fen_before,fen_after
+run_local,1,1,white,opening,e2e4,20,neural,0,0,0,0,1,1,0,"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1","rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"</textarea>
+
+<script>
+const boardEl = document.getElementById("board");
+
+let positions = [];
+let idx = 0;
+let timer = null;
+
+const pieces = {
+P:"♙",R:"♖",N:"♘",B:"♗",Q:"♕",K:"♔",
+p:"♟",r:"♜",n:"♞",b:"♝",q:"♛",k:"♚"
+};
+
+function parseCsvLine(line){
+const fields = [];
+let current = "";
+let inQuotes = false;
+
+for(let i = 0; i < line.length; i++){
+const ch = line[i];
+if(ch === '"'){
+inQuotes = !inQuotes;
+continue;
+}
+if(ch === "," && !inQuotes){
+fields.push(current);
+current = "";
+continue;
+}
+current += ch;
+}
+
+fields.push(current);
+return fields;
+}
+
+function boardFromFen(fen){
+const board = {};
+const boardPart = (fen || "").trim().split(/\s+/)[0];
+if(!boardPart) return board;
+
+const ranks = boardPart.split("/");
+if(ranks.length !== 8) return board;
+
+for(let rankIndex = 0; rankIndex < 8; rankIndex++){
+let file = 0;
+for(const ch of ranks[rankIndex]){
+if(/[1-8]/.test(ch)){
+file += Number(ch);
+continue;
+}
+const square = "abcdefgh"[file] + (8 - rankIndex);
+board[square] = ch;
+file += 1;
+}
+}
+
+return board;
+}
+
+function drawBoard(fen){
+const board = boardFromFen(fen);
+boardEl.innerHTML="";
+
+for(let rank=8; rank>=1; rank--){
+for(let file=0; file<8; file++){
+
+const sq = "abcdefgh"[file] + rank;
+const piece = board[sq] || "";
+const light = (rank + file) % 2 === 0;
+
+const div = document.createElement("div");
+div.className = "square " + (light ? "light":"dark");
+
+if(piece){
+const span = document.createElement("span");
+span.textContent = pieces[piece];
+span.className =
+(piece === piece.toUpperCase())
+? "whitePiece"
+: "blackPiece";
+div.appendChild(span);
+}
+
+boardEl.appendChild(div);
+}
+}
+}
+
+function renderCurrent(){
+if(!positions.length){
+boardEl.innerHTML = "";
+document.getElementById("info").innerText = "No authoritative FEN loaded";
+return;
+}
+
+const current = positions[idx];
+drawBoard(current.fen);
+document.getElementById("info").innerText =
+"Move " + idx + " / " + (positions.length - 1) +
+" | " + (current.move || "start");
+}
+
+function nextMove(){
+if(idx >= positions.length - 1) return;
+idx++;
+renderCurrent();
+}
+
+function autoPlay(){
+if(timer) clearInterval(timer);
+timer = setInterval(()=>{
+if(idx >= positions.length - 1){
+clearInterval(timer);
+return;
+}
+nextMove();
+},700);
+}
+
+function resetBoard(){
+if(timer) clearInterval(timer);
+idx = 0;
+loadPositions();
+renderCurrent();
+}
+
+function loadPositions(){
+const raw = document.getElementById("moves").value.trim();
+positions = [];
+
+if(!raw){
+return;
+}
+
+const lines = raw.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+if(!lines.length){
+return;
+}
+
+if(lines[0].includes("fen_before") && lines[0].includes("fen_after")){
+const headers = parseCsvLine(lines[0]);
+const fenBeforeIndex = headers.indexOf("fen_before");
+const fenAfterIndex = headers.indexOf("fen_after");
+const moveIndex = headers.indexOf("selected_move");
+
+if(fenBeforeIndex >= 0 && fenAfterIndex >= 0){
+for(let i = 1; i < lines.length; i++){
+const row = parseCsvLine(lines[i]);
+const fenBefore = row[fenBeforeIndex];
+const fenAfter = row[fenAfterIndex];
+const move = moveIndex >= 0 ? row[moveIndex] : "";
+
+if(!positions.length && fenBefore){
+positions.push({ fen: fenBefore, move: "start" });
+}
+
+if(fenAfter){
+positions.push({ fen: fenAfter, move });
+}
+}
+}
+return;
+}
+
+for(const line of lines){
+if(line.split(/\s+/).length >= 2 && line.includes("/")){
+positions.push({ fen: line, move: positions.length ? "fen" : "start" });
+}
+}
+}
+
+loadPositions();
+renderCurrent();
+</script>
+
+</body>
+</html>
+
+run_id,game_id,ply,player,phase,selected_move,legal_move_count,profile_used,capture_flag,promotion_flag,repetition_flag,no_progress_flag,no_capture_flag,no_capture_streak,material_diff
+run_local,1,1,white,opening,g1f3,20,neural,0,0,0,0,1,1,0
+run_local,1,2,black,opening,g7g5,20,heuristic,0,0,0,0,1,2,0
+run_local,1,3,white,opening,b2b3,22,neural,0,0,0,0,1,3,0
+run_local,1,4,black,opening,c7c5,21,heuristic,0,0,0,0,1,4,0
+run_local,1,5,white,opening,c1b2,23,neural,0,0,0,0,1,5,0
+run_local,1,6,black,opening,h7h5,23,heuristic,0,0,0,0,1,6,0
+run_local,1,7,white,opening,b2h8,30,neural,1,0,0,0,0,0,5
+run_local,1,8,black,opening,a7a5,22,heuristic,0,0,0,0,1,1,5
+run_local,1,9,white,opening,h8f6,28,neural,0,0,0,0,1,2,5
+run_local,1,10,black,opening,e7f6,21,heuristic,1,0,0,0,0,0,2
+run_local,1,11,white,opening,d2d4,22,neural,0,0,0,0,1,1,2
+run_local,1,12,black,opening,c5d4,24,heuristic,1,0,0,0,0,0,1
+run_local,1,13,white,opening,b1c3,26,neural,0,0,0,0,1,1,1
+run_local,1,14,black,opening,d4c3,27,heuristic,1,0,0,0,0,0,-2
+run_local,1,15,white,midgame,e2e3,26,neural,0,0,0,0,1,1,-2
+run_local,1,16,black,midgame,b7b5,25,heuristic,0,0,0,0,1,2,-2
+run_local,1,17,white,midgame,f1b5,31,neural,1,0,0,0,0,0,-1
+run_local,1,18,black,midgame,f6f5,23,heuristic,0,0,0,0,1,1,-1
+run_local,1,19,white,midgame,b5d7,38,neural,1,0,0,0,0,0,0
+run_local,1,20,black,midgame,b8d7,4,heuristic,1,0,0,0,0,0,-3
+run_local,1,21,white,midgame,e1g1,30,neural,0,0,0,0,1,1,-3
+run_local,1,22,black,midgame,f7f6,30,heuristic,0,0,0,0,1,2,-3
+run_local,1,23,white,midgame,a1c1,28,neural,0,0,0,0,1,3,-3
+run_local,1,24,black,midgame,f8a3,27,heuristic,0,0,0,0,1,4,-3
+run_local,1,25,white,midgame,f1e1,24,neural,0,0,0,0,1,5,-3
+run_local,1,26,black,midgame,a3c1,29,heuristic,1,0,0,0,0,0,-8
+run_local,1,27,white,midgame,f3d4,25,neural,0,0,0,0,1,1,-8
+run_local,1,28,black,midgame,c1e3,26,heuristic,1,0,0,0,0,0,-9
+run_local,1,29,white,midgame,e1e3,28,neural,1,0,0,0,0,0,-6
+run_local,1,30,black,midgame,g8e7,5,heuristic,0,0,0,0,1,1,-6
+run_local,1,31,white,midgame,e3e7,39,neural,1,0,0,0,0,0,-3
+run_local,1,32,black,midgame,d8e7,3,heuristic,1,0,0,0,0,0,-8
+run_local,1,33,white,midgame,d1e2,28,neural,0,0,0,0,1,1,-8
+run_local,1,34,black,midgame,e7e2,22,heuristic,1,0,0,0,0,0,-17
+run_local,1,35,white,midgame,f2f3,16,neural,0,0,0,0,1,1,-17
+run_local,1,36,black,midgame,e2f3,35,heuristic,1,0,0,0,0,0,-18
+run_local,1,37,white,midgame,d4f3,15,neural,1,0,0,0,0,0,-9
+run_local,1,38,black,midgame,g5g4,18,heuristic,0,0,0,0,1,1,-9
+run_local,1,39,white,midgame,g1f2,15,neural,0,0,0,0,1,2,-9
+run_local,1,40,black,midgame,g4f3,19,heuristic,1,0,0,0,0,0,-12
+run_local,2,1,white,opening,c2c4,20,heuristic,0,0,0,0,1,1,0
+run_local,2,2,black,opening,g8f6,20,neural,0,0,0,0,1,2,0
+run_local,2,3,white,opening,a2a4,22,heuristic,0,0,0,0,1,3,0
+run_local,2,4,black,opening,e7e6,22,neural,0,0,0,0,1,4,0
+run_local,2,5,white,opening,e2e4,22,heuristic,0,0,0,0,1,5,0
+run_local,2,6,black,opening,f8e7,28,neural,0,0,0,0,1,6,0
+run_local,2,7,white,opening,f2f4,29,heuristic,0,0,0,0,1,7,0
+run_local,2,8,black,opening,e8g8,29,neural,0,0,0,0,1,8,0
+run_local,2,9,white,opening,h2h4,29,heuristic,0,0,0,0,1,9,0
+run_local,2,10,black,opening,d7d5,27,neural,0,0,0,0,1,10,0
+run_local,2,11,white,opening,c4d5,32,heuristic,1,0,0,0,0,0,1
+run_local,2,12,black,opening,e6d5,32,neural,1,0,0,0,0,0,0
+run_local,2,13,white,opening,e4d5,33,heuristic,1,0,0,0,0,0,1
+run_local,2,14,black,opening,c7c6,34,neural,0,0,0,0,1,1,1
+run_local,2,15,white,midgame,d5c6,33,heuristic,1,0,0,0,0,0,2
+run_local,2,16,black,midgame,b7c6,39,neural,1,0,0,0,0,0,1
+run_local,2,17,white,midgame,g2g4,31,heuristic,0,0,0,0,1,1,1
+run_local,2,18,black,midgame,c8b7,37,neural,0,0,0,0,1,2,1
+run_local,2,19,white,midgame,b2b4,30,heuristic,0,0,0,0,1,3,1
+run_local,2,20,black,midgame,e7d6,33,neural,0,0,0,0,1,4,1
+run_local,2,21,white,midgame,d2d4,31,heuristic,0,0,0,0,1,5,1
+run_local,2,22,black,midgame,f6e4,32,neural,0,0,0,0,1,6,1
+run_local,2,23,white,midgame,f1c4,34,heuristic,0,0,0,0,1,7,1
+run_local,2,24,black,midgame,d6f4,36,neural,1,0,0,0,0,0,0
+run_local,2,25,white,midgame,c1f4,38,heuristic,1,0,0,0,0,0,3
+run_local,2,26,black,midgame,d8h4,34,neural,1,0,0,0,0,0,2
+run_local,2,27,white,midgame,h1h4,4,heuristic,1,0,0,0,0,0,11
+run_local,2,28,black,midgame,b8d7,23,neural,0,0,0,0,1,1,11
+run_local,2,29,white,midgame,c4f7,48,heuristic,1,0,0,0,0,0,12
+run_local,2,30,black,midgame,g8f7,3,neural,1,0,0,0,0,0,9
+run_local,2,31,white,midgame,h4h7,38,heuristic,1,0,0,0,0,0,10
+run_local,2,32,black,midgame,f8g8,34,neural,0,0,0,0,1,1,10
+run_local,2,33,white,midgame,h7g7,40,heuristic,1,0,0,0,0,0,11
+run_local,2,34,black,midgame,f7g7,6,neural,1,0,0,0,0,0,6
+run_local,2,35,white,midgame,g4g5,32,heuristic,0,0,0,0,1,1,6
+run_local,2,36,black,midgame,d7f6,35,neural,0,0,0,0,1,2,6
+run_local,2,37,white,midgame,g5f6,33,heuristic,1,0,0,0,0,0,9
+run_local,2,38,black,midgame,g7h7,7,neural,0,0,0,0,1,1,9
+run_local,2,39,white,midgame,f6f7,34,heuristic,0,0,0,0,1,2,9
+run_local,2,40,black,midgame,g8b8,34,neural,0,0,0,0,1,3,9

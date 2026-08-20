@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "lesson_id": "asset.chest_exige_declaration_variantes",
+  "batch_id": "props3d-2026-08-06",
+  "asset_type": "chest",
+  "generation": 1,
+  "defauts_detectes": [
+    {
+      "oracle": "scripts/forge/asset_geometry/oracle.py",
+      "check": "all_meshes_declared",
+      "verdict": "BLOCKED",
+      "assets": [
+        "gen_chest_01"
+      ],
+      "detail": "1/1 asset(s) de type 'chest' ont exige un manifeste HumanGate avant de passer"
+    }
+  ],
+  "cause_racine": {
+    "couche": "spec",
+    "enonce": "Les specs de type 'chest' ne declarent pas leurs etats mutuellement exclusifs en amont ; le blocage arrive donc APRES production, quand un humain doit trancher."
+  },
+  "correction_recommandee": {
+    "cible": "spec de tout asset archetype='chest'",
+    "action": "Exiger `variants` non vide dans la spec AVANT production, pour que le besoin de recensement soit connu d'avance.",
+    "interdit": "Classer les variantes MAIN automatiquement pour eviter le blocage : ce serait supprimer la question, pas y repondre."
+  },
+  "impact_prochain_lot": {
+    "change": "Le dispatcher refusera une spec 'chest' sans `variants` declarees.",
+    "verification": "Dispatcher une spec de ce type sans variants : le run doit s'arreter AVANT Blender.",
+    "attendu": "BLOCKED · SPEC_VIOLATES_BATCH_CONSTRAINT"
+  },
+  "verification_mecanique": {
+    "kind": "dispatch_blocked",
+    "archetype": "chest",
+    "expected_reason": "SPEC_VIOLATES_BATCH_CONSTRAINT"
+  },
+  "status": "CANDIDATE"
+}

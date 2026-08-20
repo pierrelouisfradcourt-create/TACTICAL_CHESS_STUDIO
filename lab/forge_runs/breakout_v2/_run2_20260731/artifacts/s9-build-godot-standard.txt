@@ -1,0 +1,88 @@
+All changes confirmed on disk. The mission is complete. Final report below.
+
+---
+
+# RAPPORT FINAL — breakout_v2 run 2 / s9-build-godot-standard
+
+Mission corrective : deux défauts mesurés au run 1 corrigés, rien d'autre réécrit. Aucun commit (HumanGate/verdict signé s'en chargent).
+
+## software_verdict: OK
+## evidence_verdict: MECHANICAL_VALIDATION_ONLY
+## claim_verdict: NO_CLAIM_ALLOWED
+
+Chaque affirmation ci-dessous cite la commande exécutée et sa sortie réelle (preuve d'exécution).
+
+---
+
+### DÉFAUT 1 — Orphelin d'index (`main.gd`) — CORRIGÉ
+
+**Action** : `main.gd` (pilote de scène Node2D) déplacé de la racine du projet (adresse légale mais non couverte par la carte) vers `06_RUNTIME/adapters/runtime_loop/main.gd` — adresse couverte par la ligne existante `runtime.fixed_step_accumulator` (system_parent `runtime_loop`, category `system.adapter`). `main.tscn` repointé vers `res://06_RUNTIME/adapters/runtime_loop/main.gd` ; `project.godot` inchangé (`main_scene=res://main.tscn`). Aucun champ de promesse touché (`expected_proof`/`address`/`provides`/`requires`), aucune ligne ajoutée/retirée. Champs de constat (`fichiers`, `fonction`, `preuve`) de la ligne concernée mis à jour dans les deux wiremaps.
+
+**Oracle — `check_index` + `check_placement` (standard_oracles.py, sur le wiremap de jeu réel) :**
+```
+=== check_index ===        passed: True   orphelins: []   fichiers_manquants: []   dossiers_hors_structure: []
+=== check_placement ===    passed: True
+```
+**`check_line_states(built)` : passed: True** (aucune ligne restée REQUIRED ; états cohérents après édition).
+
+**Point d'entrée toujours vivant** — `entrypoint_invariant.gd` (run 1 avait laissé passer parce que la scène chargeait ; je l'ai reconfirmé après relocalisation) : la scène `res://main.tscn` charge et s'instancie avec le script relocalisé.
+
+Vérif disque : racine ne contient plus que `solvability.gd` ; `main.gd` présent à la nouvelle adresse ; `main.tscn` pointe la nouvelle adresse.
+
+### DÉFAUT 2 — 14 mutants survivants — TUÉS (100 %)
+
+25 assertions STRICTES ajoutées aux fichiers de test EXISTANTS (jamais de nouveau fichier orphelin), chacune vérifiant une **propriété durable** de la règle mutée, jamais une valeur historique, politique flottante stricte maintenue (aucun epsilon). `EXPECTED_ASSERTS` 274 → 299 (garde anti-faux-vert).
+
+Mapping signature → test ajouté :
+- **loop.gd (8)** `le->lt@L27`,`false->true@L28`,`false->true@L34`,`le->lt@L36` (bornes strictes du contact raquette, prédicat `_touche_raquette` testé à ses bornes) + `neq->eqeq@L55` (aucun mur → 0 `REBOND_MUR`) + `and->or@L83`,`eqeq->neq@L83`,`neq->eqeq@L83` (`FIN_PARTIE` ssi transition EN_COURS→terminal : tick normal→0, transition PERDU/GAGNE→exactement 1) → `tick_pure.test.gd` (+5), `event_observer.test.gd` (+11).
+- **brick_collision.gd (3)** `le->lt@L18` (chevauchement au rayon exact), `eqeq->neq@L36` (`_corriger` selon la face), `ge->gt@L59` (garde d'index sur champ court) → `brick_collision_strict.test.gd` (+5).
+- **state.gd (2)** `false->true@L81`,`false->true@L85` (`est_valide` renvoie false sur briques négatives / taille de tableau ≠ grille) → `state_status.test.gd` (+2).
+- **wall_reflection.gd (1)** `and->or@L23` (PLAFOND exige les DEUX conditions) → `wall_reflection_strict.test.gd` (+2).
+
+**Oracle — `forge.mutation.run_mutation_test` (méta-oracle, réexécuté par moi en self-verification ; le reçu officiel reste celui du DRIVER) :**
+```
+loop.gd            mutants=11 killed=11 survived=0  100%   (run 1 : 3/11)
+brick_collision.gd mutants=8  killed=8  survived=0  100%   (run 1 : 5/8)
+state.gd           mutants=34 killed=34 survived=0  100%   (run 1 : 32/34)
+wall_reflection.gd mutants=6  killed=6  survived=0  100%   (run 1 : 5/6)
+GLOBAL             total=59   killed=59 survived=0  100.0%
+```
+**Score de mutation BRUT : 59/59 tués, 0 survivant, 0 mutant équivalent à trier.** (`ge->gt@L59`, que j'avais pré-analysé comme possiblement équivalent, a été effectivement TUÉ par le test à champ court — pas de triage d'équivalent nécessaire.) Sources restaurées par le `finally` de l'outil ; aucun `.mutbak` résiduel (scan disque vide).
+
+### AUTO-VÉRIFICATION (point 3) — VERTE
+```
+node scripts/forge/godot_oracle.mjs games/breakout_v2
+=== RESULT: 299 passed, 0 failed (fichiers: 28) ===
+[godot_oracle] OK : run_tests.gd (mecanique)
+solvabilite : "won": 50, "failed_seeds": []
+[godot_oracle] OK : solvabilite (R9)
+[godot_oracle] ALL CHECKS PASSED
+```
+274+ tests → **299/299**, solvabilité **50/50 gagnées**. Un incident intermédiaire (`pos_v` déjà déclaré dans `brick_collision_strict.test.gd`) a été détecté par l'oracle (CHARGEMENT/Parse Error) et corrigé (renommé `pos_face_v`/`pos_face_h`) avant la verte finale.
+
+---
+
+### Fichiers touchés vs ownership de la carte (tous in_scope)
+| Fichier | Nature | Ownership |
+|---|---|---|
+| `06_RUNTIME/adapters/runtime_loop/main.gd` | créé (relocalisé) | cité par ligne `runtime.fixed_step_accumulator`, cat `system.adapter`, préfixe `06_RUNTIME/adapters/runtime_loop/` — check_placement PASS |
+| `main.gd` (racine) | supprimé (était l'orphelin) | — |
+| `main.tscn` | ext_resource repointé | `godot.project_root` |
+| `07_TESTS/unit/{tick_pure,event_observer,brick_collision_strict,state_status,wall_reflection_strict}.test.gd` | +25 assertions | `test.unit`, cités par leurs lignes |
+| `tests/run_tests.gd` | EXPECTED_ASSERTS 274→299 | `godot.project_tests` (explicitement in_scope) |
+| `09_WIREMAP/wiremap.json` + `lab/forge_runs/breakout_v2/wiremap.json` | constats (`fichiers`/`fonction`/`preuve`) + count 274→299 | champs de constat autorisés ; 0 champ de promesse modifié ; 0 ligne ajoutée/retirée ; JSON valide vérifié |
+
+**Empreintes CODE_COPIE déposées : aucun.** Aucune brique `reused_from.type: CODE_COPIE` n'a été déposée ce run (relocalisation + durcissement de tests uniquement). Rien à comparer à `copy_sha256`.
+
+**Lignes BLOCKED : aucune.** Toutes les lignes visées restent `IMPLEMENTED` ; aucun manque à remonter.
+
+---
+
+## SKIPPED_VALIDATION
+- **Gate mutation officiel (item : reçu signé de mutation ; périmètre : les 4 fichiers `system` durcis ; statut : self-vérifié seulement ; raison :** le contrat réserve l'exécution du gate mutation au DRIVER — je l'ai rejoué en self-verification, 59/59, mais le reçu autoritatif reste celui du driver.)
+- **Chaîne s10s au-delà de index/placement/line_states (item : `check_collisions`, `check_charter`, `genre_coverage`, `observable_coverage`, `contract_completeness`, `budget` ; périmètre : wiremap de jeu ; statut : non exécuté par moi ; raison :** hors du périmètre correctif — le driver les rejoue ; mes éditions ne touchent ni capacités/provides/requires, ni charter, ni observabilité, ni les champs de promesse.)
+- **Preuve visuelle GPU (item : `core.render` / `proof.visual_gpu_window`, capture non monochrome ; périmètre : rendu ; statut : non rejouée ; raison :** exige une fenêtre GPU réelle (`--headless` rend une texture nulle, fait de poste 2026-07-22), non requise par la mission corrective, établie au run 1 ; mes changements ne touchent pas la présentation.)
+- **Analyseur exhaustif Python d'isolation des paramètres (item : fuite de littéral de gameplay hors `params.gd` ; périmètre : 05_SYSTEMS/06_RUNTIME + tests ; statut : partiel ; raison :** le contrôle d'isolation qui S'EXÉCUTE réellement est le test GDScript `params_isolation.test.gd` — VERT (299/299), et il ne flague que `600.0/300.0/480.0`, absents de `main.gd` relocalisé ; un analyseur Python exhaustif distinct n'a pas été localisé comme oracle actif de cette chaîne, donc non exécuté séparément.)
+- **Confirmation du diff par git (item : `git status` du périmètre ; périmètre : games/breakout_v2 ; statut : méthode alternée ; raison :** commandes git refusées par la politique de permissions de cette session ; jeu de changements confirmé par listing filesystem et validation JSON à la place.)
+
+Rien d'autre sauté.

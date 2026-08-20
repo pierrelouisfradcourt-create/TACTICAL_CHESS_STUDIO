@@ -1,0 +1,109 @@
+# Contrat d'agent Forge — mission WM1 : wiremap Snake v2 (M-G, go Pierre 2026-07-28)
+# Schéma : scripts/forge/contracts/SCHEMA.md. Dispatch hors profil (allow_unprofiled assumé).
+# Contraintes ratifiées Pierre (verbatim 2026-07-28) : Godot-first · CODE/CONCEPT/NEW obligatoire ·
+# REUSED_FROM + preuve de copie pour CODE · paramètres gameplay isolés · aucun système de
+# progression complet avant preuve de besoin. Vitesse/cible : A_EQUILIBRER, tranché après
+# première boucle jouable observée.
+
+role: >-
+  Cartographe du standard (mission WM1). Point de vue imposé : la wiremap est une CARTE À
+  REMPLIR pour le forgeron — chaque exigence a une adresse, un état attendu, une preuve
+  attendue. Le builder n'aura pas le droit d'ajouter hors plan. Tu produis la carte, tu ne
+  codes rien.
+capability_role: wiremap
+exigences_cognitives: >-
+  Pensée structurelle stricte au schéma v2 du standard (lines[], systems[], discarded[]).
+  Chaque ligne traçable à sa source amont (charter tag, règle de snapshot, décision de la
+  review) — jamais une ligne inventée. Godot-first : fichiers .gd, projet Godot propre.
+memoire: >-
+  Consomme la chaîne conception v2 complète : charter v2 (22 criteres_succes TAG),
+  design_review v2 (23 décisions dont 6 rejets — les rejets vont dans discarded[], JAMAIS
+  supprimés, règle Pierre 2026-07-22), merged_prisme v2 (coverage_by_role = la donnée pour
+  source_role), snapshots (archidepot = le typage CODE/CONCEPT/NEW des briques). Enum des
+  rôles non arbitré : utilise les noms observés (control/gamedesign/archidepot/gameplayprog/
+  charter/pierre) et liste-les dans un champ racine roles_utilises pour ratification.
+mandatory_read:
+  - scripts/forge/standard/SCHEMA.md
+  - scripts/forge/standard/repo_map.yaml
+  - lab/forge_runs/snake/charter.yaml
+  - lab/forge_runs/snake/prisme/design_review.md
+  - lab/forge_runs/snake/prisme/merged_prisme.md
+  - lab/forge_runs/snake/prisme/product_snapshot_archidepot.md
+  - docs/forge/GENRE_BIBLE_SNAKE_V1_PROPOSED.md
+  - docs/forge/FORGE_ARCHITECT_MANUAL_V1.md
+objectif: >-
+  Produire lab/forge_runs/snake/wiremap.json au schéma v2 du standard : passe 1 systems[]
+  (catégories system / system.adapter, allowed_deps à sens unique — la logique pure ne
+  dépend jamais de la présentation) ; passe 2 lines[] couvrant chaque critère charter
+  applicable et chaque décision `necessaire` de la review ; passe 3 discarded[] peuplé
+  depuis les 6 rejets de la review (source_role + discard_reason, ended_up_in_game: null).
+  CHAQUE ligne porte : source/source_role/reference · genre_refs[] résolus (ids EXACTS du
+  bloc JSON de la Genre Bible Snake — une règle applicable est citée ou refusée via
+  genre_refusals, jamais ignorée) ·
+  observable_by_player : un BOOLÉEN `true` ou `false`, JAMAIS une phrase — et
+  observable_proof : le NOM COURT d'un volet du reçu d'oracle (ex. `auto_session`,
+  `exit_stop_wiring`), JAMAIS une description de méthode. DÉFAUT MESURÉ LE 2026-07-28,
+  cause de cette précision : les 44 lignes de la première carte portaient des phrases de
+  justification dans ces deux champs ; `check_observable_coverage` ne traite que
+  `observable_by_player is True`, il a donc IGNORÉ les 44 lignes et rendu
+  `{"couvertes": [], "passed": true}` — un VERT VACUEUX. La justification en prose est
+  précieuse mais elle va dans `reference` ou `reason`, jamais dans un champ que l'oracle
+  lit comme un type. Modèle de référence : games/pong/09_WIREMAP/wiremap.json ·
+  expected_proof {kind, statement} falsifiable (reprendre les invariants de la lentille
+  gameplayprog — jamais de >= tautologique) · reused_from {type: CODE|CONCEPT|NEW,
+  source: <chemin réel vérifié>, copy_sha256: <sha256 du fichier source si CODE, null
+  sinon>} — le sha256 de la SOURCE se calcule maintenant (certutil/python), l'empreinte de
+  la copie sera comparée au build · fichiers[] en .gd avec category déclarée à la création ·
+  address légale selon repo_map.yaml (une adresse que repo_map ne peut pas héberger
+  légalement = fog remonté, jamais une invention). Un bloc/ligne PARAMETRES isolé unique
+  (les 8 parametres_de_design du charter, aucun littéral de gameplay ailleurs). Extensibilité
+  = PRISES (événements consommables + point d'observation) — AUCUN système de télémétrie/
+  équilibrage/progression complet (décision Pierre + rejet review).
+in_scope: >-
+  ÉCRITURE d'UN fichier : lab/forge_runs/snake/wiremap.json. Lecture du dépôt entier.
+  Vérification d'existence (ls/grep/sha256) des sources de briques citées.
+out_of_scope: >-
+  Aucun code de jeu, aucun games/snake/ créé (le dépôt du jeu naît au build) ; ne modifie
+  ni charter, ni review, ni snapshots, ni Genre Bible, ni repo_map. Ne tranche pas les
+  valeurs A_EQUILIBRER. Aucun git commit/push.
+permissions: >-
+  read: dépôt entier. write/create: lab/forge_runs/snake/wiremap.json uniquement.
+  run: python/node one-liners de validation en lecture (json parse, sha256,
+  forge.standard_oracles). delete: aucun.
+gardeFou: >-
+  (1) Schéma v2 STRICT — mêmes clés que SCHEMA.md, champs conditionnels honorés
+  (source_role obligatoire si EXPECTED/ADDITIONS, reason si NOT_APPLICABLE, until/decider
+  si DEFERRED). (2) Chaque ligne cite sa provenance amont (tag charter OU règle Rn d'un
+  snapshot OU décision review) dans reference — une ligne sans provenance est interdite.
+  (3) reused_from.source pointe un chemin RÉEL vérifié ; introuvable = INTROUVABLE
+  explicite, jamais supposé. (4) genre_refs : chaque id cité doit exister dans le bloc JSON
+  de la bible — vérifie par script, cite le compte résolu/revendiqué. (5) discarded jamais
+  vide si la review a rejeté (elle a rejeté 6 fois). (6) Aucun placeholder. (7) Doute =>
+  fog dans un champ structuré, pas un commentaire.
+success_criteria: >-
+  wiremap.json parse ; check_line_states passed ; check_genre_coverage sur la bible Snake :
+  0 citation non résolue et taux_resolution rapporté ; chaque ligne a expected_proof +
+  observable_by_player + reused_from typé ; bloc paramètres unique ; discarded >= 6 ;
+  comptes CODE/CONCEPT/NEW rapportés.
+tests_oracles: >-
+  Lance TOI-MÊME et joins les sorties : (a) parse json ; (b) PYTHONIOENCODING=utf-8
+  PYTHONPATH=scripts .venv312/Scripts/python.exe avec forge.standard_oracles.check_line_states(wiremap)
+  et check_genre_coverage(wiremap, bible) — la bible = le bloc json extrait de
+  docs/forge/GENRE_BIBLE_SNAKE_V1_PROPOSED.md (parse le fence ```json) ; (c) sha256 des
+  sources CODE. La pertinence architecturale = fog HumanGate.
+final_report: >-
+  Comptes : lignes par source (CORE/EXPECTED/ADDITIONS/DERIVED) · CODE/CONCEPT/NEW ·
+  genre_refs résolus/revendiqués + taux · discarded · sorties des checks · fogs remontés ·
+  software/evidence/claim séparés · claim_verdict: NO_CLAIM_ALLOWED · SKIPPED_VALIDATION
+  explicite.
+output_contract: >-
+  wiremap.json : {systems[], lines[] (schéma v2 + reused_from typé), discarded[],
+  roles_utilises[], parametres: réf au bloc unique}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Mission M-G, dernière étape conception du chantier chaîne architecte (ordre Pierre
+  2026-07-28). En amont : charter v2 · panel v2 FULL_COVERAGE · review v2 (23 décisions).
+  En aval : gel du jeu de règles, build s9 Godot, oracles s10. Consommateurs : forgeron s9,
+  check_line_states/check_genre_coverage/check_observable_coverage (s10s), mesure de
+  réutilisation (reuse typé + empreintes), Pierre (ratification wiremap).

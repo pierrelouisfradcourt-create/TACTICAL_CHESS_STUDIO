@@ -1,0 +1,39 @@
+{
+  "schema_version": "learning_drill_fixture.v1",
+  "fixture_id": "drill.legal_action_execution.001",
+  "concept_id": "legal_action",
+  "objective_id": "legal_action.membership.confirm_selected_action",
+  "status": "static_fixture",
+  "source_issue": "#143",
+  "initial_state_ref": {
+    "state_id": "legal_action.membership.start.001",
+    "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+  },
+  "legal_action_context": {
+    "actor": "white",
+    "legal_action_ids": [
+      "b1c3",
+      "e2e4",
+      "g1f3"
+    ],
+    "selected_action_id": "e2e4"
+  },
+  "expected_observable_events": [
+    {
+      "event_id": "event.legal_action_execution_001.selected_action_in_legal_set",
+      "event_type": "selected_action_in_legal_set",
+      "ply_or_step": 1,
+      "actor": "white",
+      "action_id": "e2e4",
+      "concept_id": "legal_action",
+      "skill_id": "legal_action_membership",
+      "success_tag": "legal_action_membership_confirmed",
+      "failure_tag": null,
+      "evidence_weight": 1.0,
+      "notes": "Selected action is present in legal_action_ids."
+    }
+  ],
+  "expected_feedback_key": "feedback_legal_action_confirmed",
+  "non_canonical": true,
+  "claim_verdict": "NO_CLAIM_ALLOWED"
+}

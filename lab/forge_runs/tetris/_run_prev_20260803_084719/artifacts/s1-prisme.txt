@@ -1,0 +1,102 @@
+I have my anchor (the s0 charter), the Genre Bible (10 constitutive rules), the mechanical contract, and the World Scan. The concrete task is text-only (`aucun fichier écrit`), so I deliver the `product_snapshot` structure inside this report. Here it is.
+
+---
+
+# product_snapshot — `tetris` (s1-prisme)
+
+**Run :** `tetris-fullgodot-20260803-084719` · **Nœud 4** · **Profil :** `full_godot`
+**Ancre (non-LLM) :** charter s0 (`artifacts/s0-contrat.txt`) + Genre Bible 10 règles (`01_DESIGN/genre_bible.json`, statut `NON_RATIFIEE_PROPOSITION`, donc advisory) + `game_contract.yaml`. Je décris le **produit fini V1**, jamais le chemin de fabrication.
+
+---
+
+## 1 — CE QUE LE JOUEUR VOIT
+
+Un seul écran, information complète, sans jamais avoir à agir pour révéler un état (ancre : `genre.tetris.full_information_single_screen` · critère démo 4).
+
+- Un **puits vertical** en grille discrète — les **20 rangées visibles** d'un terrain large de **10 colonnes** (ancre World Scan : terrain 10×40 dont 20 visibles ; source `tetris.wiki/Tetris_Guideline`, confiance HAUTE).
+- Une **pièce active** (un des 7 tétrominos I, O, T, S, Z, J, L — aucune autre forme ; ancre `genre.tetris.seven_tetrominoes`) qui **descend visiblement case par case** (critère démo 1).
+- La **pile figée** en bas du puits : tout ce qui a déjà atterri, immuable à l'écran (ancre `genre.tetris.irreversible_stack`).
+- Un **aperçu de la pièce suivante**, visible en permanence (critère démo 4 ; V1 = **1 seule** pièce d'aperçu, pas plusieurs — décision charter `hors_scope`, l'aperçu multiple est une variante).
+- Un **compteur de lignes** qui **augmente visiblement** au nettoyage (critère démo 5).
+- À la saturation du puits, un **écran de game-over visible** (critère démo 6).
+- **Rendu par primitives du moteur** (blocs colorés, pas d'assets externes ni 3D — ancre `assets.plan: cc0`).
+
+Ce que le joueur **ne voit pas** en V1 (décisions charter, pas oublis) : pas de ghost piece, pas de menus au-delà de start/game-over, pas de high-score persistant, pas d'affichage de niveau/vitesse.
+
+## 2 — CE QUE LE JOUEUR FAIT
+
+Le joueur n'agit **que sur la pièce active** — jamais sur la pile (ancre `genre.tetris.player_controls_active_piece_only` · critère succès 6). Verbes observables :
+
+- **Translater** la pièce active à gauche/droite.
+- **La faire tourner** — rotation **contrainte par le terrain** : une rotation qui collisionnerait est **refusée**, la pièce garde orientation et position, le terrain n'est jamais déformé (ancre `genre.tetris.rotation_bounded_by_terrain` · critère succès 5). **V1 = refus-sur-collision sans wall-kick** (le SRS/kick est une variante `hors_scope`).
+- **Accélérer la chute** (soft-drop) — constitutif en V1. Le hard-drop garanti est en **fog** (FOG-4 charter), donc **pas promis** au joueur en V1.
+- Entre deux, **subir la gravité** : sans aucune entrée, la pièce descend d'**exactement 1 case par tick** (ancre `genre.tetris.discrete_gravity` · critère succès 2).
+
+Boucle du joueur : placer chaque pièce pour **compléter des rangées**. Une rangée pleine **disparaît et tout ce qui est au-dessus retombe d'autant** (compactage) — c'est le **seul** moyen de libérer de l'espace (ancre `genre.tetris.line_clear_compaction` · critère démo 3). La partie **finit quand une pièce entrante ne peut plus apparaître légalement** (ancre `genre.tetris.loss_by_blocking` · critère succès 7). **Il n'y a pas de victoire** : toute partie se termine par une perte (ancre `genre.tetris.no_victory_in_marathon`).
+
+## 3 — CE QUE LE JOUEUR RESSENT
+
+⚠️ **Aucune de ces affirmations n'est oracle-able.** Le ressenti est du **jugement Pierre (playtest)**, jamais un claim auto-certifié — c'est explicite au charter (« le feel/lisibilité/satisfaction n'est pas oracle-able »). Je les émets donc comme **hypothèses de réalisateur à faire valider (fog)**, dérivées des règles observables :
+
+- **Tension croissante de la dette spatiale.** Parce que l'empilement est **irréversible**, chaque erreur reste visible et contraint le futur — le joueur devrait ressentir une pression qui monte avec la pile. (Dérivé de `irreversible_stack` — *à confirmer playtest*.)
+- **Soulagement au nettoyage.** La ligne qui disparaît et le compactage sont l'unique relâchement de cette pression. (Dérivé de `line_clear_compaction`.)
+- **Arbitrage risque/récompense sur le multi-ligne.** Si le barème récompense **strictement plus par ligne** un nettoyage groupé (règle `superlinear_multi_clear_reward`), le joueur devrait ressentir la tentation de « laisser monter pour frapper fort ». **MAIS** : le barème superlinéaire est de l'**équilibrage hors V1** (FOG-3) — donc **en V1 ce ressenti n'est pas garanti** : sans courbe calibrée, le multi-ligne pourrait ne rien changer d'observable. Je ne promets pas cette sensation.
+- **Course contre soi, sans horizon de victoire.** Le jeu ne se gagne pas ; le ressenti attendu est « survivre le plus longtemps », pas « atteindre un but ». (Dérivé de `no_victory_in_marathon`.)
+
+## 4 — RÈGLES OBSERVABLES (testables — reprises verbatim des critères de succès oracle-ables du charter)
+
+Chacune est une propriété **stricte**, pas un `>=` tautologique (pré-mortem s10a) :
+
+| # | Règle observable | Ancre |
+|---|---|---|
+| R1 | Le générateur émet **exactement** {I,O,T,S,Z,J,L}, chacune **une fois** par sac de 7, aucune autre forme | critère succès 1 · `seven_tetrominoes` |
+| R2 | Sans input, la pièce descend d'**exactement 1 case** par tick de gravité | critère succès 2 · `discrete_gravity` |
+| R3 | Une pièce figée est **immuable** : aucun input ne la déplace/retire (état inchangé) | critère succès 3 · `irreversible_stack` |
+| R4 | Une rangée pleine disparaît ; tout au-dessus descend d'**exactement** le nombre de rangées nettoyées (**assertion stricte**) | critère succès 4 · `line_clear_compaction` |
+| R5 | Une rotation qui collisionne est **refusée** ; orientation/position conservées, terrain intact | critère succès 5 · `rotation_bounded_by_terrain` |
+| R6 | Translation/rotation/soft-drop n'affectent **que** la pièce active, jamais la pile | critère succès 6 · `player_controls_active_piece_only` |
+| R7 | Quand une pièce entrante ne peut pas apparaître légalement, l'état devient **terminal** (game-over) | critère succès 7 · `loss_by_blocking` |
+| R8 | **Solvabilité honnête** : un bot scripté **survit ≥ N pièces ET nettoie ≥ 1 ligne** sans game-over prématuré — **jamais « un bot gagne »** (le genre n'a pas de victoire) ; N = `A_CALIBRER` | critère succès 8 · `no_victory_in_marathon` · pré-mortem s10a |
+| R9 | Le projet Godot se lance (fenêtre GPU) et une partie complète se joue jusqu'au game-over **sans crash** | critère succès 9 |
+
+---
+
+# ANGLES DEMANDÉS (tâche s1-prisme)
+
+### Ressenti joueur — synthèse
+Voir §3. Point dur : **le cœur émotionnel du genre (l'arbitrage du multi-ligne) repose sur le barème superlinéaire, qui est hors V1.** Le réalisateur doit assumer que **le produit V1 livre la *mécanique* de Tetris, pas nécessairement sa *tension* signature.** C'est cohérent avec la nature du nœud (curriculum mécanique), mais à dire clairement à Pierre pour ne pas sur-vendre le ressenti.
+
+### Risques de design (observables / structurels — pas des claims)
+1. **Risque « moteur validé ≠ jeu ressenti » (le plus grave).** Toutes les règles R1–R9 peuvent être vertes et le jeu rester **plat** faute de courbe de gravité/score (FOG-3, hors V1). Symétrique documenté du studio : *forge mécanique OK, visuellement/ludiquement mort*. **À faire remonter : V1 prouve la mécanique, pas le fun.**
+2. **Risque solvabilité mal définie.** Le pré-mortem l'a déjà cassé ailleurs : définir la solvabilité comme « un bot gagne » ici serait **faux** (pas de victoire). R8 doit rester « survie + ≥1 nettoyage strict ». N n'est **pas calibré** (`A_CALIBRER`) → variance à prouver avant de s'en servir comme seuil (règle de variance des métriques).
+3. **Risque de rendu headless.** Les volets de rendu doivent rendre **NOT_MEASURED** en headless (jamais FAIL) ; la capture visuelle exige une **fenêtre GPU vulkan** (headless = texture nulle). Risque hérité, déjà tracé au handoff s0.
+4. **Risque de réutilisation de brique.** `sys-grid-nav-m01` (navigation sur grille) **n'est pas** du placement de tétromino qui tombe : la provenance ne prouve pas la transposabilité (pré-mortem `wiremap_concept_reuse`). À trancher s3/s4 sur lecture du **code**, pas du nom.
+5. **Risque de choix de variante par défaut silencieux.** SRS/hold/aperçu-multiple/hard-drop : les inclure « par réflexe » répéterait l'erreur AutoBattler (modèle choisi unilatéralement). Ils restent en **fog**, exclus de V1 par décision, pas par oubli.
+
+### Originalité
+**Volontairement quasi nulle, et c'est correct.** Tetris nœud 4 est un **build de référence canonique** dans un curriculum mécanique : sa valeur n'est pas l'originalité produit mais **la nouvelle propriété prouvée** — *empilement irréversible sur grille discrète + nettoyage-compactage* (la « dette spatiale »), non couverte par Pong/Snake/Breakout_v2. Toute « originalité » ajoutée en V1 (variantes, twist) serait **hors périmètre** et contredirait le charter. Le réalisateur ne cherche pas ici à se distinguer ; il cherche à livrer le noyau constitutif **exact**.
+
+---
+
+# FOG → HumanGate (jugement Pierre, non oracle-able)
+
+- **FOG-A (ressenti V1) :** le produit V1, sans barème superlinéaire calibré (FOG-3), livre-t-il un ressenti acceptable, ou faut-il inclure la courbe de score/gravité dès V1 ? → décision Pierre.
+- **FOG-B (variante de référence, = FOG-1 s0) :** Guideline (SRS/hold/aperçu multiple) vs NES-classic. V1 par défaut = noyau constitutif sans variante ; le modèle cible après-V1 = décision design Pierre.
+- **FOG-C (hard-drop, = FOG-4 s0) :** soft-drop constitutif inclus ; hard-drop QoL inclure ou non = choix Pierre.
+- **FOG-D (ratification Genre Bible / World Scan) :** statut `NON_RATIFIEE_PROPOSITION` — je les ai utilisés **advisory**. Leur ratification est un gate Pierre distinct.
+
+---
+
+# RAPPORT FINAL
+
+**Ancre citée :** charter s0 (`artifacts/s0-contrat.txt`), Genre Bible (`01_DESIGN/genre_bible.json`, advisory), `game_contract.yaml`, World Scan (`mechanics_analysis.md`). Cohérence vérifiée : les 4 sections et R1–R9 ne contredisent aucun champ du charter et ne débordent pas le périmètre V1 (aucune variante décrite comme acquise).
+
+- **software_verdict : N/A** — artefact narratif, aucun oracle exécuté (`run: aucun`, tâche « aucun fichier écrit »). Aucun oracle mécanique n'existe pour un snapshot produit.
+- **evidence_verdict : N/A** — aucune validation mécanique à cette étape (par construction).
+- **claim_verdict : NO_CLAIM_ALLOWED** — je ne certifie ni « produit jouable » ni « fun » ni « ressenti X ». Le §3 (ressenti) et les risques sont émis comme **fog → HumanGate**, non comme claims. Les §1, §2, §4 sont des dérivations directes de règles/critères ancrés au charter ; leur conformité de schéma reste à prouver mécaniquement à l'écriture éventuelle d'un `product_snapshot.md` (non faite ici, tâche texte-seul).
+
+### SKIPPED_VALIDATION
+- **Écriture de `product_snapshot.md`** — *où :* livrable — *statut :* non fait (assumé) — *raison :* la TÂCHE CONCRÈTE impose « artefact narratif, aucun fichier écrit » et la permission est `run: aucun` ; livré en texte dans ce rapport, structure `{voit, fait, ressent, regles_observables[]}` respectée.
+- **Oracle mécanique du snapshot** — *où :* §1–§4 — *statut :* non fait — *raison :* aucun oracle non-LLM n'existe pour un artefact narratif ; ancre = cohérence avec le charter s0 (vérifiée manuellement, non mécaniquement) → NO_CLAIM_ALLOWED.
+- **Ratification Genre Bible / World Scan** — *où :* `01_DESIGN/genre_bible.json`, `GAME_REFERENCE/` — *statut :* non fait — *raison :* statut `NON_RATIFIEE_PROPOSITION` ; utilisés advisory ; ratification = gate Pierre distinct (FOG-D).
+- **Validation du ressenti (§3)** — *où :* §3 + angle « ressenti joueur » — *statut :* non fait (par construction) — *raison :* le feel n'est pas oracle-able ; escaladé en FOG-A, à trancher au playtest Pierre.

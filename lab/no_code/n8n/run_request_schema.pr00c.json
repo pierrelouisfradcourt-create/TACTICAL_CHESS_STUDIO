@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/pr00c/run_request_schema.pr00c.json",
+  "title": "PR-00C RunRequest",
+  "description": "Draft schema for an n8n RunRequest entry payload. Validation permits policy review only; it does not authorize dispatch, evidence, or claims.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "request_id",
+    "requested_by",
+    "actor_class",
+    "request_time",
+    "run_type",
+    "claim_scope_requested",
+    "dataset_id",
+    "split_id",
+    "policy_refs",
+    "surface_refs",
+    "dispatch_target",
+    "reason"
+  ],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "description": "Opaque request identifier. It must not encode actor, dataset, split, claim, or run meaning.",
+      "pattern": "^rr_[A-Za-z0-9_-]{16,64}$"
+    },
+    "requested_by": {
+      "type": "string",
+      "description": "Human or approved UI identity that requested the run.",
+      "minLength": 3,
+      "maxLength": 160
+    },
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_owner",
+        "automation_runner",
+        "dashboard_reader",
+        "gpt_auditor",
+        "codex_executor",
+        "service_role"
+      ]
+    },
+    "request_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "run_type": {
+      "type": "string",
+      "enum": [
+        "BOOTSTRAP_ONLY",
+        "GOVERNANCE_SPEC_TASK",
+        "POLICY_AUDIT",
+        "DATASET_AUDIT_DRY_RUN",
+        "TRAINING_RUN_REQUEST",
+        "EVAL_RUN_REQUEST",
+        "REPAIR_RUN_REQUEST",
+        "PROMOTION_REVIEW_REQUEST"
+      ]
+    },
+    "claim_scope_requested": {
+      "type": "string",
+      "description": "Requested scope only. This field is not authorization and cannot create scientific claim authority.",
+      "enum": [
+        "NO_CLAIM_ALLOWED",
+        "HEALTH_ONLY",
+        "TARGETED_BEHAVIOR_ONLY",
+        "EXPLORATORY_ONLY",
+        "PROMOTION_REVIEW_CANDIDATE",
+        "STRENGTH_CLAIM_CANDIDATE"
+      ]
+    },
+    "dataset_id": {
+      "description": "Dataset identifier. May be null only for BOOTSTRAP_ONLY or GOVERNANCE_SPEC_TASK.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "split_id": {
+      "description": "Split identifier. May be null only for BOOTSTRAP_ONLY or GOVERNANCE_SPEC_TASK.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "policy_refs": {
+      "type": "array",
+      "description": "Non-empty policy references required by the policy gate.",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "surface_refs": {
+      "type": "array",
+      "description": "Non-empty declared surfaces through which the request entered.",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "dispatch_target": {
+      "type": "object",
+      "description": "Declared future dispatch target. PR-00C does not implement live dispatch.",
+      "additionalProperties": false,
+      "required": [
+        "target_type",
+        "target_ref",
+        "declared"
+      ],
+      "properties": {
+        "target_type": {
+          "type": "string",
+          "enum": [
+            "GITHUB_WORKFLOW_FUTURE",
+            "LOCAL_RUNNER_FUTURE",
+            "NO_LIVE_DISPATCH_PR00C"
+          ]
+        },
+        "target_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "declared": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "reason": {
+      "type": "string",
+      "description": "Human-readable reason. It must not contain secrets or holdout contents.",
+      "minLength": 1,
+      "maxLength": 2000,
+      "not": {
+        "anyOf": [
+          {
+            "pattern": "([Aa][Pp][Ii][_-]?[Kk][Ee][Yy]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Ww][Dd]|[Tt][Oo][Kk][Ee][Nn]|[Bb][Ee][Aa][Rr][Ee][Rr]\\s+[A-Za-z0-9._-]+|-----BEGIN)"
+          },
+          {
+            "pattern": "([Hh][Oo][Ll][Dd][Oo][Uu][Tt][_ -]?([Pp][Oo][Ss][Ii][Tt][Ii][Oo][Nn]|[Pp][Oo][Ss][Ii][Tt][Ii][Oo][Nn][Ss]|[Ii][Dd]|[Ii][Dd][Ss]|[Hh][Aa][Ss][Hh]|[Hh][Aa][Ss][Hh][Ee][Ss]|[Nn][Aa][Mm][Ee]|[Nn][Aa][Mm][Ee][Ss]|[Ff][Ee][Nn]|[Pp][Gg][Nn])|[Ww][Ii][Tt][Hh][Hh][Ee][Ll][Dd][_ -]?([Pp][Oo][Ss][Ii][Tt][Ii][Oo][Nn]|[Pp][Oo][Ss][Ii][Tt][Ii][Oo][Nn][Ss]|[Ii][Dd]|[Ii][Dd][Ss]|[Hh][Aa][Ss][Hh]|[Hh][Aa][Ss][Hh][Ee][Ss]))"
+          }
+        ]
+      }
+    },
+    "holdout_set_id": {
+      "type": "string",
+      "description": "Optional opaque holdout set identifier. Contents, individual IDs, hashes, positions, and descriptive names are forbidden.",
+      "pattern": "^holdout_set_[A-Za-z0-9_-]{8,80}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "run_type": {
+            "enum": [
+              "BOOTSTRAP_ONLY",
+              "GOVERNANCE_SPEC_TASK"
+            ]
+          }
+        },
+        "required": [
+          "run_type"
+        ]
+      },
+      "then": true,
+      "else": {
+        "properties": {
+          "dataset_id": {
+            "type": "string"
+          },
+          "split_id": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+# Contrat d'agent Forge — mission M1 : télémétrie d'échec (outillage, hors chaîne s0-s12)
+# Schéma : scripts/forge/contracts/SCHEMA.md (règle des 3 états — un champ absent = refus)
+# Statut : créé 2026-07-26 sur go exécution Pierre (JALON 0, décision ②). Mission source :
+# docs/forge/MISSION_M1_TELEMETRIE_ECHEC.md (design imposé — le contrat ne le redessine pas).
+# Dispatch : hors profil (allow_unprofiled assumé, inscrit dans l'audit signé).
+
+# --- 1. Identité / posture cognitive (Critique) ---
+role: >-
+  Ingénieur outillage Forge senior, discipline TDD stricte. Point de vue : l'observabilité
+  ment par omission — ta mission rend les ÉCHECS visibles dans la télémétrie sans changer
+  un seul comportement de run. Tu es un instrumentiste, pas un réformateur.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Raisonnement soutenu sous contrainte de rétro-compatibilité : chemin d'échec du driver,
+  append-only avec lecteurs existants, best-effort qui ne doit jamais bloquer, tests
+  d'isolation stricte. TDD réel : RED constaté et collé AVANT le code, jamais affirmé.
+
+# --- 2. Contexte projet (Critique) ---
+memoire: >-
+  Aujourd'hui record_telemetry n'est appelé qu'après entry["status"]="OK" (driver.py
+  ~l.468-472) ; _halt_step (~l.440) retourne avant ⇒ 187 267 tokens de tentatives
+  échouées invisibles, 3 533 362 tokens tracés tous sur succès. cost_usd est calculé
+  (~l.447) mais jeté (record_telemetry n'a pas de paramètre coût). Le champ model reçoit
+  payload.model (contrat), jamais state["model_override"] (modèle exécuté après
+  escalade) — preuve croisée : lignes telemetry disent haiku là où
+  forge_builder_runs.jsonl dit sonnet/opus. Patron de rétro-compat du dépôt :
+  normalisation à la LECTURE, jamais réécriture des lignes historiques
+  (hook_guard.marker_key, premortem). state.json écrase detail à chaque tentative — ne
+  jamais s'en servir comme journal.
+mandatory_read:
+  - docs/forge/MISSION_M1_TELEMETRIE_ECHEC.md
+  - lab/forge_runs/RUN_INDEX.md (entrée M1-telemetrie-echec — critères (a)→(e))
+  - scripts/forge/driver.py (chemins _halt_step et succès, résolution modèle l.480)
+  - scripts/forge/studio_link.py (record_telemetry l.77-90)
+  - scripts/forge/tests/conftest.py (fixture d'isolation existante — couvre-t-elle telemetry_path ?)
+
+# --- 3. Mission (Critique) ---
+objectif: >-
+  Après cette mission, un échec d'étape Forge produit une ligne de télémétrie portant son
+  issue (outcome OK|HALT), son coût réel (cost_usd) et le modèle réellement exécuté
+  (model_override sinon payload.model) — aujourd'hui il n'en produit aucune. Design
+  imposé §« DESIGN IMPOSÉ » de la mission : à appliquer, pas à redessiner. AUCUNE
+  métrique nouvelle au-delà de « tokens par étape réussie, par run » (dérivée, lecture
+  seule). Le plafond D2 n'est PAS implémenté ici.
+
+# --- 4. Frontières (Critique) ---
+in_scope: >-
+  scripts/forge/driver.py · scripts/forge/studio_link.py · scripts/forge/tests/
+  (+ conftest.py si l'isolation télémétrie doit être étendue). RIEN d'autre.
+out_of_scope: >-
+  verdict.py, gate.py, verify_run.py INTOUCHÉS (advisory strict — seule l'OBSERVATION
+  s'enrichit, aucun verdict/gate/comportement de run modifié). Zones gelées intouchées
+  (autopilot.py, scripts/studioV2/, src/, ml/). Aucun fichier durable (ledger, memory,
+  decisions). Pas d'implémentation du plafond D2 (valeur différée — décision Pierre).
+
+# --- 5. Autorisation (Critique) ---
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT scripts/forge/driver.py,
+  scripts/forge/studio_link.py, scripts/forge/tests/** (dont conftest.py). run: pytest
+  (suite scripts/forge/tests/ via .venv312/Scripts/python.exe), git status --porcelain,
+  git diff (lecture). delete: aucun. INTERDIT : git commit, git push, git checkout,
+  toute écriture hors des 3 chemins autorisés.
+
+# --- 6. Gouvernance (Critique) ---
+gardeFou: >-
+  (1) forge_telemetry.jsonl est append-only avec lecteurs existants : le format des
+  lignes EXISTANTES ne casse pas — champs ADDITIONNELS uniquement, normalisation à la
+  lecture (lignes sans outcome ⇒ "OK"). (2) L'écriture télémétrie reste best-effort
+  (except OSError) : elle ne fait JAMAIS échouer un run, y compris sur le nouveau chemin
+  d'échec. (3) Les tests n'écrivent RIEN hors tmp_path — vérifier/étendre la fixture
+  d'isolation pour telemetry_path. (4) encoding='utf-8' explicite sur tout open().
+  (5) TDD : tests AVANT code, RED montré puis GREEN — cas limites imposés par la mission
+  (halt avant tout appel LLM tokens=0 ⇒ écrire quand même, coût 0 mesuré ≠ non mesuré ·
+  exception dans l'exécuteur · model_override absent · double halt · rétro-compat lignes
+  sans outcome/cost_usd · échec d'écriture télémétrie avalé). (6) Un doute sur le
+  périmètre ⇒ STOP et question dans le rapport, jamais d'initiative hors contrat.
+success_criteria: >-
+  Critères RUN_INDEX (a)→(e) adressés UN PAR UN avec preuve : (a) un run avec ≥1 échec
+  produit ≥1 ligne outcome:HALT ; (b) somme tokens d'un run ≥ valeur pré-patch ;
+  (c) coût-par-succès shmup recalculé > chiffre optimiste actuel (test rétroactif à coût
+  nul sur les données shmup archivées : la ligne aurait dit opus, pas haiku) ; (d) zéro
+  régression — référence 840 passed, 1 skipped, plus les nouveaux tests comptés ;
+  (e) advisory strict — git diff ne touche ni verdict.py ni gate.py ni verify_run.py.
+tests_oracles: >-
+  .venv312/Scripts/python.exe -m pytest scripts/forge/tests/ -q (oracle non-LLM,
+  référence 840 passed, 1 skipped) · git status --porcelain après tests (rien hors
+  périmètre, rien d'écrit en durable) · sorties RED et GREEN réelles collées.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, vocabulaire
+  OK/FAIL/BLOCKED uniquement. Contenu obligatoire : sortie RED collée · sortie GREEN
+  collée avec compte exact de tests · critères (a)→(e) un par un avec la preuve de
+  chacun · sortie du test rétroactif shmup · git status --porcelain final · git diff
+  --stat final · section « skipped_validation » explicite : ce que tu n'as PAS prouvé
+  (liste vide interdite si un doute subsiste). Preuve d'exécution, jamais d'existence.
+
+# --- 8. Restitution (Critique) ---
+output_contract: >-
+  Rapport markdown structuré : {resume_1_phrase, red_output, green_output,
+  criteres_a_e: [{critere, preuve}], test_retroactif_shmup, git_status_final,
+  git_diff_stat, fichiers_modifies: [], skipped_validation: [],
+  software_verdict: OK|FAIL|BLOCKED, evidence_verdict: MECHANICAL_VALIDATION_ONLY,
+  claim_verdict: NO_CLAIM_ALLOWED}.
+
+# --- 9. Capacités (Important — `aucun` autorisé, jamais absent) ---
+skill: aucun
+plugin: aucun
+
+# --- 10. Traçabilité (Recommandé) ---
+delegation_context: >-
+  JALON 0 du Troisième Cerveau (vue H-bis) — go exécution Pierre 2026-07-26. En amont :
+  mission préparée docs/forge/MISSION_M1_TELEMETRIE_ECHEC.md + entrée RUN_INDEX. En
+  aval : contre-vérification P7 par l'orchestrateur (relance pytest + lecture diff),
+  puis fixation de la valeur D2 (DR-01) après le premier run réel avec ligne HALT.

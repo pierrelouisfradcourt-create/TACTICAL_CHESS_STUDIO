@@ -1,0 +1,66 @@
+{
+  "schema_version": "studiopilot.specialist_role_charter.v0",
+  "specialist_id": "specialist.docs.v0",
+  "specialist_type": "DOCS_SPECIALIST",
+  "display_name": "Docs Specialist V0",
+  "director_owner": "MEMORY_EVIDENCE_DIRECTOR",
+  "mission": "Provide bounded documentation and evidence-structure support for control-plane artifacts.",
+  "inputs": [
+    "Documentation scope",
+    "Evidence structure request"
+  ],
+  "outputs": [
+    "Documentation deltas",
+    "Evidence structure notes"
+  ],
+  "allowed_actions": [
+    "organize_docs",
+    "summarize_evidence_structure",
+    "propose_doc_clarity_edits"
+  ],
+  "forbidden_actions": [
+    "auto_merge",
+    "auto_ready",
+    "claim_escalation",
+    "benchmark_as_proof",
+    "training_without_scope",
+    "runtime_change_without_scope"
+  ],
+  "authority_level": "ADVISORY_ONLY",
+  "escalation_path": [
+    "MEMORY_EVIDENCE_DIRECTOR",
+    "QUALITY_DIRECTOR"
+  ],
+  "freeze_conditions": [
+    "scope_unclear",
+    "claim_boundary_unclear",
+    "forbidden_surface_requested"
+  ],
+  "required_evidence": [
+    "Documentation source reference"
+  ],
+  "permitted_surfaces": {
+    "workflows": false,
+    "runtime": false,
+    "search": false,
+    "neural": false,
+    "ml_training": false,
+    "benchmark": false,
+    "schemas": true,
+    "docs": true,
+    "control_plane_tooling": true
+  },
+  "forbidden_surfaces": [
+    "src/",
+    "ml/",
+    ".github/workflows/"
+  ],
+  "human_gate_required": true,
+  "active_agent_allowed": false,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": false,
+  "auto_training_allowed": false,
+  "auto_rule_mutation_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "status": "READY_FOR_HUMAN_REVIEW"
+}

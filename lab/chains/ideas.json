@@ -1,0 +1,290 @@
+[
+  {
+    "chain": "studio",
+    "status": "applied",
+    "title": "Titre : Reconstruire AUTOMATION_LANE_MATRIX.md depuis le repo actuel Desc  : Python uniquement. NE PAS toucher au Rust.         La matrice actuelle couvre 7/13 surfaces inexistantes et manque         les surfaces critiques : autopilot.py, src/chess/**, lab/chains/**,         ml/**, datasets/**, golden_examples.jsonl.         Reconstruire depuis le repo réel avec les bonnes lanes :         SAFE_AUTO / AUDIT_REQUIRED / HUMAN_REQUIRED / FORBIDDEN.         Logique : nature du changement + autorité + impact downstream.         Fichier cible : AUTOMATION_LANE_MATRIX.md (mise à jour).         Critère : toutes les surfaces actives du repo sont couvertes.",
+    "roi": "high",
+    "lane": "audit",
+    "desc": "Python uniquement. NE PAS toucher au Rust.\n        La matrice actuelle couvre 7/13 surfaces inexistantes et manque\n        les surfaces critiques : autopilot.py, src/chess/**, lab/chains/**,\n        ml/**, datasets/**, golden_examples.jsonl.\n        Reconstruire depuis le repo réel avec les bonnes lanes :\n        SAFE_AUTO / AUDIT_REQUIRED / HUMAN_REQUIRED / FORBIDDEN.\n        Logique : nature du changement + autorité + impact downstream.\n        Fichier cible : AUTOMATION_LANE_MATRIX.md (mise à jour).\n        Critère : toutes les surfaces actives du repo sont couvertes.",
+    "issue": "",
+    "id": 26,
+    "ts": "2026-06-06T13:54:22.745327"
+  },
+  {
+    "chain": "studio",
+    "status": "applied",
+    "title": "historique des idées",
+    "roi": "high",
+    "lane": "safe",
+    "desc": "dans l onglet idées. voir les anciennes idées transformé en road map et leur statut ( imp créer, idée non créer, imp implanté",
+    "issue": "",
+    "id": 25,
+    "ts": "2026-06-06T10:15:20.312427"
+  },
+  {
+    "chain": "studio",
+    "status": "applied",
+    "title": "bouton changer de statut dans idée ne fonctionne pas",
+    "roi": "high",
+    "lane": "safe",
+    "desc": "réparer le bouton changer de statut dans l onglet idée",
+    "issue": "",
+    "id": 24,
+    "ts": "2026-06-06T10:13:05.399380"
+  },
+  {
+    "chain": "studio",
+    "status": "applied",
+    "title": "Watcher validation contenu minimum avant close_imp — rejeter rapports trop",
+    "roi": "med",
+    "lane": "safe",
+    "desc": "Dans autopilot.py _auto_close_from_report(), ajouter :\n        si le contenu du rapport fait moins de 100 caractères → skip sans fermer.\n        Si le rapport contient \"Test watcher\" ou \"Test auto-close\" → skip.\n        Critere : seuls les vrais rapports Claude Code declenchent close_imp.",
+    "issue": "",
+    "id": 23,
+    "ts": "2026-06-06T09:06:13.840116"
+  },
+  {
+    "chain": "studio",
+    "status": "applied",
+    "title": "File watcher reports — surveiller lab/chains/reports/ et auto-closer les IMPs",
+    "roi": "high",
+    "lane": "safe",
+    "desc": "+ Nouvelle idée :\nTitre : File watcher reports — surveiller lab/chains/reports/ et auto-closer les IMPs\nDesc  : Python uniquement. NE PAS toucher au Rust.\n        Dans autopilot.py, lancer un thread watchdog sur lab/chains/reports/.\n        Quand un fichier IMP-XXX_report.md apparait :\n        1. Valider : software_verdict: OK + claim_verdict present\n        2. Si OK → close_imp(imp_id) + golden_collector + state_updater\n        3. Logger : [WATCHER] IMP-XXX auto-fermé depuis rapport\n        4. Supprimer le fichier rapport apres traitement\n        Endpoint GET /api/watcher-status → retourne {active, last_processed}.\n        Critere : Claude Code ecrit un rapport → studio le ferme seul.",
+    "issue": "",
+    "id": 22,
+    "ts": "2026-06-05T23:47:36.093300"
+  },
+  {
+    "chain": "studio",
+    "status": "applied",
+    "title": "lane studio",
+    "roi": "high",
+    "lane": "safe",
+    "desc": "+ Nouvelle idée :\nTitre : Ajouter lane Studio dans CEO Brief et autoloop — domaine studio\nDesc  : Python uniquement. NE PAS toucher au Rust.\n        Dans autopilot.py, ajouter \"studio\" comme 4eme lane dans :\n        1. Le CEO Brief (section rocky_section → ajouter studio_section)\n        2. AUTOLOOP_DOMAIN_MAP (ajouter \"studio\" : label, domain, color)\n        IMPs domaine studio (IMP-092 à IMP-100) doivent apparaitre\n        dans le CEO Brief et etre pickés par l autoloop.\n        Fichier : autopilot.py.\n        Critere : CEO Brief affiche une 4eme lane Studio avec ses IMPs.",
+    "issue": "",
+    "id": 21,
+    "ts": "2026-06-05T19:39:41.748382"
+  },
+  {
+    "chain": "studio",
+    "status": "applied",
+    "title": "Pause et copie charter dans terminal autoloop autopilot.py",
+    "roi": "high",
+    "lane": "safe",
+    "desc": "Python/HTML uniquement. NE PAS toucher au Rust.\n        Dans page-chains, ajouter bouton Pause qui stoppe\n        le refresh du terminal (clearInterval).\n        Bouton Copier charter qui copie le dernier charter\n        affiché dans le clipboard via navigator.clipboard.writeText.\n        Fichier : autopilot.py uniquement.\n        Critère : utilisateur peut lire et copier sans que ca saute.\n\n→ Transformer en IMPs → injecter",
+    "issue": "",
+    "id": 20,
+    "ts": "2026-06-05T19:34:31.998761"
+  },
+  {
+    "chain": "studio",
+    "status": "applied",
+    "title": "Titre : Infobulles LLM dans autopilot.py — tooltip",
+    "roi": "high",
+    "lane": "safe",
+    "desc": "Infobulles LLM dans autopilot.py — tooltip \nmodèle+durée sur boutons UI\nDesc  : Python/HTML uniquement. NE PAS toucher au Rust.\n        Dans autopilot.py, ajouter attribut title sur chaque bouton HTML\n        qui appelle lm_call() ou un endpoint LLM.\n        Format tooltip : \"Qwen2.5-14B • ~3s\".\n        Fonctions Python : add_llm_tooltips(html_block) dans autopilot.py.\n        Critère : survol de n importe quel bouton LLM → info visible.",
+    "issue": "",
+    "id": 19,
+    "ts": "2026-06-05T18:42:13.623110"
+  },
+  {
+    "chain": "studio",
+    "status": "pipeline_done",
+    "title": "repo enrichi",
+    "roi": "high",
+    "lane": "safe",
+    "desc": "\"État repo enrichi — afficher branch/head/nb fichiers modifiés dans la topbar\"\n   Desc : Endpoint /api/repo-status qui lit git status --short et git log -1.\n   Afficher dans la topbar : branch + hash court + nb fichiers dirty.\n   Fichier : autopilot.py. Critère : topbar affiche l état git en temps réel.",
+    "issue": "",
+    "id": 18,
+    "ts": "2026-06-05T18:36:35.193609"
+  },
+  {
+    "chain": "studio",
+    "status": "applied",
+    "title": "corriger bouton action rapide",
+    "roi": "high",
+    "lane": "safe",
+    "desc": "\"Corriger boutons action rapide — diagnostiquer et réparer les boutons sans effet\"\n   Desc : Auditer tous les boutons de page-pilote et page-studio-os.\n   Pour chaque bouton : vérifier que le onclick existe et fonctionne.\n   Fichier : autopilot.py. Critère : 0 bouton silencieux.",
+    "issue": "",
+    "id": 17,
+    "ts": "2026-06-05T18:36:20.036868"
+  },
+  {
+    "chain": "studio",
+    "status": "applied",
+    "title": "clarifier onglet chaines",
+    "roi": "high",
+    "lane": "safe",
+    "desc": "\"Clarifier onglet Chaînes — afficher quel modèle tourne sur quelle lane + statut\"\n   Desc : Dans page-chains, ajouter pour chaque lane : modèle utilisé,\n   nb runs aujourd hui, dernier run. Fichier : autopilot.py.\n   Critère : l utilisateur sait sans deviner quel LLM fait quoi.",
+    "issue": "",
+    "id": 16,
+    "ts": "2026-06-05T18:35:59.911917"
+  },
+  {
+    "chain": "studio",
+    "status": "pipeline_done",
+    "title": "infobulle llm",
+    "roi": "high",
+    "lane": "safe",
+    "desc": "\"Infobulles LLM — afficher modèle+durée sur chaque bouton qui appelle un LLM\"\n   Desc : Ajouter tooltip HTML sur chaque bouton UI qui appelle lm_call().\n   Format : title=\"Qwen2.5-14B • ~3s\". Fichier : autopilot.py HTML.\n   Critère : survol de n importe quel bouton LLM → info visible.",
+    "issue": "",
+    "id": 15,
+    "ts": "2026-06-05T18:35:35.430085"
+  },
+  {
+    "chain": "studio",
+    "status": "applied",
+    "title": "fusion idée roadmap",
+    "roi": "high",
+    "lane": "safe",
+    "desc": "\"Fusionner onglet Idée→Roadmap dans Idées — supprimer le tab redondant\"\n   Desc : Supprimer page-roadmap de la sidebar, intégrer generateRoadmap() \n   directement dans la page Idées. Fichier : autopilot.py. \n   Critère : plus qu un seul onglet pour les idées.",
+    "issue": "",
+    "id": 14,
+    "ts": "2026-06-05T18:35:22.219075"
+  },
+  {
+    "chain": "studio",
+    "status": "applied",
+    "title": "Cockpit Agents lecture seule",
+    "roi": "high",
+    "lane": "audit",
+    "desc": "\"Onglet Agents affichant les agents LM du studio \n         (CEO Qwen3.6, Director Qwen2.5, Router, Worker Claude Code) \n         avec statut actif/passif, modèle, rôle, chaînes utilisées, \n         et audit utilité (nb appels, dernier appel). \n         Lecture seule, lit un manifest agents.json. \n         Fichiers : autopilot.py + lab/chains/agents.json",
+    "issue": "",
+    "id": 13,
+    "ts": "2026-06-05T12:54:43.819816"
+  },
+  {
+    "id": 2,
+    "chain": "studio",
+    "status": "pipeline_done",
+    "title": "Mode éphémère — sessions de réflexion sans persistence",
+    "roi": "med",
+    "lane": "safe",
+    "desc": "Garder uniquement les fusions avec utilité mesurable. Évite l'accumulation de docs inutiles.",
+    "issue": ""
+  },
+  {
+    "id": 3,
+    "chain": "studio",
+    "status": "pipeline_done",
+    "title": "Hygiène automatique : doc → vérité → commit → push",
+    "roi": "high",
+    "lane": "human",
+    "desc": "Étendre chain_hygiene.ps1 pour validation cohérence doc/code puis déclencher commit + push quand tout est vert.",
+    "issue": ""
+  },
+  {
+    "id": 6,
+    "chain": "ia",
+    "status": "pipeline_done",
+    "title": "Mode éphémère dataset : plus de tests, moins de sauvegarde",
+    "roi": "high",
+    "lane": "audit",
+    "desc": "Tourner des parties de test sans sauvegarder le dataset. Conserver uniquement rapports métriques/stats.",
+    "issue": "NEW-03"
+  },
+  {
+    "id": 8,
+    "chain": "ia",
+    "status": "pipeline_done",
+    "title": "Cartes variantes Rocky — architecture et dataset",
+    "roi": "med",
+    "lane": "safe",
+    "desc": "Plan-cartes visuels des variantes Search-only, Search+Neural, Search+Neural+LLM et variantes dataset.",
+    "issue": ""
+  },
+  {
+    "id": 9,
+    "chain": "ia",
+    "status": "pipeline_done",
+    "title": "Stats, télémétrie et triage dataset — freeze baselines",
+    "roi": "high",
+    "lane": "audit",
+    "desc": "Draw rate par phase, conversion rate, ELO delta par run. Triage statistique. Freezer baselines d'appel.",
+    "issue": "#3"
+  },
+  {
+    "id": 10,
+    "chain": "jv",
+    "status": "applied",
+    "title": "Manifeste de création de jeu + manifeste de règles via Godot",
+    "roi": "high",
+    "lane": "safe",
+    "desc": "Deux manifestes = successions de prompts. Commencer par les échecs pour valider la méthode.",
+    "issue": ""
+  },
+  {
+    "id": 11,
+    "chain": "jv",
+    "status": "backlog",
+    "title": "Adaptateur Rocky → Godot — pipeline complet avec auto-amélioration",
+    "roi": "high",
+    "lane": "human",
+    "desc": "Adaptateur complet Rocky (Rust) ↔ Godot. Auto-amélioration intégrée avant validation.",
+    "issue": ""
+  },
+  {
+    "id": 12,
+    "chain": "jv",
+    "status": "backlog",
+    "title": "Matrice cartes/nom → prompt génération modèles Godot",
+    "roi": "med",
+    "lane": "safe",
+    "desc": "Matrice structurée : (nom + type + faction + budget) → prompt génère modèle Godot de qualité.",
+    "issue": ""
+  },
+  {
+    "id": "idea-reinject-191855-Priorisati",
+    "title": "Priorisation du backlog d idees par ROI et impact dans autopilot.py",
+    "desc": "Ré-injection depuis proposal fantôme — concept valide, fichier cible corrigé.",
+    "source": "human",
+    "status": "backlog",
+    "chain": "studio",
+    "created_at": "2026-06-07T19:18:55.624113"
+  },
+  {
+    "id": "idea-reinject-191855-Collected",
+    "title": "Collecte de metriques de performance par lane dans autopilot.py",
+    "desc": "Ré-injection depuis proposal fantôme — concept valide, fichier cible corrigé.",
+    "source": "human",
+    "status": "backlog",
+    "chain": "studio",
+    "created_at": "2026-06-07T19:18:55.624113"
+  },
+  {
+    "id": "idea-reinject-191855-TrackingE",
+    "title": "Tracking ELO dans le temps pour Rocky dans autopilot.py",
+    "desc": "Ré-injection depuis proposal fantôme — concept valide, fichier cible corrigé.",
+    "source": "human",
+    "status": "backlog",
+    "chain": "studio",
+    "created_at": "2026-06-07T19:18:55.624113"
+  },
+  {
+    "id": "idea-reinject-191855-Modeephem",
+    "title": "Mode ephemere pour tests dataset sans sauvegarde dans autopilot.py",
+    "desc": "Ré-injection depuis proposal fantôme — concept valide, fichier cible corrigé.",
+    "source": "human",
+    "status": "backlog",
+    "chain": "studio",
+    "created_at": "2026-06-07T19:18:55.624113"
+  },
+  {
+    "id": "idea-reinject-191855-Historique",
+    "title": "Historique des idees consultatble dans autopilot.py",
+    "desc": "Ré-injection depuis proposal fantôme — concept valide, fichier cible corrigé.",
+    "source": "human",
+    "status": "backlog",
+    "chain": "studio",
+    "created_at": "2026-06-07T19:18:55.624113"
+  },
+  {
+    "id": "idea-reinject-191855-Ameliorer",
+    "title": "Ameliorer template charter depuis corpus chartes reussies dans autopilot.py",
+    "desc": "Ré-injection depuis proposal fantôme — concept valide, fichier cible corrigé.",
+    "source": "human",
+    "status": "backlog",
+    "chain": "studio",
+    "created_at": "2026-06-07T19:18:55.624113"
+  }
+]

@@ -1,0 +1,60 @@
+I have everything I need: the canonical contract (`SCHEMA.md`), the s0 oracle-validated anchor (`charter.yaml`, verdict OK), the s3 featuremap (R1–R26, inline in the run_dir artifact), and the **actual** architecture oracle I must satisfy — `forge.static_oracles.check_architecture`, which I read line-by-line. `games/shmup_slice/` is empty (no existing blueprint). That drives every decision below.
+
+## Ce que l'oracle exige réellement (lecture de `check_architecture`)
+
+L'oracle n'est pas déclaratif : il **matérialise** ma sortie en `blueprint.json`, puis pour chaque fichier source calcule `src_mod` = **premier dossier sous la racine** (ou le *stem* d'un fichier racine), intersecte ses imports réels avec `modules`, et lève une violation ssi `(src_mod, cible) ∈ deps_interdites`. Trois conséquences dures :
+
+1. **Les noms de `modules` doivent être les *stems* réels** (`logic`, pas `logic/`) — ils doivent matcher à la fois le nom de dossier ET le segment de chemin d'import (`../logic/state.mjs` → segment `logic`). Un nom qui ne correspond à aucun dossier physique est invisible pour l'oracle.
+2. **Tout module cité dans `deps_interdites` doit figurer dans `modules`** — sinon l'edge ne se déclenche jamais (intersection vide).
+3. Le durcissement red-team F2b (lignes 208-228) **rejette `deps_interdites` malformé ou non-liste** → `passed:False` honnête. Un `deps_interdites` vide/mal formé = FAIL de format. C'est **mon ancre oracle déterministe au niveau s4** (validation de format), même si la vérification des imports réels ne pourra s'exécuter qu'à s10b (aucun code n'existe encore).
+
+## Découpage par responsabilité (pas par confort)
+
+Le charter impose la séparation dure (CS-5 / AI-6) : **la logique pure n'importe ni rendu, ni input, ni DOM**. Je découpe en couches, avec un flux d'import strictement descendant (DAG) :
+
+| Module (dossier/fichier racine) | Responsabilité unique | Importe (autorisé) |
+|---|---|---|
+| `data` | **Feuille pure** — déclarations en données : 3 maps (vagues/formations/fond), patterns ennemis & boss, HP boss, valeurs de score, plafond projectiles, schéma de touches. Aucune logique, aucune branche. (OBJ, AI-3, R3/R4/R11-16) | *(rien)* |
+| `logic` | **Cœur seedé** — `step(DT=16ms, inputs)`, état, RNG injecté, collisions, vies/score, transitions, esquivabilité par construction, pooling. Zéro API DOM. (CS-4/5/6/7/10, R1-10/17-24) | `data` |
+| `render` | **Vue muette** — reçoit un snapshot d'état immuable en argument, dessine des primitives canvas + fond par map. Ne connaît pas la logique. (OBJ rendu, R1/R11-13) | `data` |
+| `input` | **Adaptateur clavier** — capture les touches en objet d'intention. Ne connaît pas la logique. (R1/R2) | `data` |
+| `bot` | **Solveur déterministe headless** — pilote l'**API d'entrée publique** de `logic` (esquive+tir), sans DOM, sans rendu, sans le module `input` clavier. C'est la preuve de solvabilité. (CS-1, AI-5, R22) | `logic`, `data` |
+| `main` (`main.mjs`) | **Racine de composition** — le SEUL point qui câble tout : boucle rAF à pas fixe, `input→logic.step→render`, expose `window.__game`/`__game_debug`, DOM `#overlay`/`#restart`. C'est ici que vivent les seules références `window`/`document`. (CS-8, R26) | `logic`, `render`, `input`, `data` |
+
+**Fichiers racine hors graphe d'architecture** (harnais de preuve + serveur, non listés comme modules pour ne pas polluer `modules_sans_test`) : `server.mjs`, `index.html`, `run-oracle.mjs`, `e2e.mjs`, `solvability.mjs`, `README`. `solvability.mjs` importe `bot`+`logic` ; `e2e.mjs` pilote un navigateur réel (aucun import tracké).
+
+**God-object tué avant d'exister** : `main` est le seul autorisé à importer plusieurs couches ET à toucher `window`. Toute tentation de faire de `logic` un « GameManager » qui dessine/lit le clavier est bloquée mécaniquement par `logic→render`/`logic→input` interdits.
+
+## Graphe : autorisé (DAG) vs interdit (explicite)
+
+**deps_autorisées (9 edges, acyclique)** — ordre topologique `main, bot → render, input, logic → data` :
+`main→{logic,render,input,data}` · `bot→{logic,data}` · `render→data` · `input→data` · `logic→data`.
+
+**deps_interdites (21 edges — TOUT le reste)** : le complément couvre chaque edge remontant ou latéral. Conséquence prouvée par construction — et **exécutoire à s10b** : puisque toute arête de retour est une arête interdite, `check_architecture` refusera tout cycle réel. Les deux exigées par la tâche (`logique→rendu`, `logique→input`) sont les edges #1 et #2.
+
+## Correspondance featuremap ↔ blueprint (écarts)
+
+Chaque feuille R1–R26 mappe ≥1 module : R1-2→`logic`,`input` ; R3-5/R11-16→`data`+`logic` (+`render` pour les fonds) ; R6-10/R17-24→`logic` ; R22→`bot`+`logic` ; **R25 (logique n'importe ni rendu ni input ni DOM) EST littéralement mon oracle d'archi** — `deps_interdites ["logic","render"]/["logic","input"]` en est l'enforcement mécanique ; R26 (hooks `__game`, `#overlay`, `#restart`)→`main`. **Écart : 0 feuille orpheline.** `data` ajouté comme module explicite (implicite dans la featuremap « en données » mais non nommé) — décision d'architecte, pas un écart de couverture.
+
+## RAPPORT FINAL
+
+**software_verdict : OK** — appuyé par un oracle non-LLM déterministe : `forge.static_oracles.check_architecture` (garde de format F2b, lignes 208-228). Mon `deps_interdites` est une liste **non vide** de **21 paires `[str, str]` bien formées**, et `modules` est non vide avec tous les modules cités présents ; l'exécuteur matérialise `blueprint.json` sans lever `malformes`. La contrainte de la tâche (« deps_interdites OBLIGATOIRE et NON VIDE, sépare logique→rendu et logique→input ») est satisfaite mécaniquement.
+
+**evidence_verdict : MECHANICAL_VALIDATION_ONLY** — l'oracle cité valide le **format et la complétude du contrat de dépendances**, exécutable par l'exécuteur sur ce bloc JSON. Il ne prouve PAS que le code respecte la séparation (aucun code n'existe sous `games/shmup_slice/` — vérifié : dossier vide) : cette vérification des imports réels est **déférée à s10b**, où `check_architecture` s'exécutera sur les sources et fera FAIL sur toute violation ou tout cycle (arête de retour = arête interdite).
+
+**claim_verdict : NO_CLAIM_ALLOWED** — je n'émets aucun claim que « l'architecture est correctement séparée dans le code » : c'est infalsifiable à s4 (pas de code). Le blueprint est un **contrat gelé** ; sa satisfaction se prouvera à s10b.
+
+**Oracle archi cité :** `forge.static_oracles.check_architecture` (garde format déterministe à s4 ; enforcement imports+acyclicité à s10b). Aucun LLM-as-judge.
+
+**Écarts featuremap↔blueprint :** aucune feuille non couverte ; `data` nommé explicitement en plus.
+
+### fog → HumanGate (jugement Pierre, pas d'oracle à s4)
+1. **fog · sévérité `render→logic` interdit.** J'impose une invariant plus stricte que le charter (qui n'exige que `logic↛render/input`) : `render` reçoit l'état en argument et n'importe **jamais** `logic` ; toute constante partagée (types d'entités, palette) vit dans `data`. Bénéfice : tue le god-object ; risque : si le builder s9 a besoin d'un helper de `logic` dans `render`, c'est un FAIL s10b — l'échappatoire imposée est « mettre le partagé dans `data` ». À ratifier ou assouplir.
+2. **fog · valeurs de design non fixées** (hérité s1/s3, hors scope archi) : vitesses, cadences, durée d'invincibilité, HP par boss, score par ennemi, plafond projectiles, nombre de vagues/map. Le blueprint fixe **où** (`data`), jamais **combien** — à trancher en s9, jamais inventé ici.
+3. **fog · ownership mono-builder.** `ownership` mappe les 6 modules au seul agent `s9-build` (single-writer réel de ce slice) ; aucun agent distinct par module n'est mandaté. Si une décomposition multi-agents par module est voulue, c'est une décision HumanGate en amont de s9.
+
+**FORGE_DISPATCH:s4-archi:shmup_slice-20260714a — blueprint gelé produit, software_verdict OK (oracle format), séparation-en-code déférée s10b, 3 fogs remontés.**
+
+```json
+{"modules": ["logic", "data", "input", "render", "bot", "main"], "deps_interdites": [["logic", "render"], ["logic", "input"], ["logic", "main"], ["logic", "bot"], ["data", "logic"], ["data", "render"], ["data", "input"], ["data", "bot"], ["data", "main"], ["render", "logic"], ["render", "input"], ["render", "bot"], ["render", "main"], ["input", "logic"], ["input", "render"], ["input", "bot"], ["input", "main"], ["bot", "render"], ["bot", "input"], ["bot", "main"], ["main", "bot"]]}
+```

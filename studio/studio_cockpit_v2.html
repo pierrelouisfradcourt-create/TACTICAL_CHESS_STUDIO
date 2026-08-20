@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<!--
+  REFERENCE ONLY (IMP-191). Les 3 modules portes (modal Gates HMAC, 4 panels
+  read-only :8766, SSE /api/meta/stream) vivent desormais dans le cockpit
+  canonique : studio_v2_ux/studio_cockpit.html (vue "Live ·8766").
+  Ce fichier est conserve comme reference jusqu'a la verif visuelle Pierre,
+  puis sera deprecie. Ne pas etendre ici.
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tactical Chess Studio — Cockpit v2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0d;--surface:#161616;--surface2:#1e1e1e;--border:#2a2a2a;
+  --text:#e8e4d9;--muted:#666;
+  --accent:#c8a96e;--accent-dim:#8a7048;
+  --pass:#27ae60;--fail:#c0392b;--blocked:#e67e22;--pending:#3498db;
+  --neural:#8e44ad;
+}
+body{background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;
+  min-height:100vh;display:flex;flex-direction:column;gap:1rem;padding:1rem;}
+
+/* Topbar */
+.topbar{display:flex;align-items:center;gap:1rem;padding:.7rem 1rem;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;}
+.topbar h1{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;
+  color:var(--accent);letter-spacing:-.02em;flex:1;}
+.verdict-badge{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  padding:.3rem .7rem;border-radius:4px;border:1px solid;}
+.verdict-badge.PASS,.verdict-badge.OK{color:var(--pass);border-color:var(--pass)}
+.verdict-badge.FAIL{color:var(--fail);border-color:var(--fail)}
+.verdict-badge.BLOCKED{color:var(--blocked);border-color:var(--blocked)}
+.verdict-badge.UNKNOWN{color:var(--muted);border-color:var(--muted)}
+.ts{font-size:.58rem;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
+.dot.ok{background:var(--pass)}.dot.err{background:var(--fail)}.dot.spin{background:var(--accent);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Grid */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.grid-new{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+@media(max-width:900px){.grid,.grid-new{grid-template-columns:1fr}}
+.section-label{font-size:.6rem;color:var(--accent-dim);letter-spacing:.18em;text-transform:uppercase;
+  margin:.2rem .2rem -.3rem}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem}
+.card h2{font-size:.6rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;
+  margin-bottom:.8rem;padding-bottom:.4rem;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:.5rem}
+.card h2 .src{margin-left:auto;font-size:.52rem;color:var(--accent-dim);letter-spacing:.04em}
+
+/* ELO / bars */
+.elo-row{display:flex;flex-direction:column;gap:.6rem;margin-bottom:.8rem}
+.elo-label{display:flex;justify-content:space-between;font-size:.68rem;margin-bottom:.2rem}
+.elo-label .name{color:var(--muted)}
+.elo-label .val{color:var(--text);font-weight:700}
+.bar-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;transition:width .6s ease;background:var(--accent)}
+.bar-fill.hybrid{background:var(--accent)}.bar-fill.heuristic{background:#5dade2}
+.bar-fill.neural{background:var(--neural)}.bar-fill.teacher{background:var(--pass)}
+.delta{font-size:.72rem;margin-top:.6rem;padding:.5rem;background:var(--surface2);border-radius:5px}
+.delta .d-val{font-weight:700}.delta .d-val.pos{color:var(--pass)}.delta .d-val.neg{color:var(--fail)}
+.target-note{font-size:.6rem;color:var(--muted);margin-top:.3rem}
+
+/* Oracles */
+.oracle-row{display:flex;justify-content:space-between;align-items:center;
+  padding:.45rem .5rem;border-radius:5px;font-size:.68rem;margin-bottom:.3rem;background:var(--surface2)}
+.oracle-row .on{color:var(--muted)}.oracle-row .ov{font-weight:700}
+.oracle-row .ov.PASS{color:var(--pass)}.oracle-row .ov.FAIL{color:var(--fail)}.oracle-row .ov.NA{color:var(--muted)}
+.level-row{display:flex;gap:.4rem;margin-top:.4rem;flex-wrap:wrap}
+.lvl-chip{font-size:.6rem;padding:.2rem .5rem;border-radius:3px;border:1px solid}
+.lvl-chip.PASS{color:var(--pass);border-color:var(--pass)}
+.lvl-chip.FAIL{color:var(--fail);border-color:var(--fail)}
+
+/* IMPs */
+.imp-list{display:flex;flex-direction:column;gap:.3rem;max-height:200px;overflow-y:auto}
+.imp-item{font-size:.65rem;padding:.3rem .5rem;background:var(--surface2);
+  border-radius:4px;border-left:2px solid var(--accent-dim);color:var(--muted)}
+.imp-item .imp-id{color:var(--accent);font-weight:700;margin-right:.4rem}
+.imp-empty{font-size:.68rem;color:var(--pass)}
+
+/* Generic key/value + pills + services + recs + agents */
+.kv{display:flex;justify-content:space-between;font-size:.66rem;padding:.3rem .1rem;border-bottom:1px solid #1f1f1f}
+.kv:last-child{border-bottom:0}.kv .k{color:var(--muted)}.kv .v{font-weight:700}
+.pill{font-size:.55rem;padding:.12rem .45rem;border-radius:3px;border:1px solid var(--border);color:var(--muted)}
+.pill.PASS,.pill.PROMOTED{color:var(--pass);border-color:var(--pass)}
+.pill.FAIL,.pill.BLOCKED_ORACLE{color:var(--fail);border-color:var(--fail)}
+.svc-row{display:flex;flex-wrap:wrap;gap:.4rem;margin:.2rem 0 .6rem}
+.svc{display:flex;align-items:center;gap:.35rem;font-size:.6rem;padding:.25rem .5rem;
+  background:var(--surface2);border-radius:4px;color:var(--muted)}
+.svc .sd{width:7px;height:7px;border-radius:50%;background:var(--fail)}
+.svc.up .sd{background:var(--pass)}
+.rec{font-size:.63rem;padding:.35rem .5rem;background:var(--surface2);border-radius:4px;
+  border-left:2px solid var(--pending);margin-bottom:.3rem}
+.rec .rid{color:var(--accent);font-weight:700;margin-right:.3rem}
+.rec .rt{color:var(--text)}.rec .rr{color:var(--muted);font-size:.56rem;display:block;margin-top:.15rem}
+.agent{display:flex;justify-content:space-between;font-size:.62rem;padding:.25rem .4rem;
+  background:var(--surface2);border-radius:4px;margin-bottom:.25rem}
+.agent .ap{color:var(--accent-dim);font-size:.55rem}
+.skills-note{font-size:.6rem;color:var(--muted);margin-top:.4rem}
+.down-note{font-size:.64rem;color:var(--blocked);padding:.5rem;background:rgba(230,126,34,.08);
+  border:1px solid rgba(230,126,34,.3);border-radius:5px}
+.muted-note{font-size:.58rem;color:var(--muted);margin-top:.5rem;line-height:1.5}
+
+/* Blockers */
+.blocker-band{background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.4);
+  border-radius:8px;padding:.8rem 1rem;display:flex;flex-direction:column;gap:.4rem}
+.blocker-band h2{color:var(--fail);border-color:rgba(192,57,43,.3);font-size:.6rem;
+  letter-spacing:.14em;text-transform:uppercase;padding-bottom:.4rem;border-bottom:1px solid rgba(192,57,43,.3)}
+.blocker-item{font-size:.68rem;color:var(--fail)}.blocker-item::before{content:"\26A0 ";opacity:.7}
+
+/* Gates */
+.gates-section{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem}
+.gates-section h2{font-size:.6rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;
+  margin-bottom:.8rem;padding-bottom:.4rem;border-bottom:1px solid var(--border)}
+.gates-grid{display:flex;flex-direction:column;gap:.6rem}
+.gate-card{background:var(--surface2);border:1px solid var(--pending);border-radius:6px;
+  padding:.8rem;display:flex;flex-direction:column;gap:.4rem}
+.gate-meta{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.gate-id{font-size:.6rem;color:var(--pending);font-weight:700}
+.gate-agent{font-size:.58rem;color:var(--muted);background:var(--border);padding:.1rem .4rem;border-radius:3px}
+.gate-ts{font-size:.58rem;color:var(--muted);margin-left:auto}
+.gate-title{font-size:.72rem;font-weight:700}.gate-desc{font-size:.65rem;color:var(--muted);line-height:1.5}
+.gate-actions{display:flex;gap:.5rem;margin-top:.2rem}
+.btn{padding:.4rem .9rem;font-family:'Space Mono',monospace;font-size:.62rem;letter-spacing:.08em;
+  text-transform:uppercase;cursor:pointer;border-radius:5px;border:1px solid;transition:all .15s}
+.btn:hover{transform:scale(1.02)}.btn:active{transform:scale(.98)}
+.btn-approve{background:rgba(39,174,96,.1);border-color:var(--pass);color:var(--pass)}
+.btn-approve:hover{background:rgba(39,174,96,.2)}
+.btn-reject{background:rgba(192,57,43,.1);border-color:var(--fail);color:var(--fail)}
+.btn-reject:hover{background:rgba(192,57,43,.2)}
+.no-gates{font-size:.68rem;color:var(--muted)}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);
+  z-index:100;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:1.5rem;width:min(480px,90vw);display:flex;flex-direction:column;gap:1rem}
+.modal h3{font-family:'Syne',sans-serif;color:var(--accent);font-size:.9rem}
+.modal-meta{font-size:.65rem;color:var(--muted)}
+.modal textarea{background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  font-family:'Space Mono',monospace;font-size:.68rem;border-radius:5px;padding:.6rem;
+  resize:vertical;min-height:80px;width:100%}
+.modal textarea:focus{outline:none;border-color:var(--accent-dim)}
+.modal-actions{display:flex;gap:.5rem}
+.btn-cancel{background:none;border-color:var(--border);color:var(--muted)}
+
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- Bannière de dépréciation (IMP-214) -->
+<div id="deprecation-banner" role="alert" style="
+  position:sticky;top:0;z-index:200;
+  background:rgba(192,57,43,.18);
+  border:1px solid var(--fail,#c0392b);
+  border-left:4px solid var(--blocked,#e67e22);
+  border-radius:8px;
+  color:var(--text,#e8e4d9);
+  padding:12px 16px;
+  font-family:'Space Mono',monospace;font-size:.72rem;line-height:1.5;
+  display:flex;flex-wrap:wrap;align-items:center;gap:.4rem 1rem;">
+  <strong style="color:var(--blocked,#e67e22);">&#9888; Ce cockpit est déprécié.</strong>
+  <span>Utiliser <a href="http://localhost:7331" style="color:var(--accent,#c8a96e);font-weight:700;text-decoration:underline;">http://localhost:7331</a></span>
+  <span style="color:var(--muted,#666);">Redirection automatique dans <span id="dep-countdown" style="color:var(--accent,#c8a96e);font-weight:700;">3</span>s&hellip;</span>
+  <a href="#" id="dep-stay" style="margin-left:auto;color:var(--text,#e8e4d9);border:1px solid var(--border,#2a2a2a);background:var(--surface2,#1e1e1e);padding:.3rem .7rem;border-radius:5px;text-decoration:none;font-size:.66rem;">Rester sur cette page de référence</a>
+</div>
+
+<!-- Topbar -->
+<div class="topbar">
+  <h1>TACTICAL CHESS STUDIO &middot; COCKPIT v2</h1>
+  <span class="verdict-badge UNKNOWN" id="global-verdict">&mdash;</span>
+  <span class="ts" id="ts">&mdash;</span>
+  <div class="dot spin" id="dot" title="Connexion gateway 8766"></div>
+</div>
+
+<!-- Existing panels (via /api/meta) -->
+<div class="grid">
+  <div class="card">
+    <h2>ELO <span class="src">meta</span></h2>
+    <div class="elo-row"><div class="elo-label"><span class="name">Hybride</span><span class="val" id="elo-hybrid">&mdash;</span></div><div class="bar-track"><div class="bar-fill hybrid" id="bar-hybrid" style="width:0%"></div></div></div>
+    <div class="elo-row"><div class="elo-label"><span class="name">Heuristique</span><span class="val" id="elo-heuristic">&mdash;</span></div><div class="bar-track"><div class="bar-fill heuristic" id="bar-heuristic" style="width:0%"></div></div></div>
+    <div class="elo-row"><div class="elo-label"><span class="name">Neural seul</span><span class="val" id="elo-neural">&mdash;</span></div><div class="bar-track"><div class="bar-fill neural" id="bar-neural" style="width:0%"></div></div></div>
+    <div class="delta">&Delta; hybride vs heuristique : <span class="d-val" id="delta">&mdash;</span><div class="target-note" id="target-note">cible : heuristique + 20</div></div>
+  </div>
+  <div class="card">
+    <h2>Oracles <span class="src">meta</span></h2>
+    <div class="oracle-row"><span class="on">ELO match</span><span class="ov NA" id="elo-verdict">&mdash;</span></div>
+    <div class="oracle-row"><span class="on">Lichess puzzles</span><span class="ov NA" id="pzl-verdict">&mdash;</span></div>
+    <div class="level-row" id="pzl-levels"></div>
+  </div>
+  <div class="card">
+    <h2>IMPs ouverts <span class="src">meta</span></h2>
+    <div class="imp-list" id="imp-list"><span class="imp-item">Chargement&hellip;</span></div>
+  </div>
+</div>
+
+<!-- New panels (today) -->
+<div class="section-label">Nouveaux modules &middot; servis en 8766</div>
+<div class="grid-new">
+  <div class="card" id="card-director">
+    <h2>Director <span class="src" id="director-mode">&mdash;</span></h2>
+    <div id="director-body"><span class="muted-note">En attente&hellip; (offline si gateway DOWN)</span></div>
+  </div>
+  <div class="card" id="card-factory">
+    <h2>Factory <span class="src">registry</span></h2>
+    <div id="factory-body"><span class="muted-note">En attente&hellip; (offline si gateway DOWN)</span></div>
+  </div>
+  <div class="card" id="card-openclaw">
+    <h2>OpenClaw <span class="src" id="openclaw-src">&mdash;</span></h2>
+    <div id="openclaw-body"><span class="muted-note">En attente&hellip; (offline si gateway DOWN)</span></div>
+  </div>
+  <div class="card" id="card-neural">
+    <h2>Neural <span class="src">elo_match</span></h2>
+    <div id="neural-body"><span class="muted-note">En attente&hellip; (offline si gateway DOWN)</span></div>
+  </div>
+</div>
+
+<!-- Blockers -->
+<div id="blockers-wrap"></div>
+
+<!-- Gates Pierre -->
+<div class="gates-section">
+  <h2>Gates Pierre</h2>
+  <div class="gates-grid" id="gates-grid"><span class="no-gates">Aucune gate en attente.</span></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Gate Pierre</h3>
+    <div class="modal-meta" id="modal-meta"></div>
+    <textarea id="modal-justif" placeholder="Justification (optionnelle)&hellip;"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-approve" id="modal-approve">&#10003; Approuver</button>
+      <button class="btn btn-reject"  id="modal-reject">&#10007; Rejeter</button>
+      <button class="btn btn-cancel"  id="modal-cancel">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const GW = 'http://127.0.0.1:8766';
+const POLL_MS = 30000;           // 30s max (consigne)
+const TIMEOUT_MS = 4000;
+let _pendingGate = null;
+let _sse = null;
+
+// ---- Util ----
+function escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function setDot(state){document.getElementById('dot').className='dot '+state;}
+async function getJson(path){
+  const res = await fetch(GW+path,{signal:AbortSignal.timeout(TIMEOUT_MS)});
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return res.json();
+}
+function panelDown(id,label){
+  document.getElementById(id).innerHTML='<div class="down-note">'+escHtml(label)+' DOWN &mdash; gateway 8766 injoignable (offline)</div>';
+}
+
+// ---- META (existing panels) via SSE + poll fallback ----
+function renderMeta(d){
+  const ts=d.timestamp?new Date(d.timestamp).toLocaleString('fr-FR'):'—';
+  document.getElementById('ts').textContent=ts;
+  setVerdict(d.global_verdict||'UNKNOWN');
+  const live=d.elo_live||{}, mem=d.memory||{};
+  const hybrid=live.hybrid??mem.elo_hybrid??null;
+  const heuristic=live.heuristic??mem.elo_heuristic??null;
+  const neural=live.neural??mem.elo_neural??null;
+  const delta=live.delta??(d.oracles&&d.oracles.elo_match?d.oracles.elo_match.delta_hybrid_vs_heuristic:null)??null;
+  const MAX=1600;
+  setElo('elo-hybrid','bar-hybrid',hybrid,MAX);
+  setElo('elo-heuristic','bar-heuristic',heuristic,MAX);
+  setElo('elo-neural','bar-neural',neural,MAX);
+  const de=document.getElementById('delta');
+  if(delta!=null){const s=delta>=0?'+':'';de.textContent=s+delta.toFixed(1)+' pts';de.className='d-val '+(delta>=20?'pos':'neg');}
+  else{de.textContent='—';de.className='d-val';}
+  document.getElementById('target-note').textContent='cible : '+(mem.elo_target||'heuristique + 20');
+  const eo=(d.oracles&&d.oracles.elo_match)||{}, po=(d.oracles&&d.oracles.lichess_eval)||{};
+  setOracle('elo-verdict',eo.available?eo.verdict:'NA');
+  setOracle('pzl-verdict',po.available?po.verdict:'NA');
+  const lv=document.getElementById('pzl-levels');lv.innerHTML='';
+  (po.levels||[]).forEach(l=>{const c=document.createElement('span');c.className='lvl-chip '+l.verdict;c.textContent='L'+l.level+' '+(l.solved_pct!=null?l.solved_pct.toFixed(1):'?')+'%';lv.appendChild(c);});
+  const il=document.getElementById('imp-list');il.innerHTML='';
+  const v=(d.imps_info&&d.imps_info.valides)||[];
+  if(!v.length){il.innerHTML='<span class="imp-empty">Aucun IMP ouvert ✓</span>';}
+  else{v.forEach(id=>{const e=document.createElement('div');e.className='imp-item';e.innerHTML='<span class="imp-id">'+escHtml(id)+'</span>';il.appendChild(e);});}
+  renderBlockers(d.blockers||[]);
+  renderGates(d.pending_gates||[]);
+}
+function setVerdict(v){const el=document.getElementById('global-verdict');el.textContent=v;el.className='verdict-badge '+v;}
+function setElo(valId,barId,val,max){document.getElementById(valId).textContent=val!=null?Math.round(val):'—';document.getElementById(barId).style.width=val!=null?Math.min(100,(val/max)*100).toFixed(1)+'%':'0%';}
+function setOracle(id,v){const el=document.getElementById(id);el.textContent=v||'NA';el.className='ov '+(v||'NA');}
+function renderBlockers(bl){const w=document.getElementById('blockers-wrap');if(!bl.length){w.innerHTML='';return;}w.innerHTML='<div class="blocker-band"><h2>Bloqueurs</h2>'+bl.map(b=>'<div class="blocker-item">'+escHtml(b)+'</div>').join('')+'</div>';}
+function renderGates(gs){const el=document.getElementById('gates-grid');if(!gs.length){el.innerHTML='<span class="no-gates">Aucune gate en attente.</span>';return;}
+  el.innerHTML=gs.map(g=>'<div class="gate-card"><div class="gate-meta"><span class="gate-id">'+escHtml(g.gate_id)+'</span><span class="gate-agent">@'+escHtml(g.agent||'?')+'</span><span class="gate-ts">'+(g.created_at?new Date(g.created_at).toLocaleString('fr-FR'):'')+'</span></div><div class="gate-title">'+escHtml(g.title)+'</div>'+(g.description?'<div class="gate-desc">'+escHtml(g.description)+'</div>':'')+'<div class="gate-actions"><button class="btn btn-approve" onclick=\'openModal('+JSON.stringify(g)+",\"APPROVE\")'>✓ Approuver</button><button class=\"btn btn-reject\" onclick='openModal("+JSON.stringify(g)+',"REJECT")\'>✗ Rejeter</button></div></div>').join('');
+}
+
+async function refreshMeta(){
+  try{const d=await getJson('/api/meta');setDot('ok');renderMeta(d);}
+  catch(e){setDot('err');setVerdict('UNKNOWN');}
+}
+function startSse(){
+  try{
+    _sse=new EventSource(GW+'/api/meta/stream');
+    _sse.onmessage=ev=>{try{const d=JSON.parse(ev.data);setDot('ok');renderMeta(d);}catch(_){}};
+    _sse.onerror=()=>{setDot('err');if(_sse){_sse.close();_sse=null;}setTimeout(startSse,POLL_MS);};
+  }catch(e){refreshMeta();}
+}
+
+// ---- DIRECTOR ----
+function svcRow(services){
+  if(!services||!services.length) return '';
+  return '<div class="svc-row">'+services.map(s=>'<span class="svc '+(s.up?'up':'')+'"><span class="sd"></span>'+escHtml(s.name)+':'+s.port+'</span>').join('')+'</div>';
+}
+function renderDirector(d){
+  if(!d||d.available===false){panelDown('director-body','Director');document.getElementById('director-mode').textContent='—';return;}
+  document.getElementById('director-mode').textContent=escHtml(d.mode||'?');
+  const led=(d.ledger&&d.ledger.by_status)||{};
+  const recs=(d.schedule&&d.schedule.recommended)||[];
+  let h='';
+  h+='<div class="kv"><span class="k">Ledger</span><span class="v">OPEN '+(led.OPEN||0)+' &middot; CLOSED '+(led.CLOSED||0)+' &middot; FAIL '+(led.FAIL||0)+'</span></div>';
+  h+=svcRow(d.services);
+  h+='<div class="kv"><span class="k">Next autoloop</span><span class="v">'+(recs.length?escHtml(recs[0].id):'—')+'</span></div>';
+  if(recs.length){h+=recs.slice(0,3).map(r=>'<div class="rec"><span class="rid">'+escHtml(r.id)+'</span><span class="rt">'+escHtml(r.title)+'</span><span class="rr">'+escHtml(r.reason||'')+'</span></div>').join('');}
+  else{h+='<div class="muted-note">Aucun IMP recommande.</div>';}
+  document.getElementById('director-body').innerHTML=h;
+}
+
+// ---- FACTORY ----
+function renderFactory(f){
+  if(!f||f.available===false){panelDown('factory-body','Factory');return;}
+  const last=f.last||null;let h='';
+  h+='<div class="kv"><span class="k">Jeux au registry</span><span class="v">'+(f.count||0)+'</span></div>';
+  if(last){
+    const m=last.oracle_metrics||{};
+    h+='<div class="kv"><span class="k">Dernier jeu</span><span class="v">'+escHtml(last.ir_name)+'</span></div>';
+    h+='<div class="kv"><span class="k">Oracle</span><span class="pill '+escHtml(last.oracle_status)+'">'+escHtml(last.oracle_status)+'</span></div>';
+    h+='<div class="kv"><span class="k">Score moyen</span><span class="v">'+(m.avg_score!=null?m.avg_score:'—')+'</span></div>';
+    h+='<div class="kv"><span class="k">Violations</span><span class="v">'+(m.violations!=null?m.violations:'—')+'</span></div>';
+    h+='<div class="kv"><span class="k">Logique LLM</span><span class="v">'+(last.logic_complete?'complete':'partielle')+'</span></div>';
+  }else{h+='<div class="muted-note">Registry vide.</div>';}
+  document.getElementById('factory-body').innerHTML=h;
+}
+
+// ---- OPENCLAW ----
+function renderOpenclaw(o){
+  if(!o||o.available===false){panelDown('openclaw-body','OpenClaw');document.getElementById('openclaw-src').textContent='—';return;}
+  document.getElementById('openclaw-src').textContent=escHtml(o.roster_source||'');
+  let h=svcRow(o.services);
+  const ag=o.agents||[];
+  if(ag.length){h+=ag.map(a=>'<div class="agent"><span>'+escHtml(a.name)+'</span><span class="ap">'+escHtml(a.provider||a.authority||'')+'</span></div>').join('');}
+  else{h+='<div class="muted-note">Roster indisponible.</div>';}
+  h+='<div class="skills-note">'+(o.skills_count||0)+' skills disponibles</div>';
+  document.getElementById('openclaw-body').innerHTML=h;
+}
+
+// ---- NEURAL ----
+function renderNeural(n){
+  if(!n||n.available===false||!n.ratings){panelDown('neural-body','Neural');return;}
+  const r=n.ratings,MAX=1600;let h='';
+  const rows=[['teacher_uci','Teacher UCI','teacher'],['hybrid','Hybride','hybrid'],['heuristic','Heuristique','heuristic'],['neural','Neural','neural']];
+  rows.forEach(([key,lbl,cls])=>{
+    const val=r[key];
+    h+='<div class="elo-row"><div class="elo-label"><span class="name">'+lbl+'</span><span class="val">'+(val!=null?Math.round(val):'—')+'</span></div><div class="bar-track"><div class="bar-fill '+cls+'" style="width:'+(val!=null?Math.min(100,(val/MAX)*100).toFixed(1):0)+'%"></div></div></div>';
+  });
+  const dlt=n.delta_hybrid_vs_heuristic;
+  h+='<div class="delta">&Delta; hybride vs heuristique : <span class="d-val '+(dlt>=20?'pos':'neg')+'">'+(dlt!=null?(dlt>=0?'+':'')+dlt:'—')+'</span> <span class="pill '+escHtml(n.verdict)+'">'+escHtml(n.verdict||'?')+'</span></div>';
+  h+='<div class="muted-note">'+escHtml(n.regenerated_note||('bench : '+(n.games||'?')+' parties'))+'</div>';
+  document.getElementById('neural-body').innerHTML=h;
+}
+
+// ---- Extras (4 panels) : polling 30s, chacun isole ----
+async function refreshExtras(){
+  const tasks=[
+    ['/api/director',renderDirector,'director-body','Director'],
+    ['/api/factory',renderFactory,'factory-body','Factory'],
+    ['/api/neural',renderNeural,'neural-body','Neural'],
+    ['/api/openclaw',renderOpenclaw,'openclaw-body','OpenClaw'],
+  ];
+  await Promise.allSettled(tasks.map(async ([path,render,body,label])=>{
+    try{const d=await getJson(path);render(d);}
+    catch(e){panelDown(body,label);}
+  }));
+}
+
+// ---- Modal / gate ----
+function openModal(gate,verdict){
+  _pendingGate={gate,verdict};
+  document.getElementById('modal-title').textContent=(verdict==='APPROVE'?'Approuver : ':'Rejeter : ')+gate.title;
+  document.getElementById('modal-meta').textContent=gate.gate_id+' · @'+(gate.agent||'?');
+  document.getElementById('modal-justif').value='';
+  document.getElementById('modal').classList.add('show');
+  document.getElementById('modal-justif').focus();
+}
+function closeModal(){document.getElementById('modal').classList.remove('show');_pendingGate=null;}
+async function submitGate(verdict){
+  if(!_pendingGate)return;const g=_pendingGate.gate;
+  const j=document.getElementById('modal-justif').value.trim();closeModal();
+  try{
+    const res=await fetch(GW+'/api/gate/'+encodeURIComponent(g.gate_id),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({verdict,justification:j||null})});
+    if(!res.ok){const er=await res.json().catch(()=>({}));alert('Erreur gate : '+(er.detail||res.status));}
+    else{await refreshMeta();}
+  }catch(e){alert('Gateway inaccessible : '+e.message);}
+}
+document.getElementById('modal-approve').addEventListener('click',()=>submitGate('APPROVE'));
+document.getElementById('modal-reject').addEventListener('click',()=>submitGate('REJECT'));
+document.getElementById('modal-cancel').addEventListener('click',closeModal);
+document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
+
+// ---- Init ----
+refreshMeta();
+startSse();
+refreshExtras();
+setInterval(refreshExtras,POLL_MS);
+</script>
+
+<!-- Redirection de dépréciation (IMP-214) -->
+<script>
+(function(){
+  var el=document.getElementById('dep-countdown');
+  var stay=document.getElementById('dep-stay');
+  if(!el){return;}            // guard : pas de crash si la bannière est absente
+  var n=parseInt(el.textContent,10);
+  if(isNaN(n)){n=3;}
+  var timer=setInterval(function(){
+    n-=1;
+    if(n<=0){
+      clearInterval(timer);
+      el.textContent='0';
+      window.location.href='http://localhost:7331';
+      return;
+    }
+    el.textContent=String(n);
+  },1000);
+  if(stay){
+    stay.addEventListener('click',function(e){
+      e.preventDefault();
+      clearInterval(timer);
+      el.textContent='annulée';
+      stay.textContent='Redirection annulée';
+      stay.style.color='var(--pass,#27ae60)';
+      stay.style.borderColor='var(--pass,#27ae60)';
+    });
+  }
+})();
+</script>
+</body>
+</html>

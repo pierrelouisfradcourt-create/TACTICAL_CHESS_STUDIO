@@ -1,0 +1,26 @@
+Audit red-team CODE terminé. Rapport écrit dans `lab/forge_runs/breakout_v2/rapport_redteam_code.md` (seul fichier écrit, lecture seule ailleurs, aucun oracle exécuté — permission `run: aucun`).
+
+## Synthèse
+
+Le code de `breakout_v2` est **exceptionnellement discipliné**. Les 6 angles prioritaires du contrat qui portent sur une faille *présente* reviennent **RAS**, chacun avec ancre non-LLM :
+- **Rendu ne recalcule pas l'état** — `field_view`/`brick_view`/`hud`/`end_screen` lisent `state`, ne décident aucune règle.
+- **Pas de delta moteur dans la sim** — `05_SYSTEMS` n'appelle aucune horloge ; le delta n'entre qu'en `main.gd:41` via l'accumulateur, la sim lit `FixedStep.dt()`.
+- **Aucun littéral de gameplay dispersé** — grep numérique hors `params.gd` : que des dérivations géométriques `/2.0` de constantes nommées.
+- **Aucun epsilon** — grep `epsilon|approx` = 0 ; rebonds assertés en égalité stricte d'expressions dérivées.
+- **Sens du graphe respecté** — `05_SYSTEMS` n'importe jamais `06_RUNTIME` (grep 0 + garde `purity_guard`).
+
+## 2 findings advisory (écarts promesse↔code + trous de couverture, pas d'assert cassé)
+
+- **F1 · MEDIUM** — `runtime_loop.avancer` remet l'accumulateur à `0.0` (jette le reste au lieu de `acc - pas`) ⇒ cadence temps-réel **dépendante du framerate**, jamais nominale (60 fps→60, 144 fps→48, nominal 62,5). **Aucun oracle** n'exerce ce chemin produit (tous appellent `Loop.step` en direct), et `no_time_catchup.test.gd:23` **fige** cette valeur à perte (`accumulateur == 0.0`) au lieu de la propriété durable de bornage. Repro pure/headless fournie.
+- **F2 · LOW** — collisionneur de briques **discret** déclaré « physique continue » ; sûreté anti-tunneling = `|v|·dt < épaisseur_min`, non gardée par aucun test, alors que `BALLE_VITESSE_INITIALE`/`TICK_DT_FIXED_MS` sont **A_EQUILIBRER**. Latent (calibration actuelle sûre ; murs sûrs car demi-plan, seules les briques sont tunnelables). Repro par perturbation dans l'espace de réglage déclaré.
+
+## Verdicts (séparés)
+- **software_verdict : N/A** (advisory — le red-team critique, les oracles prouvent).
+- **evidence_verdict : MECHANICAL_VALIDATION_ONLY** (ancres statiques `chemin:ligne` + grep).
+- **claim_verdict : NO_CLAIM_ALLOWED** — aucun oracle exécuté ; confirmation dynamique de F1/F2 déléguée en aval (fog-RT1/RT2/RT3).
+
+## SKIPPED_VALIDATION (explicite, non silencieux)
+- **`EXPECTED_ASSERTS := 274`** non vérifié (nécessite d'exécuter le runner) — angle « compteur ajusté après coup » **non résolu**.
+- **Diff wiremap** (`09_WIREMAP/wiremap.json` + `lab/forge_runs/.../wiremap.json`, tous deux `M`) **non audité** : `git diff` refusé par mes permissions ⇒ l'angle « champ de promesse modifié pour coïncider » n'a **pas** pu être tranché. **À faire auditer par un lecteur autorisé.**
+
+Le bloc JSON `{"findings":[…]}` en fin de rapport reprend exactement F1/F2 pour le parseur déterministe `extract_redteam_findings`.

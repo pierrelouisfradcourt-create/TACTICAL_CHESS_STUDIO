@@ -1,0 +1,46 @@
+{
+  "policy_id": "surface_policy.lock",
+  "version": "PR-00A",
+  "status": "locked",
+  "purpose": "Protect trust-root surfaces and define lifecycle controls for policy-bound surfaces.",
+  "protected_surfaces": [
+    ".github/CODEOWNERS",
+    "THREAT_MODEL.md",
+    "SECURITY_BOUNDARY.md",
+    "LAB_POLICY_BOOTSTRAP.md",
+    "lab/policies/"
+  ],
+  "blocks": {
+    "path_traversal_blocks": true,
+    "symlink_escape_blocks": true,
+    "undeclared_plugin_blocks": true,
+    "undeclared_env_var_blocks": true,
+    "shadow_write_blocks": true,
+    "best_effort_fallback_blocks": true
+  },
+  "review_rules": {
+    "owner": "@pierrelouisfradcourt-create",
+    "special_review_is_not_bypass": true,
+    "verified_human_decision_required": true,
+    "policy_compatibility_required": true
+  },
+  "surface_lifecycle_states": [
+    "draft",
+    "proposed",
+    "locked",
+    "deprecated",
+    "burn_after_use",
+    "retired"
+  ],
+  "burn_after_use_rules": {
+    "temporary_credentials_must_not_be_committed": true,
+    "temporary_tokens_must_be_destroyed_after_use": true,
+    "temporary_exports_must_not_be_primary_evidence": true,
+    "temporary_artifacts_require_explicit_lifecycle_state": true
+  },
+  "no_code_boundary": {
+    "no_code_is_not_primary_evidence": true,
+    "supabase_is_registry_cockpit_decisions_not_primary_proof": true,
+    "n8n_is_orchestration_fail_closed_not_proof": true
+  }
+}

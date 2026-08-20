@@ -1,0 +1,506 @@
+{
+  "systemes": [
+    {
+      "systeme": "Démarrage de partie — le jeu doit pouvoir démarrer (R13)",
+      "features": [
+        {
+          "feature": "RoundIndex dans le GameState",
+          "feuilles": [
+            {
+              "capacite": "Porter un round_index entier au niveau du GameState, initialisé à 0 à la création de la partie — SEUL ajout de champ d'état autorisé par cet incrément",
+              "preuve_attendue": "R13 — le jeu doit pouvoir démarrer (05_ECONOMY_BIBLE.md:149-160, « Income = revenu de base fonction du RoundIndex » ; 02_CORE_RULES.md:121, round_index listé dans la composition du GameState) : fixture — juste après initialisation, state.round_index vaut exactement 0"
+            },
+            {
+              "capacite": "Faire survivre round_index à toute transition d'état : chaque construction de GameState le reconduit, aucun handler ne le perd",
+              "preuve_attendue": "R13 — le jeu doit pouvoir démarrer : property-test sur séquences d'Inputs seedées — après chaque Input (accepté ou rejeté), state.round_index est strictement égal à sa valeur d'avant. ÉCART CONNU vérifié : engine/state.mjs::createGameState ne recopie QUE {seed, rng_state, eventLog, players, entities, phase} — tout champ supplémentaire est silencieusement perdu (c'est déjà le cas de state.pool et state.bench_capacity, ré-attachés à la main dans chaque handler de preparation.mjs). Ce test échoue tant que le champ n'est pas porté par le constructeur"
+            },
+            {
+              "capacite": "Ne PAS afficher round_index à l'écran : le numéro de tour reste hors de la surface observable par le Seat, donc aucun Event de début de Round n'est requis et le registre reste clos à 22",
+              "preuve_attendue": "R13 + R1b + Prisme § Périmètre réel (« le numéro de tour … n'est donc PAS affiché ») : audit statique — aucun sélecteur DOM ni aucun tracé canvas ne lit round_index ; assertion stricte EVENT_KINDS.length === 22 (aucun Event de début de Round créé)"
+            }
+          ]
+        },
+        {
+          "feature": "Crédit d'Income en début de Round",
+          "feuilles": [
+            {
+              "capacite": "Créditer à chaque Seat, en début de Round, un Income de revenu de base SEUL, égal à min(3 + round_index, 10) or",
+              "preuve_attendue": "R13 + R11 (valeur v0 sourcée, gate n°5) et 05_ECONOMY_BIBLE.md:100-109 (liste close des mouvements de Gold, dont Income — crédit, début de Round, revenu de base seul) : fixture — au Round 0 l'or du Seat passe de 0 à exactement 3 ; au Round 1 il augmente d'exactement 4 ; au Round 8 et au-delà il augmente d'exactement 10 (plafond), jamais davantage"
+            },
+            {
+              "capacite": "Émettre pour chaque crédit d'Income un GoldChanged de payload {seat_id, delta, new_gold, source:'Income'} SANS input_ref (mouvement système)",
+              "preuve_attendue": "R13 + R1b + 05_ECONOMY_BIBLE.md § Événements (payload GoldChanged : « input_ref : absente pour les mouvements système (Income, rewards) ») : fixture début de Round — le journal contient exactement un GoldChanged par Seat, source vaut la chaîne 'Income' (déjà dans la liste close de economy/gold.mjs), delta est strictement égal au montant crédité, new_gold à l'or résultant, et la clé input_ref est absente du payload"
+            },
+            {
+              "capacite": "N'appliquer AUCUNE composante d'Income autre que le revenu de base : ni intérêt, ni prime de série",
+              "preuve_attendue": "R13 + 05_ECONOMY_BIBLE.md:210 (« Composantes additionnelles d'Income (Interest, primes de série) : AUCUNE — REJETÉES, QE-4/QE-5 ») : property-test — pour tout Round, le delta d'or de début de Round est strictement égal à min(3 + round_index, 10), quel que soit l'or épargné et quel que soit l'historique de résultats ; audit statique — aucun site de calcul d'Income ne lit l'or courant du Seat"
+            },
+            {
+              "capacite": "Itérer le crédit d'Income sur les Seats en seat_index croissant et fixe",
+              "preuve_attendue": "R13 + 05_ECONOMY_BIBLE.md:230-232 (DP-2 : « l'Income et le tirage des Shops itèrent sur les Seats en seat_index croissant, fixe ») : fixture multi-Seats — l'ordre des GoldChanged{source:'Income'} dans le journal est exactement l'ordre croissant des seat_index, rejoué deux fois à l'identique"
+            }
+          ]
+        },
+        {
+          "feature": "Tirage d'ouverture de la Shop",
+          "feuilles": [
+            {
+              "capacite": "Tirer la Shop de chaque Seat en début de Round, après l'Income, en réservant les exemplaires tirés dans le Pool",
+              "preuve_attendue": "R13 + 05_ECONOMY_BIBLE.md:250-261 (ordonnancement Income → tirage des Shops → Preparation State ; exemplaires tirés RÉSERVÉS, pas débités — QE-2) : fixture début de partie — la Shop du Seat contient exactement 5 emplacements et la disponibilité du Pool a décru d'exactement un exemplaire par emplacement tiré"
+            },
+            {
+              "capacite": "Émettre pour chaque tirage d'ouverture un ShopRolled de payload {seat_id, shop_content, odds_table_version, cause} dont la cause distingue le début de Round du Reroll",
+              "preuve_attendue": "R13 + R1b + 05_ECONOMY_BIBLE.md § Événements (payload ShopRolled : « cause : début de Round ou Reroll ») : fixture — le journal d'ouverture contient un ShopRolled dont shop_content est strictement égal au contenu de la Shop de l'état résultant et dont cause diffère de la valeur 'Reroll' émise par handleReroll (preparation.mjs:399-405). NON DOCUMENTÉ : la chaîne littérale exacte de la cause « début de Round » n'est fixée par aucune bible"
+            },
+            {
+              "capacite": "Ne PAS re-tirer la Shop d'un Seat dont la Shop est verrouillée, et ne consommer aucun rng_state pour cette Shop",
+              "preuve_attendue": "R13 + ECO-8 (05_ECONOMY_BIBLE.md:134-138) : fixture Lock au Round r → Round r+1 — la Shop est identique bit à bit, aucun ShopRolled n'est émis pour ce Seat, rng_state est strictement inchangé par ce tirage"
+            },
+            {
+              "capacite": "Respecter l'ordonnancement intra-Round Income → tirage des Shops → Preparation State",
+              "preuve_attendue": "R13 + 05_ECONOMY_BIBLE.md:249-262 (ordonnancement ratifié) : fixture début de Round — dans le journal, tous les GoldChanged{source:'Income'} précèdent strictement tous les ShopRolled du même Round, et aucun Input joueur n'est accepté avant le dernier de ces ShopRolled"
+            }
+          ]
+        },
+        {
+          "feature": "État de départ non bloquant",
+          "feuilles": [
+            {
+              "capacite": "Offrir, depuis une partie neuve créée par initState (aucune injection d'or ni d'unité), un premier écran où l'or est non nul et la boutique non vide — donc où acheter est possible",
+              "preuve_attendue": "R13 — « un incrément qui produit un état de départ en impasse est un ÉCHEC » : fixture partie neuve — après Round 0, l'or du Seat vaut exactement 3 et sa Shop compte exactement 5 emplacements portant chacun un unit_def_id réel. ÉCART CONNU vérifié : preparation.mjs:79-86 pose aujourd'hui gold:0 et shop:[], et aucun code d'Income n'existe (recherche de « Income » dans games/auto_battler/**.mjs : uniquement la liste de sources de economy/gold.mjs et des tests)"
+            },
+            {
+              "capacite": "Interdire aux fixtures d'oracle de jeu de fabriquer les conditions de départ : solvabilité et e2e partent de initState + premier Round, jamais d'un état pré-chargé en or",
+              "preuve_attendue": "R13 + R6 : audit statique des fixtures d'oracle de jeu — aucun site d'écriture directe de players[seat].gold ni de players[seat].shop dans le harnais de solvabilité et d'e2e ; l'or et la boutique n'y proviennent que des Events Income/ShopRolled produits par le moteur"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Event Log — complétion du journal (R1b)",
+      "features": [
+        {
+          "feature": "Registre d'Events porté de 19 à 22",
+          "feuilles": [
+            {
+              "capacite": "Déclarer dans engine/registry.mjs exactement 22 noms d'Events — les 19 actuels plus UnitPlaced, ShopLocked, PhaseChanged — et rejeter fail-hard tout 23e nom",
+              "preuve_attendue": "R1b — complétion préalable de l'Event Log (INV-12, Oracle Hook INV-12 ; registre 02_CORE_RULES.md:237-263) : assertion stricte EVENT_KINDS.length === 22 et égalité ensembliste avec le registre de la bible ; un nom hors des 22 fait échouer le run (fail-hard, pas un avertissement). ÉCART CONNU vérifié : engine/registry.mjs déclare aujourd'hui 19 noms"
+            }
+          ]
+        },
+        {
+          "feature": "Émission des Events aujourd'hui muets",
+          "feuilles": [
+            {
+              "capacite": "Émettre UnitPlaced à chaque Place accepté, avec le payload ratifié {seat_id, unit_instance_id, from_zone, from_index, to_zone, to_index}, y compris pour un repositionnement plateau→plateau",
+              "preuve_attendue": "R1b + 02_CORE_RULES.md:265-272 (payload UnitPlaced ratifié) : fixture Place banc→plateau et fixture Place plateau→plateau ; le journal contient exactement un UnitPlaced par Place accepté, chaque champ du payload strictement égal aux zone et index réels de l'état résultant"
+            },
+            {
+              "capacite": "Émettre ShopLocked à chaque changement effectif de shop_locked, avec le payload ratifié {seat_id, locked}, pour le verrouillage ET le déverrouillage",
+              "preuve_attendue": "R1b + 05_ECONOMY_BIBLE.md § Événements (payload ShopLocked) : fixture Lock → ShopLocked{locked:true} ; fixture Reroll après Lock (preparation.mjs:409 repasse shop_locked à false) → ShopLocked{locked:false} ; aucun ShopLocked émis quand shop_locked ne change pas"
+            },
+            {
+              "capacite": "Émettre PhaseChanged à chaque transition de phase, avec le payload ratifié {from_phase, to_phase}, notamment sur ConfirmPreparation",
+              "preuve_attendue": "R1b + 02_CORE_RULES.md:271-272 (payload PhaseChanged) : fixture ConfirmPreparation — le journal contient exactement un PhaseChanged dont from_phase est strictement égal à state.phase d'avant et to_phase à state.phase d'après ; le commentaire MED-5 de handleConfirmPreparation (preparation.mjs:567-576), qui justifiait l'absence d'Event par la lecture de state.phase, a disparu du chemin de code. CONTRADICTION SIGNALÉE : initState pose phase:'Shop' (engine/state.mjs) alors que les bibles nomment cette fenêtre « Preparation State » — le nom littéral des phases n'est fixé par aucune bible"
+            }
+          ]
+        },
+        {
+          "feature": "Champs ajoutés aux Events existants",
+          "feuilles": [
+            {
+              "capacite": "Porter unit_instance_id et bench_index dans le payload de UnitBought, en plus de {seat_id, unit_definition, shop_slot, gold_cost}",
+              "preuve_attendue": "R1b + 05_ECONOMY_BIBLE.md § Événements (payload UnitBought, deux champs ajoutés par le gate 2026-07-19) : fixture Buy — UnitBought.unit_instance_id est strictement égal à l'unit_instance_id de l'UnitInstance réellement ajoutée au banc et UnitBought.bench_index à son index réel dans player.bench. ÉCART CONNU vérifié : preparation.mjs:229-239 émet aujourd'hui 4 champs et documente en commentaire l'exclusion volontaire d'unit_instance_id (MED-4)"
+            },
+            {
+              "capacite": "Porter from_zone et from_index dans le payload de UnitSold, en plus des champs existants",
+              "preuve_attendue": "R1b + 05_ECONOMY_BIBLE.md § Événements (payload UnitSold) : fixture Sell — from_zone et from_index désignent strictement la zone et l'index qu'occupait l'unité juste avant sa suppression, vérifiés contre l'état d'avant"
+            },
+            {
+              "capacite": "Porter to_zone et to_index dans le payload de MergeResolved, en plus des champs existants",
+              "preuve_attendue": "R1b + 02_CORE_RULES.md:273-280 (payload MergeResolved, to_zone/to_index ajoutés par le gate 2026-07-19) : fixture de fusion — to_zone et to_index désignent strictement la zone et l'index où l'UnitInstance produite se trouve après la fusion. ÉCART CONNU vérifié : preparation.mjs:631-637 émet aujourd'hui 4 champs, sans destination"
+            }
+          ]
+        },
+        {
+          "feature": "Aucun changement d'état observable muet",
+          "feuilles": [
+            {
+              "capacite": "Garantir que tout Input accepté modifiant un champ observable d'un Seat {gold, bench, board, level, shop, shop_locked} émet au moins un Event, et que l'état observable d'un Seat est intégralement reconstructible depuis les seules conditions initiales connues et le journal d'Events",
+              "preuve_attendue": "R1b — « aucun changement d'état ne doit rester muet » : property-test sur séquences d'Inputs seedées — plier le journal depuis les conditions initiales (gold 0, level 1, bench [], board [], shop [], shop_locked false) et comparer champ à champ au Seat produit par le moteur ; égalité stricte exigée, aucune tolérance"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Renderer aveugle (R1)",
+      "features": [
+        {
+          "feature": "Isolation du renderer vis-à-vis du moteur",
+          "feuilles": [
+            {
+              "capacite": "Produire l'écran sans jamais importer ni référencer le type GameState ni aucun module du moteur : engine/state, engine/transition, preparation, pool, rng",
+              "preuve_attendue": "R1 — Renderer AVEUGLE (INV-5, 02_CORE_RULES.md:56 ; Oracle Hook INV-5, 02_CORE_RULES.md:304-305) : oracle d'architecture deps_interdites — échec si le module Renderer importe ou référence GameState, engine/state, engine/transition, preparation, pool ou rng"
+            }
+          ]
+        },
+        {
+          "feature": "Projection du journal en modèle de vue",
+          "feuilles": [
+            {
+              "capacite": "Plier le journal d'Events en modèle de vue à partir des seules conditions initiales connues (or 0, niveau 1, banc vide, plateau vide, boutique vide, boutique non verrouillée), sans autre entrée que l'Event Log",
+              "preuve_attendue": "R1 — Renderer AVEUGLE : fixture — appliquer une séquence d'Inputs au moteur depuis une partie neuve, ne transmettre au renderer que le journal, comparer le modèle de vue au Seat moteur champ à champ sur {gold, level, shop, shop_locked, bench, board} ; égalité stricte"
+            },
+            {
+              "capacite": "Traiter le journal comme unique interface d'entrée : la signature du renderer n'accepte aucun paramètre d'état, seulement le journal et un compteur de trames",
+              "preuve_attendue": "R1 — Renderer AVEUGLE : audit statique de la signature d'entrée du module Renderer — aucun paramètre ni aucune lecture de propriété globale de type GameState"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Déterminisme du rendu (R2)",
+      "features": [
+        {
+          "feature": "Reproductibilité de l'image",
+          "feuilles": [
+            {
+              "capacite": "Produire une image identique octet pour octet à journal identique et compteur de trames identique, sur deux exécutions séparées",
+              "preuve_attendue": "R2 — Rendu déterministe : deux rendus du même journal au même numéro de trame injecté, comparaison bit à bit des deux captures — égalité exigée"
+            },
+            {
+              "capacite": "Faire avancer toute animation sur un compteur de trames injectable, sans aucun appel de générateur aléatoire ni lecture de l'horloge murale dans le chemin de rendu",
+              "preuve_attendue": "R2 — Rendu déterministe : audit statique du module de rendu — zéro occurrence de Math.random, Date ou performance.now, aucune trame issue d'une horloge non injectée ; fixture compteur figé rejouée deux fois, images identiques"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Couverture Event → écran (R3)",
+      "features": [
+        {
+          "feature": "Chaque Event observable change l'image",
+          "feuilles": [
+            {
+              "capacite": "Rendre GoldChanged visible : ajouter cet Event au journal et re-rendre produit une image différente",
+              "preuve_attendue": "R3 — Couverture Event → écran : ajouter GoldChanged au journal, re-rendre, comparer à l'image de référence — différence non nulle exigée, overlay de debug éteint (R9)"
+            },
+            {
+              "capacite": "Rendre PlayerLevelUp visible : ajouter cet Event au journal et re-rendre produit une image différente",
+              "preuve_attendue": "R3 — Couverture Event → écran : ajouter PlayerLevelUp au journal, re-rendre, différence non nulle exigée, overlay de debug éteint (R9)"
+            },
+            {
+              "capacite": "Rendre ShopRolled visible : ajouter cet Event au journal et re-rendre produit une image différente",
+              "preuve_attendue": "R3 — Couverture Event → écran : ajouter ShopRolled au journal, re-rendre, différence non nulle exigée, overlay de debug éteint (R9)"
+            },
+            {
+              "capacite": "Rendre ShopLocked visible : ajouter cet Event au journal et re-rendre produit une image différente",
+              "preuve_attendue": "R3 — Couverture Event → écran : ajouter ShopLocked au journal, re-rendre, différence non nulle exigée, overlay de debug éteint (R9)"
+            },
+            {
+              "capacite": "Rendre UnitBought visible : ajouter cet Event au journal et re-rendre produit une image différente",
+              "preuve_attendue": "R3 — Couverture Event → écran : ajouter UnitBought au journal, re-rendre, différence non nulle exigée ; échoue aussi si l'Event ne porte pas assez d'information (unit_instance_id, bench_index) pour dessiner l'unité"
+            },
+            {
+              "capacite": "Rendre UnitSold visible : ajouter cet Event au journal et re-rendre produit une image différente",
+              "preuve_attendue": "R3 — Couverture Event → écran : ajouter UnitSold au journal, re-rendre, différence non nulle exigée ; échoue aussi si from_zone/from_index manquent pour savoir quelle unité retirer"
+            },
+            {
+              "capacite": "Rendre UnitPlaced visible : ajouter cet Event au journal et re-rendre produit une image différente",
+              "preuve_attendue": "R3 — Couverture Event → écran : ajouter UnitPlaced au journal, re-rendre, différence non nulle exigée, overlay de debug éteint (R9)"
+            },
+            {
+              "capacite": "Rendre MergeTriggered visible : ajouter cet Event au journal et re-rendre produit une image différente",
+              "preuve_attendue": "R3 — Couverture Event → écran : ajouter MergeTriggered au journal, re-rendre, différence non nulle exigée, overlay de debug éteint (R9)"
+            },
+            {
+              "capacite": "Rendre MergeResolved visible : ajouter cet Event au journal et re-rendre produit une image différente",
+              "preuve_attendue": "R3 — Couverture Event → écran : ajouter MergeResolved au journal, re-rendre, différence non nulle exigée ; échoue aussi si to_zone/to_index manquent pour placer l'unité produite"
+            },
+            {
+              "capacite": "Rendre PhaseChanged visible : ajouter cet Event au journal et re-rendre produit une image différente",
+              "preuve_attendue": "R3 — Couverture Event → écran : ajouter PhaseChanged au journal, re-rendre, différence non nulle exigée, overlay de debug éteint (R9)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Répartition HTML / canvas (R8)",
+      "features": [
+        {
+          "feature": "Surfaces HTML (texte et éléments DOM réels)",
+          "feuilles": [
+            {
+              "capacite": "Afficher l'or courant du joueur comme texte DOM réel, pas comme pixels peints dans le canvas",
+              "preuve_attendue": "R8 — Répartition HTML/canvas imposée (décision Pierre 2026-07-19) : le capteur déterministe lit la valeur de l'or via un sélecteur DOM stable ; échec si le texte n'existe pas dans le DOM"
+            },
+            {
+              "capacite": "Afficher le niveau du joueur comme texte DOM réel",
+              "preuve_attendue": "R8 — Répartition HTML/canvas imposée : lecture de la valeur du niveau via un sélecteur DOM stable"
+            },
+            {
+              "capacite": "Afficher les 5 emplacements de boutique comme 5 éléments DOM distincts et cliquables",
+              "preuve_attendue": "R8 + R11 (boutique 5 emplacements, TFT) : le capteur trouve exactement 5 éléments DOM d'emplacement de boutique, chacun portant le contenu du slot correspondant"
+            },
+            {
+              "capacite": "Afficher l'état de verrou de la boutique comme élément DOM réel, distinct pour verrouillé et déverrouillé",
+              "preuve_attendue": "R8 — Répartition HTML/canvas imposée : lecture de l'état de verrou via un sélecteur DOM stable ; les deux états produisent des lectures différentes"
+            },
+            {
+              "capacite": "Afficher le banc et ses places comme éléments DOM réels",
+              "preuve_attendue": "R8 + R11 (banc 9 places) : le capteur trouve exactement 9 éléments DOM de place de banc"
+            },
+            {
+              "capacite": "Afficher le minuteur comme texte DOM réel",
+              "preuve_attendue": "R8 — Répartition HTML/canvas imposée : lecture de la valeur du minuteur via un sélecteur DOM stable"
+            },
+            {
+              "capacite": "Exposer les quatre boutons Rafraîchir, Monter de niveau, Verrouiller, Prêt comme éléments DOM cliquables",
+              "preuve_attendue": "R8 — Répartition HTML/canvas imposée : le capteur résout les 4 boutons par sélecteur stable et peut les cliquer"
+            }
+          ]
+        },
+        {
+          "feature": "Surfaces canvas",
+          "feuilles": [
+            {
+              "capacite": "Dessiner dans le canvas le plateau 8×8 en orientation miroir",
+              "preuve_attendue": "R8 + R11 — plateau 8×8 miroir (valeur v0 ratifiée, params.v0.mjs : BOARD_WIDTH 8, BOARD_HEIGHT 8, BOARD_ORIENTATION 'mirror') : capture du canvas — 64 cases distinguables, les deux moitiés symétriques"
+            },
+            {
+              "capacite": "Dessiner dans le canvas les unités posées sur le plateau, à la case portée par UnitPlaced, avec leur niveau d'étoile lisible",
+              "preuve_attendue": "R8 : deux rendus d'un même plateau ne différant que par le star d'une unité produisent des images différentes ; deux rendus ne différant que par le to_index d'un UnitPlaced produisent des images différentes. CONTRADICTION SIGNALÉE : preparation.mjs::handlePlace (l.514-565) empile l'unité dans un tableau player.board sans aucune coordonnée — le moteur n'a aujourd'hui aucune notion de case de plateau, alors que le payload UnitPlaced exige un to_index"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Contrôles → Inputs de la liste close (R4)",
+      "features": [
+        {
+          "feature": "Un geste = un Input INV-13",
+          "feuilles": [
+            {
+              "capacite": "Produire l'Input Buy, et lui seul, au clic sur un emplacement de boutique",
+              "preuve_attendue": "R4 — Un geste = un Input de la liste close (INV-13, 02_CORE_RULES.md:78-83) : e2e — le clic produit exactement un Input Buy passé à applyPreparationInput, aucun autre Input"
+            },
+            {
+              "capacite": "Produire l'Input Sell, et lui seul, au geste de vente d'une unité possédée",
+              "preuve_attendue": "R4 — Un geste = un Input de la liste close (INV-13) : e2e — le geste produit exactement un Input Sell. ÉCART CONNU vérifié : handleSell (preparation.mjs:280-286) ne cherche l'unité que sur le banc et retourne l'état inchangé pour une unité posée sur le plateau — vendre depuis le plateau est aujourd'hui un rejet silencieux"
+            },
+            {
+              "capacite": "Produire l'Input Reroll, et lui seul, au clic sur Rafraîchir",
+              "preuve_attendue": "R4 — Un geste = un Input de la liste close (INV-13) : e2e — le clic produit exactement un Input Reroll"
+            },
+            {
+              "capacite": "Produire l'Input Lock, et lui seul, au clic sur Verrouiller",
+              "preuve_attendue": "R4 — Un geste = un Input de la liste close (INV-13) : e2e — le clic produit exactement un Input Lock"
+            },
+            {
+              "capacite": "Produire l'Input LevelUp, et lui seul, au clic sur Monter de niveau",
+              "preuve_attendue": "R4 — Un geste = un Input de la liste close (INV-13) : e2e — le clic produit exactement un Input LevelUp"
+            },
+            {
+              "capacite": "Produire l'Input Place, et lui seul, au glisser d'une unité du banc vers une case du plateau, en portant la zone et l'index de destination",
+              "preuve_attendue": "R4 — Un geste = un Input de la liste close (INV-13) : e2e — le glisser produit exactement un Input Place dont la destination est strictement égale à la case relâchée. ÉCART CONNU vérifié : handlePlace n'accepte aujourd'hui que {unit_instance_id, target_zone} — aucun index de destination"
+            },
+            {
+              "capacite": "Produire l'Input Place, et lui seul, au repositionnement d'une unité déjà sur le plateau vers une autre case du plateau",
+              "preuve_attendue": "R4 + Prisme « repositionne sur le plateau » : e2e — le glisser plateau→plateau produit exactement un Input Place et l'unité change de case. ÉCART CONNU vérifié : handlePlace ne gère que banc→plateau ; la branche target_zone === 'bench' retourne l'état inchangé (preparation.mjs:559-562) et le déplacement plateau→plateau n'existe pas"
+            },
+            {
+              "capacite": "Produire l'Input ConfirmPreparation, et lui seul, au clic sur Prêt",
+              "preuve_attendue": "R4 — Un geste = un Input de la liste close (INV-13) : e2e — le clic produit exactement un Input ConfirmPreparation"
+            }
+          ]
+        },
+        {
+          "feature": "Aucun chemin de mutation parallèle",
+          "feuilles": [
+            {
+              "capacite": "N'exposer aucun chemin d'écriture de l'état hors applyPreparationInput : l'interface n'écrit jamais dans le GameState",
+              "preuve_attendue": "R4 — « aucune mutation d'état hors de ce chemin » : audit statique — aucun site d'écriture d'un champ de Seat {gold, bench, board, level, shop, shop_locked} ni de round_index en dehors du module preparation/ et du code de début de Round"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Minuteur d'interface (R5)",
+      "features": [
+        {
+          "feature": "Le minuteur hors de l'état du jeu",
+          "feuilles": [
+            {
+              "capacite": "Tenir le décompte entièrement côté interface, sans aucun champ d'horloge, de durée ou de temps réel dans le GameState",
+              "preuve_attendue": "R5 + garanties du Prisme (« le minuteur n'entre PAS dans le GameState ») + QC-5/INV-3 (02_CORE_RULES.md:173 : « jamais de timer moteur ») : audit de schéma du GameState — aucun champ de temps ; audit statique du moteur — aucun timer (recoupe Oracle Hook INV-1/INV-3)"
+            },
+            {
+              "capacite": "Émettre à l'expiration du décompte exactement le même Input ConfirmPreparation que le bouton Prêt, sans aucun autre effet",
+              "preuve_attendue": "R5 — Le minuteur est la limite dure : fixture — expiration du minuteur et clic sur Prêt produisent des journaux d'Inputs identiques et des journaux d'Events identiques"
+            },
+            {
+              "capacite": "Fixer la durée du décompte à 30 secondes (valeur de travail v0)",
+              "preuve_attendue": "R11 — minuteur 30 s (TFT, gate n°5) : la durée est lue depuis le paramètre déclaré et vaut strictement 30 ; audit statique — aucune autre constante de durée en dur dans l'interface"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Rejet observable, porté par la couche d'entrée (R7 + R14)",
+      "features": [
+        {
+          "feature": "Détection du rejet hors du journal",
+          "feuilles": [
+            {
+              "capacite": "Détecter un Input refusé dans la couche qui reçoit le clic, en comparant en profondeur l'état retourné par applyPreparationInput à l'état soumis — sans consulter le journal d'Events, aucun Event de rejet n'existant",
+              "preuve_attendue": "R14 — le retour d'erreur vit dans la couche d'entrée : fixture Input refusé — l'Event Log est strictement de même longueur avant et après, l'état est profondément égal, et la couche d'entrée signale le refus ; assertion stricte EVENT_KINDS.length === 22 (aucun Event de rejet ajouté au registre)"
+            },
+            {
+              "capacite": "Laisser le Renderer aveugle strictement hors du chemin de retour d'erreur : le refus n'est jamais dessiné à partir du journal",
+              "preuve_attendue": "R14 + R1 : audit statique — le module Renderer ne référence aucun symbole du chemin de retour d'erreur ; l'oracle deps_interdites de R1 reste vert"
+            }
+          ]
+        },
+        {
+          "feature": "Retour visible sur Input refusé",
+          "feuilles": [
+            {
+              "capacite": "Produire un retour observable à l'écran quand un Buy est refusé pour or insuffisant, en laissant l'état strictement inchangé",
+              "preuve_attendue": "R7 — Aucun rejet silencieux : fixture or insuffisant (preparation.mjs:194-196) → e2e — le DOM porte un retour de rejet détectable par sélecteur stable ET l'état est profondément égal à l'état d'avant"
+            },
+            {
+              "capacite": "Produire un retour observable à l'écran quand un Buy est refusé pour banc plein (DP-9), en laissant l'état strictement inchangé",
+              "preuve_attendue": "R7 — Aucun rejet silencieux (DP-9, ECO-7/QE-7, 05_ECONOMY_BIBLE.md:126-133) : fixture banc à 9 unités → Buy → e2e — retour de rejet détectable dans le DOM, aucun débit de Gold, aucun débit du Pool, aucune unité détruite"
+            },
+            {
+              "capacite": "Distinguer un Input REJETÉ d'un Input ACCEPTÉ mais sans effet observable, pour ne jamais afficher un faux refus",
+              "preuve_attendue": "R14 + R7 : fixture Lock sur une boutique DÉJÀ verrouillée — aucun refus n'est affiché. CONTRADICTION SIGNALÉE : le critère de R14 (« l'état retourné est identique ») classe cet Input accepté comme un rejet, puisque R1b n'émet ShopLocked qu'au CHANGEMENT de shop_locked ; le mécanisme de distinction n'est documenté par aucune bible"
+            },
+            {
+              "capacite": "Ne pas prétendre couvrir le refus « boutique verrouillée » cité par R7 : ce cas de rejet n'existe ni dans les bibles ni dans le moteur",
+              "preuve_attendue": "R7 énumère « boutique verrouillée » parmi les causes de rejet. CONTRADICTION SIGNALÉE : ECO-8 (05_ECONOMY_BIBLE.md:134-138) ne fait du Lock qu'une conservation de la Shop au Round suivant, sans coût ni interdiction d'Input, et handleReroll (preparation.mjs:359-424) ne lit jamais shop_locked — il re-tire et remet shop_locked à false. Aucun oracle n'est écrit pour ce cas tant qu'un HumanGate ne l'a pas tranché"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Solvabilité à la souris (R6)",
+      "features": [
+        {
+          "feature": "Préparation complète menée aux seuls contrôles de l'interface, depuis un vrai début de partie",
+          "feuilles": [
+            {
+              "capacite": "Mener, avec un bot déterministe n'ayant accès QU'AUX contrôles de l'interface (aucun appel direct au moteur) et partant d'une partie NEUVE (initState + premier Round, aucune injection d'or ni d'unité), une préparation complète : acheter, poser sur le plateau, déclencher une fusion, confirmer",
+              "preuve_attendue": "R6 — Solvabilité à la souris, volet obligatoire d'un oracle de jeu : oracle de solvabilité e2e — le bot ne clique que dans le DOM et le canvas ; à la fin, le journal contient au moins un GoldChanged{source:'Income'}, un ShopRolled d'ouverture, un UnitBought, un UnitPlaced, un MergeTriggered, un MergeResolved et un PhaseChanged vers la phase de combat ; échec si l'objectif n'est pas atteint au clic"
+            },
+            {
+              "capacite": "Rendre l'échec du bot imputable au jeu et non au harnais : le harnais de solvabilité n'écrit jamais dans le GameState et ne construit jamais l'or ni la boutique de départ",
+              "preuve_attendue": "R6 + R13 : audit statique du harnais de solvabilité — zéro site d'écriture de players[seat].gold, players[seat].shop, players[seat].bench ou players[seat].board ; le harnais n'importe que la couche d'entrée de l'interface, jamais preparation/preparation.mjs"
+            },
+            {
+              "capacite": "Atteindre l'objectif de fusion depuis les seules ressources d'un vrai début de partie, sans supposer un or ni une boutique favorables",
+              "preuve_attendue": "R6 + R13 : l'oracle de solvabilité déclare AVANT exécution la seed et le nombre de Rounds employés, et échoue si le bot n'atteint pas la fusion dans ce budget. FOG : la fusion exige 3 exemplaires identiques simultanés ; avec Income 3 au Round 0 et un tirage uniforme sur 5 UnitDefinition de fixture (shop/shop.mjs::drawShop), l'atteignabilité en un seul Round dépend de la seed — le budget de Rounds acceptable est un jugement Pierre, aucune bible ne le fixe"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Surface capturable par le capteur (R10)",
+      "features": [
+        {
+          "feature": "Contrat d'instrumentation",
+          "feuilles": [
+            {
+              "capacite": "Annoncer la disponibilité du serveur de jeu sur stdout",
+              "preuve_attendue": "R10 — Surface capturable : le capteur déterministe existant détecte la ligne d'annonce sur stdout avant de commencer la mesure ; échec sur timeout"
+            },
+            {
+              "capacite": "Accepter une seed passée par l'URL et l'utiliser comme seed de la partie",
+              "preuve_attendue": "R10 — Surface capturable + INV-2 : deux chargements avec la même seed produisent des journaux d'Events strictement identiques ; deux seeds différentes produisent des journaux différents"
+            },
+            {
+              "capacite": "Exposer l'état au navigateur en global pour le capteur, sans que le renderer ne le lise",
+              "preuve_attendue": "R10 — Surface capturable : le capteur lit l'objet global ; l'oracle deps_interdites de R1 reste vert (le renderer n'y accède pas)"
+            },
+            {
+              "capacite": "Déclarer une couleur de fond de la page",
+              "preuve_attendue": "R10 — Surface capturable : le capteur lit la couleur de fond déclarée"
+            },
+            {
+              "capacite": "Exposer des sélecteurs DOM stables pour tous les textes lus et tous les éléments cliquables",
+              "preuve_attendue": "R10 — Surface capturable : le capteur résout chaque sélecteur attendu, chacun renvoyant un unique élément ; échec si un sélecteur est absent ou ambigu"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Overlay de debug (R9)",
+      "features": [
+        {
+          "feature": "Debug éteint sous mesure",
+          "feuilles": [
+            {
+              "capacite": "Tenir tout affichage de debug éteint par défaut et pendant toute mesure d'oracle",
+              "preuve_attendue": "R9 — Overlay de debug désactivé sous oracle : au chargement par défaut, le capteur ne trouve aucun élément de debug ; toutes les mesures de R3 sont exécutées debug éteint"
+            },
+            {
+              "capacite": "Empêcher qu'un vidage textuel de l'état puisse satisfaire R3 à la place d'un vrai affichage",
+              "preuve_attendue": "R9 — Overlay de debug désactivé sous oracle : les différences d'image de R3 sont mesurées sur le rendu de production, debug éteint ; une image ne différant que par un dump textuel de debug ne compte pas"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Valeurs de travail v0 (R11)",
+      "features": [
+        {
+          "feature": "Alignement du moteur sur les valeurs ratifiées",
+          "feuilles": [
+            {
+              "capacite": "Porter la capacité du banc de 8 à 9 places dans le moteur et dans l'interface",
+              "preuve_attendue": "R11 — banc 9 places (TFT, gate 2026-07-19 verbatim « banc à 9 » ; 02_CORE_RULES.md:169) : fixture — le 9e Buy est accepté, le 10e est refusé sans effet de bord ; l'interface affiche 9 places. ÉCART CONNU vérifié : preparation.mjs:15 déclare BENCH_CAPACITY = 8"
+            },
+            {
+              "capacite": "Tenir la boutique à 5 emplacements",
+              "preuve_attendue": "R11 — boutique 5 emplacements (TFT) : un tirage de boutique produit exactement 5 emplacements et l'interface en affiche exactement 5 (moteur déjà aligné : preparation.mjs SHOP_SIZE = 5)"
+            },
+            {
+              "capacite": "Facturer le rafraîchissement 2 or",
+              "preuve_attendue": "R11 — rafraîchissement 2 or (TFT) : fixture Reroll — l'or décroît d'exactement 2 et GoldChanged.delta vaut exactement −2. ÉCART CONNU vérifié : preparation.mjs:20 facture GOLD_COSTS.Reroll = 1"
+            },
+            {
+              "capacite": "Lire toute valeur de travail v0 depuis un site de déclaration unique, jamais depuis des constantes en dur dispersées",
+              "preuve_attendue": "R11 — « toute autre valeur reste TBD chez son propriétaire » : audit statique — minuteur 30, boutique 5, banc 9, reroll 2, plateau 8×8 et le barème d'Income proviennent chacun d'un site de déclaration unique. NON DOCUMENTÉ, hors périmètre de cet incrément : le coût de montée de niveau reste celui du moteur (table par niveau cible {1:1,2:2,3:3,4:4,5:5}, preparation.mjs:21) et la limite d'unités posables sur le plateau n'est ni documentée ni implémentée — aucune feuille ne l'exige"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "systeme": "Style visuel (R12)",
+      "features": [
+        {
+          "feature": "Qualité graphique",
+          "feuilles": [
+            {
+              "capacite": "Rendre l'écran de préparation lisible, cohérent et agréable — lisibilité, beauté, cohérence graphique, qualité d'animation",
+              "preuve_attendue": "aucun — jugement Pierre (R12 : le style visuel n'a AUCUN oracle ; les alarmes mécaniques prouvent que l'écran n'est pas cassé, jamais qu'il est bon)"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

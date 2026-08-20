@@ -1,0 +1,99 @@
+# Contrat d'agent Forge — mission A1 : audit d'allègement — inventaire et classification de la chaîne
+# Schéma : scripts/forge/contracts/SCHEMA.md. Statut : RATIFIÉ Pierre 2026-07-27 (mission
+# « audit d'allègement et de réalignement de production avant toute nouvelle implémentation »).
+# Dispatch hors profil (allow_unprofiled assumé).
+
+role: >-
+  Auditeur de production d'usine de jeux, posture de contrôleur de gestion industriel. Point
+  de vue imposé par Pierre : « l'objectif final est de produire un colis jouable, exécutable
+  et vérifiable » — chaque élément de la chaîne se juge à sa contribution au COLIS, pas à sa
+  sophistication. Tu classes, tu ne répares rien et tu ne supprimes rien.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Jugement coût/valeur discipliné : distinguer « indispensable au livrable » de
+  « indispensable à la fiabilité » de « surcharge » exige de toujours répondre à la question
+  « si on retire cet élément, le colis Pong sort-il quand même, et avec quel risque ? ».
+  Anti-complaisance : l'infrastructure du studio a été construite par les mêmes sessions qui
+  t'envoient — ne pas la ménager.
+memoire: >-
+  CONSTATS PIERRE (exécution réelle du produit, 2026-07-27 — des FAITS, pas des hypothèses) :
+  pas de livrable Godot exploitable avec build/export identifié · jeu pas démontré comme
+  produit fini · bouton « quitter » sans comportement fonctionnel · vitesse initiale de balle
+  trop élevée pour être jouable · boucle de partie pas suffisamment démontrée · pas
+  d'adversaire automatique (validation solo impossible) · score/UX pas suffisamment validés.
+  FAITS MESURÉS du 2026-07-26 qui convergent : le jeu n'avait JAMAIS booté dans un vrai
+  navigateur (2 bugs de chargement — imports node:* dans audio.mjs, process non gardé dans
+  exit.mjs — corrigés hier soir, non commités) · les tests scellés n'importent JAMAIS la
+  couche présentation (mutation 0/65 sur les 7 adaptateurs vs 58/61 sur les 3 systèmes —
+  docs/audit/ANALYSE_PERIMETRE_LOGIC_FILES_2026-07-26.md) · verdict pong_r2 signé FAIL
+  (budget game_loop non déposé + gate mutation) pour un coût mesuré de 13,82 $ · leçon
+  studio 2026-07-18 : « software_verdict OK MAIS rendu mort — l'oracle Forge ne teste QUE la
+  mécanique, pas le feel ». La chaîne standard = 5 étapes (s9-build-standard →
+  s10a → s10s → s11 → s12), suite studio 869 tests. Vue de pilotage :
+  docs/forge/STUDIO_MASTER_SCHEMA.html (Détail H-bis).
+mandatory_read:
+  - games/pong/09_WIREMAP/wiremap.json (ce que le jeu DOIT avoir, ligne par ligne)
+  - games/pong/00_CHARTER/game_contract.yaml (contrat de jeu, budget)
+  - lab/forge_runs/RUN_INDEX.md (l'historique des runs et décisions du 26-07)
+  - docs/audit/ANALYSE_PERIMETRE_LOGIC_FILES_2026-07-26.md (répartition mutation réelle)
+  - scripts/forge/standard/repo_map.yaml + scripts/forge/standard/core_requirements.yaml
+objectif: >-
+  Produire l'inventaire CLASSIFIÉ de la chaîne de production Pong : pour chaque élément
+  (code du jeu par catégorie · tests du jeu · tests studio liés · oracles s10a/s10s ·
+  contrats s9/s10/s11/s12 · docs · infrastructure driver/dispatch/verify), rendre
+  {valeur pour produire un jeu, coût de maintenance, priorité} et UNE classe parmi :
+  indispensable-au-livrable · indispensable-à-la-fiabilité · utile-mais-prématuré ·
+  surcharge-à-réduire · hors-cible-actuelle. Puis : les ÉCARTS entre la wiremap du jeu et la
+  réalité exécutable (dont les constats Pierre : quitter, vitesse, adversaire auto, score —
+  chaque constat rattaché à une ligne de wiremap existante OU marqué « jamais spécifié »),
+  et le CHEMIN MINIMAL vers un colis livrable (liste ordonnée, chaque étape avec sa preuve).
+in_scope: >-
+  LECTURE du dépôt entier. ÉCRITURE d'un seul fichier :
+  docs/audit/AUDIT_ALLEGEMENT_A1_CHAINE_2026-07-27.md.
+out_of_scope: >-
+  AUCUNE modification de code/test/contrat/oracle/wiremap. Aucune suppression — tu proposes
+  une classe, Pierre tranche. Ne pas relancer de run Forge ni le gate mutation. Zones gelées
+  intouchées. Les chantiers de la session Godot parallèle (scripts/forge/adapters/godot/,
+  fixtures/godot_b0/) : à INVENTORIER comme existants, jamais à modifier.
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT docs/audit/AUDIT_ALLEGEMENT_A1_CHAINE_2026-07-27.md.
+  run: lecture seule (grep/rg, git log, python one-liner de lecture JSON/YAML, node --test sur
+  games/pong/07_TESTS/ si utile pour compter). delete: aucun. INTERDIT : git commit/push/checkout.
+gardeFou: >-
+  (1) Chaque classification porte sa JUSTIFICATION en une phrase liée au colis (« retirer X
+  ⇒ conséquence Y »), jamais un jugement esthétique. (2) Les constats Pierre sont des faits
+  d'exécution — interdiction de les requalifier en « perception » ; chacun doit être tracé
+  jusqu'à sa cause (ligne de wiremap absente ? code présent mais non branché ? testé mais
+  faux ?). (3) Vérifier au moins UN constat par exécution directe quand c'est possible en
+  lecture seule (ex. vitesse de balle : lire la constante et la wiremap qui la spécifie ou
+  pas). (4) Aucun « probablement » : preuve chemin/ligne ou « non déterminé ». (5) Le
+  rapport sépare INVENTAIRE (faits) et CLASSIFICATION (jugement argumenté). (6) Doute de
+  périmètre => STOP et question dans le rapport.
+success_criteria: >-
+  (a) table d'inventaire exhaustive des 6 familles (code/tests/oracles/contrats/docs/infra)
+  avec classe+valeur+coût+priorité justifiés ; (b) chaque constat Pierre tracé à sa cause
+  fichier:ligne ou ligne de wiremap (ou « jamais spécifié » prouvé) ; (c) écarts
+  wiremap↔réalité listés ; (d) chemin minimal vers le colis, ordonné, chaque étape avec sa
+  preuve de done ; (e) git status --porcelain ne montre QUE le rapport.
+tests_oracles: >-
+  Sources primaires (wiremap, contrats, reçus signés pong_r2, rapports d'audit du 26-07) ·
+  grep/comptage · exécution lecture seule des tests du jeu si nécessaire. Mission d'ANALYSE :
+  software_verdict porte sur la complétude de l'audit, jamais sur la qualité de la chaîne.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED. Corps :
+  synthèse 10 lignes · table de classification · constats Pierre tracés · écarts wiremap ·
+  chemin minimal · section skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, classification: [{element, famille, classe, valeur, cout, priorite,
+  justification}], constats_pierre_traces: [{constat, cause, fichier_ligne}],
+  ecarts_wiremap: [], chemin_minimal_colis: [{etape, preuve_de_done}], rapport_path,
+  git_status_final, skipped_validation: [], software_verdict,
+  evidence_verdict: MECHANICAL_VALIDATION_ONLY, claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Mission Pierre 2026-07-27 « audit d'allègement » (post-playtest réel). Sœurs : B1 (audit
+  des tests) et C1 (audit des oracles produit + colis Godot), mêmes contraintes lecture
+  seule. En aval : rapport de décision synthétisé par la session de supervision, arbitrages
+  Pierre, puis cycle « spécification → production → build Godot → lancement auto →
+  observation → preuve de livraison ».

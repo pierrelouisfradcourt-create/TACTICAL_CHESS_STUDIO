@@ -1,0 +1,380 @@
+[gd_scene load_steps=11 format=3 uid="uid://main_scene"]
+
+[ext_resource type="Script" path="res://scripts/ui/Main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/game/CombatEngine.gd" id="2_combat"]
+[ext_resource type="Script" path="res://scripts/game/SynergyManager.gd" id="3_synergy"]
+[ext_resource type="Script" path="res://scripts/ui/TopBar.gd" id="4_topbar"]
+[ext_resource type="Script" path="res://scripts/game/Arena.gd" id="5_arena"]
+[ext_resource type="Script" path="res://scripts/ui/ShopPanel.gd" id="6_shop"]
+[ext_resource type="Script" path="res://scripts/ui/BenchArea.gd" id="7_bench"]
+[ext_resource type="Script" path="res://scripts/ui/SynergyPanel.gd" id="8_synergy_ui"]
+[ext_resource type="Script" path="res://scripts/ui/ItemPanel.gd" id="9_items"]
+[ext_resource type="Script" path="res://scripts/ui/CombatLog.gd" id="10_log"]
+
+[node name="Main" type="Node"]
+script = ExtResource("1_main")
+
+[node name="TitleScreen" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+visible = true
+
+[node name="BG" type="ColorRect" parent="TitleScreen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.05, 0.12, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="TitleScreen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="TitleScreen/CenterContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="TitleScreen/CenterContainer/VBox"]
+layout_mode = 2
+text = "WAVEVALE"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 72
+
+[node name="SubtitleLabel" type="Label" parent="TitleScreen/CenterContainer/VBox"]
+layout_mode = 2
+text = "DEFEND THE VALE"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 24
+
+[node name="Spacer" type="Control" parent="TitleScreen/CenterContainer/VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 40)
+
+[node name="BeginButton" type="Button" parent="TitleScreen/CenterContainer/VBox"]
+layout_mode = 2
+text = "BEGIN"
+theme_override_font_sizes/font_size = 32
+
+[node name="GameScreen" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+visible = false
+
+[node name="PhaseBanner" type="Label" parent="GameScreen"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 52.0
+offset_right = 308.0
+offset_bottom = 80.0
+text = "— PRÉPARATION —"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 20
+
+[node name="TopBar" type="HBoxContainer" parent="GameScreen"]
+layout_mode = 1
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 1280.0
+offset_bottom = 48.0
+script = ExtResource("4_topbar")
+
+[node name="HPContainer" type="HBoxContainer" parent="GameScreen/TopBar"]
+layout_mode = 2
+
+[node name="HPLabel" type="Label" parent="GameScreen/TopBar/HPContainer"]
+layout_mode = 2
+text = "❤ 100"
+custom_minimum_size = Vector2(80, 0)
+
+[node name="WaveContainer" type="HBoxContainer" parent="GameScreen/TopBar"]
+layout_mode = 2
+
+[node name="WaveLabel" type="Label" parent="GameScreen/TopBar/WaveContainer"]
+layout_mode = 2
+text = "Vague 1 / 15"
+custom_minimum_size = Vector2(100, 0)
+
+[node name="GoldContainer" type="HBoxContainer" parent="GameScreen/TopBar"]
+layout_mode = 2
+
+[node name="GoldLabel" type="Label" parent="GameScreen/TopBar/GoldContainer"]
+layout_mode = 2
+text = "🪙 5"
+custom_minimum_size = Vector2(60, 0)
+
+[node name="LevelContainer" type="HBoxContainer" parent="GameScreen/TopBar"]
+layout_mode = 2
+
+[node name="LevelLabel" type="Label" parent="GameScreen/TopBar/LevelContainer"]
+layout_mode = 2
+text = "Niv. 1"
+custom_minimum_size = Vector2(60, 0)
+
+[node name="XPSection" type="HBoxContainer" parent="GameScreen/TopBar"]
+layout_mode = 2
+
+[node name="XPBar" type="ProgressBar" parent="GameScreen/TopBar/XPSection"]
+layout_mode = 2
+custom_minimum_size = Vector2(100, 20)
+max_value = 4.0
+value = 0.0
+
+[node name="XPLabel" type="Label" parent="GameScreen/TopBar/XPSection"]
+layout_mode = 2
+text = "0 / 4 XP"
+
+[node name="FightButton" type="Button" parent="GameScreen/TopBar"]
+layout_mode = 2
+text = "⚔ FIGHT"
+theme_override_font_sizes/font_size = 18
+
+[node name="RerollButton" type="Button" parent="GameScreen/TopBar"]
+layout_mode = 2
+text = "🎲 Reroll (2)"
+
+[node name="FreezeButton" type="Button" parent="GameScreen/TopBar"]
+layout_mode = 2
+text = "❄ Geler"
+
+[node name="BuyXPButton" type="Button" parent="GameScreen/TopBar"]
+layout_mode = 2
+text = "📈 XP (4)"
+
+[node name="SellButton" type="Button" parent="GameScreen/TopBar"]
+layout_mode = 2
+text = "💸 Vendre"
+
+[node name="Arena" type="Control" parent="GameScreen"]
+layout_mode = 1
+offset_left = 8.0
+offset_top = 54.0
+offset_right = 308.0
+offset_bottom = 654.0
+script = ExtResource("5_arena")
+
+[node name="ShopPanel" type="PanelContainer" parent="GameScreen"]
+layout_mode = 1
+offset_left = 316.0
+offset_top = 54.0
+offset_right = 1272.0
+offset_bottom = 210.0
+script = ExtResource("6_shop")
+
+[node name="MarginContainer" type="MarginContainer" parent="GameScreen/ShopPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="GameScreen/ShopPanel/MarginContainer"]
+layout_mode = 2
+
+[node name="CostLabel" type="Label" parent="GameScreen/ShopPanel/MarginContainer/VBox"]
+layout_mode = 2
+text = "Boutique"
+
+[node name="SlotsHBox" type="HBoxContainer" parent="GameScreen/ShopPanel/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="BenchArea" type="HBoxContainer" parent="GameScreen"]
+layout_mode = 1
+offset_left = 316.0
+offset_top = 218.0
+offset_right = 1272.0
+offset_bottom = 306.0
+script = ExtResource("7_bench")
+
+[node name="SynergyPanel" type="VBoxContainer" parent="GameScreen"]
+layout_mode = 1
+offset_left = 316.0
+offset_top = 314.0
+offset_right = 600.0
+offset_bottom = 710.0
+script = ExtResource("8_synergy_ui")
+
+[node name="TitleLabel" type="Label" parent="GameScreen/SynergyPanel"]
+layout_mode = 2
+text = "— SYNERGIES —"
+
+[node name="ItemPanel" type="PanelContainer" parent="GameScreen"]
+layout_mode = 1
+offset_left = 608.0
+offset_top = 314.0
+offset_right = 1272.0
+offset_bottom = 560.0
+script = ExtResource("9_items")
+visible = false
+
+[node name="MarginContainer" type="MarginContainer" parent="GameScreen/ItemPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="GameScreen/ItemPanel/MarginContainer"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="GameScreen/ItemPanel/MarginContainer/VBox"]
+layout_mode = 2
+text = "Items"
+
+[node name="ItemsHBox" type="HBoxContainer" parent="GameScreen/ItemPanel/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="CombatLog" type="ScrollContainer" parent="GameScreen"]
+layout_mode = 1
+offset_left = 608.0
+offset_top = 314.0
+offset_right = 1272.0
+offset_bottom = 560.0
+script = ExtResource("10_log")
+
+[node name="LogVBox" type="VBoxContainer" parent="GameScreen/CombatLog"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CombatEngine" type="Node" parent="."]
+script = ExtResource("2_combat")
+
+[node name="SynergyManager" type="Node" parent="."]
+script = ExtResource("3_synergy")
+
+[node name="RoundResult" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -120.0
+offset_right = 200.0
+offset_bottom = 120.0
+visible = false
+
+[node name="BG" type="ColorRect" parent="RoundResult"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.05, 0.1, 0.95)
+
+[node name="VBox" type="VBoxContainer" parent="RoundResult"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="ResultLabel" type="Label" parent="RoundResult/VBox"]
+layout_mode = 2
+text = "Résultat"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 32
+
+[node name="DetailLabel" type="Label" parent="RoundResult/VBox"]
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+
+[node name="ContinueButton" type="Button" parent="RoundResult/VBox"]
+layout_mode = 2
+text = "Continuer →"
+theme_override_font_sizes/font_size = 20
+
+[node name="GameOverScreen" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+visible = false
+
+[node name="BG" type="ColorRect" parent="GameOverScreen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.08, 0.02, 0.02, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="GameOverScreen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="GameOverScreen/CenterContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="FallenLabel" type="Label" parent="GameOverScreen/CenterContainer/VBox"]
+layout_mode = 2
+text = "FALLEN"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 72
+theme_override_colors/font_color = Color(0.8, 0.1, 0.1, 1)
+
+[node name="WavesSurvivedLabel" type="Label" parent="GameOverScreen/CenterContainer/VBox"]
+layout_mode = 2
+text = "Vagues survivées : 0"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 24
+
+[node name="KillsLabel" type="Label" parent="GameOverScreen/CenterContainer/VBox"]
+layout_mode = 2
+text = "Ennemis vaincus : 0"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 20
+
+[node name="PlayAgainButton" type="Button" parent="GameOverScreen/CenterContainer/VBox"]
+layout_mode = 2
+text = "REJOUER"
+theme_override_font_sizes/font_size = 28
+
+[node name="VictoryScreen" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+visible = false
+
+[node name="BG" type="ColorRect" parent="VictoryScreen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.02, 0.08, 0.02, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="VictoryScreen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="VBox" type="VBoxContainer" parent="VictoryScreen/CenterContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="VictoryLabel" type="Label" parent="VictoryScreen/CenterContainer/VBox"]
+layout_mode = 2
+text = "VICTORY"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 72
+theme_override_colors/font_color = Color(0.1, 0.9, 0.2, 1)
+
+[node name="KillsLabel" type="Label" parent="VictoryScreen/CenterContainer/VBox"]
+layout_mode = 2
+text = "Ennemis vaincus : 0"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 24
+
+[node name="PlayAgainButton" type="Button" parent="VictoryScreen/CenterContainer/VBox"]
+layout_mode = 2
+text = "REJOUER"
+theme_override_font_sizes/font_size = 28

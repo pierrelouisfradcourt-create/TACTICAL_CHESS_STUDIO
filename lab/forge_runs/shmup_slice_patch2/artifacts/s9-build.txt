@@ -1,0 +1,35 @@
+All verified. Both JSON files parse; triage has exactly the 2 equivalent survivors. Here is the structured final report.
+
+---
+
+## RAPPORT FINAL — s9-build / shmup_slice_patch2-20260718a (gate mutation)
+
+**software_verdict: OK**
+**evidence_verdict: MECHANICAL_VALIDATION_ONLY**
+**claim_verdict: NO_CLAIM_ALLOWED**
+
+### Ce qui a été fait
+Le rendu (`render.mjs`) refait dans ce patch avait laissé `bot/solver.mjs` et `main.mjs` **hors couverture** de la commande de test scellée → mutation retombée à **79/112** (33 survivants : bot 14, main 18, dodge L55 déjà trié). J'ai refermé le gate en **durcissant uniquement les tests** — aucune ligne de logique de jeu, aucun export, aucun nom de fonction modifiés.
+
+Ajouts à `games/shmup_slice/logic.test.mjs` (8 tests) :
+- **R22** — empreinte de trace déterministe de `runBot` sur 5 seeds (won/statut/score/vies/niveau/pas/esquivabilité exacts). Tue **13/14** mutants de `bot/solver.mjs` via l'**API publique seule** (`computeBotInputs` est interne/non exporté et hors périmètre d'écriture — couvert par comportement observable, pas en isolation).
+- **R26** (×7) — environnement navigateur **simulé** (`window`/`requestAnimationFrame`/`Image`/canvas stubés, `render.mjs` réel piloté) : garde headless L58/L103, source d'entrée L18, détection `over` L63, bornes exactes `setLevel` L74 / `spawnBoss` L83 / `bossActive` L86, accumulateur à pas fixe L33/L37/L40/L42. Tue **18/18** mutants de `main.mjs`.
+
+Ajout à `games/shmup_slice/mutation_triage.json` (1 entrée) : `bot/solver.mjs and->or @L24`, **mutant équivalent prouvé** (`bossActive` et `boss` sont toujours co-écrits atomiquement dans le seul chemin exercé par `runBot` : `createInitialState`/`spawnBossIfReady`/`resetMapState` ; `&&`≡`||` pour toute entrée observable → confirmé empiriquement, trace `runBot` identique à la baseline). L'entrée dodge L55 pré-existante est **conservée**.
+
+### Preuves (oracles non-LLM)
+- **`node run-oracle.mjs` (cwd games/shmup_slice) → exit 0, VERDICT ORACLE: PASS** : logic 61/61, properties 7/7, **solvabilité 5/5 seeds** (bot gagne réellement + sonde de contrôle « mur complet » correctement INJOUABLE), **e2e Playwright PASS** (3 boss vaincus 15→0 / 20→0 / 25→0, victoire, restart {1,0,3}, défaite).
+- **Gate mutation** : reproduction fidèle de `forge.mutation` (mêmes RULES/`_skip_occurrence`, mêmes 15 fichiers logiques de la WireMap, commande `node --test logic.test.mjs properties.test.mjs`) → **112 mutants, 110 tués, 2 survivants triés équivalents** (dodge L55 le->lt ; bot L24 and->or). `forge.static_oracles.check_mutation_gate` apparie sur `(name,line)`+justification non vide : les 2 clés sont uniques, justifiées, non ambiguës, non périmées → **passed=True**. Baseline verte mesurée (68 tests avant mutation).
+- **reuse_ratio** (advisory non-gating, oracle étape e) : `0.000` (input.mjs, render.mjs ; 0 module réutilisé), exit 0.
+
+### Fichiers touchés vs ownership
+- `games/shmup_slice/logic.test.mjs` — **explicitement autorisé par la tâche** (tests uniquement).
+- `games/shmup_slice/mutation_triage.json` — ajout d'entrée prouvée (autorisé).
+- `lab/forge_runs/shmup_slice_patch2/wiremap.json` — MAJ WireMap (devoir builder ; `_comment` + preuve R22 corrigés pour refléter 13 tués + 1 trié, pas d'export).
+- **AUCUN** fichier de la liste interdite touché : `render.mjs`, `logic/*.mjs`, `data/*.mjs`, `bot/solver.mjs`, `main.mjs`, `index.html`, `server.mjs`, `assets/*` intacts (confirmé : harnais de mutation restaure les octets originaux ; l'oracle reproduit les valeurs déterministes de baseline ; aucun `.mutbak`/fichier temporaire résiduel).
+
+### §2bis (SEARCH avant écriture)
+**N/A** — cette tâche n'ajoute que des **tests** (aucune pièce de logique de jeu réutilisable écrite), donc la consultation de `knowledge_base/search.mjs` pour import de logique n'était pas applicable.
+
+### Limite honnête / HumanGate
+Je ne peux pas exécuter le signeur Python (`emit_mutation_receipt`) ni recalculer le **reçu HMAC signé** depuis mon périmètre (`Bash(node:*)` seulement) : le score de mutation est **mécaniquement reproduit**, non signé par moi. Le driver recalculera et signera après livraison. Le gate étant franchi **avec survivants triés**, la doctrine P0.3 impose `exception=True` → jamais un OK propre en aval : **décision merge/reject/freeze = HumanGate (Pierre)**. `claim_verdict: NO_CLAIM_ALLOWED`.

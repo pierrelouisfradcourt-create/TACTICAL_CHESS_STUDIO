@@ -1,0 +1,34 @@
+[
+  {
+    "name": "and->or",
+    "line": 71,
+    "file": "engine/state.mjs",
+    "justification": "deepFreeze array-item guard `item !== null && typeof item === 'object'` (was line 50 pre-s9; shifted to 71 by the F1/F4 deepClone() addition, code unchanged): for a genuine non-null object item (the only case where the guard's outcome is observable), `item !== null` is already true, so `||` short-circuits to true exactly like `&&`. For null/primitive items, both operators yield a harmless deepFreeze(non-object) call: Object.freeze() on a non-object is a documented ES2015 no-op (no throw). No input can make the &&-vs-|| choice change observable frozen-ness. Verified empirically: hand-mutating this line leaves the full suite (incl. R18 deep-freeze with array items, object properties, grandchildren, and the new s9 R22/R23 deep-purity tests) green."
+  },
+  {
+    "name": "and->or",
+    "line": 75,
+    "file": "engine/state.mjs",
+    "justification": "deepFreeze non-array branch guard `obj !== null && typeof obj === 'object'` (was line 54 pre-s9; shifted to 75 by the F1/F4 deepClone() addition, code unchanged): this private closure is only invoked with a value already proven a non-null object (top call after isState(), or recursion via line-71/77 guards which only recurse on non-null objects). Whenever obj is a real non-null object, both operands are true and `||` collapses to the same true as `&&`. No call path reaches this line with obj null/non-object. Verified empirically against the post-hardening suite (incl. s9 R22/R23): no survivor change."
+  },
+  {
+    "name": "and->or",
+    "line": 77,
+    "file": "engine/state.mjs",
+    "justification": "deepFreeze object-property recursion guard `obj[prop] !== null && typeof obj[prop] === 'object'` (was line 56 pre-s9; shifted to 77 by the F1/F4 deepClone() addition, code unchanged). Same reasoning as line 71: for a non-null nested object property, `obj[prop] !== null` makes `||` collapse to the same outcome as `&&`; for null/primitive properties both operators harmlessly no-op via Object.freeze on non-objects. Verified empirically with the R18 deep-freeze test and the new s9 R22/R23 deep-purity tests (array-nested and object-nested grandchildren) green under this mutant."
+  },
+  {
+    "name": "or->and",
+    "line": 6,
+    "file": "engine/state.mjs (et match.mjs:6 — meme cle (name,line))",
+    "justification": "Seed guard `typeof seed !== 'number' || !Number.isInteger(seed)` in initState (state.mjs) — and identically in runMatch (match.mjs:6) — is immediately followed on the non-throw path by an unconditional seedRng(seed)/initState(seed) call that re-validates the exact same shape with the textually IDENTICAL guard and IDENTICAL error message 'Seed must be an integer'. The only seeds bypassing the mutated (&&) guard (finite non-integers, NaN) are all still rejected one frame deeper with the same message. No observable difference through the public entry point. Verified empirically: state.initState(3.5) and runMatch(3.5,[]) still throw 'Seed must be an integer' (from the unmutated rng/initState chain)."
+  },
+  {
+    "name": "false->true",
+    "line": 23,
+    "file": "engine/inputs.mjs",
+    "justification": "validateInput's second guard `typeof input.kind !== 'string'` is DEAD CODE: the first guard (line 18, `!isInput(input)`) already requires `typeof input.kind === 'string'` per isInput's definition (types.mjs: typeof x==='object' && x!==null && typeof x.kind==='string'). By line 22, input.kind is guaranteed a string, so the line-22 condition can never be true and its consequent is unreachable — the false->true mutation on that dead branch is unobservable. Verified empirically: branch stays unreachable after explicit ok:false/ok:true coverage for all 7 known kinds + missing-kind/null/non-object cases (R15).",
+    "expression": "return { ok: false, reason: 'Input kind must be a string' };",
+    "_expression_backfill": "2026-08-06 P4 — releve verbatim a la ligne ancree, verifie par jeton + unicite"
+  }
+]

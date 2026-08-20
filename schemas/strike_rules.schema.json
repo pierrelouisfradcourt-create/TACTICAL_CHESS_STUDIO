@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/strike_rules.schema.json",
+  "title": "StrikeRules",
+  "description": "Strike taxonomy and escalation logic for policy enforcement.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "policy_version",
+    "strike_types",
+    "freeze_policy",
+    "auto_reset",
+    "strike_reset",
+    "reset_requires_human_decision_record",
+    "reset_requires_reason",
+    "critical_violation_cannot_be_downgraded_automatically"
+  ],
+  "properties": {
+    "policy_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "strike_types": {
+      "type": "array",
+      "minItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "severity",
+          "description",
+          "freeze_immediately",
+          "freeze_required"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": ["MINOR", "MAJOR", "IMMEDIATE_FREEZE"]
+          },
+          "severity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "freeze_immediately": {
+            "type": "boolean"
+          },
+          "freeze_required": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "freeze_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freeze_on_immediate_strike",
+        "freeze_on_major_strike",
+        "thaw_authority"
+      ],
+      "properties": {
+        "freeze_on_immediate_strike": {
+          "type": "boolean",
+          "const": true
+        },
+        "freeze_on_major_strike": {
+          "type": "boolean",
+          "const": true
+        },
+        "thaw_authority": {
+          "type": "string",
+          "const": "HUMAN_ONLY"
+        }
+      }
+    },
+    "auto_reset": {
+      "type": "boolean"
+    },
+    "strike_reset": {
+      "type": "string",
+      "enum": ["HUMAN_ONLY", "NOT_ALLOWED"]
+    },
+    "reset_requires_human_decision_record": {
+      "type": "boolean"
+    },
+    "reset_requires_reason": {
+      "type": "boolean"
+    },
+    "critical_violation_cannot_be_downgraded_automatically": {
+      "type": "boolean",
+      "const": true
+    }
+  }
+}

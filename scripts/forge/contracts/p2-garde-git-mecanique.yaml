@@ -1,0 +1,99 @@
+# Contrat d'agent Forge — mission P2 : garde MÉCANIQUE contre les commandes git destructrices
+# Statut : RATIFIÉ Pierre 2026-07-27 (retour niveau 1, point 4 : « le contrat texte ne suffit plus.
+# Déplacer les interdictions git destructrices dans un garde mécanique […] avec override humain
+# explicite. La règle doit devenir impossible à contourner par oubli »).
+# Schéma : scripts/forge/contracts/SCHEMA.md. Dispatch hors profil (allow_unprofiled assumé).
+
+role: >-
+  Ingénieur outillage de gouvernance, discipline TDD stricte. Point de vue : une règle écrite dans
+  un contrat a été violée 3 fois en 2 jours ; une règle appliquée par l'environnement ne peut pas
+  l'être. Tu PRÉPARES le garde et sa preuve, tu ne l'actives pas.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Précision sur la surface d'interception : un garde trop large casse le travail légitime (git
+  status/diff/log sont indispensables), un garde trop étroit laisse passer une variante
+  (`git -C`, `git restore --staged`, alias). Raisonner en liste d'AUTORISATION plutôt qu'en liste
+  d'interdiction quand c'est possible.
+memoire: >-
+  TROIS OCCURRENCES RÉELLES, la 3e malgré une interdiction explicite au contrat : (1) mission V4 —
+  revert temporaire de hunks de `driver.py` pour prouver un RED, sur un fichier portant 3 autres
+  chantiers non commités ; (2) mission N1-1 — `git stash push/pop` sur `run_real.py` ; (3) mission
+  N1-3 — `git checkout -- knowledge_base/learning_curve.jsonl`, puis « réparation » qui a en fait
+  RESTAURÉ une pollution de test (l'agent avait mal diagnostiqué la ligne). Aucun dommage final,
+  mais l'arbre porte ~73 fichiers non commités et une session parallèle (adaptateur Godot) —
+  la prochaine fois peut coûter du travail réel. Précédent studio : la mémoire
+  `feedback_git_checkout_uncommitted_forge_work` documente une perte réelle de durcissement
+  mutation par un `git checkout` en 2026-07-18.
+  MÉCANIQUE EXISTANTE À RÉUTILISER, PAS À RÉINVENTER : `.claude/settings.json` porte déjà un hook
+  `PreToolUse` fail-closed en périmètre Forge (`.claude/hooks/pretool_forge_guard.py`) — c'est le
+  patron d'interception éprouvé du dépôt, et `.claude/hooks/` contient déjà d'autres hooks
+  (pre-commit). Le mécanisme de permissions de `settings.json` (allow/ask/deny) est l'autre levier.
+mandatory_read:
+  - .claude/settings.json (hooks et permissions existants — la surface réelle)
+  - .claude/hooks/pretool_forge_guard.py (le patron d'un hook fail-closed déjà en service)
+  - lab/forge_runs/RUN_INDEX.md (les 3 incidents, décrits avec leurs dates)
+objectif: >-
+  PRÉPARER (sans activer) un garde mécanique qui rend impossible, pour un agent, l'exécution de
+  `git checkout`, `git restore`, `git stash` (et leurs variantes) sur ce dépôt, tout en laissant
+  passer les usages en LECTURE (`git status`, `git diff`, `git log`, `git show`) qui sont
+  indispensables au travail. Le garde doit offrir un OVERRIDE HUMAIN EXPLICITE (mécanisme de
+  contournement volontaire, jamais silencieux, tracé). Livrables : le script du garde + ses tests
+  + le patch EXACT de `settings.json` proposé dans un document, NON appliqué.
+in_scope: >-
+  Le script du garde (nouveau fichier sous .claude/hooks/) · ses tests (scripts/forge/tests/ ou à
+  côté du hook, selon le patron du hook existant — justifie ton choix) · le document du patch
+  proposé docs/forge/GARDE_GIT_MECANIQUE_PROPOSITION.md. Lecture du dépôt entier.
+out_of_scope: >-
+  `.claude/settings.json` INTOUCHÉ (le patch est proposé, appliqué par Pierre) · le hook Forge
+  existant `pretool_forge_guard.py` INTOUCHÉ (on le LIT comme patron) · scripts/forge/*.py de
+  production · les contrats · les zones gelées. Ne pas activer le garde.
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT le script du garde, ses tests, et le document de
+  patch. run: pytest (.venv312), python sur le garde pour l'éprouver, git status/diff/log en
+  LECTURE. delete: aucun. INTERDIT : git commit, git push, git checkout, git stash, git restore,
+  modification de .claude/settings.json.
+
+gardeFou: >-
+  (1) **NE PAS MODIFIER `.claude/settings.json`** : le patch est proposé dans un document, appliqué
+  par Pierre. Modifier les réglages de la session en cours pourrait casser le travail en vol.
+  (2) Le garde doit être FAIL-CLOSED sur sa surface (si l'analyse de la commande échoue, refuser),
+  mais NE JAMAIS bloquer les sous-commandes de lecture — liste blanche explicite. (3) Couvrir les
+  VARIANTES réelles : `git -C <dir> checkout`, `git restore`, `git restore --staged`, `git stash`
+  (toutes sous-commandes), `git checkout -- <path>`, formes avec options avant la sous-commande.
+  Documenter ce que tu NE couvres pas (alias utilisateur, scripts shell wrappés). (4) L'override
+  doit être EXPLICITE et TRACÉ : propose un mécanisme (variable d'environnement dédiée, fichier
+  sentinelle horodaté, ou motif dans la commande) et dis franchement ses limites — un override
+  qu'un agent peut se donner tout seul ne vaut rien, c'est le point central. (5) TDD : tests sur
+  les commandes à bloquer ET sur celles à laisser passer, RED montré puis GREEN. (6) Aucun commit/
+  push. (7) **Tu es toi-même soumis à l'interdiction** : aucune commande git destructrice pendant
+  cette mission (c'est aussi la preuve que le travail est faisable sans). (8) Doute => STOP.
+success_criteria: >-
+  (a) le script du garde existe, avec tests : les 3 commandes des 3 incidents réels sont BLOQUÉES
+  (reprendre leurs formes exactes depuis RUN_INDEX), et `git status/diff/log/show` PASSENT ;
+  (b) les variantes de la liste (garde-fou 3) sont couvertes, les non-couvertes documentées ;
+  (c) le mécanisme d'override est décrit avec ses limites honnêtes ; (d) le patch de
+  `settings.json` est fourni PRÊT À APPLIQUER mais NON APPLIQUÉ — vérifiable par
+  `git diff -- .claude/settings.json` VIDE ; (e) zéro régression sur la suite
+  (référence 917 passed, 1 skipped) ; (f) `git status --porcelain` : uniquement le script, ses
+  tests, et le document de patch.
+tests_oracles: >-
+  pytest sur les tests du garde + suite complète (.venv312, réf. 917 passed, 1 skipped) ·
+  `git diff -- .claude/settings.json` (doit être VIDE) · `git status --porcelain` ·
+  sorties RED/GREEN collées.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED. Contenu :
+  RED/GREEN · la table commande→verdict (bloquée / laissée passer) incluant les 3 incidents réels ·
+  les variantes NON couvertes · le mécanisme d'override et ses limites · le patch settings.json ·
+  preuve que settings.json n'est PAS modifié · section skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, red_output, green_output, table_commandes: [{commande, verdict, motif}],
+  variantes_non_couvertes: [], override: {mecanisme, limites}, patch_settings_propose,
+  settings_non_modifie: bool, git_status_final, fichiers_modifies: [], skipped_validation: [],
+  software_verdict, evidence_verdict: MECHANICAL_VALIDATION_ONLY, claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Action suivante 2 du retour de validation niveau 1 de Pierre (2026-07-27), qui qualifie
+  l'incident de « défaut de garde, pas problème de discipline individuelle ». En aval :
+  application du patch par Pierre, puis les futurs contrats n'auront plus besoin de répéter
+  l'interdiction en prose.

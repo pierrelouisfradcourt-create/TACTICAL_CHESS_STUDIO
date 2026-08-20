@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "environment_schema.pr02.json",
+  "title": "PR-02 Environment Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "os",
+    "cpu",
+    "ram_gb",
+    "gpu",
+    "rust_version",
+    "cargo_version",
+    "python_version",
+    "powershell_version",
+    "git_version",
+    "runner_type",
+    "runner_name",
+    "timezone",
+    "env_allowlist",
+    "env_redaction_applied"
+  ],
+  "properties": {
+    "os": {
+      "type": "string"
+    },
+    "cpu": {
+      "type": "string"
+    },
+    "ram_gb": {
+      "type": "number",
+      "minimum": 0
+    },
+    "gpu": {
+      "type": "string"
+    },
+    "rust_version": {
+      "type": "string"
+    },
+    "cargo_version": {
+      "type": "string"
+    },
+    "python_version": {
+      "type": "string"
+    },
+    "powershell_version": {
+      "type": "string"
+    },
+    "git_version": {
+      "type": "string"
+    },
+    "runner_type": {
+      "type": "string"
+    },
+    "runner_name": {
+      "type": "string"
+    },
+    "timezone": {
+      "type": "string"
+    },
+    "env_allowlist": {
+      "type": "object",
+      "description": "Only explicitly allowed environment keys may be stored. Do not store all raw environment variables.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "env_redaction_applied": {
+      "type": "boolean",
+      "description": "Records whether redaction was applied. Raw environment dumps are forbidden."
+    }
+  }
+}

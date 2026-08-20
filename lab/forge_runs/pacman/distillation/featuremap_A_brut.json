@@ -1,0 +1,363 @@
+{
+ "game_id": "pacman",
+ "systemes": [
+  {
+   "id": "sys_menu_principal",
+   "features": [
+    {
+     "id": "feat_ecran_titre",
+     "capacites": [
+      {
+       "id": "F43",
+       "capacite": "Afficher un écran titre statique au lancement du jeu.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu affiche correctement l'écran titre sans aucune animation ou mouvement avant que le joueur ne choisisse de jouer."
+       },
+       "source_ref": "R43"
+      }
+     ]
+    },
+    {
+     "id": "feat_navig_menu_principal",
+     "capacites": [
+      {
+       "id": "F44",
+       "capacite": "Permettre au joueur d'interagir avec les options du menu principal.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu réagit correctement à chaque option du menu principal : Jouer lance une partie, Contrôles et Options ouvrent des écrans différents, Quitter ferme l'application."
+       },
+       "source_ref": "R44"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_pause",
+   "features": [
+    {
+     "id": "feat_ouvrir_menu_pause",
+     "capacites": [
+      {
+       "id": "F45",
+       "capacite": "Ouvrir le menu pause depuis différentes entrées.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu ouvre correctement le menu pause via la touche Échap, le bouton Start/Menu de la manette et un bouton visible à l'écran."
+       },
+       "source_ref": "R45"
+      }
+     ]
+    },
+    {
+     "id": "feat_options_menu_pause",
+     "capacites": [
+      {
+       "id": "F46",
+       "capacite": "Permettre au joueur d'effectuer différentes actions depuis le menu pause.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu permet correctement au joueur de reprendre la partie, recommencer une nouvelle partie, consulter les contrôles et options, ou revenir à l'écran titre."
+       },
+       "source_ref": "R46"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_controles",
+   "features": [
+    {
+     "id": "feat_intentions_joueur",
+     "capacites": [
+      {
+       "id": "F47",
+       "capacite": "Recevoir des intentions du joueur sans connaître le type d'entrée.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "La logique de jeu ne reçoit que des intentions comme une direction, un dash ou une pause, indépendamment du type d'entrée."
+       },
+       "source_ref": "R47"
+      }
+     ]
+    },
+    {
+     "id": "feat_compatibilite_entrees",
+     "capacites": [
+      {
+       "id": "F48",
+       "capacite": "Permettre au joueur de jouer avec le clavier et la manette sans différence.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu fonctionne exactement de la même manière, que ce soit avec le clavier ou une manette."
+       },
+       "source_ref": "R48"
+      }
+     ]
+    },
+    {
+     "id": "feat_tactile",
+     "capacites": [
+      {
+       "id": "F49",
+       "capacite": "Permettre au joueur d'ouvrir le menu pause via un bouton tactile.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu permet correctement l'ouverture du menu pause via un bouton tactile visible à l'écran."
+       },
+       "source_ref": "R49"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_mode_jeu",
+   "features": [
+    {
+     "id": "feat_modes_jeu",
+     "capacites": [
+      {
+       "id": "F50",
+       "capacite": "Permettre au jeu de fonctionner en mode normal ou test.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu démarre en mode normal et permet le désactivation du dash avec une commande distincte."
+       },
+       "source_ref": "R50"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_dash",
+   "features": [
+    {
+     "id": "feat_mesure_dash",
+     "capacites": [
+      {
+       "id": "F51",
+       "capacite": "Mesurer l'effet du dash sur différentes grandeurs.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu mesure correctement les effets du dash sur la vitesse du joueur, le délai avant un nouveau dash, le comportement face aux murs et aux fantômes."
+       },
+       "source_ref": "R51"
+      }
+     ]
+    },
+    {
+     "id": "feat_visibilite_dash",
+     "capacites": [
+      {
+       "id": "F52",
+       "capacite": "Afficher l'état actuel du dash au joueur.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu affiche correctement quand le joueur peut ou non dasher."
+       },
+       "source_ref": "R52"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_sonore",
+   "features": [
+    {
+     "id": "feat_creation_sons",
+     "capacites": [
+      {
+       "id": "F53",
+       "capacite": "Créer des sons à l'exécution.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu génère correctement les sons nécessaires sans utiliser de fichiers sonores préexistants."
+       },
+       "source_ref": "R53"
+      }
+     ]
+    },
+    {
+     "id": "feat_retours_sonores",
+     "capacites": [
+      {
+       "id": "F54",
+       "capacite": "Produire six retours sonores différents selon l'action du joueur.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu joue correctement les six types de sons distincts en fonction des actions du joueur."
+       },
+       "source_ref": "R54"
+      }
+     ]
+    },
+    {
+     "id": "feat_separation_sonore_logique",
+     "capacites": [
+      {
+       "id": "F55",
+       "capacite": "Séparer la logique de jeu et le son.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "La logique de jeu signale les événements sans jouer de sons, c'est la couche de présentation qui joue les sons."
+       },
+       "source_ref": "R55"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_cartes_jeu",
+   "features": [
+    {
+     "id": "feat_multiples_cartes",
+     "capacites": [
+      {
+       "id": "F56",
+       "capacite": "Permettre au jeu d'utiliser plusieurs cartes sans toucher à la logique de jeu.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu utilise correctement deux ou plus de cartes jouables, et l'ajout d'une troisième ne nécessite pas de modification dans la logique du jeu."
+       },
+       "source_ref": "R56"
+      }
+     ]
+    },
+    {
+     "id": "feat_transition_cartes",
+     "capacites": [
+      {
+       "id": "F57",
+       "capacite": "Permettre au joueur de passer à une nouvelle carte sans relancer l'application.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le joueur peut continuer la partie sur une nouvelle carte sans perdre son score ou ses vies."
+       },
+       "source_ref": "R57"
+      }
+     ]
+    },
+    {
+     "id": "feat_parametres_niveaux",
+     "capacites": [
+      {
+       "id": "F58",
+       "capacite": "Changer les paramètres du jeu en fonction du niveau actuel.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu change correctement au moins un paramètre selon le niveau actuel, et affiche correctement ce numéro de niveau."
+       },
+       "source_ref": "R58"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_apparence_jeu",
+   "features": [
+    {
+     "id": "feat_couleurs_uniques",
+     "capacites": [
+      {
+       "id": "F59",
+       "capacite": "Utiliser une seule source pour toutes les couleurs du jeu.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le changement d'une couleur unique affecte correctement l'apparence de tous les écrans."
+       },
+       "source_ref": "R59"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_comprehension_jeu",
+   "features": [
+    {
+     "id": "feat_clarté_ecrans",
+     "capacites": [
+      {
+       "id": "F60",
+       "capacite": "Permettre à un observateur d'identifier correctement les éléments du jeu.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Un observateur peut identifier correctement tous les éléments du jeu sans explication."
+       },
+       "source_ref": "R60"
+      }
+     ]
+    },
+    {
+     "id": "feat_discovery_jeu",
+     "capacites": [
+      {
+       "id": "F61",
+       "capacite": "Permettre au joueur de comprendre et utiliser les contrôles du jeu.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Un joueur peut facilement comprendre comment se déplacer, dasher, mettre en pause et revenir au menu."
+       },
+       "source_ref": "R61"
+      }
+     ]
+    },
+    {
+     "id": "feat_objectifs_jeu",
+     "capacites": [
+      {
+       "id": "F62",
+       "capacite": "Permettre au joueur de comprendre les objectifs du jeu.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Un joueur peut facilement comprendre ce qu'il doit manger, éviter et comment la partie se termine."
+       },
+       "source_ref": "R62"
+      }
+     ]
+    },
+    {
+     "id": "feat_experience_jeu",
+     "capacites": [
+      {
+       "id": "F63",
+       "capacite": "Permettre au joueur de parcourir l'expérience du jeu sans aide.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Un joueur peut facilement trouver et utiliser tous les éléments du jeu, de l'écran titre à la fin."
+       },
+       "source_ref": "R63"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_tests_jeu",
+   "features": [
+    {
+     "id": "feat_continuite_tests",
+     "capacites": [
+      {
+       "id": "F64",
+       "capacite": "Permettre au jeu de continuer à prouver ce qu'il prouvait déjà.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu continue de fonctionner correctement après les ajouts du run V2, et le bot gagne toujours sur la carte de référence."
+       },
+       "source_ref": "R64"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

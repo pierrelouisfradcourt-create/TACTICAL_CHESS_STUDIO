@@ -1,0 +1,165 @@
+{
+  "patterns": [
+    {
+      "pattern": "Physique entière (no-float determinism)",
+      "description": "Représenter position et vitesse en entiers 32-bit fixes pour garantir le déterminisme — pas d'accumulation d'erreurs flottantes. Toute arithmétique interne doit rester entière jusqu'au rendu (qui peut convertir pour le canvas).",
+      "source": "charter.yaml:criteres_succes[DÉTERMINISME]",
+      "pertinence": "CRITIQUE",
+      "section": "architecture"
+    },
+    {
+      "pattern": "Détection de collision continue (CCD)",
+      "description": "Implémenter un balayage temporel (continuous collision detection) ou un pas de temps borné. Tester la trajectoire de la balle au-delà de sa position discrète pour éviter qu'elle ne traverse une brique/mur si elle se déplace rapidement (tunneling). Essayer au minimum une collision intermédiaire : si la balle part de (x0, y0) et arrive à (x0+vx, y0+vy), tester les collisions sur le segment du trajet.",
+      "source": "product_snapshot.md:R1-R5 (rebonds) + charter.yaml:actions_interdites",
+      "pertinence": "CRITIQUE",
+      "section": "physique"
+    },
+    {
+      "pattern": "Angle de rebond sur la raquette — fonction déterministe du point d'impact",
+      "description": "Définir une fonction déterministe qui calcule vx en fonction de la position relative du point d'impact sur la largeur de la raquette. Exemple : impact au centre (50% largeur) → vx minimal ; impact au bord (0% ou 100%) → vx maximal (signe = direction du bord). Ni aléatoire, ni basée sur des angles flottants imprécis — une formule claire qu'on peut tester à des valeurs exactes.",
+      "source": "product_snapshot.md:R4 (angle selon point d'impact) + charter.yaml:criteres_succes[PHYSIQUE ... STRICTE]",
+      "pertinence": "CRITIQUE",
+      "section": "entrée_joueur"
+    },
+    {
+      "pattern": "Réflexion selon la face de collision",
+      "description": "Quand la balle frappe une brique ou un mur, déterminer la face touchée (haut/bas/gauche/droite) et inverser UNIQUEMENT la composante de vitesse perpendiculaire à cette face. Exemple : face haut/bas → inverser vy ; face gauche/droite → inverser vx. Pas de rebond « toutes directions » — une inversion exacte par axe.",
+      "source": "product_snapshot.md:R2,R3,R5 (inversions de vx/vy strictes)",
+      "pertinence": "CRITIQUE",
+      "section": "physique"
+    },
+    {
+      "pattern": "RNG seedable déterministe pour génération de niveaux",
+      "description": "Utiliser un générateur pseudo-aléatoire seedable (ex: xorshift, LCG, ou implémentation simple) pour générer les positions des briques. À seed + index_niveau égaux, la sortie doit être identique EXACTEMENT. Interdire Math.random() dans la génération de niveau ; tout RNG doit prendre la seed en paramètre et la faire évoluer de manière déterministe.",
+      "source": "product_snapshot.md:R10 (niveau seedé déterministe) + charter.yaml:actions_interdites[Math.random() non seedé]",
+      "pertinence": "CRITIQUE",
+      "section": "génération_niveau"
+    },
+    {
+      "pattern": "Logique pure séparée du rendu et de l'input",
+      "description": "Tous les modules de logique (état, physique, collisions, génération, conditions de fin) sont des modules purs ES6 (.mjs) qui n'importent pas et ne référencent JAMAIS : document, window, canvas, addEventListener, requestAnimationFrame, ou toute API DOM. La mutation d'état passe UNIQUEMENT par des fonctions de logique. Le rendu consomme l'état et le dessine ; l'input consomme l'API publique de contrôle — jamais l'inverse.",
+      "source": "charter.yaml:criteres_succes[LOGIQUE SÉPARÉE] + product_snapshot.md:R19",
+      "pertinence": "CRITIQUE",
+      "section": "architecture"
+    },
+    {
+      "pattern": "API publique de pilotage pour bot + hooks de débogage",
+      "description": "Exposer window.__game (l'instance de logique pilotable), window.__game_debug (état lisible : vies, niveau, briques, positions, statut), #overlay (affichage État/VICTOIRE/DÉFAITE/PAUSE), #restart (relance). Ces hooks permettent à un oracle de solvabilité (bot déterministe) de piloter le jeu et d'en lire l'état, sans forcer l'état à la main.",
+      "source": "product_snapshot.md:R18 (hooks exposés) + charter.yaml:criteres_succes[CONTRAT DE JOUABILITÉ]",
+      "pertinence": "CRITIQUE",
+      "section": "testabilité"
+    },
+    {
+      "pattern": "Conditions de fin — assertions strictes sur des nombres exacts",
+      "description": "Victoire IFF briques_cassables_restantes == 0 (pas >= 0, pas <= 1, pas « toutes parties cochées »). Perte d'une vie IFF balle_y > seuil_bas (pas >= ni estimation). Défaite IFF vies == 0 (pas vies < 0). Chaque condition est une égalité ou une inégalité stricte testable à une valeur EXACTE. Interdiction absolue des tests tautologiques (>= là où == est attendu).",
+      "source": "product_snapshot.md:R11,R12,R13,R15 + charter.yaml:criteres_succes[CONDITIONS ... STRICTE] + charter.yaml:actions_interdites[test tautologique]",
+      "pertinence": "CRITIQUE",
+      "section": "logique"
+    },
+    {
+      "pattern": "Oracle de solvabilité — bot déterministe gagne RÉELLEMENT",
+      "description": "Un bot qui lit window.__game_debug et pilote la raquette via l'API publique doit pouvoir gagner la partie (niveau 1, seed de référence) en jouant du début à la fin : toutes briques cassées, statut VICTOIRE atteint. Pas de forçage d'état à la main. L'oracle sort code 0 (SOLVABLE) sur le jeu correct et code non-zéro (INJOUABLE) sur un jeu volontairement cassé (ex: balle lancée vers le bas au lancement). FONDAMENTAL : un jeu 'certifié OK' via tests unitaires mais injouable = PIRE bug.",
+      "source": "charter.yaml:criteres_succes[SOLVABILITÉ PROUVÉE] + charter.yaml:actions_interdites[Certifier ... sans oracle de SOLVABILITÉ]",
+      "pertinence": "CRITIQUE",
+      "section": "oracle"
+    },
+    {
+      "pattern": "Tests à mutation élevée sur les invariants critiques",
+      "description": "Les tests unitaires doivent tuer les mutants (ex: changer vx -> vx ou vy -> -vy dans un rebond). Un score de mutation élevé (>80% sur les invariants) montre que les tests vérifient VRAIMENT le comportement, pas juste qu'ils existent. Mesurable par un outil de mutation (ex: stryker si JS, ou écrit à la main).",
+      "source": "charter.yaml:criteres_succes[TESTS À MUTATION FORTS]",
+      "pertinence": "IMPORTANT",
+      "section": "tests"
+    },
+    {
+      "pattern": "Evidence path fourni pour chaque verdict",
+      "description": "Tout résultat d'étape aval (code livré, oracle exécuté) doit citer un evidence_path : la sortie textuelle/log de l'oracle, un numéro de commit, une URL de run CI, etc. Un verdict sans preuve mécanique = BLOCKED, jamais OK.",
+      "source": "charter.yaml:criteres_succes[PREUVE MÉCANIQUE FOURNIE] + charter.yaml:actions_interdites[Livrer ... sans evidence_path]",
+      "pertinence": "IMPORTANT",
+      "section": "audit"
+    }
+  ],
+  "pieges": [
+    {
+      "piege": "Tunnel bug : la balle traverse une brique à haute vitesse",
+      "description": "Si Δpos (vx, vy) est grand et que la détection de collision ne teste que la position finale, la balle franchit une brique/mur sans rebondir. Exemple typique : balle lancée avec une grande vitesse au bord. REMÈDE : implémenter CCD (tester la trajectoire) ou borner le pas de temps à un maximum qui garantit que la balle ne peut pas traverser un objet en un frame.",
+      "cause_probable": "Optimisation naïve : tester collision seulement à la position finale, pas sur le trajet.",
+      "observable_symptôme": "Balle disparaît du jeu, ou clipse à travers une brique sans rebondir.",
+      "source": "product_snapshot.md:R1-R5 (rebonds continus supposés) ; pattern game-dev connu",
+      "criticite": "BLOQUANTE"
+    },
+    {
+      "piege": "Aléa non-seedé dans la génération de niveaux",
+      "description": "Si on utilise Math.random() sans seed, ou Date.now(), ou performance.now() dans la génération, chaque niveau aura une disposition différente même à seed égale. Casse le déterminisme : deux parties 'identiques' ne sont pas identiques, les tests de déterminisme échouent, un bot reproductible est impossible.",
+      "cause_probable": "Oubli de passer la seed au RNG, ou appel de Math.random() par habitude.",
+      "observable_symptôme": "Niveaux 'aléatoires' à chaque exécution ; test de déterminisme échoue (comparer deux générations).",
+      "source": "charter.yaml:actions_interdites[Introduire ... Math.random() non seedé] + product_snapshot.md:R10",
+      "criticite": "BLOQUANTE"
+    },
+    {
+      "piege": "Angle de rebond sur la raquette mal calibré",
+      "description": "Si la fonction d'angle rebond est trop raide, trop plate, ou n'utilise pas la position d'impact, le contrôle du joueur devient inefficace. Exemple : impact au bord devrait lancer la balle latéralement, mais si c'est un angle de 30°, elle monte presque droit. Résultat : le joueur ne peut pas contrôler la direction, le jeu devient injouable.",
+      "cause_probable": "Formule d'angle pas testée à des points d'impact distincts ; pas d'assertion stricte sur vx attendu.",
+      "observable_symptôme": "Bot ne peut pas gagner, balle imprévisible, joueur ne contrôle pas la direction de renvoi.",
+      "source": "product_snapshot.md:R4 (angle selon point d'impact) + charter.yaml:criteres_succes[PHYSIQUE ... STRICTE]",
+      "criticite": "BLOQUANTE"
+    },
+    {
+      "piege": "Double-collision : la balle rebondit deux fois sur la même brique en un seul frame",
+      "description": "Si le pas de temps est grand et que la détection de collision ne marque pas la brique comme 'déjà touchée ce frame', la balle peut frapper la même brique deux fois en un tick. Résultat : destruction instantanée sans rebond visible, score multiplié, physique cassée.",
+      "cause_probable": "Pas de gestion de l'état 'collisions du frame courant' ; vérifier tous les objets sans mémoriser quoi a déjà été frappé.",
+      "observable_symptôme": "Score bondit de +2 pour une seule brique ; balle passe 'à travers' sans rebond net.",
+      "source": "Piège connu en game-dev (collision par frame vs par tick)",
+      "criticite": "BLOQUANTE"
+    },
+    {
+      "piege": "Erreur accumulation en arithmétique flottante",
+      "description": "Si on utilise pos += vx * dt à chaque frame avec vx/dt flottants, l'erreur d'arrondi s'accumule. Après 1000 frames, la position peut dériver de plusieurs pixels. Casse le déterminisme : deux simulations identiques divergent légèrement.",
+      "cause_probable": "Utiliser des flottants pour la physique interne ; oublier que les résultats doivent être exactement reproductibles.",
+      "observable_symptôme": "Déterminisme cassé : deux générations identiques divergent ; balle 'dérive' lentement.",
+      "source": "Piège connu en déterminisme numérique ; charter.yaml:criteres_succes[DÉTERMINISME]",
+      "criticite": "BLOQUANTE"
+    },
+    {
+      "piege": "Mélange logique et rendu : l'état se mute depuis le rendu",
+      "description": "Si le module rendu ou input peut modifier directement l'état (ex: game.paddle.x = ...), ou si la logique importe document/canvas et fait du DOM-manipulation directement, l'oracle d'architecture échoue, les tests deviennent flous (qu'est-ce qui mute l'état ?), le déterminisme est compromise.",
+      "cause_probable": "Architecture faible au démarrage ; passage du temps ; logique et rendu dans le même fichier.",
+      "observable_symptôme": "Oracle d'architecture statique échoue ; l'état peut être mutée par plusieurs sources ; tests difficiles à écrire et instables.",
+      "source": "charter.yaml:criteres_succes[LOGIQUE SÉPARÉE] + product_snapshot.md:R19",
+      "criticite": "BLOQUANTE"
+    },
+    {
+      "piege": "Pas d'oracle de solvabilité : jeu 'certifié OK' via tests mais INJOUABLE",
+      "description": "C'est LE piège PILOU cité dans le charter. On peut écrire 100 tests unitaires 'verts' (brique cassée → score +1, balle rebondit → vx inversé, etc.) et livrer un jeu où un bot ne peut jamais gagner. Exemple réel du projet : collect_runner avait 100% des tests unitaires verts mais était physiquement impossible à gagner. Remède : oracle de solvabilité non-négociable. Un bot qui lit window.__game_debug et pilote via l'API publique DOIT pouvoir gagner le niveau 1.",
+      "cause_probable": "Ne pas tester le 'chemin de victoire' de bout en bout ; se fier aux tests isolés.",
+      "observable_symptôme": "Tous les tests passent ; bot lancé → impossible de gagner (ex: raquette ne peut pas suivre la balle, ou balle lancée vers le bas d'entrée).",
+      "source": "charter.yaml:criteres_succes[SOLVABILITÉ PROUVÉE] + charter.yaml:actions_interdites[Certifier ... sans oracle de SOLVABILITÉ]",
+      "criticite": "BLOQUANTE"
+    },
+    {
+      "piege": "Test tautologique : assertion >= où == est attendu",
+      "description": "Exemple : vies restantes == 5, on perd une vie, on test vies >= 4. PASSE toujours si le compte est juste, mais PASSE aussi si on oublie de décrémenter (car 5 >= 4). L'assertion ne capture pas le bug. Résultat : tests verts mais logique cassée. Remède : utiliser == 4 (égalité exacte).",
+      "cause_probable": "Manque de rigueur dans les assertions ; imitation de patterns de comparaison lâche (qui convient à des comparaisons d'erreur, pas d'état).",
+      "observable_symptôme": "Test passe quand il ne devrait pas ; mutant survive (ex: vy -> vy au lieu de vy -> -vy).",
+      "source": "charter.yaml:actions_interdites[test tautologique] + charter.yaml:criteres_succes[TESTS À MUTATION FORTS]",
+      "criticite": "BLOQUANTE"
+    },
+    {
+      "piege": "Pas de hooks publics : l'oracle de solvabilité ne peut pas piloter ni observer",
+      "description": "Si window.__game ou window.__game_debug ne sont pas exposés, l'oracle ne peut pas lire l'état ni piloter la raquette via l'API publique. Il sera forcé de toucher au DOM à la main ou de simuler l'état (ce qui est interdit). Résultat : impossible de prouver la solvabilité correctement.",
+      "cause_probable": "Oubli d'exposer les hooks ; réticence à exposer l'état (mais c'est nécessaire pour le débogage ET pour l'oracle).",
+      "observable_symptôme": "Oracle échoue car il ne peut pas lire game.lives ou piloter game.moveLeft() ; seule option : forcer l'état à la main (interdit).",
+      "source": "product_snapshot.md:R18 + charter.yaml:criteres_succes[CONTRAT DE JOUABILITÉ]",
+      "criticite": "BLOQUANTE"
+    },
+    {
+      "piege": "Pas de evidence_path : verdict émis sans preuve exécutable",
+      "description": "Livrer du code avec un verdict OK/FAIL mais sans pouvoir montrer l'exécution de l'oracle qui le prouve. Exemple : 'J'ai testé, c'est OK' sans output de test, sans run CI, sans log d'oracle. Remède : toujours citer une sortie concrète (log d'exécution pytest, output du bot gagnant, screenshot Playwright, etc.).",
+      "cause_probable": "Oubli de capturer/sauver l'output d'exécution ; assurance « c'est bon » sans preuve.",
+      "observable_symptôme": "HumanGate refuse le code : 'Où est la preuve ?' ; verdict jeté dans BLOCKED par défaut.",
+      "source": "charter.yaml:criteres_succes[PREUVE MÉCANIQUE FOURNIE] + charter.yaml:actions_interdites[Livrer ... sans evidence_path]",
+      "criticite": "BLOQUANTE"
+    }
+  ],
+  "advisory": true,
+  "advisory_note": "Ce knowledge packet est advisory-only et ne doit jamais être injecté dans les prompts du council. Il sert à informer l'archi et le build des patterns éprouvés et des pièges courants en implémentation d'un casse-briques déterministe. Les sources citées pointent vers le charter.yaml et product_snapshot.md de ce run, ainsi qu'à des patterns de game-dev reconnus. AUCUNE affirmation n'engage le verdict — seules les exécutions d'oracle (tests, bot, e2e) le font. Lecture seule : NO_CLAIM_ALLOWED."
+}

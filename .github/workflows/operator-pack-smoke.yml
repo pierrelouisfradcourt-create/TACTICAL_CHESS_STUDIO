@@ -1,0 +1,37 @@
+name: Operator Pack Smoke
+
+on:
+  # Manual-only for billing control. Windows operator-pack smoke is preserved for
+  # explicit operator validation without running automatically on every PR.
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  operator-pack-smoke:
+    name: operator-pack-smoke
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate JSON artifacts
+        shell: pwsh
+        run: python scripts/studioV2/operator/validate_json_artifacts.py
+
+      - name: Run operator smoke checks
+        shell: pwsh
+        run: ./scripts/studioV2/operator/operator_smoke.ps1

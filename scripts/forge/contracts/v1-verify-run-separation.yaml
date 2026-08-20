@@ -1,0 +1,121 @@
+# Contrat d'agent Forge — mission V1 : séparer intégrité et verdict logiciel dans verify_run
+# Schéma : scripts/forge/contracts/SCHEMA.md (règle des 3 états — un champ absent = refus)
+# Statut : RATIFIÉ Pierre 2026-07-26 (décision ① post-run pong_r2 : « un échec fonctionnel ne
+# doit plus être rendu indistinguable d'un rejet pour défaut d'intégrité »).
+# Dispatch hors profil (allow_unprofiled assumé, inscrit dans l'audit signé).
+
+role: >-
+  Ingénieur outillage Forge senior, discipline TDD stricte. Point de vue : un instrument de
+  vérification qui confond « ce run est faux » et « ce run est rouge » détruit sa propre
+  valeur de preuve. Tu sépares deux registres dans un instrument, tu n'affaiblis aucun gate.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Raisonnement sur invariants de sécurité : la refactorisation doit être PROUVÉE
+  non-affaiblissante (aucun chemin de falsification nouvellement toléré). Rétro-compatibilité
+  d'API pour des appelants existants. Doctrine dupliquée à unifier sans changer le comportement.
+memoire: >-
+  Sur le run réel pong_r2 (2026-07-26), verify_run a rendu « VÉRIFICATION : REJET / exit 2 »
+  alors que HMAC=OK, évidence=OK, knowledge_trace=OK et provenance_ok=true : le SEUL motif
+  était `gate mutation non vert (status=FAIL)`. Ce motif vient de
+  mutation_proof.verify_mutation_receipt l.219-220 (`if receipt.status != "OK"`), la seule
+  raison de la liste qui soit un FAIT DE VERDICT ; toutes les autres (signature, run_id,
+  oracle_id, empreintes code_sha256, test_files_scelles, baseline_ok, triage_sha256,
+  evidence_path) sont des faits d'INTÉGRITÉ. FAIT CAPITAL : la discipline ratifiée EXISTE
+  DÉJÀ, mais dupliquée au mauvais endroit — driver.py:1105 fait
+  `if record["software_verdict"] == "OK": blocking += mutation_problems`, avec un commentaire
+  qui explique précisément pourquoi (l.1092-1104). L'instrument, lui, ignore la règle. La
+  mission fait donc REMONTER la règle dans verify_run et SUPPRIME la duplication.
+  ATTENTION : verify_mutation_receipt est AUSSI le gate mutation dur du driver (driver.py:846) —
+  changer son comportement par défaut affaiblirait un gate réel.
+mandatory_read:
+  - scripts/forge/verify_run.py (verify_run, _check_mutation_proof l.42-78, main l.267-300)
+  - scripts/forge/mutation_proof.py (verify_mutation_receipt l.189-249)
+  - scripts/forge/driver.py l.840-860 (gate mutation) et l.1079-1120 (_run_verdict, doctrine dupliquée)
+  - lab/forge_runs/pong/verdict.json (cas réel — verdict FAIL/BLOCKED authentique)
+  - .claude/skills/forge/skill.md (phrase sur les codes de sortie de verify_run)
+
+objectif: >-
+  verify_run distingue mécaniquement DEUX registres : (A) authenticité/intégrité du run
+  (HMAC, signatures, provenance, empreintes, évidence, knowledge_trace, cohérence des
+  preuves) — seul registre qui décide le REJET et le code de sortie ; (B) verdict logiciel
+  (OK/FAIL/BLOCKED) — rapporté, jamais cause de rejet. Un FAIL honnête sort désormais
+  exit 0 avec « INTÉGRITÉ : AUTHENTIQUE » et « VERDICT LOGICIEL : FAIL ». La règle ne vit
+  plus qu'à UN endroit : la duplication de driver.py:1105 est retirée au profit des champs
+  structurés rendus par verify_run.
+
+# --- DESIGN IMPOSÉ (arbitré par la supervision — appliquer, ne pas redessiner) ---
+gardeFou: >-
+  DESIGN IMPOSÉ, 5 points. (1) mutation_proof.verify_mutation_receipt reçoit un paramètre
+  KEYWORD-ONLY `require_green: bool = True` : le défaut préserve EXACTEMENT le comportement
+  actuel (le gate du driver l.846 est inchangé, à prouver par test) ; avec require_green=False
+  la raison « gate mutation non vert » n'est PAS ajoutée à `raisons`. Le reçu rend TOUJOURS
+  une clé `status` (valeur du receipt.status) — aucun appelant ne doit jamais parser une
+  chaîne française pour connaître le statut. (2) verify_run appelle avec require_green=False
+  et rend des champs structurés NOUVEAUX : `integrity_ok`, `mutation_integrity_problems`,
+  `mutation_gate_green`, `mutation_status`, `coherence_problems`. (3) COHÉRENCE = GATE DUR :
+  si software_verdict == "OK" ALORS QUE le gate mutation n'est pas vert, c'est un verdict qui
+  prétend un vert non prouvé => `coherence_problems` non vide => integrity_ok False. C'est le
+  seul cas où un gate mutation rouge doit provoquer un rejet, et il ne doit JAMAIS régresser.
+  (4) `overall` reste présent (rétro-compat) et vaut désormais integrity_ok, documenté ;
+  `mutation_ok`/`mutation_problems` restent rendus pour les appelants/tests existants.
+  (5) CLI : deux lignes distinctes « INTÉGRITÉ : AUTHENTIQUE|REJET » et « VERDICT LOGICIEL :
+  <software_verdict> / <decision> ». Codes de sortie : 0 = intégrité OK (quel que soit le
+  verdict logiciel), 2 = intégrité REJET, 3 = verdict illisible (inchangé).
+  AUTRES GARDE-FOUS : TDD strict, RED montré puis GREEN ; encoding utf-8 ; tests isolés
+  tmp_path ; aucun commit/push ; le working tree porte déjà des modifications non commitées
+  d'autres chantiers du jour (M1, s10s, contrats, studio_brain, artefacts de run) — ne les
+  écrase pas, compare tes diffs à l'état trouvé en arrivant, pas à HEAD. Un doute de
+  périmètre => STOP et question dans le rapport.
+
+in_scope: >-
+  scripts/forge/verify_run.py · scripts/forge/mutation_proof.py (ajout du paramètre et de la
+  clé `status` UNIQUEMENT) · scripts/forge/driver.py (retrait de la doctrine dupliquée
+  l.1092-1106 au profit des champs structurés) · scripts/forge/tests/ ·
+  .claude/skills/forge/skill.md (phrase sur les codes de sortie, mise en cohérence).
+out_of_scope: >-
+  Toute autre logique de vérification : la dérive git reste un avertissement, le Context
+  Manifest reste advisory, knowledge_trace garde sa sévérité (absent = warning, présent et
+  falsifié = dur). Ne PAS toucher verdict.py, gate.py, standard_oracles.py, les contrats
+  YAML, les oracles. Ne PAS relâcher un seul gate d'intégrité. Zones gelées intouchées
+  (autopilot.py, scripts/studioV2/, src/, ml/). Ne PAS modifier un verdict.json ni un
+  state.json existant (pong_r2 est une référence historique conservée — décision Pierre).
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT les 5 chemins d'in_scope. run: pytest
+  (.venv312/Scripts/python.exe -m pytest scripts/forge/tests/ -q), python -m forge.verify_run
+  sur des verdicts EXISTANTS en lecture, node scripts/forge/studio_selfaudit.mjs, git
+  status/diff (lecture). delete: aucun. INTERDIT : git commit, git push, git checkout.
+
+success_criteria: >-
+  (a) `python -m forge.verify_run lab/forge_runs/pong/verdict.json` sort **exit 0** avec
+  « INTÉGRITÉ : AUTHENTIQUE » et « VERDICT LOGICIEL : FAIL / BLOCKED » — sortie brute collée
+  AVANT et APRÈS ; (b) test de NON-RÉGRESSION DE SÉCURITÉ : un verdict qui prétend
+  software_verdict OK sur un gate mutation rouge est toujours REJETÉ (exit 2) — test écrit,
+  RED prouvé sur une implémentation naïve qui aurait juste retiré le check ; (c) le gate
+  mutation du driver (driver.py:846, require_green par défaut) est prouvé INCHANGÉ ;
+  (d) la doctrine ne vit plus qu'à un endroit : driver.py:1105 ne réimplémente plus la
+  condition, comportement prouvé identique par test ; (e) zéro régression — référence
+  855 passed, 1 skipped, nouveaux tests comptés ; (f) `node scripts/forge/studio_selfaudit.mjs`
+  rend STUDIO ALIGNÉ (contract_sync vert après la mise à jour de skill.md).
+tests_oracles: >-
+  .venv312/Scripts/python.exe -m pytest scripts/forge/tests/ -q (réf. 855 passed, 1 skipped) ·
+  python -m forge.verify_run sur lab/forge_runs/pong/verdict.json (cas réel) ·
+  node scripts/forge/studio_selfaudit.mjs · git status --porcelain · sorties RED/GREEN réelles.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED
+  uniquement. Contenu : sortie verify_run AVANT et APRÈS sur pong_r2 · RED/GREEN collés ·
+  critères (a)→(f) un par un avec preuve · argumentaire explicite « aucun chemin de
+  falsification nouvellement toléré » avec la liste des gates conservés · git status/diff ·
+  section skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, verify_run_avant, verify_run_apres, red_output, green_output,
+  criteres_a_f: [{critere, preuve}], gates_integrite_conserves: [], selfaudit_output,
+  git_status_final, git_diff_stat, fichiers_modifies: [], skipped_validation: [],
+  software_verdict, evidence_verdict: MECHANICAL_VALIDATION_ONLY,
+  claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Décision Pierre ① du 2026-07-26, prise au vu du run pong_r2 où l'écart s'est matérialisé
+  (écart déjà consigné le 2026-07-24, fix proposé jamais ratifié — maintenant ratifié).
+  En amont : M1 (télémétrie) et s10s (garde attempts) livrées le même jour. En aval :
+  nouveau run Pong pour mesurer l'impact des corrections (pong_r2 conservé comme référence).

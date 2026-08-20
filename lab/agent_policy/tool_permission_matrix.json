@@ -1,0 +1,449 @@
+{
+  "$schema": "../../schemas/tool_permission_matrix.schema.json",
+  "policy_version": "2026-05-08",
+  "deny_by_default": true,
+  "default_effect": "DENY",
+  "global_constraints": {
+    "can_any_agent_merge": false,
+    "can_any_agent_decide_claim_authority": false,
+    "can_any_agent_modify_own_rules": false,
+    "can_any_agent_modify_branch_protection": false,
+    "runtime_test_ci_write_requires_explicit_human_review": true
+  },
+  "tool_rules": [
+    {
+      "agent_id": "producer",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "read_repo",
+      "effect": "ALLOW",
+      "human_review_required": false
+    },
+    {
+      "agent_id": "producer",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "inspect_diff",
+      "effect": "ALLOW",
+      "human_review_required": false
+    },
+    {
+      "agent_id": "code",
+      "autonomy_level": "2_CONTROL_PLANE_ONLY",
+      "tool": "propose_patch",
+      "effect": "ALLOW",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "qa",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "run_json_parse",
+      "effect": "ALLOW",
+      "human_review_required": false
+    },
+    {
+      "agent_id": "qa",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "run_hygiene_check",
+      "effect": "ALLOW",
+      "human_review_required": false
+    },
+    {
+      "agent_id": "review",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "run_local_report",
+      "effect": "ALLOW",
+      "human_review_required": false
+    },
+    {
+      "agent_id": "docs",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "write_docs",
+      "effect": "ALLOW",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "producer",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "merge_pr",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "producer",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "claim_authority",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "producer",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "edit_branch_protection",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "producer",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "modify_runtime",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "producer",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "modify_tests",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "producer",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "modify_ci",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "producer",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "run_benchmark",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "producer",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "run_gameplay_loop",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "producer",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "create_canonical_evidence",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "producer",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "modify_own_policy",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "producer",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "self_score",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "code",
+      "autonomy_level": "2_CONTROL_PLANE_ONLY",
+      "tool": "merge_pr",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "code",
+      "autonomy_level": "2_CONTROL_PLANE_ONLY",
+      "tool": "claim_authority",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "code",
+      "autonomy_level": "2_CONTROL_PLANE_ONLY",
+      "tool": "edit_branch_protection",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "code",
+      "autonomy_level": "2_CONTROL_PLANE_ONLY",
+      "tool": "modify_runtime",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "code",
+      "autonomy_level": "2_CONTROL_PLANE_ONLY",
+      "tool": "modify_tests",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "code",
+      "autonomy_level": "2_CONTROL_PLANE_ONLY",
+      "tool": "modify_ci",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "code",
+      "autonomy_level": "2_CONTROL_PLANE_ONLY",
+      "tool": "run_benchmark",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "code",
+      "autonomy_level": "2_CONTROL_PLANE_ONLY",
+      "tool": "run_gameplay_loop",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "code",
+      "autonomy_level": "2_CONTROL_PLANE_ONLY",
+      "tool": "create_canonical_evidence",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "code",
+      "autonomy_level": "2_CONTROL_PLANE_ONLY",
+      "tool": "modify_own_policy",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "code",
+      "autonomy_level": "2_CONTROL_PLANE_ONLY",
+      "tool": "self_score",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "review",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "merge_pr",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "review",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "claim_authority",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "review",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "edit_branch_protection",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "review",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "modify_runtime",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "review",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "modify_tests",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "review",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "modify_ci",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "review",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "run_benchmark",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "review",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "run_gameplay_loop",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "review",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "create_canonical_evidence",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "review",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "modify_own_policy",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "review",
+      "autonomy_level": "0_READ_ONLY",
+      "tool": "self_score",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "qa",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "merge_pr",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "qa",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "claim_authority",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "qa",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "edit_branch_protection",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "qa",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "modify_runtime",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "qa",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "modify_tests",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "qa",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "modify_ci",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "qa",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "run_benchmark",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "qa",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "run_gameplay_loop",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "qa",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "create_canonical_evidence",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "qa",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "modify_own_policy",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "qa",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "self_score",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "docs",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "merge_pr",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "docs",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "claim_authority",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "docs",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "edit_branch_protection",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "docs",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "modify_runtime",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "docs",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "modify_tests",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "docs",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "modify_ci",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "docs",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "run_benchmark",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "docs",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "run_gameplay_loop",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "docs",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "create_canonical_evidence",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "docs",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "modify_own_policy",
+      "effect": "DENY",
+      "human_review_required": true
+    },
+    {
+      "agent_id": "docs",
+      "autonomy_level": "1_DOCS_ONLY",
+      "tool": "self_score",
+      "effect": "DENY",
+      "human_review_required": true
+    }
+  ]
+}

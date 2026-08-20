@@ -1,0 +1,18 @@
+{
+  "imp": "IMP-252",
+  "title": "Verrou de session ledger — bail exclusif (writelock O_EXCL) prouvé deux processus",
+  "oracle": ".venv312/Scripts/python.exe -m pytest scripts/phase3_tests/test_imp252_two_process_lock.py -v",
+  "oracle_result": {"tests_collected": 3, "passed": 3, "failed": 0, "exit_code": 0},
+  "evidence": {
+    "refused_1v1": "test_two_real_processes_second_writer_refused",
+    "refused_under_forced_contention": "test_pileup_writers_refused_under_held_lock (6 racers, overlap mesuré)",
+    "serialize_no_corruption": "test_concurrent_writers_serialize_without_corruption",
+    "mutation_check": "O_EXCL retiré -> refus non levé + ledger écrasé -> le test échoue",
+    "stability": "6/6 runs verts",
+    "suite_regression": "42 passed (IMP-194 + IMP-205 + IMP-252 + governor)"
+  },
+  "date": "2026-07-09",
+  "software_verdict": "OK",
+  "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+  "claim_verdict": "NO_CLAIM_ALLOWED"
+}

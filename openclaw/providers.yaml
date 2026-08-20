@@ -1,0 +1,129 @@
+# openclaw/providers.yaml — Provider Registry v1
+# SSOT des endpoints de service avec état de santé et procédure de démarrage.
+# Propriétaire : Studio OS | Source IMP: IMP-124
+# Lecture par : autopilot.py healthcheck, @monitor, capabilities.yaml
+# claim_posture: NO_CLAIM_ALLOWED
+
+version: "1.0"
+generated: "2026-06-26"
+source_imp: IMP-124
+claim_posture: NO_CLAIM_ALLOWED
+
+providers:
+
+  - id: lmstudio
+    name: LM Studio
+    base_url: http://127.0.0.1:1234/v1  # configurable via LMSTUDIO_BASE_URL env — default 127.0.0.1:1234
+    api_format: openai-completions
+    status: ASSUMED_AVAILABLE
+    healthcheck:
+      endpoint: /v1/models
+      method: GET
+      timeout_s: 3
+    fallback: null
+    notes: >
+      Serveur local (localhost:1234). Override via LMSTUDIO_BASE_URL si machine réseau.
+      Héberge : qwen2.5-14b-instruct, qwen/qwen2.5-coder-14b, qwen/qwen3.6-27b,
+      devstral-small-2507, mistral-7b-instruct-v0.3.
+      Doit tourner avant tout démarrage studio.
+
+  - id: claude_proxy_8765
+    name: Claude Proxy (port 8765)
+    base_url: http://127.0.0.1:8765/v1
+    api_format: openai-completions
+    status: RUNNING               # opérationnel depuis 2026-06-26 matin
+    healthcheck:
+      endpoint: /health
+      method: GET
+      timeout_s: 3
+    startup:
+      cwd: C:\TACTICAL_CHESS_STUDIO
+      env:
+        CLAUDE_PROXY_SYSTEM_FILE: studio/openclaw-workspace/BOOTSTRAP.md
+      cmd: python scripts/claude_proxy.py
+      platform: wsl
+    fallback: anthropic_api_direct
+    notes: >
+      Bridge Claude CLI → OpenAI-compatible API.
+      Requis pour : @producteur_dur, /code_review, /gate, /verdict, /plan, /architecture_review.
+      OpenClaw primary model = custom-127-0-0-1-8765/claude-code-cli (dépend de ce service).
+
+  - id: canvas_gateway_8766
+    name: Canvas Gateway (port 8766)
+    base_url: http://127.0.0.1:8766
+    api_format: custom_sse
+    status: RUNNING               # opérationnel depuis 2026-06-26 matin
+    healthcheck:
+      endpoint: /health
+      method: GET
+      timeout_s: 3
+    startup:
+      cwd: C:\TACTICAL_CHESS_STUDIO
+      env: {}
+      cmd: python scripts/canvas_gateway.py
+      platform: wsl
+    fallback: null
+    notes: >
+      SSE gateway pour studio_canvas.html.
+      Endpoints : /api/meta (GET), /api/meta/stream (SSE), /api/refresh (POST),
+      /api/gate/{id} (POST), /health (GET).
+      Indépendant de LM Studio — ne nécessite pas de modèle.
+
+  - id: openclaw_gateway_18789
+    name: OpenClaw Gateway (port 18789)
+    base_url: http://127.0.0.1:18789
+    api_format: openclaw_internal
+    status: RUNNING               # confirmé audit 2026-06-26 (pid 261)
+    healthcheck:
+      endpoint: /health
+      method: GET
+      timeout_s: 3
+    startup:
+      cmd: openclaw
+      platform: wsl
+    fallback: null
+    notes: >
+      Serveur OpenClaw — orchestre les agents via workspace ~/.openclaw/workspace/.
+      Primary model configuré : custom-127-0-0-1-8765/claude-code-cli.
+
+  - id: autopilot_7331
+    name: Autopilot HTTP Server (port 7331)
+    base_url: http://127.0.0.1:7331
+    api_format: custom_http
+    status: UNKNOWN               # non vérifié dans cet audit
+    healthcheck:
+      endpoint: /api/health
+      method: GET
+      timeout_s: 3
+    startup:
+      cwd: C:\TACTICAL_CHESS_STUDIO
+      cmd: python autopilot.py
+      platform: windows_or_wsl
+    fallback: null
+    notes: >
+      Hub central control plane — 51 routes HTTP, 7501 lignes.
+      Héberge : kaizen_autoloop, CEO Brief, idea pipeline, studio state.
+
+  - id: anthropic_api_direct
+    name: Anthropic API (direct)
+    base_url: https://api.anthropic.com
+    api_format: anthropic_native
+    status: AVAILABLE
+    cost: paid
+    budget_gate: HUMAN_GATE_REQUIRED  # toute utilisation directe requiert go explicite Pierre
+    healthcheck: null             # pas de healthcheck gratuit — présumé disponible
+    fallback: null
+    notes: Payant — fallback si claude_proxy_8765 KO.
+
+  - id: gemini_free
+    name: Gemini Free Tier
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+    api_format: openai-completions
+    status: ASSUMED_AVAILABLE
+    restrictions:
+      - never_phi
+      - never_internal_studio
+    cost: free_api
+    budget_enforcement: free_tier_only  # jamais quota payant — free tier uniquement
+    healthcheck: null
+    fallback: null

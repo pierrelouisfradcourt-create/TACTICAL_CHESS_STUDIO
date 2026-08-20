@@ -1,0 +1,290 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/studio_state_delta.schema.json",
+  "title": "StudioStateDelta V0",
+  "description": "Read-only reducer output from an executor_report_output or StudioPilot ExecutionReport. This schema does not define persistent studio state, activation authority, promotion authority, or claim authorization.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_type",
+    "contract_version",
+    "source_report_id",
+    "source_task_id",
+    "generated_at",
+    "evidence_added",
+    "risks_reduced",
+    "risks_created",
+    "blockers_opened",
+    "blockers_closed",
+    "decision_debt_opened",
+    "decision_debt_closed",
+    "proven_surfaces",
+    "blocked_surfaces",
+    "next_best_mission",
+    "forbidden_next_missions",
+    "humangate_required",
+    "status_by_surface",
+    "software_verdict",
+    "evidence_verdict",
+    "claim_verdict",
+    "claim_posture",
+    "no_global_ready_verdict"
+  ],
+  "properties": {
+    "record_type": {
+      "const": "studio_state_delta"
+    },
+    "contract_version": {
+      "const": "V0"
+    },
+    "source_report_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evidence_added": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/delta_item"
+      }
+    },
+    "risks_reduced": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/delta_item"
+      }
+    },
+    "risks_created": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/delta_item"
+      }
+    },
+    "blockers_opened": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/delta_item"
+      }
+    },
+    "blockers_closed": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/delta_item"
+      }
+    },
+    "decision_debt_opened": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/delta_item"
+      }
+    },
+    "decision_debt_closed": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/delta_item"
+      }
+    },
+    "proven_surfaces": {
+      "$ref": "#/$defs/surface_list"
+    },
+    "blocked_surfaces": {
+      "$ref": "#/$defs/surface_list"
+    },
+    "next_best_mission": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/mission"
+        }
+      ]
+    },
+    "forbidden_next_missions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "humangate_required": {
+      "type": "boolean"
+    },
+    "status_by_surface": {
+      "$ref": "#/$defs/surface_status_map"
+    },
+    "software_verdict": {
+      "$ref": "#/$defs/surface_status_map"
+    },
+    "evidence_verdict": {
+      "$ref": "#/$defs/surface_status_map"
+    },
+    "claim_verdict": {
+      "$ref": "#/$defs/surface_status_map"
+    },
+    "claim_posture": {
+      "const": "NO_CLAIM_ALLOWED",
+      "default": "NO_CLAIM_ALLOWED"
+    },
+    "no_global_ready_verdict": {
+      "const": true,
+      "default": true
+    }
+  },
+  "$defs": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "IMPLEMENTED",
+        "TESTED",
+        "DOCUMENTED_ONLY",
+        "PASSIVE",
+        "BLOCKED",
+        "NOT_FOUND",
+        "UNKNOWN"
+      ]
+    },
+    "surface": {
+      "type": "string",
+      "enum": [
+        "active_runtime_code",
+        "tests",
+        "tools_scripts",
+        "artifacts_runtime_outputs",
+        "canonical_docs",
+        "roadmap_docs_only",
+        "inference"
+      ]
+    },
+    "surface_list": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/surface"
+      },
+      "uniqueItems": true
+    },
+    "surface_status_map": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_runtime_code",
+        "tests",
+        "tools_scripts",
+        "artifacts_runtime_outputs",
+        "canonical_docs",
+        "roadmap_docs_only",
+        "inference"
+      ],
+      "properties": {
+        "active_runtime_code": {
+          "$ref": "#/$defs/status"
+        },
+        "tests": {
+          "$ref": "#/$defs/status"
+        },
+        "tools_scripts": {
+          "$ref": "#/$defs/status"
+        },
+        "artifacts_runtime_outputs": {
+          "$ref": "#/$defs/status"
+        },
+        "canonical_docs": {
+          "$ref": "#/$defs/status"
+        },
+        "roadmap_docs_only": {
+          "$ref": "#/$defs/status"
+        },
+        "inference": {
+          "$ref": "#/$defs/status"
+        }
+      }
+    },
+    "delta_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "status"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "surface": {
+          "$ref": "#/$defs/surface"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "mission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "goal",
+        "reason",
+        "source"
+      ],
+      "properties": {
+        "task_class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "goal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "blocked_actions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "validation_plan": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

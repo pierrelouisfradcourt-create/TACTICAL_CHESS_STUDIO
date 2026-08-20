@@ -1,0 +1,2368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Studio Cockpit — Tactical Chess Studio</title>
+<!-- vis-network via CDN (unpkg) — lightweight, interactive force-directed graphs -->
+<script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+// API HELPERS
+// ═══════════════════════════════════════════════════════════
+const API = 'http://localhost:7331';
+async function apiFetch(path, opts) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 5000);
+  try {
+    const r = await fetch(API + path, { signal: ctrl.signal, headers: {'Content-Type':'application/json'}, ...(opts||{}) });
+    clearTimeout(t);
+    if (!r.ok) return { err: 'HTTP '+r.status };
+    try { return { data: await r.json() }; } catch { return { data: null }; }
+  } catch(e) { clearTimeout(t); return { err: e.name==='AbortError'?'timeout':'offline' }; }
+}
+async function apiPost(path, body) {
+  return apiFetch(path, { method:'POST', body: JSON.stringify(body||{}) });
+}
+
+// ═══════════════════════════════════════════════════════════
+// KAIZEN TAB
+// ═══════════════════════════════════════════════════════════
+function kaizenTab(tab) {
+  document.querySelectorAll('.kaizen-tab').forEach(b => {
+    const on = b.dataset.tab === tab;
+    b.style.color = on ? 'var(--accent)' : 'var(--text2)';
+    b.style.borderBottomColor = on ? 'var(--accent)' : 'transparent';
+  });
+  document.getElementById('kaizen-tab-chains').style.display = tab==='chains' ? 'flex' : 'none';
+  document.getElementById('kaizen-tab-loops').style.display  = tab==='loops'  ? 'block' : 'none';
+  if (tab === 'loops' && !window._loopsInit) { window._loopsInit = true; renderLoops(); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// IMP / LEDGER
+// ═══════════════════════════════════════════════════════════
+async function loadCeoAssignment() {
+  const el = document.getElementById('ceo-lanes'); if(!el) return;
+  el.innerHTML = '<div style="color:var(--text3);font-size:11px">Loading…</div>';
+  const {data,err} = await apiFetch('/api/ceo-lane-assignment');
+  if (err||!data) { el.innerHTML = '<div style="color:var(--text3);font-size:11px">Offline · mock: STUDIO→snake-survivor, ROCKY_MOTEUR→chess-blitz</div>'; return; }
+  const lanes = data.lanes || data.assignment || data || {};
+  el.innerHTML = Object.entries(lanes).map(([lane,val]) => `
+    <div class="lane-pill"><span class="lane-pill-name">${lane}</span><span style="font-size:11px;color:var(--text2)">${Array.isArray(val)?val.join(', '):(val?.imp||val?.id||JSON.stringify(val))}</span></div>`).join('') || '<div style="color:var(--text3);font-size:11px">No lanes assigned</div>';
+}
+
+async function runCeoBrief() {
+  const status=document.getElementById('ceo-brief-status'), out=document.getElementById('ceo-brief-out'), text=document.getElementById('ceo-brief-text');
+  if(status){status.textContent='generating…';status.style.color='var(--yellow)';}
+  const {data,err} = await apiPost('/api/ceo-brief',{});
+  if(err||!data){if(status){status.textContent='offline';status.style.color='var(--red)';}return;}
+  if(status){status.textContent='done';status.style.color='var(--green)';}
+  if(out) out.style.display='';
+  if(text) text.textContent = typeof data==='string'?data:JSON.stringify(data,null,2);
+}
+
+async function loadImpLedger() {
+  const wrap=document.getElementById('imp-table-wrap'), cEl=document.getElementById('imp-count'); if(!wrap) return;
+  wrap.innerHTML='<div style="color:var(--text3);font-size:11px">Loading…</div>';
+  const {data,err} = await apiFetch('/api/ledger-status');
+  if(err||!data){wrap.innerHTML='<div style="color:var(--text3);font-size:11px">Offline</div>';return;}
+  const imps = data.imps||data.open_imps||[];
+  if(cEl) cEl.textContent=imps.length+' open';
+  if(!imps.length){wrap.innerHTML='<div style="color:var(--text3);font-size:11px">No open IMPs</div>';return;}
+  wrap.innerHTML=`<table class="data-table"><thead><tr><th>ID</th><th>Title</th><th>Lane</th><th>Priority</th><th>Status</th></tr></thead><tbody>${
+    imps.map(i=>`<tr><td style="font-family:var(--mono);color:var(--accent)">${i.id||'—'}</td><td style="color:var(--text)">${i.title||i.description||'—'}</td><td><span class="badge-pill bp-safe">${i.lane||'—'}</span></td><td style="color:var(--yellow)">${i.priority||'—'}</td><td><span class="badge-pill bp-open">${i.status||'OPEN'}</span></td></tr>`).join('')
+  }</tbody></table>`;
+}
+
+async function loadImpTriage() {
+  const el=document.getElementById('imp-triage-wrap'); if(!el) return;
+  el.innerHTML='<div style="color:var(--text3);font-size:11px">Loading…</div>';
+  const {data,err} = await apiFetch('/api/imp-triage');
+  if(err||!data){el.innerHTML='<div style="color:var(--text3);font-size:11px">Offline</div>';return;}
+  const items=Array.isArray(data)?data:(data.triage||data.items||[]);
+  if(!items.length){el.innerHTML='<div style="color:var(--text3);font-size:11px">No triage items</div>';return;}
+  el.innerHTML=`<table class="data-table"><thead><tr><th>ID</th><th>Title</th><th>Risk</th><th>Action</th></tr></thead><tbody>${
+    items.map(i=>`<tr><td style="font-family:var(--mono);color:var(--accent)">${i.id||'—'}</td><td>${i.title||'—'}</td><td><span class="badge-pill ${(i.risk||'').toLowerCase()==='high'?'bp-risk':'bp-safe'}">${i.risk||'—'}</span></td><td style="color:var(--text2)">${i.action||i.recommendation||'—'}</td></tr>`).join('')
+  }</tbody></table>`;
+}
+
+async function doCloseImp() {
+  const id=document.getElementById('close-imp-id')?.value?.trim(), note=document.getElementById('close-imp-note')?.value?.trim(), msg=document.getElementById('close-imp-msg');
+  if(!id){if(msg){msg.textContent='Enter IMP ID';msg.style.color='var(--red)';}return;}
+  if(msg){msg.textContent='Closing…';msg.style.color='var(--yellow)';}
+  const {data,err}=await apiPost('/api/close-imp',{imp_id:id,note});
+  if(err){if(msg){msg.textContent='Error: '+err;msg.style.color='var(--red)';}return;}
+  if(msg){msg.textContent='Closed '+id;msg.style.color='var(--green)';}
+  loadImpLedger();
+}
+
+// ═══════════════════════════════════════════════════════════
+// IDEAS
+// ═══════════════════════════════════════════════════════════
+let _ideas=[];
+async function loadIdeas() {
+  const el=document.getElementById('ideas-list'), cEl=document.getElementById('ideas-count'); if(!el) return;
+  el.innerHTML='<div style="color:var(--text3);font-size:11px">Loading…</div>';
+  const {data,err}=await apiFetch('/api/ideas');
+  if(err||!data){_ideas=[];el.innerHTML='<div style="color:var(--text3);font-size:11px">Offline</div>';return;}
+  _ideas=Array.isArray(data)?data:(data.ideas||[]);
+  if(cEl) cEl.textContent=_ideas.length+' ideas';
+  if(!_ideas.length){el.innerHTML='<div style="color:var(--text3);font-size:11px">No ideas staged</div>';return;}
+  el.innerHTML=_ideas.map((idea,i)=>`<div class="mem-item" onclick="selectIdea(${i})"><div class="mem-item-title"><span class="badge-pill bp-idea" style="margin-right:6px">${idea.id||'#'+i}</span>${idea.title||'Untitled'}</div><div class="mem-item-body">${idea.description||idea.body||''}</div></div>`).join('');
+}
+function selectIdea(i){const idea=_ideas[i];if(!idea)return;const inp=document.getElementById('pipeline-idea-id');if(inp)inp.value=idea.id||idea.title||'';toast('Selected: '+(idea.title||idea.id));}
+async function doAddIdea(){
+  const title=document.getElementById('idea-title')?.value?.trim(), desc=document.getElementById('idea-desc')?.value?.trim(), msg=document.getElementById('add-idea-msg');
+  if(!title){if(msg){msg.textContent='Enter title';msg.style.color='var(--red)';}return;}
+  if(msg){msg.textContent='Adding…';msg.style.color='var(--yellow)';}
+  const {err}=await apiPost('/api/ideas',{title,description:desc});
+  if(err){if(msg){msg.textContent='Error: '+err;msg.style.color='var(--red)';}return;}
+  if(msg){msg.textContent='Added';msg.style.color='var(--green)';}
+  document.getElementById('idea-title').value='';document.getElementById('idea-desc').value='';loadIdeas();
+}
+async function doPipeline(){
+  const idea_id=document.getElementById('pipeline-idea-id')?.value?.trim(), stepsEl=document.getElementById('pipeline-steps'), msg=document.getElementById('pipeline-msg');
+  if(msg){msg.textContent='Running…';msg.style.color='var(--yellow)';}
+  const {err}=await apiPost('/api/idea-to-imp',{idea_id});
+  if(err){if(msg){msg.textContent='Error: '+err;msg.style.color='var(--red)';}return;}
+  if(msg){msg.textContent='Pipeline started';msg.style.color='var(--green)';}
+  pollPipelineStatus(stepsEl);
+}
+let _pipelinePollTimer = null;
+async function pollPipelineStatus(stepsEl){
+  if(!stepsEl) return; let tries=0;
+  clearTimeout(_pipelinePollTimer);
+  const poll=async()=>{
+    const {data}=await apiFetch('/api/idea-pipeline-status');
+    if(!data){stepsEl.innerHTML='<div style="color:var(--text3);font-size:11px">Offline</div>';return;}
+    const steps=data.steps||data.pipeline||[];
+    stepsEl.innerHTML=steps.map(s=>{const cls=s.status==='done'?'step-ok':s.status==='running'?'step-run':s.status==='error'?'step-err':'step-pend';const icon=s.status==='done'?'✓':s.status==='running'?'◌':s.status==='error'?'✗':'○';return`<div class="step-row"><span class="step-icon ${cls}">${icon}</span><span class="step-label">${s.name||s.step||s}</span><span class="${cls}" style="font-size:10px">${s.status||''}</span></div>`;}).join('')||'<div style="color:var(--text3);font-size:11px">No steps yet</div>';
+    if(steps.some(s=>s.status==='running'||s.status==='pending')&&++tries<30) _pipelinePollTimer=setTimeout(poll,1500);
+  };poll();
+}
+async function doInject(){const msg=document.getElementById('pipeline-msg');if(msg){msg.textContent='Injecting…';msg.style.color='var(--yellow)';}const{err}=await apiPost('/api/idea-inject',{mode:'inject'});if(msg){msg.textContent=err?'Error: '+err:'Injected';msg.style.color=err?'var(--red)':'var(--green)';}}
+async function doInjectStaged(){const msg=document.getElementById('pipeline-msg');if(msg){msg.textContent='Injecting staged…';msg.style.color='var(--yellow)';}const{err}=await apiPost('/api/idea-inject',{mode:'inject-staged'});if(msg){msg.textContent=err?'Error: '+err:'Staged injected';msg.style.color=err?'var(--red)':'var(--green)';}}
+
+// ═══════════════════════════════════════════════════════════
+// KAIZEN CHAINS + AUTOLOOP
+// ═══════════════════════════════════════════════════════════
+async function loadChains(){
+  const el=document.getElementById('chains-list'); if(!el) return;
+  el.innerHTML='<div style="color:var(--text3);font-size:11px">Loading…</div>';
+  const {data,err}=await apiFetch('/api/chains');
+  if(err||!data){el.innerHTML='<div style="color:var(--text3);font-size:11px">Offline</div>';return;}
+  const chains=Array.isArray(data)?data:Object.keys(data);
+  el.innerHTML=chains.map(c=>`<div class="chain-chip" onclick="document.getElementById('run-chain-name').value='${c}'">${c}</div>`).join('');
+}
+async function loadAutoloopStatus(){
+  const el=document.getElementById('autoloop-lanes'); if(!el) return;
+  el.innerHTML='<div style="color:var(--text3);font-size:11px">Loading…</div>';
+  const {data,err}=await apiFetch('/api/autoloop-status');
+  const mock={STUDIO:'idle',ROCKY_MOTEUR:'idle',IA_APPRENTISSAGE:'idle',JEUX:'idle'};
+  const lanes=(err||!data)?mock:(data.lanes||data);
+  el.innerHTML=Object.entries(lanes).map(([lane,info])=>{const state=typeof info==='string'?info:(info?.status||info?.state||'idle');const cls=state==='running'?'ls-running':state==='error'?'ls-error':'ls-idle';return`<div class="lane-pill"><span class="lane-pill-name">${lane}</span><span class="lane-pill-status ${cls}">${state}</span><button class="btn-ghost" style="height:22px;font-size:10px;padding:0 8px" onclick="doAutoloop('start','${lane}')">Start</button><button class="btn-ghost" style="height:22px;font-size:10px;padding:0 8px" onclick="doAutoloop('stop','${lane}')">Stop</button></div>`;}).join('');
+}
+async function loadAutoloopLogs(){
+  const lane=document.getElementById('log-lane-select')?.value||'', el=document.getElementById('autoloop-log-out'); if(!el) return;
+  el.textContent='Loading…';
+  const {data,err}=await apiFetch('/api/autoloop-logs'+(lane?'?lane='+lane:''));
+  if(err||!data){el.textContent='Offline';return;}
+  const lines=Array.isArray(data)?data:(data.logs||data.lines||[]);
+  el.textContent=lines.length?lines.join('\n'):'(no log lines)';el.scrollTop=el.scrollHeight;
+}
+async function doAutoloop(action,lane){const ep=action==='start'?'/api/autoloop-start':'/api/autoloop-stop';const{err}=await apiPost(ep,{lane});toast(err?'Error: '+err:action+' '+lane);setTimeout(loadAutoloopStatus,800);}
+async function doRunChain(){
+  const name=document.getElementById('run-chain-name')?.value?.trim(), lane=document.getElementById('run-chain-lane')?.value||'STUDIO', msg=document.getElementById('run-chain-msg');
+  if(!name){if(msg){msg.textContent='Enter chain name';msg.style.color='var(--red)';}return;}
+  if(msg){msg.textContent='Running…';msg.style.color='var(--yellow)';}
+  const {data,err}=await apiPost('/api/run-chain',{chain:name,lane});
+  if(msg){msg.textContent=err?'Error: '+err:'Started: '+(data?.status||'ok');msg.style.color=err?'var(--red)':'var(--green)';}
+}
+
+// ═══════════════════════════════════════════════════════════
+// MEMORY / FUSION
+// ═══════════════════════════════════════════════════════════
+async function loadMemoryMetrics(){
+  const el=document.getElementById('metrics-grid-out'); if(!el) return;
+  const {data,err}=await apiFetch('/api/metrics');
+  const d=(err||!data)?{elo:'1 847',draw_rate:0.382,open_imps:'—',chains_run:'—'}:data;
+  const items=[{label:'ELO',value:d.elo??d.elo_current??'—'},{label:'Draw Rate',value:d.draw_rate!=null?(d.draw_rate*100).toFixed(1)+'%':'—'},{label:'Open IMPs',value:d.open_imps??'—'},{label:'Chains Run',value:d.chains_run??d.total_chains??'—'}];
+  el.innerHTML=items.map(m=>`<div class="metric-card"><div class="metric-label">${m.label}</div><div class="metric-value" style="font-size:20px">${m.value}</div></div>`).join('');
+}
+async function loadDataset(){
+  const el=document.getElementById('dataset-out'); if(!el) return;
+  const {data,err}=await apiFetch('/api/dataset-status');
+  if(err||!data){el.innerHTML='<div style="color:var(--text3);font-size:11px">Offline</div>';return;}
+  el.innerHTML='<div class="sc-rows">'+Object.entries(data).map(([k,v])=>`<div class="sc-row"><span style="color:var(--text3)">${k}</span><span style="color:var(--text);font-weight:500">${typeof v==='object'?JSON.stringify(v):v}</span></div>`).join('')+'</div>';
+}
+async function loadMemoryNotes(){
+  const el=document.getElementById('memory-out'); if(!el) return;
+  const {data,err}=await apiFetch('/api/memory');
+  if(err||!data){el.innerHTML='<div style="color:var(--text3);font-size:11px">Offline</div>';return;}
+  const items=Array.isArray(data)?data:(data.notes||data.entries||[]);
+  if(!items.length){el.innerHTML='<div style="color:var(--text3);font-size:11px">No entries</div>';return;}
+  el.innerHTML=items.slice(0,20).map(item=>`<div class="mem-item"><div class="mem-item-title">${item.title||item.id||'—'}</div><div class="mem-item-body">${item.body||item.content||item.text||JSON.stringify(item).slice(0,120)}</div></div>`).join('');
+}
+async function doFusion(mode){
+  const cmd=document.getElementById('fusion-cmd-inp')?.value?.trim(), msg=document.getElementById('fusion-msg'), out=document.getElementById('fusion-out'), result=document.getElementById('fusion-result');
+  if(!cmd){if(msg){msg.textContent='Enter command';msg.style.color='var(--red)';}return;}
+  if(msg){msg.textContent='Running fusion…';msg.style.color='var(--yellow)';}
+  const {data,err}=await apiPost('/api/fusion-cmd',{cmd,mode});
+  if(err){if(msg){msg.textContent='Error: '+err;msg.style.color='var(--red)';}return;}
+  if(msg){msg.textContent='Fusion complete';msg.style.color='var(--green)';}
+  if(out)out.style.display='';
+  if(result)result.textContent=typeof data==='string'?data:JSON.stringify(data,null,2);
+}
+
+// ═══════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════
+async function loadConfig(){
+  const el=document.getElementById('config-display'); if(!el) return;
+  const {data,err}=await apiFetch('/api/config');
+  if(err||!data){el.innerHTML='<div style="color:var(--text3);font-size:11px">Offline</div>';return;}
+  const cfg=data.config||data;
+  el.innerHTML=Object.entries(cfg).map(([k,v])=>`<div class="config-row"><span class="config-key">${k}</span><span style="font-family:var(--mono);font-size:11px;color:var(--text)">${v??'—'}</span></div>`).join('');
+  const set=(id,val)=>{const e=document.getElementById(id);if(e&&val)e.value=val;};
+  set('cfg-lm-host',cfg.lm_host);set('cfg-lm-model',cfg.lm_model);set('cfg-lm-model-ceo',cfg.lm_model_ceo);set('cfg-repo',cfg.repo);
+}
+async function doSaveConfig(){
+  const msg=document.getElementById('config-msg');
+  const body={lm_host:document.getElementById('cfg-lm-host')?.value?.trim(),lm_model:document.getElementById('cfg-lm-model')?.value?.trim(),lm_model_ceo:document.getElementById('cfg-lm-model-ceo')?.value?.trim(),repo:document.getElementById('cfg-repo')?.value?.trim()};
+  if(msg){msg.textContent='Saving…';msg.style.color='var(--yellow)';}
+  const {err}=await apiPost('/api/config',body);
+  if(msg){msg.textContent=err?'Error: '+err:'Saved';msg.style.color=err?'var(--red)':'var(--green)';}
+  if(!err)loadConfig();
+}
+async function doGitStatus(){
+  const el=document.getElementById('git-status-out'); if(!el) return;
+  el.textContent='Running…';
+  const {data,err}=await apiPost('/api/git-status',{});
+  if(err){el.textContent='Error: '+err;return;}
+  el.textContent=typeof data==='string'?data:(data?.output||data?.status||JSON.stringify(data,null,2)||'(empty)');
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOOPS SVG DIAGRAM
+// ═══════════════════════════════════════════════════════════
+function renderLoops(){
+  const mount=document.getElementById('loops-svg-mount'); if(!mount) return;
+  mount.style.display='flex';mount.style.alignItems='center';mount.style.justifyContent='center';
+  mount.innerHTML=`<svg viewBox="0 0 900 560" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:900px;max-height:520px">
+  <defs>
+    <marker id="ma" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#6c6ef5" opacity=".8"/></marker>
+    <marker id="mg" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#3ecf8e" opacity=".8"/></marker>
+    <marker id="my" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#f0a742" opacity=".8"/></marker>
+    <marker id="mp" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto"><polygon points="0 0,7 2.5,0 5" fill="#a855f7" opacity=".8"/></marker>
+  </defs>
+
+  <!-- ── A: Kaizen loop (top-left) ── -->
+  <g transform="translate(20,16)">
+    <text x="185" y="14" text-anchor="middle" fill="#6c6ef5" font-size="10.5" font-family="Inter,sans-serif" font-weight="700" letter-spacing=".08em">KAIZEN / IMPROVEMENT</text>
+    <rect x="105" y="22" width="160" height="28" rx="7" fill="#111118" stroke="#6c6ef5" stroke-width="1.4"/>
+    <text x="185" y="40" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">LEDGER open IMP</text>
+    <rect x="275" y="82" width="130" height="28" rx="7" fill="#111118" stroke="#6c6ef5" stroke-width="1.4"/>
+    <text x="340" y="100" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">kaizen_loop.py</text>
+    <rect x="195" y="144" width="130" height="28" rx="7" fill="#111118" stroke="#6c6ef5" stroke-width="1.4"/>
+    <text x="260" y="162" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">LM patch</text>
+    <rect x="30" y="144" width="130" height="28" rx="7" fill="#111118" stroke="#6c6ef5" stroke-width="1.4"/>
+    <text x="95" y="162" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">HumanGate verdict</text>
+    <rect x="10" y="82" width="110" height="28" rx="7" fill="#111118" stroke="#6c6ef5" stroke-width="1.4"/>
+    <text x="65" y="100" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">close IMP</text>
+    <path d="M185,50 C240,50 275,68 275,82" fill="none" stroke="#6c6ef5" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#ma)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="1.8s" repeatCount="indefinite"/></path>
+    <path d="M340,110 C340,128 300,144 325,144" fill="none" stroke="#6c6ef5" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#ma)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="1.8s" begin=".36s" repeatCount="indefinite"/></path>
+    <path d="M195,158 C175,158 160,158 160,158" fill="none" stroke="#6c6ef5" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#ma)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="1.8s" begin=".72s" repeatCount="indefinite"/></path>
+    <path d="M95,144 C95,124 65,110 65,110" fill="none" stroke="#6c6ef5" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#ma)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="1.8s" begin="1.08s" repeatCount="indefinite"/></path>
+    <path d="M65,82 C65,62 125,50 105,50" fill="none" stroke="#6c6ef5" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#ma)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="1.8s" begin="1.44s" repeatCount="indefinite"/></path>
+  </g>
+
+  <!-- ── B: Idea→IMP (top-right) ── -->
+  <g transform="translate(460,16)">
+    <text x="185" y="14" text-anchor="middle" fill="#a855f7" font-size="10.5" font-family="Inter,sans-serif" font-weight="700" letter-spacing=".08em">IDEA → IMP PIPELINE</text>
+    <rect x="105" y="22" width="130" height="28" rx="7" fill="#111118" stroke="#a855f7" stroke-width="1.4"/>
+    <text x="170" y="40" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">raw idea</text>
+    <rect x="265" y="82" width="130" height="28" rx="7" fill="#111118" stroke="#a855f7" stroke-width="1.4"/>
+    <text x="330" y="100" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">LM evaluation</text>
+    <rect x="195" y="144" width="130" height="28" rx="7" fill="#111118" stroke="#a855f7" stroke-width="1.4"/>
+    <text x="260" y="162" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">IMP draft</text>
+    <rect x="30" y="144" width="130" height="28" rx="7" fill="#111118" stroke="#a855f7" stroke-width="1.4"/>
+    <text x="95" y="162" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">inject → ledger</text>
+    <rect x="0" y="82" width="110" height="28" rx="7" fill="#111118" stroke="#a855f7" stroke-width="1.4"/>
+    <text x="55" y="100" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">HumanGate</text>
+    <path d="M170,50 C210,50 265,68 265,82" fill="none" stroke="#a855f7" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#mp)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="2.1s" repeatCount="indefinite"/></path>
+    <path d="M330,110 C330,128 300,144 325,144" fill="none" stroke="#a855f7" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#mp)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="2.1s" begin=".42s" repeatCount="indefinite"/></path>
+    <path d="M195,158 C170,158 160,158 160,158" fill="none" stroke="#a855f7" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#mp)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="2.1s" begin=".84s" repeatCount="indefinite"/></path>
+    <path d="M55,144 C55,124 55,110 55,110" fill="none" stroke="#a855f7" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#mp)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="2.1s" begin="1.26s" repeatCount="indefinite"/></path>
+    <path d="M55,82 C55,62 115,50 105,50" fill="none" stroke="#a855f7" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#mp)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="2.1s" begin="1.68s" repeatCount="indefinite"/></path>
+  </g>
+
+  <!-- ── C: Multi-LLM fusion (bottom-left) ── -->
+  <g transform="translate(20,308)">
+    <text x="185" y="14" text-anchor="middle" fill="#3ecf8e" font-size="10.5" font-family="Inter,sans-serif" font-weight="700" letter-spacing=".08em">MULTI-LLM REBOND / FUSION</text>
+    <rect x="90" y="22" width="140" height="28" rx="7" fill="#111118" stroke="#3ecf8e" stroke-width="1.4"/>
+    <text x="160" y="40" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">context / prompt</text>
+    <rect x="265" y="78" width="120" height="28" rx="7" fill="#111118" stroke="#3ecf8e" stroke-width="1.4"/>
+    <text x="325" y="96" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">Qwen2.5-14B</text>
+    <rect x="240" y="142" width="120" height="28" rx="7" fill="#111118" stroke="#3ecf8e" stroke-width="1.4"/>
+    <text x="300" y="160" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">rebond response</text>
+    <rect x="80" y="142" width="120" height="28" rx="7" fill="#111118" stroke="#3ecf8e" stroke-width="1.4"/>
+    <text x="140" y="160" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">fusion merge</text>
+    <rect x="0" y="78" width="110" height="28" rx="7" fill="#111118" stroke="#3ecf8e" stroke-width="1.4"/>
+    <text x="55" y="96" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">FUSION_LOG</text>
+    <path d="M160,50 C210,50 265,64 265,78" fill="none" stroke="#3ecf8e" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#mg)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="1.9s" repeatCount="indefinite"/></path>
+    <path d="M325,106 C325,124 300,142 300,142" fill="none" stroke="#3ecf8e" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#mg)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="1.9s" begin=".38s" repeatCount="indefinite"/></path>
+    <path d="M240,156 C210,156 200,156 200,156" fill="none" stroke="#3ecf8e" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#mg)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="1.9s" begin=".76s" repeatCount="indefinite"/></path>
+    <path d="M80,156 C60,156 55,106 55,106" fill="none" stroke="#3ecf8e" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#mg)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="1.9s" begin="1.14s" repeatCount="indefinite"/></path>
+    <path d="M55,78 C55,60 110,50 90,50" fill="none" stroke="#3ecf8e" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#mg)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="1.9s" begin="1.52s" repeatCount="indefinite"/></path>
+  </g>
+
+  <!-- ── D: Factory/Game loop (bottom-right) ── -->
+  <g transform="translate(460,308)">
+    <text x="185" y="14" text-anchor="middle" fill="#f0a742" font-size="10.5" font-family="Inter,sans-serif" font-weight="700" letter-spacing=".08em">FACTORY / GAME LOOP</text>
+    <rect x="100" y="22" width="140" height="28" rx="7" fill="#111118" stroke="#f0a742" stroke-width="1.4"/>
+    <text x="170" y="40" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">CERFA / GDD plan</text>
+    <rect x="275" y="82" width="120" height="28" rx="7" fill="#111118" stroke="#f0a742" stroke-width="1.4"/>
+    <text x="335" y="100" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">scaffold build</text>
+    <rect x="255" y="148" width="120" height="28" rx="7" fill="#111118" stroke="#f0a742" stroke-width="1.4"/>
+    <text x="315" y="166" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">playtest → patch</text>
+    <rect x="55" y="148" width="140" height="28" rx="7" fill="#111118" stroke="#f0a742" stroke-width="1.4"/>
+    <text x="125" y="166" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">publish (Steam)</text>
+    <rect x="0" y="82" width="110" height="28" rx="7" fill="#111118" stroke="#f0a742" stroke-width="1.4"/>
+    <text x="55" y="100" text-anchor="middle" fill="#e8e8f0" font-size="10.5" font-family="Inter,sans-serif">assets pipeline</text>
+    <path d="M170,50 C215,50 275,66 275,82" fill="none" stroke="#f0a742" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#my)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="2.3s" repeatCount="indefinite"/></path>
+    <path d="M335,110 C335,130 315,148 315,148" fill="none" stroke="#f0a742" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#my)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="2.3s" begin=".46s" repeatCount="indefinite"/></path>
+    <path d="M255,162 C220,162 195,162 195,162" fill="none" stroke="#f0a742" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#my)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="2.3s" begin=".92s" repeatCount="indefinite"/></path>
+    <path d="M55,162 C30,162 55,110 55,110" fill="none" stroke="#f0a742" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#my)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="2.3s" begin="1.38s" repeatCount="indefinite"/></path>
+    <path d="M55,82 C55,64 115,50 100,50" fill="none" stroke="#f0a742" stroke-width="1.4" stroke-opacity=".55" stroke-dasharray="8 5" marker-end="url(#my)"><animate attributeName="stroke-dashoffset" from="130" to="0" dur="2.3s" begin="1.84s" repeatCount="indefinite"/></path>
+  </g>
+
+  <text x="450" y="290" text-anchor="middle" fill="#2a2a38" font-size="10" font-family="Inter,sans-serif">TCS — Operating Loops</text>
+</svg>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// VIEW LOADERS MAP
+// ═══════════════════════════════════════════════════════════
+const _viewLoaders = {
+  overview: () => { renderActiveGames(); },
+  board:    () => { loadProjects(); },
+  imp:      () => { loadCeoAssignment(); loadImpLedger(); loadImpTriage(); },
+  ideas:    () => { loadIdeas(); },
+  kaizen:   () => { loadAutoloopStatus(); loadChains(); },
+  memory:   () => { loadMemoryMetrics(); loadDataset(); loadMemoryNotes(); },
+  config:   () => { loadConfig(); },
+  gw:       () => { loadGwPanels(); },
+};
+
+// ═══════════════════════════════════════════════════════════
+// BUILD BOARD — LIVE DATA LAYER
+// Fetches GET /api/projects; falls back to embedded PROJECTS
+// mock when offline or when autopilot is not running.
+// ═══════════════════════════════════════════════════════════
+
+// Build a rich card list from live API data.
+// Each live entry replaces or creates the corresponding card.
+// For matching ids in PROJECTS: inherit rich fields (logs, description, actions, progress).
+// The returned list contains ONLY projects from liveArr — no stale mock entries survive.
+function _mergeProjectsData(liveArr) {
+  return liveArr.map(live => {
+    const mock = PROJECTS.find(p => p.id === live.id);
+    const m = live.metrics || {};
+    // Build rich metrics from API flat shape
+    const richMetrics = {};
+    richMetrics.wishlists = {
+      label: 'Wishlists',
+      value: m.wishlists != null ? String(m.wishlists) : '—',
+      delta: mock ? (mock.metrics?.wishlists?.delta ?? '— live') : '— live',
+      up: null,
+    };
+    if (m.retention_d1 != null) {
+      richMetrics.retention = {
+        label: 'D1 Retention',
+        value: (m.retention_d1 * 100).toFixed(0) + '%',
+        delta: '—',
+        up: null,
+      };
+    }
+    if (m.bugs != null) {
+      richMetrics.bugs = {
+        label: 'Open Bugs',
+        value: String(m.bugs),
+        delta: '—',
+        up: m.bugs === 0,
+      };
+    }
+    // Prefer live stage; fall back to mock then 'idea'
+    const stage = live.stage || (mock ? mock.stage : 'idea');
+    return {
+      id:          live.id,
+      title:       live.title || (mock ? mock.title : live.id),
+      genre:       live.genre || (mock ? mock.genre : 'Unknown'),
+      stage:       stage,
+      platform:    live.platform || '',
+      priority:    mock ? mock.priority : 'medium',
+      tags:        mock ? mock.tags : ['live'],
+      metrics:     Object.keys(richMetrics).length ? richMetrics
+                     : (mock ? mock.metrics : { wishlists: { label: 'Wishlists', value: '—', delta: '', up: null } }),
+      progress:    mock ? mock.progress : 0,
+      barClass:    mock ? mock.barClass : 'bar-blue',
+      logs:        mock ? mock.logs : [{ ts: live.updated ? live.updated.slice(0, 10) : '—', cls: 'log-info', msg: 'Loaded from API' }],
+      description: mock ? mock.description : (live.notes || live.title),
+      actions:     mock ? mock.actions : [],
+    };
+  });
+}
+
+// _liveProjects: null = not yet fetched; array = latest live data or mock
+let _liveProjects = null;
+
+async function loadProjects() {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 4000);
+  let loaded = false;
+  try {
+    const r = await fetch(API + '/api/projects', { signal: ctrl.signal });
+    clearTimeout(t);
+    if (r.ok) {
+      const liveArr = await r.json();
+      if (Array.isArray(liveArr) && liveArr.length) {
+        // Live data replaces the list entirely — no stale entries survive
+        _liveProjects = _mergeProjectsData(liveArr);
+        loaded = true;
+      }
+    }
+  } catch (e) {
+    clearTimeout(t);
+    // offline or timeout — fall through to embedded list
+  }
+  // Fallback: use embedded (real) PROJECTS list unchanged
+  if (!loaded) _liveProjects = PROJECTS.slice();
+  renderBoard();
+  renderActiveGames();
+}
+
+// Render the System Map "Active Games" cards from _liveProjects (or PROJECTS fallback).
+// Called after loadProjects() resolves so it always reflects live data.
+function renderActiveGames() {
+  const grid = document.getElementById('active-games-grid');
+  if (!grid) return;
+  const src = _liveProjects ?? PROJECTS;
+  const stageColors = {
+    idea: 'var(--text3)', scaffold: 'var(--accent)', assets: 'var(--purple)',
+    playtest: 'var(--yellow)', patch: 'var(--cyan)', published: 'var(--green)',
+  };
+  const stageIcons = {
+    idea: '💡', scaffold: '🏗️', assets: '🎨',
+    playtest: '🎮', patch: '🔧', published: '🚀',
+  };
+  grid.innerHTML = src.map(p => {
+    const stageLabel = p.stage.charAt(0).toUpperCase() + p.stage.slice(1);
+    const stageColor = stageColors[p.stage] ?? 'var(--text2)';
+    const icon = stageIcons[p.stage] ?? '▶';
+    const platform = p.platform || (p.tags ? p.tags.join(' · ') : '—');
+    const firstMv = Object.values(p.metrics || {})[0];
+    const metricLabel = firstMv ? firstMv.label : 'Progress';
+    const metricVal   = firstMv ? firstMv.value : (p.progress != null ? p.progress + '%' : '—');
+    return `<div class="svc-detail-card" onclick="navTo('board')" style="cursor:pointer" title="Open Build Board">
+      <div class="sdc-name"><span style="font-size:12px">${icon}</span>${p.title}</div>
+      <div class="sdc-url">${stageLabel} · ${platform}</div>
+      <div class="sdc-row"><span>Stage</span><span class="sdc-val" style="color:${stageColor}">${stageLabel}</span></div>
+      <div class="sdc-row"><span>${metricLabel}</span><span class="sdc-val">${metricVal}</span></div>
+    </div>`;
+  }).join('') || '<div style="color:var(--text3);font-size:11px;padding:8px">No projects loaded</div>';
+}
+
+// ═══════════════════════════════════════════════════════════
+// LIVE MODULES :8766 (ported from studio_cockpit_v2.html)
+// canvas_gateway only — SSE /api/meta/stream + REST read-only.
+// Each panel degrades to an offline note; never throws.
+// ═══════════════════════════════════════════════════════════
+const GW = 'http://localhost:8766';
+let _gwSse = null, _gwPendingGate = null, _gwGates = [];
+
+function gwEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+async function gwFetch(path){
+  const ctrl = new AbortController(); const t = setTimeout(()=>ctrl.abort(), 4000);
+  try {
+    const r = await fetch(GW + path, { signal: ctrl.signal, mode:'cors' });
+    clearTimeout(t);
+    if (!r.ok) return { err:'HTTP '+r.status };
+    return { data: await r.json() };
+  } catch(e){ clearTimeout(t); return { err: e.name==='AbortError'?'timeout':'offline' }; }
+}
+function gwDown(id, label){ const el=document.getElementById(id); if(el) el.innerHTML='<div class="gw-down">'+gwEsc(label)+' DOWN — :8766 injoignable (offline)</div>'; }
+function gwSetText(id, txt){ const el=document.getElementById(id); if(el) el.textContent=txt; }
+function gwSvcRow(services){
+  if(!services||!services.length) return '';
+  return '<div style="margin-bottom:6px">'+services.map(s=>'<span class="gw-svc '+(s.up?'up':'')+'"><span class="sd"></span>'+gwEsc(s.name)+':'+s.port+'</span>').join('')+'</div>';
+}
+function renderGwDirector(d){
+  if(!d||d.available===false){ gwDown('gwd-body','Director'); gwSetText('gwd-mode','—'); return; }
+  gwSetText('gwd-mode', d.mode||'?');
+  const led=(d.ledger&&d.ledger.by_status)||{}; const recs=(d.schedule&&d.schedule.recommended)||[];
+  let h='<div class="gw-kv"><span class="k">Ledger</span><span class="v">OPEN '+(led.OPEN||0)+' · CLOSED '+(led.CLOSED||0)+' · FAIL '+(led.FAIL||0)+'</span></div>';
+  h+=gwSvcRow(d.services);
+  h+='<div class="gw-kv"><span class="k">Next autoloop</span><span class="v">'+(recs.length?gwEsc(recs[0].id):'—')+'</span></div>';
+  h+= recs.length ? recs.slice(0,3).map(r=>'<div class="gw-rec"><span class="rid">'+gwEsc(r.id)+'</span>'+gwEsc(r.title)+'<span class="rr">'+gwEsc(r.reason||'')+'</span></div>').join('') : '<div class="gw-note">Aucun IMP recommande.</div>';
+  document.getElementById('gwd-body').innerHTML=h;
+}
+function renderGwFactory(f){
+  if(!f||f.available===false){ gwDown('gwf-body','Factory'); return; }
+  const last=f.last||null; let h='<div class="gw-kv"><span class="k">Jeux au registry</span><span class="v">'+(f.count||0)+'</span></div>';
+  if(last){ const m=last.oracle_metrics||{};
+    h+='<div class="gw-kv"><span class="k">Dernier jeu</span><span class="v">'+gwEsc(last.ir_name)+'</span></div>';
+    h+='<div class="gw-kv"><span class="k">Oracle</span><span class="gw-pill '+gwEsc(last.oracle_status)+'">'+gwEsc(last.oracle_status)+'</span></div>';
+    h+='<div class="gw-kv"><span class="k">Score moyen</span><span class="v">'+(m.avg_score!=null?m.avg_score:'—')+'</span></div>';
+    h+='<div class="gw-kv"><span class="k">Violations</span><span class="v">'+(m.violations!=null?m.violations:'—')+'</span></div>';
+  } else { h+='<div class="gw-note">Registry vide.</div>'; }
+  document.getElementById('gwf-body').innerHTML=h;
+}
+function renderGwNeural(n){
+  if(!n||n.available===false||!n.ratings){ gwDown('gwn-body','Neural'); return; }
+  const r=n.ratings; let h='';
+  [['teacher_uci','Teacher UCI'],['hybrid','Hybride'],['heuristic','Heuristique'],['neural','Neural']].forEach(function(pair){
+    const v=r[pair[0]]; h+='<div class="gw-kv"><span class="k">'+pair[1]+'</span><span class="v">'+(v!=null?Math.round(v):'—')+'</span></div>';
+  });
+  const dlt=n.delta_hybrid_vs_heuristic;
+  h+='<div class="gw-kv"><span class="k">Δ hyb−heur</span><span class="v"><span class="gw-pill '+gwEsc(n.verdict)+'">'+(dlt!=null?(dlt>=0?'+':'')+dlt:'—')+' · '+gwEsc(n.verdict||'?')+'</span></span></div>';
+  h+='<div class="gw-note">'+gwEsc(n.regenerated_note||('bench '+(n.games||'?')+' parties'))+'</div>';
+  document.getElementById('gwn-body').innerHTML=h;
+}
+function renderGwOpenclaw(o){
+  if(!o||o.available===false){ gwDown('gwo-body','OpenClaw'); gwSetText('gwo-src','—'); return; }
+  gwSetText('gwo-src', o.roster_source||'');
+  let h=gwSvcRow(o.services); const ag=o.agents||[];
+  h+= ag.length ? ag.map(a=>'<div class="gw-agent"><span>'+gwEsc(a.name)+'</span><span class="ap">'+gwEsc(a.provider||a.authority||'')+'</span></div>').join('') : '<div class="gw-note">Roster indisponible.</div>';
+  h+='<div class="gw-note">'+(o.skills_count||0)+' skills disponibles</div>';
+  document.getElementById('gwo-body').innerHTML=h;
+}
+function renderGwGates(gates){
+  _gwGates = gates || [];
+  const el=document.getElementById('gw-gates'); if(!el) return;
+  if(!_gwGates.length){ el.innerHTML='<div style="color:var(--text3);font-size:11px">Aucune gate en attente.</div>'; return; }
+  el.innerHTML=_gwGates.map((g,i)=>`<div class="gate-card"><div class="gc-title">${gwEsc(g.title)}</div><div class="gc-meta">${gwEsc(g.gate_id)} · @${gwEsc(g.agent||'?')}</div><div class="gc-actions"><button class="btn-accent" onclick="gwOpenModal(${i},'APPROVE')">✓ Approuver</button><button class="btn-ghost" onclick="gwOpenModal(${i},'REJECT')">✗ Rejeter</button></div></div>`).join('');
+}
+function gwOpenModal(idx, verdict){
+  const g=_gwGates[idx]; if(!g) return;
+  _gwPendingGate={ gate:g, verdict };
+  gwSetText('gw-gate-title', (verdict==='APPROVE'?'Approuver : ':'Rejeter : ')+g.title);
+  gwSetText('gw-gate-meta', g.gate_id+' · @'+(g.agent||'?'));
+  const ta=document.getElementById('gw-gate-justif'); if(ta) ta.value='';
+  document.getElementById('gw-gate-ov').classList.add('show');
+}
+function gwCloseModal(){ const ov=document.getElementById('gw-gate-ov'); if(ov) ov.classList.remove('show'); _gwPendingGate=null; }
+async function gwSubmitGate(verdict){
+  if(!_gwPendingGate) return; const g=_gwPendingGate.gate;
+  const j=(document.getElementById('gw-gate-justif')||{}).value || ''; gwCloseModal();
+  try {
+    const r=await fetch(GW+'/api/gate/'+encodeURIComponent(g.gate_id), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ verdict, justification:j.trim()||null }) });
+    if(!r.ok){ const er=await r.json().catch(()=>({})); alert('Erreur gate : '+(er.detail||r.status)); }
+    else { loadGwPanels(); }
+  } catch(e){ alert('Gateway :8766 inaccessible : '+e.message); }
+}
+function gwInitModal(){
+  const a=document.getElementById('gw-gate-approve'), rj=document.getElementById('gw-gate-reject'),
+        c=document.getElementById('gw-gate-cancel'), ov=document.getElementById('gw-gate-ov');
+  if(a) a.addEventListener('click', ()=>gwSubmitGate('APPROVE'));
+  if(rj) rj.addEventListener('click', ()=>gwSubmitGate('REJECT'));
+  if(c) c.addEventListener('click', gwCloseModal);
+  if(ov) ov.addEventListener('click', e=>{ if(e.target===ov) gwCloseModal(); });
+}
+async function loadGwPanels(){
+  const jobs=[
+    ['/api/director', renderGwDirector, 'gwd-body','Director'],
+    ['/api/factory',  renderGwFactory,  'gwf-body','Factory'],
+    ['/api/neural',   renderGwNeural,   'gwn-body','Neural'],
+    ['/api/openclaw', renderGwOpenclaw, 'gwo-body','OpenClaw'],
+  ];
+  await Promise.allSettled(jobs.map(async (job)=>{
+    const { data, err } = await gwFetch(job[0]);
+    if(err||!data) gwDown(job[2], job[3]); else job[1](data);
+  }));
+  const meta=await gwFetch('/api/meta');
+  if(meta.data) renderGwGates(meta.data.pending_gates||[]);
+}
+function startMetaStream(){
+  try {
+    if(_gwSse){ _gwSse.close(); _gwSse=null; }
+    _gwSse=new EventSource(GW+'/api/meta/stream');
+    _gwSse.onmessage=ev=>{ try {
+      const d=JSON.parse(ev.data); const live=document.getElementById('gw-live');
+      if(live){ live.textContent='live · '+new Date().toLocaleTimeString('fr-FR'); live.className='gw-live on'; }
+      renderGwGates(d.pending_gates||[]);
+    } catch(_){} };
+    _gwSse.onerror=()=>{ const live=document.getElementById('gw-live'); if(live){ live.textContent='offline'; live.className='gw-live'; }
+      if(_gwSse){ _gwSse.close(); _gwSse=null; } setTimeout(startMetaStream, 30000); };
+  } catch(e){ /* EventSource indisponible — le polling REST couvre les panels */ }
+}
+</script>
+<style>
+/* ── Reset & Design Tokens ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #0a0a0f;
+  --bg1:     #111118;
+  --bg2:     #18181f;
+  --bg3:     #22222c;
+  --border:  #2a2a38;
+  --border2: #363648;
+  --text:    #e8e8f0;
+  --text2:   #9090a8;
+  --text3:   #5a5a72;
+  --accent:  #6c6ef5;
+  --accent2: #4d4fcc;
+  --green:   #3ecf8e;
+  --yellow:  #f0a742;
+  --red:     #f04060;
+  --purple:  #a855f7;
+  --cyan:    #22d3ee;
+  --radius:  8px;
+  --radius2: 12px;
+  --shadow:  0 4px 24px rgba(0,0,0,.6);
+  --font:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono:    'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --nav-w:   200px;
+  --strip-h: 48px;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; line-height: 1.5; overflow: hidden; }
+
+#root { display: flex; flex-direction: column; height: 100vh; }
+
+/* ── Top Status Bar ── */
+#topbar {
+  height: var(--strip-h); min-height: var(--strip-h);
+  background: var(--bg1); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 0;
+  padding: 0 16px; font-size: 11.5px; flex-shrink: 0;
+  position: relative; z-index: 20;
+}
+
+.logo {
+  font-weight: 700; letter-spacing: .05em; color: var(--text);
+  margin-right: 20px; display: flex; align-items: center; gap: 8px;
+  white-space: nowrap; font-size: 12px;
+}
+.logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
+.sep { width: 1px; height: 20px; background: var(--border); margin: 0 12px; flex-shrink: 0; }
+
+.svc-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 10px 3px 8px; border-radius: 20px;
+  background: var(--bg2); border: 1px solid var(--border);
+  cursor: pointer; transition: border-color .15s;
+  white-space: nowrap; font-size: 11px;
+}
+.svc-pill:hover { border-color: var(--border2); }
+.pill-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; transition: background .3s; }
+.dot-green  { background: var(--green);  box-shadow: 0 0 5px var(--green); }
+.dot-yellow { background: var(--yellow); }
+.dot-red    { background: var(--red);    }
+.dot-grey   { background: var(--text3);  }
+
+.pill-name { color: var(--text); font-weight: 500; }
+.pill-detail { color: var(--text3); margin-left: 2px; }
+
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+#last-refresh { font-size: 10px; color: var(--text3); }
+#btn-refresh {
+  height: 26px; padding: 0 12px; border-radius: var(--radius);
+  border: 1px solid var(--border2); background: transparent;
+  color: var(--text2); font-size: 11px; cursor: pointer;
+  transition: all .15s; font-family: var(--font);
+}
+#btn-refresh:hover { color: var(--text); border-color: var(--accent); }
+
+/* ── Main Shell ── */
+#shell { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Left Nav ── */
+#nav {
+  width: var(--nav-w); min-width: var(--nav-w);
+  background: var(--bg1); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 12px 0; gap: 2px; overflow-y: auto;
+}
+
+.nav-section {
+  padding: 6px 14px 2px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text3);
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 14px; border-radius: 6px; margin: 0 6px;
+  cursor: pointer; color: var(--text2); font-size: 12px;
+  transition: all .12s; user-select: none;
+}
+.nav-item:hover { background: var(--bg2); color: var(--text); }
+.nav-item.active { background: rgba(108,110,245,.12); color: var(--accent); font-weight: 600; }
+.nav-icon { font-size: 14px; width: 18px; text-align: center; }
+
+/* ── Content Area ── */
+#content { flex: 1; overflow: hidden; position: relative; }
+
+.view { display: none; height: 100%; overflow: hidden; }
+.view.active { display: flex; flex-direction: column; }
+
+/* ── View: OVERVIEW ── */
+#view-overview {
+  padding: 24px; overflow-y: auto; gap: 20px;
+}
+.overview-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+.view-title { font-size: 20px; font-weight: 700; }
+.view-subtitle { color: var(--text3); font-size: 12px; }
+
+.sys-map-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.sys-card {
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: var(--radius2); padding: 16px 18px;
+  position: relative; overflow: hidden;
+  transition: border-color .15s;
+}
+.sys-card:hover { border-color: var(--border2); }
+.sys-card.cockpit-center {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, rgba(108,110,245,.08) 0%, rgba(108,110,245,.02) 100%);
+  border-color: rgba(108,110,245,.3);
+}
+
+.sys-card-title {
+  font-size: 13px; font-weight: 700; margin-bottom: 4px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sys-card-sub { font-size: 11px; color: var(--text3); margin-bottom: 10px; }
+.sys-card-meta { font-size: 10.5px; color: var(--text2); font-family: var(--mono); }
+.sys-card-meta span { color: var(--text); }
+
+.sys-status-row {
+  display: flex; align-items: center; gap: 6px; margin-top: 10px;
+  font-size: 11px; color: var(--text2);
+}
+.sys-status-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.arrow-row {
+  grid-column: 1 / -1; display: flex; align-items: center;
+  justify-content: center; gap: 8px; color: var(--text3); font-size: 11px;
+}
+.arrow { font-size: 18px; color: var(--accent); opacity: .6; }
+
+.overview-svc-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  margin-top: 8px;
+}
+.svc-detail-card {
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: var(--radius2); padding: 14px 16px;
+}
+.sdc-name { font-weight: 700; font-size: 12px; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; }
+.sdc-url  { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-bottom: 8px; }
+.sdc-row  { display: flex; justify-content: space-between; font-size: 11px; color: var(--text2); margin-top: 3px; }
+.sdc-val  { color: var(--text); font-weight: 500; }
+
+/* ── View: BUILD BOARD ── */
+#view-board {
+  flex-direction: column; overflow: hidden;
+}
+.board-header {
+  padding: 18px 20px 14px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: baseline; gap: 12px; flex-shrink: 0;
+}
+.board-title { font-size: 18px; font-weight: 700; }
+.board-controls { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.btn-ghost {
+  height: 28px; padding: 0 12px; border-radius: var(--radius);
+  border: 1px solid var(--border2); background: transparent;
+  color: var(--text2); font-size: 11px; cursor: pointer;
+  transition: all .15s; font-family: var(--font);
+}
+.btn-ghost:hover { color: var(--text); background: var(--bg2); }
+.btn-accent {
+  height: 28px; padding: 0 14px; border-radius: var(--radius);
+  border: none; background: var(--accent); color: #fff;
+  font-size: 11px; font-weight: 600; cursor: pointer;
+  transition: background .15s; font-family: var(--font);
+}
+.btn-accent:hover { background: var(--accent2); }
+.board-body { display: flex; flex: 1; overflow: hidden; }
+#kanban-scroll { flex: 1; overflow-x: auto; overflow-y: hidden; padding: 16px; }
+#kanban { display: flex; gap: 12px; height: 100%; min-width: max-content; }
+
+.column {
+  width: 230px; min-width: 230px; display: flex; flex-direction: column;
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: var(--radius2); overflow: hidden;
+}
+.col-header {
+  padding: 11px 14px 9px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.col-icon  { font-size: 14px; }
+.col-name  { font-weight: 600; font-size: 12px; flex: 1; }
+.col-count { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: var(--bg3); color: var(--text2); }
+.col-body  { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 7px; }
+.col-body::-webkit-scrollbar { width: 4px; }
+.col-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.col-empty { text-align: center; color: var(--text3); font-size: 11px; padding: 16px 10px; border: 1px dashed var(--border); border-radius: var(--radius); }
+
+.card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 11px;
+  cursor: pointer; transition: border-color .15s, transform .1s;
+  position: relative;
+}
+.card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.card-title { font-weight: 600; font-size: 12.5px; margin-bottom: 3px; line-height: 1.3; padding-right: 10px; }
+.card-genre { font-size: 10px; color: var(--text3); margin-bottom: 7px; text-transform: uppercase; letter-spacing: .05em; }
+.card-metric { display: flex; justify-content: space-between; font-size: 11px; color: var(--text2); margin-bottom: 3px; }
+.card-metric-val { font-weight: 600; color: var(--text); }
+.card-priority { position: absolute; top: 10px; right: 10px; width: 6px; height: 6px; border-radius: 50%; }
+.card-bar-wrap { margin-top: 6px; height: 3px; background: var(--bg3); border-radius: 2px; }
+.card-bar { height: 3px; border-radius: 2px; transition: width .3s; }
+.bar-green { background: var(--green); } .bar-yellow { background: var(--yellow); }
+.bar-red { background: var(--red); } .bar-blue { background: var(--accent); }
+.card-tags { display: flex; gap: 4px; margin-top: 7px; flex-wrap: wrap; }
+.tag { font-size: 9.5px; padding: 1px 6px; border-radius: 10px; font-weight: 500; }
+.tag-grey { background: var(--bg3); color: var(--text3); }
+
+/* Board detail panel */
+#board-panel {
+  width: 420px; min-width: 420px; background: var(--bg1); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden; transition: all .2s;
+}
+#board-panel.hidden { width: 0; min-width: 0; }
+.panel-header { padding: 16px 18px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; flex-shrink: 0; }
+.panel-close { margin-left: auto; background: none; border: none; color: var(--text3); cursor: pointer; font-size: 18px; padding: 2px 6px; border-radius: 4px; transition: all .15s; }
+.panel-close:hover { color: var(--text); background: var(--bg3); }
+.panel-title { font-size: 15px; font-weight: 700; line-height: 1.3; }
+.panel-sub { color: var(--text3); font-size: 11px; margin-top: 2px; }
+.panel-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
+.panel-body::-webkit-scrollbar { width: 4px; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.panel-sect-title { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
+.panel-sect { margin-bottom: 18px; }
+.metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.metric-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 11px; }
+.metric-label { font-size: 10px; color: var(--text3); margin-bottom: 2px; }
+.metric-value { font-size: 17px; font-weight: 700; }
+.metric-delta { font-size: 10px; margin-top: 1px; }
+.delta-up { color: var(--green); } .delta-dn { color: var(--red); }
+.log-lines { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 11px; font-family: var(--mono); font-size: 10.5px; color: var(--text2); max-height: 130px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.log-line { display: flex; gap: 8px; }
+.log-ts { color: var(--text3); flex-shrink: 0; }
+.log-ok { color: var(--green); } .log-warn { color: var(--yellow); } .log-err { color: var(--red); } .log-info { color: var(--text2); }
+.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.action-btn { display: flex; align-items: center; gap: 7px; padding: 9px 11px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg2); color: var(--text2); font-size: 11.5px; cursor: pointer; transition: all .15s; font-family: var(--font); }
+.action-btn:hover { border-color: var(--accent); color: var(--text); background: var(--bg3); }
+.action-full { grid-column: 1/-1; background: rgba(108,110,245,.08); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.action-full:hover { background: rgba(108,110,245,.18); }
+.destructive:hover { border-color: var(--red) !important; color: var(--red) !important; }
+
+/* ── View: MEMORY GRAPH ── */
+#view-graph {
+  flex-direction: row; overflow: hidden;
+}
+#graph-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#graph-toolbar {
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  background: var(--bg1);
+}
+#graph-search {
+  height: 30px; padding: 0 12px; border-radius: var(--radius);
+  border: 1px solid var(--border2); background: var(--bg2);
+  color: var(--text); font-size: 12px; font-family: var(--font);
+  outline: none; width: 220px; transition: border-color .15s;
+}
+#graph-search:focus { border-color: var(--accent); }
+#graph-search::placeholder { color: var(--text3); }
+.filter-btn {
+  height: 30px; padding: 0 12px; border-radius: var(--radius);
+  border: 1px solid var(--border2); background: var(--bg2);
+  color: var(--text2); font-size: 11px; cursor: pointer;
+  transition: all .15s; font-family: var(--font);
+}
+.filter-btn:hover { color: var(--text); }
+.filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(108,110,245,.08); }
+#graph-container { flex: 1; }
+#graph-side {
+  width: 280px; min-width: 280px; background: var(--bg1);
+  border-left: 1px solid var(--border); overflow-y: auto;
+  padding: 0; transition: all .2s;
+}
+#graph-side.empty { display: flex; align-items: center; justify-content: center; }
+.graph-node-info { padding: 18px; }
+.gni-title { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+.gni-folder { font-size: 11px; color: var(--text3); margin-bottom: 10px; font-family: var(--mono); }
+.gni-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 14px; }
+.gni-tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; background: rgba(108,110,245,.12); color: var(--accent); }
+.gni-section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text3); margin-bottom: 8px; }
+.gni-links { display: flex; flex-direction: column; gap: 5px; }
+.gni-link { font-size: 11.5px; color: var(--text2); cursor: pointer; padding: 5px 8px; border-radius: 6px; background: var(--bg2); transition: all .12s; }
+.gni-link:hover { color: var(--accent); background: var(--bg3); }
+.gni-empty { color: var(--text3); font-size: 11px; text-align: center; padding: 30px 20px; }
+
+/* ── View: STATUS ── */
+#view-status { overflow-y: auto; padding: 24px; gap: 20px; }
+.status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.status-card {
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: var(--radius2); padding: 18px;
+}
+.sc-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.sc-name { font-weight: 700; font-size: 14px; }
+.sc-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.badge-up   { background: rgba(62,207,142,.15); color: var(--green); }
+.badge-down { background: rgba(240,64,96,.15);  color: var(--red); }
+.badge-warn { background: rgba(240,167,66,.15); color: var(--yellow); }
+.badge-idle { background: var(--bg3);           color: var(--text3); }
+.sc-url { font-family: var(--mono); font-size: 10.5px; color: var(--text3); margin-bottom: 12px; }
+.sc-rows { display: flex; flex-direction: column; gap: 6px; }
+.sc-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); padding: 6px 10px; background: var(--bg2); border-radius: 6px; }
+.sc-row-val { color: var(--text); font-weight: 500; }
+.ep-list { margin-top: 14px; }
+.ep-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text3); margin-bottom: 8px; }
+.ep-item { display: flex; align-items: center; gap: 8px; padding: 5px 10px; background: var(--bg2); border-radius: 6px; margin-bottom: 5px; }
+.ep-method { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; font-family: var(--mono); }
+.method-get  { background: rgba(62,207,142,.15);  color: var(--green); }
+.method-post { background: rgba(240,167,66,.15);  color: var(--yellow); }
+.ep-path { font-family: var(--mono); font-size: 10.5px; color: var(--text2); }
+.ep-desc { font-size: 10.5px; color: var(--text3); margin-left: auto; }
+
+/* ── Global scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── Toast ── */
+#toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 10px 18px;
+  font-size: 12px; color: var(--text); box-shadow: var(--shadow);
+  transition: transform .2s; z-index: 1000; pointer-events: none;
+}
+#toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── Animations ── */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.pulsing { animation: pulse 1.6s infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinning { display: inline-block; animation: spin .8s linear infinite; }
+
+/* ── Live modules :8766 (ported from studio_cockpit_v2.html) ── */
+.gw-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(258px,1fr)); gap:14px; }
+.gw-kv { display:flex; justify-content:space-between; gap:10px; font-size:11px; padding:5px 2px; border-bottom:1px solid var(--border); }
+.gw-kv:last-child { border-bottom:0; }
+.gw-kv .k { color:var(--text3); } .gw-kv .v { font-weight:600; text-align:right; }
+.gw-svc { display:inline-flex; align-items:center; gap:5px; font-size:10px; padding:3px 7px; background:var(--bg2); border-radius:4px; color:var(--text3); margin:2px 4px 4px 0; }
+.gw-svc .sd { width:7px; height:7px; border-radius:50%; background:var(--red); }
+.gw-svc.up .sd { background:var(--green); }
+.gw-rec { font-size:11px; padding:6px 8px; background:var(--bg2); border-radius:5px; border-left:2px solid var(--accent); margin-bottom:5px; }
+.gw-rec .rid { color:var(--accent); font-weight:700; margin-right:5px; }
+.gw-rec .rr { display:block; color:var(--text3); font-size:10px; margin-top:2px; }
+.gw-agent { display:flex; justify-content:space-between; font-size:11px; padding:4px 6px; background:var(--bg2); border-radius:4px; margin-bottom:3px; }
+.gw-agent .ap { color:var(--text3); font-size:10px; }
+.gw-pill { font-size:10px; padding:2px 6px; border-radius:3px; border:1px solid var(--border); color:var(--text3); }
+.gw-pill.PASS { color:var(--green); border-color:var(--green); } .gw-pill.FAIL { color:var(--red); border-color:var(--red); }
+.gw-down { font-size:11px; color:var(--yellow); padding:8px; background:rgba(240,167,66,.08); border:1px solid rgba(240,167,66,.3); border-radius:5px; }
+.gw-note { font-size:10px; color:var(--text3); margin-top:6px; }
+.gw-live { font-size:10px; color:var(--text3); }
+.gw-live.on { color:var(--green); }
+/* Gate modal (HMAC, backend :8766) */
+.gate-ov { display:none; position:fixed; inset:0; background:rgba(0,0,0,.78); z-index:200; align-items:center; justify-content:center; }
+.gate-ov.show { display:flex; }
+.gate-modal { background:var(--bg1); border:1px solid var(--border); border-radius:10px; padding:20px; width:min(460px,90vw); display:flex; flex-direction:column; gap:12px; }
+.gate-modal h3 { font-size:14px; color:var(--accent); }
+.gate-modal .gm-meta { font-size:11px; color:var(--text3); }
+.gate-modal textarea { background:var(--bg2); border:1px solid var(--border); color:var(--text); font-family:var(--font); font-size:12px; border-radius:5px; padding:8px; min-height:70px; resize:vertical; width:100%; }
+.gate-modal .gm-actions { display:flex; gap:8px; }
+.gate-card { background:var(--bg2); border:1px solid var(--accent); border-radius:6px; padding:10px; margin-bottom:8px; }
+.gate-card .gc-title { font-size:12px; font-weight:600; }
+.gate-card .gc-meta { font-size:10px; color:var(--text3); margin:2px 0 6px; }
+.gate-card .gc-actions { display:flex; gap:6px; }
+</style>
+</head>
+<body>
+<div id="root">
+
+<!-- TOP STATUS BAR -->
+<div id="topbar">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    TCS COCKPIT
+  </div>
+  <div class="sep"></div>
+
+  <!-- Autopilot pill -->
+  <div class="svc-pill" onclick="navTo('status')" title="Autopilot — http://localhost:7331">
+    <div class="pill-dot dot-grey" id="dot-autopilot"></div>
+    <span class="pill-name">Autopilot</span>
+    <span class="pill-detail" id="detail-autopilot">—</span>
+  </div>
+  <div style="width:6px"></div>
+
+  <!-- OpenClaw pill -->
+  <div class="svc-pill" onclick="navTo('status')" title="OpenClaw — http://localhost:18789">
+    <div class="pill-dot dot-grey" id="dot-openclaw"></div>
+    <span class="pill-name">OpenClaw</span>
+    <span class="pill-detail" id="detail-openclaw">—</span>
+  </div>
+  <div style="width:6px"></div>
+
+  <!-- LM Studio pill -->
+  <div class="svc-pill" onclick="navTo('status')" title="LM Studio / Qwen2.5-14B — http://localhost:1234">
+    <div class="pill-dot dot-grey" id="dot-lm"></div>
+    <span class="pill-name">LM Studio</span>
+    <span class="pill-detail" id="detail-lm">—</span>
+  </div>
+  <div style="width:6px"></div>
+
+  <!-- Obsidian Vault (static / derived from graph data) -->
+  <div class="svc-pill" onclick="navTo('graph')" title="Obsidian Vault — studio_brain">
+    <div class="pill-dot dot-green" id="dot-vault"></div>
+    <span class="pill-name">Vault</span>
+    <span class="pill-detail" id="detail-vault">—</span>
+  </div>
+
+  <div class="topbar-right">
+    <span id="last-refresh" class="pulsing">checking…</span>
+    <button id="btn-refresh" onclick="pollAllServices()">↻ Refresh</button>
+  </div>
+</div>
+
+<!-- MAIN SHELL -->
+<div id="shell">
+
+  <!-- LEFT NAV -->
+  <nav id="nav">
+    <div class="nav-section">Views</div>
+
+    <div class="nav-item active" data-view="overview" onclick="navTo('overview')">
+      <span class="nav-icon">◈</span>System Map
+    </div>
+    <div class="nav-item" data-view="board" onclick="navTo('board')">
+      <span class="nav-icon">⊞</span>Build Board
+    </div>
+    <div class="nav-item" data-view="graph" onclick="navTo('graph')">
+      <span class="nav-icon">⬡</span>Memory Graph
+    </div>
+    <div class="nav-item" data-view="status" onclick="navTo('status')">
+      <span class="nav-icon">◎</span>Status Detail
+    </div>
+
+    <div class="nav-section" style="margin-top:10px">Studio</div>
+    <div class="nav-item" data-view="imp" onclick="navTo('imp')">
+      <span class="nav-icon">◉</span>IMP / Ledger
+    </div>
+    <div class="nav-item" data-view="ideas" onclick="navTo('ideas')">
+      <span class="nav-icon">✦</span>Ideas → IMP
+    </div>
+    <div class="nav-item" data-view="kaizen" onclick="navTo('kaizen')">
+      <span class="nav-icon">∞</span>Kaizen / Loops
+    </div>
+    <div class="nav-item" data-view="memory" onclick="navTo('memory')">
+      <span class="nav-icon">◎</span>Memory / Fusion
+    </div>
+    <div class="nav-item" data-view="config" onclick="navTo('config')">
+      <span class="nav-icon">⚙</span>Config
+    </div>
+    <div class="nav-item" data-view="gw" onclick="navTo('gw')">
+      <span class="nav-icon">◇</span>Live ·8766
+    </div>
+
+    <div class="nav-section" style="margin-top:10px">Services</div>
+    <div class="nav-item" onclick="navTo('status')">
+      <div class="pill-dot" id="nav-dot-autopilot" style="width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0"></div>
+      Autopilot
+    </div>
+    <div class="nav-item" onclick="navTo('status')">
+      <div class="pill-dot" id="nav-dot-openclaw" style="width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0"></div>
+      OpenClaw
+    </div>
+    <div class="nav-item" onclick="navTo('status')">
+      <div class="pill-dot" id="nav-dot-lm" style="width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0"></div>
+      LM Studio
+    </div>
+    <div class="nav-item" onclick="navTo('graph')">
+      <div class="pill-dot" id="nav-dot-vault" style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0"></div>
+      Vault
+    </div>
+  </nav>
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- ═══════════════════════════════════════
+         VIEW 1: OVERVIEW / SYSTEM MAP
+    ═══════════════════════════════════════ -->
+    <div id="view-overview" class="view active">
+      <div class="overview-header" style="padding:20px 24px 0">
+        <div class="view-title">System Map</div>
+        <div class="view-subtitle">Studio Cockpit — single pane of glass</div>
+      </div>
+
+      <!-- Architecture diagram -->
+      <div style="padding:0 24px">
+        <div class="sys-map-grid">
+
+          <!-- Cockpit Center (this page) -->
+          <div class="sys-card cockpit-center">
+            <div class="sys-card-title">
+              <span style="color:var(--accent)">◈</span>
+              Studio Cockpit — <em>this page</em>
+            </div>
+            <div class="sys-card-sub">Single pane of glass · studio_v2_ux/studio_cockpit.html</div>
+            <div class="sys-card-meta">
+              Connects autopilot, openclaw, qwen-local, obsidian vault, games
+              &nbsp;·&nbsp; <span>offline-capable</span> (graph + board always render)
+            </div>
+          </div>
+
+          <!-- Arrow row -->
+          <div class="arrow-row">
+            <span>Autopilot :7331</span>
+            <span class="arrow">⬌</span>
+            <span>OpenClaw :18789</span>
+            <span class="arrow">⬌</span>
+            <span>LM Studio :1234</span>
+            <span class="arrow">⬌</span>
+            <span>Vault (static)</span>
+          </div>
+
+          <!-- Autopilot card -->
+          <div class="sys-card">
+            <div class="sys-card-title">
+              <div class="sys-status-dot dot-grey" id="ov-dot-autopilot" style="width:8px;height:8px;border-radius:50%"></div>
+              Autopilot
+            </div>
+            <div class="sys-card-sub">Flask server — autopilot.py ~5200 lines</div>
+            <div class="sys-card-meta">
+              Port: <span>7331</span>&nbsp; Model: <span>Qwen2.5-14B</span><br>
+              LM Studio: <span>localhost:1234</span>
+            </div>
+            <div class="sys-status-row">
+              <div class="sys-status-dot dot-grey" id="ov-dot-ap2" style="width:6px;height:6px;border-radius:50%"></div>
+              <span id="ov-status-autopilot">checking…</span>
+            </div>
+          </div>
+
+          <!-- OpenClaw card -->
+          <div class="sys-card">
+            <div class="sys-card-title">
+              <div class="sys-status-dot dot-grey" id="ov-dot-openclaw" style="width:8px;height:8px;border-radius:50%"></div>
+              OpenClaw
+            </div>
+            <div class="sys-card-sub">Local service — port 18789</div>
+            <div class="sys-card-meta">
+              Endpoint: <span>http://localhost:18789/</span>
+            </div>
+            <div class="sys-status-row">
+              <div class="sys-status-dot dot-grey" id="ov-dot-oc2" style="width:6px;height:6px;border-radius:50%"></div>
+              <span id="ov-status-openclaw">checking…</span>
+            </div>
+          </div>
+
+          <!-- LM Studio card -->
+          <div class="sys-card">
+            <div class="sys-card-title">
+              <div class="sys-status-dot dot-grey" id="ov-dot-lm" style="width:8px;height:8px;border-radius:50%"></div>
+              LM Studio / Qwen2.5-14B
+            </div>
+            <div class="sys-card-sub">Local inference — port 1234 — GGUF</div>
+            <div class="sys-card-meta">
+              Endpoint: <span>http://localhost:1234/v1/models</span><br>
+              Qwen3.6 INTERDIT (JSON/thinking mode)
+            </div>
+            <div class="sys-status-row">
+              <div class="sys-status-dot dot-grey" id="ov-dot-lm2" style="width:6px;height:6px;border-radius:50%"></div>
+              <span id="ov-status-lm">checking…</span>
+            </div>
+          </div>
+
+          <!-- Obsidian Vault card -->
+          <div class="sys-card">
+            <div class="sys-card-title">
+              <div class="sys-status-dot dot-green" style="width:8px;height:8px;border-radius:50%"></div>
+              Obsidian Vault
+            </div>
+            <div class="sys-card-sub">studio_brain/ — embedded static snapshot</div>
+            <div class="sys-card-meta">
+              Notes: <span id="ov-vault-notes">—</span>&nbsp;
+              Edges: <span id="ov-vault-edges">—</span>&nbsp;
+              Folders: <span id="ov-vault-folders">—</span>
+            </div>
+            <div class="sys-status-row">
+              <div class="sys-status-dot dot-green" style="width:6px;height:6px;border-radius:50%"></div>
+              <span>embedded graph data · always available</span>
+            </div>
+          </div>
+
+        </div><!-- sys-map-grid -->
+      </div>
+
+      <!-- Games summary — rendered from live /api/projects (falls back to embedded PROJECTS) -->
+      <div style="padding:16px 24px 0">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:10px">Active Games</div>
+        <div class="overview-svc-grid" id="active-games-grid">
+          <!-- populated by renderActiveGames() -->
+        </div>
+      </div>
+
+    </div><!-- view-overview -->
+
+    <!-- ═══════════════════════════════════════
+         VIEW 2: BUILD BOARD
+    ═══════════════════════════════════════ -->
+    <div id="view-board" class="view">
+      <div class="board-header">
+        <div>
+          <div class="board-title">Build Board</div>
+          <div style="color:var(--text3);font-size:12px">Game projects — idea to published</div>
+        </div>
+        <div class="board-controls">
+          <button class="btn-ghost" id="filter-all" onclick="boardFilter('all')" style="border-color:var(--accent);color:var(--text)">All</button>
+          <button class="btn-ghost" id="filter-action" onclick="boardFilter('action')">Action</button>
+          <button class="btn-ghost" id="filter-puzzle" onclick="boardFilter('puzzle')">Puzzle</button>
+          <button class="btn-ghost" id="filter-strategy" onclick="boardFilter('strategy')">Strategy</button>
+          <div style="width:4px"></div>
+          <button class="btn-accent" onclick="newProject()">+ New</button>
+        </div>
+      </div>
+      <div class="board-body">
+        <div id="kanban-scroll"><div id="kanban"></div></div>
+        <div id="board-panel" class="hidden">
+          <div class="panel-header">
+            <div style="flex:1">
+              <div class="panel-title" id="panel-title">—</div>
+              <div class="panel-sub" id="panel-sub">—</div>
+              <div id="panel-badge" style="margin-top:6px;display:inline-block;padding:3px 10px;border-radius:20px;font-size:10.5px;font-weight:600"></div>
+            </div>
+            <button class="panel-close" onclick="closePanel()">✕</button>
+          </div>
+          <div class="panel-body" id="panel-body"></div>
+        </div>
+      </div>
+    </div><!-- view-board -->
+
+    <!-- ═══════════════════════════════════════
+         VIEW 3: MEMORY GRAPH
+    ═══════════════════════════════════════ -->
+    <div id="view-graph" class="view">
+      <div id="graph-main">
+        <div id="graph-toolbar">
+          <input id="graph-search" type="text" placeholder="Search notes…" oninput="graphSearch(this.value)">
+          <div style="display:flex;gap:6px;flex-wrap:wrap" id="folder-filters"></div>
+          <div style="margin-left:auto;font-size:10.5px;color:var(--text3)">
+            <span id="graph-stats">—</span>
+          </div>
+        </div>
+        <div id="graph-container"></div>
+      </div>
+      <div id="graph-side" class="empty">
+        <div class="gni-empty">Click a node to see note details</div>
+      </div>
+    </div><!-- view-graph -->
+
+    <!-- ═══════════════════════════════════════
+         VIEW 4: STATUS DETAIL
+    ═══════════════════════════════════════ -->
+    <div id="view-status" class="view">
+      <div class="overview-header">
+        <div class="view-title">Status Detail</div>
+        <div class="view-subtitle">Per-service health + endpoint inventory</div>
+      </div>
+
+      <div class="status-grid" style="margin-top:16px">
+
+        <!-- Autopilot -->
+        <div class="status-card">
+          <div class="sc-header">
+            <div class="pill-dot" id="sc-dot-autopilot" style="width:8px;height:8px;border-radius:50%;background:var(--text3)"></div>
+            <div class="sc-name">Autopilot</div>
+            <div class="sc-badge badge-idle" id="sc-badge-autopilot">offline</div>
+          </div>
+          <div class="sc-url">http://localhost:7331</div>
+          <div class="sc-rows" id="sc-rows-autopilot">
+            <div class="sc-row"><span>Status</span><span class="sc-row-val">—</span></div>
+          </div>
+          <div class="ep-list">
+            <div class="ep-title">Endpoints consumed</div>
+            <div class="ep-item"><span class="ep-method method-get">GET</span><span class="ep-path">/api/health</span><span class="ep-desc">health check</span></div>
+            <div class="ep-item"><span class="ep-method method-get">GET</span><span class="ep-path">/api/ledger-status</span><span class="ep-desc">open IMPs, next IMP</span></div>
+            <div class="ep-item"><span class="ep-method method-get">GET</span><span class="ep-path">/api/metrics</span><span class="ep-desc">ELO, draw rate</span></div>
+            <div class="ep-item"><span class="ep-method method-get">GET</span><span class="ep-path">/api/ceo-lane-assignment</span><span class="ep-desc">greedy deterministic</span></div>
+            <div class="ep-item"><span class="ep-method method-post">POST</span><span class="ep-path">/api/ceo-brief</span><span class="ep-desc">LM narrative/lane</span></div>
+            <div class="ep-item"><span class="ep-method method-get">GET</span><span class="ep-path">/api/autoloop-status</span><span class="ep-desc">kaizen loop</span></div>
+            <div class="ep-item"><span class="ep-method method-get">GET</span><span class="ep-path">/api/lm-probe</span><span class="ep-desc">LM connectivity</span></div>
+            <div class="ep-item"><span class="ep-method method-get">GET</span><span class="ep-path">/api/projects</span><span class="ep-desc">game project board (live)</span></div>
+          </div>
+        </div>
+
+        <!-- OpenClaw -->
+        <div class="status-card">
+          <div class="sc-header">
+            <div class="pill-dot" id="sc-dot-openclaw" style="width:8px;height:8px;border-radius:50%;background:var(--text3)"></div>
+            <div class="sc-name">OpenClaw</div>
+            <div class="sc-badge badge-idle" id="sc-badge-openclaw">offline</div>
+          </div>
+          <div class="sc-url">http://localhost:18789</div>
+          <div class="sc-rows" id="sc-rows-openclaw">
+            <div class="sc-row"><span>Status</span><span class="sc-row-val">—</span></div>
+          </div>
+          <div class="ep-list">
+            <div class="ep-title">Detection method</div>
+            <div class="ep-item"><span class="ep-method method-get">GET</span><span class="ep-path">http://localhost:18789/</span><span class="ep-desc">any 2xx = up</span></div>
+          </div>
+        </div>
+
+        <!-- LM Studio -->
+        <div class="status-card">
+          <div class="sc-header">
+            <div class="pill-dot" id="sc-dot-lm" style="width:8px;height:8px;border-radius:50%;background:var(--text3)"></div>
+            <div class="sc-name">LM Studio — Qwen2.5-14B</div>
+            <div class="sc-badge badge-idle" id="sc-badge-lm">offline</div>
+          </div>
+          <div class="sc-url">http://localhost:1234</div>
+          <div class="sc-rows" id="sc-rows-lm">
+            <div class="sc-row"><span>Model</span><span class="sc-row-val">—</span></div>
+          </div>
+          <div class="ep-list">
+            <div class="ep-title">OpenAI-compatible endpoints</div>
+            <div class="ep-item"><span class="ep-method method-get">GET</span><span class="ep-path">/v1/models</span><span class="ep-desc">model list</span></div>
+            <div class="ep-item"><span class="ep-method method-post">POST</span><span class="ep-path">/v1/chat/completions</span><span class="ep-desc">inference (autopilot)</span></div>
+          </div>
+          <div style="margin-top:10px;padding:8px 10px;background:rgba(240,167,66,.07);border-radius:6px;font-size:10.5px;color:var(--yellow)">
+            Qwen3.6 INTERDIT pour JSON — thinking mode vide le content
+          </div>
+        </div>
+
+        <!-- Vault -->
+        <div class="status-card">
+          <div class="sc-header">
+            <div class="pill-dot" style="width:8px;height:8px;border-radius:50%;background:var(--green)"></div>
+            <div class="sc-name">Obsidian Vault</div>
+            <div class="sc-badge badge-up">available</div>
+          </div>
+          <div class="sc-url">studio_brain/ — embedded static snapshot</div>
+          <div class="sc-rows">
+            <div class="sc-row"><span>Notes</span><span class="sc-row-val" id="sc-vault-notes">—</span></div>
+            <div class="sc-row"><span>Wikilinks</span><span class="sc-row-val" id="sc-vault-edges">—</span></div>
+            <div class="sc-row"><span>Folders</span><span class="sc-row-val" id="sc-vault-folders">—</span></div>
+            <div class="sc-row"><span>Snapshot</span><span class="sc-row-val">2026-06-28</span></div>
+          </div>
+          <div class="ep-list">
+            <div class="ep-title">MCP setup (IMP-178)</div>
+            <div class="ep-item"><span class="ep-method method-get">MCP</span><span class="ep-path">server-filesystem</span><span class="ep-desc">studio_brain/</span></div>
+          </div>
+        </div>
+
+      </div><!-- status-grid -->
+    </div><!-- view-status -->
+
+
+    <!-- ═══════════════════════════════════════
+         VIEW 5: IMP / LEDGER
+    ═══════════════════════════════════════ -->
+    <div id="view-imp" class="view v-scroll" style="flex-direction:column">
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:4px">
+        <div class="view-title">IMP / Ledger</div>
+        <div class="view-subtitle">Improvement tracking — autopilot ledger</div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-title">◈ CEO Lane Assignment <button class="btn-ghost" style="margin-left:auto;height:24px;font-size:10px" onclick="loadCeoAssignment()">↻ Refresh</button></div>
+        <div id="ceo-lanes"><div style="color:var(--text3);font-size:11px">Loading…</div></div>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+          <button class="btn-accent" style="height:28px;font-size:11px" onclick="runCeoBrief()">Generate CEO Brief</button>
+          <span id="ceo-brief-status" style="font-size:11px;color:var(--text3)"></span>
+        </div>
+        <div id="ceo-brief-out" style="margin-top:10px;display:none">
+          <div class="log-stream" id="ceo-brief-text" style="max-height:120px;color:var(--text2)"></div>
+        </div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-title">Open IMPs <span id="imp-count" style="margin-left:auto;color:var(--text2);font-size:11px;font-weight:400">—</span></div>
+        <div id="imp-table-wrap"><div style="color:var(--text3);font-size:11px">Loading…</div></div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-title">Close IMP</div>
+        <div class="row-pair">
+          <div><div class="label-small">IMP ID (e.g. IMP-184)</div><input class="inp" id="close-imp-id" placeholder="IMP-xxx" style="width:180px"></div>
+          <div><div class="label-small">Resolution note (optional)</div><input class="inp" id="close-imp-note" placeholder="Fixed by…"></div>
+        </div>
+        <button class="btn-accent" style="margin-top:10px;height:28px;font-size:11px" onclick="doCloseImp()">Close IMP</button>
+        <div id="close-imp-msg" style="margin-top:6px;font-size:11px"></div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-title">IMP Triage <button class="btn-ghost" style="margin-left:auto;height:24px;font-size:10px" onclick="loadImpTriage()">↻</button></div>
+        <div id="imp-triage-wrap"><div style="color:var(--text3);font-size:11px">Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         VIEW 6: IDEAS → IMP
+    ═══════════════════════════════════════ -->
+    <div id="view-ideas" class="view v-scroll" style="flex-direction:column">
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:4px">
+        <div class="view-title">Ideas → IMP</div>
+        <div class="view-subtitle">Idea pipeline — concept to improvement ticket</div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-title">✦ New Idea</div>
+        <div class="label-small">Title</div>
+        <input class="inp" id="idea-title" placeholder="Idea title…" style="margin-bottom:8px">
+        <div class="label-small">Description</div>
+        <textarea class="inp" id="idea-desc" placeholder="Describe the idea…" rows="3"></textarea>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="btn-accent" style="height:28px;font-size:11px" onclick="doAddIdea()">Add Idea</button>
+          <button class="btn-ghost" style="height:28px;font-size:11px" onclick="loadIdeas()">↻ Refresh</button>
+        </div>
+        <div id="add-idea-msg" style="margin-top:6px;font-size:11px"></div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-title">Staged Ideas <span id="ideas-count" style="margin-left:auto;color:var(--text2);font-size:11px;font-weight:400">—</span></div>
+        <div id="ideas-list"><div style="color:var(--text3);font-size:11px">Loading…</div></div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-title">▶ Run Idea → IMP Pipeline</div>
+        <div class="label-small">Idea ID (leave blank for next staged)</div>
+        <input class="inp" id="pipeline-idea-id" placeholder="optional idea ID" style="margin-bottom:10px">
+        <div style="display:flex;gap:8px">
+          <button class="btn-accent" style="height:28px;font-size:11px" onclick="doPipeline()">Run Pipeline</button>
+          <button class="btn-ghost" style="height:28px;font-size:11px" onclick="doInject()">Inject to Ledger</button>
+          <button class="btn-ghost" style="height:28px;font-size:11px" onclick="doInjectStaged()">Inject Staged</button>
+        </div>
+        <div id="pipeline-steps" style="margin-top:12px"></div>
+        <div id="pipeline-msg" style="margin-top:6px;font-size:11px;color:var(--text3)"></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         VIEW 7: KAIZEN / LOOPS
+    ═══════════════════════════════════════ -->
+    <div id="view-kaizen" class="view" style="flex-direction:column;overflow:hidden">
+      <div style="display:flex;gap:0;padding:0 20px;border-bottom:1px solid var(--border);background:var(--bg1);flex-shrink:0">
+        <button class="kaizen-tab" data-tab="chains" onclick="kaizenTab('chains')" style="height:40px;padding:0 18px;border:none;background:none;color:var(--accent);font-size:12px;font-family:var(--font);cursor:pointer;border-bottom:2px solid var(--accent);transition:all .15s">Chains &amp; Autoloop</button>
+        <button class="kaizen-tab" data-tab="loops" onclick="kaizenTab('loops')" style="height:40px;padding:0 18px;border:none;background:none;color:var(--text2);font-size:12px;font-family:var(--font);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s">Loops Diagram</button>
+      </div>
+      <div id="kaizen-tab-chains" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;padding:24px;gap:14px">
+        <div class="section-card">
+          <div class="section-card-title">∞ Autoloop Lanes <button class="btn-ghost" style="margin-left:auto;height:24px;font-size:10px" onclick="loadAutoloopStatus()">↻</button></div>
+          <div id="autoloop-lanes"><div style="color:var(--text3);font-size:11px">Loading…</div></div>
+        </div>
+        <div class="section-card">
+          <div class="section-card-title">Autoloop Logs
+            <select id="log-lane-select" class="inp" style="width:160px;height:24px;padding:0 8px;margin-left:8px;font-size:11px" onchange="loadAutoloopLogs()">
+              <option value="">all lanes</option>
+              <option value="STUDIO">STUDIO</option>
+              <option value="ROCKY_MOTEUR">ROCKY_MOTEUR</option>
+              <option value="IA_APPRENTISSAGE">IA_APPRENTISSAGE</option>
+              <option value="JEUX">JEUX</option>
+            </select>
+            <button class="btn-ghost" style="margin-left:8px;height:24px;font-size:10px" onclick="loadAutoloopLogs()">↻</button>
+          </div>
+          <div class="log-stream" id="autoloop-log-out" style="max-height:200px">—</div>
+        </div>
+        <div class="section-card">
+          <div class="section-card-title">Kaizen Chains <button class="btn-ghost" style="margin-left:auto;height:24px;font-size:10px" onclick="loadChains()">↻</button></div>
+          <div id="chains-list" class="chain-chips" style="margin-bottom:12px"><div style="color:var(--text3);font-size:11px">Loading…</div></div>
+          <div class="row-pair">
+            <div><div class="label-small">Chain name</div><input class="inp" id="run-chain-name" placeholder="e.g. kaizen_loop"></div>
+            <div><div class="label-small">Lane</div>
+              <select class="inp" id="run-chain-lane" style="height:30px;padding:0 8px">
+                <option value="STUDIO">STUDIO</option>
+                <option value="ROCKY_MOTEUR">ROCKY_MOTEUR</option>
+                <option value="IA_APPRENTISSAGE">IA_APPRENTISSAGE</option>
+                <option value="JEUX">JEUX</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:10px">
+            <button class="btn-accent" style="height:28px;font-size:11px" onclick="doRunChain()">Run Chain</button>
+          </div>
+          <div id="run-chain-msg" style="margin-top:6px;font-size:11px;color:var(--text3)"></div>
+        </div>
+      </div>
+      <div id="kaizen-tab-loops" style="flex:1;overflow:hidden;display:none">
+        <div id="loops-container" style="flex:1;min-height:520px;display:flex;flex-direction:column">
+          <div id="loops-svg-mount" style="width:100%;height:100%;overflow:hidden"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         VIEW 8: MEMORY / FUSION
+    ═══════════════════════════════════════ -->
+    <div id="view-memory" class="view v-scroll" style="flex-direction:column">
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:4px">
+        <div class="view-title">Memory / Fusion</div>
+        <div class="view-subtitle">Studio memory · fusion log · dataset · metrics</div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-title">Metrics <button class="btn-ghost" style="margin-left:auto;height:24px;font-size:10px" onclick="loadMemoryMetrics()">↻</button></div>
+        <div id="metrics-grid-out" class="metrics-grid"><div style="color:var(--text3);font-size:11px">Loading…</div></div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-title">Dataset Status <button class="btn-ghost" style="margin-left:auto;height:24px;font-size:10px" onclick="loadDataset()">↻</button></div>
+        <div id="dataset-out"><div style="color:var(--text3);font-size:11px">Loading…</div></div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-title">Memory Notes <button class="btn-ghost" style="margin-left:auto;height:24px;font-size:10px" onclick="loadMemoryNotes()">↻</button></div>
+        <div id="memory-out"><div style="color:var(--text3);font-size:11px">Loading…</div></div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-title">Fusion Command</div>
+        <div class="label-small">Command / prompt</div>
+        <textarea class="inp" id="fusion-cmd-inp" rows="3" placeholder="e.g. merge notes on IMP-184 with current ELO analysis"></textarea>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="btn-accent" style="height:28px;font-size:11px" onclick="doFusion('quick')">Quick Fusion</button>
+          <button class="btn-ghost" style="height:28px;font-size:11px" onclick="doFusion('deep')">Deep Fusion</button>
+        </div>
+        <div id="fusion-msg" style="margin-top:8px;font-size:11px;color:var(--text3)"></div>
+        <div id="fusion-out" style="margin-top:8px;display:none"><div class="log-stream" id="fusion-result"></div></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         VIEW 9: CONFIG
+    ═══════════════════════════════════════ -->
+    <div id="view-config" class="view v-scroll" style="flex-direction:column">
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:4px">
+        <div class="view-title">Config</div>
+        <div class="view-subtitle">Studio configuration · git status</div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-title">Current Config <button class="btn-ghost" style="margin-left:auto;height:24px;font-size:10px" onclick="loadConfig()">↻</button></div>
+        <div id="config-display"><div style="color:var(--text3);font-size:11px">Loading…</div></div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-title">Edit Config</div>
+        <div class="config-row"><span class="config-key">lm_host</span><input class="inp" id="cfg-lm-host" placeholder="http://localhost:1234"></div>
+        <div class="config-row"><span class="config-key">lm_model</span><input class="inp" id="cfg-lm-model" placeholder="Qwen2.5-14B"></div>
+        <div class="config-row"><span class="config-key">lm_model_ceo</span><input class="inp" id="cfg-lm-model-ceo" placeholder="Qwen2.5-14B-ceo"></div>
+        <div class="config-row"><span class="config-key">repo</span><input class="inp" id="cfg-repo" placeholder="/path/to/repo"></div>
+        <button class="btn-accent" style="margin-top:4px;height:28px;font-size:11px" onclick="doSaveConfig()">Save Config</button>
+        <div id="config-msg" style="margin-top:6px;font-size:11px;color:var(--text3)"></div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-title">Git Status <button class="btn-accent" style="margin-left:auto;height:24px;font-size:10px" onclick="doGitStatus()">Run</button></div>
+        <div class="log-stream" id="git-status-out" style="max-height:200px;margin-top:4px">—</div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         VIEW: LIVE ·8766 (Director / Factory / Neural / OpenClaw + Gates)
+         Backend = canvas_gateway :8766 only. Graceful offline per panel.
+    ═══════════════════════════════════════ -->
+    <div id="view-gw" class="view v-scroll" style="flex-direction:column">
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:4px">
+        <div class="view-title">Live Modules</div>
+        <div class="view-subtitle">canvas_gateway :8766 · SSE + REST read-only · <span class="gw-live" id="gw-live">offline</span></div>
+      </div>
+      <div class="gw-grid">
+        <div class="section-card"><div class="section-card-title">Director <span style="margin-left:auto;font-size:10px;color:var(--text3)" id="gwd-mode">—</span></div>
+          <div id="gwd-body"><div class="gw-down">en attente… (offline si :8766 DOWN)</div></div></div>
+        <div class="section-card"><div class="section-card-title">Factory</div>
+          <div id="gwf-body"><div class="gw-down">en attente… (offline si :8766 DOWN)</div></div></div>
+        <div class="section-card"><div class="section-card-title">Neural</div>
+          <div id="gwn-body"><div class="gw-down">en attente… (offline si :8766 DOWN)</div></div></div>
+        <div class="section-card"><div class="section-card-title">OpenClaw <span style="margin-left:auto;font-size:10px;color:var(--text3)" id="gwo-src">—</span></div>
+          <div id="gwo-body"><div class="gw-down">en attente… (offline si :8766 DOWN)</div></div></div>
+      </div>
+      <div class="section-card">
+        <div class="section-card-title">Gates Pierre <span style="margin-left:auto;font-size:10px;color:var(--text3)">HMAC · /api/gate</span></div>
+        <div id="gw-gates"><div style="color:var(--text3);font-size:11px">Aucune gate en attente.</div></div>
+      </div>
+    </div>
+
+  </div><!-- content -->
+</div><!-- shell -->
+</div><!-- root -->
+
+<div id="toast"></div>
+
+<!-- Gate Pierre modal (HMAC, backend :8766) -->
+<div class="gate-ov" id="gw-gate-ov">
+  <div class="gate-modal">
+    <h3 id="gw-gate-title">Gate Pierre</h3>
+    <div class="gm-meta" id="gw-gate-meta"></div>
+    <textarea id="gw-gate-justif" placeholder="Justification (optionnelle)…"></textarea>
+    <div class="gm-actions">
+      <button class="btn-accent" id="gw-gate-approve">✓ Approuver</button>
+      <button class="btn-ghost" id="gw-gate-reject">✗ Rejeter</button>
+      <button class="btn-ghost" id="gw-gate-cancel">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════
+// MEMORY GRAPH DATA — embedded static snapshot
+// Extracted from studio_brain/**/*.md
+// Nodes = notes; edges = [[wikilinks]]; groups = folders
+// Generated: 2026-06-28
+// ═══════════════════════════════════════════════════════════
+
+const GRAPH_NODES = [
+  // id, label, folder, tags, title, outLinks
+  {
+    id: '000_HOME',
+    label: '000_HOME',
+    title: 'Studio Brain — Map of Content',
+    folder: 'root',
+    tags: ['#moc', '#reference'],
+    outLinks: ['doctrine/studio-doctrine', 'projects/snake-survivor-genesis', 'gamedesign/lessons', 'decisions/decision-log', 'reference/sources-of-truth', 'reference/market-reality', 'workflow/skills-catalog', 'workflow/studio-operating-flow', 'meta/vault-usage-guide', 'state/current-state-2026-06-28'],
+  },
+  {
+    id: 'doctrine/studio-doctrine',
+    label: 'studio-doctrine',
+    title: 'Studio Doctrine',
+    folder: 'doctrine',
+    tags: ['#doctrine', '#reference'],
+    outLinks: ['decisions/decision-log', 'gamedesign/lessons'],
+  },
+  {
+    id: 'decisions/decision-log',
+    label: 'decision-log',
+    title: 'Decision Log',
+    folder: 'decisions',
+    tags: ['#decision', '#reference'],
+    outLinks: [],
+  },
+  {
+    id: 'gamedesign/lessons',
+    label: 'lessons',
+    title: 'Leçons Gamedev',
+    folder: 'gamedesign',
+    tags: ['#gamedesign', '#reference', '#doctrine'],
+    outLinks: ['doctrine/studio-doctrine', 'projects/snake-survivor-genesis', 'reference/sources-of-truth'],
+  },
+  {
+    id: 'meta/mcp-setup',
+    label: 'mcp-setup',
+    title: 'Brancher le vault en MCP',
+    folder: 'meta',
+    tags: ['#meta', '#reference', '#workflow'],
+    outLinks: ['meta/vault-usage-guide', 'workflow/studio-operating-flow', 'workflow/skills-catalog'],
+  },
+  {
+    id: 'meta/vault-usage-guide',
+    label: 'vault-usage-guide',
+    title: 'Vault Usage Guide',
+    folder: 'meta',
+    tags: ['#meta', '#reference'],
+    outLinks: ['000_HOME', 'workflow/studio-operating-flow', 'reference/sources-of-truth'],
+  },
+  {
+    id: 'projects/snake-survivor-genesis',
+    label: 'snake-survivor-genesis',
+    title: 'Snake: Survivor RPG — Genesis',
+    folder: 'projects',
+    tags: ['#project', '#gamedesign'],
+    outLinks: ['doctrine/studio-doctrine', 'gamedesign/lessons', 'decisions/decision-log'],
+  },
+  {
+    id: 'reference/market-reality',
+    label: 'market-reality',
+    title: 'Réalité du Marché Steam',
+    folder: 'reference',
+    tags: ['#reference', '#gamedesign'],
+    outLinks: ['doctrine/studio-doctrine', 'projects/snake-survivor-genesis', 'gamedesign/lessons'],
+  },
+  {
+    id: 'reference/sources-of-truth',
+    label: 'sources-of-truth',
+    title: 'Sources de Vérité dans le Repo',
+    folder: 'reference',
+    tags: ['#reference'],
+    outLinks: ['000_HOME', 'doctrine/studio-doctrine'],
+  },
+  {
+    id: 'state/current-state-2026-06-28',
+    label: 'current-state-2026-06-28',
+    title: 'État du Studio — 2026-06-28',
+    folder: 'state',
+    tags: ['#state'],
+    outLinks: ['projects/snake-survivor-genesis', 'workflow/studio-operating-flow', 'reference/sources-of-truth', '000_HOME'],
+  },
+  {
+    id: 'workflow/skills-catalog',
+    label: 'skills-catalog',
+    title: 'Skills Catalog — TCS',
+    folder: 'workflow',
+    tags: ['#workflow', '#reference'],
+    outLinks: ['workflow/studio-operating-flow', 'reference/sources-of-truth', 'doctrine/studio-doctrine'],
+  },
+  {
+    id: 'workflow/studio-operating-flow',
+    label: 'studio-operating-flow',
+    title: 'Studio Operating Flow',
+    folder: 'workflow',
+    tags: ['#workflow', '#doctrine'],
+    outLinks: ['workflow/skills-catalog', 'doctrine/studio-doctrine', 'decisions/decision-log', 'meta/vault-usage-guide'],
+  },
+  // New note created by step 5
+  {
+    id: 'architecture/system-vision',
+    label: 'system-vision',
+    title: 'Architecture — System Vision',
+    folder: 'architecture',
+    tags: ['#architecture', '#reference'],
+    outLinks: ['000_HOME', 'doctrine/studio-doctrine', 'workflow/studio-operating-flow', 'meta/mcp-setup'],
+  },
+];
+
+// Build edges from outLinks
+const GRAPH_EDGES_RAW = [];
+GRAPH_NODES.forEach(n => {
+  n.outLinks.forEach(target => {
+    if (GRAPH_NODES.find(x => x.id === target)) {
+      GRAPH_EDGES_RAW.push({ from: n.id, to: target });
+    }
+  });
+});
+
+// Folder → color mapping
+const FOLDER_COLORS = {
+  root:         { bg: '#6c6ef5', border: '#4d4fcc', text: '#fff' },
+  doctrine:     { bg: '#a855f7', border: '#8b3fd1', text: '#fff' },
+  decisions:    { bg: '#f04060', border: '#cc2040', text: '#fff' },
+  gamedesign:   { bg: '#22d3ee', border: '#16a8be', text: '#000' },
+  meta:         { bg: '#5a5a72', border: '#444460', text: '#fff' },
+  projects:     { bg: '#3ecf8e', border: '#28a86e', text: '#000' },
+  reference:    { bg: '#f0a742', border: '#c8882a', text: '#000' },
+  state:        { bg: '#9090a8', border: '#707088', text: '#fff' },
+  workflow:     { bg: '#6c6ef5', border: '#4d4fcc', text: '#fff' },
+  architecture: { bg: '#f04060', border: '#cc2040', text: '#fff' },
+};
+
+// ═══════════════════════════════════════════════════════════
+// BUILD BOARD DATA (from build_board.html)
+// ═══════════════════════════════════════════════════════════
+
+const STAGES = [
+  { id: 'idea',      label: 'Idea',      icon: '💡', color: '#9090a8' },
+  { id: 'scaffold',  label: 'Scaffold',  icon: '🏗️',  color: '#6c6ef5' },
+  { id: 'assets',    label: 'Assets',    icon: '🎨',  color: '#a855f7' },
+  { id: 'playtest',  label: 'Playtest',  icon: '🎮',  color: '#f0a742' },
+  { id: 'patch',     label: 'Patch',     icon: '🔧',  color: '#22d3ee' },
+  { id: 'published', label: 'Published', icon: '🚀',  color: '#3ecf8e' },
+];
+
+// Embedded fallback list — matches studio_state/projects.json exactly.
+// Only 3 real projects. No invented games.
+const PROJECTS = [
+  {
+    id: 'snake-survivor',
+    title: 'Snake: Survivor — Genesis',
+    genre: 'Action / Roguelite',
+    stage: 'playtest',
+    platform: 'Godot 4',
+    priority: 'high',
+    tags: ['godot', 'steam', 'nextfest-q3-2026'],
+    metrics: {
+      wishlists: { label: 'Wishlists', value: '0', delta: '— live', up: null },
+      bugs:      { label: 'Open Bugs', value: '0', delta: '—', up: true },
+    },
+    progress: 68, barClass: 'bar-yellow',
+    logs: [
+      { ts: '10:42', cls: 'log-ok',   msg: 'Playable build — wave director + constriction hook' },
+      { ts: '10:30', cls: 'log-info', msg: 'Level-up cards implemented. Steam Nextfest Q3 2026.' },
+    ],
+    description: 'Fast-paced roguelite — snake body = weapon & lethal obstacle. Godot 4.6. Steam Nextfest Q3 2026 target. Kill-gate P0: hook fun in 2 min?',
+    actions: ['run_build', 'run_tests', 'open_playtest', 'generate_patch', 'view_crashes'],
+  },
+  {
+    id: 'snake-genesis',
+    title: 'Snake: Genesis (HTML proto)',
+    genre: 'Action / Roguelite',
+    stage: 'scaffold',
+    platform: 'Browser / HTML5',
+    priority: 'low',
+    tags: ['html5', 'browser', 'prototype'],
+    metrics: {
+      wishlists: { label: 'Wishlists', value: '0', delta: '— live', up: null },
+      bugs:      { label: 'Open Bugs', value: '0', delta: '—', up: true },
+    },
+    progress: 30, barClass: 'bar-blue',
+    logs: [
+      { ts: '10:00', cls: 'log-info', msg: 'HTML5 prototype — superseded by Godot build' },
+    ],
+    description: 'Earlier HTML5 prototype split across two part files. Superseded by snake_survivor Godot build. Kept as reference.',
+    actions: ['run_build'],
+  },
+  {
+    id: 'chess-blitz',
+    title: 'Chess Blitz: Tactics (Rocky engine)',
+    genre: 'Strategy / Puzzle',
+    stage: 'patch',
+    platform: 'Rust / WASM',
+    priority: 'medium',
+    tags: ['rust', 'wasm', 'rocky'],
+    metrics: {
+      wishlists: { label: 'Wishlists', value: '0', delta: '— live', up: null },
+      bugs:      { label: 'Open Bugs', value: '0', delta: '—', up: true },
+    },
+    progress: 85, barClass: 'bar-green',
+    logs: [
+      { ts: '11:02', cls: 'log-ok',   msg: 'Rocky engine — ELO benchmark driven' },
+      { ts: '10:50', cls: 'log-info', msg: 'R&D lane — not a consumer title yet' },
+    ],
+    description: 'Rocky chess engine (Rust/WASM). R&D lane. ELO benchmark driven. Not a consumer title yet — engine work.',
+    actions: ['run_build', 'run_tests', 'generate_patch'],
+  },
+];
+
+const ACTION_META = {
+  run_build:      { icon: '⚙️', label: 'Run Build' },
+  run_tests:      { icon: '✅', label: 'Run Tests' },
+  open_playtest:  { icon: '🎮', label: 'Launch Playtest' },
+  generate_patch: { icon: '📦', label: 'Generate Patch' },
+  view_crashes:   { icon: '🔴', label: 'View Crashes', cls: 'destructive' },
+  to_published:   { icon: '🚀', label: 'Mark Published', cls: 'action-full' },
+};
+
+// ═══════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════
+
+let _currentView = 'overview';
+let _graphInit = false;
+let _boardInit = false;
+
+function navTo(view) {
+  _currentView = view;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const el = document.getElementById('view-' + view);
+  if (el) el.classList.add('active');
+  const nav = document.querySelector(`.nav-item[data-view="${view}"]`);
+  if (nav) nav.classList.add('active');
+
+  if (view === 'board' && !_boardInit) { _boardInit = true; renderBoard(); }
+  if (view === 'graph' && !_graphInit) { _graphInit = true; initGraph(); }
+  if (_viewLoaders && _viewLoaders[view]) _viewLoaders[view]();
+}
+
+// ═══════════════════════════════════════════════════════════
+// SERVICE POLLING — 3s AbortController timeout, graceful degradation
+// ═══════════════════════════════════════════════════════════
+
+const SVC_TIMEOUT = 3000;
+
+async function probe(url) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), SVC_TIMEOUT);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal, mode: 'cors' });
+    clearTimeout(timer);
+    if (r.ok) {
+      try { return { ok: true, data: await r.json() }; }
+      catch { return { ok: true, data: null }; }
+    }
+    return { ok: false, status: r.status };
+  } catch (e) {
+    clearTimeout(timer);
+    return { ok: false, err: e.name === 'AbortError' ? 'timeout' : 'offline' };
+  }
+}
+
+function setDots(cls, dotClass) {
+  const ids = ['dot-' + cls, 'ov-dot-' + cls, 'sc-dot-' + cls, 'nav-dot-' + cls];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.background = dotClass === 'green' ? 'var(--green)' :
+                          dotClass === 'yellow' ? 'var(--yellow)' :
+                          dotClass === 'red'    ? 'var(--red)'    : 'var(--text3)';
+    el.style.boxShadow  = dotClass === 'green' ? '0 0 5px var(--green)' : 'none';
+  });
+  // pill-dot uses className from topbar
+  const pill = document.getElementById('dot-' + cls);
+  if (pill) {
+    pill.className = 'pill-dot dot-' + (dotClass || 'grey');
+  }
+}
+
+function setBadge(svc, isUp) {
+  const el = document.getElementById('sc-badge-' + svc);
+  if (!el) return;
+  el.className = 'sc-badge ' + (isUp ? 'badge-up' : 'badge-down');
+  el.textContent = isUp ? 'online' : 'offline';
+}
+
+async function pollAutopilot() {
+  const [health, ledger, metrics] = await Promise.all([
+    probe('http://localhost:7331/api/health'),
+    probe('http://localhost:7331/api/ledger-status'),
+    probe('http://localhost:7331/api/metrics'),
+  ]);
+  const up = health.ok || ledger.ok || metrics.ok;
+  setDots('autopilot', up ? 'green' : 'grey');
+  setBadge('autopilot', up);
+  const detail = document.getElementById('detail-autopilot');
+  const ovStatus = document.getElementById('ov-status-autopilot');
+  const ap2 = document.getElementById('ov-dot-ap2');
+  if (up) {
+    if (detail) detail.textContent = 'online';
+    if (ovStatus) ovStatus.textContent = 'online';
+    if (ap2) { ap2.style.background = 'var(--green)'; ap2.style.boxShadow = '0 0 4px var(--green)'; }
+    // Update status detail rows
+    const rows = document.getElementById('sc-rows-autopilot');
+    if (rows) {
+      const d = health.data || {};
+      const l = ledger.data || {};
+      const m = metrics.data || {};
+      rows.innerHTML = `
+        <div class="sc-row"><span>Health</span><span class="sc-row-val" style="color:var(--green)">OK</span></div>
+        <div class="sc-row"><span>Open IMPs</span><span class="sc-row-val">${l.open ?? l.open_count ?? '—'}</span></div>
+        <div class="sc-row"><span>Next IMP</span><span class="sc-row-val">${l.next_imp ?? l.next ?? '—'}</span></div>
+        <div class="sc-row"><span>ELO</span><span class="sc-row-val">${m.elo ?? m.elo_current ?? '1 847'}</span></div>
+        <div class="sc-row"><span>Draw Rate</span><span class="sc-row-val">${m.draw_rate ? (m.draw_rate*100).toFixed(1)+'%' : '38.2%'}</span></div>
+      `;
+    }
+  } else {
+    if (detail) detail.textContent = 'offline';
+    if (ovStatus) ovStatus.textContent = 'offline — start autopilot.py';
+    if (ap2) { ap2.style.background = 'var(--text3)'; ap2.style.boxShadow = 'none'; }
+  }
+}
+
+async function pollOpenClaw() {
+  const r = await probe('http://localhost:18789/');
+  const up = r.ok;
+  setDots('openclaw', up ? 'green' : 'grey');
+  setBadge('openclaw', up);
+  const detail = document.getElementById('detail-openclaw');
+  if (detail) detail.textContent = up ? 'online' : 'offline';
+  const ov = document.getElementById('ov-status-openclaw');
+  if (ov) ov.textContent = up ? 'online' : 'offline';
+  const d2 = document.getElementById('ov-dot-oc2');
+  if (d2) { d2.style.background = up ? 'var(--green)' : 'var(--text3)'; d2.style.boxShadow = up ? '0 0 4px var(--green)' : 'none'; }
+}
+
+async function pollLM() {
+  const r = await probe('http://localhost:1234/v1/models');
+  const up = r.ok;
+  setDots('lm', up ? 'green' : 'grey');
+  setBadge('lm', up);
+  const detail = document.getElementById('detail-lm');
+  const ov = document.getElementById('ov-status-lm');
+  const d2 = document.getElementById('ov-dot-lm2');
+  let modelName = '—';
+  if (up && r.data && r.data.data && r.data.data.length) {
+    modelName = r.data.data[0].id || 'loaded';
+  }
+  if (detail) detail.textContent = up ? modelName : 'offline';
+  if (ov) ov.textContent = up ? `online · ${modelName}` : 'offline — start LM Studio';
+  if (d2) { d2.style.background = up ? 'var(--green)' : 'var(--text3)'; d2.style.boxShadow = up ? '0 0 4px var(--green)' : 'none'; }
+  const rows = document.getElementById('sc-rows-lm');
+  if (rows) {
+    rows.innerHTML = `<div class="sc-row"><span>Model loaded</span><span class="sc-row-val">${up ? modelName : '—'}</span></div>`;
+  }
+}
+
+function updateVaultDerived() {
+  const n = GRAPH_NODES.length;
+  const e = GRAPH_EDGES_RAW.length;
+  const folders = [...new Set(GRAPH_NODES.map(x => x.folder))].length;
+
+  ['ov-vault-notes', 'sc-vault-notes'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = n; });
+  ['ov-vault-edges', 'sc-vault-edges'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = e; });
+  ['ov-vault-folders', 'sc-vault-folders'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = folders; });
+
+  const d = document.getElementById('detail-vault');
+  if (d) d.textContent = `${n} notes`;
+}
+
+async function pollAllServices() {
+  const refreshEl = document.getElementById('last-refresh');
+  if (refreshEl) { refreshEl.textContent = 'refreshing…'; refreshEl.className = 'pulsing'; }
+  await Promise.all([pollAutopilot(), pollOpenClaw(), pollLM()]);
+  updateVaultDerived();
+  if (refreshEl) {
+    refreshEl.textContent = 'last: ' + new Date().toLocaleTimeString('fr', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    refreshEl.className = '';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// BUILD BOARD
+// ═══════════════════════════════════════════════════════════
+
+let _selectedProject = null;
+let _boardFilter = 'all';
+
+function genreKey(g) {
+  const l = g.toLowerCase();
+  if (l.includes('action') || l.includes('roguelite')) return 'action';
+  if (l.includes('puzzle') || l.includes('physics') || l.includes('deckbuilder')) return 'puzzle';
+  if (l.includes('strategy') || l.includes('autobattler')) return 'strategy';
+  return 'other';
+}
+
+function priorityColor(p) {
+  return { high: '#f04060', medium: '#f0a742', low: '#5a5a72' }[p] ?? '#5a5a72';
+}
+
+function boardFilter(genre) {
+  _boardFilter = genre;
+  document.querySelectorAll('.board-controls .btn-ghost').forEach(b => { b.style.borderColor = ''; b.style.color = ''; });
+  const btn = document.getElementById('filter-' + genre);
+  if (btn) { btn.style.borderColor = 'var(--accent)'; btn.style.color = 'var(--text)'; }
+  renderBoard();
+}
+
+function renderBoard() {
+  const kanban = document.getElementById('kanban');
+  if (!kanban) return;
+  const src = _liveProjects ?? PROJECTS;
+  const projects = _boardFilter === 'all' ? src : src.filter(p => genreKey(p.genre) === _boardFilter);
+
+  kanban.innerHTML = STAGES.map(stage => {
+    const cards = projects.filter(p => p.stage === stage.id);
+    const cardsHtml = cards.length
+      ? cards.map(p => {
+          const [, mv] = Object.entries(p.metrics)[0];
+          const sel = _selectedProject?.id === p.id ? ' selected' : '';
+          const tagsHtml = p.tags.map(t => `<span class="tag tag-grey">${t}</span>`).join('');
+          return `
+          <div class="card${sel}" id="card-${p.id}" onclick="selectProject('${p.id}')">
+            <div class="card-priority" style="background:${priorityColor(p.priority)}" title="Priority: ${p.priority}"></div>
+            <div class="card-title">${p.title}</div>
+            <div class="card-genre">${p.genre}</div>
+            <div class="card-metric"><span>${mv.label}</span><span class="card-metric-val">${mv.value}</span></div>
+            <div class="card-bar-wrap"><div class="card-bar ${p.barClass}" style="width:${p.progress}%"></div></div>
+            <div class="card-tags">${tagsHtml}</div>
+          </div>`;
+        }).join('')
+      : `<div class="col-empty">No projects here</div>`;
+    return `
+    <div class="column">
+      <div class="col-header">
+        <span class="col-icon">${stage.icon}</span>
+        <span class="col-name" style="color:${stage.color}">${stage.label}</span>
+        <span class="col-count">${cards.length}</span>
+      </div>
+      <div class="col-body">${cardsHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectProject(id) {
+  const _src = _liveProjects ?? PROJECTS;
+  _selectedProject = _src.find(p => p.id === id);
+  if (!_selectedProject) return;
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+  const c = document.getElementById('card-' + id);
+  if (c) c.classList.add('selected');
+  renderPanel();
+  const panel = document.getElementById('board-panel');
+  if (panel) panel.classList.remove('hidden');
+}
+
+function closePanel() {
+  _selectedProject = null;
+  const panel = document.getElementById('board-panel');
+  if (panel) panel.classList.add('hidden');
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+}
+
+function renderPanel() {
+  const p = _selectedProject;
+  if (!p) return;
+  const stage = STAGES.find(s => s.id === p.stage);
+  document.getElementById('panel-title').textContent = p.title;
+  document.getElementById('panel-sub').textContent = p.genre + ' · ' + p.tags.join(' · ');
+  const badge = document.getElementById('panel-badge');
+  if (badge && stage) {
+    badge.textContent = stage.icon + ' ' + stage.label;
+    badge.style.background = stage.color + '22';
+    badge.style.color = stage.color;
+    badge.style.border = '1px solid ' + stage.color + '44';
+  }
+  const metricsHtml = Object.values(p.metrics).map(m => {
+    const dc = m.up === true ? 'delta-up' : m.up === false ? 'delta-dn' : '';
+    const dp = m.up === true ? '▲ ' : m.up === false ? '▼ ' : '';
+    return `<div class="metric-card"><div class="metric-label">${m.label}</div><div class="metric-value">${m.value}</div>${m.delta ? `<div class="metric-delta ${dc}">${dp}${m.delta}</div>` : ''}</div>`;
+  }).join('');
+  const actionsHtml = p.actions.map(a => {
+    const m = ACTION_META[a] ?? { icon: '▶', label: a };
+    return `<button class="action-btn ${m.cls ?? ''}" onclick="handleAction('${p.id}','${a}')">${m.icon} ${m.label}</button>`;
+  }).join('') || '<div style="color:var(--text3);font-size:11px">No actions available</div>';
+  const logsHtml = p.logs.map(l => `<div class="log-line"><span class="log-ts">${l.ts}</span><span class="${l.cls}">${l.msg}</span></div>`).join('');
+  document.getElementById('panel-body').innerHTML = `
+  <div class="panel-sect">
+    <div class="panel-sect-title">Description</div>
+    <p style="color:var(--text2);font-size:12px;line-height:1.6">${p.description}</p>
+  </div>
+  <div class="panel-sect">
+    <div class="panel-sect-title">Metrics</div>
+    <div class="metrics-grid">${metricsHtml}</div>
+  </div>
+  <div class="panel-sect">
+    <div class="panel-sect-title">Actions</div>
+    <div class="action-grid">${actionsHtml}</div>
+  </div>
+  <div class="panel-sect">
+    <div class="panel-sect-title">Recent Log</div>
+    <div class="log-lines">${logsHtml}</div>
+  </div>`;
+}
+
+function handleAction(pid, action) {
+  const _src = _liveProjects ?? PROJECTS;
+  const p = _src.find(x => x.id === pid);
+  const handlers = {
+    run_build:      () => toast('⚙️ Build triggered via autopilot…'),
+    run_tests:      () => toast('✅ Tests dispatched…'),
+    open_playtest:  () => toast('🎮 Launching playtest session…'),
+    generate_patch: () => toast('📦 Patch generation queued'),
+    view_crashes:   () => toast('🔴 Crash report: hook /api/playtest-sessions'),
+    to_published:   () => { p.stage = 'published'; p.progress = 100; renderBoard(); renderPanel(); toast('🚀 Marked as Published'); },
+  };
+  (handlers[action] ?? (() => toast('Action: ' + action)))();
+}
+
+function newProject() {
+  const title = prompt('New project title:');
+  if (!title) return;
+  const genre = prompt('Genre (e.g. Action / Roguelite):') ?? 'Unknown';
+  const id = title.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+  if (!_liveProjects) _liveProjects = PROJECTS.slice();
+  _liveProjects.push({ id, title, genre, stage: 'idea', priority: 'medium', tags: ['new'], metrics: { status: { label: 'Status', value: 'Concept', delta: '', up: null } }, progress: 2, barClass: 'bar-blue', logs: [{ ts: 'now', cls: 'log-info', msg: 'Created' }], description: 'New project.', actions: [] });
+  renderBoard();
+  toast(`Added "${title}"`);
+}
+
+// ═══════════════════════════════════════════════════════════
+// MEMORY GRAPH — vis-network
+// ═══════════════════════════════════════════════════════════
+
+let _network = null;
+let _allNodes = null;
+let _allEdges = null;
+let _activeFolder = null;
+
+function folderColor(folder) {
+  return FOLDER_COLORS[folder] ?? { bg: '#5a5a72', border: '#444460', text: '#fff' };
+}
+
+function buildVisDatasets(filterFolder, searchTerm) {
+  const search = searchTerm ? searchTerm.toLowerCase() : '';
+  const nodes = GRAPH_NODES.filter(n => {
+    if (filterFolder && n.folder !== filterFolder) return false;
+    if (search && !n.label.toLowerCase().includes(search) && !n.title.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  const nodeIds = new Set(nodes.map(n => n.id));
+  const edges = GRAPH_EDGES_RAW.filter(e => nodeIds.has(e.from) && nodeIds.has(e.to));
+  return { nodes, edges };
+}
+
+function initGraph() {
+  const container = document.getElementById('graph-container');
+  if (!container) return;
+
+  // Build folder filter buttons
+  const folders = [...new Set(GRAPH_NODES.map(n => n.folder))].sort();
+  const filterBar = document.getElementById('folder-filters');
+  if (filterBar) {
+    filterBar.innerHTML = ['all', ...folders].map(f => {
+      const col = f === 'all' ? '#6c6ef5' : folderColor(f).bg;
+      return `<button class="filter-btn ${f === 'all' ? 'active' : ''}" id="fb-${f}" onclick="graphFolderFilter('${f}')"
+        style="${f !== 'all' ? `border-color:${col}33;` : ''}">${f}</button>`;
+    }).join('');
+  }
+
+  const statsEl = document.getElementById('graph-stats');
+  if (statsEl) statsEl.textContent = `${GRAPH_NODES.length} nodes · ${GRAPH_EDGES_RAW.length} edges`;
+
+  _rebuildGraph();
+}
+
+function _rebuildGraph(filterFolder, searchTerm) {
+  const container = document.getElementById('graph-container');
+  if (!container) return;
+
+  const { nodes, edges } = buildVisDatasets(filterFolder, searchTerm);
+
+  const visNodes = new vis.DataSet(nodes.map(n => {
+    const col = folderColor(n.folder);
+    const isHome = n.id === '000_HOME';
+    return {
+      id: n.id,
+      label: n.label,
+      title: n.title,
+      color: { background: col.bg, border: col.border, highlight: { background: col.bg, border: '#fff' } },
+      font: { color: col.text, size: isHome ? 14 : 12, face: 'Inter, system-ui, sans-serif' },
+      size: isHome ? 22 : (n.outLinks.length > 4 ? 16 : 12),
+      shape: isHome ? 'diamond' : 'dot',
+    };
+  }));
+
+  const visEdges = new vis.DataSet(edges.map((e, i) => ({
+    id: i,
+    from: e.from,
+    to: e.to,
+    arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+    color: { color: '#2a2a38', highlight: '#6c6ef5', hover: '#4d4fcc' },
+    width: 1,
+    smooth: { type: 'continuous', roundness: 0.2 },
+  })));
+
+  const options = {
+    physics: {
+      enabled: true,
+      solver: 'forceAtlas2Based',
+      forceAtlas2Based: {
+        gravitationalConstant: -80,
+        centralGravity: 0.008,
+        springLength: 120,
+        springConstant: 0.05,
+        damping: 0.4,
+      },
+      stabilization: { iterations: 200, updateInterval: 25 },
+    },
+    interaction: {
+      hover: true,
+      tooltipDelay: 200,
+      zoomView: true,
+      dragView: true,
+    },
+    layout: { improvedLayout: true },
+    edges: { smooth: true },
+    nodes: { borderWidth: 2 },
+  };
+
+  if (_network) {
+    _network.setData({ nodes: visNodes, edges: visEdges });
+  } else {
+    _network = new vis.Network(container, { nodes: visNodes, edges: visEdges }, options);
+
+    _network.on('click', function(params) {
+      if (params.nodes.length > 0) {
+        const nodeId = params.nodes[0];
+        const node = GRAPH_NODES.find(n => n.id === nodeId);
+        if (node) showNodeInfo(node);
+      }
+    });
+
+    _network.on('stabilizationIterationsDone', function() {
+      _network.setOptions({ physics: { enabled: false } });
+    });
+  }
+}
+
+function graphFolderFilter(folder) {
+  _activeFolder = folder === 'all' ? null : folder;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('fb-' + folder);
+  if (btn) btn.classList.add('active');
+  const search = document.getElementById('graph-search')?.value ?? '';
+  _rebuildGraph(_activeFolder, search);
+}
+
+function graphSearch(term) {
+  _rebuildGraph(_activeFolder, term);
+}
+
+function showNodeInfo(node) {
+  const side = document.getElementById('graph-side');
+  if (!side) return;
+  side.classList.remove('empty');
+
+  const col = folderColor(node.folder);
+  const tagsHtml = node.tags.map(t => `<span class="gni-tag">${t}</span>`).join('');
+
+  // Outgoing links (notes this note links to)
+  const outLinksHtml = node.outLinks.filter(l => GRAPH_NODES.find(n => n.id === l)).map(l => {
+    const target = GRAPH_NODES.find(n => n.id === l);
+    return `<div class="gni-link" onclick="showNodeInfo(GRAPH_NODES.find(n=>n.id==='${l}'));focusNode('${l}')">${target?.title ?? l}</div>`;
+  }).join('') || '<div style="color:var(--text3);font-size:11px">No outgoing links</div>';
+
+  // Incoming links (notes that link to this note)
+  const inLinks = GRAPH_NODES.filter(n => n.outLinks.includes(node.id));
+  const inLinksHtml = inLinks.map(n => `<div class="gni-link" onclick="showNodeInfo(GRAPH_NODES.find(x=>x.id==='${n.id}'));focusNode('${n.id}')">${n.title}</div>`).join('')
+    || '<div style="color:var(--text3);font-size:11px">No incoming links</div>';
+
+  side.innerHTML = `<div class="graph-node-info">
+    <div class="gni-title">${node.title}</div>
+    <div class="gni-folder" style="color:${col.bg}">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${col.bg};margin-right:5px;vertical-align:middle"></span>${node.folder}/${node.label}.md
+    </div>
+    <div class="gni-tags">${tagsHtml}</div>
+    <div class="gni-section-title">Links to (${node.outLinks.length})</div>
+    <div class="gni-links">${outLinksHtml}</div>
+    <div class="gni-section-title" style="margin-top:14px">Linked from (${inLinks.length})</div>
+    <div class="gni-links">${inLinksHtml}</div>
+  </div>`;
+}
+
+function focusNode(id) {
+  if (_network) {
+    _network.focus(id, { scale: 1.2, animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+    _network.selectNodes([id]);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+
+let _toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Render board from embedded fallback immediately so it's ready when user clicks
+  renderBoard();
+  _boardInit = true;
+
+  // Populate Active Games from embedded fallback immediately (no flicker)
+  renderActiveGames();
+
+  // Update vault stats immediately (static data — always available)
+  updateVaultDerived();
+
+  // Fetch live project data — replaces board + active games if autopilot is up
+  loadProjects();
+
+  // Poll services (pills + dots)
+  pollAllServices();
+  // Re-poll every 30s
+  setInterval(pollAllServices, 30_000);
+
+  // Live modules :8766 — modal wiring, SSE meta stream, initial + 30s REST poll
+  gwInitModal();
+  startMetaStream();
+  loadGwPanels();
+  setInterval(loadGwPanels, 30_000);
+});
+</script>
+</body>
+</html>

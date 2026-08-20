@@ -1,0 +1,800 @@
+TACTICAL CHESS STUDIO
+DOCUMENT DE RECUPERATION COMPLET
+Reconstitution de l'etat du projet a partir de tous les fichiers sources
+Genere le 1er juin 2026
+1. IDENTITE DU PROJET
+1.1 Vision globale
+Tactical Chess Studio est un laboratoire de decouverte de jeux tactiques par intelligence artificielle. Son architecture en couches vise a partir d'un moteur d'echecs pur pour evoluer vers un systeme de generation autonome de jeux tactiques equilibres.
+
+Le projet repose sur deux branches paralleles distinctes :
+Tactical Chess (design de jeu) — un jeu de plateau tactique inspiré des echecs, avec systeme RNG, draft, factions et PV par piece
+TacticalChessPureLab (labo ML) — un moteur Rust + pipeline Python PyTorch pour entrainer une IA jouant aux echecs et, a terme, a des variantes
+
+1.2 Identite du jeu — Tactical Chess
+Tactical Chess est un jeu tactique competitif sur echiquier 8x8. Il combine :
+la structure strategique des echecs classiques
+un systeme RNG de generation d'unites par budget de puissance
+une phase de draft par factions
+des attaques geometriques et des altérations d'etat
+un système de pression progressive du roi
+
+Le jeu se situe entre : echecs modernes / auto-battler strategique / tactical RPG / TCG draftable.
+Inspirations explicites : echecs classiques, Teamfight Tactics, Magic the Gathering, Tactical RPG, jeux d'escarmouche.
+
+1.3 Identite du labo ML — TacticalChessPureLab
+Le labo ML est distinct du jeu. Son objectif actuel (Phase 9) est :
+PURE CHESS AI TRAINING LAB
+Pipeline operationnel :
+Rust engine
+→ Stockfish teacher (teacher_uci)
+→ dataset generation (JSONL)
+→ PyTorch training (train.py)
+→ model checkpoints (models/best.pt)
+→ neural tournament framework
+
+2. ETAT ACTUEL DU PROJET — PHASE 9
+2.1 Phases completees
+Phase
+
+
+
+0
+
+
+
+1
+
+
+
+2
+
+
+
+3
+
+
+
+4
+
+
+
+5
+
+
+
+6
+
+
+
+7
+
+
+
+8
+
+
+
+9
+
+
+
+
+2.2 Source de verite active
+Racine active du repo :
+C:\Users\wazou\Desktop\TACTICAL_CHESS_STUDIO\TacticalChessPureLab
+
+Priorite d'autorite :
+1. Code source actif
+2. Build files, manifests, outputs
+3. Benchmark outputs actuels
+4. Docs MASTER_DOCS/00..08
+5. Docs historiques — contexte seulement
+
+2.3 Modules actifs confirmes
+Moteur d'echecs deterministe Rust
+Helpers chess (FEN, UCI bridge)
+Simulation runner
+Teacher UCI path + Stockfish
+CLI command surface
+Pipeline training PyTorch
+Checkpoint generation
+Neural tournament framework (skeleton)
+
+2.4 Probleme principal actuel — Conversion
+Apres toutes les phases de recovery, le probleme dominant reste :
+Parties longues non-convergentes
+Trop de draws
+Sous-performance neurale vs baselines
+Passivite probable du search / selector en positions proches de l'egalite
+
+Ordre de priorite des patches actuel :
+1. src/chess/search.rs
+2. src/agents/neural_agent.rs
+3. ml/train.py
+
+3. FORMULES ET BASELINE LABO — TACTICAL CHESS
+3.1 Baseline officielle de travail
+La meilleure baseline testee (50 parties) :
+Parametre
+
+
+pressure_threshold_bonus
+
+
+blocked_escape_divisor
+
+
+support_divisor
+
+
+brawl_pressure_value
+
+
+max_turns
+
+
+ai_depth
+
+
+opening_random_plies
+
+
+top_move_margin
+
+
+root_branch_limit
+
+
+search_branch_limit
+
+
+fatigue_start_turn
+
+
+fatigue_step
+
+
+fatigue_max_reduction
+
+
+adjudicate_on_timeout
+
+
+timeout_eval_margin
+
+
+noise_weight
+
+
+
+Resultats associes (50 parties) :
+Metrique
+
+
+p1_wins
+
+
+p2_wins
+
+
+draws
+
+
+p1_winrate
+
+
+p2_winrate
+
+
+draw_rate
+
+
+mean_turns
+
+
+pressure_victories
+
+
+king_kill_victories
+
+
+timeout_adjudications
+
+
+p1_start_winrate
+
+
+p2_start_winrate
+
+
+
+3.2 Formules canoniques
+Degats directs
+directDamage = max(1, attackerATK - defenderARM)
+
+Riposte
+retaliationDamage = max(1, defenderATK - attackerARM)
+
+Traversee
+traversalDamage = max(1, controllerATK - moverARM)
+Baseline observee : ~4.68 morts de traversee / partie en moyenne
+
+BRAWL
+brawlDamage = max(1, attackerATK - defenderARM)
+Baseline observee : ~57.8 degats BRAWL moyens / partie
+
+Pression du roi
+kingPressure =
+  directThreat
+  + floor(supportingAttackers / support_divisor)
+  + floor(blockedEscapes / blocked_escape_divisor)
+  + brawlPressureContribution
+
+Collapse du roi
+collapse if kingPressure >= kingHP + pressure_threshold_bonus - fatigueReduction
+
+Fatigue de pression
+fatigueReduction: demarre a fatigue_start_turn
++1 tous les fatigue_step tours, max fatigue_max_reduction
+
+3.3 Pipeline runtime canonique
+select action
+→ legality check
+→ path build
+→ traversal
+→ arrival
+→ direct attack
+→ retaliation
+→ cleanup dead
+→ BRAWL
+→ cleanup dead
+→ pressure recompute
+→ victory check
+→ timeout adjudication if needed
+
+3.4 Baseline secondaire a conserver
+Alternative plus mixte (pression + kills equilibres) :
+pressure_threshold_bonus = 3 (autres params identiques)
+Resultats : 24-24, 2 draws, 69.88 tours moyens, 27 victoires pression / 16 kills
+
+4. GAME DESIGN — CROWN TACTICS V1
+4.1 Structure de base
+Plateau : 8x8
+2 joueurs
+Objectif : echec et mat du Roi OU annihilation totale
+
+4.2 Roi
+10 PV / 2 DEF / 2 PM
+Peut etre attaque
+Echec : une unite ennemie peut l'attaquer au prochain tour
+Echec et Mat : aucune case sure + aucune defense possible
+
+4.3 Systeme global d'unite
+Chaque unite : PV / ATK / DEF / PM / Niveau (1→3)
+Combat : degats = ATK - DEF (min 1)
+1 attaque par tour
++1 niveau par kill, niveau max = 3
+Niveau 2 : choix de classe / Niveau 3 : classe avancee
+
+4.4 Draft
+Budget : 25 points
+1 Roi obligatoire (gratuit)
+3 factions disponibles + unites neutres autorisees
+Max 1 unite elite (Reine ou equivalent)
+Max 2 unites speciales, minimum 4 unites
+
+4.5 Factions V1
+CHEVALIERS (midrange stable)
+Bonus : +1 DEF lors du premier combat
+Unite
+
+
+
+
+
+
+
+Soldat
+
+
+
+
+
+
+
+Lancier
+
+
+
+
+
+
+
+Cavalier lourd
+
+
+
+
+
+
+
+Paladin (elite)
+
+
+
+
+
+
+
+
+DEMONS (aggro / snowball)
+Bonus : +1 ATK si unite blessee
+Unite
+
+
+
+
+
+
+
+Diablotin
+
+
+
+
+
+
+
+Berserker
+
+
+
+
+
+
+
+Invocateur
+
+
+
+
+
+
+
+Demon majeur (elite)
+
+
+
+
+
+
+
+
+GLACE (controle)
+Bonus : ennemis adjacents → -1 PM
+Unite
+
+
+
+
+
+
+
+Garde gele
+
+
+
+
+
+
+
+Mage de glace
+
+
+
+
+
+
+
+Archer de givre
+
+
+
+
+
+
+
+Seigneur du givre (elite)
+
+
+
+
+
+
+
+
+4.6 Unites neutres
+Unite
+
+
+
+
+
+
+
+Assassin
+
+
+
+
+
+
+
+Gardien
+
+
+
+
+
+
+
+Eclaireur
+
+
+
+
+
+
+
+
+4.7 Pions
+3 PV / 1 ATK / 0 DEF / 2 PM
+Promotion : fin du plateau → choix unite OU niveau 3 → choix unite
+Restent faibles sauf evolution
+
+4.8 Centre strategique
+Cases centrales (4 cases) : +1 ATK, +1 DEF
+Priorite absolue en jeu
+
+4.9 Tour de jeu
+Choisir une unite
+Depenser PM
+Attaquer
+Fin
+
+5. SYSTEME RNG — VERSION STUDIO
+5.1 Principe central
+Chaque carte est generee avec un budget de puissance. Le budget est depense en : stats / forme d'attaque / effets / portee / capacites. Toutes les cartes restent equilibrees meme si generees aleatoirement.
+
+5.2 Budget de puissance par type de piece
+Piece
+
+
+Pion
+
+
+Cavalier
+
+
+Fou
+
+
+Tour
+
+
+Reine
+
+
+Roi
+
+
+
+5.3 Cout des statistiques
+Statistique
+
+
+
+PV
+
+
+
+PV
+
+
+
+PV
+
+
+
+PV
+
+
+
+PV
+
+
+
+PV
+
+
+
+ATK
+
+
+
+ATK
+
+
+
+ATK
+
+
+
+ATK
+
+
+
+Armure
+
+
+
+Armure
+
+
+
+Armure
+
+
+
+
+5.4 Cout des formes d'attaque
+Forme
+
+
+Adjacent
+
+
+Ligne 3
+
+
+Diagonale
+
+
+Cone
+
+
+Zone
+
+
+Ligne complete
+
+
+
+6. ENGINE SPECIFICATION
+6.1 Objets core
+Game, Board, Tile, Piece, Structure, Effect
+Status, Trigger, Ability, Action, Event, Player, MatchState
+
+6.2 Piece Object
+Piece {
+  id, type, owner, position
+  HP, maxHP, ATK, ARM
+  movementPattern, controlPattern
+  abilities[], triggers[], statuses[]
+  runtimeMemory, projectionChannels
+}
+
+6.3 Runtime Memory par piece
+runtimeMemory {
+  turnsAlive, damageDealt, tilesMoved
+  attacksPerformed, counterattacksPerformed
+  brawlsParticipated, supportsProvided, kills
+}
+
+6.4 Dissociation des flags piece
+canAttack
+canBrawl
+canControl
+Important : une piece promue ne peut pas attaquer (canAttack = false) mais participe au BRAWL et controle (canBrawl = true, canControl = true). Ces flags doivent etre geres separement.
+
+6.5 Action Resolution Pipeline complet
+ 1 validateAction
+ 2 buildPath
+ 3 generateTraversalEvents
+ 4 resolveTraversalCounterattacks
+ 5 arrival
+ 6 resolveAttack
+ 7 retaliation
+ 8 triggerProcessing
+ 9 markDeaths
+10 cleanupDead
+11 promotionCheck
+12 summonCleanup
+13 passiveRefresh
+14 brawlResolution
+15 cleanupDead
+16 pressureRecompute
+17 victoryCheck
+
+7. ARCHITECTURE PURELAB — RUST + PYTHON
+7.1 Fichiers Rust actifs
+src/main.rs
+src/tool/cli.rs
+src/engine/engine.rs
+src/chess/search.rs           << PRIORITE 1
+src/chess/decision.rs
+src/agents/neural_agent.rs    << PRIORITE 2
+src/agents/retrieval.rs
+src/simulation/simulation_runner.rs
+src/simulation/neural_tournament_runner.rs
+src/simulation/teacher_uci_runner.rs
+
+7.2 Fichiers Python actifs
+ml/train.py                   << PRIORITE 3
+ml/dataset_loader.py
+ml/export_dataset_check.py
+ml/infer_policy.py
+ml/move_vocab.py              << CONTRAT CRITIQUE
+
+7.3 Contrat critique — Move Vocabulary
+move_vocab.py est une source de verite systeme. TOUS les composants doivent utiliser le meme mapping :
+UCI move string
+→ move index
+→ dataset policy target
+→ training target
+→ inference logits
+→ legal move masking
+Tout changement de representation de coup doit rester compatible entre :
+teacher_uci_runner.rs
+dataset_loader.py
+train.py
+infer_policy.py
+neural_agent.rs
+Violation = corruption silencieuse de l'apprentissage.
+
+7.4 Artefacts lab actifs
+lab/ACTIVE_DATASET.txt
+lab/ACTIVE_EXPERIMENT.txt
+lab/datasets/teacher_v2_baby_source_seed42_g12.jsonl
+lab/runs/run_20260417_001525_baby_v2_seed42_g12/
+models/best.pt
+models/latest.pt
+models/latest_run.json
+
+7.5 Baby V2 — Premier dataset sain
+Champ
+
+
+Rows
+
+
+Unique FEN
+
+
+Unique best move
+
+
+Resultats 1-0
+
+
+Resultats 0-1
+
+
+Resultats 1/2-1/2
+
+
+Run ID
+
+
+Epochs
+
+
+Batch size
+
+
+Learning rate
+
+
+Best loss
+
+
+
+8. REGLES IMPLICITES CRITIQUES
+8.1 Ordre attaque → mort → prise de case
+1. calcul degats
+2. application degats
+3. si HP <= 0 : suppression de la piece cible
+4. l'attaquant prend la case
+5. increment kills
+6. check promotion
+Si la cible survit : pas de prise de case.
+
+8.2 Promotion — moment exact
+promotion resolue immediatement a l'evenement declencheur
+la nouvelle piece remplace le pion sur la case
+etat initial :
+  canAttack = false
+  canBrawl = true
+  canControl = true
+au tour suivant : canAttack = true
+
+8.3 Empilement des buffs/debuffs
+attaque finale = attaque de base + bonus allies - malus ennemis
+attaque minimale = 1
+Regle de stack : un seul buff de meme nature compte, un seul debuff de meme nature compte. Sinon la ligne de pions devient le moteur dominant.
+
+8.4 Invocation
+invocation uniquement sur case libre adjacente a l'invocateur
+si la case devient occupee avant validation : echec
+les invocations ne peuvent pas etre promues
+meme si elles atteignent le fond / tuent
+
+8.5 Root / Cavalier
+root : bloque seulement l'action/mouvement
+root n'altere pas le pattern du cavalier
+Distinction : effet qui empeche d'agir = autorise. Modification de pattern / portee = interdit.
+
+9. PROCHAINES ETAPES
+9.1 Prochain milestone — Real Neural Match Lab
+checkpoint
+→ real inference
+→ legal move filtering
+→ real match loop
+→ real tournament outcomes
+→ real Elo
+
+9.2 Prochain patch recommande
+Fichiers impliques :
+src/agents/neural_agent.rs
+src/simulation/simulation_runner.rs
+src/simulation/neural_tournament_runner.rs
+ml/infer_policy.py
+ml/move_vocab.py
+
+Ne pas faire :
+Redesigner l'architecture
+Introduire MCTS
+Introduire RL
+Over-optimiser les hyperparametres
+
+Critere de succes :
+Reduire le draw rate
+Surpasser le random de maniere consistante
+Montrer une meilleure discrimination des coups
+
+9.3 Priorites Tactical Chess (game design)
+Priorite 1 — Stabiliser baseline labo sur 200-500 parties
+Priorite 2 — Reduire les tours moyens (viser 50-65 tours)
+Priorite 3 — Choisir entre bonus=2 (agressif) vs bonus=3 (mixte)
+
+10. STRUCTURE STUDIO
+10.1 Repertoires principaux
+TACTICAL_CHESS_STUDIO\
+  TacticalChessPureLab\   << LAB ACTIF
+    src\
+    ml\
+    lab\
+    models\
+    MASTER_DOCS\
+  01_MASTER_BIBLE\
+  02_SYSTEM_DATABASE\
+  03_ENGINE_SYSTEM\
+  04_SIMULATION_SYSTEM\
+  05_AI_SYSTEM\
+  06_CLIENT_APP\
+  07_PROTOTYPES\
+  08_UPDATES_HISTORY\
+  09_ARCHIVE\
+  10_LOGS\
+  DOCS\
+  BACKUPS\
+  TOOLS\
+
+10.2 Regles hygiene studio
+Ne pas ecrire la verite tournament dans deux endroits a la fois
+Ne pas traiter un dataset comme valide sans export_dataset_check.py
+Ne pas promouvoir un checkpoint sans manifest de run correspondant
+Ne pas utiliser des fichiers hors repo root comme inputs actifs
+Studio root = propre : dossiers + outils live + tres peu de fichiers loose
+
+

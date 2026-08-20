@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://tactical-chess-studio/schemas/capabilities.schema.json",
+  "title": "Agent Factory capabilities.lock (IMP-197)",
+  "type": "object",
+  "required": ["version", "claim_posture", "forbidden_globs", "roles"],
+  "additionalProperties": true,
+  "properties": {
+    "version": {"type": "integer", "minimum": 1},
+    "claim_posture": {"const": "NO_CLAIM_ALLOWED"},
+    "forbidden_globs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 5,
+      "uniqueItems": true
+    },
+    "roles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["Planner", "Executor", "RedTeam", "Explorer", "Reviewer"],
+      "properties": {
+        "Planner":  {"allOf": [{"$ref": "#/definitions/role"}, {"properties": {"output_schema": {"required": ["steps"]}}}]},
+        "Executor": {"allOf": [{"$ref": "#/definitions/role"}, {"properties": {"output_schema": {"required": ["closed"]}}}]},
+        "RedTeam":  {"allOf": [{"$ref": "#/definitions/role"}, {"properties": {"output_schema": {"required": ["findings"]}}}]},
+        "Explorer": {"allOf": [{"$ref": "#/definitions/role"}, {"properties": {"output_schema": {"required": ["options"]}}}]},
+        "Reviewer": {"allOf": [{"$ref": "#/definitions/role"}, {"properties": {"output_schema": {"required": ["claim_verdict"]}}}]}
+      }
+    }
+  },
+  "definitions": {
+    "action": {
+      "type": "object",
+      "required": ["lane", "mission"],
+      "properties": {
+        "lane": {"type": "string"},
+        "mission": {"type": "string"}
+      }
+    },
+    "role": {
+      "type": "object",
+      "required": ["role", "goal", "tools", "constraints", "output_schema", "failure_policy", "default_action"],
+      "properties": {
+        "role": {"type": "string", "minLength": 1},
+        "goal": {"type": "string", "minLength": 1},
+        "tools": {
+          "type": "object",
+          "required": ["read", "write", "forbidden_write"],
+          "properties": {
+            "read": {"type": "array"},
+            "write": {"type": "array"},
+            "exec": {"type": "array"},
+            "forbidden_write": {"type": "array"}
+          }
+        },
+        "constraints": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "output_schema": {"type": "object", "minProperties": 1},
+        "failure_policy": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "default_action": {"$ref": "#/definitions/action"},
+        "gated_action": {"$ref": "#/definitions/action"}
+      }
+    }
+  }
+}

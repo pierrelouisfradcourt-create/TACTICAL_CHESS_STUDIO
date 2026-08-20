@@ -1,0 +1,2525 @@
+{
+  "id": "chain-forge",
+  "kind": "chain",
+  "name": "Forge — la boucle d'ingénierie RÉELLE (13 étapes-agents, contrats 17 champs)",
+  "maturity": "wired",
+  "badge": "target",
+  "roadmapRef": "roadmap-forge",
+  "sourceRef": "MIROIR de la forge implémentée : scripts/forge/dispatch.py (ORDER = 13 étapes) + scripts/forge/contracts/<id>.yaml (contrats 17 champs, schéma SCHEMA.md) + roles.yaml (capability_role -> runtime, ADR-002 gate 1). Modules réels : contract·dispatch·static_oracles·gate·oracle·verdict·studio_link·hook_guard (80 tests verts). Connecteurs studio ADR-002 (docs/adr/ADR-002-forge-studio-integration.md) propose-only + hook dur PreToolUse ; skill .claude/skills/forge/skill.md ; 1er run réel prouvé (chesscolor). Chaque planète = 1 contrat. MAP 17 champs -> 8 satellites builder (fog : le builder rend 8 componentTypes, pas 17 ; repli documenté). Régénéré depuis les YAML le 2026-07-10 (remplace l'ancienne carte 10 planètes DESIGN).",
+  "wiredStatus": "wired",
+  "payload": {
+    "category": "esquisse-projet",
+    "tags": [
+      "forge",
+      "autonomous-loop",
+      "oracle",
+      "red-team",
+      "humangate",
+      "contrats-17-champs",
+      "13-etapes",
+      "implemente",
+      "roles-yaml",
+      "process"
+    ],
+    "initialInput": {
+      "note": "MIROIR VISUEL de la forge RÉELLE (13 étapes-agents). Vérité = scripts/forge/contracts/*.yaml + dispatch.py ORDER + roles.yaml ; le dessin suit (SCHEMA.md). Non-exécutable ici. Invariants : oracle déterministe non-LLM · red-team sur le PLAN · HumanGate souverain (NO_CLAIM_ALLOWED, HMAC). Chaque planète = 1 contrat, ses 8 satellites = les 17 champs repliés (MAP 17->8)."
+    },
+    "nodes": [
+      {
+        "id": "s0-contrat",
+        "type": "agent",
+        "x": 80,
+        "y": 340,
+        "data": {
+          "role": "Étape 0 — Rédacteur du Contrat",
+          "model": "Claude Opus 4.8",
+          "capability_role": "contract_author",
+          "runtime": "llm",
+          "temperature": null,
+          "top_p": null,
+          "max_tokens": null,
+          "note": "Étape 0 — Rédacteur du Contrat — LLM · capability_role=contract_author résolu via scripts/forge/contracts/roles.yaml -> Claude Opus 4.8. delegation_context : Étape 0 de la boucle Forge, en amont du Prisme Produit (étape 1)."
+        }
+      },
+      {
+        "id": "s0-contrat-c-memoire",
+        "type": "agent-component",
+        "x": 76,
+        "y": 80,
+        "data": {
+          "componentType": "memoire",
+          "text": "Point d'entrée de la boucle Forge : part du prompt utilisateur et du pré-mortem PILOU. Connaît la doctrine de restitution (verdict.py, gate.py) et les conventions CLAUDE.md + rules/. Sources de vérité : le prompt, pas ses suppositions.\n\nLecture obligatoire (mandatory_read) : scripts/forge/contracts/SCHEMA.md · le prompt utilisateur (spécification brute de la demande) · le pré-mortem PILOU du dernier tour (lab/reports/error_journal si présent)",
+          "parentId": "s0-contrat"
+        }
+      },
+      {
+        "id": "s0-contrat-c-skill",
+        "type": "agent-component",
+        "x": 180,
+        "y": 80,
+        "data": {
+          "componentType": "skill",
+          "text": "aucun",
+          "parentId": "s0-contrat"
+        }
+      },
+      {
+        "id": "s0-contrat-c-plugin",
+        "type": "agent-component",
+        "x": 76,
+        "y": 132,
+        "data": {
+          "componentType": "plugin",
+          "text": "aucun",
+          "parentId": "s0-contrat"
+        }
+      },
+      {
+        "id": "s0-contrat-c-role",
+        "type": "agent-component",
+        "x": 180,
+        "y": 132,
+        "data": {
+          "componentType": "role",
+          "text": "Rédacteur du Contrat (étape 0). Point de vue imposé : chef de projet qui refuse tout flou.\n\nExigences cognitives : Raisonnement de cadrage. Capable de traquer tout champ « à définir » et de le remplir : aucun blanc ne survit à sa relecture, chaque frontière est nommée.",
+          "parentId": "s0-contrat"
+        }
+      },
+      {
+        "id": "s0-contrat-c-objectif",
+        "type": "agent-component",
+        "x": 76,
+        "y": 184,
+        "data": {
+          "componentType": "objectif",
+          "text": "Produire charter.yaml SANS aucun champ « à définir » : objectif · hors_scope[] · criteres_succes[] · actions_interdites[]. Tous remplis, aucun vide.\n\nPérimètre autorisé (in_scope) : Rédaction du charter à partir du prompt utilisateur et du pré-mortem PILOU : cadrage de l'objectif, du hors-scope, des critères de succès et des actions interdites. Écrit uniquement charter.yaml.",
+          "parentId": "s0-contrat"
+        }
+      },
+      {
+        "id": "s0-contrat-c-gardeFou",
+        "type": "agent-component",
+        "x": 180,
+        "y": 184,
+        "data": {
+          "componentType": "gardeFou",
+          "text": "Interdit tout champ « à définir », vide ou évasif dans le charter. Un flou non résolu est un défaut bloquant, pas une note de bas de page : il se remplit ou remonte en fog HumanGate, jamais il ne passe.\n\nHors-scope : N'écrit pas de code. Ne décide pas l'architecture (étape 4). Ne fait pas le world scan (étape 2). Ne touche pas aux lanes protégées (tests/, src/).\n\nPermissions : read: repo entier. write: charter.yaml uniquement. create: charter.yaml. run: aucun. delete: aucun.",
+          "parentId": "s0-contrat"
+        }
+      },
+      {
+        "id": "s0-contrat-c-modele",
+        "type": "agent-component",
+        "x": 76,
+        "y": 236,
+        "data": {
+          "componentType": "modele",
+          "text": "Claude Opus 4.8 (capability_role: contract_author)",
+          "parentId": "s0-contrat"
+        }
+      },
+      {
+        "id": "s0-contrat-c-sortieAttendue",
+        "type": "agent-component",
+        "x": 180,
+        "y": 236,
+        "data": {
+          "componentType": "sortieAttendue",
+          "text": "Contrat de sortie (output_contract) : charter.yaml (YAML) : {objectif, hors_scope[], criteres_succes[], actions_interdites[]} — tous remplis, aucun vide.\n\nCritères de succès : charter.yaml valide ; tous les champs remplis (objectif, hors_scope[], criteres_succes[], actions_interdites[]) ; aucun « à définir » ni vide résiduel.\n\nOracles/tests : Oracle CHARTER déterministe non-LLM : validateur de schéma qui parse charter.yaml et échoue si un champ requis est vide, absent ou contient « à définir ». Jamais de LLM-as-judge.\n\nRapport final : software/evidence/claim séparés ; cite l'oracle charter utilisé ; liste les flous du prompt résolus vs remontés ; claim_verdict: NO_CLAIM_ALLOWED. Sans oracle disponible => remonte un besoin HumanGate (fog), pas de claim.",
+          "parentId": "s0-contrat"
+        }
+      },
+      {
+        "id": "s1-prisme",
+        "type": "agent",
+        "x": 560,
+        "y": 340,
+        "data": {
+          "role": "Étape 1 — Prisme Produit",
+          "model": "Claude Opus 4.8",
+          "capability_role": "prisme",
+          "runtime": "llm",
+          "temperature": null,
+          "top_p": null,
+          "max_tokens": null,
+          "note": "Étape 1 — Prisme Produit — LLM · capability_role=prisme résolu via scripts/forge/contracts/roles.yaml -> Claude Opus 4.8. delegation_context : Étape 1, en aval du Contrat (0), en amont du World Scan (2) et de la Décomposition fonctionnelle (3)."
+        }
+      },
+      {
+        "id": "s1-prisme-c-memoire",
+        "type": "agent-component",
+        "x": 556,
+        "y": 80,
+        "data": {
+          "componentType": "memoire",
+          "text": "Consomme le charter (étape 0) + le prompt utilisateur. Connaît les conventions produit du studio.\n\nLecture obligatoire (mandatory_read) : scripts/forge/contracts/SCHEMA.md · charter.yaml produit par l'étape 0",
+          "parentId": "s1-prisme"
+        }
+      },
+      {
+        "id": "s1-prisme-c-skill",
+        "type": "agent-component",
+        "x": 660,
+        "y": 80,
+        "data": {
+          "componentType": "skill",
+          "text": "aucun",
+          "parentId": "s1-prisme"
+        }
+      },
+      {
+        "id": "s1-prisme-c-plugin",
+        "type": "agent-component",
+        "x": 556,
+        "y": 132,
+        "data": {
+          "componentType": "plugin",
+          "text": "aucun",
+          "parentId": "s1-prisme"
+        }
+      },
+      {
+        "id": "s1-prisme-c-role",
+        "type": "agent-component",
+        "x": 660,
+        "y": 132,
+        "data": {
+          "componentType": "role",
+          "text": "Prisme Produit (étape 1). Point de vue imposé : réalisateur qui décrit le produit FINI tel que le joueur le vit, pas le chemin pour y arriver.\n\nExigences cognitives : Vision produit concrète. Sépare strictement ce que le joueur voit / fait / ressent, et n'énonce que des Règles observables (testables).",
+          "parentId": "s1-prisme"
+        }
+      },
+      {
+        "id": "s1-prisme-c-objectif",
+        "type": "agent-component",
+        "x": 556,
+        "y": 184,
+        "data": {
+          "componentType": "objectif",
+          "text": "Produire product_snapshot.md : le produit fini décomposé en facettes — ce que le joueur voit, ce qu'il fait, ce qu'il ressent, + les Règles observables. 4 sections obligatoires, aucun flou, aucun « à définir ».\n\nPérimètre autorisé (in_scope) : Capture de la vision produit finie : expérience joueur (voit/fait/ressent) + liste des Règles observables. Écrit product_snapshot.md uniquement.",
+          "parentId": "s1-prisme"
+        }
+      },
+      {
+        "id": "s1-prisme-c-gardeFou",
+        "type": "agent-component",
+        "x": 660,
+        "y": 184,
+        "data": {
+          "componentType": "gardeFou",
+          "text": "Décrit le produit FINI, jamais le chemin. Toute règle DOIT être observable (donc testable plus tard). Aucun champ « à définir ».\n\nHors-scope : Ne décompose pas en features (c'est l'étape 3) ; ne décide ni l'architecture ni le code ; ne fait pas le world scan.\n\nPermissions : read: repo + charter. write: product_snapshot.md uniquement. create: product_snapshot.md. run: aucun. delete: aucun.",
+          "parentId": "s1-prisme"
+        }
+      },
+      {
+        "id": "s1-prisme-c-modele",
+        "type": "agent-component",
+        "x": 556,
+        "y": 236,
+        "data": {
+          "componentType": "modele",
+          "text": "Claude Opus 4.8 (capability_role: prisme)",
+          "parentId": "s1-prisme"
+        }
+      },
+      {
+        "id": "s1-prisme-c-sortieAttendue",
+        "type": "agent-component",
+        "x": 660,
+        "y": 236,
+        "data": {
+          "componentType": "sortieAttendue",
+          "text": "Contrat de sortie (output_contract) : product_snapshot.md : {ce_que_le_joueur_voit, ce_qu_il_fait, ce_qu_il_ressent, regles_observables[]}.\n\nCritères de succès : product_snapshot.md valide, 4 sections remplies, chaque règle observable et cohérente avec le charter.\n\nOracles/tests : Artefact narratif : pas d'oracle code. Ancre = cohérence avec le charter (étape 0). Sans oracle mécanique disponible => besoin HumanGate (fog).\n\nRapport final : Restitution standard : cite le charter comme ancre ; sans oracle mécanique => remonte un besoin HumanGate (fog) ; claim_verdict: NO_CLAIM_ALLOWED.",
+          "parentId": "s1-prisme"
+        }
+      },
+      {
+        "id": "s2-worldscan",
+        "type": "agent",
+        "x": 1040,
+        "y": 340,
+        "data": {
+          "role": "Étape 2 — World Scan",
+          "model": "Claude Haiku 4.5",
+          "capability_role": "worldscan",
+          "runtime": "llm",
+          "temperature": null,
+          "top_p": null,
+          "max_tokens": null,
+          "note": "Étape 2 — World Scan — LLM · capability_role=worldscan résolu via scripts/forge/contracts/roles.yaml -> Claude Haiku 4.5. delegation_context : Étape 2, en aval du Prisme (1) ; advisory pour la Décomposition (3) et l'Architecture (4)."
+        }
+      },
+      {
+        "id": "s2-worldscan-c-memoire",
+        "type": "agent-component",
+        "x": 1036,
+        "y": 80,
+        "data": {
+          "componentType": "memoire",
+          "text": "Consomme le product_snapshot (étape 1). Connaît le World Intelligence Layer du studio (packets advisory-only, lus en lecture seule).\n\nLecture obligatoire (mandatory_read) : scripts/forge/contracts/SCHEMA.md · product_snapshot.md produit par l'étape 1",
+          "parentId": "s2-worldscan"
+        }
+      },
+      {
+        "id": "s2-worldscan-c-skill",
+        "type": "agent-component",
+        "x": 1140,
+        "y": 80,
+        "data": {
+          "componentType": "skill",
+          "text": "world-scan",
+          "parentId": "s2-worldscan"
+        }
+      },
+      {
+        "id": "s2-worldscan-c-plugin",
+        "type": "agent-component",
+        "x": 1036,
+        "y": 132,
+        "data": {
+          "componentType": "plugin",
+          "text": "aucun",
+          "parentId": "s2-worldscan"
+        }
+      },
+      {
+        "id": "s2-worldscan-c-role",
+        "type": "agent-component",
+        "x": 1140,
+        "y": 132,
+        "data": {
+          "componentType": "role",
+          "text": "World Scan (étape 2). Point de vue imposé : chercheur qui rapporte des patterns externes comparables, advisory-only, jamais prescriptif.\n\nExigences cognitives : Recherche web ciblée + synthèse citée. Reste advisory : n'impose aucune décision, ne biaise pas le council.",
+          "parentId": "s2-worldscan"
+        }
+      },
+      {
+        "id": "s2-worldscan-c-objectif",
+        "type": "agent-component",
+        "x": 1036,
+        "y": 184,
+        "data": {
+          "componentType": "objectif",
+          "text": "Produire un knowledge packet cité de patterns externes comparables (jeux / features proches). Advisory-only, JAMAIS injecté dans les prompts council.\n\nPérimètre autorisé (in_scope) : Recherche web de comparables + synthèse citée dans un knowledge packet JSON.",
+          "parentId": "s2-worldscan"
+        }
+      },
+      {
+        "id": "s2-worldscan-c-gardeFou",
+        "type": "agent-component",
+        "x": 1140,
+        "y": 184,
+        "data": {
+          "componentType": "gardeFou",
+          "text": "Chaque affirmation CITÉE (source vérifiable). Advisory-only. Ne biaise jamais le council ni n'est injecté dans ses prompts.\n\nHors-scope : N'invente aucune décision ; advisory seulement ; JAMAIS injecté dans les prompts council (règle World Intelligence Layer) ; ne code rien.\n\nPermissions : read: repo + product_snapshot. run: WebSearch. write: knowledge_packet.json uniquement. create: knowledge_packet.json. delete: aucun.",
+          "parentId": "s2-worldscan"
+        }
+      },
+      {
+        "id": "s2-worldscan-c-modele",
+        "type": "agent-component",
+        "x": 1036,
+        "y": 236,
+        "data": {
+          "componentType": "modele",
+          "text": "Claude Haiku 4.5 (capability_role: worldscan)",
+          "parentId": "s2-worldscan"
+        }
+      },
+      {
+        "id": "s2-worldscan-c-sortieAttendue",
+        "type": "agent-component",
+        "x": 1140,
+        "y": 236,
+        "data": {
+          "componentType": "sortieAttendue",
+          "text": "Contrat de sortie (output_contract) : knowledge_packet.json : {patterns[{pattern, source_url, pertinence}], advisory: true}.\n\nCritères de succès : knowledge_packet.json avec sources citées et pertinence par pattern.\n\nOracles/tests : Recherche : pas d'oracle code. Ancre = sources citées vérifiables (URLs). Sans oracle mécanique => besoin HumanGate (fog).\n\nRapport final : Restitution standard : cite les sources ; advisory ; claim_verdict: NO_CLAIM_ALLOWED.",
+          "parentId": "s2-worldscan"
+        }
+      },
+      {
+        "id": "s3-decompo",
+        "type": "agent",
+        "x": 1520,
+        "y": 340,
+        "data": {
+          "role": "Étape 3 — Décomposition Fonctionnelle",
+          "model": "Claude Opus 4.8",
+          "capability_role": "decompose",
+          "runtime": "llm",
+          "temperature": null,
+          "top_p": null,
+          "max_tokens": null,
+          "note": "Étape 3 — Décomposition Fonctionnelle — LLM · capability_role=decompose résolu via scripts/forge/contracts/roles.yaml -> Claude Opus 4.8. delegation_context : Étape 3, en aval du World Scan (2), en amont de l'Architecture (4)."
+        }
+      },
+      {
+        "id": "s3-decompo-c-memoire",
+        "type": "agent-component",
+        "x": 1516,
+        "y": 80,
+        "data": {
+          "componentType": "memoire",
+          "text": "Consomme le Prisme Produit (étape 1) et le World Scan (étape 2) ; connaît les Règles observables du Prisme d'où héritent les preuves attendues. Conventions : CLAUDE.md + rules/.\n\nLecture obligatoire (mandatory_read) : scripts/forge/contracts/SCHEMA.md · l'artefact product_snapshot.md produit par le Prisme (étape 1)",
+          "parentId": "s3-decompo"
+        }
+      },
+      {
+        "id": "s3-decompo-c-skill",
+        "type": "agent-component",
+        "x": 1620,
+        "y": 80,
+        "data": {
+          "componentType": "skill",
+          "text": "aucun",
+          "parentId": "s3-decompo"
+        }
+      },
+      {
+        "id": "s3-decompo-c-plugin",
+        "type": "agent-component",
+        "x": 1516,
+        "y": 132,
+        "data": {
+          "componentType": "plugin",
+          "text": "aucun",
+          "parentId": "s3-decompo"
+        }
+      },
+      {
+        "id": "s3-decompo-c-role",
+        "type": "agent-component",
+        "x": 1620,
+        "y": 132,
+        "data": {
+          "componentType": "role",
+          "text": "Décomposition Fonctionnelle (étape 3). Point de vue : analyste qui énumère les fonctions attendues avant toute archi.\n\nExigences cognitives : Décomposition exhaustive Système→Feature→capacité, chaque feuille traçable à une preuve.",
+          "parentId": "s3-decompo"
+        }
+      },
+      {
+        "id": "s3-decompo-c-objectif",
+        "type": "agent-component",
+        "x": 1516,
+        "y": 184,
+        "data": {
+          "componentType": "objectif",
+          "text": "Produire l'arbre Système→Feature→capacité ; chaque FEUILLE porte sa preuve attendue (héritée des Règles observables du Prisme).\n\nPérimètre autorisé (in_scope) : Énumération fonctionnelle depuis le Prisme Produit ; définition des preuves attendues par feuille. Écrit uniquement la featuremap.",
+          "parentId": "s3-decompo"
+        }
+      },
+      {
+        "id": "s3-decompo-c-gardeFou",
+        "type": "agent-component",
+        "x": 1620,
+        "y": 184,
+        "data": {
+          "componentType": "gardeFou",
+          "text": "Chaque feuille DOIT avoir une preuve_attendue ; pas de feuille orpheline. La preuve attendue est héritée des Règles observables du Prisme, jamais inventée.\n\nHors-scope : Ne découpe PAS en modules (c'est l'archi, étape 4). Ne code rien. Ne touche pas aux lanes protégées (tests/, src/).\n\nPermissions : read: repo entier. write: featuremap uniquement. create: featuremap. run: aucun. delete: aucun.",
+          "parentId": "s3-decompo"
+        }
+      },
+      {
+        "id": "s3-decompo-c-modele",
+        "type": "agent-component",
+        "x": 1516,
+        "y": 236,
+        "data": {
+          "componentType": "modele",
+          "text": "Claude Opus 4.8 (capability_role: decompose)",
+          "parentId": "s3-decompo"
+        }
+      },
+      {
+        "id": "s3-decompo-c-sortieAttendue",
+        "type": "agent-component",
+        "x": 1620,
+        "y": 236,
+        "data": {
+          "componentType": "sortieAttendue",
+          "text": "Contrat de sortie (output_contract) : featuremap : arbre {Système→Feature→capacité}, chaque feuille = {capacité, preuve_attendue}.\n\nCritères de succès : featuremap valide ; chaque feuille a {capacité, preuve_attendue}.\n\nOracles/tests : Oracle déterministe non-LLM : vérificateur de complétude de la featuremap (chaque feuille porte {capacité, preuve_attendue}, aucune feuille orpheline). Jamais de LLM-as-judge.\n\nRapport final : software/evidence/claim séparés ; cite l'oracle de complétude utilisé ; liste les feuilles sans preuve_attendue ; claim_verdict: NO_CLAIM_ALLOWED. Sans oracle disponible => remonte un besoin HumanGate (fog), pas de claim.",
+          "parentId": "s3-decompo"
+        }
+      },
+      {
+        "id": "s4-archi",
+        "type": "agent",
+        "x": 80,
+        "y": 940,
+        "data": {
+          "role": "Étape 4 — Architecte",
+          "model": "Claude Opus 4.8",
+          "capability_role": "architect",
+          "runtime": "llm",
+          "temperature": null,
+          "top_p": null,
+          "max_tokens": null,
+          "note": "Étape 4 — Architecte — LLM · capability_role=architect résolu via scripts/forge/contracts/roles.yaml -> Claude Opus 4.8. delegation_context : Mandaté par la boucle Forge à l'étape 4, en aval de la Décompo fonctionnelle (étape 3), en amont de la WireMap isomorphe (étape 5)."
+        }
+      },
+      {
+        "id": "s4-archi-c-memoire",
+        "type": "agent-component",
+        "x": 76,
+        "y": 680,
+        "data": {
+          "componentType": "memoire",
+          "text": "Consomme la featuremap (étape 3) ; sur repo existant, connaît le blueprint en place (diff d'archi, pas réinvention). Conventions : CLAUDE.md + rules/.\n\nLecture obligatoire (mandatory_read) : scripts/forge/contracts/SCHEMA.md · l'artefact featuremap produit par l'étape 3 (Décompo fonctionnelle) · le blueprint.yaml existant si le repo est déjà structuré",
+          "parentId": "s4-archi"
+        }
+      },
+      {
+        "id": "s4-archi-c-skill",
+        "type": "agent-component",
+        "x": 180,
+        "y": 680,
+        "data": {
+          "componentType": "skill",
+          "text": "architecture-review",
+          "parentId": "s4-archi"
+        }
+      },
+      {
+        "id": "s4-archi-c-plugin",
+        "type": "agent-component",
+        "x": 76,
+        "y": 732,
+        "data": {
+          "componentType": "plugin",
+          "text": "graph-coloring anti-collision (_ceo_assign_lanes ressuscité) pour l'ownership.",
+          "parentId": "s4-archi"
+        }
+      },
+      {
+        "id": "s4-archi-c-role",
+        "type": "agent-component",
+        "x": 180,
+        "y": 732,
+        "data": {
+          "componentType": "role",
+          "text": "Architecte (étape 4). Point de vue imposé : architecte logiciel senior qui découpe par responsabilité, pas par confort.\n\nExigences cognitives : Raisonnement architecture profond, effort élevé. Doit tenir un graphe de dépendances complet en tête et détecter les cycles avant qu'ils existent.",
+          "parentId": "s4-archi"
+        }
+      },
+      {
+        "id": "s4-archi-c-objectif",
+        "type": "agent-component",
+        "x": 76,
+        "y": 784,
+        "data": {
+          "componentType": "objectif",
+          "text": "Produire blueprint.yaml gelé : modules + responsabilités · deps autorisées/interdites (ex : ui→api→engine ok, ui→engine interdit) · ownership · invariants d'archi.\n\nPérimètre autorisé (in_scope) : Découpage en modules, graphe de dépendances autorisées/interdites, ownership par module, invariants d'architecture. Écrit uniquement blueprint.yaml.",
+          "parentId": "s4-archi"
+        }
+      },
+      {
+        "id": "s4-archi-c-gardeFou",
+        "type": "agent-component",
+        "x": 180,
+        "y": 784,
+        "data": {
+          "componentType": "gardeFou",
+          "text": "Jamais « au feeling » : la structure physique est une CONSÉQUENCE du blueprint, justifiée par la featuremap. Tue les god-objects avant qu'ils existent. Toute dépendance interdite doit être explicite.\n\nHors-scope : Aucune écriture de code d'implémentation. Ne crée aucun fichier source. Ne décide pas la WireMap (étape 5). Ne touche pas aux lanes protégées (tests/, src/).\n\nPermissions : read: repo entier. write: blueprint.yaml uniquement. create: blueprint.yaml. run: aucun. delete: aucun.",
+          "parentId": "s4-archi"
+        }
+      },
+      {
+        "id": "s4-archi-c-modele",
+        "type": "agent-component",
+        "x": 76,
+        "y": 836,
+        "data": {
+          "componentType": "modele",
+          "text": "Claude Opus 4.8 (capability_role: architect)",
+          "parentId": "s4-archi"
+        }
+      },
+      {
+        "id": "s4-archi-c-sortieAttendue",
+        "type": "agent-component",
+        "x": 180,
+        "y": 836,
+        "data": {
+          "componentType": "sortieAttendue",
+          "text": "Contrat de sortie (output_contract) : blueprint.yaml : {modules[], deps_autorisees[], deps_interdites[], ownership{module→agent}, invariants_archi[]}.\n\nCritères de succès : blueprint.yaml valide ; chaque feature de la featuremap mappée à ≥1 module ; aucune dépendance cyclique ; deps_interdites listées explicitement.\n\nOracles/tests : Oracle ARCHITECTURE déterministe non-LLM : import-linter / vérificateur de graphe de dépendances sur le blueprint. Jamais de LLM-as-judge.\n\nRapport final : software/evidence/claim séparés ; cite l'oracle archi utilisé ; liste les écarts featuremap↔blueprint ; claim_verdict: NO_CLAIM_ALLOWED. Sans oracle disponible => remonte un besoin HumanGate (fog), pas de claim.",
+          "parentId": "s4-archi"
+        }
+      },
+      {
+        "id": "s5-wiremap",
+        "type": "agent",
+        "x": 560,
+        "y": 940,
+        "data": {
+          "role": "Étape 5 — WireMap isomorphe",
+          "model": "Claude Opus 4.8",
+          "capability_role": "wiremap",
+          "runtime": "llm",
+          "temperature": null,
+          "top_p": null,
+          "max_tokens": null,
+          "note": "Étape 5 — WireMap isomorphe — LLM · capability_role=wiremap résolu via scripts/forge/contracts/roles.yaml -> Claude Opus 4.8. delegation_context : Étape 5, en aval de l'Architecture (4), en amont du Red-team du plan (6) ; vérifiée par l'oracle wiremap (10c)."
+        }
+      },
+      {
+        "id": "s5-wiremap-c-memoire",
+        "type": "agent-component",
+        "x": 556,
+        "y": 680,
+        "data": {
+          "componentType": "memoire",
+          "text": "Consomme le blueprint (étape 4) + la featuremap (étape 3). Connaît la convention WireMap du studio (colonnes fichiers/fonction/version/preuve/statut).\n\nLecture obligatoire (mandatory_read) : scripts/forge/contracts/SCHEMA.md · blueprint.yaml produit par l'étape 4 · la featuremap produite par l'étape 3",
+          "parentId": "s5-wiremap"
+        }
+      },
+      {
+        "id": "s5-wiremap-c-skill",
+        "type": "agent-component",
+        "x": 660,
+        "y": 680,
+        "data": {
+          "componentType": "skill",
+          "text": "aucun",
+          "parentId": "s5-wiremap"
+        }
+      },
+      {
+        "id": "s5-wiremap-c-plugin",
+        "type": "agent-component",
+        "x": 556,
+        "y": 732,
+        "data": {
+          "componentType": "plugin",
+          "text": "aucun",
+          "parentId": "s5-wiremap"
+        }
+      },
+      {
+        "id": "s5-wiremap-c-role",
+        "type": "agent-component",
+        "x": 660,
+        "y": 732,
+        "data": {
+          "componentType": "role",
+          "text": "WireMap isomorphe (étape 5). Point de vue imposé : cartographe qui fait épouser à la carte l'arbre du blueprint — section = module = dossier.\n\nExigences cognitives : Pensée structurelle : la WireMap est le MÊME arbre que l'architecture, pas une liste plate ; chaque feuille traçable à ses fichiers/fonctions.",
+          "parentId": "s5-wiremap"
+        }
+      },
+      {
+        "id": "s5-wiremap-c-objectif",
+        "type": "agent-component",
+        "x": 556,
+        "y": 784,
+        "data": {
+          "componentType": "objectif",
+          "text": "Produire la WireMap isomorphe au blueprint : section = module = dossier ; chaque feature mappée à ses fichiers/fonctions avec preuve attendue et statut.\n\nPérimètre autorisé (in_scope) : Construction de la WireMap épousant l'architecture, colonnes complètes par feuille (fichiers, fonction, version, preuve, statut).",
+          "parentId": "s5-wiremap"
+        }
+      },
+      {
+        "id": "s5-wiremap-c-gardeFou",
+        "type": "agent-component",
+        "x": 660,
+        "y": 784,
+        "data": {
+          "componentType": "gardeFou",
+          "text": "Isomorphisme STRICT WireMap ↔ blueprint (jamais une liste plate). Chaque ligne porte une preuve attendue. Toute divergence sera signalée par l'oracle wiremap.\n\nHors-scope : Ne code rien ; ne modifie ni le blueprint ni la featuremap ; ne décide pas l'ownership (c'est l'archi).\n\nPermissions : read: repo + blueprint + featuremap. write: la WireMap uniquement. create: WireMap. run: aucun. delete: aucun.",
+          "parentId": "s5-wiremap"
+        }
+      },
+      {
+        "id": "s5-wiremap-c-modele",
+        "type": "agent-component",
+        "x": 556,
+        "y": 836,
+        "data": {
+          "componentType": "modele",
+          "text": "Claude Opus 4.8 (capability_role: wiremap)",
+          "parentId": "s5-wiremap"
+        }
+      },
+      {
+        "id": "s5-wiremap-c-sortieAttendue",
+        "type": "agent-component",
+        "x": 660,
+        "y": 836,
+        "data": {
+          "componentType": "sortieAttendue",
+          "text": "Contrat de sortie (output_contract) : wiremap : {section=module, features[{feature, fichiers[], fonction, version, preuve, statut}]}.\n\nCritères de succès : WireMap isomorphe au blueprint ; 7 colonnes remplies (section, feature, fichiers, fonction, version, preuve, statut) ; chaque feature de la featuremap présente.\n\nOracles/tests : Oracle WIREMAP (étape 10c, AST) vérifie l'isomorphisme WireMap↔code — déterministe, non-LLM. Jamais de LLM-as-judge.\n\nRapport final : Restitution standard : cite l'oracle wiremap comme ancre ; claim_verdict: NO_CLAIM_ALLOWED.",
+          "parentId": "s5-wiremap"
+        }
+      },
+      {
+        "id": "s6-redteam-plan",
+        "type": "agent",
+        "x": 1040,
+        "y": 940,
+        "data": {
+          "role": "Étape 6 — Red-team du PLAN",
+          "model": "Qwen2.5 14B — red team / reviewer indépendant",
+          "capability_role": "redteam_reviewer",
+          "runtime": "llm",
+          "temperature": null,
+          "top_p": null,
+          "max_tokens": null,
+          "note": "Étape 6 — Red-team du PLAN — LLM · capability_role=redteam_reviewer résolu via scripts/forge/contracts/roles.yaml -> Qwen2.5 14B — red team / reviewer indépendant. delegation_context : Étape 6, en aval Archi/WireMap, boucle de retour depuis Mémoire (14)."
+        }
+      },
+      {
+        "id": "s6-redteam-plan-c-memoire",
+        "type": "agent-component",
+        "x": 1036,
+        "y": 680,
+        "data": {
+          "componentType": "memoire",
+          "text": "Consomme le blueprint gelé (étape 4) et la WireMap (étape 5). Reste indépendant du builder : critique le plan, pas l'implémentation. Conventions : CLAUDE.md + rules/. RE-ENTRÉE de la boucle : Mémoire (étape 14) reboucle ici.\n\nLecture obligatoire (mandatory_read) : scripts/forge/contracts/SCHEMA.md · le blueprint.yaml produit par l'étape 4 (Architecte) · la WireMap produite par l'étape 5",
+          "parentId": "s6-redteam-plan"
+        }
+      },
+      {
+        "id": "s6-redteam-plan-c-skill",
+        "type": "agent-component",
+        "x": 1140,
+        "y": 680,
+        "data": {
+          "componentType": "skill",
+          "text": "aucun",
+          "parentId": "s6-redteam-plan"
+        }
+      },
+      {
+        "id": "s6-redteam-plan-c-plugin",
+        "type": "agent-component",
+        "x": 1036,
+        "y": 732,
+        "data": {
+          "componentType": "plugin",
+          "text": "aucun",
+          "parentId": "s6-redteam-plan"
+        }
+      },
+      {
+        "id": "s6-redteam-plan-c-role",
+        "type": "agent-component",
+        "x": 1140,
+        "y": 732,
+        "data": {
+          "componentType": "role",
+          "text": "Red-team du PLAN (archi + wiremap). Point de vue : attaquant indépendant qui cherche les failles du plan.\n\nExigences cognitives : Pensée adverse : cherche activement où le plan casse. Critique les DÉCISIONS du plan (découpage, dépendances, câblage), ne remplace pas les oracles techniques et ne juge pas à leur place.",
+          "parentId": "s6-redteam-plan"
+        }
+      },
+      {
+        "id": "s6-redteam-plan-c-objectif",
+        "type": "agent-component",
+        "x": 1036,
+        "y": 784,
+        "data": {
+          "componentType": "objectif",
+          "text": "Produire un rapport d'attaque + artefacts (archi/wiremap) ajustés. RE-ENTRÉE de la boucle : Mémoire (étape 14) → ici.\n\nPérimètre autorisé (in_scope) : Attaque du PLAN (architecture + wiremap) : recherche de failles, angles morts, dépendances fragiles, câblage incohérent. Propositions de correction sur ces seuls artefacts.",
+          "parentId": "s6-redteam-plan"
+        }
+      },
+      {
+        "id": "s6-redteam-plan-c-gardeFou",
+        "type": "agent-component",
+        "x": 1140,
+        "y": 784,
+        "data": {
+          "componentType": "gardeFou",
+          "text": "La critique porte sur le PLAN, jamais sur l'oracle. Reste indépendant du builder et des oracles techniques : critique les décisions, ne se substitue pas à la preuve mécanique. Aucun LLM-as-judge sur le code.\n\nHors-scope : N'attaque JAMAIS les tests/oracles. Ne réécrit pas le code d'implémentation. Ne juge pas à la place des oracles techniques. Ne touche pas aux lanes protégées (tests/, src/).\n\nPermissions : read: repo entier. write: rapport_redteam_plan.md + artefacts archi/wiremap ajustés UNIQUEMENT. run: aucun. delete: aucun. create: aucun autre fichier.",
+          "parentId": "s6-redteam-plan"
+        }
+      },
+      {
+        "id": "s6-redteam-plan-c-modele",
+        "type": "agent-component",
+        "x": 1036,
+        "y": 836,
+        "data": {
+          "componentType": "modele",
+          "text": "Qwen2.5 14B — red team / reviewer indépendant (capability_role: redteam_reviewer)",
+          "parentId": "s6-redteam-plan"
+        }
+      },
+      {
+        "id": "s6-redteam-plan-c-sortieAttendue",
+        "type": "agent-component",
+        "x": 1140,
+        "y": 836,
+        "data": {
+          "componentType": "sortieAttendue",
+          "text": "Contrat de sortie (output_contract) : rapport_redteam_plan.md : liste {angle, faille, correction_proposée} + verdict GO-si-corrigé.\n\nCritères de succès : Rapport listant chaque faille sous forme {angle, faille, correction_proposée} + un verdict GO-si-corrigé. Artefacts archi/wiremap ajustés cohérents avec les corrections proposées.\n\nOracles/tests : Séparation stricte : le red-team CRITIQUE (jugement adverse, non-oracle), les oracles techniques PROUVENT (import-linter, oracle wiremap AST, cargo/pytest — câblés séparément). Jamais de LLM-as-judge sur le code.\n\nRapport final : software/evidence/claim séparés ; cite l'oracle/l'ancre qui appuie chaque affirmation vérifiable, sinon remonte un besoin HumanGate (fog) ; claim_verdict: NO_CLAIM_ALLOWED.",
+          "parentId": "s6-redteam-plan"
+        }
+      },
+      {
+        "id": "s9-build",
+        "type": "agent",
+        "x": 1520,
+        "y": 940,
+        "data": {
+          "role": "Étape 9 — Builder (ownership)",
+          "model": "Claude Haiku 4.5",
+          "capability_role": "builder",
+          "runtime": "llm",
+          "temperature": null,
+          "top_p": null,
+          "max_tokens": null,
+          "note": "Étape 9 — Builder (ownership) — LLM · capability_role=builder résolu via scripts/forge/contracts/roles.yaml -> Claude Haiku 4.5. delegation_context : Étape 9, en aval du Blueprint Gate (7)/Create Repo (8), en amont des Oracles (10)."
+        }
+      },
+      {
+        "id": "s9-build-c-memoire",
+        "type": "agent-component",
+        "x": 1516,
+        "y": 680,
+        "data": {
+          "componentType": "memoire",
+          "text": "Consomme le blueprint (étape 7) qui fixe son ownership et la WireMap (étape 5) qu'il doit tenir à jour. Conventions : CLAUDE.md + rules/ (par lane). Le repo a déjà été créé à l'étape 8 (Create Repo).\n\nLecture obligatoire (mandatory_read) : scripts/forge/contracts/SCHEMA.md · le blueprint.yaml (ownership) qui borne strictement sa zone d'écriture · la WireMap produite à l'étape 5 (fichiers/fonction/version/preuve/statut)",
+          "parentId": "s9-build"
+        }
+      },
+      {
+        "id": "s9-build-c-skill",
+        "type": "agent-component",
+        "x": 1620,
+        "y": 680,
+        "data": {
+          "componentType": "skill",
+          "text": "aucun",
+          "parentId": "s9-build"
+        }
+      },
+      {
+        "id": "s9-build-c-plugin",
+        "type": "agent-component",
+        "x": 1516,
+        "y": 732,
+        "data": {
+          "componentType": "plugin",
+          "text": "aucun",
+          "parentId": "s9-build"
+        }
+      },
+      {
+        "id": "s9-build-c-role",
+        "type": "agent-component",
+        "x": 1620,
+        "y": 732,
+        "data": {
+          "componentType": "role",
+          "text": "Builder (délégation bornée par l'ownership). Point de vue : développeur discipliné qui reste dans son module.\n\nExigences cognitives : Exécution bornée, micro-commits, tenue à jour de la WireMap. Discipline de périmètre supérieure à la vitesse : ne déborde jamais l'ownership.",
+          "parentId": "s9-build"
+        }
+      },
+      {
+        "id": "s9-build-c-objectif",
+        "type": "agent-component",
+        "x": 1516,
+        "y": 784,
+        "data": {
+          "componentType": "objectif",
+          "text": "Produire le code borné à l'ownership, avec la WireMap tenue à jour. Micro-commits exécutés.\n\nPérimètre autorisé (in_scope) : Implémentation du code UNIQUEMENT dans l'ownership défini par le blueprint ; mise à jour de la WireMap (colonnes fichiers/fonction/version/preuve/statut).",
+          "parentId": "s9-build"
+        }
+      },
+      {
+        "id": "s9-build-c-gardeFou",
+        "type": "agent-component",
+        "x": 1620,
+        "y": 784,
+        "data": {
+          "componentType": "gardeFou",
+          "text": "Respecte l'ownership : n'écrit que dans les fichiers que le blueprint lui attribue. Micro-commits. Ne franchit pas les deps interdites du blueprint.\n\nHors-scope : Ne sort JAMAIS de son ownership (blueprint). Ne touche pas à tests/** (zone protégée). Ne modifie pas l'architecture (blueprint, deps).\n\nPermissions : read: repo entier. write: UNIQUEMENT les fichiers de son ownership + la WireMap. run: l'oracle code (cargo/pytest/vitest via scripts/forge/oracles.json). create: fichiers de son ownership uniquement. delete: aucun. INTERDIT: tests/**.",
+          "parentId": "s9-build"
+        }
+      },
+      {
+        "id": "s9-build-c-modele",
+        "type": "agent-component",
+        "x": 1516,
+        "y": 836,
+        "data": {
+          "componentType": "modele",
+          "text": "Claude Haiku 4.5 (capability_role: builder)",
+          "parentId": "s9-build"
+        }
+      },
+      {
+        "id": "s9-build-c-sortieAttendue",
+        "type": "agent-component",
+        "x": 1620,
+        "y": 836,
+        "data": {
+          "componentType": "sortieAttendue",
+          "text": "Contrat de sortie (output_contract) : diff (micro-commits) + WireMap à jour (colonnes fichiers/fonction/version/preuve/ statut).\n\nCritères de succès : Code dans l'ownership (aucun fichier hors périmètre modifié) ; oracle code vert ; WireMap à jour.\n\nOracles/tests : Oracle CODE déterministe non-LLM : cargo / pytest / vitest via scripts/forge/oracles.json selon la lane. Jamais de LLM-as-judge.\n\nRapport final : software/evidence/claim séparés ; cite l'oracle code utilisé ; liste les fichiers touchés vs ownership ; claim_verdict: NO_CLAIM_ALLOWED. Sans oracle disponible => remonte un besoin HumanGate (fog), pas de claim.",
+          "parentId": "s9-build"
+        }
+      },
+      {
+        "id": "s10a-oracle-code",
+        "type": "agent",
+        "x": 80,
+        "y": 1540,
+        "data": {
+          "role": "Étape 10a — Oracle CODE",
+          "model": "Oracle déterministe (non-LLM)",
+          "capability_role": "deterministic",
+          "runtime": "deterministic",
+          "temperature": null,
+          "top_p": null,
+          "max_tokens": null,
+          "note": "Étape 10a — Oracle CODE — DÉTERMINISTE (non-LLM) · capability_role=deterministic résolu via scripts/forge/contracts/roles.yaml -> Oracle déterministe (non-LLM). delegation_context : Étape 10a, oracle en aval du Build (9).",
+          "oracleRef": "oracle-s10a-oracle-code"
+        },
+        "attachedOracle": {
+          "id": "oracle-s10a-oracle-code",
+          "name": "Étape 10a — Oracle CODE : les tests passent (cargo/pytest/vitest via oracles.json)",
+          "badge": "target"
+        }
+      },
+      {
+        "id": "s10a-oracle-code-c-memoire",
+        "type": "agent-component",
+        "x": 76,
+        "y": 1280,
+        "data": {
+          "componentType": "memoire",
+          "text": "Consomme l'artefact de Build (étape 9) ; connaît les oracles code du projet déclarés dans scripts/forge/oracles.json (cargo/pytest/vitest). Conventions : CLAUDE.md + rules/. L'evidence se dépose dans lab/forge_evidence.\n\nLecture obligatoire (mandatory_read) : scripts/forge/contracts/SCHEMA.md · scripts/forge/oracles.json",
+          "parentId": "s10a-oracle-code"
+        }
+      },
+      {
+        "id": "s10a-oracle-code-c-skill",
+        "type": "agent-component",
+        "x": 180,
+        "y": 1280,
+        "data": {
+          "componentType": "skill",
+          "text": "aucun",
+          "parentId": "s10a-oracle-code"
+        }
+      },
+      {
+        "id": "s10a-oracle-code-c-plugin",
+        "type": "agent-component",
+        "x": 76,
+        "y": 1332,
+        "data": {
+          "componentType": "plugin",
+          "text": "aucun",
+          "parentId": "s10a-oracle-code"
+        }
+      },
+      {
+        "id": "s10a-oracle-code-c-role",
+        "type": "agent-component",
+        "x": 180,
+        "y": 1332,
+        "data": {
+          "componentType": "role",
+          "text": "Oracle CODE (déterministe non-LLM). Point de vue : preuve mécanique, aucun jugement.\n\nExigences cognitives : aucun raisonnement LLM — exécution déterministe reproductible.",
+          "parentId": "s10a-oracle-code"
+        }
+      },
+      {
+        "id": "s10a-oracle-code-c-objectif",
+        "type": "agent-component",
+        "x": 76,
+        "y": 1384,
+        "data": {
+          "componentType": "objectif",
+          "text": "Prouver CODE : les tests passent. Émettre PASS/FAIL déterministe + evidence.\n\nPérimètre autorisé (in_scope) : Exécuter l'oracle code du projet, capturer l'evidence, émettre PASS/FAIL.",
+          "parentId": "s10a-oracle-code"
+        }
+      },
+      {
+        "id": "s10a-oracle-code-c-gardeFou",
+        "type": "agent-component",
+        "x": 180,
+        "y": 1384,
+        "data": {
+          "componentType": "gardeFou",
+          "text": "JAMAIS de LLM-as-judge.\n\nHors-scope : aucun jugement LLM, aucune interprétation subjective ; ne modifie pas le code.\n\nPermissions : read: repo entier. run: l'oracle code (scripts/forge/oracle.py + oracles.json). write: UNIQUEMENT l'evidence log dans lab/forge_evidence. create: l'evidence log. delete: aucun.",
+          "parentId": "s10a-oracle-code"
+        }
+      },
+      {
+        "id": "s10a-oracle-code-c-modele",
+        "type": "agent-component",
+        "x": 76,
+        "y": 1436,
+        "data": {
+          "componentType": "modele",
+          "text": "Oracle déterministe (non-LLM) — déterministe non-LLM (capability_role: deterministic)",
+          "parentId": "s10a-oracle-code"
+        }
+      },
+      {
+        "id": "s10a-oracle-code-c-sortieAttendue",
+        "type": "agent-component",
+        "x": 180,
+        "y": 1436,
+        "data": {
+          "componentType": "sortieAttendue",
+          "text": "Contrat de sortie (output_contract) : evidence log : {commande, exit_code, tests_pass, tests_fail, hash}. PASS/FAIL.\n\nCritères de succès : evidence log complet {commande, exit_code, tests_pass, tests_fail, hash} ; verdict PASS/FAIL déterministe.\n\nOracles/tests : scripts/forge/oracle.py + oracles.json (cargo/pytest/vitest) — déterministe.\n\nRapport final : software/evidence/claim séparés ; cite l'oracle code utilisé ; software_verdict OK/FAIL selon PASS/FAIL de l'oracle ; claim_verdict: NO_CLAIM_ALLOWED. Sans oracle disponible => remonte un besoin HumanGate (fog), pas de claim.",
+          "parentId": "s10a-oracle-code"
+        }
+      },
+      {
+        "id": "s10b-oracle-archi",
+        "type": "agent",
+        "x": 560,
+        "y": 1540,
+        "data": {
+          "role": "Étape 10b — Oracle ARCHI",
+          "model": "Oracle déterministe (non-LLM)",
+          "capability_role": "deterministic",
+          "runtime": "deterministic",
+          "temperature": null,
+          "top_p": null,
+          "max_tokens": null,
+          "note": "Étape 10b — Oracle ARCHI — DÉTERMINISTE (non-LLM) · capability_role=deterministic résolu via scripts/forge/contracts/roles.yaml -> Oracle déterministe (non-LLM). delegation_context : Étape 10b, oracle en aval du Build (9).",
+          "oracleRef": "oracle-s10b-oracle-archi"
+        },
+        "attachedOracle": {
+          "id": "oracle-s10b-oracle-archi",
+          "name": "Étape 10b — Oracle ARCHI : dépendances interdites absentes · chaque module a des tests",
+          "badge": "target"
+        }
+      },
+      {
+        "id": "s10b-oracle-archi-c-memoire",
+        "type": "agent-component",
+        "x": 556,
+        "y": 1280,
+        "data": {
+          "componentType": "memoire",
+          "text": "Consomme l'artefact de Build (étape 9) et le blueprint.yaml gelé par l'Architecte (étape 4) : deps autorisées/interdites + ownership. Conventions : CLAUDE.md + rules/. Le graphe réel est mesuré, pas jugé.\n\nLecture obligatoire (mandatory_read) : scripts/forge/contracts/SCHEMA.md · blueprint.yaml (deps autorisées/interdites)",
+          "parentId": "s10b-oracle-archi"
+        }
+      },
+      {
+        "id": "s10b-oracle-archi-c-skill",
+        "type": "agent-component",
+        "x": 660,
+        "y": 1280,
+        "data": {
+          "componentType": "skill",
+          "text": "aucun",
+          "parentId": "s10b-oracle-archi"
+        }
+      },
+      {
+        "id": "s10b-oracle-archi-c-plugin",
+        "type": "agent-component",
+        "x": 556,
+        "y": 1332,
+        "data": {
+          "componentType": "plugin",
+          "text": "aucun",
+          "parentId": "s10b-oracle-archi"
+        }
+      },
+      {
+        "id": "s10b-oracle-archi-c-role",
+        "type": "agent-component",
+        "x": 660,
+        "y": 1332,
+        "data": {
+          "componentType": "role",
+          "text": "Oracle ARCHITECTURE (déterministe non-LLM). Point de vue : vérificateur de graphe de dépendances.\n\nExigences cognitives : aucun raisonnement LLM — vérification déterministe des deps.",
+          "parentId": "s10b-oracle-archi"
+        }
+      },
+      {
+        "id": "s10b-oracle-archi-c-objectif",
+        "type": "agent-component",
+        "x": 556,
+        "y": 1384,
+        "data": {
+          "componentType": "objectif",
+          "text": "Prouver ARCHI : « PASS: domain does not import infrastructure » / « FAIL: ui imports database ».\n\nPérimètre autorisé (in_scope) : Vérifier le graphe de dépendances contre le blueprint : deps interdites violées, ownership débordé. Émettre PASS/FAIL.",
+          "parentId": "s10b-oracle-archi"
+        }
+      },
+      {
+        "id": "s10b-oracle-archi-c-gardeFou",
+        "type": "agent-component",
+        "x": 660,
+        "y": 1384,
+        "data": {
+          "componentType": "gardeFou",
+          "text": "JAMAIS de LLM-as-judge.\n\nHors-scope : aucun jugement LLM ; ne modifie pas l'archi ni le code.\n\nPermissions : read: repo entier. run: l'oracle archi (vérificateur de graphe de dépendances). write: UNIQUEMENT le rapport archi. create: le rapport archi. delete: aucun.",
+          "parentId": "s10b-oracle-archi"
+        }
+      },
+      {
+        "id": "s10b-oracle-archi-c-modele",
+        "type": "agent-component",
+        "x": 556,
+        "y": 1436,
+        "data": {
+          "componentType": "modele",
+          "text": "Oracle déterministe (non-LLM) — déterministe non-LLM (capability_role: deterministic)",
+          "parentId": "s10b-oracle-archi"
+        }
+      },
+      {
+        "id": "s10b-oracle-archi-c-sortieAttendue",
+        "type": "agent-component",
+        "x": 660,
+        "y": 1436,
+        "data": {
+          "componentType": "sortieAttendue",
+          "text": "Contrat de sortie (output_contract) : rapport archi : {deps_interdites_violées[], modules_sans_test[], debordements_ownership[]}. PASS/FAIL.\n\nCritères de succès : rapport {deps_interdites_violées[], modules_sans_test[], debordements_ownership[]} ; verdict PASS/FAIL déterministe.\n\nOracles/tests : import-linter / vérificateur de graphe de dépendances — déterministe.\n\nRapport final : software/evidence/claim séparés ; cite l'oracle archi utilisé ; software_verdict OK/FAIL selon PASS/FAIL de l'oracle ; claim_verdict: NO_CLAIM_ALLOWED. Sans oracle disponible => remonte un besoin HumanGate (fog), pas de claim.",
+          "parentId": "s10b-oracle-archi"
+        }
+      },
+      {
+        "id": "s10c-oracle-wiremap",
+        "type": "agent",
+        "x": 1040,
+        "y": 1540,
+        "data": {
+          "role": "Étape 10c — Oracle WIREMAP",
+          "model": "Oracle déterministe (non-LLM)",
+          "capability_role": "deterministic",
+          "runtime": "deterministic",
+          "temperature": null,
+          "top_p": null,
+          "max_tokens": null,
+          "note": "Étape 10c — Oracle WIREMAP — DÉTERMINISTE (non-LLM) · capability_role=deterministic résolu via scripts/forge/contracts/roles.yaml -> Oracle déterministe (non-LLM). delegation_context : Étape 10c, oracle en aval du Build (9).",
+          "oracleRef": "oracle-s10c-oracle-wiremap"
+        },
+        "attachedOracle": {
+          "id": "oracle-s10c-oracle-wiremap",
+          "name": "Étape 10c — Oracle WIREMAP : isomorphe & cohérente (AST, détecte renommages)",
+          "badge": "target"
+        }
+      },
+      {
+        "id": "s10c-oracle-wiremap-c-memoire",
+        "type": "agent-component",
+        "x": 1036,
+        "y": 1280,
+        "data": {
+          "componentType": "memoire",
+          "text": "Consomme la WireMap (étape 5) et l'artefact de Build (étape 9) ; connaît l'arbre source réel du projet. La vérification compare la WireMap au code réel par AST. Conventions : CLAUDE.md + rules/. L'evidence se dépose dans lab/forge_evidence.\n\nLecture obligatoire (mandatory_read) : scripts/forge/contracts/SCHEMA.md · la WireMap (étape 5) · l'arbre source réel",
+          "parentId": "s10c-oracle-wiremap"
+        }
+      },
+      {
+        "id": "s10c-oracle-wiremap-c-skill",
+        "type": "agent-component",
+        "x": 1140,
+        "y": 1280,
+        "data": {
+          "componentType": "skill",
+          "text": "aucun",
+          "parentId": "s10c-oracle-wiremap"
+        }
+      },
+      {
+        "id": "s10c-oracle-wiremap-c-plugin",
+        "type": "agent-component",
+        "x": 1036,
+        "y": 1332,
+        "data": {
+          "componentType": "plugin",
+          "text": "aucun",
+          "parentId": "s10c-oracle-wiremap"
+        }
+      },
+      {
+        "id": "s10c-oracle-wiremap-c-role",
+        "type": "agent-component",
+        "x": 1140,
+        "y": 1332,
+        "data": {
+          "componentType": "role",
+          "text": "Oracle WIREMAP (déterministe non-LLM). Point de vue : vérificateur d'isomorphisme wiremap↔code.\n\nExigences cognitives : aucun raisonnement LLM — vérification AST déterministe.",
+          "parentId": "s10c-oracle-wiremap"
+        }
+      },
+      {
+        "id": "s10c-oracle-wiremap-c-objectif",
+        "type": "agent-component",
+        "x": 1036,
+        "y": 1384,
+        "data": {
+          "componentType": "objectif",
+          "text": "Prouver WIREMAP : signale feature manquante · fonction renommée · WireMap obsolète · preuve absente.\n\nPérimètre autorisé (in_scope) : Comparer la WireMap au code réel (AST), signaler les divergences.",
+          "parentId": "s10c-oracle-wiremap"
+        }
+      },
+      {
+        "id": "s10c-oracle-wiremap-c-gardeFou",
+        "type": "agent-component",
+        "x": 1140,
+        "y": 1384,
+        "data": {
+          "componentType": "gardeFou",
+          "text": "JAMAIS de LLM-as-judge.\n\nHors-scope : aucun jugement LLM ; ne modifie pas la WireMap ni le code.\n\nPermissions : read: repo entier. run: l'oracle wiremap (scripts/forge). write: UNIQUEMENT le rapport wiremap dans lab/forge_evidence. create: le rapport wiremap. delete: aucun.",
+          "parentId": "s10c-oracle-wiremap"
+        }
+      },
+      {
+        "id": "s10c-oracle-wiremap-c-modele",
+        "type": "agent-component",
+        "x": 1036,
+        "y": 1436,
+        "data": {
+          "componentType": "modele",
+          "text": "Oracle déterministe (non-LLM) — déterministe non-LLM (capability_role: deterministic)",
+          "parentId": "s10c-oracle-wiremap"
+        }
+      },
+      {
+        "id": "s10c-oracle-wiremap-c-sortieAttendue",
+        "type": "agent-component",
+        "x": 1140,
+        "y": 1436,
+        "data": {
+          "componentType": "sortieAttendue",
+          "text": "Contrat de sortie (output_contract) : rapport wiremap : {features_manquantes[], fonctions_renommées[], obsoletes[], preuves_absentes[]}. PASS/FAIL.\n\nCritères de succès : rapport {features_manquantes[], fonctions_renommées[], obsoletes[], preuves_absentes[]} ; verdict PASS/FAIL déterministe.\n\nOracles/tests : oracle wiremap AST (scripts/forge) — déterministe.\n\nRapport final : software/evidence/claim séparés ; cite l'oracle wiremap utilisé ; software_verdict OK/FAIL selon PASS/FAIL de l'oracle ; claim_verdict: NO_CLAIM_ALLOWED. Sans oracle disponible => remonte un besoin HumanGate (fog), pas de claim.",
+          "parentId": "s10c-oracle-wiremap"
+        }
+      },
+      {
+        "id": "s11-redteam-code",
+        "type": "agent",
+        "x": 1520,
+        "y": 1540,
+        "data": {
+          "role": "Étape 11 — Red-team CODE (aveuglé)",
+          "model": "Claude Opus 4.8",
+          "capability_role": "redteam_code",
+          "runtime": "llm",
+          "temperature": null,
+          "top_p": null,
+          "max_tokens": null,
+          "note": "Étape 11 — Red-team CODE (aveuglé) — LLM · capability_role=redteam_code résolu via scripts/forge/contracts/roles.yaml -> Claude Opus 4.8. delegation_context : Étape 11, en aval du Build/Oracles, en amont du Verdict (12)."
+        }
+      },
+      {
+        "id": "s11-redteam-code-c-memoire",
+        "type": "agent-component",
+        "x": 1516,
+        "y": 1280,
+        "data": {
+          "componentType": "memoire",
+          "text": "Consomme uniquement le code produit à l'étape 9 (le diff), SANS les justifications du builder. Conventions : CLAUDE.md + rules/. Advisory : ne remplace pas les oracles.\n\nLecture obligatoire (mandatory_read) : scripts/forge/contracts/SCHEMA.md · le diff produit par le Builder (étape 9) SANS ses justifications",
+          "parentId": "s11-redteam-code"
+        }
+      },
+      {
+        "id": "s11-redteam-code-c-skill",
+        "type": "agent-component",
+        "x": 1620,
+        "y": 1280,
+        "data": {
+          "componentType": "skill",
+          "text": "aucun",
+          "parentId": "s11-redteam-code"
+        }
+      },
+      {
+        "id": "s11-redteam-code-c-plugin",
+        "type": "agent-component",
+        "x": 1516,
+        "y": 1332,
+        "data": {
+          "componentType": "plugin",
+          "text": "aucun",
+          "parentId": "s11-redteam-code"
+        }
+      },
+      {
+        "id": "s11-redteam-code-c-role",
+        "type": "agent-component",
+        "x": 1620,
+        "y": 1332,
+        "data": {
+          "componentType": "role",
+          "text": "Red-team CODE (sous-agent AVEUGLÉ). Point de vue : auditeur qui ne voit pas les justifications du builder.\n\nExigences cognitives : Audit adverse à contexte vierge, non biaisé par le raisonnement du builder. Cherche activement les failles et prouve chacune par une reproduction.",
+          "parentId": "s11-redteam-code"
+        }
+      },
+      {
+        "id": "s11-redteam-code-c-objectif",
+        "type": "agent-component",
+        "x": 1516,
+        "y": 1384,
+        "data": {
+          "componentType": "objectif",
+          "text": "Produire un rapport de failles INDÉPENDANT, non biaisé par les justifications du builder.\n\nPérimètre autorisé (in_scope) : Audit du code produit ; recherche de failles avec reproduction. Écrit uniquement rapport_redteam_code.md.",
+          "parentId": "s11-redteam-code"
+        }
+      },
+      {
+        "id": "s11-redteam-code-c-gardeFou",
+        "type": "agent-component",
+        "x": 1620,
+        "y": 1384,
+        "data": {
+          "componentType": "gardeFou",
+          "text": "Contexte vierge (aveuglé) : l'agent ne voit pas le raisonnement du builder et ne doit pas le reconstituer pour se rassurer. Chaque faille rapportée doit être accompagnée d'une reproduction concrète — pas de suspicion non prouvée.\n\nHors-scope : Ne voit pas le raisonnement du builder ; ne corrige pas lui-même ; ne touche pas aux lanes protégées (tests/**).\n\nPermissions : read: le code produit (le diff de l'étape 9). write: rapport_redteam_code.md uniquement. run: aucun. delete: aucun.",
+          "parentId": "s11-redteam-code"
+        }
+      },
+      {
+        "id": "s11-redteam-code-c-modele",
+        "type": "agent-component",
+        "x": 1516,
+        "y": 1436,
+        "data": {
+          "componentType": "modele",
+          "text": "Claude Opus 4.8 (capability_role: redteam_code)",
+          "parentId": "s11-redteam-code"
+        }
+      },
+      {
+        "id": "s11-redteam-code-c-sortieAttendue",
+        "type": "agent-component",
+        "x": 1620,
+        "y": 1436,
+        "data": {
+          "componentType": "sortieAttendue",
+          "text": "Contrat de sortie (output_contract) : rapport_redteam_code.md : {angle, faille, sévérité, reproduction}.\n\nCritères de succès : Rapport listant, pour chaque faille : {angle, faille, sévérité, reproduction}.\n\nOracles/tests : Le red-team CRITIQUE, les oracles PROUVENT — séparés. La reproduction fournie doit être exécutable par un oracle non-LLM en aval. Jamais de LLM-as-judge se substituant aux oracles.\n\nRapport final : software/evidence/claim séparés ; chaque faille cite sa reproduction (oracle) ; claim_verdict: NO_CLAIM_ALLOWED. Sans oracle disponible => remonte un besoin HumanGate (fog), pas de claim.",
+          "parentId": "s11-redteam-code"
+        }
+      },
+      {
+        "id": "s12-verdict",
+        "type": "agent",
+        "x": 560,
+        "y": 2140,
+        "data": {
+          "role": "Étape 12 — Verdict signé HMAC",
+          "model": "Oracle déterministe (non-LLM)",
+          "capability_role": "deterministic",
+          "runtime": "deterministic",
+          "temperature": null,
+          "top_p": null,
+          "max_tokens": null,
+          "note": "Étape 12 — Verdict signé HMAC — DÉTERMINISTE (non-LLM) · capability_role=deterministic résolu via scripts/forge/contracts/roles.yaml -> Oracle déterministe (non-LLM). delegation_context : Étape 12, en aval des Oracles (10) + Red-team code (11), en amont du HumanGate (13)."
+        }
+      },
+      {
+        "id": "s12-verdict-c-memoire",
+        "type": "agent-component",
+        "x": 556,
+        "y": 1880,
+        "data": {
+          "componentType": "memoire",
+          "text": "Doctrine verdict.py : sépare software_verdict / evidence_verdict / claim_verdict (NO_CLAIM_ALLOWED). gate.py bloque sur oracle rouge en aval. Le verdict signé est la porte de sortie en miroir du contrat (porte d'entrée). Conventions : CLAUDE.md.\n\nLecture obligatoire (mandatory_read) : scripts/forge/contracts/SCHEMA.md · scripts/forge/verdict.py · les evidence logs des oracles (étapes 10a/10b/10c) + red-team code (étape 11)",
+          "parentId": "s12-verdict"
+        }
+      },
+      {
+        "id": "s12-verdict-c-skill",
+        "type": "agent-component",
+        "x": 660,
+        "y": 1880,
+        "data": {
+          "componentType": "skill",
+          "text": "aucun",
+          "parentId": "s12-verdict"
+        }
+      },
+      {
+        "id": "s12-verdict-c-plugin",
+        "type": "agent-component",
+        "x": 556,
+        "y": 1932,
+        "data": {
+          "componentType": "plugin",
+          "text": "aucun",
+          "parentId": "s12-verdict"
+        }
+      },
+      {
+        "id": "s12-verdict-c-role",
+        "type": "agent-component",
+        "x": 660,
+        "y": 1932,
+        "data": {
+          "componentType": "role",
+          "text": "Verdict signé HMAC (étape 12). Point de vue : notaire mécanique, aucune inférence libre.\n\nExigences cognitives : aucun raisonnement LLM — agrégation + signature HMAC-SHA256 déterministe.",
+          "parentId": "s12-verdict"
+        }
+      },
+      {
+        "id": "s12-verdict-c-objectif",
+        "type": "agent-component",
+        "x": 556,
+        "y": 1984,
+        "data": {
+          "componentType": "objectif",
+          "text": "Émettre un verdict signé, vérifiable, non falsifiable, pour le HumanGate.\n\nPérimètre autorisé (in_scope) : Agréger les verdicts des oracles + red-team, signer HMAC-SHA256, produire verdict.json. Écrit uniquement verdict.json.",
+          "parentId": "s12-verdict"
+        }
+      },
+      {
+        "id": "s12-verdict-c-gardeFou",
+        "type": "agent-component",
+        "x": 660,
+        "y": 1984,
+        "data": {
+          "componentType": "gardeFou",
+          "text": "NO_CLAIM_ALLOWED ; sépare software/evidence/claim ; ne décide pas le merge.\n\nHors-scope : aucune inférence libre ; ne décide pas merge/reject (c'est le HumanGate).\n\nPermissions : read: les evidence logs des oracles (10a/b/c) + red-team (11). run: la signature HMAC. write: verdict.json UNIQUEMENT. create: verdict.json. delete: aucun.",
+          "parentId": "s12-verdict"
+        }
+      },
+      {
+        "id": "s12-verdict-c-modele",
+        "type": "agent-component",
+        "x": 556,
+        "y": 2036,
+        "data": {
+          "componentType": "modele",
+          "text": "Oracle déterministe (non-LLM) — déterministe non-LLM (capability_role: deterministic)",
+          "parentId": "s12-verdict"
+        }
+      },
+      {
+        "id": "s12-verdict-c-sortieAttendue",
+        "type": "agent-component",
+        "x": 660,
+        "y": 2036,
+        "data": {
+          "componentType": "sortieAttendue",
+          "text": "Contrat de sortie (output_contract) : verdict.json signé : {software, evidence, claim, decision, hmac}. NO_CLAIM_ALLOWED.\n\nCritères de succès : verdict.json signé {software, evidence, claim, decision, hmac} vérifiable.\n\nOracles/tests : scripts/forge/verdict.py (HMAC-SHA256) — déterministe, pas d'inférence.\n\nRapport final : Le verdict EST la restitution signée : software/evidence/claim séparés, signature HMAC vérifiable. claim_verdict: NO_CLAIM_ALLOWED. Sans oracle disponible => remonte un besoin HumanGate (fog), pas de claim auto-certifié.",
+          "parentId": "s12-verdict"
+        }
+      },
+      {
+        "id": "s7-blueprint-gate",
+        "type": "humangate",
+        "x": 1520,
+        "y": 940,
+        "data": {
+          "message": "Étape 7 BLUEPRINT GATE (Pierre) : décompo + architecture + wiremap gelés ET isomorphes ? GO / retour 1-5.",
+          "rule": "isomorphisme wiremap ↔ archi vérifié ; tout gelé",
+          "context": [
+            "featuremap",
+            "blueprint.yaml",
+            "wiremap"
+          ],
+          "actsAsOracle": true
+        }
+      },
+      {
+        "id": "s8-createrepo",
+        "type": "tool",
+        "x": 1520,
+        "y": 1180,
+        "data": {
+          "name": "create-repo",
+          "description": "Étape 8 CREATE REPO : la structure src/ tombe du blueprint gelé (jamais « au feeling ») ; pose le dossier .forge/ (plan/blueprint/oracle/verdicts/memory) à la racine du projet cible."
+        }
+      },
+      {
+        "id": "oracle-join",
+        "type": "join",
+        "x": 1300,
+        "y": 1540,
+        "data": {
+          "waitFor": [
+            "s10a-oracle-code",
+            "s10b-oracle-archi",
+            "s10c-oracle-wiremap"
+          ]
+        }
+      },
+      {
+        "id": "s13-humangate",
+        "type": "humangate",
+        "x": 1040,
+        "y": 2140,
+        "data": {
+          "message": "Étape 13 HUMAN GATE (Pierre, souverain) : MERGE · REJECT · FREEZE. Jamais « continue ». Pierre audite la chaîne de preuves (verdict HMAC), pas le code ligne à ligne.",
+          "rule": "merge / reject / freeze",
+          "context": [
+            "verdict HMAC",
+            "graphe de confiance"
+          ],
+          "actsAsOracle": false
+        }
+      },
+      {
+        "id": "s14-memoire",
+        "type": "tool",
+        "x": 1520,
+        "y": 2140,
+        "data": {
+          "name": "PILOU — mémoire (facts / decisions / postmortems)",
+          "description": "Étape 14 MÉMOIRE : facts.json · decisions.json · postmortems.json (confiance 0-100 + source). Le pré-mortem des pannes REBOUCLE vers le Red-team du PLAN (étape 6)."
+        }
+      },
+      {
+        "id": "note-invariants",
+        "type": "note",
+        "x": 80,
+        "y": 2140,
+        "data": {
+          "text": "FORGE RÉELLE (implémentée) — 13 étapes-agents (scripts/forge/dispatch.py ORDER), chacune bornée par son contrat 17 champs (scripts/forge/contracts/<id>.yaml, schéma SCHEMA.md). Modèle jamais en dur : capability_role résolu par roles.yaml (ADR-002 gate 1). Modules : contract·dispatch·static_oracles·gate·oracle·verdict·studio_link·hook_guard (80 tests verts). Connecteurs studio ADR-002 (télémétrie · Kaizen-propose · mémoire projet · pré-mortem) propose-only + hook dur PreToolUse. Skill .claude/skills/forge/skill.md. 1er run réel prouvé : chesscolor. MAP 17→8 : les 17 champs du contrat sont repliés sur les 8 satellites que le builder rend (memoire+mandatory_read · role+exigences · objectif+in_scope · gardeFou+out_of_scope+permissions · modele=runtime résolu+capability_role · sortieAttendue=output_contract+success_criteria+tests_oracles+final_report · skill · plugin ; delegation_context -> note du nœud central). INVARIANTS : oracle déterministe non-LLM (le test vert EST le verdict) · red-team sur le PLAN, jamais sur l'oracle · HumanGate souverain (NO_CLAIM_ALLOWED, verdict HMAC)."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "s0-contrat-ce-memoire",
+        "from": "s0-contrat",
+        "to": "s0-contrat-c-memoire",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s0-contrat-ce-skill",
+        "from": "s0-contrat",
+        "to": "s0-contrat-c-skill",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s0-contrat-ce-plugin",
+        "from": "s0-contrat",
+        "to": "s0-contrat-c-plugin",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s0-contrat-ce-role",
+        "from": "s0-contrat",
+        "to": "s0-contrat-c-role",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s0-contrat-ce-objectif",
+        "from": "s0-contrat",
+        "to": "s0-contrat-c-objectif",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s0-contrat-ce-gardeFou",
+        "from": "s0-contrat",
+        "to": "s0-contrat-c-gardeFou",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s0-contrat-ce-modele",
+        "from": "s0-contrat",
+        "to": "s0-contrat-c-modele",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s0-contrat-ce-sortieAttendue",
+        "from": "s0-contrat",
+        "to": "s0-contrat-c-sortieAttendue",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s1-prisme-ce-memoire",
+        "from": "s1-prisme",
+        "to": "s1-prisme-c-memoire",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s1-prisme-ce-skill",
+        "from": "s1-prisme",
+        "to": "s1-prisme-c-skill",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s1-prisme-ce-plugin",
+        "from": "s1-prisme",
+        "to": "s1-prisme-c-plugin",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s1-prisme-ce-role",
+        "from": "s1-prisme",
+        "to": "s1-prisme-c-role",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s1-prisme-ce-objectif",
+        "from": "s1-prisme",
+        "to": "s1-prisme-c-objectif",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s1-prisme-ce-gardeFou",
+        "from": "s1-prisme",
+        "to": "s1-prisme-c-gardeFou",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s1-prisme-ce-modele",
+        "from": "s1-prisme",
+        "to": "s1-prisme-c-modele",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s1-prisme-ce-sortieAttendue",
+        "from": "s1-prisme",
+        "to": "s1-prisme-c-sortieAttendue",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s2-worldscan-ce-memoire",
+        "from": "s2-worldscan",
+        "to": "s2-worldscan-c-memoire",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s2-worldscan-ce-skill",
+        "from": "s2-worldscan",
+        "to": "s2-worldscan-c-skill",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s2-worldscan-ce-plugin",
+        "from": "s2-worldscan",
+        "to": "s2-worldscan-c-plugin",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s2-worldscan-ce-role",
+        "from": "s2-worldscan",
+        "to": "s2-worldscan-c-role",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s2-worldscan-ce-objectif",
+        "from": "s2-worldscan",
+        "to": "s2-worldscan-c-objectif",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s2-worldscan-ce-gardeFou",
+        "from": "s2-worldscan",
+        "to": "s2-worldscan-c-gardeFou",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s2-worldscan-ce-modele",
+        "from": "s2-worldscan",
+        "to": "s2-worldscan-c-modele",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s2-worldscan-ce-sortieAttendue",
+        "from": "s2-worldscan",
+        "to": "s2-worldscan-c-sortieAttendue",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s3-decompo-ce-memoire",
+        "from": "s3-decompo",
+        "to": "s3-decompo-c-memoire",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s3-decompo-ce-skill",
+        "from": "s3-decompo",
+        "to": "s3-decompo-c-skill",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s3-decompo-ce-plugin",
+        "from": "s3-decompo",
+        "to": "s3-decompo-c-plugin",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s3-decompo-ce-role",
+        "from": "s3-decompo",
+        "to": "s3-decompo-c-role",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s3-decompo-ce-objectif",
+        "from": "s3-decompo",
+        "to": "s3-decompo-c-objectif",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s3-decompo-ce-gardeFou",
+        "from": "s3-decompo",
+        "to": "s3-decompo-c-gardeFou",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s3-decompo-ce-modele",
+        "from": "s3-decompo",
+        "to": "s3-decompo-c-modele",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s3-decompo-ce-sortieAttendue",
+        "from": "s3-decompo",
+        "to": "s3-decompo-c-sortieAttendue",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s4-archi-ce-memoire",
+        "from": "s4-archi",
+        "to": "s4-archi-c-memoire",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s4-archi-ce-skill",
+        "from": "s4-archi",
+        "to": "s4-archi-c-skill",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s4-archi-ce-plugin",
+        "from": "s4-archi",
+        "to": "s4-archi-c-plugin",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s4-archi-ce-role",
+        "from": "s4-archi",
+        "to": "s4-archi-c-role",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s4-archi-ce-objectif",
+        "from": "s4-archi",
+        "to": "s4-archi-c-objectif",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s4-archi-ce-gardeFou",
+        "from": "s4-archi",
+        "to": "s4-archi-c-gardeFou",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s4-archi-ce-modele",
+        "from": "s4-archi",
+        "to": "s4-archi-c-modele",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s4-archi-ce-sortieAttendue",
+        "from": "s4-archi",
+        "to": "s4-archi-c-sortieAttendue",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s5-wiremap-ce-memoire",
+        "from": "s5-wiremap",
+        "to": "s5-wiremap-c-memoire",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s5-wiremap-ce-skill",
+        "from": "s5-wiremap",
+        "to": "s5-wiremap-c-skill",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s5-wiremap-ce-plugin",
+        "from": "s5-wiremap",
+        "to": "s5-wiremap-c-plugin",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s5-wiremap-ce-role",
+        "from": "s5-wiremap",
+        "to": "s5-wiremap-c-role",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s5-wiremap-ce-objectif",
+        "from": "s5-wiremap",
+        "to": "s5-wiremap-c-objectif",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s5-wiremap-ce-gardeFou",
+        "from": "s5-wiremap",
+        "to": "s5-wiremap-c-gardeFou",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s5-wiremap-ce-modele",
+        "from": "s5-wiremap",
+        "to": "s5-wiremap-c-modele",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s5-wiremap-ce-sortieAttendue",
+        "from": "s5-wiremap",
+        "to": "s5-wiremap-c-sortieAttendue",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s6-redteam-plan-ce-memoire",
+        "from": "s6-redteam-plan",
+        "to": "s6-redteam-plan-c-memoire",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s6-redteam-plan-ce-skill",
+        "from": "s6-redteam-plan",
+        "to": "s6-redteam-plan-c-skill",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s6-redteam-plan-ce-plugin",
+        "from": "s6-redteam-plan",
+        "to": "s6-redteam-plan-c-plugin",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s6-redteam-plan-ce-role",
+        "from": "s6-redteam-plan",
+        "to": "s6-redteam-plan-c-role",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s6-redteam-plan-ce-objectif",
+        "from": "s6-redteam-plan",
+        "to": "s6-redteam-plan-c-objectif",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s6-redteam-plan-ce-gardeFou",
+        "from": "s6-redteam-plan",
+        "to": "s6-redteam-plan-c-gardeFou",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s6-redteam-plan-ce-modele",
+        "from": "s6-redteam-plan",
+        "to": "s6-redteam-plan-c-modele",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s6-redteam-plan-ce-sortieAttendue",
+        "from": "s6-redteam-plan",
+        "to": "s6-redteam-plan-c-sortieAttendue",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s9-build-ce-memoire",
+        "from": "s9-build",
+        "to": "s9-build-c-memoire",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s9-build-ce-skill",
+        "from": "s9-build",
+        "to": "s9-build-c-skill",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s9-build-ce-plugin",
+        "from": "s9-build",
+        "to": "s9-build-c-plugin",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s9-build-ce-role",
+        "from": "s9-build",
+        "to": "s9-build-c-role",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s9-build-ce-objectif",
+        "from": "s9-build",
+        "to": "s9-build-c-objectif",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s9-build-ce-gardeFou",
+        "from": "s9-build",
+        "to": "s9-build-c-gardeFou",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s9-build-ce-modele",
+        "from": "s9-build",
+        "to": "s9-build-c-modele",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s9-build-ce-sortieAttendue",
+        "from": "s9-build",
+        "to": "s9-build-c-sortieAttendue",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10a-oracle-code-ce-memoire",
+        "from": "s10a-oracle-code",
+        "to": "s10a-oracle-code-c-memoire",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10a-oracle-code-ce-skill",
+        "from": "s10a-oracle-code",
+        "to": "s10a-oracle-code-c-skill",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10a-oracle-code-ce-plugin",
+        "from": "s10a-oracle-code",
+        "to": "s10a-oracle-code-c-plugin",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10a-oracle-code-ce-role",
+        "from": "s10a-oracle-code",
+        "to": "s10a-oracle-code-c-role",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10a-oracle-code-ce-objectif",
+        "from": "s10a-oracle-code",
+        "to": "s10a-oracle-code-c-objectif",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10a-oracle-code-ce-gardeFou",
+        "from": "s10a-oracle-code",
+        "to": "s10a-oracle-code-c-gardeFou",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10a-oracle-code-ce-modele",
+        "from": "s10a-oracle-code",
+        "to": "s10a-oracle-code-c-modele",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10a-oracle-code-ce-sortieAttendue",
+        "from": "s10a-oracle-code",
+        "to": "s10a-oracle-code-c-sortieAttendue",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10b-oracle-archi-ce-memoire",
+        "from": "s10b-oracle-archi",
+        "to": "s10b-oracle-archi-c-memoire",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10b-oracle-archi-ce-skill",
+        "from": "s10b-oracle-archi",
+        "to": "s10b-oracle-archi-c-skill",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10b-oracle-archi-ce-plugin",
+        "from": "s10b-oracle-archi",
+        "to": "s10b-oracle-archi-c-plugin",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10b-oracle-archi-ce-role",
+        "from": "s10b-oracle-archi",
+        "to": "s10b-oracle-archi-c-role",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10b-oracle-archi-ce-objectif",
+        "from": "s10b-oracle-archi",
+        "to": "s10b-oracle-archi-c-objectif",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10b-oracle-archi-ce-gardeFou",
+        "from": "s10b-oracle-archi",
+        "to": "s10b-oracle-archi-c-gardeFou",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10b-oracle-archi-ce-modele",
+        "from": "s10b-oracle-archi",
+        "to": "s10b-oracle-archi-c-modele",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10b-oracle-archi-ce-sortieAttendue",
+        "from": "s10b-oracle-archi",
+        "to": "s10b-oracle-archi-c-sortieAttendue",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10c-oracle-wiremap-ce-memoire",
+        "from": "s10c-oracle-wiremap",
+        "to": "s10c-oracle-wiremap-c-memoire",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10c-oracle-wiremap-ce-skill",
+        "from": "s10c-oracle-wiremap",
+        "to": "s10c-oracle-wiremap-c-skill",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10c-oracle-wiremap-ce-plugin",
+        "from": "s10c-oracle-wiremap",
+        "to": "s10c-oracle-wiremap-c-plugin",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10c-oracle-wiremap-ce-role",
+        "from": "s10c-oracle-wiremap",
+        "to": "s10c-oracle-wiremap-c-role",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10c-oracle-wiremap-ce-objectif",
+        "from": "s10c-oracle-wiremap",
+        "to": "s10c-oracle-wiremap-c-objectif",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10c-oracle-wiremap-ce-gardeFou",
+        "from": "s10c-oracle-wiremap",
+        "to": "s10c-oracle-wiremap-c-gardeFou",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10c-oracle-wiremap-ce-modele",
+        "from": "s10c-oracle-wiremap",
+        "to": "s10c-oracle-wiremap-c-modele",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s10c-oracle-wiremap-ce-sortieAttendue",
+        "from": "s10c-oracle-wiremap",
+        "to": "s10c-oracle-wiremap-c-sortieAttendue",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s11-redteam-code-ce-memoire",
+        "from": "s11-redteam-code",
+        "to": "s11-redteam-code-c-memoire",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s11-redteam-code-ce-skill",
+        "from": "s11-redteam-code",
+        "to": "s11-redteam-code-c-skill",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s11-redteam-code-ce-plugin",
+        "from": "s11-redteam-code",
+        "to": "s11-redteam-code-c-plugin",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s11-redteam-code-ce-role",
+        "from": "s11-redteam-code",
+        "to": "s11-redteam-code-c-role",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s11-redteam-code-ce-objectif",
+        "from": "s11-redteam-code",
+        "to": "s11-redteam-code-c-objectif",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s11-redteam-code-ce-gardeFou",
+        "from": "s11-redteam-code",
+        "to": "s11-redteam-code-c-gardeFou",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s11-redteam-code-ce-modele",
+        "from": "s11-redteam-code",
+        "to": "s11-redteam-code-c-modele",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s11-redteam-code-ce-sortieAttendue",
+        "from": "s11-redteam-code",
+        "to": "s11-redteam-code-c-sortieAttendue",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s12-verdict-ce-memoire",
+        "from": "s12-verdict",
+        "to": "s12-verdict-c-memoire",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s12-verdict-ce-skill",
+        "from": "s12-verdict",
+        "to": "s12-verdict-c-skill",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s12-verdict-ce-plugin",
+        "from": "s12-verdict",
+        "to": "s12-verdict-c-plugin",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s12-verdict-ce-role",
+        "from": "s12-verdict",
+        "to": "s12-verdict-c-role",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s12-verdict-ce-objectif",
+        "from": "s12-verdict",
+        "to": "s12-verdict-c-objectif",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s12-verdict-ce-gardeFou",
+        "from": "s12-verdict",
+        "to": "s12-verdict-c-gardeFou",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s12-verdict-ce-modele",
+        "from": "s12-verdict",
+        "to": "s12-verdict-c-modele",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "s12-verdict-ce-sortieAttendue",
+        "from": "s12-verdict",
+        "to": "s12-verdict-c-sortieAttendue",
+        "fromHandle": "top",
+        "toHandle": "bottom",
+        "condition": "",
+        "_cardEdge": true
+      },
+      {
+        "id": "e-s0-s1",
+        "from": "s0-contrat",
+        "to": "s1-prisme"
+      },
+      {
+        "id": "e-s1-s2",
+        "from": "s1-prisme",
+        "to": "s2-worldscan"
+      },
+      {
+        "id": "e-s2-s3",
+        "from": "s2-worldscan",
+        "to": "s3-decompo"
+      },
+      {
+        "id": "e-s3-s4",
+        "from": "s3-decompo",
+        "to": "s4-archi"
+      },
+      {
+        "id": "e-s4-s5",
+        "from": "s4-archi",
+        "to": "s5-wiremap"
+      },
+      {
+        "id": "e-s5-s6",
+        "from": "s5-wiremap",
+        "to": "s6-redteam-plan"
+      },
+      {
+        "id": "e-s6-s7",
+        "from": "s6-redteam-plan",
+        "to": "s7-blueprint-gate"
+      },
+      {
+        "id": "e-s7-s8",
+        "from": "s7-blueprint-gate",
+        "to": "s8-createrepo"
+      },
+      {
+        "id": "e-s8-s9",
+        "from": "s8-createrepo",
+        "to": "s9-build"
+      },
+      {
+        "id": "e-s9-10a",
+        "from": "s9-build",
+        "to": "s10a-oracle-code"
+      },
+      {
+        "id": "e-s9-10b",
+        "from": "s9-build",
+        "to": "s10b-oracle-archi"
+      },
+      {
+        "id": "e-s9-10c",
+        "from": "s9-build",
+        "to": "s10c-oracle-wiremap"
+      },
+      {
+        "id": "e-10a-join",
+        "from": "s10a-oracle-code",
+        "to": "oracle-join"
+      },
+      {
+        "id": "e-10b-join",
+        "from": "s10b-oracle-archi",
+        "to": "oracle-join"
+      },
+      {
+        "id": "e-10c-join",
+        "from": "s10c-oracle-wiremap",
+        "to": "oracle-join"
+      },
+      {
+        "id": "e-join-11",
+        "from": "oracle-join",
+        "to": "s11-redteam-code",
+        "condition": "oracle VERT"
+      },
+      {
+        "id": "e-11-12",
+        "from": "s11-redteam-code",
+        "to": "s12-verdict"
+      },
+      {
+        "id": "e-12-13",
+        "from": "s12-verdict",
+        "to": "s13-humangate"
+      },
+      {
+        "id": "e-13-14",
+        "from": "s13-humangate",
+        "to": "s14-memoire"
+      },
+      {
+        "id": "e-oracle-red-loop",
+        "from": "oracle-join",
+        "to": "s9-build",
+        "loop": true,
+        "condition": "oracle ROUGE → classifie l'échec → retour Build",
+        "maxIterations": 3
+      },
+      {
+        "id": "e-memoire-loop",
+        "from": "s14-memoire",
+        "to": "s6-redteam-plan",
+        "loop": true,
+        "condition": "Mémoire/pré-mortem PILOU → nourrit le re-plan → reboucle vers Red-team (étape 6)",
+        "maxIterations": 3
+      }
+    ]
+  },
+  "created": "2026-07-09T00:00:00Z",
+  "updated": "2026-07-10T00:00:00Z"
+}

@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://tactical-chess-studio/schemas/ecg.schema.json",
+  "title": "ECG — état de cycle de vie gouverné (IMP-195)",
+  "description": "Champs ECG additifs d'un IMP + record de transition. Source unique des états et de leur ordre.",
+  "definitions": {
+    "ecg_state": {
+      "type": "string",
+      "enum": [
+        "PROPOSED",
+        "PLANNED",
+        "TEST_SPECCED",
+        "IN_PROGRESS",
+        "ORACLE_PENDING",
+        "VERDICT_SIGNED",
+        "CLOSED"
+      ]
+    },
+    "oracle_type": {
+      "type": "string",
+      "enum": ["code", "structure", "humangate", "none"]
+    },
+    "imp_id": {
+      "type": "string",
+      "pattern": "^IMP-[A-Za-z0-9]+$"
+    },
+    "blocked_by": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/imp_id" },
+      "uniqueItems": true
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["imp_id", "from", "to", "ts", "actor"],
+      "properties": {
+        "imp_id": { "$ref": "#/definitions/imp_id" },
+        "from": { "$ref": "#/definitions/ecg_state" },
+        "to": { "$ref": "#/definitions/ecg_state" },
+        "ts": { "type": "string" },
+        "actor": { "type": "string" }
+      }
+    }
+  },
+  "type": "object",
+  "description": "Fragment ECG d'un IMP (tous les champs sont optionnels — additif/rétro-compatible).",
+  "properties": {
+    "ecg_state": { "$ref": "#/definitions/ecg_state" },
+    "oracle_type": { "$ref": "#/definitions/oracle_type" },
+    "blocked_by": { "$ref": "#/definitions/blocked_by" }
+  }
+}

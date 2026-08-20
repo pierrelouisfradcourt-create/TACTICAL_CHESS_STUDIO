@@ -1,0 +1,11 @@
+pub mod neural_agent;
+pub(crate) mod neural_bridge;
+pub(crate) mod neural_config;
+pub(crate) mod neural_context;
+pub(crate) mod neural_fallback;
+pub(crate) mod neural_legal;
+pub(crate) mod neural_protocol;
+pub(crate) mod neural_selection;
+pub(crate) mod neural_telemetry;
+pub mod retrieval;
+pub mod uci_agent;

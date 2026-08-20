@@ -1,0 +1,339 @@
+{
+ "catalog_brick_ids_snapshot": [
+  "pat-damage-floor",
+  "pat-full-reachability",
+  "pat-zone-of-control",
+  "sys-damage-floor",
+  "sys-evader-basic",
+  "sys-grid-nav-m01",
+  "sys-guardian-zoc",
+  "sys-pursuer-continuous",
+  "sys-pursuer-mobile",
+  "sys-reachability"
+ ],
+ "created_ts": 1785264646.278241,
+ "escalations": 0,
+ "is_game": true,
+ "model_override": null,
+ "profile": "standard_godot",
+ "project": "snake",
+ "run_id": "snake-preuve-20260728-205046",
+ "run_status": "DONE",
+ "steps": {
+  "s10a-oracle-code": {
+   "attempts": 1,
+   "detail": {
+    "e2e": {
+     "checked": false,
+     "reason": "profil standard : preuve par bot_action/pixel (core_requirements.yaml ne déclare aucune preuve e2e), décision Pierre 2026-07-23",
+     "status": "SKIPPED"
+    },
+    "evidence_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\snake\\evidence\\oracle_snake.log",
+    "harness_no_hardcoded_flags": {
+     "passed": true,
+     "raisons": []
+    },
+    "product_oracle": {
+     "auto_session": {
+      "checked": false,
+      "passed": false,
+      "reason": "fichier logique loop absent, illisible ou pas un fichier: C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\05_SYSTEMS\\game_loop\\loop.mjs"
+     },
+     "browser_import_safety": {
+      "checked": false,
+      "entry": "C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\06_RUNTIME\\adapters\\presentation\\browser\\main.mjs",
+      "fichiers_analyses": [],
+      "node_imports_atteignables": [],
+      "passed": false,
+      "process_non_gardes": [],
+      "reason": "entrée navigateur absente, illisible ou pas un fichier: C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\06_RUNTIME\\adapters\\presentation\\browser\\main.mjs"
+     },
+     "exit_stop_wiring": {
+      "checked": false,
+      "limites": [
+       "exécute 07_TESTS/unit/exit_stop.test.mjs tel quel (node --test), jamais réimplémenté.",
+       "NE PROUVE PAS un clic navigateur réel sur le bouton 'Quitter' (aucune automatisation navigateur disponible sur ce poste).",
+       "NE PROUVE PAS de rendu observé de l'état figé — seul le câblage logique (requestExit/stop/tick no-op) est exercé."
+      ],
+      "passed": false,
+      "reason": "fichier de preuve absent, illisible ou pas un fichier: C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\07_TESTS\\unit\\exit_stop.test.mjs"
+     },
+     "playable_speed_band_test": {
+      "checked": false,
+      "limites": [
+       "exécute 07_TESTS/unit/playable_speed.test.mjs tel quel (node --test), jamais réimplémenté.",
+       "NE PROUVE PAS une perception humaine de jouabilité (aucun playtest humain ici) — dérivation purement numérique des constantes.",
+       "NE PROUVE PAS de rendu observé (aucun clic, aucune capture d'écran)."
+      ],
+      "passed": false,
+      "reason": "fichier de preuve absent, illisible ou pas un fichier: C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\07_TESTS\\unit\\playable_speed.test.mjs"
+     },
+     "restart_offer_wiring": {
+      "checked": false,
+      "limites": [
+       "exécute 07_TESTS/unit/restart_offer.test.mjs tel quel (node --test), jamais réimplémenté.",
+       "NE PROUVE PAS un clic navigateur réel sur le bouton 'Rejouer' (aucune automatisation navigateur disponible sur ce poste).",
+       "NE PROUVE PAS de rendu observé (aucune capture d'écran ici) — seul le câblage logique du contrôleur (createController().replay()) est exercé."
+      ],
+      "passed": false,
+      "reason": "fichier de preuve absent, illisible ou pas un fichier: C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\07_TESTS\\unit\\restart_offer.test.mjs"
+     },
+     "solo_ai_session": {
+      "ai_logic": {
+       "checked": false,
+       "passed": false,
+       "reason": "fichier de preuve absent, illisible ou pas un fichier: C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\07_TESTS\\unit\\ai.test.mjs"
+      },
+      "checked": false,
+      "limites": [
+       "exécute 07_TESTS/unit/ai.test.mjs (node --test) et 07_TESTS/oracle/solo_session.mjs (harnais bot_action) tels quels, jamais réimplémentés.",
+       "NE PROUVE PAS qu'un joueur humain réel joue ce mode : le camp gauche est un proxy déterministe (outil de test), pas un humain au clavier.",
+       "NE PROUVE PAS de clic réel ni de rendu observé — logique pure, aucune I/O."
+      ],
+      "passed": false,
+      "session": {
+       "checked": false,
+       "passed": false,
+       "reason": "fichier de preuve absent, illisible ou pas un fichier: C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\07_TESTS\\oracle\\solo_session.mjs"
+      }
+     },
+     "visual_capture": {
+      "browser": {
+       "error": "C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\06_RUNTIME\\adapters\\presentation\\capture_browser.mjs absent",
+       "json": null,
+       "ran": false
+      },
+      "godot": {
+       "error": "C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\06_RUNTIME\\adapters\\presentation\\capture_godot.mjs absent",
+       "json": null,
+       "ran": false
+      },
+      "limites": [
+       "n'appelle QUE les captures existantes (capture_browser.mjs/capture_godot.mjs) — jamais réimplémentées ici.",
+       "le volet Godot exige un binaire configuré ET une fenêtre GPU réelle (--rendering-driver vulkan) ; son absence rend le volet NOT_MEASURED, jamais un vert."
+      ],
+      "not_measured": true,
+      "passed": false,
+      "reason": "C:\\TACTICAL_CHESS_STUDIO\\games\\snake\\06_RUNTIME\\adapters\\presentation\\capture_browser.mjs absent",
+      "status": "NOT_MEASURED"
+     }
+    },
+    "reason": "fichiers logiques inconnus (ni logic_files ni wiremap.json) — preuve mutation impossible ; hypothèse inconnue = BLOCKED",
+    "returncode": 0,
+    "reuse_ratio_wired": {
+     "passed": false,
+     "raisons": [
+      "run-oracle.mjs absent"
+     ]
+    },
+    "search_consulted": {
+     "count": 0,
+     "passed": false,
+     "raisons": [
+      "aucune recherche journalisée depuis 2026-07-28T18:50:46.278Z (contrat s9-build §2bis non respecté, ou aucune brique ne pouvait matcher)"
+     ]
+    },
+    "solvability": {
+     "checked": true,
+     "passed": false,
+     "raisons": [
+      "la commande d'oracle du projet n'invoque pas 07_TESTS/oracle/solvability.mjs (volet solvabilité absent du gate) — argv=['node', 'scripts/forge/godot_oracle.mjs', 'games/snake']",
+      "07_TESTS/oracle/solvability.mjs absent (topologie STANDARD)"
+     ],
+     "topology": "standard"
+    }
+   },
+   "status": "BLOCKED",
+   "ts": 1785265214.9942849
+  },
+  "s10s-oracle-standard": {
+   "attempts": 1,
+   "detail": {
+    "budget": {
+     "chevauchement": [],
+     "empilement_violee": false,
+     "hors_budget": [],
+     "measured": true,
+     "passed": true,
+     "promis_non_depose": [],
+     "reuses_invalides": []
+    },
+    "collisions": {
+     "collisions": [],
+     "doubles_proprietaires": [],
+     "identifiants_inconnus": [],
+     "ordre_implicite": [],
+     "passed": true,
+     "trous": []
+    },
+    "contract_completeness": {
+     "passed": true,
+     "violations": []
+    },
+    "genre_coverage": {
+     "citations_non_resolues": [],
+     "citations_resolues": 52,
+     "citations_revendiquees": 52,
+     "citees": [
+      "arch.dependency_direction:genre.snake.discrete_tick_loop",
+      "arch.determinism_replay:genre.snake.skill_gated_progression_not_rng",
+      "arch.event_socket:genre.snake.growth_on_food_immediate",
+      "bestscore.persistence:genre.snake.session_loop_four_horizons",
+      "bestscore.pure:genre.snake.zero_penalty_instant_restart",
+      "core.boot:genre.snake.continuous_forward_motion",
+      "core.collision:genre.snake.collision_ends_run",
+      "core.direction_rules:genre.snake.input_latency_buffering",
+      "core.direction_rules:genre.snake.no_reverse_into_self",
+      "core.end_condition:genre.snake.collision_ends_run",
+      "core.error_handling:genre.snake.discrete_tick_loop",
+      "core.error_handling:genre.snake.no_reverse_into_self",
+      "core.exit:genre.snake.zero_penalty_instant_restart",
+      "core.food_spawn:genre.snake.growth_on_food_immediate",
+      "core.food_spawn:genre.snake.space_as_primary_antagonist",
+      "core.game_state:genre.snake.discrete_tick_loop",
+      "core.growth_score:genre.snake.growth_on_food_immediate",
+      "core.input:genre.snake.input_latency_buffering",
+      "core.input:genre.snake.no_reverse_into_self",
+      "core.main_loop:genre.snake.continuous_forward_motion",
+      "core.main_loop:genre.snake.discrete_tick_loop",
+      "core.render:genre.snake.grid_readability",
+      "core.restart:genre.snake.session_loop_four_horizons",
+      "core.restart:genre.snake.zero_penalty_instant_restart",
+      "debug.receipt_line:genre.snake.discrete_tick_loop",
+      "debug.state_projection:genre.snake.discrete_tick_loop",
+      "input.adapter:genre.snake.input_latency_buffering",
+      "meta.metric_variance:genre.snake.space_as_primary_antagonist",
+      "meta.observable_coverage:genre.snake.grid_readability",
+      "meta.reuse_rate_report:genre.snake.discrete_tick_loop",
+      "meta.reuse_typing:genre.snake.discrete_tick_loop",
+      "params.bloc_unique:genre.snake.playable_speed_reference",
+      "pause.state:genre.snake.continuous_forward_motion",
+      "play.solo_full_loop:genre.snake.session_loop_four_horizons",
+      "proof.evidence_path:genre.snake.discrete_tick_loop",
+      "proof.harness:genre.snake.discrete_tick_loop",
+      "proof.mutation_gate:genre.snake.collision_ends_run",
+      "proof.solvability_bot:genre.snake.skill_gated_progression_not_rng",
+      "proof.solvability_bot:genre.snake.space_as_primary_antagonist",
+      "proof.visual_gpu_window:genre.snake.grid_readability",
+      "render.end_screen:genre.snake.collision_ends_run",
+      "render.end_screen:genre.snake.zero_penalty_instant_restart",
+      "render.grid:genre.snake.grid_readability",
+      "render.grid:genre.snake.space_as_primary_antagonist",
+      "render.hud_numbers:genre.snake.grid_readability",
+      "render.hud_numbers:genre.snake.skill_gated_progression_not_rng",
+      "render.pause_panel:genre.snake.continuous_forward_motion",
+      "runtime.boot_immediate:genre.snake.continuous_forward_motion",
+      "runtime.exit_observable:genre.snake.zero_penalty_instant_restart",
+      "runtime.loop_no_catchup:genre.snake.continuous_forward_motion",
+      "speed.band_reporting:genre.snake.playable_speed_reference",
+      "speed.tick_rate_curve:genre.snake.playable_speed_reference"
+     ],
+     "passed": true,
+     "refusees": [],
+     "regles_non_couvertes": [],
+     "taux_resolution": 1.0,
+     "verdict": "OK"
+    },
+    "index": {
+     "dossiers_hors_structure": [],
+     "dossiers_manquants": [],
+     "dossiers_orphelins": [],
+     "fichiers_manquants": [],
+     "orphelins": [],
+     "passed": true
+    },
+    "line_states": {
+     "core_omis": [],
+     "deferred_incomplet": [],
+     "etats_invalides": [],
+     "expected_sans_reference": [],
+     "implemented_au_gel": [],
+     "not_applicable_sans_raison": [],
+     "not_applicable_sur_core": [],
+     "passed": true,
+     "required_apres_build": [],
+     "source_manquante": [],
+     "system_parent_manquant": [],
+     "unknown_au_gel": []
+    },
+    "observable_coverage": {
+     "couvertes": [],
+     "lignes_sans_preuve": [],
+     "passed": true,
+     "verdict": "OK",
+     "volets_absents": [],
+     "volets_en_echec": [],
+     "volets_non_mesures": []
+    },
+    "placement": {
+     "adresse_incoherente": [],
+     "adresse_manquante": [],
+     "categorie_fichier_non_declaree": [],
+     "categorie_fichier_non_mappee": [],
+     "categorie_manquante": [],
+     "categorie_non_mappee": [],
+     "fichier_adresse_incoherente": [],
+     "identite_ambigue": [],
+     "passed": true,
+     "revendications_multiples": [],
+     "system_parent_inconnu": [],
+     "systeme_categorie_non_mappee": []
+    }
+   },
+   "status": "OK",
+   "ts": 1785265215.0470836
+  },
+  "s11-redteam-code": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\snake\\artifacts\\s11-redteam-code.txt",
+    "artifact_sha256": "b8f5f513821650a4ab83ae4821a0028dc4cc974cf39bfdde23359b64db7925f6",
+    "cost_usd": 3.1157589999999997,
+    "duration_s": 621.418863773346,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "n commentaire « ne recopie PAS, DÉLÈGUE » mais **duplique verbatim** la boucle du canonique ; seule `EXPECTED_ASSERTS` est partagée → divergence latente possible (« déclaré ≠ exécuté »). Repro : diff `:21-63`.\n- **F3 — Gate de mutation borné à `05_SYSTEMS`** (`mutation_invariants.gd:30`), qui **exclut** des bricks pures ET mutables sous `06_RUNTIME` : `runtime_loop` (sûreté anti-rattrapage) et `grid_nav` (BFS à bug historique). Mutant témoin non couvert fourni.\n- **F4 — Solvabilité R9 authentique mais peu profonde.** `succeeded=false` est structurellement atteignable (pas de tautologie), mais victoire = longueur 25 sur 400 cases avec glouton BFS → cible triviale, 50/50 gagnées ne prouve pas la solvabilité sous pression. À requalifier. Repro : monter `CIBLE_VICTOIRE`/réduire la grille → `succeeded=false` fréquent.\n\n**LOW**\n- **F5 — Grille pleine dans `growth`** : `nourriture` non mise à jour reste sur la tête → `est_valide()` false. Inatteignable à cible=25, latent si la cible approche 400.\n- **F6 — `params_isolation.test` incomplet** (omet 4/8 valeurs, match sous-chaîne) + `est_gagne` en `>=` (mutant `==` équivalent survivant). Aucune fuite réelle trouvée ; incomplétude de garde-fou. Fog : le pré-mortem donne `s10s = FAIL`.\n\n## Contrôles négatifs (écartés avec ancre)\nLes deux harnais exécutent **réellement** les mêmes 26 fichiers/282 assertions (total **lu**, pas recopié) ; `eq()` est une **égalité stricte** (pas de `>=` tautologique dans les tests) ; demi-tour même tick, collision simultanée, pause longue, sauvegarde corrompue, dépendance logique→rendu → tous couverts.\n\n## Verdicts\n- **software_verdict** : non prononcé (red-team = advisory). F1 est FAIL-worthy sur un fait mécanique — recommandé à l'étape verdict, pas prononcé par moi.\n- **evidence_verdict** : `MECHANICAL_VALIDATION_ONLY`\n- **claim_verdict** : `NO_CLAIM_ALLOWED`\n- **SKIPPED_VALIDATION** : explicite dans le rapport (tout ce qui exige `run` — non fait, permission `run: aucun`).\n\nAucun fichier modifié.",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 39044
+   },
+   "status": "OK",
+   "ts": 1785265836.4949186
+  },
+  "s12-verdict": {
+   "attempts": 1,
+   "detail": {
+    "decision": "BLOCKED",
+    "software_verdict": "BLOCKED",
+    "verdict_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\snake\\verdict.json",
+    "verify_run": "AUTHENTIQUE"
+   },
+   "status": "OK",
+   "ts": 1785265836.5738308
+  },
+  "s9-build-godot-standard": {
+   "attempts": 1,
+   "detail": {
+    "artifact_path": "C:\\TACTICAL_CHESS_STUDIO\\lab\\forge_runs\\snake\\artifacts\\s9-build-godot-standard.txt",
+    "artifact_sha256": "00572ca8e1a72a5a2f0c6146182218870a281f737370bcd06e96885e1fe4c7ca",
+    "cost_usd": 4.171042000000001,
+    "duration_s": 556.6969175338745,
+    "model": "claude-opus-4-8",
+    "model_override": null,
+    "output_excerpt": "rness` en CONCEPT (harnais adapté .gd) OU assumer CODE_COPIE avec une empreinte de la *copie déposée* et non de la source. Advisory — aucun oracle ne bloque là-dessus aujourd'hui.\n2. **NB périmé dans `proof.harness.preuve`.** Ce champ décrit encore un bug d'oracle (solvabilité plafonnée à 200 ticks) que le correctif d'outillage du 2026-07-28 a résolu : ma re-mesure montre `max_ticks=5000` et solvabilité OK 50/50. Texte descriptif obsolète, pas un état faux — non corrigé (hors autorisation d'écriture).\n\n## SKIPPED_VALIDATION\n- **Item** : re-exécution du gate mutation. **Où** : `07_TESTS/oracle/mutation_invariants.gd` (14 systèmes purs 05_SYSTEMS/). **Statut** : non fait. **Raison** : mission de vérification ; non listé dans les faits à re-mesurer, exécution longue. La wiremap rapporte 63/64 mutants tués (98.4 %), 1 survivant équivalent justifié (food_spawn.gd:17) — **non re-mesuré par moi**.\n- **Item** : re-exécution des oracles GPU/process autonomes. **Où** : `core_render_frame.gd` (pixel, exige fenêtre vulkan), `core_boot.gd`, `core_input_action.gd`, `core_exit.gd`, `solo_session.gd`, `speed_band_report.gd`. **Statut** : non fait (partiel : `replay_determinism.gd` et `evidence_manifest.gd` re-exécutés, exit 0). **Raison** : re-mesure headless ciblée ; existence des fichiers + citation de preuve dans la wiremap + confirmation agrégée par `evidence_manifest` (41 IMPLEMENTED / 0 sans preuve) tenues comme suffisantes pour la cohérence d'état, sans re-exécution individuelle.\n- **Item** : preuve visuelle réelle (`PREUVE PAR LECTEUR REEL`, fenêtre GPU). **Où** : `core.render` / `proof.visual_gpu_window`. **Statut** : non fait. **Raison** : nécessite une fenêtre GPU (`--rendering-driver vulkan`, hors-écran) ; hors de la re-mesure headless demandée.\n\n**Fichiers touchés confrontés à l'ownership de la carte** : aucun fichier du dépôt écrit/modifié/créé. Seuls artefacts produits : scripts de vérification jetables dans le scratchpad de session (hors dépôt). Aucun `git` exécuté.",
+    "qwen_ok": false,
+    "redteam_blocked": false,
+    "redteam_findings": [],
+    "reviewer": "claude-opus-4-8",
+    "runner": "claude",
+    "tokens": 30039
+   },
+   "status": "OK",
+   "ts": 1785265203.0301373
+  }
+ },
+ "updated_ts": 1785265836.5758295
+}

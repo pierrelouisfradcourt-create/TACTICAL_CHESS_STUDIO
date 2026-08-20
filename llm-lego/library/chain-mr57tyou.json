@@ -1,0 +1,120 @@
+{
+  "id": "chain-mr57tyou",
+  "kind": "chain",
+  "name": "Validation Loop (Generate→Critique→Fix→Re-validate)",
+  "maturity": "draft",
+  "badge": "target",
+  "roadmapRef": null,
+  "sourceRef": null,
+  "payload": {
+    "nodes": [
+      {
+        "id": "coder-9",
+        "type": "agent",
+        "x": 4,
+        "y": 56,
+        "data": {
+          "role": "qwen-coder",
+          "model": "Qwen-Coder",
+          "temperature": 0.3,
+          "top_p": 0.9,
+          "max_tokens": 12000,
+          "oracleRef": "oracle-mr57tqu1"
+        },
+        "attachedOracle": {
+          "id": "oracle-mr57tqu1",
+          "name": "Vérificateur de complétude de correction",
+          "badge": "demo"
+        }
+      },
+      {
+        "id": "reviewer-9",
+        "type": "agent",
+        "x": 514,
+        "y": 39,
+        "data": {
+          "okAfter": 2,
+          "role": "claude-reviewer",
+          "model": "Claude Opus",
+          "temperature": 0.3,
+          "top_p": 0.9,
+          "max_tokens": 4500
+        }
+      },
+      {
+        "id": "llm-10",
+        "type": "llm",
+        "x": 254,
+        "y": 19,
+        "data": {
+          "prompt": "Tu es le Critique d'une boucle Generate → Critique → Fix → Re-validate.\nTu reçois une sortie produite à l'étape Generate et tu la critiques de façon STRUCTURÉE.\n\nFORMAT DE RETOUR OBLIGATOIRE — une liste de problèmes, chacun :\n  - sévérité   : BLOCKER | MAJOR | MINOR\n  - problème   : description précise et localisée (fichier / zone / ligne)\n  - correction : suggestion concrète et actionnable pour corriger CE point\n\nRÈGLES :\n1. Un problème = une correction proposée. Pas de critique sans piste de correction.\n2. Si AUCUN problème → retourne un verdict OK explicite (la boucle s'arrête).\n3. Sinon → verdict NOK + la liste ; l'étape Fix devra adresser CHAQUE point.\n\nNe prétends jamais qu'un résultat est prouvé. claim_verdict: NO_CLAIM_ALLOWED.",
+          "outputKey": "out",
+          "producerRef": "prompt-mr57tqe9"
+        },
+        "attachedPrompt": {
+          "id": "prompt-mr57tqe9",
+          "name": "Instructions de critique structurée",
+          "badge": "demo"
+        }
+      },
+      {
+        "id": "artefact-11",
+        "type": "artefact",
+        "x": 514,
+        "y": 211,
+        "data": {
+          "title": "Livrable",
+          "description": "",
+          "artefactType": "logiciel"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "l6-9",
+        "from": "reviewer-9",
+        "to": "coder-9",
+        "condition": "NOK",
+        "loop": true,
+        "maxIterations": 5
+      },
+      {
+        "id": "edge-12",
+        "from": "coder-9",
+        "to": "llm-10",
+        "fromHandle": "right",
+        "toHandle": "left",
+        "condition": ""
+      },
+      {
+        "id": "edge-13",
+        "from": "llm-10",
+        "to": "reviewer-9",
+        "fromHandle": "right",
+        "toHandle": "left",
+        "condition": ""
+      },
+      {
+        "id": "edge-14",
+        "from": "reviewer-9",
+        "to": "artefact-11",
+        "fromHandle": "bottom",
+        "toHandle": "top",
+        "condition": ""
+      }
+    ],
+    "initialInput": {
+      "task": "Implémenter la feature X"
+    },
+    "category": "validation-loop",
+    "tags": [
+      "generate",
+      "critique",
+      "fix",
+      "revalidate",
+      "loop"
+    ]
+  },
+  "created": "2026-07-03T17:36:59.358Z",
+  "updated": "2026-07-03T17:36:59.358Z"
+}

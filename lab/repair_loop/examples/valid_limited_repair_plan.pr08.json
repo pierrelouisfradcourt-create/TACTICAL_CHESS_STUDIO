@@ -1,0 +1,39 @@
+{
+  "schema_version": "pr08.limited_repair_loop.v1",
+  "repair_loop_kind": "policy_bound_limited_repair",
+  "trigger": {
+    "source": "local_mechanical_failure",
+    "failed_command": "python -m py_compile sandbox/repair_targets/example_fix.py",
+    "failure_summary": "A bounded local syntax failure was observed in an allowed sandbox target."
+  },
+  "scope": {
+    "max_attempts": 1,
+    "allowed_paths": [
+      "sandbox/repair_targets"
+    ],
+    "modified_files": [
+      "sandbox/repair_targets/example_fix.py"
+    ],
+    "validation_commands": [
+      "python -m py_compile sandbox/repair_targets/example_fix.py"
+    ],
+    "forbidden_paths_acknowledged": true
+  },
+  "authority": {
+    "codex_may_edit": true,
+    "codex_may_merge": false,
+    "codex_may_promote": false,
+    "codex_may_modify_policy": false,
+    "codex_may_modify_measurement_surfaces": false,
+    "human_review_required": true
+  },
+  "claim_control": {
+    "claim_verdict": "NO_CLAIM_ALLOWED",
+    "forbidden_claim_phrases_acknowledged": true
+  },
+  "expected_verdict": {
+    "software_verdict": "PASS",
+    "evidence_verdict": "CONTROL_SURFACE_ONLY",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  }
+}

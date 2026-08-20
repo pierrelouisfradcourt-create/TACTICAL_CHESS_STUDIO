@@ -1,0 +1,56 @@
+PROMPT:
+Écris le module src/cards.mjs d'un jeu de BELOTE CLASSIQUE (32 cartes, 4 couleurs, rangs 7 8 9 10 V D R A).
+Exporte (ESM) : SUITS, RANKS, une fonction buildDeck() qui renvoie les 32 cartes {suit, rank},
+et les barèmes de POINTS + l'ORDRE DE FORCE à l'ATOUT et HORS ATOUT selon les règles standard de la belote.
+Le total des points des 32 cartes doit respecter l'invariant classique de la belote. Node ESM pur.
+
+===== RÉPONSE QWEN (41.2s) =====
+```javascript
+// src/cards.mjs
+
+export const SUITS = ['COEUR', 'CARREAU', 'TREFLE', 'PIQUE'];
+export const RANKS = ['7', '8', '9', '10', 'V', 'D', 'R', 'A'];
+
+const POINTS = {
+  '7': 0,
+  '8': 0,
+  '9': 0,
+  '10': 10,
+  'V': 2,
+  'D': 3,
+  'R': 4,
+  'A': 11
+};
+
+const ATOUT_ORDER = ['7', '8', '9', '10', 'V', 'D', 'R', 'A'];
+const NON_ATOUT_ORDER = ['A', '10', 'R', 'D', 'V', 'K', 'Q', 'J'];
+
+export function buildDeck() {
+  let deck = [];
+  for (let suit of SUITS) {
+    for (let rank of RANKS) {
+      deck.push({ suit, rank });
+    }
+  }
+  return deck;
+}
+
+export const POINTS_TOTAL = Object.values(POINTS).reduce((acc, val) => acc + val * 4, 0);
+
+export function getCardPoints(card, atoutSuit) {
+  if (card.suit === atoutSuit) {
+    return POINTS[card.rank];
+  } else {
+    return card.rank === 'A' ? 11 : card.rank === '10' ? 10 : 0;
+  }
+}
+
+export function compareCards(card1, card2, atoutSuit) {
+  if (card1.suit === card2.suit) {
+    const order = card1.suit === atoutSuit ? ATOUT_ORDER : NON_ATOUT_ORDER;
+    return order.indexOf(card1.rank) - order.indexOf(card2.rank);
+  } else {
+    return card1.suit === atoutSuit ? 1 : -1;
+  }
+}
+```

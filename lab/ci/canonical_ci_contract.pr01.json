@@ -1,0 +1,77 @@
+{
+  "ci_contract_version": "pr01.canonical-ci.v1",
+  "pr_id": "PR-01",
+  "allowed_verdicts": {
+    "software_verdict": [
+      "CI_CONFIG_ADDED"
+    ],
+    "evidence_verdict": [
+      "MECHANICAL_CHECKS_ONLY"
+    ],
+    "claim_verdict": [
+      "NO_CLAIM_ALLOWED"
+    ]
+  },
+  "required_checks": [
+    {
+      "id": "trust-root-json-check",
+      "scope": "Validate JSON syntax for required trust-root and PR-01 contract files.",
+      "evidence_limit": "Mechanical syntax evidence only."
+    },
+    {
+      "id": "trust-root-presence-check",
+      "scope": "Verify required trust-root files exist.",
+      "evidence_limit": "Mechanical file-presence evidence only."
+    },
+    {
+      "id": "no-code-spec-presence-check",
+      "scope": "Verify required PR-00B and PR-00C no-code specification files exist.",
+      "evidence_limit": "Mechanical file-presence evidence only."
+    },
+    {
+      "id": "no-benchmark-guard",
+      "scope": "Guard canonical workflow content against forbidden benchmark-launch commands.",
+      "evidence_limit": "Workflow-content guard only."
+    },
+    {
+      "id": "optional-language-detection",
+      "scope": "Detect Rust and Python manifests without dependency installation or runtime execution.",
+      "evidence_limit": "Manifest detection only."
+    }
+  ],
+  "forbidden_checks": [
+    "benchmark execution",
+    "engine runtime execution",
+    "search runtime execution",
+    "neural runtime execution",
+    "holdout data access",
+    "service credential use",
+    "secret printing",
+    "workflow dispatch",
+    "artifact upload representing scientific proof",
+    "dependency installation for broad runtime validation"
+  ],
+  "forbidden_claims": [
+    "engine improvement",
+    "Elo improvement",
+    "strength gain",
+    "search improvement",
+    "neural improvement",
+    "promotion readiness",
+    "AAA validation",
+    "scientific proof",
+    "global improvement",
+    "benchmark result"
+  ],
+  "evidence_limits": {
+    "required_statement": [
+      "CI pass does not imply scientific proof.",
+      "CI pass does not imply engine improvement.",
+      "CI pass does not imply promotion readiness.",
+      "CI pass does not imply benchmark validity."
+    ],
+    "software_verdict": "CI_CONFIG_ADDED",
+    "evidence_verdict": "MECHANICAL_CHECKS_ONLY",
+    "claim_verdict": "NO_CLAIM_ALLOWED"
+  }
+}

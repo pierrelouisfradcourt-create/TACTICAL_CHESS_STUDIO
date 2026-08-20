@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/studiopilot_learning_event.schema.json",
+  "title": "StudioPilot LearningEvent Minimal V0",
+  "description": "Local-only structured memory draft for workflow incidents. This schema does not authorize execution, mutation, rule promotion, training, datasets, external API calls, ready state, merge, evidence claims, or claim escalation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "learning_event_id",
+    "source_event_type",
+    "source_pr_number",
+    "source_head_sha",
+    "source_merge_sha",
+    "event_outcome",
+    "failure_taxonomy",
+    "trigger_summary",
+    "observed_symptom",
+    "root_cause",
+    "impact",
+    "corrective_action_taken",
+    "preventive_rule_candidate",
+    "evidence_refs",
+    "software_verdict",
+    "evidence_verdict",
+    "claim_verdict",
+    "human_gate_required",
+    "auto_mutation_allowed",
+    "auto_rule_promotion_allowed",
+    "auto_training_allowed",
+    "created_by",
+    "status"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "studiopilot.learning_event.v0"
+    },
+    "learning_event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_event_type": {
+      "type": "string",
+      "enum": [
+        "PR_MERGED",
+        "PR_BLOCKED",
+        "PR_FAILED_CHECKS",
+        "DIRTY_WORKTREE",
+        "BLOCKED_INFRA",
+        "BLOCKED_CODE",
+        "HUMAN_DECISION",
+        "LOCAL_SMOKE_RESULT"
+      ]
+    },
+    "source_pr_number": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "source_head_sha": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_merge_sha": {
+      "type": "string"
+    },
+    "event_outcome": {
+      "type": "string",
+      "enum": [
+        "SUCCESS",
+        "HOLD",
+        "BLOCKED",
+        "BLOCKED_INFRA"
+      ]
+    },
+    "failure_taxonomy": {
+      "type": "string",
+      "enum": [
+        "NONE",
+        "BLOCKED_INFRA",
+        "BLOCKED_CODE",
+        "BLOCKED_SCOPE",
+        "BLOCKED_CLAIM",
+        "DIRTY_WORKTREE",
+        "FINAL_GATE_DEPENDENCY_MISSING",
+        "CHECKS_PENDING",
+        "CHECKS_FAILED",
+        "SCOPE_VIOLATION",
+        "CLAIM_ESCALATION",
+        "VALIDATION_MISMATCH",
+        "HUMAN_GATE_MISSING"
+      ]
+    },
+    "trigger_summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "observed_symptom": {
+      "type": "string",
+      "minLength": 1
+    },
+    "root_cause": {
+      "type": "string",
+      "minLength": 1
+    },
+    "impact": {
+      "type": "string",
+      "minLength": 1
+    },
+    "corrective_action_taken": {
+      "type": "string",
+      "minLength": 1
+    },
+    "preventive_rule_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "proposal",
+        "applies_to",
+        "requires_human_approval",
+        "auto_apply_allowed"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "proposal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "applies_to": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requires_human_approval": {
+          "const": true
+        },
+        "auto_apply_allowed": {
+          "const": false
+        }
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "software_verdict": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence_verdict": {
+      "type": "string",
+      "minLength": 1
+    },
+    "claim_verdict": {
+      "type": "string",
+      "enum": [
+        "NO_CLAIM_ALLOWED",
+        "HEALTH_ONLY",
+        "EVIDENCE_ONLY"
+      ]
+    },
+    "human_gate_required": {
+      "const": true
+    },
+    "auto_mutation_allowed": {
+      "const": false
+    },
+    "auto_rule_promotion_allowed": {
+      "const": false
+    },
+    "auto_training_allowed": {
+      "const": false
+    },
+    "created_by": {
+      "type": "string",
+      "enum": [
+        "HUMAN_FOUNDER",
+        "CODEX_REPORT_INTAKE",
+        "LOCAL_TOOL_DRY_RUN"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "REVIEWED",
+        "REJECTED",
+        "ACCEPTED_FOR_MEMORY",
+        "SUPERSEDED"
+      ]
+    }
+  }
+}

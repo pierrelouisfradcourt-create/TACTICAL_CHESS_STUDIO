@@ -1,0 +1,53 @@
+{
+  "schema_version": "studiopilot.pr_queue.v0",
+  "queue_id": "queue.local_first_patchpack_v0",
+  "campaign_id": "campaign.local_first_patchpack_v0",
+  "source_campaign_plan_ref": "docs/control-plane/fixtures/patchpack/valid_campaign_plan_v0.json",
+  "pr_candidates": [
+    {
+      "pr_candidate_id": "prc.invalid_claim_escalation",
+      "title": "Invalid claim escalation candidate",
+      "pr_type": "CONTROL_PLANE",
+      "status": "READY_FOR_HANDOFF",
+      "dependencies": [],
+      "allowed_paths": [
+        "docs/control-plane/"
+      ],
+      "forbidden_paths": [
+        ".github/workflows/",
+        "src/"
+      ],
+      "validation_commands": [
+        ".\\.venv312\\Scripts\\python.exe scripts\\control_plane\\validate_patchpack_plan.py --pretty"
+      ],
+      "expected_outputs": [
+        "Schema rejection"
+      ],
+      "ci_profile": "CONTROL_PLANE",
+      "handoff_codex_ready": true,
+      "blocked_reason": null,
+      "claim_scope": "ELO_STRENGTH_CLAIM",
+      "human_gate_required": true,
+      "merge_allowed": false
+    }
+  ],
+  "queue_status": "GO",
+  "current_index": 0,
+  "ci_policy": {
+    "local_first_required": true,
+    "remote_gate_required": true,
+    "benchmark_automatic_allowed": false
+  },
+  "merge_policy": {
+    "auto_merge_allowed": false,
+    "ready_requires_human": true,
+    "merge_requires_human": true,
+    "match_head_commit_required": true
+  },
+  "learning_policy": {
+    "learning_event_required": true,
+    "auto_mutation_allowed": false
+  },
+  "human_gate_required": true,
+  "verdict": "GO"
+}

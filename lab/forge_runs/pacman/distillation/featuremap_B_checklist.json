@@ -1,0 +1,363 @@
+{
+ "game_id": "pacman",
+ "systemes": [
+  {
+   "id": "sys_menu",
+   "features": [
+    {
+     "id": "feat_titre",
+     "capacites": [
+      {
+       "id": "F63",
+       "capacite": "Le joueur arrive sur un écran titre au lancement.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "L'écran d'accueil est affiché et aucune partie n'est en cours."
+       },
+       "source_ref": "R43"
+      },
+      {
+       "id": "F64",
+       "capacite": "Les quatre entrées du menu produisent des actions observables.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Chaque option du menu (Jouer, Controles, Options, Quitter) a un effet visible et distinct."
+       },
+       "source_ref": "R44"
+      }
+     ]
+    },
+    {
+     "id": "feat_pause",
+     "capacites": [
+      {
+       "id": "F65",
+       "capacite": "Le joueur peut ouvrir le menu pause depuis plusieurs entrées.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le menu pause s'ouvre via Échap, Start/Menu de la manette et un bouton visible à l'écran."
+       },
+       "source_ref": "R45"
+      },
+      {
+       "id": "F66",
+       "capacite": "Depuis le menu pause, le joueur a cinq options différentes.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le joueur peut reprendre la partie, recommencer une nouvelle partie, consulter les contrôles et les options ou revenir à l'écran titre."
+       },
+       "source_ref": "R46"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_controle",
+   "features": [
+    {
+     "id": "feat_intention",
+     "capacites": [
+      {
+       "id": "F67",
+       "capacite": "La logique de jeu ne reconnaît pas les entrées physiques.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Les commandes sont traitées comme des intentions (direction, dash, pause) sans référence aux méthodes d'entrée."
+       },
+       "source_ref": "R47"
+      }
+     ]
+    },
+    {
+     "id": "feat_compatible",
+     "capacites": [
+      {
+       "id": "F68",
+       "capacite": "Tout ce qui est jouable au clavier peut l'être aussi avec une manette.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Les contrôles de navigation dans les menus, déplacement du joueur et autres actions sont identiques entre le clavier et la manette."
+       },
+       "source_ref": "R48"
+      }
+     ]
+    },
+    {
+     "id": "feat_tactile",
+     "capacites": [
+      {
+       "id": "F69",
+       "capacite": "Le menu pause peut être ouvert via un bouton tactile.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Un bouton visible à l'écran permet d'ouvrir le menu pause."
+       },
+       "source_ref": "R49"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_mode",
+   "features": [
+    {
+     "id": "feat_modes",
+     "capacites": [
+      {
+       "id": "F70",
+       "capacite": "Le jeu est toujours dans un mode (normal ou test).",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "La logique du jeu commence en mode normal et le mode de dash est géré distinctement."
+       },
+       "source_ref": "R50"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_dash",
+   "features": [
+    {
+     "id": "feat_mesure",
+     "capacites": [
+      {
+       "id": "F71",
+       "capacite": "Les effets du dash sont mesurés avec et sans dash.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "La vitesse, le délai avant un nouveau dash, les comportements face aux murs et fantômes sont comparables."
+       },
+       "source_ref": "R51"
+      }
+     ]
+    },
+    {
+     "id": "feat_visibilite",
+     "capacites": [
+      {
+       "id": "F72",
+       "capacite": "Le joueur est informé quand il peut ou non dasher.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "L'interface indique clairement si le dash est disponible ou non."
+       },
+       "source_ref": "R52"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_sonore",
+   "features": [
+    {
+     "id": "feat_sons",
+     "capacites": [
+      {
+       "id": "F73",
+       "capacite": "Les sons sont générés à l'exécution.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu produit des sons sans utiliser de fichiers sonores préexistants."
+       },
+       "source_ref": "R53"
+      }
+     ]
+    },
+    {
+     "id": "feat_retour_sonore",
+     "capacites": [
+      {
+       "id": "F74",
+       "capacite": "Six types de retours sonores sont produits selon les actions du joueur.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le jeu joue des sons pour avancer, collecter, rendre les fantômes vulnérables, mourir, gagner et ouvrir un menu."
+       },
+       "source_ref": "R54"
+      }
+     ]
+    },
+    {
+     "id": "feat_separation",
+     "capacites": [
+      {
+       "id": "F75",
+       "capacite": "La logique de jeu ne joue aucun son.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Les événements sont signalés par la logique et les sons sont générés par la couche d'affichage."
+       },
+       "source_ref": "R55"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_cartes",
+   "features": [
+    {
+     "id": "feat_multiples",
+     "capacites": [
+      {
+       "id": "F76",
+       "capacite": "Le jeu embarque au moins deux cartes jouables.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Il est possible de jouer sur plusieurs cartes sans modifier la logique du jeu."
+       },
+       "source_ref": "R56"
+      }
+     ]
+    },
+    {
+     "id": "feat_continuité",
+     "capacites": [
+      {
+       "id": "F77",
+       "capacite": "Le joueur passe à la carte suivante sans relancer l'application.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "La progression de niveau se fait en conservant le score et les vies."
+       },
+       "source_ref": "R57"
+      }
+     ]
+    },
+    {
+     "id": "feat_paramètres",
+     "capacites": [
+      {
+       "id": "F78",
+       "capacite": "Le passage à un nouveau niveau change des paramètres.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Au moins un paramètre prend une valeur différente d'un niveau à l'autre et le numéro du niveau est affiché."
+       },
+       "source_ref": "R58"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_couleurs",
+   "features": [
+    {
+     "id": "feat_uniques",
+     "capacites": [
+      {
+       "id": "F79",
+       "capacite": "Toutes les couleurs du jeu viennent d'un seul endroit.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "La modification de la source unique change l'apparence globale des écrans."
+       },
+       "source_ref": "R59"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_clarté",
+   "features": [
+    {
+     "id": "feat_visibilité",
+     "capacites": [
+      {
+       "id": "F80",
+       "capacite": "Un observateur comprend ce qu'il voit sans explications.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Les éléments du jeu (murs, couloirs, objets à manger, ennemis) sont clairement identifiables."
+       },
+       "source_ref": "R60"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_contrôle_utilisateur",
+   "features": [
+    {
+     "id": "feat_discovery",
+     "capacites": [
+      {
+       "id": "F81",
+       "capacite": "Un joueur découvre les contrôles sans aide.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le joueur trouve seul comment se déplacer, dasher, mettre en pause et revenir au menu."
+       },
+       "source_ref": "R61"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_compréhension",
+   "features": [
+    {
+     "id": "feat_objectif",
+     "capacites": [
+      {
+       "id": "F82",
+       "capacite": "Un joueur comprend les objectifs du jeu sans aide.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le joueur sait ce qu'il doit manger, éviter et comment la partie se termine."
+       },
+       "source_ref": "R62"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_experience_utilisateur",
+   "features": [
+    {
+     "id": "feat_completude",
+     "capacites": [
+      {
+       "id": "F83",
+       "capacite": "Un joueur parcourt le jeu sans explications.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Le joueur trouve l'écran titre, lance une partie, met en pause, reprend, passe au niveau suivant et arrive à la fin du jeu."
+       },
+       "source_ref": "R63"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys_compatibilité",
+   "features": [
+    {
+     "id": "feat_compatibilité",
+     "capacites": [
+      {
+       "id": "F84",
+       "capacite": "Les ajouts ne perturbent pas les fonctionnalités existantes.",
+       "expected_proof": {
+        "kind": "oracle",
+        "statement": "Toutes les assertions précédentes continuent de se prouver et le bot gagne toujours sur la carte de référence."
+       },
+       "source_ref": "R64"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

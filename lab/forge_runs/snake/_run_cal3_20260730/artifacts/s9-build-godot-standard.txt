@@ -1,0 +1,90 @@
+All measurements complete. The disk wiremap is coherent and honest — no false IMPLEMENTED state exists, because the one that did (`meta.observable_coverage`) was already corrected to BLOCKED by a prior pass. **I write nothing.** Here is the report.
+
+---
+
+# RAPPORT FINAL — snake-cal3-20260730-162425 / s9-build-godot-standard (VÉRIFICATION SEULE)
+
+**FORGE_DISPATCH:s9-build-godot-standard:snake-cal3-20260730-162425**
+Mission de constat. Aucun fichier de jeu écrit, créé ou modifié. Aucune écriture de wiremap : aucun état faux trouvé à corriger.
+
+## software_verdict: OK
+## evidence_verdict: MECHANICAL_VALIDATION_ONLY
+## claim_verdict: NO_CLAIM_ALLOWED
+
+---
+
+## 1. Re-mesure par exécution réelle (sorties brutes)
+
+**Oracle Godot** — `node scripts/forge/godot_oracle.mjs games/snake` → exit **0** :
+- Volet mécanique : `=== RESULT: 282 passed, 0 failed (fichiers: 26) ===` → `[godot_oracle] OK : run_tests.gd (mecanique)`
+- Volet solvabilité (R9) : `{"trials":50,"won":50,"lost":0,"failed_seeds":[],"verdict":"OK"}` (budget trials=50 max_ticks=5000)
+- `[godot_oracle] ALL CHECKS PASSED`
+
+**Oracles du STANDARD** (reproduits via `standard_oracles.py` sur `games/snake/09_WIREMAP/wiremap.json`, mode `frozen="built"`, mêmes entrées que `_run_standard_oracle`, driver.py:1499) :
+
+| Oracle | passed | Détail |
+|---|---|---|
+| contract_completeness | **True** | violations: [] |
+| line_states | **True** | tous les 11 volets vides (required_apres_build: [], unknown_au_gel: [], core_omis: []…) |
+| placement | **True** | 11 volets vides (revendications_multiples: [], fichier_adresse_incoherente: []…) |
+| index | **True** | fichiers_manquants: [] · orphelins: [] · dossiers_hors_structure: [] (fermeture **deux sens** OK) |
+| collisions | **True** | collisions: [] · trous: [] · doubles_proprietaires: [] |
+| genre_coverage | **True** | verdict OK · 52 citations revendiquées / 52 résolues · taux 1.0 · 0 refusée |
+
+**speed_band_report.gd** (oracle de variance, ligne `meta.metric_variance`) — Godot headless → exit **0** :
+`FORGE_ORACLE speed_band_report {"bande_bot_mesuree":[143.278592,200.0],"bande_regle_pure":[80.0,200.0],"fails":[],"ok":true,"periodes_distinctes_bot":5}` → 5 périodes distinctes, chaque bande porte ≥2 valeurs (règle de variance Pierre 2026-07-21 satisfaite).
+
+## 2. Cohérence carte ↔ disque
+
+**États réels sur disque (44 lignes, schema_version 2)** : **40 IMPLEMENTED · 2 DEFERRED · 1 BLOCKED · 1 NOT_APPLICABLE · 0 REQUIRED · 0 UNKNOWN**.
+
+- Les 40 IMPLEMENTED : `check_index` confirme **0 fichier déclaré absent** et **0 orphelin**. Champs de constat (`fonction`/`preuve`/`statut`) tous remplis (0 vide). Les 2 lignes IMPLEMENTED sans fichier déposé (`meta.reuse_typing`, `meta.metric_variance`) sont des méta-exigences à preuve `wiremap_check`/`oracle_run` — vérifiées vraies : 44/44 lignes ont `reused_from.type ∈ {CODE_COPIE,OUTIL_FORGE,CONCEPT,NEW}`, 14/14 lignes NEW ont `ikea` à 5 réponses, et la variance est prouvée par exécution ci-dessus.
+- 2 DEFERRED (`core.audio`, `meta.reuse_rate_report`) : `until` + `decider=pierre` présents. `core.audio` en DEFERRED (pas NOT_APPLICABLE, interdit sur CORE) — correct.
+- 1 NOT_APPLICABLE (`meta.charter_complete`) : ligne DERIVED (pas CORE), `reason` présente — légal.
+- 1 BLOCKED (`meta.observable_coverage`) : **honnête**. `check_observable_coverage(wiremap, {})` re-exécuté → `passed=False`. La ligne exige un reçu vert qui n'existe pas → BLOCKED correct.
+
+**⚠ Écart avec l'« état mesuré » de l'orchestrateur** — non un défaut, une correction déjà en place :
+- Orchestrateur annoncé : *41 IMPLEMENTED · 0 BLOCKED*. Disque réel : *40 IMPLEMENTED · 1 BLOCKED*. La différence est **exactement** `meta.observable_coverage`, qu'une passe antérieure (`snake-reel-20260729-120236`) a déjà fait passer d'un IMPLEMENTED **faux** à BLOCKED. **Le disque est donc plus honnête que le snapshot rapporté.** Le faux-IMPLEMENTED que la mission cherche a déjà été attrapé — rien à corriger de mon côté.
+- Compte `.gd` : disque = **67** (30 logique/adaptateurs + 37 test/oracle), orchestrateur = 66. Écart d'une unité, immatériel — `check_index` valide dans les deux sens quel que soit le total.
+
+## 3. Empreintes CODE_COPIE (contrat de sortie e, garde-fou g)
+
+Aucun oracle `.py`/`.mjs` n'enforce mécaniquement `copy_sha256` (grep : présent seulement dans contrats/wiremaps/state) — vérifié à la main ici.
+
+| Ligne | source | copy_sha256 (= sha source) | fichier copié déposé | correspondance |
+|---|---|---|---|---|
+| `proof.solvability_bot` | `knowledge_base/systems/navigation/grid_nav.gd` | f064870f… | `06_RUNTIME/adapters/solvability_bot/grid_nav.gd` | **✓ MATCH** (copie octet-identique attestée) |
+| `proof.harness` | `knowledge_base/systems/navigation/run_tests.gd` | 096cd754… | harness.gd / run_tests.gd (×2) | **✗ aucun match** |
+
+`proof.harness` : aucun fichier de `games/snake` n'a le sha 096cd754. **Mais le wiremap le DÉCLARE lui-même** dans son champ `preuve` : *« CAVEAT CODE_COPIE (fog) : wrapper delegant, pas octet-identique a la brique KB (sha 096cd75) »*. C'est un wrapper adapté, disclosé et déjà remonté en fog HumanGate — pas une variante cachée présentée comme copie. Sa vraie `expected_proof` (oracle_run : 282 tests exécutés, 0 test non appelé, exit non nul au 1er rouge) est satisfaite ⇒ l'état IMPLEMENTED est honnête. Le choix de garder le type `CODE_COPIE` vs le requalifier relève de la décision HumanGate, hors de mon mandat d'écriture (limité au seul faux-IMPLEMENTED).
+
+## Fichiers touchés vs ownership de la carte
+**Aucun.** Zéro écriture. Fichiers temporaires de mesure confinés au scratchpad de session (hors dépôt).
+
+## Score de mutation
+**NON re-exécuté** (voir SKIPPED_VALIDATION). Reçu antérieur `games/snake/mutation_triage.json` présent (789 octets), non re-mesuré dans cette passe de vérification.
+
+## Lignes BLOCKED
+`meta.observable_coverage` (1) — motivée, honnête, hors de mon mandat de correction (n'est pas un faux-IMPLEMENTED).
+
+---
+
+## Observations remontées en fog HumanGate (constat, pas correction — hors mandat d'écriture)
+
+1. **Texte de motif partiellement périmé** sur `meta.observable_coverage` : la `reason` affirme `observable_malformes = 44/44` (type `str`). Re-mesure : les 44 champs `observable_by_player` sont désormais **tous `bool`** (0 malformé) — ce défaut précis a été réparé. L'oracle échoue maintenant par `volets_absents` (vue vide) → verdict BLOCKED. **L'état BLOCKED reste correct**, mais son motif décrit un défaut révolu. Décision de rafraîchissement = Pierre.
+2. **Note périmée dans `proof.harness.preuve`** : mentionne un « volet 2 solvabilité FAIL par cap 200 ticks ». L'outillage a été corrigé (prémisse de ce dispatch) ; re-mesure = **50/50 gagnés à 5000 ticks, verdict OK**. Staleness documentaire, aucun défaut courant.
+3. **`copy_sha256` non enforcé mécaniquement** : garde-fou (g) reposant sur l'honnêteté du builder + cette vérification. Chantier possible : un oracle qui compare l'empreinte déposée à `copy_sha256`.
+
+---
+
+## SKIPPED_VALIDATION
+
+| Item de validation | Périmètre (où) | Statut | Raison |
+|---|---|---|---|
+| Gate mutation (`forge.mutation.run_mutation_test`) sur la logique pure | `05_SYSTEMS/**` de snake | **non fait** | Hors des faits que l'orchestrateur demande de re-mesurer ; mission verification-only sans production de fichier ; reçu antérieur `mutation_triage.json` présent, non re-exécuté. Score brut non re-mesuré cette passe. |
+| Preuve visuelle GPU (`proof.visual_gpu_window`) | fenêtre GPU réelle | **non fait** | Exige une fenêtre GPU (jamais `--headless`) ; hors périmètre d'une passe de constat headless. Ligne IMPLEMENTED sur reçu antérieur, non re-vérifiée ici. |
+| `check_observable_coverage` avec vue réelle (reçu s10a) | volet observable | **partiel** | Re-exécuté avec vue vide `{}` → `passed=False` (confirme BLOCKED). La vue réelle exige un reçu `product_oracle` s10a d'un run driver complet, non relancé (verification-only). |
+| `check_budget` / `contract_completeness` du budget briques | catalogue KB | **non fait** | Nécessite le `catalog_brick_ids_snapshot` du state d'un run driver ; non reproductible hors boucle. `contract_completeness` du contrat a bien été mesuré (passed=True). |
+| Re-signature / re-vérification HMAC du verdict (`forge.verify_run`) | `verdict.json` du run | **non fait** | Verification-only ; aucune régénération de verdict signé demandée. |
+
+**Conclusion** : le jeu Snake est cohérent entre carte et disque. Tous les oracles re-mesurés passent réellement (exit 0, sorties citées). Aucun état de carte faux subsistant — le seul qui l'était (`meta.observable_coverage`) est déjà correctement BLOCKED. **Aucune écriture effectuée** : succès légitime d'une mission sans production. Trois points de staleness/gouvernance remontés en fog pour arbitrage Pierre. claim_verdict: NO_CLAIM_ALLOWED.

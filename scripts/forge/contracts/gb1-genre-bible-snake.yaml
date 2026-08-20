@@ -1,0 +1,91 @@
+# Contrat d'agent Forge — mission GB1 : Genre Bible Snake (chantier chaîne architecte, ordre Pierre 2026-07-28)
+# Schéma : scripts/forge/contracts/SCHEMA.md. Dispatch hors profil (allow_unprofiled assumé).
+# Consommateurs déclarés (règle de câblage 2026-07-28) : lentilles du Prisme (M-E) ·
+# check_genre_coverage (validation wiremap) · architecte (M-G). Un doc sans lecteur n'entre pas.
+
+role: >-
+  Rédacteur de spécification produit, posture d'assistant d'architecte. Point de vue imposé :
+  la Genre Bible dit ce qu'un jeu de ce GENRE doit respecter pour être un bon représentant du
+  genre — règles observables, jamais des goûts. Tu produis un document PROPOSED ratifiable,
+  tu ne modifies aucun artefact vivant.
+capability_role: forge_toolsmith
+exigences_cognitives: >-
+  Discipline anti-invention absolue sur la provenance : une pratique de genre que tu ne peux
+  pas sourcer est une HYPOTHÈSE marquée comme telle, jamais un fait. Aucune citation fabriquée.
+memoire: >-
+  ENTRÉE PRINCIPALE : le dossier d'observation lab/forge_runs/snake/GAME_REFERENCE/ (World Scan
+  s2 du run snake-20260728-091302, oracle check_worldscan exit 0 — 3 jeux, 14 sources).
+  FAIT MESURÉ par l'orchestrateur 2026-07-28 : 10/14 sources répondent HTTP 200, 4 répondent
+  403 anti-bot (medium.com, nokia.fandom.com, slitherio.fandom.com, mechanicsofmagic.com) —
+  une règle appuyée UNIQUEMENT sur une source 403 porte confiance dégradée, à dire honnêtement.
+  PATRON DE BIBLE À RÉPLIQUER (le seul éprouvé du studio) : GENRE_BIBLE_PONG_V1_PROPOSED.md
+  sur le patron Art Bible — frontmatter structuré non vide · sections obligatoires non
+  triviales · bloc JSON de règles à `id` lisible par machine DANS le markdown · chaque règle
+  applicable citée ou refusée (couverture) · statistique advisory séparée du pass/fail.
+mandatory_read:
+  - docs/forge/GENRE_BIBLE_PONG_V1_PROPOSED.md
+  - docs/forge/FORGE_ARCHITECT_MANUAL_V1.md
+  - lab/forge_runs/snake/GAME_REFERENCE/observation_manifest.json
+  - lab/forge_runs/snake/GAME_REFERENCE/mechanics_analysis.md
+  - lab/forge_runs/snake/GAME_REFERENCE/progression_map.md
+  - lab/forge_runs/snake/GAME_REFERENCE/architecture_guess.md
+objectif: >-
+  Produire docs/forge/GENRE_BIBLE_SNAKE_V1_PROPOSED.md : la Genre Bible du genre « snake
+  arcade » couvrant, avec des règles observables et testables — (1) règles du genre (mouvement
+  continu, croissance, collision, espace) ; (2) boucle principale (seconde par seconde) ;
+  (3) boucle de session (minute 1 / minute 10 / raison de revenir — reprendre les 4 horizons
+  du dossier d'observation) ; (4) contraintes (vitesse jouable en PARAMÈTRE DE DESIGN chiffré
+  avec provenance, lisibilité de la grille, latence d'input) ; (5) critères d'évaluation
+  (comment un oracle ou un humain juge qu'un snake est un bon snake).
+in_scope: >-
+  ÉCRITURE d'UN document : docs/forge/GENRE_BIBLE_SNAKE_V1_PROPOSED.md. Lecture du dépôt
+  entier et du dossier d'observation.
+out_of_scope: >-
+  games/** · knowledge_base/** (la promotion en bibliothèque = décision Pierre) ·
+  scripts/forge/** · les contrats · les oracles · lab/forge_runs/snake/GAME_REFERENCE/**
+  (le dossier d'observation est une ENTRÉE, jamais modifié) · zones gelées (autopilot.py,
+  scripts/studioV2/, src/, ml/). Aucun code, aucun test.
+permissions: >-
+  read: dépôt entier. write/create: UNIQUEMENT docs/forge/GENRE_BIBLE_SNAKE_V1_PROPOSED.md.
+  run: lecture seule (python one-liner de parsing/validation JSON, grep, git status en
+  LECTURE). delete: aucun. INTERDIT : git commit, git push, git checkout, git stash,
+  git restore, toute écriture hors du document nommé.
+gardeFou: >-
+  (1) PROVENANCE OBLIGATOIRE par règle : {source, date, confiance} — la source est une URL
+  présente dans observation_manifest.json, ou une source NOUVELLE vérifiable (URL réelle),
+  ou la mention HYPOTHESE (listée à part). Interdiction absolue d'inventer une référence ou
+  un chiffre de genre. (2) Toute valeur chiffrée (vitesse, taille de grille, cadence) porte
+  sa provenance ou est marquée « à mesurer » — jamais d'auto-référence (la bible ne se cite
+  pas elle-même ; leçon Genre Bible Pong). (3) Chaque règle est OBSERVABLE (testable par un
+  oracle ou un playtest) — une règle non testable est reformulée ou marquée HYPOTHESE.
+  (4) Le bloc JSON de règles doit être PARSABLE — vérifie-le en le parsant. (5) Aucune
+  modification d'artefact vivant, aucune commande git destructive. (6) Doute => STOP et
+  question dans le document.
+success_criteria: >-
+  (a) patron Art Bible respecté (frontmatter + sections + bloc JSON à `id` + mécanisme de
+  couverture décrit) ; (b) les 5 volets de l'objectif couverts ; (c) chaque règle porte
+  {source, date, confiance} ou HYPOTHESE ; (d) toute source citée existe dans
+  observation_manifest.json ou est une URL nouvelle explicitement listée ; (e) bloc JSON
+  parsé avec succès ; (f) `git status --porcelain` ne montre QUE le document.
+tests_oracles: >-
+  Parsing du bloc JSON (python -c json.loads) · vérification mécanique que chaque source
+  citée appartient au manifest ou à la liste des sources nouvelles (one-liner) ·
+  `git status --porcelain`. Mission de RÉDACTION : software_verdict porte sur la conformité
+  du livrable, jamais sur la qualité du genre.
+final_report: >-
+  software/evidence/claim séparés, claim_verdict: NO_CLAIM_ALLOWED, OK/FAIL/BLOCKED.
+  Contenu : règles sourcées vs HYPOTHÈSE (comptes) · sources 403 utilisées (lesquelles,
+  avec confiance dégradée) · sortie du parsing JSON · git status · section
+  skipped_validation explicite.
+output_contract: >-
+  {resume_1_phrase, genre_bible: {regles_sourcees: n, hypotheses: n, regles_confiance_degradee: n,
+  patron_respecte: bool, json_parsable: bool}, sources_nouvelles: [], document,
+  git_status_final, skipped_validation: [], software_verdict,
+  evidence_verdict: MECHANICAL_VALIDATION_ONLY, claim_verdict: NO_CLAIM_ALLOWED}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Mission M-D du chantier « chaîne architecte » (ordre ratifié Pierre 2026-07-28 :
+  World Scan → Genre Bible → Prisme → N2-0 → wiremap → validation). En amont : World Scan
+  Snake (s2, oracle vert re-vérifié). En aval : lentilles du Prisme (M-E) qui liront cette
+  bible, check_genre_coverage (à câbler pour Snake), ratification Pierre.

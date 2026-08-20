@@ -1,0 +1,125 @@
+# blueprint.yaml — auto_battler_i2 (preparation + economy, headless, is_game=false)
+# GELÉ — engine/ (i1) reste content-agnostic et INCHANGÉ ; 6 nouveaux modules consomment engine/, jamais l'inverse.
+modules:
+  - nom: games/auto_battler/pool/pool.mjs
+    responsabilite: >-
+      Comptabilité du Pool par UnitDefinition — reserve() au tirage Shop, debit() au Buy,
+      restore() au Sell selon le Star ; maintient l'invariant Pool + Shops réservées +
+      possessions(Board+Bench). [R1, R2, R3]
+    depend_de:
+      - games/auto_battler/engine/types.mjs
+      - games/auto_battler/engine/state.mjs
+  - nom: games/auto_battler/shop/shop.mjs
+    responsabilite: >-
+      Tirage de Shop déterministe à partir de rng_state (consomme engine/rng.mjs), réserve
+      les exemplaires tirés via pool.mjs, gère le Lock (aucune consommation de rng_state,
+      aucun coût, persistance du tirage au Round suivant). [R6, R1, R7]
+    depend_de:
+      - games/auto_battler/engine/types.mjs
+      - games/auto_battler/engine/rng.mjs
+      - games/auto_battler/pool/pool.mjs
+  - nom: games/auto_battler/bench/bench.mjs
+    responsabilite: >-
+      Capacité du Bench — vérifie la place disponible, rejette un Buy de façon déterministe
+      et sans effet de bord quand plein (DP-9). [R5]
+    depend_de:
+      - games/auto_battler/engine/types.mjs
+      - games/auto_battler/engine/state.mjs
+  - nom: games/auto_battler/merge/merge.mjs
+    responsabilite: >-
+      Détection (3 UnitInstances identiques sur Board/Bench) et résolution de Merge — acte
+      système déclenché par la transition, jamais par un Input direct. Consomme les 3
+      instances par ordre de création, produit une Unit de Star supérieur avec un nouvel
+      unit_instance_id, gère la cascade. [R4]
+    depend_de:
+      - games/auto_battler/engine/types.mjs
+      - games/auto_battler/engine/eventlog.mjs
+  - nom: games/auto_battler/economy/gold.mjs
+    responsabilite: >-
+      Ledger fermé des transactions de Gold (Income, Buy, Sell, Reroll, LevelUp, rewards) ;
+      applique le delta d'un Seat comme somme algébrique exacte de la liste close de
+      transactions du Round. [R8]
+    depend_de:
+      - games/auto_battler/engine/types.mjs
+      - games/auto_battler/engine/eventlog.mjs
+  - nom: games/auto_battler/preparation/preparation.mjs
+    responsabilite: >-
+      Fine couche orchestratrice de la fenêtre Preparation — reçoit la liste close des 7
+      Inputs, route chaque Input vers pool/shop/bench/gold/merge, clôt la fenêtre uniquement
+      via ConfirmPreparation. Ne contient AUCUNE logique métier propre — pure composition.
+      [R9]
+    depend_de:
+      - games/auto_battler/engine/transition.mjs
+      - games/auto_battler/engine/inputs.mjs
+      - games/auto_battler/engine/eventlog.mjs
+      - games/auto_battler/engine/state.mjs
+      - games/auto_battler/pool/pool.mjs
+      - games/auto_battler/shop/shop.mjs
+      - games/auto_battler/bench/bench.mjs
+      - games/auto_battler/merge/merge.mjs
+      - games/auto_battler/economy/gold.mjs
+
+deps_autorisees:
+  - "games/auto_battler/pool/pool.mjs -> games/auto_battler/engine/types.mjs"
+  - "games/auto_battler/pool/pool.mjs -> games/auto_battler/engine/state.mjs"
+  - "games/auto_battler/shop/shop.mjs -> games/auto_battler/engine/rng.mjs"
+  - "games/auto_battler/shop/shop.mjs -> games/auto_battler/pool/pool.mjs"
+  - "games/auto_battler/bench/bench.mjs -> games/auto_battler/engine/state.mjs"
+  - "games/auto_battler/merge/merge.mjs -> games/auto_battler/engine/eventlog.mjs"
+  - "games/auto_battler/economy/gold.mjs -> games/auto_battler/engine/eventlog.mjs"
+  - "games/auto_battler/preparation/preparation.mjs -> games/auto_battler/engine/transition.mjs"
+  - "games/auto_battler/preparation/preparation.mjs -> games/auto_battler/pool/pool.mjs"
+  - "games/auto_battler/preparation/preparation.mjs -> games/auto_battler/shop/shop.mjs"
+  - "games/auto_battler/preparation/preparation.mjs -> games/auto_battler/bench/bench.mjs"
+  - "games/auto_battler/preparation/preparation.mjs -> games/auto_battler/merge/merge.mjs"
+  - "games/auto_battler/preparation/preparation.mjs -> games/auto_battler/economy/gold.mjs"
+
+deps_interdites:
+  - "games/auto_battler/engine/** -> games/auto_battler/pool/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/shop/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/bench/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/merge/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/economy/**"
+  - "games/auto_battler/engine/** -> games/auto_battler/preparation/**"
+  - "games/auto_battler/pool/** -> games/auto_battler/shop/**"
+  - "games/auto_battler/pool/** -> games/auto_battler/bench/**"
+  - "games/auto_battler/pool/** -> games/auto_battler/merge/**"
+  - "games/auto_battler/pool/** -> games/auto_battler/economy/**"
+  - "games/auto_battler/pool/** -> games/auto_battler/preparation/**"
+  - "games/auto_battler/bench/** -> games/auto_battler/pool/**"
+  - "games/auto_battler/bench/** -> games/auto_battler/shop/**"
+  - "games/auto_battler/bench/** -> games/auto_battler/merge/**"
+  - "games/auto_battler/bench/** -> games/auto_battler/economy/**"
+  - "games/auto_battler/bench/** -> games/auto_battler/preparation/**"
+  - "games/auto_battler/merge/** -> games/auto_battler/pool/**"
+  - "games/auto_battler/merge/** -> games/auto_battler/shop/**"
+  - "games/auto_battler/merge/** -> games/auto_battler/bench/**"
+  - "games/auto_battler/merge/** -> games/auto_battler/economy/**"
+  - "games/auto_battler/merge/** -> games/auto_battler/preparation/**"
+  - "games/auto_battler/economy/** -> games/auto_battler/pool/**"
+  - "games/auto_battler/economy/** -> games/auto_battler/shop/**"
+  - "games/auto_battler/economy/** -> games/auto_battler/bench/**"
+  - "games/auto_battler/economy/** -> games/auto_battler/merge/**"
+  - "games/auto_battler/economy/** -> games/auto_battler/preparation/**"
+  - "games/auto_battler/shop/** -> games/auto_battler/bench/**"
+  - "games/auto_battler/shop/** -> games/auto_battler/merge/**"
+  - "games/auto_battler/shop/** -> games/auto_battler/economy/**"
+  - "games/auto_battler/shop/** -> games/auto_battler/preparation/**"
+
+ownership:
+  games/auto_battler/pool/pool.mjs: builder
+  games/auto_battler/shop/shop.mjs: builder
+  games/auto_battler/bench/bench.mjs: builder
+  games/auto_battler/merge/merge.mjs: builder
+  games/auto_battler/economy/gold.mjs: builder
+  games/auto_battler/preparation/preparation.mjs: builder
+
+invariants_archi:
+  - "engine/** reste content-agnostic (P11) : aucun import depuis pool/, shop/, bench/, merge/, economy/, preparation/ — le sens de dépendance est exclusivement modules-nouveaux -> engine/."
+  - "Merge n'est jamais invoqué via un Input de l'alphabet fermé des 7 : merge.mjs est appelé uniquement depuis preparation.mjs (ou la logique de transition), jamais comme Input direct."
+  - "preparation.mjs est une couche de composition pure : aucune règle de Pool/Shop/Bench/Gold/Merge n'est dupliquée ou réimplémentée dans preparation.mjs — délégation stricte aux modules dédiés (anti god-object)."
+  - "Le débit du Pool a lieu exclusivement dans pool.mjs au moment du Buy ; aucun autre module ne mute le Pool directement."
+  - "shop.mjs ne débite jamais le Pool lui-même — il réserve seulement via pool.mjs ; le débit reste la responsabilité exclusive de pool.mjs au Buy."
+  - "gold.mjs n'accepte que des transactions appartenant à la liste close (Income, Buy, Sell, Reroll, LevelUp, rewards) ; toute transaction hors liste = fail-hard."
+  - "bench.mjs rejette un Buy à capacité pleine sans aucun effet de bord (aucune mutation de pool/gold/shop n'a lieu si bench.mjs rejette)."
+  - "Aucune dépendance cyclique : pool <- shop <- preparation ; bench, merge, gold sont des feuilles consommées uniquement par preparation (jamais l'inverse)."

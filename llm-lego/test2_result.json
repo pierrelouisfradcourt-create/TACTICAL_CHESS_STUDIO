@@ -1,0 +1,53 @@
+{
+  "httpStatus": 200,
+  "body": {
+    "success": true,
+    "state": {
+      "initial": {
+        "query": "Search for climate news"
+      },
+      "nodes": {
+        "node-analyzer": {
+          "type": "llm",
+          "intent": "search",
+          "text": "[mock llm] classified intent=\"search\" for prompt: Respond ONLY with JSON: {\"intent\":\"search\"} or {\"intent\":\"chat\"}"
+        },
+        "intent": {
+          "type": "llm",
+          "intent": "search",
+          "text": "[mock llm] classified intent=\"search\" for prompt: Respond ONLY with JSON: {\"intent\":\"search\"} or {\"intent\":\"chat\"}"
+        },
+        "node-router": {
+          "routeKey": "search"
+        },
+        "node-search": {
+          "type": "tool",
+          "tool": "search",
+          "result": "mock result from search"
+        }
+      }
+    },
+    "trace": [
+      {
+        "nodeId": "node-analyzer",
+        "nodeType": "llm",
+        "durationMs": 56
+      },
+      {
+        "nodeId": "node-router",
+        "nodeType": "router",
+        "durationMs": 0,
+        "routingDecision": {
+          "routeKey": "search",
+          "matchedEdgeId": "e2",
+          "reason": "exact-match"
+        }
+      },
+      {
+        "nodeId": "node-search",
+        "nodeType": "tool",
+        "durationMs": 15
+      }
+    ]
+  }
+}

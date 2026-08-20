@@ -1,0 +1,43 @@
+# ports.yaml — SSOT des ports services studio (IMP-210)
+# Source unique de verite pour eviter les collisions de ports.
+# Lecture seule. Toute reservation passe par ce fichier.
+#
+# claim_verdict: NO_CLAIM_ALLOWED
+meta:
+  version: v0
+  created_session: '2026-06-29'
+  authority: HumanGate
+  bind: 127.0.0.1   # tous les services studio bindent loopback uniquement
+
+services:
+  autopilot:
+    port: 7331
+    impl: raw http.server
+    status: active
+    note: "Studio UI + API. NE PAS toucher. Le cockpit ne tape jamais 7331 — il lit les fichiers (doctrine IMP-191)."
+  claude_proxy:
+    port: 8765
+    impl: proxy
+    status: active
+    note: "Proxy Claude."
+  canvas_gateway:
+    port: 8766
+    impl: FastAPI
+    status: active
+    note: "Apres IMP-210 (option A) : meta + gate strict uniquement. Routes cockpit migrees vers cockpit_server:8770."
+  lm_studio:
+    port: 1234
+    impl: LM Studio (externe)
+    status: external
+    note: "Qwen2.5-14B local. Hors process studio."
+  cockpit_server:
+    port: 8770
+    impl: FastAPI
+    status: active
+    note: "Backend cockpit unifie read-files + delegation gouvernee (IMP-210)."
+
+reserved:
+  - port: 9000
+    note: "Reserve — non attribue."
+  - port: 9001
+    note: "Reserve — non attribue."

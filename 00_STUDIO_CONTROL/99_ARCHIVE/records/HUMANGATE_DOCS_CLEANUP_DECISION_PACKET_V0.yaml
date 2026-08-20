@@ -1,0 +1,217 @@
+task_id: DOCS-HUMANGATE-CLEANUP-DECISIONS-001
+status: DOCUMENTED_ONLY
+surface: artifacts_runtime_outputs
+owner: HumanGate
+produced_file_type: humangate_docs_cleanup_decision_packet
+promotion_gate: HumanGate
+claim_posture: NO_CLAIM_ALLOWED
+no_global_ready_verdict: true
+
+preflight:
+  pwd: C:\TACTICAL_CHESS_STUDIO
+  git_toplevel: C:/TACTICAL_CHESS_STUDIO
+  branch: master
+  head: 5e52eaef1eabf35bca752b49dc56254330de1fbf
+  status_before_packet:
+    - "## master...origin/master"
+    - "?? scripts/uxpilote/"
+  pre_existing_changes:
+    - path: scripts/uxpilote/
+      status: UNKNOWN
+      note: Pre-existing untracked directory observed at preflight; out of scope and not inspected.
+
+read_first:
+  - path: AGENTS.md
+    status: DOCUMENTED_ONLY
+    loaded_for_task: true
+  - path: 00_STUDIO_CONTROL/05_STATUS/DOCS_KENPACHI_DUPLICATE_ROUTE_AUDIT_V0.md
+    status: DOCUMENTED_ONLY
+    loaded_for_task: true
+  - path: 00_STUDIO_CONTROL/05_STATUS/DOCS_CURRENT_STATE_INDEX_STALE_CLAIM_AUDIT_V0.md
+    status: DOCUMENTED_ONLY
+    loaded_for_task: true
+  - path: 00_STUDIO_CONTROL/05_STATUS/DOCS_ROADMAP_ARCHITECTURE_CONSOLIDATION_AUDIT_V0.md
+    status: DOCUMENTED_ONLY
+    loaded_for_task: true
+
+source_state:
+  created:
+    - path: 00_STUDIO_CONTROL/05_STATUS/HUMANGATE_DOCS_CLEANUP_DECISION_PACKET_V0.yaml
+      status: DOCUMENTED_ONLY
+      note: Created as a passive HumanGate decision packet only.
+  registered:
+    - path: 00_STUDIO_CONTROL/05_STATUS/HUMANGATE_DOCS_CLEANUP_DECISION_PACKET_V0.yaml
+      status: NOT_FOUND
+      note: Registry and source-index updates were blocked by task scope.
+  loaded:
+    - path: AGENTS.md
+      status: DOCUMENTED_ONLY
+    - path: 00_STUDIO_CONTROL/05_STATUS/DOCS_KENPACHI_DUPLICATE_ROUTE_AUDIT_V0.md
+      status: DOCUMENTED_ONLY
+    - path: 00_STUDIO_CONTROL/05_STATUS/DOCS_CURRENT_STATE_INDEX_STALE_CLAIM_AUDIT_V0.md
+      status: DOCUMENTED_ONLY
+    - path: 00_STUDIO_CONTROL/05_STATUS/DOCS_ROADMAP_ARCHITECTURE_CONSOLIDATION_AUDIT_V0.md
+      status: DOCUMENTED_ONLY
+    - path: scripts/uxpilote/
+      status: UNKNOWN
+      note: Explicitly out of scope and not inspected.
+  enforced:
+    - status: DOCUMENTED_ONLY
+      note: Output routing was enforced by creating only the requested packet under 00_STUDIO_CONTROL/05_STATUS/.
+    - status: BLOCKED
+      note: Delete, move, rename, archive, existing-doc edits, registry updates, and source-index updates were not performed.
+  evidenced:
+    - status: DOCUMENTED_ONLY
+      note: Preflight, source readback, target creation, readback validation, diff check, and final status are recorded in this packet and final report.
+  core_rule: created != registered; registered != loaded; loaded != enforced; enforced != evidenced
+
+route_check:
+  intended_surface: artifacts_runtime_outputs
+  produced_file_type: humangate_docs_cleanup_decision_packet
+  actual_destination: 00_STUDIO_CONTROL/05_STATUS/HUMANGATE_DOCS_CLEANUP_DECISION_PACKET_V0.yaml
+  route_status: DOCUMENTED_ONLY
+  existing_docs_modified: false
+  physical_cleanup_performed: false
+  promotion_gate: HumanGate
+
+decisions_required:
+  kenpachi_duplicate:
+    status: DOCUMENTED_ONLY
+    source_audit: 00_STUDIO_CONTROL/05_STATUS/DOCS_KENPACHI_DUPLICATE_ROUTE_AUDIT_V0.md
+    duplicate_pair:
+      - docs/control-plane/KENPACHI_CODEX_LOCAL_PARAMETERS.md
+      - 00_STUDIO_CONTROL/06_CODEX/KENPACHI_CODEX_LOCAL_PARAMETERS.md
+    duplicate_class: exact_duplicate
+    evidence_summary:
+      size_match: true
+      hash_match: true
+      content_diff: NOT_FOUND
+      sha256: EB6901A533526E8B24988206F4BEF6DA8A814F001B2A7923DC2066A1B4516986
+    canonical_route_candidate: 00_STUDIO_CONTROL/06_CODEX/KENPACHI_CODEX_LOCAL_PARAMETERS.md
+    duplicate_archive_candidate: docs/control-plane/KENPACHI_CODEX_LOCAL_PARAMETERS.md
+    recommended_humangate_decision: KEEP_CODEX_ROUTE_AS_CANONICAL_AND_DEMOTE_CONTROL_PLANE_DUPLICATE_AFTER_SEPARATE_AUTHORIZATION
+    action_now: NO_PHYSICAL_ACTION
+    blocked_now:
+      - delete
+      - move
+      - rename
+      - archive
+      - edit_existing_docs
+      - registry_update
+      - source_index_update
+  current_state_index:
+    status: DOCUMENTED_ONLY
+    source_audit: 00_STUDIO_CONTROL/05_STATUS/DOCS_CURRENT_STATE_INDEX_STALE_CLAIM_AUDIT_V0.md
+    target_doc: MASTER_DOCS/CURRENT_STATE_INDEX.md
+    issue_summary: Contains stale or conflict-prone hardcoded branch, remote, SHA, path, local-readiness, and history claims.
+    live_preflight_basis:
+      current_branch: master
+      current_head: 5e52eaef1eabf35bca752b49dc56254330de1fbf
+      current_status: "## master...origin/master"
+    refresh_candidate:
+      status: DOCUMENTED_ONLY
+      bounded_action: Remove hardcoded current branch, remote, ahead-count, and SHA framing; preserve live-Git checks as current truth source.
+    demote_to_reference_candidate:
+      status: DOCUMENTED_ONLY
+      bounded_action: Treat local AM-stack and stale Section 4A material as historical/reference context only.
+    recommended_humangate_decision: CHOOSE_REFRESH_OR_DEMOTE_TO_REFERENCE_IN_SEPARATE_AUTHORIZED_DOCS_TASK
+    action_now: NO_EDIT
+    blocked_now:
+      - edit_existing_docs
+      - archive
+      - delete
+      - move
+      - rename
+      - runtime_verification
+      - test_verification
+      - registry_update
+      - source_index_update
+  scripts_uxpilote:
+    path: scripts/uxpilote/
+    status: UNKNOWN
+    scope: OUT_OF_SCOPE
+    inspected: false
+    action_now: NO_ACTION
+
+output_routing_result:
+  produced_file_type: humangate_docs_cleanup_decision_packet
+  intended_surface: artifacts_runtime_outputs
+  actual_destination: 00_STUDIO_CONTROL/05_STATUS/HUMANGATE_DOCS_CLEANUP_DECISION_PACKET_V0.yaml
+  retention_policy: Passive decision packet only; not canonical truth unless HumanGate promotes.
+  registration_required_now: false
+  project_source_upload_required_now: false
+  no_physical_cleanup_performed: true
+
+files_changed:
+  - path: 00_STUDIO_CONTROL/05_STATUS/HUMANGATE_DOCS_CLEANUP_DECISION_PACKET_V0.yaml
+    surface: artifacts_runtime_outputs
+    change_status: DOCUMENTED_ONLY
+    operation: created
+
+blocked_actions:
+  - delete
+  - move
+  - rename
+  - archive
+  - edit_existing_docs
+  - registry_update
+  - source_index_update
+  - tests
+  - runtime
+  - benchmark
+  - training
+  - commit
+  - push
+
+validation_plan:
+  expected_level: DOCUMENTED_ONLY
+  required_commands:
+    - Test-Path 00_STUDIO_CONTROL/05_STATUS/HUMANGATE_DOCS_CLEANUP_DECISION_PACKET_V0.yaml
+    - Get-Content 00_STUDIO_CONTROL/05_STATUS/HUMANGATE_DOCS_CLEANUP_DECISION_PACKET_V0.yaml -TotalCount 80
+    - git diff --check
+    - git status --short --branch
+
+skipped_validation:
+  runtime: BLOCKED by task scope.
+  tests: BLOCKED by task scope.
+  benchmarks: BLOCKED by task scope.
+  training: BLOCKED by task scope.
+  existing_doc_edit_validation: BLOCKED because no existing docs were edited.
+  physical_cleanup_validation: BLOCKED because no delete, move, rename, or archive action was authorized or performed.
+  scripts_uxpilote_inspection: BLOCKED by task scope; status UNKNOWN.
+
+risks:
+  - This packet records candidate HumanGate decisions only; it performs no cleanup and changes no canonical source.
+  - The Kenpachi duplicate remains present in both locations until a separate HumanGate action authorizes physical cleanup.
+  - MASTER_DOCS/CURRENT_STATE_INDEX.md remains unchanged and may still be misread as current unless separately refreshed or demoted.
+  - The packet is created but not registered, loaded as project truth, enforced beyond route placement, or promoted.
+  - scripts/uxpilote/ remains UNKNOWN and out of scope.
+
+status_by_surface:
+  active_runtime_code: PASSIVE
+  tests: PASSIVE
+  generated_runtime_outputs: DOCUMENTED_ONLY
+  artifacts_runtime_outputs: DOCUMENTED_ONLY
+  canonical_docs: PASSIVE
+  roadmap_docs_only: PASSIVE
+  inference: PASSIVE
+
+software_verdict:
+  active_runtime_code: PASSIVE
+  tests: PASSIVE
+  generated_runtime_outputs: DOCUMENTED_ONLY
+  artifacts_runtime_outputs: DOCUMENTED_ONLY
+  canonical_docs: PASSIVE
+  roadmap_docs_only: PASSIVE
+  inference: PASSIVE
+
+evidence_verdict:
+  active_runtime_code: PASSIVE
+  tests: PASSIVE
+  generated_runtime_outputs: DOCUMENTED_ONLY
+  artifacts_runtime_outputs: DOCUMENTED_ONLY
+  canonical_docs: DOCUMENTED_ONLY
+  roadmap_docs_only: PASSIVE
+  inference: PASSIVE
+
+claim_verdict: NO_CLAIM_ALLOWED

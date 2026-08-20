@@ -1,0 +1,31 @@
+{
+  "steps": [
+    "goto http://localhost:3117 -> HTTP 200",
+    "after Charger exemple: graphInput length=1093, has node-analyzer=true",
+    "#status = \"✅ Exécution réussie\"",
+    "#stateOutput length=741",
+    "#traceOutput length=437",
+    "  [OK] state shows node-analyzer",
+    "  [OK] state shows node-search",
+    "  [OK] state shows routeKey",
+    "  [OK] trace shows node-search step",
+    "  [OK] trace shows exact-match reason",
+    "  [OK] trace did NOT take node-chat",
+    "  [OK] no console errors",
+    "screenshot saved -> ux_validation_screenshot.png",
+    "\nUX VALIDATION: PASS"
+  ],
+  "pass": true,
+  "checks": {
+    "state shows node-analyzer": true,
+    "state shows node-search": true,
+    "state shows routeKey": true,
+    "trace shows node-search step": true,
+    "trace shows exact-match reason": true,
+    "trace did NOT take node-chat": true,
+    "no console errors": true
+  },
+  "consoleErrors": [],
+  "stateExcerpt": "{\n  \"initial\": {\n    \"query\": \"Find information about AI safety\"\n  },\n  \"nodes\": {\n    \"node-analyzer\": {\n      \"type\": \"llm\",\n      \"intent\": \"search\",\n      \"text\": \"[mock llm] classified intent=\\\"search\\\" for prompt: Analyze the user intent. Respond ONLY with JSON: {\\\"intent\\\": \\\"search\\\"} or {\\\"intent\\\": \\\"chat\\\"}\"\n    },\n    \"intent\": {\n      \"type\": \"llm\",\n      \"intent\": \"search\",\n      \"te",
+  "traceExcerpt": " Step 1: node-analyzer Type: llm | Duration: 65ms Step 2: node-router Type: router | Duration: 0ms 🔀 Router: routeKey=\"search\", reason=exact-match Step 3: node-search Type: tool | Duration: 16ms "
+}

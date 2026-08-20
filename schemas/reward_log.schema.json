@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/reward_log.schema.json",
+  "title": "RewardLog",
+  "description": "Non-canonical local reward ledger emitted by agent_pr_operator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "task_id",
+    "agent_id",
+    "positive_points",
+    "negative_points",
+    "strikes",
+    "autonomy_delta",
+    "final_score",
+    "reviewed_by_human",
+    "claim_verdict"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "agent_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "positive_points": {
+      "type": "integer"
+    },
+    "negative_points": {
+      "type": "integer"
+    },
+    "strikes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "autonomy_delta": {
+      "type": "string",
+      "enum": [
+        "DECREASE",
+        "NONE",
+        "INCREASE_REVIEW_ONLY"
+      ]
+    },
+    "final_score": {
+      "type": "number",
+      "minimum": -100,
+      "maximum": 100
+    },
+    "reviewed_by_human": {
+      "type": "boolean",
+      "default": false
+    },
+    "claim_verdict": {
+      "type": "string",
+      "enum": [
+        "NO_CLAIM_ALLOWED",
+        "CLAIM_SUPPORTED",
+        "CLAIM_UNSUPPORTED",
+        "BLOCKED"
+      ]
+    }
+  }
+}

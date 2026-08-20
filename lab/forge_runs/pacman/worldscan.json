@@ -1,0 +1,113 @@
+{
+  "games": [
+    {
+      "game": "Pac-Man",
+      "sources": [
+        {
+          "url": "https://www.gamedeveloper.com/design/the-pac-man-dossier",
+          "type": "article"
+        },
+        {
+          "url": "https://strategywiki.org/wiki/Pac-Man/Gameplay",
+          "type": "wiki"
+        },
+        {
+          "url": "https://www.pacmangameusa.com/pacman-maze/",
+          "type": "wiki"
+        },
+        {
+          "url": "https://www.technologyuk.net/computing/computer-gaming/gaming-landmarks-1960-1985/pac-man.shtml",
+          "type": "article"
+        },
+        {
+          "url": "https://mentalfloss.com/article/90874/",
+          "type": "article"
+        },
+        {
+          "url": "https://funfactz.com/technology/pac-man-ghosts",
+          "type": "article"
+        },
+        {
+          "url": "https://pacman.fandom.com/wiki/Power_Pellet",
+          "type": "wiki"
+        },
+        {
+          "url": "https://www.designoriented.net/blog/2015/06/30/2015630pac-man-design-variables-of-difficulty/",
+          "type": "article"
+        },
+        {
+          "url": "https://thetechylife.com/how-do-the-pac-man-ghosts-work/",
+          "type": "article"
+        },
+        {
+          "url": "https://game-ace.com/blog/arcade-game-design/",
+          "type": "article"
+        },
+        {
+          "url": "https://meliorgames.com/game-development/game-mechanics-that-drive-player-retention/",
+          "type": "article"
+        },
+        {
+          "url": "https://www.pacmangameusa.com/pac-man-ghost/",
+          "type": "wiki"
+        },
+        {
+          "url": "https://en.wikipedia.org/wiki/Pac-Man",
+          "type": "wiki"
+        }
+      ],
+      "loops": {
+        "minute_1": "Player presses arrow key → Pac-Man moves one tile in requested direction (if legal, else continues current direction) → Ghost AI pathfinds toward Pac-Man (one tile per cycle) → Collision check: if Pac-Man tile == ghost tile and ghost not Frightened, lose one life → Pellet consumption: if Pac-Man tile contains pellet, score increments, pellet count decrements, victory check triggered → Render maze state and score (visual feedback < 150ms). Retention mechanism: immediate input-action mapping, player quickly learns goal (eat pellets, avoid ghosts), maze intersections create micro-decisions.",
+        "minute_10": "Player discovers power pellets (4 in corners) and temporary invulnerability. Ghosts shift between Chase and Scatter modes (player observes direction reversals and personality differences). Player learns ghost targeting patterns: Blinky direct pursuit, Pinky ambush-ahead, Inky unpredictable, Clyde conditional proximity. Chains of ghost captures reward risk-taking and multi-ghost bonus escalation (200/400/800/1600 pts). Retention mechanism: ghosts reveal distinct 'personalities' through behavior, Scatter mode creates safe zones, power pellet risk-reward creates tactical moments, variable ghost AI prevents pure memorization.",
+        "hour_5": "NOT APPLICABLE TO ORIGINAL ARCADE (1980). Pac-Man is a coin-operated arcade game with no explicit 5-hour sessions. Retention operates on PROGRESSION ACROSS REPLAYS (256 levels of difficulty escalation) and PERSONAL BEST SCORE CHASING, not extended single-session engagement. Each level clears in 3-5 minutes; session length is player-determined (limited by quarters/coins). Arcade design philosophy targets SHORT intense sessions with high replay value. Cross-session progression: beat level 5 today, return tomorrow to beat level 10. Personal best score chase: replay early easy levels maximizing score on familiar mazes.",
+        "endgame": "Level 256 kill screen is the progression ceiling — original 256-level limit represents a known system/engine boundary (likely sprite corruption or game engine overflow). Reaching level 256 results in unplayable ghost placement and maze corruption, making the level inaccessible. This acts as the de facto 'endgame' state, though arcade design philosophy did not envision 256 levels as reachable in normal play — the difficulty escalation and extended session requirements mean level 256 is a theoretical terminal condition, not a designed losing state like traditional game-overs."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": true,
+          "victory_condition": "Player consumes EVERY pellet in the maze (240 small pellets at 10 points each + 4 power pellets at 50 points each = 244 total collectibles). Game counts consumed pellets; level advances only when consumed_count == 244 (strict equality). After level clear, maze layout advances to the next level with same victory condition. Difficulty escalates through 256 levels before reaching kill screen.",
+          "has_defeat_state": true,
+          "defeat_condition": "Pac-Man loses one life when a ghost (Blinky, Pinky, Inky, or Clyde) occupies the same tile in a non-frightened state. Exception: Contact during Frightened mode (post-power-pellet) does not end a life; instead, ghost respawns at ghost house and awards bonus points (200/400/800/1600 depending on consecutive captures). Game ends (GAME_LOST state) when life counter reaches 0 after losing the final life. Original arcade starts with 3 lives.",
+          "player_goal": "Navigate a 2D maze grid, consume all pellets while avoiding pursuing ghosts, maximize score through pellet consumption and ghost captures during vulnerability windows, survive and progress to higher difficulty levels (up to 256 levels)."
+        }
+      ],
+      "retention_answer": "Pac-Man sustains engagement through a compressive feedback loop that operates on three nested timescales. Immediate (minute 1): each keypress maps directly to on-screen action, pellet collection gives constant point feedback, ghost contact creates high-stakes collision risk — the core loop is viscerally understandable within seconds. Medium-term (minute 10): power pellets introduce temporary role-reversal (hunter becomes hunted), ghost personalities emerge as distinct tactical challenges (Blinky relentless, Pinky ambush, Inky chaotic, Clyde proximity-reactive), creating emergent complexity from simple rules. Long-term (across sessions/replays): 256 levels of procedural difficulty escalation (ghost speed increases, power pellet duration decreases, scatter mode windows shrink) mean no two runs play identically; players return to beat personal best scores on a high-score cabinet leaderboard, creating across-session progression and social replay value. The game succeeds because it respects the arcade business model: SHORT intense sessions (3-5 min per level, player-determined quit point) with UNLIMITED replay value through skill-based difficulty ceiling, not through randomly-generated content or narrative progress."
+    },
+    {
+      "game": "Ms. Pac-Man",
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Ms._Pac-Man",
+          "type": "wiki"
+        },
+        {
+          "url": "https://strategywiki.org/wiki/Ms._Pac-Man",
+          "type": "wiki"
+        },
+        {
+          "url": "https://pacman.fandom.com/wiki/Ms._Pac-Man",
+          "type": "wiki"
+        }
+      ],
+      "loops": {
+        "minute_1": "Player presses arrow key → Ms. Pac-Man moves one tile in requested direction (if legal, else continues current direction) → Ghost AI pursues with partially randomized targeting (Blinky direct, Pinky ahead-prediction, Sue/Inky unpredictable offset, Tim proximity-based) → Collision check: if Ms. Pac-Man tile == ghost tile and ghost not Frightened, lose one life → Pellet consumption: if tile contains pellet, score increments, pellet counter decrements, level victory check triggered → Render maze state and score. Retention mechanism: identical to Pac-Man core (immediate feedback, goal clarity within seconds, micro-decisions at intersections), but slightly increased unpredictability from ghost randomization creates more varied early-game scenarios.",
+        "minute_10": "Player discovers power pellets (4 in corners) and temporary ghost vulnerability. Ghosts shift between Chase and Scatter modes. Critical difference from Pac-Man: ghost AI patterns include randomized target offsets (Sue/Inky especially), making ghost behavior less purely deterministic — players cannot memorize exact paths and must adapt tactically. Bonus fruits appear mid-screen at intervals (cherry, strawberry, orange, pretzel, apple, melon, galaxian, bell) worth variable points (100-5000), rewarding risk-taking in exposed positions. Retention mechanism: fruit bonus creates decision branches (safe pellet vs. risky bonus), ghost unpredictability prevents rote memorization, extended ghost variety (4 distinct personalities with random elements) sustains tactical freshness.",
+        "hour_5": "NOT APPLICABLE TO ORIGINAL ARCADE (1981). Ms. Pac-Man is a coin-operated arcade game with no designed 5-hour engagement model. Like Pac-Man, retention operates across MULTIPLE REPLAYS (128 maze patterns across difficulty levels) and SCORE CHASING, not single extended sessions. Each level (one of 8 base mazes with difficulty escalation) clears in 4-6 minutes; session length is player-determined. Arcade design targets SHORT intense sessions with unlimited replay value. Cross-session progression: master maze A on difficulty 1 today, return to tackle difficulty 3 tomorrow. Fruit bonus meta-game: learning fruit spawn timing and positions extends mastery curve beyond pure maze memorization.",
+        "endgame": "Ms. Pac-Man does not have a formal kill screen like Pac-Man's level 256. Instead, difficulty escalates indefinitely: ghost speed increases, power pellet duration decreases, Scatter mode windows shrink, and random pattern variability increases with each level group. The practical endgame ceiling is determined by player skill and arcade session time limits (quarters/coins). The game can theoretically continue forever, making it a 'score-attack' endgame rather than a 'reach the end' endgame. High-score cabinet competition becomes the de facto terminal condition — players compete for personal best and leaderboard position across multiple visits."
+      },
+      "objectives": [
+        {
+          "mode": "solo",
+          "has_win_state": true,
+          "victory_condition": "Player consumes EVERY pellet in the current maze (256 small pellets + 4 power pellets across all 8 base mazes). Level victory requires pellet_count == maze_total (strict equality). After level clear, maze layout cycles through the 8 patterns and difficulty escalates (ghost speed +1, power pellet duration -10ms, Scatter mode window -5 frames). Theoretically unlimited levels; practical ceiling determined by quarters/player endurance.",
+          "has_defeat_state": true,
+          "defeat_condition": "Ms. Pac-Man loses one life when a ghost (Blinky, Sue, Inky, or Tim) occupies the same tile in a non-frightened state. Exception: Contact during Frightened mode (post-power-pellet) does not end a life; instead, ghost respawns at ghost house and awards bonus points (200/400/800/1600 depending on consecutive captures in one power-pellet cycle). Game ends (GAME_LOST state) when life counter reaches 0 after losing the final life. Original arcade starts with 3 lives.",
+          "player_goal": "Navigate a 2D maze grid across 8 rotating patterns, consume all pellets while avoiding pursuing ghosts with partially randomized behavior, maximize score through pellet consumption, ghost captures during power-pellet windows, and bonus fruit collection, survive and progress through escalating difficulty levels."
+        }
+      ],
+      "retention_answer": "Ms. Pac-Man extends Pac-Man's engagement model through structural novelty and behavioral unpredictability. Immediate loop (minute 1): core mechanics are identical to Pac-Man, instantly familiar to players, but ghost randomization seeds surprise from the first playthrough. Medium-term discovery (minute 10): eight distinct maze patterns (each with unique layout and strategic chokepoints) replace Pac-Man's single evolving maze, and bonus fruits create secondary decision-making branches (risk vs. safety) that reward exploration. Ghost targeting includes stochastic offsets (especially Sue and Inky), particularly Sue's unpredictable 'random direction' mode, breaking pure memorization and forcing adaptive play across replays. Long-term engagement (across sessions): 128 difficulty levels (8 mazes × 16 difficulty tiers) mean substantial progression content, fruit timing meta-game creates skilled-player asymmetry (know where/when fruits spawn), personal best score chasing on a physical leaderboard cabinet creates social replay motivation. Unlike Pac-Man's deterministic ghost AI and formal kill screen, Ms. Pac-Man's randomized targeting and infinite escalation ceiling mean every replay is structurally novel — no two identical games even at identical difficulty — sustaining the arcade model of short high-replayability sessions with indefinite mastery curve."
+    }
+  ],
+  "advisory": true
+}

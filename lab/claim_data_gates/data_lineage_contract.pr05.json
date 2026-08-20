@@ -1,0 +1,58 @@
+{
+  "schema_version": "data_lineage_contract.pr05",
+  "gate_entrypoint": "scripts/check_claim_data_gates.py",
+  "mechanical_only": true,
+  "required_lineage_for_claim_above_no_claim": [
+    "dataset_id",
+    "dataset_hash",
+    "split_id",
+    "split_hash",
+    "schema_version",
+    "label_policy_version",
+    "content_hash",
+    "parent_hash",
+    "creation_command"
+  ],
+  "lineage_missing_issues": {
+    "dataset_id": "MISSING_DATASET_ID",
+    "dataset_hash": "MISSING_DATASET_HASH",
+    "split_id": "MISSING_SPLIT_ID",
+    "split_hash": "MISSING_SPLIT_HASH",
+    "schema_version": "MISSING_SCHEMA_VERSION",
+    "label_policy_version": "MISSING_LABEL_POLICY_VERSION",
+    "content_hash": "MISSING_CONTENT_HASH",
+    "parent_hash": "MISSING_PARENT_HASH",
+    "creation_command": "MISSING_CREATION_COMMAND",
+    "aggregate": "MISSING_DATASET_LINEAGE"
+  },
+  "required_for_promotion_or_strength": [
+    "baseline_id",
+    "baseline_result_ref",
+    "uncertainty_summary",
+    "sample_size",
+    "run_count",
+    "seed_policy",
+    "statistical_method"
+  ],
+  "baseline_or_uncertainty_missing_issues": {
+    "baseline_id": "MISSING_BASELINE",
+    "baseline_result_ref": "MISSING_BASELINE",
+    "uncertainty_summary": "MISSING_UNCERTAINTY_FOR_PROMOTION",
+    "sample_size": "MISSING_SAMPLE_SIZE",
+    "run_count": "MISSING_RUN_COUNT",
+    "seed_policy": "MISSING_SEED_POLICY",
+    "statistical_method": "MISSING_STATISTICAL_METHOD"
+  },
+  "claim_scope_mapping": {
+    "smoke_benchmark": "HEALTH_ONLY",
+    "conversion_suite": "TARGETED_BEHAVIOR_ONLY",
+    "small_n": "EXPLORATORY_ONLY",
+    "missing_dataset_lineage": "NO_CLAIM_ALLOWED",
+    "missing_baseline": "EXPLORATORY_ONLY",
+    "missing_uncertainty_for_promotion": "NO_CLAIM_ALLOWED"
+  },
+  "contract_only_claim_verdict": "NO_CLAIM_ALLOWED",
+  "parser_only_claim_verdict": "NO_CLAIM_ALLOWED",
+  "gate_only_claim_verdict": "NO_CLAIM_ALLOWED",
+  "bootstrap_only_claim_verdict": "NO_CLAIM_ALLOWED"
+}

@@ -1,0 +1,40 @@
+---
+
+## RAPPORT FINAL — driver_smoke-run1
+
+### software_verdict: **OK**
+
+Le bug dans `clamp(x, lo, hi)` a été identifié et corrigé. La fonction retourne désormais `Math.min(hi, Math.max(x, lo))` qui borne correctement `x` dans l'intervalle [lo, hi].
+
+**Fichiers modifiés :**
+- `lab/forge_runs/driver_smoke/src/logic.mjs` — correction de la fonction clamp (1 ligne modifiée)
+
+**Ownership respecté :** Aucun fichier hors périmètre modifié. `logic.test.mjs` resté intouché (zone protégée).
+
+### evidence_verdict: **MECHANICAL_VALIDATION_ONLY**
+
+**Oracle code exécuté :**
+```bash
+cd lab/forge_runs/driver_smoke/src && node --test logic.test.mjs
+```
+
+**Résultat oracle :**
+```
+✔ clamp bounds a value above the range (0.4022ms)
+✔ clamp bounds a value below the range (0.0695ms)
+✔ clamp leaves an in-range value untouched (0.0513ms)
+✔ tests 3 | pass 3 | fail 0
+```
+
+### claim_verdict: **NO_CLAIM_ALLOWED**
+
+Raison : Ce projet n'est pas un jeu (is_game: false). Pas de contrat solvabilité ni e2e requis. La correction est purement mécanique et démontrée par l'oracle code (3/3 tests verts).
+
+### Traçabilité
+- **Recherche réutilisation** : `scripts/forge/reuse_ratio.mjs lab/forge_runs/driver_smoke` → reuse_ratio = 0.000 (code auto-contenu, aucun import de module applicatif)
+- **Contrat** : FORGE_DISPATCH:s9-build:driver_smoke-run1
+- **Branche** : feat/forge-oracle-gate
+
+---
+
+**✓ Tâche complétée.** Les 3 tests passent. Logic.mjs est en produit. Prêt pour s10a-oracle-code.

@@ -1,0 +1,67 @@
+{
+  "schema_version": "studiopilot.specialist_role_charter.v0",
+  "specialist_id": "specialist.balance_simulation.v0",
+  "specialist_type": "BALANCE_SIMULATION_SPECIALIST",
+  "display_name": "Balance Simulation Specialist V0",
+  "director_owner": "PRODUCT_GAME_DIRECTOR",
+  "mission": "Provide bounded simulation and balance advice while keeping benchmark outputs non-claim evidence.",
+  "inputs": [
+    "Balance hypothesis",
+    "Simulation configuration summary"
+  ],
+  "outputs": [
+    "Balance risk findings",
+    "Escalation recommendation"
+  ],
+  "allowed_actions": [
+    "review_balance_scope",
+    "summarize_simulation_results",
+    "report_risk"
+  ],
+  "forbidden_actions": [
+    "auto_merge",
+    "auto_ready",
+    "claim_escalation",
+    "benchmark_as_proof",
+    "training_without_scope",
+    "runtime_change_without_scope"
+  ],
+  "authority_level": "REVIEW_ONLY",
+  "escalation_path": [
+    "PRODUCT_GAME_DIRECTOR",
+    "QUALITY_DIRECTOR"
+  ],
+  "freeze_conditions": [
+    "scope_unclear",
+    "benchmark_automation_requested",
+    "claim_boundary_unclear"
+  ],
+  "required_evidence": [
+    "Simulation assumptions",
+    "Non-claim interpretation note"
+  ],
+  "permitted_surfaces": {
+    "workflows": false,
+    "runtime": false,
+    "search": false,
+    "neural": false,
+    "ml_training": false,
+    "benchmark": true,
+    "schemas": true,
+    "docs": true,
+    "control_plane_tooling": true
+  },
+  "forbidden_surfaces": [
+    ".github/workflows/",
+    "src/",
+    "ml/"
+  ],
+  "human_gate_required": true,
+  "active_agent_allowed": false,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": false,
+  "auto_training_allowed": false,
+  "auto_rule_mutation_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "status": "READY_FOR_HUMAN_REVIEW"
+}

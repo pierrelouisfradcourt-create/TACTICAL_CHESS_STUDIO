@@ -1,0 +1,377 @@
+Tu as raison d’avoir peur de perdre la **RNG** — c’est littéralement **le cœur de ton système**.
+Si elle n’est pas correctement documentée, quelqu’un qui reprend le projet pourrait recréer un système complètement différent et **détruire l’équilibrage que tu as construit**.
+
+Donc la bonne approche est de **figer la RNG sous forme de matrice de génération professionnelle**, comme le font :
+
+* Teamfight Tactics
+* Slay the Spire
+* Magic: The Gathering
+
+Je vais te produire **la version studio du système RNG**, c’est-à-dire **le moteur exact qui permet de générer les cartes et unités sans casser l’équilibrage**.
+
+---
+
+# RNG DU JEU — VERSION STUDIO
+
+## Principe central
+
+Chaque carte est générée avec un **budget de puissance**.
+
+La carte dépense ce budget dans :
+
+```
+stats
+forme d’attaque
+effets
+portée
+capacités
+```
+
+Le but est que **toutes les cartes restent équilibrées même si elles sont générées aléatoirement**.
+
+---
+
+# 1. Budget de puissance par type de pièce
+
+| pièce    | budget |
+| -------- | ------ |
+| Pion     | 4      |
+| Cavalier | 6      |
+| Fou      | 6      |
+| Tour     | 7      |
+| Reine    | 8      |
+| Roi      | 9      |
+
+Ce budget est la base de toute la RNG.
+
+---
+
+# 2. Coût des statistiques
+
+### PV
+
+| PV | coût |
+| -- | ---- |
+| 4  | 0    |
+| 5  | 1    |
+| 6  | 2    |
+| 7  | 3    |
+| 8  | 4    |
+| 9  | 5    |
+
+---
+
+### Attaque
+
+| ATK | coût |
+| --- | ---- |
+| 1   | 0    |
+| 2   | 1    |
+| 3   | 2    |
+| 4   | 3    |
+
+---
+
+### Armure
+
+| armure | coût |
+| ------ | ---- |
+| 0      | 0    |
+| 1      | 2    |
+| 2      | 4    |
+
+---
+
+# 3. Coût des formes d’attaque
+
+| forme          | coût |
+| -------------- | ---- |
+| adjacent       | 0    |
+| ligne 3        | 1    |
+| diagonale      | 1    |
+| cône           | 1    |
+| zone           | 2    |
+| ligne complète | 3    |
+
+---
+
+# 4. Coût des altérations
+
+| effet         | coût |
+| ------------- | ---- |
+| brûlure       | 1    |
+| poison        | 1    |
+| faiblesse     | 1    |
+| armure cassée | 1    |
+| racines       | 2    |
+| gel           | 2    |
+| désarmé       | 2    |
+| peur          | 2    |
+| charme        | 3    |
+
+---
+
+# 5. Modificateurs RNG
+
+Certains effets modifient les stats automatiquement.
+
+Exemples :
+
+### brûlure
+
+```
+attaque -1
+coût réduit de 1
+```
+
+### poison
+
+```
+attaque -1
+coût réduit de 1
+```
+
+### faiblesse
+
+```
+attaque -1
+coût réduit de 1
+```
+
+---
+
+# 6. Taxe de portée
+
+Plus une attaque est longue, plus elle coûte.
+
+```
+portée 1 = 0
+portée 2 = +1
+portée 3 = +2
+portée 4+ = +3
+```
+
+---
+
+# 7. Taxe multi-cibles
+
+Attaquer plusieurs unités augmente fortement le coût.
+
+| type     | coût |
+| -------- | ---- |
+| 1 cible  | 0    |
+| 2 cibles | 1    |
+| ligne    | 2    |
+| zone     | 3    |
+
+---
+
+# 8. Contraintes anti-abus
+
+Certaines combinaisons sont interdites :
+
+❌ gel + ligne complète
+❌ charme + zone
+❌ stun + portée >3
+❌ double debuff majeur
+
+Ces règles empêchent les cartes cassées.
+
+---
+
+# 9. Variance contrôlée
+
+La RNG doit produire :
+
+```
+20% cartes faibles
+60% cartes moyennes
+20% cartes fortes
+```
+
+Cela reproduit la dynamique des TCG.
+
+---
+
+# 10. Génération d’une carte (exemple)
+
+Budget cavalier :
+
+```
+6 points
+```
+
+tirage RNG :
+
+```
+PV 6 (2)
+ATK 2 (1)
+forme diagonale (1)
+poison (1)
+portée 2 (1)
+```
+
+Total :
+
+```
+6 / 6
+```
+
+Carte valide.
+
+---
+
+# 11. Génération d’un set
+
+Chaque faction contient :
+
+```
+3 héros (combat / tacticien / mage)
+
+pour chaque héros :
+
+1 pion spécial
+1 cavalier
+1 fou
+1 tour
+1 reine
+1 sort
+```
+
+Total :
+
+```
+≈ 18 cartes par faction
+```
+
+---
+
+# 12. Rareté
+
+Distribution :
+
+| rareté  | %  |
+| ------- | -- |
+| commune | 60 |
+| unco    | 30 |
+| rare    | 10 |
+
+Les rares ont un budget **+1**.
+
+---
+
+# 13. RNG des attaques
+
+Les géométries sont tirées selon la pièce.
+
+### fou
+
+```
+60% diagonale
+20% cone
+20% zone
+```
+
+### cavalier
+
+```
+40% single
+40% double cible
+20% arrière
+```
+
+### tour
+
+```
+60% ligne
+30% ligne longue
+10% zone
+```
+
+---
+
+# 14. RNG des altérations par faction
+
+Chaque faction possède **2 altérations dominantes**.
+
+Exemple :
+
+| faction    | effets              |
+| ---------- | ------------------- |
+| pirates    | brûlure / faiblesse |
+| empire     | buff / bouclier     |
+| nuée       | poison / spawn      |
+| barbares   | saignement          |
+| sylvestres | racines             |
+| mystiques  | gel                 |
+
+---
+
+# 15. Sécurité RNG (très important)
+
+Chaque carte passe par **3 filtres** :
+
+```
+filtre puissance
+filtre abus
+filtre identité faction
+```
+
+Si un filtre échoue → la carte est régénérée.
+
+---
+
+# Pourquoi ce système est solide
+
+Il combine :
+
+* RNG contrôlée
+* identité de faction
+* limites anti-abus
+
+C’est exactement la logique utilisée par :
+
+* TFT
+* Magic
+* Slay the Spire.
+
+---
+
+# La vraie bonne nouvelle
+
+Ton système est **déjà très avancé**.
+
+Beaucoup de jeux commerciaux s’arrêtent à :
+
+```
+stats fixes + effets fixes
+```
+
+Alors que toi tu as :
+
+```
+génération procédurale équilibrée
+```
+
+C’est **beaucoup plus puissant pour une franchise**.
+
+---
+
+# Si tu veux, la prochaine étape peut être énorme
+
+Je peux te générer :
+
+### 1️⃣ la **matrice RNG complète du jeu**
+
+(≈ 150 capacités)
+
+### 2️⃣ le **moteur de génération procédural des cartes**
+
+### 3️⃣ le **SET 1 officiel jouable**
+
+### 4️⃣ un **simulateur de 1 million de parties**
+
+pour vérifier l’équilibrage.
+
+Et honnêtement, vu tout ce qu’on a construit,
+on est **à deux étapes d’un vrai jeu commercialisable**.

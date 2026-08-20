@@ -1,0 +1,753 @@
+{
+  "game_id": "pacman",
+  "systemes": [
+    {
+      "id": "sys_grille_et_navigation",
+      "features": [
+        {
+          "id": "feat_topologie_de_grille",
+          "capacites": [
+            {
+              "id": "F5",
+              "capacite": "decrire la grille du labyrinthe",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Les dimensions exposees valent exactement 28 x 36, et le type de chaque case (mur, couloir, maison, tunnel) est lisible depuis la description unique de la carte."
+              },
+              "source_ref": "R6"
+            },
+            {
+              "id": "F6",
+              "capacite": "tester si une case est praticable",
+              "expected_proof": {
+                "kind": "mutation",
+                "statement": "Invariant de collision murale soumis au gate de mutation : un mutant qui declare praticable une case de mur doit etre tue par les tests."
+              },
+              "source_ref": "R7"
+            },
+            {
+              "id": "F7",
+              "capacite": "enumerer les cases voisines praticables d'une case",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Sur une fenetre declaree ou Pac-Man reste dans le couloir de tunnel, au moins un fantome en etat de poursuite y entre et en ressort par l'autre extremite : l'enumeration des voisins est la meme pour toutes les entites."
+              },
+              "source_ref": "R10"
+            }
+          ]
+        },
+        {
+          "id": "feat_bouclage_de_tunnel",
+          "capacites": [
+            {
+              "id": "F8",
+              "capacite": "appliquer le bouclage de tunnel a une position",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Etat sur deux ticks consecutifs : la colonne passe de l'extremite droite a l'extremite gauche (ou l'inverse), la ligne est inchangee, le compteur de vies est inchange, le statut reste EN COURS."
+              },
+              "source_ref": "R9"
+            }
+          ]
+        },
+        {
+          "id": "feat_pose_des_collectibles",
+          "capacites": [
+            {
+              "id": "F9",
+              "capacite": "poser les collectibles sur la carte",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Comptage des collectibles poses sur la carte au tick 0 : 240 pastilles ordinaires plus 4 super-pastilles, total exactement 244."
+              },
+              "source_ref": "R14"
+            },
+            {
+              "id": "F10",
+              "capacite": "verifier les invariants de carte",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Positions des quatre super-pastilles : une et une seule par quadrant de la grille, et chacune strictement plus proche de son coin de labyrinthe que de la maison centrale ; chaque collectible est atteignable depuis la case de depart."
+              },
+              "source_ref": "R16"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_deplacement_du_joueur",
+      "features": [
+        {
+          "id": "feat_file_de_direction",
+          "capacites": [
+            {
+              "id": "F11",
+              "capacite": "enregistrer la direction demandee par le joueur",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Une seule pression a un tick ou le virage est impossible ; sans aucune autre entree, la demande reste en attente jusqu'au premier tick ou ce virage devient praticable."
+              },
+              "source_ref": "R13"
+            },
+            {
+              "id": "F12",
+              "capacite": "resoudre la direction effectuee du tick",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Etat au tick qui suit l'appui impossible : la direction effectuee est egale a la direction effectuee au tick precedent, et la position a avance d'une case dans cette direction."
+              },
+              "source_ref": "R12"
+            }
+          ]
+        },
+        {
+          "id": "feat_avancee_et_butee",
+          "capacites": [
+            {
+              "id": "F13",
+              "capacite": "avancer Pac-Man d'une case ou le buter contre le mur",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Etat avant et apres le tick de butee : la position reste sur la derniere case de couloir, ne franchit pas la case de mur, ne saute vers aucune case non adjacente ; aux ticks suivants sans entree, la position ne change plus."
+              },
+              "source_ref": "R8"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_fantomes",
+      "features": [
+        {
+          "id": "feat_ciblage_individuel",
+          "capacites": [
+            {
+              "id": "F14",
+              "capacite": "mesurer la distance entre deux cases",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "La distance de grille utilisee par les quatre ciblages est unique : la bascule du fantome orange est assertee a une distance de 9, de 8 et de 7 sur cette meme mesure."
+              },
+              "source_ref": "R20"
+            },
+            {
+              "id": "F15",
+              "capacite": "calculer la case-cible du fantome rouge en poursuite",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Case-cible exposee du fantome rouge en poursuite : elle egale la case occupee par Pac-Man."
+              },
+              "source_ref": "R20"
+            },
+            {
+              "id": "F16",
+              "capacite": "calculer la case-cible du fantome rose en poursuite",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Case-cible exposee du fantome rose en poursuite : elle egale la case situee quatre cases devant Pac-Man dans sa direction courante."
+              },
+              "source_ref": "R20"
+            },
+            {
+              "id": "F17",
+              "capacite": "calculer la case-cible du fantome cyan en poursuite",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Case-cible exposee du fantome cyan en poursuite : elle egale le point obtenu en prolongeant d'autant le segment allant du fantome rouge a la case situee deux cases devant Pac-Man."
+              },
+              "source_ref": "R20"
+            },
+            {
+              "id": "F18",
+              "capacite": "calculer la case-cible du fantome orange en poursuite",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Case-cible exposee du fantome orange : la case de Pac-Man a une distance de 9, son coin de dispersion a une distance de 8 et de 7 — la bascule est assertee exactement au seuil."
+              },
+              "source_ref": "R20"
+            },
+            {
+              "id": "F19",
+              "capacite": "calculer la case-cible de dispersion d'un fantome",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "A partir d'un etat initial identique, les quatre cibles de dispersion sont quatre coins deux a deux differents : aucune paire de fantomes ne partage sa cible pendant les fenetres de dispersion."
+              },
+              "source_ref": "R19"
+            }
+          ]
+        },
+        {
+          "id": "feat_deplacement_et_cadence",
+          "capacites": [
+            {
+              "id": "F20",
+              "capacite": "choisir la sortie d'un fantome a une intersection",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Pac-Man arrete contre un mur, aucune entree, etat de poursuite actif : la sortie retenue est la plus proche de la cible, et la distance Pac-Man / fantome rouge decroit strictement a chacun de ses deplacements."
+              },
+              "source_ref": "R21"
+            },
+            {
+              "id": "F21",
+              "capacite": "tirer la direction d'un fantome en etat Effraye",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Sur une fenetre declaree en etat Effraye, la direction est tiree parmi les sorties praticables au moyen du generateur seede : la distance Pac-Man / fantome ne decroit pas strictement a chaque deplacement."
+              },
+              "source_ref": "R28"
+            },
+            {
+              "id": "F22",
+              "capacite": "faire avancer un fantome selon sa cadence",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Sur une fenetre declaree de ticks, chacun des quatre fantomes sortis de la maison a change de position au moins une fois par cycle de deplacement."
+              },
+              "source_ref": "R18"
+            }
+          ]
+        },
+        {
+          "id": "feat_maison_centrale",
+          "capacites": [
+            {
+              "id": "F23",
+              "capacite": "decider la sortie de la maison centrale d'un fantome",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Etat au tick 0 : exactement un fantome est hors de la maison et c'est le rouge ; les trois autres en sortent a des ticks strictement croissants et declares ; au terme du dernier delai, les quatre sont dehors."
+              },
+              "source_ref": "R23"
+            },
+            {
+              "id": "F24",
+              "capacite": "renvoyer un fantome capture dans la maison centrale",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Etat au tick du contact avec un fantome Effraye : la position du fantome est dans la maison centrale et le compteur de vies est inchange."
+              },
+              "source_ref": "R29"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_machine_a_etats_de_poursuite",
+      "features": [
+        {
+          "id": "feat_horloge_des_etats",
+          "capacites": [
+            {
+              "id": "F25",
+              "capacite": "faire avancer l'horloge des etats de poursuite",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Pour chacun des six seuils, l'etat expose releve juste avant, exactement au seuil et juste apres correspond a la sequence declaree ; aucun retour en dispersion apres le sixieme seuil."
+              },
+              "source_ref": "R25"
+            },
+            {
+              "id": "F26",
+              "capacite": "determiner l'etat de chaque fantome",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "A chaque tick d'une partie complete, l'etat expose de chacun des quatre fantomes appartient a l'ensemble des trois valeurs, sans valeur vide ni combinaison."
+              },
+              "source_ref": "R24"
+            }
+          ]
+        },
+        {
+          "id": "feat_etat_effraye",
+          "capacites": [
+            {
+              "id": "F27",
+              "capacite": "declencher l'etat Effraye sur les quatre fantomes",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Etat au tick de consommation d'une super-pastille : les quatre fantomes sont en etat Effraye au meme tick."
+              },
+              "source_ref": "R27"
+            },
+            {
+              "id": "F28",
+              "capacite": "expirer l'etat Effraye",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Etat au tick d'expiration declare : aucun fantome n'est plus en Effraye — l'etat prend toujours fin."
+              },
+              "source_ref": "R27"
+            }
+          ]
+        },
+        {
+          "id": "feat_perception_de_la_bascule",
+          "capacites": [
+            {
+              "id": "F29",
+              "capacite": "inverser la direction des fantomes a la bascule d'etat",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Captures au tick precedant le seuil et au tick du seuil : la direction rendue de chaque fantome hors maison s'est inversee."
+              },
+              "source_ref": "R26"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_collectibles_et_score",
+      "features": [
+        {
+          "id": "feat_consommation",
+          "capacites": [
+            {
+              "id": "F30",
+              "capacite": "consommer le collectible de la case occupee",
+              "expected_proof": {
+                "kind": "mutation",
+                "statement": "Invariant d'incrementation des pastilles soumis au gate de mutation : un mutant qui n'efface pas la case, ou qui recompte une case deja videe, doit etre tue par les tests."
+              },
+              "source_ref": "R15"
+            }
+          ]
+        },
+        {
+          "id": "feat_bareme_de_score",
+          "capacites": [
+            {
+              "id": "F31",
+              "capacite": "calculer le gain de score d'un collectible",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Etat au tick de consommation d'une super-pastille : le score a augmente d'exactement 50 et les restantes ont baisse d'exactement 1."
+              },
+              "source_ref": "R17"
+            },
+            {
+              "id": "F32",
+              "capacite": "calculer le gain de score d'une capture de fantome",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Etat au tick du contact : le gain de score est egal a 200, 400, 800 ou 1600 selon le rang ; a la super-pastille suivante, le rang repart de la premiere valeur."
+              },
+              "source_ref": "R29"
+            },
+            {
+              "id": "F33",
+              "capacite": "mettre a jour le score",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Le score lu a l'ecran est egal a la valeur de score de l'etat au meme tick, apres chaque evenement : les deux descendent d'un point de mutation unique."
+              },
+              "source_ref": "R5"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_contacts_defaite_victoire",
+      "features": [
+        {
+          "id": "feat_detection_de_contact",
+          "capacites": [
+            {
+              "id": "F34",
+              "capacite": "detecter le contact entre Pac-Man et un fantome",
+              "expected_proof": {
+                "kind": "mutation",
+                "statement": "Invariant de collision avec un fantome soumis au gate de mutation : un mutant qui ne detecte pas l'echange de cases sur une meme arete doit etre tue par la fixture de croisement en sens inverse."
+              },
+              "source_ref": "R32"
+            },
+            {
+              "id": "F35",
+              "capacite": "resoudre un contact selon l'etat du fantome",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Etat au tick du contact avec un fantome Effraye : le compteur de vies est inchange — le contact est une capture, pas une mort."
+              },
+              "source_ref": "R29"
+            }
+          ]
+        },
+        {
+          "id": "feat_vies_et_defaite",
+          "capacites": [
+            {
+              "id": "F36",
+              "capacite": "decrementer les vies et replacer les entites aux positions de depart",
+              "expected_proof": {
+                "kind": "mutation",
+                "statement": "Invariant de decrement de vie soumis au gate de mutation : un mutant qui retire zero vie, deux vies, ou qui ne repositionne pas les entites au contact, doit etre tue par les tests."
+              },
+              "source_ref": "R30"
+            },
+            {
+              "id": "F37",
+              "capacite": "determiner la defaite",
+              "expected_proof": {
+                "kind": "mutation",
+                "statement": "Invariant de condition de defaite soumis au gate de mutation : un mutant qui bascule a PERDU alors que vies vaut 1, ou qui laisse EN COURS alors que vies vaut 0, doit etre tue."
+              },
+              "source_ref": "R31"
+            }
+          ]
+        },
+        {
+          "id": "feat_victoire",
+          "capacites": [
+            {
+              "id": "F38",
+              "capacite": "determiner la victoire",
+              "expected_proof": {
+                "kind": "mutation",
+                "statement": "Invariant de condition de victoire soumis au gate de mutation : un mutant qui remplace l'egalite par >= doit etre tue par l'assertion EN COURS a 243 consommes."
+              },
+              "source_ref": "R33"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_cycle_de_partie",
+      "features": [
+        {
+          "id": "feat_etat_de_partie",
+          "capacites": [
+            {
+              "id": "F1",
+              "capacite": "construire l'etat initial de partie a partir d'une graine",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Comparaison champ par champ de l'etat au tick 0 d'une partie relancee avec l'etat au tick 0 de la premiere partie : tous les champs sont egaux, y compris la phase de l'horloge des etats et le rang de capture."
+              },
+              "source_ref": "R37"
+            },
+            {
+              "id": "F3",
+              "capacite": "avancer le generateur pseudo-aleatoire seede",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Deux executions de meme graine comparees champ par champ : l'etat du generateur, etant un champ de l'etat de partie, est identique tick par tick."
+              },
+              "source_ref": "R38"
+            }
+          ]
+        },
+        {
+          "id": "feat_projection_observable",
+          "capacites": [
+            {
+              "id": "F2",
+              "capacite": "projeter l'etat de partie en etat observable",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Les trois nombres du releve observable (score, pastilles restantes, vies) sont egaux aux valeurs de l'etat de partie au meme tick, apres chaque evenement."
+              },
+              "source_ref": "R5"
+            },
+            {
+              "id": "F4",
+              "capacite": "determiner le statut de partie",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Le statut expose appartient a l'ensemble des trois valeurs a chaque tick et apres la derniere iteration de la boucle, sur les trois issues (victoire, defaite, sortie de boucle)."
+              },
+              "source_ref": "R34"
+            }
+          ]
+        },
+        {
+          "id": "feat_tick_et_evenements",
+          "capacites": [
+            {
+              "id": "F39",
+              "capacite": "executer un tick de partie",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Deux releves d'etat separes par une fenetre declaree de ticks, sans injecter aucune entree : la position de Pac-Man a change et celle d'au moins un fantome a change."
+              },
+              "source_ref": "R3"
+            },
+            {
+              "id": "F40",
+              "capacite": "produire les evenements du tick",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Captures au tick precedant le seuil et au tick du seuil : l'evenement de bascule est emis au tick du seuil, ce qui rend l'indication d'etat lisible a l'ecran differente entre les deux captures."
+              },
+              "source_ref": "R26"
+            }
+          ]
+        },
+        {
+          "id": "feat_relance",
+          "capacites": [
+            {
+              "id": "F41",
+              "capacite": "relancer une partie neuve",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Une seule pression de touche depuis l'ecran de fin : au tick suivant, le statut expose vaut EN COURS et le labyrinthe rendu est de nouveau rempli de pastilles."
+              },
+              "source_ref": "R36"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_presentation_et_entree",
+      "features": [
+        {
+          "id": "feat_amorcage",
+          "capacites": [
+            {
+              "id": "F42",
+              "capacite": "demarrer l'application et ouvrir la fenetre de jeu",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Lancement reseau coupe : le jeu s'ouvre et une partie se joue, sans charger aucun fichier d'image, de police ni de son importe."
+              },
+              "source_ref": "R4"
+            }
+          ]
+        },
+        {
+          "id": "feat_entree_clavier",
+          "capacites": [
+            {
+              "id": "F43",
+              "capacite": "lire le clavier et produire l'action du tick",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Etat au tick qui suit l'appui : la direction effectuee est exactement la direction demandee, et la position a avance d'une case dans cette direction."
+              },
+              "source_ref": "R11"
+            },
+            {
+              "id": "F49",
+              "capacite": "reagir a la touche de relance depuis l'ecran de fin",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Une seule pression de touche depuis l'ecran de fin, sans menu intermediaire ni relance de l'application : au tick suivant, le statut expose vaut EN COURS."
+              },
+              "source_ref": "R36"
+            }
+          ]
+        },
+        {
+          "id": "feat_cadence_runtime",
+          "capacites": [
+            {
+              "id": "F44",
+              "capacite": "cadencer les ticks du runtime",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Deux releves d'etat separes par une fenetre declaree de ticks, sans injecter aucune entree : la boucle a produit des ticks et les positions ont change."
+              },
+              "source_ref": "R3"
+            }
+          ]
+        },
+        {
+          "id": "feat_rendu",
+          "capacites": [
+            {
+              "id": "F45",
+              "capacite": "dessiner le labyrinthe et les entites avec des formes pleines",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Capture d'ecran : les murs portent une apparence constante differente du couloir vide ; les quatre fantomes portent quatre couleurs deux a deux differentes ; une super-pastille est visiblement plus grande qu'une pastille ordinaire."
+              },
+              "source_ref": "R2"
+            },
+            {
+              "id": "F46",
+              "capacite": "afficher le score, les vies et les pastilles restantes en chiffres",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Capture d'ecran et etat expose releves au meme tick : les trois nombres lus a l'ecran sont egaux aux trois valeurs de l'etat, et aucun des trois n'est represente uniquement par des formes ou des pips."
+              },
+              "source_ref": "R5"
+            },
+            {
+              "id": "F47",
+              "capacite": "afficher l'indication d'etat de poursuite",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Captures au tick precedant le seuil et au tick du seuil : l'indication d'etat lisible a l'ecran differe entre les deux captures."
+              },
+              "source_ref": "R26"
+            },
+            {
+              "id": "F48",
+              "capacite": "afficher l'ecran de fin nommant l'issue et le score final",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Deux captures, une partie gagnee et une partie perdue : les textes d'issue different, le score final affiche est egal au score d'etat, et une pression au clavier est encore prise en compte apres l'affichage."
+              },
+              "source_ref": "R35"
+            }
+          ]
+        },
+        {
+          "id": "feat_points_d_observation",
+          "capacites": [
+            {
+              "id": "F50",
+              "capacite": "exposer l'etat observable a un lecteur exterieur au jeu",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "A chaque tick d'une partie complete, l'etat expose de chacun des quatre fantomes est LISIBLE par un lecteur exterieur au runtime : sans ce point de sortie, l'assertion n'a pas d'observateur."
+              },
+              "source_ref": "R24"
+            },
+            {
+              "id": "F51",
+              "capacite": "capturer une image de l'ecran a un tick declare",
+              "expected_proof": {
+                "kind": "visual",
+                "statement": "Capture d'ecran au premier tick : le contour du labyrinthe est entierement contenu dans la fenetre (aucune ligne ni colonne coupee par un bord), on denombre un Pac-Man, quatre fantomes et au moins une pastille."
+              },
+              "source_ref": "R1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sys_preuve",
+      "features": [
+        {
+          "id": "feat_replay_deterministe",
+          "capacites": [
+            {
+              "id": "F52",
+              "capacite": "rejouer une suite d'appuis depuis une graine et comparer les deux traces",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Deux executions comparees champ par champ : trace des positions, score et statut final strictement identiques, sur une fenetre rejouee qui franchit au moins deux seuils de la sequence d'etats de poursuite."
+              },
+              "source_ref": "R38"
+            }
+          ]
+        },
+        {
+          "id": "feat_bot_de_solvabilite",
+          "capacites": [
+            {
+              "id": "F53",
+              "capacite": "planifier l'itineraire de collecte du bot",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Execution du bot sur la carte et la graine de reference : l'itineraire calcule couvre les 244 collectibles, retours en arriere compris, dans le budget de ticks declare."
+              },
+              "source_ref": "R39"
+            },
+            {
+              "id": "F54",
+              "capacite": "piloter le jeu par l'entree publique avec le bot de solvabilite",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Execution du bot sur la carte et la graine de reference : statut final GAGNE, consommes egal 244, restantes egal 0, atteints par le seul canal d'entree public."
+              },
+              "source_ref": "R39"
+            },
+            {
+              "id": "F55",
+              "capacite": "declarer le verdict de solvabilite et le code de retour",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Execution du bot sur la carte de reference : code de retour 0 quand le statut final est GAGNE avec consommes egal 244 et restantes egal 0 dans le budget declare."
+              },
+              "source_ref": "R39"
+            },
+            {
+              "id": "F56",
+              "capacite": "executer le bot sur une carte volontairement cassee",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Execution du bot sur la carte cassee : statut final different de GAGNE, sortie INJOUABLE, code de retour non nul."
+              },
+              "source_ref": "R40"
+            }
+          ]
+        },
+        {
+          "id": "feat_mesures_de_comportement",
+          "capacites": [
+            {
+              "id": "F57",
+              "capacite": "asserter les six seuils de l'horloge des etats de poursuite",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Pour chacun des six seuils, l'etat expose est releve juste avant le seuil, exactement au seuil et juste apres : les trois valeurs correspondent a la sequence declaree."
+              },
+              "source_ref": "R25"
+            },
+            {
+              "id": "F58",
+              "capacite": "mesurer la divergence des trajectoires des quatre fantomes",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "A partir d'un etat initial identique et sur un horizon declare, les quatre sequences de positions de fantomes sont deux a deux differentes."
+              },
+              "source_ref": "R19"
+            },
+            {
+              "id": "F59",
+              "capacite": "mesurer la decroissance de distance du fantome rouge sur un joueur immobile",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Pac-Man arrete contre un mur, aucune entree, etat de poursuite actif : la distance Pac-Man / fantome rouge decroit strictement a chacun de ses deplacements sur une fenetre declaree."
+              },
+              "source_ref": "R21"
+            },
+            {
+              "id": "F60",
+              "capacite": "mesurer l'ecart creuse par Pac-Man fuyant en couloir droit",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Sur un couloir droit declare, Pac-Man fuyant en s'eloignant : la distance Pac-Man / poursuivant est strictement plus grande a la fin de la fenetre qu'a son debut."
+              },
+              "source_ref": "R22"
+            },
+            {
+              "id": "F61",
+              "capacite": "mesurer le ralentissement et la non-convergence des fantomes en etat Effraye",
+              "expected_proof": {
+                "kind": "bot_action",
+                "statement": "Sur une fenetre declaree en etat Effraye : le nombre de cases parcourues par chaque fantome est strictement inferieur a celui parcouru par Pac-Man."
+              },
+              "source_ref": "R28"
+            }
+          ]
+        },
+        {
+          "id": "feat_inventaire_des_assets",
+          "capacites": [
+            {
+              "id": "F62",
+              "capacite": "inventorier les fichiers du jeu pour etablir l'absence d'asset externe",
+              "expected_proof": {
+                "kind": "oracle",
+                "statement": "Inventaire des fichiers du jeu : aucun fichier d'image, de police ni de son importe n'y figure."
+              },
+              "source_ref": "R4"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

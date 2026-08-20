@@ -1,0 +1,1139 @@
+# Prisme Produit — etape s1-prisme — projet : pacman
+# run_id   : pacman-20260805-r1
+# marqueur : FORGE_DISPATCH:s1-prisme:pacman-20260805-r1
+# date     : 2026-08-05
+# encodage : utf-8
+#
+# ROLE TENU : realisateur. Ce document decrit le PRODUIT FINI tel que le joueur le vit.
+# Il ne decide ni le decoupage fonctionnel (etape 3) ni l'architecture (etape 4) : aucun
+# nom de fichier, aucun module, aucun noeud moteur n'y figure, par construction.
+#
+# PLATEFORME : GODOT 4.6.3 / GDScript. Autorite = lab/forge_runs/pacman/platform_correction.yaml,
+# qui SUPPLANTE le champ `plateforme_cible` de charter.yaml. Aucune exigence ci-dessous ne
+# suppose un navigateur, un canvas HTML, du JavaScript ni un pilote de navigateur comme
+# runtime du jeu. Les exigences sont formulees en termes d'ECRAN et d'ETAT EXPOSE, deux
+# notions independantes du moteur.
+#
+# AMONT CONSOMME :
+#   - lab/forge_runs/pacman/platform_correction.yaml  (autoritaire, plateforme)
+#   - lab/forge_runs/pacman/charter.yaml              (objectif, hors_scope, 19 criteres de
+#                                                      succes, 12 criteres de demo,
+#                                                      parametres_de_design A_EQUILIBRER)
+#   - lab/forge_runs/pacman/worldscan.yaml            (faits sources : maze 28x36, 240+4=244,
+#                                                      Chase/Scatter/Frightened + durees,
+#                                                      ciblage individuel des 4 fantomes, 3 vies)
+# REFERENCE DE GRANULARITE : games/snake/00_CHARTER/game_contract.yaml et
+#   games/snake/01_DESIGN/genre_bible.json (regles de genre enoncees comme faits observables).
+
+version: 1
+game_id: pacman
+etape: s1-prisme
+plateforme_en_vigueur: "Godot 4.6.3 / GDScript (platform_correction.yaml)"
+
+# --- Legende des champs -----------------------------------------------------------------
+# enonce        : ce que le joueur voit / fait, ou ce que le jeu montre. Present, concret.
+# observable    : CE QU'ON REGARDE pour dire que c'est vrai (ecran reel et/ou etat expose).
+# falsifie_si   : la condition exacte qui rend l'exigence FAUSSE. Sans elle, une exigence
+#                 n'est pas falsifiable, elle est decorative.
+# source        : charter | worldscan | deduction
+# reference     : la section d'amont citee (obligatoire si source != deduction)
+# nature        : experience_joueur | preuve
+# verifiable_par: etat_expose | capture_ecran | etat_et_capture | humain
+# dans_la_tranche : toujours true dans cette liste ; ce qui est dehors vit dans hors_tranche.
+
+exigences:
+
+  # ======================================================================================
+  # BLOC A — OUVERTURE, LISIBILITE, VIE PROPRE DE LA BOUCLE
+  # ======================================================================================
+
+  - id: R1
+    enonce: >-
+      A l'ouverture, le joueur voit d'un seul coup d'oeil le labyrinthe entier, Pac-Man,
+      les pastilles et les quatre fantomes, sans avoir a faire defiler l'image.
+    observable: >-
+      Capture d'ecran au premier instant de la partie : le contour du labyrinthe est
+      integralement contenu dans la fenetre (aucune ligne ni colonne coupee par un bord),
+      on compte un Pac-Man, quatre fantomes, et des pastilles.
+    falsifie_si: >-
+      Une ligne ou une colonne du labyrinthe est hors fenetre, ou moins de quatre fantomes
+      sont visibles, ou aucune pastille n'est visible.
+    source: charter
+    reference: "charter.criteres_demo[DEMARRAGE VISIBLE] ; worldscan.maze.pixel_resolution (rapport 3:4, cadrage portrait)"
+    nature: experience_joueur
+    verifiable_par: capture_ecran
+    dans_la_tranche: true
+
+  - id: R2
+    enonce: >-
+      Le joueur distingue sans ambiguite cinq categories a l'ecran : les murs, les couloirs
+      vides, les pastilles ordinaires, les super-pastilles, et chacun des quatre fantomes,
+      chacun different des trois autres et de Pac-Man.
+    observable: >-
+      Capture d'ecran : les murs portent une apparence constante differente du couloir vide ;
+      les quatre fantomes portent quatre couleurs deux a deux differentes ; une super-pastille
+      est visiblement plus grande qu'une pastille ordinaire.
+    falsifie_si: >-
+      Deux fantomes partagent la meme couleur, ou une super-pastille est indiscernable d'une
+      pastille ordinaire, ou une case de mur a la meme apparence qu'une case de couloir vide.
+    source: charter
+    reference: "charter.criteres_demo[LISIBILITE DU LABYRINTHE] ; worldscan.ghost_states.total_ghosts=4 ; worldscan.maze.key_features.power_pellet_positions"
+    nature: experience_joueur
+    verifiable_par: capture_ecran
+    dans_la_tranche: true
+
+  - id: R3
+    enonce: >-
+      Le joueur qui ne touche pas au clavier voit quand meme la partie avancer : Pac-Man
+      poursuit sa direction courante et les fantomes se deplacent.
+    observable: >-
+      Deux relevés d'etat separes par une fenetre declaree de ticks, sans aucune entree
+      clavier : la position de Pac-Man a change, et la position d'au moins un fantome a change.
+    falsifie_si: >-
+      Sans entree clavier, aucune position d'entite ne change entre les deux relevés.
+    source: charter
+    reference: "charter.objectif priorite (1) « boucle temps reel qui tourne toute seule »"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  - id: R4
+    enonce: >-
+      Le joueur lance le jeu sans connexion reseau et voit un rendu compose uniquement de
+      formes pleines et de texte : aucune image, aucune police ni aucun son exterieur au jeu
+      n'est charge.
+    observable: >-
+      Lancement avec le reseau coupe : le jeu s'ouvre et se joue ; l'inventaire des fichiers
+      du jeu ne contient aucun fichier d'image, de police ni de son importe.
+    falsifie_si: >-
+      Le jeu echoue a s'ouvrir sans reseau, ou un fichier d'asset externe figure dans le jeu.
+    source: charter
+    reference: "charter.hors_scope[Sprites, assets graphiques externes...] ; charter.actions_interdites[Introduire une dependance runtime externe]"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  - id: R5
+    enonce: >-
+      Le joueur lit en permanence, en chiffres, son score, le nombre de pastilles restantes
+      et son nombre de vies, et ces trois chiffres disent exactement la meme chose que l'etat
+      interne du jeu.
+    observable: >-
+      Capture d'ecran et etat expose relevés au meme tick, apres chaque evenement (pastille
+      mangee, vie perdue, fantome capture) : les trois nombres lus a l'ecran sont egaux aux
+      trois valeurs de l'etat.
+    falsifie_si: >-
+      L'un des trois nombres affiches differe de la valeur d'etat correspondante, ne serait-ce
+      qu'un tick apres un evenement ; ou l'un des trois est represente uniquement par des
+      formes ou des pips sans chiffre.
+    source: charter
+    reference: "charter.criteres_demo[SCORE ET VIES EN CHIFFRES] ; charter.actions_interdites[Afficher l'etat decisif ... uniquement en formes ou en pips]"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  # ======================================================================================
+  # BLOC B — GRILLE, MURS, TUNNEL
+  # ======================================================================================
+
+  - id: R6
+    enonce: >-
+      Le joueur parcourt un labyrinthe unique de 28 cases de large sur 36 cases de haut,
+      qui comporte au moins deux boucles internes : il peut faire un tour complet et revenir
+      a son point de depart sans jamais faire demi-tour.
+    observable: >-
+      Les dimensions de la grille exposees par l'etat valent exactement 28 x 36 ; un bot
+      parcourt un circuit ferme declaré et revient a sa case de depart sans qu'aucun de ses
+      pas n'inverse la direction du pas precedent.
+    falsifie_si: >-
+      Les dimensions exposees different de 28 x 36, ou aucun circuit ferme n'existe sans
+      demi-tour (labyrinthe purement arborescent).
+    source: worldscan
+    reference: "worldscan.maze.dimensions « 28 tiles wide x 36 tiles tall » ; worldscan.systems[Maze Topology] ; contrainte de boucles heritee de charter.parametres_de_design.grille_labyrinthe"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R7
+    enonce: >-
+      Le joueur ne voit jamais Pac-Man ni un fantome a l'interieur d'un mur : chaque entite
+      occupe toujours une case de couloir, une seule a la fois.
+    observable: >-
+      A chaque tick d'une partie complete, la case occupee par Pac-Man et par chacun des
+      quatre fantomes est de type couloir.
+    falsifie_si: >-
+      Une seule position d'entite coincide avec une case de mur, a n'importe quel tick.
+    source: charter
+    reference: "charter.criteres_succes[MURS INFRANCHISSABLES SANS FAUX POSITIF NI FAUX NEGATIF] ; worldscan.systems[Discrete Grid Navigation] « ghosts and Pac-Man occupy one tile at a time »"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R8
+    enonce: >-
+      Le joueur qui laisse Pac-Man foncer dans un cul-de-sac le voit s'arreter net contre le
+      mur, sur la derniere case de couloir, et y rester tant qu'aucune direction praticable
+      n'est demandee.
+    observable: >-
+      Etat avant et apres le tick de butee : la position reste sur la derniere case de
+      couloir, elle ne franchit pas la case de mur, et elle ne saute vers aucune case non
+      adjacente ; aux ticks suivants sans entree, la position ne change plus.
+    falsifie_si: >-
+      Pac-Man apparait de l'autre cote du mur, ou saute a une case non adjacente, ou change
+      de direction de lui-meme sans entree du joueur.
+    source: charter
+    reference: "charter.criteres_succes[MURS INFRANCHISSABLES] et [DEPLACEMENT JOUEUR BORNE]"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  - id: R9
+    enonce: >-
+      Le joueur qui sort du labyrinthe par le tunnel lateral droit voit Pac-Man reapparaitre
+      aussitot par le tunnel lateral gauche, sur la meme ligne, sans s'arreter et sans perdre
+      de vie — et reciproquement dans l'autre sens.
+    observable: >-
+      Etat sur deux ticks consecutifs : la colonne passe de l'extremite droite a l'extremite
+      gauche (ou l'inverse), la ligne est inchangee, le compteur de vies est inchangé, le
+      statut reste EN COURS.
+    falsifie_si: >-
+      Pac-Man est bloque a l'entree du tunnel, ou perd une vie, ou reapparait sur une autre
+      ligne, ou marque une pause d'un tick ou plus.
+    source: worldscan
+    reference: "worldscan.maze.key_features.tunnels « exit right edge -> enter left edge, vice versa » ; position exacte des cases de tunnel NON sourcee (worldscan.incertitudes[Exact warp tunnel positioning])"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  - id: R10
+    enonce: >-
+      Le joueur voit les fantomes emprunter le tunnel comme lui : le tunnel est un raccourci,
+      pas un refuge ou Pac-Man serait definitivement hors d'atteinte.
+    observable: >-
+      Sur une fenetre declaree ou Pac-Man reste dans le couloir de tunnel, au moins un fantome
+      en etat de poursuite y entre et en ressort par l'autre extremite.
+    falsifie_si: >-
+      Aucun fantome n'entre jamais dans le couloir de tunnel, ou un fantome s'y immobilise
+      definitivement.
+    source: deduction
+    reference: null
+    justification_deduction: >-
+      Le worldscan declare explicitement que l'usage du tunnel par les fantomes n'est PAS
+      source (incertitudes[Exact warp tunnel positioning ... whether ghosts use tunnels]).
+      La tranche tranche pour l'acces des fantomes, faute de quoi le tunnel devient une zone
+      de securite absolue et la poursuite degenere — ce que le critere FANTOMES ACTIFS ET NON
+      DEGENERES du charter interdit.
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  # ======================================================================================
+  # BLOC C — DEPLACEMENT DU JOUEUR AU CLAVIER
+  # ======================================================================================
+
+  - id: R11
+    enonce: >-
+      Le joueur qui appuie sur une fleche voit Pac-Man tourner dans cette direction des le
+      tick suivant, si la case visee est un couloir.
+    observable: >-
+      Etat au tick qui suit l'appui : la direction effectuee est exactement la direction
+      demandee, et la position a avance d'une case dans cette direction.
+    falsifie_si: >-
+      La direction effectuee au tick suivant differe de la direction demandee alors que la
+      case visee est un couloir.
+    source: charter
+    reference: "charter.criteres_succes[DEPLACEMENT JOUEUR BORNE ET REACTIF] ; worldscan.loops.minute_1.actions"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R12
+    enonce: >-
+      Le joueur qui demande une direction barree par un mur voit Pac-Man poursuivre sa
+      direction courante : il ne se fige pas, ne recule pas et n'est pas deplace ailleurs.
+    observable: >-
+      Etat au tick qui suit l'appui impossible : la direction effectuee est egale a la
+      direction effectuee au tick precedent, et la position a avance d'une case dans cette
+      direction.
+    falsifie_si: >-
+      Pac-Man s'immobilise alors que sa direction courante etait praticable, ou part dans une
+      troisieme direction, ou change de position d'autre chose qu'une case adjacente.
+    source: charter
+    reference: "charter.criteres_succes[DEPLACEMENT JOUEUR BORNE ET REACTIF] « ignoree sans effet de bord ... Pac-Man continue alors sa direction courante »"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R13
+    enonce: >-
+      Le joueur qui anticipe un virage en appuyant juste avant une intersection voit Pac-Man
+      tourner tout seul en arrivant a cette intersection, sans avoir a reappuyer.
+    observable: >-
+      Une seule pression a un tick ou le virage est impossible ; sans aucune autre entree, la
+      direction effectuee au premier tick ou ce virage devient praticable est exactement la
+      direction demandee.
+    falsifie_si: >-
+      Au premier tick ou le virage devient praticable, la direction effectuee est encore
+      l'ancienne ; ou le virage se declenche a un tick ou il n'etait pas encore praticable.
+    source: charter
+    reference: "charter.criteres_succes[DEPLACEMENT JOUEUR BORNE ET REACTIF] « prise en compte au premier tick ou le deplacement correspondant est legal »"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  # ======================================================================================
+  # BLOC D — PASTILLES, SUPER-PASTILLES, SCORE
+  # ======================================================================================
+
+  - id: R14
+    enonce: >-
+      Au demarrage, le joueur a devant lui exactement 244 choses a manger : 240 pastilles
+      ordinaires et 4 super-pastilles, et le compteur affiche annonce 244.
+    observable: >-
+      Comptage des collectibles poses sur la carte au tick 0 : 240 pastilles ordinaires plus
+      4 super-pastilles, total exactement 244 ; le compteur affiche a l'ecran vaut 244.
+    falsifie_si: >-
+      Le total pose differe de 244, ou la repartition differe de 240 + 4, ou le compteur
+      affiche differe du total reellement pose.
+    source: worldscan
+    reference: "worldscan.maze.pellet_count_total « 240 regular pellets + 4 power pellets = 244 total collectibles » ; worldscan.victory_conditions[CONDITION_PRIMARY]"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  - id: R15
+    enonce: >-
+      Le joueur qui passe sur une pastille la voit disparaitre au meme instant que son score
+      augmente de 10 et que le compteur de pastilles restantes baisse de 1 ; repasser sur la
+      case ne rapporte plus rien.
+    observable: >-
+      Captures et etat au tick du passage : la pastille n'est plus rendue, le score a
+      augmente d'exactement 10, les restantes ont baisse d'exactement 1 ; a un passage
+      ulterieur sur la meme case, le score est inchange.
+    falsifie_si: >-
+      La pastille reste affichee apres le passage, ou le score bouge sans que la pastille
+      disparaisse, ou un second passage sur la meme case rapporte des points.
+    source: worldscan
+    reference: "worldscan.systems[Pellet System] « 240 small pellets (10 points each) » ; charter.criteres_demo[PASTILLES QUI DISPARAISSENT]"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  - id: R16
+    enonce: >-
+      Le joueur voit les quatre super-pastilles placees une par region d'angle du labyrinthe,
+      loin de la maison centrale des fantomes : les atteindre demande de traverser le
+      labyrinthe.
+    observable: >-
+      Positions des quatre super-pastilles : une et une seule par quadrant de la grille, et
+      chacune strictement plus proche de son coin de labyrinthe que de la maison centrale.
+    falsifie_si: >-
+      Deux super-pastilles se trouvent dans le meme quadrant, ou l'une d'elles est plus proche
+      de la maison centrale que de son coin.
+    source: worldscan
+    reference: "worldscan.maze.key_features.power_pellet_positions « 4 power pellets placed in the 4 corners ... far from ghost house »"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  - id: R17
+    enonce: >-
+      Le joueur qui mange une super-pastille voit son score augmenter de 50, cinq fois plus
+      que pour une pastille ordinaire, et le compteur de restantes baisser de 1 comme pour
+      n'importe quel autre collectible.
+    observable: >-
+      Etat au tick de consommation : le score a augmente d'exactement 50, les restantes ont
+      baisse d'exactement 1.
+    falsifie_si: >-
+      Le gain differe de 50, ou la super-pastille ne decremente pas le compteur de restantes
+      (ce qui rendrait la victoire a 244 inatteignable).
+    source: worldscan
+    reference: "worldscan.systems[Pellet System] « 4 large power pellets (50 points each) » ; worldscan.victory_conditions (les 4 super-pastilles comptent dans les 244)"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  # ======================================================================================
+  # BLOC E — LES QUATRE FANTOMES
+  # ======================================================================================
+
+  - id: R18
+    enonce: >-
+      Le joueur voit quatre fantomes de couleurs distinctes se deplacer en continu : aucun
+      ne reste plante sur place.
+    observable: >-
+      Sur une fenetre declaree de ticks, chacun des quatre fantomes sortis de la maison a
+      change de position au moins une fois par cycle de deplacement.
+    falsifie_si: >-
+      Un fantome sorti de la maison conserve la meme position pendant toute la fenetre.
+    source: charter
+    reference: "charter.criteres_succes[FANTOMES ACTIFS ET NON DEGENERES] ; charter.criteres_demo[FANTOMES QUI POURSUIVENT VISIBLEMENT]"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  - id: R19
+    enonce: >-
+      Le joueur voit les quatre fantomes prendre des chemins differents : ils ne se
+      superposent pas et ne suivent pas la meme trajectoire.
+    observable: >-
+      A partir d'un etat initial identique et sur un horizon declaré de ticks, les quatre
+      sequences de positions de fantomes sont deux a deux differentes (il existe pour chaque
+      paire au moins un tick ou les positions different).
+    falsifie_si: >-
+      Deux fantomes produisent la meme sequence de positions sur tout l'horizon, ou les quatre
+      occupent la meme case a la fin de l'horizon.
+    source: worldscan
+    reference: "worldscan.ghost_targeting.targeting_variance_proof.verification_rule « Four distinct paths emerge » ; charter.criteres_succes[FANTOMES ACTIFS ET NON DEGENERES] (regle de variance ratifiee Pierre 2026-07-21)"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R20
+    enonce: >-
+      Le joueur apprend que les quatre fantomes ne pensent pas pareil : le rouge fonce droit
+      sur lui ; le rose vise quatre cases devant lui, dans la direction ou il regarde ; le
+      cyan vise un point calcule a partir de la position du rouge ; l'orange fonce tant qu'il
+      est loin et se detourne vers son coin des qu'il approche a huit cases ou moins.
+    observable: >-
+      Case-cible exposee par l'etat pour chaque fantome en etat de poursuite : cible(rouge)
+      egale la case de Pac-Man ; cible(rose) egale la case situee quatre cases devant Pac-Man
+      dans sa direction courante ; cible(cyan) egale le point obtenu en prolongeant d'autant
+      le segment allant du rouge jusqu'a la case situee deux cases devant Pac-Man ;
+      cible(orange) egale la case de Pac-Man quand la distance est strictement superieure a 8,
+      et son coin de dispersion quand elle est inferieure ou egale a 8.
+    falsifie_si: >-
+      Pour un etat ou les quatre formules donnent des resultats differents, deux fantomes
+      exposent la meme cible ; ou la cible de l'orange ne bascule pas exactement au
+      franchissement de la valeur 8 (assertion a 9, a 8 et a 7).
+    source: worldscan
+    reference: "worldscan.ghost_targeting.blinky_red / pinky_pink / inky_cyan / clyde_orange (source citee : the-pac-man-dossier)"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R21
+    enonce: >-
+      Le joueur immobilise contre un mur voit le fantome rouge se rapprocher de lui sans
+      relache pendant l'etat de poursuite.
+    observable: >-
+      Pac-Man arrete contre un mur, aucune entree, etat de poursuite actif : la distance
+      Pac-Man / fantome rouge decroit strictement a chacun de ses deplacements sur une fenetre
+      declaree.
+    falsifie_si: >-
+      Sur la fenetre declaree, la distance reste constante ou augmente entre deux deplacements
+      consecutifs du fantome rouge.
+    source: charter
+    reference: "charter.criteres_succes[FANTOMES ACTIFS ET NON DEGENERES] « la distance joueur-fantome decroit strictement sur une fenetre declaree en etat de poursuite »"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R22
+    enonce: >-
+      Le joueur qui fuit en ligne droite dans un long couloir creuse l'ecart avec le fantome
+      qui le poursuit : il peut le distancer, mais jamais sans effort.
+    observable: >-
+      Sur un couloir droit declaré, Pac-Man fuyant en s'eloignant : la distance
+      Pac-Man / poursuivant est strictement plus grande a la fin de la fenetre qu'au debut.
+    falsifie_si: >-
+      La distance ne croit pas sur la fenetre, ce qui signifie qu'un fantome se deplace aussi
+      vite ou plus vite que Pac-Man — configuration qui rendrait la preuve de solvabilite (R39)
+      impossible sur certaines cartes.
+    source: worldscan
+    reference: "worldscan.incertitudes[Precise speed ratios] « Sources state ghosts are 95% of Pac-Man's speed » (rapport source, valeur exacte declaree incertaine) ; charter.parametres_de_design.vitesse_relative_fantomes"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R23
+    enonce: >-
+      Le joueur voit les fantomes sortir de la maison centrale l'un apres l'autre au debut de
+      la partie, le rouge en premier : il n'est pas encercle des la premiere seconde.
+    observable: >-
+      Etat au tick 0 : exactement un fantome est hors de la maison, et c'est le rouge ; les
+      trois autres en sortent a des ticks strictement croissants et declarés ; au bout du
+      dernier delai declaré, les quatre sont dehors.
+    falsifie_si: >-
+      Les quatre fantomes sont dehors au tick 0, ou l'ordre de sortie differe de l'ordre
+      declaré, ou un fantome ne sort jamais de la maison.
+    source: worldscan
+    reference: "worldscan.ghost_states.spawn_behavior « Blinky enters first, others follow with delays » ; les seuils exacts ne sont PAS sources (worldscan.incertitudes[Ghost spawn timing]), les delais de la tranche sont donc des valeurs declarées"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  # ======================================================================================
+  # BLOC F — ETATS DE POURSUITE (machine a etats explicite, priorite 5 de Pierre)
+  # ======================================================================================
+
+  - id: R24
+    enonce: >-
+      A tout instant, le jeu montre pour chaque fantome exactement un etat parmi trois —
+      Dispersion, Poursuite, Effraye — jamais deux a la fois, jamais aucun.
+    observable: >-
+      A chaque tick d'une partie complete, l'etat expose de chacun des quatre fantomes
+      appartient a l'ensemble des trois valeurs, sans valeur vide ni combinaison.
+    falsifie_si: >-
+      Un fantome expose a un tick une valeur d'etat hors des trois, une valeur vide, ou deux
+      etats simultanes.
+    source: worldscan
+    reference: "worldscan.ghost_states.states (Chase / Scatter / Frightened, « three exclusive states per ghost ») ; charter.criteres_succes[ETATS DE POURSUITE TESTES SUR LEURS SEUILS]"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R25
+    enonce: >-
+      Le joueur vit une partie rythmee par une horloge declarée : 20 s de poursuite, 7 s de
+      dispersion, 20 s de poursuite, 7 s de dispersion, 20 s de poursuite, 5 s de dispersion,
+      puis poursuite jusqu'a la fin de la partie.
+    observable: >-
+      Pour chacun des six seuils de la sequence, l'etat expose est relevé juste avant le
+      seuil, exactement au seuil, et juste apres : les trois valeurs correspondent a la
+      sequence declarée.
+    falsifie_si: >-
+      A un seul des trois points d'un seul seuil, l'etat lu differe de la sequence declarée ;
+      ou la partie repasse en dispersion apres le sixieme seuil.
+    source: worldscan
+    reference: "worldscan.ghost_states.mode_timing_levels_1_4.sequence (source citee : the-pac-man-dossier) ; le dernier segment « Chase 1 033 s » est rendu dans la tranche comme poursuite jusqu'a la fin de partie"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R26
+    enonce: >-
+      Quand les fantomes changent d'etat, le joueur le PERCOIT a l'ecran sans lire aucune
+      donnee : les fantomes font demi-tour au moment de la bascule, et l'indication d'etat
+      affichee change au meme instant.
+    observable: >-
+      Captures au tick precedant le seuil et au tick du seuil : la direction rendue de chaque
+      fantome hors maison s'est inversee, et l'indication d'etat lisible a l'ecran differe
+      entre les deux captures.
+    falsifie_si: >-
+      Au tick du seuil, aucun fantome n'inverse sa direction ET l'indication d'etat affichee
+      est identique — le changement n'existe alors que dans les donnees.
+    source: worldscan
+    reference: "worldscan.loops.minute_10.actions « player observes behavior change and direction reversal » ; charter.criteres_demo[CHANGEMENT D ETAT DE POURSUITE PERCEPTIBLE]"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  - id: R27
+    enonce: >-
+      Le joueur qui mange une super-pastille voit les quatre fantomes changer d'apparence au
+      meme instant et devenir vulnerables pour une duree declarée, puis revenir a leur
+      comportement hostile a l'expiration.
+    observable: >-
+      Etat au tick de consommation : les quatre fantomes sont en etat Effraye ; capture : leur
+      couleur rendue differe de leur couleur habituelle ; etat au tick d'expiration declaré :
+      aucun fantome n'est plus en Effraye.
+    falsifie_si: >-
+      Un fantome reste hostile au tick de consommation, ou l'apparence rendue ne change pas,
+      ou l'etat Effraye ne prend jamais fin.
+    source: worldscan
+    reference: "worldscan.systems[Frightened Mode (Power Pellets)] « all 4 ghosts turn blue/vulnerable for duration » ; duree retenue dans la fourchette sourcee « Levels 1-4: ~6 seconds »"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  - id: R28
+    enonce: >-
+      Pendant l'etat Effraye, le joueur voit les fantomes ralentir et cesser de converger vers
+      lui : c'est sa fenetre pour aller chercher les pastilles qu'il n'osait pas prendre.
+    observable: >-
+      Sur une fenetre declarée en etat Effraye : le nombre de cases parcourues par chaque
+      fantome est strictement inferieur au nombre de cases parcourues par Pac-Man sur la meme
+      fenetre ; et la distance Pac-Man / fantome ne decroit pas strictement a chaque
+      deplacement.
+    falsifie_si: >-
+      Un fantome Effraye parcourt autant ou plus de cases que Pac-Man sur la fenetre, ou
+      continue de reduire strictement la distance a chaque deplacement (comportement de
+      poursuite sous une etiquette Effraye).
+    source: worldscan
+    reference: "worldscan.ghost_states.states[Frightened Mode] « Pseudo-random pathfinding at reduced speed » ; worldscan.systems[Frightened Mode].effects_on_ghosts « speed reduces to ~60-70% normal »"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R29
+    enonce: >-
+      Le joueur qui touche un fantome Effraye le voit disparaitre du couloir et reapparaitre
+      dans la maison centrale, sans perdre de vie, et son score augmente de 200 puis 400 puis
+      800 puis 1600 pour les captures successives issues d'une meme super-pastille.
+    observable: >-
+      Etat au tick du contact : le compteur de vies est inchangé, la position du fantome est
+      dans la maison centrale, le gain de score est exactement 200, 400, 800 ou 1600 selon le
+      rang de la capture ; a la super-pastille suivante, le rang repart de la premiere valeur.
+    falsifie_si: >-
+      Le contact avec un fantome Effraye retire une vie, ou le gain differe de la valeur du
+      rang, ou le rang ne se remet pas a la premiere valeur a la super-pastille suivante.
+    source: worldscan
+    reference: "worldscan.defeat_conditions[GHOST_STATE_EXCEPTION] « ghost respawns at ghost house for bonus points (200/400/800/1600) »"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  # ======================================================================================
+  # BLOC G — DEFAITE
+  # ======================================================================================
+
+  - id: R30
+    enonce: >-
+      Le joueur touche par un fantome hostile voit immediatement quelque chose se passer a
+      l'ecran, et son compteur de vies baisse d'exactement un.
+    observable: >-
+      Etat avant et apres le contact : vies_apres est exactement egal a vies_avant moins 1 ;
+      capture au tick du contact : le rendu differe de la capture du tick precedent (Pac-Man
+      et les fantomes sont replacés a leurs positions de depart).
+    falsifie_si: >-
+      Le contact retire zero vie, ou plus d'une vie, ou aucun changement n'est visible a
+      l'ecran au tick du contact.
+    source: worldscan
+    reference: "worldscan.defeat_conditions[CONDITION_CONTACT] « loses one life when a ghost occupies the same tile in a non-frightened state » ; charter.criteres_demo[MORT LISIBLE]"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  - id: R31
+    enonce: >-
+      Le joueur perd la partie exactement au moment ou son compteur de vies atteint zero — pas
+      avant : avec une vie restante, la partie continue.
+    observable: >-
+      Le statut expose vaut EN COURS a chaque tick ou vies est superieur ou egal a 1, et
+      bascule a PERDU au tick exact ou vies atteint 0.
+    falsifie_si: >-
+      Le statut passe a PERDU alors que vies vaut 1 ou plus, ou reste EN COURS alors que vies
+      vaut 0.
+    source: worldscan
+    reference: "worldscan.defeat_conditions[CONDITION_EXHAUSTION] et [LIVES_STARTING] « starts with 3 lives ... 2, then 1, then 0 (game over) » ; charter.criteres_succes[DEFAITE STRICTEMENT DECLENCHEE]"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R32
+    enonce: >-
+      Le joueur qui croise un fantome de face dans un couloir etroit perd une vie, meme
+      lorsque les deux se sont echanges leurs cases sans jamais finir un tick sur la meme
+      case.
+    observable: >-
+      Fixture de croisement en sens inverse sur la meme arete : le compteur de vies a baisse
+      d'exactement 1 ; fixtures de contact frontal et de contact au tick d'entree dans une
+      intersection : meme resultat.
+    falsifie_si: >-
+      L'echange de cases ne declenche aucune perte de vie (le joueur traverse le fantome).
+    source: charter
+    reference: "charter.criteres_succes[DEFAITE STRICTEMENT DECLENCHEE] « fixtures couvrant le contact frontal, le croisement en sens inverse sur la meme arete et le contact au tick d'entree dans une intersection »"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  # ======================================================================================
+  # BLOC H — VICTOIRE ET STATUTS TERMINAUX
+  # ======================================================================================
+
+  - id: R33
+    enonce: >-
+      Le joueur gagne exactement au moment ou il avale le 244e collectible, jamais avant : a
+      243 avales, avec un dernier objet encore sur la carte, la partie est toujours en cours.
+    observable: >-
+      Statut expose a consommes egal 243 : EN COURS, avec restantes egal 1 ; statut au tick
+      ou consommes atteint 244 : GAGNE, avec restantes egal 0.
+    falsifie_si: >-
+      Le statut vaut GAGNE alors que consommes est inferieur ou egal a 243, ou vaut encore
+      EN COURS alors que consommes vaut 244.
+    source: worldscan
+    reference: "worldscan.victory_conditions[VERIFICATION_STRICT] « level advance triggers only when consumed_count == total_pellet_count (equality, not >=) » ; charter.criteres_succes[VICTOIRE STRICTEMENT COMPTEE]"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R34
+    enonce: >-
+      A tout instant, le jeu montre exactement un statut parmi EN COURS, GAGNE et PERDU —
+      jamais deux, jamais aucun, y compris apres la sortie de la boucle de jeu.
+    observable: >-
+      Le statut expose appartient a l'ensemble des trois valeurs a chaque tick et apres la
+      derniere iteration de la boucle, sur les trois issues (victoire, defaite, abandon de la
+      boucle).
+    falsifie_si: >-
+      Il existe une sortie de boucle apres laquelle le statut expose est vide, indefini, ou
+      cumule deux valeurs.
+    source: charter
+    reference: "charter.criteres_succes[TROIS STATUTS TERMINAUX MUTUELLEMENT EXCLUSIFS ET EXHAUSTIFS]"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R35
+    enonce: >-
+      Le joueur qui finit une partie voit un ecran de fin qui nomme l'issue et affiche son
+      score final en chiffres ; l'ecran de victoire est visiblement different de l'ecran de
+      defaite, et l'application ne se fige ni ne se ferme.
+    observable: >-
+      Deux captures — une partie gagnee, une partie perdue : les textes d'issue different ; le
+      score final affiche est egal au score de l'etat ; dans les deux cas, une pression au
+      clavier est encore prise en compte apres l'affichage.
+    falsifie_si: >-
+      Les deux ecrans de fin sont identiques, ou l'issue n'est pas nommee, ou le score final
+      n'apparait pas en chiffres, ou l'application ne repond plus a aucune entree.
+    source: charter
+    reference: "charter.criteres_demo[VICTOIRE LISIBLE] et [MORT LISIBLE] ; charter.actions_interdites[livrer une partie sans etat final explicite]"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  # ======================================================================================
+  # BLOC I — REJOUER (boucle jouable de bout en bout, priorite 7 de Pierre)
+  # ======================================================================================
+
+  - id: R36
+    enonce: >-
+      Depuis l'ecran de fin, le joueur relance une partie neuve d'un seul appui, sans passer
+      par un menu ni relancer l'application.
+    observable: >-
+      Une seule pression de touche depuis l'ecran de fin : au tick suivant, le statut expose
+      vaut EN COURS et le labyrinthe rendu est de nouveau rempli de pastilles.
+    falsifie_si: >-
+      Il faut plus d'une pression, ou la relance passe par une fermeture / reouverture de
+      l'application, ou rien ne se passe.
+    source: charter
+    reference: "charter.criteres_demo[REJOUER EN UN GESTE]"
+    nature: experience_joueur
+    verifiable_par: etat_et_capture
+    dans_la_tranche: true
+
+  - id: R37
+    enonce: >-
+      Le joueur qui rejoue repart exactement de zero : score a 0, trois vies, 244 collectibles
+      sur la carte, Pac-Man et les quatre fantomes a leurs positions de depart, horloge des
+      etats de poursuite remise a son debut.
+    observable: >-
+      Comparaison champ par champ de l'etat au tick 0 de la partie relancee avec l'etat au
+      tick 0 de la toute premiere partie : tous les champs sont egaux.
+    falsifie_si: >-
+      Un seul champ de l'etat conserve une valeur heritee de la partie precedente (score,
+      vies, pastilles, positions, phase de l'horloge des etats, rang de capture des fantomes).
+    source: charter
+    reference: "charter.criteres_demo[REJOUER EN UN GESTE] « sans qu'aucun etat de la partie precedente ne fuite » ; nombre de vies : worldscan.defeat_conditions[LIVES_STARTING] « 3 lives »"
+    nature: experience_joueur
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  # ======================================================================================
+  # BLOC J — DETERMINISME ET PREUVE QUE LE JEU SE GAGNE VRAIMENT
+  # ======================================================================================
+
+  - id: R38
+    enonce: >-
+      Deux parties jouees avec le meme etat de depart, la meme graine et la meme suite
+      d'appuis se deroulent a l'identique : memes positions tick par tick, meme score, meme
+      statut final.
+    observable: >-
+      Deux executions comparees champ par champ : la trace des positions, le score et le
+      statut final sont strictement identiques ; la fenetre rejouee franchit au moins deux
+      seuils de la sequence d'etats de poursuite (R25).
+    falsifie_si: >-
+      Un seul champ differe entre les deux executions — y compris via le deplacement des
+      fantomes en etat Effraye, dont le caractere pseudo-aleatoire doit donc etre pilote par
+      la graine et non par une source non reproductible.
+    source: charter
+    reference: "charter.criteres_succes[BOUCLE TEMPS REEL DETERMINISTE PAR REPLAY] ; charter.actions_interdites[Introduire de l'aleatoire non seede ou une horloge de plateforme] ; contrainte croisee avec worldscan.ghost_states.states[Frightened Mode] « pseudo-random pathfinding »"
+    nature: preuve
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R39
+    enonce: >-
+      Un bot qui pilote le jeu avec exactement les memes touches que le joueur termine le
+      labyrinthe : il atteint l'etat GAGNE sur la carte de reference.
+    observable: >-
+      Execution du bot sur la carte et la graine de reference : statut final GAGNE, consommes
+      egal 244, restantes egal 0, dans le budget de ticks declaré ; code de retour 0.
+    falsifie_si: >-
+      Le bot n'atteint jamais 244 dans le budget declaré, ou atteint la victoire par un autre
+      chemin que l'entree publique du jeu (etat force a la main).
+    source: charter
+    reference: "charter.criteres_succes[SOLVABILITE PROUVEE] ; charter.actions_interdites[Forcer ou placer l'etat de jeu a la main]"
+    nature: preuve
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R40
+    enonce: >-
+      Sur une version volontairement cassee du labyrinthe, ou une pastille est rendue
+      inatteignable, le meme bot ne gagne pas et le resultat le declare injouable.
+    observable: >-
+      Execution du bot sur la carte cassee : statut final different de GAGNE, sortie
+      INJOUABLE, code de retour non nul.
+    falsifie_si: >-
+      Le bot declare GAGNE, ou sort avec un code 0, sur la carte cassee — l'oracle de
+      solvabilite ne mesurerait alors rien.
+    source: charter
+    reference: "charter.criteres_succes[SOLVABILITE PROUVEE] « sur une version volontairement cassee ... il DOIT sortir INJOUABLE avec un code non nul »"
+    nature: preuve
+    verifiable_par: etat_expose
+    dans_la_tranche: true
+
+  - id: R41
+    enonce: >-
+      Un humain joue une partie entiere au clavier, du demarrage a l'ecran de fin puis a la
+      relance, en passant par au moins une poursuite et une super-pastille, sans ouvrir de
+      console et sans lancer le bot.
+    observable: >-
+      Session de jeu observee : les etapes demarrage, deplacement, pastille mangee,
+      super-pastille mangee, changement d'etat percu, fin de partie et relance sont toutes
+      atteintes par des appuis clavier dans la fenetre du jeu, sans aucune commande exterieure.
+    falsifie_si: >-
+      Une seule de ces etapes exige une commande hors du jeu, un fichier a editer, ou le bot
+      de solvabilite.
+    source: charter
+    reference: "charter.criteres_demo[PARTIE COMPLETE SANS OUTIL] (lecon playtest Pong 2026-07-27 : validation solo impossible = defaut)"
+    nature: preuve
+    verifiable_par: humain
+    dans_la_tranche: true
+
+  - id: R42
+    enonce: >-
+      Un joueur qui decouvre le jeu nomme, en quelques secondes et sans aucun texte d'aide,
+      ce qu'il controle, ce qu'il doit manger, ce qu'il doit eviter, et comment la partie se
+      termine.
+    observable: >-
+      Passation a un joueur neuf, aucune consigne ecrite ni orale : il enonce les quatre
+      elements apres quelques secondes d'observation et d'essai.
+    falsifie_si: >-
+      Le joueur neuf ne peut nommer l'un des quatre elements sans qu'on le lui explique.
+    source: charter
+    reference: "charter.criteres_demo[COMPREHENSION DE LA BOUCLE EN QUELQUES SECONDES] et [DEMARRAGE VISIBLE] « comprend quoi faire sans explication ecrite »"
+    nature: preuve
+    verifiable_par: humain
+    dans_la_tranche: true
+
+# ==========================================================================================
+# ARBITRAGES — la ou le world scan (arcade complet de 1980) et le charter (tranche minimale)
+# divergent. Chaque arbitrage est TRANCHE, pas renvoye plus loin.
+# ==========================================================================================
+
+arbitrages:
+
+  - id: A1
+    sujet: "Combien de fantomes : 3 ou 4 ?"
+    position_charter: >-
+      charter.parametres_de_design.nombre_de_fantomes = « 3 fantomes », statut A_EQUILIBRER,
+      provenance « PROPOSE par le redacteur du contrat. Pierre a impose fantomes au pluriel
+      sans nombre ». Le charter ajoute lui-meme : « Le World Scan (etape 2) peut sourcer un
+      autre nombre : il primera sur cette proposition. »
+    position_worldscan: >-
+      worldscan.ghost_states.total_ghosts = 4, avec quatre algorithmes de ciblage individuels
+      SOURCES (Blinky direct, Pinky 4 cases devant, Inky via la position de Blinky, Clyde a
+      seuil de 8 cases), et 4 coins de dispersion attribues nominativement.
+    tranche: "QUATRE fantomes, avec les quatre regles de ciblage sourcees (exigences R18 a R21)."
+    justification: >-
+      Trois raisons, dans cet ordre. (1) Le charter a EXPLICITEMENT delegue ce chiffre au
+      world scan, qui l'a source : ne pas suivre reviendrait a ignorer sa propre regle de
+      priorite. (2) Passer a 3 obligerait a CHOISIR quel fantome supprimer, et donc a inventer
+      : Inky ne se calcule qu'a partir de la position de Blinky, la suppression de l'un
+      deforme l'autre. Prendre les 4 sourcés est le choix a ZERO invention ; prendre 3 est le
+      choix qui en exige. (3) Le charter exige une PREUVE DE VARIANCE de trajectoire ; quatre
+      formules de ciblage distinctes et documentees fournissent une preuve strictement plus
+      forte que trois regles inventees, pour un cout identique (une entite de plus dans la
+      meme boucle de tick, aucune structure nouvelle).
+    borne_posee: >-
+      Le charter exclut la « reproduction archeologique » des personnalites AU-DELA de ce que
+      le world scan sourcera. Le world scan a sourcé les quatre ciblages : ils sont donc DANS
+      la borne. Ce qui reste dehors est le comportement Cruise Elroy de Blinky (voir
+      hors_tranche H4), qui n'est pas un ciblage mais une escalade de difficulte.
+    risque_assume: >-
+      Quatre poursuivants sur un labyrinthe unique rendent la partie plus dure que trois. La
+      contre-mesure est deja dans la tranche : sortie echelonnee de la maison (R23), fantomes
+      plus lents que Pac-Man (R22), et fenetres de dispersion (R25). Si le playtest montre que
+      la carte devient injouable pour un humain, le parametre a bouger est la vitesse relative
+      ou les durees, pas le nombre — supprimer un fantome casserait Inky.
+
+  - id: A2
+    sujet: "Super-pastilles et etat Effraye : dans la tranche ou dehors ?"
+    position_charter: >-
+      Le charter ne les nomme jamais explicitement, mais il impose (priorite 5 de Pierre) des
+      « etats de poursuite explicites (machine a etats, pas des vitesses bricolees) » et un
+      critere de demo « CHANGEMENT D ETAT DE POURSUITE PERCEPTIBLE ». Son hors_scope exclut
+      les « fruits bonus additionnels », jamais les super-pastilles.
+    position_worldscan: >-
+      Les 4 super-pastilles font partie des 244 collectibles qui DEFINISSENT la condition de
+      victoire (« 240 dots + 4 power pellets = 244 total collectibles »). Frightened est l'un
+      des trois etats exclusifs de la machine a etats. C'est la mecanique de risque/recompense
+      centrale du genre (worldscan.loops.minute_10).
+    tranche: >-
+      DANS LA TRANCHE : 4 super-pastilles (R16, R17), etat Effraye sur les quatre fantomes
+      (R27, R28), capture de fantome avec retour en maison et bonus 200/400/800/1600 (R29).
+    justification: >-
+      Trois raisons. (1) Les exclure changerait la CONDITION DE VICTOIRE elle-meme : le total
+      sourcé de 244 tombe a 240, et il faudrait alors justifier un chiffre non sourcé.
+      (2) Sans Frightened, la machine a etats n'a que deux etats, tous deux pilotes par une
+      horloge : le joueur ne PROVOQUE jamais de transition. Le critere de demo « changement
+      d'etat perceptible » ne serait alors testable qu'en attendant un timer, jamais a la
+      demande — une preuve nettement plus faible. (3) Pierre a demande des « etats de
+      poursuite » au pluriel et explicite : Frightened est le seul des trois qui rende la
+      machine a etats VISIBLE comme un choix de jeu et non comme une horloge.
+    borne_posee: >-
+      La capture d'un fantome le renvoie IMMEDIATEMENT dans la maison centrale (R29). La
+      traversee du labyrinthe par les « yeux » du fantome capture, presente dans l'arcade,
+      reste dehors (hors_tranche H6) : elle ajouterait un quatrieme etat non demande.
+    contrainte_croisee: >-
+      Le world scan decrit le deplacement en Effraye comme « pseudo-random ». Le charter
+      interdit tout aleatoire non seede et exige un replay strictement identique. La tranche
+      tranche : le pseudo-aleatoire est pilote par la graine de partie, ce qui satisfait les
+      deux (R38 le rend falsifiable). C'est une deduction assumee, pas un fait sourcé.
+
+  - id: A3
+    sujet: "Taille du labyrinthe : 28x36 sourcé ou 21x21 propose ?"
+    position_charter: >-
+      charter.parametres_de_design.grille_labyrinthe = « 21 colonnes x 21 lignes », statut
+      A_EQUILIBRER, provenance « PROPOSE par le redacteur du contrat. Pierre a impose
+      grille/navigation sans chiffrer ». Aucun chiffre de Pierre.
+    position_worldscan: >-
+      worldscan.maze.dimensions = 28 x 36, avec la resolution arcade (224 x 288, rapport 3:4),
+      la taille de tuile, le nombre de pastilles (240 + 4 = 244), la maison centrale, les deux
+      tunnels lateraux et le placement des super-pastilles — un ENSEMBLE coherent, sourcé
+      ensemble.
+    tranche: "28 colonnes x 36 lignes (R6), avec exactement 244 collectibles (R14)."
+    justification: >-
+      Trois raisons. (1) La dimension et le nombre de pastilles sont sourcés ENSEMBLE :
+      choisir 21x21 obligerait a inventer un nouveau nombre de pastilles, donc a fabriquer un
+      fait de regle — ce que le cadrage de cette etape interdit explicitement. (2) La
+      condition de victoire strictement comptee (R33) est aussi stricte a 244 qu'a un autre
+      total : la taille ne relache aucune assertion. (3) La faisabilite de la preuve par bot
+      n'est pas compromise : le bot doit couvrir environ 244 cases a pastille dans un
+      labyrinthe a boucles, soit un ordre de grandeur de quelques centaines a un millier et
+      demi de ticks avec retours en arriere. Le precedent mesuré du studio (games/snake :
+      partie gagnee en 266 a 417 ticks, budget declare 5000) montre que le budget de ticks est
+      un PARAMETRE DECLARE, pas un mur — le defaut historique de 200 ticks y avait produit un
+      FAUX NEGATIF, ce qui est l'erreur a ne pas repeter ici.
+    ce_qui_reste_non_source: >-
+      La DIMENSION est sourcee, le TRACE exact des murs ne l'est pas (le world scan ne fournit
+      pas la carte tuile par tuile, et declare en incertitude la position exacte des tunnels).
+      La tranche n'exige donc pas le trace de 1980 : elle exige un labyrinthe 28x36 verifiant
+      des invariants observables — exactement 244 collectibles, chaque collectible atteignable
+      depuis la case de depart, au moins deux boucles internes, une maison centrale, deux
+      tunnels lateraux sur une meme ligne, une super-pastille par quadrant d'angle. Le trace
+      lui-meme est un choix de production, pas un fait de regle.
+    risque_assume: >-
+      Une partie complete devient plus longue qu'a 21x21. Le world scan situe une partie
+      d'arcade a 3-5 minutes, ce qui reste compatible avec le critere de demo « PARTIE
+      COMPLETE SANS OUTIL ». Si le playtest juge la partie trop longue pour une validation
+      solo, le parametre a bouger est la cadence, pas le nombre de pastilles — qui, lui, est
+      la condition de victoire.
+
+  - id: A4
+    sujet: "Sequence et durees des etats de poursuite"
+    position_charter: >-
+      charter.parametres_de_design.durees_etats_de_poursuite = « 7 s de dispersion puis 20 s
+      de poursuite, en cycle », statut A_EQUILIBRER, avec la mention explicite « le World Scan
+      peut sourcer d'autres etats et d'autres durees, qui primeront ».
+    position_worldscan: >-
+      worldscan.ghost_states.mode_timing_levels_1_4 : 20 s poursuite, 7 s dispersion, 20 s,
+      7 s, 20 s, 5 s, puis 1 033 s de poursuite — donc un cycle FINI de six seuils, pas une
+      alternance infinie.
+    tranche: >-
+      La sequence sourcee (R25), le dernier segment etant rendu comme « poursuite jusqu'a la
+      fin de la partie » puisque 1 033 s depasse largement la duree d'un labyrinthe unique.
+    justification: >-
+      Le charter delegue explicitement. La sequence sourcee est en outre MEILLEURE pour la
+      preuve : elle offre six seuils a des instants declarés et distincts, donc six triplets
+      d'assertion (juste avant / au seuil / juste apres) exigés par le critere ETATS DE
+      POURSUITE TESTES SUR LEURS SEUILS, et elle place deux transitions dans les 27 premieres
+      secondes — ce qui rend le replay de R38 court et donc executable a chaque run.
+
+# ==========================================================================================
+# HORS TRANCHE — documente par le world scan, deliberement exclu de cette tranche.
+# Rien n'est ici par oubli : chaque ligne porte sa raison.
+# ==========================================================================================
+
+hors_tranche:
+
+  - id: H1
+    element: "Niveaux multiples et progression de campagne (256 niveaux)"
+    documente_par: "worldscan.player_objectives ; worldscan.victory_conditions[LEVEL_PROGRESSION, SCALING]"
+    raison: >-
+      charter.hors_scope l'exclut nommement : « la tranche est UN labyrinthe jouable de bout
+      en bout ; l'extension multi-niveaux est un run ulterieur ». La condition de victoire de
+      la tranche s'arrete a GAGNE (R33), elle n'enchaine sur aucun niveau suivant.
+
+  - id: H2
+    element: "Escalade de difficulte par niveau (vitesses qui montent, duree Effraye qui baisse, dispersions qui se compriment)"
+    documente_par: "worldscan.systems[Difficulty Escalation] ; worldscan.ghost_states.mode_timing_levels_5_plus ; duree Effraye levels 5-18 et 19+"
+    raison: >-
+      Consequence directe de H1 : sans niveau 2, il n'existe aucun palier ou appliquer une
+      escalade. Les valeurs retenues dans la tranche sont celles des niveaux 1 a 4, sourcees
+      comme un bloc coherent.
+
+  - id: H3
+    element: "Kill screen du niveau 256"
+    documente_par: "worldscan.victory_conditions[SCALING] ; worldscan.incertitudes[Level 256 kill screen exact state]"
+    raison: >-
+      Consequence de H1, et le world scan declare lui-meme que l'etat exact de cet ecran
+      n'est PAS sourcé. Le reproduire exigerait d'inventer un fait de regle.
+
+  - id: H4
+    element: "Cruise Elroy (acceleration de Blinky et abandon de la dispersion sous un seuil de pastilles)"
+    documente_par: "worldscan.ghost_targeting.blinky_red.special_behavior"
+    raison: >-
+      Trois raisons cumulees. (1) Les seuils sont declarés PAR NIVEAU (20 pastilles restantes
+      aux niveaux 1-4, 10 aux niveaux 5-20) : sans progression de niveaux (H1), le mecanisme
+      perd son objet. (2) Il fait sortir Blinky de la machine a etats declarée, ce qui
+      contredit l'exigence R24 (exactement un etat parmi trois) sans en apporter un quatrieme
+      demande. (3) Il ACCELERE un fantome : le charter avertit qu'une vitesse superieure a
+      celle du joueur rendrait la solvabilite (R39) impossible a prouver sur certaines cartes.
+
+  - id: H5
+    element: "Fruits et objets bonus"
+    documente_par: "worldscan.incertitudes[Fruits and bonus items in original Pac-Man level 1]"
+    raison: >-
+      Exclu nommement par charter.hors_scope (« fruits bonus additionnels »), ET le world scan
+      declare que le placement et la valeur des fruits du niveau 1 ne sont pas sourcés — les
+      inclure exigerait donc a la fois de violer le hors_scope et d'inventer des chiffres.
+
+  - id: H6
+    element: "Traversee du labyrinthe par les yeux d'un fantome capture pour regagner la maison"
+    documente_par: "worldscan.systems[Frightened Mode].expiration_rules « ghost respawns at ghost house when eaten »"
+    raison: >-
+      Le fait sourcé est le RETOUR EN MAISON, pas la traversee visible. La tranche retient le
+      fait (R29 : reapparition immediate dans la maison) et laisse dehors l'animation de
+      retour, qui ajouterait un quatrieme etat de fantome non demande par Pierre.
+
+  - id: H7
+    element: "Sortie echelonnee de la maison pilotee par des seuils de pastilles consommees"
+    documente_par: "worldscan.ghost_states.spawn_behavior ; worldscan.incertitudes[Ghost spawn timing and ghost house exit sequencing]"
+    raison: >-
+      Le world scan declare explicitement que les seuils exacts ne sont PAS enumerés. La
+      tranche retient ce qui est sourcé — l'ordre de sortie, Blinky en premier — et remplace
+      les seuils non sourcés par des delais declarés en ticks (R23), assumés comme deduction
+      et non presentes comme un fait d'arcade.
+
+  - id: H8
+    element: "Vitesse variable de Pac-Man selon qu'il mange ou non"
+    documente_par: "worldscan.incertitudes[Precise speed ratios] « Pac-Man is faster when not eating than eating »"
+    raison: >-
+      Le world scan qualifie lui-meme ce point d'incertain et sans donnee chiffree. La tranche
+      retient une cadence unique pour Pac-Man, ce qui rend R22 (le joueur creuse l'ecart)
+      falsifiable sans dependre d'un chiffre non sourcé.
+
+  - id: H9
+    element: "Table des meilleurs scores persistee entre les sessions"
+    documente_par: "worldscan.systems[Scoring & Persistence].persistence_arcade « cabinet EEPROM »"
+    raison: >-
+      Aucun critere de charter ne le demande, et charter.hors_scope exclut backend, base de
+      donnees et leaderboard. Le score final est affiche a la fin de partie (R35) ; il n'est
+      pas conserve entre deux lancements.
+
+  - id: H10
+    element: "Son, musique, attract mode, cinematiques inter-niveaux"
+    documente_par: "worldscan (contexte arcade) ; charter.hors_scope"
+    raison: >-
+      Exclus nommement par charter.hors_scope (« ecrans d'attract mode », « son »,
+      « cinematiques inter-niveaux ») et par la contrainte zero asset importe (R4).
+
+  - id: H11
+    element: "Variantes du genre : mazes multiples et ghosts randomises de Ms. Pac-Man, mecaniques de Dig Dug"
+    documente_par: "worldscan.comparable_games"
+    raison: >-
+      Materiel de comparaison de genre, pas de specification du jeu demande. Le charter nomme
+      Pac-Man comme reference_jeu, sur source Pierre directe.
+
+# ==========================================================================================
+# CE QUE CE PRISME N'A DELIBEREMENT PAS TRANSFORME EN EXIGENCE
+# (criteres du charter qui ne sont PAS observables par le joueur : ils appartiennent aux
+# etapes aval. Listés pour qu'aucun ne disparaisse en silence, jamais pour les trancher ici.)
+# ==========================================================================================
+
+renvois_aux_etapes_aval:
+  - critere_charter: "LOGIQUE SEPAREE DU RENDU, VERIFIE STATIQUEMENT"
+    pourquoi_pas_une_exigence: "Propriete de structure interne, invisible pour le joueur. Aucune capture ni etat expose ne peut la falsifier."
+    destination: "etape architecture (s4)"
+  - critere_charter: "PARAMETRES DE JEU ISOLES ET NOMMES (zero litteral de gameplay hors du bloc)"
+    pourquoi_pas_une_exigence: "Propriete de structure interne. Le joueur observe les VALEURS (R22, R25, R27, R37), jamais leur lieu de declaration."
+    destination: "etape architecture (s4)"
+  - critere_charter: "GATE DE MUTATION SUR LA LOGIQUE PURE"
+    pourquoi_pas_une_exigence: "Propriete de la chaine de preuve, pas du produit. Le prisme fournit la LISTE des invariants a tuer (R7, R15, R30, R31, R33, R25), pas le dispositif."
+    destination: "etape de preuve / oracle"
+  - critere_charter: "ORACLE UNIQUE ET REEXECUTABLE"
+    pourquoi_pas_une_exigence: "Outillage de preuve. Le prisme fournit ce qui doit etre prouve (R38, R39, R40), pas le point d'entree."
+    destination: "etape de preuve / oracle"
+  - critere_charter: "CONSOMMATION DE CONNAISSANCE MESUREE ; PERIMETRE D ECRITURE BORNE ; PREUVE MECANIQUE FOURNIE ; VOCABULAIRE DE CLAIM ABSENT"
+    pourquoi_pas_une_exigence: "Regles de conduite du run, sans expression dans le jeu vu par le joueur."
+    destination: "conduite du run / verdict"
+
+# ==========================================================================================
+# COUVERTURE — controle explicite, pour qu'une priorite oubliee soit visible et non deduite.
+# ==========================================================================================
+
+couverture:
+  priorites_gameplay_pierre:
+    - priorite: "1 — boucle temps reel qui tourne toute seule"
+      exigences: [R3, R38]
+    - priorite: "2 — navigation sur grille, murs infranchissables"
+      exigences: [R6, R7, R8, R9, R10]
+    - priorite: "3 — deplacement du joueur au clavier, borne par la grille"
+      exigences: [R11, R12, R13, R8]
+    - priorite: "4 — fantomes qui se deplacent et poursuivent"
+      exigences: [R18, R19, R20, R21, R22, R23]
+    - priorite: "5 — etats de poursuite explicites (machine a etats)"
+      exigences: [R24, R25, R26, R27, R28, R29]
+    - priorite: "6 — conditions de victoire ET de defaite declarees et atteignables"
+      exigences: [R30, R31, R32, R33, R34, R39, R40]
+    - priorite: "7 — boucle jouable de bout en bout (demarrer, jouer, gagner ou perdre, rejouer)"
+      exigences: [R35, R36, R37, R41]
+  criteres_demo_charter:
+    - critere: "DEMARRAGE VISIBLE"
+      exigences: [R1, R3, R42]
+    - critere: "DEPLACEMENT AU CLAVIER"
+      exigences: [R11, R12, R13, R8]
+    - critere: "PASTILLES QUI DISPARAISSENT"
+      exigences: [R15]
+    - critere: "SCORE ET VIES EN CHIFFRES"
+      exigences: [R5, R14]
+    - critere: "FANTOMES QUI POURSUIVENT VISIBLEMENT"
+      exigences: [R18, R19, R21]
+    - critere: "CHANGEMENT D ETAT DE POURSUITE PERCEPTIBLE"
+      exigences: [R26, R27]
+    - critere: "MORT LISIBLE"
+      exigences: [R30, R31, R35]
+    - critere: "VICTOIRE LISIBLE"
+      exigences: [R33, R35]
+    - critere: "REJOUER EN UN GESTE"
+      exigences: [R36, R37]
+    - critere: "PARTIE COMPLETE SANS OUTIL"
+      exigences: [R41]
+    - critere: "LISIBILITE DU LABYRINTHE"
+      exigences: [R2, R1]
+    - critere: "COMPREHENSION DE LA BOUCLE EN QUELQUES SECONDES"
+      exigences: [R42]
+
+# ==========================================================================================
+# FOG — ce que ce prisme n'a pas l'autorite de trancher, remonte a HumanGate (Pierre).
+# ==========================================================================================
+
+fog_humangate:
+  - sujet: "Question ouverte n.3 du charter, toujours ouverte"
+    etat: >-
+      charter.question_ouverte_humangate demandait a Pierre : « Un vrai Pac-Man exige-t-il des
+      comportements de fantomes INDIVIDUELLEMENT distincts, ou une poursuite credible et
+      variee suffit-elle ? »
+      Aucune reponse de Pierre n'est enregistree dans les artefacts du run.
+    ce_que_le_prisme_a_fait: >-
+      Il a tranche A1 (quatre fantomes, quatre ciblages sourcés) en s'appuyant sur la regle de
+      priorite ecrite DANS le charter (« le World Scan primera sur cette proposition »), pas
+      sur une reponse de Pierre. Ce n'est donc pas une ratification, c'est l'application d'une
+      regle deja ecrite.
+    impact_si_Pierre_tranche_autrement: >-
+      Si Pierre veut trois fantomes, R20 tombe partiellement (le ciblage du cyan depend de la
+      position du rouge) et il faudra declarer quel fantome disparait et quelle regle de
+      ciblage le remplace. Aucune autre exigence n'est invalidee.
+  - sujet: "Statut A_EQUILIBRER des parametres chiffres"
+    etat: >-
+      Cadence de tick, vitesse relative des fantomes, duree de l'etat Effraye et delais de
+      sortie de la maison restent des valeurs declarées, susceptibles de bouger au playtest.
+    ce_que_le_prisme_a_fait: >-
+      Il a formule R22, R25, R27, R28 et R23 de facon a rester falsifiables SANS dependre du
+      chiffre exact : elles assertent des relations (plus lent que, decroit strictement, seuil
+      franchi) et non des valeurs. Un rejeu du playtest peut changer les chiffres sans reecrire
+      les exigences.

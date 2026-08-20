@@ -1,0 +1,100 @@
+schema_version: "CONTROL_ROOM_TRUTH_SNAPSHOT_V0"
+status: "DOCUMENTED_ONLY"
+owner: "HumanGate"
+last_checked: "2026-05-20"
+unknown_policy: "UNKNOWN => BLOCKED for actions"
+no_global_ready_verdict: true
+status_authority:
+  documentation_edits: "DOCUMENTED_ONLY"
+  implemented_requires: "active runtime code evidence"
+  tested_requires: "validation or test evidence for the relevant surface; not file existence alone"
+  unknown_policy: "UNKNOWN => BLOCKED for actions"
+surface_normalization:
+  canonical_surfaces:
+    - "active_runtime_code"
+    - "tests"
+    - "artifacts_runtime_outputs"
+    - "canonical_docs"
+    - "roadmap_docs_only"
+    - "inference"
+  report_aliases:
+    runtime_outputs: "artifacts_runtime_outputs"
+  alias_rule: "Aliases do not create new surfaces without explicit registry and routing-policy mapping."
+local_control_room:
+  path: "00_STUDIO_CONTROL/"
+  absolute_path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/"
+  role: "local-only control cockpit"
+  git_policy: "LOCAL_ONLY_UNTRACKED"
+  github_presence: "NOT_EXPECTED"
+  status: "PASSIVE"
+  warning_level: "INFO_ONLY"
+  evidence: "HumanGate decision keeps the local control room outside Git/GitHub; git status entry ?? 00_STUDIO_CONTROL/ is not a critical sync defect."
+  human_gate_rule: "Do not git add, commit, push, or track unless HumanGate explicitly authorizes it."
+  note: "Local cleanliness is the target; GitHub sync is not required."
+local_hygiene_still_strict:
+  duplicate_docs: "BLOCKED"
+  unregistered_local_control_files: "BLOCKED"
+  placeholder_records: "BLOCKED"
+  invalid_statuses: "BLOCKED"
+  missing_owner_consumer_route: "UNKNOWN"
+  runtime_changes: "BLOCKED"
+  tests_ci_changes: "BLOCKED"
+  model_dataset_lora_changes: "BLOCKED"
+active_code:
+  status: "PASSIVE"
+  evidence: "No runtime code changes authorized or made by this docs-only task."
+tests:
+  status: "PASSIVE"
+  evidence: "No test changes authorized or made by this docs-only task."
+runtime_outputs:
+  status: "PASSIVE"
+  evidence: "Existing outputs were not promoted, moved, deleted, archived, or regenerated."
+canonical_docs:
+  status: "DOCUMENTED_ONLY"
+  evidence: "Control-room docs and registries are routed under 00_STUDIO_CONTROL."
+roadmap_docs_only:
+  status: "DOCUMENTED_ONLY"
+  evidence: "Roadmap material indexed under 00_STUDIO_CONTROL/10_ROADMAP."
+inference:
+  status: "PASSIVE"
+  evidence: "Local LLM and Codex roles are candidate/evidence-bound; no autonomous activation."
+local_llm_student:
+  status: "DOCUMENTED_ONLY"
+  truth_authority: false
+  evidence: "Registered as candidate-only."
+codex_teacher:
+  status: "DOCUMENTED_ONLY"
+  truth_authority: "evidence_bound"
+  evidence: "Corrections require evidence and commands run."
+local_llm_retry:
+  status: "DOCUMENTED_ONLY"
+  truth_authority: false
+  evidence: "Retry remains revised candidate-only."
+codex_final_validation:
+  status: "DOCUMENTED_ONLY"
+  truth_authority: "evidence_bound"
+  evidence: "Final validation requires route, YAML, status, claim, floating, and noise-gate checks."
+lora:
+  status: "BLOCKED"
+  evidence: "No LoRA creation authorized."
+training_dataset:
+  status: "BLOCKED"
+  evidence: "No dataset creation or promotion authorized."
+claims_blocked:
+  - claim: "Local LLM output is truth."
+    status: "BLOCKED"
+  - claim: "Codex correction is final truth without evidence."
+    status: "BLOCKED"
+  - claim: "Control-room docs imply runtime readiness."
+    status: "BLOCKED"
+unknowns:
+  - item: "Root AGENTS.md"
+    status: "NOT_FOUND"
+  - item: "GPT_NAVIGATOR_CODEX_PROMPT_GATE_V0.md"
+    status: "NOT_FOUND"
+  - item: "GPT_NAVIGATOR_PROJECT_INSTRUCTIONS_V0.md"
+    status: "NOT_FOUND"
+  - item: "GPT_NAVIGATOR_REPO_NOTICE_V0.md"
+    status: "NOT_FOUND"
+  - item: "Whether untracked preexisting directories other than 00_STUDIO_CONTROL should be tracked or archived"
+    status: "UNKNOWN"

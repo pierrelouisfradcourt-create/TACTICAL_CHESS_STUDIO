@@ -1,0 +1,933 @@
+**1. Rediriger ACTIVE_DATASET.txt vers pool_2400.jsonl**
+
+Origine : audit git session 2, identifié comme goulot unique bloquant training, benchmark et démo Phase 1. Une ligne dans un fichier texte.
+
+Où ça mène : débloquer 4 choses en cascade — training loop, benchmark ELO, promotion checkpoint neural, démo Phase 1. Tout ce qui est bloqué derrière ce HumanGate se déverrouille en même temps.
+
+Pourquoi : le dataset actif pointe vers une version cassée avec 47% de nulles. pool_2400.jsonl a 43.3M lignes et un draw_rate de 8.8%. Ce n'est pas une amélioration marginale — c'est la différence entre un dataset inutilisable et un dataset exploitable.
+
+Contraintes : HumanGate obligatoire, tu dois le faire toi-même. Vérifier que pool_2400.jsonl existe et est complet avant de pointer dessus. Relancer les benchmarks immédiatement après pour mesurer l'impact réel.
+
+---
+
+**2. studio_start.py — context loader de session**
+
+Origine : session 2, diagnostic de friction. 10-15 minutes perdues à reconstruire le contexte manuellement à chaque démarrage.
+
+Où ça mène : chaque session commence avec l'état réel du repo devant les yeux — git status, Kaizen progression, cargo check, état des chains, derniers commits, φ(session précédente) quand disponible. La reconstruction manuelle disparaît.
+
+Pourquoi : le ratio actuel est 80% coordination et friction, 20% construction. Ce script inverse ce ratio sur la partie démarrage. Combiné avec φ_history.jsonl il devient aussi le mécanisme par lequel les sessions précédentes conditionnent les suivantes.
+
+Contraintes : doit rester sous 2 secondes d'exécution sinon personne ne l'utilise. Ne pas lire tout le repo — lire uniquement les signaux à haute valeur. Tester sur Windows PowerShell en priorité, les chemins relatifs sont critiques.
+
+---
+
+**3. studio_commit.py — commits intelligents sans erreur PowerShell**
+
+Origine : audit git session 2. Top erreurs répétées : commandes `&&` qui cassent sur PowerShell, chemins absolus, mauvais ordre des opérations git.
+
+Où ça mène : zéro erreur de commit mécanique. Détection automatique de la lane selon les fichiers stagés. Génération de 3 verdicts. Blocage si FORBIDDEN, confirmation si HUMAN_REQUIRED. Historique dans CHAIN_HISTORY.jsonl.
+
+Pourquoi : chaque commit raté interrompt le flux de travail et coûte 3-5 minutes de debug. Sur 90 commits historiques, 29 sont des fix/bug/patch. Une partie de cette dette vient de commits mal cadrés qui introduisent des régressions.
+
+Contraintes : ne jamais faire de push automatique. Chemins toujours relatifs au repo root. Lane détectée depuis FILE_ROUTING_MANIFEST.yaml — si le fichier n'est pas à jour, la détection est fausse.
+
+---
+
+**4. studio_chain.ps1 — point d'entrée unique toutes commandes**
+
+Origine : session 2, friction PowerShell récurrente. Le problème n'est pas que les commandes sont complexes — c'est qu'il faut les mémoriser et les taper correctement à chaque fois.
+
+Où ça mène : une seule commande couvre tout le workflow quotidien. Modes start, commit, kaizen, rust, hygiene, full, help. Remplace les alias mentaux par un contrat explicite.
+
+Pourquoi : la charge cognitive de mémoriser les bonnes commandes est faible individuellement mais s'accumule sur une journée de travail. Ce script externalise cette mémoire.
+
+Contraintes : doit fonctionner sans modification si le repo est cloné sur une nouvelle machine. Pas de chemins hardcodés. Tester les modes un par un avant utilisation en production.
+
+---
+
+**5. studio_end.py — capture φ(session) en fin de session**
+
+Origine : cette conversation, comme première brique concrète du cycle de vie autonome. Sans capturer la dynamique des sessions, il est impossible de calibrer les agents sur leur qualité réelle.
+
+Où ça mène : chaque session laisse une trace structurée dans φ_history.jsonl. Ces traces deviennent les données d'entraînement pour Qwen et le signal de démarrage pour la session suivante. C'est le composant qui transforme le workflow d'un outil passif en système qui apprend.
+
+Pourquoi : actuellement chaque session repart de zéro. Avec studio_end.py, la session 10 sait que les sessions 7, 8 et 9 avaient une Entropy haute et zéro commit — et conditionne son comportement en conséquence.
+
+Contraintes : les proxies observables doivent être définis avant de coder quoi que ce soit. Qu'est-ce qui mesure concrètement KL dans un log de conversation ? Si les proxies sont mal définis, les scalaires sont du bruit. Commencer par calibrer sur les sessions 1 et 2 existantes.
+
+---
+
+**6. studio_session.py — orchestrateur de session**
+
+Origine : session 2, besoin d'un outil qui coordonne les différents scripts plutôt que de les appeler séparément.
+
+Où ça mène : un seul point d'entrée Python qui enchaîne audit hygiene, commits groupés par lane, prochain IMP Kaizen. Modes --audit, --commit, --kaizen, --hygiene.
+
+Pourquoi : studio_start et studio_end couvrent l'ouverture et la fermeture. studio_session couvre le milieu — les actions répétitives en cours de session qui fragmentent le flux de travail.
+
+Contraintes : ne pas dupliquer la logique de studio_commit.py. Appeler les scripts existants plutôt que réimplémenter. Si studio_commit change, studio_session ne doit pas casser.
+
+---
+
+**7. CHAIN_HISTORY.jsonl — journal des décisions et commits**
+
+Origine : session 2, comme output naturel de studio_commit.py. Mentionné mais jamais conçu formellement.
+
+Où ça mène : historique auditables de toutes les décisions prises en session — quel IMP a été traité, quelle lane, quel verdict, quel commit. Permet de reconstruire le raisonnement derrière n'importe quel changement du repo.
+
+Pourquoi : git log donne les commits mais pas le contexte de décision. CHAIN_HISTORY donne le pourquoi et le comment, pas seulement le quoi. Utile pour débugger des régressions et pour nourrir les triplets LoRA de Devstral.
+
+Contraintes : schéma à définir en même temps que φ_history.jsonl — les deux fichiers sont complémentaires. CHAIN_HISTORY = décisions et commits, φ_history = dynamique de session. Ne pas les dupliquer.
+
+---
+
+**8. φ_history.jsonl — stockage des vecteurs de session**
+
+Origine : cette conversation, comme fondation du système de calibration des agents.
+
+Où ça mène : base de données légère des dynamiques de session. Lu par studio_start.py pour injecter le contexte. Lu par Qwen pour produire ses recommandations. Lu par le Gate node LangGraph pour décider si une boucle continue. Tout le système de cycle de vie autonome repose sur ce fichier.
+
+Pourquoi : sans historique des φ, chaque décision est prise à l'aveugle. Avec 20 sessions archivées, Qwen peut détecter des patterns sur plusieurs semaines — "les sessions du lundi ont systématiquement une Entropy haute", "quand Shock > 0.7 la semaine suivante régresse".
+
+Contraintes : format simple, une ligne JSON par session. Ne pas le faire évoluer trop vite — la stabilité du schéma est critique pour que les comparaisons inter-sessions restent valides.
+
+---
+
+**9. Injection φ(session_précédente) dans studio_start.py**
+
+Origine : cette conversation. L'idée centrale que le contexte de démarrage conditionne toute la session.
+
+Où ça mène : si la session précédente avait Entropy 0.91 et zéro commit, la session suivante démarre avec ce signal visible. Claude ne peut pas ignorer "la dernière session a tout exploré et rien produit" si c'est la première chose qu'il lit. Pas de modification de modèle — juste du contexte qui change le comportement.
+
+Pourquoi : c'est l'équivalent fonctionnel du narrow fine-tuning sans toucher aux poids. Le gain estimé est de passer de 1 session productive sur 2 à 4 sur 5.
+
+Contraintes : φ_history.jsonl doit exister et contenir au moins une session avant que cette injection soit utile. Le format d'injection doit être lisible en moins de 10 secondes — pas un dump JSON brut mais un brief structuré en langage naturel.
+
+---
+
+**10. Routine de session journalière — SESSION_ROUTINE.md**
+
+Origine : session 2, identifié comme action Lane C. Les scripts existent mais le workflow humain reste informel.
+
+Où ça mène : séquence exacte du matin — studio_start → lecture du brief → définition d'un objectif unique pour la journée → travail → commit de fin → studio_end. 30 minutes à définir, des semaines de friction éliminées.
+
+Pourquoi : les outils sans usage défini ne sont pas utilisés. Un script qu'on n'appelle pas systématiquement est un script qui n'existe pas en pratique.
+
+Contraintes : doit tenir en moins d'une page. Pas de processus lourd — juste une séquence claire que tu peux suivre sans réfléchir le matin.
+
+---
+
+**11. studio_map.py — cartographie automatique du repo**
+
+Origine : session 2, problème de visibilité. La taille et répartition des fichiers sont difficiles à appréhender sans outil dédié.
+
+Où ça mène : une commande, une carte fraîche à chaque sprint. Le script scanne src/ Rust, lit les docs canoniques, appelle Devstral local pour extraire la sémantique, génère un SVG interactif ou un fichier Mermaid. Plus besoin de maintenir la carte manuellement.
+
+Pourquoi : sans carte vivante, la charge cognitive de maintenir le modèle mental du repo augmente avec chaque IMP. À 90 commits et en croissance, ce coût devient significatif.
+
+Contraintes : Devstral local doit tourner. Le script ne doit pas être plus lent que 30 secondes sinon il ne sera pas appelé régulièrement. Commencer par une carte minimaliste — composants principaux et leurs relations — avant d'ajouter de la richesse.
+
+---
+
+**12. Archiver les 38 docs fantômes de 00_STUDIO_CONTROL**
+
+Origine : session 2, red team. AUTOMATION_BATCH_CONTROLLER, GPT_PLATFORM_BRIDGE, CartographerRedTeam — système GPT-era conçu pour une équipe de 5, jamais exécuté, toujours présent.
+
+Où ça mène : réduction immédiate de la charge cognitive à chaque lecture du studio. Les docs fantômes créent une confusion entre ce qui est réel et ce qui est documenté. Les archiver clarifie l'état réel du système.
+
+Pourquoi : 38 docs DOCUMENTED_ONLY ne font pas avancer le projet — ils ralentissent la lecture de ce qui est réellement implémenté. Hors de vue, hors d'esprit.
+
+Contraintes : archiver, pas supprimer. Un dossier _archive/ accessible si besoin. Vérifier qu'aucun fichier actif ne référence ces docs avant de les déplacer.
+
+---
+
+**13. Câbler LANE_MATRIX et SMOKE_MATRIX au repo réel**
+
+Origine : session 2. Ces matrices sont bien remplies en documentation mais personne ne les lit. studio_commit.py est le premier vrai câblage doctrine → opérationnel.
+
+Où ça mène : les décisions de routing de fichiers et les critères de smoke test deviennent mécaniquement vérifiables plutôt que documentaires. La doctrine a un effet sur le comportement réel du système.
+
+Pourquoi : une règle qui n'est pas vérifiée mécaniquement est une règle qui ne s'applique pas. FILE_ROUTING_MANIFEST.yaml est rempli mais studio_commit.py est le seul endroit où il est réellement lu.
+
+Contraintes : ne pas reconstruire les matrices. Les lire depuis les fichiers existants. Si les fichiers existants sont désynchronisés du repo réel, les mettre à jour d'abord.
+
+---
+
+**14. CLAUDE.md — section identité du composant**
+
+Origine : session 2, audit git. La question "quels sont les comportements évidents de ce type de composant ?" force Claude Code à penser en identité plutôt qu'en features demandées.
+
+Où ça mène : moins de bugs au premier commit. Un terminal doit avoir Backspace, Ctrl+C, UTF-8, reconnexion, historique — pas parce que tu l'as demandé mais parce que c'est ce qu'un terminal est. Cette règle généralise à tous les composants.
+
+Pourquoi : l'audit git montre que 29 commits sur 90 sont des fix. La majorité vient de comportements évidents non implémentés au premier commit. Cette section du CLAUDE.md est la correction systémique.
+
+Contraintes : les exemples doivent être ancrés sur ton stack réel — Rust, Python, Flask, Godot. Les exemples génériques valent 10 fois moins que les exemples spécifiques à ce que tu construis.
+
+---
+
+**15. CLAUDE.md — règle software_verdict = preuve d'exécution réelle**
+
+Origine : session 2, incident concret. Terminal créé sans Backspace ni Ctrl+C. software_verdict OK sans preuve d'exécution.
+
+Où ça mène : toute livraison Claude Code inclut soit un output d'exécution montré, soit une liste d'étapes exactes à tester avec le résultat attendu à chaque étape. "Implémenté" n'est plus acceptable sans preuve.
+
+Pourquoi : la forme est correcte sans vérification du fond. C'est le pattern le plus coûteux identifié dans l'audit — les bugs découverts après commit qui auraient été détectés en 2 minutes de test.
+
+Contraintes : la règle doit être assez précise pour être mécaniquement vérifiable. "Montre la preuve" est trop vague. "Si tu peux tester seul → montre l'output. Si impossible → liste les étapes exactes" est actionnable.
+
+---
+
+**16. CLAUDE.md réduit sous 200 lignes**
+
+Origine : recommandation communauté Claude Code 2026. Les CLAUDE.md longs ne sont pas lus en entier.
+
+Où ça mène : un fichier que Claude Code lit vraiment et applique. Les règles dérivées d'incidents réels valent 10x les principes généraux. Pas de structure modulaire pour un solo dev.
+
+Pourquoi : au-delà de 200 lignes, l'attention se dilue. Mieux vaut 10 règles précises et appliquées que 50 règles générales ignorées.
+
+Contraintes : choisir quoi couper est difficile. Garder uniquement ce qui est dérivé d'un incident réel ou d'une convention technique vérifiable. Tout le reste dehors.
+
+---
+
+**17. Assouplir les HumanGates non critiques en SAFE_AUTO**
+
+Origine : session 2. Le système de governance est conçu pour une équipe de 5. Un solo dev avec Claude Code n'a pas besoin des mêmes garde-fous.
+
+Où ça mène : les tâches hygiene, recall, audit, docs peuvent tourner sans validation humaine. Seuls Rust, dataset, git push restent HUMAN_REQUIRED. Le ratio friction/construction s'améliore mécaniquement.
+
+Pourquoi : chaque HumanGate inutile est une interruption. Multiplié par le nombre de tâches quotidiennes, c'est une heure perdue par jour sur des validations qui n'apportent rien.
+
+Contraintes : ne pas assouplir les gates sur les opérations irréversibles. Push git, modification de dataset, changement d'architecture — ces gates restent. La règle : SAFE_AUTO seulement si l'opération est réversible en moins de 5 minutes.
+
+---
+
+**18. Trancher Rocky HTTP — Option A Rust ou Option B Python**
+
+Origine : session 2, HumanGate ouvert depuis trop longtemps. Option A : serveur HTTP natif Rust, propre, 2-3 jours. Option B : rocky_bridge.py wrapper Python, opérationnel en 2 heures.
+
+Où ça mène : le frontend Godot se débloque. Chess 960, Chess Fantasy, Chess TCG — tout attend cette décision.
+
+Pourquoi : chaque semaine sans décision est une semaine sans frontend. La décision n'est pas technique — elle est stratégique. Si Godot est prioritaire ce mois, Option B. Si la propreté Rust prime, Option A.
+
+Contraintes : pas de bonne réponse abstraite. La décision dépend uniquement du timing. Option B crée une dette technique légère mais connue. Option A est la bonne solution à long terme mais bloque le frontend pendant 3 jours.
+
+---
+
+**19. Trancher les conflits Chess Fantasy — damage, victory, BRAWL**
+
+Origine : session 2, décisions design non prises. Damage : max(1, ATK-ARM) ou max(0, incoming-armor) ? Victory : king kill, pressure collapse, ou chess mate ? BRAWL : quelle variante ?
+
+Où ça mène : l'implémentation Godot du mode Fantasy peut commencer. Sans ces décisions, le code sera réécrit plusieurs fois.
+
+Pourquoi : ces conflits de règles sont indépendants de Rocky HTTP mais bloquent l'implémentation. Une heure de décision débloque plusieurs semaines de développement.
+
+Contraintes : décider une fois et documenter. Les règles de jeu ne doivent pas changer en cours d'implémentation — les changements tardifs sont exponentiellement plus coûteux.
+
+---
+
+**20. Benchmark ELO Rocky post-17 IMP**
+
+Origine : session 2. La baseline ELO n'est pas mesurée depuis les 17 dernières IMPs. Toutes les décisions d'entraînement sont prises sans savoir où Rocky en est réellement.
+
+Où ça mène : une mesure concrète. Permet de valider que les 17 IMPs ont amélioré Rocky, de définir la Gate C (ELO > 1100), et de prendre des décisions d'entraînement basées sur des faits.
+
+Pourquoi : sans baseline, il est impossible de savoir si un patch améliore ou dégrade les performances. On code à l'aveugle.
+
+Contraintes : nécessite ACTIVE_DATASET.txt redirigé en premier. Le benchmark doit être reproductible — mêmes opponents, même seed, même nombre de parties. Sans reproductibilité, les comparaisons sont invalides.
+
+---
+
+**21. Promouvoir le checkpoint neural en attente**
+
+Origine : session 2, HumanGate implicite identifié mais absent de la roadmap. Bloqué derrière ACTIVE_DATASET et ELO benchmark.
+
+Où ça mène : la training loop utilise le bon modèle de base. Sans cette promotion, on entraîne potentiellement sur un checkpoint sous-optimal.
+
+Pourquoi : un checkpoint non promu est une décision non prise qui se déguise en inaction. Elle a un coût réel sur la qualité du training.
+
+Contraintes : vérifier que le benchmark confirme que ce checkpoint est meilleur que l'actuel avant de promouvoir. La promotion est irréversible sans rollback explicite.
+
+---
+
+**22. Threading autopilote — patch autopilot.py + /api/run-chains**
+
+Origine : session 2, Lane B. Pendant que A tourne, tu construis B. Le temps machine est gratuit, l'attention humaine ne l'est pas.
+
+Où ça mène : plusieurs chains tournent en parallèle sans bloquer l'interface. Recall, audit, hygiene en SAFE_AUTO simultanément. Le throughput effectif du studio multiplie.
+
+Pourquoi : l'architecture actuelle d'autopilot.py est séquentielle. Chaque chain bloque la suivante. Sur des tâches indépendantes, c'est du temps machine gaspillé.
+
+Contraintes : identifier les chains safe à paralléliser avant de coder. Recall + audit + hygiene = candidates. Training et benchmark = isolés. Pas de parallélisation naïve qui crée des race conditions sur les fichiers partagés.
+
+---
+
+**23. UI lanes parallèles dans le dashboard Autopilote**
+
+Origine : session 2. Visualiser l'état de chaque lane en temps réel — 4 lanes, 4 colonnes.
+
+Où ça mène : visibilité totale en un coup d'œil sur ce qui tourne, ce qui est bloqué, ce qui attend. Réduction de la charge de monitoring manuel.
+
+Pourquoi : sans visibilité, le parallélisme crée plus d'anxiété qu'il n'en résout. On ne sait pas ce qui tourne. L'UI est le mécanisme de contrôle.
+
+Contraintes : nécessite le threading autopilote en place d'abord. L'UI sans le backend n'a rien à afficher.
+
+---
+
+**24. Hook git post-commit → carte repo auto Excalidraw**
+
+Origine : session 2. La carte du repo devient obsolète dès qu'on commit si elle est maintenue manuellement.
+
+Où ça mène : après chaque commit, un hook génère automatiquement un fichier .excalidraw versionné. La carte est toujours à jour sans y penser.
+
+Pourquoi : une carte maintenue manuellement est une carte qui ment. Une carte générée automatiquement est une carte fiable.
+
+Contraintes : le hook ne doit pas ralentir le commit de plus de 3 secondes. Si la génération échoue, le commit ne doit pas être bloqué. Excalidraw MCP doit être disponible.
+
+---
+
+**25. Définition opérationnelle des scalaires φ(T) studio**
+
+Origine : cette conversation. φ(T) est défini conceptuellement mais aucun des 4 scalaires n'a de définition concrète sur des données de session réelles.
+
+Où ça mène : 10 idées en dépendent directement — studio_end.py, φ_history.jsonl, injection de contexte, LoRA Qwen, LoRA Devstral, Gate LangGraph, cycle autonome. C'est la fondation de tout le système d'auto-calibration.
+
+Pourquoi : sans définition opérationnelle, φ(T) reste une métaphore. KL = "désaccord Claude/repo" ne suffit pas — il faut "ratio suggestions adoptées / suggestions produites sur les 20 derniers échanges de la session".
+
+Contraintes : calibrer sur les sessions 1 et 2 existantes comme ground truth. Si les proxies ne correspondent pas au comportement observé sur ces deux sessions, ils sont faux. Une session de travail dédiée, pas plus.
+
+---
+
+**26. φ(T) schema YAML — définition exacte de chaque scalaire**
+
+Origine : cette conversation, comme artefact concret issu de l'idée 25.
+
+Où ça mène : un fichier de référence que tous les composants du studio lisent. studio_end.py l'implémente. studio_start.py l'interprète. Le LoRA Qwen s'entraîne dessus. La cohérence du système repose sur ce fichier.
+
+Pourquoi : sans schema figé, chaque composant implémente sa propre version de φ(T) et les comparaisons inter-sessions sont invalides.
+
+Contraintes : geler le schema le plus tôt possible. Chaque modification du schema invalide tout l'historique précédent. Traiter φ_schema.yaml comme un contrat au même niveau que SearchTraceSchema.
+
+---
+
+**27. Test Qwen zero-shot sur φ(T) avant tout LoRA**
+
+Origine : cette conversation. Avant d'investir dans du LoRA, vérifier ce que Qwen sait déjà faire.
+
+Où ça mène : si Qwen classe correctement φ(session 1) et φ(session 2) avec juste les définitions de clusters en prompt système, le LoRA Tier 1 est presque inutile. Si il se plante, tu sais exactement quoi corriger.
+
+Pourquoi : le LoRA coûte du temps et de la compute. Si le zero-shot fonctionne à 80%, corriger les 20% restants avec 20 exemples est beaucoup plus efficace que d'entraîner depuis zéro.
+
+Contraintes : test gratuit, coût zéro. Ne pas sauter cette étape par impatience. Les résultats du test définissent le scope exact du LoRA nécessaire.
+
+---
+
+**28. LoRA Qwen Tier 1 — taxonomie des clusters**
+
+Origine : cette conversation. Qwen doit apprendre les 3-4 clusters de session avec leurs signatures φ exactes — Overconfidence_Collapse, Oscillation_Territory, Agreement_Mastery appliqués aux sessions studio.
+
+Où ça mène : Qwen reconnaît le régime d'une session depuis son φ. Il peut recommander le type de session suivant sans supervision humaine.
+
+Pourquoi : 20-30 exemples bien construits suffisent pour de la mémorisation de taxonomie. C'est de la classification, pas de la généralisation — le LoRA Tier 1 est rapide et peu risqué.
+
+Contraintes : les exemples doivent être construits depuis des sessions réelles, pas inventés. Un exemple inventé qui ne correspond pas à un pattern réel introduit du bruit dans le LoRA.
+
+---
+
+**29. LoRA Qwen Tier 2 — mapping φ(session) → action studio**
+
+Origine : cette conversation. Apprendre à Qwen le mapping φ → action dans le contexte spécifique du studio — pas juste reconnaître les clusters mais recommander une action concrète.
+
+Où ça mène : Qwen produit des recommandations CEO ancrées sur la dynamique passée. "Session précédente Entropy haute, Shock élevé → session suivante scope unique, Entropy basse forcée, objectif mesurable en 2 heures."
+
+Pourquoi : la différence entre Tier 1 et Tier 2 c'est la différence entre diagnostiquer et prescrire. Tier 1 dit "vous avez Overconfidence_Collapse". Tier 2 dit "voilà ce qu'il faut faire maintenant".
+
+Contraintes : nécessite ~100 exemples avec diversité de situations. Trop peu d'exemples → Qwen mémorise les cas plutôt que de généraliser. Le raisonnement dans le triplet est aussi important que la décision — entraîner sur le processus, pas l'output.
+
+---
+
+**30. φ(T) injecté directement comme dimension native dans les exemples LoRA**
+
+Origine : cette conversation. Ton idée initiale — ne pas mettre φ(T) autour du training mais dedans.
+
+Où ça mène : Qwen apprend non seulement à produire la bonne décision mais à prédire la bonne dynamique de raisonnement pour y arriver. Il prédit φ_cible avec sa décision. On peut mesurer si sa prédiction était juste — c'est un signal de métacognition.
+
+Pourquoi : le LoRA classique entraîne sur input → output et perd le processus. Pour un CEO, le processus est tout. Une bonne décision prise pour de mauvaises raisons est un CEO qui va échouer sur la prochaine décision similaire.
+
+Contraintes : complexifie le format des exemples et la définition de la loss. À implémenter après validation des Tiers 1 et 2. Ne pas brûler les étapes.
+
+---
+
+**31. Triplets LoRA Devstral depuis audit git**
+
+Origine : cette conversation. L'audit git est un dataset d'entraînement gratuit — 29 commits de fix sont 29 exemples négatifs avec leurs contre-exemples positifs implicites.
+
+Où ça mène : Devstral narrow sur ton repo. Il ne reproduit plus les 5 erreurs récurrentes parce qu'il les a vues — avec leurs conséquences — dans son training. Signal de validation immédiat : cargo check.
+
+Pourquoi : la plupart des LoRA de coding sont entraînés sur du code générique. Là tu cibles exactement les failure modes de ton stack. C'est de la spécialisation maximale avec le dataset le plus pertinent possible.
+
+Contraintes : extraire les triplets depuis git log est du travail manuel. Pour chaque commit de fix, identifier le code avant, le bug, et le code après. Environ 2-3 heures de travail pour constituer les 29 triplets.
+
+---
+
+**32. EMA encoder pour stabiliser φ(T) pendant le training**
+
+Origine : Gemini. φ(T) change distributionnellement pendant l'entraînement. Sans stabilisation, le réseau apprend un moving target.
+
+Où ça mène : un neural conditionné par φ(T) qui converge de façon stable. Sans EMA, l'entraînement diverge ou oscille.
+
+Pourquoi : c'est une contrainte technique non négociable si tu utilises φ(T) comme conditioning signal. AlphaZero a eu le même problème avec ses target networks — la solution est connue.
+
+Contraintes : trois options — EMA encoder, frozen encoder snapshots, versioning des embeddings. EMA est la plus simple à implémenter mais nécessite de tuner le coefficient. Frozen snapshots sont plus stables mais moins continus.
+
+---
+
+**33. SearchTraceSchema universel — supprimer toutes notions chess-spécifiques**
+
+Origine : Gemini. Le schema actuel contient des notions chess-spécifiques qui empêchent la transposition multi-jeux.
+
+Où ça mène : un schema utilisable pour chess, Go, Poker, Othello sans modification. policy_entropy, value_delta, expansion_rate, rollback_rate, instability_index — aucune notion de jeu. Fondation du système multi-jeux.
+
+Pourquoi : si φ(T) est chess-centré, toute la superstructure — clustering, curriculum, LoRA — est chess-centrée. La généralisation n'est possible qu'au niveau du schema.
+
+Contraintes : geler le schema une fois pour toutes après validation sur chess. Chaque modification du schema invalide tous les φ(T) précédents. Traiter cette décision avec la même rigueur qu'une migration de base de données.
+
+---
+
+**34. Adapter Layer par moteur — traducteur natif logs → schema universel**
+
+Origine : Gemini + red team. La solution correcte au problème du "Search universel" — pas abstraire les moteurs mais abstraire leurs traces.
+
+Où ça mène : Stockfish garde ses killer moves et null move pruning. KataGo garde son MCTS. Chacun produit des logs dans son format natif, et l'adaptateur traduit en SearchTraceSchema universel. φ(T) reste game-agnostic.
+
+Pourquoi : forcer Stockfish et KataGo dans une interface commune détruit leurs performances. Garder les moteurs spécialisés et n'abstraire que les traces — c'est là que la généralisation est possible sans perte.
+
+Contraintes : chaque moteur nécessite un adaptateur distinct. L'adaptateur chess est le premier et sert de référence. L'adaptateur Othello est le test de validation. Si le LLM clusterise les erreurs Othello avec le même code que chess, l'architecture est validée.
+
+---
+
+**35. φ(T) extracteur déterministe — 4 scalaires**
+
+Origine : Rocky V3. L'extracteur doit être 100% déterministe, zéro ML, zéro LLM dans la boucle critique.
+
+Où ça mène : search_depth, eval_swing, pv_divergence, material_delta — calculés mécaniquement depuis les logs de search. Ces 4 valeurs alimentent le LLM coach sans ambiguïté. Le LLM ne voit que des nombres, pas d'interprétation.
+
+Pourquoi : si l'extracteur utilise du ML ou du LLM, il introduit de la non-déterminisme dans le signal. La reproductibilité des benchmarks et la fiabilité du coaching dépendent de la déterminisme de cet extracteur.
+
+Contraintes : pas de "pattern detection ML". Chaque scalaire doit être calculable depuis les logs bruts avec une formule arithmétique. Si une valeur ne peut pas être calculée de façon déterministe, elle ne fait pas partie de φ(T).
+
+---
+
+**36. Tour à tour Claude / Qwen avec transfert φ**
+
+Origine : cette conversation. Pas de pilotage simultané — un seul agent tient le volant à la fois.
+
+Où ça mène : un système de calibration qui s'auto-améliore. Phase Claude → φ(Claude) capturé. Phase Qwen → φ(Qwen) capturé. Distance entre les deux = signal LoRA. Plus Qwen pilote bien, plus sa phase s'allonge.
+
+Pourquoi : si Claude et Qwen pilotent simultanément, il n'y a pas d'arbitre. Le tour à tour crée une asymétrie claire — un agent observe pendant que l'autre agit. C'est cette observation qui génère les données d'entraînement.
+
+Contraintes : définir précisément ce que "pilote" veut dire pour chaque phase. Phase Claude = décisions studio validées et commitées. Phase Qwen = recommandations Qwen suivies sans intervention Claude. La frontière doit être claire pour que le signal soit propre.
+
+---
+
+**37. KL cible 0.15-0.35 entre Claude et Qwen**
+
+Origine : cette conversation. L'insight que ni KL = 0 ni KL = 1 ne sont des objectifs valides.
+
+Où ça mène : une métrique de santé de la relation Claude-Qwen. KL trop bas — Qwen est un écho, le LoRA a sur-convergé. KL trop haut — Qwen dérive, ses recommandations ne sont plus ancrées. La fenêtre 0.15-0.35 est la zone où Qwen apporte de la valeur sans dériver.
+
+Pourquoi : c'est le signal de pilotage du fine-tuning lui-même. Sans cette métrique, on ne sait pas si le LoRA améliore ou dégrade la relation Claude-Qwen.
+
+Contraintes : calculer le KL nécessite que φ(Claude) et φ(Qwen) soient définis sur les mêmes dimensions. Si les scalaires diffèrent, la comparaison est sans sens. Définir φ(T) studio avant d'implémenter cette métrique.
+
+---
+
+**38. Ratio dynamique phases Claude/Qwen selon distance φ**
+
+Origine : cette conversation. Le ratio n'est pas fixe — il est piloté par la performance réelle de Qwen.
+
+Où ça mène : au début 80% Claude / 20% Qwen. Quand φ(Qwen) converge sur 3 sessions consécutives — 50/50. Quand Qwen est calibré — inversion possible. Le système s'auto-régule sans supervision manuelle.
+
+Pourquoi : un ratio fixe est arbitraire et sous-optimal. Un ratio dynamique exploite l'information disponible — la performance passée de Qwen — pour maximiser l'utilité de chaque phase.
+
+Contraintes : définir les seuils de convergence avant d'implémenter. "Converge" doit avoir une définition mécanique — distance φ < seuil sur N sessions consécutives — pas une appréciation subjective.
+
+---
+
+**39. LLM comme traducteur de maths vers texte**
+
+Origine : Rocky V3 + Gemini. Le LLM ne joue pas, ne juge pas, ne détecte pas de patterns. Il reçoit des nombres et les traduit.
+
+Où ça mène : un coach chess qui ne peut pas halluciner de pièces. Le prompt est déterministe — les variables sont des nombres calculés mécaniquement. Le LLM met des mots sur des maths.
+
+Pourquoi : les LLM hallucinent massivement aux échecs quand on leur demande d'analyser une position. Mais si on leur donne "depth=18, swing=+120cp, material_delta=-1.5" et qu'on leur demande de traduire — pas d'analyser — le risque d'hallucination disparaît.
+
+Contraintes : le prompt doit contraindre le LLM à ne parler que de ce qui est dans les variables. Interdire explicitement toute référence à des pièces ou positions non mentionnées dans le prompt.
+
+---
+
+**40. Seuil de déclenchement LLM coach sur eval_swing > 150cp**
+
+Origine : Gemini. Sans seuil, le panneau "Rocky dit" spam le joueur pour chaque micro-imprécision.
+
+Où ça mène : le coach parle seulement quand quelque chose d'important se passe. Un changement de plus de 150cp ou une bascule d'évaluation significative. En dessous du seuil — silence.
+
+Pourquoi : un coach qui commente chaque coup est épuisant et perd sa crédibilité. La rareté des commentaires augmente leur valeur perçue.
+
+Contraintes : le seuil de 150cp est une estimation — à calibrer empiriquement sur des parties réelles. Trop bas → spam. Trop haut → silences inappropriés sur des erreurs importantes.
+
+---
+
+**41. Chain Forge — écran multi-fenêtres de composition d'agents**
+
+Origine : cette conversation, besoin exprimé directement. Un écran pour discuter avec son LLM en plusieurs fenêtres simultanées, chaque fenêtre configurant un agent.
+
+Où ça mène : un outil de génération de prompts structurés avec tous les paramètres studio — rôle, tâche, mode, contexte, lane, éphémère. Les menus déroulants encodent la doctrine du studio. Chaque configuration génère un prompt cadré prêt à l'emploi.
+
+Pourquoi : sans outil de composition, les chaînes d'agents restent conceptuelles. Chain Forge est le pont entre l'idée "Blue team vs Red team" et le prompt réel qu'on envoie à Devstral.
+
+Contraintes : intégrer tous les paramètres existants du studio — lanes, contextes, modes — pas inventer une nouvelle nomenclature. L'audit des paramètres existants est un prérequis.
+
+---
+
+**42. Générateur graph.py depuis Chain Forge**
+
+Origine : cette conversation, extension naturelle de Chain Forge vers LangGraph.
+
+Où ça mène : le bouton "Générer prompt" devient "Générer graph.py". Ce que tu configures dans les menus se traduit directement en code LangGraph exécutable avec ses nœuds, conditions de boucle, et appels à LM Studio local.
+
+Pourquoi : un prompt est statique. Un graph.py est exécutable. La différence c'est la différence entre décrire une chaîne et la faire tourner.
+
+Contraintes : le code généré doit appeler localhost:1234 — LM Studio local, pas une API cloud. Les paramètres de Chain Forge doivent se mapper proprement sur la syntaxe LangGraph. Tester le code généré avant de considérer la feature stable.
+
+---
+
+**43. Pattern Debate loop — Blue vs Red jusqu'à convergence**
+
+Origine : cette conversation. Le pattern le plus immédiat et le plus utile pour le studio.
+
+Où ça mène : Blue propose, Red détruit, Gate mesure le KL entre leurs positions. Si KL > 0.5 — pas d'accord, nouvelle itération. Si KL 0.15-0.35 — désaccord sain, passer à Fusion. Si KL < 0.15 — sur-consensus suspect, forcer un nouveau Red team.
+
+Pourquoi : sans condition d'arrêt basée sur la qualité du désaccord, la boucle tourne mécaniquement sans converger vers une vraie décision.
+
+Contraintes : la mesure du KL entre deux outputs textuels nécessite une définition opérationnelle — embeddings ? analyse sémantique ? comptage d'oppositions explicites ? À définir avant d'implémenter le Gate.
+
+---
+
+**44. Pattern Refinement loop — agent qui s'améliore par critique**
+
+Origine : cette conversation. Un seul agent reçoit sa propre critique et itère.
+
+Où ça mène : Architecte produit un design. Critique évalue selon des critères explicites. Si score < seuil → Architecte reçoit la critique et reprend. Condition d'arrêt : score > seuil ou N tours atteints. Utilisé pour raffiner une IMP avant commit.
+
+Pourquoi : la première version d'une IMP est rarement la meilleure. Ce pattern formalise le processus de révision qui se fait actuellement manuellement et informellement.
+
+Contraintes : les critères d'évaluation du Critique doivent être explicites et stables. Un Critique qui change ses critères entre les tours rend la boucle non convergente.
+
+---
+
+**45. Pattern Parallel fan-out + merge**
+
+Origine : cette conversation. Plusieurs agents travaillent indépendamment puis un agent Fusion synthétise.
+
+Où ça mène : CEO Qwen lit φ(session). Lance en parallèle Ingénieur sur la faisabilité, Spécialiste sur la pertinence ML, Red team sur les angles morts. Fusion reçoit les 3 outputs et produit une décision arbitrée.
+
+Pourquoi : certaines décisions nécessitent des perspectives indépendantes. Si les agents se lisent mutuellement pendant leur travail, ils convergent trop tôt et ratent des angles morts.
+
+Contraintes : les agents parallèles ne doivent pas communiquer entre eux. LangGraph garantit l'isolation si les nœuds sont correctement configurés. Le Fusion node est critique — sa qualité détermine la qualité de toute la chaîne.
+
+---
+
+**46. Pattern Supervisor loop — routage dynamique**
+
+Origine : cette conversation. Le pattern le plus puissant — un nœud Supervisor décide quel nœud activer ensuite.
+
+Où ça mène : pas de flow fixe. Le Supervisor lit l'état du graphe et route dynamiquement. Si la proposition est mauvaise → Red team. Si le Red team est trop agressif → Modérateur. Si Fusion est bloquée → retour à Blue team avec contraintes. C'est le cycle de vie autonome — pas de règles statiques.
+
+Pourquoi : les flows fixes couvrent les cas prévus. Le Supervisor gère les cas non prévus. C'est la différence entre un workflow et un système adaptatif.
+
+Contraintes : le Supervisor doit avoir un état clair du graphe à chaque décision — quels nœuds ont tourné, combien de fois, quels outputs. Sans état clair, le Supervisor boucle. Implémenter en dernier, après validation des patterns plus simples.
+
+---
+
+**47. Gate node φ(T) dans LangGraph**
+
+Origine : cette conversation. La condition d'arrêt de boucle basée sur la qualité du désaccord plutôt que sur un compteur de tours.
+
+Où ça mène : studio_end.py devient un nœud dans le graphe LangGraph. Il lit les outputs des agents précédents, calcule φ(session partielle), et route vers la suite ou vers une nouvelle itération.
+
+Pourquoi : un compteur de tours est aveugle à la qualité. 3 tours peuvent produire un bon résultat ou un mauvais selon la dynamique. φ(T) mesure la dynamique réelle et conditionne la décision de continuer.
+
+Contraintes : le calcul de φ doit être rapide — moins d'une seconde. Si le Gate est lent, la boucle devient inutilisable. Commencer avec des proxies simples avant d'affiner.
+
+---
+
+**48. Écriture automatique dans CHAIN_HISTORY et φ_history à chaque run**
+
+Origine : cette conversation. Chaque run de graphe LangGraph est de la donnée d'entraînement potentielle.
+
+Où ça mène : chaque exécution de chaîne enrichit automatiquement les deux historiques. Aucune action manuelle requise. Les bonnes sessions deviennent des exemples positifs pour Qwen et Devstral. Les mauvaises deviennent des exemples négatifs.
+
+Pourquoi : si la capture de données est manuelle, elle n'est pas faite systématiquement. L'automatisation garantit que chaque run contribue au dataset d'entraînement.
+
+Contraintes : définir ce qui mérite d'être archivé — pas tous les runs de test. Un flag `--production` pour différencier les runs de validation des runs réels.
+
+---
+
+**49. Graphe minimal 3 nœuds — premier LangGraph fonctionnel**
+
+Origine : cette conversation. Le plus petit graphe qui prouve que ça marche.
+
+Où ça mène : Blue / Red / Gate avec une seule boucle et une condition d'arrêt simple — si la critique dépasse 200 tokens, itérer. Sinon, output final. 80 lignes de Python, appels localhost:1234, résultat dans CHAIN_HISTORY.
+
+Pourquoi : commencer petit et fonctionnel est supérieur à commencer ambitieux et théorique. Ce graphe minimal valide l'infrastructure complète — LM Studio, LangGraph, écriture des historiques — avant d'ajouter de la complexité.
+
+Contraintes : ne pas ajouter de features pendant l'implémentation. Faire tourner le graphe minimal, le valider sur 5 cas réels, puis seulement envisager les patterns plus complexes.
+
+---
+
+**50. Dataset V3 — 3 canaux séparés Policy / Value / Tactical**
+
+Origine : Gemini + Rocky V3. Abandon du blending naïf 40/40/20 qui crée des conflits de distribution.
+
+Où ça mène : 1M+ positions structurées proprement. Policy 50% — Lichess 2000-2400+. Value 30% — Stockfish depth 12-18. Tactical 20% — puzzles + forced lines. Format Parquet, déduplication Zobrist, batch size 1024-2048.
+
+Pourquoi : mélanger données d'imitation humaine et données de distillation Stockfish dans le même canal crée un réseau instable stylistiquement — fort sur certains types de positions, incohérent sur d'autres.
+
+Contraintes : la séparation stricte des canaux est la contrainte principale. Aucun exemple ne doit appartenir à deux canaux. La déduplication cross-canaux est nécessaire — une même position dans Policy et Value est acceptable, dans Policy et Tactical non.
+
+---
+
+**51. Arena — ligue 3 modèles avant scaling**
+
+Origine : Rocky V3. Avant de consacrer le compute à 1M positions, valider empiriquement quel modèle de fondation est le meilleur.
+
+Où ça mène : Rocky-Policy vs Rocky-Value vs Rocky-Hybrid. Tournoi round-robin + gauntlet Stockfish. Le champion est frozen et devient la base du scaling. Score composite — 40% winrate SF, 30% stabilité self-play, 20% conversion tactique, 10% calibration eval.
+
+Pourquoi : entraîner 1M positions sur le mauvais modèle de fondation est un investissement compute perdu. L'Arena sur 100k positions coûte 10% du compute pour identifier le meilleur candidat.
+
+Contraintes : pas de leakage entre les datasets d'Arena et les datasets de scaling. Le Stockfish baseline doit être frozen à la même version pour toute la durée de l'Arena. Les seeds doivent être fixés pour la reproductibilité.
+
+---
+
+**52. Curriculum 4 étages + replay buffer + gate de régression**
+
+Origine : Kaizen V2. Signal net vers signal diffus, protection contre le catastrophic forgetting.
+
+Où ça mène : Étage 1 mats forcés, Étage 2 tactiques, Étage 3 parties complètes, Étage 4 finales. 20% replay des étages précédents à chaque étage. Gate de régression — si performance sur étage N dégrade de plus de 5% lors du passage à N+1, stop.
+
+Pourquoi : les réseaux de neurones oublient les apprentissages précédents quand ils apprennent de nouvelles distributions. Le replay buffer et les gates protègent contre cette régression.
+
+Contraintes : les gates doivent s'évaluer sur les sets de test figés, jamais sur les données d'entraînement. La définition de "5% de régression" doit être précise et mesurée sur la même métrique à chaque étage.
+
+---
+
+**53. Sets de test figés par étage**
+
+Origine : Kaizen V2. 4 fichiers JSONL gelés, jamais dans le train, jamais modifiés.
+
+Où ça mène : mesure reproductible de la performance inter-étages. test_stage1_mats.jsonl, test_stage2_tactics.jsonl, test_stage3_complete.jsonl, test_stage4_endgame.jsonl. Ces fichiers sont le ground truth du système.
+
+Pourquoi : si les sets de test changent entre deux mesures, les comparaisons sont invalides. La stabilité des sets de test est aussi critique que la stabilité du schema φ(T).
+
+Contraintes : créer ces fichiers une seule fois et les versionner dans git. Ne jamais les modifier. Si tu veux ajouter des cas, créer test_stage1_v2.jsonl plutôt que modifier l'original.
+
+---
+
+**54. Générateur puzzles mat-en-1/2/3 via Stockfish**
+
+Origine : Kaizen V2. puzzle_rng.rs n'est pas la bonne approche pour les niveaux — noté dans 02_ROCKY.md.
+
+Où ça mène : 500 puzzles Python avec solution forcée vérifiée. Stockfish génère des positions avec mat forcé à N coups, solution unique. Étage 1 du curriculum s'entraîne dessus.
+
+Pourquoi : les mats forcés sont le signal le plus net qui existe pour entraîner la détection tactique. Un réseau qui rate un mat en 2 à la profondeur 10 a un problème fondamental.
+
+Contraintes : solution unique obligatoire — si plusieurs mats existent en N coups, la position n'est pas un bon puzzle. Vérifier avec Stockfish que la solution est réellement unique avant d'inclure la position.
+
+---
+
+**55. Augmentation géométrique — miroir horizontal**
+
+Origine : Gemini. Gratuit, trivial, double le dataset.
+
+Où ça mène : pour chaque position du dataset, générer sa version miroir gauche-droite. Double mathématiquement le dataset sans complexité architecturale. Améliore la robustesse sur les positions symétriques.
+
+Pourquoi : les réseaux entraînés sans augmentation peuvent développer des biais côté gauche / côté droit de l'échiquier. L'augmentation géométrique élimine ce biais à coût zéro.
+
+Contraintes : vérifier que la transformation est correcte pour les droits de castling, la colonne en passant, et les promotions. Une erreur dans la transformation est pire que pas d'augmentation.
+
+---
+
+**56. Label smoothing sur la policy**
+
+Origine : Gemini. Empêche le dogmatisme du réseau.
+
+Où ça mène : si un coup est très bon mais pas le meilleur absolu, lui donner une valeur 0.2 au lieu de 0. Le réseau n'est pas catégorique. Améliore la flexibilité tactique lors de la recherche.
+
+Pourquoi : un réseau entraîné avec des labels hard (1 pour le meilleur coup, 0 pour tous les autres) apprend à être dogmatique. Dans les positions complexes avec plusieurs bons coups, ce dogmatisme est une faiblesse.
+
+Contraintes : le coefficient de smoothing est un hyperparamètre à tuner. Trop de smoothing → le réseau devient indécis. Trop peu → pas d'effet. Commencer avec 0.1 et ajuster selon les résultats de l'Arena.
+
+---
+
+**57. Learning rate Cosine Annealing avec warm restarts**
+
+Origine : Gemini. Remplace les paliers manuels par une descente douce automatique.
+
+Où ça mène : le LR descend en courbe douce puis remonte brusquement au début de chaque étage curriculum pour "secouer" le réseau et lui permettre d'explorer de nouveaux minima, avant de redescendre. Plus stable que les step schedules.
+
+Pourquoi : les paliers manuels sont arbitraires et souvent sous-optimaux. Le Cosine Annealing s'adapte à la dynamique réelle de l'entraînement.
+
+Contraintes : les warm restarts doivent être alignés avec les frontières des étages du curriculum. Si le restart arrive en milieu d'étage, il perturbe l'apprentissage plutôt que de le relancer.
+
+---
+
+**58. Batch size 1024-2048 pour 1M positions**
+
+Origine : Gemini. Le batch size optimal évolue avec la taille du dataset.
+
+Où ça mène : entraînement x10 plus rapide, gradient plus stable. Sur 1M positions avec batch 2048, une époque est traitée en une fraction du temps qu'elle prendrait avec batch 64.
+
+Pourquoi : les petits batch sizes introduisent beaucoup de bruit dans le gradient — utile pour la régularisation mais coûteux en temps. À grande échelle, la stabilité prime.
+
+Contraintes : nécessite assez de RAM ou VRAM. Sur CPU ou GPU modeste, 1024 est plus réaliste que 2048. Mesurer la mémoire disponible avant de fixer ce paramètre.
+
+---
+
+**59. Early stopping mécanique par étage**
+
+Origine : Gemini. Ne pas attendre la fin des époques prévues si la loss stagne.
+
+Où ça mène : si la validation loss ne s'améliore plus pendant 2 époques consécutives, couper et passer à l'étage suivant. Économise du compute et évite le surapprentissage.
+
+Pourquoi : les hyperparamètres d'époques dans le curriculum sont des estimations. L'early stopping adapte la durée réelle de l'entraînement à la dynamique observée.
+
+Contraintes : la loss de validation doit être évaluée sur les sets de test figés — pas sur un sous-ensemble du train. Sinon l'early stopping mesure le surapprentissage plutôt que la généralisation.
+
+---
+
+**60. FiLM conditioning — f(board, φ(T)) → policy + value**
+
+Origine : Gemini. La modification architecturale centrale du neural Rocky.
+
+Où ça mène : le neural ne reçoit plus seulement le plateau mais aussi le vecteur φ(T) — l'état du processus de recherche. γ(z) et β(z) générés depuis φ(T) modulent les activations internes. Même position, comportement différent si la dynamique de search diverge.
+
+Pourquoi : AlphaZero suppose que la difficulté est dans la position. FiLM conditioning suppose que la difficulté est dans la dynamique de résolution. C'est une hypothèse plus riche et plus vraie pour les positions complexes.
+
+Contraintes : φ(T) doit être stabilisé via EMA avant d'implémenter le FiLM conditioning. Sans stabilisation, le conditioning signal est un moving target et l'entraînement diverge.
+
+---
+
+**61. WDL value head — Win/Draw/Loss**
+
+Origine : AAA handoff + Gemini. Remplacer le scalaire centipawn par une distribution.
+
+Où ça mène : le réseau prédit non pas un score mais une distribution sur trois outcomes. Plus riche sémantiquement. Meilleure calibration en positions de finale où un pion d'avantage est décisif vs nul selon le contexte.
+
+Pourquoi : un scalaire centipawn n'exprime pas la différence entre +3.00 et "partie nulle forcée". Une distribution WDL exprime "70% de chances de gain, 25% de nulle, 5% de défaite" — beaucoup plus informatif pour le coaching LLM.
+
+Contraintes : changer le value head change la loss function et nécessite de recalibrer tout le curriculum. À tester en ablation A/B après validation de l'Arena — pas en même temps que d'autres changements.
+
+---
+
+**62. search.rs anti-stall — bonus matériel, malus répétition**
+
+Origine : AAA handoff. Patches minimalistes pour améliorer les décisions pratiques sous pression.
+
+Où ça mène : bonus si gain matériel disponible dans la position, malus répétition passive, bonus si roi adverse exposé, bonus simplification si winning edge confirmé. Ces patches ne changent pas l'architecture — ils optimisent les choix pratiques.
+
+Pourquoi : la télémétrie de conversion montre que Rocky crée des avantages et les perd. Le problème n'est pas tactique mais pratique — manque d'urgence à convertir les avantages.
+
+Contraintes : chaque patch doit être benchmarké séparément. Un bundle de 4 patches simultanés est impossible à diagnostiquer si les résultats régressent. Un patch, un benchmark, un verdict.
+
+---
+
+**63. Prior shaping indirect via φ(T)**
+
+Origine : Gemini, reformulation rigoureuse du rôle du LLM sur Stockfish.
+
+Où ça mène : le LLM ne modifie pas les règles du moteur. Il modifie les ordering hints, les pruning priors, l'allocation du search budget. Il agit sur la dynamique du calcul, pas sur son contenu.
+
+Pourquoi : c'est la réponse correcte à la question "à quoi sert le LLM dans la boucle Rocky". Pas à interpréter, pas à analyser — à biaiser subtile ment la façon dont le moteur explore l'arbre.
+
+Contraintes : implémenter après validation du φ(T) extracteur et du FiLM conditioning. C'est le composant le plus avancé de l'architecture Rocky — il présuppose que tout le reste fonctionne.
+
+---
+
+**64. Séparation draw vs turn_limit dans simulation_runner.rs**
+
+Origine : AAA handoff. Le terminal enum actuel mélange deux choses distinctes.
+
+Où ça mène : le terminal enum distingue win, loss, draw, turn_limit, stalemate. Les métriques de benchmark reflètent la réalité — un draw forcé n'est pas la même chose qu'une partie tronquée par le turn cap.
+
+Pourquoi : si turn_limit est compté comme draw, le draw rate est artificiellement gonflé. Toutes les comparaisons d'Elo et de WDL basées sur ce taux sont incorrectes.
+
+Contraintes : patch minimal — juste ajouter un état dans l'enum et propager dans les exports CSV. Ne pas toucher à la logique de jeu. Priorité haute car c'est un benchmark lie actif.
+
+---
+
+**65. Hard-fail si bridge neural absent**
+
+Origine : AAA handoff. Le fallback silencieux vers les heuristiques invalide les benchmarks "neural".
+
+Où ça mène : si le subprocess Python n'est pas prêt, si le modèle est absent, si READY n'est pas reçu — abort du match, pas de fallback. Les parties neural sont réellement neurales.
+
+Pourquoi : des benchmarks qui comptent des parties heuristiques comme neurales mesurent n'importe quoi sauf la performance du réseau. C'est le benchmark lie le plus grave identifié dans l'audit AAA.
+
+Contraintes : le hard-fail ne doit pas crasher l'ensemble du tournament runner — juste aborter proprement le match courant et logger l'erreur. Les autres matches doivent pouvoir continuer.
+
+---
+
+**66. Move vocab hash — fermer le label drift**
+
+Origine : AAA handoff. Le drift silencieux entre vocab d'entraînement et vocab d'inférence invalide silencieusement le modèle.
+
+Où ça mène : move_vocab.py émet un hash SHA256. train.py le persiste dans le run manifest. dataset_loader.py l'asserte au démarrage. Si train hash ≠ infer hash — arrêt immédiat avec message d'erreur explicite.
+
+Pourquoi : un modèle entraîné avec un vocab et inféré avec un vocab différent produit des outputs incorrects sans aucun message d'erreur. C'est le bug le plus silencieux et le plus destructeur du pipeline.
+
+Contraintes : implémenter simultanément dans les 3 fichiers concernés. Si un seul des trois manque le hash, la protection est incomplète.
+
+---
+
+**67. CSV provenance dans tournament exports**
+
+Origine : AAA handoff. Les tables Elo anonymes sont non reproductibles et non comparables.
+
+Où ça mène : chaque CSV de tournament inclut timestamp, command, model_sha, vocab_hash, opponent version, seed. Chaque mesure d'Elo est traçable à son contexte exact de production.
+
+Pourquoi : sans provenance, deux runs qui produisent des Elo différents sont incomparables — impossible de savoir si la différence vient du modèle, de l'opponent, du seed, ou du vocab. La reproductibilité scientifique exige la traçabilité.
+
+Contraintes : patch minimal dans neural_tournament_runner.rs. Ne pas restructurer le format CSV existant — juste ajouter les colonnes metadata en préfixe.
+
+---
+
+**68. Runtime shortlist audit**
+
+Origine : AAA handoff. Question critique : est-ce que le signal neural riche produit par infer_policy.py est réellement consommé par neural_agent.rs ?
+
+Où ça mène : mesurer le pourcentage de moves venant de best_move brut vs shortlist rerank vs fallback legal. Si 80% des moves viennent du best_move brut, le réseau produit un signal riche que le runtime ignore complètement. Le bottleneck est côté runtime, pas côté training.
+
+Pourquoi : avant de patcher le training, vérifier que le runtime exploite ce que le training produit. Si ce n'est pas le cas, améliorer le training ne change rien à la performance.
+
+Contraintes : audit uniquement — pas de patch pendant l'audit. Lire le code sans hypothèses préalables. Le résultat de l'audit définit la priorité du prochain patch.
+
+---
+
+**69. Benchmark Purification Gate — 9 métadonnées obligatoires**
+
+Origine : AAA handoff. Aucun claim d'Elo n'est valide sans ces métadonnées.
+
+Où ça mène : model SHA256, training run id, dataset SHA256, vocab hash, git commit, opponent version, seed, time control, command line. Hard invalidators — vocab mismatch, fallback activé, crash sans marqueur, turn_limit compté comme draw. Promotion seulement si reproductible sur un second run.
+
+Pourquoi : sans gate de purification, les benchmarks mesurent du bruit et les décisions d'entraînement sont basées sur des signaux incorrects.
+
+Contraintes : toutes les métadonnées doivent être collectées automatiquement — pas manuellement. Si une métadonnée manque, le benchmark ne peut pas démarrer.
+
+---
+
+**70. Othello comme second jeu de validation**
+
+Origine : Gemini. Ne pas attaquer Go ni Poker en premier — trop complexes pour un test de transposabilité.
+
+Où ça mène : solveur Edax, réseau minimal, adaptateur Edax → SearchTraceSchema. Si le LLM clusterise les erreurs Othello avec le même code que chess, l'architecture multi-jeux est validée. C'est la preuve de concept qui justifie tous les investissements futurs.
+
+Pourquoi : valider l'architecture sur un second jeu simple coûte peu. Ne pas valider et construire 3 jeux supplémentaires pour découvrir que le schema n'est pas universel coûte beaucoup.
+
+Contraintes : ne pas commencer avant que le SearchTraceSchema universel soit figé. Si le schema change après Othello, l'adaptateur est à refaire.
+
+---
+
+**71. Architecture Multi-head Neural — backbone φ(T) commun + heads par jeu**
+
+Origine : Gemini. La solution architecturale la plus pragmatique pour le multi-jeux.
+
+Où ça mène : un backbone commun apprend les patterns universels de φ(T). Des têtes spécialisées par jeu produisent les décisions spécifiques. Les échecs partagent les représentations φ(T) avec Go et Poker sans les forcer dans le même espace d'action.
+
+Pourquoi : plus simple et plus efficace que le policy universel. Le backbone commun profite des données de tous les jeux. Les têtes spécialisées gardent la précision par domaine.
+
+Contraintes : le backbone doit être entraîné simultanément sur tous les jeux — pas en séquence. Un entraînement séquentiel crée du catastrophic forgetting sur les jeux précédents.
+
+---
+
+**72. Détection de régimes dynamiques cross-domain**
+
+Origine : Gemini. Quatre classes de régime applicables à tout moteur de décision.
+
+Où ça mène : régime stable (convergence monotone), régime chaotique (oscillation PV), régime retardé (horizon effect latent), régime explosif (tactical burst). Ces classes sont détectables depuis φ(T) sans connaître les règles du jeu.
+
+Pourquoi : identifier le régime d'une position avant de la jouer change la stratégie de recherche. En régime explosif, allouer plus de budget. En régime stable, couper la recherche tôt.
+
+Contraintes : la définition des frontières de régime est empirique — à calibrer sur des données réelles de plusieurs jeux. Des frontières trop larges → régimes inutilement larges. Trop étroites → trop de bruit.
+
+---
+
+**73. Cluster cross-domain dans φ(T)**
+
+Origine : Gemini. La découverte extraordinaire potentielle du multi-jeux.
+
+Où ça mène : le LLM découvre des clusters qui mélangent les jeux. Low entropy → stable belief → late explosion est la même signature pour un sacrifice mal évalué aux échecs, un coup Ko mal évalué au Go, et un bluff mal détecté au Poker. Les lois fondamentales de l'optimisation sous contrainte transcendent les domaines.
+
+Pourquoi : c'est la validation théorique la plus forte de l'architecture φ(T). Si les clusters cross-domain existent, φ(T) est vraiment universel. Si non, l'architecture reste utile mais n'est pas cross-domain.
+
+Contraintes : nécessite des données de plusieurs jeux dans le même espace φ(T). Pas réalisable avant Othello validé et au moins un troisième jeu. C'est une hypothèse à valider, pas une certitude à construire.
+
+---
+
+**74. Rocky SDK → Chess Fantasy mutation**
+
+Origine : Kaizen V2. Les 4 blocs A/B/C/D sont réutilisables pour un nouveau jeu.
+
+Où ça mène : Rocky muté pour Chess Fantasy avec HP/ATK/ARM, effets visuels, règles spéciales. Même moteur de recherche, même architecture neural, même φ(T). Seules les règles et le dataset changent. Démontre que l'architecture est un SDK, pas un one-shot.
+
+Pourquoi : si les blocs sont vraiment modulaires, passer de chess à Chess Fantasy doit prendre une fraction du temps initial. Si ça prend autant de temps, les blocs ne sont pas suffisamment modulaires.
+
+Contraintes : Gate D doit être franchie avant de commencer la mutation. Rocky doit expliquer 5 coups consécutifs correctement avant de devenir la base de Fantasy.
+
+---
+
+**75. Chess TCG — chaîne de dépendance complète**
+
+Origine : sessions 2 et Kaizen V2. L'idée existe mais la chaîne de dépendance n'est pas tracée explicitement.
+
+Où ça mène : draft, cartes, factions, sur le même frontend Godot en mode 3. Même Rocky en backend. La plus ambitieuse des extensions.
+
+Pourquoi : c'est le produit le plus différencié et le plus commercial potentiellement. Mais il présuppose tout — Rocky stable, Godot frontend actif, Chess Fantasy stable.
+
+Contraintes : la chaîne de dépendance est dure. Rocky HTTP → Godot base → Chess Fantasy stable → Chess TCG. Ignorer cet ordre est la façon la plus sûre de ne jamais finir TCG. Chaque étape doit être validée avant de commencer la suivante.
+
+---
+
+Non. Le cycle de vie autonome est mentionné comme idée 26 dans la liste numérotée mais il n'est pas développé. Voici la version complète.
+
+---
+
+**76. Cycle de vie autonome du studio**
+
+Origine : session 1 Rocky/Studio, comme vision centrale de l'architecture. Reformulé et précisé tout au long de cette conversation. L'idée n'est pas nouvelle — elle est présente dès le premier résumé — mais sa formulation concrète et implémentable n'a émergé qu'en croisant les trois sessions avec les conversations Gemini.
+
+Où ça mène : un studio qui s'améliore sans supervision constante. Pas des phases linéaires figées. Un système où les agents s'activent et se désactivent selon l'état réel mesuré par φ(T). La structure émerge des données plutôt que d'être codée en dur. Concrètement : studio_end.py calcule φ(session), Qwen lit φ et l'historique, Qwen recommande le type de session suivante, studio_start.py injecte ce brief, la session suivante est conditionnée par la dynamique des sessions précédentes, et la boucle recommence indéfiniment sans intervention humaine entre les cycles.
+
+Pourquoi : le problème fondamental du studio solo n'est pas le manque d'idées ni le manque de code. C'est le coût de coordination — reconstruire le contexte, décider quoi faire ensuite, évaluer si la dernière session a été productive. Ces trois tâches consomment 30 à 40% du temps de travail réel. Le cycle de vie autonome externalise ces trois tâches vers les agents. Tu interviens uniquement sur les HumanGates réels — les décisions irréversibles, les commits Rust, les redirections de dataset. Tout le reste tourne seul.
+
+La différence avec un simple script d'automatisation : un script suit des règles statiques. Le cycle de vie autonome suit la dynamique réelle du studio telle que mesurée par φ(T). Si trois sessions consécutives ont une Entropy haute et zéro commit, le système détecte ce pattern et contraint la session suivante vers un scope unique et mesurable. Si une session produit un Shock élevé, la suivante commence par un audit plutôt qu'une nouvelle construction. Les règles émergent des données, pas l'inverse.
+
+La différence avec les systèmes multi-agents classiques : la plupart des architectures multi-agents supposent des rôles fixes et des workflows prédéfinis. Le cycle de vie autonome du studio utilise φ(T) comme signal universel qui traverse tous les agents — Rocky, Claude, Qwen, Devstral. Chaque agent lit le même signal et l'interprète selon son rôle. Il n'y a pas de coordinateur central qui décide tout — il y a un signal partagé que chaque agent interprète localement.
+
+Les six primitives du cycle, dans l'ordre :
+
+Observation — Claude ou studio_end.py lit φ(session courante) et φ_history.
+
+Reflection — que signifie ce φ dans le contexte de l'historique ? Quel régime ? Quelle tendance ?
+
+Intention — Qwen CEO propose une direction pour la prochaine session basée sur l'analyse.
+
+Action — le studio exécute. Claude Code implémente, les chaînes LangGraph tournent, les benchmarks se lancent.
+
+Feedback — φ(session suivante) est calculé. Les métriques changent ou non.
+
+Loop — sans fin, sans supervision constante.
+
+Contraintes : c'est la dernière idée à implémenter, pas la première. Elle présuppose que tout le reste fonctionne — φ_history.jsonl rempli avec au moins dix sessions, studio_end.py stable, Qwen calibré sur au moins le Tier 1, les graphes LangGraph validés sur des cas réels. Mettre le cycle autonome sur une fondation instable produit un système qui dérive de façon invisible — exactement le scénario le plus dangereux pour un studio solo sans supervision externe.
+
+La contrainte la plus importante est psychologique autant que technique : un cycle autonome ne signifie pas un cycle sans pilote. Tu restes le HumanGate sur toutes les décisions irréversibles. Le cycle autonome gère la coordination et la mémoire inter-sessions. Toi tu gères les décisions à conséquences réelles. Cette frontière doit être explicite et documentée dans le système dès le premier jour, sinon le cycle dérive vers des décisions qu'il ne devrait pas prendre.

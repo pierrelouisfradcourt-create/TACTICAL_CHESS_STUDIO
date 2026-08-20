@@ -1,0 +1,77 @@
+# Contrat d'agent Forge — mission GR1 : Gameplay Review Snake (l'élément absent de la matrice — création M-E)
+# Schéma : scripts/forge/contracts/SCHEMA.md. Dispatch hors profil (allow_unprofiled assumé).
+# Vérificateur mécanique : scripts/forge/prisme/check_gameplay_review.mjs (23 items, silence = échec).
+
+role: >-
+  Gameplay Reviewer du Prisme. Point de vue imposé (diagnostic Pierre 2026-07-27 : « la Forge
+  répond bien à construis-moi un jeu, mal à est-ce qu'on construit le BON jeu ») : tu juges le
+  DESIGN avant qu'on paie un build — ce qui est nécessaire, ce qui est rejeté, pourquoi, et
+  l'impact architecture de chaque décision. Une review qui ne rejette rien doit le justifier.
+capability_role: prisme
+exigences_cognitives: >-
+  Jugement de design argumenté, jamais de goût nu : chaque décision cite sa base (charter,
+  Genre Bible, dossier d'observation, snapshot d'une lentille). Anti « techniquement cool
+  mais vide » : la checklist métagame/rétention se répond franchement, y compris quand la
+  réponse honnête est « non, et c'est assumé par le charter ».
+memoire: >-
+  Consomme la sortie RECOMBINÉE du panel (merged_prisme.md — union mécanique, GAP explicites)
+  et les 4 snapshots sources. Les fogs déjà ouverts (plateforme, critères démo, vitesse fixe,
+  objectif de victoire, grille, rétention inter-session, son) ne se re-tranchent pas ici :
+  ils se LISTENT dans gaps_traites avec leur traitement proposé.
+mandatory_read:
+  - lab/forge_runs/snake/charter.yaml
+  - lab/forge_runs/snake/prisme/merged_prisme.md
+  - lab/forge_runs/snake/product_snapshot.md
+  - lab/forge_runs/snake/prisme/product_snapshot_gamedesign.md
+  - lab/forge_runs/snake/prisme/product_snapshot_archidepot.md
+  - lab/forge_runs/snake/prisme/product_snapshot_gameplayprog.md
+  - scripts/forge/prisme/design_review_checklist.yaml
+  - docs/forge/GENRE_BIBLE_SNAKE_V1_PROPOSED.md
+  - docs/forge/FORGE_ARCHITECT_MANUAL_V1.md
+objectif: >-
+  Produire lab/forge_runs/snake/prisme/design_review.md : la Design Review du Snake AVANT
+  build — (1) réponse structurée aux 23 items de la checklist (statut oui|non|na + raison,
+  impact_architecture quand pertinent) ; (2) liste de DÉCISIONS {sujet, decision:
+  necessaire|rejete, pourquoi, impact_architecture} — chaque système/proposition du panel
+  jugé ; au moins un rejet, ou une justification racine aucun_rejet_justification ;
+  (3) traitement des 2 GAP du merge et des contradictions éventuelles entre lentilles ;
+  (4) le bloc JSON conforme au schéma de check_gameplay_review.mjs.
+in_scope: >-
+  Jugement de design sur les artefacts du run Snake. Écrit design_review.md uniquement.
+out_of_scope: >-
+  Ne modifie ni charter, ni snapshots, ni Genre Bible, ni checklist ; ne code rien ; ne fait
+  pas la wiremap (ses décisions la CONTRAIGNENT). Ne re-tranche pas les fogs HumanGate de
+  Pierre. Aucun git commit/push.
+permissions: >-
+  read: repo + artefacts du run. write/create: lab/forge_runs/snake/prisme/design_review.md
+  uniquement. run: node scripts/forge/prisme/check_gameplay_review.mjs (vérification).
+  delete: aucun.
+gardeFou: >-
+  (1) Chaque item de la checklist reçoit une réponse — le silence est un échec mécanique.
+  (2) Chaque décision porte ses 4 champs non vides ; « rejeté » exige un pourquoi falsifiable
+  et l'impact architecture du rejet. (3) Une contradiction entre lentilles se DÉCIDE (avec
+  base citée) ou se remonte en fog — jamais moyennée en silence. (4) Aucun placeholder
+  (TBD/TODO/à définir). (5) Les décisions restent des PROPOSITIONS : la ratification est
+  HumanGate Pierre. (6) Doute => question explicite dans le document.
+success_criteria: >-
+  design_review.md produit ; check_gameplay_review.mjs exit 0 (23/23 items répondus, ≥1
+  décision, rejet ou justification présente, zéro placeholder) ; les 2 GAP du merge traités ;
+  chaque décision tracée à une base citée.
+tests_oracles: >-
+  Oracle mécanique : node scripts/forge/prisme/check_gameplay_review.mjs
+  lab/forge_runs/snake/prisme/design_review.md — LANCE-LE TOI-MÊME et joins la sortie
+  (preuve d'exécution). La JUSTESSE des jugements = fog HumanGate.
+final_report: >-
+  Restitution standard : comptes (items oui/non/na, décisions, rejets), sortie du check,
+  contradictions inter-lentilles trouvées et leur sort, claim_verdict: NO_CLAIM_ALLOWED.
+output_contract: >-
+  design_review.md : prose de review + UN bloc json {checklist_answers{<id>:{statut, raison,
+  impact_architecture?}}, decisions[{sujet, decision, pourquoi, impact_architecture}],
+  gaps_traites[{gap, traitement}], aucun_rejet_justification?}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Mission M-E finale (chantier chaîne architecte, Pierre 2026-07-28 — « le Prisme complet »).
+  En amont : charter (check_charter OK) · panel 4 snapshots (check_prisme PASS ×4) ·
+  merged_prisme.md (2 GAP). En aval : wiremap M-G (contrainte par les décisions) et
+  ratification Pierre. Consommateurs : architecte M-G, Pierre, check_gameplay_review.mjs.

@@ -1,0 +1,328 @@
+schema_version: "UXPILOTE_3D_UX_PATCH_CHAIN_QUEUE_V0"
+record_type: "ux_patch_chain_queue"
+contract_version: "V0"
+language: "English"
+status: "DOCUMENTED_ONLY"
+claim_posture: "NO_CLAIM_ALLOWED"
+human_gate_required: true
+
+source_state:
+  created: "DOCUMENTED_ONLY"
+  registered: "UNKNOWN"
+  loaded: "DOCUMENTED_ONLY"
+  enforced: "DOCUMENTED_ONLY"
+  evidenced: "UNKNOWN"
+  source_rule: "created != registered != loaded != enforced != evidenced"
+  source_truth_boundary: "This roadmap queue is a planning record only and is not runtime truth."
+
+route_check:
+  output_routing_required: true
+  intended_surface: "roadmap_docs_only"
+  canonical_destination: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/UXPILOTE_3D_UX_PATCH_CHAIN_QUEUE_V0.yaml"
+  forbidden_root_destination: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/UXPILOTE_3D_UX_PATCH_CHAIN_QUEUE_V0.yaml"
+  registration_required: false
+  project_source_upload_required: false
+  promotion_gate: "HumanGate"
+  status: "DOCUMENTED_ONLY"
+
+input_evidence:
+  required_sources:
+    - path: "C:/TACTICAL_CHESS_STUDIO/AGENTS.md"
+      status: "DOCUMENTED_ONLY"
+      use: "Agent doctrine, verdict separation, and guardrails."
+    - path: "C:/TACTICAL_CHESS_STUDIO/docs/gpt-navigator/GPT_NAVIGATOR_CODEX_PROMPT_GATE_V0.md"
+      status: "DOCUMENTED_ONLY"
+      use: "Prompt gate and source-backed task posture."
+    - path: "C:/TACTICAL_CHESS_STUDIO/docs/gpt-navigator/GPT_NAVIGATOR_REPO_NOTICE_V0.md"
+      status: "DOCUMENTED_ONLY"
+      use: "Repository notice, source anchoring, and runtime authority boundaries."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md"
+      status: "DOCUMENTED_ONLY"
+      use: "Source state model and no silent path substitution."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md"
+      status: "DOCUMENTED_ONLY"
+      use: "Roadmap output routing and forbidden destination rules."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/UXPILOTE_CHAIN_CONTROL_UX_AND_FRAGMENTED_AUDIT_PIPELINE_V0.md"
+      status: "DOCUMENTED_ONLY"
+      use: "UxPilote chain grammar, zones, and Patch Lab boundary."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/PLAYER_IMPROVEMENT_QUEUE_INDEX_V0.yaml"
+      status: "DOCUMENTED_ONLY"
+      use: "Player queue index compatibility and authority boundaries."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_OBSERVABILITY_EVIDENCE_QUEUE_V0.yaml"
+      status: "DOCUMENTED_ONLY"
+      use: "Observability queue compatibility and blocked claim posture."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md"
+      status: "DOCUMENTED_ONLY"
+      use: "Structured task and executor output contract."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_CHARTER_TEMPLATE_V0.yaml"
+      status: "DOCUMENTED_ONLY"
+      use: "Future task charter structure."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/EXECUTOR_REPORT_TEMPLATE_V0.yaml"
+      status: "DOCUMENTED_ONLY"
+      use: "Executor report structure."
+
+top_ux_patch_candidates:
+  - id: "UX3D_WORLD_GRAPH_MODEL"
+    priority: "P1"
+    status: "DOCUMENTED_ONLY"
+    intended_surface: "roadmap_docs_only"
+    goal: "Define the 3D semantic graph model: node types, edge types, authority layers, status colors, and zoom levels."
+    target_user_value: "Make Studio state navigable as a spatial control graph before any implementation."
+    evidence_inputs:
+      - "STUDIO_SOURCE_ANCHORING_V0"
+      - "STUDIO_OUTPUT_ROUTING_POLICY_V0"
+      - "UXPILOTE_CHAIN_CONTROL_UX_AND_FRAGMENTED_AUDIT_PIPELINE_V0"
+    proposed_model:
+      node_types:
+        - "source_anchor"
+        - "output_route"
+        - "surface"
+        - "chain"
+        - "task_queue"
+        - "blocked_action"
+        - "humangate_decision"
+      edge_types:
+        - "reads"
+        - "routes_to"
+        - "depends_on"
+        - "blocked_by"
+        - "requires_humangate"
+        - "compatible_with"
+      authority_layers:
+        - "read_only"
+        - "patch_proposal"
+        - "humangate_required"
+        - "blocked"
+      status_colors:
+        IMPLEMENTED: "implementation_present"
+        TESTED: "targeted_validation_present"
+        DOCUMENTED_ONLY: "planning_or_canonical_record_only"
+        PASSIVE: "non_mutating_or_reference_only"
+        BLOCKED: "not_authorized_or_not_available"
+        NOT_FOUND: "expected_source_absent"
+        UNKNOWN: "insufficient_evidence"
+      zoom_levels:
+        - "studio_surface_overview"
+        - "lane_and_queue_view"
+        - "source_route_evidence_view"
+        - "task_charter_preview"
+    blocked:
+      frontend_implementation: "BLOCKED"
+      runtime_implementation: "BLOCKED"
+
+  - id: "UX3D_EVIDENCE_BOARD_OVERLAY"
+    priority: "P2"
+    status: "DOCUMENTED_ONLY"
+    intended_surface: "roadmap_docs_only"
+    goal: "Define the evidence/status overlay: surface panels, source-state chips, claim/evidence split, blocked badges."
+    target_user_value: "Expose claim posture and source state without mixing roadmap intent with runtime authority."
+    evidence_inputs:
+      - "PLAYER_IMPROVEMENT_QUEUE_INDEX_V0"
+      - "ROCKY_OBSERVABILITY_EVIDENCE_QUEUE_V0"
+      - "AGENTS.md"
+    proposed_overlay:
+      panels:
+        - "status_by_surface"
+        - "software_verdict"
+        - "evidence_verdict"
+        - "claim_verdict"
+        - "source_state"
+        - "blocked_actions"
+      chips:
+        - "created"
+        - "registered"
+        - "loaded"
+        - "enforced"
+        - "evidenced"
+      blocked_badges:
+        - "benchmark_claims"
+        - "runtime_execution"
+        - "training"
+        - "dataset_generation"
+        - "model_promotion"
+        - "commit_push_branch_pr"
+    blocked:
+      benchmark_claims: "BLOCKED"
+      runtime_execution: "BLOCKED"
+
+  - id: "UX3D_CHAIN_BUILDER_PATCH_LAB"
+    priority: "P3"
+    status: "DOCUMENTED_ONLY"
+    intended_surface: "roadmap_docs_only"
+    goal: "Define the Chain Builder and Patch Lab handoff: dependent menus, output routing preview, task-charter candidate preview."
+    target_user_value: "Convert selected queue items into bounded task-charter candidates without executing patches."
+    evidence_inputs:
+      - "UXPILOTE_CHAIN_CONTROL_UX_AND_FRAGMENTED_AUDIT_PIPELINE_V0"
+      - "TASK_CHARTER_TEMPLATE_V0"
+      - "STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0"
+    proposed_builder_fields:
+      qui: "agent_or_lane_selection"
+      quoi: "task_queue_item_or_surface_problem"
+      quand: "trigger_or_humangate_window"
+      comment: "diagnose_validate_evidence_prepare_patch"
+      ou: "routed_destination_preview"
+      pourquoi: "human_value_and_risk_reason"
+    preview_outputs:
+      - "task_charter_candidate"
+      - "route_check"
+      - "blocked_actions_matrix"
+      - "validation_plan_candidate"
+    blocked:
+      patch_execution: "BLOCKED"
+      mutation_without_humangate: "BLOCKED"
+
+top_ux_chains:
+  - chain_id: "UX-HYGIENE-ROUTING-SOURCE-ANCHORS"
+    chain_type: "hygiene"
+    zone: "routage"
+    subzone: "output_routing_and_source_anchoring"
+    action_mode: "diagnose"
+    authority_level: "read_only"
+    expected_output: "evidence_packet"
+    status: "PASSIVE"
+    purpose: "Detect floating outputs, wrong routes, missing source states, duplicate names, and root collisions."
+    compatible_patch_candidates:
+      - "UX3D_WORLD_GRAPH_MODEL"
+      - "UX3D_CHAIN_BUILDER_PATCH_LAB"
+    blocked:
+      file_mutation: "BLOCKED"
+      route_promotion: "BLOCKED"
+
+  - chain_id: "UX-TRUTH-EVIDENCE-CLAIM-BOARD"
+    chain_type: "truth"
+    zone: "evidence"
+    subzone: "claims_status_by_surface"
+    action_mode: "validate_evidence"
+    authority_level: "read_only"
+    expected_output: "evidence_packet"
+    status: "PASSIVE"
+    purpose: "Separate code, tests, docs, reports, logs, benchmarks, roadmap, claims, unknowns, and blocked surfaces."
+    compatible_patch_candidates:
+      - "UX3D_EVIDENCE_BOARD_OVERLAY"
+      - "UX3D_WORLD_GRAPH_MODEL"
+    blocked:
+      benchmark_proof_claim: "BLOCKED"
+      global_ready_verdict: "BLOCKED"
+
+  - chain_id: "UX-UPGRADE-PLAYER-PATCH-CANDIDATE"
+    chain_type: "upgrade"
+    zone: "rocky"
+    subzone: "player_improvement"
+    action_mode: "prepare_patch"
+    authority_level: "patch_proposal"
+    expected_output: "task_charter"
+    status: "DOCUMENTED_ONLY"
+    purpose: "Turn a player-improvement queue item into a bounded task-charter candidate without execution."
+    compatible_patch_candidates:
+      - "UX3D_CHAIN_BUILDER_PATCH_LAB"
+      - "UX3D_EVIDENCE_BOARD_OVERLAY"
+    blocked:
+      runtime_patch_execution: "BLOCKED"
+      decision_controller_activation: "BLOCKED"
+      neural_final_authority: "BLOCKED"
+
+compatibility:
+  observability_queue: "DOCUMENTED_ONLY"
+  player_improvement_queue_index: "DOCUMENTED_ONLY"
+  compatible:
+    - pair: ["UX3D_EVIDENCE_BOARD_OVERLAY", "ROCKY_OBSERVABILITY_EVIDENCE_QUEUE_V0"]
+      reason: "The overlay can display planned evidence packets without making proof claims."
+    - pair: ["UX3D_CHAIN_BUILDER_PATCH_LAB", "PLAYER_IMPROVEMENT_QUEUE_INDEX_V0"]
+      reason: "The builder can prepare task-charter candidates from queue items without executing them."
+    - pair: ["UX-HYGIENE-ROUTING-SOURCE-ANCHORS", "UX3D_WORLD_GRAPH_MODEL"]
+      reason: "Routing and source anchors provide graph nodes and edges for a 3D map."
+    - pair: ["UX-TRUTH-EVIDENCE-CLAIM-BOARD", "UX3D_EVIDENCE_BOARD_OVERLAY"]
+      reason: "Truth/evidence chain supplies panel content and blocked badges."
+  conditional:
+    - pair: ["UX-UPGRADE-PLAYER-PATCH-CANDIDATE", "REALTIME_HYBRID_PLAYER_QUEUE_V0"]
+      condition: "The output remains a task charter candidate only and does not modify runtime code."
+    - pair: ["UX3D_CHAIN_BUILDER_PATCH_LAB", "HumanGate"]
+      condition: "HumanGate is required before any mutation, activation, promotion, costly run, Git action, or claim."
+  blocked_with:
+    - "runtime implementation"
+    - "runtime execution"
+    - "DecisionController activation"
+    - "Neural final authority"
+    - "LLM final move authority"
+    - "training"
+    - "benchmark"
+    - "dataset generation"
+    - "model promotion"
+    - "commit/push/branch/PR"
+
+validation:
+  expected_level: "DOCUMENTED_ONLY"
+  docs_only_checks:
+    - "Test-Path target file"
+    - "Get-Content target file"
+    - "Select-String required patterns"
+    - "git diff --check"
+    - "git diff --name-only"
+    - "git diff --cached --name-only"
+    - "git status --short --branch"
+  blocked_validation:
+    runtime_execution: "BLOCKED"
+    frontend_execution: "BLOCKED"
+    tests: "BLOCKED"
+    benchmark: "BLOCKED"
+    training: "BLOCKED"
+
+blocked_actions:
+  runtime_code_changes: "BLOCKED"
+  test_changes: "BLOCKED"
+  frontend_implementation: "BLOCKED"
+  godot_implementation: "BLOCKED"
+  file_creation_outside_target: "BLOCKED"
+  runtime_execution: "BLOCKED"
+  training: "BLOCKED"
+  benchmark: "BLOCKED"
+  dataset_generation: "BLOCKED"
+  dataset_reset: "BLOCKED"
+  latest_json_creation: "BLOCKED"
+  lab_run_creation: "BLOCKED"
+  model_or_checkpoint_creation: "BLOCKED"
+  model_promotion: "BLOCKED"
+  agent_activation: "BLOCKED"
+  chess960_activation: "BLOCKED"
+  decision_controller_activation: "BLOCKED"
+  neural_authority_change: "BLOCKED"
+  llm_final_move_authority: "BLOCKED"
+  commit: "BLOCKED"
+  push: "BLOCKED"
+  branch_creation: "BLOCKED"
+  pull_request_creation: "BLOCKED"
+
+status_by_surface:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "PASSIVE"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+
+software_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "PASSIVE"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+
+evidence_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "PASSIVE"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+
+claim_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "PASSIVE"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+  default_claim_posture: "NO_CLAIM_ALLOWED"
+
+no_global_ready_verdict: true

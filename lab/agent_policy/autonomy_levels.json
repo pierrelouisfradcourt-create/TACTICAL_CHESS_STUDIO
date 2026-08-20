@@ -1,0 +1,64 @@
+{
+  "$schema": "../../schemas/autonomy_levels.schema.json",
+  "policy_version": "2026-05-08",
+  "levels": [
+    {
+      "level": 0,
+      "name": "READ_ONLY",
+      "description": "Read-only inspection with no write actions.",
+      "can_merge": false,
+      "can_decide_claim_authority": false,
+      "can_edit_branch_protection": false,
+      "can_edit_own_policy": false
+    },
+    {
+      "level": 1,
+      "name": "DOCS_ONLY",
+      "description": "Write limited to approved documentation files.",
+      "can_merge": false,
+      "can_decide_claim_authority": false,
+      "can_edit_branch_protection": false,
+      "can_edit_own_policy": false
+    },
+    {
+      "level": 2,
+      "name": "CONTROL_PLANE_ONLY",
+      "description": "Write limited to control-plane metadata and schemas.",
+      "can_merge": false,
+      "can_decide_claim_authority": false,
+      "can_edit_branch_protection": false,
+      "can_edit_own_policy": false
+    },
+    {
+      "level": 3,
+      "name": "PATCH_PROPOSAL_ONLY",
+      "description": "Can propose bounded patches but requires human approval for application.",
+      "can_merge": false,
+      "can_decide_claim_authority": false,
+      "can_edit_branch_protection": false,
+      "can_edit_own_policy": false
+    },
+    {
+      "level": 4,
+      "name": "HUMAN_APPROVED_WRITE_ONLY",
+      "description": "Can write only after explicit human approval per task scope.",
+      "can_merge": false,
+      "can_decide_claim_authority": false,
+      "can_edit_branch_protection": false,
+      "can_edit_own_policy": false
+    }
+  ],
+  "global_denials": {
+    "any_level_can_merge": false,
+    "any_level_can_decide_claim_authority": false,
+    "any_level_can_edit_branch_protection": false,
+    "any_level_can_edit_own_policy": false
+  },
+  "promotion_contract": {
+    "level_up_requires_human_review": true,
+    "level_up_requires_human_reviewer_identity": true,
+    "level_up_requires_decision_record": true,
+    "level_up_requires_clean_scorecards": true,
+    "agent_cannot_promote_itself": true
+  }
+}

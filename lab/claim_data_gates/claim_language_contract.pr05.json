@@ -1,0 +1,56 @@
+{
+  "schema_version": "claim_language_contract.pr05",
+  "gate_entrypoint": "scripts/check_claim_data_gates.py",
+  "mechanical_only": true,
+  "forbidden_positive_claim_phrases": [
+    {"phrase": "run proves", "issue": "BLOCKED_SCIENTIFIC_PROOF_CLAIM"},
+    {"phrase": "evidence proves improvement", "issue": "BLOCKED_SCIENTIFIC_PROOF_CLAIM"},
+    {"phrase": "benchmark validates", "issue": "BLOCKED_OVERCLAIM_LANGUAGE"},
+    {"phrase": "ready for promotion", "issue": "BLOCKED_PROMOTION_CLAIM"},
+    {"phrase": "promotion candidate", "issue": "BLOCKED_PROMOTION_CLAIM"},
+    {"phrase": "strength improved", "issue": "BLOCKED_STRENGTH_CLAIM"},
+    {"phrase": "Elo improved", "issue": "BLOCKED_ELO_CLAIM"},
+    {"phrase": "search improved", "issue": "BLOCKED_STRENGTH_CLAIM"},
+    {"phrase": "neural improved", "issue": "BLOCKED_STRENGTH_CLAIM"},
+    {"phrase": "conversion proves strength", "issue": "BLOCKED_STRENGTH_CLAIM"},
+    {"phrase": "CI proves correctness", "issue": "BLOCKED_CI_AS_PROOF"},
+    {"phrase": "latest proves", "issue": "BLOCKED_LATEST_AS_EVIDENCE"},
+    {"phrase": "validated engine", "issue": "BLOCKED_OVERCLAIM_LANGUAGE"},
+    {"phrase": "scientific proof", "issue": "BLOCKED_SCIENTIFIC_PROOF_CLAIM"},
+    {"phrase": "stronger", "issue": "BLOCKED_STRENGTH_CLAIM"},
+    {"phrase": "better engine", "issue": "BLOCKED_STRENGTH_CLAIM"},
+    {"phrase": "global improvement", "issue": "BLOCKED_STRENGTH_CLAIM"},
+    {"phrase": "AAA validated", "issue": "BLOCKED_OVERCLAIM_LANGUAGE"},
+    {"phrase": "promotion eligible", "issue": "BLOCKED_PROMOTION_CLAIM"}
+  ],
+  "allowed_language_examples": [
+    "contract-only",
+    "mechanical checks only",
+    "health check passed",
+    "targeted behavior observed",
+    "exploration only",
+    "no claim allowed"
+  ],
+  "latest_json_rule": {
+    "latest_json_may_be_pointer_only": true,
+    "latest_json_must_not_be_used_as_evidence": true,
+    "issue": "BLOCKED_LATEST_AS_EVIDENCE"
+  },
+  "holdout_exposure_rule": {
+    "blocked_fields": [
+      "holdout_position",
+      "holdout_positions",
+      "holdout_hash",
+      "holdout_hashes",
+      "holdout_ids",
+      "fen",
+      "move_list"
+    ],
+    "allowed_fields": ["holdout_set_id"],
+    "issue": "BLOCKED_HOLDOUT_EXPOSURE"
+  },
+  "not_scientific_proof": true,
+  "no_claim_authority": true,
+  "no_merge_authority": true,
+  "no_promotion_authority": true
+}

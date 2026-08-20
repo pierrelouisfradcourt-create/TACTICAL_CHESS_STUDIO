@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://tactical-chess-studio/schemas/council_output_v1.schema.json",
+  "title": "Council -> Factory contract v1 (chantier Council->Factory)",
+  "description": "Contrat versionne entre la sortie du Council (3 voix par ROLE) et la factory. Le Council propose, ne dispose pas : cette structure est une donnee validee, jamais une commande. Surface DISTINCTE de council_output.schema.json (IMP-198, artefact brut CouncilResult) : coexistence par surface (HumanGate 2026-07-06). Structure uniquement ; les checks semantiques write-path vivent dans scripts/council_contract.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "session_id", "timestamp", "voices", "proposed_items", "claim_verdict"],
+  "properties": {
+    "schema_version": {"const": "1"},
+    "session_id": {"type": "string", "minLength": 1},
+    "timestamp": {"type": "string", "minLength": 1},
+    "voices": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["PLAN_REVIEW", "RED_TEAM", "DIVERGENCE"],
+      "properties": {
+        "PLAN_REVIEW": {"$ref": "#/definitions/voice"},
+        "RED_TEAM": {"$ref": "#/definitions/voice"},
+        "DIVERGENCE": {"$ref": "#/definitions/voice"}
+      }
+    },
+    "proposed_items": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/proposed_item"}
+    },
+    "claim_verdict": {"const": "NO_CLAIM_ALLOWED"}
+  },
+  "definitions": {
+    "voice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "verdict", "findings"],
+      "properties": {
+        "model": {"type": "string", "minLength": 1},
+        "verdict": {"enum": ["OK", "FAIL", "BLOCKED"]},
+        "findings": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "proposed_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "rationale", "suggested_lane", "evidence_refs"],
+      "properties": {
+        "title": {"type": "string", "minLength": 1, "maxLength": 200},
+        "rationale": {"type": "string", "minLength": 1},
+        "suggested_lane": {"enum": ["SAFE_AUTO", "AUDIT_REQUIRED", "HUMAN_REQUIRED"]},
+        "evidence_refs": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

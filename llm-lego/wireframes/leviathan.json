@@ -1,0 +1,76 @@
+{
+  "project": {
+    "id": "leviathan",
+    "name": "Leviathan: Wandering Oasis",
+    "repoRoot": "games/leviathan/ (à créer — aucun code jeu écrit au 2026-07-08)",
+    "created": "2026-07-08T00:00:00Z",
+    "roadmapRef": "roadmap-leviathan"
+  },
+  "entries": [
+    {
+      "id": "entry-001",
+      "nodeId": "",
+      "label": "ADR moteur/stack arrêté",
+      "function": "Jalon 1 — Choix moteur fondateur documenté et ratifié. FAIT : ADR-001 Accepted, option B (Web/React/TS/Capacitor/PixiJS), fallback Godot. Gate Pierre [PROCÉDER].",
+      "files": ["docs/adr/ADR-001-moteur-stack-leviathan.md"],
+      "command": "",
+      "test": { "description": "ADR écrit + ratifié", "file": "docs/adr/ADR-001-moteur-stack-leviathan.md", "line": 0, "status": "PASS", "color": "green", "type": "doc" },
+      "impRef": null,
+      "humanRequired": true,
+      "notes": "Ratifié 2026-07-08.",
+      "order": 1
+    },
+    {
+      "id": "entry-002",
+      "nodeId": "",
+      "label": "Toolchain mobile montée (EN COURS)",
+      "function": "Jalon 2 — Chaîne Android sur le poste. JDK 17 + JAVA_HOME posés ; Android Studio en install ; SDK API 35 + Build-Tools + adb + ANDROID_HOME + device Redmi USB debug à finir.",
+      "files": [],
+      "command": "winget install EclipseAdoptium.Temurin.17.JDK ; winget install Google.AndroidStudio",
+      "test": { "description": "adb devices liste le Redmi + npx cap doctor vert", "file": "", "line": 0, "status": "PENDING", "color": "orange", "type": "e2e" },
+      "impRef": null,
+      "humanRequired": true,
+      "notes": "0.1 done (JDK). 0.2 install en cours. 0.3/0.4 à venir.",
+      "order": 2
+    },
+    {
+      "id": "entry-003",
+      "nodeId": "",
+      "label": "Incrément « Le Cœur Vivant » buildé device",
+      "function": "Jalon 3 — Titan animé stade 1 + idle minimal + 1 combat auto-battler 2 héros + Ultime manuel, buildé Capacitor et tourne sur Android réel. games/leviathan/.",
+      "files": ["games/leviathan/"],
+      "command": "npx cap run android",
+      "test": { "description": "boucle jouable de bout en bout sur device + vitest verts (idle, combat)", "file": "", "line": 0, "status": "PENDING", "color": "orange", "type": "e2e" },
+      "impRef": "IMP-260",
+      "humanRequired": false,
+      "notes": "Tasks 1-9 done, committés (94b6418..661cb24) : logique pure (22 tests vitest verts + clamp Qwen) + rendu Pixi Titan/combat + UI React + intégration. typecheck+build OK, JOUABLE NAVIGATEUR. Reste Task 10 (build device Redmi) + Task 11 (mesure perf = gate).",
+      "order": 3
+    },
+    {
+      "id": "entry-004",
+      "nodeId": "",
+      "label": "Gate perf (a) — 60 FPS MESURÉ sur device",
+      "function": "Jalon 4 (DÉCISIF) — 60 FPS + batterie/crash mesurés sur Redmi (réf plancher §16). Atteint → continue Web. Échoué → fallback Godot ADR-001. Fun/feel = jugement Pierre.",
+      "files": ["docs/leviathan/coeur-vivant-mesures.md"],
+      "command": "chrome://inspect + adb shell dumpsys batterystats",
+      "test": { "description": "chiffres mesurés consignés (pas supposés)", "file": "docs/leviathan/coeur-vivant-mesures.md", "line": 0, "status": "PENDING", "color": "orange", "type": "e2e" },
+      "impRef": "IMP-260",
+      "humanRequired": true,
+      "notes": "Device: Redmi Note 15 Pro+ 5G (upper-mid, probable ≥ A54 — pass encourageant mais non suffisant pour le plancher).",
+      "order": 4
+    },
+    {
+      "id": "entry-005",
+      "nodeId": "",
+      "label": "ADR-002 backend état-par-joueur",
+      "function": "Jalon 5 — Décision backend séparée : serveur léger §15.5 (serverless + DB managée, claim idle horloge-serveur). À écrire.",
+      "files": [],
+      "command": "",
+      "test": { "description": "ADR-002 écrit + ratifié", "file": "", "line": 0, "status": "PENDING", "color": "orange", "type": "doc" },
+      "impRef": null,
+      "humanRequired": true,
+      "notes": "",
+      "order": 5
+    }
+  ]
+}

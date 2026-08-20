@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "machine_verdict_schema.pr02.json",
+  "title": "PR-02 Machine Verdict Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "software_verdict",
+    "evidence_verdict",
+    "claim_verdict",
+    "human_review_required",
+    "blocking_issues",
+    "warnings",
+    "policy_refs",
+    "schema_version"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "software_verdict": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "FAIL",
+        "BLOCKED",
+        "UNCERTAIN",
+        "NOT_RUN"
+      ]
+    },
+    "evidence_verdict": {
+      "type": "string",
+      "enum": [
+        "COMPLETE",
+        "INCOMPLETE",
+        "INVALID",
+        "CORRUPT",
+        "CONTAMINATED",
+        "UNCERTAIN",
+        "CONTRACT_ONLY",
+        "BOOTSTRAP_ONLY"
+      ]
+    },
+    "claim_verdict": {
+      "type": "string",
+      "enum": [
+        "NO_CLAIM_ALLOWED",
+        "HEALTH_ONLY",
+        "TARGETED_BEHAVIOR_ONLY",
+        "EXPLORATORY_ONLY",
+        "PROMOTION_REVIEW_CANDIDATE",
+        "STRENGTH_CLAIM_CANDIDATE"
+      ]
+    },
+    "human_review_required": {
+      "type": "boolean"
+    },
+    "blocking_issues": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "policy_refs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "input_boundary_verdict": {
+      "type": "string",
+      "default": "NOT_ASSESSED"
+    },
+    "validator_tampering_verdict": {
+      "type": "string",
+      "default": "NOT_ASSESSED"
+    },
+    "secret_scan_verdict": {
+      "type": "string",
+      "default": "NOT_ASSESSED"
+    },
+    "redaction_verdict": {
+      "type": "string",
+      "default": "NOT_ASSESSED"
+    },
+    "data_lineage_verdict": {
+      "type": "string",
+      "default": "NOT_ASSESSED"
+    },
+    "claim_language_verdict": {
+      "type": "string",
+      "default": "NOT_ASSESSED"
+    },
+    "surface_lifecycle_verdict": {
+      "type": "string",
+      "default": "NOT_ASSESSED"
+    }
+  }
+}

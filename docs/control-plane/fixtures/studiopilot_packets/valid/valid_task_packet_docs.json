@@ -1,0 +1,32 @@
+{
+  "schema_version": "sp-202-v0",
+  "task_id": "SP202-DOCS-001",
+  "title": "Add StudioPilot packet schemas V0",
+  "lane": "schema",
+  "intent": "Create machine-readable control-plane packet contracts without runtime changes.",
+  "allowed_paths": [
+    "schemas/studiopilot_task_packet.schema.json",
+    "schemas/studiopilot_execution_report.schema.json",
+    "schemas/studiopilot_review_packet.schema.json",
+    "schemas/studiopilot_human_decision.schema.json",
+    "docs/control-plane/**"
+  ],
+  "forbidden_paths": [
+    "src/**",
+    "ml/**",
+    ".github/workflows/**"
+  ],
+  "expected_outputs": [
+    "four schema files",
+    "valid and invalid fixtures",
+    "schema boundary documentation"
+  ],
+  "validation_commands": [
+    ".\\.venv312\\Scripts\\python.exe scripts/operator/validate_json_artifacts.py",
+    ".\\.venv312\\Scripts\\python.exe -m json.tool schemas/studiopilot_task_packet.schema.json"
+  ],
+  "claim_scope": "NO_CLAIM_ALLOWED",
+  "human_gate_required": true,
+  "rollback_plan": "Revert SP-202 schema commit if schema review detects authority ambiguity."
+}
+

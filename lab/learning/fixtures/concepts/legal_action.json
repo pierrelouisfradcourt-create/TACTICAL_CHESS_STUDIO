@@ -1,0 +1,39 @@
+{
+  "schema_version": "learning_concept_fixture.v1",
+  "fixture_id": "concept.legal_action.v1",
+  "concept_id": "legal_action",
+  "title": "Legal action membership",
+  "status": "static_fixture",
+  "source_issue": "#143",
+  "definition": "A selected action must be present in the deterministic legal_action_ids set for the same decision context.",
+  "skills": [
+    {
+      "skill_id": "legal_action_membership",
+      "description": "Check that selected_action_id is one of the available legal_action_ids before assessing an outcome."
+    },
+    {
+      "skill_id": "legal_action_identity_normalization",
+      "description": "Use normalized action identifiers when comparing selected and available actions."
+    }
+  ],
+  "observable_success_events": [
+    {
+      "event_type": "selected_action_in_legal_set",
+      "success_tag": "legal_action_membership_confirmed",
+      "feedback_key": "feedback_legal_action_confirmed"
+    }
+  ],
+  "observable_failure_events": [
+    {
+      "event_type": "selected_action_missing_from_legal_set",
+      "failure_tag": "illegal_or_unmatched_action",
+      "feedback_key": "feedback_selected_action_not_legal"
+    }
+  ],
+  "determinism": {
+    "legal_action_ids_order": "preserve_fixture_order",
+    "selected_action_id_comparison": "normalized_exact_match",
+    "runtime_mutation": false
+  },
+  "claim_verdict": "NO_CLAIM_ALLOWED"
+}

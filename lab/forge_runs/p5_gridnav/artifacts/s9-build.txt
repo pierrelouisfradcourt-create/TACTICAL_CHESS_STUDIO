@@ -1,0 +1,19 @@
+All three deliverables are in place and the full mechanical oracle chain is green. Summary of what I did and why, since this run had already failed 3 times at `s10a-oracle-code`:
+
+**What existed already** (from a prior attempt in this run): `games/p5_gridnav/core/patrol.gd` (BFS `next_step`/`path_length` on `Array[Array[bool]]`) and `games/p5_gridnav/tests/run_tests.gd` (13 assertions). These were correct and untouched by me.
+
+**Root cause of the repeated failure**: `scripts/forge/godot_oracle.mjs` unconditionally requires `res://solvability.gd` at the project root (hardcoded `SOLVABILITY_SCRIPT`), regardless of any `is_game` flag in the run's `state.json`. Attempt 3 had reasoned this project was a pure library module (not a game) and declined to add it, reporting the gap as out-of-ownership infra — but the oracle still ran and returned `BLOCKED`/exit 1, which is why the escalation kept recurring. I added `games/p5_gridnav/solvability.gd`, staying strictly inside `games/p5_gridnav/`: a deterministic bot using `Patrol.next_step` to cross a seeded 16×16 grid, with the maze carved **unconditionally** from the seed alone (never consulting `Patrol.path_length`, to avoid the tautology bug this codebase already hit once in `grid_nav_probe`).
+
+**Verification**: `node scripts/forge/godot_oracle.mjs games/p5_gridnav` → `run_tests.gd`: 13 passed/0 failed. `solvability_godot.mjs` (R9, 50 trials): 50 won/0 lost, `verdict: OK`. Exit 0, all checks passed. `reuse_ratio.mjs games/p5_gridnav` → 0/(3+0) — legitimate: `res://` is sandboxed to the project, and the KB match `sys-grid-nav-m01` uses an incompatible signature (Dictionary walls + `(from,to,walls)` vs the task-mandated `Array[Array[bool]]` + `(grille,depart,cible)`), so literal import is mechanically impossible; this mirrors the same documented precedent in `grid_nav_probe`.
+
+software_verdict: OK
+evidence_verdict: MECHANICAL_VALIDATION_ONLY
+claim_verdict: NO_CLAIM_ALLOWED
+
+Files touched vs ownership: `games/p5_gridnav/solvability.gd` (new, in-scope). `core/patrol.gd` and `tests/run_tests.gd` left as found. Nothing outside `games/p5_gridnav/` touched (no `oracles.json`, no catalog, no other game).
+
+SKIPPED_VALIDATION:
+- Mutation gate (`forge.mutation.run_mutation_test` / `game.mjs`) — not fait — this contract clause targets JS games via `run-oracle.mjs`; `godot_oracle.mjs` (the only oracle wired for this Godot/GDScript project) chains only mechanics + R9 solvability, no mutation step exists for GDScript in this repo.
+- e2e/click-through browser (`PLAYABLE_CONTRACT.md`) — non applicable — `p5_gridnav` is a headless GDScript module with no scene/UI, same category as `grid_nav_probe` which also has no `e2e.mjs`.
+- WireMap update — non fait — no WireMap file/path exists or was referenced for this run (`micro` profile, `is_game: false` in `state.json`); no sibling micro-probe project (`grid_nav_probe`) has one either.
+- Committing/pushing — none done, per builder gate (Pierre decides merge/reject/freeze).

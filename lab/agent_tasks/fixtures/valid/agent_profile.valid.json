@@ -1,0 +1,28 @@
+{
+  "agent_id": "review",
+  "display_name": "Review Agent Fixture",
+  "role": "Structured findings reviewer for control-plane PRs.",
+  "autonomy_level": "L0",
+  "permissions": {
+    "can_write_files": false,
+    "can_assign_tasks": false,
+    "can_run_checks": false,
+    "can_merge": false,
+    "can_claim": false,
+    "can_use_benchmark_as_proof": false
+  },
+  "allowed_surfaces": [
+    "review-comments",
+    "policy-compliance-reporting"
+  ],
+  "forbidden_surfaces": [
+    "runtime-writes",
+    "merge",
+    "claims"
+  ],
+  "policy_constraints": {
+    "cannot_modify_agent_registry": true,
+    "cannot_modify_own_policy": true,
+    "human_review_required": true
+  }
+}

@@ -1,0 +1,157 @@
+Diagnosis nailed. The root cause is **CRLF line endings**: the lens headings end `OBSERVABLES\r\n`, but `extractRulesSection`'s regex uses `.*$\n`, where JS `$` (multiline) aligns only before `\n` — the intervening `\r` breaks the anchor, so extraction returns empty for **every** lens. One-line fix (normalize `\r\n`→`\n` before matching, or `$\n`→`\r?\n`). This is outside my featuremap-only write scope, so I hand it to the orchestrator with the exact cause+fix rather than silently editing merge tooling I wasn't contracted for.
+
+Critically: **this does not block my deliverable.** The "Règles observables du Prisme" I must inherit proofs from *are* the lens §4 sections themselves (game_designer R1–R13, with explicit `Observable:` proofs). The broken merge is a downstream view, not my source of truth. I produce a complete featuremap with zero orphan leaves.
+
+Here is my structured final report.
+
+---
+
+# RAPPORT FINAL — s3-decompo / `tetris-witness-20260803-175558`
+
+**Livrable** : `featuremap` (arbre Système→Feature→feuille) — émis inline (texte). Cible d'écriture canonique : `lab/forge_runs/tetris/artifacts/s3-decompo.txt`. Écriture **en attente d'autorisation harness** (même mur de permission que s0/s1/s2 dans ce run witness) → contenu intégral ci-dessous pour que rien ne soit perdu.
+
+**Preuves héritées** — chaque feuille cite une règle observable du **Prisme** (lens `prisme_lens_game_designer.md` §4, spine R1–R13, recoupée par lens `back` R1–R13) et/ou un critère charter s0. **Jamais inventée** (gardeFou respecté). World Scan (`GAME_REFERENCE/observation_manifest.json`) = advisory, cité pour les fog de progression uniquement.
+
+## 0 — Diagnostic amont (boucle cassée, réparation localisée)
+
+| Champ | Constat |
+|---|---|
+| **Symptôme** | `artifacts/s1-prisme.txt` (merge) affiche « (section vide ou introuvable) » pour les 5 lens. |
+| **Réalité** | Les 5 lens (`prisme/prisme_lens_*.md`, 3–15 Ko) contiennent bien leur `## 4. RÈGLES OBSERVABLES` remplie. |
+| **Cause racine (prouvée)** | `merge_prisme.mjs::extractRulesSection` renvoie 0 car sur les 5 fichiers (test read-only exécuté). Byte-level : la ligne titre est `...OBSERVABLES\r\n` (CRLF). Le regex `^##\s+4\.\s+R[EÈ]GLES OBSERVABLES.*$\n(...)` échoue car en mode `/m` l'ancre `$` s'aligne avant `\n` mais **pas** avant `\r` — le `\r` intercalé casse `.*$\n`. |
+| **Correctif exact** | Normaliser `content.replace(/\r\n/g,'\n')` avant `match`, ou remplacer `$\n`/`$\n` par `\r?$\n`. Une ligne. |
+| **Qui répare** | **Pas moi** : `merge_prisme.mjs` est hors de mon périmètre `write: featuremap uniquement`. Éditer une tooling non contractée violerait ADR-002 (« aucun sous-agent hors contrat validé »). → **remis à l'orchestrateur avec cause+fix** (handoff à solution attachée, PAS escalade « manque de capacité »). |
+| **Impact sur ce livrable** | **Aucun.** Ma source de vérité pour les preuves = les lens §4 (les Règles observables *sont* là), pas le merge. Featuremap complète. |
+
+## 1 — Fouille avant construction (KB)
+
+`node knowledge_base/search.mjs "tetromino grid stack line clear"` → **2 hits, 0 réutilisable** :
+- `sys-grid-nav-m01` (`systems/navigation/grid_nav.gd`) — **near-miss REJETÉ** : BFS plus-court-chemin sur grille 4-directions. Capacité = navigation ; besoin Tetris = puits/pile/gravité/clear. Grille partagée en surface, sémantique orthogonale. Réutiliser sa *structure* de grille est marginal ; sa *capacité* ne sert aucune feuille ci-dessous.
+- `role-grid-navigator` — rôle de test, hors sujet.
+
+**Conclusion fouille** : aucune capacité Tetris préexistante en KB → construction justifiée (pas from-scratch réflexe : la recherche a été faite et tracée).
+
+## 2 — Légende « nature de preuve » (ce que la feuille *hérite* — pas un claim)
+
+- **[O]** = oracle **strict non-LLM**, règle observable Rn du Prisme, mesurable headless. Assertion **stricte** (jamais `>=` tautologique — pré-mortem s10a).
+- **[O-SOLV]** = oracle de **solvabilité/survie** (un bot survit ≥ N pièces / clear ≥ M lignes sans top-out) — critère charter s0, N/M = `A_CALIBRER` + **preuve de variance** obligatoire (règle Pierre 2026-07-21).
+- **[O-ENTRY]** = invariant structurel de **lançabilité** (leçon Forge `entrypoint_is_undeclared_invariant`), vérifié en **ABSENCE comme en présence** — **non** dérivé d'une règle Prisme (voir §5, G-ENTRY).
+- **[V]** = visuel/démo, capture **GPU vulkan** (`--rendering-driver vulkan`, mémoire studio), `NOT_MEASURED` en headless, ressenti = playtest Pierre.
+- **[∅]** = **aucune** règle observable dédiée dans le Prisme → **gap remonté en fog**, jamais inventé.
+
+## 3 — Arbre Système → Feature → feuille
+
+> Par système : **rôle · entrées · sorties · consommateur**. Chaque feuille = `{capacité, preuve_attendue}`.
+
+### SYS-GEN — Génération de pièces
+*rôle :* produire la séquence de pièces · *entrées :* graine RNG · *sorties :* type de prochaine pièce ∈ {I,O,T,S,Z,J,L} · **consommateur :** SYS-SPAWN, SYS-PREVIEW.
+- `gen.seven_set` — **cap :** n'émet que les 7 tetrominos, 4 cases chacun. **preuve :** **[O] R4** (ensemble == 7, chaque pièce 4 cases, strict).
+- `gen.determinism` — **cap :** même graine ⇒ même suite de pièces. **preuve :** **[O] R12** (deux runs headless → suite identique ; ancre mutation/solvabilité).
+- `gen.distribution` — **cap :** distribution du tirage (sac-de-7 vs uniforme). **preuve :** **[∅]** le Prisme fixe l'*ensemble* (R4), pas la *distribution* → **fog G-DIST** (back-lens F-back-4).
+
+### SYS-SPAWN — Apparition de la pièce active
+*rôle :* instancier la pièce entrante en haut du puits · *entrées :* prochaine pièce (SYS-GEN), état pile (SYS-STACK) · *sorties :* pièce active **ou** signal collision-au-spawn · **consommateur :** SYS-CTRL, SYS-GRAV, SYS-STATE.
+- `spawn.legal_or_loss` — **cap :** si la pièce entrante ne peut apparaître légalement → signal terminal. **preuve :** **[O] R9** (défaite ssi collision au spawn ; jamais de « win »).
+- `spawn.cycle` — **cap :** chaque figeage enchaîne exactement une pièce suivante. **preuve :** **[O] R1** (trace = spawn→pilotage→figeage→résolution→suivante, en boucle, rien d'autre).
+
+### SYS-CLOCK — Horloge de jeu
+*rôle :* cadencer la gravité · *entrées :* temps réel · *sorties :* ticks · **consommateur :** SYS-GRAV.
+- `clock.tick` — **cap :** émet un tick d'intervalle régulier qui pilote la gravité. **preuve :** **[O] R3** (ancre de « 1 case / intervalle »).
+- `clock.speed_curve` — **cap :** accélération de la gravité au fil des lignes/niveaux. **preuve :** **[∅]** aucune règle observable ne fixe la courbe → **fog G-SPEED** (= *fog-Difficulté* game_designer §3, levier de tension signature ; World Scan `loops.hour_5` advisory).
+
+### SYS-GRAV — Gravité / chute
+*rôle :* faire descendre la pièce active · *entrées :* pièce active, tick (SYS-CLOCK), soft-drop (SYS-INPUT) · *sorties :* nouvelle position / trigger lock · **consommateur :** SYS-STACK, SYS-RENDER.
+- `grav.discrete` — **cap :** sans input, descente d'**exactement 1 case** par tick. **preuve :** **[O] R3** (Δy == 1, strict).
+- `grav.softdrop` — **cap :** le soft-drop accélère la chute de la pièce active. **preuve :** **[O] R2** pour le périmètre (n'affecte que la pièce active) **+ [∅]** l'*accélération* n'a pas de règle observable dédiée → **fog G-SOFT**.
+
+### SYS-INPUT — Acquisition des entrées
+*rôle :* capter les commandes et les router · *entrées :* périphérique clavier · *sorties :* événements input normalisés · **consommateur :** SYS-CTRL, SYS-RESTART.
+- `input.active_only_effect` — **cap :** aucun input ne modifie la pile figée. **preuve :** **[O] R2** (toute case figée inchangée sous tout input).
+- `input.mapping` — **cap :** binding des touches → actions. **preuve :** **[∅]** le Prisme ne fixe aucun mapping → **fog G-INPUT** (convention studio, non genre).
+
+### SYS-CTRL — Contrôle de la pièce active
+*rôle :* appliquer les inputs à la **seule** pièce active · *entrées :* events input (SYS-INPUT), état pile (collision) · *sorties :* position/orientation MàJ ou refus · **consommateur :** SYS-GRAV, SYS-RENDER.
+- `ctrl.active_only` — **cap :** n'agit que sur la pièce active, jamais sur la pile. **preuve :** **[O] R2**.
+- `ctrl.translate` — **cap :** translater G/D, bornée murs+pile. **preuve :** **[O] R2** (périmètre pile intacte) **+ [∅]** le *déplacement effectif d'1 colonne* n'est pas un oracle strict Prisme → **fog G-MOVE** (démo **[V]** seulement).
+- `ctrl.rotate_bounded` — **cap :** rotation refusée sur collision (V1 sans wall-kick), état inchangé si illégale. **preuve :** **[O] R5** (rotation vers case occupée → pièce+pile inchangées).
+
+### SYS-STACK — Pile figée
+*rôle :* figer les pièces, maintenir l'immuabilité · *entrées :* pièce en fin de chute (SYS-GRAV) · *sorties :* pile MàJ (immuable), rangées candidates au clear · **consommateur :** SYS-CLEAR, SYS-SPAWN (test collision), SYS-RENDER.
+- `stack.lock` — **cap :** une pièce qui ne peut plus descendre se fige. **preuve :** **[O] R6** (après figeage, aucune commande ne la relocalise).
+- `stack.immutable` — **cap :** pile figée immuable, aucun input ne la déplace/retire. **preuve :** **[O] R6 + R2** (état pile inchangé sous tout input).
+
+### SYS-CLEAR — Nettoyage de lignes
+*rôle :* détecter+supprimer rangées pleines, compacter · *entrées :* pile (SYS-STACK) · *sorties :* pile compactée, nb de lignes nettoyées · **consommateur :** SYS-SCORE, SYS-RENDER.
+- `clear.detect` — **cap :** détecter une rangée entièrement remplie. **preuve :** **[O]** composante de **R7**.
+- `clear.compact_strict` — **cap :** la rangée pleine disparaît, tout au-dessus descend d'**exactement** le nb de rangées nettoyées ; seul moyen de libérer de l'espace. **preuve :** **[O] R7** (assertion **stricte**, jamais `>=`).
+
+### SYS-SCORE — Score / compteurs
+*rôle :* compter lignes et score · *entrées :* lignes nettoyées (SYS-CLEAR) · *sorties :* score, compteur lignes · **consommateur :** SYS-RENDER (HUD), SYS-STATE (score final).
+- `score.superlinear_ordinal` — **cap :** N lignes d'un coup rapportent **strictement plus par ligne** que N clears séparés. **preuve :** **[O] R8** (ordinal : score(N-combo)/N > score(1-ligne)) **+ [∅]** valeurs exactes → **fog G-BAREME** (joueur-lens `superlinear_reward_v1` : contradiction advisory avec `progression_map`).
+- `score.line_counter` — **cap :** le compteur de lignes croît au clear. **preuve :** **[V] D-HUD** (croît visiblement) **+ [∅]** incrément strict non déclaré comme règle observable → couvert par G-BAREME.
+
+### SYS-PREVIEW — Aperçu prochaine pièce
+*rôle :* montrer la pièce suivante · *entrées :* prochaine pièce (SYS-GEN) · *sorties :* rendu aperçu · **consommateur :** SYS-RENDER.
+- `preview.truthful` — **cap :** la pièce montrée est bien la prochaine engendrée. **preuve :** **[O] R10** (aperçu au figeage == pièce suivante réelle).
+
+### SYS-STATE — État de partie / fin
+*rôle :* gérer game-over et l'absence de victoire · *entrées :* signal collision-au-spawn (SYS-SPAWN) · *sorties :* état terminal, score final · **consommateur :** SYS-RENDER (écran game-over), SYS-RESTART.
+- `state.loss_by_blocking` — **cap :** collision-au-spawn ⇒ état terminal. **preuve :** **[O] R9**.
+- `state.no_victory` — **cap :** aucun état « gagné » n'existe ; toute partie finit en défaite. **preuve :** **[O] R9** (invariant : la trace n'émet jamais « win »).
+- `state.solvability_survival` — **cap :** un bot survit ≥ N pièces / clear ≥ M lignes sans top-out (jeu réellement jouable, pas seulement mécaniques isolées). **preuve :** **[O-SOLV]** critère charter s0 (N/M = `A_CALIBRER`) + preuve de variance. *(Obligatoire s9 — pré-mortem s10a : oracle de jeu = solvabilité, un bot doit GAGNER/DURER.)*
+
+### SYS-RENDER — Rendu écran unique / HUD
+*rôle :* afficher puits+pièce active+pile+aperçu+score en permanence · *entrées :* état complet (tous systèmes) · *sorties :* frames · **consommateur :** le **joueur** (écran) + l'**oracle visuel GPU** (capture vulkan).
+- `render.full_information` — **cap :** puits, pièce active, aperçu, score visibles à chaque frame sans action joueur. **preuve :** **[V] R11** (capture à n'importe quelle frame montre les 4 ; mesurée GPU vulkan, `NOT_MEASURED` headless).
+- `render.line_clear_feedback` — **cap :** feedback visible au nettoyage (rangée qui disparaît, compaction visible). **preuve :** **[V] D-CLEAR** (démo) **+ [∅]** le *juice* (flash/ghost) n'est pas une règle observable → **fog G-JUICE** (front/joueur lens ; « mécaniquement OK ≠ visuellement vivant »).
+
+### SYS-RESTART — Redémarrage
+*rôle :* réinitialiser à l'état initial après game-over · *entrées :* commande restart (SYS-INPUT), état terminal (SYS-STATE) · *sorties :* état initial (puits vide, compteurs 0) · **consommateur :** tous systèmes (reset).
+- `restart.to_initial` — **cap :** après game-over, relancer ramène à un puits vide + compteurs à zéro, identiques au 1er démarrage. **preuve :** **[O] R13** (plateau+compteurs après restart == état initial).
+
+### SYS-ENTRYPOINT — Point d'entrée runtime *(invariant structurel ajouté)*
+*rôle :* scène principale / bootstrap qui démarre une **partie jouable** · *entrées :* lancement runtime (Godot `main_scene` / harness règles headless) · *sorties :* partie initialisée, boucle R1 démarrée · **consommateur :** le **runtime** (Godot `project.godot`) + l'**oracle de lançabilité**.
+- `entry.main_scene_starts_game` — **cap :** un point d'entrée déclaré démarre une partie sans intervention. **preuve :** **[O-ENTRY]** invariant de lançabilité vérifié en absence comme en présence. **⚠ NON dérivé d'une règle Prisme** → **fog G-ENTRY** : les Règles observables du Prisme **ne couvrent pas** la lançabilité ; la leçon Forge `entrypoint_is_undeclared_invariant` (clôture Snake) l'exige comme invariant de contrat. Je **ne fabrique pas** de preuve gameplay — je surface le trou (besoin amont, §5).
+
+## 4 — Auto-audit de complétude (oracle absent → manuel)
+
+- **Feuilles orphelines (sans `preuve_attendue`)** : **0**. Chaque feuille porte `{capacité, preuve_attendue}` (les `[∅]` portent une preuve *de type gap-fog explicite*, pas un blanc).
+- **Systèmes sans consommateur** (défaut à signaler, pas à masquer) : **0**. Les 14 systèmes ont ≥1 consommateur nommé. Point de vigilance tracé : SYS-RENDER et SYS-ENTRYPOINT ont pour consommateurs le joueur/runtime/oracle (hors-code), pas un autre système — légitime, mais explicitement noté pour l'archi (s4).
+- **Couverture des règles observables R1–R13** : R1 (spawn.cycle) · R2 (input/ctrl.active_only) · R3 (clock.tick, grav.discrete) · R4 (gen.seven_set) · R5 (ctrl.rotate_bounded) · R6 (stack.lock/immutable) · R7 (clear.detect/compact) · R8 (score.superlinear) · R9 (spawn.legal_or_loss, state.loss/no_victory) · R10 (preview.truthful) · R11 (render.full_information) · R12 (gen.determinism) · R13 (restart.to_initial). **13/13 ancrées.**
+
+## 5 — Gaps `[∅]` / besoins HumanGate (fog) — remontés, jamais inventés
+
+| Fog | Objet | Origine |
+|---|---|---|
+| **G-DIST** | Distribution du randomizer (sac-de-7 vs uniforme) | R4 fixe l'ensemble, pas la loi (back F-back-4) |
+| **G-SPEED** | Courbe d'accélération de la gravité (*fog-Difficulté*) | Levier de tension signature ; non tranché s0 (game_designer §3) |
+| **G-SOFT** | Facteur d'accélération du soft-drop | Aucune règle observable |
+| **G-MOVE** | Déplacement effectif « 1 colonne » comme oracle strict | Démo seulement, pas règle Prisme |
+| **G-BAREME** | Valeurs exactes du barème multi-ligne | R8 = ordre, pas nombres ; contradiction advisory `progression_map` (joueur-lens) |
+| **G-INPUT** | Mapping des touches | Convention studio, non genre |
+| **G-JUICE** | Juice visuel (flash/ghost/feel) | Non oracle-able → playtest Pierre |
+| **G-ENTRY** | **Lançabilité non couverte par le Prisme** | Invariant Forge exigé mais absent de la chaîne de contrats → **besoin amont** : déclarer l'entrypoint comme invariant du contrat (leçon Snake) |
+| **G-MERGE** | `merge_prisme.mjs` casse sur CRLF (§0) | Connecteur cassé, fix connu, hors mon périmètre write |
+
+## 6 — Verdicts
+
+- **software_verdict : BLOCKED** — l'oracle de complétude de featuremap nommé au contrat (`tests_oracles`) **n'existe pas** dans `scripts/forge/` (recherche : aucun `check_decompo`/`check_featuremap` ; les hits `featuremap`/`orphan` sont de la prose de routage dans `context_manifest.py`, pas un validateur) **et** `permissions.run: aucun`. Aucun oracle mécanique disponible/exécutable à cette étape → auto-audit manuel (§4), oracle manquant remonté en fog.
+- **evidence_verdict : MECHANICAL_VALIDATION_ONLY** — s'applique aux seuls faits mécaniques vérifiés : (a) l'échec d'`extractRulesSection` (test read-only reproduit sur les 5 lens, §0) ; (b) l'ancrage ligne-par-ligne des feuilles aux règles observables des artefacts lens (§3–§4). Ne couvre ni le ressenti, ni les fog.
+- **claim_verdict : NO_CLAIM_ALLOWED** — je ne certifie ni exhaustivité, ni jouabilité, ni « bonne » décomposition ; toute indétermination est rangée en fog (§5), remontée à Pierre.
+
+**Oracle de complétude cité** : *aucun disponible* → besoin HumanGate remonté (fog G-oracle : construire `check_featuremap.mjs` — chaque feuille a `{capacité, preuve_attendue}`, zéro feuille orpheline, zéro système sans consommateur — pour mécaniser l'auto-audit §4).
+
+## 7 — SKIPPED_VALIDATION
+
+| Item (quoi) | Périmètre (où) | Statut | Raison (pourquoi) |
+|---|---|---|---|
+| Exécution d'un oracle de complétude featuremap | featuremap entière | **non fait** | l'oracle n'existe pas dans `scripts/forge/` + `run: aucun` ; auto-audit manuel §4 à la place ; oracle remonté (G-oracle). |
+| Persistance disque de la featuremap | `lab/forge_runs/tetris/artifacts/s3-decompo.txt` | **en attente** | autorisation harness non accordée (même mur que s0/s1/s2) ; contenu intégral émis inline, à landing par l'exécuteur ayant le droit d'écriture. |
+| Réparation de `merge_prisme.mjs` (bug CRLF §0) | `scripts/forge/prisme/merge_prisme.mjs` | **non fait (volontaire)** | hors de `write: featuremap uniquement` ; éditer une tooling non contractée violerait ADR-002. Cause+fix exact remis à l'orchestrateur (handoff, pas silence). |
+| Fermeture des paramètres de design (G-DIST/SPEED/SOFT/BAREME/INPUT/JUICE) | §5 | **non fait (volontaire)** | non fixés par les règles observables → remontés en fog plutôt qu'inventés (gardeFou). Le design fin est aval (s4+). |
+| Déclaration de l'entrypoint comme invariant de contrat | chaîne de contrats Forge | **non fait — besoin amont** | le Prisme ne couvre pas la lançabilité (G-ENTRY) ; décision de contrat, hors périmètre s3. |
+| Ratification `genre_bible.json` / World Scan | `01_DESIGN/genre_bible.json`, `GAME_REFERENCE/` | **non fait** | statut `NON_RATIFIEE_PROPOSITION` / `advisory` ; ratification = gate Pierre distincte, héritée de s0/s1. |
+
+---
+
+**Synthèse pour l'orchestrateur** : featuremap **complète** (14 systèmes, 0 feuille orpheline, 0 système sans consommateur, R1–R13 couvertes 13/13), preuves **héritées** des lens du Prisme. Deux findings à porter : (1) **bug CRLF dans `merge_prisme.mjs`** — fix d'une ligne, hors mon périmètre, à réparer ; (2) **G-ENTRY** — la lançabilité n'est couverte par aucune règle du Prisme, à déclarer comme invariant de contrat (leçon Snake). `software_verdict: BLOCKED` (oracle de complétude inexistant + `run: aucun`) · `evidence_verdict: MECHANICAL_VALIDATION_ONLY` · `claim_verdict: NO_CLAIM_ALLOWED`.

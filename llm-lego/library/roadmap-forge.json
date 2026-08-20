@@ -1,0 +1,59 @@
+{
+  "id": "roadmap-forge",
+  "kind": "roadmap",
+  "name": "Forge — Roadmap (jalons v0 — briques implémentées + skill + 1er run)",
+  "maturity": "wired",
+  "badge": "target",
+  "sourceRef": "MàJ 2026-07-10 depuis le code réel (scripts/forge/ : contract·dispatch·static_oracles·gate·oracle·verdict·studio_link·hook_guard, 80 tests verts ; contrats 17 champs + roles.yaml ; ADR-002 docs/adr/ADR-002-forge-studio-integration.md ; skill .claude/skills/forge/skill.md ; 1er run réel chesscolor via oracles.json). Statuts = état constaté au 2026-07-10, pas simple intention.",
+  "roadmapRef": null,
+  "wiredStatus": "wired",
+  "payload": {
+    "category": "meta",
+    "milestones": [
+      {
+        "id": "ms-1-forcer",
+        "title": "Jalon 1 — FORCER (porte de dispatch qui impose le contrat)",
+        "description": "DONE (2026-07-10). Porte unique scripts/forge/dispatch.py (prepare_dispatch) : aucun sous-agent sans contrat complet — un champ Critique vide/absent => CONTRACT_INCOMPLETE, aucun agent ne démarre. Contrat 17 champs par étape (scripts/forge/contracts/<id>.yaml, schéma SCHEMA.md) ; capability_role résolu par roles.yaml (jamais de modèle en dur, ADR-002 gate 1). Durcissement : hook dur PreToolUse (hook_guard.py). Audit append-only lab/forge_evidence/dispatch_audit.jsonl. Couvert par test_dispatch / test_contract / test_contract_chain / test_hook_guard.",
+        "status": "done",
+        "goalRef": "goal-forge"
+      },
+      {
+        "id": "ms-2-prouver",
+        "title": "Jalon 2 — PROUVER (oracle déterministe + verdict HMAC)",
+        "description": "DONE (2026-07-10). Oracle non-LLM par-projet (scripts/forge/oracle.py + oracles.json : forge/leviathan/chesscolor) à trois niveaux — (a) CODE (tests passent), (b) ARCHI (deps interdites absentes · chaque module a des tests), (c) WIREMAP (isomorphe & cohérente) via static_oracles.py. Verdict signé HMAC-SHA256 (verdict.py) séparant software/evidence/claim (NO_CLAIM_ALLOWED). gate.py bloque sur oracle rouge/unrunnable. Couvert par test_oracle_run / test_oracle_resolve / test_static_oracles / test_verdict / test_gate.",
+        "status": "done",
+        "goalRef": "goal-forge"
+      },
+      {
+        "id": "ms-3-wiremap-oracle",
+        "title": "Jalon 3 — Oracle WireMap (3e oracle déterministe)",
+        "description": "DONE (2026-07-10). scripts/forge/static_oracles.py : sections ≡ modules ≡ src/ ; feature présente · fichiers existent · fonctions repères existent (détecte renommages) · preuve existe · statut cohérent. Signale feature manquante · fonction renommée · WireMap obsolète · preuve absente. Étape 10c de la chaîne. Couvert par test_static_oracles.",
+        "status": "done",
+        "goalRef": "goal-forge"
+      },
+      {
+        "id": "ms-4-pilou",
+        "title": "Jalon 4 — PILOU / mémoire projet (SE SOUVENIR)",
+        "description": "IN_PROGRESS (2026-07-10). Le connecteur « mémoire projet » (ADR-002) est livré en propose-only et le pré-mortem reboucle vers le Red-team du PLAN (étape 6). La forme v0 « 3 JSON » (facts/decisions/postmortems, confiance 0-100 + source) n'est pas confirmée complète dans le code — fog : à re-vérifier avant de la déclarer DONE.",
+        "status": "in_progress",
+        "goalRef": "goal-forge"
+      },
+      {
+        "id": "ms-5-graphe-confiance",
+        "title": "Jalon 5 — MONTRER (graphe de confiance rouge/orange/vert)",
+        "description": "TODO. Le graphe de confiance affiché (requirement→design→code→test→evidence→claim, refuse la transition vers le Verdict si Test rouge) n'est pas livré. Incrément 1 = sortie texte/markdown ; incrément 2 = affichage builder llm-lego. Non couvert par les 80 tests forge actuels.",
+        "status": "todo",
+        "goalRef": "goal-forge"
+      },
+      {
+        "id": "ms-6-skill-forge",
+        "title": "Jalon 6 — Skill /forge (orchestrateur MINCE) + run de preuve",
+        "description": "DONE (2026-07-10). Skill .claude/skills/forge/skill.md invocable : déroule les 13 étapes-agents (dispatch.py ORDER), chacune bornée par son contrat, oracles non-LLM aux points de preuve, verdict signé → HumanGate. Connecteurs studio ADR-002 (télémétrie · Kaizen-propose · mémoire projet · pré-mortem) propose-only + hook dur PreToolUse. 1er run réel PROUVÉ : chesscolor (lab/forge_runs/chesscolor/check_chesscolor.py, entrée oracles.json). Note : cible initiale roadmap = Leviathan ; 1er run effectif = chesscolor.",
+        "status": "done",
+        "goalRef": "goal-forge"
+      }
+    ]
+  },
+  "created": "2026-07-09T00:00:00Z",
+  "updated": "2026-07-10T00:00:00Z"
+}

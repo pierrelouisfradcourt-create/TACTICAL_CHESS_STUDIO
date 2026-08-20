@@ -1,0 +1,57 @@
+=== CHAIN HYGIENE - 2026-06-01 22:44:05 ===
+    Studio : C:\TACTICAL_CHESS_STUDIO
+
+[CHECK 1/9] Fichiers temporaires tmp_share_*.html dans lab/
+  STATUS : BASSE
+  FINDING: 4 fichiers tmp_share_*.html dans lab/ - 6554 KB non purges
+    tmp_share_69e97198.html  (1987 KB)
+    tmp_share_69eb2cbf.html  (999 KB)
+    tmp_share_69ee0685.html  (1955 KB)
+    tmp_share_69ee0695.html  (1613 KB)
+
+[CHECK 2/9] Log de debug a la racine (rocky_debug.log)
+  STATUS : BASSE
+  FINDING: rocky_debug.log a la racine - 181 KB (devrait etre archive dans lab/ ou supprime)
+
+[CHECK 3/9] Fichier scan brut a la racine (ENGINE_SEARCH_NEURAL_SCAN.txt)
+  STATUS : BASSE
+  FINDING: ENGINE_SEARCH_NEURAL_SCAN.txt a la racine - 266 KB (fichier brut non archive)
+
+[CHECK 4/9] Dossiers sentinelles vides (datasets/, runs/, tmp/)
+  STATUS : INFO
+  DETAIL : Sentinelles vides comme attendu : datasets, runs, tmp
+
+[CHECK 5/9] Artefacts build dans repos/games/studioV2_MIGRATED_HOLD/target/
+  STATUS : MOY
+  FINDING: studioV2_MIGRATED_HOLD/target/ non nettoye : 3537 fichiers, 937 MB
+
+[CHECK 6/9] Repertoire hors-studio (document_work/)
+  STATUS : BASSE
+  FINDING: document_work/ present (17 fichiers, 362 KB) - contenu hors-studio (Skynet)
+
+[CHECK 7/9] Taille lab/runs/ (seuil alerte : > 5000 MB)
+  MESURE : 3425 MB | 111 fichiers
+  STATUS : BASSE
+  FINDING: lab/runs/ volumieux : 3425 MB (111 fichiers) - surveiller
+
+[CHECK 8/9] Taille lab/puzzles/ (seuil alerte : > 2000 MB)
+  MESURE : 1046 MB | 4 fichiers
+  STATUS : OK
+  DETAIL : lab/puzzles/ : 1046 MB (4 fichiers)
+
+[CHECK 9/9] Stubs declares vides (AI_MEMORY/, .studio_state/)
+  STATUS : INFO
+  DETAIL : AI_MEMORY/ et .studio_state/ contiennent uniquement leurs fichiers structurels
+
+=== RESUME ===
+Checks  : 9 total | 3 OK | 6 findings
+Findings :
+  [BASSE] 4 fichiers tmp_share_*.html dans lab/ - 6554 KB non purges
+  [BASSE] rocky_debug.log a la racine - 181 KB (devrait etre archive dans lab/ ou supprime)
+  [BASSE] ENGINE_SEARCH_NEURAL_SCAN.txt a la racine - 266 KB (fichier brut non archive)
+  [MOY] studioV2_MIGRATED_HOLD/target/ non nettoye : 3537 fichiers, 937 MB
+  [BASSE] document_work/ present (17 fichiers, 362 KB) - contenu hors-studio (Skynet)
+  [BASSE] lab/runs/ volumieux : 3425 MB (111 fichiers) - surveiller
+
+VERDICT : FAIL
+claim_verdict: NO_CLAIM_ALLOWED

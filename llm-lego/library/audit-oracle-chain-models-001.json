@@ -1,0 +1,31 @@
+{
+  "id": "audit-oracle-chain-models-001",
+  "kind": "oracle",
+  "name": "Oracle audit: modèles (chain_models.ps1)",
+  "maturity": "saved",
+  "badge": "real",
+  "roadmapRef": null,
+  "sourceRef": "00_STUDIO_CONTROL/05_AUDIT/chains/chain_models.ps1",
+  "payload": {
+    "prompt": "N/A — vérification mécanique PowerShell (aucun appel LLM). Exécute chain_models.ps1 et lit son VERDICT.",
+    "verdictField": "verdict",
+    "expectedValues": [
+      "PASS",
+      "PARTIAL",
+      "FAIL"
+    ],
+    "rule": "Audit modèles — 5 checks mécaniques (chain_models.ps1). Périmètre : checkpoints chess .pt, LLMs GGUF, latest_run.json, teacher engine.\n1/5 models/best.pt présent + taille (HAUTE si absent, BASSE si <1 MB)\n2/5 models/latest.pt présent + cohérence taille vs best.pt (HAUTE si absent)\n3/5 models/latest_run.json présent + JSON valide (MOY si absent/malformé)\n4/5 LLMs *.gguf sous models/ (BASSE si aucun)\n5/5 Stockfish tools/vendor_tools/stockfish/*.exe (HAUTE si absent)\nVerdict : PASS si 0 finding ; FAIL si au moins un CRIT/HAUTE/MOY/INCONNU ; sinon PARTIAL. claim_verdict: NO_CLAIM_ALLOWED.",
+    "category": "mécanique",
+    "attachableTo": [
+      "llm",
+      "agent",
+      "tool",
+      "router"
+    ],
+    "model": "",
+    "temperature": null,
+    "scriptRef": "chain_models.ps1"
+  },
+  "created": "2026-07-03T00:00:00.000Z",
+  "updated": "2026-07-03T00:00:00.000Z"
+}

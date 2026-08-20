@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://tactical-chess-studio/schemas/council_output.schema.json",
+  "title": "Council output (IMP-198) — CONSENSUS structuré",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task_id", "generated_at", "claim_posture", "requires_humangate",
+               "collapsed", "distinct_models", "opinions", "disagreements", "divergences"],
+  "properties": {
+    "task_id": {"type": "string", "minLength": 1},
+    "generated_at": {"type": "string", "minLength": 1},
+    "claim_posture": {"const": "NO_CLAIM_ALLOWED"},
+    "requires_humangate": {"type": "boolean"},
+    "collapsed": {"type": "boolean"},
+    "distinct_models": {"type": "integer", "minimum": 0},
+    "opinions": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["model", "role", "stance", "available", "fallback_used", "timed_out", "parsed", "rationale"],
+        "properties": {
+          "model": {"enum": ["claude", "qwen2.5-14b", "gemini-flash"]},
+          "role": {"enum": ["PLAN_REVIEW", "RED_TEAM", "DIVERGENCE"]},
+          "stance": {"enum": ["APPROUVE", "BLOQUE", "ESCALADE", "DIVERGENCE"]},
+          "available": {"type": "boolean"},
+          "fallback_used": {"type": "boolean"},
+          "timed_out": {"type": "boolean"},
+          "parsed": {"type": "boolean"},
+          "rationale": {"type": "string"}
+        }
+      }
+    },
+    "disagreements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["topic", "side_a", "side_b", "arbitrating_file", "route"],
+        "properties": {
+          "topic": {"type": "string"},
+          "side_a": {"type": "object", "required": ["role", "model", "claim"]},
+          "side_b": {"type": "object", "required": ["role", "model", "claim"]},
+          "arbitrating_file": {"type": ["string", "null"]},
+          "route": {"const": "HUMANGATE"}
+        }
+      }
+    },
+    "divergences": {"type": "array", "items": {"type": "string"}}
+  }
+}

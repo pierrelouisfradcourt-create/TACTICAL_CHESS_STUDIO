@@ -1,0 +1,98 @@
+{
+  "id": "chain-merge-join",
+  "kind": "chain",
+  "name": "Merge Engine (avec join)",
+  "maturity": "saved",
+  "badge": "demo",
+  "roadmapRef": null,
+  "sourceRef": "Variante de chain-mr57tuy5 — convergence explicite via nœud join (src/ moteur)",
+  "payload": {
+    "nodes": [
+      {
+        "id": "devA",
+        "type": "llm",
+        "x": 60,
+        "y": 60,
+        "data": {
+          "prompt": "Développeur A : implémente la moitié GAUCHE de la feature X.",
+          "outputKey": "outA"
+        }
+      },
+      {
+        "id": "devB",
+        "type": "llm",
+        "x": 60,
+        "y": 220,
+        "data": {
+          "prompt": "Développeur B : implémente la moitié DROITE de la feature X.",
+          "outputKey": "outB"
+        }
+      },
+      {
+        "id": "join",
+        "type": "join",
+        "x": 340,
+        "y": 140,
+        "data": {
+          "waitFor": [
+            "devA",
+            "devB"
+          ]
+        }
+      },
+      {
+        "id": "merger",
+        "type": "llm",
+        "x": 600,
+        "y": 140,
+        "data": {
+          "prompt": "Merger : fusionne outA et outB en un diff cohérent, sans conflit.",
+          "outputKey": "out"
+        }
+      },
+      {
+        "id": "artefact",
+        "type": "artefact",
+        "x": 860,
+        "y": 140,
+        "data": {
+          "title": "Feature X fusionnée",
+          "description": "",
+          "artefactType": "logiciel"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-a-b",
+        "from": "devA",
+        "to": "devB"
+      },
+      {
+        "id": "e-b-join",
+        "from": "devB",
+        "to": "join"
+      },
+      {
+        "id": "e-join-merger",
+        "from": "join",
+        "to": "merger"
+      },
+      {
+        "id": "e-merger-art",
+        "from": "merger",
+        "to": "artefact"
+      }
+    ],
+    "initialInput": {
+      "task": "Implémenter la feature X"
+    },
+    "category": "import-merge",
+    "tags": [
+      "join",
+      "merge-engine"
+    ]
+  },
+  "created": "2026-01-01T00:00:00Z",
+  "updated": "2026-01-01T00:00:00Z"
+}

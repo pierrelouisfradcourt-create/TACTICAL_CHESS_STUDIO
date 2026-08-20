@@ -1,0 +1,1130 @@
+# Decomposition fonctionnelle — etape s3-decompo — projet : pacman
+# run_id   : pacman-20260805-r1
+# marqueur : FORGE_DISPATCH:s3-decompo:pacman-20260805-r1
+# date     : 2026-08-05
+# encodage : utf-8
+#
+# ROLE TENU : analyste. Ce document ENUMERE les fonctions attendues. Il ne decide NI le
+# decoupage en fichiers, NI le graphe de dependances, NI les noms de noeuds : c'est
+# l'etape 4 (s4-archi). Aucun nom de fichier, aucun nom de noeud moteur n'y figure, par
+# construction. Aucun code n'est ecrit.
+#
+# PLATEFORME : GODOT 4.6.3 / GDScript. Autorite = lab/forge_runs/pacman/platform_correction.yaml,
+# qui SUPPLANTE le champ `plateforme_cible` de charter.yaml. Aucune fonction ci-dessous ne
+# suppose un navigateur, un canvas HTML, du JavaScript ni un pilote de navigateur comme
+# runtime du jeu.
+#
+# AMONT CONSOMME :
+#   - lab/forge_runs/pacman/platform_correction.yaml (autoritaire, plateforme)
+#   - lab/forge_runs/pacman/prisme.json              (42 exigences R1..R42 — source principale)
+#   - lab/forge_runs/pacman/prisme.yaml              (observable / falsifie_si / arbitrages / hors_tranche)
+#   - lab/forge_runs/pacman/worldscan.yaml           (faits sources : ciblages, horloge 20/7/20/7/20/5, 244)
+#   - lab/forge_runs/pacman/charter.yaml             (tous champs valides SAUF plateforme_cible)
+#
+# REFERENCE DE STRUCTURE OBSERVEE (games/snake, projet Godot de reference du studio) :
+#   05_SYSTEMS/<systeme>/       = logique PURE  : RefCounted, jamais Node ; aucun acces
+#                                 moteur, aucun noeud, aucune horloge, aucun alea non seede.
+#   06_RUNTIME/adapters/<nom>/  = presentation, entree, boucle, bot de solvabilite.
+#   07_TESTS/oracle/            = preuves.
+#   La separation logique pure / adaptateur runtime est l'invariant structurant : elle est
+#   respectee ici par le champ `nature`, PAS par un rangement en fichiers (etape 4).
+#
+# --- Legende des champs -----------------------------------------------------------------
+# nom               : verbe + objet. Ce que la fonction FAIT, pas ou elle vit.
+# nature            : logique_pure | adaptateur_runtime | preuve
+# entrees / sorties : grandeurs, pas signatures. Aucun type moteur.
+# deterministe      : true = meme entree -> meme sortie, sans horloge ni alea non seede.
+#                     false = declare POURQUOI, et comment la non-determination est bornee.
+# couvre_exigences  : ids EXACTS de prisme.json. Aucune fonction sans au moins un id.
+
+version: 1
+game_id: pacman
+etape: s3-decompo
+plateforme_en_vigueur: "Godot 4.6.3 / GDScript (platform_correction.yaml)"
+
+fonctions:
+
+  # ========================================================================================
+  # BLOC 1 — ETAT DE PARTIE, STATUT, PROJECTION OBSERVABLE
+  # ========================================================================================
+
+  - id: F1
+    nom: "construire l'etat initial de partie a partir d'une graine"
+    description: >-
+      Fabrique l'etat de depart complet et reproductible : score a 0, trois vies, les 244
+      collectibles poses, Pac-Man et les quatre fantomes a leurs positions de depart, un seul
+      fantome hors de la maison (le rouge), horloge des etats de poursuite a son premier
+      segment, rang de capture de fantome remis a la premiere valeur, etat du generateur
+      pseudo-aleatoire initialise depuis la graine. C'est la SEULE origine d'un etat de partie :
+      rien d'autre ne fabrique un etat, ce qui rend la fuite d'etat entre deux parties
+      structurellement impossible plutot que verifiee a la main.
+    nature: logique_pure
+    entrees: [graine, description_de_la_carte]
+    sorties: [etat_de_partie_complet]
+    deterministe: true
+    couvre_exigences: [R37, R23, R25, R31, R14]
+
+  - id: F2
+    nom: "projeter l'etat de partie en etat observable"
+    description: >-
+      Traduit l'etat DEJA tenu en un releve plat, sans rien calculer de neuf et sans creer de
+      structure parallele : score, vies, collectibles consommes, collectibles restants, statut
+      de partie, position et direction de Pac-Man, position / etat / case-cible de chacun des
+      quatre fantomes, segment courant de l'horloge des etats, ticks ecoules, rang de capture.
+      C'est le point d'observation UNIQUE que lisent le HUD et le harnais de preuve. Sans lui,
+      aucune exigence formulee « etat expose » n'est verifiable : c'est la fonction qui rend
+      les autres falsifiables.
+    nature: logique_pure
+    entrees: [etat_de_partie]
+    sorties: [releve_observable]
+    deterministe: true
+    couvre_exigences: [R5, R7, R20, R24, R31, R33, R34]
+
+  - id: F3
+    nom: "avancer le generateur pseudo-aleatoire seede"
+    description: >-
+      Unique consommateur d'aleatoire du jeu. L'etat du generateur est PORTE PAR L'ETAT DE
+      PARTIE (il est donc clone, rejoue et compare comme n'importe quel autre champ). Aucun
+      appel a une source d'aleatoire de plateforme, aucune horloge : la suite de tirages est
+      une fonction de la graine et du nombre de tirages deja consommes.
+    nature: logique_pure
+    entrees: [etat_du_generateur, borne_du_tirage]
+    sorties: [valeur_tiree, nouvel_etat_du_generateur]
+    deterministe: true
+    couvre_exigences: [R38, R28]
+
+  - id: F4
+    nom: "determiner le statut de partie"
+    description: >-
+      Calcule le statut courant a partir du seul etat, et garantit qu'il vaut EXACTEMENT une
+      valeur parmi EN_COURS, GAGNE, PERDU — jamais deux, jamais aucune, y compris apres la
+      derniere iteration de la boucle. Le statut est une valeur d'un vocabulaire ferme, pas
+      une combinaison de drapeaux : c'est ce qui rend l'exclusivite structurelle.
+    nature: logique_pure
+    entrees: [etat_de_partie]
+    sorties: [statut]
+    deterministe: true
+    couvre_exigences: [R34, R31, R33]
+
+  # ========================================================================================
+  # BLOC 2 — GRILLE, MURS, TUNNEL, POSE DES COLLECTIBLES
+  # ========================================================================================
+
+  - id: F5
+    nom: "decrire la grille du labyrinthe"
+    description: >-
+      Expose les dimensions exactes (28 colonnes x 36 lignes) et le type de chaque case :
+      mur, couloir, case de maison centrale, case de tunnel. Source unique de la topologie :
+      toute autre fonction qui a besoin de savoir « qu'y a-t-il sur cette case » passe par
+      elle, aucune ne redecrit la carte de son cote.
+    nature: logique_pure
+    entrees: [description_de_la_carte]
+    sorties: [dimensions, type_de_chaque_case]
+    deterministe: true
+    couvre_exigences: [R6, R7]
+
+  - id: F6
+    nom: "tester si une case est praticable"
+    description: >-
+      Repond par oui ou non pour une case donnee : est-ce un couloir ou est-ce un mur ?
+      Predicat elementaire dont dependent le deplacement du joueur, la butee en cul-de-sac,
+      le rejet d'une direction barree et le choix de sortie des fantomes. Une case hors de la
+      grille n'est PAS praticable, sauf si elle releve du bouclage de tunnel (F8).
+    nature: logique_pure
+    entrees: [case, grille]
+    sorties: [praticable_oui_non]
+    deterministe: true
+    couvre_exigences: [R7, R8, R12]
+
+  - id: F7
+    nom: "enumerer les cases voisines praticables d'une case"
+    description: >-
+      Depuis une case, renvoie les cases atteignables en un pas, dans un ordre FIXE et declare
+      (haut, gauche, bas, droite), bouclage de tunnel applique. Un ordre fixe est ce qui rend
+      reproductibles a la fois le choix de sortie d'un fantome et le parcours du bot de
+      solvabilite : un ordre d'iteration non declare est une source de non-determinisme aussi
+      reelle qu'un tirage aleatoire.
+    nature: logique_pure
+    entrees: [case, grille]
+    sorties: [liste_ordonnee_de_cases_voisines_praticables]
+    deterministe: true
+    couvre_exigences: [R7, R8, R9, R10, R20]
+
+  - id: F8
+    nom: "appliquer le bouclage de tunnel a une position"
+    description: >-
+      Normalise une position qui sort du labyrinthe par un couloir de tunnel : la colonne
+      passe d'une extremite a l'autre, la LIGNE est inchangee, aucun tick de pause n'est
+      introduit, aucun compteur n'est touche. La fonction est appliquee identiquement a
+      Pac-Man et aux fantomes — c'est ce qui interdit que le tunnel devienne un refuge
+      inaccessible aux poursuivants.
+    nature: logique_pure
+    entrees: [position, grille]
+    sorties: [position_normalisee]
+    deterministe: true
+    couvre_exigences: [R9, R10]
+
+  - id: F9
+    nom: "poser les collectibles sur la carte"
+    description: >-
+      Place exactement 240 pastilles ordinaires et 4 super-pastilles : une par case de
+      couloir, aucune sur un mur ni dans la maison centrale, les quatre super-pastilles a
+      raison d'une par region d'angle et chacune plus proche de son coin que de la maison
+      centrale. Le total pose est le nombre qui DEFINIT la victoire : il est produit ici, pas
+      recopie ailleurs.
+    nature: logique_pure
+    entrees: [grille]
+    sorties: [carte_des_collectibles, total_pose]
+    deterministe: true
+    couvre_exigences: [R14, R16, R33]
+
+  - id: F10
+    nom: "verifier les invariants de carte"
+    description: >-
+      Controle mecaniquement, sur une carte donnee, que : le total pose vaut exactement 244
+      reparti en 240 + 4 ; CHAQUE collectible est atteignable depuis la case de depart de
+      Pac-Man ; il existe au moins deux boucles internes (un circuit ferme sans demi-tour) ;
+      il existe une maison centrale ; il existe deux cases de tunnel sur une meme ligne ; il
+      y a une et une seule super-pastille par quadrant d'angle. C'est cette fonction qui rend
+      la carte volontairement cassee DETECTABLE au lieu de simplement injouable.
+    nature: logique_pure
+    entrees: [grille, carte_des_collectibles, case_de_depart]
+    sorties: [liste_des_invariants_violes]
+    deterministe: true
+    couvre_exigences: [R6, R14, R16, R40]
+
+  # ========================================================================================
+  # BLOC 3 — DEPLACEMENT DU JOUEUR ET FILE DE DIRECTION
+  # ========================================================================================
+
+  - id: F11
+    nom: "enregistrer la direction demandee par le joueur"
+    description: >-
+      Range la derniere direction demandee dans une file de profondeur declaree (une seule
+      demande en attente, ecrasee par la suivante). La demande est CONSERVEE meme quand elle
+      est momentanement impraticable : c'est exactement ce qui permet au joueur d'anticiper
+      un virage avant l'intersection sans reappuyer.
+    nature: logique_pure
+    entrees: [etat_de_partie, direction_demandee]
+    sorties: [etat_de_partie_avec_demande_en_attente]
+    deterministe: true
+    couvre_exigences: [R11, R13]
+
+  - id: F12
+    nom: "resoudre la direction effectuee du tick"
+    description: >-
+      Decide la direction reellement appliquee ce tick : si la case visee par la demande en
+      attente est praticable, la demande devient la direction effectuee ; sinon la direction
+      effectuee reste la direction courante, sans effet de bord — ni immobilisation, ni
+      troisieme direction, ni teleportation. La demande impraticable n'est pas jetee : elle
+      reste en attente et se declenchera au premier tick ou elle devient legale.
+    nature: logique_pure
+    entrees: [etat_de_partie, grille]
+    sorties: [direction_effectuee, demande_en_attente_mise_a_jour]
+    deterministe: true
+    couvre_exigences: [R11, R12, R13]
+
+  - id: F13
+    nom: "avancer Pac-Man d'une case ou le buter contre le mur"
+    description: >-
+      Deplace Pac-Man d'exactement une case adjacente dans la direction effectuee si cette
+      case est praticable ; sinon la position reste sur la derniere case de couloir et n'en
+      bouge plus tant qu'aucune direction praticable n'est demandee. Aucun saut vers une case
+      non adjacente, aucun changement de direction spontane, bouclage de tunnel applique.
+    nature: logique_pure
+    entrees: [etat_de_partie, direction_effectuee, grille]
+    sorties: [nouvelle_position, a_bute_oui_non]
+    deterministe: true
+    couvre_exigences: [R7, R8, R11, R12]
+
+  # ========================================================================================
+  # BLOC 4 — CIBLAGE DES QUATRE FANTOMES (quatre formules DISTINCTES)
+  # ========================================================================================
+
+  - id: F14
+    nom: "mesurer la distance entre deux cases"
+    description: >-
+      Distance de grille declaree (Manhattan), utilisee par les quatre fantomes pour choisir
+      leur sortie, par le seuil de bascule du fantome orange, et par les preuves de
+      rapprochement et d'ecart. Une seule definition partagee : deux definitions concurrentes
+      rendraient le seuil de 8 cases intestable.
+    nature: logique_pure
+    entrees: [case_a, case_b]
+    sorties: [distance]
+    deterministe: true
+    couvre_exigences: [R20, R21, R22, R28]
+
+  - id: F15
+    nom: "calculer la case-cible du fantome rouge en poursuite"
+    description: >-
+      Poursuite directe : la cible est la case actuellement occupee par Pac-Man. Formule la
+      plus simple des quatre ; c'est elle qui rend la distance strictement decroissante quand
+      le joueur est immobilise.
+    nature: logique_pure
+    entrees: [position_de_pac_man]
+    sorties: [case_cible]
+    deterministe: true
+    couvre_exigences: [R20]
+
+  - id: F16
+    nom: "calculer la case-cible du fantome rose en poursuite"
+    description: >-
+      Embuscade : la cible est la case situee quatre cases devant Pac-Man, dans sa direction
+      courante. Depend donc de la DIRECTION du joueur et pas seulement de sa position — c'est
+      la difference observable avec le fantome rouge.
+    nature: logique_pure
+    entrees: [position_de_pac_man, direction_de_pac_man]
+    sorties: [case_cible]
+    deterministe: true
+    couvre_exigences: [R20]
+
+  - id: F17
+    nom: "calculer la case-cible du fantome cyan en poursuite"
+    description: >-
+      Cible obtenue en prenant la case situee deux cases devant Pac-Man, puis en prolongeant
+      d'autant le segment qui va de la position du fantome ROUGE jusqu'a cette case. La cible
+      depend donc de la position d'un AUTRE fantome : c'est la dependance qui interdit de
+      supprimer le rouge sans deformer le cyan.
+    nature: logique_pure
+    entrees: [position_de_pac_man, direction_de_pac_man, position_du_fantome_rouge]
+    sorties: [case_cible]
+    deterministe: true
+    couvre_exigences: [R20]
+
+  - id: F18
+    nom: "calculer la case-cible du fantome orange en poursuite"
+    description: >-
+      Poursuite conditionnelle : la cible est la case de Pac-Man tant que la distance est
+      strictement superieure a 8, et son coin de dispersion des que la distance est inferieure
+      ou egale a 8. La bascule est un seuil EXACT, assertable a 9, a 8 et a 7.
+    nature: logique_pure
+    entrees: [position_du_fantome_orange, position_de_pac_man, coin_de_dispersion_du_fantome_orange]
+    sorties: [case_cible]
+    deterministe: true
+    couvre_exigences: [R20]
+
+  - id: F19
+    nom: "calculer la case-cible de dispersion d'un fantome"
+    description: >-
+      Renvoie le coin de labyrinthe attribue nominativement au fantome pendant l'etat
+      Dispersion : rouge en haut a droite, rose en haut a gauche, cyan en bas a droite,
+      orange en bas a gauche. Quatre coins deux a deux differents : c'est ce qui empeche les
+      quatre trajectoires de converger pendant les fenetres de dispersion.
+    nature: logique_pure
+    entrees: [identite_du_fantome, dimensions_de_la_grille]
+    sorties: [case_cible]
+    deterministe: true
+    couvre_exigences: [R19, R20, R25]
+
+  - id: F20
+    nom: "choisir la sortie d'un fantome a une intersection"
+    description: >-
+      A chaque case ou plusieurs sorties existent, evalue les sorties praticables en EXCLUANT
+      le demi-tour, mesure la distance de chaque sortie a la case-cible, et retient la plus
+      proche ; egalites departagees par un ordre de preference declare (haut, gauche, bas,
+      droite). Fonction partagee par les quatre fantomes : ils ne different QUE par leur
+      case-cible, ce qui rend la variance des trajectoires attribuable a la cible et non a
+      quatre algorithmes de deplacement differents.
+    nature: logique_pure
+    entrees: [position_du_fantome, direction_du_fantome, case_cible, grille]
+    sorties: [direction_choisie]
+    deterministe: true
+    couvre_exigences: [R7, R18, R19, R20, R21]
+
+  - id: F21
+    nom: "tirer la direction d'un fantome en etat Effraye"
+    description: >-
+      Pendant l'etat Effraye, la direction n'est plus choisie par la cible mais tiree parmi
+      les sorties praticables hors demi-tour, au moyen du generateur pseudo-aleatoire SEEDE
+      porte par l'etat de partie (F3). Le comportement est donc pseudo-aleatoire pour le
+      joueur et strictement reproductible pour le replay — c'est la contrainte croisee tranchee
+      par l'arbitrage A2 du prisme.
+    nature: logique_pure
+    entrees: [position_du_fantome, direction_du_fantome, grille, etat_du_generateur]
+    sorties: [direction_choisie, nouvel_etat_du_generateur]
+    deterministe: true
+    couvre_exigences: [R28, R38]
+
+  - id: F22
+    nom: "faire avancer un fantome selon sa cadence"
+    description: >-
+      Decide si un fantome se deplace a ce tick et applique le pas d'une case. La cadence est
+      un parametre declare, strictement plus lente que celle de Pac-Man en poursuite et en
+      dispersion, et encore plus lente en etat Effraye. C'est cette fonction qui garantit
+      qu'un joueur peut creuser l'ecart en ligne droite, condition sans laquelle la preuve de
+      solvabilite serait impossible sur certaines cartes.
+    nature: logique_pure
+    entrees: [etat_du_fantome, cadence_declaree, ticks_ecoules]
+    sorties: [se_deplace_oui_non, nouvelle_position]
+    deterministe: true
+    couvre_exigences: [R18, R22, R28]
+
+  - id: F23
+    nom: "decider la sortie de la maison centrale d'un fantome"
+    description: >-
+      Libere les fantomes de la maison centrale un par un, a des ticks strictement croissants
+      et DECLARES, le rouge en premier (il est deja dehors au tick 0). Les seuils exacts de
+      l'arcade n'etant pas sources, ce sont des delais declares en ticks, assumes comme
+      deduction et non presentes comme un fait d'arcade.
+    nature: logique_pure
+    entrees: [etat_des_fantomes, ticks_ecoules, delais_declares]
+    sorties: [liste_des_fantomes_liberes_ce_tick]
+    deterministe: true
+    couvre_exigences: [R23]
+
+  - id: F24
+    nom: "renvoyer un fantome capture dans la maison centrale"
+    description: >-
+      Replace immediatement, au tick du contact, un fantome capture sur sa case de la maison
+      centrale et le sort de l'etat Effraye. Aucune traversee visible du labyrinthe : le fait
+      retenu est le RETOUR EN MAISON, l'animation de retour est hors tranche.
+    nature: logique_pure
+    entrees: [etat_du_fantome_capture, position_de_maison]
+    sorties: [etat_du_fantome_replace]
+    deterministe: true
+    couvre_exigences: [R29]
+
+  # ========================================================================================
+  # BLOC 5 — MACHINE A ETATS DISPERSION / POURSUITE / EFFRAYE ET SON HORLOGE
+  # ========================================================================================
+
+  - id: F25
+    nom: "faire avancer l'horloge des etats de poursuite"
+    description: >-
+      Fait progresser d'un tick le compteur de la sequence declaree — 20 s de poursuite, 7 s
+      de dispersion, 20 s, 7 s, 20 s, 5 s, puis poursuite jusqu'a la fin de la partie — et
+      signale le franchissement d'un des six seuils. La sequence est FINIE : apres le sixieme
+      seuil, l'horloge ne repasse plus jamais en dispersion.
+    nature: logique_pure
+    entrees: [segment_courant, ticks_dans_le_segment, sequence_declaree]
+    sorties: [nouveau_segment, seuil_franchi_oui_non]
+    deterministe: true
+    couvre_exigences: [R25]
+
+  - id: F26
+    nom: "determiner l'etat de chaque fantome"
+    description: >-
+      Attribue a chaque fantome EXACTEMENT un etat parmi Dispersion, Poursuite, Effraye —
+      jamais deux, jamais aucun. L'etat Effraye, lorsqu'il est actif, prime sur le segment de
+      l'horloge ; sinon l'etat vient du segment courant. Vocabulaire ferme, pas une
+      combinaison de drapeaux.
+    nature: logique_pure
+    entrees: [segment_de_l_horloge, minuteur_effraye, etat_de_chaque_fantome]
+    sorties: [etat_par_fantome]
+    deterministe: true
+    couvre_exigences: [R24, R25, R27]
+
+  - id: F27
+    nom: "declencher l'etat Effraye sur les quatre fantomes"
+    description: >-
+      A la consommation d'une super-pastille, bascule les quatre fantomes en Effraye au MEME
+      tick, arme le minuteur pour une duree declaree, et remet le rang de capture a sa
+      premiere valeur. Un fantome deja capture et revenu en maison est inclus dans la bascule.
+    nature: logique_pure
+    entrees: [etat_de_partie, duree_declaree]
+    sorties: [etat_de_partie_avec_effraye_arme]
+    deterministe: true
+    couvre_exigences: [R27, R29]
+
+  - id: F28
+    nom: "expirer l'etat Effraye"
+    description: >-
+      Decremente le minuteur et rend les quatre fantomes a leur comportement hostile a
+      l'expiration : l'etat Effraye a toujours une fin. L'expiration rend l'etat de chaque
+      fantome au segment courant de l'horloge, elle ne le fige pas dans un quatrieme etat.
+    nature: logique_pure
+    entrees: [minuteur_effraye, segment_de_l_horloge]
+    sorties: [minuteur_mis_a_jour, etat_par_fantome]
+    deterministe: true
+    couvre_exigences: [R27, R28]
+
+  - id: F29
+    nom: "inverser la direction des fantomes a la bascule d'etat"
+    description: >-
+      Au tick ou l'etat change, inverse la direction courante de chaque fantome hors maison.
+      C'est le signal qui rend la bascule PERCEPTIBLE a l'ecran sans lire aucune donnee : sans
+      lui, le changement d'etat n'existerait que dans les chiffres.
+    nature: logique_pure
+    entrees: [etat_des_fantomes, bascule_survenue_oui_non]
+    sorties: [directions_inversees]
+    deterministe: true
+    couvre_exigences: [R26]
+
+  # ========================================================================================
+  # BLOC 6 — COLLECTIBLES, SCORE, VIES
+  # ========================================================================================
+
+  - id: F30
+    nom: "consommer le collectible de la case occupee"
+    description: >-
+      Si la case ou Pac-Man termine son pas porte un collectible : retire ce collectible de la
+      carte, incremente le compteur de consommes, decremente le compteur de restants, et
+      signale sa nature (pastille ordinaire ou super-pastille). Une case videe ne rapporte plus
+      rien a un passage ulterieur. La super-pastille decremente le compteur de restants comme
+      n'importe quel autre collectible, faute de quoi la victoire a 244 deviendrait
+      inatteignable.
+    nature: logique_pure
+    entrees: [position_de_pac_man, carte_des_collectibles]
+    sorties: [nature_du_collectible_ou_aucun, carte_mise_a_jour, consommes, restants]
+    deterministe: true
+    couvre_exigences: [R15, R17, R33]
+
+  - id: F31
+    nom: "calculer le gain de score d'un collectible"
+    description: >-
+      Convertit la nature du collectible consomme en points : 10 pour une pastille ordinaire,
+      50 pour une super-pastille — cinq fois plus, rapport observable par le joueur.
+    nature: logique_pure
+    entrees: [nature_du_collectible]
+    sorties: [gain]
+    deterministe: true
+    couvre_exigences: [R15, R17]
+
+  - id: F32
+    nom: "calculer le gain de score d'une capture de fantome"
+    description: >-
+      Convertit le RANG de la capture au sein d'une meme fenetre Effrayee en points : 200,
+      puis 400, puis 800, puis 1600. Le rang est porte par l'etat et remis a sa premiere
+      valeur a la super-pastille suivante (F27).
+    nature: logique_pure
+    entrees: [rang_de_capture]
+    sorties: [gain, rang_suivant]
+    deterministe: true
+    couvre_exigences: [R29]
+
+  - id: F33
+    nom: "mettre a jour le score"
+    description: >-
+      Ajoute un gain au score courant. Point de mutation UNIQUE du score : c'est ce qui
+      garantit que le chiffre affiche et le chiffre de l'etat ne peuvent pas diverger, puisque
+      tous deux descendent de la meme valeur.
+    nature: logique_pure
+    entrees: [score_courant, gain]
+    sorties: [nouveau_score]
+    deterministe: true
+    couvre_exigences: [R5, R15, R17, R29]
+
+  # ========================================================================================
+  # BLOC 7 — CONTACTS, DEFAITE, VICTOIRE
+  # ========================================================================================
+
+  - id: F34
+    nom: "detecter le contact entre Pac-Man et un fantome"
+    description: >-
+      Signale un contact dans DEUX situations, pas une seule : (a) Pac-Man et un fantome
+      occupent la meme case a la fin du tick ; (b) Pac-Man et un fantome ont echange leurs
+      cases sur la meme arete pendant le tick, sans jamais finir le tick sur la meme case. Le
+      cas (b) est celui qui, oublie, laisse le joueur traverser un fantome de face dans un
+      couloir etroit.
+    nature: logique_pure
+    entrees: [positions_avant, positions_apres]
+    sorties: [liste_des_fantomes_en_contact]
+    deterministe: true
+    couvre_exigences: [R30, R32]
+
+  - id: F35
+    nom: "resoudre un contact selon l'etat du fantome"
+    description: >-
+      Aiguille le contact : fantome en etat Effraye -> capture (aucune vie perdue, retour en
+      maison, gain selon le rang) ; fantome en Poursuite ou Dispersion -> perte d'une vie.
+      C'est l'unique endroit ou l'etat d'un fantome decide du sens d'un contact.
+    nature: logique_pure
+    entrees: [etat_du_fantome_en_contact, etat_de_partie]
+    sorties: [issue_du_contact, etat_de_partie_mis_a_jour]
+    deterministe: true
+    couvre_exigences: [R29, R30]
+
+  - id: F36
+    nom: "decrementer les vies et replacer les entites aux positions de depart"
+    description: >-
+      Retire EXACTEMENT une vie par contact hostile, replace Pac-Man et les quatre fantomes a
+      leurs positions de depart, et remet l'horloge des etats a son premier segment. Les
+      collectibles deja consommes ne reviennent PAS : la partie reprend, elle ne recommence pas.
+    nature: logique_pure
+    entrees: [etat_de_partie]
+    sorties: [etat_de_partie_apres_perte_de_vie]
+    deterministe: true
+    couvre_exigences: [R30, R31, R37]
+
+  - id: F37
+    nom: "determiner la defaite"
+    description: >-
+      Fait basculer le statut a PERDU au tick EXACT ou le compteur de vies atteint zero, et
+      pas avant : avec une vie restante, le statut reste EN_COURS.
+    nature: logique_pure
+    entrees: [vies_restantes]
+    sorties: [defaite_oui_non]
+    deterministe: true
+    couvre_exigences: [R31, R34]
+
+  - id: F38
+    nom: "determiner la victoire"
+    description: >-
+      Fait basculer le statut a GAGNE au tick ou le nombre de collectibles consommes est EGAL
+      au total pose — egalite stricte, jamais un superieur-ou-egal. A 243 consommes avec un
+      objet encore sur la carte, le statut reste EN_COURS.
+    nature: logique_pure
+    entrees: [consommes, total_pose]
+    sorties: [victoire_oui_non]
+    deterministe: true
+    couvre_exigences: [R33, R34]
+
+  # ========================================================================================
+  # BLOC 8 — TICK, EVENEMENTS, RELANCE
+  # ========================================================================================
+
+  - id: F39
+    nom: "executer un tick de partie"
+    description: >-
+      Fonction de composition : applique, dans un ordre DECLARE et fige, l'action d'entree,
+      l'avancee de l'horloge des etats, le deplacement de Pac-Man, le deplacement des
+      fantomes, la consommation du collectible, la detection des contacts (avant/apres, ce qui
+      rend le croisement detectable), puis le calcul du statut. L'etat d'entree n'est jamais
+      mute : le tick produit un nouvel etat. Un etat terminal consomme zero tick et ne produit
+      aucun evenement. C'est l'ordre choisi ici qui decide de la plupart des cas limites : il
+      est declare, pas implicite.
+    nature: logique_pure
+    entrees: [etat_de_partie, action_du_tick]
+    sorties: [nouvel_etat_de_partie, liste_d_evenements]
+    deterministe: true
+    couvre_exigences: [R3, R15, R30, R32, R33]
+
+  - id: F40
+    nom: "produire les evenements du tick"
+    description: >-
+      Enumere ce qui vient de se passer, sous une forme lisible par la presentation : pastille
+      mangee, super-pastille mangee, fantome capture, vie perdue, bascule d'etat de poursuite,
+      fin de partie. C'est ce qui permet a l'ecran de reagir au meme tick que l'etat, sans que
+      la presentation ait a deviner en comparant deux etats.
+    nature: logique_pure
+    entrees: [etat_avant, etat_apres]
+    sorties: [liste_d_evenements]
+    deterministe: true
+    couvre_exigences: [R5, R15, R26, R30]
+
+  - id: F41
+    nom: "relancer une partie neuve"
+    description: >-
+      Remplace integralement l'etat courant par un etat initial neuf (F1) construit sur la
+      graine declaree. Aucune valeur de la partie precedente ne survit — ni score, ni vies, ni
+      collectibles, ni positions, ni phase de l'horloge, ni rang de capture, ni etat du
+      generateur — parce que rien n'est reutilise : l'etat est reconstruit, pas nettoye.
+    nature: logique_pure
+    entrees: [graine, description_de_la_carte]
+    sorties: [etat_de_partie_neuf]
+    deterministe: true
+    couvre_exigences: [R36, R37]
+
+  # ========================================================================================
+  # BLOC 9 — ADAPTATEURS RUNTIME (presentation, entree, boucle)
+  # ========================================================================================
+
+  - id: F42
+    nom: "demarrer l'application et ouvrir la fenetre de jeu"
+    description: >-
+      Amorce le runtime, construit la premiere partie et ouvre une fenetre au format qui
+      contient la grille entiere sans defilement. Ne charge aucun asset externe : ni image, ni
+      police importee, ni son. Le demarrage n'exige aucune connexion reseau.
+    nature: adaptateur_runtime
+    entrees: [parametres_de_fenetre, graine]
+    sorties: [fenetre_ouverte, premiere_partie_construite]
+    deterministe: false
+    non_determinisme_borne: >-
+      Depend du moteur et du systeme (ouverture de fenetre, taille d'ecran). Ne produit AUCUNE
+      valeur de gameplay : la partie qu'il construit vient de F1, pilotee par la graine.
+    couvre_exigences: [R1, R4]
+
+  - id: F43
+    nom: "lire le clavier et produire l'action du tick"
+    description: >-
+      Traduit les appuis clavier en une valeur du vocabulaire ferme de directions, ou en
+      « aucune entree ». Unique canal d'entree du jeu : le bot de solvabilite et le replay
+      passent par le MEME canal, jamais par une ecriture directe dans l'etat. Prend aussi en
+      charge la touche de relance depuis l'ecran de fin.
+    nature: adaptateur_runtime
+    entrees: [evenements_clavier]
+    sorties: [action_du_tick]
+    deterministe: false
+    non_determinisme_borne: >-
+      Depend de l'humain. En mode preuve, la source d'actions est une SUITE ENREGISTREE
+      d'appuis, ce qui rend la sequence reproductible sans changer le canal.
+    couvre_exigences: [R11, R12, R13, R36]
+
+  - id: F44
+    nom: "cadencer les ticks du runtime"
+    description: >-
+      Convertit le temps du moteur en appels au tick pur, a une cadence declaree, et fait
+      avancer la partie meme lorsque le joueur ne touche pas au clavier. C'est le SEUL endroit
+      du jeu ou une horloge de plateforme est lue.
+    nature: adaptateur_runtime
+    entrees: [temps_ecoule_du_moteur, cadence_declaree]
+    sorties: [nombre_de_ticks_a_executer]
+    deterministe: false
+    non_determinisme_borne: >-
+      L'horloge de plateforme decide seulement QUAND le tick est appele, jamais son CONTENU.
+      En mode preuve, la source de ticks est un compteur, pas l'horloge : c'est ce qui rend
+      le replay comparable tick par tick.
+    couvre_exigences: [R3, R25]
+
+  - id: F45
+    nom: "dessiner le labyrinthe et les entites avec des formes pleines"
+    description: >-
+      Rend, a chaque image, les murs, les couloirs vides, les pastilles ordinaires, les
+      super-pastilles (visiblement plus grandes), Pac-Man, et les quatre fantomes dans quatre
+      couleurs deux a deux differentes, avec une apparence distincte en etat Effraye.
+      Uniquement des formes pleines et du texte : aucun fichier d'image, de police ou de son
+      importe. Lit l'etat, ne le modifie jamais.
+    nature: adaptateur_runtime
+    entrees: [releve_observable, evenements_du_tick]
+    sorties: [image_rendue]
+    deterministe: false
+    non_determinisme_borne: >-
+      Depend du moteur de rendu et de la taille de fenetre. N'ecrit rien dans l'etat de
+      partie : aucune decision de jeu ne transite par cette fonction.
+    couvre_exigences: [R1, R2, R4, R7, R27]
+
+  - id: F46
+    nom: "afficher le score, les vies et les pastilles restantes en chiffres"
+    description: >-
+      Rend en permanence les trois grandeurs decisives sous forme de NOMBRES ecrits, lues
+      directement dans le releve observable du meme tick — jamais recalculees, jamais
+      representees uniquement par des formes ou des pips. Lire la meme source est ce qui rend
+      impossible un ecart d'un tick entre l'ecran et l'etat.
+    nature: adaptateur_runtime
+    entrees: [releve_observable]
+    sorties: [bandeau_rendu]
+    deterministe: false
+    non_determinisme_borne: "Rendu moteur. Aucune valeur produite : recopie du releve observable."
+    couvre_exigences: [R5, R14]
+
+  - id: F47
+    nom: "afficher l'indication d'etat de poursuite"
+    description: >-
+      Rend a l'ecran, en clair, l'etat de poursuite courant, de sorte qu'une bascule soit
+      lisible sur une capture sans consulter aucune donnee interne. Complement visuel du
+      demi-tour des fantomes (F29) : les deux ensemble rendent la bascule perceptible.
+    nature: adaptateur_runtime
+    entrees: [releve_observable]
+    sorties: [indication_rendue]
+    deterministe: false
+    non_determinisme_borne: "Rendu moteur. Recopie de l'etat expose, aucune decision de jeu."
+    couvre_exigences: [R24, R26]
+
+  - id: F48
+    nom: "afficher l'ecran de fin nommant l'issue et le score final"
+    description: >-
+      A la fin d'une partie, rend un ecran qui NOMME l'issue (gagne ou perdu) avec des textes
+      differents dans les deux cas, affiche le score final en chiffres, et laisse
+      l'application vivante : les appuis clavier sont encore pris en compte apres l'affichage.
+    nature: adaptateur_runtime
+    entrees: [releve_observable]
+    sorties: [ecran_de_fin_rendu]
+    deterministe: false
+    non_determinisme_borne: "Rendu moteur. L'issue affichee vient du statut calcule par F4."
+    couvre_exigences: [R34, R35]
+
+  - id: F49
+    nom: "reagir a la touche de relance depuis l'ecran de fin"
+    description: >-
+      Sur une SEULE pression de touche depuis l'ecran de fin, appelle la relance (F41) et
+      rend la main a la boucle de jeu au tick suivant, sans menu intermediaire et sans
+      fermeture ni reouverture de l'application.
+    nature: adaptateur_runtime
+    entrees: [appui_clavier, statut_courant]
+    sorties: [partie_relancee]
+    deterministe: false
+    non_determinisme_borne: "Depend de l'appui humain. L'etat produit vient integralement de F41."
+    couvre_exigences: [R36, R37]
+
+  - id: F50
+    nom: "exposer l'etat observable a un lecteur exterieur au jeu"
+    description: >-
+      Rend le releve observable (F2) lisible depuis l'exterieur du runtime, tick par tick, sur
+      un canal declare, afin qu'un harnais de preuve puisse comparer deux executions, relever
+      un etat juste avant / au seuil / juste apres, et verifier les egalites ecran/etat. Sans
+      ce point de sortie, les exigences formulees « etat expose » n'auraient aucun lecteur et
+      ne seraient pas verifiables.
+    nature: adaptateur_runtime
+    entrees: [releve_observable, tick_courant]
+    sorties: [trace_lisible_par_un_lecteur_exterieur]
+    deterministe: false
+    non_determinisme_borne: >-
+      Ecrit sur un canal de sortie du systeme (I/O). Le CONTENU est integralement produit par
+      F2, qui est pure : la trace est donc reproductible a contenu egal.
+    couvre_exigences: [R5, R7, R20, R24, R33, R34]
+
+  - id: F51
+    nom: "capturer une image de l'ecran a un tick declare"
+    description: >-
+      Produit une capture de la fenetre de jeu a un tick nomme, pour les exigences qui se
+      verifient par l'oeil : cadrage complet, lisibilite des cinq categories, changement
+      d'apparence en Effraye, difference visible au tick d'un contact, ecrans de fin distincts.
+      La capture exige une fenetre reellement rendue (contrainte connue du studio : le mode
+      sans fenetre produit une texture vide).
+    nature: adaptateur_runtime
+    entrees: [tick_declare]
+    sorties: [image_enregistree]
+    deterministe: false
+    non_determinisme_borne: >-
+      Depend du moteur de rendu et du systeme de fichiers. Le tick auquel la capture est prise
+      est DECLARE, ce qui rend la comparaison entre deux captures reproductible.
+    couvre_exigences: [R1, R2, R26, R27, R30, R35]
+
+  # ========================================================================================
+  # BLOC 10 — PREUVES (harnais, bot de solvabilite, replay, mesures)
+  # ========================================================================================
+
+  - id: F52
+    nom: "rejouer une suite d'appuis depuis une graine et comparer les deux traces"
+    description: >-
+      Execute deux fois la meme partie a partir de la meme graine, du meme etat de depart et
+      de la meme suite d'appuis, puis compare champ par champ la trace des positions, le score
+      et le statut final. La fenetre rejouee franchit au moins deux seuils de la sequence des
+      etats de poursuite, pour que le replay traverse effectivement une bascule et le
+      deplacement pseudo-aleatoire de l'etat Effraye.
+    nature: preuve
+    entrees: [graine, suite_d_appuis, nombre_de_ticks]
+    sorties: [traces_identiques_oui_non, premier_champ_divergent]
+    deterministe: true
+    couvre_exigences: [R38]
+
+  - id: F53
+    nom: "planifier l'itineraire de collecte du bot"
+    description: >-
+      Calcule, depuis la position courante de Pac-Man, le chemin vers le prochain collectible
+      a ramasser, sur la grille, murs traites comme infranchissables et tunnel utilisable.
+      Parcours a ordre de voisins fixe (F7), donc reproductible. Sert la couverture des 244
+      collectibles, retours en arriere compris.
+    nature: preuve
+    entrees: [releve_observable, grille]
+    sorties: [suite_de_directions_a_demander]
+    deterministe: true
+    couvre_exigences: [R39]
+
+  - id: F54
+    nom: "piloter le jeu par l'entree publique avec le bot de solvabilite"
+    description: >-
+      Fait jouer le bot en n'emettant QUE des directions sur le meme canal d'entree que le
+      clavier (F43), jamais en ecrivant dans l'etat de jeu. Consomme un budget de ticks
+      DECLARE, dimensionne pour une carte de 244 collectibles a boucles — un budget trop bas
+      produirait un faux negatif, l'erreur historique a ne pas repeter.
+    nature: preuve
+    entrees: [graine, description_de_la_carte, budget_de_ticks_declare]
+    sorties: [statut_final, consommes, restants, ticks_utilises]
+    deterministe: true
+    couvre_exigences: [R39]
+
+  - id: F55
+    nom: "declarer le verdict de solvabilite et le code de retour"
+    description: >-
+      Traduit le resultat d'une execution du bot en verdict : statut final GAGNE avec
+      consommes egal au total et restants a zero dans le budget -> succes et code de retour
+      zero ; sinon sortie INJOUABLE et code de retour NON NUL. Sans le code non nul sur la
+      carte cassee, l'oracle de solvabilite ne mesurerait rien.
+    nature: preuve
+    entrees: [statut_final, consommes, restants, budget_de_ticks_declare]
+    sorties: [verdict, code_de_retour]
+    deterministe: true
+    couvre_exigences: [R39, R40]
+
+  - id: F56
+    nom: "executer le bot sur une carte volontairement cassee"
+    description: >-
+      Rejoue exactement le meme bot sur une variante de la carte ou un collectible est rendu
+      inatteignable (mur ajoute), et verifie qu'il n'atteint PAS l'etat GAGNE et sort
+      INJOUABLE avec un code non nul. C'est le controle negatif : il prouve que le succes sur
+      la carte de reference discrimine quelque chose.
+    nature: preuve
+    entrees: [carte_cassee, graine, budget_de_ticks_declare]
+    sorties: [verdict, code_de_retour]
+    deterministe: true
+    couvre_exigences: [R40]
+
+  - id: F57
+    nom: "asserter les six seuils de l'horloge des etats de poursuite"
+    description: >-
+      Pour chacun des six seuils de la sequence declaree, releve l'etat expose juste AVANT le
+      seuil, exactement AU seuil et juste APRES, et compare les trois valeurs a la sequence.
+      Verifie aussi qu'apres le sixieme seuil la partie ne repasse jamais en dispersion, et
+      qu'a chaque tick l'etat de chacun des quatre fantomes appartient bien a l'ensemble des
+      trois valeurs.
+    nature: preuve
+    entrees: [trace_d_etats_exposes, sequence_declaree]
+    sorties: [seuils_conformes_oui_non, seuil_en_echec]
+    deterministe: true
+    couvre_exigences: [R24, R25]
+
+  - id: F58
+    nom: "mesurer la divergence des trajectoires des quatre fantomes"
+    description: >-
+      A partir d'un etat initial identique et sur un horizon de ticks declare, compare deux a
+      deux les quatre sequences de positions et etablit qu'il existe, pour chaque paire, au
+      moins un tick ou les positions different. Mesure la VARIANCE effective du ciblage plutot
+      que de la supposer acquise parce que quatre formules ont ete ecrites.
+    nature: preuve
+    entrees: [etat_initial, horizon_de_ticks]
+    sorties: [paires_distinctes_oui_non, divergence_par_paire]
+    deterministe: true
+    couvre_exigences: [R19]
+
+  - id: F59
+    nom: "mesurer la decroissance de distance du fantome rouge sur un joueur immobile"
+    description: >-
+      Pac-Man arrete contre un mur, aucune entree, etat de poursuite actif : releve la
+      distance au fantome rouge a chacun de ses deplacements sur une fenetre declaree et
+      etablit qu'elle decroit STRICTEMENT. Une distance constante ou croissante falsifie
+      l'exigence.
+    nature: preuve
+    entrees: [etat_avec_joueur_immobile, fenetre_de_ticks_declaree]
+    sorties: [suite_de_distances, decroissance_stricte_oui_non]
+    deterministe: true
+    couvre_exigences: [R21]
+
+  - id: F60
+    nom: "mesurer l'ecart creuse par Pac-Man fuyant en couloir droit"
+    description: >-
+      Sur un couloir droit declare, Pac-Man fuyant en s'eloignant d'un poursuivant : compare
+      la distance au debut et a la fin de la fenetre et etablit qu'elle a strictement
+      augmente. C'est la mesure qui prouve la cadence relative reelle des fantomes, au lieu de
+      la deduire d'un parametre declare.
+    nature: preuve
+    entrees: [etat_en_couloir_droit, fenetre_de_ticks_declaree]
+    sorties: [distance_initiale, distance_finale, ecart_creuse_oui_non]
+    deterministe: true
+    couvre_exigences: [R22]
+
+  - id: F61
+    nom: "mesurer le ralentissement et la non-convergence des fantomes en etat Effraye"
+    description: >-
+      Sur une fenetre declaree en etat Effraye : compte les cases parcourues par chaque
+      fantome et par Pac-Man, et etablit que chaque fantome en parcourt strictement moins ; et
+      etablit que la distance Pac-Man / fantome ne decroit pas strictement a chaque
+      deplacement. Un comportement de poursuite sous l'etiquette Effraye est ainsi
+      detectable.
+    nature: preuve
+    entrees: [trace_en_etat_effraye, fenetre_de_ticks_declaree]
+    sorties: [cases_parcourues_par_entite, convergence_stricte_oui_non]
+    deterministe: true
+    couvre_exigences: [R28]
+
+  - id: F62
+    nom: "inventorier les fichiers du jeu pour etablir l'absence d'asset externe"
+    description: >-
+      Enumere les fichiers du projet et etablit qu'aucun fichier d'image, de police ou de son
+      importe n'y figure. Combine au demarrage reseau coupe (F42), c'est ce qui rend
+      l'exigence « aucune dependance runtime externe » falsifiable autrement que par une
+      declaration d'intention.
+    nature: preuve
+    entrees: [arborescence_du_projet]
+    sorties: [liste_des_assets_trouves]
+    deterministe: true
+    couvre_exigences: [R4]
+
+# ==========================================================================================
+# COUVERTURE — controle explicite. Une exigence non portee est NOMMEE, jamais masquee.
+# ==========================================================================================
+
+couverture:
+
+  total_exigences_prisme: 42
+  total_fonctions: 62
+
+  repartition_par_nature:
+    logique_pure: 41          # F1..F41
+    adaptateur_runtime: 10    # F42..F51
+    preuve: 11                # F52..F62
+
+  exigences_couvertes:
+    [R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13, R14, R15, R16, R17, R18, R19,
+     R20, R21, R22, R23, R24, R25, R26, R27, R28, R29, R30, R31, R32, R33, R34, R35, R36,
+     R37, R38, R39, R40]
+
+  exigences_non_couvertes: [R41, R42]
+
+  raison_non_couverture:
+    R41: >-
+      « Un humain joue une partie entiere au clavier, du demarrage a l'ecran de fin puis a la
+      relance, sans ouvrir de console et sans lancer le bot. » Exigence de nature `preuve`,
+      `verifiable_par: humain`, `destination: s9-build`. Aucune fonction ne peut la produire :
+      son observable EST une session jouee par une personne. Ce qui la rend POSSIBLE est
+      enumere (F42 demarrage, F43 clavier, F44 cadence, F45 a F48 rendu et ecran de fin, F49
+      relance) ; ce qui la rend VRAIE est un constat humain. L'inscrire comme couverte par ces
+      fonctions serait presenter une condition necessaire comme une preuve suffisante.
+    R42: >-
+      « Un joueur qui decouvre le jeu nomme, sans texte d'aide, ce qu'il controle, ce qu'il
+      doit manger, ce qu'il doit eviter, et comment la partie se termine. » Meme nature :
+      `verifiable_par: humain`, `destination: s9-build`. L'observable est la parole d'un
+      joueur neuf. F45 (cinq categories visuellement distinctes) et F46 (chiffres lisibles) y
+      contribuent, mais aucune fonction ne peut etablir qu'un humain a compris.
+
+  couverture_des_exigences_destination_s3_decompo:
+    liste_attendue:
+      [R3, R7, R8, R9, R10, R11, R12, R13, R15, R17, R18, R20, R23, R24, R25, R27, R28, R29,
+       R30, R31, R32, R33, R34, R36, R37]
+    attendues: 25
+    couvertes: 25
+    non_couvertes: []
+
+  fonctions_sans_exigence: []   # controle : aucune fonction de freestyle.
+
+  # --- Table inverse : quelles fonctions portent chaque exigence -------------------------
+  exigence_vers_fonctions:
+    R1:  [F42, F45, F51]
+    R2:  [F45, F51]
+    R3:  [F39, F44]
+    R4:  [F42, F45, F62]
+    R5:  [F2, F33, F40, F46, F50]
+    R6:  [F5, F10]
+    R7:  [F2, F5, F6, F7, F13, F20, F45, F50]
+    R8:  [F6, F7, F13]
+    R9:  [F7, F8]
+    R10: [F7, F8]
+    R11: [F11, F12, F13, F43]
+    R12: [F6, F12, F13, F43]
+    R13: [F11, F12, F43]
+    R14: [F1, F9, F10, F46]
+    R15: [F30, F31, F33, F39, F40]
+    R16: [F9, F10]
+    R17: [F30, F31, F33]
+    R18: [F20, F22]
+    R19: [F19, F20, F58]
+    R20: [F2, F7, F14, F15, F16, F17, F18, F19, F20, F50]
+    R21: [F14, F20, F59]
+    R22: [F14, F22, F60]
+    R23: [F1, F23]
+    R24: [F2, F26, F47, F50, F57]
+    R25: [F1, F19, F25, F26, F44, F57]
+    R26: [F29, F40, F47, F51]
+    R27: [F26, F27, F28, F45, F51]
+    R28: [F3, F14, F21, F22, F28, F61]
+    R29: [F24, F27, F32, F33, F35]
+    R30: [F34, F35, F36, F39, F40, F51]
+    R31: [F1, F2, F4, F36, F37]
+    R32: [F34, F39]
+    R33: [F2, F4, F9, F30, F38, F39, F50]
+    R34: [F2, F4, F37, F38, F48, F50]
+    R35: [F48, F51]
+    R36: [F41, F43, F49]
+    R37: [F1, F36, F41, F49]
+    R38: [F3, F21, F52]
+    R39: [F53, F54, F55]
+    R40: [F10, F55, F56]
+    R41: []
+    R42: []
+
+# ==========================================================================================
+# POINTS TRANCHES DANS CETTE ETAPE — decisions assumees, avec ce qu'elles engagent.
+# ==========================================================================================
+
+points_tranches:
+
+  - id: T1
+    sujet: "Ordre des operations a l'interieur d'un tick"
+    tranche: >-
+      Ordre fige et declare : action d'entree -> horloge des etats -> deplacement de Pac-Man
+      -> deplacement des fantomes -> consommation du collectible -> detection des contacts sur
+      les positions AVANT et APRES -> calcul du statut (F39).
+    pourquoi: >-
+      L'ordre decide de la plupart des cas limites, notamment R32 (croisement en sens inverse
+      sur la meme arete) : detecter le contact uniquement sur les positions finales laisse
+      passer l'echange de cases. Le laisser implicite reviendrait a laisser l'etape 4 le
+      decider par accident.
+    ce_qui_reste_a_l_etape_4: "ou vit cette composition, et comment elle est cablee."
+
+  - id: T2
+    sujet: "Ou vit l'aleatoire du mode Effraye"
+    tranche: >-
+      Un generateur pseudo-aleatoire unique (F3) dont l'ETAT est un champ de l'etat de partie,
+      consomme par la seule F21. Aucune autre fonction ne tire d'alea.
+    pourquoi: >-
+      Le world scan qualifie le deplacement Effraye de « pseudo-random » ; le charter interdit
+      tout alea non seede et exige un replay strictement identique (R38). Porter l'etat du
+      generateur DANS l'etat de partie est ce qui rend les deux compatibles : le generateur est
+      clone, rejoue et compare comme n'importe quel autre champ. C'est la deduction assumee par
+      l'arbitrage A2 du prisme, pas un fait source.
+
+  - id: T3
+    sujet: "Les quatre fantomes partagent le meme algorithme de deplacement"
+    tranche: >-
+      Une seule fonction de choix de sortie (F20), quatre fonctions de case-cible distinctes
+      (F15 a F18). Les fantomes ne different QUE par leur cible.
+    pourquoi: >-
+      C'est ce qui rend la preuve de variance (R19) attribuable : si quatre trajectoires
+      divergent alors que l'algorithme de deplacement est commun, la divergence vient
+      necessairement du ciblage. Quatre algorithmes de deplacement differents rendraient la
+      mesure ininterpretable.
+
+  - id: T4
+    sujet: "Deux fonctions distinctes pour l'etat observable"
+    tranche: >-
+      F2 (projection PURE de l'etat vers un releve) et F50 (adaptateur qui expose ce releve a
+      un lecteur exterieur) sont deux fonctions, pas une.
+    pourquoi: >-
+      Le calcul du releve doit rester teste sans moteur ; l'ecriture sur un canal de sortie est
+      une I/O. Les fusionner ferait entrer une I/O dans la logique pure et rendrait la
+      projection intestable en dehors du runtime.
+
+  - id: T5
+    sujet: "Le budget de ticks du bot est un parametre declare"
+    tranche: "F54 prend un budget de ticks DECLARE en entree, il n'en porte aucun en dur."
+    pourquoi: >-
+      Precedent mesure du studio (games/snake) : un budget par defaut trop bas a produit un
+      FAUX NEGATIF de solvabilite. Sur une carte de 244 collectibles a boucles avec retours en
+      arriere, le budget est un parametre a declarer et a justifier, jamais une constante
+      heritee.
+
+  - id: T6
+    sujet: "F10 (invariants de carte) est une fonction du jeu, pas seulement un test"
+    tranche: "Classee `logique_pure`, appelable aussi bien par une preuve que par le jeu."
+    pourquoi: >-
+      C'est elle qui rend la carte cassee de R40 DETECTABLE. Si l'atteignabilite des 244
+      collectibles n'existait que dans un test, la carte cassee ne serait pas declaree
+      injouable : elle serait seulement perdue, ce qui ne discrimine rien.
+
+# ==========================================================================================
+# REMONTE PLUTOT QU'INVENTE — ce que cette etape n'a PAS decide, et pourquoi.
+# ==========================================================================================
+
+remonte_plutot_qu_invente:
+
+  - sujet: "Trace exact des murs du labyrinthe"
+    etat: >-
+      Le world scan source la DIMENSION (28x36) et le NOMBRE de collectibles (244), pas la
+      carte tuile par tuile ; il declare en incertitude la position exacte des tunnels.
+    ce_que_cette_etape_a_fait: >-
+      Elle a enumere la fonction qui DECRIT la carte (F5) et celle qui VERIFIE ses invariants
+      (F10 : 244 exact, chaque collectible atteignable, deux boucles internes, maison centrale,
+      deux tunnels sur une meme ligne, une super-pastille par quadrant). Elle n'a dessine aucun
+      trace : le trace est un choix de production, pas un fait de regle.
+
+  - sujet: "Valeurs chiffrees A_EQUILIBRER (cadence de tick, cadence relative des fantomes, duree de l'etat Effraye, delais de sortie de la maison, budget de ticks du bot)"
+    etat: "Statut A_EQUILIBRER au charter ; aucune valeur ratifiee par Pierre."
+    ce_que_cette_etape_a_fait: >-
+      Les fonctions concernees (F22, F23, F27, F44, F54) prennent ces valeurs en ENTREE comme
+      parametres declares. Aucune valeur chiffree n'est posee ici : les fonctions assertent des
+      RELATIONS (strictement plus lent que, seuil franchi, delais strictement croissants), donc
+      un changement de chiffre au playtest ne reecrit aucune fonction.
+
+  - sujet: "Question ouverte n.3 du charter (fantomes individuellement distincts ?)"
+    etat: >-
+      prisme.fog_humangate declare qu'aucune reponse de Pierre n'est enregistree. Le prisme a
+      tranche A1 (quatre fantomes) par application de la regle de priorite ecrite dans le
+      charter, pas par ratification.
+    ce_que_cette_etape_a_fait: >-
+      Elle a suivi le prisme sans le rouvrir : quatre fonctions de ciblage (F15 a F18). Si
+      Pierre tranche a trois fantomes, F17 (cyan) tombe ou doit etre remplacee, puisque sa cible
+      se calcule a partir de la position du rouge. Aucune autre fonction n'est invalidee.
+
+  - sujet: "Divergence entre le contrat s3-decompo et l'artefact demande"
+    etat: >-
+      Le contrat `scripts/forge/contracts/s3-decompo.yaml` (et le prompt derive) demande un
+      arbre Systeme -> Feature -> capacite materialise en `featuremap.json`, mesure par
+      l'oracle deterministe `node scripts/forge/check_decompo.mjs <featuremap.json>
+      --prisme <prisme.json>`. La commande de dispatch demande une LISTE DE FONCTIONS dans
+      `decompo.yaml`, et interdit d'ecrire tout autre fichier.
+    ce_que_cette_etape_a_fait: >-
+      Elle a produit `decompo.yaml` (instruction explicite de dispatch) et REMONTE la
+      divergence au lieu de fabriquer les deux artefacts. Consequence a connaitre :
+      `check_decompo.mjs` ne sait pas lire ce fichier, donc AUCUN oracle de l'etape ne peut
+      valider cet artefact en l'etat. La decision d'ecrire aussi une featuremap ou d'adapter
+      l'oracle appartient a l'orchestrateur, pas a cette etape.

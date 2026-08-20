@@ -1,0 +1,29 @@
+name: Chess Test
+
+on:
+  # Manual-only for billing control. Chess/runtime Rust checks can be run on demand
+  # when a change actually touches engine, search, neural, or runtime behavior.
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Cargo check
+        run: cargo check
+
+      - name: Test FEN round trip
+        run: cargo test fen_round_trip -- --nocapture
+
+      - name: Test root decision
+        run: cargo test root_decision -- --nocapture

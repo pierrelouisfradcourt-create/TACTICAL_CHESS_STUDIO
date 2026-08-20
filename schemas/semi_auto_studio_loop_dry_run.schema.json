@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/semi_auto_studio_loop_dry_run.schema.json",
+  "title": "SemiAutoStudioLoopDryRun V0",
+  "description": "Stdout-only dry-run envelope for current state -> operator inbox -> HumanGate decision candidate -> authorized next action plan. This schema does not authorize Codex execution, persistence, activation, training, benchmark, model promotion, release automation, or public claims.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_type",
+    "contract_version",
+    "generated_at",
+    "source_current_state_id",
+    "requested_decision",
+    "inbox",
+    "decision_candidate",
+    "authorized_next_action_plan",
+    "execution_performed",
+    "codex_execution_performed",
+    "persistence_performed",
+    "blocked_actions",
+    "claim_posture",
+    "no_global_ready_verdict"
+  ],
+  "properties": {
+    "record_type": {
+      "const": "semi_auto_studio_loop_dry_run"
+    },
+    "contract_version": {
+      "const": "V0"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_current_state_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requested_decision": {
+      "type": "string",
+      "enum": [
+        "approve_next_mission_candidate",
+        "reject_next_mission_candidate",
+        "request_read_only_audit",
+        "defer"
+      ]
+    },
+    "inbox": {
+      "type": "object",
+      "required": [
+        "record_type",
+        "claim_posture",
+        "no_global_ready_verdict"
+      ],
+      "properties": {
+        "record_type": {
+          "const": "studio_operator_inbox"
+        },
+        "claim_posture": {
+          "const": "NO_CLAIM_ALLOWED"
+        },
+        "no_global_ready_verdict": {
+          "const": true
+        }
+      }
+    },
+    "decision_candidate": {
+      "type": "object",
+      "required": [
+        "record_type",
+        "claim_posture",
+        "no_global_ready_verdict"
+      ],
+      "properties": {
+        "record_type": {
+          "const": "humangate_decision_candidate"
+        },
+        "claim_posture": {
+          "const": "NO_CLAIM_ALLOWED"
+        },
+        "no_global_ready_verdict": {
+          "const": true
+        }
+      }
+    },
+    "authorized_next_action_plan": {
+      "type": "object",
+      "required": [
+        "record_type",
+        "execution_allowed",
+        "codex_execution_allowed",
+        "persistence_allowed",
+        "claim_posture",
+        "no_global_ready_verdict"
+      ],
+      "properties": {
+        "record_type": {
+          "const": "authorized_next_action_plan"
+        },
+        "execution_allowed": {
+          "const": false
+        },
+        "codex_execution_allowed": {
+          "const": false
+        },
+        "persistence_allowed": {
+          "const": false
+        },
+        "claim_posture": {
+          "const": "NO_CLAIM_ALLOWED"
+        },
+        "no_global_ready_verdict": {
+          "const": true
+        }
+      }
+    },
+    "execution_performed": {
+      "const": false
+    },
+    "codex_execution_performed": {
+      "const": false
+    },
+    "persistence_performed": {
+      "const": false
+    },
+    "blocked_actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "allOf": [
+        {
+          "contains": {
+            "const": "runtime_activation"
+          }
+        },
+        {
+          "contains": {
+            "const": "dataset_generation"
+          }
+        },
+        {
+          "contains": {
+            "const": "training"
+          }
+        },
+        {
+          "contains": {
+            "const": "benchmark"
+          }
+        },
+        {
+          "contains": {
+            "const": "model_promotion"
+          }
+        },
+        {
+          "contains": {
+            "const": "public_claim"
+          }
+        },
+        {
+          "contains": {
+            "const": "push"
+          }
+        },
+        {
+          "contains": {
+            "const": "branch"
+          }
+        },
+        {
+          "contains": {
+            "const": "pr"
+          }
+        }
+      ]
+    },
+    "claim_posture": {
+      "const": "NO_CLAIM_ALLOWED"
+    },
+    "no_global_ready_verdict": {
+      "const": true
+    }
+  }
+}

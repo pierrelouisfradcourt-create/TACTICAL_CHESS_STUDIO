@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/tool_permission_matrix.schema.json",
+  "title": "ToolPermissionMatrix",
+  "description": "Deny-by-default tool permission policy for registered agents.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "policy_version",
+    "deny_by_default",
+    "default_effect",
+    "global_constraints",
+    "tool_rules"
+  ],
+  "properties": {
+    "deny_by_default": {
+      "type": "boolean",
+      "const": true
+    },
+    "policy_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "default_effect": {
+      "type": "string",
+      "const": "DENY"
+    },
+    "global_constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "can_any_agent_merge",
+        "can_any_agent_decide_claim_authority",
+        "can_any_agent_modify_own_rules",
+        "can_any_agent_modify_branch_protection",
+        "runtime_test_ci_write_requires_explicit_human_review"
+      ],
+      "properties": {
+        "can_any_agent_merge": {
+          "type": "boolean",
+          "const": false
+        },
+        "can_any_agent_decide_claim_authority": {
+          "type": "boolean",
+          "const": false
+        },
+        "can_any_agent_modify_own_rules": {
+          "type": "boolean",
+          "const": false
+        },
+        "can_any_agent_modify_branch_protection": {
+          "type": "boolean",
+          "const": false
+        },
+        "runtime_test_ci_write_requires_explicit_human_review": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "tool_rules": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "agent_id",
+          "autonomy_level",
+          "tool",
+          "effect",
+          "human_review_required"
+        ],
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "enum": ["producer", "code", "review", "qa", "docs"]
+          },
+          "autonomy_level": {
+            "type": "string",
+            "enum": [
+              "0_READ_ONLY",
+              "1_DOCS_ONLY",
+              "2_CONTROL_PLANE_ONLY",
+              "3_PATCH_PROPOSAL_ONLY",
+              "4_HUMAN_APPROVED_WRITE_ONLY"
+            ]
+          },
+          "tool": {
+            "type": "string",
+            "enum": [
+              "read_repo",
+              "inspect_diff",
+              "propose_patch",
+              "write_docs",
+              "write_schema",
+              "write_policy",
+              "run_json_parse",
+              "run_hygiene_check",
+              "run_local_report",
+              "create_branch",
+              "commit",
+              "push",
+              "create_pr",
+              "ready_pr",
+              "merge_pr",
+              "edit_branch_protection",
+              "run_benchmark",
+              "run_gameplay_loop",
+              "create_canonical_evidence",
+              "modify_runtime",
+              "modify_tests",
+              "modify_ci",
+              "modify_policy",
+              "modify_own_policy",
+              "self_score",
+              "claim_authority"
+            ]
+          },
+          "effect": {
+            "type": "string",
+            "enum": ["ALLOW", "DENY"]
+          },
+          "human_review_required": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

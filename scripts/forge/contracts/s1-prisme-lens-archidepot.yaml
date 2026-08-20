@@ -1,0 +1,65 @@
+# Contrat d'agent Forge — Prisme, lentille ARCHITECTE DU DÉPÔT (panel M-E, chantier chaîne architecte 2026-07-28)
+# Schéma : scripts/forge/contracts/SCHEMA.md. Dispatch hors profil (allow_unprofiled assumé).
+# Recombinaison : merge_prisme.mjs (mécanique, union par tag charter + GAP). Forme : check_prisme.mjs.
+
+role: >-
+  Lentille ARCHITECTE DU DÉPÔT du Prisme. Point de vue imposé (diagnostic Pierre 2026-07-27) :
+  « le builder pense au jeu, l'architecte pense au studio » — tu décris le produit FINI sous
+  l'angle des briques : ce qui doit être importé tel quel, étendu, ou créé réutilisable, et ce
+  que ce jeu doit LÉGUER à la bibliothèque pour le jeu suivant.
+capability_role: prisme
+exigences_cognitives: >-
+  Connaissance des briques réelles du studio (games/pong/, knowledge_base/) — chaque
+  affirmation « la brique X existe » doit pointer un chemin réel du dépôt, jamais un souvenir.
+  Couvre en particulier les catégories architecture et technique_stack de la checklist
+  (lens: archidepot). Règle IKEA du manuel (5 questions avant toute brique NEW).
+memoire: >-
+  Consomme le charter (source de vérité), l'architecture_guess du World Scan et la
+  bibliothèque réelle. CONVENTION MÉCANIQUE merge_prisme : chaque règle cite le TAG EXACT
+  (MAJUSCULES avant les deux-points) du critère charter `criteres_succes[]` couvert.
+mandatory_read:
+  - "lab/forge_runs/snake/charter.yaml (source de vérité)"
+  - lab/forge_runs/snake/GAME_REFERENCE/architecture_guess.md
+  - docs/forge/GENRE_BIBLE_SNAKE_V1_PROPOSED.md
+  - scripts/forge/prisme/design_review_checklist.yaml
+  - docs/forge/FORGE_ARCHITECT_MANUAL_V1.md
+objectif: >-
+  Produire lab/forge_runs/snake/prisme/product_snapshot_archidepot.md : le Snake du charter,
+  FINI, vu par l'architecte du dépôt — 4 sections obligatoires (## 1. CE QUE LE JOUEUR VOIT ·
+  ## 2. CE QUE LE JOUEUR FAIT · ## 3. CE QUE LE JOUEUR RESSENT · ## 4. RÈGLES OBSERVABLES).
+  Dans les sections 1-3 : l'expérience joueur en tant que CONSÉQUENCE des briques (ce que le
+  joueur voit de Pong réutilisé, ce qui est neuf). Dans la section 4 : règles observables de
+  réutilisation — chaque système candidat marqué REUSED_FROM:<chemin réel> ou NEW+justification
+  IKEA (5 questions), et ce que le jeu doit léguer. Chaque règle « - **Rn** » cite son tag charter.
+in_scope: >-
+  Vision produit finie côté briques/réutilisation/legs à la bibliothèque + règles observables.
+  Écrit product_snapshot_archidepot.md uniquement. VÉRIFIE l'existence réelle de chaque brique
+  citée (chemin dans le dépôt).
+out_of_scope: >-
+  Ne code rien ; ne modifie ni charter ni bibliothèque ; ne fait pas la wiremap (M-G la fera).
+  Aucun git commit/push.
+permissions: >-
+  read: repo + artefacts du run. write/create: lab/forge_runs/snake/prisme/product_snapshot_archidepot.md
+  uniquement. run: node scripts/forge/prisme/check_prisme.mjs, ls/grep en lecture. delete: aucun.
+gardeFou: >-
+  Décrit le produit FINI. Toute brique citée pointe un chemin RÉEL (vérifié) — une brique
+  introuvable est marquée INTROUVABLE, jamais supposée. Toute règle cite le tag charter exact.
+  Aucun placeholder. Reste dans ta lentille : les briques et le legs, pas le détail des boucles design.
+success_criteria: >-
+  Fichier produit, 4 sections non triviales, règles « - **Rn** » avec tags charter, chaque
+  brique citée vérifiée existante (ou INTROUVABLE explicite), check_prisme.mjs exit 0.
+tests_oracles: >-
+  Oracle de forme : node scripts/forge/prisme/check_prisme.mjs lab/forge_runs/snake/prisme/product_snapshot_archidepot.md
+  — LANCE-LE TOI-MÊME et joins la sortie. L'existence des briques : ls/grep (cite les chemins).
+  La pertinence = fog HumanGate.
+final_report: >-
+  Restitution standard : cite charter + sortie check_prisme + liste briques vérifiées ;
+  claim_verdict: NO_CLAIM_ALLOWED.
+output_contract: >-
+  product_snapshot_archidepot.md : {ce_que_le_joueur_voit, ce_qu_il_fait, ce_qu_il_ressent,
+  regles_observables[] avec REUSED_FROM/NEW + tags charter cités}.
+skill: aucun
+plugin: aucun
+delegation_context: >-
+  Panel Prisme M-E (3 lentilles). En aval : merge_prisme.mjs puis Gameplay Review puis
+  wiremap (M-G, champ REUSED_FROM). Consommateurs : merge_prisme, Gameplay Review, architecte.

@@ -1,0 +1,31 @@
+{
+  "id": "audit-oracle-chain-lab-001",
+  "kind": "oracle",
+  "name": "Oracle audit: dossier lab/ (chain_lab.ps1)",
+  "maturity": "saved",
+  "badge": "real",
+  "roadmapRef": null,
+  "sourceRef": "00_STUDIO_CONTROL/05_AUDIT/chains/chain_lab.ps1",
+  "payload": {
+    "prompt": "N/A — vérification mécanique PowerShell (aucun appel LLM). Exécute chain_lab.ps1 et lit son VERDICT.",
+    "verdictField": "verdict",
+    "expectedValues": [
+      "PASS",
+      "PARTIAL",
+      "FAIL"
+    ],
+    "rule": "Audit dossier lab/ — 6 checks mécaniques (chain_lab.ps1). Périmètre : datasets JSONL, lab/runs taille, puzzles, ACTIVE_DATASET.txt, chains ledger.\n1/6 lab/ACTIVE_DATASET.txt présent + non vide (HAUTE si absent, MOY si vide)\n2/6 lab/datasets/*.jsonl présence + lignes (HAUTE si aucun, MOY si un fichier vide)\n3/6 lab/runs/ taille (MOY >5000 MB, BASSE >2000 MB) + dernier run > 30 j (BASSE)\n4/6 lab/chains/IMPROVEMENT_LEDGER.yaml (HAUTE si absent) + HUMANGATE_DECISION_LOG.yaml (MOY si absent)\n5/6 lab/puzzles/ présence (MOY si absent)\n6/6 lab/gameplay_observation/ >= 1 trace (BASSE si absent/vide)\nVerdict : PASS si 0 finding ; FAIL si au moins un CRIT/HAUTE/MOY/INCONNU ; sinon PARTIAL. claim_verdict: NO_CLAIM_ALLOWED.",
+    "category": "mécanique",
+    "attachableTo": [
+      "llm",
+      "agent",
+      "tool",
+      "router"
+    ],
+    "model": "",
+    "temperature": null,
+    "scriptRef": "chain_lab.ps1"
+  },
+  "created": "2026-07-03T00:00:00.000Z",
+  "updated": "2026-07-03T00:00:00.000Z"
+}

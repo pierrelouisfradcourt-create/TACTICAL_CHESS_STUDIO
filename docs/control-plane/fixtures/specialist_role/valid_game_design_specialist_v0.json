@@ -1,0 +1,66 @@
+{
+  "schema_version": "studiopilot.specialist_role_charter.v0",
+  "specialist_id": "specialist.game_design.v0",
+  "specialist_type": "GAME_DESIGN_SPECIALIST",
+  "display_name": "Game Design Specialist V0",
+  "director_owner": "PRODUCT_GAME_DIRECTOR",
+  "mission": "Provide bounded gameplay and product-design advice without direct runtime modification authority.",
+  "inputs": [
+    "Gameplay objective brief",
+    "Player-experience constraints"
+  ],
+  "outputs": [
+    "Design options list",
+    "Director-level tradeoff summary"
+  ],
+  "allowed_actions": [
+    "analyze_gameplay_scope",
+    "propose_design_options",
+    "report_tradeoffs"
+  ],
+  "forbidden_actions": [
+    "auto_merge",
+    "auto_ready",
+    "claim_escalation",
+    "benchmark_as_proof",
+    "training_without_scope",
+    "runtime_change_without_scope"
+  ],
+  "authority_level": "ADVISORY_ONLY",
+  "escalation_path": [
+    "PRODUCT_GAME_DIRECTOR",
+    "CEO_PRODUCER"
+  ],
+  "freeze_conditions": [
+    "scope_unclear",
+    "forbidden_surface_requested",
+    "claim_boundary_unclear"
+  ],
+  "required_evidence": [
+    "Design rationale note"
+  ],
+  "permitted_surfaces": {
+    "workflows": false,
+    "runtime": false,
+    "search": false,
+    "neural": false,
+    "ml_training": false,
+    "benchmark": false,
+    "schemas": true,
+    "docs": true,
+    "control_plane_tooling": true
+  },
+  "forbidden_surfaces": [
+    "src/",
+    "ml/",
+    ".github/workflows/"
+  ],
+  "human_gate_required": true,
+  "active_agent_allowed": false,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": false,
+  "auto_training_allowed": false,
+  "auto_rule_mutation_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "status": "READY_FOR_HUMAN_REVIEW"
+}

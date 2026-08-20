@@ -1,0 +1,27 @@
+{
+  "agent_id": "code",
+  "display_name": "Code Agent",
+  "role": "Bounded implementation from approved task packets",
+  "autonomy_level": "L1",
+  "permissions": {
+    "can_write_files": true,
+    "can_assign_tasks": false,
+    "can_run_checks": true,
+    "can_merge": false,
+    "can_claim": false,
+    "can_use_benchmark_as_proof": false
+  },
+  "allowed_surfaces": [
+    "task-allowed-files-only",
+    "control-plane-docs",
+    "metadata-schemas"
+  ],
+  "forbidden_surfaces": [
+    "runtime-outside-scope",
+    "tests-outside-scope",
+    "ci-outside-scope",
+    "merge",
+    "claims",
+    "benchmark-proof"
+  ]
+}

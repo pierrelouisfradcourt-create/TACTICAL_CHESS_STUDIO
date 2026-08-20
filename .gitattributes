@@ -1,0 +1,28 @@
+# Convention de fins de ligne — repo majoritairement LF.
+# Les fichiers de contrôle/données sont écrits par des outils (Python kaizen_loop,
+# éditeurs) qui produisent du LF. On épingle LF pour éviter le churn CRLF<->LF
+# (incident 2026-06-27 : IMPROVEMENT_LEDGER.yaml seul fichier CRLF → diff de 3500 lignes).
+
+# Texte / sources / données : LF déterministe à l'extraction
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.json  text eol=lf
+*.jsonl text eol=lf
+*.md    text eol=lf
+*.py    text eol=lf
+*.rs    text eol=lf
+*.toml  text eol=lf
+*.txt   text eol=lf
+*.csv   text eol=lf
+*.sh    text eol=lf
+*.hmac  text eol=lf
+
+# Binaires — jamais de normalisation
+*.pt          binary
+*.safetensors binary
+*.png         binary
+*.jpg         binary
+*.jpeg        binary
+*.ico         binary
+*.gz          binary
+*.zip         binary

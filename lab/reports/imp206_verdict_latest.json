@@ -1,0 +1,18 @@
+{
+  "imp": "IMP-206",
+  "title": "Durcissement grep_guard_ledger — détection bypass os.open(LEDGER)",
+  "oracle": ".venv312/Scripts/python.exe -m pytest scripts/phase2_tests/test_imp205_single_writer_complete.py -v",
+  "oracle_result": {"passed": 19, "failed": 0, "exit_code": 0},
+  "evidence": {
+    "tdd_red": "test_detect_os_open_w échouait AssertionError:[] sur code sans branche",
+    "tdd_green": "test_detect_os_open_w + test_os_open_readonly_not_flagged passent",
+    "acceptance_clean_repo": "grep_guard_ledger.py --json -> exit 0",
+    "acceptance_bypass_os_open": "fixture os.open(LEDGER,O_WRONLY) -> flaggé, exit 1",
+    "anti_false_positive": "os.open(LEDGER,O_RDONLY) -> 0 violation (lecture)",
+    "regression": "suite guard 19 passed"
+  },
+  "date": "2026-07-09",
+  "software_verdict": "OK",
+  "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+  "claim_verdict": "NO_CLAIM_ALLOWED"
+}

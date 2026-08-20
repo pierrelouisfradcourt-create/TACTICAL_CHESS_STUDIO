@@ -1,0 +1,1032 @@
+record_type: "local_logistic_agent_dry_run"
+contract_version: "V0"
+language: "English"
+dry_run_id: "DRY_RUN_UXPILOTE_READ_ONLY_PIPELINE_V0"
+created_at_utc: "2026-05-23T21:08:19Z"
+created_by: "Codex bounded executor"
+authority: "proposal_only"
+analysis_mode: "PASSIVE"
+mutation: "BLOCKED"
+claim_posture: "NO_CLAIM_ALLOWED"
+human_gate_required: true
+no_global_ready_verdict: true
+
+codex_runtime:
+  requested_model: "gpt-5.5"
+  requested_reasoning_effort: "medium"
+  task_class: "logistics_only"
+  fallback_policy:
+    if_requested_model_unavailable: "STOP_AND_REPORT"
+    if_actual_model_identifier_hidden: "CONTINUE_FOR_PASSIVE_DRY_RUN_ONLY"
+    unknown_runtime_status: "BLOCKED_FOR_EXACT_RUNTIME_CLAIM_ONLY"
+  actual_runtime: "UNKNOWN"
+  actual_runtime_evidence: "Exact runtime identifier was not exposed in the task context."
+  runtime_status: "BLOCKED"
+  runtime_claim_rule: "Do not claim the exact runtime model unless Codex exposes it explicitly."
+
+repo_reference:
+  path: "C:/TACTICAL_CHESS_STUDIO"
+  branch: "master"
+  head: "5e48ed310a5047eb21bd4825da858e3a08e0c950"
+  worktree_status: "UNKNOWN"
+  worktree_status_observed: "dirty with pre-existing untracked files"
+  pre_existing_changes:
+    status: "PASSIVE"
+    files:
+      - "00_STUDIO_CONTROL/05_STATUS/AUDIT_01_STUDIO_CONTROL_WORKFLOW_MAP.md"
+      - "00_STUDIO_CONTROL/05_STATUS/AUDIT_02_STUDIOV2_ROOT_RUNTIME_TRUTH_MAP.md"
+      - "00_STUDIO_CONTROL/05_STATUS/AUDIT_03_STUDIO_DEV_WORKBENCH_UXPILOTE_REQUIREMENTS.md"
+      - "00_STUDIO_CONTROL/05_STATUS/AUDIT_04_STUDIOCTL_PHASE1_TASK_CHARTER.md"
+      - "00_STUDIO_CONTROL/05_STATUS/LOCAL_LOGISTIC_AGENT_PIPELINE_CLOSURE_STATUS_V0.md"
+      - "00_STUDIO_CONTROL/05_STATUS/PIPELINE_FORMS_INTEGRATION_AUDIT_V0.md"
+      - "00_STUDIO_CONTROL/05_STATUS/PIPELINE_FORMS_REGISTRATION_READINESS_AUDIT_V0.md"
+      - "00_STUDIO_CONTROL/05_STATUS/UXPILOTE_READ_ONLY_PROTOTYPE_REPORT_V0.md"
+      - "scripts/uxpilote/"
+
+input_request:
+  raw: "Develop UxPilote read-only prototype without breaking studioctl."
+  request_id: "LLA-DRY-RUN-UXPILOTE-01"
+  operator_goal: "Use the Local Logistic Agent forms to process the UxPilote read-only prototype request without executing or mutating runtime."
+  success_condition: "Produce one valid candidate-only YAML dry-run record with task queue candidate, priority matrix candidate, Codex prompt candidate, and next-step proposal candidate."
+
+source_state:
+  aggregate:
+    created: "DOCUMENTED_ONLY"
+    registered: "UNKNOWN"
+    loaded: "DOCUMENTED_ONLY"
+    enforced: "DOCUMENTED_ONLY"
+    evidenced: "DOCUMENTED_ONLY"
+    rule: "created != registered; registered != loaded; loaded != enforced; enforced != evidenced"
+  notes:
+    - "Sources listed below were loaded by direct readback for this dry-run task."
+    - "Registration is not globally claimed from memory; where registration was inferred from the closure status, the persistent registry itself was not reread in this dry run."
+    - "Enforcement applies only to this candidate-only dry-run record."
+  sources:
+    - path: "C:/TACTICAL_CHESS_STUDIO/AGENTS.md"
+      created: "DOCUMENTED_ONLY"
+      registered: "UNKNOWN"
+      loaded: "DOCUMENTED_ONLY"
+      enforced: "DOCUMENTED_ONLY"
+      evidenced: "DOCUMENTED_ONLY"
+      use: "Repository doctrine, verdict split, git safety, validation discipline, and guardrails."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md"
+      created: "DOCUMENTED_ONLY"
+      registered: "UNKNOWN"
+      loaded: "DOCUMENTED_ONLY"
+      enforced: "DOCUMENTED_ONLY"
+      evidenced: "DOCUMENTED_ONLY"
+      use: "Output routing, forbidden default destinations, and status destination handling."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md"
+      created: "DOCUMENTED_ONLY"
+      registered: "DOCUMENTED_ONLY"
+      loaded: "DOCUMENTED_ONLY"
+      enforced: "DOCUMENTED_ONLY"
+      evidenced: "DOCUMENTED_ONLY"
+      use: "Source-state separation and anchoring rules."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md"
+      created: "DOCUMENTED_ONLY"
+      registered: "DOCUMENTED_ONLY"
+      loaded: "DOCUMENTED_ONLY"
+      enforced: "DOCUMENTED_ONLY"
+      evidenced: "DOCUMENTED_ONLY"
+      use: "Controlled vocabulary, output routing envelope, validation, and verdict rules."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/LOCAL_LOGISTIC_AGENT_PIPELINE_CLOSURE_STATUS_V0.md"
+      created: "DOCUMENTED_ONLY"
+      registered: "UNKNOWN"
+      loaded: "DOCUMENTED_ONLY"
+      enforced: "DOCUMENTED_ONLY"
+      evidenced: "DOCUMENTED_ONLY"
+      use: "Local Logistic Agent form-pack closure status and first dry-run posture."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/LOCAL_LOGISTIC_AGENT_SPEC_V0.md"
+      created: "DOCUMENTED_ONLY"
+      registered: "DOCUMENTED_ONLY"
+      loaded: "DOCUMENTED_ONLY"
+      enforced: "DOCUMENTED_ONLY"
+      evidenced: "DOCUMENTED_ONLY"
+      use: "Local Logistic Agent authority, pipeline stages, source-state rule, and no-runtime authority."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_QUEUE_TEMPLATE_V0.yaml"
+      created: "DOCUMENTED_ONLY"
+      registered: "DOCUMENTED_ONLY"
+      loaded: "DOCUMENTED_ONLY"
+      enforced: "DOCUMENTED_ONLY"
+      evidenced: "DOCUMENTED_ONLY"
+      use: "Task queue candidate structure."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_MATRIX_TEMPLATE_V0.yaml"
+      created: "DOCUMENTED_ONLY"
+      registered: "DOCUMENTED_ONLY"
+      loaded: "DOCUMENTED_ONLY"
+      enforced: "DOCUMENTED_ONLY"
+      evidenced: "DOCUMENTED_ONLY"
+      use: "Task matrix evidence and route fields."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/PROMPT_GENERATOR_RULES_V0.md"
+      created: "DOCUMENTED_ONLY"
+      registered: "DOCUMENTED_ONLY"
+      loaded: "DOCUMENTED_ONLY"
+      enforced: "DOCUMENTED_ONLY"
+      evidenced: "DOCUMENTED_ONLY"
+      use: "Codex prompt candidate requirements and blocked actions."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/REPORT_PARSER_RULES_V0.md"
+      created: "DOCUMENTED_ONLY"
+      registered: "DOCUMENTED_ONLY"
+      loaded: "DOCUMENTED_ONLY"
+      enforced: "DOCUMENTED_ONLY"
+      evidenced: "DOCUMENTED_ONLY"
+      use: "Executor report parsing fields and claim-overreach handling."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/LOCAL_RAG_SOURCE_PACK_V0.md"
+      created: "DOCUMENTED_ONLY"
+      registered: "DOCUMENTED_ONLY"
+      loaded: "DOCUMENTED_ONLY"
+      enforced: "DOCUMENTED_ONLY"
+      evidenced: "DOCUMENTED_ONLY"
+      use: "Source-pack loading order, retrieval boundaries, and anti-claim rules."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/EXECUTOR_REPORT_SUMMARY_TEMPLATE_V0.yaml"
+      created: "DOCUMENTED_ONLY"
+      registered: "DOCUMENTED_ONLY"
+      loaded: "DOCUMENTED_ONLY"
+      enforced: "DOCUMENTED_ONLY"
+      evidenced: "DOCUMENTED_ONLY"
+      use: "Executor report summary fields for future parser integration."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/NEXT_STEP_PROPOSAL_TEMPLATE_V0.yaml"
+      created: "DOCUMENTED_ONLY"
+      registered: "DOCUMENTED_ONLY"
+      loaded: "DOCUMENTED_ONLY"
+      enforced: "DOCUMENTED_ONLY"
+      evidenced: "DOCUMENTED_ONLY"
+      use: "Next-step proposal candidate fields."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_PRIORITY_MATRIX_V0.yaml"
+      created: "DOCUMENTED_ONLY"
+      registered: "DOCUMENTED_ONLY"
+      loaded: "DOCUMENTED_ONLY"
+      enforced: "DOCUMENTED_ONLY"
+      evidenced: "DOCUMENTED_ONLY"
+      use: "Priority scoring and anti-chaos rules."
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/UXPILOTE_CHAIN_CONTROL_UX_AND_FRAGMENTED_AUDIT_PIPELINE_V0.md"
+      created: "DOCUMENTED_ONLY"
+      registered: "UNKNOWN"
+      loaded: "DOCUMENTED_ONLY"
+      enforced: "DOCUMENTED_ONLY"
+      evidenced: "DOCUMENTED_ONLY"
+      use: "Optional UxPilote read-only prototype context, chain grammar, views, and non-authorization rules."
+
+intake:
+  raw_request: "Develop UxPilote read-only prototype without breaking studioctl."
+  interpreted_goal: "Prepare a candidate-only plan for a future read-only UxPilote prototype lane that preserves studioctl isolation and blocks runtime mutation."
+  ambiguity:
+    - "Prototype implementation target is not authorized in this dry run."
+    - "Whether the future prototype should be code, static HTML, or docs-only mockup requires HumanGate decision."
+    - "Existing scripts/uxpilote/ is pre-existing and untracked; its contents were not inspected because the current task is logistics-only and source-scoped."
+  assumptions:
+    - "Current dry run may create only this YAML record."
+    - "A future Codex task may be proposed but must not be executed by this dry run."
+    - "studioctl isolation means no edits to scripts/studioV2, no CLI behavior change, and no shared runtime dependency changes unless separately authorized."
+    - "UxPilote remains read-only and cannot execute chains, mutate files, activate agents, or validate claims."
+  authority_boundary:
+    local_logistic_agent: "PASSIVE / proposal_only"
+    codex_current_task: "Create one candidate-only YAML record and validate it."
+    codex_prompt_candidate: "Draft only; execution is blocked until HumanGate authorizes it."
+    humangate: "Required for any future execution, mutation, activation, promotion, claim, Git publication, or source registration change."
+    runtime_authority: "NONE"
+
+classification:
+  task_class_candidates:
+    - "logistics_only"
+    - "docs_workflow"
+    - "audit_repo"
+    - "report_analysis"
+  selected_task_class: "logistics_only"
+  primary_surface: "inference"
+  secondary_surfaces:
+    - "canonical_docs"
+    - "roadmap_docs_only"
+  mutation_required: false
+  codex_required: true
+  codex_required_reason: "Codex is required only to create and validate this candidate dry-run record; the generated prototype prompt is not executed."
+  humangate_required: true
+  expected_status: "DOCUMENTED_ONLY"
+  chain_candidate:
+    type: "hygiene"
+    zone: "studio_control"
+    subzone: "AutoDev forms and UxPilote read-only prototype"
+    mode: "prepare_patch"
+    authority: "patch_proposal"
+    mutation_policy: "proposal_only"
+    create_chain_gate: "BLOCKED until HumanGate authorizes a future bounded prototype task"
+
+route_check:
+  status: "DOCUMENTED_ONLY"
+  output_routing_required: true
+  output_routing_present: true
+  destination_allowed: true
+  duplicate_name_risk: "LOW"
+  evidence: "The task explicitly allowed creation only at 00_STUDIO_CONTROL/05_STATUS/DRY_RUN_UXPILOTE_READ_ONLY_PIPELINE_V0.yaml; Test-Path returned false before creation."
+  note: "The broad forbidden destination 00_STUDIO_CONTROL/ is treated as a blocked default/root destination, not as blocking the explicit nested canonical destination named by this task."
+
+output_routing_result:
+  produced_file_type: "candidate-only Local Logistic Agent dry-run YAML"
+  intended_surface: "inference"
+  canonical_destination: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/DRY_RUN_UXPILOTE_READ_ONLY_PIPELINE_V0.yaml"
+  temporary_destination: ""
+  actual_destination: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/DRY_RUN_UXPILOTE_READ_ONLY_PIPELINE_V0.yaml"
+  registration_required: false
+  project_source_upload_required: false
+  promotion_gate: "HumanGate"
+
+task_queue_candidate:
+  schema_version: "LOCAL_LOGISTIC_AGENT_TASK_QUEUE_V0"
+  queue_id: "UXPILOTE_READ_ONLY_PROTOTYPE_QUEUE_CANDIDATE_V0"
+  authority: "proposal_only"
+  analysis_mode: "PASSIVE"
+  mutation: "BLOCKED"
+  task_count: 8
+  tasks:
+    - task_id: "UXPILOTE-RO-001"
+      title: "UxPilote read-only prototype source and route gate"
+      task_class: "logistics_only"
+      primary_surface: "inference"
+      scope_in:
+        - "Confirm required source anchors for a future UxPilote prototype prompt."
+        - "Preserve created, registered, loaded, enforced, and evidenced source-state separation."
+      scope_out:
+        - "No code creation."
+        - "No scripts/uxpilote mutation."
+        - "No scripts/studioV2 mutation."
+        - "No runtime execution."
+      target_files:
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/DRY_RUN_UXPILOTE_READ_ONLY_PIPELINE_V0.yaml"
+      reference_only_paths:
+        - "C:/TACTICAL_CHESS_STUDIO/AGENTS.md"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/LOCAL_RAG_SOURCE_PACK_V0.md"
+      output_route:
+        produced_file_type: "dry-run YAML source-state section"
+        intended_surface: "inference"
+        canonical_destination: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/DRY_RUN_UXPILOTE_READ_ONLY_PIPELINE_V0.yaml"
+        temporary_destination: ""
+        forbidden_destinations:
+          - "runtime source directories"
+          - "test directories"
+          - "dataset directories"
+          - "model/checkpoint directories"
+          - "C:/TACTICAL_CHESS_STUDIO/lab/"
+          - "C:/TACTICAL_CHESS_STUDIO/latest.json"
+        registration_required: false
+        project_source_upload_required: false
+        promotion_gate: "HumanGate"
+      validation_required:
+        expected_level: "DOCUMENTED_ONLY"
+        commands:
+          - "Get-Content 00_STUDIO_CONTROL\\05_STATUS\\DRY_RUN_UXPILOTE_READ_ONLY_PIPELINE_V0.yaml"
+          - "git diff --check"
+        readback_required: true
+      blocked_actions:
+        - "Do not execute generated Codex prompt."
+        - "Do not modify runtime code."
+        - "Do not modify tests."
+        - "Do not modify scripts."
+        - "Do not inspect secrets."
+        - "Do not stage, commit, push, branch, or PR."
+      expected_output: "Loaded-source and route-gate candidate section in this YAML."
+      expected_status: "DOCUMENTED_ONLY"
+      humangate_required: true
+    - task_id: "UXPILOTE-RO-002"
+      title: "UxPilote read-only prototype task charter candidate"
+      task_class: "docs_workflow"
+      primary_surface: "canonical_docs"
+      scope_in:
+        - "Draft a future bounded task charter candidate for a read-only UxPilote prototype."
+        - "Declare studioctl isolation and no runtime authority."
+      scope_out:
+        - "No prototype code in this dry run."
+        - "No registry/source-index/checklist edits."
+        - "No execution or mutation."
+      target_files:
+        - "candidate future path only: C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/06_CODEX/UXPILOTE_READ_ONLY_PROTOTYPE_TASK_CHARTER_CANDIDATE_V0.yaml"
+      reference_only_paths:
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/UXPILOTE_CHAIN_CONTROL_UX_AND_FRAGMENTED_AUDIT_PIPELINE_V0.md"
+      output_route:
+        produced_file_type: "future task charter candidate"
+        intended_surface: "canonical_docs"
+        canonical_destination: "candidate only; HumanGate routing required before creation"
+        temporary_destination: ""
+        forbidden_destinations:
+          - "runtime source directories"
+          - "test directories"
+          - "scripts/studioV2"
+        registration_required: false
+        project_source_upload_required: false
+        promotion_gate: "HumanGate"
+      validation_required:
+        expected_level: "DOCUMENTED_ONLY"
+        commands:
+          - "git diff --check"
+          - "readback produced future task charter if HumanGate authorizes creation"
+        readback_required: true
+      blocked_actions:
+        - "Do not create the candidate charter in this dry run."
+        - "Do not modify studioctl."
+        - "Do not run runtime commands."
+      expected_output: "Task charter candidate concept preserved inside codex_prompt_candidate."
+      expected_status: "PASSIVE"
+      humangate_required: true
+    - task_id: "UXPILOTE-RO-003"
+      title: "studioctl isolation audit candidate"
+      task_class: "audit_repo"
+      primary_surface: "scripts_tooling"
+      scope_in:
+        - "Future read-only audit may compare UxPilote target paths against scripts/studioV2 boundaries."
+        - "Confirm no shared import or CLI behavior change is proposed."
+      scope_out:
+        - "No scripts/studioV2 edits."
+        - "No CLI invocation."
+        - "No runtime execution."
+      target_files:
+        - "candidate future readback only: C:/TACTICAL_CHESS_STUDIO/scripts/studioV2/studioctl.py"
+      reference_only_paths:
+        - "C:/TACTICAL_CHESS_STUDIO/scripts/studioV2/studioctl.py"
+        - "C:/TACTICAL_CHESS_STUDIO/scripts/uxpilote/"
+      output_route:
+        produced_file_type: "future isolation audit note"
+        intended_surface: "inference"
+        canonical_destination: "candidate only; HumanGate routing required before creation"
+        temporary_destination: ""
+        forbidden_destinations:
+          - "C:/TACTICAL_CHESS_STUDIO/scripts/studioV2/"
+          - "runtime source directories"
+          - "test directories"
+        registration_required: false
+        project_source_upload_required: false
+        promotion_gate: "HumanGate"
+      validation_required:
+        expected_level: "DOCUMENTED_ONLY"
+        commands:
+          - "git diff --name-only"
+          - "verify scripts/studioV2 is absent from changed files"
+        readback_required: true
+      blocked_actions:
+        - "Do not patch studioctl."
+        - "Do not run studioctl."
+        - "Do not import or execute prototype code."
+      expected_output: "Isolation finding candidate."
+      expected_status: "PASSIVE"
+      humangate_required: true
+    - task_id: "UXPILOTE-RO-004"
+      title: "dashboard/static render candidate"
+      task_class: "docs_workflow"
+      primary_surface: "inference"
+      scope_in:
+        - "Define a future static read-only dashboard surface showing UxPilote zones, chain grammar, source state, and blocked actions."
+        - "Prefer static, non-executing render or mock artifact until HumanGate authorizes implementation."
+      scope_out:
+        - "No browser automation in this dry run."
+        - "No local dev server."
+        - "No generated runtime output."
+      target_files:
+        - "candidate future path only: C:/TACTICAL_CHESS_STUDIO/scripts/uxpilote/read_only_prototype/"
+      reference_only_paths:
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/UXPILOTE_CHAIN_CONTROL_UX_AND_FRAGMENTED_AUDIT_PIPELINE_V0.md"
+      output_route:
+        produced_file_type: "future static prototype candidate"
+        intended_surface: "inference"
+        canonical_destination: "candidate only; HumanGate must authorize exact path before creation"
+        temporary_destination: ""
+        forbidden_destinations:
+          - "scripts/studioV2"
+          - "runtime source directories"
+          - "test directories"
+          - "lab"
+        registration_required: false
+        project_source_upload_required: false
+        promotion_gate: "HumanGate"
+      validation_required:
+        expected_level: "DOCUMENTED_ONLY"
+        commands:
+          - "readback produced static files if authorized"
+          - "git diff --check"
+          - "locked-file change check"
+        readback_required: true
+      blocked_actions:
+        - "Do not create UI code in this dry run."
+        - "Do not execute generated prompt."
+        - "Do not run runtime/gameplay commands."
+      expected_output: "Static render task candidate."
+      expected_status: "PASSIVE"
+      humangate_required: true
+    - task_id: "UXPILOTE-RO-005"
+      title: "source-pack use candidate"
+      task_class: "logistics_only"
+      primary_surface: "inference"
+      scope_in:
+        - "Use the Local RAG source pack to define minimal sources for any future prototype task."
+        - "Require readback of AGENTS, routing, anchoring, UxPilote map, prompt rules, and target files."
+      scope_out:
+        - "No broad repository scan."
+        - "No secret inspection."
+        - "No source registration update."
+      target_files:
+        - "candidate future prompt section only"
+      reference_only_paths:
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/LOCAL_RAG_SOURCE_PACK_V0.md"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/PROMPT_GENERATOR_RULES_V0.md"
+      output_route:
+        produced_file_type: "source-pack prompt section candidate"
+        intended_surface: "inference"
+        canonical_destination: "embedded in this dry-run YAML"
+        temporary_destination: ""
+        forbidden_destinations:
+          - "registry/source-index/checklist files"
+          - "runtime source directories"
+          - "test directories"
+        registration_required: false
+        project_source_upload_required: false
+        promotion_gate: "HumanGate"
+      validation_required:
+        expected_level: "DOCUMENTED_ONLY"
+        commands:
+          - "search produced YAML for source_state"
+          - "verify YAML parses"
+        readback_required: true
+      blocked_actions:
+        - "Do not treat memory as source load."
+        - "Do not update registry."
+        - "Do not inspect secrets."
+      expected_output: "Source-pack use requirements in prompt candidate."
+      expected_status: "DOCUMENTED_ONLY"
+      humangate_required: true
+    - task_id: "UXPILOTE-RO-006"
+      title: "report parser integration candidate"
+      task_class: "report_analysis"
+      primary_surface: "inference"
+      scope_in:
+        - "Preserve executor report parser fields for any future UxPilote prototype executor report."
+        - "Require source_state, route_check, output_routing_result, commands_run, validation, skipped_validation, risks, and split verdicts."
+      scope_out:
+        - "No parser implementation."
+        - "No executor report parsing beyond this dry-run record."
+        - "No claim validation."
+      target_files:
+        - "candidate future parser integration note only"
+      reference_only_paths:
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/REPORT_PARSER_RULES_V0.md"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/EXECUTOR_REPORT_SUMMARY_TEMPLATE_V0.yaml"
+      output_route:
+        produced_file_type: "report parser integration candidate"
+        intended_surface: "inference"
+        canonical_destination: "embedded in this dry-run YAML"
+        temporary_destination: ""
+        forbidden_destinations:
+          - "scripts/studioV2"
+          - "runtime source directories"
+          - "test directories"
+        registration_required: false
+        project_source_upload_required: false
+        promotion_gate: "HumanGate"
+      validation_required:
+        expected_level: "DOCUMENTED_ONLY"
+        commands:
+          - "search produced YAML for report parser integration task"
+        readback_required: true
+      blocked_actions:
+        - "Do not parse claims into approval."
+        - "Do not modify report parser rules."
+        - "Do not modify scripts."
+      expected_output: "Report-parser field preservation candidate."
+      expected_status: "DOCUMENTED_ONLY"
+      humangate_required: true
+    - task_id: "UXPILOTE-RO-007"
+      title: "prototype validation plan candidate"
+      task_class: "docs_workflow"
+      primary_surface: "inference"
+      scope_in:
+        - "Define future validation for a read-only prototype without runtime or gameplay execution."
+        - "Include YAML parse, readback, diff check, locked-file check, and static render check if UI files are later authorized."
+      scope_out:
+        - "No cargo test."
+        - "No pytest."
+        - "No benchmark."
+        - "No training."
+        - "No runtime/gameplay commands."
+      target_files:
+        - "candidate validation plan only"
+      reference_only_paths:
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/PROMPT_GENERATOR_RULES_V0.md"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md"
+      output_route:
+        produced_file_type: "validation plan candidate"
+        intended_surface: "inference"
+        canonical_destination: "embedded in this dry-run YAML"
+        temporary_destination: ""
+        forbidden_destinations:
+          - "lab"
+          - "latest.json"
+          - "dataset directories"
+          - "model/checkpoint directories"
+        registration_required: false
+        project_source_upload_required: false
+        promotion_gate: "HumanGate"
+      validation_required:
+        expected_level: "DOCUMENTED_ONLY"
+        commands:
+          - "git diff --check"
+          - "Get-Content produced YAML"
+          - "safe YAML parse"
+        readback_required: true
+      blocked_actions:
+        - "Do not run runtime tests."
+        - "Do not benchmark."
+        - "Do not generate runtime outputs."
+      expected_output: "Validation plan candidate."
+      expected_status: "DOCUMENTED_ONLY"
+      humangate_required: true
+    - task_id: "UXPILOTE-RO-008"
+      title: "next-step proposal integration candidate"
+      task_class: "logistics_only"
+      primary_surface: "inference"
+      scope_in:
+        - "Select one recommended next task for HumanGate review."
+        - "Keep mutation and execution blocked until approved."
+      scope_out:
+        - "No automatic task execution."
+        - "No branch, commit, push, or PR."
+        - "No activation or claims."
+      target_files:
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/DRY_RUN_UXPILOTE_READ_ONLY_PIPELINE_V0.yaml"
+      reference_only_paths:
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/NEXT_STEP_PROPOSAL_TEMPLATE_V0.yaml"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_PRIORITY_MATRIX_V0.yaml"
+      output_route:
+        produced_file_type: "next-step proposal candidate"
+        intended_surface: "inference"
+        canonical_destination: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/DRY_RUN_UXPILOTE_READ_ONLY_PIPELINE_V0.yaml"
+        temporary_destination: ""
+        forbidden_destinations:
+          - "runtime source directories"
+          - "test directories"
+          - "dataset directories"
+          - "model/checkpoint directories"
+        registration_required: false
+        project_source_upload_required: false
+        promotion_gate: "HumanGate"
+      validation_required:
+        expected_level: "DOCUMENTED_ONLY"
+        commands:
+          - "search produced YAML for next_step_proposal_candidate"
+          - "git status --short --branch"
+        readback_required: true
+      blocked_actions:
+        - "Do not authorize next task."
+        - "Do not execute prompt candidate."
+        - "Do not publish Git changes."
+      expected_output: "Bounded next-step proposal candidate."
+      expected_status: "DOCUMENTED_ONLY"
+      humangate_required: true
+
+task_priority_matrix_candidate:
+  schema_version: "LOCAL_LOGISTIC_AGENT_TASK_PRIORITY_MATRIX_V0"
+  matrix_id: "UXPILOTE_READ_ONLY_PROTOTYPE_PRIORITY_CANDIDATE_V0"
+  authority: "proposal_only"
+  analysis_mode: "PASSIVE"
+  mutation: "BLOCKED"
+  tasks:
+    - task_id: "UXPILOTE-RO-001"
+      roi_score: "HIGH"
+      cost_score: "LOW"
+      risk_score: "LOW"
+      dependency_score: "VERY_HIGH"
+      human_value_score: "HIGH"
+      parallelizable: false
+      blocked_by: []
+      route_ready: "DOCUMENTED_ONLY"
+      source_ready: "DOCUMENTED_ONLY"
+      validation_ready: "DOCUMENTED_ONLY"
+      humangate_ready: "BLOCKED"
+      recommended_order: 1
+      recommended_batch: "logistics_only"
+      expected_surface: "inference"
+      expected_status: "DOCUMENTED_ONLY"
+    - task_id: "UXPILOTE-RO-005"
+      roi_score: "HIGH"
+      cost_score: "LOW"
+      risk_score: "LOW"
+      dependency_score: "HIGH"
+      human_value_score: "HIGH"
+      parallelizable: true
+      blocked_by:
+        - "UXPILOTE-RO-001"
+      route_ready: "DOCUMENTED_ONLY"
+      source_ready: "DOCUMENTED_ONLY"
+      validation_ready: "DOCUMENTED_ONLY"
+      humangate_ready: "BLOCKED"
+      recommended_order: 2
+      recommended_batch: "logistics_only"
+      expected_surface: "inference"
+      expected_status: "DOCUMENTED_ONLY"
+    - task_id: "UXPILOTE-RO-002"
+      roi_score: "HIGH"
+      cost_score: "MEDIUM"
+      risk_score: "MEDIUM"
+      dependency_score: "HIGH"
+      human_value_score: "VERY_HIGH"
+      parallelizable: false
+      blocked_by:
+        - "UXPILOTE-RO-001"
+        - "UXPILOTE-RO-005"
+      route_ready: "UNKNOWN"
+      source_ready: "DOCUMENTED_ONLY"
+      validation_ready: "UNKNOWN"
+      humangate_ready: "BLOCKED"
+      recommended_order: 3
+      recommended_batch: "docs_workflow"
+      expected_surface: "canonical_docs"
+      expected_status: "PASSIVE"
+    - task_id: "UXPILOTE-RO-003"
+      roi_score: "VERY_HIGH"
+      cost_score: "LOW"
+      risk_score: "MEDIUM"
+      dependency_score: "HIGH"
+      human_value_score: "VERY_HIGH"
+      parallelizable: true
+      blocked_by:
+        - "HumanGate future read-only audit authorization"
+      route_ready: "UNKNOWN"
+      source_ready: "UNKNOWN"
+      validation_ready: "UNKNOWN"
+      humangate_ready: "BLOCKED"
+      recommended_order: 4
+      recommended_batch: "audit_repo"
+      expected_surface: "scripts_tooling"
+      expected_status: "PASSIVE"
+    - task_id: "UXPILOTE-RO-004"
+      roi_score: "HIGH"
+      cost_score: "MEDIUM"
+      risk_score: "MEDIUM"
+      dependency_score: "MEDIUM"
+      human_value_score: "HIGH"
+      parallelizable: true
+      blocked_by:
+        - "HumanGate target path decision"
+        - "UXPILOTE-RO-003"
+      route_ready: "UNKNOWN"
+      source_ready: "DOCUMENTED_ONLY"
+      validation_ready: "UNKNOWN"
+      humangate_ready: "BLOCKED"
+      recommended_order: 5
+      recommended_batch: "docs_workflow"
+      expected_surface: "inference"
+      expected_status: "PASSIVE"
+    - task_id: "UXPILOTE-RO-006"
+      roi_score: "MEDIUM"
+      cost_score: "LOW"
+      risk_score: "LOW"
+      dependency_score: "MEDIUM"
+      human_value_score: "MEDIUM"
+      parallelizable: true
+      blocked_by:
+        - "future executor report availability"
+      route_ready: "DOCUMENTED_ONLY"
+      source_ready: "DOCUMENTED_ONLY"
+      validation_ready: "UNKNOWN"
+      humangate_ready: "BLOCKED"
+      recommended_order: 6
+      recommended_batch: "report_analysis"
+      expected_surface: "inference"
+      expected_status: "DOCUMENTED_ONLY"
+    - task_id: "UXPILOTE-RO-007"
+      roi_score: "HIGH"
+      cost_score: "LOW"
+      risk_score: "LOW"
+      dependency_score: "HIGH"
+      human_value_score: "HIGH"
+      parallelizable: true
+      blocked_by:
+        - "UXPILOTE-RO-002"
+      route_ready: "DOCUMENTED_ONLY"
+      source_ready: "DOCUMENTED_ONLY"
+      validation_ready: "DOCUMENTED_ONLY"
+      humangate_ready: "BLOCKED"
+      recommended_order: 7
+      recommended_batch: "docs_workflow"
+      expected_surface: "inference"
+      expected_status: "DOCUMENTED_ONLY"
+    - task_id: "UXPILOTE-RO-008"
+      roi_score: "HIGH"
+      cost_score: "LOW"
+      risk_score: "LOW"
+      dependency_score: "LOW"
+      human_value_score: "HIGH"
+      parallelizable: false
+      blocked_by:
+        - "UXPILOTE-RO-001"
+        - "UXPILOTE-RO-005"
+      route_ready: "DOCUMENTED_ONLY"
+      source_ready: "DOCUMENTED_ONLY"
+      validation_ready: "DOCUMENTED_ONLY"
+      humangate_ready: "BLOCKED"
+      recommended_order: 8
+      recommended_batch: "logistics_only"
+      expected_surface: "inference"
+      expected_status: "DOCUMENTED_ONLY"
+
+codex_prompt_candidate:
+  target: "UXPILOTE_READ_ONLY_PROTOTYPE"
+  format: "YAML multiline string"
+  prompt: |
+    codex_runtime:
+      requested_model: "gpt-5.5"
+      requested_reasoning_effort: "medium"
+      task_class: "docs_workflow"
+      fallback_policy:
+        if_requested_model_unavailable: "STOP_AND_REPORT"
+        if_actual_model_identifier_hidden: "CONTINUE_FOR_PASSIVE_DRY_RUN_ONLY"
+        unknown_runtime_status: "BLOCKED_FOR_EXACT_RUNTIME_CLAIM_ONLY"
+      actual_runtime: "UNKNOWN"
+      runtime_status: "BLOCKED"
+      runtime_claim_rule: "Do not claim the exact runtime model unless Codex exposes it explicitly."
+
+    task:
+      id: "UXPILOTE-READ-ONLY-PROTOTYPE-CANDIDATE"
+      title: "Prepare UxPilote read-only prototype without breaking studioctl"
+      mode: "future_humangate_required_candidate"
+
+    preflight:
+      required:
+        - "cd C:/TACTICAL_CHESS_STUDIO"
+        - "Report current directory, branch, HEAD, worktree status, and pre-existing changes."
+        - "Read AGENTS.md first."
+        - "Read routing, source anchoring, AutoDev contract, Local Logistic Agent forms, and UxPilote map before proposing edits."
+        - "Do not infer active truth from memory or conversation."
+        - "Separate created, registered, loaded, enforced, and evidenced source state."
+        - "Stop if requested target path or output routing is unclear."
+
+    sources_to_read:
+      required:
+        - "C:/TACTICAL_CHESS_STUDIO/AGENTS.md"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/LOCAL_LOGISTIC_AGENT_SPEC_V0.md"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/PROMPT_GENERATOR_RULES_V0.md"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/LOCAL_RAG_SOURCE_PACK_V0.md"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/REPORT_PARSER_RULES_V0.md"
+        - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/UXPILOTE_CHAIN_CONTROL_UX_AND_FRAGMENTED_AUDIT_PIPELINE_V0.md"
+
+    scope_in:
+      - "Prepare a read-only UxPilote prototype candidate that displays Studio Control zones, chain grammar, source-state fields, blocked actions, status_by_surface, and HumanGate gate state."
+      - "Preserve studioctl isolation: do not edit scripts/studioV2, do not change studioctl CLI behavior, and do not introduce shared dependencies that affect studioctl."
+      - "Keep the prototype read-only: no file writes by default, no task execution, no runtime/gameplay commands, no agent activation, no claim validation."
+      - "If file creation is authorized by HumanGate, write only to the explicitly approved UxPilote prototype path and report route_check plus output_routing_result."
+
+    scope_out:
+      - "No runtime code mutation."
+      - "No tests mutation unless a later task explicitly authorizes targeted prototype tests."
+      - "No scripts/studioV2 changes."
+      - "No registry/source-index/checklist changes."
+      - "No dataset generation or reset."
+      - "No latest.json."
+      - "No lab/runs/RUN_*."
+      - "No model or checkpoint creation."
+      - "No model promotion."
+      - "No benchmark proof."
+      - "No training."
+      - "No Chess960 activation."
+      - "No DecisionController activation."
+      - "No commit, push, branch, or PR."
+
+    output_routing:
+      produced_file_type: "UxPilote read-only prototype candidate"
+      intended_surface: "inference"
+      canonical_destination: "BLOCKED until HumanGate approves exact target path"
+      temporary_destination: ""
+      forbidden_destinations:
+        - "C:/TACTICAL_CHESS_STUDIO/scripts/studioV2/"
+        - "runtime source directories"
+        - "test directories unless separately authorized"
+        - "dataset directories"
+        - "model/checkpoint directories"
+        - "C:/TACTICAL_CHESS_STUDIO/lab/"
+        - "C:/TACTICAL_CHESS_STUDIO/latest.json"
+      registration_required: false
+      project_source_upload_required: false
+      promotion_gate: "HumanGate"
+
+    blocked_actions:
+      - "Do not modify runtime code."
+      - "Do not modify studioctl."
+      - "Do not run runtime/gameplay commands."
+      - "Do not benchmark."
+      - "Do not train."
+      - "Do not generate/reset datasets."
+      - "Do not create latest.json or lab/runs."
+      - "Do not create/promote models or checkpoints."
+      - "Do not activate agents, Chess960, or DecisionController."
+      - "Do not inspect secrets."
+      - "Do not stage, commit, push, branch, or PR."
+
+    validation:
+      required_if_docs_only_or_static_files_are_authorized:
+        - "Read back all produced files."
+        - "Verify produced YAML/JSON/HTML/CSS parses or is syntactically valid with safe local tooling if available."
+        - "Run git diff --check."
+        - "Run git diff --name-only and verify scripts/studioV2 is absent."
+        - "Run git status --short --branch."
+      forbidden:
+        - "runtime execution"
+        - "cargo test"
+        - "pytest unless a later HumanGate task authorizes prototype-specific tests"
+        - "benchmark"
+        - "training"
+        - "dataset/model commands"
+        - "secret reads"
+        - "git add"
+        - "commit/push/branch/PR"
+
+    final_report_required:
+      - "preflight"
+      - "source_state"
+      - "route_check"
+      - "output_routing_result"
+      - "files_changed"
+      - "commands_run"
+      - "validation"
+      - "skipped_validation"
+      - "risks"
+      - "collision_check_with_other_lanes"
+      - "status_by_surface"
+      - "software_verdict"
+      - "evidence_verdict"
+      - "claim_verdict"
+      - "no_global_ready_verdict: true"
+
+    status_by_surface:
+      active_runtime_code: "PASSIVE"
+      tests: "PASSIVE"
+      artifacts_runtime_outputs: "PASSIVE"
+      canonical_docs: "DOCUMENTED_ONLY"
+      roadmap_docs_only: "PASSIVE"
+      inference: "DOCUMENTED_ONLY"
+      scripts_tooling: "PASSIVE"
+      secrets: "BLOCKED"
+
+    software_verdict:
+      active_runtime_code: "PASSIVE"
+      tests: "PASSIVE"
+      artifacts_runtime_outputs: "PASSIVE"
+      canonical_docs: "DOCUMENTED_ONLY"
+      roadmap_docs_only: "PASSIVE"
+      inference: "DOCUMENTED_ONLY"
+
+    evidence_verdict:
+      active_runtime_code: "PASSIVE"
+      tests: "PASSIVE"
+      artifacts_runtime_outputs: "PASSIVE"
+      canonical_docs: "DOCUMENTED_ONLY"
+      roadmap_docs_only: "PASSIVE"
+      inference: "DOCUMENTED_ONLY"
+
+    claim_verdict: "NO_CLAIM_ALLOWED"
+    no_global_ready_verdict: true
+
+next_step_proposal_candidate:
+  schema_version: "LOCAL_LOGISTIC_AGENT_NEXT_STEP_PROPOSAL_V0"
+  proposal_id: "UXPILOTE-READ-ONLY-NEXT-STEP-CANDIDATE-V0"
+  recommended_task_id: "UXPILOTE-RO-001"
+  reason: "The safest next step is to preserve source-state and route-gate evidence before any future prototype implementation is authorized; this protects studioctl isolation and prevents hidden runtime activation."
+  required_humangate_decision:
+    required: true
+    status: "BLOCKED"
+    decision_needed: "Approve, reject, or revise a future bounded UxPilote read-only prototype task and exact output path."
+  blocked_until:
+    status: "BLOCKED"
+    reason: "HumanGate has not authorized execution of the generated Codex prompt or any prototype file mutation."
+    required_decision: "HumanGate"
+  expected_surface: "inference"
+  expected_status: "DOCUMENTED_ONLY"
+  codex_required:
+    required: true
+    reason: "Codex would be required only after HumanGate authorizes a bounded future task; this dry run does not execute the prompt."
+  mutation_required:
+    repository_mutation: "BLOCKED"
+    runtime_mutation: "BLOCKED"
+    test_mutation: "BLOCKED"
+    dataset_mutation: "BLOCKED"
+    model_checkpoint_mutation: "BLOCKED"
+    allowed_only_after_humangate: true
+
+risks:
+  - risk: "Pre-existing untracked scripts/uxpilote/ may already contain prototype material not inspected by this dry run."
+    surface: "scripts_tooling"
+    status: "UNKNOWN"
+    mitigation: "Future task should explicitly authorize read-only inspection of scripts/uxpilote before proposing edits."
+  - risk: "A generated Codex prompt could be mistaken for authorization."
+    surface: "inference"
+    status: "BLOCKED"
+    mitigation: "Prompt is embedded as candidate-only and execution remains blocked until HumanGate approval."
+  - risk: "The broad forbidden 00_STUDIO_CONTROL default could conflict with the explicit allowed status destination."
+    surface: "canonical_docs"
+    status: "DOCUMENTED_ONLY"
+    mitigation: "This dry run uses only the exact create-only nested status file authorized by the task."
+  - risk: "Exact Codex runtime model is not exposed."
+    surface: "inference"
+    status: "BLOCKED"
+    mitigation: "Actual runtime remains UNKNOWN and exact runtime claims are blocked."
+  - risk: "Future static prototype validation may require browser or UI checks not authorized in this dry run."
+    surface: "inference"
+    status: "UNKNOWN"
+    mitigation: "Keep validation candidate explicit and require HumanGate authorization before any UI execution."
+
+blocked_actions:
+  - "Do not execute the generated Codex prompt."
+  - "Do not modify runtime code."
+  - "Do not modify tests."
+  - "Do not modify scripts."
+  - "Do not modify registry or source index."
+  - "Do not run runtime/gameplay commands."
+  - "Do not benchmark."
+  - "Do not train."
+  - "Do not generate/reset datasets."
+  - "Do not create latest.json or lab/runs."
+  - "Do not create/promote models or checkpoints."
+  - "Do not activate agents, Chess960, or DecisionController."
+  - "Do not inspect secrets."
+  - "Do not stage, commit, push, branch, or PR."
+
+collision_check_with_other_lanes:
+  studioctl_lane:
+    status: "PASSIVE"
+    evidence: "No scripts/studioV2 edit is authorized or performed by this dry run."
+  runtime_lane:
+    status: "PASSIVE"
+    evidence: "No runtime source path is targeted."
+  tests_lane:
+    status: "PASSIVE"
+    evidence: "No test path is targeted."
+  dataset_model_lane:
+    status: "BLOCKED"
+    evidence: "Dataset, model, checkpoint, training, benchmark, and latest.json actions are blocked."
+  git_publication_lane:
+    status: "BLOCKED"
+    evidence: "No staging, commit, push, branch, or PR is authorized."
+
+status_by_surface:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "DOCUMENTED_ONLY"
+  scripts_tooling: "PASSIVE"
+  secrets: "BLOCKED"
+
+software_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "DOCUMENTED_ONLY"
+  scripts_tooling: "PASSIVE"
+  secrets: "BLOCKED"
+
+evidence_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "DOCUMENTED_ONLY"
+  scripts_tooling: "PASSIVE"
+  secrets: "BLOCKED"
+
+claim_verdict:
+  posture: "NO_CLAIM_ALLOWED"
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "PASSIVE"
+  inference: "DOCUMENTED_ONLY"
+  scripts_tooling: "PASSIVE"
+  secrets: "BLOCKED"
+
+validation_plan_for_this_record:
+  required:
+    - "git status --short --branch"
+    - "git rev-parse --abbrev-ref HEAD"
+    - "git rev-parse HEAD"
+    - "Get-Content 00_STUDIO_CONTROL\\05_STATUS\\DRY_RUN_UXPILOTE_READ_ONLY_PIPELINE_V0.yaml"
+    - "Verify produced YAML parses if a safe local YAML parser is available."
+    - "Search produced YAML for required top-level fields."
+    - "git diff --check"
+    - "git diff --name-only"
+    - "git status --short --branch"
+  forbidden:
+    - "runtime execution"
+    - "cargo test"
+    - "pytest"
+    - "benchmark"
+    - "training"
+    - "dataset/model commands"
+    - "secret reads"
+    - "git add"
+    - "commit/push/branch/PR"

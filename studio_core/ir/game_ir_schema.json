@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GameIR",
+  "description": "S0 Game Intermediate Representation — declarative game definition schema",
+  "type": "object",
+  "required": ["meta", "entities", "rules", "spawn", "economy"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["name", "version", "session_duration", "arena_width", "arena_height"],
+      "properties": {
+        "name":             { "type": "string" },
+        "version":          { "type": "string" },
+        "session_duration": { "type": "number", "description": "Hard session cap in seconds" },
+        "arena_width":      { "type": "number" },
+        "arena_height":     { "type": "number" },
+        "arena_shrink_start": { "type": "number", "default": 90 },
+        "arena_shrink_rate":  { "type": "number", "default": 0.5 }
+      }
+    },
+    "entities": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "attributes"],
+        "properties": {
+          "id":   { "type": "string" },
+          "type": { "enum": ["player_snake", "enemy", "orb", "arena"] },
+          "attributes": { "type": "object" }
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "description": "Declarative rule list — compiled to Python callables by IRCompiler",
+      "items": {
+        "type": "object",
+        "required": ["rule", "condition", "effect"],
+        "properties": {
+          "rule":       { "type": "string" },
+          "condition":  { "type": "string", "description": "Human-readable precondition" },
+          "effect":     { "type": "string", "description": "Effect applied when condition is true" },
+          "parameters": { "type": "object" }
+        }
+      }
+    },
+    "spawn": {
+      "type": "object",
+      "required": ["orb_spawn_interval", "enemy_spawn_interval", "max_orbs", "max_enemies"],
+      "properties": {
+        "orb_spawn_interval":   { "type": "number" },
+        "enemy_spawn_interval": { "type": "number" },
+        "enemy_scale_factor":   { "type": "number", "default": 1.1 },
+        "max_orbs":             { "type": "integer" },
+        "max_enemies":          { "type": "integer" },
+        "initial_orbs":         { "type": "integer", "default": 8 },
+        "initial_enemies":      { "type": "integer", "default": 2 }
+      }
+    },
+    "economy": {
+      "type": "object",
+      "required": ["score_per_orb", "score_per_absorption", "score_per_second"],
+      "properties": {
+        "score_per_orb":         { "type": "number" },
+        "score_per_absorption":  { "type": "number" },
+        "score_per_second":      { "type": "number" },
+        "xp_per_orb":            { "type": "number", "default": 5 },
+        "ability_slot_max":      { "type": "integer", "default": 3 },
+        "combo_bonus_multiplier":{ "type": "number", "default": 1.5 }
+      }
+    }
+  }
+}

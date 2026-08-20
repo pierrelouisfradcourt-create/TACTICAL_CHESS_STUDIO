@@ -1,0 +1,28 @@
+﻿CHESS PURE LAB PATCH
+====================
+
+This patch is SAFE:
+- it leaves TacticalChessV1 untouched
+- it creates TacticalChessPureLab
+- it installs a standard 8x8 chess starting layout
+- it does NOT yet implement full legal chess movement
+- it does NOT yet implement check, castling, promotion, or en passant
+
+What is already done:
+- isolated copy
+- 8x8 board
+- standard spawn layout
+- chess piece templates
+- Rust package renamed to tactical_chess_pure_lab
+
+Next technical work required:
+1. extend Unit with piece_kind + moved flags
+2. replace validate_move() with true chess movement logic
+3. replace legal_actions() with chess move generation
+4. add king safety / check filtering
+5. add castling, promotion, en passant
+6. update game_over() to checkmate/stalemate logic
+
+Useful command after patch:
+- cd TacticalChessPureLab
+- cargo run -- simulate 2

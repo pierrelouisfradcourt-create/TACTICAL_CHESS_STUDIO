@@ -1,0 +1,128 @@
+{
+  "schema_version": "studiopilot.project_breakdown_report.v0",
+  "report_id": "pbr_invalid_claim_escalation_001",
+  "source_objective": "Integrate scalable AI organization into the control-plane roadmap",
+  "objective_summary": "Invalid fixture attempting claim escalation beyond allowed verdict scopes.",
+  "non_goals": [
+    "No runtime changes"
+  ],
+  "assumptions": [
+    "Claim escalation must be blocked"
+  ],
+  "scope_model": {
+    "parent_scope": "Invalid claim escalation scope",
+    "included_scope": [
+      "Control-plane docs"
+    ],
+    "excluded_scope": [
+      "Runtime"
+    ],
+    "coverage_rule": "WBS_100_PERCENT_RULE"
+  },
+  "epics": [
+    {
+      "epic_id": "epic.invalid_claim_escalation",
+      "title": "Invalid claim epic",
+      "objective": "Demonstrate forbidden claim escalation.",
+      "included_scope": [
+        "Docs"
+      ],
+      "excluded_scope": [
+        "Runtime"
+      ],
+      "exit_criteria": [
+        "Schema or semantic checks should fail"
+      ],
+      "risk_level": "HIGH"
+    }
+  ],
+  "patch_groups": [
+    {
+      "patch_group_id": "pg.invalid_claim_escalation",
+      "parent_epic_id": "epic.invalid_claim_escalation",
+      "title": "Invalid claim patch group",
+      "objective": "Keep structure valid except claim escalation.",
+      "allowed_paths": [
+        "docs/control-plane/PROJECT_BREAKDOWN_REPORT_V0.md"
+      ],
+      "forbidden_paths": [
+        ".github/workflows/"
+      ],
+      "dependencies": [],
+      "expected_outputs": [
+        "None"
+      ],
+      "validation_expectations": [
+        "Claim scope check should fail"
+      ],
+      "risk_level": "HIGH",
+      "human_approval_required": true
+    }
+  ],
+  "pr_candidates": [
+    {
+      "pr_candidate_id": "pr.invalid_claim_escalation",
+      "parent_patch_group_id": "pg.invalid_claim_escalation",
+      "title": "Invalid claim candidate",
+      "pr_type": "CONTROL_PLANE",
+      "objective": "Use disallowed claim scope value.",
+      "allowed_paths": [
+        "docs/control-plane/PROJECT_BREAKDOWN_REPORT_V0.md"
+      ],
+      "forbidden_paths": [
+        ".github/workflows/"
+      ],
+      "expected_outputs": [
+        "None"
+      ],
+      "validation_commands": [
+        ".\\.venv312\\Scripts\\python.exe scripts\\operator\\validate_json_artifacts.py"
+      ],
+      "required_director_reviews": [
+        "QUALITY_DIRECTOR"
+      ],
+      "risk_level": "HIGH",
+      "claim_scope": "STRENGTH_CLAIM",
+      "human_gate_required": true,
+      "auto_ready_allowed": false,
+      "auto_merge_allowed": false
+    }
+  ],
+  "dependency_graph": {
+    "nodes": [
+      "pg.invalid_claim_escalation",
+      "pr.invalid_claim_escalation"
+    ],
+    "edges": [
+      {
+        "from": "pg.invalid_claim_escalation",
+        "to": "pr.invalid_claim_escalation"
+      }
+    ]
+  },
+  "required_director_reviews": [
+    "QUALITY_DIRECTOR"
+  ],
+  "risk_level": "HIGH",
+  "recommended_first_action": {
+    "pr_candidate_id": "pr.invalid_claim_escalation",
+    "reason": "Fixture intentionally invalid for claim escalation.",
+    "expected_decision": "BLOCKED"
+  },
+  "stop_conditions": [
+    "scope_gap",
+    "duplicate_scope",
+    "forbidden_path_touched",
+    "missing_director_review",
+    "claim_escalation",
+    "auto_pr_attempted",
+    "runtime_without_architecture_review",
+    "benchmark_automation_attempted"
+  ],
+  "human_gate_required": true,
+  "auto_pr_creation_allowed": false,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "status": "BLOCKED"
+}

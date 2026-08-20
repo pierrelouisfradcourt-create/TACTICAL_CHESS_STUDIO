@@ -1,0 +1,258 @@
+schema_version: "PLAYER_IMPROVEMENT_QUEUE_INDEX_V0"
+record_type: "task_queue_index"
+contract_version: "V0"
+language: "English"
+status: "DOCUMENTED_ONLY"
+claim_posture: "NO_CLAIM_ALLOWED"
+human_gate_required: true
+
+source_state:
+  created: "DOCUMENTED_ONLY"
+  registered: "UNKNOWN"
+  loaded: "DOCUMENTED_ONLY"
+  enforced: "DOCUMENTED_ONLY"
+  evidenced: "UNKNOWN"
+  source_anchoring_rule: "created != registered != loaded != enforced != evidenced"
+  sources_read:
+    - "C:/TACTICAL_CHESS_STUDIO/AGENTS.md"
+    - "C:/TACTICAL_CHESS_STUDIO/docs/gpt-navigator/GPT_NAVIGATOR_CODEX_PROMPT_GATE_V0.md"
+    - "C:/TACTICAL_CHESS_STUDIO/docs/gpt-navigator/GPT_NAVIGATOR_REPO_NOTICE_V0.md"
+    - "C:/TACTICAL_CHESS_STUDIO/docs/gpt-navigator/GPT_NAVIGATOR_SOURCE_INDEX_V0.md"
+    - "C:/TACTICAL_CHESS_STUDIO/docs/gpt-navigator/GPT_NAVIGATOR_UPLOAD_CHECKLIST_V0.md"
+    - "C:/TACTICAL_CHESS_STUDIO/docs/gpt-navigator/GPT_NAVIGATOR_PROJECT_INSTRUCTIONS_V0.md"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/STUDIO_CONTROL_TOPOLOGY_MIGRATION_V1.md"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_CHARTER_TEMPLATE_V0.yaml"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/EXECUTOR_REPORT_TEMPLATE_V0.yaml"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/ANALYSIS_AGENT_RECORD_TEMPLATE_V0.yaml"
+
+route_check:
+  status: "DOCUMENTED_ONLY"
+  output_routing_required: true
+  output_routing_present: true
+  destination_allowed: "DOCUMENTED_ONLY"
+  forbidden_destination_absent: "DOCUMENTED_ONLY"
+  duplicate_prevention_required: true
+  name_collision_check_run: "DOCUMENTED_ONLY"
+  unresolved_collision_detected: "NOT_FOUND"
+  evidence: "Routed to 00_STUDIO_CONTROL/05_STATUS as a canonical docs status record; forbidden root target was checked separately before creation."
+
+output_routing:
+  produced_file_type: "yaml_status_index"
+  intended_surface: "canonical_docs"
+  canonical_destination: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/PLAYER_IMPROVEMENT_QUEUE_INDEX_V0.yaml"
+  temporary_destination: ""
+  actual_destination: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/PLAYER_IMPROVEMENT_QUEUE_INDEX_V0.yaml"
+  registration_required: false
+  project_source_upload_required: false
+  retention_policy: "canonical_status_record_pending_humangate_review"
+  promotion_gate: "HumanGate"
+
+architecture_rule:
+  runtime_fast_loop:
+    neural:
+      role: "proposal_rerank_helper_only"
+      final_authority: false
+      status: "PASSIVE"
+    search:
+      role: "final_tactical_authority"
+      final_authority: true
+      status: "PASSIVE"
+    critic:
+      role: "lightweight_guard_helper_only"
+      final_authority: false
+      status: "DOCUMENTED_ONLY"
+  offline_loop:
+    llm_planner:
+      role: "audit_adapt_plan_between_decisions_only"
+      critical_loop_access: "BLOCKED"
+      final_move_authority: "BLOCKED"
+      status: "DOCUMENTED_ONLY"
+    memory:
+      role: "passive_until_authorized"
+      status: "PASSIVE"
+  authority:
+    final_gameplay_authority: "Search"
+    mutation_activation_claim_authority: "HumanGate"
+    promotion_authority: "HumanGate"
+
+queues:
+  - id: "BOUNDARY_GUARD_QUEUE_V0"
+    intended_surface: "roadmap_docs_only"
+    status: "DOCUMENTED_ONLY"
+    purpose: "Maintain Neural/Search/DecisionController boundaries."
+    runtime_authority: "NONE"
+    compatible_default: true
+  - id: "REALTIME_HYBRID_PLAYER_QUEUE_V0"
+    intended_surface: "roadmap_docs_only"
+    status: "DOCUMENTED_ONLY"
+    purpose: "Plan neural current + specialized search + lightweight critic."
+    runtime_authority: "NONE"
+    compatible_default: false
+  - id: "SEARCH_SPECIALIZATION_QUEUE_V0"
+    intended_surface: "roadmap_docs_only"
+    status: "DOCUMENTED_ONLY"
+    purpose: "Plan bounded search improvements without authority drift."
+    runtime_authority: "NONE"
+    compatible_default: false
+  - id: "LIGHTWEIGHT_CRITIC_QUEUE_V0"
+    intended_surface: "roadmap_docs_only"
+    status: "DOCUMENTED_ONLY"
+    purpose: "Plan critic checks without final decision authority."
+    runtime_authority: "NONE"
+    compatible_default: false
+  - id: "OFFLINE_LLM_PLANNER_QUEUE_V0"
+    intended_surface: "roadmap_docs_only"
+    status: "DOCUMENTED_ONLY"
+    purpose: "Plan offline LLM audit, adaptation, and memory outside the critical loop."
+    runtime_authority: "NONE"
+    compatible_default: "conditional"
+  - id: "OBSERVABILITY_EVIDENCE_QUEUE_V0"
+    intended_surface: "roadmap_docs_only"
+    status: "DOCUMENTED_ONLY"
+    purpose: "Plan evidence, traces, and reports without benchmark or proof claims."
+    runtime_authority: "NONE"
+    compatible_default: true
+  - id: "DATASET_TRAINING_BLOCKED_QUEUE_V0"
+    intended_surface: "roadmap_docs_only"
+    status: "DOCUMENTED_ONLY"
+    purpose: "Keep dataset, training, model, and promotion actions explicitly blocked."
+    runtime_authority: "NONE"
+    compatible_default: false
+
+compatibility_matrix:
+  compatible:
+    - pair: ["BOUNDARY_GUARD_QUEUE_V0", "REALTIME_HYBRID_PLAYER_QUEUE_V0"]
+      reason: "Boundary guard constrains realtime planning."
+    - pair: ["BOUNDARY_GUARD_QUEUE_V0", "SEARCH_SPECIALIZATION_QUEUE_V0"]
+      reason: "Search improvement remains constrained by final-authority rule."
+    - pair: ["BOUNDARY_GUARD_QUEUE_V0", "LIGHTWEIGHT_CRITIC_QUEUE_V0"]
+      reason: "Critic remains guard/helper only."
+    - pair: ["BOUNDARY_GUARD_QUEUE_V0", "OFFLINE_LLM_PLANNER_QUEUE_V0"]
+      reason: "Offline planner remains outside critical loop and under HumanGate."
+    - pair: ["BOUNDARY_GUARD_QUEUE_V0", "OBSERVABILITY_EVIDENCE_QUEUE_V0"]
+      reason: "Observability supports boundary evidence without activation."
+    - pair: ["SEARCH_SPECIALIZATION_QUEUE_V0", "LIGHTWEIGHT_CRITIC_QUEUE_V0"]
+      reason: "Compatible if Search still chooses the final action."
+    - pair: ["OBSERVABILITY_EVIDENCE_QUEUE_V0", "REALTIME_HYBRID_PLAYER_QUEUE_V0"]
+      reason: "Observation can support planning but cannot prove benchmark or strength."
+    - pair: ["OBSERVABILITY_EVIDENCE_QUEUE_V0", "SEARCH_SPECIALIZATION_QUEUE_V0"]
+      reason: "Trace evidence can support future targeted validation."
+    - pair: ["OBSERVABILITY_EVIDENCE_QUEUE_V0", "LIGHTWEIGHT_CRITIC_QUEUE_V0"]
+      reason: "Trace evidence can describe critic behavior without promoting authority."
+  conditional:
+    - pair: ["OFFLINE_LLM_PLANNER_QUEUE_V0", "REALTIME_HYBRID_PLAYER_QUEUE_V0"]
+      condition: "LLM stays outside the critical decision loop."
+    - pair: ["OFFLINE_LLM_PLANNER_QUEUE_V0", "SEARCH_SPECIALIZATION_QUEUE_V0"]
+      condition: "LLM produces planning or audit only, no runtime move authority."
+    - pair: ["REALTIME_HYBRID_PLAYER_QUEUE_V0", "LIGHTWEIGHT_CRITIC_QUEUE_V0"]
+      condition: "Critic cannot become DecisionController or final authority."
+    - pair: ["REALTIME_HYBRID_PLAYER_QUEUE_V0", "SEARCH_SPECIALIZATION_QUEUE_V0"]
+      condition: "Future micro-patches must be isolated by exact target files and targeted tests."
+  blocked:
+    - pair: ["DATASET_TRAINING_BLOCKED_QUEUE_V0", "REALTIME_HYBRID_PLAYER_QUEUE_V0"]
+      reason: "Training, dataset generation/reset, and model outputs remain blocked."
+    - pair: ["DATASET_TRAINING_BLOCKED_QUEUE_V0", "SEARCH_SPECIALIZATION_QUEUE_V0"]
+      reason: "Search improvement must not smuggle training or benchmark claims."
+    - pair: ["DATASET_TRAINING_BLOCKED_QUEUE_V0", "LIGHTWEIGHT_CRITIC_QUEUE_V0"]
+      reason: "Critic planning must not create or promote models."
+    - pair: ["OFFLINE_LLM_PLANNER_QUEUE_V0", "runtime_final_move_authority"]
+      reason: "LLM must not decide gameplay actions."
+    - pair: ["LIGHTWEIGHT_CRITIC_QUEUE_V0", "decision_controller_activation"]
+      reason: "DecisionController activation is blocked."
+    - pair: ["REALTIME_HYBRID_PLAYER_QUEUE_V0", "neural_final_authority"]
+      reason: "Neural remains proposal/rerank/helper only."
+    - pair: ["SEARCH_SPECIALIZATION_QUEUE_V0", "benchmark_or_elo_claim"]
+      reason: "Benchmark or Elo claims require separate authorization and evidence."
+
+recommended_order:
+  - "BOUNDARY_GUARD_QUEUE_V0"
+  - "OBSERVABILITY_EVIDENCE_QUEUE_V0"
+  - "REALTIME_HYBRID_PLAYER_QUEUE_V0"
+  - "SEARCH_SPECIALIZATION_QUEUE_V0"
+  - "LIGHTWEIGHT_CRITIC_QUEUE_V0"
+  - "OFFLINE_LLM_PLANNER_QUEUE_V0"
+  - "DATASET_TRAINING_BLOCKED_QUEUE_V0"
+
+future_queue_files:
+  status: "DOCUMENTED_ONLY"
+  note: "These are planned queue files only. This task does not create them."
+  planned_files:
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_BOUNDARY_GUARD_QUEUE_V0.yaml"
+      surface: "roadmap_docs_only"
+      status: "DOCUMENTED_ONLY"
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_REALTIME_HYBRID_PLAYER_QUEUE_V0.yaml"
+      surface: "roadmap_docs_only"
+      status: "DOCUMENTED_ONLY"
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_SEARCH_SPECIALIZATION_QUEUE_V0.yaml"
+      surface: "roadmap_docs_only"
+      status: "DOCUMENTED_ONLY"
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_LIGHTWEIGHT_CRITIC_QUEUE_V0.yaml"
+      surface: "roadmap_docs_only"
+      status: "DOCUMENTED_ONLY"
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_OFFLINE_LLM_PLANNER_QUEUE_V0.yaml"
+      surface: "roadmap_docs_only"
+      status: "DOCUMENTED_ONLY"
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_OBSERVABILITY_EVIDENCE_QUEUE_V0.yaml"
+      surface: "roadmap_docs_only"
+      status: "DOCUMENTED_ONLY"
+    - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/ROCKY_DATASET_TRAINING_BLOCKED_QUEUE_V0.yaml"
+      surface: "roadmap_docs_only"
+      status: "DOCUMENTED_ONLY"
+
+blocked_actions:
+  runtime_implementation: "BLOCKED"
+  runtime_execution: "BLOCKED"
+  test_changes: "BLOCKED"
+  training: "BLOCKED"
+  benchmark: "BLOCKED"
+  dataset_generation: "BLOCKED"
+  dataset_reset: "BLOCKED"
+  latest_json_creation: "BLOCKED"
+  run_folder_creation: "BLOCKED"
+  model_or_checkpoint_creation: "BLOCKED"
+  model_promotion: "BLOCKED"
+  chess960_activation: "BLOCKED"
+  decision_controller_activation: "BLOCKED"
+  neural_final_authority: "BLOCKED"
+  llm_final_move_authority: "BLOCKED"
+  commit: "BLOCKED"
+  push: "BLOCKED"
+  branch_creation: "BLOCKED"
+  pull_request_creation: "BLOCKED"
+
+status_by_surface:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+
+software_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+
+evidence_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+
+claim_verdict:
+  active_runtime_code: "PASSIVE"
+  tests: "PASSIVE"
+  artifacts_runtime_outputs: "PASSIVE"
+  canonical_docs: "DOCUMENTED_ONLY"
+  roadmap_docs_only: "DOCUMENTED_ONLY"
+  inference: "PASSIVE"
+
+no_global_ready_verdict: true

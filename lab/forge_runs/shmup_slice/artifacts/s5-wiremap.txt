@@ -1,0 +1,116 @@
+I have everything required: the schema (`SCHEMA.md`), the s3 featuremap (R1–R26), the s4 blueprint (`modules: logic, data, input, render, bot, main`), the s0 charter (oracle OK), and — decisively — the actual oracle `forge.static_oracles.check_wiremap` + the executor validator `run_real._validate_wiremap`, both read line-by-line. Key facts driving every decision:
+
+- **`games/shmup_slice/` is empty** — no code exists at s5 (verified). `check_wiremap` (existence + AST isomorphism) therefore **cannot run now**; it is the **s10c** oracle. The runnable s5 anchor is `_validate_wiremap` (schema: `features` non-vide, chaque `feature`/`fonction` str non-vide, `fichiers` liste non-vide de str non-vides) — the gate the executor applies before materializing `wiremap.json`.
+- `_defined_names` for `.mjs` captures `function X`, `const/let/var X =`, `class X`, and methods → **les déclarations en données (`export const MAP_1 = …`) sont des noms valides** pour `fonction`. C'est ce qui rend l'isomorphisme *données* vérifiable à s10c.
+- Chaque `fonction` doit être **définie dans le fichier listé** (sinon `fonctions_renommées` FAIL à s10c) → je liste le fichier qui **définit** la fonction, jamais un fichier « voisin ».
+
+---
+
+## Note d'ancrage (garde-fou)
+
+Le blueprint s4 (verdict OK, oracle `check_architecture` format) fige 6 modules = 6 dossiers/fichier-racine. La WireMap **épouse cet arbre** : chaque feuille R1–R26 de la featuremap est ancrée dans **un module blueprint** via le premier segment de son chemin. `data`/`logic`/`bot`/`main` portent les **règles de jeu** (R1–R26). `render` et `input` sont des **adaptateurs muets** (dessin d'un snapshot / capture clavier) : le charter ne définit **aucune règle de rendu** — leur correction est prouvée par l'e2e navigateur réel, pas par une feuille R. Ce sont des modules de support, pas des feuilles orphelines. **fog #4** remonte ce choix pour ratification.
+
+---
+
+## WIREMAP — shmup_slice (s5, isomorphe au blueprint s4)
+
+Colonnes : **section (=module=dossier) · feature · fichiers · fonction · version · preuve · statut**. Version `v0.1` = gel s5. Statut `GELÉ→s9` = contrat figé, code à matérialiser au build ; l'isomorphisme code sera prouvé par `check_wiremap` à s10c.
+
+### § module `data/` — déclarations pures (0 branche, 0 logique)
+| feature | fichiers | fonction | version | preuve | statut |
+|---|---|---|---|---|---|
+| R3 formation invaders (pattern en données) | `data/patterns.mjs` | `INVADERS_DESCENT` | v0.1 | esquivabilité `hasSafeCorridor` sur sim seedée (CS-2) + mutation `patterns` 100% tués (CS-11) | GELÉ→s9 |
+| R4 2e formation distincte (pattern en données) | `data/patterns.mjs` | `SINE_WEAVE` | v0.1 | esquivabilité (CS-2) + ≥2 patterns distincts déclarés (OBJ) + mutation (CS-11) | GELÉ→s9 |
+| R11 MAP 1 (déclaration propre) | `data/maps.mjs` | `MAP_1` | v0.1 | segment map 1 solvable par `bot/solver.mjs` (Jalon A, CS-1) ; feature gelée s5 (CS-3) | GELÉ→s9 |
+| R12 MAP 2 (déclaration propre distincte) | `data/maps.mjs` | `MAP_2` | v0.1 | segment map 2 solvable (CS-1) ; distincte de MAP_1/MAP_3 en données (OBJ) ; gelée (CS-3) | GELÉ→s9 |
+| R13 MAP 3 (déclaration propre distincte) | `data/maps.mjs` | `MAP_3` | v0.1 | segment map 3 solvable (CS-1) ; distincte (OBJ) ; gelée (CS-3) | GELÉ→s9 |
+| R14 BOSS 1 (HP+pattern propres) | `data/bosses.mjs` | `BOSS_1` | v0.1 | esquivabilité pattern boss 1 (CS-2) ; le bot bat boss 1 (CS-1) ; HP exact via `resolvePlayerHits` (CS-6) ; gelée (CS-3) | GELÉ→s9 |
+| R15 BOSS 2 (HP+pattern propres distincts) | `data/bosses.mjs` | `BOSS_2` | v0.1 | esquivabilité (CS-2) ; bot bat boss 2 (CS-1) ; distinct de boss 1 (OBJ) ; gelée (CS-3) | GELÉ→s9 |
+| R16 BOSS 3 (défaite ⇒ victoire) | `data/bosses.mjs` | `BOSS_3` | v0.1 | esquivabilité (CS-2) ; bot bat boss 3 ⇒ WON (CS-1) ; gelée (CS-3) | GELÉ→s9 |
+
+### § module `logic/` — cœur seedé (zéro API DOM)
+| feature | fichiers | fonction | version | preuve | statut |
+|---|---|---|---|---|---|
+| R1 déplacement 2D borné à l'écran | `logic/ship.mjs` | `moveShip` | v0.1 | propriété seedée « vaisseau toujours dans les bornes » N seeds (`properties.mjs`, CS-10) | GELÉ→s9 |
+| R2 une touche = UN tir vers le haut | `logic/ship.mjs` | `firePlayerShot` | v0.1 | e2e réel : ≥1 projectile joueur montant à la touche ; unicité du tir (aucune 2e arme, HS) — `e2e.mjs` (CS-9) | GELÉ→s9 |
+| R5 ennemis tirent périodiquement vers le bas | `logic/enemies.mjs` | `updateEnemyFire` | v0.1 | sim seedée : cadence déterministe esquivable (CS-2) ; plafond simultané respecté (CS-10) | GELÉ→s9 |
+| R24 projectiles simultanés bornés (pooling) | `logic/projectiles.mjs` | `spawnProjectile` | v0.1 | propriété seedée « simultanés ≤ `MAX_PROJECTILES` » (CS-10) ; plafond = constante nommée (CS-12) | GELÉ→s9 |
+| R6 tir joueur → ennemi : destruction + score exact | `logic/collisions.mjs` | `resolvePlayerHits` | v0.1 | assertion STRICTE `==` : ennemi retiré + score += valeur EXACTE (CS-6) ; mutant « kill ne tue pas »/« score faux » tué (CS-11) ; anti-tautologie (AI-4) | GELÉ→s9 |
+| R7 tir ennemi → joueur : −1 vie + i-frames | `logic/collisions.mjs` | `resolveEnemyHits` | v0.1 | assertion `==` : lives −= EXACTEMENT 1 + i-frames bloquent un 2e retrait immédiat (CS-6) ; mutation (CS-11) | GELÉ→s9 |
+| R8 contact ennemi → joueur : −1 vie + i-frames | `logic/collisions.mjs` | `resolveContactDamage` | v0.1 | assertion `==` : −1 vie exacte + i-frames (CS-6) ; mutation (CS-11) | GELÉ→s9 |
+| R9 score : valeur exacte, jamais décroissant | `logic/scoring.mjs` | `awardScore` | v0.1 | propriété seedée « score monotone croissant » (CS-10) + valeur exacte par kill (CS-6, `==`) | GELÉ→s9 |
+| R10 3 vies, aucune résurrection, défaite à 0 | `logic/state.mjs` | `createInitialState` | v0.1 | propriété « over monotone » + `lives==3` initial (CS-10) ; défaite ssi vies==0 (CS-6/7) | GELÉ→s9 |
+| R17 boss vaincu ⇒ map suivante, score+vies conservés | `logic/progression.mjs` | `advanceLevel` | v0.1 | assertion : level+1 immédiat ; score & vies INCHANGÉS à la transition (CS-7) ; e2e visite maps 2/3 (CS-9) | GELÉ→s9 |
+| R18 boss 3 vaincu ⇒ WON terminal, pas de map 4 | `logic/progression.mjs` | `resolveVictory` | v0.1 | victoire ssi boss 3 vaincu ; propriété « transition au-delà map 3 impossible » (CS-10) ; e2e overlay victoire (CS-8/9) | GELÉ→s9 |
+| R19 vies==0 ⇒ défaite terminale + overlay | `logic/progression.mjs` | `resolveDefeat` | v0.1 | assertion défaite ssi vies==0 (CS-6/7) ; e2e `forceLose` observe `#overlay` (CS-8/9) | GELÉ→s9 |
+| R20 #restart ⇒ run entier {map1, score0, vies3} | `logic/progression.mjs` | `restartRun` | v0.1 | assertion état post-restart == `{level:1,score:0,lives:3}` (CS-7) ; e2e clique `#restart` (CS-8/9) | GELÉ→s9 |
+| R21 step(DT=16ms, inputs) seedé, trace identique | `logic/step.mjs` | `step` | v0.1 | double exécution (trace strictement identique) + absence `Math.random/Date.now/performance.now` (CS-4, AI-7) | GELÉ→s9 |
+| R23 tout pattern laisse un couloir sûr atteignable | `logic/dodge.mjs` | `hasSafeCorridor` | v0.1 | vérif déterministe d'esquivabilité sur sim seedée — aucune frame de mort inévitable ; sinon FAIL (CS-2) | GELÉ→s9 |
+| R25 logique n'importe ni rendu/input ni DOM ; RNG seedé injecté | `logic/rng.mjs` | `createRng` | v0.1 | oracle `check_architecture` : aucun import `document/window/canvas/addEventListener/requestAnimationFrame` dans `logic` (CS-5, AI-6) + RNG injecté seedé (AI-7) | GELÉ→s9 |
+
+### § module `bot/` — solveur déterministe headless
+| feature | fichiers | fonction | version | preuve | statut |
+|---|---|---|---|---|---|
+| R22 bot déterministe FINIT le run (3 maps + 3 boss) | `bot/solver.mjs` | `runBot` | v0.1 | oracle solvabilité (`solvability.mjs` câblé dans `run-oracle.mjs`) : SOLVABLE=exit 0 ; sonde cassée (HP inatteignable / pattern sans couloir)=INJOUABLE exit≠0 ; le bot JOUE l'API publique, état jamais forcé (CS-1, AI-1, AI-5) | GELÉ→s9 |
+
+### § module `main` (`main.mjs`) — racine de composition (seule zone `window`/`document`)
+| feature | fichiers | fonction | version | preuve | statut |
+|---|---|---|---|---|---|
+| R26 hooks `__game`/`__game_debug` + DOM `#overlay`/`#restart` | `main.mjs` | `exposeGameHooks` | v0.1 | e2e vérifie présence/valeurs des hooks `{level,lives,score,over,status,bossHp}` + DOM (CS-8/9) ; hooks debug JAMAIS utilisés pour la preuve de solvabilité (AI-5) | GELÉ→s9 |
+
+**Modules de support (isomorphes, sans feuille-règle — cf. Note d'ancrage) :** `render/` (`draw.mjs`:`drawFrame`, `backgrounds.mjs`:`drawBackground` — dessine un snapshot, prouvé par e2e) ; `input/` (`keyboard.mjs`:`captureIntent` — lit `KEYMAP` de `data/tuning.mjs`, prouvé par e2e clavier réel). Aucune règle R n'y est ancrée : le charter ne définit pas de règle de rendu/capture.
+
+**Auto-inventaire (⚠ introspection, PAS un oracle) :** 26 features R1–R26, **0 orpheline**, chacune avec `fonction` non-vide + `fichiers` non-vide + `preuve`. Isomorphisme : `data`(8) · `logic`(16) · `bot`(1) · `main`(1) = 26 ; premier segment de chaque chemin ∈ `{data,logic,bot,main}` ⊂ modules blueprint.
+
+---
+
+## RAPPORT FINAL
+
+**software_verdict : OK** — appuyé par l'oracle non-LLM déterministe applicable à s5 : `run_real._validate_wiremap` (le validateur de schéma que l'exécuteur applique **avant** de matérialiser `wiremap.json`, puis que le driver fige en `wiremap_frozen.json`). Le bloc JSON ci-dessous satisfait mécaniquement : `features` liste **non vide** (26) ; chaque `feature` str non vide ; chaque `fichiers` liste **non vide** de str **non vides** ; chaque `fonction` str **non vide**. Aucun champ ne fait sauter la vérification d'existence de `check_wiremap`.
+
+**evidence_verdict : MECHANICAL_VALIDATION_ONLY** — l'oracle cité valide **le format/complétude du contrat WireMap**, exécutable sur ce bloc. Il ne prouve **pas** l'isomorphisme WireMap↔code : `games/shmup_slice/` est **vide** (vérifié), donc `check_wiremap` (existence de fichier + `fonction ∈ _defined_names` AST) ne peut pas s'exécuter maintenant — cette preuve est **déférée à s10c**, où elle FAIL sur toute feature dont le fichier/la fonction n'existe pas dans le code construit.
+
+**claim_verdict : NO_CLAIM_ALLOWED** — je n'émets aucun claim que « le code réalise la WireMap » : infalsifiable à s5 (pas de code). La WireMap est un **contrat gelé** ; sa satisfaction se prouvera par `check_wiremap` à s10c et par les oracles de preuve cités par feuille (solvabilité, esquivabilité, mutation, e2e, propriétés seedées).
+
+**Oracle wiremap cité (ancre) :** `forge.static_oracles.check_wiremap` (isomorphisme AST à s10c) + `run_real._validate_wiremap` (garde de format déterministe à s5, appliquée par l'exécuteur). Aucun LLM-as-judge.
+
+**Écarts featuremap↔blueprint :** 0 feuille orpheline ; `render`/`input` = modules de support sans feuille-règle (assumé, fog #4). WireMap livrée **inline** (l'exécuteur matérialise `wiremap.json`) — conforme à la tâche « aucun fichier écrit ».
+
+### fog → HumanGate (jugement Pierre, pas d'oracle à s5)
+1. **fog · Prisme non persisté** (hérité s1) — les preuves attendues héritent du charter s0, non d'un `product_snapshot.md` (jamais écrit). Chaîne d'ancrage via charter à ratifier.
+2. **fog · isomorphisme non prouvable à s5** — aucun code ⇒ `check_wiremap` ne peut pas tourner. Le gel des noms (`fonction`, `fichiers`) est un **engagement de nommage imposé au builder s9** ; s'il renomme, s10c FAIL. À ratifier : ce gel de noms lie bien le builder.
+3. **fog · valeurs de design non fixées** (hérité s1/s3/s4) — vitesses, cadences, durée i-frames « brève », HP/boss, score/ennemi, valeur `MAX_PROJECTILES`, nombre de vagues/map. La WireMap fixe **où** (fichier/fonction), jamais **combien** → s9, jamais inventé ici.
+4. **fog · `render`/`input` sans feuille-règle** — décision d'ancrage : ces modules sont des adaptateurs muets prouvés par e2e, pas des règles de jeu. À ratifier ou exiger une feuille R dédiée (impliquerait d'étendre la featuremap s3 — hors périmètre s5).
+
+**FORGE_DISPATCH:s5-wiremap:shmup_slice-20260714a — WireMap isomorphe gelée (26 feuilles, 7 colonnes), software_verdict OK (oracle format `_validate_wiremap`), isomorphisme code déféré s10c, 4 fogs remontés.**
+
+```json
+{"features": [
+  {"feature": "R1 déplacement 2D borné à l'écran", "fonction": "moveShip", "fichiers": ["logic/ship.mjs"], "preuve": "propriété seedée 'vaisseau toujours dans les bornes' sur N seeds (properties.mjs, CS-10)"},
+  {"feature": "R2 une touche déclenche UN tir vers le haut", "fonction": "firePlayerShot", "fichiers": ["logic/ship.mjs"], "preuve": "e2e.mjs : >=1 projectile joueur montant a la touche ; unicite du tir, aucune 2e arme (CS-9, HS)"},
+  {"feature": "R3 formation invaders (pattern en donnees)", "fonction": "INVADERS_DESCENT", "fichiers": ["data/patterns.mjs"], "preuve": "esquivabilite hasSafeCorridor sur sim seedee (CS-2) + mutation patterns 100% tues (CS-11)"},
+  {"feature": "R4 2e formation distincte (pattern en donnees)", "fonction": "SINE_WEAVE", "fichiers": ["data/patterns.mjs"], "preuve": ">=2 patterns distincts declares en donnees (OBJ) + esquivabilite (CS-2) + mutation (CS-11)"},
+  {"feature": "R5 ennemis tirent periodiquement vers le bas", "fonction": "updateEnemyFire", "fichiers": ["logic/enemies.mjs"], "preuve": "sim seedee : cadence deterministe esquivable (CS-2) ; plafond simultane respecte (CS-10)"},
+  {"feature": "R6 tir joueur->ennemi : destruction + score exact", "fonction": "resolvePlayerHits", "fichiers": ["logic/collisions.mjs"], "preuve": "assertion stricte == : ennemi retire + score += valeur EXACTE (CS-6) ; mutant kill/score tue (CS-11) ; anti-tautologie (AI-4)"},
+  {"feature": "R7 tir ennemi->joueur : -1 vie + i-frames", "fonction": "resolveEnemyHits", "fichiers": ["logic/collisions.mjs"], "preuve": "assertion == : lives -= 1 EXACT + i-frames bloquent un 2e retrait immediat (CS-6) ; mutation (CS-11)"},
+  {"feature": "R8 contact ennemi->joueur : -1 vie + i-frames", "fonction": "resolveContactDamage", "fichiers": ["logic/collisions.mjs"], "preuve": "assertion == : -1 vie exacte + i-frames (CS-6) ; mutation (CS-11)"},
+  {"feature": "R9 score : valeur exacte, jamais decroissant", "fonction": "awardScore", "fichiers": ["logic/scoring.mjs"], "preuve": "propriete seedee 'score monotone croissant' (CS-10) + valeur exacte par kill (CS-6, ==)"},
+  {"feature": "R10 3 vies, aucune resurrection, defaite a 0", "fonction": "createInitialState", "fichiers": ["logic/state.mjs"], "preuve": "propriete 'over monotone' + lives==3 initial (CS-10) ; defaite ssi vies==0 (CS-6/7)"},
+  {"feature": "R11 MAP 1 declaration propre", "fonction": "MAP_1", "fichiers": ["data/maps.mjs"], "preuve": "segment map 1 solvable par bot/solver.mjs (Jalon A, CS-1) ; feature WireMap gelee s5 (CS-3)"},
+  {"feature": "R12 MAP 2 declaration propre distincte", "fonction": "MAP_2", "fichiers": ["data/maps.mjs"], "preuve": "segment map 2 solvable (CS-1) ; distincte de MAP_1/MAP_3 en donnees (OBJ) ; gelee (CS-3)"},
+  {"feature": "R13 MAP 3 declaration propre distincte", "fonction": "MAP_3", "fichiers": ["data/maps.mjs"], "preuve": "segment map 3 solvable (CS-1) ; distincte des maps 1/2 (OBJ) ; gelee (CS-3)"},
+  {"feature": "R14 BOSS 1 HP propre + pattern propre esquivable", "fonction": "BOSS_1", "fichiers": ["data/bosses.mjs"], "preuve": "esquivabilite pattern boss 1 (CS-2) ; bot bat boss 1 (CS-1) ; HP exact jamais negatif via resolvePlayerHits (CS-6) ; gelee (CS-3)"},
+  {"feature": "R15 BOSS 2 HP+pattern propres distincts", "fonction": "BOSS_2", "fichiers": ["data/bosses.mjs"], "preuve": "esquivabilite (CS-2) ; bot bat boss 2 (CS-1) ; distinct de boss 1 (OBJ) ; gelee (CS-3)"},
+  {"feature": "R16 BOSS 3 defaite => victoire", "fonction": "BOSS_3", "fichiers": ["data/bosses.mjs"], "preuve": "esquivabilite (CS-2) ; bot bat boss 3 => status WON (CS-1) ; gelee (CS-3)"},
+  {"feature": "R17 boss vaincu => map suivante, score+vies conserves", "fonction": "advanceLevel", "fichiers": ["logic/progression.mjs"], "preuve": "assertion : level+1 immediat ; score & vies INCHANGES a la transition (CS-7) ; e2e visite maps 2/3 (CS-9)"},
+  {"feature": "R18 boss 3 vaincu => WON terminal, pas de map 4", "fonction": "resolveVictory", "fichiers": ["logic/progression.mjs"], "preuve": "victoire ssi boss 3 vaincu ; propriete 'transition au-dela map 3 impossible' (CS-10) ; e2e overlay victoire (CS-8/9)"},
+  {"feature": "R19 vies==0 => defaite terminale + overlay", "fonction": "resolveDefeat", "fichiers": ["logic/progression.mjs"], "preuve": "assertion defaite ssi vies==0 (CS-6/7) ; e2e forceLose observe #overlay (CS-8/9)"},
+  {"feature": "R20 #restart => run entier {map1, score0, vies3}", "fonction": "restartRun", "fichiers": ["logic/progression.mjs"], "preuve": "assertion etat post-restart == {level:1,score:0,lives:3} (CS-7) ; e2e clique #restart (CS-8/9)"},
+  {"feature": "R21 step(DT=16ms, inputs) seede, trace identique", "fonction": "step", "fichiers": ["logic/step.mjs"], "preuve": "double execution trace strictement identique + absence Math.random/Date.now/performance.now (CS-4, AI-7)"},
+  {"feature": "R22 bot deterministe FINIT le run (3 maps + 3 boss)", "fonction": "runBot", "fichiers": ["bot/solver.mjs"], "preuve": "oracle solvabilite (solvability.mjs cable dans run-oracle.mjs) : SOLVABLE exit 0 ; sonde cassee INJOUABLE exit!=0 ; le bot joue l'API publique, etat jamais force (CS-1, AI-1, AI-5)"},
+  {"feature": "R23 tout pattern laisse un couloir sur atteignable", "fonction": "hasSafeCorridor", "fichiers": ["logic/dodge.mjs"], "preuve": "verif deterministe d'esquivabilite sur sim seedee — aucune frame de mort inevitable ; sinon FAIL (CS-2)"},
+  {"feature": "R24 projectiles simultanes bornes (pooling)", "fonction": "spawnProjectile", "fichiers": ["logic/projectiles.mjs"], "preuve": "propriete seedee 'simultanes <= MAX_PROJECTILES' (CS-10) ; plafond = constante nommee (CS-12)"},
+  {"feature": "R25 logique n'importe ni rendu/input ni DOM ; RNG seede injecte", "fonction": "createRng", "fichiers": ["logic/rng.mjs"], "preuve": "oracle check_architecture : aucun import document/window/canvas/addEventListener/requestAnimationFrame dans logic (CS-5, AI-6) + RNG injecte seede (AI-7)"},
+  {"feature": "R26 hooks __game/__game_debug + DOM #overlay/#restart", "fonction": "exposeGameHooks", "fichiers": ["main.mjs"], "preuve": "e2e verifie presence/valeurs des hooks {level,lives,score,over,status,bossHp} + DOM #overlay/#restart (CS-8/9) ; hooks debug jamais utilises pour la preuve de solvabilite (AI-5)"}
+]}
+```

@@ -1,0 +1,201 @@
+﻿# Secrets
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_dsa
+id_ed25519
+*.kdbx
+
+# Heavy/runtime folders
+repos/*
+# exception : l'étagère canonique Chess TCG (docs only, 364K) est versionnée
+!repos/games/
+repos/games/*
+!repos/games/ChessTCG/
+archives/
+graphify-out/
+runtime_outputs/
+outputs/security_audit/
+secrets/
+datasets/
+models/
+runs/
+tmp/
+local_backups_optional/
+inbox_import_quarantine/
+
+# Python/cache
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local scratch / migration artifacts
+ENGINE_SEARCH_NEURAL_SCAN.txt
+document_work/
+
+# Local recovery/admin tools outside studioV2 source
+tools/
+
+# Rust build artifacts
+target/
+
+# Local Git bundle backups
+outputs/git_bundles/
+*.bundle
+
+# Local Python virtual environments
+.venv/
+.venv312/
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Chain artifacts (non-canonical)
+lab/chains/output/
+lab/chains/CHAIN_HISTORY.jsonl
+lab/traces/
+*.py.bak
+
+# Lock inter-process autoloop/dispatch (runtime — jamais commité)
+lab/.autoloop.lock
+
+# Sandbox local — doc_hygiene_chain
+lab/chains/claude_prompts/
+lab/experiments/
+lab/puzzles/lichess_db_puzzle.csv
+lab/reports/eval_l2_run.tmp
+lab/reports/smoke_diag.txt
+lab/reports/latest_*.json
+lab/reports/*.tmp
+lab/reports/*.txt
+lab/reverse_dataset/
+lab/hygiene/
+lab/sandbox/
+rocky_debug.log
+*.log
+# EXCEPTION (2026-07-13) : knowledge_base/proofs/*.log sont des PREUVES permanentes
+# (proof_of_use cité par catalog.json, tier=validated) — pas des logs transitoires.
+# Bug réel trouvé en committant : le *.log ci-dessus les excluait silencieusement,
+# donc un clone frais aurait catalog.json qui prétend "validated" avec la preuve absente.
+!knowledge_base/proofs/*.log
+
+lab/reports/puzzle_eval_latest.*
+
+# Datasets lourds (> 100 MB) — HumanGate 2026-06-02
+lab/datasets/pool/pool_2400.jsonl
+
+studio_state.json
+lab/studio_state_snapshot.json
+studio_memory.json
+STUDIO_CONTEXT_LIVE.md
+STUDIO_MEMORY.md
+lab/chains/FUSION_LOG.jsonl
+
+# Heavy/runtime dirs — gitignore append 2026-06-29 (gate Pierre)
+training_runs/
+worktrees/
+models_sandbox_decisive/
+lab/selfplay/
+C:TACTICAL_CHESS_STUDIO/
+
+# Rapports auto-generes runtime — gitignore append 2026-07-03 (gate Pierre)
+# Cause racine "tree jamais clean" : ces fichiers sont reecrits a chaque run.
+lab/reports/diagnosis_*.json
+lab/reports/reflection_*.md
+lab/reports/audit_daily_*.md
+lab/reports/autopilot_audit_*.json
+lab/reports/compact-state.json
+lab/reports/director_schedule.json
+lab/reports/director_report.md
+lab/reports/director_status.json
+lab/reports/learning_progress.json
+lab/reports/search_profile_latest.json
+lab/reports/recovery.json
+lab/reports/studio_meta_latest.json
+lab/reports/elo_match_latest.json
+lab/reports/elo_match_latest.json.hmac
+lab/reports/lichess_eval_latest.json
+lab/reports/lichess_eval_latest.json.hmac
+# State snapshots runtime a la racine
+studio_meta_latest.json
+.studio_state/
+studio_state/
+# Event log runtime append-only
+lab/events.jsonl
+# Auto-journalisation search.mjs CLI (preuve mécanique d'appel) — runtime append-only,
+# churne, jamais commite (meme raisonnement que lab/events.jsonl ci-dessus). Distinct de
+# knowledge_base/proofs/*.log (preuves permanentes, EXCEPTION plus haut) : cette ligne ne
+# doit JAMAIS etre confondue avec ce cas — search_log.jsonl n'est pas une preuve versionnee.
+knowledge_base/search_log.jsonl
+
+# Dependance externe vendored — Superpowers (Phase 1, gate Pierre 2026-07-03)
+# Repo git embarque, mis a jour via `git pull` dans infra/superpowers.
+# Enregistre comme marketplace locale Claude Code (superpowers-dev).
+infra/superpowers/
+
+# CT-1 versionnement llm-lego/ + studio_brain/ (audit ROI 2026-07-03)
+# Log runtime append-only (comme events.jsonl) — churne, jamais commite.
+studio_brain/state/loops-log.md
+# Redondant : demo-server.ts/demo.html/DEMO_README.md deja presents en source.
+llm-lego/lego.zip
+# Screenshots de validation regenerables par les *-validate.mjs (gate Pierre : repo lean)
+llm-lego/*.png
+# Télémétrie runtime Phase 3 v0 — append-only, churne, jamais commitée (gate Pierre 2026-07-08)
+llm-lego/telemetry/
+# Knowledge packets World Intelligence Phase 5 v0 — générés à la demande par /world-scan, advisory-only, non gouvernés, jamais commités (gate Pierre 2026-07-08)
+llm-lego/knowledge/
+
+# Dependances npm — jamais commitees (llm-lego/.gitignore couvre deja llm-lego/) — gate Pierre 2026-07-08
+node_modules/
+
+# Rapport du capteur d'hygiene — donnee generee par hygiene-scan.mjs, reecrite a chaque scan
+# (comme les rapports runtime ci-dessus). Le board le lit en local ; jamais commite. Gate Pierre 2026-07-08
+llm-lego/hygiene_report.json
+
+scripts/forge/.forge_key
+
+# lab/forge_evidence/ — POLITIQUE OPTION C, ratifiee Pierre 2026-08-04.
+# Mesure qui l'a motivee : 57 references depuis des fichiers VERSIONNES
+# (mutation_registry, capabilities, agent_recipes, root_problems) pointaient vers des
+# fichiers ignores. Consequence mesuree sur un clone frais : 0 mutation sur 13
+# executable, 13 x evidence_missing. Un registre versionne qui cite un fichier ignore
+# cree une reference que le depot ne peut pas honorer.
+#
+# REGLE : les BUNDLES DE PREUVE (un dossier par experience, contenu fige une fois
+# l'experience close) sont versionnes. Les FLUX D'EXPLOITATION de la racine
+# (append-only, sans fin : dispatch_audit, telemetry, repair_results, runtime_drift,
+# oracle_*.log) restent ignores.
+lab/forge_evidence/*
+!lab/forge_evidence/*/
+
+# Backups temporaires du mutation testing (forge.mutation) — jamais commités
+*.mutbak
+
+# Chemin local du binaire Godot (machine-dependant, jamais versionne)
+scripts/forge/godot.config.json
+scripts/forge/blender.config.json
+
+# Artefacts advisory du Context Manifest ecrits par les tests/dispatch hors run reel
+# (context_manifest.default_run_dir : destination "indecidable"). Ecriture seule,
+# regeneres a chaque run — jamais du contenu a versionner.
+lab/forge_runs/_orphan_context/
+/context/
+
+# --- Bruit de l'editeur Godot (ratifie Pierre 2026-07-28, incident temoin Pong) ---
+# `.godot/` = cache d'import + shader cache Vulkan, regenere a chaque ouverture du
+# projet (90 fichiers / 1,8 Mo mesures sur une seule ouverture). `*.uid` = identifiants
+# generes par Godot 4.4+ pour chaque script. Aucun des deux n'est du contenu a versionner.
+# PORTEE HONNETE : ceci elimine le BRUIT, il ne protege PAS `project.godot` d'un
+# ecrasement par l'editeur (l'incident du 2026-07-28) — c'est une dette distincte.
+.godot/
+*.uid
+
+# Artefacts de poste — regeneres, jamais versionnes (preflight publication 2026-08-19)
+ceo_debug_stderr.txt
+**/.godot/editor/

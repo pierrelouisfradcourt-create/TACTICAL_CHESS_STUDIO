@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tacticalchesspurelab.local/schemas/pr_outcome_record.schema.json",
+  "title": "PROutcomeRecord",
+  "description": "Minimal control-plane outcome record for a pull request.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "pr_number",
+    "task_id",
+    "objective",
+    "branch",
+    "files_changed",
+    "checks_run",
+    "validation_status",
+    "outcome",
+    "failure_modes",
+    "lessons_learned",
+    "evidence_level",
+    "training_eligible",
+    "eval_eligible",
+    "redaction_status"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pr_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "files_changed": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "checks_run": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "validation_status": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "BLOCKED",
+        "UNKNOWN"
+      ]
+    },
+    "outcome": {
+      "type": "string",
+      "minLength": 1
+    },
+    "failure_modes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "lessons_learned": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "evidence_level": {
+      "type": "string",
+      "enum": [
+        "LOCAL_OPERATOR_SMOKE_ONLY",
+        "LOCAL_VALIDATION_ONLY",
+        "MANUAL_REVIEW_ONLY"
+      ]
+    },
+    "training_eligible": {
+      "type": "boolean"
+    },
+    "eval_eligible": {
+      "type": "boolean"
+    },
+    "redaction_status": {
+      "type": "string",
+      "enum": [
+        "REDACTED",
+        "NOT_REDACTED",
+        "UNKNOWN"
+      ]
+    }
+  }
+}

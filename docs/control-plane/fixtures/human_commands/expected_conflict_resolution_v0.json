@@ -1,0 +1,32 @@
+{
+  "schema_version": "studiopilot.human_command_resolution.v0",
+  "overall_decision": "BLOCKED",
+  "effective_command_type": "READ_ONLY_ONLY",
+  "blocked_scopes": [
+    "RUNTIME"
+  ],
+  "allowed_actions": [
+    "read_files",
+    "read_runtime_files"
+  ],
+  "forbidden_actions": [
+    "auto_merge",
+    "auto_ready",
+    "benchmark_automatic",
+    "claim_escalation",
+    "patch",
+    "runtime_change_without_scope",
+    "runtime_patch",
+    "training",
+    "write"
+  ],
+  "reasons": [
+    "BUILD_ALLOWED intersects frozen sensitive scope: RUNTIME",
+    "FREEZE_* blocks actions touching frozen scopes",
+    "READ_ONLY_ONLY overrides BUILD_ALLOWED"
+  ],
+  "human_gate_required": true,
+  "claim_scope": "NO_CLAIM_ALLOWED",
+  "auto_merge_allowed": false,
+  "auto_ready_allowed": false
+}

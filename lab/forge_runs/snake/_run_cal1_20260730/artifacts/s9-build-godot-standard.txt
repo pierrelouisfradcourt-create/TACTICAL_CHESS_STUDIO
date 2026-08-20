@@ -1,0 +1,104 @@
+I now have everything needed. Let me confirm the DEFERRED/NOT_APPLICABLE line constraints one final time via the mechanical oracle result (already `check_line_states passed=True`), and I have all evidence. No false-IMPLEMENTED state exists, so no write to the wiremap is warranted. Here is my report.
+
+---
+
+# RAPPORT FINAL — Vérification Snake (snake-cal1-20260730-142335 / s9-build-godot-standard)
+
+**MISSION DE VÉRIFICATION SEULE.** Aucun fichier de jeu écrit. Aucune écriture de wiremap effectuée (aucun état faux trouvé — décision motivée ci-dessous).
+
+## software_verdict: OK
+## evidence_verdict: MECHANICAL_VALIDATION_ONLY
+## claim_verdict: NO_CLAIM_ALLOWED
+
+---
+
+## 1. Re-mesure par exécution réelle (sorties brutes)
+
+**Oracle maître** — `node scripts/forge/godot_oracle.mjs games/snake` → **exit 0** :
+- Volet mécanique : `=== RESULT: 282 passed, 0 failed (fichiers: 26) ===` → `[godot_oracle] OK : run_tests.gd (mecanique)`
+- Volet solvabilité (R9) : `budget solvabilite : trials=50 max_ticks=5000` → `{"trials":50,"won":50,"lost":0,"failed_seeds":[],"verdict":"OK"}` → `[godot_oracle] OK : solvabilite (R9)`
+- `[godot_oracle] ALL CHECKS PASSED`
+
+Le harnais porte la garde anti-faux-vert : `games/snake/07_TESTS/oracle/run_tests.gd:21 const EXPECTED_ASSERTS := 282`, et **total exécuté 282 == EXPECTED_ASSERTS 282** (critère de réussite 1 satisfait, patron chess_tcg).
+
+**6 oracles du standard** (reproduction fidèle de `driver._run_standard_oracle` s10s, mode `built`, mêmes fichiers, mêmes fonctions, via `.venv312`) :
+```
+[contract_completeness] passed=True
+[line_states]           passed=True
+[placement]             passed=True
+[index]                 passed=True
+[collisions]            passed=True
+[genre_coverage]        passed=True  (verdict OK, citations_resolues 52/52, taux 1.0, regles_non_couvertes 0)
+ALL_CORE_STANDARD_PASSED = True
+```
+
+## 2. Cohérence carte ↔ disque
+
+États réels de `games/snake/09_WIREMAP/wiremap.json` (44 lignes) :
+
+| État | Nombre | Lignes |
+|---|---|---|
+| IMPLEMENTED | **40** | (les 40 restantes) |
+| DEFERRED | 2 | `core.audio` (until+decider=pierre), `meta.reuse_rate_report` (until+decider=pierre) |
+| BLOCKED | **1** | `meta.observable_coverage` (reason présent, decider=pierre) |
+| NOT_APPLICABLE | 1 | `meta.charter_complete` (reason présent, ligne non-CORE → autorisé) |
+| REQUIRED | 0 | — |
+
+Contrôles de cohérence (exécution réelle) :
+- **Champs de constat des 40 lignes IMPLEMENTED** : `fonction`/`preuve`/`statut` tous remplis → « aucun » manquant.
+- **Fichiers déclarés par les lignes IMPLEMENTED** : **0 absent** — tous existent sur disque.
+- **Index bidirectionnel** : `check_index passed=True` (aucun fichier sans ligne, aucune ligne sans adresse, aucun dossier hors structure).
+
+**Chaque ligne IMPLEMENTED a bien ses fichiers présents et sa preuve couverte par un test qui s'exécute** (les 26 fichiers `07_TESTS/unit/*.test.gd` = 282 assertions vertes, plus solvabilité 50/50). `check_line_states passed=True` en mode `built` confirme mécaniquement l'invariant « IMPLEMENTED ⇒ reçu d'oracle ».
+
+## 3. ÉCART DÉTECTÉ entre le snapshot de l'orchestrateur et la réalité disque
+
+L'état annoncé par l'orchestrateur (« 41 IMPLEMENTED · 0 REQUIRED · 0 BLOCKED ») **ne correspond PAS** au wiremap canonique mesuré (40 IMPLEMENTED · **1 BLOCKED**). Origine tracée par re-mesure :
+
+- `games/snake/09_WIREMAP/wiremap.json` (canonique, lu par le driver `driver.py:1499`, post-build) : **40 IMPLEMENTED / 1 BLOCKED / 2 DEFERRED / 1 NOT_APPLICABLE**.
+- `lab/forge_runs/snake/wiremap.json` (squelette **gelé pré-build**) : **41 REQUIRED / 2 DEFERRED / 1 NOT_APPLICABLE** (0 IMPLEMENTED, 0 BLOCKED).
+
+Le snapshot de l'orchestrateur ne correspond à **aucun** des deux fichiers : il reflète un instant **antérieur au basculement** de `meta.observable_coverage` de IMPLEMENTED→BLOCKED, opéré par la vérification `snake-reel-20260729-120236` (2026-07-29). **Le wiremap canonique est correct ; c'est le snapshot cité en amont qui est périmé.** Rien à corriger côté carte : la carte porte déjà la réalité.
+
+## 4. `meta.observable_coverage` — pourquoi BLOCKED est l'état VRAI (pas un faux-vert à promouvoir)
+
+Re-mesure : `check_observable_coverage(wiremap, {})` → `passed=False, verdict=BLOCKED, volets_absents=10`. Le driver alimente cet oracle avec le reçu produit `s10a` (`effective_view`), **impossible à fabriquer dans une passe de vérification sans écriture** (il exige le product_oracle / runtime GPU). BLOCKED (« l'instrument ne peut pas mesurer ici ») est donc l'état honnête. La promouvoir en IMPLEMENTED sans reçu vert **créerait** exactement le faux-vert que je dois éviter → laissée telle quelle, decider=pierre.
+
+Nuance mesurée : le *texte* de la `reason` est partiellement **périmé** — il décrit `observable_by_player` de type `str` (44/44 malformés), or j'ai mesuré **44/44 de type `bool`**. Le défaut de typage a été réparé ; l'état BLOCKED subsiste pour une autre raison (absence de reçu produit). C'est une prose datée, **pas un état faux** → hors de mon unique autorisation d'écriture.
+
+## 5. CODE_COPIE — empreintes mesurées vs `copy_sha256` (garde-fou g)
+
+Ligne `proof.harness`, `reused_from.type: CODE_COPIE`, `copy_sha256` déclaré `096cd75…7288a` :
+
+| Fichier | sha256 mesuré | == 096cd75 ? |
+|---|---|---|
+| **source** `knowledge_base/systems/navigation/run_tests.gd` (15356 o) | `096cd754…7288a` | ✅ (identifie la brique source) |
+| déposé `tests/run_tests.gd` | `a3020d36…fe64` | ❌ |
+| déposé `07_TESTS/oracle/run_tests.gd` | `c89bd169…f466b` | ❌ |
+| déposé `06_RUNTIME/adapters/proof_harness/harness.gd` | `51d892e8…5335` | ❌ |
+
+**La forme CODE_COPIE n'est PAS honorée** : aucun fichier déposé n'est octet-identique à la brique source. Mais ce n'est **pas un faux-vert caché** — le wiremap le déclare bruyamment (`reason`, `preuve`, `reused_from_note` : « wrapper delegant, pas octet-identique… à arbitrer par Pierre »). L'état IMPLEMENTED porte le point d'entrée fonctionnel (qui marche : 282/282) ; la non-conformité de forme est un **fog HumanGate résiduel** déjà remonté (decider=pierre), pas une omission silencieuse.
+
+## 6. Décision d'écriture
+
+**Aucune écriture.** Mon unique autorisation est de corriger un état FAUX (une ligne se déclarant IMPLEMENTED sans preuve réelle). **Aucune ligne de ce type n'existe** : les 40 IMPLEMENTED sont adossées à des oracles réellement exécutés, la BLOCKED est honnête, les DEFERRED/NOT_APPLICABLE portent leurs champs obligatoires. Réécrire de la prose périmée dans une ligne d'état correct sort de cette autorisation. Une mission de vérification sans production est ici un succès légitime.
+
+## Fichiers touchés vs ownership de la carte
+**Aucun.** Seuls des fichiers de scratchpad (harnais de mesure `verify_*.py`) ont été créés hors dépôt ; aucun `.gd`/`.tscn`/`project.godot`/wiremap/test/lane protégée n'a été touché.
+
+---
+
+## FOGS remontés à HumanGate (Pierre)
+1. **Snapshot amont périmé** : « 41 IMPLEMENTED / 0 BLOCKED » cité par l'orchestrateur ≠ carte canonique (40/1). La carte est juste ; le snapshot est à rafraîchir.
+2. **CODE_COPIE non honorée** (`proof.harness`) : aucun fichier déposé ≠ `copy_sha256` 096cd75 (brique KB physiquement inapplicable comme oracle Snake). Arbitrage : requalifier `reused_from`, ou fournir une brique KB snake-compatible.
+3. **`meta.observable_coverage` BLOCKED** : exige un reçu product_oracle réel (runtime GPU) pour passer ; prose de `reason` périmée (décrit un défaut de typage `str` déjà réparé en `bool`). Résolution = hors périmètre d'une passe de vérification.
+4. **Prose périmée dans `proof.harness.preuve`** : le NB décrivant un cap solvabilité à 200 ticks est obsolète — l'oracle tourne désormais `max_ticks=5000` → 50/50 OK (un des 3 correctifs d'outillage ratifiés 2026-07-28).
+
+## SKIPPED_VALIDATION
+- **Item** : reçu réel de `check_observable_coverage` (effective_view issue du product_oracle s10a). **Périmètre** : ligne `meta.observable_coverage`. **Statut** : non fait. **Raison** : exige la production d'un reçu s10a (runtime/GPU) — hors d'une passe de vérification sans écriture ; l'état BLOCKED existant est déjà l'état honnête.
+- **Item** : gate mutation sur la logique pure (`forge.mutation.run_mutation_test`) — reçu brut non ré-exécuté dans cette passe. **Périmètre** : systèmes purs `05_SYSTEMS/`. **Statut** : non ré-exécuté. **Raison** : mission de vérification de cohérence carte↔disque + oracles standard ; le score de mutation n'était pas dans les faits à re-mesurer listés par l'orchestrateur (reçus `lab/forge_runs/snake/_run_final2_*/` existants). Non ré-attesté ici → non revendiqué.
+- **Item** : test négatif de solvabilité (version cassée → INJOUABLE, code non nul). **Périmètre** : oracle R9. **Statut** : non fait. **Raison** : nécessiterait de casser volontairement le jeu (écriture .gd interdite) ; propriété de conception de l'oracle, non ré-exercée ici.
+- **Item** : preuve visuelle GPU (fenêtre vulkan). **Périmètre** : critères de démo visuels. **Statut** : sans objet dans cette passe. **Raison** : hors mandat de vérification ; exige une fenêtre GPU réelle, non un `--headless`.
+- **Item** : réconciliation du décompte `.gd` (orchestrateur : 66 ; mesuré : **67** hors `.godot`). **Périmètre** : arborescence `games/snake/`. **Statut** : écart trivial non tranché. **Raison** : différence de méthode de comptage (immatérielle) ; `check_index passed=True` confirme 0 fichier orphelin et 0 ligne sans adresse.
+
+Vocabulaire de verdict : **OK / FAIL / BLOCKED** uniquement. Chaque affirmation ci-dessus est adossée à une commande exécutée et sa sortie réelle (preuve d'exécution, pas d'existence).

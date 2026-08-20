@@ -1,0 +1,60 @@
+I now have everything I need. The oracle mechanics are unambiguous:
+
+- `_module_of` = **first path segment under `games/tetris`** → modules are the frozen-skeleton top-level roots, nothing finer. A module token that is never a top-level directory (like the previous run's `presentation` / `input_adapter` / `solvability`) can never match `_module_of`, so its forbidden edges are **inert theater** — they pass trivially because those modules never appear in real code.
+- `check_architecture` only requires `deps_interdites` to be **non-empty, well-formed `[str, str]` pairs** (lines 211–231); PASS = no *real* forbidden edge is violated.
+- The frozen skeleton (`repo_map.yaml`) allows only the 11 numbered roots + `tests/` + named root files (`project.godot`, `main.tscn`). Rendering and input in a Godot Tetris are both scene-bound ⇒ both live under `06_RUNTIME`. The pure, scene-independent rules live under `05_SYSTEMS`.
+
+So the honest, *enforceable* separation is `05_SYSTEMS ⊥ 06_RUNTIME` — and since render+input ⊂ runtime, that single edge enforces both `logic→rendu` and `logic→input`. I refuse to fabricate inert `render`/`input` modules to cosmetically show two edges.
+
+---
+
+# RAPPORT FINAL — s4-archi / `tetris-witness-20260803-175558`
+
+**Livrable** : `blueprint.json` (matérialisé par l'exécuteur depuis le bloc terminal). Projet cible : `games/tetris/` (Godot, code à créer).
+
+## 1 — Ancrage oracle (ce qui juge ce livrable)
+`scripts/forge/static_oracles.check_architecture(blueprint, src_root)` — **lu** (lignes 198–260) :
+- module d'un fichier = **premier segment sous la racine** (`_module_of`, l.75–78) → un module DOIT être un dossier de premier niveau réel pour être discriminé ;
+- `deps_interdites` malformé (autre que paires de `str`) ⇒ **FAIL honnête** (l.211–231) — mon bloc respecte strictement le type ;
+- PASS = aucune arête interdite **réellement** empruntée par un fichier non-test (l.237–253) ; les fichiers-test ne sont jamais source de violation (l.240–242).
+
+## 2 — Modules (frozen skeleton `repo_map.yaml`, emplacements non inventés)
+| Module (dir top-level) | Responsabilité | Nature | Consommé par |
+|---|---|---|---|
+| `05_SYSTEMS` | **Règles pures Tetris** testables sans scène : grid/puits, générateur 7-sac, gravité discrète, spawn/lock, détection+compaction de lignes, score, state/game-over, valeur "next-piece". | logique pure | 06_RUNTIME (lecture état), 07_TESTS, tests |
+| `06_RUNTIME` | **Présentation + input + glue de scène** : rendu du puits/pièce/aperçu/HUD, capture clavier (adapter), boucle de scène, restart, point d'entrée. `system.adapter`→`06_RUNTIME/adapters/`. | scène-bound | joueur, runtime Godot |
+| `07_TESTS` | Tests unitaires + oracle standard (`07_TESTS/oracle/{id}`). | preuve | driver oracle |
+| `tests` | Harness headless que `godot_oracle.mjs` charge (`res://tests/run_tests.gd`, solvabilité). | preuve runnable | godot_oracle |
+
+Artefacts racine (non-.gd, hors modules source) : `project.godot`, `main.tscn` → `SYS-ENTRYPOINT` (invariant de lançabilité, leçon `entrypoint_is_undeclared_invariant`).
+
+## 3 — Dépendances interdites (toutes enforceables sur des modules réels)
+1. `05_SYSTEMS → 06_RUNTIME` — **la règle pure ne dépend NI du rendu NI de l'input** (les deux ⊂ runtime). Cœur de la séparation exigée.
+2. `05_SYSTEMS → 07_TESTS` et 3. `05_SYSTEMS → tests` — la logique n'importe pas ses propres tests.
+4. `06_RUNTIME → 07_TESTS` et 5. `06_RUNTIME → tests` — le code de production n'importe pas le code de test.
+
+Autorisé explicitement (donc **non** listé) : `06_RUNTIME → 05_SYSTEMS` (la présentation/input LIT et pilote la logique) ; `07_TESTS`/`tests → 05_SYSTEMS`+`06_RUNTIME`. Aucun cycle : le graphe est un DAG `tests/07_TESTS → 06_RUNTIME → 05_SYSTEMS`.
+
+## 4 — Couverture featuremap→module (critère de réussite : chaque feature ≥1 module)
+- Rules pures (SYS-GEN, SYS-CLOCK-source, SYS-GRAV, SYS-CTRL logique, SYS-STACK, SYS-CLEAR, SYS-SCORE, SYS-SPAWN, SYS-STATE, SYS-PREVIEW *valeur*) → `05_SYSTEMS`.
+- SYS-INPUT (capture), SYS-RENDER, SYS-PREVIEW *affichage*, SYS-RESTART (reset scène), SYS-CLOCK-tick (Timer de scène) → `06_RUNTIME`.
+- SYS-STATE.solvability_survival → `tests` (harness solvabilité). SYS-ENTRYPOINT → racine (`project.godot`/`main.tscn`) + script d'amorce en `06_RUNTIME`.
+- **14/14 systèmes mappés, 0 orphelin.**
+
+## 5 — Écarts featuremap ↔ blueprint (assumés, non masqués)
+- **Render vs Input non distincts au niveau module** : le squelette figé n'offre pas de racine séparée ; tous deux sont scène-bound ⇒ `06_RUNTIME`. L'arête `05_SYSTEMS→06_RUNTIME` enforce les DEUX séparations demandées. Refus explicite de créer des modules `presentation`/`input_adapter` inertes (jamais `_module_of` d'un fichier ⇒ arête intrivialement satisfaite = théâtre) — c'est le défaut du blueprint du run précédent.
+- **`modules_sans_test`** (advisory de l'oracle) : pour que `05_SYSTEMS`/`06_RUNTIME` ne soient pas signalés, s9 doit faire importer chaque module par un fichier-test. Contrainte transmise à s5-wiremap/s9, non bloquante à s4.
+
+## Verdicts
+- **software_verdict: OK** — portée STRICTE : « le `blueprint.json` produit est bien formé et non vide selon le contrat d'entrée de `check_architecture` » — appuyé par l'**ancre non-LLM** = lecture directe du parseur (`static_oracles.py:211-231`), déterministe. **evidence_verdict: MECHANICAL_VALIDATION_ONLY**.
+- Sur « le code réel respectera les arêtes » : **aucun code n'existe à s4** ⇒ non prouvable ici. **claim_verdict: NO_CLAIM_ALLOWED**. Preuve déférée à l'oracle `check_architecture` re-exécuté en s10b sur `games/tetris` réel. Aucun claim auto-certifié.
+- **fog → HumanGate** : G-ENTRY (lançabilité) n'est pas couverte par un oracle d'architecture — elle relève de l'invariant d'entrypoint (contrat s5/s9), pas de mon périmètre.
+
+## SKIPPED_VALIDATION
+- **item** : exécution de `check_architecture` sur code réel · **où** : `games/tetris` · **statut** : non fait · **raison** : aucun code à l'étape s4 + `permissions.run: aucun` ; validation par construction (parseur lu) uniquement, exécution déférée à s10b.
+- **item** : lecture de `knowledge_packet.json` (advisory) · **où** : `lab/forge_runs/tetris/` · **statut** : non fait · **raison** : fichier absent (vérifié) ; ADVISORY, n'affecte pas le blueprint.
+- **item** : vérification `modules_sans_test` · **où** : `05_SYSTEMS`/`06_RUNTIME` · **statut** : non fait · **raison** : dépend du code de test s9, hors périmètre s4 ; transmis en contrainte.
+
+```json
+{"modules": ["05_SYSTEMS", "06_RUNTIME", "07_TESTS", "tests"], "deps_interdites": [["05_SYSTEMS", "06_RUNTIME"], ["05_SYSTEMS", "07_TESTS"], ["05_SYSTEMS", "tests"], ["06_RUNTIME", "07_TESTS"], ["06_RUNTIME", "tests"]]}
+```

@@ -1,0 +1,18 @@
+## MISSION
+Produis le manifeste d'observation pour le genre du jeu `cookie_clicker` (clicker / idle).
+
+## CONTRAT DE SORTIE (aucune liberte de format)
+Un unique bloc ```json``` :
+{"games": [{"game": "", "sources": [{"url": "", "type": "wiki"|"article"|"video", "timestamp": ""}], "loops": {"minute_1": "", "minute_10": "", "hour_5": "", "endgame": ""}, "objectives": [{"mode": "", "has_win_state": true|false, "victory_condition": <string ou null>, "has_defeat_state": true|false, "defeat_condition": <string ou null>, "player_goal": ""}], "retention_answer": ""}], "advisory": true}
+
+RÈGLES DURES :
+- Les 4 cles de `loops` sont obligatoires et non vides.
+- `retention_answer` est OBLIGATOIRE et NON VIDE pour CHAQUE jeu.
+- `player_goal` est OBLIGATOIRE et NON VIDE pour chaque mode.
+- Un genre SANS etat gagne doit le declarer EXPLICITEMENT.
+- EXACTEMENT 2 jeux de reference du genre, reels et connus.
+- AU MOINS 3 sources par jeu, URLs http(s) reelles.
+- `type: "video"` EXIGE un `timestamp` non vide.
+- `advisory` vaut exactement true.
+
+Rien d'autre que le bloc ```json```.

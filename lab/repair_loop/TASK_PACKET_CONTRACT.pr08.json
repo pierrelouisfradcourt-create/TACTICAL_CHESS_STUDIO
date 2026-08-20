@@ -1,0 +1,55 @@
+{
+  "schema_version": "pr08.task_packet_contract.v1",
+  "status": "contract_only",
+  "not_evidence": true,
+  "not_a_repair_execution": true,
+  "purpose": "Define the minimum machine-readable packet shape for a future bounded Codex repair attempt.",
+  "task_next": {
+    "task_id": "TASK_NEXT_EXAMPLE_ONLY",
+    "objective": "Repair one bounded failure inside an allowed write scope.",
+    "source_failure": {
+      "failed_command": "example command only",
+      "failure_summary": "example failure only",
+      "required_revalidation": [
+        "rerun the failed command",
+        "rerun relevant evidence-plane gates"
+      ]
+    },
+    "write_scope": {
+      "allowed_paths": [
+        "example/allowed/path"
+      ],
+      "forbidden_paths_policy_ref": "lab/policies/repair_policy.lock.json",
+      "max_repair_loops": 2,
+      "fail_closed": true
+    },
+    "authority": {
+      "codex_may_edit_allowed_scope": true,
+      "codex_may_merge": false,
+      "codex_may_promote": false,
+      "codex_may_modify_policy": false,
+      "codex_may_modify_measurement_surfaces": false,
+      "gpt55_may_lift_blocked": false,
+      "gpt55_may_increase_claim_scope": false,
+      "human_review_required": true
+    },
+    "report_required": {
+      "objective": true,
+      "modified_files": true,
+      "diff_summary": true,
+      "commands_run": true,
+      "command_results": true,
+      "skipped_validation_and_reason": true,
+      "behavior_risk": true,
+      "evidence_risk": true,
+      "claim_risk": true,
+      "repair_loop_or_governance_risk": true,
+      "verdict": true
+    },
+    "default_verdicts": {
+      "software_verdict": "REPAIR_LOOP_CONTRACT_ADDED",
+      "evidence_verdict": "MECHANICAL_ORCHESTRATION_ONLY",
+      "claim_verdict": "NO_CLAIM_ALLOWED"
+    }
+  }
+}

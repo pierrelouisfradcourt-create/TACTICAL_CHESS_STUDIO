@@ -1,0 +1,81 @@
+### Rapport d'Attaque Red-Team du PLAN
+
+#### Finding 1:
+**Description:** La sérialisation des états de jeu peut rencontrer des problèmes avec les valeurs spéciales comme `NaN`, `Infinity`, `-0`, et `BigInt`. Ces valeurs ne sont pas standardisées dans la sérialisation JSON, ce qui pourrait entraîner une perte d'information ou des différences entre différentes implémentations.
+
+**Invariant concerné:** INV-4 replay bit-exact
+
+**Suggestion:** Assurez-vous que toutes les valeurs spéciales sont gérées de manière explicite lors de la sérialisation et désérialisation pour garantir un comportement déterministe sur tous les systèmes. Par exemple, convertir `NaN` en une chaîne spécifique ou utiliser des types alternatifs qui ne posent pas ce problème.
+
+**SEV: HIGH**
+
+---
+
+#### Finding 2:
+**Description:** Le type d'entier utilisé pour le générateur de nombres aléatoires (PRNG) peut varier entre les moteurs JavaScript, entraînant une dérive de déterminisme. Par exemple, l'utilisation de `Number` vs `BigInt` pourrait conduire à des différences dans la séquence générée.
+
+**Invariant concerné:** INV-2 rng_state est un champ de l'état, seedé UNE fois, jamais re-seedé
+
+**Suggestion:** Utilisez un type d'entier spécifique et cohérent pour le PRNG afin de garantir que toutes les implémentations produisent la même séquence aléatoire.
+
+**SEV: HIGH**
+
+---
+
+#### Finding 3:
+**Description:** La gestion des logs d'entrée vides ou contenant des entrées dupliquées n'est pas clairement définie. Cela pourrait entraîner des comportements inattendus lors de la transition entre les états du jeu.
+
+**Invariant concerné:** INV-4 replay bit-exact
+
+**Suggestion:** Clarifiez comment le système doit gérer les logs d'entrée vides ou contenant des entrées dupliquées pour garantir un déroulement cohérent et prévisible de la simulation.
+
+**SEV: MED**
+
+---
+
+#### Finding 4:
+**Description:** La différence entre l'égalité structurelle (deep equality) et l'égalité référentielle (shallow equality) n'est pas clairement définie pour les états du jeu. Cela pourrait entraîner des erreurs de déterminisme lors de la comparaison d'états.
+
+**Invariant concerné:** INV-4 replay bit-exact
+
+**Suggestion:** Définissez explicitement comment l'égalité entre les états est vérifiée pour garantir un comportement déterministe et prévisible.
+
+**SEV: MED**
+
+---
+
+#### Finding 5:
+**Description:** La condition d'arrêt pour une partie sans règles spécifiques n'est pas clairement définie. Cela pourrait entraîner des boucles infinies ou des comportements inattendus lors de la simulation.
+
+**Invariant concerné:** INV-4 replay bit-exact
+
+**Suggestion:** Définissez explicitement comment une partie sans règles spécifiques doit se terminer pour garantir un déroulement cohérent et prévisible du jeu.
+
+**SEV: MED**
+
+---
+
+#### Finding 6:
+**Description:** Les oracles actuels ne couvrent pas tous les aspects critiques de la conception, comme l'égalité des états après une transition ou le comportement face aux entrées non autorisées. Cela pourrait entraîner des failles dans la validation du déroulement correct du jeu.
+
+**Invariant concerné:** INV-4 replay bit-exact
+
+**Suggestion:** Étendez les oracles pour couvrir tous les aspects critiques de la conception afin d'assurer une validation complète et rigoureuse du système.
+
+**SEV: HIGH**
+
+---
+
+#### Finding 7:
+**Description:** Il existe des risques potentiels de dérive hors périmètre, comme l'utilisation non autorisée de `Date.now`, `Math.random`, ou d'autres mécanismes non déterministes. Cela pourrait entraîner une perte de déterminisme dans la simulation.
+
+**Invariant concerné:** INV-12 registre FERMÉ de 19 Events
+
+**Suggestion:** Assurez-vous que tous les aspects du système sont strictement contrôlés pour garantir le respect des invariants et l'absence de mécanismes non déterministes.
+
+**SEV: HIGH**
+
+---
+
+### Verdict
+redteam_blocked: false

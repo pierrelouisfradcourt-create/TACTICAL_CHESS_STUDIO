@@ -1,0 +1,70 @@
+{
+  "schema_version": "studiopilot.director_report.v0",
+  "report_id": "director_memory_evidence_v0_001",
+  "director_type": "MEMORY_EVIDENCE_DIRECTOR",
+  "source_objective": "Deliver Director Report V0 control-plane patchpack with strict claim boundaries and memory hygiene",
+  "source_project_breakdown_ref": "pbr_v0_scalable_ai_org_001",
+  "reviewed_scope": {
+    "allowed_paths": [
+      "schemas/studiopilot_director_report.schema.json",
+      "scripts/control_plane/validate_director_reports.py",
+      "scripts/control_plane/smoke_director_report.py",
+      "docs/control-plane/fixtures/director_report/",
+      "docs/control-plane/DIRECTOR_LAYER_V0.md",
+      "docs/control-plane/DIRECTOR_REPORT_V0.md",
+      "docs/control-plane/DIRECTOR_REVIEW_POLICY_V0.md"
+    ],
+    "forbidden_paths": [
+      ".github/workflows/",
+      "src/",
+      "ml/"
+    ],
+    "scope_summary": "Memory and evidence review constrains claim language and captures escalation boundaries for LearningEvent records."
+  },
+  "reviewed_pr_candidates": [
+    {
+      "pr_candidate_id": "pr.claim_boundary_enforcement",
+      "title": "Claim boundary enforcement docs",
+      "pr_type": "CONTROL_PLANE",
+      "risk_level": "MEDIUM",
+      "director_decision": "HOLD",
+      "reasons": [
+        "Claim boundaries must remain NO_CLAIM_ALLOWED",
+        "Evidence traceability is documentation-only"
+      ]
+    }
+  ],
+  "risk_level": "HIGH",
+  "director_verdict": "HOLD",
+  "required_conditions": [
+    "Evidence statements remain local and non-scientific",
+    "Memory hygiene must prevent claim escalation in LearningEvent summaries",
+    "Claim boundary stays NO_CLAIM_ALLOWED"
+  ],
+  "blocked_reasons": [
+    "Any claim escalation attempt must be blocked and escalated"
+  ],
+  "escalation_required": true,
+  "escalation_targets": [
+    "HUMAN_FOUNDER",
+    "GOVERNANCE_KERNEL"
+  ],
+  "touched_surfaces": {
+    "workflows": false,
+    "runtime": false,
+    "search": false,
+    "neural": false,
+    "ml_training": false,
+    "benchmark": false,
+    "schemas": true,
+    "docs": true,
+    "control_plane_tooling": true
+  },
+  "forbidden_surface_touched": false,
+  "human_gate_required": true,
+  "auto_ready_allowed": false,
+  "auto_merge_allowed": false,
+  "claim_verdict": "NO_CLAIM_ALLOWED",
+  "evidence_verdict": "Evidence review remains structural and blocks claim escalation pathways.",
+  "status": "READY_FOR_HUMAN_REVIEW"
+}

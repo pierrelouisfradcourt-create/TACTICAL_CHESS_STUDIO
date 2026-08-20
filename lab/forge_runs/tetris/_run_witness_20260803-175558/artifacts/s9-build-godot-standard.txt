@@ -1,0 +1,65 @@
+No repo writes are warranted: the build already exists and is green, and every s10s remediation is outside my s9 write surface. I will not touch the frozen wiremap structure or standard tables, and as a dispatched subagent I don't write to memory (orchestrator's job). Here is my final report.
+
+---
+
+# RAPPORT FINAL — s9-build-godot-standard · tetris-witness-20260803-175558:2
+
+## Constat de situation
+Reprise (`:2`) d'un run dont le jeu était **déjà construit** sur disque par `tetris-fullgodot-20260803-084719`. Le driver m'a re-dispatché après `pool: retry même tier (2/2)` parce que **`s10s-oracle-standard` a FAIL**. J'ai confronté chaque affirmation au réel (oracles ré-exécutés), sans faire confiance aux champs `preuve` pré-remplis.
+
+## software_verdict — deux surfaces distinctes
+
+### A. LE BUILD (ma surface de contrat) : **OK**
+Preuve d'exécution, ré-exécutée par moi ce tour :
+- `node scripts/forge/godot_oracle.mjs games/tetris` → `=== RESULT: 176 passed, 0 failed (fichiers: 12) ===`, puis solvabilité `{"trials":50,"won":50,"lost":0,"verdict":"OK"}` → **`ALL CHECKS PASSED`**. Godot v4.6.3.stable résolu par `godot_bin.mjs`, headless, exit 0.
+- Gate mutation (reçu driver, `run.log:14/25`) : `reçu mutation OK (45/45 tués)` — 0 survivant sur les 12 fichiers `system` de logique pure. (Non ré-exécuté par moi : le gate mutation Python est exécuté par le driver, pas par le forgeron — divergence exécuteur P6 déclarée au contrat.)
+- Critère de solvabilité (4) respecté honnêtement : le bot **survit ≥8 pièces ET nettoie ≥1 ligne** sur 50 essais — pas « le bot gagne » (Tetris marathon n'a pas d'état gagné). Oracle : `solvability_godot.mjs`.
+
+### B. LA CONFORMITÉ STANDARD (surface s10s, hors de mon contrat) : **BLOCKED**
+`s10s-oracle-standard` lit `games/tetris/09_WIREMAP/wiremap.json` (driver.py:1460,1683). Ce fichier est, **de son propre aveu**, un *« Wiremap MINIMALE de bootstrap … Ne pas presenter ce fichier comme une wiremap gelee »* (`statut_artefact`, `_note`). Il n'a jamais été gelé conformément au standard par **s5-wiremap**, seule autorité pour le faire. Les 6 sous-oracles rouges (reçus `state.json`, extraits vérifiés) :
+
+| Sous-oracle | Échec brut | Cause racine | Réparable en s9 ? |
+|---|---|---|---|
+| `placement` | `system_parent_inconnu` sur **les 12 lignes** | `systems` est une liste de **chaînes** (`["params",…]`), le standard exige des objets `{id,category,allowed_deps}` (SCHEMA §3 ; `standard_oracles.py:834` filtre `isinstance(s,dict)` → `system_ids` vide) | **NON** — passe-1 « gel dur », autorité s5 |
+| `line_states` | `core_omis`: core.boot, core.main_loop, core.input, core.end_condition, core.restart, core.exit, core.render, core.audio, core.error_handling | `core_requirements.yaml` (`not_applicable_allowed:false`) exige ces `id` exacts ; la wiremap emploie `core.game_loop`/`core.input_rules` et omet 9 CORE | **NON** — « N'ajoute AUCUNE ligne » (out_of_scope) |
+| `collisions` | `identifiants_inconnus`: game.gravity, game.input, game.lock, game.rotation, game.piece_source, game.line_clear, game.score, game.debug_state | absents de `capabilities.yaml` (registre FERMÉ) | **NON** — table du standard, gate Pierre |
+| `observable_coverage` | `lignes_sans_preuve`: rotation, gravity, lock, line_clear, scoring, input | lignes `observable_by_player:true` avec `observable_proof:null` | **NON** — authoring s5 |
+| `genre_coverage` | `regles_non_couvertes`: `genre.tetris.full_information_single_screen` | aucune ligne ne la cite ni ne la refuse | **NON** — authoring s5 |
+| `index` | `dossiers_hors_structure:[GAME_REFERENCE]`, `orphelins:[solvability.gd, runtime_loop.gd]` | pas de lignes runtime (`core.render/exit/boot/restart`) possédant ces fichiers | **NON** — conséquence des lignes manquantes |
+
+## Pourquoi je ne « répare » pas (application de la doctrine, pas contournement)
+La règle « répare la boucle, ne la signale pas » a pour **précondition** : cause connue **ET** solution dans ma surface d'écriture **ET** aucune décision humaine. Grille des 5 questions appliquée :
+1. Prévu à l'architecture ? Oui (le standard exige une wiremap conforme).
+2. Déjà contracté ? Oui — **par s5-wiremap**, pas par s9-build.
+3. Cause identifiée ? Oui, précisément (tableau ci-dessus).
+4. Solution déterminée **et dans ma surface** ? **Non** : chaque correctif est soit explicitement interdit à s9 (`out_of_scope`), soit réservé à s5, soit la modification d'une table figée du standard.
+5. Décision humaine restante ? **Oui** : extension de `capabilities.yaml` (registre figé = gate Pierre) ; 4 décisions ouvertes de la Genre Bible §3 (wall-kick, réserve, aperçu, fin haute — `fog` de la wiremap) ; applicabilité de `core.audio`/`core.render` à un Tetris marathon rendu par primitives.
+
+Aucune édition dans ma surface ne rend `s10s` vert. La doctrine route donc explicitement ce cas vers l'escalade. Sur-écrire une passe-1 « gel dur » pour fabriquer un vert détruirait le sens même du **run témoin** (théâtre d'oracle, `déclaré ≠ exécuté`).
+
+## ACTION requise (routée, pas une question ouverte)
+- **s5-wiremap** ré-autorise `games/tetris/09_WIREMAP/wiremap.json` au standard v2 : `systems` en objets ; lignes CORE aux `id` de `core_requirements.yaml` ; `observable_proof` sur les lignes observables ; couverture ou refus de `full_information_single_screen`. La wiremap **complète** existe déjà comme référence : `lab/forge_runs/tetris/wiremap.json` (format `features`) porte core.boot/main_loop/input/end_condition/restart/exit/render, genre rules et solvabilité — matière de réconciliation pour s5.
+- **HumanGate (Pierre)** : (a) extension `capabilities.yaml` des 8 ids tetris (précédent Pong/Snake/Breakout, « extension = ratification du besoin déclaré ») ; (b) trancher les 4 décisions ouvertes Genre Bible ; (c) statuer `core.audio` (Tetris sans audio prévu) — CORE interdit `NOT_APPLICABLE`.
+
+## Fichiers touchés vs ownership de la carte
+**Aucune écriture ce tour.** Le code des 12 lignes était déjà déposé et **prouvé vert** ; les échecs restants sont hors de ma surface d'écriture (`games/<jeu>/**` aux adresses déclarées + champs de constat). Les champs de constat de la wiremap (`fichiers/fonction/preuve/statut`, états `IMPLEMENTED`) étaient déjà remplis par la tentative précédente et **correspondent au réel** (build vert) — je ne les re-fabrique pas.
+
+## Score de mutation BRUT
+`45/45` mutants tués, **0 survivant** (reçu driver, `run.log`), sur les 12 fichiers `system`. Adaptateurs (`system.adapter`) et tests exclus par descripteur — non mutés en aveugle (précédent Pong 2026-07-27).
+
+## CODE_COPIE
+**Aucun.** Toutes les briques `reused_from` sont de type `CONCEPT` (`copy_sha256: null`) — requalifiées et re-prouvées par des tests Tetris, jamais copiées. Aucune empreinte à attester.
+
+## claim_verdict: NO_CLAIM_ALLOWED
+- **evidence_verdict: MECHANICAL_VALIDATION_ONLY** pour la surface A (build), adossé aux oracles ci-dessus.
+- **fog → HumanGate** pour la surface B : la remise en conformité exige des décisions (registre figé, Genre Bible, core.audio) hors de mon autorité.
+
+## SKIPPED_VALIDATION
+- **Item** : gate mutation ré-exécuté par moi. **Où** : 12 fichiers `system`. **Statut** : non fait (partiel — reçu driver 45/45 cité). **Raison** : `run_real._STEP_TOOLS` n'accorde pas Python au forgeron ; le gate mutation est exécuté par le driver (divergence P6 déclarée au contrat).
+- **Item** : preuve visuelle GPU (`core.render` kind:pixel, `core.exit`). **Où** : `runtime_loop.gd::_draw`/`_unhandled_input`. **Statut** : non mesuré. **Raison** : exige une fenêtre GPU vulkan réelle ; `--headless` rend une texture nulle (mesuré 2026-07-22). Chemin de code vérifié par lecture, jamais un vert fabriqué (`NOT_MEASURED != OK`).
+- **Item** : `node knowledge_base/search.mjs` avant build. **Où** : bibliothèque de briques. **Statut** : non exécuté ce tour. **Raison** : le build préexistait ; la réutilisation était **déjà tranchée et documentée** dans la wiremap (5 briques `CONCEPT` depuis `breakout_v2`, aucune `CODE_COPIE`) — je n'ai fabriqué aucune fausse réutilisation, et rien de neuf n'était à écrire.
+- **Item** : `charter.yaml` du contrat (lecture obligatoire). **Où** : `lab/forge_runs/tetris/charter.yaml`. **Statut** : absent du disque. **Raison** : fichier inexistant ; charter matériel trouvé = `games/tetris/00_CHARTER/game_contract.yaml` (bootstrap non ratifié), lu à sa place.
+
+**software_verdict (build): OK · software_verdict (s10s conformance): BLOCKED · evidence_verdict: MECHANICAL_VALIDATION_ONLY · claim_verdict: NO_CLAIM_ALLOWED**
+
+Signal au driver : **re-dispatcher s9 ne peut pas rendre s10s vert** — la cible de correction est **s5-wiremap** (+ HumanGate pour le registre figé et les décisions Genre Bible), pas le forgeron.

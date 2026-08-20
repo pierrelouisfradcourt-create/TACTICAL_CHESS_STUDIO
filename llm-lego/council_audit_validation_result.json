@@ -1,0 +1,37 @@
+{
+  "steps": [
+    "goto http://localhost:3117/builder -> HTTP 200",
+    "✅ bouton « Auditer via council » présent sur AUDIT_REQUIRED",
+    "✅ label honnête présent (déterministe + Qwen :1234)",
+    "✅ bouton ABSENT sur SAFE_AUTO",
+    "✅ contrainte #1 : 0 POST /api/execute avant confirmation",
+    "✅ un seul POST /api/execute par audit",
+    "✅ règle : 3×APPROUVE → APPROUVE",
+    "✅ règle : un BLOQUE l'emporte → BLOQUE",
+    "✅ règle : mixte sans BLOQUE → ESCALADE",
+    "✅ règle : voix sans token → ESCALADE",
+    "✅ voix sans token marquée « aucun token trouvé »",
+    "✅ parse ancré sur ligne VERDICT: (ignore l'auto-référence tardive au rôle) → APPROUVE",
+    "✅ AJOUT #2 : voix indisponible → « audit partiel » affiché",
+    "✅ AJOUT #2 : AUCUN verdict rendu sur 2/3 voix",
+    "✅ board ne poste QUE /api/execute + verdict-log (11 POST)",
+    "\n  council-audit-validate: ✅ 14/14 PASS"
+  ],
+  "checks": {
+    "bouton « Auditer via council » présent sur AUDIT_REQUIRED": true,
+    "label honnête présent (déterministe + Qwen :1234)": true,
+    "bouton ABSENT sur SAFE_AUTO": true,
+    "contrainte #1 : 0 POST /api/execute avant confirmation": true,
+    "un seul POST /api/execute par audit": true,
+    "règle : 3×APPROUVE → APPROUVE": true,
+    "règle : un BLOQUE l'emporte → BLOQUE": true,
+    "règle : mixte sans BLOQUE → ESCALADE": true,
+    "règle : voix sans token → ESCALADE": true,
+    "voix sans token marquée « aucun token trouvé »": true,
+    "parse ancré sur ligne VERDICT: (ignore l'auto-référence tardive au rôle) → APPROUVE": true,
+    "AJOUT #2 : voix indisponible → « audit partiel » affiché": true,
+    "AJOUT #2 : AUCUN verdict rendu sur 2/3 voix": true,
+    "board ne poste QUE /api/execute + verdict-log (11 POST)": true
+  },
+  "pass": true
+}

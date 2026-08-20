@@ -1,0 +1,125 @@
+[
+  {
+    "source": "llm-lego/experiments/belote-claude/test/rules.test.mjs:\"obligation : fournir la couleur demandée\"",
+    "atout": "coeur",
+    "handIds": [
+      "7-pique",
+      "A-pique",
+      "R-coeur"
+    ],
+    "trick": [
+      {
+        "seat": 0,
+        "cardId": "D-pique"
+      }
+    ],
+    "mover": 1,
+    "expectedLegalIds": [
+      "7-pique",
+      "A-pique"
+    ]
+  },
+  {
+    "source": "llm-lego/experiments/belote-claude/test/rules.test.mjs:\"obligation : atout demandé → monter (surcouper) obligatoire\"",
+    "atout": "coeur",
+    "handIds": [
+      "7-coeur",
+      "V-coeur",
+      "R-pique"
+    ],
+    "trick": [
+      {
+        "seat": 0,
+        "cardId": "9-coeur"
+      }
+    ],
+    "mover": 1,
+    "expectedLegalIds": [
+      "V-coeur"
+    ]
+  },
+  {
+    "source": "llm-lego/experiments/belote-claude/test/rules.test.mjs:\"obligation : atout demandé, ne peut pas monter → fournir un atout quand même\"",
+    "atout": "coeur",
+    "handIds": [
+      "7-coeur",
+      "8-coeur",
+      "R-pique"
+    ],
+    "trick": [
+      {
+        "seat": 0,
+        "cardId": "V-coeur"
+      }
+    ],
+    "mover": 1,
+    "expectedLegalIds": [
+      "7-coeur",
+      "8-coeur"
+    ]
+  },
+  {
+    "source": "llm-lego/experiments/belote-claude/test/rules.test.mjs:\"obligation : ne peut pas fournir, adversaire maître → couper obligatoire\"",
+    "atout": "coeur",
+    "handIds": [
+      "7-coeur",
+      "A-carreau"
+    ],
+    "trick": [
+      {
+        "seat": 0,
+        "cardId": "R-pique"
+      }
+    ],
+    "mover": 1,
+    "expectedLegalIds": [
+      "7-coeur"
+    ]
+  },
+  {
+    "source": "llm-lego/experiments/belote-claude/test/rules.test.mjs:\"obligation : ne peut pas fournir, PARTENAIRE maître → libre\"",
+    "atout": "coeur",
+    "handIds": [
+      "7-coeur",
+      "A-carreau"
+    ],
+    "trick": [
+      {
+        "seat": 0,
+        "cardId": "R-pique"
+      },
+      {
+        "seat": 1,
+        "cardId": "8-pique"
+      }
+    ],
+    "mover": 2,
+    "expectedLegalIds": [
+      "7-coeur",
+      "A-carreau"
+    ]
+  },
+  {
+    "source": "llm-lego/experiments/belote-claude/test/rules.test.mjs:\"obligation : surcouper si un atout adverse est déjà tombé\"",
+    "atout": "coeur",
+    "handIds": [
+      "8-coeur",
+      "V-coeur",
+      "A-carreau"
+    ],
+    "trick": [
+      {
+        "seat": 0,
+        "cardId": "R-pique"
+      },
+      {
+        "seat": 1,
+        "cardId": "9-coeur"
+      }
+    ],
+    "mover": 2,
+    "expectedLegalIds": [
+      "V-coeur"
+    ]
+  }
+]

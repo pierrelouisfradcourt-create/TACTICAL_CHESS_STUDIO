@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shmup Slice</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Arial', sans-serif; background: #1a0033; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    #gameContainer { text-align: center; position: relative; }
+    canvas { border: 4px solid #ffffff; display: block; background: #1a1a2e; border-radius: 12px; box-shadow: 0 0 30px rgba(0, 212, 255, 0.5); }
+    #overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 0, 0, 0.95); color: #fff; padding: 50px; border-radius: 20px; z-index: 10; border: 4px solid #ff00ff; box-shadow: 0 0 40px rgba(255, 0, 255, 0.6); text-align: center; }
+    #overlay.hidden { display: none; }
+    #overlayText { font-size: 48px; font-weight: bold; margin-bottom: 30px; text-shadow: 0 0 10px #ff00ff; }
+    #restart { margin-top: 20px; padding: 15px 40px; background: linear-gradient(135deg, #00d4ff, #ff69a0); color: #000; border: 3px solid #ffffff; cursor: pointer; font-size: 20px; font-weight: bold; border-radius: 15px; box-shadow: 0 0 20px rgba(0, 212, 255, 0.8); transition: transform 0.2s; }
+    #restart:hover { transform: scale(1.05); }
+    #instructions { color: #00d4ff; margin-top: 20px; font-size: 14px; text-shadow: 0 0 5px rgba(0, 212, 255, 0.5); }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <canvas id="gameCanvas"></canvas>
+    <div id="overlay" class="hidden">
+      <h1 id="overlayText">GAME OVER</h1>
+      <button id="restart">RESTART</button>
+    </div>
+    <div id="instructions">
+      <p>← → ↑ ↓ (ou WASD) pour se déplacer | SPACE pour tirer</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeGame } from './main.mjs';
+
+    const canvas = document.getElementById('gameCanvas');
+    const domEls = {
+      overlay: document.getElementById('overlay'),
+      overlayText: document.getElementById('overlayText'),
+    };
+    const restartBtn = document.getElementById('restart');
+
+    const seedParam = new URLSearchParams(location.search).get('seed');
+    const seed = seedParam !== null ? Number(seedParam) : 42;
+
+    const game = initializeGame(canvas, seed, domEls);
+    game.start();
+
+    // L'overlay suit l'état à chaque frame (main.mjs -> render.updateOverlay) —
+    // aucune logique d'affichage ici, juste le déclenchement du restart.
+    restartBtn.addEventListener('click', () => {
+      game.restart();
+    });
+
+    console.log('interface jouable');
+  </script>
+</body>
+</html>

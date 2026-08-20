@@ -1,0 +1,100 @@
+{
+  "_schema": "metrics_v1",
+  "_updated": "2026-06-08",
+  "_source": "IMP-C1 init + NUIT-T4 benchmark post-corrections G1/G2/G4 (2026-06-08)",
+
+  "kaizen": {
+    "total": 135,
+    "open": 17,
+    "closed": 117,
+    "deferred": 1,
+    "blocked": 0,
+    "pct_closed": 87,
+    "by_lane": {
+      "SAFE_AUTO": 16,
+      "AUDIT_REQUIRED": 0,
+      "HUMAN_REQUIRED": 0,
+      "FORBIDDEN": 1
+    },
+    "by_domain": {
+      "studio": 12,
+      "rocky_moteur": 0,
+      "ia_apprentissage": 2,
+      "jeux": 0,
+      "unset": 3
+    },
+    "next_actionable": ["IMP-C1", "IMP-C2", "IMP-C3", "IMP-B2", "IMP-D1", "IMP-E1", "IMP-E2", "IMP-E3"],
+    "forbidden": ["IMP-008"],
+    "deferred_list": ["IMP-011"]
+  },
+
+  "elo": {
+    "teacher_uci": 1341.52,
+    "heuristic": 1198.13,
+    "neural": 1060.52,
+    "hybrid": 1199.83,
+    "date": "2026-06-08",
+    "source": "benchmark post-corrections G4/G5/G6 — 5 games/matchup",
+    "games": 110,
+    "is_fallback": false
+  },
+
+  "draw_rate": {
+    "value": 0.73,
+    "pct": 73,
+    "threshold": 0.20,
+    "ok": false,
+    "status": "WARN",
+    "source": "benchmark 2026-06-08 — 110 games, 5/matchup",
+    "games": 110,
+    "baseline_pool_sf": 0.94,
+    "delta_vs_baseline": -0.21,
+    "note": "73% vs baseline pool_sf 94% (-21pp). heuristic vs neural: EXTREME (100%). teacher_uci vs neural dilue vers le bas. G4 corrige LABEL TurnLimit mais pas le comptage draws — racine: dataset IMP-008 FORBIDDEN."
+  },
+
+  "self_play": {
+    "available": false,
+    "games": null,
+    "win_rate": null,
+    "draw_rate": null,
+    "loss_rate": null,
+    "elo_progression": [],
+    "note": "IMP-C3 pending — à alimenter par sf_dataset_generator ou tournament runner"
+  },
+
+  "agents": [
+    {
+      "id": "teacher_uci",
+      "arch": "Search · Stockfish UCI",
+      "status": "STABLE",
+      "elo": 1351
+    },
+    {
+      "id": "heuristic",
+      "arch": "Search only · eval.rs",
+      "status": "STABLE",
+      "elo": 1183
+    },
+    {
+      "id": "neural",
+      "arch": "Search + Neural · PyTorch",
+      "status": "WEAK",
+      "elo": 1060.52,
+      "note": "draw_rate 73% — dataset IMP-008 FORBIDDEN, racine structurelle non corrigeable sans HumanGate"
+    }
+  ],
+
+  "thresholds": {
+    "draw_rate_max": 0.20,
+    "elo_neural_min": 1100,
+    "elo_heuristic_min": 1150,
+    "kaizen_pct_target": 90,
+    "_note": "IMP-D1 — rendre ces valeurs configurables depuis l'UI"
+  },
+
+  "sprint": {
+    "current": "Phase 1 — Rocky jouable et explicable",
+    "objective": "Démo Rocky vs Humain avec commentaires LLM",
+    "humangate_pending": true
+  }
+}

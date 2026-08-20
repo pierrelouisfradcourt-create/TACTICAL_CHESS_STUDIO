@@ -1,0 +1,287 @@
+record_type: "task_charter_input"
+contract_version: "V0"
+language: "English"
+task_id: "ERROR_TO_PUZZLE_ONE_PASS_V0"
+created_at_utc: "2026-05-18T10:10:44Z"
+created_by: "Codex"
+claim_posture: "NO_CLAIM_ALLOWED"
+human_gate_required: true
+
+goal:
+  summary: "Define a future one-pass, bounded, sandboxed error-to-puzzle RNG pipeline test."
+  future_flow:
+    - "observed Rocky error"
+    - "captured position"
+    - "candidate puzzle record"
+    - "replay classification plan"
+    - "human explanation placeholder"
+    - "correction tracking plan"
+  status: DOCUMENTED_ONLY
+  surface: canonical_docs
+
+non_goals:
+  - "No runtime implementation in this charter task."
+  - "No pipeline execution in this charter task."
+  - "No training."
+  - "No benchmark."
+  - "No dataset generation."
+  - "No dataset promotion."
+  - "No model/checkpoint creation."
+  - "No model promotion."
+  - "No latest.json."
+  - "No lab/runs/RUN_*."
+  - "No Chess960 activation."
+  - "No ActionMask activation."
+  - "No DecisionController activation."
+  - "No agent activation."
+  - "No claim of puzzle quality."
+  - "No claim of Rocky improvement."
+
+future_task_boundaries:
+  pass_limit: "one-pass only"
+  input_limit: "bounded input size"
+  output_limit: "bounded output count"
+  execution_authority: "sandbox output only if future execution is separately authorized"
+  future_sandbox_output_root: "C:/TACTICAL_CHESS_STUDIO/repos/games/TacticalChessPureLab/lab/gameplay_observation/sandbox_outputs/error_puzzles/"
+  report_only: true
+  dataset_admissible: false
+  humangate_required: true
+  selected_move_authority: "selected move is not label truth"
+  search_move_authority: "search move is not automatically dataset truth"
+  neural_move_authority: "neural move is not authority"
+  puzzle_authority: "puzzle is diagnostic artifact only"
+  runtime_authority: "not runtime authority"
+  dataset_promotion: "not dataset promotion"
+  training_authority: "not training"
+  benchmark_authority: "not benchmark proof"
+
+dormant_agent_review:
+  - role: "Producer / Planner"
+    status: PASSIVE
+    allowed_review_use: "Review scope order, one-pass boundary, routing, report-only framing, and HumanGate questions."
+    blocked_authority: "No execution, approval, merge, publication, claim, activation, dataset promotion, training, benchmark, or runtime authority."
+  - role: "Puzzle / Curriculum Specialist"
+    status: PASSIVE
+    allowed_review_use: "Review diagnostic puzzle framing, curriculum vocabulary, replay status semantics, and human explanation placeholder requirements."
+    blocked_authority: "No puzzle generation, puzzle promotion, dataset row creation, training signal, benchmark proof, or quality claim authority."
+  - role: "Error Extraction Specialist"
+    status: PASSIVE
+    allowed_review_use: "Review bounded source error selection, captured position provenance, observed_bad_move recording, and ambiguity rejection criteria."
+    blocked_authority: "No runtime mutation, pipeline execution, dataset generation, label authority, latest.json creation, or lab/runs/RUN_* creation."
+  - role: "Dataset Gate Specialist"
+    status: PASSIVE
+    allowed_review_use: "Review ActionId, LegalAction, ActionMask, provenance, HumanGate, and dataset_admissible safeguards."
+    blocked_authority: "No dataset promotion, dataset reset, dataset generation, training, model promotion, or label truth authority."
+  - role: "Quality / Evidence Director"
+    status: PASSIVE
+    allowed_review_use: "Review evidence sufficiency, replay classification plan, validation limits, and claim safety."
+    blocked_authority: "No benchmark proof, public claim approval, release authority, runtime authority, or Rocky improvement claim."
+  - role: "Memory / Evidence Director"
+    status: PASSIVE
+    allowed_review_use: "Review source anchoring, provenance fields, document drift, evidence retention, and correction tracking traceability."
+    blocked_authority: "No source mutation outside scope, dataset promotion, training approval, automatic rule mutation, or evidence laundering."
+  - role: "Resource Director"
+    status: PASSIVE
+    allowed_review_use: "Review that any future pass remains bounded, sandboxed, report-only, and cost-limited."
+    blocked_authority: "No spend authority, automation, benchmark proof, runtime activation, agent activation, or model/checkpoint creation."
+
+future_pipeline_outline:
+  - step: 1
+    action: "Select or receive one bounded source error."
+  - step: 2
+    action: "Capture source position and provenance."
+  - step: 3
+    action: "Record observed_bad_move."
+  - step: 4
+    action: "Propose candidate_better_move using legal/search evidence."
+  - step: 5
+    action: "Classify theme and difficulty."
+  - step: 6
+    action: "Produce candidate puzzle record."
+  - step: 7
+    action: "Produce human explanation placeholder."
+  - step: 8
+    action: "Define replay classification plan."
+  - step: 9
+    action: "Track candidate/accepted/solved/failed/regressed/rejected status."
+  - step: 10
+    action: "Produce executor report."
+
+required_candidate_schema:
+  puzzle_id: "string"
+  source_game_id: "string"
+  source_ply: "integer"
+  fen: "string"
+  side_to_move: "string"
+  observed_bad_move: "uci"
+  candidate_better_move: "uci"
+  solution_line: "list[uci]"
+  theme: "string"
+  difficulty_level: "string"
+  error_type: "string"
+  source_report: "object"
+  search_evidence: "object"
+  neural_context: "object"
+  explanation_md: "string"
+  replay_status: "candidate"
+  solved_count: "integer"
+  failed_count: "integer"
+  regressed_count: "integer"
+  last_seen_head: "git_sha_or_empty"
+  humangate_required: "boolean_true"
+  dataset_admissible: "boolean_false"
+
+required_invariants:
+  humangate_required: true
+  dataset_admissible: false
+  replay_status_initial_value: "candidate"
+  no_dataset_row_creation: true
+  no_training_readiness_implied: true
+  no_benchmark_proof: true
+  no_model_promotion: true
+  no_latest_json: true
+  no_lab_runs_run_glob: true
+
+output_routing:
+  produced_file_type: "task charter YAML"
+  intended_surface: "canonical_docs"
+  canonical_destination: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/06_CODEX/TASK_CHARTER_ERROR_TO_PUZZLE_ONE_PASS_V0.yaml"
+  temporary_destination: ""
+  forbidden_destinations:
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/"
+    - "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/12_PIPELINE_OPENING_LEGACY/"
+    - "C:/TACTICAL_CHESS_STUDIO/repos/games/TacticalChessPureLab/lab/"
+    - "latest.json"
+    - "lab/runs/RUN_*"
+    - "dataset directories"
+    - "model or checkpoint directories"
+  routing_note: "The exact canonical_destination is explicitly authorized by this charter; all other broad or runtime destinations remain forbidden."
+  registration_required: false
+  project_source_upload_required: false
+  retention_policy: "Studio Control Codex task charter; may be uploaded manually if needed."
+  promotion_gate: "HumanGate"
+
+surfaces_in_scope:
+  - canonical_docs
+
+surfaces_out_of_scope:
+  - active_runtime_code
+  - tests
+  - artifacts_runtime_outputs
+  - roadmap_docs_only
+  - inference
+
+allowed_actions:
+  - "Read reference-only docs."
+  - "Create or update only the target task charter YAML."
+  - "Run docs-only readback and grep validation."
+  - "Inspect repo-local status without modifying repo."
+
+blocked_actions:
+  runtime_code_changes: BLOCKED
+  test_changes: BLOCKED
+  runtime_execution: BLOCKED
+  pipeline_execution: BLOCKED
+  puzzle_generation: BLOCKED
+  dataset_generation: BLOCKED
+  dataset_promotion: BLOCKED
+  training: BLOCKED
+  benchmark: BLOCKED
+  latest_json_creation: BLOCKED
+  lab_run_creation: BLOCKED
+  model_or_checkpoint_creation: BLOCKED
+  model_promotion: BLOCKED
+  chess960_activation: BLOCKED
+  actionmask_activation: BLOCKED
+  decision_controller_activation: BLOCKED
+  agent_activation: BLOCKED
+  commit: BLOCKED
+  push: BLOCKED
+  branch_creation: BLOCKED
+  pull_request_creation: BLOCKED
+
+validation_plan:
+  expected_level: DOCUMENTED_ONLY
+  commands:
+    - "Confirm target file exists after creation."
+    - "Read back target YAML."
+    - "Search target YAML for task_id ERROR_TO_PUZZLE_ONE_PASS_V0."
+    - "Search target YAML for humangate_required and dataset_admissible invariants."
+    - "Search target YAML for blocked actions."
+    - "Search target YAML for forbidden runtime activation language."
+    - "Check repo-local git status remains clean."
+  readback_required: true
+
+reference_files:
+  - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/STUDIO_AGENTIC_PYRAMID_ARCHITECTURE_V0.md"
+    surface: canonical_docs
+    status: PASSIVE
+  - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/10_ROADMAP/STUDIO_AGENTIC_PYRAMID_ACTIVATION_ROADMAP_V0.md"
+    surface: roadmap_docs_only
+    status: PASSIVE
+  - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/02_NAVIGATION/STUDIO_SOURCE_ANCHORING_V0.md"
+    surface: canonical_docs
+    status: PASSIVE
+  - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/01_MAPS/STUDIO_OUTPUT_ROUTING_POLICY_V0.md"
+    surface: canonical_docs
+    status: PASSIVE
+  - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/05_STATUS/STUDIO_CONTROL_TOPOLOGY_MIGRATION_V1.md"
+    surface: canonical_docs
+    status: PASSIVE
+  - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/STUDIO_AUTODEV_PIPELINE_IO_CONTRACT_V0.md"
+    surface: canonical_docs
+    status: PASSIVE
+  - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/TASK_CHARTER_TEMPLATE_V0.yaml"
+    surface: canonical_docs
+    status: PASSIVE
+  - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/EXECUTOR_REPORT_TEMPLATE_V0.yaml"
+    surface: canonical_docs
+    status: PASSIVE
+  - path: "C:/TACTICAL_CHESS_STUDIO/00_STUDIO_CONTROL/07_FORMS/ANALYSIS_AGENT_RECORD_TEMPLATE_V0.yaml"
+    surface: canonical_docs
+    status: PASSIVE
+  - path: "C:/TACTICAL_CHESS_STUDIO/repos/games/TacticalChessPureLab/AGENTS.md"
+    surface: canonical_docs
+    status: PASSIVE
+  - path: "C:/TACTICAL_CHESS_STUDIO/repos/games/TacticalChessPureLab/docs/control-plane/ROCKY_ERROR_TO_PUZZLE_ROADMAP_V0.md"
+    surface: roadmap_docs_only
+    status: PASSIVE
+  - path: "C:/TACTICAL_CHESS_STUDIO/repos/games/TacticalChessPureLab/docs/control-plane/ROCKY_ERROR_TO_PUZZLE_CURRICULUM_V0.md"
+    surface: roadmap_docs_only
+    status: PASSIVE
+  - path: "C:/TACTICAL_CHESS_STUDIO/repos/games/TacticalChessPureLab/docs/evidence/ROCKY_OBSERVATION_PROTOCOL_V0.md"
+    surface: canonical_docs
+    status: PASSIVE
+  - path: "C:/TACTICAL_CHESS_STUDIO/repos/games/TacticalChessPureLab/docs/gpt-navigator/GPT_NAVIGATOR_CODEX_PROMPT_GATE_V0.md"
+    surface: canonical_docs
+    status: PASSIVE
+  - path: "C:/TACTICAL_CHESS_STUDIO/repos/games/TacticalChessPureLab/docs/gpt-navigator/GPT_NAVIGATOR_SOURCE_INDEX_V0.md"
+    surface: canonical_docs
+    status: PASSIVE
+  - path: "C:/TACTICAL_CHESS_STUDIO/repos/games/TacticalChessPureLab/docs/gpt-navigator/GPT_NAVIGATOR_UPLOAD_CHECKLIST_V0.md"
+    surface: canonical_docs
+    status: PASSIVE
+
+software_verdict:
+  active_runtime_code: PASSIVE
+  tests: PASSIVE
+  artifacts_runtime_outputs: PASSIVE
+  canonical_docs: DOCUMENTED_ONLY
+  roadmap_docs_only: PASSIVE
+  inference: PASSIVE
+
+evidence_verdict:
+  active_runtime_code: PASSIVE
+  tests: PASSIVE
+  artifacts_runtime_outputs: PASSIVE
+  canonical_docs: TESTED
+  roadmap_docs_only: PASSIVE
+  inference: PASSIVE
+
+claim_verdict:
+  active_runtime_code: PASSIVE
+  tests: PASSIVE
+  artifacts_runtime_outputs: PASSIVE
+  canonical_docs: DOCUMENTED_ONLY
+  roadmap_docs_only: PASSIVE
+  inference: PASSIVE

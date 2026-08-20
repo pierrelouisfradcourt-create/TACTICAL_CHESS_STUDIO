@@ -1,0 +1,24 @@
+Red-team CODE terminé (posture aveuglée, lecture seule). Rapport écrit : `lab/forge_runs/shmup_slice/rapport_redteam_code.md`.
+
+## Ce que j'ai trouvé
+
+**F1 — [HIGH] Projectile ennemi jamais consommé après un toucher.** `collisions.mjs:68` filtre `p.y < 700` alors que le projectile touchant est marqué `y=-100` → `-100 < 700` = vrai → **conservé**. Le côté joueur retire correctement (`>= -50`), le côté ennemi rate. Conséquence : la balle redescend et peut re-toucher (drain multi-vies). **Zone morte de preuve** : le seul test sur `enemyProjectiles.length` après `resolveEnemyHits` est le cas invincible (attend `length===1`) — le cas « touché → retiré » n'est jamais asserté.
+
+**F2 — [MEDIUM] Score fantôme.** `scoring.mjs:17` compte les kills par différentiel `prevEnemyCount - currentEnemyCount`, mais `currentEnemyCount` est mesuré après `removeEnemiesBelowScreen` → un ennemi qui sort par le bas **sans être touché** rapporte +100. Viole R6/R9 (« valeur EXACTE »). **Zone morte** : tous les tests de `updateScoreFromKills` passent `prevEnemyCount=0`, donc le chemin de comptage des kills n'est jamais exercé non-nul ; « monotone » ne l'attrape pas.
+
+**F3 — [LOW]** R2 « une touche = UN tir » : pas de cooldown/front, auto-fire à chaque frame. Divergence de spec (design plausible → fog).
+
+**F4 — [LOW/info]** Statut `'BOSS'` déclaré mais jamais assigné (branche morte) ; tie-break victoire>défaite à ratifier.
+
+Chaque faille F1/F2/F3 a une **reproduction déterministe minimale** (API publique, node) prête pour l'oracle en aval.
+
+## Point clé pour ta validation
+**« mutation 100% » sur `collisions.mjs`/`scoring.mjs` n'est PAS incompatible avec F1/F2** : la mutation tue des mutants sur des lignes *exercées*, elle ne révèle pas l'*absence* d'assertions de retrait/scoring. Deux preuves scellées vertes masquent donc deux défauts réels. À confronter au réel : exécuter les reproductions avant s12.
+
+## Verdicts (séparés)
+- **software_verdict** : non émis — contrat `run: aucun`, je n'ai exécuté aucune repro. F1/F2 établis par analyse statique ; le FAIL mécanique revient à l'oracle de code du run.
+- **evidence_verdict** : `MECHANICAL_VALIDATION_ONLY` (reproductions déterministes fournies, non-LLM).
+- **claim_verdict** : `NO_CLAIM_ALLOWED`.
+- **fog → HumanGate** : (1) faire exécuter F1+F2 (attendu exit 1) avant s12-verdict ; (2) trancher l'intention de design F3 ; (3) ratifier/corriger F4.
+
+Non falsifié : solvabilité (n'importe pas les hooks debug), sonde de contrôle réelle, RNG seedé, survivant `dodge.mjs:55` plausiblement équivalent.

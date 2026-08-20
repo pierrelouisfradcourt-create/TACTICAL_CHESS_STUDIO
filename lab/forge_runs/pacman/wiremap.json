@@ -1,0 +1,2957 @@
+{
+ "schema_version": 2,
+ "game_id": "pacman",
+ "run_id": "pacman-20260805-r1",
+ "etape": "s5-wiremap",
+ "dispatch_marker": "FORGE_DISPATCH:s5-wiremap:pacman-20260805-r1",
+ "plateforme": "Godot 4.6.3 / GDScript — lab/forge_runs/pacman/platform_correction.yaml fait autorite et SUPPLANTE charter.yaml#plateforme_cible",
+ "statut_artefact": "PROPOSITION — gel non ratifie, HumanGate Pierre",
+ "claim_verdict": "NO_CLAIM_ALLOWED",
+ "evidence_verdict": "MECHANICAL_VALIDATION_ONLY",
+ "reference_amont": {
+  "blueprint": "lab/forge_runs/pacman/blueprint.json (19 modules, 162 deps_interdites, ownership) — la carte lui est ISOMORPHE : un systeme par module, allowed_deps = dependances du module",
+  "featuremap": "lab/forge_runs/pacman/featuremap.json (9 systemes, 29 features, 62 capacites F1..F62) — cible du champ `couvre`",
+  "decompo": "lab/forge_runs/pacman/decompo.yaml (62 fonctions, nature / determinisme)",
+  "prisme": "lab/forge_runs/pacman/prisme.json (42 exigences ; 6 portent destination: s5-wiremap -> R19, R21, R22, R38, R39, R40, portees ici par des lignes source EXPECTED)",
+  "charter": "lab/forge_runs/pacman/charter.yaml (valide sauf plateforme_cible)",
+  "repo_map": "scripts/forge/standard/repo_map.yaml (table figee : c'est ELLE qui tranche « ou va ce fichier »)",
+  "core": "scripts/forge/standard/core_requirements.yaml (10 exigences, not_applicable_allowed: false)",
+  "modele": "games/snake/09_WIREMAP/wiremap.json (wiremap v2 reelle du studio)"
+ },
+ "invariant_de_dependance": "05_SYSTEMS (logique pure) ne depend JAMAIS de 06_RUNTIME/adapters. Encode en DUR dans `systems[].allowed_deps` et verifie a la generation : aucun systeme de categorie `system` ne liste un systeme de categorie `system.adapter`. Le sens inverse est autorise et explicite (runtime_loop, input_adapter, presentation, debug_probe, solvability_bot, proof_harness dependent de systemes purs). Aucune arete de blueprint.deps_interdites n'est autorisee.",
+ "systems": [
+  {
+   "id": "rng",
+   "category": "system",
+   "allowed_deps": [],
+   "role": "Detenir l'unique generateur pseudo-aleatoire seede du jeu, dont l'ETAT est un champ de l'etat de partie (clone, rejoue et compare comme n'importe quel autre champ). Aucun autre module ne tire d'alea, aucune source d'aleatoire de plateforme n'est lue."
+  },
+  {
+   "id": "maze",
+   "category": "system",
+   "allowed_deps": [],
+   "role": "Etre la source UNIQUE de la topologie : dimensions 28 x 36, type de chaque case (mur, couloir, maison, tunnel), predicat de praticabilite, enumeration des voisins praticables dans un ordre fixe declare, et bouclage de tunnel applique identiquement a toutes les entites. Aucun autre module ne redecrit la carte."
+  },
+  {
+   "id": "pellets",
+   "category": "system",
+   "allowed_deps": [
+    "maze"
+   ],
+   "role": "Poser les collectibles (240 pastilles + 4 super-pastilles), verifier les invariants de carte (total, atteignabilite depuis la case de depart, une super-pastille par quadrant, maison centrale, deux tunnels), et consommer le collectible de la case occupee. Le total pose est PRODUIT ici — c'est le nombre qui definit la victoire, il n'est recopie nulle part."
+  },
+  {
+   "id": "player_movement",
+   "category": "system",
+   "allowed_deps": [
+    "maze"
+   ],
+   "role": "Tenir la file de direction du joueur (une demande en attente, conservee tant qu'elle est impraticable), resoudre la direction effectuee du tick, et avancer Pac-Man d'exactement une case ou le buter contre le mur. Aucun saut, aucun changement de direction spontane."
+  },
+  {
+   "id": "ghost_targeting",
+   "category": "system",
+   "allowed_deps": [
+    "maze"
+   ],
+   "role": "Fournir la mesure de distance de grille UNIQUE et les cinq formules de case-cible (rouge, rose, cyan, orange en poursuite ; coin de dispersion nominatif). Les fantomes ne different QUE par leur cible : c'est ce qui rend la variance des trajectoires attribuable au ciblage et non a quatre algorithmes de deplacement."
+  },
+  {
+   "id": "ghost_movement",
+   "category": "system",
+   "allowed_deps": [
+    "maze",
+    "ghost_targeting",
+    "chase_state",
+    "rng"
+   ],
+   "role": "Choisir la sortie d'un fantome a une intersection (plus proche de la cible, demi-tour exclu, egalites departagees par un ordre declare), tirer la direction en etat Effraye via le generateur seede, et appliquer la cadence declaree. Algorithme de deplacement COMMUN aux quatre fantomes."
+  },
+  {
+   "id": "ghost_house",
+   "category": "system",
+   "allowed_deps": [
+    "maze",
+    "chase_state"
+   ],
+   "role": "Decider la sortie de la maison centrale (delais declares, strictement croissants, le rouge deja dehors au tick 0) et y renvoyer un fantome capture en le sortant de l'etat Effraye. Unique proprietaire des positions de maison."
+  },
+  {
+   "id": "chase_state",
+   "category": "system",
+   "allowed_deps": [],
+   "role": "Detenir la machine a etats Dispersion / Poursuite / Effraye et son horloge : sequence finie des six seuils, attribution d'EXACTEMENT un etat par fantome, armement et expiration du minuteur Effraye, et inversion de direction au tick de bascule. Vocabulaire ferme, jamais une combinaison de drapeaux."
+  },
+  {
+   "id": "score",
+   "category": "system",
+   "allowed_deps": [],
+   "role": "Convertir en points la nature d'un collectible consomme et le RANG d'une capture de fantome, et porter le point de mutation UNIQUE du score. Un seul endroit ou le score change : c'est ce qui interdit une divergence entre le chiffre affiche et le chiffre de l'etat."
+  },
+  {
+   "id": "contacts",
+   "category": "system",
+   "allowed_deps": [
+    "chase_state",
+    "ghost_house",
+    "score"
+   ],
+   "role": "Detecter le contact Pac-Man / fantome dans les DEUX situations (meme case en fin de tick, et echange de cases sur la meme arete pendant le tick) et aiguiller l'issue selon l'etat du fantome : capture (retour en maison, gain selon le rang) ou perte de vie. Unique endroit ou l'etat d'un fantome decide du sens d'un contact."
+  },
+  {
+   "id": "end_conditions",
+   "category": "system",
+   "allowed_deps": [
+    "chase_state",
+    "pellets"
+   ],
+   "role": "Decrementer EXACTEMENT une vie par contact hostile en replacant les entites aux positions de depart et l'horloge a son premier segment (les collectibles consommes ne reviennent pas), determiner la defaite au tick exact ou les vies atteignent zero, et la victoire par EGALITE STRICTE entre consommes et total pose."
+  },
+  {
+   "id": "game_state",
+   "category": "system",
+   "allowed_deps": [
+    "maze",
+    "pellets",
+    "rng",
+    "chase_state",
+    "ghost_house",
+    "end_conditions"
+   ],
+   "role": "Etre l'ORIGINE UNIQUE d'un etat de partie : construction initiale a partir d'une graine, projection PURE de cet etat en releve observable, calcul du statut dans un vocabulaire ferme, et relance par reconstruction integrale (aucune valeur de la partie precedente ne survit, parce que rien n'est reutilise)."
+  },
+  {
+   "id": "game_loop",
+   "category": "system",
+   "allowed_deps": [
+    "game_state",
+    "player_movement",
+    "ghost_movement",
+    "ghost_house",
+    "pellets",
+    "score",
+    "contacts",
+    "chase_state",
+    "end_conditions"
+   ],
+   "role": "Composer un tick dans un ordre FIGE et declare (entree, horloge, deplacement de Pac-Man, deplacement des fantomes, consommation, detection des contacts sur les positions avant ET apres, statut) et produire la liste d'evenements du tick. Ne mute jamais l'etat d'entree : il produit un nouvel etat."
+  },
+  {
+   "id": "runtime_loop",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "game_state",
+    "game_loop",
+    "input_adapter",
+    "presentation"
+   ],
+   "role": "Amorcer l'application, ouvrir une fenetre qui contient la grille entiere sans defilement, construire la premiere partie, et convertir le temps du moteur en appels au tick pur a une cadence declaree. SEUL endroit du jeu ou une horloge de plateforme est lue."
+  },
+  {
+   "id": "input_adapter",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "game_state",
+    "player_movement"
+   ],
+   "role": "Traduire les appuis clavier en une action du vocabulaire ferme de directions ou en « aucune entree », et prendre en charge la touche de relance depuis l'ecran de fin. CANAL D'ENTREE PUBLIC UNIQUE : le bot de solvabilite et le replay passent par lui, jamais par une ecriture directe dans l'etat."
+  },
+  {
+   "id": "presentation",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "game_state"
+   ],
+   "role": "Rendre a partir du SEUL releve observable : labyrinthe et entites en formes pleines, trois grandeurs en chiffres ecrits, indication d'etat de poursuite lisible, ecran de fin nommant l'issue, et capture d'image a un tick declare. Lit l'etat, ne le modifie jamais, ne consulte aucun systeme de regles."
+  },
+  {
+   "id": "debug_probe",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "game_state"
+   ],
+   "role": "Exposer le releve observable a un lecteur EXTERIEUR au runtime, tick par tick, sur un canal declare. Sans ce point de sortie, toute exigence formulee « etat expose » n'a aucun observateur et n'est pas verifiable. Ne calcule rien : il recopie la projection pure."
+  },
+  {
+   "id": "solvability_bot",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "maze",
+    "game_state"
+   ],
+   "role": "Planifier l'itineraire de collecte des 244 collectibles (retours en arriere compris) et emettre des directions sur le meme canal que le clavier, dans un budget de ticks DECLARE en entree. Ne calcule aucun deplacement lui-meme : il demande, le jeu decide."
+  },
+  {
+   "id": "proof_harness",
+   "category": "system.adapter",
+   "allowed_deps": [
+    "game_state",
+    "game_loop",
+    "input_adapter",
+    "debug_probe",
+    "solvability_bot"
+   ],
+   "role": "Rejouer une suite d'appuis depuis une graine et comparer deux traces champ par champ, asserter les six seuils de l'horloge, mesurer la divergence des quatre trajectoires, le rapprochement du rouge, l'ecart creuse en couloir droit, le ralentissement en Effraye, et inventorier les fichiers du jeu. Mesure depuis l'etat expose, sans jamais appeler les systemes qu'il mesure."
+  }
+ ],
+ "lines": [
+  {
+   "id": "rng.seeded_stream",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F3] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "game.rng"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system",
+   "system_parent": "rng",
+   "address": "05_SYSTEMS/rng/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F3] Deux executions de meme graine comparees champ par champ : l'etat du generateur, etant un champ de l'etat de partie, est identique tick par tick."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/rng/rng.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/rng_seeded_stream.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Unique generateur pseudo-aleatoire du jeu : avance la suite de tirages depuis l'etat de generateur porte par l'etat de partie, sans horloge ni source d'alea de plateforme.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/rng/rng.gd. Executeur de cette ligne : 07_TESTS/unit/rng_seeded_stream.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F3"
+   ]
+  },
+  {
+   "id": "maze.topology",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F5] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "maze.description"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system",
+   "system_parent": "maze",
+   "address": "05_SYSTEMS/maze/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F5] Les dimensions exposees valent exactement 28 x 36, et le type de chaque case (mur, couloir, maison, tunnel) est lisible depuis la description unique de la carte."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/maze/maze.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/maze_topology.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Decrit la grille : dimensions 28 x 36 et type de chaque case (mur, couloir, maison, tunnel). Source UNIQUE de la topologie.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/maze/maze.gd. Executeur de cette ligne : 07_TESTS/unit/maze_topology.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F5"
+   ]
+  },
+  {
+   "id": "maze.walkable",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F6] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "maze.walkable"
+   ],
+   "requires": [
+    "maze.description"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "maze",
+   "address": "05_SYSTEMS/maze/",
+   "expected_proof": {
+    "kind": "mutation",
+    "statement": "[F6] Invariant de collision murale soumis au gate de mutation : un mutant qui declare praticable une case de mur doit etre tue par les tests."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/maze/maze.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/maze_walkable.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Predicat de praticabilite d'une case, consomme identiquement par le joueur et les fantomes.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/maze/maze.gd. Executeur de cette ligne : 07_TESTS/unit/maze_walkable.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F6"
+   ]
+  },
+  {
+   "id": "maze.neighbours",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F7] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "maze.neighbours"
+   ],
+   "requires": [
+    "maze.walkable"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "maze",
+   "address": "05_SYSTEMS/maze/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F7] Sur une fenetre declaree ou Pac-Man reste dans le couloir de tunnel, au moins un fantome en etat de poursuite y entre et en ressort par l'autre extremite : l'enumeration des voisins est la meme pour toutes les entites."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/maze/maze.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/maze_neighbours_tunnel.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Enumere les voisins praticables d'une case dans un ordre fixe declare, le meme pour toutes les entites.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/maze/maze.gd. Executeur de cette ligne : 07_TESTS/oracle/maze_neighbours_tunnel.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F7"
+   ]
+  },
+  {
+   "id": "maze.tunnel_wrap",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F8] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "maze.tunnel_wrap"
+   ],
+   "requires": [
+    "maze.description"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "maze",
+   "address": "05_SYSTEMS/maze/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F8] Etat sur deux ticks consecutifs : la colonne passe de l'extremite droite a l'extremite gauche (ou l'inverse), la ligne est inchangee, le compteur de vies est inchange, le statut reste EN COURS."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/maze/maze.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/maze_tunnel_wrap.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Applique le bouclage de tunnel a une position : la colonne passe d'une extremite a l'autre, la ligne est inchangee.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/maze/maze.gd. Executeur de cette ligne : 07_TESTS/oracle/maze_tunnel_wrap.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F8"
+   ]
+  },
+  {
+   "id": "pellets.layout",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F9] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "pellets.layout"
+   ],
+   "requires": [
+    "maze.description"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "pellets",
+   "address": "05_SYSTEMS/pellets/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F9] Comptage des collectibles poses sur la carte au tick 0 : 240 pastilles ordinaires plus 4 super-pastilles, total exactement 244."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/pellets/pellets.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/pellets_layout.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Pose les collectibles sur la carte et PRODUIT le total (240 + 4 = 244) qui definit la victoire ; ce nombre n'est recopie nulle part.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/pellets/pellets.gd. Executeur de cette ligne : 07_TESTS/unit/pellets_layout.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F9"
+   ]
+  },
+  {
+   "id": "pellets.map_invariants",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F10] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "pellets.invariants"
+   ],
+   "requires": [
+    "pellets.layout",
+    "maze.neighbours"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "pellets",
+   "address": "05_SYSTEMS/pellets/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F10] Positions des quatre super-pastilles : une et une seule par quadrant de la grille, et chacune strictement plus proche de son coin de labyrinthe que de la maison centrale ; chaque collectible est atteignable depuis la case de depart."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/pellets/pellets.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/pellets_map_invariants.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Verifie les invariants de carte : une super-pastille par quadrant, plus proche de son coin que de la maison, chaque collectible atteignable depuis la case de depart.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/pellets/pellets.gd. Executeur de cette ligne : 07_TESTS/unit/pellets_map_invariants.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F10"
+   ]
+  },
+  {
+   "id": "pellets.consume",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F30] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "pellets.consume"
+   ],
+   "requires": [
+    "pellets.layout"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "pellets",
+   "address": "05_SYSTEMS/pellets/",
+   "expected_proof": {
+    "kind": "mutation",
+    "statement": "[F30] Invariant d'incrementation des pastilles soumis au gate de mutation : un mutant qui n'efface pas la case, ou qui recompte une case deja videe, doit etre tue par les tests."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/pellets/pellets.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/pellets_consume.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Consomme le collectible de la case occupee : efface la case et incremente le compteur de consommes, sans jamais recompter une case deja videe.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/pellets/pellets.gd. Executeur de cette ligne : 07_TESTS/unit/pellets_consume.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F30"
+   ]
+  },
+  {
+   "id": "player.direction_queue",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F11] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "player.pending_direction"
+   ],
+   "requires": [
+    "maze.walkable"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "player_movement",
+   "address": "05_SYSTEMS/player_movement/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F11] Une seule pression a un tick ou le virage est impossible ; sans aucune autre entree, la demande reste en attente jusqu'au premier tick ou ce virage devient praticable."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/player_movement/player_movement.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/player_direction_queue.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Enregistre la direction demandee et la conserve en attente tant que le virage est impraticable (file de profondeur 1).",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/player_movement/player_movement.gd. Executeur de cette ligne : 07_TESTS/oracle/player_direction_queue.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F11"
+   ]
+  },
+  {
+   "id": "player.resolved_direction",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F12] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "player.resolved_direction"
+   ],
+   "requires": [
+    "player.pending_direction",
+    "maze.walkable"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "player_movement",
+   "address": "05_SYSTEMS/player_movement/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F12] Etat au tick qui suit l'appui impossible : la direction effectuee est egale a la direction effectuee au tick precedent, et la position a avance d'une case dans cette direction."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/player_movement/player_movement.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/player_resolved_direction.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Resout la direction EFFECTUEE du tick : la demande impraticable est ignoree sans effet de bord, la direction courante est conservee.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/player_movement/player_movement.gd. Executeur de cette ligne : 07_TESTS/oracle/player_resolved_direction.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F12"
+   ]
+  },
+  {
+   "id": "player.step_or_block",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F13] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "player.step"
+   ],
+   "requires": [
+    "player.resolved_direction",
+    "maze.walkable",
+    "maze.tunnel_wrap"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "player_movement",
+   "address": "05_SYSTEMS/player_movement/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F13] Etat avant et apres le tick de butee : la position reste sur la derniere case de couloir, ne franchit pas la case de mur, ne saute vers aucune case non adjacente ; aux ticks suivants sans entree, la position ne change plus."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/player_movement/player_movement.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/player_step_or_block.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Avance Pac-Man d'exactement une case ou le bute contre le mur : aucun saut, aucune case non adjacente.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/player_movement/player_movement.gd. Executeur de cette ligne : 07_TESTS/oracle/player_step_or_block.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F13"
+   ]
+  },
+  {
+   "id": "targeting.distance",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F14] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "targeting.distance"
+   ],
+   "requires": [
+    "maze.description"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "ghost_targeting",
+   "address": "05_SYSTEMS/ghost_targeting/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F14] La distance de grille utilisee par les quatre ciblages est unique : la bascule du fantome orange est assertee a une distance de 9, de 8 et de 7 sur cette meme mesure."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/ghost_targeting/ghost_targeting.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/targeting_distance.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Mesure de distance de grille UNIQUE, utilisee par les quatre ciblages et par les assertions de seuil du fantome orange.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/ghost_targeting/ghost_targeting.gd. Executeur de cette ligne : 07_TESTS/unit/targeting_distance.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F14"
+   ]
+  },
+  {
+   "id": "targeting.chase_targets",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F15,F16,F17,F18] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "targeting.chase"
+   ],
+   "requires": [
+    "targeting.distance",
+    "maze.description"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "ghost_targeting",
+   "address": "05_SYSTEMS/ghost_targeting/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F15] Case-cible exposee du fantome rouge en poursuite : elle egale la case occupee par Pac-Man. [F16] Case-cible exposee du fantome rose en poursuite : elle egale la case situee quatre cases devant Pac-Man dans sa direction courante. [F17] Case-cible exposee du fantome cyan en poursuite : elle egale le point obtenu en prolongeant d'autant le segment allant du fantome rouge a la case situee deux cases devant Pac-Man. [F18] Case-cible exposee du fantome orange : la case de Pac-Man a une distance de 9, son coin de dispersion a une distance de 8 et de 7 — la bascule est assertee exactement au seuil."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/ghost_targeting/ghost_targeting.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/targeting_chase_targets.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Les quatre formules de case-cible en poursuite : rouge = case de Pac-Man ; rose = quatre cases devant ; cyan = prolongement du segment rouge -> deux cases devant ; orange = bascule au seuil de distance. Les fantomes ne different QUE par leur cible.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/ghost_targeting/ghost_targeting.gd. Executeur de cette ligne : 07_TESTS/unit/targeting_chase_targets.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F15",
+    "F16",
+    "F17",
+    "F18"
+   ]
+  },
+  {
+   "id": "targeting.scatter_corners",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F19] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "targeting.scatter"
+   ],
+   "requires": [
+    "maze.description"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "ghost_targeting",
+   "address": "05_SYSTEMS/ghost_targeting/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F19] A partir d'un etat initial identique, les quatre cibles de dispersion sont quatre coins deux a deux differents : aucune paire de fantomes ne partage sa cible pendant les fenetres de dispersion."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/ghost_targeting/ghost_targeting.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/targeting_scatter_corners.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Case-cible de dispersion nominative de chaque fantome : quatre coins deux a deux differents.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/ghost_targeting/ghost_targeting.gd. Executeur de cette ligne : 07_TESTS/unit/targeting_scatter_corners.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F19"
+   ]
+  },
+  {
+   "id": "ghosts.intersection_choice",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F20] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "ghosts.choice"
+   ],
+   "requires": [
+    "targeting.chase",
+    "targeting.scatter",
+    "maze.neighbours",
+    "chase.state_per_ghost"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "ghost_movement",
+   "address": "05_SYSTEMS/ghost_movement/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F20] Pac-Man arrete contre un mur, aucune entree, etat de poursuite actif : la sortie retenue est la plus proche de la cible, et la distance Pac-Man / fantome rouge decroit strictement a chacun de ses deplacements."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/ghost_movement/ghost_movement.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/ghosts_intersection_choice.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Choisit la sortie d'un fantome a une intersection : la plus proche de la cible, demi-tour exclu, egalites departagees par un ordre declare. Algorithme COMMUN aux quatre.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/ghost_movement/ghost_movement.gd. Executeur de cette ligne : 07_TESTS/oracle/ghosts_intersection_choice.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F20"
+   ]
+  },
+  {
+   "id": "ghosts.frightened_draw",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F21] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "ghosts.frightened_draw"
+   ],
+   "requires": [
+    "game.rng",
+    "maze.neighbours",
+    "chase.frightened"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "ghost_movement",
+   "address": "05_SYSTEMS/ghost_movement/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F21] Sur une fenetre declaree en etat Effraye, la direction est tiree parmi les sorties praticables au moyen du generateur seede : la distance Pac-Man / fantome ne decroit pas strictement a chaque deplacement."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/ghost_movement/ghost_movement.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/ghosts_frightened_draw.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Tire la direction d'un fantome Effraye parmi les sorties praticables, au moyen du generateur seede — unique source d'indeterminisme du jeu, donc rejouable.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/ghost_movement/ghost_movement.gd. Executeur de cette ligne : 07_TESTS/oracle/ghosts_frightened_draw.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F21"
+   ]
+  },
+  {
+   "id": "ghosts.cadence",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F22] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "ghosts.step"
+   ],
+   "requires": [
+    "ghosts.choice",
+    "ghosts.frightened_draw",
+    "maze.tunnel_wrap"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "ghost_movement",
+   "address": "05_SYSTEMS/ghost_movement/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F22] Sur une fenetre declaree de ticks, chacun des quatre fantomes sortis de la maison a change de position au moins une fois par cycle de deplacement."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/ghost_movement/ghost_movement.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/ghosts_cadence.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Fait avancer un fantome selon sa cadence declaree : chaque fantome sorti de la maison change de position au moins une fois par cycle de deplacement.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/ghost_movement/ghost_movement.gd. Executeur de cette ligne : 07_TESTS/oracle/ghosts_cadence.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F22"
+   ]
+  },
+  {
+   "id": "house.release_schedule",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F23] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "house.release"
+   ],
+   "requires": [
+    "maze.description",
+    "chase.clock"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "ghost_house",
+   "address": "05_SYSTEMS/ghost_house/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F23] Etat au tick 0 : exactement un fantome est hors de la maison et c'est le rouge ; les trois autres en sortent a des ticks strictement croissants et declares ; au terme du dernier delai, les quatre sont dehors."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/ghost_house/ghost_house.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/house_release_schedule.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Decide la sortie de la maison centrale : le rouge dehors au tick 0, les trois autres a des ticks strictement croissants et declares.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/ghost_house/ghost_house.gd. Executeur de cette ligne : 07_TESTS/oracle/house_release_schedule.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F23"
+   ]
+  },
+  {
+   "id": "house.return_captured",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F24] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "house.return"
+   ],
+   "requires": [
+    "maze.description",
+    "chase.state_per_ghost"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "ghost_house",
+   "address": "05_SYSTEMS/ghost_house/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F24] Etat au tick du contact avec un fantome Effraye : la position du fantome est dans la maison centrale et le compteur de vies est inchange."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/ghost_house/ghost_house.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/house_return_captured.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Renvoie un fantome capture dans la maison centrale et le sort de l'etat Effraye, sans toucher au compteur de vies. Unique proprietaire des positions de maison.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/ghost_house/ghost_house.gd. Executeur de cette ligne : 07_TESTS/unit/house_return_captured.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F24"
+   ]
+  },
+  {
+   "id": "chase.clock",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F25] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "chase.clock"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system",
+   "system_parent": "chase_state",
+   "address": "05_SYSTEMS/chase_state/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F25] Pour chacun des six seuils, l'etat expose releve juste avant, exactement au seuil et juste apres correspond a la sequence declaree ; aucun retour en dispersion apres le sixieme seuil."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/chase_state/chase_state.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/chase_clock_thresholds.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Fait avancer l'horloge des etats de poursuite sur la sequence finie de six seuils ; aucun retour en dispersion apres le sixieme.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/chase_state/chase_state.gd. Executeur de cette ligne : 07_TESTS/unit/chase_clock_thresholds.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F25"
+   ]
+  },
+  {
+   "id": "chase.state_per_ghost",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F26] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "chase.state_per_ghost"
+   ],
+   "requires": [
+    "chase.clock"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "chase_state",
+   "address": "05_SYSTEMS/chase_state/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F26] A chaque tick d'une partie complete, l'etat expose de chacun des quatre fantomes appartient a l'ensemble des trois valeurs, sans valeur vide ni combinaison."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/chase_state/chase_state.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/chase_state_per_ghost.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Attribue EXACTEMENT un etat par fantome dans un vocabulaire ferme de trois valeurs — jamais une combinaison de drapeaux.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/chase_state/chase_state.gd. Executeur de cette ligne : 07_TESTS/unit/chase_state_per_ghost.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F26"
+   ]
+  },
+  {
+   "id": "chase.frightened_window",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F27,F28] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "chase.frightened"
+   ],
+   "requires": [
+    "chase.state_per_ghost"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "chase_state",
+   "address": "05_SYSTEMS/chase_state/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "[F27] Etat au tick de consommation d'une super-pastille : les quatre fantomes sont en etat Effraye au meme tick. [F28] Etat au tick d'expiration declare : aucun fantome n'est plus en Effraye — l'etat prend toujours fin."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/chase_state/chase_state.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/chase_frightened_window.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Arme l'etat Effraye sur les quatre fantomes au tick de consommation d'une super-pastille, et le fait EXPIRER au tick declare : l'etat prend toujours fin.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/chase_state/chase_state.gd. Executeur de cette ligne : 07_TESTS/oracle/chase_frightened_window.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F27",
+    "F28"
+   ]
+  },
+  {
+   "id": "chase.switch_reversal",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F29] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "chase.reversal"
+   ],
+   "requires": [
+    "chase.clock"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "chase_state",
+   "address": "05_SYSTEMS/chase_state/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "[F29] Captures au tick precedant le seuil et au tick du seuil : la direction rendue de chaque fantome hors maison s'est inversee."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/chase_state/chase_state.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/chase_switch_reversal.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Inverse la direction de chaque fantome hors maison au tick de bascule d'etat — c'est ce qui rend la bascule PERCEPTIBLE a l'ecran.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/chase_state/chase_state.gd. Executeur de cette ligne : 07_TESTS/oracle/chase_switch_reversal.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F29"
+   ]
+  },
+  {
+   "id": "score.pellet_value",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F31] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "score.pellet_value"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system",
+   "system_parent": "score",
+   "address": "05_SYSTEMS/score/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F31] Etat au tick de consommation d'une super-pastille : le score a augmente d'exactement 50 et les restantes ont baisse d'exactement 1."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/score/score.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/score_pellet_value.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Convertit la nature d'un collectible consomme en points (pastille ordinaire / super-pastille).",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/score/score.gd. Executeur de cette ligne : 07_TESTS/unit/score_pellet_value.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F31"
+   ]
+  },
+  {
+   "id": "score.ghost_capture_value",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F32] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "score.capture_value"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system",
+   "system_parent": "score",
+   "address": "05_SYSTEMS/score/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F32] Etat au tick du contact : le gain de score est egal a 200, 400, 800 ou 1600 selon le rang ; a la super-pastille suivante, le rang repart de la premiere valeur."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/score/score.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/score_ghost_capture_value.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Convertit le RANG d'une capture de fantome en points (200 / 400 / 800 / 1600), le rang repartant de la premiere valeur a la super-pastille suivante.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/score/score.gd. Executeur de cette ligne : 07_TESTS/unit/score_ghost_capture_value.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F32"
+   ]
+  },
+  {
+   "id": "score.mutation_point",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F33] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "score.value"
+   ],
+   "requires": [
+    "score.pellet_value",
+    "score.capture_value"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "score",
+   "address": "05_SYSTEMS/score/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "[F33] Le score lu a l'ecran est egal a la valeur de score de l'etat au meme tick, apres chaque evenement : les deux descendent d'un point de mutation unique."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/score/score.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/score_single_mutation_point.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Point de mutation UNIQUE du score : un seul endroit ou le score change, ce qui interdit une divergence entre le chiffre affiche et le chiffre de l'etat.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/score/score.gd. Executeur de cette ligne : 07_TESTS/oracle/score_single_mutation_point.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F33"
+   ]
+  },
+  {
+   "id": "contacts.detection",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F34] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "contacts.detected"
+   ],
+   "requires": [
+    "maze.description"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "contacts",
+   "address": "05_SYSTEMS/contacts/",
+   "expected_proof": {
+    "kind": "mutation",
+    "statement": "[F34] Invariant de collision avec un fantome soumis au gate de mutation : un mutant qui ne detecte pas l'echange de cases sur une meme arete doit etre tue par la fixture de croisement en sens inverse."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/contacts/contacts.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/contacts_detection.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Detecte le contact Pac-Man / fantome dans les DEUX situations : meme case en fin de tick, et echange de cases sur la meme arete pendant le tick.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/contacts/contacts.gd. Executeur de cette ligne : 07_TESTS/unit/contacts_detection.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F34"
+   ]
+  },
+  {
+   "id": "contacts.resolution",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F35] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "contacts.outcome"
+   ],
+   "requires": [
+    "contacts.detected",
+    "chase.state_per_ghost",
+    "house.return",
+    "score.capture_value"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "contacts",
+   "address": "05_SYSTEMS/contacts/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F35] Etat au tick du contact avec un fantome Effraye : le compteur de vies est inchange — le contact est une capture, pas une mort."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/contacts/contacts.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/contacts_resolution.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Aiguille l'issue d'un contact selon l'etat du fantome : capture (retour en maison, gain selon le rang, vies inchangees) ou perte de vie. Unique endroit de cet aiguillage.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/contacts/contacts.gd. Executeur de cette ligne : 07_TESTS/unit/contacts_resolution.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F35"
+   ]
+  },
+  {
+   "id": "end.life_loss",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F36] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "end.life_loss"
+   ],
+   "requires": [
+    "contacts.outcome",
+    "chase.clock"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "end_conditions",
+   "address": "05_SYSTEMS/end_conditions/",
+   "expected_proof": {
+    "kind": "mutation",
+    "statement": "[F36] Invariant de decrement de vie soumis au gate de mutation : un mutant qui retire zero vie, deux vies, ou qui ne repositionne pas les entites au contact, doit etre tue par les tests."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/end_conditions/end_conditions.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/end_life_loss.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Decremente EXACTEMENT une vie par contact hostile et replace les entites aux positions de depart, horloge au premier segment ; les collectibles consommes ne reviennent pas.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/end_conditions/end_conditions.gd. Executeur de cette ligne : 07_TESTS/unit/end_life_loss.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F36"
+   ]
+  },
+  {
+   "id": "end.defeat",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F37] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "game.defeat"
+   ],
+   "requires": [
+    "end.life_loss"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "end_conditions",
+   "address": "05_SYSTEMS/end_conditions/",
+   "expected_proof": {
+    "kind": "mutation",
+    "statement": "[F37] Invariant de condition de defaite soumis au gate de mutation : un mutant qui bascule a PERDU alors que vies vaut 1, ou qui laisse EN COURS alors que vies vaut 0, doit etre tue."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/end_conditions/end_conditions.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/end_defeat.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Determine la defaite au tick EXACT ou les vies atteignent zero — jamais a 1, jamais apres.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/end_conditions/end_conditions.gd. Executeur de cette ligne : 07_TESTS/unit/end_defeat.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F37"
+   ]
+  },
+  {
+   "id": "end.victory",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F38] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "game.victory"
+   ],
+   "requires": [
+    "pellets.consume",
+    "pellets.layout"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "end_conditions",
+   "address": "05_SYSTEMS/end_conditions/",
+   "expected_proof": {
+    "kind": "mutation",
+    "statement": "[F38] Invariant de condition de victoire soumis au gate de mutation : un mutant qui remplace l'egalite par >= doit etre tue par l'assertion EN COURS a 243 consommes."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/end_conditions/end_conditions.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/end_victory.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Determine la victoire par EGALITE STRICTE entre consommes et total pose (jamais >=), l'etat restant EN COURS a total - 1.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/end_conditions/end_conditions.gd. Executeur de cette ligne : 07_TESTS/unit/end_victory.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F38"
+   ]
+  },
+  {
+   "id": "state.initial_from_seed",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F1] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "game.state.initial"
+   ],
+   "requires": [
+    "maze.description",
+    "pellets.layout",
+    "game.rng",
+    "chase.clock",
+    "house.release"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "game_state",
+   "address": "05_SYSTEMS/game_state/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F1] Comparaison champ par champ de l'etat au tick 0 d'une partie relancee avec l'etat au tick 0 de la premiere partie : tous les champs sont egaux, y compris la phase de l'horloge des etats et le rang de capture."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/game_state/game_state.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/state_initial_from_seed.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "ORIGINE UNIQUE d'un etat de partie : construction complete et reproductible depuis une graine, horloge au premier segment, rang de capture a la premiere valeur.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/game_state/game_state.gd. Executeur de cette ligne : 07_TESTS/unit/state_initial_from_seed.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F1"
+   ]
+  },
+  {
+   "id": "state.observable_projection",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F2] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "game.observable"
+   ],
+   "requires": [
+    "game.state.initial"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "game_state",
+   "address": "05_SYSTEMS/game_state/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "[F2] Les trois nombres du releve observable (score, pastilles restantes, vies) sont egaux aux valeurs de l'etat de partie au meme tick, apres chaque evenement."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/game_state/observable.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/state_observable_projection.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Projette l'etat DEJA tenu en un releve plat, sans rien calculer de neuf et sans structure parallele. Point d'observation unique du HUD et du harnais.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/game_state/observable.gd. Executeur de cette ligne : 07_TESTS/oracle/state_observable_projection.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F2"
+   ]
+  },
+  {
+   "id": "state.status",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F4] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "game.status"
+   ],
+   "requires": [
+    "game.victory",
+    "game.defeat"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "game_state",
+   "address": "05_SYSTEMS/game_state/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F4] Le statut expose appartient a l'ensemble des trois valeurs a chaque tick et apres la derniere iteration de la boucle, sur les trois issues (victoire, defaite, sortie de boucle)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/game_state/status.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/unit/state_status.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Calcule le statut de partie dans un vocabulaire ferme de trois valeurs, y compris apres la derniere iteration de la boucle.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/game_state/status.gd. Executeur de cette ligne : 07_TESTS/unit/state_status.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F4"
+   ]
+  },
+  {
+   "id": "state.restart",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F41] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "game.restart.rebuild"
+   ],
+   "requires": [
+    "game.state.initial"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "game_state",
+   "address": "05_SYSTEMS/game_state/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F41] Une seule pression de touche depuis l'ecran de fin : au tick suivant, le statut expose vaut EN COURS et le labyrinthe rendu est de nouveau rempli de pastilles."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/game_state/restart.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/state_restart.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Relance une partie neuve par RECONSTRUCTION INTEGRALE : aucune valeur de la partie precedente ne survit, parce que rien n'est reutilise.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/game_state/restart.gd. Executeur de cette ligne : 07_TESTS/oracle/state_restart.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F41"
+   ]
+  },
+  {
+   "id": "loop.tick",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F39] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "game.loop"
+   ],
+   "requires": [
+    "game.state.initial",
+    "player.step",
+    "ghosts.step",
+    "house.release",
+    "pellets.consume",
+    "score.value",
+    "contacts.outcome",
+    "chase.clock",
+    "game.status"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "game_loop",
+   "address": "05_SYSTEMS/game_loop/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F39] Deux releves d'etat separes par une fenetre declaree de ticks, sans injecter aucune entree : la position de Pac-Man a change et celle d'au moins un fantome a change."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/game_loop/game_loop.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/loop_tick.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Compose un tick dans un ordre FIGE et declare (entree, horloge, joueur, fantomes, consommation, contacts avant ET apres, statut) et produit un NOUVEL etat sans muter l'etat d'entree.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/game_loop/game_loop.gd. Executeur de cette ligne : 07_TESTS/oracle/loop_tick.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F39"
+   ]
+  },
+  {
+   "id": "loop.events",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F40] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "game.events"
+   ],
+   "requires": [
+    "game.loop"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "game_loop",
+   "address": "05_SYSTEMS/game_loop/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "[F40] Captures au tick precedant le seuil et au tick du seuil : l'evenement de bascule est emis au tick du seuil, ce qui rend l'indication d'etat lisible a l'ecran differente entre les deux captures."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "05_SYSTEMS/game_loop/game_loop.gd",
+     "category": "system"
+    },
+    {
+     "path": "07_TESTS/oracle/loop_events.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Produit la liste d'evenements du tick (consommation, bascule d'etat, contact, fin) : c'est la SEULE prise a laquelle un adaptateur de retour peut se brancher.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 05_SYSTEMS/game_loop/game_loop.gd. Executeur de cette ligne : 07_TESTS/oracle/loop_events.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F40"
+   ]
+  },
+  {
+   "id": "runtime.boot_window",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F42] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "runtime.boot"
+   ],
+   "requires": [
+    "game.state.initial",
+    "render.frame"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "runtime_loop",
+   "address": "06_RUNTIME/adapters/runtime_loop/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F42] Lancement reseau coupe : le jeu s'ouvre et une partie se joue, sans charger aucun fichier d'image, de police ni de son importe."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/runtime_loop/runtime_loop.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "06_RUNTIME/adapters/runtime_loop/boot.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "project.godot",
+     "category": "godot.project_root"
+    },
+    {
+     "path": "main.tscn",
+     "category": "godot.project_root"
+    },
+    {
+     "path": "07_TESTS/oracle/runtime_boot_window.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Amorce l'application Godot, ouvre une fenetre qui contient la grille entiere sans defilement, et construit la premiere partie — sans charger aucun asset importe.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/runtime_loop/runtime_loop.gd, 06_RUNTIME/adapters/runtime_loop/boot.gd, project.godot, main.tscn. Executeur de cette ligne : 07_TESTS/oracle/runtime_boot_window.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F42"
+   ]
+  },
+  {
+   "id": "runtime.tick_cadence",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F44] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "runtime.cadence"
+   ],
+   "requires": [
+    "game.loop"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "runtime_loop",
+   "address": "06_RUNTIME/adapters/runtime_loop/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F44] Deux releves d'etat separes par une fenetre declaree de ticks, sans injecter aucune entree : la boucle a produit des ticks et les positions ont change."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/runtime_loop/runtime_loop.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/runtime_tick_cadence.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Convertit le temps du moteur en appels au tick pur a une cadence declaree. SEUL endroit du jeu ou une horloge de plateforme est lue.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/runtime_loop/runtime_loop.gd. Executeur de cette ligne : 07_TESTS/oracle/runtime_tick_cadence.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F44"
+   ]
+  },
+  {
+   "id": "input.keyboard",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F43] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "input.action"
+   ],
+   "requires": [
+    "player.pending_direction"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "input_adapter",
+   "address": "06_RUNTIME/adapters/input_adapter/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F43] Etat au tick qui suit l'appui : la direction effectuee est exactement la direction demandee, et la position a avance d'une case dans cette direction."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/input_adapter/input_adapter.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/input_keyboard.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Traduit les appuis clavier en une action du vocabulaire ferme de directions ou en « aucune entree ». CANAL D'ENTREE PUBLIC UNIQUE.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/input_adapter/input_adapter.gd. Executeur de cette ligne : 07_TESTS/oracle/input_keyboard.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F43"
+   ]
+  },
+  {
+   "id": "input.restart_key",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F49] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "input.restart"
+   ],
+   "requires": [
+    "game.restart.rebuild",
+    "game.status"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "input_adapter",
+   "address": "06_RUNTIME/adapters/input_adapter/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F49] Une seule pression de touche depuis l'ecran de fin, sans menu intermediaire ni relance de l'application : au tick suivant, le statut expose vaut EN COURS."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/input_adapter/input_adapter.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/input_restart_key.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Prend en charge la touche de relance depuis l'ecran de fin, sans menu intermediaire ni relance de l'application.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/input_adapter/input_adapter.gd. Executeur de cette ligne : 07_TESTS/oracle/input_restart_key.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F49"
+   ]
+  },
+  {
+   "id": "render.maze_and_entities",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F45] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "render.frame"
+   ],
+   "requires": [
+    "game.observable"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "presentation",
+   "address": "06_RUNTIME/adapters/presentation/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "[F45] Capture d'ecran : les murs portent une apparence constante differente du couloir vide ; les quatre fantomes portent quatre couleurs deux a deux differentes ; une super-pastille est visiblement plus grande qu'une pastille ordinaire."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/presentation/maze_view.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/render_maze_and_entities.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Dessine le labyrinthe et les entites par primitives pleines du moteur : murs d'apparence constante, quatre couleurs de fantomes distinctes, super-pastille plus grande. Zero asset importe.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/presentation/maze_view.gd. Executeur de cette ligne : 07_TESTS/oracle/render_maze_and_entities.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F45"
+   ]
+  },
+  {
+   "id": "render.hud_numbers",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F46] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "render.hud"
+   ],
+   "requires": [
+    "game.observable"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "presentation",
+   "address": "06_RUNTIME/adapters/presentation/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "[F46] Capture d'ecran et etat expose releves au meme tick : les trois nombres lus a l'ecran sont egaux aux trois valeurs de l'etat, et aucun des trois n'est represente uniquement par des formes ou des pips."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/presentation/hud.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/render_hud_numbers.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Affiche score, vies et pastilles restantes en CHIFFRES lisibles — jamais uniquement en formes ou en pips.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/presentation/hud.gd. Executeur de cette ligne : 07_TESTS/oracle/render_hud_numbers.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F46"
+   ]
+  },
+  {
+   "id": "render.chase_state_indicator",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F47] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "render.state_indicator"
+   ],
+   "requires": [
+    "game.observable"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "presentation",
+   "address": "06_RUNTIME/adapters/presentation/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "[F47] Captures au tick precedant le seuil et au tick du seuil : l'indication d'etat lisible a l'ecran differe entre les deux captures."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/presentation/state_banner.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/render_chase_state_indicator.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Affiche l'indication d'etat de poursuite, ce qui rend la bascule perceptible a l'ecran et pas seulement dans les donnees.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/presentation/state_banner.gd. Executeur de cette ligne : 07_TESTS/oracle/render_chase_state_indicator.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F47"
+   ]
+  },
+  {
+   "id": "render.end_screen",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F48] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "render.end_screen"
+   ],
+   "requires": [
+    "game.observable",
+    "game.status"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "presentation",
+   "address": "06_RUNTIME/adapters/presentation/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "[F48] Deux captures, une partie gagnee et une partie perdue : les textes d'issue different, le score final affiche est egal au score d'etat, et une pression au clavier est encore prise en compte apres l'affichage."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/presentation/end_screen.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/render_end_screen.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Affiche l'ecran de fin nommant l'issue et le score final, et laisse le clavier pris en compte apres l'affichage.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/presentation/end_screen.gd. Executeur de cette ligne : 07_TESTS/oracle/render_end_screen.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F48"
+   ]
+  },
+  {
+   "id": "render.frame_capture",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F51] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "render.capture"
+   ],
+   "requires": [
+    "render.frame"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "presentation",
+   "address": "06_RUNTIME/adapters/presentation/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "[F51] Capture d'ecran au premier tick : le contour du labyrinthe est entierement contenu dans la fenetre (aucune ligne ni colonne coupee par un bord), on denombre un Pac-Man, quatre fantomes et au moins une pastille."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/presentation/capture.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/render_frame_capture.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Capture une image de l'ecran a un tick declare, en fenetre GPU reelle (le mode headless rend une texture nulle sur ce poste, fait mesure 2026-07-22).",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/presentation/capture.gd. Executeur de cette ligne : 07_TESTS/oracle/render_frame_capture.gd, enumere et execute par res://tests/run_tests.gd. RESERVE : le volet PIXEL de cette ligne (captures comparees) n'est PAS mesure par cet executeur — l'oracle maitre lance le harnais en --headless, qui rend une texture nulle sur ce poste. Ce qui est mesure : le garde-fou refuse explicitement la capture headless, et deux etats distincts produisent un rendu different (palette non monochrome). Volet pixel remonte en SKIPPED_VALIDATION. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F51"
+   ]
+  },
+  {
+   "id": "probe.observable_stream",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F50] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "probe.stream"
+   ],
+   "requires": [
+    "game.observable"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "debug_probe",
+   "address": "06_RUNTIME/adapters/debug_probe/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F50] A chaque tick d'une partie complete, l'etat expose de chacun des quatre fantomes est LISIBLE par un lecteur exterieur au runtime : sans ce point de sortie, l'assertion n'a pas d'observateur."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/debug_probe/debug_probe.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/probe_observable_stream.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Expose le releve observable a un lecteur EXTERIEUR au runtime, tick par tick, sur un canal declare. Ne calcule rien : il recopie la projection pure. Sans lui, « etat expose » n'a aucun observateur.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/debug_probe/debug_probe.gd. Executeur de cette ligne : 07_TESTS/oracle/probe_observable_stream.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F50"
+   ]
+  },
+  {
+   "id": "solvability.route_plan",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F53] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "solvability.route"
+   ],
+   "requires": [
+    "maze.neighbours",
+    "pellets.layout"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "solvability_bot",
+   "address": "06_RUNTIME/adapters/solvability_bot/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F53] Execution du bot sur la carte et la graine de reference : l'itineraire calcule couvre les 244 collectibles, retours en arriere compris, dans le budget de ticks declare."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/solvability_bot/route_planner.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/solvability_route_plan.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Planifie l'itineraire de collecte des 244 collectibles, retours en arriere compris, dans un budget de ticks DECLARE en entree.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/solvability_bot/route_planner.gd. Executeur de cette ligne : 07_TESTS/oracle/solvability_route_plan.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F53"
+   ]
+  },
+  {
+   "id": "solvability.drive_public_input",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme:realisateur-produit",
+   "reference": "lab/forge_runs/pacman/prisme.json#R39 -> charter.yaml#criteres_succes[SOLVABILITE PROUVEE] + #actions_interdites[Forcer ou placer l'etat de jeu a la main]",
+   "provides": [
+    "solvability.drive"
+   ],
+   "requires": [
+    "solvability.route",
+    "input.action"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "solvability_bot",
+   "address": "06_RUNTIME/adapters/solvability_bot/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F54] Execution du bot sur la carte et la graine de reference : statut final GAGNE, consommes egal 244, restantes egal 0, atteints par le seul canal d'entree public."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/solvability_bot/bot_driver.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/solvability_drive_public_input.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Emet des directions sur le MEME canal que le clavier. Ne calcule aucun deplacement lui-meme : il demande, le jeu decide.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/solvability_bot/bot_driver.gd. Executeur de cette ligne : 07_TESTS/oracle/solvability_drive_public_input.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F54"
+   ]
+  },
+  {
+   "id": "solvability.verdict",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme:realisateur-produit",
+   "reference": "lab/forge_runs/pacman/prisme.json#R40 (contre-epreuve) + #R39 -> charter.yaml#criteres_succes[SOLVABILITE PROUVEE]",
+   "provides": [
+    "solvability.verdict"
+   ],
+   "requires": [
+    "solvability.drive",
+    "game.status",
+    "probe.stream"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "solvability_bot",
+   "address": "06_RUNTIME/adapters/solvability_bot/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F55] Execution du bot sur la carte de reference : code de retour 0 quand le statut final est GAGNE avec consommes egal 244 et restantes egal 0 dans le budget declare. [F56] Execution du bot sur la carte cassee : statut final different de GAGNE, sortie INJOUABLE, code de retour non nul."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/solvability_bot/verdict.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "solvability.gd",
+     "category": "godot.project_root"
+    },
+    {
+     "path": "07_TESTS/oracle/solvability_broken_map.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Declare le verdict et le code de retour : 0 sur la carte de reference quand le statut final est GAGNE a 244 consommes ; non nul et sortie INJOUABLE sur la carte volontairement cassee. `solvability.gd` a la racine est le point d'entree impose par godot_oracle.mjs.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/solvability_bot/verdict.gd, solvability.gd. Executeur de cette ligne : 07_TESTS/oracle/solvability_broken_map.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F55",
+    "F56"
+   ]
+  },
+  {
+   "id": "harness.replay_determinism",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme:realisateur-produit",
+   "reference": "lab/forge_runs/pacman/prisme.json#R38 -> charter.yaml#criteres_succes[BOUCLE TEMPS REEL DETERMINISTE PAR REPLAY] + worldscan.yaml#ghost_states.states[Frightened Mode]",
+   "provides": [
+    "proof.replay"
+   ],
+   "requires": [
+    "input.action",
+    "probe.stream",
+    "game.loop"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "proof_harness",
+   "address": "06_RUNTIME/adapters/proof_harness/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F52] Deux executions comparees champ par champ : trace des positions, score et statut final strictement identiques, sur une fenetre rejouee qui franchit au moins deux seuils de la sequence d'etats de poursuite."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/proof_harness/replay.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/harness_replay_determinism.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Rejoue une suite d'appuis depuis une graine et compare les deux traces champ par champ, sur une fenetre qui franchit au moins deux seuils de la sequence d'etats.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/proof_harness/replay.gd. Executeur de cette ligne : 07_TESTS/oracle/harness_replay_determinism.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F52"
+   ]
+  },
+  {
+   "id": "harness.chase_thresholds",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F57] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "proof.chase_thresholds"
+   ],
+   "requires": [
+    "probe.stream"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "proof_harness",
+   "address": "06_RUNTIME/adapters/proof_harness/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F57] Pour chacun des six seuils, l'etat expose est releve juste avant le seuil, exactement au seuil et juste apres : les trois valeurs correspondent a la sequence declaree."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/proof_harness/chase_thresholds.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/harness_chase_thresholds.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Assere les six seuils de l'horloge : etat expose releve juste avant, exactement au seuil et juste apres. Mesure depuis l'etat expose, sans appeler le systeme mesure.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/proof_harness/chase_thresholds.gd. Executeur de cette ligne : 07_TESTS/oracle/harness_chase_thresholds.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F57"
+   ]
+  },
+  {
+   "id": "harness.ghost_trajectory_divergence",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme:realisateur-produit",
+   "reference": "lab/forge_runs/pacman/prisme.json#R19 -> worldscan.yaml#ghost_targeting.targeting_variance_proof.verification_rule",
+   "provides": [
+    "proof.divergence"
+   ],
+   "requires": [
+    "probe.stream"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "proof_harness",
+   "address": "06_RUNTIME/adapters/proof_harness/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F58] A partir d'un etat initial identique et sur un horizon declare, les quatre sequences de positions de fantomes sont deux a deux differentes."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/proof_harness/trajectory_divergence.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/harness_ghost_trajectory_divergence.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Mesure la divergence des quatre trajectoires : la grandeur comparee est la SEQUENCE de positions sur l'horizon, paire a paire — pas les positions a un instant donne.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/proof_harness/trajectory_divergence.gd. Executeur de cette ligne : 07_TESTS/oracle/harness_ghost_trajectory_divergence.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F58"
+   ]
+  },
+  {
+   "id": "harness.red_ghost_closing",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme:realisateur-produit",
+   "reference": "lab/forge_runs/pacman/prisme.json#R21 -> charter.yaml#criteres_succes[FANTOMES ACTIFS ET NON DEGENERES] + worldscan.yaml#ghost_targeting.blinky_red",
+   "provides": [
+    "proof.closing"
+   ],
+   "requires": [
+    "probe.stream"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "proof_harness",
+   "address": "06_RUNTIME/adapters/proof_harness/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F59] Pac-Man arrete contre un mur, aucune entree, etat de poursuite actif : la distance Pac-Man / fantome rouge decroit strictement a chacun de ses deplacements sur une fenetre declaree."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/proof_harness/red_closing.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/harness_red_ghost_closing.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Mesure la decroissance stricte de distance du fantome rouge sur un Pac-Man IMMOBILISE contre un mur — protocole impose parce qu'un joueur qui bouge rend la mesure ambigue.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/proof_harness/red_closing.gd. Executeur de cette ligne : 07_TESTS/oracle/harness_red_ghost_closing.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F59"
+   ]
+  },
+  {
+   "id": "harness.flee_gap",
+   "source": "EXPECTED",
+   "source_role": "s1-prisme:realisateur-produit",
+   "reference": "lab/forge_runs/pacman/prisme.json#R22 -> worldscan.yaml#incertitudes[Precise speed ratios between Pac-Man and ghosts] + charter.yaml#parametres_de_design.vitesse_relative_fantomes",
+   "provides": [
+    "proof.flee_gap"
+   ],
+   "requires": [
+    "probe.stream"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "proof_harness",
+   "address": "06_RUNTIME/adapters/proof_harness/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F60] Sur un couloir droit declare, Pac-Man fuyant en s'eloignant : la distance Pac-Man / poursuivant est strictement plus grande a la fin de la fenetre qu'a son debut."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/proof_harness/flee_gap.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/harness_flee_gap.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Mesure l'ecart creuse par Pac-Man fuyant en couloir droit : l'exigence porte sur le SIGNE de l'inegalite observable, pas sur la valeur 95 %.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/proof_harness/flee_gap.gd. Executeur de cette ligne : 07_TESTS/oracle/harness_flee_gap.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F60"
+   ]
+  },
+  {
+   "id": "harness.frightened_slowdown",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F61] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "proof.frightened_slowdown"
+   ],
+   "requires": [
+    "probe.stream"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "proof_harness",
+   "address": "06_RUNTIME/adapters/proof_harness/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "[F61] Sur une fenetre declaree en etat Effraye : le nombre de cases parcourues par chaque fantome est strictement inferieur a celui parcouru par Pac-Man."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/proof_harness/frightened_slowdown.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/harness_frightened_slowdown.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Mesure le ralentissement et la non-convergence des fantomes en etat Effraye sur une fenetre declaree.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/proof_harness/frightened_slowdown.gd. Executeur de cette ligne : 07_TESTS/oracle/harness_frightened_slowdown.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F61"
+   ]
+  },
+  {
+   "id": "harness.asset_inventory",
+   "source": "DERIVED",
+   "source_role": null,
+   "reference": "lab/forge_runs/pacman/featuremap.json#capacites[F62] + lab/forge_runs/pacman/blueprint.json#responsabilites",
+   "provides": [
+    "proof.asset_inventory"
+   ],
+   "requires": [],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "proof_harness",
+   "address": "06_RUNTIME/adapters/proof_harness/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "[F62] Inventaire des fichiers du jeu : aucun fichier d'image, de police ni de son importe n'y figure."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "06_RUNTIME/adapters/proof_harness/asset_inventory.gd",
+     "category": "system.adapter"
+    },
+    {
+     "path": "07_TESTS/oracle/harness_asset_inventory.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Inventorie les fichiers du jeu pour ETABLIR l'absence d'asset importe (image, police, son) — l'exigence hors_scope du charter devient un fait mesure, pas une intention.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : 06_RUNTIME/adapters/proof_harness/asset_inventory.gd. Executeur de cette ligne : 07_TESTS/oracle/harness_asset_inventory.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F62"
+   ]
+  },
+  {
+   "id": "core.boot",
+   "source": "CORE",
+   "source_role": null,
+   "reference": "scripts/forge/standard/core_requirements.yaml -> core.boot (capability game.boot, proof_kind bot_action, not_applicable_allowed: false) ; DEUX origines conservees (SCHEMA.md §4.1) — charter.yaml#criteres_demo[DEMARRAGE VISIBLE] + featuremap#F42",
+   "provides": [
+    "game.boot"
+   ],
+   "requires": [
+    "runtime.boot"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "runtime_loop",
+   "address": "06_RUNTIME/adapters/runtime_loop/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Lancement de main.tscn sans aucune intervention humaine : l'etat initial declare est ATTEINT et CONSTATE par le canal d'observation public (jamais par une lecture forcee de l'etat interne). Le nombre d'appuis avant l'etat initial est EXACTEMENT 0, le nombre d'ecrans intercales est EXACTEMENT 0, le nombre d'erreurs au lancement est EXACTEMENT 0. Falsification : point d'entree neutralise -> code de retour NON NUL, jamais un vert silencieux."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/core_boot.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Point de controle CORE du demarrage. Ne cree AUCUN module : il constate, sur une instance reellement lancee, que la ligne runtime.boot_window amene le jeu a son etat initial observable.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : (aucun module : point de controle). Executeur de cette ligne : 07_TESTS/oracle/core_boot.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F42"
+   ]
+  },
+  {
+   "id": "core.main_loop",
+   "source": "CORE",
+   "source_role": null,
+   "reference": "scripts/forge/standard/core_requirements.yaml -> core.main_loop (capability game.loop, proof_kind test, not_applicable_allowed: false) ; DEUX origines conservees (SCHEMA.md §4.1) — charter.yaml#criteres_succes[BOUCLE TEMPS REEL DETERMINISTE PAR REPLAY] + featuremap#F39",
+   "provides": [
+    "game.loop"
+   ],
+   "requires": [
+    "game.loop"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "game_loop",
+   "address": "05_SYSTEMS/game_loop/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "Meme etat + meme entree + meme graine -> meme etat suivant, compare champ par champ sur une fenetre declaree de N ticks : le nombre de champs divergents est EXACTEMENT 0. Executeur declare : `tests/run_tests.gd` lance en headless, code de retour 0 exige."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "tests/run_tests.gd",
+     "category": "godot.project_tests"
+    }
+   ],
+   "fonction": "Point de controle CORE du determinisme de boucle, et DEPOSANT du harnais de tests moteur `tests/run_tests.gd` — le chemin impose par scripts/forge/godot_oracle.mjs. Une assertion qu'aucun lecteur n'execute n'existe pas dans la chaine qualite.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : tests/run_tests.gd. Executeur de cette ligne : (aucun fichier de preuve declare), enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F39"
+   ]
+  },
+  {
+   "id": "core.input",
+   "source": "CORE",
+   "source_role": null,
+   "reference": "scripts/forge/standard/core_requirements.yaml -> core.input (capability input.action, proof_kind bot_action, not_applicable_allowed: false) ; DEUX origines conservees (SCHEMA.md §4.1) — charter.yaml#criteres_demo[DEPLACEMENT AU CLAVIER] + featuremap#F43",
+   "provides": [
+    "input.action"
+   ],
+   "requires": [
+    "input.action"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "input_adapter",
+   "address": "06_RUNTIME/adapters/input_adapter/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Une action emise sur le canal d'entree PUBLIC — le meme pour le clavier et pour le bot — modifie l'etat de jeu de facon observable : pour chaque action du vocabulaire ferme (quatre directions, relance), le nombre de commandes sans effet observable est EXACTEMENT 0. Falsification : canal neutralise -> le nombre d'actions ayant un effet est EXACTEMENT 0. Une commande exposee mais inerte est un FAIL (defaut « Quitter inerte », playtest Pong 2026-07-27)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/core_input_action.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Point de controle CORE du canal d'action. Ne cree AUCUN module : il parcourt le vocabulaire ferme d'actions sur une instance lancee et constate qu'aucune commande exposee n'est inerte.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : (aucun module : point de controle). Executeur de cette ligne : 07_TESTS/oracle/core_input_action.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F43"
+   ]
+  },
+  {
+   "id": "core.game_state",
+   "source": "CORE",
+   "source_role": null,
+   "reference": "scripts/forge/standard/core_requirements.yaml -> core.game_state (capability game.state, proof_kind test, not_applicable_allowed: false) ; DEUX origines conservees (SCHEMA.md §4.1) — charter.yaml#criteres_succes[TROIS STATUTS TERMINAUX MUTUELLEMENT EXCLUSIFS ET EXHAUSTIFS] + featuremap#F4",
+   "provides": [
+    "game.state"
+   ],
+   "requires": [
+    "game.status"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "game_state",
+   "address": "05_SYSTEMS/game_state/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "A tout instant le statut vaut EXACTEMENT une valeur parmi {EN COURS, GAGNE, PERDU}, et le nombre de chemins de sortie de la boucle sans statut terminal est EXACTEMENT 0 — y compris apres la derniere iteration."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/unit/core_game_state.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Point de controle CORE de l'etat nomme. Ne cree AUCUN module : il exerce le statut deja porte par la ligne state.status sur les trois issues.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : (aucun module : point de controle). Executeur de cette ligne : 07_TESTS/unit/core_game_state.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F4"
+   ]
+  },
+  {
+   "id": "core.end_condition",
+   "source": "CORE",
+   "source_role": null,
+   "reference": "scripts/forge/standard/core_requirements.yaml -> core.end_condition (capability game.end, proof_kind bot_action, not_applicable_allowed: false) ; DEUX origines conservees (SCHEMA.md §4.1) — charter.yaml#criteres_succes[VICTOIRE STRICTEMENT COMPTEE] + [DEFAITE STRICTEMENT DECLENCHEE] + featuremap#F37/#F38",
+   "provides": [
+    "game.end"
+   ],
+   "requires": [
+    "game.victory",
+    "game.defeat"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "end_conditions",
+   "address": "05_SYSTEMS/end_conditions/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Un bot pilotant l'entree publique atteint une fin de partie : l'etat final vaut EXACTEMENT GAGNE ou EXACTEMENT PERDU, jamais indefini ; le nombre de sorties de boucle sans issue nommee est EXACTEMENT 0. La victoire est assertee par EGALITE STRICTE (consommes == total pose) et l'etat reste EN COURS a total - 1."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/core_end_condition.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Point de controle CORE de la fin de partie. Ne cree AUCUN module : il constate qu'un bot atteint REELLEMENT une fin de partie et que l'etat final est nomme.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : (aucun module : point de controle). Executeur de cette ligne : 07_TESTS/oracle/core_end_condition.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F37",
+    "F38"
+   ]
+  },
+  {
+   "id": "core.restart",
+   "source": "CORE",
+   "source_role": null,
+   "reference": "scripts/forge/standard/core_requirements.yaml -> core.restart (capability game.restart, proof_kind bot_action, not_applicable_allowed: false) ; DEUX origines conservees (SCHEMA.md §4.1) — charter.yaml#criteres_demo[REJOUER EN UN GESTE] + featuremap#F41",
+   "provides": [
+    "game.restart"
+   ],
+   "requires": [
+    "game.restart.rebuild"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "game_state",
+   "address": "05_SYSTEMS/game_state/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Apres une fin de partie, une seule pression relance : score = 0, vies = valeur initiale declaree, consommes = 0, restantes = total pose, ticks = 0, horloge au premier segment, rang de capture a la premiere valeur, statut = EN COURS (egalites STRICTES). Le nombre de champs de l'etat de partie qui survivent d'une partie a l'autre est EXACTEMENT 0."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/core_restart.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Point de controle CORE de la relance. Ne cree AUCUN module : il constate qu'aucun champ de la partie precedente ne survit a la relance.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : (aucun module : point de controle). Executeur de cette ligne : 07_TESTS/oracle/core_restart.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F41"
+   ]
+  },
+  {
+   "id": "core.exit",
+   "source": "CORE",
+   "source_role": null,
+   "reference": "scripts/forge/standard/core_requirements.yaml -> core.exit (capability game.exit, proof_kind bot_action, not_applicable_allowed: false) ; DEUX origines conservees (SCHEMA.md §4.1) — charter.yaml#actions_interdites[Livrer une commande, un bouton ou un ecran dont l'effet n'est pas OBSERVABLE] — aucune capacite de la featuremap ne porte la sortie",
+   "provides": [
+    "game.exit"
+   ],
+   "requires": [
+    "runtime.boot"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "runtime_loop",
+   "address": "06_RUNTIME/adapters/runtime_loop/",
+   "expected_proof": {
+    "kind": "bot_action",
+    "statement": "Sortie demandee par le canal public -> le processus est TERMINE (constate par sa disparition, jamais supposee), le code de sortie est EXACTEMENT 0, le nombre de ressources laissees actives est EXACTEMENT 0 (boucle de tick arretee). Le nombre de sorties qui laissent le processus vivant est EXACTEMENT 0."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/core_exit.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Point de controle CORE de la sortie : il lance, demande la sortie par le canal public et LIT le code de retour du processus. GAP REMONTE, NON COMBLE PAR INVENTION : la featuremap de ce run ne declare AUCUNE capacite de sortie (aucune des 62 feuilles ne nomme quitter). `couvre: [F42]` designe donc la moitie AMONT du meme cycle de vie d'application (ouverture de la fenetre) faute de feuille aval ; cette ligne ne revendique pas realiser F42, qui appartient a runtime.boot_window. Voir le rapport de l'etape (fog HumanGate).",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : (aucun module : point de controle). Executeur de cette ligne : 07_TESTS/oracle/core_exit.gd, enumere et execute par res://tests/run_tests.gd. RESERVE : le volet « le processus a reellement disparu » n'est PAS mesure — appeler la sortie depuis ce harnais tuerait le harnais lui-meme et rendrait un vert silencieux sur les tests suivants. Toute la chaine est mesuree sauf l'appel terminal. Remonte en SKIPPED_VALIDATION. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F42"
+   ]
+  },
+  {
+   "id": "core.render",
+   "source": "CORE",
+   "source_role": null,
+   "reference": "scripts/forge/standard/core_requirements.yaml -> core.render (capability render.frame, proof_kind pixel, not_applicable_allowed: false) ; DEUX origines conservees (SCHEMA.md §4.1) — charter.yaml#criteres_demo[LISIBILITE DU LABYRINTHE] + featuremap#F45/#F51",
+   "provides": [
+    "render.frame"
+   ],
+   "requires": [
+    "render.frame",
+    "render.capture"
+   ],
+   "owner": true,
+   "category": "system.adapter",
+   "system_parent": "presentation",
+   "address": "06_RUNTIME/adapters/presentation/",
+   "expected_proof": {
+    "kind": "visual",
+    "statement": "Deux captures produites EN FENETRE GPU REELLE (--rendering-driver vulkan, fenetre hors ecran) a deux etats distincts (positions de Pac-Man differentes) different sur AU MOINS 1 pixel, et le nombre de captures monochromes est EXACTEMENT 0. Le meme lancement en --headless rend une texture nulle et 0 PNG sur ce poste (fait mesure 2026-07-22) : ce cas sort en ECHEC EXPLICITE. Sans ce volet, un jeu peut passer la mutation et rester mort a l'ecran (incident shmup_slice)."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/oracle/core_render_frame.gd",
+     "category": "test.oracle"
+    }
+   ],
+   "fonction": "Point de controle CORE de l'affichage. Ne cree AUCUN module : il compare deux captures prises a deux etats differents et refuse une image morte ou monochrome.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : (aucun module : point de controle). Executeur de cette ligne : 07_TESTS/oracle/core_render_frame.gd, enumere et execute par res://tests/run_tests.gd. RESERVE : le volet PIXEL de cette ligne (captures comparees) n'est PAS mesure par cet executeur — l'oracle maitre lance le harnais en --headless, qui rend une texture nulle sur ce poste. Ce qui est mesure : le garde-fou refuse explicitement la capture headless, et deux etats distincts produisent un rendu different (palette non monochrome). Volet pixel remonte en SKIPPED_VALIDATION. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F45",
+    "F51"
+   ]
+  },
+  {
+   "id": "core.error_handling",
+   "source": "CORE",
+   "source_role": null,
+   "reference": "scripts/forge/standard/core_requirements.yaml -> core.error_handling (capability error.guard, proof_kind test, not_applicable_allowed: false) ; DEUX origines conservees (SCHEMA.md §4.1) — charter.yaml#criteres_succes[DEPLACEMENT JOUEUR BORNE ET REACTIF] + featuremap#F12",
+   "provides": [
+    "error.guard"
+   ],
+   "requires": [
+    "game.status"
+   ],
+   "owner": true,
+   "category": "system",
+   "system_parent": "game_state",
+   "address": "05_SYSTEMS/game_state/",
+   "expected_proof": {
+    "kind": "oracle",
+    "statement": "Sur les entrees hors domaine (action nulle, touche non liee, direction impraticable, deux directions au meme tick, N appuis dans un meme intervalle), l'etat obtenu apres tick reste STRUCTURELLEMENT VALIDE — statut parmi les 3 valeurs declarees, aucune entite sur une case de mur, consommes + restantes == total pose, vies dans [0, valeur initiale] : le nombre d'etats invalides produits est EXACTEMENT 0 et le nombre d'exceptions non gerees est EXACTEMENT 0."
+   },
+   "state": "IMPLEMENTED",
+   "reason": null,
+   "until": null,
+   "decider": null,
+   "write_order": null,
+   "fichiers": [
+    {
+     "path": "07_TESTS/unit/core_error_guard.test.gd",
+     "category": "test.unit"
+    }
+   ],
+   "fonction": "Point de controle CORE de la robustesse. Ne cree AUCUN module : il exerce la validation structurelle de l'etat sur un jeu d'entrees hors domaine, dont la demande de direction impraticable deja portee par la ligne player.resolved_direction.",
+   "preuve": "node scripts/forge/godot_oracle.mjs games/pacman -> exit 0 (2026-08-05, relance apres gate mutation : 1012 passed, 0 failed, 50/50). Volet mecanique : godot 4.6.3 --headless --script res://tests/run_tests.gd -> \"966 passed, 0 failed (fichiers: 65)\", EXPECTED_ASSERTS=966 satisfait. Volet solvabilite R9 : trials=50 won=50 lost=0 failed_seeds=[] verdict=OK. Depose : (aucun module : point de controle). Executeur de cette ligne : 07_TESTS/unit/core_error_guard.test.gd, enumere et execute par res://tests/run_tests.gd. GATE MUTATION (execute par le driver, 150 mutants / 16 survivants) : 14 survivants TUES par 46 assertions ajoutees, 2 tries EQUIVALENTS dans games/pacman/mutation_triage.json (Dictionary-ensemble, valeur jamais lue ; verifie mecaniquement). Total d assertions porte de 966 a 1012, EXPECTED_ASSERTS mis a jour.",
+   "statut": "IMPLEMENTED",
+   "couvre": [
+    "F12"
+   ]
+  },
+  {
+   "id": "core.audio",
+   "source": "CORE",
+   "source_role": null,
+   "reference": "scripts/forge/standard/core_requirements.yaml -> core.audio (capability audio.cue, proof_kind artifact, not_applicable_allowed: false). CONFLIT DIRECT ET NON RESOLU avec le charter RATIFIE de ce run : lab/forge_runs/pacman/charter.yaml#hors_scope nomme explicitement le « son » parmi les elements exclus (« Sprites, assets graphiques externes, textures, images telechargees, polices tierces, son : rendu par primitives de la plateforme cible, zero asset importe »), et deux capacites de la featuremap assertent mecaniquement cette absence (F42 « sans charger aucun fichier d'image, de police ni de son importe » ; F62 « aucun fichier d'image, de police ni de son importe n'y figure »). Deux autorites, une seule decision possible, et elle n'appartient pas a l'agent.",
+   "provides": [
+    "audio.cue"
+   ],
+   "requires": [
+    "game.events"
+   ],
+   "owner": false,
+   "category": "system.adapter",
+   "system_parent": "presentation",
+   "address": "06_RUNTIME/adapters/presentation/",
+   "expected_proof": {
+    "kind": "file_write",
+    "statement": "SANS OBJET TANT QUE L'ARBITRAGE N'A PAS EU LIEU. SI RATIFIEE : le declenchement est TRACE contre les evenements du tick (ligne loop.events) — le nombre de cues tracees sans evenement de jeu correspondant est EXACTEMENT 0, et le nombre d'evenements du vocabulaire sonore ferme sans cue tracee est EXACTEMENT 0 ; l'assertion d'inventaire F62 est alors requalifiee explicitement, jamais contournee. Precedent mesure du depot : games/pong/04_ASSETS/audio/manifest.json + audio.mjs (`cueFor`, vocabulaire de cue FERME). L'absence de son N'EST PAS presentee comme un vert."
+   },
+   "state": "DEFERRED",
+   "reason": null,
+   "until": "Arbitrage HumanGate Pierre AVANT le build. La Forge declare le CORE non negociable (`not_applicable_allowed: false`) ; le charter de ce run exclut le son de son perimetre et la featuremap assere mecaniquement son absence. Etat DEFERRED et non NOT_APPLICABLE : NOT_APPLICABLE est structurellement interdit sur une ligne CORE (SCHEMA.md §3).",
+   "decider": "pierre",
+   "write_order": null,
+   "fichiers": [],
+   "fonction": "Aucune construction, aucun fichier declare : declarer un fichier serait promettre un son que personne n'a decide (placeholder interdit). La ligne rend VISIBLE le conflit CORE <-> charter au lieu de l'omettre. `couvre: [F40]` designe la SEULE prise a laquelle un adaptateur de retour sonore se brancherait (la liste d'evenements du tick) ; cette ligne ne revendique pas realiser F40, qui appartient a la ligne loop.events. Aucune capacite audio n'existe dans la featuremap de ce run — c'est le fait remonte, pas un manque comble par invention.",
+   "preuve": "AUCUNE — aucune construction, aucun fichier declare. Le conflit CORE <-> charter reste entier et non arbitre : scripts/forge/standard/core_requirements.yaml declare core.audio non negociable, charter.yaml#hors_scope exclut le son, et les capacites F42/F62 assertent mecaniquement son absence (verifie : harness_asset_inventory.gd, 0 fichier de son dans l'inventaire de res://). L'absence de son N'EST PAS presentee comme un vert. Decision HumanGate Pierre.",
+   "statut": "DEFERRED",
+   "couvre": [
+    "F40"
+   ]
+  }
+ ],
+ "discarded": []
+}

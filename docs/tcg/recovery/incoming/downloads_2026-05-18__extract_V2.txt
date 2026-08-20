@@ -1,0 +1,3135 @@
+Oui. Voici une version **propre, dense et directement exploitable** des docs, organisée en **7 extracts**.
+Le but est de transmettre à une autre IA **tout ce qui n’est pas dans le prototype** ou pas encore stabilisé dans le code, sans tourner autour.
+
+---
+
+# EXTRACT 1 — VISION GLOBALE DU JEU
+
+## Tactical Chess — Vision
+
+Tactical Chess est un jeu de stratégie sur plateau 8×8 qui prend les **patterns de déplacement des échecs** et les combine avec un système de :
+
+* **HP**
+* **attaque**
+* **armure**
+* **contre-attaques**
+* **BRAWL**
+* **pression sur le roi**
+* **fusions**
+* à terme : **draft, factions, rois/reines de set, magic mode**
+
+Le jeu ne doit pas être compris comme une simple variante d’échecs ni comme un TCG sur plateau.
+Le cœur recherché est :
+
+```text
+lisibilité des échecs
++
+violence tactique d’un jeu d’attrition
++
+sièges et pression spatiale
+```
+
+Le projet veut produire :
+
+* des lignes de tir importantes
+* des structures de pions utiles
+* des percées
+* des batailles de centre
+* des sièges de roi
+* des menaces progressives plutôt que des captures binaires
+
+Le jeu doit rester :
+
+* lisible
+* tactique
+* humainement compréhensible
+* brutal mais juste
+* profond sans devenir opaque
+
+Le design valorise :
+
+* soutien mutuel
+* contrôle spatial
+* couverture défensive
+* pièces coordonnées
+* pression graduelle sur le roi
+* engagement du centre
+
+Le design évite :
+
+* les effets globaux trop forts
+* les pièces impossibles à punir
+* les systèmes qui cassent la lecture du plateau
+* les mécaniques qui remplacent les échecs au lieu de les enrichir
+
+À long terme, le projet doit pouvoir se déployer sur trois couches :
+
+## 1. Cœur Tactical Chess
+
+Le jeu d’échecs tactiques autonome, jouable sans draft.
+
+## 2. Couche asymétrique
+
+Factions, rois/reines de set, pions variantes, draft.
+
+## 3. Couche TCG / Magic Mode
+
+Sorts avancés, mana, systèmes plus extrêmes.
+
+La priorité absolue reste la couche 1.
+
+---
+
+# EXTRACT 2 — RÈGLES CANONIQUES HORS PROTOTYPE
+
+## Tactical Chess — Règles canoniques consolidées
+
+Cette section liste les règles considérées comme **validées en design** même si elles ne sont pas encore codées proprement dans le prototype.
+
+## Plateau
+
+* 8×8
+* blanc contre noir
+* alternance des tours
+
+## Objectifs de victoire possibles
+
+* tuer le roi adverse
+* mater le roi adverse par pression
+* éventuellement garder aussi le mat classique selon mode
+
+## Déplacements de base
+
+Les pièces gardent leurs patterns d’échecs.
+
+### Roi
+
+1 case dans toutes les directions.
+
+### Reine
+
+lignes + diagonales.
+
+### Tour
+
+orthogonal.
+
+### Fou
+
+diagonales.
+
+### Cavalier
+
+mouvement en L.
+
+### Pion
+
+* avance d’une case
+* capture en diagonale
+* **double move initial autorisé**
+* le double move est traité case par case pour les contre-attaques
+
+## Contrôle des cases
+
+Règle fondamentale :
+
+```text
+une pièce contrôle exactement les cases sur lesquelles elle pourrait capturer une pièce ennemie
+```
+
+Donc :
+
+* contrôle = cases de capture
+* contrôle = menace
+* contrôle = cases défendues / attaquées pour le BRAWL
+* contrôle allié n’a pas d’effet négatif
+
+Conséquences :
+
+* le pion contrôle seulement ses diagonales d’attaque
+* il ne contrôle pas la case devant lui
+* les pièces glissantes s’arrêtent à la première pièce rencontrée
+
+## Blocage des lignes
+
+Les tours, fous et reines contrôlent jusqu’à la **première pièce rencontrée** et pas au-delà.
+
+Exemple :
+
+* tour A1
+* pièce A3
+
+La tour contrôle :
+
+* A2
+* A3
+
+Pas :
+
+* A4+
+
+Même logique pour le fou et la reine.
+
+## HP / ATK
+
+Le système final visé est un système où les pièces ont de vrais échanges, pas du one-shot généralisé.
+
+Base retenue pendant la réflexion :
+
+### Pions
+
+Le standard de design visé est autour de :
+
+```text
+3 HP / 3 ATK
+```
+
+avec variantes possibles :
+
+* offensif : 2/4
+* équilibré : 3/3
+* défensif : 4/2
+
+### Backline
+
+La backline est censée être plus solide que dans les premières versions.
+
+Tendance retenue :
+
+* knight : 6/3
+* bishop : 5 ou 6 / 3
+* rook : 7/3 + armure 1
+* queen : 7 ou 8 / 4
+* roi : selon archétype
+
+Ces chiffres restent des bases de calibration, pas forcément figés.
+
+## Armure
+
+Les tours ont une armure permanente :
+
+```text
+armor = 1
+```
+
+L’armure réduit :
+
+* attaques normales
+* contre-attaques
+* BRAWL
+
+Formule :
+
+```text
+damageTaken = max(0, incomingDamage - armor)
+```
+
+## Contre-attaques
+
+Règle majeure du système :
+
+Quand une pièce traverse une case contrôlée par un ennemi :
+
+* elle subit immédiatement une contre-attaque
+* chaque ennemi contrôlant cette case peut contre-attaquer
+* les contre-attaques se cumulent
+* elles sont appliquées **pendant le mouvement**
+* si la pièce meurt, le mouvement s’arrête
+
+Règle de calcul :
+
+* la contre-attaque utilise **l’attaque finale réelle**
+* elle prend en compte :
+
+  * buffs
+  * debuffs
+  * armure
+  * tout état actif pertinent
+
+## Cavalier
+
+Le cavalier est traité comme une pièce spéciale mais pas à part du système.
+
+Règles consolidées :
+
+* il contrôle normalement ses cases de capture
+* il contre-attaque comme toute pièce
+* il ignore la plupart des menaces **pendant la traversée**
+* il subit les contre-attaques sur la case finale
+* il compte comme **2 défenseurs** en BRAWL
+
+## Promotion
+
+Le pion est promu si :
+
+* il atteint la dernière rangée
+* ou il atteint 3 kills
+
+Promotion actuelle canonique :
+
+```text
+pawn → queen
+```
+
+Règle importante :
+
+* la pièce promue n’attaque pas immédiatement
+* elle contrôle immédiatement
+* elle participe au BRAWL immédiatement
+
+## Roque
+
+Le roque est autorisé dans la vision du jeu.
+
+Conditions minimales :
+
+* roi jamais déplacé
+* tour jamais déplacée
+* cases intermédiaires libres
+
+Le roque ne doit pas devenir une absurdité punitive à cause des contre-attaques.
+
+---
+
+# EXTRACT 3 — SYSTÈME ROI, MAT ET PRESSION
+
+## Tactical Chess — Système roi
+
+Le roi est la pièce centrale du système.
+Le projet ne veut pas seulement reproduire l’échec classique ; il veut produire des **sièges tactiques**.
+
+## Deux modes de logique du roi
+
+### Mode STRICT_CHESS
+
+Le roi fonctionne plus près des échecs :
+
+* ne peut pas entrer librement dans une case attaquée
+* mat classique pertinent
+* pression sert surtout d’indicateur
+
+### Mode TACTICAL_KING
+
+Le roi est une vraie unité :
+
+* peut être physiquement exposé
+* peut participer au centre
+* peut tomber par attrition ou pression
+* le mat par pression devient central
+
+Le projet veut garder ces deux modes ouverts pendant le prototypage, mais le mode Tactical King est probablement le plus distinctif.
+
+## Pression sur le roi
+
+Le roi a un **score de pression**.
+
+La pression est destinée à mesurer :
+
+* la menace directe
+* le soutien des attaquants
+* l’affaiblissement du roi
+* l’étouffement de ses sorties
+* la pression BRAWL
+
+Formule de travail consolidée :
+
+```text
+kingPressure =
+directAttack
++ ceil(support / 2)
++ kingDebuffs
++ brawlPressure
++ ceil(blockedEscapes / 2)
+```
+
+## Attaque directe
+
+Somme des attaques des pièces qui contrôlent la case du roi.
+
+## Support
+
+Une pièce qui menace le roi vaut plus si elle est soutenue.
+
+Règle de support :
+
+* une pièce soutenant un attaquant augmente la pression du roi
+* soutien calculé via les pièces alliées qui contrôlent la case de l’attaquant
+
+Le soutien ne doit pas être surpondéré trop vite.
+
+## Debuffs sur le roi
+
+Le bonus d’état pour la pression ne vient **que des debuffs sur le roi**.
+
+Pas des buffs des attaquants.
+Pas des auras globales.
+Pas des debuffs sur les défenseurs.
+
+Principe :
+
+* chaque debuff actif sur le roi augmente la pression
+* il peut y avoir un cap si besoin
+
+## Cases de fuite
+
+Les cases de fuite du roi participent à la pression si elles sont :
+
+* contrôlées
+* dangereuses
+* fatales
+
+L’idée est que plus le roi a peu d’issues viables, plus la pression augmente.
+
+## Mat par pression
+
+Le roi possède un **pressure threshold**.
+
+Si :
+
+```text
+kingPressure >= threshold
+```
+
+alors le roi est considéré comme maté.
+
+Cela permet :
+
+* des rois plus ou moins courageux
+* des styles de jeu différents
+* des sièges plus lisibles
+
+## Archétypes de rois
+
+Le projet a validé l’idée de rois différents.
+
+### Roi mage
+
+* plus fragile à la pression
+* plus offensif / plus tactique
+* doit être mieux protégé
+
+### Roi hybride
+
+* polyvalent
+* tenue moyenne
+* peut sortir plus tôt
+
+### Roi combattant
+
+* supporte mieux la pression
+* peut accompagner le centre
+* plus fort dans les sièges
+
+Seuils de travail proposés pendant la réflexion :
+
+* mage : 5
+* hybride : 7
+* combattant : 8
+
+Ces valeurs restent à recalibrer par simulation.
+
+## Mat classique
+
+Le projet peut garder en parallèle :
+
+* le mat classique des échecs
+* surtout en mode strict
+
+Mais dans la logique Tactical King, le **mat par pression** devient la condition la plus intéressante.
+
+---
+
+# EXTRACT 4 — BRAWL, DANGER MAP, FUSIONS, TAILLE TACTIQUE
+
+## Tactical Chess — Systèmes spéciaux
+
+## BRAWL
+
+Le BRAWL est un système automatique destiné à empêcher la stagnation.
+
+Principe :
+
+```text
+si attackers > defenders
+→ BRAWL
+```
+
+Le BRAWL se déclenche pour punir :
+
+* les pièces avancées sans soutien
+* les structures trop ouvertes
+* les percées mal préparées
+
+Formule de dégâts de travail :
+
+```text
+brawlDamage = max(1, finalAttackValue - 1)
+```
+
+Puis :
+
+* armure appliquée
+* cleanup
+
+## Défense double du cavalier
+
+Le cavalier vaut :
+
+```text
+2 défenseurs
+```
+
+dans le calcul du BRAWL.
+
+Cela renforce :
+
+* sa valeur positionnelle
+* son rôle de protecteur tactique
+* sa spécificité unique
+
+## Danger Map
+
+Le projet vise une **danger map** complète.
+
+Elle doit représenter :
+
+* zones contrôlées
+* couloirs dangereux
+* cases à risque de contre-attaque
+* cases de fuite du roi
+* pression locale
+
+Cette carte doit servir :
+
+* à l’UI
+* à l’IA
+* au debug
+* au balancing
+
+## Fusions
+
+Les fusions sont prévues comme montée en puissance locale.
+
+Elles doivent donner :
+
+* un spike de puissance
+* une meilleure tenue locale
+* un changement de rôle
+
+Mais elles doivent coûter :
+
+* une pièce en moins sur le plateau
+* moins de couverture globale
+* plus d’exposition
+
+## Règle de base des fusions
+
+* action complète
+* deux pièces alliées adjacentes
+* fusion sur une case de départ ou sur la case de l’initiateur selon recette
+* nouvelle pièce plus forte
+
+## Taille tactique
+
+Le concept validé est que les fusions deviennent **plus ciblables**.
+
+Idée clé :
+
+* une pièce fusionnée devient une cible stratégique
+* plus elle est forte
+* plus elle doit être punissable
+
+## Fusions les plus compatibles
+
+Les plus cohérentes dans le système :
+
+### pawn + pawn
+
+unité de front renforcée
+
+### pawn + bishop
+
+harceleur diagonal / acolyte
+
+### pawn + rook
+
+percée / lancer / garde lourde
+
+### pawn + queen
+
+menace tactique plus fine, à limiter
+
+## Fusions à éviter trop tôt
+
+* fusions entre pièces lourdes complètes
+* fusions qui donnent un pattern trop universel
+* roi + reine hors cas spéciaux
+
+## Fusion roi + reine
+
+Une idée Alien spéciale existe :
+
+* autorisée sur case de départ
+* très asymétrique
+* doit rester hors noyau standard
+
+---
+
+# EXTRACT 5 — SYSTÈMES FUTURS ET HORS NOYAU ACTUEL
+
+## Tactical Chess — Systèmes futurs
+
+Cette section décrit les éléments voulus dans le projet global, mais qui ne sont pas le cœur du prototype actuel.
+
+## Draft
+
+Le jeu final doit pouvoir supporter :
+
+* génération de pools
+* draft de pièces
+* sets cohérents
+* armées asymétriques
+
+Mais le draft ne doit pas polluer la stabilisation du cœur échecs tactiques.
+
+## Factions
+
+Des factions sont envisagées :
+
+* avec identités mécaniques
+* distributions de pièces
+* styles tactiques
+
+Leur rôle est d’enrichir le jeu, pas de remplacer le cœur spatial.
+
+## Rois et reines de set
+
+Le projet vise aussi :
+
+* 3 rois par set
+* 3 reines par set
+
+pour modifier :
+
+* la pression
+* le centre
+* la défense
+* le style de siège
+
+## Magic Mode
+
+Mode secondaire envisagé :
+
+* mana
+* sorts
+* logique plus TCG
+* systèmes plus riches
+
+Ce mode n’est pas la priorité actuelle.
+
+## Terrain / structures / équipements
+
+Le projet pourra à terme accueillir :
+
+* cases spéciales
+* structures
+* équipements
+* effets de terrain
+
+Mais tout cela doit venir après la stabilisation du mouvement, du contrôle, du roi et du BRAWL.
+
+## Évolutions par kills
+
+Une idée très forte existe autour :
+
+* d’évolutions naturelles par kills
+* de vétérans
+* de mutations de pièces
+
+Cette idée est compatible avec le système actuel, mais reste hors noyau stable.
+
+---
+
+# EXTRACT 6 — HEURISTIQUES DE BALANCE ET DE CALIBRATION
+
+## Tactical Chess — Balance heuristics
+
+Cette section rassemble les règles implicites les plus importantes pour l’équilibrage.
+
+## 1. Une pièce forte doit être punissable
+
+C’est une règle fondamentale.
+
+Si une pièce gagne :
+
+* puissance
+* portée
+* pression
+* mobilité
+* armure
+
+elle doit perdre ailleurs :
+
+* sécurité
+* couverture
+* discrétion tactique
+* nombre de corps sur le plateau
+
+## 2. Le centre doit compter
+
+Le jeu veut :
+
+* des batailles de centre
+* des lignes de pions importantes
+* des cavaliers et fous réellement utiles
+* des tours utiles en percée
+
+## 3. Les pions doivent être de vraies unités
+
+Les pions ne doivent pas être décoratifs.
+
+Base de design :
+
+* autour de 3/3
+* avec variantes possibles
+
+## 4. Les tours sont des pièces de siège
+
+Les tours doivent être :
+
+* solides
+* fiables
+* capables de traverser des lignes
+* mais pas omnipotentes
+
+L’armure 1 va dans ce sens.
+
+## 5. Les contre-attaques doivent être dangereuses mais lisibles
+
+Le jeu repose en partie sur :
+
+* la traversée des zones contrôlées
+* les couloirs dangereux
+* les choix de percée
+
+Les contre-attaques doivent donc :
+
+* punir
+* mais rester compréhensibles visuellement
+
+## 6. Le BRAWL doit accélérer, pas remplacer le jeu
+
+Le BRAWL n’est pas le cœur du jeu.
+Il est un mécanisme de pression secondaire.
+
+## 7. Le roi doit avoir une identité
+
+Les rois différents ne doivent pas être un simple changement de HP.
+Ils doivent changer :
+
+* la tenue à la pression
+* le style de jeu
+* la manière de jouer le centre
+
+## 8. Les fusions doivent être localement meilleures, globalement plus risquées
+
+Si une fusion est :
+
+* meilleure en attaque
+* meilleure en couverture
+* meilleure en défense
+* meilleure en survie
+
+alors elle casse le jeu.
+
+## 9. La UI doit montrer le danger
+
+Le projet a besoin, à terme, d’une très bonne lisibilité :
+
+* danger map
+* pression roi
+* cases de fuite
+* coups légaux
+* coups dangereux
+
+---
+
+# EXTRACT 7 — STATUT DU PROJET ET REPRISE PAR IA
+
+## Tactical Chess — Guide de reprise
+
+Cette section sert à une autre IA qui reprend le projet.
+
+## Ce qui est généralement déjà présent dans les prototypes
+
+Selon la version du prototype, on trouve déjà :
+
+* plateau 8×8
+* mouvements inspirés des échecs
+* HP / ATK
+* danger map partielle
+* BRAWL partiel
+* IA simple ou plus avancée
+* logs
+* batch tests
+* pression roi partielle
+* fusions simples
+
+## Ce qui n’est pas encore une vérité stable
+
+Une autre IA ne doit pas considérer comme gravé dans le marbre :
+
+* l’équilibre final des stats
+* la formule finale de pression roi
+* les seuils exacts des rois
+* la logique complète des traversées pour toutes les pièces
+* le contenu final des fusions
+* les systèmes de draft / factions
+* le mode Magic
+* Alien / fusion royale
+
+## Ordre de reprise recommandé
+
+### 1. Stabiliser le cœur moteur
+
+* mouvement
+* contrôle
+* dégâts
+* contre-attaques
+* armure
+* BRAWL
+* roi
+
+### 2. Stabiliser l’intégrité
+
+* ids uniques
+* pas de doublon de cases
+* pas de HP impossibles
+* pas de disparition de pièces incohérente
+
+### 3. Stabiliser la lisibilité humaine
+
+* coups légaux
+* danger map
+* pression roi
+* logs
+
+### 4. Ensuite seulement
+
+* rois spécialisés
+* fusions avancées
+* draft
+* factions
+* Magic Mode
+
+## Règle de reprise essentielle
+
+Le projet ne doit pas être repris avec l’idée :
+
+```text
+plus de systèmes = meilleur prototype
+```
+
+La bonne logique est :
+
+```text
+prototype stable
+→ prototype lisible
+→ prototype plaisant
+→ prototype riche
+```
+
+## Résumé de la stratégie projet
+
+Le cœur du jeu est :
+
+* mouvement type échecs
+* HP / ATK
+* contrôle spatial
+* contre-attaques
+* BRAWL
+* pression roi
+
+Tout le reste doit venir **après**.
+
+---
+
+Si tu veux, je peux maintenant te faire une **version “copier-coller brut” sans aucune intro ni commentaire**, avec juste les 7 extracts enchaînés et formatés pour être envoyés à une autre IA.
+
+Voici la **version brute compacte**, faite pour être **copiée directement dans une autre IA**.
+Les sections sont clairement séparées et ne contiennent **aucune explication hors contenu**.
+
+---
+
+# TACTICAL CHESS — DESIGN DOCUMENT EXTRACTS
+
+---
+
+# EXTRACT 1 — GAME VISION
+
+Tactical Chess est un jeu de stratégie sur plateau 8×8 basé sur les patterns de mouvement des échecs mais enrichi par des systèmes d’attrition et de pression tactique.
+
+Le jeu combine :
+
+* mouvements d’échecs classiques
+* HP et dégâts
+* armure
+* contre-attaques
+* pression sur le roi
+* BRAWL (combat automatique)
+* fusions d’unités
+
+Le jeu n’est pas une simple variante d’échecs ni un TCG.
+Il vise un système hybride où :
+
+* la **structure spatiale des échecs reste centrale**
+* les combats deviennent **plus prolongés et tactiques**
+* les sièges et pressions deviennent des éléments majeurs
+
+Le jeu doit produire :
+
+* des lignes de front
+* des percées
+* des sièges
+* des menaces progressives
+* des combats localisés
+* des structures de pions significatives
+
+Le design privilégie :
+
+* positionnement
+* coordination des pièces
+* contrôle du centre
+* couverture mutuelle
+* pression cumulative sur le roi
+
+Le design évite :
+
+* effets globaux trop puissants
+* pièces impossibles à punir
+* systèmes cassant la lecture du plateau
+* mécaniques qui remplacent les échecs au lieu de les enrichir
+
+Le projet est conçu en trois couches :
+
+Layer 1
+Tactical Chess pur : échecs tactiques avec HP, pression et contre-attaques.
+
+Layer 2
+Asymétrie : factions, rois de set, reines de set, draft.
+
+Layer 3
+Magic Mode : sorts, mana, logique TCG.
+
+La priorité actuelle est la stabilisation de Layer 1.
+
+---
+
+# EXTRACT 2 — CORE RULES OUTSIDE THE PROTOTYPE
+
+Le plateau est un plateau 8×8 classique.
+
+Deux joueurs : blanc et noir.
+
+Les tours alternent.
+
+Conditions de victoire :
+
+* destruction du roi
+* mat par pression
+
+Les pièces utilisent leurs patterns d’échecs standards :
+
+King
+1 case dans toutes directions.
+
+Queen
+diagonales + orthogonales.
+
+Rook
+orthogonal.
+
+Bishop
+diagonales.
+
+Knight
+mouvement en L.
+
+Pawn
+avance d’une case, capture diagonale.
+
+Le pion possède un double déplacement initial.
+
+Le double déplacement est traité case par case pour les contre-attaques.
+
+Contrôle des cases :
+
+Une pièce contrôle exactement les cases où elle pourrait capturer une pièce ennemie.
+
+Donc :
+
+* contrôle = menace
+* contrôle = cases défendues
+* contrôle = influence BRAWL
+
+Les pièces glissantes contrôlent jusqu’à la première pièce rencontrée.
+
+HP et ATK existent pour chaque pièce.
+
+Les pions doivent être des unités réelles.
+
+Standard visé :
+
+Pawn
+3 HP
+3 ATK
+
+Variantes possibles :
+
+Offensif
+2 HP / 4 ATK
+
+Équilibré
+3 HP / 3 ATK
+
+Défensif
+4 HP / 2 ATK
+
+Backline :
+
+Knight ≈ 6 HP / 3 ATK
+Bishop ≈ 5-6 HP / 3 ATK
+Rook ≈ 7 HP / 3 ATK
+Queen ≈ 7-8 HP / 4 ATK
+King variable selon archétype.
+
+Les tours possèdent :
+
+armor = 1
+
+Les dégâts appliquent :
+
+damage = max(0, attack − armor)
+
+Les contre-attaques se produisent lorsqu’une pièce traverse une case contrôlée.
+
+Chaque contrôleur peut contre-attaquer.
+
+Les contre-attaques :
+
+* utilisent l’attaque finale réelle
+* prennent en compte buffs et debuffs
+* appliquent l’armure
+
+Si la pièce meurt pendant la traversée, le mouvement s’arrête immédiatement.
+
+Le cavalier :
+
+* ignore les menaces pendant la traversée
+* subit les contre-attaques sur la case finale
+* compte comme deux défenseurs en BRAWL
+
+Promotion :
+
+Un pion est promu si :
+
+* il atteint la dernière rangée
+* ou obtient 3 kills
+
+Promotion actuelle :
+
+pawn → queen
+
+La pièce promue :
+
+* ne peut pas attaquer immédiatement
+* peut contrôler immédiatement
+* peut participer au BRAWL immédiatement
+
+Roque :
+
+Autorisé si :
+
+* roi jamais déplacé
+* tour jamais déplacée
+* cases libres
+
+---
+
+# EXTRACT 3 — KING SYSTEM
+
+Le roi est la pièce centrale du système.
+
+Deux modes possibles :
+
+STRICT_CHESS
+Fonctionnement proche des échecs.
+
+TACTICAL_KING
+Le roi est une unité combattante exposable.
+
+Le projet vise surtout le mode Tactical King.
+
+Le roi peut perdre par :
+
+* destruction physique
+* mat par pression
+
+La pression du roi est une mesure de siège.
+
+Formule de travail :
+
+kingPressure =
+directAttack
+
+* ceil(support / 2)
+* kingDebuffs
+* brawlPressure
+* ceil(blockedEscapes / 2)
+
+DirectAttack
+Somme des attaques des pièces menaçant la case du roi.
+
+Support
+Pièces soutenant les attaquants.
+
+KingDebuffs
+Debuffs actifs sur le roi.
+
+BlockedEscapes
+Cases de fuite dangereuses ou contrôlées.
+
+Mat par pression :
+
+si kingPressure ≥ threshold
+le roi est considéré maté.
+
+Archétypes de roi :
+
+Mage King
+seuil ≈ 5
+fragile à la pression.
+
+Hybrid King
+seuil ≈ 7
+équilibré.
+
+War King
+seuil ≈ 8
+résistant à la pression.
+
+Le roi combattant peut accompagner le centre.
+
+Le roi mage doit rester protégé.
+
+---
+
+# EXTRACT 4 — BRAWL AND SPECIAL SYSTEMS
+
+BRAWL est un système de combat automatique.
+
+Il sert à :
+
+* accélérer les combats
+* punir les pièces isolées
+* éviter les stagnations.
+
+Règle :
+
+si attackers > defenders
+→ BRAWL
+
+Dégâts recommandés :
+
+brawlDamage = max(1, attack − 1)
+
+Armure appliquée ensuite.
+
+Le cavalier compte comme :
+
+2 défenseurs.
+
+Danger Map :
+
+Le système doit produire une carte de danger indiquant :
+
+* cases contrôlées
+* lignes dangereuses
+* couloirs de traversée
+* zones de pression
+
+Cette carte sert :
+
+* à l’interface
+* à l’IA
+* au debug
+
+Fusions :
+
+Deux pièces alliées adjacentes peuvent fusionner.
+
+La fusion produit :
+
+* une pièce plus forte
+* moins de couverture globale
+* plus d’exposition
+
+Exemples de fusions :
+
+pawn + pawn → sergeant
+pawn + bishop → acolyte
+pawn + rook → lancer
+
+Une pièce fusionnée est plus ciblable.
+
+Plus elle est forte, plus elle devient une cible stratégique.
+
+Fusion roi + reine existe uniquement pour un cas spécial Alien.
+
+---
+
+# EXTRACT 5 — FUTURE SYSTEMS
+
+Le projet vise des extensions futures mais non nécessaires au noyau actuel.
+
+Draft :
+
+* génération de pool
+* sélection de pièces
+* armées asymétriques.
+
+Factions :
+
+* identités mécaniques
+* styles de jeu différents.
+
+Sets :
+
+Chaque set pourrait contenir :
+
+3 rois
+3 reines
+
+Ces pièces modifient le gameplay.
+
+Magic Mode :
+
+* mana
+* sorts
+* mécaniques TCG
+
+Ce mode n’est pas prioritaire.
+
+Autres systèmes possibles :
+
+* terrain
+* structures
+* équipements
+* promotions alternatives
+* évolution par kills.
+
+Ces systèmes ne doivent être introduits qu’après stabilisation du noyau.
+
+---
+
+# EXTRACT 6 — BALANCE HEURISTICS
+
+Une pièce forte doit toujours être punissable.
+
+Une amélioration doit toujours être compensée par :
+
+* moins de couverture
+* plus d’exposition
+* perte de corps sur le plateau.
+
+Le centre doit rester important.
+
+Les pions doivent être utiles et actifs.
+
+Les tours sont des pièces de siège :
+
+* résistantes
+* bonnes pour percer des lignes.
+
+Les contre-attaques doivent être :
+
+* dangereuses
+* lisibles.
+
+Le BRAWL doit accélérer les combats sans remplacer les décisions tactiques.
+
+Les rois doivent avoir une identité claire.
+
+Les fusions doivent être :
+
+localement fortes
+globalement risquées.
+
+Une fusion ne doit jamais être meilleure dans :
+
+* attaque
+* défense
+* mobilité
+* couverture
+
+en même temps.
+
+La danger map doit être visible pour les joueurs.
+
+---
+
+# EXTRACT 7 — PROJECT STATUS AND AI RESTART GUIDE
+
+Les prototypes existants contiennent généralement :
+
+* plateau 8×8
+* mouvements inspirés des échecs
+* HP et ATK
+* logs
+* IA simple
+* simulation batch
+* danger map partielle
+* BRAWL partiel
+* pression roi partielle
+* fusions expérimentales.
+
+Les éléments non stabilisés :
+
+* équilibre final des stats
+* formule finale de pression roi
+* seuils exacts des rois
+* comportement complet des traversées
+* fusions avancées
+* contenu draft et factions
+* Magic Mode.
+
+Ordre de reprise recommandé :
+
+1 stabiliser le moteur :
+
+* mouvement
+* contrôle
+* dégâts
+* contre-attaques
+* armure
+* BRAWL
+* roi
+
+2 stabiliser l’intégrité :
+
+* IDs uniques
+* aucune pièce sur la même case
+* HP cohérents
+* suppression correcte des pièces mortes.
+
+3 stabiliser la lisibilité :
+
+* coups légaux visibles
+* danger map
+* pression roi
+* logs clairs.
+
+4 seulement ensuite :
+
+* rois spécialisés
+* fusions avancées
+* draft
+* factions
+* Magic Mode.
+
+Principe de reprise :
+
+ne pas ajouter de systèmes tant que le noyau n’est pas stable et lisible.
+
+Le cœur du jeu est :
+
+mouvement d’échecs
+HP / ATK
+contrôle spatial
+contre-attaques
+BRAWL
+pression sur le roi.
+
+Tout le reste est une extension.
+# 1 — STATUS DEFINITIONS BOARD-FACING
+
+Les statuts ci-dessous sont définis pour un runtime plateau cohérent avec :
+
+* HP / ATK / ARM
+* contre-attaques pendant traversée
+* BRAWL
+* pression roi
+* lisibilité forte
+* “chess first”
+
+Quand plusieurs interprétations étaient possibles, la version ci-dessous est la reconstruction la plus cohérente avec tout le reste du système.
+
+## 1.1 poison
+
+### Effet exact
+
+* statut d’attrition
+* inflige des dégâts périodiques
+* n’empêche pas l’action
+* n’altère pas le pattern
+
+### Durée
+
+* 2 tours par défaut recommandés
+* tick au `end_turn` du propriétaire ou `start_turn` du propriétaire
+* meilleur choix runtime : `end_turn` du propriétaire pour lisibilité
+
+### Stack
+
+* non-stack recommandé en V1
+* réapplication = refresh durée
+* variante possible : stack cap 2, mais moins lisible
+
+### Cleanse
+
+* oui
+* supprimable par heal/cleanse si ce sous-système existe
+
+### Interaction move
+
+* aucune restriction directe
+
+### Interaction attack
+
+* aucune restriction directe
+
+### Interaction counterattack
+
+* aucune restriction directe
+
+### Interaction BRAWL
+
+* aucune restriction directe
+* la pièce peut participer normalement
+
+### Interaction king pressure
+
+* ne donne pas automatiquement +1 pressure
+* n’augmente la pression que si le roi est “debuff counted” de manière globale
+* recommandé : poison sur roi **ne compte pas** pour pressure bonus, sauf si on choisit “all king debuffs count”
+* si la règle finale est “+1 par debuff sur le roi”, poison compte alors comme debuff roi
+
+## 1.2 burn
+
+### Effet exact
+
+* attrition immédiate plus lisible que poison
+* dégâts périodiques
+* orienté damage / tempo
+* peut être plus violent que poison mais plus court
+
+### Durée
+
+* 1 tour ou 2 tours
+* meilleur choix runtime : 1 tour, tick à `end_turn`
+
+### Stack
+
+* non-stack recommandé
+* réapplication refresh
+
+### Cleanse
+
+* oui
+
+### Interaction move
+
+* aucune
+
+### Interaction attack
+
+* aucune
+
+### Interaction counterattack
+
+* aucune
+
+### Interaction BRAWL
+
+* aucune
+
+### Interaction king pressure
+
+* même logique que poison
+* si “all king debuffs count”, burn sur roi donne +1 pressure
+* sinon burn n’est qu’attrition
+
+## 1.3 bleed
+
+### Effet exact
+
+* attrition orientée combat physique
+* dégâts périodiques
+* peut être activé ou renforcé sur mouvement / attaque selon version future
+
+### Durée
+
+* 2 tours recommandés
+* tick à `end_turn`
+
+### Stack
+
+* non-stack recommandé en V1
+* variante possible : stack léger cap 2, mais pas conseillé pour premier noyau
+
+### Cleanse
+
+* oui
+
+### Interaction move
+
+* aucune directe en V1
+* variante future possible : move triggers extra damage
+
+### Interaction attack
+
+* aucune directe en V1
+
+### Interaction counterattack
+
+* aucune directe
+
+### Interaction BRAWL
+
+* aucune directe
+
+### Interaction king pressure
+
+* même règle que poison/burn
+
+## 1.4 weakness
+
+### Effet exact
+
+* malus offensif
+* réduit ATK effective de la pièce
+
+### Durée
+
+* 1 tour recommandé
+* décrément à `end_turn`
+* version alternative : jusqu’au prochain turn start du propriétaire
+
+### Stack
+
+* non-stack recommandé
+* réapplication refresh
+* si stacking exists later: cap 2
+
+### Cleanse
+
+* oui
+
+### Interaction move
+
+* aucune
+
+### Interaction attack
+
+* réduit `finalAttackValue`
+
+### Interaction counterattack
+
+* réduit `finalAttackValue` de la contre-attaque si la pièce faiblesse contre-attaque
+* réduit aussi les dégâts qu’elle reçoit seulement indirectement si un autre système le dit, sinon non
+
+### Interaction BRAWL
+
+* réduit son `attackValue` en BRAWL
+
+### Interaction king pressure
+
+* si le roi a weakness et la règle “+1 par debuff du roi” est retenue, weakness augmente la pressure
+* autrement, weakness sur roi réduit surtout son attaque s’il participe activement
+
+## 1.5 armor_break
+
+### Effet exact
+
+* réduit l’armure effective de la cible
+
+### Durée
+
+* 1 tour recommandé
+* peut être 2 tours sur version avancée
+* décrément à `end_turn`
+
+### Stack
+
+* non-stack recommandé
+* réapplication refresh
+* si stacking future : cap 1 ou cap armure minimale 0
+
+### Cleanse
+
+* oui
+
+### Interaction move
+
+* aucune
+
+### Interaction attack
+
+* augmente les dégâts subis par la cible si elle a armor > 0
+
+### Interaction counterattack
+
+* rend la cible plus vulnérable aux contre-attaques si elle est armure-cassée
+
+### Interaction BRAWL
+
+* rend la cible plus vulnérable au BRAWL
+
+### Interaction king pressure
+
+* si le roi possède armor_break, compte comme debuff roi si cette règle globale existe
+* utile surtout pour kings tank/hybrids si armor future exists
+
+## 1.6 regen
+
+### Effet exact
+
+* récupération périodique de HP
+* ne dépasse pas `baseHP(type)` ou `maxHPCurrentTemplate`
+* si future scaling, use current maxHP field
+
+### Durée
+
+* 1 ou 2 tours
+* tick à `start_turn` recommandé pour lisibilité “recover then act”
+
+### Stack
+
+* non-stack recommandé
+* refresh durée
+
+### Cleanse
+
+* peut être dispelled if dispel exists
+* sinon not cleanse target by default unless all statuses share cleanse hook
+
+### Interaction move
+
+* aucune
+
+### Interaction attack
+
+* aucune
+
+### Interaction counterattack
+
+* aucune
+
+### Interaction BRAWL
+
+* aucune directe
+
+### Interaction king pressure
+
+* regen sur roi ne doit pas réduire directement kingPressure
+* peut indirectement aider survie physique
+* si pressure formula stays tactical, regen n’intervient pas sauf si “positive statuses mitigate pressure”, ce qui n’a pas été validé
+
+## 1.7 root
+
+### Effet exact
+
+* empêche le mouvement et l’action active de déplacement/attaque
+* ne modifie jamais le pattern intrinsèque
+* sur knight : root n’altère pas son pattern, bloque seulement l’agir
+
+### Durée
+
+* 1 tour recommandé
+
+### Stack
+
+* non-stack
+* refresh durée
+
+### Cleanse
+
+* oui
+
+### Interaction move
+
+* move interdit
+
+### Interaction attack
+
+* attaque active interdite
+* meilleur choix runtime : root bloque toute action active qui nécessiterait mouvement ou attaque déclarée
+
+### Interaction counterattack
+
+Deux variantes étaient possibles.
+Reconstruction la plus probable côté prototype/consistance :
+
+* root retire aussi sa contribution défensive active car contrôle lié aux moves/attack squares runtime
+* donc une pièce rootée **ne contre-attaque pas**
+  Si séparation stricte `control map` passive est adoptée plus tard, cette règle pourrait changer.
+
+### Interaction BRAWL
+
+* recommandé V1 : root retire sa contribution offensive et défensive active au BRAWL
+* raison : simple et cohérent avec “cannot act”
+* alternative future : pièce physiquement présente mais ne projette plus contrôle
+
+### Interaction king pressure
+
+* root sur roi compte comme debuff roi
+* augmente la pressure
+* réduit fortement les escapes réels
+
+## 1.8 silence
+
+### Effet exact
+
+* désactive abilities / passives non-statistiques
+* n’enlève pas le mouvement de base
+* n’enlève pas ATK/HP/ARM natifs
+* désactive :
+
+  * aura non-stat native
+  * activated abilities
+  * triggers
+  * summon ability
+  * command/hero aura if silence-able
+
+### Durée
+
+* 1 tour recommandé
+
+### Stack
+
+* non-stack
+
+### Cleanse
+
+* oui
+
+### Interaction move
+
+* aucune sur déplacement de base
+
+### Interaction attack
+
+* aucune sur attaque de base
+* retire riders on_hit/on_attack venant d’ability layer
+
+### Interaction counterattack
+
+* contre-attaque de base autorisée
+* riders de contre-attaque supprimés si ability-driven
+
+### Interaction BRAWL
+
+* BRAWL de base autorisé
+* bonus ability-driven supprimés
+
+### Interaction king pressure
+
+* silence sur roi compte comme debuff roi
+* si roi possède auras/hero effects, elles sont temporairement désactivées
+* forte valeur pressure
+
+## 1.9 disarm
+
+### Effet exact
+
+* supprime la capacité à infliger des dégâts offensifs physiques
+* pièce peut encore exister / bouger selon type d’effet
+* version la plus cohérente :
+
+  * move autorisé
+  * attack damage = 0 or attack action forbidden
+    Meilleur choix V1 :
+* `cannotAttack = true`
+* déplacement autorisé
+
+### Durée
+
+* 1 tour recommandé
+
+### Stack
+
+* non-stack
+
+### Cleanse
+
+* oui
+
+### Interaction move
+
+* move autorisé
+
+### Interaction attack
+
+* attaque interdite
+
+### Interaction counterattack
+
+* pas de contre-attaque
+
+### Interaction BRAWL
+
+* n’apporte pas dégâts offensifs au BRAWL
+* peut rester comme corps présent selon implementation defenders map
+  Recommended:
+* still physically present
+* contributes defender count only if system separates body from offensive control
+* simplest V1: no active control, so disarmed piece does not defend through control map
+  If BRAWL uses controlSquares, disarm should zero its contribution.
+
+### Interaction king pressure
+
+* disarm sur roi compte comme debuff roi
+* réduit sa capacité à répondre
+* augmente pressure
+
+## 1.10 freeze
+
+### Effet exact
+
+* root plus sévère
+* bloque mouvement et attaque
+* peut aussi bloquer passives de mouvement / action
+* essentially “hard root”
+
+### Durée
+
+* 1 tour recommandé
+* plus long serait trop oppressif
+
+### Stack
+
+* non-stack
+
+### Cleanse
+
+* oui
+
+### Interaction move
+
+* interdit
+
+### Interaction attack
+
+* interdite
+
+### Interaction counterattack
+
+* interdite
+
+### Interaction BRAWL
+
+* aucune contribution active au BRAWL
+
+### Interaction king pressure
+
+* freeze sur roi compte comme debuff roi
+* très forte augmentation de pressure
+* should remain rare/restricted
+
+## 1.11 fear
+
+### Effet exact
+
+* fuite / restriction d’engagement
+* best coherent board-facing interpretation:
+
+  * cannot move toward enemy king / nearest enemy / contested zone
+  * or cannot attack this turn
+    For stable spec, simplest runtime:
+* `cannotMoveIntoEnemyControlledSquares = true`
+* optional `cannotAttack = true` too strong
+  Recommended V1:
+* piece may move, but cannot declare attack and cannot end movement in enemy-controlled tile if avoidable
+
+### Durée
+
+* 1 tour
+
+### Stack
+
+* non-stack
+
+### Cleanse
+
+* oui
+
+### Interaction move
+
+* movement restricted
+* cannot choose aggressive end positions
+
+### Interaction attack
+
+* recommended: attack forbidden while feared
+
+### Interaction counterattack
+
+* counterattack suppressed
+* reason: fear should lower confrontation willingness
+
+### Interaction BRAWL
+
+* no offensive contribution
+* defensive body presence ambiguous; recommended V1 use same as root/disarm → no control projection
+
+### Interaction king pressure
+
+* fear on roi counts as debuff
+* strongly increases escape denial
+
+## 1.12 stun
+
+### Effet exact
+
+* total loss of action
+* no move
+* no attack
+* no activated ability
+* no counterattack
+* no BRAWL contribution
+
+### Durée
+
+* 1 turn maximum
+* should be rare / expensive
+
+### Stack
+
+* non-stack
+
+### Cleanse
+
+* yes
+
+### Interaction move
+
+* forbidden
+
+### Interaction attack
+
+* forbidden
+
+### Interaction counterattack
+
+* forbidden
+
+### Interaction BRAWL
+
+* no active contribution
+
+### Interaction king pressure
+
+* stun on roi counts as debuff roi
+* almost maximal pressure impact
+* should remain near-ban outside rare/restricted
+
+## 1.13 charm
+
+### Effet exact
+
+This was never stabilized. Best safe runtime reconstruction:
+
+* temporary loss of agency without permanent color swap
+* because color immutability was considered fundamental
+  Recommended implementation:
+* `charmed = cannot choose own action; AI/opponent may choose a limited forced move`
+  Too complex for stable V1.
+  Safer fallback:
+* charm behaves as `stun + forced facing / no-action`
+  If implemented on board:
+* do **not** change `color`
+* do **not** change permanent ownership
+
+### Durée
+
+* 1 turn maximum
+
+### Stack
+
+* non-stack
+
+### Cleanse
+
+* yes
+
+### Interaction move
+
+* either forbidden or opponent-controlled limited move
+  Recommended stable: forbidden
+
+### Interaction attack
+
+* forbidden unless explicit controlled action system exists
+
+### Interaction counterattack
+
+* forbidden
+
+### Interaction BRAWL
+
+* no active contribution
+
+### Interaction king pressure
+
+* charm on roi counts as debuff roi
+* enormous pressure modifier
+* effectively rare-only if present at all
+
+## 1.14 destroy
+
+### Effet exact
+
+* immediate kill / remove piece
+* bypasses HP
+* bypasses armor unless explicitly stated otherwise
+
+### Durée
+
+* instant, no duration
+
+### Stack
+
+* n/a
+
+### Cleanse
+
+* not applicable once resolved
+
+### Interaction move
+
+* none
+
+### Interaction attack
+
+* if attached as rider, destroys target on resolution
+
+### Interaction counterattack
+
+* should almost never exist as generic counterattack rider
+* if ever used, extremely restricted
+
+### Interaction BRAWL
+
+* destroy must not be a BRAWL default rider
+* would break game
+
+### Interaction king pressure
+
+* if destroy targets or threatens roi, effectively should be prohibited in standard king runtime
+* if allowed against non-king, contributes to siege value indirectly, not as direct pressure formula term
+
+---
+
+# 2 — ABILITY / TRIGGER RUNTIME SCHEMA
+
+## 2.1 Ability runtime schema recommandé
+
+```json
+{
+  "id": "ability_summon_pawn_01",
+  "name": "Summon Pawn",
+  "ownerPieceId": 12,
+  "sourceCardId": "card_empire_rook_01",
+  "sourceFaction": "Empire",
+  "trigger": "active|passive|on_attack|on_hit|on_death|start_turn|end_turn|summon",
+  "isPassive": false,
+  "charges": 1,
+  "maxCharges": 1,
+  "cooldown": 0,
+  "cooldownMax": 0,
+  "oncePerTurn": false,
+  "oncePerGame": true,
+  "hasBeenUsedThisTurn": false,
+  "hasBeenUsedThisGame": false,
+  "targetFilter": {
+    "type": "enemy|ally|self|empty_tile|piece|tile",
+    "subtypes": [],
+    "allowSummons": false,
+    "allowPromoted": true,
+    "allowKings": true,
+    "requireDamaged": false,
+    "requireStatused": false,
+    "requireAdjacent": false,
+    "requireLineOfSight": false,
+    "requireUncontrolledTile": false
+  },
+  "geometry": "single|adjacent|line3|cone|diagonal|cross|zone|full_line",
+  "range": "self|1|2|3|LOS|global",
+  "condition": {
+    "ownerRooted": "forbid|ignore",
+    "ownerSilenced": "forbid|ignore",
+    "minKills": 0,
+    "ownerHpBelow": null,
+    "onlyIfMoved": false,
+    "onlyIfUnmoved": false,
+    "onlyIfAttackDeclared": false,
+    "onlyIfTargetInControl": false
+  },
+  "payload": {
+    "effectType": "damage|heal|status|summon|buff|debuff|move|destroy",
+    "value": 2,
+    "statusType": null,
+    "duration": 0,
+    "armorDelta": 0,
+    "atkDelta": 0,
+    "hpDelta": 0,
+    "summonTemplateId": null
+  },
+  "scaling": {
+    "perTarget": false,
+    "byGeometry": false,
+    "byRange": false,
+    "byKills": false,
+    "byAdjacentAllies": false,
+    "multiplier": 1.0
+  },
+  "tags": [
+    "control",
+    "support",
+    "once_per_game"
+  ]
+}
+```
+
+## 2.2 Trigger enum recommandé
+
+```text
+active
+passive
+on_attack
+on_hit
+on_death
+start_turn
+end_turn
+summon
+on_move_enter
+on_move_exit
+on_counterattack
+on_promote
+```
+
+`on_move_enter`, `on_move_exit`, `on_counterattack`, `on_promote` were not explicitly stabilized but are natural completions for runtime.
+
+## 2.3 Charges / cooldown semantics
+
+* `charges` = consumable uses
+* `cooldown` = turns until reuse
+* `oncePerTurn` and `oncePerGame` are hard caps
+* `charges` and `oncePerGame` can coexist
+* `charges == null` means unlimited subject to trigger rules
+
+Example:
+
+* summon spell on piece:
+
+  * charges = 1
+  * oncePerGame = true
+  * cooldown = 0
+
+## 2.4 Target filter sub-structure
+
+Recommended fine-grained fields:
+
+```json
+{
+  "type": "piece|tile|self|enemy|ally|empty_tile",
+  "allowTypes": ["pawn","knight","bishop","rook","queen","king"],
+  "denyTypes": [],
+  "allowSummons": false,
+  "allowFused": true,
+  "allowPromoted": true,
+  "allowRooted": true,
+  "allowKings": true,
+  "requireDamaged": false,
+  "requireStatused": false,
+  "requireStatusTypes": [],
+  "requireAdjacency": false,
+  "requireControl": false,
+  "requireEmptyTile": false,
+  "requireEnemyControlledTile": false
+}
+```
+
+## 2.5 Condition schema recommandé
+
+```json
+{
+  "ownerMustBeUnrooted": true,
+  "ownerMustBeUnsilenced": true,
+  "ownerMustBeAbleToAttack": false,
+  "targetMustExist": true,
+  "targetMustBeLegalUnderRangeGeometry": true,
+  "onlyDuringOwnTurn": true,
+  "onlyOnAttackDeclaration": false,
+  "onlyOnHitResolution": false,
+  "onlyIfTargetDies": false,
+  "onlyIfOwnerMovedThisTurn": false,
+  "onlyIfOwnerUnmoved": false,
+  "onlyIfAdjacentAlliesAtLeast": 0,
+  "onlyIfOwnerKillsAtLeast": 0
+}
+```
+
+## 2.6 Status payload schema recommandé
+
+```json
+{
+  "effectType": "status",
+  "statusType": "root|silence|burn|poison|...",
+  "value": 1,
+  "duration": 1,
+  "stackMode": "none|refresh|stack_cap",
+  "stackCap": 1
+}
+```
+
+## 2.7 Scaling schema recommandé
+
+```json
+{
+  "enabled": true,
+  "scaleBy": "geometry|targets|kills|adjacent_allies|missing_hp",
+  "factor": 1,
+  "cap": 3
+}
+```
+
+## 2.8 Ownership semantics
+
+* `ownerPieceId` = current holder of ability
+* `sourcePieceId` optional if copied/transferred
+* `sourceCardId` links deck/set origin
+* `ownership` must not change with color-swap because color swap itself was rejected as stable mechanic
+
+Recommended fields:
+
+```json
+{
+  "ownerPieceId": 12,
+  "sourcePieceId": 12,
+  "sourceCardId": "card_...",
+  "ownerColor": "white"
+}
+```
+
+---
+
+# 3 — TURN ORDER / RESOLUTION ORDER
+
+## 3.1 Recommended master order
+
+```text
+start_turn
+→ start_turn status ticks / passive refresh
+→ active action declaration
+→ move path computation
+→ traversal counterattacks
+→ active attack resolution (if target reached)
+→ on_hit
+→ on_death
+→ cleanup
+→ promotion check
+→ fusion check / fusion action (if chosen instead of move/attack)
+→ summon cleanup / invoker cleanup
+→ BRAWL
+→ cleanup
+→ king pressure recompute
+→ victory check
+→ end_turn triggers
+→ end_turn status ticks (if using end_turn model for some statuses)
+→ turn swap
+```
+
+## 3.2 start_turn
+
+Recommended responsibilities:
+
+* reset per-turn ability usage flags
+* decrement cooldowns
+* process start_turn triggers
+* process start_turn regen if regen uses start_turn
+* clear selection / UI states
+* validate board
+
+## 3.3 passive refresh
+
+Recommended immediately after start_turn:
+
+* recompute auras
+* recompute static buffs/debuffs
+* recompute control map caches if used
+* recompute available abilities if silence/root interacts
+
+## 3.4 active action declaration
+
+Possible actions:
+
+* move
+* attack (through move to occupied enemy square)
+* cast spell / activated ability
+* fusion
+* possibly pass
+
+The action is declared before traversal and before BRAWL.
+
+## 3.5 move
+
+For non-knight moves:
+
+* compute legal path
+* ensure line not blocked under movement rules
+* iterate path square by square
+
+For knight:
+
+* skip traversal squares
+* consider final square only
+
+For pawn double move:
+
+* two-step path explicitly iterated
+
+## 3.6 traversal counterattacks
+
+At each traversed square:
+
+1. gather enemy controllers of square
+2. apply their counterattacks in deterministic order
+3. after each hit, check lethal
+4. if mover dies:
+
+   * stop movement
+   * trigger death hooks
+   * cleanup
+   * proceed toward end-of-action resolution
+
+Recommended deterministic order:
+
+* by board scan order or ascending piece id
+* must be stable for reproducibility
+
+## 3.7 attack resolution
+
+If mover reaches target enemy square and survives:
+
+1. compute finalAttackValue(attacker, target)
+2. apply damage to target
+3. if target survives:
+
+   * target may retaliate if standard melee exchange applies in current ruleset
+4. if target dies:
+
+   * attacker occupies square
+   * attacker.kills += 1
+
+## 3.8 on_hit
+
+Triggered after damage landed and target still exists or regardless, depending trigger definition.
+Recommended semantics:
+
+* on_hit fires when damage was successfully applied
+* on_death separate if lethal
+
+Examples:
+
+* poison on hit
+* burn on hit
+* root on hit
+
+## 3.9 on_death
+
+Triggered immediately when HP <= 0 but before final cleanup pass if source-dependent triggers need target info.
+Recommended:
+
+1. mark dead
+2. fire on_death triggers
+3. then cleanup pass removes from board
+
+## 3.10 cleanup
+
+Cleanup responsibilities:
+
+* remove all hp<=0 pieces
+* remove linked summons whose invoker disappeared
+* validate unique occupancy
+* clear invalid references
+
+Recommended after:
+
+* traversal lethal
+* active combat
+* BRAWL
+* spell resolution
+* trigger chains causing death
+
+## 3.11 promotion
+
+Promotion timing:
+
+* after active attack and cleanup
+* if pawn reached back rank or kill threshold satisfied
+* promotion resolves before end of turn, before BRAWL if triggered by active action
+  Most coherent order:
+
+```text
+attack → cleanup → promotion → continue action flow
+```
+
+Promoted piece state:
+
+* canAttack = false
+* canBrawl = true
+* canControl = true
+
+## 3.12 fusion
+
+Fusion as active action should replace move/attack action, not occur automatically after them in stable mode.
+However if retained as post-move experimental branch, recommended order:
+
+```text
+move resolved → cleanup → fusion eligibility check → fuse if chosen
+```
+
+Stable spec:
+
+* fusion is own action branch
+* no movement same turn unless special rule
+
+## 3.13 summon cleanup
+
+If summons linked by invokerId:
+
+* after any cleanup where invoker died, recursively remove linked summons
+* do this before BRAWL so dead invoker summons don’t participate
+
+## 3.14 BRAWL
+
+Recommended after all explicit actions and cleanup:
+
+1. snapshot board
+2. for each target in snapshot:
+
+   * compute attackers
+   * compute defenders
+   * apply BRAWL if attackers > defendersScore
+3. apply damage
+4. cleanup dead
+
+Do not allow pieces already dead from active action to BRAWL.
+
+## 3.15 king pressure recompute
+
+After BRAWL cleanup:
+
+* recompute pressure for both kings
+* recompute escape counts if used
+* then victory check
+
+## 3.16 end_turn triggers
+
+After pressure/victory check if no game end:
+
+* process end_turn triggers
+* process burn/poison/bleed if using end_turn tick model
+* decrement durations for statuses using end_turn expiry
+
+## 3.17 Duration decrement conventions
+
+Recommended stable convention:
+
+* root / control statuses: expire at end_turn of affected owner
+* damage-over-time statuses: tick at end_turn, then decrement
+* regen: tick at start_turn
+
+This avoids confusion between “skip one turn” and “expires immediately”.
+
+---
+
+# 4 — AI HEURISTICS AND SCORING
+
+## 4.1 Material
+
+Baseline values seen / implied:
+
+* pawn ≈ 1
+* knight ≈ 3
+* bishop ≈ 3
+* rook ≈ 4–5
+* queen ≈ 6–9 depending model
+* king huge sentinel value
+
+For runtime tactical AI, score contribution should include current HP fraction:
+
+```text
+materialScore = baseValue * (currentHP / maxHP)
+```
+
+recommended for board realism.
+
+## 4.2 Center
+
+Explicitly important in prototypes and discussion.
+Suggested center weighting:
+
+* centrality bonus = 1 to 3 per move candidate in simple AI
+* stronger for knight, queen, central-support kings
+  Recommended weighted center priorities:
+* knight > bishop > queen > pawn > rook
+* war king can receive center bonus in its archetype profile
+
+## 4.3 Danger
+
+Danger should penalize ending in enemy-controlled zones.
+Suggested score:
+
+```text
+dangerPenalty = dangerMap[x,y] * weight
+```
+
+Recommended weights:
+
+* light AI: 0.5 per danger point
+* stronger AI: 1.0–1.5 per danger point for fragile units
+  Dynamic weighting:
+* queen / fused pieces more danger-sensitive
+* rook less due to armor
+* war king less than mage king
+
+## 4.4 King pressure
+
+Strongly emphasized.
+Suggested scoring:
+
+```text
+score += enemyKingPressureDelta * 5 to 12
+score -= ownKingPressureDelta * 5 to 12
+```
+
+Heavier weights for king-focused profiles.
+
+## 4.5 Support
+
+Moves that increase support of attackers or own king guard should score positively.
+Suggested:
+
+* +1 to +3 for creating defender on important attacker
+* +2 to +5 if move supports piece currently attacking king
+* +2 if it increases king’s local defenders
+
+## 4.6 Defended attackers
+
+Explicit design idea: attackers threatening king become more serious if defended.
+AI should value:
+
+* creating supported attack on king
+* supporting own active attacker
+  Suggested:
+
+```text
+supportedAttackerBonus = 3 to 8 depending target importance
+```
+
+## 4.7 Escape denial
+
+If move reduces legal/safe king escapes, strong bonus.
+Suggested:
+
+```text
++3 per newly denied escape square
+```
+
+More if target king is mage-type.
+
+## 4.8 Fusion value
+
+Fusion should be evaluated as:
+
+* material gain
+* tactical role gain
+* coverage loss
+* exposure increase
+  Heuristic:
+
+```text
+fusionScore =
+fusedUnitValue
+- consumedUnitValueLossPenalty
+- structureLossPenalty
++ localPressureGain
+```
+
+Approx runtime bonus:
+
+* pawn+pawn small positive
+* pawn+bishop medium if diagonal pressure
+* pawn+rook context-dependent
+  Do not let AI spam fusion blindly.
+
+## 4.9 Summon value
+
+Summon value depends on:
+
+* board occupancy
+* king defense
+* lane blocking
+* pressure support
+  Suggested evaluation:
+* +2 to +4 for creating legal blocker near own king
+* +3 to +6 for sealing enemy line or escape
+* penalize if active summon cap nearly reached or summon exposed for free
+
+## 4.10 Promotion value
+
+Promotion high value.
+Suggested:
+
+```text
+promotionImmediateBonus = promotedUnitBaseValue - pawnBaseValue
+```
+
+Additional:
+
+* if promoted piece immediately pressures king or seals line, extra +3 to +8
+* if promotion creates queen but can’t attack immediately, still high positional bonus
+
+## 4.11 Retreat / reposition value
+
+Not all good moves are attacks.
+Retreat value should consider:
+
+* leaving lethal danger zone
+* preserving queen/king/fused unit
+* resetting line integrity
+  Suggested:
+* +2 to +6 for escaping from likely death tile
+* +4+ if saving high-value piece
+* +3 if reposition restores support chain
+
+## 4.12 Explicit prototype-related weights mentioned
+
+Numbers surfaced earlier:
+
+* captureWeight = 10
+* centerWeight = 1 to 3
+* kingThreatWeight = 100
+* undefendedPawnKnightBonus = 15
+* promotionPotentialWeight = 5 to 12
+* survivalWeight = 3 to 8
+
+These should be understood as heuristic magnitudes, not final balanced constants.
+
+## 4.13 Suggested full evaluation decomposition
+
+```text
+score =
+material
++ center
+- danger
++ kingPressureInflicted
+- ownKingPressure
++ supportNetwork
++ defendedAttackerBonus
++ escapeDenial
++ promotionPotential
++ summonUtility
++ fusionValue
++ retreatSafety
+```
+
+---
+
+# 5 — RNG REPAIR / REJECT LOGIC
+
+## 5.1 Overbudget repair sequence
+
+Explicit order from pseudo-code / discussion:
+
+1. reduce range if possible
+2. reduce geometry if possible
+3. remove or weaken secondary effect
+4. reduce stats
+5. add restriction
+6. fail if unresolved
+
+Recommended concrete pass order:
+
+```text
+A. downgrade premium range
+B. downgrade major geometry
+C. remove rider / secondary effect
+D. lower ATK
+E. lower HP
+F. reduce ARM
+G. add targeting restriction
+H. add usage restriction
+I. reject
+```
+
+## 5.2 Repairing unreadable combinations
+
+Unreadability sources:
+
+* too many effects
+* too many statuses
+* premium geometry + premium range + triggered rider
+* role confusion
+
+Repair actions:
+
+* strip secondary rider
+* simplify trigger into passive or remove it
+* collapse multi-target to single target
+* replace hard control with soft debuff
+* downgrade from LOS to range 2 or 3
+* downgrade from zone/full_line to diagonal/line3
+* replace destroy with conditional damage
+* replace double-role card with one clear role
+
+## 5.3 Geometry downgrade ladder
+
+Recommended downgrade order:
+
+```text
+full_line → zone → cross → diagonal → line3 → adjacent
+```
+
+Alternative if card identity depends on line:
+
+```text
+full_line → line3
+zone → cross or cone
+```
+
+## 5.4 Range downgrade ladder
+
+```text
+global → LOS → 3 → 2 → 1 → self
+```
+
+## 5.5 Effect downgrade ladder
+
+### Hard control downgrade
+
+```text
+destroy → stun → freeze/disarm → silence/root → weakness/armor_break → damage
+```
+
+### Area damage downgrade
+
+```text
+multi-target damage 3+ → damage 2 → damage 1 rider
+```
+
+### Utility downgrade
+
+```text
+global support → LOS support → local aura → self support
+```
+
+## 5.6 Stats downgrade priority
+
+Best coherence with board game:
+
+* reduce ATK before HP if offensive overload
+* reduce HP before ATK if tank overload
+* remove ARM early if armor + control or armor + premium projection is the issue
+
+## 5.7 Number of repair passes
+
+Not explicit, but stable spec should cap to avoid endless churn.
+Recommended:
+
+* 2–3 repair passes per card
+* after that full reroll or reject
+
+Example:
+1st pass = local downgrade
+2nd pass = stronger downgrade / add restriction
+3rd pass = final attempt
+then reject
+
+## 5.8 When reject totally
+
+Reject if:
+
+* hard forbidden combo remains
+* budget still over target after max repairs
+* readability still too low
+* faction identity broken
+* draft health risk remains
+* abuse score still suspect/reject
+* card fills too many answers at once
+* geometry/range downgrade destroys intended role completely
+
+## 5.9 Correcting a malsaine faction
+
+If a faction generated too much of one role:
+
+* reduce multiplier weights for offending effects/geometry
+* force glue creature insertion
+* insert common simpler role cards
+* reduce hard control density
+* add missing archetype support or answers
+* regenerate subset of faction commons/uncommons
+
+## 5.10 Correcting a set malsain
+
+Actions:
+
+* regenerate overconcentrated commons
+* insert missing conditional removal
+* lower top-heavy curve
+* add anti-swarm or anti-fortress tools
+* remove repeated non-game cards
+* cap hard control at uncommon/rare
+* reduce removal if too dense
+* inject more baseline creatures if creature density low
+
+---
+
+# 6 — COMMANDER / KING RUNTIME EFFECTS
+
+## 6.1 Design goal
+
+King/hero effects must:
+
+* preserve chess-first gameplay
+* be understandable from board state
+* not become global nonsense
+* make king archetypes distinct
+
+## 6.2 Allowed runtime forms
+
+### Auras
+
+Local radius support:
+
+* adjacent ally +1 attack
+* adjacent ally +1 defense score
+* nearby regen-lite
+* local anti-pressure support
+
+### Passives
+
+Board-facing but not target spam:
+
+* increased pressure threshold
+* reduced incoming pressure from support? risky, not preferred
+* BRAWL modifier
+* center bonus for allies nearby
+
+### Threshold modifiers
+
+King archetype field:
+
+```json
+"pressureThreshold": 5|7|8
+```
+
+This is the cleanest commander layer already validated.
+
+### Build-around effects
+
+Set-linked but board simple:
+
+* promotes certain pawn structures
+* rewards center formation
+* buffs adjacent minors
+* improves summons / structures if those modes enabled
+
+## 6.3 Recommended aura constraints
+
+Auras should be:
+
+* local (adjacent, maybe 2 tiles max)
+* low complexity
+* visible
+* not stack infinitely
+
+Preferred:
+
+* adjacency-based
+* once-per-turn passive triggers
+* support identity
+
+Avoid:
+
+* global board buffs
+* hidden state
+* multiple simultaneous rare commander layers in base mode
+
+## 6.4 Silence interaction
+
+Recommended:
+
+* king threshold itself is not silence-able
+* optional aura/passive layer can be silence-able
+  This preserves archetype identity while allowing tactical suppression of active command effects.
+
+## 6.5 Additional hard bans for kings
+
+To preserve core:
+
+* no destroy access
+* no hard global control
+* no premium full-line artillery
+* no oppressive multi-target hard control
+* no universal premium answer package
+
+## 6.6 Sample runtime king effect schema
+
+```json
+{
+  "heroType": "mage|hybrid|warrior",
+  "pressureThreshold": 5,
+  "auras": [
+    {
+      "range": 1,
+      "effect": "ally_attack_plus_1",
+      "target": "ally_minor"
+    }
+  ],
+  "passives": [
+    {
+      "effect": "brawl_defense_bonus",
+      "value": 1
+    }
+  ]
+}
+```
+
+---
+
+# 7 — DATA SCHEMAS COMPLETS
+
+## 7.1 Piece runtime
+
+```json
+{
+  "id": 1,
+  "type": "pawn|knight|bishop|rook|queen|king|sergeant|acolyte|lancer",
+  "color": "white|black",
+  "side": "white|black",
+  "x": 0,
+  "y": 0,
+  "hp": 3,
+  "maxHp": 3,
+  "atk": 3,
+  "armor": 0,
+  "rarity": "C|U|R",
+  "faction": "Empire|Pirates|Swarm|Sylvan|Barbarian|Marshal|Neutral",
+  "hero": "mage|hybrid|warrior|null",
+  "setId": "Empire_tank",
+  "kills": 0,
+  "hasMoved": false,
+  "rooted": 0,
+  "promoted": false,
+  "canAttack": true,
+  "canBrawl": true,
+  "canControl": true,
+  "summonUsed": false,
+  "invokerId": null,
+  "buff": null,
+  "debuff": null,
+  "fused": false,
+  "fusionType": null,
+  "fusionParts": [],
+  "targetSize": 1,
+  "pressureThreshold": null,
+  "abilities": [],
+  "statuses": [],
+  "tags": []
+}
+```
+
+## 7.2 Status instance
+
+```json
+{
+  "id": "status_root_001",
+  "type": "poison|burn|bleed|weakness|armor_break|regen|root|silence|disarm|freeze|fear|stun|charm",
+  "sourcePieceId": 12,
+  "targetPieceId": 8,
+  "duration": 1,
+  "tickTiming": "start_turn|end_turn|none",
+  "value": 1,
+  "stackMode": "none|refresh|stack_cap",
+  "stackCap": 1,
+  "cleanseable": true,
+  "expiresAt": "end_turn_owner|start_turn_owner|immediate",
+  "tags": []
+}
+```
+
+## 7.3 Ability runtime
+
+```json
+{
+  "id": "ability_empire_summon_01",
+  "name": "Summon Pawn",
+  "ownerPieceId": 12,
+  "sourcePieceId": 12,
+  "sourceCardId": "card_empire_rook_01",
+  "trigger": "active|passive|on_attack|on_hit|on_death|start_turn|end_turn|summon|on_move_enter|on_counterattack|on_promote",
+  "charges": 1,
+  "maxCharges": 1,
+  "cooldown": 0,
+  "cooldownMax": 0,
+  "oncePerTurn": false,
+  "oncePerGame": true,
+  "usedThisTurn": false,
+  "usedThisGame": false,
+  "targetFilter": {},
+  "geometry": "single|adjacent|line3|cone|diagonal|cross|zone|full_line",
+  "range": "self|1|2|3|LOS|global",
+  "condition": {},
+  "payload": {},
+  "scaling": {},
+  "tags": []
+}
+```
+
+## 7.4 Trigger event
+
+```json
+{
+  "eventType": "start_turn|move|enter_tile|attack|hit|death|promote|fusion|summon|brawl|end_turn|counterattack",
+  "actingPieceId": 12,
+  "targetPieceId": 8,
+  "x": 4,
+  "y": 3,
+  "damage": 2,
+  "lethal": false,
+  "sourceAbilityId": null,
+  "sourceStatusId": null,
+  "turn": "white",
+  "turnCount": 14
+}
+```
+
+## 7.5 Card definition
+
+```json
+{
+  "cardId": "card_empire_pawn_buff_01",
+  "name": "Empire Buff Pawn",
+  "piece": "pawn|knight|bishop|rook|queen|king|spell|structure|summon",
+  "faction": "Empire",
+  "rarity": "C|U|R",
+  "powerBand": "weak|average|strong",
+  "hp": 3,
+  "atk": 3,
+  "armor": 0,
+  "geometry": "adjacent",
+  "range": "1",
+  "primaryEffect": {
+    "type": "buff",
+    "detail": "adjacent ally atk +1"
+  },
+  "secondaryEffect": null,
+  "ability": null,
+  "budget": {
+    "targetLow": 3,
+    "targetHigh": 4,
+    "computedPower": 3.5
+  },
+  "tags": [
+    "frontline",
+    "glue",
+    "support"
+  ]
+}
+```
+
+## 7.6 Army template
+
+```json
+{
+  "armyId": "army_white_match_001",
+  "faction": "Empire",
+  "kingTemplate": {},
+  "queenTemplate": {},
+  "rookTemplate": {},
+  "knightTemplate": {},
+  "bishopTemplate": {},
+  "pawnTemplates": [{}, {}, {}],
+  "backlineOrder": ["rook","knight","bishop","queen","king","bishop","knight","rook"],
+  "pawnPattern": ["A","B","C","A","C","B","A","C"]
+}
+```
+
+## 7.7 Set definition
+
+```json
+{
+  "setId": "Empire_tank",
+  "faction": "Empire",
+  "heroType": "tank|mage|hybrid",
+  "king": {
+    "type": "king",
+    "rarity": "R",
+    "hero": "tank"
+  },
+  "queen": {
+    "type": "queen",
+    "rarity": "U"
+  },
+  "rook": {
+    "type": "rook",
+    "rarity": "C"
+  },
+  "knight": {
+    "type": "knight",
+    "rarity": "U"
+  },
+  "bishop": {
+    "type": "bishop",
+    "rarity": "C"
+  },
+  "pawns": [
+    { "type": "pawn", "rarity": "C", "buff": "attack" },
+    { "type": "pawn", "rarity": "U", "debuff": "attack" },
+    { "type": "pawn", "rarity": "R" }
+  ],
+  "tags": ["frontline","support","tank"]
+}
+```
+
+## 7.8 Draft metadata
+
+```json
+{
+  "poolId": "draft_pool_001",
+  "chosenFactions": ["Empire","Pirates"],
+  "items": [
+    {
+      "label": "Empire tank king",
+      "type": "king",
+      "rarity": "R",
+      "hero": "tank",
+      "faction": "Empire",
+      "setId": "Empire_tank",
+      "draftRole": "signature"
+    }
+  ],
+  "counts": {
+    "C": 0,
+    "U": 0,
+    "R": 0
+  },
+  "healthFlags": [],
+  "curveProfile": {},
+  "answerCoverage": {}
+}
+```
+

@@ -1,0 +1,17 @@
+{
+  "id": "artefact-forge",
+  "kind": "artefact",
+  "name": "Forge — Livrable : le skill /forge (implémenté)",
+  "maturity": "wired",
+  "badge": "target",
+  "roadmapRef": "roadmap-forge",
+  "sourceRef": "MàJ 2026-07-10 : wiredStatus passe 'unset' -> 'wired'. Le skill /forge et son moteur de contrats existent dans le code (scripts/forge/ + .claude/skills/forge/skill.md + docs/adr/ADR-002-forge-studio-integration.md), 80 tests verts, 1er run réel prouvé (chesscolor).",
+  "wiredStatus": "wired",
+  "payload": {
+    "title": "/forge — skill Claude Code : boucle d'ingénierie autonome (13 étapes-agents : contrat→prisme→worldscan→décompo→archi→wiremap→red-team plan→[gate]→build→oracle×3→red-team code→verdict HMAC→[humangate]→mémoire)",
+    "description": "Orchestrateur MINCE qui déroule la méthode de Pierre sans sauter d'étape : chaque étape passe par une PORTE DE DISPATCH (scripts/forge/dispatch.py) qui refuse de lancer un agent sans contrat 17 champs complet (CONTRACT_INCOMPLETE => GEL). Le modèle n'est jamais en dur : capability_role résolu par scripts/forge/contracts/roles.yaml (ADR-002 gate 1). PROUVER = oracle déterministe non-LLM à 3 niveaux code/archi/wiremap (oracle.py + static_oracles.py + oracles.json) + verdict signé HMAC (verdict.py, software/evidence/claim, NO_CLAIM_ALLOWED) ; gate.py bloque sur oracle rouge. FORCER = porte de dispatch + hook dur PreToolUse (hook_guard.py). Connecteurs studio ADR-002 propose-only (télémétrie, Kaizen-propose, mémoire projet, pré-mortem). Modules : contract·dispatch·static_oracles·gate·oracle·verdict·studio_link·hook_guard — 80 tests verts. Deux gates humains (Blueprint Gate étape 7, HumanGate étape 13). ÉTAT : IMPLÉMENTÉ et prouvé mécaniquement ; 1er run réel sur chesscolor. RESTANT (fog, jugement Pierre) : PILOU 3-JSON complet + graphe de confiance affiché (MONTRER). evidence_verdict: MECHANICAL_VALIDATION_ONLY · claim_verdict: NO_CLAIM_ALLOWED.",
+    "artefactType": "logiciel"
+  },
+  "created": "2026-07-09T00:00:00Z",
+  "updated": "2026-07-10T00:00:00Z"
+}

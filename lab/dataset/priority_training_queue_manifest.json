@@ -1,0 +1,36 @@
+{
+  "schema_version": "priority_training_queue_v1",
+  "queue_path": "lab/dataset/priority_training_queue.jsonl",
+  "formula": "priority_score = severity + rarity_bonus + repetition_count",
+  "severity_mapping": {
+    "missed_mate": 5,
+    "promotion_fail": 5,
+    "hanging_piece": 4,
+    "bad_trade": 4,
+    "blunder": 3,
+    "bad_plan": 2
+  },
+  "rarity_bonus_rules": {
+    "count<=1": 3,
+    "count<=3": 2,
+    "count<=6": 1,
+    "count>6": 0
+  },
+  "pattern_definition": "error_type + phase + material_signature",
+  "mix": {
+    "priority": 0.7,
+    "elite": 0.2,
+    "diversity": 0.1
+  },
+  "source_paths": {
+    "priority_negatives": "lab/reverse_dataset/negatives.jsonl",
+    "elite_dataset": "lab/dataset/elite_mixed.jsonl",
+    "diversity_dataset": "lab/pedagogy_db/promoted_pedagogy_pack.jsonl"
+  },
+  "counts": {
+    "priority": 1080,
+    "elite": 309,
+    "diversity": 154,
+    "total": 1543
+  }
+}

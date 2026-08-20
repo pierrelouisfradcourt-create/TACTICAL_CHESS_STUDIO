@@ -1,0 +1,49 @@
+PROMPT:
+Écris src/deal.mjs pour une BELOTE CLASSIQUE. Il importe de ./cards.mjs.
+Exporte : shuffle(deck, rng) déterministe, et la DISTRIBUTION des cartes de la belote (4 joueurs).
+Respecte la mécanique EXACTE de distribution de la belote classique liée à l'enchère (carte retournée).
+Node ESM pur. Donne des fonctions claires que je pourrai tester.
+
+===== RÉPONSE QWEN (24.7s) =====
+```javascript
+import { createDeck } from './cards.mjs';
+
+/**
+ * Shuffle a deck deterministically using a provided random number generator.
+ * @param {Array} deck - The deck of cards to shuffle.
+ * @param {Function} rng - A function that returns a random number between 0 and 1.
+ * @returns {Array} - The shuffled deck.
+ */
+export function shuffle(deck, rng) {
+    const shuffledDeck = [...deck];
+    for (let i = shuffledDeck.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [shuffledDeck[i], shuffledDeck[j]] = [shuffledDeck[j], shuffledDeck[i]];
+    }
+    return shuffledDeck;
+}
+
+/**
+ * Distribute cards for a Belote game.
+ * @param {Array} deck - The shuffled deck of cards.
+ * @returns {Object} - An object containing the hands for each player and the trump card.
+ */
+export function distributeCards(deck) {
+    const players = ['player1', 'player2', 'player3', 'player4'];
+    const hands = {};
+    let trumpCard;
+
+    // Each player gets 8 cards
+    for (let i = 0; i < 8; i++) {
+        players.forEach(player => {
+            hands[player] = hands[player] || [];
+            hands[player].push(deck.shift());
+        });
+    }
+
+    // The last card is the trump card
+    trumpCard = deck.shift();
+
+    return { hands, trumpCard };
+}
+```

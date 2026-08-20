@@ -1,0 +1,59 @@
+# Charter Forge — étape 0 (Contrat) — projet : breakout
+# run_id      : breakout-20260711
+# généré le   : 2026-07-11
+# source      : prompt utilisateur (casse-briques web déterministe) + pré-mortem PILOU
+#               (lab/reports/forge_error_journal.jsonl, leçons _global_/_method_)
+# schéma      : {objectif, hors_scope[], criteres_succes[], actions_interdites[]} — tous remplis
+# oracle sortie: validateur de schéma déterministe non-LLM (aucun champ vide/absent/« à définir »)
+
+objectif: >-
+  Forger de zéro un jeu de casse-briques (breakout) web DÉTERMINISTE et JOUABLE :
+  une balle, une raquette contrôlée au clavier, des murs de briques. Physique de
+  rebond réelle (balle sur murs, raquette, briques, avec réflexion et angle
+  dépendant du point d'impact sur la raquette). Niveaux à dispositions de briques
+  SEEDÉES (mêmes seed+index => même disposition, reproductible). Conditions de fin
+  explicites : VICTOIRE quand toutes les briques cassables du niveau sont détruites
+  (progression vers le niveau suivant, puis fin de partie gagnée au dernier niveau)
+  et DÉFAITE quand la balle est perdue sous la raquette alors qu'il ne reste plus de
+  vies. Stack imposée : HTML5 canvas + JavaScript vanilla en modules ES (.mjs),
+  entrée clavier. La logique de jeu PURE (état, physique, collisions, génération de
+  niveau, conditions de fin) est séparée du rendu et de l'entrée : le rendu et
+  l'input consomment l'état, jamais l'inverse. Le jeu doit être prouvé SOLVABLE par
+  un bot qui gagne réellement, pas seulement testé mécanique par mécanique.
+
+hors_scope:
+  - "Mode multijoueur, réseau, matchmaking ou classement en ligne."
+  - "Backend, base de données, comptes utilisateurs, persistance serveur (aucun serveur de jeu)."
+  - "Effets sonores, musique, assets audio."
+  - "Sprites/assets graphiques externes, textures, images téléchargées : rendu = primitives canvas (rects, arcs)."
+  - "Power-ups, bonus, briques spéciales multi-hits ou animations avancées non nécessaires à la boucle de base (peuvent venir plus tard, hors de ce charter)."
+  - "Support tactile/souris/manette : entrée clavier uniquement pour cette itération."
+  - "Framework front (React/Vue/…), bundler, TypeScript : vanilla .mjs uniquement, conformément à la stack imposée."
+  - "Décision d'architecture détaillée (répartition exacte des modules) : c'est l'étape 4, pas le charter."
+  - "World scan / recherche de patterns externes (étape 2)."
+  - "Toute modification des lanes protégées : src/ (moteur Rust), tests/ (zone protégée), autopilot.py, IMPROVEMENT_LEDGER.yaml."
+
+criteres_succes:
+  - "SOLVABILITÉ PROUVÉE : un bot déterministe joue la partie du début à la fin et GAGNE réellement (toutes les briques cassées, victoire atteinte) sur au moins le niveau 1 avec la seed de référence. L'oracle de solvabilité sort SOLVABLE (code de retour 0) ; sur un jeu volontairement cassé il doit sortir INJOUABLE (code non nul). Interdit de simuler la victoire en plaçant la balle/l'état à la main : le bot pilote la raquette via l'API d'entrée publique."
+  - "LOGIQUE SÉPARÉE DU RENDU : les modules de logique pure (état, physique/collisions, génération de niveau, conditions de fin) n'importent NI le rendu NI l'input, et ne référencent AUCUNE API DOM (document, window, canvas, addEventListener, requestAnimationFrame). Vérifié par un oracle d'architecture statique déterministe (scan des imports/références interdites). Toute mutation de l'état de jeu passe par une fonction de la logique, jamais mutée directement par le rendu ou l'input."
+  - "DÉTERMINISME : à seed + index de niveau égaux, la disposition des briques est identique (aucun Math.random() non seedé dans la génération de niveau) ; à séquence d'entrées égale, l'évolution de l'état est identique (physique reproductible, pas de dépendance à l'horloge murale dans la logique). Vérifié par un test qui régénère deux fois et compare l'égalité stricte."
+  - "PHYSIQUE DE REBOND ASSERTÉE STRICTEMENT : rebond sur les murs latéraux et le plafond (inversion de la composante concernée de la vitesse), rebond sur la raquette avec angle fonction du point d'impact, destruction d'une brique au contact avec rebond correspondant. Chaque règle est assertée par une valeur STRICTE attendue (pas de comparaison tautologique de type >=)."
+  - "CONDITIONS DE FIN ASSERTÉES STRICTEMENT : victoire ssi le compte de briques cassables restantes == 0 ; perte d'une vie quand la balle passe sous la raquette ; défaite ssi vies restantes == 0. Le nombre de briques détruites et le nombre de vies sont assertés à des valeurs exactes, jamais via un seuil relâché."
+  - "CONTRAT DE JOUABILITÉ RESPECTÉ : la page expose window.__game (l'instance/état de jeu pilotable), window.__game_debug (état lisible pour l'oracle : vies, niveau, briques restantes, position balle/raquette, statut victoire/défaite), un élément DOM #overlay (affichage des états victoire/défaite/pause) et un élément DOM #restart (relance de partie). Vérifié par l'e2e qui lit ces hooks."
+  - "E2E PLAYWRIGHT VERT : un test end-to-end Playwright charge la page réelle, pilote la raquette au clavier via l'API d'entrée, lit window.__game_debug et #overlay, et prouve une transition de jeu observable (au minimum une brique cassée par jeu réel, l'apparition de l'état de fin, et le fonctionnement de #restart). Le test passe avec code de retour 0 et produit un artefact de preuve (capture/log) référençable en evidence_path."
+  - "TESTS À MUTATION FORTS : les tests unitaires de la logique tuent les mutants sur la physique et les conditions de fin (un score de mutation élevé et démontré, aucun mutant survivant sur les invariants critiques : inversion de vitesse, décrément de vie, comptage de briques, condition de victoire). Aucun test tautologique (interdiction stricte de >= là où une égalité est attendue)."
+  - "PREUVE MÉCANIQUE FOURNIE : chaque verdict d'étape aval cite un evidence_path (sortie d'exécution de l'oracle correspondant). Du code livré sans evidence_path est traité comme BLOCKED, jamais comme OK."
+  - "CHARTER COMPLET : ce charter.yaml parse en YAML valide et ne contient aucun champ requis vide, absent, ni marqueur de placeholder non résolu — vérifié par l'oracle de schéma déterministe non-LLM."
+
+actions_interdites:
+  - "Certifier le jeu OK sans oracle de SOLVABILITÉ vert (un bot qui gagne pour de vrai) : une suite de tests unitaires verts sur des objectifs inatteignables = jeu injouable certifié = interdit (leçon PILOU collect_runner)."
+  - "Écrire un test tautologique : toute assertion >= / <= / « existe » là où le comportement observable impose une égalité ou une valeur stricte est interdite (leçon PILOU _global_ : un >= masque une mécanique morte)."
+  - "Placer/forcer l'état de jeu à la main pour faire passer un test de victoire au lieu de laisser un bot piloter l'entrée publique."
+  - "Mélanger logique et rendu : importer render/input depuis la logique, ou toucher au DOM (document, window, canvas, addEventListener) depuis les modules de logique pure."
+  - "Introduire de l'aléatoire non seedé (Math.random(), Date.now(), performance.now()) dans la génération de niveau ou la physique — casse le déterminisme."
+  - "Livrer du code sans evidence_path (sortie d'exécution prouvable) : reçu tel quel, le résultat est BLOCKED (leçon PILOU _method_)."
+  - "Introduire une dépendance externe runtime (CDN, framework, bundler, package réseau) : la stack est HTML5 canvas + vanilla .mjs, exécutable hors-ligne."
+  - "Modifier les lanes protégées : src/ (Rust), tests/ (zone protégée), autopilot.py, lab/chains/IMPROVEMENT_LEDGER.yaml, golden_examples.jsonl."
+  - "git commit / git push sans go explicite de Pierre (HumanGate)."
+  - "Émettre un claim auto-certifié sans oracle : sans preuve mécanique, remonter un besoin HumanGate (fog) — jamais claim_verdict autre que NO_CLAIM_ALLOWED."
+  - "Laisser dans le charter un champ placeholder non résolu, vide ou évasif : un flou non tranché est un défaut bloquant, il se remplit ou remonte en fog, il ne passe jamais."

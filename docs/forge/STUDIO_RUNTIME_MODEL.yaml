@@ -1,0 +1,348 @@
+# STUDIO_RUNTIME_MODEL.yaml — inventaire canonique des paramètres conceptuels du studio
+#
+# Origine : conversation Pierre × ChatGPT (2026-07-19) proposant un modèle de dimensions
+# (identity/intent/task/planner/capability/agent/skill/contract/execution/policy/gate/oracle/
+# test/simulation/evidence/knowledge/memory/artifact/routing/observability/lifecycle/verdict),
+# croisé avec l'audit YAML complet du repo (même session, Claude Code / Sonnet) : 95 fichiers
+# YAML réels inventoriés, 4 sous-agents de lecture + grep repo entier + vérifications directes.
+#
+# CE QUE CE FICHIER EST : une carte de référence humaine/agent — PAS un fichier de production.
+# Aucun script ne le charge. Il répond à une seule question par dimension :
+#   "ce que le studio DÉCRIT dans cette dimension a-t-il un consommateur RÉEL, et une PREUVE ?"
+#
+# Compagnons : STUDIO_ARCHITECTURE.md · STUDIO_AGENT_ATLAS.md · STUDIO_MASTER_SCHEMA.html
+# (même convention : statut PROPOSED, Pierre décide, NO_CLAIM_ALLOWED).
+#
+# Ne PAS wirer ce fichier dans scripts/forge/studio_selfaudit.mjs sans décision explicite —
+# ce script audite déjà la dérive doc<->réalité des cartes .md ; l'inclure ici serait une
+# extension de périmètre non demandée.
+
+meta:
+  fichier: STUDIO_RUNTIME_MODEL.yaml
+  statut: PROPOSED
+  date: "2026-07-19"
+  auteur: "Claude Code (Sonnet) — synthèse audit YAML + modèle conceptuel Pierre×ChatGPT"
+  role: >
+    Distinguer, pour chaque dimension conceptuelle du studio, ce qui est décrit (documenté),
+    ce qui est réellement exécuté (code + consommateur trouvé), et ce qui est prouvé
+    (artefact/preuve mécanique). Sert de base pour décider, plus tard, quelles parties
+    méritent d'être compilées en config vivante — pas un point de départ pour une réécriture.
+  claim_verdict: NO_CLAIM_ALLOWED
+  status_vocabulary:
+    LIVE_VERIFIED: "code réel consomme ce concept, preuve d'exécution trouvée et vérifiée"
+    LIVE_PARTIAL: "un consommateur réel existe mais couvre une partie seulement du concept, ou vit dans une lane gelée / manuelle"
+    DISPERSED: "le concept existe mais éclaté sur plusieurs fichiers non unifiés, sans SSOT unique (parfois assumé, parfois accidentel — précisé par dimension)"
+    DOCUMENTED_ONLY: "décrit en prose/schéma, aucun code ne le charge à l'exécution"
+    ABSENT: "champ du modèle proposé sans aucune incarnation actuelle dans le repo"
+  provenance_des_faits:
+    verifie_cette_session: "lu/grep/exécuté directement pendant l'audit YAML du 2026-07-19"
+    connu_memoire_studio: "vient de memory/ ou CLAUDE.md, non re-vérifié mécaniquement dans cette session"
+
+# ---------------------------------------------------------------------------------------------
+# LES 22 DIMENSIONS
+# ---------------------------------------------------------------------------------------------
+
+studio_runtime_model:
+
+  identity:
+    concept: "Identité du studio lui-même (pas d'un jeu produit)"
+    status: DOCUMENTED_ONLY
+    source_of_truth: ["CLAUDE.md"]
+    consumer: "aucun code — lecture humaine + contexte Claude Code chargé au boot de session"
+    evidence: "CLAUDE.md confirmé auto-chargé dans le system prompt de cette session"
+    gap: "pas de champ version/maturity_level structuré — CLAUDE.md est un texte de règles, pas un identity record"
+    valeurs_connues: {name: TACTICAL_CHESS_STUDIO, owner: "Pierre-Louis Fradcourt (solo)", purpose: "moteur d'échecs Rust + IA + game studio multi-lanes"}
+    provenance: verifie_cette_session
+
+  intent:
+    concept: "Objectif/contraintes d'un run (charte de tâche)"
+    status: LIVE_PARTIAL
+    source_of_truth: ["lab/forge_runs/<run>/charter.yaml", "scripts/forge/contracts/s0-contrat.yaml (champ objectif, niveau Critique)"]
+    consumer: "scripts/forge/run_real.py --charter <path> ; scripts/forge/contract.py (validation champ objectif)"
+    evidence: "lab/forge_runs/shmup_slice/charter.yaml consommé de bout en bout, run ratifié (confirmé cette session)"
+    gap: "n'existe que côté Forge (par run de jeu) — aucun équivalent pour les tâches studio elles-mêmes (un IMP du ledger n'a pas de success_definition structurée)"
+    provenance: verifie_cette_session
+
+  task:
+    concept: "Unité de travail adressable"
+    status: LIVE_PARTIAL
+    note: "deux systèmes parallèles non unifiés, pas un défaut mais jamais réconciliés explicitement"
+    source_of_truth: ["lab/chains/IMPROVEMENT_LEDGER.yaml (IMP, côté studio)", "scripts/forge/contracts/<etape>.yaml (étape s0-s12, côté Forge)"]
+    consumer: "lab/chains/kaizen_loop.py + 8 skills (.claude/skills/{sprint-status,imp-readiness,sprint-plan,tick,gate,fog,council,audit-daily}) ; scripts/forge/dispatch.py:ORDER"
+    evidence: "540 IMPs trackés (224 CLOSED/42 OPEN) ; 13 étapes s0-s12 avec preuve d'exécution signée — les deux confirmés cette session"
+    gap: "aucun schéma commun entre 'IMP' (amélioration studio) et 'étape Forge' (construction jeu)"
+    provenance: verifie_cette_session
+
+  planner:
+    concept: "Ordonnancement/dépendances entre tâches"
+    status: LIVE_PARTIAL
+    source_of_truth: ["scripts/forge/dispatch.py (constante ORDER)"]
+    consumer: "dispatch.py, driver.py"
+    evidence: "chaîne s0→s12 exécutée dans l'ordre déclaré, prouvée par artefacts datés (lab/forge_runs/shmup_slice/artifacts/)"
+    gap: >
+      ORDER est une séquence FIXE câblée en dur, pas un graphe dynamique — pas de
+      dependency_graph, pas d'estimated_cost, pas de méthode de planification explicite.
+      Le champ 'planner' du modèle proposé est largement aspirationnel ici.
+    provenance: verifie_cette_session
+
+  capability:
+    concept: "Ce qu'un rôle/agent a le droit de faire"
+    status: DISPERSED
+    note: "dispersion NON assumée — trou réel trouvé cette session, pas une séparation voulue"
+    source_of_truth:
+      - "openclaw/capabilities.yaml (modèles/skills disponibles, IMP-124, IMPLEMENTED)"
+      - "scripts/forge/contracts/roles.yaml (capability_role → modèle, Forge-scopé)"
+      - "lab/agent_policy/*.json (5 fichiers : autonomy_levels, forbidden_surfaces, freeze_rules, strike_rules, tool_permission_matrix — LEGACY, ne sert QUE la lane STUDIO gelée depuis 2026-07-19)"
+      - ".claude/hooks/pretool_forge_guard.py (permission Forge réelle, mais en code impératif, pas déclaratif)"
+    consumer: "control_plane/registry.py (capabilities.yaml, vivant) ; hook_guard.py (vivant, Forge) ; autopilot.py:_check_tool_permission (agent_policy JSON, gelé — CLAUDE.md documente qu'il ignore agent_id et fail-open, bug connu et NON corrigé par gel)"
+    evidence: "chaîne Forge vérifiée bout-en-bout cette session ; agent_policy JSON confirmé legacy par CLAUDE.md lui-même"
+    gap: >
+      AUCUNE matrice read/write/execute unifiée et vivante à l'échelle du studio entier.
+      La seule qui existait (lab/agent_policy/) est gelée et connue buguée. Ce que le modèle
+      proposé appelle 'capability.permissions' n'a pas de SSOT actif aujourd'hui.
+    provenance: verifie_cette_session
+
+  agent:
+    concept: "Un sous-agent invocable (rôle, modèle, outils, limites)"
+    status: LIVE_VERIFIED
+    note: "PAS en YAML — point de friction de format à noter explicitement"
+    source_of_truth: [".claude/agents/*.md (15 fichiers, frontmatter + prose)"]
+    consumer: "Claude Code (résolution du Agent tool par frontmatter)"
+    evidence: "15 agents confirmés cette session (ls .claude/agents/*.md), chacun listé avec ses Tools dans le system prompt de session"
+    gap: "concaténer les YAML du repo n'aurait de toute façon jamais capturé les agents — ils vivent en Markdown"
+    provenance: verifie_cette_session
+
+  skill:
+    concept: "Procédure invocable via /nom"
+    status: LIVE_VERIFIED
+    note: "PAS en YAML non plus — même remarque que 'agent'"
+    source_of_truth: [".claude/skills/<nom>/skill.md"]
+    consumer: "Claude Code (Skill tool)"
+    evidence: "~50 skills listés et invocables confirmés dans le system prompt de session"
+    gap: "aucun schéma YAML formel des skills — chaque skill.md a sa propre structure prose"
+    provenance: verifie_cette_session
+
+  contract:
+    concept: "Contrat borné d'une étape Forge (17 champs, schéma commun)"
+    status: LIVE_VERIFIED
+    note: "dimension la plus solide de tout l'inventaire — vérifiée en exécution réelle, pas seulement lue"
+    source_of_truth:
+      - "scripts/forge/contracts/<etape>.yaml (17 fichiers)"
+      - "scripts/forge/contracts/SCHEMA.md (référence humaine — écart mineur confirmé : en-tête dit '16 champs', le code applique et la table listent 17)"
+    consumer: "scripts/forge/contract.py (load_contract/validate_contract), dispatch.py, hook_guard.py"
+    evidence: >
+      chargement + validation réels exécutés cette session (16/16 contrats-étapes OK,
+      0 exception) ; marqueurs FORGE_DISPATCH:<etape>:<run_id> signés HMAC retrouvés dans
+      lab/forge_runs/shmup_slice/artifacts/{s4-archi,s5-wiremap,s9-build}.txt, datés 2026-07-14.
+    gap: "2 des 17 fichiers (redteam-artdirector.yaml, s10d-oracle-visual.yaml) n'entrent JAMAIS dans ce mécanisme réel — trouvé cette session, s10d l'admet lui-même dans son en-tête"
+    provenance: verifie_cette_session
+
+  execution:
+    concept: "Trace d'un dispatch réel vers un sous-agent"
+    status: LIVE_VERIFIED
+    source_of_truth: ["lab/forge_evidence/dispatch_audit.jsonl (gitignoré, runtime append-only)", "lab/forge_runs/<run>/artifacts/*.txt"]
+    consumer: "dispatch.py (écrit, sign_audit_record), hook_guard.py (relit et vérifie la signature avant d'autoriser le spawn)"
+    evidence: "chaîne confirmée cette session : contract.py → dispatch.py → hook_guard.py → .claude/settings.json (PreToolUse/Task actif)"
+    gap: "pas de champ 'duration' confirmé systématiquement loggé — non vérifié en détail cette session"
+    provenance: verifie_cette_session
+
+  policy:
+    concept: "Règles/contraintes/approbations requises"
+    status: DISPERSED
+    note: "la dimension la plus fragmentée — confirme exactement ce que la conversation Pierre×ChatGPT anticipait, avec preuve cette fois"
+    source_of_truth:
+      - "CLAUDE.md (prose, pas machine-readable)"
+      - "lab/agent_policy/*.json (legacy, gelé, bugué — cf. dimension capability)"
+      - ".claude/settings.json (hooks — le plus proche d'une policy réellement exécutable)"
+      - "scripts/forge/hook_guard.py (logique fail-closed en code impératif, pas déclarative)"
+    consumer: "Claude Code (settings.json), hook_guard.py"
+    evidence: "hook pretool_forge_guard confirmé actif et enregistré cette session"
+    gap: "AUCUN fichier policy unique et vivant à l'échelle du studio — 4 sources partielles, aucune ne couvre le domaine complet"
+    provenance: verifie_cette_session
+
+  gate:
+    concept: "Point de décision bloquant (humain / oracle / automatique)"
+    status: LIVE_PARTIAL
+    source_of_truth:
+      - "lab/chains/HUMANGATE_DECISION_LOG.yaml (IMPLEMENTED, CLI manuel hg_queue.py)"
+      - "scripts/forge/verdict.py (gate mutation + oracle, signé HMAC)"
+      - ".claude/hooks/pretool_forge_guard.py (gate automatique fail-closed au dispatch)"
+    consumer: "hg_queue.py, verdict.py, hook_guard.py"
+    evidence: "3 mécanismes de gate distincts et réels confirmés cette session"
+    gap: "pas de registre unifié des 3 types de gate — chacun vit dans son propre fichier/mécanisme"
+    provenance: verifie_cette_session
+
+  oracle:
+    concept: "Vérification déterministe non-LLM aux points de preuve"
+    status: LIVE_VERIFIED
+    source_of_truth:
+      - "scripts/forge/oracle.py, scripts/forge/static_oracles.py"
+      - "scripts/forge/contracts/s10a/s10b/s10c-oracle-*.yaml (code/archi/wiremap)"
+      - "fixtures/p1/probe_*/solvability.mjs (solvabilité — un bot doit GAGNER)"
+    consumer: "driver.py (appelle les oracles aux points de preuve de la chaîne)"
+    evidence: "13 contrats-étapes de la chaîne ORDER confirmés testés/exécutés cette session"
+    gap: "s10d-oracle-visual.yaml existe mais reste hors chaîne (confirmé cette session) — honnêtement documenté comme non câblé, pas une dérive silencieuse"
+    provenance: verifie_cette_session
+
+  test:
+    concept: "Suites de test formelles"
+    status: LIVE_VERIFIED
+    source_of_truth: ["cargo test (Rust)", "pytest ml/ (.venv312)", "games/shmup_slice/logic.test.mjs + mutation_triage.json", "knowledge_base/search.test.mjs"]
+    consumer: "skill /smoke-check ; .github/workflows/chess-test.yml (manuel)"
+    evidence: "knowledge_base/search.test.mjs confirmé cette session (testé, référencé par un consommateur réel) ; mutation 111/112 shmup_slice connu par mémoire studio, non revérifié mécaniquement cette session"
+    gap: >
+      chess-test.yml contient une étape 'cargo test root_decision -- --nocapture' qui ne
+      matche AUCUN test réel du repo — succès vacueux confirmé cette session, non corrigé.
+    provenance: mixte (voir champs)
+
+  simulation:
+    concept: "Simulation/probe pour prouver la jouabilité au-delà de la compilation"
+    status: LIVE_PARTIAL
+    source_of_truth: ["fixtures/p1/probe_*/solvability.mjs"]
+    consumer: "oracle de solvabilité Forge, appelé par driver.py aux étapes de preuve"
+    evidence: "sondes P1.1 SUCCESS 4/4 connues par mémoire studio — NON revérifiées cette session (fixtures/p1/ ne contient pas de YAML, hors périmètre du scan de l'audit)"
+    gap: "pas de moteur de simulation générique avec iterations/scenarios/metrics/thresholds configurables — chaque probe est un script ad hoc"
+    provenance: connu_memoire_studio
+
+  evidence:
+    concept: "Preuve mécanique d'exécution, signée et datée"
+    status: LIVE_VERIFIED
+    note: "avec 'contract' et 'verdict', la dimension la mieux couverte du studio"
+    source_of_truth: ["lab/forge_evidence/dispatch_audit.jsonl", "knowledge_base/proofs/*.log (exception .gitignore explicite : preuves permanentes)", "lab/forge_runs/<run>/{artifacts,evidence}/"]
+    consumer: "hook_guard.py, forge.verify_run"
+    evidence: "logs de validation datés confirmés cette session pour knowledge_base/roles/*.yaml (role_sim_guardian_static_validation.log, role_sim_pursuer_mobile_validation.log)"
+    gap: "aucun"
+    provenance: verifie_cette_session
+
+  knowledge:
+    concept: "Décisions, rationale, patterns réutilisables"
+    status: DISPERSED
+    note: "dispersion ASSUMÉE par design — CLAUDE.md dit explicitement 'ne pas les confondre ni les fusionner', à ne pas traiter comme les autres DISPERSED (capability/policy) qui sont des trous accidentels"
+    source_of_truth:
+      - "knowledge_base/catalog.json (briques de jeu réutilisables : provenance, sha256, licence, tier candidate→validated)"
+      - "lab/chains/IMPROVEMENT_LEDGER.yaml (décisions/rationale par IMP)"
+      - "memory/*.md (faits durables machine) + studio_brain/ (doctrine humaine, tier-2)"
+    consumer: "knowledge_base/search.mjs (catalog.json) ; kaizen_loop.py + skills (ledger) ; mécanisme auto-mémoire Claude Code (memory/)"
+    evidence: "3 systèmes vérifiés vivants indépendamment cette session (roles.yaml → catalog.json → search.mjs testé)"
+    gap: "aucun pont formel entre les 3 — une décision prise côté ledger n'alimente pas automatiquement memory/ ni catalog.json"
+    provenance: verifie_cette_session
+
+  memory:
+    concept: "Mémoire persistante typée, inter-session"
+    status: LIVE_VERIFIED
+    source_of_truth: ["memory/MEMORY.md + memory/*.md (mécanisme auto-mémoire Claude Code)"]
+    consumer: "chargé automatiquement au boot de chaque session"
+    evidence: "auto-chargement confirmé structurellement (ce fichier fait partie du contexte système de cette conversation)"
+    gap: >
+      vocabulaire différent du modèle proposé — Pierre/ChatGPT proposent
+      fact/decision/failure/success ; la taxonomie réelle Claude Code est
+      user/feedback/project/reference. À réconcilier si ce modèle doit devenir une vraie
+      carte de correspondance plutôt qu'un inventaire.
+    provenance: verifie_cette_session
+
+  artifact:
+    concept: "Sortie produite et tracée (généré par → validé par)"
+    status: LIVE_VERIFIED
+    source_of_truth: ["games/<jeu>/ (jeu généré)", "lab/forge_runs/<run>/artifacts/", "knowledge_base/proofs/*.log"]
+    consumer: "verdict.py (validated_by), driver.py (generated_by)"
+    evidence: "games/breakout/, games/collect_runner/ confirmés produits sur disque cette session"
+    gap: "breakout et collect_runner ont un artefact réel MAIS aucun historique git de leur run lab/forge_runs/ — trou d'hygiène (non commité), pas un trou fonctionnel"
+    provenance: verifie_cette_session
+
+  routing:
+    concept: "Où vit quoi ; fichiers dérivés/générés ; édition manuelle interdite"
+    status: LIVE_VERIFIED
+    source_of_truth: ["FILE_ROUTING_MANIFEST.yaml"]
+    consumer: "lab/chains/doc_hygiene_chain.py, lab/chains/studio_context_builder.py, lab/chains/test_doc_hygiene.py"
+    evidence: "seul fichier YAML de tout l'audit complet du 2026-07-19 avec statut TESTED intégral (consommateur réel + tests réels + skip-guard sur le fichier live)"
+    gap: "aucun"
+    provenance: verifie_cette_session
+
+  observability:
+    concept: "Logs, métriques, traces, alertes"
+    status: LIVE_PARTIAL
+    source_of_truth: ["lab/events.jsonl (gitignoré, runtime)", "knowledge_base/search_log.jsonl (gitignoré)", "lab/reports/studio_meta_latest.json (gitignoré, ELO/verdict)", "lab/forge_evidence/dispatch_audit.jsonl"]
+    consumer: "scripts studio_meta.py, director.py (connus par mémoire studio, non revérifiés mécaniquement cette session)"
+    evidence: "existence des fichiers confirmée (référencés explicitement et nommément dans .gitignore)"
+    gap: >
+      AUCUNE alerte trouvée nulle part dans cet audit ni en mémoire studio — le champ
+      'alerts' du modèle proposé est totalement absent aujourd'hui. code-hygiene.yml
+      (cron GitHub sans runner self-hosted enregistré, trouvé cette session) est
+      exactement un cas où une alerte aurait détecté le problème et n'existe pas.
+    provenance: mixte (voir champs)
+
+  lifecycle:
+    concept: "États created → tested → approved → deprecated → archived"
+    status: LIVE_PARTIAL
+    source_of_truth:
+      - "lab/chains/IMPROVEMENT_LEDGER.yaml (status: OPEN/CLOSED/FROZEN/REJECTED)"
+      - "00_STUDIO_CONTROL/99_ARCHIVE/ (convention de dossier archive, confirmée mais le contenu est mort — cf. audit YAML)"
+    consumer: "kaizen_loop.py (ledger status)"
+    evidence: "540 IMPs avec statuts réels (mémoire studio) ; FROZEN/REJECTED confirmé invisible dans les outils de recall (dérive connue, mémoire 'ledger_frozen_rejected_convention')"
+    gap: >
+      pas de lifecycle formel pour les fichiers de config eux-mêmes (contrats, YAML divers)
+      avant l'audit du 2026-07-19 — les recommandations KEEP/FREEZE/ARCHIVE_CANDIDATE/REVIEW
+      produites par cet audit SONT, de facto, le premier lifecycle appliqué à cette couche.
+    provenance: mixte (voir champs)
+
+  verdict:
+    concept: "software_verdict / evidence_verdict / claim_verdict séparés, signés"
+    status: LIVE_VERIFIED
+    note: "la règle la plus stricte et la mieux appliquée de tout le studio — seule dimension du modèle proposé qui était déjà doctrine non négociable AVANT cet audit"
+    source_of_truth: ["scripts/forge/verdict.py"]
+    consumer: "tout run Forge ; tout rapport de fin de charter (CLAUDE.md l'exige explicitement)"
+    evidence: "dataclass confirmée cette session (software_verdict/evidence_verdict/claim_verdict, HMAC signé, verify_run)"
+    gap: "aucun"
+    provenance: verifie_cette_session
+
+# ---------------------------------------------------------------------------------------------
+# TABLE DE CORRESPONDANCE (raffinée avec preuve, vs. la table de suggestion Pierre×ChatGPT)
+# ---------------------------------------------------------------------------------------------
+
+correspondance_table:
+  - parametre: capability
+    source_reelle: "openclaw/capabilities.yaml + scripts/forge/contracts/roles.yaml (Forge) — lab/agent_policy/*.json (STUDIO, legacy/gelé)"
+  - parametre: agent
+    source_reelle: ".claude/agents/*.md (Markdown, pas YAML)"
+  - parametre: skill
+    source_reelle: ".claude/skills/<nom>/skill.md (Markdown, pas YAML)"
+  - parametre: contract
+    source_reelle: "scripts/forge/contracts/*.yaml (17 fichiers, SCHEMA.md)"
+  - parametre: evidence
+    source_reelle: "lab/forge_evidence/dispatch_audit.jsonl + lab/forge_runs/*/artifacts/ + knowledge_base/proofs/*.log"
+  - parametre: gate
+    source_reelle: "lab/chains/HUMANGATE_DECISION_LOG.yaml + scripts/forge/verdict.py + .claude/hooks/pretool_forge_guard.py"
+  - parametre: knowledge
+    source_reelle: "knowledge_base/catalog.json + lab/chains/IMPROVEMENT_LEDGER.yaml + memory/ + studio_brain/ (3 systèmes distincts, assumés séparés)"
+  - parametre: routing
+    source_reelle: "FILE_ROUTING_MANIFEST.yaml (seul TESTED complet de l'audit)"
+  - parametre: execution
+    source_reelle: "lab/forge_evidence/dispatch_audit.jsonl + marqueurs FORGE_DISPATCH dans les artefacts de run"
+  - parametre: policy
+    source_reelle: "toujours dispersé — CLAUDE.md (prose) + lab/agent_policy/*.json (gelé, bugué) + .claude/settings.json (hooks) — AUCUN SSOT unique"
+
+# ---------------------------------------------------------------------------------------------
+# SYNTHÈSE — décrit vs exécuté vs prouvé
+# ---------------------------------------------------------------------------------------------
+
+coverage_summary:
+  total_dimensions: 22
+  LIVE_VERIFIED: 11   # agent, skill, contract, execution, oracle, test, evidence, memory, artifact, routing, verdict
+  LIVE_PARTIAL: 7      # intent, task, planner, gate, simulation, observability, lifecycle
+  DISPERSED: 3         # capability, policy, knowledge
+  DOCUMENTED_ONLY: 1   # identity
+  ABSENT: 0
+  lecture: >
+    Le studio prouve mécaniquement la moitié de ce qu'il décrit (11/22 LIVE_VERIFIED).
+    Les 3 dimensions DISPERSED ne sont pas de gravité égale : 'knowledge' est une séparation
+    voulue et documentée (CLAUDE.md), tandis que 'capability' et 'policy' sont des trous
+    réels — aucune matrice de permission unifiée et vivante n'existe à l'échelle du studio,
+    seulement des fragments (dont un legacy gelé connu bugué). C'est le vrai chantier
+    structurel que révèle ce modèle, pas un nouveau format YAML à produire.
+
+verdict:
+  software_verdict: OK
+  evidence_verdict: MECHANICAL_VALIDATION_ONLY
+  claim_verdict: NO_CLAIM_ALLOWED
+  no_global_ready_verdict: true
+  note: "ceci est un inventaire de référence, pas un verdict de production — rien ne le consomme, rien n'est mergé"

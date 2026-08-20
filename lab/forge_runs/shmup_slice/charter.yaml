@@ -1,0 +1,79 @@
+# Charter Forge — étape 0 (Contrat) — projet : shmup_slice
+# run_id      : shmup_slice-<horodatage au lancement>
+# généré le   : 2026-07-14
+# source      : brief Pierre 2026-07-14 (Mission 0, addendum) — vertical slice shoot'em up 2D
+#               solo inspiré Space Invaders / Pop'n TwinBee + rapport pré-production
+#               docs/forge/SHMUP_PREPROD_REPORT_2026-07-14.md (§6 exigences charter)
+#               + pré-mortem PILOU (leçons survival_arena/collect_runner : solvabilité, tautologies)
+# auteur      : Fable 5 (orchestrateur) — à VALIDER/AMENDER par l'étape s0 de la chaîne
+# schéma      : {objectif, hors_scope[], criteres_succes[], actions_interdites[]} — tous remplis
+# oracle sortie: validateur de schéma déterministe non-LLM (aucun champ vide/absent/« à définir »)
+
+objectif: >-
+  Forger de zéro un shoot'em up 2D SOLO web, DÉTERMINISTE et JOUABLE (inspiration
+  Space Invaders / Pop'n TwinBee) : un vaisseau joueur contrôlé au clavier (déplacement
+  2D borné à l'écran, tir vers le haut), des ennemis en formations avec PATTERNS
+  D'ATTAQUE SIMPLES définis en DONNÉES (descente type invaders, sinusoïde, plongée
+  kamikaze, tir périodique ennemi), des collisions complètes (tirs joueur→ennemis/boss,
+  tirs ennemis→joueur, contact ennemi→joueur), un score, un système de VIES (3 au
+  départ, invincibilité brève post-impact), 3 MAPS DISTINCTES CONÇUES EN DONNÉES
+  (chaque map = déclaration de vagues/formations/patterns/fond — PAS trois variations
+  paramétriques d'un même générateur), chacune conclue par un BOSS SIMPLE distinct
+  (HP propre + 1 pattern de tir propre, esquivable par construction), un écran de
+  VICTOIRE (boss 3 vaincu) et de DÉFAITE (vies épuisées), et un build jouable
+  (node server.mjs + page canvas + README de lancement 2 lignes). Progression :
+  score et vies CONSERVÉS entre maps ; boss vaincu => transition immédiate vers la
+  map suivante ; défaite => restart du run entier. Stack imposée : HTML5 canvas +
+  JavaScript vanilla en modules ES (.mjs), entrée clavier. La logique de jeu PURE
+  (état, patterns, collisions, vagues, boss, score/vies, transitions) est un
+  step(DT=16ms, inputs) SEEDÉ, séparé du rendu et de l'input (le rendu consomme
+  l'état via un accumulateur à pas fixe sous requestAnimationFrame, jamais
+  l'inverse). Le jeu doit être prouvé SOLVABLE par un bot déterministe qui traverse
+  les 3 maps et bat les 3 boss en jouant par l'API d'entrée publique. Le run est
+  JALONNÉ : Jalon A = map 1 + boss 1 complets et prouvés (solvabilité/e2e/mutation) ;
+  Jalon B = extension aux 3 maps + 3 boss avec les mêmes preuves — le scope final
+  reste les 3×3, le jalon n'est qu'un ordre de construction.
+
+hors_scope:
+  - "Mode multijoueur, réseau, matchmaking, classement en ligne."
+  - "Backend, base de données, comptes, persistance serveur ou high-score persistant (score de session uniquement)."
+  - "Effets sonores, musique, assets audio."
+  - "Sprites/assets graphiques externes ou téléchargés : rendu = primitives canvas (rects, arcs, polygones, dégradés) ; toute ingestion d'asset = gate Pierre explicite, hors de ce run."
+  - "Power-ups, armes multiples, bombes/smart-bombs, options/satellites (héritage TwinBee) : UN tir joueur, point."
+  - "Boss à phases multiples, mini-boss, ennemis à comportement adaptatif : chaque boss = 1 pattern + HP, les ennemis suivent leurs patterns déclarés."
+  - "Scrolling parallaxe élaboré : un fond distinct par map suffit (couleur/motif canvas), le défilement est cosmétique et hors logique pure."
+  - "Difficulté paramétrable, menus d'options, pause avancée, localisation."
+  - "Support tactile/souris/manette : clavier uniquement."
+  - "Framework front, bundler, TypeScript : vanilla .mjs uniquement."
+  - "Toute modification des lanes protégées : src/ (Rust), tests/ (zone protégée), autopilot.py, lab/chains/IMPROVEMENT_LEDGER.yaml, golden_examples.jsonl, scripts/forge/** (le harnais n'appartient pas au builder)."
+
+criteres_succes:
+  - "SOLVABILITÉ COMPLÈTE PROUVÉE : un bot déterministe (politique esquive+tir pilotant l'API d'entrée publique) FINIT le run entier — traverse les 3 maps et bat les 3 boss — avec la seed de référence. L'oracle sort SOLVABLE (exit 0) ; sur une sonde volontairement cassée (boss à HP inatteignable dans le temps imparti OU pattern sans couloir d'esquive) il sort INJOUABLE (exit non nul). Interdit de forcer l'état pour gagner : le bot joue."
+  - "ESQUIVABILITÉ DES PATTERNS ASSERTÉE : chaque pattern (ennemis et boss) est déclaré en DONNÉES et une vérification déterministe prouve, sur la simulation de référence seedée, qu'il existe à chaque frame au moins un couloir sûr atteignable par le vaisseau (aucune frame de mort inévitable). Un pattern non esquivable = FAIL, pas un réglage silencieux."
+  - "3 MAPS + 3 BOSS = FEATURES WIREMAP GELÉES : chaque map et chaque boss est une feature déclarée de la WireMap (fichiers+fonction+preuve chacune), gelée à s5 — une map/un boss qui disparaît en cours de build casse le gel (STOP)."
+  - "DÉTERMINISME : logique pure step(DT=16ms, inputs) seedée — à seed + séquence d'entrées égales, trace d'état strictement identique (test de double exécution) ; AUCUN Math.random()/Date.now()/performance.now() dans la logique. Le RNG est un générateur seedé injecté."
+  - "LOGIQUE SÉPARÉE DU RENDU : les modules de logique n'importent ni rendu ni input et ne référencent aucune API DOM (document, window, canvas, addEventListener, requestAnimationFrame) — oracle d'architecture statique. Le rendu utilise un accumulateur à pas fixe (DT=16ms) sous requestAnimationFrame ; onglet inactif = pause propre, jamais une divergence de simulation."
+  - "COLLISIONS ET RÈGLES ASSERTÉES STRICTEMENT : impact tir→ennemi (destruction + score exact), tir ennemi→joueur (perte d'exactement 1 vie + invincibilité brève), contact ennemi→joueur (idem), HP boss décrémenté à valeur exacte et jamais négatif, victoire ssi boss 3 vaincu, défaite ssi vies == 0. Aucune assertion tautologique (>= là où == est attendu)."
+  - "PROGRESSION ASSERTÉE : score et vies conservés à la transition de map ; boss vaincu => level+1 immédiat ; map 3 + boss 3 vaincu => status WON terminal ; défaite => restart au début du run (map 1, score 0, vies 3)."
+  - "CONTRAT DE JOUABILITÉ ÉTENDU : window.__game expose {level, lives, score, over, status, bossHp} ; window.__game_debug expose setLevel(n), spawnBoss(n), forceWin(), forceLose() ; DOM : #overlay (états victoire/défaite) et #restart. Vérifié par l'e2e."
+  - "E2E PLAYWRIGHT MULTI-NIVEAUX VERT : le test e2e charge la page réelle, joue RÉELLEMENT la map 1 au clavier (au moins un ennemi détruit par jeu réel, score observé), puis via window.__game_debug visite les maps 2 et 3, fait apparaître et vaincre chacun des 3 boss (bossHp observé décroissant jusqu'à transition), vérifie l'écran de victoire, l'écran de défaite (forceLose) et #restart. Exit 0 + captures en evidence_path."
+  - "PROPRIÉTÉS SEEDÉES : invariants vérifiés sur de nombreuses seeds — déterminisme de trace, vaisseau toujours dans les bornes, score monotone croissant, over monotone (jamais de résurrection), nombre de projectiles simultanés borné par le plafond déclaré (pooling), HP boss jamais négatif, transition au-delà de la map 3 impossible."
+  - "TESTS À MUTATION FORTS : gate mutation « 100% des mutants tués OU survivant trié justifié » sur TOUS les fichiers logiques déclarés par la WireMap ; suite logic+properties rapide (< 3 s) pour tenir le budget mutation ; patterns en structures de données (pas en cascades de comparaisons) pour limiter l'explosion de mutants."
+  - "PERFORMANCE (ADVISORY, non gating) : plafond de projectiles simultanés déclaré en constante nommée ; une mesure de fps sur la map la plus dense est consignée en évidence — mesurée, jamais jugée par l'oracle."
+  - "PREUVE MÉCANIQUE FOURNIE : chaque verdict d'étape cite un evidence_path ré-exécutable ; du code sans preuve d'exécution = BLOCKED, jamais OK."
+  - "CHARTER COMPLET : ce charter.yaml parse en YAML valide, aucun champ vide/absent/placeholder — oracle de schéma déterministe non-LLM."
+
+actions_interdites:
+  - "Certifier OK sans solvabilité verte de BOUT EN BOUT (3 maps + 3 boss par le bot) : des mécaniques vertes en isolation sur un jeu infinissable = interdit (leçon PILOU survival_arena/collect_runner)."
+  - "Régler la difficulté post-hoc pour faire passer le bot (baisser les HP d'un boss après un échec de solvabilité sans re-vérifier l'esquivabilité) : tout réglage re-passe TOUTES les preuves."
+  - "Écrire un pattern en cascade de branches conditionnelles au lieu de données déclaratives."
+  - "Test tautologique : >= / <= / « existe » là où une égalité stricte est attendue."
+  - "Forcer l'état de jeu pour faire passer un test de victoire au lieu de laisser le bot jouer l'entrée publique (les hooks __game_debug servent à l'e2e de couverture multi-niveaux, JAMAIS à la preuve de solvabilité)."
+  - "Mélanger logique et rendu ; référencer le DOM ou l'horloge murale dans la logique pure."
+  - "Math.random(), Date.now(), performance.now() dans la logique — le RNG est seedé et injecté."
+  - "Dépendance externe runtime (CDN, framework, package réseau) : exécutable hors-ligne."
+  - "Télécharger ou générer des assets externes : primitives canvas uniquement pour ce run."
+  - "git commit / git push (le harnais l'interdit aussi mécaniquement) : HumanGate Pierre exclusivement."
+  - "Modifier les lanes protégées ou le harnais Forge (scripts/forge/**, tests/**, contrats)."
+  - "Émettre un claim auto-certifié : sans oracle, remonter un fog HumanGate — claim_verdict: NO_CLAIM_ALLOWED toujours."
+  - "Laisser un champ placeholder/flou dans un artefact d'étape : un flou se tranche ou remonte en fog, il ne passe jamais."

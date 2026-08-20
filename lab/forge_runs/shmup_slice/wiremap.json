@@ -1,0 +1,265 @@
+{
+ "_comment": "WireMap isomorphe (s5) — Shmup Slice. Colonnes statut/version ajoutees par s9-build (2026-07-14) apres implementation+oracle vert (run-oracle.mjs: logic 65/65, properties 7/7, solvabilite 5 seeds PASS, e2e Playwright PASS avec les 3 boss reellement vaincus). preuve conservee telle que gelee a s5 ; verifiee correcte contre le code livre. MAJ s9-build re-dispatch (2026-07-18) : gate mutation ferme (112 mutants, 111 tues, 1 survivant trie equivalent dodge L55) — bot/solver.mjs (14/14) et main.mjs (18/18), auparavant hors couverture de la commande de test scellee, sont desormais tues par des tests unitaires reels ajoutes a logic.test.mjs (computeBotInputs/runBot pour le bot ; environnement navigateur simule window/rAF/canvas pour main). Aucune ligne de logique de jeu modifiee ; seul un `export` ajoute a computeBotInputs.",
+ "features": [
+  {
+   "feature": "R1 déplacement 2D borné à l'écran",
+   "fonction": "moveShip",
+   "fichiers": [
+    "logic/ship.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "propriété seedée 'vaisseau toujours dans les bornes' sur N seeds (properties.mjs, CS-10)"
+  },
+  {
+   "feature": "R2 une touche déclenche UN tir vers le haut",
+   "fonction": "firePlayerShot",
+   "fichiers": [
+    "logic/ship.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "e2e.mjs : >=1 projectile joueur montant a la touche ; unicite du tir, aucune 2e arme (CS-9, HS)"
+  },
+  {
+   "feature": "R3 formation invaders (pattern en donnees)",
+   "fonction": "INVADERS_DESCENT",
+   "fichiers": [
+    "data/patterns.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "esquivabilite hasSafeCorridor sur sim seedee (CS-2) + mutation patterns 100% tues (CS-11)"
+  },
+  {
+   "feature": "R4 2e formation distincte (pattern en donnees)",
+   "fonction": "SINE_WEAVE",
+   "fichiers": [
+    "data/patterns.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": ">=2 patterns distincts declares en donnees (OBJ) + esquivabilite (CS-2) + mutation (CS-11)"
+  },
+  {
+   "feature": "R5 ennemis tirent periodiquement vers le bas",
+   "fonction": "updateEnemyFire",
+   "fichiers": [
+    "logic/enemies.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "sim seedee : cadence deterministe esquivable (CS-2) ; plafond simultane respecte (CS-10) ; mutation 100% (logic/enemies.mjs)"
+  },
+  {
+   "feature": "R6 tir joueur->ennemi : destruction + score exact",
+   "fonction": "resolvePlayerHits",
+   "fichiers": [
+    "logic/collisions.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "assertion stricte == : ennemi retire + score += valeur EXACTE (CS-6) ; mutant kill/score tue (CS-11) ; anti-tautologie (AI-4) ; mutation 100% (logic/collisions.mjs)"
+  },
+  {
+   "feature": "R7 tir ennemi->joueur : -1 vie + i-frames",
+   "fonction": "resolveEnemyHits",
+   "fichiers": [
+    "logic/collisions.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "assertion == : lives -= 1 EXACT + i-frames bloquent un 2e retrait immediat (CS-6) ; mutation 100% (logic/collisions.mjs)"
+  },
+  {
+   "feature": "R8 contact ennemi->joueur : -1 vie + i-frames",
+   "fonction": "resolveContactDamage",
+   "fichiers": [
+    "logic/collisions.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "assertion == : -1 vie exacte + i-frames (CS-6) ; test dedie axe unique (X aligne, Y disjoint) prouve AND pas OR ; mutation 100% (logic/collisions.mjs)"
+  },
+  {
+   "feature": "R9 score : valeur exacte, jamais decroissant",
+   "fonction": "awardScore",
+   "fichiers": [
+    "logic/scoring.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "propriete seedee 'score monotone croissant' (CS-10) + valeur exacte par kill (CS-6, ==) ; mutation 100% (logic/scoring.mjs)"
+  },
+  {
+   "feature": "R10 3 vies, aucune resurrection, defaite a 0",
+   "fonction": "createInitialState",
+   "fichiers": [
+    "logic/state.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "propriete 'over monotone' + lives==3 initial (CS-10) ; defaite ssi vies==0 (CS-6/7) ; mutation 100% (logic/state.mjs)"
+  },
+  {
+   "feature": "R11 MAP 1 declaration propre",
+   "fonction": "MAP_1",
+   "fichiers": [
+    "data/maps.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "segment map 1 solvable par bot/solver.mjs (Jalon A, CS-1) ; solvability.mjs 5/5 seeds PASS, run entier 3 maps+3 boss ; feature WireMap gelee s5 (CS-3)"
+  },
+  {
+   "feature": "R12 MAP 2 declaration propre distincte",
+   "fonction": "MAP_2",
+   "fichiers": [
+    "data/maps.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "segment map 2 solvable (CS-1, verifie via solvability.mjs + e2e setLevel(2)) ; distincte de MAP_1/MAP_3 en donnees (OBJ) ; gelee (CS-3)"
+  },
+  {
+   "feature": "R13 MAP 3 declaration propre distincte",
+   "fonction": "MAP_3",
+   "fichiers": [
+    "data/maps.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "segment map 3 solvable (CS-1, verifie via solvability.mjs + e2e setLevel(3)) ; distincte des maps 1/2 (OBJ) ; gelee (CS-3)"
+  },
+  {
+   "feature": "R14 BOSS 1 HP propre + pattern propre esquivable",
+   "fonction": "BOSS_1",
+   "fichiers": [
+    "data/bosses.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "esquivabilite pattern boss 1 (CS-2, hasSafeCorridor jamais faux durant le run bot) ; bot bat boss 1 (CS-1) ; e2e bat reellement boss 1 (hp 15->0) ; HP exact jamais negatif via resolvePlayerHits+sys-damage-floor (CS-6) ; gelee (CS-3)"
+  },
+  {
+   "feature": "R15 BOSS 2 HP+pattern propres distincts",
+   "fonction": "BOSS_2",
+   "fichiers": [
+    "data/bosses.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "esquivabilite (CS-2) ; bot bat boss 2 (CS-1) ; e2e bat reellement boss 2 (hp 20->0) ; distinct de boss 1 (OBJ, pattern spiral vs wide_spread) ; gelee (CS-3)"
+  },
+  {
+   "feature": "R16 BOSS 3 defaite => victoire",
+   "fonction": "BOSS_3",
+   "fichiers": [
+    "data/bosses.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "esquivabilite (CS-2) ; bot bat boss 3 => status WON (CS-1) ; e2e bat reellement boss 3 (hp 25->0) puis verifie l'ecran victoire ; gelee (CS-3)"
+  },
+  {
+   "feature": "R17 boss vaincu => map suivante, score+vies conserves",
+   "fonction": "advanceLevel",
+   "fichiers": [
+    "logic/progression.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "assertion : level+1 immediat ; score & vies INCHANGES a la transition (CS-7) ; e2e visite maps 2/3 ; test dedie isolant chaque condition (AND, pas OR) ; mutation 100% (logic/progression.mjs)"
+  },
+  {
+   "feature": "R18 boss 3 vaincu => WON terminal, pas de map 4",
+   "fonction": "resolveVictory",
+   "fichiers": [
+    "logic/progression.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "victoire ssi boss 3 vaincu ; propriete 'transition au-dela map 3 impossible' (CS-10) ; e2e overlay victoire (CS-8/9) ; test dedie isolant chaque des 4 conditions ; mutation 100%"
+  },
+  {
+   "feature": "R19 vies==0 => defaite terminale + overlay",
+   "fonction": "resolveDefeat",
+   "fichiers": [
+    "logic/progression.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "assertion defaite ssi vies==0 (CS-6/7) ; e2e forceLose observe #overlay (CS-8/9)"
+  },
+  {
+   "feature": "R20 #restart => run entier {map1, score0, vies3}",
+   "fonction": "restartRun",
+   "fichiers": [
+    "logic/progression.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "assertion etat post-restart == {level:1,score:0,lives:3} (CS-7) ; e2e clique #restart et verifie l'etat EXACT ; test dedie prouvant le re-spawn des vagues apres restart (regression du bug _spawned corrige)"
+  },
+  {
+   "feature": "R21 step(DT=16ms, inputs) seede, trace identique",
+   "fonction": "step",
+   "fichiers": [
+    "logic/step.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "double execution trace strictement identique + absence Math.random/Date.now/performance.now (CS-4, AI-7) ; mutation 100% (logic/step.mjs, 21 mutants) apres durcissement cible (boss spawn/tir/rebond/progression)"
+  },
+  {
+   "feature": "R22 bot deterministe FINIT le run (3 maps + 3 boss)",
+   "fonction": "runBot",
+   "fichiers": [
+    "bot/solver.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "oracle solvabilite (solvability.mjs cable dans run-oracle.mjs) : SOLVABLE exit 0 sur 5 seeds (1,2,3,4,5) ; sonde de controle REELLE (mur de projectiles complet, hasSafeCorridor execute pour de vrai) sort INJOUABLE ; le bot joue l'API publique (createInitialState+step), etat jamais force (CS-1, AI-1, AI-5). Note builder (MAJ 2026-07-18) : bot/solver.mjs est prouve correct par solvabilite reelle (5/5 seeds + e2e navigateur reel) ET desormais couvert par le gate mutation — 14/14 mutants tues via tests unitaires ajoutes a logic.test.mjs (computeBotInputs exporte + teste EN ISOLATION : esquive/poursuite/centre-boss/defaut-largeur/inputs ; runBot(1) teste comme run complet gagnant). L'ancienne note « hors perimetre mutation » est caduque."
+  },
+  {
+   "feature": "R23 tout pattern laisse un couloir sur atteignable",
+   "fonction": "hasSafeCorridor",
+   "fichiers": [
+    "logic/dodge.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "verif deterministe d'esquivabilite sur sim seedee — aucune frame de mort inevitable sur 5 seeds (bot), sonde de controle (mur complet) correctement INJOUABLE ; mutation 91% (10/11), 1 survivant trie equivalent justifie dans mutation_triage.json (limite de fusion a ecart nul, sans effet observable)"
+  },
+  {
+   "feature": "R24 projectiles simultanes bornes (pooling)",
+   "fonction": "spawnProjectile",
+   "fichiers": [
+    "logic/projectiles.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "propriete seedée 'simultanés <= MAX_PROJECTILES' (CS-10) ; plafond = constante nommée (CS-12) ; spawnProjectile est le SEUL point d'ecriture des pools (ship.mjs/enemies.mjs/step.mjs le consomment tous, plus de check duplique) ; mutation 100% apres retrait des 2 fonctions mortes non utilisees"
+  },
+  {
+   "feature": "R25 logique n'importe ni rendu/input ni DOM ; RNG seede injecte",
+   "fonction": "createRng",
+   "fichiers": [
+    "logic/rng.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "oracle check_architecture : aucun import document/window/canvas/addEventListener/requestAnimationFrame dans logic (CS-5, AI-6) + RNG injecte seede (AI-7) ; test local dedie (logic.test.mjs R25) scanne logic/*.mjs et bot/*.mjs ligne par ligne"
+  },
+  {
+   "feature": "R26 hooks __game/__game_debug + DOM #overlay/#restart",
+   "fonction": "exposeGameHooks",
+   "fichiers": [
+    "main.mjs"
+   ],
+   "version": "v1",
+   "statut": "fait",
+   "preuve": "e2e verifie presence/valeurs des hooks {level,lives,score,over,status,bossHp} (+shipX/bossX au-dela du minimum, pour piloter le combat de boss reel en e2e) + DOM #overlay/#restart (CS-8/9) ; hooks debug jamais utilises pour la preuve de solvabilite (AI-5, solvability.mjs n'importe que logic/ et bot/). MAJ 2026-07-18 : main.mjs desormais couvert par le gate mutation — 18/18 mutants tues via tests unitaires headless ajoutes a logic.test.mjs (environnement navigateur simule window/rAF/canvas, sans navigateur reel) : garde window (L58), detection over ACTIVE/WON (L63), bornes setLevel/spawnBoss (L74/L83/L86), accumulateur a pas fixe 16ms=>1 pas (L33/L37/L40/L42), source d'entree clavier (L18), garde de start() navigateur/headless (L103)"
+  }
+ ]
+}

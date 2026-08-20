@@ -1,0 +1,59 @@
+{
+  "record_type": "studio_operator_inbox",
+  "contract_version": "V0",
+  "generated_at": "2026-05-19T00:00:00Z",
+  "source_current_state_id": "studio_current_state:2026-05-19T00:00:00Z:fixture-state",
+  "top_decision": "HumanGate decision required before treating local state as canonical.",
+  "top_decision_type": "HUMANGATE_REQUIRED",
+  "next_action_summary": "Resolve HumanGate item: HumanGate required by source delta",
+  "next_mission_candidate": {
+    "task_class": "control_plane_audit",
+    "goal": "Audit unresolved surface status: active_runtime_code",
+    "reason": "status_by_surface.active_runtime_code is UNKNOWN; BLOCKED and UNKNOWN are treated as blockers.",
+    "target_files": [],
+    "validation_plan": [
+      "Read current state and identify the smallest evidence needed to resolve UNKNOWN/BLOCKED status."
+    ],
+    "source": "current_state.status_by_surface"
+  },
+  "humangate_required_items": [
+    {
+      "summary": "HumanGate required by source delta",
+      "status": "BLOCKED",
+      "source_snapshot_id": "studio_state_snapshot:2026-05-19T00:00:00Z:fixture-report-001"
+    }
+  ],
+  "open_blockers": [],
+  "open_risks": [],
+  "decision_debt": [],
+  "forbidden_work": [
+    "runtime_activation",
+    "dataset_generation",
+    "training",
+    "benchmark",
+    "model_promotion",
+    "public_claim",
+    "push",
+    "branch",
+    "pr"
+  ],
+  "allowed_operator_actions": [
+    "approve_next_mission_candidate",
+    "reject_next_mission_candidate",
+    "request_read_only_audit",
+    "defer"
+  ],
+  "blocked_actions": [
+    "runtime_activation",
+    "dataset_generation",
+    "training",
+    "benchmark",
+    "model_promotion",
+    "public_claim",
+    "push",
+    "branch",
+    "pr"
+  ],
+  "claim_posture": "NO_CLAIM_ALLOWED",
+  "no_global_ready_verdict": true
+}

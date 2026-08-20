@@ -1,0 +1,91 @@
+`git diff` is denied — not material. I've established HEAD and the working tree agree on all states and types, so the uncommitted modification doesn't change my verdict. I have everything needed. No file was written — the mission found no false-IMPLEMENTED to correct.
+
+---
+
+# RAPPORT FINAL — Vérification Snake (snake-final2-20260729-174101 / s9-build-godot-standard)
+
+**MISSION DE VÉRIFICATION SEULE — aucun fichier de jeu écrit, aucune correction de carte effectuée** (aucun état FAUX de type « IMPLEMENTED sans preuve » n'a été trouvé, seule écriture qui aurait été autorisée).
+
+## software_verdict: OK
+## evidence_verdict: MECHANICAL_VALIDATION_ONLY
+## claim_verdict: NO_CLAIM_ALLOWED
+Vocabulaire : OK / FAIL / BLOCKED.
+
+---
+
+## 1. Faits re-mesurés par EXÉCUTION RÉELLE
+
+| Fait | Commande exécutée | Sortie brute | Verdict |
+|---|---|---|---|
+| Oracle mécanique | `node scripts/forge/godot_oracle.mjs games/snake` | `=== RESULT: 282 passed, 0 failed (fichiers: 26) ===` · `[godot_oracle] OK : run_tests.gd (mecanique)` | OK |
+| Solvabilité (R9) | (même run) | `{"trials":50,"won":50,"lost":0,"failed_seeds":[],"verdict":"OK"}` · `ALL CHECKS PASSED` | OK |
+| Code de retour | `godot_oracle.mjs` → `console.log('ALL CHECKS PASSED'); process.exit(0)` (l.141-142) | exit **0** | OK |
+| Garde anti-faux-vert | lecture `07_TESTS/oracle/run_tests.gd:21` + `tests/run_tests.gd:55-58` | `EXPECTED_ASSERTS := 282` ; le harnais échoue si `total != attendu` ; 282 exécutées == 282 attendues | OK |
+| Fichiers `.gd` | `find games/snake -name '*.gd'` | **67** (l'orchestrateur annonçait 66 ; écart d'1 = `solvability.gd` + harnais inclus) | — |
+
+Note : les 3 `WARNING: best_score vide/corrompu / non inscriptible` de la sortie sont les **tests de mode dégradé** (`best_score_store_degraded.test.gd`) qui exercent volontairement fichier absent/vide/corrompu/non-inscriptible — comportement attendu, pas des échecs.
+
+## 2. Gate mutation (reçu brut lu, non ré-exécuté)
+
+`lab/forge_runs/snake/mutation_receipt_s9r.json` : **killed 63 / total 64**, 1 survivant :
+- `05_SYSTEMS/food_spawn/food_spawn.gd:17` — mutant `true->false` sur `occupees[seg] = true`.
+- Trié **équivalent** dans `games/snake/mutation_triage.json` avec justification nommée : `occupees` est un `Dictionary` utilisé uniquement comme ensemble d'appartenance (seule lecture `occupees.has(c)`, ligne 22) ; la valeur associée n'est jamais lue, donc `true`/`false` produisent une liste de cases libres identique.
+
+**Score de mutation BRUT : 63/64 tués, 1 survivant justifié équivalent** → critère (3) satisfait.
+
+## 3. Oracles du standard — re-exécutés indépendamment
+
+| Oracle | Ré-exécution (Python, sur la carte réelle) | Résultat |
+|---|---|---|
+| `check_line_states(frozen='built')` | mon runner | `passed: True` (0 violation) — OK pour un artefact bâti (IMPLEMENTED autorisé, REQUIRED interdit) |
+| `check_placement(wiremap, repo_map)` | mon runner | `passed: True` |
+| `check_collisions(wiremap, capabilities)` | mon runner | `passed: True` |
+| `check_observable_coverage(wiremap, {})` | mon runner | `passed: False, verdict: BLOCKED`, 0 malformé, 0 ligne_sans_preuve (voir §5) |
+
+## 4. Cohérence carte ↔ disque
+
+`games/snake/09_WIREMAP/wiremap.json`, **44 lignes** :
+- `state == statut` sur **44/44** lignes (0 divergence).
+- **Tous** les fichiers déclarés existent sur disque (0 manquant).
+- **0** ligne IMPLEMENTED avec `preuve` vide.
+- Répartition disque : **40 IMPLEMENTED · 2 DEFERRED · 1 BLOCKED · 1 NOT_APPLICABLE**.
+
+**⚠ Écart avec le snapshot de l'orchestrateur** (annoncé : *41 IMPLEMENTED · 2 DEFERRED · 1 NOT_APPLICABLE · 0 BLOCKED*). Le disque — **HEAD committé ET working tree, vérifiés identiques** (`git show HEAD:…` → mêmes 40/2/1/1, `meta.observable_coverage=BLOCKED`, `observable_by_player` de type `bool`) — porte **40 IMPLEMENTED / 1 BLOCKED**. Le chiffre « 41 IMPLEMENTED / 0 BLOCKED » de l'orchestrateur est **inexact** ; le disque fait foi. Aucune ligne n'est en REQUIRED (conforme).
+
+Réutilisation (comptée à la main, sans re-adjudication) : `NEW 14 · CONCEPT 25 · OUTIL_FORGE 3 · CODE_COPIE 2`.
+
+## 5. Lignes non-IMPLEMENTED — état confronté au réel
+
+- **`core.audio` (DEFERRED)** : ligne CORE en conflit CORE↔design-review sur le retour sonore, `decider: pierre`. Aucun fichier, aucune promesse. État honnête. **Correct.**
+- **`meta.reuse_rate_report` (DEFERRED)** : lecteur mécanique du taux non branché ; taux compté à la main ; `decider: pierre`. **Correct.**
+- **`meta.charter_complete` (NOT_APPLICABLE)** : critère portant sur le charter, vérifié en amont par `check_charter`, aucune ligne de code ne le satisfait/falsifie. **Correct** (NA légal : `source != CORE`).
+- **`meta.observable_coverage` (BLOCKED)** — voir finding ci-dessous.
+
+## 6. FINDINGS à remonter (advisory — je n'ai RIEN écrit)
+
+**F1 — `meta.observable_coverage` : état BLOCKED défendable, mais justification STALE.**
+Le champ `reason`/`preuve` affirme « *44/44 lignes observable_malformes (observable_by_player type str), verdict=FAIL* ». **Sur disque, les 44 `observable_by_player` sont des booléens** (34 `False`, 10 `True`) — la carte a été convertie depuis l'écriture de cette justification. Ma ré-exécution réelle : `check_observable_coverage(wiremap, {})` → `verdict=BLOCKED` (et **non** FAIL), **0 malformé**, 0 ligne_sans_preuve ; le BLOCKED provient uniquement du **reçu vide** (10 lignes `observable=True` nomment des volets `core_boot/core_input_action/core_exit/speed_band_report/replay_determinism/solo_session` absents d'un reçu `{}`). Par ailleurs l'`expected_proof` **propre** de la ligne (`kind: wiremap_check` = « 0 ligne sans `observable_by_player` ») est **satisfait** sur disque. → Question authentique de HumanGate (`decider: pierre`) : la ligne devrait-elle passer IMPLEMENTED (avec un reçu s10a réel des 6 volets) ou rester BLOCKED. **Je ne l'ai pas retournée** : ce n'est pas un « IMPLEMENTED sans preuve » (seul cas que j'étais autorisé à corriger), et fabriquer un vert sur une ligne dont le décideur est Pierre serait un dépassement de garde-fou.
+
+**F2 — `proof.harness` : attestation CODE_COPIE non tenue octet-pour-octet.** `reused_from.type=CODE_COPIE`, `copy_sha256=096cd75…` = empreinte de la source `knowledge_base/systems/navigation/run_tests.gd` (source vérifiée : hash **MATCH**). Mais **aucun** fichier déposé ne reproduit ce hash — le harnais a été **adapté** (`EXPECTED_ASSERTS=282`, +7 fichiers d'adaptateurs, +2 assertions bornes-Y ; adaptation documentée dans l'en-tête du fichier). Une brique CODE_COPIE dont l'empreinte ne se reproduit pas sur disque relève, par garde-fou (g), du **mislabel** : elle est en réalité un CONCEPT (variante), pas une copie. Advisory ; alimente la mesure de réutilisation déjà DEFERRED (`meta.reuse_rate_report`). N'invalide PAS l'état IMPLEMENTED (le harnais exécute réellement 282 assertions).
+
+**F2-contraste — `proof.solvability_bot` : CODE_COPIE PROPRE.** Source `grid_nav.gd` hash MATCH `copy_sha256`, et la copie déposée `06_RUNTIME/adapters/solvability_bot/grid_nav.gd` **byte-matche** `f064870f…`. (Les autres fichiers de la ligne — `bot_policy.gd`, `solvability.gd` — sont des fichiers additionnels de la ligne, non couverts par cette empreinte.)
+
+## Empreintes CODE_COPIE déposées vs `copy_sha256`
+| Ligne | Source (hash source) | Copie déposée | Verdict |
+|---|---|---|---|
+| `proof.solvability_bot` | grid_nav.gd `f064870f…` (MATCH) | `…/solvability_bot/grid_nav.gd` = `f064870f…` | **conforme** |
+| `proof.harness` | run_tests.gd `096cd754…` (MATCH) | harness.gd `51d892e…` / oracle/run_tests.gd `c89bd169…` / tests/run_tests.gd `a3020d36…` | **non-reproduit** (adaptation, F2) |
+
+## Fichiers touchés confrontés à l'ownership de la carte
+**Aucun fichier du jeu, de la carte ou d'ailleurs n'a été écrit/modifié/créé.** Seuls des scripts de mesure temporaires dans le scratchpad de session. Aucune écriture dans `games/pong/**`, `tests/**`, `autopilot.py`, `scripts/studioV2/`. Éditeur Godot jamais ouvert (oracle en headless uniquement). Aucun `git commit/push/checkout/stash/restore`.
+
+## SKIPPED_VALIDATION
+- **check_index** — non ré-exécuté indépendamment. Où : oracles du standard. Statut : non fait. Raison : nécessite un `library_index` que je n'ai pas assemblé ; l'orchestrateur l'annonce `True` et il ne pèse pas sur la décision de correction.
+- **check_genre_coverage (52/52)** — non ré-exécuté. Où : oracles du standard. Statut : non fait. Raison : requiert un dict de Genre Bible parsé depuis un `.md` ; annoncé `True` par l'orchestrateur, structurel, sans effet sur mon mandat.
+- **Gate mutation** — non ré-exécuté en direct. Où : logique pure. Statut : partiel (reçu `mutation_receipt_s9r.json` + `mutation_triage.json` LUS, pas régénérés). Raison : mission de vérification ; le reçu est cohérent (même total 64 / même survivant food_spawn:17).
+- **Preuve visuelle GPU (core.render, pixel)** — non exécutée. Où : `render.*`. Statut : non fait. Raison : exige une fenêtre GPU réelle (`--rendering-driver vulkan`), hors d'une passe de vérification headless ; non re-demandée par la tâche.
+- **Mapping ligne-à-ligne des 40 `preuve` vers une assertion précise** — non fait exhaustivement. Où : 40 lignes IMPLEMENTED. Statut : partiel. Raison : vérifié collectivement via l'oracle-parapluie (282 asserts + garde EXPECTED_ASSERTS + 50/50 solvabilité) ; présence fichiers + preuve non vide vérifiée sur 44/44.
+- **Validation individuelle des 25 réutilisations CONCEPT** — non faite. Où : lignes `reused_from.type=CONCEPT`. Statut : non fait. Raison : hors périmètre d'une passe de constat ; la mesure de taux est déjà DEFERRED à Pierre.
+
+## Conclusion
+Snake est **cohérent avec le disque** et **prouvé par exécution réelle** : oracle mécanique 282/0, solvabilité 50/50, exit 0, garde anti-faux-vert active, gate mutation 63/64 (1 survivant équivalent justifié). La carte est **honnête** — `state==statut` partout, aucun fichier déclaré manquant, aucune ligne sur-revendiquée. **Aucun état FAUX de type « IMPLEMENTED sans preuve » n'existe → aucune écriture effectuée.** Deux points remontés à Pierre (F1 justification stale sur une ligne BLOCKED correctement conservatrice ; F2 CODE_COPIE `proof.harness` en réalité adapté) sont **advisory** et relèvent du HumanGate, pas d'une correction d'agent. Le seul écart réel est côté **snapshot de l'orchestrateur** (41/0 annoncé vs 40/1 sur disque) : le disque fait foi.
