@@ -132,7 +132,7 @@ Voir `_inventory_desktop.md` et `_inventory_downloads.md`. Points saillants :
 - **⚠ Contenu LLM synthétique** : `mega_bible_V1.md` + `max_knowledge_drain_part2.md` = bases d'abilities auto-générées (`f(context,target)`, 261+ entrées génériques). Volume ≠ canon.
 - **Non copié (indexé)** : 4× `MEGA_CORPUS_PART_1/2.md` (136 Mo, 2 uniques + 2 doublons exacts).
 
-### 1.3 Archives PureLab + Bureau Studio-Dev (pointeurs Pierre, reprise 2)
+### 1.3 Archives PureLab + Bureau du poste studio (pointeurs Pierre, reprise 2)
 Vérifiés à la demande de Pierre :
 - **`TacticalChessPureLab/MASTER_DOCS/ARCHIVE/CONTEXT/AUTOBATTLER_RELECTURE_2026_04_26/`** (copié → `incoming/autobattler_relecture_2026-04-26/`, 6 docs). Relecture structurée **entièrement dérivée de project_genesis** (chaque point cite sa section). Lignée T. **Valeur nette** :
   - **Mode produit candidat « autobattler »** : phase stratégique (draft + placement + éventuel 1 sort) puis **combats auto-résolus** — déplace la charge du micro-exécution vers draft/placement. → option forte pour la décision **C8 / product mode** (et pour le CERFA « expérience joueur »).

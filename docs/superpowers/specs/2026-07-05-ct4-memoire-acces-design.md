@@ -37,7 +37,7 @@ consommateurs (agents du studio, Claude Desktop, Claude Code, interface llm-lego
 
 ### Le vrai reste de CT-4
 La mémoire **machine** (`memory/`) vit **hors du vault**, à un chemin **imposé par le
-harness** (`C:\Users\Studio-Dev\.claude\projects\C--TACTICAL-CHESS-STUDIO\memory\`). Un
+harness** (`C:\Users\<utilisateur>\.claude\projects\C--TACTICAL-CHESS-STUDIO\memory\`). Un
 Obsidian/MCP branché sur `studio_brain/` seul ne la verrait pas. → fracture à combler.
 
 ---
@@ -84,7 +84,7 @@ Les deux faces (§3.2, §3.3) opèrent sur **ces mêmes fichiers**.
       },
       "tcs-facts": {
         "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\Studio-Dev\\.claude\\projects\\C--TACTICAL-CHESS-STUDIO\\memory"]
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\<utilisateur>\\.claude\\projects\\C--TACTICAL-CHESS-STUDIO\\memory"]
       }
     }
   }

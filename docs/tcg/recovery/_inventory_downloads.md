@@ -1,6 +1,6 @@
-# Inventaire récupération — Downloads (Studio-Dev)
+# Inventaire récupération — Downloads (poste studio)
 
-Source : `/c/Users/Studio-Dev/Downloads`. Copies vers `incoming/`, préfixe `downloads_<mtime>__`.
+Source : `/c/Users/<utilisateur>/Downloads`. Copies vers `incoming/`, préfixe `downloads_<mtime>__`.
 Généré 2026-07-06 (reconstruit à la main : l'agent avait fait les copies mais la limite de session a coupé l'écriture du tableau). Lecture seule, aucun original modifié.
 
 ## Résumé

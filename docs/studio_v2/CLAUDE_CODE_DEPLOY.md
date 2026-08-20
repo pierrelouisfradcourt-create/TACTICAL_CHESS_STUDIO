@@ -13,7 +13,7 @@ Appliquer le patch décrit dans `docs/studio_v2/PATCH_api_projects.md` à `autop
 - **Vérif :** `curl http://localhost:7331/api/projects` renvoie le tableau JSON des jeux (Snake Survivor + autres). Le Build Board du cockpit affiche alors les jeux en live (multi-jeux).
 
 ## Étape 2 — Mémoire vivante : MCP filesystem sur le vault
-Éditer `%APPDATA%\Claude\claude_desktop_config.json` (= `C:\Users\Studio-Dev\AppData\Roaming\Claude\claude_desktop_config.json`). **Fusionner** (ne pas écraser) dans `mcpServers` :
+Éditer `%APPDATA%\Claude\claude_desktop_config.json` (= `C:\Users\<utilisateur>\AppData\Roaming\Claude\claude_desktop_config.json`). **Fusionner** (ne pas écraser) dans `mcpServers` :
 ```json
 {
   "mcpServers": {

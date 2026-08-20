@@ -547,7 +547,7 @@ Lire le fichier s'il existe, sauvegarder `claude_desktop_config.json.bak-2026-07
 {
   "mcpServers": {
     "tcs-brain": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "C:\\TACTICAL_CHESS_STUDIO\\studio_brain"] },
-    "tcs-facts": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\Studio-Dev\\.claude\\projects\\C--TACTICAL-CHESS-STUDIO\\memory"] }
+    "tcs-facts": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\<utilisateur>\\.claude\\projects\\C--TACTICAL-CHESS-STUDIO\\memory"] }
   }
 }
 ```

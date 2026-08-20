@@ -405,7 +405,7 @@ Cause mesurée : `_STEP_TOOLS` n'a **aucune entrée** pour `s1-prisme`, donc
 **Hypothèse d'héritage — FALSIFIÉE, 2026-08-13** `[M]`. Première explication avancée puis
 retirée : « le subprocess hérite des 496 entrées d'allow de `.claude/settings.local.json` ».
 C'est faux. Mesuré : ce fichier n'autorise `Read` que sur **3 chemins** (`//mnt/c/**`,
-`//root/**`, `//c/Users/Studio-Dev/**`) — le dépôt est `/c/TACTICAL_CHESS_STUDIO`, qui n'en
+`//root/**`, `//c/Users/<utilisateur>/**`) — le dépôt est `/c/TACTICAL_CHESS_STUDIO`, qui n'en
 match **aucun** — et `Glob`/`Grep` y ont **0 entrée**, comme dans `settings.json`.
 
 => Cause réelle : **`--permission-mode manual` ne filtre pas les outils de lecture.** Aucune

@@ -8,7 +8,7 @@
 
 ## Controls (minimum)
 1. MFA enabled on Microsoft, GitHub, email, password manager.
-2. Use non-admin daily account (`Studio-Dev`), admin only for maintenance.
+2. Use non-admin daily account, admin only for maintenance.
 3. BitLocker active on all studio data volumes.
 4. Defender real-time + tamper protection + firewall enabled.
 5. RDP disabled unless strict VPN + MFA use-case.

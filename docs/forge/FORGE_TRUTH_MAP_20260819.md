@@ -461,7 +461,7 @@ Découvert en cadrant T4, fermé le 2026-08-19. **Indépendant de T4** : s'est f
 
 ### T8 — Publication
 
-- **CAUSE** — pousser publie 112 commits, dont 43 fichiers portant **16 096 références** à `C:\Users\Studio-Dev\.claude\projects\`. L'exclusion par chemin est impossible : git publie des **commits**.
+- **CAUSE** — pousser publie 112 commits, dont 43 fichiers portant **16 096 références** à `le repertoire de transcripts local (`<home>/.claude/projects/`)`. L'exclusion par chemin est impossible : git publie des **commits**.
 - **ACTION** — aucune. Décision de périmètre différée par Pierre.
 - **PREUVE** — 16 096 occurrences comptées ; outil d'anonymisation écrit, périmètre 122/16 096, **jamais appliqué**.
 - **NEXT** — `BLOCKED`, hors de cette remise à plat.

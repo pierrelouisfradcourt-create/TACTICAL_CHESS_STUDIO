@@ -1,6 +1,6 @@
-# Inventaire récupération — Desktop (Studio-Dev)
+# Inventaire récupération — Desktop (poste studio)
 
-Source : `/c/Users/Studio-Dev/Desktop` (racine + `md claude`, `files_extracted`, `RECOVER`, `OUTSIDE_PACK`, `Nouveau dossier`).
+Source : `/c/Users/<utilisateur>/Desktop` (racine + `md claude`, `files_extracted`, `RECOVER`, `OUTSIDE_PACK`, `Nouveau dossier`).
 Généré : 2026-07-06. Agent lecture seule. Copies vers `docs/tcg/recovery/incoming/`, préfixe `desktop_<mtime>__`.
 Hors scope (autre agent) : TacticalChessPureLab, archives, runtime_outputs.
 

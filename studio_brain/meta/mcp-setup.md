@@ -16,7 +16,7 @@ Un serveur MCP filesystem pointé sur le vault. Pas besoin qu'Obsidian tourne.
 > ⚠️ **CHEMIN CORRIGÉ (2026-07-05)** — l'install Claude Desktop ici est **Microsoft Store (MSIX)**.
 > Le fichier lu par l'app n'est **PAS** `%APPDATA%\Claude\...` (ça, rien ne le lit → piège), mais le
 > chemin **packagé** :
-> `C:\Users\Studio-Dev\AppData\Local\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`
+> `C:\Users\<utilisateur>\AppData\Local\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`
 > Le plus sûr : dans l'app → **Paramètres → Développeur → Modifier la config** (ouvre LE bon fichier).
 > **Fusionner** dans `mcpServers` — ne pas écraser `preferences` / `coworkUserFilesPath`.
 
@@ -32,7 +32,7 @@ Un serveur MCP filesystem pointé sur le vault. Pas besoin qu'Obsidian tourne.
     },
     "studio-facts": {
       "command": "cmd",
-      "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\Studio-Dev\\.claude\\projects\\C--TACTICAL-CHESS-STUDIO\\memory"]
+      "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\<utilisateur>\\.claude\\projects\\C--TACTICAL-CHESS-STUDIO\\memory"]
     }
   }
 }

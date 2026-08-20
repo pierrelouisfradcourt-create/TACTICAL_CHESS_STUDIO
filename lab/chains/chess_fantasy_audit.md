@@ -1,6 +1,6 @@
 # Chess Fantasy / TCG — Audit exhaustif
 **Date :** 2026-06-01  
-**Périmètre :** C:\TACTICAL_CHESS_STUDIO + C:\Users\Studio-Dev\Desktop\  
+**Périmètre :** C:\TACTICAL_CHESS_STUDIO + C:\Users\<utilisateur>\Desktop\  
 **Mots-clés cherchés :** fantasy, TCG, carte, card, matrice, generator, faction, budget, ATK, ARM, HP, effet, statut, draft, sideboard  
 **Mode :** LECTURE SEULE — aucune modification  
 
@@ -90,7 +90,7 @@ Chemin : `SOURCE_IMPORTS/TacticalChessPureLab_github_main/MASTER_DOCS/ARCHIVE/CO
 
 ### Desktop studioV2 — résultat
 
-**Chemin :** `C:\Users\Studio-Dev\Desktop\studioV2\`  
+**Chemin :** `C:\Users\<utilisateur>\Desktop\studioV2\`  
 **Conclusion :** Projet runtime actif (moteur Rust tactique), sans aucun fichier Chess Fantasy/TCG spécifique. Hors périmètre.
 
 ---
