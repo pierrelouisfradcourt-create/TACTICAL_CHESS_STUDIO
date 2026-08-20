@@ -151,6 +151,47 @@ def verify_receipt(receipt: OracleReceipt, signature: str, key_file: Path | None
     return _verify_mapping(asdict(receipt), signature, key_file)
 
 
+_SCELLABLE_CACHE: dict[str, bool] = {}
+SEAL_SKIP_KEY = "evidence_seal"
+
+
+def evidence_is_sealable(chemin: Path | str) -> bool:
+    """Ce fichier peut-il porter un sceau que le DEPOT saura honorer ?
+
+    CRITERE = `.gitignore`, pas une liste d'extensions. Doctrine ratifiee Pierre 2026-08-04
+    (POLITIQUE OPTION C) : « un registre versionne qui cite un fichier ignore cree une
+    reference que le depot ne peut pas honorer ». Mesure qui l'avait motivee : 57 references
+    versionnees vers des fichiers ignores, et 13 x `evidence_missing` sur un clone frais.
+
+    `.gitignore` ENCODE DEJA la distinction preuve/flux, y compris ses exceptions :
+        lab/forge_runs/**/evidence/oracle_<jeu>.log   IGNORE        -> flux
+        lab/forge_runs/**/evidence/mutation_*.json    versionnable  -> preuve
+        knowledge_base/proofs/*.log                   versionnable  -> exception 2026-07-13
+    Le jour ou la politique change, ce code suit sans etre touche. Une liste d'extensions,
+    elle, aurait diverge en silence.
+
+    GIT INJOIGNABLE -> True (on scelle), c'est-a-dire le comportement d'AVANT. Sous
+    incertitude on ne modifie pas silencieusement un comportement etabli ; l'inverse
+    supprimerait des sceaux sans que personne ne l'ait decide.
+    """
+    import subprocess   # import LOCAL, comme `_git_head` : git reste optionnel ici
+    if not chemin:
+        return False
+    cle = str(chemin)
+    if cle in _SCELLABLE_CACHE:
+        return _SCELLABLE_CACHE[cle]
+    try:
+        code = subprocess.run(["git", "check-ignore", "-q", cle],
+                              cwd=str(REPO_ROOT), capture_output=True).returncode
+        scellable = code != 0          # 0 = ignore, 1 = versionnable, 128 = erreur
+        if code not in (0, 1):
+            scellable = True
+    except OSError:
+        scellable = True
+    _SCELLABLE_CACHE[cle] = scellable
+    return scellable
+
+
 def make_signed_receipt(
     oracle_id: str, run_id: str, status: str, detail: dict,
     *, evidence_sha256: str = "", evidence_path: str = "", ts: float | None = None,
@@ -175,15 +216,28 @@ def make_signed_receipt(
     """
     if status not in RECEIPT_STATUSES:
         raise ValueError(f"status de reçu invalide: {status!r}")
+    detail = dict(detail or {})
     if evidence_path and not evidence_sha256:
-        # MEME autorite qu a la verification : si la creation resolvait contre le cwd et
-        # la verification contre la racine, les deux ne parleraient pas du meme fichier.
-        evidence_sha256 = sha256_evidence(evidence_path)
+        # OPTION A (ratifiee Pierre 2026-08-20) : on ne scelle QUE ce que le depot peut
+        # honorer. Sceller un flux d'exploitation ignore par git produisait une promesse
+        # invalide des le clone — 37 recus dans ce cas.
+        if evidence_is_sealable(evidence_path):
+            # MEME autorite qu a la verification : si la creation resolvait contre le cwd et
+            # la verification contre la racine, les deux ne parleraient pas du meme fichier.
+            evidence_sha256 = sha256_evidence(evidence_path)
+        else:
+            # Le MOTIF est pose AVANT le check et VOYAGE avec le recu : un sceau vide sans
+            # raison serait indiscernable d'un calcul rate. Motif ratifie 2026-08-17.
+            detail[SEAL_SKIP_KEY] = {
+                "sealed": False,
+                "reason": "FLUX_D_EXPLOITATION_IGNORE_PAR_GIT",
+                "evidence_path": str(evidence_path),
+            }
     if ts is None:
         ts = time.time()
     receipt = OracleReceipt(
         oracle_id=oracle_id, run_id=run_id, status=status,
-        evidence_sha256=evidence_sha256, detail=dict(detail or {}), ts=ts,
+        evidence_sha256=evidence_sha256, detail=detail, ts=ts,
         evidence_path=canonical_evidence_path(evidence_path),
     )
     return SignedReceipt(receipt=receipt, signature=sign_receipt(receipt, key_file))
@@ -479,7 +533,10 @@ def build_aggregate_verdict(
         # Scellé d'évidence NON décoratif : si le reçu pointe un fichier d'évidence,
         # on RE-LIT son contenu et on confronte le hash signé au réel. Discordance
         # (log absent/altéré) => provenance rompue. Sauter (SKIPPED) n'a pas d'évidence.
-        if sr.receipt.status != "SKIPPED" and sr.receipt.evidence_path:
+        # `evidence_sha256` VIDE = rien n'a ete promis (flux non scellable, cf.
+        # `evidence_is_sealable`). Confronter un sceau absent inventerait une rupture.
+        if (sr.receipt.status != "SKIPPED" and sr.receipt.evidence_path
+                and sr.receipt.evidence_sha256):
             actual = sha256_evidence(sr.receipt.evidence_path)
             if actual != sr.receipt.evidence_sha256:
                 provenance_ok = False
