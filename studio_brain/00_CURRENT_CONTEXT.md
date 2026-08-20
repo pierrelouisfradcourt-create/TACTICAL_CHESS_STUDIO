@@ -73,8 +73,11 @@ octet pour octet identiques**.
 ### Ouvert, non décidé
 - `publish` comme branche **par défaut** GitHub → décision manuelle, non faite.
 - Publication de `master` → toujours **BLOCKED**.
-- **2 rouges Node périmés** — `studio_selfaudit_solvability_budget.test.mjs` exige une
-  anomalie tetris fermée par `1c0eb95`. Déclarés, pas masqués.
+- ~~2 rouges Node périmés~~ → **FERMÉS** (`1ce25f9`). `studio_selfaudit_solvability_budget`
+  liait un test de **pont** à l'état du **parc** : il exigeait une anomalie tetris, fermée
+  par `1c0eb95`. Assertion inversée (« aucune divergence » est l'état ratifié) + un test
+  qui **injecte une anomalie synthétique** au lieu d'en attendre une du parc.
+  **Suite node : 821 / 821 vertes, 0 rouge.**
 - Clé HMAC par défaut → vrai sujet **sécurité**, hors hygiène de publication.
 - Backlog `§18` du Master Schéma V2 : P0 détectabilité, P1 étage ② + un run `full` pour
   observer enfin la lignée causale, P2 `reuse_ratio` ×12 et `agent_factory` sans appelant.
