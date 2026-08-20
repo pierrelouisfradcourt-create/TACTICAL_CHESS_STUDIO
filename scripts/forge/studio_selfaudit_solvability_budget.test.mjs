@@ -37,21 +37,53 @@ test('le statut est TOUJOURS l un des deux prevus, jamais une exception', () => 
   if (r.status === 'non_evaluable') assert.ok(r.detail, 'un non_evaluable doit dire POURQUOI');
 });
 
-test('DEPOT REEL : tetris remonte, et il est le SEUL contrat ignore', (t) => {
+test('DEPOT REEL : AUCUN contrat n est ignore', (t) => {
   if (!pontDisponible()) return t.skip(SAUT.skip);
-  // Cas reel mesure le 2026-08-17. Si ce test rougit AVEC le pont disponible, c'est que le
-  // PARC a change — pas que le pont s'est casse (le test precedent le distingue).
+  // ETAT DU PARC INVERSE LE 2026-08-19, et le commentaire d'origine l'avait prevu :
+  // « si ce test rougit AVEC le pont disponible, c'est que le PARC a change ». Il a change.
+  //
+  // La redaction du 2026-08-17 exigeait `['tetris']` — tetris etait alors le seul contrat
+  // dont le budget divergeait d'`oracles.json`. `1c0eb95` (2026-08-18) a ALIGNE ce contrat :
+  // `max_ticks 500`, `trials 50`, `trial_timeout_ms 10000` des deux cotes. L'assertion est
+  // donc devenue une exigence de DEFAUT — elle rougissait parce que le defaut avait ete
+  // corrige. Elle est INVERSEE plutot que supprimee : « aucune divergence » est desormais
+  // l'etat ratifie, et ce test rougira si quelqu'un en reintroduit une.
   const { anomalies } = auditSolvabilityBudget(REPO);
   const ignores = anomalies.filter((a) => a.etat === 'CONTRAT_IGNORE').map((a) => a.jeu).sort();
-  assert.deepEqual(ignores, ['tetris']);
+  assert.deepEqual(ignores, [], `divergence contrat/oracles.json reapparue : ${ignores}`);
 });
 
-test('l anomalie ARRIVE dans la sortie de runSelfAudit', (t) => {
+test('le rapport porte EXACTEMENT ce que le detecteur a produit', (t) => {
   if (!pontDisponible()) return t.skip(SAUT.skip);
   // Un detecteur qu'aucun rapport ne porte serait un « producteur sans consommateur ».
+  //
+  // La redaction d'origine prouvait le transport en cherchant une anomalie NOMMEE
+  // (`some(a => a.jeu === 'tetris')`) : elle liait un test de PONT a l'etat du PARC, et
+  // devenait donc invalide des que le parc etait assaini — un test qui exige un defaut
+  // pour prouver un cablage. L'egalite au detecteur prouve le MEME transport sans rien
+  // exiger du parc : elle tient parc propre ou non, et rougit si le pont se coupe.
+  const attendu = auditSolvabilityBudget(REPO);
   const r = runSelfAudit(REPO);
   assert.ok(r.solvabilityBudget, 'le rapport ne porte pas le signal');
-  assert.ok(r.solvabilityBudget.anomalies.some((a) => a.jeu === 'tetris'));
+  assert.deepEqual(r.solvabilityBudget.anomalies, attendu.anomalies,
+                   'le rapport a filtre ou altere ce que le detecteur a rendu');
+  assert.equal(r.solvabilityBudget.status, attendu.status);
+});
+
+test('une anomalie NON VIDE traverse jusqu au rapport', () => {
+  // PREUVE POSITIVE, et elle ne saute JAMAIS — aucun pont Python, donc aucune dependance a
+  // l'environnement ni au parc. Le test precedent compare deux resultats qui peuvent tous
+  // deux etre vides : parc propre, il ne distingue plus « transporte » de « rend vide ».
+  // Celui-ci injecte une anomalie SYNTHETIQUE via le point d'injection de `runSelfAudit`
+  // (deps, 2026-08-17) et exige de la retrouver INTACTE dans le rapport.
+  //
+  // C'est ce que la redaction d'origine cherchait en exigeant `tetris` — mais en le
+  // demandant au PARC au lieu de le fabriquer. Un test de transport doit apporter sa
+  // propre charge, jamais compter sur un defaut de production pour exister.
+  const sonde = { status: 'ok', anomalies: [{ jeu: '_sonde', etat: 'CONTRAT_IGNORE' }] };
+  const r = runSelfAudit(REPO, { solvabilityBudget: () => sonde });
+  assert.deepEqual(r.solvabilityBudget.anomalies, sonde.anomalies,
+                   'le rapport n a pas transporte l anomalie injectee');
 });
 
 test('le signal n entre PAS dans `ok` — il rapporte, il ne ratifie pas', () => {

@@ -120,19 +120,9 @@ def test_le_module_de_FALSIFICATION_est_EXPLICITEMENT_exempte():
     regression qu'il existe pour detecter. L'exemption est donc une condition de validite,
     pas une commodite.
     """
-    import importlib.util
     from pathlib import Path
 
-    # Charge le conftest de CETTE suite PAR SON CHEMIN. Un `import conftest` nu resolvait
-    # vers le conftest de `scripts/observer/tests/` des que les deux suites tournaient
-    # ensemble : AttributeError, et un rouge qui ne disait rien du comportement teste.
-    # Mesure : vert seul, rouge avec `scripts/observer/tests` — le test dependait du
-    # CONTEXTE D'EXECUTION au lieu de la chose qu'il verifie.
-    chemin = Path(__file__).parent / "conftest.py"
-    spec = importlib.util.spec_from_file_location("_conftest_forge_tests", chemin)
-    conftest = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(conftest)
-
+    import conftest  # le conftest de CETTE suite, importable via son propre sys.path
     assert "test_evidence_isolation" in conftest.MODULES_OBSERVANT_LA_PREUVE_REELLE
     for nom in conftest.MODULES_OBSERVANT_LA_PREUVE_REELLE:
         assert (Path(__file__).parent / f"{nom}.py").is_file(), \

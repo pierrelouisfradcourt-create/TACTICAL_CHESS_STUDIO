@@ -27,6 +27,16 @@ from observer.correlate import prompt_drift, reconstruct  # noqa: E402
 from observer.events import Event  # noqa: E402
 from observer.facts import build_facts, summarize  # noqa: E402
 from observer.session_transition import build as build_session_transition  # noqa: E402
+
+# Deracinement des chemins de transcript AU MOMENT DE L'ECRITURE (GO Pierre 2026-08-20).
+# Le prefixe `<disque>:/Users/<compte>/.claude` est personnel et NON probatoire : le
+# projet et l'identifiant de session survivent, seule la disposition du poste disparâit.
+# Ici et pas ailleurs : c'est le SEUL endroit qui ecrit les trois artefacts, donc le seul
+# ou le branchement ne peut pas etre contourne par un seconde chemin de production.
+from forge.anonymize_session_paths import (  # noqa: E402
+    anonymize_deep,
+    anonymize_text,
+)
 from observer.views import build_views  # noqa: E402
 from observer.sources import (  # noqa: E402
     BlindnessViolation,
@@ -261,19 +271,21 @@ def main(argv: list[str] | None = None) -> int:
 
     json_path = out_dir / "observer_run.json"
     json_path.write_text(
-        json.dumps(result, indent=2, ensure_ascii=False, default=str),
+        json.dumps(anonymize_deep(result), indent=2, ensure_ascii=False, default=str),
         encoding="utf-8",
     )
 
     md_path = out_dir / "RECONSTRUCTION.md"
-    md_path.write_text(render_markdown(result, adapters), encoding="utf-8")
+    md_path.write_text(anonymize_text(render_markdown(result, adapters)),
+                       encoding="utf-8")
 
     if args.events:
         events_path = out_dir / "events.jsonl"
         with events_path.open("w", encoding="utf-8") as handle:
             for event in sorted(events, key=lambda e: (e.ts or 0.0, e.kind)):
                 handle.write(
-                    json.dumps(event.to_dict(), ensure_ascii=False, default=str) + "\n"
+                    json.dumps(anonymize_deep(event.to_dict()),
+                               ensure_ascii=False, default=str) + "\n"
                 )
 
     summary = result["facts_summary"]
