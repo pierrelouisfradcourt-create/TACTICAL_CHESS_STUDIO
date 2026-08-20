@@ -814,6 +814,218 @@ Experience est au bon endroit. HumanGate Pierre.
 
 ---
 
+## 2026-08-06 — Pac-Man V5 validé comme jeu de référence Forge (PACMAN_V5_VALIDATED_V1)
+
+**Décision** : Pac-Man V5 est **VALIDÉ** par Pierre, pas gelé — aucun interdit de modification
+ultérieure. Le mode (NORMAL/Découverte) et le dash restent **SÉPARÉS** (décision Pierre explicite,
+après mesure différentielle montrant le dash INERTE sur les vies : contrôle NORMAL/NORMAL → 0
+divergence, réel NORMAL/TEST → 200 divergences sur la seule clé `["vies"]`). Pac-Man devient le
+**jeu de référence pour tester la Forge**.
+
+**Contexte** : chaîne `full_godot` parcourue sans contournement + 5 lots de finition guidés par
+playtest humain (V2→V6). Preuve mécanique : `godot_oracle` exit 0 (2740 assertions, solvabilité
+50/50 sur 3 cartes) · `check_runtime_truth` OK (audio/input/render) · mutation 82/83 tués (1
+survivant équivalent réancré) · wiremap gelée 85/85 lignes IMPLEMENTED · `verify_run` AUTHENTIQUE.
+10 défauts produit trouvés par playtest humain **sous oracles verts** (tracés
+`lab/forge_runs/pacman/playtest_report.json`, HUMAN_PERCEPTION_PROOF, propose-only) — rappel que
+les oracles mécaniques ne couvrent pas tout. Non prouvé et déclaré comme tel : rendu pixel réel
+(`--headless` = texture nulle), restitution sonore audible, ressenti d'équilibrage, formulation de
+l'easter egg — relèvent du HumanGate, non auto-certifiables.
+
+**Alternatives rejetées** : geler le jeu (rejeté — Pierre précise explicitement que validé ≠ gelé,
+modification ultérieure autorisée) ; fusionner mode et dash en un seul levier (rejeté — mesure
+différentielle a montré leur indépendance, les garder séparés évite de coupler deux réglages
+orthogonaux).
+
+**Critères de révision** : si un futur lot touche au mode ou au dash, revérifier l'indépendance
+mesurée avant de les recoupler.
+
+---
+
+## 2026-08-06 — Clôture Asset Library V1 annulée par Pierre (ASSET_LIBRARY_V1_HOLD)
+
+**Décision** : la clôture du chantier Asset Library V1 (chaîne de production d'assets 3D, livrée
+`04c1c159`/`07-07`) est **annulée** par Pierre. Le travail est volontairement laissé **non commité**
+(75 fichiers en attente dans l'arbre de travail) — ne pas le commiter sans demande explicite.
+
+**Contexte** : décision prise en session le 2026-08-06, capturée dans le handoff
+`00_CURRENT_CONTEXT.md` mais jamais reportée au registre canonique — écart de synchronisation
+corrigé ici lors de la revue hebdomadaire du 2026-08-09.
+
+**Critères de révision** : reprise du chantier ou décision de commit/abandon sur nouveau go Pierre
+explicite.
+
+---
+
+## 2026-08-12 — Zone protégée `tests/` de bomberman_3d — RATIFIÉE
+
+**Décision (Pierre, GO limité du 2026-08-12, point 5)** : ratifier les modifications déjà
+apportées aux fichiers de test de `games/bomberman_3d/`, malgré `.claude/rules/tests.md`
+(« ZONE PROTÉGÉE — aucun agent ne modifie ces fichiers »).
+
+Fichiers couverts :
+- `07_TESTS/unit/test_lisibilite.gd`
+- `07_TESTS/unit/test_app_state.gd`
+- `07_TESTS/unit/test_audio_score.gd`
+- `tests/run_tests.gd` (`EXPECTED_ASSERTS` 462 → 584)
+
+**Contexte** : les missions successives (personnages V1/V2, boucle menu, audio, J2/J4)
+exigeaient explicitement une preuve mécanique et sa falsification. Aucune de ces preuves ne
+peut exister sans écrire de test. L'écart a été signalé dans chaque rapport de fin de lot,
+jamais passé sous silence. Portée : +122 assertions, aucune assertion existante supprimée ni
+affaiblie ; `EXPECTED_ASSERTS` relevé APRÈS constat du compte réel à chaque fois, donc le
+garde anti-faux-vert reste actif.
+
+**Alternatives rejetées** :
+- Livrer sans preuve — contredit « ne pas déclarer une décision implémentée avant preuve ».
+- Créer une suite parallèle hors zone protégée — aurait dédoublé l'architecture de test et
+  son garde anti-faux-vert.
+
+**Critères de révision** : cette ratification couvre l'EXISTANT, elle n'ouvre pas la zone.
+Toute modification future de `07_TESTS/**` ou `tests/**` redemande une gate explicite.
+
+---
+
+## 2026-08-10 — Un sous-système inerte doit se déclarer inerte (PASSIVE ≠ capacité)
+
+**Décision (Pierre, 2026-08-10 ; commitée le 08-15 après isolation de lignée, `111fa4b`)** :
+l'oracle de divergence Godot est **conservé mais marqué PASSIVE / NOT_WIRED dans le code
+lui-même**, plutôt que supprimé ou présenté comme disponible. Règle généralisée : `IMPLEMENTED +
+TESTED + 0 consommateur + 0 donnée d'entrée = PASSIVE`, jamais une capacité opérationnelle.
+Corollaire ratifié le même jour sur la boucle de revue (`314fe19`) : **un oracle rapporte une
+divergence, il ne ratifie jamais — apposer un statut reste un acte humain.**
+
+**Contexte** : audit de réalité (déclaration → producteur → consommateur → runtime → preuve). Ce
+qui est vrai : le code existe et 17 tests passent. Ce qui manque, mesuré : aucun consommateur
+(`driver.py:70` n'importe que `has_godot_capacity`/`run_godot_product_oracle`), aucun jeu du dépôt
+ne porte de `divergence_manifest.json`, aucun producteur de manifeste n'est déclaré nulle part.
+**Des tests verts ne suffisent plus comme critère de fin** — sinon la carte du studio ment en
+silence (règle « déclare ≠ exécute »).
+
+**Alternatives rejetées** :
+- Supprimer le sous-système — jetterait 17 tests verts et une convention d'emplacement déjà
+  réelle dans 5 jeux (`07_TESTS/oracle/`).
+- Inventer le producteur manquant pour « finir » — exactement le geste que la réparation de la
+  boucle de revue disqualifie : la prochaine étape n'était déductible d'aucune ligne du dépôt.
+
+**Critères de révision** : séquence d'activation inscrite dans le bandeau du module — décider
+d'abord QUI produit `divergence_manifest.json` et l'inscrire dans un contrat d'étape.
+
+---
+
+## 2026-08-13 — Cible de pipeline Forge V1 figée (FORGE_PIPELINE_TARGET_V1, P0)
+
+**Décision (Pierre, ratifiée en conversation le 2026-08-13 ; commitée `e9e37a1`)** : figer une
+**cible** de workflow de production — Agent Artistique → World Scan → Game Master → matrices →
+Architecte/WireMap → Build → Oracles → Lessons → Mutation — dans
+`docs/forge/FORGE_PIPELINE_TARGET_V1.md`, avec pour chaque flèche l'**écart mesuré** avec le réel
+(convention `[M]` mesuré fichier:ligne · `[H]` hypothèse · `[D]` décision de Pierre).
+
+**Contexte** : aucun document existant ne figeait un pipeline de production —
+`MASTER_SCHEMA_V2_PROPOSAL` traite de la représentation, `PLAN_CONVERGENCE_FORGE_V1` de la
+convergence, `FORGE_STATE_V2_0` d'un snapshot. Le document **ne décrit pas l'état du dépôt** et le
+dit. Périmètre de commit volontairement restreint (option ratifiée Pierre) aux fichiers
+vérifiables ligne à ligne ; les 4 fichiers de code portaient une autre lignée non commitée.
+
+Découvertes mesurées de la même session, qui contraignent la cible : une allow-list
+**pré-approuve, elle ne restreint pas** (seul `--disallowedTools` applique ; `Bash` reste un
+passe-partout) · `contract.permissions` n'était consommé par **aucun** code · **1672 tests verts
+n'ont pas vu la panne** que le premier run réel a révélée.
+
+**Amendements de zone protégée couverts par cette gate** (prolongement de l'entrée du 2026-08-12) :
+`scripts/forge/tests/test_context_manifest_p4_p7_execution_fields.py` (gate Pierre explicite du
+08-13, attendu réaligné sur la sémantique M1) et `scripts/forge/tests/test_learning_memory.py`
+(GO Pierre du 08-15). Comme le 08-12 : la ratification couvre **l'existant**, elle n'ouvre pas la
+zone.
+
+**Alternatives rejetées** :
+- Documenter l'état réel plutôt qu'une cible — un snapshot de plus, sans direction opposable.
+- Commiter les 4 fichiers de code avec le doc — aurait mélangé deux lignées causales.
+
+**Critères de révision** : gates restées ouvertes à la date de gel — §7.1 identité du Producteur
+interactif (563 spawns, `PostToolUse` matche `Task` → NOT_WIRED) · §7.2 les 7 stations amont et
+10 matrices · M5 capteur « outil UTILISÉ vs outil ACCORDÉ » · troncature amont (~39 % du World
+Scan perdu) · M3 bout-en-bout. Chaque fermeture réinterroge la cible.
+
+---
+
+## 2026-08-15 — L'unité de validation est `HEAD + lignée reconstruite`, pas le working tree
+
+**Décision (Pierre, 2026-08-15)** — méthode de travail ratifiée, applicable à tout lot :
+
+> L'unité de validation n'est pas le working tree. C'est **`HEAD + lignée reconstruite`**, puis les
+> tests exécutés sur cet état exact.
+
+**Corollaire ratifié** : *un lot « monolithique » ne l'est souvent que parce qu'une lignée AMONT
+n'est pas commitée.*
+
+**Contexte** : démontré 3 fois dans la session, **sans qu'une ligne des lots bloqués ne change** —
+`KB → P0-1`, `L0b → P0-4`, `P0-4 → P0-3`. Démontré aussi par la négative : le Lot 1 commité en bloc
+donnait 8 échecs sur l'état prospectif alors que le working tree était vert. Résultat : **10 lots
+livrés, un GO Pierre par lot, chacun validé sur SON état commité** (`cb025dd`, `ab45f03`,
+`b21d118`, `f035755`, `9bb6241`, `b620816`, `5a005c9`, `7f239f0`, `8c72e1a`, `77bbeb4`, `80f91cb`,
+`bfe7ecb`). Trois « validateur sans consommateur » fermés (`observable_coverage` calculé puis jeté ·
+`is_game` signé sans producteur · oracle GPU jamais appelé) ; deux dettes de preuve fermées **par
+falsification** contre l'état sans le code, pas par simple non-régression. Un rouge de baseline
+(`ORDER`), antérieur et hors périmètre, n'a jamais été absorbé dans un « suite verte ».
+
+**Arbitrage lié, même date** : M5 (capteur « outil utilisé ») **n'est pas ouvert** dans le lot
+`tools_used` — ouvrir le capteur à l'intérieur du lot mélangerait deux lignées causales. Même
+principe que DR-02 : une variable à la fois.
+
+**Alternatives rejetées** :
+- Valider sur le working tree (état où tout est vert « ensemble ») — c'est précisément ce que la
+  session a falsifié.
+- Livrer les lots en bloc pour aller plus vite — produit des échecs non imputables.
+
+**Critères de révision** : méthode, pas dogme — à réinterroger si le coût de reconstruction de
+lignée dépasse le coût d'un diagnostic post-merge (non observé à ce jour).
+
+---
+
+## 2026-08-20 — Une garde ne s'ancre jamais sur le poste qu'elle protège
+
+**Décision (Pierre, 2026-08-20)** — RATIFIÉ. Le durcissement de
+`scripts/forge/tests/test_blender_bin.py` est adopté, **zone protégée assumée**.
+
+> Une garde qui interdit un chemin de poste ne doit pas nommer ce poste. Elle s'ancre sur la
+> **forme** du défaut, jamais sur son **instance**.
+
+Concrètement : `assert "/home/<compte>" not in src` → `re.compile(r"/home/[\w.-]+/")`.
+
+**Contexte** : le test est né du préflight de publication, qui avait trouvé un chemin absolu de
+machine dans **deux fichiers de production**. Sa première rédaction portait le compte en clair
+**trois fois**, dont une dans son docstring. Deux fautes en une : la garde ne protégeait que CE
+poste, et le fichier — destiné à un dépôt public — **publiait le nom qu'il interdisait**.
+
+Le motif générique est **strictement plus fort** (n'importe quel compte, pas seulement celui-ci)
+et le gabarit `/home/<utilisateur>/` n'y matche pas (`<` `>` hors de la classe) : c'est exactement
+la discrimination voulue. **Falsifié** en injectant un chemin d'un compte *différent* dans
+`blender_bin.py` — la suite passe de `13 passed` à `1 failed, 12 passed`, puis restauration
+octet pour octet vérifiée. La garde n'est donc ni inerte, ni un test de son propre nom.
+
+**Préconditions `/gate` non remplies, et assumées** : HMAC `NON_SIGNÉ` (le lot n'a pas de verdict
+signé) et fichier en zone `tests/`. Elles interdisent à Claude de *proposer* un MERGE ; elles
+n'empêchent pas la ratification souveraine, que `.claude/rules/tests.md` prévoit explicitement
+(« toute modification passe par une gate Pierre explicite »). Le verbe est **RATIFIÉ**, pas
+MERGE : le changement est déjà publié dans `origin/publish` `7b06eba`.
+
+**Alternatives rejetées** :
+- Laisser le test hors lot — il est déjà public ; « s'abstenir » coûterait un commit de retrait
+  sur une branche publiée, et laisserait la correction sans sa garde.
+- Garder l'ancrage nommé — publie un nom de compte dans le fichier même qui l'interdit.
+
+**Conséquence ouverte, NON traitée ici** : la correction et sa garde n'existent que dans
+`publish`. `master` porte encore le chemin en dur. **Le prochain snapshot pris depuis `master`
+régresserait la correction sans que rien ne rougisse** — puisque la garde est justement ce qui
+disparaîtrait. Lignée inversée : l'artefact publié devance son canon. Lot de rapatriement à
+ouvrir séparément.
+
+**Critères de révision** : à réinterroger si le motif générique produit un faux positif sur un
+chemin `/home/...` légitime (aucun observé : 1910/1911 sur la suite forge complète).
+
+---
+
 ## Template pour nouvelles entrées
 
 ```
