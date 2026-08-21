@@ -8,14 +8,13 @@ La session s'est terminée **hors de `master`**. Pour reprendre le travail norma
 git checkout master     # bloqué par le garde git : sentinelle humaine requise
 ```
 
-Sur `publish`, **86 artefacts de run apparaissent comme non suivis** (ils sont exclus de
-cette branche, présents sur disque). Ils redeviennent suivis au retour sur `master`.
-C'est normal, ce n'est pas une perte.
+Sur `publish`, **86 artefacts de run apparaissent non suivis** — exclus de cette branche,
+présents sur disque, resuivis au retour sur `master`. Ce n'est pas une perte.
 
 ## Session 2026-08-19/20 — publication, puis reparation du snapshot
 ```
 publish local    9a2c485   3 commits orphelins — POUSSE (origin/publish : 9a2c485)
-origin/master    bcde5cb   INCHANGE — `master` ne sera PAS pousse (voir plus bas)
+origin/master    2de8641   POUSSE le 2026-08-20 (147 commits) — voir decision-log
 master local     00fd1f9   146 commits, non pousses, archive intacte
 ```
 
@@ -27,8 +26,8 @@ d'un chemin de poste sont **exclus du corpus public**, intacts en local.
 
 Les rédiger est **impossible** (invalide le reçu signé) et les publier n'apporterait **rien** :
 les signatures sont **HMAC, donc symétriques** — **0 vérifiable par un tiers**. Un artefact
-public vérifiable exigerait une primitive **asymétrique**. **`master` ne sera pas publié** :
-nettoyer le sommet ne nettoie pas son historique. La publication vit autour de `publish`.
+public vérifiable exigerait une primitive **asymétrique**. `publish` reste le snapshot
+**propre et séparé** — un lot `master` ne s'y déverse jamais automatiquement.
 
 ### Anonymisation Observer — FERMÉE
 `anonymize_session_paths.py` vivait avec **zéro appelant**. Étendue puis **branchée** sur les
@@ -53,7 +52,8 @@ Récit complet (le piège central rencontré **quatre fois**, rapatriement `publ
 
 ### Ouvert, non décidé
 - `publish` comme branche **par défaut** GitHub → décision manuelle, non faite.
-- Publication de `master` → **BLOCKED, et la mesure est faite** : 66 fichiers ont porté un
+- **`master` EST publié** (2026-08-20, `2de8641`) — position **remplacée** le soir même,
+  decision-log. La mesure, elle, n'a pas changé : 85 fichiers ont porté un
   chemin de poste dans son historique, dont **3 qui ne vivent plus QUE là**. Aucun `rm` ne
   les atteint ; seule une réécriture, exclue par Pierre. Au sommet, **52 `Studio-Dev`
   subsistent — 49 dans des artefacts que la publication a EXCLUS au lieu de rédiger.**

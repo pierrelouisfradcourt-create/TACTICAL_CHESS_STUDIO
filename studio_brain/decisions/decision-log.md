@@ -1075,6 +1075,39 @@ c'est la primitive de signature qu'on spécifie, pas la publication de ces fichi
 
 ---
 
+## 2026-08-20 (soir) — `master` EST publié : la décision du matin est remplacée
+
+**Décision (Pierre, 2026-08-20)** — `master` a été **poussé** (`bcde5cb..2de8641`, 147
+commits, avance rapide). Cette entrée **remplace** la position prise le matin même dans
+« Le HMAC n'est pas une preuve publique », qui écartait explicitement cette option.
+
+**Un decision-log est append-only** : l'entrée du matin n'est pas réécrite. Elle reste vraie
+de son moment, et ce qui a changé est une **position**, pas une mesure.
+
+**Ce que la mesure disait, et dit toujours** : les 147 commits emportent leur historique —
+**85 fichiers ont porté le nom de compte** dans ces commits, dont certains qui ne vivent plus
+qu'en historique. `git push` publie des **commits** ; aucun `rm` ultérieur ne les atteint.
+C'est irréversible. La mesure n'a pas changé ; l'arbitrage sur son coût, oui.
+
+**Ce que la mesure disait aussi, et qui pèse dans l'autre sens** : l'audit de sensibilité
+(`00fd1f9`, 30 124 fichiers) a établi **ZÉRO secret** — aucune clé, aucun jeton, aucun mot de
+passe, aucune clé privée. Ce qui est devenu public est un **nom de compte local**, déjà
+présent dans 67 fichiers avant ce push.
+
+**Alternatives rejetées** :
+- Réécrire l'historique pour nettoyer avant de pousser — exclu depuis le début.
+- Laisser le decision-log et le handoff annoncer « `master` ne sera pas publié » — ils
+  seraient devenus faux dans la seconde, et un référent faux coûte plus qu'un référent absent.
+
+**Ce qui NE change pas** : `publish` reste le snapshot **propre** et **séparé** (`9a2c485`,
+orphelin, 0 chemin de poste, 0 nom court). Un lot `master` ne s'y déverse jamais
+automatiquement.
+
+**Critères de révision** : aucun — un push est irréversible. La question qui reste ouverte
+est celle de la **branche par défaut** GitHub, geste manuel non fait.
+
+---
+
 ## Template pour nouvelles entrées
 
 ```
