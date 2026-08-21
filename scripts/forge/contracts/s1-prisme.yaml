@@ -17,6 +17,7 @@ memoire: >-
 mandatory_read:
   - scripts/forge/contracts/SCHEMA.md
   - "charter.yaml produit par l'étape 0"
+  - "story_bible.json (s2.6) et gm_worldscan.json (s2.7) S'ILS SONT PRÉSENTS dans le run_dir : ce sont des SOURCES d'exigences au même titre que le World Scan (profil full_godot_narratif) ; absents => tu le dis, tu ne compenses pas"
 
 # --- 3. Mission (Critique) ---
 objectif: >-
@@ -107,8 +108,15 @@ output_contract: >-
   indépendamment de l'observation) -> `enonce` (ce que le jeu doit alors garantir).
   Recopier l'un dans l'autre satisfait le schéma sans rien déduire, et rend
   indécidable le lieu d'une panne : donnée fausse, ou déduction fausse ?
-  RÈGLES DURES : `source` vaut EXPECTED (vu dans le World Scan -> `reference` = la
-  source citée, non vide) ou ADDITIONS (ta proposition -> `reference` vaut
+  RÈGLES DURES : `source` vaut EXPECTED (vu dans un artefact amont -> `reference`
+  est une ADRESSE, jamais une prose : `worldscan:<chemin>` (ex.
+  `worldscan:games[0].objectives[0].victory_condition`,
+  `worldscan:games[0].loops.minute_10`), `story_bible:<id de section>` (ex.
+  `story_bible:stakes`), `gm_worldscan:<id de dimension>` (ex.
+  `gm_worldscan:progression`) — la sonde check_amont_traversal.mjs RÉSOUT chaque
+  adresse dans l'artefact ; une adresse qui ne résout rien compte comme
+  référence non résolue, mesurée et reportée) ou ADDITIONS (ta proposition ->
+  `reference` vaut
   EXPLICITEMENT null, jamais un champ omis). `CORE` t'est INTERDIT : l'origine
   d'une exigence CORE est `core_list` par construction, elle ne transite jamais par
   un modèle. Le champ vocabulaire est celui de la ligne de wiremap v2

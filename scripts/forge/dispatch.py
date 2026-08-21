@@ -358,6 +358,32 @@ PROFILES = {
         "s11-redteam-code",
         "s12-verdict",
     ),
+    # full_godot_narratif (décision Pierre 2026-08-21, choix (b)) — COMPOSITION, aucune
+    # station neuve : `full_godot` + les deux stations amont dédiées s2.6 (Story Bible)
+    # et s2.7 (GM World Scan), placées APRÈS s0+s2 (mesuré : charter+worldscan ->
+    # 7/8 GROUNDED, cf. amont_narratif_charte) et AVANT s1-prisme, qui est « le
+    # mécanisme qui transforme la connaissance externe en exigences ». Consommation :
+    # `_UPSTREAM_BY_STEP` (run_real/context_manifest) injecte les deux artefacts dans
+    # s1 ET s3 ; la traversée jusqu'au build est MESURÉE par check_amont_traversal.mjs
+    # (advisory, attaché au reçu s10c) — jamais supposée.
+    "full_godot_narratif": (
+        "s0-contrat",
+        "s2-worldscan",
+        "s2.6-story-bible",
+        "s2.7-gm-worldscan",
+        "s1-prisme",
+        "s3-decompo",
+        "s4-archi",
+        "s5-wiremap",
+        "s6-redteam-plan",
+        "s9-build-godot-standard",
+        "s10a-oracle-code",
+        "s10b-oracle-archi",
+        "s10c-oracle-wiremap",
+        "s10s-oracle-standard",
+        "s11-redteam-code",
+        "s12-verdict",
+    ),
 }
 
 
@@ -388,6 +414,8 @@ PROFILE_STEP_TIMEOUTS_S: dict[tuple[str, str], float] = {
     # sous full_godot, cette valeur doit être remplacée par la mesure réelle, pas confirmée
     # par l'absence d'incident.
     ("full_godot", "s9-build-godot-standard"): 5400.0,
+    # full_godot_narratif : MÊME builder, MÊME point de mesure (breakout_v2-run1).
+    ("full_godot_narratif", "s9-build-godot-standard"): 5400.0,
 }
 
 

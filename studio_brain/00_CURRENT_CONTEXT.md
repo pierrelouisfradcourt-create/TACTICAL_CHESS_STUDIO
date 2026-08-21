@@ -1,96 +1,84 @@
 # Contexte courant TCS
-*(Handoff. Archives : `journal/context-archive-2026-08-{20,17,15}-*.md`.)*
+*(Handoff. Archives : `journal/context-archive-2026-08-{21,20,17,15}-*.md`.)*
 
-## ⚠️ LE DÉPÔT EST SUR LA BRANCHE `publish` — À LIRE EN PREMIER
-La session s'est terminée **hors de `master`**. Pour reprendre : `git checkout master`
-— **bloqué par le garde git**, sentinelle humaine requise.
+## Branche : `master` (retour effectué 2026-08-21, sentinelle humain Pierre)
+Le retour depuis `publish` a exigé d'écarter 68 fichiers non suivis que `master` suit
+(58 artefacts `lab/forge_runs/**` identiques modulo CRLF, 10 rapports Observer **régénérés
+par les tests driver du jour**) — tous sauvegardés hors dépôt avant suppression, restaurés
+par le checkout depuis `master`. Aucune perte. Hors lot et laissé non commité :
+`scripts/forge/tests/test_evidence_isolation_fixture.py` (12 lignes, correctif `import
+conftest` par chemin, ne vivait que sur `publish` — à arbitrer par Pierre).
 
-Sur `publish`, **86 artefacts de run apparaissent non suivis** — exclus de cette branche,
-présents sur disque, resuivis au retour sur `master`. Ce n'est pas une perte.
+## Session 2026-08-21 — Kitten Clicker : préparation du test d'autonomie de la Forge
+Décision Pierre : forger **Kitten Clicker** (clicker de chatons, réf. **Cookie Clicker +
+Neko Atsume**) comme test d'autonomie. Choix **(b)** : recâbler par **composition de
+profil**, sans station GM neuve. Plan complet :
+`docs/superpowers/plans/2026-08-21-kitten-clicker-full-godot-narratif.md`.
 
-## Session 2026-08-19/20 — publication, puis reparation du snapshot
-**Les deux branches sont POUSSÉES et synchronisées** (2026-08-20). `master` = le canon,
-publié — position **remplacée** en séance, voir decision-log. `publish` = snapshot
-**orphelin** et **séparé** : un lot `master` ne s'y déverse jamais, il s'y porte.
-**Aucun SHA d'état n'est recopié ici** — un handoff qui en cite un est faux dès son propre
-commit. La vérité : `git ls-remote origin refs/heads/master refs/heads/publish`.
+### Livré (NON COMMITÉ — gate Pierre)
+- Profil **`full_godot_narratif`** (16 étapes) = `full_godot` + `s2.6-story-bible` +
+  `s2.7-gm-worldscan` insérées après s0+s2, avant s1 (`dispatch.py`).
+- `_UPSTREAM_BY_STEP` (2 copies, `run_real.py`/`context_manifest.py`) : **s1-prisme et
+  s3-decompo reçoivent** story_bible + gm_worldscan. Contrats s1/s3 : `mandatory_read`
+  étendu ; **`reference` des exigences EXPECTED devient adressable** (`worldscan:…`,
+  `story_bible:<section>`, `gm_worldscan:<dimension>`) — règle de contrat, mesurée par
+  la sonde, oracle `check_decompo` **inchangé**.
+- Sonde **`check_amont_traversal.mjs`** (déterministe, ADVISORY, jamais OK/FAIL) : suit
+  `prisme.reference → featuremap.source_ref → wiremap.couvre → fichiers` pour 6 faits
+  (victoire, défaite, objectifs, progression, boucles de récompense, contraintes
+  narratives) ; `reached` ∈ NOT_PRODUCED…BUILD. Attachée au reçu **s10c** via
+  `oracle.run_amont_traversal_probe` (le spawn vit dans `oracle.py`, invariant
+  `test_driver_ne_spawn_pas_directement`).
+- `oracles.json` : entrée `kitten_clicker` (pré-vol **ok**, leçon KB citée).
+- Entrées du run : `lab/forge_runs/kitten_clicker/{design_intent.md,tasks.json}`.
 
-### Décision du 2026-08-20 — les artefacts porteurs restent internes
-**Ratifiée Pierre** (`d9b8a5b`, decision-log). Les 28 fichiers de `lab/forge_runs/` porteurs
-d'un chemin de poste sont **exclus du corpus public**, intacts en local.
+### Preuves (relancées par l'orchestrateur, pas sur parole)
+Node **828/828** (821 + 7 sonde) · pytest ciblé **129/129** + invariant driver/sonde/profil
+**13/13** · suite forge complète (bras 3) **1961 passed, 1 skipped, 1 failed** — le rouge
+était `import subprocess` dans `driver.py`, corrigé par déplacement vers `oracle.py`,
+`test_driver.py` **24/24** ensuite · dry-run **16 étapes**, aucun contrat cassé.
 
-> `nécessaire pour la preuve` ≠ `autorisé à être publié`
+### Statut par pièce (vocabulaire : IMPLEMENTED · TESTED · DOCUMENTED_ONLY · PASSIVE · BLOCKED · UNKNOWN)
+| Pièce | Statut | Preuve |
+|---|---|---|
+| profil `full_godot_narratif` | TESTED | test_profile_full_godot_narratif 7/7, dry-run 16 |
+| injection s2.6/s2.7 → s1, s3 (`_UPSTREAM_BY_STEP`) | TESTED | égalité 2 copies, omission si absent |
+| `reference` adressable (contrat s1) | DOCUMENTED_ONLY | règle de contrat ; aucun oracle ne la gate (par choix : variance d'abord) |
+| sonde `check_amont_traversal.mjs` | TESTED | 7/7 + 2 runs réels (tous ≤ PRODUCED : aucun prisme.json) |
+| attache au reçu s10c (`oracle.run_amont_traversal_probe`) | TESTED | 5/5 + invariant driver ; **jamais exécutée dans un run réel** |
+| consommateur du champ `amont_traversal` | PASSIVE | produit dans le détail s10c, lu par personne — c'est Pierre/orchestrateur qui le lit |
+| `oracles.json` kitten_clicker | TESTED | pré-vol ok ; `godot_oracle.mjs` sur un jeu encore inexistant = UNKNOWN jusqu'au build |
+| `design_intent.md` / `tasks.json` | DOCUMENTED_ONLY | lus par run_real (`_VALID_TASK_STEPS`), run non lancé |
+| retour `master` + commit | BLOCKED | sentinelle refusé à l'agent (permission settings) — geste humain |
 
-Les rédiger est **impossible** (invalide le reçu signé) et les publier n'apporterait **rien** :
-les signatures sont **HMAC, donc symétriques** — **0 vérifiable par un tiers**. Un artefact
-public vérifiable exigerait une primitive **asymétrique**. `publish` reste le snapshot
-**propre et séparé** — un lot `master` ne s'y déverse jamais automatiquement.
+### Mesuré, documenté, NON corrigé (doctrine de sortie 2026-08-20)
+- **`--charter` = panel Prisme**, pas une entrée de s0. Le panel lit le charter à la
+  construction (avant s0) et appelle `claude_call(payload.prompt)` **sans** la section
+  « ARTEFACTS AMONT » → sous le panel, s1 ne reçoit ni worldscan ni story bible ni GM
+  (défaut préexistant à FORGE_PRISME_V2). **Lancer sans `--charter`.**
+- La sémantique de victoire de la solvabilité reste du GDScript par jeu (`verdict.gd`) :
+  le run la **mesurera** (`reached` de `conditions_victoire`), il ne la corrige pas.
+- Pour un clicker, « jouable plusieurs heures » tombe sous la règle de variance : la
+  courbe de progression doit prouver ≥ 2 valeurs distinctes avant de calibrer quoi que
+  ce soit (demandé dans `tasks.json` s0).
 
-### Anonymisation Observer — FERMÉE
-`anonymize_session_paths.py` vivait avec **zéro appelant**. Étendue puis **branchée** sur les
-3 écritures du producteur (`d163d73`, `3df13ef`), appliquée aux 21 artefacts (`9e085bf` :
-**24 307 → 108**, diff symétrique, **0 ligne signée modifiée** sur 464), tests dénommés
-(`172e622`, `ae09bb4`). Exposition du sommet : **50 → 34**.
+### Prochaine étape
+1. Pierre : sentinelle + retour `master` (séquence ci-dessus), puis revue du lot
+   (`git diff --stat` : 8 modifiés, 5 créés) et décision commit.
+2. Créer `games/kitten_clicker/` (vide) puis lancer, sur go Pierre :
+   `PYTHONPATH=scripts .venv312/Scripts/python.exe scripts/forge/run_real.py --project
+   kitten_clicker --run-id kitten_clicker-<date> --profile full_godot_narratif --src-root
+   games/kitten_clicker --is-game --tasks-file lab/forge_runs/kitten_clicker/tasks.json`
+   (superviseur externe : un run long ne survit pas à l'agent parent, mémoire 07-27).
+3. Lire `amont_traversal` dans le reçu s10c : c'est LE résultat du test — pas le verdict.
 
-### Audit de sensibilité — FERMÉ (`00fd1f9`)
-30 124 fichiers examinés. **ZÉRO secret dans tout le dépôt** — aucune clé, aucun jeton, aucun
-mot de passe, aucune clé privée, ni suivi ni à risque. Sur 5 359 fichiers suivis, **83
-portent uniquement le nom de compte et 0 porte autre chose** : le sujet est l'hygiène, pas la
-sécurité.
-**Une seule règle ajoutée** : `scripts/forge/*.config.json` + `!*.config.example.json` — le
-motif « config par poste » était énuméré à la main, un 3ᵉ outil aurait fui par omission.
-**66 fichiers à risque délibérément NON ignorés** : 18 portent le chemin **probant** du
-binaire Godot (une règle masquerait une preuve), 48 relèvent d'un producteur **déjà corrigé**.
-Une règle serait nuisible dans les deux cas — on documente, on n'ignore pas.
-
-### Le chantier de publication — archivé
-Récit complet (le piège central rencontré **quatre fois**, rapatriement `publish` → `master`) :
-`journal/context-archive-2026-08-20-publication-orpheline.md`.
-
-### Ouvert, non décidé
-- `publish` comme branche **par défaut** GitHub → décision manuelle, non faite.
-- **`master` EST publié** (2026-08-20, `2de8641`) — position **remplacée** le soir même,
-  decision-log. La mesure, elle, n'a pas changé : 85 fichiers ont porté un
-  chemin de poste dans son historique, dont **3 qui ne vivent plus QUE là**. Aucun `rm` ne
-  les atteint ; seule une réécriture, exclue par Pierre. Au sommet, **52 `Studio-Dev`
-  subsistent — 49 dans des artefacts que la publication a EXCLUS au lieu de rédiger.**
-  Le rapatriement rend le **code** du canon correct, **pas son arbre publiable**.
-- **Chemin Blender : 2 autorités unifiées sur 5** — les 3 autres sont rédigées (aucune
-  fuite) mais portent le fait en double. Non traité, pas oublié.
-- ~~2 rouges Node périmés~~ → **FERMÉS** (`1ce25f9`) : un test de **pont** ancré sur l'état
-  du **parc**. **Suite node : 821 / 821. Suite forge python : 1910 / 1911, 0 rouge.**
-- **LOT EVIDENCE — FERMÉ** (Pierre). Corrigé ce qui l'est ; le reste est **mesuré,
-  documenté, accepté tel quel**.
-
-  | | |
-  |---|---|
-  | naissance du sceau | **CORRIGÉ** `4bbd052` |
-  | résolution du chemin | **CORRIGÉ** `883b016` |
-  | chemin stocké | **CORRIGÉ** `0650b21` |
-  | logs non versionnés | **TRAITÉ PAR CONTRAT** `7206a68` |
-  | 15 archives | **NE PAS CORRIGER** — preuve retrouvée, sceau concordant sur disque |
-  | 1 orpheline | **DOCUMENTÉE** — `.claude/worktrees/…`, arbre étranger |
-  | 90 sceaux historiques | **IRRÉPARABLES / ACCEPTÉS** |
-  | 30 absences | **AUDIT TERMINÉ** |
-
-  L'audit a montré que « 30 absences » n'était ni 30 ni des pertes : **18 fichiers**
-  distincts (le reste était du double comptage), dont **15 archivés** par des renommages
-  purs. **Zéro perte réelle.** Un résolveur d'adresse a été écrit puis **retiré du dépôt** :
-  il améliore la récupération sur *ce* poste, il ne restaure pas la vérifiabilité git — donc
-  il n'est pas nécessaire pour que le système dise vrai. Code conservé hors dépôt.
-
-- **DOCTRINE DE SORTIE — ratifiée Pierre 2026-08-20, vaut pour TOUS les lots :**
-
-  > Un défaut adjacent découvert pendant une correction **ne devient pas automatiquement le
-  > prochain lot.**
-
-  Il faut au moins une de ces conditions : **casse le runtime · casse un invariant · produit
-  une fausse preuve · empêche une capacité contractuellement requise · priorisé
-  explicitement.** Sinon : `MESURÉ → DOCUMENTÉ → PASSIF → FIN DU LOT`.
-
-  Ce qui manquait n'était pas la rigueur — c'était le **critère de sortie**. Sans lui, une
-  Forge parfaitement fonctionnelle passe son existence à améliorer ses propres audits au lieu
-  de produire.
-- Clé HMAC par défaut → vrai sujet **sécurité**, hors hygiène de publication.
-- Backlog `§18` du Master Schéma V2 : P0 détectabilité, P1 étage ② + un run `full` pour
-  observer enfin la lignée causale, P2 `reuse_ratio` ×12 et `agent_factory` sans appelant.
+## Rappels de fond (inchangés)
+- `publish` = snapshot orphelin séparé ; **aucun SHA recopié ici**
+  (`git ls-remote origin refs/heads/master refs/heads/publish`).
+- Artefacts porteurs de chemin de poste : **exclus du corpus public**, intacts en local
+  (ratifié `d9b8a5b`). HMAC symétrique = 0 vérifiable par un tiers.
+- Backlog §18 Master Schéma V2 : P0 détectabilité · P1 étage ② + un run `full` ·
+  P2 `reuse_ratio` ×12 et `agent_factory` sans appelant. Clé HMAC par défaut = sujet
+  sécurité, hors hygiène.
+- Lot EVIDENCE, anonymisation Observer, audit de sensibilité : **FERMÉS** (détail dans
+  `journal/context-archive-2026-08-21-publication-reparation.md`).

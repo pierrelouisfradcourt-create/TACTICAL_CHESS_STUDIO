@@ -65,7 +65,13 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # rendait son silence sur menu/pause/audio/onboarding structurel et non
     # accidentel. « Le Prisme est le mécanisme qui transforme la connaissance
     # externe en exigences internes » — encore faut-il qu'il la reçoive.
-    "s1-prisme": ("artifacts/s2-worldscan.txt",),
+    # Choix (b) Pierre 2026-08-21 : le Prisme reçoit AUSSI la Story Bible (s2.6) et
+    # le GM World Scan (s2.7) quand ils existent (profil full_godot_narratif) — c'est
+    # par les exigences du Prisme que leur information atteint la décompo sans
+    # assouplir la règle `source_ref -> exigence` de check_decompo. Fichier absent
+    # (profil `full`) => omis par upstream_artifacts_section, comportement inchangé.
+    "s1-prisme": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
+                  "artifacts/s2.7-gm-worldscan.txt"),
     # §7.2 · s2.7 — copie STRICTEMENT identique à run_real._UPSTREAM_BY_STEP (test
     # d'égalité dans test_context_manifest.py) : toute divergence casse ce test.
     "s2.7-gm-worldscan": ("artifacts/s2-worldscan.txt",),
@@ -73,7 +79,11 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # s3-decompo reçoit désormais les DEUX : le Prisme (exigences) et le World
     # Scan (connaissance qui les fonde). Sans cette 2e source, la décompo perdait
     # les standards du genre dès qu'ils n'étaient pas repris mot pour mot.
-    "s3-decompo": ("charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt"),
+    # Choix (b) Pierre 2026-08-21 : idem pour la décompo (mêmes deux artefacts amont,
+    # après les 3 sources déjà existantes). Fichier absent => omis, comportement
+    # inchangé pour les profils qui ne produisent pas s2.6/s2.7.
+    "s3-decompo": ("charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt",
+                   "artifacts/s2.6-story-bible.txt", "artifacts/s2.7-gm-worldscan.txt"),
     "s4-archi": ("charter.yaml", "artifacts/s3-decompo.txt",),
     "s5-wiremap": ("charter.yaml", "artifacts/s3-decompo.txt", "blueprint.json"),
     "s6-redteam-plan": ("charter.yaml", "artifacts/s3-decompo.txt", "artifacts/s4-archi.txt",

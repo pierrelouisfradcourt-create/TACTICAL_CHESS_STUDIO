@@ -1449,7 +1449,13 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # FORGE_PRISME_V2 (Pierre, 2026-08-03) — le Prisme REÇOIT le World Scan.
     # Copie STRICTEMENT identique à context_manifest._UPSTREAM_BY_STEP (test
     # d'égalité dans scripts/forge/tests/test_context_manifest.py).
-    "s1-prisme": ("artifacts/s2-worldscan.txt",),
+    # Choix (b) Pierre 2026-08-21 : le Prisme reçoit AUSSI la Story Bible (s2.6) et
+    # le GM World Scan (s2.7) quand ils existent (profil full_godot_narratif) — c'est
+    # par les exigences du Prisme que leur information atteint la décompo sans
+    # assouplir la règle `source_ref -> exigence` de check_decompo. Fichier absent
+    # (profil `full`) => omis par upstream_artifacts_section, comportement inchangé.
+    "s1-prisme": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
+                  "artifacts/s2.7-gm-worldscan.txt"),
     # §7.2 · s2.7 REÇOIT le World Scan artistique — c'est ce qui lui permet de ne PAS
     # redire les 3 dimensions déjà structurées (modes, solvabilité, boucles) et de
     # produire uniquement les 8 manquantes. Cette table décrit ce qu'une étape REÇOIT ;
@@ -1460,7 +1466,11 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # charter est un fichier de run (comme pour s3) ; absent => section amont réduite,
     # et le worker le déclare dans inputs_recus au lieu de compenser.
     "s2.6-story-bible": ("charter.yaml", "artifacts/s2-worldscan.txt"),
-    "s3-decompo": ("charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt"),
+    # Choix (b) Pierre 2026-08-21 : idem pour la décompo (mêmes deux artefacts amont,
+    # après les 3 sources déjà existantes). Fichier absent => omis, comportement
+    # inchangé pour les profils qui ne produisent pas s2.6/s2.7.
+    "s3-decompo": ("charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt",
+                   "artifacts/s2.6-story-bible.txt", "artifacts/s2.7-gm-worldscan.txt"),
     "s4-archi": ("charter.yaml", "artifacts/s3-decompo.txt",),
     "s5-wiremap": ("charter.yaml", "artifacts/s3-decompo.txt", "blueprint.json"),
     "s6-redteam-plan": ("charter.yaml", "artifacts/s3-decompo.txt", "artifacts/s4-archi.txt",

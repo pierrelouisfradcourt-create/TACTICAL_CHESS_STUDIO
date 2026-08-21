@@ -55,7 +55,9 @@ from forge.learning_memory import (
     premortem_lessons,
     promote_manifest_lessons,
 )
-from forge.oracle import OracleNotFound, OracleSpec, resolve_oracle, run_oracle
+from forge.oracle import (
+    OracleNotFound, OracleSpec, resolve_oracle, run_amont_traversal_probe, run_oracle,
+)
 from forge.mutation_proof import (
     emit_descriptor_mutation_receipt,
     emit_mutation_receipt,
@@ -2352,7 +2354,20 @@ class ForgeDriver:
                               {"reason": reason, "frozen": frozen})
             return
         wire = check_wiremap(wiremap, self.src_root)
+        # Choix (b) Pierre 2026-08-21 : la traversée des faits amont (World Scan /
+        # Story Bible / GM) jusqu'au build est MESURÉE ici, en ADVISORY — elle ne
+        # change jamais le statut, qui reste celui de check_wiremap seul.
+        wire["amont_traversal"] = self._amont_traversal_advisory()
         self._finish_step(state, entry, "OK" if wire["passed"] else "FAIL", wire)
+
+    def _amont_traversal_advisory(self) -> dict:
+        """ADVISORY : délègue le spawn à `oracle.run_amont_traversal_probe` — le
+        driver ne lance JAMAIS de process lui-même (invariant
+        `test_driver_ne_spawn_pas_directement`, machine à états pure). Toute panne
+        (node absent, timeout, exit != 0, sortie non-JSON) rend
+        {"status": "NOT_MEASURED", "reason"} — jamais une exception, jamais un
+        statut d'étape modifié."""
+        return run_amont_traversal_probe(self.run_dir, getattr(self, "game_dir", None))
 
     def _run_standard_oracle(self, state: dict, entry: dict) -> None:
         """s10s. Six oracles du STANDARD (scripts/forge/standard_oracles.py), mode

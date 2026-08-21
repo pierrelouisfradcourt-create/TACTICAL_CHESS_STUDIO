@@ -162,3 +162,32 @@ def run_oracle(
         evidence_path=evidence_path,
         summary=extract_summary(completed.stdout),
     )
+
+
+def run_amont_traversal_probe(run_dir: Path, game_dir: Path | None = None,
+                               *, timeout: float = 60) -> dict:
+    """Sonde déterministe `check_amont_traversal.mjs` (Node, --json), ADVISORY,
+    attachée par le driver au reçu s10c (choix (b) Pierre 2026-08-21). Le spawn de
+    process vit ICI, dans oracle.py — jamais dans driver.py, qui doit rester une
+    machine à états pure et offline-capable (invariant
+    `test_driver_ne_spawn_pas_directement`, scripts/forge/tests/test_driver.py).
+    Toute panne (node absent, timeout, exit != 0, sortie non-JSON) rend
+    {"status": "NOT_MEASURED", "reason"} — jamais une exception, jamais un statut
+    d'étape modifié. `game_dir` est passé s'il existe (étage BUILD), sinon la sonde
+    rend `files_present=null` (non mesuré, non inventé)."""
+    script = Path(__file__).resolve().parent / "check_amont_traversal.mjs"
+    cmd = ["node", str(script), str(run_dir), "--json"]
+    if game_dir and Path(game_dir).is_dir():
+        cmd += ["--game-dir", str(game_dir)]
+    try:
+        cp = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", timeout=timeout)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"status": "NOT_MEASURED", "reason": f"sonde injoignable: {exc}"}
+    if cp.returncode != 0:
+        return {"status": "NOT_MEASURED",
+                "reason": f"exit {cp.returncode}: {(cp.stderr or '')[-400:]}"}
+    try:
+        return json.loads(cp.stdout)
+    except (json.JSONDecodeError, ValueError) as exc:
+        return {"status": "NOT_MEASURED", "reason": f"sortie non JSON: {exc}"}
