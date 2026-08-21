@@ -1,6 +1,5 @@
 # Contexte courant TCS
-*(Handoff. Historique : `journal/context-archive-2026-08-17-chaine-preuve-gpu.md` →
-`journal/context-archive-2026-08-15-revue-forge-lignees.md`.)*
+*(Handoff. Archives : `journal/context-archive-2026-08-{20,17,15}-*.md`.)*
 
 ## ⚠️ LE DÉPÔT EST SUR LA BRANCHE `publish` — À LIRE EN PREMIER
 La session s'est terminée **hors de `master`**. Pour reprendre le travail normal :
@@ -17,7 +16,7 @@ C'est normal, ce n'est pas une perte.
 ```
 publish local    9a2c485   3 commits orphelins — POUSSE (origin/publish : 9a2c485)
 origin/master    bcde5cb   INCHANGE — `master` ne sera PAS pousse (voir plus bas)
-master local     c299c76   144 commits, non pousses, archive intacte
+master local     00fd1f9   146 commits, non pousses, archive intacte
 ```
 
 ### Décision du 2026-08-20 — les artefacts porteurs restent internes
@@ -26,27 +25,30 @@ d'un chemin de poste sont **exclus du corpus public**, intacts en local.
 
 > `nécessaire pour la preuve` ≠ `autorisé à être publié`
 
-Ce qui l'a tranché : les rédiger est **impossible** (invalide le reçu signé, `verify_receipt`
-`True`→`False`), et les publier n'apporterait **rien** — les signatures sont **HMAC, donc
-symétriques** : **0 vérifiable par un tiers**, sur `publish` comme sur `master`. Un artefact
-public vérifiable exigerait une primitive **asymétrique**, pas une rédaction.
-**`master` ne sera pas publié** : son historique porte encore les occurrences, et nettoyer le
-sommet ne nettoie pas 135 commits. La publication vit autour de `publish`.
+Les rédiger est **impossible** (invalide le reçu signé) et les publier n'apporterait **rien** :
+les signatures sont **HMAC, donc symétriques** — **0 vérifiable par un tiers**. Un artefact
+public vérifiable exigerait une primitive **asymétrique**. **`master` ne sera pas publié** :
+nettoyer le sommet ne nettoie pas son historique. La publication vit autour de `publish`.
 
-### Anonymisation Observer — capacité branchée puis appliquée
-`anonymize_session_paths.py` existait depuis le 2026-08-18 avec **zéro appelant**.
-- `d163d73` étendue (du champ `session_file` au préfixe) et **branchée** sur les 3 écritures
-  du producteur ; câblage prouvé par **espions à sentinelle**, falsifié (câblage retiré → rouge).
-- `3df13ef` couvre aussi le répertoire temporaire et la colonne propriétaire d'un `ls -l`.
-- `9e085bf` appliquée aux 21 artefacts : **24 307 → 108** occurrences, diff **symétrique**
-  (23 871 +/−), **0 ligne signée modifiée** sur 464.
-- `172e622` + `ae09bb4` : plus aucun test ne nomme le compte du poste.
-Exposition nouvelle du sommet : **50 → 34** fichiers (28 `forge_runs` + 5 plancher probant +
-1 faux positif).
+### Anonymisation Observer — FERMÉE
+`anonymize_session_paths.py` vivait avec **zéro appelant**. Étendue puis **branchée** sur les
+3 écritures du producteur (`d163d73`, `3df13ef`), appliquée aux 21 artefacts (`9e085bf` :
+**24 307 → 108**, diff symétrique, **0 ligne signée modifiée** sur 464), tests dénommés
+(`172e622`, `ae09bb4`). Exposition du sommet : **50 → 34**.
+
+### Audit de sensibilité — FERMÉ (`00fd1f9`)
+30 124 fichiers examinés. **ZÉRO secret dans tout le dépôt** — aucune clé, aucun jeton, aucun
+mot de passe, aucune clé privée, ni suivi ni à risque. Sur 5 359 fichiers suivis, **83
+portent uniquement le nom de compte et 0 porte autre chose** : le sujet est l'hygiène, pas la
+sécurité.
+**Une seule règle ajoutée** : `scripts/forge/*.config.json` + `!*.config.example.json` — le
+motif « config par poste » était énuméré à la main, un 3ᵉ outil aurait fui par omission.
+**66 fichiers à risque délibérément NON ignorés** : 18 portent le chemin **probant** du
+binaire Godot (une règle masquerait une preuve), 48 relèvent d'un producteur **déjà corrigé**.
+Une règle serait nuisible dans les deux cas — on documente, on n'ignore pas.
 
 ### Le chantier de publication — archivé
-Récit complet (ce qui a été publié et pourquoi, corrections de fond, éléments conservés,
-le piège central rencontré **quatre fois**, rapatriement `publish` → `master`) :
+Récit complet (le piège central rencontré **quatre fois**, rapatriement `publish` → `master`) :
 `journal/context-archive-2026-08-20-publication-orpheline.md`.
 
 ### Ouvert, non décidé
@@ -56,12 +58,12 @@ le piège central rencontré **quatre fois**, rapatriement `publish` → `master
   les atteint ; seule une réécriture, exclue par Pierre. Au sommet, **52 `Studio-Dev`
   subsistent — 49 dans des artefacts que la publication a EXCLUS au lieu de rédiger.**
   Le rapatriement rend le **code** du canon correct, **pas son arbre publiable**.
-- **Chemin Blender : 2 autorités unifiées sur 5.** Les 3 autres sont **rédigées**
-  (aucune fuite) mais portent toujours le fait en double. Non traité, pas oublié.
+- **Chemin Blender : 2 autorités unifiées sur 5** — les 3 autres sont rédigées (aucune
+  fuite) mais portent le fait en double. Non traité, pas oublié.
 - ~~2 rouges Node périmés~~ → **FERMÉS** (`1ce25f9`) : un test de **pont** ancré sur l'état
   du **parc**. **Suite node : 821 / 821. Suite forge python : 1910 / 1911, 0 rouge.**
-- **LOT EVIDENCE — FERMÉ** (Pierre, 2026-08-20). Ce qui est corrigé l'est ; ce qui reste
-  est **mesuré, documenté, et accepté tel quel**.
+- **LOT EVIDENCE — FERMÉ** (Pierre). Corrigé ce qui l'est ; le reste est **mesuré,
+  documenté, accepté tel quel**.
 
   | | |
   |---|---|
