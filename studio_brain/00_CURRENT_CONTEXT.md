@@ -17,7 +17,7 @@ C'est normal, ce n'est pas une perte.
 ```
 publish local    9a2c485   3 commits orphelins — POUSSE (origin/publish : 9a2c485)
 origin/master    bcde5cb   INCHANGE — `master` ne sera PAS pousse (voir plus bas)
-master local     7206a68   143 commits, non pousses, archive intacte
+master local     c299c76   144 commits, non pousses, archive intacte
 ```
 
 ### Décision du 2026-08-20 — les artefacts porteurs restent internes
@@ -60,35 +60,38 @@ le piège central rencontré **quatre fois**, rapatriement `publish` → `master
   (aucune fuite) mais portent toujours le fait en double. Non traité, pas oublié.
 - ~~2 rouges Node périmés~~ → **FERMÉS** (`1ce25f9`) : un test de **pont** ancré sur l'état
   du **parc**. **Suite node : 821 / 821. Suite forge python : 1910 / 1911, 0 rouge.**
-- **Chaîne de preuve `evidence_*` — CINQ états, à ne JAMAIS fondre en un seul :**
+- **LOT EVIDENCE — FERMÉ** (Pierre, 2026-08-20). Ce qui est corrigé l'est ; ce qui reste
+  est **mesuré, documenté, et accepté tel quel**.
 
-  | état | statut |
+  | | |
   |---|---|
-  | naissance du sceau | **CORRIGÉE** `4bbd052` |
-  | résolution du chemin (lecture) | **CORRIGÉE** `883b016` |
-  | forme stockée du chemin (écriture) | **CORRIGÉE** `0650b21` |
-  | 37 logs non versionnés | **TRAITÉS par CONTRAT** `7206a68` |
-  | 90 sceaux historiques | **IRRÉPARABLES** |
-  | 30 évidences absentes | **À INSTRUIRE — prochain lot** |
+  | naissance du sceau | **CORRIGÉ** `4bbd052` |
+  | résolution du chemin | **CORRIGÉ** `883b016` |
+  | chemin stocké | **CORRIGÉ** `0650b21` |
+  | logs non versionnés | **TRAITÉ PAR CONTRAT** `7206a68` |
+  | 15 archives | **NE PAS CORRIGER** — preuve retrouvée, sceau concordant sur disque |
+  | 1 orpheline | **DOCUMENTÉE** — `.claude/worktrees/…`, arbre étranger |
+  | 90 sceaux historiques | **IRRÉPARABLES / ACCEPTÉS** |
+  | 30 absences | **AUDIT TERMINÉ** |
 
-  **Aucun de ces commits ne veut dire « `evidence_sha256` est réparé ».** Chacun ferme un
-  état, aucun ne ferme la chaîne.
-  - **naissance** : le producteur écrivait du CRLF, `.gitattributes` renormalisait au commit,
-    le sceau porte les **octets**. Une évidence naît désormais avec un sceau qui y survit.
-  - **chemin** : le défaut réel n'était pas « des chemins absolus » mais *la validité d'une
-    preuve dépendait du répertoire d'où on la vérifiait*. `verdict.py` est l'**autorité
-    unique**, écriture et lecture. Les 63 reçus absolus ne sont **pas réécrits**.
-  - **37 logs — décision A ratifiée** : un reçu ne scelle plus un **flux d'exploitation**.
-    Critère = `.gitignore` lui-même, pas une liste d'extensions ; il encode déjà la
-    distinction preuve/flux, exception `knowledge_base/proofs/*.log` comprise.
-    `evidence_path` est **conservé** (on cesse de promettre, pas de tracer) et le **motif**
-    voyage dans `detail` — un sceau vide sans raison serait indiscernable d'un calcul raté.
-    **2014 tests verts.**
-  - **90 sceaux** : les octets scellés n'existent plus. Recalculer et re-signer
-    **fabriquerait** une preuve. Statut définitif, non masqué.
-  - **30 évidences** absentes du dépôt ET du disque → **instruire la perte AVANT toute
-    régénération.** Ne **pas** régénérer, ne **pas** re-signer. Pour chacune : perte réelle,
-    artefact jamais produit, exclusion contractuelle, ou référence devenue orpheline ?
+  L'audit a montré que « 30 absences » n'était ni 30 ni des pertes : **18 fichiers**
+  distincts (le reste était du double comptage), dont **15 archivés** par des renommages
+  purs. **Zéro perte réelle.** Un résolveur d'adresse a été écrit puis **retiré du dépôt** :
+  il améliore la récupération sur *ce* poste, il ne restaure pas la vérifiabilité git — donc
+  il n'est pas nécessaire pour que le système dise vrai. Code conservé hors dépôt.
+
+- **DOCTRINE DE SORTIE — ratifiée Pierre 2026-08-20, vaut pour TOUS les lots :**
+
+  > Un défaut adjacent découvert pendant une correction **ne devient pas automatiquement le
+  > prochain lot.**
+
+  Il faut au moins une de ces conditions : **casse le runtime · casse un invariant · produit
+  une fausse preuve · empêche une capacité contractuellement requise · priorisé
+  explicitement.** Sinon : `MESURÉ → DOCUMENTÉ → PASSIF → FIN DU LOT`.
+
+  Ce qui manquait n'était pas la rigueur — c'était le **critère de sortie**. Sans lui, une
+  Forge parfaitement fonctionnelle passe son existence à améliorer ses propres audits au lieu
+  de produire.
 - Clé HMAC par défaut → vrai sujet **sécurité**, hors hygiène de publication.
 - Backlog `§18` du Master Schéma V2 : P0 détectabilité, P1 étage ② + un run `full` pour
   observer enfin la lignée causale, P2 `reuse_ratio` ×12 et `agent_factory` sans appelant.
