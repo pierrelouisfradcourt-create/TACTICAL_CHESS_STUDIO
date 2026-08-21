@@ -178,8 +178,17 @@ lab/forge_evidence/*
 *.mutbak
 
 # Chemin local du binaire Godot (machine-dependant, jamais versionne)
-scripts/forge/godot.config.json
-scripts/forge/blender.config.json
+# CONFIGS PAR POSTE — regle GENERALE (2026-08-20). Motif ratifie : un resolveur lit
+# `env VAR -> <outil>.config.json (ignore) -> erreur explicite`, et le gabarit
+# `<outil>.config.example.json` est VERSIONNE. Ces fichiers portent un chemin de poste PAR
+# CONSTRUCTION (`godot_bin.mjs`, `blender_bin.py`).
+# Pourquoi general et non enumere : la regle etait ecrite A LA MAIN, une ligne par outil. Un
+# troisieme outil aurait fuit par simple omission. Les deux instances connues restent
+# nommees ci-dessous, en commentaire, parce qu'un motif ne dit pas QUI il protege.
+#   instances au 2026-08-20 : scripts/forge/godot.config.json · scripts/forge/blender.config.json
+scripts/forge/*.config.json
+# Les GABARITS restent versionnes : sans eux, un poste neuf devine la forme du fichier.
+!scripts/forge/*.config.example.json
 
 # Artefacts advisory du Context Manifest ecrits par les tests/dispatch hors run reel
 # (context_manifest.default_run_dir : destination "indecidable"). Ecriture seule,
