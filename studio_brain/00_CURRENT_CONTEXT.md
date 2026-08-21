@@ -76,6 +76,16 @@ sortie de s0) + persistance `artifacts/<etape>.failed.txt` et `output`/coûts da
 Ce qui a tenu : porte de dispatch, manifests HMAC, `git_head=ad6eff4`, 1 leçon promue à l'arrêt,
 moniteur zombie/terminal.
 
+### Run 2 `kitten_clicker-20260821b` — HALTED à s2 de nouveau (s0 = 1,17 $) — archivé `_run2_20260821b/`
+Correctif A **validé en réel** : `charter.yaml` écrit, `check_charter PASS`, reference_jeu = Pierre.
+Correctif B **validé en réel** : `artifacts/s2-worldscan.failed.txt` (24 Ko) persisté → diagnostic
+possible : **le World Scan était VALIDE** (4 jeux, 25 sources) ; haiku a fencé son RETURN_REASON
+en ```json, et la règle « dernier bloc dict » d'`extract_json_payload` a pris ce bloc → validateur
+sur le mauvais objet → HALT. 3ᵉ rupture de la même famille (extraction sensible à la forme).
+**Lot 3** : `select_artifact_payload` = dernier bloc qui PASSE le validateur de l'artefact ; message
+« clé absente » ≠ « liste vide ». Reprise d'un run HALTED **impossible sans retoucher l'état** :
+`BLOCKED` ∈ `TERMINAL_STATUSES` (driver.py:140) → la boucle SAUTERAIT s2 — mesuré, PASSIF, hors lot.
+
 ### Prochaine étape
 1. Pierre : sentinelle + retour `master` (séquence ci-dessus), puis revue du lot
    (`git diff --stat` : 8 modifiés, 5 créés) et décision commit.
@@ -87,12 +97,7 @@ moniteur zombie/terminal.
 3. Lire `amont_traversal` dans le reçu s10c : c'est LE résultat du test — pas le verdict.
 
 ## Rappels de fond (inchangés)
-- `publish` = snapshot orphelin séparé ; **aucun SHA recopié ici**
-  (`git ls-remote origin refs/heads/master refs/heads/publish`).
-- Artefacts porteurs de chemin de poste : **exclus du corpus public**, intacts en local
-  (ratifié `d9b8a5b`). HMAC symétrique = 0 vérifiable par un tiers.
-- Backlog §18 Master Schéma V2 : P0 détectabilité · P1 étage ② + un run `full` ·
-  P2 `reuse_ratio` ×12 et `agent_factory` sans appelant. Clé HMAC par défaut = sujet
-  sécurité, hors hygiène.
-- Lot EVIDENCE, anonymisation Observer, audit de sensibilité : **FERMÉS** (détail dans
-  `journal/context-archive-2026-08-21-publication-reparation.md`).
+`publish` = snapshot orphelin séparé, aucun SHA recopié ici · artefacts à chemin de poste exclus
+du corpus public (`d9b8a5b`), HMAC symétrique = 0 vérifiable par un tiers · backlog §18 Master
+Schéma V2 (P0 détectabilité, P1 étage ②, P2 `reuse_ratio`/`agent_factory`) · lots EVIDENCE /
+anonymisation / sensibilité **FERMÉS** → `journal/context-archive-2026-08-21-publication-reparation.md`.

@@ -969,9 +969,12 @@ def _validate_worldscan(data: dict) -> str:
     seulement un artefact structurellement inexploitable (games[] absent/vide,
     objectives[] absent/vide) d'atteindre le disque."""
     games = data.get("games")
+    if games is None:
+        return ("'games' est ABSENTE du manifeste (clé manquante — un manifeste "
+                "sans jeu rend check_worldscan.mjs trivialement invalide)")
     if not isinstance(games, list) or not games:
-        return ("'games' doit être une liste NON VIDE (un manifeste sans jeu "
-                "rend check_worldscan.mjs trivialement invalide)")
+        return ("'games' doit être une liste NON VIDE (une liste vide rend "
+                "check_worldscan.mjs trivialement invalide)")
     for i, game in enumerate(games):
         if not isinstance(game, dict):
             return f"games[{i}] n'est pas un objet (dict attendu)"
@@ -1345,6 +1348,60 @@ def _materialize_markdown(etape: str, output: str, run_dir: Path) -> dict | None
         return {"written": False, "reason": "exception du matérialiseur (voir run.log)"}
 
 
+def select_artifact_payload(etape: str, output: str) -> tuple[dict | None, str]:
+    """Choisit, parmi TOUS les blocs ```json``` fenced d'une sortie d'étape, celui
+    qui doit être matérialisé comme artefact.
+
+    Défaut mesuré (run kitten_clicker-20260821b) : `extract_json_payload` prend
+    inconditionnellement le DERNIER bloc dict, quel que soit son contenu. Quand un
+    agent termine sa réponse par un second bloc fenced (ex. un RETURN_REASON mis en
+    forme en ```json``` plutôt qu'en ligne inline — hors contrat mais observé), ce
+    second bloc vole la place de l'artefact réel et le validateur juge le mauvais
+    objet, avec un message qui accuse une clé « vide » alors qu'elle est ABSENTE.
+
+    Règle : parcourt les blocs dict (mêmes candidats qu'`extract_json_payload` —
+    `_FENCED_JSON`, dict JSON valide) du DERNIER au PREMIER, retient le DERNIER qui
+    PASSE le validateur de l'artefact de `etape`. Si `etape` n'a pas de validateur
+    connu (pas dans `_ARTIFACT_BY_STEP`/`_ARTIFACT_VALIDATORS`), délègue tel quel à
+    `extract_json_payload` — comportement inchangé pour tout appelant hors artefact
+    JSON déterministe.
+
+    Si AUCUN bloc dict ne passe le validateur : comportement préservé au pire —
+    retourne la raison du validateur appliqué au DERNIER bloc dict trouvé (le même
+    message qu'avant ce correctif), ou la raison native d'`extract_json_payload` s'il
+    n'existe aucun bloc dict du tout (JSON illisible, pas de fence, etc.).
+
+    Jamais d'exception, jamais un objet partiel — même contrat qu'`extract_json_payload`.
+    """
+    artefact = _ARTIFACT_BY_STEP.get(etape)
+    validator = _ARTIFACT_VALIDATORS.get(artefact) if artefact else None
+    if validator is None:
+        return extract_json_payload(output)
+
+    blocks = _FENCED_JSON.findall(output or "")
+    dict_candidates: list[dict] = []
+    for raw in blocks:
+        try:
+            data = json.loads(raw)
+        except ValueError:
+            continue
+        if isinstance(data, dict):
+            dict_candidates.append(data)
+    if not dict_candidates:
+        # Aucun bloc dict : retombe sur extract_json_payload (JSON non-fenced,
+        # message d'échec natif — identique au comportement d'avant ce correctif).
+        return extract_json_payload(output)
+
+    last_reason = ""
+    for data in reversed(dict_candidates):
+        reason = validator(data)
+        if not reason:
+            return data, ""
+        if not last_reason:
+            last_reason = reason  # celle du DERNIER bloc dict, comme avant le correctif
+    return None, last_reason
+
+
 def _materialize_artifact(etape: str, output: str, run_dir: Path) -> dict | None:
     """Écrit l'artefact déterministe de l'étape (blueprint.json / wiremap.json)
     depuis la sortie texte, APRÈS validation de schéma (F2a). Retourne None si
@@ -1353,7 +1410,7 @@ def _materialize_artifact(etape: str, output: str, run_dir: Path) -> dict | None
     artefact = _ARTIFACT_BY_STEP.get(etape)
     if artefact is None:
         return None
-    data, why = extract_json_payload(output)
+    data, why = select_artifact_payload(etape, output)
     if data is None:
         return {"ok": False,
                 "reason": f"{etape}: artefact {artefact} non matérialisable — {why}"}
