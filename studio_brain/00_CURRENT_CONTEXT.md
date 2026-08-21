@@ -2,21 +2,18 @@
 *(Handoff. Archives : `journal/context-archive-2026-08-{20,17,15}-*.md`.)*
 
 ## ⚠️ LE DÉPÔT EST SUR LA BRANCHE `publish` — À LIRE EN PREMIER
-La session s'est terminée **hors de `master`**. Pour reprendre le travail normal :
-
-```bash
-git checkout master     # bloqué par le garde git : sentinelle humaine requise
-```
+La session s'est terminée **hors de `master`**. Pour reprendre : `git checkout master`
+— **bloqué par le garde git**, sentinelle humaine requise.
 
 Sur `publish`, **86 artefacts de run apparaissent non suivis** — exclus de cette branche,
 présents sur disque, resuivis au retour sur `master`. Ce n'est pas une perte.
 
 ## Session 2026-08-19/20 — publication, puis reparation du snapshot
-```
-publish local    9a2c485   3 commits orphelins — POUSSE (origin/publish : 9a2c485)
-origin/master    2de8641   POUSSE le 2026-08-20 (147 commits) — voir decision-log
-master local     00fd1f9   146 commits, non pousses, archive intacte
-```
+**Les deux branches sont POUSSÉES et synchronisées** (2026-08-20). `master` = le canon,
+publié — position **remplacée** en séance, voir decision-log. `publish` = snapshot
+**orphelin** et **séparé** : un lot `master` ne s'y déverse jamais, il s'y porte.
+**Aucun SHA d'état n'est recopié ici** — un handoff qui en cite un est faux dès son propre
+commit. La vérité : `git ls-remote origin refs/heads/master refs/heads/publish`.
 
 ### Décision du 2026-08-20 — les artefacts porteurs restent internes
 **Ratifiée Pierre** (`d9b8a5b`, decision-log). Les 28 fichiers de `lab/forge_runs/` porteurs
