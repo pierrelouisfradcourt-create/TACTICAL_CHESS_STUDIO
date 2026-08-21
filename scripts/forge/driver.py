@@ -1063,6 +1063,16 @@ class ForgeDriver:
                 # (ex. timeout claude -p, FIR-01 : `duration_s` connu, `tokens`
                 # jamais parsé) — transmis pour que la ligne HALT porte ce qui a
                 # été MESURÉ, jamais un silence total sur un échec coûteux.
+                # Correctif B (2026-08-21) : une sortie brute coûteuse (ex. LLM
+                # exécuté mais artefact refusé par le matérialiseur) ne doit
+                # jamais disparaître silencieusement — persistée sous un nom
+                # DISTINCT de `<etape>.txt` (jamais une sortie refusée passée
+                # pour un artefact validé).
+                if isinstance(res, dict) and res.get("output"):
+                    failed_path = self.run_dir / "artifacts" / f"{etape}.failed.txt"
+                    failed_path.parent.mkdir(parents=True, exist_ok=True)
+                    failed_path.write_text(str(res["output"]), encoding="utf-8")
+                    res["failed_artifact_path"] = str(failed_path)
                 return self._halt_step(state, entry, f"exécuteur LLM en échec à {etape}: {why}",
                                        etape=etape, payload=payload,
                                        res=res if isinstance(res, dict) else None)

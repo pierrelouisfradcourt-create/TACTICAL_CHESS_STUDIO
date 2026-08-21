@@ -49,7 +49,7 @@ Node **828/828** (821 + 7 sonde) · pytest ciblé **129/129** + invariant driver
 | consommateur du champ `amont_traversal` | PASSIVE | produit dans le détail s10c, lu par personne — c'est Pierre/orchestrateur qui le lit |
 | `oracles.json` kitten_clicker | TESTED | pré-vol ok ; `godot_oracle.mjs` sur un jeu encore inexistant = UNKNOWN jusqu'au build |
 | `design_intent.md` / `tasks.json` | DOCUMENTED_ONLY | lus par run_real (`_VALID_TASK_STEPS`), run non lancé |
-| retour `master` + commit | BLOCKED | sentinelle refusé à l'agent (permission settings) — geste humain |
+| retour `master` + commit lot 1 | TESTED | `ad6eff4` (17 fichiers, pre-commit vert, pas de push) ; lot 2 correctif = commit suivant |
 
 ### Mesuré, documenté, NON corrigé (doctrine de sortie 2026-08-20)
 - **`--charter` = panel Prisme**, pas une entrée de s0. Le panel lit le charter à la
@@ -61,6 +61,20 @@ Node **828/828** (821 + 7 sonde) · pytest ciblé **129/129** + invariant driver
 - Pour un clicker, « jouable plusieurs heures » tombe sous la règle de variance : la
   courbe de progression doit prouver ≥ 2 valeurs distinctes avant de calibrer quoi que
   ce soit (demandé dans `tasks.json` s0).
+
+### Run 1 `kitten_clicker-20260821-1312` — HALTED à s2 (13 min, s0 = 4,14 $) — archivé `_run1_20260821-1312/`
+Deux ruptures localisées (symptôme → preuve → cause → couche), aucune corrigée pendant le run :
+1. **Charter avalé** — s0 OK, bloc ```yaml présent, `charter.yaml` absent (`yaml_check: written=false`).
+   Cause : `_FENCED_YAML` paresseuse non ancrée ; la prose de s0 mentionne « ```yaml block » ligne 1
+   → match jusqu'à la fence d'OUVERTURE du vrai bloc. Couche : exécuteur `run_real._materialize_yaml`.
+   `_FENCED_JSON` (l.459) a la même forme — **latent, hors lot**.
+2. **World Scan vide** — haiku rend `games: []` → matérialiseur refuse → HALT 1ʳᵉ tentative
+   (échec d'exécuteur ≠ oracle FAIL : ni pool ni escalade). Sortie brute **non persistée** →
+   cause UNKNOWN. Même modèle = 4 worldscans tetris OK ; WebSearch dérivable du contrat.
+**Lot correctif 2 (décision Pierre)** : regex YAML ancrée en début de ligne (test sur la VRAIE
+sortie de s0) + persistance `artifacts/<etape>.failed.txt` et `output`/coûts dans le dict d'échec.
+Ce qui a tenu : porte de dispatch, manifests HMAC, `git_head=ad6eff4`, 1 leçon promue à l'arrêt,
+moniteur zombie/terminal.
 
 ### Prochaine étape
 1. Pierre : sentinelle + retour `master` (séquence ci-dessus), puis revue du lot

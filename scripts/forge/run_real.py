@@ -1247,7 +1247,7 @@ _YAML_BY_STEP: dict[str, str] = {
     "s0-contrat": "charter.yaml",
 }
 
-_FENCED_YAML = re.compile(r"```ya?ml\s*(.*?)```", re.S)
+_FENCED_YAML = re.compile(r"^```ya?ml[ \t]*\r?\n(.*?)^```[ \t]*$", re.S | re.M)
 
 
 def _materialize_yaml(etape: str, output: str, run_dir: Path) -> dict | None:
@@ -1722,6 +1722,16 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
             failure = _materialize_artifact(etape, str(res.get("output", "")),
                                             Path(context["run_dir"]))
             if failure is not None:
+                # Correctif B (2026-08-21) : un refus de matérialisation NE DOIT PAS
+                # faire perdre la sortie brute coûteuse du LLM — sans `output`, le
+                # driver halte sans jamais écrire `artifacts/<etape>.txt` (forensique
+                # impossible). `setdefault` : ne jamais écraser une clé déjà posée
+                # par `_materialize_artifact`.
+                failure.setdefault("output", str(res.get("output", "")))
+                for champ in ("tokens", "duration_s", "cost_usd",
+                              "cache_creation_tokens", "cache_read_tokens"):
+                    if champ in res:
+                        failure.setdefault(champ, res.get(champ))
                 return failure
             # GO-1/M3 : artefact TEXTE (product_snapshot.md pour s1-prisme) + reçu
             # check_prisme — advisory, jamais un échec de pas (voir docstring).
