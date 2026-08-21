@@ -39,11 +39,16 @@ _AMONT_NARRATIF = ("artifacts/s2.6-story-bible.txt", "artifacts/s2.7-gm-worldsca
 
 
 def test_le_prisme_et_la_decompo_recoivent_story_bible_et_gm_worldscan():
+    # Appartenance, pas égalité exacte : le lot 4 (full_godot_content, 2026-08-22) ajoute
+    # l'art bible aux mêmes entrées — ce test garantit que s1 et s3 REÇOIVENT les deux
+    # artefacts narratifs, pas que rien d'autre ne pourra jamais s'y ajouter.
     for table in (run_real._UPSTREAM_BY_STEP, context_manifest._UPSTREAM_BY_STEP):
-        assert table["s1-prisme"] == ("artifacts/s2-worldscan.txt",) + _AMONT_NARRATIF
-        assert table["s3-decompo"] == (
+        assert table["s1-prisme"][:1] == ("artifacts/s2-worldscan.txt",)
+        assert set(_AMONT_NARRATIF) <= set(table["s1-prisme"])
+        assert table["s3-decompo"][:3] == (
             "charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt",
-        ) + _AMONT_NARRATIF
+        )
+        assert set(_AMONT_NARRATIF) <= set(table["s3-decompo"])
     assert run_real._UPSTREAM_BY_STEP == context_manifest._UPSTREAM_BY_STEP
 
 

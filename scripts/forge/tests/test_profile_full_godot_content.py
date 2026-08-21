@@ -1,0 +1,69 @@
+"""Profil full_godot_content (décision Pierre 2026-08-22) : COMPOSITION, aucune
+station neuve — full_godot_narratif + s2.5-artbible (Art Director) injectée
+immédiatement après s1-prisme (s2.5 consomme product_snapshot.md produit par s1).
+Même forme que le lot full_godot_narratif : imite
+test_profile_full_godot_narratif.py."""
+from forge.dispatch import (
+    DEDICATED_PROFILE_STEPS, ORDER, PROFILES, order_for_profile, step_timeout_for,
+)
+
+
+def test_le_profil_existe_et_compose_uniquement_des_etapes_existantes():
+    steps = PROFILES["full_godot_content"]
+    assert set(steps).issubset(set(ORDER) | set(DEDICATED_PROFILE_STEPS))
+
+
+def test_le_profil_est_full_godot_narratif_plus_artbible_apres_s1():
+    attendu = list(PROFILES["full_godot_narratif"])
+    k = attendu.index("s1-prisme")
+    attendu.insert(k + 1, "s2.5-artbible")
+    assert list(PROFILES["full_godot_content"]) == attendu
+    assert order_for_profile("full_godot_content") == attendu
+    assert len(PROFILES["full_godot_content"]) == 17
+
+
+def test_le_builder_garde_le_timeout_mesure():
+    assert step_timeout_for("full_godot_content", "s9-build-godot-standard", 1.0) == 5400.0
+    assert step_timeout_for("full_godot_content", "s3-decompo", 1.0) == 1.0
+
+
+from forge import context_manifest, run_real
+
+_AMONT_NARRATIF = ("artifacts/s2.6-story-bible.txt", "artifacts/s2.7-gm-worldscan.txt")
+_AMONT_CONTENT = ("art_bible.md", "asset_requests.json")
+
+
+def test_s3_decompo_recoit_aussi_art_bible_et_asset_requests():
+    for table in (run_real._UPSTREAM_BY_STEP, context_manifest._UPSTREAM_BY_STEP):
+        assert table["s3-decompo"] == (
+            "charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt",
+        ) + _AMONT_NARRATIF + _AMONT_CONTENT
+
+
+def test_s5_wiremap_recoit_story_bible_art_bible_et_asset_requests():
+    for table in (run_real._UPSTREAM_BY_STEP, context_manifest._UPSTREAM_BY_STEP):
+        assert table["s5-wiremap"] == (
+            "charter.yaml", "artifacts/s3-decompo.txt", "blueprint.json",
+            "artifacts/s2.6-story-bible.txt", "art_bible.md", "asset_requests.json",
+        )
+
+
+def test_s9_build_godot_standard_recoit_blueprint_wiremap_art_bible_asset_requests():
+    for table in (run_real._UPSTREAM_BY_STEP, context_manifest._UPSTREAM_BY_STEP):
+        assert table["s9-build-godot-standard"] == (
+            "blueprint.json", "wiremap.json", "art_bible.md", "asset_requests.json",
+        )
+
+
+def test_les_deux_copies_de_la_table_amont_restent_identiques():
+    assert run_real._UPSTREAM_BY_STEP == context_manifest._UPSTREAM_BY_STEP
+
+
+def test_les_artefacts_amont_absents_sont_omis_sans_erreur_s9(tmp_path):
+    # seul wiremap.json présent : art_bible.md/asset_requests.json omis, pas d'erreur.
+    (tmp_path).mkdir(exist_ok=True)
+    (tmp_path / "wiremap.json").write_text("{}", encoding="utf-8")
+    section = run_real.upstream_artifacts_section("s9-build-godot-standard", tmp_path)
+    assert "wiremap.json" in section
+    assert "art_bible.md" not in section
+    assert "asset_requests.json" not in section

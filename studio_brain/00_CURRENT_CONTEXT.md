@@ -1,103 +1,61 @@
 # Contexte courant TCS
-*(Handoff. Archives : `journal/context-archive-2026-08-{21,20,17,15}-*.md`.)*
+*(Handoff. Archives : `journal/context-archive-2026-08-22-kitten-clicker-runs1-3.md` (détail des 3 runs,
+6 ruptures, chemins pour forger, croquis blackboard), `…-2026-08-21-publication-reparation.md`, `…-08-20`.)*
 
-## Branche : `master` (retour effectué 2026-08-21, sentinelle humain Pierre)
-Le retour depuis `publish` a exigé d'écarter 68 fichiers non suivis que `master` suit
-(58 artefacts `lab/forge_runs/**` identiques modulo CRLF, 10 rapports Observer **régénérés
-par les tests driver du jour**) — tous sauvegardés hors dépôt avant suppression, restaurés
-par le checkout depuis `master`. Aucune perte. Hors lot et laissé non commité :
-`scripts/forge/tests/test_evidence_isolation_fixture.py` (12 lignes, correctif `import
-conftest` par chemin, ne vivait que sur `publish` — à arbitrer par Pierre).
+## Branche : `master` (= origin/master). `publish` = snapshot séparé, intouché.
+Hors lot, non commité : `scripts/forge/tests/test_evidence_isolation_fixture.py` (12 lignes, ne vivait que
+sur `publish`) — à arbitrer par Pierre. Artefacts de run (lab/forge_runs/kitten_clicker/, lessons.jsonl,
+RUN_INDEX.md, observer/) non commités : merge/reject = Pierre.
 
-## Session 2026-08-21 — Kitten Clicker : préparation du test d'autonomie de la Forge
-Décision Pierre : forger **Kitten Clicker** (clicker de chatons, réf. **Cookie Clicker +
-Neko Atsume**) comme test d'autonomie. Choix **(b)** : recâbler par **composition de
-profil**, sans station GM neuve. Plan complet :
-`docs/superpowers/plans/2026-08-21-kitten-clicker-full-godot-narratif.md`.
+## Kitten Clicker — test d'autonomie de la Forge (réf. Cookie Clicker + Neko Atsume)
+**Commits master** : `ad6eff4` lot 1 (profil `full_godot_narratif`, injection s2.6/s2.7 → s1/s3, `reference`
+adressable, sonde `check_amont_traversal.mjs` ADVISORY sur le reçu s10c) · `bfe04fa` lot 2 (regex YAML
+ancrée, sortie en échec persistée) · `4f8c245` lot 3 (dernier bloc JSON qui PASSE le validateur) ·
+lot 4 (ce commit) : profil **`full_godot_content`** = narratif + `s2.5-artbible` après s1 (17 étapes),
+injection `art_bible.md`/`asset_requests.json` dans s3, s5 et **s9** (qui n'avait aucune injection).
 
-### Livré (NON COMMITÉ — gate Pierre)
-- Profil **`full_godot_narratif`** (16 étapes) = `full_godot` + `s2.6-story-bible` +
-  `s2.7-gm-worldscan` insérées après s0+s2, avant s1 (`dispatch.py`).
-- `_UPSTREAM_BY_STEP` (2 copies, `run_real.py`/`context_manifest.py`) : **s1-prisme et
-  s3-decompo reçoivent** story_bible + gm_worldscan. Contrats s1/s3 : `mandatory_read`
-  étendu ; **`reference` des exigences EXPECTED devient adressable** (`worldscan:…`,
-  `story_bible:<section>`, `gm_worldscan:<dimension>`) — règle de contrat, mesurée par
-  la sonde, oracle `check_decompo` **inchangé**.
-- Sonde **`check_amont_traversal.mjs`** (déterministe, ADVISORY, jamais OK/FAIL) : suit
-  `prisme.reference → featuremap.source_ref → wiremap.couvre → fichiers` pour 6 faits
-  (victoire, défaite, objectifs, progression, boucles de récompense, contraintes
-  narratives) ; `reached` ∈ NOT_PRODUCED…BUILD. Attachée au reçu **s10c** via
-  `oracle.run_amont_traversal_probe` (le spawn vit dans `oracle.py`, invariant
-  `test_driver_ne_spawn_pas_directement`).
-- `oracles.json` : entrée `kitten_clicker` (pré-vol **ok**, leçon KB citée).
-- Entrées du run : `lab/forge_runs/kitten_clicker/{design_intent.md,tasks.json}`.
+**Run 3 `kitten_clicker-20260821c` (DONE, 16/16, ≈ 38 $, 2 h 16, verdict AUTHENTIQUE FAIL/BLOCKED)** —
+baseline : 10 exigences / 10 feuilles / 10 lignes / 23 fichiers / 1 scène / 0 asset / 0 audio / story
+bible 2-8 / sonde 4 faits GREY_BLOCKS. Jeu mécaniquement jouable (73 tests, solvabilité 20/20, volets GPU
+`main_screen_render`/`gallery_render` OK en gpu_window). **Six ruptures localisées** (détail en archive) :
+1-3 corrigées (lots 2-3) ; 4 charter YAML illisible + matérialisation advisory (s0 OK sans artefact,
+re-spawn prescrit par le skill jamais implémenté) ; 5 Grey Blocks → WireMap : `couvre` vides → Qwen invente
+des noms → `repair_step.mjs:237` ne recopie que `problems[]` = **fausse preuve** → `ESCALADE` sans
+consommateur, `res["repair"]` jeté par `entry["detail"]` ; 6 composition `full_godot*` = topologie legacy +
+`s10s` = validateurs sans producteurs (builder a écrit `game_contract.yaml` seul au retry → s10s OK).
 
-### Preuves (relancées par l'orchestrateur, pas sur parole)
-Node **828/828** (821 + 7 sonde) · pytest ciblé **129/129** + invariant driver/sonde/profil
-**13/13** · suite forge complète (bras 3) **1961 passed, 1 skipped, 1 failed** — le rouge
-était `import subprocess` dans `driver.py`, corrigé par déplacement vers `oracle.py`,
-`test_driver.py` **24/24** ensuite · dry-run **16 étapes**, aucun contrat cassé.
+**Diagnostic ratifié en séance (Pierre)** : la Forge produit le noyau *prouvable* d'une intention ; le
+Prisme est un PLAFOND (non-invention de s3) ; « vérifiable » ≠ « vérifiable par un bot ». Chantier en 6
+étapes (inventaire existant non câblé → familles prouvables → `expected_proof.kind` seulement avec
+consommateur → HumanGate explicite → recâblage → V2 régression). **Ne pas transformer chaque dimension
+en oracle.** Croquis Pierre (histoire · GM · effets/son/habillage → wiremap-blackboard → builder) : blackboard
+déjà [D] (PIPELINE_TARGET_V1:84,109), s8 HABILLAGE `NOT_FOUND`, « loi de la physique du jeu » et lien
+« ambiance » nulle part écrits — première formulation.
 
-### Statut par pièce (vocabulaire : IMPLEMENTED · TESTED · DOCUMENTED_ONLY · PASSIVE · BLOCKED · UNKNOWN)
-| Pièce | Statut | Preuve |
-|---|---|---|
-| profil `full_godot_narratif` | TESTED | test_profile_full_godot_narratif 7/7, dry-run 16 |
-| injection s2.6/s2.7 → s1, s3 (`_UPSTREAM_BY_STEP`) | TESTED | égalité 2 copies, omission si absent |
-| `reference` adressable (contrat s1) | DOCUMENTED_ONLY | règle de contrat ; aucun oracle ne la gate (par choix : variance d'abord) |
-| sonde `check_amont_traversal.mjs` | TESTED | 7/7 + 2 runs réels (tous ≤ PRODUCED : aucun prisme.json) |
-| attache au reçu s10c (`oracle.run_amont_traversal_probe`) | TESTED | 5/5 + invariant driver ; **jamais exécutée dans un run réel** |
-| consommateur du champ `amont_traversal` | PASSIVE | produit dans le détail s10c, lu par personne — c'est Pierre/orchestrateur qui le lit |
-| `oracles.json` kitten_clicker | TESTED | pré-vol ok ; `godot_oracle.mjs` sur un jeu encore inexistant = UNKNOWN jusqu'au build |
-| `design_intent.md` / `tasks.json` | DOCUMENTED_ONLY | lus par run_real (`_VALID_TASK_STEPS`), run non lancé |
-| retour `master` + commit lot 1 | TESTED | `ad6eff4` (17 fichiers, pre-commit vert, pas de push) ; lot 2 correctif = commit suivant |
+**Chemins pour forger (inventaire)** : `run_real.py --profile` = CANONIQUE ; boucle manuelle du skill =
+legacy non observé (le skill ne cite jamais `run_real`, périmé de 87 commits) ; `run_orchestrator` = mort
+avec pong_r3 ; 17 profils, `review`/`increment` jamais joués ; `FORGE_SYSTEM_CONTRACT.yaml` PROPOSED. Aucun
+code Forge hors `master` ; 2 branches locales mortes, 1 distante +7 (ledger STUDIO gelé).
 
-### Mesuré, documenté, NON corrigé (doctrine de sortie 2026-08-20)
-- **`--charter` = panel Prisme**, pas une entrée de s0. Le panel lit le charter à la
-  construction (avant s0) et appelle `claude_call(payload.prompt)` **sans** la section
-  « ARTEFACTS AMONT » → sous le panel, s1 ne reçoit ni worldscan ni story bible ni GM
-  (défaut préexistant à FORGE_PRISME_V2). **Lancer sans `--charter`.**
-- La sémantique de victoire de la solvabilité reste du GDScript par jeu (`verdict.gd`) :
-  le run la **mesurera** (`reached` de `conditions_victoire`), il ne la corrige pas.
-- Pour un clicker, « jouable plusieurs heures » tombe sous la règle de variance : la
-  courbe de progression doit prouver ≥ 2 valeurs distinctes avant de calibrer quoi que
-  ce soit (demandé dans `tasks.json` s0).
-
-### Run 1 `kitten_clicker-20260821-1312` — HALTED à s2 (13 min, s0 = 4,14 $) — archivé `_run1_20260821-1312/`
-Deux ruptures localisées (symptôme → preuve → cause → couche), aucune corrigée pendant le run :
-1. **Charter avalé** — s0 OK, bloc ```yaml présent, `charter.yaml` absent (`yaml_check: written=false`).
-   Cause : `_FENCED_YAML` paresseuse non ancrée ; la prose de s0 mentionne « ```yaml block » ligne 1
-   → match jusqu'à la fence d'OUVERTURE du vrai bloc. Couche : exécuteur `run_real._materialize_yaml`.
-   `_FENCED_JSON` (l.459) a la même forme — **latent, hors lot**.
-2. **World Scan vide** — haiku rend `games: []` → matérialiseur refuse → HALT 1ʳᵉ tentative
-   (échec d'exécuteur ≠ oracle FAIL : ni pool ni escalade). Sortie brute **non persistée** →
-   cause UNKNOWN. Même modèle = 4 worldscans tetris OK ; WebSearch dérivable du contrat.
-**Lot correctif 2 (décision Pierre)** : regex YAML ancrée en début de ligne (test sur la VRAIE
-sortie de s0) + persistance `artifacts/<etape>.failed.txt` et `output`/coûts dans le dict d'échec.
-Ce qui a tenu : porte de dispatch, manifests HMAC, `git_head=ad6eff4`, 1 leçon promue à l'arrêt,
-moniteur zombie/terminal.
-
-### Run 2 `kitten_clicker-20260821b` — HALTED à s2 de nouveau (s0 = 1,17 $) — archivé `_run2_20260821b/`
-Correctif A **validé en réel** : `charter.yaml` écrit, `check_charter PASS`, reference_jeu = Pierre.
-Correctif B **validé en réel** : `artifacts/s2-worldscan.failed.txt` (24 Ko) persisté → diagnostic
-possible : **le World Scan était VALIDE** (4 jeux, 25 sources) ; haiku a fencé son RETURN_REASON
-en ```json, et la règle « dernier bloc dict » d'`extract_json_payload` a pris ce bloc → validateur
-sur le mauvais objet → HALT. 3ᵉ rupture de la même famille (extraction sensible à la forme).
-**Lot 3** : `select_artifact_payload` = dernier bloc qui PASSE le validateur de l'artefact ; message
-« clé absente » ≠ « liste vide ». Reprise d'un run HALTED **impossible sans retoucher l'état** :
-`BLOCKED` ∈ `TERMINAL_STATUSES` (driver.py:140) → la boucle SAUTERAIT s2 — mesuré, PASSIF, hors lot.
+**2026-08-22 — Décision Pierre : « il y a suffisamment d'éléments pour produire le jeu »** → Kitten Clicker
+COMPLET par composition, chaque geste manuel = spec du câblage manquant. Plan :
+`docs/superpowers/plans/2026-08-21-kitten-clicker-complet-composition.md`. Mesuré : 5 familles/6 ont
+leur brique (s2.5 réel hors profil/0 lecteur ; volets GPU ont tourné ; audio procédural prouvé pacman/
+bomberman sans fichier ; STANDARD `core.render`/`core.audio` ; `asset.sprite → 04_ASSETS/sprites/{id}`) ;
+**aucun générateur 2D** → hypothèse SVG-texte ; les 5 familles tiennent dans `expected_proof.kind` ACTUEL
+→ ce sont les TÂCHES qui exigent (`tasks.json` v2). Gestes manuels M1-M7 listés dans le plan.
+Run 3 + build 2 archivés par déplacement (`_run3_20260821c/` + `game_build2/`, 43 fichiers).
 
 ### Prochaine étape
-1. Pierre : sentinelle + retour `master` (séquence ci-dessus), puis revue du lot
-   (`git diff --stat` : 8 modifiés, 5 créés) et décision commit.
-2. Créer `games/kitten_clicker/` (vide) puis lancer, sur go Pierre :
-   `PYTHONPATH=scripts .venv312/Scripts/python.exe scripts/forge/run_real.py --project
-   kitten_clicker --run-id kitten_clicker-<date> --profile full_godot_narratif --src-root
-   games/kitten_clicker --is-game --tasks-file lab/forge_runs/kitten_clicker/tasks.json`
-   (superviseur externe : un run long ne survit pas à l'agent parent, mémoire 07-27).
-3. Lire `amont_traversal` dans le reçu s10c : c'est LE résultat du test — pas le verdict.
+1. Run 4 `kitten_clicker-20260821d`, profil `full_godot_content`, sans `--charter`, depuis la session de
+   supervision (arrière-plan + moniteur). Cibles : ≥ 20 exigences / 5 familles ; story bible ≥ 6-8 ;
+   ≥ 6 sprites rendus non-monochromes ; volet `core_audio` OK ; bot au 3ᵉ palier ; sonde à BUILD ;
+   verdict authentique ; puis **playtest Pierre** consigné comme HumanGate.
+2. Rapport : intention traversée vs baseline, gestes manuels → spec de câblage, ruptures localisées.
+3. Ensuite (décisions Pierre) : lots candidats des ruptures 4-6, skill `/forge` à réaligner sur
+   `run_real.py`, ratification `FORGE_SYSTEM_CONTRACT.yaml`, branches mortes.
 
-## Rappels de fond (inchangés)
-`publish` = snapshot orphelin séparé, aucun SHA recopié ici · artefacts à chemin de poste exclus
-du corpus public (`d9b8a5b`), HMAC symétrique = 0 vérifiable par un tiers · backlog §18 Master
-Schéma V2 (P0 détectabilité, P1 étage ②, P2 `reuse_ratio`/`agent_factory`) · lots EVIDENCE /
-anonymisation / sensibilité **FERMÉS** → `journal/context-archive-2026-08-21-publication-reparation.md`.
+## Rappels de fond
+`publish` = snapshot orphelin séparé, aucun SHA recopié ici · artefacts à chemin de poste exclus du corpus
+public (`d9b8a5b`) · HMAC symétrique = 0 vérifiable par un tiers · lots EVIDENCE / anonymisation /
+sensibilité FERMÉS → `journal/context-archive-2026-08-21-publication-reparation.md`.

@@ -384,6 +384,30 @@ PROFILES = {
         "s11-redteam-code",
         "s12-verdict",
     ),
+    # full_godot_content (décision Pierre 2026-08-22) — COMPOSITION, aucune station
+    # neuve : `full_godot_narratif` + s2.5-artbible (Art Director) injectée
+    # immédiatement après s1-prisme, parce que s2.5 consomme `product_snapshot.md`
+    # produit par s1. Art bible injectée en aval (s3/s5/s9) via `_UPSTREAM_BY_STEP`
+    # (run_real/context_manifest).
+    "full_godot_content": (
+        "s0-contrat",
+        "s2-worldscan",
+        "s2.6-story-bible",
+        "s2.7-gm-worldscan",
+        "s1-prisme",
+        "s2.5-artbible",
+        "s3-decompo",
+        "s4-archi",
+        "s5-wiremap",
+        "s6-redteam-plan",
+        "s9-build-godot-standard",
+        "s10a-oracle-code",
+        "s10b-oracle-archi",
+        "s10c-oracle-wiremap",
+        "s10s-oracle-standard",
+        "s11-redteam-code",
+        "s12-verdict",
+    ),
 }
 
 
@@ -416,6 +440,9 @@ PROFILE_STEP_TIMEOUTS_S: dict[tuple[str, str], float] = {
     ("full_godot", "s9-build-godot-standard"): 5400.0,
     # full_godot_narratif : MÊME builder, MÊME point de mesure (breakout_v2-run1).
     ("full_godot_narratif", "s9-build-godot-standard"): 5400.0,
+    # full_godot_content : MÊME builder, MÊME point de mesure (breakout_v2-run1) —
+    # décision Pierre 2026-08-22, composition, aucune station neuve.
+    ("full_godot_content", "s9-build-godot-standard"): 5400.0,
 }
 
 

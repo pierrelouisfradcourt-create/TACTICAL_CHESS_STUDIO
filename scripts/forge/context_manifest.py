@@ -82,13 +82,28 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # Choix (b) Pierre 2026-08-21 : idem pour la décompo (mêmes deux artefacts amont,
     # après les 3 sources déjà existantes). Fichier absent => omis, comportement
     # inchangé pour les profils qui ne produisent pas s2.6/s2.7.
+    # full_godot_content (Pierre 2026-08-22, composition) : la décompo reçoit AUSSI
+    # art_bible.md et asset_requests.json (produits par s2.5-artbible, injecté entre
+    # s1 et s3 dans ce profil). Absents (autres profils) => omis, comportement inchangé.
     "s3-decompo": ("charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt",
-                   "artifacts/s2.6-story-bible.txt", "artifacts/s2.7-gm-worldscan.txt"),
+                   "artifacts/s2.6-story-bible.txt", "artifacts/s2.7-gm-worldscan.txt",
+                   "art_bible.md", "asset_requests.json"),
     "s4-archi": ("charter.yaml", "artifacts/s3-decompo.txt",),
-    "s5-wiremap": ("charter.yaml", "artifacts/s3-decompo.txt", "blueprint.json"),
+    # full_godot_content : le wiremap reçoit aussi la Story Bible (s2.6) et l'art
+    # bible + ses demandes d'assets (s2.5) — même raisonnement que s3-decompo
+    # ci-dessus. Absents (autres profils) => omis, comportement inchangé.
+    "s5-wiremap": ("charter.yaml", "artifacts/s3-decompo.txt", "blueprint.json",
+                   "artifacts/s2.6-story-bible.txt", "art_bible.md", "asset_requests.json"),
     "s6-redteam-plan": ("charter.yaml", "artifacts/s3-decompo.txt", "artifacts/s4-archi.txt",
                         "artifacts/s5-wiremap.txt"),
     "s9-build": ("blueprint.json", "wiremap.json"),
+    # full_godot_content : le builder Godot standard reçoit blueprint+wiremap (comme
+    # s9-build ci-dessus) PLUS l'art bible et ses demandes d'assets — mesuré (lot
+    # full_godot_narratif) : aucune injection n'existait pour s9-build-godot-standard,
+    # lecture déclarative seule. Absents (autres profils) => omis par
+    # upstream_artifacts_section, comportement inchangé.
+    "s9-build-godot-standard": ("blueprint.json", "wiremap.json", "art_bible.md",
+                                "asset_requests.json"),
     "s11-redteam-code": ("wiremap.json",),
 }
 
