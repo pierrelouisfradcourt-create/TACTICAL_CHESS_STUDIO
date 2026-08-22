@@ -75,7 +75,7 @@ objectif: >-
   Et ASSEMBLER ces lignes en un jeu : `main.tscn` (scène `run/main_scene`) est le point
   d'entrée JOUABLE ; il instancie (ou charge dans `_ready`) chaque adaptateur
   `system.adapter` et le contrôleur qui fait tourner la boucle (`_process`/Timer) ; un
-  clic réel au centre de l'écran doit modifier l'état et l'image. BOUCLE JOUEUR : `03_WORLD/loop.json` est la projection déterministe du Prisme (copie à l'identique de `<run_dir>/loop.json`, sha256 égal — jamais réécrite). Chaque `affordance` de loop.json est un nœud `Control` cliquable (Button/TextureButton ou Control avec `gui_input`) ajouté au groupe `affordance` avec `name` = l'affordance, relié par `06_RUNTIME/adapters/input/` (signal ou `pressed`) à la règle `05_SYSTEMS` correspondante. Chaque `observe.hud` est un `Label` ajouté au groupe `hud` avec `name` = la clé (`objectif`, `ronrons`, `taux`, `collection`, `prestige`…).
+  clic réel au centre de l'écran doit modifier l'état et l'image. BOUCLE JOUEUR : `03_WORLD/loop.json` est la projection déterministe du Prisme (copie à l'identique de `<run_dir>/loop.json`, sha256 égal — jamais réécrite). Chaque `affordance` de loop.json est un nœud `Control` cliquable (Button/TextureButton ou Control avec `gui_input`) ajouté au groupe `affordance` avec `name` = l'affordance, relié par `06_RUNTIME/adapters/input/` (signal ou `pressed`) à la règle `05_SYSTEMS` correspondante. Chaque `observe.hud` est un `Label` ajouté au groupe `hud` avec `name` = la clé (`objectif`, `ronrons`, `taux`, `collection`, `prestige`…). GAMEPLAY CONTRACT (2026-08-22) : les DIX maillons de loop.json sont réalisés — A PLAYER_GOAL · B PLAYER_ACTION · C AFFORDANCE · D GAME_RESPONSE · E REWARD · F UNLOCK · G NEXT_GOAL · H REPEAT · I META_LOOP · J ADVANTAGE. F fait APPARAÎTRE un nouvel élément (un nœud ajouté au groupe nommé par `observe.appears` : nouvelle affordance, nouveau Label `hud` ou nouveau contenu dans la scène) ; G = au moins DEUX objectifs textuellement distincts affichés successivement dans `objectif` après le premier (`GOAL_2 ≠ GOAL_1 ≠ GOAL_3`) ; I = prestige VISIBLE (le hud du reset décroît ou revient à sa valeur initiale) ; J = après le prestige, la première action de base rapporte STRICTEMENT plus qu'avant (delta mesuré, pas un texte).
 
 # --- 4. Frontières (Critique) ---
 in_scope: >-
@@ -126,6 +126,7 @@ gardeFou: >-
   l'audio est déclenché par les événements du jeu, pas par son oracle.
   (i) LE JOUEUR A LES SEULES ENTRÉES D'UN JOUEUR. La boucle se prouve depuis `main.tscn` par des `InputEvent` sur les affordances et la lecture des Labels `hud`. INTERDIT aux volets `07_TESTS/oracle/*.gd`, à `solvability.gd` et à tout bot de preuve : `Economy`, `api_buy_kitten()`, `api_buy_upgrade()`, `api_prestige()`, `preload("res://05_SYSTEMS/…")`, `runtime.gd` — un bot qui contourne l'écran prouve un jeu qui n'existe pas.
   (j) GUIDAGE : Au boot, le Label `objectif` dit en une phrase quoi faire (PLAYER_GOAL) ; après chaque objectif atteint il change (NEXT_GOAL) ; le coût du prochain achat est lisible à côté de son affordance. Un joueur sans explication externe doit pouvoir comprendre la première action.
+  (k) DÉPÔT DE PREUVE NON NÉGOCIABLE : `game_contract.yaml` porte un descripteur `proof:` complet (mutation + solvability) ET `09_WIREMAP/wiremap.json` est déposé ; sans eux le run est BLOCKED — mais la sonde runtime et le bot-joueur tournent QUAND MÊME dès que `run/main_scene` est déclaré (gate inconditionnelle), un build sans `proof:` n'échappe plus à la mesure de sa boucle.
 
 # --- 7. Validation & auditabilité (Critique) ---
 success_criteria: >-
@@ -147,7 +148,7 @@ success_criteria: >-
   clic injecté) rend OK : scène chargée, nœuds scriptés, image non monochrome qui CHANGE
   après le clic. (6) Chaque volet `07_TESTS/oracle/*.gd` charge `res://main.tscn` — un
   volet qui assemble sa propre scène est rejeté statiquement. (7) Toute `preuve` qui nomme
-  un fichier `.gd` pointe un fichier existant. (8) la sonde `scripts/forge/godot_probes/player_loop.gd` (fenêtre GPU, vraie scène, `InputEvent` seulement) rejoue `03_WORLD/loop.json` jusqu'à META_LOOP. (9) `03_WORLD/loop.json` sha256 == `<run_dir>/loop.json`. (10) aucun volet ni bot de preuve n'appelle `Economy`/`api_*`/`05_SYSTEMS`/`runtime.gd`.
+  un fichier `.gd` pointe un fichier existant. (8) la sonde `scripts/forge/godot_probes/player_loop.gd` (fenêtre GPU, vraie scène, `InputEvent` seulement) rejoue `03_WORLD/loop.json` jusqu'à ADVANTAGE (J) : `reached_role == ADVANTAGE`, tous les steps PASS, dont `appears` sur F, `new_distinct` ×2 sur G, `replay` sur H, `decreases|resets` sur I, `increases_more_than` sur J — une boucle morte (`loop_dead`) = FAIL, jamais un OK par absence. (9) `03_WORLD/loop.json` sha256 == `<run_dir>/loop.json` ; absent alors qu'il existe en amont = FAIL. (10) aucun volet ni bot de preuve n'appelle `Economy`/`api_*`/`05_SYSTEMS`/`runtime.gd`. (11) `proof:` déposé dans `game_contract.yaml` et `09_WIREMAP/wiremap.json` présent (sinon BLOCKED).
 tests_oracles: >-
   Oracle CODE déterministe non-LLM : run_tests.gd exécuté par le binaire Godot en headless
   (jamais un LLM-as-judge, jamais une inspection visuelle). Méta-oracle :
@@ -155,7 +156,7 @@ tests_oracles: >-
   comme commentaire. Oracles du standard : forge.standard_oracles (line_states, placement,
   collisions, index, contract_completeness, budget) + genre_coverage + observable_coverage.
   Une preuve visuelle éventuelle exige une fenêtre GPU réelle, jamais `--headless`.
-  Ajout (lot V3 assemblage runtime, 2026-08-22) : product_oracle_godot.run_runtime_alive. Ajout (lot V4 boucle joueur, 2026-08-22) : product_oracle_godot.run_player_loop (ADVISORY au run 7, gaté ensuite).
+  Ajout (lot V3 assemblage runtime, 2026-08-22) : product_oracle_godot.run_runtime_alive. Ajout (lot V4 boucle joueur, 2026-08-22) : product_oracle_godot.run_player_loop (advisory au run 7 ; GATE `loop_dead` depuis le chantier Gameplay Contract 2026-08-22, mesurée inconditionnellement dès `run/main_scene`).
 final_report: >-
   software/evidence/claim séparés. Cite pour CHAQUE affirmation la commande exécutée et sa
   sortie réelle (preuve d'exécution, jamais preuve d'existence). Liste les fichiers touchés

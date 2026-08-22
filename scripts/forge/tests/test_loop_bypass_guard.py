@@ -4,12 +4,15 @@
 05_SYSTEMS, runtime.gd) valide un jeu que le joueur ne peut pas traverser.
 Deux pièces : (1) `run_godot_product_oracle` rejette CE volet, SANS spawn ;
 (2) `check_loop_bypass(game_dir)` — garde STANDALONE, mapping de violations."""
+import pytest
 from pathlib import Path
 
 from forge import product_oracle_godot as pog
 
 REPO = Path(__file__).resolve().parents[3]
-KITTEN = REPO / "games" / "kitten_clicker"
+# Le build du run 6 est ARCHIVÉ (fixture du défaut : volets qui appellent api_buy_kitten / Economy) ;
+# `games/kitten_clicker/` porte le build courant (run 7+, 0 violation) et ne vaut plus comme fixture.
+KITTEN = REPO / "lab" / "forge_runs" / "kitten_clicker" / "_run6_20260821f" / "game_build6"
 
 _REAL_SCENE = 'load("res://main.tscn")\n'
 
@@ -95,6 +98,7 @@ def test_check_loop_bypass_lit_aussi_solvability_racine(tmp_path):
 #   games/kitten_clicker/solvability.gd       -> Economy (+ 05_SYSTEMS)
 
 
+@pytest.mark.skipif(not (KITTEN / "project.godot").exists(), reason="archive du build run 6 introuvable")
 def test_check_loop_bypass_sur_run6_mesure_les_violations_connues():
     r = pog.check_loop_bypass(KITTEN)
     assert r["passed"] is False

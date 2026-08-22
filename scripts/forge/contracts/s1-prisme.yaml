@@ -125,20 +125,44 @@ output_contract: >-
   d'exigence ci-dessus, rien retiré) : LE SUJET PLAYER ENTRE DANS LE CONTRAT.
   Chaque exigence porte désormais `acteur: "PLAYER"|"SYSTEM"` (qui agit) et
   `loop_role` ∈ {PLAYER_GOAL, PLAYER_ACTION, GAME_RESPONSE, REWARD, UNLOCK,
-  NEXT_GOAL, META_LOOP, NONE} (sa position dans la séquence de boucle imposée :
-  PLAYER_GOAL -> PLAYER_ACTION -> GAME_RESPONSE -> REWARD -> UNLOCK -> NEXT_GOAL
-  -> META_LOOP ; NONE = exigence produit ordinaire, hors boucle). Une exigence
-  PLAYER porte `affordance` (le nom de la cible cliquable, ex. `acheter_chaton`)
-  OU est un objectif affiché (`observe.hud`). Quand elle est observable à
-  l'écran, une exigence porte `observe: {hud: "<nom du Label>", predicate:
-  "nonempty"|"increases"|"changes"|"contains:<txt>"}`.
-  RÈGLE : AU MOINS UNE EXIGENCE PAR RÔLE (les 7 rôles de boucle, NONE exclu) —
-  sans quoi la boucle joueur est incomplète et injouable (mesuré, run 6 :
-  25 exigences, 0 avec `loop_role`, boucle 100% invisible au joueur). Les
-  rôles PLAYER_ACTION / UNLOCK / META_LOOP sont rédigés à LA VOIX ACTIVE, LE
-  JOUEUR POUR SUJET — jamais la voix passive (« Acheter un chaton fait
-  apparaître… » est REFUSÉ ; « Le joueur peut acheter un chaton en cliquant la
-  cible `acheter_chaton` ; la collection affichée augmente » est attendu).
+  NEXT_GOAL, REPEAT, META_LOOP, ADVANTAGE, NONE} (sa position dans la séquence
+  de boucle imposée : PLAYER_GOAL -> PLAYER_ACTION -> GAME_RESPONSE -> REWARD
+  -> UNLOCK -> NEXT_GOAL -> REPEAT -> META_LOOP -> ADVANTAGE ; NONE = exigence
+  produit ordinaire, hors boucle). Une exigence PLAYER porte `affordance` (le
+  nom de la cible cliquable, ex. `acheter_chaton`) OU est un objectif affiché
+  (`observe.hud`). GAMEPLAY CONTRACT (GO Pierre 2026-08-22, 10 maillons A..J,
+  C = AFFORDANCE porté par B) — `observe: {hud, predicate}` est OBLIGATOIRE
+  pour TOUTE exigence de boucle (rôle ≠ NONE), `predicate` ∈ "nonempty" |
+  "increases" | "changes" | "decreases" | "resets" | "new_distinct" |
+  "contains:<txt>" | "appears:<groupe>" | "increases_more_than:<ref>".
+  RÈGLES PAR MAILLON (au-delà d'« au moins une exigence par rôle ») :
+  G (NEXT_GOAL) : AU MOINS DEUX exigences, toutes `observe.predicate:
+  "new_distinct"` sur LE MÊME `observe.hud` (ex. `objectif`) — GOAL_2 doit
+  différer TEXTUELLEMENT de GOAL_1 à l'écran, pas seulement changer de valeur.
+  F (UNLOCK) : au moins une exigence porte, EN PLUS de `affordance`, un champ
+  `observe.appears: "<groupe>"` — la preuve de Progression (nouvelle
+  affordance/HUD/contenu visible après F).
+  H (REPEAT) : au moins une exigence avec `replay: ["<id>", ...]`, la liste
+  des ids d'exigences de rôle B..F (PLAYER_ACTION|GAME_RESPONSE|REWARD|UNLOCK)
+  à rejouer dans le nouvel état — la preuve que la boucle recommence pour de
+  vrai, pas par convention.
+  I (META_LOOP) : au moins une exigence PLAYER avec `affordance` (le geste de
+  prestige) ET `observe` dont le prédicat visible est `decreases` ou `resets`
+  (un reset qui se VOIT, ex. `ronrons` retombe à zéro).
+  J (ADVANTAGE) : au moins une exigence avec `replay_ref: "<id de B>"` (l'id
+  d'une exigence PLAYER_ACTION rejouée après I) et `observe.predicate:
+  "increases_more_than:<le même id>"` — le delta de cette action après le
+  prestige doit être strictement supérieur au delta initial, prouvé par la
+  mesure, jamais par un texte.
+  RÈGLE : AU MOINS UNE EXIGENCE PAR RÔLE (les 9 rôles de boucle, NONE exclu),
+  PLUS les règles par maillon ci-dessus pour G/F/H/I/J — sans quoi la boucle
+  joueur est incomplète et injouable (mesuré, run 7 : boucle atteint G mais
+  s'arrête là — G ne compte qu'un objectif, H et J n'existent pas encore comme
+  maillons). Les rôles PLAYER_ACTION / UNLOCK / META_LOOP sont rédigés à LA
+  VOIX ACTIVE, LE JOUEUR POUR SUJET — jamais la voix passive (« Acheter un
+  chaton fait apparaître… » est REFUSÉ ; « Le joueur peut acheter un chaton en
+  cliquant la cible `acheter_chaton` ; la collection affichée augmente » est
+  attendu).
   `loop.json` (la boucle dérivée) N'EST JAMAIS ÉCRIT PAR TOI : c'est une
   PROJECTION DÉTERMINISTE de `prisme.json`, dérivée et matérialisée par
   l'EXÉCUTEUR après ta réponse. Si tu émets un bloc ```json``` nommé `loop` ou

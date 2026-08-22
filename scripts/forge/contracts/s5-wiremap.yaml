@@ -47,7 +47,13 @@ gardeFou: >-
   V4 GAME LOOP (2026-08-22, GO Pierre) : une ligne par affordance de `loop.json` :
   `category: system.adapter`, `provides: ["affordance:<nom>"]`, `fichiers` =
   l'adaptateur d'entrée qui la relie à sa règle ; `couvre` cite la capacité
-  d'ENTRÉE correspondante.
+  d'ENTRÉE correspondante. Chaque ligne `affordance:<x>` `requires` la capacité
+  système qu'elle déclenche (jamais un `requires` vide) ; la ligne système
+  résolue par ce `requires` (ou une ligne atteinte transitivement via ses propres
+  `requires`, profondeur ≤ 3) `couvre` la feuille d'EFFET (`file_write`/`visual`)
+  de la MÊME exigence que la feuille d'ENTRÉE couverte par la ligne d'affordance —
+  c'est la chaîne affordance → input → système → effet, vérifiée par résolution
+  d'ids (`check_wiremap_contract`, finding `maillon_non_lie`), sans champ nouveau.
 
 # --- 7. Validation & auditabilité (Critique) ---
 success_criteria: >-
@@ -58,7 +64,8 @@ tests_oracles: >-
   AVANT build (ici) : `node scripts/forge/check_wiremap_contract.mjs
   <run_dir>/wiremap.json --featuremap <run_dir>/featuremap.json` répond « la carte
   couvre-t-elle le plan ? » (toute capacité portée par ≥1 ligne, aucun `couvre`
-  fantôme).
+  fantôme) ET « chaque affordance est-elle LIÉE à un effet réel ? » (finding
+  `maillon_non_lie`, `stats.affordances`/`affordances_liees`).
   APRÈS build (étape s10c) : `forge.static_oracles.check_wiremap` répond « la carte
   correspond-elle au code ? » (fichiers existants, fonctions définies). En amont
   aucun fichier n'est écrit : ce n'est pas ton oracle.

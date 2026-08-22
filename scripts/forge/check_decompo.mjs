@@ -36,7 +36,23 @@ const EMPTY_STATS = {
   feuilles_sourcees: 0, exigences_prisme: 0, exigences_couvertes: 0,
   feuilles_par_feature_min: 0, feuilles_par_feature_max: 0,
   actions_joueur: 0, actions_joueur_prouvees_depuis_scene: 0,
+  maillons_couverts: {
+    F: 0, G: 0, H: 0, I: 0, J: 0,
+  },
 };
+
+// V4 GAME LOOP (2026-08-22, GO Pierre) — maillons F..J additifs.
+// F=UNLOCK, I=META_LOOP : memes regles que B (existant, boucle_sans_entree) —
+// couverts automatiquement par la boucle acteur=PLAYER+affordance ci-dessous.
+// G=NEXT_GOAL : exige une feuille d'EFFET (file_write|visual) sourcee sur
+// l'exigence, jamais une entree seule.
+// H=REPEAT, J=ADVANTAGE : REJEUX — aucune feuille propre exigee, mais chaque ref
+// de `replay`/`replay_ref` doit resoudre une exigence du Prisme COUVERTE par
+// ailleurs (sinon le rejeu porte sur du vide).
+const LOOP_ROLE_LETTER = {
+  UNLOCK: 'F', NEXT_GOAL: 'G', REPEAT: 'H', META_LOOP: 'I', ADVANTAGE: 'J',
+};
+const EFFECT_KINDS = ['file_write', 'visual'];
 
 /**
  * Compte les feuilles par feature (granularité observée). Retourne min/max sur
@@ -71,13 +87,16 @@ export function checkDecompoDoc(doc, prisme) {
   const exigences_non_couvertes = [];
   const feuilles_non_sourcees = [];
   const boucle_sans_entree = [];
+  const boucle_sans_effet = [];
+  const boucle_replay_non_couvert = [];
 
   const prismeExigences = Array.isArray(prisme?.exigences) ? prisme.exigences : null;
   if (prismeExigences === null) {
     problems.push('prisme: manifeste absent ou sans exigences[] — la couverture et la non-invention ne sont pas verifiables (ni sautees en silence)');
     return {
       ok: false, verdict: 'FAIL', problems,
-      exigences_non_couvertes, feuilles_non_sourcees, boucle_sans_entree, stats: EMPTY_STATS,
+      exigences_non_couvertes, feuilles_non_sourcees, boucle_sans_entree,
+      boucle_sans_effet, boucle_replay_non_couvert, stats: EMPTY_STATS,
     };
   }
 
@@ -92,6 +111,9 @@ export function checkDecompoDoc(doc, prisme) {
   let sourcees = 0;
   let actionsJoueur = 0;
   let actionsJoueurProuvees = 0;
+  const maillons_couverts = {
+    F: 0, G: 0, H: 0, I: 0, J: 0,
+  };
 
   for (const entry of leaves) {
     const ref = entry.leaf?.source_ref;
@@ -103,6 +125,8 @@ export function checkDecompoDoc(doc, prisme) {
       // V4 GAME LOOP (2026-08-22, GO Pierre) : une action joueur (exigence
       // acteur=PLAYER avec affordance) doit se decomposer en une capacite
       // d'ENTREE — preuve bot_action depuis main.tscn — jamais l'effet seul.
+      // Regle etendue aux maillons F (UNLOCK) et I (META_LOOP) : memes exigences
+      // que B (PLAYER_ACTION), portees par la meme condition acteur+affordance.
       const exigence = exigenceById.get(ref);
       if (exigence?.acteur === 'PLAYER' && isNonEmptyString(exigence?.affordance)) {
         actionsJoueur += 1;
@@ -112,6 +136,8 @@ export function checkDecompoDoc(doc, prisme) {
           && proof.statement.toLowerCase().includes('main.tscn');
         if (kindOk && statementOk) {
           actionsJoueurProuvees += 1;
+          const letter = LOOP_ROLE_LETTER[exigence?.loop_role];
+          if (letter === 'F' || letter === 'I') maillons_couverts[letter] += 1;
         } else {
           boucle_sans_entree.push(
             `${entry.loc}: feuille '${entry.leaf?.id}' realise l'action joueur '${exigence.affordance}' `
@@ -126,8 +152,55 @@ export function checkDecompoDoc(doc, prisme) {
     }
   }
 
+  // V4 GAME LOOP — maillons G (NEXT_GOAL) et H/J (REPEAT/ADVANTAGE, rejeux).
+  // H et J ne portent AUCUNE feuille propre par construction (ce sont des
+  // rejeux d'exigences deja realisees) : ils sont donc exclus de la boucle de
+  // couverture generique ci-dessous, et verifies ici via leur replay/replay_ref.
+  const rejouables = new Set();
+  for (const ex of prismeExigences) {
+    if (ex === null || typeof ex !== 'object') continue;
+    const role = ex.loop_role;
+    if (role === 'NEXT_GOAL') {
+      const hasEffect = leaves.some((entry) => entry.leaf?.source_ref === ex.id
+        && EFFECT_KINDS.includes(entry.leaf?.expected_proof?.kind));
+      if (hasEffect) {
+        maillons_couverts.G += 1;
+      } else {
+        boucle_sans_effet.push(
+          `exigence '${ex.id}' (NEXT_GOAL) sans feuille d'effet (file_write|visual) sourcee sur cette exigence`,
+        );
+      }
+    } else if (role === 'REPEAT' || role === 'ADVANTAGE') {
+      rejouables.add(ex.id);
+      const letter = role === 'REPEAT' ? 'H' : 'J';
+      const champ = role === 'REPEAT' ? 'replay' : 'replay_ref';
+      const refs = role === 'REPEAT'
+        ? (Array.isArray(ex.replay) ? ex.replay : [])
+        : (isNonEmptyString(ex.replay_ref) ? [ex.replay_ref] : []);
+      if (refs.length === 0) {
+        boucle_replay_non_couvert.push(`exigence '${ex.id}' (${role}) sans ${champ} exploitable`);
+        continue;
+      }
+      let allOk = true;
+      for (const ref of refs) {
+        if (!exigenceIds.has(ref)) {
+          boucle_replay_non_couvert.push(
+            `exigence '${ex.id}' (${role}): ${champ} '${ref}' ne resout aucune exigence du Prisme`,
+          );
+          allOk = false;
+        } else if (!couvertes.has(ref)) {
+          boucle_replay_non_couvert.push(
+            `exigence '${ex.id}' (${role}): ${champ} '${ref}' cible une exigence non couverte par une feuille`,
+          );
+          allOk = false;
+        }
+      }
+      if (allOk) maillons_couverts[letter] += 1;
+    }
+  }
+
   for (const id of exigenceIds) {
-    if (!couvertes.has(id)) {
+    if (!couvertes.has(id) && !rejouables.has(id)) {
       exigences_non_couvertes.push(`exigence '${id}' du Prisme n'est portee par aucune feuille (omission silencieuse)`);
     }
   }
@@ -149,13 +222,18 @@ export function checkDecompoDoc(doc, prisme) {
     feuilles_par_feature_max: g.max,
     actions_joueur: actionsJoueur,
     actions_joueur_prouvees_depuis_scene: actionsJoueurProuvees,
+    maillons_couverts,
   };
 
-  const all = [...problems, ...exigences_non_couvertes, ...feuilles_non_sourcees, ...boucle_sans_entree];
+  const all = [
+    ...problems, ...exigences_non_couvertes, ...feuilles_non_sourcees,
+    ...boucle_sans_entree, ...boucle_sans_effet, ...boucle_replay_non_couvert,
+  ];
   const ok = all.length === 0;
   return {
     ok, verdict: ok ? 'OK' : 'FAIL',
-    problems, exigences_non_couvertes, feuilles_non_sourcees, boucle_sans_entree, stats,
+    problems, exigences_non_couvertes, feuilles_non_sourcees, boucle_sans_entree,
+    boucle_sans_effet, boucle_replay_non_couvert, stats,
   };
 }
 
@@ -168,7 +246,8 @@ export function checkDecompoDoc(doc, prisme) {
 export async function checkDecompoFiles(featuremapPath, prismePath) {
   const fail = (msg) => ({
     ok: false, verdict: 'FAIL', problems: [msg],
-    exigences_non_couvertes: [], feuilles_non_sourcees: [], boucle_sans_entree: [], stats: EMPTY_STATS,
+    exigences_non_couvertes: [], feuilles_non_sourcees: [], boucle_sans_entree: [],
+    boucle_sans_effet: [], boucle_replay_non_couvert: [], stats: EMPTY_STATS,
   });
   const load = async (p, label) => {
     let raw;
@@ -211,13 +290,20 @@ if (isMain) {
     r.exigences_non_couvertes.forEach((p) => console.error(`  FAIL couverture: ${p}`));
     r.feuilles_non_sourcees.forEach((p) => console.error(`  FAIL invention: ${p}`));
     r.boucle_sans_entree.forEach((p) => console.error(`  FAIL boucle: ${p}`));
-    console.error(`  stats: ${r.stats.systemes} systeme(s) / ${r.stats.features} feature(s) / ${r.stats.feuilles} feuille(s) / ${r.stats.exigences_couvertes} sur ${r.stats.exigences_prisme} exigence(s) couverte(s) / granularite ${r.stats.feuilles_par_feature_min}-${r.stats.feuilles_par_feature_max} feuille(s) par feature (REPORTEE, non gatee) / ${r.stats.actions_joueur_prouvees_depuis_scene} sur ${r.stats.actions_joueur} action(s) joueur prouvee(s) depuis main.tscn`);
+    r.boucle_sans_effet.forEach((p) => console.error(`  FAIL boucle (effet): ${p}`));
+    r.boucle_replay_non_couvert.forEach((p) => console.error(`  FAIL boucle (replay): ${p}`));
+    const mc = r.stats.maillons_couverts || {
+      F: 0, G: 0, H: 0, I: 0, J: 0,
+    };
+    console.error(`  stats: ${r.stats.systemes} systeme(s) / ${r.stats.features} feature(s) / ${r.stats.feuilles} feuille(s) / ${r.stats.exigences_couvertes} sur ${r.stats.exigences_prisme} exigence(s) couverte(s) / granularite ${r.stats.feuilles_par_feature_min}-${r.stats.feuilles_par_feature_max} feuille(s) par feature (REPORTEE, non gatee) / ${r.stats.actions_joueur_prouvees_depuis_scene} sur ${r.stats.actions_joueur} action(s) joueur prouvee(s) depuis main.tscn / maillons F=${mc.F} G=${mc.G} H=${mc.H} I=${mc.I} J=${mc.J}`);
     console.log(JSON.stringify({
       ok: r.ok,
       problems: r.problems,
       exigences_non_couvertes: r.exigences_non_couvertes,
       feuilles_non_sourcees: r.feuilles_non_sourcees,
       boucle_sans_entree: r.boucle_sans_entree,
+      boucle_sans_effet: r.boucle_sans_effet,
+      boucle_replay_non_couvert: r.boucle_replay_non_couvert,
       stats: r.stats,
     }, null, 2));
     process.exit(r.ok ? 0 : 1);

@@ -77,7 +77,9 @@ def test_mention_uniquement_en_commentaire_est_rejetee(tmp_path):
 
 
 def test_fixture_reelle_kitten_clicker_3_volets_fail_statique():
-    for cand in (REPO / "games/kitten_clicker", REPO / "lab/forge_runs/kitten_clicker/_run5_20260821e/game_build5"):
+    # Fixture du DÉFAUT = archive du run 5 (volets qui assemblent leur propre scène) ;
+    # `games/kitten_clicker/` = build courant (run 7+, volets conformes), plus une fixture de ce test.
+    for cand in (REPO / "lab/forge_runs/kitten_clicker/_run5_20260821e/game_build5",):
         oracle_dir = cand / "07_TESTS" / "oracle"
         if oracle_dir.is_dir() and list(oracle_dir.glob("*.gd")):
             result = pog.run_godot_product_oracle(

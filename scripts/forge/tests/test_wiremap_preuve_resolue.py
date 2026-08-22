@@ -78,10 +78,7 @@ def test_preuve_chemin_avec_slash_absent(tmp_path):
 
 
 @pytest.mark.skipif(
-    not (REPO / "games/kitten_clicker/09_WIREMAP/wiremap.json").exists()
-    and not (
-        REPO / "lab/forge_runs/kitten_clicker/_run5_20260821e/game_build5/09_WIREMAP/wiremap.json"
-    ).exists(),
+    not (REPO / "lab/forge_runs/kitten_clicker/_run5_20260821e/game_build5/09_WIREMAP/wiremap.json").exists(),
     reason="fixture wiremap.json du run 5 introuvable",
 )
 def test_fixture_reelle_run5_preuves_absentes():
@@ -89,19 +86,12 @@ def test_fixture_reelle_run5_preuves_absentes():
     aucun n'existe sous src_root=games/kitten_clicker."""
     import json
 
-    for wm_path, src_root in (
-        (
-            REPO / "games/kitten_clicker/09_WIREMAP/wiremap.json",
-            REPO / "games/kitten_clicker",
-        ),
-        (
-            REPO
-            / "lab/forge_runs/kitten_clicker/_run5_20260821e/game_build5/09_WIREMAP/wiremap.json",
-            REPO / "lab/forge_runs/kitten_clicker/_run5_20260821e/game_build5",
-        ),
-    ):
+    # La fixture du DÉFAUT est l'archive du run 5 ; `games/kitten_clicker/` porte le build courant
+    # (run 7+, preuves résolues) et ne vaut plus comme fixture de ce test.
+    build5 = REPO / "lab/forge_runs/kitten_clicker/_run5_20260821e/game_build5"
+    for wm_path, src_root in ((build5 / "09_WIREMAP/wiremap.json", build5),):
         if not wm_path.exists():
-            continue
+            pytest.skip("archive du run 5 introuvable")
         wiremap = json.loads(wm_path.read_text(encoding="utf-8"))
         rep = check_wiremap(wiremap, src_root)
         joined = " | ".join(rep["preuves_absentes"])

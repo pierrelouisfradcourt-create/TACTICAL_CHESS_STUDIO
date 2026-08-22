@@ -1885,31 +1885,6 @@ class ForgeDriver:
                     "measured": False,
                     "reason": "exception levée pendant la mesure — advisory, non bloquant",
                 }
-            # Gate s10a runtime_alive (Task 2, 2026-08-22) : « le runtime mort =
-            # FAIL, jamais un OK par absence ». Même périmètre d'activation que
-            # le fournisseur produit Godot ci-dessus (contrat de preuve ET
-            # capacité constatée) — voir _runtime_alive_detail (SKIPPED motivé
-            # pour un module bibliothèque sans run/main_scene, NOT_MEASURED
-            # motivé si la sonde lève, jamais une exception qui remonte).
-            detail["runtime_alive"] = self._runtime_alive_detail()
-            # Gate s10a player_loop (Task 5, lot « game loop », 2026-08-22) : ADVISORY
-            # au run 7 (voir _code_oracle_loop_dead — jamais dans la condition `final`
-            # de ce lot, décision Pierre « variance d'abord »). Même périmètre
-            # d'activation que runtime_alive.
-            detail["player_loop"] = self._player_loop_detail()
-            # Garde anti-contournement V4, STANDALONE (fail-soft — jamais bloquant) :
-            # rapporte les violations sans jamais lever au driver.
-            try:
-                detail["loop_bypass"] = check_loop_bypass(self.game_dir)
-            except Exception:  # noqa: BLE001 — advisory, jamais bloquant
-                logger.warning(
-                    "check_loop_bypass non mesuré pour run=%s (advisory, non bloquant)",
-                    self.run_id, exc_info=True,
-                )
-                detail["loop_bypass"] = {
-                    "passed": None, "violations": [],
-                    "reason": "exception levée pendant la mesure — advisory, non bloquant",
-                }
             detail["product_oracle_godot_activation"] = {
                 "active": True,
                 "proof_descriptor_present": True,
@@ -1934,6 +1909,56 @@ class ForgeDriver:
                 "godot_capacity_present": godot_capacity_ok,
                 "reason": " ; ".join(reasons),
             }
+
+        # Bloc produit/runtime INCONDITIONNEL (Task 4, plan
+        # `2026-08-22-kitten-clicker-gameplay-contract.md` §T4) : `runtime_alive`,
+        # `player_loop` et `loop_bypass` sont mesurés dès que `project.godot`
+        # porte `run/main_scene` — ils ne dépendent PLUS de `proof_descriptor_ok`
+        # ni de `godot_capacity_ok` (mesuré : 3 runs sur 3 ont sauté tout le bloc
+        # faute de `proof:` dans le contrat, laissant un BLOCKED mutation sans que
+        # la vie du jeu ni la boucle ne soient jamais mesurées). Le fournisseur
+        # produit Godot (les VOLETS `product_oracle_godot`, ci-dessus) garde sa
+        # condition d'activation inchangée : contrat de preuve ET capacité.
+        runtime_block_active = self._has_main_scene()
+        if runtime_block_active:
+            # Gate s10a runtime_alive (Task 2, 2026-08-22) : « le runtime mort =
+            # FAIL, jamais un OK par absence » — voir _runtime_alive_detail
+            # (SKIPPED motivé pour un module bibliothèque sans run/main_scene,
+            # NOT_MEASURED motivé si la sonde lève, jamais une exception qui
+            # remonte).
+            detail["runtime_alive"] = self._runtime_alive_detail()
+            # Gate s10a player_loop (Task 5, lot « game loop », 2026-08-22) : gate
+            # au même titre que runtime_alive depuis Task 4 (voir
+            # _code_oracle_loop_dead) — décision run 7 « variance d'abord »
+            # supersédée.
+            detail["player_loop"] = self._player_loop_detail()
+            # Garde anti-contournement V4, STANDALONE (fail-soft — jamais bloquant) :
+            # rapporte les violations sans jamais lever au driver.
+            try:
+                detail["loop_bypass"] = check_loop_bypass(self.game_dir)
+            except Exception:  # noqa: BLE001 — advisory, jamais bloquant
+                logger.warning(
+                    "check_loop_bypass non mesuré pour run=%s (advisory, non bloquant)",
+                    self.run_id, exc_info=True,
+                )
+                detail["loop_bypass"] = {
+                    "passed": None, "violations": [],
+                    "reason": "exception levée pendant la mesure — advisory, non bloquant",
+                }
+        else:
+            # Module bibliothèque (pas de run/main_scene) : rien à faire tourner,
+            # même reçu SKIPPED motivé que `_runtime_alive_detail` — jamais un
+            # silence, mais aucune clé sans mesure réelle pour player_loop/
+            # loop_bypass (comportement historique, inchangé pour ce cas).
+            detail["runtime_alive"] = {
+                "status": "SKIPPED", "checked": False, "passed": False,
+                "reason": "pas de run/main_scene (module bibliothèque)",
+            }
+        detail["product_oracle_godot_activation"]["runtime_block"] = {
+            "active": runtime_block_active,
+            "reason": "run/main_scene déclaré" if runtime_block_active
+                      else "pas de run/main_scene",
+        }
 
         # === CONTRAT_PREUVE_MUTATION_V1.md — routage entre les deux régimes de
         # preuve mutation (§6, §8 : « brancher le driver ← seulement après ② vert »).
@@ -2021,12 +2046,12 @@ class ForgeDriver:
                               "signature": receipt.signature}
 
         runtime_dead = self._code_oracle_runtime_dead(detail)
-        detail["loop_dead_advisory"] = self._code_oracle_loop_dead(detail)
+        detail["loop_dead"] = self._code_oracle_loop_dead(detail)
         if status == "BLOCKED":
             final = "BLOCKED"
         elif (status == "FAIL" or not e2e_ok or not solvability["passed"]
               or not harness_flags["passed"] or receipt.receipt.status != "OK"
-              or runtime_dead):
+              or runtime_dead or detail["loop_dead"]):
             final = "FAIL"  # rouge mécanique => alimente la boucle d'escalade
         else:
             # Auto-contrôle structurel AVANT de poser un OK : une preuve qui ne se
@@ -2042,6 +2067,18 @@ class ForgeDriver:
                 detail["mutation_verification"] = check
                 final = "BLOCKED"
         self._finish_step(state, entry, final, detail)
+
+    def _has_main_scene(self) -> bool:
+        """Critère UNIQUE, partagé par `_runtime_alive_detail` et le point d'appel
+        du bloc produit/runtime dans `_run_code_oracle` (Task 4, 2026-08-22) :
+        `run/main_scene=` déclaré dans `<game_dir>/project.godot`. Absence de
+        fichier ou de clé = module bibliothèque (lecture seule, aucun effet de
+        bord)."""
+        project_godot = self.game_dir / "project.godot"
+        try:
+            return "run/main_scene=" in project_godot.read_text(encoding="utf-8")
+        except OSError:
+            return False
 
     def _runtime_alive_detail(self) -> dict:
         """Gate s10a runtime_alive (Task 2, 2026-08-22) : « un oracle qui
@@ -2059,12 +2096,7 @@ class ForgeDriver:
         Une exception du runner est une mesure impossible, pas un jeu mort :
         NOT_MEASURED motivé, jamais une exception qui remonte au pas s10a
         (même garde que product_oracle_godot juste au-dessus)."""
-        project_godot = self.game_dir / "project.godot"
-        try:
-            has_main_scene = "run/main_scene=" in project_godot.read_text(encoding="utf-8")
-        except OSError:
-            has_main_scene = False
-        if not has_main_scene:
+        if not self._has_main_scene():
             return {
                 "status": "SKIPPED", "checked": False, "passed": False,
                 "reason": "pas de run/main_scene (module bibliothèque)",
@@ -2097,9 +2129,15 @@ class ForgeDriver:
         `runtime_alive_runner`). SKIPPED/FAIL-sans-spawn (sha altéré) sont décidés PAR
         le runner lui-même (voir sa docstring) — ce point d'appel se contente de
         transmettre `self.run_dir` et de transformer toute exception en NOT_MEASURED
-        motivé, jamais une exception qui remonte au pas s10a."""
+        motivé, jamais une exception qui remonte au pas s10a.
+
+        Task 4 (2026-08-22) : un `SKIPPED` alors que `<run_dir>/loop.json` existe
+        (le contrat de boucle a été déposé EN AMONT) n'est plus un silence — le
+        jeu n'a pas matérialisé un contrat que le run possède : reçu réécrit en
+        `FAIL checked=True`, gaté comme le sha altéré (déjà FAIL checked par le
+        runner) l'est via `_code_oracle_loop_dead`."""
         try:
-            return self.player_loop_runner(self.game_dir, run_dir=self.run_dir)
+            receipt = self.player_loop_runner(self.game_dir, run_dir=self.run_dir)
         except Exception:  # noqa: BLE001 — advisory de mesure, jamais bloquant
             logger.warning(
                 "player_loop non mesuré pour run=%s (advisory, non bloquant)",
@@ -2109,13 +2147,24 @@ class ForgeDriver:
                 "status": "NOT_MEASURED", "checked": False, "passed": False,
                 "reason": "exception levée pendant la mesure — advisory, non bloquant",
             }
+        if receipt.get("status") == "SKIPPED" and (self.run_dir / "loop.json").exists():
+            receipt = dict(receipt)
+            receipt.update({
+                "status": "FAIL", "checked": True, "passed": False,
+                "fails": ["03_WORLD/loop.json absent du jeu alors que le contrat "
+                          f"existe en amont ({self.run_dir / 'loop.json'})"],
+            })
+        return receipt
 
     @staticmethod
     def _code_oracle_loop_dead(detail: dict) -> bool:
-        """Même règle que `_code_oracle_runtime_dead`, mais ADVISORY au run 7
-        (décision Pierre « variance d'abord ») : le résultat n'entre PAS dans la
-        condition `final == "FAIL"` des trois points d'agrégation — seulement dans
-        `detail["loop_dead_advisory"]`, lu à la lecture du run 7 par Pierre."""
+        """Même règle que `_code_oracle_runtime_dead` — et désormais GATE au même
+        titre (Task 4, plan `2026-08-22-kitten-clicker-gameplay-contract.md` §T4) :
+        le résultat entre dans la condition `final == "FAIL"` des trois points
+        d'agrégation, posé dans `detail["loop_dead"]`. Décision Pierre « variance
+        d'abord » (run 7, ADVISORY) SUPERSÉDÉE par T4 — seule une mesure
+        RÉELLEMENT `checked` et négative compte, NOT_MEASURED/SKIPPED ne changent
+        rien (même garde que `_code_oracle_runtime_dead`)."""
         loop = detail.get("player_loop") or {}
         return loop.get("checked") is True and not loop.get("passed")
 
@@ -2266,11 +2315,11 @@ class ForgeDriver:
             # final combine les autres volets du gate s10a comme dans le régime
             # historique (e2e/solvabilité/harnais).
             runtime_dead = self._code_oracle_runtime_dead(detail)
-            detail["loop_dead_advisory"] = self._code_oracle_loop_dead(detail)
+            detail["loop_dead"] = self._code_oracle_loop_dead(detail)
             if status == "BLOCKED":
                 final = "BLOCKED"
             elif (status == "FAIL" or not e2e_ok or not solvability["passed"]
-                  or not harness_flags["passed"] or runtime_dead):
+                  or not harness_flags["passed"] or runtime_dead or detail["loop_dead"]):
                 final = "FAIL"
             else:
                 final = "OK"
@@ -2302,12 +2351,12 @@ class ForgeDriver:
         detail["mutation"]["signature"] = receipt.signature
 
         runtime_dead = self._code_oracle_runtime_dead(detail)
-        detail["loop_dead_advisory"] = self._code_oracle_loop_dead(detail)
+        detail["loop_dead"] = self._code_oracle_loop_dead(detail)
         if status == "BLOCKED":
             final = "BLOCKED"
         elif (status == "FAIL" or not e2e_ok or not solvability["passed"]
               or not harness_flags["passed"] or receipt.receipt.status != "OK"
-              or runtime_dead):
+              or runtime_dead or detail["loop_dead"]):
             final = "FAIL"  # rouge mécanique => alimente la boucle d'escalade
         else:
             # Auto-contrôle structurel AVANT de poser un OK -- même garde que le

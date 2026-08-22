@@ -53,6 +53,14 @@ gardeFou: >-
   sur l'affordance nommée, preuve `bot_action` depuis `main.tscn`) ET une capacité
   d'EFFET — jamais l'effet seul. `loop.json` (projection déterministe du Prisme)
   est une ENTRÉE à lire, jamais à réécrire.
+  Maillons F..J (additif, règle B étendue) : F (UNLOCK) et I (META_LOOP) suivent
+  EXACTEMENT la règle de B — capacité d'ENTRÉE `bot_action` depuis `main.tscn`
+  obligatoire. G (NEXT_GOAL) se décompose en une capacité d'EFFET VISIBLE (le
+  label `objectif` change pour un texte nouveau, preuve `file_write` ou `visual`)
+  — jamais une entrée seule. H (REPEAT) et J (ADVANTAGE) sont des REJEUX : ils
+  n'exigent AUCUNE feuille propre, mais leurs `replay`/`replay_ref` doivent
+  chacun cibler une exigence du Prisme déjà couverte par ailleurs — un rejeu qui
+  vise une exigence non couverte ou inexistante rejoue du vide.
 
 # --- 7. Validation & auditabilité (Critique) ---
 success_criteria: >-
@@ -64,7 +72,11 @@ tests_oracles: >-
   <run_dir>/featuremap.json --prisme <run_dir>/prisme.json`. Mesure la COUVERTURE
   (toute exigence portée), la NON-INVENTION (tout `source_ref` résout) et la
   COMPLÉTUDE (feuilles complètes). La granularité est REPORTÉE, jamais gatée
-  (règle de variance ratifiée 2026-07-21). Jamais de LLM-as-judge.
+  (règle de variance ratifiée 2026-07-21). Maillons F..J (additif) : `boucle_sans_effet`
+  (G sans feuille d'effet sourcée), `boucle_replay_non_couvert` (H/J dont un
+  `replay`/`replay_ref` cible une exigence non couverte ou inexistante) ;
+  `stats.maillons_couverts.{F,G,H,I,J}` reporte le compte par rôle. Jamais de
+  LLM-as-judge.
 final_report: >-
   software/evidence/claim séparés ; cite le reçu de check_decompo ; liste les
   exigences non couvertes et les feuilles non sourcées ;

@@ -54,29 +54,33 @@ export const JACCARD_SEUIL = 0.6;
 // Sujet grammatical d'une exigence : qui agit.
 export const ACTEURS = ['PLAYER', 'SYSTEM'];
 
-// Position d'une exigence dans la boucle de jeu (séquence imposée Pierre :
-// PLAYER_GOAL -> PLAYER_ACTION -> GAME_RESPONSE -> REWARD -> UNLOCK -> NEXT_GOAL
-// -> META_LOOP). NONE = hors boucle (exigence produit ordinaire).
+// Position d'une exigence dans la boucle de jeu (séquence imposée Pierre,
+// Gameplay Contract 2026-08-22, A..J) : PLAYER_GOAL -> PLAYER_ACTION ->
+// GAME_RESPONSE -> REWARD -> UNLOCK -> NEXT_GOAL -> REPEAT -> META_LOOP ->
+// ADVANTAGE. NONE = hors boucle (exigence produit ordinaire).
 export const LOOP_ROLES = [
   'PLAYER_GOAL', 'PLAYER_ACTION', 'GAME_RESPONSE', 'REWARD',
-  'UNLOCK', 'NEXT_GOAL', 'META_LOOP', 'NONE',
+  'UNLOCK', 'NEXT_GOAL', 'REPEAT', 'META_LOOP', 'ADVANTAGE', 'NONE',
 ];
 
-// Prédicats d'observation admissibles pour `observe.predicate`. `contains:<txt>`
-// est une FAMILLE de prédicats (préfixe), pas une valeur fixe de l'enum — cf.
-// isValidPredicate.
-export const PREDICATES = ['nonempty', 'increases', 'changes'];
+// Prédicats d'observation admissibles pour `observe.predicate`. `contains:<txt>`,
+// `appears:<groupe>` et `increases_more_than:<ref>` sont des FAMILLES de
+// prédicats (préfixe), pas des valeurs fixes de l'enum — cf. isValidPredicate.
+export const PREDICATES = ['nonempty', 'increases', 'changes', 'new_distinct', 'decreases', 'resets'];
+
+// Préfixes de prédicat tolérés (famille de valeurs, `<suffixe>` non vide).
+const PREDICATE_PREFIXES = ['contains:', 'appears:', 'increases_more_than:'];
 
 /**
  * Vrai si `p` est un prédicat d'observation valide : une valeur de PREDICATES,
- * ou une chaîne `contains:<txt>` avec `<txt>` non vide.
+ * ou une chaîne `<prefixe><txt>` (cf. PREDICATE_PREFIXES) avec `<txt>` non vide.
  * @param {unknown} p
  * @returns {boolean}
  */
 export function isValidPredicate(p) {
   if (typeof p !== 'string') return false;
   if (PREDICATES.includes(p)) return true;
-  return p.startsWith('contains:') && p.length > 'contains:'.length;
+  return PREDICATE_PREFIXES.some((prefix) => p.startsWith(prefix) && p.length > prefix.length);
 }
 
 /**
@@ -132,6 +136,17 @@ export function validateLoopFields(ex, loc) {
   } else if (['PLAYER_GOAL', 'NEXT_GOAL'].includes(ex.loop_role)) {
     if (!isNonEmptyString(ex.observe?.hud)) {
       findings.push(`${loc}.observe.hud: absent ou vide (obligatoire quand loop_role='${ex.loop_role}')`);
+    }
+  } else if (ex.loop_role === 'REPEAT') {
+    if (!Array.isArray(ex.replay) || ex.replay.length === 0 || !ex.replay.every(isNonEmptyString)) {
+      findings.push(`${loc}.replay: doit etre un tableau non vide de chaines non vides (obligatoire quand loop_role='REPEAT')`);
+    }
+  } else if (ex.loop_role === 'ADVANTAGE') {
+    if (!isNonEmptyString(ex.replay_ref)) {
+      findings.push(`${loc}.replay_ref: absent ou vide (obligatoire quand loop_role='ADVANTAGE')`);
+    }
+    if (!(typeof ex.observe?.predicate === 'string' && ex.observe.predicate.startsWith('increases_more_than:'))) {
+      findings.push(`${loc}.observe.predicate: doit commencer par 'increases_more_than:' (obligatoire quand loop_role='ADVANTAGE')`);
     }
   }
   return findings;

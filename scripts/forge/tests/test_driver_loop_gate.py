@@ -1,10 +1,12 @@
-"""Gate s10a `player_loop` (Task 5, lot « game loop », 2026-08-22) — ADVISORY au
-run 7 (décision Pierre « variance d'abord ») : `detail["loop_dead_advisory"]` est
-posé mais n'entre JAMAIS dans la condition `final == "FAIL"`. Patron strict de
-`test_driver_runtime_alive_gate.py` (`ForgeDriver.__new__`, jamais de vrai binaire
-Godot ni de vrai process) pour (a)/(b)/(c) ; (d) recopie `res["loop_check"]` dans
-`entry["detail"]` pour s1-prisme, patron de `test_measured_fields_persisted.py`
-(M3'a/M4') — un run() réel avec un exécuteur stub."""
+"""Gate s10a `player_loop` (Task 5, lot « game loop », 2026-08-22) — GATE depuis
+Task 4 (plan `2026-08-22-kitten-clicker-gameplay-contract.md` §T4, décision run 7
+« variance d'abord » supersédée) : `detail["loop_dead"]` entre dans la condition
+`final == "FAIL"` des trois points d'agrégation, exactement comme `runtime_dead`.
+Patron strict de `test_driver_runtime_alive_gate.py` (`ForgeDriver.__new__`, jamais
+de vrai binaire Godot ni de vrai process) pour (a)/(b)/(c) ; (d) recopie
+`res["loop_check"]` dans `entry["detail"]` pour s1-prisme, patron de
+`test_measured_fields_persisted.py` (M3'a/M4') — un run() réel avec un exécuteur
+stub."""
 import json
 import sys
 from pathlib import Path
@@ -22,63 +24,66 @@ def _driver_minimal(game_dir: Path) -> ForgeDriver:
     return d
 
 
-# --- (a) runner FAIL -> loop_dead_advisory True, final INCHANGÉ (advisory) -------
+# --- (a) runner FAIL -> loop_dead True, final == "FAIL" (gate, Task 4) -----------
 
 
 def _aggregate(status, e2e_ok, solvability_passed, harness_flags_passed, runtime_alive,
                player_loop, *, receipt_status="OK"):
     """Reproduit la structure des 3 blocs d'agrégation de `_run_code_oracle` — même
     patron que `test_driver_runtime_alive_gate.py::_aggregate`, étendu à
-    `loop_dead_advisory` (jamais dans la condition `final`)."""
+    `loop_dead` (gate depuis Task 4, dans la condition `final` comme `runtime_dead`)."""
     detail = {"runtime_alive": runtime_alive, "player_loop": player_loop}
     runtime_dead = ForgeDriver._code_oracle_runtime_dead(detail)
-    detail["loop_dead_advisory"] = ForgeDriver._code_oracle_loop_dead(detail)
+    detail["loop_dead"] = ForgeDriver._code_oracle_loop_dead(detail)
     if status == "BLOCKED":
         final = "BLOCKED"
     elif (status == "FAIL" or not e2e_ok or not solvability_passed
-            or not harness_flags_passed or receipt_status != "OK" or runtime_dead):
+            or not harness_flags_passed or receipt_status != "OK"
+            or runtime_dead or detail["loop_dead"]):
         final = "FAIL"
     else:
         final = "OK"
     return final, detail
 
 
-def test_loop_dead_advisory_true_mais_final_inchange():
+def test_loop_dead_true_fait_echouer_le_gate():
     final, detail = _aggregate(
         "OK", True, True, True,
         {"status": "OK", "checked": True, "passed": True},
         {"status": "FAIL", "checked": True, "passed": False, "fails": ["affordance 'acheter_chaton' introuvable"]},
     )
-    assert detail["loop_dead_advisory"] is True
-    assert final == "OK"  # advisory au run 7 : ne fait PAS échouer le gate
+    assert detail["loop_dead"] is True
+    assert final == "FAIL"  # gate depuis Task 4 : loop_dead fait échouer
 
 
-def test_loop_dead_advisory_false_quand_passed():
+def test_loop_dead_false_quand_passed():
     final, detail = _aggregate(
         "OK", True, True, True,
         {"status": "OK", "checked": True, "passed": True},
         {"status": "OK", "checked": True, "passed": True},
     )
-    assert detail["loop_dead_advisory"] is False
+    assert detail["loop_dead"] is False
     assert final == "OK"
 
 
-def test_loop_dead_advisory_false_quand_not_measured():
+def test_loop_dead_false_quand_not_measured():
     final, detail = _aggregate(
         "OK", True, True, True,
         {"status": "OK", "checked": True, "passed": True},
         {"status": "NOT_MEASURED", "checked": False, "passed": False},
     )
-    assert detail["loop_dead_advisory"] is False
+    assert detail["loop_dead"] is False
+    assert final == "OK"
 
 
-def test_loop_dead_advisory_false_quand_skipped():
+def test_loop_dead_false_quand_skipped():
     final, detail = _aggregate(
         "OK", True, True, True,
         {"status": "OK", "checked": True, "passed": True},
         {"status": "SKIPPED", "checked": False, "passed": False},
     )
-    assert detail["loop_dead_advisory"] is False
+    assert detail["loop_dead"] is False
+    assert final == "OK"
 
 
 def test_runtime_dead_seul_fait_toujours_echouer_meme_avec_loop_ok():
@@ -88,7 +93,7 @@ def test_runtime_dead_seul_fait_toujours_echouer_meme_avec_loop_ok():
         {"status": "OK", "checked": True, "passed": True},
     )
     assert final == "FAIL"  # runtime_dead reste GATANT (Task 2, inchangé)
-    assert detail["loop_dead_advisory"] is False
+    assert detail["loop_dead"] is False
 
 
 # --- _code_oracle_loop_dead, pure -------------------------------------------
@@ -106,7 +111,9 @@ def test_code_oracle_loop_dead_false_quand_absent_du_detail():
 # --- (b) _player_loop_detail : pass-through (SKIPPED / OK / FAIL) -----------
 
 
-def test_player_loop_detail_pass_through_skipped(tmp_path):
+def test_player_loop_detail_pass_through_skipped_sans_loop_amont(tmp_path):
+    """SKIPPED reste SKIPPED tel quel quand `<run_dir>/loop.json` n'existe PAS —
+    pas de contrat amont à trahir (pass-through inchangé)."""
     game = tmp_path / "game"
     game.mkdir()
     d = _driver_minimal(game)
@@ -117,6 +124,26 @@ def test_player_loop_detail_pass_through_skipped(tmp_path):
     r = d._player_loop_detail()
     assert r == payload
     assert calls == [(game, d.run_dir)]
+
+
+def test_player_loop_detail_skipped_avec_loop_amont_devient_fail_checked(tmp_path):
+    """Task 4 : SKIPPED alors que `<run_dir>/loop.json` EXISTE (contrat déposé en
+    amont) devient un FAIL checked=True — le jeu n'a pas matérialisé un contrat
+    que le run possède, jamais un silence."""
+    game = tmp_path / "game"
+    game.mkdir()
+    d = _driver_minimal(game)
+    d.run_dir.mkdir(parents=True, exist_ok=True)
+    (d.run_dir / "loop.json").write_text("{}", encoding="utf-8")
+    payload = {"status": "SKIPPED", "checked": False, "passed": False,
+               "reason": "pas de 03_WORLD/loop.json"}
+    d.player_loop_runner = lambda gd, run_dir=None: payload
+    r = d._player_loop_detail()
+    assert r["status"] == "FAIL"
+    assert r["checked"] is True
+    assert r["passed"] is False
+    assert r["fails"]
+    assert ForgeDriver._code_oracle_loop_dead({"player_loop": r}) is True
 
 
 def test_player_loop_detail_pass_through_ok(tmp_path):
