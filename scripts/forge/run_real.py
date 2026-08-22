@@ -936,7 +936,17 @@ def _validate_blueprint(data: dict) -> str:
 
 def _validate_wiremap(data: dict) -> str:
     """'' si la WireMap a le format que check_wiremap/frozen_features consomment,
-    sinon la raison précise du rejet."""
+    sinon la raison précise du rejet.
+
+    Deux schémas coexistent (standard/SCHEMA.md §3) : v1 legacy `features[]`
+    (branche historique ci-dessous, INCHANGÉE) et v2 `{schema_version: 2,
+    systems[], lines[]}` — forme AUTORISÉE par le contrat s5-wiremap.yaml et
+    déjà lue par `static_oracles.frozen_features_from_wiremap` /
+    `driver._mutation_scope_from_wiremap_any`, mais rejetée ici avant ce
+    correctif (défaut mesuré : run kitten_clicker-20260821d, HALT « 'features'
+    doit être une liste NON VIDE » sur un artefact v2 conforme)."""
+    if data.get("schema_version") == 2:
+        return _validate_wiremap_v2(data)
     features = data.get("features")
     if not isinstance(features, list) or not features:
         return "'features' doit être une liste NON VIDE"
@@ -958,6 +968,51 @@ def _validate_wiremap(data: dict) -> str:
             return (f"features[{i}].fonction doit être une str NON VIDE (nom de "
                     "fonction) — une fonction vide fait sauter la vérification "
                     "d'existence de check_wiremap (wiremap creuse faussement verte)")
+    return ""
+
+
+def _validate_wiremap_v2(data: dict) -> str:
+    """'' si la WireMap v2 ({schema_version: 2, lines[]}) est exploitable par
+    check_wiremap/frozen_features_from_wiremap, sinon la raison précise du
+    rejet (préfixée `lines[i]` par ligne fautive, jamais un message générique).
+
+    Champs exigés — standard/SCHEMA.md §3 + contrat s5-wiremap.yaml §8 :
+    `id` (identité de la règle, lue par frozen_features_from_wiremap),
+    `fichiers` NON VIDE (str non vide, ou dict `{path}` non vide str — SCHEMA.md
+    §3 « fichiers » : « chaque entrée de fichiers[] déclare donc sa propre
+    category » — une chaîne nue reste une forme héritée acceptée ici, seule la
+    présence d'un `path` compte pour l'isomorphisme), `couvre` NON VIDE de str
+    (contrat s5-wiremap.yaml §8 : « DANS LES DEUX CAS, chaque ligne porte en
+    plus couvre[...], NON VIDE »).
+    `fonction`/`preuve` NE SONT PAS exigés non vides en v2 : SCHEMA.md §3 les
+    documente comme « champs v1 conservés » (rétro-compatibilité), sans clause
+    NON VIDE — contrairement à v1 où ils sont la garde R4 ci-dessus."""
+    lines = data.get("lines")
+    if not isinstance(lines, list) or not lines:
+        return "'lines' doit être une liste NON VIDE (WireMap v2 sans meublage)"
+    for i, line in enumerate(lines):
+        if not isinstance(line, dict):
+            return f"lines[{i}] n'est pas un objet (dict attendu)"
+        if not isinstance(line.get("id"), str) or not line["id"].strip():
+            return f"lines[{i}].id doit être une str non vide (identité de la règle)"
+        fichiers = line.get("fichiers")
+        if not isinstance(fichiers, list) or not fichiers:
+            return (f"lines[{i}].fichiers doit être une liste NON VIDE — une "
+                    "ligne qui ne pointe aucun fichier réel est invérifiable")
+        for j, f in enumerate(fichiers):
+            if isinstance(f, str):
+                if not f.strip():
+                    return f"lines[{i}].fichiers[{j}] est une str vide"
+            elif isinstance(f, dict):
+                if not isinstance(f.get("path"), str) or not f["path"].strip():
+                    return f"lines[{i}].fichiers[{j}].path doit être une str non vide"
+            else:
+                return f"lines[{i}].fichiers[{j}] doit être une str ou un objet {{path,category}}"
+        couvre = line.get("couvre")
+        if not isinstance(couvre, list) or not couvre or not all(
+                isinstance(c, str) and c.strip() for c in couvre):
+            return (f"lines[{i}].couvre doit être une liste NON VIDE de str "
+                    "(id de capacité couverte — contrat s5-wiremap.yaml §8)")
     return ""
 
 

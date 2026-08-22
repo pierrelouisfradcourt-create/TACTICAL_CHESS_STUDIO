@@ -46,11 +46,28 @@ bomberman sans fichier ; STANDARD `core.render`/`core.audio` ; `asset.sprite →
 → ce sont les TÂCHES qui exigent (`tasks.json` v2). Gestes manuels M1-M7 listés dans le plan.
 Run 3 + build 2 archivés par déplacement (`_run3_20260821c/` + `game_build2/`, 43 fichiers).
 
+**Run 4 `kitten_clicker-20260821d` (commit `db8c79b`) — HALTED à s5, archivé `_run4_20260821d/`.**
+L'intention a TRAVERSÉ jusqu'à la WireMap : charter matérialisé avec **13 critères** (5 mécaniques + 8 de
+contenu/feel, règle de forme YAML respectée) · story bible **3/8** GROUNDED, 9 éléments dont 7 sur les
+chatons (refus honnêtes : le charter donne des critères, pas un monde — s2.6 ANCRE, n'invente pas →
+CONTENT n'a pas de producteur d'invention) · art bible 23 requêtes (7 chatons, 4 objets, 2 lieux, UI,
+effets ; 2,83 $) · **Prisme 26 exigences, 24/24 références résolues, 5 familles** (GAMEPLAY 12, CONTENT 12,
+AUDIO 7, LONGUEUR 7, VISUAL 6 ; kinds actuels : bot_action 8 / visual 8 / oracle 7 / file_write 3) ·
+featuremap 9 systèmes / 17 features / 26 feuilles, `check_decompo` OK 26/26 · **WireMap v2 : 51 lignes,
+23 `asset.sprite`, 26/26 capacités couvertes, 0 fantôme — rupture 5 fermée par la tâche seule**.
+**Rupture 7** : `run_real._validate_wiremap` n'accepte que la v1 (`features[]`) alors que le contrat s5
+autorise la v2 → HALT ; latent : `check_wiremap` (s10c) ignore la v2 → vert par vacuité. **Lot 5** (décision
+Pierre) : v2 acceptée + s10c v2-aware, fixture réelle, puis run 5. **Lot 5 livré** : `_validate_wiremap_v2`
+(id / fichiers / couvre non vides par ligne, messages précis), `check_wiremap` normalise v1/v2 via
+`_wiremap_entries` (v2 sans lignes = FAIL, jamais vert par vacuité). Découverte par le rejet précis : la v2
+du run 4 porte `lines[8] core.audio` `owner:false, fichiers: []` — écart du builder (0 cas sur 167 lignes
+v2 réelles), règle stricte conservée, consigne s5 durcie (niveau tâche). Noms des chatons nés à **s2.5**
+(art director) : Moustache, Biscotte, Réglisse, Nuage, Cannelle, Saphir, Lumina ; lieux refuge/grenier.
+
 ### Prochaine étape
-1. Run 4 `kitten_clicker-20260821d`, profil `full_godot_content`, sans `--charter`, depuis la session de
-   supervision (arrière-plan + moniteur). Cibles : ≥ 20 exigences / 5 familles ; story bible ≥ 6-8 ;
-   ≥ 6 sprites rendus non-monochromes ; volet `core_audio` OK ; bot au 3ᵉ palier ; sonde à BUILD ;
-   verdict authentique ; puis **playtest Pierre** consigné comme HumanGate.
+1. Lot 5 → commit → run 5 `kitten_clicker-20260821e` (`full_godot_content`, sans `--charter`, depuis la
+   session). Cibles restantes : ≥ 6 sprites rendus non-monochromes ; volet `core_audio` OK ; bot au 3ᵉ
+   palier ; sonde à BUILD ; verdict authentique ; puis **playtest Pierre** consigné comme HumanGate.
 2. Rapport : intention traversée vs baseline, gestes manuels → spec de câblage, ruptures localisées.
 3. Ensuite (décisions Pierre) : lots candidats des ruptures 4-6, skill `/forge` à réaligner sur
    `run_real.py`, ratification `FORGE_SYSTEM_CONTRACT.yaml`, branches mortes.

@@ -260,19 +260,64 @@ def check_architecture(blueprint: dict, src_root: Path) -> dict:
     }
 
 
+def _wiremap_entries(wiremap: dict) -> list[dict]:
+    """Normalise une WireMap (v1 `features[]` ou v2 `{schema_version:2, lines[]}`)
+    en entrées uniformes `{feature, fonction, fichiers[str], preuve}` consommées
+    par `check_wiremap`. Un seul point de vérité pour la règle d'isomorphisme —
+    v1 et v2 la traversent identiquement une fois normalisées ici.
+
+    v2 : `id` -> feature, `fonction`/`preuve` (champs v1 conservés, SCHEMA.md §3)
+    passés tels quels (peuvent être vides — non exigés par le contrat v2),
+    `fichiers[]` aplatis en chemins (`f["path"]` si dict, `f` si str)."""
+    if wiremap.get("schema_version") == 2:
+        entries: list[dict] = []
+        for line in wiremap.get("lines") or []:
+            if not isinstance(line, dict):
+                continue
+            fichiers = [
+                (f.get("path") if isinstance(f, dict) else f)
+                for f in (line.get("fichiers") or [])
+            ]
+            entries.append({
+                "feature": line.get("id", "?"),
+                "fonction": line.get("fonction", ""),
+                "fichiers": [f for f in fichiers if f],
+                "preuve": line.get("preuve", ""),
+            })
+        return entries
+    return list(wiremap.get("features", []) or [])
+
+
 def check_wiremap(wiremap: dict, src_root: Path) -> dict:
     """Vérifie l'isomorphisme WireMap ↔ code réel (multi-langages).
 
     Retourne {passed, features_manquantes[], fonctions_renommées[], obsoletes[],
     preuves_absentes[]}. PASS = aucune feature manquante/renommée ni preuve absente.
+
+    Accepte v1 (`features[]`) et v2 (`schema_version:2, lines[]`, normalisée par
+    `_wiremap_entries`). Une v2 sans `lines` (absente/vide) N'EST PLUS un vert
+    par vacuité (défaut mesuré : `wiremap.get("features", [])` sur une v2 ne
+    voit rien -> passed=True sans avoir rien vérifié) : elle rend explicitement
+    `passed=False`, `features_manquantes=["<aucune ligne>"]`.
     """
     src_root = Path(src_root)
+    entries = _wiremap_entries(wiremap)
+
+    if wiremap.get("schema_version") == 2 and not entries:
+        return {
+            "passed": False,
+            "features_manquantes": ["<aucune ligne>"],
+            "fonctions_renommées": [],
+            "obsoletes": [],
+            "preuves_absentes": [],
+        }
+
     features_manquantes: list[str] = []
     fonctions_renommees: list[str] = []
     obsoletes: list[str] = []
     preuves_absentes: list[str] = []
 
-    for feat in wiremap.get("features", []):
+    for feat in entries:
         name = feat.get("feature", "?")
         fonction = feat.get("fonction", "")
         fichiers = feat.get("fichiers", []) or []
