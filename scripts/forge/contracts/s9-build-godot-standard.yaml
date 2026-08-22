@@ -72,6 +72,10 @@ objectif: >-
   exécuté. À la fin, chaque ligne doit être passée de REQUIRED à IMPLEMENTED (ou BLOCKED,
   motivé) et les champs de CONSTAT de la wiremap (`fichiers`, `fonction`, `preuve`,
   `statut`) remplis avec ce qui a été réellement déposé — jamais avec ce qui était prévu.
+  Et ASSEMBLER ces lignes en un jeu : `main.tscn` (scène `run/main_scene`) est le point
+  d'entrée JOUABLE ; il instancie (ou charge dans `_ready`) chaque adaptateur
+  `system.adapter` et le contrôleur qui fait tourner la boucle (`_process`/Timer) ; un
+  clic réel au centre de l'écran doit modifier l'état et l'image.
 
 # --- 4. Frontières (Critique) ---
 in_scope: >-
@@ -117,6 +121,9 @@ gardeFou: >-
   (f) Aucun chemin absolu utilisateur dans un fichier versionné ; encodage utf-8 explicite.
   (g) CODE_COPIE : une brique copiée dont l'empreinte ne correspond pas à `copy_sha256` est
   un échec, pas une variante.
+  (h) PAS DE PIÈCES SANS ASSEMBLAGE. Un fichier écrit mais jamais atteint depuis
+  `main.tscn` n'existe pas pour le joueur. Le registre de monde est chargé au boot,
+  l'audio est déclenché par les événements du jeu, pas par son oracle.
 
 # --- 7. Validation & auditabilité (Critique) ---
 success_criteria: >-
@@ -134,6 +141,11 @@ success_criteria: >-
   click-through navigateur réel » est SANS OBJET (aucun navigateur) ; il est remplacé par
   l'oracle headless (1) et la solvabilité (4). Les export templates ne sont pas requis :
   aucun export n'est demandé par la chaîne.
+  (5) La sonde `scripts/forge/godot_probes/runtime_alive.gd` (fenêtre GPU, vraie scène, un
+  clic injecté) rend OK : scène chargée, nœuds scriptés, image non monochrome qui CHANGE
+  après le clic. (6) Chaque volet `07_TESTS/oracle/*.gd` charge `res://main.tscn` — un
+  volet qui assemble sa propre scène est rejeté statiquement. (7) Toute `preuve` qui nomme
+  un fichier `.gd` pointe un fichier existant.
 tests_oracles: >-
   Oracle CODE déterministe non-LLM : run_tests.gd exécuté par le binaire Godot en headless
   (jamais un LLM-as-judge, jamais une inspection visuelle). Méta-oracle :
@@ -141,6 +153,7 @@ tests_oracles: >-
   comme commentaire. Oracles du standard : forge.standard_oracles (line_states, placement,
   collisions, index, contract_completeness, budget) + genre_coverage + observable_coverage.
   Une preuve visuelle éventuelle exige une fenêtre GPU réelle, jamais `--headless`.
+  Ajout (lot V3 assemblage runtime, 2026-08-22) : product_oracle_godot.run_runtime_alive.
 final_report: >-
   software/evidence/claim séparés. Cite pour CHAQUE affirmation la commande exécutée et sa
   sortie réelle (preuve d'exécution, jamais preuve d'existence). Liste les fichiers touchés

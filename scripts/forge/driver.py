@@ -70,7 +70,11 @@ from forge.mutation_proof import (
 )
 from forge.pool import DEFAULT_POOL_SIZE, pool_decision
 from forge.product_oracle import run_product_oracle
-from forge.product_oracle_godot import has_godot_capacity, run_godot_product_oracle
+from forge.product_oracle_godot import (
+    has_godot_capacity,
+    run_godot_product_oracle,
+    run_runtime_alive,
+)
 from forge.runtime import RUNNER_CLAUDE_BLIND, RUNNER_QWEN, route_step, run_qwen_step
 from forge.standard_oracles import (
     check_budget,
@@ -263,6 +267,7 @@ class ForgeDriver:
         pool_size: int = DEFAULT_POOL_SIZE,
         product_oracle_runner=None,
         product_oracle_godot_runner=None,
+        runtime_alive_runner=None,
         reference_guard_config_path: Path | str | None = None,
         reference_guard_baseline_path: Path | str | None = None,
         reference_guard_derogation_path: Path | str | None = None,
@@ -328,6 +333,12 @@ class ForgeDriver:
         # réimplémentation. N'est APPELÉ qu'en présence des DEUX conditions
         # (contrat de preuve + capacité constatée) — voir _run_code_oracle.
         self.product_oracle_godot_runner = product_oracle_godot_runner or run_godot_product_oracle
+        # Gate s10a runtime_alive (Task 2, 2026-08-22) : injectable comme
+        # product_oracle_godot_runner ci-dessus — par défaut le VRAI
+        # forge.product_oracle_godot.run_runtime_alive, jamais une
+        # réimplémentation. N'est appelé que dans le même périmètre que le
+        # fournisseur produit Godot (voir _runtime_alive_detail).
+        self.runtime_alive_runner = runtime_alive_runner or run_runtime_alive
         # Tier 2 #5 (Concept A) : best-of-N réactif au même tier avant d'escalader de
         # modèle. pool_size<=1 désactive le pool (chaque FAIL escalade directement).
         self.pool_size = int(pool_size)
@@ -1859,6 +1870,13 @@ class ForgeDriver:
                     "measured": False,
                     "reason": "exception levée pendant la mesure — advisory, non bloquant",
                 }
+            # Gate s10a runtime_alive (Task 2, 2026-08-22) : « le runtime mort =
+            # FAIL, jamais un OK par absence ». Même périmètre d'activation que
+            # le fournisseur produit Godot ci-dessus (contrat de preuve ET
+            # capacité constatée) — voir _runtime_alive_detail (SKIPPED motivé
+            # pour un module bibliothèque sans run/main_scene, NOT_MEASURED
+            # motivé si la sonde lève, jamais une exception qui remonte).
+            detail["runtime_alive"] = self._runtime_alive_detail()
             detail["product_oracle_godot_activation"] = {
                 "active": True,
                 "proof_descriptor_present": True,
@@ -1969,10 +1987,12 @@ class ForgeDriver:
         detail["mutation"] = {"receipt": asdict(receipt.receipt),
                               "signature": receipt.signature}
 
+        runtime_dead = self._code_oracle_runtime_dead(detail)
         if status == "BLOCKED":
             final = "BLOCKED"
         elif (status == "FAIL" or not e2e_ok or not solvability["passed"]
-              or not harness_flags["passed"] or receipt.receipt.status != "OK"):
+              or not harness_flags["passed"] or receipt.receipt.status != "OK"
+              or runtime_dead):
             final = "FAIL"  # rouge mécanique => alimente la boucle d'escalade
         else:
             # Auto-contrôle structurel AVANT de poser un OK : une preuve qui ne se
@@ -1988,6 +2008,53 @@ class ForgeDriver:
                 detail["mutation_verification"] = check
                 final = "BLOCKED"
         self._finish_step(state, entry, final, detail)
+
+    def _runtime_alive_detail(self) -> dict:
+        """Gate s10a runtime_alive (Task 2, 2026-08-22) : « un oracle qui
+        reconstruit son environnement peut prouver un jeu qui n'existe pas »
+        (décision Pierre, run 5 kitten_clicker). Charge la VRAIE scène
+        `run/main_scene` via la sonde externe hors projet
+        (`product_oracle_godot.run_runtime_alive`, injectable ici via
+        `self.runtime_alive_runner`, même patron que
+        `product_oracle_godot_runner`) — jamais un volet du jeu, qui peut
+        assembler sa propre scène.
+
+        Un projet SANS `run/main_scene` déclaré dans `project.godot` est un
+        module bibliothèque : la sonde n'a rien à charger, SKIPPED motivé,
+        le runner n'est JAMAIS appelé (pas de spawn Godot pour rien).
+        Une exception du runner est une mesure impossible, pas un jeu mort :
+        NOT_MEASURED motivé, jamais une exception qui remonte au pas s10a
+        (même garde que product_oracle_godot juste au-dessus)."""
+        project_godot = self.game_dir / "project.godot"
+        try:
+            has_main_scene = "run/main_scene=" in project_godot.read_text(encoding="utf-8")
+        except OSError:
+            has_main_scene = False
+        if not has_main_scene:
+            return {
+                "status": "SKIPPED", "checked": False, "passed": False,
+                "reason": "pas de run/main_scene (module bibliothèque)",
+            }
+        try:
+            return self.runtime_alive_runner(self.game_dir)
+        except Exception:  # noqa: BLE001 — advisory de mesure, jamais bloquant
+            logger.warning(
+                "runtime_alive non mesuré pour run=%s (advisory, non bloquant)",
+                self.run_id, exc_info=True,
+            )
+            return {
+                "status": "NOT_MEASURED", "checked": False, "passed": False,
+                "reason": "exception levée pendant la mesure — advisory, non bloquant",
+            }
+
+    @staticmethod
+    def _code_oracle_runtime_dead(detail: dict) -> bool:
+        """Règle du gate (Task 2) : le runtime mort fait échouer s10a même si
+        tout le reste (e2e/solvabilité/harnais/mutation) est vert — jamais
+        l'inverse (NOT_MEASURED/SKIPPED ne changent pas le statut, seule une
+        mesure RÉELLEMENT `checked` et négative compte)."""
+        runtime = detail.get("runtime_alive") or {}
+        return runtime.get("checked") is True and not runtime.get("passed")
 
     # --- CONTRAT_PREUVE_MUTATION_V1.md — routage + nouveau régime (mission
     # 2026-07-28, ÉTAPE 2) -----------------------------------------------
@@ -2135,10 +2202,11 @@ class ForgeDriver:
             # verdict de mutation lui-même est acquis (passed=True) ; le statut
             # final combine les autres volets du gate s10a comme dans le régime
             # historique (e2e/solvabilité/harnais).
+            runtime_dead = self._code_oracle_runtime_dead(detail)
             if status == "BLOCKED":
                 final = "BLOCKED"
             elif (status == "FAIL" or not e2e_ok or not solvability["passed"]
-                  or not harness_flags["passed"]):
+                  or not harness_flags["passed"] or runtime_dead):
                 final = "FAIL"
             else:
                 final = "OK"
@@ -2169,10 +2237,12 @@ class ForgeDriver:
         detail["mutation"]["receipt"] = asdict(receipt.receipt)
         detail["mutation"]["signature"] = receipt.signature
 
+        runtime_dead = self._code_oracle_runtime_dead(detail)
         if status == "BLOCKED":
             final = "BLOCKED"
         elif (status == "FAIL" or not e2e_ok or not solvability["passed"]
-              or not harness_flags["passed"] or receipt.receipt.status != "OK"):
+              or not harness_flags["passed"] or receipt.receipt.status != "OK"
+              or runtime_dead):
             final = "FAIL"  # rouge mécanique => alimente la boucle d'escalade
         else:
             # Auto-contrôle structurel AVANT de poser un OK -- même garde que le

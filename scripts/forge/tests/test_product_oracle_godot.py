@@ -21,10 +21,17 @@ from forge.product_oracle_godot import (
 
 def _oracle_gd(root, name, *, marker=True, gpu_directive=False):
     """Dépose un faux fichier `.gd` d'oracle sous `<root>/07_TESTS/oracle/`.
-    `gpu_directive` ajoute la DIRECTIVE STATIQUE de mode d'exécution."""
+    `gpu_directive` ajoute la DIRECTIVE STATIQUE de mode d'exécution.
+
+    Charge la VRAIE scène (`load("res://main.tscn")`) pour satisfaire la garde
+    statique anti-gaming de Task 3 (`_VOLET_REAL_SCENE`) : cette suite mesure
+    le ROUTAGE et le protocole `FORGE_ORACLE`, pas cette garde-là (couverte
+    par `test_volets_load_real_scene.py`) — un volet synthétique sans ce
+    chargement serait rejeté avant même d'atteindre le runner injecté."""
     oracle_dir = root / "07_TESTS" / "oracle"
     oracle_dir.mkdir(parents=True, exist_ok=True)
     body = f'# Sortie : "FORGE_ORACLE {name} {{json}}"\nextends SceneTree\n' if marker else "extends SceneTree\n"
+    body += 'var _scene = load("res://main.tscn")\n'
     if gpu_directive:
         body = "# forge:run_mode = gpu_window\n" + body
     (oracle_dir / f"{name}.gd").write_text(body, encoding="utf-8")

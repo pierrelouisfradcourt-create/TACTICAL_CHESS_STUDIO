@@ -14,60 +14,80 @@ ancrée, sortie en échec persistée) · `4f8c245` lot 3 (dernier bloc JSON qui 
 lot 4 (ce commit) : profil **`full_godot_content`** = narratif + `s2.5-artbible` après s1 (17 étapes),
 injection `art_bible.md`/`asset_requests.json` dans s3, s5 et **s9** (qui n'avait aucune injection).
 
-**Run 3 `kitten_clicker-20260821c` (DONE, 16/16, ≈ 38 $, 2 h 16, verdict AUTHENTIQUE FAIL/BLOCKED)** —
-baseline : 10 exigences / 10 feuilles / 10 lignes / 23 fichiers / 1 scène / 0 asset / 0 audio / story
-bible 2-8 / sonde 4 faits GREY_BLOCKS. Jeu mécaniquement jouable (73 tests, solvabilité 20/20, volets GPU
-`main_screen_render`/`gallery_render` OK en gpu_window). **Six ruptures localisées** (détail en archive) :
-1-3 corrigées (lots 2-3) ; 4 charter YAML illisible + matérialisation advisory (s0 OK sans artefact,
-re-spawn prescrit par le skill jamais implémenté) ; 5 Grey Blocks → WireMap : `couvre` vides → Qwen invente
-des noms → `repair_step.mjs:237` ne recopie que `problems[]` = **fausse preuve** → `ESCALADE` sans
-consommateur, `res["repair"]` jeté par `entry["detail"]` ; 6 composition `full_godot*` = topologie legacy +
-`s10s` = validateurs sans producteurs (builder a écrit `game_contract.yaml` seul au retry → s10s OK).
+**Run 3 `kitten_clicker-20260821c`** (DONE 16/16, ≈ 38 $, verdict AUTHENTIQUE FAIL/BLOCKED) = baseline :
+10 exigences / 10 feuilles / 10 lignes / 23 fichiers / 1 scène / 0 asset / 0 audio / story bible 2-8 / sonde 4
+GREY_BLOCKS ; jeu mécaniquement jouable (73 tests, solvabilité 20/20, volets GPU OK). Six ruptures localisées
+(détail archive 2026-08-22) : 1-3 corrigées (lots 2-3) ; 4 charter advisory ; 5 couvre fantômes + fausse preuve
+de réparation (`repair_step.mjs:237`) + `ESCALADE` sans consommateur ; 6 composition legacy/standard.
+**Diagnostic ratifié Pierre** : le Prisme est un PLAFOND (non-invention s3), « vérifiable » ≠ « par un bot »,
+ne pas transformer chaque dimension en oracle. Croquis blackboard (3 sources → effets → wiremap → builder) :
+première formulation. **Chemins pour forger** : `run_real.py` canonique ; skill `/forge` périmé (87 commits,
+ne cite pas run_real) ; `run_orchestrator` mort avec pong_r3 ; `review`/`increment` jamais joués ;
+`FORGE_SYSTEM_CONTRACT.yaml` PROPOSED ; aucun code Forge hors master.
+**2026-08-22 — « il y a suffisamment d'éléments »** → composition de l'existant, gestes manuels M1-M7 = spec du
+câblage (plan `docs/superpowers/plans/2026-08-21-kitten-clicker-complet-composition.md`) ; 5 familles/6 ont
+leur brique ; aucun générateur 2D → SVG ; `expected_proof.kind` actuel suffit, ce sont les TÂCHES qui exigent.
+**Run 4 `kitten_clicker-20260821d`** (`db8c79b`, HALTED s5, archivé `_run4_20260821d/`) : charter 13 critères,
+story bible 3/8 (s2.6 ANCRE, n'invente pas — les noms naissent à **s2.5** : Moustache, Biscotte, Réglisse,
+Nuage, Cannelle, Saphir, Lumina), Prisme 26 exigences / 5 familles / 24-24 refs, WireMap v2 51 lignes 26/26
+couvertes (rupture 5 fermée par la tâche) ; **rupture 7** : validateur v1-only → **lot 5** (`e8e9b40`) v2 acceptée
++ `check_wiremap` v2-aware ; `lines[8] core.audio fichiers: []` = écart builder (0/167 réels), règle stricte.
 
-**Diagnostic ratifié en séance (Pierre)** : la Forge produit le noyau *prouvable* d'une intention ; le
-Prisme est un PLAFOND (non-invention de s3) ; « vérifiable » ≠ « vérifiable par un bot ». Chantier en 6
-étapes (inventaire existant non câblé → familles prouvables → `expected_proof.kind` seulement avec
-consommateur → HumanGate explicite → recâblage → V2 régression). **Ne pas transformer chaque dimension
-en oracle.** Croquis Pierre (histoire · GM · effets/son/habillage → wiremap-blackboard → builder) : blackboard
-déjà [D] (PIPELINE_TARGET_V1:84,109), s8 HABILLAGE `NOT_FOUND`, « loi de la physique du jeu » et lien
-« ambiance » nulle part écrits — première formulation.
+**Run 5 `kitten_clicker-20260821e` (commit `e8e9b40`) — DONE 17/17, 2 h 10, 13 appels, ≈ 22-50 $ (build 1
+25,9 $ / 58 min, build 2 0,9 $), verdict AUTHENTIQUE `FAIL / BLOCKED`.** L'intention a traversé jusqu'aux
+FICHIERS : charter PASS 13 critères · Prisme 22 exigences / 5 familles / 19-19 refs · featuremap 22 feuilles
+OK · **WireMap v2 acceptée** (lot 5 validé en réel) 40 lignes, 22/22 couvertes, 0 fantôme, 17 `asset.sprite`
+· build 110 fichiers : **17 SVG importés par Godot**, registres `03_WORLD` (8 chatons nommés, 2 lieux, 3
+objets, quêtes), adaptateur audio, 3 volets · s10c **isomorphe** (0 manquante/renommée) · volets GPU
+`core_audio`/`gallery_render`/`main_screen_render` OK · solvabilité 20/20 · e2e PASS · **sonde : 3 faits à
+BUILD** (première fois). Rouges : s10a `reuse_ratio` (legacy) + wrapper solvabilité (`runner_argv=[]`) ;
+s10s `core_omis` 10/10, 17 `identifiants_inconnus`, `genre_bible` null = **deux vocabulaires** (Prisme vs
+STANDARD), rupture 6 sous sa vraie forme.
+**Rupture 8 — preuve sans exécution produit (red-team Opus, 6 findings, VÉRIFIÉS mécaniquement)** :
+`main.tscn` = Node2D vide + HUD ; aucun `_process`/Timer dans le runtime ; `load_registries()` sans appelant ;
+`play_sfx` déclenché seulement par son propre oracle ; `main_screen_render` dessine un HUD codé en dur au
+lieu de charger la scène ; 2 fichiers de preuve cités par la WireMap absents (`preuve` = prose non vérifiée
+par `check_wiremap`) ; le bot ne passe jamais par le prestige. **Les pièces existent, l'assemblage runtime
+n'existe pas, et les volets construisent leur propre scène.** Couches : contrat s9 (livrer une scène
+jouable n'est exigé nulle part), oracle produit (volets auto-assemblés), `check_wiremap` (`preuve` texte).
+Red-team plan Qwen : 0 finding (PASSIVE confirmée). 12 leçons promues.
 
-**Chemins pour forger (inventaire)** : `run_real.py --profile` = CANONIQUE ; boucle manuelle du skill =
-legacy non observé (le skill ne cite jamais `run_real`, périmé de 87 commits) ; `run_orchestrator` = mort
-avec pong_r3 ; 17 profils, `review`/`increment` jamais joués ; `FORGE_SYSTEM_CONTRACT.yaml` PROPOSED. Aucun
-code Forge hors `master` ; 2 branches locales mortes, 1 distante +7 (ledger STUDIO gelé).
-
-**2026-08-22 — Décision Pierre : « il y a suffisamment d'éléments pour produire le jeu »** → Kitten Clicker
-COMPLET par composition, chaque geste manuel = spec du câblage manquant. Plan :
-`docs/superpowers/plans/2026-08-21-kitten-clicker-complet-composition.md`. Mesuré : 5 familles/6 ont
-leur brique (s2.5 réel hors profil/0 lecteur ; volets GPU ont tourné ; audio procédural prouvé pacman/
-bomberman sans fichier ; STANDARD `core.render`/`core.audio` ; `asset.sprite → 04_ASSETS/sprites/{id}`) ;
-**aucun générateur 2D** → hypothèse SVG-texte ; les 5 familles tiennent dans `expected_proof.kind` ACTUEL
-→ ce sont les TÂCHES qui exigent (`tasks.json` v2). Gestes manuels M1-M7 listés dans le plan.
-Run 3 + build 2 archivés par déplacement (`_run3_20260821c/` + `game_build2/`, 43 fichiers).
-
-**Run 4 `kitten_clicker-20260821d` (commit `db8c79b`) — HALTED à s5, archivé `_run4_20260821d/`.**
-L'intention a TRAVERSÉ jusqu'à la WireMap : charter matérialisé avec **13 critères** (5 mécaniques + 8 de
-contenu/feel, règle de forme YAML respectée) · story bible **3/8** GROUNDED, 9 éléments dont 7 sur les
-chatons (refus honnêtes : le charter donne des critères, pas un monde — s2.6 ANCRE, n'invente pas →
-CONTENT n'a pas de producteur d'invention) · art bible 23 requêtes (7 chatons, 4 objets, 2 lieux, UI,
-effets ; 2,83 $) · **Prisme 26 exigences, 24/24 références résolues, 5 familles** (GAMEPLAY 12, CONTENT 12,
-AUDIO 7, LONGUEUR 7, VISUAL 6 ; kinds actuels : bot_action 8 / visual 8 / oracle 7 / file_write 3) ·
-featuremap 9 systèmes / 17 features / 26 feuilles, `check_decompo` OK 26/26 · **WireMap v2 : 51 lignes,
-23 `asset.sprite`, 26/26 capacités couvertes, 0 fantôme — rupture 5 fermée par la tâche seule**.
-**Rupture 7** : `run_real._validate_wiremap` n'accepte que la v1 (`features[]`) alors que le contrat s5
-autorise la v2 → HALT ; latent : `check_wiremap` (s10c) ignore la v2 → vert par vacuité. **Lot 5** (décision
-Pierre) : v2 acceptée + s10c v2-aware, fixture réelle, puis run 5. **Lot 5 livré** : `_validate_wiremap_v2`
-(id / fichiers / couvre non vides par ligne, messages précis), `check_wiremap` normalise v1/v2 via
-`_wiremap_entries` (v2 sans lignes = FAIL, jamais vert par vacuité). Découverte par le rejet précis : la v2
-du run 4 porte `lines[8] core.audio` `owner:false, fichiers: []` — écart du builder (0 cas sur 167 lignes
-v2 réelles), règle stricte conservée, consigne s5 durcie (niveau tâche). Noms des chatons nés à **s2.5**
-(art director) : Moustache, Biscotte, Réglisse, Nuage, Cannelle, Saphir, Lumina ; lieux refuge/grenier.
+### Orientation Pierre 2026-08-22 (fin de session) — V3 = « spécification → assemblage runtime réel »
+Paliers ratifiés en séance : **V1** mécanique prouvable · **V2** intention → contenu → spécification →
+fichiers (atteint, run 5) · **V3** spécification → assemblage runtime réel (prochain lot, **étroit**, ni
+système de contenu, ni oracle généraliste, ni couche). Question du test V3 : *la Forge produit-elle un jeu,
+ou une représentation de jeu ?* Trois pièces, avec leur ancrage mesuré :
+1. **Contrat Builder → Runtime** (`scripts/forge/contracts/s9-build-godot-standard.yaml`) : `main.tscn` est le
+   point d'entrée JOUABLE et instancie/charge les systèmes exigés par la WireMap — pas « les fichiers
+   existent ». Cible Kitten Clicker : `main.tscn → GameController → {ronrons, chatons, production, upgrades,
+   lieux, quêtes, audio, progression}` et la boucle clic → ronrons → chaton → production → upgrade → lieu →
+   quête → méta-progression DANS le runtime.
+2. **Builder** : assemble réellement dans `main.tscn` (le run 5 a livré 110 pièces indépendantes ; mesuré :
+   Node2D + HUD, aucun `_process`/Timer, `load_registries()` sans appelant, `play_sfx` jamais appelé par le jeu).
+3. **Oracles** : chargent le VRAI `res://main.tscn` produit au lieu de construire leur scène (mesuré :
+   `07_TESTS/oracle/main_screen_render.gd:39` dessine `draw_hud(12345, 678)` ; `product_oracle_godot` exécute
+   ces volets tels quels) ; `check_wiremap` doit résoudre `preuve` vers un fichier existant (2 absents au run 5).
+   Défaut le plus important du test : **un oracle qui reconstruit son environnement peut prouver un jeu qui
+   n'existe pas** — « 73 tests verts » sur un jeu statique. Preuve humaine : capture GPU hors projet
+   (`--script` externe, 90 frames) → « 0 ronrons / 0 /sec » ; à refaire par Pierre en playtest.
+Ensuite seulement : WireMap → Builder → main.tscn réel → Godot → oracle sur CE runtime → playtest → leçons.
 
 ### Prochaine étape
-1. Lot 5 → commit → run 5 `kitten_clicker-20260821e` (`full_godot_content`, sans `--charter`, depuis la
-   session). Cibles restantes : ≥ 6 sprites rendus non-monochromes ; volet `core_audio` OK ; bot au 3ᵉ
-   palier ; sonde à BUILD ; verdict authentique ; puis **playtest Pierre** consigné comme HumanGate.
+1. **Pierre** : playtest de `games/kitten_clicker/` (HumanGate, attendu : HUD statique) ; merge/reject/freeze
+   des artefacts de run ; arbitrer `test_evidence_isolation_fixture.py`.
+2. **Lot V3 livré (go Pierre 2026-08-22)** — plan `docs/superpowers/plans/2026-08-22-kitten-clicker-v3-assemblage-runtime.md`.
+   Doctrine : Task 1 est LE test, le reste le rend incontournable ; `runtime_alive` reste pauvre (scène vit ?
+   réagit à un clic réel ? OUI/NON). Livré : sonde externe `scripts/forge/godot_probes/runtime_alive.gd` +
+   `product_oracle_godot.run_runtime_alive` (fenêtre GPU, vraie `run/main_scene`, 60 frames, clic injecté,
+   image change ?) — **baseline mesurée sur le build run 5 : FAIL, `changed_after_click: false`** · gate s10a
+   `runtime_dead` (driver, injectable, SKIPPED sans main_scene, NOT_MEASURED sans Godot) · garde statique :
+   un volet `07_TESTS/oracle/*.gd` sans `load("res://main.tscn")` = FAIL sans exécution (les 3 volets du
+   run 5 rejetés) · `check_wiremap` : `preuve` qui nomme un `.gd` absent = `preuves_absentes` (**11** sur la
+   WireMap du run 5, pas 3) · contrat s9 : `main.tscn` = point d'entrée JOUABLE, garde-fou (h) « pas de
+   pièces sans assemblage », critères 5-7 ; tâche s9 ASSEMBLAGE OBLIGATOIRE. Fixtures de
+   `test_product_oracle_godot.py` mises en conformité (volets synthétiques chargent la scène).
+   V3 PASS = main.tscn réel + systèmes instanciés + interaction réelle + oracle sur CE main.tscn + preuve →
+   fichiers + capture + playtest humain. Run 5 + build archivés `_run5_20260821e/` (+ `game_build5/`).
 2. Rapport : intention traversée vs baseline, gestes manuels → spec de câblage, ruptures localisées.
 3. Ensuite (décisions Pierre) : lots candidats des ruptures 4-6, skill `/forge` à réaligner sur
    `run_real.py`, ratification `FORGE_SYSTEM_CONTRACT.yaml`, branches mortes.

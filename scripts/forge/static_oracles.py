@@ -288,6 +288,9 @@ def _wiremap_entries(wiremap: dict) -> list[dict]:
     return list(wiremap.get("features", []) or [])
 
 
+_PREUVE_GD = re.compile(r"[\w./-]+\.gd\b")
+
+
 def check_wiremap(wiremap: dict, src_root: Path) -> dict:
     """Vérifie l'isomorphisme WireMap ↔ code réel (multi-langages).
 
@@ -322,8 +325,20 @@ def check_wiremap(wiremap: dict, src_root: Path) -> dict:
         fonction = feat.get("fonction", "")
         fichiers = feat.get("fichiers", []) or []
 
-        if not str(feat.get("preuve", "")).strip():
+        preuve_str = str(feat.get("preuve", ""))
+        if not preuve_str.strip():
             preuves_absentes.append(name)
+        else:
+            for tok in _PREUVE_GD.findall(preuve_str):
+                exists = (
+                    (src_root / tok).exists()
+                    if "/" in tok
+                    else any(src_root.rglob(tok))
+                )
+                if not exists:
+                    preuves_absentes.append(
+                        f"{name}: preuve cite {tok}, absent du dépôt"
+                    )
 
         existing_files = [f for f in fichiers if (src_root / f).exists()]
         obsoletes.extend(f for f in fichiers if f not in existing_files)

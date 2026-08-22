@@ -64,6 +64,8 @@ import subprocess
 import time
 from pathlib import Path
 
+from forge.static_oracles import _strip_gd_comments
+
 logger = logging.getLogger(__name__)
 
 # Marqueur de sortie partagé par tous les oracles `.gd` (cf. core_boot.gd,
@@ -101,6 +103,17 @@ GPU_WINDOW_FLAGS = (
 
 _GPU_MODE = "gpu_window"
 _HEADLESS_MODE = "headless"
+_STATIC_GUARD_MODE = "static_guard"
+
+# Garde statique anti-gaming (Task 3, lot V3 « assemblage runtime », décision Pierre
+# 2026-08-22) : un volet `07_TESTS/oracle/*.gd` doit charger la VRAIE scène principale
+# du jeu (`res://main.tscn`) — pas se construire sa propre scène de substitution, ce qui
+# permettrait de prouver un jeu qui n'existe pas (défaut mesuré run 5, kitten_clicker).
+# Lue sur la source SANS commentaires (`_strip_gd_comments`, réutilisée depuis
+# `static_oracles`, jamais copiée) : une mention en commentaire ne prouve rien, même
+# discipline que `_GODOT_ANTI_FAKE_GREEN`.
+_VOLET_REAL_SCENE = re.compile(
+    r'(?:pre)?load\(\s*"res://main\.tscn"\s*\)|ResourceLoader\.load\(\s*"res://main\.tscn"|run/main_scene')
 
 # Clé optionnelle que le PAYLOAD JSON d'un volet (la partie `{...}` de la ligne
 # `FORGE_ORACLE <nom> {...}`, cf. `_FORGE_ORACLE_LINE`) peut porter pour déclarer
@@ -353,6 +366,32 @@ def run_godot_product_oracle(
     result: dict = {}
     for path in oracle_files:
         volet_name = path.stem
+
+        # GARDE STATIQUE (Task 3, avant toute exécution) : le volet doit charger la
+        # VRAIE scène principale (`res://main.tscn`), sinon il est rejeté SANS spawn —
+        # aucun process Godot lancé pour ce volet.
+        try:
+            source_sans_commentaires = _strip_gd_comments(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError) as exc:
+            source_sans_commentaires = ""
+            logger.warning(
+                "product_oracle_godot: lecture échouée pour la garde statique sur %s (%s)",
+                path, exc)
+        if not _VOLET_REAL_SCENE.search(source_sans_commentaires):
+            result[volet_name] = {
+                "status": "FAIL",
+                "passed": False,
+                "checked": True,
+                "mode_execution": _STATIC_GUARD_MODE,
+                "fails": [
+                    "volet construit sa propre scène : aucun chargement de "
+                    "res://main.tscn (décision Pierre 2026-08-22)"
+                ],
+                "fichier": str(path),
+                "payload": {},
+            }
+            continue
+
         # ROUTAGE : la directive statique du `.gd` décide du mode, jamais son nom.
         gpu = _gpu_window_declared(path)
         mode = _GPU_MODE if gpu else _HEADLESS_MODE
@@ -427,6 +466,36 @@ def run_godot_product_oracle(
         }
 
     return result
+
+
+RUNTIME_ALIVE_PROBE = Path(__file__).resolve().parent / "godot_probes" / "runtime_alive.gd"
+
+
+def run_runtime_alive(game_dir: Path, *, binary_resolver=None, gpu_runner=None,
+                      timeout_s: int = 90) -> dict:
+    """Charge la VRAIE scène principale du jeu en fenêtre GPU via la sonde externe
+    `godot_probes/runtime_alive.gd` (jamais un volet du jeu : un volet peut se construire sa
+    propre scène — décision Pierre 2026-08-22). NOT_MEASURED honnête sans binaire ; FAIL si la
+    sonde ne rend aucune ligne FORGE_ORACLE (une sortie muette n'est pas une preuve)."""
+    resolver = binary_resolver or _default_binary_resolver          # même résolveur que les volets
+    try:
+        binary = resolver()
+    except Exception as exc:  # noqa: BLE001 — absence de mesure, jamais une exception
+        binary = None
+    base = {"fichier": str(RUNTIME_ALIVE_PROBE), "mode_execution": "gpu_window"}
+    if not binary:
+        return {**base, "status": "NOT_MEASURED", "passed": False, "checked": False,
+                "fails": ["binaire Godot introuvable"], "payload": {}}
+    runner = gpu_runner or _default_gpu_runner
+    out = runner(binary, Path(game_dir), str(RUNTIME_ALIVE_PROBE), timeout_s=timeout_s)
+    payload = _parse_forge_oracle_line(out.get("stdout", "")) if isinstance(out, dict) else None
+    if payload is None:
+        return {**base, "status": "FAIL", "passed": False, "checked": True,
+                "fails": ["sonde sans ligne FORGE_ORACLE (sortie muette, rc=%s)" % (out.get("returncode") if isinstance(out, dict) else None)],
+                "payload": {"stdout_tail": str(out.get("stdout", ""))[-400:] if isinstance(out, dict) else ""}}
+    ok = bool(payload["payload"].get("ok"))
+    return {**base, "status": "OK" if ok else "FAIL", "passed": ok, "checked": True,
+            "fails": list(payload["payload"].get("fails", [])), "payload": payload["payload"]}
 
 
 # =====================================================================================
