@@ -1362,6 +1362,75 @@ def _materialize_yaml(etape: str, output: str, run_dir: Path) -> dict | None:
         return {"written": False, "reason": "exception du matérialiseur (voir run.log)"}
 
 
+# --- V4 GAME LOOP (GO Pierre 2026-08-22) — matérialiseur `loop.json` --------------
+# VERROU ABSOLU : `loop.json` est une PROJECTION DÉTERMINISTE de `prisme.json`,
+# JAMAIS une source de vérité. `deriveLoopSpec` (scripts/forge/loop_spec.mjs) est
+# une fonction PURE — c'est l'EXÉCUTEUR qui la lance et écrit le résultat, aucun
+# LLM n'écrit jamais ce fichier. Si la sortie d'un agent s1 contenait un bloc
+# ```json``` nommé `loop` ou tentait d'écrire loop.json, ce serait IGNORÉ ici :
+# cette fonction ne lit QUE prisme.json déjà matérialisé sur disque, jamais la
+# sortie brute de l'agent.
+#
+# ADVISORY au run 7 (mesure d'abord — règle de variance), GATÉ au run 8 (décision
+# HumanGate distincte, hors périmètre de ce chantier) : le reçu `loop_check` est
+# joint à `res`, mais ne modifie JAMAIS `ok`.
+_LOOP_SPEC_SCRIPT = Path(__file__).resolve().parent / "loop_spec.mjs"
+_LOOP_SPEC_TIMEOUT_S = 60.0
+
+
+def _materialize_loop_spec(etape: str, run_dir: Path) -> dict | None:
+    """Après matérialisation de `prisme.json` (s1-prisme), dérive et écrit
+    `loop.json` via `node loop_spec.mjs <prisme.json> --json` (même patron
+    subprocess que `run_repair_step`). Retourne None si l'étape n'est pas
+    s1-prisme, sinon le reçu {written, path, check:{verdict, problems}} —
+    `written:false` si `prisme.json` est absent ou si la dérivation échoue.
+    Ne lève jamais — un échec ici est un reçu honnête, jamais un crash de chaîne."""
+    if etape != "s1-prisme":
+        return None
+    prisme_path = run_dir / "prisme.json"
+    if not prisme_path.exists():
+        return {"written": False,
+                "reason": "prisme.json absent — loop.json non derivable"}
+    try:
+        proc = subprocess.run(
+            ["node", str(_LOOP_SPEC_SCRIPT), str(prisme_path), "--json"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=_LOOP_SPEC_TIMEOUT_S, cwd=str(REPO_ROOT),
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("loop_spec non executable pour etape=%s : %s", etape, exc)
+        return {"written": False,
+                "reason": f"loop_spec non executable ({str(exc)[:150]})"}
+    try:
+        payload = json.loads(proc.stdout)
+    except (json.JSONDecodeError, TypeError):
+        logger.warning("loop_spec : sortie illisible (etape=%s, rc=%s)",
+                       etape, proc.returncode)
+        return {"written": False,
+                "reason": f"loop_spec sortie illisible (rc={proc.returncode})"}
+    spec = payload.get("spec") if isinstance(payload, dict) else None
+    check = payload.get("check") if isinstance(payload, dict) else None
+    if not isinstance(spec, dict):
+        return {"written": False,
+                "reason": "loop_spec : pas de 'spec' exploitable en sortie"}
+    try:
+        run_dir.mkdir(parents=True, exist_ok=True)
+        loop_path = run_dir / "loop.json"
+        loop_path.write_text(
+            json.dumps(spec, ensure_ascii=False, indent=1), encoding="utf-8")
+    except OSError as exc:
+        logger.warning("loop.json non ecrit pour etape=%s : %s", etape, exc)
+        return {"written": False, "reason": f"ecriture loop.json impossible ({exc})"}
+    return {
+        "written": True,
+        "path": str(loop_path),
+        "check": {
+            "verdict": (check or {}).get("verdict", "NOT_MEASURED") if isinstance(check, dict) else "NOT_MEASURED",
+            "problems": list((check or {}).get("problems") or [])[:5] if isinstance(check, dict) else [],
+        },
+    }
+
+
 def _materialize_markdown(etape: str, output: str, run_dir: Path) -> dict | None:
     """Écrit l'artefact TEXTE de l'étape (ex. product_snapshot.md pour s1-prisme)
     et exécute son validateur. Retourne le reçu {written, path, check: {...}} ou
@@ -1584,15 +1653,22 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # full_godot_content (Pierre 2026-08-22, composition) : la décompo reçoit AUSSI
     # art_bible.md et asset_requests.json (produits par s2.5-artbible, injecté entre
     # s1 et s3 dans ce profil). Absents (autres profils) => omis, comportement inchangé.
+    # V4 GAME LOOP (2026-08-22, GO Pierre) : `loop.json` (projection déterministe
+    # du Prisme, matérialisée par run_real après prisme.json) est injecté en FIN
+    # de tuple à s3-decompo, s5-wiremap, s9-build-godot-standard — une ENTRÉE à
+    # lire, jamais une source de vérité. Absent (runs sans exigence PLAYER, ou
+    # profils qui ne matérialisent pas loop.json) => omis par
+    # upstream_artifacts_section, comportement inchangé.
     "s3-decompo": ("charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt",
                    "artifacts/s2.6-story-bible.txt", "artifacts/s2.7-gm-worldscan.txt",
-                   "art_bible.md", "asset_requests.json"),
+                   "art_bible.md", "asset_requests.json", "loop.json"),
     "s4-archi": ("charter.yaml", "artifacts/s3-decompo.txt",),
     # full_godot_content : le wiremap reçoit aussi la Story Bible (s2.6) et l'art
     # bible + ses demandes d'assets (s2.5) — même raisonnement que s3-decompo
     # ci-dessus. Absents (autres profils) => omis, comportement inchangé.
     "s5-wiremap": ("charter.yaml", "artifacts/s3-decompo.txt", "blueprint.json",
-                   "artifacts/s2.6-story-bible.txt", "art_bible.md", "asset_requests.json"),
+                   "artifacts/s2.6-story-bible.txt", "art_bible.md", "asset_requests.json",
+                   "loop.json"),
     "s6-redteam-plan": ("charter.yaml", "artifacts/s3-decompo.txt", "artifacts/s4-archi.txt",
                         "artifacts/s5-wiremap.txt"),
     "s9-build": ("blueprint.json", "wiremap.json"),
@@ -1602,7 +1678,7 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # lecture déclarative seule. Absents (autres profils) => omis par
     # upstream_artifacts_section, comportement inchangé.
     "s9-build-godot-standard": ("blueprint.json", "wiremap.json", "art_bible.md",
-                                "asset_requests.json"),
+                                "asset_requests.json", "loop.json"),
     "s11-redteam-code": ("wiremap.json",),
 }
 
@@ -1874,6 +1950,12 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
                                              Path(context["run_dir"]))
             if yaml_receipt is not None:
                 res["yaml_check"] = yaml_receipt
+            # V4 GAME LOOP : loop.json = PROJECTION DÉTERMINISTE de prisme.json,
+            # dérivée par l'exécuteur APRÈS que prisme.json soit sur disque (jamais
+            # par l'agent). ADVISORY au run 7 (res["loop_check"], ne change pas ok).
+            loop_receipt = _materialize_loop_spec(etape, Path(context["run_dir"]))
+            if loop_receipt is not None:
+                res["loop_check"] = loop_receipt
             # (c) oracle amont + réparation ciblée, immédiatement après l'écriture de
             # l'artefact. C'est le seul instant où l'artefact existe, est frais, et où
             # personne n'a encore construit dessus : réparer plus tard reviendrait à

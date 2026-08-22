@@ -121,6 +121,28 @@ output_contract: >-
   d'une exigence CORE est `core_list` par construction, elle ne transite jamais par
   un modèle. Le champ vocabulaire est celui de la ligne de wiremap v2
   (standard/SCHEMA.md §3) : tes exigences sont des lignes candidates.
+  V4 GAME LOOP (GO Pierre 2026-08-22, champs ADDITIFS — ajoutés à la ligne
+  d'exigence ci-dessus, rien retiré) : LE SUJET PLAYER ENTRE DANS LE CONTRAT.
+  Chaque exigence porte désormais `acteur: "PLAYER"|"SYSTEM"` (qui agit) et
+  `loop_role` ∈ {PLAYER_GOAL, PLAYER_ACTION, GAME_RESPONSE, REWARD, UNLOCK,
+  NEXT_GOAL, META_LOOP, NONE} (sa position dans la séquence de boucle imposée :
+  PLAYER_GOAL -> PLAYER_ACTION -> GAME_RESPONSE -> REWARD -> UNLOCK -> NEXT_GOAL
+  -> META_LOOP ; NONE = exigence produit ordinaire, hors boucle). Une exigence
+  PLAYER porte `affordance` (le nom de la cible cliquable, ex. `acheter_chaton`)
+  OU est un objectif affiché (`observe.hud`). Quand elle est observable à
+  l'écran, une exigence porte `observe: {hud: "<nom du Label>", predicate:
+  "nonempty"|"increases"|"changes"|"contains:<txt>"}`.
+  RÈGLE : AU MOINS UNE EXIGENCE PAR RÔLE (les 7 rôles de boucle, NONE exclu) —
+  sans quoi la boucle joueur est incomplète et injouable (mesuré, run 6 :
+  25 exigences, 0 avec `loop_role`, boucle 100% invisible au joueur). Les
+  rôles PLAYER_ACTION / UNLOCK / META_LOOP sont rédigés à LA VOIX ACTIVE, LE
+  JOUEUR POUR SUJET — jamais la voix passive (« Acheter un chaton fait
+  apparaître… » est REFUSÉ ; « Le joueur peut acheter un chaton en cliquant la
+  cible `acheter_chaton` ; la collection affichée augmente » est attendu).
+  `loop.json` (la boucle dérivée) N'EST JAMAIS ÉCRIT PAR TOI : c'est une
+  PROJECTION DÉTERMINISTE de `prisme.json`, dérivée et matérialisée par
+  l'EXÉCUTEUR après ta réponse. Si tu émets un bloc ```json``` nommé `loop` ou
+  tentes de produire un fichier `loop.json`, il est IGNORÉ.
 
 # --- 9. Capacités (Important — `aucun` autorisé, jamais absent) ---
 skill: aucun

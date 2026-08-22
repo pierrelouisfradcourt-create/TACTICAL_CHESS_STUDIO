@@ -32,12 +32,17 @@ from forge import context_manifest, run_real
 _AMONT_NARRATIF = ("artifacts/s2.6-story-bible.txt", "artifacts/s2.7-gm-worldscan.txt")
 _AMONT_CONTENT = ("art_bible.md", "asset_requests.json")
 
+# V4 GAME LOOP (2026-08-22, GO Pierre) : loop.json est injecté en FIN de tuple à
+# ces 3 étapes (cf. docs/superpowers/plans/2026-08-22-kitten-clicker-v4-game-loop.md
+# Task 2) — les 3 tests ci-dessous sont mis à jour en conséquence.
+_LOOP_JSON = ("loop.json",)
+
 
 def test_s3_decompo_recoit_aussi_art_bible_et_asset_requests():
     for table in (run_real._UPSTREAM_BY_STEP, context_manifest._UPSTREAM_BY_STEP):
         assert table["s3-decompo"] == (
             "charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt",
-        ) + _AMONT_NARRATIF + _AMONT_CONTENT
+        ) + _AMONT_NARRATIF + _AMONT_CONTENT + _LOOP_JSON
 
 
 def test_s5_wiremap_recoit_story_bible_art_bible_et_asset_requests():
@@ -45,14 +50,14 @@ def test_s5_wiremap_recoit_story_bible_art_bible_et_asset_requests():
         assert table["s5-wiremap"] == (
             "charter.yaml", "artifacts/s3-decompo.txt", "blueprint.json",
             "artifacts/s2.6-story-bible.txt", "art_bible.md", "asset_requests.json",
-        )
+        ) + _LOOP_JSON
 
 
 def test_s9_build_godot_standard_recoit_blueprint_wiremap_art_bible_asset_requests():
     for table in (run_real._UPSTREAM_BY_STEP, context_manifest._UPSTREAM_BY_STEP):
         assert table["s9-build-godot-standard"] == (
             "blueprint.json", "wiremap.json", "art_bible.md", "asset_requests.json",
-        )
+        ) + _LOOP_JSON
 
 
 def test_les_deux_copies_de_la_table_amont_restent_identiques():

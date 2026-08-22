@@ -44,6 +44,99 @@ export const DESTINATIONS = ['s3-decompo', 's4-archi', 's5-wiremap', 's9-build']
 // invisible n'est pas relisible).
 export const JACCARD_SEUIL = 0.6;
 
+// --- V4 GAME LOOP (2026-08-22, GO Pierre) — champs ADDITIFS du Prisme -----------
+// Le sujet PLAYER entre dans le contrat de production : chaque exigence PEUT
+// désormais porter `acteur`, `loop_role`, `affordance`, `observe`. Champs
+// ADDITIFS (rétro-compatibilité des runs passés, cf. run 6 : 25 exigences SANS
+// ces champs restent valides) — c'est `checkLoopSpec` (loop_spec.mjs) qui exige
+// la COMPLÉTUDE de la boucle (>=1 exigence par rôle), pas ce validateur.
+
+// Sujet grammatical d'une exigence : qui agit.
+export const ACTEURS = ['PLAYER', 'SYSTEM'];
+
+// Position d'une exigence dans la boucle de jeu (séquence imposée Pierre :
+// PLAYER_GOAL -> PLAYER_ACTION -> GAME_RESPONSE -> REWARD -> UNLOCK -> NEXT_GOAL
+// -> META_LOOP). NONE = hors boucle (exigence produit ordinaire).
+export const LOOP_ROLES = [
+  'PLAYER_GOAL', 'PLAYER_ACTION', 'GAME_RESPONSE', 'REWARD',
+  'UNLOCK', 'NEXT_GOAL', 'META_LOOP', 'NONE',
+];
+
+// Prédicats d'observation admissibles pour `observe.predicate`. `contains:<txt>`
+// est une FAMILLE de prédicats (préfixe), pas une valeur fixe de l'enum — cf.
+// isValidPredicate.
+export const PREDICATES = ['nonempty', 'increases', 'changes'];
+
+/**
+ * Vrai si `p` est un prédicat d'observation valide : une valeur de PREDICATES,
+ * ou une chaîne `contains:<txt>` avec `<txt>` non vide.
+ * @param {unknown} p
+ * @returns {boolean}
+ */
+export function isValidPredicate(p) {
+  if (typeof p !== 'string') return false;
+  if (PREDICATES.includes(p)) return true;
+  return p.startsWith('contains:') && p.length > 'contains:'.length;
+}
+
+/**
+ * Valide le bloc `observe: {hud, predicate}` d'une exigence de boucle.
+ * @param {unknown} observe
+ * @param {string} loc
+ * @returns {string[]}
+ */
+export function validateObserveBlock(observe, loc) {
+  if (observe === null || typeof observe !== 'object' || Array.isArray(observe)) {
+    return [`${loc}.observe: doit etre un objet {hud, predicate}`];
+  }
+  const findings = [];
+  if (!isNonEmptyString(observe.hud)) {
+    findings.push(`${loc}.observe.hud: absent ou vide`);
+  }
+  if (!isValidPredicate(observe.predicate)) {
+    findings.push(`${loc}.observe.predicate: invalide (attendu: ${PREDICATES.join('|')}|contains:<txt>)`);
+  }
+  return findings;
+}
+
+/**
+ * Valide les champs ADDITIFS de boucle joueur d'une exigence (`acteur`,
+ * `loop_role`, `affordance`, `observe`). Une exigence qui ne porte AUCUN de ces
+ * champs produit ZÉRO finding (rétro-compatibilité) : ce validateur ne juge que
+ * ce qui est PRÉSENT et déclaré.
+ * @param {object} ex
+ * @param {string} loc
+ * @returns {string[]}
+ */
+export function validateLoopFields(ex, loc) {
+  const findings = [];
+  if (ex.acteur !== undefined && !ACTEURS.includes(ex.acteur)) {
+    findings.push(`${loc}.acteur: invalide (attendu: ${ACTEURS.join('|')})`);
+  }
+  if (ex.loop_role === undefined) return findings;
+  if (!LOOP_ROLES.includes(ex.loop_role)) {
+    findings.push(`${loc}.loop_role: invalide (attendu: ${LOOP_ROLES.join('|')})`);
+    return findings;
+  }
+  if (['PLAYER_ACTION', 'UNLOCK', 'META_LOOP'].includes(ex.loop_role)) {
+    if (ex.acteur !== 'PLAYER') {
+      findings.push(
+        `${loc}.acteur: doit valoir 'PLAYER' quand loop_role='${ex.loop_role}' `
+        + '(action joueur a la voix active, le joueur pour sujet)',
+      );
+    }
+    if (!isNonEmptyString(ex.affordance)) {
+      findings.push(`${loc}.affordance: absent ou vide (obligatoire quand loop_role='${ex.loop_role}')`);
+    }
+    findings.push(...validateObserveBlock(ex.observe, loc));
+  } else if (['PLAYER_GOAL', 'NEXT_GOAL'].includes(ex.loop_role)) {
+    if (!isNonEmptyString(ex.observe?.hud)) {
+      findings.push(`${loc}.observe.hud: absent ou vide (obligatoire quand loop_role='${ex.loop_role}')`);
+    }
+  }
+  return findings;
+}
+
 // --- primitives de validation ---------------------------------------------------
 
 /**
@@ -188,6 +281,7 @@ export function validateExigence(ex, idx) {
   if (!DESTINATIONS.includes(ex.destination)) {
     findings.push(`${loc}.destination: invalide (attendu: ${DESTINATIONS.join('|')}) — une exigence sans consommateur aval est un cul-de-sac`);
   }
+  findings.push(...validateLoopFields(ex, loc));
   return findings;
 }
 

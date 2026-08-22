@@ -35,6 +35,7 @@ const EMPTY_STATS = {
   systemes: 0, features: 0, feuilles: 0,
   feuilles_sourcees: 0, exigences_prisme: 0, exigences_couvertes: 0,
   feuilles_par_feature_min: 0, feuilles_par_feature_max: 0,
+  actions_joueur: 0, actions_joueur_prouvees_depuis_scene: 0,
 };
 
 /**
@@ -69,22 +70,28 @@ export function checkDecompoDoc(doc, prisme) {
   const problems = [...validateFeaturemap(doc)];
   const exigences_non_couvertes = [];
   const feuilles_non_sourcees = [];
+  const boucle_sans_entree = [];
 
   const prismeExigences = Array.isArray(prisme?.exigences) ? prisme.exigences : null;
   if (prismeExigences === null) {
     problems.push('prisme: manifeste absent ou sans exigences[] — la couverture et la non-invention ne sont pas verifiables (ni sautees en silence)');
     return {
       ok: false, verdict: 'FAIL', problems,
-      exigences_non_couvertes, feuilles_non_sourcees, stats: EMPTY_STATS,
+      exigences_non_couvertes, feuilles_non_sourcees, boucle_sans_entree, stats: EMPTY_STATS,
     };
   }
 
   const exigenceIds = new Set(
     prismeExigences.filter((e) => isNonEmptyString(e?.id)).map((e) => e.id),
   );
+  const exigenceById = new Map(
+    prismeExigences.filter((e) => isNonEmptyString(e?.id)).map((e) => [e.id, e]),
+  );
   const leaves = collectLeaves(doc);
   const couvertes = new Set();
   let sourcees = 0;
+  let actionsJoueur = 0;
+  let actionsJoueurProuvees = 0;
 
   for (const entry of leaves) {
     const ref = entry.leaf?.source_ref;
@@ -92,6 +99,26 @@ export function checkDecompoDoc(doc, prisme) {
     if (exigenceIds.has(ref)) {
       couvertes.add(ref);
       sourcees += 1;
+
+      // V4 GAME LOOP (2026-08-22, GO Pierre) : une action joueur (exigence
+      // acteur=PLAYER avec affordance) doit se decomposer en une capacite
+      // d'ENTREE — preuve bot_action depuis main.tscn — jamais l'effet seul.
+      const exigence = exigenceById.get(ref);
+      if (exigence?.acteur === 'PLAYER' && isNonEmptyString(exigence?.affordance)) {
+        actionsJoueur += 1;
+        const proof = entry.leaf?.expected_proof;
+        const kindOk = proof?.kind === 'bot_action';
+        const statementOk = isNonEmptyString(proof?.statement)
+          && proof.statement.toLowerCase().includes('main.tscn');
+        if (kindOk && statementOk) {
+          actionsJoueurProuvees += 1;
+        } else {
+          boucle_sans_entree.push(
+            `${entry.loc}: feuille '${entry.leaf?.id}' realise l'action joueur '${exigence.affordance}' `
+            + `(exigence ${ref}) sans preuve bot_action depuis main.tscn`,
+          );
+        }
+      }
     } else {
       feuilles_non_sourcees.push(
         `${entry.loc}.source_ref: '${ref}' ne resout aucune exigence du Prisme (invention non declaree)`,
@@ -120,13 +147,15 @@ export function checkDecompoDoc(doc, prisme) {
     exigences_couvertes: couvertes.size,
     feuilles_par_feature_min: g.min,
     feuilles_par_feature_max: g.max,
+    actions_joueur: actionsJoueur,
+    actions_joueur_prouvees_depuis_scene: actionsJoueurProuvees,
   };
 
-  const all = [...problems, ...exigences_non_couvertes, ...feuilles_non_sourcees];
+  const all = [...problems, ...exigences_non_couvertes, ...feuilles_non_sourcees, ...boucle_sans_entree];
   const ok = all.length === 0;
   return {
     ok, verdict: ok ? 'OK' : 'FAIL',
-    problems, exigences_non_couvertes, feuilles_non_sourcees, stats,
+    problems, exigences_non_couvertes, feuilles_non_sourcees, boucle_sans_entree, stats,
   };
 }
 
@@ -139,7 +168,7 @@ export function checkDecompoDoc(doc, prisme) {
 export async function checkDecompoFiles(featuremapPath, prismePath) {
   const fail = (msg) => ({
     ok: false, verdict: 'FAIL', problems: [msg],
-    exigences_non_couvertes: [], feuilles_non_sourcees: [], stats: EMPTY_STATS,
+    exigences_non_couvertes: [], feuilles_non_sourcees: [], boucle_sans_entree: [], stats: EMPTY_STATS,
   });
   const load = async (p, label) => {
     let raw;
@@ -181,12 +210,14 @@ if (isMain) {
     r.problems.forEach((p) => console.error(`  FAIL: ${p}`));
     r.exigences_non_couvertes.forEach((p) => console.error(`  FAIL couverture: ${p}`));
     r.feuilles_non_sourcees.forEach((p) => console.error(`  FAIL invention: ${p}`));
-    console.error(`  stats: ${r.stats.systemes} systeme(s) / ${r.stats.features} feature(s) / ${r.stats.feuilles} feuille(s) / ${r.stats.exigences_couvertes} sur ${r.stats.exigences_prisme} exigence(s) couverte(s) / granularite ${r.stats.feuilles_par_feature_min}-${r.stats.feuilles_par_feature_max} feuille(s) par feature (REPORTEE, non gatee)`);
+    r.boucle_sans_entree.forEach((p) => console.error(`  FAIL boucle: ${p}`));
+    console.error(`  stats: ${r.stats.systemes} systeme(s) / ${r.stats.features} feature(s) / ${r.stats.feuilles} feuille(s) / ${r.stats.exigences_couvertes} sur ${r.stats.exigences_prisme} exigence(s) couverte(s) / granularite ${r.stats.feuilles_par_feature_min}-${r.stats.feuilles_par_feature_max} feuille(s) par feature (REPORTEE, non gatee) / ${r.stats.actions_joueur_prouvees_depuis_scene} sur ${r.stats.actions_joueur} action(s) joueur prouvee(s) depuis main.tscn`);
     console.log(JSON.stringify({
       ok: r.ok,
       problems: r.problems,
       exigences_non_couvertes: r.exigences_non_couvertes,
       feuilles_non_sourcees: r.feuilles_non_sourcees,
+      boucle_sans_entree: r.boucle_sans_entree,
       stats: r.stats,
     }, null, 2));
     process.exit(r.ok ? 0 : 1);

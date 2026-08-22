@@ -46,7 +46,9 @@ def test_sortie_sans_marqueur_est_un_fail_honnete(tmp_path):
 @pytest.mark.skipif(not (REPO / "scripts/forge/godot.config.json").exists(), reason="binaire Godot absent sur ce poste")
 def test_fixture_reelle_run5_le_jeu_est_statique():
     """Le build du run 5 (archivé) est LA fixture du défaut : scène chargée, rien ne change au clic."""
-    for cand in (REPO / "games/kitten_clicker", REPO / "lab/forge_runs/kitten_clicker/_run5_20260821e/game_build5"):
+    # La fixture du DÉFAUT est l'archive du run 5 (jeu statique) ; `games/kitten_clicker/` porte
+    # le build courant (run 6+, vivant) et ne vaut plus comme fixture de ce test.
+    for cand in (REPO / "lab/forge_runs/kitten_clicker/_run5_20260821e/game_build5", REPO / "games/kitten_clicker"):
         if (cand / "project.godot").exists():
             r = pog.run_runtime_alive(cand)
             assert r["checked"] is True

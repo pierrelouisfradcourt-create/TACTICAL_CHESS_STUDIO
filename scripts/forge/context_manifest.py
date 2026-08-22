@@ -85,15 +85,22 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # full_godot_content (Pierre 2026-08-22, composition) : la décompo reçoit AUSSI
     # art_bible.md et asset_requests.json (produits par s2.5-artbible, injecté entre
     # s1 et s3 dans ce profil). Absents (autres profils) => omis, comportement inchangé.
+    # V4 GAME LOOP (2026-08-22, GO Pierre) : `loop.json` (projection déterministe
+    # du Prisme, matérialisée par run_real après prisme.json) est injecté en FIN
+    # de tuple à s3-decompo, s5-wiremap, s9-build-godot-standard — une ENTRÉE à
+    # lire, jamais une source de vérité. Absent (runs sans exigence PLAYER, ou
+    # profils qui ne matérialisent pas loop.json) => omis par
+    # upstream_artifacts_section, comportement inchangé.
     "s3-decompo": ("charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt",
                    "artifacts/s2.6-story-bible.txt", "artifacts/s2.7-gm-worldscan.txt",
-                   "art_bible.md", "asset_requests.json"),
+                   "art_bible.md", "asset_requests.json", "loop.json"),
     "s4-archi": ("charter.yaml", "artifacts/s3-decompo.txt",),
     # full_godot_content : le wiremap reçoit aussi la Story Bible (s2.6) et l'art
     # bible + ses demandes d'assets (s2.5) — même raisonnement que s3-decompo
     # ci-dessus. Absents (autres profils) => omis, comportement inchangé.
     "s5-wiremap": ("charter.yaml", "artifacts/s3-decompo.txt", "blueprint.json",
-                   "artifacts/s2.6-story-bible.txt", "art_bible.md", "asset_requests.json"),
+                   "artifacts/s2.6-story-bible.txt", "art_bible.md", "asset_requests.json",
+                   "loop.json"),
     "s6-redteam-plan": ("charter.yaml", "artifacts/s3-decompo.txt", "artifacts/s4-archi.txt",
                         "artifacts/s5-wiremap.txt"),
     "s9-build": ("blueprint.json", "wiremap.json"),
@@ -103,7 +110,7 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # lecture déclarative seule. Absents (autres profils) => omis par
     # upstream_artifacts_section, comportement inchangé.
     "s9-build-godot-standard": ("blueprint.json", "wiremap.json", "art_bible.md",
-                                "asset_requests.json"),
+                                "asset_requests.json", "loop.json"),
     "s11-redteam-code": ("wiremap.json",),
 }
 

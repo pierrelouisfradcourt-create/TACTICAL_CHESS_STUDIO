@@ -115,6 +115,17 @@ _STATIC_GUARD_MODE = "static_guard"
 _VOLET_REAL_SCENE = re.compile(
     r'(?:pre)?load\(\s*"res://main\.tscn"\s*\)|ResourceLoader\.load\(\s*"res://main\.tscn"|run/main_scene')
 
+# Garde anti-contournement V4 (lot « game loop », décision Pierre 2026-08-22) :
+# le bot-joueur (`player_loop.gd`) ne connaît QUE `InputEvent` + lecture de
+# `Label` — un volet ou `solvability.gd` qui prouve la boucle par un AUTRE canal
+# (appel direct de l'économie, de l'API interne, ou du runtime) valide un jeu que
+# le joueur ne peut pas traverser. Lue sur la source SANS commentaires
+# (`_strip_gd_comments`), même discipline que `_VOLET_REAL_SCENE` ci-dessus :
+# une mention en commentaire ne prouve rien.
+_LOOP_BYPASS_TOKENS = re.compile(
+    r'\bEconomy\b|\bapi_buy_kitten\b|\bapi_buy_upgrade\b|\bapi_prestige\b|'
+    r'preload\(\s*"res://05_SYSTEMS|\bruntime\.gd\b')
+
 # Clé optionnelle que le PAYLOAD JSON d'un volet (la partie `{...}` de la ligne
 # `FORGE_ORACLE <nom> {...}`, cf. `_FORGE_ORACLE_LINE`) peut porter pour déclarer
 # LUI-MÊME n'avoir rien pu mesurer. MARQUEUR D'EXÉCUTION, à ne pas confondre avec la
@@ -392,6 +403,25 @@ def run_godot_product_oracle(
             }
             continue
 
+        # GARDE ANTI-CONTOURNEMENT V4 (avant tout spawn, même discipline que la
+        # garde de scène ci-dessus) : ce volet prouve-t-il la boucle par un canal
+        # que le joueur n'a pas (Economy/api_*/05_SYSTEMS/runtime.gd) ?
+        bypass_match = _LOOP_BYPASS_TOKENS.search(source_sans_commentaires)
+        if bypass_match:
+            result[volet_name] = {
+                "status": "FAIL",
+                "passed": False,
+                "checked": True,
+                "mode_execution": _STATIC_GUARD_MODE,
+                "fails": [
+                    "boucle validée par un canal que le joueur n'a pas : "
+                    f"{bypass_match.group(0)} (décision Pierre 2026-08-22)"
+                ],
+                "fichier": str(path),
+                "payload": {},
+            }
+            continue
+
         # ROUTAGE : la directive statique du `.gd` décide du mode, jamais son nom.
         gpu = _gpu_window_declared(path)
         mode = _GPU_MODE if gpu else _HEADLESS_MODE
@@ -492,6 +522,115 @@ def run_runtime_alive(game_dir: Path, *, binary_resolver=None, gpu_runner=None,
     if payload is None:
         return {**base, "status": "FAIL", "passed": False, "checked": True,
                 "fails": ["sonde sans ligne FORGE_ORACLE (sortie muette, rc=%s)" % (out.get("returncode") if isinstance(out, dict) else None)],
+                "payload": {"stdout_tail": str(out.get("stdout", ""))[-400:] if isinstance(out, dict) else ""}}
+    ok = bool(payload["payload"].get("ok"))
+    return {**base, "status": "OK" if ok else "FAIL", "passed": ok, "checked": True,
+            "fails": list(payload["payload"].get("fails", [])), "payload": payload["payload"]}
+
+
+def check_loop_bypass(game_dir: Path) -> dict:
+    """Garde anti-contournement V4 (décision Pierre 2026-08-22), STANDALONE : scanne
+    `<game_dir>/07_TESTS/oracle/*.gd` ET `<game_dir>/solvability.gd` (lecture
+    statique seule, jamais un spawn) à la recherche des tokens interdits
+    (`_LOOP_BYPASS_TOKENS` — même liste que la garde par-volet de
+    `run_godot_product_oracle`, jamais dupliquée). Rend `{passed, violations:
+    [{fichier, token}]}` — `passed` faux dès qu'une violation existe. Un fichier
+    illisible est ignoré (best-effort, jamais une exception)."""
+    game_dir = Path(game_dir)
+    files: list[Path] = []
+    oracle_dir = game_dir / "07_TESTS" / "oracle"
+    if oracle_dir.is_dir():
+        files.extend(sorted(oracle_dir.glob("*.gd")))
+    solvability = game_dir / "solvability.gd"
+    if solvability.is_file():
+        files.append(solvability)
+
+    violations: list[dict] = []
+    for path in files:
+        try:
+            source = _strip_gd_comments(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError) as exc:
+            logger.warning("product_oracle_godot: lecture échouée pour check_loop_bypass sur %s (%s)", path, exc)
+            continue
+        seen: set[str] = set()
+        for m in _LOOP_BYPASS_TOKENS.finditer(source):
+            token = m.group(0)
+            if token in seen:
+                continue
+            seen.add(token)
+            violations.append({"fichier": str(path), "token": token})
+
+    return {"passed": not violations, "violations": violations}
+
+
+PLAYER_LOOP_PROBE = Path(__file__).resolve().parent / "godot_probes" / "player_loop.gd"
+
+
+def _sha256_bytes(path: Path) -> str:
+    import hashlib
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def run_player_loop(
+    game_dir: Path,
+    *,
+    run_dir: Path | str | None = None,
+    binary_resolver=None,
+    gpu_runner=None,
+    timeout_s: int = 180,
+) -> dict:
+    """Rejoue `loop.json` avec le bot-joueur générique `godot_probes/player_loop.gd`
+    (jamais un volet du jeu — même discipline que `run_runtime_alive`). Même forme
+    de retour que `run_runtime_alive`.
+
+    AVANT tout spawn :
+      - si `run_dir/loop.json` ET `<game_dir>/03_WORLD/loop.json` existent tous les
+        deux et que leurs sha256 diffèrent -> `FAIL` sans spawn (« loop.json altéré » —
+        `loop.json` est une PROJECTION déterministe du Prisme déposée par le run,
+        jamais une source de vérité que le builder pourrait réécrire) ;
+      - si `<game_dir>/03_WORLD/loop.json` est absent -> `SKIPPED` motivé (le jeu
+        n'a pas encore de boucle projetée), le runner n'est JAMAIS appelé.
+
+    NOT_MEASURED honnête sans binaire Godot ; FAIL si la sonde ne rend aucune ligne
+    FORGE_ORACLE (sortie muette = pas une preuve), jamais une exception qui remonte."""
+    game_dir = Path(game_dir)
+    game_loop = game_dir / "03_WORLD" / "loop.json"
+    base = {"fichier": str(PLAYER_LOOP_PROBE), "mode_execution": "gpu_window"}
+
+    if run_dir is not None:
+        run_dir_loop = Path(run_dir) / "loop.json"
+        if run_dir_loop.is_file() and game_loop.is_file():
+            try:
+                sha_run = _sha256_bytes(run_dir_loop)
+                sha_game = _sha256_bytes(game_loop)
+            except OSError as exc:
+                return {**base, "status": "NOT_MEASURED", "passed": False, "checked": False,
+                        "fails": [], "reason": f"lecture sha impossible : {exc}", "payload": {}}
+            if sha_run != sha_game:
+                return {**base, "status": "FAIL", "passed": False, "checked": True,
+                        "fails": [f"03_WORLD/loop.json altéré : sha != {run_dir_loop}"],
+                        "payload": {}}
+
+    if not game_loop.is_file():
+        return {**base, "status": "SKIPPED", "checked": False, "passed": False,
+                "reason": "pas de 03_WORLD/loop.json"}
+
+    resolver = binary_resolver or _default_binary_resolver
+    try:
+        binary = resolver()
+    except Exception:  # noqa: BLE001 — absence de mesure, jamais une exception
+        binary = None
+    if not binary:
+        return {**base, "status": "NOT_MEASURED", "passed": False, "checked": False,
+                "fails": ["binaire Godot introuvable"], "payload": {}}
+
+    runner = gpu_runner or _default_gpu_runner
+    out = runner(binary, game_dir, str(PLAYER_LOOP_PROBE), timeout_s=timeout_s)
+    payload = _parse_forge_oracle_line(out.get("stdout", "")) if isinstance(out, dict) else None
+    if payload is None:
+        return {**base, "status": "FAIL", "passed": False, "checked": True,
+                "fails": ["sonde sans ligne FORGE_ORACLE (sortie muette, rc=%s)" %
+                          (out.get("returncode") if isinstance(out, dict) else None)],
                 "payload": {"stdout_tail": str(out.get("stdout", ""))[-400:] if isinstance(out, dict) else ""}}
     ok = bool(payload["payload"].get("ok"))
     return {**base, "status": "OK" if ok else "FAIL", "passed": ok, "checked": True,

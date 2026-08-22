@@ -2,10 +2,16 @@
 // node --test scripts/forge/check_decompo.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { resolve, dirname } from 'node:path';
 import { checkDecompoDoc, granularite } from './check_decompo.mjs';
 import {
   prismeReference, featuremapReference, featuremapInventee, featuremapAmputee,
 } from './upstream_fixtures.mjs';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(__dirname, '..', '..');
 
 test('VALIDITE: l oracle ACCEPTE la featuremap de reference', () => {
   const r = checkDecompoDoc(featuremapReference(), prismeReference());
@@ -70,6 +76,90 @@ test('GRANULARITE: mesuree et reportee, jamais gatee (regle de variance)', () =>
   assert.equal(r.verdict, 'OK');
   assert.equal(r.stats.feuilles_par_feature_max, 2);
   assert.equal(r.stats.feuilles, 5);
+});
+
+// --- V4 GAME LOOP (2026-08-22) : une action joueur = une capacite d'ENTREE reelle -
+
+/** Prisme de reference dont 'ex.clic' porte acteur PLAYER + affordance. */
+function prismeAvecActionJoueur() {
+  const d = prismeReference();
+  const ex = d.exigences.find((e) => e.id === 'ex.clic');
+  ex.acteur = 'PLAYER';
+  ex.affordance = 'pelote';
+  return d;
+}
+
+test('BOUCLE: action joueur (acteur PLAYER + affordance) portee par bot_action depuis main.tscn -> OK', () => {
+  const prisme = prismeAvecActionJoueur();
+  const fm = featuremapReference();
+  const leaf = fm.systemes[0].features[0].capacites[0]; // cap.clic.increment, source_ref ex.clic
+  leaf.expected_proof = {
+    kind: 'bot_action',
+    statement: 'Un bot clique la cible pelote depuis main.tscn : compteur += gain_par_clic.',
+  };
+  const r = checkDecompoDoc(fm, prisme);
+  assert.equal(r.verdict, 'OK');
+  assert.deepEqual(r.boucle_sans_entree, []);
+  assert.equal(r.stats.actions_joueur, 1);
+  assert.equal(r.stats.actions_joueur_prouvees_depuis_scene, 1);
+});
+
+test('BOUCLE: action joueur realisee par une feuille visual (pas bot_action) -> finding + FAIL', () => {
+  const prisme = prismeAvecActionJoueur();
+  const fm = featuremapReference();
+  const leaf = fm.systemes[0].features[0].capacites[0];
+  leaf.expected_proof = {
+    kind: 'visual',
+    statement: 'Capture : la zone pelote change de couleur au clic.',
+  };
+  const r = checkDecompoDoc(fm, prisme);
+  assert.equal(r.verdict, 'FAIL');
+  assert.equal(r.boucle_sans_entree.length, 1);
+  assert.match(r.boucle_sans_entree[0], /cap\.clic\.increment/);
+  assert.match(r.boucle_sans_entree[0], /pelote/);
+  assert.match(r.boucle_sans_entree[0], /ex\.clic/);
+  assert.equal(r.stats.actions_joueur, 1);
+  assert.equal(r.stats.actions_joueur_prouvees_depuis_scene, 0);
+});
+
+test('BOUCLE: feuille bot_action dont le statement ne mentionne pas main.tscn -> finding', () => {
+  const prisme = prismeAvecActionJoueur();
+  const fm = featuremapReference();
+  const leaf = fm.systemes[0].features[0].capacites[0];
+  leaf.expected_proof = {
+    kind: 'bot_action',
+    statement: 'Un bot clique la cible pelote : compteur += gain_par_clic.',
+  };
+  const r = checkDecompoDoc(fm, prisme);
+  assert.equal(r.verdict, 'FAIL');
+  assert.equal(r.boucle_sans_entree.length, 1);
+  assert.match(r.boucle_sans_entree[0], /sans preuve bot_action depuis main\.tscn/);
+  assert.equal(r.stats.actions_joueur_prouvees_depuis_scene, 0);
+});
+
+test('BOUCLE: exigence acteur SYSTEM n impose aucune contrainte de boucle', () => {
+  const d = prismeReference();
+  const ex = d.exigences.find((e) => e.id === 'ex.clic');
+  ex.acteur = 'SYSTEM';
+  // pas d'affordance : la feuille garde sa preuve existante (bot_action, sans main.tscn)
+  const r = checkDecompoDoc(featuremapReference(), d);
+  assert.equal(r.verdict, 'OK');
+  assert.deepEqual(r.boucle_sans_entree, []);
+  assert.equal(r.stats.actions_joueur, 0);
+});
+
+test('BOUCLE: fixture REELLE run 6 (0 exigence PLAYER) -> actions_joueur=0, verdict inchange (OK)', () => {
+  const featuremapPath = resolve(REPO_ROOT, 'lab', 'forge_runs', 'kitten_clicker', 'featuremap.json');
+  const prismePath = resolve(REPO_ROOT, 'lab', 'forge_runs', 'kitten_clicker', 'prisme.json');
+  const fm = JSON.parse(readFileSync(featuremapPath, 'utf-8'));
+  const prisme = JSON.parse(readFileSync(prismePath, 'utf-8'));
+  assert.equal(prisme.exigences.filter((e) => e.acteur === 'PLAYER').length, 0,
+    'diagnostic du lot V4 : le run 6 ne porte aucune exigence PLAYER');
+  const r = checkDecompoDoc(fm, prisme);
+  assert.equal(r.verdict, 'OK');
+  assert.deepEqual(r.boucle_sans_entree, []);
+  assert.equal(r.stats.actions_joueur, 0);
+  assert.equal(r.stats.actions_joueur_prouvees_depuis_scene, 0);
 });
 
 test('un id de capacite duplique est refuse', () => {
