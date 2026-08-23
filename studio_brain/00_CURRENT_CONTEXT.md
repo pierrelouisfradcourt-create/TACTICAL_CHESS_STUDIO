@@ -69,12 +69,21 @@ données 8b : les 4 affordances existent dès le Palier 0 (capture) ; `appears` 
 GOAL_1/2/3 ont le même espace d'action = FAIL, cohérent avec le ressenti. Interdits maintenus : oracle LLM, station, profil,
 narration, architecture, « plusieurs heures », vocabulaire STANDARD/Prisme, reuse, red-team.
 
+### HumanGate Pierre 2026-08-23 sur le build run 9 — FAIL « jeu complet » = BASELINE PRODUIT (ratifié)
+« Prototype mécanique avec habillage. » 4 causes : (1) les 6 chatons sont décoratifs (récompense visible avant d'être gagnée) ;
+(2) le prestige n'est pas un 2ᵉ niveau (pas de reset réel / bonus permanent / nouvelle stratégie — un bouton) ; (3) espace trop
+pauvre (nombre de chatons = variable, pas une colonie ; plafond = mur arbitraire) ; (4) guidage illisible (hiérarchie OBJECTIF →
+ACTION → CONSÉQUENCE → PROCHAINE POSSIBILITÉ absente). V4/V5 n'ont pas échoué : ils ont fait apparaître la vérité produit.
+**Prochain chantier = PRODUIT/GAMEPLAY, pas infrastructure** (pas de « V5 plus d'oracles ») : plan
+`docs/superpowers/plans/2026-08-23-kitten-clicker-lot-produit.md` (P0 direction produit → P1 boucle → P2 vrai prestige →
+P3 monde/placement → P4 guidage → P5 2ᵉ HumanGate « envie de continuer après le premier prestige ? »), réalisé PAR LA FORGE
+(intention/tâches/contrat, mesure inchangée). P0 rédigé : `studio_brain/gamedesign/kitten_clicker_direction_produit_v1.md`
+(PROPOSED : niveau 1 par possibilités nouvelles, prestige reset/conserve/cœurs/grenier, niveau 2 croquettes + décision
+jardin/grenier, places = règle lisible, album de silhouettes).
+
 ### Prochaine étape
-1. Définition de la décision significative **ratifiée (conceptuelle) Pierre 2026-08-23**, V2 dans
-   `studio_brain/gamedesign/kitten_clicker_decision_significative.md` : contre-factuelle (même état → A adopter / B améliorer
-   → états, possibilités, économies différents), 6 preuves (information · choix · conséquence immédiate · possibilité future ·
-   non-dominance = ∃ 2 politiques où l'optimum diffère, idle/actif = hypothèse · lien au but : objectif(A') ≠ objectif(B')). Branches
-   A/B confirmées. **Aucun code ; la transformation en contrat exécutable attend un GO explicite.**
-2. Gates en attente : merge/reject des artefacts non commités (runs, build 8b, handoff) ; push de `f1bce0d`.
-3. Passifs documentés (ne pas ouvrir sans décision) : `check_wiremap_contract` non consommé + `EFFECT_KINDS` · solvabilité
-   descripteur sans argv · e2e `DirAccess` · rupture 10 (BLOCKED sans retry) · ruptures 4/5/6 · skill `/forge` périmé.
+1. **Pierre ratifie/corrige P0** (4 questions listées dans le plan : silhouettes · seuil de prestige · cœurs +25 % · niveau 2).
+   Rien n'est engagé avant ; ensuite P1–P4 = intention + tâches + contrat (Fable, en direct), un commit, run 10, P5.
+2. Gates : merge/reject des artefacts non commités (runs 7-9, build 9, handoff) ; push de `f1bce0d` + `0a9f4d4`.
+3. Passifs documentés (ne pas ouvrir sans décision) : gates historiques (e2e `DirAccess`, solvabilité argv, mutation),
+   `check_wiremap_contract` non consommé + `EFFECT_KINDS`, rupture 10 (BLOCKED sans retry), ruptures 4/5/6, skill `/forge` périmé.
