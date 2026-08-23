@@ -71,6 +71,27 @@ def _prisme_synthetique_complet() -> dict:
     }
 
 
+def _prisme_synthetique_avec_decision() -> dict:
+    # T1 (2026-08-23, extension DECISION — point de decision significative) :
+    # meme fixture que _prisme_synthetique_complet, plus une exigence DECISION
+    # entre REWARD et UNLOCK. options = PA1 (PLAYER_ACTION, affordance pelote)
+    # et UN1 (UNLOCK, affordance acheter_amelioration), toutes deux existantes
+    # ci-dessus ; metric='ronrons' est deja observe par PA1/RW1/RP1/AD1.
+    prisme = _prisme_synthetique_complet()
+    prisme["exigences"].append(_exigence(
+        "DC1", "DECISION",
+        options=["PA1", "UN1"],
+        metric="ronrons",
+        horizon_frames=300,
+        policies=[
+            {"name": "idle", "click": None, "every_frames": 0},
+            {"name": "actif", "click": "pelote", "every_frames": 3},
+        ],
+        observe={"hud": "objectif", "predicate": "changes"},
+    ))
+    return prisme
+
+
 def _ecrit_prisme(run_dir: Path, data: dict) -> None:
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "prisme.json").write_text(
@@ -78,8 +99,13 @@ def _ecrit_prisme(run_dir: Path, data: dict) -> None:
 
 
 # --- (a) run_dir tmp synthétique : boucle complète -> loop.json OK -----------------
+# T1 (2026-08-23, extension DECISION) : DECISION est desormais un maillon
+# obligatoire de checkLoopSpec (loop_spec.mjs) — _prisme_synthetique_complet()
+# (sans DECISION) n'atteint donc plus le verdict OK ; seul ce probleme apparait,
+# le reste de la boucle A..J reste valide. Cf. _prisme_synthetique_avec_decision
+# pour le cas pleinement complet (verdict OK).
 
-def test_prisme_synthetique_complet_materialise_loop_json_ok(tmp_path):
+def test_prisme_synthetique_complet_sans_decision_materialise_loop_json_fail_uniquement_sur_decision(tmp_path):
     run_dir = tmp_path / "run"
     _ecrit_prisme(run_dir, _prisme_synthetique_complet())
 
@@ -93,8 +119,10 @@ def test_prisme_synthetique_complet_materialise_loop_json_ok(tmp_path):
     assert isinstance(data, dict)
     assert isinstance(data.get("steps"), list)
     assert len(data["steps"]) == 11
-    assert recu["check"]["verdict"] == "OK"
-    assert recu["check"]["problems"] == []
+    assert recu["check"]["verdict"] == "FAIL"
+    assert recu["check"]["problems"] == [
+        "maillon DECISION : au moins 1 exigence attendue (0 trouvee)"
+    ]
 
 
 def test_ordre_des_etapes_respecte_la_sequence_imposee(tmp_path):
@@ -110,7 +138,45 @@ def test_ordre_des_etapes_respecte_la_sequence_imposee(tmp_path):
     ]
 
 
+# --- (a bis) run_dir tmp synthétique + DECISION : boucle pleinement complète -> OK --
+
+def test_prisme_synthetique_avec_decision_materialise_loop_json_ok(tmp_path):
+    run_dir = tmp_path / "run"
+    _ecrit_prisme(run_dir, _prisme_synthetique_avec_decision())
+
+    recu = run_real._materialize_loop_spec("s1-prisme", run_dir)
+
+    assert recu is not None
+    assert recu["written"] is True, recu
+    loop_path = run_dir / "loop.json"
+    data = json.loads(loop_path.read_text(encoding="utf-8"))
+    assert len(data["steps"]) == 12
+    assert recu["check"]["verdict"] == "OK"
+    assert recu["check"]["problems"] == []
+
+    decision_step = next((s for s in data["steps"] if s["role"] == "DECISION"), None)
+    assert decision_step is not None, "le step DECISION doit etre materialise dans loop.json"
+    assert decision_step["ref"] == "DC1"
+    assert decision_step["options"] == ["PA1", "UN1"]
+    assert decision_step["metric"] == "ronrons"
+    assert decision_step["horizon_frames"] == 300
+    assert decision_step["policies"] == [
+        {"name": "idle", "click": None, "every_frames": 0},
+        {"name": "actif", "click": "pelote", "every_frames": 3},
+    ]
+    assert decision_step["observe"]["hud"] == "objectif"
+
+    # position : entre REWARD et UNLOCK dans la sequence imposee.
+    roles = [s["role"] for s in data["steps"]]
+    assert roles.index("REWARD") < roles.index("DECISION") < roles.index("UNLOCK")
+
+
 # --- (b) fixture RÉELLE run 7 : boucle incomplete -> steps non vides, FAIL, jamais une exception --
+# Mesure du 2026-08-23 (lot T1, extension DECISION) : le fichier a EVOLUE depuis
+# la mesure d'origine (8 exigences, boucle A..I) — il porte maintenant 12
+# exigences de boucle et satisfait deja A..J. Seul le maillon DECISION
+# (2026-08-23, absent de ce run anterieur a son introduction) manque desormais.
+# Ce test mesure l'etat REEL du fichier, pas un etat fige (cf. docstring de tete).
 
 def test_run7_reel_materialise_loop_json_fail_sans_exception(tmp_path):
     assert RUN7_PRISME.exists(), f"fixture reelle absente : {RUN7_PRISME}"
@@ -125,14 +191,11 @@ def test_run7_reel_materialise_loop_json_fail_sans_exception(tmp_path):
     loop_path = run_dir / "loop.json"
     assert loop_path.exists()
     data = json.loads(loop_path.read_text(encoding="utf-8"))
-    assert len(data["steps"]) == 8  # EX01..EX07 + EX18, cf. prisme.json reel
+    assert len(data["steps"]) == 12
     assert recu["check"]["verdict"] == "FAIL"
-    problems = recu["check"]["problems"]
-    assert any("REWARD" in p and "EX04" in p for p in problems), problems
-    assert any("NEXT_GOAL" in p and "1 trouvee" in p for p in problems), problems
-    assert any("REPEAT" in p and "0 trouvee" in p for p in problems), problems
-    assert any("ADVANTAGE" in p and "0 trouvee" in p for p in problems), problems
-    assert any("UNLOCK" in p and "appears" in p for p in problems), problems
+    assert recu["check"]["problems"] == [
+        "maillon DECISION : au moins 1 exigence attendue (0 trouvee)"
+    ]
 
 
 # --- (c) garde-fous ------------------------------------------------------------------

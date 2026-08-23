@@ -20,6 +20,11 @@ PROBE = REPO / "scripts" / "forge" / "godot_probes" / "player_loop.gd"
 KITTEN = REPO / "lab" / "forge_runs" / "kitten_clicker" / "_run7_20260821g" / "game_build7"  # build du run 7 (hud "ronrons" existe)
 KITTEN_RUN6 = (REPO / "lab" / "forge_runs" / "kitten_clicker" / "_run6_20260821f"
                / "game_build6")  # baseline run 6 : aucun groupe hud/affordance
+# Build du run 8b ARCHIVÉ (T2, 2026-08-23) : loop.json réel porte les steps A..J du
+# contrat s1 (schéma DECISION à venir dans T1) ; ce build lui-même ne porte PAS encore
+# de step DECISION — on en fabrique un synthétique dans le loop.json de test.
+KITTEN_RUN8 = (REPO / "lab" / "forge_runs" / "kitten_clicker" / "_run8_20260821h2"
+               / "game_build8")
 
 
 def _line(ok, fails, data):
@@ -48,6 +53,12 @@ def test_la_sonde_porte_les_nouveaux_predicats():
     src = PROBE.read_text(encoding="utf-8")
     for token in ("new_distinct", "appears", "increases_more_than", "decreases", "resets", "replay"):
         assert token in src, f"predicat/mecanisme '{token}' absent de la sonde"
+
+
+def test_la_sonde_porte_le_role_decision():
+    src = PROBE.read_text(encoding="utf-8")
+    for token in ("DECISION", "policies", "_reset_scene", "nondominance"):
+        assert token in src, f"token '{token}' absent de la sonde (role DECISION)"
 
 
 # --- run_player_loop : ok / fail / not_measured / muet, via gpu_runner factice ----
@@ -305,7 +316,139 @@ def test_contrat_synthetique_sans_appears_atteint_J(tmp_path):
     assert j1["role"] == "ADVANTAGE"
 
 
+# --- fixture réelle : step DECISION synthétique sur le build du run 8b ------
+# Préfixe = les steps réels du loop.json du run 8b jusqu'à `s_reward_kitten` inclus
+# (g_goal_first, p_buy_kitten, p_click_pelote, s_auto_production, s_upgrade_rate,
+# s_reward_kitten), puis un step DECISION synthétique. Le build 8b ne porte AUCUN
+# Label `cout_*`/`effet_*` (mesuré : 06_RUNTIME/adapters/input_adapters/*.gd n'en
+# créent aucun, seul `main.gd:_build_cost_ladder` crée des Labels "cout_<montant>"
+# dans le groupe "cost_ladder", jamais "hud") -> INFORMATION doit échouer pour A et B.
+# 4 affordances au total dans ce build (pelote, acheter_chaton, acheter_amelioration,
+# prestige), aucune n'apparaît/disparaît selon l'achat -> FUTURE probablement en échec
+# (4 -> 4, aucun `cout_*` hud non plus). Valeurs figées ci-dessous = MESURE, pas
+# ajustement de la sonde au plan (cf. consigne T2 : jamais l'inverse).
+
+_RUN8_PREFIX_STEPS = [
+    {"role": "PLAYER_GOAL", "ref": "g_goal_first", "repeat": 1,
+     "observe": {"hud": "objectif", "predicate": "nonempty"}},
+    {"role": "PLAYER_ACTION", "ref": "p_buy_kitten", "affordance": "acheter_chaton", "repeat": 1,
+     "observe": {"hud": "collection", "predicate": "increases"}},
+    {"role": "PLAYER_ACTION", "ref": "p_click_pelote", "affordance": "pelote", "repeat": 5,
+     "observe": {"hud": "ronrons", "predicate": "increases"}},
+    {"role": "GAME_RESPONSE", "ref": "s_auto_production", "repeat": 1,
+     "observe": {"hud": "ronrons", "predicate": "increases"}, "wait_frames": 120},
+    {"role": "GAME_RESPONSE", "ref": "s_upgrade_rate", "repeat": 1,
+     "observe": {"hud": "taux_production", "predicate": "increases"}},
+    {"role": "REWARD", "ref": "s_reward_kitten", "repeat": 1,
+     "observe": {"hud": "taux_production", "predicate": "increases"}},
+]
+
+_RUN8_DECISION_STEP = {
+    "role": "DECISION", "ref": "d_first_spend",
+    "options": ["p_buy_kitten", "p_unlock_location"],
+    "metric": "ronrons", "horizon_frames": 300,
+    "policies": [
+        {"name": "idle", "click": None, "every_frames": 0},
+        {"name": "actif", "click": "pelote", "every_frames": 3},
+    ],
+    "observe": {"hud": "objectif", "predicate": "changes"}, "wait_frames": 30,
+}
+
+# Définition réelle du step (loop.json du run 8b) portant l'affordance de l'option B —
+# placée APRÈS le step DECISION dans `steps` : `_option_affordance` la résout par ref
+# (elle scanne tout `_steps`) mais `_decision_prefix` s'arrête au step DECISION, donc
+# elle ne fait PAS partie du préfixe rejoué (seul `p_buy_kitten`, déjà dans le préfixe,
+# y est). Si le step DECISION PASS, cette définition redevient un step F normal joué
+# pour de vrai par la continuation — mesuré non atteint ici (DECISION échoue avant).
+_RUN8_UNLOCK_LOCATION_STEP = {
+    "role": "UNLOCK", "ref": "p_unlock_location", "affordance": "acheter_amelioration", "repeat": 1,
+    "observe": {"hud": "lieux", "predicate": "changes", "appears": "jardin"},
+}
+
+
+@pytest.mark.skipif(_godot_binary() is None or not (KITTEN_RUN8 / "project.godot").exists(),
+                    reason="binaire Godot non configuré ou archive du build run 8b absente")
+def test_decision_reelle_sur_run8(tmp_path):
+    """Step DECISION synthétique après le préfixe réel A..E du run 8b. Note (prompt T2) :
+    `p_buy_kitten` est déjà dans le préfixe -> cliquer cette option au step DECISION
+    reste une dépense réelle sur l'état courant (achat supplémentaire), pas un no-op."""
+    steps = list(_RUN8_PREFIX_STEPS) + [_RUN8_DECISION_STEP, _RUN8_UNLOCK_LOCATION_STEP]
+    loop_spec = {"schema_version": 1, "game_id": "kitten_clicker", "steps": steps}
+    payload = _run_probe(KITTEN_RUN8, loop_spec, tmp_path, timeout=180)
+
+    decision = payload["data"].get("decision")
+    assert decision is not None, "data.decision absent du payload"
+    assert decision["ref"] == "d_first_spend"
+    assert decision["options"] == ["p_buy_kitten", "p_unlock_location"]
+
+    # MESURÉ 2026-08-23 sur lab/forge_runs/kitten_clicker/_run8_20260821h2/game_build8
+    # (~50 s, exécution GPU réelle) :
+    #   boot_reproducible=true ; INFORMATION A=false B=false (aucun Label "cout_*"/
+    #   "effet_*" dans le groupe "hud" sur ce build — seul un groupe "cost_ladder" non
+    #   lisible par la sonde existe) ; états A'/B' distincts -> CHOICE PASS (implicite,
+    #   pas de champ dédié dans le payload) ; IMMEDIATE A=true B=true ; FUTURE=false
+    #   (4 affordances identiques des deux côtés : acheter_amelioration/acheter_chaton/
+    #   pelote/prestige — aucun Label "cout_*" hud non plus) ; NONDOMINANCE=false : les
+    #   deux politiques (idle/actif) favorisent la MÊME option (p_buy_kitten) sur ce
+    #   build à ce palier -> aucune paire de politiques ne diverge (c'est une mesure de
+    #   balance du jeu, pas un défaut de sonde — cf. plan T4) ; PLAYER_GOAL=true
+    #   (objectifs des 2 branches distincts entre eux et de l'objectif avant décision) ;
+    #   pass=false (4 des 6 preuves échouent : INFORMATION x2, FUTURE, NONDOMINANCE).
+    assert decision["boot_reproducible"] is True
+    assert decision["information"] == {"A": False, "B": False}
+    assert decision["immediate"] == {"A": True, "B": True}
+    assert decision["future"] is False
+    assert decision["player_goal"] is True
+    assert decision["nondominance"]["pass"] is False
+    assert decision["pass"] is False
+    reasons_joined = " | ".join(decision["reasons"])
+    assert "INFORMATION" in reasons_joined
+    assert "FUTURE" in reasons_joined
+    assert "NONDOMINANCE" in reasons_joined
+
+    states = decision["states"]
+    assert set(states.keys()) == {"p_buy_kitten", "p_unlock_location"}
+    for key in ("p_buy_kitten", "p_unlock_location"):
+        assert sorted(states[key]["affordances"]) == [
+            "acheter_amelioration", "acheter_chaton", "pelote", "prestige"]
+        assert states[key]["objectif"] != ""
+    assert states["p_buy_kitten"]["hud"] != states["p_unlock_location"]["hud"]  # CHOICE : S_A != S_B
+
+    matrix = decision["nondominance"]["matrix"]
+    assert set(matrix.keys()) == {"p_buy_kitten", "p_unlock_location"}
+    for key in ("p_buy_kitten", "p_unlock_location"):
+        assert set(matrix[key].keys()) == {"idle", "actif"}
+        assert matrix[key]["actif"] > matrix[key]["idle"] > 0  # 4 nombres mesurés, cliquer rapporte plus qu'idle
+
+    print("DECISION MESURE:", json.dumps(decision, indent=2))
+
+
 # --- mécanisme REPEAT/deltas au niveau product_oracle_godot, sans Godot ------
+
+
+def test_run_player_loop_accepte_payload_avec_decision(tmp_path):
+    game = _game_with_loop_json(tmp_path)
+    data = {
+        "steps": [{"role": "DECISION", "ref": "d1", "pass": True, "before": "", "after": "", "reason": ""}],
+        "reached_role": "DECISION", "frames": 3000, "deltas": {}, "seen": {},
+        "decision": {
+            "ref": "d1", "options": ["p_a", "p_b"], "boot_reproducible": True,
+            "information": {"A": True, "B": True},
+            "states": {
+                "p_a": {"hud": {"objectif": "A"}, "affordances": ["p_a"], "objectif": "A"},
+                "p_b": {"hud": {"objectif": "B"}, "affordances": ["p_b"], "objectif": "B"},
+            },
+            "immediate": {"A": True, "B": True}, "future": True,
+            "nondominance": {"matrix": {"p_a": {"idle": 1.0}, "p_b": {"idle": 2.0}}, "pass": True},
+            "player_goal": True, "pass": True, "reasons": [],
+        },
+    }
+    stdout = _line(True, [], data)
+    r = pog.run_player_loop(game, binary_resolver=lambda: "godot",
+                            gpu_runner=lambda *a, **k: {"returncode": 0, "stdout": stdout, "stderr": ""})
+    assert r["status"] == "OK" and r["passed"] is True
+    assert r["payload"]["data"]["decision"] == data["decision"]
+    assert r["payload"]["data"]["reached_role"] == "DECISION"
 
 
 def test_run_player_loop_accepte_payload_avec_replays_et_deltas(tmp_path):

@@ -12,10 +12,13 @@ import { validateExigence, validatePrisme } from './upstream_schema.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..', '..');
-// Run 7 (kitten_clicker-20260821g, commit 3843d7b) — baseline mesurée par
-// Pierre, non archivée (chemin courant = dernière run non déplacée sous
-// `_runN_...`) : 8 exigences porteuses de loop_role, boucle A..I atteinte,
-// H et J n'existent pas encore comme maillons (cf. plan du 2026-08-22).
+// Run 7 (kitten_clicker-20260821g, commit 3843d7b) — chemin courant (dernière
+// run non déplacée sous `_runN_...`). Mesuré le 2026-08-23 (lot T1, extension
+// DECISION) : le fichier a EVOLUÉ depuis la mesure du 2026-08-22 citée par ce
+// test (8 exigences, boucle A..I) — il porte maintenant 12 exigences de boucle
+// et satisfait déjà A..J. Seul le maillon DECISION (2026-08-23, absent de ce
+// run antérieur à son introduction) manque désormais. Ce test mesure l'état
+// RÉEL du fichier, pas un état figé (cf. commentaire d'origine).
 const RUN7_PRISME = resolve(REPO_ROOT, 'lab/forge_runs/kitten_clicker/prisme.json');
 
 function loadRun7Prisme() {
@@ -24,7 +27,7 @@ function loadRun7Prisme() {
 
 // --- (a) fixture RÉELLE run 7 : mesure du diagnostic ------------------------------
 
-test('run 7 (fixture reelle) : checkLoopSpec FAIL, nomme REWARD sans observe, G=1, H absent, J absent, F sans appears', () => {
+test('run 7 (fixture reelle) : checkLoopSpec FAIL, seul maillon manquant = DECISION (2026-08-23)', () => {
   const prisme = loadRun7Prisme();
   assert.ok(Array.isArray(prisme.exigences) && prisme.exigences.length > 0,
     'la fixture doit exister et contenir des exigences');
@@ -33,28 +36,7 @@ test('run 7 (fixture reelle) : checkLoopSpec FAIL, nomme REWARD sans observe, G=
 
   assert.equal(check.ok, false);
   assert.equal(check.verdict, 'FAIL');
-
-  const problems = check.problems;
-  assert.ok(
-    problems.some((p) => /REWARD/.test(p) && /EX04/.test(p) && /observe/.test(p)),
-    `attendu un probleme REWARD/EX04/observe, recu: ${JSON.stringify(problems)}`,
-  );
-  assert.ok(
-    problems.some((p) => /NEXT_GOAL/.test(p) && /2 exigences attendues/.test(p) && /1 trouvee/.test(p)),
-    `attendu un probleme NEXT_GOAL nommant 1 trouvee (< 2), recu: ${JSON.stringify(problems)}`,
-  );
-  assert.ok(
-    problems.some((p) => /REPEAT/.test(p) && /0 trouvee/.test(p)),
-    `attendu un probleme REPEAT absent (0 trouvee), recu: ${JSON.stringify(problems)}`,
-  );
-  assert.ok(
-    problems.some((p) => /ADVANTAGE/.test(p) && /0 trouvee/.test(p)),
-    `attendu un probleme ADVANTAGE absent (0 trouvee), recu: ${JSON.stringify(problems)}`,
-  );
-  assert.ok(
-    problems.some((p) => /UNLOCK/.test(p) && /appears/.test(p)),
-    `attendu un probleme UNLOCK sans observe.appears, recu: ${JSON.stringify(problems)}`,
-  );
+  assert.deepEqual(check.problems, ['maillon DECISION : au moins 1 exigence attendue (0 trouvee)']);
 });
 
 // --- (b) fixture synthetique A..J complete ---------------------------------------
@@ -110,12 +92,16 @@ function prismeSynthetiqueAJComplet() {
   };
 }
 
-test('fixture synthetique A..J complete : checkLoopSpec OK, ordre des steps = ordre des roles', () => {
+test('fixture synthetique A..J complete (sans DECISION) : checkLoopSpec FAIL uniquement sur DECISION absent, ordre des steps = ordre des roles', () => {
   const spec = deriveLoopSpec(prismeSynthetiqueAJComplet());
   const check = checkLoopSpec(spec);
-  assert.deepEqual(check.problems, []);
-  assert.equal(check.ok, true);
-  assert.equal(check.verdict, 'OK');
+  // T1 (2026-08-23) : DECISION est desormais un maillon obligatoire (ROLE_ORDER,
+  // checkLoopSpec) — cette fixture A..J (sans DECISION) n'est plus complete au
+  // sens du Gameplay Contract etendu ; seul CE probleme doit apparaitre, le
+  // reste de la boucle A..J reste valide.
+  assert.deepEqual(check.problems, ['maillon DECISION : au moins 1 exigence attendue (0 trouvee)']);
+  assert.equal(check.ok, false);
+  assert.equal(check.verdict, 'FAIL');
 
   // 10 exigences avec loop_role != NONE (HORS1 exclu)
   assert.equal(spec.steps.length, 10);
@@ -264,9 +250,258 @@ test('validatePrisme sur le Prisme reel (run 7) : 0 finding (retro-compatibilite
 
 // --- ROLE_ORDER porte les 9 roles de boucle (NONE exclu) --------------------------
 
-test('ROLE_ORDER porte les 9 roles A..J (C porte par B, NONE exclu)', () => {
+test('ROLE_ORDER porte les 9 roles A..J (C porte par B, NONE exclu) + DECISION entre REWARD et UNLOCK', () => {
   assert.deepEqual(ROLE_ORDER, [
-    'PLAYER_GOAL', 'PLAYER_ACTION', 'GAME_RESPONSE', 'REWARD',
+    'PLAYER_GOAL', 'PLAYER_ACTION', 'GAME_RESPONSE', 'REWARD', 'DECISION',
     'UNLOCK', 'NEXT_GOAL', 'REPEAT', 'META_LOOP', 'ADVANTAGE',
   ]);
+});
+
+// --- T1 (2026-08-23) : extension DECISION — point de decision significative ------
+// Definition ratifiee studio_brain/gamedesign/kitten_clicker_decision_significative.md
+// Forme figee du plan (docs/superpowers/plans/2026-08-23-kitten-clicker-decision-point.md).
+
+function prismeSynthetiqueAvecDecision(overrides = {}) {
+  const base = prismeSynthetiqueAJComplet();
+  const decision = exigenceLoop('d_first_spend', 'DECISION', {
+    acteur: 'SYSTEM',
+    options: ['p_buy_kitten', 'p_upgrade_click'],
+    metric: 'ronrons',
+    horizon_frames: 300,
+    policies: [
+      { name: 'idle', click: null, every_frames: 0 },
+      { name: 'actif', click: 'pelote', every_frames: 3 },
+    ],
+    observe: { hud: 'objectif', predicate: 'changes' },
+    wait_frames: 30,
+    ...overrides,
+  });
+  // options du plan : p_buy_kitten (UNLOCK-like PLAYER_ACTION) et
+  // p_upgrade_click (PLAYER_ACTION), toutes deux avec affordance distincte.
+  base.exigences.push(decision);
+  base.exigences.push(exigenceLoop('p_buy_kitten', 'PLAYER_ACTION', {
+    acteur: 'PLAYER', affordance: 'acheter_chaton',
+    observe: { hud: 'collection', predicate: 'increases' },
+  }));
+  base.exigences.push(exigenceLoop('p_upgrade_click', 'PLAYER_ACTION', {
+    acteur: 'PLAYER', affordance: 'acheter_amelioration_clic',
+    observe: { hud: 'valeur_clic', predicate: 'increases' },
+  }));
+  return base;
+}
+
+test('(a) baseline _run8_20260821h2/prisme.json : checkLoopSpec FAIL, un probleme nomme DECISION', () => {
+  const path = resolve(REPO_ROOT, 'lab/forge_runs/kitten_clicker/_run8_20260821h2/prisme.json');
+  const prisme = JSON.parse(readFileSync(path, 'utf-8'));
+  const spec = deriveLoopSpec(prisme);
+  const check = checkLoopSpec(spec);
+  assert.equal(check.ok, false);
+  assert.ok(
+    check.problems.some((p) => /DECISION/.test(p)),
+    `attendu un probleme nommant DECISION, recu: ${JSON.stringify(check.problems)}`,
+  );
+});
+
+test('(b) fixture synthetique A..J + DECISION valide : checkLoopSpec OK', () => {
+  const prisme = prismeSynthetiqueAvecDecision();
+  const spec = deriveLoopSpec(prisme);
+  const check = checkLoopSpec(spec);
+  assert.deepEqual(check.problems, []);
+  assert.equal(check.ok, true);
+  assert.equal(check.verdict, 'OK');
+
+  const dstep = spec.steps.find((s) => s.role === 'DECISION');
+  assert.ok(dstep, 'le step DECISION doit exister dans la boucle derivee');
+  assert.deepEqual(dstep.options, ['p_buy_kitten', 'p_upgrade_click']);
+  assert.equal(dstep.metric, 'ronrons');
+  assert.equal(dstep.horizon_frames, 300);
+  assert.deepEqual(dstep.policies, [
+    { name: 'idle', click: null, every_frames: 0 },
+    { name: 'actif', click: 'pelote', every_frames: 3 },
+  ]);
+  assert.equal(dstep.observe.hud, 'objectif');
+});
+
+test('(b bis) ordre des steps : DECISION se place entre REWARD et UNLOCK', () => {
+  const prisme = prismeSynthetiqueAvecDecision();
+  const spec = deriveLoopSpec(prisme);
+  const roles = spec.steps.map((s) => s.role);
+  const rewardIdx = roles.lastIndexOf('REWARD');
+  const decisionIdx = roles.indexOf('DECISION');
+  const unlockIdx = roles.indexOf('UNLOCK');
+  assert.ok(rewardIdx < decisionIdx, `REWARD (${rewardIdx}) doit precede DECISION (${decisionIdx})`);
+  assert.ok(decisionIdx < unlockIdx, `DECISION (${decisionIdx}) doit precede UNLOCK (${unlockIdx})`);
+});
+
+// --- (c) chaque regle DECISION de checkLoopSpec a son cas rouge -------------------
+
+test('(c1) DECISION absent : checkLoopSpec FAIL nomme "0 trouvee"', () => {
+  const spec = deriveLoopSpec(prismeSynthetiqueAJComplet());
+  const check = checkLoopSpec(spec);
+  assert.ok(
+    check.problems.some((p) => /DECISION/.test(p) && /0 trouvee/.test(p)),
+    JSON.stringify(check.problems),
+  );
+});
+
+test('(c2) DECISION.options[i] ne reference pas un step PLAYER_ACTION/UNLOCK avec affordance : FAIL nomme', () => {
+  const prisme = prismeSynthetiqueAvecDecision();
+  const d = prisme.exigences.find((e) => e.id === 'd_first_spend');
+  d.options = ['p_buy_kitten', 'INCONNU'];
+  const check = checkLoopSpec(deriveLoopSpec(prisme));
+  assert.equal(check.ok, false);
+  assert.ok(
+    check.problems.some((p) => /DECISION/.test(p) && /options\[1\]/.test(p) && /INCONNU/.test(p)),
+    JSON.stringify(check.problems),
+  );
+});
+
+test('(c3) DECISION.options avec affordances identiques : FAIL nomme "distinctes"', () => {
+  const prisme = prismeSynthetiqueAvecDecision();
+  const upgrade = prisme.exigences.find((e) => e.id === 'p_upgrade_click');
+  upgrade.affordance = 'acheter_chaton'; // meme affordance que p_buy_kitten
+  const check = checkLoopSpec(deriveLoopSpec(prisme));
+  assert.equal(check.ok, false);
+  assert.ok(
+    check.problems.some((p) => /DECISION/.test(p) && /distinctes/.test(p)),
+    JSON.stringify(check.problems),
+  );
+});
+
+test('(c4) DECISION.policies < 2 : FAIL nomme "policies"', () => {
+  const prisme = prismeSynthetiqueAvecDecision();
+  const d = prisme.exigences.find((e) => e.id === 'd_first_spend');
+  d.policies = [{ name: 'idle', click: null, every_frames: 0 }];
+  const check = checkLoopSpec(deriveLoopSpec(prisme));
+  assert.equal(check.ok, false);
+  assert.ok(
+    check.problems.some((p) => /DECISION/.test(p) && /policies/.test(p) && /1 trouvee/.test(p)),
+    JSON.stringify(check.problems),
+  );
+});
+
+test('(c5) DECISION.policies[].click ne reference aucune affordance PLAYER_ACTION : FAIL nomme', () => {
+  const prisme = prismeSynthetiqueAvecDecision();
+  const d = prisme.exigences.find((e) => e.id === 'd_first_spend');
+  d.policies = [
+    { name: 'idle', click: null, every_frames: 0 },
+    { name: 'actif', click: 'bouton_fantome', every_frames: 3 },
+  ];
+  const check = checkLoopSpec(deriveLoopSpec(prisme));
+  assert.equal(check.ok, false);
+  assert.ok(
+    check.problems.some((p) => /DECISION/.test(p) && /bouton_fantome/.test(p)),
+    JSON.stringify(check.problems),
+  );
+});
+
+test('(c6) DECISION.metric absent d\'un autre observe.hud : FAIL nomme "metric"', () => {
+  const prisme = prismeSynthetiqueAvecDecision();
+  const d = prisme.exigences.find((e) => e.id === 'd_first_spend');
+  d.metric = 'metrique_inexistante';
+  const check = checkLoopSpec(deriveLoopSpec(prisme));
+  assert.equal(check.ok, false);
+  assert.ok(
+    check.problems.some((p) => /DECISION/.test(p) && /metric/.test(p)),
+    JSON.stringify(check.problems),
+  );
+});
+
+test('(c7) DECISION.observe.hud different de objectif : FAIL nomme "objectif"', () => {
+  const prisme = prismeSynthetiqueAvecDecision();
+  const d = prisme.exigences.find((e) => e.id === 'd_first_spend');
+  d.observe = { hud: 'ronrons', predicate: 'changes' };
+  const check = checkLoopSpec(deriveLoopSpec(prisme));
+  assert.equal(check.ok, false);
+  assert.ok(
+    check.problems.some((p) => /DECISION/.test(p) && /objectif/.test(p)),
+    JSON.stringify(check.problems),
+  );
+});
+
+// --- (d) determinisme : hash identique sur deux derivations -----------------------
+
+test('(d) deriveLoopSpec avec DECISION est deterministe (hash JSON identique)', () => {
+  const prisme = prismeSynthetiqueAvecDecision();
+  const s1 = deriveLoopSpec(prisme);
+  const s2 = deriveLoopSpec(JSON.parse(JSON.stringify(prisme)));
+  assert.equal(JSON.stringify(s1), JSON.stringify(s2));
+});
+
+// --- (e) validateExigence : DECISION valide -> 0 finding, chaque champ casse -> 1+ --
+
+function exigenceDecisionValide(extra = {}) {
+  return exigenceLoop('d_first_spend', 'DECISION', {
+    options: ['p_buy_kitten', 'p_upgrade_click'],
+    metric: 'ronrons',
+    horizon_frames: 300,
+    policies: [
+      { name: 'idle', click: null, every_frames: 0 },
+      { name: 'actif', click: 'pelote', every_frames: 3 },
+    ],
+    ...extra,
+  });
+}
+
+test('(e0) validateExigence : DECISION valide -> 0 finding', () => {
+  const findings = validateExigence(exigenceDecisionValide(), 0);
+  assert.deepEqual(findings, []);
+});
+
+test('(e1) validateExigence : options manquant -> finding options', () => {
+  const ex = exigenceDecisionValide({ options: undefined });
+  const findings = validateExigence(ex, 0);
+  assert.ok(findings.some((f) => /\.options:/.test(f)), JSON.stringify(findings));
+});
+
+test('(e2) validateExigence : options avec un seul element -> finding options', () => {
+  const ex = exigenceDecisionValide({ options: ['seul'] });
+  const findings = validateExigence(ex, 0);
+  assert.ok(findings.some((f) => /\.options:/.test(f)), JSON.stringify(findings));
+});
+
+test('(e3) validateExigence : options identiques -> finding options distinctes', () => {
+  const ex = exigenceDecisionValide({ options: ['a', 'a'] });
+  const findings = validateExigence(ex, 0);
+  assert.ok(findings.some((f) => /\.options:/.test(f) && /distinctes/.test(f)), JSON.stringify(findings));
+});
+
+test('(e4) validateExigence : policies avec un seul element -> finding policies', () => {
+  const ex = exigenceDecisionValide({ policies: [{ name: 'idle', click: null, every_frames: 0 }] });
+  const findings = validateExigence(ex, 0);
+  assert.ok(findings.some((f) => /\.policies:/.test(f)), JSON.stringify(findings));
+});
+
+test('(e5) validateExigence : policies avec noms dupliques -> finding', () => {
+  const ex = exigenceDecisionValide({
+    policies: [
+      { name: 'idle', click: null, every_frames: 0 },
+      { name: 'idle', click: 'pelote', every_frames: 3 },
+    ],
+  });
+  const findings = validateExigence(ex, 0);
+  assert.ok(findings.some((f) => /\.policies:/.test(f) && /distincts/.test(f)), JSON.stringify(findings));
+});
+
+test('(e6) validateExigence : policy avec click non-null et every_frames=0 -> finding', () => {
+  const ex = exigenceDecisionValide({
+    policies: [
+      { name: 'idle', click: null, every_frames: 0 },
+      { name: 'actif', click: 'pelote', every_frames: 0 },
+    ],
+  });
+  const findings = validateExigence(ex, 0);
+  assert.ok(findings.some((f) => /every_frames:/.test(f) && />= 1/.test(f)), JSON.stringify(findings));
+});
+
+test('(e7) validateExigence : metric vide -> finding metric', () => {
+  const ex = exigenceDecisionValide({ metric: '' });
+  const findings = validateExigence(ex, 0);
+  assert.ok(findings.some((f) => /\.metric:/.test(f)), JSON.stringify(findings));
+});
+
+test('(e8) validateExigence : horizon_frames < 60 -> finding horizon_frames', () => {
+  const ex = exigenceDecisionValide({ horizon_frames: 59 });
+  const findings = validateExigence(ex, 0);
+  assert.ok(findings.some((f) => /\.horizon_frames:/.test(f)), JSON.stringify(findings));
 });

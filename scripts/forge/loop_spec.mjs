@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 // ordre des rôles, puis ordre des ids. C n'est pas un rôle (AFFORDANCE est
 // portée par B, cf. loop_spec.mjs commentaire de tête).
 export const ROLE_ORDER = [
-  'PLAYER_GOAL', 'PLAYER_ACTION', 'GAME_RESPONSE', 'REWARD',
+  'PLAYER_GOAL', 'PLAYER_ACTION', 'GAME_RESPONSE', 'REWARD', 'DECISION',
   'UNLOCK', 'NEXT_GOAL', 'REPEAT', 'META_LOOP', 'ADVANTAGE',
 ];
 
@@ -44,6 +44,12 @@ const REPLAYABLE_ROLES = new Set(['PLAYER_ACTION', 'GAME_RESPONSE', 'REWARD', 'U
 
 function maillon(role) {
   return `maillon ${LETTER_BY_ROLE[role] || '?'} (${role || '?'})`;
+}
+
+// DECISION n'a pas de lettre A..J (extension 2026-08-23, cf. plan du point de
+// decision significative) : messages nommes `maillon DECISION (<ref>) : …`.
+function maillonDecision(ref) {
+  return `maillon DECISION (${ref || '?'})`;
 }
 
 /**
@@ -105,6 +111,26 @@ export function deriveLoopSpec(prisme) {
     }
     if (ex.loop_role === 'ADVANTAGE' && typeof ex.replay_ref === 'string' && ex.replay_ref.trim().length > 0) {
       step.replay_ref = ex.replay_ref;
+    }
+    if (ex.loop_role === 'DECISION') {
+      if (Array.isArray(ex.options)) {
+        step.options = ex.options.filter((o) => typeof o === 'string' && o.trim().length > 0);
+      }
+      if (typeof ex.metric === 'string' && ex.metric.trim().length > 0) {
+        step.metric = ex.metric;
+      }
+      if (Number.isInteger(ex.horizon_frames)) {
+        step.horizon_frames = ex.horizon_frames;
+      }
+      if (Array.isArray(ex.policies)) {
+        step.policies = ex.policies
+          .filter((p) => p && typeof p === 'object' && !Array.isArray(p))
+          .map((p) => ({
+            name: typeof p.name === 'string' ? p.name : '',
+            click: p.click === null ? null : (typeof p.click === 'string' ? p.click : null),
+            every_frames: Number.isInteger(p.every_frames) ? p.every_frames : 0,
+          }));
+      }
     }
     return step;
   });
@@ -245,8 +271,75 @@ export function checkLoopSpec(spec) {
     });
   }
 
+  // DECISION (extension 2026-08-23, point de decision significative) : >= 1 step,
+  // options = refs de steps B (PLAYER_ACTION) ou F (UNLOCK) portant `affordance`,
+  // affordances distinctes ; policies >= 2, chaque click non null reference une
+  // affordance B ; metric = un observe.hud d'au moins un AUTRE step ; observe.hud
+  // vaut 'objectif' sur le step DECISION.
+  const decisionSteps = byRole('DECISION');
+  if (decisionSteps.length < 1) {
+    problems.push('maillon DECISION : au moins 1 exigence attendue (0 trouvee)');
+  } else {
+    const affordanceRoles = new Set(['PLAYER_ACTION', 'UNLOCK']);
+    const stepByRef = new Map(steps.filter((s) => s && typeof s.ref === 'string').map((s) => [s.ref, s]));
+    const bAffordances = new Set(
+      steps.filter((s) => s && s.role === 'PLAYER_ACTION' && typeof s.affordance === 'string' && s.affordance.trim().length > 0)
+        .map((s) => s.affordance),
+    );
+
+    decisionSteps.forEach((s) => {
+      const tag = maillonDecision(s.ref);
+
+      if (!Array.isArray(s.options) || s.options.length !== 2) {
+        problems.push(`${tag} : options doit etre un tableau de 2 refs`);
+      } else {
+        const resolved = s.options.map((ref) => stepByRef.get(ref));
+        resolved.forEach((target, i) => {
+          if (!target || !affordanceRoles.has(target.role) || typeof target.affordance !== 'string' || target.affordance.trim().length === 0) {
+            problems.push(`${tag} : options[${i}] ('${s.options[i]}') doit referencer un step PLAYER_ACTION ou UNLOCK portant affordance`);
+          }
+        });
+        if (resolved.every((t) => t && typeof t.affordance === 'string' && t.affordance.trim().length > 0)) {
+          if (resolved[0].affordance === resolved[1].affordance) {
+            problems.push(`${tag} : les affordances des 2 options doivent etre distinctes (recu: '${resolved[0].affordance}')`);
+          }
+        }
+      }
+
+      if (!Array.isArray(s.policies) || s.policies.length < 2) {
+        problems.push(`${tag} : policies doit etre un tableau d'au moins 2 politiques (${Array.isArray(s.policies) ? s.policies.length : 0} trouvee(s))`);
+      } else {
+        s.policies.forEach((p) => {
+          if (p && typeof p.click === 'string' && p.click.trim().length > 0 && !bAffordances.has(p.click)) {
+            problems.push(`${tag} : policies['${p.name || '?'}'].click ('${p.click}') doit referencer une affordance PLAYER_ACTION`);
+          }
+        });
+      }
+
+      if (!isNonEmptyStringLocal(s.metric)) {
+        problems.push(`${tag} : metric absent ou vide`);
+      } else {
+        const observedHuds = new Set(
+          steps.filter((other) => other !== s && other.observe && typeof other.observe.hud === 'string')
+            .map((other) => other.observe.hud),
+        );
+        if (!observedHuds.has(s.metric)) {
+          problems.push(`${tag} : metric ('${s.metric}') doit etre un observe.hud deja observe par un AUTRE step`);
+        }
+      }
+
+      if (!s.observe || s.observe.hud !== 'objectif') {
+        problems.push(`${tag} : observe.hud doit valoir 'objectif' (recu: '${s.observe && s.observe.hud}')`);
+      }
+    });
+  }
+
   const ok = problems.length === 0;
   return { ok, verdict: ok ? 'OK' : 'FAIL', problems };
+}
+
+function isNonEmptyStringLocal(v) {
+  return typeof v === 'string' && v.trim().length > 0;
 }
 
 // ---- CLI ----

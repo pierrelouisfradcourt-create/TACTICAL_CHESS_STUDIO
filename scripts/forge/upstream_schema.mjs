@@ -59,7 +59,7 @@ export const ACTEURS = ['PLAYER', 'SYSTEM'];
 // GAME_RESPONSE -> REWARD -> UNLOCK -> NEXT_GOAL -> REPEAT -> META_LOOP ->
 // ADVANTAGE. NONE = hors boucle (exigence produit ordinaire).
 export const LOOP_ROLES = [
-  'PLAYER_GOAL', 'PLAYER_ACTION', 'GAME_RESPONSE', 'REWARD',
+  'PLAYER_GOAL', 'PLAYER_ACTION', 'GAME_RESPONSE', 'REWARD', 'DECISION',
   'UNLOCK', 'NEXT_GOAL', 'REPEAT', 'META_LOOP', 'ADVANTAGE', 'NONE',
 ];
 
@@ -104,6 +104,74 @@ export function validateObserveBlock(observe, loc) {
 }
 
 /**
+ * Valide les champs propres au step DECISION (`options`, `policies`, `metric`,
+ * `horizon_frames`) — extension du point de décision significative (plan
+ * 2026-08-23, définition ratifiée `kitten_clicker_decision_significative.md`).
+ * ADDITIF : n'appelle rien qui retire un finding déjà posé ailleurs.
+ * @param {object} ex
+ * @param {string} loc
+ * @returns {string[]}
+ */
+export function validateDecisionFields(ex, loc) {
+  const findings = [];
+
+  // options : tableau de 2 chaines non vides distinctes.
+  if (!Array.isArray(ex.options) || ex.options.length !== 2 || !ex.options.every(isNonEmptyString)) {
+    findings.push(`${loc}.options: doit etre un tableau de 2 chaines non vides (obligatoire quand loop_role='DECISION')`);
+  } else if (ex.options[0] === ex.options[1]) {
+    findings.push(`${loc}.options: les 2 options doivent etre distinctes`);
+  }
+
+  // policies : tableau >= 2 d'objets {name, click, every_frames}.
+  if (!Array.isArray(ex.policies) || ex.policies.length < 2) {
+    findings.push(`${loc}.policies: doit etre un tableau d'au moins 2 politiques (obligatoire quand loop_role='DECISION')`);
+  } else {
+    const names = [];
+    ex.policies.forEach((pol, pi) => {
+      const ploc = `${loc}.policies[${pi}]`;
+      if (pol === null || typeof pol !== 'object' || Array.isArray(pol)) {
+        findings.push(`${ploc}: doit etre un objet {name, click, every_frames}`);
+        return;
+      }
+      if (!isNonEmptyString(pol.name)) {
+        findings.push(`${ploc}.name: absent ou vide`);
+      } else {
+        names.push(pol.name);
+      }
+      const clickOk = pol.click === null || (typeof pol.click === 'string' && pol.click.trim().length > 0);
+      if (!clickOk) {
+        findings.push(`${ploc}.click: doit etre une chaine non vide ou null`);
+      }
+      const framesOk = Number.isInteger(pol.every_frames) && pol.every_frames >= 0;
+      if (!framesOk) {
+        findings.push(`${ploc}.every_frames: doit etre un entier >= 0`);
+      }
+      if (clickOk && framesOk && typeof pol.click === 'string' && pol.every_frames < 1) {
+        findings.push(`${ploc}.every_frames: doit etre >= 1 quand click n'est pas null`);
+      }
+    });
+    const seen = new Set();
+    const dup = new Set();
+    names.forEach((n) => { if (seen.has(n)) dup.add(n); seen.add(n); });
+    if (dup.size > 0) {
+      findings.push(`${loc}.policies: les noms de politique doivent etre distincts (duplique(s): ${[...dup].join(', ')})`);
+    }
+  }
+
+  // metric : chaine non vide.
+  if (!isNonEmptyString(ex.metric)) {
+    findings.push(`${loc}.metric: absent ou vide (obligatoire quand loop_role='DECISION')`);
+  }
+
+  // horizon_frames : entier >= 60.
+  if (!(Number.isInteger(ex.horizon_frames) && ex.horizon_frames >= 60)) {
+    findings.push(`${loc}.horizon_frames: doit etre un entier >= 60 (obligatoire quand loop_role='DECISION')`);
+  }
+
+  return findings;
+}
+
+/**
  * Valide les champs ADDITIFS de boucle joueur d'une exigence (`acteur`,
  * `loop_role`, `affordance`, `observe`). Une exigence qui ne porte AUCUN de ces
  * champs produit ZÉRO finding (rétro-compatibilité) : ce validateur ne juge que
@@ -141,6 +209,8 @@ export function validateLoopFields(ex, loc) {
     if (!Array.isArray(ex.replay) || ex.replay.length === 0 || !ex.replay.every(isNonEmptyString)) {
       findings.push(`${loc}.replay: doit etre un tableau non vide de chaines non vides (obligatoire quand loop_role='REPEAT')`);
     }
+  } else if (ex.loop_role === 'DECISION') {
+    findings.push(...validateDecisionFields(ex, loc));
   } else if (ex.loop_role === 'ADVANTAGE') {
     if (!isNonEmptyString(ex.replay_ref)) {
       findings.push(`${loc}.replay_ref: absent ou vide (obligatoire quand loop_role='ADVANTAGE')`);
