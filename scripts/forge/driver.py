@@ -242,6 +242,24 @@ _ESCALATION_ORACLES = (
 _NEXT_REASON_KEY = re.compile(r"(?i)^[ \t>*`_#-]*next_reason[ \t*`_]*:[ \t]*(.*)$")
 
 
+def _is_materialize_refusal_reason(reason: str) -> bool:
+    """Détecte un refus de MATÉRIALISATION — forme invalide (JSON cassé, clé
+    renommée...) rendue par le matérialiseur/validateur (`run_real.
+    _materialize_artifact`/`_materialize_markdown`/`_materialize_yaml`, motif
+    « <artefact> non matérialisable — <pourquoi> ») — PAS un exécuteur mort ou
+    absent. Mesuré 3x en 2 jours (runs 8a/10a/10b, s2-worldscan haiku) :
+    l'hypothèse est CONNUE et rejouable, contrairement aux autres échecs.
+
+    Comparaison insensible à la casse ET à l'accent : le texte source varie
+    selon le point d'appel dans run_real.py ("matérialisable" à la plupart des
+    points, "materialisable" sans accent à un autre — les deux formes RÉELLES
+    observées dans le corpus, jamais une troisième inventée ici)."""
+    if not reason:
+        return False
+    normalized = reason.lower().replace("é", "e")
+    return "non materialisable" in normalized
+
+
 class ForgeDriver:
     """Machine à états d'un run Forge. Une instance = un run (run_id figé)."""
 
@@ -284,6 +302,7 @@ class ForgeDriver:
         failure_events_path: Path | str | None = None,
         observer_runner=None,
         run_index_path: Path | str | None = None,
+        materialize_attempts_max: int = 2,
     ) -> None:
         self.project = project
         self.run_id = run_id
@@ -417,6 +436,12 @@ class ForgeDriver:
         # run_dir hors dépôt) — voir `_run_index_target` : sans injection
         # explicite, le défaut PRODUCTION est toujours le même fichier réel.
         self.run_index_path = Path(run_index_path) if run_index_path else None
+        # Correctif « rupture 10 » (2026-08-23) : un refus de MATÉRIALISATION
+        # (forme invalide — JSON cassé, clé renommée — rendu par le matérialiseur/
+        # validateur, PAS un exécuteur mort) est une hypothèse CONNUE et rejouable,
+        # pas un BLOCKED. Nombre de tentatives avant halt réel — injectable pour
+        # les tests (même patron que pool_size ci-dessus), défaut 2 en production.
+        self.materialize_attempts_max = int(materialize_attempts_max)
         self.state_path = self.run_dir / "state.json"
         self._premortem_cache: list[str] | None = None
         # s0-contrat mandatory_read (contracts/s0-contrat.yaml l.26) : "la Project
@@ -1294,120 +1319,192 @@ class ForgeDriver:
     # --- étapes LLM (déléguées à l'exécuteur) --------------------------------
 
     def _run_llm(self, state: dict, etape: str) -> bool:
-        """Retourne False si le run doit HALTER (exécuteur absent/en échec)."""
+        """Retourne False si le run doit HALTER (exécuteur absent/en échec).
+
+        Correctif « rupture 10 » (2026-08-23) : un refus de MATÉRIALISATION
+        (voir `_is_materialize_refusal_reason`) rejoue la MÊME étape jusqu'à
+        `self.materialize_attempts_max` tentatives avant de halter — toutes
+        les autres formes d'échec (pas d'exécuteur, exécuteur mort, sortie
+        vide, exception) haltent immédiatement, comportement STRICTEMENT
+        inchangé.
+        """
         entry = state["steps"][etape]
-        entry["attempts"] = entry.get("attempts", 0) + 1
-        entry["status"] = "RUNNING"
-        entry["ts"] = time.time()
-        self._save(state)  # persisté AVANT l'appel : un crash laisse RUNNING (reprise)
+        # Coût/tokens/durée additionnés sur TOUTES les tentatives de cette
+        # étape (retry de matérialisation inclus) — jamais écrasés par la
+        # seule tentative gagnante, chaque appel exécuteur a un coût réel.
+        total_tokens, total_duration, total_cost_usd = 0, 0.0, 0.0
+        total_cache_creation, total_cache_read = 0, 0
+        # Raisons de CHAQUE refus de matérialisation rencontré pour cette
+        # étape (retries ET tentative finale qui épuise le budget) — reçu
+        # forensique, jamais un simple compteur.
+        materialize_retries: list[str] = []
 
-        try:
-            # run_dir=self.run_dir (0.5.a, routage explicite ratifié) : le driver
-            # CONNAÎT son run_dir, il n'a plus à laisser prepare_dispatch retomber
-            # sur context_manifest.default_run_dir(run_id) — dérivation qui échoue
-            # (None -> _orphan_context/) dès qu'un run_id dépasse <projet>-<date>.
-            # model_executed=state.get("model_override") (0.5.d) : None hors
-            # escalade (la ligne 'dispatch' du Context Manifest reste alors
-            # model_executed == model, aucune ambiguïté) ; le modèle d'escalade
-            # sinon — même résolution que le journal/la télémétrie plus bas
-            # (`state.get("model_override") or payload.model`), appliquée ici au
-            # niveau de la porte puisque c'est elle qui écrit la ligne signée.
-            payload = prepare_dispatch(
-                etape, self.run_id, caps_path=self.caps_path, audit_path=self.audit_path,
-                run_dir=self.run_dir, profile=self.profile, attempt=entry["attempts"],
-                model_executed=state.get("model_override"),
-                # P5 (lot dégel 2) : le driver enchaîne STRICTEMENT le profil
-                # (`order_for_profile`, aucun agent ne choisit l'étape suivante) —
-                # aucune autre source de WHY dynamique dans ce lot, donc le même
-                # motif littéral aux deux points d'appel (voir _run_deterministic).
-                reason=self._activation_reason(state, entry, etape),
-            )
-        except ContractIncomplete as exc:
-            # `payload` n'existe pas encore (prepare_dispatch a levé avant de le
-            # rendre) : aucun payload.model connu, la résolution retombe sur le
-            # seul model_override (souvent absent ici aussi) — jamais un crash.
-            return self._halt_step(state, entry, f"contrat non activable à {etape}: {exc}",
-                                   etape=etape)
+        while True:
+            entry["attempts"] = entry.get("attempts", 0) + 1
+            entry["status"] = "RUNNING"
+            entry["ts"] = time.time()
+            self._save(state)  # persisté AVANT l'appel : un crash laisse RUNNING (reprise)
 
-        decision = route_step(payload)
-        runner, reviewer, qwen_ok = decision.runner, decision.reviewer, False
-        output: str | None = None
-        blocked, findings = False, []
-        tokens, duration, cost_usd = 0, 0.0, 0.0
-        # CV-8 : zéro par défaut (Qwen n'expose pas de cache Claude — un ZÉRO
-        # MESURÉ, pas une case vide), écrasé plus bas seulement sur le chemin
-        # exécuteur réel (`res` porte les champs quand `_claude_call_raw` a tourné).
-        cache_creation_tokens, cache_read_tokens = 0, 0
-
-        if decision.runner == RUNNER_QWEN:
-            res = run_qwen_step(payload)
-            if res["ok"]:
-                output, reviewer, qwen_ok = res["output"], res["reviewer"], True
-                # L'exécution a réellement eu lieu ET rendu un résultat : preuve d'action.
-                self._record_spawn_executed(etape, entry["attempts"], payload)
-            else:
-                runner, reviewer = RUNNER_CLAUDE_BLIND, res["reviewer"]
-
-        if output is None:
-            if self.executor is None:
-                # Halt AVANT tout appel LLM (cas limite du protocole M1) :
-                # tokens=0 est un ZÉRO MESURÉ (aucun appel n'a eu lieu), pas une
-                # case vide — `payload` est déjà connu ici (prepare_dispatch a
-                # réussi), donc `payload.model` résout correctement le champ.
-                return self._halt_step(
-                    state, entry,
-                    f"aucun exécuteur LLM fourni au driver — étape {etape} "
-                    "inexécutable (hypothèse inconnue = BLOCKED)",
-                    etape=etape, payload=payload,
+            try:
+                # run_dir=self.run_dir (0.5.a, routage explicite ratifié) : le driver
+                # CONNAÎT son run_dir, il n'a plus à laisser prepare_dispatch retomber
+                # sur context_manifest.default_run_dir(run_id) — dérivation qui échoue
+                # (None -> _orphan_context/) dès qu'un run_id dépasse <projet>-<date>.
+                # model_executed=state.get("model_override") (0.5.d) : None hors
+                # escalade (la ligne 'dispatch' du Context Manifest reste alors
+                # model_executed == model, aucune ambiguïté) ; le modèle d'escalade
+                # sinon — même résolution que le journal/la télémétrie plus bas
+                # (`state.get("model_override") or payload.model`), appliquée ici au
+                # niveau de la porte puisque c'est elle qui écrit la ligne signée.
+                payload = prepare_dispatch(
+                    etape, self.run_id, caps_path=self.caps_path, audit_path=self.audit_path,
+                    run_dir=self.run_dir, profile=self.profile, attempt=entry["attempts"],
+                    model_executed=state.get("model_override"),
+                    # P5 (lot dégel 2) : le driver enchaîne STRICTEMENT le profil
+                    # (`order_for_profile`, aucun agent ne choisit l'étape suivante) —
+                    # aucune autre source de WHY dynamique dans ce lot, donc le même
+                    # motif littéral aux deux points d'appel (voir _run_deterministic).
+                    reason=self._activation_reason(state, entry, etape),
                 )
-            context = {
-                "run_id": self.run_id,
-                "project": self.project,
-                "run_dir": str(self.run_dir),
-                "model_override": state.get("model_override"),
-                "dispatch_marker": f"FORGE_DISPATCH:{etape}:{self.run_id}:{entry['attempts']}",
-                "attempt": entry["attempts"],
-                "premortem": self._premortem(),
-                # s0-contrat SEULEMENT (contrat s0 §2 mandatory_read) : "" pour
-                # toute autre étape — un contexte non-s0 ne doit RIEN changer
-                # (project_bible falsy => run_real n'injecte aucune section).
-                "project_bible": self._project_bible() if etape == "s0-contrat" else "",
-            }
-            res = self.executor(payload, decision, context)
-            # Preuve d'action AVANT de juger le retour : un exécuteur qui rend `ok:False`
-            # (timeout `claude -p`, sortie invalide) A TOUT DE MÊME ÉTÉ EXÉCUTÉ. La ligne
-            # atteste le SPAWN, pas sa réussite — le verdict, lui, reste ailleurs.
-            self._record_spawn_executed(etape, entry["attempts"], payload)
-            if not isinstance(res, dict) or not res.get("ok"):
-                why = res.get("reason", "sans raison") if isinstance(res, dict) else "retour invalide"
-                # `res` peut porter des tokens/coût/durée RÉELS même en échec
-                # (ex. timeout claude -p, FIR-01 : `duration_s` connu, `tokens`
-                # jamais parsé) — transmis pour que la ligne HALT porte ce qui a
-                # été MESURÉ, jamais un silence total sur un échec coûteux.
-                # Correctif B (2026-08-21) : une sortie brute coûteuse (ex. LLM
-                # exécuté mais artefact refusé par le matérialiseur) ne doit
-                # jamais disparaître silencieusement — persistée sous un nom
-                # DISTINCT de `<etape>.txt` (jamais une sortie refusée passée
-                # pour un artefact validé).
-                if isinstance(res, dict) and res.get("output"):
-                    failed_path = self.run_dir / "artifacts" / f"{etape}.failed.txt"
-                    failed_path.parent.mkdir(parents=True, exist_ok=True)
-                    failed_path.write_text(str(res["output"]), encoding="utf-8")
-                    res["failed_artifact_path"] = str(failed_path)
-                return self._halt_step(state, entry, f"exécuteur LLM en échec à {etape}: {why}",
-                                       etape=etape, payload=payload,
-                                       res=res if isinstance(res, dict) else None)
-            output = str(res.get("output", ""))
-            blocked = bool(res.get("blocked", False))
-            findings = list(res.get("findings", []))
-            tokens = int(res.get("tokens", 0))
-            duration = float(res.get("duration_s", 0.0))
-            cost_usd = float(res.get("cost_usd", 0.0))
-            # CV-8 (lot de dégel 1, 2026-07-30) : champs frères de `tokens`/`cost_usd`,
-            # même seam — `run_real._claude_call_raw` les porte désormais dans `res`
-            # (0 par défaut sur un exécuteur injecté qui ne les rend pas, jamais None).
-            cache_creation_tokens = int(res.get("cache_creation_tokens", 0) or 0)
-            cache_read_tokens = int(res.get("cache_read_tokens", 0) or 0)
+            except ContractIncomplete as exc:
+                # `payload` n'existe pas encore (prepare_dispatch a levé avant de le
+                # rendre) : aucun payload.model connu, la résolution retombe sur le
+                # seul model_override (souvent absent ici aussi) — jamais un crash.
+                return self._halt_step(state, entry, f"contrat non activable à {etape}: {exc}",
+                                       etape=etape)
+
+            decision = route_step(payload)
+            runner, reviewer, qwen_ok = decision.runner, decision.reviewer, False
+            output: str | None = None
+            blocked, findings = False, []
+            tokens, duration, cost_usd = 0, 0.0, 0.0
+            # CV-8 : zéro par défaut (Qwen n'expose pas de cache Claude — un ZÉRO
+            # MESURÉ, pas une case vide), écrasé plus bas seulement sur le chemin
+            # exécuteur réel (`res` porte les champs quand `_claude_call_raw` a tourné).
+            cache_creation_tokens, cache_read_tokens = 0, 0
+
+            if decision.runner == RUNNER_QWEN:
+                res = run_qwen_step(payload)
+                if res["ok"]:
+                    output, reviewer, qwen_ok = res["output"], res["reviewer"], True
+                    # L'exécution a réellement eu lieu ET rendu un résultat : preuve d'action.
+                    self._record_spawn_executed(etape, entry["attempts"], payload)
+                else:
+                    runner, reviewer = RUNNER_CLAUDE_BLIND, res["reviewer"]
+
+            if output is None:
+                if self.executor is None:
+                    # Halt AVANT tout appel LLM (cas limite du protocole M1) :
+                    # tokens=0 est un ZÉRO MESURÉ (aucun appel n'a eu lieu), pas une
+                    # case vide — `payload` est déjà connu ici (prepare_dispatch a
+                    # réussi), donc `payload.model` résout correctement le champ.
+                    return self._halt_step(
+                        state, entry,
+                        f"aucun exécuteur LLM fourni au driver — étape {etape} "
+                        "inexécutable (hypothèse inconnue = BLOCKED)",
+                        etape=etape, payload=payload,
+                    )
+                context = {
+                    "run_id": self.run_id,
+                    "project": self.project,
+                    "run_dir": str(self.run_dir),
+                    "model_override": state.get("model_override"),
+                    "dispatch_marker": f"FORGE_DISPATCH:{etape}:{self.run_id}:{entry['attempts']}",
+                    "attempt": entry["attempts"],
+                    "premortem": self._premortem(),
+                    # s0-contrat SEULEMENT (contrat s0 §2 mandatory_read) : "" pour
+                    # toute autre étape — un contexte non-s0 ne doit RIEN changer
+                    # (project_bible falsy => run_real n'injecte aucune section).
+                    "project_bible": self._project_bible() if etape == "s0-contrat" else "",
+                }
+                res = self.executor(payload, decision, context)
+                # Preuve d'action AVANT de juger le retour : un exécuteur qui rend `ok:False`
+                # (timeout `claude -p`, sortie invalide) A TOUT DE MÊME ÉTÉ EXÉCUTÉ. La ligne
+                # atteste le SPAWN, pas sa réussite — le verdict, lui, reste ailleurs.
+                self._record_spawn_executed(etape, entry["attempts"], payload)
+                if not isinstance(res, dict) or not res.get("ok"):
+                    why = res.get("reason", "sans raison") if isinstance(res, dict) else "retour invalide"
+                    # `res` peut porter des tokens/coût/durée RÉELS même en échec
+                    # (ex. timeout claude -p, FIR-01 : `duration_s` connu, `tokens`
+                    # jamais parsé) — additionnés au total AVANT toute décision de
+                    # retry/halt : chaque tentative a un coût réel, jamais écrasé.
+                    if isinstance(res, dict):
+                        total_tokens += int(res.get("tokens", 0) or 0)
+                        total_duration += float(res.get("duration_s", 0.0) or 0.0)
+                        total_cost_usd += float(res.get("cost_usd", 0.0) or 0.0)
+                    # Correctif B (2026-08-21) : une sortie brute coûteuse (ex. LLM
+                    # exécuté mais artefact refusé par le matérialiseur) ne doit
+                    # jamais disparaître silencieusement — persistée sous un nom
+                    # DISTINCT de `<etape>.txt` (jamais une sortie refusée passée
+                    # pour un artefact validé). Correctif « rupture 10 » : sur une
+                    # 2e+ tentative de la MÊME étape, `<etape>.failed.txt` de la
+                    # tentative précédente ne doit jamais être écrasé — suffixe
+                    # numéroté par tentative (>=2).
+                    if isinstance(res, dict) and res.get("output"):
+                        suffix = "" if entry["attempts"] <= 1 else f"-{entry['attempts']}"
+                        failed_path = self.run_dir / "artifacts" / f"{etape}.failed{suffix}.txt"
+                        failed_path.parent.mkdir(parents=True, exist_ok=True)
+                        failed_path.write_text(str(res["output"]), encoding="utf-8")
+                        res["failed_artifact_path"] = str(failed_path)
+
+                    # Refus de MATÉRIALISATION (forme invalide rendue par le
+                    # matérialiseur/validateur, `output` non vide le prouve — un
+                    # exécuteur mort ne rend jamais de sortie) : hypothèse CONNUE
+                    # et rejouable, PAS « hypothèse inconnue = BLOCKED ». Rejoue
+                    # la même étape (même payload/contexte, seul `attempt` change
+                    # au tour suivant de la boucle) tant que le budget n'est pas
+                    # épuisé ; sinon comportement HISTORIQUE (halt immédiat).
+                    is_materialize_refusal = (
+                        isinstance(res, dict) and bool(res.get("output"))
+                        and _is_materialize_refusal_reason(why)
+                    )
+                    if is_materialize_refusal:
+                        materialize_retries.append(why)
+                    if is_materialize_refusal and entry["attempts"] < self.materialize_attempts_max:
+                        logger.warning(
+                            "matérialisation refusée à %s (tentative %d/%d) — "
+                            "re-spawn même palier : %s",
+                            etape, entry["attempts"], self.materialize_attempts_max, why,
+                        )
+                        continue  # même étape, même payload/contexte — nouvelle tentative
+
+                    halt_reason = (
+                        f"exécuteur LLM en échec à {etape} après "
+                        f"{entry['attempts']} tentatives: {why}"
+                        if materialize_retries
+                        else f"exécuteur LLM en échec à {etape}: {why}"
+                    )
+                    ok = self._halt_step(state, entry, halt_reason,
+                                         etape=etape, payload=payload,
+                                         res=res if isinstance(res, dict) else None)
+                    if materialize_retries:
+                        # `_halt_step` remplace `entry["detail"]` par {"reason": ...} —
+                        # le reçu de retry s'y ajoute APRÈS, jamais avant (sinon
+                        # `_halt_step` l'écraserait).
+                        entry["detail"]["materialize_retries"] = materialize_retries
+                        self._save(state)
+                    return ok
+                output = str(res.get("output", ""))
+                blocked = bool(res.get("blocked", False))
+                findings = list(res.get("findings", []))
+                tokens = int(res.get("tokens", 0))
+                duration = float(res.get("duration_s", 0.0))
+                cost_usd = float(res.get("cost_usd", 0.0))
+                # CV-8 (lot de dégel 1, 2026-07-30) : champs frères de `tokens`/`cost_usd`,
+                # même seam — `run_real._claude_call_raw` les porte désormais dans `res`
+                # (0 par défaut sur un exécuteur injecté qui ne les rend pas, jamais None).
+                cache_creation_tokens = int(res.get("cache_creation_tokens", 0) or 0)
+                cache_read_tokens = int(res.get("cache_read_tokens", 0) or 0)
+
+            break  # succès (Qwen ou exécuteur) — sort de la boucle de retry
+
+        # Total = somme des tentatives ratées (matérialisation refusée) + la
+        # tentative gagnante — jamais la seule dernière valeur (voir plus haut).
+        tokens = total_tokens + tokens
+        duration = total_duration + duration
+        cost_usd = total_cost_usd + cost_usd
+        cache_creation_tokens = total_cache_creation + cache_creation_tokens
+        cache_read_tokens = total_cache_read + cache_read_tokens
 
 
         artifact = self.run_dir / "artifacts" / f"{etape}.txt"
@@ -1433,6 +1530,13 @@ class ForgeDriver:
             "cache_creation_tokens": cache_creation_tokens,
             "cache_read_tokens": cache_read_tokens,
         }
+        # Correctif « rupture 10 » (2026-08-23) : une étape qui a fini par PASSER
+        # après un ou plusieurs refus de matérialisation garde le reçu des
+        # tentatives ratées — même littéral `entry["detail"]` FIXE que le reste
+        # de ce bloc (ajout conditionnel, une étape sans retry ne gagne aucune
+        # clé nouvelle, même patron que markdown_check/yaml_check plus bas).
+        if materialize_retries:
+            entry["detail"]["materialize_retries"] = materialize_retries
         # M3'a (GO Pierre 2026-08-14) : le reçu du matérialiseur TEXTE
         # (`run_real._materialize_markdown` -> res["markdown_check"]) atteint enfin
         # `state.json`. `entry["detail"]` est un littéral de clés FIXES : il ne

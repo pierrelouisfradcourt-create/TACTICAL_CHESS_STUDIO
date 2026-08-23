@@ -33,16 +33,9 @@ exécution produit (volets auto-assemblés, `preuve` prose) · **9 effets sans s
 **Run 7 (V4, `3843d7b`)** : le bot-joueur joue jusqu'à l'adoption d'un chaton par l'écran seul ; arrêt à NEXT_GOAL (chaîne à un
 maillon), REWARD sans `observe` ; le driver n'a pas mesuré (pas de `proof:`, 3ᵉ fois). Détail : journal `…-gameplay-contract.md`.
 
-### Gameplay Contract (commit `f1bce0d`) + run 8b — résumé (détail : journal `…-gameplay-contract.md`)
-10 maillons A→J dans `loop.json`, sonde `player_loop.gd` (new_distinct/appears/decreases/resets/increases_more_than/REPEAT), driver :
-bloc runtime inconditionnel dès `run/main_scene`, `loop_dead` gate. Run 8a HALTED s2 (rupture 10 : BLOCKED sans retry). Run 8b
-(`_run8_20260821h2/`) : A→J 12/12 mesuré par le driver, verdict FAIL hors boucle ; 0/4 affordances liées selon
-`check_wiremap_contract` (non consommé par l'exécuteur, `EFFECT_KINDS` trop étroit).
+### Gameplay Contract `f1bce0d` + run 8b — archivé (journal `…-gameplay-contract.md`) : A→J 12/12 mesuré par le driver ; rupture 10 née au run 8a.
 
-### Décision significative (2026-08-23, archivé `…-decision-produit.md`) — résumé
-A→J nécessaire pas suffisant ; définition contre-factuelle ratifiée (`gamedesign/kitten_clicker_decision_significative.md` V2, 6 preuves) ;
-chantier DÉCISION `0a9f4d4` ; run 9 `_run9_20260823a/` : A→J 13/13 + DECISION 6/6 mesurés par le driver, non-dominance inversée ;
-HumanGate FAIL (prototype mécanique). Lot produit P0–P4 `b75f165` (direction produit V1 ratifiée, intention/tâches/s9).
+### Décision significative `0a9f4d4` + run 9 — archivé (`…-decision-produit.md`) : DECISION 6/6 mesurée, non-dominance inversée, HumanGate FAIL.
 
 ### HumanGate run 9 (2026-08-23, archivé `…-decision-produit.md`) — résumé
 FAIL « jeu complet » = baseline produit : chatons décoratifs · prestige = bouton · espace pauvre · guidage illisible. Prochain chantier =
@@ -88,7 +81,12 @@ sourcées GM, `game_master` absent → refus. `check_prisme_manifest.mjs` reste 
    + gate `design_freeze` avant s1 (HALTED « design non convergé »), tâches R1/R2 avec la graine C.2. **Commit `c3f82de`** (pytest 324, Node 1011).
    **Lot D en cours** (agent : fuite 1 `replay_ref` dans la sonde, fuite 2 tri alphabétique → ordre du Prisme, fuite 3 injection
    `design_intent.md` + `design/*.md` à s2.5/s2.7/s1/s9, contrat s2.7 : graphes adressables + `unlock`/`next_goal`) ; Fable : C.1 §9 et V2.1 §6
-   réalignés sur C.2, dépôt `lab/forge_runs/kitten_clicker/design/` (3 docs + README). Ensuite : commit D → purge → run 10 `kitten_clicker-20260823c`.
+   réalignés sur C.2, dépôt `lab/forge_runs/kitten_clicker/design/`. **Lot D commité `3565de5`** (J : delta 96 passif → 256 vrai clic).
+   **Run 10 `kitten_clicker-20260823c` LANCÉ depuis la session** (profil 19 étapes avec boucle Art↔GM ; `design/calibration.md` RETIRÉ du
+   run_dir faute de ratification V2.1 — option (b), copie au scratchpad `run10_hold/`). **Runs 10a `…c` et 10b `…d` HALTED à s2 en
+   10 min chacun : JSON de 18 Ko cassé par haiku (rupture 10, 3ᵉ occurrence : refus de matérialisation = BLOCKED terminal, aucun rejeu
+   par étape — le pool ne rejoue que s9 sur un rouge d'oracle). Décision Fable (réversible, commit séparé) : Lot G = ≤ 2 tentatives
+   par étape sur refus de matérialisation avec sortie produite (agent en cours), puis relance run 10c `kitten_clicker-20260823e`.
 1. **Lot C.2 — Gameplay Loop & Content Contract V1 : PROPOSED** `studio_brain/gamedesign/kitten_clicker_gameplay_loop_content_contract_v1.md`
    (9 sections : core/player/progression/meta/content/economy loops, arbre de possibilités, échange Art↔GM, WireMap gate à 5 questions ;
    tableau de contenu par progression). Test de reconstruction « scène » : passe 1 : 0 compteur, 7 inventions / 3 contradictions → V1.1 ; passe 2 : 0 contradiction, 0 compteur → V1.1b (§11, 15 réponses). À ratifier AVANT tout WireMap ; C.1 et V2.1 seront

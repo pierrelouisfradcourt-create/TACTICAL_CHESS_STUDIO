@@ -78,3 +78,10 @@ loop.json absent = FAIL · T5 contrat s9 (k) dépôt `proof:`+`09_WIREMAP`. Suit
   bien fermée 4/4 — `EFFECT_KINDS=[file_write,visual]` refuse les feuilles d'effet typées `bot_action` par s3 (oracle trop
   étroit sur sa 1ʳᵉ donnée réelle) ET ce contrôle n'est appelé par aucun exécuteur (auto-attestation de l'agent s5).
 
+## Résumé archivé le 2026-08-23
+### Gameplay Contract (commit `f1bce0d`) + run 8b — résumé (détail : journal `…-gameplay-contract.md`)
+10 maillons A→J dans `loop.json`, sonde `player_loop.gd` (new_distinct/appears/decreases/resets/increases_more_than/REPEAT), driver :
+bloc runtime inconditionnel dès `run/main_scene`, `loop_dead` gate. Run 8a HALTED s2 (rupture 10 : BLOCKED sans retry). Run 8b
+(`_run8_20260821h2/`) : A→J 12/12 mesuré par le driver, verdict FAIL hors boucle ; 0/4 affordances liées selon
+`check_wiremap_contract` (non consommé par l'exécuteur, `EFFECT_KINDS` trop étroit).
+
