@@ -76,13 +76,19 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # d'égalité dans test_context_manifest.py) : toute divergence casse ce test.
     # Lot A 2026-08-23 : s2.7 reçoit désormais AUSSI la Story Bible et l'Art Bible +
     # ses demandes d'assets (produite AVANT s2.7 dans full_godot_content).
+    # Lot B T2(b) (2026-08-23) : s2.7 reçoit AUSSI l'héritage inter-run (contrat
+    # d'artefacts GM <-> Artiste) — copie STRICTEMENT identique à run_real.
     "s2.7-gm-worldscan": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
-                          "art_bible.md", "asset_requests.json"),
+                          "art_bible.md", "asset_requests.json",
+                          "heritage/art_response.json", "heritage/gm_worldscan.json"),
     "s2.6-story-bible": ("charter.yaml", "artifacts/s2-worldscan.txt"),
     # Lot A 2026-08-23 : copie STRICTEMENT identique à run_real._UPSTREAM_BY_STEP —
     # l'Art Bible hérite du World Scan et de la Story Bible (plus du Prisme).
+    # Lot B T2(b) (2026-08-23) : + héritage inter-run (art_bible.md, art_response.json
+    # du run précédent) — copie STRICTEMENT identique à run_real.
     "s2.5-artbible": ("charter.yaml", "artifacts/s2-worldscan.txt",
-                      "artifacts/s2.6-story-bible.txt"),
+                      "artifacts/s2.6-story-bible.txt",
+                      "heritage/art_bible.md", "heritage/art_response.json"),
     # s3-decompo reçoit désormais les DEUX : le Prisme (exigences) et le World
     # Scan (connaissance qui les fonde). Sans cette 2e source, la décompo perdait
     # les standards du genre dès qu'ils n'étaient pas repris mot pour mot.
@@ -116,8 +122,10 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # full_godot_narratif) : aucune injection n'existait pour s9-build-godot-standard,
     # lecture déclarative seule. Absents (autres profils) => omis par
     # upstream_artifacts_section, comportement inchangé.
+    # Lot B T2(b) (2026-08-23) : + economy.json (projection déterministe, dérivée
+    # à s2.7) — copie STRICTEMENT identique à run_real.
     "s9-build-godot-standard": ("blueprint.json", "wiremap.json", "art_bible.md",
-                                "asset_requests.json", "loop.json"),
+                                "asset_requests.json", "loop.json", "economy.json"),
     "s11-redteam-code": ("wiremap.json",),
 }
 

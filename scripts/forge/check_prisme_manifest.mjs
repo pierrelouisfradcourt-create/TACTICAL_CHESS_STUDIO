@@ -39,6 +39,8 @@ import {
   validateChaine,
   duplicateIds,
   normalizeText,
+  isLoopExigence,
+  hasGmSource,
 } from './upstream_schema.mjs';
 
 /**
@@ -94,6 +96,7 @@ export function checkPrismeDoc(doc, worldscan = null) {
     exigences: 0, expected: 0, additions: 0,
     actionnables: 0, non_actionnables: 0,
     references_ancrees: 0, references_verifiees: 0,
+    exigences_boucle: 0, exigences_sourcees_gm: 0,
   };
   if (doc === null || typeof doc !== 'object' || Array.isArray(doc)) {
     return {
@@ -121,6 +124,11 @@ export function checkPrismeDoc(doc, worldscan = null) {
   let actionnables = 0;
   let referencesAncrees = 0;
   let referencesVerifiees = 0;
+  // Lot B, T3 (2026-08-23) : mesure du sourçage GM des exigences de boucle —
+  // ADVISORY, jamais gatant ici (verrou GO Pierre : gate seulement au run 10).
+  // Baseline mesurée run 9 (sans bloc `game_master`) : 13/13 non sourcées.
+  let exigencesBoucle = 0;
+  let exigencesSourceesGm = 0;
 
   exigences.forEach((ex, i) => {
     const loc = `exigences[${i}]`;
@@ -135,6 +143,11 @@ export function checkPrismeDoc(doc, worldscan = null) {
 
     if (ex.source === 'EXPECTED') expected += 1;
     if (ex.source === 'ADDITIONS') additions += 1;
+
+    if (isLoopExigence(ex)) {
+      exigencesBoucle += 1;
+      if (hasGmSource(ex)) exigencesSourceesGm += 1;
+    }
 
     // Ancrage de la référence dans le World Scan (seulement si on nous l'a donné —
     // sans World Scan on ne PRÉTEND pas avoir vérifié : `references_verifiees` reste 0).
@@ -176,6 +189,8 @@ export function checkPrismeDoc(doc, worldscan = null) {
     non_actionnables: exigences.length - actionnables,
     references_ancrees: referencesAncrees,
     references_verifiees: referencesVerifiees,
+    exigences_boucle: exigencesBoucle,
+    exigences_sourcees_gm: exigencesSourceesGm,
   };
   const ok = problems.length === 0;
   return { ok, verdict: ok ? 'OK' : 'FAIL', problems, non_actionnables, references_non_ancrees, stats };
@@ -192,7 +207,10 @@ export async function checkPrismeFile(filePath, worldscanPath = null) {
   const fail = (msg) => ({
     ok: false, verdict: 'FAIL', problems: [msg],
     non_actionnables: [], references_non_ancrees: [],
-    stats: { exigences: 0, expected: 0, additions: 0, actionnables: 0, non_actionnables: 0, references_ancrees: 0, references_verifiees: 0 },
+    stats: {
+      exigences: 0, expected: 0, additions: 0, actionnables: 0, non_actionnables: 0,
+      references_ancrees: 0, references_verifiees: 0, exigences_boucle: 0, exigences_sourcees_gm: 0,
+    },
   });
   let raw;
   try {
@@ -238,7 +256,7 @@ if (isMain) {
     r.problems.forEach((p) => console.error(`  FAIL: ${p}`));
     r.non_actionnables.forEach((p) => console.error(`  CLASSE non-actionnable: ${p}`));
     r.references_non_ancrees.forEach((p) => console.error(`  CLASSE reference non ancree: ${p}`));
-    console.error(`  stats: ${r.stats.exigences} exigence(s) / ${r.stats.expected} EXPECTED / ${r.stats.additions} ADDITIONS / ${r.stats.actionnables} actionnable(s) / ${r.stats.references_ancrees} sur ${r.stats.references_verifiees} reference(s) ancree(s)`);
+    console.error(`  stats: ${r.stats.exigences} exigence(s) / ${r.stats.expected} EXPECTED / ${r.stats.additions} ADDITIONS / ${r.stats.actionnables} actionnable(s) / ${r.stats.references_ancrees} sur ${r.stats.references_verifiees} reference(s) ancree(s) / ${r.stats.exigences_sourcees_gm} sur ${r.stats.exigences_boucle} exigence(s) de boucle sourcee(s) GM`);
     console.log(JSON.stringify({
       ok: r.ok,
       problems: r.problems,

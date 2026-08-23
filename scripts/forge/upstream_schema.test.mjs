@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {
   validateExpectedProof, validateProvenance, validateChaine, validatePrisme, validateFeaturemap,
   collectLeaves, featureIds, duplicateIds, normalizeText, jaccard,
+  validateGmSource, isLoopExigence, hasGmSource,
 } from './upstream_schema.mjs';
 import { prismeReference, featuremapReference, prismeSourceCore } from './upstream_fixtures.mjs';
 
@@ -95,4 +96,50 @@ test('normalizeText retire accents et ponctuation, jaccard note la ressemblance'
   assert.equal(jaccard('le compteur monte', 'le compteur monte'), 1);
   assert.equal(jaccard('abc', 'xyz'), 0);
   assert.ok(jaccard('le compteur monte au clic', 'le compteur monte') > 0.5);
+});
+
+// --- Lot B, T3 (2026-08-23) : sourcage GM des exigences de boucle (ADDITIF) -----
+
+test('validateGmSource: exigence hors boucle -> 0 finding', () => {
+  assert.deepEqual(validateGmSource({ id: 'x' }, 'x'), []);
+});
+
+test('validateGmSource: acteur PLAYER sans reference GM -> finding boucle_sans_source_gm', () => {
+  const f = validateGmSource({ id: 'a1', acteur: 'PLAYER', reference: 'worldscan:games[0]' }, 'exigences[0]');
+  assert.equal(f.length, 1);
+  assert.match(f[0], /boucle_sans_source_gm/);
+  assert.match(f[0], /id=a1/);
+});
+
+test('validateGmSource: loop_role != NONE sans reference GM -> finding', () => {
+  const f = validateGmSource({ id: 'b1', loop_role: 'PLAYER_ACTION', reference: null }, 'x');
+  assert.equal(f.length, 1);
+});
+
+test('validateGmSource: loop_role == NONE -> 0 finding (hors boucle)', () => {
+  assert.deepEqual(validateGmSource({ id: 'c1', loop_role: 'NONE', reference: null }, 'x'), []);
+});
+
+test('validateGmSource: reference gm_worldscan:game_master.loops.* -> 0 finding', () => {
+  const f = validateGmSource(
+    { id: 'd1', acteur: 'PLAYER', reference: 'gm_worldscan:game_master.loops.core_loop.step1' }, 'x',
+  );
+  assert.deepEqual(f, []);
+});
+
+test('validateGmSource: reference gm_worldscan:game_master.grey_blocks.* -> 0 finding', () => {
+  const f = validateGmSource(
+    { id: 'e1', loop_role: 'UNLOCK', reference: 'gm_worldscan:game_master.grey_blocks.garden' }, 'x',
+  );
+  assert.deepEqual(f, []);
+});
+
+test('isLoopExigence / hasGmSource : primitives partagees', () => {
+  assert.equal(isLoopExigence({ acteur: 'PLAYER' }), true);
+  assert.equal(isLoopExigence({ loop_role: 'REWARD' }), true);
+  assert.equal(isLoopExigence({ loop_role: 'NONE' }), false);
+  assert.equal(isLoopExigence({}), false);
+  assert.equal(hasGmSource({ reference: 'gm_worldscan:game_master.loops.x' }), true);
+  assert.equal(hasGmSource({ reference: 'worldscan:games[0]' }), false);
+  assert.equal(hasGmSource({ reference: null }), false);
 });

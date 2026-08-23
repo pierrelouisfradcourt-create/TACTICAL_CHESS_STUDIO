@@ -25,6 +25,12 @@ KITTEN_RUN6 = (REPO / "lab" / "forge_runs" / "kitten_clicker" / "_run6_20260821f
 # de step DECISION — on en fabrique un synthétique dans le loop.json de test.
 KITTEN_RUN8 = (REPO / "lab" / "forge_runs" / "kitten_clicker" / "_run8_20260821h2"
                / "game_build8")
+# Build du run 9 ARCHIVÉ (Lot B T4, 2026-08-23) : loop.json réel porte le contrat A..J
+# complet + DECISION (13 steps) — fixture pour `target_frames`/`frames` par step.
+KITTEN_RUN9 = (REPO / "lab" / "forge_runs" / "kitten_clicker" / "_run9_20260823a"
+               / "game_build9")
+RUN9_LOOP_JSON = (REPO / "lab" / "forge_runs" / "kitten_clicker" / "_run9_20260823a"
+                  / "loop.json")
 
 
 def _line(ok, fails, data):
@@ -59,6 +65,14 @@ def test_la_sonde_porte_le_role_decision():
     src = PROBE.read_text(encoding="utf-8")
     for token in ("DECISION", "policies", "_reset_scene", "nondominance"):
         assert token in src, f"token '{token}' absent de la sonde (role DECISION)"
+
+
+def test_la_sonde_compte_les_frames_par_step_et_porte_target_frames():
+    """Lot B T4 (2026-08-23) : chaque step doit porter `frames`, et un step peut
+    porter `target_frames` (min/max/ref) qui borne son PASS."""
+    src = PROBE.read_text(encoding="utf-8")
+    for token in ("target_frames", '"frames"', "_step_frame_start", "_targets"):
+        assert token in src, f"token '{token}' absent de la sonde (frames/target_frames)"
 
 
 # --- run_player_loop : ok / fail / not_measured / muet, via gpu_runner factice ----
@@ -469,3 +483,114 @@ def test_run_player_loop_accepte_payload_avec_replays_et_deltas(tmp_path):
     assert r["payload"]["data"]["deltas"] == {"B1": 5.0, "B1@replay": 7.0, "J1": 9.0}
     assert r["payload"]["data"]["seen"] == {"objectif": ["a", "b"]}
     assert r["payload"]["data"]["steps"][0]["replays"][0]["ref"] == "B1"
+
+
+def test_run_player_loop_accepte_payload_avec_targets(tmp_path):
+    """Lot B T4 : passthrough pur de `data.targets` (bornes de tolérance des
+    steps portant `target_frames`), sans schéma imposé côté product_oracle_godot."""
+    game = _game_with_loop_json(tmp_path)
+    data = {
+        "steps": [{"role": "PLAYER_ACTION", "ref": "b_click", "pass": True,
+                   "before": "0", "after": "5", "reason": "", "frames": 42}],
+        "reached_role": "PLAYER_ACTION", "frames": 100, "deltas": {}, "seen": {},
+        "targets": [{"ref": "b_click", "metric_ref": "gm_worldscan:game_master.progression_metrics.m1",
+                     "frames": 42, "min": 0, "max": 100, "pass": True}],
+    }
+    stdout = _line(True, [], data)
+    r = pog.run_player_loop(game, binary_resolver=lambda: "godot",
+                            gpu_runner=lambda *a, **k: {"returncode": 0, "stdout": stdout, "stderr": ""})
+    assert r["status"] == "OK" and r["passed"] is True
+    assert r["payload"]["data"]["targets"] == data["targets"]
+    assert r["payload"]["data"]["steps"][0]["frames"] == 42
+
+
+# --- fixture réelle : build run 9 (13 steps A..J+DECISION), frames/target_frames ---
+# Lot B T4 (2026-08-23). Le loop.json réel du run 9 (13 steps) est copié tel quel en
+# tmp_path (jamais sous games/**) et transmis par KC_LOOP_JSON_OVERRIDE — même patron
+# que les tests run7/run8b ci-dessus. games/kitten_clicker/ est un build courant qui
+# change à chaque run ; l'archive game_build9 est la fixture figée.
+
+_RUN9_SKIP_REASON = "binaire Godot non configuré sur ce poste" if _godot_binary() is None \
+    else ("build run 9 absent (lab/forge_runs/kitten_clicker/_run9_20260823a/game_build9)"
+          if not (KITTEN_RUN9 / "project.godot").exists() else
+          ("loop.json du run 9 absent" if not RUN9_LOOP_JSON.is_file() else ""))
+
+
+def _run9_loop_spec() -> dict:
+    return json.loads(RUN9_LOOP_JSON.read_text(encoding="utf-8"))
+
+
+@pytest.mark.skipif(bool(_RUN9_SKIP_REASON), reason=_RUN9_SKIP_REASON)
+def test_frames_reel_sur_run9_sans_target_ne_change_rien_au_mesure(tmp_path):
+    """(a) Sans aucun `target_frames` : `reached_role`/`ok` doivent rester identiques
+    à la mesure figée du run 9 (ADVANTAGE, ok=true) — ajouter `frames` ne doit RIEN
+    changer d'autre au comportement de la sonde. Chaque step porte un `frames` entier
+    > 0 (13 entrées : 12 top-level + 1 REPEAT agrégé, DECISION inclus)."""
+    loop_spec = _run9_loop_spec()
+    payload = _run_probe(KITTEN_RUN9, loop_spec, tmp_path, timeout=180)
+    print("FORGE_ORACLE player_loop (a) sans target:", json.dumps(payload)[:1500])
+
+    assert payload["ok"] is True
+    assert payload["data"]["reached_role"] == "ADVANTAGE"
+    assert payload["fails"] == []
+
+    steps = payload["data"]["steps"]
+    assert len(steps) == 13
+    for s in steps:
+        assert isinstance(s.get("frames"), int), f"step {s.get('ref')} sans frames entier : {s}"
+        assert s["frames"] > 0, f"step {s.get('ref')} frames <= 0 : {s}"
+    assert payload["data"]["targets"] == []
+
+
+@pytest.mark.skipif(bool(_RUN9_SKIP_REASON), reason=_RUN9_SKIP_REASON)
+def test_frames_reel_sur_run9_target_frames_trop_etroit_fait_echouer_b_click(tmp_path):
+    """(b) `target_frames: {min:0, max:5}` sur `b_click` (repeat=5, forcément > 5
+    frames réelles) : ce step FAIL avec la raison `target_frames`, `data.targets[0]`
+    porte `pass=false`, et le run s'arrête là (aucun step après b_click)."""
+    loop_spec = _run9_loop_spec()
+    b_click = next(s for s in loop_spec["steps"] if s["ref"] == "b_click")
+    b_click["target_frames"] = {"min": 0, "max": 5, "ref": "m_fake"}
+    payload = _run_probe(KITTEN_RUN9, loop_spec, tmp_path, timeout=180)
+    print("FORGE_ORACLE player_loop (b) target trop etroit:", json.dumps(payload)[:1500],
+          "| targets complet:", json.dumps(payload["data"]["targets"]))
+
+    assert payload["ok"] is False
+    assert any("target_frames" in f for f in payload["fails"])
+
+    b_step = next(s for s in payload["data"]["steps"] if s["ref"] == "b_click")
+    assert b_step["pass"] is False
+    assert "target_frames" in b_step["reason"]
+    assert b_step["frames"] > 5
+
+    targets = payload["data"]["targets"]
+    assert len(targets) == 1
+    assert targets[0]["ref"] == "b_click"
+    assert targets[0]["metric_ref"] == "m_fake"
+    assert targets[0]["min"] == 0 and targets[0]["max"] == 5
+    assert targets[0]["pass"] is False
+
+    refs_atteints = [s["ref"] for s in payload["data"]["steps"]]
+    assert refs_atteints == ["a_goal", "b_click"], f"le run doit s'arreter a b_click : {refs_atteints}"
+
+
+@pytest.mark.skipif(bool(_RUN9_SKIP_REASON), reason=_RUN9_SKIP_REASON)
+def test_frames_reel_sur_run9_target_frames_large_laisse_passer_b_click(tmp_path):
+    """(c) `target_frames: {min:0, max:100000}` sur `b_click` : PASS,
+    `data.targets[0].pass == true`, le run continue normalement."""
+    loop_spec = _run9_loop_spec()
+    b_click = next(s for s in loop_spec["steps"] if s["ref"] == "b_click")
+    b_click["target_frames"] = {"min": 0, "max": 100000, "ref": "m_large"}
+    payload = _run_probe(KITTEN_RUN9, loop_spec, tmp_path, timeout=180)
+    print("FORGE_ORACLE player_loop (c) target large:", json.dumps(payload)[:1500],
+          "| targets complet:", json.dumps(payload["data"]["targets"]))
+
+    b_step = next(s for s in payload["data"]["steps"] if s["ref"] == "b_click")
+    assert b_step["pass"] is True
+
+    targets = payload["data"]["targets"]
+    assert len(targets) == 1
+    assert targets[0]["ref"] == "b_click"
+    assert targets[0]["pass"] is True
+
+    assert payload["ok"] is True
+    assert payload["data"]["reached_role"] == "ADVANTAGE"

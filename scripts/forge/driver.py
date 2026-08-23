@@ -27,6 +27,7 @@ ceo-lane-assignment). claim_verdict: NO_CLAIM_ALLOWED.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -34,6 +35,7 @@ import re
 import sys
 import time
 from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -56,7 +58,8 @@ from forge.learning_memory import (
     promote_manifest_lessons,
 )
 from forge.oracle import (
-    OracleNotFound, OracleSpec, resolve_oracle, run_amont_traversal_probe, run_oracle,
+    OracleNotFound, OracleSpec, resolve_oracle, run_amont_traversal_probe,
+    run_art_response_check, run_oracle,
 )
 from forge.mutation_proof import (
     emit_descriptor_mutation_receipt,
@@ -71,6 +74,7 @@ from forge.mutation_proof import (
 from forge.pool import DEFAULT_POOL_SIZE, pool_decision
 from forge.product_oracle import run_product_oracle
 from forge.product_oracle_godot import (
+    check_economy_bypass,
     check_loop_bypass,
     has_godot_capacity,
     run_godot_product_oracle,
@@ -271,6 +275,8 @@ class ForgeDriver:
         product_oracle_godot_runner=None,
         runtime_alive_runner=None,
         player_loop_runner=None,
+        art_response_runner=None,
+        economy_bypass_runner=None,
         reference_guard_config_path: Path | str | None = None,
         reference_guard_baseline_path: Path | str | None = None,
         reference_guard_derogation_path: Path | str | None = None,
@@ -347,6 +353,15 @@ class ForgeDriver:
         # forge.product_oracle_godot.run_player_loop, jamais une réimplémentation.
         # Même périmètre d'activation que runtime_alive (voir _player_loop_detail).
         self.player_loop_runner = player_loop_runner or run_player_loop
+        # Gate s10a art_response (Lot B, T3, 2026-08-23, contrat s9 règle (15)) :
+        # injectable comme les runners ci-dessus — par défaut le VRAI
+        # `oracle.run_art_response_check` (spawn Node, jamais un spawn direct
+        # dans driver.py — invariant `test_driver_ne_spawn_pas_directement`).
+        self.art_response_runner = art_response_runner or run_art_response_check
+        # Garde économie (Lot B, T3, contrat s9 règle (14)) : injectable comme les
+        # runners ci-dessus — par défaut la VRAIE `product_oracle_godot.
+        # check_economy_bypass` (lecture statique pure, aucun spawn).
+        self.economy_bypass_runner = economy_bypass_runner or check_economy_bypass
         # Tier 2 #5 (Concept A) : best-of-N réactif au même tier avant d'escalader de
         # modèle. pool_size<=1 désactive le pool (chaque FAIL escalade directement).
         self.pool_size = int(pool_size)
@@ -474,6 +489,11 @@ class ForgeDriver:
                     # Idempotence déjà portée par le writer (recherche de l'en-tête
                     # `## <run_id> —` avant écriture) : reprendre un run HALTED puis
                     # le mener à DONE n'ajoute jamais de seconde entrée.
+                    # Lot B, T3 (2026-08-23) : héritage inter-run GM ↔ Artiste —
+                    # best-effort, no-op si s9 n'a pas encore matérialisé de build
+                    # (project.godot absent). Même patron que les autres
+                    # best-effort de fin de run (voir sa docstring).
+                    self._write_heritage_best_effort()
                     report = self._halted_report(state.get("reason", ""))
                     self._append_run_index_best_effort(report)
                     return report
@@ -482,6 +502,7 @@ class ForgeDriver:
             self._regenerate_journal_index()
             self._write_partial_verdict(state)  # P2 : profils sans s12 (no-op sinon)
             self._promote_manifest_lessons_best_effort()
+            self._write_heritage_best_effort()
             self._trigger_observer_best_effort(state)
             report = self._final_report(state)
             self._append_run_index_best_effort(report)
@@ -606,6 +627,71 @@ class ForgeDriver:
             logger.warning(
                 "run=%s : promotion manifest->lesson en échec (non bloquant, "
                 "boucle d'apprentissage dégradée pour ce run)",
+                self.run_id, exc_info=True,
+            )
+
+    def _write_heritage_best_effort(self) -> None:
+        """Héritage inter-run GM ↔ Artiste, sans station nouvelle (Lot B, verrou
+        GO Pierre 2026-08-23, plan `2026-08-23-forge-lot-b-game-master.md`) :
+        copie vers `<run_dir>/heritage/` les artefacts que le run SUIVANT du
+        même projet lira en amont (`_UPSTREAM_BY_STEP` de `run_real.py` :
+        `heritage/art_bible.md`, `heritage/gm_worldscan.json`,
+        `heritage/art_response.json`) + un `heritage/manifest.json`
+        {run_id, ts, files:{nom: sha256}} qui trace ce qui a été copié et quand.
+
+        Appelée EN FIN de run, DONE ou HALTED — mais seulement si s9 a
+        matérialisé un build (`<game_dir>/project.godot` existe) : avant s9, il
+        n'y a ni build ni `04_ASSETS/art_response.json` à hériter, copier un
+        `heritage/` vide écraserait celui d'un run précédent pour rien.
+
+        Sources (première présente par fichier, best-effort par fichier) :
+          - `art_bible.md`      : `<run_dir>/art_bible.md`
+          - `gm_worldscan.json` : `<run_dir>/gm_worldscan.json`
+          - `art_response.json` : `<game_dir>/04_ASSETS/art_response.json`
+
+        JAMAIS d'exception qui remonte (best-effort NON SILENCIEUX, même
+        discipline que `_promote_manifest_lessons_best_effort` : un échec est
+        journalisé, jamais avalé sans trace). Écrase l'héritage précédent
+        (dernier run gagne, cf. plan) — ne touche JAMAIS aux archives
+        `_run*_.../` (lecture seule, jamais un chemin sous ce préfixe)."""
+        try:
+            project_godot = self.game_dir / "project.godot"
+            if not project_godot.is_file():
+                return  # pas de build s9 encore matérialisé : rien à hériter
+
+            heritage_dir = self.run_dir / "heritage"
+            heritage_dir.mkdir(parents=True, exist_ok=True)
+
+            sources = {
+                "art_bible.md": self.run_dir / "art_bible.md",
+                "gm_worldscan.json": self.run_dir / "gm_worldscan.json",
+                "art_response.json": self.game_dir / "04_ASSETS" / "art_response.json",
+            }
+            files_hash: dict[str, str] = {}
+            for name, src in sources.items():
+                if not src.is_file():
+                    continue
+                try:
+                    data = src.read_bytes()
+                    (heritage_dir / name).write_bytes(data)
+                    files_hash[name] = hashlib.sha256(data).hexdigest()
+                except OSError:
+                    logger.warning(
+                        "run=%s : copie heritage de %s en échec (non bloquant)",
+                        self.run_id, src, exc_info=True,
+                    )
+
+            manifest = {
+                "run_id": self.run_id,
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "files": files_hash,
+            }
+            (heritage_dir / "manifest.json").write_text(
+                json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception:  # noqa: BLE001 — best-effort NON SILENCIEUX : journalisé, jamais bloquant
+            logger.warning(
+                "run=%s : écriture heritage/ en échec (non bloquant, run suivant "
+                "démarre sans héritage)",
                 self.run_id, exc_info=True,
             )
 
@@ -1945,6 +2031,16 @@ class ForgeDriver:
                     "passed": None, "violations": [],
                     "reason": "exception levée pendant la mesure — advisory, non bloquant",
                 }
+            # Gate s10a art_response (Lot B, T3, 2026-08-23, contrat s9 règle
+            # (15)) : contrat de retour GM ↔ Artiste. GATE au même titre que
+            # loop_dead (voir _code_oracle_art_response_dead) — SKIPPED non
+            # bloquant quand le GM du run ne déclare aucun `artist_requirements`
+            # (1er run, ou profil sans GM).
+            detail["art_response"] = self._art_response_detail()
+            # Garde économie (Lot B, T3, contrat s9 règle (14)) : GATE au même
+            # titre (voir _code_oracle_economy_bypass_dead) — lecture statique
+            # pure, jamais un spawn, jamais bloquant par exception.
+            detail["economy_bypass"] = self._economy_bypass_detail()
         else:
             # Module bibliothèque (pas de run/main_scene) : rien à faire tourner,
             # même reçu SKIPPED motivé que `_runtime_alive_detail` — jamais un
@@ -2047,11 +2143,14 @@ class ForgeDriver:
 
         runtime_dead = self._code_oracle_runtime_dead(detail)
         detail["loop_dead"] = self._code_oracle_loop_dead(detail)
+        detail["art_response_dead"] = self._code_oracle_art_response_dead(detail)
+        detail["economy_bypass_dead"] = self._code_oracle_economy_bypass_dead(detail)
         if status == "BLOCKED":
             final = "BLOCKED"
         elif (status == "FAIL" or not e2e_ok or not solvability["passed"]
               or not harness_flags["passed"] or receipt.receipt.status != "OK"
-              or runtime_dead or detail["loop_dead"]):
+              or runtime_dead or detail["loop_dead"]
+              or detail["art_response_dead"] or detail["economy_bypass_dead"]):
             final = "FAIL"  # rouge mécanique => alimente la boucle d'escalade
         else:
             # Auto-contrôle structurel AVANT de poser un OK : une preuve qui ne se
@@ -2167,6 +2266,103 @@ class ForgeDriver:
         rien (même garde que `_code_oracle_runtime_dead`)."""
         loop = detail.get("player_loop") or {}
         return loop.get("checked") is True and not loop.get("passed")
+
+    def _art_response_detail(self) -> dict:
+        """Gate s10a art_response (Lot B, T3, plan
+        `2026-08-23-forge-lot-b-game-master.md`, contrat s9 règle (15)) : le
+        contrat de retour GM ↔ Artiste. Délègue le spawn à
+        `self.art_response_runner` (par défaut `oracle.run_art_response_check`,
+        jamais un spawn direct ici — invariant `test_driver_ne_spawn_pas_directement`).
+        `<run_dir>/gm_worldscan.json` est transmis s'il existe sur disque, sinon
+        `None` (la sonde rend alors 0 `artist_requirements`, jamais une erreur).
+
+        Absence de `game_master`/`artist_requirements` dans le GM du run (1er
+        run, ou profil sans GM) : la sonde rend `checked=True, passed=True` (rien
+        n'était requis) — réécrit ici en `SKIPPED, checked=False` pour ne pas
+        laisser croire à une mesure réelle qui n'a rien eu à vérifier, et pour
+        rester cohérent avec le `SKIPPED` non bloquant documenté par le plan.
+        Toute exception devient `NOT_MEASURED` motivé, jamais bloquant."""
+        gm_path = self.run_dir / "gm_worldscan.json"
+        try:
+            receipt = self.art_response_runner(
+                self.game_dir, gm_path if gm_path.is_file() else None)
+        except Exception:  # noqa: BLE001 — advisory de mesure, jamais bloquant
+            logger.warning(
+                "art_response non mesuré pour run=%s (advisory, non bloquant)",
+                self.run_id, exc_info=True,
+            )
+            return {
+                "status": "NOT_MEASURED", "checked": False, "passed": False,
+                "reason": "exception levée pendant la mesure — advisory, non bloquant",
+            }
+        if not isinstance(receipt, dict):
+            return {
+                "status": "NOT_MEASURED", "checked": False, "passed": False,
+                "reason": "art_response_runner a rendu une valeur non exploitable",
+            }
+        stats = receipt.get("stats") if isinstance(receipt.get("stats"), dict) else {}
+        if receipt.get("status") == "OK" and stats.get("requirements", 0) == 0:
+            out = dict(receipt)
+            out.update({
+                "status": "SKIPPED", "checked": False, "passed": False,
+                "reason": "0 artist_requirements declares par le Game Master du run "
+                          "(gm_worldscan.json sans bloc game_master, ou 1er run)",
+            })
+            return out
+        return receipt
+
+    @staticmethod
+    def _code_oracle_art_response_dead(detail: dict) -> bool:
+        """Même règle que `_code_oracle_loop_dead` : GATE seulement sur une
+        mesure RÉELLEMENT `checked` et négative — `SKIPPED`/`NOT_MEASURED` ne
+        changent rien (verrou GO Pierre : « gates dès le run 10 » — ce gate est
+        déjà câblé, mais un run sans `artist_requirements` déclarés reste
+        `SKIPPED`, jamais bloquant, avant que le GM n'en produise)."""
+        ar = detail.get("art_response") or {}
+        return ar.get("checked") is True and not ar.get("passed")
+
+    def _economy_bypass_detail(self) -> dict:
+        """Garde économie (Lot B, T3, contrat s9 règle (14)) : délègue à
+        `self.economy_bypass_runner` (par défaut `product_oracle_godot.
+        check_economy_bypass`, lecture statique pure, AUCUN spawn). Transmet
+        `<run_dir>/economy.json` s'il existe (comparaison sha256 contre
+        `03_WORLD/economy.json` du build, cf. docstring de la fonction), sinon
+        `None` (le seul volet mesuré est alors la garde de tokens en dur).
+        Normalise `{passed, violations}` vers l'enveloppe `{status, checked,
+        passed, violations}` partagée avec les autres volets du gate s10a.
+        Toute exception devient `NOT_MEASURED` motivé, jamais bloquant."""
+        economy_path = self.run_dir / "economy.json"
+        try:
+            result = self.economy_bypass_runner(
+                self.game_dir, economy_path if economy_path.is_file() else None)
+        except Exception:  # noqa: BLE001 — advisory de mesure, jamais bloquant
+            logger.warning(
+                "economy_bypass non mesuré pour run=%s (advisory, non bloquant)",
+                self.run_id, exc_info=True,
+            )
+            return {
+                "status": "NOT_MEASURED", "checked": False, "passed": False,
+                "reason": "exception levée pendant la mesure — advisory, non bloquant",
+            }
+        if not isinstance(result, dict) or "passed" not in result:
+            return {
+                "status": "NOT_MEASURED", "checked": False, "passed": False,
+                "reason": "economy_bypass_runner a rendu une valeur non exploitable",
+            }
+        passed = bool(result.get("passed"))
+        return {
+            "status": "OK" if passed else "FAIL",
+            "checked": True,
+            "passed": passed,
+            "violations": result.get("violations", []),
+        }
+
+    @staticmethod
+    def _code_oracle_economy_bypass_dead(detail: dict) -> bool:
+        """Même règle que `_code_oracle_art_response_dead` : GATE seulement sur
+        une mesure RÉELLEMENT `checked` et négative."""
+        eb = detail.get("economy_bypass") or {}
+        return eb.get("checked") is True and not eb.get("passed")
 
     # --- CONTRAT_PREUVE_MUTATION_V1.md — routage + nouveau régime (mission
     # 2026-07-28, ÉTAPE 2) -----------------------------------------------
@@ -2316,10 +2512,13 @@ class ForgeDriver:
             # historique (e2e/solvabilité/harnais).
             runtime_dead = self._code_oracle_runtime_dead(detail)
             detail["loop_dead"] = self._code_oracle_loop_dead(detail)
+            detail["art_response_dead"] = self._code_oracle_art_response_dead(detail)
+            detail["economy_bypass_dead"] = self._code_oracle_economy_bypass_dead(detail)
             if status == "BLOCKED":
                 final = "BLOCKED"
             elif (status == "FAIL" or not e2e_ok or not solvability["passed"]
-                  or not harness_flags["passed"] or runtime_dead or detail["loop_dead"]):
+                  or not harness_flags["passed"] or runtime_dead or detail["loop_dead"]
+                  or detail["art_response_dead"] or detail["economy_bypass_dead"]):
                 final = "FAIL"
             else:
                 final = "OK"
@@ -2352,11 +2551,14 @@ class ForgeDriver:
 
         runtime_dead = self._code_oracle_runtime_dead(detail)
         detail["loop_dead"] = self._code_oracle_loop_dead(detail)
+        detail["art_response_dead"] = self._code_oracle_art_response_dead(detail)
+        detail["economy_bypass_dead"] = self._code_oracle_economy_bypass_dead(detail)
         if status == "BLOCKED":
             final = "BLOCKED"
         elif (status == "FAIL" or not e2e_ok or not solvability["passed"]
               or not harness_flags["passed"] or receipt.receipt.status != "OK"
-              or runtime_dead or detail["loop_dead"]):
+              or runtime_dead or detail["loop_dead"]
+              or detail["art_response_dead"] or detail["economy_bypass_dead"]):
             final = "FAIL"  # rouge mécanique => alimente la boucle d'escalade
         else:
             # Auto-contrôle structurel AVANT de poser un OK -- même garde que le

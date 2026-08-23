@@ -18,6 +18,7 @@ claim_verdict: NO_CLAIM_ALLOWED — ce module ne produit aucun claim, il exécut
 from __future__ import annotations
 
 import argparse
+import hashlib
 import inspect
 import json
 import logging
@@ -1046,7 +1047,7 @@ def _validate_worldscan(data: dict) -> str:
     return ""
 
 
-def _validate_prisme(data: dict) -> str:
+def _validate_prisme(data: dict, run_dir: "Path | None" = None) -> str:
     """'' si prisme.json est structurellement exploitable, sinon la raison du rejet.
 
     Garde-fou MINIMAL avant écriture, même régime que `_validate_worldscan` :
@@ -1076,6 +1077,76 @@ def _validate_prisme(data: dict) -> str:
             return (f"exigences[{i}].source doit valoir EXPECTED ou ADDITIONS "
                     f"(reçu {source!r}) — CORE ne transite JAMAIS par un modèle, "
                     "son origine est core_list par construction")
+    gm_reason = _validate_prisme_gm_sources(data, run_dir)
+    if gm_reason:
+        return gm_reason
+    return ""
+
+
+_GM_LOOPS_PREFIX = "gm_worldscan:game_master.loops."
+_GM_GREY_BLOCKS_PREFIX = "gm_worldscan:game_master.grey_blocks."
+
+
+def _is_loop_exigence(ex: dict) -> bool:
+    """Même définition que `upstream_schema.isLoopExigence` : acteur PLAYER, ou
+    loop_role présent et ≠ NONE."""
+    if ex.get("acteur") == "PLAYER":
+        return True
+    role = ex.get("loop_role")
+    return role is not None and role != "NONE"
+
+
+def _gm_address_resolves(gm: dict, addr: str) -> bool:
+    """`gm_worldscan:game_master.loops.<loop>.<step_id>` ou
+    `gm_worldscan:game_master.grey_blocks.<id>` — résolution par ids, jamais par
+    position."""
+    block = gm.get("game_master") if isinstance(gm, dict) else None
+    if not isinstance(block, dict):
+        return False
+    if addr.startswith(_GM_LOOPS_PREFIX):
+        rest = addr[len(_GM_LOOPS_PREFIX):]
+        loop_name, _, step_id = rest.partition(".")
+        steps = (block.get("loops") or {}).get(loop_name)
+        if not isinstance(steps, list) or not step_id:
+            return False
+        return any(isinstance(st, dict) and st.get("id") == step_id for st in steps)
+    if addr.startswith(_GM_GREY_BLOCKS_PREFIX):
+        gb_id = addr[len(_GM_GREY_BLOCKS_PREFIX):]
+        blocks = block.get("grey_blocks")
+        return isinstance(blocks, list) and any(
+            isinstance(b, dict) and b.get("id") == gb_id for b in blocks)
+    return False
+
+
+def _validate_prisme_gm_sources(data: dict, run_dir: "Path | None") -> str:
+    """Lot B (GO Pierre 2026-08-23, « gates dès le run 10 ») : quand le Game Master
+    du run porte un bloc `game_master`, CHAQUE exigence de boucle du Prisme cite
+    une adresse GM qui RÉSOUT — sinon prisme.json n'est pas matérialisable. Sans
+    run_dir, sans gm_worldscan.json ou sans bloc `game_master` (runs antérieurs au
+    Lot B) : '' — comportement strictement inchangé. Jamais d'exception."""
+    if run_dir is None:
+        return ""
+    try:
+        gm_path = Path(run_dir) / "gm_worldscan.json"
+        if not gm_path.exists():
+            return ""
+        gm = json.loads(gm_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    if not isinstance(gm, dict) or not isinstance(gm.get("game_master"), dict):
+        return ""
+    for i, ex in enumerate(data.get("exigences") or []):
+        if not isinstance(ex, dict) or not _is_loop_exigence(ex):
+            continue
+        ref = ex.get("reference") if isinstance(ex.get("reference"), str) else ""
+        ex_id = ex.get("id") or f"exigences[{i}]"
+        if not (ref.startswith(_GM_LOOPS_PREFIX) or ref.startswith(_GM_GREY_BLOCKS_PREFIX)):
+            return (f"exigence de boucle '{ex_id}' sans source Game Master — reference doit "
+                    f"citer `gm_worldscan:game_master.loops.<loop>.<step_id>` ou "
+                    f"`gm_worldscan:game_master.grey_blocks.<id>` (reçu: {ref!r})")
+        if not _gm_address_resolves(gm, ref):
+            return (f"exigence de boucle '{ex_id}' : adresse {ref!r} ne résout pas dans "
+                    f"game_master de {gm_path}")
     return ""
 
 
@@ -1245,6 +1316,53 @@ def _validate_sources_consumed(data: dict, run_dir: Path) -> str:
     return ""
 
 
+_GAME_MASTER_SCHEMA_SCRIPT = Path(__file__).resolve().parent / "game_master_schema.mjs"
+_GAME_MASTER_SCHEMA_TIMEOUT_S = 60.0
+
+
+def _validate_game_master_block(data: dict, run_dir: Path) -> str:
+    """'' si `data['game_master']` (Lot B 2026-08-23) est structurellement valide au
+    sens de `game_master_schema.validateGameMaster`, sinon la raison (problèmes
+    joints). Délègue à `node game_master_schema.mjs <tmp>.json --json` — même patron
+    subprocess que `_materialize_loop_spec` : écrit `data` COMPLET (le script lit
+    `data.game_master`) dans un fichier temporaire sous `run_dir`, appelle node,
+    supprime le fichier temporaire dans un `finally`. Jamais d'exception : un node
+    non exécutable ou une sortie illisible devient un refus honnête nommé."""
+    if "game_master" not in data:
+        return ("'game_master' absent — bloc obligatoire (Lot B 2026-08-23), "
+                "traduction du monde découvert en jeu mesurable")
+    run_dir.mkdir(parents=True, exist_ok=True)
+    tmp_path = run_dir / "._game_master_check.tmp.json"
+    try:
+        tmp_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    except OSError as exc:
+        return f"game_master : fichier temporaire non écrit ({exc})"
+    try:
+        proc = subprocess.run(
+            ["node", str(_GAME_MASTER_SCHEMA_SCRIPT), str(tmp_path), "--json"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=_GAME_MASTER_SCHEMA_TIMEOUT_S, cwd=str(REPO_ROOT),
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return f"game_master : validateur non exécutable ({str(exc)[:150]})"
+    finally:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+    try:
+        payload = json.loads(proc.stdout)
+    except (json.JSONDecodeError, TypeError):
+        return f"game_master : sortie du validateur illisible (rc={proc.returncode})"
+    if not isinstance(payload, dict) or "ok" not in payload:
+        return "game_master : sortie du validateur inexploitable (pas de champ 'ok')"
+    if payload.get("ok"):
+        return ""
+    problems = payload.get("problems")
+    problems_txt = "; ".join(str(p) for p in problems) if isinstance(problems, list) else "raison inconnue"
+    return f"game_master invalide — {problems_txt}"
+
+
 def _validate_gm_worldscan(data: dict, run_dir: "Path | None" = None) -> str:
     """§7.2 · s2.7 — '' si l'artefact est structurellement exploitable, sinon la raison
     du rejet. Garde-fou MINIMAL avant écriture, même esprit que `_validate_worldscan` :
@@ -1268,6 +1386,9 @@ def _validate_gm_worldscan(data: dict, run_dir: "Path | None" = None) -> str:
                 "exige au moins deux points d'observation)")
     if run_dir is not None:
         reason = _validate_sources_consumed(data, Path(run_dir))
+        if reason:
+            return reason
+        reason = _validate_game_master_block(data, Path(run_dir))
         if reason:
             return reason
     return ""
@@ -1573,6 +1694,56 @@ def _materialize_loop_spec(etape: str, run_dir: Path) -> dict | None:
     }
 
 
+def _materialize_economy(etape: str, run_dir: Path) -> dict | None:
+    """Après matérialisation OK de `gm_worldscan.json` (s2.7-gm-worldscan), dérive et
+    écrit `economy.json` via `node game_master_schema.mjs <gm_worldscan.json> --json
+    --economy <out>` (même patron subprocess que `_materialize_loop_spec`). Retourne
+    None si l'étape n'est pas s2.7-gm-worldscan, sinon le reçu {written, path,
+    sha256, check:{ok, problems}} — `written:false` si `gm_worldscan.json` est
+    absent ou si la dérivation échoue. Ne lève jamais — un échec ici est un reçu
+    honnête, jamais un crash de chaîne (même contrat que `loop_check`)."""
+    if etape != "s2.7-gm-worldscan":
+        return None
+    gm_path = run_dir / "gm_worldscan.json"
+    if not gm_path.exists():
+        return {"written": False,
+                "reason": "gm_worldscan.json absent — economy.json non derivable"}
+    economy_path = run_dir / "economy.json"
+    try:
+        proc = subprocess.run(
+            ["node", str(_GAME_MASTER_SCHEMA_SCRIPT), str(gm_path), "--json",
+             "--economy", str(economy_path)],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=_GAME_MASTER_SCHEMA_TIMEOUT_S, cwd=str(REPO_ROOT),
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("game_master_schema non executable pour etape=%s : %s", etape, exc)
+        return {"written": False,
+                "reason": f"game_master_schema non executable ({str(exc)[:150]})"}
+    try:
+        payload = json.loads(proc.stdout)
+    except (json.JSONDecodeError, TypeError):
+        logger.warning("game_master_schema : sortie illisible (etape=%s, rc=%s)",
+                       etape, proc.returncode)
+        return {"written": False,
+                "reason": f"game_master_schema sortie illisible (rc={proc.returncode})"}
+    if not economy_path.exists():
+        return {"written": False, "reason": "economy.json non ecrit par game_master_schema"}
+    try:
+        digest = hashlib.sha256(economy_path.read_bytes()).hexdigest()
+    except OSError as exc:
+        return {"written": False, "reason": f"lecture economy.json impossible ({exc})"}
+    return {
+        "written": True,
+        "path": str(economy_path),
+        "sha256": digest,
+        "check": {
+            "ok": bool(payload.get("ok")) if isinstance(payload, dict) else False,
+            "problems": list(payload.get("problems") or [])[:5] if isinstance(payload, dict) else [],
+        },
+    }
+
+
 def _materialize_markdown(etape: str, output: str, run_dir: Path) -> dict | None:
     """Écrit l'artefact TEXTE de l'étape (ex. product_snapshot.md pour s1-prisme)
     et exécute son validateur. Retourne le reçu {written, path, check: {...}} ou
@@ -1806,8 +1977,16 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # déjà produites (audit docs/audit/2026-08-23-kitten-clicker-worldscan-artbible-gm-pipe.md).
     # Fichiers absents (profils sans s2.5/s2.6) => omis par upstream_artifacts_section,
     # comportement inchangé.
+    # Lot B T2(b) (2026-08-23) : le GM reçoit AUSSI l'héritage inter-run (contrat
+    # d'artefacts GM <-> Artiste, sans station nouvelle, cf. plan Lot B) — la réponse
+    # de l'Artiste au run précédent (`heritage/art_response.json`) et son propre
+    # `gm_worldscan.json` précédent (`heritage/gm_worldscan.json`), copiés en fin de
+    # run par le driver dans `lab/forge_runs/<projet>/heritage/`. Absents (1er run,
+    # ou dossier heritage/ non encore peuplé) => omis par upstream_artifacts_section,
+    # comportement inchangé.
     "s2.7-gm-worldscan": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
-                          "art_bible.md", "asset_requests.json"),
+                          "art_bible.md", "asset_requests.json",
+                          "heritage/art_response.json", "heritage/gm_worldscan.json"),
     # §7.2 · s2.6 — la Story Bible reçoit ses DEUX seules sources d'ancrage. Le
     # charter est un fichier de run (comme pour s3) ; absent => section amont réduite,
     # et le worker le déclare dans inputs_recus au lieu de compenser.
@@ -1816,8 +1995,14 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # du Prisme — `product_snapshot.md` retiré de son mandatory_read), produite AVANT
     # s2.7 dans full_godot_content (cf. dispatch.PROFILES). Absents (profils sans
     # s2.5) => omis par upstream_artifacts_section, comportement inchangé.
+    # Lot B T2(b) (2026-08-23) : l'Art Director reçoit l'héritage inter-run — sa
+    # propre Art Bible précédente et la réponse Artiste (`04_ASSETS/art_response.json`
+    # du build précédent, copiée par le driver dans `heritage/`) : c'est le « à terme »
+    # bidirectionnel GM <-> Artiste, sans station nouvelle (cf. plan Lot B). Absents
+    # (1er run) => omis par upstream_artifacts_section, comportement inchangé.
     "s2.5-artbible": ("charter.yaml", "artifacts/s2-worldscan.txt",
-                      "artifacts/s2.6-story-bible.txt"),
+                      "artifacts/s2.6-story-bible.txt",
+                      "heritage/art_bible.md", "heritage/art_response.json"),
     # Choix (b) Pierre 2026-08-21 : idem pour la décompo (mêmes deux artefacts amont,
     # après les 3 sources déjà existantes). Fichier absent => omis, comportement
     # inchangé pour les profils qui ne produisent pas s2.6/s2.7.
@@ -1848,8 +2033,12 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # full_godot_narratif) : aucune injection n'existait pour s9-build-godot-standard,
     # lecture déclarative seule. Absents (autres profils) => omis par
     # upstream_artifacts_section, comportement inchangé.
+    # Lot B T2(b) (2026-08-23) : le builder reçoit AUSSI `economy.json` — projection
+    # déterministe de `game_master.economy_model` + métriques invariant, dérivée par
+    # l'exécuteur à s2.7 (cf. `_materialize_economy`) ; absent (game_master non
+    # matérialisé) => omis par upstream_artifacts_section, comportement inchangé.
     "s9-build-godot-standard": ("blueprint.json", "wiremap.json", "art_bible.md",
-                                "asset_requests.json", "loop.json"),
+                                "asset_requests.json", "loop.json", "economy.json"),
     "s11-redteam-code": ("wiremap.json",),
 }
 
@@ -2127,6 +2316,13 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
             loop_receipt = _materialize_loop_spec(etape, Path(context["run_dir"]))
             if loop_receipt is not None:
                 res["loop_check"] = loop_receipt
+            # Lot B T2(a) : economy.json = PROJECTION DÉTERMINISTE de
+            # gm_worldscan.json.game_master (economy_model + métriques invariant),
+            # dérivée par l'exécuteur APRÈS que gm_worldscan.json soit sur disque —
+            # même patron que loop.json/loop_check ci-dessus.
+            economy_receipt = _materialize_economy(etape, Path(context["run_dir"]))
+            if economy_receipt is not None:
+                res["economy_check"] = economy_receipt
             # (c) oracle amont + réparation ciblée, immédiatement après l'écriture de
             # l'artefact. C'est le seul instant où l'artefact existe, est frais, et où
             # personne n'a encore construit dessus : réparer plus tard reviendrait à

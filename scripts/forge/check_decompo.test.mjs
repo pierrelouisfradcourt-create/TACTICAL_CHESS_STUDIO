@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
 import { existsSync } from 'node:fs';
-import { checkDecompoDoc, granularite } from './check_decompo.mjs';
+import { checkDecompoDoc, granularite, greyBlocks, checkGreyBlockCoverage } from './check_decompo.mjs';
 import {
   prismeReference, featuremapReference, featuremapInventee, featuremapAmputee,
 } from './upstream_fixtures.mjs';
@@ -439,4 +439,71 @@ test('MAILLONS: stats.maillons_couverts par defaut a zero quand aucun role F/G/H
   assert.deepEqual(r.stats.maillons_couverts, {
     F: 0, G: 0, H: 0, I: 0, J: 0,
   });
+});
+
+// --- Lot B, T3 (2026-08-23) : couverture des grey_blocks[] du Game Master ------
+
+test('grey blocks: sans --gm (gm=null), 0 grey block, comportement inchange', () => {
+  const r = checkDecompoDoc(featuremapReference(), prismeReference(), null);
+  assert.equal(r.verdict, 'OK');
+  assert.equal(r.stats.grey_blocks, 0);
+  assert.equal(r.stats.grey_blocks_couverts, 0);
+  assert.deepEqual(r.grey_blocks_non_decomposes, []);
+});
+
+test('grey blocks: gm SANS bloc game_master, 0 grey block, comportement inchange', () => {
+  const gm = { genre: 'clicker/idle', games_observed: [], dimensions: [] };
+  const r = checkDecompoDoc(featuremapReference(), prismeReference(), gm);
+  assert.equal(r.verdict, 'OK');
+  assert.equal(r.stats.grey_blocks, 0);
+});
+
+test('greyBlocks(): extrait les ids valides, ignore les entrees mal formees', () => {
+  const gm = {
+    game_master: {
+      grey_blocks: [
+        { id: 'garden', type: 'LOCATION' },
+        { type: 'ACTOR' }, // sans id -> ignore
+        'texte', // pas un objet -> ignore
+        { id: 'shop' },
+      ],
+    },
+  };
+  assert.deepEqual(greyBlocks(gm).map((b) => b.id), ['garden', 'shop']);
+});
+
+test('grey blocks: id porte par une feuille (leaf.id) -> couvert', () => {
+  const fm = featuremapReference();
+  const firstLeaf = fm.systemes[0].features[0].capacites[0];
+  const gm = { game_master: { grey_blocks: [{ id: firstLeaf.id }] } };
+  const r = checkGreyBlockCoverage(fm, gm);
+  assert.equal(r.grey_blocks, 1);
+  assert.equal(r.grey_blocks_couverts, 1);
+  assert.deepEqual(r.findings, []);
+});
+
+test('grey blocks: id porte par source_ref d une feuille -> couvert', () => {
+  const fm = featuremapReference();
+  const firstLeaf = fm.systemes[0].features[0].capacites[0];
+  const gm = { game_master: { grey_blocks: [{ id: firstLeaf.source_ref }] } };
+  const r = checkGreyBlockCoverage(fm, gm);
+  assert.equal(r.grey_blocks_couverts, 1);
+});
+
+test('grey blocks: id absent de toute feuille -> finding grey_block_non_decompose, FAIL', () => {
+  const gm = { game_master: { grey_blocks: [{ id: 'jamais_decompose' }] } };
+  const r = checkDecompoDoc(featuremapReference(), prismeReference(), gm);
+  assert.equal(r.verdict, 'FAIL');
+  assert.equal(r.stats.grey_blocks, 1);
+  assert.equal(r.stats.grey_blocks_couverts, 0);
+  assert.equal(r.grey_blocks_non_decomposes.length, 1);
+  assert.match(r.grey_blocks_non_decomposes[0], /jamais_decompose/);
+  assert.match(r.grey_blocks_non_decomposes[0], /grey_block_non_decompose/);
+});
+
+test('grey blocks: mesure reelle run 9 -- gm_worldscan sans game_master -> 0 grey block', () => {
+  const gmPath = resolve(REPO_ROOT, 'lab/forge_runs/kitten_clicker/_run9_20260823a/gm_worldscan.json');
+  if (!existsSync(gmPath)) return; // fixture absente sur ce poste, pas une assertion sur du vide
+  const gm = JSON.parse(readFileSync(gmPath, 'utf-8'));
+  assert.equal(greyBlocks(gm).length, 0, 'baseline mesuree run 9 : pas de bloc game_master');
 });

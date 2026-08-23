@@ -90,24 +90,38 @@ def test_s25_recoit_les_3_fichiers_amont_depuis_la_fixture_run9(tmp_path):
 
 
 def test_manifeste_dispatch_s27_porte_4_sources_upstream_exists_true(tmp_path):
+    # Lot B T2(b) (2026-08-23) : s2.7 gagne 2 entrées upstream supplémentaires
+    # (heritage/art_response.json, heritage/gm_worldscan.json) — absentes au 1er
+    # run (aucun dossier heritage/ dans cette fixture), donc exists:False pour
+    # elles ; les 4 originales restent présentes et exists:True (comportement
+    # inchangé pour les fichiers déjà couverts par le Lot A).
     _copy_run9_upstream_fixture(tmp_path)
     contract = load_contract("s2.7-gm-worldscan")
     sources = cm.resolve_dispatch_sources("s2.7-gm-worldscan", contract, run_dir=tmp_path)
     upstream = [s for s in sources if s["role"] == "upstream"]
-    assert len(upstream) == 4
-    assert all(s["exists"] for s in upstream)
-    assert {s["path"].split("/")[-1] for s in upstream} == {
-        "s2-worldscan.txt", "s2.6-story-bible.txt", "art_bible.md", "asset_requests.json",
-    }
+    assert len(upstream) == 6
+    original = {"s2-worldscan.txt", "s2.6-story-bible.txt", "art_bible.md", "asset_requests.json"}
+    heritage = {"art_response.json", "gm_worldscan.json"}
+    by_name = {s["path"].split("/")[-1]: s for s in upstream}
+    assert set(by_name) == original | heritage
+    assert all(by_name[name]["exists"] for name in original)
+    assert all(not by_name[name]["exists"] for name in heritage)
 
 
 def test_manifeste_dispatch_s25_porte_3_sources_upstream_exists_true(tmp_path):
+    # Lot B T2(b) (2026-08-23) : s2.5 gagne 2 entrées upstream (heritage/art_bible.md,
+    # heritage/art_response.json), absentes au 1er run — mêmes garanties que ci-dessus.
     _copy_run9_upstream_fixture(tmp_path)
     contract = load_contract("s2.5-artbible")
     sources = cm.resolve_dispatch_sources("s2.5-artbible", contract, run_dir=tmp_path)
     upstream = [s for s in sources if s["role"] == "upstream"]
-    assert len(upstream) == 3
-    assert all(s["exists"] for s in upstream)
+    assert len(upstream) == 5
+    original = {"charter.yaml", "s2-worldscan.txt", "s2.6-story-bible.txt"}
+    heritage = {"art_bible.md", "art_response.json"}
+    by_name = {s["path"].split("/")[-1]: s for s in upstream}
+    assert set(by_name) == original | heritage
+    assert all(by_name[name]["exists"] for name in original)
+    assert all(not by_name[name]["exists"] for name in heritage)
 
 
 # --- T2(d) : preuve de CONSOMMATION (`sources_consumed`) -----------------------
@@ -162,12 +176,23 @@ def _valid_sources_consumed(story_bible_data: dict) -> dict:
     }
 
 
+_GM_GAME_MASTER_VALID_FIXTURE = (
+    Path(__file__).resolve().parent / "fixtures" / "gm_game_master_valid.json"
+)
+
+
 def test_gm_worldscan_synthetique_avec_sources_consumed_valides_accepte(tmp_path):
+    # Lot B (2026-08-23) : `game_master` est désormais obligatoire APRÈS
+    # `sources_consumed` (cf. `_validate_gm_worldscan`) — la fixture valide partagée
+    # (`tests/fixtures/gm_game_master_valid.json`, réutilisée par
+    # `game_master_schema.test.mjs` et `test_gm_game_master_block.py`) fournit un
+    # bloc complet pour que ce test continue de mesurer sources_consumed seul.
     _copy_run9_upstream_fixture(tmp_path)
     (tmp_path / "art_bible.md").write_text(_VALID_ART_BIBLE, encoding="utf-8")
     story_bible_data = json.loads((tmp_path / "story_bible.json").read_text(encoding="utf-8"))
     data = json.loads((RUN9 / "gm_worldscan.json").read_text(encoding="utf-8"))
     data["sources_consumed"] = _valid_sources_consumed(story_bible_data)
+    data["game_master"] = json.loads(_GM_GAME_MASTER_VALID_FIXTURE.read_text(encoding="utf-8"))
     reason = run_real._validate_gm_worldscan(data, run_dir=tmp_path)
     assert reason == ""
 

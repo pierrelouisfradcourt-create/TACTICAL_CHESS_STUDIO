@@ -222,6 +222,64 @@ export function validateLoopFields(ex, loc) {
   return findings;
 }
 
+// --- GAME MASTER — sourcage des exigences de boucle (Lot B, T3, 2026-08-23) -----
+// Le GM (s2.7, `gm_worldscan.json` bloc `game_master`) devient la source des
+// boucles/grey blocks pour le Prisme : toute exigence de boucle DOIT citer une
+// adresse `gm_worldscan:game_master.loops.*` ou `…grey_blocks.<id>` — sinon les
+// métriques/preuves qu'elle impose sont réinventées à chaque étape plutôt que
+// reprises du GM (plan `2026-08-23-forge-lot-b-game-master.md`, contrat s1).
+// ADDITIF, findings seulement : mesuré et reporté (stats `check_prisme_manifest`),
+// gaté seulement à partir du run 10 (verrou GO Pierre) — jamais ici.
+
+export const GM_LOOPS_PREFIX = 'gm_worldscan:game_master.loops.';
+export const GM_GREY_BLOCKS_PREFIX = 'gm_worldscan:game_master.grey_blocks.';
+
+/**
+ * Vrai si `ex` est une exigence DE BOUCLE au sens du contrat s1 GM : sujet
+ * PLAYER, ou position dans la séquence de boucle (`loop_role` renseigné et
+ * différent de NONE). Une exigence sans AUCUN de ces deux signaux est une
+ * exigence produit ordinaire, hors du périmètre de cette règle.
+ * @param {unknown} ex
+ * @returns {boolean}
+ */
+export function isLoopExigence(ex) {
+  if (ex === null || typeof ex !== 'object') return false;
+  if (ex.acteur === 'PLAYER') return true;
+  return ex.loop_role !== undefined && ex.loop_role !== null && ex.loop_role !== 'NONE';
+}
+
+/**
+ * Vrai si la `reference` de `ex` cite une adresse GM valide (boucle ou grey
+ * block). N'inspecte que `reference` — jamais `claim`/`enonce`, qui ne portent
+ * pas de provenance.
+ * @param {unknown} ex
+ * @returns {boolean}
+ */
+export function hasGmSource(ex) {
+  const ref = typeof ex?.reference === 'string' ? ex.reference : '';
+  return ref.startsWith(GM_LOOPS_PREFIX) || ref.startsWith(GM_GREY_BLOCKS_PREFIX);
+}
+
+/**
+ * Valide le sourçage GM d'une exigence de boucle (ADDITIF — cf. en-tête de
+ * section). Une exigence hors boucle (`isLoopExigence` faux) ne produit jamais
+ * de finding : rétro-compatibilité totale des exigences produit ordinaires et
+ * des runs antérieurs au GM (aucun champ de boucle renseigné).
+ * @param {object} ex
+ * @param {string} loc
+ * @returns {string[]}
+ */
+export function validateGmSource(ex, loc) {
+  if (!isLoopExigence(ex)) return [];
+  if (hasGmSource(ex)) return [];
+  const id = isNonEmptyString(ex?.id) ? ex.id : '?';
+  return [
+    `${loc}: boucle_sans_source_gm (id=${id}) — une exigence de boucle (acteur=PLAYER `
+    + `ou loop_role!=NONE) doit citer une reference commencant par '${GM_LOOPS_PREFIX}' `
+    + `ou '${GM_GREY_BLOCKS_PREFIX}' (contrat s1, plan Lot B)`,
+  ];
+}
+
 // --- primitives de validation ---------------------------------------------------
 
 /**
@@ -367,6 +425,16 @@ export function validateExigence(ex, idx) {
     findings.push(`${loc}.destination: invalide (attendu: ${DESTINATIONS.join('|')}) — une exigence sans consommateur aval est un cul-de-sac`);
   }
   findings.push(...validateLoopFields(ex, loc));
+  // NOTE (Lot B, T3, 2026-08-23) : `validateGmSource` n'est PAS appelé ici.
+  // `validateExigence`/`validatePrisme` sont consommés par `loop_spec.test.mjs`
+  // (agent C, en cours de travail concurrent) avec un contrat implicite « 0
+  // finding = champs de boucle valides », indépendant du sourçage GM — mesuré :
+  // aucune fixture de ce fichier ne porte de `reference` GM, câbler le sourçage
+  // ici ferait échouer ~20 tests hors périmètre de cette mission. Le sourçage
+  // GM est mesuré à l'endroit qui le CONSOMME réellement (`check_prisme_manifest.
+  // checkPrismeDoc`, stats `exigences_boucle`/`exigences_sourcees_gm`), pas ici.
+  // `validateGmSource` reste exportée et testée pour un futur appelant qui
+  // voudra la chaîne complète (ex. un `validatePrismeGm` dédié).
   return findings;
 }
 

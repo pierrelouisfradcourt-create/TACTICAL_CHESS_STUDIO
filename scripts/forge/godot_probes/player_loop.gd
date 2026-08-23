@@ -18,6 +18,17 @@ extends SceneTree
 # definis plus haut dans `loop.json` (identifies par leur `ref`), sans jamais
 # reconnaitre le jeu — seule la structure loop.json est lue.
 #
+# target_frames (Lot B T4, 2026-08-23) : un step peut porter `target_frames:
+# {min, max, ref}` (projete par loop_spec.mjs depuis exigence.target, valide
+# min < max) — la sonde compte les frames de CHAQUE step (du before a
+# l'evaluate inclus ; pour REPEAT, chemin principal = ses rejeux, seule
+# execution qu'il a ; pour DECISION, chemin principal = la continuation finale
+# SEULEMENT, les trajectoires contre-factuelles exploratoires sont exclues) et
+# emet `data.steps[].frames` + `data.targets[]` (une entree par step portant
+# target_frames). Si target_frames present, le step PASS ssi le predicat PASS
+# ET min <= frames <= max, sinon raison "target_frames : <frames> hors
+# [min, max] (ref <ref>)".
+#
 # role DECISION (options/policies/metric/horizon_frames) : point de decision
 # significative (6 preuves — INFORMATION, CHOICE, IMMEDIATE, FUTURE, NON-DOMINANCE,
 # PLAYER GOAL). La sonde libere/reinstancie la scene principale (`_reset_scene`) pour
@@ -50,6 +61,8 @@ var _appears_before := -1
 var _results: Array = []
 var _fails: Array[String] = []
 var _reached_role := "NONE"
+var _step_frame_start := -1   # frame ou le step (ou le REPEAT en cours) a commence, -1 = aucun step ouvert
+var _targets: Array = []      # data.targets : une entree par step portant target_frames
 
 var _seen: Dictionary = {}      # hud -> Array[String] : toutes les valeurs before/after vues
 var _initial: Dictionary = {}   # hud -> String : premiere valeur jamais vue sur ce hud
@@ -183,6 +196,8 @@ func _process(_delta: float) -> bool:
 
 
 func _do_before(step: Dictionary, task: Dictionary) -> void:
+	if _step_frame_start < 0:
+		_step_frame_start = _frames
 	var observe = step.get("observe", {})
 	var hud_name := String(observe.get("hud", "")) if typeof(observe) == TYPE_DICTIONARY else ""
 	var label := _find_hud(hud_name)
@@ -324,9 +339,25 @@ func _evaluate(step: Dictionary, task: Dictionary) -> void:
 		_advance_task()
 		return
 
+	var step_frames := _frames - _step_frame_start + 1
+	_step_frame_start = -1
+
+	var target_frames = step.get("target_frames", {})
+	if typeof(target_frames) == TYPE_DICTIONARY and target_frames.has("min") and target_frames.has("max"):
+		var tmin := int(target_frames.get("min", 0))
+		var tmax := int(target_frames.get("max", 0))
+		var tref := String(target_frames.get("ref", ""))
+		var target_pass: bool = step_frames >= tmin and step_frames <= tmax
+		_targets.append({"ref": ref, "metric_ref": tref, "frames": step_frames,
+			"min": tmin, "max": tmax, "pass": target_pass})
+		if not target_pass and passed:
+			passed = false
+			reason = "target_frames : %d hors [%d, %d] (ref %s)" % [step_frames, tmin, tmax, tref]
+
 	var result := {
 		"role": role, "ref": ref, "affordance": String(step.get("affordance", "")),
 		"before": _before_text, "after": after_text, "pass": passed, "reason": reason,
+		"frames": step_frames,
 	}
 	if _appears_group != "":
 		result["appears_before"] = _appears_before
@@ -361,10 +392,29 @@ func _do_replay_end(task: Dictionary) -> void:
 	elif not all_pass:
 		reason = "replay(s) en echec : %s" % ", ".join(failed_refs)
 
+	# chemin principal de REPEAT = les rejeux effectivement executes (sa seule
+	# execution, contrairement a DECISION qui a un chemin principal distinct
+	# de ses trajectoires exploratoires) : du before du 1er rejeu (deja
+	# capture dans _step_frame_start par _do_before) a cette agregation.
+	var step_frames := _frames - _step_frame_start + 1
+	_step_frame_start = -1
+
+	var target_frames = orig_step.get("target_frames", {}) if typeof(orig_step) == TYPE_DICTIONARY else {}
+	if typeof(target_frames) == TYPE_DICTIONARY and target_frames.has("min") and target_frames.has("max"):
+		var tmin := int(target_frames.get("min", 0))
+		var tmax := int(target_frames.get("max", 0))
+		var tref := String(target_frames.get("ref", ""))
+		var target_pass: bool = step_frames >= tmin and step_frames <= tmax
+		_targets.append({"ref": parent_ref, "metric_ref": tref, "frames": step_frames,
+			"min": tmin, "max": tmax, "pass": target_pass})
+		if not target_pass and all_pass:
+			all_pass = false
+			reason = "target_frames : %d hors [%d, %d] (ref %s)" % [step_frames, tmin, tmax, tref]
+
 	_results.append({
 		"role": role, "ref": parent_ref, "affordance": "",
 		"before": "", "after": "", "pass": all_pass, "reason": reason,
-		"replays": replays,
+		"replays": replays, "frames": step_frames,
 	})
 
 	if not all_pass:
@@ -484,7 +534,7 @@ func _emit() -> void:
 	var ok: bool = _fails.is_empty()
 	var data := {
 		"steps": _results, "reached_role": _reached_role, "frames": _frames,
-		"deltas": _deltas, "seen": _seen,
+		"deltas": _deltas, "seen": _seen, "targets": _targets,
 	}
 	if not _decision_result.is_empty():
 		data["decision"] = _decision_result
@@ -776,11 +826,17 @@ func _run_decision(step: Dictionary) -> void:
 		"player_goal": player_goal_ok, "pass": overall, "reasons": reasons,
 	}
 
-	_results.append({
+	# frames (Lot B T4) : chemin principal de DECISION = la continuation finale
+	# SEULEMENT (les trajectoires INFORMATION/IMMEDIATE/NONDOMINANCE ci-dessus
+	# sont exploratoires, explicitement exclues) ; 0 si DECISION echoue avant
+	# d'y arriver (pas de continuation jouee).
+	var decision_entry := {
 		"role": "DECISION", "ref": ref, "affordance": "",
 		"before": "", "after": "", "pass": overall,
 		"reason": (String(reasons[0]) if not overall and reasons.size() > 0 else ""),
-	})
+		"frames": 0,
+	}
+	_results.append(decision_entry)
 
 	if not overall:
 		for r in reasons:
@@ -792,9 +848,11 @@ func _run_decision(step: Dictionary) -> void:
 	_reached_role = "DECISION"
 
 	# continuation : la sequence reprend sur la trajectoire de options[0] (convention).
+	var continuation_frame_start := _frames
 	await _reset_scene()
 	await _replay_prefix_silent(prefix)
 	await _click_affordance_once(affordance_a)
 	await _wait_frames(wait_frames)
+	decision_entry["frames"] = _frames - continuation_frame_start + 1
 
 	_advance_task()

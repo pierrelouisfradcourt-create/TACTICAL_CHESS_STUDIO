@@ -38,17 +38,10 @@ bloc runtime inconditionnel dès `run/main_scene`, `loop_dead` gate. Run 8a HALT
 (`_run8_20260821h2/`) : A→J 12/12 mesuré par le driver, verdict FAIL hors boucle ; 0/4 affordances liées selon
 `check_wiremap_contract` (non consommé par l'exécuteur, `EFFECT_KINDS` trop étroit).
 
-### Décision Pierre 2026-08-23 (après run 8b) — ratifiée
-**A → J est nécessaire, pas suffisant.** Gameplay Contract = mécanisme de vérification VALIDÉ (runtime, entrées, affordances,
-feedback, reward, unlock, repeat, progression observable, meta-loop : TESTED) ; qualité du gameplay = **HumanGate FAIL** (« encore
-le même objectif avec un numéro différent » ; machine à compter). Pas de verdict global. **Code : ne pas toucher. Rien aujourd'hui.**
-Prochain travail SEULEMENT après avoir défini ce qu'est une **décision significative** dans le jeu cible : le contrat devra
-distinguer LOOP_EXISTS de LOOP_HAS_MEANINGFUL_DECISION (REWARD → DECISION → NEXT_STATE avec transformation réelle : deux choix
-→ deux états différents → objectif adapté) et mesurer des **changements de possibilité** (affordances disponibles par objectif),
-pas un texte (`new_distinct` = syntaxiquement correct, sémantiquement insuffisant). Jamais un LLM pour ça. Confrontation aux
-données 8b : les 4 affordances existent dès le Palier 0 (capture) ; `appears` n'a compté que le lieu `jardin` → sous ce critère,
-GOAL_1/2/3 ont le même espace d'action = FAIL, cohérent avec le ressenti. Interdits maintenus : oracle LLM, station, profil,
-narration, architecture, « plusieurs heures », vocabulaire STANDARD/Prisme, reuse, red-team.
+### Décision significative (2026-08-23, archivé `…-decision-produit.md`) — résumé
+A→J nécessaire pas suffisant ; définition contre-factuelle ratifiée (`gamedesign/kitten_clicker_decision_significative.md` V2, 6 preuves) ;
+chantier DÉCISION `0a9f4d4` ; run 9 `_run9_20260823a/` : A→J 13/13 + DECISION 6/6 mesurés par le driver, non-dominance inversée ;
+HumanGate FAIL (prototype mécanique). Lot produit P0–P4 `b75f165` (direction produit V1 ratifiée, intention/tâches/s9).
 
 ### HumanGate Pierre 2026-08-23 sur le build run 9 — FAIL « jeu complet » = BASELINE PRODUIT (ratifié)
 « Prototype mécanique avec habillage. » 4 causes : (1) les 6 chatons sont décoratifs (récompense visible avant d'être gagnée) ;
@@ -76,17 +69,26 @@ Bible n'a AUCUNE injection amont, ancrée Prisme seul ; le « GM » est un scan 
 décidée) → GAME MASTER (loops, progression, métriques, preuves, Grey Blocks) → ARTIST/BUILDER ; réparer ce tuyau AVANT gameplay.
 
 ### Lots ratifiés Pierre 2026-08-23 : A Tuyau → B GM (Game Master, option (a) : étendre s2.7) → C Calibration → D Fuites → E Run 10
-**Lot A FAIT** (plan `docs/superpowers/plans/2026-08-23-forge-lot-a-tuyau-worldscan-artbible-gm.md`) : `full_godot_content` = s2 →
-s2.6 → **s2.5 Art Bible → s2.7 GM** → s1 ; s2.5 ← charter + World Scan + Story Bible (plus `product_snapshot`) ; s2.7 ← World Scan +
-Story Bible + `art_bible.md` + `asset_requests.json` ; preuve de CHARGEMENT = manifeste de dispatch (`sources[] role=upstream sha256`),
-preuve de CONSOMMATION = `gm_worldscan.json.sources_consumed` {worldscan, story_bible, art_bible} résolu à la matérialisation
-(`_validate_gm_worldscan(run_dir)`) ; Art Bible : 8 sections nommées (`## heritage_worldscan` … `## asset_rules`) — **texte de
-contrat seulement, aucun validateur Python** (trou à connaître avant B). Preuve par fixtures (run 9) ; 1ʳᵉ traversée réelle = run 10.
+**Lot A FAIT** (`497c54b`) : s2.5 Art Bible avant s2.7 GM ; s2.5 ← charter+World Scan+Story Bible ; s2.7 ← World Scan+Story Bible+
+art_bible+asset_requests ; preuve de chargement = manifeste de dispatch ; preuve de consommation = `sources_consumed` résolu. Art Bible :
+8 sections nommées (texte de contrat, pas de validateur Python).
+
+**Lot B FAIT (GO Pierre : Opus · gates dès le run 10 · retour inter-run · boucles testables)** — plan
+`docs/superpowers/plans/2026-08-23-forge-lot-b-game-master.md`. s2.7 = GAME MASTER (Opus, rôle `game_master`) : `gm_worldscan.json`
+gagne `game_master` {world_interpretation, 6 loops (étapes avec why/metric_ref/proof_ref), economy_model, progression_metrics
+invariant|target|observation, proof_model, grey_blocks, artist_requirements} validé par `game_master_schema.mjs` à la
+matérialisation (refus nommé) ; `economy.json` projeté (reçu `economy_check`) et injecté à s9 ; héritage inter-run `heritage/`
+(art_bible, gm_worldscan, art_response + manifest) écrit par le driver, injecté à s2.5/s2.7. Consommation : Prisme → GATE
+`_validate_prisme(run_dir)` (toute exigence de boucle cite `gm_worldscan:game_master.loops.*|grey_blocks.*` qui résout, dès
+qu'un bloc `game_master` existe) ; Grey Blocks → `check_decompo --gm` `grey_block_non_decompose` ; Builder → gates driver
+`art_response_dead` (`check_art_response.mjs`, 1:1 avec artist_requirements) et `economy_bypass_dead` (`check_economy_bypass` :
+run 9 = 5 constantes en dur) ; sonde : `frames` par step + `target_frames` (FAIL hors tolérance). Baselines run 9 : 0/13 exigences
+sourcées GM, `game_master` absent → refus. `check_prisme_manifest.mjs` reste non consommé (advisory ; la gate vit dans run_real).
 
 ### Prochaine étape
-1. **Lot B — GM = Game Master** (étendre s2.7, pas de station) : WORLD INTERPRETATION → GAMEPLAY LOOP → PLAYER LOOP →
-   PROGRESSION LOOP → META LOOP → METRICS (avant le Builder) → PROOF MODEL → GREY BLOCKS (Builder + Artiste). Plan à écrire, GO Pierre.
-2. Lot C calibration Kitten Clicker (chaque nombre : source · raison · unité · cible · preuve) · Lot D fuites (J `replay_ref`, tri
+1. **Lot C — calibration Kitten Clicker** : chaque nombre avec source · raison · unité · cible · preuve (durée niveau 1,
+   coûts, revenus, déblocages, espace, prestige, niveau 2) — rédigé par Fable sous la forme du bloc `game_master` attendu, ratifié Pierre.
+2. Lot D fuites (J `replay_ref`, tri
    alphabétique → ordre du Prisme, `design_intent`) · Lot E run 10 (`kitten_clicker-20260823c`) → P5 HumanGate.
 3. Gates : merge/reject des artefacts non commités (runs 7-9, audits) ; push de `f1bce0d` `0a9f4d4` `b75f165` + Lot A.
 4. Passifs : gates historiques (e2e `DirAccess`, solvabilité argv, mutation), `check_wiremap_contract` non consommé, rupture 10.

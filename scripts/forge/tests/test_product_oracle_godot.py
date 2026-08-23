@@ -16,6 +16,7 @@ from forge.product_oracle_godot import (
     discover_oracle_files,
     has_godot_capacity,
     run_godot_product_oracle,
+    check_economy_bypass,
 )
 
 
@@ -311,3 +312,13 @@ def test_champ_ok_absent_ou_non_booleen_rend_not_measured(tmp_path):
     out = run_godot_product_oracle(
         tmp_path, binary_resolver=lambda: "fake_bin", runner=runner)
     assert out["core_boot"]["status"] == "NOT_MEASURED"
+
+
+# --- check_economy_bypass est exportee par ce module (Lot B, T3, 2026-08-23) -
+# Couverture detaillee : scripts/forge/tests/test_loop_bypass_guard.py.
+
+
+def test_check_economy_bypass_est_importable_et_a_la_forme_attendue(tmp_path):
+    r = check_economy_bypass(tmp_path)
+    assert set(r.keys()) == {"passed", "violations"}
+    assert r == {"passed": True, "violations": []}

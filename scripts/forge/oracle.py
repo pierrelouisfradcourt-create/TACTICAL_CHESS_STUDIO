@@ -191,3 +191,46 @@ def run_amont_traversal_probe(run_dir: Path, game_dir: Path | None = None,
         return json.loads(cp.stdout)
     except (json.JSONDecodeError, ValueError) as exc:
         return {"status": "NOT_MEASURED", "reason": f"sortie non JSON: {exc}"}
+
+
+def run_art_response_check(game_dir: Path, gm_path: Path | str | None,
+                            *, timeout: float = 60) -> dict:
+    """Sonde déterministe `check_art_response.mjs` (Node, --json) — contrat de
+    retour GM ↔ Artiste (Lot B, T3, plan `2026-08-23-forge-lot-b-game-master.md`,
+    contrat s9 règle (15)). Le spawn de process vit ICI, dans oracle.py — jamais
+    dans driver.py, qui doit rester une machine à états pure et offline-capable
+    (invariant `test_driver_ne_spawn_pas_directement`), même patron que
+    `run_amont_traversal_probe` ci-dessus. Toute panne (node absent, timeout,
+    exit != 0, sortie non-JSON) rend {"status": "NOT_MEASURED", "reason"} —
+    jamais une exception, jamais un statut d'étape modifié directement ici (le
+    driver décide du gate à partir de ce reçu). `gm_path` absent -> la sonde
+    tourne quand même : `check_art_response` rend alors 0 artist_requirements
+    (aucun `--gm` transmis), donc OK sans lire le disque du jeu."""
+    script = Path(__file__).resolve().parent / "check_art_response.mjs"
+    cmd = ["node", str(script), str(game_dir), "--json"]
+    if gm_path and Path(gm_path).is_file():
+        cmd += ["--gm", str(gm_path)]
+    try:
+        cp = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", timeout=timeout)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"status": "NOT_MEASURED", "reason": f"sonde injoignable: {exc}"}
+    # `check_art_response.mjs` sort 1 sur FAIL (verdict métier, pas une panne de
+    # sonde) : contrairement à `run_amont_traversal_probe` (ADVISORY pur), un
+    # exit 1 avec sortie JSON valide reste une MESURE, pas un NOT_MEASURED.
+    if cp.returncode not in (0, 1):
+        return {"status": "NOT_MEASURED",
+                "reason": f"exit {cp.returncode}: {(cp.stderr or '')[-400:]}"}
+    try:
+        payload = json.loads(cp.stdout)
+    except (json.JSONDecodeError, ValueError) as exc:
+        return {"status": "NOT_MEASURED", "reason": f"sortie non JSON: {exc}"}
+    if not isinstance(payload, dict):
+        return {"status": "NOT_MEASURED", "reason": "sortie JSON non exploitable (pas un objet)"}
+    return {
+        "status": "OK" if payload.get("ok") else "FAIL",
+        "checked": True,
+        "passed": bool(payload.get("ok")),
+        "problems": payload.get("problems", []),
+        "stats": payload.get("stats", {}),
+    }

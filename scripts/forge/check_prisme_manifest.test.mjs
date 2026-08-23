@@ -112,3 +112,32 @@ test('worldscanTokens / referenceAncree : appariement de sous-chaine, jamais sem
   assert.ok(!referenceAncree('https://autre-site.example/x', t));
   assert.ok(!referenceAncree('', t));
 });
+
+// --- Lot B, T3 (2026-08-23) : stats de sourcage GM des exigences de boucle -----
+// ADVISORY, jamais gatant (verrou GO Pierre : gate seulement au run 10).
+
+test('GM: exigence de boucle (acteur PLAYER) sans reference GM -> comptee non sourcee', () => {
+  const d = prismeReference();
+  d.exigences[0].acteur = 'PLAYER';
+  const r = checkPrismeDoc(d);
+  assert.equal(r.stats.exigences_boucle, 1);
+  assert.equal(r.stats.exigences_sourcees_gm, 0);
+  // ADVISORY : ne fait jamais basculer le verdict structurel
+  assert.equal(r.verdict, 'OK');
+});
+
+test('GM: exigence de boucle avec reference gm_worldscan:game_master.loops.* -> sourcee', () => {
+  const d = prismeReference();
+  d.exigences[0].acteur = 'PLAYER';
+  d.exigences[0].source = 'EXPECTED';
+  d.exigences[0].reference = 'gm_worldscan:game_master.loops.core_loop.step1';
+  const r = checkPrismeDoc(d);
+  assert.equal(r.stats.exigences_boucle, 1);
+  assert.equal(r.stats.exigences_sourcees_gm, 1);
+});
+
+test('GM: exigence hors boucle (ni acteur PLAYER ni loop_role) -> jamais comptee', () => {
+  const r = checkPrismeDoc(prismeReference());
+  assert.equal(r.stats.exigences_boucle, 0);
+  assert.equal(r.stats.exigences_sourcees_gm, 0);
+});

@@ -563,6 +563,143 @@ def check_loop_bypass(game_dir: Path) -> dict:
     return {"passed": not violations, "violations": violations}
 
 
+# Tokens économiques (Lot B, T3, plan `2026-08-23-forge-lot-b-game-master.md`,
+# contrat s9 règle (14)) : un nom de `const`/`var` qui CONTIENT un de ces tokens
+# est présumé porter un coût/seuil/bonus de gameplay — donc devoir venir du
+# registre `03_WORLD/economy.json`, jamais d'une constante en dur. Substring,
+# jamais un `\b` (des noms comme `PASSIVE_UNIT`, `KITTEN_STEP` n'ont pas de
+# frontière de mot avant le token : `_` est un caractère de mot).
+_ECONOMY_TOKENS = (
+    "COST", "COUT", "PRICE", "PRIX", "THRESHOLD", "SEUIL", "BONUS", "MULT",
+    "MULTIPLIER", "BASE_CLICK", "STEP", "RATE", "TAUX", "UNIT",
+)
+
+# Déclaration `const NOM ... = <nombre>` ou `var nom ... = <nombre>`, avec
+# annotation de type optionnelle (`: int`, `: float`...). Ancrée en début de
+# ligne (après indentation) : une mention du mot `const`/`var` ailleurs dans la
+# ligne (commentaire déjà retiré par `_strip_gd_comments`) n'est pas une
+# déclaration.
+_ECONOMY_CONST_RE = re.compile(
+    r'^\s*(?:static\s+)?(?:const|var)\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)'
+    r'\s*(?::\s*[A-Za-z_][A-Za-z0-9_]*)?\s*=\s*(?P<value>-?\d+(?:\.\d+)?)\b')
+
+# Chargement du registre économique — présence conjointe (n'importe où dans le
+# fichier) d'un appel `load`/`FileAccess` ET de la chaîne `economy.json`. Couvre
+# l'appel direct (`load(`) et l'appel de méthode chaînée (`FileAccess.open(`,
+# `FileAccess.get_file_as_string(`).
+_ECONOMY_JSON_LOAD_RE = re.compile(r'\bload\s*\(|\bFileAccess\s*\.\s*\w+\s*\(', re.IGNORECASE)
+
+
+def _is_economic_token(name: str) -> bool:
+    """Vrai si `name` (nom de constante/variable) contient un token économique
+    (`_ECONOMY_TOKENS`) — substring insensible à la casse, jamais un `\\b`."""
+    upper = name.upper()
+    return any(token in upper for token in _ECONOMY_TOKENS)
+
+
+def _loads_economy_registry(source: str) -> bool:
+    """Vrai si le fichier (source SANS commentaires) charge le registre
+    `economy.json` : un appel `load(`/`FileAccess...(` ET la chaîne littérale
+    `economy.json` sont présents QUELQUE PART dans le fichier — pas
+    nécessairement la même ligne (un chemin peut être construit en deux temps)."""
+    return "economy.json" in source and bool(_ECONOMY_JSON_LOAD_RE.search(source))
+
+
+def _referenced_via_dict(source: str, name: str) -> bool:
+    """Vrai si `name` est référencé ailleurs dans le fichier via un accès de
+    type dictionnaire (`dict["NOM"]`, `dict['NOM']`, `dict.get("NOM"`) — la
+    preuve que la CONSTANTE elle-même n'est pas la source de vérité utilisée à
+    l'exécution, mais une clé vers le registre chargé (`_loads_economy_registry`)."""
+    escaped = re.escape(name)
+    patterns = (
+        rf'\[\s*"{escaped}"\s*\]',
+        rf"\[\s*'{escaped}'\s*\]",
+        rf'\.get\(\s*["\']{escaped}["\']',
+    )
+    return any(re.search(p, source) for p in patterns)
+
+
+def check_economy_bypass(game_dir: Path, economy_json: Path | str | None = None) -> dict:
+    """Garde statique anti-contournement ÉCONOMIE (Lot B, T3, contrat s9 règle
+    (14)) : dans `<game_dir>/05_SYSTEMS/**/*.gd`, toute déclaration `const`/`var`
+    dont le NOM contient un token économique (`_ECONOMY_TOKENS`) et une valeur
+    NUMÉRIQUE littérale est une violation — SAUF si le fichier charge le
+    registre `economy.json` (`_loads_economy_registry`) ET référence CETTE
+    constante via un accès dictionnaire ailleurs dans le même fichier
+    (`_referenced_via_dict`) : la constante nomme alors une CLÉ du registre,
+    jamais la source de vérité. Même discipline lecture-seule que
+    `check_loop_bypass` — aucun spawn, un fichier illisible est ignoré
+    (best-effort, jamais une exception).
+
+    Si `economy_json` (chemin DISQUE, typiquement `<run_dir>/economy.json`) est
+    fourni : vérifie EN PLUS que `<game_dir>/03_WORLD/economy.json` existe et a
+    le MÊME sha256 — `economy.json` est une PROJECTION déterministe déposée par
+    le run, jamais réécrite par le builder (même garde que `run_player_loop`
+    pour `03_WORLD/loop.json`). Absence/altération -> violation nommée
+    `economy_json_absent`/`economy_json_altere`, jamais une exception.
+
+    Rend `{passed, violations: [{fichier, ligne, nom, valeur}]}` — `passed` faux
+    dès qu'une violation existe."""
+    game_dir = Path(game_dir)
+    violations: list[dict] = []
+
+    systems_dir = game_dir / "05_SYSTEMS"
+    files: list[Path] = sorted(systems_dir.rglob("*.gd")) if systems_dir.is_dir() else []
+    for path in files:
+        try:
+            raw = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            logger.warning(
+                "product_oracle_godot: lecture échouée pour check_economy_bypass sur %s (%s)",
+                path, exc)
+            continue
+        source = _strip_gd_comments(raw)
+        exempt_file = _loads_economy_registry(source)
+        for lineno, line in enumerate(source.splitlines(), start=1):
+            m = _ECONOMY_CONST_RE.match(line)
+            if not m:
+                continue
+            name = m.group("name")
+            if not _is_economic_token(name):
+                continue
+            if exempt_file and _referenced_via_dict(source, name):
+                continue
+            violations.append({
+                "fichier": str(path), "ligne": lineno, "nom": name,
+                "valeur": m.group("value"),
+            })
+
+    if economy_json is not None:
+        run_economy = Path(economy_json)
+        game_economy = game_dir / "03_WORLD" / "economy.json"
+        if not run_economy.is_file():
+            violations.append({
+                "fichier": str(run_economy), "ligne": 0,
+                "nom": "economy_json_absent", "valeur": None,
+            })
+        elif not game_economy.is_file():
+            violations.append({
+                "fichier": str(game_economy), "ligne": 0,
+                "nom": "economy_json_absent", "valeur": None,
+            })
+        else:
+            try:
+                same = _sha256_bytes(run_economy) == _sha256_bytes(game_economy)
+            except OSError as exc:
+                violations.append({
+                    "fichier": str(game_economy), "ligne": 0,
+                    "nom": "economy_json_illisible", "valeur": str(exc),
+                })
+            else:
+                if not same:
+                    violations.append({
+                        "fichier": str(game_economy), "ligne": 0,
+                        "nom": "economy_json_altere", "valeur": None,
+                    })
+
+    return {"passed": not violations, "violations": violations}
+
+
 PLAYER_LOOP_PROBE = Path(__file__).resolve().parent / "godot_probes" / "player_loop.gd"
 
 

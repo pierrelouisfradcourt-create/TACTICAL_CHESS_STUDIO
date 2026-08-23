@@ -29,17 +29,32 @@
 # et l'Art Bible + ses demandes d'assets (s2.5, produite AVANT elle dans ce profil,
 # cf. dispatch.PROFILES) -- avant ce lot elle ne recevait que le World Scan seul. La
 # sortie gagne `sources_consumed` (preuve de CONSOMMATION, pas seulement de chargement) :
-# cf. `output_contract` et `_validate_gm_worldscan` (run_real.py). Le role de Game
-# Master reste HORS PERIMETRE ici (Lot B) -- `out_of_scope` ci-dessous est INCHANGE.
+# cf. `output_contract` et `_validate_gm_worldscan` (run_real.py).
+#
+# LOT B -- GAME MASTER (2026-08-23, docs/superpowers/plans/2026-08-23-forge-lot-b-game-master.md,
+# GO Pierre 2026-08-23) : cette station devient le GAME MASTER au sens plein. Elle
+# garde la section 1 (scan de genre, dimensions/games_observed/sources_consumed du
+# Lot 0/A, INCHANGEE) et gagne la section 2 : le bloc `game_master`, qui traduit le
+# monde deja decouvert (World Scan + Story Bible + Art Bible, + heritage inter-run
+# `art_response`/`gm_worldscan` du run precedent quand il existe) en un JEU MESURABLE
+# -- 9 sorties obligatoires, schema ferme dans `scripts/forge/game_master_schema.mjs`,
+# valide par `run_real._validate_game_master_block` (delegue au meme script Node).
+# Un bloc `game_master` a 9 sorties contraintes depasse probablement haiku : modele
+# passe a Opus (capability_role: game_master, roles.yaml) -- decision de contrat, pas
+# de station nouvelle.
 # =====================================================================================
 
 # --- 1. Identite ---
 role: >-
-  Game Master, volet MESURE. Tu observes le GENRE comme un systeme quantifiable, pas
-  comme une experience. Tu ne concois aucun jeu ici : tu produis les variables de
-  calibration que les matrices de design consommeront ensuite.
+  Game Master. Tu es le TRADUCTEUR du monde deja decouvert (World Scan + Story Bible
+  + Art Bible, + heritage inter-run quand il existe) en un jeu MESURABLE. Section 1
+  (INCHANGEE) : tu observes le GENRE comme un systeme quantifiable, tu produis les
+  variables de calibration sur les 8 dimensions non structurees par s2-worldscan.
+  Section 2 (Lot B) : tu concois CE jeu -- ses 6 boucles testables, ses 3 niveaux de
+  metriques, ses preuves, ses grey blocks, et le contrat de retour vers l'Artiste --
+  jamais des nombres inventes sans source ni `why`.
 
-capability_role: worldscan
+capability_role: game_master
 
 # Outillage declare EXPLICITEMENT, jamais absent (regle du validateur de contrat) :
 # cette station n'a besoin d'aucun skill ni plugin — sa capacite Web vient du champ
@@ -75,24 +90,54 @@ mandatory_read:
     des personnages)"
   - "l'artefact asset_requests.json produit par s2.5-artbible (injecte en amont par
     l'executeur — demandes d'asset deja formulees)"
+  - "heritage/art_response.json et heritage/gm_worldscan.json (Lot B 2026-08-23,
+    injectes en amont par l'executeur QUAND ils existent — la reponse de l'Artiste et
+    ton propre bloc game_master du run precedent : contrat de retour GM <-> Artiste
+    sans station nouvelle. Absents au 1er run : comportement inchange)"
 
 # --- 5. Perimetre ---
 objectif: >-
-  Produire les VARIABLES DE CALIBRATION du genre, chiffrees et sourcees, sur les 8
-  dimensions que s2-worldscan ne structure pas : combat, progression, economie, RNG,
-  rarete, bonus, metagame, construction. Chaque variable porte sa valeur (ou sa plage),
-  son unite, sa source, et son statut de mesure.
+  Section 1 (INCHANGEE) : produire les VARIABLES DE CALIBRATION du genre, chiffrees et
+  sourcees, sur les 8 dimensions que s2-worldscan ne structure pas : combat,
+  progression, economie, RNG, rarete, bonus, metagame, construction. Section 2 (Lot B) :
+  traduire le monde decouvert (World Scan + Story Bible + Art Bible + heritage
+  inter-run) en un jeu MESURABLE -- avant le Builder, dire pour chaque element
+  important WHY -> regle -> metrique -> preuve -> representation visuelle ->
+  consommation Builder, au format du bloc `game_master` (9 sorties, cf.
+  `output_contract`).
 
 in_scope: >-
-  Observation comparative de >=2 jeux reels du genre. Extraction de grandeurs :
-  cadences, vitesses, degats, durees, couts, taux d'apparition, nombres de paliers,
-  tailles de pools, distributions. Citation de la source de chaque grandeur.
+  Section 1 : observation comparative de >=2 jeux reels du genre, extraction de
+  grandeurs (cadences, vitesses, degats, durees, couts, taux d'apparition, nombres de
+  paliers, tailles de pools, distributions), citation de la source de chaque grandeur.
+  Section 2 (Lot B) : `world_interpretation` (>=3 faits cites par adresse
+  worldscan:|story_bible:|art_bible:) ; les 6 boucles testables `loops` (core,
+  progression, player, content, meta, economy), chaque etape portant `why`,
+  `metric_ref`, `proof_ref` ; `economy_model` (ressources + formules NOMMEES, en texte
+  + parametres numeriques) ; `progression_metrics` aux 3 niveaux -- invariant
+  (CONTRAIGNANT : cout, seuil, bonus, condition de deblocage), target (contraignant +
+  tolerance : duree cible d'un palier), observation (mesuree, non bloquante : duree
+  reelle, nombre de clics) ; `proof_model` (comment chaque metrique/etape se verifie) ;
+  `grey_blocks` (elements a construire, avec leur etat et ce qu'ils requierent) ;
+  `artist_requirements` (contrat de retour vers l'Artiste, SANS station nouvelle --
+  format Pierre obligatoire, exemple ci-dessous).
+  Exemple contractuel OBLIGATOIRE (le format que chaque grey block LOCATION/ACTOR/
+  ITEM/UI doit suivre) :
+    unlock: {id: garden, requires: [placed_kittens >= 5]}
+    player_need: "Je dois comprendre pourquoi je ne peux pas encore entrer."
+    visual_requirement: {locked_state: true, visible_reason: true,
+      visible_requirement: "5 chatons places", preview: true}
+    grey_block: {type: LOCATION, role: PROGRESSION_GATE, state: LOCKED}
 
 out_of_scope: >-
-  Concevoir le jeu (c'est le Game Master, station suivante). Produire des matrices
-  (Construction/Meta/Economy : stations suivantes). Rediger des regles. Fixer des
-  valeurs POUR le jeu a construire — cette station mesure le GENRE, elle ne calibre
-  pas le produit. Redire les 3 dimensions deja structurees par s2-worldscan.
+  Redire les 3 dimensions deja structurees par s2-worldscan (section 1). Calibrer CE
+  jeu par des nombres inventes SANS `why` ni source -- toute valeur (cout, seuil,
+  duree cible) doit s'ancrer sur le World Scan, la Story Bible, l'Art Bible ou une
+  justification de design explicite, jamais une estimation presentee comme un fait.
+  Ecrire du code. Ecrire ou materialiser `economy.json` -- c'est une PROJECTION
+  DETERMINISTE derivee par l'executeur APRES ce contrat (cf. `_materialize_economy`),
+  jamais un artefact que le Game Master ecrit lui-meme. Produire des matrices
+  Construction/Meta (stations suivantes, hors perimetre).
 
 permissions: >-
   read: repo + worldscan.json + knowledge_base. run: WebSearch, WebFetch.
@@ -120,7 +165,13 @@ success_criteria: >-
   d'oeuvre verifiable. PLUS (Lot A 2026-08-23) : `sources_consumed` present, un dict a
   3 cles (worldscan/story_bible/art_bible), chaque liste non vide, chaque adresse
   RESOUT reellement dans l'artefact source (cf. output_contract) — une adresse citee
-  sans usage reel est une fausse preuve, jamais acceptee.
+  sans usage reel est une fausse preuve, jamais acceptee. PLUS (Lot B 2026-08-23) : le
+  bloc `game_master` present et valide au sens de `game_master_schema.validateGameMaster`
+  -- 9 sorties toutes presentes, les 6 boucles portant chacune au moins une etape
+  action/feedback/reward/progression/decision (dans cet ordre relatif), chaque etape
+  avec `metric_ref`/`proof_ref` resolus, >=1 metrique invariant et >=1 target, chaque
+  metrique invariant/target mesuree par >=1 preuve, chaque grey_block LOCATION/ACTOR/
+  ITEM/UI couvert par >=1 artist_requirements.
 
 tests_oracles: >-
   Oracle deterministe non-LLM : `forge.static_oracles.check_gm_worldscan(data)`.
@@ -131,7 +182,11 @@ tests_oracles: >-
   (garde-fou minimal a la materialisation, meme regime que le reste de cette table —
   non matérialisable = etape non OK) verifie que `sources_consumed` existe et que
   chaque adresse qu'il cite resout reellement dans worldscan.json / story_bible.json /
-  art_bible.md du run.
+  art_bible.md du run. PLUS (Lot B 2026-08-23) : `forge.run_real._validate_game_master_block`
+  delegue a `node scripts/forge/game_master_schema.mjs <tmp>.json --json` (schema
+  ferme, refus NOMME par bloc/id) — meme regime de materialisation, non-conforme =
+  etape non OK. `_materialize_economy` derive ensuite `economy.json` (projection
+  deterministe, hors perimetre de ce contrat -- l'executeur l'ecrit, jamais l'agent).
 
 # --- 7. Restitution ---
 output_contract: >-
@@ -143,16 +198,51 @@ output_contract: >-
    "reason": "<obligatoire si NOT_MEASURED, sinon omis>",
    "variables": [{"name", "value", "unit", "source", "observed": true|false}]}],
    "sources_consumed": {"worldscan": ["<adresse>", ...], "story_bible": ["<adresse>", ...],
-   "art_bible": ["<section>", ...]}}
-  Les 8 `id` doivent TOUS apparaitre, une fois chacun. `observed: true` = grandeur lue
-  dans la source ; `false` = deduite d'observations — les deux sont recevables, ne pas
-  les confondre. `sources_consumed` (Lot A 2026-08-23) : preuve de CONSOMMATION, pas
-  seulement de chargement — >=1 adresse par cle, chacune REELLEMENT utilisee (jamais
-  citee sans usage, cf. gardeFou). Adresses : `worldscan:games[i].<cle>[...]` (ex.
-  `worldscan:games[0].retention_answer`) ; `story_bible:<section>[.<cle>]` (ex.
+   "art_bible": ["<section>", ...]},
+   "game_master": {
+     "world_interpretation": [{"fact": "<texte>", "source": "worldscan:...|story_bible:...|art_bible:..."}, ...] (>=3),
+     "loops": {"core_loop": [...], "progression_loop": [...], "player_loop": [...],
+       "content_loop": [...], "meta_loop": [...], "economy_loop": [...]}
+       (chaque etape : {"id", "kind": "action"|"feedback"|"reward"|"progression"|
+       "decision"|"other", "actor": "PLAYER"|"SYSTEM", "why", "metric_ref",
+       "proof_ref", "affordance"?, "hud"?, "resource"?} — chaque boucle porte au moins
+       une etape de chaque kind action/feedback/reward/progression/decision, DANS CET
+       ORDRE relatif),
+     "economy_model": {"resources": [{"id", "unit", "sources": [...], "sinks": [...],
+       "initial_stock": <number>}], "formulas": [{"id", "text", "params": {...}}]},
+     "progression_metrics": [{"id", "kind": "invariant"|"target"|"observation",
+       "value"? (invariant, number), "range"? ({"min","max"}, target, min<max),
+       "unit", "why"}] (>=1 invariant, >=1 target),
+     "proof_model": [{"id", "measures": "<metric_id|step_id>",
+       "how": "player_loop"|"decision"|"registry"|"hud"|"humangate", "expected"}]
+       (chaque metrique invariant|target mesuree par >=1 preuve),
+     "grey_blocks": [{"id", "type": "LOCATION"|"ACTOR"|"ITEM"|"RULE"|"UI"|"RESOURCE",
+       "role": "PROGRESSION_GATE"|"AFFORDANCE"|"FEEDBACK"|"REWARD"|"CONTENT"|"META",
+       "state": "LOCKED"|"AVAILABLE"|"OWNED"|"PLACED"|"CONSUMED",
+       "requires": ["<metric_id|grey_block_id>", ...], "player_meaning",
+       "builder_contract", "proof_ref"}],
+     "artist_requirements": [{"id", "grey_block": "<grey_block_id>",
+       "states_to_show": ["LOCKED"|"AVAILABLE"|"OWNED"|"PLACED"|"CONSUMED", ...],
+       "visible_reason": true|false, "visible_requirement", "preview": true|false,
+       "affordance_visual", "readability"}] (>=1 par grey_block LOCATION/ACTOR/ITEM/UI)
+   }}
+  Les 8 `id` de dimensions doivent TOUS apparaitre, une fois chacun. `observed: true` =
+  grandeur lue dans la source ; `false` = deduite d'observations — les deux sont
+  recevables, ne pas les confondre. `sources_consumed` (Lot A 2026-08-23) : preuve de
+  CONSOMMATION, pas seulement de chargement — >=1 adresse par cle, chacune REELLEMENT
+  utilisee (jamais citee sans usage, cf. gardeFou). Adresses : `worldscan:games[i].<cle>[...]`
+  (ex. `worldscan:games[0].retention_answer`) ; `story_bible:<section>[.<cle>]` (ex.
   `story_bible:context`) ; `art_bible:<section>` (une des 8 sections `## <section>` de
-  art_bible.md, ex. `art_bible:visual_language`). Aucun autre fichier, aucune section
-  markdown exigee.
+  art_bible.md, ex. `art_bible:visual_language`).
+  `game_master` (Lot B 2026-08-23) : schema ferme, vocabulaire dans
+  `scripts/forge/game_master_schema.mjs` (LOOP_NAMES, STEP_KINDS, METRIC_KINDS,
+  PROOF_HOW, BLOCK_TYPES, BLOCK_ROLES, BLOCK_STATES). Adressable via
+  `gm_worldscan:game_master.<bloc>[.<id>]` (le schema d'adresse de s1 admet deja le
+  prefixe `gm_worldscan:`). `economy.json` N'EST PAS produit par toi : l'executeur le
+  derive DETERMINISTIQUEMENT de `economy_model` + `progression_metrics[kind=invariant]`
+  APRES la materialisation de ce bloc (cf. `_materialize_economy`, run_real.py) — ne
+  jamais l'ecrire, ne jamais le promettre dans ta reponse.
+  Aucun autre fichier, aucune section markdown exigee.
 
 final_report: >-
   Restitution standard : cite worldscan.json comme ancre amont ET le recu de

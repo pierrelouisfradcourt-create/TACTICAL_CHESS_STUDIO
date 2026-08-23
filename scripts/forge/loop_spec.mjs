@@ -58,10 +58,13 @@ function maillonDecision(ref) {
  * 7 rôles de ROLE_ORDER (NONE et absent sont exclus), triées par ordre de rôle
  * puis par `id` (tri stable : à id égal ou absent, l'ordre d'apparition dans
  * `exigences` est conservé).
+ * `opts` reserve pour extension future (non utilise a ce jour) ; ne change
+ * aucun comportement, present pour compat d'appel.
  * @param {unknown} prisme
+ * @param {{}} [opts]
  * @returns {{schema_version:1, game_id:string, steps:object[]}}
  */
-export function deriveLoopSpec(prisme) {
+export function deriveLoopSpec(prisme, opts = {}) {
   const gameId = typeof prisme?.game_id === 'string' ? prisme.game_id : '';
   const exigences = Array.isArray(prisme?.exigences) ? prisme.exigences : [];
 
@@ -132,6 +135,23 @@ export function deriveLoopSpec(prisme) {
           }));
       }
     }
+    // target_frames (Lot B T4, 2026-08-23) : champ pose par le Prisme en
+    // recopiant une metrique `target` du Game Master (unite frames, deja
+    // convertie depuis des secondes a 60 fps), cite dans `target.ref`
+    // (adresse `gm_worldscan:game_master.progression_metrics.<id>`). Projete
+    // des lors que la forme est exploitable (entiers, min >= 0, ref non vide) ;
+    // la relation min < max est validee par checkLoopSpec (jamais ici), pour
+    // que l'incoherence produise un probleme NOMME plutot qu'une omission
+    // silencieuse.
+    if (ex.target !== null && typeof ex.target === 'object' && !Array.isArray(ex.target)) {
+      const minF = ex.target.min_frames;
+      const maxF = ex.target.max_frames;
+      const ref = ex.target.ref;
+      if (Number.isInteger(minF) && minF >= 0 && Number.isInteger(maxF)
+        && typeof ref === 'string' && ref.trim().length > 0) {
+        step.target_frames = { min: minF, max: maxF, ref };
+      }
+    }
     return step;
   });
 
@@ -175,6 +195,23 @@ export function checkLoopSpec(spec) {
       && typeof s.observe.predicate === 'string' && s.observe.predicate.trim().length > 0;
     if (!ok) {
       problems.push(`${maillon(s.role)} (${s.ref || '?'}) : observe {hud, predicate} obligatoire`);
+    }
+  });
+
+  // (a2) target_frames (Lot B T4) : si present, doit etre valide (min < max,
+  // ref string non vide) — jamais exige (un step peut ne jamais en porter).
+  steps.forEach((s) => {
+    if (!s || typeof s !== 'object' || !s.target_frames) return;
+    const tf = s.target_frames;
+    const shapeOk = tf && typeof tf === 'object' && !Array.isArray(tf)
+      && Number.isInteger(tf.min) && Number.isInteger(tf.max)
+      && typeof tf.ref === 'string' && tf.ref.trim().length > 0;
+    if (!shapeOk) {
+      problems.push(`${maillon(s.role)} (${s.ref || '?'}) : target_frames malforme`);
+      return;
+    }
+    if (!(tf.min < tf.max)) {
+      problems.push(`${maillon(s.role)} (${s.ref || '?'}) : target_frames min (${tf.min}) >= max (${tf.max})`);
     }
   });
 

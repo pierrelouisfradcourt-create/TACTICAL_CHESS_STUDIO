@@ -19,7 +19,7 @@ const REPO_ROOT = resolve(__dirname, '..', '..');
 // et satisfait déjà A..J. Seul le maillon DECISION (2026-08-23, absent de ce
 // run antérieur à son introduction) manque désormais. Ce test mesure l'état
 // RÉEL du fichier, pas un état figé (cf. commentaire d'origine).
-const RUN7_PRISME = resolve(REPO_ROOT, 'lab/forge_runs/kitten_clicker/prisme.json');
+const RUN7_PRISME = resolve(REPO_ROOT, 'lab/forge_runs/kitten_clicker/_run8_20260821h2/prisme.json'); // archive run 8b (12 exigences de boucle A..J, sans DECISION) : le run_dir courant est purge entre deux runs
 
 function loadRun7Prisme() {
   return JSON.parse(readFileSync(RUN7_PRISME, 'utf-8'));
@@ -504,4 +504,74 @@ test('(e8) validateExigence : horizon_frames < 60 -> finding horizon_frames', ()
   const ex = exigenceDecisionValide({ horizon_frames: 59 });
   const findings = validateExigence(ex, 0);
   assert.ok(findings.some((f) => /\.horizon_frames:/.test(f)), JSON.stringify(findings));
+});
+
+// --- T4 (2026-08-23, Lot B) : target_frames derive de exigence.target -------------
+// Champ pose par le Prisme en recopiant une metrique `target` du Game Master
+// (progression_metrics[kind=target], unite frames, `target.ref` cite l'adresse
+// gm_worldscan). Fixture run 9 : lab/forge_runs/kitten_clicker/_run9_20260823a/loop.json
+// (13 steps, aucun ne porte `target` -> hash identique a l'ancien comportement).
+
+const RUN9_LOOP = resolve(REPO_ROOT, 'lab/forge_runs/kitten_clicker/_run9_20260823a/loop.json');
+
+function loadRun9Loop() {
+  return JSON.parse(readFileSync(RUN9_LOOP, 'utf-8'));
+}
+
+// Reconstruit un prisme.json synthetique minimal a partir des steps du loop.json
+// archive du run 9 (le prisme lui-meme n'est pas archive a ce chemin) : suffisant
+// pour prouver la non-regression de deriveLoopSpec (steps identiques en sortie).
+function prismeDepuisLoopRun9() {
+  const loop = loadRun9Loop();
+  return {
+    game_id: loop.game_id,
+    exigences: loop.steps.map((s, i) => exigenceLoop(s.ref || `S${i}`, s.role, {
+      ...(s.affordance ? { affordance: s.affordance } : {}),
+      ...(s.observe ? { observe: s.observe } : {}),
+      ...(Number.isInteger(s.repeat) ? { repeat: s.repeat } : {}),
+      ...(s.replay ? { replay: s.replay } : {}),
+      ...(s.replay_ref ? { replay_ref: s.replay_ref } : {}),
+      ...(s.options ? { options: s.options } : {}),
+      ...(s.metric ? { metric: s.metric } : {}),
+      ...(Number.isInteger(s.horizon_frames) ? { horizon_frames: s.horizon_frames } : {}),
+      ...(s.policies ? { policies: s.policies } : {}),
+    })),
+  };
+}
+
+test('T4 : step avec exigence.target valide -> step.target_frames projete', () => {
+  const prisme = prismeDepuisLoopRun9();
+  const b = prisme.exigences.find((e) => e.id === 'b_click');
+  b.target = { min_frames: 10, max_frames: 200, ref: 'gm_worldscan:game_master.progression_metrics.m_click' };
+  const spec = deriveLoopSpec(prisme);
+  const step = spec.steps.find((s) => s.ref === 'b_click');
+  assert.deepEqual(step.target_frames, { min: 10, max: 200, ref: 'gm_worldscan:game_master.progression_metrics.m_click' });
+  const check = checkLoopSpec(spec);
+  assert.equal(check.problems.some((p) => /target_frames/.test(p)), false, JSON.stringify(check.problems));
+});
+
+test('T4 : exigence.target avec min >= max -> checkLoopSpec FAIL nomme', () => {
+  const prisme = prismeDepuisLoopRun9();
+  const b = prisme.exigences.find((e) => e.id === 'b_click');
+  b.target = { min_frames: 50, max_frames: 10, ref: 'gm_worldscan:game_master.progression_metrics.m_click' };
+  const spec = deriveLoopSpec(prisme);
+  const step = spec.steps.find((s) => s.ref === 'b_click');
+  assert.deepEqual(step.target_frames, { min: 50, max: 10, ref: 'gm_worldscan:game_master.progression_metrics.m_click' });
+  const check = checkLoopSpec(spec);
+  assert.ok(
+    check.problems.some((p) => /PLAYER_ACTION/.test(p) && /target_frames/.test(p) && /50/.test(p) && /10/.test(p)),
+    JSON.stringify(check.problems),
+  );
+});
+
+test('T4 : aucune exigence.target -> spec inchange (hash identique a la fixture run 9 sans target)', () => {
+  const prisme = prismeDepuisLoopRun9();
+  const spec = deriveLoopSpec(prisme);
+  for (const s of spec.steps) {
+    assert.equal(Object.prototype.hasOwnProperty.call(s, 'target_frames'), false, JSON.stringify(s));
+  }
+  // determinisme croise avec un clone profond independant
+  const clone = JSON.parse(JSON.stringify(prisme));
+  const spec2 = deriveLoopSpec(clone);
+  assert.equal(JSON.stringify(spec), JSON.stringify(spec2));
 });

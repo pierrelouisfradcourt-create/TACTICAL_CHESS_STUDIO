@@ -1,0 +1,89 @@
+{
+ "world_interpretation": [
+  {
+   "fact": "Le cout du premier batiment doit rester proche de 15 unites (ancrage Cookie Clicker mesure dans le World Scan).",
+   "source": "worldscan:dimensions[1].variables[0]"
+  },
+  {
+   "fact": "Le ton du monde est chaleureux et mignon, centre sur des chatons recueillis.",
+   "source": "story_bible:tone"
+  },
+  {
+   "fact": "La palette visuelle est pastel avec des affordances rondes et lisibles.",
+   "source": "art_bible:visual_language"
+  }
+ ],
+ "loops": {
+  "core_loop": [
+   {"id": "core_action", "kind": "action", "actor": "PLAYER", "why": "Le joueur clique pour produire des chatons.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor"},
+   {"id": "core_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "Le compteur de chatons s'incremente visiblement.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor"},
+   {"id": "core_reward", "kind": "reward", "actor": "SYSTEM", "why": "Un chaton anime apparait comme recompense.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor", "resource": "chatons"},
+   {"id": "core_progression", "kind": "progression", "actor": "SYSTEM", "why": "Le stock de chatons progresse vers le seuil d'achat.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor", "resource": "chatons"},
+   {"id": "core_decision", "kind": "decision", "actor": "PLAYER", "why": "Le joueur decide de continuer a cliquer ou d'acheter un curseur.", "metric_ref": "garden_unlock_duration", "proof_ref": "proof_garden_duration"}
+  ],
+  "progression_loop": [
+   {"id": "prog_action", "kind": "action", "actor": "PLAYER", "why": "Le joueur achete un curseur automatique.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor"},
+   {"id": "prog_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "Le curseur apparait dans la liste des batiments.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor"},
+   {"id": "prog_reward", "kind": "reward", "actor": "SYSTEM", "why": "La production automatique augmente.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor", "resource": "chatons"},
+   {"id": "prog_progression", "kind": "progression", "actor": "SYSTEM", "why": "Le palier de production suivant se rapproche.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor"},
+   {"id": "prog_decision", "kind": "decision", "actor": "PLAYER", "why": "Le joueur decide du prochain batiment a acheter.", "metric_ref": "garden_unlock_duration", "proof_ref": "proof_garden_duration"}
+  ],
+  "player_loop": [
+   {"id": "player_action", "kind": "action", "actor": "PLAYER", "why": "Le joueur vise le deblocage du jardin.", "metric_ref": "garden_unlock_duration", "proof_ref": "proof_garden_duration"},
+   {"id": "player_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "Le HUD affiche la progression vers le jardin.", "metric_ref": "garden_unlock_duration", "proof_ref": "proof_garden_duration"},
+   {"id": "player_reward", "kind": "reward", "actor": "SYSTEM", "why": "Le joueur voit son compteur de chatons places augmenter.", "metric_ref": "garden_unlock_duration", "proof_ref": "proof_garden_duration"},
+   {"id": "player_progression", "kind": "progression", "actor": "SYSTEM", "why": "Le joueur comprend qu'il approche du seuil de 5 chatons.", "metric_ref": "garden_unlock_duration", "proof_ref": "proof_garden_duration"},
+   {"id": "player_decision", "kind": "decision", "actor": "PLAYER", "why": "Le joueur decide de placer un chaton de plus ou d'explorer.", "metric_ref": "clicks_observed", "proof_ref": "proof_cost_cursor"}
+  ],
+  "content_loop": [
+   {"id": "content_action", "kind": "action", "actor": "PLAYER", "why": "Le joueur place un cinquieme chaton.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor"},
+   {"id": "content_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "Le cadenas du jardin s'ouvre visiblement.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor"},
+   {"id": "content_reward", "kind": "reward", "actor": "SYSTEM", "why": "Le jardin devient explorable, nouveau contenu.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor"},
+   {"id": "content_progression", "kind": "progression", "actor": "SYSTEM", "why": "De nouveaux chatons rares deviennent collectables au jardin.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor"},
+   {"id": "content_decision", "kind": "decision", "actor": "PLAYER", "why": "Le joueur decide de collectionner ou de continuer a produire.", "metric_ref": "garden_unlock_duration", "proof_ref": "proof_garden_duration"}
+  ],
+  "meta_loop": [
+   {"id": "meta_action", "kind": "action", "actor": "PLAYER", "why": "Le joueur termine un palier de collection.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor"},
+   {"id": "meta_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "Un ecran de fin de palier confirme la cloture.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor"},
+   {"id": "meta_reward", "kind": "reward", "actor": "SYSTEM", "why": "Un bonus permanent de prestige est accorde.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor"},
+   {"id": "meta_progression", "kind": "progression", "actor": "SYSTEM", "why": "Le prochain palier de prestige devient accessible.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor"},
+   {"id": "meta_decision", "kind": "decision", "actor": "PLAYER", "why": "Le joueur decide de prestiger ou de continuer la partie actuelle.", "metric_ref": "garden_unlock_duration", "proof_ref": "proof_garden_duration"}
+  ],
+  "economy_loop": [
+   {"id": "eco_action", "kind": "action", "actor": "PLAYER", "why": "Le joueur depense des chatons pour acheter un batiment.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor", "resource": "chatons"},
+   {"id": "eco_feedback", "kind": "feedback", "actor": "SYSTEM", "why": "Le stock de chatons diminue visiblement au moment de l'achat.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor", "resource": "chatons"},
+   {"id": "eco_reward", "kind": "reward", "actor": "SYSTEM", "why": "Le rendement de production augmente.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor", "resource": "chatons"},
+   {"id": "eco_progression", "kind": "progression", "actor": "SYSTEM", "why": "Le pouvoir d'achat futur augmente avec le rendement.", "metric_ref": "cost_cursor", "proof_ref": "proof_cost_cursor"},
+   {"id": "eco_decision", "kind": "decision", "actor": "PLAYER", "why": "Le joueur decide entre epargner ou depenser immediatement.", "metric_ref": "garden_unlock_duration", "proof_ref": "proof_garden_duration"}
+  ]
+ },
+ "economy_model": {
+  "resources": [
+   {"id": "chatons", "unit": "chatons", "sources": ["click", "cursor"], "sinks": ["achat_cursor", "achat_garden"], "initial_stock": 0}
+  ],
+  "formulas": [
+   {"id": "cout_cursor", "text": "cout(n) = 15 * 1.15^n", "params": {"base": 15, "growth": 1.15}}
+  ]
+ },
+ "progression_metrics": [
+  {"id": "cost_cursor", "kind": "invariant", "value": 15, "unit": "chatons", "why": "Cout du premier batiment ancre sur Cookie Clicker (15 cookies mesures dans le World Scan)."},
+  {"id": "garden_unlock_duration", "kind": "target", "range": {"min": 60, "max": 180}, "unit": "secondes", "why": "Duree cible pour debloquer le jardin, tolerance mesuree par la sonde player_loop."},
+  {"id": "clicks_observed", "kind": "observation", "unit": "clics", "why": "Nombre de clics reel mesure, rapporte mais non bloquant."}
+ ],
+ "proof_model": [
+  {"id": "proof_cost_cursor", "measures": "cost_cursor", "how": "registry", "expected": "economy.json.invariants contient cost_cursor=15"},
+  {"id": "proof_garden_duration", "measures": "garden_unlock_duration", "how": "player_loop", "expected": "frames du step player_decision converties en secondes tombent dans [60,180]"}
+ ],
+ "grey_blocks": [
+  {"id": "garden", "type": "LOCATION", "role": "PROGRESSION_GATE", "state": "LOCKED", "requires": ["cost_cursor"], "player_meaning": "Le jardin est le prochain lieu a debloquer.", "builder_contract": "Afficher le jardin verrouille avec icone cadenas tant que placed_kittens < 5.", "proof_ref": "proof_garden_duration"},
+  {"id": "cursor", "type": "ITEM", "role": "AFFORDANCE", "state": "AVAILABLE", "requires": [], "player_meaning": "Le curseur produit des chatons au clic.", "builder_contract": "Bouton cliquable visible des le depart.", "proof_ref": "proof_cost_cursor"},
+  {"id": "kitten_actor", "type": "ACTOR", "role": "REWARD", "state": "AVAILABLE", "requires": ["garden"], "player_meaning": "Chaque chaton place est une recompense visible.", "builder_contract": "Afficher le chaton anime quand place.", "proof_ref": "proof_cost_cursor"},
+  {"id": "hud_counter", "type": "UI", "role": "FEEDBACK", "state": "AVAILABLE", "requires": [], "player_meaning": "Le compteur de chatons informe la progression.", "builder_contract": "HUD toujours visible en haut de l'ecran.", "proof_ref": "proof_cost_cursor"}
+ ],
+ "artist_requirements": [
+  {"id": "ar_garden", "grey_block": "garden", "states_to_show": ["LOCKED", "AVAILABLE"], "visible_reason": true, "visible_requirement": "5 chatons places", "preview": true, "affordance_visual": "cadenas grise puis ouvert", "readability": "contraste AA sur fond pastel"},
+  {"id": "ar_cursor", "grey_block": "cursor", "states_to_show": ["AVAILABLE"], "visible_reason": false, "visible_requirement": "aucune", "preview": false, "affordance_visual": "bouton rond cliquable", "readability": "icone claire a distance"},
+  {"id": "ar_kitten", "grey_block": "kitten_actor", "states_to_show": ["PLACED"], "visible_reason": false, "visible_requirement": "aucune", "preview": false, "affordance_visual": "sprite anime distinct", "readability": "silhouette lisible sur l'herbe"},
+  {"id": "ar_hud", "grey_block": "hud_counter", "states_to_show": ["AVAILABLE"], "visible_reason": false, "visible_requirement": "aucune", "preview": false, "affordance_visual": "texte blanc sur bandeau", "readability": "contraste eleve, taille 16px minimum"}
+ ]
+}

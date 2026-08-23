@@ -39,6 +39,12 @@ const EMPTY_STATS = {
   maillons_couverts: {
     F: 0, G: 0, H: 0, I: 0, J: 0,
   },
+  // Lot B, T3 (2026-08-23) : couverture des grey blocks du Game Master (s2.7)
+  // par la featuremap (s3). Reste à 0 quand aucun `--gm` n'est fourni ou que
+  // l'artefact ne porte pas de bloc `game_master` — comportement INCHANGÉ
+  // (mesuré run 9 : gm_worldscan.json sans `game_master`, 0 grey block).
+  grey_blocks: 0,
+  grey_blocks_couverts: 0,
 };
 
 // V4 GAME LOOP (2026-08-22, GO Pierre) — maillons F..J additifs.
@@ -74,15 +80,66 @@ export function granularite(doc) {
 }
 
 /**
+ * Liste les grey blocks déclarés par `gm.game_master.grey_blocks[]` (Lot B,
+ * s2.7). `null`/forme invalide/bloc absent -> tableau vide, jamais une
+ * exception (même discipline que `collectLeaves`).
+ * @param {unknown} gm gm_worldscan.json parsé (peut être `null`)
+ * @returns {Array<{id:string}>}
+ */
+export function greyBlocks(gm) {
+  const list = gm?.game_master?.grey_blocks;
+  if (!Array.isArray(list)) return [];
+  return list.filter((gb) => gb && typeof gb === 'object' && isNonEmptyString(gb.id));
+}
+
+/**
+ * Vérifie que chaque grey block du GM (Lot B) est porté par la featuremap :
+ * une feuille dont `id` OU `source_ref` égale l'id du grey block. Rend les
+ * findings `grey_block_non_decompose` et les stats de couverture — VIDE quand
+ * `gm` est `null`/sans `game_master` (comportement inchangé, cf. EMPTY_STATS).
+ * @param {unknown} doc featuremap déjà parsée
+ * @param {unknown} gm gm_worldscan.json parsé (peut être `null`)
+ * @returns {{findings:string[], grey_blocks:number, grey_blocks_couverts:number}}
+ */
+export function checkGreyBlockCoverage(doc, gm) {
+  const blocks = greyBlocks(gm);
+  if (blocks.length === 0) return { findings: [], grey_blocks: 0, grey_blocks_couverts: 0 };
+  const leaves = collectLeaves(doc);
+  const carried = new Set();
+  for (const entry of leaves) {
+    const leaf = entry.leaf;
+    if (leaf && typeof leaf === 'object') {
+      if (isNonEmptyString(leaf.id)) carried.add(leaf.id);
+      if (isNonEmptyString(leaf.source_ref)) carried.add(leaf.source_ref);
+    }
+  }
+  const findings = [];
+  let couverts = 0;
+  for (const gb of blocks) {
+    if (carried.has(gb.id)) {
+      couverts += 1;
+    } else {
+      findings.push(
+        `game_master.grey_blocks: '${gb.id}' n'est porte par AUCUNE feuille de la `
+        + 'featuremap (ni id ni source_ref) — grey_block_non_decompose',
+      );
+    }
+  }
+  return { findings, grey_blocks: blocks.length, grey_blocks_couverts: couverts };
+}
+
+/**
  * Oracle complet sur une featuremap déjà parsée, confrontée au Prisme dont elle
  * découle.
  * @param {unknown} doc featuremap
  * @param {unknown} prisme prisme.json parsé (obligatoire : sans lui, ni couverture
  *   ni non-invention ne sont vérifiables — l'oracle le dit au lieu de sauter)
+ * @param {unknown} gm gm_worldscan.json parsé, OPTIONNEL (Lot B, T3) : couverture
+ *   des grey_blocks[] par la featuremap. `null`/absent -> comportement inchangé.
  * @returns {{ok:boolean, verdict:'OK'|'FAIL', problems:string[],
  *            exigences_non_couvertes:string[], feuilles_non_sourcees:string[], stats:object}}
  */
-export function checkDecompoDoc(doc, prisme) {
+export function checkDecompoDoc(doc, prisme, gm = null) {
   const problems = [...validateFeaturemap(doc)];
   const exigences_non_couvertes = [];
   const feuilles_non_sourcees = [];
@@ -211,6 +268,11 @@ export function checkDecompoDoc(doc, prisme) {
     ? doc.systemes.reduce((a, s) => a + (Array.isArray(s?.features) ? s.features.length : 0), 0)
     : 0;
 
+  // Lot B, T3 (2026-08-23) : couverture des grey_blocks[] du Game Master.
+  // `gm` absent/sans `game_master` -> greyCoverage.findings == [] (comportement
+  // inchangé, mesuré run 9 : gm_worldscan.json sans bloc `game_master`).
+  const greyCoverage = checkGreyBlockCoverage(doc, gm);
+
   const stats = {
     systemes,
     features,
@@ -223,31 +285,39 @@ export function checkDecompoDoc(doc, prisme) {
     actions_joueur: actionsJoueur,
     actions_joueur_prouvees_depuis_scene: actionsJoueurProuvees,
     maillons_couverts,
+    grey_blocks: greyCoverage.grey_blocks,
+    grey_blocks_couverts: greyCoverage.grey_blocks_couverts,
   };
 
   const all = [
     ...problems, ...exigences_non_couvertes, ...feuilles_non_sourcees,
     ...boucle_sans_entree, ...boucle_sans_effet, ...boucle_replay_non_couvert,
+    ...greyCoverage.findings,
   ];
   const ok = all.length === 0;
   return {
     ok, verdict: ok ? 'OK' : 'FAIL',
     problems, exigences_non_couvertes, feuilles_non_sourcees, boucle_sans_entree,
-    boucle_sans_effet, boucle_replay_non_couvert, stats,
+    boucle_sans_effet, boucle_replay_non_couvert,
+    grey_blocks_non_decomposes: greyCoverage.findings,
+    stats,
   };
 }
 
 /**
- * Lit les deux artefacts sur disque et applique l'oracle. Ne lève jamais.
+ * Lit les artefacts sur disque et applique l'oracle. Ne lève jamais.
  * @param {string} featuremapPath
  * @param {string} prismePath
+ * @param {string|null} gmPath (Lot B, T3) chemin OPTIONNEL de gm_worldscan.json
+ *   — absent -> comportement inchangé (0 grey block mesuré).
  * @returns {Promise<object>}
  */
-export async function checkDecompoFiles(featuremapPath, prismePath) {
+export async function checkDecompoFiles(featuremapPath, prismePath, gmPath = null) {
   const fail = (msg) => ({
     ok: false, verdict: 'FAIL', problems: [msg],
     exigences_non_couvertes: [], feuilles_non_sourcees: [], boucle_sans_entree: [],
-    boucle_sans_effet: [], boucle_replay_non_couvert: [], stats: EMPTY_STATS,
+    boucle_sans_effet: [], boucle_replay_non_couvert: [], grey_blocks_non_decomposes: [],
+    stats: EMPTY_STATS,
   });
   const load = async (p, label) => {
     let raw;
@@ -267,7 +337,13 @@ export async function checkDecompoFiles(featuremapPath, prismePath) {
   if (fm.err) return fail(fm.err);
   const pr = await load(prismePath, 'prisme');
   if (pr.err) return fail(pr.err);
-  return checkDecompoDoc(fm.doc, pr.doc);
+  let gmDoc = null;
+  if (gmPath) {
+    const gm = await load(gmPath, 'gm_worldscan');
+    if (gm.err) return fail(gm.err);
+    gmDoc = gm.doc;
+  }
+  return checkDecompoDoc(fm.doc, pr.doc, gmDoc);
 }
 
 // ---- CLI ----
@@ -276,15 +352,17 @@ if (isMain) {
   const argv = process.argv.slice(2);
   const prIdx = argv.indexOf('--prisme');
   const prismePath = prIdx >= 0 ? argv[prIdx + 1] : null;
-  const target = argv.filter((a) => !a.startsWith('--') && a !== prismePath)[0];
+  const gmIdx = argv.indexOf('--gm');
+  const gmPath = gmIdx >= 0 ? argv[gmIdx + 1] : null;
+  const target = argv.filter((a) => !a.startsWith('--') && a !== prismePath && a !== gmPath)[0];
 
   if (!target || !prismePath) {
-    console.error('usage: node check_decompo.mjs <featuremap.json> --prisme <prisme.json> [--json]');
+    console.error('usage: node check_decompo.mjs <featuremap.json> --prisme <prisme.json> [--gm <gm_worldscan.json>] [--json]');
     process.exit(2);
   }
 
   (async () => {
-    const r = await checkDecompoFiles(target, prismePath);
+    const r = await checkDecompoFiles(target, prismePath, gmPath);
     console.log(`VERDICT DECOMPO: ${r.verdict}`);
     r.problems.forEach((p) => console.error(`  FAIL: ${p}`));
     r.exigences_non_couvertes.forEach((p) => console.error(`  FAIL couverture: ${p}`));
@@ -292,10 +370,11 @@ if (isMain) {
     r.boucle_sans_entree.forEach((p) => console.error(`  FAIL boucle: ${p}`));
     r.boucle_sans_effet.forEach((p) => console.error(`  FAIL boucle (effet): ${p}`));
     r.boucle_replay_non_couvert.forEach((p) => console.error(`  FAIL boucle (replay): ${p}`));
+    (r.grey_blocks_non_decomposes || []).forEach((p) => console.error(`  FAIL grey block: ${p}`));
     const mc = r.stats.maillons_couverts || {
       F: 0, G: 0, H: 0, I: 0, J: 0,
     };
-    console.error(`  stats: ${r.stats.systemes} systeme(s) / ${r.stats.features} feature(s) / ${r.stats.feuilles} feuille(s) / ${r.stats.exigences_couvertes} sur ${r.stats.exigences_prisme} exigence(s) couverte(s) / granularite ${r.stats.feuilles_par_feature_min}-${r.stats.feuilles_par_feature_max} feuille(s) par feature (REPORTEE, non gatee) / ${r.stats.actions_joueur_prouvees_depuis_scene} sur ${r.stats.actions_joueur} action(s) joueur prouvee(s) depuis main.tscn / maillons F=${mc.F} G=${mc.G} H=${mc.H} I=${mc.I} J=${mc.J}`);
+    console.error(`  stats: ${r.stats.systemes} systeme(s) / ${r.stats.features} feature(s) / ${r.stats.feuilles} feuille(s) / ${r.stats.exigences_couvertes} sur ${r.stats.exigences_prisme} exigence(s) couverte(s) / granularite ${r.stats.feuilles_par_feature_min}-${r.stats.feuilles_par_feature_max} feuille(s) par feature (REPORTEE, non gatee) / ${r.stats.actions_joueur_prouvees_depuis_scene} sur ${r.stats.actions_joueur} action(s) joueur prouvee(s) depuis main.tscn / maillons F=${mc.F} G=${mc.G} H=${mc.H} I=${mc.I} J=${mc.J} / ${r.stats.grey_blocks_couverts} sur ${r.stats.grey_blocks} grey block(s) decompose(s)`);
     console.log(JSON.stringify({
       ok: r.ok,
       problems: r.problems,
@@ -304,6 +383,7 @@ if (isMain) {
       boucle_sans_entree: r.boucle_sans_entree,
       boucle_sans_effet: r.boucle_sans_effet,
       boucle_replay_non_couvert: r.boucle_replay_non_couvert,
+      grey_blocks_non_decomposes: r.grey_blocks_non_decomposes,
       stats: r.stats,
     }, null, 2));
     process.exit(r.ok ? 0 : 1);
