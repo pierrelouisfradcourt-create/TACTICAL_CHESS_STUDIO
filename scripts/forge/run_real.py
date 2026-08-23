@@ -31,7 +31,7 @@ import sys
 import time
 from pathlib import Path
 
-from forge.contract import FORGE_ROLES
+from forge.contract import FORGE_ROLES, base_step, step_round
 from forge.dispatch import (
     DEDICATED_PROFILE_STEPS, DETERMINISTIC, ORDER, PROFILES, step_timeout_for,
 )
@@ -388,16 +388,23 @@ def _tools_from_permissions(permissions_text: str) -> tuple[str, ...]:
 
 def _effective_step_tools(etape: str) -> tuple[str, ...]:
     """Outils effectifs d'une étape : ratification (`_STEP_TOOLS`) d'abord, sinon
-    dérivation du contrat (`permissions`), sinon () — fail-safe."""
-    if etape in _STEP_TOOLS:
-        return _STEP_TOOLS[etape]
-    contract_path = REPO_ROOT / "scripts" / "forge" / "contracts" / f"{etape}.yaml"
+    dérivation du contrat (`permissions`), sinon () — fail-safe.
+
+    Lot F (2026-08-23) : résout l'ALIAS de round (`base_step`) avant les DEUX
+    lookups — un alias round>=2 (`s2.5-artbible-r2`, `s2.7-gm-worldscan-r2`) doit
+    recevoir EXACTEMENT les mêmes outils que sa base (même contrat, même travail),
+    jamais retomber sur () faute d'entrée `_STEP_TOOLS`/fichier de contrat propres
+    (qui n'existent pas pour l'alias)."""
+    base = base_step(etape)
+    if base in _STEP_TOOLS:
+        return _STEP_TOOLS[base]
+    contract_path = REPO_ROOT / "scripts" / "forge" / "contracts" / f"{base}.yaml"
     try:
         import yaml  # déjà dépendance de forge.contract
         data = yaml.safe_load(contract_path.read_text(encoding="utf-8")) or {}
         return _tools_from_permissions(str(data.get("permissions") or ""))
     except Exception:  # noqa: BLE001 — fail-safe : borne totale, jamais fail-open
-        logger.warning("M1: permissions du contrat illisibles pour %s -> ()", etape)
+        logger.warning("M1: permissions du contrat illisibles pour %s (base=%s) -> ()", etape, base)
         return ()
 
 
@@ -455,6 +462,24 @@ _ARTIFACT_BY_STEP: dict[str, str] = {
     "s2.7-gm-worldscan": "gm_worldscan.json",
     # §7.2 · s2.6-story-bible — meme motif : l'entree qui rend la station mesurable.
     "s2.6-story-bible": "story_bible.json",
+    # Lot F (2026-08-23) : l'alias round 2 de s2.7 écrit le MÊME artefact JSON que sa
+    # base — même validateur (`_ARTIFACT_VALIDATORS["gm_worldscan.json"]` reste
+    # `_validate_gm_worldscan`), même patron de matérialisation. `_materialize_
+    # artifact` archive la version R1 existante (`artifacts/gm_worldscan-r1.json`)
+    # juste avant l'écrasement — cf. `_archive_round1_before_overwrite`.
+    #
+    # DÉLIBÉRÉMENT PAS d'entrée `s2.5-artbible-r2` ici, malgré la lecture naïve de
+    # la table amont/artefact — VÉRIFIÉ : `s2.5-artbible` (sa base) N'EST PAS non
+    # plus dans cette table. art_bible.md/asset_requests.json sont écrits par
+    # L'AGENT lui-même (Write, cf. `_STEP_TOOLS["s2.5-artbible"]`), jamais
+    # matérialisés par l'exécuteur depuis un bloc ```json``` — cette table n'a
+    # qu'UN artefact JSON par étape et suppose un pipeline JSON-only qui ne
+    # s'applique pas à s2.5. Ajouter l'alias ici casserait `_materialize_artifact`
+    # (KeyError sur `_ARTIFACT_VALIDATORS["art_bible.md"]`, jamais enregistré).
+    # L'archivage round 1 -> `-r1.md`/`-r1.json` pour s2.5-artbible-r2 est donc fait
+    # AILLEURS (avant l'appel agent, dans `claude_executor` — cf.
+    # `_archive_round1_before_overwrite` et son point d'appel).
+    "s2.7-gm-worldscan-r2": "gm_worldscan.json",
 }
 
 # Bloc JSON fenced (```json ... ```) — extraction déterministe, aucun LLM.
@@ -1247,6 +1272,241 @@ def _resolve_art_bible_address(text: str, section: str) -> bool:
     return bool(pattern.search(text))
 
 
+# --- Lot F (2026-08-23) : design_questions.json -- boucle de completion mutuelle
+# Art <-> GM (docs/superpowers/plans/2026-08-23-forge-lot-f-boucle-completion-mutuelle.md).
+#
+# Convention de resolution DECIDEE ici (le plan ne fixait que le principe, pas le
+# format exact de match) : une adresse "about"/"answer.ref" designe TOUJOURS
+# l'artefact du PILIER auquel elle appartient (about -> artefact du demandeur
+# "from" ; answer.ref -> artefact du repondant "by"/"to"). Prefixe optionnel
+# ("gm_worldscan:"/"art_bible:") tolere puis retire ; un "#fragment" final est
+# tolere et retire (decoratif, non verifie -- ex. "art_bible:character_states#garden"
+# resout au niveau de la section "character_states" seule). Pour GM, le chemin
+# restant navigue DANS le bloc "game_master" (le prefixe "game_master." est lui
+# aussi optionnel/tolere) via une marche segment par segment : un dict resout par
+# cle, une LISTE resout par INDEX si le segment est un entier, sinon par recherche
+# d'un item {"id": segment} (meme convention d'adressage que "gm_worldscan:
+# game_master.<bloc>[.<id>]" du contrat s2.7 -- ex. "grey_blocks.garden" trouve
+# l'item de game_master.grey_blocks dont l'id vaut "garden"). Pour ART, l'adresse
+# est un nom de section de niveau 2 ("## <section>") de art_bible.md -- reutilise
+# _resolve_art_bible_address tel quel.
+_DESIGN_QUESTIONS_PILLARS = ("ART", "GM")
+
+
+def _other_pillar(pilier: str) -> str:
+    return "GM" if pilier == "ART" else "ART"
+
+
+def _resolve_game_master_path(game_master, path: str) -> bool:
+    """True ssi path resout dans le bloc game_master deja charge (dict/list JSON).
+    Marche segment par segment : dict -> cle ; list -> index si segment numerique,
+    sinon recherche d'un item {"id": segment} (meme convention que les blocs
+    adressables par id du schema game_master -- grey_blocks, proof_model, etc.)."""
+    if not path:
+        return False
+    cur = game_master
+    for seg in path.split("."):
+        if not seg:
+            return False
+        if isinstance(cur, dict):
+            if seg not in cur:
+                return False
+            cur = cur[seg]
+        elif isinstance(cur, list):
+            if seg.isdigit():
+                i = int(seg)
+                if i < 0 or i >= len(cur):
+                    return False
+                cur = cur[i]
+            else:
+                match = next(
+                    (item for item in cur if isinstance(item, dict) and item.get("id") == seg),
+                    None)
+                if match is None:
+                    return False
+                cur = match
+        else:
+            return False
+    return True
+
+
+def _strip_design_question_prefix(pilier: str, addr: str) -> str:
+    """Retire le prefixe/fragment optionnel d'une adresse "about"/"answer.ref"
+    avant resolution -- cf. docstring de section ci-dessus pour la convention."""
+    a = (addr or "").strip()
+    if pilier == "GM":
+        if a.startswith("gm_worldscan:"):
+            a = a[len("gm_worldscan:"):]
+        if a.startswith("game_master."):
+            a = a[len("game_master."):]
+        return a
+    if a.startswith("art_bible:"):
+        a = a[len("art_bible:"):]
+    return a.split("#", 1)[0]
+
+
+def _resolve_design_question_address(pilier: str, addr: str, run_dir: "Path | None") -> bool:
+    """True ssi addr resout dans l'artefact de pilier (ART -> art_bible.md,
+    GM -> gm_worldscan.json.game_master). run_dir=None ou artefact absent/illisible
+    -> False (jamais d'exception)."""
+    if run_dir is None:
+        return False
+    bare = _strip_design_question_prefix(pilier, addr)
+    if not bare:
+        return False
+    if pilier == "GM":
+        gm_path = Path(run_dir) / "gm_worldscan.json"
+        try:
+            gm_data = json.loads(gm_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return False
+        gm_block = gm_data.get("game_master") if isinstance(gm_data, dict) else None
+        if not isinstance(gm_block, dict):
+            return False
+        return _resolve_game_master_path(gm_block, bare)
+    ab_path = Path(run_dir) / "art_bible.md"
+    try:
+        text = ab_path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return _resolve_art_bible_address(text, bare)
+
+
+def _validate_design_questions(data: dict, run_dir: "Path | None" = None) -> str:
+    """'' si design_questions.json (Lot F 2026-08-23, forme figee dans le plan) est
+    structurellement valide, sinon la raison PRECISE (nommant l'id fautif quand il
+    y en a un). Regles verifiees, dans l'ordre :
+      - schema_version (int), round (int >=1), questions (list), declarations
+        (dict avec ART et GM) presents et bien types ;
+      - chaque question : id str non vide UNIQUE, from/to dans {ART, GM} et
+        from != to, round int >=1, about str non vide, missing liste NON VIDE,
+        why str non vide, blocking bool ;
+      - about DOIT resoudre dans l'artefact du demandeur (from) -- seulement si
+        run_dir est fourni (sinon saute, comportement historique pour un appelant
+        sans run_dir) ;
+      - answer est null OU un objet {round int>=1, by==to, ref str non vide,
+        text str non vide} ; ref DOIT resoudre dans l'artefact du repondant (by) ;
+      - REFUS NOMME : ready_for_freeze d'un pilier est refuse s'il reste une
+        question dont to==ce pilier et answer est null (liste les id concernes) ;
+      - open_to_gm (declarations.ART) / open_to_art (declarations.GM) DOIVENT
+        etre egaux au compte REEL de questions {from==ce pilier, to==l'autre,
+        answer==null} (decision : "open_to_X" = mes questions ENVOYEES vers X
+        encore SANS reponse -- distinct du refus ready_for_freeze ci-dessus, qui
+        porte sur les questions RECUES) ;
+      - REGLE ANTI-REGRESSION (append-only) : si run_dir est fourni et qu'un
+        design_questions.json PRECEDENT existe deja dans le run, toute question de
+        la version PRECEDENTE (meme id) doit etre presente dans la nouvelle liste --
+        sinon refus nomme.
+    Jamais d'exception -- une entree malformee devient un message de refus, pas
+    un crash."""
+    if not isinstance(data.get("schema_version"), int):
+        return "'schema_version' doit etre un entier"
+    if not isinstance(data.get("round"), int) or data.get("round") < 1:
+        return "'round' doit etre un entier >= 1"
+    questions = data.get("questions")
+    if not isinstance(questions, list):
+        return "'questions' doit etre une liste"
+    declarations = data.get("declarations")
+    if not isinstance(declarations, dict):
+        return "'declarations' doit etre un mapping"
+    for pilier in _DESIGN_QUESTIONS_PILLARS:
+        if not isinstance(declarations.get(pilier), dict):
+            return f"'declarations.{pilier}' absent ou n'est pas un mapping"
+
+    seen_ids: set = set()
+    unanswered_received: dict = {"ART": [], "GM": []}
+    unanswered_sent: dict = {"ART": 0, "GM": 0}
+    for q in questions:
+        if not isinstance(q, dict):
+            return "chaque question doit etre un mapping"
+        qid = q.get("id")
+        if not isinstance(qid, str) or not qid.strip():
+            return "question sans 'id' non vide"
+        if qid in seen_ids:
+            return f"id de question duplique : {qid!r}"
+        seen_ids.add(qid)
+        frm, to = q.get("from"), q.get("to")
+        if frm not in _DESIGN_QUESTIONS_PILLARS or to not in _DESIGN_QUESTIONS_PILLARS:
+            return f"question {qid!r} : 'from'/'to' doivent etre ART ou GM"
+        if frm == to:
+            return f"question {qid!r} : 'from' et 'to' ne peuvent pas etre identiques"
+        if not isinstance(q.get("round"), int) or q.get("round") < 1:
+            return f"question {qid!r} : 'round' doit etre un entier >= 1"
+        about = q.get("about")
+        if not isinstance(about, str) or not about.strip():
+            return f"question {qid!r} : 'about' non vide requis"
+        missing = q.get("missing")
+        if not isinstance(missing, list) or not missing:
+            return f"question {qid!r} : 'missing' doit etre une liste non vide"
+        why = q.get("why")
+        if not isinstance(why, str) or not why.strip():
+            return f"question {qid!r} : 'why' non vide requis"
+        if not isinstance(q.get("blocking"), bool):
+            return f"question {qid!r} : 'blocking' doit etre un booleen"
+        if run_dir is not None and not _resolve_design_question_address(frm, about, run_dir):
+            return (f"question {qid!r} : 'about' {about!r} ne resout pas dans "
+                    f"l'artefact du demandeur ({frm})")
+        answer = q.get("answer")
+        if answer is not None:
+            if not isinstance(answer, dict):
+                return f"question {qid!r} : 'answer' doit etre un objet ou null"
+            if not isinstance(answer.get("round"), int) or answer.get("round") < 1:
+                return f"question {qid!r} : 'answer.round' doit etre un entier >= 1"
+            by = answer.get("by")
+            if by != to:
+                return f"question {qid!r} : 'answer.by' doit etre {to!r} (le destinataire)"
+            ref = answer.get("ref")
+            if not isinstance(ref, str) or not ref.strip():
+                return f"question {qid!r} : 'answer.ref' non vide requis"
+            text = answer.get("text")
+            if not isinstance(text, str) or not text.strip():
+                return f"question {qid!r} : 'answer.text' non vide requis"
+            if run_dir is not None and not _resolve_design_question_address(by, ref, run_dir):
+                return (f"question {qid!r} : 'answer.ref' {ref!r} ne resout pas dans "
+                        f"l'artefact du repondant ({by})")
+        else:
+            unanswered_received[to].append(qid)
+            unanswered_sent[frm] += 1
+
+    for pilier in _DESIGN_QUESTIONS_PILLARS:
+        decl = declarations[pilier]
+        ready = decl.get("ready_for_freeze")
+        if not isinstance(ready, bool):
+            return f"'declarations.{pilier}.ready_for_freeze' doit etre un booleen"
+        if ready and unanswered_received[pilier]:
+            return (f"'declarations.{pilier}.ready_for_freeze' refuse -- questions "
+                    f"recues sans reponse : {', '.join(sorted(unanswered_received[pilier]))}")
+        other = _other_pillar(pilier)
+        open_key = f"open_to_{other.lower()}"
+        open_val = decl.get(open_key)
+        if not isinstance(open_val, int):
+            return f"'declarations.{pilier}.{open_key}' doit etre un entier"
+        if open_val != unanswered_sent[pilier]:
+            return (f"'declarations.{pilier}.{open_key}'={open_val} ne correspond pas "
+                    f"au compte reel de questions envoyees sans reponse "
+                    f"({unanswered_sent[pilier]})")
+
+    if run_dir is not None:
+        prev_path = Path(run_dir) / "design_questions.json"
+        if prev_path.is_file():
+            try:
+                prev = json.loads(prev_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                prev = None
+            if isinstance(prev, dict):
+                prev_questions = prev.get("questions")
+                if isinstance(prev_questions, list):
+                    prev_ids = {
+                        q.get("id") for q in prev_questions
+                        if isinstance(q, dict) and isinstance(q.get("id"), str)
+                    }
+                    disparues = sorted(prev_ids - seen_ids)
+                    if disparues:
+                        return (f"question {disparues[0]!r} disparue depuis la ronde "
+                                "precedente (regle append-only)")
+    return ""
+
+
 _SOURCES_CONSUMED_KEYS = ("worldscan", "story_bible", "art_bible")
 
 
@@ -1319,15 +1579,67 @@ def _validate_sources_consumed(data: dict, run_dir: Path) -> str:
 _GAME_MASTER_SCHEMA_SCRIPT = Path(__file__).resolve().parent / "game_master_schema.mjs"
 _GAME_MASTER_SCHEMA_TIMEOUT_S = 60.0
 
+# --- Lot F (2026-08-23) : fence dediee ``design_questions`` -----------------------
+# Choix DELIBERE (le plan laissait le nom de fence ouvert) : un label de fence
+# DISTINCT de ```json``` (jamais ```json``` avec un tag), pour ne JAMAIS entrer en
+# collision avec l'artefact principal de l'etape (gm_worldscan.json a s2.7 EST deja
+# un bloc ```json``` -- select_artifact_payload doit pouvoir choisir le sien sans
+# jamais voir le bloc design_questions comme un candidat, et reciproquement).
+_FENCED_DESIGN_QUESTIONS = re.compile(r"```design_questions\s*(.*?)```", re.S)
 
-def _validate_game_master_block(data: dict, run_dir: Path) -> str:
+
+def _extract_design_questions_block(output: str) -> "dict | None":
+    """DERNIER bloc ```design_questions``` qui parse en objet JSON, ou None.
+    Meme regle que extract_json_payload/_FENCED_JSON (dernier bloc valide,
+    jamais d'exception) -- factorisee ici car utilisee par DEUX appelants :
+    la tolerance PARTIAL round 1 (_validate_game_master_block) et le
+    materialiseur dedie (_materialize_design_questions)."""
+    for raw in reversed(_FENCED_DESIGN_QUESTIONS.findall(output or "")):
+        try:
+            candidat = json.loads(raw)
+        except ValueError:
+            continue
+        if isinstance(candidat, dict):
+            return candidat
+    return None
+
+
+def _has_blocking_gm_to_art_question(output: str) -> bool:
+    """Vrai ssi le bloc ```design_questions``` de `output` porte >=1 question
+    GM->ART avec `blocking: true` -- condition de la tolerance PARTIAL round 1
+    (cf. _validate_game_master_block). Best-effort : bloc absent/malforme -> False,
+    jamais une exception (la tolerance ne s'applique simplement pas)."""
+    dq = _extract_design_questions_block(output)
+    if not isinstance(dq, dict):
+        return False
+    questions = dq.get("questions")
+    if not isinstance(questions, list):
+        return False
+    return any(
+        isinstance(q, dict) and q.get("from") == "GM" and q.get("to") == "ART"
+        and q.get("blocking") is True
+        for q in questions
+    )
+
+
+def _validate_game_master_block(data: dict, run_dir: Path, output: str = "",
+                                etape: str = "") -> str:
     """'' si `data['game_master']` (Lot B 2026-08-23) est structurellement valide au
     sens de `game_master_schema.validateGameMaster`, sinon la raison (problèmes
     joints). Délègue à `node game_master_schema.mjs <tmp>.json --json` — même patron
     subprocess que `_materialize_loop_spec` : écrit `data` COMPLET (le script lit
     `data.game_master`) dans un fichier temporaire sous `run_dir`, appelle node,
     supprime le fichier temporaire dans un `finally`. Jamais d'exception : un node
-    non exécutable ou une sortie illisible devient un refus honnête nommé."""
+    non exécutable ou une sortie illisible devient un refus honnête nommé.
+
+    Lot F (2026-08-23) — tolérance PARTIAL round 1 SEULEMENT : quand `etape` est
+    EXACTEMENT `s2.7-gm-worldscan` (round 1 canonique — JAMAIS l'alias `-r2`, qui
+    exige un `game_master` COMPLET, comportement Lot B inchangé) ET que `output`
+    porte >=1 question GM->ART `blocking:true` (cf. `_has_blocking_gm_to_art_
+    question`), un `game_master` INCOMPLET (bloc présent, mais rejeté par
+    `validateGameMaster`) est TOLÉRÉ — le round 2 le complètera. Un `game_master`
+    TOTALEMENT ABSENT (clé manquante) N'EST JAMAIS toléré, même en round 1 avec une
+    question bloquante : "PARTIAL" présuppose un bloc, pas son absence."""
     if "game_master" not in data:
         return ("'game_master' absent — bloc obligatoire (Lot B 2026-08-23), "
                 "traduction du monde découvert en jeu mesurable")
@@ -1358,12 +1670,15 @@ def _validate_game_master_block(data: dict, run_dir: Path) -> str:
         return "game_master : sortie du validateur inexploitable (pas de champ 'ok')"
     if payload.get("ok"):
         return ""
+    if etape == "s2.7-gm-worldscan" and _has_blocking_gm_to_art_question(output):
+        return ""  # PARTIAL round 1 tolere -- round 2 doit completer
     problems = payload.get("problems")
     problems_txt = "; ".join(str(p) for p in problems) if isinstance(problems, list) else "raison inconnue"
     return f"game_master invalide — {problems_txt}"
 
 
-def _validate_gm_worldscan(data: dict, run_dir: "Path | None" = None) -> str:
+def _validate_gm_worldscan(data: dict, run_dir: "Path | None" = None, output: str = "",
+                           etape: str = "") -> str:
     """§7.2 · s2.7 — '' si l'artefact est structurellement exploitable, sinon la raison
     du rejet. Garde-fou MINIMAL avant écriture, même esprit que `_validate_worldscan` :
     `forge.static_oracles.check_gm_worldscan` reste l'oracle de vérité (les 8
@@ -1375,7 +1690,12 @@ def _validate_gm_worldscan(data: dict, run_dir: "Path | None" = None) -> str:
     portée par le manifeste de dispatch (`context_manifest.resolve_dispatch_sources`).
     Vérifiée seulement quand `run_dir` est fourni (les artefacts source y sont lus) —
     `run_dir=None` (comportement historique, ex. appelants qui ne le connaissent pas)
-    saute cette section plutôt que d'échouer sur un contexte absent."""
+    saute cette section plutôt que d'échouer sur un contexte absent.
+
+    Lot F (2026-08-23) : `output`/`etape` sont transmis tels quels à
+    `_validate_game_master_block` pour la tolérance PARTIAL round 1 — voir sa
+    docstring. Les deux valent "" par défaut (comportement historique inchangé pour
+    tout appelant qui ne les connaît pas, ex. les tests existants)."""
     dims = data.get("dimensions")
     if not isinstance(dims, list) or not dims:
         return ("'dimensions' doit être une liste NON VIDE (un scan de genre sans "
@@ -1388,12 +1708,10 @@ def _validate_gm_worldscan(data: dict, run_dir: "Path | None" = None) -> str:
         reason = _validate_sources_consumed(data, Path(run_dir))
         if reason:
             return reason
-        reason = _validate_game_master_block(data, Path(run_dir))
+        reason = _validate_game_master_block(data, Path(run_dir), output=output, etape=etape)
         if reason:
             return reason
     return ""
-
-
 def _validate_story_bible(data: dict) -> str:
     """§7.2 · s2.6 — garde-fou MINIMAL avant écriture ; check_story_bible reste
     l'oracle de vérité (8 sections, ancrage, placeholders)."""
@@ -1785,17 +2103,27 @@ def _materialize_markdown(etape: str, output: str, run_dir: Path) -> dict | None
         return {"written": False, "reason": "exception du matérialiseur (voir run.log)"}
 
 
-def _call_artifact_validator(validator, data: dict, run_dir: "Path | None") -> str:
-    """Appelle `validator(data)`, ou `validator(data, run_dir=run_dir)` si sa
-    signature déclare `run_dir` (Lot A 2026-08-23, `_validate_gm_worldscan`) — permet
-    à UN validateur de recevoir le run_dir sans changer la signature des autres
+def _call_artifact_validator(validator, data: dict, run_dir: "Path | None",
+                             output: str = "", etape: str = "") -> str:
+    """Appelle `validator(data)`, ou `validator(data, run_dir=run_dir, ...)` en ne
+    passant QUE les mots-clés que la signature du validateur déclare réellement
+    (Lot A 2026-08-23 `run_dir` ; Lot F 2026-08-23 `output`/`etape`, pour la
+    tolérance PARTIAL round 1 de `_validate_gm_worldscan`) — permet à UN validateur
+    de recevoir des paramètres additifs sans changer la signature des autres
     (`_ARTIFACT_VALIDATORS` reste un mapping uniforme artefact -> callable(data))."""
     try:
         params = inspect.signature(validator).parameters
     except (TypeError, ValueError):
         return validator(data)
+    kwargs = {}
     if "run_dir" in params:
-        return validator(data, run_dir=run_dir)
+        kwargs["run_dir"] = run_dir
+    if "output" in params:
+        kwargs["output"] = output
+    if "etape" in params:
+        kwargs["etape"] = etape
+    if kwargs:
+        return validator(data, **kwargs)
     return validator(data)
 
 
@@ -1826,7 +2154,8 @@ def select_artifact_payload(
 
     `run_dir` (Lot A 2026-08-23) : optionnel, transmis au validateur SEULEMENT s'il
     déclare ce paramètre (cf. `_call_artifact_validator`) — comportement inchangé
-    pour tous les validateurs existants, qui ignorent ce mot-clé.
+    pour tous les validateurs existants, qui ignorent ce mot-clé. `etape` (Lot F
+    2026-08-23) : transmis au même titre, pour la tolérance PARTIAL round 1.
 
     Jamais d'exception, jamais un objet partiel — même contrat qu'`extract_json_payload`.
     """
@@ -1851,7 +2180,7 @@ def select_artifact_payload(
 
     last_reason = ""
     for data in reversed(dict_candidates):
-        reason = _call_artifact_validator(validator, data, run_dir)
+        reason = _call_artifact_validator(validator, data, run_dir, output=output, etape=etape)
         if not reason:
             return data, ""
         if not last_reason:
@@ -1859,11 +2188,37 @@ def select_artifact_payload(
     return None, last_reason
 
 
+def _archive_round1_before_overwrite(run_dir: Path, filename: str) -> None:
+    """Lot F (2026-08-23) : avant qu'un round >=2 n'écrase un artefact partagé par
+    R1/R2 (même nom de fichier, même contrat — cf. `forge.contract.base_step`), la
+    version R1 est ARCHIVÉE sous `artifacts/<stem>-r1<suffixe>` — jamais écrasée en
+    silence. Idempotent : si l'archive existe déjà, elle n'est JAMAIS réécrite (la
+    première version R1 réelle prime sur une reprise/re-tentative). Best-effort
+    strict : une erreur d'I/O ici est journalisée, jamais bloquante — perdre
+    l'archive est regrettable, ce n'est jamais un motif d'échec de l'étape round 2."""
+    src = Path(run_dir) / filename
+    if not src.exists():
+        return
+    dest = Path(run_dir) / "artifacts" / f"{src.stem}-r1{src.suffix}"
+    if dest.exists():
+        return
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
+    except OSError:
+        logger.warning("archivage round1 non écrit pour %s (non bloquant)", filename)
+
+
 def _materialize_artifact(etape: str, output: str, run_dir: Path) -> dict | None:
     """Écrit l'artefact déterministe de l'étape (blueprint.json / wiremap.json)
     depuis la sortie texte, APRÈS validation de schéma (F2a). Retourne None si
     tout va bien, sinon le dict d'échec honnête {ok: False, reason} à remonter au
-    driver (fail-fast, jamais un fichier corrompu, invalide ni absent en silence)."""
+    driver (fail-fast, jamais un fichier corrompu, invalide ni absent en silence).
+
+    Lot F (2026-08-23) : quand `etape` est un alias round >=2 (`step_round(etape)
+    >= 2`, ex. `s2.7-gm-worldscan-r2`) ET que l'artefact existe déjà sur disque
+    (écrit par le round 1), la version R1 est archivée (`_archive_round1_before_
+    overwrite`) juste AVANT l'écrasement — jamais silencieusement perdue."""
     artefact = _ARTIFACT_BY_STEP.get(etape)
     if artefact is None:
         return None
@@ -1871,15 +2226,67 @@ def _materialize_artifact(etape: str, output: str, run_dir: Path) -> dict | None
     if data is None:
         return {"ok": False,
                 "reason": f"{etape}: artefact {artefact} non matérialisable — {why}"}
-    schema_why = _call_artifact_validator(_ARTIFACT_VALIDATORS[artefact], data, run_dir)
+    schema_why = _call_artifact_validator(_ARTIFACT_VALIDATORS[artefact], data, run_dir,
+                                          output=output, etape=etape)
     if schema_why:
         return {"ok": False,
                 "reason": f"{etape}: artefact {artefact} invalide — {schema_why} "
                           "(aucun fichier écrit)"}
     run_dir.mkdir(parents=True, exist_ok=True)
+    if step_round(etape) >= 2:
+        _archive_round1_before_overwrite(run_dir, artefact)
     (run_dir / artefact).write_text(
         json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
     return None
+
+
+_DESIGN_QUESTIONS_LOOP_BASES = ("s2.5-artbible", "s2.7-gm-worldscan")
+
+
+def _materialize_design_questions(etape: str, run_dir: Path, output: str) -> dict | None:
+    """Lot F (2026-08-23) : materialiseur DEDIE (meme patron que _materialize_loop_
+    spec/_materialize_economy) pour design_questions.json, AJOUTE apres la
+    materialisation principale de l'etape (art_bible.md/asset_requests.json ecrits
+    par l'agent a s2.5 ; gm_worldscan.json materialise par _materialize_artifact a
+    s2.7) -- jamais un remplacement.
+
+    Retourne None si etape n'appartient pas a la boucle (ni s2.5-artbible ni
+    s2.7-gm-worldscan, base ou alias round 2). Sinon :
+      - round 1 (etape canonique) : bloc ```design_questions``` ABSENT est TOLERE --
+        {"written": False, "reason": ...}, jamais un echec de l'etape ;
+      - round 2 (alias -r2) : bloc ABSENT ou INVALIDE est un ECHEC de l'etape --
+        {"ok": False, "reason": ...}, meme contrat que _materialize_artifact (l'appelant
+        doit le traiter comme un artefact obligatoire manquant, return immediat) ;
+      - present et valide (round 1 ou 2) : ecrit design_questions.json a la racine
+        de run_dir (regle append-only verifiee PAR _validate_design_questions AVANT
+        l'ecriture -- elle lit elle-meme le fichier existant) et retourne
+        {"written": True, "path", "round", "questions": <nb>}."""
+    base = base_step(etape)
+    if base not in _DESIGN_QUESTIONS_LOOP_BASES:
+        return None
+    round_ = step_round(etape)
+    dq = _extract_design_questions_block(output)
+    if dq is None:
+        if round_ == 1:
+            return {"written": False,
+                    "reason": "design_questions.json non materialisable -- aucun bloc "
+                              "```design_questions``` dans la reponse (tolere en round 1)"}
+        return {"ok": False,
+                "reason": f"{etape}: design_questions.json obligatoire en round >=2 -- "
+                          "aucun bloc ```design_questions``` dans la reponse"}
+    reason = _validate_design_questions(dq, run_dir)
+    if reason:
+        return {"ok": False,
+                "reason": f"{etape}: design_questions.json invalide -- {reason}"}
+    try:
+        run_dir.mkdir(parents=True, exist_ok=True)
+        dq_path = run_dir / "design_questions.json"
+        dq_path.write_text(json.dumps(dq, ensure_ascii=False, indent=1), encoding="utf-8")
+    except OSError as exc:
+        return {"ok": False,
+                "reason": f"{etape}: design_questions.json non ecrit ({exc})"}
+    return {"written": True, "path": str(dq_path), "round": round_,
+            "questions": len(dq.get("questions") or [])}
 
 
 # --- s11 red-team CODE : findings AUDIBLES dans le verdict signé -------------------
@@ -1960,87 +2367,103 @@ def extract_redteam_findings(output: str) -> tuple[list[str], str]:
 # à la racine du run_dir : cette table (etape -> artefacts amont, chemins relatifs
 # au run_dir) injecte ces contenus dans le prompt de l'étape aval.
 _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
-    # FORGE_PRISME_V2 (Pierre, 2026-08-03) — le Prisme REÇOIT le World Scan.
-    # Copie STRICTEMENT identique à context_manifest._UPSTREAM_BY_STEP (test
-    # d'égalité dans scripts/forge/tests/test_context_manifest.py).
-    # Choix (b) Pierre 2026-08-21 : le Prisme reçoit AUSSI la Story Bible (s2.6) et
-    # le GM World Scan (s2.7) quand ils existent (profil full_godot_narratif) — c'est
-    # par les exigences du Prisme que leur information atteint la décompo sans
-    # assouplir la règle `source_ref -> exigence` de check_decompo. Fichier absent
-    # (profil `full`) => omis par upstream_artifacts_section, comportement inchangé.
+    # FORGE_PRISME_V2 (Pierre, 2026-08-03) ' le Prisme RECOIT le World Scan.
+    # Copie STRICTEMENT identique a context_manifest._UPSTREAM_BY_STEP (test
+    # d'egalite dans scripts/forge/tests/test_context_manifest.py).
+    # Choix (b) Pierre 2026-08-21 : le Prisme recoit AUSSI la Story Bible (s2.6) et
+    # le GM World Scan (s2.7) quand ils existent (profil full_godot_narratif) ' c'est
+    # par les exigences du Prisme que leur information atteint la decompo sans
+    # assouplir la regle source_ref -> exigence de check_decompo. Fichier absent
+    # (profil full) => omis par upstream_artifacts_section, comportement inchange.
+    # Lot F (2026-08-23) : + design_questions.json ' le Prisme voit l'etat de
+    # convergence de la boucle Art<->GM (blocking residuels, reponses) avant de
+    # tourner ; absent (profils sans boucle) => omis, comportement inchange.
     "s1-prisme": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
-                  "artifacts/s2.7-gm-worldscan.txt"),
-    # Lot A 2026-08-23 (tuyau World Scan -> Art Bible -> GM) : s2.7 reçoit désormais
+                  "artifacts/s2.7-gm-worldscan.txt", "design_questions.json"),
+    # Lot A 2026-08-23 (tuyau World Scan -> Art Bible -> GM) : s2.7 recoit desormais
     # AUSSI la Story Bible et l'Art Bible + ses demandes d'assets (l'Art Bible est
-    # produite AVANT s2.7 dans full_godot_content, cf. dispatch.PROFILES) — l'ancienne
-    # entrée (World Scan seul) laissait le GM ignorer la Story Bible et l'Art Bible
-    # déjà produites (audit docs/audit/2026-08-23-kitten-clicker-worldscan-artbible-gm-pipe.md).
+    # produite AVANT s2.7 dans full_godot_content, cf. dispatch.PROFILES) ' l'ancienne
+    # entree (World Scan seul) laissait le GM ignorer la Story Bible et l'Art Bible
+    # deja produites (audit docs/audit/2026-08-23-kitten-clicker-worldscan-artbible-gm-pipe.md).
     # Fichiers absents (profils sans s2.5/s2.6) => omis par upstream_artifacts_section,
-    # comportement inchangé.
-    # Lot B T2(b) (2026-08-23) : le GM reçoit AUSSI l'héritage inter-run (contrat
-    # d'artefacts GM <-> Artiste, sans station nouvelle, cf. plan Lot B) — la réponse
-    # de l'Artiste au run précédent (`heritage/art_response.json`) et son propre
-    # `gm_worldscan.json` précédent (`heritage/gm_worldscan.json`), copiés en fin de
-    # run par le driver dans `lab/forge_runs/<projet>/heritage/`. Absents (1er run,
-    # ou dossier heritage/ non encore peuplé) => omis par upstream_artifacts_section,
-    # comportement inchangé.
+    # comportement inchange.
+    # Lot B T2(b) (2026-08-23) : le GM recoit AUSSI l'heritage inter-run (contrat
+    # d'artefacts GM <-> Artiste, sans station nouvelle, cf. plan Lot B) ' la reponse
+    # de l'Artiste au run precedent (heritage/art_response.json) et son propre
+    # gm_worldscan.json precedent (heritage/gm_worldscan.json), copies en fin de
+    # run par le driver dans lab/forge_runs/<projet>/heritage/. Absents (1er run,
+    # ou dossier heritage/ non encore peuple) => omis par upstream_artifacts_section,
+    # comportement inchange.
     "s2.7-gm-worldscan": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
                           "art_bible.md", "asset_requests.json",
                           "heritage/art_response.json", "heritage/gm_worldscan.json"),
-    # §7.2 · s2.6 — la Story Bible reçoit ses DEUX seules sources d'ancrage. Le
-    # charter est un fichier de run (comme pour s3) ; absent => section amont réduite,
-    # et le worker le déclare dans inputs_recus au lieu de compenser.
+    # Lot F (2026-08-23, round 2) ' table PROPRE a l'alias, distincte de la base
+    # ci-dessus (base_step ne s'applique JAMAIS a cette table : contrairement au
+    # contrat/role/modele/outils, ce que R2 RECOIT en amont differe reellement de
+    # R1 ' R2 voit son propre brouillon R1 (art_bible.md/asset_requests.json,
+    # pas encore ecrases a ce stade) ET le gm_worldscan.json de R1, EN PLUS de
+    # design_questions.json ' les questions posees/recues a completer).
+    "s2.5-artbible-r2": ("charter.yaml", "artifacts/s2-worldscan.txt",
+                         "artifacts/s2.6-story-bible.txt", "gm_worldscan.json",
+                         "design_questions.json", "art_bible.md"),
+    "s2.7-gm-worldscan-r2": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
+                             "art_bible.md", "asset_requests.json",
+                             "design_questions.json", "gm_worldscan.json"),
+    # SS7.2 . s2.6 ' la Story Bible recoit ses DEUX seules sources d'ancrage. Le
+    # charter est un fichier de run (comme pour s3) ; absent => section amont reduite,
+    # et le worker le declare dans inputs_recus au lieu de compenser.
     "s2.6-story-bible": ("charter.yaml", "artifacts/s2-worldscan.txt"),
-    # Lot A 2026-08-23 : l'Art Bible hérite du World Scan et de la Story Bible (plus
-    # du Prisme — `product_snapshot.md` retiré de son mandatory_read), produite AVANT
+    # Lot A 2026-08-23 : l'Art Bible herite du World Scan et de la Story Bible (plus
+    # du Prisme ' product_snapshot.md retire de son mandatory_read), produite AVANT
     # s2.7 dans full_godot_content (cf. dispatch.PROFILES). Absents (profils sans
-    # s2.5) => omis par upstream_artifacts_section, comportement inchangé.
-    # Lot B T2(b) (2026-08-23) : l'Art Director reçoit l'héritage inter-run — sa
-    # propre Art Bible précédente et la réponse Artiste (`04_ASSETS/art_response.json`
-    # du build précédent, copiée par le driver dans `heritage/`) : c'est le « à terme »
+    # s2.5) => omis par upstream_artifacts_section, comportement inchange.
+    # Lot B T2(b) (2026-08-23) : l'Art Director recoit l'heritage inter-run ' sa
+    # propre Art Bible precedente et la reponse Artiste (04_ASSETS/art_response.json
+    # du build precedent, copiee par le driver dans heritage/) : c'est le a-terme
     # bidirectionnel GM <-> Artiste, sans station nouvelle (cf. plan Lot B). Absents
-    # (1er run) => omis par upstream_artifacts_section, comportement inchangé.
+    # (1er run) => omis par upstream_artifacts_section, comportement inchange.
     "s2.5-artbible": ("charter.yaml", "artifacts/s2-worldscan.txt",
                       "artifacts/s2.6-story-bible.txt",
                       "heritage/art_bible.md", "heritage/art_response.json"),
-    # Choix (b) Pierre 2026-08-21 : idem pour la décompo (mêmes deux artefacts amont,
-    # après les 3 sources déjà existantes). Fichier absent => omis, comportement
-    # inchangé pour les profils qui ne produisent pas s2.6/s2.7.
-    # full_godot_content (Pierre 2026-08-22, composition) : la décompo reçoit AUSSI
-    # art_bible.md et asset_requests.json (produits par s2.5-artbible, injecté entre
-    # s1 et s3 dans ce profil). Absents (autres profils) => omis, comportement inchangé.
-    # V4 GAME LOOP (2026-08-22, GO Pierre) : `loop.json` (projection déterministe
-    # du Prisme, matérialisée par run_real après prisme.json) est injecté en FIN
-    # de tuple à s3-decompo, s5-wiremap, s9-build-godot-standard — une ENTRÉE à
-    # lire, jamais une source de vérité. Absent (runs sans exigence PLAYER, ou
-    # profils qui ne matérialisent pas loop.json) => omis par
-    # upstream_artifacts_section, comportement inchangé.
+    # Choix (b) Pierre 2026-08-21 : idem pour la decompo (memes deux artefacts amont,
+    # apres les 3 sources deja existantes). Fichier absent => omis, comportement
+    # inchange pour les profils qui ne produisent pas s2.6/s2.7.
+    # full_godot_content (Pierre 2026-08-22, composition) : la decompo recoit AUSSI
+    # art_bible.md et asset_requests.json (produits par s2.5-artbible, injecte entre
+    # s1 et s3 dans ce profil). Absents (autres profils) => omis, comportement inchange.
+    # V4 GAME LOOP (2026-08-22, GO Pierre) : loop.json (projection deterministe
+    # du Prisme, materialisee par run_real apres prisme.json) est injecte en FIN
+    # de tuple a s3-decompo, s5-wiremap, s9-build-godot-standard ' une ENTREE a
+    # lire, jamais une source de verite. Absent (runs sans exigence PLAYER, ou
+    # profils qui ne materialisent pas loop.json) => omis par
+    # upstream_artifacts_section, comportement inchange.
     "s3-decompo": ("charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt",
                    "artifacts/s2.6-story-bible.txt", "artifacts/s2.7-gm-worldscan.txt",
                    "art_bible.md", "asset_requests.json", "loop.json"),
     "s4-archi": ("charter.yaml", "artifacts/s3-decompo.txt",),
-    # full_godot_content : le wiremap reçoit aussi la Story Bible (s2.6) et l'art
-    # bible + ses demandes d'assets (s2.5) — même raisonnement que s3-decompo
-    # ci-dessus. Absents (autres profils) => omis, comportement inchangé.
+    # full_godot_content : le wiremap recoit aussi la Story Bible (s2.6) et l'art
+    # bible + ses demandes d'assets (s2.5) ' meme raisonnement que s3-decompo
+    # ci-dessus. Absents (autres profils) => omis, comportement inchange.
     "s5-wiremap": ("charter.yaml", "artifacts/s3-decompo.txt", "blueprint.json",
                    "artifacts/s2.6-story-bible.txt", "art_bible.md", "asset_requests.json",
                    "loop.json"),
     "s6-redteam-plan": ("charter.yaml", "artifacts/s3-decompo.txt", "artifacts/s4-archi.txt",
                         "artifacts/s5-wiremap.txt"),
     "s9-build": ("blueprint.json", "wiremap.json"),
-    # full_godot_content : le builder Godot standard reçoit blueprint+wiremap (comme
-    # s9-build ci-dessus) PLUS l'art bible et ses demandes d'assets — mesuré (lot
+    # full_godot_content : le builder Godot standard recoit blueprint+wiremap (comme
+    # s9-build ci-dessus) PLUS l'art bible et ses demandes d'assets ' mesure (lot
     # full_godot_narratif) : aucune injection n'existait pour s9-build-godot-standard,
-    # lecture déclarative seule. Absents (autres profils) => omis par
-    # upstream_artifacts_section, comportement inchangé.
-    # Lot B T2(b) (2026-08-23) : le builder reçoit AUSSI `economy.json` — projection
-    # déterministe de `game_master.economy_model` + métriques invariant, dérivée par
-    # l'exécuteur à s2.7 (cf. `_materialize_economy`) ; absent (game_master non
-    # matérialisé) => omis par upstream_artifacts_section, comportement inchangé.
+    # lecture declarative seule. Absents (autres profils) => omis par
+    # upstream_artifacts_section, comportement inchange.
+    # Lot B T2(b) (2026-08-23) : le builder recoit AUSSI economy.json ' projection
+    # deterministe de game_master.economy_model + metriques invariant, derivee par
+    # l'executeur a s2.7 (cf. _materialize_economy) ; absent (game_master non
+    # materialise) => omis par upstream_artifacts_section, comportement inchange.
     "s9-build-godot-standard": ("blueprint.json", "wiremap.json", "art_bible.md",
                                 "asset_requests.json", "loop.json", "economy.json"),
     "s11-redteam-code": ("wiremap.json",),
 }
+
 
 # Borne de troncature déclarée : chaque artefact injecté est coupé à cette taille
 # (mention explicite '[tronqué]') — jamais un prompt non borné.
@@ -2176,7 +2599,19 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
 
     def executor(payload, decision, context) -> dict:
         etape = payload.etape
+        # Lot F (2026-08-23) : archivage R1 AVANT l'appel agent pour s2.5-artbible-r2.
+        # art_bible.md/asset_requests.json ne sont PAS dans _ARTIFACT_BY_STEP (l'agent
+        # les ecrit lui-meme via Write, jamais l'executeur -- verifie : s2.5-artbible
+        # (sa base) n'y figure pas non plus) : l'archivage round1->r1.ext ne peut donc
+        # PAS se faire dans _materialize_artifact comme pour s2.7-gm-worldscan-r2
+        # (gm_worldscan.json, lui bien dans cette table). Seul point d'insertion
+        # possible : ICI, juste avant que l'agent n'ecrase les fichiers de round 1.
+        if base_step(etape) == "s2.5-artbible" and step_round(etape) >= 2:
+            run_dir_pre = Path(context["run_dir"])
+            _archive_round1_before_overwrite(run_dir_pre, "art_bible.md")
+            _archive_round1_before_overwrite(run_dir_pre, "asset_requests.json")
         task = task_by_step.get(etape, "")
+
         parts = [payload.prompt,
                  f"## TÂCHE CONCRÈTE ({context['run_id']} / {etape})\n{task}"]
         # (F4) artefacts amont : la sortie des étapes précédentes (persistée par le
@@ -2323,7 +2758,26 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
             economy_receipt = _materialize_economy(etape, Path(context["run_dir"]))
             if economy_receipt is not None:
                 res["economy_check"] = economy_receipt
-            # (c) oracle amont + réparation ciblée, immédiatement après l'écriture de
+            # Lot F (2026-08-23) : design_questions.json -- AJOUT separe, APRES la
+            # materialisation principale de l'etape (art_bible.md/asset_requests.json
+            # ecrits par l'agent a s2.5 ; gm_worldscan.json materialise ci-dessus a
+            # s2.7 -- _materialize_design_questions ne remplace rien). Round 1 : absence
+            # toleree (res["design_questions_check"]["written"]==False). Round 2 : absence
+            # ou invalidite est un ECHEC de l'etape, meme contrat que le "failure" de
+            # _materialize_artifact ci-dessus (return immediat, sortie brute preservee).
+            dq_receipt = _materialize_design_questions(
+                etape, Path(context["run_dir"]), str(res.get("output", "")))
+            if dq_receipt is not None:
+                if dq_receipt.get("ok") is False:
+                    dq_receipt.setdefault("output", str(res.get("output", "")))
+                    for champ in ("tokens", "duration_s", "cost_usd",
+                                  "cache_creation_tokens", "cache_read_tokens"):
+                        if champ in res:
+                            dq_receipt.setdefault(champ, res.get(champ))
+                    return dq_receipt
+                res["design_questions_check"] = dq_receipt
+            # (c) oracle amont + reparation ciblee, immediatement apres l'ecriture de
+
             # l'artefact. C'est le seul instant où l'artefact existe, est frais, et où
             # personne n'a encore construit dessus : réparer plus tard reviendrait à
             # corriger une fondation sous un mur déjà monté.

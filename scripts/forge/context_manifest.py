@@ -34,7 +34,7 @@ import re
 import time
 from pathlib import Path
 
-from forge.contract import CONTRACTS_DIR, FORGE_ROLES
+from forge.contract import CONTRACTS_DIR, FORGE_ROLES, base_step
 from forge.verdict import CLAIM_VERDICT, _sign_mapping, _verify_mapping, current_git_head
 
 logger = logging.getLogger(__name__)
@@ -59,75 +59,88 @@ OVERFLOW_RATIO = 0.9
 # STRICTE contre `forge.run_real._UPSTREAM_BY_STEP` — toute divergence future
 # entre les deux copies casse ce test, jamais un oubli silencieux.
 _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
-    # FORGE_PRISME_V2 (Pierre, 2026-08-03) — le Prisme REÇOIT le World Scan.
-    # Avant : aucune entrée pour s1-prisme, et s2-worldscan n'avait AUCUN
-    # consommateur mécanique. Le Prisme raisonnait sur le seul charter, ce qui
+    # FORGE_PRISME_V2 (Pierre, 2026-08-03) ' le Prisme RECOIT le World Scan.
+    # Avant : aucune entree pour s1-prisme, et s2-worldscan n'avait AUCUN
+    # consommateur mecanique. Le Prisme raisonnait sur le seul charter, ce qui
     # rendait son silence sur menu/pause/audio/onboarding structurel et non
-    # accidentel. « Le Prisme est le mécanisme qui transforme la connaissance
-    # externe en exigences internes » — encore faut-il qu'il la reçoive.
-    # Choix (b) Pierre 2026-08-21 : le Prisme reçoit AUSSI la Story Bible (s2.6) et
-    # le GM World Scan (s2.7) quand ils existent (profil full_godot_narratif) — c'est
-    # par les exigences du Prisme que leur information atteint la décompo sans
-    # assouplir la règle `source_ref -> exigence` de check_decompo. Fichier absent
-    # (profil `full`) => omis par upstream_artifacts_section, comportement inchangé.
+    # accidentel. Le Prisme est le mecanisme qui transforme la connaissance
+    # externe en exigences internes ' encore faut-il qu'il la recoive.
+    # Choix (b) Pierre 2026-08-21 : le Prisme recoit AUSSI la Story Bible (s2.6) et
+    # le GM World Scan (s2.7) quand ils existent (profil full_godot_narratif) ' c'est
+    # par les exigences du Prisme que leur information atteint la decompo sans
+    # assouplir la regle source_ref -> exigence de check_decompo. Fichier absent
+    # (profil full) => omis par upstream_artifacts_section, comportement inchange.
+    # Lot F (2026-08-23) : + design_questions.json ' copie STRICTEMENT identique
+    # a run_real._UPSTREAM_BY_STEP (test d'egalite dans test_context_manifest.py).
     "s1-prisme": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
-                  "artifacts/s2.7-gm-worldscan.txt"),
-    # §7.2 · s2.7 — copie STRICTEMENT identique à run_real._UPSTREAM_BY_STEP (test
-    # d'égalité dans test_context_manifest.py) : toute divergence casse ce test.
-    # Lot A 2026-08-23 : s2.7 reçoit désormais AUSSI la Story Bible et l'Art Bible +
+                  "artifacts/s2.7-gm-worldscan.txt", "design_questions.json"),
+    # SS7.2 . s2.7 ' copie STRICTEMENT identique a run_real._UPSTREAM_BY_STEP (test
+    # d'egalite dans test_context_manifest.py) : toute divergence casse ce test.
+    # Lot A 2026-08-23 : s2.7 recoit desormais AUSSI la Story Bible et l'Art Bible +
     # ses demandes d'assets (produite AVANT s2.7 dans full_godot_content).
-    # Lot B T2(b) (2026-08-23) : s2.7 reçoit AUSSI l'héritage inter-run (contrat
-    # d'artefacts GM <-> Artiste) — copie STRICTEMENT identique à run_real.
+    # Lot B T2(b) (2026-08-23) : s2.7 recoit AUSSI l'heritage inter-run (contrat
+    # d'artefacts GM <-> Artiste) ' copie STRICTEMENT identique a run_real.
     "s2.7-gm-worldscan": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
                           "art_bible.md", "asset_requests.json",
                           "heritage/art_response.json", "heritage/gm_worldscan.json"),
+    # Lot F (2026-08-23, round 2) ' copie STRICTEMENT identique a
+    # run_real._UPSTREAM_BY_STEP (test d'egalite) : les alias round 2 recoivent
+    # leur propre brouillon R1 (art_bible.md/asset_requests.json/gm_worldscan.json)
+    # ET design_questions.json, en plus des sources amont narratives.
+    "s2.5-artbible-r2": ("charter.yaml", "artifacts/s2-worldscan.txt",
+                         "artifacts/s2.6-story-bible.txt", "gm_worldscan.json",
+                         "design_questions.json", "art_bible.md"),
+    "s2.7-gm-worldscan-r2": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
+                             "art_bible.md", "asset_requests.json",
+                             "design_questions.json", "gm_worldscan.json"),
     "s2.6-story-bible": ("charter.yaml", "artifacts/s2-worldscan.txt"),
-    # Lot A 2026-08-23 : copie STRICTEMENT identique à run_real._UPSTREAM_BY_STEP —
-    # l'Art Bible hérite du World Scan et de la Story Bible (plus du Prisme).
-    # Lot B T2(b) (2026-08-23) : + héritage inter-run (art_bible.md, art_response.json
-    # du run précédent) — copie STRICTEMENT identique à run_real.
+    # Lot A 2026-08-23 : copie STRICTEMENT identique a run_real._UPSTREAM_BY_STEP '
+    # l'Art Bible herite du World Scan et de la Story Bible (plus du Prisme).
+    # Lot B T2(b) (2026-08-23) : + heritage inter-run (art_bible.md, art_response.json
+    # du run precedent) ' copie STRICTEMENT identique a run_real.
     "s2.5-artbible": ("charter.yaml", "artifacts/s2-worldscan.txt",
                       "artifacts/s2.6-story-bible.txt",
                       "heritage/art_bible.md", "heritage/art_response.json"),
-    # s3-decompo reçoit désormais les DEUX : le Prisme (exigences) et le World
-    # Scan (connaissance qui les fonde). Sans cette 2e source, la décompo perdait
-    # les standards du genre dès qu'ils n'étaient pas repris mot pour mot.
-    # Choix (b) Pierre 2026-08-21 : idem pour la décompo (mêmes deux artefacts amont,
-    # après les 3 sources déjà existantes). Fichier absent => omis, comportement
-    # inchangé pour les profils qui ne produisent pas s2.6/s2.7.
-    # full_godot_content (Pierre 2026-08-22, composition) : la décompo reçoit AUSSI
-    # art_bible.md et asset_requests.json (produits par s2.5-artbible, injecté entre
-    # s1 et s3 dans ce profil). Absents (autres profils) => omis, comportement inchangé.
-    # V4 GAME LOOP (2026-08-22, GO Pierre) : `loop.json` (projection déterministe
-    # du Prisme, matérialisée par run_real après prisme.json) est injecté en FIN
-    # de tuple à s3-decompo, s5-wiremap, s9-build-godot-standard — une ENTRÉE à
-    # lire, jamais une source de vérité. Absent (runs sans exigence PLAYER, ou
-    # profils qui ne matérialisent pas loop.json) => omis par
-    # upstream_artifacts_section, comportement inchangé.
+    # s3-decompo recoit desormais les DEUX : le Prisme (exigences) et le World
+    # Scan (connaissance qui les fonde). Sans cette 2e source, la decompo perdait
+    # les standards du genre des qu'ils n'etaient pas repris mot pour mot.
+    # Choix (b) Pierre 2026-08-21 : idem pour la decompo (memes deux artefacts amont,
+    # apres les 3 sources deja existantes). Fichier absent => omis, comportement
+    # inchange pour les profils qui ne produisent pas s2.6/s2.7.
+    # full_godot_content (Pierre 2026-08-22, composition) : la decompo recoit AUSSI
+    # art_bible.md et asset_requests.json (produits par s2.5-artbible, injecte entre
+    # s1 et s3 dans ce profil). Absents (autres profils) => omis, comportement inchange.
+    # V4 GAME LOOP (2026-08-22, GO Pierre) : loop.json (projection deterministe
+    # du Prisme, materialisee par run_real apres prisme.json) est injecte en FIN
+    # de tuple a s3-decompo, s5-wiremap, s9-build-godot-standard ' une ENTREE a
+    # lire, jamais une source de verite. Absent (runs sans exigence PLAYER, ou
+    # profils qui ne materialisent pas loop.json) => omis par
+    # upstream_artifacts_section, comportement inchange.
     "s3-decompo": ("charter.yaml", "artifacts/s1-prisme.txt", "artifacts/s2-worldscan.txt",
                    "artifacts/s2.6-story-bible.txt", "artifacts/s2.7-gm-worldscan.txt",
                    "art_bible.md", "asset_requests.json", "loop.json"),
     "s4-archi": ("charter.yaml", "artifacts/s3-decompo.txt",),
-    # full_godot_content : le wiremap reçoit aussi la Story Bible (s2.6) et l'art
-    # bible + ses demandes d'assets (s2.5) — même raisonnement que s3-decompo
-    # ci-dessus. Absents (autres profils) => omis, comportement inchangé.
+    # full_godot_content : le wiremap recoit aussi la Story Bible (s2.6) et l'art
+    # bible + ses demandes d'assets (s2.5) ' meme raisonnement que s3-decompo
+    # ci-dessus. Absents (autres profils) => omis, comportement inchange.
     "s5-wiremap": ("charter.yaml", "artifacts/s3-decompo.txt", "blueprint.json",
                    "artifacts/s2.6-story-bible.txt", "art_bible.md", "asset_requests.json",
                    "loop.json"),
     "s6-redteam-plan": ("charter.yaml", "artifacts/s3-decompo.txt", "artifacts/s4-archi.txt",
                         "artifacts/s5-wiremap.txt"),
     "s9-build": ("blueprint.json", "wiremap.json"),
-    # full_godot_content : le builder Godot standard reçoit blueprint+wiremap (comme
-    # s9-build ci-dessus) PLUS l'art bible et ses demandes d'assets — mesuré (lot
+    # full_godot_content : le builder Godot standard recoit blueprint+wiremap (comme
+    # s9-build ci-dessus) PLUS l'art bible et ses demandes d'assets ' mesure (lot
     # full_godot_narratif) : aucune injection n'existait pour s9-build-godot-standard,
-    # lecture déclarative seule. Absents (autres profils) => omis par
-    # upstream_artifacts_section, comportement inchangé.
-    # Lot B T2(b) (2026-08-23) : + economy.json (projection déterministe, dérivée
-    # à s2.7) — copie STRICTEMENT identique à run_real.
+    # lecture declarative seule. Absents (autres profils) => omis par
+    # upstream_artifacts_section, comportement inchange.
+    # Lot B T2(b) (2026-08-23) : + economy.json (projection deterministe, derivee
+    # a s2.7) ' copie STRICTEMENT identique a run_real.
     "s9-build-godot-standard": ("blueprint.json", "wiremap.json", "art_bible.md",
                                 "asset_requests.json", "loop.json", "economy.json"),
     "s11-redteam-code": ("wiremap.json",),
 }
+
 
 
 # --- hachage utilitaire (fail-soft) ------------------------------------------
@@ -187,8 +200,10 @@ def resolve_dispatch_sources(
     simplement consigné exists:false."""
     sources: list[dict] = []
 
-    # (a) contrat
-    sources.append(_source_record(CONTRACTS_DIR / f"{etape}.yaml", "contract"))
+    # (a) contrat -- Lot F (2026-08-23) : alias round >=2 resolu vers le fichier
+    # de la BASE (cf. forge.contract.base_step/load_contract) -- il n'existe et
+    # n'existera jamais de fichier "<etape>-r2.yaml".
+    sources.append(_source_record(CONTRACTS_DIR / f"{base_step(etape)}.yaml", "contract"))
 
     # (b) mandatory_read : seules les entrées qui RESSEMBLENT à un chemin.
     for entry in contract.get("mandatory_read") or ():
@@ -329,7 +344,9 @@ def build_dispatch_manifest_record(
         "model": payload.model,
         "model_executed": model_executed or payload.model,
         "provider": payload.provider,
-        "contract_sha256": _sha256_file(CONTRACTS_DIR / f"{etape}.yaml"),
+        # Lot F (2026-08-23) : meme resolution d'alias que resolve_dispatch_sources
+        # ci-dessus -- le hash porte sur le fichier de contrat REELLEMENT charge.
+        "contract_sha256": _sha256_file(CONTRACTS_DIR / f"{base_step(etape)}.yaml"),
         "payload_prompt_sha256": _sha256_text(payload.prompt),
         "sources": sources,
         "reason": reason,

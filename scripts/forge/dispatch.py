@@ -140,7 +140,23 @@ DEDICATED_PROFILE_STEPS = (
     # sa source, une section non ancrable se declare NOT_GROUNDED motivee. Hors ORDER
     # comme les cinq ci-dessus.
     "s2.6-story-bible",
+    # Lot F (2026-08-23, boucle de complétion mutuelle Art <-> GM) — alias round 2 de
+    # s2.5-artbible/s2.7-gm-worldscan (`<etape>-r2`, cf. forge.contract.base_step/
+    # step_round). Membres RÉELS de PROFILES["full_godot_content"] (dispatch.py) : ils
+    # doivent apparaître ici pour satisfaire le même invariant que les six entrées
+    # ci-dessus — `test_profiles_are_subsets_of_order_or_explicitly_dedicated`
+    # (test_dispatch.py) exige que TOUT id référencé par un profil soit dans ORDER OU
+    # DEDICATED_PROFILE_STEPS, jamais un id « mystère ». Conséquence directe : ces deux
+    # alias deviennent aussi des clés valides de `_VALID_TASK_STEPS`
+    # (`run_real._VALID_TASK_STEPS = frozenset(ORDER) | frozenset(DEDICATED_PROFILE_
+    # STEPS)`), ce qui débloque `lab/forge_runs/kitten_clicker/tasks.json` (non touché
+    # par ce lot, mais qui cite déjà ces deux ids) sans y toucher. Jamais mêlés
+    # silencieusement à `full` (comme les six entrées ci-dessus) — dispatchables
+    # uniquement via leur base + le profil `full_godot_content`.
+    "s2.5-artbible-r2",
+    "s2.7-gm-worldscan-r2",
 )
+
 
 # Profils de chaîne — sous-ensembles de ORDER (ou de DEDICATED_PROFILE_STEPS ci-dessus)
 # pour des usages plus courts que le greenfield complet. `patch` = un fix sur un projet
@@ -391,12 +407,25 @@ PROFILES = {
     # Bible doit précéder le GM et hériter du World Scan + Story Bible, pas du Prisme —
     # `product_snapshot.md` (s1) est RETIRÉ de son `mandatory_read`). Art bible injectée
     # en aval (s3/s5/s9) via `_UPSTREAM_BY_STEP` (run_real/context_manifest), inchangé.
+    # LOT F -- BOUCLE DE COMPLETION MUTUELLE (2026-08-23, GO Pierre 2 rondes fixes,
+    # docs/superpowers/plans/2026-08-23-forge-lot-f-boucle-completion-mutuelle.md) :
+    # s2.5-artbible et s2.7-gm-worldscan tournent une 2e fois (round 2, alias
+    # `<etape>-r2` -- cf. forge.contract.base_step/step_round, MEME contrat que la
+    # base) juste apres leur 1re passe, AVANT s1-prisme. Round 1 = "voila ce que je
+    # vois" + questions vers l'autre pilier (design_questions.json, T2) ; round 2 =
+    # reponses + completion. Topologie a 2 rondes FIXES -- jamais de 3e ronde
+    # automatique (hors perimetre de ce lot). Timeout : aucune entree dediee dans
+    # PROFILE_STEP_TIMEOUTS_S ci-dessous pour les 2 alias -- leur base (s2.5-artbible/
+    # s2.7-gm-worldscan) n'en a pas non plus (jamais mesuree), donc "meme timeout que
+    # la base" == meme absence d'entree, retombant sur DEFAULT_STEP_TIMEOUT_S.
     "full_godot_content": (
         "s0-contrat",
         "s2-worldscan",
         "s2.6-story-bible",
         "s2.5-artbible",
         "s2.7-gm-worldscan",
+        "s2.5-artbible-r2",
+        "s2.7-gm-worldscan-r2",
         "s1-prisme",
         "s3-decompo",
         "s4-archi",

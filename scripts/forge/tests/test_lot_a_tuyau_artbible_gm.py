@@ -63,11 +63,18 @@ def _copy_run9_upstream_fixture(dest: Path) -> None:
 # --- T1 : ordre du profil ------------------------------------------------------
 
 def test_ordre_full_godot_content_s25_avant_s27():
+    # Lot F (2026-08-23) : 19 étapes (17 + les 2 alias round 2 de la boucle de
+    # complétion mutuelle, s2.5-artbible-r2/s2.7-gm-worldscan-r2, insérés entre
+    # s2.7-gm-worldscan et s1-prisme).
     steps = order_for_profile("full_godot_content")
-    assert len(steps) == 17
+    assert len(steps) == 19
     assert steps.index("s2.6-story-bible") < steps.index("s2.5-artbible")
     assert steps.index("s2.5-artbible") < steps.index("s2.7-gm-worldscan")
     assert steps.index("s2.7-gm-worldscan") < steps.index("s1-prisme")
+    assert steps.index("s2.7-gm-worldscan") < steps.index("s2.5-artbible-r2")
+    assert steps.index("s2.5-artbible-r2") < steps.index("s2.7-gm-worldscan-r2")
+    assert steps.index("s2.7-gm-worldscan-r2") < steps.index("s1-prisme")
+
 
 
 # --- T1(c) : preuve de CHARGEMENT (manifeste de dispatch + section amont) ------

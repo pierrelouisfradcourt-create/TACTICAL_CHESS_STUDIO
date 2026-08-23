@@ -19,11 +19,30 @@ def test_le_profil_est_full_godot_narratif_plus_artbible_entre_s26_et_s27():
     attendu = list(PROFILES["full_godot_narratif"])
     k = attendu.index("s2.7-gm-worldscan")
     attendu.insert(k, "s2.5-artbible")
+    # Lot F (2026-08-23) : boucle de complétion mutuelle -- s2.5-artbible-r2 et
+    # s2.7-gm-worldscan-r2 (aliases round 2, même contrat que leur base -- cf.
+    # forge.contract.base_step/step_round) s'insèrent juste après s2.7-gm-worldscan
+    # et AVANT s1-prisme -- 2 rondes fixes, GO Pierre, jamais de 3e ronde.
+    k2 = attendu.index("s2.7-gm-worldscan") + 1
+    attendu[k2:k2] = ["s2.5-artbible-r2", "s2.7-gm-worldscan-r2"]
     assert list(PROFILES["full_godot_content"]) == attendu
     assert order_for_profile("full_godot_content") == attendu
-    assert len(PROFILES["full_godot_content"]) == 17
+    assert len(PROFILES["full_godot_content"]) == 19
     i = {e: idx for idx, e in enumerate(PROFILES["full_godot_content"])}
     assert i["s2.6-story-bible"] < i["s2.5-artbible"] < i["s2.7-gm-worldscan"] < i["s1-prisme"]
+    assert i["s2.7-gm-worldscan"] < i["s2.5-artbible-r2"] < i["s2.7-gm-worldscan-r2"] < i["s1-prisme"]
+
+
+def test_les_alias_round2_partagent_le_contrat_de_leur_base():
+    from forge.contract import base_step, step_round, load_contract
+    assert base_step("s2.5-artbible-r2") == "s2.5-artbible"
+    assert base_step("s2.7-gm-worldscan-r2") == "s2.7-gm-worldscan"
+    assert step_round("s2.5-artbible-r2") == 2
+    assert step_round("s2.7-gm-worldscan-r2") == 2
+    assert step_round("s2.5-artbible") == 1
+    assert load_contract("s2.5-artbible-r2") == load_contract("s2.5-artbible")
+    assert load_contract("s2.7-gm-worldscan-r2") == load_contract("s2.7-gm-worldscan")
+
 
 
 def test_le_builder_garde_le_timeout_mesure():

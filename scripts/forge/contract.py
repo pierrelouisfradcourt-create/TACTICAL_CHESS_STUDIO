@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,6 +29,44 @@ logger = logging.getLogger(__name__)
 # scripts/forge/contract.py -> parents[2] == repo root
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTRACTS_DIR = REPO_ROOT / "scripts" / "forge" / "contracts"
+
+# =====================================================================================
+# ALIAS D'ETAPE -- boucle de completion mutuelle Art <-> GM (Lot F, 2026-08-23,
+# docs/superpowers/plans/2026-08-23-forge-lot-f-boucle-completion-mutuelle.md).
+#
+# `s2.5-artbible`/`s2.7-gm-worldscan` doivent pouvoir tourner une 2e fois (round 2)
+# dans le MEME run, sur le MEME contrat (R1 et R2 PARTAGENT le contrat -- il n'existe
+# aucun fichier `<etape>-r2.yaml`, et il n'en existera jamais). L'alias `<etape>-r<N>`
+# (N >= 2 ; round 1 est la forme canonique SANS suffixe) est la cle qui distingue les
+# deux activations dans `state.steps` (dict par id) et dans l'audit, tout en resolvant
+# au MEME fichier de contrat.
+# =====================================================================================
+_ALIAS_ROUND_RE = re.compile(r"^(.+)-r([2-9]\d*)$")
+
+
+def base_step(etape: str) -> str:
+    """Etape de BASE d'un alias de round.
+
+    ``base_step("s2.7-gm-worldscan-r2") == "s2.7-gm-worldscan"``
+    ``base_step("s2.7-gm-worldscan") == "s2.7-gm-worldscan"`` (inchange -- pas d'alias)
+
+    Reconnait uniquement le suffixe ``-r<N>`` avec N entier >= 2 (round 1 n'a jamais
+    de suffixe ``-r1`` -- c'est la forme canonique). Toute autre chaine, y compris une
+    etape deja canonique ou un id qui ne matche pas le motif, est retournee TELLE
+    QUELLE -- aucune exception, aucune devinette.
+    """
+    m = _ALIAS_ROUND_RE.match(etape or "")
+    return m.group(1) if m else etape
+
+
+def step_round(etape: str) -> int:
+    """Round porte par ``etape`` -- 1 par defaut (round 1 = forme canonique).
+
+    ``step_round("s2.7-gm-worldscan-r2") == 2``
+    ``step_round("s2.7-gm-worldscan") == 1``
+    """
+    m = _ALIAS_ROUND_RE.match(etape or "")
+    return int(m.group(2)) if m else 1
 # Mapping rôle-de-capacité -> runtime, Forge-scopé (ne touche pas le SSOT studio). ADR-002 gate 1.
 FORGE_ROLES = CONTRACTS_DIR / "roles.yaml"
 
@@ -159,8 +198,15 @@ def field_state(value: object) -> str:
 
 
 def load_contract(etape: str, contracts_dir: Path | None = None) -> dict:
-    """Charge le contrat YAML canonique d'une étape."""
-    path = (contracts_dir or CONTRACTS_DIR) / f"{etape}.yaml"
+    """Charge le contrat YAML canonique d'une étape.
+
+    Résout l'ALIAS de round (Lot F, `<etape>-r<N>` avec N>=2) vers le fichier de
+    la BASE avant de construire le chemin — R1 et R2 d'une même étape de la boucle
+    de complétion mutuelle partagent EXPRÈS le même contrat (cf. `base_step`). Le
+    contrat retourné est donc celui de la base, jamais un fichier `-r2.yaml` qui
+    n'existe pas et n'existera jamais.
+    """
+    path = (contracts_dir or CONTRACTS_DIR) / f"{base_step(etape)}.yaml"
     with open(path, encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
     if not isinstance(data, dict):

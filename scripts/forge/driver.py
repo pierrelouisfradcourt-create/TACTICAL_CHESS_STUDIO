@@ -40,7 +40,7 @@ from pathlib import Path
 
 import yaml
 
-from forge.contract import ContractIncomplete
+from forge.contract import ContractIncomplete, base_step as contract_base_step
 from forge.dispatch import (
     EVENT_AUTHORIZED,
     EVENT_EXECUTED,
@@ -463,10 +463,22 @@ class ForgeDriver:
                 )
                 if etape is None:
                     break
+                if etape == "s1-prisme":
+                    # T3 (Lot F, plan 2026-08-23-forge-lot-f-boucle-completion-
+                    # mutuelle) : gate `design_freeze` — s1-prisme ne tourne
+                    # qu'une fois le design ART<->GM convergé, mais SEULEMENT
+                    # pour un profil qui contient effectivement la boucle
+                    # (une étape de base s2.7-gm-worldscan, toute ronde) ;
+                    # sinon comportement inchangé (profils sans boucle / runs
+                    # historiques).
+                    halt_report = self._design_freeze_gate(state)
+                    if halt_report is not None:
+                        return halt_report
                 if etape == first_post and self._maybe_escalate(state):
                     continue  # s9 + oracles remis à PENDING — la boucle les rejoue
                 if is_deterministic_step(etape):
                     self._run_deterministic(state, etape)
+                    self._record_design_state_best_effort(state, etape)
                 elif not self._run_llm(state, etape):
                     # R1'' (GO Pierre 2026-08-13) : la promotion des lessons tourne
                     # AUSSI sur le chemin HALTED — prouvé nécessaire en vivo (run
@@ -494,9 +506,11 @@ class ForgeDriver:
                     # (project.godot absent). Même patron que les autres
                     # best-effort de fin de run (voir sa docstring).
                     self._write_heritage_best_effort()
-                    report = self._halted_report(state.get("reason", ""))
+                    report = self._halted_report(state.get("reason", ""), state=state)
                     self._append_run_index_best_effort(report)
                     return report
+                else:
+                    self._record_design_state_best_effort(state, etape)
             state["run_status"] = "DONE"
             self._save(state)
             self._regenerate_journal_index()
@@ -694,6 +708,208 @@ class ForgeDriver:
                 "démarre sans héritage)",
                 self.run_id, exc_info=True,
             )
+
+    # --- design_state / design_freeze (T3, Lot F, plan 2026-08-23-forge-lot-f-
+    # boucle-completion-mutuelle) ------------------------------------------
+    #
+    # Copie locale PRIVÉE de la résolution alias -> id de base (T1 en cours en
+    # parallèle sur contract.py : `load_contract` résoudra `<etape>-r<N>` vers
+    # `<etape>.yaml`). Cette méthode n'y touche PAS — l'orchestrateur
+    # dédoublonnera une fois T1 mergé. `s2.5-artbible-r2` -> `s2.5-artbible`.
+
+    _DESIGN_LOOP_BASE_STEPS = ("s2.5-artbible", "s2.7-gm-worldscan")
+
+    @staticmethod
+    def _base_step(etape: str) -> str:
+        # Source unique : `forge.contract.base_step` (alias d'étape `-r<N>`, Lot F).
+        return contract_base_step(etape)
+
+    def _design_loop_active(self) -> bool:
+        """Le profil courant contient-il une étape de base `s2.7-gm-worldscan`
+        (toute ronde) ? Sinon la gate `design_freeze` ne s'applique PAS —
+        comportement inchangé pour les profils sans boucle et les anciens
+        runs (plan §T3, "sinon comportement inchangé")."""
+        return any(self._base_step(e) == "s2.7-gm-worldscan" for e in self.order)
+
+    def _compute_design_state(self) -> dict:
+        """Lecture PURE, jamais d'exception, de `<run_dir>/design_questions.json`
+        (forme figée par le plan §"L'artefact design_questions.json"). Le
+        driver ne VALIDE PAS la forme (c'est le matérialiseur, hors périmètre
+        T3) : il COMPTE ce qui est là. Fichier absent, illisible, ou JSON
+        invalide -> même état de repli honnête (jamais `ready_for_freeze`)."""
+        absent = {
+            "round": None,
+            "status": {"ART": "PARTIAL", "GM": "PARTIAL"},
+            "open_questions": {"ART_to_GM": 0, "GM_to_ART": 0},
+            "blocking_gaps": 0,
+            "answered": 0,
+            "asked": 0,
+            "shared_design_pct": None,
+            "ready_for_freeze": {"ART": False, "GM": False},
+            "note": "design_questions.json absent",
+        }
+        path = self.run_dir / "design_questions.json"
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001 — lecture pure, jamais d'exception qui remonte
+            return absent
+        try:
+            questions = data.get("questions")
+            if not isinstance(questions, list):
+                questions = []
+            asked = len(questions)
+            answered = 0
+            blocking_gaps = 0
+            open_questions = {"ART_to_GM": 0, "GM_to_ART": 0}
+            for q in questions:
+                if not isinstance(q, dict):
+                    continue
+                is_answered = q.get("answer") is not None
+                if is_answered:
+                    answered += 1
+                    continue
+                frm, to = q.get("from"), q.get("to")
+                if frm == "ART" and to == "GM":
+                    open_questions["ART_to_GM"] += 1
+                elif frm == "GM" and to == "ART":
+                    open_questions["GM_to_ART"] += 1
+                if q.get("blocking") is True:
+                    blocking_gaps += 1
+
+            declarations = data.get("declarations")
+            if not isinstance(declarations, dict):
+                declarations = {}
+
+            def _ready(side: str) -> bool:
+                d = declarations.get(side)
+                return bool(d.get("ready_for_freeze")) if isinstance(d, dict) else False
+
+            ready_for_freeze = {"ART": _ready("ART"), "GM": _ready("GM")}
+            status = {
+                side: ("READY" if ready_for_freeze[side] else "PARTIAL")
+                for side in ("ART", "GM")
+            }
+            shared_design_pct = round(100 * answered / asked) if asked else None
+            rnd = data.get("round")
+            if not isinstance(rnd, int):
+                rnd = None
+            return {
+                "round": rnd,
+                "status": status,
+                "open_questions": open_questions,
+                "blocking_gaps": blocking_gaps,
+                "answered": answered,
+                "asked": asked,
+                "shared_design_pct": shared_design_pct,
+                "ready_for_freeze": ready_for_freeze,
+            }
+        except Exception:  # noqa: BLE001 — même discipline : jamais d'exception
+            note_absent = dict(absent)
+            note_absent["note"] = "design_questions.json présent mais illisible " \
+                                   "(comptage impossible, traité comme absent)"
+            return note_absent
+
+    def _write_design_state_best_effort(self, design_state: dict) -> None:
+        """Écrit `<run_dir>/design_state.json` — best-effort NON SILENCIEUX,
+        même discipline que `_write_heritage_best_effort` juste au-dessus."""
+        try:
+            self.run_dir.mkdir(parents=True, exist_ok=True)
+            path = self.run_dir / "design_state.json"
+            path.write_text(
+                json.dumps(design_state, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8", newline="\n",
+            )
+        except OSError:
+            logger.warning(
+                "run=%s : écriture design_state.json en échec (non bloquant)",
+                self.run_id, exc_info=True,
+            )
+
+    def _record_design_state_best_effort(self, state: dict, etape: str) -> None:
+        """Après CHAQUE étape de la boucle (id de base ∈ s2.5-artbible /
+        s2.7-gm-worldscan, toute ronde) : calcule `design_state`, l'écrit dans
+        `entry["detail"]["design_state"]` (persisté) ET `<run_dir>/
+        design_state.json` (best-effort). No-op pour toute autre étape."""
+        if self._base_step(etape) not in self._DESIGN_LOOP_BASE_STEPS:
+            return
+        design_state = self._compute_design_state()
+        entry = state.get("steps", {}).get(etape)
+        if isinstance(entry, dict):
+            detail = entry.get("detail")
+            if not isinstance(detail, dict):
+                detail = {}
+                entry["detail"] = detail
+            detail["design_state"] = design_state
+        state["design_state"] = design_state  # dernier calcul, visible au reçu final
+        self._save(state)
+        self._write_design_state_best_effort(design_state)
+
+    def _design_freeze_gate(self, state: dict) -> dict | None:
+        """GATE (pas un advisory, GO Pierre §T3) juste avant s1-prisme : ne
+        s'applique QUE si le profil contient la boucle (`_design_loop_active`).
+        Retourne un rapport HALTED prêt à renvoyer si le design n'est pas
+        convergé, sinon None (s1 tourne) — même chemin de sortie que les
+        autres HALTED de la boucle principale (promotion des leçons,
+        RUN_INDEX, heritage)."""
+        if not self._design_loop_active():
+            return None
+        design_state = self._compute_design_state()
+        state["design_state"] = design_state
+        ready = design_state.get("ready_for_freeze") or {}
+        ready_art = bool(ready.get("ART"))
+        ready_gm = bool(ready.get("GM"))
+        blocking_gaps = design_state.get("blocking_gaps") or 0
+        passed = blocking_gaps == 0 and ready_art and ready_gm and "note" not in design_state
+        ts = datetime.now(timezone.utc).isoformat()
+        if passed:
+            state["design_freeze"] = {
+                "passed": True,
+                "round": design_state.get("round"),
+                "shared_design_pct": design_state.get("shared_design_pct"),
+                "ts": ts,
+            }
+            self._save(state)
+            return None
+        ids = self._blocking_question_ids()
+        reason = (
+            f"design non convergé — {blocking_gaps} question(s) bloquante(s) "
+            f"ouverte(s) ; ready ART={ready_art}, GM={ready_gm} ; ids: {ids}"
+        )
+        state["design_freeze"] = {
+            "passed": False,
+            "round": design_state.get("round"),
+            "blocking_gaps": blocking_gaps,
+            "ready_for_freeze": {"ART": ready_art, "GM": ready_gm},
+            "ids": ids,
+            "ts": ts,
+        }
+        state["run_status"] = "HALTED"
+        state["reason"] = reason
+        self._save(state)
+        self._promote_manifest_lessons_best_effort()
+        self._write_heritage_best_effort()
+        report = self._halted_report(reason, state=state)
+        self._append_run_index_best_effort(report)
+        return report
+
+    def _blocking_question_ids(self) -> list[str]:
+        """Ids des questions bloquantes non répondues de `design_questions.json`
+        — utilisés UNIQUEMENT pour le texte du reçu HALTED (`_design_freeze_gate`),
+        même lecture pure jamais-d'exception que `_compute_design_state`."""
+        path = self.run_dir / "design_questions.json"
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            questions = data.get("questions")
+            if not isinstance(questions, list):
+                return []
+            return [
+                str(q.get("id"))
+                for q in questions
+                if isinstance(q, dict) and q.get("blocking") is True
+                and q.get("answer") is None and q.get("id") is not None
+            ]
+        except Exception:  # noqa: BLE001
+            return []
 
     def _default_observer_runner(self, project: str):
         """Comportement de PRODUCTION de `observer_runner` : `scripts/observer/
@@ -3952,6 +4168,12 @@ class ForgeDriver:
             "state_path": str(self.state_path),
             **self._cost_and_effort(state),
         }
+        # T3 (Lot F) : même reçu que _halted_report — visible dans le rapport
+        # DONE quand ce run a traversé la gate `design_freeze`.
+        if "design_freeze" in state:
+            base["design_freeze"] = state["design_freeze"]
+        if "design_state" in state:
+            base["design_state"] = state["design_state"]
         s12 = state["steps"].get("s12-verdict", {})
         detail = s12.get("detail", {})
         verdict_path = detail.get("verdict_path", "")
@@ -4013,8 +4235,9 @@ class ForgeDriver:
             "frozen": frozen,
         }
 
-    def _halted_report(self, reason: str, state_known: bool = True) -> dict:
-        return {
+    def _halted_report(self, reason: str, state_known: bool = True,
+                        state: dict | None = None) -> dict:
+        report = {
             "run_id": self.run_id,
             "project": self.project,
             "profile": self.profile,
@@ -4028,6 +4251,16 @@ class ForgeDriver:
             "state_path": str(self.state_path) if state_known else "",
             "reason": reason,
         }
+        # T3 (Lot F) : reçu lisible — `design_freeze`/`design_state` visibles
+        # dans le rapport HALTED quand présents dans le state (best-effort,
+        # optionnel : un HALTED sans rapport avec la boucle de design n'en
+        # porte simplement pas).
+        if isinstance(state, dict):
+            if "design_freeze" in state:
+                report["design_freeze"] = state["design_freeze"]
+            if "design_state" in state:
+                report["design_state"] = state["design_state"]
+        return report
 
     # --- game-ness re-dérivée (P0.3) ------------------------------------------
 
