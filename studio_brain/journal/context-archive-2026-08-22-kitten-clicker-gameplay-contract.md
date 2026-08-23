@@ -52,3 +52,29 @@ baseline run 7 → FAIL E/F/G/H/J) · T2 (`check_decompo` F/G/H/I/J, `check_wire
 validateur correct, contrat explicite ; **rupture 10 : BLOCKED de matérialisation = terminal sans retry**, famille 4 — archivé
 `_run8a_20260821h_halted_s2/`, non corrigé dans ce lot). **Run 8b `kitten_clicker-20260821h2` relancé depuis la session.**
 
+## Bloc archivé le 2026-08-23 (chantier Gameplay Contract + runs 8a/8b)
+### Chantier GAMEPLAY CONTRACT (GO Pierre, commit `f1bce0d`, 2026-08-22) — 10 maillons A→J
+T1 `loop_spec` 10 rôles + `observe` partout + G ≥ 2 `new_distinct` + H `replay` + J `increases_more_than` · T2 `check_decompo`
+F/G/H/I/J + `check_wiremap_contract` `maillon_non_lie` · T3 sonde `player_loop.gd` (new_distinct, appears, decreases/resets,
+increases_more_than, REPEAT, deltas) · T4 driver : bloc runtime **inconditionnel dès `run/main_scene`**, `loop_dead` = gate,
+loop.json absent = FAIL · T5 contrat s9 (k) dépôt `proof:`+`09_WIREMAP`. Suite Forge 2062 verts, Node 904. Runs 5/6/7 archivés
+(`_runN_*/` + `game_buildN/`), fixtures réancrées dessus. Run 8a `…h` HALTED s2 en 15 min (haiku `advisory_only` ≠ `advisory` ;
+**rupture 10 : BLOCKED de matérialisation = terminal sans retry**, famille 4, non corrigé) → `_run8a_20260821h_halted_s2/`.
+
+**Run 8b `kitten_clicker-20260821h2` (DONE 17/17, 2 h 07, 24 $, verdict signé AUTHENTIQUE : FAIL / BLOCKED)** — archivé
+`_run8_20260821h2/` (+ `game_build8/`, capture, state tentative 1) ; build courant `games/kitten_clicker/` = run 8b.
+- Amont : Prisme 22 exigences, **`checkLoopSpec` OK au 1ᵉʳ essai sans override** (10 rôles, 12 steps) ; Grey Blocks maillons
+  F=2 G=2 H=1 I=2 J=1, 8/8 actions prouvées depuis main.tscn ; WireMap 42 lignes, `requires` remplis (run 7 : vides).
+- **Les 3 preuves logicielles sont mesurées PAR LE DRIVER** (bloc inconditionnel, `proof:` déposé) aux 2 tentatives de build :
+  `runtime_alive` OK (38 nœuds) · **`player_loop` `reached_role: ADVANTAGE`, 12/12 steps, 0 fail, sans override** (pelote 0→61,
+  achat chaton, production passive 657, lieux 1→2→3 = `appears`, objectifs Palier 0 → 44 → 55, REPEAT rejoué ×4, prestige reset
+  −7672, avantage 100 > 61) · `loop_bypass` 0 violation · `loop_dead` false. 4ᵉ preuve = HumanGate Pierre (à jouer).
+- Rouges (tous HORS boucle, historiques) : e2e heuristique `DirAccess.open` (harnais à preloads, 51 asserts, baseline OK → faux
+  positif probable) · solvabilité `runner_argv=[]` : la branche descripteur exige un wrapper que le driver ne passe jamais en
+  régime descripteur (validateur sans producteur) · mutation 8/13 (2 fichiers sans mutant, `production.gd` 0/1) · s10c
+  `preuves_absentes` audio ×2 · s10s FAIL. s11 Opus : 0 finding. Le pool a relancé s9 (tentative 2, 9 min, 4 $) pour ces rouges.
+- Limites mesurées : G satisfait **textuellement** seulement (« Palier 44 — Le prestige est à portée » / « Palier 55 — … » :
+  même objectif, numéro différent) ; `check_wiremap_contract` compte **0/4** affordances liées alors que la chaîne d'ids est
+  bien fermée 4/4 — `EFFECT_KINDS=[file_write,visual]` refuse les feuilles d'effet typées `bot_action` par s3 (oracle trop
+  étroit sur sa 1ʳᵉ donnée réelle) ET ce contrôle n'est appelé par aucun exécuteur (auto-attestation de l'agent s5).
+

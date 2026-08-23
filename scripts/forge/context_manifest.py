@@ -74,8 +74,15 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
                   "artifacts/s2.7-gm-worldscan.txt"),
     # §7.2 · s2.7 — copie STRICTEMENT identique à run_real._UPSTREAM_BY_STEP (test
     # d'égalité dans test_context_manifest.py) : toute divergence casse ce test.
-    "s2.7-gm-worldscan": ("artifacts/s2-worldscan.txt",),
+    # Lot A 2026-08-23 : s2.7 reçoit désormais AUSSI la Story Bible et l'Art Bible +
+    # ses demandes d'assets (produite AVANT s2.7 dans full_godot_content).
+    "s2.7-gm-worldscan": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
+                          "art_bible.md", "asset_requests.json"),
     "s2.6-story-bible": ("charter.yaml", "artifacts/s2-worldscan.txt"),
+    # Lot A 2026-08-23 : copie STRICTEMENT identique à run_real._UPSTREAM_BY_STEP —
+    # l'Art Bible hérite du World Scan et de la Story Bible (plus du Prisme).
+    "s2.5-artbible": ("charter.yaml", "artifacts/s2-worldscan.txt",
+                      "artifacts/s2.6-story-bible.txt"),
     # s3-decompo reçoit désormais les DEUX : le Prisme (exigences) et le World
     # Scan (connaissance qui les fonde). Sans cette 2e source, la décompo perdait
     # les standards du genre dès qu'ils n'étaient pas repris mot pour mot.

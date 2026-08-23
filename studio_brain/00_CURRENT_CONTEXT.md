@@ -32,30 +32,11 @@ exécution produit (volets auto-assemblés, `preuve` prose) · **9 effets sans s
 **Run 7 (V4, `3843d7b`)** : le bot-joueur joue jusqu'à l'adoption d'un chaton par l'écran seul ; arrêt à NEXT_GOAL (chaîne à un
 maillon), REWARD sans `observe` ; le driver n'a pas mesuré (pas de `proof:`, 3ᵉ fois). Détail : journal `…-gameplay-contract.md`.
 
-### Chantier GAMEPLAY CONTRACT (GO Pierre, commit `f1bce0d`, 2026-08-22) — 10 maillons A→J
-T1 `loop_spec` 10 rôles + `observe` partout + G ≥ 2 `new_distinct` + H `replay` + J `increases_more_than` · T2 `check_decompo`
-F/G/H/I/J + `check_wiremap_contract` `maillon_non_lie` · T3 sonde `player_loop.gd` (new_distinct, appears, decreases/resets,
-increases_more_than, REPEAT, deltas) · T4 driver : bloc runtime **inconditionnel dès `run/main_scene`**, `loop_dead` = gate,
-loop.json absent = FAIL · T5 contrat s9 (k) dépôt `proof:`+`09_WIREMAP`. Suite Forge 2062 verts, Node 904. Runs 5/6/7 archivés
-(`_runN_*/` + `game_buildN/`), fixtures réancrées dessus. Run 8a `…h` HALTED s2 en 15 min (haiku `advisory_only` ≠ `advisory` ;
-**rupture 10 : BLOCKED de matérialisation = terminal sans retry**, famille 4, non corrigé) → `_run8a_20260821h_halted_s2/`.
-
-**Run 8b `kitten_clicker-20260821h2` (DONE 17/17, 2 h 07, 24 $, verdict signé AUTHENTIQUE : FAIL / BLOCKED)** — archivé
-`_run8_20260821h2/` (+ `game_build8/`, capture, state tentative 1) ; build courant `games/kitten_clicker/` = run 8b.
-- Amont : Prisme 22 exigences, **`checkLoopSpec` OK au 1ᵉʳ essai sans override** (10 rôles, 12 steps) ; Grey Blocks maillons
-  F=2 G=2 H=1 I=2 J=1, 8/8 actions prouvées depuis main.tscn ; WireMap 42 lignes, `requires` remplis (run 7 : vides).
-- **Les 3 preuves logicielles sont mesurées PAR LE DRIVER** (bloc inconditionnel, `proof:` déposé) aux 2 tentatives de build :
-  `runtime_alive` OK (38 nœuds) · **`player_loop` `reached_role: ADVANTAGE`, 12/12 steps, 0 fail, sans override** (pelote 0→61,
-  achat chaton, production passive 657, lieux 1→2→3 = `appears`, objectifs Palier 0 → 44 → 55, REPEAT rejoué ×4, prestige reset
-  −7672, avantage 100 > 61) · `loop_bypass` 0 violation · `loop_dead` false. 4ᵉ preuve = HumanGate Pierre (à jouer).
-- Rouges (tous HORS boucle, historiques) : e2e heuristique `DirAccess.open` (harnais à preloads, 51 asserts, baseline OK → faux
-  positif probable) · solvabilité `runner_argv=[]` : la branche descripteur exige un wrapper que le driver ne passe jamais en
-  régime descripteur (validateur sans producteur) · mutation 8/13 (2 fichiers sans mutant, `production.gd` 0/1) · s10c
-  `preuves_absentes` audio ×2 · s10s FAIL. s11 Opus : 0 finding. Le pool a relancé s9 (tentative 2, 9 min, 4 $) pour ces rouges.
-- Limites mesurées : G satisfait **textuellement** seulement (« Palier 44 — Le prestige est à portée » / « Palier 55 — … » :
-  même objectif, numéro différent) ; `check_wiremap_contract` compte **0/4** affordances liées alors que la chaîne d'ids est
-  bien fermée 4/4 — `EFFECT_KINDS=[file_write,visual]` refuse les feuilles d'effet typées `bot_action` par s3 (oracle trop
-  étroit sur sa 1ʳᵉ donnée réelle) ET ce contrôle n'est appelé par aucun exécuteur (auto-attestation de l'agent s5).
+### Gameplay Contract (commit `f1bce0d`) + run 8b — résumé (détail : journal `…-gameplay-contract.md`)
+10 maillons A→J dans `loop.json`, sonde `player_loop.gd` (new_distinct/appears/decreases/resets/increases_more_than/REPEAT), driver :
+bloc runtime inconditionnel dès `run/main_scene`, `loop_dead` gate. Run 8a HALTED s2 (rupture 10 : BLOCKED sans retry). Run 8b
+(`_run8_20260821h2/`) : A→J 12/12 mesuré par le driver, verdict FAIL hors boucle ; 0/4 affordances liées selon
+`check_wiremap_contract` (non consommé par l'exécuteur, `EFFECT_KINDS` trop étroit).
 
 ### Décision Pierre 2026-08-23 (après run 8b) — ratifiée
 **A → J est nécessaire, pas suffisant.** Gameplay Contract = mécanisme de vérification VALIDÉ (runtime, entrées, affordances,
@@ -81,9 +62,31 @@ P3 monde/placement → P4 guidage → P5 2ᵉ HumanGate « envie de continuer ap
 (PROPOSED : niveau 1 par possibilités nouvelles, prestige reset/conserve/cœurs/grenier, niveau 2 croquettes + décision
 jardin/grenier, places = règle lisible, album de silhouettes).
 
+### Audit lecture seule design → runtime (2026-08-23, Opus, confronté Fable) — `docs/audit/2026-08-23-kitten-clicker-design-chain-audit.md`
+Réponse : **on a construit avant de spécifier** — aucune station n'écrit les nombres ni la causalité du jeu (le GM mesure le GENRE,
+la « station suivante » qu'il annonce n'existe pas) ; `design_intent.md` n'est lu par AUCUNE étape ; 0/21 exigences citent le design
+(schéma d'adresse l'interdit) ; toutes les valeurs naissent dans `pricing.gd`/`prestige.gd` ; contenu entier épuisé en < 1 s ;
+G et J verts pour la mauvaise raison (phrase suffixée d'un compteur ; J sans affordance = production passive — la sonde ignore
+`replay_ref`). Table : boucle/progression DOCUMENTED_ONLY · métriques NOT_FOUND amont · métagame PASSIVE · design→GM BLOCKED ·
+GM→Prisme PASSIVE · Prisme→runtime TESTED forme. Run 10 **non lancé** (run 10 `…b` avorté à s0 : build run 9 verrouillé par Godot ;
+artefacts au scratchpad). Build run 9 déplacé au scratchpad, `games/kitten_clicker/` absent. **Audit 2 (Fable, sur pièces) :
+World Scan → Art Bible → GM = NON par ORDRE** (s2.5 Art Bible produite APRÈS s2.7 GM et s1 ; GM ne reçoit que le World Scan ; l'Art
+Bible n'a AUCUNE injection amont, ancrée Prisme seul ; le « GM » est un scan de genre, pas un Game Master) —
+`docs/audit/2026-08-23-kitten-clicker-worldscan-artbible-gm-pipe.md`. Cible ratifiée Pierre : WORLD SCAN → ART BIBLE (héritée +
+décidée) → GAME MASTER (loops, progression, métriques, preuves, Grey Blocks) → ARTIST/BUILDER ; réparer ce tuyau AVANT gameplay.
+
+### Lots ratifiés Pierre 2026-08-23 : A Tuyau → B GM (Game Master, option (a) : étendre s2.7) → C Calibration → D Fuites → E Run 10
+**Lot A FAIT** (plan `docs/superpowers/plans/2026-08-23-forge-lot-a-tuyau-worldscan-artbible-gm.md`) : `full_godot_content` = s2 →
+s2.6 → **s2.5 Art Bible → s2.7 GM** → s1 ; s2.5 ← charter + World Scan + Story Bible (plus `product_snapshot`) ; s2.7 ← World Scan +
+Story Bible + `art_bible.md` + `asset_requests.json` ; preuve de CHARGEMENT = manifeste de dispatch (`sources[] role=upstream sha256`),
+preuve de CONSOMMATION = `gm_worldscan.json.sources_consumed` {worldscan, story_bible, art_bible} résolu à la matérialisation
+(`_validate_gm_worldscan(run_dir)`) ; Art Bible : 8 sections nommées (`## heritage_worldscan` … `## asset_rules`) — **texte de
+contrat seulement, aucun validateur Python** (trou à connaître avant B). Preuve par fixtures (run 9) ; 1ʳᵉ traversée réelle = run 10.
+
 ### Prochaine étape
-1. **Pierre ratifie/corrige P0** (4 questions listées dans le plan : silhouettes · seuil de prestige · cœurs +25 % · niveau 2).
-   Rien n'est engagé avant ; ensuite P1–P4 = intention + tâches + contrat (Fable, en direct), un commit, run 10, P5.
-2. Gates : merge/reject des artefacts non commités (runs 7-9, build 9, handoff) ; push de `f1bce0d` + `0a9f4d4`.
-3. Passifs documentés (ne pas ouvrir sans décision) : gates historiques (e2e `DirAccess`, solvabilité argv, mutation),
-   `check_wiremap_contract` non consommé + `EFFECT_KINDS`, rupture 10 (BLOCKED sans retry), ruptures 4/5/6, skill `/forge` périmé.
+1. **Lot B — GM = Game Master** (étendre s2.7, pas de station) : WORLD INTERPRETATION → GAMEPLAY LOOP → PLAYER LOOP →
+   PROGRESSION LOOP → META LOOP → METRICS (avant le Builder) → PROOF MODEL → GREY BLOCKS (Builder + Artiste). Plan à écrire, GO Pierre.
+2. Lot C calibration Kitten Clicker (chaque nombre : source · raison · unité · cible · preuve) · Lot D fuites (J `replay_ref`, tri
+   alphabétique → ordre du Prisme, `design_intent`) · Lot E run 10 (`kitten_clicker-20260823c`) → P5 HumanGate.
+3. Gates : merge/reject des artefacts non commités (runs 7-9, audits) ; push de `f1bce0d` `0a9f4d4` `b75f165` + Lot A.
+4. Passifs : gates historiques (e2e `DirAccess`, solvabilité argv, mutation), `check_wiremap_contract` non consommé, rupture 10.

@@ -23,6 +23,14 @@
 # RESERVE HERITEE, non levee ici : `worldscan.json` porte `advisory: true`. Un artefact
 # advisory ne fait pas autorite de calibration. Cette station produit donc ses PROPRES
 # mesures citees, elle ne promeut pas celles de s2 au rang de contrainte.
+#
+# LOT A -- TUYAU (2026-08-23, docs/audit/2026-08-23-kitten-clicker-worldscan-artbible-gm-pipe.md) :
+# dans `full_godot_content`, cette etape recoit desormais AUSSI la Story Bible (s2.6)
+# et l'Art Bible + ses demandes d'assets (s2.5, produite AVANT elle dans ce profil,
+# cf. dispatch.PROFILES) -- avant ce lot elle ne recevait que le World Scan seul. La
+# sortie gagne `sources_consumed` (preuve de CONSOMMATION, pas seulement de chargement) :
+# cf. `output_contract` et `_validate_gm_worldscan` (run_real.py). Le role de Game
+# Master reste HORS PERIMETRE ici (Lot B) -- `out_of_scope` ci-dessous est INCHANGE.
 # =====================================================================================
 
 # --- 1. Identite ---
@@ -60,6 +68,13 @@ mandatory_read:
   - "l'artefact worldscan.json produit par s2-worldscan (injecte en amont par
     l'executeur — modes, boucles, conditions de victoire/defaite deja mesures : NE PAS
     les redire, s'y ADOSSER)"
+  - "l'artefact story_bible.json produit par s2.6-story-bible (injecte en amont par
+    l'executeur — monde, personnages, lieux, objets deja mesures)"
+  - "l'artefact art_bible.md produit par s2.5-artbible (injecte en amont par
+    l'executeur — identite visuelle deja DECIDEE : style, regles d'affordance, etats
+    des personnages)"
+  - "l'artefact asset_requests.json produit par s2.5-artbible (injecte en amont par
+    l'executeur — demandes d'asset deja formulees)"
 
 # --- 5. Perimetre ---
 objectif: >-
@@ -91,7 +106,10 @@ gardeFou: >-
   jamais une valeur inventee, jamais une plage « plausible ». Un scan honnete portant
   4 dimensions mesurees et 4 NOT_MEASURED vaut infiniment mieux qu'un scan de 8
   dimensions dont la moitie est devinee : les matrices aval calibreront un jeu sur ces
-  chiffres, et une valeur fabriquee ici devient une contrainte fausse en aval.
+  chiffres, et une valeur fabriquee ici devient une contrainte fausse en aval. (Lot A
+  2026-08-23) `sources_consumed` ne liste QUE ce qui a REELLEMENT servi a produire ce
+  scan — une adresse citee sans usage reel est une fausse preuve de consommation,
+  exactement le meme gaming qu'une source fabriquee.
 
 # --- 6. Reussite & oracle ---
 success_criteria: >-
@@ -99,14 +117,21 @@ success_criteria: >-
   observes. Les 8 dimensions TOUTES presentes (aucune omise), chacune avec un `status`
   explicite. Chaque dimension `MEASURED` porte >=1 variable, et chaque variable porte
   `name`, `value`, `unit`, `source` non vides. Chaque `source` cite une URL ou un titre
-  d'oeuvre verifiable.
+  d'oeuvre verifiable. PLUS (Lot A 2026-08-23) : `sources_consumed` present, un dict a
+  3 cles (worldscan/story_bible/art_bible), chaque liste non vide, chaque adresse
+  RESOUT reellement dans l'artefact source (cf. output_contract) — une adresse citee
+  sans usage reel est une fausse preuve, jamais acceptee.
 
 tests_oracles: >-
   Oracle deterministe non-LLM : `forge.static_oracles.check_gm_worldscan(data)`.
   Verifie la presence des 8 dimensions, la coherence status/contenu (MEASURED => au
   moins une variable complete ; NOT_MEASURED => une raison non vide), et l'absence de
   placeholder. Ne juge JAMAIS la pertinence d'une valeur — seulement sa forme et sa
-  tracabilite.
+  tracabilite. PLUS (Lot A 2026-08-23) : `forge.run_real._validate_gm_worldscan`
+  (garde-fou minimal a la materialisation, meme regime que le reste de cette table —
+  non matérialisable = etape non OK) verifie que `sources_consumed` existe et que
+  chaque adresse qu'il cite resout reellement dans worldscan.json / story_bible.json /
+  art_bible.md du run.
 
 # --- 7. Restitution ---
 output_contract: >-
@@ -116,10 +141,18 @@ output_contract: >-
    "dimensions": [{"id": "combat"|"progression"|"economy"|"rng"|"rarity"|"bonus"|
    "metagame"|"construction", "status": "MEASURED"|"NOT_MEASURED",
    "reason": "<obligatoire si NOT_MEASURED, sinon omis>",
-   "variables": [{"name", "value", "unit", "source", "observed": true|false}]}]}
+   "variables": [{"name", "value", "unit", "source", "observed": true|false}]}],
+   "sources_consumed": {"worldscan": ["<adresse>", ...], "story_bible": ["<adresse>", ...],
+   "art_bible": ["<section>", ...]}}
   Les 8 `id` doivent TOUS apparaitre, une fois chacun. `observed: true` = grandeur lue
   dans la source ; `false` = deduite d'observations — les deux sont recevables, ne pas
-  les confondre. Aucun autre fichier, aucune section markdown exigee.
+  les confondre. `sources_consumed` (Lot A 2026-08-23) : preuve de CONSOMMATION, pas
+  seulement de chargement — >=1 adresse par cle, chacune REELLEMENT utilisee (jamais
+  citee sans usage, cf. gardeFou). Adresses : `worldscan:games[i].<cle>[...]` (ex.
+  `worldscan:games[0].retention_answer`) ; `story_bible:<section>[.<cle>]` (ex.
+  `story_bible:context`) ; `art_bible:<section>` (une des 8 sections `## <section>` de
+  art_bible.md, ex. `art_bible:visual_language`). Aucun autre fichier, aucune section
+  markdown exigee.
 
 final_report: >-
   Restitution standard : cite worldscan.json comme ancre amont ET le recu de

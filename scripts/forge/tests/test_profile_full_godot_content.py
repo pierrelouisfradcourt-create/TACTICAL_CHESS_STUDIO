@@ -1,6 +1,8 @@
-"""Profil full_godot_content (décision Pierre 2026-08-22) : COMPOSITION, aucune
-station neuve — full_godot_narratif + s2.5-artbible (Art Director) injectée
-immédiatement après s1-prisme (s2.5 consomme product_snapshot.md produit par s1).
+"""Profil full_godot_content (décision Pierre 2026-08-22, ORDRE corrigé Lot A
+2026-08-23) : COMPOSITION, aucune station neuve — full_godot_narratif +
+s2.5-artbible (Art Director) injectée entre s2.6-story-bible et s2.7-gm-worldscan
+(audit docs/audit/2026-08-23-kitten-clicker-worldscan-artbible-gm-pipe.md : l'Art
+Bible doit précéder le GM et hériter du World Scan + Story Bible, pas du Prisme).
 Même forme que le lot full_godot_narratif : imite
 test_profile_full_godot_narratif.py."""
 from forge.dispatch import (
@@ -13,13 +15,15 @@ def test_le_profil_existe_et_compose_uniquement_des_etapes_existantes():
     assert set(steps).issubset(set(ORDER) | set(DEDICATED_PROFILE_STEPS))
 
 
-def test_le_profil_est_full_godot_narratif_plus_artbible_apres_s1():
+def test_le_profil_est_full_godot_narratif_plus_artbible_entre_s26_et_s27():
     attendu = list(PROFILES["full_godot_narratif"])
-    k = attendu.index("s1-prisme")
-    attendu.insert(k + 1, "s2.5-artbible")
+    k = attendu.index("s2.7-gm-worldscan")
+    attendu.insert(k, "s2.5-artbible")
     assert list(PROFILES["full_godot_content"]) == attendu
     assert order_for_profile("full_godot_content") == attendu
     assert len(PROFILES["full_godot_content"]) == 17
+    i = {e: idx for idx, e in enumerate(PROFILES["full_godot_content"])}
+    assert i["s2.6-story-bible"] < i["s2.5-artbible"] < i["s2.7-gm-worldscan"] < i["s1-prisme"]
 
 
 def test_le_builder_garde_le_timeout_mesure():
@@ -36,6 +40,24 @@ _AMONT_CONTENT = ("art_bible.md", "asset_requests.json")
 # ces 3 étapes (cf. docs/superpowers/plans/2026-08-22-kitten-clicker-v4-game-loop.md
 # Task 2) — les 3 tests ci-dessous sont mis à jour en conséquence.
 _LOOP_JSON = ("loop.json",)
+
+
+def test_s25_artbible_recoit_charter_worldscan_story_bible():
+    """Lot A 2026-08-23 : l'Art Bible hérite du World Scan et de la Story Bible
+    (plus du Prisme)."""
+    for table in (run_real._UPSTREAM_BY_STEP, context_manifest._UPSTREAM_BY_STEP):
+        assert table["s2.5-artbible"] == (
+            "charter.yaml", "artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
+        )
+
+
+def test_s27_gm_worldscan_recoit_story_bible_et_art_bible():
+    """Lot A 2026-08-23 : le GM reçoit désormais la Story Bible et l'Art Bible
+    (produite avant lui dans full_godot_content), plus le World Scan seul avant."""
+    for table in (run_real._UPSTREAM_BY_STEP, context_manifest._UPSTREAM_BY_STEP):
+        assert table["s2.7-gm-worldscan"] == (
+            "artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
+        ) + _AMONT_CONTENT
 
 
 def test_s3_decompo_recoit_aussi_art_bible_et_asset_requests():

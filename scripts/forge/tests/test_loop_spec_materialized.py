@@ -18,12 +18,13 @@ l'état réel de ce fichier, pas un état figé.
 from __future__ import annotations
 
 import json
+import pytest
 from pathlib import Path
 
 import forge.run_real as run_real
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-RUN7_PRISME = REPO_ROOT / "lab" / "forge_runs" / "kitten_clicker" / "prisme.json"
+RUN7_PRISME = REPO_ROOT / "lab" / "forge_runs" / "kitten_clicker" / "_run8_20260821h2" / "prisme.json"  # archive run 8b (12 exigences de boucle, A..J, sans DECISION) ; le run_dir courant est purge entre deux runs
 
 
 def _exigence(id_, role, **extra):
@@ -179,7 +180,8 @@ def test_prisme_synthetique_avec_decision_materialise_loop_json_ok(tmp_path):
 # Ce test mesure l'etat REEL du fichier, pas un etat fige (cf. docstring de tete).
 
 def test_run7_reel_materialise_loop_json_fail_sans_exception(tmp_path):
-    assert RUN7_PRISME.exists(), f"fixture reelle absente : {RUN7_PRISME}"
+    if not RUN7_PRISME.exists():
+        pytest.skip(f"archive run 8b absente : {RUN7_PRISME}")
     run_dir = tmp_path / "run"
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "prisme.json").write_bytes(RUN7_PRISME.read_bytes())

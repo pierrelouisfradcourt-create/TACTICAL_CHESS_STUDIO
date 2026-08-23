@@ -31,6 +31,19 @@
 # jamais silencieusement inclus dans la chaîne greenfield complète (cf.
 # `dispatch.DEDICATED_PROFILE_STEPS`, testé par `test_dedicated_steps_never_leak_into_full`).
 # Câblage dans "full" resterait une décision ultérieure distincte, non prise ici.
+#
+# LOT A — TUYAU (2026-08-23, docs/audit/2026-08-23-kitten-clicker-worldscan-artbible-gm-pipe.md) :
+# dans `full_godot_content`, cette étape est déplacée entre s2.6-story-bible et
+# s2.7-gm-worldscan (AVANT le Prisme, qui la suivait jusque-là) — l'Art Bible doit
+# précéder le Game Master pour que ce dernier puisse la consommer, et elle hérite
+# désormais du World Scan + de la Story Bible plutôt que du Prisme (`product_snapshot.md`,
+# produit par s1, n'existe plus à ce stade). Les 8 sections `heritage_*`/décision
+# ci-dessous (mandatory_read, objectif, output_contract) sont AJOUTÉES à la structure
+# v0.1 existante (IDENTITÉ VISUELLE/RATIONALE/BESOINS VISUELS), qui reste gouvernée
+# telle quelle par `check_artbible.mjs` (INCHANGÉ, hors périmètre de ce lot) — cette
+# étape ne devient pas gate mécaniquement sur les 8 nouvelles sections, la preuve de
+# CONSOMMATION de leur contenu se fait en aval, sur `gm_worldscan.json.sources_consumed`
+# (cf. s2.7-gm-worldscan.yaml).
 
 # --- 1. Identité / posture cognitive (Critique) ---
 role: >-
@@ -44,15 +57,22 @@ exigences_cognitives: >-
 
 # --- 2. Contexte projet (Critique) ---
 memoire: >-
-  Consomme product_snapshot.md (étape 1 — ce que le joueur voit/fait/ressent) et,
-  si présent, le knowledge packet du world scan (étape 2). Connaît le catalogue
-  d'assets existant (knowledge_base/catalog.json) via scripts/forge/asset_request.mjs
-  — ne réinvente pas la recherche, l'utilise pour vérifier ce qu'il déclare.
+  Lot A 2026-08-23 : ne consomme plus product_snapshot.md (produit par le Prisme,
+  qui n'a pas encore tourné à ce stade dans full_godot_content). Consomme le charter,
+  le World Scan (s2) et la Story Bible (s2.6), injectés en amont par l'exécuteur.
+  Connaît le catalogue d'assets existant (knowledge_base/catalog.json) via
+  scripts/forge/asset_request.mjs — ne réinvente pas la recherche, l'utilise pour
+  vérifier ce qu'il déclare.
 mandatory_read:
   - scripts/forge/contracts/SCHEMA.md
   - docs/forge/ASSET_CONTRACT_V0.md
-  - "product_snapshot.md produit à l'étape 1"
   - scripts/forge/asset_request.mjs
+  - "charter.yaml (injecté en amont par l'exécuteur — jeu, genre, contraintes de base)"
+  - "l'artefact worldscan.json produit par s2-worldscan (injecté en amont par
+    l'exécuteur — conventions visuelles/sonores, attentes joueur, boucles observées,
+    retention_answer : matière HÉRITÉE, ne pas la redire, s'y ADOSSER)"
+  - "l'artefact story_bible.json produit par s2.6-story-bible (injecté en amont par
+    l'exécuteur — monde, personnages, lieux, objets : matière HÉRITÉE)"
 
 # --- 2bis. VALIDATION d'abord (amendement, miroir du §2bis de s9-build) ---
 # AVANT de livrer, l'agent DOIT faire tourner
@@ -76,21 +96,30 @@ mandatory_read:
 
 # --- 3. Mission (Critique) ---
 objectif: >-
-  Produire art_bible.md (identité visuelle : styles, mood_keywords, rationale liée
-  au product_snapshot) et asset_requests.json (Asset Contract V0.1), en suivant
-  IMPÉRATIVEMENT cette procédure, dans l'ordre : (1) Relire product_snapshot.md
-  section par section (voit/fait/ressent/règles observables) et lister CHAQUE
-  entité visuelle distincte dans la section "## 3. BESOINS VISUELS" de
-  art_bible.md ({id, entity_role, required, description} par entité — personnage,
-  ennemis/créatures par type, objets ramassables, obstacles, décor/niveau, HUD,
-  écrans de victoire/défaite...). (2) Marquer `required:true` pour toute entité
-  citée par une Règle observable (Rn) ou centrale à une condition de victoire/
-  défaite/score ; `required:false` UNIQUEMENT pour du décor véritablement
-  optionnel/cosmétique — en cas de doute, `required:true` (le coût d'une requête
-  en plus est nul, le coût d'un manque découvert plus tard ne l'est pas). (3)
-  Produire une `asset_request` (avec `id`/`entity_role`/`purpose` propres) pour
-  CHAQUE entité `required:true` — jamais 1 ou 2 requêtes génériques censées
-  "couvrir" plusieurs entités distinctes. (4) Faire tourner
+  Produire une identité visuelle HÉRITÉE et DÉCIDÉE. HÉRITÉ (à citer, jamais à
+  réinventer) : du World Scan — conventions visuelles/sonores du genre, attentes
+  du joueur, boucles observées, `retention_answer` ; de la Story Bible — le monde,
+  les personnages, les lieux, les objets. DÉCIDÉ par l'artiste (ce que cette étape
+  seule tranche) : le style réel (palette, mood, références), les règles d'assets,
+  les silhouettes, les règles d'affordance, la lisibilité UI, les états des
+  personnages, les variantes, les contraintes connues. Livrer art_bible.md
+  (frontmatter styles/mood_keywords + sections v0.1 IDENTITÉ VISUELLE/RATIONALE/
+  BESOINS VISUELS, PLUS les 8 sections heritage/décision listées dans
+  `output_contract`) et asset_requests.json (Asset Contract V0.1), en suivant
+  IMPÉRATIVEMENT cette procédure, dans l'ordre : (1) Lire charter.yaml, worldscan.json
+  et story_bible.json (injectés en amont) et lister CHAQUE entité visuelle distincte
+  dans la section "## 3. BESOINS VISUELS" de art_bible.md ({id, entity_role, required,
+  description} par entité — personnage, ennemis/créatures par type, objets
+  ramassables, obstacles, décor/niveau, HUD, écrans de victoire/défaite...). (2)
+  Marquer `required:true` pour toute entité citée par une source héritée ou centrale
+  à une condition de victoire/défaite/score ; `required:false` UNIQUEMENT pour du
+  décor véritablement optionnel/cosmétique — en cas de doute, `required:true` (le
+  coût d'une requête en plus est nul, le coût d'un manque découvert plus tard ne
+  l'est pas). (3) Produire une `asset_request` (avec `id`/`entity_role`/`purpose`
+  propres) pour CHAQUE entité `required:true` — jamais 1 ou 2 requêtes génériques
+  censées "couvrir" plusieurs entités distinctes. (4) Rédiger les 8 sections
+  heritage/décision (`output_contract`), chaque section HÉRITÉE citant les adresses
+  `worldscan:…`/`story_bible:…` d'où elle vient. (5) Faire tourner
   `node scripts/forge/check_artbible.mjs <art_bible.md> <asset_requests.json>`
   et vérifier `verdict === 'OK'` (pas seulement l'absence d'erreur de forme) ;
   si `verdict === 'BLOCKED'` avec `coverage.missing` non vide, AJOUTER la/les
@@ -99,9 +128,10 @@ objectif: >-
 
 # --- 4. Frontières (Critique) ---
 in_scope: >-
-  Définition du style visuel global (palette, mood, références de style) et
-  traduction en asset_requests structurées. Écrit UNIQUEMENT art_bible.md et
-  asset_requests.json (aucun code, aucun asset binaire).
+  Définition du style visuel global (palette, mood, références de style),
+  héritage explicite du World Scan et de la Story Bible (chaque section héritée
+  cite ses sources), et traduction en asset_requests structurées. Écrit
+  UNIQUEMENT art_bible.md et asset_requests.json (aucun code, aucun asset binaire).
 out_of_scope: >-
   Ne génère ni ne télécharge aucun asset (aucun octet réseau — toute ingestion
   nouvelle reste une gate Pierre explicite, cf. knowledge_base/README.md). Ne
@@ -148,7 +178,13 @@ success_criteria: >-
   passe validateRequestShape (zéro erreur, y compris id/entity_role/purpose)
   ET son `style` est déclaré dans le frontmatter de la bible ; ET chaque
   visual_requirement `required:true` a au moins une request du même
-  `entity_role` (verdict BLOCKED sinon — MISSING_ASSET_COVERAGE).
+  `entity_role` (verdict BLOCKED sinon — MISSING_ASSET_COVERAGE). PLUS (Lot A
+  2026-08-23, advisory — pas encore gaté par check_artbible.mjs, hors périmètre
+  de ce lot) : art_bible.md porte les 8 sections `## heritage_worldscan` /
+  `## heritage_story_bible` / `## visual_language` / `## affordance_rules` /
+  `## character_states` / `## ui_readability` / `## world_constraints` /
+  `## asset_rules`, chaque section `heritage_*` citant au moins une adresse
+  `worldscan:…` ou `story_bible:…` réelle.
 tests_oracles: >-
   Oracle déterministe non-LLM : scripts/forge/check_artbible.mjs (forme +
   cohérence structurelle + couverture besoin<->requête v0.1) qui délègue la
@@ -191,7 +227,16 @@ output_contract: >-
   [{id, entity_role, required, description}]}) + asset_requests.json
   ({requests: AssetRequestV0_1[] (chaque request : id, entity_role, purpose,
   type, style, references, constraints, acceptance_tests), no_assets_needed:
-  bool, reason: string|null}) + reçu check_artbible.mjs (evidence_path).
+  bool, reason: string|null}) + reçu check_artbible.mjs (evidence_path). PLUS
+  (Lot A 2026-08-23), art_bible.md porte OBLIGATOIREMENT ces 8 sections de
+  niveau 2, nommées exactement (ancres adressables `art_bible:<section>` pour
+  `gm_worldscan.json.sources_consumed`) : "## heritage_worldscan" (ce qui vient
+  du World Scan, avec adresses `worldscan:games[i].<clé>[...]` citées) ;
+  "## heritage_story_bible" (ce qui vient de la Story Bible, avec adresses
+  `story_bible:<section>[.<clé>]` citées) ; "## visual_language" (style réel
+  décidé) ; "## affordance_rules" ; "## character_states" ; "## ui_readability" ;
+  "## world_constraints" ; "## asset_rules" — ces 5 dernières sont DÉCIDÉES,
+  aucune adresse héritée n'y est exigée.
 
 # --- 9. Capacités (Important — `aucun` autorisé, jamais absent) ---
 skill: aucun
@@ -199,10 +244,12 @@ plugin: aucun
 
 # --- 10. Traçabilité (Recommandé — `aucun` autorisé, jamais absent) ---
 delegation_context: >-
-  Étape 2.5, en aval du Prisme Produit (1) et du World Scan (2), en amont de la
-  Décomposition fonctionnelle (3) — l'identité visuelle et les besoins d'asset
-  sont fixés avant la décomposition technique, comme référence stable pour le
+  Étape 2.5. Dans `full_godot_content` (Lot A 2026-08-23) : en aval du World
+  Scan (s2) et de la Story Bible (s2.6), en AMONT du Game Master (s2.7) et du
+  Prisme (s1) — l'identité visuelle est fixée avant que le GM ne la consomme,
+  et avant la Décomposition fonctionnelle (3), comme référence stable pour le
   Builder (étape 9) qui résoudra concrètement chaque asset_request au moment
-  d'écrire le rendu. Câblée dans un profil DÉDIÉ `dispatch.PROFILES["artbible"]`
-  depuis le 2026-07-14 (cf. note "INTÉGRATION CHAÎNE" en tête de fichier) —
-  toujours HORS de `ORDER`/`full` par décision explicite.
+  d'écrire le rendu. Câblée aussi dans un profil DÉDIÉ
+  `dispatch.PROFILES["artbible"]` depuis le 2026-07-14 (cf. note "INTÉGRATION
+  CHAÎNE" en tête de fichier) — toujours HORS de `ORDER`/`full` par décision
+  explicite.

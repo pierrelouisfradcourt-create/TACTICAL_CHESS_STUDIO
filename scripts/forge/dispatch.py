@@ -384,18 +384,20 @@ PROFILES = {
         "s11-redteam-code",
         "s12-verdict",
     ),
-    # full_godot_content (décision Pierre 2026-08-22) — COMPOSITION, aucune station
-    # neuve : `full_godot_narratif` + s2.5-artbible (Art Director) injectée
-    # immédiatement après s1-prisme, parce que s2.5 consomme `product_snapshot.md`
-    # produit par s1. Art bible injectée en aval (s3/s5/s9) via `_UPSTREAM_BY_STEP`
-    # (run_real/context_manifest).
+    # full_godot_content (décision Pierre 2026-08-22, ORDRE corrigé Lot A 2026-08-23) —
+    # COMPOSITION, aucune station neuve : `full_godot_narratif` + s2.5-artbible
+    # (Art Director), désormais placée ENTRE s2.6-story-bible et s2.7-gm-worldscan
+    # (audit docs/audit/2026-08-23-kitten-clicker-worldscan-artbible-gm-pipe.md : l'Art
+    # Bible doit précéder le GM et hériter du World Scan + Story Bible, pas du Prisme —
+    # `product_snapshot.md` (s1) est RETIRÉ de son `mandatory_read`). Art bible injectée
+    # en aval (s3/s5/s9) via `_UPSTREAM_BY_STEP` (run_real/context_manifest), inchangé.
     "full_godot_content": (
         "s0-contrat",
         "s2-worldscan",
         "s2.6-story-bible",
+        "s2.5-artbible",
         "s2.7-gm-worldscan",
         "s1-prisme",
-        "s2.5-artbible",
         "s3-decompo",
         "s4-archi",
         "s5-wiremap",

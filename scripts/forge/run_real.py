@@ -18,6 +18,7 @@ claim_verdict: NO_CLAIM_ALLOWED — ce module ne produit aucun claim, il exécut
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import logging
 import os
@@ -1114,12 +1115,149 @@ def _validate_featuremap(data: dict) -> str:
     return ""
 
 
-def _validate_gm_worldscan(data: dict) -> str:
+# --- Lot A 2026-08-23 : résolution d'adresse pour `sources_consumed` (preuve de
+# CONSOMMATION du GM, pas seulement de chargement — cf. contrat s2.7-gm-worldscan.yaml
+# §output_contract). Trois artefacts, trois formes d'adressage : worldscan.json est un
+# JSON quelconque (chemin pointé + index `[n]`) ; story_bible.json identifie ses
+# sections par `id` dans une LISTE (pas par position) ; art_bible.md est un texte, une
+# section = un titre `## <nom>` exact. Jamais d'exception — une adresse malformée ou
+# hors-structure résout simplement à False.
+_ADDR_TOKEN = re.compile(r'([^.\[\]]+)|\[(\d+)\]')
+
+
+def _resolve_json_path(data, path: str) -> bool:
+    """True ssi `path` (segments '.', index '[n]') résout dans `data` (dict/list JSON
+    déjà chargé). Utilisé pour worldscan.json (ex. 'games[0].retention_answer')."""
+    if not path:
+        return False
+    cur = data
+    for m in _ADDR_TOKEN.finditer(path):
+        key, idx = m.group(1), m.group(2)
+        if idx is not None:
+            i = int(idx)
+            if not isinstance(cur, list) or i < 0 or i >= len(cur):
+                return False
+            cur = cur[i]
+        elif key is not None:
+            if not isinstance(cur, dict) or key not in cur:
+                return False
+            cur = cur[key]
+    return True
+
+
+def _resolve_story_bible_address(data: dict, addr: str) -> bool:
+    """True ssi `addr` ('<section>' ou '<section>.<clé>') résout dans story_bible.json —
+    la section est identifiée par `sections[].id` (une LISTE, pas un mapping par nom)."""
+    if not addr:
+        return False
+    section_id, _, rest = addr.partition(".")
+    sections = data.get("sections")
+    if not isinstance(sections, list):
+        return False
+    section = next(
+        (s for s in sections if isinstance(s, dict) and s.get("id") == section_id), None)
+    if section is None:
+        return False
+    return _resolve_json_path(section, rest) if rest else True
+
+
+_ART_BIBLE_SECTION_RE_CACHE: dict[str, "re.Pattern"] = {}
+
+
+def _resolve_art_bible_address(text: str, section: str) -> bool:
+    """True ssi un titre de niveau 2 `## <section>` (exact, insensible aux espaces
+    de fin de ligne) existe dans le texte de art_bible.md."""
+    if not section:
+        return False
+    pattern = _ART_BIBLE_SECTION_RE_CACHE.get(section)
+    if pattern is None:
+        pattern = re.compile(r'^##\s+' + re.escape(section) + r'\s*$', re.M)
+        _ART_BIBLE_SECTION_RE_CACHE[section] = pattern
+    return bool(pattern.search(text))
+
+
+_SOURCES_CONSUMED_KEYS = ("worldscan", "story_bible", "art_bible")
+
+
+def _validate_sources_consumed(data: dict, run_dir: Path) -> str:
+    """'' si `sources_consumed` (Lot A 2026-08-23) est structurellement valide ET que
+    CHAQUE adresse qu'il cite résout réellement dans l'artefact source du run
+    (worldscan.json / story_bible.json / art_bible.md), sinon la raison précise,
+    nommant l'adresse fautive. Jamais d'exception — un artefact source illisible ou
+    absent fait échouer toutes les adresses de sa clé, avec un message honnête."""
+    sc = data.get("sources_consumed")
+    if not isinstance(sc, dict):
+        return ("'sources_consumed' absent ou n'est pas un mapping — preuve de "
+                "CONSOMMATION obligatoire (Lot A 2026-08-23), distincte de la preuve "
+                "de chargement déjà portée par le manifeste de dispatch")
+    for key in _SOURCES_CONSUMED_KEYS:
+        if key not in sc:
+            return f"'sources_consumed' doit avoir la clé '{key}'"
+        addrs = sc.get(key)
+        if not isinstance(addrs, list) or not addrs or not all(
+                isinstance(a, str) and a.strip() for a in addrs):
+            return (f"'sources_consumed.{key}' doit être une liste NON VIDE de str "
+                    "non vides")
+        for addr in addrs:
+            if not addr.startswith(f"{key}:"):
+                return (f"'sources_consumed.{key}' : adresse {addr!r} doit "
+                        f"commencer par '{key}:'")
+
+    ws_path = Path(run_dir) / "worldscan.json"
+    sb_path = Path(run_dir) / "story_bible.json"
+    ab_path = Path(run_dir) / "art_bible.md"
+
+    ws_data = None
+    if ws_path.is_file():
+        try:
+            ws_data = json.loads(ws_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            ws_data = None
+    for addr in sc["worldscan"]:
+        if ws_data is None or not _resolve_json_path(ws_data, addr[len("worldscan:"):]):
+            return (f"sources_consumed.worldscan : adresse {addr!r} ne résout pas "
+                    f"dans {ws_path} (absent, illisible, ou chemin inexistant)")
+
+    sb_data = None
+    if sb_path.is_file():
+        try:
+            sb_data = json.loads(sb_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            sb_data = None
+    for addr in sc["story_bible"]:
+        if sb_data is None or not _resolve_story_bible_address(
+                sb_data, addr[len("story_bible:"):]):
+            return (f"sources_consumed.story_bible : adresse {addr!r} ne résout pas "
+                    f"dans {sb_path} (absent, illisible, ou section inexistante)")
+
+    ab_text = None
+    if ab_path.is_file():
+        try:
+            ab_text = ab_path.read_text(encoding="utf-8")
+        except OSError:
+            ab_text = None
+    for addr in sc["art_bible"]:
+        if ab_text is None or not _resolve_art_bible_address(
+                ab_text, addr[len("art_bible:"):]):
+            return (f"sources_consumed.art_bible : section {addr!r} ne résout pas "
+                    f"dans {ab_path} (absent, illisible, ou section '## ...' absente)")
+
+    return ""
+
+
+def _validate_gm_worldscan(data: dict, run_dir: "Path | None" = None) -> str:
     """§7.2 · s2.7 — '' si l'artefact est structurellement exploitable, sinon la raison
     du rejet. Garde-fou MINIMAL avant écriture, même esprit que `_validate_worldscan` :
     `forge.static_oracles.check_gm_worldscan` reste l'oracle de vérité (les 8
     dimensions, statuts, sources, placeholders) ; ceci empêche seulement qu'un artefact
-    trivialement inexploitable atteigne le disque."""
+    trivialement inexploitable atteigne le disque.
+
+    Lot A 2026-08-23 : exige AUSSI `sources_consumed` — preuve de CONSOMMATION du
+    World Scan + Story Bible + Art Bible, distincte de la preuve de CHARGEMENT déjà
+    portée par le manifeste de dispatch (`context_manifest.resolve_dispatch_sources`).
+    Vérifiée seulement quand `run_dir` est fourni (les artefacts source y sont lus) —
+    `run_dir=None` (comportement historique, ex. appelants qui ne le connaissent pas)
+    saute cette section plutôt que d'échouer sur un contexte absent."""
     dims = data.get("dimensions")
     if not isinstance(dims, list) or not dims:
         return ("'dimensions' doit être une liste NON VIDE (un scan de genre sans "
@@ -1128,6 +1266,10 @@ def _validate_gm_worldscan(data: dict) -> str:
     if not isinstance(games, list) or len(games) < 2:
         return ("'games_observed' doit lister >=2 jeux (une comparaison de genre "
                 "exige au moins deux points d'observation)")
+    if run_dir is not None:
+        reason = _validate_sources_consumed(data, Path(run_dir))
+        if reason:
+            return reason
     return ""
 
 
@@ -1472,7 +1614,23 @@ def _materialize_markdown(etape: str, output: str, run_dir: Path) -> dict | None
         return {"written": False, "reason": "exception du matérialiseur (voir run.log)"}
 
 
-def select_artifact_payload(etape: str, output: str) -> tuple[dict | None, str]:
+def _call_artifact_validator(validator, data: dict, run_dir: "Path | None") -> str:
+    """Appelle `validator(data)`, ou `validator(data, run_dir=run_dir)` si sa
+    signature déclare `run_dir` (Lot A 2026-08-23, `_validate_gm_worldscan`) — permet
+    à UN validateur de recevoir le run_dir sans changer la signature des autres
+    (`_ARTIFACT_VALIDATORS` reste un mapping uniforme artefact -> callable(data))."""
+    try:
+        params = inspect.signature(validator).parameters
+    except (TypeError, ValueError):
+        return validator(data)
+    if "run_dir" in params:
+        return validator(data, run_dir=run_dir)
+    return validator(data)
+
+
+def select_artifact_payload(
+    etape: str, output: str, *, run_dir: "Path | None" = None,
+) -> tuple[dict | None, str]:
     """Choisit, parmi TOUS les blocs ```json``` fenced d'une sortie d'étape, celui
     qui doit être matérialisé comme artefact.
 
@@ -1494,6 +1652,10 @@ def select_artifact_payload(etape: str, output: str) -> tuple[dict | None, str]:
     retourne la raison du validateur appliqué au DERNIER bloc dict trouvé (le même
     message qu'avant ce correctif), ou la raison native d'`extract_json_payload` s'il
     n'existe aucun bloc dict du tout (JSON illisible, pas de fence, etc.).
+
+    `run_dir` (Lot A 2026-08-23) : optionnel, transmis au validateur SEULEMENT s'il
+    déclare ce paramètre (cf. `_call_artifact_validator`) — comportement inchangé
+    pour tous les validateurs existants, qui ignorent ce mot-clé.
 
     Jamais d'exception, jamais un objet partiel — même contrat qu'`extract_json_payload`.
     """
@@ -1518,7 +1680,7 @@ def select_artifact_payload(etape: str, output: str) -> tuple[dict | None, str]:
 
     last_reason = ""
     for data in reversed(dict_candidates):
-        reason = validator(data)
+        reason = _call_artifact_validator(validator, data, run_dir)
         if not reason:
             return data, ""
         if not last_reason:
@@ -1534,11 +1696,11 @@ def _materialize_artifact(etape: str, output: str, run_dir: Path) -> dict | None
     artefact = _ARTIFACT_BY_STEP.get(etape)
     if artefact is None:
         return None
-    data, why = select_artifact_payload(etape, output)
+    data, why = select_artifact_payload(etape, output, run_dir=run_dir)
     if data is None:
         return {"ok": False,
                 "reason": f"{etape}: artefact {artefact} non matérialisable — {why}"}
-    schema_why = _ARTIFACT_VALIDATORS[artefact](data)
+    schema_why = _call_artifact_validator(_ARTIFACT_VALIDATORS[artefact], data, run_dir)
     if schema_why:
         return {"ok": False,
                 "reason": f"{etape}: artefact {artefact} invalide — {schema_why} "
@@ -1637,16 +1799,25 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # (profil `full`) => omis par upstream_artifacts_section, comportement inchangé.
     "s1-prisme": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
                   "artifacts/s2.7-gm-worldscan.txt"),
-    # §7.2 · s2.7 REÇOIT le World Scan artistique — c'est ce qui lui permet de ne PAS
-    # redire les 3 dimensions déjà structurées (modes, solvabilité, boucles) et de
-    # produire uniquement les 8 manquantes. Cette table décrit ce qu'une étape REÇOIT ;
-    # l'absence de CONSOMMATEUR de gm_worldscan.json se lit donc ailleurs — aucune
-    # étape ne le cite, PASSIVE assumée (cf. PROFILES["gm_worldscan"]).
-    "s2.7-gm-worldscan": ("artifacts/s2-worldscan.txt",),
+    # Lot A 2026-08-23 (tuyau World Scan -> Art Bible -> GM) : s2.7 reçoit désormais
+    # AUSSI la Story Bible et l'Art Bible + ses demandes d'assets (l'Art Bible est
+    # produite AVANT s2.7 dans full_godot_content, cf. dispatch.PROFILES) — l'ancienne
+    # entrée (World Scan seul) laissait le GM ignorer la Story Bible et l'Art Bible
+    # déjà produites (audit docs/audit/2026-08-23-kitten-clicker-worldscan-artbible-gm-pipe.md).
+    # Fichiers absents (profils sans s2.5/s2.6) => omis par upstream_artifacts_section,
+    # comportement inchangé.
+    "s2.7-gm-worldscan": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
+                          "art_bible.md", "asset_requests.json"),
     # §7.2 · s2.6 — la Story Bible reçoit ses DEUX seules sources d'ancrage. Le
     # charter est un fichier de run (comme pour s3) ; absent => section amont réduite,
     # et le worker le déclare dans inputs_recus au lieu de compenser.
     "s2.6-story-bible": ("charter.yaml", "artifacts/s2-worldscan.txt"),
+    # Lot A 2026-08-23 : l'Art Bible hérite du World Scan et de la Story Bible (plus
+    # du Prisme — `product_snapshot.md` retiré de son mandatory_read), produite AVANT
+    # s2.7 dans full_godot_content (cf. dispatch.PROFILES). Absents (profils sans
+    # s2.5) => omis par upstream_artifacts_section, comportement inchangé.
+    "s2.5-artbible": ("charter.yaml", "artifacts/s2-worldscan.txt",
+                      "artifacts/s2.6-story-bible.txt"),
     # Choix (b) Pierre 2026-08-21 : idem pour la décompo (mêmes deux artefacts amont,
     # après les 3 sources déjà existantes). Fichier absent => omis, comportement
     # inchangé pour les profils qui ne produisent pas s2.6/s2.7.
