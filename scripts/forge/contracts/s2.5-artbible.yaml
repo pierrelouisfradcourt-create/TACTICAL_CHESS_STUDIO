@@ -126,21 +126,42 @@ objectif: >-
   requête(s) manquante(s) et refaire ce contrôle jusqu'à `OK` (ou jusqu'à
   `no_assets_needed:true`, cf. cas préservé). Ne livrer QUE sur `verdict === 'OK'`.
 
-  BOUCLE DE COMPLETION MUTUELLE (Lot F, 2026-08-23) : cette etape peut tourner deux
-  fois dans le meme run, SUR CE MEME CONTRAT (alias `s2.5-artbible-r2`, cf.
-  forge.contract.base_step -- aucun fichier de contrat separe pour le round 2, R1 et
-  R2 partagent EXPRES ce texte). Round 1 (premiere passe) : livre l'art bible normale
-  (sections v0.1 + les 8 sections heritage/decision) PUIS termine IMPERATIVEMENT ta
-  reponse par un bloc ```design_questions``` (obligatoire) qui peut, en round 1, ne
-  contenir QUE des questions -- "voila ce que je vois" (resume factuel bref de ton
-  identite visuelle) + "voila ce qui me manque" : des questions CAUSALES adressees au
-  Game Master (JAMAIS des cases a cocher -- exemples de bonnes questions : "pourquoi
-  le joueur fait-il ceci ?", "quelle representation rend cette possibilite evidente ?",
-  "quels etats faut-il montrer ?"). Round 2 (si c'est ta 2e passe sur cette etape dans
-  ce run) : reponds a TOUTES les questions que tu as recues du Game Master -- chaque
-  reponse porte un `ref` qui resout dans TA PROPRE art_bible.md (une section
-  `## <nom>` reelle) -- OU declare `ready_for_freeze:false` MOTIVE dans le meme bloc
-  `design_questions`, et complete ton art_bible.md/asset_requests.json en consequence.
+  BOUCLE DE COMPLETION MUTUELLE (Lot F, 2026-08-23 ; canal durci Rupture 11,
+  2026-08-23) : cette etape peut tourner deux fois dans le meme run, SUR CE MEME
+  CONTRAT (alias `s2.5-artbible-r2`, cf. forge.contract.base_step -- aucun
+  fichier de contrat separe pour le round 2, R1 et R2 partagent EXPRES ce
+  texte). Round 1 (premiere passe) : livre l'art bible normale (sections v0.1 +
+  les 8 sections heritage/decision) PUIS termine IMPERATIVEMENT ta reponse par
+  un bloc ```design_questions``` VALIDE -- OBLIGATOIRE DES CE ROUND 1, MEME SANS
+  QUESTION (`"questions": []` accepte si `declarations` est present -- un GM
+  sans besoin le DIT dans son bloc, il ne se tait jamais). Round 2 (si c'est ta
+  2e passe sur cette etape dans ce run) : reponds a TOUTES les questions que tu
+  as recues du Game Master -- chaque reponse porte un `ref` qui resout dans TA
+  PROPRE art_bible.md (une section `## <nom>` reelle) -- OU declare
+  `ready_for_freeze:false` MOTIVE dans le meme bloc `design_questions`, et
+  complete ton art_bible.md/asset_requests.json en consequence.
+
+  FORME DU FENCE (durcie -- Rupture 11, mesure sur run 10c : un fence rempli de
+  prose markdown -- titres, puces, `ready_for_freeze: true` en queue -- n'est
+  PAS parsable et etait tolere a tort) : le fence ```design_questions``` NE
+  CONTIENT QUE l'objet JSON, RIEN D'AUTRE -- aucun titre markdown, aucune puce,
+  aucune prose, aucun YAML. Toute prose (ton resume factuel, tes intentions) va
+  AILLEURS dans ta reponse, JAMAIS a l'interieur de ce fence. Squelette EXACT a
+  recopier (adapte `from`/`to`/`about` a TON pilier -- ART ici ; `about` pointe
+  TON PROPRE artefact, jamais celui du Game Master) :
+  ```design_questions
+  {"schema_version": 1, "round": 1, "questions": [{"id": "q_art_001", "from":
+  "ART", "to": "GM", "round": 1, "about": "art_bible:<ta_section>", "missing":
+  ["..."], "why": "...", "blocking": true, "answer": null}], "declarations":
+  {"ART": {"round": 1, "ready_for_freeze": false, "open_to_gm": 1}, "GM":
+  {"round": 1, "ready_for_freeze": false, "open_to_art": 0}}}
+  ```
+  `answer.ref` (round 2) pointe lui aussi TON artefact (la section
+  d'art_bible.md ou tu as repondu). Une sortie SANS ce fence, ou dont le fence
+  n'est ni JSON ni YAML structure, est REFUSEE et rejouee avec le retour du
+  materialiseur (cf. forge.driver._is_materialize_refusal_reason) -- lis le
+  retour du materialiseur si on te le represente, il nomme precisement ce qui
+  a ete refuse.
   Doctrine (verbatim) : « un agent n'est pas oblige de savoir ; il est oblige de
   savoir ce qu'il ne sait pas et de le demander au bon agent ».
 

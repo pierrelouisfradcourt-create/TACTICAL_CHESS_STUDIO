@@ -257,7 +257,13 @@ def _is_materialize_refusal_reason(reason: str) -> bool:
     if not reason:
         return False
     normalized = reason.lower().replace("é", "e")
-    return "non materialisable" in normalized
+    if "non materialisable" in normalized:
+        return True
+    # Rupture 11 (2026-08-23) : filet de sécurité — un refus de matérialisation
+    # de design_questions.json nomme toujours l'artefact dans sa raison, même
+    # si un futur point d'appel reformule un jour le motif "non matérialisable"
+    # (accentué ou non, déjà couvert ci-dessus).
+    return "design_questions.json" in reason
 
 
 class ForgeDriver:
@@ -1338,6 +1344,12 @@ class ForgeDriver:
         # étape (retries ET tentative finale qui épuise le budget) — reçu
         # forensique, jamais un simple compteur.
         materialize_retries: list[str] = []
+        # Rupture 11 (2026-08-23) : retour du matérialiseur transmis au MODÈLE sur
+        # le respawn suivant — sans ceci, un rejeu Lot G renvoie EXACTEMENT le même
+        # prompt qu'à la tentative refusée, et l'agent reproduit la même sortie
+        # (mesuré run 10c : Art R2 a refait la même prose que R1). None tant qu'
+        # aucun refus n'a eu lieu — la 1re tentative ne porte jamais ce champ.
+        materialize_feedback: dict | None = None
 
         while True:
             entry["attempts"] = entry.get("attempts", 0) + 1
@@ -1416,6 +1428,11 @@ class ForgeDriver:
                     # toute autre étape — un contexte non-s0 ne doit RIEN changer
                     # (project_bible falsy => run_real n'injecte aucune section).
                     "project_bible": self._project_bible() if etape == "s0-contrat" else "",
+                    # Rupture 11 (2026-08-23) : None à la 1re tentative, posé
+                    # ci-dessous à partir de la 2e (cf. déclaration en tête de
+                    # méthode) — le prompt réel (run_real.claude_executor) y
+                    # ajoute une section « RETOUR DU MATÉRIALISEUR » quand présent.
+                    "materialize_feedback": materialize_feedback,
                 }
                 res = self.executor(payload, decision, context)
                 # Preuve d'action AVANT de juger le retour : un exécuteur qui rend `ok:False`
@@ -1466,6 +1483,17 @@ class ForgeDriver:
                             "re-spawn même palier : %s",
                             etape, entry["attempts"], self.materialize_attempts_max, why,
                         )
+                        # Rupture 11 : la PROCHAINE tentative (au tour suivant de
+                        # la boucle) reçoit le pourquoi du refus précédent dans le
+                        # context de l'exécuteur — cf. déclaration en tête de méthode.
+                        materialize_feedback = {
+                            "attempt": entry["attempts"],
+                            "reason": why,
+                            "failed_artifact_path": (
+                                res.get("failed_artifact_path")
+                                if isinstance(res, dict) else None
+                            ),
+                        }
                         continue  # même étape, même payload/contexte — nouvelle tentative
 
                     halt_reason = (
@@ -1568,6 +1596,19 @@ class ForgeDriver:
         loop_check = res.get("loop_check") if isinstance(res, dict) else None
         if loop_check is not None:
             entry["detail"]["loop_check"] = loop_check
+        # Rupture 11 (2026-08-23) — même patron M3'a/M4'/loop_check juste au-dessus,
+        # 6e et 7e occurrences du motif « producteur sans consommateur » fermées
+        # ensemble : `economy_check` (run_real._materialize_economy -> res["economy_
+        # check"]) et `design_questions_check` (run_real._materialize_design_questions
+        # -> res["design_questions_check"]) étaient produits par run_real puis
+        # PERDUS au littéral `entry["detail"]` fixe ci-dessus — jamais recopiés dans
+        # state.json malgré des mois de production réelle (kitten_clicker run 10c).
+        economy_check = res.get("economy_check") if isinstance(res, dict) else None
+        if economy_check is not None:
+            entry["detail"]["economy_check"] = economy_check
+        design_questions_check = res.get("design_questions_check") if isinstance(res, dict) else None
+        if design_questions_check is not None:
+            entry["detail"]["design_questions_check"] = design_questions_check
         # P3 (2026-08-15) — même motif, 4e et 5e occurrences fermées ensemble :
         # `tools_used` (Expérience C : usage RÉEL d'outils par le worker, {} = zéro
         # invocation mesuré) et `findings_note` (note d'honnêteté de l'extraction

@@ -262,18 +262,24 @@ def test_resolution_art_bible_section_synthetique(tmp_path):
 
 # --- _materialize_design_questions : tolerance R1 / echec R2 -----------------------
 
-def test_materialize_absent_tolere_en_round1(tmp_path):
+# Rupture 11 (2026-08-23) : le fence est desormais OBLIGATOIRE DES LE ROUND 1
+# (mesure run 10c : la tolerance round 1 masquait un agent qui ne s'exprime
+# JAMAIS via le canal structure) -- l'ancienne tolerance "written: False" a
+# disparu, absent est desormais un ECHEC quel que soit le round.
+
+def test_materialize_absent_echoue_en_round1(tmp_path):
     r = run_real._materialize_design_questions("s2.7-gm-worldscan", tmp_path, "rien ici")
-    assert r == {"written": False,
-                 "reason": "design_questions.json non materialisable -- aucun bloc "
-                           "```design_questions``` dans la reponse (tolere en round 1)"}
+    assert r is not None and r.get("ok") is False
+    assert "non materialisable" in r["reason"]
+    assert "aucun fence" in r["reason"]
+    assert "ATTENDU" in r["reason"]
     assert not (tmp_path / "design_questions.json").exists()
 
 
 def test_materialize_absent_echoue_en_round2(tmp_path):
     r = run_real._materialize_design_questions("s2.7-gm-worldscan-r2", tmp_path, "rien ici")
     assert r is not None and r.get("ok") is False
-    assert "obligatoire" in r["reason"]
+    assert "non materialisable" in r["reason"]
 
 
 def test_materialize_etape_hors_boucle_retourne_none(tmp_path):

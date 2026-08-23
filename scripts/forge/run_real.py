@@ -1588,38 +1588,54 @@ _GAME_MASTER_SCHEMA_TIMEOUT_S = 60.0
 _FENCED_DESIGN_QUESTIONS = re.compile(r"```design_questions\s*(.*?)```", re.S)
 
 
-def _extract_design_questions_block(output: str) -> "dict | None":
-    """DERNIER bloc ```design_questions``` qui parse en objet JSON, ou None.
-    Meme regle que extract_json_payload/_FENCED_JSON (dernier bloc valide,
-    jamais d'exception) -- factorisee ici car utilisee par DEUX appelants :
-    la tolerance PARTIAL round 1 (_validate_game_master_block) et le
-    materialiseur dedie (_materialize_design_questions)."""
-    for raw in reversed(_FENCED_DESIGN_QUESTIONS.findall(output or "")):
-        try:
-            candidat = json.loads(raw)
-        except ValueError:
-            continue
+def _extract_design_questions_block(output: str) -> "tuple[dict | None, str]":
+    """Rupture 11 (2026-08-23) -- (bloc, diagnostic) : le SEUL DERNIER fence
+    ```design_questions``` de `output` (jamais un fence anterieur -- si le dernier
+    est illisible, l'agent doit le corriger, pas se reposer sur un fence perime).
+    Parse JSON d'abord ; si le resultat n'est pas un objet JSON, tente
+    `yaml.safe_load` (yaml deja importe ailleurs dans ce module) -- accepte
+    SEULEMENT si le resultat est un dict portant 'questions' ou 'declarations'
+    (jamais un scalaire/liste YAML pris pour un objet valide). Diagnostics :
+      - aucun fence : "aucun fence ```design_questions" ;
+      - fence present mais ni JSON ni YAML structure : "bloc present mais ni
+        JSON ni YAML structure (contenu commence par : <40 premiers caracteres>)" ;
+      - fence valide : ("" , dict).
+    Jamais d'exception -- factorisee ici car utilisee par DEUX appelants : la
+    tolerance PARTIAL round 1 (_validate_game_master_block, via
+    _has_valid_design_questions_fence) et le materialiseur dedie
+    (_materialize_design_questions)."""
+    blocks = _FENCED_DESIGN_QUESTIONS.findall(output or "")
+    if not blocks:
+        return None, "aucun fence ```design_questions"
+    raw = blocks[-1]
+    try:
+        candidat = json.loads(raw)
         if isinstance(candidat, dict):
-            return candidat
-    return None
+            return candidat, ""
+    except ValueError:
+        pass
+    try:
+        import yaml  # deja dependance de forge.contract
+        candidat = yaml.safe_load(raw)
+    except Exception:
+        candidat = None
+    if isinstance(candidat, dict) and ("questions" in candidat or "declarations" in candidat):
+        return candidat, ""
+    snippet = (raw or "").strip()[:40]
+    return None, ("bloc present mais ni JSON ni YAML structure (contenu commence "
+                  f"par : {snippet})")
 
 
-def _has_blocking_gm_to_art_question(output: str) -> bool:
-    """Vrai ssi le bloc ```design_questions``` de `output` porte >=1 question
-    GM->ART avec `blocking: true` -- condition de la tolerance PARTIAL round 1
-    (cf. _validate_game_master_block). Best-effort : bloc absent/malforme -> False,
-    jamais une exception (la tolerance ne s'applique simplement pas)."""
-    dq = _extract_design_questions_block(output)
-    if not isinstance(dq, dict):
-        return False
-    questions = dq.get("questions")
-    if not isinstance(questions, list):
-        return False
-    return any(
-        isinstance(q, dict) and q.get("from") == "GM" and q.get("to") == "ART"
-        and q.get("blocking") is True
-        for q in questions
-    )
+def _has_valid_design_questions_fence(output: str) -> bool:
+    """Vrai ssi `output` porte un DERNIER fence ```design_questions``` qui parse
+    (JSON ou YAML structure) -- condition de la tolerance PARTIAL round 1 (cf.
+    _validate_game_master_block). Rupture 11 (2026-08-23) : remplace l'ancienne
+    condition « >=1 question GM->ART blocking:true » -- un GM qui n'a AUCUNE
+    question DOIT le declarer dans `declarations.GM` (canal structure), pas par
+    l'absence du fence. Best-effort : bloc absent/malforme -> False, jamais une
+    exception (la tolerance ne s'applique simplement pas)."""
+    dq, _diagnostic = _extract_design_questions_block(output)
+    return dq is not None
 
 
 def _validate_game_master_block(data: dict, run_dir: Path, output: str = "",
@@ -1635,11 +1651,13 @@ def _validate_game_master_block(data: dict, run_dir: Path, output: str = "",
     Lot F (2026-08-23) — tolérance PARTIAL round 1 SEULEMENT : quand `etape` est
     EXACTEMENT `s2.7-gm-worldscan` (round 1 canonique — JAMAIS l'alias `-r2`, qui
     exige un `game_master` COMPLET, comportement Lot B inchangé) ET que `output`
-    porte >=1 question GM->ART `blocking:true` (cf. `_has_blocking_gm_to_art_
-    question`), un `game_master` INCOMPLET (bloc présent, mais rejeté par
-    `validateGameMaster`) est TOLÉRÉ — le round 2 le complètera. Un `game_master`
-    TOTALEMENT ABSENT (clé manquante) N'EST JAMAIS toléré, même en round 1 avec une
-    question bloquante : "PARTIAL" présuppose un bloc, pas son absence."""
+    porte un fence ```design_questions``` VALIDE (cf. `_has_valid_design_questions_
+    fence` — rupture 11, 2026-08-23 : ne dépend plus de la présence d'une question
+    bloquante GM->ART, un GM sans question le déclare dans `declarations.GM`), un
+    `game_master` INCOMPLET (bloc présent, mais rejeté par `validateGameMaster`)
+    est TOLÉRÉ — le round 2 le complètera. Un `game_master` TOTALEMENT ABSENT (clé
+    manquante) N'EST JAMAIS toléré, même en round 1 avec un fence valide : "PARTIAL"
+    présuppose un bloc, pas son absence."""
     if "game_master" not in data:
         return ("'game_master' absent — bloc obligatoire (Lot B 2026-08-23), "
                 "traduction du monde découvert en jeu mesurable")
@@ -1670,7 +1688,7 @@ def _validate_game_master_block(data: dict, run_dir: Path, output: str = "",
         return "game_master : sortie du validateur inexploitable (pas de champ 'ok')"
     if payload.get("ok"):
         return ""
-    if etape == "s2.7-gm-worldscan" and _has_blocking_gm_to_art_question(output):
+    if etape == "s2.7-gm-worldscan" and _has_valid_design_questions_fence(output):
         return ""  # PARTIAL round 1 tolere -- round 2 doit completer
     problems = payload.get("problems")
     problems_txt = "; ".join(str(p) for p in problems) if isinstance(problems, list) else "raison inconnue"
@@ -2251,12 +2269,18 @@ def _materialize_design_questions(etape: str, run_dir: Path, output: str) -> dic
     s2.7) -- jamais un remplacement.
 
     Retourne None si etape n'appartient pas a la boucle (ni s2.5-artbible ni
-    s2.7-gm-worldscan, base ou alias round 2). Sinon :
-      - round 1 (etape canonique) : bloc ```design_questions``` ABSENT est TOLERE --
-        {"written": False, "reason": ...}, jamais un echec de l'etape ;
-      - round 2 (alias -r2) : bloc ABSENT ou INVALIDE est un ECHEC de l'etape --
-        {"ok": False, "reason": ...}, meme contrat que _materialize_artifact (l'appelant
-        doit le traiter comme un artefact obligatoire manquant, return immediat) ;
+    s2.7-gm-worldscan, base ou alias round 2). Sinon, rupture 11 (2026-08-23) --
+    le fence est desormais OBLIGATOIRE DES LE ROUND 1 (l'ancienne tolerance
+    round 1 "bloc absent" masquait le vrai defaut : un agent qui ne s'exprime
+    JAMAIS via le canal structure, cf. run 10c) :
+      - absent (aucun fence), non parsable (ni JSON ni YAML structure), OU
+        structurellement invalide (_validate_design_questions) : ECHEC de
+        l'etape -- {"ok": False, "reason": "<etape>: design_questions.json non
+        materialisable -- <diagnostic> -- ATTENDU : ..."}, meme contrat que
+        _materialize_artifact (l'appelant doit le traiter comme un artefact
+        obligatoire manquant, return immediat) ; le motif "non materialisable"
+        est CE QUI DECLENCHE le rejeu Lot G (driver._is_materialize_refusal_
+        reason) -- unifie les 3 causes d'echec sous le MEME motif rejouable ;
       - present et valide (round 1 ou 2) : ecrit design_questions.json a la racine
         de run_dir (regle append-only verifiee PAR _validate_design_questions AVANT
         l'ecriture -- elle lit elle-meme le fichier existant) et retourne
@@ -2265,19 +2289,16 @@ def _materialize_design_questions(etape: str, run_dir: Path, output: str) -> dic
     if base not in _DESIGN_QUESTIONS_LOOP_BASES:
         return None
     round_ = step_round(etape)
-    dq = _extract_design_questions_block(output)
-    if dq is None:
-        if round_ == 1:
-            return {"written": False,
-                    "reason": "design_questions.json non materialisable -- aucun bloc "
-                              "```design_questions``` dans la reponse (tolere en round 1)"}
+    dq, diagnostic = _extract_design_questions_block(output)
+    if dq is not None:
+        diagnostic = _validate_design_questions(dq, run_dir)
+    if dq is None or diagnostic:
         return {"ok": False,
-                "reason": f"{etape}: design_questions.json obligatoire en round >=2 -- "
-                          "aucun bloc ```design_questions``` dans la reponse"}
-    reason = _validate_design_questions(dq, run_dir)
-    if reason:
-        return {"ok": False,
-                "reason": f"{etape}: design_questions.json invalide -- {reason}"}
+                "reason": (f"{etape}: design_questions.json non materialisable -- "
+                           f"{diagnostic} -- ATTENDU : un unique fence "
+                           "```design_questions``` contenant UNIQUEMENT l'objet JSON "
+                           "{\"schema_version\": 1, \"round\": <int>, \"questions\": "
+                           "[...], \"declarations\": {\"ART\": {...}, \"GM\": {...}}}")}
     try:
         run_dir.mkdir(parents=True, exist_ok=True)
         dq_path = run_dir / "design_questions.json"
@@ -2665,6 +2686,19 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
         bible = context.get("project_bible") or ""
         if bible:
             parts.append("## PROJECT BIBLE (mémoire de décision du projet)\n" + bible)
+        # Rupture 11 (2026-08-23) : retour du matérialiseur sur rejeu Lot G — sans
+        # ceci, l'agent rejoué reçoit EXACTEMENT le même prompt qu'à sa tentative
+        # refusée et reproduit la même sortie (mesuré sur run 10c, Art R2 a refait
+        # de la prose identique à R1). `context["materialize_feedback"]` est posé
+        # par `ForgeDriver._run_llm` à partir de la 2ᵉ tentative d'une même étape.
+        mf = context.get("materialize_feedback")
+        if mf:
+            parts.append(
+                f"## RETOUR DU MATÉRIALISEUR — tentative {mf.get('attempt')} "
+                "(ta sortie précédente a été REFUSÉE)\n"
+                f"{mf.get('reason')}\n"
+                "Corrige la FORME demandée ; le fond de ta sortie précédente reste valable."
+            )
         parts.append(context["dispatch_marker"])
         prompt = "\n\n".join(parts)
 

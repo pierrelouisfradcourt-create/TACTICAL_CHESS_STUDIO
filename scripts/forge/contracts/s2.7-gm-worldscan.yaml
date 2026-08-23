@@ -114,25 +114,54 @@ objectif: >-
   consommation Builder, au format du bloc `game_master` (9 sorties, cf.
   `output_contract`).
 
-  BOUCLE DE COMPLETION MUTUELLE (Lot F, 2026-08-23) : cette etape peut tourner deux
-  fois dans le meme run, SUR CE MEME CONTRAT (alias `s2.7-gm-worldscan-r2`, cf.
-  forge.contract.base_step -- aucun fichier de contrat separe pour le round 2, R1 et
-  R2 partagent EXPRES ce texte). Round 1 (premiere passe) : produis les deux sections
-  (scan de genre + bloc `game_master`) -- un `game_master` INCOMPLET est TOLERE en
-  round 1 (jamais en round 2) SEULEMENT si tu termines IMPERATIVEMENT ta reponse par
-  un bloc ```design_questions``` (obligatoire) portant AU MOINS une question
-  `blocking:true` adressee a l'Artiste pour chaque bloc que tu ne peux pas remplir --
-  "voila ce que je vois" (resume factuel bref) + "voila ce qui me manque" : des
-  questions CAUSALES (JAMAIS des cases a cocher -- exemples de bonnes questions :
-  "pourquoi le joueur fait-il ceci ?", "quelle representation rend cette possibilite
-  evidente ?", "quels etats faut-il montrer ?"). Round 2 (si c'est ta 2e passe sur
-  cette etape dans ce run) : reponds a TOUTES les questions que tu as recues de
-  l'Artiste -- chaque reponse porte un `ref` qui resout dans TON PROPRE
-  gm_worldscan.json (`game_master.<bloc>[.<id>]`) -- OU declare
-  `ready_for_freeze:false` MOTIVE dans le meme bloc `design_questions`, et COMPLETE
-  ton `game_master` (COMPLET exige en round 2, comportement Lot B inchange). Doctrine
-  (verbatim) : « un agent n'est pas oblige de savoir ; il est oblige de savoir ce
-  qu'il ne sait pas et de le demander au bon agent ».
+  BOUCLE DE COMPLETION MUTUELLE (Lot F, 2026-08-23 ; canal durci Rupture 11,
+  2026-08-23) : cette etape peut tourner deux fois dans le meme run, SUR CE MEME
+  CONTRAT (alias `s2.7-gm-worldscan-r2`, cf. forge.contract.base_step -- aucun
+  fichier de contrat separe pour le round 2, R1 et R2 partagent EXPRES ce
+  texte). Round 1 (premiere passe) : produis les deux sections (scan de genre +
+  bloc `game_master`) -- un `game_master` INCOMPLET est TOLERE en round 1
+  (jamais en round 2) SEULEMENT si tu termines IMPERATIVEMENT ta reponse par un
+  bloc ```design_questions``` VALIDE -- OBLIGATOIRE DES CE ROUND 1, MEME SANS
+  QUESTION (`"questions": []` accepte si `declarations` est present -- un GM
+  qui n'a AUCUNE question DOIT le declarer dans son bloc, il ne se tait
+  jamais ; c'est la presence du fence, pas une question bloquante, qui tolere
+  le `game_master` incomplet). Quand tu as des questions : AU MOINS une
+  `blocking:true` adressee a l'Artiste pour chaque bloc que tu ne peux pas
+  remplir -- "voila ce que je vois" (resume factuel bref) + "voila ce qui me
+  manque" : des questions CAUSALES (JAMAIS des cases a cocher -- exemples de
+  bonnes questions : "pourquoi le joueur fait-il ceci ?", "quelle
+  representation rend cette possibilite evidente ?", "quels etats faut-il
+  montrer ?"). Round 2 (si c'est ta 2e passe sur cette etape dans ce run) :
+  reponds a TOUTES les questions que tu as recues de l'Artiste -- chaque
+  reponse porte un `ref` qui resout dans TON PROPRE gm_worldscan.json
+  (`game_master.<bloc>[.<id>]`) -- OU declare `ready_for_freeze:false` MOTIVE
+  dans le meme bloc `design_questions`, et COMPLETE ton `game_master` (COMPLET
+  exige en round 2, comportement Lot B inchange).
+
+  FORME DU FENCE (durcie -- Rupture 11, mesure sur run 10c : un fence rempli de
+  prose markdown -- titres, puces, `ready_for_freeze: true` en queue -- n'est
+  PAS parsable et etait tolere a tort) : le fence ```design_questions``` NE
+  CONTIENT QUE l'objet JSON, RIEN D'AUTRE -- aucun titre markdown, aucune puce,
+  aucune prose, aucun YAML. Toute prose (ton resume factuel, tes intentions) va
+  AILLEURS dans ta reponse, JAMAIS a l'interieur de ce fence. Squelette EXACT a
+  recopier (adapte `from`/`to`/`about` a TON pilier -- GM ici ; `about` pointe
+  TON PROPRE artefact, jamais celui de l'Artiste) :
+  ```design_questions
+  {"schema_version": 1, "round": 1, "questions": [{"id": "q_gm_001", "from":
+  "GM", "to": "ART", "round": 1, "about": "gm_worldscan:game_master.<bloc>",
+  "missing": ["..."], "why": "...", "blocking": true, "answer": null}],
+  "declarations": {"ART": {"round": 1, "ready_for_freeze": false,
+  "open_to_gm": 0}, "GM": {"round": 1, "ready_for_freeze": false,
+  "open_to_art": 1}}}
+  ```
+  `answer.ref` (round 2) pointe lui aussi TON artefact (le chemin dans
+  `game_master` ou tu as repondu). Une sortie SANS ce fence, ou dont le fence
+  n'est ni JSON ni YAML structure, est REFUSEE et rejouee avec le retour du
+  materialiseur (cf. forge.driver._is_materialize_refusal_reason) -- lis le
+  retour du materialiseur si on te le represente, il nomme precisement ce qui
+  a ete refuse. Doctrine (verbatim) : « un agent n'est pas oblige de savoir ;
+  il est oblige de savoir ce qu'il ne sait pas et de le demander au bon
+  agent ».
 
 in_scope: >-
   Section 1 : observation comparative de >=2 jeux reels du genre, extraction de

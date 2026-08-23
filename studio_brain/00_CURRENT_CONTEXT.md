@@ -86,7 +86,12 @@ sourcées GM, `game_master` absent → refus. `check_prisme_manifest.mjs` reste 
    run_dir faute de ratification V2.1 — option (b), copie au scratchpad `run10_hold/`). **Runs 10a `…c` et 10b `…d` HALTED à s2 en
    10 min chacun : JSON de 18 Ko cassé par haiku (rupture 10, 3ᵉ occurrence : refus de matérialisation = BLOCKED terminal, aucun rejeu
    par étape — le pool ne rejoue que s9 sur un rouge d'oracle). Décision Fable (réversible, commit séparé) : Lot G = ≤ 2 tentatives
-   par étape sur refus de matérialisation avec sortie produite (agent en cours), puis relance run 10c `kitten_clicker-20260823e`.
+   par étape sur refus de matérialisation avec sortie produite — **commit `138aaa4`**. **Run 10c `…e` : s2 OK, Art R1 OK (8 sections, 7 questions dont 1 bloquante : nommage des chatons), GM R1 OK
+   (`game_master` complet, 18 grey blocks, invariants de la graine) — mais l'Artiste écrit ses questions en PROSE dans le fence et le GM
+   n'émet aucun fence (« will not emit ») : `design_questions.json` jamais matérialisé, reçu perdu (littéral de clés, 3ᵉ occurrence),
+   HALTED à Art R2 « aucun bloc » (message trompeur) sans rejeu (détecteur Lot G trop étroit, et un rejeu aurait rejoué le même prompt).
+   **Rupture 11 = canal de dialogue sensible à la forme** ; ≈ 12 $ ; scratchpad `run10c_halted/`. **Lot G.2 en cours** : fence JSON|YAML,
+   exigé dès R1, refus rejouable AVEC retour du matérialiseur dans le prompt, reçus copiés, squelette JSON exact dans contrats + tâches.
 1. **Lot C.2 — Gameplay Loop & Content Contract V1 : PROPOSED** `studio_brain/gamedesign/kitten_clicker_gameplay_loop_content_contract_v1.md`
    (9 sections : core/player/progression/meta/content/economy loops, arbre de possibilités, échange Art↔GM, WireMap gate à 5 questions ;
    tableau de contenu par progression). Test de reconstruction « scène » : passe 1 : 0 compteur, 7 inventions / 3 contradictions → V1.1 ; passe 2 : 0 contradiction, 0 compteur → V1.1b (§11, 15 réponses). À ratifier AVANT tout WireMap ; C.1 et V2.1 seront
