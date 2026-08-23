@@ -109,9 +109,11 @@ test('fixture synthetique A..J complete (sans DECISION) : checkLoopSpec FAIL uni
     'PLAYER_GOAL', 'PLAYER_ACTION', 'GAME_RESPONSE', 'REWARD', 'UNLOCK',
     'NEXT_GOAL', 'NEXT_GOAL', 'REPEAT', 'META_LOOP', 'ADVANTAGE',
   ]);
-  // au sein du role NEXT_GOAL, tri par id : G1 avant G2
+  // FUITE 2 (Lot D, 2026-08-23) : au sein du role NEXT_GOAL, tri par ORDRE
+  // D'APPARITION dans prisme.exigences (plus jamais l'alphabet) — G2 est ecrit
+  // AVANT G1 dans la fixture (ligne 77-78 ci-dessus), donc G2 precede G1.
   const goals = spec.steps.filter((s) => s.role === 'NEXT_GOAL');
-  assert.deepEqual(goals.map((s) => s.ref), ['G1', 'G2']);
+  assert.deepEqual(goals.map((s) => s.ref), ['G2', 'G1']);
 
   const h1 = spec.steps.find((s) => s.ref === 'H1');
   assert.deepEqual(h1.replay, ['B1', 'F1']);

@@ -2378,8 +2378,14 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # Lot F (2026-08-23) : + design_questions.json ' le Prisme voit l'etat de
     # convergence de la boucle Art<->GM (blocking residuels, reponses) avant de
     # tourner ; absent (profils sans boucle) => omis, comportement inchange.
+    # Lot D (2026-08-23, GO Pierre, fuite 3 : le design n'etait lu par personne) :
+    # + design/progression_contract.md, design/calibration.md ' deposes par
+    # l'orchestrateur dans lab/forge_runs/<projet>/design/ (jamais ecrits par un
+    # agent Forge). Absents => omis par upstream_artifacts_section, comportement
+    # inchange.
     "s1-prisme": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
-                  "artifacts/s2.7-gm-worldscan.txt", "design_questions.json"),
+                  "artifacts/s2.7-gm-worldscan.txt", "design_questions.json",
+                  "design/progression_contract.md", "design/calibration.md"),
     # Lot A 2026-08-23 (tuyau World Scan -> Art Bible -> GM) : s2.7 recoit desormais
     # AUSSI la Story Bible et l'Art Bible + ses demandes d'assets (l'Art Bible est
     # produite AVANT s2.7 dans full_godot_content, cf. dispatch.PROFILES) ' l'ancienne
@@ -2394,21 +2400,36 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # run par le driver dans lab/forge_runs/<projet>/heritage/. Absents (1er run,
     # ou dossier heritage/ non encore peuple) => omis par upstream_artifacts_section,
     # comportement inchange.
+    # Lot D (2026-08-23, GO Pierre, fuite 3) : + design_intent.md,
+    # design/gameplay_loop_content_contract.md, design/progression_contract.md,
+    # design/calibration.md ' deposes par l'orchestrateur dans
+    # lab/forge_runs/<projet>/design/ (design_intent.md a la racine du run_dir).
+    # Absents => omis par upstream_artifacts_section, comportement inchange.
     "s2.7-gm-worldscan": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
                           "art_bible.md", "asset_requests.json",
-                          "heritage/art_response.json", "heritage/gm_worldscan.json"),
+                          "heritage/art_response.json", "heritage/gm_worldscan.json",
+                          "design_intent.md", "design/gameplay_loop_content_contract.md",
+                          "design/progression_contract.md", "design/calibration.md"),
     # Lot F (2026-08-23, round 2) ' table PROPRE a l'alias, distincte de la base
     # ci-dessus (base_step ne s'applique JAMAIS a cette table : contrairement au
     # contrat/role/modele/outils, ce que R2 RECOIT en amont differe reellement de
     # R1 ' R2 voit son propre brouillon R1 (art_bible.md/asset_requests.json,
     # pas encore ecrases a ce stade) ET le gm_worldscan.json de R1, EN PLUS de
     # design_questions.json ' les questions posees/recues a completer).
+    # Lot D (2026-08-23, GO Pierre, fuite 3) : meme ajout qu'a s2.5-artbible
+    # ci-dessus (table PROPRE a l'alias round 2, cf. commentaire Lot F au-dessus).
     "s2.5-artbible-r2": ("charter.yaml", "artifacts/s2-worldscan.txt",
                          "artifacts/s2.6-story-bible.txt", "gm_worldscan.json",
-                         "design_questions.json", "art_bible.md"),
+                         "design_questions.json", "art_bible.md",
+                         "design_intent.md", "design/gameplay_loop_content_contract.md",
+                         "design/progression_contract.md"),
+    # Lot D (2026-08-23, GO Pierre, fuite 3) : meme ajout qu'a s2.7-gm-worldscan
+    # ci-dessus (table PROPRE a l'alias round 2, cf. commentaire Lot F au-dessus).
     "s2.7-gm-worldscan-r2": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
                              "art_bible.md", "asset_requests.json",
-                             "design_questions.json", "gm_worldscan.json"),
+                             "design_questions.json", "gm_worldscan.json",
+                             "design_intent.md", "design/gameplay_loop_content_contract.md",
+                             "design/progression_contract.md", "design/calibration.md"),
     # SS7.2 . s2.6 ' la Story Bible recoit ses DEUX seules sources d'ancrage. Le
     # charter est un fichier de run (comme pour s3) ; absent => section amont reduite,
     # et le worker le declare dans inputs_recus au lieu de compenser.
@@ -2422,9 +2443,14 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # du build precedent, copiee par le driver dans heritage/) : c'est le a-terme
     # bidirectionnel GM <-> Artiste, sans station nouvelle (cf. plan Lot B). Absents
     # (1er run) => omis par upstream_artifacts_section, comportement inchange.
+    # Lot D (2026-08-23, GO Pierre, fuite 3) : + design_intent.md,
+    # design/gameplay_loop_content_contract.md, design/progression_contract.md.
+    # Absents => omis par upstream_artifacts_section, comportement inchange.
     "s2.5-artbible": ("charter.yaml", "artifacts/s2-worldscan.txt",
                       "artifacts/s2.6-story-bible.txt",
-                      "heritage/art_bible.md", "heritage/art_response.json"),
+                      "heritage/art_bible.md", "heritage/art_response.json",
+                      "design_intent.md", "design/gameplay_loop_content_contract.md",
+                      "design/progression_contract.md"),
     # Choix (b) Pierre 2026-08-21 : idem pour la decompo (memes deux artefacts amont,
     # apres les 3 sources deja existantes). Fichier absent => omis, comportement
     # inchange pour les profils qui ne produisent pas s2.6/s2.7.
@@ -2459,8 +2485,11 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # deterministe de game_master.economy_model + metriques invariant, derivee par
     # l'executeur a s2.7 (cf. _materialize_economy) ; absent (game_master non
     # materialise) => omis par upstream_artifacts_section, comportement inchange.
+    # Lot D (2026-08-23, GO Pierre, fuite 3) : + design/gameplay_loop_content_contract.md.
+    # Absent => omis par upstream_artifacts_section, comportement inchange.
     "s9-build-godot-standard": ("blueprint.json", "wiremap.json", "art_bible.md",
-                                "asset_requests.json", "loop.json", "economy.json"),
+                                "asset_requests.json", "loop.json", "economy.json",
+                                "design/gameplay_loop_content_contract.md"),
     "s11-redteam-code": ("wiremap.json",),
 }
 

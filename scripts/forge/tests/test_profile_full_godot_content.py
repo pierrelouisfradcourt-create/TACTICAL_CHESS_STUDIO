@@ -66,24 +66,35 @@ _HERITAGE_ARTBIBLE = ("heritage/art_bible.md", "heritage/art_response.json")
 _HERITAGE_GM = ("heritage/art_response.json", "heritage/gm_worldscan.json")
 _ECONOMY_JSON = ("economy.json",)
 
+# Lot D (2026-08-23, GO Pierre, fuite 3 : le design n'etait lu par personne) —
+# injecte en FIN de tuple, absent (design/ non peuple) => omis, comportement
+# inchange. cf. scripts/forge/tests/test_lot_d_fuites_mesure.py pour la mesure
+# dediee (run_dir tmp avec/sans ces fichiers).
+_DESIGN_ARTBIBLE = ("design_intent.md", "design/gameplay_loop_content_contract.md",
+                    "design/progression_contract.md")
+_DESIGN_GM = ("design_intent.md", "design/gameplay_loop_content_contract.md",
+             "design/progression_contract.md", "design/calibration.md")
+_DESIGN_BUILD = ("design/gameplay_loop_content_contract.md",)
+
 
 def test_s25_artbible_recoit_charter_worldscan_story_bible():
     """Lot A 2026-08-23 : l'Art Bible hérite du World Scan et de la Story Bible
-    (plus du Prisme). Lot B T2(b) : + héritage inter-run."""
+    (plus du Prisme). Lot B T2(b) : + héritage inter-run. Lot D : + sources design."""
     for table in (run_real._UPSTREAM_BY_STEP, context_manifest._UPSTREAM_BY_STEP):
         assert table["s2.5-artbible"] == (
             "charter.yaml", "artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
-        ) + _HERITAGE_ARTBIBLE
+        ) + _HERITAGE_ARTBIBLE + _DESIGN_ARTBIBLE
 
 
 def test_s27_gm_worldscan_recoit_story_bible_et_art_bible():
     """Lot A 2026-08-23 : le GM reçoit désormais la Story Bible et l'Art Bible
     (produite avant lui dans full_godot_content), plus le World Scan seul avant.
-    Lot B T2(b) : + héritage inter-run (art_response.json, gm_worldscan.json)."""
+    Lot B T2(b) : + héritage inter-run (art_response.json, gm_worldscan.json).
+    Lot D : + sources design."""
     for table in (run_real._UPSTREAM_BY_STEP, context_manifest._UPSTREAM_BY_STEP):
         assert table["s2.7-gm-worldscan"] == (
             "artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
-        ) + _AMONT_CONTENT + _HERITAGE_GM
+        ) + _AMONT_CONTENT + _HERITAGE_GM + _DESIGN_GM
 
 
 def test_s3_decompo_recoit_aussi_art_bible_et_asset_requests():
@@ -102,11 +113,12 @@ def test_s5_wiremap_recoit_story_bible_art_bible_et_asset_requests():
 
 
 def test_s9_build_godot_standard_recoit_blueprint_wiremap_art_bible_asset_requests():
-    """Lot B T2(b) : + economy.json (projection déterministe, dérivée à s2.7)."""
+    """Lot B T2(b) : + economy.json (projection déterministe, dérivée à s2.7).
+    Lot D : + design/gameplay_loop_content_contract.md."""
     for table in (run_real._UPSTREAM_BY_STEP, context_manifest._UPSTREAM_BY_STEP):
         assert table["s9-build-godot-standard"] == (
             "blueprint.json", "wiremap.json", "art_bible.md", "asset_requests.json",
-        ) + _LOOP_JSON + _ECONOMY_JSON
+        ) + _LOOP_JSON + _ECONOMY_JSON + _DESIGN_BUILD
 
 
 def test_les_deux_copies_de_la_table_amont_restent_identiques():

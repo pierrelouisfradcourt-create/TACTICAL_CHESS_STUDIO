@@ -68,6 +68,9 @@ var _seen: Dictionary = {}      # hud -> Array[String] : toutes les valeurs befo
 var _initial: Dictionary = {}   # hud -> String : premiere valeur jamais vue sur ce hud
 var _deltas: Dictionary = {}    # ref (ou "<ref>@replay") -> float : delta after-before du dernier PASS
 var _replay_acc: Dictionary = {}  # parent_ref (REPEAT) -> Array de {ref, pass, before, after}
+var _replayed_from := ""        # FUITE 1 (Lot D) : ref du step dont l'affordance/repeat
+                                 # ont ete rejoues pour le step COURANT (cf. _do_before),
+                                 # remis a "" a chaque nouveau step (_advance_task).
 
 # --- etat DECISION (trajectoires contre-factuelles) ---------------------------
 var _scene_packed: PackedScene = null   # scene principale, memorisee pour _reset_scene()
@@ -195,9 +198,19 @@ func _process(_delta: float) -> bool:
 	return false
 
 
+# Resout un `ref` dans la liste ORIGINALE `_steps` (jamais `_run_queue`), null si
+# aucun step ne le porte. Utilise par le rejeu `replay_ref` (FUITE 1, Lot D).
+func _find_step_by_ref(ref: String) -> Variant:
+	for st in _steps:
+		if typeof(st) == TYPE_DICTIONARY and String(st.get("ref", "")) == ref:
+			return st
+	return null
+
+
 func _do_before(step: Dictionary, task: Dictionary) -> void:
 	if _step_frame_start < 0:
 		_step_frame_start = _frames
+	_replayed_from = ""
 	var observe = step.get("observe", {})
 	var hud_name := String(observe.get("hud", "")) if typeof(observe) == TYPE_DICTIONARY else ""
 	var label := _find_hud(hud_name)
@@ -210,6 +223,29 @@ func _do_before(step: Dictionary, task: Dictionary) -> void:
 	_appears_before = get_nodes_in_group(_appears_group).size() if _appears_group != "" else -1
 
 	var affordance_name := String(step.get("affordance", ""))
+	var repeat_source: Dictionary = step
+
+	# FUITE 1 (Lot D, 2026-08-23, GO Pierre) : un step SANS affordance mais avec
+	# `replay_ref` (typiquement ADVANTAGE, ex. run 9 `j_advantage`) doit rejouer
+	# l'affordance ET le `repeat` du step REFERENCE (resolu par `ref` dans
+	# `_steps`), puis evaluer SON PROPRE `observe` — jamais mesurer la seule
+	# production passive du wait_frames (mesure : run 9 j_advantage sans
+	# affordance -> delta passif 96.0 ; run 8b avec affordance -> vrai clic).
+	if affordance_name == "":
+		var replay_ref := String(step.get("replay_ref", ""))
+		if replay_ref != "":
+			var ref_step = _find_step_by_ref(replay_ref)
+			if ref_step == null:
+				_fail_current_task(task, "replay_ref '%s' introuvable" % replay_ref)
+				return
+			var ref_affordance := String(ref_step.get("affordance", ""))
+			if ref_affordance == "":
+				_fail_current_task(task, "replay_ref '%s' resolu mais sans affordance (production non rejouable)" % replay_ref)
+				return
+			affordance_name = ref_affordance
+			repeat_source = ref_step
+			_replayed_from = replay_ref
+
 	if affordance_name != "":
 		var node := _find_affordance(affordance_name)
 		if node == null:
@@ -219,7 +255,7 @@ func _do_before(step: Dictionary, task: Dictionary) -> void:
 			_fail_current_task(task, "affordance '%s' n'est pas un Control" % affordance_name)
 			return
 		_cur_affordance = node
-		_click_target = maxi(1, int(step.get("repeat", 1)))
+		_click_target = maxi(1, int(repeat_source.get("repeat", 1)))
 		_click_count = 0
 		_click_subframe = 0
 		_phase = "inject"
@@ -362,6 +398,8 @@ func _evaluate(step: Dictionary, task: Dictionary) -> void:
 	if _appears_group != "":
 		result["appears_before"] = _appears_before
 		result["appears_after"] = appears_after
+	if _replayed_from != "":
+		result["replayed_from"] = _replayed_from
 	_results.append(result)
 
 	if not passed:

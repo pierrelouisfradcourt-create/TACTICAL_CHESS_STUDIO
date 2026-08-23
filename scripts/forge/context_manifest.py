@@ -72,35 +72,52 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # (profil full) => omis par upstream_artifacts_section, comportement inchange.
     # Lot F (2026-08-23) : + design_questions.json ' copie STRICTEMENT identique
     # a run_real._UPSTREAM_BY_STEP (test d'egalite dans test_context_manifest.py).
+    # Lot D (2026-08-23, GO Pierre, fuite 3) : copie STRICTEMENT identique a
+    # run_real._UPSTREAM_BY_STEP (test d'egalite dans test_context_manifest.py).
     "s1-prisme": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
-                  "artifacts/s2.7-gm-worldscan.txt", "design_questions.json"),
+                  "artifacts/s2.7-gm-worldscan.txt", "design_questions.json",
+                  "design/progression_contract.md", "design/calibration.md"),
     # SS7.2 . s2.7 ' copie STRICTEMENT identique a run_real._UPSTREAM_BY_STEP (test
     # d'egalite dans test_context_manifest.py) : toute divergence casse ce test.
     # Lot A 2026-08-23 : s2.7 recoit desormais AUSSI la Story Bible et l'Art Bible +
     # ses demandes d'assets (produite AVANT s2.7 dans full_godot_content).
     # Lot B T2(b) (2026-08-23) : s2.7 recoit AUSSI l'heritage inter-run (contrat
     # d'artefacts GM <-> Artiste) ' copie STRICTEMENT identique a run_real.
+    # Lot D (2026-08-23, GO Pierre, fuite 3) : copie STRICTEMENT identique a
+    # run_real._UPSTREAM_BY_STEP.
     "s2.7-gm-worldscan": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
                           "art_bible.md", "asset_requests.json",
-                          "heritage/art_response.json", "heritage/gm_worldscan.json"),
+                          "heritage/art_response.json", "heritage/gm_worldscan.json",
+                          "design_intent.md", "design/gameplay_loop_content_contract.md",
+                          "design/progression_contract.md", "design/calibration.md"),
     # Lot F (2026-08-23, round 2) ' copie STRICTEMENT identique a
     # run_real._UPSTREAM_BY_STEP (test d'egalite) : les alias round 2 recoivent
     # leur propre brouillon R1 (art_bible.md/asset_requests.json/gm_worldscan.json)
     # ET design_questions.json, en plus des sources amont narratives.
+    # Lot D (2026-08-23, GO Pierre, fuite 3) : copie STRICTEMENT identique a
+    # run_real._UPSTREAM_BY_STEP.
     "s2.5-artbible-r2": ("charter.yaml", "artifacts/s2-worldscan.txt",
                          "artifacts/s2.6-story-bible.txt", "gm_worldscan.json",
-                         "design_questions.json", "art_bible.md"),
+                         "design_questions.json", "art_bible.md",
+                         "design_intent.md", "design/gameplay_loop_content_contract.md",
+                         "design/progression_contract.md"),
     "s2.7-gm-worldscan-r2": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
                              "art_bible.md", "asset_requests.json",
-                             "design_questions.json", "gm_worldscan.json"),
+                             "design_questions.json", "gm_worldscan.json",
+                             "design_intent.md", "design/gameplay_loop_content_contract.md",
+                             "design/progression_contract.md", "design/calibration.md"),
     "s2.6-story-bible": ("charter.yaml", "artifacts/s2-worldscan.txt"),
     # Lot A 2026-08-23 : copie STRICTEMENT identique a run_real._UPSTREAM_BY_STEP '
     # l'Art Bible herite du World Scan et de la Story Bible (plus du Prisme).
     # Lot B T2(b) (2026-08-23) : + heritage inter-run (art_bible.md, art_response.json
     # du run precedent) ' copie STRICTEMENT identique a run_real.
+    # Lot D (2026-08-23, GO Pierre, fuite 3) : copie STRICTEMENT identique a
+    # run_real._UPSTREAM_BY_STEP.
     "s2.5-artbible": ("charter.yaml", "artifacts/s2-worldscan.txt",
                       "artifacts/s2.6-story-bible.txt",
-                      "heritage/art_bible.md", "heritage/art_response.json"),
+                      "heritage/art_bible.md", "heritage/art_response.json",
+                      "design_intent.md", "design/gameplay_loop_content_contract.md",
+                      "design/progression_contract.md"),
     # s3-decompo recoit desormais les DEUX : le Prisme (exigences) et le World
     # Scan (connaissance qui les fonde). Sans cette 2e source, la decompo perdait
     # les standards du genre des qu'ils n'etaient pas repris mot pour mot.
@@ -136,8 +153,11 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
     # upstream_artifacts_section, comportement inchange.
     # Lot B T2(b) (2026-08-23) : + economy.json (projection deterministe, derivee
     # a s2.7) ' copie STRICTEMENT identique a run_real.
+    # Lot D (2026-08-23, GO Pierre, fuite 3) : copie STRICTEMENT identique a
+    # run_real._UPSTREAM_BY_STEP.
     "s9-build-godot-standard": ("blueprint.json", "wiremap.json", "art_bible.md",
-                                "asset_requests.json", "loop.json", "economy.json"),
+                                "asset_requests.json", "loop.json", "economy.json",
+                                "design/gameplay_loop_content_contract.md"),
     "s11-redteam-code": ("wiremap.json",),
 }
 

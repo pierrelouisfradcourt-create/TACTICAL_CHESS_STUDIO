@@ -102,32 +102,44 @@ def test_manifeste_dispatch_s27_porte_4_sources_upstream_exists_true(tmp_path):
     # run (aucun dossier heritage/ dans cette fixture), donc exists:False pour
     # elles ; les 4 originales restent présentes et exists:True (comportement
     # inchangé pour les fichiers déjà couverts par le Lot A).
+    # Lot D (2026-08-23, GO Pierre, fuite 3) : + 4 entrées design (design_intent.md,
+    # design/gameplay_loop_content_contract.md, design/progression_contract.md,
+    # design/calibration.md), absentes elles aussi dans cette fixture (design/ non
+    # peuplé) => exists:False, même garantie que heritage.
     _copy_run9_upstream_fixture(tmp_path)
     contract = load_contract("s2.7-gm-worldscan")
     sources = cm.resolve_dispatch_sources("s2.7-gm-worldscan", contract, run_dir=tmp_path)
     upstream = [s for s in sources if s["role"] == "upstream"]
-    assert len(upstream) == 6
+    assert len(upstream) == 10
     original = {"s2-worldscan.txt", "s2.6-story-bible.txt", "art_bible.md", "asset_requests.json"}
     heritage = {"art_response.json", "gm_worldscan.json"}
+    design = {"design_intent.md", "gameplay_loop_content_contract.md",
+              "progression_contract.md", "calibration.md"}
     by_name = {s["path"].split("/")[-1]: s for s in upstream}
-    assert set(by_name) == original | heritage
+    assert set(by_name) == original | heritage | design
     assert all(by_name[name]["exists"] for name in original)
     assert all(not by_name[name]["exists"] for name in heritage)
+    assert all(not by_name[name]["exists"] for name in design)
 
 
 def test_manifeste_dispatch_s25_porte_3_sources_upstream_exists_true(tmp_path):
     # Lot B T2(b) (2026-08-23) : s2.5 gagne 2 entrées upstream (heritage/art_bible.md,
     # heritage/art_response.json), absentes au 1er run — mêmes garanties que ci-dessus.
+    # Lot D (2026-08-23, GO Pierre, fuite 3) : + 3 entrées design (design_intent.md,
+    # design/gameplay_loop_content_contract.md, design/progression_contract.md),
+    # absentes elles aussi dans cette fixture.
     _copy_run9_upstream_fixture(tmp_path)
     contract = load_contract("s2.5-artbible")
     sources = cm.resolve_dispatch_sources("s2.5-artbible", contract, run_dir=tmp_path)
     upstream = [s for s in sources if s["role"] == "upstream"]
-    assert len(upstream) == 5
+    assert len(upstream) == 8
     original = {"charter.yaml", "s2-worldscan.txt", "s2.6-story-bible.txt"}
     heritage = {"art_bible.md", "art_response.json"}
+    design = {"design_intent.md", "gameplay_loop_content_contract.md", "progression_contract.md"}
     by_name = {s["path"].split("/")[-1]: s for s in upstream}
-    assert set(by_name) == original | heritage
+    assert set(by_name) == original | heritage | design
     assert all(by_name[name]["exists"] for name in original)
+    assert all(not by_name[name]["exists"] for name in design)
     assert all(not by_name[name]["exists"] for name in heritage)
 
 

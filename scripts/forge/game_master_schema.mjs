@@ -373,6 +373,21 @@ export function validateGameMaster(gm) {
       } else if (isArr(proofs) && !proofIds.has(b.proof_ref)) {
         problems.push(`${tag} (${b.id ?? '?'}) : 'proof_ref' ('${b.proof_ref}') ne resout aucun id de proof_model`);
       }
+      // Lot D (2026-08-23, GO Pierre, contrat s2.7 C.2) : `unlock`/`next_goal`
+      // ADDITIFS et OPTIONNELS — valides SEULEMENT s'ils sont presents (fixtures
+      // existantes, sans ces champs, restent inchangees). Regle maitresse :
+      // UNLOCK != +X% ; UNLOCK = possibilite PERCEPTIBLE (a voir et/ou a faire) —
+      // validee ici au minimum deterministe (builder_contract + player_meaning
+      // non vides, deja verifies ci-dessus), le reste (le changement de scene/
+      // interaction est-il REEL) est red-team/HumanGate, jamais cette fonction.
+      if (b.unlock !== undefined) {
+        if (!isArr(b.unlock) || !b.unlock.every((u) => isStr(u))) {
+          problems.push(`${tag} (${b.id ?? '?'}) : 'unlock' doit etre un tableau d'ids non vides`);
+        }
+      }
+      if (b.next_goal !== undefined && !isStr(b.next_goal)) {
+        problems.push(`${tag} (${b.id ?? '?'}) : 'next_goal' doit etre une chaine non vide`);
+      }
     });
     // requires[] resolus APRES la 1ere passe (metricIds + greyBlockIds connus).
     greyBlocks.forEach((b, i) => {
@@ -381,6 +396,28 @@ export function validateGameMaster(gm) {
       b.requires.forEach((ref) => {
         if (!isStr(ref) || (!metricIds.has(ref) && !greyBlockIds.has(ref))) {
           problems.push(`${tag} : 'requires' reference '${ref}' qui ne resout ni une metrique ni un grey_block`);
+        }
+      });
+    });
+    // unlock[] resolus APRES la 1ere passe (greyBlockIds + affordances des
+    // loops connus) — un id de grey_block OU une affordance citee par un step
+    // de boucle (Lot D, contrat s2.7 C.2 : "ids de grey blocks / affordances").
+    const loopAffordances = new Set();
+    if (isPlainObject(loops)) {
+      LOOP_NAMES.forEach((loopName) => {
+        const stepsForLoop = loops[loopName];
+        if (!isArr(stepsForLoop)) return;
+        stepsForLoop.forEach((s) => {
+          if (isPlainObject(s) && isStr(s.affordance)) loopAffordances.add(s.affordance);
+        });
+      });
+    }
+    greyBlocks.forEach((b, i) => {
+      if (!isPlainObject(b) || !isArr(b.unlock)) return;
+      const tag = `grey_blocks[${i}] (${b.id ?? '?'})`;
+      b.unlock.forEach((ref) => {
+        if (!isStr(ref) || (!greyBlockIds.has(ref) && !loopAffordances.has(ref))) {
+          problems.push(`${tag} : 'unlock' reference '${ref}' qui ne resout ni un grey_block ni une affordance de loops`);
         }
       });
     });

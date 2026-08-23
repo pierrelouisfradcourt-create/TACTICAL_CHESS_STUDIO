@@ -364,6 +364,50 @@ test('grey_blocks : player_meaning vide refuse', () => {
   assert.ok(result.problems.some((p) => p.includes('player_meaning')));
 });
 
+// --- Lot D (2026-08-23, GO Pierre, contrat s2.7 C.2) : grey_blocks.unlock / next_goal,
+// champs ADDITIFS OPTIONNELS — la fixture existante (sans ces champs) reste valide. ---
+
+test('grey_blocks : unlock/next_goal absents (fixture existante) : toujours ok', () => {
+  const gm = loadValidFixture();
+  assert.ok(gm.grey_blocks.every((b) => b.unlock === undefined && b.next_goal === undefined));
+  const result = validateGameMaster(gm);
+  assert.deepEqual(result.problems, []);
+  assert.equal(result.ok, true);
+});
+
+test('grey_blocks : unlock present referencant un id de grey_block existant : ok', () => {
+  const gm = deepClone(loadValidFixture());
+  gm.grey_blocks[0].unlock = ['cursor'];
+  gm.grey_blocks[0].next_goal = 'Debloquer le curseur automatique.';
+  const result = validateGameMaster(gm);
+  assert.deepEqual(result.problems, []);
+  assert.equal(result.ok, true);
+});
+
+test('grey_blocks : unlock referencant un id inexistant (ni grey_block ni affordance) : refus nomme', () => {
+  const gm = deepClone(loadValidFixture());
+  gm.grey_blocks[0].unlock = ['id_qui_nexiste_pas'];
+  const result = validateGameMaster(gm);
+  assert.equal(result.ok, false);
+  assert.ok(result.problems.some((p) => p.includes('unlock') && p.includes('id_qui_nexiste_pas')));
+});
+
+test('grey_blocks : unlock non-tableau refuse', () => {
+  const gm = deepClone(loadValidFixture());
+  gm.grey_blocks[0].unlock = 'cursor';
+  const result = validateGameMaster(gm);
+  assert.equal(result.ok, false);
+  assert.ok(result.problems.some((p) => p.includes('unlock')));
+});
+
+test('grey_blocks : next_goal vide (non-string) refuse', () => {
+  const gm = deepClone(loadValidFixture());
+  gm.grey_blocks[0].next_goal = 123;
+  const result = validateGameMaster(gm);
+  assert.equal(result.ok, false);
+  assert.ok(result.problems.some((p) => p.includes('next_goal')));
+});
+
 test('artist_requirements : absent refuse', () => {
   const gm = deepClone(loadValidFixture());
   delete gm.artist_requirements;

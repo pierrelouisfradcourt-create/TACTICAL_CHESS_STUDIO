@@ -85,7 +85,10 @@ sourcées GM, `game_master` absent → refus. `check_prisme_manifest.mjs` reste 
    run 10 · C.2 V1.1b RATIFIÉE.** Lot F T1–T4 livrés et CONFRONTÉS : alias `-r<N>` (`contract.base_step`, source unique), profil
    `full_godot_content` = 19 étapes (s2.5 → s2.7 → s2.5-r2 → s2.7-r2 → s1), `design_questions.json` (fence ```design_questions, validateur
    : about/answer résolus, ready refusé si question reçue sans réponse, PARTIAL toléré en R1 si ≥ 1 question bloquante), `design_state.json`
-   + gate `design_freeze` avant s1 (HALTED « design non convergé »), tâches R1/R2 avec la graine C.2. Suite finale en cours, puis commit.
+   + gate `design_freeze` avant s1 (HALTED « design non convergé »), tâches R1/R2 avec la graine C.2. **Commit `c3f82de`** (pytest 324, Node 1011).
+   **Lot D en cours** (agent : fuite 1 `replay_ref` dans la sonde, fuite 2 tri alphabétique → ordre du Prisme, fuite 3 injection
+   `design_intent.md` + `design/*.md` à s2.5/s2.7/s1/s9, contrat s2.7 : graphes adressables + `unlock`/`next_goal`) ; Fable : C.1 §9 et V2.1 §6
+   réalignés sur C.2, dépôt `lab/forge_runs/kitten_clicker/design/` (3 docs + README). Ensuite : commit D → purge → run 10 `kitten_clicker-20260823c`.
 1. **Lot C.2 — Gameplay Loop & Content Contract V1 : PROPOSED** `studio_brain/gamedesign/kitten_clicker_gameplay_loop_content_contract_v1.md`
    (9 sections : core/player/progression/meta/content/economy loops, arbre de possibilités, échange Art↔GM, WireMap gate à 5 questions ;
    tableau de contenu par progression). Test de reconstruction « scène » : passe 1 : 0 compteur, 7 inventions / 3 contradictions → V1.1 ; passe 2 : 0 contradiction, 0 compteur → V1.1b (§11, 15 réponses). À ratifier AVANT tout WireMap ; C.1 et V2.1 seront

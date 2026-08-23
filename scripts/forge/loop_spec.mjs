@@ -75,14 +75,18 @@ export function deriveLoopSpec(prisme, opts = {}) {
     }
   });
 
+  // FUITE 2 (Lot D, 2026-08-23, GO Pierre) : le tri alphabetique des `id` au sein
+  // d'un role cassait la precedence VOULUE par le Prisme (ex. G2 avant G1 alors
+  // que le Prisme les avait ecrites dans l'ordre G2 -> G1 par intention). Le
+  // Prisme ECRIT les exigences dans l'ordre ou le joueur les vit (P01 -> P12,
+  // cf. contrat s1) — cet ordre D'APPARITION dans `prisme.exigences` EST la
+  // precedence jouee, plus jamais l'alphabet. Determinisme conserve : `idx` est
+  // l'index d'apparition, stable, jamais une horloge ni un alea.
   candidats.sort((a, b) => {
     const ra = ROLE_ORDER.indexOf(a.ex.loop_role);
     const rb = ROLE_ORDER.indexOf(b.ex.loop_role);
     if (ra !== rb) return ra - rb;
-    const ida = typeof a.ex.id === 'string' ? a.ex.id : '';
-    const idb = typeof b.ex.id === 'string' ? b.ex.id : '';
-    if (ida !== idb) return ida < idb ? -1 : 1;
-    return a.idx - b.idx; // tri stable ultime (ids egaux ou absents)
+    return a.idx - b.idx; // ordre d'apparition dans prisme.exigences (precedence Prisme)
   });
 
   const steps = candidats.map(({ ex }) => {
@@ -296,10 +300,20 @@ export function checkLoopSpec(spec) {
     problems.push(`${maillon('ADVANTAGE')} : au moins 1 exigence attendue (0 trouvee)`);
   } else {
     const bRefs = new Set(bSteps.map((s) => s.ref));
+    const bByRef = new Map(bSteps.map((s) => [s.ref, s]));
     jSteps.forEach((s) => {
       if (typeof s.replay_ref !== 'string' || s.replay_ref.trim().length === 0 || !bRefs.has(s.replay_ref)) {
         problems.push(`${maillon('ADVANTAGE')} (${s.ref || '?'}) : replay_ref doit referencer une exigence de role PLAYER_ACTION (recu: ${s.replay_ref || 'absent'})`);
         return;
+      }
+      // FUITE 1 (Lot D, 2026-08-23, GO Pierre) : un J dont le replay_ref pointe
+      // un B SANS affordance est une production PASSIVE mesuree, pas un vrai
+      // clic (mesure run 9 : j_advantage sans affordance -> la sonde a mesure
+      // la production passive) — nomme ici au lieu de laisser player_loop.gd
+      // rejouer un step qui n'a rien a cliquer.
+      const bTarget = bByRef.get(s.replay_ref);
+      if (!bTarget || typeof bTarget.affordance !== 'string' || bTarget.affordance.trim().length === 0) {
+        problems.push(`${maillon('ADVANTAGE')} (${s.ref || '?'}) : replay_ref ('${s.replay_ref}') doit referencer une exigence PLAYER_ACTION portant affordance (production passive non rejouable)`);
       }
       const attendu = `increases_more_than:${s.replay_ref}`;
       if (!s.observe || s.observe.predicate !== attendu) {
