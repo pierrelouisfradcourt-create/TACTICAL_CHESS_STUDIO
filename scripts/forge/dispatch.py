@@ -473,7 +473,7 @@ PROFILE_STEP_TIMEOUTS_S: dict[tuple[str, str], float] = {
     ("full_godot_narratif", "s9-build-godot-standard"): 5400.0,
     # full_godot_content : MÊME builder, MÊME point de mesure (breakout_v2-run1) —
     # décision Pierre 2026-08-22, composition, aucune station neuve.
-    ("full_godot_content", "s9-build-godot-standard"): 5400.0,
+    ("full_godot_content", "s9-build-godot-standard"): 9000.0,  # Lot F/G 2026-08-24 : design injecté + 10 maillons + art_response — 90 min mesurées insuffisantes (timeout à 57 fichiers au run 10d)
 }
 
 

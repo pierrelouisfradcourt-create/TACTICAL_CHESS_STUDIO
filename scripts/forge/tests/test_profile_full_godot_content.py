@@ -46,7 +46,7 @@ def test_les_alias_round2_partagent_le_contrat_de_leur_base():
 
 
 def test_le_builder_garde_le_timeout_mesure():
-    assert step_timeout_for("full_godot_content", "s9-build-godot-standard", 1.0) == 5400.0
+    assert step_timeout_for("full_godot_content", "s9-build-godot-standard", 1.0) == 9000.0
     assert step_timeout_for("full_godot_content", "s3-decompo", 1.0) == 1.0
 
 
