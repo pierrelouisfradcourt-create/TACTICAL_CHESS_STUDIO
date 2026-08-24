@@ -308,7 +308,7 @@ class ForgeDriver:
         failure_events_path: Path | str | None = None,
         observer_runner=None,
         run_index_path: Path | str | None = None,
-        materialize_attempts_max: int = 2,
+        materialize_attempts_max: int = 3  # 2->3 mesuré run 10f : chaque tentative corrige l'erreur précédente, il en manquait une,
     ) -> None:
         self.project = project
         self.run_id = run_id

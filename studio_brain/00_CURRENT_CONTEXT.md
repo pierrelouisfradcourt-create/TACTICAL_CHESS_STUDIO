@@ -37,14 +37,9 @@ maillon), REWARD sans `observe` ; le driver n'a pas mesuré (pas de `proof:`, 3�
 
 ### Décision significative `0a9f4d4` + run 9 — archivé (`…-decision-produit.md`) : DECISION 6/6 mesurée, non-dominance inversée, HumanGate FAIL.
 
-### HumanGate run 9 (2026-08-23, archivé `…-decision-produit.md`) — résumé
-FAIL « jeu complet » = baseline produit : chatons décoratifs · prestige = bouton · espace pauvre · guidage illisible. Prochain chantier =
-PRODUIT, pas infrastructure ; direction produit V1 ratifiée (`gamedesign/kitten_clicker_direction_produit_v1.md`) ; lot produit P0–P4 `b75f165`.
+### HumanGate run 9 — archivé : FAIL « jeu complet » (4 causes) → direction produit V1 ratifiée, lot produit `b75f165`.
 
-### Audits 2026-08-23 (archivés `…-decision-produit.md`) — résumé
-`docs/audit/2026-08-23-kitten-clicker-design-chain-audit.md` : on a construit avant de spécifier (aucune station n'écrit les nombres ni la
-causalité ; `design_intent` lu par personne ; G/J verts pour la mauvaise raison). `…-worldscan-artbible-gm-pipe.md` : Art Bible produite
-APRÈS le GM → Lot A. Run 10 `…b` avorté (build verrouillé par Godot) ; build run 9 au scratchpad ; `games/kitten_clicker/` absent.
+### Audits 2026-08-23 — archivés (`…-decision-produit.md`) : construit avant de spécifier ; Art Bible après le GM → Lots A/B.
 
 ### Lots ratifiés Pierre 2026-08-23 : A Tuyau → B GM (Game Master, option (a) : étendre s2.7) → C Calibration → D Fuites → E Run 10
 **Lot A FAIT** (`497c54b`) : s2.5 Art Bible avant s2.7 GM ; s2.5 ← charter+World Scan+Story Bible ; s2.7 ← World Scan+Story Bible+
@@ -91,7 +86,13 @@ sourcées GM, `game_master` absent → refus. `check_prisme_manifest.mjs` reste 
    n'émet aucun fence (« will not emit ») : `design_questions.json` jamais matérialisé, reçu perdu (littéral de clés, 3ᵉ occurrence),
    HALTED à Art R2 « aucun bloc » (message trompeur) sans rejeu (détecteur Lot G trop étroit, et un rejeu aurait rejoué le même prompt).
    **Rupture 11 = canal de dialogue sensible à la forme** ; ≈ 12 $ ; scratchpad `run10c_halted/`. **Lot G.2 en cours** : fence JSON|YAML,
-   exigé dès R1, refus rejouable AVEC retour du matérialiseur dans le prompt, reçus copiés, squelette JSON exact dans contrats + tâches.
+   exigé dès R1, refus rejouable AVEC retour du matérialiseur dans le prompt, reçus copiés, squelette JSON exact dans contrats + tâches
+   — **commit `464515b`**. **Run 10d `…f` : LA BOUCLE A CONVERGÉ** — Art R1 fence JSON du 1er coup (4 questions dont nommage bloquant),
+   3 rejeux G.2 réussis en vivo (GM R1 append-only, Art R2 answer.round, s1 bloc JSON), GM R2 répond 4/4 (nommage : « hors autorité
+   de toute station amont » → HumanGate), **design_freeze passed round 2, shared 100 %** ; s1 : 22/22 exigences sourcées GM (0/13 au
+   run 9), loop.json 20 steps ordre du Prisme, DECISION avant les UNLOCK ; s3 : 20/20 grey blocks décomposés ; economy.json copié
+   par le builder. **HALTED à s9 : timeout 5400 s (57 fichiers)** → fix `5400→9000` commité `85537cd`. Run 10e `…a` tué à s2 par la LIMITE D'USAGE (claude -p rc=1, pas une rupture) → **run 10f `kitten_clicker-20260824b` relancé après reset**.
+   Passif re-mesuré : `check_wiremap_contract` 0/7 (EFFECT_KINDS étroit + non consommé — dette connue).
 1. **Lot C.2 — Gameplay Loop & Content Contract V1 : PROPOSED** `studio_brain/gamedesign/kitten_clicker_gameplay_loop_content_contract_v1.md`
    (9 sections : core/player/progression/meta/content/economy loops, arbre de possibilités, échange Art↔GM, WireMap gate à 5 questions ;
    tableau de contenu par progression). Test de reconstruction « scène » : passe 1 : 0 compteur, 7 inventions / 3 contradictions → V1.1 ; passe 2 : 0 contradiction, 0 compteur → V1.1b (§11, 15 réponses). À ratifier AVANT tout WireMap ; C.1 et V2.1 seront

@@ -1372,6 +1372,17 @@ def _resolve_design_question_address(pilier: str, addr: str, run_dir: "Path | No
     return _resolve_art_bible_address(text, bare)
 
 
+
+def _coerce_round(value):
+    """int >= 0 tel quel ; chaîne de chiffres -> int ; sinon None (métadonnée, pas un fond)."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return None
+
 def _validate_design_questions(data: dict, run_dir: "Path | None" = None) -> str:
     """'' si design_questions.json (Lot F 2026-08-23, forme figee dans le plan) est
     structurellement valide, sinon la raison PRECISE (nommant l'id fautif quand il
@@ -1403,6 +1414,7 @@ def _validate_design_questions(data: dict, run_dir: "Path | None" = None) -> str
         return "'schema_version' doit etre un entier"
     if not isinstance(data.get("round"), int) or data.get("round") < 1:
         return "'round' doit etre un entier >= 1"
+    doc_round = data.get("round")
     questions = data.get("questions")
     if not isinstance(questions, list):
         return "'questions' doit etre une liste"
@@ -1430,7 +1442,8 @@ def _validate_design_questions(data: dict, run_dir: "Path | None" = None) -> str
             return f"question {qid!r} : 'from'/'to' doivent etre ART ou GM"
         if frm == to:
             return f"question {qid!r} : 'from' et 'to' ne peuvent pas etre identiques"
-        if not isinstance(q.get("round"), int) or q.get("round") < 1:
+        q["round"] = _coerce_round(q.get("round"))
+        if q["round"] is None or q["round"] < 1:
             return f"question {qid!r} : 'round' doit etre un entier >= 1"
         about = q.get("about")
         if not isinstance(about, str) or not about.strip():
@@ -1450,8 +1463,16 @@ def _validate_design_questions(data: dict, run_dir: "Path | None" = None) -> str
         if answer is not None:
             if not isinstance(answer, dict):
                 return f"question {qid!r} : 'answer' doit etre un objet ou null"
-            if not isinstance(answer.get("round"), int) or answer.get("round") < 1:
+            # Coercition (mesuré run 10f : une réponse au FOND parfait refusée pour
+            # deux métadonnées absentes) : `answer.round` absent => round du document ;
+            # chaîne numérique => int. `answer.by` absent => le destinataire (`to`).
+            answer["round"] = _coerce_round(answer.get("round"))
+            if answer["round"] is None:
+                answer["round"] = doc_round
+            if answer["round"] < 1:
                 return f"question {qid!r} : 'answer.round' doit etre un entier >= 1"
+            if answer.get("by") is None:
+                answer["by"] = to
             by = answer.get("by")
             if by != to:
                 return f"question {qid!r} : 'answer.by' doit etre {to!r} (le destinataire)"
@@ -1502,8 +1523,11 @@ def _validate_design_questions(data: dict, run_dir: "Path | None" = None) -> str
                     }
                     disparues = sorted(prev_ids - seen_ids)
                     if disparues:
-                        return (f"question {disparues[0]!r} disparue depuis la ronde "
-                                "precedente (regle append-only)")
+                        # Toutes d'un coup (mesuré run 10f : signaler un seul id fait
+                        # corriger une question par tentative — retour incomplet).
+                        return ("question(s) disparue(s) depuis la ronde precedente "
+                                f"(regle append-only) : {', '.join(disparues)} — "
+                                "recopie TOUTES les questions des rondes precedentes")
     return ""
 
 

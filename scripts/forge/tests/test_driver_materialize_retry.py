@@ -9,7 +9,7 @@ syntaxiquement cassé (virgule manquante) ou porte une clé renommée ;
 (BLOCKED) alors que l'hypothèse est CONNUE et rejouable : une sortie de forme
 invalide, pas un exécuteur mort.
 
-Ce fichier couvre `ForgeDriver.materialize_attempts_max` (défaut production
+Ce fichier couvre `ForgeDriver.materialize_attempts_max` (défaut production 3 depuis le run 10f ; historiquement
 2, injectable pour les tests) : un refus de matérialisation (`ok: False`,
 `output` non vide, `reason` contenant « non matérialisable »/« non
 materialisable ») re-spawn la MÊME étape jusqu'à épuisement du budget ; tout
