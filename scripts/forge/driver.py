@@ -698,7 +698,17 @@ class ForgeDriver:
         discipline que `_promote_manifest_lessons_best_effort` : un échec est
         journalisé, jamais avalé sans trace). Écrase l'héritage précédent
         (dernier run gagne, cf. plan) — ne touche JAMAIS aux archives
-        `_run*_.../` (lecture seule, jamais un chemin sous ce préfixe)."""
+        `_run*_.../` (lecture seule, jamais un chemin sous ce préfixe).
+
+        Lot C.4-code (2026-08-24) : DEVIENT ADDITIVE quand `heritage/manifest.json`
+        porte déjà `at == "design_freeze"` (écrit par `_write_heritage_at_freeze_
+        best_effort`, appelé QUAND la gate `design_freeze` passe — voir plus bas) :
+        art_bible.md/gm_worldscan.json ont déjà été hérités à ce moment-là et ne
+        sont PLUS recopiés ici (jamais écrasés) — seul `art_response.json` est
+        AJOUTÉ (et le manifest mis à jour, `at` préservé) si un build existe. Pour
+        un profil SANS la boucle design (gate jamais déclenchée, aucun manifest
+        `design_freeze` préexistant) le comportement HISTORIQUE est inchangé : les
+        3 sources sont copiées ensemble, toujours gaté sur `project.godot`."""
         try:
             project_godot = self.game_dir / "project.godot"
             if not project_godot.is_file():
@@ -707,12 +717,26 @@ class ForgeDriver:
             heritage_dir = self.run_dir / "heritage"
             heritage_dir.mkdir(parents=True, exist_ok=True)
 
-            sources = {
-                "art_bible.md": self.run_dir / "art_bible.md",
-                "gm_worldscan.json": self.run_dir / "gm_worldscan.json",
-                "art_response.json": self.game_dir / "04_ASSETS" / "art_response.json",
-            }
-            files_hash: dict[str, str] = {}
+            manifest_path = heritage_dir / "manifest.json"
+            existing_files: dict[str, str] = {}
+            existing_at: str | None = None
+            if manifest_path.is_file():
+                try:
+                    existing = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    if isinstance(existing.get("files"), dict):
+                        existing_files = dict(existing["files"])
+                    existing_at = existing.get("at")
+                except Exception:  # noqa: BLE001 — manifest illisible = repli sur l'écriture complète
+                    existing_files, existing_at = {}, None
+            already_frozen = existing_at == "design_freeze"
+
+            sources: dict[str, Path] = {}
+            if not already_frozen:
+                sources["art_bible.md"] = self.run_dir / "art_bible.md"
+                sources["gm_worldscan.json"] = self.run_dir / "gm_worldscan.json"
+            sources["art_response.json"] = self.game_dir / "04_ASSETS" / "art_response.json"
+
+            files_hash: dict[str, str] = dict(existing_files)
             for name, src in sources.items():
                 if not src.is_file():
                     continue
@@ -731,12 +755,62 @@ class ForgeDriver:
                 "ts": datetime.now(timezone.utc).isoformat(),
                 "files": files_hash,
             }
-            (heritage_dir / "manifest.json").write_text(
+            if existing_at:
+                manifest["at"] = existing_at
+            manifest_path.write_text(
                 json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
         except Exception:  # noqa: BLE001 — best-effort NON SILENCIEUX : journalisé, jamais bloquant
             logger.warning(
                 "run=%s : écriture heritage/ en échec (non bloquant, run suivant "
                 "démarre sans héritage)",
+                self.run_id, exc_info=True,
+            )
+
+    def _write_heritage_at_freeze_best_effort(self) -> None:
+        """Lot C.4-code (2026-08-24, plan `2026-08-24-forge-lot-c4-code-boucles.md`
+        §"heritage/ au FREEZE") : appelée UNIQUEMENT quand la gate `design_freeze`
+        PASSE (`_design_freeze_gate`, juste avant de rendre la main à s1-prisme) —
+        écrit IMMÉDIATEMENT `<run_dir>/heritage/{art_bible.md, gm_worldscan.json,
+        design_questions.json}` + `manifest.json` {run_id, ts, files:{sha256},
+        at:"design_freeze"}. AUCUNE dépendance à `project.godot` (le build s9 n'a
+        pas encore eu lieu à ce point du run) — c'est la différence avec
+        `_write_heritage_best_effort` (post-s9), qui devient ADDITIVE dès que ce
+        manifest existe (voir sa docstring).
+
+        Même discipline best-effort NON SILENCIEUX que ses pairs : jamais
+        d'exception qui remonte, un échec est tracé en `logger.warning`."""
+        try:
+            heritage_dir = self.run_dir / "heritage"
+            heritage_dir.mkdir(parents=True, exist_ok=True)
+            sources = {
+                "art_bible.md": self.run_dir / "art_bible.md",
+                "gm_worldscan.json": self.run_dir / "gm_worldscan.json",
+                "design_questions.json": self.run_dir / "design_questions.json",
+            }
+            files_hash: dict[str, str] = {}
+            for name, src in sources.items():
+                if not src.is_file():
+                    continue
+                try:
+                    data = src.read_bytes()
+                    (heritage_dir / name).write_bytes(data)
+                    files_hash[name] = hashlib.sha256(data).hexdigest()
+                except OSError:
+                    logger.warning(
+                        "run=%s : copie heritage (freeze) de %s en échec (non bloquant)",
+                        self.run_id, src, exc_info=True,
+                    )
+            manifest = {
+                "run_id": self.run_id,
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "files": files_hash,
+                "at": "design_freeze",
+            }
+            (heritage_dir / "manifest.json").write_text(
+                json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception:  # noqa: BLE001 — best-effort NON SILENCIEUX : journalisé, jamais bloquant
+            logger.warning(
+                "run=%s : écriture heritage/ au design_freeze en échec (non bloquant)",
                 self.run_id, exc_info=True,
             )
 
@@ -840,6 +914,226 @@ class ForgeDriver:
                                    "(comptage impossible, traité comme absent)"
             return note_absent
 
+    # --- Lot C.4-code (2026-08-24, plan `2026-08-24-forge-lot-c4-code-boucles.md`) :
+    # `design_state.loops` calculé (COMPLETE|OPEN(n)|PROPOSED|DEFERRED|UNKNOWN),
+    # R3-lite (théâtre de questions) et R1 étendu (pilier ready malgré une
+    # bloquante reçue/émise). Vocabulaire FIGÉ : 9 boucles GM (§"Vocabulaire figé"
+    # du plan). Copie locale du format {steps, produces, consumes, unlocks,
+    # transformation_perceptible, metric_propre} par boucle — le SCHÉMA (Agent A,
+    # `game_master_schema.mjs`) tourne EN PARALLÈLE et n'est pas touché ici : ce
+    # calcul est une lecture PURE de ce qui est déjà sur disque, jamais une
+    # validation de forme.
+
+    _GM_LOOPS = (
+        "core_loop", "gameplay_loop", "progression_loop", "content_loop",
+        "economy_loop", "skill_loop", "world_loop", "quest_loop", "meta_loop",
+    )
+
+    @staticmethod
+    def _read_json_or_none(path: Path):
+        """Lecture PURE, jamais d'exception qui remonte — fichier absent, JSON
+        invalide, ou toute autre erreur d'I/O -> ``None``, jamais levée."""
+        try:
+            return json.loads(Path(path).read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001 — lecture pure, jamais d'exception qui remonte
+            return None
+
+    def _read_deferred_loops(self) -> dict:
+        """Lit `<run_dir>/design/deferred_loops.json` — fichier HUMAIN (ratification
+        Pierre matérialisée par l'orchestrateur), JAMAIS écrit par le driver ni par
+        un agent. Forme figée par le plan : `{schema_version, ratified_by, date,
+        deferred: [{loop, reason}]}`. Retourne `{loop_name: reason}` ; absent,
+        illisible ou malformé -> `{}` (jamais d'exception, jamais de boucle
+        DEFERRED inventée)."""
+        data = self._read_json_or_none(self.run_dir / "design" / "deferred_loops.json")
+        if not isinstance(data, dict):
+            return {}
+        deferred = data.get("deferred")
+        if not isinstance(deferred, list):
+            return {}
+        out: dict[str, object] = {}
+        for entry in deferred:
+            if isinstance(entry, dict) and isinstance(entry.get("loop"), str):
+                out[entry["loop"]] = entry.get("reason")
+        return out
+
+    def _compute_loop_design_state(self) -> dict:
+        """Statut par boucle (les 9 `_GM_LOOPS`) + R3-lite + R1 étendu, lecture PURE
+        de `gm_worldscan.json` / `design_questions.json` / `design/deferred_loops.json`
+        / `artifacts/gm_worldscan-r1.json` (archive round 1, écrite par l'exécuteur
+        à l'écrasement round 2 — voir `run_real._archive_round1_before_overwrite`,
+        lecture seule ici). JAMAIS d'exception : gm absent/illisible -> toutes les
+        boucles `UNKNOWN` (sauf celles explicitement DEFERRED).
+
+        Retourne ``{loops, shared_design_pct, theatre_loops, r1_extended,
+        blocking_gaps, note?}`` — ``loops`` = `{nom: {"status": ..., ...}}` pour
+        les 9 boucles ; ``shared_design_pct`` = COMPLETE / (9 - DEFERRED), arrondi
+        (``None`` si tout est DEFERRED ou si gm est absent) ; ``theatre_loops`` =
+        boucles où une réponse bloquante n'a PAS modifié le contenu sérialisé de
+        la boucle vs l'archive r1 (« théâtre de questions », R3-lite) ; leur statut
+        est alors forcé à ``"OPEN(réponse sans modification)"`` ; ``r1_extended`` =
+        `{"ART": bool, "GM": bool}`, `ready_for_freeze` déclaré ET aucune question
+        bloquante non fermée reçue OU émise par ce pilier."""
+        deferred = self._read_deferred_loops()
+        gm_data = self._read_json_or_none(self.run_dir / "gm_worldscan.json")
+        q_data = self._read_json_or_none(self.run_dir / "design_questions.json")
+        archive_data = self._read_json_or_none(
+            self.run_dir / "artifacts" / "gm_worldscan-r1.json")
+
+        questions = q_data.get("questions") if isinstance(q_data, dict) else None
+        if not isinstance(questions, list):
+            questions = []
+
+        open_by_loop: dict[str, int] = {}
+        blocking_answered_loops: set[str] = set()
+        blocking_open_total = 0
+        pillar_blocking_open = {"ART": False, "GM": False}
+        for q in questions:
+            if not isinstance(q, dict):
+                continue
+            loop_id = q.get("loop_id")
+            answered = q.get("answer") is not None
+            blocking = q.get("blocking") is True
+            if not answered:
+                if isinstance(loop_id, str):
+                    open_by_loop[loop_id] = open_by_loop.get(loop_id, 0) + 1
+                if blocking:
+                    blocking_open_total += 1
+                    frm, to = q.get("from"), q.get("to")
+                    if frm == "ART" or to == "ART":
+                        pillar_blocking_open["ART"] = True
+                    if frm == "GM" or to == "GM":
+                        pillar_blocking_open["GM"] = True
+            elif blocking and isinstance(loop_id, str):
+                blocking_answered_loops.add(loop_id)
+
+        declarations = q_data.get("declarations") if isinstance(q_data, dict) else {}
+        if not isinstance(declarations, dict):
+            declarations = {}
+
+        def _declared_ready(side: str) -> bool:
+            d = declarations.get(side)
+            return bool(d.get("ready_for_freeze")) if isinstance(d, dict) else False
+
+        r1_extended = {
+            side: _declared_ready(side) and not pillar_blocking_open[side]
+            for side in ("ART", "GM")
+        }
+
+        gm_loops = None
+        if isinstance(gm_data, dict):
+            gm_master = gm_data.get("game_master")
+            if isinstance(gm_master, dict) and isinstance(gm_master.get("loops"), dict):
+                gm_loops = gm_master["loops"]
+
+        if gm_loops is None:
+            loops_out = {}
+            deferred_count = 0
+            for name in self._GM_LOOPS:
+                if name in deferred:
+                    loops_out[name] = {"status": "DEFERRED", "reason": deferred[name]}
+                    deferred_count += 1
+                else:
+                    loops_out[name] = {"status": "UNKNOWN"}
+            return {
+                "loops": loops_out,
+                "shared_design_pct": None,
+                "theatre_loops": [],
+                "r1_extended": r1_extended,
+                "blocking_gaps": blocking_open_total,
+                "note": "gm_worldscan.json absent ou illisible",
+            }
+
+        archive_gm_loops = None
+        if isinstance(archive_data, dict):
+            archive_master = archive_data.get("game_master")
+            if isinstance(archive_master, dict) and isinstance(archive_master.get("loops"), dict):
+                archive_gm_loops = archive_master["loops"]
+
+        loops_out = {}
+        theatre_loops: list[str] = []
+        complete_count = 0
+        deferred_count = 0
+        for name in self._GM_LOOPS:
+            if name in deferred:
+                loops_out[name] = {"status": "DEFERRED", "reason": deferred[name]}
+                deferred_count += 1
+                continue
+
+            loop_obj = gm_loops.get(name)
+            n_open = open_by_loop.get(name, 0)
+            if n_open > 0:
+                loops_out[name] = {"status": f"OPEN({n_open})", "open": n_open}
+            else:
+                reasons: list[str] = []
+                if not isinstance(loop_obj, dict):
+                    reasons.append("boucle absente du gm_worldscan.json")
+                else:
+                    produces = loop_obj.get("produces")
+                    consumed_elsewhere = bool(produces) and any(
+                        other != name and isinstance(other_obj, dict)
+                        and isinstance(other_obj.get("consumes"), list)
+                        and produces in other_obj["consumes"]
+                        for other, other_obj in gm_loops.items()
+                    )
+                    if not produces or not consumed_elsewhere:
+                        reasons.append("produces non consommé par une autre boucle")
+                    unlocks = loop_obj.get("unlocks")
+                    unlocks = unlocks if isinstance(unlocks, list) else []
+                    unknown_unlocks = [u for u in unlocks if u not in gm_loops]
+                    if unknown_unlocks:
+                        reasons.append(f"unlocks inconnus: {unknown_unlocks}")
+                    tp = loop_obj.get("transformation_perceptible")
+                    tp_text = tp.get("text") if isinstance(tp, dict) else None
+                    tp_proof = tp.get("proof_ref") if isinstance(tp, dict) else None
+                    if not tp_text or not tp_proof:
+                        reasons.append("transformation_perceptible incomplète")
+                    metric = loop_obj.get("metric_propre")
+                    if not metric:
+                        reasons.append("metric_propre absent")
+                    else:
+                        shared_metric = any(
+                            other != name and isinstance(other_obj, dict)
+                            and other_obj.get("metric_propre") == metric
+                            for other, other_obj in gm_loops.items()
+                        )
+                        if shared_metric:
+                            reasons.append("metric_propre partagé")
+                if reasons:
+                    loops_out[name] = {"status": "PROPOSED", "reasons": reasons}
+                else:
+                    loops_out[name] = {"status": "COMPLETE"}
+                    complete_count += 1
+
+            # R3-lite : une réponse bloquante FERMÉE pour cette boucle doit avoir
+            # DIFFÉRÉ le contenu sérialisé de la boucle vs l'archive round 1 —
+            # sinon « théâtre de questions » : le statut est FORCÉ, quel que soit
+            # celui calculé ci-dessus.
+            if name in blocking_answered_loops and archive_gm_loops is not None:
+                archived_obj = archive_gm_loops.get(name)
+                if isinstance(loop_obj, dict) and isinstance(archived_obj, dict):
+                    current_ser = json.dumps(loop_obj, sort_keys=True, ensure_ascii=False)
+                    archived_ser = json.dumps(archived_obj, sort_keys=True, ensure_ascii=False)
+                    if current_ser == archived_ser:
+                        if loops_out[name]["status"] == "COMPLETE":
+                            complete_count -= 1
+                        theatre_loops.append(name)
+                        loops_out[name] = {
+                            "status": "OPEN(réponse sans modification)",
+                            "theatre": True,
+                        }
+
+        denom = len(self._GM_LOOPS) - deferred_count
+        shared_design_pct = round(100 * complete_count / denom) if denom > 0 else None
+
+        return {
+            "loops": loops_out,
+            "shared_design_pct": shared_design_pct,
+            "theatre_loops": theatre_loops,
+            "r1_extended": r1_extended,
+            "blocking_gaps": blocking_open_total,
+        }
+
     def _write_design_state_best_effort(self, design_state: dict) -> None:
         """Écrit `<run_dir>/design_state.json` — best-effort NON SILENCIEUX,
         même discipline que `_write_heritage_best_effort` juste au-dessus."""
@@ -876,42 +1170,74 @@ class ForgeDriver:
         self._write_design_state_best_effort(design_state)
 
     def _design_freeze_gate(self, state: dict) -> dict | None:
-        """GATE (pas un advisory, GO Pierre §T3) juste avant s1-prisme : ne
-        s'applique QUE si le profil contient la boucle (`_design_loop_active`).
+        """GATE (pas un advisory, GO Pierre §T3, RÉÉCRITE Lot C.4-code 2026-08-24)
+        juste avant s1-prisme : ne s'applique QUE si le profil contient la boucle
+        (`_design_loop_active`). Passe ssi (1) les 9 boucles ∈ {COMPLETE, DEFERRED}
+        (2) R1 étendu : aucun pilier avec question bloquante non fermée reçue OU
+        émise (3) R3-lite : aucune boucle « théâtre de questions » (4)
+        `blocking_gaps == 0` — sinon HALTED, raison nommant l'état PAR BOUCLE.
         Retourne un rapport HALTED prêt à renvoyer si le design n'est pas
-        convergé, sinon None (s1 tourne) — même chemin de sortie que les
-        autres HALTED de la boucle principale (promotion des leçons,
-        RUN_INDEX, heritage)."""
+        convergé, sinon None (s1 tourne) — même chemin de sortie que les autres
+        HALTED de la boucle principale (promotion des leçons, RUN_INDEX,
+        heritage). Quand la gate PASSE, `heritage/` est écrit IMMÉDIATEMENT
+        (`_write_heritage_at_freeze_best_effort`) — avant même que s1 ne tourne."""
         if not self._design_loop_active():
             return None
+        loop_state = self._compute_loop_design_state()
         design_state = self._compute_design_state()
+        design_state["loops"] = loop_state["loops"]
         state["design_state"] = design_state
-        ready = design_state.get("ready_for_freeze") or {}
-        ready_art = bool(ready.get("ART"))
-        ready_gm = bool(ready.get("GM"))
-        blocking_gaps = design_state.get("blocking_gaps") or 0
-        passed = blocking_gaps == 0 and ready_art and ready_gm and "note" not in design_state
+
+        non_terminal = [
+            (name, info) for name, info in loop_state["loops"].items()
+            if info["status"] not in ("COMPLETE", "DEFERRED")
+        ]
+        r1_extended = loop_state["r1_extended"]
+        r1_ok = bool(r1_extended.get("ART")) and bool(r1_extended.get("GM"))
+        theatre_loops = loop_state["theatre_loops"]
+        r3_ok = not theatre_loops
+        blocking_gaps = loop_state["blocking_gaps"]
+        passed = (not non_terminal) and r1_ok and r3_ok and blocking_gaps == 0
+
         ts = datetime.now(timezone.utc).isoformat()
         if passed:
             state["design_freeze"] = {
                 "passed": True,
-                "round": design_state.get("round"),
-                "shared_design_pct": design_state.get("shared_design_pct"),
+                "loops": loop_state["loops"],
+                "shared_design_pct": loop_state["shared_design_pct"],
                 "ts": ts,
             }
             self._save(state)
+            self._write_heritage_at_freeze_best_effort()
             return None
-        ids = self._blocking_question_ids()
-        reason = (
-            f"design non convergé — {blocking_gaps} question(s) bloquante(s) "
-            f"ouverte(s) ; ready ART={ready_art}, GM={ready_gm} ; ids: {ids}"
+
+        parts: list[str] = []
+        for name, info in non_terminal:
+            label = info["status"]
+            if label == "PROPOSED" and info.get("reasons"):
+                label = f"PROPOSED({', '.join(info['reasons'])})"
+            parts.append(f"{name}: {label}")
+        if theatre_loops:
+            parts.append(
+                "réponse sans modification = théâtre de questions ("
+                + ", ".join(theatre_loops) + ")"
+            )
+        if not r1_ok:
+            offenders = [side for side in ("ART", "GM") if not r1_extended.get(side)]
+            parts.append(
+                "R1 étendu — question bloquante non fermée reçue ou émise par : "
+                + ", ".join(offenders)
+            )
+        if blocking_gaps and not parts:
+            parts.append(f"{blocking_gaps} question(s) bloquante(s) ouverte(s)")
+        reason = "design non convergé — " + (
+            " ; ".join(parts) if parts else "état indéterminé"
         )
+
         state["design_freeze"] = {
             "passed": False,
-            "round": design_state.get("round"),
-            "blocking_gaps": blocking_gaps,
-            "ready_for_freeze": {"ART": ready_art, "GM": ready_gm},
-            "ids": ids,
+            "loops": loop_state["loops"],
+            "shared_design_pct": loop_state["shared_design_pct"],
             "ts": ts,
         }
         state["run_status"] = "HALTED"

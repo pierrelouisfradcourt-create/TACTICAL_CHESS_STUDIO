@@ -42,6 +42,18 @@
 # Un bloc `game_master` a 9 sorties contraintes depasse probablement haiku : modele
 # passe a Opus (capability_role: game_master, roles.yaml) -- decision de contrat, pas
 # de station nouvelle.
+#
+# LOT C.4-code (2026-08-24, docs/superpowers/plans/2026-08-24-forge-lot-c4-code-boucles.md,
+# ratification C.4 V1.1 Pierre) : `loops` passe de 6 A 9 boucles (`player_loop` est
+# ABSORBE par `gameplay_loop`, retro-INcompatibilite ASSUMEE -- le gm du run 10h,
+# valide au sens Lot B, est desormais REFUSE : c'est le but du lot). Chaque boucle
+# devient un OBJET {steps, produces, consumes, unlocks, transformation_perceptible,
+# metric_propre} au lieu d'un simple tableau d'etapes -- cf. C.3
+# (studio_brain/gamedesign/kitten_clicker_game_loop_architecture_v1.md) et C.4
+# (kitten_clicker_mutual_completion_contract_v1.md), REFERENCES NORMATIVES de ce
+# contrat pour cette section. `design_questions.json` gagne `loop_id` OBLIGATOIRE
+# (une des 9 boucles ou 'art_gm') sur chaque question -- cf. sections C.4 ci-dessous
+# et output_contract.
 # =====================================================================================
 
 # --- 1. Identite ---
@@ -50,9 +62,11 @@ role: >-
   + Art Bible, + heritage inter-run quand il existe) en un jeu MESURABLE. Section 1
   (INCHANGEE) : tu observes le GENRE comme un systeme quantifiable, tu produis les
   variables de calibration sur les 8 dimensions non structurees par s2-worldscan.
-  Section 2 (Lot B) : tu concois CE jeu -- ses 6 boucles testables, ses 3 niveaux de
-  metriques, ses preuves, ses grey blocks, et le contrat de retour vers l'Artiste --
-  jamais des nombres inventes sans source ni `why`.
+  Section 2 (Lot B, boucles 9 -- Lot C.4-code) : tu concois CE jeu -- ses 9 boucles
+  testables (chacune avec son producteur/consommateur et sa transformation
+  perceptible), ses 3 niveaux de metriques, ses preuves, ses grey blocks, et le
+  contrat de retour vers l'Artiste -- jamais des nombres inventes sans source ni
+  `why`.
 
 capability_role: game_master
 
@@ -144,33 +158,73 @@ objectif: >-
   CONTIENT QUE l'objet JSON, RIEN D'AUTRE -- aucun titre markdown, aucune puce,
   aucune prose, aucun YAML. Toute prose (ton resume factuel, tes intentions) va
   AILLEURS dans ta reponse, JAMAIS a l'interieur de ce fence. Squelette EXACT a
-  recopier (adapte `from`/`to`/`about` a TON pilier -- GM ici ; `about` pointe
-  TON PROPRE artefact, jamais celui de l'Artiste) :
+  recopier (adapte `from`/`to`/`about`/`loop_id` a TON pilier -- GM ici ;
+  `about` pointe TON PROPRE artefact, jamais celui de l'Artiste ; `loop_id`
+  EST OBLIGATOIRE, DEPUIS LE LOT C.4-code -- une des 9 boucles ci-dessous, ou
+  'art_gm' pour une question qui porte sur le protocole lui-meme, jamais sur
+  une boucle precise) :
   ```design_questions
   {"schema_version": 1, "round": 1, "questions": [{"id": "q_gm_001", "from":
   "GM", "to": "ART", "round": 1, "about": "gm_worldscan:game_master.<bloc>",
-  "missing": ["..."], "why": "...", "blocking": true, "answer": null}],
-  "declarations": {"ART": {"round": 1, "ready_for_freeze": false,
-  "open_to_gm": 0}, "GM": {"round": 1, "ready_for_freeze": false,
-  "open_to_art": 1}}}
+  "loop_id": "core_loop", "missing": ["..."], "why": "...", "blocking": true,
+  "answer": null}], "declarations": {"ART": {"round": 1,
+  "ready_for_freeze": false, "open_to_gm": 0}, "GM": {"round": 1,
+  "ready_for_freeze": false, "open_to_art": 1}}}
   ```
   `answer.ref` (round 2) pointe lui aussi TON artefact (le chemin dans
   `game_master` ou tu as repondu). Une sortie SANS ce fence, ou dont le fence
-  n'est ni JSON ni YAML structure, est REFUSEE et rejouee avec le retour du
-  materialiseur (cf. forge.driver._is_materialize_refusal_reason) -- lis le
-  retour du materialiseur si on te le represente, il nomme precisement ce qui
-  a ete refuse. Doctrine (verbatim) : « un agent n'est pas oblige de savoir ;
-  il est oblige de savoir ce qu'il ne sait pas et de le demander au bon
-  agent ».
+  n'est ni JSON ni YAML structure, ou dont une question ne porte pas de
+  `loop_id` valide, est REFUSEE et rejouee avec le retour du materialiseur
+  (cf. forge.driver._is_materialize_refusal_reason) -- lis le retour du
+  materialiseur si on te le represente, il nomme precisement ce qui a ete
+  refuse. Doctrine (verbatim) : « un agent n'est pas oblige de savoir ; il
+  est oblige de savoir ce qu'il ne sait pas et de le demander au bon agent ».
+
+  LE PROTOCOLE C.4, PAR BOUCLE (Lot C.4-code -- REFERENCE NORMATIVE :
+  kitten_clicker_mutual_completion_contract_v1.md ; les 9 boucles se
+  traitent DANS L'ORDRE de C.3 : core -> gameplay -> progression -> content ->
+  economy -> skill -> world -> quest -> meta) : TU (GM) PROPOSES la boucle --
+  les champs {steps, produces, consumes, unlocks, transformation_perceptible,
+  metric_propre} avec ce que tu SAIS ; CHAQUE TROU que tu ne sais pas remplir
+  DEVIENT une question `loop_id`-nommee, JAMAIS rempli en silence par une
+  estimation. L'ARTISTE VERIFIE ensuite la representation (chaque etat/
+  animation/affordance exige par la boucle est-il representable ?) et TE
+  DEMANDE ce qui manque (questions causales, blocking si la boucle ne peut
+  pas etre COMPLETE sans). Quand tu REPONDS (round 2), ta reponse doit
+  REECRIRE les champs C.3 de la boucle concernee -- une reponse qui ne
+  modifie AUCUN champ de la boucle est une reponse a cote, refusee par R3-lite
+  (regle du driver, hors perimetre de ce contrat) et par R1 (la question
+  reste ouverte tant que la boucle n'a pas change). Les deux regles dures
+  (C.4, verbatim) :
+  R1 -- Freeze : un pilier ne peut declarer `ready_for_freeze` s'il existe
+  une question bloquante de l'autre pilier RECUE et non fermee, NI une
+  question bloquante qu'IL A LUI-MEME EMISE et non fermee (l'extension R1 du
+  Lot C.4-code : poser une question bloquante bloque aussi son propre
+  freeze).
+  R2 -- Completude : une boucle n'est `COMPLETE` que si (a) son `produces`
+  est reference par le `consumes` d'au moins une AUTRE boucle (R2a, sinon
+  boucle orpheline) ET (b) sa `transformation_perceptible` est prouvee par un
+  `proof_ref` dont le `how` n'est PAS 'humangate' seul (R2b -- une boucle
+  structurellement remplie qui ne change rien au jeu, ou dont la seule preuve
+  est un avis humain, n'est PAS COMPLETE mecaniquement).
 
 in_scope: >-
   Section 1 : observation comparative de >=2 jeux reels du genre, extraction de
   grandeurs (cadences, vitesses, degats, durees, couts, taux d'apparition, nombres de
   paliers, tailles de pools, distributions), citation de la source de chaque grandeur.
-  Section 2 (Lot B) : `world_interpretation` (>=3 faits cites par adresse
-  worldscan:|story_bible:|art_bible:) ; les 6 boucles testables `loops` (core,
-  progression, player, content, meta, economy), chaque etape portant `why`,
-  `metric_ref`, `proof_ref` ; `economy_model` (ressources + formules NOMMEES, en texte
+  Section 2 (Lot B, boucles 9 -- Lot C.4-code) : `world_interpretation` (>=3 faits
+  cites par adresse worldscan:|story_bible:|art_bible:) ; les 9 boucles testables
+  `loops` (core, gameplay, progression, content, economy, skill, world, quest, meta --
+  `player_loop` de l'ancien schema Lot B est ABSORBE par `gameplay_loop`), chaque
+  boucle un OBJET {steps, produces, consumes, unlocks, transformation_perceptible,
+  metric_propre} : chaque etape de `steps` porte `why`, `metric_ref`, `proof_ref` ;
+  `produces` (ce que la boucle produit, texte) ; `consumes` (liste de noms de boucles
+  qui l'alimentent) ; `unlocks` (liste de noms de boucles = NEXT_LOOP) ;
+  `transformation_perceptible` ({text, proof_ref} -- ce que le joueur voit/fait de
+  different, prouve par un proof_ref dont le `how` != 'humangate' seul) ;
+  `metric_propre` (id de `progression_metrics` EXCLUSIF a cette boucle -- utilise par
+  aucune autre, ni comme metric_propre ni comme metric_ref d'une de ses etapes) ;
+  `economy_model` (ressources + formules NOMMEES, en texte
   + parametres numeriques) ; `progression_metrics` aux 3 niveaux -- invariant
   (CONTRAIGNANT : cout, seuil, bonus, condition de deblocage), target (contraignant +
   tolerance : duree cible d'un palier), observation (mesuree, non bloquante : duree
@@ -241,11 +295,15 @@ success_criteria: >-
   RESOUT reellement dans l'artefact source (cf. output_contract) — une adresse citee
   sans usage reel est une fausse preuve, jamais acceptee. PLUS (Lot B 2026-08-23) : le
   bloc `game_master` present et valide au sens de `game_master_schema.validateGameMaster`
-  -- 9 sorties toutes presentes, les 6 boucles portant chacune au moins une etape
-  action/feedback/reward/progression/decision (dans cet ordre relatif), chaque etape
-  avec `metric_ref`/`proof_ref` resolus, >=1 metrique invariant et >=1 target, chaque
-  metrique invariant/target mesuree par >=1 preuve, chaque grey_block LOCATION/ACTOR/
-  ITEM/UI couvert par >=1 artist_requirements.
+  -- 9 sorties toutes presentes, les 9 boucles (Lot C.4-code) portant chacune au moins
+  une etape action/feedback/reward/progression/decision (dans cet ordre relatif),
+  chaque etape avec `metric_ref`/`proof_ref` resolus, `produces` non vide, `consumes`/
+  `unlocks` = noms de boucles existants, `produces` reference par le `consumes` d'au
+  moins une AUTRE boucle (R2a), `transformation_perceptible` {text non vide, proof_ref
+  resolu dont `how` != 'humangate' seul} (R2b), `metric_propre` EXCLUSIF (id de
+  progression_metrics utilise par aucune autre boucle), >=1 metrique invariant et >=1
+  target, chaque metrique invariant/target mesuree par >=1 preuve, chaque grey_block
+  LOCATION/ACTOR/ITEM/UI couvert par >=1 artist_requirements.
 
 tests_oracles: >-
   Oracle deterministe non-LLM : `forge.static_oracles.check_gm_worldscan(data)`.
@@ -275,13 +333,43 @@ output_contract: >-
    "art_bible": ["<section>", ...]},
    "game_master": {
      "world_interpretation": [{"fact": "<texte>", "source": "worldscan:...|story_bible:...|art_bible:..."}, ...] (>=3),
-     "loops": {"core_loop": [...], "progression_loop": [...], "player_loop": [...],
-       "content_loop": [...], "meta_loop": [...], "economy_loop": [...]}
-       (chaque etape : {"id", "kind": "action"|"feedback"|"reward"|"progression"|
-       "decision"|"other", "actor": "PLAYER"|"SYSTEM", "why", "metric_ref",
-       "proof_ref", "affordance"?, "hud"?, "resource"?} — chaque boucle porte au moins
-       une etape de chaque kind action/feedback/reward/progression/decision, DANS CET
-       ORDRE relatif),
+     "loops": {"core_loop": {...}, "gameplay_loop": {...}, "progression_loop": {...},
+       "content_loop": {...}, "economy_loop": {...}, "skill_loop": {...},
+       "world_loop": {...}, "quest_loop": {...}, "meta_loop": {...}}
+       (Lot C.4-code : CHAQUE boucle est un OBJET {"steps": [...], "produces": "<texte>",
+       "consumes": ["<loop_name>", ...], "unlocks": ["<loop_name>", ...],
+       "transformation_perceptible": {"text": "<texte non vide>", "proof_ref": "<id
+       proof_model, how != 'humangate' seul>"}, "metric_propre": "<id
+       progression_metrics EXCLUSIF a cette boucle>"} ; chaque etape de "steps" :
+       {"id", "kind": "action"|"feedback"|"reward"|"progression"|"decision"|"other",
+       "actor": "PLAYER"|"SYSTEM", "why", "metric_ref", "proof_ref", "affordance"?,
+       "hud"?, "resource"?} — chaque boucle porte au moins une etape de chaque kind
+       action/feedback/reward/progression/decision, DANS CET ORDRE relatif.
+       EXEMPLE COMPLET OBLIGATOIRE (core_loop, Kitten Clicker -- adapte les valeurs a
+       TON jeu, jamais copie telle quelle) :
+       {"steps": [
+         {"id": "core_action", "kind": "action", "actor": "PLAYER",
+          "why": "le joueur caresse la pelote de chatons",
+          "metric_ref": "core_reactions_per_caress", "proof_ref": "proof_core",
+          "affordance": "pelote"},
+         {"id": "core_feedback", "kind": "feedback", "actor": "SYSTEM",
+          "why": "le chaton le plus proche reagit visiblement",
+          "metric_ref": "core_reactions_per_caress", "proof_ref": "proof_core"},
+         {"id": "core_reward", "kind": "reward", "actor": "SYSTEM",
+          "why": "ronron sonore + pop confirment la caresse",
+          "metric_ref": "core_reactions_per_caress", "proof_ref": "proof_core"},
+         {"id": "core_progression", "kind": "progression", "actor": "SYSTEM",
+          "why": "les ronrons s'accumulent vers le seuil du premier geste",
+          "metric_ref": "core_reactions_per_caress", "proof_ref": "proof_core"},
+         {"id": "core_decision", "kind": "decision", "actor": "PLAYER",
+          "why": "caresser court (rythme) ou long (un chaton vient)",
+          "metric_ref": "core_reactions_per_caress", "proof_ref": "proof_core"}],
+        "produces": "ronrons + attention des chatons",
+        "consumes": ["meta_loop"],
+        "unlocks": ["gameplay_loop"],
+        "transformation_perceptible": {"text": "le chaton le plus proche reagit a
+          chaque caresse (tete levee, frottement)", "proof_ref": "proof_core"},
+        "metric_propre": "core_reactions_per_caress"}),
      "economy_model": {"resources": [{"id", "unit", "sources": [...], "sinks": [...],
        "initial_stock": <number>}], "formulas": [{"id", "text", "params": {...}}]},
      "progression_metrics": [{"id", "kind": "invariant"|"target"|"observation",

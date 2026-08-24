@@ -121,7 +121,7 @@ def _dq_round1_partial(blocking: bool = True) -> dict:
         "schema_version": 1, "round": 1,
         "questions": [
             {"id": "q_gm_001", "from": "GM", "to": "ART", "round": 1,
-             "about": "grey_blocks.garden",
+             "about": "grey_blocks.garden", "loop_id": "world_loop",
              "missing": ["etats visuels LOCKED/AVAILABLE/ACTIVE/FULL"],
              "why": "le joueur doit comprendre pourquoi il ne peut pas encore entrer",
              "blocking": blocking, "answer": None},
@@ -168,7 +168,7 @@ def test_r2_ready_for_freeze_true_mais_question_recue_sans_reponse_refusee(tmp_p
         "schema_version": 1, "round": 2,
         "questions": [
             {"id": "q_gm_001", "from": "GM", "to": "ART", "round": 1,
-             "about": "grey_blocks.garden", "missing": ["x"], "why": "y",
+             "about": "grey_blocks.garden", "loop_id": "world_loop", "missing": ["x"], "why": "y",
              "blocking": True, "answer": None},
         ],
         "declarations": {
@@ -220,7 +220,7 @@ def test_fixture_convergee_round2_acceptee(tmp_path):
         "schema_version": 1, "round": 2,
         "questions": [
             {"id": "q_gm_001", "from": "GM", "to": "ART", "round": 1,
-             "about": "grey_blocks.garden",
+             "about": "grey_blocks.garden", "loop_id": "world_loop",
              "missing": ["etats visuels LOCKED/AVAILABLE/ACTIVE/FULL"],
              "why": "le joueur doit comprendre pourquoi il ne peut pas encore entrer",
              "blocking": True,

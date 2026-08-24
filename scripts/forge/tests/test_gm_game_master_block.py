@@ -139,7 +139,7 @@ def test_etape_sans_proof_ref_refusee_en_nommant_le_champ():
         tmp_path = Path(tmp)
         data = _base_data(tmp_path)
         gm = copy.deepcopy(_valid_game_master())
-        del gm["loops"]["core_loop"][0]["proof_ref"]
+        del gm["loops"]["core_loop"]["steps"][0]["proof_ref"]
         data["game_master"] = gm
         reason = run_real._validate_gm_worldscan(data, run_dir=tmp_path)
         assert reason

@@ -28,9 +28,10 @@ function deepClone(obj) {
 
 // --- vocabulaire ------------------------------------------------------------
 
-test('vocabulaire ferme : 6 boucles, kinds, block types/roles/states', () => {
+test('vocabulaire ferme : 9 boucles, kinds, block types/roles/states', () => {
   assert.deepEqual(LOOP_NAMES, [
-    'core_loop', 'progression_loop', 'player_loop', 'content_loop', 'meta_loop', 'economy_loop',
+    'core_loop', 'gameplay_loop', 'progression_loop', 'content_loop',
+    'economy_loop', 'skill_loop', 'world_loop', 'quest_loop', 'meta_loop',
   ]);
   assert.deepEqual(STEP_KINDS, ['action', 'feedback', 'reward', 'progression', 'decision', 'other']);
   assert.deepEqual(METRIC_KINDS, ['invariant', 'target', 'observation']);
@@ -74,9 +75,11 @@ test('projectEconomy : forme attendue, trie par id', () => {
   assert.equal(economy.schema_version, 1);
   assert.deepEqual(economy.resources.map((r) => r.id), ['chatons']);
   assert.deepEqual(economy.formulas.map((f) => f.id), ['cout_cursor']);
-  assert.deepEqual(economy.invariants.map((i) => i.id), ['cost_cursor']);
-  assert.equal(economy.invariants[0].value, 15);
-  assert.equal(economy.invariants[0].unit, 'chatons');
+  assert.deepEqual(economy.invariants.map((i) => i.id), [
+    'economy_transformations_per_spend', 'world_playable_location_ratio',
+  ]);
+  assert.equal(economy.invariants[0].value, 1);
+  assert.equal(economy.invariants[0].unit, 'transformation');
 });
 
 // --- 1 cas rouge par regle ---------------------------------------------------
@@ -115,23 +118,23 @@ test('loops : boucle manquante refusee', () => {
 
 test('loops : boucle vide refusee', () => {
   const gm = deepClone(loadValidFixture());
-  gm.loops.content_loop = [];
+  gm.loops.content_loop.steps = [];
   const result = validateGameMaster(gm);
   assert.equal(result.ok, false);
-  assert.ok(result.problems.some((p) => p.includes('loops.content_loop')));
+  assert.ok(result.problems.some((p) => p.includes('loops.content_loop.steps')));
 });
 
 test('loops : ordre relatif viole (reward avant action) refuse', () => {
   const gm = deepClone(loadValidFixture());
-  gm.loops.core_loop[0].kind = 'reward'; // etait 'action'
+  gm.loops.core_loop.steps[0].kind = 'reward'; // etait 'action'
   const result = validateGameMaster(gm);
   assert.equal(result.ok, false);
-  assert.ok(result.problems.some((p) => p.includes('loops.core_loop') && p.includes("kind 'action'")));
+  assert.ok(result.problems.some((p) => p.includes('loops.core_loop.steps') && p.includes("kind 'action'")));
 });
 
 test('loops : id de step duplique refuse', () => {
   const gm = deepClone(loadValidFixture());
-  gm.loops.core_loop[1].id = gm.loops.core_loop[0].id;
+  gm.loops.core_loop.steps[1].id = gm.loops.core_loop.steps[0].id;
   const result = validateGameMaster(gm);
   assert.equal(result.ok, false);
   assert.ok(result.problems.some((p) => p.includes('duplique')));
@@ -139,7 +142,7 @@ test('loops : id de step duplique refuse', () => {
 
 test('loops : actor invalide refuse', () => {
   const gm = deepClone(loadValidFixture());
-  gm.loops.core_loop[0].actor = 'NPC';
+  gm.loops.core_loop.steps[0].actor = 'NPC';
   const result = validateGameMaster(gm);
   assert.equal(result.ok, false);
   assert.ok(result.problems.some((p) => p.includes("'actor'")));
@@ -147,7 +150,7 @@ test('loops : actor invalide refuse', () => {
 
 test('loops : why vide refuse', () => {
   const gm = deepClone(loadValidFixture());
-  gm.loops.core_loop[0].why = '';
+  gm.loops.core_loop.steps[0].why = '';
   const result = validateGameMaster(gm);
   assert.equal(result.ok, false);
   assert.ok(result.problems.some((p) => p.includes("'why'")));
@@ -155,7 +158,7 @@ test('loops : why vide refuse', () => {
 
 test('loops : metric_ref inexistant refuse', () => {
   const gm = deepClone(loadValidFixture());
-  gm.loops.core_loop[0].metric_ref = 'ne_existe_pas';
+  gm.loops.core_loop.steps[0].metric_ref = 'ne_existe_pas';
   const result = validateGameMaster(gm);
   assert.equal(result.ok, false);
   assert.ok(result.problems.some((p) => p.includes('metric_ref') && p.includes('ne_existe_pas')));
@@ -163,10 +166,113 @@ test('loops : metric_ref inexistant refuse', () => {
 
 test('loops : proof_ref inexistant refuse', () => {
   const gm = deepClone(loadValidFixture());
-  gm.loops.core_loop[0].proof_ref = 'ne_existe_pas';
+  gm.loops.core_loop.steps[0].proof_ref = 'ne_existe_pas';
   const result = validateGameMaster(gm);
   assert.equal(result.ok, false);
   assert.ok(result.problems.some((p) => p.includes('proof_ref') && p.includes('ne_existe_pas')));
+});
+
+// --- Lot C.4-code : produces/consumes/unlocks, transformation_perceptible, metric_propre --
+
+test('loops : boucle qui n\'est pas un objet refusee', () => {
+  const gm = deepClone(loadValidFixture());
+  gm.loops.core_loop = [gm.loops.core_loop.steps[0]];
+  const result = validateGameMaster(gm);
+  assert.equal(result.ok, false);
+  assert.ok(result.problems.some((p) => p.includes('loops.core_loop') && p.includes('objet')));
+});
+
+test('loops : produces manquant refuse', () => {
+  const gm = deepClone(loadValidFixture());
+  delete gm.loops.core_loop.produces;
+  const result = validateGameMaster(gm);
+  assert.equal(result.ok, false);
+  assert.ok(result.problems.some((p) => p.includes('loops.core_loop.produces')));
+});
+
+test('loops : consumes referencant un nom de boucle inexistant refuse', () => {
+  const gm = deepClone(loadValidFixture());
+  gm.loops.core_loop.consumes = ['boucle_qui_nexiste_pas'];
+  const result = validateGameMaster(gm);
+  assert.equal(result.ok, false);
+  assert.ok(result.problems.some((p) => p.includes('loops.core_loop.consumes')));
+});
+
+test('loops : unlocks referencant un nom de boucle inexistant refuse', () => {
+  const gm = deepClone(loadValidFixture());
+  gm.loops.core_loop.unlocks = ['boucle_qui_nexiste_pas'];
+  const result = validateGameMaster(gm);
+  assert.equal(result.ok, false);
+  assert.ok(result.problems.some((p) => p.includes('loops.core_loop.unlocks')));
+});
+
+test('R2a : produces orphelin (aucune autre boucle ne le consomme) refuse en nommant la boucle', () => {
+  const gm = deepClone(loadValidFixture());
+  // gameplay_loop est la SEULE boucle qui consomme core_loop -- on la retire.
+  gm.loops.gameplay_loop.consumes = gm.loops.gameplay_loop.consumes.filter((c) => c !== 'core_loop');
+  const result = validateGameMaster(gm);
+  assert.equal(result.ok, false);
+  assert.ok(result.problems.some((p) => p.includes('loops.core_loop') && p.includes('orpheline')));
+});
+
+test('R2b : transformation_perceptible.text vide refuse', () => {
+  const gm = deepClone(loadValidFixture());
+  gm.loops.core_loop.transformation_perceptible.text = '';
+  const result = validateGameMaster(gm);
+  assert.equal(result.ok, false);
+  assert.ok(result.problems.some((p) => p.includes('transformation_perceptible.text')));
+});
+
+test('R2b : transformation_perceptible.proof_ref dont how=humangate seul refuse', () => {
+  const gm = deepClone(loadValidFixture());
+  gm.proof_model.push({
+    id: 'proof_humangate_only', measures: 'core_reactions_per_caress',
+    how: 'humangate', expected: 'avis HumanGate',
+  });
+  gm.loops.core_loop.transformation_perceptible.proof_ref = 'proof_humangate_only';
+  const result = validateGameMaster(gm);
+  assert.equal(result.ok, false);
+  assert.ok(result.problems.some((p) => p.includes('transformation_perceptible.proof_ref') && p.includes('humangate')));
+});
+
+test('R2b : transformation_perceptible.proof_ref inexistant refuse', () => {
+  const gm = deepClone(loadValidFixture());
+  gm.loops.core_loop.transformation_perceptible.proof_ref = 'ne_existe_pas';
+  const result = validateGameMaster(gm);
+  assert.equal(result.ok, false);
+  assert.ok(result.problems.some((p) => p.includes('transformation_perceptible.proof_ref') && p.includes('ne_existe_pas')));
+});
+
+test('metric_propre : absent refuse', () => {
+  const gm = deepClone(loadValidFixture());
+  delete gm.loops.core_loop.metric_propre;
+  const result = validateGameMaster(gm);
+  assert.equal(result.ok, false);
+  assert.ok(result.problems.some((p) => p.includes('loops.core_loop.metric_propre')));
+});
+
+test('metric_propre : id inexistant dans progression_metrics refuse', () => {
+  const gm = deepClone(loadValidFixture());
+  gm.loops.core_loop.metric_propre = 'ne_existe_pas';
+  const result = validateGameMaster(gm);
+  assert.equal(result.ok, false);
+  assert.ok(result.problems.some((p) => p.includes('metric_propre') && p.includes('ne_existe_pas')));
+});
+
+test('metric_propre : partage entre deux boucles (metric_propre <-> metric_propre) refuse', () => {
+  const gm = deepClone(loadValidFixture());
+  gm.loops.gameplay_loop.metric_propre = gm.loops.core_loop.metric_propre;
+  const result = validateGameMaster(gm);
+  assert.equal(result.ok, false);
+  assert.ok(result.problems.some((p) => p.includes('metric_propre') && p.includes('partagee')));
+});
+
+test('metric_propre : deja utilisee comme metric_ref dans une autre boucle refuse', () => {
+  const gm = deepClone(loadValidFixture());
+  gm.loops.gameplay_loop.steps[0].metric_ref = gm.loops.core_loop.metric_propre;
+  const result = validateGameMaster(gm);
+  assert.equal(result.ok, false);
+  assert.ok(result.problems.some((p) => p.includes('metric_propre') && p.includes('gameplay_loop')));
 });
 
 test('progression_metrics : absent refuse', () => {
@@ -262,10 +368,10 @@ test('proof_model : expected vide refuse', () => {
 
 test('proof_model : metrique invariant/target non mesuree refusee', () => {
   const gm = deepClone(loadValidFixture());
-  gm.proof_model = gm.proof_model.filter((p) => p.measures !== 'cost_cursor');
+  gm.proof_model = gm.proof_model.filter((p) => p.measures !== 'economy_transformations_per_spend');
   const result = validateGameMaster(gm);
   assert.equal(result.ok, false);
-  assert.ok(result.problems.some((p) => p.includes('cost_cursor') && p.includes('mesuree')));
+  assert.ok(result.problems.some((p) => p.includes('economy_transformations_per_spend') && p.includes('mesuree')));
 });
 
 test('economy_model : absent refuse', () => {
@@ -302,7 +408,7 @@ test('economy_model : formule sans text refusee', () => {
 
 test('loops : resource referencee inexistante refusee', () => {
   const gm = deepClone(loadValidFixture());
-  gm.loops.core_loop[2].resource = 'ne_existe_pas';
+  gm.loops.economy_loop.steps[0].resource = 'ne_existe_pas';
   const result = validateGameMaster(gm);
   assert.equal(result.ok, false);
   assert.ok(result.problems.some((p) => p.includes("'resource'") && p.includes('ne_existe_pas')));

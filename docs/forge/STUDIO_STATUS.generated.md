@@ -21,8 +21,8 @@
 
 | Connecteur | État |
 |---|---|
-| `lab/reports/forge_ledger_proposals.jsonl` | ⚠ dormant (retard 18.0 j) |
-| `lab/reports/forge_project_proposals.jsonl` | ⚠ dormant (retard 18.0 j) |
+| `lab/reports/forge_ledger_proposals.jsonl` | ⚠ dormant (retard 18.3 j) |
+| `lab/reports/forge_project_proposals.jsonl` | ⚠ dormant (retard 18.3 j) |
 | `lab/reports/forge_bible_proposals.jsonl` | ✅ frais |
 | `knowledge_base/learning_curve.jsonl` | ✅ frais |
 

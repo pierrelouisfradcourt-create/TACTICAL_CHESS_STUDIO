@@ -1,12 +1,20 @@
 """T3 (Lot F, plan `2026-08-23-forge-lot-f-boucle-completion-mutuelle.md` §T3) :
 `design_state` (calculé après chaque étape de la boucle Art<->GM, id de base ∈
-{s2.5-artbible, s2.7-gm-worldscan}, toute ronde) et la gate `design_freeze`
-(juste avant s1-prisme, SEULEMENT si le profil contient une étape de base
-s2.7-gm-worldscan). Patron `test_driver_loop_gate.py` (`ForgeDriver.__new__`
-pour les méthodes pures) + `test_driver_lot_b_gates_heritage.py` (run() réel,
-exécuteur stub) pour l'intégration (a)-(e). `_base_step` est une copie locale
+{s2.5-artbible, s2.7-gm-worldscan}, toute ronde). Patron `test_driver_loop_gate.py`
+(`ForgeDriver.__new__` pour les méthodes pures) + `test_driver_lot_b_gates_heritage.py`
+(run() réel, exécuteur stub) pour l'intégration. `_base_step` est une copie locale
 PRIVÉE (T1, alias d'étape, tourne EN PARALLÈLE sur contract.py — non touché
 ici) : elle sera dédoublonnée par l'orchestrateur une fois T1 mergé.
+
+ADAPTÉ Lot C.4-code (2026-08-24, plan `2026-08-24-forge-lot-c4-code-boucles.md`) :
+la gate `design_freeze` elle-même (9 boucles GM, COMPLETE/OPEN/PROPOSED/DEFERRED,
+R1 étendu, R3-lite) est RÉÉCRITE et testée ici ; ses assertions sur l'ANCIEN
+comportement (freeze basé sur `ready_for_freeze`/`blocking_gaps` global seuls, sans
+notion de boucle) ont été remplacées par des fixtures gm 9-boucles. Les tests
+NOUVEAUX et plus détaillés (statut par boucle, R3-lite, deferred_loops.json,
+heritage au freeze) vivent dans `test_c4_design_state_freeze.py` — ce fichier garde
+la couverture RUN() minimale (a)/(b)/(c convergée, blocking, ready) pour la
+non-régression du câblage `run()` -> gate -> s1-prisme.
 """
 import json
 import sys
@@ -65,6 +73,43 @@ def test_design_loop_active_faux_profil_sans_boucle(tmp_path):
 def _write_questions(run_dir: Path, payload: dict) -> None:
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "design_questions.json").write_text(
+        json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+
+# 9 boucles GM figées (vocabulaire du plan C.4) — fixture LOCALE (Agent B, jamais
+# le format réel produit par `game_master_schema.mjs`, hors périmètre ici).
+_LOOPS_9 = (
+    "core_loop", "gameplay_loop", "progression_loop", "content_loop",
+    "economy_loop", "skill_loop", "world_loop", "quest_loop", "meta_loop",
+)
+
+
+def _valid_gm_nine_loops() -> dict:
+    """Anneau de 9 boucles où chaque `produces` est consommé par la suivante,
+    chaque `unlocks` pointe vers une boucle réelle, `transformation_perceptible`
+    et `metric_propre` complets et exclusifs -> les 9 boucles sont COMPLETE."""
+    n = len(_LOOPS_9)
+    loops = {}
+    for i, name in enumerate(_LOOPS_9):
+        prev_name = _LOOPS_9[(i - 1) % n]
+        next_name = _LOOPS_9[(i + 1) % n]
+        loops[name] = {
+            "steps": [],
+            "produces": f"p_{name}",
+            "consumes": [f"p_{prev_name}"],
+            "unlocks": [next_name],
+            "transformation_perceptible": {
+                "text": f"transformation perceptible de {name}",
+                "proof_ref": f"proof_{name}",
+            },
+            "metric_propre": f"m_{name}",
+        }
+    return {"game_master": {"loops": loops}}
+
+
+def _write_gm(run_dir: Path, payload: dict) -> None:
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "gm_worldscan.json").write_text(
         json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 
 
@@ -208,35 +253,41 @@ def test_design_freeze_gate_none_si_profil_sans_s27(tmp_path):
 
 
 def test_design_freeze_gate_passed_true_convergee(tmp_path):
+    """9 boucles COMPLETE (fixture en anneau) + 0 question ouverte + deferred
+    absent -> la gate passe, `heritage/` est écrit AU FREEZE (avant s1)."""
     d = _driver_for_gate(tmp_path, ["s2.7-gm-worldscan", "s1-prisme"])
     d.run_dir.mkdir(parents=True, exist_ok=True)
     d.state_path = d.run_dir / "state.json"
+    d.game_dir = tmp_path / "game"  # non consulté par le freeze (pas de project.godot requis)
+    _write_gm(d.run_dir, _valid_gm_nine_loops())
     _write_questions(d.run_dir, {
-        "schema_version": 1, "round": 2,
-        "questions": [
-            {"id": "q1", "from": "ART", "to": "GM", "round": 1, "about": "x",
-             "missing": [], "why": "y", "blocking": True,
-             "answer": {"round": 2, "by": "GM", "ref": "r", "text": "t"}},
-        ],
+        "schema_version": 1, "round": 1, "questions": [],
         "declarations": {
-            "ART": {"round": 2, "ready_for_freeze": True, "open_to_gm": 0},
-            "GM": {"round": 2, "ready_for_freeze": True, "open_to_art": 0},
+            "ART": {"round": 1, "ready_for_freeze": True, "open_to_gm": 0},
+            "GM": {"round": 1, "ready_for_freeze": True, "open_to_art": 0},
         },
     })
     state = {"steps": {"s1-prisme": {"status": "PENDING"}}}
     assert d._design_freeze_gate(state) is None
     assert state["design_freeze"]["passed"] is True
-    assert state["design_freeze"]["round"] == 2
+    assert state["design_freeze"]["shared_design_pct"] == 100
+    for name in _LOOPS_9:
+        assert state["design_freeze"]["loops"][name]["status"] == "COMPLETE"
+    assert (d.run_dir / "heritage" / "gm_worldscan.json").is_file()
 
 
-def test_design_freeze_gate_halted_blocking_gap(tmp_path):
+def test_design_freeze_gate_halted_boucle_open(tmp_path):
+    """Une question bloquante portant `loop_id=world_loop` sans réponse ->
+    world_loop OPEN(1), gate HALTED, la boucle est nommée dans la raison."""
     d = _driver_for_gate(tmp_path, ["s2.7-gm-worldscan", "s1-prisme"])
     d.run_dir.mkdir(parents=True, exist_ok=True)
     d.state_path = d.run_dir / "state.json"
+    _write_gm(d.run_dir, _valid_gm_nine_loops())
     _write_questions(d.run_dir, {
         "schema_version": 1, "round": 2,
         "questions": [
             {"id": "q_gm_042", "from": "GM", "to": "ART", "round": 2, "about": "x",
+             "loop_id": "world_loop",
              "missing": [], "why": "y", "blocking": True, "answer": None},
         ],
         "declarations": {
@@ -249,15 +300,18 @@ def test_design_freeze_gate_halted_blocking_gap(tmp_path):
     assert report is not None
     assert report["status"] == "HALTED"
     assert "design non convergé" in report["reason"]
-    assert "q_gm_042" in report["reason"]
+    assert "world_loop: OPEN(1)" in report["reason"]
     assert state["design_freeze"]["passed"] is False
     assert state["run_status"] == "HALTED"
 
 
 def test_design_freeze_gate_halted_ready_false_dun_cote(tmp_path):
+    """R1 étendu : ART ne se déclare pas ready -> HALTED nommant ART parmi les
+    piliers en défaut, même si les 9 boucles sont par ailleurs COMPLETE."""
     d = _driver_for_gate(tmp_path, ["s2.7-gm-worldscan", "s1-prisme"])
     d.run_dir.mkdir(parents=True, exist_ok=True)
     d.state_path = d.run_dir / "state.json"
+    _write_gm(d.run_dir, _valid_gm_nine_loops())
     _write_questions(d.run_dir, {
         "schema_version": 1, "round": 2,
         "questions": [],
@@ -269,7 +323,8 @@ def test_design_freeze_gate_halted_ready_false_dun_cote(tmp_path):
     state = {"steps": {"s1-prisme": {"status": "PENDING"}}}
     report = d._design_freeze_gate(state)
     assert report is not None
-    assert "ready ART=False, GM=True" in report["reason"]
+    assert "R1 étendu" in report["reason"]
+    assert "ART" in report["reason"]
 
 
 def test_design_freeze_gate_halted_fichier_absent(tmp_path):
@@ -343,13 +398,16 @@ def _register_synthetic_profile(monkeypatch, name, order):
 
 
 def _run_synthetic_loop(tmp_path, questions_payload, monkeypatch,
-                         order=("s2.5-artbible", "s2.7-gm-worldscan", "s1-prisme")):
+                         order=("s2.5-artbible", "s2.7-gm-worldscan", "s1-prisme"),
+                         gm_payload=None):
     """Construit un driver réel sur un profil de TEST dont l'ordre est
     EXACTEMENT la boucle synthétique (contrats réels s2.5-artbible /
     s2.7-gm-worldscan / s1-prisme — tous dispatchables individuellement via
     leurs profils dédiés `artbible`/`gm_worldscan`/`full`) — run() RÉEL,
     exécuteur stub, aucun sous-processus, aucun builder Godot requis (le run
-    HALTE ou s'arrête juste après s1-prisme dans ces tests)."""
+    HALTE ou s'arrête juste après s1-prisme dans ces tests). `gm_payload`
+    (Lot C.4-code) : écrit `gm_worldscan.json` AVANT `run()` si fourni — le
+    driver COMPTE, il ne PRODUIT ni ne VALIDE la forme (rôle du matérialiseur)."""
     run_dir = tmp_path / "run"
     executor = _StubExecutor()
     profile = "test_design_loop"
@@ -358,6 +416,8 @@ def _run_synthetic_loop(tmp_path, questions_payload, monkeypatch,
                      **_kwargs(tmp_path, run_dir))
     if questions_payload is not None:
         _write_questions(run_dir, questions_payload)
+    if gm_payload is not None:
+        _write_gm(run_dir, gm_payload)
     return d, executor
 
 
@@ -366,9 +426,11 @@ def _converged_questions(round_=2):
         "schema_version": 1, "round": round_,
         "questions": [
             {"id": "q1", "from": "ART", "to": "GM", "round": 1, "about": "x",
+             "loop_id": "core_loop",
              "missing": [], "why": "y", "blocking": True,
              "answer": {"round": round_, "by": "GM", "ref": "r", "text": "t"}},
             {"id": "q2", "from": "GM", "to": "ART", "round": 1, "about": "z",
+             "loop_id": "gameplay_loop",
              "missing": [], "why": "y", "blocking": False,
              "answer": {"round": round_, "by": "ART", "ref": "r2", "text": "t2"}},
         ],
@@ -380,7 +442,8 @@ def _converged_questions(round_=2):
 
 
 def test_a_run_converge_s1_tourne_design_freeze_passed(tmp_path, offline, monkeypatch):
-    d, executor = _run_synthetic_loop(tmp_path, _converged_questions(), monkeypatch)
+    d, executor = _run_synthetic_loop(
+        tmp_path, _converged_questions(), monkeypatch, gm_payload=_valid_gm_nine_loops())
     report = d.run()
     assert "s1-prisme" in executor.calls  # s1 A tourné
     assert report["design_freeze"]["passed"] is True
@@ -395,7 +458,8 @@ def test_b_run_blocking_sans_reponse_halted_avant_s1(tmp_path, offline, monkeypa
         "schema_version": 1, "round": 1,
         "questions": [
             {"id": "q_gm_001", "from": "GM", "to": "ART", "round": 1,
-             "about": "grey_blocks.garden", "missing": ["états visuels"], "why": "y",
+             "about": "grey_blocks.garden", "loop_id": "world_loop",
+             "missing": ["états visuels"], "why": "y",
              "blocking": True, "answer": None},
         ],
         "declarations": {
@@ -403,11 +467,12 @@ def test_b_run_blocking_sans_reponse_halted_avant_s1(tmp_path, offline, monkeypa
             "GM": {"round": 1, "ready_for_freeze": True, "open_to_art": 1},
         },
     }
-    d, executor = _run_synthetic_loop(tmp_path, questions, monkeypatch)
+    d, executor = _run_synthetic_loop(
+        tmp_path, questions, monkeypatch, gm_payload=_valid_gm_nine_loops())
     report = d.run()
     assert report["status"] == "HALTED"
     assert "design non convergé" in report["reason"]
-    assert "q_gm_001" in report["reason"]
+    assert "world_loop: OPEN(1)" in report["reason"]
     assert "s1-prisme" not in executor.calls  # s1 JAMAIS exécutée
     state = json.loads((d.run_dir / "state.json").read_text(encoding="utf-8"))
     assert state["steps"]["s1-prisme"]["status"] == "PENDING"
@@ -422,10 +487,12 @@ def test_c_run_ready_false_dun_cote_halted(tmp_path, offline, monkeypatch):
             "GM": {"round": 2, "ready_for_freeze": False, "open_to_art": 0},
         },
     }
-    d, executor = _run_synthetic_loop(tmp_path, questions, monkeypatch)
+    d, executor = _run_synthetic_loop(
+        tmp_path, questions, monkeypatch, gm_payload=_valid_gm_nine_loops())
     report = d.run()
     assert report["status"] == "HALTED"
-    assert "ready ART=True, GM=False" in report["reason"]
+    assert "R1 étendu" in report["reason"]
+    assert "GM" in report["reason"]
     assert "s1-prisme" not in executor.calls
 
 

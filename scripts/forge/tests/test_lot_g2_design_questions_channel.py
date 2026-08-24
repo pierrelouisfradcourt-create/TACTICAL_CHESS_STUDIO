@@ -74,7 +74,7 @@ def _dq_round1(*, questions=None, blocking=True) -> dict:
     if questions is None:
         questions = [
             {"id": "q_gm_001", "from": "GM", "to": "ART", "round": 1,
-             "about": "grey_blocks.garden",
+             "about": "grey_blocks.garden", "loop_id": "world_loop",
              "missing": ["etats visuels LOCKED/AVAILABLE/ACTIVE/FULL"],
              "why": "le joueur doit comprendre pourquoi il ne peut pas encore entrer",
              "blocking": blocking, "answer": None},

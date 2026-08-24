@@ -1,13 +1,35 @@
 #!/usr/bin/env node
 // game_master_schema.mjs — schéma + validateur DÉTERMINISTE du bloc `game_master`
 // de `gm_worldscan.json` (Lot B, 2026-08-23, plan
-// docs/superpowers/plans/2026-08-23-forge-lot-b-game-master.md).
+// docs/superpowers/plans/2026-08-23-forge-lot-b-game-master.md ; boucles 9 + champs
+// producteur/consommateur, Lot C.4-code, 2026-08-24, plan
+// docs/superpowers/plans/2026-08-24-forge-lot-c4-code-boucles.md).
 //
-// Vocabulaire fermé (9 sorties du GM) : world_interpretation, loops (6 boucles),
-// economy_model, progression_metrics, proof_model, grey_blocks, artist_requirements
+// Vocabulaire fermé (9 sorties du GM) : world_interpretation, loops (9 boucles —
+// vocabulaire figé C.3/C.4 : core_loop, gameplay_loop, progression_loop,
+// content_loop, economy_loop, skill_loop, world_loop, quest_loop, meta_loop ;
+// `player_loop` de l'ancien schema Lot B est ABSORBE par `gameplay_loop`, non
+// retro-compatible PAR CONSTRUCTION — cf. plan Lot C.4-code, « la Forge devient
+// incapable de declarer un jeu complet sans boucles fermees »), economy_model,
+// progression_metrics, proof_model, grey_blocks, artist_requirements
 // (+ dimensions/games_observed du scan de genre Lot 0, sources_consumed du Lot A —
 // ces deux derniers NE SONT PAS revalidés ici, cf. `_validate_gm_worldscan` /
 // `_validate_sources_consumed` dans run_real.py).
+//
+// Lot C.4-code (2026-08-24) : chaque boucle de `loops` devient un OBJET
+// {steps, produces, consumes, unlocks, transformation_perceptible, metric_propre}
+// au lieu d'un simple tableau d'etapes (les etapes vivent desormais sous
+// `.steps`, forme inchangee). Regles ajoutees, cf. contrats C.3/C.4
+// (studio_brain/gamedesign/kitten_clicker_game_loop_architecture_v1.md,
+// kitten_clicker_mutual_completion_contract_v1.md) :
+//   R2a (globale) : le `produces` de CHAQUE boucle doit etre reference par le
+//     `consumes` d'au moins une AUTRE boucle (sinon boucle orpheline, refusee) ;
+//   R2b : `transformation_perceptible.text` non vide + `proof_ref` qui resout un
+//     proof_model dont le `how` != 'humangate' (une transformation prouvee QUE
+//     par HumanGate seul n'est jamais COMPLETE mecaniquement) ;
+//   exclusivite `metric_propre` : chaque boucle porte un id de
+//     `progression_metrics` qui n'est utilise par AUCUNE AUTRE boucle — ni comme
+//     `metric_propre`, ni comme `metric_ref` d'une de ses etapes.
 //
 // `validateGameMaster(gm)` -> {ok, problems[]} : refus NOMMÉ par bloc/id, jamais
 // d'exception sur une entrée malformée (types incorrects = problème listé, pas crash).
@@ -22,9 +44,14 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const LOOP_NAMES = [
-  'core_loop', 'progression_loop', 'player_loop',
-  'content_loop', 'meta_loop', 'economy_loop',
+  'core_loop', 'gameplay_loop', 'progression_loop', 'content_loop',
+  'economy_loop', 'skill_loop', 'world_loop', 'quest_loop', 'meta_loop',
 ];
+
+// `how` de proof_model INTERDIT seul pour transformation_perceptible.proof_ref
+// (R2b, C.4) : une transformation dont la SEULE preuve est HumanGate n'est
+// jamais mecaniquement COMPLETE.
+const TRANSFORMATION_PROOF_HOW_FORBIDDEN = 'humangate';
 
 export const STEP_KINDS = ['action', 'feedback', 'reward', 'progression', 'decision', 'other'];
 
@@ -188,69 +215,157 @@ export function validateGameMaster(gm) {
   }
 
   // --- loops -------------------------------------------------------------------
+  // Lot C.4-code : chaque boucle est un OBJET {steps, produces, consumes, unlocks,
+  // transformation_perceptible, metric_propre}, jamais plus un simple tableau.
   const loops = gm.loops;
   const allStepIds = new Set();
+  const producesByLoop = new Map();
+  const consumesByLoop = new Map();
+  const metricPropreByLoop = new Map();
+  const stepMetricRefsByLoop = new Map();
   if (!isPlainObject(loops)) {
-    problems.push("'game_master.loops' doit etre un objet portant les 6 boucles");
+    problems.push("'game_master.loops' doit etre un objet portant les 9 boucles");
   } else {
     LOOP_NAMES.forEach((loopName) => {
-      const steps = loops[loopName];
+      const loopVal = loops[loopName];
       const tag = `loops.${loopName}`;
-      if (!isArr(steps) || steps.length === 0) {
-        problems.push(`${tag} : doit etre une liste non vide d'etapes`);
+      if (!isPlainObject(loopVal)) {
+        problems.push(`${tag} : doit etre un objet {steps, produces, consumes, unlocks, transformation_perceptible, metric_propre}`);
         return;
       }
-      const seenKinds = [];
-      const localIds = new Set();
-      steps.forEach((s, i) => {
-        const stag = `${tag}[${i}]`;
-        if (!isPlainObject(s)) {
-          problems.push(`${stag} : doit etre un objet`);
-          return;
+      const steps = loopVal.steps;
+      const localMetricRefs = new Set();
+      if (!isArr(steps) || steps.length === 0) {
+        problems.push(`${tag}.steps : doit etre une liste non vide d'etapes`);
+      } else {
+        const seenKinds = [];
+        const localIds = new Set();
+        steps.forEach((s, i) => {
+          const stag = `${tag}.steps[${i}]`;
+          if (!isPlainObject(s)) {
+            problems.push(`${stag} : doit etre un objet`);
+            return;
+          }
+          if (!isStr(s.id)) {
+            problems.push(`${stag} : 'id' non vide obligatoire`);
+          } else if (localIds.has(s.id)) {
+            problems.push(`${tag} : id '${s.id}' duplique`);
+          } else {
+            localIds.add(s.id);
+            allStepIds.add(s.id);
+          }
+          if (!STEP_KINDS.includes(s.kind)) {
+            problems.push(`${stag} (${s.id ?? '?'}) : 'kind' doit etre l'un de ${STEP_KINDS.join('|')} (recu: ${s.kind ?? 'absent'})`);
+          } else if (s.kind !== 'other') {
+            seenKinds.push(s.kind);
+          }
+          if (s.actor !== 'PLAYER' && s.actor !== 'SYSTEM') {
+            problems.push(`${stag} (${s.id ?? '?'}) : 'actor' doit etre PLAYER|SYSTEM (recu: ${s.actor ?? 'absent'})`);
+          }
+          if (!isStr(s.why)) {
+            problems.push(`${stag} (${s.id ?? '?'}) : 'why' non vide obligatoire`);
+          }
+          if (!isStr(s.metric_ref)) {
+            problems.push(`${stag} (${s.id ?? '?'}) : 'metric_ref' non vide obligatoire`);
+          } else {
+            localMetricRefs.add(s.metric_ref);
+            if (isArr(metrics) && !metricIds.has(s.metric_ref)) {
+              problems.push(`${stag} (${s.id ?? '?'}) : 'metric_ref' ('${s.metric_ref}') ne resout aucun id de progression_metrics`);
+            }
+          }
+          if (!isStr(s.proof_ref)) {
+            problems.push(`${stag} (${s.id ?? '?'}) : 'proof_ref' non vide obligatoire`);
+          } else if (isArr(proofs) && !proofIds.has(s.proof_ref)) {
+            problems.push(`${stag} (${s.id ?? '?'}) : 'proof_ref' ('${s.proof_ref}') ne resout aucun id de proof_model`);
+          }
+        });
+        // Ordre relatif : chaque kind requis doit apparaitre, dans cet ordre.
+        let cursor = -1;
+        for (const kind of REQUIRED_STEP_ORDER) {
+          const idx = seenKinds.indexOf(kind, cursor + 1);
+          if (idx === -1) {
+            problems.push(`${tag}.steps : etape de kind '${kind}' manquante (ordre requis: ${REQUIRED_STEP_ORDER.join(' -> ')})`);
+            break;
+          }
+          cursor = idx;
         }
-        if (!isStr(s.id)) {
-          problems.push(`${stag} : 'id' non vide obligatoire`);
-        } else if (localIds.has(s.id)) {
-          problems.push(`${tag} : id '${s.id}' duplique`);
-        } else {
-          localIds.add(s.id);
-          allStepIds.add(s.id);
+      }
+      stepMetricRefsByLoop.set(loopName, localMetricRefs);
+
+      // --- produces (R2a) --------------------------------------------------
+      if (!isStr(loopVal.produces)) {
+        problems.push(`${tag}.produces : chaine non vide obligatoire`);
+      } else {
+        producesByLoop.set(loopName, loopVal.produces);
+      }
+
+      // --- consumes / unlocks : listes de noms de boucles existants --------
+      if (!isArr(loopVal.consumes) || !loopVal.consumes.every((c) => isStr(c) && LOOP_NAMES.includes(c))) {
+        problems.push(`${tag}.consumes : doit etre une liste de noms de boucles existants (${LOOP_NAMES.join('|')})`);
+      } else {
+        consumesByLoop.set(loopName, loopVal.consumes);
+      }
+      if (!isArr(loopVal.unlocks) || !loopVal.unlocks.every((u) => isStr(u) && LOOP_NAMES.includes(u))) {
+        problems.push(`${tag}.unlocks : doit etre une liste de noms de boucles existants (${LOOP_NAMES.join('|')})`);
+      }
+
+      // --- transformation_perceptible (R2b) ---------------------------------
+      const tp = loopVal.transformation_perceptible;
+      if (!isPlainObject(tp)) {
+        problems.push(`${tag}.transformation_perceptible : doit etre un objet {text, proof_ref}`);
+      } else {
+        if (!isStr(tp.text)) {
+          problems.push(`${tag}.transformation_perceptible.text : chaine non vide obligatoire`);
         }
-        if (!STEP_KINDS.includes(s.kind)) {
-          problems.push(`${stag} (${s.id ?? '?'}) : 'kind' doit etre l'un de ${STEP_KINDS.join('|')} (recu: ${s.kind ?? 'absent'})`);
-        } else if (s.kind !== 'other') {
-          seenKinds.push(s.kind);
+        if (!isStr(tp.proof_ref)) {
+          problems.push(`${tag}.transformation_perceptible.proof_ref : chaine non vide obligatoire`);
+        } else if (isArr(proofs)) {
+          const proof = proofs.find((p) => isPlainObject(p) && p.id === tp.proof_ref);
+          if (!proof) {
+            problems.push(`${tag}.transformation_perceptible.proof_ref ('${tp.proof_ref}') ne resout aucun id de proof_model`);
+          } else if (proof.how === TRANSFORMATION_PROOF_HOW_FORBIDDEN) {
+            problems.push(`${tag}.transformation_perceptible.proof_ref ('${tp.proof_ref}') : 'how'='humangate' seul refuse (doit etre l'un de player_loop|hud|decision|registry)`);
+          }
         }
-        if (s.actor !== 'PLAYER' && s.actor !== 'SYSTEM') {
-          problems.push(`${stag} (${s.id ?? '?'}) : 'actor' doit etre PLAYER|SYSTEM (recu: ${s.actor ?? 'absent'})`);
+      }
+
+      // --- metric_propre (exclusivite verifiee APRES la boucle) ------------
+      if (!isStr(loopVal.metric_propre)) {
+        problems.push(`${tag}.metric_propre : id non vide obligatoire`);
+      } else if (isArr(metrics) && !metricIds.has(loopVal.metric_propre)) {
+        problems.push(`${tag}.metric_propre ('${loopVal.metric_propre}') ne resout aucun id de progression_metrics`);
+      } else {
+        metricPropreByLoop.set(loopName, loopVal.metric_propre);
+      }
+    });
+
+    // R2a GLOBALE : chaque 'produces' doit etre reference par le 'consumes' d'au
+    // moins une AUTRE boucle -- sinon boucle orpheline, refusee en la nommant.
+    const consumedLoopNames = new Set();
+    consumesByLoop.forEach((list, loopName) => {
+      list.forEach((c) => { if (c !== loopName) consumedLoopNames.add(c); });
+    });
+    producesByLoop.forEach((_produces, loopName) => {
+      if (!consumedLoopNames.has(loopName)) {
+        problems.push(`loops.${loopName} : 'produces' n'est reference par le 'consumes' d'aucune autre boucle (R2a, boucle orpheline)`);
+      }
+    });
+
+    // Exclusivite metric_propre (C.4) : un id de progression_metrics utilise en
+    // metric_propre par une boucle ne doit apparaitre NULLE PART ailleurs -- ni
+    // comme metric_propre d'une autre boucle, ni comme metric_ref d'une de ses
+    // etapes.
+    metricPropreByLoop.forEach((mid, loopName) => {
+      LOOP_NAMES.forEach((otherLoop) => {
+        if (otherLoop === loopName) return;
+        if (metricPropreByLoop.get(otherLoop) === mid) {
+          problems.push(`loops.${loopName}.metric_propre ('${mid}') : partagee avec loops.${otherLoop}.metric_propre (exclusivite requise)`);
         }
-        if (!isStr(s.why)) {
-          problems.push(`${stag} (${s.id ?? '?'}) : 'why' non vide obligatoire`);
-        }
-        if (!isStr(s.metric_ref)) {
-          problems.push(`${stag} (${s.id ?? '?'}) : 'metric_ref' non vide obligatoire`);
-        } else if (isArr(metrics) && !metricIds.has(s.metric_ref)) {
-          problems.push(`${stag} (${s.id ?? '?'}) : 'metric_ref' ('${s.metric_ref}') ne resout aucun id de progression_metrics`);
-        }
-        if (!isStr(s.proof_ref)) {
-          problems.push(`${stag} (${s.id ?? '?'}) : 'proof_ref' non vide obligatoire`);
-        } else if (isArr(proofs) && !proofIds.has(s.proof_ref)) {
-          problems.push(`${stag} (${s.id ?? '?'}) : 'proof_ref' ('${s.proof_ref}') ne resout aucun id de proof_model`);
+        const otherRefs = stepMetricRefsByLoop.get(otherLoop);
+        if (otherRefs && otherRefs.has(mid)) {
+          problems.push(`loops.${loopName}.metric_propre ('${mid}') : deja utilisee comme metric_ref dans loops.${otherLoop} (exclusivite requise)`);
         }
       });
-      // Ordre relatif : chaque kind requis doit apparaitre, dans cet ordre.
-      let cursor = -1;
-      let orderOk = true;
-      for (const kind of REQUIRED_STEP_ORDER) {
-        const idx = seenKinds.indexOf(kind, cursor + 1);
-        if (idx === -1) {
-          problems.push(`${tag} : etape de kind '${kind}' manquante (ordre requis: ${REQUIRED_STEP_ORDER.join(' -> ')})`);
-          orderOk = false;
-          break;
-        }
-        cursor = idx;
-      }
-      void orderOk;
     });
   }
 
@@ -405,7 +520,7 @@ export function validateGameMaster(gm) {
     const loopAffordances = new Set();
     if (isPlainObject(loops)) {
       LOOP_NAMES.forEach((loopName) => {
-        const stepsForLoop = loops[loopName];
+        const stepsForLoop = isPlainObject(loops[loopName]) ? loops[loopName].steps : undefined;
         if (!isArr(stepsForLoop)) return;
         stepsForLoop.forEach((s) => {
           if (isPlainObject(s) && isStr(s.affordance)) loopAffordances.add(s.affordance);
@@ -485,12 +600,12 @@ export function validateGameMaster(gm) {
   // Ressource citee par une etape reward/progression (champ optionnel `resource`).
   if (isPlainObject(loops) && isArr(gm.economy_model?.resources)) {
     LOOP_NAMES.forEach((loopName) => {
-      const steps = loops[loopName];
+      const steps = isPlainObject(loops[loopName]) ? loops[loopName].steps : undefined;
       if (!isArr(steps)) return;
       steps.forEach((s, i) => {
         if (!isPlainObject(s) || s.resource === undefined) return;
         if (!isStr(s.resource) || !resourceIds.has(s.resource)) {
-          problems.push(`loops.${loopName}[${i}] (${s.id ?? '?'}) : 'resource' ('${s.resource}') ne resout aucun id de economy_model.resources`);
+          problems.push(`loops.${loopName}.steps[${i}] (${s.id ?? '?'}) : 'resource' ('${s.resource}') ne resout aucun id de economy_model.resources`);
         }
       });
     });

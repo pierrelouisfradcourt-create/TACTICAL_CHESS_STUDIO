@@ -31,7 +31,7 @@ def _gm_with_block():
 def _first_loop_step_address(gm):
     loops = gm["game_master"]["loops"]
     loop_name = next(iter(loops))
-    return f"gm_worldscan:game_master.loops.{loop_name}.{loops[loop_name][0]['id']}"
+    return f"gm_worldscan:game_master.loops.{loop_name}.{loops[loop_name]['steps'][0]['id']}"
 
 
 def _prisme_min(reference):

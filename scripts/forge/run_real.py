@@ -1131,7 +1131,10 @@ def _gm_address_resolves(gm: dict, addr: str) -> bool:
     if addr.startswith(_GM_LOOPS_PREFIX):
         rest = addr[len(_GM_LOOPS_PREFIX):]
         loop_name, _, step_id = rest.partition(".")
-        steps = (block.get("loops") or {}).get(loop_name)
+        loop_obj = (block.get("loops") or {}).get(loop_name)
+        # Lot C.4-code : une boucle est un objet {steps, produces, ...}, plus un
+        # simple tableau -- les etapes vivent sous `.steps`.
+        steps = loop_obj.get("steps") if isinstance(loop_obj, dict) else None
         if not isinstance(steps, list) or not step_id:
             return False
         return any(isinstance(st, dict) and st.get("id") == step_id for st in steps)
@@ -1292,6 +1295,19 @@ def _resolve_art_bible_address(text: str, section: str) -> bool:
 # _resolve_art_bible_address tel quel.
 _DESIGN_QUESTIONS_PILLARS = ("ART", "GM")
 
+# Lot C.4-code (2026-08-24) : vocabulaire figé des 9 boucles C.3 + le canal
+# ART<->GM lui-même ('art_gm', la 10e "boucle" du contrat C.3 §10) — cf.
+# scripts/forge/game_master_schema.mjs::LOOP_NAMES (source unique côté JS,
+# copie ici car run_real.py est Python et ne peut pas importer le module ESM).
+# Toute divergence entre les deux listes serait une dérive silencieuse du
+# vocabulaire — gardée délibérément COURTE et EXPLICITE plutôt qu'un import
+# cross-langage inexistant dans ce dépôt.
+_C4_LOOP_NAMES = (
+    "core_loop", "gameplay_loop", "progression_loop", "content_loop",
+    "economy_loop", "skill_loop", "world_loop", "quest_loop", "meta_loop",
+)
+_C4_QUESTION_LOOP_IDS = _C4_LOOP_NAMES + ("art_gm",)
+
 
 def _other_pillar(pilier: str) -> str:
     return "GM" if pilier == "ART" else "ART"
@@ -1301,7 +1317,12 @@ def _resolve_game_master_path(game_master, path: str) -> bool:
     """True ssi path resout dans le bloc game_master deja charge (dict/list JSON).
     Marche segment par segment : dict -> cle ; list -> index si segment numerique,
     sinon recherche d'un item {"id": segment} (meme convention que les blocs
-    adressables par id du schema game_master -- grey_blocks, proof_model, etc.)."""
+    adressables par id du schema game_master -- grey_blocks, proof_model, etc.).
+    Lot C.4-code : une boucle de `loops` est desormais un OBJET {steps, produces,
+    consumes, unlocks, transformation_perceptible, metric_propre} -- un segment
+    qui ne resout pas une cle directe de cet objet est cherche par 'id' dans
+    `.steps` (meme convention d'adressage qu'avant, ex. loops.core_loop.core_action
+    resout toujours le step 'core_action')."""
     if not path:
         return False
     cur = game_master
@@ -1309,9 +1330,18 @@ def _resolve_game_master_path(game_master, path: str) -> bool:
         if not seg:
             return False
         if isinstance(cur, dict):
-            if seg not in cur:
+            if seg in cur:
+                cur = cur[seg]
+            elif isinstance(cur.get("steps"), list):
+                match = next(
+                    (item for item in cur["steps"]
+                     if isinstance(item, dict) and item.get("id") == seg),
+                    None)
+                if match is None:
+                    return False
+                cur = match
+            else:
                 return False
-            cur = cur[seg]
         elif isinstance(cur, list):
             if seg.isdigit():
                 i = int(seg)
@@ -1384,21 +1414,31 @@ def _coerce_round(value):
     return None
 
 def _validate_design_questions(data: dict, run_dir: "Path | None" = None) -> str:
-    """'' si design_questions.json (Lot F 2026-08-23, forme figee dans le plan) est
-    structurellement valide, sinon la raison PRECISE (nommant l'id fautif quand il
-    y en a un). Regles verifiees, dans l'ordre :
+    """'' si design_questions.json (Lot F 2026-08-23, forme figee dans le plan ;
+    `loop_id` + R1 etendu, Lot C.4-code 2026-08-24) est structurellement valide,
+    sinon la raison PRECISE (nommant l'id fautif quand il y en a un). Regles
+    verifiees, dans l'ordre :
       - schema_version (int), round (int >=1), questions (list), declarations
         (dict avec ART et GM) presents et bien types ;
       - chaque question : id str non vide UNIQUE, from/to dans {ART, GM} et
         from != to, round int >=1, about str non vide, missing liste NON VIDE,
-        why str non vide, blocking bool ;
+        why str non vide, blocking bool, loop_id OBLIGATOIRE dans l'une des 9
+        boucles C.3 (_C4_LOOP_NAMES) ou 'art_gm' -- absent ou inconnu est un
+        refus NOMME (Lot C.4-code : « une question sans boucle ne construit
+        rien ») ;
       - about DOIT resoudre dans l'artefact du demandeur (from) -- seulement si
         run_dir est fourni (sinon saute, comportement historique pour un appelant
         sans run_dir) ;
       - answer est null OU un objet {round int>=1, by==to, ref str non vide,
         text str non vide} ; ref DOIT resoudre dans l'artefact du repondant (by) ;
-      - REFUS NOMME : ready_for_freeze d'un pilier est refuse s'il reste une
-        question dont to==ce pilier et answer est null (liste les id concernes) ;
+      - REFUS NOMME (R1, Lot F) : ready_for_freeze d'un pilier est refuse s'il
+        reste une question dont to==ce pilier et answer est null (liste les id
+        concernes) ;
+      - REFUS NOMME (R1 ETENDU, Lot C.4-code, C.4 §"Les deux regles dures") :
+        ready_for_freeze d'un pilier est AUSSI refuse s'il reste une question
+        BLOQUANTE dont from==ce pilier (EMISE par lui) et answer est null (liste
+        les id concernes) -- une question bloquante qu'un pilier pose bloque
+        AUSSI son propre freeze, pas seulement celles qu'il recoit ;
       - open_to_gm (declarations.ART) / open_to_art (declarations.GM) DOIVENT
         etre egaux au compte REEL de questions {from==ce pilier, to==l'autre,
         answer==null} (decision : "open_to_X" = mes questions ENVOYEES vers X
@@ -1428,6 +1468,7 @@ def _validate_design_questions(data: dict, run_dir: "Path | None" = None) -> str
     seen_ids: set = set()
     unanswered_received: dict = {"ART": [], "GM": []}
     unanswered_sent: dict = {"ART": 0, "GM": 0}
+    unanswered_sent_blocking: dict = {"ART": [], "GM": []}
     for q in questions:
         if not isinstance(q, dict):
             return "chaque question doit etre un mapping"
@@ -1456,6 +1497,13 @@ def _validate_design_questions(data: dict, run_dir: "Path | None" = None) -> str
             return f"question {qid!r} : 'why' non vide requis"
         if not isinstance(q.get("blocking"), bool):
             return f"question {qid!r} : 'blocking' doit etre un booleen"
+        loop_id = q.get("loop_id")
+        if not isinstance(loop_id, str) or loop_id not in _C4_QUESTION_LOOP_IDS:
+            recu = repr(loop_id) if loop_id is not None else "absent"
+            return (f"question {qid!r} : 'loop_id' obligatoire, doit etre l'une des 9 "
+                     "boucles C.3 (core_loop|gameplay_loop|progression_loop|"
+                     "content_loop|economy_loop|skill_loop|world_loop|quest_loop|"
+                     f"meta_loop) ou 'art_gm' (recu: {recu})")
         if run_dir is not None and not _resolve_design_question_address(frm, about, run_dir):
             return (f"question {qid!r} : 'about' {about!r} ne resout pas dans "
                     f"l'artefact du demandeur ({frm})")
@@ -1488,6 +1536,8 @@ def _validate_design_questions(data: dict, run_dir: "Path | None" = None) -> str
         else:
             unanswered_received[to].append(qid)
             unanswered_sent[frm] += 1
+            if q.get("blocking") is True:
+                unanswered_sent_blocking[frm].append(qid)
 
     for pilier in _DESIGN_QUESTIONS_PILLARS:
         decl = declarations[pilier]
@@ -1496,7 +1546,15 @@ def _validate_design_questions(data: dict, run_dir: "Path | None" = None) -> str
             return f"'declarations.{pilier}.ready_for_freeze' doit etre un booleen"
         if ready and unanswered_received[pilier]:
             return (f"'declarations.{pilier}.ready_for_freeze' refuse -- questions "
-                    f"recues sans reponse : {', '.join(sorted(unanswered_received[pilier]))}")
+                    f"RECUES sans reponse : {', '.join(sorted(unanswered_received[pilier]))}")
+        # R1 ETENDU (Lot C.4-code, C.4 §"Les deux regles dures") : un pilier ne peut
+        # pas non plus se declarer READY_FOR_FREEZE s'il a lui-meme EMIS une
+        # question bloquante restee sans reponse -- la question qu'il pose bloque
+        # AUSSI son propre freeze, pas seulement celles qu'il recoit.
+        if ready and unanswered_sent_blocking[pilier]:
+            return (f"'declarations.{pilier}.ready_for_freeze' refuse -- questions "
+                    f"bloquantes EMISES sans reponse : "
+                    f"{', '.join(sorted(unanswered_sent_blocking[pilier]))}")
         other = _other_pillar(pilier)
         open_key = f"open_to_{other.lower()}"
         open_val = decl.get(open_key)

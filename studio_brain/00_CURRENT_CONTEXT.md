@@ -41,22 +41,41 @@ maillon), REWARD sans `observe` ; le driver n'a pas mesuré (pas de `proof:`, 3�
 
 ### Audits 2026-08-23 — archivés (`…-decision-produit.md`) : construit avant de spécifier ; Art Bible après le GM → Lots A/B.
 
-### Lots ratifiés Pierre 2026-08-23 : A Tuyau → B GM (Game Master, option (a) : étendre s2.7) → C Calibration → D Fuites → E Run 10
-**Lot A FAIT** (`497c54b`) : s2.5 Art Bible avant s2.7 GM ; s2.5 ← charter+World Scan+Story Bible ; s2.7 ← World Scan+Story Bible+
-art_bible+asset_requests ; preuve de chargement = manifeste de dispatch ; preuve de consommation = `sources_consumed` résolu. Art Bible :
-8 sections nommées (texte de contrat, pas de validateur Python).
-
-**Lot B FAIT (GO Pierre : Opus · gates dès le run 10 · retour inter-run · boucles testables)** — plan
-`docs/superpowers/plans/2026-08-23-forge-lot-b-game-master.md`. s2.7 = GAME MASTER (Opus, rôle `game_master`) : `gm_worldscan.json`
-gagne `game_master` {world_interpretation, 6 loops (étapes avec why/metric_ref/proof_ref), economy_model, progression_metrics
-invariant|target|observation, proof_model, grey_blocks, artist_requirements} validé par `game_master_schema.mjs` à la
-matérialisation (refus nommé) ; `economy.json` projeté (reçu `economy_check`) et injecté à s9 ; héritage inter-run `heritage/`
-(art_bible, gm_worldscan, art_response + manifest) écrit par le driver, injecté à s2.5/s2.7. Consommation : Prisme → GATE
-`_validate_prisme(run_dir)` (toute exigence de boucle cite `gm_worldscan:game_master.loops.*|grey_blocks.*` qui résout, dès
-qu'un bloc `game_master` existe) ; Grey Blocks → `check_decompo --gm` `grey_block_non_decompose` ; Builder → gates driver
-`art_response_dead` (`check_art_response.mjs`, 1:1 avec artist_requirements) et `economy_bypass_dead` (`check_economy_bypass` :
-run 9 = 5 constantes en dur) ; sonde : `frames` par step + `target_frames` (FAIL hors tolérance). Baselines run 9 : 0/13 exigences
-sourcées GM, `game_master` absent → refus. `check_prisme_manifest.mjs` reste non consommé (advisory ; la gate vit dans run_real).
+### Lots A→G.2 (détail archivé `…-decision-produit.md`) — l'essentiel
+A `497c54b` tuyau Art Bible→GM · B `00b872a` GM=Game Master Opus (game_master, economy.json, art_response, gates) · C.1/C.2 design
+ratifiés (progression + gameplay loop & content, tests de reconstruction 0/0) · V2.1 calibration PROPOSED (retirée du run) · F `c3f82de`
+boucle Art↔GM 2 rondes + design_freeze · D `3565de5` fuites (replay_ref, ordre Prisme, design injecté) · G `138aaa4` rejeu matérialisation
+· G.2 `464515b` canal design_questions (squelette, retour au modèle) · timeout s9 `85537cd` · coercition+budget 3 `00e4637`.
+**Runs 10a-10f** : 10d = LA PREUVE (boucle convergée round 2, shared 100 %, nommage escaladé ; Prisme 22/22 sourcé GM ; grey blocks 20/20 ;
+economy.json lu) mort au timeout s9 ; les autres = ruptures 10/11 (forme haiku, canal) et limite d'usage — toutes corrigées ou tracées.
+Runs 10g/10h : 10g = 2ᵉ convergence (2/2, bidirectionnelle, sans rejeu) puis builder tué par la limite d'usage ; 10h =
+`kitten_clicker-20260824d` : Art R1 OK (3 questions, 2 bloquantes) puis **HALTED à GM R1 après 3 tentatives** — vraie mesure de
+canal cette fois (append-only violé ×2 MALGRÉ le retour listant les ids, fence vide ×1) : le canal a convergé aux runs 10d/10g et
+oscille ici. **Décision Pierre : run 10h EN OBSERVATION (artefacts intacts, pas de relance) + AUDIT DE CONCEPTION lancé** (10 boucles
+de gameplay, matrice, 6 versions, FREEZE_ALLOWED) — **LIVRÉ et confronté** : `docs/audit/2026-08-24-kitten-clicker-loop-completeness-audit.md`.
+**GAME_CONCEPT = PARTIAL** : 5 boucles/6 sans métrique exclusive ; quest/world/skill sans slot ; consommation du design non prouvée
+(`design:` jamais résolu) ; V1→V6 : la PREUVE a progressé (rôles 0→13) bien plus vite que la BOUCLE (actions jouables 1→4, figé dès V4) ;
+une seule ressource, prestige = multiplicateur, aucun lieu jouable, aucune quête récompensée sur les 6 versions ; `product_snapshot`
+V2→V6 = « comment passer les oracles » ; faux déblocage V6 (affordances inertes) = recoupé red-team run 9. FREEZE_ALLOWED=false (10h).
+**LOT RECOMMANDÉ (unique)** : découpler la mémoire de design du succès du build — écrire `heritage/` dès le design_freeze
+(10d/10g ont convergé puis tout perdu à s9 ; 10h repart de zéro). **Réponse Pierre : `heritage/` corrige la MÉMOIRE, le problème
+principal est la CONCEPTION MUTUELLE → Lot C.3 — Game Loop Architecture Contract** (« quel jeu la Forge essaie-t-elle de produire ? ») :
+**PROPOSED** `studio_brain/gamedesign/kitten_clicker_game_loop_architecture_v1.md` — 10 boucles × 14 champs, matrice
+produit/consomme/débloque, règle dure « aucune boucle sans producteur ET consommateur », verdict de complétude auto-appliqué 6/10
+(les 4 manquantes = la liste MISSING de l'audit : Content métrique propre · Skill slot · Quest récompense · World consommateur GM
+— évolutions du SCHÉMA GM, futur lot). C.2 non ratifiée « telle quelle » : C.3 fait foi au-dessus après ratification. Test de
+reconstruction : passe 1 = 3 contradictions / 5 questions → **V1.1** (14ᵉ champ MÉTRIQUE_PROPRE explicité, DOUBLE verdict :
+complétude architecturale 6/10, complétude MESURÉE 1/10 — la meta seule ; WireMap exige 10/10 architectural) ; passe 2 : 0 invention, verdicts reproduits, 3 contradictions de matrice → **V1.2** (Débloque = boucles aval, source du 1/10 citée).
+**C.3 V1.2 RATIFIÉ** (réserve : 6/10 = diagnostic, jamais un seuil ; la WireMap exige 10/10 et n'invente rien) · **C.4 V1.1**
+protocole de complétion par boucle + R1/R2 + DEFERRED humain (tests vierges : 0 contradiction) — détail : journal `…-decision-produit.md`.
+**C.4 V1.1 RATIFIÉ Pierre 2026-08-24** (verrou : le lot ne « fait pas passer » Kitten — il rend la Forge INCAPABLE de déclarer
+un jeu complet sans boucles fermées). **Lot C.4-code EN COURS** (plan `docs/superpowers/plans/2026-08-24-forge-lot-c4-code-boucles.md`) :
+agent A (schéma 9 boucles objets produces/consumes/unlocks/transformation_perceptible/metric_propre exclusif ; loop_id obligatoire ;
+R1 étendu) · agent B (design_state PAR BOUCLE, COMPLETE calculé, DEFERRED humain via `design/deferred_loops.json` — créé, ratification
+Pierre matérialisée : core+gameplay exigées, 7 différées · R3-lite « réponse sans modification = théâtre » · gate freeze réécrite ·
+heritage/ AU FREEZE) · tasks.json s2.5/s2.7 : protocole par boucle. Critère du lot : le gm du run 10h (valide aujourd'hui) doit être
+REFUSÉ ; un design honnêtement partiel doit PASSER. Ancien plan : UN lot de code (schéma GM 10 boucles + MÉTRIQUE_PROPRE + R1/R2
+dans validateur/gate + heritage/ au freeze) puis relance.** Archives scratchpad `run10*_halted/` ; runs 1-9 archivés `_runN_*/`.
 
 ### Prochaine étape
 0. **Décision Pierre 2026-08-23 (après C.1/V2.1) : STOP Lots D/E tels que prévus.** « Assez de documentation économique, pas assez de
@@ -64,39 +83,10 @@ sourcées GM, `game_master` absent → refus. `check_prisme_manifest.mjs` reste 
    scène ; règle maîtresse **UNLOCK = possibilité perceptible, jamais +X %** ; la carte = système de progression (états, saisons) ; départ
    = panier + coussin + jardin fermé + album de silhouettes (plus de 6 chatons décoratifs). Architecture cible : boucle de conception
    ART ↔ GM AVANT le WireMap (design freeze) + réconciliation APRÈS — à planifier, pas de station nouvelle.
-0b. **Doctrine Pierre 2026-08-23 (mémoire `mutual_completion_loop_doctrine`)** : le jeu ÉMERGE de l'échange Art ↔ GM ; « un agent
-   n'est pas obligé de savoir, il est obligé de savoir ce qu'il ne sait pas et de le demander au bon agent » ; pas de design freeze
-   avec une question ouverte ; WireMap à la convergence. Mesuré : aucun alias d'étape, steps = dict par id, seul échange = inter-run.
-   **Lot F PROPOSED** `docs/superpowers/plans/2026-08-23-forge-lot-f-boucle-completion-mutuelle.md` : alias d'étape (s2.5/s2.7 en
-   2 rondes), `design_questions.json` partagé (« il me manque X », réponses, blocking, ready_for_freeze), `design_state.json`, gate
-   `design_freeze` avant s1 (HALTED « design non convergé » = un résultat). **GO Pierre 2026-08-23 : Lot F · 2 rondes · ordre F → D →
-   run 10 · C.2 V1.1b RATIFIÉE.** Lot F T1–T4 livrés et CONFRONTÉS : alias `-r<N>` (`contract.base_step`, source unique), profil
-   `full_godot_content` = 19 étapes (s2.5 → s2.7 → s2.5-r2 → s2.7-r2 → s1), `design_questions.json` (fence ```design_questions, validateur
-   : about/answer résolus, ready refusé si question reçue sans réponse, PARTIAL toléré en R1 si ≥ 1 question bloquante), `design_state.json`
-   + gate `design_freeze` avant s1 (HALTED « design non convergé »), tâches R1/R2 avec la graine C.2. **Commit `c3f82de`** (pytest 324, Node 1011).
-   **Lot D en cours** (agent : fuite 1 `replay_ref` dans la sonde, fuite 2 tri alphabétique → ordre du Prisme, fuite 3 injection
-   `design_intent.md` + `design/*.md` à s2.5/s2.7/s1/s9, contrat s2.7 : graphes adressables + `unlock`/`next_goal`) ; Fable : C.1 §9 et V2.1 §6
-   réalignés sur C.2, dépôt `lab/forge_runs/kitten_clicker/design/`. **Lot D commité `3565de5`** (J : delta 96 passif → 256 vrai clic).
-   **Run 10 `kitten_clicker-20260823c` LANCÉ depuis la session** (profil 19 étapes avec boucle Art↔GM ; `design/calibration.md` RETIRÉ du
-   run_dir faute de ratification V2.1 — option (b), copie au scratchpad `run10_hold/`). **Runs 10a `…c` et 10b `…d` HALTED à s2 en
-   10 min chacun : JSON de 18 Ko cassé par haiku (rupture 10, 3ᵉ occurrence : refus de matérialisation = BLOCKED terminal, aucun rejeu
-   par étape — le pool ne rejoue que s9 sur un rouge d'oracle). Décision Fable (réversible, commit séparé) : Lot G = ≤ 2 tentatives
-   par étape sur refus de matérialisation avec sortie produite — **commit `138aaa4`**. **Run 10c `…e` : s2 OK, Art R1 OK (8 sections, 7 questions dont 1 bloquante : nommage des chatons), GM R1 OK
-   (`game_master` complet, 18 grey blocks, invariants de la graine) — mais l'Artiste écrit ses questions en PROSE dans le fence et le GM
-   n'émet aucun fence (« will not emit ») : `design_questions.json` jamais matérialisé, reçu perdu (littéral de clés, 3ᵉ occurrence),
-   HALTED à Art R2 « aucun bloc » (message trompeur) sans rejeu (détecteur Lot G trop étroit, et un rejeu aurait rejoué le même prompt).
-   **Rupture 11 = canal de dialogue sensible à la forme** ; ≈ 12 $ ; scratchpad `run10c_halted/`. **Lot G.2 en cours** : fence JSON|YAML,
-   exigé dès R1, refus rejouable AVEC retour du matérialiseur dans le prompt, reçus copiés, squelette JSON exact dans contrats + tâches
-   — **commit `464515b`**. **Run 10d `…f` : LA BOUCLE A CONVERGÉ** — Art R1 fence JSON du 1er coup (4 questions dont nommage bloquant),
-   3 rejeux G.2 réussis en vivo (GM R1 append-only, Art R2 answer.round, s1 bloc JSON), GM R2 répond 4/4 (nommage : « hors autorité
-   de toute station amont » → HumanGate), **design_freeze passed round 2, shared 100 %** ; s1 : 22/22 exigences sourcées GM (0/13 au
-   run 9), loop.json 20 steps ordre du Prisme, DECISION avant les UNLOCK ; s3 : 20/20 grey blocks décomposés ; economy.json copié
-   par le builder. **HALTED à s9 : timeout 5400 s (57 fichiers)** → fix `5400→9000` commité `85537cd`. Run 10e `…a` tué à s2 par la LIMITE D'USAGE (claude -p rc=1, pas une rupture) → **run 10f `kitten_clicker-20260824b` relancé après reset**.
-   Passif re-mesuré : `check_wiremap_contract` 0/7 (EFFECT_KINDS étroit + non consommé — dette connue).
-1. **Lot C.2 — Gameplay Loop & Content Contract V1 : PROPOSED** `studio_brain/gamedesign/kitten_clicker_gameplay_loop_content_contract_v1.md`
-   (9 sections : core/player/progression/meta/content/economy loops, arbre de possibilités, échange Art↔GM, WireMap gate à 5 questions ;
-   tableau de contenu par progression). Test de reconstruction « scène » : passe 1 : 0 compteur, 7 inventions / 3 contradictions → V1.1 ; passe 2 : 0 contradiction, 0 compteur → V1.1b (§11, 15 réponses). À ratifier AVANT tout WireMap ; C.1 et V2.1 seront
-   réalignés dessus (objets/interactions remplacent les améliorations abstraites). C.1 RATIFIÉ reste la colonne vertébrale ; V2.1 non ratifiée.
+0b. Doctrine boucle de complétion mutuelle : mémoire `mutual_completion_loop_doctrine` + Lot F livré (archivé au journal).
+
+1. Design ratifiés : C.1 V1.2 (+§9 réaligné C.2) · C.2 V1.1b (graine) · C.3 V1.2 · C.4 V1.1 ; Calibration V2.1 PROPOSED (H5).
+
 2. (après C.2 ratifié) réalignement C.1/V2.1 → Lot D fuites (J `replay_ref`, tri
    alphabétique → ordre du Prisme, `design_intent`) · Lot E run 10 (`kitten_clicker-20260823c`) → P5 HumanGate.
 3. Gates : merge/reject des artefacts non commités (runs 7-9, audits) ; push de `f1bce0d` `0a9f4d4` `b75f165` + Lot A.

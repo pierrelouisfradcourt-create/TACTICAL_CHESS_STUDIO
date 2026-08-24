@@ -23,7 +23,8 @@ _RUN_DIR = REPO_ROOT / "lab" / "forge_runs" / "kitten_clicker"
 # (même convention que la fixture charter du run 1, `_run1_20260821-1312/`).
 _FIXTURE = next(
     (p for p in (
-        _RUN_DIR / "artifacts" / "s2-worldscan.failed.txt",
+        # Archive d'abord : le run_dir vivant porte le failed.txt du RUN COURANT
+        # (contenu différent à chaque run) — la fixture du défaut mesuré est l'archive.
         _RUN_DIR / "_run2_20260821b" / "artifacts" / "s2-worldscan.failed.txt",
     ) if p.exists()),
     _RUN_DIR / "_run2_20260821b" / "artifacts" / "s2-worldscan.failed.txt",

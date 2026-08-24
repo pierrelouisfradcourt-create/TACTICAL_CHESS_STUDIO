@@ -44,6 +44,18 @@
 # étape ne devient pas gate mécaniquement sur les 8 nouvelles sections, la preuve de
 # CONSOMMATION de leur contenu se fait en aval, sur `gm_worldscan.json.sources_consumed`
 # (cf. s2.7-gm-worldscan.yaml).
+#
+# LOT C.4-code (2026-08-24, docs/superpowers/plans/2026-08-24-forge-lot-c4-code-boucles.md,
+# ratification C.4 V1.1 Pierre) : le canal `design_questions` (round 1 ci-dessous)
+# porte desormais `loop_id` OBLIGATOIRE sur chaque question — une des 9 boucles C.3
+# (core_loop, gameplay_loop, progression_loop, content_loop, economy_loop, skill_loop,
+# world_loop, quest_loop, meta_loop) ou 'art_gm' pour une question sur le protocole
+# lui-meme. Cote ART (cette etape) : le protocole C.4 te demande de VERIFIER, pour
+# CHAQUE boucle que le GM te soumet, la representation de chaque etat/animation/
+# affordance qu'elle exige, et de DEMANDER (question `loop_id`-nommee, blocking si
+# necessaire) ce qui manque — jamais de deviner silencieusement une regle d'affordance.
+# Reference normative : studio_brain/gamedesign/kitten_clicker_mutual_completion_
+# contract_v1.md (le protocole par boucle, R1/R2).
 
 # --- 1. Identité / posture cognitive (Critique) ---
 role: >-
@@ -147,21 +159,25 @@ objectif: >-
   CONTIENT QUE l'objet JSON, RIEN D'AUTRE -- aucun titre markdown, aucune puce,
   aucune prose, aucun YAML. Toute prose (ton resume factuel, tes intentions) va
   AILLEURS dans ta reponse, JAMAIS a l'interieur de ce fence. Squelette EXACT a
-  recopier (adapte `from`/`to`/`about` a TON pilier -- ART ici ; `about` pointe
-  TON PROPRE artefact, jamais celui du Game Master) :
+  recopier (adapte `from`/`to`/`about`/`loop_id` a TON pilier -- ART ici ;
+  `about` pointe TON PROPRE artefact, jamais celui du Game Master ; `loop_id`
+  EST OBLIGATOIRE, DEPUIS LE LOT C.4-code -- la boucle C.3 dont tu verifies la
+  representation, ou 'art_gm' pour une question sur le protocole lui-meme) :
   ```design_questions
   {"schema_version": 1, "round": 1, "questions": [{"id": "q_art_001", "from":
-  "ART", "to": "GM", "round": 1, "about": "art_bible:<ta_section>", "missing":
-  ["..."], "why": "...", "blocking": true, "answer": null}], "declarations":
+  "ART", "to": "GM", "round": 1, "about": "art_bible:<ta_section>",
+  "loop_id": "core_loop", "missing": ["..."], "why": "...", "blocking": true,
+  "answer": null}], "declarations":
   {"ART": {"round": 1, "ready_for_freeze": false, "open_to_gm": 1}, "GM":
   {"round": 1, "ready_for_freeze": false, "open_to_art": 0}}}
   ```
   `answer.ref` (round 2) pointe lui aussi TON artefact (la section
   d'art_bible.md ou tu as repondu). Une sortie SANS ce fence, ou dont le fence
-  n'est ni JSON ni YAML structure, est REFUSEE et rejouee avec le retour du
-  materialiseur (cf. forge.driver._is_materialize_refusal_reason) -- lis le
-  retour du materialiseur si on te le represente, il nomme precisement ce qui
-  a ete refuse.
+  n'est ni JSON ni YAML structure, ou dont une question ne porte pas de
+  `loop_id` valide, est REFUSEE et rejouee avec le retour du materialiseur
+  (cf. forge.driver._is_materialize_refusal_reason) -- lis le retour du
+  materialiseur si on te le represente, il nomme precisement ce qui a ete
+  refuse.
   Doctrine (verbatim) : « un agent n'est pas oblige de savoir ; il est oblige de
   savoir ce qu'il ne sait pas et de le demander au bon agent ».
 
