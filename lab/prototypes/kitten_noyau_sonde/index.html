@@ -1,0 +1,576 @@
+<title>Qui va où</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,300&family=Karla:wght@400;600&display=swap">
+
+<style>
+  /* ── Sonde « noyau ludique » — Kitten · 3 tableaux ───────────────────────
+     Un seul monde visuel : une maison à la tombée du jour, du bas vers le haut,
+     puis dehors. AUCUN compteur, AUCUN achat, AUCUN écran de fin.
+
+     GRAMMAIRE DES CHATONS (la même dans les trois tableaux) :
+       CURIEUX  remarque → grimpe → FAIT TOMBER quelque chose
+       JOUEUR   trouve   → POUSSE  → dégage un espace
+       PEUREUX  évite    → SE FAUFILE là où personne d'autre ne passe
+     Le joueur doit pouvoir ANTICIPER : c'est ce que la sonde mesure.
+
+     Temps courts et volontaires : réaction ~0,9 s · transformation ~1,4 s ·
+     chaton suivant ~0,8 s. Barre de test dessous pour rejouer sans tout refaire. */
+  :root {
+    --nuit:#14171C; --mur:#242932; --mur-h:#2E3540; --plancher:#2C2722; --bois:#3E362D;
+    --lampe:#E9B872; --lueur:#F7E0B0; --dehors:#2F4256; --craie:#DCD6C9; --brume:#8C8578;
+    --herbe:#3B4A33; --nuit-jardin:#1B2430;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--nuit); color:var(--craie);
+    font-family:Karla,"Segoe UI",system-ui,sans-serif;
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:22px 20px;
+  }
+  .cadre { width:min(1000px,100%); display:flex; flex-direction:column; gap:14px; }
+  h1 { font-family:Fraunces,Georgia,serif; font-weight:300; font-size:clamp(18px,2.7vw,26px);
+       margin:0; color:var(--craie); text-wrap:balance; line-height:1.28; }
+  h1 em { font-style:italic; font-weight:500; color:var(--lampe); }
+  .sous { font-size:13px; color:var(--brume); margin:0; max-width:64ch; line-height:1.6; }
+
+  .piece { position:relative; width:100%; aspect-ratio:16/9; border-radius:3px;
+           overflow:hidden; box-shadow:0 18px 50px -26px #000; background:var(--mur); }
+  svg#scene { display:block; width:100%; height:100%; }
+
+  .place { cursor:pointer; }
+  .place[data-libre="0"] { cursor:default; }
+  .place:focus, .place:focus-visible { outline:none; }
+  .place .halo-cible { opacity:0; transition:opacity .2s ease; }
+  .place.cible .halo-cible { opacity:.8; animation:pulse 1.5s ease-in-out infinite; }
+  .place:hover .halo-cible { opacity:.42; }
+  .place:focus-visible .halo-cible { opacity:1; }
+  @keyframes pulse { 0%,100%{opacity:.35} 50%{opacity:.95} }
+  .etiquette { font-family:Karla,sans-serif; font-size:19px; letter-spacing:.14em;
+               text-transform:uppercase; fill:var(--brume); opacity:0; transition:opacity .2s ease; }
+  .place:hover .etiquette, .place.cible .etiquette { opacity:.9; }
+
+  .chat { cursor:pointer; transition:transform .42s cubic-bezier(.34,.9,.4,1); }
+  .chat:focus, .chat:focus-visible { outline:none; }
+  .chat .lueur-pris { opacity:0; transition:opacity .18s ease; }
+  .chat.pris .lueur-pris, .chat:focus-visible .lueur-pris { opacity:.9; }
+
+  /* ce que chaque chaton FAIT quand il attend — sa signature */
+  .c-curieux .corps { animation:remarque 2.6s ease-in-out infinite; transform-origin:center bottom; }
+  .c-joueur  .corps { animation:tapote  1.0s cubic-bezier(.5,0,.5,1) infinite; transform-origin:center bottom; }
+  .c-peureux .corps { animation:evite   2.2s ease-in-out infinite; transform-origin:center bottom; }
+  .c-trouve  .corps { animation:remarque 3.4s ease-in-out infinite; transform-origin:center bottom; }
+  @keyframes remarque { 0%,100%{transform:translateY(0) rotate(-8deg)}    /* il tend le cou, il balaie */
+                        30%{transform:translateY(-14px) rotate(0deg)}
+                        62%{transform:translateY(-14px) rotate(11deg)} }
+  @keyframes tapote   { 0%,100%{transform:translateY(0) rotate(0deg)}     /* il donne des coups de patte */
+                        26%{transform:translateY(-19px) rotate(-10deg)}
+                        56%{transform:translateY(0) rotate(8deg)} }
+  @keyframes evite    { 0%,56%,100%{transform:translateY(8px) scaleY(.78)} /* il se tasse, il sursaute */
+                        62%{transform:translateY(0) scaleY(.95)}
+                        70%{transform:translateY(8px) scaleY(.78)} }
+
+  .chat.agit .corps { animation:agit .55s ease-in-out 2; }
+  @keyframes agit { 0%,100%{transform:translate(0,0) rotate(0)}
+                    35%{transform:translate(14px,-24px) rotate(-14deg)}
+                    70%{transform:translate(-6px,4px) rotate(8deg)} }
+  .chat.dort .corps { animation:souffle 3.2s ease-in-out infinite; }
+  @keyframes souffle { 0%,100%{transform:scale(1)} 50%{transform:scale(1.045)} }
+  .chat.ailleurs .corps { animation:ailleurs 3.4s ease-in-out infinite; }
+  @keyframes ailleurs { 0%,42%,100%{transform:rotate(0) translateY(0)}
+                        56%,82%{transform:rotate(-17deg) translateY(-10px)} }
+  .zzz { opacity:0; }
+  .chat.dort .zzz { animation:monte 3.2s ease-in-out infinite; }
+  @keyframes monte { 0%{opacity:0;transform:translate(0,0)} 35%{opacity:.7}
+                     100%{opacity:0;transform:translate(26px,-46px)} }
+
+  .surgit { animation:surgit .55s ease both; }
+  @keyframes surgit { from{opacity:0} to{opacity:1} }
+
+  .bas { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .murmure { font-family:Fraunces,Georgia,serif; font-style:italic; font-weight:300;
+             font-size:15px; color:var(--brume); margin:0; min-height:1.5em;
+             transition:opacity .28s ease; line-height:1.5; flex:1 1 340px; }
+  .murmure b { font-family:Karla,sans-serif; font-style:normal; font-weight:600;
+               font-size:13px; color:var(--lueur); }
+  .test { display:flex; align-items:center; gap:7px; }
+  .test span { font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:#565C64; }
+  .test button { background:none; border:1px solid #343A42; color:var(--brume);
+                 font-family:Karla,sans-serif; font-size:11px; letter-spacing:.1em;
+                 padding:6px 11px; border-radius:2px; cursor:pointer;
+                 transition:border-color .18s,color .18s; }
+  .test button:hover { border-color:var(--lampe); color:var(--lueur); }
+  .test button[aria-current="true"] { border-color:var(--lampe); color:var(--lueur); }
+  .test button:focus-visible { outline:2px solid var(--lampe); outline-offset:2px; }
+
+  @media (prefers-reduced-motion:reduce) {
+    *,*::before,*::after { animation-duration:.001ms !important; animation-iteration-count:1 !important;
+                           transition-duration:.1s !important; }
+  }
+</style>
+
+<div class="cadre">
+  <h1>Chaque chaton habite le décor à sa façon. <em>Qui va où&nbsp;?</em></h1>
+  <p class="sous">Prends un chaton, pose-le quelque part, regarde ce qu'il y fait — et ce que ça change.
+    Trois tableaux, de la cave au jardin. Rien ne s'achète, rien ne se compte.</p>
+
+  <div class="piece">
+    <svg id="scene" viewBox="0 0 1600 900" role="application" aria-label="La maison">
+      <defs>
+        <radialGradient id="glow"><stop offset="0" stop-color="#F7E0B0" stop-opacity=".30"/>
+          <stop offset="1" stop-color="#F7E0B0" stop-opacity="0"/></radialGradient>
+        <radialGradient id="cible"><stop offset=".55" stop-color="#E9B872" stop-opacity="0"/>
+          <stop offset="1" stop-color="#E9B872" stop-opacity=".45"/></radialGradient>
+        <linearGradient id="ciel" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#26374A"/><stop offset="1" stop-color="#3C5470"/></linearGradient>
+        <linearGradient id="nuitjardin" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#151D28"/><stop offset="1" stop-color="#2A3A46"/></linearGradient>
+      </defs>
+      <g id="decor"></g>
+      <g id="places"></g>
+      <g id="chats"></g>
+    </svg>
+  </div>
+
+  <div class="bas">
+    <p class="murmure" id="murmure">Le refuge est vide.</p>
+    <div class="test">
+      <span>test</span>
+      <button type="button" data-t="0">1</button>
+      <button type="button" data-t="1">2</button>
+      <button type="button" data-t="2">3</button>
+      <button type="button" id="rejouer">rejouer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const NS = "http://www.w3.org/2000/svg";
+  const $decor = document.getElementById("decor");
+  const $places = document.getElementById("places");
+  const $chats = document.getElementById("chats");
+  const $murmure = document.getElementById("murmure");
+
+  const el = (t, a, p) => { const n = document.createElementNS(NS, t);
+    for (const k in a) n.setAttribute(k, a[k]); if (p) p.appendChild(n); return n; };
+  const vide = n => { while (n.firstChild) n.removeChild(n.firstChild); };
+
+  /* ── temps : courts et déclarés (cadrage Pierre, 2026-08-28) ───────────── */
+  const T_REACTION = 900, T_TRANSFO = 1400, T_SUIVANT = 800, T_PARTIR = 2400;
+
+  const ROBES = {
+    curieux:{poil:"#C9873F",ventre:"#E8BA82",oeil:"#8FD3C7"},
+    peureux:{poil:"#8C8892",ventre:"#BCB8C0",oeil:"#E0B96E"},
+    joueur: {poil:"#38332F",ventre:"#5C544C",oeil:"#A7D48F"},
+    trouve: {poil:"#B4563F",ventre:"#DC9070",oeil:"#8FD3C7"}
+  };
+  const FAIT = {                     // sa signature, en un mot — jamais un lieu
+    curieux:"il remarque tout, et il grimpe",
+    joueur: "il pousse tout ce qui traîne",
+    peureux:"il évite, il se faufile",
+    trouve: "il vient à peine d'arriver"
+  };
+  const REFUS = {                    // ce qu'il fait quand l'endroit ne lui va pas
+    curieux:"Il s'assied là… il n'y a rien à remarquer.",
+    joueur: "Il cherche quelque chose à pousser. Il n'y a rien.",
+    peureux:"Il se fige à découvert. Il ne bouge plus.",
+    trouve: "Il ne sait pas encore quoi faire ici."
+  };
+
+  let S, tableau;
+
+  /* ══════════════════════════════════════════════════════════════════════
+     LES TROIS TABLEAUX — chacun : un comportement · un élément de décor ·
+     une transformation · un nouveau chaton · un nouveau lieu.
+     ══════════════════════════════════════════════════════════════════════ */
+  const TABLEAUX = [
+
+  /* ── 1 · LE REFUGE ────────────────────────────────────────────────────── */
+  {
+    nom: "le refuge", depart: ["peureux"],
+    ouverture: "Un chaton entre — <b>il évite, il se faufile</b>. Prends-le, puis choisis un endroit.",
+    fond(g) {
+      el("rect", {x:0,y:0,width:1600,height:560,fill:"var(--mur)"}, g);
+      el("rect", {x:0,y:0,width:1600,height:560,fill:"var(--mur-h)",opacity:".5"}, g);
+      el("rect", {x:0,y:560,width:1600,height:340,fill:"var(--plancher)"}, g);
+      el("rect", {x:0,y:552,width:1600,height:14,fill:"var(--bois)"}, g);
+      for (let x=0; x<1600; x+=118)
+        el("line", {x1:x,y1:566,x2:x-40,y2:900,stroke:"#221E1A","stroke-width":"2",opacity:".55"}, g);
+      // l'escalier
+      el("path", {d:"M0 250 L470 560 L0 560 Z", fill:"#191D23"}, g);
+      el("path", {d:"M0 250 L470 560", stroke:"var(--bois)","stroke-width":"16"}, g);
+      for (let i=1;i<6;i++) { const t=i/6, x=470*t, y=250+310*t;
+        el("path", {d:`M${x} ${y} l0 -46 l-64 0`, stroke:"#414A56","stroke-width":"10",fill:"none"}, g); }
+      // la lampe
+      el("line", {x1:1150,y1:0,x2:1150,y2:150,stroke:"#4A4238","stroke-width":"5"}, g);
+      el("path", {d:"M1090 150 L1210 150 L1186 216 L1114 216 Z", fill:"#6B5B45"}, g);
+      el("ellipse", {cx:1150,cy:216,rx:36,ry:9,fill:"var(--lueur)",opacity:".85"}, g);
+      el("ellipse", {cx:1150,cy:420,rx:520,ry:420,fill:"url(#glow)"}, g);
+    },
+    decor(g, F) {
+      // l'étagère : ses livres sont la matière du tableau
+      el("rect", {x:1230,y:298,width:280,height:20,rx:5,fill:"var(--bois)"}, g);
+      el("path", {d:"M1260 318 l16 34 M1480 318 l-16 34", stroke:"var(--bois)","stroke-width":"11"}, g);
+      if (!F.planches) {
+        [[1266,236,38,62,"#7A6E5A"],[1314,254,30,44,"#665B4C"],
+         [1354,244,34,54,"#8A7C64"],[1396,262,28,36,"#6E6252"]].forEach(([x,y,w,h,c]) =>
+          el("rect", {x,y,width:w,height:h,rx:5,fill:c}, g));
+      }
+      if (F.montee) {                                  // en haut, ça s'éclaire
+        const h = el("g", {class:"surgit"}, g);
+        el("path", {d:"M0 252 L150 252 L150 110 L0 110 Z", fill:"var(--lueur)", opacity:".12"}, h);
+        el("ellipse", {cx:70,cy:236,rx:240,ry:190,fill:"url(#glow)",opacity:".85"}, h);
+      }
+    },
+    places: {
+      coin: { nom:"le coin", x:120,y:600,w:300,h:150, pour:"peureux",
+        dessine(g, F) {
+          if (F.nid) {
+            el("ellipse", {cx:150,cy:120,rx:150,ry:44,fill:"#6A4E3C"}, g);
+            el("ellipse", {cx:150,cy:112,rx:118,ry:32,fill:"#A97C5E"}, g);
+            el("ellipse", {cx:150,cy:112,rx:118,ry:32,fill:"var(--lampe)",opacity:".16"}, g);
+          } else {
+            el("ellipse", {cx:150,cy:120,rx:126,ry:38,fill:"#6E5347"}, g);
+            el("ellipse", {cx:150,cy:114,rx:104,ry:28,fill:"#8A6A58"}, g);
+          }
+        } },
+      fenetre: { nom:"la fenêtre", x:150,y:110,w:340,h:300, pour:"curieux",
+        dessine(g, F) {
+          el("rect", {x:0,y:0,width:340,height:300,rx:4,fill:"url(#ciel)"}, g);
+          for (let i=0;i<9;i++)
+            el("circle", {cx:26+((i*77)%310),cy:24+((i*103)%230),r:2.6,fill:"#DCE9F5",opacity:".55"}, g);
+          if (F.oiseau) { const o = el("g", {class:"surgit"}, g);
+            el("ellipse", {cx:96,cy:212,rx:26,ry:17,fill:"#8098AE"}, o);
+            el("circle", {cx:70,cy:200,r:13,fill:"#8098AE"}, o);
+            el("path", {d:"M58 199 l-15 5 15 5z", fill:"var(--lampe)"}, o);
+            el("circle", {cx:66,cy:196,r:2.6,fill:"#14171C"}, o); }
+          el("rect", {x:0,y:0,width:340,height:300,rx:4,fill:"none",stroke:"var(--bois)","stroke-width":"18"}, g);
+          el("line", {x1:170,y1:0,x2:170,y2:300,stroke:"var(--bois)","stroke-width":"14"}, g);
+          el("line", {x1:0,y1:150,x2:340,y2:150,stroke:"var(--bois)","stroke-width":"14"}, g);
+          el("rect", {x:-24,y:296,width:388,height:26,rx:5,fill:"var(--bois)"}, g);
+        } },
+      table: { nom:"la table", x:990,y:400,w:460,h:330, pour:"joueur",
+        libre: F => F.planches,                       // rien à pousser tant qu'elle est nue
+        dessine(g, F) {
+          el("rect", {x:0,y:150,width:460,height:30,rx:5,fill:"#7A6047"}, g);
+          el("rect", {x:0,y:150,width:460,height:11,rx:5,fill:"#93764F"}, g);
+          el("rect", {x:34,y:180,width:26,height:150,fill:"var(--bois)"}, g);
+          el("rect", {x:400,y:180,width:26,height:150,fill:"var(--bois)"}, g);
+          if (F.atelier) {
+            [40,74,108].forEach((x,i) => el("rect", {x,y:96+i*4,width:20,height:54,rx:8,fill:"#A6957A"}, g));
+            el("path", {d:"M190 150 q86 -84 172 0 z", fill:"#B98F5E"}, g);
+            el("path", {d:"M190 150 q86 -84 172 0", stroke:"#8A6A44","stroke-width":"10",fill:"none"}, g);
+          } else if (F.planches) {
+            [[70,-22],[210,9],[330,26]].forEach(([x,rot],i) =>
+              el("rect", {x,y:92+(i%2)*6,width:22,height:56,rx:8,fill:"#A6957A",
+                          transform:`rotate(${rot} ${x+11} ${98+(i%2)*6})`}, g));
+          }
+        } },
+      escalier: { nom:"monter", x:40,y:180,w:300,h:260, pour:"*",
+        visible: F => F.montee, passage: 1,
+        dessine(g) { el("path", {d:"M20 250 l120 -80 l0 60 l-120 80z", fill:"var(--lueur)", opacity:".22"}, g); } }
+    },
+    // le chaton dont c'est l'endroit AGIT — et son action transforme le décor
+    agit: {
+      coin: { texte:"Il se faufile au fond, sous les marches, là où personne ne va.",
+              transfo:"Il tire une vieille couverture et s'y love. <b>Le coin devient un nid.</b>",
+              fait: F => { F.nid = true; }, dort:true, puis:"curieux" },
+      fenetre: { texte:"Il remarque un oiseau derrière la vitre. Il grimpe sur le rebord.",
+                 avant: F => { F.oiseau = true; },
+                 transfo:"En voulant l'attraper, <b>il fait tomber les livres de l'étagère.</b> Les planches atterrissent sur la table.",
+                 fait: F => { F.planches = true; }, puis:"joueur" },
+      table: { texte:"Il pousse une planche, la reprend, recommence.",
+               transfo:"À force d'être poussées, les planches s'assemblent. <b>La table devient un atelier — un panier en sort.</b>",
+               fait: F => { F.atelier = true; F.montee = true; }, puis:"trouve", ailleurs:true }
+    }
+  },
+
+  /* ── 2 · L'ÉTAGE ──────────────────────────────────────────────────────── */
+  {
+    nom: "l'étage", depart: ["joueur"],
+    ouverture: "En haut, une pièce encombrée. <b>Le joueur est monté avec toi.</b>",
+    fond(g) {
+      el("rect", {x:0,y:0,width:1600,height:600,fill:"#1F242B"}, g);
+      el("rect", {x:0,y:600,width:1600,height:300,fill:"#2A251F"}, g);
+      el("rect", {x:0,y:592,width:1600,height:14,fill:"var(--bois)"}, g);
+      el("path", {d:"M0 0 L520 0 L0 330 Z", fill:"#171B21"}, g);        // rampant du toit
+      el("path", {d:"M520 0 L0 330", stroke:"var(--bois)","stroke-width":"14"}, g);
+      for (let x=90; x<1600; x+=150)
+        el("line", {x1:x,y1:0,x2:x,y2:600,stroke:"#191D23","stroke-width":"7",opacity:".7"}, g);
+      el("ellipse", {cx:300,cy:640,rx:340,ry:200,fill:"url(#glow)",opacity:".5"}, g);
+    },
+    decor(g, F) {
+      if (F.fente) {                                   // la fente que la malle cachait
+        el("path", {d:"M1250 470 l34 -14 l0 150 l-34 -12z", fill:"#0D1015"}, g);
+        el("path", {d:"M1250 470 l34 -14", stroke:"#4A5460","stroke-width":"5"}, g);
+      }
+      if (F.lucarne) {                                 // le volet s'ouvre, la lune entre
+        const l = el("g", {class:"surgit"}, g);
+        el("ellipse", {cx:330,cy:250,rx:300,ry:230,fill:"url(#glow)",opacity:".7"}, l);
+      }
+    },
+    places: {
+      malle: { nom:"la malle", x:1130,y:430,w:300,h:200, pour:"joueur",
+        dessine(g, F) {
+          const dx = F.malle_poussee ? -74 : 0;
+          const m = el("g", {transform:`translate(${dx} 0)`}, g);
+          el("rect", {x:20,y:60,width:250,height:130,rx:8,fill:"#5C4632"}, m);
+          el("rect", {x:20,y:60,width:250,height:34,rx:8,fill:"#7A5E42"}, m);
+          el("rect", {x:120,y:96,width:46,height:34,rx:4,fill:"#A6957A"}, m);
+          el("path", {d:"M20 128 l250 0", stroke:"#3E2F21","stroke-width":"6"}, m);
+        } },
+      fente: { nom:"la fente", x:1210,y:440,w:130,h:200, pour:"peureux",
+        visible: F => F.fente, libre: F => F.fente,
+        dessine(g) { el("path", {d:"M40 30 l34 -14 l0 150 l-34 -12z", fill:"#0A0D11"}, g); } },
+      lucarne: { nom:"la lucarne", x:170,y:120,w:300,h:250, pour:"curieux",
+        visible: F => F.lucarne, libre: F => F.lucarne,
+        dessine(g, F) {
+          el("rect", {x:0,y:0,width:300,height:250,rx:6,fill:"url(#ciel)"}, g);
+          el("circle", {cx:210,cy:70,r:34,fill:"#E8EEF6",opacity:".8"}, g);
+          el("rect", {x:0,y:0,width:300,height:250,rx:6,fill:"none",stroke:"var(--bois)","stroke-width":"16"}, g);
+          el("line", {x1:150,y1:0,x2:150,y2:250,stroke:"var(--bois)","stroke-width":"12"}, g);
+          if (F.corde) el("path", {d:"M150 250 q30 90 -10 190", stroke:"#8A7C64","stroke-width":"9",fill:"none"}, g);
+        } },
+      toit: { nom:"sortir", x:120,y:330,w:280,h:260, pour:"*",
+        visible: F => F.corde, passage: 2,
+        dessine(g) { el("path", {d:"M60 40 q40 120 -10 210", stroke:"#8A7C64","stroke-width":"11",fill:"none"}, g);
+                     el("ellipse", {cx:56,cy:250,rx:90,ry:26,fill:"var(--lueur)",opacity:".18"}, g); } }
+    },
+    agit: {
+      malle: { texte:"Il trouve la malle, cale ses pattes, et pousse.",
+               transfo:"La malle glisse. <b>Derrière : une fente dans le mur, trop étroite pour lui.</b>",
+               fait: F => { F.malle_poussee = true; F.fente = true; }, puis:"peureux" },
+      fente: { texte:"Il évite la lumière, longe le mur — et se glisse dans la fente.",
+               transfo:"De l'autre côté, il pousse un volet du museau. <b>La lucarne s'ouvre : la lune entre.</b>",
+               fait: F => { F.lucarne = true; }, puis:"curieux" },
+      lucarne: { texte:"Il remarque quelque chose sur le toit et grimpe au rebord.",
+                 transfo:"Il fait basculer un rouleau de corde. <b>Elle pend jusqu'en bas : on peut descendre dehors.</b>",
+                 fait: F => { F.corde = true; }, puis:null }
+    }
+  },
+
+  /* ── 3 · LE JARDIN ────────────────────────────────────────────────────── */
+  {
+    nom: "le jardin", depart: ["curieux"],
+    ouverture: "Dehors, l'herbe est haute. <b>Le curieux est descendu le premier.</b>",
+    fond(g) {
+      el("rect", {x:0,y:0,width:1600,height:520,fill:"url(#nuitjardin)"}, g);
+      for (let i=0;i<40;i++)
+        el("circle", {cx:(i*197)%1580,cy:(i*83)%480,r:i%5?2:3.4,fill:"#DCE9F5",opacity:".5"}, g);
+      el("circle", {cx:1320,cy:130,r:52,fill:"#E8EEF6",opacity:".85"}, g);
+      el("rect", {x:0,y:520,width:1600,height:380,fill:"var(--herbe)"}, g);
+      el("path", {d:"M0 520 q400 -40 800 0 q400 40 800 0 l0 380 l-1600 0z", fill:"#33402C"}, g);
+      for (let x=0; x<1600; x+=34)
+        el("path", {d:`M${x} 900 q10 -60 4 -110`, stroke:"#3F5136","stroke-width":"7",fill:"none",opacity:".8"}, g);
+      el("ellipse", {cx:800,cy:640,rx:760,ry:300,fill:"url(#glow)",opacity:".22"}, g);
+    },
+    decor(g, F) {
+      if (F.planche_poussee) {                         // le rebord du puits, découvert
+        el("ellipse", {cx:830,cy:690,rx:150,ry:52,fill:"#1A1F18"}, g);
+        el("ellipse", {cx:830,cy:676,rx:150,ry:50,fill:"#4A4238"}, g);
+        el("ellipse", {cx:830,cy:676,rx:112,ry:34,fill:"#0C0F0B"}, g);
+      }
+    },
+    places: {
+      arbre: { nom:"l'arbre", x:180,y:150,w:340,h:420, pour:"curieux",
+        dessine(g, F) {
+          el("rect", {x:150,y:250,width:52,height:220,rx:8,fill:"#4A3A2C"}, g);
+          el("ellipse", {cx:176,cy:210,rx:170,ry:120,fill:"#33452C"}, g);
+          el("ellipse", {cx:120,cy:250,rx:110,ry:78,fill:"#2C3B26"}, g);
+          if (!F.pomme_tombee) el("circle", {cx:230,cy:236,r:20,fill:"#8C4B3A"}, g);
+        } },
+      herbes: { nom:"les herbes", x:660,y:600,w:340,h:220, pour:"joueur",
+        libre: F => F.pomme_tombee,                    // rien à pousser avant
+        dessine(g, F) {
+          if (!F.planche_poussee) {
+            el("rect", {x:40,y:70,width:250,height:44,rx:6,fill:"#6E5A42",
+                        transform:"rotate(-7 165 92)"}, g);
+            el("circle", {cx:300,cy:60,r:20,fill:"#8C4B3A"}, g);
+          }
+          for (let i=0;i<9;i++)
+            el("path", {d:`M${24+i*36} 200 q12 -70 4 -120`, stroke:"#46593B","stroke-width":"9",fill:"none"}, g);
+        } },
+      puits: { nom:"le puits", x:700,y:600,w:270,h:200, pour:"peureux",
+        visible: F => F.planche_poussee, libre: F => F.planche_poussee,
+        dessine(g) { el("ellipse", {cx:130,cy:76,rx:110,ry:33,fill:"#0C0F0B"}, g); } }
+    },
+    agit: {
+      arbre: { texte:"Il remarque un fruit, s'accroche à l'écorce et grimpe.",
+               transfo:"Le fruit tombe dans les herbes. <b>Quelque chose remue là-dessous.</b>",
+               fait: F => { F.pomme_tombee = true; }, puis:"joueur" },
+      herbes: { texte:"Il trouve une vieille planche sous les herbes et la pousse.",
+                transfo:"La planche glisse. <b>Dessous : la margelle d'un puits, grande ouverte.</b>",
+                fait: F => { F.planche_poussee = true; }, puis:"peureux" },
+      puits: { texte:"Il évite le vide, longe la margelle — et se glisse à l'intérieur.",
+               transfo:"Il remonte en tirant quelqu'un par la peau du cou. <b>Un chaton était coincé là-dessous.</b>",
+               fait: () => {}, puis:"trouve", ailleurs:true }
+    }
+  }];
+
+  /* ══ moteur ════════════════════════════════════════════════════════════ */
+  function dis(html) {
+    $murmure.style.opacity = "0";
+    setTimeout(() => { $murmure.innerHTML = html; $murmure.style.opacity = "1"; }, 170);
+  }
+
+  function peintDecor() {
+    vide($decor);
+    tableau.fond($decor, S.F);
+    tableau.decor($decor, S.F);
+  }
+
+  function visible(p) { return !p.visible || p.visible(S.F); }
+  function libre(p)   { return (!p.libre || p.libre(S.F)) && !S.occupe[p.id]; }
+
+  function peintPlaces() {
+    vide($places);
+    for (const id in tableau.places) {
+      const p = tableau.places[id];
+      if (!visible(p)) continue;
+      const n = el("g", {class:"place", transform:`translate(${p.x} ${p.y})`,
+                         tabindex:"0", role:"button", "aria-label":p.nom}, $places);
+      n.dataset.libre = libre(p) ? "1" : "0";
+      el("ellipse", {class:"halo-cible", cx:p.w/2, cy:p.h*.78, rx:p.w*.66, ry:p.h*.5, fill:"url(#cible)"}, n);
+      const corps = el("g", {}, n);
+      p.dessine(corps, S.F);
+      const t = el("text", {class:"etiquette", x:p.w/2, y:p.h+34, "text-anchor":"middle"}, n);
+      t.textContent = p.nom;
+      n.addEventListener("click", e => { e.stopPropagation(); cliquePlace(id); });
+      n.addEventListener("keydown", e => { if (e.key==="Enter"||e.key===" ") { e.preventDefault(); cliquePlace(id); } });
+      p.noeud = n;
+    }
+  }
+
+  function creeChat(ch) {
+    const n = el("g", {class:`chat c-${ch.kind} surgit`, tabindex:"0", role:"button",
+                       "aria-label":`chaton — ${FAIT[ch.kind]}`}, $chats);
+    el("ellipse", {class:"lueur-pris", cx:70, cy:118, rx:96, ry:34, fill:"url(#cible)"}, n);
+    const g = el("g", {class:"corps"}, n), r = ROBES[ch.kind];
+    el("ellipse", {cx:70,cy:126,rx:66,ry:12,fill:"#000",opacity:".28"}, g);
+    el("path", {d:"M18 112 q-34 -8 -38 -44 q-3 -22 18 -22", stroke:r.poil,"stroke-width":"19",
+                fill:"none","stroke-linecap":"round"}, g);
+    el("ellipse", {cx:72,cy:96,rx:62,ry:40,fill:r.poil}, g);
+    el("ellipse", {cx:76,cy:110,rx:40,ry:22,fill:r.ventre,opacity:".7"}, g);
+    el("path", {d:"M92 34 l-16 -34 28 8z", fill:r.poil}, g);
+    el("path", {d:"M126 34 l22 -30 3 30z", fill:r.poil}, g);
+    el("circle", {cx:114,cy:52,r:38,fill:r.poil}, g);
+    [[100,48],[130,48]].forEach(([cx,cy]) => { el("circle", {cx,cy,r:7,fill:r.oeil}, g);
+                                               el("circle", {cx,cy,r:3,fill:"#14171C"}, g); });
+    el("path", {d:"M110 66 h10", stroke:"#2A2320","stroke-width":"5","stroke-linecap":"round"}, g);
+    const z = el("text", {class:"zzz", x:150, y:22, fill:"var(--lueur)","font-size":"34",
+                          "font-family":"Fraunces, serif"}, n);
+    z.textContent = "z";
+    n.addEventListener("click", e => { e.stopPropagation(); cliqueChat(ch.id); });
+    n.addEventListener("keydown", e => { if (e.key==="Enter"||e.key===" ") { e.preventDefault(); cliqueChat(ch.id); } });
+    ch.noeud = n;
+    posiChat(ch);
+  }
+
+  function posiChat(ch) {
+    let x, y;
+    if (ch.placeId) {
+      const p = tableau.places[ch.placeId];
+      x = p.x + p.w/2 - 70;
+      y = p.y + (p.h > 260 ? p.h*0.55 : p.h - 150);
+    } else { x = 520 + ch.rang * 160; y = 690; }
+    ch.noeud.style.transform = `translate(${x}px, ${y}px)`;
+  }
+
+  function arrive(kind, mot) {
+    const ch = {id:"k"+(++S.seq), kind, placeId:null, rang:S.venus++};
+    S.chats.push(ch); creeChat(ch);
+    dis(mot || `Un chaton entre — <b>${FAIT[kind]}</b>.`);
+    return ch;
+  }
+
+  /* ── interactions ─────────────────────────────────────────────────────── */
+  function cliqueChat(id) {
+    const ch = S.chats.find(c => c.id === id);
+    if (!ch || S.scene) return;
+    if (S.pris === id) return lache();
+    lache();
+    S.pris = id; ch.noeud.classList.add("pris");
+    if (ch.placeId) { delete S.occupe[ch.placeId]; ch.placeId = null;
+                      ch.noeud.classList.remove("dort"); peintPlaces(); posiChat(ch); }
+    for (const pid in tableau.places) {
+      const p = tableau.places[pid];
+      if (visible(p) && libre(p) && p.noeud) p.noeud.classList.add("cible");
+    }
+    dis(`Tu tiens un chaton — <b>${FAIT[ch.kind]}</b>. Où le poses-tu ?`);
+  }
+
+  function lache() {
+    if (S.pris) { const ch = S.chats.find(c => c.id === S.pris); if (ch) ch.noeud.classList.remove("pris"); }
+    S.pris = null;
+    $places.querySelectorAll(".place").forEach(n => n.classList.remove("cible"));
+  }
+
+  function cliquePlace(pid) {
+    const p = tableau.places[pid];
+    if (!visible(p)) return;
+    if (p.passage !== undefined) { if (!S.scene) va(p.passage); return; }
+    if (!S.pris || !libre(p)) return;
+    const ch = S.chats.find(c => c.id === S.pris);
+    lache();
+    ch.placeId = pid; S.occupe[pid] = ch.id;
+    peintPlaces(); posiChat(ch);
+    reagit(ch, p, pid);
+  }
+
+  /* ── ce qui se passe quand on pose : court, immédiat, causal ──────────── */
+  function reagit(ch, p, pid) {
+    const acte = tableau.agit[pid];
+    const bon = p.pour === ch.kind && acte;
+    if (!bon) {
+      dis(REFUS[ch.kind]);
+      setTimeout(() => {                                // il s'en va de lui-même
+        if (S.occupe[pid] !== ch.id) return;
+        delete S.occupe[pid]; ch.placeId = null;
+        peintPlaces(); posiChat(ch);
+        dis("Il a quitté sa place tout seul.");
+      }, T_PARTIR);
+      return;
+    }
+    S.scene = true;
+    if (acte.avant) { acte.avant(S.F); peintPlaces(); }
+    dis(acte.texte);
+    ch.noeud.classList.add("agit");
+    setTimeout(() => {
+      ch.noeud.classList.remove("agit");
+      acte.fait(S.F);
+      peintDecor(); peintPlaces();
+      if (acte.dort) ch.noeud.classList.add("dort");
+      dis(acte.transfo);
+      setTimeout(() => {
+        S.scene = false;
+        if (acte.puis) {
+          const nouveau = arrive(acte.puis);
+          if (acte.ailleurs) { nouveau.noeud.classList.add("ailleurs");
+            dis("Celui-là ne s'installe pas : <b>il regarde ailleurs.</b>"); }
+        }
+      }, T_SUIVANT);
+    }, T_REACTION + T_TRANSFO);
+  }
+
+  /* ── tableaux ─────────────────────────────────────────────────────────── */
+  function va(i) {
+    S = { F:{}, chats:[], occupe:{}, pris:null, seq:0, venus:0, scene:false, t:i };
+    tableau = TABLEAUX[i];
+    vide($chats);
+    peintDecor(); peintPlaces();
+    document.querySelectorAll(".test button[data-t]").forEach(b =>
+      b.setAttribute("aria-current", String(Number(b.dataset.t) === i)));
+    dis(tableau.ouverture);
+    tableau.depart.forEach((k, n) => setTimeout(() => arrive(k, n === 0 ? tableau.ouverture : null), 500));
+  }
+
+  document.getElementById("scene").addEventListener("click", lache);
+  document.querySelectorAll(".test button[data-t]").forEach(b =>
+    b.addEventListener("click", () => va(Number(b.dataset.t))));
+  document.getElementById("rejouer").addEventListener("click", () => va(S.t));
+  document.addEventListener("keydown", e => { if (e.key === "Escape") lache(); });
+
+  va(0);
+})();
+</script>

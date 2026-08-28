@@ -109,3 +109,65 @@ run 10 · C.2 V1.1b RATIFIÉE.** Lots F (boucle 2 rondes + design_freeze, `c3f82
 G.2 (canal design_questions, `464515b`), timeout s9 `85537cd`, coercition+budget 3 `00e4637` — détail : journal `…-decision-produit.md`.
 Le résumé opérationnel des runs 10a-10h est au bloc « Runs 10a-10f » ci-dessus.
    Passif re-mesuré : `check_wiremap_contract` 0/7 (EFFECT_KINDS étroit + non consommé — dette connue).
+
+## Archivé du handoff le 2026-08-25 (vision produit du 23, absorbée par C.2/C.3/C.4)
+
+0. **Décision Pierre 2026-08-23 (après C.1/V2.1) : STOP Lots D/E tels que prévus.** « Assez de documentation économique, pas assez de
+   conception de jeu. » Vision ratifiée : construire un petit univers de chatons bienveillant où chaque achat transforme VISIBLEMENT la
+   scène ; règle maîtresse **UNLOCK = possibilité perceptible, jamais +X %** ; la carte = système de progression (états, saisons) ; départ
+   = panier + coussin + jardin fermé + album de silhouettes (plus de 6 chatons décoratifs). Architecture cible : boucle de conception
+   ART ↔ GM AVANT le WireMap (design freeze) + réconciliation APRÈS — à planifier, pas de station nouvelle.
+
+
+## Archivé du handoff le 2026-08-25 — détail des runs 11a/11b
+
+**Runs 11 (2026-08-24)** : 11a `-20260824e` halté par un FAUX refus (regex fence non ancrée — mentions inline dans la prose éclipsaient
+le vrai fence ; la tentative 3 de l'Art était VALIDE) ; 11b `-20260824f` = **premier HALT honnête de la gate C.4** : 7 DEFERRED honorées,
+core_loop COMPLETE (après fix R2a : comparer par NOM de boucle, pas par chaîne produces — bug masqué par une fixture auto-cohérente),
+`gameplay_loop OPEN(réponse sans modification)` FONDÉ : le GM a répondu à la question bloquante (mapping album↔chatons) dans un
+grey_block SANS réécrire la boucle (r1==r2 bit-à-bit). 2 correctifs TDD sur fixtures RÉELLES (run_real regex + driver R2a), 65 tests
+ciblés verts, régression complète relancée — **NON COMMITÉS** (gate Pierre). Verdict rejoué gate corrigée : HALT maintenu par le seul
+théâtre gameplay_loop. Prochain choix PIERRE : relancer (le GM doit intégrer la réponse DANS la boucle) ou arbitrer R3-lite.
+
+
+## Archivé du handoff le 2026-08-25 — genèse C.3 (lot heritage, ratifications)
+
+**LOT RECOMMANDÉ (unique)** : découpler la mémoire de design du succès du build — écrire `heritage/` dès le design_freeze
+(10d/10g ont convergé puis tout perdu à s9 ; 10h repart de zéro). **Réponse Pierre : `heritage/` corrige la MÉMOIRE, le problème
+principal est la CONCEPTION MUTUELLE → Lot C.3 — Game Loop Architecture Contract** (« quel jeu la Forge essaie-t-elle de produire ? ») :
+**PROPOSED** `studio_brain/gamedesign/kitten_clicker_game_loop_architecture_v1.md` — 10 boucles × 14 champs, matrice
+produit/consomme/débloque, règle dure « aucune boucle sans producteur ET consommateur », verdict de complétude auto-appliqué 6/10
+(les 4 manquantes = la liste MISSING de l'audit : Content métrique propre · Skill slot · Quest récompense · World consommateur GM
+— évolutions du SCHÉMA GM, futur lot). C.2 non ratifiée « telle quelle » : C.3 fait foi au-dessus après ratification. Test de
+reconstruction : passe 1 = 3 contradictions / 5 questions → **V1.1** (14ᵉ champ MÉTRIQUE_PROPRE explicité, DOUBLE verdict :
+complétude architecturale 6/10, complétude MESURÉE 1/10 — la meta seule ; WireMap exige 10/10 architectural) ; passe 2 : 0 invention, verdicts reproduits, 3 contradictions de matrice → **V1.2** (Débloque = boucles aval, source du 1/10 citée).
+**C.3 V1.2 RATIFIÉ** (réserve : 6/10 = diagnostic, jamais un seuil ; la WireMap exige 10/10 et n'invente rien) · **C.4 V1.1**
+protocole de complétion par boucle + R1/R2 + DEFERRED humain (tests vierges : 0 contradiction) — détail : journal `…-decision-produit.md`.
+
+## Archivé du handoff le 2026-08-25 — audit C.3/C.4 (détail dans docs/audit/)
+
+**AUDIT 2026-08-25 `docs/audit/2026-08-25-c3-c4-carte-vs-canal-audit.md`** (demandé Pierre : « l'échange Art↔GM ne doit pas
+compenser un manque d'architecture »). Mesuré : C.3 **NOT_WIRED** (aucun code ne l'ouvre, absent des mandatory_read, absent de `design/`,
+cité par aucune tâche) ; schéma de boucle = **6 clés** → 6 des 14 champs sans porteur (OBJECTIF, ENTRÉE-ressource, CONTENU REQUIS,
+PRODUCTEUR, QUESTION OUVERTE, ÉTAT) ; contenu en **vrac** (28 assets sans champ `loop`, 18/28 jamais cités par le GM, aucune clé de
+jointure `banc`↔`item_banc`) ; preuve par l'exception : la seule carte injectée (tableau P01→P08 de C.2) est **citée 8 fois** par le GM.
+Niveau manquant nommé : **CONTENT REQUIREMENTS** entre C.3 et C.4 (inventaire par boucle : lieux/bâtiments/personnages/objets/animations/
+skins/UI, avec états, transformation perceptible, usage GM). Passifs : `tasks.json` dit « 6 boucles » vs validateur 9 ; `design_state.json`
+affiche `shared_design_pct: 100` + `ready_for_freeze` des 2 côtés sur un design REFUSÉ. **Pas de code écrit — décision de périmètre = Pierre.**
+
+
+## Archivé du handoff le 2026-08-25 — genèse C.5 V1→V1.6 (6 tests de reconstruction)
+
+**C.5 V1.6 ÉCRIT — PROPOSED** `studio_brain/gamedesign/kitten_clicker_content_requirements_contract_v1.md` (demande
+Pierre « rédige C.5, 10 boucles »). **Partie I = méthode transposable** (10 boucles définies sans exemple · 8 champs ·
+8 catégories à test qui tranche · 8 préfixes d'id · procédure avec critère de bouclage différé et entrée primitive ·
+R3 « aucun contenu hors boucle » / R4 « aucun état sans transformation » · 10 anti-modèles). **Partie II = instance
+Kitten REMPLIE** (9 inventaires, 36 entrées, 5 questions ouvertes portées, migration des id). **Partie III = glossaires.**
+**6 tests de reconstruction à contexte vierge** (V1→V1.6, 5 jeux-cibles différents) : méthode jugée **utilisable** aux
+tests 4-6 (inventaire d'un jeu inconnu produit sans ouvrir l'instance). Défauts trouvés PAR les tests, dont deux de ma
+main : règle d'ordre fausse (V1.1) et **bilan « 3 boucles orphelines » FAUX** (V1.3, artefact d'ENTRÉE mal rédigées).
+Diagnostic mesuré du jeu : **R2a tenue par les 9 boucles (la chaîne boucle)** ; le défaut est **R2b** — QUEST ne rend
+rien de perceptible, aucun bâtiment n'existe (un chaton qui dort est un état, pas un rôle), grenier sans activité.
+**Résiduel connu** (test 6, à arbitrer) : ~10 écarts de conformité de l'instance à sa propre méthode, tous nommés.
+**Condition d'existence écrite dans le doc** : non injecté en amont de s2.5/s2.7, C.5 subit le sort de C.3.
+

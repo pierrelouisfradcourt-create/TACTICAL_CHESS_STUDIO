@@ -57,37 +57,36 @@ de gameplay, matrice, 6 versions, FREEZE_ALLOWED) — **LIVRÉ et confronté** :
 (`design:` jamais résolu) ; V1→V6 : la PREUVE a progressé (rôles 0→13) bien plus vite que la BOUCLE (actions jouables 1→4, figé dès V4) ;
 une seule ressource, prestige = multiplicateur, aucun lieu jouable, aucune quête récompensée sur les 6 versions ; `product_snapshot`
 V2→V6 = « comment passer les oracles » ; faux déblocage V6 (affordances inertes) = recoupé red-team run 9. FREEZE_ALLOWED=false (10h).
-**LOT RECOMMANDÉ (unique)** : découpler la mémoire de design du succès du build — écrire `heritage/` dès le design_freeze
-(10d/10g ont convergé puis tout perdu à s9 ; 10h repart de zéro). **Réponse Pierre : `heritage/` corrige la MÉMOIRE, le problème
-principal est la CONCEPTION MUTUELLE → Lot C.3 — Game Loop Architecture Contract** (« quel jeu la Forge essaie-t-elle de produire ? ») :
-**PROPOSED** `studio_brain/gamedesign/kitten_clicker_game_loop_architecture_v1.md` — 10 boucles × 14 champs, matrice
-produit/consomme/débloque, règle dure « aucune boucle sans producteur ET consommateur », verdict de complétude auto-appliqué 6/10
-(les 4 manquantes = la liste MISSING de l'audit : Content métrique propre · Skill slot · Quest récompense · World consommateur GM
-— évolutions du SCHÉMA GM, futur lot). C.2 non ratifiée « telle quelle » : C.3 fait foi au-dessus après ratification. Test de
-reconstruction : passe 1 = 3 contradictions / 5 questions → **V1.1** (14ᵉ champ MÉTRIQUE_PROPRE explicité, DOUBLE verdict :
-complétude architecturale 6/10, complétude MESURÉE 1/10 — la meta seule ; WireMap exige 10/10 architectural) ; passe 2 : 0 invention, verdicts reproduits, 3 contradictions de matrice → **V1.2** (Débloque = boucles aval, source du 1/10 citée).
-**C.3 V1.2 RATIFIÉ** (réserve : 6/10 = diagnostic, jamais un seuil ; la WireMap exige 10/10 et n'invente rien) · **C.4 V1.1**
-protocole de complétion par boucle + R1/R2 + DEFERRED humain (tests vierges : 0 contradiction) — détail : journal `…-decision-produit.md`.
+**C.3 V1.2 RATIFIÉ** (10 boucles × 14 champs, matrice produit/consomme/débloque ; réserve Pierre : le 6/10
+architectural est un diagnostic, jamais un seuil). Genèse archivée au journal.
+
 **C.4 V1.1 RATIFIÉ Pierre 2026-08-24** (verrou : le lot ne « fait pas passer » Kitten — il rend la Forge INCAPABLE de déclarer
 un jeu complet sans boucles fermées). **Lot C.4-code EN COURS** (plan `docs/superpowers/plans/2026-08-24-forge-lot-c4-code-boucles.md`) :
-agent A (schéma 9 boucles objets produces/consumes/unlocks/transformation_perceptible/metric_propre exclusif ; loop_id obligatoire ;
-R1 étendu) · agent B (design_state PAR BOUCLE, COMPLETE calculé, DEFERRED humain via `design/deferred_loops.json` — créé, ratification
-Pierre matérialisée : core+gameplay exigées, 7 différées · R3-lite « réponse sans modification = théâtre » · gate freeze réécrite ·
-heritage/ AU FREEZE) · tasks.json s2.5/s2.7 : protocole par boucle. Critère du lot : le gm du run 10h (valide aujourd'hui) doit être
-REFUSÉ ; un design honnêtement partiel doit PASSER. Ancien plan : UN lot de code (schéma GM 10 boucles + MÉTRIQUE_PROPRE + R1/R2
-dans validateur/gate + heritage/ au freeze) puis relance.** Archives scratchpad `run10*_halted/` ; runs 1-9 archivés `_runN_*/`.
+agents A (schéma) + B (design_state par boucle, DEFERRED humain, R3-lite, gate, heritage/ au freeze). Critère : gm 10h REFUSÉ ; un design honnêtement partiel doit PASSER — **ATTEINT, commit `5feb1b5`**. Run 10h archivé scratchpad `run10h_observed/`.
+**Runs 11 (2026-08-24)** : 11a halté par un FAUX refus (regex de fence non ancrée) ; 11b = **premier HALT honnête**
+de la gate C.4 — 7 DEFERRED honorées, core_loop COMPLETE, `gameplay_loop OPEN(réponse sans modification)` FONDÉ.
+2 correctifs TDD sur fixtures réelles (run_real regex · driver R2a par nom de boucle), 2270 pytest verts, **NON
+COMMITÉS**. Détail archivé au journal.
+
+**C.5 RATIFIÉE Pierre 2026-08-25 + INJECTÉE** (condition n°1 tenue, preuve d'exécution : les 4 étapes des deux
+piliers reçoivent la carte ENTIÈRE). 3 défauts trouvés au câblage : s9 touché par ricochet (retiré) · **carte tronquée**
+à 15k car. sur 60k (exemption posée : un contrat `design/*.md` s'injecte entier) · 6 tests figés à mettre à jour.
+Garde anti-dérive canon↔copie posée. **C.5 devient V2.0 GAMEPLAY MAP** (la carte est un OBJET qu'on se passe ; les 14
+éléments ; **R5** = 7 éléments d'une boucle sinon PARTIELLE ; les 14 questions ; la carte de Kitten commence par la
+BOUCLE CANONIQUE, pas par l'échelle de coûts ; direction « chatons travailleurs » inscrite comme test).
+
+**C.6 V1.1 ÉCRIT — PROPOSED** `studio_brain/gamedesign/kitten_clicker_game_loop_blueprint_c6.md` (demande Pierre :
+« reconstruis le jeu réel, boucles imbriquées, AUCUN nombre »). Le jeu en une phrase · **déplacement décisif** : le
+gameplay n'est pas d'acheter des chatons, c'est de leur DONNER QUELQUE CHOSE À FAIRE · 7 boucles imbriquées avec les
+9 questions remplies · l'économie = connecteur, pas boucle · test des chatons travailleurs = **6 maillons, 0 présent**
+· **§7bis PREMIER MONDE proposé** : atelier de paniers (le chaton fabrique ce qui amène le chaton suivant), 2 métiers
+(artisan/jardinier), une quête rapporte du CONTENU qui s'installe, prestige = « on perd les chatons, on garde les
+plans ». Test vierge : 12 corrections dont **mon propre interdit enfreint** (+25 % écrit). **5 décisions = HumanGate.** Ancien plan : UN lot de code (schéma GM 10 boucles + MÉTRIQUE_PROPRE + R1/R2
+Archives scratchpad `run10*_halted/`
 
 ### Prochaine étape
-0. **Décision Pierre 2026-08-23 (après C.1/V2.1) : STOP Lots D/E tels que prévus.** « Assez de documentation économique, pas assez de
-   conception de jeu. » Vision ratifiée : construire un petit univers de chatons bienveillant où chaque achat transforme VISIBLEMENT la
-   scène ; règle maîtresse **UNLOCK = possibilité perceptible, jamais +X %** ; la carte = système de progression (états, saisons) ; départ
-   = panier + coussin + jardin fermé + album de silhouettes (plus de 6 chatons décoratifs). Architecture cible : boucle de conception
-   ART ↔ GM AVANT le WireMap (design freeze) + réconciliation APRÈS — à planifier, pas de station nouvelle.
-0b. Doctrine boucle de complétion mutuelle : mémoire `mutual_completion_loop_doctrine` + Lot F livré (archivé au journal).
-
 1. Design ratifiés : C.1 V1.2 (+§9 réaligné C.2) · C.2 V1.1b (graine) · C.3 V1.2 · C.4 V1.1 ; Calibration V2.1 PROPOSED (H5).
 
-2. (après C.2 ratifié) réalignement C.1/V2.1 → Lot D fuites (J `replay_ref`, tri
-   alphabétique → ordre du Prisme, `design_intent`) · Lot E run 10 (`kitten_clicker-20260823c`) → P5 HumanGate.
+2. **Décision Pierre en attente** : périmètre/ordre du niveau CONTENT REQUIREMENTS (audit 2026-08-25) ; relance run 11c ou arbitrage R3-lite.
 3. Gates : merge/reject des artefacts non commités (runs 7-9, audits) ; push de `f1bce0d` `0a9f4d4` `b75f165` + Lot A.
 4. Passifs : gates historiques (e2e `DirAccess`, solvabilité argv, mutation), `check_wiremap_contract` non consommé, rupture 10.
