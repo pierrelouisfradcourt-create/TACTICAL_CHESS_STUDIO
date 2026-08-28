@@ -1667,7 +1667,11 @@ _GAME_MASTER_SCHEMA_TIMEOUT_S = 60.0
 # collision avec l'artefact principal de l'etape (gm_worldscan.json a s2.7 EST deja
 # un bloc ```json``` -- select_artifact_payload doit pouvoir choisir le sien sans
 # jamais voir le bloc design_questions comme un candidat, et reciproquement).
-_FENCED_DESIGN_QUESTIONS = re.compile(r"```design_questions\s*(.*?)```", re.S)
+# Run 11 (2026-08-24) : ANCRE en debut de ligne -- une mention inline
+# ```design_questions``` dans la prose (RETURN_REASON, lignee causale) ne
+# demarre JAMAIS un fence ; seule une ligne qui COMMENCE par ``` en ouvre un.
+_FENCED_DESIGN_QUESTIONS = re.compile(
+    r"^```design_questions[ \t]*\r?\n(.*?)^```", re.S | re.M)
 
 
 def _extract_design_questions_block(output: str) -> "tuple[dict | None, str]":
@@ -2512,6 +2516,8 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
                           "art_bible.md", "asset_requests.json",
                           "heritage/art_response.json", "heritage/gm_worldscan.json",
                           "design_intent.md", "design/gameplay_loop_content_contract.md",
+                          "design/game_loop_blueprint.md",
+                          "design/content_requirements.md",
                           "design/progression_contract.md", "design/calibration.md"),
     # Lot F (2026-08-23, round 2) ' table PROPRE a l'alias, distincte de la base
     # ci-dessus (base_step ne s'applique JAMAIS a cette table : contrairement au
@@ -2525,6 +2531,8 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
                          "artifacts/s2.6-story-bible.txt", "gm_worldscan.json",
                          "design_questions.json", "art_bible.md",
                          "design_intent.md", "design/gameplay_loop_content_contract.md",
+                          "design/game_loop_blueprint.md",
+                          "design/content_requirements.md",
                          "design/progression_contract.md"),
     # Lot D (2026-08-23, GO Pierre, fuite 3) : meme ajout qu'a s2.7-gm-worldscan
     # ci-dessus (table PROPRE a l'alias round 2, cf. commentaire Lot F au-dessus).
@@ -2532,6 +2540,8 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
                              "art_bible.md", "asset_requests.json",
                              "design_questions.json", "gm_worldscan.json",
                              "design_intent.md", "design/gameplay_loop_content_contract.md",
+                          "design/game_loop_blueprint.md",
+                          "design/content_requirements.md",
                              "design/progression_contract.md", "design/calibration.md"),
     # SS7.2 . s2.6 ' la Story Bible recoit ses DEUX seules sources d'ancrage. Le
     # charter est un fichier de run (comme pour s3) ; absent => section amont reduite,
@@ -2553,6 +2563,8 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
                       "artifacts/s2.6-story-bible.txt",
                       "heritage/art_bible.md", "heritage/art_response.json",
                       "design_intent.md", "design/gameplay_loop_content_contract.md",
+                          "design/game_loop_blueprint.md",
+                          "design/content_requirements.md",
                       "design/progression_contract.md"),
     # Choix (b) Pierre 2026-08-21 : idem pour la decompo (memes deux artefacts amont,
     # apres les 3 sources deja existantes). Fichier absent => omis, comportement
@@ -2641,7 +2653,13 @@ def upstream_artifacts_section(etape: str, run_dir: Path) -> str:
             content = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue  # absent/illisible : omis (jamais bloquant à ce niveau)
-        if len(content) > UPSTREAM_MAX_CHARS:
+        # 2026-08-25 (ratification C.5) : un CONTRAT DE DESIGN (design/*.md) est une
+        # entree HUMAINE bornee et ratifiee, pas une sortie d'agent — il s'injecte
+        # ENTIER. Mesure : C.5 fait ~60 000 car. ; tronque a UPSTREAM_MAX_CHARS il
+        # arrivait ampute de sa Partie II (la carte elle-meme), sans aucun signal —
+        # le meme defaut que C.3 jamais injecte, en plus sournois. La borne reste en
+        # vigueur pour tous les artefacts produits par des agents.
+        if not rel.startswith("design/") and len(content) > UPSTREAM_MAX_CHARS:
             content = _truncate_preserve_terminal_json(content)
         blocks.append(f"### {rel} (chemin réel : {path})\n{content}")
     if not blocks:

@@ -70,9 +70,14 @@ _ECONOMY_JSON = ("economy.json",)
 # injecte en FIN de tuple, absent (design/ non peuple) => omis, comportement
 # inchange. cf. scripts/forge/tests/test_lot_d_fuites_mesure.py pour la mesure
 # dediee (run_dir tmp avec/sans ces fichiers).
+# C.5 ratifie Pierre 2026-08-25 : la CARTE (design/content_requirements.md) est
+# injectee aux DEUX piliers, rondes 1 et 2 — condition n°1 du contrat ("non injecte,
+# C.5 subit le sort de C.3"). Cf. test_context_manifest.py pour la garde dediee.
 _DESIGN_ARTBIBLE = ("design_intent.md", "design/gameplay_loop_content_contract.md",
+                    "design/game_loop_blueprint.md", "design/content_requirements.md",
                     "design/progression_contract.md")
 _DESIGN_GM = ("design_intent.md", "design/gameplay_loop_content_contract.md",
+             "design/game_loop_blueprint.md", "design/content_requirements.md",
              "design/progression_contract.md", "design/calibration.md")
 _DESIGN_BUILD = ("design/gameplay_loop_content_contract.md",)
 

@@ -1070,10 +1070,15 @@ class ForgeDriver:
                     reasons.append("boucle absente du gm_worldscan.json")
                 else:
                     produces = loop_obj.get("produces")
+                    # Run 11b (2026-08-24) : R2a se mesure par NOM de boucle --
+                    # `consumes` porte des noms de boucles (semantique canonique
+                    # de game_master_schema.mjs : consumedLoopNames.has(loopName)),
+                    # JAMAIS la chaine `produces` (le gm reel etait degrade
+                    # PROPOSED par une comparaison chaine-vs-noms impossible).
                     consumed_elsewhere = bool(produces) and any(
                         other != name and isinstance(other_obj, dict)
                         and isinstance(other_obj.get("consumes"), list)
-                        and produces in other_obj["consumes"]
+                        and name in other_obj["consumes"]
                         for other, other_obj in gm_loops.items()
                     )
                     if not produces or not consumed_elsewhere:

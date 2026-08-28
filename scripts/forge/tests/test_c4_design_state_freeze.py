@@ -44,7 +44,7 @@ def _valid_gm_nine_loops() -> dict:
         loops[name] = {
             "steps": [],
             "produces": f"p_{name}",
-            "consumes": [f"p_{prev_name}"],
+            "consumes": [prev_name],  # noms de boucles (semantique mjs), jamais des jetons produces
             "unlocks": [next_name],
             "transformation_perceptible": {
                 "text": f"transformation perceptible de {name}",
@@ -453,3 +453,49 @@ def test_g_ter_profil_sans_boucle_heritage_post_s9_reste_complet_historique(tmp_
     assert "at" not in manifest
     assert set(manifest["files"].keys()) == {
         "art_bible.md", "gm_worldscan.json", "art_response.json"}
+
+
+# =====================================================================
+# Run 11b (2026-08-24, kitten_clicker-20260824f) : R2a par NOM de boucle,
+# jamais par chaine `produces`. Le gm REEL (accepte par game_master_schema.mjs,
+# semantique canonique : `consumes` = noms de boucles) etait degrade PROPOSED
+# par la gate (« produces non consomme ») car le driver comparait la CHAINE
+# produces aux noms -- l'oracle se mesurait lui-meme via sa propre fixture.
+# =====================================================================
+
+_RUN11B_GM = Path(__file__).resolve().parent / "fixtures" / "run11b_gm_worldscan_real.json"
+
+
+def _deferred_seven(run_dir: Path) -> None:
+    deferred = {
+        "schema_version": 1, "ratified_by": "Pierre", "date": "2026-08-24",
+        "required_complete": ["core_loop", "gameplay_loop"],
+        "deferred": [
+            {"loop": n, "reason": "phase 1"} for n in (
+                "progression_loop", "content_loop", "economy_loop", "skill_loop",
+                "world_loop", "quest_loop", "meta_loop")],
+    }
+    _write_json(run_dir / "design" / "deferred_loops.json", deferred)
+
+
+def test_gm_reel_run11b_core_et_gameplay_completes_sous_semantique_nom_de_boucle(tmp_path):
+    run_dir = tmp_path / "run"
+    d = _driver_for_gate(run_dir)
+    d.run_index_path = run_dir / "run_index.json"
+    d.lessons_path = run_dir / "lessons.jsonl"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "art_bible.md").write_text("# art bible", encoding="utf-8")
+    (run_dir / "gm_worldscan.json").write_text(
+        _RUN11B_GM.read_text(encoding="utf-8"), encoding="utf-8")
+    _write_questions(run_dir, _empty_questions(round_=2))
+    _deferred_seven(run_dir)
+
+    state = {"steps": {"s1-prisme": {"status": "PENDING"}}}
+    result = d._design_freeze_gate(state)
+
+    loops = state["design_freeze"]["loops"]
+    # gameplay_loop.consumes = ['core_loop'] : le NOM suffit (semantique mjs)
+    assert loops["core_loop"]["status"] == "COMPLETE", loops["core_loop"]
+    assert loops["gameplay_loop"]["status"] == "COMPLETE", loops["gameplay_loop"]
+    assert state["design_freeze"]["passed"] is True
+    assert result is None

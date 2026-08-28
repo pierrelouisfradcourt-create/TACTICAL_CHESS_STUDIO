@@ -89,6 +89,8 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
                           "art_bible.md", "asset_requests.json",
                           "heritage/art_response.json", "heritage/gm_worldscan.json",
                           "design_intent.md", "design/gameplay_loop_content_contract.md",
+                          "design/game_loop_blueprint.md",
+                          "design/content_requirements.md",
                           "design/progression_contract.md", "design/calibration.md"),
     # Lot F (2026-08-23, round 2) ' copie STRICTEMENT identique a
     # run_real._UPSTREAM_BY_STEP (test d'egalite) : les alias round 2 recoivent
@@ -100,11 +102,15 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
                          "artifacts/s2.6-story-bible.txt", "gm_worldscan.json",
                          "design_questions.json", "art_bible.md",
                          "design_intent.md", "design/gameplay_loop_content_contract.md",
+                          "design/game_loop_blueprint.md",
+                          "design/content_requirements.md",
                          "design/progression_contract.md"),
     "s2.7-gm-worldscan-r2": ("artifacts/s2-worldscan.txt", "artifacts/s2.6-story-bible.txt",
                              "art_bible.md", "asset_requests.json",
                              "design_questions.json", "gm_worldscan.json",
                              "design_intent.md", "design/gameplay_loop_content_contract.md",
+                          "design/game_loop_blueprint.md",
+                          "design/content_requirements.md",
                              "design/progression_contract.md", "design/calibration.md"),
     "s2.6-story-bible": ("charter.yaml", "artifacts/s2-worldscan.txt"),
     # Lot A 2026-08-23 : copie STRICTEMENT identique a run_real._UPSTREAM_BY_STEP '
@@ -117,6 +123,8 @@ _UPSTREAM_BY_STEP: dict[str, tuple[str, ...]] = {
                       "artifacts/s2.6-story-bible.txt",
                       "heritage/art_bible.md", "heritage/art_response.json",
                       "design_intent.md", "design/gameplay_loop_content_contract.md",
+                          "design/game_loop_blueprint.md",
+                          "design/content_requirements.md",
                       "design/progression_contract.md"),
     # s3-decompo recoit desormais les DEUX : le Prisme (exigences) et le World
     # Scan (connaissance qui les fonde). Sans cette 2e source, la decompo perdait

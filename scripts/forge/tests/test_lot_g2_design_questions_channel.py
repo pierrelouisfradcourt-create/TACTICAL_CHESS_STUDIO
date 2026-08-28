@@ -388,3 +388,36 @@ def test_driver_ne_spawn_pas_directement():
         encoding="utf-8")
     for mot in ("subprocess", "Popen", "os.system", "anthropic"):
         assert mot not in src, f"mot interdit trouve dans driver.py : {mot}"
+
+
+# --- Run 11 (2026-08-24, kitten_clicker-20260824e) : mention inline qui eclipse le vrai fence ---
+
+RUN11_SHADOWED = Path(__file__).resolve().parent / "fixtures" / "run11_art_r2_valid_fence_shadowed.txt"
+
+
+@pytest.mark.skipif(not RUN11_SHADOWED.exists(), reason="fixture run 11 absente")
+def test_mention_inline_du_fence_dans_la_prose_n_eclipse_pas_le_vrai_fence():
+    """MESURE run 11 (s2.5-artbible-r2, tentative 3) : la sortie portait UN vrai
+    fence ```design_questions``` en debut de ligne avec le JSON complet, mais la
+    prose obligatoire (RETURN_REASON, lignee causale) citait ```design_questions```
+    INLINE apres lui -- la regex non ancree prenait la DERNIERE mention (vide) et
+    refusait un producteur conforme. Un fence ne commence qu'en debut de ligne."""
+    output = RUN11_SHADOWED.read_text(encoding="utf-8")
+    data, diagnostic = run_real._extract_design_questions_block(output)
+    assert diagnostic == ""
+    assert isinstance(data, dict)
+    assert len(data["questions"]) == 5
+    assert data["declarations"]["ART"]["ready_for_freeze"] is True
+
+
+def test_fence_reel_en_debut_de_ligne_reste_le_dernier_retenu():
+    """Deux vrais fences ligne-ancres : le DERNIER gagne toujours (regle rupture 11
+    inchangee) ; une mention inline apres eux ne compte jamais."""
+    output = (
+        "```design_questions\n{\"schema_version\": 1, \"round\": 1, \"questions\": []}\n```\n"
+        "du texte\n"
+        "```design_questions\n{\"schema_version\": 1, \"round\": 2, \"questions\": []}\n```\n"
+        "prose finale citant ```design_questions``` inline.\n")
+    data, diagnostic = run_real._extract_design_questions_block(output)
+    assert diagnostic == ""
+    assert data["round"] == 2

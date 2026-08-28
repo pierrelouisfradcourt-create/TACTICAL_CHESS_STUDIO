@@ -110,11 +110,14 @@ def test_manifeste_dispatch_s27_porte_4_sources_upstream_exists_true(tmp_path):
     contract = load_contract("s2.7-gm-worldscan")
     sources = cm.resolve_dispatch_sources("s2.7-gm-worldscan", contract, run_dir=tmp_path)
     upstream = [s for s in sources if s["role"] == "upstream"]
-    assert len(upstream) == 10
+    # C.5 (2026-08-25, ratifie Pierre) : + design/content_requirements.md — LA CARTE,
+    # injectee aux deux piliers ; absente de cette fixture (design/ non peuple) => exists:False.
+    assert len(upstream) == 12
     original = {"s2-worldscan.txt", "s2.6-story-bible.txt", "art_bible.md", "asset_requests.json"}
     heritage = {"art_response.json", "gm_worldscan.json"}
     design = {"design_intent.md", "gameplay_loop_content_contract.md",
-              "progression_contract.md", "calibration.md"}
+              "progression_contract.md", "calibration.md", "content_requirements.md",
+              "game_loop_blueprint.md"}
     by_name = {s["path"].split("/")[-1]: s for s in upstream}
     assert set(by_name) == original | heritage | design
     assert all(by_name[name]["exists"] for name in original)
@@ -132,10 +135,13 @@ def test_manifeste_dispatch_s25_porte_3_sources_upstream_exists_true(tmp_path):
     contract = load_contract("s2.5-artbible")
     sources = cm.resolve_dispatch_sources("s2.5-artbible", contract, run_dir=tmp_path)
     upstream = [s for s in sources if s["role"] == "upstream"]
-    assert len(upstream) == 8
+    # C.5 (2026-08-25, ratifie Pierre) : + design/content_requirements.md — LA CARTE,
+    # injectee aux deux piliers ; absente de cette fixture (design/ non peuple) => exists:False.
+    assert len(upstream) == 10
     original = {"charter.yaml", "s2-worldscan.txt", "s2.6-story-bible.txt"}
     heritage = {"art_bible.md", "art_response.json"}
-    design = {"design_intent.md", "gameplay_loop_content_contract.md", "progression_contract.md"}
+    design = {"design_intent.md", "gameplay_loop_content_contract.md", "progression_contract.md",
+              "content_requirements.md", "game_loop_blueprint.md"}
     by_name = {s["path"].split("/")[-1]: s for s in upstream}
     assert set(by_name) == original | heritage | design
     assert all(by_name[name]["exists"] for name in original)

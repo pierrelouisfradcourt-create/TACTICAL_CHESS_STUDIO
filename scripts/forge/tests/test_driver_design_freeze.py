@@ -96,7 +96,7 @@ def _valid_gm_nine_loops() -> dict:
         loops[name] = {
             "steps": [],
             "produces": f"p_{name}",
-            "consumes": [f"p_{prev_name}"],
+            "consumes": [prev_name],  # noms de boucles (semantique mjs)
             "unlocks": [next_name],
             "transformation_perceptible": {
                 "text": f"transformation perceptible de {name}",

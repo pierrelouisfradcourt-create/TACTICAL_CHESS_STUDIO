@@ -413,3 +413,102 @@ def test_verify_run_corrupted_hmac_is_a_problem(tmp_path):
     res = verify_run(vpath, key_file=KEY)
     assert res["context_manifest_problems"]
     assert res["overall"] is True  # advisory : n'entre JAMAIS dans le gate existant
+
+
+# --- C.5 ratifié Pierre 2026-08-25 : la carte de contenu atteint les DEUX piliers ---
+
+def test_c5_content_requirements_injecte_aux_deux_piliers():
+    """C.5 (Content Requirements) ratifié Pierre le 2026-08-25 avec sa condition n°1 :
+    « non injecté en amont de s2.5/s2.7, C.5 subit le sort de C.3 — prescrit, jamais
+    livré ». Mesure de l'audit 2026-08-25 : C.3 n'apparaissait dans AUCUNE ligne de
+    _UPSTREAM_BY_STEP, donc aucun agent ne l'a jamais lu. Ce test empêche que C.5
+    connaisse le même sort : les 4 étapes des deux piliers (Artiste et Game Master,
+    rondes 1 et 2) doivent recevoir `design/content_requirements.md`."""
+    from forge import context_manifest as cm
+
+    piliers = ("s2.5-artbible", "s2.5-artbible-r2",
+               "s2.7-gm-worldscan", "s2.7-gm-worldscan-r2")
+    manquants = [e for e in piliers
+                 if "design/content_requirements.md" not in cm._UPSTREAM_BY_STEP[e]]
+    assert not manquants, f"C.5 non injecté à : {manquants}"
+
+
+def test_c5_copie_injectee_ne_derive_pas_du_canon():
+    """`design/content_requirements.md` est une COPIE du contrat canonique de
+    `studio_brain/gamedesign/`. Leçon mesurée (2026-08-20) : une correction qui ne
+    vit qu'en aval régresse au prochain snapshot. Si les deux fichiers divergent,
+    les agents lisent une carte périmée sans que rien ne le signale."""
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[3]
+    canon = repo / "studio_brain/gamedesign/kitten_clicker_content_requirements_contract_v1.md"
+    copie = repo / "lab/forge_runs/kitten_clicker/design/content_requirements.md"
+    if not canon.exists() or not copie.exists():
+        import pytest
+        pytest.skip("contrat C.5 ou sa copie absent")
+    assert copie.read_text(encoding="utf-8") == canon.read_text(encoding="utf-8"), (
+        "design/content_requirements.md a DÉRIVÉ du contrat canonique — recopier le canon")
+
+
+def test_c5_arrive_ENTIER_dans_le_contexte_des_piliers():
+    """Mesuré 2026-08-25 : C.5 câblé dans _UPSTREAM_BY_STEP MAIS tronqué à
+    UPSTREAM_MAX_CHARS (15 000 car.) alors que la carte en fait ~60 000 — la
+    Partie II (la carte elle-même : boucle canonique, inventaires, questions
+    ouvertes) ne franchissait pas la frontière. « Injecté » ne veut rien dire si
+    l'agent reçoit une carte coupée en deux : c'est le même défaut que C.3 non
+    injecté, en plus sournois (le fichier est là, amputé, sans signal).
+
+    Un contrat de design ratifié (design/*.md) est une ENTRÉE humaine bornée, pas
+    une sortie d'agent : il s'injecte ENTIER."""
+    from pathlib import Path
+    from forge.run_real import upstream_artifacts_section
+
+    repo = Path(__file__).resolve().parents[3]
+    run_dir = repo / "lab/forge_runs/kitten_clicker"
+    if not (run_dir / "design/content_requirements.md").exists():
+        import pytest
+        pytest.skip("carte C.5 absente du run_dir")
+
+    for etape in ("s2.5-artbible", "s2.7-gm-worldscan"):
+        section = upstream_artifacts_section(etape, run_dir)
+        assert "FAIT APPARAÎTRE UN CHATON" in section, f"{etape} : boucle canonique tronquée"
+        assert "R5 — Les sept éléments" in section, f"{etape} : R5 tronquée"
+        assert "PARTIE III — GLOSSAIRES" in section, f"{etape} : glossaires tronqués"
+
+
+def test_c6_blueprint_injecte_et_entier():
+    """C.6 (Game Loop Blueprint) — GO Pierre 2026-08-25 « comme base de travail ».
+    Même régime que C.5 : injecté aux 4 étapes des deux piliers, et ENTIER (c'est un
+    contrat de design, pas une sortie d'agent). Sans cela, C.6 subirait le sort de
+    C.3 : prescrit, jamais livré."""
+    from pathlib import Path
+    from forge import context_manifest as cm
+    from forge.run_real import upstream_artifacts_section
+
+    piliers = ("s2.5-artbible", "s2.5-artbible-r2",
+               "s2.7-gm-worldscan", "s2.7-gm-worldscan-r2")
+    manquants = [e for e in piliers
+                 if "design/game_loop_blueprint.md" not in cm._UPSTREAM_BY_STEP[e]]
+    assert not manquants, f"C.6 non injecté à : {manquants}"
+
+    repo = Path(__file__).resolve().parents[3]
+    run_dir = repo / "lab/forge_runs/kitten_clicker"
+    if not (run_dir / "design/game_loop_blueprint.md").exists():
+        import pytest
+        pytest.skip("blueprint C.6 absent du run_dir")
+    section = upstream_artifacts_section("s2.7-gm-worldscan", run_dir)
+    assert "atelier de paniers" in section, "C.6 tronqué : le premier monde n'arrive pas"
+
+
+def test_c6_copie_injectee_ne_derive_pas_du_canon():
+    """Même garde que pour C.5 : la copie injectée ne doit pas dériver du canon."""
+    from pathlib import Path
+    import pytest
+
+    repo = Path(__file__).resolve().parents[3]
+    canon = repo / "studio_brain/gamedesign/kitten_clicker_game_loop_blueprint_c6.md"
+    copie = repo / "lab/forge_runs/kitten_clicker/design/game_loop_blueprint.md"
+    if not canon.exists() or not copie.exists():
+        pytest.skip("C.6 ou sa copie absent")
+    assert copie.read_text(encoding="utf-8") == canon.read_text(encoding="utf-8"), (
+        "design/game_loop_blueprint.md a DÉRIVÉ du canon — recopier")
