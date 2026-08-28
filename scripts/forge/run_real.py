@@ -925,6 +925,199 @@ def _claude_call_raw(prompt: str, model: str, *, add_dir: Path,
     }
 
 
+# --- R2-OBS · P1 : retry BORNÉ sur échec TRANSITOIRE de l'exécuteur ----------------
+# Défaut MESURÉ (runs kitten_clicker-20260824a / 24c / 25a) : `claude -p` rend
+# returncode=1 en ~2 s, sortie VIDE et stderr VIDE, et la campagne meurt à la
+# PREMIÈRE tentative (state.json du 25a : s0-contrat BLOCKED, attempts=1, reason
+# « exécuteur LLM en échec à s0-contrat: claude -p returncode=1: » — rien après
+# les deux-points).
+#
+# Ce qui rend CETTE signature rejouable, et elle seule : le processus est mort SANS
+# qu'aucun tour assistant ni même le message d'init du CLI n'ait été observé
+# (`process_state == PROCESS_EXIT_NONZERO`, cf. `classify_process_state`) ET sans
+# produire un octet — ni sortie modèle, ni diagnostic. Aucun artefact n'a donc pu
+# être écrit, aucune sortie coûteuse n'existe à préserver : rejouer est SANS effet
+# de bord produit. Dès que le worker a parlé (sortie) ou que l'environnement a parlé
+# (stderr), l'échec appartient à un dossier causal — pas à l'infra — et le
+# comportement HISTORIQUE (halt immédiat côté driver) reste strictement inchangé.
+#
+# LE RETRY EST UN RÉ-ESSAI D'INFRA, PAS UNE TENTATIVE DE MATÉRIALISATION : il vit
+# ICI, sous le MÊME `attempt` du driver (donc sous le même marqueur
+# `FORGE_DISPATCH:<etape>:<run_id>:<attempts>` et sans consommer un tour du budget
+# `materialize_attempts_max`). Le mélanger au compteur d'activation aurait fait
+# passer une panne d'environnement pour une nouvelle tentative du modèle — deux
+# grandeurs distinctes, jamais additionnées. Le reçu `transient_retries` (déposé
+# dans le retour, recopié par le driver dans `state.json`) est ce qui rend le
+# ré-essai LISIBLE au lieu d'invisible : une tentative silencieuse serait une
+# régression d'observabilité, pas une robustesse.
+TRANSIENT_EXECUTOR_RETRIES_MAX = 2
+
+# Le SEUL état de processus rejouable : ni tour assistant, ni session_id, returncode
+# non nul. `UNKNOWN` est délibérément EXCLU (returncode 0 sans ligne `result` : le
+# CLI a rendu quelque chose d'inexploitable, ce n'est pas une panne d'infra établie).
+_TRANSIENT_PROCESS_STATE = "PROCESS_EXIT_NONZERO"
+
+
+def _is_transient_executor_failure(res) -> bool:
+    """Vrai ssi `res` porte EXACTEMENT la signature transitoire décrite ci-dessus.
+    Fonction PURE, aucune I/O — un `res` non-dict n'est jamais transitoire."""
+    if not isinstance(res, dict) or res.get("ok") or res.get("timeout"):
+        return False
+    if res.get("process_state") != _TRANSIENT_PROCESS_STATE:
+        return False
+    if res.get("returncode") in (0, None):
+        return False
+    if str(res.get("output") or "").strip():
+        return False
+    return not str(res.get("stderr_tail") or "").strip()
+
+
+def _transient_receipt(res: dict, essai: int) -> dict:
+    """Reçu forensique d'UNE tentative transitoire ratée. `stderr_tail` vaut le
+    littéral "(vide)" et jamais "" : « mesuré vide » doit se lire, jamais se
+    confondre avec « champ absent »."""
+    return {
+        "try": essai,
+        "returncode": res.get("returncode"),
+        "process_state": res.get("process_state"),
+        "stderr_tail": str(res.get("stderr_tail") or "") or "(vide)",
+        "duration_s": float(res.get("duration_s", 0.0) or 0.0),
+    }
+
+
+# --- R2-OBS · P2 : persistance du PROMPT FINAL -------------------------------------
+# Défaut mesuré : le Context Manifest écrit `final_prompt_sha256` mais le TEXTE servi
+# à l'agent n'existe NULLE PART sur disque. Une empreinte sans son antécédent ne
+# permet ni de relire ce qui a été demandé, ni de rejouer un spawn.
+#
+# INVARIANT : le fichier et l'empreinte du manifeste viennent des MÊMES OCTETS. D'où
+# l'écriture BINAIRE (`prompt.encode("utf-8")`) et jamais `write_text` : sous Windows,
+# la traduction `\n` -> `\r\n` du mode texte suffirait à faire diverger
+# `sha256(fichier)` de `final_prompt_sha256` — deux vérités pour une même donnée.
+# `_write_prompt_bytes` est isolée pour rester une COUTURE testable (simulation d'un
+# disque plein) : le best-effort doit être PROUVÉ, pas déclaré.
+_PROMPT_DIR_NAME = "context"
+
+
+def _prompt_file_path(run_dir: Path, etape: str, attempt) -> Path:
+    """`<run_dir>/context/prompt_<etape>_a<attempt>.txt` — un fichier PAR tentative
+    (jamais d'écrasement : la tentative 1 reste lisible après la tentative 2)."""
+    try:
+        a = int(attempt)
+    except (TypeError, ValueError):
+        a = 0  # ZÉRO MESURÉ (« tentative non transmise »), jamais un écrasement muet
+    return Path(run_dir) / _PROMPT_DIR_NAME / f"prompt_{etape}_a{a}.txt"
+
+
+def _write_prompt_bytes(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+
+
+def _persist_final_prompt(run_dir, etape: str, attempt, prompt: str) -> str | None:
+    """Écrit le prompt final EXACT. Rend le chemin (repo-relatif impossible ici :
+    run_dir peut être hors dépôt) ou None si l'écriture a échoué — best-effort
+    ASSUMÉ mais JOURNALISÉ : un capteur ne casse jamais ce qu'il mesure, mais son
+    échec ne disparaît pas en silence non plus."""
+    path = _prompt_file_path(Path(run_dir), etape, attempt)
+    try:
+        _write_prompt_bytes(path, prompt.encode("utf-8"))
+        return str(path)
+    except Exception:  # noqa: BLE001 — best-effort strict
+        logger.warning(
+            "prompt final non persisté pour étape=%s tentative=%s (advisory, non "
+            "bloquant) — l'empreinte du manifeste restera sans antécédent",
+            etape, attempt, exc_info=True,
+        )
+        return None
+
+
+# --- R2-OBS · P4 (amont) : ce que l'EXÉCUTEUR seul connaît du spawn ---------------
+# Le joint `spawn_links.jsonl` est écrit par le driver (seul à connaître l'artefact
+# final et l'issue) ; les quatre premières des six questions n'existent QUE ici :
+# quel contrat (son sha, TEL QUE SIGNÉ par la porte — relu du manifeste, jamais
+# recalculé : un recalcul divergerait silencieusement le jour où la porte résoudrait
+# un alias autrement), quel prompt (le fichier de P2 et l'empreinte des MÊMES
+# octets), quels outils RÉELLEMENT passés à la CLI (`_effective_step_tools` /
+# `_derive_disallowed` — les valeurs de l'appel, pas le plafond du contrat), et quel
+# modèle a EXÉCUTÉ (mesuré au flux) face à celui DÉCLARÉ.
+# Aucune valeur devinée : une donnée absente reste `None`.
+
+def _contract_sha_from_manifest(run_dir: Path, etape: str) -> str | None:
+    """Sha du contrat porté par la DERNIÈRE ligne `kind: dispatch` du Context
+    Manifest de cette étape. None si le manifeste est absent/illisible — jamais
+    une exception, jamais un recalcul de substitution."""
+    path = Path(run_dir) / "context" / f"{etape}.manifest.jsonl"
+    sha = None
+    try:
+        for ligne in path.read_text(encoding="utf-8").splitlines():
+            ligne = ligne.strip()
+            if not ligne:
+                continue
+            try:
+                rec = json.loads(ligne)
+            except ValueError:
+                continue
+            if isinstance(rec, dict) and rec.get("kind") == "dispatch":
+                sha = rec.get("contract_sha256")
+    except OSError:
+        return None
+    return sha
+
+
+def _build_spawn_link_upstream(run_dir: Path, etape: str, prompt: str,
+                               prompt_file: str | None, *, model_declared: str,
+                               model_requested: str, res) -> dict:
+    tools = _effective_step_tools(etape)
+    mesure = res.get("model_used") if isinstance(res, dict) else None
+    return {
+        "contract_path": f"scripts/forge/contracts/{base_step(etape)}.yaml",
+        "contract_sha256": _contract_sha_from_manifest(run_dir, etape),
+        "prompt_file": prompt_file,
+        # MÊME chaîne que celle écrite par P2 et hachée par le manifeste.
+        "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+        "tools_effective": list(tools),
+        "tools_disallowed_count": len(_derive_disallowed(tools)),
+        "model_declared": model_declared,
+        "model_requested": model_requested,   # après escalade éventuelle
+        "model_used": mesure,                 # MESURÉ au flux, None si non capturé
+    }
+
+
+def _claude_call_with_transient_retry(prompt: str, model: str, *, add_dir: Path,
+                                      tools: tuple[str, ...] = (),
+                                      timeout_s: float = DEFAULT_STEP_TIMEOUT_S,
+                                      etape: str = ""):
+    """`_claude_call_raw` + retry borné sur la seule signature transitoire.
+
+    Retourne le dict du DERNIER appel, enrichi de `transient_retries` (liste des
+    reçus de chaque tentative transitoire ratée) UNIQUEMENT si au moins une a eu
+    lieu — une étape sans retry ne gagne aucune clé. Chaque tentative est
+    journalisée dans `<run_dir>/run.log` (handler attaché par le driver) : le
+    ré-essai doit être lisible par l'opérateur, pas seulement par le reçu.
+    """
+    retries: list[dict] = []
+    res = None
+    for essai in range(1, TRANSIENT_EXECUTOR_RETRIES_MAX + 2):
+        res = _claude_call_raw(prompt, model, add_dir=add_dir, tools=tools,
+                               timeout_s=timeout_s)
+        if not _is_transient_executor_failure(res):
+            break
+        retries.append(_transient_receipt(res, essai))
+        logger.warning(
+            "échec TRANSITOIRE de l'exécuteur à %s (tentative infra %d/%d) — "
+            "returncode=%s process_state=%s stderr_tail=(vide) sortie=(vide) : "
+            "re-appel sous le MÊME attempt (ré-essai d'infra, pas de "
+            "matérialisation)",
+            etape or "?", essai, TRANSIENT_EXECUTOR_RETRIES_MAX + 1,
+            res.get("returncode"), res.get("process_state"),
+        )
+    if retries and isinstance(res, dict):
+        res = dict(res)
+        res["transient_retries"] = retries
+    return res
+
+
 # --- validation de schéma AVANT écriture (F2a red-team) ---------------------------
 # Reproduit : un blueprint {"note": ...} rendait check_architecture trivialement
 # VERT (modules=set() vide) ; un deps_interdites ["ui->engine"] (str au lieu de
@@ -2823,6 +3016,12 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
                 etape, exc_info=True,
             )
 
+        # R2-OBS P2 : le TEXTE du prompt final, à côté de son empreinte — MÊME
+        # variable `prompt` que celle hachée juste au-dessus (jamais une seconde
+        # construction, jamais un recalcul divergent).
+        prompt_file = _persist_final_prompt(
+            Path(context["run_dir"]), etape, context.get("attempt"), prompt)
+
         # (c) escalade honorée : le driver écrit model_override dans le context à
         # chaque escalade (forge.driver._maybe_escalate) — l'ignorer rendrait
         # l'escalade no-op (même modèle rejoué à chaque tier).
@@ -2838,10 +3037,29 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
                 "pour du correctif, pas pour un greenfield",
                 timeout_s, step_timeout, profile, etape,
             )
-        res = _claude_call_raw(
+        # R2-OBS P1 : `_claude_call_raw` + retry BORNÉ sur la seule signature
+        # transitoire (processus mort, 0 octet de sortie, 0 octet de stderr) —
+        # ré-essai d'INFRA sous le même `attempt`, cf. le bloc au-dessus de
+        # `_claude_call_with_transient_retry`.
+        res = _claude_call_with_transient_retry(
             prompt, model, add_dir=add_dir,
             tools=_effective_step_tools(etape), timeout_s=timeout_s,
+            etape=etape,
         )
+        # R2-OBS P4 (amont) : les 4 questions que SEUL l'exécuteur peut répondre,
+        # déposées dès que la dernière (le modèle MESURÉ) existe. Le driver y nouera
+        # la sortie, le verdict et l'issue, puis écrira la ligne. Capteur advisory :
+        # jamais une exception d'ici ne fait échouer un run.
+        try:
+            if isinstance(res, dict):
+                res["spawn_link"] = _build_spawn_link_upstream(
+                    Path(context["run_dir"]), etape, prompt, prompt_file,
+                    model_declared=payload.model, model_requested=model, res=res,
+                )
+        except Exception:
+            logger.warning(
+                "spawn_link (amont) non déposé pour étape=%s (advisory, non "
+                "bloquant)", etape, exc_info=True)
         # G1-G2 (ratifié) : task_id unifié `run_id:etape:activation` — calculé ICI,
         # le seul point d'appel où les 3 valeurs existent ensemble (context["attempt"]
         # = compteur d'activation du driver, cf. driver.py l.627 : le MÊME entier que
@@ -2892,6 +3110,10 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
                 # impossible). `setdefault` : ne jamais écraser une clé déjà posée
                 # par `_materialize_artifact`.
                 failure.setdefault("output", str(res.get("output", "")))
+                # R2-OBS P4 : le joint doit survivre à un refus de matérialisation —
+                # un spawn refusé reste un spawn à tracer.
+                if res.get("spawn_link") is not None:
+                    failure.setdefault("spawn_link", res["spawn_link"])
                 for champ in ("tokens", "duration_s", "cost_usd",
                               "cache_creation_tokens", "cache_read_tokens"):
                     if champ in res:
@@ -2933,6 +3155,8 @@ def claude_executor(add_dir: Path, task_by_step: dict[str, str], *,
             if dq_receipt is not None:
                 if dq_receipt.get("ok") is False:
                     dq_receipt.setdefault("output", str(res.get("output", "")))
+                    if res.get("spawn_link") is not None:   # R2-OBS P4, cf. ci-dessus
+                        dq_receipt.setdefault("spawn_link", res["spawn_link"])
                     for champ in ("tokens", "duration_s", "cost_usd",
                                   "cache_creation_tokens", "cache_read_tokens"):
                         if champ in res:

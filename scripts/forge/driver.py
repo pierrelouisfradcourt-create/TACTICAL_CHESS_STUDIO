@@ -149,6 +149,11 @@ _STANDARD_DIR = _REPO_ROOT / "scripts" / "forge" / "standard"
 # a été interrompue : elle est rejouée, attempts conservé — jamais silencieux).
 TERMINAL_STATUSES = frozenset({"OK", "FAIL", "BLOCKED", "SKIPPED"})
 
+# R2-OBS P4 : schéma du joint `<run_dir>/context/spawn_links.jsonl` (une ligne par
+# spawn). Versionné dès la v1 : un lecteur doit pouvoir refuser une forme qu'il ne
+# connaît pas plutôt que de l'interpréter au jugé.
+SPAWN_LINK_SCHEMA = "forge.spawn_link.v1"
+
 # Étapes situées APRÈS le bloc d'oracles : la décision d'escalade est évaluée
 # quand la boucle atteint la première d'entre elles (tous les oracles du profil
 # sont alors terminaux — même point de décision que skill.md, mais en code).
@@ -1825,8 +1830,15 @@ class ForgeDriver:
                                 if isinstance(res, dict) else None
                             ),
                         }
+                        # R2-OBS P4 : ce spawn A EU LIEU et a coûté — sa ligne est
+                        # écrite AVANT le re-spawn, sinon une tentative rejouée
+                        # disparaîtrait du joint (statut RETRY, jamais OK).
+                        self._append_spawn_link_best_effort(
+                            etape, entry["attempts"], res, "RETRY")
                         continue  # même étape, même payload/contexte — nouvelle tentative
 
+                    self._append_spawn_link_best_effort(
+                        etape, entry["attempts"], res, "HALTED")
                     halt_reason = (
                         f"exécuteur LLM en échec à {etape} après "
                         f"{entry['attempts']} tentatives: {why}"
@@ -1870,6 +1882,12 @@ class ForgeDriver:
         artifact.parent.mkdir(parents=True, exist_ok=True)
         artifact.write_text(output, encoding="utf-8")
 
+        # R2-OBS P4 : le joint est écrit ICI et pas avant — c'est le premier instant
+        # où la sortie EXISTE et où son sha est mesurable (une ligne écrite plus tôt
+        # aurait attesté une sortie encore inexistante : preuve d'intention).
+        self._append_spawn_link_best_effort(
+            etape, entry["attempts"], res, "OK", artifact)
+
         entry["status"] = "OK"
         entry["ts"] = time.time()
         entry["detail"] = {
@@ -1896,6 +1914,15 @@ class ForgeDriver:
         # clé nouvelle, même patron que markdown_check/yaml_check plus bas).
         if materialize_retries:
             entry["detail"]["materialize_retries"] = materialize_retries
+        # R2-OBS P1 (2026-08-28) : reçu des ré-essais d'INFRA de l'exécuteur
+        # (`run_real._claude_call_with_transient_retry` -> res["transient_retries"]).
+        # Même patron additif que `materialize_retries` juste au-dessus — une étape
+        # qui n'a subi aucun échec transitoire ne gagne AUCUNE clé. Grandeur
+        # DISTINCTE de `attempts` : un ré-essai d'infra ne consomme jamais un tour
+        # du budget de matérialisation, il doit donc rester lisible séparément.
+        transient_retries = res.get("transient_retries") if isinstance(res, dict) else None
+        if transient_retries:
+            entry["detail"]["transient_retries"] = transient_retries
         # M3'a (GO Pierre 2026-08-14) : le reçu du matérialiseur TEXTE
         # (`run_real._materialize_markdown` -> res["markdown_check"]) atteint enfin
         # `state.json`. `entry["detail"]` est un littéral de clés FIXES : il ne
@@ -2348,10 +2375,115 @@ class ForgeDriver:
             encoding="utf-8",
         )
 
+    # --- R2-OBS P4 : le JOINT spawn -> contrat/prompt/outils/runtime/sortie/verdict ---
+    # `<run_dir>/context/spawn_links.jsonl`, UNE ligne par spawn. Ce n'est ni un
+    # nouveau manifeste ni un composeur de prompt : chaque valeur reste produite là
+    # où elle existe déjà (`run_real` dépose `res["spawn_link"]` — contrat, prompt,
+    # outils réels, modèle mesuré ; le driver y noue l'artefact, le verdict et
+    # l'issue). Répondre aux 6 questions d'un spawn exigeait jusqu'ici 4 fichiers.
+    #
+    # INVARIANT RATIFIÉ PIERRE 2026-08-28 — « une preuve doit provenir du mécanisme
+    # qui a réalisé l'action, sinon elle est explicitement AUTO_ATTESTED » : sur ce
+    # chemin (B, headless), le driver EST sa propre autorité — aucun hook, aucun
+    # tiers n'observe le spawn (cf. `_record_spawn_executed`). La ligne le DIT
+    # (`attestation: "self"`) plutôt que de se donner l'allure d'une observation
+    # externe. Aucune valeur n'est devinée : une donnée absente reste `null`.
+    SPAWN_LINK_ATTESTATION_NOTE = (
+        "auto-attesté (chemin B headless) : cette ligne est écrite par le driver "
+        "qui exécute le spawn, aucun observateur tiers ne l'a constatée"
+    )
+    _SPAWN_LINK_UPSTREAM_KEYS = (
+        "contract_path", "contract_sha256", "prompt_file", "prompt_sha256",
+        "tools_effective", "tools_disallowed_count",
+        "model_declared", "model_requested", "model_used",
+    )
+
+    def _append_spawn_link(self, etape: str, attempt: int, res, status: str,
+                           artifact: Path | None = None) -> None:
+        amont = res.get("spawn_link") if isinstance(res, dict) else None
+        amont = amont if isinstance(amont, dict) else {}
+        verdict = self.run_dir / "verdict.json"
+        ligne = {
+            "schema": SPAWN_LINK_SCHEMA,
+            "run_id": self.run_id,
+            "etape": etape,
+            "attempt": attempt,
+            "ts": time.time(),
+            "status": status,
+            # Q5 — la sortie RÉELLEMENT écrite (jamais l'annonce de son écriture).
+            "artifact_path": str(artifact) if artifact is not None else None,
+            "artifact_sha256": sha256_file(artifact) if artifact is not None else None,
+            # Q6 — référence, jamais copie : le verdict signé reste sa propre autorité.
+            "verdict_ref": str(verdict) if verdict.exists() else None,
+            "attestation": "self",
+            "attestation_note": self.SPAWN_LINK_ATTESTATION_NOTE,
+            "claim_verdict": CLAIM_VERDICT,
+        }
+        for cle in self._SPAWN_LINK_UPSTREAM_KEYS:
+            ligne[cle] = amont.get(cle)
+        path = self.run_dir / "context" / "spawn_links.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(ligne, ensure_ascii=False, sort_keys=True) + "\n")
+
+    def _append_spawn_link_best_effort(self, etape: str, attempt: int, res,
+                                       status: str, artifact: Path | None = None) -> None:
+        """Même garde que le Context Manifest et la télémétrie : un joint non écrit
+        n'a JAMAIS le droit de casser un run qui, lui, a bien eu lieu."""
+        try:
+            self._append_spawn_link(etape, attempt, res, status, artifact)
+        except Exception:  # noqa: BLE001 — best-effort strict
+            logger.warning("spawn_link non écrit pour %s (tentative %s, non bloquant)",
+                           etape, attempt, exc_info=True)
+
+    @staticmethod
+    def _executor_diagnostic(res: dict | None) -> dict:
+        """R2-OBS P3 — diagnostic de PROCESSUS d'un échec d'exécuteur.
+
+        Trois vocabulaires DISTINCTS, jamais confondus :
+          * `measured: False` — aucun exécuteur n'a tourné (contrat non activable,
+            exécuteur absent) : il n'y a rien à mesurer, et on le DIT.
+          * `"(vide)"`        — champ MESURÉ et vide (le stderr du run 25a).
+          * `"(non mesuré)"`  — l'exécuteur a tourné mais n'a pas rendu ce champ
+            (exécuteur injecté de test, chemin Qwen) : une lacune de capture.
+        `stderr_tail` n'est PAS retronqué ici : la borne 2000 caractères de
+        `run_real._claude_call_raw` est la seule, en re-couper serait perdre de la
+        preuve à l'étage qui la persiste.
+        """
+        if not isinstance(res, dict):
+            return {"measured": False,
+                    "note": "aucun exécuteur n'a été appelé pour cette étape"}
+        stderr = res.get("stderr_tail")
+        retries = list(res.get("transient_retries") or [])
+        diag = {
+            "measured": True,
+            "returncode": res.get("returncode"),
+            "process_state": res.get("process_state") or "(non mesuré)",
+            "stderr_tail": ("(non mesuré)" if stderr is None
+                            else (str(stderr) or "(vide)")),
+            "duration_s": float(res.get("duration_s", 0.0) or 0.0),
+            "timeout": bool(res.get("timeout", False)),
+            # Grandeur DISTINCTE de `attempts` (ré-essais d'INFRA, cf. R2-OBS P1) :
+            # 0 est un ZÉRO MESURÉ, jamais une case vide.
+            "transient_retries_count": len(retries),
+        }
+        if retries:
+            diag["transient_retries"] = retries
+        return diag
+
     def _halt_step(self, state: dict, entry: dict, reason: str,
                    etape: str | None = None, payload=None, res: dict | None = None) -> bool:
         entry["status"] = "BLOCKED"
-        entry["detail"] = {"reason": reason}
+        # R2-OBS P3 (2026-08-28) : le `reason` reste EXACTEMENT ce qu'il était (des
+        # lecteurs et des tests s'y adossent au caractère près) ; le diagnostic
+        # STRUCTURÉ vient à côté, jamais à la place. Défaut mesuré au run
+        # kitten_clicker-20260825a : `detail` ne portait que « ... returncode=1: »,
+        # returncode noyé dans une phrase, `process_state` (pourtant DÉJÀ calculé par
+        # run_real.classify_process_state) et durée nulle part, et un stderr vide
+        # indiscernable d'un stderr absent. TOUJOURS présent sur un halt — un lecteur
+        # ne doit jamais avoir à deviner si le champ manque ou si la mesure manque.
+        entry["detail"] = {"reason": reason,
+                           "executor_diagnostic": self._executor_diagnostic(res)}
         entry["ts"] = time.time()
         state["run_status"] = "HALTED"
         state["reason"] = reason
